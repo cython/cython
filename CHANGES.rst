@@ -9,6 +9,8 @@ Latest
 Features added
 --------------
 
+* The Python expression "2 ** N" was optimised.
+
 * Simple support for declaring Python object types in Python signature
   annotations.  Currently requires setting the compiler directive
   ``annotation_typing=True``.

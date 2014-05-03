@@ -8111,7 +8111,7 @@ class UnopNode(ExprNode):
             self.generate_py_operation_code(code)
 
     def generate_py_operation_code(self, code):
-        function = self.py_operation_function()
+        function = self.py_operation_function(code)
         code.putln(
             "%s = %s(%s); %s" % (
                 self.result(),
@@ -8187,7 +8187,7 @@ class UnaryPlusNode(UnopNode):
         self.type = PyrexTypes.widest_numeric_type(
             self.operand.type, PyrexTypes.c_int_type)
 
-    def py_operation_function(self):
+    def py_operation_function(self, code):
         return "PyNumber_Positive"
 
     def calculate_result_code(self):
@@ -8213,7 +8213,7 @@ class UnaryMinusNode(UnopNode):
         if self.type.is_complex:
             self.infix = False
 
-    def py_operation_function(self):
+    def py_operation_function(self, code):
         return "PyNumber_Negative"
 
     def calculate_result_code(self):
@@ -8239,7 +8239,7 @@ class TildeNode(UnopNode):
         else:
             self.type_error()
 
-    def py_operation_function(self):
+    def py_operation_function(self, code):
         return "PyNumber_Invert"
 
     def calculate_result_code(self):
@@ -8874,6 +8874,7 @@ def get_compile_time_binop(node):
                 % node.operator)
     return func
 
+
 class BinopNode(ExprNode):
     #  operator     string
     #  operand1     ExprNode
@@ -8990,7 +8991,7 @@ class BinopNode(ExprNode):
     def generate_result_code(self, code):
         #print "BinopNode.generate_result_code:", self.operand1, self.operand2 ###
         if self.operand1.type.is_pyobject:
-            function = self.py_operation_function()
+            function = self.py_operation_function(code)
             if self.operator == '**':
                 extra_args = ", Py_None"
             else:
@@ -9024,7 +9025,7 @@ class CBinopNode(BinopNode):
             node.type = PyrexTypes.error_type
         return node
 
-    def py_operation_function(self):
+    def py_operation_function(self, code):
         return ""
 
     def calculate_result_code(self):
@@ -9162,7 +9163,7 @@ class NumBinopNode(BinopNode):
                 type2.is_unicode_char or
                 BinopNode.is_py_operation_types(self, type1, type2))
 
-    def py_operation_function(self):
+    def py_operation_function(self, code):
         function_name = self.py_functions[self.operator]
         if self.inplace:
             function_name = function_name.replace('PyNumber_', 'PyNumber_InPlace')
@@ -9228,7 +9229,7 @@ class AddNode(NumBinopNode):
             return NumBinopNode.compute_c_result_type(
                 self, type1, type2)
 
-    def py_operation_function(self):
+    def py_operation_function(self, code):
         type1, type2 = self.operand1.type, self.operand2.type
         if type1 is unicode_type or type2 is unicode_type:
             if type1.is_builtin_type and type2.is_builtin_type:
@@ -9236,7 +9237,7 @@ class AddNode(NumBinopNode):
                     return '__Pyx_PyUnicode_ConcatSafe'
                 else:
                     return '__Pyx_PyUnicode_Concat'
-        return super(AddNode, self).py_operation_function()
+        return super(AddNode, self).py_operation_function(code)
 
 
 class SubNode(NumBinopNode):
@@ -9499,7 +9500,7 @@ class ModNode(DivNode):
                     self.operand1.result(),
                     self.operand2.result())
 
-    def py_operation_function(self):
+    def py_operation_function(self, code):
         if self.operand1.type is unicode_type:
             if self.operand1.may_be_none():
                 return '__Pyx_PyUnicode_FormatSafe'
@@ -9510,7 +9511,7 @@ class ModNode(DivNode):
                 return '__Pyx_PyString_FormatSafe'
             else:
                 return '__Pyx_PyString_Format'
-        return super(ModNode, self).py_operation_function()
+        return super(ModNode, self).py_operation_function(code)
 
 
 class PowNode(NumBinopNode):
@@ -9550,6 +9551,17 @@ class PowNode(NumBinopNode):
             self.pow_func,
             typecast(self.operand1),
             typecast(self.operand2))
+
+    def py_operation_function(self, code):
+        if (self.type.is_pyobject and
+                self.operand1.constant_result == 2 and
+                self.operand2.type is py_object_type):
+            code.globalstate.use_utility_code(UtilityCode.load_cached('PyNumberPow2', 'Optimize.c'))
+            if self.inplace:
+                return '__Pyx_PyNumber_InPlacePowerOf2'
+            else:
+                return '__Pyx_PyNumber_PowerOf2'
+        return super(PowNode, self).py_operation_function(code)
 
 
 # Note: This class is temporarily "shut down" into an ineffective temp

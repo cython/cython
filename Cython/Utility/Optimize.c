@@ -421,3 +421,44 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj) {
 bad:
     return (double)-1;
 }
+
+
+/////////////// PyNumberPow2.proto ///////////////
+
+#define __Pyx_PyNumber_InPlacePowerOf2(a, b, c) __Pyx__PyNumber_PowerOf2(a, b, c, 1)
+#define __Pyx_PyNumber_PowerOf2(a, b, c) __Pyx__PyNumber_PowerOf2(a, b, c, 0)
+
+static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject *none, int inplace); /*proto*/
+
+/////////////// PyNumberPow2 ///////////////
+
+static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject *none, int inplace) {
+// in CPython, 1<<N is substantially faster than 2**N
+// TODO: disable this in Py3.5 if http://bugs.python.org/issue21420 gets accepted
+#if CYTHON_COMPILING_IN_CPYTHON
+    Py_ssize_t shiftby;
+    if (likely(PyLong_Check(exp))) {
+        shiftby = PyLong_AsSsize_t(exp);
+#if PY_MAJOR_VERSION < 3
+    } else if (likely(PyInt_Check(exp))) {
+        shiftby = PyInt_AsLong(exp);
+#endif
+    } else {
+        goto fallback;
+    }
+    if (likely(shiftby >= 0)) {
+        if ((size_t)shiftby <= sizeof(long) * 8 - 2) {
+            long value = 1L << shiftby;
+            return PyInt_FromLong(value);
+        } else {
+            PyObject *one = PyInt_FromLong(1L);
+            if (unlikely(!one)) return NULL;
+            return PyNumber_Lshift(one, exp);
+        }
+    } else if (shiftby == -1 && PyErr_Occurred()) {
+        PyErr_Clear();
+    }
+fallback:
+#endif
+    return (inplace ? PyNumber_InPlacePower : PyNumber_Power)(two, exp, none);
+}

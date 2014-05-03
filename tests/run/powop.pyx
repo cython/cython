@@ -10,6 +10,7 @@ def f(obj2, obj3):
     obj1 = obj2 ** obj3
     return flt1, obj1
 
+
 def g(i):
     """
     >>> g(4)
@@ -17,12 +18,14 @@ def g(i):
     """
     return i ** 5
 
+
 def h(i):
     """
     >>> h(4)
     625
     """
     return 5 ** i
+
 
 def constant_py():
     """
@@ -32,6 +35,7 @@ def constant_py():
     result = (<object>2) ** 10
     return result
 
+
 def constant_long():
     """
     >>> constant_long() == 2 ** 36
@@ -39,6 +43,7 @@ def constant_long():
     """
     result = (<object>2L) ** 36
     return result
+
 
 def small_int_pow(long s):
     """
@@ -48,6 +53,7 @@ def small_int_pow(long s):
     (1, -5, 25, -125, 625)
     """
     return s**0, s**1, s**2, s**3, s**4
+
 
 def int_pow(short a, short b):
     """
@@ -59,3 +65,30 @@ def int_pow(short a, short b):
     1024
     """
     return a**b
+
+
+def optimised_pow2(n):
+    """
+    >>> optimised_pow2(0)
+    1
+    >>> optimised_pow2(1)
+    2
+    >>> optimised_pow2(10)
+    1024
+    >>> optimised_pow2(30)
+    1073741824
+    >>> print(repr(optimised_pow2(32)).rstrip('L'))
+    4294967296
+    >>> print(repr(optimised_pow2(100)).rstrip('L'))
+    1267650600228229401496703205376
+    >>> optimised_pow2(30000) == 2 ** 30000
+    True
+    >>> optimised_pow2(-1)
+    0.5
+    >>> optimised_pow2(0.5) == 2 ** 0.5
+    True
+    >>> optimised_pow2('test')
+    Traceback (most recent call last):
+    TypeError: unsupported operand type(s) for ** or pow(): 'int' and 'str'
+    """
+    return 2 ** n
