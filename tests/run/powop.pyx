@@ -95,3 +95,32 @@ def optimised_pow2(n):
         assert isinstance(2.0 ** n, float), 'float %s' % n
         assert isinstance(2 ** n, (int, long)), 'int %s' % n
     return 2 ** n
+
+
+def optimised_pow2_inplace(n):
+    """
+    >>> optimised_pow2_inplace(0)
+    1
+    >>> optimised_pow2_inplace(1)
+    2
+    >>> optimised_pow2_inplace(10)
+    1024
+    >>> optimised_pow2_inplace(30)
+    1073741824
+    >>> print(repr(optimised_pow2_inplace(32)).rstrip('L'))
+    4294967296
+    >>> print(repr(optimised_pow2_inplace(100)).rstrip('L'))
+    1267650600228229401496703205376
+    >>> optimised_pow2_inplace(30000) == 2 ** 30000
+    True
+    >>> optimised_pow2_inplace(-1)
+    0.5
+    >>> optimised_pow2_inplace(0.5) == 2 ** 0.5
+    True
+    >>> optimised_pow2_inplace('test')
+    Traceback (most recent call last):
+    TypeError: unsupported operand type(s) for ** or pow(): 'int' and 'str'
+    """
+    x = 2
+    x **= n
+    return x
