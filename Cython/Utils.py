@@ -395,5 +395,5 @@ def print_bytes(s, stream=sys.stdout):
     except AttributeError:
         out = stream         # Py2
     out.write(s)
-    out.write('\n')
+    out.write(b'\n')
     out.flush()
