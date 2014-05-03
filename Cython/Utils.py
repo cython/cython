@@ -388,12 +388,14 @@ def captured_fd(stream=2, encoding=None):
         os.close(orig_stream)
 
 
-def print_bytes(s, stream=sys.stdout):
-    stream.flush()
+def print_bytes(s, end=b'\n', file=sys.stdout, flush=True):
+    file.flush()
     try:
-        out = stream.buffer  # Py3
+        out = file.buffer  # Py3
     except AttributeError:
-        out = stream         # Py2
+        out = file         # Py2
     out.write(s)
-    out.write(b'\n')
-    out.flush()
+    if end:
+        out.write(end)
+    if flush:
+        out.flush()

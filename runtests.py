@@ -865,24 +865,34 @@ class CythonCompileTestCase(unittest.TestCase):
         so_path = None
         if not self.cython_only:
             from Cython.Utils import captured_fd, print_bytes
-            get_stderr = None
+            show_output = True
+            get_stderr = get_stdout = None
             try:
-                with captured_fd(2) as get_stderr:
-                    so_path = self.run_distutils(test_directory, module, workdir, incdir)
+                with captured_fd(1) as get_stdout:
+                    with captured_fd(2) as get_stderr:
+                        so_path = self.run_distutils(test_directory, module, workdir, incdir)
             except Exception:
                 if 'cerror' in self.tags['tag'] and get_stderr and get_stderr():
-                    pass
+                    show_output = False  # expected C compiler failure
                 else:
                     raise
             else:
-                c_compiler_stderr = get_stderr().strip()
-                if c_compiler_stderr:
-                    print("\n=== C/C++ compiler error output: ===")
-                    print_bytes(c_compiler_stderr)
                 if 'cerror' in self.tags['tag']:
-                    # must raise this outside the try block
                     raise RuntimeError('should have failed C compile')
+            finally:
+                if show_output:
+                    stdout = get_stdout and get_stdout().strip()
+                    if stdout:
+                        print("\n=== C/C++ compiler output: ===")
+                        print_bytes(stdout, end=None)
+                    stderr = get_stderr and get_stderr().strip()
+                    if stderr:
+                        print("\n=== C/C++ compiler error output: ===")
+                        print_bytes(stderr, end=None)
+                    if stdout or stderr:
+                        print("\n==============================")
         return so_path
+
 
 class CythonRunTestCase(CythonCompileTestCase):
     def setUp(self):
