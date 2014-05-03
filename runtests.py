@@ -836,12 +836,13 @@ class CythonCompileTestCase(unittest.TestCase):
             finally:
                 sys.stderr = old_stderr
 
+        tostderr = sys.stderr.write
         if 'cerror' in self.tags['tag']:
             if errors:
-                print("\n=== Expected C compile error ===")
-                print("\n\n=== Got Cython errors: ===")
-                print('\n'.join(errors))
-                print('\n')
+                tostderr("\n=== Expected C compile error ===\n")
+                tostderr("\n=== Got Cython errors: ===\n")
+                tostderr('\n'.join(errors))
+                tostderr('\n\n')
                 raise RuntimeError('should have generated extension code')
         elif errors or expected_errors:
             try:
@@ -854,11 +855,11 @@ class CythonCompileTestCase(unittest.TestCase):
                     unexpected_error = errors[len(expected_errors)]
                     self.assertEquals(None, unexpected_error)
             except AssertionError:
-                print("\n=== Expected errors: ===")
-                print('\n'.join(expected_errors))
-                print("\n\n=== Got errors: ===")
-                print('\n'.join(errors))
-                print('\n')
+                tostderr("\n=== Expected errors: ===\n")
+                tostderr('\n'.join(expected_errors))
+                tostderr("\n\n=== Got errors: ===\n")
+                tostderr('\n'.join(errors))
+                tostderr('\n\n')
                 raise
             return None
 
@@ -883,14 +884,14 @@ class CythonCompileTestCase(unittest.TestCase):
                 if show_output:
                     stdout = get_stdout and get_stdout().strip()
                     if stdout:
-                        print("\n=== C/C++ compiler output: ===")
-                        print_bytes(stdout, end=None)
+                        tostderr("\n=== C/C++ compiler output: ===\n")
+                        print_bytes(stdout, end=None, file=sys.stderr)
                     stderr = get_stderr and get_stderr().strip()
                     if stderr:
-                        print("\n=== C/C++ compiler error output: ===")
-                        print_bytes(stderr, end=None)
+                        tostderr("\n=== C/C++ compiler error output: ===\n")
+                        print_bytes(stderr, end=None, file=sys.stderr)
                     if stdout or stderr:
-                        print("\n==============================")
+                        tostderr("\n==============================\n")
         return so_path
 
 
