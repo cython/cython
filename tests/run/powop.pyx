@@ -91,4 +91,7 @@ def optimised_pow2(n):
     Traceback (most recent call last):
     TypeError: unsupported operand type(s) for ** or pow(): 'int' and 'str'
     """
+    if isinstance(n, (int, long)) and 0 <= n < 1000:
+        assert isinstance(2.0 ** n, float), 'float %s' % n
+        assert isinstance(2 ** n, (int, long)), 'int %s' % n
     return 2 ** n
