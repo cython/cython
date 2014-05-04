@@ -163,12 +163,12 @@ cdef extern from "Python.h":
     # function. This steals a reference to value. Return -1 on error,
     # 0 on success.
 
-    int PyModule_AddIntant(object module,  char *name, long value) except -1
-    # Add an integer ant to module as name. This convenience
+    int PyModule_AddIntConstant(object module,  char *name, long value) except -1
+    # Add an integer constant to module as name. This convenience
     # function can be used from the module's initialization
     # function. Return -1 on error, 0 on success.
 
-    int PyModule_AddStringant(object module,  char *name,  char *value) except -1
+    int PyModule_AddStringConstant(object module,  char *name,  char *value) except -1
     # Add a string constant to module as name. This convenience
     # function can be used from the module's initialization
     # function. The string value must be null-terminated. Return -1 on
