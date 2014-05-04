@@ -43,7 +43,7 @@ static CYTHON_INLINE size_t __Pyx_Py_UNICODE_strlen(const Py_UNICODE *u)
 {
     const Py_UNICODE *u_end = u;
     while (*u_end++) ;
-    return u_end - u - 1;
+    return (size_t)(u_end - u - 1);
 }
 #else
 #define __Pyx_Py_UNICODE_strlen Py_UNICODE_strlen
@@ -151,7 +151,7 @@ bad:
 /* Type Conversion Functions */
 
 static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(const char* c_str) {
-    return __Pyx_PyUnicode_FromStringAndSize(c_str, strlen(c_str));
+    return __Pyx_PyUnicode_FromStringAndSize(c_str, (Py_ssize_t)strlen(c_str));
 }
 
 static CYTHON_INLINE char* __Pyx_PyObject_AsString(PyObject* o) {
