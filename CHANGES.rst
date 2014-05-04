@@ -9,6 +9,9 @@ Latest
 Features added
 --------------
 
+* HTML output of annotated code uses Pygments for code highlighting
+  and generally received a major overhaul by Matthias Bussonier.
+
 * The Python expression "2 ** N" was optimised.
 
 * Simple support for declaring Python object types in Python signature
@@ -20,6 +23,9 @@ Features added
 
 Bugs fixed
 ----------
+
+* ``__init__.pyc`` is recognised as marking a package directory
+  (in addition to .py, .pyx and .pxd).
 
 * Syntax highlighting in ``cython-mode.el`` for Emacs no longer
   incorrectly highlights keywords found as part of longer names.
