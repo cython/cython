@@ -5,7 +5,7 @@ cdef extern from "Python.h":
     ############################################################################
     # Lists
     ############################################################################
-    object PyList_New(Py_ssize_t len)
+    list PyList_New(Py_ssize_t len)
     # Return a new list of length len on success, or NULL on failure.
     #
     # Note: If length is greater than zero, the returned list object's
@@ -64,7 +64,7 @@ cdef extern from "Python.h":
     # successful; return -1 and set an exception if
     # unsuccessful. Analogous to list.append(item).
 
-    object PyList_GetSlice(object list, Py_ssize_t low, Py_ssize_t high)
+    list PyList_GetSlice(object list, Py_ssize_t low, Py_ssize_t high)
     # Return value: New reference.
     # Return a list of the objects in list containing the objects
     # between low and high. Return NULL and set an exception if
@@ -84,7 +84,7 @@ cdef extern from "Python.h":
     # Reverse the items of list in place. Return 0 on success, -1 on
     # failure. This is the equivalent of "list.reverse()".
 
-    object PyList_AsTuple(object list)
+    tuple PyList_AsTuple(object list)
     # Return value: New reference.
     # Return a new tuple object containing the contents of list;
     # equivalent to "tuple(list)".
