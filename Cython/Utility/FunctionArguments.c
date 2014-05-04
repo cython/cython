@@ -127,7 +127,7 @@ static CYTHON_INLINE int __Pyx_CheckKeywordStrings(
 {
     PyObject* key = 0;
     Py_ssize_t pos = 0;
-#if CPYTHON_COMPILING_IN_PYPY
+#if CYTHON_COMPILING_IN_PYPY
     /* PyPy appears to check keywords at call time, not at unpacking time => not much to do here */
     if (!kw_allowed && PyDict_Next(kwdict, &pos, &key, 0))
         goto invalid_keyword;
