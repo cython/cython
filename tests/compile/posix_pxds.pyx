@@ -18,3 +18,7 @@ from posix.types cimport *
 cimport posix.stat
 from posix cimport stat
 from posix.stat cimport *
+
+cimport posix.stdlib
+from posix cimport stdlib
+from posix.stdlib cimport *
