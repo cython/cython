@@ -140,7 +140,7 @@ static PyObject* __Pyx_PyList_PopIndex(PyObject* L, Py_ssize_t ix) {
             PyObject* v = PyList_GET_ITEM(L, cix);
             Py_SIZE(L) -= 1;
             size -= 1;
-            memmove(&PyList_GET_ITEM(L, cix), &PyList_GET_ITEM(L, cix+1), (size-cix)*sizeof(PyObject*));
+            memmove(&PyList_GET_ITEM(L, cix), &PyList_GET_ITEM(L, cix+1), (size_t)(size-cix)*sizeof(PyObject*));
             return v;
         }
     }

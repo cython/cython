@@ -190,7 +190,7 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
         } else if (length == 1) {
             goto return_eq;
         } else {
-            int result = memcmp(data1, data2, length * kind);
+            int result = memcmp(data1, data2, (size_t)(length * kind));
             #if PY_MAJOR_VERSION < 3
             Py_XDECREF(owned_ref);
             #endif
@@ -605,7 +605,7 @@ static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg, Py_ssize
     }
 
     if (start + sub_len <= end)
-        retval = !memcmp(self_ptr+start, sub_ptr, sub_len);
+        retval = !memcmp(self_ptr+start, sub_ptr, (size_t)sub_len);
     else
         retval = 0;
 
