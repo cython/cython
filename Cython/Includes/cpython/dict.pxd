@@ -25,7 +25,7 @@ cdef extern from "Python.h":
     # Return true if p is a dict object, but not an instance of a
     # subtype of the dict type.
 
-    object PyDict_New()
+    dict PyDict_New()
     # Return value: New reference.
     # Return a new empty dictionary, or NULL on failure.
 
@@ -43,7 +43,7 @@ cdef extern from "Python.h":
     # matches key, return 1, otherwise return 0. On error, return
     # -1. This is equivalent to the Python expression "key in p".
 
-    object PyDict_Copy(object p)
+    dict PyDict_Copy(object p)
     # Return value: New reference.
     # Return a new dictionary that contains the same key-value pairs as p.
 
@@ -77,19 +77,19 @@ cdef extern from "Python.h":
     # This is the same as PyDict_GetItem(), but key is specified as a
     # char*, rather than a PyObject*.
 
-    object PyDict_Items(object p)
+    list PyDict_Items(object p)
     # Return value: New reference.
     # Return a PyListObject containing all the items from the
     # dictionary, as in the dictionary method items() (see the Python
     # Library Reference).
 
-    object PyDict_Keys(object p)
+    list PyDict_Keys(object p)
     # Return value: New reference.
     # Return a PyListObject containing all the keys from the
     # dictionary, as in the dictionary method keys() (see the Python
     # Library Reference).
 
-    object PyDict_Values(object p)
+    list PyDict_Values(object p)
     # Return value: New reference.
     # Return a PyListObject containing all the values from the
     # dictionary p, as in the dictionary method values() (see the
