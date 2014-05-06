@@ -1,5 +1,7 @@
 # http://www.opengroup.org/onlinepubs/009695399/basedefs/unistd.h.html
 
+from posix.types cimport gid_t, pid_t, off_t, uid_t
+
 cdef extern from "unistd.h" nogil:
 
     #:NULL
@@ -32,32 +34,25 @@ cdef extern from "unistd.h" nogil:
     enum: STDOUT_FILENO	#1
     enum: STDERR_FILENO	#2
 
-    #:ctypedef unsigned size_t
-    #:ctypedef signed ssize_t
-    ctypedef int uid_t
-    ctypedef int gid_t
-    ctypedef signed off_t
-    ctypedef signed pid_t
     ctypedef unsigned useconds_t
-    ctypedef signed intptr_t
 
-    int          access(char *, int)
+    int          access(const char *, int)
     unsigned     alarm(unsigned)
-    int          chdir(char *)
-    int          chown(char *, uid_t, gid_t)
+    int          chdir(const char *)
+    int          chown(const char *, uid_t, gid_t)
     int          close(int)
     size_t       confstr(int, char *, size_t)
-    char        *crypt(char *, char *)
+    char        *crypt(const char *, const char *)
     char        *ctermid(char *)
     int          dup(int)
     int          dup2(int, int)
     void         encrypt(char[64], int)
-    int          execl(char *, char *, ...)
-    int          execle(char *, char *, ...)
-    int          execlp(char *, char *, ...)
-    int          execv(char *, char *[])
-    int          execve(char *, char *[], char *[])
-    int          execvp(char *, char *[])
+    int          execl(const char *, const char *, ...)
+    int          execle(const char *, const char *, ...)
+    int          execlp(const char *, const char *, ...)
+    int          execv(const char *, char *[])
+    int          execve(const char *, char *[], char *[])
+    int          execvp(const char *, char *[])
     void        _exit(int)
     int          fchown(int, uid_t, gid_t)
     int          fchdir(int)
@@ -75,7 +70,7 @@ cdef extern from "unistd.h" nogil:
     int          gethostname(char *, size_t)
     char        *getlogin()
     int          getlogin_r(char *, size_t)
-    int          getopt(int, char * [], char *)
+    int          getopt(int, char * [], const char *)
     pid_t        getpgid(pid_t)
     pid_t        getpgrp()
     pid_t        getpid()
@@ -84,8 +79,8 @@ cdef extern from "unistd.h" nogil:
     uid_t        getuid()
     char        *getwd(char *)
     int          isatty(int)
-    int          lchown(char *, uid_t, gid_t)
-    int          link(char *, char *)
+    int          lchown(const char *, uid_t, gid_t)
+    int          link(const char *, const char *)
     int          lockf(int, int, off_t)
     off_t        lseek(int, off_t, int)
     int          nice(int)
@@ -93,10 +88,10 @@ cdef extern from "unistd.h" nogil:
     int          pause()
     int          pipe(int [2])
     ssize_t      pread(int, void *, size_t, off_t)
-    ssize_t      pwrite(int, void *, size_t, off_t)
+    ssize_t      pwrite(int, const void *, size_t, off_t)
     ssize_t      read(int, void *, size_t)
-    ssize_t      readlink(char *, char *, size_t)
-    int          rmdir(char *)
+    ssize_t      readlink(const char *, char *, size_t)
+    int          rmdir(const char *)
     int          setegid(gid_t)
     int          seteuid(uid_t)
     int          setgid(gid_t)
@@ -107,20 +102,20 @@ cdef extern from "unistd.h" nogil:
     pid_t        setsid()
     int          setuid(uid_t)
     unsigned     sleep(unsigned)
-    void         swab(void *, void *, ssize_t)
-    int          symlink(char *, char *)
+    void         swab(const void *, void *, ssize_t)
+    int          symlink(const char *, const char *)
     void         sync()
     long         sysconf(int)
     pid_t        tcgetpgrp(int)
     int          tcsetpgrp(int, pid_t)
-    int          truncate(char *, off_t)
+    int          truncate(const char *, off_t)
     char        *ttyname(int)
     int          ttyname_r(int, char *, size_t)
     useconds_t   ualarm(useconds_t, useconds_t)
-    int          unlink(char *)
+    int          unlink(const char *)
     int          usleep(useconds_t)
     pid_t        vfork()
-    ssize_t      write(int, void *, size_t)
+    ssize_t      write(int, const void *, size_t)
     char         *optarg
     int          optind
     int          opterr
