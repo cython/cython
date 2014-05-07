@@ -44,6 +44,19 @@ def nousage():
     """
     cdef object[int, ndim=2] buf
 
+
+def disabled_usage(obj):
+    """
+    The challenge here is just compilation.
+
+    >>> disabled_usage(None)
+    """
+    cdef object[int, ndim=2] buf
+    if False:
+        buf = obj
+    return obj
+
+
 @testcase
 def acquire_release(o1, o2):
     """
