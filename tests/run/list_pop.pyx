@@ -1,5 +1,7 @@
 cimport cython
 
+from libc.stdint cimport uint64_t
+
 class A:
     def pop(self, *args):
         print args
@@ -199,3 +201,17 @@ def crazy_pop(L):
     (1, 2, 3)
     """
     return L.pop(1, 2, 3)
+
+
+def object_pop_large_int():
+    """
+    >>> object_pop_large_int()
+    {}
+    """
+    cdef object foo = {}
+    cdef uint64_t bar = 201213467776703617ULL
+
+    foo[bar] = None
+    assert (<object>bar) in foo
+    foo.pop(bar)
+    return foo

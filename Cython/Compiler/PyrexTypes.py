@@ -3672,6 +3672,7 @@ def merge_template_deductions(a, b):
             all[param] = value
     return all
 
+
 def widest_numeric_type(type1, type2):
     # Given two numeric types, return the narrowest type
     # encompassing both of them.
@@ -3697,6 +3698,11 @@ def widest_numeric_type(type1, type2):
     else:
         widest_type = type2
     return widest_type
+
+
+def numeric_type_fits(small_type, large_type):
+    return widest_numeric_type(small_type, large_type) == large_type
+
 
 def independent_spanning_type(type1, type2):
     # Return a type assignable independently from both type1 and
