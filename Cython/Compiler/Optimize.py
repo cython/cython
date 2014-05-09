@@ -2504,7 +2504,9 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         PyrexTypes.py_object_type, [
             PyrexTypes.CFuncTypeArg("list", PyrexTypes.py_object_type, None),
             PyrexTypes.CFuncTypeArg("index", PyrexTypes.c_py_ssize_t_type, None),
-            ])
+            PyrexTypes.CFuncTypeArg("is_signed", PyrexTypes.c_int_type, None),
+        ],
+        has_varargs=True)  # to fake the additional macro args that lack a proper C type
 
     def _handle_simple_method_list_pop(self, node, function, args, is_unbound_method):
         return self._handle_simple_method_object_pop(
@@ -2555,7 +2557,13 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             return ExprNodes.PythonCapiCallNode(
                 node.pos, "__Pyx_Py%s_PopIndex" % type_name,
                 self.PyObject_PopIndex_func_type,
-                args=[obj, index, ExprNodes.RawCNameExprNode(index.pos, conversion_type, convert_func)],
+                args=[obj, index,
+                      ExprNodes.IntNode(index.pos, value=str(orig_index_type.signed and 1 or 0),
+                                        constant_result=orig_index_type.signed and 1 or 0,
+                                        type=PyrexTypes.c_int_type),
+                      ExprNodes.RawCNameExprNode(index.pos, PyrexTypes.c_void_type,
+                                                 orig_index_type.declaration_code("")),
+                      ExprNodes.RawCNameExprNode(index.pos, conversion_type, convert_func)],
                 may_return_none=True,
                 is_temp=node.is_temp,
                 utility_code=load_c_utility("pop_index"),

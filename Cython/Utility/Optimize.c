@@ -110,12 +110,12 @@ static CYTHON_INLINE PyObject* __Pyx_PyList_Pop(PyObject* L) {
 
 /////////////// pop_index.proto ///////////////
 
-#define __Pyx_PyObject_PopIndex(L, ix, to_py_func) ( \
-    (PyList_CheckExact(L) && likely(PY_SSIZE_T_MIN <= ix && ix <= PY_SSIZE_T_MAX)) ? \
+#define __Pyx_PyObject_PopIndex(L, ix, is_signed, type, to_py_func) ( \
+    (PyList_CheckExact(L) && __Pyx_fits_Py_ssize_t(ix, type, is_signed)) ? \
         __Pyx__PyList_PopIndex(L, ix) : __Pyx__PyObject_PopIndex(L, to_py_func(ix)))
 
-#define __Pyx_PyList_PopIndex(L, ix, to_py_func) ( \
-    likely(PY_SSIZE_T_MIN <= ix && ix <= PY_SSIZE_T_MAX) ? \
+#define __Pyx_PyList_PopIndex(L, ix, is_signed, type, to_py_func) ( \
+    __Pyx_fits_Py_ssize_t(ix, type, is_signed) ? \
         __Pyx__PyList_PopIndex(L, ix) : __Pyx__PyObject_PopIndex(L, to_py_func(ix)))
 
 static PyObject* __Pyx__PyList_PopIndex(PyObject* L, Py_ssize_t ix); /*proto*/
