@@ -24,6 +24,8 @@ Features added
 Bugs fixed
 ----------
 
+* ``obj.pop(x)`` truncated large C integer values of x to ``Py_ssize_t``.
+
 * ``__init__.pyc`` is recognised as marking a package directory
   (in addition to .py, .pyx and .pxd).
 
