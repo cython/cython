@@ -95,7 +95,7 @@ static int __Pyx_init_sys_getdefaultencoding_params(void) {
         ascii_chars_u = PyUnicode_DecodeASCII(ascii_chars, 128, NULL);
         if (!ascii_chars_u) goto bad;
         ascii_chars_b = PyUnicode_AsEncodedString(ascii_chars_u, default_encoding_c, NULL);
-        if (!ascii_chars_b || !PyBytes_Check(ascii_chars_b) || strncmp(ascii_chars, PyBytes_AS_STRING(ascii_chars_b), 128) != 0) {
+        if (!ascii_chars_b || !PyBytes_Check(ascii_chars_b) || memcmp(ascii_chars, PyBytes_AS_STRING(ascii_chars_b), 128) != 0) {
             PyErr_Format(
                 PyExc_ValueError,
                 "This module compiled with c_string_encoding=ascii, but default encoding '%.200s' is not a superset of ascii.",
