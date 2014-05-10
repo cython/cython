@@ -126,23 +126,23 @@ bad:
 static char* __PYX_DEFAULT_STRING_ENCODING;
 
 static int __Pyx_init_sys_getdefaultencoding_params(void) {
-    PyObject* sys = NULL;
+    PyObject* sys;
     PyObject* default_encoding = NULL;
     char* default_encoding_c;
+
     sys = PyImport_ImportModule("sys");
     if (!sys) goto bad;
     default_encoding = PyObject_CallMethod(sys, (char*) (const char*) "getdefaultencoding", NULL);
+    Py_DECREF(sys);
     if (!default_encoding) goto bad;
     default_encoding_c = PyBytes_AsString(default_encoding);
     if (!default_encoding_c) goto bad;
     __PYX_DEFAULT_STRING_ENCODING = (char*) malloc(strlen(default_encoding_c));
     if (!__PYX_DEFAULT_STRING_ENCODING) goto bad;
     strcpy(__PYX_DEFAULT_STRING_ENCODING, default_encoding_c);
-    Py_DECREF(sys);
     Py_DECREF(default_encoding);
     return 0;
 bad:
-    Py_XDECREF(sys);
     Py_XDECREF(default_encoding);
     return -1;
 }
