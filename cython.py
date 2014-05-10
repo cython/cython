@@ -8,7 +8,7 @@ if __name__ == '__main__':
 
     import os
     import sys
-    
+
     # Make sure we import the right Cython
     cythonpath, _ = os.path.split(os.path.realpath(__file__))
     sys.path.insert(0, cythonpath)
@@ -21,3 +21,4 @@ else:
     from Cython.Shadow import *
     ## and bring in the __version__
     from Cython import __version__
+    from Cython import load_ipython_extension
