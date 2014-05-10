@@ -1179,7 +1179,9 @@ class CythonPyregrTestCase(CythonRunTestCase):
 
         run_forked_test(result, run_test, self.shortDescription(), self.fork)
 
+
 include_debugger = IS_CPYTHON and sys.version_info[:2] > (2, 5)
+
 
 def collect_unittests(path, module_prefix, suite, selectors, exclude_selectors):
     def file_matches(filename):
@@ -1211,15 +1213,14 @@ def collect_unittests(path, module_prefix, suite, selectors, exclude_selectors):
                 if file_matches(f):
                     filepath = os.path.join(dirpath, f)[:-len(".py")]
                     modulename = module_prefix + filepath[len(path)+1:].replace(os.path.sep, '.')
-                    if not [ 1 for match in selectors if match(modulename) ]:
+                    if not any(1 for match in selectors if match(modulename)):
                         continue
-                    if [ 1 for match in exclude_selectors if match(modulename) ]:
+                    if any(1 for match in exclude_selectors if match(modulename)):
                         continue
                     module = __import__(modulename)
                     for x in modulename.split('.')[1:]:
                         module = getattr(module, x)
                     suite.addTests([loader.loadTestsFromModule(module)])
-
 
 
 def collect_doctests(path, module_prefix, suite, selectors, exclude_selectors):
