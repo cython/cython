@@ -71,18 +71,21 @@ static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t);
 #if PY_MAJOR_VERSION < 3 && __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
 static int __Pyx_sys_getdefaultencoding_not_ascii;
 static int __Pyx_init_sys_getdefaultencoding_params(void) {
-    PyObject* sys = NULL;
+    PyObject* sys;
     PyObject* default_encoding = NULL;
     PyObject* ascii_chars_u = NULL;
     PyObject* ascii_chars_b = NULL;
+    const char* default_encoding_c;
     sys = PyImport_ImportModule("sys");
-    if (sys == NULL) goto bad;
+    if (!sys) goto bad;
     default_encoding = PyObject_CallMethod(sys, (char*) (const char*) "getdefaultencoding", NULL);
-    if (default_encoding == NULL) goto bad;
-    if (strcmp(PyBytes_AsString(default_encoding), "ascii") == 0) {
+    Py_DECREF(sys);
+    if (!default_encoding) goto bad;
+    default_encoding_c = PyBytes_AsString(default_encoding);
+    if (!default_encoding_c) goto bad;
+    if (strcmp(default_encoding_c, "ascii") == 0) {
         __Pyx_sys_getdefaultencoding_not_ascii = 0;
     } else {
-        const char* default_encoding_c = PyBytes_AS_STRING(default_encoding);
         char ascii_chars[128];
         int c;
         for (c = 0; c < 128; c++) {
@@ -90,23 +93,21 @@ static int __Pyx_init_sys_getdefaultencoding_params(void) {
         }
         __Pyx_sys_getdefaultencoding_not_ascii = 1;
         ascii_chars_u = PyUnicode_DecodeASCII(ascii_chars, 128, NULL);
-        if (ascii_chars_u == NULL) goto bad;
+        if (!ascii_chars_u) goto bad;
         ascii_chars_b = PyUnicode_AsEncodedString(ascii_chars_u, default_encoding_c, NULL);
-        if (ascii_chars_b == NULL || strncmp(ascii_chars, PyBytes_AS_STRING(ascii_chars_b), 128) != 0) {
+        if (!ascii_chars_b || !PyBytes_Check(ascii_chars_b) || strncmp(ascii_chars, PyBytes_AS_STRING(ascii_chars_b), 128) != 0) {
             PyErr_Format(
                 PyExc_ValueError,
                 "This module compiled with c_string_encoding=ascii, but default encoding '%.200s' is not a superset of ascii.",
                 default_encoding_c);
             goto bad;
         }
+        Py_DECREF(ascii_chars_u);
+        Py_DECREF(ascii_chars_b);
     }
-    Py_XDECREF(sys);
-    Py_XDECREF(default_encoding);
-    Py_XDECREF(ascii_chars_u);
-    Py_XDECREF(ascii_chars_b);
+    Py_DECREF(default_encoding);
     return 0;
 bad:
-    Py_XDECREF(sys);
     Py_XDECREF(default_encoding);
     Py_XDECREF(ascii_chars_u);
     Py_XDECREF(ascii_chars_b);
