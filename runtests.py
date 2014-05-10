@@ -1850,7 +1850,7 @@ def runtests(options, cmd_args, coverage=None):
     try:
         import IPython
     except ImportError:
-        exclude_selectors.append(re.compile('IPython', re.I).search)
+        exclude_selectors.append(RegExSelector('IPython'))
 
     if options.exclude:
         exclude_selectors += [ string_selector(r) for r in options.exclude ]
