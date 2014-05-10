@@ -1840,12 +1840,17 @@ def runtests(options, cmd_args, coverage=None):
     if not selectors:
         selectors = [ lambda x, tags=None: True ]
 
-    # Chech which external modules are not present and exclude tests
+    # Check which external modules are not present and exclude tests
     # which depends on them (by prefix)
 
     missing_dep_excluder = MissingDependencyExcluder(EXT_DEP_MODULES)
     version_dep_excluder = VersionDependencyExcluder(VER_DEP_MODULES)
     exclude_selectors = [missing_dep_excluder, version_dep_excluder] # want to print msg at exit
+
+    try:
+        import IPython
+    except ImportError:
+        exclude_selectors.append(re.compile('IPython', re.I).search)
 
     if options.exclude:
         exclude_selectors += [ string_selector(r) for r in options.exclude ]
