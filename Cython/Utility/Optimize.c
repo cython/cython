@@ -438,13 +438,13 @@ static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject
 
 static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject *none, int inplace) {
 // in CPython, 1<<N is substantially faster than 2**N
-// TODO: disable this in Py3.5 if http://bugs.python.org/issue21420 gets accepted
+// see http://bugs.python.org/issue21420
 #if CYTHON_COMPILING_IN_CPYTHON
     Py_ssize_t shiftby;
-    if (likely(PyLong_Check(exp))) {
+    if (likely(PyLong_CheckExact(exp))) {
         shiftby = PyLong_AsSsize_t(exp);
 #if PY_MAJOR_VERSION < 3
-    } else if (likely(PyInt_Check(exp))) {
+    } else if (likely(PyInt_CheckExact(exp))) {
         shiftby = PyInt_AsLong(exp);
 #endif
     } else {

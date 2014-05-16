@@ -67,6 +67,34 @@ def int_pow(short a, short b):
     return a**b
 
 
+class I(int):
+    """
+    Copied from CPython's test_descr.py
+
+    >>> I(2) ** I(3)
+    I(8)
+    >>> 2 ** I(3)
+    I(8)
+    >>> I(3).pow2()
+    I(8)
+    """
+    def __repr__(self):
+        return 'I(%s)' % int(self)
+    def __pow__(self, other, mod=None):
+        if mod is None:
+            return I(pow(int(self), int(other)))
+        else:
+            return I(pow(int(self), int(other), int(mod)))
+    def __rpow__(self, other, mod=None):
+        if mod is None:
+            return I(pow(int(other), int(self), mod))
+        else:
+            return I(pow(int(other), int(self), int(mod)))
+
+    def pow2(self):
+        return 2 ** self
+
+
 def optimised_pow2(n):
     """
     >>> optimised_pow2(0)
