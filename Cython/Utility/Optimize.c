@@ -435,6 +435,7 @@ bad:
 static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject *none, int inplace); /*proto*/
 
 /////////////// PyNumberPow2 ///////////////
+//@requires: TypeConversion.c::PyLongInternals
 
 static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject *none, int inplace) {
 // in CPython, 1<<N is substantially faster than 2**N
@@ -442,7 +443,17 @@ static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject
 #if CYTHON_COMPILING_IN_CPYTHON
     Py_ssize_t shiftby;
     if (likely(PyLong_CheckExact(exp))) {
+        #if PY_MAJOR_VERSION >= 3 && CYTHON_USE_PYLONG_INTERNALS
+        switch (Py_SIZE(exp)) {
+            case  0: shiftby = 0; break;
+            case  1: shiftby = ((PyLongObject*)exp)->ob_digit[0]; break;
+            default:
+                if (unlikely(Py_SIZE(exp) < 0)) goto fallback;
+                shiftby = PyLong_AsSsize_t(exp); break;
+        }
+        #else
         shiftby = PyLong_AsSsize_t(exp);
+        #endif
 #if PY_MAJOR_VERSION < 3
     } else if (likely(PyInt_CheckExact(exp))) {
         shiftby = PyInt_AsLong(exp);

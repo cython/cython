@@ -150,6 +150,7 @@ bad:
 #endif
 
 /////////////// TypeConversions ///////////////
+//@requires: PyLongInternals
 
 /* Type Conversion Functions */
 
@@ -279,11 +280,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x) {
   return res;
 }
 
-#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
- #if CYTHON_USE_PYLONG_INTERNALS
-  #include "longintrepr.h"
- #endif
-#endif
 static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
   Py_ssize_t ival;
   PyObject *x;
@@ -504,18 +500,23 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
     }
 
 
-/////////////// CIntFromPy.proto ///////////////
-
-static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *);
-
-/////////////// CIntFromPy ///////////////
-//@requires: CIntFromPyVerify
+/////////////// PyLongInternals ///////////////
 
 #if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
  #if CYTHON_USE_PYLONG_INTERNALS
   #include "longintrepr.h"
  #endif
 #endif
+
+
+/////////////// CIntFromPy.proto ///////////////
+
+static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *);
+
+/////////////// CIntFromPy ///////////////
+//@requires: CIntFromPyVerify
+//@requires: PyLongInternals
+
 static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
     const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = 0;
     const int is_unsigned = neg_one > const_zero;
