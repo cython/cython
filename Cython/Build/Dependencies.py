@@ -788,7 +788,10 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
             print("multiprocessing required for parallel cythonization")
             nthreads = 0
         else:
-            pool.map(cythonize_one_helper, to_compile)
+            try:
+                pool.map(cythonize_one_helper, to_compile)
+            finally:
+                pool.close()
     if not nthreads:
         for args in to_compile:
             cythonize_one(*args[1:])
