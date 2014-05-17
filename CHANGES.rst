@@ -9,6 +9,8 @@ Latest
 Features added
 --------------
 
+* PEP 465: dedicated infix operator for matrix multiplication (A @ B).
+
 * HTML output of annotated code uses Pygments for code highlighting
   and generally received a major overhaul by Matthias Bussonier.
 
