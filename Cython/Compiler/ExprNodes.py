@@ -1893,7 +1893,8 @@ class NameNode(AtomicExprNode):
             code.putln(code.error_goto_if_null(self.result(), self.pos))
             code.put_gotref(self.py_result())
 
-        elif entry.is_builtin:
+        elif entry.is_builtin and not entry.scope.is_module_scope:
+            # known builtin
             assert entry.type.is_pyobject, "Python global or builtin not a Python object"
             interned_cname = code.intern_identifier(self.entry.name)
             code.globalstate.use_utility_code(
@@ -1905,7 +1906,8 @@ class NameNode(AtomicExprNode):
                 code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
 
-        elif entry.is_pyglobal:
+        elif entry.is_pyglobal or (entry.is_builtin and entry.scope.is_module_scope):
+            # name in class body, global name or unknown builtin
             assert entry.type.is_pyobject, "Python global or builtin not a Python object"
             interned_cname = code.intern_identifier(self.entry.name)
             if entry.scope.is_module_scope:
