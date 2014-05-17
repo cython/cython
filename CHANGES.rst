@@ -24,6 +24,10 @@ Features added
 Bugs fixed
 ----------
 
+* Names that were unknown at compile time were looked up as builtins at
+  runtime but not as global module names.  This helps with globals()
+  manipulation.
+
 * ``obj.pop(x)`` truncated large C integer values of x to ``Py_ssize_t``.
 
 * ``__init__.pyc`` is recognised as marking a package directory
