@@ -900,6 +900,7 @@ class BuiltinScope(Scope):
             var_entry.is_variable = 1
             var_entry.is_builtin = 1
             var_entry.utility_code = utility_code
+            var_entry.scope = entry.scope
             entry.as_variable = var_entry
         return entry
 
