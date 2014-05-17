@@ -21,14 +21,9 @@ static PyObject* __Pyx_Globals(void); /*proto*/
 
 static PyObject* __Pyx_Globals(void) {
     Py_ssize_t i;
-    //PyObject *d;
-    PyObject *names = NULL;
-    PyObject *globals = PyObject_GetAttr($module_cname, PYIDENT("__dict__"));
-    if (!globals) {
-        PyErr_SetString(PyExc_TypeError,
-            "current module must have __dict__ attribute");
-        goto bad;
-    }
+    PyObject *names;
+    PyObject *globals = $moddict_cname;
+    Py_INCREF(globals);
     names = PyObject_Dir($module_cname);
     if (!names)
         goto bad;
@@ -62,9 +57,6 @@ static PyObject* __Pyx_Globals(void) {
     }
     Py_DECREF(names);
     return globals;
-    // d = PyDictProxy_New(globals);
-    // Py_DECREF(globals);
-    // return d;
 bad:
     Py_XDECREF(names);
     Py_XDECREF(globals);
