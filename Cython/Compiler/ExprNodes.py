@@ -8843,6 +8843,16 @@ class TypeofNode(ExprNode):
 #
 #-------------------------------------------------------------------
 
+try:
+    matmul_operator = operator.matmul
+except AttributeError:
+    def matmul_operator(a, b):
+        try:
+            func = a.__matmul__
+        except AttributeError:
+            func = b.__rmatmul__
+        return func(a, b)
+
 compile_time_binary_operators = {
     '<': operator.lt,
     '<=': operator.le,
@@ -8864,6 +8874,7 @@ compile_time_binary_operators = {
     '>>': operator.rshift,
     '-': operator.sub,
     '^': operator.xor,
+    '@': matmul_operator,
     'in': lambda x, seq: x in seq,
     'not_in': lambda x, seq: x not in seq,
 }
@@ -9180,10 +9191,11 @@ class NumBinopNode(BinopNode):
         "+":        "PyNumber_Add",
         "-":        "PyNumber_Subtract",
         "*":        "PyNumber_Multiply",
+        "@":        "__Pyx_PyNumber_MatrixMultiply",
         "/":        "__Pyx_PyNumber_Divide",
         "//":       "PyNumber_FloorDivide",
         "%":        "PyNumber_Remainder",
-        "**":       "PyNumber_Power"
+        "**":       "PyNumber_Power",
     }
 
     overflow_op_names = {
@@ -9280,6 +9292,17 @@ class MulNode(NumBinopNode):
         if type2.is_int:
             return type1
         return None
+
+
+class MatMultNode(NumBinopNode):
+    #  '@' operator.
+
+    def is_py_operation_types(self, type1, type2):
+        return True
+
+    def generate_evaluation_code(self, code):
+        code.globalstate.use_utility_code(UtilityCode.load_cached("MatrixMultiply", "ObjectHandling.c"))
+        super(MatMultNode, self).generate_evaluation_code(code)
 
 
 class DivNode(NumBinopNode):
@@ -10451,10 +10474,11 @@ binop_node_classes = {
     "+":        AddNode,
     "-":        SubNode,
     "*":        MulNode,
+    "@":        MatMultNode,
     "/":        DivNode,
     "//":       DivNode,
     "%":        ModNode,
-    "**":       PowNode
+    "**":       PowNode,
 }
 
 def binop_node(pos, operator, operand1, operand2, inplace=False):

@@ -703,7 +703,11 @@ PyNumberMethods = (
     MethodSlot(ibinaryfunc, "nb_inplace_true_divide", "__itruediv__"),
 
     # Added in release 2.5
-    MethodSlot(unaryfunc, "nb_index", "__index__", ifdef = "PY_VERSION_HEX >= 0x02050000")
+    MethodSlot(unaryfunc, "nb_index", "__index__"),
+
+    # Added in release 3.5
+    MethodSlot(binaryfunc, "nb_matrix_multiply", "__matmul__", ifdef="PY_VERSION_HEX >= 0x03050000"),
+    MethodSlot(ibinaryfunc, "nb_inplace_matrix_multiply", "__imatmul__", ifdef="PY_VERSION_HEX >= 0x03050000"),
 )
 
 PySequenceMethods = (

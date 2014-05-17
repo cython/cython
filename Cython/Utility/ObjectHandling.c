@@ -1156,3 +1156,62 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_Call(PyObject *func, PyObject *arg
     return result;
 }
 #endif
+
+
+/////////////// MatrixMultiply.proto ///////////////
+
+#if PY_VERSION_HEX >= 0x03050000
+  #define __Pyx_PyNumber_MatrixMultiply(x,y)         PyNumber_MatrixMultiply(x,y)
+  #define __Pyx_PyNumber_InPlaceMatrixMultiply(x,y)  PyNumber_InPlaceMatrixMultiply(x,y)
+#else
+static PyObject* __Pyx_PyNumber_MatrixMultiply(PyObject* x, PyObject* y);
+static PyObject* __Pyx_PyNumber_InPlaceMatrixMultiply(PyObject* x, PyObject* y);
+#endif
+
+/////////////// MatrixMultiply ///////////////
+//@requires: PyObjectGetAttrStr
+
+#if PY_VERSION_HEX < 0x03050000
+static PyObject* __Pyx_PyNumber_MatrixMultiply(PyObject* x, PyObject* y) {
+    PyObject *func;
+    // FIXME: make subtype aware
+    // see note at https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types
+    func = __Pyx_PyObject_GetAttrStr(x, PYIDENT("__matmul__"));
+    if (func) {
+        PyObject *result = PyObject_CallFunctionObjArgs(func, y, NULL);
+        Py_DECREF(func);
+        if (result != Py_NotImplemented)
+            return result;
+        Py_DECREF(result);
+    } else {
+        if (!PyErr_ExceptionMatches(PyExc_AttributeError))
+            return NULL;
+        PyErr_Clear();
+    }
+    func = __Pyx_PyObject_GetAttrStr(y, PYIDENT("__rmatmul__"));
+    if (func) {
+        PyObject *result = PyObject_CallFunctionObjArgs(func, x, NULL);
+        Py_DECREF(func);
+        return result;
+    }
+    Py_INCREF(Py_NotImplemented);
+    return Py_NotImplemented;
+}
+
+static PyObject* __Pyx_PyNumber_InPlaceMatrixMultiply(PyObject* x, PyObject* y) {
+    PyObject *func;
+    func = __Pyx_PyObject_GetAttrStr(x, PYIDENT("__imatmul__"));
+    if (func) {
+        PyObject *result = PyObject_CallFunctionObjArgs(func, y, NULL);
+        Py_DECREF(func);
+        if (result != Py_NotImplemented)
+            return result;
+        Py_DECREF(result);
+    } else {
+        if (!PyErr_ExceptionMatches(PyExc_AttributeError))
+            return NULL;
+        PyErr_Clear();
+    }
+    return __Pyx_PyNumber_MatrixMultiply(x, y);
+}
+#endif
