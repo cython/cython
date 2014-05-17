@@ -719,6 +719,10 @@ class CythonCompileTestCase(unittest.TestCase):
         if extra_compile_options is None:
             extra_compile_options = {}
 
+        if 'allow_unknown_names' in self.tags['tag']:
+            from Cython.Compiler import Options
+            Options.error_on_unknown_names = False
+
         try:
             CompilationOptions
         except NameError:
