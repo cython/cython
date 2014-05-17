@@ -18,7 +18,8 @@ There are several ways to build Cython code:
    from the ``.pyx`` file, then manually compiling the ``.c`` file into a shared
    object library or DLL suitable for import from Python.
    (These manual steps are mostly for debugging and experimentation.)
- - Use the [Sage]_ notebook which allows Cython code inline.
+ - Use the [IPython]_ notebook or the [Sage]_ notebook,
+   both of which allow Cython code inline.
 
 Currently, distutils is the most common way Cython files are built and distributed. The other methods are described in more detail in the :ref:`compilation` section of the reference manual.
 
@@ -88,4 +89,6 @@ Using the Sage notebook
   ``%cython`` at the top of a cell and evaluate it.  Variables and
   functions defined in a Cython cell imported into the running session.
 
+
+.. [IPython] http://ipython.org
 .. [Sage] W. Stein et al., Sage Mathematics Software, http://sagemath.org
