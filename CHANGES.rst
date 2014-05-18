@@ -9,6 +9,9 @@ Latest
 Features added
 --------------
 
+* When cygdb is run in a virtualenv, it enables the same virtualenv
+  inside of the debugger. Patch by Marc Abramowitz.
+
 * PEP 465: dedicated infix operator for matrix multiplication (A @ B).
 
 * HTML output of annotated code uses Pygments for code highlighting

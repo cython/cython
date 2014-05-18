@@ -37,9 +37,26 @@ def make_command_file(path_to_debug_info, prefix_code='', no_import=False):
     f = os.fdopen(fd, 'w')
     try:
         f.write(prefix_code)
-        f.write('set breakpoint pending on\n')
-        f.write("set print pretty on\n")
-        f.write('python from Cython.Debugger import libcython, libpython\n')
+        f.write(textwrap.dedent('''\
+            # This is a gdb command file
+            # See https://sourceware.org/gdb/onlinedocs/gdb/Command-Files.html
+
+            set breakpoint pending on
+            set print pretty on
+
+            python
+            # Activate virtualenv, if we were launched from one
+            import os
+            virtualenv = os.getenv('VIRTUAL_ENV')
+            if virtualenv:
+                path_to_activate_this_py = os.path.join(virtualenv, 'bin', 'activate_this.py')
+                print("gdb command file: Activating virtualenv: %s; path_to_activate_this_py: %s"
+                % (virtualenv, path_to_activate_this_py,))
+                execfile(path_to_activate_this_py, dict(__file__=path_to_activate_this_py))
+
+            from Cython.Debugger import libcython, libpython
+            end
+            '''))
 
         if no_import:
             # don't do this, this overrides file command in .gdbinit
