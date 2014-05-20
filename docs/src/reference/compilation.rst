@@ -35,7 +35,7 @@ have some details for your system.  Here we give an example on a Linux
 system::
 
     $ gcc -shared -pthread -fPIC -fwrapv -O2 -Wall -fno-strict-aliasing \
-          -I/usr/include/python2.5 -o yourmod.so yourmod.c
+          -I/usr/include/python2.7 -o yourmod.so yourmod.c
 
 [``gcc`` will need to have paths to your included header files and
 paths to libraries you need to link with]
