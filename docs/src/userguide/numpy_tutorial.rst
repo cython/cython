@@ -122,7 +122,7 @@ file should be built like Python was built. Python documentation for writing
 extensions should have some details. On Linux this often means something
 like::
 
-    $ gcc -shared -pthread -fPIC -fwrapv -O2 -Wall -fno-strict-aliasing -I/usr/include/python2.5 -o yourmod.so yourmod.c
+    $ gcc -shared -pthread -fPIC -fwrapv -O2 -Wall -fno-strict-aliasing -I/usr/include/python2.7 -o yourmod.so yourmod.c
 
 ``gcc`` should have access to the NumPy C header files so if they are not
 installed at :file:`/usr/include/numpy` or similar you may need to pass another
