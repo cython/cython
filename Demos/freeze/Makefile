@@ -18,7 +18,7 @@ LDLIBS = $(PY_LDLIBS)
 TARGETS = nCr python
 
 # List of Cython source files, with main module first.
-CYTHON_SOURCE = combinatorics.pyx cmath.pyx
+CYTHON_SOURCE = combinatorics.pyx lcmath.pyx
 CYTHON_SECONDARY = $(CYTHON_SOURCE:.pyx=.c) $(TARGETS:=.c)
 
 
