@@ -63,3 +63,11 @@ def append_unused_retval(L):
     except TypeError:
         print u"got error"
     return L
+
+
+def method_name():
+    """
+    >>> method_name()
+    'append'
+    """
+    return [].append.__name__

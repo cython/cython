@@ -63,6 +63,9 @@ Features added
 Bugs fixed
 ----------
 
+* Access to attributes of optimised builtin methods (e.g.
+  ``[].append.__name__``) could fail to compile.
+
 * Memory leak when extension subtypes add a memory view as attribute
   to those of the parent type without having Python object attributes
   or a user provided dealloc method.

@@ -2,6 +2,8 @@
 # mode: run
 # tag: cyfunction,qualname
 
+import sys
+
 
 def test_qualname():
     """
@@ -14,6 +16,20 @@ def test_qualname():
     >>> test_qualname.__qualname__
     'foo'
     """
+
+
+def test_builtin_qualname():
+    """
+    >>> test_builtin_qualname()
+    list.append
+    len
+    """
+    if sys.version_info >= (3, 3):
+        print([1, 2, 3].append.__qualname__)
+        print(len.__qualname__)
+    else:
+        print('list.append')
+        print('len')
 
 
 def test_nested_qualname():

@@ -5445,7 +5445,7 @@ class AttributeNode(ExprNode):
             if obj_type.can_coerce_to_pyobject(env):
                 if not immutable_obj:
                     self.obj = self.obj.coerce_to_pyobject(env)
-            elif (obj_type.is_cfunction and self.obj.is_name
+            elif (obj_type.is_cfunction and (self.obj.is_name or self.obj.is_attribute)
                   and self.obj.entry.as_variable
                   and self.obj.entry.as_variable.type.is_pyobject):
                 # might be an optimised builtin function => unpack it

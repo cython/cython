@@ -203,6 +203,14 @@ def crazy_pop(L):
     return L.pop(1, 2, 3)
 
 
+def method_name():
+    """
+    >>> method_name()
+    'pop'
+    """
+    return [].pop.__name__
+
+
 def object_pop_large_int():
     """
     >>> object_pop_large_int()
