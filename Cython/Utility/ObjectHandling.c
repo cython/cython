@@ -994,7 +994,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetModuleGlobalName(PyObject *name) {
     PyObject *result;
 #if CYTHON_COMPILING_IN_CPYTHON
     result = PyDict_GetItem($moddict_cname, name);
-    if (result) {
+    if (likely(result)) {
         Py_INCREF(result);
     } else {
 #else
