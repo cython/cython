@@ -164,7 +164,8 @@ Use the ``@cython.cfunc`` decorator for :keyword:`cdef` functions
 and the ``@cython.ccall`` decorators for :keyword:`cpdef` functions
 respectively.  To declare the argument types, use the
 ``@cython.locals()`` decorator.  For the return type, use
-``@cython.returns(a_type)``.
+``@cython.returns(a_type)``.  The C ``inline`` modifier is available
+as ``@cython.inline`` decorator.
 
 Here is an example of a :keyword:`cdef` function::
 

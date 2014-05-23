@@ -2011,6 +2011,7 @@ class ExpandInplaceOperators(EnvTransform):
         # In-place assignments can't happen within an expression.
         return node
 
+
 class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
     """
     Adjust function and class definitions by the decorator directives:
@@ -2018,6 +2019,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
     @cython.cfunc
     @cython.cclass
     @cython.ccall
+    @cython.inline
     """
 
     def visit_ModuleNode(self, node):
@@ -2034,15 +2036,22 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         return node
 
     def visit_DefNode(self, node):
+        modifiers = []
+        if 'inline' in self.directives:
+            modifiers.append('inline')
         if 'ccall' in self.directives:
-            node = node.as_cfunction(overridable=True, returns=self.directives.get('returns'))
+            node = node.as_cfunction(
+                overridable=True, returns=self.directives.get('returns'), modifiers=modifiers)
             return self.visit(node)
         if 'cfunc' in self.directives:
             if self.in_py_class:
                 error(node.pos, "cfunc directive is not allowed here")
             else:
-                node = node.as_cfunction(overridable=False, returns=self.directives.get('returns'))
+                node = node.as_cfunction(
+                    overridable=False, returns=self.directives.get('returns'), modifiers=modifiers)
                 return self.visit(node)
+        if 'inline' in modifiers:
+            error(node.pos, "Python functions cannot be declared 'inline'")
         self.visitchildren(node)
         return node
 

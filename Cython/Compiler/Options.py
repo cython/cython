@@ -206,6 +206,7 @@ directive_types = {
     'binding' : bool,
     'cfunc' : None, # decorators do not take directive value
     'ccall' : None,
+    'inline' : None,
     'cclass' : None,
     'returns' : type,
     'set_initial_path': str,
@@ -221,6 +222,7 @@ for key, val in directive_defaults.items():
 directive_scopes = { # defaults to available everywhere
     # 'module', 'function', 'class', 'with statement'
     'final' : ('cclass', 'function'),
+    'inline' : ('function',),
     'no_gc_clear' : ('cclass',),
     'internal' : ('cclass',),
     'autotestdict' : ('module',),

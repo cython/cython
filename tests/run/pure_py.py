@@ -173,6 +173,7 @@ def test_declare_c_types(n):
     #z02 = cython.declare(cython.doublecomplex, n+1j)
     #z03 = cython.declare(cython.longdoublecomplex, n+1j)
 
+
 @cython.ccall
 @cython.returns(cython.double)
 def c_call(x):
@@ -193,6 +194,30 @@ def c_call(x):
     """
     return x
 
+
 def call_ccall(x):
     ret = c_call(x)
+    return ret, cython.typeof(ret)
+
+
+@cython.cfunc
+@cython.inline
+@cython.returns(cython.double)
+def cdef_inline(x):
+    """
+    >>> result, return_type = call_cdef_inline(1)
+    >>> (not is_compiled and 'float') or type(return_type).__name__
+    'float'
+    >>> (not is_compiled and 'double') or return_type
+    'double'
+    >>> (is_compiled and 'int') or return_type
+    'int'
+    >>> result == 2.0  or  result
+    True
+    """
+    return x + 1
+
+
+def call_cdef_inline(x):
+    ret = cdef_inline(x)
     return ret, cython.typeof(ret)

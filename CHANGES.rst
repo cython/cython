@@ -9,6 +9,9 @@ Latest
 Features added
 --------------
 
+* The ``inline`` function modifier is available as a decorator
+  ``@cython.inline`` in pure mode.
+
 * When cygdb is run in a virtualenv, it enables the same virtualenv
   inside of the debugger. Patch by Marc Abramowitz.
 
