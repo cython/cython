@@ -1,0 +1,64 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import a; a.test()"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+
+from distutils.core import setup
+
+setup(
+    ext_modules=cythonize("a.py"),
+)
+
+
+######## a.py ########
+
+class ExtTypePass(object):
+    pass
+
+
+class ExtTypePxdDocstring(object):
+    pass
+
+
+class ExtTypeDocstring(object):
+    """huhu!"""  # this should override the .pxd docstring
+
+
+class ExtTypeAttributes(object):
+    """
+    >>> x = ExtTypeAttributes()
+    >>> x.b
+    [1, 2, 3]
+    """
+    def __init__(self):
+        self.a = 123
+        self.b = [1, 2, 3]
+
+
+def test():
+    import os.path
+    assert 'a.py' not in os.path.basename(__file__), __file__
+
+    assert not ExtTypePass().__doc__, ExtTypePass().__doc__
+    assert ExtTypeDocstring().__doc__ == "huhu!", ExtTypeDocstring().__doc__
+    assert ExtTypePxdDocstring().__doc__ == "ho, ho, ho!", ExtTypePxdDocstring().__doc__
+
+    import doctest
+    doctest.testmod(verbose=True)
+
+
+######## a.pxd ########
+
+cdef class ExtTypePass:
+    pass
+
+
+cdef class ExtTypePxdDocstring:
+    """ho, ho, ho!"""
+
+
+cdef class ExtTypeAttributes:
+    cdef int a
+    cdef readonly list b
