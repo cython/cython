@@ -199,3 +199,11 @@ def crazy_pop(L):
     (1, 2, 3)
     """
     return L.pop(1, 2, 3)
+
+
+def method_name():
+    """
+    >>> method_name()
+    'pop'
+    """
+    return [].pop.__name__
