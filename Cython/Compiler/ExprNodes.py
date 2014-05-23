@@ -1182,9 +1182,13 @@ def _analyse_name_as_type(name, pos, env):
     hold_errors()
     from TreeFragment import TreeFragment
     pos = (pos[0], pos[1], pos[2]-7)
-    declaration = TreeFragment(u"sizeof(%s)" % name, name=pos[0].filename, initial_pos=pos)
-    sizeof_node = declaration.root.stats[0].expr
-    sizeof_node = sizeof_node.analyse_types(env)
+    try:
+        declaration = TreeFragment(u"sizeof(%s)" % name, name=pos[0].filename, initial_pos=pos)
+    except CompileError:
+        sizeof_node = None
+    else:
+        sizeof_node = declaration.root.stats[0].expr
+        sizeof_node = sizeof_node.analyse_types(env)
     release_errors(ignore=True)
     if isinstance(sizeof_node, SizeofTypeNode):
         return sizeof_node.arg_type

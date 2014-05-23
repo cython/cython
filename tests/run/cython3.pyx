@@ -437,7 +437,7 @@ def int_literals():
     print(cython.typeof(1UL))
     print(cython.typeof(10000000000000UL))
 
-def annotation_syntax(a : "test", b : "other" = 2) -> "ret":
+def annotation_syntax(a : "test new test", b : "other" = 2) -> "ret":
     """
     >>> annotation_syntax(1)
     3
