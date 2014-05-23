@@ -157,9 +157,10 @@ def report_error(err):
             try: echo_file.write(line)
             except UnicodeEncodeError:
                 echo_file.write(line.encode('ASCII', 'replace'))
-        num_errors = num_errors + 1
+        num_errors += 1
         if Options.fast_fail:
             raise AbortError("fatal errors")
+
 
 def error(position, message):
     #print "Errors.error:", repr(position), repr(message) ###
@@ -170,7 +171,9 @@ def error(position, message):
     report_error(err)
     return err
 
-LEVEL=1 # warn about all errors level 1 or higher
+
+LEVEL = 1 # warn about all errors level 1 or higher
+
 
 def message(position, message, level=1):
     if level < LEVEL:
@@ -182,6 +185,7 @@ def message(position, message, level=1):
     if echo_file:
         echo_file.write(line)
     return warn
+
 
 def warning(position, message, level=0):
     if level < LEVEL:
@@ -195,6 +199,7 @@ def warning(position, message, level=0):
     if echo_file:
         echo_file.write(line)
     return warn
+
 
 _warn_once_seen = {}
 def warn_once(position, message, level=0):
