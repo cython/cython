@@ -47,23 +47,23 @@ class BaseType(object):
 
     def get_fused_types(self, result=None, seen=None, subtypes=None):
         subtypes = subtypes or self.subtypes
-        if subtypes:
-            if result is None:
-                result = []
-                seen = set()
+        if not subtypes:
+            return None
 
-            for attr in subtypes:
-                list_or_subtype = getattr(self, attr)
-                if list_or_subtype:
-                    if isinstance(list_or_subtype, BaseType):
-                        list_or_subtype.get_fused_types(result, seen)
-                    else:
-                        for subtype in list_or_subtype:
-                            subtype.get_fused_types(result, seen)
+        if result is None:
+            result = []
+            seen = set()
 
-            return result
+        for attr in subtypes:
+            list_or_subtype = getattr(self, attr)
+            if list_or_subtype:
+                if isinstance(list_or_subtype, BaseType):
+                    list_or_subtype.get_fused_types(result, seen)
+                else:
+                    for subtype in list_or_subtype:
+                        subtype.get_fused_types(result, seen)
 
-        return None
+        return result
 
     def specialize_fused(self, env):
         if env.fused_to_specific:
