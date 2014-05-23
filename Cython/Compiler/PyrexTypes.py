@@ -1446,21 +1446,6 @@ class CIntType(CNumericType):
                 TypeName = "LongLong"
             return "Py%s_From%s%s" % (Prefix, SignWord, TypeName)
 
-    def get_from_py_type_conversion(self):
-        type_name = rank_to_type_name[self.rank]
-        type_name = type_name.replace("PY_LONG_LONG", "long long")
-        TypeName = type_name.title().replace(" ", "")
-        SignWord = self.sign_words[self.signed].strip().title()
-        if self.rank >= list(rank_to_type_name).index('long'):
-            utility_code = c_long_from_py_function
-        else:
-            utility_code = c_int_from_py_function
-        utility_code.specialize(self,
-                                SignWord=SignWord,
-                                TypeName=TypeName)
-        func_name = "__Pyx_PyInt_As%s%s" % (SignWord, TypeName)
-        return func_name
-
     def assignable_from_resolved_type(self, src_type):
         return src_type.is_int or src_type.is_enum or src_type is error_type
 
