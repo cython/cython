@@ -71,15 +71,14 @@ class BaseType(object):
 
         return self
 
-    def _get_fused_types(self):
+    @property
+    def is_fused(self):
         """
-        Add this indirection for the is_fused property to allow overriding
-        get_fused_types in subclasses.
+        Whether this type or any of its subtypes is a fused type
         """
+        # Add this indirection for the is_fused property to allow overriding
+        # get_fused_types in subclasses.
         return self.get_fused_types()
-
-    is_fused = property(_get_fused_types, doc="Whether this type or any of its "
-                                             "subtypes is a fused type")
 
     def deduce_template_params(self, actual):
         """
