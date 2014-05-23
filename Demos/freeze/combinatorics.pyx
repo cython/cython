@@ -1,9 +1,9 @@
-import cmath
+import lcmath
 
 def nCr(n, r):
     """Return the number of ways to choose r elements of a set of n."""
-    return cmath.exp( cmath.lfactorial(n) - cmath.lfactorial(r)
-                      - cmath.lfactorial(n-r) )
+    return lcmath.exp( lcmath.lfactorial(n) - lcmath.lfactorial(r)
+                      - lcmath.lfactorial(n-r) )
 
 if __name__ == "__main__":
     import sys
