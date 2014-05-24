@@ -503,10 +503,11 @@ class CythonParameter(gdb.Parameter):
         if default is not None:
             self.value = default
 
-    def __nonzero__(self):
+    def __bool__(self):
         return bool(self.value)
 
-    __bool__ = __nonzero__ # python 3
+    __nonzero__ = __bool__  # Python 2
+
 
 class CompleteUnqualifiedFunctionNames(CythonParameter):
     """

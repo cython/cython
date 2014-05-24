@@ -284,14 +284,6 @@ VER_DEP_MODULES = {
                                           ]),
 }
 
-# files that should not be converted to Python 3 code with 2to3
-KEEP_2X_FILES = [
-    os.path.join('Cython', 'Debugger', 'Tests', 'test_libcython_in_gdb.py'),
-    os.path.join('Cython', 'Debugger', 'Tests', 'test_libpython_in_gdb.py'),
-    os.path.join('Cython', 'Debugger', 'libcython.py'),
-    os.path.join('Cython', 'Debugger', 'libpython.py'),
-]
-
 COMPILER = None
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
 CFLAGS = os.getenv('CFLAGS', '').split()
@@ -1509,9 +1501,6 @@ def refactor_for_py3(distdir, cy3_dir):
                      ''')
     sys.path.insert(0, cy3_dir)
 
-    for keep_2x_file in KEEP_2X_FILES:
-        destfile = os.path.join(cy3_dir, keep_2x_file)
-        shutil.copy(keep_2x_file, destfile)
 
 class PendingThreadsError(RuntimeError):
     pass
