@@ -13,9 +13,14 @@ branches:
   only:
     - master
 
+before_install:
+  - sudo apt-get update
+  - sudo apt-get install gdb python`python -c 'import sys; print("%d.%d" % sys.version_info[:2])'`-dbg
+  - dpkg -l | grep gdb
+
 install: pip install .
 
-script: CFLAGS="-O0 -ggdb" python runtests.py -vv
+script: CFLAGS="-O0 -ggdb" python-dbg runtests.py -vv
 
 matrix:
   allow_failures:
