@@ -21,7 +21,7 @@ before_install:
 install: pip install .
 
 script:
-  - PYTHON="`python$( python -c 'import sys; print("%d.%d" % sys.version_info[:2])' )-dbg`"
+  - PYTHON="python$( python -c 'import sys; print("%d.%d" % sys.version_info[:2])' )-dbg"
   - CFLAGS="-O0 -ggdb" $( $PYTHON -V >&2 && echo $PYTHON || echo python ) runtests.py -vv
 
 matrix:
