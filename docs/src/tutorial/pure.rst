@@ -11,9 +11,16 @@ it usually results in a 20%-50% speed gain only.
 To go beyond that, Cython provides language constructs to add static typing
 and cythonic functionalities to a Python module to make it run much faster
 when compiled, while still allowing it to be interpreted.
-
 This is accomplished either via an augmenting :file:`.pxd` file, or
 via special functions and decorators available after importing ``cython``.
+
+Although it is not typically recommended over writing straight Cython code
+to a :file:`.pyx` file, one can have specific reasons to do so -
+easier testing, collaboration with pure Python developers, etc.
+In pure mode, you are more or less restricted to code that can be expressed
+(or at least emulated) in Python, plus static type declarations. Anything
+beyond that can only be done in .pyx files with extended language syntax,
+because it depends on compilation.
 
 
 Augmenting .pxd
@@ -23,8 +30,11 @@ Using an augmenting :file:`.pxd` allows to let the original :file:`.py` file
 completely untouched. On the other hand, one needs to maintain both
 the :file:`.pxd` and the :file:`.py` in parallel.
 
-Note that this usage of the :file:`.pxd` is different of that when it is
-accompanying a :file:`.pyx` file (see :doc:`pxd_files`).
+Note that :file:`.pxd` files are used differently when they come together with
+:file:`.py` than with :file:`.pyx` files (see :doc:`pxd_files`). Declarations
+in a :file:`.pyx` must correspond to those of the :file:`.pxd`, whilst
+declarations in a :file:`.py` file can be overridden/augmented by the more
+specific ones present in a :file:`.pxd`.
 
 If a :file:`.pxd` file is found with the same name as a :file:`.py` file,
 it will be searched for :keyword:`cdef` classes and :keyword:`cdef`/:keyword:`cpdef`
@@ -45,7 +55,7 @@ Thus if one has a file :file:`A.py`::
 
 and adds :file:`A.pxd`::
 
-    cpdef inline int myfunction(int x,int y)
+    cpdef int myfunction(int x,int y)
 
     cdef class A:
         cdef public int a,b
@@ -53,7 +63,7 @@ and adds :file:`A.pxd`::
 
 then at compilation time :file:`A.py` would be interpreted as::
 
-    cpdef inline int myfunction(int x,int y):
+    cpdef int myfunction(int x,int y):
         a = x-y
         return a + x * y
 
@@ -68,19 +78,36 @@ then at compilation time :file:`A.py` would be interpreted as::
 while still letting the possibility of running the Python interpreter
 as before with `python A.py`.
 
-Note that in order to provide the Python wrappers to the definitions
-in the :file:`.pxd`,
+Notice how in order to provide the Python wrappers to the definitions
+in the :file:`.pxd`, that is, to be accessible from Python,
 
-* function definitions must be declared as `cpdef inline`;
+* function signature declarations must be declared as `cpdef`::
+
+    cpdef int myfunction(int x,int y)
+
+* function definitions must be declared as `cpdef inline`::
+
+    cpdef inline int myfunction(int x,int y):
+        pass
+
 * `cdef` classes are declared as `cdef class`;
-* `cdef` class attributes must be declared as `cdef public` to be accessible from Python;
-* `cdef` class methods must be declared as `cpdef` to be accessible from Python.
+
+* `cdef` class attributes must be declared as `cdef public`;
+
+* `cdef` class methods must be declared as `cpdef`.
+
+
+Also in the example above, one cannot fix the type of the local variable `a`
+used within `myfunction` with such definitions. For that purpose
+one can use ``cython``'s ``@locals`` decorator (see :ref:`magic_attributes`, and
+:ref:`magic_attributes_pxd`).
 
 Normal Python (:keyword:`def`) functions cannot be declared in
 :file:`.pxd` files, so it is currently impossible to override the types of
 Python functions in :file:`.pxd` files if they use ``*args`` or ``**kwargs``
 in their signature, for instance.
 
+.. _magic_attributes:
 
 Magic Attributes
 ----------------
@@ -134,6 +161,7 @@ Static typing
 
     @cython.locals(a=cython.double, b=cython.double, n=cython.p_double)
     def foo(a, b, x, y):
+        n = a*b
         ...
 
   It cannot be used to type class constructor attributes. See ``cython.declare``
@@ -155,11 +183,15 @@ Extension types and cdef functions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * ``@cython.cclass`` creates a ``cdef class``.
+
 * ``@cython.cfunc`` creates a :keyword:`cdef` function.
+
 * ``@cython.ccall`` creates a :keyword:`cpdef` function, i.e. one that Cython code
   can call at the C level.
+
 * ``@cython.locals`` declares local variables (see above). It can also be used to
   declare types for the local variables that are used in the signature.
+
 * ``@cython.inline`` is the equivalent of the C ``inline`` modifier.
 
 Here is an example of a :keyword:`cdef` function::
@@ -205,6 +237,7 @@ Further Cython functions and declarations
 
     T = cython.typedef(cython.p_int)   # ctypedef int* T
 
+.. _magic_attributes_pxd:
 
 Magic Attributes within the .pxd
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -218,17 +251,12 @@ The special Cython module can also be imported and used within the augmenting
             t += i
         return t
 
-could be augmented with the following :file:`.pxd` file :file:`dostuff.pxd`::
+can be augmented with the following :file:`.pxd` file :file:`dostuff.pxd`::
 
     import cython
 
     @cython.locals(t = cython.int, i = cython.int)
     cpdef int dostuff(int n)
-
-which is equivalent to::
-
-    cpdef int dostuff(int n):
-        cdef int t,i
 
 Besides the ``cython.locals`` decorator, the :func:`cython.declare` function can also be
 used to add types to global variables in the augmenting :file:`.pxd` file.
