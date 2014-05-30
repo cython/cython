@@ -68,7 +68,7 @@ an anonymous :keyword:`enum` declaration for this purpose, for example,::
 Types
 -----
 
-There are numerous types built in to the Cython module. One has all the
+There are numerous types built in to the Cython module. It provides all the
 standard C types, namely ``char``, ``short``, ``int``, ``long``, ``longlong``
 as well as their unsigned versions ``uchar``, ``ushort``, ``uint``, ``ulong``,
 ``ulonglong``.  One also has ``bint`` and ``Py_ssize_t``.

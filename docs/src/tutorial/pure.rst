@@ -34,7 +34,7 @@ Thus if one has a file :file:`A.py`::
 
     def myfunction(x, y=2):
         a = x-y
-        return a+(x*y)
+        return a + x * y
 
     class A:
         def __init__(self, b=0):
@@ -45,8 +45,7 @@ Thus if one has a file :file:`A.py`::
 
 and adds :file:`A.pxd`::
 
-    cpdef inline int myfunction(int x,int y):
-        cdef int a
+    cpdef inline int myfunction(int x,int y)
 
     cdef class A:
         cdef public int a,b
@@ -54,29 +53,28 @@ and adds :file:`A.pxd`::
 
 then at compilation time :file:`A.py` would be interpreted as::
 
-    cdef int myfunction(int x,int y):
-        cdef int a
+    cpdef inline int myfunction(int x,int y):
         a = x-y
-        return a+(x*y)
+        return a + x * y
 
     cdef class A:
-        cdef int a,b
-        def __init__(self, int b=0):
+        cdef public int a,b
+        def __init__(self, b=0):
             self.a = 3
             self.b = b
-        cdef foo(self, double x):
+        cpdef foo(self, double x):
             print x + 1.0
 
 while still letting the possibility of running the Python interpreter
 as before with `python A.py`.
 
-Note that in order to provide the Python wrappers to the :keyword:`cdef`
-definitions in the :file:`.pxd`,
+Note that in order to provide the Python wrappers to the definitions
+in the :file:`.pxd`,
 
-* functions are declared as `cpdef inline`;
-* classes are declared as `cdef class`;
-* class attributes are declared as `cdef public`;
-* class methods are declared as `cpdef`.
+* function definitions must be declared as `cpdef inline`;
+* `cdef` classes are declared as `cdef class`;
+* `cdef` class attributes must be declared as `cdef public` to be accessible from Python;
+* `cdef` class methods must be declared as `cpdef` to be accessible from Python.
 
 Normal Python (:keyword:`def`) functions cannot be declared in
 :file:`.pxd` files, so it is currently impossible to override the types of
@@ -91,9 +89,8 @@ Special decorators are available using the ``cython`` module that can
 be used to add static typing within the Python file, while being ignored
 by the interpreter.
 
-Their use is more limited than :file:`.pxd` extensions or usual Cython code,
-and add the ``cython`` dependency to the original code. However they can
-come in handy and do not require to maintain a supplementary file.
+This option adds the ``cython`` dependency to the original code, but does
+not require to maintain a supplementary file.
 
 "Compiled" switch
 ^^^^^^^^^^^^^^^^^
@@ -102,9 +99,9 @@ come in handy and do not require to maintain a supplementary file.
   runs, and ``False`` in the interpreter. Thus the code::
 
     if cython.compiled:
-        print "Yep, I'm compiled."
+        print("Yep, I'm compiled.")
     else:
-        print "Just a lowly interpreted script."
+        print("Just a lowly interpreted script.")
 
   will behave differently depending on whether or not the code is loaded as a
   compiled :file:`.so` file or a plain :file:`.py` file.
@@ -124,6 +121,14 @@ Static typing
 
     cython.declare(x=cython.int, y=cython.double) # cdef int x; cdef double y
 
+  It can also be used to type class constructors::
+
+    class A:
+        cython.declare(a=cython.int, b=cython.int)
+        def __init__(self, b=0):
+            self.a = 3
+            self.b = b
+
 * ``@cython.locals`` is a decorator that is used to specify the types of local variables
   in the function body (including any or all of the argument types)::
 
@@ -131,7 +136,8 @@ Static typing
     def foo(a, b, x, y):
         ...
 
-  It cannot be used to type class constructor attributes.
+  It cannot be used to type class constructor attributes. See ``cython.declare``
+  instead to do so.
 
 * ``@cython.returns(<type>)`` specifies the function's return type.
 
@@ -150,8 +156,10 @@ Extension types and cdef functions
 
 * ``@cython.cclass`` creates a ``cdef class``.
 * ``@cython.cfunc`` creates a :keyword:`cdef` function.
-* ``@cython.ccall`` creates a :keyword:`cpdef` function.
-* ``@cython.locals`` declares the argument types (see above).
+* ``@cython.ccall`` creates a :keyword:`cpdef` function, i.e. one that Cython code
+  can call at the C level.
+* ``@cython.locals`` declares local variables (see above). It can also be used to
+  declare types for the local variables that are used in the signature.
 * ``@cython.inline`` is the equivalent of the C ``inline`` modifier.
 
 Here is an example of a :keyword:`cdef` function::
@@ -162,8 +170,8 @@ Here is an example of a :keyword:`cdef` function::
     def c_compare(a,b):
         return a == b
 
-Others attributes
-^^^^^^^^^^^^^^^^^
+Further Cython functions and declarations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * ``address`` is used in place of the ``&`` operator::
 
