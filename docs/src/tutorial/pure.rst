@@ -4,149 +4,168 @@
 Pure Python Mode
 ================
 
-Sometimes one may want to speed up Python code without losing the possibility to run
-it with the Python interpreter. While pure Python scripts can be compiled with Cython,
-it usually results in a 20%-50% speed gain only.
+In some cases, it's desirable to speed up Python code without losing the
+ability to run it with the Python interpreter.  While pure Python scripts
+can be compiled with Cython, it usually results only in a speed gain of
+about 20%-50%.
 
 To go beyond that, Cython provides language constructs to add static typing
 and cythonic functionalities to a Python module to make it run much faster
 when compiled, while still allowing it to be interpreted.
 This is accomplished either via an augmenting :file:`.pxd` file, or
-via special functions and decorators available after importing ``cython``.
+via special functions and decorators available after importing the magic
+``cython`` module.
 
 Although it is not typically recommended over writing straight Cython code
-to a :file:`.pyx` file, one can have specific reasons to do so -
-easier testing, collaboration with pure Python developers, etc.
-In pure mode, you are more or less restricted to code that can be expressed
-(or at least emulated) in Python, plus static type declarations. Anything
-beyond that can only be done in .pyx files with extended language syntax,
-because it depends on compilation.
+in a :file:`.pyx` file, there are legitimate reasons to do this - easier
+testing, collaboration with pure Python developers, etc.  In pure mode, you
+are more or less restricted to code that can be expressed (or at least
+emulated) in Python, plus static type declarations. Anything beyond that
+can only be done in .pyx files with extended language syntax, because it
+depends on features of the Cython compiler.
 
 
 Augmenting .pxd
 ---------------
 
 Using an augmenting :file:`.pxd` allows to let the original :file:`.py` file
-completely untouched. On the other hand, one needs to maintain both
-the :file:`.pxd` and the :file:`.py` in parallel.
+completely untouched.  On the other hand, one needs to maintain both the
+:file:`.pxd` and the :file:`.py` to keep them in sync.
 
-Note that :file:`.pxd` files are used differently when they come together with
-:file:`.py` than with :file:`.pyx` files (see :doc:`pxd_files`). Declarations
-in a :file:`.pyx` must correspond to those of the :file:`.pxd`, whilst
-declarations in a :file:`.py` file can be overridden/augmented by the more
+While declarations in a :file:`.pyx` file must correspond exactly with those
+of a :file:`.pxd` file with the same name (and any contradiction results in
+a compile time error, see :doc:`pxd_files`), the untyped definitions in a
+:file:`.py` file can be overridden and augmented with static types by the more
 specific ones present in a :file:`.pxd`.
 
-If a :file:`.pxd` file is found with the same name as a :file:`.py` file,
-it will be searched for :keyword:`cdef` classes and :keyword:`cdef`/:keyword:`cpdef`
-functions and methods. It will then convert the corresponding
-classes/functions/methods in the :file:`.py` file to be of the correct type.
-Thus if one has a file :file:`A.py`::
+If a :file:`.pxd` file is found with the same name as the :file:`.py` file
+being compiled, it will be searched for :keyword:`cdef` classes and
+:keyword:`cdef`/:keyword:`cpdef` functions and methods.  The compiler will
+then convert the corresponding classes/functions/methods in the :file:`.py`
+file to be of the declared type.  Thus if one has a file :file:`A.py`::
 
     def myfunction(x, y=2):
         a = x-y
         return a + x * y
 
+    def _helper(a):
+        return a + 1
+
     class A:
         def __init__(self, b=0):
             self.a = 3
             self.b = b
+
         def foo(self, x):
-            print x + 1.0
+            print x + _helper(1.0)
 
 and adds :file:`A.pxd`::
 
-    cpdef int myfunction(int x,int y)
+    cpdef int myfunction(int x, int y)
+    cdef double _helper(double a)
 
     cdef class A:
         cdef public int a,b
         cpdef foo(self, double x)
 
-then at compilation time :file:`A.py` would be interpreted as::
+then Cython will compile the :file:`A.py` as if it had been written as follows::
 
-    cpdef int myfunction(int x,int y):
+    cpdef int myfunction(int x, int y):
         a = x-y
         return a + x * y
+
+    cdef double _helper(double a):
+        return a + 1
 
     cdef class A:
         cdef public int a,b
         def __init__(self, b=0):
             self.a = 3
             self.b = b
-        cpdef foo(self, double x):
-            print x + 1.0
 
-while still letting the possibility of running the Python interpreter
-as before with `python A.py`.
+        cpdef foo(self, double x):
+            print x + _helper(1.0)
 
 Notice how in order to provide the Python wrappers to the definitions
 in the :file:`.pxd`, that is, to be accessible from Python,
 
-* function signature declarations must be declared as `cpdef`::
+* Python visible function signatures must be declared as `cpdef`::
 
-    cpdef int myfunction(int x,int y)
+    cpdef int myfunction(int x, int y)
 
-* function definitions must be declared as `cpdef inline`::
+* C function signatures of internal functions can be declared as `cdef`::
 
-    cpdef inline int myfunction(int x,int y):
-        pass
+    cdef double _helper(double a)
 
-* `cdef` classes are declared as `cdef class`;
+* `cdef` classes (extension types) are declared as `cdef class`;
 
-* `cdef` class attributes must be declared as `cdef public`;
+* `cdef` class attributes must be declared as `cdef public` if read/write
+  Python access is needed, `cdef readonly` for read-only Python access, or
+  plain `cdef` for internal C level attributes;
 
-* `cdef` class methods must be declared as `cpdef`.
+* `cdef` class methods must be declared as `cpdef` for Python visible
+  methods or `cdef` for internal C methods.
 
 
-Also in the example above, one cannot fix the type of the local variable `a`
-used within `myfunction` with such definitions. For that purpose
-one can use ``cython``'s ``@locals`` decorator (see :ref:`magic_attributes`, and
-:ref:`magic_attributes_pxd`).
+In the example above, the type of the local variable `a` in `myfunction()`
+is not fixed and will thus be a Python object.  To statically type it, one
+can use Cython's ``@cython.locals`` decorator (see :ref:`magic_attributes`,
+and :ref:`magic_attributes_pxd`).
 
-Normal Python (:keyword:`def`) functions cannot be declared in
-:file:`.pxd` files, so it is currently impossible to override the types of
-Python functions in :file:`.pxd` files if they use ``*args`` or ``**kwargs``
-in their signature, for instance.
+Normal Python (:keyword:`def`) functions cannot be declared in :file:`.pxd`
+files.  It is therefore currently impossible to override the types of plain
+Python functions in :file:`.pxd` files, e.g. to override types of their local
+variables.  In most cases, declaring them as `cpdef` will work as expected.
+
 
 .. _magic_attributes:
 
 Magic Attributes
 ----------------
 
-Special decorators are available using the ``cython`` module that can
+Special decorators are available from the magic ``cython`` module that can
 be used to add static typing within the Python file, while being ignored
 by the interpreter.
 
-This option adds the ``cython`` dependency to the original code, but does
-not require to maintain a supplementary file.
+This option adds the ``cython`` module dependency to the original code, but
+does not require to maintain a supplementary :file:`.pxd` file.  Cython
+provides a fake version of this module as `Cython.Shadow`, which is available
+as `cython.py` when Cython is installed, but can be copied to be used by other
+modules when Cython is not installed.
+
 
 "Compiled" switch
 ^^^^^^^^^^^^^^^^^
 
 * ``compiled`` is a special variable which is set to ``True`` when the compiler
-  runs, and ``False`` in the interpreter. Thus the code::
+  runs, and ``False`` in the interpreter. Thus, the code
+
+  ::
 
     if cython.compiled:
         print("Yep, I'm compiled.")
     else:
         print("Just a lowly interpreted script.")
 
-  will behave differently depending on whether or not the code is loaded as a
-  compiled :file:`.so` file or a plain :file:`.py` file.
+  will behave differently depending on whether or not the code is executed as a
+  compiled extension (:file:`.so`/:file:`.pyd`) module or a plain :file:`.py`
+  file.
+
 
 Static typing
 ^^^^^^^^^^^^^
 
-* ``cython.declare`` declares a typed variable in the current scope, which can be used in
-  place of the :samp:`cdef type var [= value]` construct. This has two forms, the
-  first as an assignment (useful as it creates a declaration in
-  interpreted mode as well)::
+* ``cython.declare`` declares a typed variable in the current scope, which can be
+  used in place of the :samp:`cdef type var [= value]` construct. This has two forms,
+  the first as an assignment (useful as it creates a declaration in interpreted
+  mode as well)::
 
-    x = cython.declare(cython.int)             # cdef int x
-    y = cython.declare(cython.double, 0.57721) # cdef double y = 0.57721
+    x = cython.declare(cython.int)              # cdef int x
+    y = cython.declare(cython.double, 0.57721)  # cdef double y = 0.57721
 
   and the second mode as a simple function call::
 
-    cython.declare(x=cython.int, y=cython.double) # cdef int x; cdef double y
+    cython.declare(x=cython.int, y=cython.double)  # cdef int x; cdef double y
 
   It can also be used to type class constructors::
 
@@ -156,16 +175,13 @@ Static typing
             self.a = 3
             self.b = b
 
-* ``@cython.locals`` is a decorator that is used to specify the types of local variables
-  in the function body (including any or all of the argument types)::
+* ``@cython.locals`` is a decorator that is used to specify the types of local
+  variables in the function body (including the arguments)::
 
     @cython.locals(a=cython.double, b=cython.double, n=cython.p_double)
     def foo(a, b, x, y):
         n = a*b
         ...
-
-  It cannot be used to type class constructor attributes. See ``cython.declare``
-  instead to do so.
 
 * ``@cython.returns(<type>)`` specifies the function's return type.
 
@@ -189,7 +205,7 @@ as well as their unsigned versions ``uchar``, ``ushort``, ``uint``, ``ulong``,
 ``ulonglong``.  The special ``bint`` type is used for C boolean values and
 ``Py_ssize_t`` for (signed) sizes of Python containers.
 
-For each type, there are pointer types ``p_int``, ``pp_int``, . . ., up to
+For each type, there are pointer types ``p_int``, ``pp_int``, etc., up to
 three levels deep in interpreted mode, and infinitely deep in compiled mode.
 Further pointer types can be constructed with ``cython.pointer(cython.int)``,
 and arrays as ``cython.int[10]``. A limited attempt is made to emulate these
@@ -203,15 +219,16 @@ and ``bint`` respectively. Also, the Python builtin types ``list``, ``dict``,
 Extension types and cdef functions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-* ``@cython.cclass`` creates a ``cdef class``.
+* The class decorator ``@cython.cclass`` creates a ``cdef class``.
 
-* ``@cython.cfunc`` creates a :keyword:`cdef` function.
+* The function/method decorator ``@cython.cfunc`` creates a :keyword:`cdef` function.
 
 * ``@cython.ccall`` creates a :keyword:`cpdef` function, i.e. one that Cython code
   can call at the C level.
 
 * ``@cython.locals`` declares local variables (see above). It can also be used to
-  declare types for the local variables that are used in the signature.
+  declare types for arguments, i.e. the local variables that are used in the
+  signature.
 
 * ``@cython.inline`` is the equivalent of the C ``inline`` modifier.
 
@@ -223,6 +240,7 @@ Here is an example of a :keyword:`cdef` function::
     def c_compare(a,b):
         return a == b
 
+
 Further Cython functions and declarations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -231,8 +249,10 @@ Further Cython functions and declarations
     cython.declare(x=cython.int, x_ptr=cython.p_int)
     x_ptr = cython.address(x)
 
-* ``sizeof`` emulates the `sizeof` operator. It can take both types and
-  expressions.::
+* ``sizeof`` emulates the `sizeof` operator.  It can take both types and
+  expressions.
+
+  ::
 
     cython.declare(n=cython.longlong)
     print cython.sizeof(cython.longlong)
@@ -254,16 +274,17 @@ Further Cython functions and declarations
 
 * ``union`` creates union types with exactly the same syntax as ``struct``.
 
-* ``typedef`` creates a new type::
+* ``typedef`` defines a type under a given name::
 
     T = cython.typedef(cython.p_int)   # ctypedef int* T
+
 
 .. _magic_attributes_pxd:
 
 Magic Attributes within the .pxd
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The special Cython module can also be imported and used within the augmenting
+The special `cython` module can also be imported and used within the augmenting
 :file:`.pxd` file. For example, the following Python file :file:`dostuff.py`::
 
     def dostuff(n):
@@ -279,6 +300,5 @@ can be augmented with the following :file:`.pxd` file :file:`dostuff.pxd`::
     @cython.locals(t = cython.int, i = cython.int)
     cpdef int dostuff(int n)
 
-Besides the ``cython.locals`` decorator, the :func:`cython.declare` function can also be
-used to add types to global variables in the augmenting :file:`.pxd` file.
-
+The :func:`cython.declare()` function can be used to specify types for global
+variables in the augmenting :file:`.pxd` file.
