@@ -68,24 +68,24 @@ an anonymous :keyword:`enum` declaration for this purpose, for example,::
 Types
 -----
 
-There are numerous types built in to the Cython module. It provides all the
-standard C types, namely ``char``, ``short``, ``int``, ``long``, ``longlong``
-as well as their unsigned versions ``uchar``, ``ushort``, ``uint``, ``ulong``,
-``ulonglong``.  One also has ``bint`` and ``Py_ssize_t``.
+Cython uses the normal C syntax for C types, including pointers.  It provides
+all the standard C types, namely ``char``, ``short``, ``int``, ``long``,
+``long long`` as well as their ``unsigned`` versions, e.g. ``unsigned int``.
+The special ``bint`` type is used for C boolean values (``int`` with 0/non-0
+values for False/True) and ``Py_ssize_t`` for (signed) sizes of Python
+containers.
 
-For each type, there are pointer types ``p_int``, ``pp_int``, . . ., up to
-three levels deep in interpreted mode, and infinitely deep in compiled mode.
+Pointer types are constructed as in C, by appending a ``*`` to the base type
+they point to, e.g. ``int**`` for a pointer to a pointer to a C int.
+Arrays use the normal C array syntax, e.g. ``int[10]``.  Note that Cython uses
+array access for pointer dereferencing, as ``*x`` is not valid Python syntax,
+whereas ``x[0]`` is.
 
-The Python types int, long and bool are interpreted as C ``int``, ``long``
-and ``bint`` respectively.
-
-Also, the Python types ``list``, ``dict``, ``tuple``, . . . may
-be used, as well as any user defined types. However at the moment they add very
-few in terms of optimization to a simple ``object`` typing.
-
-Pointer types may be constructed with ``cython.pointer(cython.int)``, and
-arrays as ``cython.int[10]``. A limited attempt is made to emulate these more
-complex types, but only so much can be done from the Python language.
+Also, the Python types ``list``, ``dict``, ``tuple``, etc. may be used for
+static typing, as well as any user defined extension types.  The Python types
+int and long are not available for static typing and instead interpreted as C
+``int`` and ``long`` respectively, as statically typing variables with Python
+integer types has zero advantages.
 
 
 Grouping multiple C declarations

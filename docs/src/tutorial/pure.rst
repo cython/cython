@@ -179,6 +179,27 @@ Static typing
              explicit_c_type: {'ctype': 'int'}):
         ...
 
+
+C types
+^^^^^^^
+
+There are numerous types built into the Cython module.  It provides all the
+standard C types, namely ``char``, ``short``, ``int``, ``long``, ``longlong``
+as well as their unsigned versions ``uchar``, ``ushort``, ``uint``, ``ulong``,
+``ulonglong``.  The special ``bint`` type is used for C boolean values and
+``Py_ssize_t`` for (signed) sizes of Python containers.
+
+For each type, there are pointer types ``p_int``, ``pp_int``, . . ., up to
+three levels deep in interpreted mode, and infinitely deep in compiled mode.
+Further pointer types can be constructed with ``cython.pointer(cython.int)``,
+and arrays as ``cython.int[10]``. A limited attempt is made to emulate these
+more complex types, but only so much can be done from the Python language.
+
+The Python types int, long and bool are interpreted as C ``int``, ``long``
+and ``bint`` respectively. Also, the Python builtin types ``list``, ``dict``,
+``tuple``, etc. may be used, as well as any user defined types.
+
+
 Extension types and cdef functions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
