@@ -31,7 +31,7 @@ and C :keyword:`struct`, :keyword:`union` or :keyword:`enum` types::
         float *eggs
 
     cdef enum CheeseType:
-        cheddar, edam, 
+        cheddar, edam,
         camembert
 
     cdef enum CheeseState:
@@ -64,6 +64,30 @@ an anonymous :keyword:`enum` declaration for this purpose, for example,::
 
         ctypedef int* IntPtr
 
+
+Types
+-----
+
+There are numerous types built in to the Cython module. It provides all the
+standard C types, namely ``char``, ``short``, ``int``, ``long``, ``longlong``
+as well as their unsigned versions ``uchar``, ``ushort``, ``uint``, ``ulong``,
+``ulonglong``.  One also has ``bint`` and ``Py_ssize_t``.
+
+For each type, there are pointer types ``p_int``, ``pp_int``, . . ., up to
+three levels deep in interpreted mode, and infinitely deep in compiled mode.
+
+The Python types int, long and bool are interpreted as C ``int``, ``long``
+and ``bint`` respectively.
+
+Also, the Python types ``list``, ``dict``, ``tuple``, . . . may
+be used, as well as any user defined types. However at the moment they add very
+few in terms of optimization to a simple ``object`` typing.
+
+Pointer types may be constructed with ``cython.pointer(cython.int)``, and
+arrays as ``cython.int[10]``. A limited attempt is made to emulate these more
+complex types, but only so much can be done from the Python language.
+
+
 Grouping multiple C declarations
 --------------------------------
 
@@ -92,14 +116,14 @@ Python objects as parameters and return Python objects.
 
 C functions are defined using the new :keyword:`cdef` statement. They take
 either Python objects or C values as parameters, and can return either Python
-objects or C values. 
+objects or C values.
 
 Within a Cython module, Python functions and C functions can call each other
 freely, but only Python functions can be called from outside the module by
 interpreted Python code. So, any functions that you want to "export" from your
-Cython module must be declared as Python functions using def. 
-There is also a hybrid function, called :keyword:`cpdef`. A :keyword:`cpdef` 
-can be called from anywhere, but uses the faster C calling conventions 
+Cython module must be declared as Python functions using def.
+There is also a hybrid function, called :keyword:`cpdef`. A :keyword:`cpdef`
+can be called from anywhere, but uses the faster C calling conventions
 when being called from other Cython code. A :keyword:`cpdef` can also be overridden
 by a Python method on a subclass or an instance attribute, even when called from Cython.
 If this happens, most performance gains are of course lost and even if it does not,
@@ -212,18 +236,18 @@ This form causes Cython to generate a call to :c:func:`PyErr_Occurred` after
 every call to spam, regardless of what value it returns. If you have a
 function returning void that needs to propagate errors, you will have to use
 this form, since there isn't any return value to test.
-Otherwise there is little use for this form. 
+Otherwise there is little use for this form.
 
 An external C++ function that may raise an exception can be declared with::
 
     cdef int spam() except +
 
-See :ref:`wrapping-cplusplus` for more details. 
+See :ref:`wrapping-cplusplus` for more details.
 
 Some things to note:
 
 * Exception values can only declared for functions returning an integer, enum,
-  float or pointer type, and the value must be a constant expression. 
+  float or pointer type, and the value must be a constant expression.
   Void functions can only use the ``except *`` form.
 * The exception value specification is part of the signature of the function.
   If you're passing a pointer to a function as a parameter or assigning it
@@ -236,7 +260,7 @@ Some things to note:
 
 * You don't need to (and shouldn't) declare exception values for functions
   which return Python objects. Remember that a function with no declared
-  return type implicitly returns a Python object. (Exceptions on such functions 
+  return type implicitly returns a Python object. (Exceptions on such functions
   are implicitly propagated by returning NULL.)
 
 Checking return values of non-Cython functions
@@ -260,7 +284,7 @@ return value and raise it yourself, for example,::
     if p == NULL:
         raise SpamError("Couldn't open the spam file")
 
-    
+
 Automatic type conversions
 ==========================
 
@@ -287,7 +311,7 @@ possibilities.
 | struct                     |                    | dict             |
 +----------------------------+--------------------+------------------+
 
-.. [#] The conversion is to/from str for Python 2.x, and bytes for Python 3.x. 
+.. [#] The conversion is to/from str for Python 2.x, and bytes for Python 3.x.
 
 Caveats when using a Python string in a C context
 -------------------------------------------------
@@ -352,9 +376,9 @@ direct equivalent in Python.
 
 * An integer literal is treated as a C constant, and will
   be truncated to whatever size your C compiler thinks appropriate.
-  To get a Python integer (of arbitrary precision) cast immediately to 
-  an object (e.g. ``<object>100000000000000000000``). The ``L``, ``LL``, 
-  and ``U`` suffixes have the same meaning as in C. 
+  To get a Python integer (of arbitrary precision) cast immediately to
+  an object (e.g. ``<object>100000000000000000000``). The ``L``, ``LL``,
+  and ``U`` suffixes have the same meaning as in C.
 * There is no ``->`` operator in Cython. Instead of ``p->x``, use ``p.x``
 * There is no unary ``*`` operator in Cython. Instead of ``*p``, use ``p[0]``
 * There is an ``&`` operator, with the same semantics as in C.
@@ -495,7 +519,7 @@ Some things to note about the for-from loop:
 * The name between the lower and upper bounds must be the same as the target
   name.
 * The direction of iteration is determined by the relations. If they are both
-  from the set {``<``, ``<=``} then it is upwards; if they are both from the set 
+  from the set {``<``, ``<=``} then it is upwards; if they are both from the set
   {``>``, ``>=``} then it is downwards. (Any other combination is disallowed.)
 
 Like other Python looping statements, break and continue may be used in the
@@ -505,8 +529,8 @@ body, and the loop may have an else clause.
 The include statement
 =====================
 
-.. warning:: 
-    Historically the ``include`` statement was used for sharing declarations. 
+.. warning::
+    Historically the ``include`` statement was used for sharing declarations.
     Use :ref:`sharing-declarations` instead.
 
 A Cython source file can include material from other files using the include
