@@ -385,7 +385,7 @@ The array lookups are still slowed down by two factors:
 Now bounds checking is not performed (and, as a side-effect, if you ''do''
 happen to access out of bounds you will in the best case crash your program
 and in the worst case corrupt data). It is possible to switch bounds-checking
-mode in many ways, see [:docs/compilerdirectives:compiler directives] for more
+mode in many ways, see :ref:`compiler-directives` for more
 information.
 
 Negative indices are dealt with by ensuring Cython that the indices will be
