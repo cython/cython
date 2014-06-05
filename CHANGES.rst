@@ -9,6 +9,10 @@ Latest
 Features added
 --------------
 
+* Allow @staticmethod decorator to declare static cdef methods.
+  This is especially useful for declaring "constructors" for
+  cdef classes that can take non-Python arguments.
+
 * Generators have new properties ``__name__`` and ``__qualname__``
   that provide the plain/qualified name of the generator function
   (following CPython 3.5).  See http://bugs.python.org/issue21205

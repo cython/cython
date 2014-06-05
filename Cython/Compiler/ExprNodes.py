@@ -4449,7 +4449,7 @@ class SimpleCallNode(CallNode):
             self.type = error_type
             return
 
-        if self.self:
+        if self.self and not self.function.type.is_static_method:
             args = [self.self] + self.args
         else:
             args = self.args
@@ -4475,6 +4475,7 @@ class SimpleCallNode(CallNode):
             else:
                 alternatives = overloaded_entry.all_alternatives()
 
+            print self.function.type, args
             entry = PyrexTypes.best_match(args, alternatives, self.pos, env)
 
             if not entry:
@@ -4504,7 +4505,7 @@ class SimpleCallNode(CallNode):
             self.is_temp = 1
 
         # check 'self' argument
-        if entry and entry.is_cmethod and func_type.args:
+        if entry and entry.is_cmethod and func_type.args and not func_type.is_static_method:
             formal_arg = func_type.args[0]
             arg = args[0]
             if formal_arg.not_none:

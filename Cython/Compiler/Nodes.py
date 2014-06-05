@@ -616,7 +616,9 @@ class CFuncDeclaratorNode(CDeclaratorNode):
         func_type_args = []
         for i, arg_node in enumerate(self.args):
             name_declarator, type = arg_node.analyse(
-                env, nonempty=nonempty, is_self_arg=(i == 0 and env.is_c_class_scope))
+                env, nonempty=nonempty, is_self_arg=(i == 0 and env.is_c_class_scope and 'staticmethod' not in env.directives))
+            print arg_node
+            print name_declarator, type, (i == 0 and env.is_c_class_scope and 'staticmethod' not in env.directives)
             name = name_declarator.name
             if name in directive_locals:
                 type_node = directive_locals[name]
@@ -795,6 +797,7 @@ class CArgDeclNode(Node):
     is_dynamic = 0
 
     def analyse(self, env, nonempty = 0, is_self_arg = False):
+        print "is_self_arg", is_self_arg, "type", self.type, "self.base_type", self.base_type, "self.base_type.is_self_arg", self.base_type.is_self_arg
         if is_self_arg:
             self.base_type.is_self_arg = self.is_self_arg = True
         if self.type is None:
@@ -815,6 +818,7 @@ class CArgDeclNode(Node):
                 could_be_name = False
             self.base_type.is_arg = True
             base_type = self.base_type.analyse(env, could_be_name=could_be_name)
+            print "base_type", base_type
             if hasattr(self.base_type, 'arg_name') and self.base_type.arg_name:
                 self.declarator.name = self.base_type.arg_name
 
@@ -2140,6 +2144,7 @@ class CFuncDefNode(FuncDefNode):
     #  inline_in_pxd whether this is an inline function in a pxd file
     #  template_declaration  String or None   Used for c++ class methods
     #  is_const_method whether this is a const method
+    #  is_static_method whether this is a static method
 
     child_attrs = ["base_type", "declarator", "body", "py_func"]
 
@@ -2165,6 +2170,7 @@ class CFuncDefNode(FuncDefNode):
                 base_type = PyrexTypes.error_type
         else:
             base_type = self.base_type.analyse(env)
+        self.is_static_method = 'staticmethod' in env.directives
         # The 2 here is because we need both function and argument names.
         if isinstance(self.declarator, CFuncDeclaratorNode):
             name_declarator, type = self.declarator.analyse(base_type, env,
@@ -2179,6 +2185,7 @@ class CFuncDefNode(FuncDefNode):
         # written here, because the type in the symbol table entry
         # may be different if we're overriding a C method inherited
         # from the base type of an extension type.
+        print "type", type
         self.type = type
         type.is_overridable = self.overridable
         declarator = self.declarator
@@ -2226,6 +2233,7 @@ class CFuncDefNode(FuncDefNode):
         cname = name_declarator.cname
 
         type.is_const_method = self.is_const_method
+        type.is_static_method = self.is_static_method
         self.entry = env.declare_cfunction(
             name, type, self.pos,
             cname = cname, visibility = self.visibility, api = self.api,
@@ -2238,7 +2246,7 @@ class CFuncDefNode(FuncDefNode):
         if self.return_type.is_cpp_class:
             self.return_type.check_nullary_constructor(self.pos, "used as a return value")
 
-        if self.overridable and not env.is_module_scope:
+        if self.overridable and not env.is_module_scope and not self.is_static_method:
             if len(self.args) < 1 or not self.args[0].type.is_pyobject:
                 # An error will be produced in the cdef function
                 self.overridable = False

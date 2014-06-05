@@ -674,11 +674,13 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         for key, value in compilation_directive_defaults.items():
             self.compilation_directive_defaults[unicode(key)] = copy.deepcopy(value)
         self.cython_module_names = set()
-        self.directive_names = {}
+        self.directive_names = {'staticmethod': 'staticmethod'}
         self.parallel_directives = {}
 
     def check_directive_scope(self, pos, directive, scope):
+        print 'check_directive_scope', pos, directive, scope
         legal_scopes = Options.directive_scopes.get(directive, None)
+        print legal_scopes
         if legal_scopes and scope not in legal_scopes:
             self.context.nonfatal_error(PostParseError(pos, 'The %s compiler directive '
                                         'is not allowed in %s scope' % (directive, scope)))
@@ -979,18 +981,23 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         # Split the decorators into two lists -- real decorators and directives
         directives = []
         realdecs = []
+        both = []
         for dec in node.decorators:
             new_directives = self.try_to_parse_directives(dec.decorator)
             if new_directives is not None:
                 for directive in new_directives:
                     if self.check_directive_scope(node.pos, directive[0], scope_name):
-                        directives.append(directive)
+                        name, value = directive
+                        if self.directives.get(name, object()) != value:
+                            directives.append(directive)
+                        if directive[0] == 'staticmethod':
+                            both.append(dec)
             else:
                 realdecs.append(dec)
         if realdecs and isinstance(node, (Nodes.CFuncDefNode, Nodes.CClassDefNode, Nodes.CVarDefNode)):
             raise PostParseError(realdecs[0].pos, "Cdef functions/classes cannot take arbitrary decorators.")
         else:
-            node.decorators = realdecs
+            node.decorators = realdecs + both
         # merge or override repeated directives
         optdict = {}
         directives.reverse() # Decorators coming first take precedence
@@ -2705,6 +2712,8 @@ class TransformBuiltinMethods(EnvTransform):
                     node.cdivision = True
             elif function == u'set':
                 node.function = ExprNodes.NameNode(node.pos, name=EncodedString('set'))
+            elif function == u'staticmethod':
+                node.function = ExprNodes.NameNode(node.pos, name=EncodedString('staticmethod'))
             elif self.context.cython_scope.lookup_qualified_name(function):
                 pass
             else:
