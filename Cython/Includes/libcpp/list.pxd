@@ -1,15 +1,19 @@
 cdef extern from "<list>" namespace "std":
     cdef cppclass list[T]:
         cppclass iterator:
+            iterator()
+            iterator(iterator &)
             T& operator*() nogil
             iterator operator++() nogil
             iterator operator--() nogil
             bint operator==(iterator) nogil
             bint operator!=(iterator) nogil
         cppclass reverse_iterator:
+            reverse_iterator()
+            reverse_iterator(iterator &)
             T& operator*() nogil
-            iterator operator++() nogil
-            iterator operator--() nogil
+            reverse_iterator operator++() nogil
+            reverse_iterator operator--() nogil
             bint operator==(reverse_iterator) nogil
             bint operator!=(reverse_iterator) nogil
         #cppclass const_iterator(iterator):
