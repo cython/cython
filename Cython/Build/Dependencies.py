@@ -573,13 +573,13 @@ class DependencyTree(object):
         finally:
             del stack[node]
 
-_dep_tree = None
+#_dep_tree = None
 def create_dependency_tree(ctx=None, quiet=False):
-    global _dep_tree
-    if _dep_tree is None:
-        if ctx is None:
-            ctx = Context(["."], CompilationOptions(default_options))
-        _dep_tree = DependencyTree(ctx, quiet=quiet)
+    #global _dep_tree
+    #if _dep_tree is None:
+    if ctx is None:
+        ctx = Context(["."], CompilationOptions(default_options))
+    _dep_tree = DependencyTree(ctx, quiet=quiet)
     return _dep_tree
 
 
