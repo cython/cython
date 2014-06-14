@@ -35,6 +35,29 @@ def test_dict_construction(x, y, color):
     cdef Point p = {'color': color, 'x': x, 'y': y}
     return p
 
+def test_list_construction(x, y, color):
+    """
+    >>> sorted(test_list_construction(4, 5, 64).items())
+    [('color', 64), ('x', 4.0), ('y', 5.0)]
+    >>> try: test_list_construction("foo", 5, 64)
+    ... except TypeError: pass
+    """
+    cdef Point p = [x, y, color]
+    return p
+
+'''
+# FIXME: make this work
+def test_tuple_construction(x, y, color):
+    """
+    >>> sorted(test_tuple_construction(4, 5, 64).items())
+    [('color', 64), ('x', 4.0), ('y', 5.0)]
+    >>> try: test_tuple_construction("foo", 5, 64)
+    ... except TypeError: pass
+    """
+    cdef Point p = (x, y, color)
+    return p
+'''
+
 cdef union int_or_float:
     int n
     double x
