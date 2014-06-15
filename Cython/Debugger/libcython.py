@@ -331,15 +331,15 @@ class CythonBase(object):
             func_address = int(str(gdb_value.address).split()[0], 0)
 
         a = ', '.join('%s=%s' % (name, val) for name, val in func_args)
-        print '#%-2d 0x%016x in %s(%s)' % (index, func_address, func_name, a),
+        sys.stdout.write('#%-2d 0x%016x in %s(%s)' % (index, func_address, func_name, a))
 
         if source_desc.filename is not None:
-            print 'at %s:%s' % (source_desc.filename, lineno),
+            sys.stdout.write(' at %s:%s' % (source_desc.filename, lineno))
 
-        print
+        sys.stdout.write('\n')
 
         try:
-            print '    ' + source_desc.get_source(lineno)
+            sys.stdout.write('    ' + source_desc.get_source(lineno))
         except gdb.GdbError:
             pass
 
