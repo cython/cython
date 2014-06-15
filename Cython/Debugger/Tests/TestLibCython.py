@@ -275,7 +275,7 @@ class TestAll(GdbDebuggerTestCase):
             start  = u'%s   v INSIDE GDB v   %s' % (border, border)
             stderr = u'%s   v STDERR v   %s' % (border, border)
             end    = u'%s   ^ INSIDE GDB ^   %s' % (border, border)
-            errmsg = u'\n%s\n%s%s' % (start, out, stderr, err, end)
+            errmsg = u'\n%s\n%s%s\n%s%s' % (start, out, stderr, err, end)
 
             sys.stderr.write(errmsg)
         self.assertEqual(exit_status, 0)
