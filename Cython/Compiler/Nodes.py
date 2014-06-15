@@ -5739,6 +5739,7 @@ class ForInStatNode(LoopNode, StatNode):
         self.item.generate_evaluation_code(code)
         self.target.generate_assignment_code(self.item, code)
         self.body.generate_execution_code(code)
+        code.mark_pos(self.pos)
         code.put_label(code.continue_label)
         code.putln("}")
         break_label = code.break_label
@@ -5758,11 +5759,13 @@ class ForInStatNode(LoopNode, StatNode):
 
             if code.label_used(code.continue_label):
                 code.put_goto(break_label)
+                code.mark_pos(self.pos)
                 code.put_label(code.continue_label)
                 self.iterator.generate_disposal_code(code)
                 code.put_goto(orig_continue_label)
             code.set_loop_labels(old_loop_labels)
 
+        code.mark_pos(self.pos)
         if code.label_used(break_label):
             code.put_label(break_label)
         self.iterator.generate_disposal_code(code)
