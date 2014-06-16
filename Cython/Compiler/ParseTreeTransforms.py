@@ -1847,8 +1847,6 @@ class CalculateQualifiedNamesTransform(EnvTransform):
             qualname = self.qualified_name
         node.qualname = EncodedString('.'.join(qualname))
         node.module_name = self.module_name
-        self.visitchildren(node)
-        return node
 
     def _append_entry(self, entry):
         if entry.is_pyglobal and not entry.is_pyclass_attr:
@@ -1857,16 +1855,23 @@ class CalculateQualifiedNamesTransform(EnvTransform):
             self.qualified_name.append(entry.name)
 
     def visit_ClassNode(self, node):
-        return self._set_qualname(node, node.name)
+        self._set_qualname(node, node.name)
+        self.visitchildren(node)
+        return node
 
     def visit_PyClassNamespaceNode(self, node):
         # class name was already added by parent node
-        return self._set_qualname(node)
+        self._set_qualname(node)
+        self.visitchildren(node)
+        return node
 
     def visit_PyCFunctionNode(self, node):
-        return self._set_qualname(node, node.def_node.name)
+        self._set_qualname(node, node.def_node.name)
+        self.visitchildren(node)
+        return node
 
     def visit_FuncDefNode(self, node):
+        self._set_qualname(node, node.name)
         orig_qualified_name = self.qualified_name[:]
         if getattr(node, 'name', None) == '<lambda>':
             self.qualified_name.append('<lambda>')

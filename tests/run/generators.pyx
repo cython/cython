@@ -23,12 +23,42 @@ def very_simple():
     >>> next(x)
     Traceback (most recent call last):
     StopIteration
+
     >>> x = very_simple()
     >>> x.send(1)
     Traceback (most recent call last):
     TypeError: can't send non-None value to a just-started generator
     """
     yield 1
+
+
+def attributes():
+    """
+    >>> x = attributes()
+    >>> x.__name__
+    'attributes'
+    >>> x.__qualname__
+    'attributes'
+    >>> x.gi_running  # before next()
+    False
+    >>> inner = next(x)
+    >>> x.gi_running  # after next()
+    False
+    >>> next(x)
+    Traceback (most recent call last):
+    StopIteration
+    >>> x.gi_running  # after termination
+    False
+
+    >>> y = inner()
+    >>> y.__name__
+    '<lambda>'
+    >>> y.__qualname__
+    'attributes.<locals>.inner.<locals>.<lambda>'
+    """
+    def inner():
+        return (lambda : (yield 1))
+    yield inner()
 
 
 def simple():

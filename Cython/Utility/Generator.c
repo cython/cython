@@ -37,13 +37,15 @@ typedef struct {
     PyObject *gi_weakreflist;
     PyObject *classobj;
     PyObject *yieldfrom;
+    PyObject *gi_name;
+    PyObject *gi_qualname;
     int resume_label;
     // using T_BOOL for property below requires char value
     char is_running;
 } __pyx_GeneratorObject;
 
 static __pyx_GeneratorObject *__Pyx_Generator_New(__pyx_generator_body_t body,
-                                                  PyObject *closure);
+                                                  PyObject *closure, PyObject *name, PyObject *qualname);
 static int __pyx_Generator_init(void);
 static int __Pyx_Generator_clear(PyObject* self);
 
@@ -536,12 +538,70 @@ static void __Pyx_Generator_del(PyObject *self) {
 #endif
 }
 
+static PyObject *
+__Pyx_Generator_get_name(__pyx_GeneratorObject *self)
+{
+    Py_INCREF(self->gi_name);
+    return self->gi_name;
+}
+
+static int
+__Pyx_Generator_set_name(__pyx_GeneratorObject *self, PyObject *value)
+{
+    PyObject *tmp;
+
+#if PY_MAJOR_VERSION >= 3
+    if (unlikely(value == NULL || !PyUnicode_Check(value))) {
+#else
+    if (unlikely(value == NULL || !PyString_Check(value))) {
+#endif
+        PyErr_SetString(PyExc_TypeError,
+                        "__name__ must be set to a string object");
+        return -1;
+    }
+    tmp = self->gi_name;
+    Py_INCREF(value);
+    self->gi_name = value;
+    Py_XDECREF(tmp);
+    return 0;
+}
+
+static PyObject *
+__Pyx_Generator_get_qualname(__pyx_GeneratorObject *self)
+{
+    Py_INCREF(self->gi_qualname);
+    return self->gi_qualname;
+}
+
+static int
+__Pyx_Generator_set_qualname(__pyx_GeneratorObject *self, PyObject *value)
+{
+    PyObject *tmp;
+
+#if PY_MAJOR_VERSION >= 3
+    if (unlikely(value == NULL || !PyUnicode_Check(value))) {
+#else
+    if (unlikely(value == NULL || !PyString_Check(value))) {
+#endif
+        PyErr_SetString(PyExc_TypeError,
+                        "__qualname__ must be set to a string object");
+        return -1;
+    }
+    tmp = self->gi_qualname;
+    Py_INCREF(value);
+    self->gi_qualname = value;
+    Py_XDECREF(tmp);
+    return 0;
+}
+
+static PyGetSetDef __pyx_Generator_getsets[] = {
+    {(char *) "__name__", (getter)__Pyx_Generator_get_name, (setter)__Pyx_Generator_set_name, 0, 0},
+    {(char *) "__qualname__", (getter)__Pyx_Generator_get_qualname, (setter)__Pyx_Generator_set_qualname, 0, 0},
+    {0, 0, 0, 0, 0}
+};
+
 static PyMemberDef __pyx_Generator_memberlist[] = {
-    {(char *) "gi_running",
-     T_BOOL,
-     offsetof(__pyx_GeneratorObject, is_running),
-     READONLY,
-     NULL},
+    {(char *) "gi_running", T_BOOL, offsetof(__pyx_GeneratorObject, is_running), READONLY, NULL},
     {0, 0, 0, 0, 0}
 };
 
@@ -586,7 +646,7 @@ static PyTypeObject __pyx_GeneratorType_type = {
     (iternextfunc) __Pyx_Generator_Next, /*tp_iternext*/
     __pyx_Generator_methods,            /*tp_methods*/
     __pyx_Generator_memberlist,         /*tp_members*/
-    0,                                  /*tp_getset*/
+    __pyx_Generator_getsets,            /*tp_getset*/
     0,                                  /*tp_base*/
     0,                                  /*tp_dict*/
     0,                                  /*tp_descr_get*/
@@ -614,7 +674,7 @@ static PyTypeObject __pyx_GeneratorType_type = {
 };
 
 static __pyx_GeneratorObject *__Pyx_Generator_New(__pyx_generator_body_t body,
-                                                  PyObject *closure) {
+                                                  PyObject *closure, PyObject *name, PyObject *qualname) {
     __pyx_GeneratorObject *gen =
         PyObject_GC_New(__pyx_GeneratorObject, &__pyx_GeneratorType_type);
 
@@ -632,6 +692,8 @@ static __pyx_GeneratorObject *__Pyx_Generator_New(__pyx_generator_body_t body,
     gen->exc_value = NULL;
     gen->exc_traceback = NULL;
     gen->gi_weakreflist = NULL;
+    gen->gi_qualname = qualname;
+    gen->gi_name = name;
 
     PyObject_GC_Track(gen);
     return gen;

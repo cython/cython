@@ -3792,11 +3792,13 @@ class GeneratorDefNode(DefNode):
 
     def generate_function_body(self, env, code):
         body_cname = self.gbody.entry.func_cname
+        name = code.intern_identifier(self.name)
+        qualname = code.intern_identifier(self.qualname)
 
         code.putln('{')
         code.putln('__pyx_GeneratorObject *gen = __Pyx_Generator_New('
-                   '(__pyx_generator_body_t) %s, (PyObject *) %s); %s' % (
-                       body_cname, Naming.cur_scope_cname,
+                   '(__pyx_generator_body_t) %s, (PyObject *) %s, %s, %s); %s' % (
+                       body_cname, Naming.cur_scope_cname, name, qualname,
                        code.error_goto_if_null('gen', self.pos)))
         code.put_decref(Naming.cur_scope_cname, py_object_type)
         if self.requires_classobj:

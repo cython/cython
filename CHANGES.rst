@@ -9,6 +9,10 @@ Latest
 Features added
 --------------
 
+* Generators have new properties ``__name__`` and ``__qualname__``
+  that provide the plain/qualified name of the generator function
+  (following CPython 3.5).
+
 * The ``inline`` function modifier is available as a decorator
   ``@cython.inline`` in pure mode.
 
