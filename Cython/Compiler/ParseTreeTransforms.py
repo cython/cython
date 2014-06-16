@@ -1870,8 +1870,11 @@ class CalculateQualifiedNamesTransform(EnvTransform):
         self.visitchildren(node)
         return node
 
-    def visit_FuncDefNode(self, node):
+    def visit_DefNode(self, node):
         self._set_qualname(node, node.name)
+        return self.visit_FuncDefNode(node)
+
+    def visit_FuncDefNode(self, node):
         orig_qualified_name = self.qualified_name[:]
         if getattr(node, 'name', None) == '<lambda>':
             self.qualified_name.append('<lambda>')
