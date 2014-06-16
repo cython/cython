@@ -55,6 +55,34 @@ def attributes():
     '<lambda>'
     >>> y.__qualname__
     'attributes.<locals>.inner.<locals>.<lambda>'
+
+    >>> y.__name__ = 123
+    Traceback (most recent call last):
+    TypeError: __name__ must be set to a string object
+    >>> y.__name__
+    '<lambda>'
+    >>> y.__qualname__ = None
+    Traceback (most recent call last):
+    TypeError: __qualname__ must be set to a string object
+    >>> y.__qualname__
+    'attributes.<locals>.inner.<locals>.<lambda>'
+
+    >>> y.__name__ = 'abc'
+    >>> y.__name__
+    'abc'
+    >>> y.__name__ = None
+    Traceback (most recent call last):
+    TypeError: __name__ must be set to a string object
+    >>> y.__name__
+    'abc'
+    >>> y.__qualname__ = 'huhu'
+    >>> y.__qualname__
+    'huhu'
+    >>> y.__qualname__ = 123
+    Traceback (most recent call last):
+    TypeError: __qualname__ must be set to a string object
+    >>> y.__qualname__
+    'huhu'
     """
     def inner():
         return (lambda : (yield 1))
