@@ -4,7 +4,7 @@
 
 import os, sys, re, codecs
 if sys.version_info[:2] < (2, 6) or (3, 0) <= sys.version_info[:2] < (3, 2):
-    sys.stderr.write("Sorry, Cython requires Python 2.6+ or 3.2+\n")
+    sys.stderr.write("Sorry, Cython requires Python 2.6+ or 3.2+, found %d.%d\n" % tuple(sys.version_info[:2]))
     sys.exit(1)
 
 import Errors
