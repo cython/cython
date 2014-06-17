@@ -1,5 +1,8 @@
-from Cython.Compiler.Visitor import VisitorTransform
-from Cython.Compiler.Nodes import StatListNode
+from __future__ import absolute_import
+
+from .Visitor import VisitorTransform
+from .Nodes import StatListNode
+
 
 class ExtractPxdCode(VisitorTransform):
     """

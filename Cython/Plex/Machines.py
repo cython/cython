@@ -6,11 +6,14 @@
 #
 #=======================================================================
 
+from __future__ import absolute_import
+
 import sys
 
-from Transitions import TransitionMap
+from .Transitions import TransitionMap
 
 LOWEST_PRIORITY = -sys.maxint
+
 
 class Machine(object):
   """A collection of Nodes representing an NFA or DFA."""

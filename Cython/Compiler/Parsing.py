@@ -3,6 +3,8 @@
 #   Parser
 #
 
+from __future__ import absolute_import
+
 # This should be done automatically
 import cython
 cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
@@ -15,17 +17,18 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
 import re
 from unicodedata import lookup as lookup_unicodechar
 
-from Cython.Compiler.Scanning import PyrexScanner, FileSourceDescriptor
-import Nodes
-import ExprNodes
-import Builtin
-import StringEncoding
-from StringEncoding import EncodedString, BytesLiteral, _unicode, _bytes
-from ModuleNode import ModuleNode
-from Errors import error, warning
-from Cython import Utils
-import Future
-import Options
+from .Scanning import PyrexScanner, FileSourceDescriptor
+from . import Nodes
+from . import ExprNodes
+from . import Builtin
+from . import StringEncoding
+from .StringEncoding import EncodedString, BytesLiteral, _unicode, _bytes
+from .ModuleNode import ModuleNode
+from .Errors import error, warning
+from .. import Utils
+from . import Future
+from . import Options
+
 
 class Ctx(object):
     #  Parsing context
@@ -3249,7 +3252,6 @@ def p_cpp_class_definition(s, pos,  ctx):
         templates = templates)
 
 
-
 #----------------------------------------------
 #
 #   Debugging
@@ -3257,8 +3259,6 @@ def p_cpp_class_definition(s, pos,  ctx):
 #----------------------------------------------
 
 def print_parse_tree(f, node, level, key = None):
-    from types import ListType, TupleType
-    from Nodes import Node
     ind = "  " * level
     if node:
         f.write(ind)
@@ -3271,7 +3271,7 @@ def print_parse_tree(f, node, level, key = None):
                 print_parse_tree(f, node[i], level+1)
             f.write("%s)\n" % ind)
             return
-        elif isinstance(node, Node):
+        elif isinstance(node, Nodes.Node):
             try:
                 tag = node.tag
             except AttributeError:

@@ -2,11 +2,13 @@
 #   Builtin Definitions
 #
 
-from Symtab import BuiltinScope, StructOrUnionScope
-from Code import UtilityCode
-from TypeSlots import Signature
-import PyrexTypes
-import Options
+from __future__ import absolute_import
+
+from .Symtab import BuiltinScope, StructOrUnionScope
+from .Code import UtilityCode
+from .TypeSlots import Signature
+from . import PyrexTypes
+from . import Options
 
 
 # C-level implementations of builtin types, functions and methods

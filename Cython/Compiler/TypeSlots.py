@@ -3,12 +3,15 @@
 #   and associated know-how.
 #
 
-import Naming
-import PyrexTypes
-import StringEncoding
+from __future__ import absolute_import
+
+from . import Naming
+from . import PyrexTypes
+from . import StringEncoding
 
 invisible = ['__cinit__', '__dealloc__', '__richcmp__',
              '__nonzero__', '__bool__']
+
 
 class Signature(object):
     #  Method slot signature descriptor.

@@ -1,11 +1,12 @@
+from __future__ import absolute_import
+
 import copy
 
-from Cython.Compiler import (ExprNodes, PyrexTypes, MemoryView,
-                             ParseTreeTransforms, StringEncoding,
-                             Errors)
-from Cython.Compiler.ExprNodes import CloneNode, ProxyNode, TupleNode
-from Cython.Compiler.Nodes import (FuncDefNode, CFuncDefNode, StatListNode,
-                                   DefNode)
+from . import (ExprNodes, PyrexTypes, MemoryView,
+               ParseTreeTransforms, StringEncoding, Errors)
+from .ExprNodes import CloneNode, ProxyNode, TupleNode
+from .Nodes import FuncDefNode, CFuncDefNode, StatListNode, DefNode
+
 
 class FusedCFuncDefNode(StatListNode):
     """
@@ -384,7 +385,6 @@ class FusedCFuncDefNode(StatListNode):
         to each specialization, which obtains the buffer each time and tries
         to match the format string.
         """
-        from Cython.Compiler import ExprNodes
         if buffer_types:
             if pyx_code.indenter(u"else:"):
                 # The first thing to find a match in this loop breaks out of the loop
@@ -520,7 +520,7 @@ class FusedCFuncDefNode(StatListNode):
         arg tuple and kwargs dict (or None) and the defaults tuple
         as arguments from the Binding Fused Function's tp_call.
         """
-        from Cython.Compiler import TreeFragment, Code, MemoryView, UtilityCode
+        from . import TreeFragment, Code, UtilityCode
 
         # { (arg_pos, FusedType) : specialized_type }
         seen_fused_types = set()

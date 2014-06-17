@@ -2,9 +2,11 @@
 #   Cython - Command Line Parsing
 #
 
+from __future__ import absolute_import
+
 import os
 import sys
-import Options
+from . import Options
 
 usage = """\
 Cython (http://cython.org) is a compiler for code written in the
@@ -46,6 +48,7 @@ Options:
   -X, --directive <name>=<value>[,<name=value,...] Overrides a compiler directive
 """
 
+
 #The following experimental options are supported only on MacOSX:
 #  -C, --compile    Compile generated .c file to .o file
 #  --link           Link .o file to produce extension module (implies -C)
@@ -56,10 +59,9 @@ def bad_usage():
     sys.stderr.write(usage)
     sys.exit(1)
 
-def parse_command_line(args):
 
-    from Cython.Compiler.Main import \
-        CompilationOptions, default_options
+def parse_command_line(args):
+    from .Main import CompilationOptions, default_options
 
     def pop_arg():
         if args:
@@ -156,7 +158,7 @@ def parse_command_line(args):
                     sys.exit(1)
             elif option.startswith('--debug'):
                 option = option[2:].replace('-', '_')
-                import DebugFlags
+                from . import DebugFlags
                 if option in dir(DebugFlags):
                     setattr(DebugFlags, option, True)
                 else:

@@ -1,7 +1,9 @@
 
+from __future__ import absolute_import
+
 cimport cython
 
-from Cython.Compiler.Visitor cimport (
+from .Visitor cimport (
     CythonTransform, VisitorTransform, TreeVisitor,
     ScopeTrackingTransform, EnvTransform)
 

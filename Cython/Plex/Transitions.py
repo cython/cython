@@ -1,11 +1,13 @@
 #
 #   Plex - Transition Maps
 #
-#   This version represents state sets direcly as dicts
-#   for speed.
+#   This version represents state sets directly as dicts for speed.
 #
 
+from __future__ import absolute_import
+
 from sys import maxint as maxint
+
 
 class TransitionMap(object):
   """
@@ -242,6 +244,3 @@ class TransitionMap(object):
 
 def state_set_str(set):
   return "[%s]" % ','.join(["S%d" % state.number for state in set])
-
-
-

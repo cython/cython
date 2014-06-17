@@ -1,7 +1,9 @@
-from Cython.Compiler.Visitor import CythonTransform
-from Cython.Compiler.StringEncoding import EncodedString
-from Cython.Compiler import Options
-from Cython.Compiler import PyrexTypes, ExprNodes
+from __future__ import absolute_import
+
+from .Visitor import CythonTransform
+from .StringEncoding import EncodedString
+from . import Options
+from . import PyrexTypes, ExprNodes
 
 class EmbedSignature(CythonTransform):
 

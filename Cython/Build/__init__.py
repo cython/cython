@@ -1,1 +1,1 @@
-from Dependencies import cythonize
+from .Dependencies import cythonize

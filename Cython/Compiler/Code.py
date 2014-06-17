@@ -3,6 +3,8 @@
 #   Code output module
 #
 
+from __future__ import absolute_import
+
 import cython
 cython.declare(os=object, re=object, operator=object,
                Naming=object, Options=object, StringEncoding=object,
@@ -21,13 +23,13 @@ try:
 except ImportError:
     import md5 as hashlib
 
-import Naming
-import Options
-import StringEncoding
-from Cython import Utils
-from Scanning import SourceDescriptor
-from Cython.StringIOTree import StringIOTree
-import DebugFlags
+from . import Naming
+from . import Options
+from . import DebugFlags
+from . import StringEncoding
+from .. import Utils
+from .Scanning import SourceDescriptor
+from ..StringIOTree import StringIOTree
 
 try:
     from __builtin__ import basestring
@@ -452,7 +454,7 @@ def sub_tempita(s, context, file=None, name=None):
     elif name:
         context['__name'] = name
 
-    from Cython.Tempita import sub
+    from ..Tempita import sub
     return sub(s, **context)
 
 class TempitaUtilityCode(UtilityCode):
@@ -1621,11 +1623,11 @@ class CCodeWriter(object):
             self.level += 1
 
     def putln_tempita(self, code, **context):
-        from Cython.Tempita import sub
+        from ..Tempita import sub
         self.putln(sub(code, **context))
 
     def put_tempita(self, code, **context):
-        from Cython.Tempita import sub
+        from ..Tempita import sub
         self.put(sub(code, **context))
 
     def increase_indent(self):
@@ -1701,7 +1703,7 @@ class CCodeWriter(object):
             if type.is_pyobject:
                 self.putln("%s = NULL;" % decl)
             elif type.is_memoryviewslice:
-                import MemoryView
+                from . import MemoryView
                 self.putln("%s = %s;" % (decl, MemoryView.memslice_entry_init))
             else:
                 self.putln("%s%s;" % (static and "static " or "", decl))
@@ -1742,7 +1744,7 @@ class CCodeWriter(object):
             return entry.cname
 
     def as_pyobject(self, cname, type):
-        from PyrexTypes import py_object_type, typecast
+        from .PyrexTypes import py_object_type, typecast
         return typecast(py_object_type, type, cname)
 
     def put_gotref(self, cname):
@@ -1870,12 +1872,12 @@ class CCodeWriter(object):
             self.put_var_xdecref_clear(entry)
 
     def put_incref_memoryviewslice(self, slice_cname, have_gil=False):
-        import MemoryView
+        from . import MemoryView
         self.globalstate.use_utility_code(MemoryView.memviewslice_init_code)
         self.putln("__PYX_INC_MEMVIEW(&%s, %d);" % (slice_cname, int(have_gil)))
 
     def put_xdecref_memoryviewslice(self, slice_cname, have_gil=False):
-        import MemoryView
+        from . import MemoryView
         self.globalstate.use_utility_code(MemoryView.memviewslice_init_code)
         self.putln("__PYX_XDEC_MEMVIEW(&%s, %d);" % (slice_cname, int(have_gil)))
 
@@ -1883,7 +1885,7 @@ class CCodeWriter(object):
         self.put_xgiveref("%s.memview" % slice_cname)
 
     def put_init_to_py_none(self, cname, type, nanny=True):
-        from PyrexTypes import py_object_type, typecast
+        from .PyrexTypes import py_object_type, typecast
         py_none = typecast(type, py_object_type, "Py_None")
         if nanny:
             self.putln("%s = %s; __Pyx_INCREF(Py_None);" % (cname, py_none))
@@ -1908,7 +1910,7 @@ class CCodeWriter(object):
                 # that's better than ours.
                 elif allow_skip:
                     return
-        from TypeSlots import method_coexist
+        from .TypeSlots import method_coexist
         if entry.doc:
             doc_code = entry.doc_cname
         else:
@@ -1986,7 +1988,7 @@ class CCodeWriter(object):
         return self.putln("if (%s < 0) %s" % (value, self.error_goto(pos)))
 
     def put_error_if_unbound(self, pos, entry, in_nogil_context=False):
-        import ExprNodes
+        from . import ExprNodes
         if entry.from_closure:
             func = '__Pyx_RaiseClosureNameError'
             self.globalstate.use_utility_code(

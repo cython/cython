@@ -2,6 +2,8 @@
 #   Module parse tree node
 #
 
+from __future__ import absolute_import
+
 import cython
 cython.declare(Naming=object, Options=object, PyrexTypes=object, TypeSlots=object,
                error=object, warning=object, py_object_type=object, UtilityCode=object,
@@ -9,23 +11,23 @@ cython.declare(Naming=object, Options=object, PyrexTypes=object, TypeSlots=objec
 
 import os
 import operator
-from PyrexTypes import CPtrType
-import Future
+from .PyrexTypes import CPtrType
+from . import Future
 
-import Annotate
-import Code
-import Naming
-import Nodes
-import Options
-import TypeSlots
-import Version
-import PyrexTypes
+from . import Annotate
+from . import Code
+from . import Naming
+from . import Nodes
+from . import Options
+from . import TypeSlots
+from . import Version
+from . import PyrexTypes
 
-from Errors import error, warning
-from PyrexTypes import py_object_type
-from Cython.Utils import open_new_file, replace_suffix, decode_filename
-from Code import UtilityCode
-from StringEncoding import EncodedString
+from .Errors import error, warning
+from .PyrexTypes import py_object_type
+from ..Utils import open_new_file, replace_suffix, decode_filename
+from .Code import UtilityCode
+from .StringEncoding import EncodedString
 
 
 
@@ -455,7 +457,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     if key in vtab_dict:
                         # FIXME: this should *never* happen, but apparently it does
                         # for Cython generated utility code
-                        from Cython.Compiler.UtilityCode import NonManglingModuleScope
+                        from .UtilityCode import NonManglingModuleScope
                         assert isinstance(entry.scope, NonManglingModuleScope), str(entry.scope)
                         assert isinstance(vtab_dict[key].scope, NonManglingModuleScope), str(vtab_dict[key].scope)
                     else:
@@ -577,7 +579,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#else")
         code.globalstate["end"].putln("#endif /* Py_PYTHON_H */")
 
-        from Cython import __version__
+        from .. import __version__
         code.putln('#define CYTHON_ABI "%s"' % __version__.replace('.', '_'))
 
         code.put(UtilityCode.load_as_string("CModulePreamble", "ModuleSetupCode.c")[1])

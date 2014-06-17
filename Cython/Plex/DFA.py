@@ -6,9 +6,12 @@
 #
 #=======================================================================
 
-import Machines
-from Machines import LOWEST_PRIORITY
-from Transitions import TransitionMap
+from __future__ import absolute_import
+
+from . import Machines
+from .Machines import LOWEST_PRIORITY
+from .Transitions import TransitionMap
+
 
 def nfa_to_dfa(old_machine, debug = None):
   """
@@ -147,7 +150,7 @@ class StateMap(object):
     return tuple(lst)
 
   def dump(self, file):
-    from Transitions import state_set_str
+    from .Transitions import state_set_str
     for new_state in self.new_machine.states:
       old_state_set = self.new_to_old_dict[id(new_state)]
       file.write("   State %s <-- %s\n" % (

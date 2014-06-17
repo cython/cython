@@ -2,23 +2,29 @@
 #   Cython Top Level
 #
 
-import os, sys, re, codecs
+from __future__ import absolute_import
+
+import os
+import re
+import sys
+import codecs
+
 if sys.version_info[:2] < (2, 6) or (3, 0) <= sys.version_info[:2] < (3, 2):
     sys.stderr.write("Sorry, Cython requires Python 2.6+ or 3.2+, found %d.%d\n" % tuple(sys.version_info[:2]))
     sys.exit(1)
 
-import Errors
+from . import Errors
 # Do not import Parsing here, import it when needed, because Parsing imports
 # Nodes, which globally needs debug command line options initialized to set a
 # conditional metaclass. These options are processed by CmdLine called from
 # main() in this file.
 # import Parsing
-import Version
-from Scanning import PyrexScanner, FileSourceDescriptor
-from Errors import PyrexError, CompileError, error, warning
-from Symtab import ModuleScope
-from Cython import Utils
-import Options
+from .Scanning import PyrexScanner, FileSourceDescriptor
+from .Errors import PyrexError, CompileError, error, warning
+from .Symtab import ModuleScope
+from .. import __version__ as version
+from .. import Utils
+from . import Options
 
 module_name_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")
 
@@ -58,7 +64,7 @@ class Context(object):
         # an infinite loop.
         # Better code organization would fix it.
 
-        import Builtin, CythonScope
+        from . import Builtin, CythonScope
         self.modules = {"__builtin__" : Builtin.builtin_scope}
         self.cython_scope = CythonScope.create_cython_scope(self)
         self.modules["cython"] = self.cython_scope
@@ -81,14 +87,14 @@ class Context(object):
     def set_language_level(self, level):
         self.language_level = level
         if level >= 3:
-            from Future import print_function, unicode_literals, absolute_import
+            from .Future import print_function, unicode_literals, absolute_import
             self.future_directives.update([print_function, unicode_literals, absolute_import])
             self.modules['builtins'] = self.modules['__builtin__']
 
     # pipeline creation functions can now be found in Pipeline.py
 
     def process_pxd(self, source_desc, scope, module_name):
-        import Pipeline
+        from . import Pipeline
         if isinstance(source_desc, FileSourceDescriptor) and source_desc._file_type == 'pyx':
             source = CompilationSource(source_desc, module_name, os.getcwd())
             result_sink = create_default_resultobj(source, self.options)
@@ -294,7 +300,7 @@ class Context(object):
         try:
             f = Utils.open_source_file(source_filename, "rU")
             try:
-                import Parsing
+                from . import Parsing
                 s = PyrexScanner(f, source_desc, source_encoding = f.encoding,
                                  scope = scope, context = self)
                 tree = Parsing.p_module(s, pxd, full_module_name)
@@ -391,7 +397,7 @@ def create_default_resultobj(compilation_source, options):
     return result
 
 def run_pipeline(source, options, full_module_name=None, context=None):
-    import Pipeline
+    from . import Pipeline
 
     source_ext = os.path.splitext(source)[1]
     options.configure_language_defaults(source_ext[1:]) # py/pyx
@@ -619,14 +625,14 @@ def main(command_line = 0):
     args = sys.argv[1:]
     any_failures = 0
     if command_line:
-        from CmdLine import parse_command_line
+        from .CmdLine import parse_command_line
         options, sources = parse_command_line(args)
     else:
         options = CompilationOptions(default_options)
         sources = args
 
     if options.show_version:
-        sys.stderr.write("Cython version %s\n" % Version.version)
+        sys.stderr.write("Cython version %s\n" % version)
     if options.working_path!="":
         os.chdir(options.working_path)
     try:

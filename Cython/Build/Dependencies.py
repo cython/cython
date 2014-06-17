@@ -1,5 +1,7 @@
+from __future__ import absolute_import
+
 import cython
-from Cython import __version__
+from .. import __version__
 
 import re, os, sys, time
 from glob import iglob
@@ -42,9 +44,9 @@ except ImportError:
 
 from distutils.extension import Extension
 
-from Cython import Utils
-from Cython.Utils import cached_function, cached_method, path_exists, find_root_package_dir
-from Cython.Compiler.Main import Context, CompilationOptions, default_options
+from .. import Utils
+from ..Utils import cached_function, cached_method, path_exists, find_root_package_dir
+from ..Compiler.Main import Context, CompilationOptions, default_options
 
 join_path = cached_function(os.path.join)
 
@@ -871,8 +873,8 @@ else:
 # TODO: Share context? Issue: pyx processing leaks into pxd module
 @record_results
 def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None, raise_on_failure=True):
-    from Cython.Compiler.Main import compile, default_options
-    from Cython.Compiler.Errors import CompileError, PyrexError
+    from ..Compiler.Main import compile, default_options
+    from ..Compiler.Errors import CompileError, PyrexError
 
     if fingerprint:
         if not os.path.exists(options.cache):

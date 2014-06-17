@@ -2,17 +2,19 @@
 #   Symbol Table
 #
 
+from __future__ import absolute_import
+
 import copy
 import re
-from Errors import warning, error, InternalError
-from StringEncoding import EncodedString
-import Options, Naming
-import PyrexTypes
-from PyrexTypes import py_object_type, unspecified_type
-from TypeSlots import \
+from .Errors import warning, error, InternalError
+from .StringEncoding import EncodedString
+from . import Options, Naming
+from . import PyrexTypes
+from .PyrexTypes import py_object_type, unspecified_type
+from .TypeSlots import \
     pyfunction_signature, pymethod_signature, \
     get_special_method_signature, get_property_accessor_signature
-import Code
+from . import Code
 import __builtin__ as builtins
 
 iso_c99_keywords = set(
@@ -22,6 +24,7 @@ iso_c99_keywords = set(
     'static', 'struct', 'switch', 'typedef', 'union', 'unsigned', 'void',
     'volatile', 'while',
     '_Bool', '_Complex'', _Imaginary', 'inline', 'restrict'])
+
 
 def c_safe_identifier(cname):
     # There are some C limitations on struct entry names.
@@ -431,7 +434,7 @@ class Scope(object):
                 entries[name] = entry
 
         if type.is_memoryviewslice:
-            import MemoryView
+            from . import MemoryView
             entry.init = MemoryView.memslice_entry_init
 
         entry.scope = self
@@ -801,7 +804,7 @@ class Scope(object):
         return PyrexTypes.best_match(operands, function.all_alternatives())
 
     def lookup_operator_for_types(self, pos, operator, types):
-        from Nodes import Node
+        from .Nodes import Node
         class FakeOperand(Node):
             pass
         operands = [FakeOperand(pos, type=type) for type in types]
@@ -823,7 +826,7 @@ class Scope(object):
         return 0
 
     def infer_types(self):
-        from TypeInference import get_type_inferer
+        from .TypeInference import get_type_inferer
         get_type_inferer().infer_types(self)
 
     def is_cpp(self):
@@ -995,7 +998,7 @@ class ModuleScope(Scope):
     is_cython_builtin = 0
 
     def __init__(self, name, parent_module, context):
-        import Builtin
+        from . import Builtin
         self.parent_module = parent_module
         outer_scope = Builtin.builtin_scope
         Scope.__init__(self, name, outer_scope, parent_module)
@@ -1461,7 +1464,7 @@ class ModuleScope(Scope):
         # variable entry attached to it. For the variable entry,
         # we use a read-only C global variable whose name is an
         # expression that refers to the type object.
-        import Builtin
+        from . import Builtin
         var_entry = Entry(name = entry.name,
             type = Builtin.type_type,
             pos = entry.pos,
@@ -1475,7 +1478,7 @@ class ModuleScope(Scope):
         return self.cpp
 
     def infer_types(self):
-        from TypeInference import PyObjectTypeInferer
+        from .TypeInference import PyObjectTypeInferer
         PyObjectTypeInferer().infer_types(self)
 
 

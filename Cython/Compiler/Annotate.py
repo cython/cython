@@ -1,5 +1,7 @@
 # Note: Work in progress
 
+from __future__ import absolute_import
+
 import os
 import re
 import codecs
@@ -7,9 +9,9 @@ import textwrap
 from xml.sax.saxutils import escape as html_escape
 from StringIO import StringIO
 
-import Version
-from Code import CCodeWriter
-from Cython import Utils
+from . import Version
+from .Code import CCodeWriter
+from .. import Utils
 
 
 class AnnotationCCodeWriter(CCodeWriter):

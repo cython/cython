@@ -1,25 +1,27 @@
+from __future__ import absolute_import
+
+import copy
+
 import cython
 cython.declare(PyrexTypes=object, Naming=object, ExprNodes=object, Nodes=object,
                Options=object, UtilNodes=object, LetNode=object,
                LetRefNode=object, TreeFragment=object, EncodedString=object,
                error=object, warning=object, copy=object)
 
-import PyrexTypes
-import Naming
-import ExprNodes
-import Nodes
-import Options
-import Builtin
+from . import PyrexTypes
+from . import Naming
+from . import ExprNodes
+from . import Nodes
+from . import Options
+from . import Builtin
 
-from Cython.Compiler.Visitor import VisitorTransform, TreeVisitor
-from Cython.Compiler.Visitor import CythonTransform, EnvTransform, ScopeTrackingTransform
-from Cython.Compiler.UtilNodes import LetNode, LetRefNode, ResultRefNode
-from Cython.Compiler.TreeFragment import TreeFragment
-from Cython.Compiler.StringEncoding import EncodedString
-from Cython.Compiler.Errors import error, warning, CompileError, InternalError
-from Cython.Compiler.Code import UtilityCode
-
-import copy
+from .Visitor import VisitorTransform, TreeVisitor
+from .Visitor import CythonTransform, EnvTransform, ScopeTrackingTransform
+from .UtilNodes import LetNode, LetRefNode, ResultRefNode
+from .TreeFragment import TreeFragment
+from .StringEncoding import EncodedString
+from .Errors import error, warning, CompileError, InternalError
+from .Code import UtilityCode
 
 
 class NameNodeCollector(TreeVisitor):
@@ -1526,7 +1528,7 @@ if VALUE is not None:
 
     def _create_fused_function(self, env, node):
         "Create a fused function for a DefNode with fused arguments"
-        from Cython.Compiler import FusedNode
+        from . import FusedNode
 
         if self.fused_function or self.in_lambda:
             if self.fused_function not in self.fused_error_funcs:
@@ -2540,8 +2542,8 @@ class TransformBuiltinMethods(EnvTransform):
             if attribute == u'compiled':
                 node = ExprNodes.BoolNode(node.pos, value=True)
             elif attribute == u'__version__':
-                import Cython
-                node = ExprNodes.StringNode(node.pos, value=EncodedString(Cython.__version__))
+                from .. import __version__ as version
+                node = ExprNodes.StringNode(node.pos, value=EncodedString(version))
             elif attribute == u'NULL':
                 node = ExprNodes.NullNode(node.pos)
             elif attribute in (u'set', u'frozenset'):
@@ -2740,8 +2742,8 @@ class ReplaceFusedTypeChecks(VisitorTransform):
         super(ReplaceFusedTypeChecks, self).__init__()
         self.local_scope = local_scope
         # defer the import until now to avoid circular import time dependencies
-        from Cython.Compiler import Optimize
-        self.transform = Optimize.ConstantFolding(reevaluate=True)
+        from .Optimize import ConstantFolding
+        self.transform = ConstantFolding(reevaluate=True)
 
     def visit_IfStatNode(self, node):
         """

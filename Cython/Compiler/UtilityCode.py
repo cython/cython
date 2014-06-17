@@ -1,7 +1,10 @@
-from TreeFragment import parse_from_strings, StringParseContext
-import Symtab
-import Naming
-import Code
+from __future__ import absolute_import
+
+from .TreeFragment import parse_from_strings, StringParseContext
+from . import Symtab
+from . import Naming
+from . import Code
+
 
 class NonManglingModuleScope(Symtab.ModuleScope):
 
@@ -83,13 +86,13 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         self.from_scope = from_scope
 
     def get_tree(self, entries_only=False, cython_scope=None):
-        from AnalysedTreeTransforms import AutoTestDictTransform
+        from .AnalysedTreeTransforms import AutoTestDictTransform
         # The AutoTestDictTransform creates the statement "__test__ = {}",
         # which when copied into the main ModuleNode overwrites
         # any __test__ in user code; not desired
         excludes = [AutoTestDictTransform]
 
-        import Pipeline, ParseTreeTransforms
+        from . import Pipeline, ParseTreeTransforms
         context = CythonUtilityCodeContext(self.name)
         context.prefix = self.prefix
         context.cython_scope = cython_scope

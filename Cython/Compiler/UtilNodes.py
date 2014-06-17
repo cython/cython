@@ -4,11 +4,14 @@
 # so it is convenient to have them in a seperate module.
 #
 
-import Nodes
-import ExprNodes
-from Nodes import Node
-from ExprNodes import AtomicExprNode
-from PyrexTypes import c_ptr_type
+from __future__ import absolute_import
+
+from . import Nodes
+from . import ExprNodes
+from .Nodes import Node
+from .ExprNodes import AtomicExprNode
+from .PyrexTypes import c_ptr_type
+
 
 class TempHandle(object):
     # THIS IS DEPRECATED, USE LetRefNode instead

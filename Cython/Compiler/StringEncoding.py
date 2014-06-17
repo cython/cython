@@ -2,6 +2,8 @@
 #   Cython -- encoding related tools
 #
 
+from __future__ import absolute_import
+
 import re
 import sys
 
@@ -16,6 +18,7 @@ empty_bytes = _bytes()
 empty_unicode = _unicode()
 
 join_bytes = empty_bytes.join
+
 
 class UnicodeLiteralBuilder(object):
     """Assemble a unicode string.

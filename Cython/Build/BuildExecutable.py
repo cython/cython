@@ -7,11 +7,14 @@ Basic usage:
     python cythonrun somefile.py [ARGS]
 """
 
+from __future__ import absolute_import
+
 DEBUG = True
 
 import sys
 import os
 from distutils import sysconfig
+
 
 def get_config_var(name, default=''):
     return sysconfig.get_config_var(name) or default
@@ -81,7 +84,7 @@ def ccompile(basename):
     runcmd([CC, '-c', '-o', basename+'.o', basename+'.c', '-I' + INCDIR] + CFLAGS.split())
 
 def cycompile(input_file, options=()):
-    from Cython.Compiler import Version, CmdLine, Main
+    from ..Compiler import Version, CmdLine, Main
     options, sources = CmdLine.parse_command_line(list(options or ()) + ['--embed', input_file])
     _debug('Using Cython %s to compile %s', Version.version, input_file)
     result = Main.compile(sources, options)

@@ -1,6 +1,8 @@
+from __future__ import absolute_import
+
 import cython
 
-from Cython.Plex.Scanners cimport Scanner
+from ..Plex.Scanners cimport Scanner
 
 cdef class Method:
     cdef object name

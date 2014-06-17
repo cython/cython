@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 import sys, os, re, inspect
 import imp
 
@@ -10,14 +12,14 @@ from distutils.core import Distribution, Extension
 from distutils.command.build_ext import build_ext
 
 import Cython
-from Cython.Compiler.Main import Context, CompilationOptions, default_options
+from ..Compiler.Main import Context, CompilationOptions, default_options
 
-from Cython.Compiler.ParseTreeTransforms import (CythonTransform,
+from ..Compiler.ParseTreeTransforms import (CythonTransform,
         SkipDeclarations, AnalyseDeclarationsTransform, EnvTransform)
-from Cython.Compiler.TreeFragment import parse_from_strings
-from Cython.Build.Dependencies import strip_string_literals, cythonize, cached_function
-from Cython.Compiler import Pipeline, Nodes
-from Cython.Utils import get_cython_cache_dir
+from ..Compiler.TreeFragment import parse_from_strings
+from .Dependencies import strip_string_literals, cythonize, cached_function
+from ..Compiler import Pipeline, Nodes
+from ..Utils import get_cython_cache_dir
 import cython as cython_module
 
 # A utility function to convert user-supplied ASCII strings to unicode.
@@ -48,7 +50,7 @@ def unbound_symbols(code, context=None):
     code = to_unicode(code)
     if context is None:
         context = Context([], default_options)
-    from Cython.Compiler.ParseTreeTransforms import AnalyseDeclarationsTransform
+    from ..Compiler.ParseTreeTransforms import AnalyseDeclarationsTransform
     tree = parse_from_strings('(tree fragment)', code)
     for phase in Pipeline.create_pipeline(context, 'pyx'):
         if phase is None:

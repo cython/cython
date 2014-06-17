@@ -1,9 +1,11 @@
-from Visitor import ScopeTrackingTransform
-from Nodes import StatListNode, SingleAssignmentNode, CFuncDefNode, DefNode
-from ExprNodes import DictNode, DictItemNode, NameNode, UnicodeNode
-from PyrexTypes import py_object_type
-from StringEncoding import EncodedString
-import Symtab
+from __future__ import absolute_import
+
+from .Visitor import ScopeTrackingTransform
+from .Nodes import StatListNode, SingleAssignmentNode, CFuncDefNode, DefNode
+from .ExprNodes import DictNode, DictItemNode, NameNode, UnicodeNode
+from .PyrexTypes import py_object_type
+from .StringEncoding import EncodedString
+from . import Symtab
 
 class AutoTestDictTransform(ScopeTrackingTransform):
     # Handles autotestdict directive

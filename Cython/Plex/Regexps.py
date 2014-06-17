@@ -6,10 +6,12 @@
 #
 #=======================================================================
 
+from __future__ import absolute_import
+
 import types
 from sys import maxint as maxint
 
-import Errors
+from . import Errors
 
 #
 #     Constants
@@ -20,6 +22,7 @@ EOL = 'eol'
 EOF = 'eof'
 
 nl_code = ord('\n')
+
 
 #
 #     Helper functions

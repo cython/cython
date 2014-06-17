@@ -2,21 +2,25 @@
 # TreeFragments - parsing of strings to trees
 #
 
-import re
-from StringIO import StringIO
-from Scanning import PyrexScanner, StringSourceDescriptor
-from Symtab import ModuleScope
-import PyrexTypes
-from Visitor import VisitorTransform
-from Nodes import Node, StatListNode
-from ExprNodes import NameNode
-import Parsing
-import Main
-import UtilNodes
-
 """
 Support for parsing strings into code trees.
 """
+
+from __future__ import absolute_import
+
+import re
+from StringIO import StringIO
+
+from .Scanning import PyrexScanner, StringSourceDescriptor
+from .Symtab import ModuleScope
+from . import PyrexTypes
+from .Visitor import VisitorTransform
+from .Nodes import Node, StatListNode
+from .ExprNodes import NameNode
+from . import Parsing
+from . import Main
+from . import UtilNodes
+
 
 class StringParseContext(Main.Context):
     def __init__(self, name, include_directories=None):
@@ -29,6 +33,7 @@ class StringParseContext(Main.Context):
         if module_name not in (self.module_name, 'cython'):
             raise AssertionError("Not yet supporting any cimports/includes from string code snippets")
         return ModuleScope(module_name, parent_module = None, context = self)
+
 
 def parse_from_strings(name, code, pxds={}, level=None, initial_pos=None,
                        context=None, allow_struct_enum_decorator=False):

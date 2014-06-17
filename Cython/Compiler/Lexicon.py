@@ -3,6 +3,8 @@
 #   Cython Scanner - Lexical Definitions
 #
 
+from __future__ import absolute_import
+
 raw_prefixes = "rR"
 bytes_prefixes = "bB"
 string_prefixes = "uU" + bytes_prefixes
@@ -12,10 +14,10 @@ IDENT = 'IDENT'
 
 
 def make_lexicon():
-    from Cython.Plex import \
+    from ..Plex import \
         Str, Any, AnyBut, AnyChar, Rep, Rep1, Opt, Bol, Eol, Eof, \
         TEXT, IGNORE, State, Lexicon
-    from Scanning import Method
+    from .Scanning import Method
 
     letter = Any("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_")
     digit = Any("0123456789")

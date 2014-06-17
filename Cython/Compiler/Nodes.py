@@ -2,6 +2,8 @@
 #   Parse tree nodes
 #
 
+from __future__ import absolute_import
+
 import cython
 cython.declare(sys=object, os=object, copy=object,
                Builtin=object, error=object, warning=object, Naming=object, PyrexTypes=object,
@@ -13,21 +15,21 @@ cython.declare(sys=object, os=object, copy=object,
 import sys, os, copy
 from itertools import chain
 
-import Builtin
-from Errors import error, warning, InternalError, CompileError
-import Naming
-import PyrexTypes
-import TypeSlots
-from PyrexTypes import py_object_type, error_type
-from Symtab import (ModuleScope, LocalScope, ClosureScope,
+from . import Builtin
+from .Errors import error, warning, InternalError, CompileError
+from . import Naming
+from . import PyrexTypes
+from . import TypeSlots
+from .PyrexTypes import py_object_type, error_type
+from .Symtab import (ModuleScope, LocalScope, ClosureScope,
     StructOrUnionScope, PyClassScope, CppClassScope, TemplateScope)
-from Code import UtilityCode
-from StringEncoding import EncodedString, escape_byte_string, split_string_literal
-import Options
-import DebugFlags
-from Cython.Utils import cached_function
+from .Code import UtilityCode
+from .StringEncoding import EncodedString, escape_byte_string, split_string_literal
+from . import Options
+from . import DebugFlags
 
 absolute_path_length = 0
+
 
 def relative_position(pos):
     """
@@ -103,12 +105,13 @@ def write_func_call(func, codewriter_class):
             return func(*args, **kwds)
     return f
 
+
 class VerboseCodeWriter(type):
     # Set this as a metaclass to trace function calls in code.
     # This slows down code generation and makes much larger files.
     def __new__(cls, name, bases, attrs):
         from types import FunctionType
-        from Code import CCodeWriter
+        from .Code import CCodeWriter
         attrs = dict(attrs)
         for mname, m in attrs.items():
             if isinstance(m, FunctionType):
@@ -528,7 +531,7 @@ class CArrayDeclaratorNode(CDeclaratorNode):
 
     def analyse(self, base_type, env, nonempty = 0):
         if base_type.is_cpp_class or base_type.is_cfunction:
-            from ExprNodes import TupleNode
+            from .ExprNodes import TupleNode
             if isinstance(self.dimension, TupleNode):
                 args = self.dimension.args
             else:
@@ -587,7 +590,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
 
     def analyse_templates(self):
         if isinstance(self.base, CArrayDeclaratorNode):
-            from ExprNodes import TupleNode, NameNode
+            from .ExprNodes import TupleNode, NameNode
             template_node = self.base.dimension
             if isinstance(template_node, TupleNode):
                 template_nodes = template_node.args
@@ -1020,7 +1023,7 @@ class MemoryViewSliceTypeNode(CBaseTypeNode):
         base_type = self.base_type_node.analyse(env)
         if base_type.is_error: return base_type
 
-        import MemoryView
+        from . import MemoryView
 
         try:
             axes_specs = MemoryView.get_axes_specs(env, self.axes)
@@ -1039,7 +1042,7 @@ class MemoryViewSliceTypeNode(CBaseTypeNode):
         return self.type
 
     def use_memview_utilities(self, env):
-        import MemoryView
+        from . import MemoryView
         env.use_utility_code(MemoryView.view_utility_code)
 
 
@@ -1103,7 +1106,7 @@ class TemplatedTypeNode(CBaseTypeNode):
 
         elif base_type.is_pyobject:
             # Buffer
-            import Buffer
+            from . import Buffer
 
             options = Buffer.analyse_buffer_options(
                 self.pos,
@@ -1611,9 +1614,9 @@ class FuncDefNode(StatNode, BlockNode):
         self.body.generate_execution_code(code)
 
     def generate_function_definitions(self, env, code):
-        import Buffer
+        from . import Buffer
         if self.return_type.is_memoryviewslice:
-            import MemoryView
+            from . import MemoryView
 
         lenv = self.local_scope
         if lenv.is_closure_scope and not lenv.is_passthrough:
@@ -1930,7 +1933,7 @@ class FuncDefNode(StatNode, BlockNode):
 
         if self.return_type.is_memoryviewslice:
             # See if our return value is uninitialized on non-error return
-            # import MemoryView
+            # from . import MemoryView
             # MemoryView.err_if_nogil_initialized_check(self.pos, env)
             cond = code.unlikely(self.return_type.error_condition(
                                                     Naming.retval_cname))
@@ -2280,7 +2283,7 @@ class CFuncDefNode(FuncDefNode):
                            "private types")
 
     def call_self_node(self, omit_optional_args=0, is_module_scope=0):
-        import ExprNodes
+        from . import ExprNodes
         args = self.type.args
         if omit_optional_args:
             args = args[:len(args) - self.type.optional_arg_count]
@@ -2574,7 +2577,7 @@ class DefNode(FuncDefNode):
                 if type is None or type is PyrexTypes.py_object_type:
                     formal_arg.type = type_arg.type
                     formal_arg.name_declarator = name_declarator
-        import ExprNodes
+        from . import ExprNodes
         if cfunc_type.exception_value is None:
             exception_value = None
         else:
@@ -3959,7 +3962,7 @@ class OverrideCheckNode(StatNode):
             first_arg = 0
         else:
             first_arg = 1
-        import ExprNodes
+        from . import ExprNodes
         self.func_node = ExprNodes.RawCNameExprNode(self.pos, py_object_type)
         call_node = ExprNodes.SimpleCallNode(
             self.pos, function=self.func_node,
@@ -4037,7 +4040,7 @@ class PyClassDefNode(ClassDefNode):
         self.body = body
         self.decorators = decorators
         self.bases = bases
-        import ExprNodes
+        from . import ExprNodes
         if self.doc and Options.docstrings:
             doc = embed_position(self.pos, self.doc)
             doc_node = ExprNodes.StringNode(pos, value=doc)
@@ -4118,7 +4121,7 @@ class PyClassDefNode(ClassDefNode):
         elif len(bases) == 1:
             base = bases[0]
             path = []
-            from ExprNodes import AttributeNode, NameNode
+            from .ExprNodes import AttributeNode, NameNode
             while isinstance(base, AttributeNode):
                 path.insert(0, base.attribute)
                 base = base.obj
@@ -4156,7 +4159,7 @@ class PyClassDefNode(ClassDefNode):
     def analyse_declarations(self, env):
         class_result = self.classobj
         if self.decorators:
-            from ExprNodes import SimpleCallNode
+            from .ExprNodes import SimpleCallNode
             for decorator in self.decorators[::-1]:
                 class_result = SimpleCallNode(
                     decorator.pos,
@@ -4257,7 +4260,7 @@ class CClassDefNode(ClassDefNode):
 
     def buffer_defaults(self, env):
         if not hasattr(self, '_buffer_defaults'):
-            import Buffer
+            from . import Buffer
             if self.buffer_defaults_node:
                 self._buffer_defaults = Buffer.analyse_buffer_options(
                     self.buffer_defaults_pos,
@@ -4504,7 +4507,7 @@ class ExprStatNode(StatNode):
     child_attrs = ["expr"]
 
     def analyse_declarations(self, env):
-        import ExprNodes
+        from . import ExprNodes
         if isinstance(self.expr, ExprNodes.GeneralCallNode):
             func = self.expr.function.as_cython_attribute()
             if func == u'declare':
@@ -4579,7 +4582,7 @@ class SingleAssignmentNode(AssignmentNode):
     declaration_only = False
 
     def analyse_declarations(self, env):
-        import ExprNodes
+        from . import ExprNodes
 
         # handle declarations of the form x = cython.foo()
         if isinstance(self.rhs, ExprNodes.CallNode):
@@ -4657,7 +4660,7 @@ class SingleAssignmentNode(AssignmentNode):
             self.lhs.analyse_target_declaration(env)
 
     def analyse_types(self, env, use_temp = 0):
-        import ExprNodes
+        from . import ExprNodes
 
         self.rhs = self.rhs.analyse_types(env)
         self.lhs = self.lhs.analyse_target_types(env)
@@ -4723,7 +4726,7 @@ class CascadedAssignmentNode(AssignmentNode):
             lhs.analyse_target_declaration(env)
 
     def analyse_types(self, env, use_temp = 0):
-        from ExprNodes import CloneNode, ProxyNode
+        from .ExprNodes import CloneNode, ProxyNode
 
         rhs = self.rhs.analyse_types(env)
         if use_temp or rhs.is_attribute or (
@@ -4877,7 +4880,7 @@ class InPlaceAssignmentNode(AssignmentNode):
         self.rhs.annotate(code)
 
     def create_binop_node(self):
-        import ExprNodes
+        from . import ExprNodes
         return ExprNodes.binop_node(self.pos, self.operator, self.lhs, self.rhs)
 
 
@@ -5147,7 +5150,7 @@ class ReturnStatNode(StatNode):
         if self.value:
             self.value.generate_evaluation_code(code)
             if self.return_type.is_memoryviewslice:
-                import MemoryView
+                from . import MemoryView
                 MemoryView.put_acquire_memoryviewslice(
                         lhs_cname=Naming.retval_cname,
                         lhs_type=self.return_type,
@@ -5223,7 +5226,7 @@ class RaiseStatNode(StatNode):
         self.builtin_exc_name = None
         if self.exc_type and not self.exc_value and not self.exc_tb:
             exc = self.exc_type
-            import ExprNodes
+            from . import ExprNodes
             if (isinstance(exc, ExprNodes.SimpleCallNode) and
                 not (exc.args or (exc.arg_tuple is not None and
                                   exc.arg_tuple.args))):
@@ -5340,7 +5343,7 @@ class AssertStatNode(StatNode):
             value = self.value.analyse_types(env)
             if value.type is Builtin.tuple_type or not value.type.is_builtin_type:
                 # prevent tuple values from being interpreted as argument value tuples
-                from ExprNodes import TupleNode
+                from .ExprNodes import TupleNode
                 value = TupleNode(value.pos, args=[value], slow=True)
                 self.value = value.analyse_types(env, skip_children=True)
             else:
@@ -5627,7 +5630,7 @@ class DictIterationNextNode(Node):
             type = PyrexTypes.c_bint_type)
 
     def analyse_expressions(self, env):
-        import ExprNodes
+        from . import ExprNodes
         self.dict_obj = self.dict_obj.analyse_types(env)
         self.expected_size = self.expected_size.analyse_types(env)
         if self.pos_index_var:
@@ -5710,7 +5713,7 @@ class ForInStatNode(LoopNode, StatNode):
     item = None
 
     def analyse_declarations(self, env):
-        import ExprNodes
+        from . import ExprNodes
         self.target.analyse_target_declaration(env)
         self.body.analyse_declarations(env)
         if self.else_clause:
@@ -5720,7 +5723,7 @@ class ForInStatNode(LoopNode, StatNode):
     def analyse_expressions(self, env):
         self.target = self.target.analyse_target_types(env)
         self.iterator = self.iterator.analyse_expressions(env)
-        import ExprNodes
+        from . import ExprNodes
         self.item = ExprNodes.NextNode(self.iterator)  # must rewrap after analysis
         self.item = self.item.analyse_expressions(env)
         if (self.iterator.type.is_ptr or self.iterator.type.is_array) and \
@@ -5828,7 +5831,7 @@ class ForFromStatNode(LoopNode, StatNode):
             self.else_clause.analyse_declarations(env)
 
     def analyse_expressions(self, env):
-        import ExprNodes
+        from . import ExprNodes
         self.target = self.target.analyse_target_types(env)
         self.bound1 = self.bound1.analyse_types(env)
         self.bound2 = self.bound2.analyse_types(env)
@@ -5887,7 +5890,7 @@ class ForFromStatNode(LoopNode, StatNode):
             self.step.generate_evaluation_code(code)
             step = self.step.result()
             incop = "%s=%s" % (incop[0], step)
-        import ExprNodes
+        from . import ExprNodes
         if isinstance(self.loopvar_node, ExprNodes.TempNode):
             self.loopvar_node.allocate(code)
         if isinstance(self.py_loopvar_node, ExprNodes.TempNode):
@@ -5914,7 +5917,6 @@ class ForFromStatNode(LoopNode, StatNode):
             # This mess is to make for..from loops with python targets behave
             # exactly like those with C targets with regards to re-assignment
             # of the loop variable.
-            import ExprNodes
             if self.target.entry.is_pyglobal:
                 # We know target is a NameNode, this is the only ugly case.
                 target_node = ExprNodes.PyTempNode(self.target.pos, None)
@@ -6329,7 +6331,7 @@ class ExceptClauseNode(Node):
                 self.pattern[i] = pattern.coerce_to_pyobject(env)
 
         if self.target:
-            import ExprNodes
+            from . import ExprNodes
             self.exc_value = ExprNodes.ExcValueNode(self.pos)
             self.target = self.target.analyse_target_expression(env, self.exc_value)
 
@@ -6723,7 +6725,7 @@ class GILStatNode(NogilTryFinallyStatNode):
                 pos, state=state, state_temp=self.state_temp))
 
     def create_state_temp_if_needed(self, pos, state, body):
-        from ParseTreeTransforms import YieldNodeCollector
+        from .ParseTreeTransforms import YieldNodeCollector
         collector = YieldNodeCollector()
         collector.visitchildren(body)
         if not collector.yields:
@@ -6733,7 +6735,7 @@ class GILStatNode(NogilTryFinallyStatNode):
             temp_type = PyrexTypes.c_gilstate_type
         else:
             temp_type = PyrexTypes.c_threadstate_ptr_type
-        import ExprNodes
+        from . import ExprNodes
         self.state_temp = ExprNodes.TempNode(pos, temp_type)
 
     def analyse_declarations(self, env):
@@ -6963,7 +6965,7 @@ class FromImportStatNode(StatNode):
                 target.analyse_target_declaration(env)
 
     def analyse_expressions(self, env):
-        import ExprNodes
+        from . import ExprNodes
         self.module = self.module.analyse_expressions(env)
         self.item = ExprNodes.RawCNameExprNode(self.pos, py_object_type)
         self.interned_items = []
@@ -8239,7 +8241,7 @@ class CnameDecoratorNode(StatNode):
                 self.node.generate_function_header(
                             h_code, with_pymethdef=False, proto_only=True)
             else:
-                import ModuleNode
+                from . import ModuleNode
                 entry = self.node.entry
                 cname = entry.cname
                 entry.cname = entry.func_cname

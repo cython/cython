@@ -1,23 +1,24 @@
-from Cython.Compiler import TypeSlots
-from Cython.Compiler.ExprNodes import not_a_constant
+from __future__ import absolute_import
+
+from . import TypeSlots
+from .ExprNodes import not_a_constant
 import cython
 cython.declare(UtilityCode=object, EncodedString=object, BytesLiteral=object,
                Nodes=object, ExprNodes=object, PyrexTypes=object, Builtin=object,
-               UtilNodes=object, Naming=object)
+               UtilNodes=object)
 
-import Nodes
-import ExprNodes
-import PyrexTypes
-import Visitor
-import Builtin
-import UtilNodes
-import Options
-import Naming
+from . import Nodes
+from . import ExprNodes
+from . import PyrexTypes
+from . import Visitor
+from . import Builtin
+from . import UtilNodes
+from . import Options
 
-from Code import UtilityCode
-from StringEncoding import EncodedString, BytesLiteral
-from Errors import error
-from ParseTreeTransforms import SkipDeclarations
+from .Code import UtilityCode
+from .StringEncoding import EncodedString, BytesLiteral
+from .Errors import error
+from .ParseTreeTransforms import SkipDeclarations
 
 import copy
 import codecs

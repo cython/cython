@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 import cython
 cython.declare(PyrexTypes=object, ExprNodes=object, Nodes=object,
                Builtin=object, InternalError=object,
@@ -6,15 +8,15 @@ cython.declare(PyrexTypes=object, ExprNodes=object, Nodes=object,
                object_expr=object, object_expr_not_none=object,
                fake_rhs_expr=object, TypedExprNode=object)
 
-import Builtin
-import ExprNodes
-import Nodes
-import Options
-from PyrexTypes import py_object_type, unspecified_type
-import PyrexTypes
+from . import Builtin
+from . import ExprNodes
+from . import Nodes
+from . import Options
+from .PyrexTypes import py_object_type, unspecified_type
+from . import PyrexTypes
 
-from Visitor import TreeVisitor, CythonTransform
-from Errors import error, warning, InternalError
+from .Visitor import TreeVisitor, CythonTransform
+from .Errors import error, warning, InternalError
 
 class TypedExprNode(ExprNodes.ExprNode):
     # Used for declaring assignments of a specified type without a known entry.

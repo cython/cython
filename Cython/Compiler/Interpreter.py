@@ -6,9 +6,11 @@ For now this only covers parse tree to value conversion of
 compile-time values.
 """
 
-from Nodes import *
-from ExprNodes import *
-from Errors import CompileError
+from __future__ import absolute_import
+
+from .Nodes import *
+from .ExprNodes import *
+from .Errors import CompileError
 
 
 class EmptyScope(object):

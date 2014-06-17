@@ -2,6 +2,8 @@
 #   Parse tree nodes for expressions
 #
 
+from __future__ import absolute_import
+
 import cython
 cython.declare(error=object, warning=object, warn_once=object, InternalError=object,
                CompileError=object, UtilityCode=object, TempitaUtilityCode=object,
@@ -17,26 +19,26 @@ import sys
 import copy
 import operator
 
-from Errors import error, warning, warn_once, InternalError, CompileError
-from Errors import hold_errors, release_errors, held_errors, report_error
-from Code import UtilityCode, TempitaUtilityCode
-import StringEncoding
-import Naming
-import Nodes
-from Nodes import Node
-import PyrexTypes
-from PyrexTypes import py_object_type, c_long_type, typecast, error_type, \
+from .Errors import error, warning, warn_once, InternalError, CompileError
+from .Errors import hold_errors, release_errors, held_errors, report_error
+from .Code import UtilityCode, TempitaUtilityCode
+from . import StringEncoding
+from . import Naming
+from . import Nodes
+from .Nodes import Node
+from . import PyrexTypes
+from .PyrexTypes import py_object_type, c_long_type, typecast, error_type, \
     unspecified_type
-import TypeSlots
-from Builtin import list_type, tuple_type, set_type, dict_type, type_type, \
+from . import TypeSlots
+from .Builtin import list_type, tuple_type, set_type, dict_type, type_type, \
      unicode_type, str_type, bytes_type, bytearray_type, basestring_type, slice_type
-import Builtin
-import Symtab
-from Cython import Utils
-from Annotate import AnnotationItem
-from Cython.Compiler import Future
-from Cython.Debugging import print_call_chain
-from DebugFlags import debug_disposal_code, debug_temp_alloc, \
+from . import Builtin
+from . import Symtab
+from .. import Utils
+from .Annotate import AnnotationItem
+from . import Future
+from ..Debugging import print_call_chain
+from .DebugFlags import debug_disposal_code, debug_temp_alloc, \
     debug_coercion
 
 try:
@@ -726,7 +728,7 @@ class ExprNode(Node):
             node.coerce_to(dst_type, env)
 
         if dst_type.is_memoryviewslice:
-            import MemoryView
+            from . import MemoryView
             if not src.type.is_memoryviewslice:
                 if src.type.is_pyobject:
                     src = CoerceToMemViewSliceNode(src, dst_type, env)
@@ -1180,7 +1182,7 @@ def _analyse_name_as_type(name, pos, env):
     if type is not None:
         return type
     hold_errors()
-    from TreeFragment import TreeFragment
+    from .TreeFragment import TreeFragment
     pos = (pos[0], pos[1], pos[2]-7)
     try:
         declaration = TreeFragment(u"sizeof(%s)" % name, name=pos[0].filename, initial_pos=pos)
@@ -1702,7 +1704,7 @@ class NameNode(AtomicExprNode):
         if entry:
             entry.used = 1
             if entry.type.is_buffer:
-                import Buffer
+                from . import Buffer
                 Buffer.used_buffer_aux_vars(entry)
         self.analyse_rvalue_entry(env)
         return self
@@ -1726,7 +1728,7 @@ class NameNode(AtomicExprNode):
             self.type = PyrexTypes.error_type
         self.entry.used = 1
         if self.entry.type.is_buffer:
-            import Buffer
+            from . import Buffer
             Buffer.used_buffer_aux_vars(self.entry)
         return self
 
@@ -1763,7 +1765,7 @@ class NameNode(AtomicExprNode):
                 self.gil_error()
             elif self.entry.type.is_memoryviewslice:
                 if self.cf_is_null or self.cf_maybe_null:
-                    import MemoryView
+                    from . import MemoryView
                     MemoryView.err_if_nogil_initialized_check(self.pos, env)
 
     gil_message = "Accessing Python global or builtin"
@@ -2051,7 +2053,7 @@ class NameNode(AtomicExprNode):
         Slices, coercions from objects, return values etc are new references.
         We have a borrowed reference in case of dst = src
         """
-        import MemoryView
+        from . import MemoryView
 
         MemoryView.put_acquire_memoryviewslice(
             lhs_cname=self.result(),
@@ -2073,7 +2075,7 @@ class NameNode(AtomicExprNode):
             rhstmp = code.funcstate.allocate_temp(self.entry.type, manage_ref=False)
             code.putln('%s = %s;' % (rhstmp, rhs.result_as(self.ctype())))
 
-        import Buffer
+        from . import Buffer
         Buffer.put_assign_to_buffer(self.result(), rhstmp, self.entry,
                                     is_initialized=not self.lhs_of_first_assignment,
                                     pos=self.pos, code=code)
@@ -2829,7 +2831,6 @@ class IndexNode(ExprNode):
                     template_values = self.index.args
                 else:
                     template_values = [self.index]
-                import Nodes
                 type_node = Nodes.TemplatedTypeNode(
                     pos = self.pos,
                     positional_args = template_values,
@@ -2989,7 +2990,7 @@ class IndexNode(ExprNode):
 
         elif is_memslice:
             # memoryviewslice indexing or slicing
-            import MemoryView
+            from . import MemoryView
 
             skip_child_analysis = True
             newaxes = [newaxis for newaxis in indices if newaxis.is_none]
@@ -3682,7 +3683,7 @@ class IndexNode(ExprNode):
         self.free_subexpr_temps(code)
 
     def buffer_entry(self):
-        import Buffer, MemoryView
+        from . import Buffer, MemoryView
 
         base = self.base
         if self.base.is_nonecheck:
@@ -3713,7 +3714,7 @@ class IndexNode(ExprNode):
             code.putln("%s = %s;" % (temp, index.result()))
 
         # Generate buffer access code using these temps
-        import Buffer
+        from . import Buffer
         buffer_entry = self.buffer_entry()
         if buffer_entry.type.is_buffer:
             negative_indices = buffer_entry.type.negative_indices
@@ -3759,12 +3760,12 @@ class IndexNode(ExprNode):
 
     def generate_memoryviewslice_setslice_code(self, rhs, code):
         "memslice1[...] = memslice2 or memslice1[:] = memslice2"
-        import MemoryView
+        from . import MemoryView
         MemoryView.copy_broadcast_memview_src_to_dst(rhs, self, code)
 
     def generate_memoryviewslice_assign_scalar_code(self, rhs, code):
         "memslice1[...] = 0.0 or memslice1[:] = 0.0"
-        import MemoryView
+        from . import MemoryView
         MemoryView.assign_scalar(self, rhs, code)
 
 
@@ -5027,7 +5028,7 @@ class GeneralCallNode(CallNode):
         # match keyword arguments that are passed out-of-order, but keep
         # the evaluation of non-simple arguments in order by moving them
         # into temps
-        from Cython.Compiler.UtilNodes import EvalWithTempExprNode, LetRefNode
+        from .UtilNodes import EvalWithTempExprNode, LetRefNode
         temps = []
         if len(kwargs.key_value_pairs) > matched_kwargs_count:
             unmatched_args = declared_args[len(args):]
@@ -5489,7 +5490,7 @@ class AttributeNode(ExprNode):
         if self.is_py_attr:
             self.gil_error()
         elif self.type.is_memoryviewslice:
-            import MemoryView
+            from . import MemoryView
             MemoryView.err_if_nogil_initialized_check(self.pos, env, 'attribute')
 
     gil_message = "Accessing Python attribute"
@@ -5634,7 +5635,7 @@ class AttributeNode(ExprNode):
                 code.put_gotref(select_code)
                 code.put_decref(select_code, self.ctype())
             elif self.type.is_memoryviewslice:
-                import MemoryView
+                from . import MemoryView
                 MemoryView.put_assign_to_memviewslice(
                         select_code, rhs, rhs.result(), self.type, code)
 
@@ -8536,7 +8537,7 @@ class CythonArrayNode(ExprNode):
     shape_type = PyrexTypes.c_py_ssize_t_type
 
     def analyse_types(self, env):
-        import MemoryView
+        from . import MemoryView
 
         self.operand = self.operand.analyse_types(env)
         if self.array_dtype:
@@ -8653,7 +8654,7 @@ class CythonArrayNode(ExprNode):
         return env.global_scope().context.cython_scope.viewscope.lookup("array").type
 
     def generate_result_code(self, code):
-        import Buffer
+        from . import Buffer
 
         shapes = [self.shape_type.cast_code(shape.result())
                       for shape in self.shapes]

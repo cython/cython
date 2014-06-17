@@ -3,6 +3,8 @@
 #   Cython Scanner
 #
 
+from __future__ import absolute_import
+
 import os
 import platform
 
@@ -10,14 +12,14 @@ import cython
 cython.declare(EncodedString=object, any_string_prefix=unicode, IDENT=unicode,
                print_function=object)
 
-from Cython import Utils
-from Cython.Plex.Scanners import Scanner
-from Cython.Plex.Errors import UnrecognizedInput
-from Errors import error
-from Lexicon import any_string_prefix, make_lexicon, IDENT
-from Future import print_function
+from .. import Utils
+from ..Plex.Scanners import Scanner
+from ..Plex.Errors import UnrecognizedInput
+from .Errors import error
+from .Lexicon import any_string_prefix, make_lexicon, IDENT
+from .Future import print_function
 
-from StringEncoding import EncodedString
+from .StringEncoding import EncodedString
 
 debug_scanner = 0
 trace_scanner = 0

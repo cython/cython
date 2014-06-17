@@ -1,9 +1,12 @@
-from Symtab import ModuleScope
-from PyrexTypes import *
-from UtilityCode import CythonUtilityCode
-from Errors import error
-from Scanning import StringSourceDescriptor
-import MemoryView
+from __future__ import absolute_import
+
+from .Symtab import ModuleScope
+from .PyrexTypes import *
+from .UtilityCode import CythonUtilityCode
+from .Errors import error
+from .Scanning import StringSourceDescriptor
+from . import MemoryView
+
 
 class CythonScope(ModuleScope):
     is_cython_builtin = 1

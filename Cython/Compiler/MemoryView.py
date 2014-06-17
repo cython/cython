@@ -1,12 +1,14 @@
-from Errors import CompileError, error
-import ExprNodes
-from ExprNodes import IntNode, NameNode, AttributeNode
-import Options
-from Code import UtilityCode, TempitaUtilityCode
-from UtilityCode import CythonUtilityCode
-import Buffer
-import PyrexTypes
-import ModuleNode
+from __future__ import absolute_import
+
+from .Errors import CompileError, error
+from . import ExprNodes
+from .ExprNodes import IntNode, NameNode, AttributeNode
+from . import Options
+from .Code import UtilityCode, TempitaUtilityCode
+from .UtilityCode import CythonUtilityCode
+from . import Buffer
+from . import PyrexTypes
+from . import ModuleNode
 
 START_ERR = "Start must not be given."
 STOP_ERR = "Axis specification only allowed in the 'step' slot."
@@ -75,7 +77,7 @@ def put_init_entry(mv_cname, code):
 
 def mangle_dtype_name(dtype):
     # a dumb wrapper for now; move Buffer.mangle_dtype_name in here later?
-    import Buffer
+    from . import Buffer
     return Buffer.mangle_dtype_name(dtype)
 
 #def axes_to_str(axes):

@@ -44,7 +44,7 @@ Parts of this code were taken from Cython.inline.
 # The full license is in the file COPYING.txt, distributed with this software.
 #-----------------------------------------------------------------------------
 
-from __future__ import print_function
+from __future__ import absolute_import, print_function
 
 import imp
 import io
@@ -74,8 +74,8 @@ from IPython.utils.path import get_ipython_cache_dir
 from IPython.utils.text import dedent
 
 import Cython
-from Cython.Compiler.Errors import CompileError
-from Cython.Build.Dependencies import cythonize
+from ..Compiler.Errors import CompileError
+from .Dependencies import cythonize
 
 
 @magics_class

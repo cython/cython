@@ -6,11 +6,15 @@
 #
 #=======================================================================
 
-from Regexps import Alt, Seq, Rep, Rep1, Opt, Any, AnyBut, Bol, Eol, Char
-from Errors import PlexError
+from __future__ import absolute_import
+
+from .Regexps import Alt, Seq, Rep, Rep1, Opt, Any, AnyBut, Bol, Eol, Char
+from .Errors import PlexError
+
 
 class RegexpSyntaxError(PlexError):
   pass
+
 
 def re(s):
   """
@@ -18,6 +22,7 @@ def re(s):
   into Plex representation.
   """
   return REParser(s).parse_re()
+
 
 class REParser(object):
 

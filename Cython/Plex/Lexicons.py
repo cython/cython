@@ -6,17 +6,20 @@
 #
 #=======================================================================
 
+from __future__ import absolute_import
+
 import types
 
-import Actions
-import DFA
-import Errors
-import Machines
-import Regexps
+from . import Actions
+from . import DFA
+from . import Errors
+from . import Machines
+from . import Regexps
 
 # debug_flags for Lexicon constructor
 DUMP_NFA = 1
 DUMP_DFA = 2
+
 
 class State(object):
   """
@@ -114,7 +117,7 @@ class Lexicon(object):
     if type(specifications) != types.ListType:
       raise Errors.InvalidScanner("Scanner definition is not a list")
     if timings:
-      from Timing import time
+      from .Timing import time
       total_time = 0.0
       time1 = time()
     nfa = Machines.Machine()

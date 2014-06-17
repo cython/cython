@@ -1,12 +1,14 @@
+from __future__ import absolute_import
+
 import itertools
 from time import time
 
-import Errors
-import DebugFlags
-import Options
-from Visitor import CythonTransform
-from Errors import CompileError, InternalError, AbortError
-import Naming
+from . import Errors
+from . import DebugFlags
+from . import Options
+from .Visitor import CythonTransform
+from .Errors import CompileError, InternalError, AbortError
+from . import Naming
 
 #
 # Really small pipeline stages
@@ -56,8 +58,6 @@ def generate_pyx_code_stage_factory(options, result):
 
 def inject_pxd_code_stage_factory(context):
     def inject_pxd_code_stage(module_node):
-        from textwrap import dedent
-        stats = module_node.body.stats
         for name, (statlistnode, scope) in context.pxds.iteritems():
             module_node.merge_in(statlistnode, scope)
         return module_node
@@ -127,28 +127,28 @@ class UseUtilityCodeDefinitions(CythonTransform):
 
 def create_pipeline(context, mode, exclude_classes=()):
     assert mode in ('pyx', 'py', 'pxd')
-    from Visitor import PrintTree
-    from ParseTreeTransforms import WithTransform, NormalizeTree, PostParse, PxdPostParse
-    from ParseTreeTransforms import ForwardDeclareTypes, AnalyseDeclarationsTransform
-    from ParseTreeTransforms import AnalyseExpressionsTransform, FindInvalidUseOfFusedTypes
-    from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
-    from ParseTreeTransforms import InterpretCompilerDirectives, TransformBuiltinMethods
-    from ParseTreeTransforms import ExpandInplaceOperators, ParallelRangeTransform
-    from ParseTreeTransforms import CalculateQualifiedNamesTransform
-    from TypeInference import MarkParallelAssignments, MarkOverflowingArithmetic
-    from ParseTreeTransforms import AdjustDefByDirectives, AlignFunctionDefinitions
-    from ParseTreeTransforms import RemoveUnreachableCode, GilCheck
-    from FlowControl import ControlFlowAnalysis
-    from AnalysedTreeTransforms import AutoTestDictTransform
-    from AutoDocTransforms import EmbedSignature
-    from Optimize import FlattenInListTransform, SwitchTransform, IterationTransform
-    from Optimize import EarlyReplaceBuiltinCalls, OptimizeBuiltinCalls
-    from Optimize import InlineDefNodeCalls
-    from Optimize import ConstantFolding, FinalOptimizePhase
-    from Optimize import DropRefcountingTransform
-    from Optimize import ConsolidateOverflowCheck
-    from Buffer import IntroduceBufferAuxiliaryVars
-    from ModuleNode import check_c_declarations, check_c_declarations_pxd
+    from .Visitor import PrintTree
+    from .ParseTreeTransforms import WithTransform, NormalizeTree, PostParse, PxdPostParse
+    from .ParseTreeTransforms import ForwardDeclareTypes, AnalyseDeclarationsTransform
+    from .ParseTreeTransforms import AnalyseExpressionsTransform, FindInvalidUseOfFusedTypes
+    from .ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
+    from .ParseTreeTransforms import InterpretCompilerDirectives, TransformBuiltinMethods
+    from .ParseTreeTransforms import ExpandInplaceOperators, ParallelRangeTransform
+    from .ParseTreeTransforms import CalculateQualifiedNamesTransform
+    from .TypeInference import MarkParallelAssignments, MarkOverflowingArithmetic
+    from .ParseTreeTransforms import AdjustDefByDirectives, AlignFunctionDefinitions
+    from .ParseTreeTransforms import RemoveUnreachableCode, GilCheck
+    from .FlowControl import ControlFlowAnalysis
+    from .AnalysedTreeTransforms import AutoTestDictTransform
+    from .AutoDocTransforms import EmbedSignature
+    from .Optimize import FlattenInListTransform, SwitchTransform, IterationTransform
+    from .Optimize import EarlyReplaceBuiltinCalls, OptimizeBuiltinCalls
+    from .Optimize import InlineDefNodeCalls
+    from .Optimize import ConstantFolding, FinalOptimizePhase
+    from .Optimize import DropRefcountingTransform
+    from .Optimize import ConsolidateOverflowCheck
+    from .Buffer import IntroduceBufferAuxiliaryVars
+    from .ModuleNode import check_c_declarations, check_c_declarations_pxd
 
 
     if mode == 'pxd':
@@ -221,12 +221,12 @@ def create_pyx_pipeline(context, options, result, py=False, exclude_classes=()):
         mode = 'pyx'
     test_support = []
     if options.evaluate_tree_assertions:
-        from Cython.TestUtils import TreeAssertVisitor
+        from ..TestUtils import TreeAssertVisitor
         test_support.append(TreeAssertVisitor())
 
     if options.gdb_debug:
-        from Cython.Debugger import DebugWriter # requires Py2.5+
-        from ParseTreeTransforms import DebugTransform
+        from ..Debugger import DebugWriter # requires Py2.5+
+        from .ParseTreeTransforms import DebugTransform
         context.gdb_debug_outputwriter = DebugWriter.CythonDebugWriter(
             options.output_dir)
         debug_transform = [DebugTransform(context, options, result)]
@@ -244,7 +244,7 @@ def create_pyx_pipeline(context, options, result, py=False, exclude_classes=()):
         [generate_pyx_code_stage_factory(options, result)]))
 
 def create_pxd_pipeline(context, scope, module_name):
-    from CodeGeneration import ExtractPxdCode
+    from .CodeGeneration import ExtractPxdCode
 
     # The pxd pipeline ends up with a CCodeWriter containing the
     # code of the pxd, as well as a pxd scope.
@@ -258,10 +258,10 @@ def create_py_pipeline(context, options, result):
     return create_pyx_pipeline(context, options, result, py=True)
 
 def create_pyx_as_pxd_pipeline(context, result):
-    from ParseTreeTransforms import AlignFunctionDefinitions, \
+    from .ParseTreeTransforms import AlignFunctionDefinitions, \
         MarkClosureVisitor, WithTransform, AnalyseDeclarationsTransform
-    from Optimize import ConstantFolding, FlattenInListTransform
-    from Nodes import StatListNode
+    from .Optimize import ConstantFolding, FlattenInListTransform
+    from .Nodes import StatListNode
     pipeline = []
     pyx_pipeline = create_pyx_pipeline(context, context.options, result,
                                        exclude_classes=[
@@ -312,7 +312,7 @@ def insert_into_pipeline(pipeline, transform, before=None, after=None):
 #
 
 def run_pipeline(pipeline, source, printtree=True):
-    from Cython.Compiler.Visitor import PrintTree
+    from .Visitor import PrintTree
 
     error = None
     data = source

@@ -1,6 +1,8 @@
+from __future__ import absolute_import
+
 cimport cython
 
-from Cython.Compiler.Visitor cimport CythonTransform, TreeVisitor
+from .Visitor cimport CythonTransform, TreeVisitor
 
 cdef class ControlBlock:
      cdef public set children

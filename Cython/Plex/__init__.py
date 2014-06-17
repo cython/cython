@@ -30,11 +30,10 @@ see the attached docstrings for more information.
         creating a Lexicon.
 """
 
-from Actions import TEXT, IGNORE, Begin
-from Lexicons import Lexicon, State
-from Regexps import RE, Seq, Alt, Rep1, Empty, Str, Any, AnyBut, AnyChar, Range
-from Regexps import Opt, Rep, Bol, Eol, Eof, Case, NoCase
-from Scanners import Scanner
+from __future__ import absolute_import
 
-
-
+from .Actions import TEXT, IGNORE, Begin
+from .Lexicons import Lexicon, State
+from .Regexps import RE, Seq, Alt, Rep1, Empty, Str, Any, AnyBut, AnyChar, Range
+from .Regexps import Opt, Rep, Bol, Eol, Eof, Case, NoCase
+from .Scanners import Scanner

@@ -2,11 +2,16 @@
 #   Cython/Python language types
 #
 
-from Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode
-import StringEncoding
-import Naming
+from __future__ import absolute_import
+
 import copy
-from Errors import error
+
+from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode
+from . import StringEncoding
+from . import Naming
+
+from .Errors import error
+
 
 class BaseType(object):
     #
@@ -508,7 +513,7 @@ class MemoryViewSliceType(PyrexType):
         the *first* axis' packing spec and 'follow' for all other packing
         specs.
         """
-        import MemoryView
+        from . import MemoryView
 
         self.dtype = base_dtype
         self.axes = axes
@@ -542,14 +547,14 @@ class MemoryViewSliceType(PyrexType):
         # XXX: we put these guards in for now...
         assert not pyrex
         assert not dll_linkage
-        import MemoryView
+        from . import MemoryView
         return self.base_declaration_code(
                 MemoryView.memviewslice_cname,
                 entity_code)
 
     def attributes_known(self):
         if self.scope is None:
-            import Symtab
+            from . import Symtab
 
             self.scope = scope = Symtab.CClassScope(
                     'mvs_class_'+self.specialization_suffix(),
@@ -565,7 +570,7 @@ class MemoryViewSliceType(PyrexType):
         return True
 
     def declare_attribute(self, attribute, env, pos):
-        import MemoryView, Options
+        from . import MemoryView, Options
 
         scope = self.scope
 
@@ -652,7 +657,7 @@ class MemoryViewSliceType(PyrexType):
         return cname + '.memview'
 
     def create_from_py_utility_code(self, env):
-        import MemoryView, Buffer
+        from . import MemoryView, Buffer
 
         # We don't have 'code', so use a LazyUtilityCode with a callback.
         def lazy_utility_callback(code):
@@ -741,13 +746,13 @@ class MemoryViewSliceType(PyrexType):
 
     def axes_to_code(self):
         """Return a list of code constants for each axis"""
-        import MemoryView
+        from . import MemoryView
         d = MemoryView._spec_to_const
         return ["(%s | %s)" % (d[a], d[p]) for a, p in self.axes]
 
     def axes_to_name(self):
         """Return an abbreviated name for our axes"""
-        import MemoryView
+        from . import MemoryView
         d = MemoryView._spec_to_abbrev
         return "".join(["%s%s" % (d[a], d[p]) for a, p in self.axes])
 
@@ -755,7 +760,7 @@ class MemoryViewSliceType(PyrexType):
         return "!%s.memview" % result_code
 
     def __str__(self):
-        import MemoryView
+        from . import MemoryView
 
         axes_code_list = []
         for idx, (access, packing) in enumerate(self.axes):
@@ -1220,7 +1225,7 @@ class CConstType(BaseType):
     def __init__(self, const_base_type):
         self.const_base_type = const_base_type
         if const_base_type.has_attributes and const_base_type.scope is not None:
-            import Symtab
+            from . import Symtab
             self.scope = Symtab.CConstScope(const_base_type.scope)
 
     def __repr__(self):
@@ -1366,7 +1371,7 @@ class CNumericType(CType):
 
     def attributes_known(self):
         if self.scope is None:
-            import Symtab
+            from . import Symtab
             self.scope = scope = Symtab.CClassScope(
                     '',
                     None,
@@ -1720,7 +1725,7 @@ class CComplexType(CNumericType):
 
     def attributes_known(self):
         if self.scope is None:
-            import Symtab
+            from . import Symtab
             self.scope = scope = Symtab.CClassScope(
                     '',
                     None,
@@ -3035,7 +3040,7 @@ class CppClassType(CType):
                 'cname': cname,
                 'maybe_unordered': self.maybe_unordered(),
             }
-            from UtilityCode import CythonUtilityCode
+            from .UtilityCode import CythonUtilityCode
             env.use_utility_code(CythonUtilityCode.load(cls.replace('unordered_', '') + ".from_py", "CppConvert.pyx", context=context))
             self.from_py_function = cname
             return True
@@ -3064,7 +3069,7 @@ class CppClassType(CType):
                 'cname': cname,
                 'maybe_unordered': self.maybe_unordered(),
             }
-            from UtilityCode import CythonUtilityCode
+            from .UtilityCode import CythonUtilityCode
             env.use_utility_code(CythonUtilityCode.load(cls.replace('unordered_', '') + ".to_py", "CppConvert.pyx", context=context))
             self.to_py_function = cname
             return True
@@ -3544,7 +3549,7 @@ def best_match(args, functions, pos=None, env=None):
                     ", ".join([param.name for param in set(func_type.templates) - set(deductions.keys())]))))
             else:
                 type_list = [deductions[param] for param in func_type.templates]
-                from Symtab import Entry
+                from .Symtab import Entry
                 specialization = Entry(
                     name = func.name + "[%s]" % ",".join([str(t) for t in type_list]),
                     cname = func.cname + "<%s>" % ",".join([t.declaration_code("") for t in type_list]),

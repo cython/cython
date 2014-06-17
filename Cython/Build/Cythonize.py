@@ -1,13 +1,15 @@
 #!/usr/bin/env python
 
+from __future__ import absolute_import
+
 import os
 import shutil
 import tempfile
-
 from distutils.core import setup
-from Cython.Build.Dependencies import cythonize, extended_iglob
-from Cython.Utils import is_package_dir
-from Cython.Compiler import Options
+
+from .Dependencies import cythonize, extended_iglob
+from ..Utils import is_package_dir
+from ..Compiler import Options
 
 try:
     import multiprocessing

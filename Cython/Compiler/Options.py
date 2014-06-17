@@ -2,6 +2,8 @@
 #  Cython - Compilation-wide options and pragma declarations
 #
 
+from __future__ import absolute_import
+
 # Perform lookups on builtin names only once, at module initialisation
 # time.  This will prevent the module from getting imported if a
 # builtin name that it uses cannot be found during initialisation.

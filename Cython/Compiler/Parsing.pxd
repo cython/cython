@@ -1,7 +1,9 @@
 # We declare all of these here to type the first argument.
 
+from __future__ import absolute_import
+
 cimport cython
-from Cython.Compiler.Scanning cimport PyrexScanner
+from .Scanning cimport PyrexScanner
 
 ctypedef object (*p_sub_expr_func)(PyrexScanner obj)
 

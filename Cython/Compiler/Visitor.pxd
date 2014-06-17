@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 cimport cython
 
 cdef class TreeVisitor:

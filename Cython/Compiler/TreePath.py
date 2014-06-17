@@ -6,6 +6,8 @@ function selects a part of the expression, e.g. a child node, a
 specific descendant or a node that holds an attribute.
 """
 
+from __future__ import absolute_import
+
 import re
 import operator
 

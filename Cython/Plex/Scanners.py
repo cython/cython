@@ -7,13 +7,16 @@
 #
 #=======================================================================
 
+from __future__ import absolute_import
+
 import cython
 cython.declare(BOL=object, EOL=object, EOF=object, NOT_FOUND=object)
 
-import Errors
-from Regexps import BOL, EOL, EOF
+from . import Errors
+from .Regexps import BOL, EOL, EOF
 
 NOT_FOUND = object()
+
 
 class Scanner(object):
   """

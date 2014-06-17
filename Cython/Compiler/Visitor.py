@@ -3,14 +3,17 @@
 #
 #   Tree visitor and transform framework
 #
+
+from __future__ import absolute_import
+
 import inspect
 
-from Cython.Compiler import TypeSlots
-from Cython.Compiler import Builtin
-from Cython.Compiler import Nodes
-from Cython.Compiler import ExprNodes
-from Cython.Compiler import Errors
-from Cython.Compiler import DebugFlags
+from . import TypeSlots
+from . import Builtin
+from . import Nodes
+from . import ExprNodes
+from . import Errors
+from . import DebugFlags
 
 import cython
 
@@ -270,7 +273,7 @@ class CythonTransform(VisitorTransform):
         self.context = context
 
     def __call__(self, node):
-        import ModuleNode
+        from . import ModuleNode
         if isinstance(node, ModuleNode.ModuleNode):
             self.current_directives = node.directives
         return super(CythonTransform, self).__call__(node)
