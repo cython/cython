@@ -54,7 +54,7 @@ Other changes
 * Removed support for CPython 2.4, 2.5 and 3.1.
 
 
-0.20.2
+0.20.2 (2014-06-16)
 ===================
 
 Features added
