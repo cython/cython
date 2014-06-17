@@ -762,8 +762,8 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         return node
 
     def visit_FromCImportStatNode(self, node):
-        if (node.module_name == u"cython") or \
-               node.module_name.startswith(u"cython."):
+        if not node.relative_level and (
+                node.module_name == u"cython" or node.module_name.startswith(u"cython.")):
             submodule = (node.module_name + u".")[7:]
             newimp = []
 

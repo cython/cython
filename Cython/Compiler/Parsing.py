@@ -1319,24 +1319,19 @@ def p_from_import_statement(s, first_statement = 0):
         while s.sy == '.':
             level += 1
             s.next()
-        if s.sy == 'cimport':
-            s.error("Relative cimport is not supported yet")
     else:
         level = None
-    if level is not None and s.sy == 'import':
+    if level is not None and s.sy in ('import', 'cimport'):
         # we are dealing with "from .. import foo, bar"
         dotted_name_pos, dotted_name = s.position(), ''
-    elif level is not None and s.sy == 'cimport':
-        # "from .. cimport"
-        s.error("Relative cimport is not supported yet")
     else:
-        (dotted_name_pos, _, dotted_name, _) = \
-            p_dotted_name(s, as_allowed = 0)
-    if s.sy in ('import', 'cimport'):
-        kind = s.sy
-        s.next()
-    else:
+        if level is None and Future.absolute_import in s.context.future_directives:
+            level = 0
+        (dotted_name_pos, _, dotted_name, _) = p_dotted_name(s, as_allowed=False)
+    if s.sy not in ('import', 'cimport'):
         s.error("Expected 'import' or 'cimport'")
+    kind = s.sy
+    s.next()
 
     is_cimport = kind == 'cimport'
     is_parenthesized = False
@@ -1359,7 +1354,7 @@ def p_from_import_statement(s, first_statement = 0):
     if dotted_name == '__future__':
         if not first_statement:
             s.error("from __future__ imports must occur at the beginning of the file")
-        elif level is not None:
+        elif level:
             s.error("invalid syntax")
         else:
             for (name_pos, name, as_name, kind) in imported_names:
@@ -1374,9 +1369,10 @@ def p_from_import_statement(s, first_statement = 0):
                 s.context.future_directives.add(directive)
         return Nodes.PassStatNode(pos)
     elif kind == 'cimport':
-        return Nodes.FromCImportStatNode(pos,
-            module_name = dotted_name,
-            imported_names = imported_names)
+        return Nodes.FromCImportStatNode(
+            pos, module_name=dotted_name,
+            relative_level=level,
+            imported_names=imported_names)
     else:
         imported_name_strings = []
         items = []

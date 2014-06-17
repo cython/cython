@@ -1081,13 +1081,19 @@ class ModuleScope(Scope):
             entry.name = name
         return entry
 
-    def find_module(self, module_name, pos):
+    def find_module(self, module_name, pos, relative_level=-1):
         # Find a module in the import namespace, interpreting
         # relative imports relative to this module's parent.
         # Finds and parses the module's .pxd file if the module
         # has not been referenced before.
-        return self.global_scope().context.find_module(
-            module_name, relative_to = self.parent_module, pos = pos)
+        module_scope = self.global_scope()
+        if relative_level is not None and relative_level > 0:
+            # merge current absolute module name and relative import name into qualified name
+            current_module = module_scope.qualified_name.split('.')
+            base_package = current_module[:-relative_level]
+            module_name = '.'.join(base_package + module_name.split('.'))
+        return module_scope.context.find_module(
+            module_name, relative_to=None if relative_level == 0 else self.parent_module, pos=pos)
 
     def find_submodule(self, name):
         # Find and return scope for a submodule of this module,

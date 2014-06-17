@@ -123,7 +123,7 @@ class Context(object):
                 pos = (module_name, 0, 0)
             raise CompileError(pos,
                 "'%s' is not a valid module name" % module_name)
-        if "." not in module_name and relative_to:
+        if relative_to:
             if debug_find_module:
                 print("...trying relative import")
             scope = relative_to.lookup_submodule(module_name)
@@ -139,7 +139,7 @@ class Context(object):
             for name in module_name.split("."):
                 scope = scope.find_submodule(name)
         if debug_find_module:
-            print("...scope =", scope)
+            print("...scope = %s" % scope)
         if not scope.pxd_file_loaded:
             if debug_find_module:
                 print("...pxd not loaded")
@@ -149,7 +149,7 @@ class Context(object):
                     print("...looking for pxd file")
                 pxd_pathname = self.find_pxd_file(module_name, pos)
                 if debug_find_module:
-                    print("......found ", pxd_pathname)
+                    print("......found %s" % pxd_pathname)
                 if not pxd_pathname and need_pxd:
                     package_pathname = self.search_include_directories(module_name, ".py", pos)
                     if package_pathname and package_pathname.endswith('__init__.py'):
@@ -162,7 +162,7 @@ class Context(object):
                         print("Context.find_module: Parsing %s" % pxd_pathname)
                     rel_path = module_name.replace('.', os.sep) + os.path.splitext(pxd_pathname)[1]
                     if not pxd_pathname.endswith(rel_path):
-                        rel_path = pxd_pathname # safety measure to prevent printing incorrect paths
+                        rel_path = pxd_pathname  # safety measure to prevent printing incorrect paths
                     source_desc = FileSourceDescriptor(pxd_pathname, rel_path)
                     err, result = self.process_pxd(source_desc, scope, module_name)
                     if err:

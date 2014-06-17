@@ -6864,15 +6864,22 @@ class FromCImportStatNode(StatNode):
     #  from ... cimport statement
     #
     #  module_name     string                        Qualified name of module
+    #  relative_level  int or None                   Relative import: number of dots before module_name
     #  imported_names  [(pos, name, as_name, kind)]  Names to be imported
 
     child_attrs = []
+    module_name = None
+    relative_level = None
+    imported_names = None
 
     def analyse_declarations(self, env):
         if not env.is_module_scope:
             error(self.pos, "cimport only allowed at module level")
             return
-        module_scope = env.find_module(self.module_name, self.pos)
+        if self.relative_level and self.relative_level > env.qualified_name.count('.'):
+            error(self.pos, "relative cimport beyond main package is not allowed")
+        module_scope = env.find_module(self.module_name, self.pos, relative_level=self.relative_level)
+        module_name = module_scope.qualified_name
         env.add_imported_module(module_scope)
         for pos, name, as_name, kind in self.imported_names:
             if name == "*":
@@ -6886,29 +6893,27 @@ class FromCImportStatNode(StatNode):
                     entry.used = 1
                 else:
                     if kind == 'struct' or kind == 'union':
-                        entry = module_scope.declare_struct_or_union(name,
-                            kind = kind, scope = None, typedef_flag = 0, pos = pos)
+                        entry = module_scope.declare_struct_or_union(
+                            name, kind=kind, scope=None, typedef_flag=0, pos=pos)
                     elif kind == 'class':
-                        entry = module_scope.declare_c_class(name, pos = pos,
-                            module_name = self.module_name)
+                        entry = module_scope.declare_c_class(name, pos=pos, module_name=module_name)
                     else:
-                        submodule_scope = env.context.find_module(name, relative_to = module_scope, pos = self.pos)
+                        submodule_scope = env.context.find_module(name, relative_to=module_scope, pos=self.pos)
                         if submodule_scope.parent_module is module_scope:
                             env.declare_module(as_name or name, submodule_scope, self.pos)
                         else:
-                            error(pos, "Name '%s' not declared in module '%s'"
-                                % (name, self.module_name))
+                            error(pos, "Name '%s' not declared in module '%s'" % (name, module_name))
 
                 if entry:
                     local_name = as_name or name
                     env.add_imported_entry(local_name, entry, pos)
 
-        if self.module_name.startswith('cpython'): # enough for now
-            if self.module_name in utility_code_for_cimports:
+        if module_name.startswith('cpython'): # enough for now
+            if module_name in utility_code_for_cimports:
                 env.use_utility_code(UtilityCode.load_cached(
-                    *utility_code_for_cimports[self.module_name]))
+                    *utility_code_for_cimports[module_name]))
             for _, name, _, _ in self.imported_names:
-                fqname = '%s.%s' % (self.module_name, name)
+                fqname = '%s.%s' % (module_name, name)
                 if fqname in utility_code_for_cimports:
                     env.use_utility_code(UtilityCode.load_cached(
                         *utility_code_for_cimports[fqname]))
@@ -6969,7 +6974,7 @@ class FromImportStatNode(StatNode):
                         env.use_utility_code(UtilityCode.load_cached("ExtTypeTest", "ObjectHandling.c"))
                         break
             else:
-                entry =  env.lookup(target.name)
+                entry = env.lookup(target.name)
                 # check whether or not entry is already cimported
                 if (entry.is_type and entry.type.name == name
                         and hasattr(entry.type, 'module_name')):
@@ -6978,8 +6983,8 @@ class FromImportStatNode(StatNode):
                         continue
                     try:
                         # cimported with relative name
-                        module = env.find_module(self.module.module_name.value,
-                                                 pos=None)
+                        module = env.find_module(self.module.module_name.value, pos=self.pos,
+                                                 relative_level=self.module.level)
                         if entry.type.module_name == module.qualified_name:
                             continue
                     except AttributeError:
