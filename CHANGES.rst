@@ -11,7 +11,7 @@ Features added
 
 * Generators have new properties ``__name__`` and ``__qualname__``
   that provide the plain/qualified name of the generator function
-  (following CPython 3.5, see issue 21205).
+  (following CPython 3.5).  See http://bugs.python.org/issue21205
 
 * The ``inline`` function modifier is available as a decorator
   ``@cython.inline`` in pure mode.
@@ -24,14 +24,15 @@ Features added
 * HTML output of annotated code uses Pygments for code highlighting
   and generally received a major overhaul by Matthias Bussonier.
 
-* The Python expression "2 ** N" was optimised.
+* The Python expression "2 ** N" was optimised.  See
+  http://bugs.python.org/issue21420
 
 * Simple support for declaring Python object types in Python signature
   annotations.  Currently requires setting the compiler directive
   ``annotation_typing=True``.
 
-* Added directive use_switch (defaults to True) to optionally enable
-  the chained if statement to switch statement optimization.
+* New directive ``use_switch`` (defaults to True) to optionally disable
+  the optimization of chained if statement to C switch statements.
 
 Bugs fixed
 ----------
