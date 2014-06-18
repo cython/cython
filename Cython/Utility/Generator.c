@@ -596,9 +596,9 @@ __Pyx_Generator_set_qualname(__pyx_GeneratorObject *self, PyObject *value)
 
 static PyGetSetDef __pyx_Generator_getsets[] = {
     {(char *) "__name__", (getter)__Pyx_Generator_get_name, (setter)__Pyx_Generator_set_name,
-     PyDoc_STR("name of the generator"), 0},
+     (char*) PyDoc_STR("name of the generator"), 0},
     {(char *) "__qualname__", (getter)__Pyx_Generator_get_qualname, (setter)__Pyx_Generator_set_qualname,
-     PyDoc_STR("qualified name of the generator"), 0},
+     (char*) PyDoc_STR("qualified name of the generator"), 0},
     {0, 0, 0, 0, 0}
 };
 
