@@ -447,6 +447,8 @@ static int __Pyx_Generator_clear(PyObject *self) {
     Py_CLEAR(gen->exc_type);
     Py_CLEAR(gen->exc_value);
     Py_CLEAR(gen->exc_traceback);
+    Py_CLEAR(gen->qualname);
+    Py_CLEAR(gen->name);
     return 0;
 }
 
@@ -694,7 +696,9 @@ static __pyx_GeneratorObject *__Pyx_Generator_New(__pyx_generator_body_t body,
     gen->exc_value = NULL;
     gen->exc_traceback = NULL;
     gen->gi_weakreflist = NULL;
+    Py_XINCREF(qualname);
     gen->gi_qualname = qualname;
+    Py_XINCREF(name);
     gen->gi_name = name;
 
     PyObject_GC_Track(gen);
