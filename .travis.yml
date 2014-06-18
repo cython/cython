@@ -18,7 +18,7 @@ before_install:
   - sudo apt-get install gdb python$( python -c 'import sys; print("%d.%d" % sys.version_info[:2])' )-dbg || true
   - dpkg -l | grep gdb || true
 
-install: pip install .
+install: CFLAGS="-O2 -ggdb" pip install .
 
 script:
   - PYTHON="python$( python -c 'import sys; print("%d.%d" % sys.version_info[:2])' )-dbg"
