@@ -447,8 +447,8 @@ static int __Pyx_Generator_clear(PyObject *self) {
     Py_CLEAR(gen->exc_type);
     Py_CLEAR(gen->exc_value);
     Py_CLEAR(gen->exc_traceback);
-    Py_CLEAR(gen->qualname);
-    Py_CLEAR(gen->name);
+    Py_CLEAR(gen->gi_name);
+    Py_CLEAR(gen->gi_qualname);
     return 0;
 }
 
