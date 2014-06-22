@@ -76,3 +76,29 @@ def dict_call_kwargs():
     kwargs = dict(parrot1=u"resting", answer1=42)
     d = dict(parrot2=u"resting", answer2=42, **kwargs)
     return d
+
+
+def item_creation_sideeffect(L, sideeffect, unhashable):
+    """
+    >>> def sideeffect(x):
+    ...     L.append(x)
+    ...     return x
+    >>> def unhashable(x):
+    ...     L.append(x)
+    ...     return [x]
+
+    >>> L = []
+    >>> item_creation_sideeffect(L, sideeffect, unhashable)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError:... unhashable ...
+    >>> L
+    [2, 4]
+
+    >>> L = []
+    >>> {1:2, sideeffect(2): 3, 3: 4, unhashable(4): 5, sideeffect(5): 6}  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError:... unhashable ...
+    >>> L
+    [2, 4]
+    """
+    return {1:2, sideeffect(2): 3, 3: 4, unhashable(4): 5, sideeffect(5): 6}
