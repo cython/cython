@@ -295,22 +295,22 @@ class FusedCFuncDefNode(StatListNode):
 
     def _buffer_check_numpy_dtype_setup_cases(self, pyx_code):
         "Setup some common cases to match dtypes against specializations"
-        if pyx_code.indenter("if dtype.kind in ('i', 'u'):"):
+        if pyx_code.indenter("if kind in b'iu':"):
             pyx_code.putln("pass")
             pyx_code.named_insertion_point("dtype_int")
             pyx_code.dedent()
 
-        if pyx_code.indenter("elif dtype.kind == 'f':"):
+        if pyx_code.indenter("elif kind == b'f':"):
             pyx_code.putln("pass")
             pyx_code.named_insertion_point("dtype_float")
             pyx_code.dedent()
 
-        if pyx_code.indenter("elif dtype.kind == 'c':"):
+        if pyx_code.indenter("elif kind == b'c':"):
             pyx_code.putln("pass")
             pyx_code.named_insertion_point("dtype_complex")
             pyx_code.dedent()
 
-        if pyx_code.indenter("elif dtype.kind == 'O':"):
+        if pyx_code.indenter("elif kind == b'O':"):
             pyx_code.putln("pass")
             pyx_code.named_insertion_point("dtype_object")
             pyx_code.dedent()
@@ -339,7 +339,7 @@ class FusedCFuncDefNode(StatListNode):
 
             for dtype_category, codewriter in dtypes:
                 if dtype_category:
-                    cond = '{{itemsize_match}} and arg.ndim == %d' % (
+                    cond = '{{itemsize_match}} and (<Py_ssize_t>arg.ndim) == %d' % (
                                                     specialized_type.ndim,)
                     if dtype.is_int:
                         cond += ' and {{signed_match}}'
