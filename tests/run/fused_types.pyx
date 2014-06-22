@@ -295,7 +295,6 @@ def test_fused_memslice_dtype_repeated(cython.floating[:] array1, cython.floatin
     """
     Note: the np.ndarray dtype test is in numpy_test
 
-    >>> import cython
     >>> sorted(test_fused_memslice_dtype_repeated.__signatures__)
     ['double', 'float']
 
@@ -314,7 +313,6 @@ def test_fused_memslice_dtype_repeated_2(cython.floating[:] array1, cython.float
     """
     Note: the np.ndarray dtype test is in numpy_test
 
-    >>> import cython
     >>> sorted(test_fused_memslice_dtype_repeated_2.__signatures__)
     ['double|double', 'double|int', 'float|double', 'float|int']
 
