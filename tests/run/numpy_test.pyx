@@ -738,10 +738,12 @@ def test_dispatch_non_clashing_declarations_repeating_types(np.ndarray[cython.fl
     1.0 2 3.0 4
     >>> test_dispatch_non_clashing_declarations_repeating_types(float64_array, int64_array, float64_array, int64_array)
     1.0 2 3.0 4
-    >>> test_dispatch_non_clashing_declarations_repeating_types(float64_array, int32_array, float64_array, int64_array)
+    >>> test_dispatch_non_clashing_declarations_repeating_types(float64_array, int32_array, float64_array, int64_array)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-       ...
-    TypeError: No matching signature found
+    ValueError: Buffer dtype mismatch, expected 'int32_t'...
+    >>> test_dispatch_non_clashing_declarations_repeating_types(float64_array, int64_array, float64_array, int32_array)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: Buffer dtype mismatch, expected 'int64_t'...
     """
     print a1[1], a2[2], a3[3], a4[4]
 
