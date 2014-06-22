@@ -37,6 +37,15 @@ Features added
 Bugs fixed
 ----------
 
+* Cython no longer generates the cross product of C functions for code
+  that uses memory views of fused types in function signatures (e.g.
+  ``cdef func(floating[:] a, floating[:] b)``).  This is considered the
+  expected behaviour by most users and was previously inconsistent with
+  other structured types like C arrays.  Code that really wants all type
+  combinations can create the same fused memoryview type under different
+  names and use those in the signature to make it clear which types are
+  independent.
+
 * Names that were unknown at compile time were looked up as builtins at
   runtime but not as global module names.  This helps with globals()
   manipulation.
