@@ -643,11 +643,11 @@ class FusedCFuncDefNode(StatListNode):
         # print fragment_code
         fragment = TreeFragment.TreeFragment(fragment_code, level='module')
         ast = TreeFragment.SetPosTransform(self.node.pos)(fragment.root)
-        UtilityCode.declare_declarations_in_scope(decl_code.getvalue(),
-                                                  env.global_scope())
+        UtilityCode.declare_declarations_in_scope(
+            decl_code.getvalue(), env.global_scope())
         ast.scope = env
         ast.analyse_declarations(env)
-        py_func = ast.stats[-1] # the DefNode
+        py_func = ast.stats[-1]  # the DefNode
         self.fragment_scope = ast.scope
 
         if isinstance(self.node, DefNode):
