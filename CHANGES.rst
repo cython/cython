@@ -24,8 +24,8 @@ Features added
 * HTML output of annotated code uses Pygments for code highlighting
   and generally received a major overhaul by Matthias Bussonier.
 
-* The Python expression "2 ** N" was optimised.  See
-  http://bugs.python.org/issue21420
+* The Python expression "2 ** N" is optimised into bit shifting.
+  See http://bugs.python.org/issue21420
 
 * Simple support for declaring Python object types in Python signature
   annotations.  Currently requires setting the compiler directive
@@ -53,8 +53,8 @@ Bugs fixed
   independent.
 
 * Names that were unknown at compile time were looked up as builtins at
-  runtime but not as global module names.  This helps with globals()
-  manipulation.
+  runtime but not as global module names.  Trying both lookups helps with
+  globals() manipulation.
 
 * ``obj.pop(x)`` truncated large C integer values of x to ``Py_ssize_t``.
 
