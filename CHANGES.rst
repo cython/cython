@@ -37,6 +37,12 @@ Features added
 Bugs fixed
 ----------
 
+* Set literals now create all of their items before trying to add them
+  to the set, following the behaviour in CPython.  This makes a
+  difference in the rare case that the item creation has side effects
+  and some items are not hashable (or if hashing them has side effects,
+  too).
+
 * Cython no longer generates the cross product of C functions for code
   that uses memory views of fused types in function signatures (e.g.
   ``cdef func(floating[:] a, floating[:] b)``).  This is considered the
