@@ -404,12 +404,15 @@ class FusedCFuncDefNode(StatListNode):
                 if pyx_code.indenter(u"while 1:"):
                     pyx_code.put_chunk(
                         u"""
-                            if numpy is not None:
-                                if isinstance(arg, numpy.ndarray):
+                            if ndarray is not None:
+                                if isinstance(arg, ndarray):
                                     dtype = arg.dtype
-                                elif (__pyx_memoryview_check(arg) and
-                                      isinstance(arg.base, numpy.ndarray)):
-                                    dtype = arg.base.dtype
+                                elif __pyx_memoryview_check(arg):
+                                    arg_base = arg.base
+                                    if isinstance(arg_base, ndarray):
+                                        dtype = arg_base.dtype
+                                    else:
+                                        dtype = None
                                 else:
                                     dtype = None
 
@@ -417,7 +420,7 @@ class FusedCFuncDefNode(StatListNode):
                                 if dtype is not None:
                                     itemsize = dtype.itemsize
                                     kind = ord(dtype.kind)
-                                    dtype_signed = kind == ord('i')
+                                    dtype_signed = kind == 'i'
                         """)
                     pyx_code.indent(2)
                     pyx_code.named_insertion_point("numpy_dtype_checks")
@@ -462,10 +465,12 @@ class FusedCFuncDefNode(StatListNode):
 
         pyx_code.imports.put_chunk(
             u"""
+                cdef type ndarray
                 try:
                     import numpy
-                except ImportError:
-                    numpy = None
+                    ndarray = numpy.ndarray
+                except (ImportError, AttributeError, TypeError):
+                    ndarray = None
             """)
 
         seen_int_dtypes = set()
@@ -519,7 +524,7 @@ class FusedCFuncDefNode(StatListNode):
                 elif '{{arg.name}}' in kwargs:
                     arg = kwargs['{{arg.name}}']
                 else:
-                {{if arg.default:}}
+                {{if arg.default}}
                     arg = defaults[{{default_idx}}]
                 {{else}}
                     raise TypeError("Expected at least %d arguments" % len(args))
@@ -556,7 +561,9 @@ class FusedCFuncDefNode(StatListNode):
 
         pyx_code.put_chunk(
             u"""
-                def __pyx_fused_cpdef(signatures, args, kwargs, defaults):
+                def __pyx_fused_cpdef(dict signatures not None,
+                                      tuple args not None, dict kwargs, tuple defaults not None):
+
                     dest_sig = [{{for _ in range(n_fused)}}None,{{endfor}}]
 
                     if kwargs is None:
