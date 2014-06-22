@@ -180,6 +180,25 @@ def test_set_sideeffect_unhashable_failure():
     return L
 
 
+def test_set_sideeffect_unhashable_failure_literal():
+    """
+    >>> test_set_sideeffect_unhashable_failure_literal()
+    [2, 4, 5]
+    """
+    L = []
+    def sideeffect(x):
+        L.append(x)
+        return x
+    def unhashable_value(x):
+        L.append(x)
+        return set()
+    try:
+        s = {1,sideeffect(2),3,unhashable_value(4),sideeffect(5)}
+    except TypeError: pass
+    else: assert False, "expected exception not raised"
+    return L
+
+
 def test_frozenset_sideeffect_unhashable_failure():
     """
     >>> test_frozenset_sideeffect_unhashable_failure()

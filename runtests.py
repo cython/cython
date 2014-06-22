@@ -263,6 +263,7 @@ VER_DEP_MODULES = {
                                           'run.yield_inside_lambda',
                                           'run.test_dictviews',
                                           'run.pyclass_special_methods',
+                                          'run.set_literals',
                                           ]),
     # The next line should start (3,); but this is a dictionary, so
     # we can only have one (3,) key.  Since 2.7 is supposed to be the

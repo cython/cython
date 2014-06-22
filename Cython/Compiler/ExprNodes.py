@@ -6689,8 +6689,7 @@ class SetNode(ExprNode):
         return False
 
     def calculate_constant_result(self):
-        self.constant_result = set([
-                arg.constant_result for arg in self.args])
+        self.constant_result = set([arg.constant_result for arg in self.args])
 
     def compile_time_value(self, denv):
         values = [arg.compile_time_value(denv) for arg in self.args]
@@ -6700,6 +6699,8 @@ class SetNode(ExprNode):
             self.compile_time_value_error(e)
 
     def generate_evaluation_code(self, code):
+        for arg in self.args:
+            arg.generate_evaluation_code(code)
         self.allocate_temp_result(code)
         code.putln(
             "%s = PySet_New(0); %s" % (
@@ -6707,7 +6708,6 @@ class SetNode(ExprNode):
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
         for arg in self.args:
-            arg.generate_evaluation_code(code)
             code.put_error_if_neg(
                 self.pos,
                 "PySet_Add(%s, %s)" % (self.result(), arg.py_result()))
