@@ -270,8 +270,8 @@ def get_array(itemsize, format):
 
 def get_intc_array():
     result = array((10,), sizeof(int), 'i')
-    result[5] = 5.0
-    result[6] = 6.0
+    result[5] = 5
+    result[6] = 6
     return result
 
 def test_fused_memslice_dtype(cython.floating[:] array):
