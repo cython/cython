@@ -519,15 +519,15 @@ class FusedCFuncDefNode(StatListNode):
         pyx_code.put_chunk(
             u"""
                 # PROCESSING ARGUMENT {{arg_tuple_idx}}
-                if {{arg_tuple_idx}} < len(args):
-                    arg = args[{{arg_tuple_idx}}]
-                elif '{{arg.name}}' in kwargs:
-                    arg = kwargs['{{arg.name}}']
+                if {{arg_tuple_idx}} < len(<tuple>args):
+                    arg = (<tuple>args)[{{arg_tuple_idx}}]
+                elif '{{arg.name}}' in <dict>kwargs:
+                    arg = (<dict>kwargs)['{{arg.name}}']
                 else:
                 {{if arg.default}}
-                    arg = defaults[{{default_idx}}]
+                    arg = (<tuple>defaults)[{{default_idx}}]
                 {{else}}
-                    raise TypeError("Expected at least %d arguments" % len(args))
+                    raise TypeError("Expected at least %d arguments" % len(<tuple>args))
                 {{endif}}
             """)
 
@@ -561,8 +561,9 @@ class FusedCFuncDefNode(StatListNode):
 
         pyx_code.put_chunk(
             u"""
-                def __pyx_fused_cpdef(dict signatures not None,
-                                      tuple args not None, dict kwargs, tuple defaults not None):
+                def __pyx_fused_cpdef(signatures, args, kwargs, defaults):
+                    # FIXME: use a typed signature - currently fails badly because
+                    #        default arguments inherit the types we specify here!
 
                     dest_sig = [{{for _ in range(n_fused)}}None,{{endfor}}]
 
@@ -617,7 +618,7 @@ class FusedCFuncDefNode(StatListNode):
         pyx_code.put_chunk(
             u"""
                 candidates = []
-                for sig in signatures:
+                for sig in <dict>signatures:
                     match_found = False
                     for src_type, dst_type in zip(sig.strip('()').split('|'), dest_sig):
                         if dst_type is not None:
@@ -635,7 +636,7 @@ class FusedCFuncDefNode(StatListNode):
                 elif len(candidates) > 1:
                     raise TypeError("Function call with ambiguous argument types")
                 else:
-                    return signatures[candidates[0]]
+                    return (<dict>signatures)[candidates[0]]
             """)
 
         fragment_code = pyx_code.getvalue()
