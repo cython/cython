@@ -479,7 +479,7 @@ class CompilationOptions(object):
     cplus             boolean   Compile as c++ code
     """
 
-    def __init__(self, defaults = None, **kw):
+    def __init__(self, defaults=None, **kw):
         self.include_path = []
         if defaults:
             if isinstance(defaults, CompilationOptions):
@@ -489,6 +489,16 @@ class CompilationOptions(object):
 
         options = dict(defaults)
         options.update(kw)
+
+        # let's assume 'default_options' contains a value for most known compiler options
+        # and validate against them
+        unknown_options = set(options) - set(default_options)
+        # ignore valid options that are not in the defaults
+        unknown_options.difference_update(['include_path'])
+        if unknown_options:
+            raise ValueError("got unexpected compilation option%s: %s" % (
+                's' if len(unknown_options) > 1 else '',
+                ', '.join(unknown_options)))
 
         directives = dict(options['compiler_directives']) # copy mutable field
         options['compiler_directives'] = directives
@@ -675,4 +685,6 @@ default_options = dict(
     gdb_debug = False,
     compile_time_env = None,
     common_utility_include_dir = None,
+    output_dir=None,
+    build_dir=None,
 )
