@@ -1842,8 +1842,10 @@ def runtests(options, cmd_args, coverage=None):
     exclude_selectors = [missing_dep_excluder, version_dep_excluder] # want to print msg at exit
 
     try:
-        import IPython
-    except ImportError:
+        import IPython.core.release
+        if list(IPython.core.release._ver) < [1, 0, 0]:
+            raise ImportError
+    except (ImportError, AttributeError, TypeError):
         exclude_selectors.append(RegExSelector('IPython'))
 
     if options.exclude:
