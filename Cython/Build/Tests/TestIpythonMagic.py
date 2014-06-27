@@ -4,10 +4,10 @@
 """Tests for the Cython magics extension."""
 
 import os
+import sys
 
 try:
     from IPython.testing.globalipapp import get_ipython
-    from IPython.testing import decorators as dec
     from IPython.utils import py3compat
 except:
     __test__ = False
@@ -18,6 +18,19 @@ ip = get_ipython()
 code = py3compat.str_to_unicode("""def f(x):
     return 2*x
 """)
+
+
+if sys.platform == 'win32':
+    # not using IPython's decorators here because they depend on "nose"
+    try:
+        from unittest import skip as skip_win32
+    except ImportError:
+        # poor dev's silent @unittest.skip()
+        def skip_win32(f):
+            return lambda self: None
+else:
+    def skip_win32(f):
+        return f
 
 
 class TestIPythonMagic(CythonTest):
@@ -31,7 +44,7 @@ class TestIPythonMagic(CythonTest):
         result = ip.run_cell_magic('cython_inline', '', 'return a+b')
         self.assertEqual(result, 30)
 
-    @dec.skip_win32
+    @skip_win32
     def test_cython_pyximport(self):
         module_name = '_test_cython_pyximport'
         ip.run_cell_magic('cython_pyximport', module_name, code)
@@ -57,7 +70,7 @@ class TestIPythonMagic(CythonTest):
         ip.ex('import mymodule; g = mymodule.f(10)')
         self.assertEqual(ip.user_ns['g'], 20.0)
 
-    @dec.skip_win32
+    @skip_win32
     def test_extlibs(self):
         code = py3compat.str_to_unicode("""
 from libc.math cimport sin
