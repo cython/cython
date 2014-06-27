@@ -73,8 +73,9 @@ from IPython.utils import py3compat
 from IPython.utils.path import get_ipython_cache_dir
 from IPython.utils.text import dedent
 
-import Cython
+from ..Shadow import __version__ as cython_version
 from ..Compiler.Errors import CompileError
+from .Inline import cython_inline
 from .Dependencies import cythonize
 
 
@@ -107,7 +108,7 @@ class CythonMagics(Magics):
         """
         locs = self.shell.user_global_ns
         globs = self.shell.user_ns
-        return Cython.inline(cell, locals=locs, globals=globs)
+        return cython_inline(cell, locals=locs, globals=globs)
 
     @cell_magic
     def cython_pyximport(self, line, cell):
@@ -211,7 +212,7 @@ class CythonMagics(Magics):
         code = cell if cell.endswith('\n') else cell+'\n'
         lib_dir = os.path.join(get_ipython_cache_dir(), 'cython')
         quiet = True
-        key = code, sys.version_info, sys.executable, Cython.__version__
+        key = code, sys.version_info, sys.executable, cython_version
 
         if not os.path.exists(lib_dir):
             os.makedirs(lib_dir)
