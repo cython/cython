@@ -86,6 +86,7 @@ class CythonMagics(Magics):
         super(CythonMagics,self).__init__(shell)
         self._reloads = {}
         self._code_cache = {}
+        self._pyximport_installed = False
 
     def _import_all(self, module):
         for k,v in module.__dict__.items():
@@ -132,9 +133,10 @@ class CythonMagics(Magics):
         fname = module_name + '.pyx'
         with io.open(fname, 'w', encoding='utf-8') as f:
             f.write(cell)
-        if 'pyximport' not in sys.modules:
+        if 'pyximport' not in sys.modules or not self._pyximport_installed:
             import pyximport
             pyximport.install(reload_support=True)
+            self._pyximport_installed = True
         if module_name in self._reloads:
             module = self._reloads[module_name]
             reload(module)
