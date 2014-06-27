@@ -1931,6 +1931,7 @@ def runtests(options, cmd_args, coverage=None):
         modules = [ module for name, module in sys.modules.items()
                     if module is not None and
                     name.startswith('Cython.Compiler.') and
+                    '.Tests' not in name and
                     name[len('Cython.Compiler.'):] not in ignored_modules ]
         if options.coverage:
             coverage.report(modules, show_missing=0)
