@@ -1932,9 +1932,10 @@ def runtests(options, cmd_args, coverage=None):
             for name in ('Options', 'Version', 'DebugFlags', 'CmdLine'))
         modules = [module for name, module in sys.modules.items()
                    if module is not None and
-                   '.Tests' not in name and
                    name.startswith('Cython.') and
-                   name not in ignored_modules]
+                   '.Tests' not in name and
+                   name not in ignored_modules and
+                   not name.startswith('Cython.Runtime')]
         if options.coverage:
             coverage.report(modules, show_missing=0)
         if options.coverage_xml:
