@@ -12,6 +12,7 @@
 # serve to show the default.
 
 import sys, os, os.path, re
+import itertools
 import datetime
 
 YEAR = datetime.date.today().strftime('%Y')
@@ -77,11 +78,13 @@ release = '0.15'
 try:
     _match_version = re.compile(r'^\s*_*version\s*_*\s*=\s*["\']([^"\']+)["\'].*').match
     with open(os.path.join(os.path.dirname(__file__), '..', 'Cython', 'Shadow.py')) as _f:
-        for line in _f:
+        for line in itertools.islice(_f, 5):  # assume version comes early enough
             _m = _match_version(line)
             if _m:
                 release = _m.group(1)
                 break
+        else:
+            print("FAILED TO PARSE PROJECT VERSION !")
 except:
     pass
 # The short X.Y version.
