@@ -1780,7 +1780,7 @@ if VALUE is not None:
         return None
 
     def visit_CEnumDefNode(self, node):
-        if node.visibility == 'public':
+        if node.visibility == 'public' or node.is_overridable:
             return node
         else:
             return None

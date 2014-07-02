@@ -20,16 +20,21 @@ class ExtractPxdCode(VisitorTransform):
     """
 
     def __call__(self, root):
-        self.funcs = []
+        self.code_statements = []
         self.visitchildren(root)
-        return (StatListNode(root.pos, stats=self.funcs), root.scope)
+        return (StatListNode(root.pos, stats=self.code_statements), root.scope)
 
     def visit_FuncDefNode(self, node):
-        self.funcs.append(node)
+        self.code_statements.append(node)
         # Do not visit children, nested funcdefnodes will
         # also be moved by this action...
         return node
 
     def visit_Node(self, node):
         self.visitchildren(node)
+        return node
+
+    def visit_CEnumDefNode(self, node):
+        if node.visibility == 'public' or node.is_overridable:
+            self.code_statements.append(node)
         return node
