@@ -2,6 +2,16 @@
 Cython Changelog
 ================
 
+0.20.3
+===================
+
+Bugs fixed
+----------
+
+* Correctly handle `from cython.submodule comport name``.
+
+
+
 0.20.2 (2014-06-16)
 ===================
 
