@@ -64,6 +64,8 @@ Bugs fixed
 * Syntax highlighting in ``cython-mode.el`` for Emacs no longer
   incorrectly highlights keywords found as part of longer names.
 
+* Correctly handle `from cython.submodule comport name``.
+
 Other changes
 -------------
 

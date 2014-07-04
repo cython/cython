@@ -778,10 +778,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                     # from cython.parallel cimport parallel, prange, ...
                     self.parallel_directives[as_name or name] = qualified_name
                 elif self.is_cython_directive(full_name):
-                    if as_name is None:
-                        as_name = full_name
-
-                    self.directive_names[as_name] = full_name
+                    self.directive_names[as_name or name] = full_name
                     if kind is not None:
                         self.context.nonfatal_error(PostParseError(pos,
                             "Compiler directive imports must be plain imports"))
@@ -1689,7 +1686,7 @@ if VALUE is not None:
             return None
         else:
             return self.visit_ClassDefNode(node)
-    
+
     def visit_CStructOrUnionDefNode(self, node):
         # Create a wrapper node if needed.
         # We want to use the struct type information (so it can't happen
