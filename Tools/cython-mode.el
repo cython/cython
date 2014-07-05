@@ -46,23 +46,53 @@
   "Keymap used in `cython-mode'.")
 
 (defvar cython-font-lock-keywords
-  `(;; new keywords in Cython language
+  `(;; ctypedef statement: "ctypedef (...type... alias)?"
+    (,(rx
+       ;; keyword itself
+       symbol-start (group "ctypedef")
+       ;; type specifier: at least 1 non-identifier symbol + 1 identifier
+       ;; symbol and anything but a comment-starter after that.
+       (opt (regexp "[^a-zA-z0-9_\n]+[a-zA-Z0-9_][^#\n]*")
+            ;; type alias: an identifier
+            symbol-start (group (regexp "[a-zA-Z_]+[a-zA-Z0-9_]*"))
+            ;; space-or-comments till the end of the line
+            (* space) (opt "#" (* nonl)) line-end))
+     (1 font-lock-keyword-face)
+     (2 font-lock-type-face nil 'noerror))
+    ;; new keywords in Cython language
     (,(rx symbol-start
-          (or "by" "cdef" "cimport" "cpdef" "ctypedef" "enum" "except?"
+          (or "by" "cdef" "cimport" "cpdef"
               "extern" "gil" "include" "nogil" "property" "public"
-              "readonly" "struct" "union" "DEF" "IF" "ELIF" "ELSE")
+              "readonly" "DEF" "IF" "ELIF" "ELSE"
+              "new" "del" "cppclass" "namespace" "const"
+              "__stdcall" "__cdecl" "__fastcall" "inline" "api")
           symbol-end)
-     1 font-lock-keyword-face)
+     . font-lock-keyword-face)
+    ;; Question mark won't match at a symbol-end, so 'except?' must be
+    ;; special-cased.  It's simpler to handle it separately than weaving it
+    ;; into the lengthy list of other keywords.
+    (,(rx symbol-start "except?") . font-lock-keyword-face)
     ;; C and Python types (highlight as builtins)
     (,(rx symbol-start
-          (or "NULL" "bint" "char" "dict" "double" "float" "int" "list"
-              "long" "object" "Py_ssize_t" "short" "size_t" "void")
+          (or
+           "object" "dict" "list"
+           ;; basic c type names
+           "void" "char" "int" "float" "double" "bint"
+           ;; longness/signed/constness
+           "signed" "unsigned" "long" "short"
+           ;; special basic c types
+           "size_t" "Py_ssize_t" "Py_UNICODE" "Py_UCS4" "ssize_t" "ptrdiff_t")
           symbol-end)
-     1 font-lock-builtin-face)
+     . font-lock-builtin-face)
+    (,(rx symbol-start "NULL" symbol-end)
+     . font-lock-constant-face)
     ;; cdef is used for more than functions, so simply highlighting the next
     ;; word is problematic. struct, enum and property work though.
-    ("\\_<\\(?:struct\\|enum\\)[ \t]+\\([a-zA-Z_]+[a-zA-Z0-9_]*\\)"
-     1 py-class-name-face)
+    (,(rx symbol-start
+          (group (or "struct" "enum" "union"
+                     (seq "ctypedef" (+ space "fused"))))
+          (+ space) (group (regexp "[a-zA-Z_]+[a-zA-Z0-9_]*")))
+     (1 font-lock-keyword-face prepend) (2 font-lock-type-face))
     ("\\_<property[ \t]+\\([a-zA-Z_]+[a-zA-Z0-9_]*\\)"
      1 font-lock-function-name-face))
   "Additional font lock keywords for Cython mode.")
@@ -249,8 +279,7 @@ Finds end of innermost nested class or method definition."
   "Major mode for Cython development, derived from Python mode.
 
 \\{cython-mode-map}"
-  (setcar font-lock-defaults
-          (append python-font-lock-keywords cython-font-lock-keywords))
+  (font-lock-add-keywords nil cython-font-lock-keywords)
   (set (make-local-variable 'outline-regexp)
        (rx (* space) (or "class" "def" "cdef" "cpdef" "elif" "else" "except" "finally"
                          "for" "if" "try" "while" "with")
