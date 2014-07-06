@@ -1,3 +1,4 @@
+# mode: run
 
 from cpython.version cimport PY_MAJOR_VERSION
 
@@ -15,4 +16,28 @@ def test_one_arg_indexing(s):
     """
     cfunc(s[0])
     z = cfunc(s[2])
+    assert z == 'z', repr(z)
     return cfunc(s[1])
+
+
+'''
+# FIXME: should these be allowed?
+
+def test_one_arg_slicing(s):
+    """
+    >>> test_one_arg_indexing(b'xyz')
+    'y'
+    """
+    cfunc(s[:2])
+    z = cfunc(s[2:])
+    assert z == 'z', repr(z)
+    return cfunc(s[1:2])
+
+
+def test_one_arg_adding(s):
+    """
+    >>> test_one_arg_adding(b'xyz')
+    'abxyzqr'
+    """
+    return cfunc(b"a" + b"b" + s + b"q" + b"r")
+'''
