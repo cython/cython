@@ -2796,6 +2796,8 @@ class IndexNode(ExprNode):
             self.compile_time_value_error(e)
 
     def is_ephemeral(self):
+        # in most cases, indexing will return a safe reference to an object in a container,
+        # so we consider the result safe if the base object is
         return self.base.is_ephemeral()
 
     def is_simple(self):
