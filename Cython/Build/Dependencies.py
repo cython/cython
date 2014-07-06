@@ -792,6 +792,8 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
         if not os.path.exists(options.cache):
             os.makedirs(options.cache)
     to_compile.sort()
+    if len(to_compile) <= 1:
+        nthreads = 0
     if nthreads:
         # Requires multiprocessing (or Python >= 2.6)
         try:
