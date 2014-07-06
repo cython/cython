@@ -10899,6 +10899,7 @@ class CoerceFromPyTypeNode(CoercionNode):
 
     def generate_post_assignment_code(self, code):
         if self.type.is_string and self.is_temp:
+            # postponed from self.generate_evaluation_code()
             self.generate_subexpr_disposal_code(code)
             self.free_subexpr_temps(code)
         super(CoerceFromPyTypeNode, self).generate_post_assignment_code(code)
