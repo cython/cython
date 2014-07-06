@@ -10884,21 +10884,20 @@ class CoerceFromPyTypeNode(CoercionNode):
             # not dispose of subexpression temps here and do it later during cleanup
             self.generate_subexpr_evaluation_code(code)
             code.mark_pos(self.pos)
-            if self.is_temp:
-                self.allocate_temp_result(code)
+            self.allocate_temp_result(code)
             self.generate_result_code(code)
         else:
             super(CoerceFromPyTypeNode, self).generate_evaluation_code(code)
 
     def generate_disposal_code(self, code):
-        if self.type.is_string and self.is_temp:
+        if self.type.is_string:
             # postponed from self.generate_evaluation_code()
             self.generate_subexpr_disposal_code(code)
             self.free_subexpr_temps(code)
         super(CoerceFromPyTypeNode, self).generate_disposal_code(code)
 
     def generate_post_assignment_code(self, code):
-        if self.type.is_string and self.is_temp:
+        if self.type.is_string:
             # postponed from self.generate_evaluation_code()
             self.generate_subexpr_disposal_code(code)
             self.free_subexpr_temps(code)
