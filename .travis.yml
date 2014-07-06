@@ -31,4 +31,7 @@ script:
 matrix:
   allow_failures:
     - python: pypy
+  exclude:
+    - python: pypy
+      env: BACKEND=cpp
   fast_finish: true
