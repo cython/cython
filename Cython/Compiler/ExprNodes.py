@@ -596,7 +596,7 @@ class ExprNode(Node):
             self.allocate_temp_result(code)
 
         self.generate_result_code(code)
-        if self.is_temp:
+        if self.is_temp and not (self.type.is_string or self.type.is_pyunicode_ptr):
             # If we are temp we do not need to wait until this node is disposed
             # before disposing children.
             self.generate_subexpr_disposal_code(code)
@@ -611,6 +611,10 @@ class ExprNode(Node):
 
     def generate_disposal_code(self, code):
         if self.is_temp:
+            if self.type.is_string or self.type.is_pyunicode_ptr:
+                # postponed from self.generate_evaluation_code()
+                self.generate_subexpr_disposal_code(code)
+                self.free_subexpr_temps(code)
             if self.result():
                 if self.type.is_pyobject:
                     code.put_decref_clear(self.result(), self.ctype())
@@ -629,7 +633,11 @@ class ExprNode(Node):
 
     def generate_post_assignment_code(self, code):
         if self.is_temp:
-            if self.type.is_pyobject:
+            if self.type.is_string or self.type.is_pyunicode_ptr:
+                # postponed from self.generate_evaluation_code()
+                self.generate_subexpr_disposal_code(code)
+                self.free_subexpr_temps(code)
+            elif self.type.is_pyobject:
                 code.putln("%s = 0;" % self.result())
             elif self.type.is_memoryviewslice:
                 code.putln("%s.memview = NULL;" % self.result())
@@ -8449,6 +8457,10 @@ class TypecastNode(ExprNode):
         # either temp or a C cast => no side effects other than the operand's
         return self.operand.is_simple()
 
+    def is_ephemeral(self):
+        # either temp or a C cast => no side effects other than the operand's
+        return self.operand.is_ephemeral()
+
     def nonlocally_immutable(self):
         return self.is_temp or self.operand.nonlocally_immutable()
 
@@ -9007,6 +9019,10 @@ class BinopNode(ExprNode):
 
     def check_const(self):
         return self.operand1.check_const() and self.operand2.check_const()
+
+    def is_ephemeral(self):
+        return (super(BinopNode, self).is_ephemeral() or
+                self.operand1.is_ephemeral() or self.operand2.is_ephemeral())
 
     def generate_result_code(self, code):
         #print "BinopNode.generate_result_code:", self.operand1, self.operand2 ###
@@ -10865,15 +10881,7 @@ class CoerceFromPyTypeNode(CoercionNode):
             error(arg.pos,
                   "Cannot convert Python object to '%s'" % result_type)
         if self.type.is_string or self.type.is_pyunicode_ptr:
-            if self.arg.is_ephemeral():
-                # FIXME: instead of always raising an error here, we should trace what happens
-                # with the result (by passing on the "ephemeral" state) and only raise the
-                # error when we notice illegal usage.  Something like "(<char*>pystr)[0] + 1"
-                # can be perfectly legal, whereas "cdef char* s = pystr1 + pystr2" should
-                # fail on the assignment.
-                error(arg.pos,
-                      "Obtaining '%s' from temporary Python value" % result_type)
-            elif self.arg.is_name and self.arg.entry and self.arg.entry.is_pyglobal:
+            if self.arg.is_name and self.arg.entry and self.arg.entry.is_pyglobal:
                 warning(arg.pos,
                         "Obtaining '%s' from externally modifiable global Python value" % result_type,
                         level=1)
@@ -10882,31 +10890,8 @@ class CoerceFromPyTypeNode(CoercionNode):
         # The arg is always already analysed
         return self
 
-    def generate_evaluation_code(self, code):
-        if self.type.is_string:
-            # when coercing Python strings to C, we may have to keep the Python
-            # object alive a little longer, e.g. during a function call, so we do
-            # not dispose of subexpression temps here and do it later during cleanup
-            self.generate_subexpr_evaluation_code(code)
-            code.mark_pos(self.pos)
-            self.allocate_temp_result(code)
-            self.generate_result_code(code)
-        else:
-            super(CoerceFromPyTypeNode, self).generate_evaluation_code(code)
-
-    def generate_disposal_code(self, code):
-        if self.type.is_string:
-            # postponed from self.generate_evaluation_code()
-            self.generate_subexpr_disposal_code(code)
-            self.free_subexpr_temps(code)
-        super(CoerceFromPyTypeNode, self).generate_disposal_code(code)
-
-    def generate_post_assignment_code(self, code):
-        if self.type.is_string:
-            # postponed from self.generate_evaluation_code()
-            self.generate_subexpr_disposal_code(code)
-            self.free_subexpr_temps(code)
-        super(CoerceFromPyTypeNode, self).generate_post_assignment_code(code)
+    def is_ephemeral(self):
+        return self.type.is_ptr and self.arg.is_temp and not self.arg.is_name
 
     def generate_result_code(self, code):
         function = self.type.from_py_function

@@ -9,6 +9,12 @@ Latest
 Features added
 --------------
 
+* Taking a ``char*`` from a temporary Python string object is safer
+  in more cases and can be done inside of non-trivial expressions,
+  including arguments of a function call.  A compile time error
+  is raised only when such a pointer is assigned to a variable and
+  would thus exceed the lifetime of the string itself.
+
 * Cascaded assignments (a = b = ...) try to minimise the number of
   type coercions.
 
@@ -39,6 +45,9 @@ Features added
 
 Bugs fixed
 ----------
+
+* Taking a ``char*`` from an indexed Python string generated unsafe
+  reference counting code.
 
 * Set literals now create all of their items before trying to add them
   to the set, following the behaviour in CPython.  This makes a
