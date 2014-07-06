@@ -678,9 +678,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         self.parallel_directives = {}
 
     def check_directive_scope(self, pos, directive, scope):
-        print 'check_directive_scope', pos, directive, scope
         legal_scopes = Options.directive_scopes.get(directive, None)
-        print legal_scopes
         if legal_scopes and scope not in legal_scopes:
             self.context.nonfatal_error(PostParseError(pos, 'The %s compiler directive '
                                         'is not allowed in %s scope' % (directive, scope)))

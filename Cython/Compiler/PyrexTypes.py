@@ -2315,7 +2315,7 @@ class CFuncType(CType):
     #  is_strict_signature boolean  function refuses to accept coerced arguments
     #                               (used for optimisation overrides)
     #  is_const_method  boolean
-    #  is_static_method  boolean
+    #  is_static_method boolean
 
     is_cfunction = 1
     original_sig = None

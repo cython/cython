@@ -617,8 +617,6 @@ class CFuncDeclaratorNode(CDeclaratorNode):
         for i, arg_node in enumerate(self.args):
             name_declarator, type = arg_node.analyse(
                 env, nonempty=nonempty, is_self_arg=(i == 0 and env.is_c_class_scope and 'staticmethod' not in env.directives))
-            print arg_node
-            print name_declarator, type, (i == 0 and env.is_c_class_scope and 'staticmethod' not in env.directives)
             name = name_declarator.name
             if name in directive_locals:
                 type_node = directive_locals[name]
@@ -797,7 +795,6 @@ class CArgDeclNode(Node):
     is_dynamic = 0
 
     def analyse(self, env, nonempty = 0, is_self_arg = False):
-        print "is_self_arg", is_self_arg, "type", self.type, "self.base_type", self.base_type, "self.base_type.is_self_arg", self.base_type.is_self_arg
         if is_self_arg:
             self.base_type.is_self_arg = self.is_self_arg = True
         if self.type is None:
@@ -818,7 +815,6 @@ class CArgDeclNode(Node):
                 could_be_name = False
             self.base_type.is_arg = True
             base_type = self.base_type.analyse(env, could_be_name=could_be_name)
-            print "base_type", base_type
             if hasattr(self.base_type, 'arg_name') and self.base_type.arg_name:
                 self.declarator.name = self.base_type.arg_name
 
@@ -2146,7 +2142,7 @@ class CFuncDefNode(FuncDefNode):
     #  is_const_method whether this is a const method
     #  is_static_method whether this is a static method
 
-    child_attrs = ["base_type", "declarator", "body", "py_func"]
+    child_attrs = ["base_type", "declarator", "body", "py_func_stat"]
 
     inline_in_pxd = False
     decorators = None
@@ -2155,6 +2151,7 @@ class CFuncDefNode(FuncDefNode):
     override = None
     template_declaration = None
     is_const_method = False
+    py_func_stat = None
 
     def unqualified_name(self):
         return self.entry.name
@@ -2170,7 +2167,7 @@ class CFuncDefNode(FuncDefNode):
                 base_type = PyrexTypes.error_type
         else:
             base_type = self.base_type.analyse(env)
-        self.is_static_method = 'staticmethod' in env.directives
+        self.is_static_method = 'staticmethod' in env.directives and not env.lookup_here('staticmethod')
         # The 2 here is because we need both function and argument names.
         if isinstance(self.declarator, CFuncDeclaratorNode):
             name_declarator, type = self.declarator.analyse(base_type, env,
@@ -2185,7 +2182,6 @@ class CFuncDefNode(FuncDefNode):
         # written here, because the type in the symbol table entry
         # may be different if we're overriding a C method inherited
         # from the base type of an extension type.
-        print "type", type
         self.type = type
         type.is_overridable = self.overridable
         declarator = self.declarator
@@ -2256,8 +2252,17 @@ class CFuncDefNode(FuncDefNode):
 
     def declare_cpdef_wrapper(self, env):
         if self.overridable:
+            if self.is_static_method:
+                # TODO(robertwb): Finish this up, perhaps via more function refactoring.
+                error(self.pos, "static cpdef methods not yet supported")
             name = self.entry.name
             py_func_body = self.call_self_node(is_module_scope = env.is_module_scope)
+            if self.is_static_method:
+                from .ExprNodes import NameNode
+                decorators = [DecoratorNode(self.pos, decorator=NameNode(self.pos, name='staticmethod'))]
+                decorators[0].decorator.analyse_types(env)
+            else:
+                decorators = []
             self.py_func = DefNode(pos = self.pos,
                                    name = self.entry.name,
                                    args = self.args,
@@ -2265,9 +2270,12 @@ class CFuncDefNode(FuncDefNode):
                                    starstar_arg = None,
                                    doc = self.doc,
                                    body = py_func_body,
+                                   decorators = decorators,
                                    is_wrapper = 1)
             self.py_func.is_module_scope = env.is_module_scope
             self.py_func.analyse_declarations(env)
+            self.py_func_stat = StatListNode(pos = self.pos, stats = [self.py_func])
+            self.py_func.type = PyrexTypes.py_object_type
             self.entry.as_variable = self.py_func.entry
             self.entry.used = self.entry.as_variable.used = True
             # Reset scope entry the above cfunction
@@ -2298,11 +2306,23 @@ class CFuncDefNode(FuncDefNode):
         arg_names = [arg.name for arg in args]
         if is_module_scope:
             cfunc = ExprNodes.NameNode(self.pos, name=self.entry.name)
+            call_arg_names = arg_names
+            skip_dispatch = Options.lookup_module_cpdef
+        elif self.type.is_static_method:
+            class_entry = self.entry.scope.parent_type.entry
+            self_arg = ExprNodes.NameNode(self.pos, name=class_entry.name)
+            self_arg.entry = class_entry
+            cfunc = ExprNodes.AttributeNode(self.pos, obj=self_arg, attribute=self.entry.name)
+            call_arg_names = arg_names
+            # Calling static c(p)def methods on an instance disallowed.
+            # TODO(robertwb): Support by passing self to check for override?
+            skip_dispatch = True
         else:
             self_arg = ExprNodes.NameNode(self.pos, name=arg_names[0])
             cfunc = ExprNodes.AttributeNode(self.pos, obj=self_arg, attribute=self.entry.name)
-        skip_dispatch = not is_module_scope or Options.lookup_module_cpdef
-        c_call = ExprNodes.SimpleCallNode(self.pos, function=cfunc, args=[ExprNodes.NameNode(self.pos, name=n) for n in arg_names[1-is_module_scope:]], wrapper_call=skip_dispatch)
+            call_arg_names = arg_names[1:]
+            skip_dispatch = False
+        c_call = ExprNodes.SimpleCallNode(self.pos, function=cfunc, args=[ExprNodes.NameNode(self.pos, name=n) for n in call_arg_names], wrapper_call=skip_dispatch)
         return ReturnStatNode(pos=self.pos, return_type=PyrexTypes.py_object_type, value=c_call)
 
     def declare_arguments(self, env):
@@ -2426,6 +2446,11 @@ class CFuncDefNode(FuncDefNode):
                 self.generate_arg_type_test(arg, code)
             elif arg.type.is_pyobject and not arg.accept_none:
                 self.generate_arg_none_check(arg, code)
+
+    def generate_execution_code(self, code):
+        super(CFuncDefNode, self).generate_execution_code(code)
+        if self.py_func_stat:
+            self.py_func_stat.generate_execution_code(code)
 
     def error_value(self):
         if self.return_type.is_pyobject:
@@ -2882,10 +2907,10 @@ class DefNode(FuncDefNode):
         return self
 
     def needs_assignment_synthesis(self, env, code=None):
-        if self.is_wrapper or self.specialized_cpdefs or self.entry.is_fused_specialized:
-            return False
         if self.is_staticmethod:
             return True
+        if self.is_wrapper or self.specialized_cpdefs or self.entry.is_fused_specialized:
+            return False
         if self.no_assignment_synthesis:
             return False
         # Should enable for module level as well, that will require more testing...

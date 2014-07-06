@@ -4449,7 +4449,14 @@ class SimpleCallNode(CallNode):
             self.type = error_type
             return
 
-        if self.self and not self.function.type.is_static_method:
+        if self.function.type.is_static_method:
+            if self.self and self.self.type.is_extension_type:
+                # To support this we'd need to pass self to determine whether
+                # it was overloaded in Python space (possibly via a Cython
+                # superclass turning a cdef method into a cpdef one).
+                error(self.pos, "Cannot call a static method on an instance variable.")
+            args = self.args
+        elif self.self:
             args = [self.self] + self.args
         else:
             args = self.args
@@ -4475,7 +4482,6 @@ class SimpleCallNode(CallNode):
             else:
                 alternatives = overloaded_entry.all_alternatives()
 
-            print self.function.type, args
             entry = PyrexTypes.best_match(args, alternatives, self.pos, env)
 
             if not entry:
