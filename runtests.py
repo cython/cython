@@ -1929,7 +1929,9 @@ def runtests(options, cmd_args, coverage=None):
         coverage.stop()
         ignored_modules = set(
             'Cython.Compiler.' + name
-            for name in ('Version', 'DebugFlags', 'CmdLine'))
+            for name in ('Version', 'DebugFlags', 'CmdLine')) | set(
+            'Cython.' + name
+            for name in ('Debugging',))
         modules = [module for name, module in sys.modules.items()
                    if module is not None and
                    name.startswith('Cython.') and
