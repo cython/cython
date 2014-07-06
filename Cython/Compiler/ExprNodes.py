@@ -4445,11 +4445,12 @@ class SimpleCallNode(CallNode):
         return func_type
 
     def analyse_c_function_call(self, env):
-        if self.function.type is error_type:
+        func_type = self.function.type
+        if func_type is error_type:
             self.type = error_type
             return
 
-        if self.function.type.is_static_method:
+        if func_type.is_cfunction and func_type.is_static_method:
             if self.self and self.self.type.is_extension_type:
                 # To support this we'd need to pass self to determine whether
                 # it was overloaded in Python space (possibly via a Cython
@@ -4461,7 +4462,7 @@ class SimpleCallNode(CallNode):
         else:
             args = self.args
 
-        if self.function.type.is_cpp_class:
+        if func_type.is_cpp_class:
             overloaded_entry = self.function.type.scope.lookup("operator()")
             if overloaded_entry is None:
                 self.type = PyrexTypes.error_type
