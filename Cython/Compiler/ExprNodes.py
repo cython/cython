@@ -10866,6 +10866,11 @@ class CoerceFromPyTypeNode(CoercionNode):
                   "Cannot convert Python object to '%s'" % result_type)
         if self.type.is_string or self.type.is_pyunicode_ptr:
             if self.arg.is_ephemeral():
+                # FIXME: instead of always raising an error here, we should trace what happens
+                # with the result (by passing on the "ephemeral" state) and only raise the
+                # error when we notice illegal usage.  Something like "(<char*>pystr)[0] + 1"
+                # can be perfectly legal, whereas "cdef char* s = pystr1 + pystr2" should
+                # fail on the assignment.
                 error(arg.pos,
                       "Obtaining '%s' from temporary Python value" % result_type)
             elif self.arg.is_name and self.arg.entry and self.arg.entry.is_pyglobal:
