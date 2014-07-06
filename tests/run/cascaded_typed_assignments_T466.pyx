@@ -24,6 +24,18 @@ def simple_parallel_int_mix():
     ai, bi = al, bl = ao, bo = c = d = [1,2]
     return ao, bo, ai, bi, al, bl, c, d
 
+def simple_parallel_int_mix_recursive():
+    """
+    >>> simple_parallel_int_mix_recursive()
+    (1, 2, 3, 1, [2, 3], 1, 2, 3, 1, 2, 3, [1, [2, 3]], [1, [2, 3]])
+    """
+    cdef int ai, bi, ci
+    cdef long al, bl, cl
+    cdef object ao, bo, co
+    cdef object xo, yo
+    ai, [bi, ci] = al, [bl, cl] = xo, yo = ao, [bo, co] = c = d = [1, [2, 3]]
+    return ao, bo, co, xo, yo, ai, bi, ci, al, bl, cl, c, d
+
 cdef int called = 0
 
 cdef char* get_string():

@@ -1,5 +1,10 @@
 import cython
 
+@cython.test_fail_if_path_exists(
+    '//CascadedAssignmentNode//CoerceFromPyTypeNode',
+    '//CascadedAssignmentNode//CoerceToPyTypeNode',
+)
+@cython.test_assert_path_exists('//CascadedAssignmentNode')
 def test_cascaded_assignment_simple():
     """
     >>> test_cascaded_assignment_simple()
@@ -8,6 +13,11 @@ def test_cascaded_assignment_simple():
     a = b = c = 5
     return a
 
+@cython.test_fail_if_path_exists(
+    '//CascadedAssignmentNode//CoerceFromPyTypeNode',
+    '//CascadedAssignmentNode//CoerceToPyTypeNode',
+)
+@cython.test_assert_path_exists('//CascadedAssignmentNode')
 def test_cascaded_assignment_typed():
     """
     >>> test_cascaded_assignment_typed()
@@ -46,4 +56,3 @@ def test_cascaded_assignment_evaluate_expr():
     """
     a = b = c = float(expr())
     return a, b, c
-

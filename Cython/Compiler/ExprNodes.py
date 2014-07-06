@@ -11097,6 +11097,11 @@ class CloneNode(CoercionNode):
             self.entry = self.arg.entry
         return self
 
+    def coerce_to(self, dest_type, env):
+        if self.arg.is_literal:
+            return self.arg.coerce_to(dest_type, env)
+        return super(CloneNode, self).coerce_to(dest_type, env)
+
     def is_simple(self):
         return True # result is always in a temp (or a name)
 

@@ -9,6 +9,9 @@ Latest
 Features added
 --------------
 
+* Cascaded assignments (a = b = X) try to minimise the number of
+  type coercions.
+
 * Generators have new properties ``__name__`` and ``__qualname__``
   that provide the plain/qualified name of the generator function
   (following CPython 3.5).  See http://bugs.python.org/issue21205
