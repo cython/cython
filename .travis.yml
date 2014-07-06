@@ -6,8 +6,7 @@ python:
   - 3.2
   - 3.3
   - 3.4
-
-#  - pypy
+  - pypy
 
 env:
   - BACKEND=c
@@ -32,3 +31,4 @@ script:
 matrix:
   allow_failures:
     - python: pypy
+  fast_finish: true
