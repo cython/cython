@@ -9,7 +9,7 @@ Latest
 Features added
 --------------
 
-* Cascaded assignments (a = b = X) try to minimise the number of
+* Cascaded assignments (a = b = ...) try to minimise the number of
   type coercions.
 
 * Generators have new properties ``__name__`` and ``__qualname__``
@@ -67,7 +67,7 @@ Bugs fixed
 * Syntax highlighting in ``cython-mode.el`` for Emacs no longer
   incorrectly highlights keywords found as part of longer names.
 
-* Correctly handle `from cython.submodule comport name``.
+* Correctly handle ``from cython.submodule cimport name``.
 
 Other changes
 -------------
