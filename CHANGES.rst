@@ -9,6 +9,8 @@ Latest
 Features added
 --------------
 
+* Calls to ``slice()`` are translated to a straight C-API call.
+
 * Taking a ``char*`` from a temporary Python string object is safer
   in more cases and can be done inside of non-trivial expressions,
   including arguments of a function call.  A compile time error
