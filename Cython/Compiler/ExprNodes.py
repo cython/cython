@@ -9755,6 +9755,9 @@ class CondExprNode(ExprNode):
         else:
             self.constant_result = self.false_val.constant_result
 
+    def is_ephemeral(self):
+        return self.true_val.is_ephemeral() or self.false_val.is_ephemeral()
+
     def analyse_types(self, env):
         self.test = self.test.analyse_types(env).coerce_to_boolean(env)
         self.true_val = self.true_val.analyse_types(env)
@@ -9767,6 +9770,8 @@ class CondExprNode(ExprNode):
             self.true_val.type, self.false_val.type)
         if self.type.is_pyobject:
             self.result_ctype = py_object_type
+        elif self.true_val.is_ephemeral() or self.false_val.is_ephemeral():
+            error(self.pos, "Unsafe C derivative of temporary Python reference used in conditional expression")
         if self.true_val.type.is_pyobject or self.false_val.type.is_pyobject:
             self.true_val = self.true_val.coerce_to(self.type, env)
             self.false_val = self.false_val.coerce_to(self.type, env)
@@ -9798,7 +9803,7 @@ class CondExprNode(ExprNode):
         code.mark_pos(self.pos)
         self.allocate_temp_result(code)
         self.test.generate_evaluation_code(code)
-        code.putln("if (%s) {" % self.test.result() )
+        code.putln("if (%s) {" % self.test.result())
         self.eval_and_get(code, self.true_val)
         code.putln("} else {")
         self.eval_and_get(code, self.false_val)
@@ -9812,6 +9817,13 @@ class CondExprNode(ExprNode):
         code.putln('%s = %s;' % (self.result(), expr.result_as(self.ctype())))
         expr.generate_post_assignment_code(code)
         expr.free_temps(code)
+
+    def generate_subexpr_disposal_code(self, code):
+        pass  # done explicitly above (cleanup must separately happen within the if/else blocks)
+
+    def free_subexpr_temps(self, code):
+        pass  # done explicitly above (cleanup must separately happen within the if/else blocks)
+
 
 richcmp_constants = {
     "<" : "Py_LT",
