@@ -2806,7 +2806,8 @@ class IndexNode(ExprNode):
     def is_ephemeral(self):
         # in most cases, indexing will return a safe reference to an object in a container,
         # so we consider the result safe if the base object is
-        return self.base.is_ephemeral()
+        return self.base.is_ephemeral() or self.base.type in (
+            basestring_type, str_type, bytes_type, unicode_type)
 
     def is_simple(self):
         if self.is_buffer_access or self.memslice_index:
@@ -10891,7 +10892,7 @@ class CoerceFromPyTypeNode(CoercionNode):
         return self
 
     def is_ephemeral(self):
-        return self.type.is_ptr and self.arg.is_temp and not self.arg.is_name
+        return self.type.is_ptr and self.arg.is_ephemeral()
 
     def generate_result_code(self, code):
         function = self.type.from_py_function
