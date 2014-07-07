@@ -2,8 +2,11 @@
 
 from cpython.version cimport PY_MAJOR_VERSION
 
+cdef bint IS_PY2 = PY_MAJOR_VERSION == 2
+
+
 cdef cfunc1(char* s):
-    if PY_MAJOR_VERSION == 2:
+    if IS_PY2:
         return s
     else:
         return s.decode('ASCII')
@@ -18,10 +21,10 @@ def test_one_arg_indexing(s):
     >>> test_one_arg_indexing(b'xyz')
     'y'
     """
-    cfunc1(s[0])
-    z = cfunc1(s[2])
+    cfunc1(s[0]) if IS_PY2 else cfunc1(s[:1])
+    z = cfunc1(s[2]) if IS_PY2 else cfunc1(s[2:])
     assert z == 'z', repr(z)
-    return cfunc1(s[1])
+    return cfunc1(s[1]) if IS_PY2 else cfunc1(s[1:2])
 
 
 def test_more_args_indexing(s):
@@ -29,10 +32,10 @@ def test_more_args_indexing(s):
     >>> test_more_args_indexing(b'xyz')
     'y'
     """
-    cfunc3(1, s[0], 6.5)
-    z = cfunc3(2, s[2], 'abc' * 2)
+    cfunc3(1, s[0 if IS_PY2 else slice(0,1)], 6.5)
+    z = cfunc3(2, s[2 if IS_PY2 else slice(2,None)], 'abc' * 2)
     assert z == 'z', repr(z)
-    return cfunc3(3, s[1], 1)
+    return cfunc3(3, s[1 if IS_PY2 else slice(1,2)], 1)
 
 
 def test_one_arg_slicing(s):
