@@ -2400,6 +2400,13 @@ class CreateClosureClasses(CythonTransform):
         self.visitchildren(node)
         return node
 
+    def visit_CFuncDefNode(self, node):
+        if not node.overridable:
+            return self.visit_FuncDefNode(node)
+        else:
+            self.visitchildren(node)
+            return node
+
 
 class GilCheck(VisitorTransform):
     """
