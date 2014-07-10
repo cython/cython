@@ -2377,7 +2377,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_wrapped_entries_code(self, env, code):
         for name, entry in env.entries.items():
-            if entry.create_wrapper and not entry.is_type:
+            if (entry.create_wrapper
+                    and not entry.is_type
+                    and entry.scope is env):
                 if not entry.type.create_to_py_utility_code(env):
                     error(entry.pos, "Cannot convert '%s' to Python object" % entry.type)
                 code.putln("{")
