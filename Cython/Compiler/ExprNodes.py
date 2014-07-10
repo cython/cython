@@ -9671,6 +9671,12 @@ class BoolBinopNode(ExprNode):
         self.operand1 = self.operand1.analyse_types(env)
         self.operand2 = self.operand2.analyse_types(env)
         self.type = PyrexTypes.independent_spanning_type(self.operand1.type, self.operand2.type)
+        if self.type.is_error:
+            # incompatible C types, try if we can calculate everything in Python space
+            self.type = py_object_type
+        if not self.type.is_pyobject:
+            if self.operand1.is_ephemeral() or self.operand2.is_ephemeral():
+                error(self.pos, "Unsafe C derivative of temporary Python reference used in and/or expression")
         self.operand1 = self.operand1.coerce_to(self.type, env)
         self.operand2 = self.operand2.coerce_to(self.type, env)
 
@@ -9713,6 +9719,12 @@ class BoolBinopNode(ExprNode):
         self.operand1.generate_post_assignment_code(code)
         self.operand1.free_temps(code)
         code.putln("}")
+
+    def generate_subexpr_disposal_code(self, code):
+        pass  # nothing to do here, all done in generate_evaluation_code()
+
+    def free_subexpr_temps(self, code):
+        pass  # nothing to do here, all done in generate_evaluation_code()
 
     def generate_operand1_test(self, code):
         #  Generate code to test the truth of the first operand.

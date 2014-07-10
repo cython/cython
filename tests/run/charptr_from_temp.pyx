@@ -74,3 +74,23 @@ def test_more_args_adding(s):
     'abxyzqr'
     """
     return cfunc3(1, b"a" + b"b" + s + b"q" + b"r", 'xyz%d' % 3)
+
+
+cdef char* ret_charptr(char* s):
+    return s
+
+
+def test_charptr_and_charptr_func(char* s):
+    """
+    >>> test_charptr_and_charptr_func(b'abc') == b'abc'
+    True
+    """
+    return s and ret_charptr(s)
+
+
+def test_charptr_and_ucharptr(char* s):
+    """
+    >>> test_charptr_and_ucharptr(b'abc') == b'abc'
+    True
+    """
+    return s and <unsigned char*>s
