@@ -1424,9 +1424,10 @@ class CEnumDefNode(StatNode):
     #  cname          string or None
     #  items          [CEnumDefItemNode]
     #  typedef_flag   boolean
-    #  visibility     "public" or "private"
+    #  visibility     "public" or "private" or "extern"
     #  api            boolean
     #  in_pxd         boolean
+    #  create_wrapper boolean
     #  entry          Entry
 
     child_attrs = ["items"]
@@ -1434,7 +1435,8 @@ class CEnumDefNode(StatNode):
     def declare(self, env):
          self.entry = env.declare_enum(self.name, self.pos,
              cname = self.cname, typedef_flag = self.typedef_flag,
-             visibility = self.visibility, api = self.api)
+             visibility = self.visibility, api = self.api,
+             create_wrapper = self.create_wrapper)
 
     def analyse_declarations(self, env):
         if self.items is not None:
@@ -1479,7 +1481,8 @@ class CEnumDefItemNode(StatNode):
                 self.value = self.value.analyse_const_expression(env)
         entry = env.declare_const(self.name, enum_entry.type,
             self.value, self.pos, cname = self.cname,
-            visibility = enum_entry.visibility, api = enum_entry.api)
+            visibility = enum_entry.visibility, api = enum_entry.api,
+            create_wrapper = enum_entry.create_wrapper)
         enum_entry.enum_values.append(entry)
 
 

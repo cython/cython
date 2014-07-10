@@ -407,7 +407,7 @@ class Scope(object):
         """ Return the module-level scope containing this scope. """
         return self.outer_scope.builtin_scope()
 
-    def declare(self, name, cname, type, pos, visibility, shadow = 0, is_type = 0):
+    def declare(self, name, cname, type, pos, visibility, shadow = 0, is_type = 0, create_wrapper = 0):
         # Create new entry, and add to dictionary if
         # name is not None. Reports a warning if already
         # declared.
@@ -424,6 +424,7 @@ class Scope(object):
                 error(pos, "'%s' redeclared " % name)
         entry = Entry(name, cname, type, pos = pos)
         entry.in_cinclude = self.in_cinclude
+        entry.create_wrapper = create_wrapper
         if name:
             entry.qualified_name = self.qualify_name(name)
 #            if name in entries and self.is_cpp():
@@ -444,14 +445,14 @@ class Scope(object):
     def qualify_name(self, name):
         return EncodedString("%s.%s" % (self.qualified_name, name))
 
-    def declare_const(self, name, type, value, pos, cname = None, visibility = 'private', api = 0):
+    def declare_const(self, name, type, value, pos, cname = None, visibility = 'private', api = 0, create_wrapper = 0):
         # Add an entry for a named constant.
         if not cname:
             if self.in_cinclude or (visibility == 'public' or api):
                 cname = name
             else:
                 cname = self.mangle(Naming.enum_prefix, name)
-        entry = self.declare(name, cname, type, pos, visibility)
+        entry = self.declare(name, cname, type, pos, visibility, create_wrapper = create_wrapper)
         entry.is_const = 1
         entry.value_node = value
         return entry
@@ -588,7 +589,7 @@ class Scope(object):
                 entry.name, entry.visibility))
 
     def declare_enum(self, name, pos, cname, typedef_flag,
-            visibility = 'private', api = 0):
+            visibility = 'private', api = 0, create_wrapper = 0):
         if name:
             if not cname:
                 if self.in_cinclude or (visibility == 'public' or api):
@@ -600,6 +601,7 @@ class Scope(object):
             type = PyrexTypes.c_anon_enum_type
         entry = self.declare_type(name, type, pos, cname = cname,
             visibility = visibility, api = api)
+        entry.create_wrapper = create_wrapper
         entry.enum_values = []
         self.sue_entries.append(entry)
         return entry

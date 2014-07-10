@@ -9,6 +9,10 @@ Latest
 Features added
 --------------
 
+* Enums can now be declared as cpdef to export their values to
+  the module's Python namespace.  Cpdef enums in pxd files export
+  their values to their own module, iff it exists.
+
 * Calls to ``slice()`` are translated to a straight C-API call.
 
 * Taking a ``char*`` from a temporary Python string object is safer
