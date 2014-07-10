@@ -2388,8 +2388,8 @@ class CFuncDefNode(FuncDefNode):
     def generate_argument_parsing_code(self, env, code):
         i = 0
         used = 0
+        scope = self.local_scope
         if self.type.optional_arg_count:
-            scope = self.local_scope
             code.putln('if (%s) {' % Naming.optional_args_cname)
             for arg in self.args:
                 if arg.default:
@@ -2409,6 +2409,16 @@ class CFuncDefNode(FuncDefNode):
             for _ in range(used):
                 code.putln('}')
             code.putln('}')
+
+        # Move arguments into closure if required
+        def put_into_closure(entry):
+            if entry.in_closure and not arg.default:
+                code.putln('%s = %s;' % (entry.cname, entry.original_cname))
+                code.put_var_incref(entry)
+                code.put_var_giveref(entry)
+        for arg in self.args:
+            put_into_closure(scope.lookup_here(arg.name))
+
 
     def generate_argument_conversion_code(self, code):
         pass

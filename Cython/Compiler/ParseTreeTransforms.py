@@ -2261,8 +2261,8 @@ class MarkClosureVisitor(CythonTransform):
 
     def visit_CFuncDefNode(self, node):
         self.visit_FuncDefNode(node)
-        if node.needs_closure:
-            error(node.pos, "closures inside cdef functions not yet supported")
+        if node.needs_closure and node.overridable:
+            error(node.pos, "closures inside cpdef functions not yet supported")
         return node
 
     def visit_LambdaNode(self, node):
@@ -2397,10 +2397,6 @@ class CreateClosureClasses(CythonTransform):
         return node
 
     def visit_GeneratorBodyDefNode(self, node):
-        self.visitchildren(node)
-        return node
-
-    def visit_CFuncDefNode(self, node):
         self.visitchildren(node)
         return node
 
