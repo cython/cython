@@ -9659,13 +9659,13 @@ class BoolBinopNode(ExprNode):
                 or self.operand2.compile_time_value(denv)
 
     def coerce_to_boolean(self, env):
-        return BoolBinopNode(
-            self.pos,
-            operator = self.operator,
-            operand1 = self.operand1.coerce_to_boolean(env),
-            operand2 = self.operand2.coerce_to_boolean(env),
-            type = PyrexTypes.c_bint_type,
-            is_temp = self.is_temp)
+        return BoolBinopNode.from_node(
+            self,
+            operator=self.operator,
+            operand1=self.operand1.coerce_to_boolean(env),
+            operand2=self.operand2.coerce_to_boolean(env),
+            type=PyrexTypes.c_bint_type,
+            is_temp=self.is_temp)
 
     def analyse_types(self, env):
         self.operand1 = self.operand1.analyse_types(env)
