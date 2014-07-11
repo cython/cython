@@ -9670,11 +9670,11 @@ class BoolBinopNode(ExprNode):
     def analyse_types(self, env):
         self.operand1 = self.operand1.analyse_types(env)
         self.operand2 = self.operand2.analyse_types(env)
-        self.type = PyrexTypes.independent_spanning_type(self.operand1.type, self.operand2.type)
-        if self.type.is_error:
-            # incompatible C types, try if we can calculate everything in Python space
-            self.type = py_object_type
-        if not self.type.is_pyobject:
+        self.type = PyrexTypes.independent_spanning_type(
+            self.operand1.type, self.operand2.type)
+        # note: self.type might be ErrorType, but we allow this here
+        # in order to support eventual coercion to boolean
+        if not self.type.is_pyobject and not self.type.is_error:
             if self.operand1.is_ephemeral() or self.operand2.is_ephemeral():
                 error(self.pos, "Unsafe C derivative of temporary Python reference used in and/or expression")
         self.operand1 = self.operand1.coerce_to(self.type, env)
@@ -9693,6 +9693,9 @@ class BoolBinopNode(ExprNode):
         return self.operand1.check_const() and self.operand2.check_const()
 
     def generate_evaluation_code(self, code):
+        if self.type is error_type:
+            # quite clearly, we did *not* coerce to boolean, but both operand types mismatch
+            error(self.pos, "incompatible types in short-circuiting boolean expression not resolved")
         code.mark_pos(self.pos)
         self.operand1.generate_evaluation_code(code)
         test_result, uses_temp = self.generate_operand1_test(code)
