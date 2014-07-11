@@ -38,3 +38,19 @@ cdef class SelfInClosure(object):
         def nested():
             return self.x, t.x
         return nested
+
+    def call_closure_method_cdef_attr_c(self, Test t):
+        """
+        >>> o = SelfInClosure()
+        >>> o.call_closure_method_cdef_attr_c(Test())()
+        (1, 2)
+        """
+        return self.closure_method_cdef_attr_c(t)
+
+    cdef closure_method_cdef_attr_c(self, Test t):
+        t.x = 2
+        self._t = t
+        self.x = 1
+        def nested():
+            return self.x, t.x
+        return nested

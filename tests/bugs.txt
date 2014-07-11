@@ -6,7 +6,6 @@ unsignedbehaviour_T184
 missing_baseclass_in_predecl_T262
 cfunc_call_tuple_args_T408
 cpp_structs
-closure_inside_cdef_T554
 genexpr_iterable_lookup_T600
 generator_expressions_in_class
 for_from_pyvar_loop_T601
