@@ -9641,22 +9641,20 @@ class BoolBinopNode(ExprNode):
             return self.operand1.may_be_none() or self.operand2.may_be_none()
 
     def calculate_constant_result(self):
+        operand1 = self.operand1.constant_result
+        operand2 = self.operand2.constant_result
         if self.operator == 'and':
-            self.constant_result = \
-                self.operand1.constant_result and \
-                self.operand2.constant_result
+            self.constant_result = operand1 and operand2
         else:
-            self.constant_result = \
-                self.operand1.constant_result or \
-                self.operand2.constant_result
+            self.constant_result = operand1 or operand2
 
     def compile_time_value(self, denv):
+        operand1 = self.operand1.compile_time_value(denv)
+        operand2 = self.operand2.compile_time_value(denv)
         if self.operator == 'and':
-            return self.operand1.compile_time_value(denv) \
-                and self.operand2.compile_time_value(denv)
+            return operand1 and operand2
         else:
-            return self.operand1.compile_time_value(denv) \
-                or self.operand2.compile_time_value(denv)
+            return operand1 or operand2
 
     def coerce_to_boolean(self, env):
         return BoolBinopNode.from_node(
