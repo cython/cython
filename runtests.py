@@ -68,6 +68,12 @@ try:
 except NameError:
     basestring = str
 
+try:
+    next
+except NameError:
+    def next(iter):
+        return iter.next()
+
 WITH_CYTHON = True
 CY3_DIR = None
 
@@ -165,7 +171,7 @@ def def_to_cdef(source):
             else:
                 args_no_types = ""
             output.append("def %s(%s):" % (name, args_no_types))
-            line = lines.next()
+            line = next(lines)
             if '"""' in line:
                 has_docstring = True
                 output.append(line)
@@ -742,7 +748,7 @@ class CythonCompileTestCase(unittest.TestCase):
         if self.preparse and self.preparse != 'id':
             preparse_func = globals()[self.preparse]
             def copy(src, dest):
-                open(dest, 'wb').write(preparse_func(open(src).read()))
+                open(dest, 'w').write(preparse_func(open(src).read()))
         else:
             # use symlink on Unix, copy on Windows
             try:
