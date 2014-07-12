@@ -1929,13 +1929,18 @@ def runtests(options, cmd_args, coverage=None):
         coverage.stop()
         ignored_modules = set(
             'Cython.Compiler.' + name
-            for name in ('Version', 'DebugFlags', 'CmdLine'))
-        modules = [module for name, module in sys.modules.items()
-                   if module is not None and
-                   name.startswith('Cython.') and
-                   '.Tests' not in name and
-                   name not in ignored_modules and
-                   not name.startswith('Cython.Runtime')]
+            for name in ('Version', 'DebugFlags', 'CmdLine')) | set(
+            'Cython.' + name
+            for name in ('Debugging',))
+        ignored_packages = ['Cython.Runtime', 'Cython.Tempita']
+        modules = [
+            module for name, module in sys.modules.items()
+            if module is not None and
+            name.startswith('Cython.') and
+            '.Tests' not in name and
+            name not in ignored_modules and
+            not any(name.startswith(package) for package in ignored_packages)
+        ]
         if options.coverage:
             coverage.report(modules, show_missing=0)
         if options.coverage_xml:

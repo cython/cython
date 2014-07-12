@@ -596,7 +596,7 @@ class ExprNode(Node):
             self.allocate_temp_result(code)
 
         self.generate_result_code(code)
-        if self.is_temp:
+        if self.is_temp and not (self.type.is_string or self.type.is_pyunicode_ptr):
             # If we are temp we do not need to wait until this node is disposed
             # before disposing children.
             self.generate_subexpr_disposal_code(code)
@@ -611,6 +611,10 @@ class ExprNode(Node):
 
     def generate_disposal_code(self, code):
         if self.is_temp:
+            if self.type.is_string or self.type.is_pyunicode_ptr:
+                # postponed from self.generate_evaluation_code()
+                self.generate_subexpr_disposal_code(code)
+                self.free_subexpr_temps(code)
             if self.result():
                 if self.type.is_pyobject:
                     code.put_decref_clear(self.result(), self.ctype())
@@ -629,7 +633,11 @@ class ExprNode(Node):
 
     def generate_post_assignment_code(self, code):
         if self.is_temp:
-            if self.type.is_pyobject:
+            if self.type.is_string or self.type.is_pyunicode_ptr:
+                # postponed from self.generate_evaluation_code()
+                self.generate_subexpr_disposal_code(code)
+                self.free_subexpr_temps(code)
+            elif self.type.is_pyobject:
                 code.putln("%s = 0;" % self.result())
             elif self.type.is_memoryviewslice:
                 code.putln("%s.memview = NULL;" % self.result())
@@ -2796,7 +2804,10 @@ class IndexNode(ExprNode):
             self.compile_time_value_error(e)
 
     def is_ephemeral(self):
-        return self.base.is_ephemeral()
+        # in most cases, indexing will return a safe reference to an object in a container,
+        # so we consider the result safe if the base object is
+        return self.base.is_ephemeral() or self.base.type in (
+            basestring_type, str_type, bytes_type, unicode_type)
 
     def is_simple(self):
         if self.is_buffer_access or self.memslice_index:
@@ -8455,6 +8466,10 @@ class TypecastNode(ExprNode):
         # either temp or a C cast => no side effects other than the operand's
         return self.operand.is_simple()
 
+    def is_ephemeral(self):
+        # either temp or a C cast => no side effects other than the operand's
+        return self.operand.is_ephemeral()
+
     def nonlocally_immutable(self):
         return self.is_temp or self.operand.nonlocally_immutable()
 
@@ -9013,6 +9028,10 @@ class BinopNode(ExprNode):
 
     def check_const(self):
         return self.operand1.check_const() and self.operand2.check_const()
+
+    def is_ephemeral(self):
+        return (super(BinopNode, self).is_ephemeral() or
+                self.operand1.is_ephemeral() or self.operand2.is_ephemeral())
 
     def generate_result_code(self, code):
         #print "BinopNode.generate_result_code:", self.operand1, self.operand2 ###
@@ -9648,18 +9667,24 @@ class BoolBinopNode(ExprNode):
                 or self.operand2.compile_time_value(denv)
 
     def coerce_to_boolean(self, env):
-        return BoolBinopNode(
-            self.pos,
-            operator = self.operator,
-            operand1 = self.operand1.coerce_to_boolean(env),
-            operand2 = self.operand2.coerce_to_boolean(env),
-            type = PyrexTypes.c_bint_type,
-            is_temp = self.is_temp)
+        return BoolBinopNode.from_node(
+            self,
+            operator=self.operator,
+            operand1=self.operand1.coerce_to_boolean(env),
+            operand2=self.operand2.coerce_to_boolean(env),
+            type=PyrexTypes.c_bint_type,
+            is_temp=self.is_temp)
 
     def analyse_types(self, env):
         self.operand1 = self.operand1.analyse_types(env)
         self.operand2 = self.operand2.analyse_types(env)
-        self.type = PyrexTypes.independent_spanning_type(self.operand1.type, self.operand2.type)
+        self.type = PyrexTypes.independent_spanning_type(
+            self.operand1.type, self.operand2.type)
+        # note: self.type might be ErrorType, but we allow this here
+        # in order to support eventual coercion to boolean
+        if not self.type.is_pyobject and not self.type.is_error:
+            if self.operand1.is_ephemeral() or self.operand2.is_ephemeral():
+                error(self.pos, "Unsafe C derivative of temporary Python reference used in and/or expression")
         self.operand1 = self.operand1.coerce_to(self.type, env)
         self.operand2 = self.operand2.coerce_to(self.type, env)
 
@@ -9676,6 +9701,9 @@ class BoolBinopNode(ExprNode):
         return self.operand1.check_const() and self.operand2.check_const()
 
     def generate_evaluation_code(self, code):
+        if self.type is error_type:
+            # quite clearly, we did *not* coerce to boolean, but both operand types mismatch
+            error(self.pos, "incompatible types in short-circuiting boolean expression not resolved")
         code.mark_pos(self.pos)
         self.operand1.generate_evaluation_code(code)
         test_result, uses_temp = self.generate_operand1_test(code)
@@ -9702,6 +9730,12 @@ class BoolBinopNode(ExprNode):
         self.operand1.generate_post_assignment_code(code)
         self.operand1.free_temps(code)
         code.putln("}")
+
+    def generate_subexpr_disposal_code(self, code):
+        pass  # nothing to do here, all done in generate_evaluation_code()
+
+    def free_subexpr_temps(self, code):
+        pass  # nothing to do here, all done in generate_evaluation_code()
 
     def generate_operand1_test(self, code):
         #  Generate code to test the truth of the first operand.
@@ -9744,6 +9778,9 @@ class CondExprNode(ExprNode):
         else:
             self.constant_result = self.false_val.constant_result
 
+    def is_ephemeral(self):
+        return self.true_val.is_ephemeral() or self.false_val.is_ephemeral()
+
     def analyse_types(self, env):
         self.test = self.test.analyse_types(env).coerce_to_boolean(env)
         self.true_val = self.true_val.analyse_types(env)
@@ -9756,6 +9793,8 @@ class CondExprNode(ExprNode):
             self.true_val.type, self.false_val.type)
         if self.type.is_pyobject:
             self.result_ctype = py_object_type
+        elif self.true_val.is_ephemeral() or self.false_val.is_ephemeral():
+            error(self.pos, "Unsafe C derivative of temporary Python reference used in conditional expression")
         if self.true_val.type.is_pyobject or self.false_val.type.is_pyobject:
             self.true_val = self.true_val.coerce_to(self.type, env)
             self.false_val = self.false_val.coerce_to(self.type, env)
@@ -9787,7 +9826,7 @@ class CondExprNode(ExprNode):
         code.mark_pos(self.pos)
         self.allocate_temp_result(code)
         self.test.generate_evaluation_code(code)
-        code.putln("if (%s) {" % self.test.result() )
+        code.putln("if (%s) {" % self.test.result())
         self.eval_and_get(code, self.true_val)
         code.putln("} else {")
         self.eval_and_get(code, self.false_val)
@@ -9801,6 +9840,13 @@ class CondExprNode(ExprNode):
         code.putln('%s = %s;' % (self.result(), expr.result_as(self.ctype())))
         expr.generate_post_assignment_code(code)
         expr.free_temps(code)
+
+    def generate_subexpr_disposal_code(self, code):
+        pass  # done explicitly above (cleanup must separately happen within the if/else blocks)
+
+    def free_subexpr_temps(self, code):
+        pass  # done explicitly above (cleanup must separately happen within the if/else blocks)
+
 
 richcmp_constants = {
     "<" : "Py_LT",
@@ -10871,10 +10917,7 @@ class CoerceFromPyTypeNode(CoercionNode):
             error(arg.pos,
                   "Cannot convert Python object to '%s'" % result_type)
         if self.type.is_string or self.type.is_pyunicode_ptr:
-            if self.arg.is_ephemeral():
-                error(arg.pos,
-                      "Obtaining '%s' from temporary Python value" % result_type)
-            elif self.arg.is_name and self.arg.entry and self.arg.entry.is_pyglobal:
+            if self.arg.is_name and self.arg.entry and self.arg.entry.is_pyglobal:
                 warning(arg.pos,
                         "Obtaining '%s' from externally modifiable global Python value" % result_type,
                         level=1)
@@ -10882,6 +10925,9 @@ class CoerceFromPyTypeNode(CoercionNode):
     def analyse_types(self, env):
         # The arg is always already analysed
         return self
+
+    def is_ephemeral(self):
+        return self.type.is_ptr and self.arg.is_ephemeral()
 
     def generate_result_code(self, code):
         function = self.type.from_py_function
@@ -11104,6 +11150,11 @@ class CloneNode(CoercionNode):
         if hasattr(self.arg, 'entry'):
             self.entry = self.arg.entry
         return self
+
+    def coerce_to(self, dest_type, env):
+        if self.arg.is_literal:
+            return self.arg.coerce_to(dest_type, env)
+        return super(CloneNode, self).coerce_to(dest_type, env)
 
     def is_simple(self):
         return True # result is always in a temp (or a name)

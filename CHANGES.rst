@@ -9,9 +9,19 @@ Latest
 Features added
 --------------
 
+* Enums can now be declared as cpdef to export their values to
+  the module's Python namespace.  Cpdef enums in pxd files export
+  their values to their own module, iff it exists.
+
 * Allow @staticmethod decorator to declare static cdef methods.
   This is especially useful for declaring "constructors" for
   cdef classes that can take non-Python arguments.
+
+* Taking a ``char*`` from a temporary Python string object is safer
+  in more cases and can be done inside of non-trivial expressions,
+  including arguments of a function call.  A compile time error
+  is raised only when such a pointer is assigned to a variable and
+  would thus exceed the lifetime of the string itself.
 
 * Generators have new properties ``__name__`` and ``__qualname__``
   that provide the plain/qualified name of the generator function
@@ -28,9 +38,6 @@ Features added
 * HTML output of annotated code uses Pygments for code highlighting
   and generally received a major overhaul by Matthias Bussonier.
 
-* The Python expression "2 ** N" is optimised into bit shifting.
-  See http://bugs.python.org/issue21420
-
 * Simple support for declaring Python object types in Python signature
   annotations.  Currently requires setting the compiler directive
   ``annotation_typing=True``.
@@ -38,8 +45,22 @@ Features added
 * New directive ``use_switch`` (defaults to True) to optionally disable
   the optimization of chained if statement to C switch statements.
 
+Optimizations
+-------------
+
+* The Python expression "2 ** N" is optimised into bit shifting.
+  See http://bugs.python.org/issue21420
+
+* Cascaded assignments (a = b = ...) try to minimise the number of
+  type coercions.
+
+* Calls to ``slice()`` are translated to a straight C-API call.
+
 Bugs fixed
 ----------
+
+* Taking a ``char*`` from an indexed Python string generated unsafe
+  reference counting code.
 
 * Set literals now create all of their items before trying to add them
   to the set, following the behaviour in CPython.  This makes a
@@ -68,7 +89,7 @@ Bugs fixed
 * Syntax highlighting in ``cython-mode.el`` for Emacs no longer
   incorrectly highlights keywords found as part of longer names.
 
-* Correctly handle `from cython.submodule comport name``.
+* Correctly handle ``from cython.submodule cimport name``.
 
 Other changes
 -------------

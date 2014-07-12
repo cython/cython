@@ -2112,6 +2112,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         self.body.generate_execution_code(code)
 
+        code.putln()
+        code.putln("/*--- Wrapped vars code ---*/")
+        self.generate_wrapped_entries_code(env, code)
+        code.putln()
+
         if Options.generate_cleanup_code:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("RegisterModuleCleanup", "ModuleSetupCode.c"))
@@ -2369,6 +2374,25 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if entry.visibility != 'extern':
                 if entry.used:
                     entry.type.global_init_code(entry, code)
+
+    def generate_wrapped_entries_code(self, env, code):
+        for name, entry in env.entries.items():
+            if (entry.create_wrapper
+                    and not entry.is_type
+                    and entry.scope is env):
+                if not entry.type.create_to_py_utility_code(env):
+                    error(entry.pos, "Cannot convert '%s' to Python object" % entry.type)
+                code.putln("{")
+                code.putln("PyObject* wrapped = %s(%s);"  % (
+                    entry.type.to_py_function,
+                    entry.cname))
+                code.putln(code.error_goto_if_null("wrapped", entry.pos))
+                code.putln(
+                    'if (__Pyx_SetAttrString(%s, "%s", wrapped) < 0) %s;' % (
+                        env.module_cname,
+                        name,
+                        code.error_goto(entry.pos)))
+                code.putln("}")
 
     def generate_c_variable_export_code(self, env, code):
         # Generate code to create PyCFunction wrappers for exported C functions.

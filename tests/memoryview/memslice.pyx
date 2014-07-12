@@ -275,8 +275,6 @@ def cascaded_buffer_assignment(obj):
     >>> A = IntMockBuffer("A", range(6))
     >>> cascaded_buffer_assignment(A)
     acquired A
-    acquired A
-    released A
     released A
     """
     cdef int[:] a, b

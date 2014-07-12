@@ -3715,6 +3715,9 @@ def independent_spanning_type(type1, type2):
         return py_object_type
     span_type = _spanning_type(type1, type2)
     if span_type is None:
+        if type1.is_ptr and type2.is_ptr:
+            # incompatible pointers, void* will do as a result
+            return c_void_ptr_type
         return error_type
     return span_type
 

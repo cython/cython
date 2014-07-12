@@ -1424,9 +1424,10 @@ class CEnumDefNode(StatNode):
     #  cname          string or None
     #  items          [CEnumDefItemNode]
     #  typedef_flag   boolean
-    #  visibility     "public" or "private"
+    #  visibility     "public" or "private" or "extern"
     #  api            boolean
     #  in_pxd         boolean
+    #  create_wrapper boolean
     #  entry          Entry
 
     child_attrs = ["items"]
@@ -1434,7 +1435,8 @@ class CEnumDefNode(StatNode):
     def declare(self, env):
          self.entry = env.declare_enum(self.name, self.pos,
              cname = self.cname, typedef_flag = self.typedef_flag,
-             visibility = self.visibility, api = self.api)
+             visibility = self.visibility, api = self.api,
+             create_wrapper = self.create_wrapper)
 
     def analyse_declarations(self, env):
         if self.items is not None:
@@ -1479,7 +1481,8 @@ class CEnumDefItemNode(StatNode):
                 self.value = self.value.analyse_const_expression(env)
         entry = env.declare_const(self.name, enum_entry.type,
             self.value, self.pos, cname = self.cname,
-            visibility = enum_entry.visibility, api = enum_entry.api)
+            visibility = enum_entry.visibility, api = enum_entry.api,
+            create_wrapper = enum_entry.create_wrapper)
         enum_entry.enum_values.append(entry)
 
 
@@ -4590,7 +4593,11 @@ class AssignmentNode(StatNode):
     #  to any of the left hand sides.
 
     def analyse_expressions(self, env):
-        return self.analyse_types(env)
+        node = self.analyse_types(env)
+        if isinstance(node, AssignmentNode):
+            if node.rhs.type.is_ptr and node.rhs.is_ephemeral():
+                error(self.pos, "Storing unsafe C derivative of temporary Python reference")
+        return node
 
 #       def analyse_expressions(self, env):
 #           self.analyse_expressions_1(env)
@@ -4751,41 +4758,56 @@ class CascadedAssignmentNode(AssignmentNode):
     #
     #  coerced_rhs_list   [ExprNode]   RHS coerced to type of each LHS
 
-    child_attrs = ["lhs_list", "rhs", "coerced_rhs_list"]
+    child_attrs = ["lhs_list", "rhs", "coerced_values", "coerced_rhs_list"]
     coerced_rhs_list = None
+    coerced_values = None
 
     def analyse_declarations(self, env):
         for lhs in self.lhs_list:
             lhs.analyse_target_declaration(env)
 
-    def analyse_types(self, env, use_temp = 0):
+    def analyse_types(self, env, use_temp=0):
         from .ExprNodes import CloneNode, ProxyNode
 
-        rhs = self.rhs.analyse_types(env)
-        if use_temp or rhs.is_attribute or (
-                not rhs.is_name and not rhs.is_literal and
-                rhs.type.is_pyobject):
-            rhs = rhs.coerce_to_temp(env)
-        else:
-            rhs = rhs.coerce_to_simple(env)
-        self.rhs = ProxyNode(rhs)
-
-        self.coerced_rhs_list = []
+        lhs_types = set()
         for lhs in self.lhs_list:
             lhs.analyse_target_types(env)
             lhs.gil_assignment_check(env)
-            rhs = CloneNode(self.rhs)
-            rhs = rhs.coerce_to(lhs.type, env)
-            self.coerced_rhs_list.append(rhs)
+            lhs_types.add(lhs.type)
+
+        rhs = self.rhs.analyse_types(env)
+        if len(lhs_types) == 1:
+            # common special case: only one type needed on the LHS => coerce only once
+            rhs = rhs.coerce_to(lhs_types.pop(), env)
+
+        if not rhs.is_name and not rhs.is_literal and (
+                use_temp or rhs.is_attribute or rhs.type.is_pyobject):
+            rhs = rhs.coerce_to_temp(env)
+        else:
+            rhs = rhs.coerce_to_simple(env)
+        self.rhs = ProxyNode(rhs) if rhs.is_temp else rhs
+
+        self.coerced_values = []
+        coerced_values = {}
+        for lhs in self.lhs_list:
+            if lhs.type not in coerced_values and lhs.type != rhs.type:
+                rhs = CloneNode(self.rhs).coerce_to(lhs.type, env)
+                self.coerced_values.append(rhs)
+                coerced_values[lhs.type] = rhs
+
+        self.coerced_rhs_list = []
+        for lhs in self.lhs_list:
+            rhs = coerced_values.get(lhs.type, self.rhs)
+            self.coerced_rhs_list.append(CloneNode(rhs))
         return self
 
     def generate_rhs_evaluation_code(self, code):
         self.rhs.generate_evaluation_code(code)
 
     def generate_assignment_code(self, code):
-        for i in range(len(self.lhs_list)):
-            lhs = self.lhs_list[i]
-            rhs = self.coerced_rhs_list[i]
+        for rhs in self.coerced_values:
+            rhs.generate_evaluation_code(code)
+        for lhs, rhs in zip(self.lhs_list, self.coerced_rhs_list):
             rhs.generate_evaluation_code(code)
             lhs.generate_assignment_code(rhs, code)
             # Assignment has disposed of the cloned RHS
@@ -4796,9 +4818,11 @@ class CascadedAssignmentNode(AssignmentNode):
         self.rhs.generate_function_definitions(env, code)
 
     def annotate(self, code):
-        for i in range(len(self.lhs_list)):
-            self.lhs_list[i].annotate(code)
-            self.coerced_rhs_list[i].annotate(code)
+        for rhs in self.coerced_values:
+            rhs.annotate(code)
+        for lhs, rhs in zip(self.lhs_list, self.coerced_rhs_list):
+            lhs.annotate(code)
+            rhs.annotate(code)
         self.rhs.annotate(code)
 
 

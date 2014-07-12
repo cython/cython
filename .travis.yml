@@ -6,8 +6,11 @@ python:
   - 3.2
   - 3.3
   - 3.4
+  - pypy
 
-#  - pypy
+env:
+  - BACKEND=c
+  - BACKEND=cpp
 
 branches:
   only:
@@ -21,9 +24,14 @@ before_install:
 install: CFLAGS="-O2 -ggdb" pip install .
 
 script:
-  - PYTHON="python$( python -c 'import sys; print("%d.%d" % sys.version_info[:2])' )-dbg"
-  - CFLAGS="-O0 -ggdb" $( $PYTHON -V >&2 && echo $PYTHON || echo python ) runtests.py -vv
+  - PYTHON_DBG="python$( python -c 'import sys; print("%d.%d" % sys.version_info[:2])' )-dbg"
+  - if $PYTHON_DBG -V >&2; then CFLAGS="-O0 -ggdb" $PYTHON_DBG runtests.py -vv Debugger --backends=$BACKEND; fi
+  - CFLAGS="-O0 -ggdb" python runtests.py -vv -x Debugger --backends=$BACKEND
 
 matrix:
   allow_failures:
     - python: pypy
+  exclude:
+    - python: pypy
+      env: BACKEND=cpp
+  fast_finish: true

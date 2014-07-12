@@ -40,5 +40,5 @@ def test_charptr_coercion(x):
     >>> print(test_charptr_coercion(False))
     def
     """
-    cdef char* s = 'abc' if x else 'def'
+    cdef char* s = b'abc' if x else b'def'
     return s.decode('ascii')
