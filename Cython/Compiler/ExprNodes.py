@@ -9679,9 +9679,9 @@ class BoolBinopNode(ExprNode):
         return node
 
     def analyse_types(self, env):
-        # Note: we do not do any coercion here as we most likely not know the final type anyway.
-        # We even accept to set self.type to ErrorType.
-        # Both coercion to the final type and to a "simple" value is left to coerce_to().
+        # Note: we do not do any coercion here as we most likely do not know the final type anyway.
+        # We even accept to set self.type to ErrorType if both operands do not have a spanning type.
+        # The coercion to the final type and to a "simple" value is left to coerce_to().
         self.operand1 = self.operand1.analyse_types(env)
         self.operand2 = self.operand2.analyse_types(env)
         self.type = PyrexTypes.independent_spanning_type(
