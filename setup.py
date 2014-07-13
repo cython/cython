@@ -74,14 +74,15 @@ if 'setuptools' in sys.modules:
     setuptools_extra_args['entry_points'] = {
         'console_scripts': [
             'cython = Cython.Compiler.Main:setuptools_main',
+            'cythonize = Cython.Build.Cythonize:main'
         ]
     }
     scripts = []
 else:
     if os.name == "posix":
-        scripts = ["bin/cython"]
+        scripts = ["bin/cython", 'bin/cythonize']
     else:
-        scripts = ["cython.py"]
+        scripts = ["cython.py", "cythonize.py"]
 
 if include_debugger:
     if 'setuptools' in sys.modules:
