@@ -9614,12 +9614,6 @@ class PowNode(NumBinopNode):
         return super(PowNode, self).py_operation_function(code)
 
 
-# Note: This class is temporarily "shut down" into an ineffective temp
-# allocation mode.
-#
-# More sophisticated temp reuse was going on before, one could have a
-# look at adding this again after /all/ classes are converted to the
-# new temp scheme. (The temp juggling cannot work otherwise).
 class BoolBinopNode(ExprNode):
     #  Short-circuiting boolean operation.
     #
@@ -9747,6 +9741,18 @@ class BoolBinopNode(ExprNode):
 
 
 class BoolBinopResultNode(ExprNode):
+    """
+    Intermediate result of a short-circuiting and/or expression.
+    Tests the result for 'truthiness' and takes care of coercing the final result
+    of the overall expression to the target type.
+
+    Note that this node provides the same code generation method as
+    GenericBoolBinopNode to simplify expression nesting.
+
+    arg     ExprNode    the argument to test
+    value   ExprNode    the coerced result value node
+    """
+
     subexprs = ['arg', 'value']
     is_temp = True
     arg = None
@@ -9826,6 +9832,13 @@ class BoolBinopResultNode(ExprNode):
 class GenericBoolBinopNode(BoolBinopNode):
     """
     BoolBinopNode with arbitrary non-bool result type.
+
+    Note that this node provides the same code generation method as
+    BoolBinopResultNode to simplify expression nesting.
+
+    operator  string                                     "and"/"or"
+    operand1  GenericBoolBinopNode/BoolBinopResultNode   left operand
+    operand2  GenericBoolBinopNode/BoolBinopResultNode   right operand
     """
     subexprs = ['operand1', 'operand2']
     is_temp = True
