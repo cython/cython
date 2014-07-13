@@ -2311,9 +2311,16 @@ class CFuncDefNode(FuncDefNode):
         # The @cname decorator may mutate this later.
         func_cname = LazyStr(lambda: self.entry.func_cname)
         cfunc = ExprNodes.PythonCapiFunctionNode(self.pos, self.entry.name, func_cname, self.type)
-        cfunc.entry = self.entry
+        # The entry is inspected due to self.type.is_overridable, but it
+        # has the wrong self type.
+        cfunc.entry = copy.copy(self.entry)
+        cfunc.entry.type = self.type
         skip_dispatch = not is_module_scope or Options.lookup_module_cpdef
-        c_call = ExprNodes.SimpleCallNode(self.pos, function=cfunc, args=[ExprNodes.NameNode(self.pos, name=n) for n in arg_names], wrapper_call=skip_dispatch)
+        c_call = ExprNodes.SimpleCallNode(
+            self.pos,
+            function=cfunc,
+            args=[ExprNodes.NameNode(self.pos, name=n) for n in arg_names],
+            wrapper_call=skip_dispatch)
         return ReturnStatNode(pos=self.pos, return_type=PyrexTypes.py_object_type, value=c_call)
 
     def declare_arguments(self, env):
