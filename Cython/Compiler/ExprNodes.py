@@ -9753,10 +9753,13 @@ class BoolBinopResultNode(ExprNode):
     value = None
 
     def __init__(self, arg, result_type, env):
-        arg = ProxyNode(arg)  # in case something wants to replace it later
+        # using 'arg' multiple times, so it must be a simple/temp value
+        arg = arg.coerce_to_simple(env)
+        # wrap in ProxyNode, in case a transform wants to replace self.arg later
+        arg = ProxyNode(arg)
         super(BoolBinopResultNode, self).__init__(
             arg.pos, arg=arg, type=result_type,
-            value=CloneNode(arg).coerce_to(result_type, env).coerce_to_simple(env))
+            value=CloneNode(arg).coerce_to(result_type, env))
 
     def coerce_to_boolean(self, env):
         # coercing to simple boolean case after being instantiated => replace by simple coerced result
