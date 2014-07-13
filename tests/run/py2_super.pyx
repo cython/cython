@@ -30,43 +30,27 @@ class B(A):
     [1, 2, 3]
     """
     def method(self):
-        return super().method()
+        return super(B, self).method()
 
     @classmethod
     def class_method(cls):
-        return super().class_method()
+        return super(B, cls).class_method()
 
     @staticmethod
     def static_method(instance):
-        return super().static_method()
+        return super(B, instance).static_method()
 
     def generator_test(self):
-        for i in super().generator_test():
+        for i in super(B, self).generator_test():
             yield i
-
-
-def test_class_cell_empty():
-    """
-    >>> test_class_cell_empty()
-    Traceback (most recent call last):
-    ...
-    SystemError: super(): empty __class__ cell
-    """
-    class Base(type):
-        def __new__(cls, name, bases, attrs):
-            attrs['foo'](None)
-
-    class EmptyClassCell(metaclass=Base):
-        def foo(self):
-            super()
 
 
 cdef class CClassBase(object):
     def method(self):
         return 'def'
+    cpdef method_cp(self):
+        return 'cpdef'
 
-#     cpdef method_cp(self):
-#         return 'cpdef'
 #     cdef method_c(self):
 #         return 'cdef'
 #     def call_method_c(self):
@@ -76,16 +60,38 @@ cdef class CClassSub(CClassBase):
     """
     >>> CClassSub().method()
     'def'
+    >>> CClassSub().method_cp()
+    'cpdef'
     """
-#     >>> CClassSub().method_cp()
-#     'cpdef'
 #     >>> CClassSub().call_method_c()
 #     'cdef'
 
     def method(self):
-        return super().method()
+        return super(CClassSub, self).method()
+    cpdef method_cp(self):
+        return super(CClassSub, self).method_cp()
 
-#     cpdef method_cp(self):
-#         return super().method_cp()
 #     cdef method_c(self):
-#         return super().method_c()
+#         return super(CClassSub, self).method_c()
+
+cdef class Base(object):
+    """
+    >>> Base().method()
+    'Base'
+    >>> Base.method(Base())
+    'Base'
+    """
+    cpdef method(self):
+        return "Base"
+
+cdef class Sub(Base):
+    """
+    >>> Sub().method()
+    'Sub'
+    >>> Sub.method(Sub())
+    'Sub'
+    >>> Base.method(Sub())
+    'Base'
+    """
+    cpdef method(self):
+        return "Sub"

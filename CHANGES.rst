@@ -91,6 +91,8 @@ Bugs fixed
 
 * Correctly handle ``from cython.submodule cimport name``.
 
+* Fix infinite recursion when using super with cpdef methods.
+
 Other changes
 -------------
 
