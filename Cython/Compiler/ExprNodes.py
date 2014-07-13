@@ -9669,13 +9669,14 @@ class BoolBinopNode(ExprNode):
             is_temp=self.is_temp)
 
     def coerce_to(self, dst_type, env):
-        if not dst_type.is_pyobject:
-            if self.operand1.is_ephemeral() or self.operand2.is_ephemeral():
-                error(self.pos, "Unsafe C derivative of temporary Python reference used in and/or expression")
-
+        if dst_type is PyrexTypes.c_bint_type:
+            return self.coerce_to_boolean(env)
         return GenericBoolBinopNode.from_node(
             self, env=env, type=dst_type,
             operator=self.operator, operand1=self.operand1, operand2=self.operand2)
+
+    def is_ephemeral(self):
+        return self.operand1.is_ephemeral() or self.operand2.is_ephemeral()
 
     def analyse_types(self, env):
         # Note: we do not do any coercion here as we most likely do not know the final type anyway.
@@ -9756,6 +9757,10 @@ class BoolBinopResultNode(ExprNode):
         super(BoolBinopResultNode, self).__init__(
             arg.pos, arg=arg, type=result_type,
             value=CloneNode(arg).coerce_to(result_type, env).coerce_to_simple(env))
+
+    def coerce_to_boolean(self, env):
+        # coercing to simple boolean case after being instantiated => replace by simple coerced result
+        return self.arg.arg.coerce_to_boolean(env)
 
     def generate_operand_test(self, code):
         #  Generate code to test the truth of the first operand.
