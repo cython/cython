@@ -2287,22 +2287,6 @@ class CFuncDefNode(FuncDefNode):
                            "private types")
 
     def call_self_node(self, omit_optional_args=0, is_module_scope=0):
-        # OLD - DELETE
-        from . import ExprNodes
-        args = self.type.args
-        if omit_optional_args:
-            args = args[:len(args) - self.type.optional_arg_count]
-        arg_names = [arg.name for arg in args]
-        if is_module_scope:
-            cfunc = ExprNodes.NameNode(self.pos, name=self.entry.name)
-        else:
-            self_arg = ExprNodes.NameNode(self.pos, name=arg_names[0])
-            cfunc = ExprNodes.AttributeNode(self.pos, obj=self_arg, attribute=self.entry.name)
-        skip_dispatch = not is_module_scope or Options.lookup_module_cpdef
-        c_call = ExprNodes.SimpleCallNode(self.pos, function=cfunc, args=[ExprNodes.NameNode(self.pos, name=n) for n in arg_names[1-is_module_scope:]], wrapper_call=skip_dispatch)
-        return ReturnStatNode(pos=self.pos, return_type=PyrexTypes.py_object_type, value=c_call)
-
-    def call_self_node(self, omit_optional_args=0, is_module_scope=0):
         from . import ExprNodes
         args = self.type.args
         if omit_optional_args:
@@ -2311,9 +2295,16 @@ class CFuncDefNode(FuncDefNode):
         # The @cname decorator may mutate this later.
         func_cname = LazyStr(lambda: self.entry.func_cname)
         cfunc = ExprNodes.PythonCapiFunctionNode(self.pos, self.entry.name, func_cname, self.type)
-        cfunc.entry = self.entry
+        # The entry is inspected due to self.type.is_overridable, but it
+        # has the wrong self type.
+        cfunc.entry = copy.copy(self.entry)
+        cfunc.entry.type = self.type
         skip_dispatch = not is_module_scope or Options.lookup_module_cpdef
-        c_call = ExprNodes.SimpleCallNode(self.pos, function=cfunc, args=[ExprNodes.NameNode(self.pos, name=n) for n in arg_names], wrapper_call=skip_dispatch)
+        c_call = ExprNodes.SimpleCallNode(
+            self.pos,
+            function=cfunc,
+            args=[ExprNodes.NameNode(self.pos, name=n) for n in arg_names],
+            wrapper_call=skip_dispatch)
         return ReturnStatNode(pos=self.pos, return_type=PyrexTypes.py_object_type, value=c_call)
 
     def declare_arguments(self, env):
