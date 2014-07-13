@@ -63,13 +63,29 @@ def test_class_cell_empty():
 
 cdef class CClassBase(object):
     def method(self):
-        return 1
+        return 'def'
 
-cdef class CClassSuper(CClassBase):
+#     cpdef method_cp(self):
+#         return 'cpdef'
+#     cdef method_c(self):
+#         return 'cdef'
+#     def call_method_c(self):
+#         return self.method_c()
+
+cdef class CClassSub(CClassBase):
     """
-    >>> CClassSuper().method()
-    1
+    >>> CClassSub().method()
+    'def'
     """
+#     >>> CClassSub().method_cp()
+#     'cpdef'
+#     >>> CClassSub().call_method_c()
+#     'cdef'
 
     def method(self):
         return super().method()
+
+#     cpdef method_cp(self):
+#         return super().method_cp()
+#     cdef method_c(self):
+#         return super().method_c()
