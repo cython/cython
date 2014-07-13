@@ -27,6 +27,7 @@ from .Code import UtilityCode
 from .StringEncoding import EncodedString, escape_byte_string, split_string_literal
 from . import Options
 from . import DebugFlags
+from Cython.Utils import LazyStr
 
 absolute_path_length = 0
 
@@ -2307,7 +2308,9 @@ class CFuncDefNode(FuncDefNode):
         if omit_optional_args:
             args = args[:len(args) - self.type.optional_arg_count]
         arg_names = [arg.name for arg in args]
-        cfunc = ExprNodes.PythonCapiFunctionNode(self.pos, self.entry.name, self.entry.func_cname, self.type)
+        # The @cname decorator may mutate this later.
+        func_cname = LazyStr(lambda: self.entry.func_cname)
+        cfunc = ExprNodes.PythonCapiFunctionNode(self.pos, self.entry.name, func_cname, self.type)
         cfunc.entry = self.entry
         skip_dispatch = not is_module_scope or Options.lookup_module_cpdef
         c_call = ExprNodes.SimpleCallNode(self.pos, function=cfunc, args=[ExprNodes.NameNode(self.pos, name=n) for n in arg_names], wrapper_call=skip_dispatch)
