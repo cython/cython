@@ -2292,13 +2292,13 @@ class CFuncDefNode(FuncDefNode):
         if omit_optional_args:
             args = args[:len(args) - self.type.optional_arg_count]
         arg_names = [arg.name for arg in args]
-        # The @cname decorator may mutate this later.
-        func_cname = LazyStr(lambda: self.entry.func_cname)
-        cfunc = ExprNodes.PythonCapiFunctionNode(self.pos, self.entry.name, func_cname, self.type)
-        # The entry is inspected due to self.type.is_overridable, but it
-        # has the wrong self type.
-        cfunc.entry = copy.copy(self.entry)
-        cfunc.entry.type = self.type
+        if is_module_scope:
+            cfunc = ExprNodes.NameNode(self.pos, name=self.entry.name)
+        else:
+            type_entry = self.type.args[0].type.entry
+            type_arg = ExprNodes.NameNode(self.pos, name=type_entry.name)
+            type_arg.entry = type_entry
+            cfunc = ExprNodes.AttributeNode(self.pos, obj=type_arg, attribute=self.entry.name)
         skip_dispatch = not is_module_scope or Options.lookup_module_cpdef
         c_call = ExprNodes.SimpleCallNode(
             self.pos,
