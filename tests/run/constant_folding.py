@@ -390,8 +390,8 @@ def combined():
     '//IntNode[@value = "4"]',
     '//IntNode[@value = "5"]',
     '//IntNode[@value = "7"]',
-    '//BoolBinopNode//PrimaryCmpNode',
-    '//BoolBinopNode[.//PrimaryCmpNode//IntNode[@value = "4"] and .//PrimaryCmpNode//IntNode[@value = "5"]]',
+    '//GenericBoolBinopNode//PrimaryCmpNode',
+    '//GenericBoolBinopNode[.//PrimaryCmpNode//IntNode[@value = "4"] and .//PrimaryCmpNode//IntNode[@value = "5"]]',
     '//PrimaryCmpNode[.//IntNode[@value = "2"] and .//IntNode[@value = "4"]]',
     '//PrimaryCmpNode[.//IntNode[@value = "5"] and .//IntNode[@value = "7"]]',
 )
@@ -423,11 +423,11 @@ def cascaded_cmp_with_partial_constants(a, b):
     '//IntNode[@value = "4"]',
     '//IntNode[@value = "5"]',
     '//IntNode[@value = "7"]',
-    '//BoolBinopNode',
-    '//SingleAssignmentNode//BoolBinopNode',
-    '//SingleAssignmentNode//BoolBinopNode//NameNode[@name = "a"]',
-    '//SingleAssignmentNode//BoolBinopNode//NameNode[@name = "b"]',
-    '//BoolBinopNode[.//PrimaryCmpNode//IntNode[@value = "4"] and .//PrimaryCmpNode//IntNode[@value = "5"]]',
+    '//GenericBoolBinopNode',
+    '//SingleAssignmentNode//GenericBoolBinopNode',
+    '//SingleAssignmentNode//GenericBoolBinopNode//NameNode[@name = "a"]',
+    '//SingleAssignmentNode//GenericBoolBinopNode//NameNode[@name = "b"]',
+    '//GenericBoolBinopNode[.//PrimaryCmpNode//IntNode[@value = "4"] and .//PrimaryCmpNode//IntNode[@value = "5"]]',
     '//BoolNode[@value = False]',
 )
 @cython.test_fail_if_path_exists(
