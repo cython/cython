@@ -68,12 +68,6 @@ try:
 except NameError:
     basestring = str
 
-try:
-    next
-except NameError:
-    def next(iter):
-        return iter.next()
-
 WITH_CYTHON = True
 CY3_DIR = None
 
