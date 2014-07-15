@@ -56,6 +56,8 @@ Features added
 * New directive ``use_switch`` (defaults to True) to optionally disable
   the optimization of chained if statement to C switch statements.
 
+* Defines dynamic_cast et al. in `libcpp.cast`.
+
 Bugs fixed
 ----------
 
