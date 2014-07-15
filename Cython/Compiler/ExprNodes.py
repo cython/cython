@@ -5314,9 +5314,16 @@ class AttributeNode(ExprNode):
                 else:
                     # Create a temporary entry describing the C method
                     # as an ordinary function.
-                    ubcm_entry = Symtab.Entry(entry.name,
-                        "%s->%s" % (type.vtabptr_cname, entry.cname),
-                        entry.type)
+                    if entry.func_cname:
+                        cname = entry.func_cname
+                        # Fix self type.
+                        ctype = copy.copy(entry.type)
+                        ctype.args = ctype.args[:]
+                        ctype.args[0] = PyrexTypes.CFuncTypeArg('self', type, 'self', None)
+                    else:
+                        cname = "%s->%s" % (type.vtabptr_cname, entry.cname)
+                        ctype = entry.type
+                    ubcm_entry = Symtab.Entry(entry.name, cname, ctype)
                     ubcm_entry.is_cfunction = 1
                     ubcm_entry.func_cname = entry.func_cname
                     ubcm_entry.is_unbound_cmethod = 1
