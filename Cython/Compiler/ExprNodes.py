@@ -5324,10 +5324,13 @@ class AttributeNode(ExprNode):
                     # as an ordinary function.
                     if entry.func_cname:
                         cname = entry.func_cname
-                        # Fix self type.
-                        ctype = copy.copy(entry.type)
-                        ctype.args = ctype.args[:]
-                        ctype.args[0] = PyrexTypes.CFuncTypeArg('self', type, 'self', None)
+                        if entry.type.is_static_method:
+                            ctype = entry.type
+                        else:
+                            # Fix self type.
+                            ctype = copy.copy(entry.type)
+                            ctype.args = ctype.args[:]
+                            ctype.args[0] = PyrexTypes.CFuncTypeArg('self', type, 'self', None)
                     else:
                         cname = "%s->%s" % (type.vtabptr_cname, entry.cname)
                         ctype = entry.type
