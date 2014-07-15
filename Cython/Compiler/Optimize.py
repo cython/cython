@@ -816,6 +816,8 @@ class SwitchTransform(Visitor.CythonTransform):
             if isinstance(cond, (ExprNodes.CoerceToTempNode,
                                  ExprNodes.CoerceToBooleanNode)):
                 cond = cond.arg
+            elif isinstance(cond, ExprNodes.BoolBinopResultNode):
+                cond = cond.arg.arg
             elif isinstance(cond, UtilNodes.EvalWithTempExprNode):
                 # this is what we get from the FlattenInListTransform
                 cond = cond.subexpression
@@ -860,7 +862,7 @@ class SwitchTransform(Visitor.CythonTransform):
                     elif getattr(cond.operand1, 'entry', None) \
                              and cond.operand1.entry.is_const:
                         return not_in, cond.operand2, [cond.operand1]
-        elif isinstance(cond, ExprNodes.BoolBinopNode):
+        elif isinstance(cond, (ExprNodes.BoolBinopNode, ExprNodes.GenericBoolBinopNode)):
             if cond.operator == 'or' or (allow_not_in and cond.operator == 'and'):
                 allow_not_in = (cond.operator == 'and')
                 not_in_1, t1, c1 = self.extract_conditions(cond.operand1, allow_not_in)

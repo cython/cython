@@ -2303,7 +2303,6 @@ class CFuncDefNode(FuncDefNode):
                            "private types")
 
     def call_self_node(self, omit_optional_args=0, is_module_scope=0):
-        # OLD - DELETE
         from . import ExprNodes
         args = self.type.args
         if omit_optional_args:
@@ -2315,34 +2314,17 @@ class CFuncDefNode(FuncDefNode):
             skip_dispatch = Options.lookup_module_cpdef
         elif self.type.is_static_method:
             class_entry = self.entry.scope.parent_type.entry
-            self_arg = ExprNodes.NameNode(self.pos, name=class_entry.name)
-            self_arg.entry = class_entry
-            cfunc = ExprNodes.AttributeNode(self.pos, obj=self_arg, attribute=self.entry.name)
-            call_arg_names = arg_names
+            class_node = ExprNodes.NameNode(self.pos, name=class_entry.name)
+            class_node.entry = class_entry
+            cfunc = ExprNodes.AttributeNode(self.pos, obj=class_node, attribute=self.entry.name)
             # Calling static c(p)def methods on an instance disallowed.
             # TODO(robertwb): Support by passing self to check for override?
             skip_dispatch = True
         else:
-            self_arg = ExprNodes.NameNode(self.pos, name=arg_names[0])
-            cfunc = ExprNodes.AttributeNode(self.pos, obj=self_arg, attribute=self.entry.name)
-            call_arg_names = arg_names[1:]
-            skip_dispatch = False
-        c_call = ExprNodes.SimpleCallNode(self.pos, function=cfunc, args=[ExprNodes.NameNode(self.pos, name=n) for n in call_arg_names], wrapper_call=skip_dispatch)
-        return ReturnStatNode(pos=self.pos, return_type=PyrexTypes.py_object_type, value=c_call)
-
-    def call_self_node(self, omit_optional_args=0, is_module_scope=0):
-        from . import ExprNodes
-        args = self.type.args
-        if omit_optional_args:
-            args = args[:len(args) - self.type.optional_arg_count]
-        arg_names = [arg.name for arg in args]
-        # The @cname decorator may mutate this later.
-        func_cname = LazyStr(lambda: self.entry.func_cname)
-        cfunc = ExprNodes.PythonCapiFunctionNode(self.pos, self.entry.name, func_cname, self.type)
-        # The entry is inspected due to self.type.is_overridable, but it
-        # has the wrong self type.
-        cfunc.entry = copy.copy(self.entry)
-        cfunc.entry.type = self.type
+            type_entry = self.type.args[0].type.entry
+            type_arg = ExprNodes.NameNode(self.pos, name=type_entry.name)
+            type_arg.entry = type_entry
+            cfunc = ExprNodes.AttributeNode(self.pos, obj=type_arg, attribute=self.entry.name)
         skip_dispatch = not is_module_scope or Options.lookup_module_cpdef
         c_call = ExprNodes.SimpleCallNode(
             self.pos,
@@ -2439,8 +2421,8 @@ class CFuncDefNode(FuncDefNode):
     def generate_argument_parsing_code(self, env, code):
         i = 0
         used = 0
+        scope = self.local_scope
         if self.type.optional_arg_count:
-            scope = self.local_scope
             code.putln('if (%s) {' % Naming.optional_args_cname)
             for arg in self.args:
                 if arg.default:
@@ -2460,6 +2442,16 @@ class CFuncDefNode(FuncDefNode):
             for _ in range(used):
                 code.putln('}')
             code.putln('}')
+
+        # Move arguments into closure if required
+        def put_into_closure(entry):
+            if entry.in_closure and not arg.default:
+                code.putln('%s = %s;' % (entry.cname, entry.original_cname))
+                code.put_var_incref(entry)
+                code.put_var_giveref(entry)
+        for arg in self.args:
+            put_into_closure(scope.lookup_here(arg.name))
+
 
     def generate_argument_conversion_code(self, code):
         pass

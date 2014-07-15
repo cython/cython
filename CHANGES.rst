@@ -48,6 +48,16 @@ Features added
 Optimizations
 -------------
 
+* The "and"/"or" operators try to avoid unnecessary coercions of their
+  arguments.  They now evaluate the truth value of each argument
+  independently and only coerce the final result of the whole expression
+  to the target type (e.g. the type on the left side of an assignment).
+  This also avoids reference counting overhead for Python values during
+  evaluation and generally improves the code flow in the generated C code.
+
+* Cascaded assignments (a = b = ...) try to minimise the number of
+  type coercions.
+
 * The Python expression "2 ** N" is optimised into bit shifting.
   See http://bugs.python.org/issue21420
 
