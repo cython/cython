@@ -5314,7 +5314,7 @@ class AttributeNode(ExprNode):
                 else:
                     # Create a temporary entry describing the C method
                     # as an ordinary function.
-                    if entry.func_cname:
+                    if entry.func_cname and not hasattr(entry.type, 'op_arg_struct'):
                         cname = entry.func_cname
                         # Fix self type.
                         ctype = copy.copy(entry.type)
