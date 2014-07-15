@@ -2145,6 +2145,7 @@ class CFuncDefNode(FuncDefNode):
     #  template_declaration  String or None   Used for c++ class methods
     #  is_const_method whether this is a const method
     #  is_static_method whether this is a static method
+    #  is_c_class_method whether this is a cclass method
 
     child_attrs = ["base_type", "declarator", "body", "py_func_stat"]
 
@@ -2161,6 +2162,7 @@ class CFuncDefNode(FuncDefNode):
         return self.entry.name
 
     def analyse_declarations(self, env):
+        self.is_c_class_method = env.is_c_class_scope
         if self.directive_locals is None:
             self.directive_locals = {}
         self.directive_locals.update(env.directives['locals'])
@@ -2401,8 +2403,13 @@ class CFuncDefNode(FuncDefNode):
 
         header = self.return_type.declaration_code(entity, dll_linkage=dll_linkage)
         #print (storage_class, modifiers, header)
+        needs_proto = self.is_c_class_method
         if self.template_declaration:
+            if needs_proto:
+                code.globalstate.parts['module_declarations'].putln(self.template_declaration)
             code.putln(self.template_declaration)
+        if needs_proto:
+            code.globalstate.parts['module_declarations'].putln("%s%s%s; /* proto*/" % (storage_class, modifiers, header))
         code.putln("%s%s%s {" % (storage_class, modifiers, header))
 
     def generate_argument_declarations(self, env, code):
