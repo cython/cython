@@ -34,12 +34,12 @@ from enums cimport *
 # We can import enums with a star import.
 from enums import *
 
-print dir()
+print(dir())
 assert 'BAR' in dir() and 'FOO' in dir()
 
 # enums not generated in the wrong module
 import no_enums
-print dir(no_enums)
+print(dir(no_enums))
 assert 'FOO' not in dir(no_enums)
 assert 'foo' not in dir(no_enums)
 

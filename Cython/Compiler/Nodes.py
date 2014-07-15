@@ -27,6 +27,7 @@ from .Code import UtilityCode
 from .StringEncoding import EncodedString, escape_byte_string, split_string_literal
 from . import Options
 from . import DebugFlags
+from Cython.Utils import LazyStr
 
 absolute_path_length = 0
 
@@ -2294,10 +2295,16 @@ class CFuncDefNode(FuncDefNode):
         if is_module_scope:
             cfunc = ExprNodes.NameNode(self.pos, name=self.entry.name)
         else:
-            self_arg = ExprNodes.NameNode(self.pos, name=arg_names[0])
-            cfunc = ExprNodes.AttributeNode(self.pos, obj=self_arg, attribute=self.entry.name)
+            type_entry = self.type.args[0].type.entry
+            type_arg = ExprNodes.NameNode(self.pos, name=type_entry.name)
+            type_arg.entry = type_entry
+            cfunc = ExprNodes.AttributeNode(self.pos, obj=type_arg, attribute=self.entry.name)
         skip_dispatch = not is_module_scope or Options.lookup_module_cpdef
-        c_call = ExprNodes.SimpleCallNode(self.pos, function=cfunc, args=[ExprNodes.NameNode(self.pos, name=n) for n in arg_names[1-is_module_scope:]], wrapper_call=skip_dispatch)
+        c_call = ExprNodes.SimpleCallNode(
+            self.pos,
+            function=cfunc,
+            args=[ExprNodes.NameNode(self.pos, name=n) for n in arg_names],
+            wrapper_call=skip_dispatch)
         return ReturnStatNode(pos=self.pos, return_type=PyrexTypes.py_object_type, value=c_call)
 
     def declare_arguments(self, env):

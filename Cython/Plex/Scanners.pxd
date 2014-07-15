@@ -24,7 +24,7 @@ cdef class Scanner:
     cdef public list queue
     cdef public bint trace
     cdef public cur_char
-    cdef public int input_state
+    cdef public long input_state
 
     cdef public level
 

@@ -21,6 +21,13 @@ Features added
   is raised only when such a pointer is assigned to a variable and
   would thus exceed the lifetime of the string itself.
 
+* The "and"/"or" operators try to avoid unnecessary coercions of their
+  arguments.  They now evaluate the truth value of each argument
+  independently and only coerce the final result of the whole expression
+  to the target type (e.g. the type on the left side of an assignment).
+  This also avoids reference counting overhead for Python values during
+  evaluation and generally improves the code flow in the generated C code.
+
 * Cascaded assignments (a = b = ...) try to minimise the number of
   type coercions.
 
@@ -83,6 +90,8 @@ Bugs fixed
   incorrectly highlights keywords found as part of longer names.
 
 * Correctly handle ``from cython.submodule cimport name``.
+
+* Fix infinite recursion when using super with cpdef methods.
 
 Other changes
 -------------
