@@ -1947,11 +1947,12 @@ class CClassScope(ClassScope):
         if get_special_method_signature(name) and not self.parent_type.is_builtin_type:
             error(pos, "Special methods must be declared with 'def', not 'cdef'")
         args = type.args
-        if not args:
-            error(pos, "C method has no self argument")
-        elif not self.parent_type.assignable_from(args[0].type):
-            error(pos, "Self argument (%s) of C method '%s' does not match parent type (%s)" %
-                  (args[0].type, name, self.parent_type))
+        if not type.is_static_method:
+            if not args:
+                error(pos, "C method has no self argument")
+            elif not self.parent_type.assignable_from(args[0].type):
+                error(pos, "Self argument (%s) of C method '%s' does not match parent type (%s)" %
+                      (args[0].type, name, self.parent_type))
         entry = self.lookup_here(name)
         if cname is None:
             cname = c_safe_identifier(name)

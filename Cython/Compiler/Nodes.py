@@ -617,7 +617,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
         func_type_args = []
         for i, arg_node in enumerate(self.args):
             name_declarator, type = arg_node.analyse(
-                env, nonempty=nonempty, is_self_arg=(i == 0 and env.is_c_class_scope))
+                env, nonempty=nonempty, is_self_arg=(i == 0 and env.is_c_class_scope and 'staticmethod' not in env.directives))
             name = name_declarator.name
             if name in directive_locals:
                 type_node = directive_locals[name]
@@ -2143,10 +2143,11 @@ class CFuncDefNode(FuncDefNode):
     #  overridable   whether or not this is a cpdef function
     #  inline_in_pxd whether this is an inline function in a pxd file
     #  template_declaration  String or None   Used for c++ class methods
-    #  is_const_method   whether this is a const method
+    #  is_const_method whether this is a const method
+    #  is_static_method whether this is a static method
     #  is_c_class_method whether this is a cclass method
 
-    child_attrs = ["base_type", "declarator", "body", "py_func"]
+    child_attrs = ["base_type", "declarator", "body", "py_func_stat"]
 
     inline_in_pxd = False
     decorators = None
@@ -2155,6 +2156,7 @@ class CFuncDefNode(FuncDefNode):
     override = None
     template_declaration = None
     is_const_method = False
+    py_func_stat = None
 
     def unqualified_name(self):
         return self.entry.name
@@ -2171,6 +2173,7 @@ class CFuncDefNode(FuncDefNode):
                 base_type = PyrexTypes.error_type
         else:
             base_type = self.base_type.analyse(env)
+        self.is_static_method = 'staticmethod' in env.directives and not env.lookup_here('staticmethod')
         # The 2 here is because we need both function and argument names.
         if isinstance(self.declarator, CFuncDeclaratorNode):
             name_declarator, type = self.declarator.analyse(base_type, env,
@@ -2232,6 +2235,7 @@ class CFuncDefNode(FuncDefNode):
         cname = name_declarator.cname
 
         type.is_const_method = self.is_const_method
+        type.is_static_method = self.is_static_method
         self.entry = env.declare_cfunction(
             name, type, self.pos,
             cname = cname, visibility = self.visibility, api = self.api,
@@ -2244,7 +2248,7 @@ class CFuncDefNode(FuncDefNode):
         if self.return_type.is_cpp_class:
             self.return_type.check_nullary_constructor(self.pos, "used as a return value")
 
-        if self.overridable and not env.is_module_scope:
+        if self.overridable and not env.is_module_scope and not self.is_static_method:
             if len(self.args) < 1 or not self.args[0].type.is_pyobject:
                 # An error will be produced in the cdef function
                 self.overridable = False
@@ -2254,8 +2258,17 @@ class CFuncDefNode(FuncDefNode):
 
     def declare_cpdef_wrapper(self, env):
         if self.overridable:
+            if self.is_static_method:
+                # TODO(robertwb): Finish this up, perhaps via more function refactoring.
+                error(self.pos, "static cpdef methods not yet supported")
             name = self.entry.name
             py_func_body = self.call_self_node(is_module_scope = env.is_module_scope)
+            if self.is_static_method:
+                from .ExprNodes import NameNode
+                decorators = [DecoratorNode(self.pos, decorator=NameNode(self.pos, name='staticmethod'))]
+                decorators[0].decorator.analyse_types(env)
+            else:
+                decorators = []
             self.py_func = DefNode(pos = self.pos,
                                    name = self.entry.name,
                                    args = self.args,
@@ -2263,9 +2276,12 @@ class CFuncDefNode(FuncDefNode):
                                    starstar_arg = None,
                                    doc = self.doc,
                                    body = py_func_body,
+                                   decorators = decorators,
                                    is_wrapper = 1)
             self.py_func.is_module_scope = env.is_module_scope
             self.py_func.analyse_declarations(env)
+            self.py_func_stat = StatListNode(pos = self.pos, stats = [self.py_func])
+            self.py_func.type = PyrexTypes.py_object_type
             self.entry.as_variable = self.py_func.entry
             self.entry.used = self.entry.as_variable.used = True
             # Reset scope entry the above cfunction
@@ -2296,6 +2312,16 @@ class CFuncDefNode(FuncDefNode):
         arg_names = [arg.name for arg in args]
         if is_module_scope:
             cfunc = ExprNodes.NameNode(self.pos, name=self.entry.name)
+            call_arg_names = arg_names
+            skip_dispatch = Options.lookup_module_cpdef
+        elif self.type.is_static_method:
+            class_entry = self.entry.scope.parent_type.entry
+            class_node = ExprNodes.NameNode(self.pos, name=class_entry.name)
+            class_node.entry = class_entry
+            cfunc = ExprNodes.AttributeNode(self.pos, obj=class_node, attribute=self.entry.name)
+            # Calling static c(p)def methods on an instance disallowed.
+            # TODO(robertwb): Support by passing self to check for override?
+            skip_dispatch = True
         else:
             type_entry = self.type.args[0].type.entry
             type_arg = ExprNodes.NameNode(self.pos, name=type_entry.name)
@@ -2445,6 +2471,11 @@ class CFuncDefNode(FuncDefNode):
                 self.generate_arg_type_test(arg, code)
             elif arg.type.is_pyobject and not arg.accept_none:
                 self.generate_arg_none_check(arg, code)
+
+    def generate_execution_code(self, code):
+        super(CFuncDefNode, self).generate_execution_code(code)
+        if self.py_func_stat:
+            self.py_func_stat.generate_execution_code(code)
 
     def error_value(self):
         if self.return_type.is_pyobject:
@@ -2901,10 +2932,10 @@ class DefNode(FuncDefNode):
         return self
 
     def needs_assignment_synthesis(self, env, code=None):
-        if self.is_wrapper or self.specialized_cpdefs or self.entry.is_fused_specialized:
-            return False
         if self.is_staticmethod:
             return True
+        if self.is_wrapper or self.specialized_cpdefs or self.entry.is_fused_specialized:
+            return False
         if self.no_assignment_synthesis:
             return False
         # Should enable for module level as well, that will require more testing...

@@ -4456,16 +4456,24 @@ class SimpleCallNode(CallNode):
         return func_type
 
     def analyse_c_function_call(self, env):
-        if self.function.type is error_type:
+        func_type = self.function.type
+        if func_type is error_type:
             self.type = error_type
             return
 
-        if self.self:
+        if func_type.is_cfunction and func_type.is_static_method:
+            if self.self and self.self.type.is_extension_type:
+                # To support this we'd need to pass self to determine whether
+                # it was overloaded in Python space (possibly via a Cython
+                # superclass turning a cdef method into a cpdef one).
+                error(self.pos, "Cannot call a static method on an instance variable.")
+            args = self.args
+        elif self.self:
             args = [self.self] + self.args
         else:
             args = self.args
 
-        if self.function.type.is_cpp_class:
+        if func_type.is_cpp_class:
             overloaded_entry = self.function.type.scope.lookup("operator()")
             if overloaded_entry is None:
                 self.type = PyrexTypes.error_type
@@ -4515,7 +4523,7 @@ class SimpleCallNode(CallNode):
             self.is_temp = 1
 
         # check 'self' argument
-        if entry and entry.is_cmethod and func_type.args:
+        if entry and entry.is_cmethod and func_type.args and not func_type.is_static_method:
             formal_arg = func_type.args[0]
             arg = args[0]
             if formal_arg.not_none:
@@ -5316,10 +5324,13 @@ class AttributeNode(ExprNode):
                     # as an ordinary function.
                     if entry.func_cname and not hasattr(entry.type, 'op_arg_struct'):
                         cname = entry.func_cname
-                        # Fix self type.
-                        ctype = copy.copy(entry.type)
-                        ctype.args = ctype.args[:]
-                        ctype.args[0] = PyrexTypes.CFuncTypeArg('self', type, 'self', None)
+                        if entry.type.is_static_method:
+                            ctype = entry.type
+                        else:
+                            # Fix self type.
+                            ctype = copy.copy(entry.type)
+                            ctype.args = ctype.args[:]
+                            ctype.args[0] = PyrexTypes.CFuncTypeArg('self', type, 'self', None)
                     else:
                         cname = "%s->%s" % (type.vtabptr_cname, entry.cname)
                         ctype = entry.type

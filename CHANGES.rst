@@ -13,23 +13,15 @@ Features added
   the module's Python namespace.  Cpdef enums in pxd files export
   their values to their own module, iff it exists.
 
-* Calls to ``slice()`` are translated to a straight C-API call.
+* Allow @staticmethod decorator to declare static cdef methods.
+  This is especially useful for declaring "constructors" for
+  cdef classes that can take non-Python arguments.
 
 * Taking a ``char*`` from a temporary Python string object is safer
   in more cases and can be done inside of non-trivial expressions,
   including arguments of a function call.  A compile time error
   is raised only when such a pointer is assigned to a variable and
   would thus exceed the lifetime of the string itself.
-
-* The "and"/"or" operators try to avoid unnecessary coercions of their
-  arguments.  They now evaluate the truth value of each argument
-  independently and only coerce the final result of the whole expression
-  to the target type (e.g. the type on the left side of an assignment).
-  This also avoids reference counting overhead for Python values during
-  evaluation and generally improves the code flow in the generated C code.
-
-* Cascaded assignments (a = b = ...) try to minimise the number of
-  type coercions.
 
 * Generators have new properties ``__name__`` and ``__qualname__``
   that provide the plain/qualified name of the generator function
@@ -46,9 +38,6 @@ Features added
 * HTML output of annotated code uses Pygments for code highlighting
   and generally received a major overhaul by Matthias Bussonier.
 
-* The Python expression "2 ** N" is optimised into bit shifting.
-  See http://bugs.python.org/issue21420
-
 * Simple support for declaring Python object types in Python signature
   annotations.  Currently requires setting the compiler directive
   ``annotation_typing=True``.
@@ -57,6 +46,27 @@ Features added
   the optimization of chained if statement to C switch statements.
 
 * Defines dynamic_cast et al. in `libcpp.cast`.
+
+Optimizations
+-------------
+
+* The "and"/"or" operators try to avoid unnecessary coercions of their
+  arguments.  They now evaluate the truth value of each argument
+  independently and only coerce the final result of the whole expression
+  to the target type (e.g. the type on the left side of an assignment).
+  This also avoids reference counting overhead for Python values during
+  evaluation and generally improves the code flow in the generated C code.
+
+* Cascaded assignments (a = b = ...) try to minimise the number of
+  type coercions.
+
+* The Python expression "2 ** N" is optimised into bit shifting.
+  See http://bugs.python.org/issue21420
+
+* Cascaded assignments (a = b = ...) try to minimise the number of
+  type coercions.
+
+* Calls to ``slice()`` are translated to a straight C-API call.
 
 Bugs fixed
 ----------
