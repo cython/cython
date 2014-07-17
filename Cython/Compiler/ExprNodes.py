@@ -5310,6 +5310,8 @@ class AttributeNode(ExprNode):
         # C method of an extension type or builtin type.  If successful,
         # creates a corresponding NameNode and returns it, otherwise
         # returns None.
+        if self.obj.is_string_literal:
+            return
         type = self.obj.analyse_as_type(env)
         if type and (type.is_extension_type or type.is_builtin_type or type.is_cpp_class):
             entry = type.scope.lookup_here(self.attribute)
