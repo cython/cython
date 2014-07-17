@@ -22,6 +22,10 @@ cdef extern from "cpp_templates_helper.h":
     cdef cppclass SubClass[T2, T3](SuperClass[T2, T3]):
         pass
 
+    cdef cppclass Div[T]:
+        @staticmethod
+        T half(T value)
+
 def test_int(int x, int y):
     """
     >>> test_int(3, 4)
@@ -104,3 +108,12 @@ def test_cast_template_pointer():
 
     sup = sub
     sup = <SubClass[int, float] *> sub
+
+def test_static(x):
+    """
+    >>> test_static(2)
+    (1, 1.0)
+    >>> test_static(3)
+    (1, 1.5)
+    """
+    return Div[int].half(x), Div[double].half(x)

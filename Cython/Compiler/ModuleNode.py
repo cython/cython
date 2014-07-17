@@ -826,7 +826,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             has_virtual_methods = False
             has_destructor = False
             for attr in scope.var_entries:
-                if attr.type.is_cfunction and attr.name != "<init>":
+                if attr.type.is_cfunction and attr.type.is_static_method:
+                    code.put("static ")
+                elif attr.type.is_cfunction and attr.name != "<init>":
                     code.put("virtual ")
                     has_virtual_methods = True
                 if attr.cname[0] == '~':
