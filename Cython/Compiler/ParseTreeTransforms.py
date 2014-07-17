@@ -951,16 +951,23 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         for name, value in directives.iteritems():
             if name == 'locals':
                 node.directive_locals = value
-            elif name != 'final':
+            elif name not in ('final', 'staticmethod'):
                 self.context.nonfatal_error(PostParseError(
                     node.pos,
-                    "Cdef functions can only take cython.locals() "
-                    "or final decorators, got %s." % name))
+                    "Cdef functions can only take cython.locals(), "
+                    "staticmethod, or final decorators, got %s." % name))
         body = Nodes.StatListNode(node.pos, stats=[node])
         return self.visit_with_directives(body, directives)
 
     def visit_CClassDefNode(self, node):
         directives = self._extract_directives(node, 'cclass')
+        if not directives:
+            return self.visit_Node(node)
+        body = Nodes.StatListNode(node.pos, stats=[node])
+        return self.visit_with_directives(body, directives)
+
+    def visit_CppClassNode(self, node):
+        directives = self._extract_directives(node, 'cppclass')
         if not directives:
             return self.visit_Node(node)
         body = Nodes.StatListNode(node.pos, stats=[node])

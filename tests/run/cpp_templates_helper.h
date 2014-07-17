@@ -30,3 +30,9 @@ public:
 template <class T2, class T3>
 class SubClass : public SuperClass<T2, T3> {
 };
+
+template <class T>
+class Div {
+public:
+    static T half(T value) { return value / 2; }
+};

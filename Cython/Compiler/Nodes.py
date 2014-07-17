@@ -1294,6 +1294,8 @@ class CVarDefNode(StatNode):
                 if self.entry is not None:
                     self.entry.is_overridable = self.overridable
                     self.entry.directive_locals = copy.copy(self.directive_locals)
+                if 'staticmethod' in env.directives:
+                    type.is_static_method = True
             else:
                 if self.directive_locals:
                     error(self.pos, "Decorators can only be followed by functions")
@@ -1361,6 +1363,9 @@ class CppClassNode(CStructOrUnionDefNode, BlockNode):
     #  entry         Entry
     #  base_classes  [CBaseTypeNode]
     #  templates     [string] or None
+    #  decorators    [DecoratorNode] or None
+
+    decorators = None
 
     def declare(self, env):
         if self.templates is None:
@@ -1394,15 +1399,22 @@ class CppClassNode(CStructOrUnionDefNode, BlockNode):
         if scope is not None:
             scope.type = self.entry.type
         defined_funcs = []
+        def func_attributes(attributes):
+            for attr in attributes:
+                if isinstance(attr, CFuncDefNode):
+                    yield attr
+                elif isinstance(attr, CompilerDirectivesNode):
+                    for sub_attr in func_attributes(attr.body.stats):
+                        yield sub_attr
         if self.attributes is not None:
             if self.in_pxd and not env.in_cinclude:
                 self.entry.defined_in_pxd = 1
             for attr in self.attributes:
                 attr.analyse_declarations(scope)
-                if isinstance(attr, CFuncDefNode):
-                    defined_funcs.append(attr)
-                    if self.templates is not None:
-                        attr.template_declaration = "template <typename %s>" % ", typename ".join(self.templates)
+            for func in func_attributes(self.attributes):
+                defined_funcs.append(func)
+                if self.templates is not None:
+                    func.template_declaration = "template <typename %s>" % ", typename ".join(self.templates)
         self.body = StatListNode(self.pos, stats=defined_funcs)
         self.scope = scope
 

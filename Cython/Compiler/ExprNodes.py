@@ -5310,10 +5310,10 @@ class AttributeNode(ExprNode):
         # C method of an extension type or builtin type.  If successful,
         # creates a corresponding NameNode and returns it, otherwise
         # returns None.
-        type = self.obj.analyse_as_extension_type(env)
-        if type:
+        type = self.obj.analyse_as_type(env)
+        if type and (type.is_extension_type or type.is_builtin_type or type.is_cpp_class):
             entry = type.scope.lookup_here(self.attribute)
-            if entry and entry.is_cmethod:
+            if entry and (entry.is_cmethod or type.is_cpp_class and entry.type.is_cfunction):
                 if type.is_builtin_type:
                     if not self.is_called:
                         # must handle this as Python object
@@ -5326,6 +5326,9 @@ class AttributeNode(ExprNode):
                         cname = entry.func_cname
                         if entry.type.is_static_method:
                             ctype = entry.type
+                        elif type.is_cpp_class:
+                            error(self.pos, "%s not a static member of %s" % (entry.name, type))
+                            ctype = PyrexTypes.error_type
                         else:
                             # Fix self type.
                             ctype = copy.copy(entry.type)
