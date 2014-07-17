@@ -187,4 +187,4 @@ cdef p_doc_string(PyrexScanner s)
 cdef p_ignorable_statement(PyrexScanner s)
 cdef p_compiler_directive_comments(PyrexScanner s)
 cdef p_cpp_class_definition(PyrexScanner s, pos, ctx)
-def p_cpp_class_attribute(PyrexScanner s, ctx):
+cdef p_cpp_class_attribute(PyrexScanner s, ctx)
