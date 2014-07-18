@@ -42,6 +42,21 @@ def test_Poly(int n, float radius=1):
         del poly
 
 
+cdef cppclass WithStatic:
+    @staticmethod
+    double square(double x):
+        return x * x
+
+def test_Static(x):
+    """
+    >>> test_Static(2)
+    4.0
+    >>> test_Static(0.5)
+    0.25
+    """
+    return WithStatic.square(x)
+
+
 cdef cppclass InitDealloc:
     __init__():
         print "Init"

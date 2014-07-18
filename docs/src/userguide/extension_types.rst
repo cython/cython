@@ -345,7 +345,7 @@ functions, C methods are declared using :keyword:`cdef` or :keyword:`cpdef` inst
 :keyword:`def`. C methods are "virtual", and may be overridden in derived
 extension types. In addition, :keyword:`cpdef` methods can even be overridden by python
 methods when called as C method. This adds a little to their calling overhead
-compared to a :keyword:`cdef` methd::
+compared to a :keyword:`cdef` method::
 
     # pets.pyx
     cdef class Parrot:
@@ -382,21 +382,29 @@ method using the usual Python technique, i.e.::
 
     Parrot.describe(self)
 
+`cdef` methods can be declared static by using the @staticmethod decorator.
+This can be especially useful for constructing classes that take non-Python
+compatible types.::
+
+    cdef class OwnedPointer:
+        cdef void* ptr
+
+        cdef __dealloc__(self):
+            if ptr != NULL:
+                free(ptr)
+
+        @staticmethod
+        cdef create(void* ptr):
+            p = OwnedPointer()
+            p.ptr = ptr
+            return ptr
+
 
 Forward-declaring extension types
 ===================================
 
 Extension types can be forward-declared, like :keyword:`struct` and
-:keyword:`union` types. This will be necessary if you have two extension types
-that need to refer to each other, e.g.::
-
-    cdef class Shrubbery # forward declaration
-
-    cdef class Shrubber:
-        cdef Shrubbery work_in_progress
-
-    cdef class Shrubbery:
-        cdef Shrubber creator
+:keyword:`union` types. This is usually necessary.
 
 If you are forward-declaring an extension type that has a base class, you must
 specify the base class in both the forward declaration and its subsequent

@@ -529,9 +529,10 @@ If the Rectangle class has a static member:
         };
     }
 
-you can declare it as a function living in the class namespace, i.e.::
+you can declare it using the Python @staticmethod decorator, i.e.::
 
-    cdef extern from "Rectangle.h" namespace "shapes::Rectangle":
+    cdef extern from "Rectangle.h" namespace "shapes":
+        @staticmethod
         void do_something()
 
 

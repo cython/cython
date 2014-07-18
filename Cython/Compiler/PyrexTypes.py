@@ -2315,6 +2315,7 @@ class CFuncType(CType):
     #  is_strict_signature boolean  function refuses to accept coerced arguments
     #                               (used for optimisation overrides)
     #  is_const_method  boolean
+    #  is_static_method boolean
 
     is_cfunction = 1
     original_sig = None
@@ -2327,7 +2328,8 @@ class CFuncType(CType):
     def __init__(self, return_type, args, has_varargs = 0,
             exception_value = None, exception_check = 0, calling_convention = "",
             nogil = 0, with_gil = 0, is_overridable = 0, optional_arg_count = 0,
-            is_const_method = False, templates = None, is_strict_signature = False):
+            is_const_method = False, is_static_method=False,
+            templates = None, is_strict_signature = False):
         self.return_type = return_type
         self.args = args
         self.has_varargs = has_varargs
@@ -2339,6 +2341,7 @@ class CFuncType(CType):
         self.with_gil = with_gil
         self.is_overridable = is_overridable
         self.is_const_method = is_const_method
+        self.is_static_method = is_static_method
         self.templates = templates
         self.is_strict_signature = is_strict_signature
 
@@ -2563,6 +2566,7 @@ class CFuncType(CType):
                            is_overridable = self.is_overridable,
                            optional_arg_count = self.optional_arg_count,
                            is_const_method = self.is_const_method,
+                           is_static_method = self.is_static_method,
                            templates = self.templates)
 
         result.from_fused = self.is_fused
@@ -3106,7 +3110,7 @@ class CppClassType(CType):
         # Need to do these *after* self.specializations[key] is set
         # to avoid infinite recursion on circular references.
         specialized.base_classes = [b.specialize(values) for b in self.base_classes]
-        specialized.scope = self.scope.specialize(values)
+        specialized.scope = self.scope.specialize(values, specialized)
         if self.namespace is not None:
             specialized.namespace = self.namespace.specialize(values)
         return specialized

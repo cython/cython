@@ -674,7 +674,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         for key, value in compilation_directive_defaults.items():
             self.compilation_directive_defaults[unicode(key)] = copy.deepcopy(value)
         self.cython_module_names = set()
-        self.directive_names = {}
+        self.directive_names = {'staticmethod': 'staticmethod'}
         self.parallel_directives = {}
 
     def check_directive_scope(self, pos, directive, scope):
@@ -951,16 +951,23 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         for name, value in directives.iteritems():
             if name == 'locals':
                 node.directive_locals = value
-            elif name != 'final':
+            elif name not in ('final', 'staticmethod'):
                 self.context.nonfatal_error(PostParseError(
                     node.pos,
-                    "Cdef functions can only take cython.locals() "
-                    "or final decorators, got %s." % name))
+                    "Cdef functions can only take cython.locals(), "
+                    "staticmethod, or final decorators, got %s." % name))
         body = Nodes.StatListNode(node.pos, stats=[node])
         return self.visit_with_directives(body, directives)
 
     def visit_CClassDefNode(self, node):
         directives = self._extract_directives(node, 'cclass')
+        if not directives:
+            return self.visit_Node(node)
+        body = Nodes.StatListNode(node.pos, stats=[node])
+        return self.visit_with_directives(body, directives)
+
+    def visit_CppClassNode(self, node):
+        directives = self._extract_directives(node, 'cppclass')
         if not directives:
             return self.visit_Node(node)
         body = Nodes.StatListNode(node.pos, stats=[node])
@@ -979,18 +986,23 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         # Split the decorators into two lists -- real decorators and directives
         directives = []
         realdecs = []
+        both = []
         for dec in node.decorators:
             new_directives = self.try_to_parse_directives(dec.decorator)
             if new_directives is not None:
                 for directive in new_directives:
                     if self.check_directive_scope(node.pos, directive[0], scope_name):
-                        directives.append(directive)
+                        name, value = directive
+                        if self.directives.get(name, object()) != value:
+                            directives.append(directive)
+                        if directive[0] == 'staticmethod':
+                            both.append(dec)
             else:
                 realdecs.append(dec)
         if realdecs and isinstance(node, (Nodes.CFuncDefNode, Nodes.CClassDefNode, Nodes.CVarDefNode)):
             raise PostParseError(realdecs[0].pos, "Cdef functions/classes cannot take arbitrary decorators.")
         else:
-            node.decorators = realdecs
+            node.decorators = realdecs + both
         # merge or override repeated directives
         optdict = {}
         directives.reverse() # Decorators coming first take precedence
@@ -2261,8 +2273,8 @@ class MarkClosureVisitor(CythonTransform):
 
     def visit_CFuncDefNode(self, node):
         self.visit_FuncDefNode(node)
-        if node.needs_closure:
-            error(node.pos, "closures inside cdef functions not yet supported")
+        if node.needs_closure and node.overridable:
+            error(node.pos, "closures inside cpdef functions not yet supported")
         return node
 
     def visit_LambdaNode(self, node):
@@ -2401,8 +2413,11 @@ class CreateClosureClasses(CythonTransform):
         return node
 
     def visit_CFuncDefNode(self, node):
-        self.visitchildren(node)
-        return node
+        if not node.overridable:
+            return self.visit_FuncDefNode(node)
+        else:
+            self.visitchildren(node)
+            return node
 
 
 class GilCheck(VisitorTransform):
@@ -2705,6 +2720,8 @@ class TransformBuiltinMethods(EnvTransform):
                     node.cdivision = True
             elif function == u'set':
                 node.function = ExprNodes.NameNode(node.pos, name=EncodedString('set'))
+            elif function == u'staticmethod':
+                node.function = ExprNodes.NameNode(node.pos, name=EncodedString('staticmethod'))
             elif self.context.cython_scope.lookup_qualified_name(function):
                 pass
             else:

@@ -209,6 +209,7 @@ directive_types = {
     'cfunc' : None, # decorators do not take directive value
     'ccall' : None,
     'inline' : None,
+    'staticmethod' : None,
     'cclass' : None,
     'returns' : type,
     'set_initial_path': str,
@@ -225,6 +226,7 @@ directive_scopes = { # defaults to available everywhere
     # 'module', 'function', 'class', 'with statement'
     'final' : ('cclass', 'function'),
     'inline' : ('function',),
+    'staticmethod' : ('function',),  # FIXME: analysis currently lacks more specific function scope
     'no_gc_clear' : ('cclass',),
     'internal' : ('cclass',),
     'autotestdict' : ('module',),

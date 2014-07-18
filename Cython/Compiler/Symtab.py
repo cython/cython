@@ -1947,11 +1947,12 @@ class CClassScope(ClassScope):
         if get_special_method_signature(name) and not self.parent_type.is_builtin_type:
             error(pos, "Special methods must be declared with 'def', not 'cdef'")
         args = type.args
-        if not args:
-            error(pos, "C method has no self argument")
-        elif not self.parent_type.assignable_from(args[0].type):
-            error(pos, "Self argument (%s) of C method '%s' does not match parent type (%s)" %
-                  (args[0].type, name, self.parent_type))
+        if not type.is_static_method:
+            if not args:
+                error(pos, "C method has no self argument")
+            elif not self.parent_type.assignable_from(args[0].type):
+                error(pos, "Self argument (%s) of C method '%s' does not match parent type (%s)" %
+                      (args[0].type, name, self.parent_type))
         entry = self.lookup_here(name)
         if cname is None:
             cname = c_safe_identifier(name)
@@ -2106,7 +2107,8 @@ class CppClassScope(Scope):
             entry = self.declare(name, cname, type, pos, visibility)
         entry.is_variable = 1
         if type.is_cfunction and self.type:
-            entry.func_cname = "%s::%s" % (self.type.declaration_code(""), cname)
+            if not self.type.templates or not any(T.is_fused for T in self.type.templates):
+                entry.func_cname = "%s::%s" % (self.type.declaration_code(""), cname)
         if name != "this" and (defining or name != "<init>"):
             self.var_entries.append(entry)
         if type.is_pyobject and not allow_pyobject:
@@ -2189,8 +2191,9 @@ class CppClassScope(Scope):
                                            utility_code = base_entry.utility_code)
             entry.is_inherited = 1
 
-    def specialize(self, values):
+    def specialize(self, values, type_entry):
         scope = CppClassScope(self.name, self.outer_scope)
+        scope.type = type_entry
         for entry in self.entries.values():
             if entry.is_type:
                 scope.declare_type(entry.name,

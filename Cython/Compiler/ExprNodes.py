@@ -4456,16 +4456,24 @@ class SimpleCallNode(CallNode):
         return func_type
 
     def analyse_c_function_call(self, env):
-        if self.function.type is error_type:
+        func_type = self.function.type
+        if func_type is error_type:
             self.type = error_type
             return
 
-        if self.self:
+        if func_type.is_cfunction and func_type.is_static_method:
+            if self.self and self.self.type.is_extension_type:
+                # To support this we'd need to pass self to determine whether
+                # it was overloaded in Python space (possibly via a Cython
+                # superclass turning a cdef method into a cpdef one).
+                error(self.pos, "Cannot call a static method on an instance variable.")
+            args = self.args
+        elif self.self:
             args = [self.self] + self.args
         else:
             args = self.args
 
-        if self.function.type.is_cpp_class:
+        if func_type.is_cpp_class:
             overloaded_entry = self.function.type.scope.lookup("operator()")
             if overloaded_entry is None:
                 self.type = PyrexTypes.error_type
@@ -4515,7 +4523,7 @@ class SimpleCallNode(CallNode):
             self.is_temp = 1
 
         # check 'self' argument
-        if entry and entry.is_cmethod and func_type.args:
+        if entry and entry.is_cmethod and func_type.args and not func_type.is_static_method:
             formal_arg = func_type.args[0]
             arg = args[0]
             if formal_arg.not_none:
@@ -5302,10 +5310,12 @@ class AttributeNode(ExprNode):
         # C method of an extension type or builtin type.  If successful,
         # creates a corresponding NameNode and returns it, otherwise
         # returns None.
-        type = self.obj.analyse_as_extension_type(env)
-        if type:
+        if self.obj.is_string_literal:
+            return
+        type = self.obj.analyse_as_type(env)
+        if type and (type.is_extension_type or type.is_builtin_type or type.is_cpp_class):
             entry = type.scope.lookup_here(self.attribute)
-            if entry and entry.is_cmethod:
+            if entry and (entry.is_cmethod or type.is_cpp_class and entry.type.is_cfunction):
                 if type.is_builtin_type:
                     if not self.is_called:
                         # must handle this as Python object
@@ -5314,9 +5324,22 @@ class AttributeNode(ExprNode):
                 else:
                     # Create a temporary entry describing the C method
                     # as an ordinary function.
-                    ubcm_entry = Symtab.Entry(entry.name,
-                        "%s->%s" % (type.vtabptr_cname, entry.cname),
-                        entry.type)
+                    if entry.func_cname and not hasattr(entry.type, 'op_arg_struct'):
+                        cname = entry.func_cname
+                        if entry.type.is_static_method:
+                            ctype = entry.type
+                        elif type.is_cpp_class:
+                            error(self.pos, "%s not a static member of %s" % (entry.name, type))
+                            ctype = PyrexTypes.error_type
+                        else:
+                            # Fix self type.
+                            ctype = copy.copy(entry.type)
+                            ctype.args = ctype.args[:]
+                            ctype.args[0] = PyrexTypes.CFuncTypeArg('self', type, 'self', None)
+                    else:
+                        cname = "%s->%s" % (type.vtabptr_cname, entry.cname)
+                        ctype = entry.type
+                    ubcm_entry = Symtab.Entry(entry.name, cname, ctype)
                     ubcm_entry.is_cfunction = 1
                     ubcm_entry.func_cname = entry.func_cname
                     ubcm_entry.is_unbound_cmethod = 1

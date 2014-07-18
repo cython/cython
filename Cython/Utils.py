@@ -399,3 +399,16 @@ def print_bytes(s, end=b'\n', file=sys.stdout, flush=True):
         out.write(end)
     if flush:
         out.flush()
+
+class LazyStr:
+    def __init__(self, callback):
+        self.callback = callback
+    def __str__(self):
+        return self.callback()
+    def __repr__(self):
+        return self.callback()
+    def __add__(self, right):
+        return self.callback() + right
+    def __radd__(self, left):
+        return left + self.callback()
+

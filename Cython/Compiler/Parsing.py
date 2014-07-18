@@ -3231,12 +3231,8 @@ def p_cpp_class_definition(s, pos,  ctx):
         body_ctx = Ctx(visibility = ctx.visibility, level='cpp_class', nogil=nogil or ctx.nogil)
         body_ctx.templates = templates
         while s.sy != 'DEDENT':
-            if s.systring == 'cppclass':
-                attributes.append(
-                    p_cpp_class_definition(s, s.position(), body_ctx))
-            elif s.sy != 'pass':
-                attributes.append(
-                    p_c_func_or_var_declaration(s, s.position(), body_ctx))
+            if s.sy != 'pass':
+                attributes.append(p_cpp_class_attribute(s, body_ctx))
             else:
                 s.next()
                 s.expect_newline("Expected a newline")
@@ -3252,6 +3248,23 @@ def p_cpp_class_definition(s, pos,  ctx):
         in_pxd = ctx.level == 'module_pxd',
         attributes = attributes,
         templates = templates)
+
+def p_cpp_class_attribute(s, ctx):
+    decorators = None
+    if s.sy == '@':
+        decorators = p_decorators(s)
+    if s.systring == 'cppclass':
+        return p_cpp_class_definition(s, s.position(), ctx)
+    else:
+        node = p_c_func_or_var_declaration(s, s.position(), ctx)
+        if decorators is not None:
+            tup = Nodes.CFuncDefNode, Nodes.CVarDefNode, Nodes.CClassDefNode
+            if ctx.allow_struct_enum_decorator:
+                tup += Nodes.CStructOrUnionDefNode, Nodes.CEnumDefNode
+            if not isinstance(node, tup):
+                s.error("Decorators can only be followed by functions or classes")
+            node.decorators = decorators
+        return node
 
 
 #----------------------------------------------
