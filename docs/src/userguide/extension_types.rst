@@ -404,7 +404,8 @@ Forward-declaring extension types
 ===================================
 
 Extension types can be forward-declared, like :keyword:`struct` and
-:keyword:`union` types. This is usually necessary.
+:keyword:`union` types.  This is usually not necessary and violates the
+DRY principle (Don't Repeat Yourself).
 
 If you are forward-declaring an extension type that has a base class, you must
 specify the base class in both the forward declaration and its subsequent
