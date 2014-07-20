@@ -9794,6 +9794,10 @@ class BoolBinopResultNode(ExprNode):
         # TODO: unwrap more coercion nodes?
         return BoolBinopResultNode(arg, dst_type, env)
 
+    def nogil_check(self, env):
+        # let's leave all errors to BoolBinopNode
+        pass
+
     def generate_operand_test(self, code):
         #  Generate code to test the truth of the first operand.
         if self.arg.type.is_pyobject:
