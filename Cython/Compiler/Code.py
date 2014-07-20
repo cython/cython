@@ -644,7 +644,7 @@ class FunctionState(object):
             self.temps_allocated.append((result, type, manage_ref, static))
         self.temps_used_type[result] = (type, manage_ref)
         if DebugFlags.debug_temp_code_comments:
-            self.owner.putln("/* %s allocated */" % result)
+            self.owner.putln("/* %s allocated (%s) */" % (result, type))
 
         if self.collect_temps_stack:
             self.collect_temps_stack[-1].add((result, type))
