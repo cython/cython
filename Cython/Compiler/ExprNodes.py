@@ -9638,13 +9638,18 @@ class PowNode(NumBinopNode):
 
 
 class BoolBinopNode(ExprNode):
-    #  Short-circuiting boolean operation.
-    #
-    #  operator     string
-    #  operand1     ExprNode
-    #  operand2     ExprNode
+    """
+    Short-circuiting boolean operation.
 
+    Note that this node provides the same code generation method as
+    BoolBinopResultNode to simplify expression nesting.
+
+    operator  string                              "and"/"or"
+    operand1  BoolBinopNode/BoolBinopResultNode   left operand
+    operand2  BoolBinopNode/BoolBinopResultNode   right operand
+    """
     subexprs = ['operand1', 'operand2']
+    is_temp = True
     operator = None
     operand1 = None
     operand2 = None
@@ -9676,22 +9681,6 @@ class BoolBinopNode(ExprNode):
         else:
             return operand1 or operand2
 
-    def coerce_to_boolean(self, env):
-        return BoolBinopNode.from_node(
-            self,
-            operator=self.operator,
-            operand1=self.operand1.coerce_to_boolean(env).coerce_to_simple(env),
-            operand2=self.operand2.coerce_to_boolean(env).coerce_to_simple(env),
-            type=PyrexTypes.c_bint_type,
-            is_temp=self.is_temp)
-
-    def coerce_to(self, dst_type, env):
-        if dst_type is PyrexTypes.c_bint_type:
-            return self.coerce_to_boolean(env)
-        return GenericBoolBinopNode.from_node(
-            self, env=env, type=dst_type,
-            operator=self.operator, operand1=self.operand1, operand2=self.operand2)
-
     def is_ephemeral(self):
         return self.operand1.is_ephemeral() or self.operand2.is_ephemeral()
 
@@ -9699,48 +9688,52 @@ class BoolBinopNode(ExprNode):
         # Note: we do not do any coercion here as we most likely do not know the final type anyway.
         # We even accept to set self.type to ErrorType if both operands do not have a spanning type.
         # The coercion to the final type and to a "simple" value is left to coerce_to().
-        self.operand1 = self.operand1.analyse_types(env)
-        self.operand2 = self.operand2.analyse_types(env)
+        operand1 = self.operand1.analyse_types(env)
+        operand2 = self.operand2.analyse_types(env)
         self.type = PyrexTypes.independent_spanning_type(
-            self.operand1.type, self.operand2.type)
-        self.is_temp = 1
+            operand1.type, operand2.type)
+        self.operand1 = BoolBinopResultNode(operand1, self.type, env)
+        self.operand2 = BoolBinopResultNode(operand2, self.type, env)
         return self
+
+    def coerce_to_boolean(self, env):
+        return self.coerce_to(PyrexTypes.c_bint_type, env)
+
+    def coerce_to(self, dst_type, env):
+        operand1 = self.operand1.coerce_to(dst_type, env)
+        operand2 = self.operand2.coerce_to(dst_type, env)
+        return BoolBinopNode.from_node(
+            self, type=dst_type,
+            operator=self.operator,
+            operand1=operand1, operand2=operand2)
+
+    def generate_bool_evaluation_code(self, code, final_result_temp, and_label, or_label, end_label):
+        code.mark_pos(self.pos)
+
+        outer_labels = (and_label, or_label)
+        if self.operator == 'and':
+            my_label = and_label = code.new_label('next_and')
+        else:
+            my_label = or_label = code.new_label('next_or')
+        self.operand1.generate_bool_evaluation_code(code, final_result_temp, and_label, or_label, end_label)
+
+        and_label, or_label = outer_labels
+
+        code.put_label(my_label)
+        self.operand2.generate_bool_evaluation_code(code, final_result_temp, and_label, or_label, end_label)
+
+    def generate_evaluation_code(self, code):
+        self.allocate_temp_result(code)
+        or_label = and_label = None
+        end_label = code.new_label('bool_binop_done')
+        self.generate_bool_evaluation_code(code, self.result(), and_label, or_label, end_label)
+        if code.label_used(end_label):
+            code.put_label(end_label)
 
     gil_message = "Truth-testing Python object"
 
     def check_const(self):
         return self.operand1.check_const() and self.operand2.check_const()
-
-    def generate_evaluation_code(self, code):
-        if self.type is error_type:
-            # quite clearly, we did *not* coerce to boolean, but both operand types mismatch
-            error(self.pos, "incompatible types in short-circuiting boolean expression not resolved")
-        code.mark_pos(self.pos)
-        self.operand1.generate_evaluation_code(code)
-        test_result, uses_temp = self.generate_operand1_test(code)
-        if self.operator == 'and':
-            sense = ""
-        else:
-            sense = "!"
-        code.putln(
-            "if (%s%s) {" % (
-                sense,
-                test_result))
-        if uses_temp:
-            code.funcstate.release_temp(test_result)
-        self.operand1.generate_disposal_code(code)
-        self.operand2.generate_evaluation_code(code)
-        self.allocate_temp_result(code)
-        self.operand2.make_owned_reference(code)
-        code.putln("%s = %s;" % (self.result(), self.operand2.result()))
-        self.operand2.generate_post_assignment_code(code)
-        self.operand2.free_temps(code)
-        code.putln("} else {")
-        self.operand1.make_owned_reference(code)
-        code.putln("%s = %s;" % (self.result(), self.operand1.result()))
-        self.operand1.generate_post_assignment_code(code)
-        self.operand1.free_temps(code)
-        code.putln("}")
 
     def generate_subexpr_disposal_code(self, code):
         pass  # nothing to do here, all done in generate_evaluation_code()
@@ -9770,7 +9763,7 @@ class BoolBinopResultNode(ExprNode):
     of the overall expression to the target type.
 
     Note that this node provides the same code generation method as
-    GenericBoolBinopNode to simplify expression nesting.
+    BoolBinopNode to simplify expression nesting.
 
     arg     ExprNode    the argument to test
     value   ExprNode    the coerced result value node
@@ -9791,8 +9784,15 @@ class BoolBinopResultNode(ExprNode):
             value=CloneNode(arg).coerce_to(result_type, env))
 
     def coerce_to_boolean(self, env):
-        # coercing to simple boolean case after being instantiated => replace by simple coerced result
-        return self.arg.arg.coerce_to_boolean(env)
+        return self.coerce_to(PyrexTypes.c_bint_type, env)
+
+    def coerce_to(self, dst_type, env):
+        # unwrap, coerce, rewrap
+        arg = self.arg.arg
+        if dst_type is PyrexTypes.c_bint_type:
+            arg = arg.coerce_to_boolean(env)
+        # TODO: unwrap more coercion nodes?
+        return BoolBinopResultNode(arg, dst_type, env)
 
     def generate_operand_test(self, code):
         #  Generate code to test the truth of the first operand.
@@ -9850,59 +9850,6 @@ class BoolBinopResultNode(ExprNode):
         if and_label or or_label:
             code.putln("}")
         self.arg.free_temps(code)
-
-
-class GenericBoolBinopNode(BoolBinopNode):
-    """
-    BoolBinopNode with arbitrary non-bool result type.
-
-    Note that this node provides the same code generation method as
-    BoolBinopResultNode to simplify expression nesting.
-
-    operator  string                                     "and"/"or"
-    operand1  GenericBoolBinopNode/BoolBinopResultNode   left operand
-    operand2  GenericBoolBinopNode/BoolBinopResultNode   right operand
-    """
-    subexprs = ['operand1', 'operand2']
-    is_temp = True
-
-    def __init__(self, pos, env, type, operator, operand1, operand2, **kwargs):
-        super(GenericBoolBinopNode, self).__init__(
-            pos, operator=operator, type=type,
-            operand1=self._wrap_operand(operand1, type, env),
-            operand2=self._wrap_operand(operand2, type, env),
-            **kwargs)
-
-    def _wrap_operand(self, operand, result_type, env):
-        if isinstance(operand, (GenericBoolBinopNode, BoolBinopResultNode)):
-            return operand
-        if isinstance(operand, BoolBinopNode):
-            return operand.coerce_to(result_type, env)
-        else:
-            return BoolBinopResultNode(operand, result_type, env)
-
-    def generate_bool_evaluation_code(self, code, final_result_temp, and_label, or_label, end_label):
-        code.mark_pos(self.pos)
-
-        outer_labels = (and_label, or_label)
-        if self.operator == 'and':
-            my_label = and_label = code.new_label('next_and')
-        else:
-            my_label = or_label = code.new_label('next_or')
-        self.operand1.generate_bool_evaluation_code(code, final_result_temp, and_label, or_label, end_label)
-
-        and_label, or_label = outer_labels
-
-        code.put_label(my_label)
-        self.operand2.generate_bool_evaluation_code(code, final_result_temp, and_label, or_label, end_label)
-
-    def generate_evaluation_code(self, code):
-        self.allocate_temp_result(code)
-        or_label = and_label = None
-        end_label = code.new_label('bool_binop_done')
-        self.generate_bool_evaluation_code(code, self.result(), and_label, or_label, end_label)
-        if code.label_used(end_label):
-            code.put_label(end_label)
 
 
 class CondExprNode(ExprNode):

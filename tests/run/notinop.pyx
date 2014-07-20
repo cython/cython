@@ -83,7 +83,7 @@ def m_tuple(int a):
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode")
-@cython.test_fail_if_path_exists("//BoolBinopNode", "//GenericBoolBinopNode", "//PrimaryCmpNode")
+@cython.test_fail_if_path_exists("//BoolBinopNode", "//BoolBinopNode", "//PrimaryCmpNode")
 def m_set(int a):
     """
     >>> m_set(2)
@@ -97,7 +97,7 @@ def m_set(int a):
 cdef bytes bytes_string = b'abcdefg'
 
 @cython.test_assert_path_exists("//PrimaryCmpNode")
-@cython.test_fail_if_path_exists("//SwitchStatNode", "//BoolBinopNode", "//GenericBoolBinopNode")
+@cython.test_fail_if_path_exists("//SwitchStatNode", "//BoolBinopNode", "//BoolBinopNode")
 def m_bytes(char a):
     """
     >>> m_bytes(ord('f'))
@@ -109,7 +109,7 @@ def m_bytes(char a):
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode")
-@cython.test_fail_if_path_exists("//BoolBinopNode", "//GenericBoolBinopNode", "//PrimaryCmpNode")
+@cython.test_fail_if_path_exists("//BoolBinopNode", "//BoolBinopNode", "//PrimaryCmpNode")
 def m_bytes_literal(char a):
     """
     >>> m_bytes_literal(ord('f'))
@@ -127,7 +127,7 @@ cdef unicode klingon_character = u'\uF8D2'
 py_klingon_character = klingon_character
 
 @cython.test_assert_path_exists("//PrimaryCmpNode")
-@cython.test_fail_if_path_exists("//SwitchStatNode", "//GenericBoolBinopNode", "//BoolBinopNode")
+@cython.test_fail_if_path_exists("//SwitchStatNode", "//BoolBinopNode", "//BoolBinopNode")
 def m_unicode(Py_UNICODE a, unicode unicode_string):
     """
     >>> m_unicode(ord('f'), py_unicode_string)
@@ -147,7 +147,7 @@ def m_unicode(Py_UNICODE a, unicode unicode_string):
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode")
-@cython.test_fail_if_path_exists("//GenericBoolBinopNode", "//BoolBinopNode", "//PrimaryCmpNode")
+@cython.test_fail_if_path_exists("//BoolBinopNode", "//BoolBinopNode", "//PrimaryCmpNode")
 def m_unicode_literal(Py_UNICODE a):
     """
     >>> m_unicode_literal(ord('f'))
@@ -160,7 +160,7 @@ def m_unicode_literal(Py_UNICODE a):
     cdef int result = a not in u'abcdefg\u1234\uF8D2'
     return result
 
-@cython.test_assert_path_exists("//SwitchStatNode", "//GenericBoolBinopNode")
+@cython.test_assert_path_exists("//SwitchStatNode", "//BoolBinopNode")
 @cython.test_fail_if_path_exists("//PrimaryCmpNode")
 def m_tuple_in_or_notin(int a):
     """
@@ -174,7 +174,7 @@ def m_tuple_in_or_notin(int a):
     cdef int result = a not in (1,2,3,4) or a in (3,4)
     return result
 
-@cython.test_assert_path_exists("//SwitchStatNode", "//GenericBoolBinopNode")
+@cython.test_assert_path_exists("//SwitchStatNode", "//BoolBinopNode")
 @cython.test_fail_if_path_exists("//PrimaryCmpNode")
 def m_tuple_notin_or_notin(int a):
     """
@@ -189,7 +189,7 @@ def m_tuple_notin_or_notin(int a):
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode")
-@cython.test_fail_if_path_exists("//GenericBoolBinopNode", "//BoolBinopNode", "//PrimaryCmpNode")
+@cython.test_fail_if_path_exists("//BoolBinopNode", "//BoolBinopNode", "//PrimaryCmpNode")
 def m_tuple_notin_and_notin(int a):
     """
     >>> m_tuple_notin_and_notin(2)
@@ -202,7 +202,7 @@ def m_tuple_notin_and_notin(int a):
     cdef int result = a not in (1,2,3,4) and a not in (6,7)
     return result
 
-@cython.test_assert_path_exists("//SwitchStatNode", "//GenericBoolBinopNode")
+@cython.test_assert_path_exists("//SwitchStatNode", "//BoolBinopNode")
 @cython.test_fail_if_path_exists("//PrimaryCmpNode")
 def m_tuple_notin_and_notin_overlap(int a):
     """
@@ -217,7 +217,7 @@ def m_tuple_notin_and_notin_overlap(int a):
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode")
-@cython.test_fail_if_path_exists("//GenericBoolBinopNode", "//BoolBinopNode", "//PrimaryCmpNode")
+@cython.test_fail_if_path_exists("//BoolBinopNode", "//BoolBinopNode", "//PrimaryCmpNode")
 def conditional_int(int a):
     """
     >>> conditional_int(1)
@@ -230,7 +230,7 @@ def conditional_int(int a):
     return 1 if a not in (1,2,3,4) else 2
 
 @cython.test_assert_path_exists("//SwitchStatNode")
-@cython.test_fail_if_path_exists("//GenericBoolBinopNode", "//BoolBinopNode", "//PrimaryCmpNode")
+@cython.test_fail_if_path_exists("//BoolBinopNode", "//BoolBinopNode", "//PrimaryCmpNode")
 def conditional_object(int a):
     """
     >>> conditional_object(1)
@@ -243,7 +243,7 @@ def conditional_object(int a):
     return 1 if a not in (1,2,3,4) else '2'
 
 @cython.test_assert_path_exists("//SwitchStatNode")
-@cython.test_fail_if_path_exists("//GenericBoolBinopNode", "//BoolBinopNode", "//PrimaryCmpNode")
+@cython.test_fail_if_path_exists("//BoolBinopNode", "//BoolBinopNode", "//PrimaryCmpNode")
 def conditional_bytes(char a):
     """
     >>> conditional_bytes(ord('a'))
@@ -256,7 +256,7 @@ def conditional_bytes(char a):
     return 1 if a not in b'abc' else '2'
 
 @cython.test_assert_path_exists("//SwitchStatNode")
-@cython.test_fail_if_path_exists("//GenericBoolBinopNode", "//BoolBinopNode", "//PrimaryCmpNode")
+@cython.test_fail_if_path_exists("//BoolBinopNode", "//BoolBinopNode", "//PrimaryCmpNode")
 def conditional_unicode(Py_UNICODE a):
     """
     >>> conditional_unicode(ord('a'))
@@ -269,7 +269,7 @@ def conditional_unicode(Py_UNICODE a):
     return 1 if a not in u'abc' else '2'
 
 @cython.test_assert_path_exists("//SwitchStatNode")
-@cython.test_fail_if_path_exists("//GenericBoolBinopNode", "//BoolBinopNode", "//PrimaryCmpNode")
+@cython.test_fail_if_path_exists("//BoolBinopNode", "//BoolBinopNode", "//PrimaryCmpNode")
 def conditional_none(int a):
     """
     >>> conditional_none(1)
