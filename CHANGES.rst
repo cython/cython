@@ -93,6 +93,8 @@ Bugs fixed
   runtime but not as global module names.  Trying both lookups helps with
   globals() manipulation.
 
+* Fixed stl container conversion for typedef element types.
+
 * ``obj.pop(x)`` truncated large C integer values of x to ``Py_ssize_t``.
 
 * ``__init__.pyc`` is recognised as marking a package directory
