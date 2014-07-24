@@ -122,11 +122,11 @@ def test_typedef_vector(o):
     """
     >>> test_typedef_vector([1, 2, 3])
     [1, 2, 3]
-    >>> test_typedef_vector([1, 2, 3**100])
+    >>> test_typedef_vector([1, 2, 3**100])       #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
     OverflowError: ...
-    >>> test_typedef_vector([1, 2, None])
+    >>> test_typedef_vector([1, 2, None])       #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
     TypeError: an integer is required
