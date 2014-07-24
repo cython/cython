@@ -8,14 +8,18 @@ cdef extern from "<map>" namespace "std" nogil:
             iterator operator--()
             bint operator==(iterator)
             bint operator!=(iterator)
+        cppclass const_iterator:
+            pair[const T, U]& operator*()
+            const_iterator operator++()
+            const_iterator operator--()
+            bint operator==(const_iterator)
+            bint operator!=(const_iterator)
         cppclass reverse_iterator:
             pair[T, U]& operator*()
             iterator operator++()
             iterator operator--()
             bint operator==(reverse_iterator)
             bint operator!=(reverse_iterator)
-        #cppclass const_iterator(iterator):
-        #    pass
         #cppclass const_reverse_iterator(reverse_iterator):
         #    pass
         map() except +
@@ -31,19 +35,19 @@ cdef extern from "<map>" namespace "std" nogil:
         bint operator>=(map&, map&)
         U& at(T&)
         iterator begin()
-        #const_iterator begin()
+        const_iterator const_begin "begin" ()
         void clear()
         size_t count(T&)
         bint empty()
         iterator end()
-        #const_iterator end()
+        const_iterator const_end "end" ()
         pair[iterator, iterator] equal_range(T&)
         #pair[const_iterator, const_iterator] equal_range(key_type&)
         void erase(iterator)
         void erase(iterator, iterator)
         size_t erase(T&)
         iterator find(T&)
-        #const_iterator find(key_type&)
+        const_iterator const_find "find" (T&)
         pair[iterator, bint] insert(pair[T, U]) # XXX pair[T,U]&
         iterator insert(iterator, pair[T, U]) # XXX pair[T,U]&
         #void insert(input_iterator, input_iterator)

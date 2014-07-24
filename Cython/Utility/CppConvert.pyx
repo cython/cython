@@ -213,18 +213,18 @@ cdef extern from *:
         cppclass value_type:
             T first
             U second
-        cppclass iterator:
+        cppclass const_iterator:
             value_type& operator*()
-            iterator operator++()
-            bint operator!=(iterator)
-        iterator begin()
-        iterator end()
+            const_iterator operator++()
+            bint operator!=(const_iterator)
+        const_iterator begin()
+        const_iterator end()
 
 @cname("{{cname}}")
-cdef object {{cname}}(map[X,Y] s):
+cdef object {{cname}}(const map[X,Y]& s):
     o = {}
-    cdef map[X,Y].value_type *key_value
-    cdef map[X,Y].iterator iter = s.begin()
+    cdef const map[X,Y].value_type *key_value
+    cdef map[X,Y].const_iterator iter = s.begin()
     while iter != s.end():
         key_value = &cython.operator.dereference(iter)
         o[X_to_py(key_value.first)] = Y_to_py(key_value.second)
