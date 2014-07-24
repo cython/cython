@@ -1,4 +1,5 @@
-from utility cimport pair
+from __future__ import absolute_import
+from .utility cimport pair
 
 cdef extern from "<map>" namespace "std" nogil:
     cdef cppclass map[T, U]:

@@ -1,1 +1,2 @@
-from utility cimport pair
+from __future__ import absolute_import
+from .utility cimport pair
