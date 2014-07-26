@@ -116,6 +116,24 @@ def test_double_vector(o):
     cdef vector[double] v = o
     return v
 
+ctypedef int my_int
+
+def test_typedef_vector(o):
+    """
+    >>> test_typedef_vector([1, 2, 3])
+    [1, 2, 3]
+    >>> test_typedef_vector([1, 2, 3**100])       #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    OverflowError: ...
+    >>> test_typedef_vector([1, 2, None])       #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    TypeError: an integer is required
+    """
+    cdef vector[my_int] v = o
+    return v
+
 def test_pair(o):
     """
     >>> test_pair((1, 2))

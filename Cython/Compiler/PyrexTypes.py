@@ -3023,12 +3023,30 @@ class CppClassType(CType):
                     return False
                 tags.append(T.specialization_name())
                 if T.exception_value is not None:
-                    except_clause = T.exception_value
+                    # This is a hack due to the except value clause
+                    # requiring a const (literal) value of the right
+                    # (visible) type.
+                    def guess_type(value):
+                        if not T.is_typedef and (T.is_numeric or T.is_ptr):
+                            return T
+                        try:
+                            int(value)
+                            return c_longlong_type
+                        except ValueError:
+                            pass
+                        try:
+                            float(value)
+                            return c_double_type
+                        except ValueError:
+                            pass
+                        return T
+                    except_type = guess_type(T.exception_value)
+                    except_clause = "%s " % T.exception_value
                     if T.exception_check:
                         except_clause = "? %s" % except_clause
                     declarations.append(
                         "    ctypedef %s %s '%s'" % (
-                             T.declaration_code("", for_display=True), X[ix], T.declaration_code("")))
+                             except_type.declaration_code("", for_display=True), X[ix], T.declaration_code("")))
                 else:
                     except_clause = "*"
                     declarations.append(

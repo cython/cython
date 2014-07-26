@@ -1478,7 +1478,7 @@ if VALUE is not None:
 
     def visit_CClassDefNode(self, node):
         node = self.visit_ClassDefNode(node)
-        if node.scope and node.scope.implemented:
+        if node.scope and node.scope.implemented and node.body:
             stats = []
             for entry in node.scope.var_entries:
                 if entry.needs_property:
