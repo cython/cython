@@ -9692,9 +9692,14 @@ class BoolBinopNode(ExprNode):
         operand2 = self.operand2.analyse_types(env)
         self.type = PyrexTypes.independent_spanning_type(
             operand1.type, operand2.type)
-        self.operand1 = BoolBinopResultNode(operand1, self.type, env)
-        self.operand2 = BoolBinopResultNode(operand2, self.type, env)
+        self.operand1 = self._wrap_operand(operand1, env)
+        self.operand2 = self._wrap_operand(operand2, env)
         return self
+
+    def _wrap_operand(self, operand, env):
+        if not isinstance(operand, (BoolBinopNode, BoolBinopResultNode)):
+            operand = BoolBinopResultNode(operand, self.type, env)
+        return operand
 
     def coerce_to_boolean(self, env):
         return self.coerce_to(PyrexTypes.c_bint_type, env)
