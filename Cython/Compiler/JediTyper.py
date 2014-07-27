@@ -16,12 +16,14 @@ default_type_map = {
 }
 
 
-def analyse(source_path):
+def analyse(source_path=None, code=None):
     """
     Analyse a Python source code file with Jedi.
     Returns a mapping from (scope-name, (line, column)) pairs to a name-types mapping.
     """
-    script = Script(path=source_path)
+    if not source_path and code is None:
+        raise ValueError("Either 'source_path' or 'code' is required.")
+    script = Script(source=code, path=source_path)
     evaluator = script._evaluator
     scoped_names = {}
     for statements in script._parser.module().used_names.values():
