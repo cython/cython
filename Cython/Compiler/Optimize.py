@@ -803,7 +803,7 @@ class IterationTransform(Visitor.EnvTransform):
             ])
 
 
-class SwitchTransform(Visitor.CythonTransform):
+class SwitchTransform(Visitor.EnvTransform):
     """
     This transformation tries to turn long if statements into C switch statements.
     The requirement is that every clause be an (or of) var == value, where the var
@@ -979,6 +979,7 @@ class SwitchTransform(Visitor.CythonTransform):
                or len(conditions) < 2 \
                or self.has_duplicate_values(conditions):
             self.visitchildren(node)
+            node.wrap_operands(self.current_env())  # in case we changed the operands
             return node
 
         return self.build_simple_switch_statement(
