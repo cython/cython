@@ -2138,7 +2138,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         """Transform int() into a faster C function call.
         """
         if len(pos_args) == 0:
-            return ExprNodes.IntNode(node, value="0", constant_result=0,
+            return ExprNodes.IntNode(node.pos, value="0", constant_result=0,
                                      type=PyrexTypes.py_object_type)
         elif len(pos_args) != 1:
             return node  # int(x, base)
@@ -2316,10 +2316,10 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
                     is_temp = True,
                     ))
 
-        def join_with_or(a,b, make_binop_node=ExprNodes.binop_node):
+        def join_with_or(a, b, make_binop_node=ExprNodes.binop_node):
             or_node = make_binop_node(node.pos, 'or', a, b)
             or_node.type = PyrexTypes.c_bint_type
-            or_node.is_temp = True
+            or_node.wrap_operands(env)
             return or_node
 
         test_node = reduce(join_with_or, test_nodes).coerce_to(node.type, env)

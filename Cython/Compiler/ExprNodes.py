@@ -9701,6 +9701,14 @@ class BoolBinopNode(ExprNode):
             operand = BoolBinopResultNode(operand, self.type, env)
         return operand
 
+    def wrap_operands(self, env):
+        """
+        Must get called by transforms that want to create a correct BoolBinopNode
+        after the type analysis phase.
+        """
+        self.operand1 = self._wrap_operand(self.operand1, env)
+        self.operand2 = self._wrap_operand(self.operand2, env)
+
     def coerce_to_boolean(self, env):
         return self.coerce_to(PyrexTypes.c_bint_type, env)
 
