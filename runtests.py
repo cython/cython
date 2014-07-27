@@ -1939,6 +1939,11 @@ def runtests(options, cmd_args, coverage=None):
     except (ImportError, AttributeError, TypeError):
         exclude_selectors.append(RegExSelector('IPython'))
 
+    try:
+        import jedi
+    except ImportError:
+        exclude_selectors.append(RegExSelector('Jedi'))
+
     if options.exclude:
         exclude_selectors += [ string_selector(r) for r in options.exclude ]
 
