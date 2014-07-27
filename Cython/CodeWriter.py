@@ -397,9 +397,17 @@ class CodeWriter(DeclarationWriter):
         if isinstance(posarg, AsTupleNode):
             self.visit(posarg.arg)
         else:
-            self.comma_separated_list(posarg)
-        if node.keyword_args is not None or node.starstar_arg is not None:
-            raise Exception("Not implemented yet")
+            self.comma_separated_list(posarg.args)  # TupleNode.args
+        if node.keyword_args:
+            if isinstance(node.keyword_args, DictNode):
+                for i, (name, value) in enumerate(node.keyword_args.key_value_pairs):
+                    if i > 0:
+                        self.put(', ')
+                    self.visit(name)
+                    self.put('=')
+                    self.visit(value)
+            else:
+                raise Exception("Not implemented yet")
         self.put(u")")
 
     def visit_ExprStatNode(self, node):
