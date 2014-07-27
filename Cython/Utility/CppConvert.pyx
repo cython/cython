@@ -21,7 +21,7 @@ cdef string {{cname}}(object o) except *:
 #cimport cython
 #from libcpp.string cimport string
 cdef extern from *:
-    cdef cppclass string "const std::string":
+    cdef cppclass string "std::string":
         char* data()
         size_t size()
     cdef object __Pyx_PyObject_FromStringAndSize(char*, size_t)
