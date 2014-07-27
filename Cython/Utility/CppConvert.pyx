@@ -27,7 +27,7 @@ cdef extern from *:
     cdef object __Pyx_PyObject_FromStringAndSize(char*, size_t)
 
 @cname("{{cname}}")
-cdef object {{cname}}(string& s):
+cdef object {{cname}}(const string& s):
     return __Pyx_PyObject_FromStringAndSize(s.data(), s.size())
 
 
@@ -91,11 +91,9 @@ cdef extern from *:
             bint operator!=(const_iterator)
         const_iterator begin()
         const_iterator end()
-    cdef cppclass const_cpp_list "const std::list" [T] (cpp_list):
-        pass
 
 @cname("{{cname}}")
-cdef object {{cname}}(const_cpp_list[X]& v):
+cdef object {{cname}}(const cpp_list[X]& v):
     o = []
     cdef cpp_list[X].const_iterator iter = v.begin()
     while iter != v.end():
@@ -134,11 +132,9 @@ cdef extern from *:
             bint operator!=(const_iterator)
         const_iterator begin()
         const_iterator end()
-    cdef cppclass const_cpp_set "const std::{{maybe_unordered}}set" [T](cpp_set):
-        pass
 
 @cname("{{cname}}")
-cdef object {{cname}}(const_cpp_set[X]& s):
+cdef object {{cname}}(const cpp_set[X]& s):
     o = set()
     cdef cpp_set[X].const_iterator iter = s.begin()
     while iter != s.end():
@@ -166,12 +162,12 @@ cdef pair[X,Y] {{cname}}(object o) except *:
 {{template_type_declarations}}
 
 cdef extern from *:
-    cdef cppclass pair "const std::pair" [T, U]:
+    cdef cppclass pair "std::pair" [T, U]:
         T first
         U second
 
 @cname("{{cname}}")
-cdef object {{cname}}(pair[X,Y]& p):
+cdef object {{cname}}(const pair[X,Y]& p):
     return X_to_py(p.first), Y_to_py(p.second)
 
 
