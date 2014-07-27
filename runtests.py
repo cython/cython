@@ -95,7 +95,8 @@ EXT_DEP_MODULES = {
     'tag:pstats': 'pstats',
     'tag:posix' : 'posix',
     'tag:array' : 'array',
-    'tag:ipython': 'IPython'
+    'tag:ipython': 'IPython',
+    'tag:jedi': 'jedi',
 }
 
 def patch_inspect_isfunction():
