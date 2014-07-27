@@ -670,12 +670,13 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
 
     def __init__(self, context, compilation_directive_defaults):
         super(InterpretCompilerDirectives, self).__init__(context)
-        self.compilation_directive_defaults = {}
-        for key, value in compilation_directive_defaults.items():
-            self.compilation_directive_defaults[unicode(key)] = copy.deepcopy(value)
         self.cython_module_names = set()
         self.directive_names = {'staticmethod': 'staticmethod'}
         self.parallel_directives = {}
+        directives = copy.deepcopy(Options.directive_defaults)
+        for key, value in compilation_directive_defaults.items():
+            directives[unicode(key)] = copy.deepcopy(value)
+        self.directives = directives
 
     def check_directive_scope(self, pos, directive, scope):
         legal_scopes = Options.directive_scopes.get(directive, None)
@@ -698,11 +699,8 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
 
         self.module_scope = node.scope
 
-        directives = copy.deepcopy(Options.directive_defaults)
-        directives.update(copy.deepcopy(self.compilation_directive_defaults))
-        directives.update(node.directive_comments)
-        self.directives = directives
-        node.directives = directives
+        self.directives.update(node.directive_comments)
+        node.directives = self.directives
         node.parallel_directives = self.parallel_directives
         self.visitchildren(node)
         node.cython_module_names = self.cython_module_names
