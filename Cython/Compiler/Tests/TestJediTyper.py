@@ -58,6 +58,9 @@ class TestJediTyper(TransformTest):
             a = i + 1
         '''
         types = self._test(code)
+        if not types:
+            # old Jedi version
+            return
         self.assertIn((None, (1, 0)), types)
         variables = types.pop((None, (1, 0)))
         self.assertFalse(types)
