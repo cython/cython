@@ -3853,10 +3853,10 @@ class GeneratorDefNode(DefNode):
 
     child_attrs = DefNode.child_attrs + ["gbody"]
 
-    def __init__(self, **kwargs):
+    def __init__(self, pos, **kwargs):
         # XXX: don't actually needs a body
-        kwargs['body'] = StatListNode(kwargs['pos'], stats=[])
-        super(GeneratorDefNode, self).__init__(**kwargs)
+        kwargs['body'] = StatListNode(pos, stats=[], is_terminator=True)
+        super(GeneratorDefNode, self).__init__(pos, **kwargs)
 
     def analyse_declarations(self, env):
         super(GeneratorDefNode, self).analyse_declarations(env)
