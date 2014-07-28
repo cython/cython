@@ -6493,9 +6493,10 @@ class ExceptClauseNode(Node):
         code.funcstate.exc_vars = exc_vars
         self.body.generate_execution_code(code)
         code.funcstate.exc_vars = old_exc_vars
-        for var in exc_vars:
-            code.put_decref_clear(var, py_object_type)
-        code.put_goto(end_label)
+        if not self.body.is_terminator:
+            for var in exc_vars:
+                code.put_decref_clear(var, py_object_type)
+            code.put_goto(end_label)
 
         for new_label, old_label in [(code.break_label, old_break_label),
                                      (code.continue_label, old_continue_label)]:
