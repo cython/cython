@@ -359,3 +359,39 @@ def int_enum_duplicates_mix(int x):
         return 2
     else:
         return 3
+
+
+@cython.test_assert_path_exists('//SwitchStatNode')
+@cython.test_fail_if_path_exists('//BoolBinopNode', '//PrimaryCmpNode')
+def int_in_bool_binop(int x):
+    """
+    >>> int_in_bool_binop(0)
+    False
+    >>> int_in_bool_binop(1)
+    True
+    >>> int_in_bool_binop(2)
+    True
+    >>> int_in_bool_binop(3)
+    False
+    """
+    return x == 1 or x == 2
+
+
+@cython.test_assert_path_exists('//SwitchStatNode')
+@cython.test_fail_if_path_exists('//BoolBinopNode', '//PrimaryCmpNode')
+def int_in_bool_binop_3(int x):
+    """
+    >>> int_in_bool_binop_3(0)
+    False
+    >>> int_in_bool_binop_3(1)
+    True
+    >>> int_in_bool_binop_3(2)
+    True
+    >>> int_in_bool_binop_3(3)
+    False
+    >>> int_in_bool_binop_3(4)
+    True
+    >>> int_in_bool_binop_3(5)
+    False
+    """
+    return x == 1 or x == 2 or x == 4

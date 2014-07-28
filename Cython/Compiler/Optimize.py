@@ -1010,14 +1010,14 @@ class SwitchTransform(Visitor.EnvTransform):
         result_ref = UtilNodes.ResultRefNode(node)
         true_body = Nodes.SingleAssignmentNode(
             node.pos,
-            lhs = result_ref,
-            rhs = true_val,
-            first = True)
+            lhs=result_ref,
+            rhs=true_val.coerce_to(node.type, self.current_env()),
+            first=True)
         false_body = Nodes.SingleAssignmentNode(
             node.pos,
-            lhs = result_ref,
-            rhs = false_val,
-            first = True)
+            lhs=result_ref,
+            rhs=false_val.coerce_to(node.type, self.current_env()),
+            first=True)
 
         if not_in:
             true_body, false_body = false_body, true_body
