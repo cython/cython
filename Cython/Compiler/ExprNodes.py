@@ -2393,7 +2393,12 @@ class IteratorNode(ExprNode):
                     self.sequence.py_result(),
                     code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
-            code.putln("%s = Py_TYPE(%s)->tp_iternext;" % (self.iter_func_ptr, self.py_result()))
+            # PyObject_GetIter() fails if "tp_iternext" is not set, but the check below
+            # makes it visible to the C compiler that the pointer really isn't NULL, so that
+            # it can distinguish between the special cases and the generic case
+            code.putln("%s = Py_TYPE(%s)->tp_iternext; %s" % (
+                self.iter_func_ptr, self.py_result(),
+                code.error_goto_if_null(self.iter_func_ptr, self.pos)))
         if self.may_be_a_sequence:
             code.putln("}")
 
