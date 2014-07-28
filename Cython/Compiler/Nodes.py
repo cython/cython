@@ -6322,17 +6322,21 @@ class TryExceptStatNode(StatNode):
 
         code.error_label = except_error_label
         code.return_label = except_return_label
+        normal_case_terminates = self.body.is_terminator
         if self.else_clause:
             code.putln(
                 "/*else:*/ {")
             self.else_clause.generate_execution_code(code)
             code.putln(
                 "}")
+            if not normal_case_terminates:
+                normal_case_terminates = self.else_clause.is_terminator
 
         if can_raise:
-            for var in exc_save_vars:
-                code.put_xdecref_clear(var, py_object_type)
-            code.put_goto(try_end_label)
+            if not normal_case_terminates:
+                for var in exc_save_vars:
+                    code.put_xdecref_clear(var, py_object_type)
+                code.put_goto(try_end_label)
             code.put_label(our_error_label)
             for temp_name, temp_type in temps_to_clean_up:
                 code.put_xdecref_clear(temp_name, temp_type)
@@ -6347,14 +6351,14 @@ class TryExceptStatNode(StatNode):
                                       (try_return_label, old_return_label),
                                       (except_return_label, old_return_label)]:
             if code.label_used(exit_label):
-                if not code.label_used(try_end_label):
+                if not normal_case_terminates and not code.label_used(try_end_label):
                     code.put_goto(try_end_label)
                 code.put_label(exit_label)
                 restore_saved_exception()
                 code.put_goto(old_label)
 
         if code.label_used(except_end_label):
-            if not code.label_used(try_end_label):
+            if not normal_case_terminates and not code.label_used(try_end_label):
                 code.put_goto(try_end_label)
             code.put_label(except_end_label)
             restore_saved_exception()
