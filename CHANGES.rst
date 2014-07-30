@@ -47,6 +47,8 @@ Features added
 
 * Defines dynamic_cast et al. in `libcpp.cast`.
 
+* Support for C++ heap data structure operations (from ``<algorithm>``).
+
 Optimizations
 -------------
 
