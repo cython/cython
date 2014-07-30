@@ -2370,7 +2370,12 @@ def p_c_array_declarator(s, base):
     else:
         dim = None
     s.expect(']')
-    return Nodes.CArrayDeclaratorNode(pos, base = base, dimension = dim)
+    # XXX: Here is where we allow "=" and a rhs.
+    rhs = None
+    if s.sy == '=':
+        s.next()
+        rhs = p_test(s)
+    return Nodes.CArrayDeclaratorNode(pos, base = base, dimension = dim, default = rhs)
 
 def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
     #  Opening paren has already been skipped
