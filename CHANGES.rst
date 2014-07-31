@@ -38,6 +38,11 @@ Features added
 * HTML output of annotated code uses Pygments for code highlighting
   and generally received a major overhaul by Matthias Bussonier.
 
+* IPython magic support is now available directly from Cython with
+  the command "%load_ext cython".  Cython code can directly be
+  executed in a cell when marked with "%%cython".  Code analysis
+  is available with "%%cython -a".  Patch by Martín Gaitán.
+
 * Simple support for declaring Python object types in Python signature
   annotations.  Currently requires setting the compiler directive
   ``annotation_typing=True``.
@@ -112,6 +117,9 @@ Other changes
 -------------
 
 * Removed support for CPython 2.4, 2.5 and 3.1.
+
+* The licensing implications on the generated code were clarified
+  to avoid legal constraints for users.
 
 
 0.20.2 (2014-06-16)
