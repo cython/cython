@@ -1,4 +1,5 @@
-from pair cimport pair
+from __future__ import absolute_import
+from .pair cimport pair
 
 cdef extern from "<set>" namespace "std" nogil:
     cdef cppclass set[T]:
