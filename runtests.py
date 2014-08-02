@@ -2019,7 +2019,8 @@ def runtests(options, cmd_args, coverage=None):
                                     options.cleanup_sharedlibs, options.cleanup_failures,
                                     True,
                                     options.cython_only, languages, test_bugs,
-                                    options.fork, sys.version_info[0])
+                                    options.fork, sys.version_info[0],
+                                    common_utility_dir)
             sys.stderr.write("Including CPython regression tests in %s\n" % sys_pyregr_dir)
             test_suite.addTest(filetests.handle_directory(sys_pyregr_dir, 'pyregr'))
 
