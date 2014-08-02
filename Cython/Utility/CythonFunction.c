@@ -638,7 +638,7 @@ static PyTypeObject __pyx_CyFunctionType_type = {
     (traverseproc) __Pyx_CyFunction_traverse,   /*tp_traverse*/
     (inquiry) __Pyx_CyFunction_clear,   /*tp_clear*/
     0,                                  /*tp_richcompare*/
-    offsetof(__pyx_CyFunctionObject, func_weakreflist), /* tp_weaklistoffse */
+    offsetof(__pyx_CyFunctionObject, func_weakreflist), /* tp_weaklistoffset */
     0,                                  /*tp_iter*/
     0,                                  /*tp_iternext*/
     __pyx_CyFunction_methods,           /*tp_methods*/

@@ -645,7 +645,7 @@ static PyTypeObject __pyx_GeneratorType_type = {
     (traverseproc) __Pyx_Generator_traverse,   /*tp_traverse*/
     0,                                  /*tp_clear*/
     0,                                  /*tp_richcompare*/
-    offsetof(__pyx_GeneratorObject, gi_weakreflist), /* tp_weaklistoffse */
+    offsetof(__pyx_GeneratorObject, gi_weakreflist), /* tp_weaklistoffset */
     0,                                  /*tp_iter*/
     (iternextfunc) __Pyx_Generator_Next, /*tp_iternext*/
     __pyx_Generator_methods,            /*tp_methods*/
