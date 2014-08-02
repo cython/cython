@@ -1,5 +1,3 @@
-from pair cimport pair
-
 cdef extern from "<deque>" namespace "std" nogil:
     cdef cppclass deque[T]:
         cppclass iterator:

@@ -1,4 +1,4 @@
-from pair cimport pair
+from .utility cimport pair
 
 cdef extern from "<set>" namespace "std" nogil:
     cdef cppclass set[T]:
