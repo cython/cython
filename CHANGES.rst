@@ -74,6 +74,9 @@ Optimizations
 Bugs fixed
 ----------
 
+* No longer ignore local setup.cfg files for distutils in pyximport.
+  Patch by Martin Teichmann.
+
 * Taking a ``char*`` from an indexed Python string generated unsafe
   reference counting code.
 
