@@ -10,7 +10,7 @@ static CYTHON_INLINE PyObject* __Pyx_Generator_Yield_From(__pyx_GeneratorObject 
     source_gen = PyObject_GetIter(source);
     if (unlikely(!source_gen))
         return NULL;
-    /* source_gen is now the iterator, make the first next() call */
+    // source_gen is now the iterator, make the first next() call
     retval = Py_TYPE(source_gen)->tp_iternext(source_gen);
     if (likely(retval)) {
         gen->yieldfrom = source_gen;
@@ -196,8 +196,8 @@ PyObject *__Pyx_Generator_SendEx(__pyx_GeneratorObject *self, PyObject *value) {
 #if CYTHON_COMPILING_IN_PYPY
         // FIXME: what to do in PyPy?
 #else
-        /* Generators always return to their most recent caller, not
-         * necessarily their creator. */
+        // Generators always return to their most recent caller, not
+        // necessarily their creator.
         if (self->exc_traceback) {
             PyThreadState *tstate = PyThreadState_GET();
             PyTracebackObject *tb = (PyTracebackObject *) self->exc_traceback;
@@ -224,9 +224,9 @@ PyObject *__Pyx_Generator_SendEx(__pyx_GeneratorObject *self, PyObject *value) {
 #if CYTHON_COMPILING_IN_PYPY
         // FIXME: what to do in PyPy?
 #else
-        /* Don't keep the reference to f_back any longer than necessary.  It
-         * may keep a chain of frames alive or it could create a reference
-         * cycle. */
+        // Don't keep the reference to f_back any longer than necessary.  It
+        // may keep a chain of frames alive or it could create a reference
+        // cycle.
         if (self->exc_traceback) {
             PyTracebackObject *tb = (PyTracebackObject *) self->exc_traceback;
             PyFrameObject *f = tb->tb_frame;
@@ -261,7 +261,7 @@ static PyObject *__Pyx_Generator_Next(PyObject *self) {
         PyObject *ret;
         // FIXME: does this really need an INCREF() ?
         //Py_INCREF(yf);
-        /* YieldFrom code ensures that yf is an iterator */
+        // YieldFrom code ensures that yf is an iterator
         gen->is_running = 1;
         ret = Py_TYPE(yf)->tp_iternext(yf);
         gen->is_running = 0;
@@ -364,7 +364,8 @@ static PyObject *__Pyx_Generator_Close(PyObject *self) {
         || PyErr_GivenExceptionMatches(raised_exception, PyExc_GeneratorExit)
         || PyErr_GivenExceptionMatches(raised_exception, PyExc_StopIteration))
     {
-        if (raised_exception) PyErr_Clear();      /* ignore these errors */
+        // ignore these errors
+        if (raised_exception) PyErr_Clear();
         Py_INCREF(Py_None);
         return Py_None;
     }
@@ -460,7 +461,7 @@ static void __Pyx_Generator_dealloc(PyObject *self) {
         PyObject_ClearWeakRefs(self);
 
     if (gen->resume_label > 0) {
-        /* Generator is paused, so we need to close */
+        // Generator is paused, so we need to close
         PyObject_GC_Track(self);
 #if PY_VERSION_HEX >= 0x030400a1
         if (PyObject_CallFinalizerFromDealloc(self))
@@ -468,7 +469,10 @@ static void __Pyx_Generator_dealloc(PyObject *self) {
         Py_TYPE(gen)->tp_del(self);
         if (self->ob_refcnt > 0)
 #endif
-            return;                     /* resurrected.  :( */
+        {
+            // resurrected.  :(
+            return;
+        }
         PyObject_GC_UnTrack(self);
     }
 
@@ -485,12 +489,12 @@ static void __Pyx_Generator_del(PyObject *self) {
         return ;
 
 #if PY_VERSION_HEX < 0x030400a1
-    /* Temporarily resurrect the object. */
+    // Temporarily resurrect the object.
     assert(self->ob_refcnt == 0);
     self->ob_refcnt = 1;
 #endif
 
-    /* Save the current exception, if any. */
+    // Save the current exception, if any.
     __Pyx_ErrFetch(&error_type, &error_value, &error_traceback);
 
     res = __Pyx_Generator_Close(self);
@@ -500,20 +504,20 @@ static void __Pyx_Generator_del(PyObject *self) {
     else
         Py_DECREF(res);
 
-    /* Restore the saved exception. */
+    // Restore the saved exception.
     __Pyx_ErrRestore(error_type, error_value, error_traceback);
 
 #if PY_VERSION_HEX < 0x030400a1
-    /* Undo the temporary resurrection; can't use DECREF here, it would
-     * cause a recursive call.
-     */
+    // Undo the temporary resurrection; can't use DECREF here, it would
+    // cause a recursive call.
     assert(self->ob_refcnt > 0);
-    if (--self->ob_refcnt == 0)
-        return; /* this is the normal path out */
+    if (--self->ob_refcnt == 0) {
+        // this is the normal path out
+        return;
+    }
 
-    /* close() resurrected it!  Make it look like the original Py_DECREF
-     * never happened.
-     */
+    // close() resurrected it!  Make it look like the original Py_DECREF
+    // never happened.
     {
         Py_ssize_t refcnt = self->ob_refcnt;
         _Py_NewReference(self);
@@ -523,16 +527,15 @@ static void __Pyx_Generator_del(PyObject *self) {
     assert(PyType_IS_GC(self->ob_type) &&
            _Py_AS_GC(self)->gc.gc_refs != _PyGC_REFS_UNTRACKED);
 
-    /* If Py_REF_DEBUG, _Py_NewReference bumped _Py_RefTotal, so
-     * we need to undo that. */
+    // If Py_REF_DEBUG, _Py_NewReference bumped _Py_RefTotal, so
+    // we need to undo that.
     _Py_DEC_REFTOTAL;
 #endif
-    /* If Py_TRACE_REFS, _Py_NewReference re-added self to the object
-     * chain, so no more to do there.
-     * If COUNT_ALLOCS, the original decref bumped tp_frees, and
-     * _Py_NewReference bumped tp_allocs:  both of those need to be
-     * undone.
-     */
+    // If Py_TRACE_REFS, _Py_NewReference re-added self to the object
+    // chain, so no more to do there.
+    // If COUNT_ALLOCS, the original decref bumped tp_frees, and
+    // _Py_NewReference bumped tp_allocs:  both of those need to be
+    // undone.
 #ifdef COUNT_ALLOCS
     --Py_TYPE(self)->tp_frees;
     --Py_TYPE(self)->tp_allocs;
@@ -630,7 +633,7 @@ static PyTypeObject __pyx_GeneratorType_type = {
 #else
     0,                                  /*reserved*/
 #endif
-    0,                                   /*tp_repr*/
+    0,                                  /*tp_repr*/
     0,                                  /*tp_as_number*/
     0,                                  /*tp_as_sequence*/
     0,                                  /*tp_as_mapping*/
@@ -640,12 +643,12 @@ static PyTypeObject __pyx_GeneratorType_type = {
     0,                                  /*tp_getattro*/
     0,                                  /*tp_setattro*/
     0,                                  /*tp_as_buffer*/
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE, /* tp_flags*/
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE, /*tp_flags*/
     0,                                  /*tp_doc*/
     (traverseproc) __Pyx_Generator_traverse,   /*tp_traverse*/
     0,                                  /*tp_clear*/
     0,                                  /*tp_richcompare*/
-    offsetof(__pyx_GeneratorObject, gi_weakreflist), /* tp_weaklistoffset */
+    offsetof(__pyx_GeneratorObject, gi_weakreflist), /*tp_weaklistoffset*/
     0,                                  /*tp_iter*/
     (iternextfunc) __Pyx_Generator_Next, /*tp_iternext*/
     __pyx_Generator_methods,            /*tp_methods*/
@@ -706,7 +709,7 @@ static __pyx_GeneratorObject *__Pyx_Generator_New(__pyx_generator_body_t body,
 }
 
 static int __pyx_Generator_init(void) {
-    /* on Windows, C-API functions can't be used in slots statically */
+    // on Windows, C-API functions can't be used in slots statically
     __pyx_GeneratorType_type.tp_getattro = PyObject_GenericGetAttr;
     __pyx_GeneratorType_type.tp_iter = PyObject_SelfIter;
 

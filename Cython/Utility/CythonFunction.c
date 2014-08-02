@@ -29,14 +29,15 @@ typedef struct {
     PyObject *func_globals;
     PyObject *func_code;
     PyObject *func_closure;
-    PyObject *func_classobj; /* No-args super() class cell */
+    // No-args super() class cell
+    PyObject *func_classobj;
 
-    /* Dynamic default args and annotations */
+    // Dynamic default args and annotations
     void *defaults;
     int defaults_pyobjects;
     int flags;
 
-    /* Defaults info */
+    // Defaults info
     PyObject *defaults_tuple;   /* Const defaults tuple */
     PyObject *defaults_kwdict;  /* Const kwonly defaults dict */
     PyObject *(*defaults_getter)(PyObject *);
@@ -97,8 +98,10 @@ static int
 __Pyx_CyFunction_set_doc(__pyx_CyFunctionObject *op, PyObject *value)
 {
     PyObject *tmp = op->func_doc;
-    if (value == NULL)
-        value = Py_None; /* Mark as deleted */
+    if (value == NULL) {
+        // Mark as deleted
+        value = Py_None;
+    }
     Py_INCREF(value);
     op->func_doc = value;
     Py_XDECREF(tmp);
@@ -244,7 +247,7 @@ __Pyx_CyFunction_init_defaults(__pyx_CyFunctionObject *op) {
     if (unlikely(!res))
         return -1;
 
-    /* Cache result */
+    // Cache result
     op->defaults_tuple = PyTuple_GET_ITEM(res, 0);
     Py_INCREF(op->defaults_tuple);
     op->defaults_kwdict = PyTuple_GET_ITEM(res, 1);
@@ -446,7 +449,7 @@ static PyObject *__Pyx_CyFunction_New(PyTypeObject *type, PyMethodDef *ml, int f
     Py_INCREF(op->func_globals);
     Py_XINCREF(code);
     op->func_code = code;
-    /* Dynamic Default args */
+    // Dynamic Default args
     op->defaults_pyobjects = 0;
     op->defaults = NULL;
     op->defaults_tuple = NULL;
@@ -555,8 +558,8 @@ __Pyx_CyFunction_repr(__pyx_CyFunctionObject *op)
 }
 
 #if CYTHON_COMPILING_IN_PYPY
-/* originally copied from PyCFunction_Call() in CPython's Objects/methodobject.c */
-/* PyPy does not have this function */
+// originally copied from PyCFunction_Call() in CPython's Objects/methodobject.c
+// PyPy does not have this function
 static PyObject * __Pyx_CyFunction_Call(PyObject *func, PyObject *arg, PyObject *kw) {
     PyCFunctionObject* f = (PyCFunctionObject*)func;
     PyCFunction meth = PyCFunction_GET_FUNCTION(func);
@@ -633,12 +636,12 @@ static PyTypeObject __pyx_CyFunctionType_type = {
     0,                                  /*tp_getattro*/
     0,                                  /*tp_setattro*/
     0,                                  /*tp_as_buffer*/
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /* tp_flags*/
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
     0,                                  /*tp_doc*/
     (traverseproc) __Pyx_CyFunction_traverse,   /*tp_traverse*/
     (inquiry) __Pyx_CyFunction_clear,   /*tp_clear*/
     0,                                  /*tp_richcompare*/
-    offsetof(__pyx_CyFunctionObject, func_weakreflist), /* tp_weaklistoffset */
+    offsetof(__pyx_CyFunctionObject, func_weakreflist), /*tp_weaklistoffset*/
     0,                                  /*tp_iter*/
     0,                                  /*tp_iternext*/
     __pyx_CyFunction_methods,           /*tp_methods*/
@@ -803,7 +806,7 @@ __pyx_FusedFunction_descr_get(PyObject *self, PyObject *obj, PyObject *type)
     func = (__pyx_FusedFunctionObject *) self;
 
     if (func->self || func->func.flags & __Pyx_CYFUNCTION_STATICMETHOD) {
-        /* Do not allow rebinding and don't do anything for static methods */
+        // Do not allow rebinding and don't do anything for static methods
         Py_INCREF(self);
         return self;
     }
@@ -904,7 +907,7 @@ __pyx_err:
         if (self->self || self->type) {
             __pyx_FusedFunctionObject *unbound = (__pyx_FusedFunctionObject *) unbound_result_func;
 
-            /* Todo: move this to InitClassCell */
+            // TODO: move this to InitClassCell
             Py_CLEAR(unbound->func.func_classobj);
             Py_XINCREF(self->func.func_classobj);
             unbound->func.func_classobj = self->func.func_classobj;
@@ -961,12 +964,12 @@ __pyx_FusedFunction_callfunction(PyObject *func, PyObject *args, PyObject *kw)
     return result;
 }
 
-/* Note: the 'self' from method binding is passed in in the args tuple,
-         whereas PyCFunctionObject's m_self is passed in as the first
-         argument to the C function. For extension methods we need
-         to pass 'self' as 'm_self' and not as the first element of the
-         args tuple.
-*/
+// Note: the 'self' from method binding is passed in in the args tuple,
+//       whereas PyCFunctionObject's m_self is passed in as the first
+//       argument to the C function. For extension methods we need
+//       to pass 'self' as 'm_self' and not as the first element of the
+//       args tuple.
+
 static PyObject *
 __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
 {
@@ -980,7 +983,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
     int is_classmethod = binding_func->func.flags & __Pyx_CYFUNCTION_CLASSMETHOD;
 
     if (binding_func->self) {
-        /* Bound method call, put 'self' in the args tuple */
+        // Bound method call, put 'self' in the args tuple
         Py_ssize_t i;
         new_args = PyTuple_New(argc + 1);
         if (!new_args)
@@ -998,7 +1001,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
 
         args = new_args;
     } else if (binding_func->type) {
-        /* Unbound method call */
+        // Unbound method call
         if (argc < 1) {
             PyErr_SetString(PyExc_TypeError, "Need at least one argument, 0 given.");
             return NULL;
@@ -1081,7 +1084,7 @@ static PyTypeObject __pyx_FusedFunctionType_type = {
     0,                                  /*tp_getattro*/
     0,                                  /*tp_setattro*/
     0,                                  /*tp_as_buffer*/
-    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE, /* tp_flags*/
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE, /*tp_flags*/
     0,                                  /*tp_doc*/
     (traverseproc) __pyx_FusedFunction_traverse,   /*tp_traverse*/
     (inquiry) __pyx_FusedFunction_clear,/*tp_clear*/
@@ -1091,8 +1094,8 @@ static PyTypeObject __pyx_FusedFunctionType_type = {
     0,                                  /*tp_iternext*/
     0,                                  /*tp_methods*/
     __pyx_FusedFunction_members,        /*tp_members*/
-    /* __doc__ is None for the fused function type, but we need it to be */
-    /* a descriptor for the instance's __doc__, so rebuild descriptors in our subclass */
+    // __doc__ is None for the fused function type, but we need it to be
+    // a descriptor for the instance's __doc__, so rebuild descriptors in our subclass
     __pyx_CyFunction_getsets,           /*tp_getset*/
     &__pyx_CyFunctionType_type,         /*tp_base*/
     0,                                  /*tp_dict*/
@@ -1133,11 +1136,12 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method); /*proto*/
 
 static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
 #if CYTHON_COMPILING_IN_PYPY
-    if (PyObject_TypeCheck(method, &PyWrapperDescr_Type)) { /* cdef classes */
+    if (PyObject_TypeCheck(method, &PyWrapperDescr_Type)) {
+        // cdef classes
         return PyClassMethod_New(method);
     }
 #else
-    /* It appears that PyMethodDescr_Type is not anywhere exposed in the Python/C API */
+    // It appears that PyMethodDescr_Type is not anywhere exposed in the Python/C API
     static PyTypeObject *methoddescr_type = NULL;
     if (methoddescr_type == NULL) {
        PyObject *meth = __Pyx_GetAttrString((PyObject*)&PyList_Type, "append");
@@ -1145,7 +1149,8 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
        methoddescr_type = Py_TYPE(meth);
        Py_DECREF(meth);
     }
-    if (PyObject_TypeCheck(method, methoddescr_type)) { /* cdef classes */
+    if (PyObject_TypeCheck(method, methoddescr_type)) {
+        // cdef classes
         PyMethodDescrObject *descr = (PyMethodDescrObject *)method;
         #if PY_VERSION_HEX < 0x03020000
         PyTypeObject *d_type = descr->d_type;
@@ -1155,7 +1160,8 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
         return PyDescr_NewClassMethod(d_type, descr->d_method);
     }
 #endif
-    else if (PyMethod_Check(method)) { /* python classes */
+    else if (PyMethod_Check(method)) {
+        // python classes
         return PyClassMethod_New(PyMethod_GET_FUNCTION(method));
     }
     else if (PyCFunction_Check(method)) {
