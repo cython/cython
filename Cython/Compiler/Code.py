@@ -154,7 +154,7 @@ class UtilityCodeBase(object):
             replace_comments = re.compile(r'^\s*#.*').sub
         else:
             comment = '/'
-            replace_comments = re.compile(r'^\s*//.*|^\s*/\*[^*]*\*/').sub
+            replace_comments = re.compile(r'^\s*//.*|/\*[^*]*\*/').sub
         match_special = re.compile(
             (r'^%(C)s{5,30}\s*(?P<name>(?:\w|\.)+)\s*%(C)s{5,30}|'
              r'^%(C)s+@(?P<tag>\w+)\s*:\s*(?P<value>(?:\w|[.:])+)'
