@@ -394,26 +394,9 @@ Scope rules
 Cython determines whether a variable belongs to a local scope, the module
 scope, or the built-in scope completely statically. As with Python, assigning
 to a variable which is not otherwise declared implicitly declares it to be a
-Python variable residing in the scope where it is assigned.
-
-.. note::
-    A consequence of these rules is that the module-level scope behaves the
-    same way as a Python local scope if you refer to a variable before assigning
-    to it. In particular, tricks such as the following will not work in Cython::
-
-        try:
-            x = True
-        except NameError:
-            True = 1
-
-    because, due to the assignment, the True will always be looked up in the
-    module-level scope. You would have to do something like this instead::
-
-        import __builtin__
-        try:
-            True = __builtin__.True
-        except AttributeError:
-            True = 1
+variable residing in the scope where it is assigned.  The type of the variable
+depends on type inference, except for the global module scope, where it is
+always a Python object.
 
 
 Built-in Functions
