@@ -411,7 +411,7 @@ Python variable residing in the scope where it is assigned.
 
         import __builtin__
         try:
-            True = __builtin__.True
+            x = __builtin__.True
         except AttributeError:
             True = 1
 
