@@ -26,7 +26,7 @@ def flip(ido, fd={E: E, NE: SE, NW: SW, W: W, SW: NW, SE: NE}):
 
 def permute(ido, r_ido):
     ps = [ido]
-    for r in xrange(dir_no - 1):
+    for r in range(dir_no - 1):
         ps.append(rotate(ps[-1]))
         if ido == r_ido:                 # C2-symmetry
             ps = ps[0:dir_no//2]
@@ -44,7 +44,7 @@ def convert(ido):
 
 
 def get_footprints(board, cti, pieces):
-    fps = [[[] for p in xrange(len(pieces))] for ci in xrange(len(board))]
+    fps = [[[] for p in range(len(pieces))] for ci in range(len(board))]
     for c in board:
         for pi, p in enumerate(pieces):
             for pp in p:
@@ -64,8 +64,8 @@ def get_senh(board, cti):
 
 
 def get_puzzle(w=w, h=h):
-    board = [E*x + S*y + (y%2) for y in xrange(h) for x in xrange(w)]
-    cti = dict((board[i], i) for i in xrange(len(board)))
+    board = [E*x + S*y + (y%2) for y in range(h) for x in range(w)]
+    cti = dict((board[i], i) for i in range(len(board)))
 
     idos = [[E, E, E, SE],         # incremental direction offsets
             [SE, SW, W, SW],
@@ -84,8 +84,8 @@ def get_puzzle(w=w, h=h):
 
 
 def print_board(board, w=w, h=h):
-    for y in xrange(h):
-        for x in xrange(w):
+    for y in range(h):
+        for x in range(w):
             print(board[x + y * w])
         print('')
         if y % 2 == 0:
@@ -131,9 +131,9 @@ SOLVE_ARG = 60
 
 def main(n):
     times = []
-    for i in xrange(n):
+    for i in range(n):
         t0 = time.time()
-        free = frozenset(xrange(len(board)))
+        free = frozenset(range(len(board)))
         curr_board = [-1] * len(board)
         pieces_left = list(range(len(pieces)))
         solutions = []
