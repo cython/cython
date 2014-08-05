@@ -7,6 +7,7 @@ python:
   - 3.3
   - 3.4
   - pypy
+  - pypy3
 
 env:
   - BACKEND=c
@@ -31,7 +32,10 @@ script:
 matrix:
   allow_failures:
     - python: pypy
+    - python: pypy3
   exclude:
     - python: pypy
       env: BACKEND=cpp
+    - python: pypy3
+      env: BACKEND=cpp      
   fast_finish: true
