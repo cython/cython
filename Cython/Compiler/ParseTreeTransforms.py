@@ -2254,8 +2254,8 @@ class MarkClosureVisitor(CythonTransform):
             if isinstance(node, Nodes.CFuncDefNode):
                 # Will report error later
                 return node
-            for i, yield_expr in enumerate(collector.yields):
-                yield_expr.label_num = i + 1  # no enumerate start arg in Py2.4
+            for i, yield_expr in enumerate(collector.yields, 1):
+                yield_expr.label_num = i
             for retnode in collector.returns:
                 retnode.in_generator = True
 
