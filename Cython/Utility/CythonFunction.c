@@ -21,8 +21,10 @@
 
 typedef struct {
     PyCFunctionObject func;
-    PyObject *func_dict;
+#if PY_VERSION_HEX < 0x030500A0
     PyObject *func_weakreflist;
+#endif
+    PyObject *func_dict;
     PyObject *func_name;
     PyObject *func_qualname;
     PyObject *func_doc;
@@ -72,6 +74,12 @@ static int __Pyx_CyFunction_init(void);
 //@substitute: naming
 //@requires: CommonTypes.c::FetchCommonType
 ////@requires: ObjectHandling.c::PyObjectGetAttrStr
+
+#if PY_VERSION_HEX < 0x030500A0
+#define __Pyx_CyFunction_weakreflist(func) ((func)->func_weakreflist)
+#else
+#define __Pyx_CyFunction_weakreflist(func) ((func)->func.m_weakreflist)
+#endif
 
 static PyObject *
 __Pyx_CyFunction_get_doc(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *closure)
@@ -432,7 +440,7 @@ static PyObject *__Pyx_CyFunction_New(PyTypeObject *type, PyMethodDef *ml, int f
     if (op == NULL)
         return NULL;
     op->flags = flags;
-    op->func_weakreflist = NULL;
+    __Pyx_CyFunction_weakreflist(op) = NULL;
     op->func.m_ml = ml;
     op->func.m_self = (PyObject *) op;
     Py_XINCREF(closure);
@@ -493,7 +501,7 @@ __Pyx_CyFunction_clear(__pyx_CyFunctionObject *m)
 static void __Pyx_CyFunction_dealloc(__pyx_CyFunctionObject *m)
 {
     PyObject_GC_UnTrack(m);
-    if (m->func_weakreflist != NULL)
+    if (__Pyx_CyFunction_weakreflist(m) != NULL)
         PyObject_ClearWeakRefs((PyObject *) m);
     __Pyx_CyFunction_clear(m);
     PyObject_GC_Del(m);
@@ -641,7 +649,11 @@ static PyTypeObject __pyx_CyFunctionType_type = {
     (traverseproc) __Pyx_CyFunction_traverse,   /*tp_traverse*/
     (inquiry) __Pyx_CyFunction_clear,   /*tp_clear*/
     0,                                  /*tp_richcompare*/
+#if PY_VERSION_HEX < 0x030500A0
     offsetof(__pyx_CyFunctionObject, func_weakreflist), /*tp_weaklistoffset*/
+#else
+    offsetof(PyCFunctionObject, m_weakreflist),         /*tp_weaklistoffset*/
+#endif
     0,                                  /*tp_iter*/
     0,                                  /*tp_iternext*/
     __pyx_CyFunction_methods,           /*tp_methods*/
