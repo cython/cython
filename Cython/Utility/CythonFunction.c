@@ -75,12 +75,6 @@ static int __Pyx_CyFunction_init(void);
 //@requires: CommonTypes.c::FetchCommonType
 ////@requires: ObjectHandling.c::PyObjectGetAttrStr
 
-#if PY_VERSION_HEX < 0x030500A0
-#define __Pyx_CyFunction_weakreflist(func) ((func)->func_weakreflist)
-#else
-#define __Pyx_CyFunction_weakreflist(func) ((func)->func.m_weakreflist)
-#endif
-
 static PyObject *
 __Pyx_CyFunction_get_doc(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *closure)
 {
@@ -432,6 +426,13 @@ static PyMethodDef __pyx_CyFunction_methods[] = {
     {__Pyx_NAMESTR("__reduce__"), (PyCFunction)__Pyx_CyFunction_reduce, METH_VARARGS, 0},
     {0, 0, 0, 0}
 };
+
+
+#if PY_VERSION_HEX < 0x030500A0
+#define __Pyx_CyFunction_weakreflist(cyfunc) ((cyfunc)->func_weakreflist)
+#else
+#define __Pyx_CyFunction_weakreflist(cyfunc) ((cyfunc)->func.m_weakreflist)
+#endif
 
 
 static PyObject *__Pyx_CyFunction_New(PyTypeObject *type, PyMethodDef *ml, int flags, PyObject* qualname,
