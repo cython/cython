@@ -71,6 +71,8 @@ Optimizations
 
 * Calls to ``slice()`` are translated to a straight C-API call.
 
+* Simple Python method calls are about 10% faster.
+
 Bugs fixed
 ----------
 

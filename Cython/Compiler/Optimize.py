@@ -3736,6 +3736,7 @@ class FinalOptimizePhase(Visitor.CythonTransform):
         - eliminate None assignment and refcounting for first assignment.
         - isinstance -> typecheck for cdef types
         - eliminate checks for None and/or types that became redundant after tree changes
+        - replace Python function calls that look like method calls by a faster PyMethodCallNode
     """
     def visit_SingleAssignmentNode(self, node):
         """Avoid redundant initialisation of local variables before their
@@ -3748,8 +3749,9 @@ class FinalOptimizePhase(Visitor.CythonTransform):
         return node
 
     def visit_SimpleCallNode(self, node):
-        """Replace generic calls to isinstance(x, type) by a more efficient
-        type check.
+        """
+        Replace generic calls to isinstance(x, type) by a more efficient type check.
+        Replace likely Python method calls by a specialised PyMethodCallNode.
         """
         self.visitchildren(node)
         if node.function.type.is_cfunction and isinstance(node.function, ExprNodes.NameNode):
@@ -3761,6 +3763,13 @@ class FinalOptimizePhase(Visitor.CythonTransform):
                     node.function.type = node.function.entry.type
                     PyTypeObjectPtr = PyrexTypes.CPtrType(cython_scope.lookup('PyTypeObject').type)
                     node.args[1] = ExprNodes.CastNode(node.args[1], PyTypeObjectPtr)
+        elif node.function.type.is_pyobject:
+            # we could do it for all calls, but attributes are most likely to result in a method call
+            if node.function.is_attribute:
+                if isinstance(node.arg_tuple, ExprNodes.TupleNode) and not (
+                        node.arg_tuple.is_literal or node.arg_tuple.mult_factor):
+                    node = ExprNodes.PyMethodCallNode.from_node(
+                        node, function=node.function, arg_tuple=node.arg_tuple, type=node.type)
         return node
 
     def visit_PyTypeTestNode(self, node):

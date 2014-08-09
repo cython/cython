@@ -4785,6 +4785,84 @@ class SimpleCallNode(CallNode):
                 code.funcstate.release_temp(self.opt_arg_struct)
 
 
+class PyMethodCallNode(SimpleCallNode):
+    # Specialised call to a (potential) PyMethodObject with non-constant argument tuple.
+    # Allows the self argument to be injected directly instead of repacking a tuple for it.
+    #
+    # function    ExprNode      the function/method object to call
+    # arg_tuple   TupleNode     the arguments for the args tuple
+
+    subexprs = ['function', 'arg_tuple']
+    is_temp = True
+
+    def generate_evaluation_code(self, code):
+        code.mark_pos(self.pos)
+        self.allocate_temp_result(code)
+
+        self.function.generate_evaluation_code(code)
+        args = self.arg_tuple.args
+        for arg in args:
+            arg.generate_evaluation_code(code)
+
+        self_arg = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+        function = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
+        arg_offset = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
+        args_tuple = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+
+        code.putln("%s = 0;" % arg_offset)
+        code.putln("%s = %s;" % (function, self.function.py_result()))
+        code.putln("%s = NULL;" % self_arg)
+
+        code.putln("if (CYTHON_COMPILING_IN_CPYTHON && PyMethod_Check(%s)) {" % function)
+        code.putln("%s = PyMethod_GET_SELF(%s);" % (self_arg, function))
+        # the following is always true in Py3 (kept only for safety),
+        # but is false for unbound methods in Py2
+        code.putln("if (likely(%s)) {" % self_arg)
+        code.put_incref(self_arg, py_object_type)
+        code.putln("%s = PyMethod_GET_FUNCTION(%s);" % (function, function))
+        code.putln("%s = 1;" % arg_offset)
+        code.putln("}")
+        code.putln("}")
+
+        code.putln("%s = PyTuple_New(%d+%s); %s" % (
+            args_tuple, len(args), arg_offset,
+            code.error_goto_if_null(args_tuple, self.pos)))
+        code.put_gotref(args_tuple)
+
+        code.putln("if (%s == 1) {" % arg_offset)
+        code.putln("PyTuple_SET_ITEM(%s, 0, %s); __Pyx_GIVEREF(%s); %s = NULL;" % (
+            args_tuple, self_arg, self_arg, self_arg))
+        code.funcstate.release_temp(self_arg)
+        code.putln("}")
+
+        for i, arg in enumerate(args):
+            arg.make_owned_reference(code)
+            code.putln("PyTuple_SET_ITEM(%s, %d+%s, %s);" % (
+                args_tuple, i, arg_offset, arg.py_result()))
+            code.put_giveref(arg.py_result())
+        code.funcstate.release_temp(arg_offset)
+
+        for arg in args:
+            arg.generate_post_assignment_code(code)
+            arg.free_temps(code)
+
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("PyObjectCall", "ObjectHandling.c"))
+        code.putln(
+            "%s = __Pyx_PyObject_Call(%s, %s, NULL); %s" % (
+                self.result(),
+                function, args_tuple,
+                code.error_goto_if_null(self.result(), self.pos)))
+        code.put_gotref(self.py_result())
+
+        code.put_decref_clear(args_tuple, py_object_type)
+        code.funcstate.release_temp(args_tuple)
+        code.funcstate.release_temp(function)
+
+        self.function.generate_disposal_code(code)
+        self.function.free_temps(code)
+
+
 class InlinedDefNodeCallNode(CallNode):
     #  Inline call to defnode
     #
