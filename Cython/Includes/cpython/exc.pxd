@@ -223,7 +223,7 @@ cdef extern from "Python.h":
     # function returns 0. The error indicator may or may not be
     # cleared if it was previously set.
 
-    void PyErr_SetInterrupt()
+    void PyErr_SetInterrupt() nogil
     # This function simulates the effect of a SIGINT signal arriving
     # -- the next time PyErr_CheckSignals() is called,
     # KeyboardInterrupt will be raised. It may be called without
