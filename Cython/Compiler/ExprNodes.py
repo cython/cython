@@ -344,6 +344,7 @@ class ExprNode(Node):
 
     def result(self):
         if self.is_temp:
+            assert self.temp_code
             return self.temp_code
         else:
             return self.calculate_result_code()
@@ -616,7 +617,7 @@ class ExprNode(Node):
                 # postponed from self.generate_evaluation_code()
                 self.generate_subexpr_disposal_code(code)
                 self.free_subexpr_temps(code)
-            if self.result():
+            if self.temp_code:
                 if self.type.is_pyobject:
                     code.put_decref_clear(self.result(), self.ctype())
                 elif self.type.is_memoryviewslice:
