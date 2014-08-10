@@ -11312,10 +11312,13 @@ class ProxyNode(CoercionNode):
         self.constant_result = arg.constant_result
         self._proxy_type()
 
-    def analyse_expressions(self, env):
+    def analyse_types(self, env):
         self.arg = self.arg.analyse_expressions(env)
         self._proxy_type()
         return self
+
+    def infer_type(self, env):
+        return self.arg.infer_type(env)
 
     def _proxy_type(self):
         if hasattr(self.arg, 'type'):
