@@ -1222,7 +1222,11 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func); /*proto
 static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func) {
     PyObject *self, *result;
     PyCFunction cfunc;
-    if (!PyCFunction_Check(func) || !(PyCFunction_GET_FLAGS(func) & METH_NOARGS)) {
+    if (!(PyCFunction_Check(func)
+#ifdef __Pyx_CyFunction_USED
+        || PyObject_TypeCheck(func, __pyx_CyFunctionType)
+#endif
+            ) || !(PyCFunction_GET_FLAGS(func) & METH_NOARGS)) {
         return __Pyx_PyObject_Call(func, $empty_tuple, NULL);
     }
 
