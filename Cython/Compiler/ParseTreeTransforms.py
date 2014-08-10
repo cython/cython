@@ -1229,11 +1229,11 @@ class WithTransform(CythonTransform, SkipDeclarations):
             is_temp=True))
         if target is not None:
             body = Nodes.StatListNode(
-                pos, stats = [
+                pos, stats=[
                     Nodes.WithTargetAssignmentStatNode(
-                        pos, lhs = target,
-                        rhs = ResultRefNode(node.enter_call),
-                        orig_rhs = node.enter_call),
+                        pos, lhs=target,
+                        rhs=ResultRefNode(node.enter_call),
+                        orig_rhs=node.enter_call),
                     body])
 
         excinfo_target = ExprNodes.TupleNode(pos, slow=True, args=[
@@ -1248,29 +1248,29 @@ class WithTransform(CythonTransform, SkipDeclarations):
                                 test_if_run=False,
                                 args=excinfo_target)),
                         body=Nodes.ReraiseStatNode(pos),
-                        ),
-                    ],
+                    ),
+                ],
                 else_clause=None),
             pattern=None,
             target=None,
             excinfo_target=excinfo_target,
-            )
+        )
 
         node.body = Nodes.TryFinallyStatNode(
             pos, body=Nodes.TryExceptStatNode(
                 pos, body=body,
                 except_clauses=[except_clause],
                 else_clause=None,
-                ),
+            ),
             finally_clause=Nodes.ExprStatNode(
                 pos, expr=ExprNodes.WithExitCallNode(
                     pos, with_stat=node,
                     test_if_run=True,
                     args=ExprNodes.TupleNode(
                         pos, args=[ExprNodes.NoneNode(pos) for _ in range(3)]
-                        ))),
+                    ))),
             handle_error_case=False,
-            )
+        )
         return node
 
     def visit_ExprNode(self, node):
