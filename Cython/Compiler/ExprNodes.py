@@ -15,7 +15,7 @@ cython.declare(error=object, warning=object, warn_once=object, InternalError=obj
                debug_disposal_code=object, debug_temp_alloc=object, debug_coercion=object,
                bytearray_type=object, slice_type=object)
 
-import sys
+import os.path
 import copy
 import operator
 
@@ -557,12 +557,13 @@ class ExprNode(Node):
             if not self.result_is_used:
                 # not used anyway, so ignore if not set up
                 return
+            pos = (os.path.basename(self.pos[0].get_description()),) + self.pos[1:] if self.pos else '(?)'
             if self.old_temp:
-                raise RuntimeError("temp %s released multiple times in %s" % (
-                        self.old_temp, self.__class__.__name__))
+                raise RuntimeError("temp %s released multiple times in %s at %r" % (
+                    self.old_temp, self.__class__.__name__, pos))
             else:
-                raise RuntimeError("no temp, but release requested in %s" % (
-                        self.__class__.__name__))
+                raise RuntimeError("no temp, but release requested in %s at %r" % (
+                    self.__class__.__name__, pos))
         code.funcstate.release_temp(self.temp_code)
         self.old_temp = self.temp_code
         self.temp_code = None
