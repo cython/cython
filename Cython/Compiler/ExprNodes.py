@@ -11343,9 +11343,6 @@ class ProxyNode(CoercionNode):
     def generate_evaluation_code(self, code):
         self.arg.generate_evaluation_code(code)
 
-    def generate_result_code(self, code):
-        self.arg.generate_result_code(code)
-
     def generate_disposal_code(self, code):
         self.arg.generate_disposal_code(code)
 
