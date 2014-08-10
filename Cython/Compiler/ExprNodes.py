@@ -344,7 +344,10 @@ class ExprNode(Node):
 
     def result(self):
         if self.is_temp:
-            assert self.temp_code
+            if not self.temp_code:
+                pos = (os.path.basename(self.pos[0].get_description()),) + self.pos[1:] if self.pos else '(?)'
+                raise RuntimeError("temp result name not set in %s at %r" % (
+                    self.__class__.__name__, pos))
             return self.temp_code
         else:
             return self.calculate_result_code()
