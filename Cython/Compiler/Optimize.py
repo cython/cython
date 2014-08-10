@@ -3754,7 +3754,7 @@ class FinalOptimizePhase(Visitor.CythonTransform):
         Replace likely Python method calls by a specialised PyMethodCallNode.
         """
         self.visitchildren(node)
-        if node.function.type.is_cfunction and isinstance(node.function, ExprNodes.NameNode):
+        if node.function.type.is_cfunction and node.function.is_name:
             if node.function.name == 'isinstance' and len(node.args) == 2:
                 type_arg = node.args[1]
                 if type_arg.type.is_builtin_type and type_arg.type.name == 'type':
@@ -3763,11 +3763,11 @@ class FinalOptimizePhase(Visitor.CythonTransform):
                     node.function.type = node.function.entry.type
                     PyTypeObjectPtr = PyrexTypes.CPtrType(cython_scope.lookup('PyTypeObject').type)
                     node.args[1] = ExprNodes.CastNode(node.args[1], PyTypeObjectPtr)
-        elif node.function.type.is_pyobject:
+        elif node.function.type.is_pyobject and node.function.type is not Builtin.type_type:
             # we could do it for all calls, but attributes are most likely to result in a method call
             if node.function.is_attribute:
                 if isinstance(node.arg_tuple, ExprNodes.TupleNode) and not (
-                        node.arg_tuple.is_literal or node.arg_tuple.mult_factor):
+                        node.arg_tuple.mult_factor or (node.arg_tuple.is_literal and node.arg_tuple.args)):
                     node = ExprNodes.PyMethodCallNode.from_node(
                         node, function=node.function, arg_tuple=node.arg_tuple, type=node.type)
         return node

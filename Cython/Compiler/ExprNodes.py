@@ -4701,15 +4701,24 @@ class SimpleCallNode(CallNode):
             if self.function.entry and self.function.entry.utility_code:
                 code.globalstate.use_utility_code(self.function.entry.utility_code)
         if func_type.is_pyobject:
-            arg_code = self.arg_tuple.py_result()
-            code.globalstate.use_utility_code(UtilityCode.load_cached(
-                "PyObjectCall", "ObjectHandling.c"))
-            code.putln(
-                "%s = __Pyx_PyObject_Call(%s, %s, NULL); %s" % (
-                    self.result(),
-                    self.function.py_result(),
-                    arg_code,
-                    code.error_goto_if_null(self.result(), self.pos)))
+            if func_type is not type_type and not self.arg_tuple.args and self.arg_tuple.is_literal:
+                code.globalstate.use_utility_code(UtilityCode.load_cached(
+                    "PyObjectCallNoArg", "ObjectHandling.c"))
+                code.putln(
+                    "%s = __Pyx_PyObject_CallNoArg(%s); %s" % (
+                        self.result(),
+                        self.function.py_result(),
+                        code.error_goto_if_null(self.result(), self.pos)))
+            else:
+                arg_code = self.arg_tuple.py_result()
+                code.globalstate.use_utility_code(UtilityCode.load_cached(
+                    "PyObjectCall", "ObjectHandling.c"))
+                code.putln(
+                    "%s = __Pyx_PyObject_Call(%s, %s, NULL); %s" % (
+                        self.result(),
+                        self.function.py_result(),
+                        arg_code,
+                        code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
         elif func_type.is_cfunction:
             if self.has_optional_args:
@@ -4800,14 +4809,14 @@ class PyMethodCallNode(SimpleCallNode):
         self.allocate_temp_result(code)
 
         self.function.generate_evaluation_code(code)
+        assert self.arg_tuple.mult_factor is None
         args = self.arg_tuple.args
         for arg in args:
             arg.generate_evaluation_code(code)
 
-        self_arg = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+        self_arg = code.funcstate.allocate_temp(py_object_type, manage_ref=bool(args))
         function = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
         arg_offset = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
-        args_tuple = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
 
         code.putln("%s = 0;" % arg_offset)
         code.putln("%s = %s;" % (function, self.function.py_result()))
@@ -4818,47 +4827,72 @@ class PyMethodCallNode(SimpleCallNode):
         # the following is always true in Py3 (kept only for safety),
         # but is false for unbound methods in Py2
         code.putln("if (likely(%s)) {" % self_arg)
-        code.put_incref(self_arg, py_object_type)
+        if args:
+            code.put_incref(self_arg, py_object_type)
         code.putln("%s = PyMethod_GET_FUNCTION(%s);" % (function, function))
         code.putln("%s = 1;" % arg_offset)
         code.putln("}")
         code.putln("}")
 
-        code.putln("%s = PyTuple_New(%d+%s); %s" % (
-            args_tuple, len(args), arg_offset,
-            code.error_goto_if_null(args_tuple, self.pos)))
-        code.put_gotref(args_tuple)
+        if not args:
+            # fastest special case: try to avoid tuple creation
+            code.putln("if (%s == 1) {" % arg_offset)
+            code.funcstate.release_temp(arg_offset)
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("PyObjectCallOneArg", "ObjectHandling.c"))
+            code.putln(
+                "%s = __Pyx_PyObject_CallOneArg(%s, %s); %s" % (
+                    self.result(),
+                    function, self_arg,
+                    code.error_goto_if_null(self.result(), self.pos)))
+            code.funcstate.release_temp(self_arg)  # borrowed ref in this case
+            code.putln("} else {")
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("PyObjectCallNoArg", "ObjectHandling.c"))
+            code.putln(
+                "%s = __Pyx_PyObject_CallNoArg(%s); %s" % (
+                    self.result(),
+                    function,
+                    code.error_goto_if_null(self.result(), self.pos)))
+            code.putln("}")
+            code.put_gotref(self.py_result())
+        else:
+            args_tuple = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+            code.putln("%s = PyTuple_New(%d+%s); %s" % (
+                args_tuple, len(args), arg_offset,
+                code.error_goto_if_null(args_tuple, self.pos)))
+            code.put_gotref(args_tuple)
 
-        code.putln("if (%s == 1) {" % arg_offset)
-        code.putln("PyTuple_SET_ITEM(%s, 0, %s); __Pyx_GIVEREF(%s); %s = NULL;" % (
-            args_tuple, self_arg, self_arg, self_arg))
-        code.funcstate.release_temp(self_arg)
-        code.putln("}")
+            code.putln("if (%s == 1) {" % arg_offset)
+            code.putln("PyTuple_SET_ITEM(%s, 0, %s); __Pyx_GIVEREF(%s); %s = NULL;" % (
+                args_tuple, self_arg, self_arg, self_arg))  # stealing owned ref in this case
+            code.funcstate.release_temp(self_arg)
+            code.putln("}")
 
-        for i, arg in enumerate(args):
-            arg.make_owned_reference(code)
-            code.putln("PyTuple_SET_ITEM(%s, %d+%s, %s);" % (
-                args_tuple, i, arg_offset, arg.py_result()))
-            code.put_giveref(arg.py_result())
-        code.funcstate.release_temp(arg_offset)
+            for i, arg in enumerate(args):
+                arg.make_owned_reference(code)
+                code.putln("PyTuple_SET_ITEM(%s, %d+%s, %s);" % (
+                    args_tuple, i, arg_offset, arg.py_result()))
+                code.put_giveref(arg.py_result())
+            code.funcstate.release_temp(arg_offset)
 
-        for arg in args:
-            arg.generate_post_assignment_code(code)
-            arg.free_temps(code)
+            for arg in args:
+                arg.generate_post_assignment_code(code)
+                arg.free_temps(code)
 
-        code.globalstate.use_utility_code(
-            UtilityCode.load_cached("PyObjectCall", "ObjectHandling.c"))
-        code.putln(
-            "%s = __Pyx_PyObject_Call(%s, %s, NULL); %s" % (
-                self.result(),
-                function, args_tuple,
-                code.error_goto_if_null(self.result(), self.pos)))
-        code.put_gotref(self.py_result())
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("PyObjectCall", "ObjectHandling.c"))
+            code.putln(
+                "%s = __Pyx_PyObject_Call(%s, %s, NULL); %s" % (
+                    self.result(),
+                    function, args_tuple,
+                    code.error_goto_if_null(self.result(), self.pos)))
+            code.put_gotref(self.py_result())
 
-        code.put_decref_clear(args_tuple, py_object_type)
-        code.funcstate.release_temp(args_tuple)
+            code.put_decref_clear(args_tuple, py_object_type)
+            code.funcstate.release_temp(args_tuple)
+
         code.funcstate.release_temp(function)
-
         self.function.generate_disposal_code(code)
         self.function.free_temps(code)
 

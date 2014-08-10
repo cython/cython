@@ -56,6 +56,8 @@ Features added
 Optimizations
 -------------
 
+* Simple calls to C implemented Python functions/methods are faster.
+
 * The "and"/"or" operators try to avoid unnecessary coercions of their
   arguments.  They now evaluate the truth value of each argument
   independently and only coerce the final result of the whole expression
@@ -70,8 +72,6 @@ Optimizations
   type coercions.
 
 * Calls to ``slice()`` are translated to a straight C-API call.
-
-* Simple Python method calls are about 10% faster.
 
 Bugs fixed
 ----------

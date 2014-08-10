@@ -1158,6 +1158,90 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_Call(PyObject *func, PyObject *arg
 #endif
 
 
+/////////////// PyObjectCallOneArg.proto ///////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObject *arg); /*proto*/
+
+/////////////// PyObjectCallOneArg ///////////////
+//@requires: PyObjectCall
+
+#if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObject *arg) {
+    PyObject *self, *result;
+    PyCFunction cfunc;
+    if (!(PyCFunction_Check(func)
+#ifdef __Pyx_CyFunction_USED
+        || PyObject_TypeCheck(func, __pyx_CyFunctionType)
+#endif
+            ) || !(PyCFunction_GET_FLAGS(func) & METH_O)) {
+        PyObject* args = PyTuple_Pack(1, arg);
+        if (unlikely(!args)) return NULL;
+        result = __Pyx_PyObject_Call(func, args, NULL);
+        Py_DECREF(args);
+        return result;
+    }
+
+    // fast and simple case we are optimising for
+    cfunc = PyCFunction_GET_FUNCTION(func);
+    self = PyCFunction_GET_SELF(func);
+
+    if (unlikely(Py_EnterRecursiveCall((char*)" while calling a Python object")))
+        return NULL;
+    result = cfunc(self, arg);
+    Py_LeaveRecursiveCall();
+    if (unlikely(!result) && unlikely(!PyErr_Occurred())) {
+        PyErr_SetString(
+            PyExc_SystemError,
+            "NULL result without error in PyObject_Call");
+    }
+    return result;
+}
+
+#else
+static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObject *arg) {
+    PyObject* args = PyTuple_Pack(1, arg);
+    return (likely(args)) ? __Pyx_PyObject_Call(func, args, NULL) : NULL;
+}
+#endif
+
+/////////////// PyObjectCallNoArg.proto ///////////////
+//@requires: PyObjectCall
+//@substitute: naming
+
+#if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func); /*proto*/
+#else
+#define __Pyx_PyObject_CallNoArg(func) __Pyx_PyObject_Call(func, $empty_tuple, NULL)
+#endif
+
+/////////////// PyObjectCallNoArg ///////////////
+//@requires: PyObjectCall
+//@substitute: naming
+
+#if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func) {
+    PyObject *self, *result;
+    PyCFunction cfunc;
+    if (!PyCFunction_Check(func) || !(PyCFunction_GET_FLAGS(func) & METH_NOARGS)) {
+        return __Pyx_PyObject_Call(func, $empty_tuple, NULL);
+    }
+
+    cfunc = PyCFunction_GET_FUNCTION(func);
+    self = PyCFunction_GET_SELF(func);
+    if (unlikely(Py_EnterRecursiveCall((char*)" while calling a Python object")))
+        return NULL;
+    result = cfunc(self, NULL);
+    Py_LeaveRecursiveCall();
+    if (unlikely(!result) && unlikely(!PyErr_Occurred())) {
+        PyErr_SetString(
+            PyExc_SystemError,
+            "NULL result without error in PyObject_Call");
+    }
+    return result;
+}
+#endif
+
+
 /////////////// MatrixMultiply.proto ///////////////
 
 #if PY_VERSION_HEX >= 0x03050000
