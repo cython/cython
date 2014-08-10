@@ -3727,7 +3727,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
     visit_Node = Visitor.VisitorTransform.recurse_to_children
 
 
-class FinalOptimizePhase(Visitor.CythonTransform):
+class FinalOptimizePhase(Visitor.CythonTransform, Visitor.NodeRefCleanupMixin):
     """
     This visitor handles several commuting optimizations, and is run
     just before the C code generation phase.
@@ -3768,8 +3768,8 @@ class FinalOptimizePhase(Visitor.CythonTransform):
             if node.function.is_attribute:
                 if isinstance(node.arg_tuple, ExprNodes.TupleNode) and not (
                         node.arg_tuple.mult_factor or (node.arg_tuple.is_literal and node.arg_tuple.args)):
-                    node = ExprNodes.PyMethodCallNode.from_node(
-                        node, function=node.function, arg_tuple=node.arg_tuple, type=node.type)
+                    node = self.replace(node, ExprNodes.PyMethodCallNode.from_node(
+                        node, function=node.function, arg_tuple=node.arg_tuple, type=node.type))
         return node
 
     def visit_PyTypeTestNode(self, node):
