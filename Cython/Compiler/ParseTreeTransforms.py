@@ -1220,20 +1220,19 @@ class WithTransform(CythonTransform, SkipDeclarations):
         self.visitchildren(node, 'body')
         pos = node.pos
         body, target, manager = node.body, node.target, node.manager
-        node.enter_call = ExprNodes.ProxyNode(ExprNodes.SimpleCallNode(
+        node.enter_call = ExprNodes.SimpleCallNode(
             pos, function=ExprNodes.AttributeNode(
                 pos, obj=ExprNodes.CloneNode(manager),
                 attribute=EncodedString('__enter__'),
                 is_special_lookup=True),
             args=[],
-            is_temp=True))
+            is_temp=True)
+
         if target is not None:
             body = Nodes.StatListNode(
                 pos, stats=[
                     Nodes.WithTargetAssignmentStatNode(
-                        pos, lhs=target,
-                        rhs=ResultRefNode(node.enter_call),
-                        orig_rhs=node.enter_call),
+                        pos, lhs=target, with_node=node),
                     body])
 
         excinfo_target = ExprNodes.TupleNode(pos, slow=True, args=[

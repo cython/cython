@@ -68,7 +68,7 @@ class MarkParallelAssignments(EnvTransform):
             pass
 
     def visit_WithTargetAssignmentStatNode(self, node):
-        self.mark_assignment(node.lhs, node.rhs)
+        self.mark_assignment(node.lhs, node.with_node.enter_call)
         self.visitchildren(node)
         return node
 

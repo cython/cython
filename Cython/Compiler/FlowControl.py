@@ -1104,7 +1104,7 @@ class ControlFlowAnalysis(CythonTransform):
         raise InternalError("Generic loops are not supported")
 
     def visit_WithTargetAssignmentStatNode(self, node):
-        self.mark_assignment(node.lhs, node.rhs)
+        self.mark_assignment(node.lhs, node.with_node.enter_call)
         return node
 
     def visit_WithStatNode(self, node):

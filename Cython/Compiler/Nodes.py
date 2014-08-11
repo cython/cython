@@ -6124,6 +6124,7 @@ class WithStatNode(StatNode):
     child_attrs = ["manager", "enter_call", "target", "body"]
 
     enter_call = None
+    target_temp = None
 
     def analyse_declarations(self, env):
         self.manager.analyse_declarations(env)
@@ -6133,6 +6134,10 @@ class WithStatNode(StatNode):
     def analyse_expressions(self, env):
         self.manager = self.manager.analyse_types(env)
         self.enter_call = self.enter_call.analyse_types(env)
+        if self.target:
+            # set up target_temp before descending into body (which uses it)
+            from .ExprNodes import TempNode
+            self.target_temp = TempNode(self.enter_call.pos, self.enter_call.type)
         self.body = self.body.analyse_expressions(env)
         return self
 
@@ -6160,14 +6165,17 @@ class WithStatNode(StatNode):
         intermediate_error_label = code.error_label
 
         self.enter_call.generate_evaluation_code(code)
-        if not self.target:
-            self.enter_call.generate_disposal_code(code)
-            self.enter_call.free_temps(code)
+        if self.target:
+            # The temp result will be cleaned up by the WithTargetAssignmentStatNode
+            # after assigning its result to the target of the 'with' statement.
+            self.target_temp.allocate(code)
+            self.enter_call.make_owned_reference(code)
+            code.putln("%s = %s;" % (self.target_temp.result(), self.enter_call.result()))
+            self.enter_call.generate_post_assignment_code(code)
         else:
-            # Otherwise, the node will be cleaned up by the
-            # WithTargetAssignmentStatNode after assigning its result
-            # to the target of the 'with' statement.
-            pass
+            self.enter_call.generate_disposal_code(code)
+        self.enter_call.free_temps(code)
+
         self.manager.generate_disposal_code(code)
         self.manager.free_temps(code)
 
@@ -6185,52 +6193,34 @@ class WithStatNode(StatNode):
         code.funcstate.release_temp(self.exit_var)
         code.putln('}')
 
+
 class WithTargetAssignmentStatNode(AssignmentNode):
     # The target assignment of the 'with' statement value (return
     # value of the __enter__() call).
     #
-    # This is a special cased assignment that steals the RHS reference
-    # and frees its temp.
+    # This is a special cased assignment that properly cleans up the RHS.
     #
-    # lhs       ExprNode   the assignment target
-    # rhs       CloneNode  a (coerced) CloneNode for the orig_rhs (not owned by this node)
-    # orig_rhs  ExprNode   the original ExprNode of the rhs. this node will clean up the
-    #                      temps of the orig_rhs. basically, it takes ownership of the node
-    #                      when the WithStatNode is done with it.
+    # lhs       ExprNode      the assignment target
+    # rhs       ExprNode      a (coerced) TempNode for the rhs (from WithStatNode)
+    # with_node WithStatNode  the surrounding with-statement
 
-    child_attrs = ["lhs"]
+    child_attrs = ["rhs", "lhs"]
+    with_node = None
+    rhs = None
 
     def analyse_declarations(self, env):
         self.lhs.analyse_target_declaration(env)
 
     def analyse_expressions(self, env):
-        self.rhs = self.rhs.analyse_types(env)
         self.lhs = self.lhs.analyse_target_types(env)
         self.lhs.gil_assignment_check(env)
-        self.rhs = self.rhs.coerce_to(self.lhs.type, env)
+        self.rhs = self.with_node.target_temp.coerce_to(self.lhs.type, env)
         return self
 
     def generate_execution_code(self, code):
-        if self.orig_rhs.type.is_pyobject:
-            # make sure rhs gets freed on errors, see below
-            old_error_label = code.new_error_label()
-            intermediate_error_label = code.error_label
-
         self.rhs.generate_evaluation_code(code)
         self.lhs.generate_assignment_code(self.rhs, code)
-
-        if self.orig_rhs.type.is_pyobject:
-            self.orig_rhs.generate_disposal_code(code)
-            code.error_label = old_error_label
-            if code.label_used(intermediate_error_label):
-                step_over_label = code.new_label()
-                code.put_goto(step_over_label)
-                code.put_label(intermediate_error_label)
-                self.orig_rhs.generate_disposal_code(code)
-                code.put_goto(old_error_label)
-                code.put_label(step_over_label)
-
-        self.orig_rhs.free_temps(code)
+        self.with_node.target_temp.release(code)
 
     def annotate(self, code):
         self.lhs.annotate(code)

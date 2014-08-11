@@ -344,10 +344,10 @@ class ExprNode(Node):
 
     def result(self):
         if self.is_temp:
-            if not self.temp_code:
-                pos = (os.path.basename(self.pos[0].get_description()),) + self.pos[1:] if self.pos else '(?)'
-                raise RuntimeError("temp result name not set in %s at %r" % (
-                    self.__class__.__name__, pos))
+            #if not self.temp_code:
+            #    pos = (os.path.basename(self.pos[0].get_description()),) + self.pos[1:] if self.pos else '(?)'
+            #    raise RuntimeError("temp result name not set in %s at %r" % (
+            #        self.__class__.__name__, pos))
             return self.temp_code
         else:
             return self.calculate_result_code()
@@ -620,7 +620,7 @@ class ExprNode(Node):
                 # postponed from self.generate_evaluation_code()
                 self.generate_subexpr_disposal_code(code)
                 self.free_subexpr_temps(code)
-            if self.temp_code:
+            if self.result():
                 if self.type.is_pyobject:
                     code.put_decref_clear(self.result(), self.ctype())
                 elif self.type.is_memoryviewslice:
@@ -4759,7 +4759,7 @@ class SimpleCallNode(CallNode):
                         exc_checks.append("PyErr_Occurred()")
             if self.is_temp or exc_checks:
                 rhs = self.c_call_code()
-                if self.temp_code:
+                if self.result():
                     lhs = "%s = " % self.result()
                     if self.is_temp and self.type.is_pyobject:
                         #return_type = self.type # func_type.return_type
