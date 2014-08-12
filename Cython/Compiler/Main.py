@@ -161,7 +161,7 @@ class Context(object):
                     if package_pathname and package_pathname.endswith('__init__.py'):
                         pass
                     else:
-                        error(pos, "'%s.pxd' not found" % module_name)
+                        error(pos, "'%s.pxd' not found" % module_name.replace('.', os.sep))
             if pxd_pathname:
                 try:
                     if debug_find_module:
