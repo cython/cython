@@ -57,6 +57,8 @@ Optimizations
 -------------
 
 * Simple calls to C implemented Python functions/methods are faster.
+  This also speeds up many operations on builtins that Cython cannot
+  otherwise optimise.
 
 * The "and"/"or" operators try to avoid unnecessary coercions of their
   arguments.  They now evaluate the truth value of each argument
