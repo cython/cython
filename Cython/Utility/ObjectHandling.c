@@ -1177,8 +1177,8 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObjec
         PyObject* args = PyTuple_New(1);
         if (unlikely(!args)) return NULL;
         PyTuple_SET_ITEM(args, 0, arg);
+        Py_INCREF(arg);
         result = __Pyx_PyObject_Call(func, args, NULL);
-        PyTuple_SET_ITEM(args, 0, NULL);
         Py_DECREF(args);
         return result;
     }
