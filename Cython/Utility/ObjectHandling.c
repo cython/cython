@@ -1174,9 +1174,11 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObjec
         || PyObject_TypeCheck(func, __pyx_CyFunctionType)
 #endif
             ) || !(PyCFunction_GET_FLAGS(func) & METH_O)) {
-        PyObject* args = PyTuple_Pack(1, arg);
+        PyObject* args = PyTuple_New(1);
         if (unlikely(!args)) return NULL;
+        PyTuple_SET_ITEM(args, 0, arg);
         result = __Pyx_PyObject_Call(func, args, NULL);
+        PyTuple_SET_ITEM(args, 0, NULL);
         Py_DECREF(args);
         return result;
     }
