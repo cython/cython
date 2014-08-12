@@ -3765,7 +3765,16 @@ class FinalOptimizePhase(Visitor.CythonTransform, Visitor.NodeRefCleanupMixin):
                     node.args[1] = ExprNodes.CastNode(node.args[1], PyTypeObjectPtr)
         elif node.function.type.is_pyobject and node.function.type is not Builtin.type_type:
             # we could do it for all calls, but attributes are most likely to result in a method call
-            if node.function.is_attribute:
+            function = node.function
+            likely_method = function.is_attribute
+            if not likely_method and function.is_name and function.cf_state:
+                # not an attribute itself, but might have been assigned from one (e.g. bound method)
+                for assignment in function.cf_state:
+                    value = assignment.rhs
+                    if value.is_attribute and value.obj.type.is_pyobject and value.obj.type is not Builtin.type_type:
+                        likely_method = True
+                        break
+            if likely_method:
                 if isinstance(node.arg_tuple, ExprNodes.TupleNode) and not (
                         node.arg_tuple.mult_factor or (node.arg_tuple.is_literal and node.arg_tuple.args)):
                     node = self.replace(node, ExprNodes.PyMethodCallNode.from_node(
