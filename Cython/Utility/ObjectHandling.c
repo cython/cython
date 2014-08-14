@@ -1158,32 +1158,19 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_Call(PyObject *func, PyObject *arg
 #endif
 
 
-/////////////// PyObjectCallOneArg.proto ///////////////
+/////////////// PyObjectCallMethO.proto ///////////////
 
-static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObject *arg); /*proto*/
+#if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE PyObject* __Pyx_PyObject_CallMethO(PyObject *func, PyObject *arg); /*proto*/
+#endif
 
-/////////////// PyObjectCallOneArg ///////////////
+/////////////// PyObjectCallMethO ///////////////
 //@requires: PyObjectCall
 
 #if CYTHON_COMPILING_IN_CPYTHON
-static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObject *arg) {
+static CYTHON_INLINE PyObject* __Pyx_PyObject_CallMethO(PyObject *func, PyObject *arg) {
     PyObject *self, *result;
     PyCFunction cfunc;
-    if (!(PyCFunction_Check(func)
-#ifdef __Pyx_CyFunction_USED
-        || PyObject_TypeCheck(func, __pyx_CyFunctionType)
-#endif
-            ) || !(PyCFunction_GET_FLAGS(func) & METH_O)) {
-        PyObject* args = PyTuple_New(1);
-        if (unlikely(!args)) return NULL;
-        PyTuple_SET_ITEM(args, 0, arg);
-        Py_INCREF(arg);
-        result = __Pyx_PyObject_Call(func, args, NULL);
-        Py_DECREF(args);
-        return result;
-    }
-
-    // fast and simple case we are optimising for
     cfunc = PyCFunction_GET_FUNCTION(func);
     self = PyCFunction_GET_SELF(func);
 
@@ -1197,6 +1184,37 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObjec
             "NULL result without error in PyObject_Call");
     }
     return result;
+}
+#endif
+
+
+/////////////// PyObjectCallOneArg.proto ///////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObject *arg); /*proto*/
+
+/////////////// PyObjectCallOneArg ///////////////
+//@requires: PyObjectCallMethO
+//@requires: PyObjectCall
+
+#if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObject *arg) {
+    if (likely(PyCFunction_Check(func)
+#ifdef __Pyx_CyFunction_USED
+            || PyObject_TypeCheck(func, __pyx_CyFunctionType)
+#endif
+            ) && likely(PyCFunction_GET_FLAGS(func) & METH_O)) {
+        // fast and simple case that we are optimising for
+        return __Pyx_PyObject_CallMethO(func, arg);
+    } else {
+        PyObject *result;
+        PyObject *args = PyTuple_New(1);
+        if (unlikely(!args)) return NULL;
+        Py_INCREF(arg);
+        PyTuple_SET_ITEM(args, 0, arg);
+        result = __Pyx_PyObject_Call(func, args, NULL);
+        Py_DECREF(args);
+        return result;
+    }
 }
 
 #else
@@ -1217,33 +1235,22 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func); /*proto
 #endif
 
 /////////////// PyObjectCallNoArg ///////////////
+//@requires: PyObjectCallMethO
 //@requires: PyObjectCall
 //@substitute: naming
 
 #if CYTHON_COMPILING_IN_CPYTHON
 static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func) {
-    PyObject *self, *result;
-    PyCFunction cfunc;
-    if (!(PyCFunction_Check(func)
+    if (likely(PyCFunction_Check(func)
 #ifdef __Pyx_CyFunction_USED
-        || PyObject_TypeCheck(func, __pyx_CyFunctionType)
+           || PyObject_TypeCheck(func, __pyx_CyFunctionType)
 #endif
-            ) || !(PyCFunction_GET_FLAGS(func) & METH_NOARGS)) {
+            ) && likely(PyCFunction_GET_FLAGS(func) & METH_NOARGS)) {
+        // fast and simple case that we are optimising for
+        return __Pyx_PyObject_CallMethO(func, NULL);
+    } else {
         return __Pyx_PyObject_Call(func, $empty_tuple, NULL);
     }
-
-    cfunc = PyCFunction_GET_FUNCTION(func);
-    self = PyCFunction_GET_SELF(func);
-    if (unlikely(Py_EnterRecursiveCall((char*)" while calling a Python object")))
-        return NULL;
-    result = cfunc(self, NULL);
-    Py_LeaveRecursiveCall();
-    if (unlikely(!result) && unlikely(!PyErr_Occurred())) {
-        PyErr_SetString(
-            PyExc_SystemError,
-            "NULL result without error in PyObject_Call");
-    }
-    return result;
 }
 #endif
 
