@@ -78,6 +78,9 @@ Optimizations
 Bugs fixed
 ----------
 
+* Sending SIGINT (Ctrl-C) during parallel cythonize() builds could
+  hang the child processes.
+
 * No longer ignore local setup.cfg files for distutils in pyximport.
   Patch by Martin Teichmann.
 
