@@ -2611,9 +2611,9 @@ class TransformBuiltinMethods(EnvTransform):
                 else:
                     locals_dict = ExprNodes.GlobalsExprNode(pos)
                 return ExprNodes.SortedDictKeysNode(locals_dict)
-            local_names = [ var.name for var in lenv.entries.values() if var.name ]
-            items = [ ExprNodes.IdentifierStringNode(pos, value=var)
-                      for var in local_names ]
+            local_names = sorted(var.name for var in lenv.entries.values() if var.name)
+            items = [ExprNodes.IdentifierStringNode(pos, value=var)
+                     for var in local_names]
             return ExprNodes.ListNode(pos, args=items)
 
     def visit_PrimaryCmpNode(self, node):
