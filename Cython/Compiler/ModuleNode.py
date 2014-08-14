@@ -683,11 +683,22 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln_openmp("#include <omp.h>")
 
     def generate_filename_table(self, code):
+        import os.path as path
+
+        full_module_path = path.join(*self.full_module_name.split('.'))
+        module_abspath = path.splitext(path.abspath(
+            self.compilation_source.source_desc.get_filenametable_entry() ))[0]
+        module_relpath = module_abspath[:-len(full_module_path)]
+
         code.putln("")
         code.putln("static const char *%s[] = {" % Naming.filetable_cname)
         if code.globalstate.filename_list:
             for source_desc in code.globalstate.filename_list:
-                filename = os.path.abspath(source_desc.get_filenametable_entry())
+                file_abspath = path.abspath(source_desc.get_filenametable_entry())
+                if file_abspath.startswith(module_relpath):
+                    filename = file_abspath[len(module_relpath):]
+                else:
+                    filename = path.basename(file_abspath)
                 escaped_filename = filename.replace("\\", "\\\\").replace('"', r'\"')
                 code.putln('"%s",' % escaped_filename)
         else:
