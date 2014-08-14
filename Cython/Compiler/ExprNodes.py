@@ -7059,13 +7059,24 @@ class SortedDictKeysNode(ExprNode):
     def generate_result_code(self, code):
         dict_result = self.arg.py_result()
         if self.arg.type is Builtin.dict_type:
-            function = 'PyDict_Keys'
+            code.putln('%s = PyDict_Keys(%s); %s' % (
+                self.result(), dict_result,
+                code.error_goto_if_null(self.result(), self.pos)))
+            code.put_gotref(self.py_result())
         else:
-            function = 'PyMapping_Keys'
-        code.putln('%s = %s(%s); %s' % (
-            self.result(), function, dict_result,
-            code.error_goto_if_null(self.result(), self.pos)))
-        code.put_gotref(self.py_result())
+            # originally used PyMapping_Keys() here, but that may return a tuple
+            code.globalstate.use_utility_code(UtilityCode.load_cached(
+                'PyObjectCallMethod', 'ObjectHandling.c'))
+            keys_cname = code.intern_identifier(StringEncoding.EncodedString("keys"))
+            code.putln('%s = __Pyx_PyObject_CallMethod0(%s, %s); %s' % (
+                self.result(), dict_result, keys_cname,
+                code.error_goto_if_null(self.result(), self.pos)))
+            code.put_gotref(self.py_result())
+            code.putln("if (unlikely(!PyList_Check(%s))) {" % self.result())
+            code.put_decref_set(self.result(), "PySequence_List(%s)" % self.result())
+            code.putln(code.error_goto_if_null(self.result(), self.pos))
+            code.put_gotref(self.py_result())
+            code.putln("}")
         code.put_error_if_neg(
             self.pos, 'PyList_Sort(%s)' % self.py_result())
 
