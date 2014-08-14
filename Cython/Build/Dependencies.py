@@ -798,15 +798,24 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
         # Requires multiprocessing (or Python >= 2.6)
         try:
             import multiprocessing
-            pool = multiprocessing.Pool(nthreads)
+            pool = multiprocessing.Pool(
+                nthreads, initializer=_init_multiprocessing_helper)
         except (ImportError, OSError):
             print("multiprocessing required for parallel cythonization")
             nthreads = 0
         else:
+            # This is a bit more involved than it should be, because KeyboardInterrupts
+            # break the multiprocessing workers when using a normal pool.map().
+            # See, for example:
+            # http://noswap.com/blog/python-multiprocessing-keyboardinterrupt
             try:
-                pool.map(cythonize_one_helper, to_compile)
-            finally:
+                result = pool.map_async(cythonize_one_helper, to_compile, chunksize=1)
                 pool.close()
+                while not result.ready():
+                    result.get(10)  # seconds
+            except KeyboardInterrupt:
+                pool.terminate()
+            pool.join()
     if not nthreads:
         for args in to_compile:
             cythonize_one(*args[1:])
@@ -942,6 +951,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None, raise_on_f
         finally:
             f.close()
 
+
 def cythonize_one_helper(m):
     import traceback
     try:
@@ -949,6 +959,13 @@ def cythonize_one_helper(m):
     except Exception:
         traceback.print_exc()
         raise
+
+
+def _init_multiprocessing_helper():
+    # KeyboardInterrupt kills workers, so don't let them get it
+    import signal
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
 
 def cleanup_cache(cache, target_size, ratio=.85):
     try:
