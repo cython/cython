@@ -688,15 +688,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         full_module_path = path.join(*self.full_module_name.split('.'))
         module_abspath = path.splitext(path.abspath(
             self.compilation_source.source_desc.get_filenametable_entry() ))[0]
-        module_relpath = module_abspath[:-len(full_module_path)]
+        module_rootpath = module_abspath[:-len(full_module_path)]
 
         code.putln("")
         code.putln("static const char *%s[] = {" % Naming.filetable_cname)
         if code.globalstate.filename_list:
             for source_desc in code.globalstate.filename_list:
                 file_abspath = path.abspath(source_desc.get_filenametable_entry())
-                if file_abspath.startswith(module_relpath):
-                    filename = file_abspath[len(module_relpath):]
+                if file_abspath.startswith(module_rootpath):
+                    filename = file_abspath[len(module_rootpath):]
                 else:
                     filename = path.basename(file_abspath)
                 escaped_filename = filename.replace("\\", "\\\\").replace('"', r'\"')
