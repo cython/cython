@@ -2366,7 +2366,7 @@ class IteratorNode(ExprNode):
         self.may_be_a_sequence = not sequence_type.is_builtin_type
         if self.may_be_a_sequence:
             code.putln(
-                "if (PyList_CheckExact(%s) || PyTuple_CheckExact(%s)) {" % (
+                "if (likely(PyList_CheckExact(%s)) || PyTuple_CheckExact(%s)) {" % (
                     self.sequence.py_result(),
                     self.sequence.py_result()))
         if is_builtin_sequence or self.may_be_a_sequence:
@@ -2471,8 +2471,8 @@ class IteratorNode(ExprNode):
             return
 
         if self.may_be_a_sequence:
-            code.putln("if (!%s) {" % self.iter_func_ptr)
-            code.putln("if (PyList_CheckExact(%s)) {" % self.py_result())
+            code.putln("if (likely(!%s)) {" % self.iter_func_ptr)
+            code.putln("if (likely(PyList_CheckExact(%s))) {" % self.py_result())
             self.generate_next_sequence_item('List', result_name, code)
             code.putln("} else {")
             self.generate_next_sequence_item('Tuple', result_name, code)
