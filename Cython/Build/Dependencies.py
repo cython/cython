@@ -812,7 +812,10 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
                 result = pool.map_async(cythonize_one_helper, to_compile, chunksize=1)
                 pool.close()
                 while not result.ready():
-                    result.get(120)  # seconds
+                    try:
+                        result.get(99999)  # seconds
+                    except multiprocessing.TimeoutError:
+                        pass
             except KeyboardInterrupt:
                 pool.terminate()
                 raise
