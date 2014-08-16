@@ -3765,9 +3765,22 @@ class FinalOptimizePhase(Visitor.CythonTransform, Visitor.NodeRefCleanupMixin):
                     PyTypeObjectPtr = PyrexTypes.CPtrType(cython_scope.lookup('PyTypeObject').type)
                     node.args[1] = ExprNodes.CastNode(node.args[1], PyTypeObjectPtr)
         elif node.is_temp and function.type.is_pyobject:
-            if function.type is not Builtin.type_type and not (function.is_name and function.entry.is_builtin):
-                if isinstance(node.arg_tuple, ExprNodes.TupleNode) and not (
-                        node.arg_tuple.mult_factor or (node.arg_tuple.is_literal and node.arg_tuple.args)):
+            # optimise simple Python methods calls
+            if isinstance(node.arg_tuple, ExprNodes.TupleNode) and not (
+                    node.arg_tuple.mult_factor or (node.arg_tuple.is_literal and node.arg_tuple.args)):
+                # simple call, now exclude calls to objects that are definitely not methods
+                may_be_a_method = True
+                if function.type is Builtin.type_type:
+                    may_be_a_method = False
+                elif function.is_name:
+                    if function.entry.is_builtin:
+                        may_be_a_method = False
+                    elif function.cf_state:
+                        # local functions are definitely not methods
+                        may_be_a_method = any(
+                            not isinstance(assignment.rhs, ExprNodes.PyCFunctionNode)
+                            for assignment in function.cf_state)
+                if may_be_a_method:
                     node = self.replace(node, ExprNodes.PyMethodCallNode.from_node(
                         node, function=function, arg_tuple=node.arg_tuple, type=node.type))
         return node
