@@ -3754,20 +3754,22 @@ class FinalOptimizePhase(Visitor.CythonTransform, Visitor.NodeRefCleanupMixin):
         Replace likely Python method calls by a specialised PyMethodCallNode.
         """
         self.visitchildren(node)
-        if node.function.type.is_cfunction and node.function.is_name:
-            if node.function.name == 'isinstance' and len(node.args) == 2:
+        function = node.function
+        if function.type.is_cfunction and function.is_name:
+            if function.name == 'isinstance' and len(node.args) == 2:
                 type_arg = node.args[1]
                 if type_arg.type.is_builtin_type and type_arg.type.name == 'type':
                     cython_scope = self.context.cython_scope
-                    node.function.entry = cython_scope.lookup('PyObject_TypeCheck')
-                    node.function.type = node.function.entry.type
+                    function.entry = cython_scope.lookup('PyObject_TypeCheck')
+                    function.type = function.entry.type
                     PyTypeObjectPtr = PyrexTypes.CPtrType(cython_scope.lookup('PyTypeObject').type)
                     node.args[1] = ExprNodes.CastNode(node.args[1], PyTypeObjectPtr)
-        elif node.is_temp and node.function.type.is_pyobject and node.function.type is not Builtin.type_type:
-            if isinstance(node.arg_tuple, ExprNodes.TupleNode) and not (
-                    node.arg_tuple.mult_factor or (node.arg_tuple.is_literal and node.arg_tuple.args)):
-                node = self.replace(node, ExprNodes.PyMethodCallNode.from_node(
-                    node, function=node.function, arg_tuple=node.arg_tuple, type=node.type))
+        elif node.is_temp and function.type.is_pyobject:
+            if function.type is not Builtin.type_type and not (function.is_name and function.entry.is_builtin):
+                if isinstance(node.arg_tuple, ExprNodes.TupleNode) and not (
+                        node.arg_tuple.mult_factor or (node.arg_tuple.is_literal and node.arg_tuple.args)):
+                    node = self.replace(node, ExprNodes.PyMethodCallNode.from_node(
+                        node, function=function, arg_tuple=node.arg_tuple, type=node.type))
         return node
 
     def visit_PyTypeTestNode(self, node):
