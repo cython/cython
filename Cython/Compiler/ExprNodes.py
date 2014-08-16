@@ -4837,15 +4837,24 @@ class PyMethodCallNode(SimpleCallNode):
             arg_offset_cname = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
             code.putln("%s = 0;" % arg_offset_cname)
 
-        if self.function.is_attribute and self.function.obj.type is not Builtin.type_type:
-            likely_method = 'likely'
+        def attribute_is_likely_bound_method(attr):
+            obj = attr.obj
+            if obj.type is Builtin.type_type:
+                return False  # more likely to be an unbound method
+            if obj.is_name and obj.entry.is_pyglobal:
+                return False  # more likely to be a function
+            return True
+
+        if self.function.is_attribute:
+            likely_method = 'likely' if attribute_is_likely_bound_method(self.function) else 'unlikely'
         elif self.function.is_name and self.function.cf_state:
             # not an attribute itself, but might have been assigned from one (e.g. bound method)
             for assignment in self.function.cf_state:
                 value = assignment.rhs
-                if value.is_attribute and value.obj.type.is_pyobject and value.obj.type is not Builtin.type_type:
-                    likely_method = 'likely'
-                    break
+                if value.is_attribute and value.obj.type.is_pyobject:
+                    if attribute_is_likely_bound_method(value):
+                        likely_method = 'likely'
+                        break
             else:
                 likely_method = 'unlikely'
         else:
