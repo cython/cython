@@ -4837,7 +4837,21 @@ class PyMethodCallNode(SimpleCallNode):
             arg_offset_cname = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
             code.putln("%s = 0;" % arg_offset_cname)
 
-        code.putln("if (CYTHON_COMPILING_IN_CPYTHON && likely(PyMethod_Check(%s))) {" % function)
+        if self.function.is_attribute and self.function.obj.type is not Builtin.type_type:
+            likely_method = 'likely'
+        elif self.function.is_name and self.function.cf_state:
+            # not an attribute itself, but might have been assigned from one (e.g. bound method)
+            for assignment in self.function.cf_state:
+                value = assignment.rhs
+                if value.is_attribute and value.obj.type.is_pyobject and value.obj.type is not Builtin.type_type:
+                    likely_method = 'likely'
+                    break
+            else:
+                likely_method = 'unlikely'
+        else:
+            likely_method = 'unlikely'
+
+        code.putln("if (CYTHON_COMPILING_IN_CPYTHON && %s(PyMethod_Check(%s))) {" % (likely_method, function))
         code.putln("%s = PyMethod_GET_SELF(%s);" % (self_arg, function))
         # the following is always true in Py3 (kept only for safety),
         # but is false for unbound methods in Py2
