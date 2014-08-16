@@ -4819,30 +4819,42 @@ class PyMethodCallNode(SimpleCallNode):
         for arg in args:
             arg.generate_evaluation_code(code)
 
-        self_arg = code.funcstate.allocate_temp(py_object_type, manage_ref=bool(args))
-        function = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
-        arg_offset = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
+        # make sure function is in temp so that we can replace the reference below if it's a method
+        reuse_function_temp = self.function.is_temp
+        if reuse_function_temp:
+            function = self.function.result()
+        else:
+            function = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+            self.function.make_owned_reference(code)
+            code.put("%s = %s; " % (function, self.function.py_result()))
+            self.function.generate_disposal_code(code)
+            self.function.free_temps(code)
 
-        code.putln("%s = 0;" % arg_offset)
-        code.putln("%s = %s;" % (function, self.function.py_result()))
+        self_arg = code.funcstate.allocate_temp(py_object_type, manage_ref=bool(args))
         code.putln("%s = NULL;" % self_arg)
+        arg_offset = None
+        if args:
+            arg_offset = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
+            code.putln("%s = 0;" % arg_offset)
 
         code.putln("if (CYTHON_COMPILING_IN_CPYTHON && PyMethod_Check(%s)) {" % function)
         code.putln("%s = PyMethod_GET_SELF(%s);" % (self_arg, function))
         # the following is always true in Py3 (kept only for safety),
         # but is false for unbound methods in Py2
         code.putln("if (likely(%s)) {" % self_arg)
+        code.put("PyObject* function = PyMethod_GET_FUNCTION(%s); " % function)
+        code.put_incref("function", py_object_type)
+        code.put_incref(self_arg, py_object_type)
+        # free method object as early to possible to enable reuse from CPython's freelist
+        code.put_decref_set(function, "function")
         if args:
-            code.put_incref(self_arg, py_object_type)
-        code.putln("%s = PyMethod_GET_FUNCTION(%s);" % (function, function))
-        code.putln("%s = 1;" % arg_offset)
+            code.putln("%s = 1;" % arg_offset)
         code.putln("}")
         code.putln("}")
 
         if not args:
             # fastest special case: try to avoid tuple creation
-            code.putln("if (%s == 1) {" % arg_offset)
-            code.funcstate.release_temp(arg_offset)
+            code.putln("if (%s) {" % self_arg)
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("PyObjectCallOneArg", "ObjectHandling.c"))
             code.putln(
@@ -4868,7 +4880,7 @@ class PyMethodCallNode(SimpleCallNode):
                 code.error_goto_if_null(args_tuple, self.pos)))
             code.put_gotref(args_tuple)
 
-            code.putln("if (%s == 1) {" % arg_offset)
+            code.putln("if (%s) {" % self_arg)
             code.putln("PyTuple_SET_ITEM(%s, 0, %s); __Pyx_GIVEREF(%s); %s = NULL;" % (
                 args_tuple, self_arg, self_arg, self_arg))  # stealing owned ref in this case
             code.funcstate.release_temp(self_arg)
@@ -4897,9 +4909,12 @@ class PyMethodCallNode(SimpleCallNode):
             code.put_decref_clear(args_tuple, py_object_type)
             code.funcstate.release_temp(args_tuple)
 
-        code.funcstate.release_temp(function)
-        self.function.generate_disposal_code(code)
-        self.function.free_temps(code)
+        if reuse_function_temp:
+            self.function.generate_disposal_code(code)
+            self.function.free_temps(code)
+        else:
+            code.put_decref_clear(function, py_object_type)
+            code.funcstate.release_temp(function)
 
 
 class InlinedDefNodeCallNode(CallNode):
