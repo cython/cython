@@ -4830,7 +4830,7 @@ class PyMethodCallNode(SimpleCallNode):
             self.function.generate_disposal_code(code)
             self.function.free_temps(code)
 
-        self_arg = code.funcstate.allocate_temp(py_object_type, manage_ref=bool(args))
+        self_arg = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
         code.putln("%s = NULL;" % self_arg)
         arg_offset_cname = None
         if len(args) > 1:
@@ -4862,7 +4862,8 @@ class PyMethodCallNode(SimpleCallNode):
                     self.result(),
                     function, self_arg,
                     code.error_goto_if_null(self.result(), self.pos)))
-            code.funcstate.release_temp(self_arg)  # borrowed ref in this case
+            code.put_decref_clear(self_arg, py_object_type)
+            code.funcstate.release_temp(self_arg)
             code.putln("} else {")
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("PyObjectCallNoArg", "ObjectHandling.c"))
