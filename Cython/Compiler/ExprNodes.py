@@ -4832,12 +4832,12 @@ class PyMethodCallNode(SimpleCallNode):
 
         self_arg = code.funcstate.allocate_temp(py_object_type, manage_ref=bool(args))
         code.putln("%s = NULL;" % self_arg)
-        arg_offset = None
-        if args:
-            arg_offset = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
-            code.putln("%s = 0;" % arg_offset)
+        arg_offset_cname = None
+        if len(args) > 1:
+            arg_offset_cname = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
+            code.putln("%s = 0;" % arg_offset_cname)
 
-        code.putln("if (CYTHON_COMPILING_IN_CPYTHON && PyMethod_Check(%s)) {" % function)
+        code.putln("if (CYTHON_COMPILING_IN_CPYTHON && likely(PyMethod_Check(%s))) {" % function)
         code.putln("%s = PyMethod_GET_SELF(%s);" % (self_arg, function))
         # the following is always true in Py3 (kept only for safety),
         # but is false for unbound methods in Py2
@@ -4847,8 +4847,8 @@ class PyMethodCallNode(SimpleCallNode):
         code.put_incref(self_arg, py_object_type)
         # free method object as early to possible to enable reuse from CPython's freelist
         code.put_decref_set(function, "function")
-        if args:
-            code.putln("%s = 1;" % arg_offset)
+        if len(args) > 1:
+            code.putln("%s = 1;" % arg_offset_cname)
         code.putln("}")
         code.putln("}")
 
@@ -4874,24 +4874,44 @@ class PyMethodCallNode(SimpleCallNode):
             code.putln("}")
             code.put_gotref(self.py_result())
         else:
+            if len(args) == 1:
+                code.putln("if (!%s) {" % self_arg)
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("PyObjectCallOneArg", "ObjectHandling.c"))
+                arg = args[0]
+                code.putln(
+                    "%s = __Pyx_PyObject_CallOneArg(%s, %s); %s" % (
+                        self.result(),
+                        function, arg.py_result(),
+                        code.error_goto_if_null(self.result(), self.pos)))
+                arg.generate_disposal_code(code)
+                code.put_gotref(self.py_result())
+                code.putln("} else {")
+                arg_offset = 1
+            else:
+                arg_offset = arg_offset_cname
+
             args_tuple = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
             code.putln("%s = PyTuple_New(%d+%s); %s" % (
                 args_tuple, len(args), arg_offset,
                 code.error_goto_if_null(args_tuple, self.pos)))
             code.put_gotref(args_tuple)
 
-            code.putln("if (%s) {" % self_arg)
+            if len(args) > 1:
+                code.putln("if (%s) {" % self_arg)
             code.putln("PyTuple_SET_ITEM(%s, 0, %s); __Pyx_GIVEREF(%s); %s = NULL;" % (
                 args_tuple, self_arg, self_arg, self_arg))  # stealing owned ref in this case
             code.funcstate.release_temp(self_arg)
-            code.putln("}")
+            if len(args) > 1:
+                code.putln("}")
 
             for i, arg in enumerate(args):
                 arg.make_owned_reference(code)
                 code.putln("PyTuple_SET_ITEM(%s, %d+%s, %s);" % (
                     args_tuple, i, arg_offset, arg.py_result()))
                 code.put_giveref(arg.py_result())
-            code.funcstate.release_temp(arg_offset)
+            if len(args) > 1:
+                code.funcstate.release_temp(arg_offset_cname)
 
             for arg in args:
                 arg.generate_post_assignment_code(code)
@@ -4908,6 +4928,9 @@ class PyMethodCallNode(SimpleCallNode):
 
             code.put_decref_clear(args_tuple, py_object_type)
             code.funcstate.release_temp(args_tuple)
+
+            if len(args) == 1:
+                code.putln("}")
 
         if reuse_function_temp:
             self.function.generate_disposal_code(code)
