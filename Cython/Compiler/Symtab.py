@@ -573,7 +573,7 @@ class Scope(object):
                     entry.type.scope.declare_inherited_cpp_attributes(base_class.scope)
         if entry.type.scope:
             declare_inherited_attributes(entry, base_classes)
-            entry.type.scope.declare_var(name="this", cname="this", type=PyrexTypes.CPtrType(entry.type), pos=entry.pos)
+            scope.declare_var(name="this", cname="this", type=PyrexTypes.CPtrType(entry.type), pos=entry.pos)
         if self.is_cpp_class_scope:
             entry.type.namespace = self.outer_scope.lookup(self.name).type
         return entry
