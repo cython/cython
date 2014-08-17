@@ -4863,9 +4863,9 @@ class PyMethodCallNode(SimpleCallNode):
         # the following is always true in Py3 (kept only for safety),
         # but is false for unbound methods in Py2
         code.putln("if (likely(%s)) {" % self_arg)
-        code.put("PyObject* function = PyMethod_GET_FUNCTION(%s); " % function)
-        code.put_incref("function", py_object_type)
+        code.putln("PyObject* function = PyMethod_GET_FUNCTION(%s);" % function)
         code.put_incref(self_arg, py_object_type)
+        code.put_incref("function", py_object_type)
         # free method object as early to possible to enable reuse from CPython's freelist
         code.put_decref_set(function, "function")
         if len(args) > 1:
