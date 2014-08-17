@@ -5,8 +5,7 @@ cython.declare(PyrexTypes=object, ExprNodes=object, Nodes=object,
                Builtin=object, InternalError=object,
                error=object, warning=object,
                py_object_type=object, unspecified_type=object,
-               object_expr=object, object_expr_not_none=object,
-               fake_rhs_expr=object, TypedExprNode=object)
+               object_expr=object, fake_rhs_expr=object, TypedExprNode=object)
 
 from . import Builtin
 from . import ExprNodes
@@ -29,7 +28,6 @@ class TypedExprNode(ExprNodes.ExprNode):
         return self._may_be_none != False
 
 object_expr = TypedExprNode(py_object_type, may_be_none=True)
-object_expr_not_none = TypedExprNode(py_object_type, may_be_none=False)
 # Fake rhs to silence "unused variable" warning
 fake_rhs_expr = TypedExprNode(unspecified_type)
 
@@ -1287,7 +1285,7 @@ class ControlFlowAnalysis(CythonTransform):
     def visit_PyClassDefNode(self, node):
         self.visitchildren(node, ('dict', 'metaclass',
                                   'mkw', 'bases', 'class_result'))
-        self.flow.mark_assignment(node.target, object_expr_not_none,
+        self.flow.mark_assignment(node.target, node.classobj,
                                   self.env.lookup(node.name))
         self.env_stack.append(self.env)
         self.env = node.scope

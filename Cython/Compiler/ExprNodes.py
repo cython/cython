@@ -7163,14 +7163,18 @@ class ClassNode(ExprNode, ModuleNameMixin):
     #  module_name  EncodedString      Name of defining module
 
     subexprs = ['bases', 'doc']
+    type = py_object_type
+    is_temp = True
+
+    def infer_type(self, env):
+        # TODO: could return 'type' in some cases
+        return py_object_type
 
     def analyse_types(self, env):
         self.bases = self.bases.analyse_types(env)
         if self.doc:
             self.doc = self.doc.analyse_types(env)
             self.doc = self.doc.coerce_to_pyobject(env)
-        self.type = py_object_type
-        self.is_temp = 1
         env.use_utility_code(UtilityCode.load_cached("CreateClass", "ObjectHandling.c"))
         return self
 
@@ -7215,10 +7219,14 @@ class Py3ClassNode(ExprNode):
     #  allow_py2_metaclass  bool       should look for Py2 metaclass
 
     subexprs = []
+    type = py_object_type
+    is_temp = True
+
+    def infer_type(self, env):
+        # TODO: could return 'type' in some cases
+        return py_object_type
 
     def analyse_types(self, env):
-        self.type = py_object_type
-        self.is_temp = 1
         return self
 
     def may_be_none(self):
