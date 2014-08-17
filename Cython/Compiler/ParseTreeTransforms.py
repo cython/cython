@@ -2679,12 +2679,14 @@ class TransformBuiltinMethods(EnvTransform):
                 if len(node.args) != 1:
                     error(node.function.pos, u"%s() takes exactly one argument" % function)
                 else:
-                    node = InterpretCompilerDirectives.unop_method_nodes[function](node.function.pos, operand=node.args[0])
+                    node = InterpretCompilerDirectives.unop_method_nodes[function](
+                        node.function.pos, operand=node.args[0])
             elif function in InterpretCompilerDirectives.binop_method_nodes:
                 if len(node.args) != 2:
                     error(node.function.pos, u"%s() takes exactly two arguments" % function)
                 else:
-                    node = InterpretCompilerDirectives.binop_method_nodes[function](node.function.pos, operand1=node.args[0], operand2=node.args[1])
+                    node = InterpretCompilerDirectives.binop_method_nodes[function](
+                        node.function.pos, operand1=node.args[0], operand2=node.args[1])
             elif function == u'cast':
                 if len(node.args) != 2:
                     error(node.function.pos, u"cast() takes exactly two arguments")
