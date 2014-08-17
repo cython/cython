@@ -3770,9 +3770,7 @@ class FinalOptimizePhase(Visitor.CythonTransform, Visitor.NodeRefCleanupMixin):
                     node.arg_tuple.mult_factor or (node.arg_tuple.is_literal and node.arg_tuple.args)):
                 # simple call, now exclude calls to objects that are definitely not methods
                 may_be_a_method = True
-                if function.type is Builtin.type_type:
-                    may_be_a_method = False
-                elif function.is_name:
+                if function.is_name:
                     if function.entry.is_builtin:
                         may_be_a_method = False
                     elif function.cf_state:
