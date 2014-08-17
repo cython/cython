@@ -16,8 +16,6 @@ def test_non_optimised():
     # Non-optimized
     cdef object foo = A
     assert isinstance(A(), foo)
-    assert isinstance(0, (int, long))
-    assert not isinstance(u"xyz", (int, long))
     return True
 
 @cython.test_assert_path_exists('//PythonCapiCallNode',
@@ -118,6 +116,8 @@ def test_optimised_tuple():
     assert isinstance(int(),   (int, long, float, bytes, str, unicode, tuple, list, dict, set, slice, type, A))
     assert isinstance(list(),  (int, long, float, bytes, str, unicode, tuple, list, dict, set, slice, type, A))
     assert isinstance(A(),  (int, long, float, bytes, str, unicode, tuple, list, dict, set, slice, type, A))
+    assert isinstance(0, (int, long))
+    assert not isinstance(u"xyz", (int, long))
     return True
 
 def test_custom():
