@@ -59,7 +59,7 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue);
 //@requires: Exceptions.c::PyErrFetchRestore
 //@requires: Exceptions.c::SwapException
 //@requires: Exceptions.c::RaiseException
-//@requires: ObjectHandling.c::PyObjectCallMethod
+//@requires: ObjectHandling.c::PyObjectCallMethod1
 //@requires: CommonTypes.c::FetchCommonType
 
 static PyObject *__Pyx_Generator_Next(PyObject *self);

@@ -747,7 +747,7 @@ static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyO
 static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value);
 
 //////////////////// ByteArrayAppend ////////////////////
-//@requires: ObjectHandling.c::PyObjectCallMethod
+//@requires: ObjectHandling.c::PyObjectCallMethod1
 
 static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value) {
     PyObject *pyval, *retval;
