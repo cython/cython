@@ -120,3 +120,12 @@ cdef class ArgsKwargs(object):
         (1, 2, ('a', 3))
         """
         return args + tuple(sorted(kwargs.items()))
+
+class StaticmethodSubclass(staticmethod):
+    """
+    >>> s = StaticmethodSubclass(None)
+    >>> s.is_subtype()
+    True
+    """
+    def is_subtype(self):
+        return isinstance(self, staticmethod)

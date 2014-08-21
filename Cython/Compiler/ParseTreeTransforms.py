@@ -2555,7 +2555,7 @@ class TransformBuiltinMethods(EnvTransform):
                 node = ExprNodes.StringNode(node.pos, value=EncodedString(version))
             elif attribute == u'NULL':
                 node = ExprNodes.NullNode(node.pos)
-            elif attribute in (u'set', u'frozenset'):
+            elif attribute in (u'set', u'frozenset', u'staticmethod'):
                 node = ExprNodes.NameNode(node.pos, name=EncodedString(attribute),
                                           entry=self.current_env().builtin_scope().lookup_here(attribute))
             elif PyrexTypes.parse_basic_type(attribute):
