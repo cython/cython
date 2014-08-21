@@ -1166,7 +1166,7 @@ bad:
 
 /////////////// PyObjectCallMethod2.proto ///////////////
 
-static PyObject* __Pyx_PyObject_CallMethod2(PyObject* obj, PyObject* method_name, PyObject* arg1, PyObject* arg2) {
+static PyObject* __Pyx_PyObject_CallMethod2(PyObject* obj, PyObject* method_name, PyObject* arg1, PyObject* arg2); /*proto*/
 
 /////////////// PyObjectCallMethod2 ///////////////
 //@requires: PyObjectGetAttrStr
