@@ -9,19 +9,19 @@ cdef extern from "shapes.h" namespace "shapes":
 
     cdef cppclass Circle(Shape):
         int radius
-        Circle(int) except +
+        Circle(int r) except +
 
     cdef cppclass Rectangle(Shape):
         int width
         int height
         Rectangle() except +
-        Rectangle(int, int) except +
-        int method(int)
-        int method(bint)
+        Rectangle(int h, int w) except +
+        int method(int x)
+        int method(bint b)
 
     cdef cppclass Square(Rectangle):
         int side
-        Square(int) except +
+        Square(int s) except +
 
     cdef cppclass Empty(Shape):
         pass
@@ -154,7 +154,7 @@ def test_template_class_member():
     inner.push_back(Empty())
     o = TemplateClassMember()
     o.vec.push_back(inner)
-    
+
     start_destructor_count = destructor_count
     del o
     assert destructor_count - start_destructor_count == 2, \
