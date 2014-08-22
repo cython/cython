@@ -6,12 +6,12 @@ cdef extern from "graminit.c":
 
 cdef extern from "node.h":
     ctypedef struct node
-    void PyNode_Free(node*)
-    int NCH(node*)
-    node* CHILD(node*, int)
-    node* RCHILD(node*, int)
-    short TYPE(node*)
-    char* STR(node*)
+    void PyNode_Free(node* n)
+    int NCH(node* n)
+    node* CHILD(node* n, int ix)
+    node* RCHILD(node* n, int ix)
+    short TYPE(node* n)
+    char* STR(node* n)
 
 cdef extern from "parsetok.h":
     ctypedef struct perrdetail:
@@ -27,6 +27,7 @@ cdef extern from "parsetok.h":
 
 import distutils.sysconfig
 import os
+import re
 
 def extract_names(path):
     # All parse tree types are #defined in these files as ints.
@@ -54,11 +55,24 @@ cdef print_tree(node* n, indent=""):
     for i in range(NCH(n)):
         print_tree(CHILD(n, i), indent)
 
+def handle_includes(source, path):
+    # TODO: Use include directory.
+    def include_here(include_line):
+        included = os.path.join(os.path.dirname(path), include_line.group(1)[1:-1])
+        if not os.path.exists(included):
+            return include_line.group(0) + ' # no such path: ' + included
+        return handle_includes(open(included).read(), path)
+    return re.sub(r'^include\s+([^\n]+)\s+(#.*)?$', include_here, source, flags=re.M)
+
 def p_module(path):
     cdef perrdetail err
     cdef int flags
     cdef node* n
     source = open(path).read()
+    if '\ninclude ' in source:
+        # TODO: Tokanizer needs to understand includes.
+        source = handle_includes(source, path)
+        path = "preparse(%s)" % path
     n = PyParser_ParseStringFlagsFilenameEx(
         source,
         path,
