@@ -62,7 +62,8 @@ def handle_includes(source, path):
         if not os.path.exists(included):
             return include_line.group(0) + ' # no such path: ' + included
         return handle_includes(open(included).read(), path)
-    return re.sub(r'^include\s+([^\n]+)\s+(#.*)?$', include_here, source, flags=re.M)
+    # TODO: Proper string tokenizing.
+    return re.sub(r'^include\s+([^\n]+[\'"])\s*(#.*)?$', include_here, source, flags=re.M)
 
 def p_module(path):
     cdef perrdetail err
@@ -81,7 +82,7 @@ def p_module(path):
         &err,
         &flags)
     if n:
-        print_tree(n)
+#        print_tree(n)
         PyNode_Free(n)
     else:
         PyParser_SetError(&err)

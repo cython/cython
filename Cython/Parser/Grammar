@@ -59,14 +59,15 @@ dotted_as_name: dotted_name ['as' PY_NAME]
 import_as_names: import_as_name (',' import_as_name)* [',']
 dotted_as_names: dotted_as_name (',' dotted_as_name)*
 dotted_name: PY_NAME ('.' PY_NAME)*
-global_stmt: 'global' PY_NAME (',' PY_NAME)*
+global_stmt: ('global' | 'nonlocal') PY_NAME (',' PY_NAME)*
 exec_stmt: 'exec' expr ['in' test [',' test]]
 assert_stmt: 'assert' test [',' test]
 
 compound_stmt: if_stmt | while_stmt | for_stmt | try_stmt | with_stmt | funcdef | classdef | decorated
 if_stmt: 'if' test ':' suite ('elif' test ':' suite)* ['else' ':' suite]
 while_stmt: 'while' test ':' suite ['else' ':' suite]
-for_stmt: 'for' exprlist ('in' testlist | 'from' expr comp_op PY_NAME comp_op expr ['by' expr])':' suite ['else' ':' suite]
+for_stmt: 'for' exprlist ('in' testlist | for_from_clause)':' suite ['else' ':' suite]
+for_from_clause: 'from' expr comp_op PY_NAME comp_op expr ['by' expr]
 try_stmt: ('try' ':' suite
            ((except_clause ':' suite)+
             ['else' ':' suite]
@@ -110,7 +111,7 @@ atom: ('(' [yield_expr|testlist_comp] ')' |
 listmaker: test ( list_for | (',' test)* [','] )
 testlist_comp: test ( comp_for | (',' test)* [','] )
 lambdef: 'lambda' [varargslist] ':' test
-trailer: '(' [arglist] ')' | '[' subscriptlist ']' | '.' PY_NAME
+trailer: '(' [arglist] ')' | '[' subscriptlist ']' | '.' (PY_NAME | 'sizeof')
 subscriptlist: subscript (',' subscript)* [',']
 subscript: '.' '.' '.' | test | [test] ':' [test] [sliceop]
 sliceop: ':' [test]
@@ -129,11 +130,11 @@ arglist: (argument ',')* (argument [',']
 argument: test [comp_for] | test '=' test
 
 list_iter: list_for | list_if
-list_for: 'for' exprlist 'in' testlist_safe [list_iter]
+list_for: 'for' exprlist ('in' testlist_safe [list_iter] | for_from_clause)
 list_if: 'if' old_test [list_iter]
 
 comp_iter: comp_for | comp_if
-comp_for: 'for' exprlist 'in' or_test [comp_iter]
+comp_for: 'for' exprlist ('in' or_test [comp_iter] | for_from_clause)
 comp_if: 'if' old_test [comp_iter]
 
 testlist1: test (',' test)*
@@ -141,7 +142,7 @@ testlist1: test (',' test)*
 # not used in grammar, but may appear in "node" passed from Parser to Compiler
 encoding_decl: NAME
 
-yield_expr: 'yield' [testlist]
+yield_expr: 'yield' ['from'] [testlist]
 
 
 # Cython extensions
@@ -152,7 +153,7 @@ longness: 'char' | 'short' | 'long' | 'long' 'long'
 int_type: signedness [longness] | longness | [signedness] [longness] ('int' | 'double')  | 'complex'
 
 type: ['const'] (NAME ('.' PY_NAME)* | int_type | '(' type ')') ['complex'] [type_qualifiers]
-maybe_typed_name: ['const'] (NAME [('.' PY_NAME)* ['complex'] [type_qualifiers] NAME] | (int_type | '(' type ')') ['complex'] [type_qualifiers] NAME)
+maybe_typed_name: ['const'] (NAME [('.' PY_NAME)* ['complex'] [type_qualifiers] NAME] | (int_type | '(' type ')') ['complex'] [type_qualifiers] NAME) ['not' NAME]
 teplate_params: '[' NAME (',' NAME)* ']'
 type_qualifiers: type_qualifier+
 type_qualifier: '*' | '**' | '&' | type_index
@@ -180,7 +181,7 @@ cvar_decl: [visibility] type cname (NEWLINE | cfunc)
 cvar_def: [visibility] maybe_typed_name (['=' test] (',' PY_NAME ['=' test])* NEWLINE | cfunc)
 
 visibility: 'public' | 'api' | 'readonly'
-cfunc: [teplate_params] parameters [gil_spec] [exception_value] (':' suite | NEWLINE)
+cfunc: [teplate_params] parameters [exception_value] [gil_spec] (':' suite | NEWLINE)
 exception_value: 'except' (['?'] expr | '*' | '+' [PY_NAME])
 gil_spec: 'with' ('gil' | 'nogil') | 'nogil'
 
@@ -200,6 +201,6 @@ extern_block: 'extern' (cvar_decl | 'from' ('*' | STRING) ['namespace' STRING] [
 extern_suite: NEWLINE INDENT (['cdef' | 'cpdef'] (cvar_decl | cdef_type_decl) | ctypedef_stmt)+ DEDENT
 
 cy_type_kwd: 'struct' | 'union' | 'fused' | 'cppclass' | 'int' | 'double' | 'complex'
-cy_kwd: cy_type_kwd | signedness | longness | visibility | 'gil' | 'nogil' | 'namespace' | 'const' | 'by' | 'extern'
+cy_kwd: cy_type_kwd | signedness | longness | visibility | 'gil' | 'nogil' | 'namespace' | 'const' | 'by' | 'extern' | 'namespace'
 PY_NAME: NAME | cy_kwd
 
