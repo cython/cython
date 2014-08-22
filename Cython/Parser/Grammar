@@ -31,7 +31,7 @@ varargslist: ((fpdef ['=' test] ',')*
 fpdef: maybe_typed_name | '(' fplist ')'
 fplist: fpdef (',' fpdef)* [',']
 
-stmt: simple_stmt | compound_stmt | cdef_stmt | ctypedef_stmt
+stmt: simple_stmt | compound_stmt | cdef_stmt | ctypedef_stmt | DEF_stmt | IF_stmt
 simple_stmt: small_stmt (';' small_stmt)* [';'] NEWLINE
 small_stmt: (expr_stmt | print_stmt  | del_stmt | pass_stmt | flow_stmt |
              import_stmt | global_stmt | exec_stmt | assert_stmt)
@@ -204,3 +204,6 @@ cy_type_kwd: 'struct' | 'union' | 'fused' | 'cppclass' | 'int' | 'double' | 'com
 cy_kwd: cy_type_kwd | signedness | longness | visibility | 'gil' | 'nogil' | 'namespace' | 'const' | 'by' | 'extern' | 'namespace'
 PY_NAME: NAME | cy_kwd
 
+# TODO: Do we really want these? Don't play well with include...
+DEF_stmt: 'DEF' NAME '=' testlist
+IF_stmt: 'IF' test ':' suite ('ELIF' test ':' suite)* ['ELSE' ':' suite]
