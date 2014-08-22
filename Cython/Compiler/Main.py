@@ -304,6 +304,13 @@ class Context(object):
                 s = PyrexScanner(f, source_desc, source_encoding = f.encoding,
                                  scope = scope, context = self)
                 tree = Parsing.p_module(s, pxd, full_module_name)
+                if Options.formal_grammar:
+                    try:
+                        from ..Parser import ConcreteSyntaxTree
+                    except ImportError:
+                        raise RuntimeError(
+                            "Formal grammer can only be used with compiled Cython with an available pgen.")
+                    ConcreteSyntaxTree.p_module(source_filename)
             finally:
                 f.close()
         except UnicodeDecodeError, e:
