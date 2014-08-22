@@ -146,8 +146,13 @@ yield_expr: 'yield' [testlist]
 
 # Cython extensions
 
-type: ['const'] NAME ['complex'] [type_qualifiers]
-maybe_typed_name: ['const'] NAME [('.' NAME)* ['complex'] [type_qualifiers] NAME]
+signedness: 'unsigned' | 'signed'
+longness: 'char' | 'short' | 'long' | 'long' 'long'
+int_type: signedness [longness] | longness | [signedness] [longness] ['int' | 'double']  | 'complex' # | ['long'] 'double'
+complex_int_type: int_type ['complex'] [type_qualifiers]
+
+type: ['const'] (NAME ('.' NAME)* | complex_int_type)
+maybe_typed_name: ['const'] (NAME [('.' NAME)* ['complex'] [type_qualifiers] NAME] | complex_int_type NAME)
 teplate_params: '[' NAME (',' NAME)* ']'
 type_qualifiers: type_qualifier+
 type_qualifier: '*' | '**' | '&' | type_index
