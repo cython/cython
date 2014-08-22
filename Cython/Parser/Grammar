@@ -172,10 +172,11 @@ ctypedef_stmt: 'ctypedef' (cvar_decl | struct | enum)
 # These two are similar but can't be used in an or clause
 # as it would cause ambiguity in the LL(1) parser.
 # Requires a type
-cvar_decl: type cname (NEWLINE | cfunc)
+cvar_decl: [visibility] type cname (NEWLINE | cfunc)
 # Allows an assignment
 cvar_def: maybe_typed_name (NEWLINE | cfunc)
 
+visibility: 'public' | 'api' | 'readonly' | 'extern'
 cfunc: [teplate_params] parameters [gil_spec] [exception_value] (':' suite | NEWLINE)
 exception_value: 'except' (['?'] expr | '*' | '+' [NAME])
 gil_spec: 'with' ('gil' | 'nogil') | 'nogil'
@@ -190,7 +191,7 @@ cppclass: 'cppclass' cname [teplate_params] [cppclass_bases] (NEWLINE | ':' cppc
 cppclass_bases: '(' dotted_name (',' dotted_name [teplate_params])*')'
 cppclass_suite: NEWLINE INDENT (cvar_decl | ctype_decl | pass_stmt NEWLINE)+ DEDENT
 
-extern_block: 'extern' 'from' ('*' | STRING) ['namespace' STRING] ':' (pass_stmt | extern_suite)
+extern_block: 'extern' 'from' ('*' | STRING) ['namespace' STRING] [gil_spec] ':' (pass_stmt | extern_suite)
 extern_suite: NEWLINE INDENT (['cdef' | 'cpdef'] (cvar_decl | cdef_type_decl) | ctypedef_stmt)+ DEDENT
 
 cname: NAME [STRING]
