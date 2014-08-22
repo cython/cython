@@ -172,14 +172,14 @@ ctype_decl: struct | enum | cppclass
 # TODO: Does the cdef/ctypedef distinction even make sense for fused?
 ctypedef_stmt: 'ctypedef' (cvar_decl | struct | enum | fused)
 
-# These two are similar but can't be used in an or clause
+# Note: these two are similar but can't be used in an or clause
 # as it would cause ambiguity in the LL(1) parser.
 # Requires a type
 cvar_decl: [visibility] type cname (NEWLINE | cfunc)
 # Allows an assignment
 cvar_def: [visibility] maybe_typed_name (['=' test] (',' PY_NAME ['=' test])* NEWLINE | cfunc)
 
-visibility: 'public' | 'api' | 'readonly' | 'extern'
+visibility: 'public' | 'api' | 'readonly'
 cfunc: [teplate_params] parameters [gil_spec] [exception_value] (':' suite | NEWLINE)
 exception_value: 'except' (['?'] expr | '*' | '+' [PY_NAME])
 gil_spec: 'with' ('gil' | 'nogil') | 'nogil'
@@ -196,10 +196,10 @@ cppclass_bases: '(' dotted_name (',' dotted_name [teplate_params])*')'
 cppclass_suite: NEWLINE INDENT (cvar_decl | ctype_decl | pass_stmt NEWLINE)+ DEDENT
 # TODO: C++ constructors, operators
 
-extern_block: 'extern' 'from' ('*' | STRING) ['namespace' STRING] [gil_spec] ':' (pass_stmt | extern_suite)
+extern_block: 'extern' (cvar_decl | 'from' ('*' | STRING) ['namespace' STRING] [gil_spec] ':' (pass_stmt | extern_suite))
 extern_suite: NEWLINE INDENT (['cdef' | 'cpdef'] (cvar_decl | cdef_type_decl) | ctypedef_stmt)+ DEDENT
 
 cy_type_kwd: 'struct' | 'union' | 'fused' | 'cppclass' | 'int' | 'double' | 'complex'
-cy_kwd: cy_type_kwd | signedness | longness | visibility | 'gil' | 'nogil' | 'namespace' | 'const' | 'by'
+cy_kwd: cy_type_kwd | signedness | longness | visibility | 'gil' | 'nogil' | 'namespace' | 'const' | 'by' | 'extern'
 PY_NAME: NAME | cy_kwd
 
