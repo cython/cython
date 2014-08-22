@@ -172,7 +172,7 @@ ctypedef_stmt: 'ctypedef' (cvar_decl | struct | enum)
 # These two are similar but can't be used in an or clause
 # as it would cause ambiguity in the LL(1) parser.
 # Requires a type
-cvar_decl: type NAME (NEWLINE | cfunc)
+cvar_decl: type cname (NEWLINE | cfunc)
 # Allows an assignment
 cvar_def: maybe_typed_name (NEWLINE | cfunc)
 
@@ -182,13 +182,15 @@ gil_spec: 'with' ('gil' | 'nogil') | 'nogil'
 
 cclass: classdef
 fused: 'fused' NAME ':' NEWLINE INDENT ( type NEWLINE)+ DEDENT
-enum: 'enum' [NAME] (NEWLINE | ':' enum_suite)
-enum_suite: NEWLINE INDENT (NAME ['=' NUMBER] NEWLINE | pass_stmt NEWLINE)+ DEDENT
-struct: ('struct' | 'union') NAME (NEWLINE | (':' struct_suite))
+enum: 'enum' [cname] (NEWLINE | ':' enum_suite)
+enum_suite: NEWLINE INDENT (cname ['=' NUMBER] NEWLINE | pass_stmt NEWLINE)+ DEDENT
+struct: ('struct' | 'union') cname (NEWLINE | (':' struct_suite))
 struct_suite: NEWLINE INDENT (cvar_decl | pass_stmt NEWLINE)+ DEDENT
-cppclass: 'cppclass' NAME [teplate_params] [cppclass_bases] (NEWLINE | ':' cppclass_suite)
+cppclass: 'cppclass' cname [teplate_params] [cppclass_bases] (NEWLINE | ':' cppclass_suite)
 cppclass_bases: '(' dotted_name (',' dotted_name [teplate_params])*')'
 cppclass_suite: NEWLINE INDENT (cvar_decl | ctype_decl | pass_stmt NEWLINE)+ DEDENT
 
 extern_block: 'extern' 'from' ('*' | STRING) ['namespace' STRING] ':' (pass_stmt | extern_suite)
 extern_suite: NEWLINE INDENT (['cdef' | 'cpdef'] (cvar_decl | cdef_type_decl) | ctypedef_stmt)+ DEDENT
+
+cname: NAME [STRING]
