@@ -150,7 +150,7 @@ address: '&' factor
 cast: '<' type ['?'] '>' factor
 size_of: 'sizeof' '(' (type) ')'
 
-cdef_stmt: ('cdef' | 'cpdef') (classdef | cdef_decl | struct | enum | fused)
+cdef_stmt: ('cdef' | 'cpdef') (classdef | cdef_decl | struct | enum | fused | extern_block)
 ctypedef_stmt: 'ctypedef' (cdef_decl | struct | enum)
 cdef_decl: type NAME NEWLINE
 
@@ -159,3 +159,6 @@ struct_suite: NEWLINE INDENT (cdef_decl* | pass_stmt NEWLINE)+ DEDENT
 enum: 'enum' [NAME] (NEWLINE | ':' enum_suite)
 enum_suite: NEWLINE INDENT (NAME ['=' NUMBER] NEWLINE | pass_stmt NEWLINE)+ DEDENT
 fused: 'fused' NAME ':' NEWLINE INDENT ( type NEWLINE)+ DEDENT
+
+extern_block: 'extern' 'from' ('*' | STRING) ['namespace' STRING] ':' (pass_stmt | extern_suite)
+extern_suite: NEWLINE INDENT (['cdef' | 'cpdef'] cdef_decl | ctypedef_stmt)+ DEDENT
