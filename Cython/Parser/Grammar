@@ -104,6 +104,7 @@ atom: ('(' [yield_expr|testlist_comp] ')' |
        '[' [listmaker] ']' |
        '{' [dictorsetmaker] '}' |
        '`' testlist1 '`' |
+       new_expr |
        NAME | NUMBER | STRING+)
 listmaker: test ( list_for | (',' test)* [','] )
 testlist_comp: test ( comp_for | (',' test)* [','] )
@@ -145,20 +146,26 @@ yield_expr: 'yield' [testlist]
 # Cython extensions
 
 type: NAME
+teplate_params: '[' NAME (',' NAME)* ']'
 
 address: '&' factor
 cast: '<' type ['?'] '>' factor
 size_of: 'sizeof' '(' (type) ')'
+new_expr: 'new' type '(' [arglist] ')'
 
-cdef_stmt: ('cdef' | 'cpdef') (classdef | cdef_decl | struct | enum | fused | extern_block)
-ctypedef_stmt: 'ctypedef' (cdef_decl | struct | enum)
-cdef_decl: type NAME NEWLINE
+cdef_stmt: ('cdef' | 'cpdef') (classdef | cdef_decl | extern_block)
+cdef_decl: cvar_decl | struct | enum | fused | cppclass
+cvar_decl: type NAME NEWLINE
+ctypedef_stmt: 'ctypedef' (cvar_decl | struct | enum)
 
-struct: ('struct' | 'union') NAME (NEWLINE | (':' struct_suite))
-struct_suite: NEWLINE INDENT (cdef_decl* | pass_stmt NEWLINE)+ DEDENT
+fused: 'fused' NAME ':' NEWLINE INDENT ( type NEWLINE)+ DEDENT
 enum: 'enum' [NAME] (NEWLINE | ':' enum_suite)
 enum_suite: NEWLINE INDENT (NAME ['=' NUMBER] NEWLINE | pass_stmt NEWLINE)+ DEDENT
-fused: 'fused' NAME ':' NEWLINE INDENT ( type NEWLINE)+ DEDENT
+struct: ('struct' | 'union') NAME (NEWLINE | (':' struct_suite))
+struct_suite: NEWLINE INDENT (cvar_decl | pass_stmt NEWLINE)+ DEDENT
+cppclass: 'cppclass' NAME [teplate_params] [cppclass_bases] (NEWLINE | ':' cppclass_suite)
+cppclass_bases: '(' dotted_name (',' dotted_name [teplate_params])*')'
+cppclass_suite: NEWLINE INDENT (cdef_decl | pass_stmt NEWLINE)+ DEDENT
 
 extern_block: 'extern' 'from' ('*' | STRING) ['namespace' STRING] ':' (pass_stmt | extern_suite)
 extern_suite: NEWLINE INDENT (['cdef' | 'cpdef'] cdef_decl | ctypedef_stmt)+ DEDENT
