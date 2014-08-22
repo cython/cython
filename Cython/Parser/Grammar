@@ -148,14 +148,16 @@ yield_expr: 'yield' [testlist]
 
 signedness: 'unsigned' | 'signed'
 longness: 'char' | 'short' | 'long' | 'long' 'long'
-int_type: signedness [longness] | longness | [signedness] [longness] ('int' | 'double')  | 'complex' # TODO: [unsigned] double doesn't make sens, but we need long double
+# TODO: [unsigned] double doesn't make sens, but we need long double
+int_type: signedness [longness] | longness | [signedness] [longness] ('int' | 'double')  | 'complex'
 
 type: ['const'] (NAME ('.' PY_NAME)* | int_type) ['complex'] [type_qualifiers]
 maybe_typed_name: ['const'] (NAME [('.' PY_NAME)* ['complex'] [type_qualifiers] NAME] | int_type ['complex'] [type_qualifiers] NAME)
 teplate_params: '[' NAME (',' NAME)* ']'
 type_qualifiers: type_qualifier+
 type_qualifier: '*' | '**' | '&' | type_index
-type_index: '[' [(NUMBER | type (',' type)* | (memory_view_index (',' memory_view_index)*))] ']'  # TODO: old buffer syntax
+# TODO: old buffer syntax
+type_index: '[' [(NUMBER | type (',' type)* | (memory_view_index (',' memory_view_index)*))] ']'
 memory_view_index: ':' [':'] [NUMBER]
 
 address: '&' factor
@@ -167,7 +169,8 @@ new_expr: 'new' type '(' [arglist] ')'
 cdef_stmt: ('cdef' | 'cpdef') (cvar_def | cdef_type_decl | extern_block)
 cdef_type_decl: ctype_decl | fused | cclass
 ctype_decl: struct | enum | cppclass
-ctypedef_stmt: 'ctypedef' (cvar_decl | struct | enum)
+# TODO: Does the cdef/ctypedef distinction even make sense for fused?
+ctypedef_stmt: 'ctypedef' (cvar_decl | struct | enum | fused)
 
 # These two are similar but can't be used in an or clause
 # as it would cause ambiguity in the LL(1) parser.
@@ -191,6 +194,7 @@ struct_suite: NEWLINE INDENT (cvar_decl | pass_stmt NEWLINE)+ DEDENT
 cppclass: 'cppclass' cname [teplate_params] [cppclass_bases] (NEWLINE | ':' cppclass_suite)
 cppclass_bases: '(' dotted_name (',' dotted_name [teplate_params])*')'
 cppclass_suite: NEWLINE INDENT (cvar_decl | ctype_decl | pass_stmt NEWLINE)+ DEDENT
+# TODO: C++ constructors, operators
 
 extern_block: 'extern' 'from' ('*' | STRING) ['namespace' STRING] [gil_spec] ':' (pass_stmt | extern_suite)
 extern_suite: NEWLINE INDENT (['cdef' | 'cpdef'] (cvar_decl | cdef_type_decl) | ctypedef_stmt)+ DEDENT
