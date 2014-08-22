@@ -80,9 +80,6 @@ closure_freelist_size = 8
 # Should tp_clear() set object fields to None instead of clearing them to NULL?
 clear_to_none = True
 
-# Should we try parsing files with the formal grammar (experimental)?
-formal_grammar = True
-
 
 # Declare compiler directives
 directive_defaults = {
@@ -150,6 +147,8 @@ directive_defaults = {
 # experimental, subject to change
     'binding': None,
     'freelist': 0,
+
+    'formal_grammar': False,
 }
 
 # Extra warning directives

@@ -304,7 +304,7 @@ class Context(object):
                 s = PyrexScanner(f, source_desc, source_encoding = f.encoding,
                                  scope = scope, context = self)
                 tree = Parsing.p_module(s, pxd, full_module_name)
-                if Options.formal_grammar:
+                if self.options.formal_grammar:
                     try:
                         from ..Parser import ConcreteSyntaxTree
                     except ImportError:
@@ -482,6 +482,7 @@ class CompilationOptions(object):
     compiler_directives  dict      Overrides for pragma options (see Options.py)
     evaluate_tree_assertions boolean  Test support: evaluate parse tree assertions
     language_level    integer   The Python language level: 2 or 3
+    formal_grammar    boolean  Parse the file with the formal grammar
 
     cplus             boolean   Compile as c++ code
     """
@@ -511,6 +512,8 @@ class CompilationOptions(object):
         options['compiler_directives'] = directives
         if 'language_level' in directives and 'language_level' not in kw:
             options['language_level'] = int(directives['language_level'])
+        if 'formal_grammar' in directives and 'formal_grammar' not in kw:
+            options['formal_grammar'] = directives['formal_grammar']
         if 'cache' in options:
             if options['cache'] is True:
                 options['cache'] = os.path.expanduser("~/.cycache")
@@ -689,6 +692,7 @@ default_options = dict(
     relative_path_in_code_position_comments = True,
     c_line_in_traceback = True,
     language_level = 2,
+    formal_grammar = False,
     gdb_debug = False,
     compile_time_env = None,
     common_utility_include_dir = None,
