@@ -1666,7 +1666,7 @@ cdef test_structs_with_arr(FusedStruct array[10]):
             myslice1[i].chars[j] = 97 + j
 
     if sys.version_info[:2] >= (2, 7) and sys.version_info[:2] < (3, 3):
-        size1 = sizeof(FusedStruct)
+        size1 = <Py_ssize_t>sizeof(FusedStruct)
         size2 = len(builtins.memoryview(myslice1)[0])
         assert size1 == size2, (size1, size2, builtins.memoryview(myslice1).format)
 
