@@ -98,7 +98,7 @@ and_expr: shift_expr ('&' shift_expr)*
 shift_expr: arith_expr (('<<'|'>>') arith_expr)*
 arith_expr: term (('+'|'-') term)*
 term: factor (('*'|'/'|'%'|'//') factor)*
-factor: ('+'|'-'|'~') factor | power
+factor: ('+'|'-'|'~') factor | power | address | size_of | cast
 power: atom trailer* ['**' factor]
 atom: ('(' [yield_expr|testlist_comp] ')' |
        '[' [listmaker] ']' |
@@ -120,7 +120,7 @@ dictorsetmaker: ( (test ':' test (comp_for | (',' test ':' test)* [','])) |
 classdef: 'class' NAME ['(' [testlist] ')'] ':' suite
 
 arglist: (argument ',')* (argument [',']
-                         |'*' test (',' argument)* [',' '**' test] 
+                         |'*' test (',' argument)* [',' '**' test]
                          |'**' test)
 # The reason that keywords are test nodes instead of NAME is that using NAME
 # results in an ambiguity. ast.c makes sure it's a NAME.
@@ -140,3 +140,12 @@ testlist1: test (',' test)*
 encoding_decl: NAME
 
 yield_expr: 'yield' [testlist]
+
+
+# Cython extensions
+
+type: NAME
+
+address: '&' factor
+cast: '<' type ['?'] '>' factor
+size_of: 'sizeof' '(' (type) ')'
