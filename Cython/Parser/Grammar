@@ -21,7 +21,7 @@ eval_input: testlist NEWLINE* ENDMARKER
 
 decorator: '@' dotted_name [ '(' [arglist] ')' ] NEWLINE
 decorators: decorator+
-decorated: decorators (classdef | funcdef)
+decorated: decorators (classdef | funcdef | cdef_stmt)
 funcdef: 'def' PY_NAME parameters ':' suite
 parameters: '(' [varargslist] ')'
 varargslist: ((fpdef ['=' test] ',')*
@@ -151,8 +151,8 @@ longness: 'char' | 'short' | 'long' | 'long' 'long'
 # TODO: [unsigned] double doesn't make sens, but we need long double
 int_type: signedness [longness] | longness | [signedness] [longness] ('int' | 'double')  | 'complex'
 
-type: ['const'] (NAME ('.' PY_NAME)* | int_type) ['complex'] [type_qualifiers]
-maybe_typed_name: ['const'] (NAME [('.' PY_NAME)* ['complex'] [type_qualifiers] NAME] | int_type ['complex'] [type_qualifiers] NAME)
+type: ['const'] (NAME ('.' PY_NAME)* | int_type | '(' type ')') ['complex'] [type_qualifiers]
+maybe_typed_name: ['const'] (NAME [('.' PY_NAME)* ['complex'] [type_qualifiers] NAME] | (int_type | '(' type ')') ['complex'] [type_qualifiers] NAME)
 teplate_params: '[' NAME (',' NAME)* ']'
 type_qualifiers: type_qualifier+
 type_qualifier: '*' | '**' | '&' | type_index
@@ -177,7 +177,7 @@ ctypedef_stmt: 'ctypedef' (cvar_decl | struct | enum | fused)
 # Requires a type
 cvar_decl: [visibility] type cname (NEWLINE | cfunc)
 # Allows an assignment
-cvar_def: maybe_typed_name (['=' test] (',' PY_NAME ['=' test])* NEWLINE | cfunc)
+cvar_def: [visibility] maybe_typed_name (['=' test] (',' PY_NAME ['=' test])* NEWLINE | cfunc)
 
 visibility: 'public' | 'api' | 'readonly' | 'extern'
 cfunc: [teplate_params] parameters [gil_spec] [exception_value] (':' suite | NEWLINE)
