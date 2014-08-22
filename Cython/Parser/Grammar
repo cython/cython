@@ -174,7 +174,7 @@ ctypedef_stmt: 'ctypedef' (cvar_decl | struct | enum)
 # Requires a type
 cvar_decl: [visibility] type cname (NEWLINE | cfunc)
 # Allows an assignment
-cvar_def: maybe_typed_name (NEWLINE | cfunc)
+cvar_def: maybe_typed_name (['=' test] (',' NAME ['=' test])* NEWLINE | cfunc)
 
 visibility: 'public' | 'api' | 'readonly' | 'extern'
 cfunc: [teplate_params] parameters [gil_spec] [exception_value] (':' suite | NEWLINE)
