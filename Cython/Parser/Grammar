@@ -66,7 +66,7 @@ assert_stmt: 'assert' test [',' test]
 compound_stmt: if_stmt | while_stmt | for_stmt | try_stmt | with_stmt | funcdef | classdef | decorated
 if_stmt: 'if' test ':' suite ('elif' test ':' suite)* ['else' ':' suite]
 while_stmt: 'while' test ':' suite ['else' ':' suite]
-for_stmt: 'for' exprlist 'in' testlist ':' suite ['else' ':' suite]
+for_stmt: 'for' exprlist ('in' testlist | 'from' expr comp_op NAME comp_op expr ['by' expr])':' suite ['else' ':' suite]
 try_stmt: ('try' ':' suite
            ((except_clause ':' suite)+
             ['else' ':' suite]
@@ -164,6 +164,7 @@ cast: '<' type ['?'] '>' factor
 size_of: 'sizeof' '(' (type) ')'
 new_expr: 'new' type '(' [arglist] ')'
 
+# TODO: Restrict cdef_stmt to "top-level" statements.
 cdef_stmt: ('cdef' | 'cpdef') (cvar_def | cdef_type_decl | extern_block)
 cdef_type_decl: ctype_decl | fused | cclass
 ctype_decl: struct | enum | cppclass
