@@ -157,15 +157,18 @@ new_expr: 'new' type '(' [arglist] ')'
 cdef_stmt: ('cdef' | 'cpdef') (cvar_def | cdef_type_decl | extern_block)
 cdef_type_decl: ctype_decl | fused | cclass
 ctype_decl: struct | enum | cppclass
+ctypedef_stmt: 'ctypedef' (cvar_decl | struct | enum)
 
 # These two are similar but can't be used in an or clause
 # as it would cause ambiguity in the LL(1) parser.
 # Requires a type
-cvar_decl: type NAME NEWLINE
+cvar_decl: type NAME (NEWLINE | cfunc)
 # Allows an assignment
-cvar_def: maybe_typed_name NEWLINE
+cvar_def: maybe_typed_name (NEWLINE | cfunc)
 
-ctypedef_stmt: 'ctypedef' (cvar_decl | struct | enum)
+cfunc: [teplate_params] parameters [gil_spec] [exception_value] (':' suite | NEWLINE)
+exception_value: 'except' (['?'] expr | '*' | '+' [NAME])
+gil_spec: 'with' ('gil' | 'nogil') | 'nogil'
 
 cclass: classdef
 fused: 'fused' NAME ':' NEWLINE INDENT ( type NEWLINE)+ DEDENT
