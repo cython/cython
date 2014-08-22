@@ -146,9 +146,13 @@ yield_expr: 'yield' [testlist]
 
 # Cython extensions
 
-type: NAME
-maybe_typed_name: NAME [('.' NAME)* NAME]
+type: ['const'] NAME ['complex'] [type_qualifiers]
+maybe_typed_name: ['const'] NAME [('.' NAME)* ['complex'] [type_qualifiers] NAME]
 teplate_params: '[' NAME (',' NAME)* ']'
+type_qualifiers: type_qualifier+
+type_qualifier: '*' | '**' | '&' | type_index
+type_index: '[' [(NUMBER | type (',' type)* | (memory_view_index (',' memory_view_index)*))] ']'  # TODO: old buffer syntax
+memory_view_index: ':' [':'] [NUMBER]
 
 address: '&' factor
 cast: '<' type ['?'] '>' factor
