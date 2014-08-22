@@ -26,8 +26,9 @@ funcdef: 'def' NAME parameters ':' suite
 parameters: '(' [varargslist] ')'
 varargslist: ((fpdef ['=' test] ',')*
               ('*' NAME [',' '**' NAME] | '**' NAME) |
-              fpdef ['=' test] (',' fpdef ['=' test])* [','])
-fpdef: NAME | '(' fplist ')'
+              fpdef ['=' (test | '*')] (',' fpdef ['=' (test | '*')])* [',']
+              ['.' '.' '.'])
+fpdef: maybe_typed_name | '(' fplist ')'
 fplist: fpdef (',' fpdef)* [',']
 
 stmt: simple_stmt | compound_stmt | cdef_stmt | ctypedef_stmt
