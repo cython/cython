@@ -30,7 +30,7 @@ varargslist: ((fpdef ['=' test] ',')*
 fpdef: NAME | '(' fplist ')'
 fplist: fpdef (',' fpdef)* [',']
 
-stmt: simple_stmt | compound_stmt
+stmt: simple_stmt | compound_stmt | cdef_stmt | ctypedef_stmt
 simple_stmt: small_stmt (';' small_stmt)* [';'] NEWLINE
 small_stmt: (expr_stmt | print_stmt  | del_stmt | pass_stmt | flow_stmt |
              import_stmt | global_stmt | exec_stmt | assert_stmt)
@@ -149,3 +149,7 @@ type: NAME
 address: '&' factor
 cast: '<' type ['?'] '>' factor
 size_of: 'sizeof' '(' (type) ')'
+
+cdef_stmt: ('cdef' | 'cpdef') (classdef | cdef_decl)
+ctypedef_stmt: 'ctypedef' cdef_decl
+cdef_decl: type NAME NEWLINE
