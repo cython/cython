@@ -27,11 +27,11 @@ parameters: '(' [typedargslist] ')'
 typedargslist: (tfpdef ['=' test] (',' tfpdef ['=' test])* [','
        ['*' [tfpdef] (',' tfpdef ['=' test])* [',' '**' tfpdef] | '**' tfpdef]]
      |  '*' [tfpdef] (',' tfpdef ['=' test])* [',' '**' tfpdef] | '**' tfpdef) [',' ellipsis]
-tfpdef: maybe_typed_name [':' test]
+tfpdef: maybe_typed_name ['not' 'None'] [':' test]
 varargslist: (vfpdef ['=' test] (',' vfpdef ['=' test])* [','
        ['*' [vfpdef] (',' vfpdef ['=' test])* [',' '**' vfpdef] | '**' vfpdef]]
      |  '*' [vfpdef] (',' vfpdef ['=' test])* [',' '**' vfpdef] | '**' vfpdef)
-vfpdef: maybe_typed_name
+vfpdef: maybe_typed_name ['not' 'None']
 
 stmt: simple_stmt | compound_stmt | cdef_stmt | ctypedef_stmt | DEF_stmt | IF_stmt
 simple_stmt: small_stmt (';' small_stmt)* [';'] NEWLINE
@@ -150,10 +150,10 @@ longness: 'char' | 'short' | 'long' | 'long' 'long'
 int_type: signedness [longness] | longness | [signedness] [longness] ('int' | 'double')  | 'complex'
 
 type: ['const'] (NAME ('.' PY_NAME)* | int_type | '(' type ')') ['complex'] [type_qualifiers]
-maybe_typed_name: ['const'] (NAME [('.' PY_NAME)* ['complex'] [type_qualifiers] NAME] | (int_type | '(' type ')') ['complex'] [type_qualifiers] NAME) ['not' NAME]
+maybe_typed_name: ['const'] (NAME [('.' PY_NAME)* ['complex'] [type_qualifiers] NAME] | (int_type | '(' type ')') ['complex'] [type_qualifiers] NAME)
 teplate_params: '[' NAME (',' NAME)* ']'
 type_qualifiers: type_qualifier+
-type_qualifier: '*' | '**' | '&' | type_index
+type_qualifier: '*' | '**' | '&' | type_index ('.' NAME [type_index])*
 # TODO: old buffer syntax
 type_index: '[' [(NUMBER | type (',' type)* | (memory_view_index (',' memory_view_index)*))] ']'
 memory_view_index: ':' [':'] [NUMBER]
