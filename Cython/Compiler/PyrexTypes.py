@@ -3153,10 +3153,8 @@ class CppClassType(CType):
             if for_display:
                 brackets = "[%s]"
             else:
-                brackets = "<%s>"
+                brackets = "<%s> "
             templates = brackets % ",".join(template_strings)
-            if templates[-2:] == ">>":
-                templates = templates[:-2] + "> >"
         else:
             templates = ""
         if pyrex or for_display:
