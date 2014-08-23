@@ -118,7 +118,6 @@ static CYTHON_INLINE int resize(arrayobject *self, Py_ssize_t n) {
 }
 
 // suitable for small increments; over allocation 50% ;
-// Remains non-smart in Python 2.3- ; but exists for compatibility
 static CYTHON_INLINE int resize_smart(arrayobject *self, Py_ssize_t n) {
     void *items = (void*) self->data.ob_item;
     Py_ssize_t newsize;
