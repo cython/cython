@@ -9,7 +9,7 @@ __doc__ = u"""
 """
 
 cdef class A:
-    cdef double x[3]
+    cdef double[3] x
 
     def __init__(self, *args):
         cdef int i, max

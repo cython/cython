@@ -958,7 +958,7 @@ def test_contig_scalar_to_slice_assignment():
     14 14 14 14
     20 20 20 20
     """
-    cdef int a[5][10]
+    cdef int[5][10] a
     cdef int[:, ::1] _m = a
     m = _m
 

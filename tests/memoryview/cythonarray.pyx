@@ -184,7 +184,7 @@ def test_cyarray_from_carray():
     0 8 21
     0 8 21
     """
-    cdef int a[7][8]
+    cdef int[7][8] a
     for i in range(7):
         for j in range(8):
             a[i][j] = i * 8 + j

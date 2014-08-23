@@ -7,7 +7,8 @@ def test(x, int y):
     """
     if True:
         before = 0
-    cdef int a = 4, b = x, c = y, *p = &y
+    cdef int a = 4, b = x, c = y
+    cdef int *p = &y
     cdef object o = int(8)
     print a, b, c, p[0], before, g, o
 

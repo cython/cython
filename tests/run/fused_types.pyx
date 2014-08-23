@@ -94,10 +94,10 @@ def test_fused_with_pointer():
     breakfast
     humptydumptyfallsplatchbreakfast
     """
-    cdef int int_array[5]
-    cdef long long_array[5]
-    cdef float float_array[5]
-    cdef string_t string_array[5]
+    cdef int[5] int_array
+    cdef long[5] long_array
+    cdef float[5] float_array
+    cdef string_t[5] string_array
 
     cdef char *s
 

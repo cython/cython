@@ -17,7 +17,7 @@ ctypedef Py_UNICODE* LPWSTR
 cdef unicode uobj = u'unicode\u1234'
 cdef unicode uobj1 = u'u'
 cdef Py_UNICODE* c_pu_str = u"unicode\u1234"
-cdef Py_UNICODE c_pu_arr[42]
+cdef Py_UNICODE[42] c_pu_arr
 cdef LPWSTR c_wstr = u"unicode\u1234"
 cdef Py_UNICODE* c_pu_empty = u""
 cdef char* c_empty = ""

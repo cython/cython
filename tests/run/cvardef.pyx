@@ -15,8 +15,8 @@ def f():
     cdef char *a_char_ptr, *another_char_ptr
     cdef char **a_char_ptr_ptr
     cdef char ***a_char_ptr_ptr_ptr
-    cdef char a_sized_char_array[10]
-    cdef char a_2d_char_array[10][20]
+    cdef char[10] a_sized_char_array
+    cdef char[10][20] a_2d_char_array
     cdef char *a_2d_char_ptr_array[10][20]
     cdef char **a_2d_char_ptr_ptr_array[10][20]
     cdef int (*a_0arg_function)()

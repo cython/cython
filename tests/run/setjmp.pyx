@@ -25,7 +25,7 @@ def nonzero(int x):
 
 
 from libc.string cimport strcpy
-cdef char error_msg[256]
+cdef char[256] error_msg
 cdef jmp_buf error_ctx
 cdef void error(char msg[]) nogil:
     strcpy(error_msg,msg)

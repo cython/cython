@@ -50,7 +50,7 @@ baz[0] = d
 cdef int *baz
 
 print var[0][0]
-cdef unsigned long long var[100][100]
+cdef unsigned long long[100][100] var
 
 # in 0.11.1 these are warnings
 FUTURE_ERRORS = u"""

@@ -385,7 +385,7 @@ def loop_over_struct_ptr():
     >>> print( loop_over_struct_ptr() )
     MyStruct
     """
-    cdef MyStruct a_list[10]
+    cdef MyStruct[10] a_list
     cdef MyStruct *a_ptr = a_list
     for i in a_list[:10]:
         pass

@@ -195,7 +195,7 @@ def varargs():
     >>> print(varargs())
     abc
     """
-    cdef char buffer[10]
+    cdef char[10] buffer
     retval = snprintf(buffer, template="abc", size=10)
     if retval < 0:
         raise MemoryError()
