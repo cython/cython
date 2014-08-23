@@ -22,4 +22,9 @@ public:
     U getValue2() { return value2; }
 };
 
+template <typename T>
+void template_function(TemplateTest1<T> &)
+{
+}
+
 #endif
