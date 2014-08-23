@@ -24,10 +24,10 @@ decorators: decorator+
 decorated: decorators (classdef | funcdef | cdef_stmt)
 funcdef: 'def' PY_NAME parameters ['->' test] ':' suite
 parameters: '(' [typedargslist] ')'
-typedargslist: (tfpdef ['=' test] (',' tfpdef ['=' test])* [','
+typedargslist: (tfpdef ['=' (test | '*')] (',' tfpdef ['=' (test | '*')])* [','
        ['*' [tfpdef] (',' tfpdef ['=' test])* [',' '**' tfpdef] | '**' tfpdef]]
      |  '*' [tfpdef] (',' tfpdef ['=' test])* [',' '**' tfpdef] | '**' tfpdef) [',' ellipsis]
-tfpdef: maybe_typed_name ['not' 'None'] [':' test]
+tfpdef: maybe_typed_name [('not' | 'or') 'None'] [':' test]
 varargslist: (vfpdef ['=' test] (',' vfpdef ['=' test])* [','
        ['*' [vfpdef] (',' vfpdef ['=' test])* [',' '**' vfpdef] | '**' vfpdef]]
      |  '*' [vfpdef] (',' vfpdef ['=' test])* [',' '**' vfpdef] | '**' vfpdef)
@@ -82,7 +82,7 @@ try_stmt: ('try' ':' suite
 with_stmt: 'with' with_item (',' with_item)*  ':' suite
 with_item: test ['as' expr]
 # NB compile.c makes sure that the default except clause is last
-except_clause: 'except' [test ['as' PY_NAME]]
+except_clause: 'except' [test [('as' | ',') test]]
 suite: simple_stmt | NEWLINE INDENT stmt+ DEDENT
 
 test: or_test ['if' or_test 'else' test] | lambdef
@@ -178,7 +178,8 @@ cvar_decl: [visibility] type cname (NEWLINE | cfunc)
 cvar_def: [visibility] maybe_typed_name (['=' test] (',' PY_NAME ['=' test])* NEWLINE | cfunc)
 
 visibility: 'public' | 'api' | 'readonly'
-cfunc: [teplate_params] parameters [exception_value] [gil_spec] (':' suite | NEWLINE)
+# TODO: Standardize gil_spec first or last.
+cfunc: [teplate_params] parameters [gil_spec] [exception_value] [gil_spec] (':' suite | NEWLINE)
 exception_value: 'except' (['?'] expr | '*' | '+' [PY_NAME])
 gil_spec: 'with' ('gil' | 'nogil') | 'nogil'
 
@@ -198,7 +199,7 @@ extern_block: 'extern' (cvar_decl | 'from' ('*' | STRING) ['namespace' STRING] [
 extern_suite: NEWLINE INDENT (['cdef' | 'cpdef'] (cvar_decl | cdef_type_decl) | ctypedef_stmt)+ DEDENT
 
 cy_type_kwd: 'struct' | 'union' | 'fused' | 'cppclass' | 'int' | 'double' | 'complex'
-cy_kwd: cy_type_kwd | signedness | longness | visibility | 'gil' | 'nogil' | 'namespace' | 'const' | 'by' | 'extern' | 'namespace'
+cy_kwd: cy_type_kwd | signedness | longness | visibility | 'gil' | 'nogil' | 'namespace' | 'const' | 'by' | 'extern'
 PY_NAME: NAME | cy_kwd
 
 # TODO: Do we really want these? Don't play well with include...
