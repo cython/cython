@@ -86,7 +86,7 @@ e.g.::
       cdef double* data
 
       def __cinit__(self, number):
-          # allocate some memory (filled with random data)
+          # allocate some memory (uninitialized, )
           self.data = <double*> PyMem_Malloc(number * sizeof(double))
           if not self.data:
               raise MemoryError()
