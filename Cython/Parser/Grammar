@@ -23,10 +23,10 @@ decorator: '@' dotted_PY_NAME [ '(' [arglist] ')' ] NEWLINE
 decorators: decorator+
 decorated: decorators (classdef | funcdef | cdef_stmt)
 funcdef: 'def' PY_NAME parameters ['->' test] ':' suite
-parameters: '(' [typedargslist] [',' '...'] ')'
+parameters: '(' [typedargslist] ')'
 typedargslist: (tfpdef ['=' test] (',' tfpdef ['=' test])* [','
        ['*' [tfpdef] (',' tfpdef ['=' test])* [',' '**' tfpdef] | '**' tfpdef]]
-     |  '*' [tfpdef] (',' tfpdef ['=' test])* [',' '**' tfpdef] | '**' tfpdef)
+     |  '*' [tfpdef] (',' tfpdef ['=' test])* [',' '**' tfpdef] | '**' tfpdef) [',' ellipsis]
 tfpdef: maybe_typed_name [':' test]
 varargslist: (vfpdef ['=' test] (',' vfpdef ['=' test])* [','
        ['*' [vfpdef] (',' vfpdef ['=' test])* [',' '**' vfpdef] | '**' vfpdef]]
@@ -109,7 +109,7 @@ atom: ('(' [yield_expr|testlist_comp] ')' |
        '[' [testlist_comp] ']' |
        '{' [dictorsetmaker] '}' |
        new_expr |
-       PY_NAME | NUMBER | STRING+ | '...' | 'None' | 'True' | 'False')
+       PY_NAME | NUMBER | STRING+ | ellipsis | 'None' | 'True' | 'False')
 testlist_comp: (test|star_expr) ( comp_for | (',' (test|star_expr))* [','] )
 trailer: '(' [arglist] ')' | '[' subscriptlist ']' | '.' (PY_NAME | 'sizeof')
 subscriptlist: subscript (',' subscript)* [',']
@@ -140,6 +140,9 @@ yield_arg: 'from' test | testlist
 
 
 # Cython extensions
+
+# Accommodate to Py2 tokenizer.
+ellipsis: '...' | '.' '.' '.'
 
 signedness: 'unsigned' | 'signed'
 longness: 'char' | 'short' | 'long' | 'long' 'long'
@@ -187,7 +190,7 @@ enum_suite: NEWLINE INDENT (cname ['=' NUMBER] NEWLINE | pass_stmt NEWLINE)+ DED
 struct: ('struct' | 'union') cname (NEWLINE | (':' struct_suite))
 struct_suite: NEWLINE INDENT (cvar_decl | pass_stmt NEWLINE)+ DEDENT
 cppclass: 'cppclass' cname [teplate_params] [cppclass_bases] (NEWLINE | ':' cppclass_suite)
-cppclass_bases: '(' dotted_name (',' dotted_name [teplate_params])*')'
+cppclass_bases: '(' dotted_PY_NAME (',' dotted_PY_NAME [teplate_params])*')'
 cppclass_suite: NEWLINE INDENT (cvar_decl | ctype_decl | pass_stmt NEWLINE)+ DEDENT
 # TODO: C++ constructors, operators
 

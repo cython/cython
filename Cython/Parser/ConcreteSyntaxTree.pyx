@@ -82,7 +82,7 @@ def p_module(path):
         &err,
         &flags)
     if n:
-#        print_tree(n)
+        print_tree(n)
         PyNode_Free(n)
     else:
         PyParser_SetError(&err)
