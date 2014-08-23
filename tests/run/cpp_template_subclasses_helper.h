@@ -3,6 +3,7 @@ using namespace std;
 class Base {
 public:
     virtual const char* name() { return "Base"; }
+    virtual ~Base() {}
 };
 
 template <class A1>
