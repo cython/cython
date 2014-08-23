@@ -1,7 +1,10 @@
+# mode: run
 # ticket: 326
+# tag: hash
 
-__doc__ = u"""
 
+cdef class A:
+    """
     >>> hash(A(5))
     5
     >>> hash(A(-1))
@@ -12,10 +15,7 @@ __doc__ = u"""
     Traceback (most recent call last):
     ...
     TypeError: That's kind of a round number...
-
-"""
-
-cdef class A:
+    """
     cdef long a
     def __init__(self, a):
         self.a = a
@@ -24,6 +24,7 @@ cdef class A:
             raise TypeError, u"That's kind of a round number..."
         else:
             return self.a
+
 
 cpdef long __hash__(long x):
     """
