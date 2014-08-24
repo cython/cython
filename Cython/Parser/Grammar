@@ -1,14 +1,6 @@
-# Grammar for Python
+# Grammar for Cython, based on the Grammar for Python 3
 
-# Note:  Changing the grammar specified in this file will most likely
-#        require corresponding changes in the parser module
-#        (../Modules/parsermodule.c).  If you can't make the changes to
-#        that module yourself, please co-ordinate the required changes
-#        with someone who can; ask around on python-dev for help.  Fred
-#        Drake <fdrake@acm.org> will probably be listening there.
-
-# NOTE WELL: You should also follow all the steps listed in PEP 306,
-# "How to Change Python's Grammar"
+# Note: This grammar is not yet used by the Cython parser and is subject to change.
 
 # Start symbols for the grammar:
 #       single_input is a single interactive statement;
