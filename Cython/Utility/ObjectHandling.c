@@ -1092,31 +1092,123 @@ static CYTHON_INLINE int __Pyx_PyObject_SetAttrStr(PyObject* obj, PyObject* attr
 #define __Pyx_PyObject_SetAttrStr(o,n,v) PyObject_SetAttr(o,n,v)
 #endif
 
-/////////////// PyObjectCallMethod.proto ///////////////
-//@requires: PyObjectGetAttrStr
-//@requires: PyObjectCall
-//@substitute: naming
 
-static PyObject* __Pyx_PyObject_CallMethodTuple(PyObject* obj, PyObject* method_name, PyObject* args) {
+/////////////// PyObjectCallMethod0.proto ///////////////
+
+static PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name); /*proto*/
+
+/////////////// PyObjectCallMethod0 ///////////////
+//@requires: PyObjectGetAttrStr
+//@requires: PyObjectCallOneArg
+//@requires: PyObjectCallNoArg
+
+static PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name) {
     PyObject *method, *result = NULL;
-    if (unlikely(!args)) return NULL;
     method = __Pyx_PyObject_GetAttrStr(obj, method_name);
     if (unlikely(!method)) goto bad;
-    result = __Pyx_PyObject_Call(method, args, NULL);
+#if CYTHON_COMPILING_IN_CPYTHON
+    if (likely(PyMethod_Check(method))) {
+        PyObject *self = PyMethod_GET_SELF(method);
+        if (likely(self)) {
+            PyObject *function = PyMethod_GET_FUNCTION(method);
+            result = __Pyx_PyObject_CallOneArg(function, self);
+            Py_DECREF(method);
+            return result;
+        }
+    }
+#endif
+    result = __Pyx_PyObject_CallNoArg(method);
     Py_DECREF(method);
 bad:
-    Py_DECREF(args);
     return result;
 }
 
-#define __Pyx_PyObject_CallMethod3(obj, name, arg1, arg2, arg3) \
-    __Pyx_PyObject_CallMethodTuple(obj, name, PyTuple_Pack(3, arg1, arg2, arg3))
-#define __Pyx_PyObject_CallMethod2(obj, name, arg1, arg2) \
-    __Pyx_PyObject_CallMethodTuple(obj, name, PyTuple_Pack(2, arg1, arg2))
-#define __Pyx_PyObject_CallMethod1(obj, name, arg1) \
-    __Pyx_PyObject_CallMethodTuple(obj, name, PyTuple_Pack(1, arg1))
-#define __Pyx_PyObject_CallMethod0(obj, name) \
-    __Pyx_PyObject_CallMethodTuple(obj, name, (Py_INCREF($empty_tuple), $empty_tuple))
+
+/////////////// PyObjectCallMethod1.proto ///////////////
+
+static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name, PyObject* arg); /*proto*/
+
+/////////////// PyObjectCallMethod1 ///////////////
+//@requires: PyObjectGetAttrStr
+//@requires: PyObjectCallOneArg
+
+static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name, PyObject* arg) {
+    PyObject *method, *result = NULL;
+    method = __Pyx_PyObject_GetAttrStr(obj, method_name);
+    if (unlikely(!method)) goto bad;
+#if CYTHON_COMPILING_IN_CPYTHON
+    if (likely(PyMethod_Check(method))) {
+        PyObject *self = PyMethod_GET_SELF(method);
+        if (likely(self)) {
+            PyObject *args;
+            PyObject *function = PyMethod_GET_FUNCTION(method);
+            args = PyTuple_New(2);
+            if (unlikely(!args)) goto bad;
+            Py_INCREF(self);
+            PyTuple_SET_ITEM(args, 0, self);
+            Py_INCREF(arg);
+            PyTuple_SET_ITEM(args, 1, arg);
+            Py_INCREF(function);
+            Py_DECREF(method); method = NULL;
+            result = __Pyx_PyObject_Call(function, args, NULL);
+            Py_DECREF(args);
+            Py_DECREF(function);
+            return result;
+        }
+    }
+#endif
+    result = __Pyx_PyObject_CallOneArg(method, arg);
+bad:
+    Py_XDECREF(method);
+    return result;
+}
+
+
+/////////////// PyObjectCallMethod2.proto ///////////////
+
+static PyObject* __Pyx_PyObject_CallMethod2(PyObject* obj, PyObject* method_name, PyObject* arg1, PyObject* arg2); /*proto*/
+
+/////////////// PyObjectCallMethod2 ///////////////
+//@requires: PyObjectGetAttrStr
+//@requires: PyObjectCall
+
+static PyObject* __Pyx_PyObject_CallMethod2(PyObject* obj, PyObject* method_name, PyObject* arg1, PyObject* arg2) {
+    PyObject *args, *method, *result = NULL;
+    method = __Pyx_PyObject_GetAttrStr(obj, method_name);
+#if CYTHON_COMPILING_IN_CPYTHON
+    if (likely(PyMethod_Check(method)) && likely(PyMethod_GET_SELF(method))) {
+        PyObject *self, *function;
+        self = PyMethod_GET_SELF(method);
+        function = PyMethod_GET_FUNCTION(method);
+        args = PyTuple_New(3);
+        if (unlikely(!args)) goto bad;
+        Py_INCREF(self);
+        PyTuple_SET_ITEM(args, 0, self);
+        Py_INCREF(arg1);
+        PyTuple_SET_ITEM(args, 1, arg1);
+        Py_INCREF(arg2);
+        PyTuple_SET_ITEM(args, 2, arg2);
+        Py_INCREF(function);
+        Py_DECREF(method);
+        method = function;
+    } else
+#endif
+    {
+        args = PyTuple_New(2);
+        if (unlikely(!args)) goto bad;
+        Py_INCREF(arg1);
+        PyTuple_SET_ITEM(args, 0, arg1);
+        Py_INCREF(arg2);
+        PyTuple_SET_ITEM(args, 1, arg2);
+    }
+    result = __Pyx_PyObject_Call(method, args, NULL);
+    Py_DECREF(args);
+    Py_DECREF(method);
+    return result;
+bad:
+    Py_XDECREF(method);
+    return result;
+}
 
 
 /////////////// tp_new.proto ///////////////
@@ -1222,6 +1314,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObjec
     return (likely(args)) ? __Pyx_PyObject_Call(func, args, NULL) : NULL;
 }
 #endif
+
 
 /////////////// PyObjectCallNoArg.proto ///////////////
 //@requires: PyObjectCall

@@ -7126,7 +7126,7 @@ class SortedDictKeysNode(ExprNode):
         else:
             # originally used PyMapping_Keys() here, but that may return a tuple
             code.globalstate.use_utility_code(UtilityCode.load_cached(
-                'PyObjectCallMethod', 'ObjectHandling.c'))
+                'PyObjectCallMethod0', 'ObjectHandling.c'))
             keys_cname = code.intern_identifier(StringEncoding.EncodedString("keys"))
             code.putln('%s = __Pyx_PyObject_CallMethod0(%s, %s); %s' % (
                 self.result(), dict_result, keys_cname,

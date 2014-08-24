@@ -85,15 +85,15 @@ e.g.::
 
       cdef double* data
 
-      def __cinit__(self, number):
-          # allocate some memory (filled with random data)
+      def __cinit__(self, size_t number):
+          # allocate some memory (uninitialised, may contain arbitrary data)
           self.data = <double*> PyMem_Malloc(number * sizeof(double))
           if not self.data:
               raise MemoryError()
 
-      def resize(self, new_number):
+      def resize(self, size_t new_number):
           # Allocates new_number * sizeof(double) bytes,
-          # preserving the contents and making a best-effort to
+          # preserving the current content and making a best-effort to
           # re-use the original data location.
           mem = <double*> PyMem_Realloc(self.data, new_number * sizeof(double))
           if not mem:

@@ -12,7 +12,7 @@ static CYTHON_INLINE int __Pyx_PyObject_Append(PyObject* L, PyObject* x); /*prot
 
 /////////////// append ///////////////
 //@requires: ListAppend
-//@requires: ObjectHandling.c::PyObjectCallMethod
+//@requires: ObjectHandling.c::PyObjectCallMethod1
 
 static CYTHON_INLINE int __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
     if (likely(PyList_CheckExact(L))) {
@@ -85,7 +85,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyList_Pop(PyObject* L); /*proto*/
 static CYTHON_INLINE PyObject* __Pyx__PyObject_Pop(PyObject* L); /*proto*/
 
 /////////////// pop ///////////////
-//@requires: ObjectHandling.c::PyObjectCallMethod
+//@requires: ObjectHandling.c::PyObjectCallMethod0
 
 static CYTHON_INLINE PyObject* __Pyx__PyObject_Pop(PyObject* L) {
 #if CYTHON_COMPILING_IN_CPYTHON
@@ -122,7 +122,7 @@ static PyObject* __Pyx__PyList_PopIndex(PyObject* L, Py_ssize_t ix); /*proto*/
 static PyObject* __Pyx__PyObject_PopIndex(PyObject* L, PyObject* py_ix); /*proto*/
 
 /////////////// pop_index ///////////////
-//@requires: ObjectHandling.c::PyObjectCallMethod
+//@requires: ObjectHandling.c::PyObjectCallMethod1
 
 static PyObject* __Pyx__PyObject_PopIndex(PyObject* L, PyObject* py_ix) {
     PyObject *r;
@@ -193,7 +193,7 @@ static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObjec
 static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value, int is_safe_type); /*proto*/
 
 /////////////// dict_setdefault ///////////////
-//@requires: ObjectHandling.c::PyObjectCallMethod
+//@requires: ObjectHandling.c::PyObjectCallMethod2
 
 static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value,
                                                        CYTHON_UNUSED int is_safe_type) {
@@ -250,7 +250,7 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(PyObject* dict_or_iter, Py_ssize_t
 /////////////// dict_iter ///////////////
 //@requires: ObjectHandling.c::UnpackTuple2
 //@requires: ObjectHandling.c::IterFinish
-//@requires: ObjectHandling.c::PyObjectCallMethod
+//@requires: ObjectHandling.c::PyObjectCallMethod0
 
 static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_dict, PyObject* method_name,
                                                    Py_ssize_t* p_orig_length, int* p_source_is_dict) {

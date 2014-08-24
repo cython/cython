@@ -9,6 +9,8 @@ Latest
 Features added
 --------------
 
+* C (cdef) functions allow inner Python functions.
+
 * Enums can now be declared as cpdef to export their values to
   the module's Python namespace.  Cpdef enums in pxd files export
   their values to their own module, iff it exists.
