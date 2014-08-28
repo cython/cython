@@ -458,7 +458,7 @@ def p_call_parse_args(s, allow_genexp = True):
         s.next()
         starstar_arg = p_test(s)
         if s.sy == ',':
-            s.next()
+            s.next()  # FIXME: this is actually not valid Python syntax
     s.expect(')')
     return positional_args, keyword_args, star_arg, starstar_arg
 
