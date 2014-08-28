@@ -127,6 +127,10 @@ Bugs fixed
 Other changes
 -------------
 
+* The header line in the generated C files no longer contains the
+  timestamp but only the Cython version that wrote it.  This was
+  changed to make builds more reproducible.
+
 * Removed support for CPython 2.4, 2.5 and 3.1.
 
 * The licensing implications on the generated code were clarified
