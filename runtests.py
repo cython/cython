@@ -1597,6 +1597,7 @@ def refactor_for_py3(distdir, cy3_dir):
                      include pyximport/*.py
                      include runtests.py
                      include cython.py
+                     include cythonize.py
                      ''')
     sys.path.insert(0, cy3_dir)
 
