@@ -122,6 +122,8 @@ Bugs fixed
 
 * Fix infinite recursion when using super with cpdef methods.
 
+* No-args ``dir()`` was not guaranteed to return a sorted list.
+
 Other changes
 -------------
 
