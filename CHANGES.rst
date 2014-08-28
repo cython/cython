@@ -80,6 +80,10 @@ Optimizations
 Bugs fixed
 ----------
 
+* Nested C++ templates could lead to unseparated ">>" characters being
+  generated into the C++ declarations, which older C++ compilers could
+  not parse.
+
 * Sending SIGINT (Ctrl-C) during parallel cythonize() builds could
   hang the child processes.
 
