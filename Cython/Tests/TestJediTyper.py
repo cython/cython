@@ -3,14 +3,18 @@
 
 from __future__ import absolute_import
 
-import unittest
+import sys
+import os.path
+
 from textwrap import dedent
 from contextlib import contextmanager
 from tempfile import NamedTemporaryFile
 
-from ..ParseTreeTransforms import NormalizeTree, InterpretCompilerDirectives
-from .. import Main, Symtab, Visitor
-from ...TestUtils import TransformTest
+from Cython.Compiler.ParseTreeTransforms import NormalizeTree, InterpretCompilerDirectives
+from Cython.Compiler import Main, Symtab, Visitor
+from Cython.TestUtils import TransformTest
+
+TOOLS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'Tools'))
 
 
 @contextmanager
@@ -26,12 +30,16 @@ def _tempfile(code):
 
 
 def _test_typing(code, inject=False):
-    from ..JediTyper import analyse, inject_types
+    sys.path.insert(0, TOOLS_DIR)
+    try:
+        module = __import__('jedi-typer')
+    finally:
+        sys.path.remove(TOOLS_DIR)
     lines = []
     with _tempfile(code) as f:
-        types = analyse(f.name)
+        types = module.analyse(f.name)
         if inject:
-            lines = inject_types(f.name, types)
+            lines = module.inject_types(f.name, types)
     return types, lines
 
 

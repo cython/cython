@@ -1,3 +1,6 @@
+"""
+Inject Cython type declarations into a .py file using the Jedi static analysis tool.
+"""
 
 from __future__ import absolute_import
 
