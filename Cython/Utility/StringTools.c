@@ -716,6 +716,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyBytes_Join(PyObject* sep, PyObject* value
 static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyObject* value);
 
 //////////////////// ByteArrayAppendObject ////////////////////
+//@requires: TypeConversion.c::PyLongInternals
 //@requires: ByteArrayAppend
 
 static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyObject* value) {
