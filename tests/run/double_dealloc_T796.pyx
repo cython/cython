@@ -1,5 +1,5 @@
 """
->>> gc.collect()
+>>> _ = gc.collect()
 >>> x = SimpleGarbage()
 SimpleGarbage(1) __cinit__
 >>> del x
