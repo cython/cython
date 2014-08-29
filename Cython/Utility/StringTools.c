@@ -736,10 +736,7 @@ static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyO
             ival = 0;
         } else {
             ival = ((PyLongObject*)value)->ob_digit[0];
-            if (unlikely(ival > 255)) {
-                PyErr_SetString(PyExc_ValueError, "byte must be in range(0, 256)");
-                return -1;
-            }
+            if (unlikely(ival > 255)) goto bad_range;
         }
     } else
 #endif
@@ -750,11 +747,13 @@ static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyO
         if (unlikely((ival < 0) | (ival > 255))) {
             if (ival == -1 && PyErr_Occurred())
                 return -1;
-            PyErr_SetString(PyExc_ValueError, "byte must be in range(0, 256)");
-            return -1;
+            goto bad_range;
         }
     }
     return __Pyx_PyByteArray_Append(bytearray, ival);
+bad_range:
+    PyErr_SetString(PyExc_ValueError, "byte must be in range(0, 256)");
+    return -1;
 }
 
 //////////////////// ByteArrayAppend.proto ////////////////////
