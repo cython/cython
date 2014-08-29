@@ -145,6 +145,25 @@ def make_new_none(type t=None):
     m = t.__new__(t)
     return m
 
+@cython.test_assert_path_exists('//PythonCapiCallNode')
+@cython.test_fail_if_path_exists(
+    '//SimpleCallNode/AttributeNode',
+    '//PyMethodCallNode',
+)
+def make_new_kwargs(type t=None):
+    """
+    >>> m = make_new_kwargs(MyType)
+    CINIT
+    >>> isinstance(m, MyType)
+    True
+    >>> m.args
+    (1, 2, 3)
+    >>> m.kwargs
+    {'a': 5}
+    """
+    m = t.__new__(t, 1, 2, 3, a=5)
+    return m
+
 # these cannot:
 
 @cython.test_assert_path_exists('//PyMethodCallNode/AttributeNode')
