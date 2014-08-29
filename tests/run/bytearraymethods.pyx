@@ -208,6 +208,13 @@ def bytearray_append(bytearray b, signed char c, int i, object o):
     abcX@xyz
 
     >>> b = bytearray(b'abc')
+    >>> b = bytearray_append(b, ord('x'), ord('y'), 0)
+    >>> print(b.decode('ascii')[:-1])
+    abcX@xy
+    >>> b[-1]
+    0
+
+    >>> b = bytearray(b'abc')
     >>> b = bytearray_append(b, ord('x'), ord('y'), ord('z') if IS_PY3 else b'z')
     >>> print(b.decode('ascii'))
     abcX@xyz

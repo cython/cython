@@ -728,6 +728,20 @@ static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyO
         }
         ival = (unsigned char) (PyString_AS_STRING(value)[0]);
     } else
+#else
+#if CYTHON_USE_PYLONG_INTERNALS
+    if (likely(PyLong_CheckExact(value)) && likely(Py_SIZE(value) == 1 || Py_SIZE(value) == 0)) {
+        if (Py_SIZE(value) == 0) {
+            ival = 0;
+        } else {
+            ival = ((PyLongObject*)value)->ob_digit[0];
+            if (unlikely(ival > 255)) {
+                PyErr_SetString(PyExc_ValueError, "byte must be in range(0, 256)");
+                return -1;
+            }
+        }
+    } else
+#endif
 #endif
     {
         // CPython calls PyNumber_Index() internally
