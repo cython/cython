@@ -612,3 +612,152 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
     }
 }
 
+/////////////// CArrayFromPy.proto ///////////////
+
+static int {{FROM_PY_FUNCTION}}(PyObject *, {{TYPE}}, const unsigned int);
+
+/////////////// CArrayFromPy ///////////////
+
+
+static int {{FROM_PY_FUNCTION}}(PyObject *__pyx_v_o, {{TYPE}} __pyx_v_a, unsigned int const __pyx_v_N) {
+  unsigned int __pyx_v_i;
+  PyObject *__pyx_v_elt = NULL;
+  int __pyx_r;
+  __Pyx_RefNannyDeclarations
+  PyObject *__pyx_t_1 = NULL;
+  Py_ssize_t __pyx_t_2;
+  PyObject *(*__pyx_t_3)(PyObject *);
+  PyObject *__pyx_t_4 = NULL;
+  int __pyx_t_5;
+  {{BASE_TYPE.declaration_code("")}} __pyx_t_6;
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  __Pyx_RefNannySetupContext("foo", 0);
+
+  /* "bootstrap_assign.pyx":3
+ * cdef int foo(object o, int *a, const unsigned int N) except -1:
+ *     cdef:
+ *         unsigned int i = 0             # <<<<<<<<<<<<<<
+ * 
+ *     for elt in o:
+ */
+  __pyx_v_i = 0;
+
+  /* "bootstrap_assign.pyx":5
+ *         unsigned int i = 0
+ * 
+ *     for elt in o:             # <<<<<<<<<<<<<<
+ *         if i == N:
+ *             break
+ */
+  if (PyList_CheckExact(__pyx_v_o) || PyTuple_CheckExact(__pyx_v_o)) {
+    __pyx_t_1 = __pyx_v_o; __Pyx_INCREF(__pyx_t_1); __pyx_t_2 = 0;
+    __pyx_t_3 = NULL;
+  } else {
+    __pyx_t_2 = -1; __pyx_t_1 = PyObject_GetIter(__pyx_v_o); if (unlikely(!__pyx_t_1)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 5; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+    __Pyx_GOTREF(__pyx_t_1);
+    __pyx_t_3 = Py_TYPE(__pyx_t_1)->tp_iternext;
+  }
+  for (;;) {
+    if (!__pyx_t_3 && PyList_CheckExact(__pyx_t_1)) {
+      if (__pyx_t_2 >= PyList_GET_SIZE(__pyx_t_1)) break;
+      #if CYTHON_COMPILING_IN_CPYTHON
+      __pyx_t_4 = PyList_GET_ITEM(__pyx_t_1, __pyx_t_2); __Pyx_INCREF(__pyx_t_4); __pyx_t_2++; if (unlikely(0 < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 5; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+      #else
+      __pyx_t_4 = PySequence_ITEM(__pyx_t_1, __pyx_t_2); __pyx_t_2++; if (unlikely(!__pyx_t_4)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 5; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+      #endif
+    } else if (!__pyx_t_3 && PyTuple_CheckExact(__pyx_t_1)) {
+      if (__pyx_t_2 >= PyTuple_GET_SIZE(__pyx_t_1)) break;
+      #if CYTHON_COMPILING_IN_CPYTHON
+      __pyx_t_4 = PyTuple_GET_ITEM(__pyx_t_1, __pyx_t_2); __Pyx_INCREF(__pyx_t_4); __pyx_t_2++; if (unlikely(0 < 0)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 5; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+      #else
+      __pyx_t_4 = PySequence_ITEM(__pyx_t_1, __pyx_t_2); __pyx_t_2++; if (unlikely(!__pyx_t_4)) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 5; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+      #endif
+    } else {
+      __pyx_t_4 = __pyx_t_3(__pyx_t_1);
+      if (unlikely(!__pyx_t_4)) {
+        PyObject* exc_type = PyErr_Occurred();
+        if (exc_type) {
+          if (likely(exc_type == PyExc_StopIteration || PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))) PyErr_Clear();
+          else {__pyx_filename = __pyx_f[0]; __pyx_lineno = 5; __pyx_clineno = __LINE__; goto __pyx_L1_error;}
+        }
+        break;
+      }
+      __Pyx_GOTREF(__pyx_t_4);
+    }
+    __Pyx_XDECREF_SET(__pyx_v_elt, __pyx_t_4);
+    __pyx_t_4 = 0;
+
+    /* "bootstrap_assign.pyx":6
+ * 
+ *     for elt in o:
+ *         if i == N:             # <<<<<<<<<<<<<<
+ *             break
+ *         a[i] = elt
+ */
+    __pyx_t_5 = ((__pyx_v_i == __pyx_v_N) != 0);
+    if (__pyx_t_5) {
+
+      /* "bootstrap_assign.pyx":7
+ *     for elt in o:
+ *         if i == N:
+ *             break             # <<<<<<<<<<<<<<
+ *         a[i] = elt
+ *         i += 1
+ */
+      goto __pyx_L4_break;
+    }
+
+    /* "bootstrap_assign.pyx":8
+ *         if i == N:
+ *             break
+ *         a[i] = elt             # <<<<<<<<<<<<<<
+ *         i += 1
+ * 
+ */
+    __pyx_t_6 = {{BASE_TYPE.from_py_function}}(__pyx_v_elt);
+    if ({{BASE_TYPE.error_condition("__pyx_t_6")}})
+        goto __pyx_L1_error;
+    /* if (unlikely((__pyx_t_6 == (int)-1) && PyErr_Occurred())) {__pyx_filename = __pyx_f[0]; __pyx_lineno = 8; __pyx_clineno = __LINE__; goto __pyx_L1_error;} */
+    (__pyx_v_a[__pyx_v_i]) = __pyx_t_6;
+
+    /* "bootstrap_assign.pyx":9
+ *             break
+ *         a[i] = elt
+ *         i += 1             # <<<<<<<<<<<<<<
+ * 
+ *     return 0
+ */
+    __pyx_v_i = (__pyx_v_i + 1);
+  }
+  __pyx_L4_break:;
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+
+  /* "bootstrap_assign.pyx":11
+ *         i += 1
+ * 
+ *     return 0             # <<<<<<<<<<<<<<
+ * 
+ * def caller(o):
+ */
+  __pyx_r = 0;
+  goto __pyx_L0;
+
+  /* "bootstrap_assign.pyx":1
+ * cdef int foo(object o, int *a, const unsigned int N) except -1:             # <<<<<<<<<<<<<<
+ *     cdef:
+ *         unsigned int i = 0
+ */
+
+  /* function exit code */
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_1);
+  __Pyx_XDECREF(__pyx_t_4);
+  __Pyx_AddTraceback("bootstrap_assign.foo", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_r = -1;
+  __pyx_L0:;
+  __Pyx_XDECREF(__pyx_v_elt);
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}

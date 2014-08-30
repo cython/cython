@@ -740,7 +740,16 @@ class ExprNode(Node):
             node = NameNode(self.pos, name='', type=self.coercion_type)
             node.coerce_to(dst_type, env)
 
-        if dst_type.is_memoryviewslice:
+        if dst_type.is_array and src.type.is_pyobject:
+            # if not dst_type.is_complete():
+                # error(self.pos, "XXX")
+            # XXX: TODO: other error cases here?
+            src = CoerceToCArrayNode(src, dst_type, env)
+            # elif not src_type.is_error:
+                # error(self.pos,
+                      # "Cannot convert '%s' to C array" % (src_type,))
+
+        elif dst_type.is_memoryviewslice:
             from . import MemoryView
             if not src.type.is_memoryviewslice:
                 if src.type.is_pyobject:
@@ -1861,6 +1870,11 @@ class NameNode(AtomicExprNode):
         return True
 
     def is_lvalue(self):
+        # XXX: need to make fixed-size arrays assignable (and therefore valid lvalues)
+        if self.entry.is_variable and \
+                self.entry.type.is_array and \
+                self.entry.type.is_complete():
+                    return True
         return self.entry.is_variable and \
             not self.entry.type.is_array and \
             not self.entry.is_readonly
@@ -2005,7 +2019,11 @@ class NameNode(AtomicExprNode):
                 code.putln("PyType_Modified(%s);" %
                            entry.scope.parent_type.typeptr_cname)
         else:
-            if self.type.is_memoryviewslice:
+
+            if self.type.is_array and self.type.is_complete():
+                self.generate_assign_to_c_array(rhs, code)
+
+            elif self.type.is_memoryviewslice:
                 self.generate_acquire_memoryviewslice(rhs, code)
 
             elif self.type.is_buffer:
@@ -2048,7 +2066,7 @@ class NameNode(AtomicExprNode):
                             assigned = False
                     if is_external_ref:
                         code.put_giveref(rhs.py_result())
-            if not self.type.is_memoryviewslice:
+            if not (self.type.is_memoryviewslice or self.type.is_array):
                 if not assigned:
                     code.putln('%s = %s;' % (
                         self.result(), rhs.result_as(self.ctype())))
@@ -2076,6 +2094,18 @@ class NameNode(AtomicExprNode):
             code=code,
             have_gil=not self.in_nogil_context,
             first_assignment=self.cf_is_null)
+
+    def generate_assign_to_c_array(self, rhs, code):
+
+        # XXX: this feels wrong...  Should probably be done inside CoerceToCArrayNode()
+        self.type.create_from_py_utility_code(rhs.env)
+
+        code.putln("%s(%s, %s, %s); %s" % (
+            self.type.from_py_function,
+            rhs.arg.py_result(),
+            self.result(),
+            self.type.size,
+            code.error_goto_if(self.type.error_condition(self.result()), self.pos)))
 
     def generate_acquire_buffer(self, rhs, code):
         # rhstmp is only used in case the rhs is a complicated expression leading to
@@ -10905,6 +10935,7 @@ class CoercionNode(ExprNode):
             code.annotate((file, line, col-1), AnnotationItem(
                 style='coerce', tag='coerce', text='[%s] to [%s]' % (self.arg.type, self.type)))
 
+
 class CoerceToMemViewSliceNode(CoercionNode):
     """
     Coerce an object to a memoryview slice. This holds a new reference in
@@ -11264,6 +11295,21 @@ class CoerceFromPyTypeNode(CoercionNode):
 
     def nogil_check(self, env):
         error(self.pos, "Coercion from Python not allowed without the GIL")
+
+
+class CoerceToCArrayNode(CoercionNode):
+
+    def __init__(self, arg, dst_type, env):
+        assert dst_type.is_array and dst_type.is_complete()
+        assert arg.type.is_pyobject
+        super(CoerceToCArrayNode, self).__init__(arg)
+        self.type = dst_type
+        # self.is_temp = 1
+        self.env = env
+        self.arg = arg
+
+    def generate_evaluation_code(self, code):
+        code.putln("/* CoerceToCArrayNode.generate_evaluation_code() */")
 
 
 class CoerceToBooleanNode(CoercionNode):

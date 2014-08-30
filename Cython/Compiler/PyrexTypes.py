@@ -680,6 +680,7 @@ class MemoryViewSliceType(PyrexType):
         suffix = self.specialization_suffix()
         funcname = "__Pyx_PyObject_to_MemoryviewSlice_" + suffix
 
+        # XXX: this dict is created and isn't used, what gives?
         context = dict(
             MemoryView.context,
             buf_flag = self.flags,
@@ -2150,6 +2151,15 @@ class CArrayType(CPointerBaseType):
     def assignable_from_resolved_type(self, src_type):
         # Can't assign to a variable of an array type
         return 0
+
+    def create_from_py_utility_code(self, env):
+        self.from_py_function = "__Pyx_carray_from_py_" + self.base_type.specialization_name()
+        env.use_utility_code(TempitaUtilityCode.load(
+            "CArrayFromPy", "TypeConversion.c",
+            context={"TYPE": self.as_argument_type(),
+                     "FROM_PY_FUNCTION": self.from_py_function,
+                     "BASE_TYPE": self.base_type}))
+        return True
 
     def element_ptr_type(self):
         return c_ptr_type(self.base_type)
