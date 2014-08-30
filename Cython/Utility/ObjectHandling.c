@@ -1353,7 +1353,8 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func) {
   #define __Pyx_PyNumber_MatrixMultiply(x,y)         PyNumber_MatrixMultiply(x,y)
   #define __Pyx_PyNumber_InPlaceMatrixMultiply(x,y)  PyNumber_InPlaceMatrixMultiply(x,y)
 #else
-static PyObject* __Pyx_PyNumber_MatrixMultiply(PyObject* x, PyObject* y);
+#define __Pyx_PyNumber_MatrixMultiply(x,y)         __Pyx__PyNumber_MatrixMultiply(x, y, "@")
+static PyObject* __Pyx__PyNumber_MatrixMultiply(PyObject* x, PyObject* y, const char* op_name);
 static PyObject* __Pyx_PyNumber_InPlaceMatrixMultiply(PyObject* x, PyObject* y);
 #endif
 
@@ -1392,7 +1393,7 @@ bad:
     return result;
 }
 
-static PyObject* __Pyx_PyNumber_MatrixMultiply(PyObject* x, PyObject* y) {
+static PyObject* __Pyx__PyNumber_MatrixMultiply(PyObject* x, PyObject* y, const char* op_name) {
     PyObject *func;
     // FIXME: make subtype aware
     // see note at https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types
@@ -1410,10 +1411,20 @@ static PyObject* __Pyx_PyNumber_MatrixMultiply(PyObject* x, PyObject* y) {
     func = __Pyx_PyObject_GetAttrStr(y, PYIDENT("__rmatmul__"));
     if (func) {
         PyObject *result = __Pyx_PyObject_CallMatrixMethod(func, x);
-        return result;
+        if (result != Py_NotImplemented)
+            return result;
+        Py_DECREF(result);
+    } else {
+        if (!PyErr_ExceptionMatches(PyExc_AttributeError))
+            return NULL;
+        PyErr_Clear();
     }
-    Py_INCREF(Py_NotImplemented);
-    return Py_NotImplemented;
+    PyErr_Format(PyExc_TypeError,
+                 "unsupported operand type(s) for %.2s: '%.100s' and '%.100s'",
+                 op_name,
+                 Py_TYPE(x)->tp_name,
+                 Py_TYPE(y)->tp_name);
+    return NULL;
 }
 
 static PyObject* __Pyx_PyNumber_InPlaceMatrixMultiply(PyObject* x, PyObject* y) {
@@ -1429,6 +1440,6 @@ static PyObject* __Pyx_PyNumber_InPlaceMatrixMultiply(PyObject* x, PyObject* y) 
             return NULL;
         PyErr_Clear();
     }
-    return __Pyx_PyNumber_MatrixMultiply(x, y);
+    return __Pyx__PyNumber_MatrixMultiply(x, y, "@=");
 }
 #endif
