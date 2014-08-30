@@ -1359,16 +1359,46 @@ static PyObject* __Pyx_PyNumber_InPlaceMatrixMultiply(PyObject* x, PyObject* y);
 
 /////////////// MatrixMultiply ///////////////
 //@requires: PyObjectGetAttrStr
+//@requires: PyObjectCallOneArg
 
 #if PY_VERSION_HEX < 0x03050000
+static PyObject* __Pyx_PyObject_CallMatrixMethod(PyObject* method, PyObject* arg) {
+    // NOTE: eats the method reference
+    PyObject *result = NULL;
+#if CYTHON_COMPILING_IN_CPYTHON
+    if (likely(PyMethod_Check(method))) {
+        PyObject *self = PyMethod_GET_SELF(method);
+        if (likely(self)) {
+            PyObject *args;
+            PyObject *function = PyMethod_GET_FUNCTION(method);
+            args = PyTuple_New(2);
+            if (unlikely(!args)) goto bad;
+            Py_INCREF(self);
+            PyTuple_SET_ITEM(args, 0, self);
+            Py_INCREF(arg);
+            PyTuple_SET_ITEM(args, 1, arg);
+            Py_INCREF(function);
+            Py_DECREF(method); method = NULL;
+            result = __Pyx_PyObject_Call(function, args, NULL);
+            Py_DECREF(args);
+            Py_DECREF(function);
+            return result;
+        }
+    }
+#endif
+    result = __Pyx_PyObject_CallOneArg(method, arg);
+bad:
+    Py_DECREF(method);
+    return result;
+}
+
 static PyObject* __Pyx_PyNumber_MatrixMultiply(PyObject* x, PyObject* y) {
     PyObject *func;
     // FIXME: make subtype aware
     // see note at https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types
     func = __Pyx_PyObject_GetAttrStr(x, PYIDENT("__matmul__"));
     if (func) {
-        PyObject *result = PyObject_CallFunctionObjArgs(func, y, NULL);
-        Py_DECREF(func);
+        PyObject *result = __Pyx_PyObject_CallMatrixMethod(func, y);
         if (result != Py_NotImplemented)
             return result;
         Py_DECREF(result);
@@ -1379,8 +1409,7 @@ static PyObject* __Pyx_PyNumber_MatrixMultiply(PyObject* x, PyObject* y) {
     }
     func = __Pyx_PyObject_GetAttrStr(y, PYIDENT("__rmatmul__"));
     if (func) {
-        PyObject *result = PyObject_CallFunctionObjArgs(func, x, NULL);
-        Py_DECREF(func);
+        PyObject *result = __Pyx_PyObject_CallMatrixMethod(func, x);
         return result;
     }
     Py_INCREF(Py_NotImplemented);
@@ -1391,8 +1420,7 @@ static PyObject* __Pyx_PyNumber_InPlaceMatrixMultiply(PyObject* x, PyObject* y) 
     PyObject *func;
     func = __Pyx_PyObject_GetAttrStr(x, PYIDENT("__imatmul__"));
     if (func) {
-        PyObject *result = PyObject_CallFunctionObjArgs(func, y, NULL);
-        Py_DECREF(func);
+        PyObject *result = __Pyx_PyObject_CallMatrixMethod(func, y);
         if (result != Py_NotImplemented)
             return result;
         Py_DECREF(result);
