@@ -483,17 +483,17 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
 
 /////////////// CIntFromPyVerify ///////////////
 
+// see CIntFromPy
 #define __PYX_VERIFY_RETURN_INT(target_type, func_type, func_value)       \
     {                                                                     \
         func_type value = func_value;                                     \
         if (sizeof(target_type) < sizeof(func_type)) {                    \
             if (unlikely(value != (func_type) (target_type) value)) {     \
                 func_type zero = 0;                                       \
-                PyErr_SetString(PyExc_OverflowError,                      \
-                    (is_unsigned && unlikely(value < zero)) ?             \
-                    "can't convert negative value to " #target_type :     \
-                    "value too large to convert to " #target_type);       \
-                return (target_type) -1;                                  \
+                if (is_unsigned && unlikely(value < zero))                \
+                    goto raise_neg_overflow;                              \
+                else                                                      \
+                    goto raise_overflow;                                  \
             }                                                             \
         }                                                                 \
         return (target_type) value;                                       \
@@ -527,9 +527,7 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
         } else {
             long val = PyInt_AS_LONG(x);
             if (is_unsigned && unlikely(val < 0)) {
-                PyErr_SetString(PyExc_OverflowError,
-                                "can't convert negative value to {{TYPE}}");
-                return ({{TYPE}}) -1;
+                goto raise_neg_overflow;
             }
             return ({{TYPE}}) val;
         }
@@ -546,9 +544,7 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
  #endif
 #endif
             if (unlikely(Py_SIZE(x) < 0)) {
-                PyErr_SetString(PyExc_OverflowError,
-                                "can't convert negative value to {{TYPE}}");
-                return ({{TYPE}}) -1;
+                goto raise_neg_overflow;
             }
             if (sizeof({{TYPE}}) <= sizeof(unsigned long)) {
                 __PYX_VERIFY_RETURN_INT({{TYPE}}, unsigned long, PyLong_AsUnsignedLong(x))
@@ -606,5 +602,14 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
         Py_DECREF(tmp);
         return val;
     }
-}
 
+raise_overflow:
+    PyErr_SetString(PyExc_OverflowError,
+        "value too large to convert to {{TYPE}}");
+    return ({{TYPE}}) -1;
+
+raise_neg_overflow:
+    PyErr_SetString(PyExc_OverflowError,
+        "can't convert negative value to {{TYPE}}");
+    return ({{TYPE}}) -1;
+}
