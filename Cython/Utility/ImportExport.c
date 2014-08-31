@@ -181,7 +181,7 @@ static int __Pyx_SetPackagePathFromImportLib(const char* parent_package_name, Py
     if (unlikely(!file_path))
         goto bad;
 
-    if (unlikely(__Pyx_SetAttrString($module_cname, "__file__", file_path) < 0))
+    if (unlikely(PyObject_SetAttrString($module_cname, "__file__", file_path) < 0))
         goto bad;
 
     osmod = PyImport_ImportModule("os");
@@ -214,7 +214,7 @@ bad:
         return -1;
 
 set_path:
-    result = __Pyx_SetAttrString($module_cname, "__path__", package_path);
+    result = PyObject_SetAttrString($module_cname, "__path__", package_path);
     Py_DECREF(package_path);
     return result;
 }

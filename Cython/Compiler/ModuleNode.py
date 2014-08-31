@@ -1894,7 +1894,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
             "PyVarObject_HEAD_INIT(0, 0)")
         code.putln(
-            '__Pyx_NAMESTR("%s.%s"), /*tp_name*/' % (
+            '"%s.%s", /*tp_name*/' % (
                 self.full_module_name, scope.class_name))
         if type.typedef_flag:
             objstruct = type.objstruct_cname
@@ -1933,7 +1933,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     env.getset_table_cname)
             for entry in env.property_entries:
                 if entry.doc:
-                    doc_code = "__Pyx_DOCSTR(%s)" % code.get_string_const(entry.doc)
+                    doc_code = "%s" % code.get_string_const(entry.doc)
                 else:
                     doc_code = "0"
                 code.putln(
@@ -2079,7 +2079,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             EncodedString("__main__"), identifier=True)
         code.putln("if (%s%s) {" % (Naming.module_is_main, self.full_module_name.replace('.', '__')))
         code.putln(
-            'if (__Pyx_SetAttrString(%s, "__name__", %s) < 0) %s;' % (
+            'if (PyObject_SetAttrString(%s, "__name__", %s) < 0) %s;' % (
                 env.module_cname,
                 __main__name.cname,
                 code.error_goto(self.pos)))
@@ -2167,7 +2167,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             module_path = self.pos[0].filename
 
         if module_path:
-            code.putln('if (__Pyx_SetAttrString(%s, "__file__", %s) < 0) %s;' % (
+            code.putln('if (PyObject_SetAttrString(%s, "__file__", %s) < 0) %s;' % (
                 env.module_cname,
                 code.globalstate.get_py_string_const(
                     EncodedString(decode_filename(module_path))).cname,
@@ -2184,7 +2184,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     code.error_goto_if_null(temp, self.pos)))
                 code.put_gotref(temp)
                 code.putln(
-                    'if (__Pyx_SetAttrString(%s, "__path__", %s) < 0) %s;' % (
+                    'if (PyObject_SetAttrString(%s, "__path__", %s) < 0) %s;' % (
                         env.module_cname, temp, code.error_goto(self.pos)))
                 code.put_decref_clear(temp, py_object_type)
                 code.funcstate.release_temp(temp)
@@ -2305,7 +2305,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_pymoduledef_struct(self, env, code):
         if env.doc:
-            doc = "__Pyx_DOCSTR(%s)" % code.get_string_const(env.doc)
+            doc = "%s" % code.get_string_const(env.doc)
         else:
             doc = "0"
         if Options.generate_cleanup_code:
@@ -2322,7 +2322,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#else")
         code.putln("  PyModuleDef_HEAD_INIT,")
         code.putln("#endif")
-        code.putln('  __Pyx_NAMESTR("%s"),' % env.module_name)
+        code.putln('  "%s",' % env.module_name)
         code.putln("  %s, /* m_doc */" % doc)
         code.putln("  -1, /* m_size */")
         code.putln("  %s /* m_methods */," % env.method_table_cname)
@@ -2337,12 +2337,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # Generate code to create the module object and
         # install the builtins.
         if env.doc:
-            doc = "__Pyx_DOCSTR(%s)" % code.get_string_const(env.doc)
+            doc = "%s" % code.get_string_const(env.doc)
         else:
             doc = "0"
         code.putln("#if PY_MAJOR_VERSION < 3")
         code.putln(
-            '%s = Py_InitModule4(__Pyx_NAMESTR("%s"), %s, %s, 0, PYTHON_API_VERSION); Py_XINCREF(%s);' % (
+            '%s = Py_InitModule4("%s", %s, %s, 0, PYTHON_API_VERSION); Py_XINCREF(%s);' % (
                 env.module_cname,
                 env.module_name,
                 env.method_table_cname,
@@ -2362,20 +2362,20 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put_incref(env.module_dict_cname, py_object_type, nanny=False)
 
         code.putln(
-            '%s = PyImport_AddModule(__Pyx_NAMESTR(__Pyx_BUILTIN_MODULE_NAME)); %s' % (
+            '%s = PyImport_AddModule(__Pyx_BUILTIN_MODULE_NAME); %s' % (
                 Naming.builtins_cname,
                 code.error_goto_if_null(Naming.builtins_cname, self.pos)))
         code.putln('#if CYTHON_COMPILING_IN_PYPY')
         code.putln('Py_INCREF(%s);' % Naming.builtins_cname)
         code.putln('#endif')
         code.putln(
-            'if (__Pyx_SetAttrString(%s, "__builtins__", %s) < 0) %s;' % (
+            'if (PyObject_SetAttrString(%s, "__builtins__", %s) < 0) %s;' % (
                 env.module_cname,
                 Naming.builtins_cname,
                 code.error_goto(self.pos)))
         if Options.pre_import is not None:
             code.putln(
-                '%s = PyImport_AddModule(__Pyx_NAMESTR("%s")); %s' % (
+                '%s = PyImport_AddModule("%s"); %s' % (
                     Naming.preimport_cname,
                     Options.pre_import,
                     code.error_goto_if_null(Naming.preimport_cname, self.pos)))
@@ -2401,7 +2401,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     entry.cname))
                 code.putln(code.error_goto_if_null("wrapped", entry.pos))
                 code.putln(
-                    'if (__Pyx_SetAttrString(%s, "%s", wrapped) < 0) %s;' % (
+                    'if (PyObject_SetAttrString(%s, "%s", wrapped) < 0) %s;' % (
                         env.module_cname,
                         name,
                         code.error_goto(entry.pos)))
@@ -2639,7 +2639,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         code.putln('#if CYTHON_COMPILING_IN_CPYTHON')
                         code.putln("{")
                         code.putln(
-                            'PyObject *wrapper = __Pyx_GetAttrString((PyObject *)&%s, "%s"); %s' % (
+                            'PyObject *wrapper = PyObject_GetAttrString((PyObject *)&%s, "%s"); %s' % (
                                 typeobj_cname,
                                 func.name,
                                 code.error_goto_if_null('wrapper', entry.pos)))
@@ -2671,7 +2671,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     # Cython (such as closures), the 'internal'
                     # directive is set by users
                     code.putln(
-                        'if (__Pyx_SetAttrString(%s, "%s", (PyObject *)&%s) < 0) %s' % (
+                        'if (PyObject_SetAttrString(%s, "%s", (PyObject *)&%s) < 0) %s' % (
                             Naming.module_cname,
                             scope.class_name,
                             typeobj_cname,
@@ -2787,7 +2787,7 @@ import_star_utility_code = """
 static int
 __Pyx_import_all_from(PyObject *locals, PyObject *v)
 {
-    PyObject *all = __Pyx_GetAttrString(v, "__all__");
+    PyObject *all = PyObject_GetAttrString(v, "__all__");
     PyObject *dict, *name, *value;
     int skip_leading_underscores = 0;
     int pos, err;
@@ -2796,7 +2796,7 @@ __Pyx_import_all_from(PyObject *locals, PyObject *v)
         if (!PyErr_ExceptionMatches(PyExc_AttributeError))
             return -1; /* Unexpected error */
         PyErr_Clear();
-        dict = __Pyx_GetAttrString(v, "__dict__");
+        dict = PyObject_GetAttrString(v, "__dict__");
         if (dict == NULL) {
             if (!PyErr_ExceptionMatches(PyExc_AttributeError))
                 return -1;
