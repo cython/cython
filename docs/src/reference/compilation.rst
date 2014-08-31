@@ -390,12 +390,24 @@ Cython code.  Here is the list of currently supported directives:
 ``unraisable_tracebacks`` (True / False)
     Whether to print tracebacks when suppressing unraisable exceptions.
 
-``use_switch`` (True / False)
+
+Configurable optimisations
+--------------------------
+
+``optimize.use_switch`` (True / False)
     Whether to expand chained if-else statements (including statements like
     ``if x == 1 or x == 2:``) into C switch statements.  This can have performance
     benefits if there are lots of values but cause compiler errors if there are any
     duplicate values (which may not be detectable at Cython compile time for all
-    C constants).
+    C constants).  Default is True.
+
+``optimize.unpack_method_calls`` (True / False)
+    Cython can generate code that optimistically checks for Python method objects
+    at call time and unpacks the underlying function to call it directly.  This
+    can substantially speed up method calls, especially for bultins, but may also
+    have a slight negative performance impact in some cases where the guess goes
+    completely wrong.
+    Disabling this option can also reduce the code size.  Default is True.
 
 
 How to set directives

@@ -3764,7 +3764,8 @@ class FinalOptimizePhase(Visitor.CythonTransform, Visitor.NodeRefCleanupMixin):
                     function.type = function.entry.type
                     PyTypeObjectPtr = PyrexTypes.CPtrType(cython_scope.lookup('PyTypeObject').type)
                     node.args[1] = ExprNodes.CastNode(node.args[1], PyTypeObjectPtr)
-        elif node.is_temp and function.type.is_pyobject:
+        elif (self.current_directives.get("optimize.unpack_method_calls")
+                and node.is_temp and function.type.is_pyobject):
             # optimise simple Python methods calls
             if isinstance(node.arg_tuple, ExprNodes.TupleNode) and not (
                     node.arg_tuple.mult_factor or (node.arg_tuple.is_literal and node.arg_tuple.args)):
