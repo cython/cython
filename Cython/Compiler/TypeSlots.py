@@ -738,8 +738,8 @@ PyBufferProcs = (
     MethodSlot(segcountproc, "bf_getsegcount", "__getsegcount__", py3 = False),
     MethodSlot(charbufferproc, "bf_getcharbuffer", "__getcharbuffer__", py3 = False),
 
-    MethodSlot(getbufferproc, "bf_getbuffer", "__getbuffer__", ifdef = "PY_VERSION_HEX >= 0x02060000"),
-    MethodSlot(releasebufferproc, "bf_releasebuffer", "__releasebuffer__", ifdef = "PY_VERSION_HEX >= 0x02060000")
+    MethodSlot(getbufferproc, "bf_getbuffer", "__getbuffer__"),
+    MethodSlot(releasebufferproc, "bf_releasebuffer", "__releasebuffer__")
 )
 
 #------------------------------------------------------------------------------------------
@@ -809,7 +809,7 @@ slot_table = (
     EmptySlot("tp_subclasses"),
     EmptySlot("tp_weaklist"),
     EmptySlot("tp_del"),
-    EmptySlot("tp_version_tag", ifdef="PY_VERSION_HEX >= 0x02060000"),
+    EmptySlot("tp_version_tag"),
     EmptySlot("tp_finalize", ifdef="PY_VERSION_HEX >= 0x030400a1"),
 )
 
