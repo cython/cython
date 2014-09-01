@@ -1,10 +1,5 @@
-# ticket: 290
-# mode: error
+# mode: compile
 
-cdef extern:
+cdef extern from *:
     cdef packed struct MyStruct:
         char a
-
-_ERRORS = u"""
-5:9: Cannot declare extern struct as 'packed'
-"""
