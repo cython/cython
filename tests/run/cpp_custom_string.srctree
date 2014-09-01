@@ -41,5 +41,5 @@ def do_convert(MyString value):
     return value
 
 def test_convert():
-    assert do_convert("abc") == "abc"
-    assert do_convert("ab\0c") == "ab\0c"
+    assert do_convert(b"abc") == b"abc"
+    assert do_convert(b"ab\0c") == b"ab\0c"
