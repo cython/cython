@@ -1321,8 +1321,6 @@ class CStructOrUnionDefNode(StatNode):
     child_attrs = ["attributes"]
 
     def declare(self, env, scope=None):
-        if self.visibility == 'extern' and self.packed and not scope:
-            error(self.pos, "Cannot declare extern struct as 'packed'")
         self.entry = env.declare_struct_or_union(
             self.name, self.kind, scope, self.typedef_flag, self.pos,
             self.cname, visibility = self.visibility, api = self.api,
