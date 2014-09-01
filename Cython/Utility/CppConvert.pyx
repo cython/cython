@@ -4,7 +4,7 @@
 #################### string.from_py ####################
 
 cdef extern from *:
-    cdef cppclass string "std::string":
+    cdef cppclass string "{{type}}":
         string()
         string(char* c_str, size_t size)
     cdef char* __Pyx_PyObject_AsStringAndSize(object, Py_ssize_t*) except NULL
@@ -21,7 +21,7 @@ cdef string {{cname}}(object o) except *:
 #cimport cython
 #from libcpp.string cimport string
 cdef extern from *:
-    cdef cppclass string "std::string":
+    cdef cppclass string "{{type}}":
         char* data()
         size_t size()
     cdef object __Pyx_PyObject_FromStringAndSize(char*, size_t)

@@ -2966,9 +2966,9 @@ class CStructOrUnionType(CType):
             return expr_code
         return super(CStructOrUnionType, self).cast_code(expr_code)
 
+cpp_string_conversions = ("std::string",)
 
-builtin_cpp_conversions = ("std::string",
-                           "std::pair",
+builtin_cpp_conversions = ("std::pair",
                            "std::vector", "std::list",
                            "std::set", "std::unordered_set",
                            "std::map", "std::unordered_map")
@@ -3000,7 +3000,7 @@ class CppClassType(CType):
         self.templates = templates
         self.template_type = template_type
         self.specializations = {}
-        self.is_cpp_string = cname == 'std::string'
+        self.is_cpp_string = cname in cpp_string_conversions
 
     def use_conversion_utility(self, from_or_to):
         pass
@@ -3014,7 +3014,7 @@ class CppClassType(CType):
     def create_from_py_utility_code(self, env):
         if self.from_py_function is not None:
             return True
-        if self.cname in builtin_cpp_conversions:
+        if self.cname in builtin_cpp_conversions or self.cname in cpp_string_conversions:
             X = "XYZABC"
             tags = []
             declarations = ["cdef extern from *:"]
@@ -3055,12 +3055,16 @@ class CppClassType(CType):
                 declarations.append(
                     "    cdef %s %s_from_py '%s' (object) except %s" % (
                          X[ix], X[ix], T.from_py_function, except_clause))
-            cls = self.cname[5:]
+            if self.cname in cpp_string_conversions:
+                cls = 'string'
+            else:
+                cls = self.cname[5:]
             cname = '__pyx_convert_%s_from_py_%s' % (cls, '____'.join(tags))
             context = {
                 'template_type_declarations': '\n'.join(declarations),
                 'cname': cname,
                 'maybe_unordered': self.maybe_unordered(),
+                'type': self.cname,
             }
             from .UtilityCode import CythonUtilityCode
             env.use_utility_code(CythonUtilityCode.load(cls.replace('unordered_', '') + ".from_py", "CppConvert.pyx", context=context))
@@ -3070,7 +3074,7 @@ class CppClassType(CType):
     def create_to_py_utility_code(self, env):
         if self.to_py_function is not None:
             return True
-        if self.cname in builtin_cpp_conversions:
+        if self.cname in builtin_cpp_conversions or self.cname in cpp_string_conversions:
             X = "XYZABC"
             tags = []
             declarations = ["cdef extern from *:"]
@@ -3084,12 +3088,16 @@ class CppClassType(CType):
                 declarations.append(
                     "    cdef object %s_to_py '%s' (%s)" % (
                          X[ix], T.to_py_function, X[ix]))
-            cls = self.cname[5:]
+            if self.cname in cpp_string_conversions:
+                cls = 'string'
+            else:
+                cls = self.cname[5:]
             cname = "__pyx_convert_%s_to_py_%s" % (cls, "____".join(tags))
             context = {
                 'template_type_declarations': '\n'.join(declarations),
                 'cname': cname,
                 'maybe_unordered': self.maybe_unordered(),
+                'type': self.cname,
             }
             from .UtilityCode import CythonUtilityCode
             env.use_utility_code(CythonUtilityCode.load(cls.replace('unordered_', '') + ".to_py", "CppConvert.pyx", context=context))

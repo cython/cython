@@ -1,0 +1,45 @@
+# tag: cpp
+
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import a; a.test_convert()"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from Cython.Compiler import PyrexTypes
+PyrexTypes.cpp_string_conversions += ("MyString",)
+
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("*.pyx"),
+)
+
+######## my_string.cpp ########
+
+#include <string>
+
+class MyString {
+  public:
+    MyString() { }
+    MyString(const char* data, size_t size) : value_(data, size) { }
+    const char* data() const { return value_.data(); }
+    const size_t size() const { return value_.size(); }
+  private:
+    std::string value_;
+};
+
+######## a.pyx ########
+
+# distutils: language = c++
+
+cdef extern from "my_string.cpp":
+  cdef cppclass MyString:
+    pass
+
+def do_convert(MyString value):
+    return value
+
+def test_convert():
+    assert do_convert("abc") == "abc"
+    assert do_convert("ab\0c") == "ab\0c"
