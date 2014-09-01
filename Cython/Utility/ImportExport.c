@@ -321,7 +321,7 @@ static int __Pyx_ImportFunction(PyObject *module, const char *funcname, void (**
                 PyModule_GetName(module), funcname);
         goto bad;
     }
-#if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION==3 && PY_MINOR_VERSION==0)
+#if PY_VERSION_HEX >= 0x02070000
     if (!PyCapsule_IsValid(cobj, sig)) {
         PyErr_Format(PyExc_TypeError,
             "C function %.200s.%.200s has wrong signature (expected %.500s, got %.500s)",
@@ -381,7 +381,7 @@ static int __Pyx_ExportFunction(const char *name, void (*f)(void), const char *s
             goto bad;
     }
     tmp.fp = f;
-#if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION==3&&PY_MINOR_VERSION==0)
+#if PY_VERSION_HEX >= 0x02070000
     cobj = PyCapsule_New(tmp.p, sig, 0);
 #else
     cobj = PyCObject_FromVoidPtrAndDesc(tmp.p, (void *)sig, 0);
@@ -422,7 +422,7 @@ static int __Pyx_ImportVoidPtr(PyObject *module, const char *name, void **p, con
                 PyModule_GetName(module), name);
         goto bad;
     }
-#if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION==3 && PY_MINOR_VERSION==0)
+#if PY_VERSION_HEX >= 0x02070000
     if (!PyCapsule_IsValid(cobj, sig)) {
         PyErr_Format(PyExc_TypeError,
             "C variable %.200s.%.200s has wrong signature (expected %.500s, got %.500s)",
@@ -476,7 +476,7 @@ static int __Pyx_ExportVoidPtr(PyObject *name, void *p, const char *sig) {
         if (__Pyx_PyObject_SetAttrStr($module_cname, PYIDENT("$api_name"), d) < 0)
             goto bad;
     }
-#if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION==3 && PY_MINOR_VERSION==0)
+#if PY_VERSION_HEX >= 0x02070000
     cobj = PyCapsule_New(p, sig, 0);
 #else
     cobj = PyCObject_FromVoidPtrAndDesc(p, (void *)sig, 0);
@@ -502,7 +502,7 @@ static int __Pyx_SetVtable(PyObject *dict, void *vtable); /*proto*/
 /////////////// SetVTable ///////////////
 
 static int __Pyx_SetVtable(PyObject *dict, void *vtable) {
-#if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION==3&&PY_MINOR_VERSION==0)
+#if PY_VERSION_HEX >= 0x02070000
     PyObject *ob = PyCapsule_New(vtable, 0, 0);
 #else
     PyObject *ob = PyCObject_FromVoidPtr(vtable, 0);
@@ -530,7 +530,7 @@ static void* __Pyx_GetVtable(PyObject *dict) {
     PyObject *ob = PyObject_GetItem(dict, PYIDENT("__pyx_vtable__"));
     if (!ob)
         goto bad;
-#if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION==3&&PY_MINOR_VERSION==0)
+#if PY_VERSION_HEX >= 0x02070000
     ptr = PyCapsule_GetPointer(ob, 0);
 #else
     ptr = PyCObject_AsVoidPtr(ob);
