@@ -99,9 +99,7 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
     char *code = 0;
 
     if (!globals || globals == Py_None) {
-        globals = PyModule_GetDict($module_cname);
-        if (!globals)
-            goto bad;
+        globals = $moddict_cname;
     } else if (!PyDict_Check(globals)) {
         PyErr_Format(PyExc_TypeError, "exec() arg 2 must be a dict, not %.200s",
                      Py_TYPE(globals)->tp_name);
