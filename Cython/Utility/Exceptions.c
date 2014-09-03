@@ -504,7 +504,6 @@ bad:
 static void __Pyx_AddTraceback(const char *funcname, int c_line,
                                int py_line, const char *filename) {
     PyCodeObject *py_code = 0;
-    PyObject *py_globals = 0;
     PyFrameObject *py_frame = 0;
 
     py_code = $global_code_object_cache_find(c_line ? c_line : py_line);
