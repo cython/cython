@@ -11,9 +11,6 @@ cdef extern from *:
         unsigned long tp_flags
 
 
-SHOULD_HAVE_FLAG = PY_VERSION_HEX >= 0x02060000
-
-
 def test_flag(t):
     return ((<PyTypeObject*>t).tp_flags & Py_TPFLAGS_HAVE_VERSION_TAG) != 0
 
@@ -21,8 +18,7 @@ def test_flag(t):
 cdef class ImplicitAttrCache(object):
     """
     >>> flag = test_flag(ImplicitAttrCache)
-    >>> if SHOULD_HAVE_FLAG: print(flag)
-    ... else: print(True)
+    >>> print(flag)
     True
     """
     cdef public int x
@@ -33,8 +29,7 @@ cdef class ImplicitAttrCache(object):
 cdef class ExplicitAttrCache(object):
     """
     >>> flag = test_flag(ImplicitAttrCache)
-    >>> if SHOULD_HAVE_FLAG: print(flag)
-    ... else: print(True)
+    >>> print(flag)
     True
     """
     cdef public int x

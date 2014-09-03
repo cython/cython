@@ -4,8 +4,8 @@
 #
 #      if PY_MAJOR_VERSION >= 3:
 #           do_stuff_in_Py3_0_and_later()
-#      if PY_VERSION_HEX >= 0x02050000:
-#           do_stuff_in_Py2_5_and_later()
+#      if PY_VERSION_HEX >= 0x02070000:
+#           do_stuff_in_Py2_7_and_later()
 #
 # than using the IF/DEF statements, which are evaluated at Cython
 # compile time.  This will keep your C code portable.
