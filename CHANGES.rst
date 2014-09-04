@@ -80,6 +80,8 @@ Optimizations
 Bugs fixed
 ----------
 
+* Crash when assigning memory views from ternary conditional expressions.
+
 * Nested C++ templates could lead to unseparated ">>" characters being
   generated into the C++ declarations, which older C++ compilers could
   not parse.

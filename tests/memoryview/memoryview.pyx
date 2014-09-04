@@ -978,3 +978,37 @@ def test_dtype_object_scalar_assignment():
 
     (<object> m)[:] = SingleObject(3)
     assert m[0] == m[4] == m[-1] == 3
+
+
+def test_assignment_in_conditional_expression(bint left):
+    """
+    >>> test_assignment_in_conditional_expression(True)
+    1.0
+    2.0
+    1.0
+    2.0
+    >>> test_assignment_in_conditional_expression(False)
+    3.0
+    4.0
+    3.0
+    4.0
+    """
+    cdef double a[2]
+    cdef double b[2]
+    a[:] = [1, 2]
+    b[:] = [3, 4]
+
+    cdef double[:] A = a
+    cdef double[:] B = b
+    cdef double[:] C, c
+
+    # assign new memoryview references
+    C = A if left else B
+
+    for i in range(C.shape[0]):
+        print C[i]
+
+    # create new memoryviews
+    c = a if left else b
+    for i in range(c.shape[0]):
+        print c[i]
