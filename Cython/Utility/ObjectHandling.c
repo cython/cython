@@ -1289,14 +1289,17 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObjec
 
 #if CYTHON_COMPILING_IN_CPYTHON
 static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObject *arg) {
-    if (likely(PyCFunction_Check(func)
 #ifdef __Pyx_CyFunction_USED
-            || PyObject_TypeCheck(func, __pyx_CyFunctionType)
+    if (likely(PyCFunction_Check(func) || PyObject_TypeCheck(func, __pyx_CyFunctionType))) {
+#else
+    if (likely(PyCFunction_Check(func))) {
 #endif
-            ) && likely(PyCFunction_GET_FLAGS(func) & METH_O)) {
-        // fast and simple case that we are optimising for
-        return __Pyx_PyObject_CallMethO(func, arg);
-    } else {
+        if (likely(PyCFunction_GET_FLAGS(func) & METH_O)) {
+            // fast and simple case that we are optimising for
+            return __Pyx_PyObject_CallMethO(func, arg);
+        }
+    }
+    {
         PyObject *result;
         PyObject *args = PyTuple_New(1);
         if (unlikely(!args)) return NULL;
@@ -1333,16 +1336,17 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func); /*proto
 
 #if CYTHON_COMPILING_IN_CPYTHON
 static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func) {
-    if (likely(PyCFunction_Check(func)
 #ifdef __Pyx_CyFunction_USED
-           || PyObject_TypeCheck(func, __pyx_CyFunctionType)
+    if (likely(PyCFunction_Check(func) || PyObject_TypeCheck(func, __pyx_CyFunctionType))) {
+#else
+    if (likely(PyCFunction_Check(func))) {
 #endif
-            ) && likely(PyCFunction_GET_FLAGS(func) & METH_NOARGS)) {
-        // fast and simple case that we are optimising for
-        return __Pyx_PyObject_CallMethO(func, NULL);
-    } else {
-        return __Pyx_PyObject_Call(func, $empty_tuple, NULL);
+        if (likely(PyCFunction_GET_FLAGS(func) & METH_NOARGS)) {
+            // fast and simple case that we are optimising for
+            return __Pyx_PyObject_CallMethO(func, NULL);
+        }
     }
+    return __Pyx_PyObject_Call(func, $empty_tuple, NULL);
 }
 #endif
 
