@@ -51,4 +51,4 @@ cdef class PyrexScanner(Scanner):
     cdef expected(self, what, message = *)
     cdef expect_indent(self)
     cdef expect_dedent(self)
-    cdef expect_newline(self, message = *)
+    cdef expect_newline(self, message=*, bint ignore_semicolon=*)

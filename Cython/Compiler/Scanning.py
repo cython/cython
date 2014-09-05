@@ -10,12 +10,12 @@ import platform
 
 import cython
 cython.declare(EncodedString=object, any_string_prefix=unicode, IDENT=unicode,
-               print_function=object)
+               print_function=object, error=object, warning=object)
 
 from .. import Utils
 from ..Plex.Scanners import Scanner
 from ..Plex.Errors import UnrecognizedInput
-from .Errors import error
+from .Errors import error, warning
 from .Lexicon import any_string_prefix, make_lexicon, IDENT
 from .Future import print_function
 
@@ -479,7 +479,13 @@ class PyrexScanner(Scanner):
         self.expect('DEDENT',
             "Expected a decrease in indentation level")
 
-    def expect_newline(self, message = "Expected a newline"):
+    def expect_newline(self, message="Expected a newline", ignore_semicolon=False):
         # Expect either a newline or end of file
+        useless_trailing_semicolon = None
+        if ignore_semicolon and self.sy == ';':
+            useless_trailing_semicolon = self.position()
+            self.next()
         if self.sy != 'EOF':
             self.expect('NEWLINE', message)
+        if useless_trailing_semicolon is not None:
+            warning(useless_trailing_semicolon, "useless trailing semicolon")
