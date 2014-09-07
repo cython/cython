@@ -210,7 +210,11 @@ class FileSourceDescriptor(SourceDescriptor):
         return lines
 
     def get_description(self):
-        return self.path_description
+        try:
+            return os.path.relpath(self.path_description)
+        except ValueError:
+            # path not under current directory => use complete file path
+            return self.path_description
 
     def get_error_description(self):
         path = self.filename
