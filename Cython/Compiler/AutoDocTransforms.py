@@ -150,6 +150,10 @@ class EmbedSignature(CythonTransform):
         self.class_node = oldclass
         return node
 
+    def visit_LambdaNode(self, node):
+        # lambda expressions so not have signature or inner functions
+        return node
+
     def visit_DefNode(self, node):
         if not self.current_directives['embedsignature']:
             return node

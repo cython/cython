@@ -402,3 +402,7 @@ cpdef f_defexpr4(int x = (Ext.CONST1 + FLAG1) * Ext.CONST2):
 
 cpdef f_defexpr5(int x = 2+2):
     pass
+
+# no signatures for lambda functions
+lambda_foo = lambda x: 10
+lambda_bar = lambda x: 20
