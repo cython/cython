@@ -192,7 +192,7 @@ static CYTHON_INLINE char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_ssize_
         *length = PyBytes_GET_SIZE(defenc);
         return defenc_c;
 #else /* PY_VERSION_HEX < 0x03030000 */
-        if (PyUnicode_READY(o) == -1) return NULL;
+        if (__Pyx_PyUnicode_READY(o) == -1) return NULL;
 #if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
         if (PyUnicode_IS_ASCII(o)) {
             // cached for the lifetime of the object

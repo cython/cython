@@ -1384,10 +1384,8 @@ class UnicodeNode(ConstNode):
                         data_cname,
                         data_cname,
                         code.error_goto_if_null(self.result_code, self.pos)))
-                code.putln("#if CYTHON_PEP393_ENABLED")
                 code.put_error_if_neg(
-                    self.pos, "PyUnicode_READY(%s)" % self.result_code)
-                code.putln("#endif")
+                    self.pos, "__Pyx_PyUnicode_READY(%s)" % self.result_code)
             else:
                 self.result_code = code.get_py_string_const(self.value)
         else:

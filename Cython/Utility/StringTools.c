@@ -170,10 +170,8 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
         Py_ssize_t length;
         int kind;
         void *data1, *data2;
-        #if CYTHON_PEP393_ENABLED
-        if (unlikely(PyUnicode_READY(s1) < 0) || unlikely(PyUnicode_READY(s2) < 0))
+        if (unlikely(__Pyx_PyUnicode_READY(s1) < 0) || unlikely(__Pyx_PyUnicode_READY(s2) < 0))
             return -1;
-        #endif
         length = __Pyx_PyUnicode_GET_LENGTH(s1);
         if (length != __Pyx_PyUnicode_GET_LENGTH(s2)) {
             goto return_ne;
@@ -346,9 +344,7 @@ static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Fast(PyObject* ustring, Py
 static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Fast(PyObject* ustring, Py_ssize_t i,
                                                            int wraparound, int boundscheck) {
     Py_ssize_t length;
-#if CYTHON_PEP393_ENABLED
     if (unlikely(__Pyx_PyUnicode_READY(ustring) < 0)) return (Py_UCS4)-1;
-#endif
     if (wraparound | boundscheck) {
         length = __Pyx_PyUnicode_GET_LENGTH(ustring);
         if (wraparound & unlikely(i < 0)) i += length;
@@ -483,12 +479,8 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
 static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
             PyObject* text, Py_ssize_t start, Py_ssize_t stop) {
     Py_ssize_t length;
-#if CYTHON_PEP393_ENABLED
-    if (unlikely(PyUnicode_READY(text) == -1)) return NULL;
-    length = PyUnicode_GET_LENGTH(text);
-#else
-    length = PyUnicode_GET_SIZE(text);
-#endif
+    if (unlikely(__Pyx_PyUnicode_READY(text) == -1)) return NULL;
+    length = __Pyx_PyUnicode_GET_LENGTH(text);
     if (start < 0) {
         start += length;
         if (start < 0)
