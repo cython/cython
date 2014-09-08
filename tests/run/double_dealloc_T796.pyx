@@ -19,7 +19,7 @@ cdef int next_counter():
 cdef class Collector:
     # Indirectly trigger garbage collection in SimpleGarbage deallocation.
     # The __dealloc__ method of SimpleGarbage won't trigger the bug as the
-    # refcount is artifitially inflated for the durration of that function.
+    # refcount is artificially inflated for the duration of that function.
     def __dealloc__(self):
         print "Collector.__dealloc__"
         print "collect", gc.collect()
