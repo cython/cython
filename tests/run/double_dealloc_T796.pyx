@@ -8,7 +8,7 @@ Collector.__dealloc__
 collect 0
 """
 
-import gc, sys, weakref
+import gc
 
 cdef int counter = 0
 cdef int next_counter():
