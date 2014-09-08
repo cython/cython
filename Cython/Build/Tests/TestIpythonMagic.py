@@ -12,6 +12,13 @@ try:
 except:
     __test__ = False
 
+try:
+    # disable IPython history thread to avoid having to clean it up
+    from IPython.core.history import HistoryManager
+    HistoryManager.enabled = False
+except ImportError:
+    pass
+
 from Cython.TestUtils import CythonTest
 
 ip = get_ipython()
