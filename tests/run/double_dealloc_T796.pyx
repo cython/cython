@@ -1,14 +1,27 @@
 """
+Initial cleanup and 'calibration':
 >>> _ = gc.collect()
+>>> old_unreachable = gc.collect()
+
+Test:
 >>> x = SimpleGarbage()
 SimpleGarbage(1) __cinit__
 >>> del x
 SimpleGarbage(1) __dealloc__
 Collector.__dealloc__
-collect 0
+
+Make sure nothing changed in the environment:
+>>> new_unreachable = get_new_unreachable()
+>>> new_unreachable == old_unreachable or (old_unreachable, new_unreachable)
+True
 """
 
 import gc
+
+cdef Py_ssize_t new_unreachable = 0
+
+def get_new_unreachable():
+    return new_unreachable
 
 cdef int counter = 0
 cdef int next_counter():
@@ -22,7 +35,8 @@ cdef class Collector:
     # refcount is artificially inflated for the duration of that function.
     def __dealloc__(self):
         print "Collector.__dealloc__"
-        print "collect", gc.collect()
+        global new_unreachable
+        new_unreachable = gc.collect()
 
 cdef class SimpleGarbage:
     cdef Collector c  # to participate in garbage collection
