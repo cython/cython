@@ -25,7 +25,7 @@ cdef class Collector:
         print "collect", gc.collect()
 
 cdef class SimpleGarbage:
-    cdef Collector c # to particpate in garbage collection
+    cdef Collector c  # to participate in garbage collection
     cdef int index
     cdef bint deallocated
     def __cinit__(self):
