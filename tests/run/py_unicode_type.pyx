@@ -128,6 +128,7 @@ def len_uchar(Py_UNICODE uchar):
     >>> len_uchar(ord('A'))
     1
     """
+    assert uchar  # just to avoid C compiler unused arg warning
     return len(uchar)
 
 def index_uchar(Py_UNICODE uchar, Py_ssize_t i):
