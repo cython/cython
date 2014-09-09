@@ -55,6 +55,9 @@ Features added
 * Defines dynamic_cast et al. in ``libcpp.cast`` and C++ heap data
   structure operations in ``libcpp.algorithm``.
 
+* Shipped header declarations in ``posix.*`` were extended to cover
+  more of the POSIX API.  Patches by Lars Buitinck and Mark Peek.
+
 Optimizations
 -------------
 
