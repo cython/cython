@@ -22,9 +22,11 @@ from . import Errors
 from .Scanning import PyrexScanner, FileSourceDescriptor
 from .Errors import PyrexError, CompileError, error, warning
 from .Symtab import ModuleScope
-from .. import __version__ as version
 from .. import Utils
 from . import Options
+
+from . import Version  # legacy import needed by old PyTables versions
+version = Version.version  # legacy attribute - use "Cython.__version__" instead
 
 module_name_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")
 
