@@ -3057,6 +3057,7 @@ class CppClassType(CType):
                          X[ix], X[ix], T.from_py_function, except_clause))
             if self.cname in cpp_string_conversions:
                 cls = 'string'
+                tags = self.cname.replace(':', '_'),
             else:
                 cls = self.cname[5:]
             cname = '__pyx_convert_%s_from_py_%s' % (cls, '____'.join(tags))
@@ -3090,6 +3091,7 @@ class CppClassType(CType):
                          X[ix], T.to_py_function, X[ix]))
             if self.cname in cpp_string_conversions:
                 cls = 'string'
+                tags = self.cname.replace(':', '_'),
             else:
                 cls = self.cname[5:]
             cname = "__pyx_convert_%s_to_py_%s" % (cls, "____".join(tags))
