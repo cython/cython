@@ -2040,8 +2040,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         env.use_utility_code(UtilityCode.load("CheckBinaryVersion", "ModuleSetupCode.c"))
         code.putln("if ( __Pyx_check_binary_version() < 0) %s" % code.error_goto(self.pos))
 
-        code.putln("%s = PyTuple_New(0); %s" % (Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)))
-        code.putln("%s = PyBytes_FromStringAndSize(\"\", 0); %s" % (Naming.empty_bytes, code.error_goto_if_null(Naming.empty_bytes, self.pos)))
+        code.putln("%s = PyTuple_New(0); %s" % (
+            Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)))
+        code.putln("%s = PyBytes_FromStringAndSize(\"\", 0); %s" % (
+            Naming.empty_bytes, code.error_goto_if_null(Naming.empty_bytes, self.pos)))
 
         code.putln("#ifdef __Pyx_CyFunction_USED")
         code.putln("if (__Pyx_CyFunction_init() < 0) %s" % code.error_goto(self.pos))
