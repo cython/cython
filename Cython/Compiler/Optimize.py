@@ -1775,7 +1775,8 @@ class InlineDefNodeCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTransform):
         return node
 
 
-class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
+class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
+                           Visitor.MethodDispatcherTransform):
     """Optimize some common methods calls and instantiation patterns
     for builtin types *after* the type analysis phase.
 
@@ -2061,17 +2062,18 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
                     temps.append(arg)
                 args.append(arg)
             result = ExprNodes.SetNode(node.pos, is_temp=1, args=args)
+            self.replace(node, result)
             for temp in temps[::-1]:
                 result = UtilNodes.EvalWithTempExprNode(temp, result)
             return result
         else:
             # PySet_New(it) is better than a generic Python call to set(it)
-            return ExprNodes.PythonCapiCallNode(
+            return self.replace(node, ExprNodes.PythonCapiCallNode(
                 node.pos, "PySet_New",
                 self.PySet_New_func_type,
                 args=pos_args,
                 is_temp=node.is_temp,
-                py_name="set")
+                py_name="set"))
 
     PyFrozenSet_New_func_type = PyrexTypes.CFuncType(
         Builtin.frozenset_type, [
