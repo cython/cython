@@ -2145,9 +2145,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('if (%s) {' % env.module_dict_cname)
         code.put_add_traceback("init %s" % env.qualified_name)
         code.globalstate.use_utility_code(Nodes.traceback_utility_code)
-        code.put_decref_clear(env.module_dict_cname, py_object_type, nanny=False)
+        # Module reference and module dict are in global variables which might still be needed
+        # for cleanup, atexit code, etc., so leaking is better than crashing.
+        # At least clearing the module dict here might be a good idea, but could still break
+        # user code in atexit or other global registries.
+        ##code.put_decref_clear(env.module_dict_cname, py_object_type, nanny=False)
         code.putln('}')
-        code.put_decref_clear(env.module_cname, py_object_type, nanny=False)
+        ##code.put_decref_clear(env.module_cname, py_object_type, nanny=False)
         code.putln('} else if (!PyErr_Occurred()) {')
         code.putln('PyErr_SetString(PyExc_ImportError, "init %s");' % env.qualified_name)
         code.putln('}')

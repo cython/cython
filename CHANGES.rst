@@ -2,6 +2,17 @@
 Cython Changelog
 ================
 
+Latest
+======
+
+Bugs fixed
+----------
+
+* Fatal exceptions in global module init code could lead to crashes
+  if the already created module was used later on (e.g. through a
+  stale reference in sys.modules or elsewhere).
+
+
 0.21 (2014-09-10)
 =================
 
