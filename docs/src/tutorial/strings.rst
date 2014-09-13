@@ -456,7 +456,7 @@ and then copies its buffer into a new C++ string.
 For the other direction, efficient decoding support is available
 in Cython 0.17 and later::
 
-    cdef string s = string('abcdefg')
+    cdef string s = string(b'abcdefg')
 
     ustring1 = s.decode('UTF-8')
     ustring2 = s[2:-2].decode('UTF-8')
