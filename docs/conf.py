@@ -138,7 +138,13 @@ intersphinx_mapping = {'python': ('http://docs.python.org/3/', None)}
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'nature'
+html_theme = 'default'
+try:
+    import sphinx
+    if os.path.isdir(os.path.join(os.path.dirname(sphinx.__file__), 'themes', 'nature')):
+        html_theme = 'nature'
+except (ImportError, AttributeError):
+    pass  # use default theme
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
