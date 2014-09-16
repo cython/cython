@@ -12,6 +12,8 @@ Bugs fixed
   if the already created module was used later on (e.g. through a
   stale reference in sys.modules or elsewhere).
 
+* Allow arrays of C++ classes.
+
 
 0.21 (2014-09-10)
 =================

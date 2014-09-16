@@ -531,7 +531,7 @@ class CArrayDeclaratorNode(CDeclaratorNode):
     child_attrs = ["base", "dimension"]
 
     def analyse(self, base_type, env, nonempty = 0):
-        if base_type.is_cpp_class or base_type.is_cfunction:
+        if (base_type.is_cpp_class and base_type.is_template_type()) or base_type.is_cfunction:
             from .ExprNodes import TupleNode
             if isinstance(self.dimension, TupleNode):
                 args = self.dimension.args
@@ -1090,7 +1090,7 @@ class TemplatedTypeNode(CBaseTypeNode):
             base_type = self.base_type_node.analyse(env)
         if base_type.is_error: return base_type
 
-        if base_type.is_cpp_class:
+        if base_type.is_cpp_class and base_type.is_template_type():
             # Templated class
             if self.keyword_args and self.keyword_args.key_value_pairs:
                 error(self.pos, "c++ templates cannot take keyword arguments")

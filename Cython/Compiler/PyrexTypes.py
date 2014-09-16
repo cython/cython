@@ -3106,8 +3106,11 @@ class CppClassType(CType):
             self.to_py_function = cname
             return True
 
+    def is_template_type(self):
+        return self.templates is not None and self.template_type is None
+
     def specialize_here(self, pos, template_values = None):
-        if self.templates is None:
+        if not self.is_template_type():
             error(pos, "'%s' type is not a template" % self)
             return error_type
         if len(self.templates) != len(template_values):
