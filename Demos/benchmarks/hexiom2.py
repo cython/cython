@@ -229,7 +229,7 @@ class Pos(object):
 @cython.locals(pos=Pos, i=cython.long, v=cython.int,
                nid=cython.int, num=cython.int,
                empties=cython.int, filled=cython.int,
-               vmax=cython.int, vmin=cython.int)
+               vmax=cython.int, vmin=cython.int, cell=list)
 def constraint_pass(pos, last_move=None):
     changed = False
     left = pos.tiles[:]
