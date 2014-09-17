@@ -25,10 +25,25 @@ cdef extern from *:
         char* data()
         size_t size()
     cdef object __Pyx_PyObject_FromStringAndSize(char*, size_t)
+    cdef object __Pyx_PyBytes_FromStringAndSize(char*, size_t)
+    cdef object __Pyx_PyByteArray_FromStringAndSize(char*, size_t)
+    cdef object __Pyx_PyUnicode_FromStringAndSize(char*, size_t)
 
 @cname("{{cname}}")
-cdef object {{cname}}(const string& s):
+cdef inline object {{cname}}(const string& s):
     return __Pyx_PyObject_FromStringAndSize(s.data(), s.size())
+
+@cname("{{cname.replace("PyObject", "PyUnicode")}}")
+cdef inline object {{cname}}__PyUnicode(const string& s):
+    return __Pyx_PyUnicode_FromStringAndSize(s.data(), s.size())
+
+@cname("{{cname.replace("PyObject", "PyBytes")}}")
+cdef inline object {{cname}}__PyBytes(const string& s):
+    return __Pyx_PyBytes_FromStringAndSize(s.data(), s.size())
+
+@cname("{{cname.replace("PyObject", "PyByteArray")}}")
+cdef inline object {{cname}}__PyByteArray(const string& s):
+    return __Pyx_PyByteArray_FromStringAndSize(s.data(), s.size())
 
 
 #################### vector.from_py ####################

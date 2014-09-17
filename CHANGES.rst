@@ -8,6 +8,9 @@ Latest
 Bugs fixed
 ----------
 
+* Casting C++ ``std::string`` to Python byte strings failed when auto-decoding
+  was enabled.
+
 * Fatal exceptions in global module init code could lead to crashes
   if the already created module was used later on (e.g. through a
   stale reference in sys.modules or elsewhere).

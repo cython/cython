@@ -3091,10 +3091,12 @@ class CppClassType(CType):
                          X[ix], T.to_py_function, X[ix]))
             if self.cname in cpp_string_conversions:
                 cls = 'string'
+                prefix = 'PyObject_'  # gets specialised by explicit type casts in CoerceToPyTypeNode
                 tags = self.cname.replace(':', '_'),
             else:
                 cls = self.cname[5:]
-            cname = "__pyx_convert_%s_to_py_%s" % (cls, "____".join(tags))
+                prefix = ''
+            cname = "__pyx_convert_%s%s_to_py_%s" % (prefix, cls, "____".join(tags))
             context = {
                 'template_type_declarations': '\n'.join(declarations),
                 'cname': cname,
@@ -3102,7 +3104,8 @@ class CppClassType(CType):
                 'type': self.cname,
             }
             from .UtilityCode import CythonUtilityCode
-            env.use_utility_code(CythonUtilityCode.load(cls.replace('unordered_', '') + ".to_py", "CppConvert.pyx", context=context))
+            env.use_utility_code(CythonUtilityCode.load(
+                cls.replace('unordered_', '') + ".to_py", "CppConvert.pyx", context=context))
             self.to_py_function = cname
             return True
 
