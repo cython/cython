@@ -34,15 +34,15 @@ cdef inline object {{cname}}(const string& s):
     return __Pyx_PyObject_FromStringAndSize(s.data(), s.size())
 
 @cname("{{cname.replace("PyObject", "PyUnicode")}}")
-cdef inline object {{cname}}__PyUnicode(const string& s):
+cdef inline object {{cname.replace("PyObject", "PyUnicode")}}(const string& s):
     return __Pyx_PyUnicode_FromStringAndSize(s.data(), s.size())
 
 @cname("{{cname.replace("PyObject", "PyBytes")}}")
-cdef inline object {{cname}}__PyBytes(const string& s):
+cdef inline object {{cname.replace("PyObject", "PyBytes")}}(const string& s):
     return __Pyx_PyBytes_FromStringAndSize(s.data(), s.size())
 
 @cname("{{cname.replace("PyObject", "PyByteArray")}}")
-cdef inline object {{cname}}__PyByteArray(const string& s):
+cdef inline object {{cname.replace("PyObject", "PyByteArray")}}(const string& s):
     return __Pyx_PyByteArray_FromStringAndSize(s.data(), s.size())
 
 
