@@ -343,7 +343,7 @@ def print_pos(pos, output):
             pos2 = (x, y)
             id = hex.get_by_pos(pos2).id
             if done.already_done(id):
-                c = unicode(done[id][0]) if done[id][0] != EMPTY else u"."
+                c = str(done[id][0]) if done[id][0] != EMPTY else u"."
             else:
                 c = u"?"
             print(u"%s " % c, end=u"", file=output)
@@ -355,7 +355,7 @@ def print_pos(pos, output):
             pos2 = (x, ry)
             id = hex.get_by_pos(pos2).id
             if done.already_done(id):
-                c = unicode(done[id][0]) if done[id][0] != EMPTY else (u".")
+                c = str(done[id][0]) if done[id][0] != EMPTY else (u".")
             else:
                 c = u"?"
             print(u"%s " % c, end=u"", file=output)
