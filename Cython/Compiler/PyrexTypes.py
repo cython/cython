@@ -3075,12 +3075,7 @@ class CppClassType(CType):
     def create_to_py_utility_code(self, env):
         if self.to_py_function is not None:
             return True
-        elif self.cname in cpp_string_conversions:
-            env.use_utility_code(UtilityCode.load_cached("CppStringToPy", "CppSupport.cpp"))
-            # "PyObject" prefix gets specialised by explicit type casts in CoerceToPyTypeNode
-            self.to_py_function = '__Pyx_PyObject_FromStlString'
-            return True
-        elif self.cname in builtin_cpp_conversions:
+        if self.cname in builtin_cpp_conversions or self.cname in cpp_string_conversions:
             X = "XYZABC"
             tags = []
             declarations = ["cdef extern from *:"]
@@ -3094,8 +3089,14 @@ class CppClassType(CType):
                 declarations.append(
                     "    cdef object %s_to_py '%s' (%s)" % (
                          X[ix], T.to_py_function, X[ix]))
-            cls = self.cname[5:]
-            cname = "__pyx_convert_%s_to_py_%s" % (cls, "____".join(tags))
+            if self.cname in cpp_string_conversions:
+                cls = 'string'
+                prefix = 'PyObject_'  # gets specialised by explicit type casts in CoerceToPyTypeNode
+                tags = self.cname.replace(':', '_'),
+            else:
+                cls = self.cname[5:]
+                prefix = ''
+            cname = "__pyx_convert_%s%s_to_py_%s" % (prefix, cls, "____".join(tags))
             context = {
                 'template_type_declarations': '\n'.join(declarations),
                 'cname': cname,

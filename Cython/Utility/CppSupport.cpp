@@ -44,29 +44,3 @@ static void __Pyx_CppExn2PyErr() {
   }
 }
 #endif
-
-
-/////////////// CppStringToPy.proto ///////////////
-
-static CYTHON_INLINE PyObject *__Pyx_PyObject_FromStlString(std::string const &s);
-static CYTHON_INLINE PyObject *__Pyx_PyUnicode_FromStlString(std::string const &s);
-static CYTHON_INLINE PyObject *__Pyx_PyBytes_FromStlString(std::string const &s);
-static CYTHON_INLINE PyObject *__Pyx_PyByteArray_FromStlString(std::string const &s);
-
-/////////////// CppStringToPy ///////////////
-
-static CYTHON_INLINE PyObject *__Pyx_PyObject_FromStlString(std::string const &s) {
-    return __Pyx_PyObject_FromStringAndSize(s.data(), s.size());
-}
-
-static CYTHON_INLINE PyObject *__Pyx_PyUnicode_FromStlString(std::string const &s) {
-    return __Pyx_PyUnicode_FromStringAndSize(s.data(), s.size());
-}
-
-static CYTHON_INLINE PyObject *__Pyx_PyBytes_FromStlString(std::string const &s) {
-    return __Pyx_PyBytes_FromStringAndSize(s.data(), s.size());
-}
-
-static CYTHON_INLINE PyObject *__Pyx_PyByteArray_FromStlString(std::string const &s) {
-    return __Pyx_PyByteArray_FromStringAndSize(s.data(), s.size());
-}
