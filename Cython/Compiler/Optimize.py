@@ -2197,7 +2197,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         Builtin.tuple_type     : "PyTuple_GET_SIZE",
         Builtin.dict_type      : "PyDict_Size",
         Builtin.set_type       : "PySet_Size",
-        Builtin.frozenset_type : "PySet_Size",
+        Builtin.frozenset_type : "__Pyx_PyFrozenSet_Size",
         }.get
 
     _ext_types_with_pysize = set(["cpython.array.array"])
