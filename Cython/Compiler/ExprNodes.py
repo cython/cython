@@ -11173,9 +11173,9 @@ class CoerceToPyTypeNode(CoercionNode):
             func = arg_type.to_py_function
             if arg_type.is_string or arg_type.is_cpp_string:
                 if self.type in (bytes_type, str_type, unicode_type):
-                    func = func.replace("Object", self.type.name.title())
+                    func = func.replace("Object", self.type.name.title(), 1)
                 elif self.type is bytearray_type:
-                    func = func.replace("Object", "ByteArray")
+                    func = func.replace("Object", "ByteArray", 1)
             funccall = "%s(%s)" % (func, self.arg.result())
 
         code.putln('%s = %s; %s' % (
