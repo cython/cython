@@ -366,6 +366,16 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewItems(PyObject* d) {
 static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
     if (it) {
         PyObject* result;
+#if CYTHON_COMPILING_IN_PYPY
+        // PyPy currently lacks PyFrozenSet_CheckExact() and PyFrozenSet_New()
+        PyObject* args;
+        args = PyTuple_Pack(1, it);
+        if (unlikely(!args))
+            return NULL;
+        result = PyObject_Call((PyObject*)&PyFrozenSet_Type, args, NULL);
+        Py_DECREF(args);
+        return result;
+#else
         if (PyFrozenSet_CheckExact(it)) {
             Py_INCREF(it);
             return it;
@@ -378,10 +388,11 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
         // empty frozenset is a singleton
         // seems wasteful, but CPython does the same
         Py_DECREF(result);
+#endif
     }
-    #if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON
     return PyFrozenSet_Type.tp_new(&PyFrozenSet_Type, $empty_tuple, NULL);
-    #else
+#else
     return PyObject_Call((PyObject*)&PyFrozenSet_Type, $empty_tuple, NULL);
-    #endif
+#endif
 }
