@@ -47,20 +47,20 @@ A ``yourmod.so`` file is now in the same directory and your module,
 Compiling with ``distutils``
 ============================
 
-First, make sure that ``distutils`` package is installed in your
-system.  It normally comes as part of the standard library.
-The following assumes a Cython file to be compiled called
-*hello.pyx*.  Now, create a ``setup.py`` script::
+The ``distutils`` package is part of the standard library.  It is the standard
+way of building Python packages, including native extension modules.  The
+following example configures the build for a Cython file called *hello.pyx*.
+First, create a ``setup.py`` script::
 
     from distutils.core import setup
     from Cython.Build import cythonize
 
     setup(
         name = "My hello app",
-        ext_modules = cythonize('hello.pyx'), # accepts a glob pattern
+        ext_modules = cythonize('hello.pyx'),  # accepts a glob pattern
     )
 
-Run the command ``python setup.py build_ext --inplace`` in your
+Now, run the command ``python setup.py build_ext --inplace`` in your
 system's command shell and you are done.  Import your new extension
 module into your python shell or script as normal.
 
