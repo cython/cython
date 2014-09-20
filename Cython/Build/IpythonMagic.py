@@ -214,7 +214,7 @@ class CythonMagics(Magics):
         code = cell if cell.endswith('\n') else cell+'\n'
         lib_dir = os.path.join(get_ipython_cache_dir(), 'cython')
         quiet = True
-        key = code, sys.version_info, sys.executable, cython_version
+        key = code, line, sys.version_info, sys.executable, cython_version
 
         if not os.path.exists(lib_dir):
             os.makedirs(lib_dir)
