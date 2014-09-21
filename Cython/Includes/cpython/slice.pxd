@@ -1,5 +1,3 @@
-from cpython.ref cimport PyObject
-
 cdef extern from "Python.h":
 
     # PyTypeObject PySlice_Type
