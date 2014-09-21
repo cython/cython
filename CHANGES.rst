@@ -5,11 +5,20 @@ Cython Changelog
 Latest
 ======
 
+Features added
+--------------
+
+* ``PySlice_*()`` C-API functions are available from the ``cpython.slice``
+  module.
+
 Bugs fixed
 ----------
 
-* Casting C++ ``std::string`` to Python byte strings failed when auto-decoding
-  was enabled.
+* Rerunning unmodified modules in IPython's cython support failed.
+  Patch by Matthias Bussonier.
+
+* Casting C++ ``std::string`` to Python byte strings failed when
+  auto-decoding was enabled.
 
 * Fatal exceptions in global module init code could lead to crashes
   if the already created module was used later on (e.g. through a
