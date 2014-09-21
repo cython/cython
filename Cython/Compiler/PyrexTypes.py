@@ -3310,6 +3310,88 @@ class CEnumType(CType):
             base_code = public_decl(base_code, dll_linkage)
         return self.base_declaration_code(base_code, entity_code)
 
+class CTupleType(CType):
+    # components [PyrexType]
+
+    def __init__(self, cname, components):
+        self.cname = cname
+        self.components = components
+        self.to_py_function = "%s_to_py_%s" % (Naming.convert_func_prefix, self.cname)
+        self.from_py_function = "%s_from_py_%s" % (Naming.convert_func_prefix, self.cname)
+        self.exception_check = True
+        self._convert_to_py_code = None
+        self._convert_from_py_code = None
+
+    def __str__(self):
+        return "(%s)" % ", ".join(str(c) for c in self.components)
+
+    def declaration_code(self, entity_code,
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        if pyrex or for_display:
+            return str(self)
+        else:
+            return self.base_declaration_code(self.cname, entity_code)
+
+    def create_to_py_utility_code(self, env):
+        if self._convert_to_py_code is False:
+            return None  # tri-state-ish
+
+        if self._convert_to_py_code is None:
+            for component in self.components:
+                if not component.create_to_py_utility_code(env):
+                    self.to_py_function = None
+                    self._convert_to_py_code = False
+                    return False
+
+            context = dict(
+                struct_type_decl=self.declaration_code(""),
+                components=self.components,
+                funcname=self.to_py_function,
+                size=len(self.components)
+            )
+            self._convert_to_py_code = TempitaUtilityCode.load(
+                "ToPyCTupleUtility", "TypeConversion.c", context=context)
+
+        env.use_utility_code(self._convert_to_py_code)
+        return True
+
+    def create_from_py_utility_code(self, env):
+        if self._convert_from_py_code is False:
+            return None  # tri-state-ish
+
+        if self._convert_from_py_code is None:
+            for component in self.components:
+                if not component.create_from_py_utility_code(env):
+                    self.from_py_function = None
+                    self._convert_from_py_code = False
+                    return False
+
+            context = dict(
+                struct_type_decl=self.declaration_code(""),
+                components=self.components,
+                funcname=self.from_py_function,
+                size=len(self.components)
+            )
+            self._convert_from_py_code = TempitaUtilityCode.load(
+                "FromPyCTupleUtility", "TypeConversion.c", context=context)
+
+        env.use_utility_code(self._convert_from_py_code)
+        return True
+
+c_tuple_types = {}
+def c_tuple_type(components):
+    tuple_type = c_tuple_types.get(components)
+    if tuple_type is None:
+        cname = '__pyx_tuple_' + '___'.join(
+            c.declaration_code('').replace('*', '_ptr')
+                                  .replace(' ', '__')
+                                  .replace('[', '_sbra')
+                                  .replace(']', '_sket')
+            for c in components)
+        c_tuple_types[components] = tuple_type
+    return CTupleType(cname, components)
+
+
 class UnspecifiedType(PyrexType):
     # Used as a placeholder until the type can be determined.
 

@@ -606,6 +606,9 @@ class Scope(object):
         self.sue_entries.append(entry)
         return entry
 
+    def declare_tuple_type(self, pos, type):
+        self.outer_scope.declare_tuple_type(pos, type)
+
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',
                     api = 0, in_pxd = 0, is_cdef = 0):
@@ -1052,6 +1055,16 @@ class ModuleScope(Scope):
             language_level = 3
 
         return self.outer_scope.lookup(name, language_level=language_level)
+
+    def declare_tuple_type(self, pos, type):
+        cname = type.cname
+        if not self.lookup_here(cname):
+            scope = StructOrUnionScope(cname)
+            for ix, component in enumerate(type.components):
+                scope.declare_var(name="f%s" % ix, type=component, pos=pos)
+            entry = self.declare_struct_or_union(cname, 'struct', scope, typedef_flag=True, pos=pos, cname=cname)
+            entry.used = True
+            type.struct = entry
 
     def declare_builtin(self, name, pos):
         if not hasattr(builtins, name) \

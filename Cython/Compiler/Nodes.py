@@ -1158,6 +1158,24 @@ class CComplexBaseTypeNode(CBaseTypeNode):
         return type
 
 
+class CTupleBaseTypeNode(CBaseTypeNode):
+    # components [CBaseTypeNode]
+
+    child_attrs = ["components"]
+
+    def analyse(self, env):
+        component_types = []
+        for c in self.components:
+            type = c.analyse(env)
+            if type.is_pyobject:
+                error(type_node.pos, "Tuple types can't (yet) contain Python objects.")
+                return PyrexType.error_type
+            component_types.append(type)
+        type = PyrexTypes.c_tuple_type(tuple(component_types))
+        env.declare_tuple_type(self.pos, type)
+        return type
+
+
 class FusedTypeNode(CBaseTypeNode):
     """
     Represents a fused type in a ctypedef statement:
