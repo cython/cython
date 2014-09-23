@@ -14,6 +14,10 @@ Features added
 Bugs fixed
 ----------
 
+* ``getitimer()``, ``setitimer()``, ``gettimeofday()`` and related type/constant
+  definitions were moved from ``posix/time.pxd`` to ``posix/sys_time.pxd`` to
+  fix a naming collision.
+
 * Rerunning unmodified modules in IPython's cython support failed.
   Patch by Matthias Bussonier.
 

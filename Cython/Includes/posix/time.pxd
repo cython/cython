@@ -3,7 +3,7 @@
 from posix.signal cimport sigevent
 from posix.types cimport clock_t, clockid_t, suseconds_t, time_t, timer_t
 
-cdef extern from "sys/time.h" nogil:
+cdef extern from "time.h" nogil:
 
     enum: CLOCKS_PER_SEC
     enum: CLOCK_PROCESS_CPUTIME_ID
@@ -32,22 +32,6 @@ cdef extern from "sys/time.h" nogil:
     enum: CLOCK_BOOTTIME
     enum: CLOCK_REALTIME_ALARM
     enum: CLOCK_BOOTTIME_ALARM
-
-    enum: ITIMER_REAL
-    enum: ITIMER_VIRTUAL
-    enum: ITIMER_PROF
-
-    cdef struct timeval:
-        time_t      tv_sec
-        suseconds_t tv_usec
-
-    cdef struct itimerval:
-        timeval it_interval
-        timeval it_value
-
-    cdef struct timezone:
-        int tz_minuteswest
-        int dsttime
 
     cdef struct timespec:
         time_t tv_sec
@@ -82,15 +66,12 @@ cdef extern from "sys/time.h" nogil:
     char    *ctime_r(const time_t *, char *)
     double  difftime(time_t, time_t)
     tm      *getdate(const char *)
-    int     getitimer(int, itimerval *)
-    int     gettimeofday(timeval *tp, timezone *tzp)
     tm      *gmtime(const time_t *)
     tm      *gmtime_r(const time_t *, tm *)
     tm      *localtime(const time_t *)
     tm      *localtime_r(const time_t *, tm *)
     time_t  mktime(tm *)
     int     nanosleep(const timespec *, timespec *)
-    int     setitimer(int, const itimerval *, itimerval *)
     size_t  strftime(char *, size_t, const char *, const tm *)
     char    *strptime(const char *, const char *, tm *)
     time_t  time(time_t *)
