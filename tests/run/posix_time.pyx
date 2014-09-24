@@ -17,7 +17,6 @@ def test_time():
 
 def test_mktime():
     """
-tests/run/posix_time.pyx
     >>> test_mktime()  # doctest:+ELLIPSIS
     (986138177, ...'Sun Apr  1 15:16:17 2001\\n')
     """
