@@ -2285,6 +2285,7 @@ special_basic_c_types = cython.declare(dict, {
     # name : (signed, longness)
     "Py_UNICODE" : (0, 0),
     "Py_UCS4"    : (0, 0),
+    "Py_hash_t"  : (2, 0),
     "Py_ssize_t" : (2, 0),
     "ssize_t"    : (2, 0),
     "size_t"     : (0, 0),

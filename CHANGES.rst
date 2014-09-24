@@ -8,6 +8,8 @@ Latest
 Features added
 --------------
 
+* ``Py_hash_t`` is a known type (used in CPython for hash values).
+
 * ``PySlice_*()`` C-API functions are available from the ``cpython.slice``
   module.
 
