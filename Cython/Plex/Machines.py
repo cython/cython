@@ -178,7 +178,7 @@ class FastMachine(object):
         state['else'] = new_state
       elif code1 != maxint:
         while code0 < code1:
-          state[chr(code0)] = new_state
+          state[unichr(code0)] = new_state
           code0 = code0 + 1
     else:
       state[event] = new_state
