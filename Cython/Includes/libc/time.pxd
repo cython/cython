@@ -1,6 +1,6 @@
-# http://pubs.opengroup.org/onlinepubs/009695399/basedefs/sys/time.h.html
+# http://en.wikipedia.org/wiki/C_date_and_time_functions
 
-from posix.types cimport clock_t, clockid_t, suseconds_t, time_t, timer_t
+from posix.types cimport clock_t, time_t
 from libc.stddef cimport wchar_t
 
 cdef extern from "time.h" nogil:
@@ -39,4 +39,6 @@ cdef extern from "time.h" nogil:
     time_t  mktime(tm *)
     size_t  strftime(char *, size_t, const char *, const tm *)
     size_t  wcsftime(wchar_t *str, size_t cnt, const wchar_t *fmt, tm *time)
-    char    *strptime(const char *, const char *, tm *)     # POSIX not stdC
+
+    # POSIX not stdC
+    char    *strptime(const char *, const char *, tm *)
