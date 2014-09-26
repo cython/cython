@@ -16,6 +16,8 @@ Features added
 Bugs fixed
 ----------
 
+* Reference leak for non-simple Python expressions in boolean and/or expressions.
+
 * ``getitimer()``, ``setitimer()``, ``gettimeofday()`` and related type/constant
   definitions were moved from ``posix/time.pxd`` to ``posix/sys_time.pxd`` to
   fix a naming collision.

@@ -10039,20 +10039,30 @@ class BoolBinopResultNode(ExprNode):
         self.arg.generate_evaluation_code(code)
         if and_label or or_label:
             test_result, uses_temp = self.generate_operand_test(code)
+            if uses_temp and (and_label and or_label):
+                # cannot become final result => free early
+                # disposal: uses_temp and (and_label and or_label)
+                self.arg.generate_disposal_code(code)
             sense = '!' if or_label else ''
             code.putln("if (%s%s) {" % (sense, test_result))
             if uses_temp:
                 code.funcstate.release_temp(test_result)
-            self.arg.generate_disposal_code(code)
+            if not uses_temp or not (and_label and or_label):
+                # disposal: (not uses_temp) or {not (and_label and or_label) [if]}
+                self.arg.generate_disposal_code(code)
 
             if or_label and or_label != fall_through:
                 # value is false => short-circuit to next 'or'
                 code.put_goto(or_label)
-            if and_label and and_label != fall_through:
+            if and_label:
                 # value is true => go to next 'and'
                 if or_label:
                     code.putln("} else {")
-                code.put_goto(and_label)
+                    if not uses_temp:
+                        # disposal: (not uses_temp) and {(and_label and or_label) [else]}
+                        self.arg.generate_disposal_code(code)
+                if and_label != fall_through:
+                    code.put_goto(and_label)
 
         if not and_label or not or_label:
             # if no next 'and' or 'or', we provide the result
@@ -10062,6 +10072,7 @@ class BoolBinopResultNode(ExprNode):
             self.value.make_owned_reference(code)
             code.putln("%s = %s;" % (final_result_temp, self.value.result()))
             self.value.generate_post_assignment_code(code)
+            # disposal: {not (and_label and or_label) [else]}
             self.arg.generate_disposal_code(code)
             self.value.free_temps(code)
             if end_label != fall_through:
