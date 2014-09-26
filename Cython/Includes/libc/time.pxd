@@ -1,45 +1,12 @@
 # http://pubs.opengroup.org/onlinepubs/009695399/basedefs/sys/time.h.html
 
-from posix.signal cimport sigevent
 from posix.types cimport clock_t, clockid_t, suseconds_t, time_t, timer_t
+from libc.stddef cimport wchar_t
 
 cdef extern from "time.h" nogil:
-
     enum: CLOCKS_PER_SEC
-    enum: CLOCK_PROCESS_CPUTIME_ID
-    enum: CLOCK_THREAD_CPUTIME_ID
-
-    enum: CLOCK_REALTIME
-    enum: TIMER_ABSTIME
-    enum: CLOCK_MONOTONIC
-
-    # FreeBSD-specific clocks
-    enum: CLOCK_UPTIME
-    enum: CLOCK_UPTIME_PRECISE
-    enum: CLOCK_UPTIME_FAST
-    enum: CLOCK_REALTIME_PRECISE
-    enum: CLOCK_REALTIME_FAST
-    enum: CLOCK_MONOTONIC_PRECISE
-    enum: CLOCK_MONOTONIC_FAST
-    enum: CLOCK_SECOND
-
-    # Linux-specific clocks
-    enum: CLOCK_PROCESS_CPUTIME_ID
-    enum: CLOCK_THREAD_CPUTIME_ID
-    enum: CLOCK_MONOTONIC_RAW
-    enum: CLOCK_REALTIME_COARSE
-    enum: CLOCK_MONOTONIC_COARSE
-    enum: CLOCK_BOOTTIME
-    enum: CLOCK_REALTIME_ALARM
-    enum: CLOCK_BOOTTIME_ALARM
-
-    cdef struct timespec:
-        time_t tv_sec
-        long   tv_nsec
-
-    cdef struct itimerspec:
-        timespec it_interval
-        timespec it_value
+    clock_t clock()             # CPU time
+    time_t  time(time_t *)      # wall clock time since Unix epoch
 
     cdef struct tm:
         int  tm_sec
@@ -54,14 +21,13 @@ cdef extern from "time.h" nogil:
         char *tm_zone
         long tm_gmtoff
 
+    int     daylight            # global state
+    long    timezone
+    char    *tzname[2]
+    void    tzset()
+
     char    *asctime(const tm *)
     char    *asctime_r(const tm *, char *)
-    clock_t clock()
-    int     clock_getcpuclockid(pid_t, clockid_t *)
-    int     clock_getres(clockid_t, timespec *)
-    int     clock_gettime(clockid_t, timespec *)
-    int     clock_nanosleep(clockid_t, int, const timespec *, timespec *)
-    int     clock_settime(clockid_t, const timespec *)
     char    *ctime(const time_t *)
     char    *ctime_r(const time_t *, char *)
     double  difftime(time_t, time_t)
@@ -71,17 +37,6 @@ cdef extern from "time.h" nogil:
     tm      *localtime(const time_t *)
     tm      *localtime_r(const time_t *, tm *)
     time_t  mktime(tm *)
-    int     nanosleep(const timespec *, timespec *)
     size_t  strftime(char *, size_t, const char *, const tm *)
-    char    *strptime(const char *, const char *, tm *)
-    time_t  time(time_t *)
-    int     timer_create(clockid_t, sigevent *, timer_t *)
-    int     timer_delete(timer_t)
-    int     timer_gettime(timer_t, itimerspec *)
-    int     timer_getoverrun(timer_t)
-    int     timer_settime(timer_t, int, const itimerspec *, itimerspec *)
-    void    tzset()
-
-    int daylight
-    long timezone
-    char *tzname[2]
+    size_t  wcsftime(wchar_t *str, size_t cnt, const wchar_t *fmt, tm *time)
+    char    *strptime(const char *, const char *, tm *)     # POSIX not stdC
