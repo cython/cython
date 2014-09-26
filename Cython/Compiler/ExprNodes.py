@@ -9921,7 +9921,7 @@ class BoolBinopNode(ExprNode):
             operator=self.operator,
             operand1=operand1, operand2=operand2)
 
-    def generate_bool_evaluation_code(self, code, final_result_temp, and_label, or_label, end_label):
+    def generate_bool_evaluation_code(self, code, final_result_temp, and_label, or_label, end_label, fall_through):
         code.mark_pos(self.pos)
 
         outer_labels = (and_label, or_label)
@@ -9929,18 +9929,20 @@ class BoolBinopNode(ExprNode):
             my_label = and_label = code.new_label('next_and')
         else:
             my_label = or_label = code.new_label('next_or')
-        self.operand1.generate_bool_evaluation_code(code, final_result_temp, and_label, or_label, end_label)
+        self.operand1.generate_bool_evaluation_code(
+            code, final_result_temp, and_label, or_label, end_label, my_label)
 
         and_label, or_label = outer_labels
 
         code.put_label(my_label)
-        self.operand2.generate_bool_evaluation_code(code, final_result_temp, and_label, or_label, end_label)
+        self.operand2.generate_bool_evaluation_code(
+            code, final_result_temp, and_label, or_label, end_label, fall_through)
 
     def generate_evaluation_code(self, code):
         self.allocate_temp_result(code)
         or_label = and_label = None
         end_label = code.new_label('bool_binop_done')
-        self.generate_bool_evaluation_code(code, self.result(), and_label, or_label, end_label)
+        self.generate_bool_evaluation_code(code, self.result(), and_label, or_label, end_label, end_label)
         code.put_label(end_label)
 
     gil_message = "Truth-testing Python object"
@@ -10025,7 +10027,7 @@ class BoolBinopResultNode(ExprNode):
             test_result = self.arg.result()
         return (test_result, self.arg.type.is_pyobject)
 
-    def generate_bool_evaluation_code(self, code, final_result_temp, and_label, or_label, end_label):
+    def generate_bool_evaluation_code(self, code, final_result_temp, and_label, or_label, end_label, fall_through):
         code.mark_pos(self.pos)
 
         # x => x
@@ -10045,11 +10047,13 @@ class BoolBinopResultNode(ExprNode):
 
             if or_label:
                 # value is false => short-circuit to next 'or'
-                code.put_goto(or_label)
+                if or_label != fall_through:
+                    code.put_goto(or_label)
                 code.putln("} else {")
             if and_label:
                 # value is true => go to next 'and'
-                code.put_goto(and_label)
+                if and_label != fall_through:
+                    code.put_goto(and_label)
                 if not or_label:
                     code.putln("} else {")
 
@@ -10061,7 +10065,7 @@ class BoolBinopResultNode(ExprNode):
             self.value.generate_post_assignment_code(code)
             self.arg.generate_disposal_code(code)
             self.value.free_temps(code)
-            if and_label or or_label:
+            if end_label != fall_through:
                 code.put_goto(end_label)
 
         if and_label or or_label:
