@@ -9941,8 +9941,7 @@ class BoolBinopNode(ExprNode):
         or_label = and_label = None
         end_label = code.new_label('bool_binop_done')
         self.generate_bool_evaluation_code(code, self.result(), and_label, or_label, end_label)
-        if code.label_used(end_label):
-            code.put_label(end_label)
+        code.put_label(end_label)
 
     gil_message = "Truth-testing Python object"
 
