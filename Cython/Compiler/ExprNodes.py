@@ -10045,20 +10045,19 @@ class BoolBinopResultNode(ExprNode):
                 code.funcstate.release_temp(test_result)
             self.arg.generate_disposal_code(code)
 
-            if or_label:
+            if or_label and or_label != fall_through:
                 # value is false => short-circuit to next 'or'
-                if or_label != fall_through:
-                    code.put_goto(or_label)
-                code.putln("} else {")
-            if and_label:
+                code.put_goto(or_label)
+            if and_label and and_label != fall_through:
                 # value is true => go to next 'and'
-                if and_label != fall_through:
-                    code.put_goto(and_label)
-                if not or_label:
+                if or_label:
                     code.putln("} else {")
+                code.put_goto(and_label)
 
         if not and_label or not or_label:
             # if no next 'and' or 'or', we provide the result
+            if and_label or or_label:
+                code.putln("} else {")
             self.value.generate_evaluation_code(code)
             self.value.make_owned_reference(code)
             code.putln("%s = %s;" % (final_result_temp, self.value.result()))
