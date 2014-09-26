@@ -26,9 +26,9 @@ Bugs fixed
 
 * Reference leak for non-simple Python expressions in boolean and/or expressions.
 
-* ``getitimer()``, ``setitimer()``, ``gettimeofday()`` and related type/constant
-  definitions were moved from ``posix/time.pxd`` to ``posix/sys_time.pxd`` to
-  fix a naming collision.
+* To fix a name collision and to reflect availability on host platforms,
+  standard C declarations [ clock(), time(), struct tm and tm* functions ]
+  were moved from posix/time.pxd to a new libc/time.pxd.
 
 * Rerunning unmodified modules in IPython's cython support failed.
   Patch by Matthias Bussonier.
