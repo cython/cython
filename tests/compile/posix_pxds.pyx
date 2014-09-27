@@ -34,3 +34,11 @@ from posix.time cimport *
 cimport posix.resource
 from posix cimport resource
 from posix.resource cimport *
+
+cimport posix.wait
+from posix cimport wait
+from posix.wait cimport *
+
+cimport posix.mman
+from posix cimport mman
+from posix.mman cimport *

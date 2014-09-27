@@ -2276,11 +2276,14 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         if len(pos_args) != 2:
             return node
         arg, types = pos_args
-        temp = None
+        temps = []
         if isinstance(types, ExprNodes.TupleNode):
             types = types.args
+            if len(types) == 1 and not types[0].type is Builtin.type_type:
+                return node  # nothing to improve here
             if arg.is_attribute or not arg.is_simple():
-                arg = temp = UtilNodes.ResultRefNode(arg)
+                arg = UtilNodes.ResultRefNode(arg)
+                temps.append(arg)
         elif types.type is Builtin.type_type:
             types = [types]
         else:
@@ -2311,13 +2314,17 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 type_check_function = '__Pyx_TypeCheck'
                 type_check_args = [arg, test_type_node]
             else:
-                return node
+                if not test_type_node.is_literal:
+                    test_type_node = UtilNodes.ResultRefNode(test_type_node)
+                    temps.append(test_type_node)
+                type_check_function = 'PyObject_IsInstance'
+                type_check_args = [arg, test_type_node]
             test_nodes.append(
                 ExprNodes.PythonCapiCallNode(
                     test_type_node.pos, type_check_function, self.Py_type_check_func_type,
-                    args = type_check_args,
-                    is_temp = True,
-                    ))
+                    args=type_check_args,
+                    is_temp=True,
+                ))
 
         def join_with_or(a, b, make_binop_node=ExprNodes.binop_node):
             or_node = make_binop_node(node.pos, 'or', a, b)
@@ -2326,7 +2333,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             return or_node
 
         test_node = reduce(join_with_or, test_nodes).coerce_to(node.type, env)
-        if temp is not None:
+        for temp in temps[::-1]:
             test_node = UtilNodes.EvalWithTempExprNode(temp, test_node)
         return test_node
 
