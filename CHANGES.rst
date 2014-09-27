@@ -16,6 +16,8 @@ Features added
 Bugs fixed
 ----------
 
+* Reference leak for non-simple Python expressions in boolean and/or expressions.
+
 * To fix a name collision and to reflect availability on host platforms,
   standard C declarations [ clock(), time(), struct tm and tm* functions ]
   were moved from posix/time.pxd to a new libc/time.pxd.
