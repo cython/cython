@@ -1,9 +1,11 @@
 # http://en.wikipedia.org/wiki/C_date_and_time_functions
 
-from posix.types cimport clock_t, time_t
 from libc.stddef cimport wchar_t
 
 cdef extern from "time.h" nogil:
+    ctypedef long clock_t
+    ctypedef long time_t
+
     enum: CLOCKS_PER_SEC
     clock_t clock()             # CPU time
     time_t  time(time_t *)      # wall clock time since Unix epoch
