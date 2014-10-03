@@ -8,6 +8,10 @@ Latest
 Features added
 --------------
 
+* Passing ``language='c++'`` into cythonize() globally enables C++ mode for
+  all modules that were not passed as Extension objects (i.e. only source
+  files and file patterns).
+
 * ``Py_hash_t`` is a known type (used in CPython for hash values).
 
 * ``PySlice_*()`` C-API functions are available from the ``cpython.slice``

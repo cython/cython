@@ -137,10 +137,14 @@ together into :file:`rect.so`, which you can then import in Python using
 ``import rect`` (if you forget to link the :file:`Rectangle.o`, you will
 get missing symbols while importing the library in Python).
 
+Note that the ``language`` option has no effect on user provided Extension
+objects that are passed into ``cythonize()``.  It is only used for modules
+found by file name (as in the example above).
+
 The options can also be passed directly from the source file, which is
-often preferable.  Starting with version 0.17, Cython also allows to
-pass external source files into the ``cythonize()`` command this way.
-Here is a simplified setup.py file::
+often preferable (and overrides any global option).  Starting with
+version 0.17, Cython also allows to pass external source files into the
+``cythonize()`` command this way.  Here is a simplified setup.py file::
 
    from distutils.core import setup
    from Cython.Build import cythonize
