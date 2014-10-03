@@ -586,8 +586,7 @@ def create_dependency_tree(ctx=None, quiet=False):
 
 
 # This may be useful for advanced users?
-def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=False, language=None,
-                          exclude_failures=False):
+def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=False, exclude_failures=False):
     if not isinstance(patterns, (list, tuple)):
         patterns = [patterns]
     explicit_modules = set([m.name for m in patterns if isinstance(m, Extension)])
@@ -607,7 +606,6 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
             name = '*'
             base = None
             exn_type = Extension
-            ext_language = language
         elif isinstance(pattern, Extension):
             for filepattern in pattern.sources:
                 if os.path.splitext(filepattern)[1] in ('.py', '.pyx'):
@@ -620,7 +618,6 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
             name = template.name
             base = DistutilsInfo(exn=template)
             exn_type = template.__class__
-            ext_language = None  # do not override whatever the Extension says
         else:
             raise TypeError(pattern)
 
@@ -664,9 +661,6 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
                         depends = list(set(template.depends).union(set(depends)))
                     kwds['depends'] = depends
 
-                if ext_language and 'language' not in kwds:
-                    kwds['language'] = ext_language
-
                 module_list.append(exn_type(
                         name=module_name,
                         sources=sources,
@@ -677,7 +671,7 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
 
 
 # This is the user-exposed entry point.
-def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, force=False, language=None,
+def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, force=False,
               exclude_failures=False, **options):
     """
     Compile a set of source modules into C/C++ files and return a list of distutils
@@ -689,11 +683,6 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
 
     When using glob patterns, you can exclude certain module names explicitly
     by passing them into the 'exclude' option.
-
-    To globally enable C++ mode, you can pass language='c++'.  Otherwise, this
-    will be determined at a per-file level based on compiler directives.  This
-    affects only modules found based on file names.  Extension instances passed
-    into cythonize() will not be changed.
 
     For parallel compilation, set the 'nthreads' option to the number of
     concurrent builds.
@@ -722,7 +711,6 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
         ctx=ctx,
         quiet=quiet,
         exclude_failures=exclude_failures,
-        language=language,
         aliases=aliases)
     deps = create_dependency_tree(ctx, quiet=quiet)
     build_dir = getattr(options, 'build_dir', None)
