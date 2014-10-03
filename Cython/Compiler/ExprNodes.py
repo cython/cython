@@ -2916,6 +2916,12 @@ class IndexNode(ExprNode):
                     return item_type
             elif base_type.is_ptr or base_type.is_array:
                 return base_type.base_type
+            elif base_type.is_ctuple and isinstance(self.index, IntNode):
+                index = self.index.constant_result
+                if index < 0:
+                    index += base_type.size
+                if 0 <= index < base_type.size:
+                    return base_type.components[index]
 
         if base_type.is_cpp_class:
             class FakeOperand:
@@ -3251,6 +3257,23 @@ class IndexNode(ExprNode):
                             error(self.pos, "Wrong number of template arguments: expected %s, got %s" % (
                                     (len(base_type.templates), len(self.type_indices))))
                         self.type = base_type.specialize(dict(zip(base_type.templates, self.type_indices)))
+                elif base_type.is_ctuple:
+                    if isinstance(self.index, IntNode):
+                        index = self.index.constant_result
+                        if -base_type.size <= index < base_type.size:
+                            if index < 0:
+                                index += base_type.size
+                            self.type = base_type.components[index]
+                        else:
+                            error(self.pos,
+                                  "Index %s out of bounds for '%s'" %
+                                  (index, base_type))
+                            self.type = PyrexTypes.error_type
+                    else:
+                        error(self.pos,
+                              "Can't use non-constant indices for '%s'" %
+                              base_type)
+                        self.type = PyrexTypes.error_type
                 else:
                     error(self.pos,
                           "Attempting to index non-array type '%s'" %
@@ -3436,6 +3459,11 @@ class IndexNode(ExprNode):
             return "%s<%s>" % (
                 self.base.result(),
                 ",".join([param.declaration_code("") for param in self.type_indices]))
+        elif self.base.type.is_ctuple:
+            index = self.index.constant_result
+            if index < 0:
+                index += self.base.type.size
+            return "%s.f%s" % (self.base.result(), index)
         else:
             if (self.type.is_ptr or self.type.is_array) and self.type == self.base.type:
                 error(self.pos, "Invalid use of pointer slice")

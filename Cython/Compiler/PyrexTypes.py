@@ -224,6 +224,7 @@ class PyrexType(BaseType):
     is_returncode = 0
     is_error = 0
     is_buffer = 0
+    is_ctuple = 0
     is_memoryviewslice = 0
     has_attributes = 0
     default_value = ""
@@ -3313,9 +3314,12 @@ class CEnumType(CType):
 class CTupleType(CType):
     # components [PyrexType]
 
+    is_ctuple = True
+
     def __init__(self, cname, components):
         self.cname = cname
         self.components = components
+        self.size = len(components)
         self.to_py_function = "%s_to_py_%s" % (Naming.convert_func_prefix, self.cname)
         self.from_py_function = "%s_from_py_%s" % (Naming.convert_func_prefix, self.cname)
         self.exception_check = True
