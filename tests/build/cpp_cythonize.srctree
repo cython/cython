@@ -10,12 +10,10 @@ from Cython.Build.Dependencies import cythonize
 from distutils.core import setup
 
 setup(
-  ext_modules = cythonize("*.pyx"),
+    ext_modules = cythonize("*.pyx", language='c++'),
 )
 
 ######## a.pyx ########
-
-# distutils: language = c++
 
 from libcpp.vector cimport vector
 
