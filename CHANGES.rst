@@ -13,6 +13,8 @@ Features added
 * ``PySlice_*()`` C-API functions are available from the ``cpython.slice``
   module.
 
+* Anonymous C tuple types can be declared as (ctype1, ctype2, ...).
+
 Bugs fixed
 ----------
 
