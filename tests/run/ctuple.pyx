@@ -15,16 +15,48 @@ def simple_convert(*o):
     cdef (int, double) xy = o
     return xy
 
-def rotate_via_indexing((int, int, double) xyz):
+def indexing((int, double) xy):
     """
-    >>> rotate_via_indexing((1, 2, 3))
-    (2, 3, 1.0)
+    >>> indexing((1, 2))
+    (2, 3.0)
     """
-    a = xyz[0]
-    xyz[0] = xyz[1]
-    xyz[1] = <int>xyz[2]
-    xyz[-1] = a
-    return xyz
+    x = xy[0]
+    y = xy[1]
+    xy[0] = x + 1
+    xy[1] = y + 1
+    return xy
+
+def unpacking((int, double) xy):
+    """
+    >>> unpacking((1, 2))
+    (1, 2.0)
+    """
+    x, y = xy
+    return x, y
+
+cdef (int, double) side_effect((int, double) xy):
+    print "called with", xy
+    return xy
+
+def unpacking_with_side_effect((int, double) xy):
+    """
+    >>> unpacking_with_side_effect((1, 2))
+    called with (1, 2.0)
+    (1, 2.0)
+    """
+    x, y = side_effect(xy)
+    return x, y
+
+def c_types(int a, double b):
+    """
+    >>> c_types(1, 2)
+    (1, 2.0)
+    """
+    cdef (int*, double*) ab
+    ab[0] = &a
+    ab[1] = &b
+    a_ptr, b_ptr = ab[0], ab[1]
+    return a_ptr[0], b_ptr[0]
 
 cpdef (int, double) ctuple_return_type(x, y):
     """

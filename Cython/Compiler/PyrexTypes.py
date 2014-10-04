@@ -3384,6 +3384,7 @@ class CTupleType(CType):
 
 c_tuple_types = {}
 def c_tuple_type(components):
+    components = tuple(components)
     tuple_type = c_tuple_types.get(components)
     if tuple_type is None:
         cname = '__pyx_tuple_' + '___'.join(

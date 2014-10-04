@@ -1163,7 +1163,7 @@ class CTupleBaseTypeNode(CBaseTypeNode):
 
     child_attrs = ["components"]
 
-    def analyse(self, env):
+    def analyse(self, env, could_be_name=False):
         component_types = []
         for c in self.components:
             type = c.analyse(env)
@@ -1171,7 +1171,7 @@ class CTupleBaseTypeNode(CBaseTypeNode):
                 error(type_node.pos, "Tuple types can't (yet) contain Python objects.")
                 return PyrexType.error_type
             component_types.append(type)
-        type = PyrexTypes.c_tuple_type(tuple(component_types))
+        type = PyrexTypes.c_tuple_type(component_types)
         env.declare_tuple_type(self.pos, type)
         return type
 
@@ -1195,7 +1195,7 @@ class FusedTypeNode(CBaseTypeNode):
         # Omit the typedef declaration that self.declarator would produce
         entry.in_cinclude = True
 
-    def analyse(self, env):
+    def analyse(self, env, could_be_name = False):
         types = []
         for type_node in self.types:
             type = type_node.analyse_as_type(env)
@@ -4644,7 +4644,7 @@ class AssignmentNode(StatNode):
 
     def analyse_expressions(self, env):
         node = self.analyse_types(env)
-        if isinstance(node, AssignmentNode):
+        if isinstance(node, AssignmentNode) and not isinstance(node, ParallelAssignmentNode):
             if node.rhs.type.is_ptr and node.rhs.is_ephemeral():
                 error(self.pos, "Storing unsafe C derivative of temporary Python reference")
         return node
@@ -4750,11 +4750,29 @@ class SingleAssignmentNode(AssignmentNode):
             self.lhs.analyse_target_declaration(env)
 
     def analyse_types(self, env, use_temp = 0):
-        from . import ExprNodes
+        from . import ExprNodes, UtilNodes
 
         self.rhs = self.rhs.analyse_types(env)
         self.lhs = self.lhs.analyse_target_types(env)
         self.lhs.gil_assignment_check(env)
+
+        if self.rhs.type.is_ctuple and isinstance(self.lhs, ExprNodes.TupleNode):
+            if self.rhs.type.size == len(self.lhs.args):
+                rhs = UtilNodes.LetRefNode(self.rhs)
+                nodes = []
+                for ix, lhs in enumerate(self.lhs.args):
+                    nodes.append(SingleAssignmentNode(
+                        pos = self.pos,
+                        lhs = lhs,
+                        rhs = ExprNodes.IndexNode(
+                                pos=self.pos,
+                                base=rhs,
+                                index=ExprNodes.IntNode(pos=self.pos, value=str(ix))),
+                        first = self.first))
+                return UtilNodes.LetNode(rhs, ParallelAssignmentNode(pos=self.pos, stats=nodes).analyse_expressions(env))
+            else:
+                error(self.pos, "Unpacking type %s requires exactly %s arguments." % (
+                                    self.rhs.type, self.rhs.type.size))
 
         if self.lhs.memslice_broadcast or self.rhs.memslice_broadcast:
             self.lhs.memslice_broadcast = True
