@@ -3393,8 +3393,8 @@ def c_tuple_type(components):
                                   .replace('[', '_sbra')
                                   .replace(']', '_sket')
             for c in components)
-        c_tuple_types[components] = tuple_type
-    return CTupleType(cname, components)
+        tuple_type = c_tuple_types[components] = CTupleType(cname, components)
+    return tuple_type
 
 
 class UnspecifiedType(PyrexType):

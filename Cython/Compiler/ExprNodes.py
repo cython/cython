@@ -6073,6 +6073,10 @@ class SequenceNode(ExprNode):
                 ', '.join([ arg.py_result() for arg in self.args ]),
                 code.error_goto_if_null(target, self.pos)))
             code.put_gotref(target)
+        elif self.type.is_ctuple:
+            for i, arg in enumerate(self.args):
+                code.putln("%s.f%s = %s;" % (
+                    target, i, arg.result()))
         else:
             # build the tuple/list step by step, potentially multiplying it as we go
             if self.type is Builtin.list_type:
@@ -6446,27 +6450,55 @@ class TupleNode(SequenceNode):
 
     gil_message = "Constructing Python tuple"
 
+    def infer_type(self, env):
+        if self.mult_factor:
+            return tuple_type
+        arg_types = [arg.infer_type(env) for arg in self.args]
+        if any(type.is_pyobject or type.is_unspecified for type in arg_types):
+            return tuple_type
+        else:
+            type = PyrexTypes.c_tuple_type(arg_types)
+            env.declare_tuple_type(self.pos, type)
+            return type
+
     def analyse_types(self, env, skip_children=False):
         if len(self.args) == 0:
-            node = self
-            node.is_temp = False
-            node.is_literal = True
+            self.is_temp = False
+            self.is_literal = True
+            return self
         else:
-            node = SequenceNode.analyse_types(self, env, skip_children)
-            for child in node.args:
-                if not child.is_literal:
-                    break
+            if not skip_children:
+                self.args = [arg.analyse_types(env) for arg in self.args]
+            if not self.mult_factor and not any(arg.type.is_pyobject for arg in self.args):
+                self.type = PyrexTypes.c_tuple_type(arg.type for arg in self.args)
+                env.declare_tuple_type(self.pos, self.type)
+                self.is_temp = 1
+                return self
             else:
-                if not node.mult_factor or node.mult_factor.is_literal and \
-                       isinstance(node.mult_factor.constant_result, (int, long)):
-                    node.is_temp = False
-                    node.is_literal = True
+                node = SequenceNode.analyse_types(self, env, skip_children=True)
+                for child in node.args:
+                    if not child.is_literal:
+                        break
                 else:
-                    if not node.mult_factor.type.is_pyobject:
-                        node.mult_factor = node.mult_factor.coerce_to_pyobject(env)
-                    node.is_temp = True
-                    node.is_partly_literal = True
-        return node
+                    if not node.mult_factor or node.mult_factor.is_literal and \
+                           isinstance(node.mult_factor.constant_result, (int, long)):
+                        node.is_temp = False
+                        node.is_literal = True
+                    else:
+                        if not node.mult_factor.type.is_pyobject:
+                            node.mult_factor = node.mult_factor.coerce_to_pyobject(env)
+                        node.is_temp = True
+                        node.is_partly_literal = True
+                return node
+
+    def coerce_to(self, dst_type, env):
+        if self.type.is_ctuple and dst_type.is_ctuple and self.type.size == dst_type.size:
+            if self.type == dst_type:
+                return self
+            coerced_args = [arg.coerce_to(type, env) for arg, type in zip(self.args, dst_type.components)]
+            return TupleNode(self.pos, args=coerced_args, type=dst_type, is_temp=1)
+        else:
+            return SequenceNode.coerce_to(self, dst_type, env)
 
     def is_simple(self):
         # either temp or constant => always simple

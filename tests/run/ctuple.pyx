@@ -1,3 +1,5 @@
+import cython
+
 def simple_convert(*o):
     """
     >>> simple_convert(1, 2)
@@ -47,6 +49,22 @@ def unpacking_with_side_effect((int, double) xy):
     x, y = side_effect(xy)
     return x, y
 
+def packing_tuple(int x, double y):
+    """
+    >>> packing_tuple(1, 2)
+    (1, 2.0)
+    """
+    cdef (int, double) xy = (x, y)
+    return xy
+
+def coerce_packing_tuple(int x, int y):
+    cdef (int, double) xy = (x, y)
+    """
+    >>> coerce_packing_tuple(1, 2)
+    (1, 2.0)
+    """
+    return xy
+
 def c_types(int a, double b):
     """
     >>> c_types(1, 2)
@@ -54,15 +72,38 @@ def c_types(int a, double b):
     """
     cdef int* a_ptr
     cdef double* b_ptr
-    cdef (int*, double*) ab
-    ab[0] = &a
-    ab[1] = &b
+    cdef (int*, double*) ab = (&a, &b)
     a_ptr, b_ptr = ab
     return a_ptr[0], b_ptr[0]
 
-cpdef (int, double) ctuple_return_type(x, y):
+cdef (int, int*) cdef_ctuple_return_type(int x, int* x_ptr):
+    return x, x_ptr
+
+def call_cdef_ctuple_return_type(int x):
     """
-    >>> ctuple_return_type(1, 2)
+    >>> call_cdef_ctuple_return_type(2)
+    (2, 2)
+    """
+    cdef (int, int*) res = cdef_ctuple_return_type(x, &x)
+    return res[0], res[1][0]
+
+
+cpdef (int, double) cpdef_ctuple_return_type(int x, double y):
+    """
+    >>> cpdef_ctuple_return_type(1, 2)
     (1, 2.0)
     """
     return x, y
+
+@cython.infer_types(True)
+def test_type_inference():
+    """
+    >>> test_type_inference()
+    """
+    cdef int x = 1
+    cdef double y = 2
+    cdef object o = 3
+    xy = (x, y)
+    assert cython.typeof(xy) == "(int, double)", cython.typeof(xy)
+    xo = (x, o)
+    assert cython.typeof(xo) == "tuple object", cython.typeof(xo)
