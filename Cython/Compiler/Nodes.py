@@ -4753,8 +4753,6 @@ class SingleAssignmentNode(AssignmentNode):
         from . import ExprNodes, UtilNodes
 
         self.rhs = self.rhs.analyse_types(env)
-        self.lhs = self.lhs.analyse_target_types(env)
-        self.lhs.gil_assignment_check(env)
 
         if self.rhs.type.is_ctuple and isinstance(self.lhs, ExprNodes.TupleNode):
             if self.rhs.type.size == len(self.lhs.args):
@@ -4773,6 +4771,9 @@ class SingleAssignmentNode(AssignmentNode):
             else:
                 error(self.pos, "Unpacking type %s requires exactly %s arguments." % (
                                     self.rhs.type, self.rhs.type.size))
+
+        self.lhs = self.lhs.analyse_target_types(env)
+        self.lhs.gil_assignment_check(env)
 
         if self.lhs.memslice_broadcast or self.rhs.memslice_broadcast:
             self.lhs.memslice_broadcast = True

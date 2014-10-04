@@ -52,10 +52,12 @@ def c_types(int a, double b):
     >>> c_types(1, 2)
     (1, 2.0)
     """
+    cdef int* a_ptr
+    cdef double* b_ptr
     cdef (int*, double*) ab
     ab[0] = &a
     ab[1] = &b
-    a_ptr, b_ptr = ab[0], ab[1]
+    a_ptr, b_ptr = ab
     return a_ptr[0], b_ptr[0]
 
 cpdef (int, double) ctuple_return_type(x, y):
