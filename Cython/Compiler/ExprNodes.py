@@ -819,6 +819,10 @@ class ExprNode(Node):
             return self
         elif type.is_pyobject or type.is_int or type.is_ptr or type.is_float:
             return CoerceToBooleanNode(self, env)
+        elif type.is_ctuple:
+            bool_value = len(type.components) == 0
+            return BoolNode(self.pos, value=bool_value,
+                            constant_result=bool_value)
         else:
             error(self.pos, "Type '%s' not acceptable as a boolean" % type)
             return self
@@ -8395,7 +8399,7 @@ class UnopNode(ExprNode):
         return self.operand.check_const()
 
     def is_py_operation(self):
-        return self.operand.type.is_pyobject
+        return self.operand.type.is_pyobject or self.operand.type.is_ctuple
 
     def nogil_check(self, env):
         if self.is_py_operation():
@@ -9249,7 +9253,7 @@ class BinopNode(ExprNode):
         return self.is_py_operation_types(self.operand1.type, self.operand2.type)
 
     def is_py_operation_types(self, type1, type2):
-        return type1.is_pyobject or type2.is_pyobject
+        return type1.is_pyobject or type2.is_pyobject or type1.is_ctuple or type2.is_ctuple
 
     def is_cpp_operation(self):
         return (self.operand1.type.is_cpp_class
@@ -10368,7 +10372,10 @@ class CmpNode(object):
         if new_common_type is None:
             # fall back to generic type compatibility tests
             if type1 == type2:
-                new_common_type = type1
+                if type1.is_ctuple:
+                    new_common_type = py_object_type
+                else:
+                    new_common_type = type1
             elif type1.is_pyobject or type2.is_pyobject:
                 if type2.is_numeric or type2.is_string:
                     if operand2.check_for_coercion_error(type1, env):

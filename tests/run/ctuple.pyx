@@ -107,3 +107,36 @@ def test_type_inference():
     assert cython.typeof(xy) == "(int, double)", cython.typeof(xy)
     xo = (x, o)
     assert cython.typeof(xo) == "tuple object", cython.typeof(xo)
+
+
+def test_equality((int, int) ab, (int, int) cd, (int, int) ef):
+    """
+    >>> test_equality((1, 2), (3, 4), (5, 6))
+    True
+    >>> test_equality((1, 2), (3, 4), (3, 4))
+    True
+    >>> test_equality((3, 4), (3, 4), (3, 4))
+    False
+    """
+    return ab < cd <= ef
+
+def test_binop((int, int) ab, (double, double) cd):
+    """
+    >>> test_binop((1, 2), (3, 4))
+    (1, 2, 3.0, 4.0)
+    """
+    return ab + cd
+
+def test_mul((int, int) ab, int c):
+    """
+    >>> test_mul((1, 2), 3)
+    (1, 2, 1, 2, 1, 2)
+    """
+    return ab * c
+
+def test_unop((int, int) ab):
+    """
+    >>> test_unop((1, 2))
+    True
+    """
+    return not ab
