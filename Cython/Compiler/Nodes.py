@@ -4890,6 +4890,9 @@ class SingleAssignmentNode(AssignmentNode):
         from . import ExprNodes, UtilNodes
         if not isinstance(self.lhs, ExprNodes.TupleNode):
             return
+        for arg in self.lhs.args:
+            if arg.is_starred:
+                return
 
         unrolled = self.unroll(self.rhs, len(self.lhs.args), env)
         if not unrolled:
@@ -5581,7 +5584,7 @@ class AssertStatNode(StatNode):
                 # prevent tuple values from being interpreted as argument value tuples
                 from .ExprNodes import TupleNode
                 value = TupleNode(value.pos, args=[value], slow=True)
-                self.value = value.analyse_types(env, skip_children=True)
+                self.value = value.analyse_types(env, skip_children=True).coerce_to_pyobject(env)
             else:
                 self.value = value.coerce_to_pyobject(env)
         return self

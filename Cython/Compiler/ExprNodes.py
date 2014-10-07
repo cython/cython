@@ -3274,10 +3274,8 @@ class IndexNode(ExprNode):
                                   (index, base_type))
                             self.type = PyrexTypes.error_type
                     else:
-                        error(self.pos,
-                              "Can't use non-constant indices for '%s'" %
-                              base_type)
-                        self.type = PyrexTypes.error_type
+                        self.base = self.base.coerce_to_pyobject(env)
+                        return self.analyse_base_and_index_types(env, getting=getting, setting=setting, analyse_base=False)
                 else:
                     error(self.pos,
                           "Attempting to index non-array type '%s'" %
@@ -4456,7 +4454,7 @@ class SimpleCallNode(CallNode):
         func_type = self.function_type()
         if func_type.is_pyobject:
             self.arg_tuple = TupleNode(self.pos, args = self.args)
-            self.arg_tuple = self.arg_tuple.analyse_types(env)
+            self.arg_tuple = self.arg_tuple.analyse_types(env).coerce_to_pyobject(env)
             self.args = None
             if func_type is Builtin.type_type and function.is_name and \
                    function.entry and \
@@ -6455,10 +6453,10 @@ class TupleNode(SequenceNode):
     gil_message = "Constructing Python tuple"
 
     def infer_type(self, env):
-        if self.mult_factor:
+        if self.mult_factor or not self.args:
             return tuple_type
         arg_types = [arg.infer_type(env) for arg in self.args]
-        if any(type.is_pyobject or type.is_unspecified for type in arg_types):
+        if any(type.is_pyobject or type.is_unspecified or type.is_fused for type in arg_types):
             return tuple_type
         else:
             type = PyrexTypes.c_tuple_type(arg_types)
@@ -6473,7 +6471,7 @@ class TupleNode(SequenceNode):
         else:
             if not skip_children:
                 self.args = [arg.analyse_types(env) for arg in self.args]
-            if not self.mult_factor and not any(arg.type.is_pyobject for arg in self.args):
+            if not self.mult_factor and not any(arg.type.is_pyobject or arg.type.is_fused for arg in self.args):
                 self.type = PyrexTypes.c_tuple_type(arg.type for arg in self.args)
                 env.declare_tuple_type(self.pos, self.type)
                 self.is_temp = 1
@@ -6496,11 +6494,15 @@ class TupleNode(SequenceNode):
                 return node
 
     def coerce_to(self, dst_type, env):
-        if self.type.is_ctuple and dst_type.is_ctuple and self.type.size == dst_type.size:
-            if self.type == dst_type:
-                return self
-            coerced_args = [arg.coerce_to(type, env) for arg, type in zip(self.args, dst_type.components)]
-            return TupleNode(self.pos, args=coerced_args, type=dst_type, is_temp=1)
+        if self.type.is_ctuple:
+            if dst_type.is_ctuple and self.type.size == dst_type.size:
+                if self.type == dst_type:
+                    return self
+                coerced_args = [arg.coerce_to(type, env) for arg, type in zip(self.args, dst_type.components)]
+                return TupleNode(self.pos, args=coerced_args, type=dst_type, is_temp=1)
+            elif dst_type is tuple_type or dst_type is py_object_type:
+                coerced_args = [arg.coerce_to_pyobject(env) for arg in self.args]
+                return TupleNode(self.pos, args=coerced_args, type=tuple_type, is_temp=1).analyse_types(env, skip_children=True)
         else:
             return SequenceNode.coerce_to(self, dst_type, env)
 
@@ -8045,6 +8047,9 @@ class DefaultsTupleNode(TupleNode):
                 arg = arg.default
             args.append(arg)
         super(DefaultsTupleNode, self).__init__(pos, args=args)
+
+    def analyse_types(self, env, skip_children=False):
+        return super(DefaultsTupleNode, self).analyse_types(env, skip_children).coerce_to_pyobject(env)
 
 
 class DefaultsKwDictNode(DictNode):
