@@ -141,3 +141,12 @@ def test_ptr_literal_list_slice_end():
 #    cdef int a[5]
 #    a[:] = l
 #    return (a[0], a[1], a[2], a[3], a[4])
+
+def test_from_ptr():
+    """
+    >>> test_from_ptr()
+    (5, 4, 3)
+    """
+    cdef int *a = [6,5,4,3,2,1]
+    x, y, z = a[1:4]
+    return x, y, z

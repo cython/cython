@@ -4754,23 +4754,9 @@ class SingleAssignmentNode(AssignmentNode):
 
         self.rhs = self.rhs.analyse_types(env)
 
-        if self.rhs.type.is_ctuple and isinstance(self.lhs, ExprNodes.TupleNode):
-            if self.rhs.type.size == len(self.lhs.args):
-                rhs = UtilNodes.LetRefNode(self.rhs)
-                nodes = []
-                for ix, lhs in enumerate(self.lhs.args):
-                    nodes.append(SingleAssignmentNode(
-                        pos = self.pos,
-                        lhs = lhs,
-                        rhs = ExprNodes.IndexNode(
-                                pos=self.pos,
-                                base=rhs,
-                                index=ExprNodes.IntNode(pos=self.pos, value=str(ix))),
-                        first = self.first))
-                return UtilNodes.LetNode(rhs, ParallelAssignmentNode(pos=self.pos, stats=nodes).analyse_expressions(env))
-            else:
-                error(self.pos, "Unpacking type %s requires exactly %s arguments." % (
-                                    self.rhs.type, self.rhs.type.size))
+        unrolled_assignment = self.unroll_rhs(env)
+        if unrolled_assignment:
+            return unrolled_assignment
 
         self.lhs = self.lhs.analyse_target_types(env)
         self.lhs.gil_assignment_check(env)
@@ -4800,6 +4786,93 @@ class SingleAssignmentNode(AssignmentNode):
             rhs = rhs.coerce_to_simple(env)
         self.rhs = rhs
         return self
+
+    def unroll(self, node, target_size, env):
+        from . import ExprNodes, UtilNodes
+        if node.type.is_ctuple:
+            if node.type.size == target_size:
+                base = self.rhs
+                start_node = None
+                stop_node = None
+                step_node = None
+                check_node = None
+            else:
+                error(self.pos, "Unpacking type %s requires exactly %s arguments." % (
+                                    self.rhs.type, self.rhs.type.size))
+                return
+
+        elif node.type.is_ptr:
+            if isinstance(self.rhs, ExprNodes.SliceIndexNode):
+                base = self.rhs.base
+                start_node = self.rhs.start
+                if start_node:
+                    start_node = start_node.coerce_to(PyrexTypes.c_py_ssize_t_type, env)
+                stop_node = self.rhs.stop
+                if stop_node:
+                    stop_node = stop_node.coerce_to(PyrexTypes.c_py_ssize_t_type, env)
+                else:
+                    if rhs.is_array and rhs.type.size:
+                        stop_node = ExprNodes.IntNode(pos=self.pos, value=str(rhs.type.size))
+                    else:
+                        error(self.pos, "C array iteration requires known end index")
+                        return
+                step_node = None #self.rhs.step
+                if step_node:
+                    step_node = step_node.coerce_to(PyrexTypes.c_py_ssize_t_type, env)
+                # TODO: check (stop - start) / slice
+                check_node = None
+            else:
+                return
+
+        else:
+            return
+
+        items = []
+        base_ref = UtilNodes.LetRefNode(base)
+        refs = [base_ref]
+        if start_node:
+            start_node = UtilNodes.LetRefNode(start_node)
+            refs.append(start_node)
+        if stop_node:
+            stop_node = UtilNodes.LetRefNode(stop_node)
+            refs.append(stop_node)
+        if step_node:
+            step_node = UtilNodes.LetRefNode(step_node)
+            refs.append(step_node)
+        for ix in range(target_size):
+            ix_node = ExprNodes.IntNode(pos=self.pos, value=str(ix))
+            if step_node is not None:
+                ix_node = ExprNodes.MulNode(pos=self.pos, operator='*', operand1=step_node, operand2=ix_node).analyse_types(env)
+            if start_node is not None:
+                ix_node = ExprNodes.AddNode(pos=self.pos, operator='+', operand1=start_node, operand2=ix_node).analyse_types(env)
+            items.append(ExprNodes.IndexNode(
+                                pos=self.pos,
+                                base=base_ref,
+                                index=ix_node))
+        return check_node, refs, items
+
+    def unroll_rhs(self, env):
+        from . import ExprNodes, UtilNodes
+        if not isinstance(self.lhs, ExprNodes.TupleNode):
+            return
+
+        unrolled = self.unroll(self.rhs, len(self.lhs.args), env)
+        if not unrolled:
+            return
+        check_node, refs, items = unrolled
+        assignments = []
+        for lhs, rhs in zip(self.lhs.args, items):
+            assignments.append(SingleAssignmentNode(
+                pos = self.pos,
+                lhs = lhs,
+                rhs = rhs,
+                first = self.first))
+        all = ParallelAssignmentNode(pos=self.pos, stats=assignments).analyse_expressions(env)
+        if check_node:
+            all = StatListNode(pos=self.pos, stats=[check_node, all])
+        for ref in refs:
+            all = UtilNodes.LetNode(ref, all)
+        return all
 
     def generate_rhs_evaluation_code(self, code):
         self.rhs.generate_evaluation_code(code)
