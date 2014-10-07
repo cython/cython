@@ -126,7 +126,7 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
     pgen = find_executable(
         'pgen', os.pathsep.join([os.environ['PATH'], os.path.join(get_python_inc(), '..', 'Parser')]))
     if not pgen:
-        print "Unable to find pgen, not compiling formal grammar."
+        print ("Unable to find pgen, not compiling formal grammar.")
     else:
         parser_dir = os.path.join(os.path.dirname(__file__), 'Cython', 'Parser')
         grammar = os.path.join(parser_dir, 'Grammar')
