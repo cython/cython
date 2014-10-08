@@ -507,6 +507,18 @@ def ptr_types():
     cdef int[1] b
     b_ref = b
     assert typeof(b_ref) == "int *", typeof(b_ref)
+    ptr = &a
+    ptr = b
+    assert typeof(ptr) == "int *", typeof(ptr)
+
+def const_types(const double x, double y, double& z):
+    """
+    >>> const_types(1, 1, 1)
+    """
+    a = x
+    a = y
+    a = z
+    assert typeof(a) == "double", typeof(a)
 
 @infer_types(None)
 def args_tuple_keywords(*args, **kwargs):
