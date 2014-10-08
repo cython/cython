@@ -2641,6 +2641,17 @@ class CFuncType(CType):
         assert not self.is_fused
         specialize_entry(entry, cname)
 
+    def create_to_py_utility_code(self, env):
+        import re
+        from .UtilityCode import CythonUtilityCode
+        safe_typename = re.sub('[^a-zA-Z0-9]', '__', self.declaration_code(""))
+        self.to_py_function = "__Pyx_CFunc_%s_to_py" % safe_typename
+        context = {
+            'cname': self.to_py_function,
+        }
+        env.use_utility_code(CythonUtilityCode.load("cfunc.to_py", "CFuncConvert.pyx", context=context))
+        return True
+
 
 def specialize_entry(entry, cname):
     """
