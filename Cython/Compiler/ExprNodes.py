@@ -4252,19 +4252,6 @@ class SliceNode(ExprNode):
         if self.is_literal:
             code.put_giveref(self.py_result())
 
-    def __deepcopy__(self, memo):
-        """
-        There is a copy bug in python 2.4 for slice objects.
-        """
-        return SliceNode(
-            self.pos,
-            start=copy.deepcopy(self.start, memo),
-            stop=copy.deepcopy(self.stop, memo),
-            step=copy.deepcopy(self.step, memo),
-            is_temp=self.is_temp,
-            is_literal=self.is_literal,
-            constant_result=self.constant_result)
-
 
 class CallNode(ExprNode):
 
