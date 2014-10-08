@@ -494,8 +494,7 @@ def find_spanning_type(type1, type2):
         return PyrexTypes.c_double_type
     return result_type
 
-def aggressive_spanning_type(types, might_overflow, pos):
-    result_type = reduce(find_spanning_type, types)
+def simply_type(result_type):
     if result_type.is_reference:
         result_type = result_type.ref_base_type
     if result_type.is_const:
@@ -506,16 +505,11 @@ def aggressive_spanning_type(types, might_overflow, pos):
         result_type = PyrexTypes.c_ptr_type(result_type.base_type)
     return result_type
 
+def aggressive_spanning_type(types, might_overflow, pos):
+    return simply_type(reduce(find_spanning_type, types))
+
 def safe_spanning_type(types, might_overflow, pos):
-    result_type = reduce(find_spanning_type, types)
-    if result_type.is_const:
-        result_type = result_type.const_base_type
-    if result_type.is_reference:
-        result_type = result_type.ref_base_type
-    if result_type.is_cpp_class:
-        result_type.check_nullary_constructor(pos)
-    if result_type.is_array:
-        result_type = PyrexTypes.c_ptr_type(result_type.base_type)
+    result_type = simply_type(reduce(find_spanning_type, types))
     if result_type.is_pyobject:
         # In theory, any specific Python type is always safe to
         # infer. However, inferring str can cause some existing code
