@@ -168,7 +168,13 @@
 #endif
 
 #if PY_MAJOR_VERSION >= 3
-  #define PyMethod_New(func, self, klass) ((self) ? PyMethod_New(func, self) : PyInstanceMethod_New(func))
+  #define __Pyx_PyMethod_New(func, self, klass) ((self) ? PyMethod_New(func, self) : PyInstanceMethod_New(func))
+  #ifndef PyMethod_New
+    /* for backwards compatibility only, but PyPy redefines PyMethod_New unconditionally */
+    #define PyMethod_New(func, self, klass) __Pyx_PyMethod_New(func, self, klass)
+  #endif
+#else
+  #define __Pyx_PyMethod_New(func, self, klass) PyMethod_New(func, self, klass)
 #endif
 
 /* inline attribute */

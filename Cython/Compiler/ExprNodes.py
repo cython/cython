@@ -7518,7 +7518,7 @@ class BoundMethodNode(ExprNode):
 
     def generate_result_code(self, code):
         code.putln(
-            "%s = PyMethod_New(%s, %s, (PyObject*)%s->ob_type); %s" % (
+            "%s = __Pyx_PyMethod_New(%s, %s, (PyObject*)%s->ob_type); %s" % (
                 self.result(),
                 self.function.py_result(),
                 self.self_object.py_result(),
@@ -7550,7 +7550,7 @@ class UnboundMethodNode(ExprNode):
     def generate_result_code(self, code):
         class_cname = code.pyclass_stack[-1].classobj.result()
         code.putln(
-            "%s = PyMethod_New(%s, 0, %s); %s" % (
+            "%s = __Pyx_PyMethod_New(%s, 0, %s); %s" % (
                 self.result(),
                 self.function.py_result(),
                 class_cname,
