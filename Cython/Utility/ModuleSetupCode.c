@@ -62,9 +62,6 @@
 #if PY_MAJOR_VERSION >= 3
   #define Py_TPFLAGS_CHECKTYPES 0
   #define Py_TPFLAGS_HAVE_INDEX 0
-#endif
-
-#if PY_MAJOR_VERSION >= 3
   #define Py_TPFLAGS_HAVE_NEWBUFFER 0
 #endif
 
@@ -156,6 +153,12 @@
 
 #if PY_MAJOR_VERSION >= 3
   #define PyBoolObject                 PyLongObject
+#endif
+
+#if PY_MAJOR_VERSION >= 3 && CYTHON_COMPILING_IN_PYPY
+  #ifndef PyUnicode_InternFromString
+    #define PyUnicode_InternFromString(s) PyUnicode_FromString(s)
+  #endif
 #endif
 
 #if PY_VERSION_HEX < 0x030200A4
