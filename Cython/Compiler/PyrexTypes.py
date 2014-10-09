@@ -2646,16 +2646,73 @@ class CFuncType(CType):
     def create_to_py_utility_code(self, env):
         if self.has_varargs or self.optional_arg_count:
             return False
+        if self.to_py_function is not None:
+            return self.to_py_function
         from .UtilityCode import CythonUtilityCode
         import re
-        safe_typename = re.sub('[^a-zA-Z0-9]', '__', self.declaration_code(""))
+        safe_typename = re.sub('[^a-zA-Z0-9]', '__', self.declaration_code("", pyrex=1))
         self.to_py_function = "__Pyx_CFunc_%s_to_py" % safe_typename
+        for arg in self.args:
+            if not arg.type.is_pyobject and not arg.type.create_from_py_utility_code(env):
+                return False
+            if arg.type.is_extension_type or arg.type.is_builtin_type:
+                env.use_utility_code(UtilityCode.load_cached("ExtTypeTest", "ObjectHandling.c"))
+        class Arg:
+            def __init__(self, ix, type):
+                self.ix = ix
+                self.name = 'ARG%s' % ix
+                self.type = type
+                self.type_name = 'TYPE%s' % ix
+                self.type_cname = type.declaration_code("")
+                if type.is_pyobject:
+                    self.type_name = 'object'
+                    self.type_convert = ''
+                else:
+                    self.type_name = 'TYPE%s' % ix
+                    self.type_convert = '%s_to_py' % self.type_name
+            def declare_type_def(self):
+                if self.type.is_extension_type:
+                    return 'cdef PyTypeObject* TYPE%s "%s"' % (self.ix, self.type.typeptr_cname)
+                elif self.type.is_pyobject:
+                    return ''
+                else:
+                    return 'ctypedef struct %s "%s"' % (self.type_name, self.type_cname)
+            def declare_type_convert(self):
+                if not self.type.is_pyobject:
+                    return 'cdef %s %s "%s"(object) except *' % (self.type_name, self.type_convert, self.type.from_py_function)
+            def check_type(self):
+                if self.type.is_extension_type:
+                    return '__Pyx_TypeTest(%s, TYPE%s)' % (self.name, self.ix)
+                elif self.type.is_builtin_type:
+                    return '__Pyx_TypeTest(%s, <PyTypeObject*>%s)' % (self.name, self.type.name)
+        if self.return_type is c_void_type:
+            return_type = 'void'
+            declare_return_type = ''
+            declare_return_type_convert = ''
+            maybe_return = ''
+            except_clause = 'except *'
+        elif self.return_type.is_pyobject:
+            return_type = 'object'
+            declare_return_type = ''
+            declare_return_type_convert = ''
+            maybe_return = 'return '
+            except_clause = ''
+        else:
+            if not self.return_type.create_to_py_utility_code(env):
+                return False
+            except_clause = 'except *'
+            return_type = 'RETURN_TYPE'
+            declare_return_type = 'ctypedef struct RETURN_TYPE "%s"' % self.return_type.declaration_code("")
+            declare_return_type_convert = 'cdef object RETURN_TYPE_from_py "%s" (RETURN_TYPE)' % self.return_type.to_py_function
+            maybe_return = 'return RETURN_TYPE_from_py'
         context = {
             'cname': self.to_py_function,
-            'arg_types': [arg.type.declaration_code("", pyrex=1) for arg in self.args],
-            'arg_names': ['arg%s' % ix for ix in range(len(self.args))],
-            'return_type': self.return_type.declaration_code("", pyrex=1),
-            'maybe_return': '' if self.return_type is c_void_type else 'return',
+            'args': [Arg(ix, arg.type) for ix, arg in enumerate(self.args)],
+            'return_type': return_type,
+            'declare_return_type': declare_return_type,
+            'declare_return_type_convert': declare_return_type_convert,
+            'maybe_return': maybe_return,
+            'except_clause': except_clause,
         }
         env.use_utility_code(CythonUtilityCode.load("cfunc.to_py", "CFuncConvert.pyx", context=context))
         return True

@@ -8,6 +8,8 @@ from . import Code
 
 class NonManglingModuleScope(Symtab.ModuleScope):
 
+    cpp = False
+
     def __init__(self, prefix, *args, **kw):
         self.prefix = prefix
         self.cython_scope = None
