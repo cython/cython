@@ -359,10 +359,9 @@ class Context(object):
         return ".".join(names)
 
     def setup_errors(self, options, result):
-        Errors.reset() # clear any remaining error state
+        Errors.reset()  # clear any remaining error state
         if options.use_listing_file:
-            result.listing_file = Utils.replace_suffix(source, ".lis")
-            path = result.listing_file
+            path = result.listing_file = Utils.replace_suffix(result.main_source_file, ".lis")
         else:
             path = None
         Errors.open_listing_file(path=path,
