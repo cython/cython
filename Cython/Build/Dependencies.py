@@ -251,6 +251,7 @@ def strip_string_literals(code, prefix='__Pyx_L'):
     in_quote = False
     hash_mark = single_q = double_q = -1
     code_len = len(code)
+    quote_type = None
 
     while True:
         if hash_mark < q:
@@ -260,7 +261,8 @@ def strip_string_literals(code, prefix='__Pyx_L'):
         if double_q < q:
             double_q = code.find('"', q)
         q = min(single_q, double_q)
-        if q == -1: q = max(single_q, double_q)
+        if q == -1:
+            q = max(single_q, double_q)
 
         # We're done.
         if q == -1 and hash_mark == -1:
@@ -276,7 +278,8 @@ def strip_string_literals(code, prefix='__Pyx_L'):
                 if k % 2 == 0:
                     q += 1
                     continue
-            if code[q] == quote_type and (quote_len == 1 or (code_len > q + 2 and quote_type == code[q+1] == code[q+2])):
+            if code[q] == quote_type and (
+                    quote_len == 1 or (code_len > q + 2 and quote_type == code[q+1] == code[q+2])):
                 counter += 1
                 label = "%s%s_" % (prefix, counter)
                 literals[label] = code[start+quote_len:q]
