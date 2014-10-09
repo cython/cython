@@ -2652,6 +2652,7 @@ class CFuncType(CType):
         import re
         safe_typename = re.sub('[^a-zA-Z0-9]', '__', self.declaration_code("", pyrex=1))
         self.to_py_function = "__Pyx_CFunc_%s_to_py" % safe_typename
+
         for arg in self.args:
             if not arg.type.is_pyobject and not arg.type.create_from_py_utility_code(env):
                 return False
@@ -2671,12 +2672,8 @@ class CFuncType(CType):
                 else:
                     self.type_convert = '%s_to_py' % self.type_name
             def declare_type_def(self):
-                if self.type.is_extension_type or self.type.is_builtin_type:
+                if self.type.is_extension_type or self.type.is_builtin_type or not self.type.is_pyobject:
                     return 'ctypedef void* %s "%s"' % (self.type_name, self.type_cname)
-                elif self.type.is_pyobject:
-                    return ''
-                else:
-                    return 'ctypedef struct %s "%s"' % (self.type_name, self.type_cname)
             def declare_type_convert(self):
                 if self.type.is_extension_type or self.type.is_builtin_type:
                     return 'cdef PyTypeObject* %s_TYPE "%s"' % (self.type_name, self.type.typeptr_cname)
@@ -2687,26 +2684,27 @@ class CFuncType(CType):
             def check_type(self):
                 if self.type.is_extension_type or self.type.is_builtin_type:
                     return '__Pyx_TypeTest(<PyObject*>%s, %s_TYPE)' % (self.name, self.type_name)
+
         if self.return_type is c_void_type:
             return_type = 'void'
             declare_return_type = ''
             declare_return_type_convert = ''
             maybe_return = ''
             except_clause = 'except *'
-        elif self.return_type.is_pyobject:
+        else:
+            if self.return_type.is_pyobject:
+                to_py = '(PyObject*)'
+                except_clause = ''
+            else:
+                if not self.return_type.create_to_py_utility_code(env):
+                    return False
+                to_py = self.return_type.to_py_function
+                except_clause = 'except *'
             return_type = 'RETURN_TYPE'
             declare_return_type = 'ctypedef void* RETURN_TYPE "%s"' % self.return_type.declaration_code('')
-            declare_return_type_convert = 'cdef object RETURN_TYPE_from_py "(PyObject*)" (RETURN_TYPE)'
+            declare_return_type_convert = 'cdef object RETURN_TYPE_from_py "%s" (RETURN_TYPE)' % to_py
             maybe_return = 'return RETURN_TYPE_from_py'
-            except_clause = ''
-        else:
-            if not self.return_type.create_to_py_utility_code(env):
-                return False
-            return_type = 'RETURN_TYPE'
-            declare_return_type = 'ctypedef struct RETURN_TYPE "%s"' % self.return_type.declaration_code('')
-            declare_return_type_convert = 'cdef object RETURN_TYPE_from_py "%s" (RETURN_TYPE)' % self.return_type.to_py_function
-            maybe_return = 'return RETURN_TYPE_from_py'
-            except_clause = 'except *'
+
         context = {
             'cname': self.to_py_function,
             'args': [Arg(ix, arg.type) for ix, arg in enumerate(self.args)],
