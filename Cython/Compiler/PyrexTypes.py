@@ -1531,8 +1531,10 @@ class CBIntType(CIntType):
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
-        if pyrex or for_display:
+        if for_display:
             base_code = 'bool'
+        elif pyrex:
+            base_code = 'bint'
         else:
             base_code = public_decl('int', dll_linkage)
         return self.base_declaration_code(base_code, entity_code)
@@ -2642,12 +2644,18 @@ class CFuncType(CType):
         specialize_entry(entry, cname)
 
     def create_to_py_utility_code(self, env):
-        import re
+        if self.has_varargs or self.optional_arg_count:
+            return False
         from .UtilityCode import CythonUtilityCode
+        import re
         safe_typename = re.sub('[^a-zA-Z0-9]', '__', self.declaration_code(""))
         self.to_py_function = "__Pyx_CFunc_%s_to_py" % safe_typename
         context = {
             'cname': self.to_py_function,
+            'arg_types': [arg.type.declaration_code("", pyrex=1) for arg in self.args],
+            'arg_names': ['arg%s' % ix for ix in range(len(self.args))],
+            'return_type': self.return_type.declaration_code("", pyrex=1),
+            'maybe_return': '' if self.return_type is c_void_type else 'return',
         }
         env.use_utility_code(CythonUtilityCode.load("cfunc.to_py", "CFuncConvert.pyx", context=context))
         return True
