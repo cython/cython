@@ -99,6 +99,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         context.prefix = self.prefix
         context.cython_scope = cython_scope
         #context = StringParseContext(self.name)
+        print self.impl
         tree = parse_from_strings(self.name, self.impl, context=context,
                                   allow_struct_enum_decorator=True)
         pipeline = Pipeline.create_pipeline(context, 'pyx', exclude_classes=excludes)
