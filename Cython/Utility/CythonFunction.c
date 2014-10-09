@@ -545,13 +545,12 @@ static PyObject *__Pyx_CyFunction_descr_get(PyObject *func, PyObject *obj, PyObj
     if (m->flags & __Pyx_CYFUNCTION_CLASSMETHOD) {
         if (type == NULL)
             type = (PyObject *)(Py_TYPE(obj));
-        return PyMethod_New(func,
-                            type, (PyObject *)(Py_TYPE(type)));
+        return __Pyx_PyMethod_New(func, type, (PyObject *)(Py_TYPE(type)));
     }
 
     if (obj == Py_None)
         obj = NULL;
-    return PyMethod_New(func, obj, type);
+    return __Pyx_PyMethod_New(func, obj, type);
 }
 
 static PyObject*
