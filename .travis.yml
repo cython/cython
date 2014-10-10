@@ -22,7 +22,9 @@ before_install:
   - sudo apt-get install gdb python$( python -c 'import sys; print("%d.%d" % sys.version_info[:2])' )-dbg || true
   - dpkg -l | grep gdb || true
 
-install: CFLAGS="-O2 -ggdb -Wall -Wextra" python setup.py build_ext -i
+install:
+  - CFLAGS="-O2 -ggdb -Wall -Wextra" python setup.py build
+  - CFLAGS="-O2 -ggdb -Wall -Wextra" python setup.py build_ext -i
 
 script:
   - PYTHON_DBG="python$( python -c 'import sys; print("%d.%d" % sys.version_info[:2])' )-dbg"
