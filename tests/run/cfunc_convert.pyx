@@ -1,4 +1,4 @@
-from libc.math cimport sqrt, log
+from libc.math cimport sqrt
 
 cdef void empty_cfunc():
     print "here"
@@ -10,6 +10,7 @@ def call_empty_cfunc():
     """
     cdef object py_func = empty_cfunc
     py_func()
+
 
 cdef double square_c(double x):
     return x * x
@@ -23,6 +24,16 @@ def call_square_c(x):
     """
     cdef object py_func = square_c
     return py_func(x)
+
+
+def return_libc_sqrt():
+    """
+    >>> sqrt = return_libc_sqrt()
+    >>> sqrt(9)
+    3.0
+    """
+    return sqrt
+
 
 cdef long long rad(long long x):
     cdef long long rad = 1
