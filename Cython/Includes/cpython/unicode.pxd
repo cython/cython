@@ -525,3 +525,18 @@ cdef extern from *:
     #
     # New in version 3.3.
     bytes PyUnicode_EncodeCodePage(int code_page, object unicode, const char *errors)
+
+
+# Py_UCS4 helpers (new in CPython 3.3)
+
+    # These utility functions work on strings of Py_UCS4 characters and
+    # otherwise behave like the C standard library functions with the same name.
+
+    size_t Py_UCS4_strlen(const Py_UCS4 *u)
+    Py_UCS4* Py_UCS4_strcpy(Py_UCS4 *s1, const Py_UCS4 *s2)
+    Py_UCS4* Py_UCS4_strncpy(Py_UCS4 *s1, const Py_UCS4 *s2, size_t n)
+    Py_UCS4* Py_UCS4_strcat(Py_UCS4 *s1, const Py_UCS4 *s2)
+    int Py_UCS4_strcmp(const Py_UCS4 *s1, const Py_UCS4 *s2)
+    int Py_UCS4_strncmp(const Py_UCS4 *s1, const Py_UCS4 *s2, size_t n)
+    Py_UCS4* Py_UCS4_strchr(const Py_UCS4 *s, Py_UCS4 c)
+    Py_UCS4* Py_UCS4_strrchr(const Py_UCS4 *s, Py_UCS4 c)
