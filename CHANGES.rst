@@ -20,6 +20,9 @@ Features added
 Bugs fixed
 ----------
 
+* Mismatching 'except' declarations on signatures in .pxd and .pyx files failed
+  to produce a compile error.
+
 * Reference leak for non-simple Python expressions in boolean and/or expressions.
 
 * ``getitimer()``, ``setitimer()``, ``gettimeofday()`` and related type/constant
