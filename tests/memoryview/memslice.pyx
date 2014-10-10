@@ -14,7 +14,6 @@ from cython.parallel cimport prange, parallel
 
 import gc
 import sys
-import re
 
 if sys.version_info[0] < 3:
     import __builtin__ as builtins
@@ -26,9 +25,6 @@ __test__ = {}
 
 def testcase(func):
     doctest = func.__doc__
-    if sys.version_info >= (3,1,1):
-        doctest = doctest.replace('does not have the buffer interface',
-                                  'does not support the buffer interface')
     if sys.version_info >= (3, 0):
         _u = str
     else:
@@ -162,22 +158,22 @@ def acquire_failure3():
 @testcase
 def acquire_nonbuffer1(first, second=None):
     """
-    >>> acquire_nonbuffer1(3)
+    >>> acquire_nonbuffer1(3)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
       ...
-    TypeError: 'int' does not have the buffer interface
-    >>> acquire_nonbuffer1(type)
+    TypeError:... 'int'...
+    >>> acquire_nonbuffer1(type)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
       ...
-    TypeError: 'type' does not have the buffer interface
-    >>> acquire_nonbuffer1(None, 2)
+    TypeError:... 'type'...
+    >>> acquire_nonbuffer1(None, 2)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
       ...
-    TypeError: 'int' does not have the buffer interface
-    >>> acquire_nonbuffer1(4, object())
+    TypeError:... 'int'...
+    >>> acquire_nonbuffer1(4, object())  # doctest: +ELLIPSIS
     Traceback (most recent call last):
       ...
-    TypeError: 'int' does not have the buffer interface
+    TypeError:... 'int'...
     """
     cdef int[:] buf
     buf = first
