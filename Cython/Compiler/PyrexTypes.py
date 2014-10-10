@@ -2688,7 +2688,7 @@ class CFuncType(CType):
                 if self.type.is_extension_type or self.type.is_builtin_type:
                     return '__Pyx_TypeTest(<PyObject*>%s, %s_TYPE)' % (self.name, self.type_name)
 
-        if self.return_type is c_void_type:
+        if self.return_type.is_void:
             return_type = 'void'
             declare_return_type = ''
             declare_return_type_convert = ''
