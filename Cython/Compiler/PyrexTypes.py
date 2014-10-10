@@ -2687,7 +2687,8 @@ class CFuncType(CType):
                 elif self.type.is_pyobject:
                     return ''
                 else:
-                    return 'cdef %s %s "%s"(object) except *' % (self.type_name, self.type_convert, self.type.from_py_function)
+                    return 'cdef %s %s "%s"(object) except *' % (
+                        self.type_name, self.type_convert, self.type.from_py_function)
 
             def check_type(self):
                 if self.type.is_extension_type or self.type.is_builtin_type:
