@@ -8,6 +8,8 @@ Latest
 Features added
 --------------
 
+* Missing C-API declarations in ``cpython.unicode`` were added.
+
 * Passing ``language='c++'`` into cythonize() globally enables C++ mode for
   all modules that were not passed as Extension objects (i.e. only source
   files and file patterns).
