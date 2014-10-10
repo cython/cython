@@ -1,3 +1,7 @@
+# mode: run
+# cython: always_allow_keywords=True
+
+
 from libc.math cimport sqrt
 
 cdef void empty_cfunc():
@@ -26,10 +30,25 @@ def call_square_c(x):
     return py_func(x)
 
 
+def return_square_c():
+    """
+    >>> square_c = return_square_c()
+    >>> square_c(5)
+    25.0
+    >>> square_c(x=4)
+    16.0
+    >>> square_c.__doc__   # FIXME: try to make original C function name available
+    'wrap(x)'
+    """
+    return square_c
+
+
 def return_libc_sqrt():
     """
     >>> sqrt = return_libc_sqrt()
     >>> sqrt(9)
+    3.0
+    >>> sqrt(x=9)
     3.0
     """
     return sqrt

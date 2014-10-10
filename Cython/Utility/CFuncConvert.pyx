@@ -12,10 +12,11 @@ cdef extern from *:
     {{declare_return_type_convert}}
 
 @cname("{{cname}}")
-cdef object {{cname}}({{return_type}} (*f)({{', '.join(arg.type_name for arg in args)}}) {{except_clause}}):
-    def wrap({{', '.join(arg.name for arg in args)}}):
+cdef object {{cname}}({{return_type}} (*f)({{ ', '.join(arg.type_name for arg in args) }}) {{except_clause}}):
+    def wrap({{ ', '.join(arg.name for arg in args) }}):
+        """wrap({{', '.join(arg.name for arg in args)}})"""
         {{for arg in args}}
         {{arg.check_type()}}
         {{endfor}}
-        {{maybe_return}} (f({{', '.join('%s(%s)' % (arg.type_convert, arg.name) for arg in args)}}))
+        {{maybe_return}}(f({{ ', '.join('%s(%s)' % (arg.type_convert, arg.name) for arg in args) }}))
     return wrap

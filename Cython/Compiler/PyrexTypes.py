@@ -2661,22 +2661,25 @@ class CFuncType(CType):
                 return False
             if arg.type.is_extension_type or arg.type.is_builtin_type:
                 env.use_utility_code(UtilityCode.load_cached("ExtTypeTest", "ObjectHandling.c"))
-        class Arg:
-            def __init__(self, ix, type):
+
+        class Arg(object):
+            def __init__(self, ix, arg):
                 self.ix = ix
-                self.name = 'ARG%s' % ix
-                self.type = type
+                self.name = arg.name or 'ARG%s' % ix
+                self.type = arg.type
                 self.type_name = 'TYPE%s' % ix
-                self.type_cname = type.declaration_code("")
+                self.type_cname = self.type.declaration_code("")
                 if self.type.is_extension_type or self.type.is_builtin_type:
                     self.type_convert = '<%s>' % self.type_name
-                elif type.is_pyobject:
+                elif self.type.is_pyobject:
                     self.type_convert = ''
                 else:
                     self.type_convert = '%s_to_py' % self.type_name
+
             def declare_type_def(self):
                 if self.type.is_extension_type or self.type.is_builtin_type or not self.type.is_pyobject:
                     return 'ctypedef void* %s "%s"' % (self.type_name, self.type_cname)
+
             def declare_type_convert(self):
                 if self.type.is_extension_type or self.type.is_builtin_type:
                     return 'cdef PyTypeObject* %s_TYPE "%s"' % (self.type_name, self.type.typeptr_cname)
@@ -2684,6 +2687,7 @@ class CFuncType(CType):
                     return ''
                 else:
                     return 'cdef %s %s "%s"(object) except *' % (self.type_name, self.type_convert, self.type.from_py_function)
+
             def check_type(self):
                 if self.type.is_extension_type or self.type.is_builtin_type:
                     return '__Pyx_TypeTest(<PyObject*>%s, %s_TYPE)' % (self.name, self.type_name)
@@ -2710,14 +2714,16 @@ class CFuncType(CType):
 
         context = {
             'cname': self.to_py_function,
-            'args': [Arg(ix, arg.type) for ix, arg in enumerate(self.args)],
+            'args': [Arg(ix, arg) for ix, arg in enumerate(self.args)],
             'return_type': return_type,
             'declare_return_type': declare_return_type,
             'declare_return_type_convert': declare_return_type_convert,
             'maybe_return': maybe_return,
             'except_clause': except_clause,
         }
-        env.use_utility_code(CythonUtilityCode.load("cfunc.to_py", "CFuncConvert.pyx", context=context))
+        env.use_utility_code(CythonUtilityCode.load(
+            "cfunc.to_py", "CFuncConvert.pyx",
+            context=context, compiler_directives=dict(env.directives)))
         return True
 
 
