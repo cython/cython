@@ -59,6 +59,8 @@ def call_abc(a, b, c):
     True
     >>> call_abc(2, 3**10 * 109, 23**5)
     True
+    >>> call_abc(a=2, b=3**10 * 109, c=23**5)
+    True
     >>> call_abc(1, 1, 1)
     Traceback (most recent call last):
     ...
