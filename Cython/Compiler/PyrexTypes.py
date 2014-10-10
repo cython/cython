@@ -2442,9 +2442,13 @@ class CFuncType(CType):
             return 0
         if self.nogil != other_type.nogil:
             return 0
+        if self.exception_value != other_type.exception_value:
+            return 0
+        if not self.exception_check and other_type.exception_check:
+            # a redundant exception check doesn't make functions incompatible, but a missing one does
+            return 0
         self.original_sig = other_type.original_sig or other_type
         return 1
-
 
     def narrower_c_signature_than(self, other_type, as_cmethod = 0):
         return self.narrower_c_signature_than_resolved_type(other_type.resolve(), as_cmethod)
@@ -2469,6 +2473,11 @@ class CFuncType(CType):
             return 0
         if not self.return_type.subtype_of_resolved_type(other_type.return_type):
             return 0
+        if self.exception_value != other_type.exception_value:
+            return 0
+        if not self.exception_check and other_type.exception_check:
+            # a redundant exception check doesn't make functions incompatible, but a missing one does
+            return 0
         return 1
 
     def same_calling_convention_as(self, other):
@@ -2485,22 +2494,12 @@ class CFuncType(CType):
         sc2 = other.calling_convention == '__stdcall'
         return sc1 == sc2
 
-    def same_exception_signature_as(self, other_type):
-        return self.same_exception_signature_as_resolved_type(
-            other_type.resolve())
-
-    def same_exception_signature_as_resolved_type(self, other_type):
-        return self.exception_value == other_type.exception_value \
-            and self.exception_check == other_type.exception_check
-
     def same_as_resolved_type(self, other_type, as_cmethod = 0):
         return self.same_c_signature_as_resolved_type(other_type, as_cmethod) \
-            and self.same_exception_signature_as_resolved_type(other_type) \
             and self.nogil == other_type.nogil
 
     def pointer_assignable_from_resolved_type(self, other_type):
         return self.same_c_signature_as_resolved_type(other_type) \
-            and self.same_exception_signature_as_resolved_type(other_type) \
             and not (self.nogil and not other_type.nogil)
 
     def declaration_code(self, entity_code,
