@@ -193,20 +193,27 @@ class TemplateTransform(VisitorTransform):
         else:
             return self.visit_Node(node)
 
+
 def copy_code_tree(node):
     return TreeCopier()(node)
 
-INDENT_RE = re.compile(ur"^ *")
+
+_match_indent = re.compile(ur"^ *").match
+
+
 def strip_common_indent(lines):
-    "Strips empty lines and common indentation from the list of strings given in lines"
+    """Strips empty lines and common indentation from the list of strings given in lines"""
     # TODO: Facilitate textwrap.indent instead
     lines = [x for x in lines if x.strip() != u""]
-    minindent = min([len(INDENT_RE.match(x).group(0)) for x in lines])
+    minindent = min([len(_match_indent(x).group(0)) for x in lines])
     lines = [x[minindent:] for x in lines]
     return lines
 
+
 class TreeFragment(object):
-    def __init__(self, code, name="(tree fragment)", pxds={}, temps=[], pipeline=[], level=None, initial_pos=None):
+    def __init__(self, code, name=None, pxds={}, temps=[], pipeline=[], level=None, initial_pos=None):
+        if not name:
+            name = "(tree fragment)"
         if isinstance(code, unicode):
             def fmt(x): return u"\n".join(strip_common_indent(x.split(u"\n")))
 
