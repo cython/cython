@@ -8,6 +8,7 @@ cdef class Method:
     cdef object name
     cdef object __name__
 
+@cython.final
 cdef class CompileTimeScope:
     cdef public dict entries
     cdef public CompileTimeScope outer
@@ -15,6 +16,7 @@ cdef class CompileTimeScope:
     cdef lookup_here(self, name)
     cpdef lookup(self, name)
 
+@cython.final
 cdef class PyrexScanner(Scanner):
     cdef public context
     cdef public list included_files
