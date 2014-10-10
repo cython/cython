@@ -4,6 +4,9 @@ import cython
 
 from ..Plex.Scanners cimport Scanner
 
+cdef get_lexicon()
+cdef initial_compile_time_env()
+
 cdef class Method:
     cdef object name
     cdef object __name__
