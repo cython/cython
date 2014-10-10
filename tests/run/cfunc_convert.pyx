@@ -38,7 +38,7 @@ def return_square_c():
     >>> square_c(x=4)
     16.0
     >>> square_c.__doc__   # FIXME: try to make original C function name available
-    'wrap(x)'
+    "wrap(x: 'double')"
     """
     return square_c
 
@@ -87,6 +87,16 @@ def call_abc(a, b, c):
     """
     cdef object py_func = abc
     return py_func(a, b, c)
+
+def return_abc():
+    """
+    >>> abc = return_abc()
+    >>> abc(2, 3, 5)
+    False
+    >>> abc.__doc__
+    "wrap(a: 'long long', b: 'long long', c: 'long long')"
+    """
+    return abc
 
 
 ctypedef double foo

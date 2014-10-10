@@ -2669,6 +2669,7 @@ class CFuncType(CType):
                 self.type = arg.type
                 self.type_name = 'TYPE%s' % ix
                 self.type_cname = self.type.declaration_code("")
+                self.type_displayname = self.type.declaration_code("", for_display=True)
                 if self.type.is_extension_type or self.type.is_builtin_type:
                     self.type_convert = '<%s>' % self.type_name
                 elif self.type.is_pyobject:
