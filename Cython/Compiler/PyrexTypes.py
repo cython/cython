@@ -2721,6 +2721,7 @@ class CFuncType(CType):
             'maybe_return': maybe_return,
             'except_clause': except_clause,
         }
+        # FIXME: directives come from first defining environment and do not adapt for reuse
         env.use_utility_code(CythonUtilityCode.load(
             "cfunc.to_py", "CFuncConvert.pyx",
             context=context, compiler_directives=dict(env.directives)))
