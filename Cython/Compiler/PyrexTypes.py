@@ -2404,6 +2404,10 @@ class CFuncType(CType):
             return 0
         if not self.same_calling_convention_as(other_type):
             return 0
+        if self.exception_value != other_type.exception_value:
+            return 0
+        if self.exception_check != other_type.exception_check:
+            return 0
         return 1
 
     def compatible_signature_with(self, other_type, as_cmethod = 0):
