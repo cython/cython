@@ -1583,7 +1583,7 @@ class FuncDefNode(StatNode, BlockNode):
         if arg.name in directive_locals:
             type_node = directive_locals[arg.name]
             other_type = type_node.analyse_as_type(env)
-        elif isinstance(arg, CArgDeclNode) and arg.annotation:
+        elif isinstance(arg, CArgDeclNode) and arg.annotation and env.directives['annotation_typing']:
             type_node = arg.annotation
             other_type = arg.inject_type_from_annotations(env)
             if other_type is None:
