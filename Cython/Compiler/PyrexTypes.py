@@ -2659,94 +2659,56 @@ class CFuncType(CType):
         for arg in self.args:
             if not arg.type.is_pyobject and not arg.type.create_from_py_utility_code(env):
                 return False
-            if arg.type.is_extension_type:
-                env.use_utility_code(UtilityCode.load_cached("ExtTypeTest", "ObjectHandling.c"))
+        if not (self.return_type.is_pyobject or self.return_type.is_void or
+                self.return_type.create_to_py_utility_code(env)):
+            return False
 
-        def declared_type(ctype, type_name):
-            py_arg_type = ''
-            type_convert = ''
-            type_cname = ctype.declaration_code("")
+        def declared_type(ctype):
             type_displayname = str(ctype.declaration_code("", for_display=True))
-            if ctype.is_builtin_type:
-                py_arg_type = ctype.name
-            elif ctype.is_extension_type:
-                type_convert = '<%s>' % type_name
-            elif ctype.is_pyobject:
-                type_convert = ''
+            if ctype.is_pyobject:
+                arg_ctype = type_name = type_displayname
+                if ctype.is_builtin_type:
+                    arg_ctype = ctype.name
+                elif not ctype.is_extension_type:
+                    type_name = 'object'
+                    type_displayname = None
+                else:
+                    type_displayname = repr(type_displayname)
             elif ctype is c_bint_type:
-                type_name = py_arg_type = 'bint'
-            elif ctype.is_typedef or ctype.is_struct_or_union:
-                type_convert = '%s_to_py' % type_name
+                type_name = arg_ctype = 'bint'
             else:
-                type_name = py_arg_type = type_displayname
-            return type_name, type_cname, py_arg_type, type_displayname, type_convert
+                type_name = arg_ctype = type_displayname
+                if ctype is c_double_type:
+                    type_displayname = 'float'
+                else:
+                    type_displayname = repr(type_displayname)
+            return type_name, arg_ctype, type_displayname
 
         class Arg(object):
-            def __init__(self, ix, arg):
-                self.ix = ix
-                self.name = arg.name or 'ARG%s' % ix
-                self.type = arg.type
-                self.type_name, self.type_cname, self.py_arg_type, self.type_displayname, self.type_convert = (
-                    declared_type(self.type, 'TYPE%s' % ix))
-
-            def declare_type_def(self):
-                if self.type.is_extension_type or (not self.type.is_pyobject and not self.py_arg_type):
-                    return 'ctypedef void* %s "%s"' % (self.type_name, self.type_cname)
-
-            def declare_type_convert(self):
-                if self.type.is_extension_type:
-                    return 'cdef PyTypeObject* %s_TYPE "%s"' % (self.type_name, self.type.typeptr_cname)
-                elif self.type.is_pyobject:
-                    return ''
-                elif not self.py_arg_type:
-                    return 'cdef %s %s "%s"(object) except *' % (
-                        self.type_name, self.type_convert, self.type.from_py_function)
-
-            def check_type(self):
-                if self.type.is_extension_type:
-                    return '__Pyx_TypeTest(<PyObject*>%s, %s_TYPE)' % (self.name, self.type_name)
+            def __init__(self, arg_name, arg_type):
+                self.name = arg_name
+                self.type = arg_type
+                self.type_cname, self.ctype, self.type_displayname = declared_type(arg_type)
 
         if self.return_type.is_void:
-            return_type = 'void'
-            declare_return_type = ''
-            declare_return_type_convert = ''
-            return_type_displayname = ''
-            maybe_return = ''
             except_clause = 'except *'
+        elif self.return_type.is_pyobject:
+            except_clause = ''
+        elif self.exception_value:
+            except_clause = ('except? %s' if self.exception_check else 'except %s') % self.exception_value
         else:
-            return_type, return_type_cname, return_arg_type, return_type_displayname, _ = (
-                declared_type(self.return_type, 'RETURN_TYPE'))
-            if self.return_type.is_pyobject:
-                to_py = '(PyObject*)'
-                except_clause = ''
-            else:
-                if not self.return_type.create_to_py_utility_code(env):
-                    return False
-                to_py = self.return_type.to_py_function
-                except_clause = 'except *'
-            if return_arg_type:
-                return_type = return_arg_type
-                declare_return_type = ''
-                declare_return_type_convert = ''
-                maybe_return = 'return '
-            else:
-                declare_return_type = 'ctypedef void* RETURN_TYPE "%s"' % return_type_cname
-                declare_return_type_convert = 'cdef object RETURN_TYPE_from_py "%s" (RETURN_TYPE)' % to_py
-                maybe_return = 'return RETURN_TYPE_from_py'
+            except_clause = 'except *'
 
         context = {
             'cname': self.to_py_function,
-            'args': [Arg(ix, arg) for ix, arg in enumerate(self.args)],
-            'return_type': return_type,
-            'return_type_displayname': return_type_displayname,
-            'declare_return_type': declare_return_type,
-            'declare_return_type_convert': declare_return_type_convert,
-            'maybe_return': maybe_return,
+            'args': [Arg(arg.name, arg.type) for arg in self.args],
+            'return_type': Arg('return', self.return_type),
             'except_clause': except_clause,
         }
         # FIXME: directives come from first defining environment and do not adapt for reuse
         env.use_utility_code(CythonUtilityCode.load(
             "cfunc.to_py", "CFuncConvert.pyx",
+            outer_module_scope=env.global_scope(),  # need access to types declared in module
             context=context, compiler_directives=dict(env.directives)))
         return True
 

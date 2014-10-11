@@ -68,7 +68,8 @@ class CythonUtilityCode(Code.UtilityCodeBase):
     is_cython_utility = True
 
     def __init__(self, impl, name="__pyxutil", prefix="", requires=None,
-                 file=None, from_scope=None, context=None, compiler_directives=None):
+                 file=None, from_scope=None, context=None, compiler_directives=None,
+                 outer_module_scope=None):
         # 1) We need to delay the parsing/processing, so that all modules can be
         #    imported without import loops
         # 2) The same utility code object can be used for multiple source files;
@@ -83,6 +84,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         self.prefix = prefix
         self.requires = requires or []
         self.from_scope = from_scope
+        self.outer_module_scope = outer_module_scope
         self.compiler_directives = compiler_directives
 
     def get_tree(self, entries_only=False, cython_scope=None):
@@ -121,6 +123,16 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         if self.from_scope:
             def scope_transform(module_node):
                 module_node.scope.merge_in(self.from_scope)
+                return module_node
+
+            transform = ParseTreeTransforms.AnalyseDeclarationsTransform
+            pipeline = Pipeline.insert_into_pipeline(pipeline, scope_transform,
+                                                     before=transform)
+
+        if self.outer_module_scope:
+            # inject outer module between utility code module and builtin module
+            def scope_transform(module_node):
+                module_node.scope.outer_scope = self.outer_module_scope
                 return module_node
 
             transform = ParseTreeTransforms.AnalyseDeclarationsTransform

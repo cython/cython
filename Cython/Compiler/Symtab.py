@@ -1041,15 +1041,13 @@ class ModuleScope(Scope):
     def global_scope(self):
         return self
 
-    def lookup(self, name):
+    def lookup(self, name, language_level=None):
         entry = self.lookup_here(name)
         if entry is not None:
             return entry
 
-        if self.context is not None:
-            language_level = self.context.language_level
-        else:
-            language_level = 3
+        if language_level is None:
+            language_level = self.context.language_level if self.context is not None else 3
 
         return self.outer_scope.lookup(name, language_level=language_level)
 

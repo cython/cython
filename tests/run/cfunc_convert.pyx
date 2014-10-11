@@ -38,7 +38,7 @@ def return_square_c():
     >>> square_c(x=4)
     16.0
     >>> square_c.__doc__   # FIXME: try to make original C function name available
-    "wrap(x: 'double') -> 'double'"
+    'wrap(x: float) -> float'
     """
     return square_c
 
@@ -51,7 +51,7 @@ def return_libc_sqrt():
     >>> sqrt(x=9)
     3.0
     >>> sqrt.__doc__
-    "wrap(x: 'double') -> 'double'"
+    'wrap(x: float) -> float'
     """
     return sqrt
 
@@ -96,7 +96,7 @@ def return_abc():
     >>> abc(2, 3, 5)
     False
     >>> abc.__doc__
-    "wrap(a: 'long long', b: 'long long', c: 'long long') -> 'bool'"
+    "wrap(a: 'long long', b: 'long long', c: 'long long') -> bool"
     """
     return abc
 
@@ -144,7 +144,7 @@ def return_struct_builder():
     >>> d['y']['a']
     1
     >>> make.__doc__
-    "wrap(which: 'int', a: 'int', b: 'double') -> 'my_struct'"
+    "wrap(which: 'int', a: 'int', b: float) -> 'my_struct'"
     """
     return c_struct_builder
 
@@ -174,6 +174,16 @@ def test_builtin_params(a, b):
     """
     return (<object>test_builtin_params_cfunc)(a, b)
 
+def return_builtin_params_cfunc():
+    """
+    >>> cfunc = return_builtin_params_cfunc()
+    >>> cfunc([1, 2], {'a': 3})
+    ([1, 2], {'a': 3})
+    >>> cfunc.__doc__
+    'wrap(a: list, b: dict) -> tuple'
+    """
+    return test_builtin_params_cfunc
+
 
 cdef class A:
     def __repr__(self):
@@ -192,6 +202,6 @@ def test_cdef_class_params(a, b):
     >>> test_cdef_class_params(B(), A())
     Traceback (most recent call last):
     ...
-    TypeError: Cannot convert cfunc_convert.A to cfunc_convert.B
+    TypeError: Argument 'b' has incorrect type (expected cfunc_convert.B, got cfunc_convert.A)
     """
     return (<object>test_cdef_class_params_cfunc)(a, b)
