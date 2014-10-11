@@ -32,10 +32,10 @@ class StringParseContext(Main.Context):
                               create_testscope=False)
         self.module_name = name
 
-    def find_module(self, module_name, relative_to = None, pos = None, need_pxd = 1):
+    def find_module(self, module_name, relative_to=None, pos=None, need_pxd=1):
         if module_name not in (self.module_name, 'cython'):
             raise AssertionError("Not yet supporting any cimports/includes from string code snippets")
-        return ModuleScope(module_name, parent_module = None, context = self)
+        return ModuleScope(module_name, parent_module=None, context=self)
 
 
 def parse_from_strings(name, code, pxds={}, level=None, initial_pos=None,
@@ -67,7 +67,7 @@ def parse_from_strings(name, code, pxds={}, level=None, initial_pos=None,
         initial_pos = (name, 1, 0)
     code_source = StringSourceDescriptor(name, code)
 
-    scope = context.find_module(module_name, pos = initial_pos, need_pxd = 0)
+    scope = context.find_module(module_name, pos=initial_pos, need_pxd=False)
 
     buf = StringIO(code)
 
