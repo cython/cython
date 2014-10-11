@@ -30,12 +30,11 @@ class NonManglingModuleScope(Symtab.ModuleScope):
         else:
             return Symtab.ModuleScope.mangle(self, prefix)
 
+
 class CythonUtilityCodeContext(StringParseContext):
     scope = None
 
-    def find_module(self, module_name, relative_to = None, pos = None,
-                    need_pxd = 1):
-
+    def find_module(self, module_name, relative_to=None, pos=None, need_pxd=True):
         if module_name != self.module_name:
             if module_name not in self.modules:
                 raise AssertionError("Only the cython cimport is supported.")
@@ -43,10 +42,8 @@ class CythonUtilityCodeContext(StringParseContext):
                 return self.modules[module_name]
 
         if self.scope is None:
-            self.scope = NonManglingModuleScope(self.prefix,
-                                                module_name,
-                                                parent_module=None,
-                                                context=self)
+            self.scope = NonManglingModuleScope(
+                self.prefix, module_name, parent_module=None, context=self)
 
         return self.scope
 
@@ -101,8 +98,8 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         context.prefix = self.prefix
         context.cython_scope = cython_scope
         #context = StringParseContext(self.name)
-        tree = parse_from_strings(self.name, self.impl, context=context,
-                                  allow_struct_enum_decorator=True)
+        tree = parse_from_strings(
+            self.name, self.impl, context=context, allow_struct_enum_decorator=True)
         pipeline = Pipeline.create_pipeline(context, 'pyx', exclude_classes=excludes)
 
         if entries_only:
