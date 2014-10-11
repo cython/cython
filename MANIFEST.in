@@ -5,8 +5,7 @@ include pylintrc
 include setup.py
 include setupegg.py
 include bin/*
-include cython.py
-include cygdb.py
+include cython.py cythonize.py cygdb.py
 recursive-include Cython *.pyx *.pxd
 include Doc/*
 
