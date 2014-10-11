@@ -1,6 +1,7 @@
 # mode: run
 # cython: always_allow_keywords=True
 
+cimport cython
 
 from libc.math cimport sqrt
 
@@ -54,6 +55,22 @@ def return_libc_sqrt():
     'wrap(x: float) -> float'
     """
     return sqrt
+
+
+global_csqrt = sqrt
+
+def test_global():
+    """
+    >>> global_csqrt(9)
+    3.0
+    >>> global_csqrt.__doc__
+    'wrap(x: float) -> float'
+    >>> test_global()
+    double (double) nogil
+    Python object
+    """
+    print cython.typeof(sqrt)
+    print cython.typeof(global_csqrt)
 
 
 cdef long long rad(long long x):
