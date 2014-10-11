@@ -2659,6 +2659,9 @@ class CFuncType(CType):
         for arg in self.args:
             if not arg.type.is_pyobject and not arg.type.create_from_py_utility_code(env):
                 return False
+            # FIXME: it seems we're trying to coerce in more cases than we should - restrict to user triggered cases
+            if not arg.name:
+                return False
         if not (self.return_type.is_pyobject or self.return_type.is_void or
                 self.return_type.create_to_py_utility_code(env)):
             return False
