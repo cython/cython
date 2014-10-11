@@ -8,6 +8,9 @@ Latest
 Features added
 --------------
 
+* C functions can coerce to Python functions, which allows passing them
+  around as callable objects.
+
 * Missing C-API declarations in ``cpython.unicode`` were added.
 
 * Passing ``language='c++'`` into cythonize() globally enables C++ mode for
