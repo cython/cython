@@ -2662,10 +2662,9 @@ class CFuncType(CType):
             if arg.type.is_extension_type:
                 env.use_utility_code(UtilityCode.load_cached("ExtTypeTest", "ObjectHandling.c"))
 
-        def declared_type(ix, ctype):
+        def declared_type(ctype, type_name):
             py_arg_type = ''
             type_convert = ''
-            type_name = 'TYPE%s' % ix
             type_cname = ctype.declaration_code("")
             type_displayname = str(ctype.declaration_code("", for_display=True))
             if ctype.is_builtin_type:
@@ -2674,6 +2673,8 @@ class CFuncType(CType):
                 type_convert = '<%s>' % type_name
             elif ctype.is_pyobject:
                 type_convert = ''
+            elif ctype is c_bint_type:
+                type_name = py_arg_type = 'bint'
             elif ctype.is_typedef or ctype.is_struct_or_union:
                 type_convert = '%s_to_py' % type_name
             else:
@@ -2686,7 +2687,7 @@ class CFuncType(CType):
                 self.name = arg.name or 'ARG%s' % ix
                 self.type = arg.type
                 self.type_name, self.type_cname, self.py_arg_type, self.type_displayname, self.type_convert = (
-                    declared_type(ix, self.type))
+                    declared_type(self.type, 'TYPE%s' % ix))
 
             def declare_type_def(self):
                 if self.type.is_extension_type or (not self.type.is_pyobject and not self.py_arg_type):
@@ -2709,9 +2710,12 @@ class CFuncType(CType):
             return_type = 'void'
             declare_return_type = ''
             declare_return_type_convert = ''
+            return_type_displayname = ''
             maybe_return = ''
             except_clause = 'except *'
         else:
+            return_type, return_type_cname, return_arg_type, return_type_displayname, _ = (
+                declared_type(self.return_type, 'RETURN_TYPE'))
             if self.return_type.is_pyobject:
                 to_py = '(PyObject*)'
                 except_clause = ''
@@ -2720,15 +2724,21 @@ class CFuncType(CType):
                     return False
                 to_py = self.return_type.to_py_function
                 except_clause = 'except *'
-            return_type = 'RETURN_TYPE'
-            declare_return_type = 'ctypedef void* RETURN_TYPE "%s"' % self.return_type.declaration_code('')
-            declare_return_type_convert = 'cdef object RETURN_TYPE_from_py "%s" (RETURN_TYPE)' % to_py
-            maybe_return = 'return RETURN_TYPE_from_py'
+            if return_arg_type:
+                return_type = return_arg_type
+                declare_return_type = ''
+                declare_return_type_convert = ''
+                maybe_return = 'return '
+            else:
+                declare_return_type = 'ctypedef void* RETURN_TYPE "%s"' % return_type_cname
+                declare_return_type_convert = 'cdef object RETURN_TYPE_from_py "%s" (RETURN_TYPE)' % to_py
+                maybe_return = 'return RETURN_TYPE_from_py'
 
         context = {
             'cname': self.to_py_function,
             'args': [Arg(ix, arg) for ix, arg in enumerate(self.args)],
             'return_type': return_type,
+            'return_type_displayname': return_type_displayname,
             'declare_return_type': declare_return_type,
             'declare_return_type_convert': declare_return_type_convert,
             'maybe_return': maybe_return,

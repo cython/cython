@@ -38,7 +38,7 @@ def return_square_c():
     >>> square_c(x=4)
     16.0
     >>> square_c.__doc__   # FIXME: try to make original C function name available
-    "wrap(x: 'double')"
+    "wrap(x: 'double') -> 'double'"
     """
     return square_c
 
@@ -50,6 +50,8 @@ def return_libc_sqrt():
     3.0
     >>> sqrt(x=9)
     3.0
+    >>> sqrt.__doc__
+    "wrap(x: 'double') -> 'double'"
     """
     return sqrt
 
@@ -94,7 +96,7 @@ def return_abc():
     >>> abc(2, 3, 5)
     False
     >>> abc.__doc__
-    "wrap(a: 'long long', b: 'long long', c: 'long long')"
+    "wrap(a: 'long long', b: 'long long', c: 'long long') -> 'bool'"
     """
     return abc
 
@@ -109,6 +111,42 @@ def test_typedef(x):
     100.0
     """
     return (<object>test_typedef_cfunc)(x)
+
+
+cdef union my_union:
+    int a
+    double b
+
+cdef struct my_struct:
+    int which
+    my_union y
+
+cdef my_struct c_struct_builder(int which, int a, double b):
+    cdef my_struct value
+    value.which = which
+    if which:
+        value.y.a = a
+    else:
+        value.y.b = b
+    return value
+
+def return_struct_builder():
+    """
+    >>> make = return_struct_builder()
+    >>> d = make(0, 1, 2)
+    >>> d['which']
+    0
+    >>> d['y']['b']
+    2.0
+    >>> d = make(1, 1, 2)
+    >>> d['which']
+    1
+    >>> d['y']['a']
+    1
+    >>> make.__doc__
+    "wrap(which: 'int', a: 'int', b: 'double') -> 'my_struct'"
+    """
+    return c_struct_builder
 
 
 cdef object test_object_params_cfunc(a, b):
@@ -132,7 +170,7 @@ def test_builtin_params(a, b):
     >>> test_builtin_params(1, 2)
     Traceback (most recent call last):
     ...
-    TypeError: Cannot convert int to list
+    TypeError: Argument 'a' has incorrect type (expected list, got int)
     """
     return (<object>test_builtin_params_cfunc)(a, b)
 

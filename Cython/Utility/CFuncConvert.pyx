@@ -14,7 +14,7 @@ cdef extern from *:
 @cname("{{cname}}")
 cdef object {{cname}}({{return_type}} (*f)({{ ', '.join(arg.type_name for arg in args) }}) {{except_clause}}):
     def wrap({{ ', '.join('{arg.py_arg_type} {arg.name}'.format(arg=arg) for arg in args) }}):
-        """wrap({{', '.join('{arg.name}: {arg.type_displayname!r}'.format(arg=arg) for arg in args)}})"""
+        """wrap({{', '.join('{arg.name}: {arg.type_displayname!r}'.format(arg=arg) for arg in args)}}){{if return_type_displayname}} -> {{repr(return_type_displayname)}}{{endif}}"""
         {{for arg in args}}
         {{arg.check_type()}}
         {{endfor}}
