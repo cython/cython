@@ -310,8 +310,7 @@ class PyrexScanner(Scanner):
             self.compile_time_env = initial_compile_time_env()
             self.compile_time_eval = 1
             self.compile_time_expr = 0
-            if (hasattr(context.options, 'compile_time_env') and
-                    context.options.compile_time_env is not None):
+            if getattr(context.options, 'compile_time_env', None):
                 self.compile_time_env.update(context.options.compile_time_env)
         self.parse_comments = parse_comments
         self.source_encoding = source_encoding
