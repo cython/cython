@@ -2659,39 +2659,50 @@ class CFuncType(CType):
         for arg in self.args:
             if not arg.type.is_pyobject and not arg.type.create_from_py_utility_code(env):
                 return False
-            if arg.type.is_extension_type or arg.type.is_builtin_type:
+            if arg.type.is_extension_type:
                 env.use_utility_code(UtilityCode.load_cached("ExtTypeTest", "ObjectHandling.c"))
+
+        def declared_type(ix, ctype):
+            py_arg_type = ''
+            type_convert = ''
+            type_name = 'TYPE%s' % ix
+            type_cname = ctype.declaration_code("")
+            type_displayname = str(ctype.declaration_code("", for_display=True))
+            if ctype.is_builtin_type:
+                py_arg_type = ctype.name
+            elif ctype.is_extension_type:
+                type_convert = '<%s>' % type_name
+            elif ctype.is_pyobject:
+                type_convert = ''
+            elif ctype.is_typedef or ctype.is_struct_or_union:
+                type_convert = '%s_to_py' % type_name
+            else:
+                type_name = py_arg_type = type_displayname
+            return type_name, type_cname, py_arg_type, type_displayname, type_convert
 
         class Arg(object):
             def __init__(self, ix, arg):
                 self.ix = ix
                 self.name = arg.name or 'ARG%s' % ix
                 self.type = arg.type
-                self.type_name = 'TYPE%s' % ix
-                self.type_cname = self.type.declaration_code("")
-                self.type_displayname = str(self.type.declaration_code("", for_display=True))
-                if self.type.is_extension_type or self.type.is_builtin_type:
-                    self.type_convert = '<%s>' % self.type_name
-                elif self.type.is_pyobject:
-                    self.type_convert = ''
-                else:
-                    self.type_convert = '%s_to_py' % self.type_name
+                self.type_name, self.type_cname, self.py_arg_type, self.type_displayname, self.type_convert = (
+                    declared_type(ix, self.type))
 
             def declare_type_def(self):
-                if self.type.is_extension_type or self.type.is_builtin_type or not self.type.is_pyobject:
+                if self.type.is_extension_type or (not self.type.is_pyobject and not self.py_arg_type):
                     return 'ctypedef void* %s "%s"' % (self.type_name, self.type_cname)
 
             def declare_type_convert(self):
-                if self.type.is_extension_type or self.type.is_builtin_type:
+                if self.type.is_extension_type:
                     return 'cdef PyTypeObject* %s_TYPE "%s"' % (self.type_name, self.type.typeptr_cname)
                 elif self.type.is_pyobject:
                     return ''
-                else:
+                elif not self.py_arg_type:
                     return 'cdef %s %s "%s"(object) except *' % (
                         self.type_name, self.type_convert, self.type.from_py_function)
 
             def check_type(self):
-                if self.type.is_extension_type or self.type.is_builtin_type:
+                if self.type.is_extension_type:
                     return '__Pyx_TypeTest(<PyObject*>%s, %s_TYPE)' % (self.name, self.type_name)
 
         if self.return_type.is_void:
