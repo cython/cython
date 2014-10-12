@@ -8,13 +8,20 @@ from libc.math cimport sqrt
 cdef void empty_cfunc():
     print "here"
 
+# same signature
+cdef void another_empty_cfunc():
+    print "there"
+
 def call_empty_cfunc():
     """
     >>> call_empty_cfunc()
     here
+    there
     """
     cdef object py_func = empty_cfunc
     py_func()
+    cdef object another_py_func = another_empty_cfunc
+    another_py_func()
 
 
 cdef double square_c(double x):

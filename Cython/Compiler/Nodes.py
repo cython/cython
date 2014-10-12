@@ -1302,6 +1302,7 @@ class CVarDefNode(StatNode):
                 if 'staticmethod' in env.directives:
                     type.is_static_method = True
                 if create_extern_wrapper:
+                    self.entry.type.create_to_py_utility_code(env)
                     self.entry.create_wrapper = True
             else:
                 if self.directive_locals:

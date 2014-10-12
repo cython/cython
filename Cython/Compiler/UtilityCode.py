@@ -87,6 +87,18 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         self.outer_module_scope = outer_module_scope
         self.compiler_directives = compiler_directives
 
+    def __eq__(self, other):
+        if isinstance(other, CythonUtilityCode):
+            return self._equality_params() == other._equality_params()
+        else:
+           return False
+
+    def _equality_params(self):
+        return self.impl, self.outer_module_scope, self.compiler_directives
+
+    def __hash__(self):
+        return hash(self.impl)
+
     def get_tree(self, entries_only=False, cython_scope=None):
         from .AnalysedTreeTransforms import AutoTestDictTransform
         # The AutoTestDictTransform creates the statement "__test__ = {}",
