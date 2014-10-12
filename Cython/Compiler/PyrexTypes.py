@@ -2647,6 +2647,7 @@ class CFuncType(CType):
         specialize_entry(entry, cname)
 
     def create_to_py_utility_code(self, env):
+        # FIXME: it seems we're trying to coerce in more cases than we should
         if self.has_varargs or self.optional_arg_count:
             return False
         if self.to_py_function is not None:
@@ -2654,13 +2655,10 @@ class CFuncType(CType):
         from .UtilityCode import CythonUtilityCode
         import re
         safe_typename = re.sub('[^a-zA-Z0-9]', '__', self.declaration_code("", pyrex=1))
-        self.to_py_function = "__Pyx_CFunc_%s_to_py" % safe_typename
+        to_py_function = "__Pyx_CFunc_%s_to_py" % safe_typename
 
         for arg in self.args:
             if not arg.type.is_pyobject and not arg.type.create_from_py_utility_code(env):
-                return False
-            # FIXME: it seems we're trying to coerce in more cases than we should - restrict to user triggered cases
-            if not arg.name:
                 return False
         if not (self.return_type.is_pyobject or self.return_type.is_void or
                 self.return_type.create_to_py_utility_code(env)):
@@ -2703,8 +2701,8 @@ class CFuncType(CType):
             except_clause = 'except *'
 
         context = {
-            'cname': self.to_py_function,
-            'args': [Arg(arg.name, arg.type) for arg in self.args],
+            'cname': to_py_function,
+            'args': [Arg(arg.name or 'arg%s' % ix, arg.type) for ix, arg in enumerate(self.args)],
             'return_type': Arg('return', self.return_type),
             'except_clause': except_clause,
         }
@@ -2713,6 +2711,7 @@ class CFuncType(CType):
             "cfunc.to_py", "CFuncConvert.pyx",
             outer_module_scope=env.global_scope(),  # need access to types declared in module
             context=context, compiler_directives=dict(env.directives)))
+        self.to_py_function = to_py_function
         return True
 
 
