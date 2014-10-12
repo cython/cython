@@ -1236,7 +1236,10 @@ class CConstType(BaseType):
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
-        return self.const_base_type.declaration_code("const %s" % entity_code, for_display, dll_linkage, pyrex)
+        if for_display or pyrex:
+            return "const " + self.const_base_type.declaration_code(entity_code, for_display, dll_linkage, pyrex)
+        else:
+            return self.const_base_type.declaration_code("const %s" % entity_code, for_display, dll_linkage, pyrex)
 
     def specialize(self, values):
         base_type = self.const_base_type.specialize(values)

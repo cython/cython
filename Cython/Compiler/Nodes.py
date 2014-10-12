@@ -1271,13 +1271,12 @@ class CVarDefNode(StatNode):
                     "Non-trivial type declarators in shared declaration (e.g. mix of pointers and values). " +
                     "Each pointer declaration should be on its own line.", 1)
 
-            create_extern_wrapper = False
+            create_extern_wrapper = (self.overridable
+                                        and self.visibility == 'extern'
+                                        and env.is_module_scope)
+            if create_extern_wrapper:
+                declarator.overridable = False
             if isinstance(declarator, CFuncDeclaratorNode):
-                create_extern_wrapper = (self.overridable
-                                            and self.visibility == 'extern'
-                                            and env.is_module_scope)
-                if create_extern_wrapper:
-                    declarator.overridable = False
                 name_declarator, type = declarator.analyse(base_type, env, directive_locals=self.directive_locals)
             else:
                 name_declarator, type = declarator.analyse(base_type, env)
