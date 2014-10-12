@@ -1272,6 +1272,11 @@ class CVarDefNode(StatNode):
                     "Each pointer declaration should be on its own line.", 1)
 
             if isinstance(declarator, CFuncDeclaratorNode):
+                create_extern_wrapper = (self.overridable
+                                            and self.visibility == 'extern'
+                                            and env.is_module_scope)
+                if create_extern_wrapper:
+                    declarator.overridable = False
                 name_declarator, type = declarator.analyse(base_type, env, directive_locals=self.directive_locals)
             else:
                 name_declarator, type = declarator.analyse(base_type, env)
@@ -1296,6 +1301,8 @@ class CVarDefNode(StatNode):
                     self.entry.directive_locals = copy.copy(self.directive_locals)
                 if 'staticmethod' in env.directives:
                     type.is_static_method = True
+                if create_extern_wrapper:
+                    self.entry.create_wrapper = True
             else:
                 if self.directive_locals:
                     error(self.pos, "Decorators can only be followed by functions")

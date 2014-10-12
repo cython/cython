@@ -11,6 +11,10 @@ Features added
 * C functions can coerce to Python functions, which allows passing them
   around as callable objects.
 
+* Extern C functions can now be declared as cpdef to export them to
+  the module's Python namespace.  Extern C functions in pxd files export
+  their values to their own module, iff it exists.
+
 * Missing C-API declarations in ``cpython.unicode`` were added.
 
 * Passing ``language='c++'`` into cythonize() globally enables C++ mode for
