@@ -498,11 +498,14 @@ class CompilationOptions(object):
         # ignore valid options that are not in the defaults
         unknown_options.difference_update(['include_path'])
         if unknown_options:
-            raise ValueError("got unexpected compilation option%s: %s" % (
+            # TODO: make this a hard error in 0.22
+            message = "got unknown compilation option%s, please remove: %s" % (
                 's' if len(unknown_options) > 1 else '',
-                ', '.join(unknown_options)))
+                ', '.join(unknown_options))
+            import warnings
+            warnings.warn(message)
 
-        directives = dict(options['compiler_directives']) # copy mutable field
+        directives = dict(options['compiler_directives'])  # copy mutable field
         options['compiler_directives'] = directives
         if 'language_level' in directives and 'language_level' not in kw:
             options['language_level'] = int(directives['language_level'])

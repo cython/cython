@@ -46,6 +46,13 @@ Bugs fixed
 
 * Allow arrays of C++ classes.
 
+Other changes
+-------------
+
+* Compilation no longer fails hard when unknown compilation options are passed.
+  Instead, it raises a warning and ignores them (as it did silently before 0.21).
+
+
 
 0.21 (2014-09-10)
 =================
