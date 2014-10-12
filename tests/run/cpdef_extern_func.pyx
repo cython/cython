@@ -22,5 +22,5 @@ cdef extern from "math.h":
     cpdef double pyx_sqrt "sqrt"(double)
     cdef double log(double) # not wrapped
 
-cdef extern from "string.h":
-    cpdef char* strchr(const char *haystack, int needle);
+# cdef extern from "string.h":
+#     cpdef char* strchr(const char *haystack, int needle);
