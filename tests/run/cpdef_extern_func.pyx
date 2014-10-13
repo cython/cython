@@ -12,7 +12,10 @@ __doc__ = """
 Traceback (most recent call last):
 ...
 NameError: name 'log' is not defined
+"""
 
+# Broken in gcc.
+"""
 >>> strchr('abcabc', ord('c'))
 'cabc'
 """
