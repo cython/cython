@@ -187,7 +187,13 @@ Static typing
 
 * Starting with Cython 0.21, Python signature annotations can be used to
   declare argument types.  Cython recognises three ways to do this, as
-  shown in the following example::
+  shown in the following example.  Note that it currently needs to be
+  enabled explicitly with the directive ``annotation_typing=True``.
+  This might change in a later version.
+
+  ::
+
+    # cython: annotation_typing=True
 
     def func(plain_python_type: dict,
              named_python_type: 'dict',

@@ -23,16 +23,19 @@ from . import UtilNodes
 
 
 class StringParseContext(Main.Context):
-    def __init__(self, name, include_directories=None):
-        if include_directories is None: include_directories = []
-        Main.Context.__init__(self, include_directories, {},
+    def __init__(self, name, include_directories=None, compiler_directives=None):
+        if include_directories is None:
+            include_directories = []
+        if compiler_directives is None:
+            compiler_directives = {}
+        Main.Context.__init__(self, include_directories, compiler_directives,
                               create_testscope=False)
         self.module_name = name
 
-    def find_module(self, module_name, relative_to = None, pos = None, need_pxd = 1):
+    def find_module(self, module_name, relative_to=None, pos=None, need_pxd=1):
         if module_name not in (self.module_name, 'cython'):
             raise AssertionError("Not yet supporting any cimports/includes from string code snippets")
-        return ModuleScope(module_name, parent_module = None, context = self)
+        return ModuleScope(module_name, parent_module=None, context=self)
 
 
 def parse_from_strings(name, code, pxds={}, level=None, initial_pos=None,
@@ -64,7 +67,7 @@ def parse_from_strings(name, code, pxds={}, level=None, initial_pos=None,
         initial_pos = (name, 1, 0)
     code_source = StringSourceDescriptor(name, code)
 
-    scope = context.find_module(module_name, pos = initial_pos, need_pxd = 0)
+    scope = context.find_module(module_name, pos=initial_pos, need_pxd=False)
 
     buf = StringIO(code)
 
@@ -190,20 +193,27 @@ class TemplateTransform(VisitorTransform):
         else:
             return self.visit_Node(node)
 
+
 def copy_code_tree(node):
     return TreeCopier()(node)
 
-INDENT_RE = re.compile(ur"^ *")
+
+_match_indent = re.compile(ur"^ *").match
+
+
 def strip_common_indent(lines):
-    "Strips empty lines and common indentation from the list of strings given in lines"
+    """Strips empty lines and common indentation from the list of strings given in lines"""
     # TODO: Facilitate textwrap.indent instead
     lines = [x for x in lines if x.strip() != u""]
-    minindent = min([len(INDENT_RE.match(x).group(0)) for x in lines])
+    minindent = min([len(_match_indent(x).group(0)) for x in lines])
     lines = [x[minindent:] for x in lines]
     return lines
 
+
 class TreeFragment(object):
-    def __init__(self, code, name="(tree fragment)", pxds={}, temps=[], pipeline=[], level=None, initial_pos=None):
+    def __init__(self, code, name=None, pxds={}, temps=[], pipeline=[], level=None, initial_pos=None):
+        if not name:
+            name = "(tree fragment)"
         if isinstance(code, unicode):
             def fmt(x): return u"\n".join(strip_common_indent(x.split(u"\n")))
 

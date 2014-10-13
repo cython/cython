@@ -1594,9 +1594,11 @@ def refactor_for_py3(distdir, cy3_dir):
                      recursive-include Cython/Debugger/Tests *
                      recursive-include Cython/Utility *
                      recursive-exclude pyximport test
+                     include Tools/*.py
                      include pyximport/*.py
                      include runtests.py
                      include cython.py
+                     include cythonize.py
                      ''')
     sys.path.insert(0, cy3_dir)
 
@@ -1951,6 +1953,8 @@ def runtests(options, cmd_args, coverage=None):
 
     try:
         import jedi
+        if list(map(int, re.findall('[0-9]+', jedi.__version__))) < [0, 8, 1]:
+            raise ImportError
     except ImportError:
         exclude_selectors.append(RegExSelector('Jedi'))
 

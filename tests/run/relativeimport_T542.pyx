@@ -15,6 +15,7 @@ def test_relative():
     """
     from . import cmd, core
     from . import (version, core)
+    from . import (version, core,)
     from .version import __name__
     return cmd, core, __name__
 

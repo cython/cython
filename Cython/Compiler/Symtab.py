@@ -303,7 +303,7 @@ class Scope(object):
         self.name = name
         self.outer_scope = outer_scope
         self.parent_scope = parent_scope
-        mangled_name = "%d%s_" % (len(name), name)
+        mangled_name = "%d%s_" % (len(name), name.replace('.', '_dot_'))
         qual_scope = self.qualifying_scope()
         if qual_scope:
             self.qualified_name = qual_scope.qualify_name(name)
@@ -1041,15 +1041,13 @@ class ModuleScope(Scope):
     def global_scope(self):
         return self
 
-    def lookup(self, name):
+    def lookup(self, name, language_level=None):
         entry = self.lookup_here(name)
         if entry is not None:
             return entry
 
-        if self.context is not None:
-            language_level = self.context.language_level
-        else:
-            language_level = 3
+        if language_level is None:
+            language_level = self.context.language_level if self.context is not None else 3
 
         return self.outer_scope.lookup(name, language_level=language_level)
 

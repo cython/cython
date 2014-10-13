@@ -99,9 +99,7 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
     char *code = 0;
 
     if (!globals || globals == Py_None) {
-        globals = PyModule_GetDict($module_cname);
-        if (!globals)
-            goto bad;
+        globals = $moddict_cname;
     } else if (!PyDict_Check(globals)) {
         PyErr_Format(PyExc_TypeError, "exec() arg 2 must be a dict, not %.200s",
                      Py_TYPE(globals)->tp_name);
@@ -368,6 +366,16 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewItems(PyObject* d) {
 static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
     if (it) {
         PyObject* result;
+#if CYTHON_COMPILING_IN_PYPY
+        // PyPy currently lacks PyFrozenSet_CheckExact() and PyFrozenSet_New()
+        PyObject* args;
+        args = PyTuple_Pack(1, it);
+        if (unlikely(!args))
+            return NULL;
+        result = PyObject_Call((PyObject*)&PyFrozenSet_Type, args, NULL);
+        Py_DECREF(args);
+        return result;
+#else
         if (PyFrozenSet_CheckExact(it)) {
             Py_INCREF(it);
             return it;
@@ -380,10 +388,11 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
         // empty frozenset is a singleton
         // seems wasteful, but CPython does the same
         Py_DECREF(result);
+#endif
     }
-    #if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON
     return PyFrozenSet_Type.tp_new(&PyFrozenSet_Type, $empty_tuple, NULL);
-    #else
+#else
     return PyObject_Call((PyObject*)&PyFrozenSet_Type, $empty_tuple, NULL);
-    #endif
+#endif
 }

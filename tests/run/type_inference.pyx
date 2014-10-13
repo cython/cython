@@ -495,6 +495,32 @@ def safe_c_functions():
     assert 2 == f(1)
 
 @infer_types(None)
+def ptr_types():
+    """
+    >>> ptr_types()
+    """
+    cdef int a
+    a_ptr = &a
+    assert typeof(a_ptr) == "int *", typeof(a_ptr)
+    a_ptr_ptr = &a_ptr
+    assert typeof(a_ptr_ptr) == "int **", typeof(a_ptr_ptr)
+    cdef int[1] b
+    b_ref = b
+    assert typeof(b_ref) == "int *", typeof(b_ref)
+    ptr = &a
+    ptr = b
+    assert typeof(ptr) == "int *", typeof(ptr)
+
+def const_types(const double x, double y, double& z):
+    """
+    >>> const_types(1, 1, 1)
+    """
+    a = x
+    a = y
+    a = z
+    assert typeof(a) == "double", typeof(a)
+
+@infer_types(None)
 def args_tuple_keywords(*args, **kwargs):
     """
     >>> args_tuple_keywords(1,2,3, a=1, b=2)

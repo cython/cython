@@ -458,7 +458,7 @@ def p_call_parse_args(s, allow_genexp = True):
         s.next()
         starstar_arg = p_test(s)
         if s.sy == ',':
-            s.next()
+            s.next()  # FIXME: this is actually not valid Python syntax
     s.expect(')')
     return positional_args, keyword_args, star_arg, starstar_arg
 
@@ -1226,7 +1226,7 @@ def p_pass_statement(s, with_newline = 0):
     pos = s.position()
     s.expect('pass')
     if with_newline:
-        s.expect_newline("Expected a newline")
+        s.expect_newline("Expected a newline", ignore_semicolon=True)
     return Nodes.PassStatNode(pos)
 
 def p_break_statement(s):
@@ -1793,7 +1793,7 @@ def p_DEF_statement(s):
     value = expr.compile_time_value(denv)
     #print "p_DEF_statement: %s = %r" % (name, value) ###
     denv.declare(name, value)
-    s.expect_newline()
+    s.expect_newline("Expected a newline", ignore_semicolon=True)
     return Nodes.PassStatNode(pos)
 
 def p_IF_statement(s, ctx):
@@ -1950,7 +1950,7 @@ def p_suite_with_docstring(s, ctx, with_doc_only=False):
             body = p_simple_statement_list(s, ctx)
         else:
             body = p_pass_statement(s)
-            s.expect_newline("Syntax error in declarations")
+            s.expect_newline("Syntax error in declarations", ignore_semicolon=True)
     if not with_doc_only:
         doc, body = _extract_docstring(body)
     return doc, body
@@ -2285,6 +2285,7 @@ special_basic_c_types = cython.declare(dict, {
     # name : (signed, longness)
     "Py_UNICODE" : (0, 0),
     "Py_UCS4"    : (0, 0),
+    "Py_hash_t"  : (2, 0),
     "Py_ssize_t" : (2, 0),
     "ssize_t"    : (2, 0),
     "size_t"     : (0, 0),
@@ -2842,7 +2843,7 @@ def p_c_func_or_var_declaration(s, pos, ctx):
                                         assignable = 1, nonempty = 1)
             declarators.append(declarator)
         doc_line = s.start_line + 1
-        s.expect_newline("Syntax error in C variable declaration")
+        s.expect_newline("Syntax error in C variable declaration", ignore_semicolon=True)
         if ctx.level in ('c_class', 'c_class_pxd') and s.start_line == doc_line:
             doc = p_doc_string(s)
         else:
@@ -2876,7 +2877,7 @@ def p_ctypedef_statement(s, ctx):
     else:
         base_type = p_c_base_type(s, nonempty = 1)
         declarator = p_c_declarator(s, ctx, is_type = 1, nonempty = 1)
-        s.expect_newline("Syntax error in ctypedef statement")
+        s.expect_newline("Syntax error in ctypedef statement", ignore_semicolon=True)
         return Nodes.CTypeDefNode(
             pos, base_type = base_type,
             declarator = declarator,
@@ -3090,8 +3091,7 @@ def p_ignorable_statement(s):
     if s.sy == 'BEGIN_STRING':
         pos = s.position()
         string_node = p_atom(s)
-        if s.sy != 'EOF':
-            s.expect_newline("Syntax error in string")
+        s.expect_newline("Syntax error in string", ignore_semicolon=True)
         return Nodes.ExprStatNode(pos, expr=string_node)
     return None
 
@@ -3100,8 +3100,7 @@ def p_doc_string(s):
     if s.sy == 'BEGIN_STRING':
         pos = s.position()
         kind, bytes_result, unicode_result = p_cat_string_literal(s)
-        if s.sy != 'EOF':
-            s.expect_newline("Syntax error in doc string")
+        s.expect_newline("Syntax error in doc string", ignore_semicolon=True)
         if kind in ('u', ''):
             return unicode_result
         warning(pos, "Python 3 requires docstrings to be unicode strings")

@@ -613,15 +613,15 @@ static PyMemberDef __pyx_Generator_memberlist[] = {
 };
 
 static PyMethodDef __pyx_Generator_methods[] = {
-    {__Pyx_NAMESTR("send"), (PyCFunction) __Pyx_Generator_Send, METH_O, 0},
-    {__Pyx_NAMESTR("throw"), (PyCFunction) __Pyx_Generator_Throw, METH_VARARGS, 0},
-    {__Pyx_NAMESTR("close"), (PyCFunction) __Pyx_Generator_Close, METH_NOARGS, 0},
+    {"send", (PyCFunction) __Pyx_Generator_Send, METH_O, 0},
+    {"throw", (PyCFunction) __Pyx_Generator_Throw, METH_VARARGS, 0},
+    {"close", (PyCFunction) __Pyx_Generator_Close, METH_NOARGS, 0},
     {0, 0, 0, 0}
 };
 
 static PyTypeObject __pyx_GeneratorType_type = {
     PyVarObject_HEAD_INIT(0, 0)
-    __Pyx_NAMESTR("generator"),         /*tp_name*/
+    "generator",                        /*tp_name*/
     sizeof(__pyx_GeneratorObject),      /*tp_basicsize*/
     0,                                  /*tp_itemsize*/
     (destructor) __Pyx_Generator_dealloc,/*tp_dealloc*/

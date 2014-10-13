@@ -46,7 +46,6 @@
 
 #define __PYX_BUILD_PY_SSIZE_T "n"
 #define CYTHON_FORMAT_SSIZE_T "z"
-#define __Pyx_PyIndex_Check PyIndex_Check
 
 #if PY_MAJOR_VERSION < 3
   #define __Pyx_BUILTIN_MODULE_NAME "__builtin__"
@@ -63,9 +62,6 @@
 #if PY_MAJOR_VERSION >= 3
   #define Py_TPFLAGS_CHECKTYPES 0
   #define Py_TPFLAGS_HAVE_INDEX 0
-#endif
-
-#if PY_MAJOR_VERSION >= 3
   #define Py_TPFLAGS_HAVE_NEWBUFFER 0
 #endif
 
@@ -97,13 +93,16 @@
 #if CYTHON_COMPILING_IN_PYPY
   #define __Pyx_PyUnicode_Concat(a, b)      PyNumber_Add(a, b)
   #define __Pyx_PyUnicode_ConcatSafe(a, b)  PyNumber_Add(a, b)
+  // PyPy doesn't handle frozenset() in PySet_Size()
+  #define __Pyx_PyFrozenSet_Size(s)         PyObject_Size(s)
 #else
   #define __Pyx_PyUnicode_Concat(a, b)      PyUnicode_Concat(a, b)
   #define __Pyx_PyUnicode_ConcatSafe(a, b)  ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
       PyNumber_Add(a, b) : __Pyx_PyUnicode_Concat(a, b))
+  #define __Pyx_PyFrozenSet_Size(s)         PySet_Size(s)
 #endif
 
-#define __Pyx_PyString_FormatSafe(a, b)  ((unlikely((a) == Py_None)) ? PyNumber_Remainder(a, b) : __Pyx_PyString_Format(a, b))
+#define __Pyx_PyString_FormatSafe(a, b)   ((unlikely((a) == Py_None)) ? PyNumber_Remainder(a, b) : __Pyx_PyString_Format(a, b))
 #define __Pyx_PyUnicode_FormatSafe(a, b)  ((unlikely((a) == Py_None)) ? PyNumber_Remainder(a, b) : PyUnicode_Format(a, b))
 
 #if PY_MAJOR_VERSION >= 3
@@ -124,8 +123,7 @@
   #define __Pyx_PyBaseString_Check(obj) PyUnicode_Check(obj)
   #define __Pyx_PyBaseString_CheckExact(obj) PyUnicode_CheckExact(obj)
 #else
-  #define __Pyx_PyBaseString_Check(obj) (PyString_CheckExact(obj) || PyUnicode_CheckExact(obj) || \
-                                         PyString_Check(obj) || PyUnicode_Check(obj))
+  #define __Pyx_PyBaseString_Check(obj) (PyString_Check(obj) || PyUnicode_Check(obj))
   #define __Pyx_PyBaseString_CheckExact(obj) (PyString_CheckExact(obj) || PyUnicode_CheckExact(obj))
 #endif
 
@@ -157,6 +155,12 @@
   #define PyBoolObject                 PyLongObject
 #endif
 
+#if PY_MAJOR_VERSION >= 3 && CYTHON_COMPILING_IN_PYPY
+  #ifndef PyUnicode_InternFromString
+    #define PyUnicode_InternFromString(s) PyUnicode_FromString(s)
+  #endif
+#endif
+
 #if PY_VERSION_HEX < 0x030200A4
   typedef long Py_hash_t;
   #define __Pyx_PyInt_FromHash_t PyInt_FromLong
@@ -167,19 +171,9 @@
 #endif
 
 #if PY_MAJOR_VERSION >= 3
-  #define PyMethod_New(func, self, klass) ((self) ? PyMethod_New(func, self) : PyInstanceMethod_New(func))
-#endif
-
-#define __Pyx_GetAttrString(o,n)   PyObject_GetAttrString((o),(n))
-#define __Pyx_SetAttrString(o,n,a) PyObject_SetAttrString((o),(n),(a))
-#define __Pyx_DelAttrString(o,n)   PyObject_DelAttrString((o),(n))
-
-#if PY_VERSION_HEX < 0x02050000
-  #define __Pyx_NAMESTR(n) ((char *)(n))
-  #define __Pyx_DOCSTR(n)  ((char *)(n))
+  #define __Pyx_PyMethod_New(func, self, klass) ((self) ? PyMethod_New(func, self) : PyInstanceMethod_New(func))
 #else
-  #define __Pyx_NAMESTR(n) (n)
-  #define __Pyx_DOCSTR(n)  (n)
+  #define __Pyx_PyMethod_New(func, self, klass) PyMethod_New(func, self, klass)
 #endif
 
 /* inline attribute */
@@ -510,7 +504,7 @@ static int __Pyx_RegisterCleanup(void) {
     // and cached objects that we are about to clean up.
 
     static PyMethodDef cleanup_def = {
-        __Pyx_NAMESTR("__cleanup"), (PyCFunction)${cleanup_cname}_atexit, METH_NOARGS, 0};
+        "__cleanup", (PyCFunction)${cleanup_cname}_atexit, METH_NOARGS, 0};
 
     PyObject *cleanup_func = 0;
     PyObject *atexit = 0;
@@ -526,7 +520,7 @@ static int __Pyx_RegisterCleanup(void) {
     atexit = __Pyx_ImportModule("atexit");
     if (!atexit)
         goto bad;
-    reg = __Pyx_GetAttrString(atexit, "_exithandlers");
+    reg = PyObject_GetAttrString(atexit, "_exithandlers");
     if (reg && PyList_Check(reg)) {
         PyObject *a, *kw;
         a = PyTuple_New(0);
@@ -546,7 +540,7 @@ static int __Pyx_RegisterCleanup(void) {
         if (!reg)
             PyErr_Clear();
         Py_XDECREF(reg);
-        reg = __Pyx_GetAttrString(atexit, "register");
+        reg = PyObject_GetAttrString(atexit, "register");
         if (!reg)
             goto bad;
         args = PyTuple_Pack(1, cleanup_func);

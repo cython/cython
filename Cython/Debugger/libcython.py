@@ -2,7 +2,7 @@
 GDB extension that adds Cython support.
 """
 
-from __future__ import with_statement
+from __future__ import print_function
 
 import sys
 import textwrap
@@ -54,6 +54,7 @@ PythonObject = 'PythonObject'
 _data_types = dict(CObject=CObject, PythonObject=PythonObject)
 _filesystemencoding = sys.getfilesystemencoding() or 'UTF-8'
 
+
 # decorators
 
 def dont_suppress_errors(function):
@@ -67,6 +68,7 @@ def dont_suppress_errors(function):
             raise
 
     return wrapper
+
 
 def default_selected_gdb_frame(err=True):
     def decorator(function):
@@ -84,6 +86,7 @@ def default_selected_gdb_frame(err=True):
         return wrapper
     return decorator
 
+
 def require_cython_frame(function):
     @functools.wraps(function)
     @require_running_program
@@ -94,6 +97,7 @@ def require_cython_frame(function):
                                'Cython function we know about.')
         return function(self, *args, **kwargs)
     return wrapper
+
 
 def dispatch_on_frame(c_command, python_command=None):
     def decorator(function):
@@ -114,6 +118,7 @@ def dispatch_on_frame(c_command, python_command=None):
 
         return wrapper
     return decorator
+
 
 def require_running_program(function):
     @functools.wraps(function)
@@ -152,6 +157,7 @@ class CythonModule(object):
         self.lineno_c2cy = {}
         self.functions = {}
 
+
 class CythonVariable(object):
 
     def __init__(self, name, cname, qualified_name, type, lineno):
@@ -160,6 +166,7 @@ class CythonVariable(object):
         self.qualified_name = qualified_name
         self.type = type
         self.lineno = int(lineno)
+
 
 class CythonFunction(CythonVariable):
     def __init__(self,
@@ -297,7 +304,7 @@ class CythonBase(object):
         try:
             source_desc, lineno = self.get_source_desc(frame)
         except NoFunctionNameInFrameError:
-            print '#%-2d Unknown Frame (compile with -g)' % index
+            print('#%-2d Unknown Frame (compile with -g)' % index)
             return
 
         if not is_c and self.is_python_function(frame):
@@ -381,10 +388,9 @@ class CythonBase(object):
             typename = '(%s) ' % (value.type,)
 
         if max_name_length is None:
-            print '%s%s = %s%s' % (prefix, name, typename, value)
+            print('%s%s = %s%s' % (prefix, name, typename, value))
         else:
-            print '%s%-*s = %s%s' % (prefix, max_name_length, name, typename,
-                                     value)
+            print('%s%-*s = %s%s' % (prefix, max_name_length, name, typename, value))
 
     def is_initialized(self, cython_func, local_name):
         cyvar = cython_func.locals[local_name]
@@ -473,12 +479,14 @@ class CyGDBError(gdb.GdbError):
         args = args or (self.msg,)
         super(CyGDBError, self).__init__(*args)
 
+
 class NoCythonFunctionInFrameError(CyGDBError):
     """
     raised when the user requests the current cython function, which is
     unavailable
     """
     msg = "Current function is a function cygdb doesn't know about"
+
 
 class NoFunctionNameInFrameError(NoCythonFunctionInFrameError):
     """
@@ -509,20 +517,24 @@ class CythonParameter(gdb.Parameter):
     __nonzero__ = __bool__  # Python 2
 
 
+
 class CompleteUnqualifiedFunctionNames(CythonParameter):
     """
     Have 'cy break' complete unqualified function or method names.
     """
+
 
 class ColorizeSourceCode(CythonParameter):
     """
     Tell cygdb whether to colorize source code.
     """
 
+
 class TerminalBackground(CythonParameter):
     """
     Tell cygdb about the user's terminal background (light or dark).
     """
+
 
 class CythonParameters(object):
     """
@@ -636,7 +648,7 @@ class CyCy(CythonCommand):
             cy_eval = CyEval('cy_eval'),
         )
 
-        for command_name, command in commands.iteritems():
+        for command_name, command in commands.items():
             command.cy = self
             setattr(self, command_name, command)
 
@@ -672,9 +684,8 @@ class CyImport(CythonCommand):
         for arg in string_to_argv(args):
             try:
                 f = open(arg)
-            except OSError, e:
-                raise gdb.GdbError('Unable to open file %r: %s' %
-                                                (args, e.args[1]))
+            except OSError as e:
+                raise gdb.GdbError('Unable to open file %r: %s' % (args, e.args[1]))
 
             t = etree.parse(f)
 
@@ -782,9 +793,9 @@ class CyBreak(CythonCommand):
 
             if len(funcs) > 1:
                 # multiple functions, let the user pick one
-                print 'There are multiple such functions:'
+                print('There are multiple such functions:')
                 for idx, func in enumerate(funcs):
-                    print '%3d) %s' % (idx, func.qualified_name)
+                    print('%3d) %s' % (idx, func.qualified_name))
 
                 while True:
                     try:
@@ -800,11 +811,11 @@ class CyBreak(CythonCommand):
                             break_funcs = funcs
                             break
                         elif (result.isdigit() and
-                            0 <= int(result) < len(funcs)):
+                                0 <= int(result) < len(funcs)):
                             break_funcs = [funcs[int(result)]]
                             break
                         else:
-                            print 'Not understood...'
+                            print('Not understood...')
             else:
                 break_funcs = [funcs[0]]
 
@@ -977,7 +988,7 @@ class CyUp(CythonCommand):
             gdb.execute(self._command, to_string=True)
             while not self.is_relevant_function(gdb.selected_frame()):
                 gdb.execute(self._command, to_string=True)
-        except RuntimeError, e:
+        except RuntimeError as e:
             raise gdb.GdbError(*e.args)
 
         frame = gdb.selected_frame()
@@ -1020,7 +1031,7 @@ class CySelect(CythonCommand):
 
         try:
             gdb.execute('select %d' % (stackdepth - stackno - 1,))
-        except RuntimeError, e:
+        except RuntimeError as e:
             raise gdb.GdbError(*e.args)
 
 
@@ -1070,7 +1081,7 @@ class CyList(CythonCommand):
         sd, lineno = self.get_source_desc()
         source = sd.get_source(lineno - 5, lineno + 5, mark_line=lineno,
                                lex_entire=True)
-        print source
+        print(source)
 
 
 class CyPrint(CythonCommand):
@@ -1104,7 +1115,8 @@ class CyPrint(CythonCommand):
             return []
 
 
-sortkey = lambda (name, value): name.lower()
+sortkey = lambda item: item[0].lower()
+
 
 class CyLocals(CythonCommand):
     """
@@ -1157,13 +1169,13 @@ class CyGlobals(CyLocals):
         max_name_length = max(max_globals_len, max_globals_dict_len)
 
         seen = set()
-        print 'Python globals:'
+        print('Python globals:')
         for k, v in sorted(global_python_dict.iteritems(), key=sortkey):
             v = v.get_truncated_repr(libpython.MAX_OUTPUT_LEN)
             seen.add(k)
-            print '    %-*s = %s' % (max_name_length, k, v)
+            print('    %-*s = %s' % (max_name_length, k, v))
 
-        print 'C globals:'
+        print('C globals:')
         for name, cyvar in sorted(module_globals.iteritems(), key=sortkey):
             if name not in seen:
                 try:
@@ -1174,7 +1186,6 @@ class CyGlobals(CyLocals):
                     if not value.is_optimized_out:
                         self.print_gdb_value(cyvar.name, value,
                                              max_name_length, '    ')
-
 
 
 class EvaluateOrExecuteCodeMixin(object):
@@ -1227,7 +1238,6 @@ class EvaluateOrExecuteCodeMixin(object):
             frame = frame.older()
 
         raise gdb.GdbError("There is no Cython or Python frame on the stack.")
-
 
     def _evalcode_cython(self, executor, code, input_type):
         with libpython.FetchAndRestoreError():
@@ -1383,6 +1393,7 @@ class CyEval(gdb.Function, CythonBase, EvaluateOrExecuteCodeMixin):
 cython_info = CythonInfo()
 cy = CyCy.register()
 cython_info.cy = cy
+
 
 def register_defines():
     libpython.source_gdb_script(textwrap.dedent("""\

@@ -4,7 +4,7 @@
 #################### string.from_py ####################
 
 cdef extern from *:
-    cdef cppclass string "std::string":
+    cdef cppclass string "{{type}}":
         string()
         string(char* c_str, size_t size)
     cdef char* __Pyx_PyObject_AsStringAndSize(object, Py_ssize_t*) except NULL
@@ -21,14 +21,29 @@ cdef string {{cname}}(object o) except *:
 #cimport cython
 #from libcpp.string cimport string
 cdef extern from *:
-    cdef cppclass string "std::string":
+    cdef cppclass string "{{type}}":
         char* data()
         size_t size()
     cdef object __Pyx_PyObject_FromStringAndSize(char*, size_t)
+    cdef object __Pyx_PyBytes_FromStringAndSize(char*, size_t)
+    cdef object __Pyx_PyByteArray_FromStringAndSize(char*, size_t)
+    cdef object __Pyx_PyUnicode_FromStringAndSize(char*, size_t)
 
 @cname("{{cname}}")
-cdef object {{cname}}(const string& s):
+cdef inline object {{cname}}(const string& s):
     return __Pyx_PyObject_FromStringAndSize(s.data(), s.size())
+
+@cname("{{cname.replace("PyObject", "PyUnicode", 1)}}")
+cdef inline object {{cname.replace("PyObject", "PyUnicode", 1)}}(const string& s):
+    return __Pyx_PyUnicode_FromStringAndSize(s.data(), s.size())
+
+@cname("{{cname.replace("PyObject", "PyBytes", 1)}}")
+cdef inline object {{cname.replace("PyObject", "PyBytes", 1)}}(const string& s):
+    return __Pyx_PyBytes_FromStringAndSize(s.data(), s.size())
+
+@cname("{{cname.replace("PyObject", "PyByteArray", 1)}}")
+cdef inline object {{cname.replace("PyObject", "PyByteArray", 1)}}(const string& s):
+    return __Pyx_PyByteArray_FromStringAndSize(s.data(), s.size())
 
 
 #################### vector.from_py ####################

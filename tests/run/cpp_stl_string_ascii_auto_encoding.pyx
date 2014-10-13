@@ -68,6 +68,7 @@ def test_clear(a):
     s.clear()
     return s
 
+
 def test_assign(char *a):
     """
     >>> test_assign(b_asdf) == 'ggg'
@@ -76,3 +77,64 @@ def test_assign(char *a):
     cdef string s = string(a)
     s.assign(<char *>"ggg")
     return s.c_str()
+
+
+def test_bytes_cast(a):
+    """
+    >>> b = test_bytes_cast(b'abc')
+    >>> isinstance(b, bytes)
+    True
+    >>> print(b.decode('ascii'))
+    abc
+    >>> b = test_bytes_cast(b'abc\\xe4\\xfc')
+    >>> isinstance(b, bytes)
+    True
+    >>> len(b)
+    5
+    >>> print(b[:3].decode('ascii'))
+    abc
+    >>> print(ord(b[3:4]))
+    228
+    >>> print(ord(b[4:5]))
+    252
+    """
+    cdef string s = a
+    assert s.length() == <size_t>len(a), "%d != %d" % (s.length(), len(a))
+    return <bytes>s
+
+
+def test_bytearray_cast(a):
+    """
+    >>> b = test_bytearray_cast(b'abc')
+    >>> isinstance(b, bytearray)
+    True
+    >>> print(b.decode('ascii'))
+    abc
+    >>> b = test_bytearray_cast(b'abc\\xe4\\xfc')
+    >>> isinstance(b, bytearray)
+    True
+    >>> len(b)
+    5
+    >>> print(b[:3].decode('ascii'))
+    abc
+    >>> print(ord(b[3:4]))
+    228
+    >>> print(ord(b[4:5]))
+    252
+    """
+    cdef string s = a
+    assert s.length() == <size_t>len(a), "%d != %d" % (s.length(), len(a))
+    return <bytearray>s
+
+
+def test_unicode_cast(a):
+    """
+    >>> u = test_unicode_cast(b'abc')
+    >>> type(u) is type(u_asdf) or type(u)
+    True
+    >>> print(u)
+    abc
+    """
+    cdef string s = a
+    assert s.length() == <size_t>len(a), "%d != %d" % (s.length(), len(a))
+    return <unicode>s

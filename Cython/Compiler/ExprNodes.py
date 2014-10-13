@@ -1384,10 +1384,8 @@ class UnicodeNode(ConstNode):
                         data_cname,
                         data_cname,
                         code.error_goto_if_null(self.result_code, self.pos)))
-                code.putln("#if CYTHON_PEP393_ENABLED")
                 code.put_error_if_neg(
-                    self.pos, "PyUnicode_READY(%s)" % self.result_code)
-                code.putln("#endif")
+                    self.pos, "__Pyx_PyUnicode_READY(%s)" % self.result_code)
             else:
                 self.result_code = code.get_py_string_const(self.value)
         else:
@@ -4253,19 +4251,6 @@ class SliceNode(ExprNode):
         code.put_gotref(self.py_result())
         if self.is_literal:
             code.put_giveref(self.py_result())
-
-    def __deepcopy__(self, memo):
-        """
-        There is a copy bug in python 2.4 for slice objects.
-        """
-        return SliceNode(
-            self.pos,
-            start=copy.deepcopy(self.start, memo),
-            stop=copy.deepcopy(self.stop, memo),
-            step=copy.deepcopy(self.step, memo),
-            is_temp=self.is_temp,
-            is_literal=self.is_literal,
-            constant_result=self.constant_result)
 
 
 class CallNode(ExprNode):
@@ -7533,7 +7518,7 @@ class BoundMethodNode(ExprNode):
 
     def generate_result_code(self, code):
         code.putln(
-            "%s = PyMethod_New(%s, %s, (PyObject*)%s->ob_type); %s" % (
+            "%s = __Pyx_PyMethod_New(%s, %s, (PyObject*)%s->ob_type); %s" % (
                 self.result(),
                 self.function.py_result(),
                 self.self_object.py_result(),
@@ -7565,7 +7550,7 @@ class UnboundMethodNode(ExprNode):
     def generate_result_code(self, code):
         class_cname = code.pyclass_stack[-1].classobj.result()
         code.putln(
-            "%s = PyMethod_New(%s, 0, %s); %s" % (
+            "%s = __Pyx_PyMethod_New(%s, 0, %s); %s" % (
                 self.result(),
                 self.function.py_result(),
                 class_cname,
@@ -7798,7 +7783,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 self.get_py_qualified_name(code),
                 self.self_result_code(),
                 self.get_py_mod_name(code),
-                "PyModule_GetDict(%s)" % Naming.module_cname,
+                Naming.moddict_cname,
                 code_object_result,
                 code.error_goto_if_null(self.result(), self.pos)))
 
@@ -9923,7 +9908,7 @@ class BoolBinopNode(ExprNode):
             operator=self.operator,
             operand1=operand1, operand2=operand2)
 
-    def generate_bool_evaluation_code(self, code, final_result_temp, and_label, or_label, end_label):
+    def generate_bool_evaluation_code(self, code, final_result_temp, and_label, or_label, end_label, fall_through):
         code.mark_pos(self.pos)
 
         outer_labels = (and_label, or_label)
@@ -9931,20 +9916,21 @@ class BoolBinopNode(ExprNode):
             my_label = and_label = code.new_label('next_and')
         else:
             my_label = or_label = code.new_label('next_or')
-        self.operand1.generate_bool_evaluation_code(code, final_result_temp, and_label, or_label, end_label)
+        self.operand1.generate_bool_evaluation_code(
+            code, final_result_temp, and_label, or_label, end_label, my_label)
 
         and_label, or_label = outer_labels
 
         code.put_label(my_label)
-        self.operand2.generate_bool_evaluation_code(code, final_result_temp, and_label, or_label, end_label)
+        self.operand2.generate_bool_evaluation_code(
+            code, final_result_temp, and_label, or_label, end_label, fall_through)
 
     def generate_evaluation_code(self, code):
         self.allocate_temp_result(code)
         or_label = and_label = None
         end_label = code.new_label('bool_binop_done')
-        self.generate_bool_evaluation_code(code, self.result(), and_label, or_label, end_label)
-        if code.label_used(end_label):
-            code.put_label(end_label)
+        self.generate_bool_evaluation_code(code, self.result(), and_label, or_label, end_label, end_label)
+        code.put_label(end_label)
 
     gil_message = "Truth-testing Python object"
 
@@ -10028,7 +10014,7 @@ class BoolBinopResultNode(ExprNode):
             test_result = self.arg.result()
         return (test_result, self.arg.type.is_pyobject)
 
-    def generate_bool_evaluation_code(self, code, final_result_temp, and_label, or_label, end_label):
+    def generate_bool_evaluation_code(self, code, final_result_temp, and_label, or_label, end_label, fall_through):
         code.mark_pos(self.pos)
 
         # x => x
@@ -10040,31 +10026,43 @@ class BoolBinopResultNode(ExprNode):
         self.arg.generate_evaluation_code(code)
         if and_label or or_label:
             test_result, uses_temp = self.generate_operand_test(code)
+            if uses_temp and (and_label and or_label):
+                # cannot become final result => free early
+                # disposal: uses_temp and (and_label and or_label)
+                self.arg.generate_disposal_code(code)
             sense = '!' if or_label else ''
             code.putln("if (%s%s) {" % (sense, test_result))
             if uses_temp:
                 code.funcstate.release_temp(test_result)
-            self.arg.generate_disposal_code(code)
+            if not uses_temp or not (and_label and or_label):
+                # disposal: (not uses_temp) or {not (and_label and or_label) [if]}
+                self.arg.generate_disposal_code(code)
 
-            if or_label:
+            if or_label and or_label != fall_through:
                 # value is false => short-circuit to next 'or'
                 code.put_goto(or_label)
-                code.putln("} else {")
             if and_label:
                 # value is true => go to next 'and'
-                code.put_goto(and_label)
-                if not or_label:
+                if or_label:
                     code.putln("} else {")
+                    if not uses_temp:
+                        # disposal: (not uses_temp) and {(and_label and or_label) [else]}
+                        self.arg.generate_disposal_code(code)
+                if and_label != fall_through:
+                    code.put_goto(and_label)
 
         if not and_label or not or_label:
             # if no next 'and' or 'or', we provide the result
+            if and_label or or_label:
+                code.putln("} else {")
             self.value.generate_evaluation_code(code)
             self.value.make_owned_reference(code)
             code.putln("%s = %s;" % (final_result_temp, self.value.result()))
             self.value.generate_post_assignment_code(code)
+            # disposal: {not (and_label and or_label) [else]}
             self.arg.generate_disposal_code(code)
             self.value.free_temps(code)
-            if and_label or or_label:
+            if end_label != fall_through:
                 code.put_goto(end_label)
 
         if and_label or or_label:
@@ -10156,7 +10154,10 @@ class CondExprNode(ExprNode):
 
     def eval_and_get(self, code, expr):
         expr.generate_evaluation_code(code)
-        expr.make_owned_reference(code)
+        if self.type.is_memoryviewslice:
+            expr.make_owned_memoryviewslice(code)
+        else:
+            expr.make_owned_reference(code)
         code.putln('%s = %s;' % (self.result(), expr.result_as(self.ctype())))
         expr.generate_post_assignment_code(code)
         expr.free_temps(code)
@@ -11172,9 +11173,9 @@ class CoerceToPyTypeNode(CoercionNode):
             func = arg_type.to_py_function
             if arg_type.is_string or arg_type.is_cpp_string:
                 if self.type in (bytes_type, str_type, unicode_type):
-                    func = func.replace("Object", self.type.name.title())
+                    func = func.replace("Object", self.type.name.title(), 1)
                 elif self.type is bytearray_type:
-                    func = func.replace("Object", "ByteArray")
+                    func = func.replace("Object", "ByteArray", 1)
             funccall = "%s(%s)" % (func, self.arg.result())
 
         code.putln('%s = %s; %s' % (

@@ -213,6 +213,13 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
     PyErr_SetObject(type, value);
 
     if (tb) {
+#if CYTHON_COMPILING_IN_PYPY
+        PyObject *tmp_type, *tmp_value, *tmp_tb;
+        PyErr_Fetch(tmp_type, tmp_value, tmp_tb);
+        Py_INCREF(tb);
+        PyErr_Restore(tmp_type, tmp_value, tb);
+        Py_XDECREF(tmp_tb);
+#else
         PyThreadState *tstate = PyThreadState_GET();
         PyObject* tmp_tb = tstate->curexc_traceback;
         if (tb != tmp_tb) {
@@ -220,6 +227,7 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
             tstate->curexc_traceback = tb;
             Py_XDECREF(tmp_tb);
         }
+#endif
     }
 
 bad:
@@ -504,7 +512,6 @@ bad:
 static void __Pyx_AddTraceback(const char *funcname, int c_line,
                                int py_line, const char *filename) {
     PyCodeObject *py_code = 0;
-    PyObject *py_globals = 0;
     PyFrameObject *py_frame = 0;
 
     py_code = $global_code_object_cache_find(c_line ? c_line : py_line);
@@ -514,12 +521,10 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
         if (!py_code) goto bad;
         $global_code_object_cache_insert(c_line ? c_line : py_line, py_code);
     }
-    py_globals = PyModule_GetDict($module_cname);
-    if (!py_globals) goto bad;
     py_frame = PyFrame_New(
         PyThreadState_GET(), /*PyThreadState *tstate,*/
         py_code,             /*PyCodeObject *code,*/
-        py_globals,          /*PyObject *globals,*/
+        $moddict_cname,      /*PyObject *globals,*/
         0                    /*PyObject *locals*/
     );
     if (!py_frame) goto bad;

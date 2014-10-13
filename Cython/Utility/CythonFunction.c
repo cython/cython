@@ -423,7 +423,7 @@ __Pyx_CyFunction_reduce(__pyx_CyFunctionObject *m, CYTHON_UNUSED PyObject *args)
 }
 
 static PyMethodDef __pyx_CyFunction_methods[] = {
-    {__Pyx_NAMESTR("__reduce__"), (PyCFunction)__Pyx_CyFunction_reduce, METH_VARARGS, 0},
+    {"__reduce__", (PyCFunction)__Pyx_CyFunction_reduce, METH_VARARGS, 0},
     {0, 0, 0, 0}
 };
 
@@ -545,13 +545,12 @@ static PyObject *__Pyx_CyFunction_descr_get(PyObject *func, PyObject *obj, PyObj
     if (m->flags & __Pyx_CYFUNCTION_CLASSMETHOD) {
         if (type == NULL)
             type = (PyObject *)(Py_TYPE(obj));
-        return PyMethod_New(func,
-                            type, (PyObject *)(Py_TYPE(type)));
+        return __Pyx_PyMethod_New(func, type, (PyObject *)(Py_TYPE(type)));
     }
 
     if (obj == Py_None)
         obj = NULL;
-    return PyMethod_New(func, obj, type);
+    return __Pyx_PyMethod_New(func, obj, type);
 }
 
 static PyObject*
@@ -623,7 +622,7 @@ static PyObject * __Pyx_CyFunction_Call(PyObject *func, PyObject *arg, PyObject 
 
 static PyTypeObject __pyx_CyFunctionType_type = {
     PyVarObject_HEAD_INIT(0, 0)
-    __Pyx_NAMESTR("cython_function_or_method"), /*tp_name*/
+    "cython_function_or_method",      /*tp_name*/
     sizeof(__pyx_CyFunctionObject),   /*tp_basicsize*/
     0,                                  /*tp_itemsize*/
     (destructor) __Pyx_CyFunction_dealloc, /*tp_dealloc*/
@@ -1063,7 +1062,7 @@ static PyMemberDef __pyx_FusedFunction_members[] = {
      T_OBJECT,
      offsetof(__pyx_FusedFunctionObject, __signatures__),
      READONLY,
-     __Pyx_DOCSTR(0)},
+     0},
     {0, 0, 0, 0, 0},
 };
 
@@ -1075,7 +1074,7 @@ static PyMappingMethods __pyx_FusedFunction_mapping_methods = {
 
 static PyTypeObject __pyx_FusedFunctionType_type = {
     PyVarObject_HEAD_INIT(0, 0)
-    __Pyx_NAMESTR("fused_cython_function"), /*tp_name*/
+    "fused_cython_function",           /*tp_name*/
     sizeof(__pyx_FusedFunctionObject), /*tp_basicsize*/
     0,                                  /*tp_itemsize*/
     (destructor) __pyx_FusedFunction_dealloc, /*tp_dealloc*/
@@ -1157,7 +1156,7 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
     // It appears that PyMethodDescr_Type is not anywhere exposed in the Python/C API
     static PyTypeObject *methoddescr_type = NULL;
     if (methoddescr_type == NULL) {
-       PyObject *meth = __Pyx_GetAttrString((PyObject*)&PyList_Type, "append");
+       PyObject *meth = PyObject_GetAttrString((PyObject*)&PyList_Type, "append");
        if (!meth) return NULL;
        methoddescr_type = Py_TYPE(meth);
        Py_DECREF(meth);

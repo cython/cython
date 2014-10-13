@@ -1775,7 +1775,8 @@ class InlineDefNodeCalls(Visitor.NodeRefCleanupMixin, Visitor.EnvTransform):
         return node
 
 
-class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
+class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
+                           Visitor.MethodDispatcherTransform):
     """Optimize some common methods calls and instantiation patterns
     for builtin types *after* the type analysis phase.
 
@@ -2061,17 +2062,18 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
                     temps.append(arg)
                 args.append(arg)
             result = ExprNodes.SetNode(node.pos, is_temp=1, args=args)
+            self.replace(node, result)
             for temp in temps[::-1]:
                 result = UtilNodes.EvalWithTempExprNode(temp, result)
             return result
         else:
             # PySet_New(it) is better than a generic Python call to set(it)
-            return ExprNodes.PythonCapiCallNode(
+            return self.replace(node, ExprNodes.PythonCapiCallNode(
                 node.pos, "PySet_New",
                 self.PySet_New_func_type,
                 args=pos_args,
                 is_temp=node.is_temp,
-                py_name="set")
+                py_name="set"))
 
     PyFrozenSet_New_func_type = PyrexTypes.CFuncType(
         Builtin.frozenset_type, [
@@ -2195,7 +2197,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         Builtin.tuple_type     : "PyTuple_GET_SIZE",
         Builtin.dict_type      : "PyDict_Size",
         Builtin.set_type       : "PySet_Size",
-        Builtin.frozenset_type : "PySet_Size",
+        Builtin.frozenset_type : "__Pyx_PyFrozenSet_Size",
         }.get
 
     _ext_types_with_pysize = set(["cpython.array.array"])
@@ -2274,11 +2276,14 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         if len(pos_args) != 2:
             return node
         arg, types = pos_args
-        temp = None
+        temps = []
         if isinstance(types, ExprNodes.TupleNode):
             types = types.args
+            if len(types) == 1 and not types[0].type is Builtin.type_type:
+                return node  # nothing to improve here
             if arg.is_attribute or not arg.is_simple():
-                arg = temp = UtilNodes.ResultRefNode(arg)
+                arg = UtilNodes.ResultRefNode(arg)
+                temps.append(arg)
         elif types.type is Builtin.type_type:
             types = [types]
         else:
@@ -2309,13 +2314,17 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
                 type_check_function = '__Pyx_TypeCheck'
                 type_check_args = [arg, test_type_node]
             else:
-                return node
+                if not test_type_node.is_literal:
+                    test_type_node = UtilNodes.ResultRefNode(test_type_node)
+                    temps.append(test_type_node)
+                type_check_function = 'PyObject_IsInstance'
+                type_check_args = [arg, test_type_node]
             test_nodes.append(
                 ExprNodes.PythonCapiCallNode(
                     test_type_node.pos, type_check_function, self.Py_type_check_func_type,
-                    args = type_check_args,
-                    is_temp = True,
-                    ))
+                    args=type_check_args,
+                    is_temp=True,
+                ))
 
         def join_with_or(a, b, make_binop_node=ExprNodes.binop_node):
             or_node = make_binop_node(node.pos, 'or', a, b)
@@ -2324,7 +2333,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             return or_node
 
         test_node = reduce(join_with_or, test_nodes).coerce_to(node.type, env)
-        if temp is not None:
+        for temp in temps[::-1]:
             test_node = UtilNodes.EvalWithTempExprNode(temp, test_node)
         return test_node
 
@@ -3764,7 +3773,8 @@ class FinalOptimizePhase(Visitor.CythonTransform, Visitor.NodeRefCleanupMixin):
                     function.type = function.entry.type
                     PyTypeObjectPtr = PyrexTypes.CPtrType(cython_scope.lookup('PyTypeObject').type)
                     node.args[1] = ExprNodes.CastNode(node.args[1], PyTypeObjectPtr)
-        elif node.is_temp and function.type.is_pyobject:
+        elif (self.current_directives.get("optimize.unpack_method_calls")
+                and node.is_temp and function.type.is_pyobject):
             # optimise simple Python methods calls
             if isinstance(node.arg_tuple, ExprNodes.TupleNode) and not (
                     node.arg_tuple.mult_factor or (node.arg_tuple.is_literal and node.arg_tuple.args)):

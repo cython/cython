@@ -145,6 +145,8 @@ def parse_args(args):
                       help='set a cythonize option')
     parser.add_option('-3', dest='python3_mode', action='store_true',
                       help='use Python 3 syntax mode by default')
+    parser.add_option('-a', '--annotate', dest='annotate', action='store_true',
+                      help='generate annotated HTML page for source files')
 
     parser.add_option('-x', '--exclude', metavar='PATTERN', dest='excludes',
                       action='append', default=[],
@@ -187,6 +189,9 @@ def main(args=None):
         # increase Python compatibility by ignoring compile time errors
         Options.error_on_unknown_names = False
         Options.error_on_uninitialized = False
+
+    if options.annotate:
+        Options.annotate = True
 
     for path in paths:
         cython_compile(path, options)

@@ -46,7 +46,6 @@ non_portable_builtins_map = {
     'basestring'    : ('PY_MAJOR_VERSION >= 3', 'str'),
     'xrange'        : ('PY_MAJOR_VERSION >= 3', 'range'),
     'raw_input'     : ('PY_MAJOR_VERSION >= 3', 'input'),
-    'BaseException' : ('PY_VERSION_HEX < 0x02050000', 'Exception'),
     }
 
 basicsize_builtins_map = {
@@ -1920,7 +1919,7 @@ class CCodeWriter(object):
             if entry.is_special:
                 method_flags += [method_coexist]
             self.putln(
-                '{__Pyx_NAMESTR("%s"), (PyCFunction)%s, %s, __Pyx_DOCSTR(%s)}%s' % (
+                '{"%s", (PyCFunction)%s, %s, %s}%s' % (
                     entry.name,
                     entry.func_cname,
                     "|".join(method_flags),

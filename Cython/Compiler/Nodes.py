@@ -531,7 +531,7 @@ class CArrayDeclaratorNode(CDeclaratorNode):
     child_attrs = ["base", "dimension"]
 
     def analyse(self, base_type, env, nonempty = 0):
-        if base_type.is_cpp_class or base_type.is_cfunction:
+        if (base_type.is_cpp_class and base_type.is_template_type()) or base_type.is_cfunction:
             from .ExprNodes import TupleNode
             if isinstance(self.dimension, TupleNode):
                 args = self.dimension.args
@@ -1090,7 +1090,7 @@ class TemplatedTypeNode(CBaseTypeNode):
             base_type = self.base_type_node.analyse(env)
         if base_type.is_error: return base_type
 
-        if base_type.is_cpp_class:
+        if base_type.is_cpp_class and base_type.is_template_type():
             # Templated class
             if self.keyword_args and self.keyword_args.key_value_pairs:
                 error(self.pos, "c++ templates cannot take keyword arguments")
@@ -1271,6 +1271,11 @@ class CVarDefNode(StatNode):
                     "Non-trivial type declarators in shared declaration (e.g. mix of pointers and values). " +
                     "Each pointer declaration should be on its own line.", 1)
 
+            create_extern_wrapper = (self.overridable
+                                        and self.visibility == 'extern'
+                                        and env.is_module_scope)
+            if create_extern_wrapper:
+                declarator.overridable = False
             if isinstance(declarator, CFuncDeclaratorNode):
                 name_declarator, type = declarator.analyse(base_type, env, directive_locals=self.directive_locals)
             else:
@@ -1296,6 +1301,9 @@ class CVarDefNode(StatNode):
                     self.entry.directive_locals = copy.copy(self.directive_locals)
                 if 'staticmethod' in env.directives:
                     type.is_static_method = True
+                if create_extern_wrapper:
+                    self.entry.type.create_to_py_utility_code(env)
+                    self.entry.create_wrapper = True
             else:
                 if self.directive_locals:
                     error(self.pos, "Decorators can only be followed by functions")
@@ -1321,8 +1329,6 @@ class CStructOrUnionDefNode(StatNode):
     child_attrs = ["attributes"]
 
     def declare(self, env, scope=None):
-        if self.visibility == 'extern' and self.packed and not scope:
-            error(self.pos, "Cannot declare extern struct as 'packed'")
         self.entry = env.declare_struct_or_union(
             self.name, self.kind, scope, self.typedef_flag, self.pos,
             self.cname, visibility = self.visibility, api = self.api,
@@ -1585,7 +1591,7 @@ class FuncDefNode(StatNode, BlockNode):
         if arg.name in directive_locals:
             type_node = directive_locals[arg.name]
             other_type = type_node.analyse_as_type(env)
-        elif isinstance(arg, CArgDeclNode) and arg.annotation:
+        elif isinstance(arg, CArgDeclNode) and arg.annotation and env.directives['annotation_typing']:
             type_node = arg.annotation
             other_type = arg.inject_type_from_annotations(env)
             if other_type is None:

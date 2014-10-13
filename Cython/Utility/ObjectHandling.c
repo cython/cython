@@ -1288,26 +1288,30 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObjec
 //@requires: PyObjectCall
 
 #if CYTHON_COMPILING_IN_CPYTHON
-static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObject *arg) {
-    if (likely(PyCFunction_Check(func)
-#ifdef __Pyx_CyFunction_USED
-            || PyObject_TypeCheck(func, __pyx_CyFunctionType)
-#endif
-            ) && likely(PyCFunction_GET_FLAGS(func) & METH_O)) {
-        // fast and simple case that we are optimising for
-        return __Pyx_PyObject_CallMethO(func, arg);
-    } else {
-        PyObject *result;
-        PyObject *args = PyTuple_New(1);
-        if (unlikely(!args)) return NULL;
-        Py_INCREF(arg);
-        PyTuple_SET_ITEM(args, 0, arg);
-        result = __Pyx_PyObject_Call(func, args, NULL);
-        Py_DECREF(args);
-        return result;
-    }
+static PyObject* __Pyx__PyObject_CallOneArg(PyObject *func, PyObject *arg) {
+    PyObject *result;
+    PyObject *args = PyTuple_New(1);
+    if (unlikely(!args)) return NULL;
+    Py_INCREF(arg);
+    PyTuple_SET_ITEM(args, 0, arg);
+    result = __Pyx_PyObject_Call(func, args, NULL);
+    Py_DECREF(args);
+    return result;
 }
 
+static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObject *arg) {
+#ifdef __Pyx_CyFunction_USED
+    if (likely(PyCFunction_Check(func) || PyObject_TypeCheck(func, __pyx_CyFunctionType))) {
+#else
+    if (likely(PyCFunction_Check(func))) {
+#endif
+        if (likely(PyCFunction_GET_FLAGS(func) & METH_O)) {
+            // fast and simple case that we are optimising for
+            return __Pyx_PyObject_CallMethO(func, arg);
+        }
+    }
+    return __Pyx__PyObject_CallOneArg(func, arg);
+}
 #else
 static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObject *arg) {
     PyObject* args = PyTuple_Pack(1, arg);
@@ -1333,16 +1337,17 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func); /*proto
 
 #if CYTHON_COMPILING_IN_CPYTHON
 static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func) {
-    if (likely(PyCFunction_Check(func)
 #ifdef __Pyx_CyFunction_USED
-           || PyObject_TypeCheck(func, __pyx_CyFunctionType)
+    if (likely(PyCFunction_Check(func) || PyObject_TypeCheck(func, __pyx_CyFunctionType))) {
+#else
+    if (likely(PyCFunction_Check(func))) {
 #endif
-            ) && likely(PyCFunction_GET_FLAGS(func) & METH_NOARGS)) {
-        // fast and simple case that we are optimising for
-        return __Pyx_PyObject_CallMethO(func, NULL);
-    } else {
-        return __Pyx_PyObject_Call(func, $empty_tuple, NULL);
+        if (likely(PyCFunction_GET_FLAGS(func) & METH_NOARGS)) {
+            // fast and simple case that we are optimising for
+            return __Pyx_PyObject_CallMethO(func, NULL);
+        }
     }
+    return __Pyx_PyObject_Call(func, $empty_tuple, NULL);
 }
 #endif
 
@@ -1353,54 +1358,83 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func) {
   #define __Pyx_PyNumber_MatrixMultiply(x,y)         PyNumber_MatrixMultiply(x,y)
   #define __Pyx_PyNumber_InPlaceMatrixMultiply(x,y)  PyNumber_InPlaceMatrixMultiply(x,y)
 #else
-static PyObject* __Pyx_PyNumber_MatrixMultiply(PyObject* x, PyObject* y);
+#define __Pyx_PyNumber_MatrixMultiply(x,y)         __Pyx__PyNumber_MatrixMultiply(x, y, "@")
+static PyObject* __Pyx__PyNumber_MatrixMultiply(PyObject* x, PyObject* y, const char* op_name);
 static PyObject* __Pyx_PyNumber_InPlaceMatrixMultiply(PyObject* x, PyObject* y);
 #endif
 
 /////////////// MatrixMultiply ///////////////
 //@requires: PyObjectGetAttrStr
+//@requires: PyObjectCallOneArg
 
 #if PY_VERSION_HEX < 0x03050000
-static PyObject* __Pyx_PyNumber_MatrixMultiply(PyObject* x, PyObject* y) {
-    PyObject *func;
-    // FIXME: make subtype aware
-    // see note at https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types
-    func = __Pyx_PyObject_GetAttrStr(x, PYIDENT("__matmul__"));
-    if (func) {
-        PyObject *result = PyObject_CallFunctionObjArgs(func, y, NULL);
-        Py_DECREF(func);
-        if (result != Py_NotImplemented)
+static PyObject* __Pyx_PyObject_CallMatrixMethod(PyObject* method, PyObject* arg) {
+    // NOTE: eats the method reference
+    PyObject *result = NULL;
+#if CYTHON_COMPILING_IN_CPYTHON
+    if (likely(PyMethod_Check(method))) {
+        PyObject *self = PyMethod_GET_SELF(method);
+        if (likely(self)) {
+            PyObject *args;
+            PyObject *function = PyMethod_GET_FUNCTION(method);
+            args = PyTuple_New(2);
+            if (unlikely(!args)) goto bad;
+            Py_INCREF(self);
+            PyTuple_SET_ITEM(args, 0, self);
+            Py_INCREF(arg);
+            PyTuple_SET_ITEM(args, 1, arg);
+            Py_INCREF(function);
+            Py_DECREF(method); method = NULL;
+            result = __Pyx_PyObject_Call(function, args, NULL);
+            Py_DECREF(args);
+            Py_DECREF(function);
             return result;
-        Py_DECREF(result);
-    } else {
-        if (!PyErr_ExceptionMatches(PyExc_AttributeError))
-            return NULL;
-        PyErr_Clear();
+        }
     }
-    func = __Pyx_PyObject_GetAttrStr(y, PYIDENT("__rmatmul__"));
-    if (func) {
-        PyObject *result = PyObject_CallFunctionObjArgs(func, x, NULL);
-        Py_DECREF(func);
-        return result;
+#endif
+    result = __Pyx_PyObject_CallOneArg(method, arg);
+bad:
+    Py_DECREF(method);
+    return result;
+}
+
+#define __Pyx_TryMatrixMethod(x, y, py_method_name) {                   \
+    PyObject *func = __Pyx_PyObject_GetAttrStr(x, py_method_name);      \
+    if (func) {                                                         \
+        PyObject *result = __Pyx_PyObject_CallMatrixMethod(func, y);    \
+        if (result != Py_NotImplemented)                                \
+            return result;                                              \
+        Py_DECREF(result);                                              \
+    } else {                                                            \
+        if (!PyErr_ExceptionMatches(PyExc_AttributeError))              \
+            return NULL;                                                \
+        PyErr_Clear();                                                  \
+    }                                                                   \
+}
+
+static PyObject* __Pyx__PyNumber_MatrixMultiply(PyObject* x, PyObject* y, const char* op_name) {
+    int right_is_subtype = PyObject_IsSubclass((PyObject*)Py_TYPE(y), (PyObject*)Py_TYPE(x));
+    if (right_is_subtype) {
+        // to allow subtypes to override parent behaviour, try reversed operation first
+        // see note at https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types
+        __Pyx_TryMatrixMethod(y, x, PYIDENT("__rmatmul__"))
     }
-    Py_INCREF(Py_NotImplemented);
-    return Py_NotImplemented;
+    __Pyx_TryMatrixMethod(x, y, PYIDENT("__matmul__"))
+    if (!right_is_subtype) {
+        __Pyx_TryMatrixMethod(y, x, PYIDENT("__rmatmul__"))
+    }
+    PyErr_Format(PyExc_TypeError,
+                 "unsupported operand type(s) for %.2s: '%.100s' and '%.100s'",
+                 op_name,
+                 Py_TYPE(x)->tp_name,
+                 Py_TYPE(y)->tp_name);
+    return NULL;
 }
 
 static PyObject* __Pyx_PyNumber_InPlaceMatrixMultiply(PyObject* x, PyObject* y) {
-    PyObject *func;
-    func = __Pyx_PyObject_GetAttrStr(x, PYIDENT("__imatmul__"));
-    if (func) {
-        PyObject *result = PyObject_CallFunctionObjArgs(func, y, NULL);
-        Py_DECREF(func);
-        if (result != Py_NotImplemented)
-            return result;
-        Py_DECREF(result);
-    } else {
-        if (!PyErr_ExceptionMatches(PyExc_AttributeError))
-            return NULL;
-        PyErr_Clear();
-    }
-    return __Pyx_PyNumber_MatrixMultiply(x, y);
+    __Pyx_TryMatrixMethod(x, y, PYIDENT("__imatmul__"))
+    return __Pyx__PyNumber_MatrixMultiply(x, y, "@=");
 }
+
+#undef __Pyx_TryMatrixMethod
 #endif

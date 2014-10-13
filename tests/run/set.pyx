@@ -144,6 +144,22 @@ def test_object_pop(s):
     return s.pop()
 
 
+def test_noop_pop():
+    """
+    >>> test_noop_pop()
+    """
+    set([0]).pop()
+
+
+def test_noop_pop_exception():
+    """
+    >>> try: test_noop_pop_exception()
+    ... except KeyError: pass
+    ... else: print("KeyError expected but not raised!")
+    """
+    set([]).pop()
+
+
 def test_set_discard():
     """
     >>> type(test_set_discard()) is _set

@@ -170,10 +170,8 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
         Py_ssize_t length;
         int kind;
         void *data1, *data2;
-        #if CYTHON_PEP393_ENABLED
-        if (unlikely(PyUnicode_READY(s1) < 0) || unlikely(PyUnicode_READY(s2) < 0))
+        if (unlikely(__Pyx_PyUnicode_READY(s1) < 0) || unlikely(__Pyx_PyUnicode_READY(s2) < 0))
             return -1;
-        #endif
         length = __Pyx_PyUnicode_GET_LENGTH(s1);
         if (length != __Pyx_PyUnicode_GET_LENGTH(s2)) {
             goto return_ne;
@@ -346,9 +344,7 @@ static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Fast(PyObject* ustring, Py
 static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Fast(PyObject* ustring, Py_ssize_t i,
                                                            int wraparound, int boundscheck) {
     Py_ssize_t length;
-#if CYTHON_PEP393_ENABLED
     if (unlikely(__Pyx_PyUnicode_READY(ustring) < 0)) return (Py_UCS4)-1;
-#endif
     if (wraparound | boundscheck) {
         length = __Pyx_PyUnicode_GET_LENGTH(ustring);
         if (wraparound & unlikely(i < 0)) i += length;
@@ -483,12 +479,8 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
 static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
             PyObject* text, Py_ssize_t start, Py_ssize_t stop) {
     Py_ssize_t length;
-#if CYTHON_PEP393_ENABLED
-    if (unlikely(PyUnicode_READY(text) == -1)) return NULL;
-    length = PyUnicode_GET_LENGTH(text);
-#else
-    length = PyUnicode_GET_SIZE(text);
-#endif
+    if (unlikely(__Pyx_PyUnicode_READY(text) == -1)) return NULL;
+    length = __Pyx_PyUnicode_GET_LENGTH(text);
     if (start < 0) {
         start += length;
         if (start < 0)
@@ -716,6 +708,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyBytes_Join(PyObject* sep, PyObject* value
 static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyObject* value);
 
 //////////////////// ByteArrayAppendObject ////////////////////
+//@requires: TypeConversion.c::PyLongInternals
 //@requires: ByteArrayAppend
 
 static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyObject* value) {
@@ -728,6 +721,17 @@ static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyO
         }
         ival = (unsigned char) (PyString_AS_STRING(value)[0]);
     } else
+#else
+#if CYTHON_USE_PYLONG_INTERNALS
+    if (likely(PyLong_CheckExact(value)) && likely(Py_SIZE(value) == 1 || Py_SIZE(value) == 0)) {
+        if (Py_SIZE(value) == 0) {
+            ival = 0;
+        } else {
+            ival = ((PyLongObject*)value)->ob_digit[0];
+            if (unlikely(ival > 255)) goto bad_range;
+        }
+    } else
+#endif
 #endif
     {
         // CPython calls PyNumber_Index() internally
@@ -735,11 +739,13 @@ static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyO
         if (unlikely((ival < 0) | (ival > 255))) {
             if (ival == -1 && PyErr_Occurred())
                 return -1;
-            PyErr_SetString(PyExc_ValueError, "byte must be in range(0, 256)");
-            return -1;
+            goto bad_range;
         }
     }
     return __Pyx_PyByteArray_Append(bytearray, ival);
+bad_range:
+    PyErr_SetString(PyExc_ValueError, "byte must be in range(0, 256)");
+    return -1;
 }
 
 //////////////////// ByteArrayAppend.proto ////////////////////

@@ -2,9 +2,64 @@
 Cython Changelog
 ================
 
-=======
 Latest
-=======
+======
+
+Features added
+--------------
+
+* C functions can coerce to Python functions, which allows passing them
+  around as callable objects.
+
+* Extern C functions can now be declared as cpdef to export them to
+  the module's Python namespace.  Extern C functions in pxd files export
+  their values to their own module, iff it exists.
+
+* Missing C-API declarations in ``cpython.unicode`` were added.
+
+* Passing ``language='c++'`` into cythonize() globally enables C++ mode for
+  all modules that were not passed as Extension objects (i.e. only source
+  files and file patterns).
+
+* ``Py_hash_t`` is a known type (used in CPython for hash values).
+
+* ``PySlice_*()`` C-API functions are available from the ``cpython.slice``
+  module.
+
+Bugs fixed
+----------
+
+* Mismatching 'except' declarations on signatures in .pxd and .pyx files failed
+  to produce a compile error.
+
+* Reference leak for non-simple Python expressions in boolean and/or expressions.
+
+* To fix a name collision and to reflect availability on host platforms,
+  standard C declarations [ clock(), time(), struct tm and tm* functions ]
+  were moved from posix/time.pxd to a new libc/time.pxd.
+
+* Rerunning unmodified modules in IPython's cython support failed.
+  Patch by Matthias Bussonier.
+
+* Casting C++ ``std::string`` to Python byte strings failed when
+  auto-decoding was enabled.
+
+* Fatal exceptions in global module init code could lead to crashes
+  if the already created module was used later on (e.g. through a
+  stale reference in sys.modules or elsewhere).
+
+* Allow arrays of C++ classes.
+
+Other changes
+-------------
+
+* Compilation no longer fails hard when unknown compilation options are passed.
+  Instead, it raises a warning and ignores them (as it did silently before 0.21).
+
+
+
+0.21 (2014-09-10)
+=================
 
 Features added
 --------------
@@ -55,6 +110,9 @@ Features added
 * Defines dynamic_cast et al. in ``libcpp.cast`` and C++ heap data
   structure operations in ``libcpp.algorithm``.
 
+* Shipped header declarations in ``posix.*`` were extended to cover
+  more of the POSIX API.  Patches by Lars Buitinck and Mark Peek.
+
 Optimizations
 -------------
 
@@ -79,6 +137,12 @@ Optimizations
 
 Bugs fixed
 ----------
+
+* Crash when assigning memory views from ternary conditional expressions.
+
+* Nested C++ templates could lead to unseparated ">>" characters being
+  generated into the C++ declarations, which older C++ compilers could
+  not parse.
 
 * Sending SIGINT (Ctrl-C) during parallel cythonize() builds could
   hang the child processes.
@@ -122,8 +186,14 @@ Bugs fixed
 
 * Fix infinite recursion when using super with cpdef methods.
 
+* No-args ``dir()`` was not guaranteed to return a sorted list.
+
 Other changes
 -------------
+
+* The header line in the generated C files no longer contains the
+  timestamp but only the Cython version that wrote it.  This was
+  changed to make builds more reproducible.
 
 * Removed support for CPython 2.4, 2.5 and 3.1.
 
