@@ -45,6 +45,9 @@ Bugs fixed
 Other changes
 -------------
 
+* The new ``posix.time`` declarations (added in 0.21) was split up to provide
+  a more widely available ``libc.time`` part.  Patch by Charles Blake.
+
 * Compilation no longer fails hard when unknown compilation options are passed.
   Instead, it raises a warning and ignores them (as it did silently before 0.21).
   This will be changed back to an error in a future release.
