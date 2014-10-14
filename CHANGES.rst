@@ -28,6 +28,8 @@ Features added
 * ``PySlice_*()`` C-API functions are available from the ``cpython.slice``
   module.
 
+* Allow arrays of C++ classes.
+
 Bugs fixed
 ----------
 
@@ -50,8 +52,6 @@ Bugs fixed
 * Fatal exceptions in global module init code could lead to crashes
   if the already created module was used later on (e.g. through a
   stale reference in sys.modules or elsewhere).
-
-* Allow arrays of C++ classes.
 
 Other changes
 -------------
