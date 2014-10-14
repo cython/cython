@@ -28,7 +28,8 @@ Bugs fixed
 
 * To fix a name collision and to reflect availability on host platforms,
   standard C declarations [ clock(), time(), struct tm and tm* functions ]
-  were moved from posix/time.pxd to a new libc/time.pxd.
+  were moved from posix/time.pxd to a new libc/time.pxd.  Patch by Charles
+  Blake.
 
 * Rerunning unmodified modules in IPython's cython support failed.
   Patch by Matthias Bussonier.
@@ -44,10 +45,6 @@ Bugs fixed
 
 Other changes
 -------------
-
-* The new ``posix.time`` declarations module (added in 0.21) was split up
-  to provide a more widely available ``libc.time`` part.  Patch by Charles
-  Blake.
 
 * Compilation no longer fails hard when unknown compilation options are
   passed.  Instead, it raises a warning and ignores them (as it did silently
