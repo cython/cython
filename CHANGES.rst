@@ -8,6 +8,8 @@ Latest
 Features added
 --------------
 
+* New ``cythonize`` option ``-a`` to generate the annotated HTML source view.
+
 * Missing C-API declarations in ``cpython.unicode`` were added.
 
 * Passing ``language='c++'`` into cythonize() globally enables C++ mode for
@@ -45,7 +47,7 @@ Other changes
 
 * Compilation no longer fails hard when unknown compilation options are passed.
   Instead, it raises a warning and ignores them (as it did silently before 0.21).
-
+  This will be changed back to an error in a future release.
 
 
 0.21 (2014-09-10)
