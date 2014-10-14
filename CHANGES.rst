@@ -11,6 +11,8 @@ Features added
 * C functions can coerce to Python functions, which allows passing them
   around as callable objects.
 
+* New ``cythonize`` option ``-a`` to generate the annotated HTML source view.
+
 * Extern C functions can now be declared as cpdef to export them to
   the module's Python namespace.  Extern C functions in pxd files export
   their values to their own module, iff it exists.
@@ -53,9 +55,12 @@ Bugs fixed
 Other changes
 -------------
 
+* The new ``posix.time`` declarations (added in 0.21) was split up to provide
+  a more widely available ``libc.time`` part.  Patch by Charles Blake.
+
 * Compilation no longer fails hard when unknown compilation options are passed.
   Instead, it raises a warning and ignores them (as it did silently before 0.21).
-
+  This will be changed back to an error in a future release.
 
 
 0.21 (2014-09-10)
