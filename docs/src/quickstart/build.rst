@@ -78,6 +78,8 @@ You can show Cython's code analysis by passing the ``--annotate`` option::
     %%cython --annotate
     ...
 
+.. figure:: ipython.png
+
 
 Using the Sage notebook
 -----------------------
