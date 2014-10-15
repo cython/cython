@@ -6021,8 +6021,10 @@ class SequenceNode(ExprNode):
                 if isinstance(mult_factor.constant_result, (int,long)) \
                        and mult_factor.constant_result > 0:
                     size_factor = ' * %s' % mult_factor.constant_result
-                else:
+                elif mult_factor.type.signed:
                     size_factor = ' * ((%s<0) ? 0:%s)' % (c_mult, c_mult)
+                else:
+                    size_factor = ' * (%s)' % (c_mult,)
 
         if self.type is Builtin.tuple_type and (self.is_literal or self.slow) and not c_mult:
             # use PyTuple_Pack() to avoid generating huge amounts of one-time code
