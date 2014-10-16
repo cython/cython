@@ -3389,9 +3389,14 @@ def c_tuple_type(components):
     if tuple_type is None:
         cname = '__pyx_tuple_' + '___'.join(
             c.declaration_code('').replace('*', '_ptr')
+                                  .replace('&', '_ref')
+                                  .replace('::', '_in')
                                   .replace(' ', '__')
                                   .replace('[', '_sbra')
                                   .replace(']', '_sket')
+                                  .replace('<', '_lang')
+                                  .replace('>', '_rang')
+                                  .replace(',', '_comma_')
             for c in components)
         tuple_type = c_tuple_types[components] = CTupleType(cname, components)
     return tuple_type
