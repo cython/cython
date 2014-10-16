@@ -12,10 +12,6 @@ __doc__ = """
 Traceback (most recent call last):
 ...
 NameError: name 'log' is not defined
-"""
-
-# Broken in gcc.
-"""
 >>> strchr('abcabc', ord('c'))
 'cabc'
 """
@@ -25,5 +21,6 @@ cdef extern from "math.h":
     cpdef double pyx_sqrt "sqrt"(double)
     cdef double log(double) # not wrapped
 
-# cdef extern from "string.h":
-#     cpdef char* strchr(const char *haystack, int needle);
+cdef extern from "string.h":
+    # signature must be exact in C++, disagrees with C
+    cpdef char* strchr(const char *haystack, int needle);
