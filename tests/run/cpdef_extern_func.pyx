@@ -23,4 +23,4 @@ cdef extern from "math.h":
 
 cdef extern from "string.h":
     # signature must be exact in C++, disagrees with C
-    cpdef char* strchr(const char *haystack, int needle);
+    cpdef const char* strchr(const char *haystack, int needle);
