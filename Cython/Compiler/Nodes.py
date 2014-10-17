@@ -805,7 +805,7 @@ class CArgDeclNode(Node):
                     if self.base_type.is_basic_c_type:
                         # char, short, long called "int"
                         type = self.base_type.analyse(env, could_be_name=True)
-                        arg_name = type.declaration_code("")
+                        arg_name = type.empty_declaration_code()
                     else:
                         arg_name = self.base_type.name
                     self.declarator.name = EncodedString(arg_name)
@@ -1792,7 +1792,7 @@ class FuncDefNode(StatNode, BlockNode):
                 slot_func_cname = '%s->tp_new' % lenv.scope_class.type.typeptr_cname
             code.putln("%s = (%s)%s(%s, %s, NULL);" % (
                 Naming.cur_scope_cname,
-                lenv.scope_class.type.declaration_code(''),
+                lenv.scope_class.type.empty_declaration_code(),
                 slot_func_cname,
                 lenv.scope_class.type.typeptr_cname,
                 Naming.empty_tuple))
@@ -1814,12 +1814,12 @@ class FuncDefNode(StatNode, BlockNode):
             if self.is_cyfunction:
                 code.putln("%s = (%s) __Pyx_CyFunction_GetClosure(%s);" % (
                     outer_scope_cname,
-                    cenv.scope_class.type.declaration_code(''),
+                    cenv.scope_class.type.empty_declaration_code(),
                     Naming.self_cname))
             else:
                 code.putln("%s = (%s) %s;" % (
                     outer_scope_cname,
-                    cenv.scope_class.type.declaration_code(''),
+                    cenv.scope_class.type.empty_declaration_code(),
                     Naming.self_cname))
             if lenv.is_passthrough:
                 code.putln("%s = %s;" % (Naming.cur_scope_cname, outer_scope_cname))
@@ -7804,7 +7804,7 @@ class ParallelStatNode(StatNode, ParallelNode):
             if not lastprivate or entry.type.is_pyobject:
                 continue
 
-            type_decl = entry.type.declaration_code("")
+            type_decl = entry.type.empty_declaration_code()
             temp_cname = "__pyx_parallel_temp%d" % temp_count
             private_cname = entry.cname
 

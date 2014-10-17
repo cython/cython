@@ -481,7 +481,7 @@ class FusedCFuncDefNode(StatListNode):
                  #                                    self._dtype_name(dtype)))
                 decl_code.putln('ctypedef %s %s "%s"' % (dtype.resolve(),
                                                          self._dtype_name(dtype),
-                                                         dtype.declaration_code("")))
+                                                         dtype.empty_declaration_code()))
 
             if buffer_type.dtype.is_int:
                 if str(dtype) not in seen_int_dtypes:

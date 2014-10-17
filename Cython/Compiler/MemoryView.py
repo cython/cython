@@ -237,7 +237,7 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
 
     def _generate_buffer_lookup_code(self, code, axes, cast_result=True):
         bufp = self.buf_ptr
-        type_decl = self.type.dtype.declaration_code("")
+        type_decl = self.type.dtype.empty_declaration_code()
 
         for dim, index, access, packing in axes:
             shape = "%s.shape[%d]" % (self.cname, dim)
@@ -464,7 +464,7 @@ def copy_broadcast_memview_src_to_dst(src, dst, code):
 
 def get_1d_fill_scalar_func(type, code):
     dtype = type.dtype
-    type_decl = dtype.declaration_code("")
+    type_decl = dtype.empty_declaration_code()
 
     dtype_name = mangle_dtype_name(dtype)
     context = dict(dtype_name=dtype_name, type_decl=type_decl)
@@ -479,8 +479,8 @@ def assign_scalar(dst, scalar, code):
     """
     verify_direct_dimensions(dst)
     dtype = dst.type.dtype
-    type_decl = dtype.declaration_code("")
-    slice_decl = dst.type.declaration_code("")
+    type_decl = dtype.empty_declaration_code()
+    slice_decl = dst.type.empty_declaration_code()
 
     code.begin_block()
     code.putln("%s __pyx_temp_scalar = %s;" % (type_decl, scalar.result()))
@@ -524,7 +524,7 @@ class ContigSliceIter(SliceIter):
         code = self.code
         code.begin_block()
 
-        type_decl = self.slice_type.dtype.declaration_code("")
+        type_decl = self.slice_type.dtype.empty_declaration_code()
 
         total_size = ' * '.join("%s.shape[%d]" % (self.slice_temp, i)
                                     for i in range(self.ndim))
@@ -610,7 +610,7 @@ def get_copy_new_utility(pos, from_memview, to_memview):
         context=dict(
             context,
             mode=mode,
-            dtype_decl=to_memview.dtype.declaration_code(''),
+            dtype_decl=to_memview.dtype.empty_declaration_code(),
             contig_flag=contig_flag,
             ndim=to_memview.ndim,
             func_cname=copy_c_or_fortran_cname(to_memview),

@@ -1560,7 +1560,7 @@ class NewExprNode(AtomicExprNode):
         pass
 
     def calculate_result_code(self):
-        return "new " + self.class_type.declaration_code("")
+        return "new " + self.class_type.empty_declaration_code()
 
 
 class NameNode(AtomicExprNode):
@@ -3460,7 +3460,7 @@ class IndexNode(ExprNode):
         elif self.base.type.is_cfunction:
             return "%s<%s>" % (
                 self.base.result(),
-                ",".join([param.declaration_code("") for param in self.type_indices]))
+                ",".join([param.empty_declaration_code() for param in self.type_indices]))
         elif self.base.type.is_ctuple:
             index = self.index.constant_result
             if index < 0:
@@ -3483,7 +3483,7 @@ class IndexNode(ExprNode):
                      and self.index.constant_result >= 0))
             boundscheck = bool(code.globalstate.directives['boundscheck'])
             return ", %s, %d, %s, %d, %d, %d" % (
-                self.original_index_type.declaration_code(""),
+                self.original_index_type.empty_declaration_code(),
                 self.original_index_type.signed and 1 or 0,
                 self.original_index_type.to_py_function,
                 is_list, wraparound, boundscheck)
@@ -4372,7 +4372,7 @@ class CallNode(ExprNode):
             constructor = type.scope.lookup("<init>")
             self.function = RawCNameExprNode(self.function.pos, constructor.type)
             self.function.entry = constructor
-            self.function.set_cname(type.declaration_code(""))
+            self.function.set_cname(type.empty_declaration_code())
             self.analyse_c_function_call(env)
             self.type = type
             return True
@@ -8971,7 +8971,7 @@ class CythonArrayNode(ExprNode):
         shapes_temp = code.funcstate.allocate_temp(py_object_type, True)
         format_temp = code.funcstate.allocate_temp(py_object_type, True)
 
-        itemsize = "sizeof(%s)" % dtype.declaration_code("")
+        itemsize = "sizeof(%s)" % dtype.empty_declaration_code()
         type_info = Buffer.get_type_information_cname(code, dtype)
 
         if self.operand.type.is_ptr:
@@ -9091,7 +9091,7 @@ class SizeofTypeNode(SizeofNode):
             # we want the size of the actual struct
             arg_code = self.arg_type.declaration_code("", deref=1)
         else:
-            arg_code = self.arg_type.declaration_code("")
+            arg_code = self.arg_type.empty_declaration_code()
         return "(sizeof(%s))" % arg_code
 
 
@@ -9719,12 +9719,12 @@ class DivNode(NumBinopNode):
                         # explicitly signed, no runtime check needed
                         minus1_check = 'unlikely(%s == -1)' % self.operand2.result()
                     else:
-                        type_of_op2 = self.operand2.type.declaration_code('')
+                        type_of_op2 = self.operand2.type.empty_declaration_code()
                         minus1_check = '(!(((%s)-1) > 0)) && unlikely(%s == (%s)-1)' % (
                             type_of_op2, self.operand2.result(), type_of_op2)
                     code.putln("else if (sizeof(%s) == sizeof(long) && %s "
                                " && unlikely(UNARY_NEG_WOULD_OVERFLOW(%s))) {" % (
-                               self.type.declaration_code(''),
+                               self.type.empty_declaration_code(),
                                minus1_check,
                                self.operand1.result()))
                     code.put_ensure_gil()
@@ -9872,11 +9872,11 @@ class PowNode(NumBinopNode):
         elif self.type.is_float:
             self.pow_func = "pow" + self.type.math_h_modifier
         elif self.type.is_int:
-            self.pow_func = "__Pyx_pow_%s" % self.type.declaration_code('').replace(' ', '_')
+            self.pow_func = "__Pyx_pow_%s" % self.type.empty_declaration_code().replace(' ', '_')
             env.use_utility_code(
                 int_pow_utility_code.specialize(
                     func_name=self.pow_func,
-                    type=self.type.declaration_code(''),
+                    type=self.type.empty_declaration_code(),
                     signed=self.type.signed and 1 or 0))
         elif not self.type.is_error:
             error(self.pos, "got unexpected types for C power operator: %s, %s" %

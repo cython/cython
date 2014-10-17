@@ -256,7 +256,7 @@ class BufferEntry(object):
             defcode = code.globalstate['utility_code_def']
             funcgen(protocode, defcode, name=funcname, nd=nd)
 
-        buf_ptr_type_code = self.buf_ptr_type.declaration_code("")
+        buf_ptr_type_code = self.buf_ptr_type.empty_declaration_code()
         ptrcode = "%s(%s, %s, %s)" % (funcname, buf_ptr_type_code, self.buf_ptr,
                                       ", ".join(params))
         return ptrcode
@@ -627,7 +627,7 @@ def mangle_dtype_name(dtype):
             prefix = "nn_"
         else:
             prefix = ""
-        type_decl = dtype.declaration_code("")
+        type_decl = dtype.empty_declaration_code()
         type_decl = type_decl.replace(" ", "_")
         return prefix + type_decl.replace("[", "_").replace("]", "_")
 
@@ -665,7 +665,7 @@ def get_type_information_cname(code, dtype, maxdepth=None):
 
         complex_possible = dtype.is_struct_or_union and dtype.can_be_complex()
 
-        declcode = dtype.declaration_code("")
+        declcode = dtype.empty_declaration_code()
         if dtype.is_simple_buffer_dtype():
             structinfo_name = "NULL"
         elif dtype.is_struct:
@@ -678,7 +678,7 @@ def get_type_information_cname(code, dtype, maxdepth=None):
             typecode.putln("static __Pyx_StructField %s[] = {" % structinfo_name, safe=True)
             for f, typeinfo in zip(fields, types):
                 typecode.putln('  {&%s, "%s", offsetof(%s, %s)},' %
-                           (typeinfo, f.name, dtype.declaration_code(""), f.cname), safe=True)
+                           (typeinfo, f.name, dtype.empty_declaration_code(), f.cname), safe=True)
             typecode.putln('  {NULL, NULL, 0}', safe=True)
             typecode.putln("};", safe=True)
         else:

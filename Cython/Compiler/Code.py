@@ -369,7 +369,7 @@ class UtilityCode(UtilityCodeBase):
     def specialize(self, pyrex_type=None, **data):
         # Dicts aren't hashable...
         if pyrex_type is not None:
-            data['type'] = pyrex_type.declaration_code('')
+            data['type'] = pyrex_type.empty_declaration_code()
             data['type_name'] = pyrex_type.specialization_name()
         key = tuple(sorted(data.items()))
         try:

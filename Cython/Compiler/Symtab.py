@@ -2121,7 +2121,7 @@ class CppClassScope(Scope):
         entry.is_variable = 1
         if type.is_cfunction and self.type:
             if not self.type.templates or not any(T.is_fused for T in self.type.templates):
-                entry.func_cname = "%s::%s" % (self.type.declaration_code(""), cname)
+                entry.func_cname = "%s::%s" % (self.type.empty_declaration_code(), cname)
         if name != "this" and (defining or name != "<init>"):
             self.var_entries.append(entry)
         if type.is_pyobject and not allow_pyobject:

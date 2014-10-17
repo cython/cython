@@ -20,18 +20,24 @@ class BaseType(object):
 
     # List of attribute names of any subtypes
     subtypes = []
+    _empty_declaration = None
 
     def can_coerce_to_pyobject(self, env):
         return False
 
     def cast_code(self, expr_code):
-        return "((%s)%s)" % (self.declaration_code(""), expr_code)
+        return "((%s)%s)" % (self.empty_declaration_code(), expr_code)
+
+    def empty_declaration_code(self):
+        if self._empty_declaration is None:
+            self._empty_declaration = self.declaration_code('')
+        return self._empty_declaration
 
     def specialization_name(self):
         # This is not entirely robust.
         safe = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_0123456789'
         all = []
-        for c in self.declaration_code("").replace("unsigned ", "unsigned_").replace("long long", "long_long").replace(" ", "__"):
+        for c in self.empty_declaration_code().replace("unsigned ", "unsigned_").replace("long long", "long_long").replace(" ", "__"):
             if c in safe:
                 all.append(c)
             else:
@@ -389,7 +395,7 @@ class CTypedefType(BaseType):
                     self.to_py_function = "__Pyx_PyInt_From_" + self.specialization_name()
                     env.use_utility_code(TempitaUtilityCode.load(
                         "CIntToPy", "TypeConversion.c",
-                        context={"TYPE": self.declaration_code(''),
+                        context={"TYPE": self.empty_declaration_code(),
                                  "TO_PY_FUNCTION": self.to_py_function}))
                     return True
                 elif base_type.is_float:
@@ -411,7 +417,7 @@ class CTypedefType(BaseType):
                     self.from_py_function = "__Pyx_PyInt_As_" + self.specialization_name()
                     env.use_utility_code(TempitaUtilityCode.load(
                         "CIntFromPy", "TypeConversion.c",
-                        context={"TYPE": self.declaration_code(''),
+                        context={"TYPE": self.empty_declaration_code(),
                                  "FROM_PY_FUNCTION": self.from_py_function}))
                     return True
                 elif base_type.is_float:
@@ -426,7 +432,7 @@ class CTypedefType(BaseType):
 
     def overflow_check_binop(self, binop, env, const_rhs=False):
         env.use_utility_code(UtilityCode.load("Common", "Overflow.c"))
-        type = self.declaration_code("")
+        type = self.empty_declaration_code()
         name = self.specialization_name()
         if binop == "lshift":
             env.use_utility_code(TempitaUtilityCode.load(
@@ -687,7 +693,7 @@ class MemoryViewSliceType(PyrexType):
             buf_flag = self.flags,
             ndim = self.ndim,
             axes_specs = ', '.join(self.axes_to_code()),
-            dtype_typedecl = self.dtype.declaration_code(""),
+            dtype_typedecl = self.dtype.empty_declaration_code(),
             struct_nesting_depth = self.dtype.struct_nesting_depth(),
             c_or_f_flag = c_or_f_flag,
             funcname = funcname,
@@ -737,7 +743,7 @@ class MemoryViewSliceType(PyrexType):
             context.update(
                 to_py_function = self.dtype.to_py_function,
                 from_py_function = self.dtype.from_py_function,
-                dtype = self.dtype.declaration_code(""),
+                dtype = self.dtype.empty_declaration_code(),
                 error_condition = error_condition,
             )
 
@@ -1423,7 +1429,7 @@ class CIntType(CNumericType):
             self.to_py_function = "__Pyx_PyInt_From_" + self.specialization_name()
             env.use_utility_code(TempitaUtilityCode.load(
                 "CIntToPy", "TypeConversion.c",
-                context={"TYPE": self.declaration_code(''),
+                context={"TYPE": self.empty_declaration_code(),
                          "TO_PY_FUNCTION": self.to_py_function}))
         return True
 
@@ -1432,7 +1438,7 @@ class CIntType(CNumericType):
             self.from_py_function = "__Pyx_PyInt_As_" + self.specialization_name()
             env.use_utility_code(TempitaUtilityCode.load(
                 "CIntFromPy", "TypeConversion.c",
-                context={"TYPE": self.declaration_code(''),
+                context={"TYPE": self.empty_declaration_code(),
                          "FROM_PY_FUNCTION": self.from_py_function}))
         return True
 
@@ -1467,7 +1473,7 @@ class CIntType(CNumericType):
 
     def overflow_check_binop(self, binop, env, const_rhs=False):
         env.use_utility_code(UtilityCode.load("Common", "Overflow.c"))
-        type = self.declaration_code("")
+        type = self.empty_declaration_code()
         name = self.specialization_name()
         if binop == "lshift":
             env.use_utility_code(TempitaUtilityCode.load(
@@ -1756,7 +1762,7 @@ class CComplexType(CNumericType):
             env.use_utility_code(
                 utility_code.specialize(
                     self,
-                    real_type = self.real_type.declaration_code(''),
+                    real_type = self.real_type.empty_declaration_code(),
                     m = self.funcsuffix,
                     is_float = self.real_type.is_float))
         return True
@@ -1774,7 +1780,7 @@ class CComplexType(CNumericType):
             env.use_utility_code(
                 utility_code.specialize(
                     self,
-                    real_type = self.real_type.declaration_code(''),
+                    real_type = self.real_type.empty_declaration_code(),
                     m = self.funcsuffix,
                     is_float = self.real_type.is_float))
         self.from_py_function = "__Pyx_PyComplex_As_" + self.specialization_name()
@@ -2549,7 +2555,7 @@ class CFuncType(CType):
             func_name, arg_code, trailer)
 
     def signature_string(self):
-        s = self.declaration_code("")
+        s = self.empty_declaration_code()
         return s
 
     def signature_cast_string(self):
@@ -2828,7 +2834,7 @@ class ToPyStructUtilityCode(object):
         # This is a bit of a hack, we need a forward declaration
         # due to the way things are ordered in the module...
         if self.forward_decl:
-            proto.putln(self.type.declaration_code('') + ';')
+            proto.putln(self.type.empty_declaration_code() + ';')
         proto.putln(self.header + ";")
 
     def inject_tree_and_scope_into(self, module_node):
@@ -2898,7 +2904,7 @@ class CStructOrUnionType(CType):
                     return False
 
             context = dict(
-                struct_type_decl=self.declaration_code(""),
+                struct_type_decl=self.empty_declaration_code(),
                 var_entries=self.scope.var_entries,
                 funcname=self.from_py_function,
             )
@@ -2955,8 +2961,8 @@ class CStructOrUnionType(CType):
         if len(fields) != 2: return False
         a, b = fields
         return (a.type.is_float and b.type.is_float and
-                a.type.declaration_code("") ==
-                b.type.declaration_code(""))
+                a.type.empty_declaration_code() ==
+                b.type.empty_declaration_code())
 
     def struct_nesting_depth(self):
         child_depths = [x.type.struct_nesting_depth()
@@ -3048,12 +3054,12 @@ class CppClassType(CType):
                         except_clause = "? %s" % except_clause
                     declarations.append(
                         "    ctypedef %s %s '%s'" % (
-                             except_type.declaration_code("", for_display=True), X[ix], T.declaration_code("")))
+                             except_type.declaration_code("", for_display=True), X[ix], T.empty_declaration_code()))
                 else:
                     except_clause = "*"
                     declarations.append(
                         "    ctypedef struct %s '%s':\n        pass" % (
-                             X[ix], T.declaration_code("")))
+                             X[ix], T.empty_declaration_code()))
                 declarations.append(
                     "    cdef %s %s_from_py '%s' (object) except %s" % (
                          X[ix], X[ix], T.from_py_function, except_clause))
@@ -3087,7 +3093,7 @@ class CppClassType(CType):
                 tags.append(T.specialization_name())
                 declarations.append(
                     "    ctypedef struct %s '%s':\n        pass" % (
-                         X[ix], T.declaration_code("")))
+                         X[ix], T.empty_declaration_code()))
                 declarations.append(
                     "    cdef object %s_to_py '%s' (%s)" % (
                          X[ix], T.to_py_function, X[ix]))
@@ -3155,7 +3161,7 @@ class CppClassType(CType):
         if self == actual:
             return {}
         # TODO(robertwb): Actual type equality.
-        elif self.declaration_code("") == actual.template_type.declaration_code(""):
+        elif self.empty_declaration_code() == actual.template_type.declaration_code(""):
             return reduce(
                 merge_template_deductions,
                 [formal_param.deduce_template_params(actual_param) for (formal_param, actual_param) in zip(self.templates, actual.templates)],
@@ -3180,7 +3186,7 @@ class CppClassType(CType):
         else:
             base_code = "%s%s" % (self.cname, templates)
             if self.namespace is not None:
-                base_code = "%s::%s" % (self.namespace.declaration_code(''), base_code)
+                base_code = "%s::%s" % (self.namespace.empty_declaration_code(), base_code)
             base_code = public_decl(base_code, dll_linkage)
         return self.base_declaration_code(base_code, entity_code)
 
@@ -3349,7 +3355,7 @@ class CTupleType(CType):
                     return False
 
             context = dict(
-                struct_type_decl=self.declaration_code(""),
+                struct_type_decl=self.empty_declaration_code(),
                 components=self.components,
                 funcname=self.to_py_function,
                 size=len(self.components)
@@ -3372,7 +3378,7 @@ class CTupleType(CType):
                     return False
 
             context = dict(
-                struct_type_decl=self.declaration_code(""),
+                struct_type_decl=self.empty_declaration_code(),
                 components=self.components,
                 funcname=self.from_py_function,
                 size=len(self.components)
@@ -3671,7 +3677,7 @@ def best_match(args, functions, pos=None, env=None):
                 from .Symtab import Entry
                 specialization = Entry(
                     name = func.name + "[%s]" % ",".join([str(t) for t in type_list]),
-                    cname = func.cname + "<%s>" % ",".join([t.declaration_code("") for t in type_list]),
+                    cname = func.cname + "<%s>" % ",".join([t.empty_declaration_code() for t in type_list]),
                     type = func_type.specialize(deductions),
                     pos = func.pos)
                 candidates.append((specialization, specialization.type))
@@ -3996,7 +4002,7 @@ def type_list_identifier(types):
 
 _type_identifier_cache = {}
 def type_identifier(type):
-    decl = type.declaration_code("")
+    decl = type.empty_declaration_code()
     safe = _type_identifier_cache.get(decl)
     if safe is None:
         safe = decl
