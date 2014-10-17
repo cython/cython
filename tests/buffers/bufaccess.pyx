@@ -190,13 +190,13 @@ def acquire_nonbuffer1(first, second=None):
     """
     >>> acquire_nonbuffer1(3)   # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: 'int' does not ... the buffer interface
+    TypeError:... 'int'...
     >>> acquire_nonbuffer1(type)   # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: 'type' does not ... the buffer interface
+    TypeError:... 'type'...
     >>> acquire_nonbuffer1(None, 2)   # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: 'int' does not ... the buffer interface
+    TypeError:... 'int'...
     """
     cdef object[int] buf
     buf = first

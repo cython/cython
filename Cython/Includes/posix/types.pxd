@@ -1,7 +1,6 @@
 cdef extern from "sys/types.h":
     ctypedef long blkcnt_t
     ctypedef long blksize_t
-    ctypedef long clock_t
     ctypedef long clockid_t
     ctypedef long dev_t
     ctypedef long gid_t

@@ -4282,19 +4282,6 @@ class SliceNode(ExprNode):
         if self.is_literal:
             code.put_giveref(self.py_result())
 
-    def __deepcopy__(self, memo):
-        """
-        There is a copy bug in python 2.4 for slice objects.
-        """
-        return SliceNode(
-            self.pos,
-            start=copy.deepcopy(self.start, memo),
-            stop=copy.deepcopy(self.stop, memo),
-            step=copy.deepcopy(self.step, memo),
-            is_temp=self.is_temp,
-            is_literal=self.is_literal,
-            constant_result=self.constant_result)
-
 
 class CallNode(ExprNode):
 
@@ -6064,8 +6051,10 @@ class SequenceNode(ExprNode):
                 if isinstance(mult_factor.constant_result, (int,long)) \
                        and mult_factor.constant_result > 0:
                     size_factor = ' * %s' % mult_factor.constant_result
-                else:
+                elif mult_factor.type.signed:
                     size_factor = ' * ((%s<0) ? 0:%s)' % (c_mult, c_mult)
+                else:
+                    size_factor = ' * (%s)' % (c_mult,)
 
         if self.type is Builtin.tuple_type and (self.is_literal or self.slow) and not c_mult:
             # use PyTuple_Pack() to avoid generating huge amounts of one-time code
@@ -7597,7 +7586,7 @@ class BoundMethodNode(ExprNode):
 
     def generate_result_code(self, code):
         code.putln(
-            "%s = PyMethod_New(%s, %s, (PyObject*)%s->ob_type); %s" % (
+            "%s = __Pyx_PyMethod_New(%s, %s, (PyObject*)%s->ob_type); %s" % (
                 self.result(),
                 self.function.py_result(),
                 self.self_object.py_result(),
@@ -7629,7 +7618,7 @@ class UnboundMethodNode(ExprNode):
     def generate_result_code(self, code):
         class_cname = code.pyclass_stack[-1].classobj.result()
         code.putln(
-            "%s = PyMethod_New(%s, 0, %s); %s" % (
+            "%s = __Pyx_PyMethod_New(%s, 0, %s); %s" % (
                 self.result(),
                 self.function.py_result(),
                 class_cname,

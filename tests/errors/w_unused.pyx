@@ -18,7 +18,7 @@ def unused_result():
     return r
 
 def unused_nested():
-    def unused_one():
+    def _unused_one():
         pass
 
 def unused_class():
@@ -53,7 +53,7 @@ _ERRORS = """
 9:9: Unused entry 'b'
 12:15: Unused argument 'arg'
 16:6: Unused result in 'r'
-21:4: Unused entry 'unused_one'
+21:4: Unused entry '_unused_one'
 25:4: Unused entry 'Unused'
 35:16: Unused entry 'foo'
 36:13: Unused entry 'i'

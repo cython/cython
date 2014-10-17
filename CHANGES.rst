@@ -8,6 +8,21 @@ Latest
 Features added
 --------------
 
+* C functions can coerce to Python functions, which allows passing them
+  around as callable objects.
+
+* New ``cythonize`` option ``-a`` to generate the annotated HTML source view.
+
+* Extern C functions can now be declared as cpdef to export them to
+  the module's Python namespace.  Extern C functions in pxd files export
+  their values to their own module, iff it exists.
+
+* Missing C-API declarations in ``cpython.unicode`` were added.
+
+* Passing ``language='c++'`` into cythonize() globally enables C++ mode for
+  all modules that were not passed as Extension objects (i.e. only source
+  files and file patterns).
+
 * ``Py_hash_t`` is a known type (used in CPython for hash values).
 
 * ``PySlice_*()`` C-API functions are available from the ``cpython.slice``
@@ -15,14 +30,20 @@ Features added
 
 * Anonymous C tuple types can be declared as (ctype1, ctype2, ...).
 
+* Allow arrays of C++ classes.
+
 Bugs fixed
 ----------
 
+* Mismatching 'except' declarations on signatures in .pxd and .pyx files failed
+  to produce a compile error.
+
 * Reference leak for non-simple Python expressions in boolean and/or expressions.
 
-* ``getitimer()``, ``setitimer()``, ``gettimeofday()`` and related type/constant
-  definitions were moved from ``posix/time.pxd`` to ``posix/sys_time.pxd`` to
-  fix a naming collision.
+* To fix a name collision and to reflect availability on host platforms,
+  standard C declarations [ clock(), time(), struct tm and tm* functions ]
+  were moved from posix/time.pxd to a new libc/time.pxd.  Patch by Charles
+  Blake.
 
 * Rerunning unmodified modules in IPython's cython support failed.
   Patch by Matthias Bussonier.
@@ -34,7 +55,12 @@ Bugs fixed
   if the already created module was used later on (e.g. through a
   stale reference in sys.modules or elsewhere).
 
-* Allow arrays of C++ classes.
+Other changes
+-------------
+
+* Compilation no longer fails hard when unknown compilation options are
+  passed.  Instead, it raises a warning and ignores them (as it did silently
+  before 0.21).  This will be changed back to an error in a future release.
 
 
 0.21 (2014-09-10)

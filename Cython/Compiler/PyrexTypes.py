@@ -1244,7 +1244,10 @@ class CConstType(BaseType):
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
-        return self.const_base_type.declaration_code("const %s" % entity_code, for_display, dll_linkage, pyrex)
+        if for_display or pyrex:
+            return "const " + self.const_base_type.declaration_code(entity_code, for_display, dll_linkage, pyrex)
+        else:
+            return self.const_base_type.declaration_code("const %s" % entity_code, for_display, dll_linkage, pyrex)
 
     def specialize(self, values):
         base_type = self.const_base_type.specialize(values)
@@ -1539,8 +1542,10 @@ class CBIntType(CIntType):
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
-        if pyrex or for_display:
+        if for_display:
             base_code = 'bool'
+        elif pyrex:
+            base_code = 'bint'
         else:
             base_code = public_decl('int', dll_linkage)
         return self.base_declaration_code(base_code, entity_code)
@@ -2410,6 +2415,10 @@ class CFuncType(CType):
             return 0
         if not self.same_calling_convention_as(other_type):
             return 0
+        if self.exception_value != other_type.exception_value:
+            return 0
+        if self.exception_check != other_type.exception_check:
+            return 0
         return 1
 
     def compatible_signature_with(self, other_type, as_cmethod = 0):
@@ -2444,9 +2453,13 @@ class CFuncType(CType):
             return 0
         if self.nogil != other_type.nogil:
             return 0
+        if self.exception_value != other_type.exception_value:
+            return 0
+        if not self.exception_check and other_type.exception_check:
+            # a redundant exception check doesn't make functions incompatible, but a missing one does
+            return 0
         self.original_sig = other_type.original_sig or other_type
         return 1
-
 
     def narrower_c_signature_than(self, other_type, as_cmethod = 0):
         return self.narrower_c_signature_than_resolved_type(other_type.resolve(), as_cmethod)
@@ -2471,6 +2484,11 @@ class CFuncType(CType):
             return 0
         if not self.return_type.subtype_of_resolved_type(other_type.return_type):
             return 0
+        if self.exception_value != other_type.exception_value:
+            return 0
+        if not self.exception_check and other_type.exception_check:
+            # a redundant exception check doesn't make functions incompatible, but a missing one does
+            return 0
         return 1
 
     def same_calling_convention_as(self, other):
@@ -2487,22 +2505,12 @@ class CFuncType(CType):
         sc2 = other.calling_convention == '__stdcall'
         return sc1 == sc2
 
-    def same_exception_signature_as(self, other_type):
-        return self.same_exception_signature_as_resolved_type(
-            other_type.resolve())
-
-    def same_exception_signature_as_resolved_type(self, other_type):
-        return self.exception_value == other_type.exception_value \
-            and self.exception_check == other_type.exception_check
-
     def same_as_resolved_type(self, other_type, as_cmethod = 0):
         return self.same_c_signature_as_resolved_type(other_type, as_cmethod) \
-            and self.same_exception_signature_as_resolved_type(other_type) \
             and self.nogil == other_type.nogil
 
     def pointer_assignable_from_resolved_type(self, other_type):
         return self.same_c_signature_as_resolved_type(other_type) \
-            and self.same_exception_signature_as_resolved_type(other_type) \
             and not (self.nogil and not other_type.nogil)
 
     def declaration_code(self, entity_code,
@@ -2648,6 +2656,74 @@ class CFuncType(CType):
     def specialize_entry(self, entry, cname):
         assert not self.is_fused
         specialize_entry(entry, cname)
+
+    def create_to_py_utility_code(self, env):
+        # FIXME: it seems we're trying to coerce in more cases than we should
+        if self.has_varargs or self.optional_arg_count:
+            return False
+        if self.to_py_function is not None:
+            return self.to_py_function
+        from .UtilityCode import CythonUtilityCode
+        import re
+        safe_typename = re.sub('[^a-zA-Z0-9]', '__', self.declaration_code("", pyrex=1))
+        to_py_function = "__Pyx_CFunc_%s_to_py" % safe_typename
+
+        for arg in self.args:
+            if not arg.type.is_pyobject and not arg.type.create_from_py_utility_code(env):
+                return False
+        if not (self.return_type.is_pyobject or self.return_type.is_void or
+                self.return_type.create_to_py_utility_code(env)):
+            return False
+
+        def declared_type(ctype):
+            type_displayname = str(ctype.declaration_code("", for_display=True))
+            if ctype.is_pyobject:
+                arg_ctype = type_name = type_displayname
+                if ctype.is_builtin_type:
+                    arg_ctype = ctype.name
+                elif not ctype.is_extension_type:
+                    type_name = 'object'
+                    type_displayname = None
+                else:
+                    type_displayname = repr(type_displayname)
+            elif ctype is c_bint_type:
+                type_name = arg_ctype = 'bint'
+            else:
+                type_name = arg_ctype = type_displayname
+                if ctype is c_double_type:
+                    type_displayname = 'float'
+                else:
+                    type_displayname = repr(type_displayname)
+            return type_name, arg_ctype, type_displayname
+
+        class Arg(object):
+            def __init__(self, arg_name, arg_type):
+                self.name = arg_name
+                self.type = arg_type
+                self.type_cname, self.ctype, self.type_displayname = declared_type(arg_type)
+
+        if self.return_type.is_void:
+            except_clause = 'except *'
+        elif self.return_type.is_pyobject:
+            except_clause = ''
+        elif self.exception_value:
+            except_clause = ('except? %s' if self.exception_check else 'except %s') % self.exception_value
+        else:
+            except_clause = 'except *'
+
+        context = {
+            'cname': to_py_function,
+            'args': [Arg(arg.name or 'arg%s' % ix, arg.type) for ix, arg in enumerate(self.args)],
+            'return_type': Arg('return', self.return_type),
+            'except_clause': except_clause,
+        }
+        # FIXME: directives come from first defining environment and do not adapt for reuse
+        env.use_utility_code(CythonUtilityCode.load(
+            "cfunc.to_py", "CFuncConvert.pyx",
+            outer_module_scope=env.global_scope(),  # need access to types declared in module
+            context=context, compiler_directives=dict(env.directives)))
+        self.to_py_function = to_py_function
+        return True
 
 
 def specialize_entry(entry, cname):
@@ -3161,7 +3237,7 @@ class CppClassType(CType):
         if self == actual:
             return {}
         # TODO(robertwb): Actual type equality.
-        elif self.empty_declaration_code() == actual.template_type.declaration_code(""):
+        elif self.empty_declaration_code() == actual.template_type.empty_declaration_code():
             return reduce(
                 merge_template_deductions,
                 [formal_param.deduce_template_params(actual_param) for (formal_param, actual_param) in zip(self.templates, actual.templates)],

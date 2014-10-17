@@ -1289,6 +1289,11 @@ class CVarDefNode(StatNode):
                     "Non-trivial type declarators in shared declaration (e.g. mix of pointers and values). " +
                     "Each pointer declaration should be on its own line.", 1)
 
+            create_extern_wrapper = (self.overridable
+                                        and self.visibility == 'extern'
+                                        and env.is_module_scope)
+            if create_extern_wrapper:
+                declarator.overridable = False
             if isinstance(declarator, CFuncDeclaratorNode):
                 name_declarator, type = declarator.analyse(base_type, env, directive_locals=self.directive_locals)
             else:
@@ -1314,6 +1319,9 @@ class CVarDefNode(StatNode):
                     self.entry.directive_locals = copy.copy(self.directive_locals)
                 if 'staticmethod' in env.directives:
                     type.is_static_method = True
+                if create_extern_wrapper:
+                    self.entry.type.create_to_py_utility_code(env)
+                    self.entry.create_wrapper = True
             else:
                 if self.directive_locals:
                     error(self.pos, "Decorators can only be followed by functions")
@@ -1601,7 +1609,7 @@ class FuncDefNode(StatNode, BlockNode):
         if arg.name in directive_locals:
             type_node = directive_locals[arg.name]
             other_type = type_node.analyse_as_type(env)
-        elif isinstance(arg, CArgDeclNode) and arg.annotation:
+        elif isinstance(arg, CArgDeclNode) and arg.annotation and env.directives['annotation_typing']:
             type_node = arg.annotation
             other_type = arg.inject_type_from_annotations(env)
             if other_type is None:

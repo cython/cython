@@ -439,13 +439,16 @@ def get_is_contig_utility(c_contig, ndim):
 
     return utility
 
+
 def copy_src_to_dst_cname():
     return "__pyx_memoryview_copy_contents"
+
 
 def verify_direct_dimensions(node):
     for access, packing in node.type.axes:
         if access != 'direct':
-            error(self.pos, "All dimensions must be direct")
+            error(node.pos, "All dimensions must be direct")
+
 
 def copy_broadcast_memview_src_to_dst(src, dst, code):
     """
@@ -662,7 +665,7 @@ def get_axes_specs(env, axes):
             if entry.name in view_constant_to_access_packing:
                 axes_specs.append(view_constant_to_access_packing[entry.name])
             else:
-                raise CompilerError(axis.step.pos, INVALID_ERR)
+                raise CompileError(axis.step.pos, INVALID_ERR)
 
         else:
             raise CompileError(axis.step.pos, INVALID_ERR)
