@@ -3152,9 +3152,9 @@ class CppClassType(CType):
         # Need to do these *after* self.specializations[key] is set
         # to avoid infinite recursion on circular references.
         specialized.base_classes = [b.specialize(values) for b in self.base_classes]
-        specialized.scope = self.scope.specialize(values, specialized)
         if self.namespace is not None:
             specialized.namespace = self.namespace.specialize(values)
+        specialized.scope = self.scope.specialize(values, specialized)
         return specialized
 
     def deduce_template_params(self, actual):
