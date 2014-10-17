@@ -5,6 +5,7 @@
 from __future__ import absolute_import
 
 import copy
+import re
 
 from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode
 from . import StringEncoding
@@ -3387,17 +3388,7 @@ def c_tuple_type(components):
     components = tuple(components)
     tuple_type = c_tuple_types.get(components)
     if tuple_type is None:
-        cname = '__pyx_tuple_' + '___'.join(
-            c.declaration_code('').replace('*', '_ptr')
-                                  .replace('&', '_ref')
-                                  .replace('::', '_in')
-                                  .replace(' ', '__')
-                                  .replace('[', '_sbra')
-                                  .replace(']', '_sket')
-                                  .replace('<', '_lang')
-                                  .replace('>', '_rang')
-                                  .replace(',', '_comma_')
-            for c in components)
+        cname = '__pyx_tuple_' + type_list_identifier(components)
         tuple_type = c_tuple_types[components] = CTupleType(cname, components)
     return tuple_type
 
@@ -3999,3 +3990,37 @@ def typecast(to_type, from_type, expr_code):
     else:
         #print "typecast: to", to_type, "from", from_type ###
         return to_type.cast_code(expr_code)
+
+def type_list_identifier(types):
+    return cap_length('__and_'.join(type_identifier(type) for type in types))
+
+_type_identifier_cache = {}
+def type_identifier(type):
+    decl = type.declaration_code("")
+    safe = _type_identifier_cache.get(decl)
+    if safe is None:
+        safe = decl
+        safe = re.sub(' +', ' ', safe)
+        safe = re.sub(' ([^a-zA-Z0-9_])', r'\1', safe)
+        safe = re.sub('([^a-zA-Z0-9_]) ', r'\1', safe)
+        safe = (safe.replace('__', '__dunder')
+                    .replace(' ', '__space_')
+                    .replace('*', '__ptr')
+                    .replace('&', '__ref')
+                    .replace('[', '__lArr')
+                    .replace(']', '__rArr')
+                    .replace('<', '__lAng')
+                    .replace('>', '__rAng')
+                    .replace('(', '__lParen')
+                    .replace(')', '__rParen')
+                    .replace(',', '__comma_')
+                    .replace('::', '__in_'))
+        safe = cap_length(re.sub('[^a-zA-Z0-9_]', lambda x: '__%X' % ord(x.group(0)), safe))
+        _type_identifier_cache[decl] = safe
+    return safe
+
+def cap_length(s, max_prefix=63, max_len=1024):
+    if len(s) <= max_prefix:
+        return s
+    else:
+        return '%x__%s__etc' % (abs(hash(s)) % (1<<20), s[:max_len-17])
