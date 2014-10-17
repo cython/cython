@@ -380,7 +380,7 @@ class CTypedefType(BaseType):
 
     def _create_utility_code(self, template_utility_code,
                              template_function_name):
-        type_name = self.typedef_cname.replace(" ","_").replace("::","__")
+        type_name = type_identifier(self.typedef_cname)
         utility_code = template_utility_code.specialize(
             type     = self.typedef_cname,
             TypeName = type_name)
@@ -3141,10 +3141,10 @@ class CppClassType(CType):
                          X[ix], X[ix], T.from_py_function, except_clause))
             if self.cname in cpp_string_conversions:
                 cls = 'string'
-                tags = self.cname.replace(':', '_'),
+                tags = type_identifier(self),
             else:
                 cls = self.cname[5:]
-            cname = '__pyx_convert_%s_from_py_%s' % (cls, '____'.join(tags))
+            cname = '__pyx_convert_%s_from_py_%s' % (cls, '__and_'.join(tags))
             context = {
                 'template_type_declarations': '\n'.join(declarations),
                 'cname': cname,
@@ -3176,7 +3176,7 @@ class CppClassType(CType):
             if self.cname in cpp_string_conversions:
                 cls = 'string'
                 prefix = 'PyObject_'  # gets specialised by explicit type casts in CoerceToPyTypeNode
-                tags = self.cname.replace(':', '_'),
+                tags = type_identifier(self),
             else:
                 cls = self.cname[5:]
                 prefix = ''
