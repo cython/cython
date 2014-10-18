@@ -1307,6 +1307,7 @@ class CVoidType(CType):
     #
 
     is_void = 1
+    to_py_function = "__Pyx_void_to_None"
 
     def __repr__(self):
         return "<CVoidType>"

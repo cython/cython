@@ -11182,7 +11182,7 @@ class CoerceToPyTypeNode(CoercionNode):
                     func = func.replace("Object", self.type.name.title(), 1)
                 elif self.type is bytearray_type:
                     func = func.replace("Object", "ByteArray", 1)
-            funccall = "%s(%s)" % (func, self.arg.result())
+            funccall = "%s(%s)" % (func, self.arg.result() or 'NULL')
 
         code.putln('%s = %s; %s' % (
             self.result(),
