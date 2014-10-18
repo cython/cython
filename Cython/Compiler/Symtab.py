@@ -1682,7 +1682,9 @@ class StructOrUnionScope(Scope):
 
     def declare_cfunction(self, name, type, pos,
                           cname=None, visibility='private', api=0, in_pxd=0,
-                          defining=0, modifiers=()):  # currently no utility code ...
+                          defining=0, modifiers=(), overridable=False):  # currently no utility code ...
+        if overridable:
+            error(pos, "C struct/union member cannot be declared 'cpdef'")
         return self.declare_var(name, type, pos,
                                 cname=cname, visibility=visibility)
 
