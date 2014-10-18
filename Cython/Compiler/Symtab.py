@@ -681,8 +681,8 @@ class Scope(object):
         self.pyfunc_entries.append(entry)
 
     def declare_cfunction(self, name, type, pos,
-                          cname = None, visibility = 'private', api = 0, in_pxd = 0,
-                          defining = 0, modifiers = (), utility_code = None):
+                          cname=None, visibility='private', api=0, in_pxd=0,
+                          defining=0, modifiers=(), utility_code=None, overridable=False):
         # Add an entry for a C function.
         if not cname:
             if visibility != 'private' or api:
@@ -693,6 +693,9 @@ class Scope(object):
         if entry:
             if visibility != 'private' and visibility != entry.visibility:
                 warning(pos, "Function '%s' previously declared as '%s'" % (name, entry.visibility), 1)
+            if overridable != entry.is_overridable:
+                warning(pos, "Function '%s' previously declared as '%s'" % (
+                    name, 'cpdef' if overridable else 'cdef'), 1)
             if not entry.type.same_as(type):
                 if visibility == 'extern' and entry.visibility == 'extern':
                     can_override = False
@@ -718,6 +721,7 @@ class Scope(object):
         else:
             entry = self.add_cfunction(name, type, pos, cname, visibility, modifiers)
             entry.func_cname = cname
+            entry.is_overridable = overridable
         if in_pxd and visibility != 'extern':
             entry.defined_in_pxd = 1
         if api:
@@ -731,6 +735,13 @@ class Scope(object):
         if utility_code:
             assert not entry.utility_code, "duplicate utility code definition in entry %s (%s)" % (name, cname)
             entry.utility_code = utility_code
+        if overridable:
+            # names of cpdef functions can be used as variables and can be assigned to
+            var_entry = Entry(name, cname, py_object_type)   # FIXME: cname?
+            var_entry.is_variable = 1
+            var_entry.is_pyglobal = 1
+            var_entry.scope = entry.scope
+            entry.as_variable = var_entry
         type.entry = entry
         return entry
 
@@ -889,13 +900,12 @@ class BuiltinScope(Scope):
                 else:
                     warning(pos, "undeclared name not builtin: %s" % name, 2)
 
-    def declare_builtin_cfunction(self, name, type, cname, python_equiv = None,
-            utility_code = None):
+    def declare_builtin_cfunction(self, name, type, cname, python_equiv=None, utility_code=None):
         # If python_equiv == "*", the Python equivalent has the same name
         # as the entry, otherwise it has the name specified by python_equiv.
         name = EncodedString(name)
         entry = self.declare_cfunction(name, type, None, cname, visibility='extern',
-                                       utility_code = utility_code)
+                                       utility_code=utility_code)
         if python_equiv:
             if python_equiv == "*":
                 python_equiv = name
@@ -1212,8 +1222,8 @@ class ModuleScope(Scope):
         return entry
 
     def declare_cfunction(self, name, type, pos,
-                          cname = None, visibility = 'private', api = 0, in_pxd = 0,
-                          defining = 0, modifiers = (), utility_code = None):
+                          cname=None, visibility='private', api=0, in_pxd=0,
+                          defining=0, modifiers=(), utility_code=None, overridable=False):
         # Add an entry for a C function.
         if not cname:
             if visibility == 'extern' or (visibility == 'public' and defining):
@@ -1230,8 +1240,9 @@ class ModuleScope(Scope):
                     entry.func_cname = cname
         entry = Scope.declare_cfunction(
             self, name, type, pos,
-            cname = cname, visibility = visibility, api = api, in_pxd = in_pxd,
-            defining = defining, modifiers = modifiers, utility_code = utility_code)
+            cname=cname, visibility=visibility, api=api, in_pxd=in_pxd,
+            defining=defining, modifiers=modifiers, utility_code=utility_code,
+            overridable=overridable)
         return entry
 
     def declare_global(self, name, pos):
@@ -1670,8 +1681,8 @@ class StructOrUnionScope(Scope):
         return entry
 
     def declare_cfunction(self, name, type, pos,
-                          cname = None, visibility = 'private', api = 0, in_pxd = 0,
-                          defining = 0, modifiers = ()): # currently no utility code ...
+                          cname=None, visibility='private', api=0, in_pxd=0,
+                          defining=0, modifiers=()):  # currently no utility code ...
         return self.declare_var(name, type, pos,
                                 cname=cname, visibility=visibility)
 
@@ -1940,8 +1951,8 @@ class CClassScope(ClassScope):
         return entry
 
     def declare_cfunction(self, name, type, pos,
-                          cname = None, visibility = 'private', api = 0, in_pxd = 0,
-                          defining = 0, modifiers = (), utility_code = None):
+                          cname=None, visibility='private', api=0, in_pxd=0,
+                          defining=0, modifiers=(), utility_code=None, overridable=False):
         if get_special_method_signature(name) and not self.parent_type.is_builtin_type:
             error(pos, "Special methods must be declared with 'def', not 'cdef'")
         args = type.args
@@ -1976,8 +1987,7 @@ class CClassScope(ClassScope):
                 error(pos,
                     "C method '%s' not previously declared in definition part of"
                     " extension type" % name)
-            entry = self.add_cfunction(name, type, pos, cname,
-                                       visibility, modifiers)
+            entry = self.add_cfunction(name, type, pos, cname, visibility, modifiers)
         if defining:
             entry.func_cname = self.mangle(Naming.func_prefix, name)
         entry.utility_code = utility_code
@@ -2007,7 +2017,7 @@ class CClassScope(ClassScope):
         # equivalent that must be accessible to support bound methods
         name = EncodedString(name)
         entry = self.declare_cfunction(name, type, None, cname, visibility='extern',
-                                       utility_code = utility_code)
+                                       utility_code=utility_code)
         var_entry = Entry(name, name, py_object_type)
         var_entry.is_variable = 1
         var_entry.is_builtin = 1
@@ -2144,8 +2154,8 @@ class CppClassScope(Scope):
                   (self.default_constructor, self.default_constructor))
 
     def declare_cfunction(self, name, type, pos,
-                          cname = None, visibility = 'extern', api = 0, in_pxd = 0,
-                          defining = 0, modifiers = (), utility_code = None):
+                          cname=None, visibility='extern', api=0, in_pxd=0,
+                          defining=0, modifiers=(), utility_code=None, overridable=False):
         if name in (self.name.split('::')[-1], '__init__') and cname is None:
             self.check_base_default_constructor(pos)
             cname = self.type.cname
@@ -2184,9 +2194,9 @@ class CppClassScope(Scope):
         for base_entry in base_scope.cfunc_entries:
             entry = self.declare_cfunction(base_entry.name, base_entry.type,
                                            base_entry.pos, base_entry.cname,
-                                           base_entry.visibility, 0,
-                                           modifiers = base_entry.func_modifiers,
-                                           utility_code = base_entry.utility_code)
+                                           base_entry.visibility, api=0,
+                                           modifiers=base_entry.func_modifiers,
+                                           utility_code=base_entry.utility_code)
             entry.is_inherited = 1
 
     def specialize(self, values, type_entry):
@@ -2205,7 +2215,7 @@ class CppClassScope(Scope):
                                             e.type.specialize(values),
                                             e.pos,
                                             e.cname,
-                                            utility_code = e.utility_code)
+                                            utility_code=e.utility_code)
             else:
                 scope.declare_var(entry.name,
                                   entry.type.specialize(values),

@@ -1294,10 +1294,9 @@ class CVarDefNode(StatNode):
                 return
             if type.is_cfunction:
                 self.entry = dest_scope.declare_cfunction(name, type, declarator.pos,
-                    cname = cname, visibility = self.visibility, in_pxd = self.in_pxd,
-                    api = self.api, modifiers = self.modifiers)
+                    cname=cname, visibility=self.visibility, in_pxd=self.in_pxd,
+                    api=self.api, modifiers=self.modifiers, overridable=self.overridable)
                 if self.entry is not None:
-                    self.entry.is_overridable = self.overridable
                     self.entry.directive_locals = copy.copy(self.directive_locals)
                 if 'staticmethod' in env.directives:
                     type.is_static_method = True
@@ -2256,8 +2255,9 @@ class CFuncDefNode(FuncDefNode):
         type.is_static_method = self.is_static_method
         self.entry = env.declare_cfunction(
             name, type, self.pos,
-            cname = cname, visibility = self.visibility, api = self.api,
-            defining = self.body is not None, modifiers = self.modifiers)
+            cname=cname, visibility=self.visibility, api=self.api,
+            defining=self.body is not None, modifiers=self.modifiers,
+            overridable=self.overridable)
         self.entry.inline_func_in_pxd = self.inline_in_pxd
         self.return_type = type.return_type
         if self.return_type.is_array and self.visibility != 'extern':

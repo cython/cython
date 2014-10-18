@@ -1723,19 +1723,18 @@ class NameNode(AtomicExprNode):
     def analyse_target_types(self, env):
         self.analyse_entry(env, is_target=True)
 
-        if (not self.is_lvalue() and self.entry.is_cfunction and
-                self.entry.fused_cfunction and self.entry.as_variable):
-            # We need this for the fused 'def' TreeFragment
-            self.entry = self.entry.as_variable
-            self.type = self.entry.type
+        if self.entry.is_cfunction and self.entry.as_variable:
+            if self.entry.is_overridable or not self.is_lvalue() and self.entry.fused_cfunction:
+                # We need this for assigning to cpdef names and for the fused 'def' TreeFragment
+                self.entry = self.entry.as_variable
+                self.type = self.entry.type
 
         if self.type.is_const:
             error(self.pos, "Assignment to const '%s'" % self.name)
         if self.type.is_reference:
             error(self.pos, "Assignment to reference '%s'" % self.name)
         if not self.is_lvalue():
-            error(self.pos, "Assignment to non-lvalue '%s'"
-                % self.name)
+            error(self.pos, "Assignment to non-lvalue '%s'" % self.name)
             self.type = PyrexTypes.error_type
         self.entry.used = 1
         if self.entry.type.is_buffer:
@@ -1859,9 +1858,14 @@ class NameNode(AtomicExprNode):
         return True
 
     def is_lvalue(self):
-        return self.entry.is_variable and \
-            not self.entry.type.is_array and \
+        return (
+            self.entry.is_variable and
+            not self.entry.type.is_array and
             not self.entry.is_readonly
+        ) or (
+            self.entry.is_cfunction and
+            self.entry.is_overridable
+        )
 
     def is_addressable(self):
         return self.entry.is_variable and not self.type.is_memoryviewslice
