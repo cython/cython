@@ -2,8 +2,8 @@
 Cython Changelog
 ================
 
-Latest
-======
+0.21.1 (2014-10-18)
+===================
 
 Features added
 --------------
@@ -42,6 +42,8 @@ Bugs fixed
 * Fatal exceptions in global module init code could lead to crashes
   if the already created module was used later on (e.g. through a
   stale reference in sys.modules or elsewhere).
+
+* ``cythonize.py`` script was not installed on MS-Windows.
 
 Other changes
 -------------
