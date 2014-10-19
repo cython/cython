@@ -2650,12 +2650,25 @@ class CFuncType(CType):
         assert not self.is_fused
         specialize_entry(entry, cname)
 
-    def create_to_py_utility_code(self, env):
-        # FIXME: it seems we're trying to coerce in more cases than we should
+    def can_coerce_to_pyobject(self, env):
+        # duplicating the decisions from create_to_py_utility_code() here avoids writing out unused code
         if self.has_varargs or self.optional_arg_count:
             return False
         if self.to_py_function is not None:
             return self.to_py_function
+        for arg in self.args:
+            if not arg.type.is_pyobject and not arg.type.can_coerce_to_pyobject(env):
+                return False
+        if not self.return_type.is_pyobject and not self.return_type.can_coerce_to_pyobject(env):
+            return False
+        return True
+
+    def create_to_py_utility_code(self, env):
+        # FIXME: it seems we're trying to coerce in more cases than we should
+        if self.to_py_function is not None:
+            return self.to_py_function
+        if not self.can_coerce_to_pyobject(env):
+            return False
         from .UtilityCode import CythonUtilityCode
         import re
         safe_typename = re.sub('[^a-zA-Z0-9]', '__', self.declaration_code("", pyrex=1))
@@ -2664,8 +2677,7 @@ class CFuncType(CType):
         for arg in self.args:
             if not arg.type.is_pyobject and not arg.type.create_from_py_utility_code(env):
                 return False
-        if not (self.return_type.is_pyobject or self.return_type.is_void or
-                self.return_type.create_to_py_utility_code(env)):
+        if not self.return_type.is_pyobject and not self.return_type.create_to_py_utility_code(env):
             return False
 
         def declared_type(ctype):
