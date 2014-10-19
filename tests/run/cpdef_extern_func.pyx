@@ -14,6 +14,8 @@ Traceback (most recent call last):
 NameError: name 'log' is not defined
 >>> strchr('abcabc', ord('c'))
 'cabc'
+>>> strchr(needle=ord('c'), haystack='abcabc')
+'cabc'
 """
 
 cdef extern from "math.h":
