@@ -1251,6 +1251,9 @@ class CConstType(BaseType):
     def deduce_template_params(self, actual):
         return self.const_base_type.deduce_template_params(actual)
 
+    def can_coerce_to_pyobject(self, env):
+        return self.const_base_type.can_coerce_to_pyobject(env)
+
     def create_to_py_utility_code(self, env):
         if self.const_base_type.create_to_py_utility_code(env):
             self.to_py_function = self.const_base_type.to_py_function
@@ -1419,6 +1422,9 @@ class CIntType(CNumericType):
     to_py_function = None
     from_py_function = None
     exception_value = -1
+
+    def can_coerce_to_pyobject(self, env):
+        return True
 
     def create_to_py_utility_code(self, env):
         if type(self).to_py_function is None:
@@ -1763,6 +1769,9 @@ class CComplexType(CNumericType):
                     real_type = self.real_type.declaration_code(''),
                     m = self.funcsuffix,
                     is_float = self.real_type.is_float))
+        return True
+
+    def can_coerce_to_pyobject(self, env):
         return True
 
     def create_to_py_utility_code(self, env):
@@ -2397,9 +2406,8 @@ class CFuncType(CType):
         # is exempt from compatibility checking (the proper check
         # is performed elsewhere).
         for i in range(as_cmethod, nargs):
-            if not self.args[i].type.same_as(
-                other_type.args[i].type):
-                    return 0
+            if not self.args[i].type.same_as(other_type.args[i].type):
+                return 0
         if self.has_varargs != other_type.has_varargs:
             return 0
         if self.optional_arg_count != other_type.optional_arg_count:
