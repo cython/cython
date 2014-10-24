@@ -347,11 +347,6 @@ except NameError: # Py3
 py_float = typedef(float, "float")
 py_complex = typedef(complex, "double complex")
 
-try:
-    unicode = typedef(unicode, "unicode")
-except NameError:  # Py3
-    unicode = typedef(str, "unicode")
-
 
 # Predefined types
 
@@ -369,6 +364,15 @@ to_repr = {
 }.get
 
 gs = globals()
+
+# note: cannot simply name the unicode type here as 2to3 gets in the way and replaces it by str
+try:
+    import __builtin__ as builtins
+except ImportError:  # Py3
+    import builtins
+
+gs['unicode'] = typedef(getattr(builtins, 'unicode', str), 'unicode')
+del builtins
 
 for name in int_types:
     reprname = to_repr(name, name)
