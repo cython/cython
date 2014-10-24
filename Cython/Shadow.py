@@ -347,6 +347,11 @@ except NameError: # Py3
 py_float = typedef(float, "float")
 py_complex = typedef(complex, "double complex")
 
+try:
+    unicode = typedef(unicode, "unicode")
+except NameError:  # Py3
+    unicode = typedef(str, "unicode")
+
 
 # Predefined types
 
