@@ -91,7 +91,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         if isinstance(other, CythonUtilityCode):
             return self._equality_params() == other._equality_params()
         else:
-           return False
+            return False
 
     def _equality_params(self):
         return self.impl, self.outer_module_scope, self.compiler_directives
