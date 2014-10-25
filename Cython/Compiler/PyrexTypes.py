@@ -2296,7 +2296,6 @@ class CArrayType(CPointerBaseType):
         context = {
             'cname': from_py_function,
             'base_type': base_type,
-            'from_py_func': self.base_type.from_py_function,
         }
         env.use_utility_code(CythonUtilityCode.load(
             "carray.from_py", "CConvert.pyx",
