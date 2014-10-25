@@ -66,29 +66,32 @@ cdef int {{cname}}(object o, {{base_type}} *v, Py_ssize_t length) except -1:
 #################### carray.to_py ####################
 
 cdef extern from *:
-    ctypedef struct PyObject
-    PyObject* {{to_py_func}}({{base_type}}) except NULL
-
+    void Py_INCREF(object o)
     tuple PyTuple_New(Py_ssize_t size)
-    void PyTuple_SET_ITEM(object  p, Py_ssize_t pos, PyObject*  o)
-
     list PyList_New(Py_ssize_t size)
-    void PyList_SET_ITEM(object  p, Py_ssize_t pos, PyObject*  o)
+    void PyTuple_SET_ITEM(object  p, Py_ssize_t pos, object o)
+    void PyList_SET_ITEM(object  p, Py_ssize_t pos, object o)
 
 
 @cname("{{cname}}")
 cdef inline list {{cname}}({{base_type}} *v, Py_ssize_t length):
     cdef size_t i
+    cdef object value
     l = PyList_New(length)
     for i in range(<size_t>length):
-        PyList_SET_ITEM(l, i, {{to_py_func}}(v[i]))
+        value = v[i]
+        Py_INCREF(value)
+        PyList_SET_ITEM(l, i, value)
     return l
 
 
 @cname("{{to_tuple_cname}}")
 cdef inline tuple {{to_tuple_cname}}({{base_type}} *v, Py_ssize_t length):
     cdef size_t i
+    cdef object value
     t = PyTuple_New(length)
     for i in range(<size_t>length):
-        PyTuple_SET_ITEM(t, i, {{to_py_func}}(v[i]))
+        value = v[i]
+        Py_INCREF(value)
+        PyTuple_SET_ITEM(t, i, value)
     return t

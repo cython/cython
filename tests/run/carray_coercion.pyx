@@ -52,6 +52,21 @@ cpdef tuple tuple_from_typedef_int_array():
     return v
 
 
+def from_int_array_array():
+    """
+    >>> from_int_array_array()
+    [[11, 12, 13], [21, 22, 23]]
+    """
+    cdef int[2][3] v
+    v[0][0] = 11
+    v[0][1] = 12
+    v[0][2] = 13
+    v[1][0] = 21
+    v[1][1] = 22
+    v[1][2] = 23
+    return v
+
+
 ctypedef struct MyStructType:
     int x
     double y

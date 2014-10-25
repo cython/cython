@@ -2258,7 +2258,6 @@ class CArrayType(CPointerBaseType):
             'cname': to_py_function,
             'to_tuple_cname': to_tuple_function,
             'base_type': base_type,
-            'to_py_func': self.base_type.to_py_function,
         }
         env.use_utility_code(CythonUtilityCode.load(
             "carray.to_py", "CConvert.pyx",
