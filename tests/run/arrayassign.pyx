@@ -1,9 +1,13 @@
-# this doesn't work - it would reassign the array address!
-#
-#def test_literal_list():
-#    cdef int a[5]
-#    a = [1,2,3,4,5]
-#    return (a[0], a[1], a[2], a[3], a[4])
+# mode: run
+
+def test_literal_list():
+    """
+    >>> test_literal_list()
+    (1, 2, 3, 4, 5)
+    """
+    cdef int a[5]
+    a = [1,2,3,4,5]
+    return (a[0], a[1], a[2], a[3], a[4])
 
 def test_literal_list_slice_all():
     """
@@ -128,16 +132,20 @@ def test_ptr_literal_list_slice_end():
     a[:5] = [1,2,3,4,5]
     return (a[0], a[1], a[2], a[3], a[4])
 
-# tuples aren't supported (yet)
-#
-#def test_literal_tuple():
-#    cdef int a[5]
-#    a = (1,2,3,4,5)
-#    return (a[0], a[1], a[2], a[3], a[4])
+def test_literal_tuple():
+    """
+    >>> test_literal_tuple()
+    (1, 2, 3, 4, 5)
+    """
+    cdef int a[5]
+    a = (1,2,3,4,5)
+    return (a[0], a[1], a[2], a[3], a[4])
 
-# this would be nice to have:
-#
-#def test_list(list l):
-#    cdef int a[5]
-#    a[:] = l
-#    return (a[0], a[1], a[2], a[3], a[4])
+def test_list(list l):
+    """
+    >>> test_list([1, 2, 3, 4, 5])
+    (1, 2, 3, 4, 5)
+    """
+    cdef int a[5]
+    a[:] = l
+    return (a[0], a[1], a[2], a[3], a[4])
