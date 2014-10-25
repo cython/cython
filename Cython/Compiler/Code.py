@@ -966,14 +966,15 @@ class GlobalState(object):
             w.putln("")
             w.putln("static void __Pyx_CleanupGlobals(void) {")
 
-        #
-        # utility_code_def
-        #
+        code = self.parts['utility_code_proto']
+        code.putln("")
+        code.putln("/* --- Runtime support code (head) --- */")
+
         code = self.parts['utility_code_def']
         if self.emit_linenums:
             code.write('\n#line 1 "cython_utility"\n')
         code.putln("")
-        code.putln("/* Runtime support code */")
+        code.putln("/* --- Runtime support code --- */")
 
     def finalize_main_c_code(self):
         self.close_global_decls()
