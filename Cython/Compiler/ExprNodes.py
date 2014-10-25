@@ -1969,7 +1969,7 @@ class NameNode(AtomicExprNode):
             return # There was an error earlier
 
         if (self.entry.type.is_ptr and isinstance(rhs, ListNode)
-            and not self.lhs_of_first_assignment and not rhs.in_module_scope):
+                and not self.lhs_of_first_assignment and not rhs.in_module_scope):
             error(self.pos, "Literal list must be assigned to pointer at time of declaration")
 
         # is_pyglobal seems to be True for module level-globals only.
