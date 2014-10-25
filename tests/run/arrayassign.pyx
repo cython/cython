@@ -149,3 +149,81 @@ def test_list(list l):
     cdef int a[5]
     a[:] = l
     return (a[0], a[1], a[2], a[3], a[4])
+
+
+def assign_all_from_pointer():
+    """
+    >>> assign_all_from_pointer()
+    (1, 2, 3, 4, 5)
+    """
+    cdef int *v = [1, 2, 3, 4, 5]
+    cdef int[5] a
+    a = v
+    return (a[0], a[1], a[2], a[3], a[4])
+
+
+def assign_full_from_pointer():
+    """
+    >>> assign_full_from_pointer()
+    (1, 2, 3, 4, 5)
+    """
+    cdef int *v = [1, 2, 3, 4, 5]
+    cdef int[5] a
+    a[:] = v
+    return (a[0], a[1], a[2], a[3], a[4])
+
+
+def assign_slice_end_from_pointer():
+    """
+    >>> assign_slice_end_from_pointer()
+    (1, 2, 3, 4, 123)
+    """
+    cdef int *v = [1, 2, 3, 4, 5]
+    cdef int[5] a
+    a[4] = 123
+    a[:4] = v
+    return (a[0], a[1], a[2], a[3], a[4])
+
+
+def assign_slice_start_from_pointer():
+    """
+    >>> assign_slice_start_from_pointer()
+    (123, 234, 1, 2, 3)
+    """
+    cdef int *v = [1, 2, 3, 4, 5]
+    cdef int[5] a
+    a[0] = 123
+    a[1] = 234
+    a[2:] = v
+    return (a[0], a[1], a[2], a[3], a[4])
+
+
+def assign_slice_start_end_from_pointer():
+    """
+    >>> assign_slice_start_end_from_pointer()
+    (123, 234, 1, 2, 345)
+    """
+    cdef int *v = [1, 2, 3, 4, 5]
+    cdef int[5] a
+    a[0] = 123
+    a[1] = 234
+    a[4] = 345
+    a[2:4] = v
+    return (a[0], a[1], a[2], a[3], a[4])
+
+
+'''
+# FIXME: make this work:
+def assign_slice_start_end_from_sliced_pointer():
+    """
+    >>> assign_slice_start_end_from_sliced_pointer()
+    (123, 234, 3, 4, 345)
+    """
+    cdef int *v = [1, 2, 3, 4, 5]
+    cdef int[5] a
+    a[0] = 123
+    a[1] = 234
+    a[4] = 345
+    a[2:4] = v[2:4]
+    return (a[0], a[1], a[2], a[3], a[4])
+'''

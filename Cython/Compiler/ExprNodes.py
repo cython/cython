@@ -4070,10 +4070,7 @@ class SliceIndexNode(ExprNode):
                 array_length = rhs.type.size
                 self.generate_slice_guard_code(code, array_length)
             else:
-                error(self.pos,
-                      "Slice assignments from pointers are not yet supported.")
-                # FIXME: fix the array size according to start/stop
-                array_length = self.base.type.size
+                array_length = '%s - %s' % (self.stop_code(), start_offset)
 
             def copy_carray(dst, src, item_type, start, count, depth):
                 var_name = Naming.quick_temp_cname

@@ -2206,8 +2206,12 @@ class CArrayType(CPointerBaseType):
                 or other_type is error_type)
 
     def assignable_from_resolved_type(self, src_type):
-        # Can't assign to a variable of an array type, except from Python containers
-        return src_type.is_pyobject
+        # C arrays are assigned by value, either Python containers or C arrays/pointers
+        if src_type.is_pyobject:
+            return True
+        if src_type.is_ptr or src_type.is_array:
+            return self.base_type.assignable_from(src_type.base_type)
+        return False
 
     def element_ptr_type(self):
         return c_ptr_type(self.base_type)
