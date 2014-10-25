@@ -4758,7 +4758,7 @@ class SingleAssignmentNode(AssignmentNode):
             self.lhs.is_memslice_scalar_assignment = True
             dtype = self.lhs.type.dtype
         elif self.lhs.type.is_array:
-            if not isinstance(self.lhs, (ExprNodes.IndexNode, ExprNodes.SliceIndexNode)):
+            if not isinstance(self.lhs, ExprNodes.SliceIndexNode):
                 # cannot assign to C array, only to its full slice
                 self.lhs = ExprNodes.SliceIndexNode(
                     self.lhs.pos, base=self.lhs, start=None, stop=None)

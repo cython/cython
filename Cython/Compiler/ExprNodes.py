@@ -3884,24 +3884,23 @@ class SliceIndexNode(ExprNode):
             check_negative_indices(self.start, self.stop)
 
         base_type = self.base.type
-        if base_type.is_string or base_type.is_cpp_string:
+        if base_type.is_array and not getting:
+            # cannot assign directly to C array => try to assign by making a copy
+            if not self.start and not self.stop:
+                self.type = base_type
+            else:
+                self.type = PyrexTypes.CPtrType(base_type.base_type)
+        elif base_type.is_string or base_type.is_cpp_string:
             self.type = default_str_type(env)
         elif base_type.is_pyunicode_ptr:
             self.type = unicode_type
         elif base_type.is_ptr:
             self.type = base_type
         elif base_type.is_array:
-            if getting:
-                # we need a ptr type here instead of an array type, as
-                # array types can result in invalid type casts in the C
-                # code
-                self.type = PyrexTypes.CPtrType(base_type.base_type)
-            else:
-                # try to assign 'by value' (i.e. make a copy)
-                if not self.start and not self.stop:
-                    self.type = base_type
-                else:
-                    self.type = PyrexTypes.CPtrType(base_type.base_type)
+            # we need a ptr type here instead of an array type, as
+            # array types can result in invalid type casts in the C
+            # code
+            self.type = PyrexTypes.CPtrType(base_type.base_type)
         else:
             self.base = self.base.coerce_to_pyobject(env)
             self.type = py_object_type

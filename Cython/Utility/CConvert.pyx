@@ -18,7 +18,7 @@ cdef {{struct_name}} {{funcname}}(obj) except *:
         value = obj['{{member.name}}']
     except KeyError:
         raise ValueError("No value specified for struct attribute '{{member.name}}'")
-    result.{{member.cname}}{{'[:]' if member.type.is_array else ''}} = value
+    result.{{member.cname}} = value
     {{endfor}}
     return result
 
