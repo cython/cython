@@ -2145,15 +2145,16 @@ class CPointerBaseType(CType):
                 self.is_pyunicode_ptr = 1
 
         if self.is_string and not base_type.is_error:
-            if base_type.signed:
+            if base_type.signed == 2:
+                self.to_py_function = "__Pyx_PyObject_FromCString"
+                if self.is_ptr:
+                    self.from_py_function = "__Pyx_PyObject_AsSString"
+            elif base_type.signed:
                 self.to_py_function = "__Pyx_PyObject_FromString"
                 if self.is_ptr:
-                    if base_type.signed == 2:
-                        self.from_py_function = "__Pyx_PyObject_AsSString"
-                    else:
-                        self.from_py_function = "__Pyx_PyObject_AsString"
+                    self.from_py_function = "__Pyx_PyObject_AsString"
             else:
-                self.to_py_function = "__Pyx_PyObject_FromUString"
+                self.to_py_function = "__Pyx_PyObject_FromCString"
                 if self.is_ptr:
                     self.from_py_function = "__Pyx_PyObject_AsUString"
             self.exception_value = "NULL"
