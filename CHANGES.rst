@@ -11,6 +11,9 @@ Features added
 * C functions can coerce to Python functions, which allows passing them
   around as callable objects.
 
+* C arrays can be assigned by value and auto-coerce from Python iterables
+  and to Python lists (and tuples).
+
 * Extern C functions can now be declared as cpdef to export them to
   the module's Python namespace.  Extern C functions in pxd files export
   their values to their own module, iff it exists.
