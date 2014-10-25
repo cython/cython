@@ -96,6 +96,21 @@ def to_int_array(x):
     Traceback (most recent call last):
     IndexError: too many values found during array assignment, expected 3
     """
+    cdef int[3] v = x
+    return v[0], v[1], v[2]
+
+
+def to_int_array_slice(x):
+    """
+    >>> to_int_array_slice([1, 2, 3])
+    (1, 2, 3)
+    >>> to_int_array_slice([1, 2])
+    Traceback (most recent call last):
+    IndexError: not enough values found during array assignment, expected 3, got 2
+    >>> to_int_array_slice([1, 2, 3, 4])
+    Traceback (most recent call last):
+    IndexError: too many values found during array assignment, expected 3
+    """
     cdef int[3] v
     v[:] = x[:3]
     assert v[0] == x[0]

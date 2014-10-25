@@ -1860,7 +1860,6 @@ class NameNode(AtomicExprNode):
     def is_lvalue(self):
         return (
             self.entry.is_variable and
-            not self.entry.type.is_array and
             not self.entry.is_readonly
         ) or (
             self.entry.is_cfunction and
@@ -11247,7 +11246,7 @@ class CoerceFromPyTypeNode(CoercionNode):
         return self
 
     def is_ephemeral(self):
-        return self.type.is_ptr and self.arg.is_ephemeral()
+        return (self.type.is_ptr and not self.type.is_array) and self.arg.is_ephemeral()
 
     def generate_result_code(self, code):
         code.putln(self.type.from_py_call_code(

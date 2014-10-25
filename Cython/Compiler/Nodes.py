@@ -4750,14 +4750,20 @@ class SingleAssignmentNode(AssignmentNode):
             self.lhs.memslice_broadcast = True
             self.rhs.memslice_broadcast = True
 
-        is_index_node = isinstance(self.lhs, ExprNodes.IndexNode)
-        if (is_index_node and not self.rhs.type.is_memoryviewslice and
-            (self.lhs.memslice_slice or self.lhs.is_memslice_copy) and
-            (self.lhs.type.dtype.assignable_from(self.rhs.type) or
-             self.rhs.type.is_pyobject)):
+        if (self.lhs.is_subscript and not self.rhs.type.is_memoryviewslice and
+                (self.lhs.memslice_slice or self.lhs.is_memslice_copy) and
+                (self.lhs.type.dtype.assignable_from(self.rhs.type) or
+                 self.rhs.type.is_pyobject)):
             # scalar slice assignment
             self.lhs.is_memslice_scalar_assignment = True
             dtype = self.lhs.type.dtype
+        elif self.lhs.type.is_array:
+            if not isinstance(self.lhs, (ExprNodes.IndexNode, ExprNodes.SliceIndexNode)):
+                # cannot assign to C array, only to its full slice
+                self.lhs = ExprNodes.SliceIndexNode(
+                    self.lhs.pos, base=self.lhs, start=None, stop=None)
+                self.lhs = self.lhs.analyse_target_types(env)
+            dtype = self.lhs.type
         else:
             dtype = self.lhs.type
 
