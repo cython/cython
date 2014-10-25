@@ -4065,13 +4065,7 @@ class SliceIndexNode(ExprNode):
                     has_c_start, has_c_stop,
                     bool(code.globalstate.directives['wraparound'])))
         else:
-            start_offset = ''
-            if self.start:
-                start_offset = self.start_code()
-                if start_offset == '0':
-                    start_offset = ''
-                else:
-                    start_offset += '+'
+            start_offset = self.start_code() if self.start else '0'
             if rhs.type.is_array:
                 array_length = rhs.type.size
                 self.generate_slice_guard_code(code, array_length)
@@ -4080,10 +4074,31 @@ class SliceIndexNode(ExprNode):
                       "Slice assignments from pointers are not yet supported.")
                 # FIXME: fix the array size according to start/stop
                 array_length = self.base.type.size
-            for i in range(array_length):
-                code.putln("%s[%s%s] = %s[%d];" % (
-                        self.base.result(), start_offset, i,
-                        rhs.result(), i))
+
+            def copy_carray(dst, src, item_type, start, count, depth):
+                var_name = Naming.quick_temp_cname
+                if depth:
+                    var_name += str(depth)
+                dst_item, src_item = '{dst}[{i}+{start}] = {src}[{i}]'.format(
+                    src=src,
+                    dst=dst,
+                    start=start,
+                    i=var_name
+                ).split(' = ')
+
+                code.putln('{')
+                code.putln('Py_ssize_t %s;' % var_name)
+                code.put('for ({i}=0; {i} < {count}; {i}++) '.format(
+                    i=var_name,
+                    count=count))
+                if item_type.is_array:
+                    copy_carray(dst_item, src_item, item_type.base_type, 0, item_type.size, depth + 1)
+                else:
+                    code.putln('%s = %s;' % (dst_item, src_item))
+                code.putln('}')
+
+            copy_carray(self.base.result(), rhs.result(), rhs.type.base_type,
+                        start_offset, array_length, 0)
         self.generate_subexpr_disposal_code(code)
         self.free_subexpr_temps(code)
         rhs.generate_disposal_code(code)

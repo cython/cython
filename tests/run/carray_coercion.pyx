@@ -115,6 +115,62 @@ def to_int_array(x):
     return v[0], v[1], v[2]
 
 
+def to_int_array_array(x):
+    """
+    >>> to_int_array_array([[1, 2, 3], [4, 5, 6]])
+    (1, 2, 3, 4, 5, 6)
+    >>> to_int_array_array(iter([[1, 2, 3], [4, 5, 6]]))
+    (1, 2, 3, 4, 5, 6)
+
+    >>> to_int_array_array([[1, 2, 3]])
+    Traceback (most recent call last):
+    IndexError: not enough values found during array assignment, expected 2, got 1
+    >>> to_int_array_array(iter([[1, 2, 3]]))
+    Traceback (most recent call last):
+    IndexError: not enough values found during array assignment, expected 2, got 1
+
+    >>> to_int_array_array([[1, 2, 3], [4, 5]])
+    Traceback (most recent call last):
+    IndexError: not enough values found during array assignment, expected 3, got 2
+    >>> to_int_array_array(iter([[1, 2, 3], [4, 5]]))
+    Traceback (most recent call last):
+    IndexError: not enough values found during array assignment, expected 3, got 2
+
+    >>> to_int_array_array([[1, 2, 3, 4], [5, 6, 7]])
+    Traceback (most recent call last):
+    IndexError: too many values found during array assignment, expected 3
+    >>> to_int_array_array(iter([[1, 2, 3, 4], [5, 6, 7]]))
+    Traceback (most recent call last):
+    IndexError: too many values found during array assignment, expected 3
+    """
+    cdef int[2][3] v = x
+    return v[0][0], v[0][1], v[0][2], v[1][0], v[1][1], v[1][2]
+
+
+'''
+# FIXME: this isn't currently allowed
+cdef enum:
+    SIZE_A = 2
+    SIZE_B = 3
+
+def to_int_array_array_enumsize(x):
+    """
+    >>> to_int_array_array([[1, 2, 3], [4, 5, 6]])
+    (1, 2, 3, 4, 5, 6)
+    >>> to_int_array_array(iter([[1, 2, 3], [4, 5, 6]]))
+    (1, 2, 3, 4, 5, 6)
+    >>> to_int_array([1, 2])
+    Traceback (most recent call last):
+    IndexError: not enough values found during array assignment, expected 3, got 2
+    >>> to_int_array([1, 2, 3, 4])
+    Traceback (most recent call last):
+    IndexError: too many values found during array assignment, expected 3
+    """
+    cdef int[SIZE_A][SIZE_B] v = x
+    return v[0][0], v[0][1], v[0][2], v[1][0], v[1][1], v[1][2]
+'''
+
+
 def to_int_array_slice(x):
     """
     >>> to_int_array_slice([1, 2, 3])
@@ -175,3 +231,18 @@ def to_struct_array(x):
     assert w[1].y == v[1].y
 
     return v[0], w[1]
+
+
+def to_struct_array_array(x):
+    """
+    >>> (a1, a2, a3), (b1, b2, b3) = to_struct_array_array([
+    ...     ({'x': 11, 'y': 12}, {'x': 13, 'y': 14}, {'x': 15, 'y': 16}),
+    ...     ({'x': 21, 'y': 22}, {'x': 23, 'y': 24}, {'x': 25, 'y': 26}),
+    ... ])
+    >>> a1['x'], a1['y']
+    (11, 12.0)
+    >>> b3['x'], b3['y']
+    (25, 26.0)
+    """
+    cdef MyStructType[2][3] v = x
+    return v[0], v[1]
