@@ -6575,6 +6575,7 @@ class ListNode(SequenceNode):
         if self.type.is_array:
             # To be valid C++, we must allocate the memory on the stack
             # manually and be sure not to reuse it for something else.
+            # Yes, this means that we leak a temp array variable.
             pass
         else:
             SequenceNode.release_temp_result(self, env)
