@@ -3895,10 +3895,17 @@ class SliceIndexNode(ExprNode):
         elif base_type.is_ptr:
             self.type = base_type
         elif base_type.is_array:
-            # we need a ptr type here instead of an array type, as
-            # array types can result in invalid type casts in the C
-            # code
-            self.type = PyrexTypes.CPtrType(base_type.base_type)
+            if getting:
+                # we need a ptr type here instead of an array type, as
+                # array types can result in invalid type casts in the C
+                # code
+                self.type = PyrexTypes.CPtrType(base_type.base_type)
+            else:
+                # try to assign 'by value' (i.e. make a copy)
+                if not self.start and not self.stop:
+                    self.type = base_type
+                else:
+                    self.type = PyrexTypes.CPtrType(base_type.base_type)
         else:
             self.base = self.base.coerce_to_pyobject(env)
             self.type = py_object_type
@@ -6528,7 +6535,7 @@ class ListNode(SequenceNode):
                 error(self.pos, "Cannot coerce list to type '%s'" % dst_type)
         elif self.mult_factor:
             error(self.pos, "Cannot coerce multiplied list to '%s'" % dst_type)
-        elif dst_type.is_ptr and dst_type.base_type is not PyrexTypes.c_void_type:
+        elif (dst_type.is_array or dst_type.is_ptr) and dst_type.base_type is not PyrexTypes.c_void_type:
             base_type = dst_type.base_type
             self.type = PyrexTypes.CArrayType(base_type, len(self.args))
             for i in range(len(self.original_args)):
@@ -11110,6 +11117,7 @@ class CoerceToPyTypeNode(CoercionNode):
     #  to a Python object.
 
     type = py_object_type
+    target_type = py_object_type
     is_temp = 1
 
     def __init__(self, arg, env, type=py_object_type):
@@ -11129,22 +11137,17 @@ class CoerceToPyTypeNode(CoercionNode):
                 self.type = unicode_type
             elif arg.type.is_complex:
                 self.type = Builtin.complex_type
+            self.target_type = self.type
         elif arg.type.is_string or arg.type.is_cpp_string:
             if (type not in (bytes_type, bytearray_type)
                     and not env.directives['c_string_encoding']):
                 error(arg.pos,
                     "default encoding required for conversion from '%s' to '%s'" %
                     (arg.type, type))
-            self.type = type
+            self.type = self.target_type = type
         else:
             # FIXME: check that the target type and the resulting type are compatible
-            pass
-
-        if arg.type.is_memoryviewslice:
-            # Register utility codes at this point
-            arg.type.get_to_py_function(env, arg)
-
-        self.env = env
+            self.target_type = type
 
     gil_message = "Converting to Python object"
 
@@ -11172,21 +11175,11 @@ class CoerceToPyTypeNode(CoercionNode):
         return self
 
     def generate_result_code(self, code):
-        arg_type = self.arg.type
-        if arg_type.is_memoryviewslice:
-            funccall = arg_type.get_to_py_function(self.env, self.arg)
-        else:
-            func = arg_type.to_py_function
-            if arg_type.is_string or arg_type.is_cpp_string:
-                if self.type in (bytes_type, str_type, unicode_type):
-                    func = func.replace("Object", self.type.name.title(), 1)
-                elif self.type is bytearray_type:
-                    func = func.replace("Object", "ByteArray", 1)
-            funccall = "%s(%s)" % (func, self.arg.result() or 'NULL')
-
-        code.putln('%s = %s; %s' % (
-            self.result(),
-            funccall,
+        code.putln('%s; %s' % (
+            self.arg.type.to_py_call_code(
+                self.arg.result(),
+                self.result(),
+                self.target_type),
             code.error_goto_if_null(self.result(), self.pos)))
 
         code.put_gotref(self.py_result())
@@ -11257,15 +11250,8 @@ class CoerceFromPyTypeNode(CoercionNode):
         return self.type.is_ptr and self.arg.is_ephemeral()
 
     def generate_result_code(self, code):
-        function = self.type.from_py_function
-        operand = self.arg.py_result()
-        rhs = "%s(%s)" % (function, operand)
-        if self.type.is_enum:
-            rhs = typecast(self.type, c_long_type, rhs)
-        code.putln('%s = %s; %s' % (
-            self.result(),
-            rhs,
-            code.error_goto_if(self.type.error_condition(self.result()), self.pos)))
+        code.putln(self.type.from_py_call_code(
+            self.arg.py_result(), self.result(), self.pos, code))
         if self.type.is_pyobject:
             code.put_gotref(self.py_result())
 

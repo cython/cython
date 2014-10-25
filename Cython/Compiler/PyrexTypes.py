@@ -4,6 +4,7 @@
 
 from __future__ import absolute_import
 
+import re
 import copy
 
 from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode
@@ -422,6 +423,21 @@ class CTypedefType(BaseType):
         # delegation
         return self.typedef_base_type.create_from_py_utility_code(env)
 
+    def to_py_call_code(self, source_code, result_code, result_type, to_py_function=None):
+        if to_py_function is None:
+            to_py_function = self.to_py_function
+        return self.typedef_base_type.to_py_call_code(
+            source_code, result_code, result_type, to_py_function)
+
+    def from_py_call_code(self, source_code, result_code, error_pos, code,
+                          from_py_function=None, error_condition=None):
+        if from_py_function is None:
+            from_py_function = self.from_py_function
+        if error_condition is None:
+            error_condition = self.error_condition(result_code)
+        return self.typedef_base_type.from_py_call_code(
+            source_code, result_code, error_pos, code, from_py_function, error_condition)
+
     def overflow_check_binop(self, binop, env, const_rhs=False):
         env.use_utility_code(UtilityCode.load("Common", "Overflow.c"))
         type = self.declaration_code("")
@@ -695,16 +711,18 @@ class MemoryViewSliceType(PyrexType):
         return True
 
     def create_to_py_utility_code(self, env):
+        self._dtype_to_py_func, self._dtype_from_py_func = self.dtype_object_conversion_funcs(env)
         return True
 
-    def get_to_py_function(self, env, obj):
-        to_py_func, from_py_func = self.dtype_object_conversion_funcs(env)
-        to_py_func = "(PyObject *(*)(char *)) " + to_py_func
-        from_py_func = "(int (*)(char *, PyObject *)) " + from_py_func
+    def to_py_call_code(self, source_code, result_code, result_type, to_py_function=None):
+        assert self._dtype_to_py_func
+        assert self._dtype_from_py_func
 
-        tup = (obj.result(), self.ndim, to_py_func, from_py_func,
-               self.dtype.is_pyobject)
-        return "__pyx_memoryview_fromslice(%s, %s, %s, %s, %d);" % tup
+        to_py_func = "(PyObject *(*)(char *)) " + self._dtype_to_py_func
+        from_py_func = "(int (*)(char *, PyObject *)) " + self._dtype_from_py_func
+
+        tup = (result_code, source_code, self.ndim, to_py_func, from_py_func, self.dtype.is_pyobject)
+        return "%s = __pyx_memoryview_fromslice(%s, %s, %s, %s, %d);" % tup
 
     def dtype_object_conversion_funcs(self, env):
         get_function = "__pyx_memview_get_%s" % self.dtype_name
@@ -1216,6 +1234,29 @@ class CType(PyrexType):
             return " && ".join(conds)
         else:
             return 0
+
+    def to_py_call_code(self, source_code, result_code, result_type, to_py_function=None):
+        func = self.to_py_function if to_py_function is None else to_py_function
+        assert func
+        if self.is_string or self.is_cpp_string:
+            if result_type.is_builtin_type:
+                result_type_name = result_type.name
+                if result_type_name in ('bytes', 'str', 'unicode'):
+                    func = func.replace("Object", result_type_name.title(), 1)
+                elif result_type_name == 'bytearray':
+                    func = func.replace("Object", "ByteArray", 1)
+        return '%s = %s(%s)' % (
+            result_code,
+            func,
+            source_code or 'NULL')
+
+    def from_py_call_code(self, source_code, result_code, error_pos, code,
+                          from_py_function=None, error_condition=None):
+        return '%s = %s(%s); %s' % (
+            result_code,
+            from_py_function or self.from_py_function,
+            source_code,
+            code.error_goto_if(error_condition or self.error_condition(result_code), error_pos))
 
 
 class CConstType(BaseType):
@@ -2141,6 +2182,7 @@ class CArrayType(CPointerBaseType):
     #  size          integer or None    Number of elements
 
     is_array = 1
+    to_tuple_function = None
 
     def __init__(self, base_type, size):
         super(CArrayType, self).__init__(base_type)
@@ -2163,8 +2205,8 @@ class CArrayType(CPointerBaseType):
                 or other_type is error_type)
 
     def assignable_from_resolved_type(self, src_type):
-        # Can't assign to a variable of an array type
-        return 0
+        # Can't assign to a variable of an array type, except from Python containers
+        return src_type.is_pyobject
 
     def element_ptr_type(self):
         return c_ptr_type(self.base_type)
@@ -2192,13 +2234,83 @@ class CArrayType(CPointerBaseType):
         if base_type == self.base_type:
             return self
         else:
-            return CArrayType(base_type)
+            return CArrayType(base_type, self.size)
 
     def deduce_template_params(self, actual):
         if isinstance(actual, CArrayType):
             return self.base_type.deduce_template_params(actual.base_type)
         else:
             return None
+
+    def create_to_py_utility_code(self, env):
+        if self.to_py_function is not None:
+            return self.to_py_function
+        if not self.base_type.create_to_py_utility_code(env):
+            return False
+
+        base_type = self.base_type.declaration_code("", pyrex=1)
+        safe_typename = re.sub('[^a-zA-Z0-9]', '__', base_type)
+        to_py_function = "__Pyx_carray_to_py_%s" % safe_typename
+        to_tuple_function = "__Pyx_carray_to_tuple_%s" % safe_typename
+
+        from .UtilityCode import CythonUtilityCode
+        context = {
+            'cname': to_py_function,
+            'to_tuple_cname': to_tuple_function,
+            'base_type': base_type,
+            'to_py_func': self.base_type.to_py_function,
+        }
+        env.use_utility_code(CythonUtilityCode.load(
+            "carray.to_py", "CConvert.pyx",
+            outer_module_scope=env.global_scope(),  # need access to types declared in module
+            context=context, compiler_directives=dict(env.global_scope().directives)))
+        self.to_tuple_function = to_tuple_function
+        self.to_py_function = to_py_function
+        return True
+
+    def to_py_call_code(self, source_code, result_code, result_type, to_py_function=None):
+        func = self.to_py_function if to_py_function is None else to_py_function
+        if self.is_string or self.is_pyunicode_ptr:
+            return '%s = %s(%s)' % (
+                result_code,
+                func,
+                source_code)
+        target_is_tuple = result_type.is_builtin_type and result_type.name == 'tuple'
+        return '%s = %s(%s, %s)' % (
+            result_code,
+            self.to_tuple_function if target_is_tuple else func,
+            source_code,
+            self.size)
+
+    def create_from_py_utility_code(self, env):
+        if self.from_py_function is not None:
+            return self.from_py_function
+        if not self.base_type.create_from_py_utility_code(env):
+            return False
+
+        base_type = self.base_type.declaration_code("", pyrex=1)
+        safe_typename = re.sub('[^a-zA-Z0-9]', '__', base_type)
+        from_py_function = "__Pyx_carray_from_py_%s" % safe_typename
+
+        from .UtilityCode import CythonUtilityCode
+        context = {
+            'cname': from_py_function,
+            'base_type': base_type,
+            'from_py_func': self.base_type.from_py_function,
+        }
+        env.use_utility_code(CythonUtilityCode.load(
+            "carray.from_py", "CConvert.pyx",
+            outer_module_scope=env.global_scope(),  # need access to types declared in module
+            context=context, compiler_directives=dict(env.global_scope().directives)))
+        self.from_py_function = from_py_function
+        return True
+
+    def from_py_call_code(self, source_code, result_code, error_pos, code,
+                          from_py_function=None, error_condition=None):
+        call_code = "%s(%s, %s, %s)" % (
+            from_py_function or self.from_py_function,
+            source_code, result_code, self.size)
+        return code.error_goto_if_neg(call_code, error_pos)
 
 
 class CPtrType(CPointerBaseType):
@@ -2274,6 +2386,7 @@ class CPtrType(CPointerBaseType):
         if self.base_type.is_cpp_class:
             return self.base_type.find_cpp_operation_type(operator, operand_type)
         return None
+
 
 class CNullPtrType(CPtrType):
 
@@ -2678,7 +2791,6 @@ class CFuncType(CType):
         if not self.can_coerce_to_pyobject(env):
             return False
         from .UtilityCode import CythonUtilityCode
-        import re
         safe_typename = re.sub('[^a-zA-Z0-9]', '__', self.declaration_code("", pyrex=1))
         to_py_function = "__Pyx_CFunc_%s_to_py" % safe_typename
 
@@ -2732,9 +2844,9 @@ class CFuncType(CType):
         }
         # FIXME: directives come from first defining environment and do not adapt for reuse
         env.use_utility_code(CythonUtilityCode.load(
-            "cfunc.to_py", "CFuncConvert.pyx",
+            "cfunc.to_py", "CConvert.pyx",
             outer_module_scope=env.global_scope(),  # need access to types declared in module
-            context=context, compiler_directives=dict(env.directives)))
+            context=context, compiler_directives=dict(env.global_scope().directives)))
         self.to_py_function = to_py_function
         return True
 
@@ -2884,11 +2996,12 @@ class ToPyStructUtilityCode(object):
 
     requires = None
 
-    def __init__(self, type, forward_decl):
+    def __init__(self, type, forward_decl, env):
         self.type = type
         self.header = "static PyObject* %s(%s)" % (type.to_py_function,
                                                    type.declaration_code('s'))
         self.forward_decl = forward_decl
+        self.env = env
 
     def __eq__(self, other):
         return isinstance(other, ToPyStructUtilityCode) and self.header == other.header
@@ -2909,8 +3022,8 @@ class ToPyStructUtilityCode(object):
         code.putln("res = PyDict_New(); if (res == NULL) return NULL;")
         for member in self.type.scope.var_entries:
             nameconst_cname = code.get_py_string_const(member.name, identifier=True)
-            code.putln("member = %s(s.%s); if (member == NULL) goto bad;" % (
-                member.type.to_py_function, member.cname))
+            code.putln("%s; if (member == NULL) goto bad;" % (
+                member.type.to_py_call_code('s.%s' % member.cname, 'member', member.type)))
             code.putln("if (PyDict_SetItem(res, %s, member) < 0) goto bad;" % nameconst_cname)
             code.putln("Py_DECREF(member);")
         code.putln("return res;")
@@ -2951,9 +3064,8 @@ class CStructOrUnionType(CType):
         self.scope = scope
         self.typedef_flag = typedef_flag
         self.is_struct = kind == 'struct'
-        if self.is_struct:
-            self.to_py_function = "%s_to_py_%s" % (Naming.convert_func_prefix, self.cname)
-            self.from_py_function = "%s_from_py_%s" % (Naming.convert_func_prefix, self.cname)
+        self.to_py_function = "%s_to_py_%s" % (Naming.convert_func_prefix, self.cname)
+        self.from_py_function = "%s_from_py_%s" % (Naming.convert_func_prefix, self.cname)
         self.exception_check = True
         self._convert_to_py_code = None
         self._convert_from_py_code = None
@@ -2972,8 +3084,8 @@ class CStructOrUnionType(CType):
                     self.to_py_function = None
                     self._convert_to_py_code = False
                     return False
-            forward_decl = (self.entry.visibility != 'extern')
-            self._convert_to_py_code = ToPyStructUtilityCode(self, forward_decl)
+            forward_decl = self.entry.visibility != 'extern' and not self.typedef_flag
+            self._convert_to_py_code = ToPyStructUtilityCode(self, forward_decl, env)
 
         env.use_utility_code(self._convert_to_py_code)
         return True
@@ -2993,12 +3105,15 @@ class CStructOrUnionType(CType):
                     return False
 
             context = dict(
-                struct_type_decl=self.declaration_code(""),
+                struct_name=self.name,
                 var_entries=self.scope.var_entries,
                 funcname=self.from_py_function,
             )
-            self._convert_from_py_code = TempitaUtilityCode.load(
-                "FromPyStructUtility", "TypeConversion.c", context=context)
+            from .UtilityCode import CythonUtilityCode
+            self._convert_from_py_code = CythonUtilityCode.load(
+                "FromPyStructUtility", "CConvert.pyx",
+                outer_module_scope=env.global_scope(),  # need access to types declared in module
+                context=context)
 
         env.use_utility_code(self._convert_from_py_code)
         return True
@@ -3165,7 +3280,8 @@ class CppClassType(CType):
                 'type': self.cname,
             }
             from .UtilityCode import CythonUtilityCode
-            env.use_utility_code(CythonUtilityCode.load(cls.replace('unordered_', '') + ".from_py", "CppConvert.pyx", context=context))
+            env.use_utility_code(CythonUtilityCode.load(
+                cls.replace('unordered_', '') + ".from_py", "CppConvert.pyx", context=context))
             self.from_py_function = cname
             return True
 
@@ -3371,6 +3487,7 @@ class TemplatePlaceholderType(CType):
         else:
             return False
 
+
 class CEnumType(CType):
     #  name           string
     #  cname          string or None
@@ -3406,6 +3523,17 @@ class CEnumType(CType):
                 base_code = "enum %s" % self.cname
             base_code = public_decl(base_code, dll_linkage)
         return self.base_declaration_code(base_code, entity_code)
+
+    def from_py_call_code(self, source_code, result_code, error_pos, code,
+                          from_py_function=None, error_condition=None):
+        rhs = "%s(%s)" % (
+            from_py_function or self.from_py_function,
+            source_code)
+        return '%s = %s;%s' % (
+            result_code,
+            typecast(self, c_long_type, rhs),
+            ' %s' % code.error_goto_if(error_condition or self.error_condition(result_code), error_pos))
+
 
 class UnspecifiedType(PyrexType):
     # Used as a placeholder until the type can be determined.

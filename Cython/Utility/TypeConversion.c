@@ -311,42 +311,6 @@ static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t ival) {
 }
 
 
-/////////////// FromPyStructUtility.proto ///////////////
-{{struct_type_decl}};
-static {{struct_type_decl}} {{funcname}}(PyObject *);
-
-/////////////// FromPyStructUtility ///////////////
-static {{struct_type_decl}} {{funcname}}(PyObject * o) {
-    {{struct_type_decl}} result;
-    PyObject *value = NULL;
-
-    if (!PyMapping_Check(o)) {
-        PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "a mapping", Py_TYPE(o)->tp_name);
-        goto bad;
-    }
-
-    {{for member in var_entries:}}
-        {{py:attr = "result." + member.cname}}
-
-        value = PyObject_GetItem(o, PYIDENT("{{member.name}}"));
-        if (!value) {
-            PyErr_Format(PyExc_ValueError, \
-                "No value specified for struct attribute '%.{{max(200, len(member.name))}}s'", "{{member.name}}");
-            goto bad;
-        }
-        {{attr}} = {{member.type.from_py_function}}(value);
-        if ({{member.type.error_condition(attr)}})
-            goto bad;
-
-        Py_DECREF(value);
-    {{endfor}}
-
-    return result;
-bad:
-    Py_XDECREF(value);
-    return result;
-}
-
 /////////////// ObjectAsUCS4.proto ///////////////
 
 static CYTHON_INLINE Py_UCS4 __Pyx_PyObject_AsPy_UCS4(PyObject*);
