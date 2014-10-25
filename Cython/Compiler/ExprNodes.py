@@ -6582,7 +6582,7 @@ class ListNode(SequenceNode):
 
     def calculate_constant_result(self):
         if self.mult_factor:
-            raise ValueError() # may exceed the compile time memory
+            raise ValueError()  # may exceed the compile time memory
         self.constant_result = [
             arg.constant_result for arg in self.args]
 
@@ -6600,15 +6600,15 @@ class ListNode(SequenceNode):
         elif self.type.is_array:
             for i, arg in enumerate(self.args):
                 code.putln("%s[%s] = %s;" % (
-                                self.result(),
-                                i,
-                                arg.result()))
+                    self.result(),
+                    i,
+                    arg.result()))
         elif self.type.is_struct:
             for arg, member in zip(self.args, self.type.scope.var_entries):
                 code.putln("%s.%s = %s;" % (
-                        self.result(),
-                        member.cname,
-                        arg.result()))
+                    self.result(),
+                    member.cname,
+                    arg.result()))
         else:
             raise InternalError("List type never specified")
 
