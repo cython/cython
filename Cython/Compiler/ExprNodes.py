@@ -3414,9 +3414,6 @@ class IndexNode(ExprNode):
         elif self.type.is_ptr:
             # non-const pointers can always be reassigned
             return True
-        elif self.type.is_array:
-            # fixed-sized arrays aren't l-values
-            return False
         # Just about everything else returned by the index operator
         # can be an lvalue.
         return True
@@ -5716,7 +5713,7 @@ class AttributeNode(ExprNode):
 
     def is_lvalue(self):
         if self.obj:
-            return not self.type.is_array
+            return True
         else:
             return NameNode.is_lvalue(self)
 
