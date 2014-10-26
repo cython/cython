@@ -226,4 +226,74 @@ def assign_slice_start_end_from_sliced_pointer():
     a[4] = 345
     a[2:4] = v[2:4]
     return (a[0], a[1], a[2], a[3], a[4])
+
+
+def assign_from_longer_array_slice():
+    """
+    >>> assign_from_longer_array_slice()
+    [3, 4, 5]
+    """
+    cdef int[5] a
+    cdef int[3] b
+    a[0] = 1
+    a[1] = 2
+    a[2] = 3
+    a[3] = 4
+    a[4] = 5
+    b[0] = 11
+    b[1] = 12
+    b[2] = 13
+    b = a[2:]
+    return b
 '''
+
+
+def assign_slice_from_shorter_array():
+    """
+    >>> assign_slice_from_shorter_array()
+    [1, 11, 12, 13, 5]
+    """
+    cdef int[5] a
+    cdef int[3] b
+    a[0] = 1
+    a[1] = 2
+    a[2] = 3
+    a[3] = 4
+    a[4] = 5
+    b[0] = 11
+    b[1] = 12
+    b[2] = 13
+    a[1:4] = b
+    return a
+
+
+cdef enum:
+    SIZE = 2
+
+ctypedef int[SIZE] int_array_dyn
+
+
+def assign_ptr_to_unknown_csize():
+    """
+    >>> assign_ptr_to_unknown_csize()
+    [1, 2]
+    """
+    cdef int* v = [1, 2, 3, 4, 5]
+    cdef int_array_dyn d
+    d = v
+    return d
+
+
+def assign_to_wrong_csize():
+    """
+    >>> assign_to_wrong_csize()
+    Traceback (most recent call last):
+    ValueError: Assignment to slice of wrong length, expected 3, got 2
+    """
+    cdef int_array_dyn d
+    cdef int v[3]
+    v[0] = 1
+    v[1] = 2
+    v[2] = 3
+    d = v
+    return d

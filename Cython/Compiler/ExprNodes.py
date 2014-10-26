@@ -4143,47 +4143,77 @@ class SliceIndexNode(ExprNode):
         if not self.base.type.is_array:
             return
         slice_size = self.base.type.size
+        try:
+            total_length = slice_size = int(slice_size)
+        except ValueError:
+            total_length = None
+
         start = stop = None
         if self.stop:
             stop = self.stop.result()
             try:
                 stop = int(stop)
                 if stop < 0:
-                    slice_size = self.base.type.size + stop
+                    if total_length is None:
+                        slice_size = '%s + %d' % (slice_size, stop)
+                    else:
+                        slice_size += stop
                 else:
                     slice_size = stop
                 stop = None
             except ValueError:
                 pass
+
         if self.start:
             start = self.start.result()
             try:
                 start = int(start)
                 if start < 0:
-                    start = self.base.type.size + start
-                slice_size -= start
+                    if total_length is None:
+                        start = '%s + %d' % (self.base.type.size, start)
+                    else:
+                        start += total_length
+                if isinstance(slice_size, (int, long)):
+                    slice_size -= start
+                else:
+                    slice_size = '%s - (%s)' % (slice_size, start)
                 start = None
             except ValueError:
                 pass
-        check = None
-        if slice_size < 0:
-            if target_size > 0:
+
+        runtime_check = None
+        compile_time_check = False
+        try:
+            int_target_size = int(target_size)
+        except ValueError:
+            int_target_size = None
+        else:
+            compile_time_check = isinstance(slice_size, (int, long))
+
+        if compile_time_check and slice_size < 0:
+            if int_target_size > 0:
                 error(self.pos, "Assignment to empty slice.")
-        elif start is None and stop is None:
+        elif compile_time_check and start is None and stop is None:
             # we know the exact slice length
-            if target_size != slice_size:
-                error(self.pos, "Assignment to slice of wrong length, expected %d, got %d" % (
-                        slice_size, target_size))
+            if int_target_size != slice_size:
+                error(self.pos, "Assignment to slice of wrong length, expected %s, got %s" % (
+                      slice_size, target_size))
         elif start is not None:
             if stop is None:
                 stop = slice_size
-            check = "(%s)-(%s)" % (stop, start)
-        else: # stop is not None:
-            check = stop
-        if check:
-            code.putln("if (unlikely((%s) != %d)) {" % (check, target_size))
-            code.putln('PyErr_Format(PyExc_ValueError, "Assignment to slice of wrong length, expected %%" CYTHON_FORMAT_SSIZE_T "d, got %%" CYTHON_FORMAT_SSIZE_T "d", (Py_ssize_t)%d, (Py_ssize_t)(%s));' % (
-                        target_size, check))
+            runtime_check = "(%s)-(%s)" % (stop, start)
+        elif stop is not None:
+            runtime_check = stop
+        else:
+            runtime_check = slice_size
+
+        if runtime_check:
+            code.putln("if (unlikely((%s) != (%s))) {" % (runtime_check, target_size))
+            code.putln(
+                'PyErr_Format(PyExc_ValueError, "Assignment to slice of wrong length,'
+                ' expected %%" CYTHON_FORMAT_SSIZE_T "d, got %%" CYTHON_FORMAT_SSIZE_T "d",'
+                ' (Py_ssize_t)(%s), (Py_ssize_t)(%s));' % (
+                    target_size, runtime_check))
             code.putln(code.error_goto(self.pos))
             code.putln("}")
 
