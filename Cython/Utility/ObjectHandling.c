@@ -24,8 +24,7 @@ static CYTHON_INLINE void __Pyx_RaiseTooManyValuesError(Py_ssize_t expected);
 /////////////// RaiseTooManyValuesToUnpack ///////////////
 
 static CYTHON_INLINE void __Pyx_RaiseTooManyValuesError(Py_ssize_t expected) {
-    PyErr_Format(PyExc_ValueError,
-                 "too many values to unpack (expected %" CYTHON_FORMAT_SSIZE_T "d)", expected);
+    PyErr_Format(PyExc_ValueError, "too many values to unpack (expected %zd)", expected);
 }
 
 /////////////// RaiseNeedMoreValuesToUnpack.proto ///////////////
@@ -35,8 +34,7 @@ static CYTHON_INLINE void __Pyx_RaiseNeedMoreValuesError(Py_ssize_t index);
 /////////////// RaiseNeedMoreValuesToUnpack ///////////////
 
 static CYTHON_INLINE void __Pyx_RaiseNeedMoreValuesError(Py_ssize_t index) {
-    PyErr_Format(PyExc_ValueError,
-                 "need more than %" CYTHON_FORMAT_SSIZE_T "d value%.1s to unpack",
+    PyErr_Format(PyExc_ValueError, "need more than %zd value%.1s to unpack",
                  index, (index == 1) ? "" : "s");
 }
 

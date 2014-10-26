@@ -344,8 +344,7 @@ static CYTHON_INLINE Py_UCS4 __Pyx_PyObject_AsPy_UCS4(PyObject* x) {
        #endif
        #endif
        PyErr_Format(PyExc_ValueError,
-                    "only single character unicode strings can be converted to Py_UCS4, "
-                    "got length %" CYTHON_FORMAT_SSIZE_T "d", length);
+                    "only single character unicode strings can be converted to Py_UCS4, got length %zd", length);
        return (Py_UCS4)-1;
    }
    ival = __Pyx_PyInt_As_long(x);
@@ -382,8 +381,8 @@ static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject* x) {
     if (PyUnicode_Check(x)) {
         if (unlikely(__Pyx_PyUnicode_GET_LENGTH(x) != 1)) {
             PyErr_Format(PyExc_ValueError,
-                         "only single character unicode strings can be converted to Py_UNICODE, "
-                         "got length %" CYTHON_FORMAT_SSIZE_T "d", __Pyx_PyUnicode_GET_LENGTH(x));
+                         "only single character unicode strings can be converted to Py_UNICODE, got length %zd",
+                         __Pyx_PyUnicode_GET_LENGTH(x));
             return (Py_UNICODE)-1;
         }
         #if CYTHON_PEP393_ENABLED
