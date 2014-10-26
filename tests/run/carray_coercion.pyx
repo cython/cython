@@ -171,6 +171,17 @@ def to_int_array_array_enumsize(x):
 '''
 
 
+'''
+# FIXME: this isn't currently supported
+def array_as_argument(int[2] x):
+    """
+    >>> array_as_argument([1, 2])
+    (1, 2)
+    """
+    return x[0], x[1]
+'''
+
+
 def to_int_array_slice(x):
     """
     >>> to_int_array_slice([1, 2, 3])
