@@ -4210,9 +4210,10 @@ class SliceIndexNode(ExprNode):
         if runtime_check:
             code.putln("if (unlikely((%s) != (%s))) {" % (runtime_check, target_size))
             code.putln(
-                'PyErr_Format(PyExc_ValueError,'
-                ' "Assignment to slice of wrong length, expected %%zd, got %%zd",'
-                ' (Py_ssize_t)(%s), (Py_ssize_t)(%s));' % (target_size, runtime_check))
+                'PyErr_Format(PyExc_ValueError, "Assignment to slice of wrong length,'
+                ' expected %%" CYTHON_FORMAT_SSIZE_T "d, got %%" CYTHON_FORMAT_SSIZE_T "d",'
+                ' (Py_ssize_t)(%s), (Py_ssize_t)(%s));' % (
+                    target_size, runtime_check))
             code.putln(code.error_goto(self.pos))
             code.putln("}")
 
