@@ -40,11 +40,17 @@ namespace shapes {
         Square(int side) : Rectangle(side, side) { this->side = side; }
         int side;
     };
-
-    class Circle : public Shape {
+    
+    class Ellipse : public Shape {
     public:
-        Circle(int radius) { this->radius = radius; }
-        float area() const { return 3.1415926535897931f * radius; }
+        Ellipse(int a, int b) { this->a = a; this->b = b; }
+        float area() const { return 3.1415926535897931f * a * b; }
+        int a, b;
+    };
+    
+    class Circle : public Ellipse {
+    public:
+        Circle(int radius) : Ellipse(radius, radius) { this->radius = radius; }
         int radius;
     };
 
