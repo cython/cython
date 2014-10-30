@@ -1172,7 +1172,8 @@ class CTupleBaseTypeNode(CBaseTypeNode):
                 return PyrexType.error_type
             component_types.append(type)
         type = PyrexTypes.c_tuple_type(component_types)
-        env.declare_tuple_type(self.pos, type)
+        entry = env.declare_tuple_type(self.pos, type)
+        entry.used = True
         return type
 
 

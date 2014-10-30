@@ -6595,6 +6595,7 @@ class TupleNode(SequenceNode):
             self.generate_sequence_packing_code(code)
             code.put_giveref(self.py_result())
         else:
+            self.type.entry.used = True
             self.generate_sequence_packing_code(code)
 
 
