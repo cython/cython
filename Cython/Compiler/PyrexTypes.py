@@ -3336,6 +3336,17 @@ class CppClassType(CType):
     def is_template_type(self):
         return self.templates is not None and self.template_type is None
 
+    def get_fused_types(self, result=None, seen=None):
+        if result is None:
+            result = []
+            seen = set()
+        if self.namespace:
+            self.namespace.get_fused_types(result, seen)
+        if self.templates:
+            for T in self.templates:
+                T.get_fused_types(result, seen)
+        return result
+
     def specialize_here(self, pos, template_values = None):
         if not self.is_template_type():
             error(pos, "'%s' type is not a template" % self)
