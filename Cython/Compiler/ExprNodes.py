@@ -6540,6 +6540,8 @@ class TupleNode(SequenceNode):
             elif dst_type is tuple_type or dst_type is py_object_type:
                 coerced_args = [arg.coerce_to_pyobject(env) for arg in self.args]
                 return TupleNode(self.pos, args=coerced_args, type=tuple_type, is_temp=1).analyse_types(env, skip_children=True)
+            else:
+                return self.coerce_to_pyobject(env).coerce_to(dst_type, env)
         else:
             return SequenceNode.coerce_to(self, dst_type, env)
 
