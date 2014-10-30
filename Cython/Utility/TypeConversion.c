@@ -32,11 +32,11 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(const char*);
 
 #define __Pyx_PyObject_AsSString(s)    ((signed char*) __Pyx_PyObject_AsString(s))
 #define __Pyx_PyObject_AsUString(s)    ((unsigned char*) __Pyx_PyObject_AsString(s))
-#define __Pyx_PyObject_FromUString(s)  __Pyx_PyObject_FromString((const char*)s)
-#define __Pyx_PyBytes_FromUString(s)   __Pyx_PyBytes_FromString((const char*)s)
-#define __Pyx_PyByteArray_FromUString(s)   __Pyx_PyByteArray_FromString((const char*)s)
-#define __Pyx_PyStr_FromUString(s)     __Pyx_PyStr_FromString((const char*)s)
-#define __Pyx_PyUnicode_FromUString(s) __Pyx_PyUnicode_FromString((const char*)s)
+#define __Pyx_PyObject_FromCString(s)  __Pyx_PyObject_FromString((const char*)s)
+#define __Pyx_PyBytes_FromCString(s)   __Pyx_PyBytes_FromString((const char*)s)
+#define __Pyx_PyByteArray_FromCString(s)   __Pyx_PyByteArray_FromString((const char*)s)
+#define __Pyx_PyStr_FromCString(s)     __Pyx_PyStr_FromString((const char*)s)
+#define __Pyx_PyUnicode_FromCString(s) __Pyx_PyUnicode_FromString((const char*)s)
 
 #if PY_MAJOR_VERSION < 3
 static CYTHON_INLINE size_t __Pyx_Py_UNICODE_strlen(const Py_UNICODE *u)
@@ -309,42 +309,6 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
 static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t ival) {
     return PyInt_FromSize_t(ival);
 }
-
-
-/////////////// FromPyStructUtility.proto ///////////////
-static {{struct_type_decl}} {{funcname}}(PyObject *);
-
-/////////////// FromPyStructUtility ///////////////
-static {{struct_type_decl}} {{funcname}}(PyObject * o) {
-    {{struct_type_decl}} result;
-    PyObject *value = NULL;
-
-    if (!PyMapping_Check(o)) {
-        PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "a mapping", Py_TYPE(o)->tp_name);
-        goto bad;
-    }
-
-    {{for member in var_entries:}}
-        {{py:attr = "result." + member.cname}}
-
-        value = PyObject_GetItem(o, PYIDENT("{{member.name}}"));
-        if (!value) {
-            PyErr_Format(PyExc_ValueError, \
-                "No value specified for struct attribute '%.{{max(200, len(member.name))}}s'", "{{member.name}}");
-            goto bad;
-        }
-        {{attr}} = {{member.type.from_py_function}}(value);
-        if ({{member.type.error_condition(attr)}})
-            goto bad;
-
-        Py_DECREF(value);
-    {{endfor}}
-
-    return result;
-bad:
-    Py_XDECREF(value);
-    return result;
-}
     
     
 /////////////// ToPyCTupleUtility.proto ///////////////
@@ -394,6 +358,7 @@ static {{struct_type_decl}} {{funcname}}(PyObject * o) {
 bad:
     return result;
 }
+
 
 /////////////// ObjectAsUCS4.proto ///////////////
 

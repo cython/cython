@@ -215,6 +215,8 @@ static CYTHON_INLINE float __PYX_NAN() {
 }
 #endif
 
+#define __Pyx_void_to_None(void_result) (void_result, Py_INCREF(Py_None), Py_None)
+
 // Work around clang bug http://stackoverflow.com/questions/21847816/c-invoke-nested-template-class-destructor
 #ifdef __cplusplus
 template<typename T>

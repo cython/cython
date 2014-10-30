@@ -587,7 +587,7 @@ static PyObject * __Pyx_CyFunction_Call(PyObject *func, PyObject *arg, PyObject 
             if (size == 0)
                 return (*meth)(self, NULL);
             PyErr_Format(PyExc_TypeError,
-                "%.200s() takes no arguments (%zd given)",
+                "%.200s() takes no arguments (%" CYTHON_FORMAT_SSIZE_T "d given)",
                 f->m_ml->ml_name, size);
             return NULL;
         }
@@ -598,7 +598,7 @@ static PyObject * __Pyx_CyFunction_Call(PyObject *func, PyObject *arg, PyObject 
             if (size == 1)
                 return (*meth)(self, PyTuple_GET_ITEM(arg, 0));
             PyErr_Format(PyExc_TypeError,
-                "%.200s() takes exactly one argument (%zd given)",
+                "%.200s() takes exactly one argument (%" CYTHON_FORMAT_SSIZE_T "d given)",
                 f->m_ml->ml_name, size);
             return NULL;
         }

@@ -1,5 +1,5 @@
 # cython.* namespace for pure mode.
-__version__ = "0.21.1pre"
+__version__ = "0.21.1"
 
 
 # BEGIN shameless copy from Cython/minivect/minitypes.py
@@ -364,6 +364,15 @@ to_repr = {
 }.get
 
 gs = globals()
+
+# note: cannot simply name the unicode type here as 2to3 gets in the way and replaces it by str
+try:
+    import __builtin__ as builtins
+except ImportError:  # Py3
+    import builtins
+
+gs['unicode'] = typedef(getattr(builtins, 'unicode', str), 'unicode')
+del builtins
 
 for name in int_types:
     reprname = to_repr(name, name)

@@ -1935,9 +1935,9 @@ def test_borrowed_slice():
     5
     5
     """
-    cdef int i, carray[10]
-    for i in range(10):
-        carray[i] = i
+    cdef int i
+    cdef int[10] carray
+    carray[:] = range(10)
     _borrowed(carray)
     _not_borrowed(carray)
     _not_borrowed2(carray)

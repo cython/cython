@@ -1727,19 +1727,18 @@ class NameNode(AtomicExprNode):
     def analyse_target_types(self, env):
         self.analyse_entry(env, is_target=True)
 
-        if (not self.is_lvalue() and self.entry.is_cfunction and
-                self.entry.fused_cfunction and self.entry.as_variable):
-            # We need this for the fused 'def' TreeFragment
-            self.entry = self.entry.as_variable
-            self.type = self.entry.type
+        if self.entry.is_cfunction and self.entry.as_variable:
+            if self.entry.is_overridable or not self.is_lvalue() and self.entry.fused_cfunction:
+                # We need this for assigning to cpdef names and for the fused 'def' TreeFragment
+                self.entry = self.entry.as_variable
+                self.type = self.entry.type
 
         if self.type.is_const:
             error(self.pos, "Assignment to const '%s'" % self.name)
         if self.type.is_reference:
             error(self.pos, "Assignment to reference '%s'" % self.name)
         if not self.is_lvalue():
-            error(self.pos, "Assignment to non-lvalue '%s'"
-                % self.name)
+            error(self.pos, "Assignment to non-lvalue '%s'" % self.name)
             self.type = PyrexTypes.error_type
         self.entry.used = 1
         if self.entry.type.is_buffer:
@@ -1863,9 +1862,13 @@ class NameNode(AtomicExprNode):
         return True
 
     def is_lvalue(self):
-        return self.entry.is_variable and \
-            not self.entry.type.is_array and \
+        return (
+            self.entry.is_variable and
             not self.entry.is_readonly
+        ) or (
+            self.entry.is_cfunction and
+            self.entry.is_overridable
+        )
 
     def is_addressable(self):
         return self.entry.is_variable and not self.type.is_memoryviewslice
@@ -1969,7 +1972,7 @@ class NameNode(AtomicExprNode):
             return # There was an error earlier
 
         if (self.entry.type.is_ptr and isinstance(rhs, ListNode)
-            and not self.lhs_of_first_assignment and not rhs.in_module_scope):
+                and not self.lhs_of_first_assignment and not rhs.in_module_scope):
             error(self.pos, "Literal list must be assigned to pointer at time of declaration")
 
         # is_pyglobal seems to be True for module level-globals only.
@@ -3436,9 +3439,6 @@ class IndexNode(ExprNode):
         elif self.type.is_ptr:
             # non-const pointers can always be reassigned
             return True
-        elif self.type.is_array:
-            # fixed-sized arrays aren't l-values
-            return False
         # Just about everything else returned by the index operator
         # can be an lvalue.
         return True
@@ -3914,7 +3914,13 @@ class SliceIndexNode(ExprNode):
             check_negative_indices(self.start, self.stop)
 
         base_type = self.base.type
-        if base_type.is_string or base_type.is_cpp_string:
+        if base_type.is_array and not getting:
+            # cannot assign directly to C array => try to assign by making a copy
+            if not self.start and not self.stop:
+                self.type = base_type
+            else:
+                self.type = PyrexTypes.CPtrType(base_type.base_type)
+        elif base_type.is_string or base_type.is_cpp_string:
             self.type = default_str_type(env)
         elif base_type.is_pyunicode_ptr:
             self.type = unicode_type
@@ -4089,25 +4095,37 @@ class SliceIndexNode(ExprNode):
                     has_c_start, has_c_stop,
                     bool(code.globalstate.directives['wraparound'])))
         else:
-            start_offset = ''
-            if self.start:
-                start_offset = self.start_code()
-                if start_offset == '0':
-                    start_offset = ''
-                else:
-                    start_offset += '+'
+            start_offset = self.start_code() if self.start else '0'
             if rhs.type.is_array:
                 array_length = rhs.type.size
                 self.generate_slice_guard_code(code, array_length)
             else:
-                error(self.pos,
-                      "Slice assignments from pointers are not yet supported.")
-                # FIXME: fix the array size according to start/stop
-                array_length = self.base.type.size
-            for i in range(array_length):
-                code.putln("%s[%s%s] = %s[%d];" % (
-                        self.base.result(), start_offset, i,
-                        rhs.result(), i))
+                array_length = '%s - %s' % (self.stop_code(), start_offset)
+
+            def copy_carray(dst, src, item_type, start, count, depth):
+                var_name = Naming.quick_temp_cname
+                if depth:
+                    var_name += str(depth)
+                dst_item, src_item = '{dst}[{i}+{start}] = {src}[{i}]'.format(
+                    src=src,
+                    dst=dst,
+                    start=start,
+                    i=var_name
+                ).split(' = ')
+
+                code.putln('{')
+                code.putln('Py_ssize_t %s;' % var_name)
+                code.put('for ({i}=0; {i} < {count}; {i}++) '.format(
+                    i=var_name,
+                    count=count))
+                if item_type.is_array:
+                    copy_carray(dst_item, src_item, item_type.base_type, 0, item_type.size, depth + 1)
+                else:
+                    code.putln('%s = %s;' % (dst_item, src_item))
+                code.putln('}')
+
+            copy_carray(self.base.result(), rhs.result(), rhs.type.base_type,
+                        start_offset, array_length, 0)
         self.generate_subexpr_disposal_code(code)
         self.free_subexpr_temps(code)
         rhs.generate_disposal_code(code)
@@ -4155,47 +4173,77 @@ class SliceIndexNode(ExprNode):
         if not self.base.type.is_array:
             return
         slice_size = self.base.type.size
+        try:
+            total_length = slice_size = int(slice_size)
+        except ValueError:
+            total_length = None
+
         start = stop = None
         if self.stop:
             stop = self.stop.result()
             try:
                 stop = int(stop)
                 if stop < 0:
-                    slice_size = self.base.type.size + stop
+                    if total_length is None:
+                        slice_size = '%s + %d' % (slice_size, stop)
+                    else:
+                        slice_size += stop
                 else:
                     slice_size = stop
                 stop = None
             except ValueError:
                 pass
+
         if self.start:
             start = self.start.result()
             try:
                 start = int(start)
                 if start < 0:
-                    start = self.base.type.size + start
-                slice_size -= start
+                    if total_length is None:
+                        start = '%s + %d' % (self.base.type.size, start)
+                    else:
+                        start += total_length
+                if isinstance(slice_size, (int, long)):
+                    slice_size -= start
+                else:
+                    slice_size = '%s - (%s)' % (slice_size, start)
                 start = None
             except ValueError:
                 pass
-        check = None
-        if slice_size < 0:
-            if target_size > 0:
+
+        runtime_check = None
+        compile_time_check = False
+        try:
+            int_target_size = int(target_size)
+        except ValueError:
+            int_target_size = None
+        else:
+            compile_time_check = isinstance(slice_size, (int, long))
+
+        if compile_time_check and slice_size < 0:
+            if int_target_size > 0:
                 error(self.pos, "Assignment to empty slice.")
-        elif start is None and stop is None:
+        elif compile_time_check and start is None and stop is None:
             # we know the exact slice length
-            if target_size != slice_size:
-                error(self.pos, "Assignment to slice of wrong length, expected %d, got %d" % (
-                        slice_size, target_size))
+            if int_target_size != slice_size:
+                error(self.pos, "Assignment to slice of wrong length, expected %s, got %s" % (
+                      slice_size, target_size))
         elif start is not None:
             if stop is None:
                 stop = slice_size
-            check = "(%s)-(%s)" % (stop, start)
-        else: # stop is not None:
-            check = stop
-        if check:
-            code.putln("if (unlikely((%s) != %d)) {" % (check, target_size))
-            code.putln('PyErr_Format(PyExc_ValueError, "Assignment to slice of wrong length, expected %%" CYTHON_FORMAT_SSIZE_T "d, got %%" CYTHON_FORMAT_SSIZE_T "d", (Py_ssize_t)%d, (Py_ssize_t)(%s));' % (
-                        target_size, check))
+            runtime_check = "(%s)-(%s)" % (stop, start)
+        elif stop is not None:
+            runtime_check = stop
+        else:
+            runtime_check = slice_size
+
+        if runtime_check:
+            code.putln("if (unlikely((%s) != (%s))) {" % (runtime_check, target_size))
+            code.putln(
+                'PyErr_Format(PyExc_ValueError, "Assignment to slice of wrong length,'
+                ' expected %%" CYTHON_FORMAT_SSIZE_T "d, got %%" CYTHON_FORMAT_SSIZE_T "d",'
+                ' (Py_ssize_t)(%s), (Py_ssize_t)(%s));' % (
+                    target_size, runtime_check))
             code.putln(code.error_goto(self.pos))
             code.putln("}")
 
@@ -5736,7 +5784,7 @@ class AttributeNode(ExprNode):
 
     def is_lvalue(self):
         if self.obj:
-            return not self.type.is_array
+            return True
         else:
             return NameNode.is_lvalue(self)
 
@@ -6590,7 +6638,7 @@ class ListNode(SequenceNode):
                 error(self.pos, "Cannot coerce list to type '%s'" % dst_type)
         elif self.mult_factor:
             error(self.pos, "Cannot coerce multiplied list to '%s'" % dst_type)
-        elif dst_type.is_ptr and dst_type.base_type is not PyrexTypes.c_void_type:
+        elif (dst_type.is_array or dst_type.is_ptr) and dst_type.base_type is not PyrexTypes.c_void_type:
             base_type = dst_type.base_type
             self.type = PyrexTypes.CArrayType(base_type, len(self.args))
             for i in range(len(self.original_args)):
@@ -6631,13 +6679,14 @@ class ListNode(SequenceNode):
         if self.type.is_array:
             # To be valid C++, we must allocate the memory on the stack
             # manually and be sure not to reuse it for something else.
+            # Yes, this means that we leak a temp array variable.
             pass
         else:
             SequenceNode.release_temp_result(self, env)
 
     def calculate_constant_result(self):
         if self.mult_factor:
-            raise ValueError() # may exceed the compile time memory
+            raise ValueError()  # may exceed the compile time memory
         self.constant_result = [
             arg.constant_result for arg in self.args]
 
@@ -6655,15 +6704,15 @@ class ListNode(SequenceNode):
         elif self.type.is_array:
             for i, arg in enumerate(self.args):
                 code.putln("%s[%s] = %s;" % (
-                                self.result(),
-                                i,
-                                arg.result()))
+                    self.result(),
+                    i,
+                    arg.result()))
         elif self.type.is_struct:
             for arg, member in zip(self.args, self.type.scope.var_entries):
                 code.putln("%s.%s = %s;" % (
-                        self.result(),
-                        member.cname,
-                        arg.result()))
+                    self.result(),
+                    member.cname,
+                    arg.result()))
         else:
             raise InternalError("List type never specified")
 
@@ -11178,6 +11227,7 @@ class CoerceToPyTypeNode(CoercionNode):
     #  to a Python object.
 
     type = py_object_type
+    target_type = py_object_type
     is_temp = 1
 
     def __init__(self, arg, env, type=py_object_type):
@@ -11197,22 +11247,17 @@ class CoerceToPyTypeNode(CoercionNode):
                 self.type = unicode_type
             elif arg.type.is_complex:
                 self.type = Builtin.complex_type
+            self.target_type = self.type
         elif arg.type.is_string or arg.type.is_cpp_string:
             if (type not in (bytes_type, bytearray_type)
                     and not env.directives['c_string_encoding']):
                 error(arg.pos,
                     "default encoding required for conversion from '%s' to '%s'" %
                     (arg.type, type))
-            self.type = type
+            self.type = self.target_type = type
         else:
             # FIXME: check that the target type and the resulting type are compatible
-            pass
-
-        if arg.type.is_memoryviewslice:
-            # Register utility codes at this point
-            arg.type.get_to_py_function(env, arg)
-
-        self.env = env
+            self.target_type = type
 
     gil_message = "Converting to Python object"
 
@@ -11240,21 +11285,11 @@ class CoerceToPyTypeNode(CoercionNode):
         return self
 
     def generate_result_code(self, code):
-        arg_type = self.arg.type
-        if arg_type.is_memoryviewslice:
-            funccall = arg_type.get_to_py_function(self.env, self.arg)
-        else:
-            func = arg_type.to_py_function
-            if arg_type.is_string or arg_type.is_cpp_string:
-                if self.type in (bytes_type, str_type, unicode_type):
-                    func = func.replace("Object", self.type.name.title(), 1)
-                elif self.type is bytearray_type:
-                    func = func.replace("Object", "ByteArray", 1)
-            funccall = "%s(%s)" % (func, self.arg.result())
-
-        code.putln('%s = %s; %s' % (
-            self.result(),
-            funccall,
+        code.putln('%s; %s' % (
+            self.arg.type.to_py_call_code(
+                self.arg.result(),
+                self.result(),
+                self.target_type),
             code.error_goto_if_null(self.result(), self.pos)))
 
         code.put_gotref(self.py_result())
@@ -11322,18 +11357,11 @@ class CoerceFromPyTypeNode(CoercionNode):
         return self
 
     def is_ephemeral(self):
-        return self.type.is_ptr and self.arg.is_ephemeral()
+        return (self.type.is_ptr and not self.type.is_array) and self.arg.is_ephemeral()
 
     def generate_result_code(self, code):
-        function = self.type.from_py_function
-        operand = self.arg.py_result()
-        rhs = "%s(%s)" % (function, operand)
-        if self.type.is_enum:
-            rhs = typecast(self.type, c_long_type, rhs)
-        code.putln('%s = %s; %s' % (
-            self.result(),
-            rhs,
-            code.error_goto_if(self.type.error_condition(self.result()), self.pos)))
+        code.putln(self.type.from_py_call_code(
+            self.arg.py_result(), self.result(), self.pos, code))
         if self.type.is_pyobject:
             code.put_gotref(self.py_result())
 

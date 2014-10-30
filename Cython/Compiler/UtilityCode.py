@@ -91,10 +91,13 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         if isinstance(other, CythonUtilityCode):
             return self._equality_params() == other._equality_params()
         else:
-           return False
+            return False
 
     def _equality_params(self):
-        return self.impl, self.outer_module_scope, self.compiler_directives
+        outer_scope = self.outer_module_scope
+        while isinstance(outer_scope, NonManglingModuleScope):
+            outer_scope = outer_scope.outer_scope
+        return self.impl, outer_scope, self.compiler_directives
 
     def __hash__(self):
         return hash(self.impl)

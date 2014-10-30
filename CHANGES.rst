@@ -2,8 +2,8 @@
 Cython Changelog
 ================
 
-Latest
-======
+Latest changes
+==============
 
 Features added
 --------------
@@ -11,11 +11,30 @@ Features added
 * C functions can coerce to Python functions, which allows passing them
   around as callable objects.
 
-* New ``cythonize`` option ``-a`` to generate the annotated HTML source view.
+* C arrays can be assigned by value and auto-coerce from Python iterables
+  and to Python lists (and tuples).
 
 * Extern C functions can now be declared as cpdef to export them to
   the module's Python namespace.  Extern C functions in pxd files export
   their values to their own module, iff it exists.
+
+Bugs fixed
+----------
+
+* Mismatching 'except' declarations on signatures in .pxd and .pyx files failed
+  to produce a compile error.
+
+Other changes
+-------------
+
+
+0.21.1 (2014-10-18)
+===================
+
+Features added
+--------------
+
+* New ``cythonize`` option ``-a`` to generate the annotated HTML source view.
 
 * Missing C-API declarations in ``cpython.unicode`` were added.
 
@@ -35,9 +54,6 @@ Features added
 Bugs fixed
 ----------
 
-* Mismatching 'except' declarations on signatures in .pxd and .pyx files failed
-  to produce a compile error.
-
 * Reference leak for non-simple Python expressions in boolean and/or expressions.
 
 * To fix a name collision and to reflect availability on host platforms,
@@ -54,6 +70,8 @@ Bugs fixed
 * Fatal exceptions in global module init code could lead to crashes
   if the already created module was used later on (e.g. through a
   stale reference in sys.modules or elsewhere).
+
+* ``cythonize.py`` script was not installed on MS-Windows.
 
 Other changes
 -------------

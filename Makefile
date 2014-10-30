@@ -28,6 +28,7 @@ clean:
 	@rm -f core */core
 	@rm -f Cython/Compiler/*.c
 	@rm -f Cython/Plex/*.c
+	@rm -f Cython/Tempita/*.c
 	@rm -f Cython/Runtime/refnanny.c
 	@(cd Demos; $(MAKE) clean)
 
