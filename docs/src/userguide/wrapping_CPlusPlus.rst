@@ -141,6 +141,21 @@ Note that the ``language`` option has no effect on user provided Extension
 objects that are passed into ``cythonize()``.  It is only used for modules
 found by file name (as in the example above).
 
+The ``cythonize()`` function in Cython versions up to 0.21 does not
+recognize the ``language`` option and it needs to be specified as an
+option to an :class:`Extension` that describes your extension and that
+is then handled by ``cythonize()`` as follows::
+
+   from distutils.core import setup, Extension
+   from Cython.Build import cythonize
+
+   setup(ext_modules = cythonize(Extension(
+              "rect",                                # the extesion name
+              sources=["rect.pyx", "Rectangle.cpp"], # the Cython source and
+                                                     # additional C++ source files
+              language="c++",                        # generate and compile C++ code
+         )))
+
 The options can also be passed directly from the source file, which is
 often preferable (and overrides any global option).  Starting with
 version 0.17, Cython also allows to pass external source files into the
