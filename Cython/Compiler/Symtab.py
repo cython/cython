@@ -2126,40 +2126,10 @@ class CppClassScope(Scope):
                 "C++ class member cannot be a Python object")
         return entry
 
-    def check_base_default_constructor(self, pos):
-        # Look for default constructors in all base classes.
-        if self.default_constructor is None:
-            entry = self.lookup(self.name)
-            if not entry.type.base_classes:
-                self.default_constructor = True
-                return
-            for base_class in entry.type.base_classes:
-                if base_class is PyrexTypes.error_type:
-                    continue
-                temp_entry = base_class.scope.lookup_here("<init>")
-                found = False
-                if temp_entry is None:
-                    continue
-                for alternative in temp_entry.all_alternatives():
-                    type = alternative.type
-                    if type.is_ptr:
-                        type = type.base_type
-                    if not type.args:
-                        found = True
-                        break
-                if not found:
-                    self.default_constructor = temp_entry.scope.name
-                    error(pos, "no matching function for call to " \
-                            "%s::%s()" % (temp_entry.scope.name, temp_entry.scope.name))
-        elif not self.default_constructor:
-            error(pos, "no matching function for call to %s::%s()" %
-                  (self.default_constructor, self.default_constructor))
-
     def declare_cfunction(self, name, type, pos,
                           cname=None, visibility='extern', api=0, in_pxd=0,
                           defining=0, modifiers=(), utility_code=None, overridable=False):
         if name in (self.name.split('::')[-1], '__init__') and cname is None:
-            self.check_base_default_constructor(pos)
             cname = self.type.cname
             name = '<init>'
             type.return_type = PyrexTypes.InvisibleVoidType()
