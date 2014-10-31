@@ -27,6 +27,7 @@ cdef extern from *:
     cdef object __Pyx_PyObject_FromStringAndSize(char*, size_t)
     cdef object __Pyx_PyBytes_FromStringAndSize(char*, size_t)
     cdef object __Pyx_PyByteArray_FromStringAndSize(char*, size_t)
+    cdef object __Pyx_PyStr_FromStringAndSize(char*, size_t)
     cdef object __Pyx_PyUnicode_FromStringAndSize(char*, size_t)
 
 @cname("{{cname}}")
@@ -36,6 +37,10 @@ cdef inline object {{cname}}(const string& s):
 @cname("{{cname.replace("PyObject", "PyUnicode", 1)}}")
 cdef inline object {{cname.replace("PyObject", "PyUnicode", 1)}}(const string& s):
     return __Pyx_PyUnicode_FromStringAndSize(s.data(), s.size())
+
+@cname("{{cname.replace("PyObject", "PyStr", 1)}}")
+cdef inline object {{cname.replace("PyObject", "PyStr", 1)}}(const string& s):
+    return __Pyx_PyStr_FromStringAndSize(s.data(), s.size())
 
 @cname("{{cname.replace("PyObject", "PyBytes", 1)}}")
 cdef inline object {{cname.replace("PyObject", "PyBytes", 1)}}(const string& s):

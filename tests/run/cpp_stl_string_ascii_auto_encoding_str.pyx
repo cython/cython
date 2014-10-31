@@ -1,22 +1,22 @@
 # mode: run
 # tag: cpp
-# cython: c_string_encoding=ascii, c_string_type=unicode
+# cython: c_string_encoding=ascii, c_string_type=str
 
 cimport cython
 
 from libcpp.string cimport string
 
 b_asdf = b'asdf'
-s_asdf = 'asdf'
 u_asdf = u'asdf'
-u_s = u's'
+s_asdf = 'asdf'
+s_s = 's'
 
 
 def test_conversion(py_obj):
     """
-    >>> test_conversion(b_asdf) == u_asdf or test_conversion(b_asdf)
+    >>> test_conversion(b_asdf) == s_asdf or test_conversion(b_asdf)
     True
-    >>> test_conversion(u_asdf) == u_asdf or test_conversion(u_asdf)
+    >>> test_conversion(u_asdf) == s_asdf or test_conversion(u_asdf)
     True
     >>> test_conversion(123)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
@@ -44,9 +44,9 @@ def test_empty(py_obj):
 
 def test_push_back(a):
     """
-    >>> test_push_back(b_asdf) == u_asdf + u_s
+    >>> test_push_back(b_asdf) == s_asdf + s_s
     True
-    >>> test_push_back(u_asdf) == u_asdf + u_s
+    >>> test_push_back(u_asdf) == s_asdf + s_s
     True
     """
     cdef string s = a
@@ -56,9 +56,9 @@ def test_push_back(a):
 
 def test_clear(a):
     """
-    >>> test_clear(u_asdf) == u_s[:0]
+    >>> test_clear(u_asdf) == s_s[:0]
     True
-    >>> test_clear(b_asdf) == u_s[:0]
+    >>> test_clear(b_asdf) == s_s[:0]
     True
     """
     cdef string s = a
