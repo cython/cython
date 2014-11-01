@@ -20,7 +20,7 @@ cdef class Done:
     cdef inline bint remove_unfixed(self, v) except -123
     cdef int next_cell(self, Pos pos, int strategy=*) except -123
 
-    cdef int filter_tiles(self, list tiles) except -123
+    cdef int filter_tiles(self, int* tiles) except -123
     cdef int next_cell_min_choice(self) except -123
     cdef int next_cell_max_choice(self) except -123
     cdef int next_cell_highest_value(self) except -123
@@ -53,7 +53,7 @@ cdef class Hex:
 cdef class Pos:
     cdef public Hex hex
     cdef public Done done
-    cdef public list tiles
+    cdef public int[8] tiles
 
     cdef Pos clone(self)
 

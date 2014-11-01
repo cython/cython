@@ -229,7 +229,7 @@ class Pos(object):
 @cython.locals(pos=Pos, i=cython.long, v=cython.int,
                nid=cython.int, num=cython.int,
                empties=cython.int, filled=cython.int,
-               vmax=cython.int, vmin=cython.int, cell=list)
+               vmax=cython.int, vmin=cython.int, cell=list, left=cython.int[8])
 def constraint_pass(pos, last_move=None):
     changed = False
     left = pos.tiles[:]
@@ -365,7 +365,8 @@ OPEN = 0
 SOLVED = 1
 IMPOSSIBLE = -1
 
-@cython.locals(i=cython.int, num=cython.int, nid=cython.int, vmin=cython.int, vmax=cython.int)
+@cython.locals(i=cython.int, num=cython.int, nid=cython.int,
+               vmin=cython.int, vmax=cython.int, tiles=cython.int[8])
 def solved(pos, output, verbose=False):
     hex = pos.hex
     tiles = pos.tiles[:]
@@ -436,7 +437,7 @@ def solve_step(prev, strategy, order, output, first=False):
     return IMPOSSIBLE
 
 
-@cython.locals(tot=cython.int)
+@cython.locals(tot=cython.int, tiles=cython.int[8])
 def check_valid(pos):
     hex = pos.hex
     tiles = pos.tiles
@@ -460,7 +461,7 @@ def solve(pos, strategy, order, output):
 
 # TODO Write an 'iterator' to go over all x,y positions
 
-@cython.locals(x=cython.int, y=cython.int, p=cython.int,
+@cython.locals(x=cython.int, y=cython.int, p=cython.int, tiles=cython.int[8],
                size=cython.int, inctile=cython.int, linei=cython.int)
 def read_file(file):
     lines = [line.strip("\r\n") for line in file.splitlines()]
