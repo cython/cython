@@ -308,3 +308,70 @@ can be augmented with the following :file:`.pxd` file :file:`dostuff.pxd`::
 
 The :func:`cython.declare()` function can be used to specify types for global
 variables in the augmenting :file:`.pxd` file.
+
+
+Tips and Tricks
+---------------
+
+Calling C functions
+^^^^^^^^^^^^^^^^^^^
+
+Normally, it isn't possible to call C functions in pure Python mode as there
+is no general way to support it in normal (uncompiled) Python.  However, in
+cases where an equivalent Python function exists, this can be achieved by
+combining C function coercion with a conditional import as follows::
+
+    # in mymodule.pxd:
+
+    # declare a C function as "cpdef" to export it to the module
+    cdef extern from "math.h":
+        cpdef double sin(double x)
+
+
+    # in mymodule.py:
+
+    import cython
+
+    # override with Python import if not in compiled code
+    if not cython.compiled:
+        from math import sin
+
+    # calls sin() from math.h when compiled with Cython and math.sin() in Python
+    print(sin(0))
+
+Note that the "sin" function will show up in the module namespace of "mymodule"
+here (i.e. there will be a ``mymodule.sin()`` function).  You can mark it as an
+internal name according to Python conventions by renaming it to "_sin" in the
+``.pxd`` file as follows::
+
+    cdef extern from "math.h":
+        cpdef double _sin "sin" (double x)
+
+You would then also change the Python import to ``from math import sin as _sin``
+to make the names match again.
+
+
+Using C arrays for fixed size lists
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Since Cython 0.22, C arrays can automatically coerce to Python lists or tuples.
+This can be exploited to replace fixed size Python lists in Python code by C
+arrays when compiled.  An example::
+
+    import cython
+
+    @cython.locals(counts=cython.int[10], digit=cython.int)
+    def count_digits(digits):
+        """
+        >>> digits = '01112222333334445667788899'
+        >>> count_digits(map(int, digits))
+        [1, 3, 4, 5, 3, 1, 2, 2, 3, 2]
+        """
+        counts = [0] * 10
+        for digit in digits:
+            assert 0 <= digit <= 9
+            counts[digit] += 1
+        return counts
+
+In normal Python, this will use a Python list to collect the counts, whereas
+Cython will generate C code that uses a C array of C ints.
