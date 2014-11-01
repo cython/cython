@@ -327,10 +327,10 @@ def to_struct_with_array_slice_end(x):
 def to_int_array_slice_start_end(x):
     """
     >>> to_int_array_slice_start_end([1, 2, 3])
-    (1, 2, 3)
+    (1, 2, 3, 2, 3)
     """
     cdef int[5] v
-    v[:3] = x
     v[2:] = x
+    v[:3] = x
     return v[0], v[1], v[2], v[3], v[4]
 '''
