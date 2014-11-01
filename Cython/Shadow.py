@@ -63,7 +63,7 @@ def index_type(base_type, item):
         return _ArrayType(base_type, 1, is_c_contig=bool(item.step))
     else:
         # int[8] etc.
-        assert int(item) == item and not isinstance(item, float)  # array size must be a plain integer
+        assert int(item) == item  # array size must be a plain integer
         array(base_type, item)
 
 # END shameless copy
