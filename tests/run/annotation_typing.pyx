@@ -62,3 +62,13 @@ def pytypes_cdef(a, b=2, c=3, d=4):
     TypeError: ...
     """
     return c_pytypes_cdef(a, b, c, d)
+
+
+def return_tuple_for_carray() -> tuple:
+    """
+    >>> return_tuple_for_carray()
+    (1, 2, 3)
+    """
+    cdef int[3] x
+    x = [1, 2, 3]
+    return x

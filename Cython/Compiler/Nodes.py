@@ -78,6 +78,34 @@ def embed_position(pos, docstring):
     return doc
 
 
+def _analyse_signature_annotation(annotation, env):
+    base_type = None
+    explicit_pytype = explicit_ctype = False
+    if annotation.is_dict_literal:
+        for name, value in annotation.key_value_pairs:
+            if not name.is_string_literal:
+                continue
+            if name.value in ('type', b'type'):
+                explicit_pytype = True
+                if not explicit_ctype:
+                    annotation = value
+            elif name.value in ('ctype', b'ctype'):
+                explicit_ctype = True
+                annotation = value
+        if explicit_pytype and explicit_ctype:
+            warning(annotation.pos, "Duplicate type declarations found in signature annotation")
+    arg_type = annotation.analyse_as_type(env)
+    if arg_type is not None:
+        if explicit_pytype and not explicit_ctype and not arg_type.is_pyobject:
+            warning(annotation.pos,
+                    "Python type declaration in signature annotation does not refer to a Python type")
+        base_type = CAnalysedBaseTypeNode(
+            annotation.pos, type=arg_type, is_arg=True)
+    else:
+        warning(annotation.pos, "Unknown type declaration found in signature annotation")
+    return base_type, arg_type
+
+
 def write_func_call(func, codewriter_class):
     def f(*args, **kwds):
         if len(args) > 1 and isinstance(args[1], codewriter_class):
@@ -843,29 +871,9 @@ class CArgDeclNode(Node):
         annotation = self.annotation
         if not annotation:
             return None
-        explicit_pytype = explicit_ctype = False
-        if annotation.is_dict_literal:
-            for name, value in annotation.key_value_pairs:
-                if not name.is_string_literal:
-                    continue
-                if name.value in ('type', b'type'):
-                    explicit_pytype = True
-                    if not explicit_ctype:
-                        annotation = value
-                elif name.value in ('ctype', b'ctype'):
-                    explicit_ctype = True
-                    annotation = value
-            if explicit_pytype and explicit_ctype:
-                warning(annotation.pos, "Duplicate type declarations found in signature annotation")
-        arg_type = annotation.analyse_as_type(env)
-        if arg_type is not None:
-            if explicit_pytype and not explicit_ctype and not arg_type.is_pyobject:
-                warning(annotation.pos,
-                        "Python type declaration in signature annotation does not refer to a Python type")
-            self.base_type = CAnalysedBaseTypeNode(
-                annotation.pos, type=arg_type, is_arg=True)
-        else:
-            warning(annotation.pos, "Unknown type declaration found in signature annotation")
+        base_type, arg_type = _analyse_signature_annotation(annotation, env)
+        if base_type is not None:
+            self.base_type = base_type
         return arg_type
 
     def calculate_default_value_code(self, code):
@@ -2724,6 +2732,13 @@ class DefNode(FuncDefNode):
 
         self.analyse_signature(env)
         self.return_type = self.entry.signature.return_type()
+        # if a signature annotation provides a more specific return object type, use it
+        if self.return_type is py_object_type and self.return_type_annotation:
+            if env.directives['annotation_typing'] and not self.entry.is_special:
+                _, return_type = _analyse_signature_annotation(self.return_type_annotation, env)
+                if return_type and return_type.is_pyobject:
+                    self.return_type = return_type
+
         self.create_local_scope(env)
 
         self.py_wrapper = DefNodeWrapper(
