@@ -16,4 +16,4 @@ for Python users, so this list may change in the future.
    around to a large positive integer prior to being passed to the
    ``range`` function.
  - Python's ``float`` type actually wraps C ``double`` values, and 
-   Python's ``int`` type wraps C ``long`` values.
+   the ``int`` type in Python 2.x wraps C ``long`` values.
