@@ -266,16 +266,27 @@ cdef struct StructWithArray:
 
 def to_struct_with_array(x):
     """
-    >>> to_struct_with_array([
+    >>> x, y = to_struct_with_array([
     ...     {'a': 11, 'b': [{'x': 12, 'y': 13}, {'x': 14, 'y': 15}]},
     ...     {'a': 21, 'b': [{'x': 22, 'y': 23}, {'x': 24, 'y': 25}]},
     ... ])
-    [{'a': 11, 'b': [{'y': 13.0, 'x': 12}, {'y': 15.0, 'x': 14}]}, {'a': 21, 'b': [{'y': 23.0, 'x': 22}, {'y': 25.0, 'x': 24}]}]
-    >>> to_struct_with_array(iter([
+    >>> x['a'], y['a']
+    (11, 21)
+    >>> sorted(v.items() for v in x['b'])
+    [[('y', 13.0), ('x', 12)], [('y', 15.0), ('x', 14)]]
+    >>> sorted(v.items() for v in y['b'])
+    [[('y', 23.0), ('x', 22)], [('y', 25.0), ('x', 24)]]
+
+    >>> x, y = to_struct_with_array(iter([
     ...     {'a': 11, 'b': iter([{'x': 12, 'y': 13}, {'x': 14, 'y': 15}])},
     ...     {'a': 21, 'b': iter([{'x': 22, 'y': 23}, {'x': 24, 'y': 25}])},
     ... ]))
-    [{'a': 11, 'b': [{'y': 13.0, 'x': 12}, {'y': 15.0, 'x': 14}]}, {'a': 21, 'b': [{'y': 23.0, 'x': 22}, {'y': 25.0, 'x': 24}]}]
+    >>> x['a'], y['a']
+    (11, 21)
+    >>> sorted(v.items() for v in x['b'])
+    [[('y', 13.0), ('x', 12)], [('y', 15.0), ('x', 14)]]
+    >>> sorted(v.items() for v in y['b'])
+    [[('y', 23.0), ('x', 22)], [('y', 25.0), ('x', 24)]]
     """
     cdef StructWithArray[2] v
     v = x
@@ -284,16 +295,27 @@ def to_struct_with_array(x):
 
 def to_struct_with_array_slice(x):
     """
-    >>> to_struct_with_array_slice([
+    >>> x, y = to_struct_with_array_slice([
     ...     {'a': 11, 'b': [{'x': 12, 'y': 13}, {'x': 14, 'y': 15}]},
     ...     {'a': 21, 'b': [{'x': 22, 'y': 23}, {'x': 24, 'y': 25}]},
     ... ])
-    [{'a': 11, 'b': [{'y': 13.0, 'x': 12}, {'y': 15.0, 'x': 14}]}, {'a': 21, 'b': [{'y': 23.0, 'x': 22}, {'y': 25.0, 'x': 24}]}]
-    >>> to_struct_with_array_slice(iter([
+    >>> x['a'], y['a']
+    (11, 21)
+    >>> sorted(v.items() for v in x['b'])
+    [[('y', 13.0), ('x', 12)], [('y', 15.0), ('x', 14)]]
+    >>> sorted(v.items() for v in y['b'])
+    [[('y', 23.0), ('x', 22)], [('y', 25.0), ('x', 24)]]
+
+    >>> x, y = to_struct_with_array_slice(iter([
     ...     {'a': 11, 'b': iter([{'x': 12, 'y': 13}, {'x': 14, 'y': 15}])},
     ...     {'a': 21, 'b': iter([{'x': 22, 'y': 23}, {'x': 24, 'y': 25}])},
     ... ]))
-    [{'a': 11, 'b': [{'y': 13.0, 'x': 12}, {'y': 15.0, 'x': 14}]}, {'a': 21, 'b': [{'y': 23.0, 'x': 22}, {'y': 25.0, 'x': 24}]}]
+    >>> x['a'], y['a']
+    (11, 21)
+    >>> sorted(v.items() for v in x['b'])
+    [[('y', 13.0), ('x', 12)], [('y', 15.0), ('x', 14)]]
+    >>> sorted(v.items() for v in y['b'])
+    [[('y', 23.0), ('x', 22)], [('y', 25.0), ('x', 24)]]
     """
     cdef StructWithArray[2] v
     v[:] = x
