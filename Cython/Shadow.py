@@ -34,8 +34,6 @@ def index_type(base_type, item):
     a 2D strided array of doubles. The syntax is the same as for
     Cython memoryviews.
     """
-    assert isinstance(item, (tuple, slice))
-
     class InvalidTypeSpecification(Exception):
         pass
 
@@ -60,9 +58,13 @@ def index_type(base_type, item):
         return _ArrayType(base_type, len(item),
                           is_c_contig=step_idx == len(item) - 1,
                           is_f_contig=step_idx == 0)
-    else:
+    elif isinstance(item, slice):
         verify_slice(item)
         return _ArrayType(base_type, 1, is_c_contig=bool(item.step))
+    else:
+        # int[8] etc.
+        assert int(item) == item and not isinstance(item, float)  # array size must be a plain integer
+        array(base_type, item)
 
 # END shameless copy
 

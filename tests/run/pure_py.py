@@ -221,3 +221,19 @@ def cdef_inline(x):
 def call_cdef_inline(x):
     ret = cdef_inline(x)
     return ret, cython.typeof(ret)
+
+
+@cython.locals(counts=cython.int[10], digit=cython.int)
+def count_digits_in_carray(digits):
+    """
+    >>> digits = '37692837651902834128342341'
+    >>> ''.join(sorted(digits))
+    '01112222333334445667788899'
+    >>> count_digits_in_carray(map(int, digits))
+    [1, 3, 4, 5, 3, 1, 2, 2, 3, 2]
+    """
+    counts = [0] * 10
+    for digit in digits:
+        assert 0 <= digit <= 9
+        counts[digit] += 1
+    return counts
