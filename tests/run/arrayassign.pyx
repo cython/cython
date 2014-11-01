@@ -9,6 +9,15 @@ def test_literal_list():
     a = [1,2,3,4,5]
     return (a[0], a[1], a[2], a[3], a[4])
 
+def test_literal_list_multiplied():
+    """
+    >>> test_literal_list_multiplied()
+    (1, 2, 1, 2, 1, 2)
+    """
+    cdef int a[6]
+    a = [1,2] * 3
+    return (a[0], a[1], a[2], a[3], a[4], a[5])
+
 def test_literal_list_slice_all():
     """
     >>> test_literal_list_slice_all()
@@ -297,3 +306,34 @@ def assign_to_wrong_csize():
     v[2] = 3
     d = v
     return d
+
+
+def assign_full_array_slice_to_array():
+    """
+    >>> assign_full_array_slice_to_array()
+    [1, 2, 3]
+    """
+    cdef int[3] x, y
+    x[0] = 1
+    x[1] = 2
+    x[2] = 3
+    y = x[:]
+    return y
+
+
+cdef class ArrayOwner:
+    cdef readonly int[3] array
+
+    def __init__(self, a, b, c):
+        self.array = (a, b, c)
+
+
+def assign_from_array_attribute():
+    """
+    >>> assign_from_array_attribute()
+    [1, 2, 3]
+    """
+    cdef int[3] v
+    a = ArrayOwner(1, 2, 3)
+    v = a.array[:]
+    return v

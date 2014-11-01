@@ -3947,6 +3947,11 @@ class SliceIndexNode(ExprNode):
                     "default encoding required for conversion from '%s' to '%s'" %
                     (self.base.type, dst_type))
             self.type = dst_type
+        if dst_type.is_array and self.base.type.is_array:
+            if not self.start and not self.stop:
+                # redundant slice building, copy C arrays directly
+                return self.base.coerce_to(dst_type, env)
+            # else: check array size if possible
         return super(SliceIndexNode, self).coerce_to(dst_type, env)
 
     def generate_result_code(self, code):
@@ -6553,16 +6558,25 @@ class ListNode(SequenceNode):
             self.obj_conversion_errors = []
             if not self.type.subtype_of(dst_type):
                 error(self.pos, "Cannot coerce list to type '%s'" % dst_type)
-        elif self.mult_factor:
-            error(self.pos, "Cannot coerce multiplied list to '%s'" % dst_type)
         elif (dst_type.is_array or dst_type.is_ptr) and dst_type.base_type is not PyrexTypes.c_void_type:
+            array_length = len(self.args)
+            if self.mult_factor:
+                if isinstance(self.mult_factor.constant_result, (int, long)):
+                    if self.mult_factor.constant_result <= 0:
+                        error(self.pos, "Cannot coerce non-positively multiplied list to '%s'" % dst_type)
+                    else:
+                        array_length *= self.mult_factor.constant_result
+                else:
+                    error(self.pos, "Cannot coerce dynamically multiplied list to '%s'" % dst_type)
             base_type = dst_type.base_type
-            self.type = PyrexTypes.CArrayType(base_type, len(self.args))
+            self.type = PyrexTypes.CArrayType(base_type, array_length)
             for i in range(len(self.original_args)):
                 arg = self.args[i]
                 if isinstance(arg, CoerceToPyTypeNode):
                     arg = arg.arg
                 self.args[i] = arg.coerce_to(base_type, env)
+        elif self.mult_factor:
+            error(self.pos, "Cannot coerce multiplied list to '%s'" % dst_type)
         elif dst_type.is_struct:
             if len(self.args) > len(dst_type.scope.var_entries):
                 error(self.pos, "Too may members for '%s'" % dst_type)
@@ -6619,11 +6633,23 @@ class ListNode(SequenceNode):
                 report_error(err)
             self.generate_sequence_packing_code(code)
         elif self.type.is_array:
+            if self.mult_factor:
+                code.putln("{")
+                code.putln("Py_ssize_t %s;" % Naming.quick_temp_cname)
+                code.putln("for ({i} = 0; {i} < {count}; {i}++) {{".format(
+                    i=Naming.quick_temp_cname, count=self.mult_factor.result()))
+                offset = '+ (%d * %s)' % (len(self.args), Naming.quick_temp_cname)
+            else:
+                offset = ''
             for i, arg in enumerate(self.args):
-                code.putln("%s[%s] = %s;" % (
+                code.putln("%s[%s%s] = %s;" % (
                     self.result(),
                     i,
+                    offset,
                     arg.result()))
+            if self.mult_factor:
+                code.putln("}")
+                code.putln("}")
         elif self.type.is_struct:
             for arg, member in zip(self.args, self.type.scope.var_entries):
                 code.putln("%s.%s = %s;" % (
