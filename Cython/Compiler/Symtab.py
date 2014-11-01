@@ -1893,11 +1893,9 @@ class CClassScope(ClassScope):
                 if name == "__weakref__":
                     error(pos, "Special attribute __weakref__ cannot be exposed to Python")
                 if not type.is_pyobject:
-                    if (not type.create_to_py_utility_code(self) or
-                        (visibility=='public' and not
-                         type.create_from_py_utility_code(self))):
-                        error(pos,
-                              "C attribute of type '%s' cannot be accessed from Python" % type)
+                    if (not type.can_coerce_to_pyobject(self) or
+                            (visibility == 'public' and not type.can_coerce_to_pyobject(self))):
+                        error(pos, "C attribute of type '%s' cannot be accessed from Python" % type)
             else:
                 entry.needs_property = False
             return entry

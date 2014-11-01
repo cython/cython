@@ -2247,6 +2247,9 @@ class CArrayType(CPointerBaseType):
         else:
             return None
 
+    def can_coerce_to_pyobject(self, env):
+        return self.base_type.can_coerce_to_pyobject(env)
+
     def create_to_py_utility_code(self, env):
         if self.to_py_function is not None:
             return self.to_py_function
