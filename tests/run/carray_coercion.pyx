@@ -257,3 +257,80 @@ def to_struct_array_array(x):
     """
     cdef MyStructType[2][3] v = x
     return v[0], v[1]
+
+
+cdef struct StructWithArray:
+    int a
+    MyStruct[2] b
+
+
+def to_struct_with_array(x):
+    """
+    >>> to_struct_with_array([
+    ...     {'a': 11, 'b': [{'x': 12, 'y': 13}, {'x': 14, 'y': 15}]},
+    ...     {'a': 21, 'b': [{'x': 22, 'y': 23}, {'x': 24, 'y': 25}]},
+    ... ])
+    [{'a': 11, 'b': [{'y': 13.0, 'x': 12}, {'y': 15.0, 'x': 14}]}, {'a': 21, 'b': [{'y': 23.0, 'x': 22}, {'y': 25.0, 'x': 24}]}]
+    >>> to_struct_with_array(iter([
+    ...     {'a': 11, 'b': iter([{'x': 12, 'y': 13}, {'x': 14, 'y': 15}])},
+    ...     {'a': 21, 'b': iter([{'x': 22, 'y': 23}, {'x': 24, 'y': 25}])},
+    ... ]))
+    [{'a': 11, 'b': [{'y': 13.0, 'x': 12}, {'y': 15.0, 'x': 14}]}, {'a': 21, 'b': [{'y': 23.0, 'x': 22}, {'y': 25.0, 'x': 24}]}]
+    """
+    cdef StructWithArray[2] v
+    v = x
+    return v
+
+
+def to_struct_with_array_slice(x):
+    """
+    >>> to_struct_with_array_slice([
+    ...     {'a': 11, 'b': [{'x': 12, 'y': 13}, {'x': 14, 'y': 15}]},
+    ...     {'a': 21, 'b': [{'x': 22, 'y': 23}, {'x': 24, 'y': 25}]},
+    ... ])
+    [{'a': 11, 'b': [{'y': 13.0, 'x': 12}, {'y': 15.0, 'x': 14}]}, {'a': 21, 'b': [{'y': 23.0, 'x': 22}, {'y': 25.0, 'x': 24}]}]
+    >>> to_struct_with_array_slice(iter([
+    ...     {'a': 11, 'b': iter([{'x': 12, 'y': 13}, {'x': 14, 'y': 15}])},
+    ...     {'a': 21, 'b': iter([{'x': 22, 'y': 23}, {'x': 24, 'y': 25}])},
+    ... ]))
+    [{'a': 11, 'b': [{'y': 13.0, 'x': 12}, {'y': 15.0, 'x': 14}]}, {'a': 21, 'b': [{'y': 23.0, 'x': 22}, {'y': 25.0, 'x': 24}]}]
+    """
+    cdef StructWithArray[2] v
+    v[:] = x
+    return v
+
+
+'''
+# FIXME: this isn't currently allowed
+def to_struct_with_array_slice_end(x):
+    """
+    >>> to_struct_with_array_slice_end([
+    ...     {'a': 11, 'b': [{'x': 12, 'y': 13}, {'x': 14, 'y': 15}]},
+    ... ])
+    [{'a': 11, 'b': [{'y': 13.0, 'x': 12}, {'y': 15.0, 'x': 14}]}]
+    >>> to_struct_with_array_slice_end(iter([
+    ...     {'a': 11, 'b': iter([{'x': 12, 'y': 13}, {'x': 14, 'y': 15}])},
+    ... ]))
+    [{'a': 11, 'b': [{'y': 13.0, 'x': 12}, {'y': 15.0, 'x': 14}]}]
+    >>> to_struct_with_array_slice_end(iter([
+    ...     {'a': 11, 'b': iter([{'x': 12, 'y': 13}, {'x': 14, 'y': 15}])},
+    ...     {'a': 21, 'b': iter([{'x': 22, 'y': 23}, {'x': 24, 'y': 25}])},
+    ... ]))
+    Traceback (most recent call last):
+    IndexError: too many values found during array assignment, expected 1
+    """
+    cdef StructWithArray[2] v
+    v[:1] = x
+    return v
+
+
+def to_int_array_slice_start_end(x):
+    """
+    >>> to_int_array_slice_start_end([1, 2, 3])
+    (1, 2, 3)
+    """
+    cdef int[5] v
+    v[:3] = x
+    v[2:] = x
+    return v[0], v[1], v[2], v[3], v[4]
+'''
