@@ -27,7 +27,6 @@ from .Code import UtilityCode
 from .StringEncoding import EncodedString, escape_byte_string, split_string_literal
 from . import Options
 from . import DebugFlags
-from Cython.Utils import LazyStr
 
 absolute_path_length = 0
 
