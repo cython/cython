@@ -224,11 +224,11 @@ and provide the Python user with Python functions of the same names.
 Cython provides a couple of different ways of solving this problem.  The best
 way, especially if you have many C functions to wrap, is to put the extern
 C function declarations into a ``.pxd`` file and thus a different namespace,
-using the facilities described in the section on sharing declarations between
-Cython modules.  Writing them into a ``.pxd`` file allows their reuse across
-modules, avoids naming collisions in the normal Python way and even makes it
-easy to rename them on cimport.  For example, if your ``decl.pxd`` file
-declared a C function ``eject_tomato``::
+using the facilities described in :ref:`sharing declarations between Cython
+modules <sharing-declarations>`.  Writing them into a ``.pxd`` file allows
+their reuse across modules, avoids naming collisions in the normal Python way
+and even makes it easy to rename them on cimport.  For example, if your
+``decl.pxd`` file declared a C function ``eject_tomato``::
 
     cdef extern from "myheader.h":
         void eject_tomato(float speed)
@@ -246,6 +246,9 @@ or simply cimport the ``.pxd`` file and use it as prefix::
 
     def eject_tomato(speed):
         decl.eject_tomato(speed)
+
+Note that this has no runtime lookup overhead, as it would in Python.
+Cython resolves the names in the ``.pxd`` file at compile time.
 
 For special cases where namespacing or renaming on import is not enough,
 e.g. when a name in C conflicts with a Python keyword, you can use a C name
