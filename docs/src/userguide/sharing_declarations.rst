@@ -6,10 +6,11 @@
 Sharing Declarations Between Cython Modules
 ********************************************
 
-This section describes a new set of facilities for making C declarations,
-functions and extension types in one Cython module available for use in
-another Cython module. These facilities are closely modeled on the Python
-import mechanism, and can be thought of as a compile-time version of it.
+This section describes how to make C declarations, functions and extension
+types in one Cython module available for use in another Cython module.
+These facilities are closely modeled on the Python import mechanism,
+and can be thought of as a compile-time version of it.
+
 
 Definition and Implementation files
 ====================================
@@ -26,6 +27,7 @@ to correspond to an actual ``.pyx`` file or Python module. This can make it a
 convenient place to put common declarations, for example declarations of 
 functions from  an :ref:`external library <external-C-code>` that one
 wants to use in several modules. 
+
 
 What a Definition File contains
 ================================
@@ -49,6 +51,7 @@ wants to  access :keyword:`cdef` attributes and methods, or to inherit from
     presence in a definition file does that. You only need a public
     declaration if you want to make something available to external C code.
 
+
 What an Implementation File contains
 ======================================
 
@@ -57,6 +60,7 @@ are some restrictions on the implementation part of an extension type if the
 corresponding definition file also defines that type (see below). 
 If one doesn't need to :keyword:`cimport` anything from this module, then this
 is the only file one needs. 
+
 
 .. _cimport:
 
@@ -114,7 +118,8 @@ detail below.
 If a ``.pxd`` file changes, any modules that :keyword:`cimport` from it may need to be 
 recompiled.  The ``Cython.Build.cythonize`` utility can take care of this for you.
 
-Search paths for definition files 
+
+Search paths for definition files
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 When you :keyword:`cimport` a module called ``modulename``, the Cython
@@ -124,6 +129,7 @@ path for include files, as specified by ``-I`` command line options.
 Also, whenever you compile a file :file:`modulename.pyx`, the corresponding
 definition file :file:`modulename.pxd` is first searched for along the same
 path, and if found, it is processed before processing the ``.pyx`` file.  
+
 
 Using cimport to resolve naming conflicts 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -152,6 +158,7 @@ in :file:`c_lunch.pxd` are extern C entities. There won't be any actual
 ``c_lunch`` module at run time, but that doesn't matter; the
 :file:`c_lunch.pxd` file has done its job of providing an additional namespace
 at compile time.  
+
 
 Sharing C Functions
 ===================
@@ -188,7 +195,8 @@ example,::
     this object from Python, nor can you use it from Cython using a normal import
     statement; you have to use :keyword:`cimport`.  
 
-Sharing Extension Types 
+
+Sharing Extension Types
 =======================
 
 An extension type can be made available via :keyword:`cimport` by splitting
@@ -249,4 +257,3 @@ Some things to note about this example:
   doesn't bind the name Shrubbing in Landscaping's module namespace at run
   time, so to access :func:`Shrubbing.standard_shrubbery` we also need to
   ``import Shrubbing``.
-
