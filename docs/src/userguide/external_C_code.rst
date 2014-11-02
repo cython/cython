@@ -265,7 +265,7 @@ will be ``yield``.  You can then wrap it with::
 As for functions, C names can be specified for variables, structs, unions,
 enums, struct and union members, and enum values.  For example::
 
-    cdef extern int one "ein", two "zwei"
+    cdef extern int one "eins", two "zwei"
     cdef extern float three "drei"
 
     cdef struct spam "SPAM":
