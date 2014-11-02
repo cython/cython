@@ -22,14 +22,20 @@ by the ``stdlib.h`` header file.  This can be done as follows::
       return atoi(s)   # note: atoi() has no error detection!
 
 You can find a complete list of these standard cimport files in
-Cython's source package ``Cython/Includes/``.  It also has a complete
-set of declarations for CPython's C-API.  For example, to test at C
-compilation time which CPython version your code is being compiled
-with, you can do this::
+Cython's source package
+`Cython/Includes/ <https://github.com/cython/cython/tree/master/Cython/Includes>`_.
+They are stored in ``.pxd`` files, the standard way to provide reusable
+Cython declarations that can be shared across modules
+(see :ref:`sharing-declarations`).
+
+Cython also has a complete set of declarations for CPython's C-API.
+For example, to test at C compilation time which CPython version
+your code is being compiled with, you can do this::
 
   from cpython.version cimport PY_VERSION_HEX
 
-  print PY_VERSION_HEX >= 0x030200F0 # Python version >= 3.2 final
+  # Python version >= 3.2 final ?
+  print PY_VERSION_HEX >= 0x030200F0
 
 Cython also provides declarations for the C math library::
 
@@ -50,18 +56,18 @@ shared library ``m``.  For distutils, it is enough to add it to the
 
   from distutils.core import setup
   from distutils.extension import Extension
-  from Cython.Distutils import build_ext
+  from Cython.Build import cythonize
 
-  ext_modules=[ 
+  ext_modules=[
       Extension("demo",
-                ["demo.pyx"], 
-                libraries=["m"]) # Unix-like specific
+                sources=["demo.pyx"],
+                libraries=["m"] # Unix-like specific
+      )
   ]
 
   setup(
     name = "Demos",
-    cmdclass = {"build_ext": build_ext},
-    ext_modules = ext_modules
+    ext_modules = cythonize(ext_modules)
   )
 
 
@@ -85,6 +91,26 @@ Just like the ``sin()`` function from the math library, it is possible
 to declare and call into any C library as long as the module that
 Cython generates is properly linked against the shared or static
 library.
+
+Note that you can easily export an external C function from your Cython
+module by declaring it as ``cpdef``.  This generates a Python wrapper
+for it and adds it to the module dict.  Here is a Cython module that
+provides direct access to the C ``sin()`` function for Python code::
+
+  """
+  >>> sin(0)
+  0.0
+  """
+
+  cdef extern from "math.h":
+      cpdef double sin(double x)
+
+You get the same result when this declaration appears in the ``.pxd``
+file that belongs to the Cython module (i.e. that has the same name,
+see :ref:`sharing-declarations`).
+This allows the C declaration to be reused in other Cython modules,
+while still providing an automatically generated Python wrapper in
+this specific module.
 
 
 Naming parameters
