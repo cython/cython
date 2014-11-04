@@ -1066,15 +1066,17 @@ class ModuleScope(Scope):
 
     def declare_tuple_type(self, pos, type):
         cname = type.cname
-        if not self.lookup_here(cname):
+        entry = self.lookup_here(cname)
+        if not entry:
             scope = StructOrUnionScope(cname)
             for ix, component in enumerate(type.components):
                 scope.declare_var(name="f%s" % ix, type=component, pos=pos)
             struct_entry = self.declare_struct_or_union(cname + '_struct', 'struct', scope, typedef_flag=True, pos=pos, cname=cname)
             self.type_entries.remove(struct_entry)
             type.struct_entry = struct_entry
-            type.entry = self.declare_type(cname, type, pos, cname)
-        return type.entry
+            entry = self.declare_type(cname, type, pos, cname)
+        type.entry = entry
+        return entry
 
     def declare_builtin(self, name, pos):
         if not hasattr(builtins, name) \
