@@ -4252,6 +4252,7 @@ def type_identifier(type):
         safe = re.sub(' ([^a-zA-Z0-9_])', r'\1', safe)
         safe = re.sub('([^a-zA-Z0-9_]) ', r'\1', safe)
         safe = (safe.replace('__', '__dunder')
+                    .replace('const ', '__const_')
                     .replace(' ', '__space_')
                     .replace('*', '__ptr')
                     .replace('&', '__ref')
