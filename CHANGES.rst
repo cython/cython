@@ -18,6 +18,8 @@ Features added
   the module's Python namespace.  Extern C functions in pxd files export
   their values to their own module, iff it exists.
 
+* Anonymous C tuple types can be declared as (ctype1, ctype2, ...).
+
 Bugs fixed
 ----------
 
@@ -46,8 +48,6 @@ Features added
 
 * ``PySlice_*()`` C-API functions are available from the ``cpython.slice``
   module.
-
-* Anonymous C tuple types can be declared as (ctype1, ctype2, ...).
 
 * Allow arrays of C++ classes.
 
