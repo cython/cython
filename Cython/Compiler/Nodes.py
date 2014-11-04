@@ -4857,23 +4857,24 @@ class SingleAssignmentNode(AssignmentNode):
                     else:
                         error(self.pos, "C array iteration requires known end index")
                         return
-                step_node = None #node.step
+                step_node = None  #node.step
                 if step_node:
                     step_node = step_node.coerce_to(PyrexTypes.c_py_ssize_t_type, env)
+
                 # TODO: Factor out SliceIndexNode.generate_slice_guard_code() for use here.
                 def get_const(node, none_value):
                     if node is None:
                         return none_value
-                    elif node.has_constant_result:
-                        node.calculate_constant_result()
+                    elif node.has_constant_result():
                         return node.constant_result
                     else:
-                        raise ValueError, "Not a constant."
+                        raise ValueError("Not a constant.")
+
                 try:
                     slice_size = (get_const(stop_node, None) - get_const(start_node, 0)) / get_const(step_node, 1)
                     if target_size != slice_size:
                         error(self.pos, "Assignment to/from slice of wrong length, expected %d, got %d" % (
-                                slice_size, target_size))
+                            slice_size, target_size))
                 except ValueError:
                     error(self.pos, "C array assignment currently requires known endpoints")
                     return
