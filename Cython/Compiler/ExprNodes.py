@@ -3265,7 +3265,7 @@ class IndexNode(ExprNode):
                                     (len(base_type.templates), len(self.type_indices))))
                         self.type = base_type.specialize(dict(zip(base_type.templates, self.type_indices)))
                 elif base_type.is_ctuple:
-                    if isinstance(self.index, IntNode):
+                    if isinstance(self.index, IntNode) and self.index.has_constant_result():
                         index = self.index.constant_result
                         if -base_type.size <= index < base_type.size:
                             if index < 0:
