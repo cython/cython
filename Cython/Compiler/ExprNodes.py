@@ -7795,7 +7795,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 if default_args:
                     defaults_tuple = TupleNode(self.pos, args=[
                         arg.default for arg in default_args])
-                    self.defaults_tuple = defaults_tuple.analyse_types(env)
+                    self.defaults_tuple = defaults_tuple.analyse_types(env).coerce_to_pyobject(env)
                 if default_kwargs:
                     defaults_kwdict = DictNode(self.pos, key_value_pairs=[
                         DictItemNode(
