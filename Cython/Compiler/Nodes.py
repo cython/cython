@@ -832,7 +832,7 @@ class CArgDeclNode(Node):
                     if self.base_type.is_basic_c_type:
                         # char, short, long called "int"
                         type = self.base_type.analyse(env, could_be_name=True)
-                        arg_name = type.declaration_code("")
+                        arg_name = type.empty_declaration_code()
                     else:
                         arg_name = self.base_type.name
                     self.declarator.name = EncodedString(arg_name)
@@ -1165,6 +1165,25 @@ class CComplexBaseTypeNode(CBaseTypeNode):
         return type
 
 
+class CTupleBaseTypeNode(CBaseTypeNode):
+    # components [CBaseTypeNode]
+
+    child_attrs = ["components"]
+
+    def analyse(self, env, could_be_name=False):
+        component_types = []
+        for c in self.components:
+            type = c.analyse(env)
+            if type.is_pyobject:
+                error(type_node.pos, "Tuple types can't (yet) contain Python objects.")
+                return PyrexType.error_type
+            component_types.append(type)
+        type = PyrexTypes.c_tuple_type(component_types)
+        entry = env.declare_tuple_type(self.pos, type)
+        entry.used = True
+        return type
+
+
 class FusedTypeNode(CBaseTypeNode):
     """
     Represents a fused type in a ctypedef statement:
@@ -1184,7 +1203,7 @@ class FusedTypeNode(CBaseTypeNode):
         # Omit the typedef declaration that self.declarator would produce
         entry.in_cinclude = True
 
-    def analyse(self, env):
+    def analyse(self, env, could_be_name = False):
         types = []
         for type_node in self.types:
             type = type_node.analyse_as_type(env)
@@ -1793,7 +1812,7 @@ class FuncDefNode(StatNode, BlockNode):
                 slot_func_cname = '%s->tp_new' % lenv.scope_class.type.typeptr_cname
             code.putln("%s = (%s)%s(%s, %s, NULL);" % (
                 Naming.cur_scope_cname,
-                lenv.scope_class.type.declaration_code(''),
+                lenv.scope_class.type.empty_declaration_code(),
                 slot_func_cname,
                 lenv.scope_class.type.typeptr_cname,
                 Naming.empty_tuple))
@@ -1815,12 +1834,12 @@ class FuncDefNode(StatNode, BlockNode):
             if self.is_cyfunction:
                 code.putln("%s = (%s) __Pyx_CyFunction_GetClosure(%s);" % (
                     outer_scope_cname,
-                    cenv.scope_class.type.declaration_code(''),
+                    cenv.scope_class.type.empty_declaration_code(),
                     Naming.self_cname))
             else:
                 code.putln("%s = (%s) %s;" % (
                     outer_scope_cname,
-                    cenv.scope_class.type.declaration_code(''),
+                    cenv.scope_class.type.empty_declaration_code(),
                     Naming.self_cname))
             if lenv.is_passthrough:
                 code.putln("%s = %s;" % (Naming.cur_scope_cname, outer_scope_cname))
@@ -4657,7 +4676,7 @@ class AssignmentNode(StatNode):
 
     def analyse_expressions(self, env):
         node = self.analyse_types(env)
-        if isinstance(node, AssignmentNode):
+        if isinstance(node, AssignmentNode) and not isinstance(node, ParallelAssignmentNode):
             if node.rhs.type.is_ptr and node.rhs.is_ephemeral():
                 error(self.pos, "Storing unsafe C derivative of temporary Python reference")
         return node
@@ -4763,11 +4782,19 @@ class SingleAssignmentNode(AssignmentNode):
             self.lhs.analyse_target_declaration(env)
 
     def analyse_types(self, env, use_temp = 0):
-        from . import ExprNodes
+        from . import ExprNodes, UtilNodes
 
         self.rhs = self.rhs.analyse_types(env)
+
+        unrolled_assignment = self.unroll_rhs(env)
+        if unrolled_assignment:
+            return unrolled_assignment
+
         self.lhs = self.lhs.analyse_target_types(env)
         self.lhs.gil_assignment_check(env)
+        unrolled_assignment = self.unroll_lhs(env)
+        if unrolled_assignment:
+            return unrolled_assignment
 
         if self.lhs.memslice_broadcast or self.rhs.memslice_broadcast:
             self.lhs.memslice_broadcast = True
@@ -4800,6 +4827,130 @@ class SingleAssignmentNode(AssignmentNode):
             rhs = rhs.coerce_to_simple(env)
         self.rhs = rhs
         return self
+
+    def unroll(self, node, target_size, env):
+        from . import ExprNodes, UtilNodes
+        if node.type.is_ctuple:
+            if node.type.size == target_size:
+                base = node
+                start_node = None
+                stop_node = None
+                step_node = None
+                check_node = None
+            else:
+                error(self.pos, "Unpacking type %s requires exactly %s arguments." % (
+                                    node.type, node.type.size))
+                return
+
+        elif node.type.is_ptr:
+            if isinstance(node, ExprNodes.SliceIndexNode):
+                base = node.base
+                start_node = node.start
+                if start_node:
+                    start_node = start_node.coerce_to(PyrexTypes.c_py_ssize_t_type, env)
+                stop_node = node.stop
+                if stop_node:
+                    stop_node = stop_node.coerce_to(PyrexTypes.c_py_ssize_t_type, env)
+                else:
+                    if node.type.is_array and node.type.size:
+                        stop_node = ExprNodes.IntNode(pos=self.pos, value=str(rhs.type.size))
+                    else:
+                        error(self.pos, "C array iteration requires known end index")
+                        return
+                step_node = None #node.step
+                if step_node:
+                    step_node = step_node.coerce_to(PyrexTypes.c_py_ssize_t_type, env)
+                # TODO: Factor out SliceIndexNode.generate_slice_guard_code() for use here.
+                def get_const(node, none_value):
+                    if node is None:
+                        return none_value
+                    elif node.has_constant_result:
+                        node.calculate_constant_result()
+                        return node.constant_result
+                    else:
+                        raise ValueError, "Not a constant."
+                try:
+                    slice_size = (get_const(stop_node, None) - get_const(start_node, 0)) / get_const(step_node, 1)
+                    if target_size != slice_size:
+                        error(self.pos, "Assignment to/from slice of wrong length, expected %d, got %d" % (
+                                slice_size, target_size))
+                except ValueError:
+                    error(self.pos, "C array assignment currently requires known endpoints")
+                    return
+                check_node = None
+            else:
+                return
+
+        else:
+            return
+
+        items = []
+        base_ref = UtilNodes.LetRefNode(base)
+        refs = [base_ref]
+        if start_node:
+            start_node = UtilNodes.LetRefNode(start_node)
+            refs.append(start_node)
+        if stop_node:
+            stop_node = UtilNodes.LetRefNode(stop_node)
+            refs.append(stop_node)
+        if step_node:
+            step_node = UtilNodes.LetRefNode(step_node)
+            refs.append(step_node)
+        for ix in range(target_size):
+            ix_node = ExprNodes.IntNode(pos=self.pos, value=str(ix))
+            if step_node is not None:
+                ix_node = ExprNodes.MulNode(pos=self.pos, operator='*', operand1=step_node, operand2=ix_node).analyse_types(env)
+            if start_node is not None:
+                ix_node = ExprNodes.AddNode(pos=self.pos, operator='+', operand1=start_node, operand2=ix_node).analyse_types(env)
+            items.append(ExprNodes.IndexNode(
+                                pos=self.pos,
+                                base=base_ref,
+                                index=ix_node))
+        return check_node, refs, items
+
+    def unroll_assignments(self, refs, check_node, lhs_list, rhs_list, env):
+        from . import ExprNodes, UtilNodes
+        assignments = []
+        for lhs, rhs in zip(lhs_list, rhs_list):
+            assignments.append(SingleAssignmentNode(
+                pos = self.pos,
+                lhs = lhs,
+                rhs = rhs,
+                first = self.first))
+        all = ParallelAssignmentNode(pos=self.pos, stats=assignments).analyse_expressions(env)
+        if check_node:
+            all = StatListNode(pos=self.pos, stats=[check_node, all])
+        for ref in refs:
+            all = UtilNodes.LetNode(ref, all)
+        return all
+
+    def unroll_rhs(self, env):
+        from . import ExprNodes, UtilNodes
+        if not isinstance(self.lhs, ExprNodes.TupleNode):
+            return
+        for arg in self.lhs.args:
+            if arg.is_starred:
+                return
+
+        unrolled = self.unroll(self.rhs, len(self.lhs.args), env)
+        if not unrolled:
+            return
+        check_node, refs, rhs = unrolled
+        return self.unroll_assignments(refs, check_node, self.lhs.args, rhs, env)
+
+    def unroll_lhs(self, env):
+        if self.lhs.type.is_ctuple:
+            # Handled directly.
+            return
+        from . import ExprNodes, UtilNodes
+        if not isinstance(self.rhs, ExprNodes.TupleNode):
+            return
+
+        unrolled = self.unroll(self.lhs, len(self.rhs.args), env)
+        if not unrolled:
+            return
+        check_node, refs, lhs = unrolled
+        return self.unroll_assignments(refs, check_node, lhs, self.rhs.args, env)
 
     def generate_rhs_evaluation_code(self, code):
         self.rhs.generate_evaluation_code(code)
@@ -5471,7 +5622,7 @@ class AssertStatNode(StatNode):
                 # prevent tuple values from being interpreted as argument value tuples
                 from .ExprNodes import TupleNode
                 value = TupleNode(value.pos, args=[value], slow=True)
-                self.value = value.analyse_types(env, skip_children=True)
+                self.value = value.analyse_types(env, skip_children=True).coerce_to_pyobject(env)
             else:
                 self.value = value.coerce_to_pyobject(env)
         return self
@@ -7691,7 +7842,7 @@ class ParallelStatNode(StatNode, ParallelNode):
             if not lastprivate or entry.type.is_pyobject:
                 continue
 
-            type_decl = entry.type.declaration_code("")
+            type_decl = entry.type.empty_declaration_code()
             temp_cname = "__pyx_parallel_temp%d" % temp_count
             private_cname = entry.cname
 

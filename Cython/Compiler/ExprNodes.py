@@ -819,6 +819,10 @@ class ExprNode(Node):
             return self
         elif type.is_pyobject or type.is_int or type.is_ptr or type.is_float:
             return CoerceToBooleanNode(self, env)
+        elif type.is_ctuple:
+            bool_value = len(type.components) == 0
+            return BoolNode(self.pos, value=bool_value,
+                            constant_result=bool_value)
         else:
             error(self.pos, "Type '%s' not acceptable as a boolean" % type)
             return self
@@ -1556,7 +1560,7 @@ class NewExprNode(AtomicExprNode):
         pass
 
     def calculate_result_code(self):
-        return "new " + self.class_type.declaration_code("")
+        return "new " + self.class_type.empty_declaration_code()
 
 
 class NameNode(AtomicExprNode):
@@ -2919,6 +2923,12 @@ class IndexNode(ExprNode):
                     return item_type
             elif base_type.is_ptr or base_type.is_array:
                 return base_type.base_type
+            elif base_type.is_ctuple and isinstance(self.index, IntNode):
+                index = self.index.constant_result
+                if index < 0:
+                    index += base_type.size
+                if 0 <= index < base_type.size:
+                    return base_type.components[index]
 
         if base_type.is_cpp_class:
             class FakeOperand:
@@ -3254,6 +3264,21 @@ class IndexNode(ExprNode):
                             error(self.pos, "Wrong number of template arguments: expected %s, got %s" % (
                                     (len(base_type.templates), len(self.type_indices))))
                         self.type = base_type.specialize(dict(zip(base_type.templates, self.type_indices)))
+                elif base_type.is_ctuple:
+                    if isinstance(self.index, IntNode):
+                        index = self.index.constant_result
+                        if -base_type.size <= index < base_type.size:
+                            if index < 0:
+                                index += base_type.size
+                            self.type = base_type.components[index]
+                        else:
+                            error(self.pos,
+                                  "Index %s out of bounds for '%s'" %
+                                  (index, base_type))
+                            self.type = PyrexTypes.error_type
+                    else:
+                        self.base = self.base.coerce_to_pyobject(env)
+                        return self.analyse_base_and_index_types(env, getting=getting, setting=setting, analyse_base=False)
                 else:
                     error(self.pos,
                           "Attempting to index non-array type '%s'" %
@@ -3435,7 +3460,12 @@ class IndexNode(ExprNode):
         elif self.base.type.is_cfunction:
             return "%s<%s>" % (
                 self.base.result(),
-                ",".join([param.declaration_code("") for param in self.type_indices]))
+                ",".join([param.empty_declaration_code() for param in self.type_indices]))
+        elif self.base.type.is_ctuple:
+            index = self.index.constant_result
+            if index < 0:
+                index += self.base.type.size
+            return "%s.f%s" % (self.base.result(), index)
         else:
             if (self.type.is_ptr or self.type.is_array) and self.type == self.base.type:
                 error(self.pos, "Invalid use of pointer slice")
@@ -3453,7 +3483,7 @@ class IndexNode(ExprNode):
                      and self.index.constant_result >= 0))
             boundscheck = bool(code.globalstate.directives['boundscheck'])
             return ", %s, %d, %s, %d, %d, %d" % (
-                self.original_index_type.declaration_code(""),
+                self.original_index_type.empty_declaration_code(),
                 self.original_index_type.signed and 1 or 0,
                 self.original_index_type.to_py_function,
                 is_list, wraparound, boundscheck)
@@ -4365,7 +4395,7 @@ class CallNode(ExprNode):
             constructor = type.scope.lookup("<init>")
             self.function = RawCNameExprNode(self.function.pos, constructor.type)
             self.function.entry = constructor
-            self.function.set_cname(type.declaration_code(""))
+            self.function.set_cname(type.empty_declaration_code())
             self.analyse_c_function_call(env)
             self.type = type
             return True
@@ -4447,7 +4477,7 @@ class SimpleCallNode(CallNode):
         func_type = self.function_type()
         if func_type.is_pyobject:
             self.arg_tuple = TupleNode(self.pos, args = self.args)
-            self.arg_tuple = self.arg_tuple.analyse_types(env)
+            self.arg_tuple = self.arg_tuple.analyse_types(env).coerce_to_pyobject(env)
             self.args = None
             if func_type is Builtin.type_type and function.is_name and \
                    function.entry and \
@@ -6070,6 +6100,10 @@ class SequenceNode(ExprNode):
                 ', '.join([ arg.py_result() for arg in self.args ]),
                 code.error_goto_if_null(target, self.pos)))
             code.put_gotref(target)
+        elif self.type.is_ctuple:
+            for i, arg in enumerate(self.args):
+                code.putln("%s.f%s = %s;" % (
+                    target, i, arg.result()))
         else:
             # build the tuple/list step by step, potentially multiplying it as we go
             if self.type is Builtin.list_type:
@@ -6443,27 +6477,61 @@ class TupleNode(SequenceNode):
 
     gil_message = "Constructing Python tuple"
 
+    def infer_type(self, env):
+        if self.mult_factor or not self.args:
+            return tuple_type
+        arg_types = [arg.infer_type(env) for arg in self.args]
+        if any(type.is_pyobject or type.is_unspecified or type.is_fused for type in arg_types):
+            return tuple_type
+        else:
+            type = PyrexTypes.c_tuple_type(arg_types)
+            env.declare_tuple_type(self.pos, type)
+            return type
+
     def analyse_types(self, env, skip_children=False):
         if len(self.args) == 0:
-            node = self
-            node.is_temp = False
-            node.is_literal = True
+            self.is_temp = False
+            self.is_literal = True
+            return self
         else:
-            node = SequenceNode.analyse_types(self, env, skip_children)
-            for child in node.args:
-                if not child.is_literal:
-                    break
+            if not skip_children:
+                self.args = [arg.analyse_types(env) for arg in self.args]
+            if not self.mult_factor and not any(arg.type.is_pyobject or arg.type.is_fused for arg in self.args):
+                self.type = PyrexTypes.c_tuple_type(arg.type for arg in self.args)
+                env.declare_tuple_type(self.pos, self.type)
+                self.is_temp = 1
+                return self
             else:
-                if not node.mult_factor or node.mult_factor.is_literal and \
-                       isinstance(node.mult_factor.constant_result, (int, long)):
-                    node.is_temp = False
-                    node.is_literal = True
+                node = SequenceNode.analyse_types(self, env, skip_children=True)
+                for child in node.args:
+                    if not child.is_literal:
+                        break
                 else:
-                    if not node.mult_factor.type.is_pyobject:
-                        node.mult_factor = node.mult_factor.coerce_to_pyobject(env)
-                    node.is_temp = True
-                    node.is_partly_literal = True
-        return node
+                    if not node.mult_factor or node.mult_factor.is_literal and \
+                           isinstance(node.mult_factor.constant_result, (int, long)):
+                        node.is_temp = False
+                        node.is_literal = True
+                    else:
+                        if not node.mult_factor.type.is_pyobject:
+                            node.mult_factor = node.mult_factor.coerce_to_pyobject(env)
+                        node.is_temp = True
+                        node.is_partly_literal = True
+                return node
+
+    def coerce_to(self, dst_type, env):
+        if self.type.is_ctuple:
+            if dst_type.is_ctuple and self.type.size == dst_type.size:
+                if self.type == dst_type:
+                    return self
+                coerced_args = [arg.coerce_to(type, env) for arg, type in zip(self.args, dst_type.components)]
+                return TupleNode(self.pos, args=coerced_args, type=dst_type, is_temp=1)
+            elif dst_type is tuple_type or dst_type is py_object_type:
+                coerced_args = [arg.coerce_to_pyobject(env) for arg in self.args]
+                return TupleNode(self.pos, args=coerced_args, type=tuple_type, is_temp=1).analyse_types(env, skip_children=True)
+            else:
+                return self.coerce_to_pyobject(env).coerce_to(dst_type, env)
+        else:
+            return SequenceNode.coerce_to(self, dst_type, env)
 
     def is_simple(self):
         # either temp or constant => always simple
@@ -6515,6 +6583,7 @@ class TupleNode(SequenceNode):
             self.generate_sequence_packing_code(code)
             code.put_giveref(self.py_result())
         else:
+            self.type.entry.used = True
             self.generate_sequence_packing_code(code)
 
 
@@ -8029,6 +8098,9 @@ class DefaultsTupleNode(TupleNode):
             args.append(arg)
         super(DefaultsTupleNode, self).__init__(pos, args=args)
 
+    def analyse_types(self, env, skip_children=False):
+        return super(DefaultsTupleNode, self).analyse_types(env, skip_children).coerce_to_pyobject(env)
+
 
 class DefaultsKwDictNode(DictNode):
     # CyFunction's __kwdefaults__ dict
@@ -8382,7 +8454,7 @@ class UnopNode(ExprNode):
         return self.operand.check_const()
 
     def is_py_operation(self):
-        return self.operand.type.is_pyobject
+        return self.operand.type.is_pyobject or self.operand.type.is_ctuple
 
     def nogil_check(self, env):
         if self.is_py_operation():
@@ -8949,7 +9021,7 @@ class CythonArrayNode(ExprNode):
         shapes_temp = code.funcstate.allocate_temp(py_object_type, True)
         format_temp = code.funcstate.allocate_temp(py_object_type, True)
 
-        itemsize = "sizeof(%s)" % dtype.declaration_code("")
+        itemsize = "sizeof(%s)" % dtype.empty_declaration_code()
         type_info = Buffer.get_type_information_cname(code, dtype)
 
         if self.operand.type.is_ptr:
@@ -9069,7 +9141,7 @@ class SizeofTypeNode(SizeofNode):
             # we want the size of the actual struct
             arg_code = self.arg_type.declaration_code("", deref=1)
         else:
-            arg_code = self.arg_type.declaration_code("")
+            arg_code = self.arg_type.empty_declaration_code()
         return "(sizeof(%s))" % arg_code
 
 
@@ -9236,7 +9308,7 @@ class BinopNode(ExprNode):
         return self.is_py_operation_types(self.operand1.type, self.operand2.type)
 
     def is_py_operation_types(self, type1, type2):
-        return type1.is_pyobject or type2.is_pyobject
+        return type1.is_pyobject or type2.is_pyobject or type1.is_ctuple or type2.is_ctuple
 
     def is_cpp_operation(self):
         return (self.operand1.type.is_cpp_class
@@ -9697,12 +9769,12 @@ class DivNode(NumBinopNode):
                         # explicitly signed, no runtime check needed
                         minus1_check = 'unlikely(%s == -1)' % self.operand2.result()
                     else:
-                        type_of_op2 = self.operand2.type.declaration_code('')
+                        type_of_op2 = self.operand2.type.empty_declaration_code()
                         minus1_check = '(!(((%s)-1) > 0)) && unlikely(%s == (%s)-1)' % (
                             type_of_op2, self.operand2.result(), type_of_op2)
                     code.putln("else if (sizeof(%s) == sizeof(long) && %s "
                                " && unlikely(UNARY_NEG_WOULD_OVERFLOW(%s))) {" % (
-                               self.type.declaration_code(''),
+                               self.type.empty_declaration_code(),
                                minus1_check,
                                self.operand1.result()))
                     code.put_ensure_gil()
@@ -9850,11 +9922,11 @@ class PowNode(NumBinopNode):
         elif self.type.is_float:
             self.pow_func = "pow" + self.type.math_h_modifier
         elif self.type.is_int:
-            self.pow_func = "__Pyx_pow_%s" % self.type.declaration_code('').replace(' ', '_')
+            self.pow_func = "__Pyx_pow_%s" % self.type.empty_declaration_code().replace(' ', '_')
             env.use_utility_code(
                 int_pow_utility_code.specialize(
                     func_name=self.pow_func,
-                    type=self.type.declaration_code(''),
+                    type=self.type.empty_declaration_code(),
                     signed=self.type.signed and 1 or 0))
         elif not self.type.is_error:
             error(self.pos, "got unexpected types for C power operator: %s, %s" %
@@ -10355,7 +10427,10 @@ class CmpNode(object):
         if new_common_type is None:
             # fall back to generic type compatibility tests
             if type1 == type2:
-                new_common_type = type1
+                if type1.is_ctuple:
+                    new_common_type = py_object_type
+                else:
+                    new_common_type = type1
             elif type1.is_pyobject or type2.is_pyobject:
                 if type2.is_numeric or type2.is_string:
                     if operand2.check_for_coercion_error(type1, env):

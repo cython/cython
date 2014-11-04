@@ -481,7 +481,7 @@ class FusedCFuncDefNode(StatListNode):
                  #                                    self._dtype_name(dtype)))
                 decl_code.putln('ctypedef %s %s "%s"' % (dtype.resolve(),
                                                          self._dtype_name(dtype),
-                                                         dtype.declaration_code("")))
+                                                         dtype.empty_declaration_code()))
 
             if buffer_type.dtype.is_int:
                 if str(dtype) not in seen_int_dtypes:
@@ -729,7 +729,7 @@ class FusedCFuncDefNode(StatListNode):
         if self.py_func:
             args = [CloneNode(default) for default in defaults if default]
             self.defaults_tuple = TupleNode(self.pos, args=args)
-            self.defaults_tuple = self.defaults_tuple.analyse_types(env, skip_children=True)
+            self.defaults_tuple = self.defaults_tuple.analyse_types(env, skip_children=True).coerce_to_pyobject(env)
             self.defaults_tuple = ProxyNode(self.defaults_tuple)
             self.code_object = ProxyNode(self.specialized_pycfuncs[0].code_object)
 

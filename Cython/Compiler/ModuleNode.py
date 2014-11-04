@@ -251,7 +251,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     % (entry.name, cname, sig))
             for entry in api_vars:
                 cname = env.mangle(Naming.varptr_prefix, entry.name)
-                sig = entry.type.declaration_code("")
+                sig = entry.type.empty_declaration_code()
                 h_code.putln(
                     'if (__Pyx_ImportVoidPtr(module, "%s", (void **)&%s, "%s") < 0) goto bad;'
                     % (entry.name, cname, sig))
@@ -721,6 +721,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     pass
                 elif type.is_struct_or_union or type.is_cpp_class:
                     self.generate_struct_union_predeclaration(entry, code)
+                elif type.is_ctuple and entry.used:
+                    self.generate_struct_union_predeclaration(entry.type.struct_entry, code)
                 elif type.is_extension_type:
                     self.generate_objstruct_predeclaration(type, code)
         # Actual declarations
@@ -734,6 +736,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     self.generate_enum_definition(entry, code)
                 elif type.is_struct_or_union:
                     self.generate_struct_union_definition(entry, code)
+                elif type.is_ctuple and entry.used:
+                    self.generate_struct_union_definition(entry.type.struct_entry, code)
                 elif type.is_cpp_class:
                     self.generate_cpp_class_definition(entry, code)
                 elif type.is_extension_type:
@@ -776,7 +780,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_struct_union_predeclaration(self, entry, code):
         type = entry.type
         if type.is_cpp_class and type.templates:
-            code.putln("template <typename %s>" % ", typename ".join([T.declaration_code("") for T in type.templates]))
+            code.putln("template <typename %s>" % ", typename ".join([T.empty_declaration_code() for T in type.templates]))
         code.putln(self.sue_predeclaration(type, type.kind, type.cname))
 
     def sue_header_footer(self, type, kind, name):
@@ -826,12 +830,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         scope = type.scope
         if scope:
             if type.templates:
-                code.putln("template <class %s>" % ", class ".join([T.declaration_code("") for T in type.templates]))
+                code.putln("template <class %s>" % ", class ".join([T.empty_declaration_code() for T in type.templates]))
             # Just let everything be public.
             code.put("struct %s" % type.cname)
             if type.base_classes:
                 base_class_decl = ", public ".join(
-                    [base_class.declaration_code("") for base_class in type.base_classes])
+                    [base_class.empty_declaration_code() for base_class in type.base_classes])
                 code.put(" : public %s" % base_class_decl)
             code.putln(" {")
             has_virtual_methods = False
@@ -1124,7 +1128,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
             "%s = (%s)o;" % (
                 type.declaration_code("p"),
-                type.declaration_code("")))
+                type.empty_declaration_code()))
 
     def generate_new_function(self, scope, code, cclass_entry):
         tp_slot = TypeSlots.ConstructorSlot("tp_new", '__new__')
@@ -1226,7 +1230,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         for entry in cpp_class_attrs:
             code.putln("new((void*)&(p->%s)) %s();" %
-                       (entry.cname, entry.type.declaration_code("")))
+                       (entry.cname, entry.type.empty_declaration_code()))
 
         for entry in py_attrs:
             code.put_init_var_to_py_none(entry, "p->%s", nanny=False)
@@ -2427,7 +2431,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if entries:
             env.use_utility_code(UtilityCode.load_cached("VoidPtrExport", "ImportExport.c"))
             for entry in entries:
-                signature = entry.type.declaration_code("")
+                signature = entry.type.empty_declaration_code()
                 name = code.intern_identifier(entry.name)
                 code.putln('if (__Pyx_ExportVoidPtr(%s, (void *)&%s, "%s") < 0) %s' % (
                     name, entry.cname, signature,
@@ -2495,7 +2499,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     cname = entry.cname
                 else:
                     cname = module.mangle(Naming.varptr_prefix, entry.name)
-                signature = entry.type.declaration_code("")
+                signature = entry.type.empty_declaration_code()
                 code.putln(
                     'if (__Pyx_ImportVoidPtr(%s, "%s", (void **)&%s, "%s") < 0) %s' % (
                         temp, entry.name, cname, signature,

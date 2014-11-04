@@ -606,6 +606,9 @@ class Scope(object):
         self.sue_entries.append(entry)
         return entry
 
+    def declare_tuple_type(self, pos, type):
+        return self.outer_scope.declare_tuple_type(pos, type)
+
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',
                     api = 0, in_pxd = 0, is_cdef = 0):
@@ -1060,6 +1063,18 @@ class ModuleScope(Scope):
             language_level = self.context.language_level if self.context is not None else 3
 
         return self.outer_scope.lookup(name, language_level=language_level)
+
+    def declare_tuple_type(self, pos, type):
+        cname = type.cname
+        if not self.lookup_here(cname):
+            scope = StructOrUnionScope(cname)
+            for ix, component in enumerate(type.components):
+                scope.declare_var(name="f%s" % ix, type=component, pos=pos)
+            struct_entry = self.declare_struct_or_union(cname + '_struct', 'struct', scope, typedef_flag=True, pos=pos, cname=cname)
+            self.type_entries.remove(struct_entry)
+            type.struct_entry = struct_entry
+            type.entry = self.declare_type(cname, type, pos, cname)
+        return type.entry
 
     def declare_builtin(self, name, pos):
         if not hasattr(builtins, name) \
@@ -2114,8 +2129,8 @@ class CppClassScope(Scope):
             entry = self.declare(name, cname, type, pos, visibility)
         entry.is_variable = 1
         if type.is_cfunction and self.type:
-            if not self.type.templates or not any(T.is_fused for T in self.type.templates):
-                entry.func_cname = "%s::%s" % (self.type.declaration_code(""), cname)
+            if not self.type.get_fused_types:
+                entry.func_cname = "%s::%s" % (self.type.empty_declaration_code(), cname)
         if name != "this" and (defining or name != "<init>"):
             self.var_entries.append(entry)
         if type.is_pyobject and not allow_pyobject:

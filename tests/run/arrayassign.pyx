@@ -141,6 +141,24 @@ def test_ptr_literal_list_slice_end():
     a[:5] = [1,2,3,4,5]
     return (a[0], a[1], a[2], a[3], a[4])
 
+def test_multiple_from_slice():
+    """
+    >>> test_multiple_from_slice()
+    (5, 4, 3)
+    """
+    cdef int *a = [6,5,4,3,2,1]
+    x, y, z = a[1:4]
+    return x, y, z
+
+def test_slice_from_multiple():
+    """
+    >>> test_slice_from_multiple()
+    (6, -1, -2, -3, 2, 1)
+    """
+    cdef int *a = [6,5,4,3,2,1]
+    a[1:4] = -1, -2, -3
+    return a[0], a[1], a[2], a[3], a[4], a[5]
+
 def test_literal_tuple():
     """
     >>> test_literal_tuple()

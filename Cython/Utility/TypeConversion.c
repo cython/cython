@@ -309,6 +309,55 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
 static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t ival) {
     return PyInt_FromSize_t(ival);
 }
+    
+    
+/////////////// ToPyCTupleUtility.proto ///////////////
+static PyObject* {{funcname}}({{struct_type_decl}});
+
+/////////////// ToPyCTupleUtility ///////////////
+static PyObject* {{funcname}}({{struct_type_decl}} value) {
+    PyObject* item = NULL;
+    PyObject* result = PyTuple_New({{size}});
+    if (!result) goto bad;
+
+    {{for ix, component in enumerate(components):}}
+        {{py:attr = "value.f%s" % ix}}
+        item = {{component.to_py_function}}({{attr}});
+        if (!item) goto bad;
+        PyTuple_SET_ITEM(result, {{ix}}, item);
+    {{endfor}}
+    
+    return result;
+bad:
+    Py_XDECREF(item);
+    Py_XDECREF(result);
+    return NULL;
+}
+    
+    
+/////////////// FromPyCTupleUtility.proto ///////////////
+static {{struct_type_decl}} {{funcname}}(PyObject *);
+
+/////////////// FromPyCTupleUtility ///////////////
+static {{struct_type_decl}} {{funcname}}(PyObject * o) {
+    {{struct_type_decl}} result;
+    
+    if (!PyTuple_Check(o) || PyTuple_GET_SIZE(o) != {{size}}) {
+        PyErr_Format(PyExc_TypeError, "Expected %.16s of size %.8d, got %.200s", "a tuple", {{size}}, Py_TYPE(o)->tp_name);
+        goto bad;
+    }
+    
+    {{for ix, component in enumerate(components):}}
+        {{py:attr = "result.f%s" % ix}}
+        {{attr}} = {{component.from_py_function}}(PyTuple_GET_ITEM(o, {{ix}}));
+        if ({{component.error_condition(attr)}})
+            goto bad;
+    {{endfor}}
+    
+    return result;
+bad:
+    return result;
+}
 
 
 /////////////// ObjectAsUCS4.proto ///////////////
