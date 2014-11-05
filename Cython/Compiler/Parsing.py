@@ -2023,7 +2023,15 @@ def p_c_base_type(s, self_flag = 0, nonempty = 0, templates = None):
     if s.sy == '->':
         s.next()
         return_type = p_c_base_type(s, self_flag, nonempty = nonempty, templates = templates)
-        return Nodes.CFuncBaseTypeNode(s.position(), args = type, return_type = return_type)
+        nogil = p_nogil(s)
+        exception_value, exception_check = p_exception_value_clause(s)
+        return Nodes.CFuncBaseTypeNode(
+            s.position(),
+            args = type,
+            return_type = return_type,
+            exception_value = exception_value,
+            exception_check = exception_check,
+            nogil = nogil)
     return type
 
 def p_calling_convention(s):
