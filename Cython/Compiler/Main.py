@@ -110,8 +110,7 @@ class Context(object):
     def nonfatal_error(self, exc):
         return Errors.report_error(exc)
 
-    def find_module(self, module_name,
-            relative_to = None, pos = None, need_pxd = 1, check_module_name = True):
+    def find_module(self, module_name, relative_to=None, pos=None, need_pxd=1, check_module_name=True):
         # Finds and returns the module scope corresponding to
         # the given relative or absolute module name. If this
         # is the first time the module has been requested, finds
@@ -122,15 +121,14 @@ class Context(object):
         debug_find_module = 0
         if debug_find_module:
             print("Context.find_module: module_name = %s, relative_to = %s, pos = %s, need_pxd = %s" % (
-                    module_name, relative_to, pos, need_pxd))
+                module_name, relative_to, pos, need_pxd))
 
         scope = None
         pxd_pathname = None
         if check_module_name and not module_name_pattern.match(module_name):
             if pos is None:
                 pos = (module_name, 0, 0)
-            raise CompileError(pos,
-                "'%s' is not a valid module name" % module_name)
+            raise CompileError(pos, "'%s' is not a valid module name" % module_name)
         if relative_to:
             if debug_find_module:
                 print("...trying relative import")
