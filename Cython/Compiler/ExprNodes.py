@@ -2924,11 +2924,12 @@ class IndexNode(ExprNode):
             elif base_type.is_ptr or base_type.is_array:
                 return base_type.base_type
             elif base_type.is_ctuple and isinstance(self.index, IntNode):
-                index = self.index.constant_result
-                if index < 0:
-                    index += base_type.size
-                if 0 <= index < base_type.size:
-                    return base_type.components[index]
+                if self.index.has_constant_result():
+                    index = self.index.constant_result
+                    if index < 0:
+                        index += base_type.size
+                    if 0 <= index < base_type.size:
+                        return base_type.components[index]
 
         if base_type.is_cpp_class:
             class FakeOperand:
