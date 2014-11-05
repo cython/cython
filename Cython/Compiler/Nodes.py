@@ -1184,6 +1184,24 @@ class CTupleBaseTypeNode(CBaseTypeNode):
         return type
 
 
+class CFuncBaseTypeNode(CBaseTypeNode):
+    # args             CBaseTypeNode, often a CTupleBaseTypeNode
+    # return_type      CBaseTypeNode
+
+    child_attrs = ["args", "return_type"]
+
+    def analyse(self, env, could_be_name=False):
+        if isinstance(self.args, CTupleBaseTypeNode):
+            args = self.args.components
+        else:
+            args = self.args,
+        return_type = self.return_type.analyse(env)
+        return PyrexTypes.c_ptr_type(PyrexTypes.CFuncType(
+            return_type,
+            args = [PyrexTypes.CFuncTypeArg('', arg.analyse(env), arg.pos) for arg in args],
+            has_varargs = False))
+
+
 class FusedTypeNode(CBaseTypeNode):
     """
     Represents a fused type in a ctypedef statement:

@@ -2017,9 +2017,14 @@ def p_c_base_type(s, self_flag = 0, nonempty = 0, templates = None):
     # If self_flag is true, this is the base type for the
     # self argument of a C method of an extension type.
     if s.sy == '(':
-        return p_c_complex_base_type(s, templates = templates)
+        type = p_c_complex_base_type(s, templates = templates)
     else:
-        return p_c_simple_base_type(s, self_flag, nonempty = nonempty, templates = templates)
+        type = p_c_simple_base_type(s, self_flag, nonempty = nonempty, templates = templates)
+    if s.sy == '->':
+        s.next()
+        return_type = p_c_base_type(s, self_flag, nonempty = nonempty, templates = templates)
+        return Nodes.CFuncBaseTypeNode(s.position(), args = type, return_type = return_type)
+    return type
 
 def p_calling_convention(s):
     if s.sy == 'IDENT' and s.systring in calling_convention_words:
