@@ -1184,6 +1184,34 @@ class CTupleBaseTypeNode(CBaseTypeNode):
         return type
 
 
+class CFuncBaseTypeNode(CBaseTypeNode):
+    # args             CBaseTypeNode, often a CTupleBaseTypeNode
+    # return_type      CBaseTypeNode
+    # exception_value  string
+    # exception_check  boolean    True if PyErr_Occurred check needed
+    # nogil            boolean    Can be called without gil
+
+    child_attrs = ["args", "return_type"]
+
+    def analyse(self, env, could_be_name=False):
+        if isinstance(self.args, CTupleBaseTypeNode):
+            args = self.args.components
+        else:
+            args = self.args,
+        return_type = self.return_type.analyse(env)
+        if self.exception_value is None:
+            exception_value = None
+        else:
+            exception_value = self.exception_value.coerce_to(return_type, env).analyse_const_expression(env).get_constant_c_result_code()
+        return PyrexTypes.c_ptr_type(PyrexTypes.CFuncType(
+            return_type,
+            args = [PyrexTypes.CFuncTypeArg('', arg.analyse(env), arg.pos) for arg in args],
+            exception_value = exception_value,
+            exception_check = self.exception_check,
+            nogil = self.nogil,
+            has_varargs = False))
+
+
 class FusedTypeNode(CBaseTypeNode):
     """
     Represents a fused type in a ctypedef statement:

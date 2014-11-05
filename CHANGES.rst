@@ -18,7 +18,9 @@ Features added
   the module's Python namespace.  Extern C functions in pxd files export
   their values to their own module, iff it exists.
 
-* Anonymous C tuple types can be declared as (ctype1, ctype2, ...).
+* Anonymous C tuple types can be declared as ``(ctype1, ctype2, ...)``.
+
+* New ``(args) -> return_type`` syntax for function pointers.
 
 Bugs fixed
 ----------

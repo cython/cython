@@ -2022,9 +2022,29 @@ def p_c_base_type(s, self_flag = 0, nonempty = 0, templates = None):
     # If self_flag is true, this is the base type for the
     # self argument of a C method of an extension type.
     if s.sy == '(':
-        return p_c_complex_base_type(s, templates = templates)
+        type = p_c_complex_base_type(s, templates = templates)
     else:
-        return p_c_simple_base_type(s, self_flag, nonempty = nonempty, templates = templates)
+        type = p_c_simple_base_type(s, self_flag, nonempty = nonempty, templates = templates)
+    if s.sy == '->':
+        s.next()
+        return_type = p_c_base_type(s, self_flag, nonempty = 0, templates = templates)
+        # Bind empty declarators to the return type rather than the whole, i.e.
+        # parse (X -> int*) as (X -> (int*)) rather than (X -> int)*.
+        if s.sy != 'IDENT':
+            declarator = p_c_declarator(s, empty = 1)
+            return_type = Nodes.CComplexBaseTypeNode(s.position(),
+                    base_type = return_type, declarator = declarator)
+        nogil = p_nogil(s)
+        exception_value, exception_check = p_exception_value_clause(s)
+        return Nodes.CFuncBaseTypeNode(
+            s.position(),
+            args = type,
+            return_type = return_type,
+            exception_value = exception_value,
+            exception_check = exception_check,
+            nogil = nogil)
+    else:
+        return type
 
 def p_calling_convention(s):
     if s.sy == 'IDENT' and s.systring in calling_convention_words:
@@ -2041,21 +2061,24 @@ def p_c_complex_base_type(s, templates = None):
     # s.sy == '('
     pos = s.position()
     s.next()
-    base_type = p_c_base_type(s, templates = templates)
-    declarator = p_c_declarator(s, empty = 1)
-    type_node = Nodes.CComplexBaseTypeNode(pos,
-            base_type = base_type, declarator = declarator)
-    if s.sy == ',':
-        components = [type_node]
-        while s.sy == ',':
-            s.next()
-            if s.sy == ')':
-                break
-            base_type = p_c_base_type(s, templates = templates)
-            declarator = p_c_declarator(s, empty = 1)
-            components.append(Nodes.CComplexBaseTypeNode(pos,
-                    base_type = base_type, declarator = declarator))
-        type_node = Nodes.CTupleBaseTypeNode(pos, components = components)
+    if s.sy == ')':
+        type_node = Nodes.CTupleBaseTypeNode(pos, components = [])
+    else:
+        base_type = p_c_base_type(s, templates = templates)
+        declarator = p_c_declarator(s, empty = 1)
+        type_node = Nodes.CComplexBaseTypeNode(pos,
+                base_type = base_type, declarator = declarator)
+        if s.sy == ',':
+            components = [type_node]
+            while s.sy == ',':
+                s.next()
+                if s.sy == ')':
+                    break
+                base_type = p_c_base_type(s, templates = templates)
+                declarator = p_c_declarator(s, empty = 1)
+                components.append(Nodes.CComplexBaseTypeNode(pos,
+                        base_type = base_type, declarator = declarator))
+            type_node = Nodes.CTupleBaseTypeNode(pos, components = components)
 
     s.expect(')')
     if s.sy == '[':

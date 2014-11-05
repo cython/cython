@@ -2355,8 +2355,13 @@ class CPtrType(CPointerBaseType):
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
         #print "CPtrType.declaration_code: pointer to", self.base_type ###
+        if (for_display or pyrex) and self.base_type.is_cfunction:
+            # Use new function code syntax.
+            entity_code_ptr = entity_code
+        else:
+            entity_code_ptr = "*%s" % entity_code
         return self.base_type.declaration_code(
-            "*%s" % entity_code,
+            entity_code_ptr,
             for_display, dll_linkage, pyrex)
 
     def assignable_from_resolved_type(self, other_type):
@@ -2678,9 +2683,19 @@ class CFuncType(CType):
                 cc = ""
         if self.is_const_method:
             trailer += " const"
-        return self.return_type.declaration_code(
-            "%s%s(%s)%s" % (cc, entity_code, arg_decl_code, trailer),
-            for_display, dll_linkage, pyrex)
+        if pyrex or for_display:
+            if ',' in arg_decl_code or not arg_decl_code:
+                arg_decl_code = "(%s)" % arg_decl_code
+            # Possible trailing declarators force the parentheses.
+            return "(%s -> %s%s%s)" % (
+                arg_decl_code,
+                self.return_type.declaration_code(cc),
+                trailer,
+                entity_code)
+        else:
+            return self.return_type.declaration_code(
+                "%s%s(%s)%s" % (cc, entity_code, arg_decl_code, trailer),
+                for_display, dll_linkage, pyrex)
 
     def function_header_code(self, func_name, arg_code):
         if self.is_const_method:
@@ -3636,7 +3651,7 @@ def c_tuple_type(components):
     components = tuple(components)
     tuple_type = c_tuple_types.get(components)
     if tuple_type is None:
-        cname = '__pyx_tuple_' + type_list_identifier(components)
+        cname = '__pyx_ctuple_' + type_list_identifier(components)
         tuple_type = c_tuple_types[components] = CTupleType(cname, components)
     return tuple_type
 

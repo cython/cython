@@ -1071,6 +1071,8 @@ class ModuleScope(Scope):
             scope = StructOrUnionScope(cname)
             for ix, component in enumerate(type.components):
                 scope.declare_var(name="f%s" % ix, type=component, pos=pos)
+            else:
+                scope.declare_var(name="empty", type=PyrexTypes.c_char_type, pos=pos)
             struct_entry = self.declare_struct_or_union(cname + '_struct', 'struct', scope, typedef_flag=True, pos=pos, cname=cname)
             self.type_entries.remove(struct_entry)
             type.struct_entry = struct_entry
