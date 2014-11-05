@@ -1,6 +1,9 @@
 cdef int square(int x) nogil:
     return x * x
 
+cdef int -> int get_square():
+    return square
+
 cdef int call_func(int -> int f, int x) except? -1:
     if f == NULL:
         raise ValueError, "NULL function"
@@ -8,6 +11,7 @@ cdef int call_func(int -> int f, int x) except? -1:
 
 cdef int -> int nogil square_ptr = square
 cdef (int -> int, int) -> int except? -1 call_func_ptr = call_func
+cdef () -> int -> int get_square_ptr = get_square
 
 def call_square(int x):
     """
@@ -24,3 +28,10 @@ def call_null(int x):
     ValueError: NULL function
     """
     return call_func_ptr(NULL, x)
+
+def call_get_square(int x):
+    """
+    >>> call_get_square(3)
+    9
+    """
+    return call_func_ptr(get_square(), x)

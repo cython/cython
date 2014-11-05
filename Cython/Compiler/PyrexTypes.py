@@ -2684,7 +2684,7 @@ class CFuncType(CType):
         if self.is_const_method:
             trailer += " const"
         if pyrex or for_display:
-            if ',' in arg_decl_code:
+            if ',' in arg_decl_code or not arg_decl_code:
                 arg_decl_code = "(%s)" % arg_decl_code
             # Possible trailing declarators force the parentheses.
             return "(%s -> %s%s%s)" % (
@@ -3651,7 +3651,7 @@ def c_tuple_type(components):
     components = tuple(components)
     tuple_type = c_tuple_types.get(components)
     if tuple_type is None:
-        cname = '__pyx_tuple_' + type_list_identifier(components)
+        cname = '__pyx_ctuple_' + type_list_identifier(components)
         tuple_type = c_tuple_types[components] = CTupleType(cname, components)
     return tuple_type
 
