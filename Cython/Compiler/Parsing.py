@@ -2022,7 +2022,13 @@ def p_c_base_type(s, self_flag = 0, nonempty = 0, templates = None):
         type = p_c_simple_base_type(s, self_flag, nonempty = nonempty, templates = templates)
     if s.sy == '->':
         s.next()
-        return_type = p_c_base_type(s, self_flag, nonempty = nonempty, templates = templates)
+        return_type = p_c_base_type(s, self_flag, nonempty = 0, templates = templates)
+        # Bind empty declarators to the return type rather than the whole, i.e.
+        # parse (X -> int*) as (X -> (int*)) rather than (X -> int)*.
+        if s.sy != 'IDENT':
+            declarator = p_c_declarator(s, empty = 1)
+            return_type = Nodes.CComplexBaseTypeNode(s.position(),
+                    base_type = return_type, declarator = declarator)
         nogil = p_nogil(s)
         exception_value, exception_check = p_exception_value_clause(s)
         return Nodes.CFuncBaseTypeNode(
@@ -2032,7 +2038,8 @@ def p_c_base_type(s, self_flag = 0, nonempty = 0, templates = None):
             exception_value = exception_value,
             exception_check = exception_check,
             nogil = nogil)
-    return type
+    else:
+        return type
 
 def p_calling_convention(s):
     if s.sy == 'IDENT' and s.systring in calling_convention_words:
