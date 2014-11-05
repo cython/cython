@@ -35,8 +35,10 @@ cdef class test_pxd:
 
 ######## pkg/b.pyx ########
 
+from . cimport a
 from .a cimport test_pxd
 
+assert a.test_pxd is test_pxd
 
 def test():
     cdef test_pxd obj = test_pxd()

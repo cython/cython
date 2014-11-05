@@ -1121,7 +1121,7 @@ class ModuleScope(Scope):
             # merge current absolute module name and relative import name into qualified name
             current_module = module_scope.qualified_name.split('.')
             base_package = current_module[:-relative_level]
-            module_name = '.'.join(base_package + module_name.split('.'))
+            module_name = '.'.join(base_package + (module_name.split('.') if module_name else []))
         return module_scope.context.find_module(
             module_name, relative_to=None if relative_level == 0 else self.parent_module, pos=pos)
 
