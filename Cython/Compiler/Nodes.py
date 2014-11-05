@@ -7087,6 +7087,7 @@ class EnsureGILNode(GILExitNode):
     def generate_execution_code(self, code):
         code.put_ensure_gil(declare_gilstate=False)
 
+
 utility_code_for_cimports = {
     # utility code (or inlining c) in a pxd (or pyx) file.
     # TODO: Consider a generic user-level mechanism for importing
@@ -7094,19 +7095,23 @@ utility_code_for_cimports = {
     'cpython.array.array'   : ("ArrayAPI", "arrayarray.h"),
 }
 
+
 class CImportStatNode(StatNode):
     #  cimport statement
     #
     #  module_name   string           Qualified name of module being imported
     #  as_name       string or None   Name specified in "as" clause, if any
+    #  is_absolute   bool             True for absolute imports, False otherwise
 
     child_attrs = []
+    is_absolute = False
 
     def analyse_declarations(self, env):
         if not env.is_module_scope:
             error(self.pos, "cimport only allowed at module level")
             return
-        module_scope = env.find_module(self.module_name, self.pos)
+        module_scope = env.find_module(
+            self.module_name, self.pos, relative_level=0 if self.is_absolute else -1)
         if "." in self.module_name:
             names = [EncodedString(name) for name in self.module_name.split(".")]
             top_name = names[0]

@@ -1279,38 +1279,43 @@ def p_raise_statement(s):
     else:
         return Nodes.ReraiseStatNode(pos)
 
+
 def p_import_statement(s):
     # s.sy in ('import', 'cimport')
     pos = s.position()
     kind = s.sy
     s.next()
-    items = [p_dotted_name(s, as_allowed = 1)]
+    items = [p_dotted_name(s, as_allowed=1)]
     while s.sy == ',':
         s.next()
-        items.append(p_dotted_name(s, as_allowed = 1))
+        items.append(p_dotted_name(s, as_allowed=1))
     stats = []
+    is_absolute = Future.absolute_import in s.context.future_directives
     for pos, target_name, dotted_name, as_name in items:
         dotted_name = EncodedString(dotted_name)
         if kind == 'cimport':
-            stat = Nodes.CImportStatNode(pos,
-                module_name = dotted_name,
-                as_name = as_name)
+            stat = Nodes.CImportStatNode(
+                pos,
+                module_name=dotted_name,
+                as_name=as_name,
+                is_absolute=is_absolute)
         else:
             if as_name and "." in dotted_name:
-                name_list = ExprNodes.ListNode(pos, args = [
-                        ExprNodes.IdentifierStringNode(pos, value = EncodedString("*"))])
+                name_list = ExprNodes.ListNode(pos, args=[
+                    ExprNodes.IdentifierStringNode(pos, value=EncodedString("*"))])
             else:
                 name_list = None
-            stat = Nodes.SingleAssignmentNode(pos,
-                lhs = ExprNodes.NameNode(pos,
-                    name = as_name or target_name),
-                rhs = ExprNodes.ImportNode(pos,
-                    module_name = ExprNodes.IdentifierStringNode(
-                        pos, value = dotted_name),
-                    level = None,
-                    name_list = name_list))
+            stat = Nodes.SingleAssignmentNode(
+                pos,
+                lhs=ExprNodes.NameNode(pos, name=as_name or target_name),
+                rhs=ExprNodes.ImportNode(
+                    pos,
+                    module_name=ExprNodes.IdentifierStringNode(pos, value=dotted_name),
+                    level=0 if is_absolute else None,
+                    name_list=name_list))
         stats.append(stat)
-    return Nodes.StatListNode(pos, stats = stats)
+    return Nodes.StatListNode(pos, stats=stats)
+
 
 def p_from_import_statement(s, first_statement = 0):
     # s.sy == 'from'
