@@ -343,7 +343,7 @@ static {{struct_type_decl}} {{funcname}}(PyObject * o) {
     {{struct_type_decl}} result;
     
     if (!PyTuple_Check(o) || PyTuple_GET_SIZE(o) != {{size}}) {
-        PyErr_Format(PyExc_TypeError, "Expected %.16s of size %.8d, got %.200s", "a tuple", {{size}}, Py_TYPE(o)->tp_name);
+        PyErr_Format(PyExc_TypeError, "Expected %.16s of size %d, got %.200s", "a tuple", {{size}}, Py_TYPE(o)->tp_name);
         goto bad;
     }
     
