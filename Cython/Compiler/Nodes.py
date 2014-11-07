@@ -914,10 +914,9 @@ class CBaseTypeNode(Node):
     #   analyse
     #     Returns the type.
 
-    pass
-
     def analyse_as_type(self, env):
         return self.analyse(env)
+
 
 class CAnalysedBaseTypeNode(Node):
     # type            type
@@ -926,6 +925,7 @@ class CAnalysedBaseTypeNode(Node):
 
     def analyse(self, env, could_be_name = False):
         return self.type
+
 
 class CSimpleBaseTypeNode(CBaseTypeNode):
     # name             string
