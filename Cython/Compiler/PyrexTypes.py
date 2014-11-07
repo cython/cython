@@ -3585,6 +3585,12 @@ class CTupleType(CType):
         else:
             return self.base_declaration_code(self.cname, entity_code)
 
+    def can_coerce_to_pyobject(self, env):
+        for component in self.components:
+            if not component.can_coerce_to_pyobject(env):
+                return False
+        return True
+
     def create_to_py_utility_code(self, env):
         if self._convert_to_py_code is False:
             return None  # tri-state-ish
