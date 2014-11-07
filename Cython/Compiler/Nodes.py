@@ -10,7 +10,7 @@ cython.declare(sys=object, os=object, copy=object,
                py_object_type=object, ModuleScope=object, LocalScope=object, ClosureScope=object,
                StructOrUnionScope=object, PyClassScope=object,
                CppClassScope=object, UtilityCode=object, EncodedString=object,
-               absolute_path_length=cython.Py_ssize_t)
+               absolute_path_length=cython.Py_ssize_t, error_type=object)
 
 import sys, os, copy
 from itertools import chain
@@ -1175,8 +1175,8 @@ class CTupleBaseTypeNode(CBaseTypeNode):
         for c in self.components:
             type = c.analyse(env)
             if type.is_pyobject:
-                error(type_node.pos, "Tuple types can't (yet) contain Python objects.")
-                return PyrexType.error_type
+                error(c.pos, "Tuple types can't (yet) contain Python objects.")
+                return error_type
             component_types.append(type)
         type = PyrexTypes.c_tuple_type(component_types)
         entry = env.declare_tuple_type(self.pos, type)
