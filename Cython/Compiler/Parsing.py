@@ -2034,27 +2034,29 @@ def p_calling_convention(s):
     else:
         return ""
 
+
 calling_convention_words = cython.declare(
     set, set(["__stdcall", "__cdecl", "__fastcall"]))
+
 
 def p_c_complex_base_type(s, templates = None):
     # s.sy == '('
     pos = s.position()
     s.next()
-    base_type = p_c_base_type(s, templates = templates)
-    declarator = p_c_declarator(s, empty = 1)
-    type_node = Nodes.CComplexBaseTypeNode(pos,
-            base_type = base_type, declarator = declarator)
+    base_type = p_c_base_type(s, templates=templates)
+    declarator = p_c_declarator(s, empty=True)
+    type_node = Nodes.CComplexBaseTypeNode(
+        pos, base_type=base_type, declarator=declarator)
     if s.sy == ',':
         components = [type_node]
         while s.sy == ',':
             s.next()
             if s.sy == ')':
                 break
-            base_type = p_c_base_type(s, templates = templates)
-            declarator = p_c_declarator(s, empty = 1)
-            components.append(Nodes.CComplexBaseTypeNode(pos,
-                    base_type = base_type, declarator = declarator))
+            base_type = p_c_base_type(s, templates=templates)
+            declarator = p_c_declarator(s, empty=True)
+            components.append(Nodes.CComplexBaseTypeNode(
+                pos, base_type=base_type, declarator=declarator))
         type_node = Nodes.CTupleBaseTypeNode(pos, components = components)
 
     s.expect(')')
