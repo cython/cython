@@ -144,7 +144,13 @@ def test_ptr_literal_list_slice_end():
     return (a[0], a[1], a[2], a[3], a[4])
 
 
-@cython.test_assert_path_exists('//ReturnStatNode//CoerceToPyTypeNode')
+@cython.test_fail_if_path_exists(
+    '//ParallelAssignmentNode//CoerceToPyTypeNode'
+)
+@cython.test_assert_path_exists(
+    '//ParallelAssignmentNode',
+    '//ReturnStatNode//CoerceToPyTypeNode'
+)
 def test_multiple_from_slice():
     """
     >>> test_multiple_from_slice()
