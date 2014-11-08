@@ -4773,7 +4773,7 @@ class SingleAssignmentNode(AssignmentNode):
                               "fused_type does not take keyword arguments")
 
                     fusednode = FusedTypeNode(self.rhs.pos,
-                                              name = self.lhs.name, types=args)
+                                              name=self.lhs.name, types=args)
                     fusednode.analyse_declarations(env)
 
         if self.declaration_only:
@@ -4781,8 +4781,8 @@ class SingleAssignmentNode(AssignmentNode):
         else:
             self.lhs.analyse_target_declaration(env)
 
-    def analyse_types(self, env, use_temp = 0):
-        from . import ExprNodes, UtilNodes
+    def analyse_types(self, env, use_temp=0):
+        from . import ExprNodes
 
         self.rhs = self.rhs.analyse_types(env)
 
@@ -4927,7 +4927,7 @@ class SingleAssignmentNode(AssignmentNode):
         all = ParallelAssignmentNode(pos=self.pos, stats=assignments).analyse_expressions(env)
         if check_node:
             all = StatListNode(pos=self.pos, stats=[check_node, all])
-        for ref in refs:
+        for ref in refs[::-1]:
             all = UtilNodes.LetNode(ref, all)
         return all
 
@@ -4935,9 +4935,8 @@ class SingleAssignmentNode(AssignmentNode):
         from . import ExprNodes
         if not isinstance(self.lhs, ExprNodes.TupleNode):
             return
-        for arg in self.lhs.args:
-            if arg.is_starred:
-                return
+        if any(arg.is_starred for arg in self.lhs.args):
+            return
 
         unrolled = self.unroll(self.rhs, len(self.lhs.args), env)
         if not unrolled:
