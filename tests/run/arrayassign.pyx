@@ -162,7 +162,12 @@ def test_starred_from_array():
     return x, y, z
 
 
+@cython.test_fail_if_path_exists(
+    '//ParallelAssignmentNode//CoerceToPyTypeNode',
+    '//ParallelAssignmentNode//CoerceFromPyTypeNode',
+)
 @cython.test_assert_path_exists(
+    '//ParallelAssignmentNode',
     '//ReturnStatNode//CoerceToPyTypeNode'
 )
 def test_multiple_from_array():
@@ -170,12 +175,31 @@ def test_multiple_from_array():
     >>> test_multiple_from_array()
     (1, 2, 3)
     """
-    # FIXME: copy currently goes through a Python list, even though we infer the right target types
     cdef int[3] a
     a[0] = 1
     a[1] = 2
     a[2] = 3
     x, y, z = a
+    return x, y, z
+
+
+@cython.test_fail_if_path_exists(
+    '//ParallelAssignmentNode//CoerceToPyTypeNode'
+)
+@cython.test_assert_path_exists(
+    '//ParallelAssignmentNode',
+    '//ReturnStatNode//CoerceToPyTypeNode'
+)
+def test_multiple_from_array_full_slice():
+    """
+    >>> test_multiple_from_array_full_slice()
+    (1, 2, 3)
+    """
+    cdef int[3] a
+    a[0] = 1
+    a[1] = 2
+    a[2] = 3
+    x, y, z = a[:]
     return x, y, z
 
 

@@ -4830,19 +4830,16 @@ class SingleAssignmentNode(AssignmentNode):
 
     def unroll(self, node, target_size, env):
         from . import ExprNodes, UtilNodes
-        if node.type.is_ctuple:
-            if node.type.size == target_size:
-                base = node
-                start_node = None
-                stop_node = None
-                step_node = None
-                check_node = None
-            else:
-                error(self.pos, "Unpacking type %s requires exactly %s arguments." % (
-                    node.type, node.type.size))
-                return
 
-        elif node.type.is_ptr:
+        base = node
+        start_node = stop_node = step_node = check_node = None
+
+        if node.type.is_ctuple:
+            slice_size = node.type.size
+
+        elif node.type.is_ptr or node.type.is_array:
+            while isinstance(node, ExprNodes.SliceIndexNode) and not (node.start or node.stop):
+                base = node = node.base
             if isinstance(node, ExprNodes.SliceIndexNode):
                 base = node.base
                 start_node = node.start
@@ -4875,17 +4872,23 @@ class SingleAssignmentNode(AssignmentNode):
 
                 try:
                     slice_size = (get_const(stop_node, None) - get_const(start_node, 0)) / get_const(step_node, 1)
-                    if target_size != slice_size:
-                        error(self.pos, "Assignment to/from slice of wrong length, expected %d, got %d" % (
-                            slice_size, target_size))
                 except ValueError:
                     error(self.pos, "C array assignment currently requires known endpoints")
                     return
-                check_node = None
+
+            elif node.type.is_array:
+                slice_size = node.type.size
+                if not isinstance(slice_size, (int, long)):
+                    return  # might still work when coercing to Python
             else:
                 return
 
         else:
+            return
+
+        if slice_size != target_size:
+            error(self.pos, "Assignment to/from slice of wrong length, expected %s, got %s" % (
+                slice_size, target_size))
             return
 
         items = []
