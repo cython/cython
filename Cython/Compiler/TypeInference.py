@@ -62,10 +62,10 @@ class MarkParallelAssignments(EnvTransform):
 
         elif isinstance(lhs, ExprNodes.SequenceNode):
             for i, arg in enumerate(lhs.args):
-                if arg.is_starred:
-                    item_node = object_expr
+                if not rhs or arg.is_starred:
+                    item_node = None
                 else:
-                    item_node = rhs.inferable_item_node(i) if rhs else None
+                    item_node = rhs.inferable_item_node(i)
                 self.mark_assignment(arg, item_node)
         else:
             # Could use this info to infer cdef class attributes...
