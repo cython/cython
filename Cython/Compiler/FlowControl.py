@@ -778,7 +778,11 @@ class ControlFlowAnalysis(CythonTransform):
             self.flow.mark_assignment(lhs, rhs, entry)
         elif lhs.is_sequence_constructor:
             for i, arg in enumerate(lhs.args):
-                self.mark_assignment(arg, rhs.inferable_item_node(i) if rhs else None)
+                if arg.is_starred:
+                    item_node = object_expr
+                else:
+                    item_node = rhs.inferable_item_node(i) if rhs else None
+                self.mark_assignment(arg, item_node)
         else:
             self._visit(lhs)
 
