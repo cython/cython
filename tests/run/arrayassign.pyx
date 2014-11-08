@@ -144,6 +144,41 @@ def test_ptr_literal_list_slice_end():
     return (a[0], a[1], a[2], a[3], a[4])
 
 
+@cython.test_assert_path_exists(
+    '//ReturnStatNode//CoerceToPyTypeNode'
+)
+def test_starred_from_array():
+    """
+    >>> test_starred_from_array()
+    (1, [2, 3, 4], 5)
+    """
+    cdef int[5] a
+    a[0] = 1
+    a[1] = 2
+    a[2] = 3
+    a[3] = 4
+    a[4] = 5
+    x, *y, z = a
+    return x, y, z
+
+
+@cython.test_assert_path_exists(
+    '//ReturnStatNode//CoerceToPyTypeNode'
+)
+def test_multiple_from_array():
+    """
+    >>> test_multiple_from_array()
+    (1, 2, 3)
+    """
+    # FIXME: copy currently goes through a Python list, even though we infer the right target types
+    cdef int[3] a
+    a[0] = 1
+    a[1] = 2
+    a[2] = 3
+    x, y, z = a
+    return x, y, z
+
+
 @cython.test_fail_if_path_exists(
     '//ParallelAssignmentNode//CoerceToPyTypeNode'
 )
