@@ -3855,7 +3855,12 @@ class SliceIndexNode(ExprNode):
         return py_object_type
 
     def inferable_item_node(self, index=0):
-        # slicing shouldn't change the result type of the base
+        # slicing shouldn't change the result type of the base, but the index might
+        if self.start:
+            if self.start.has_constant_result():
+                index += self.start.constant_result
+            else:
+                index = not_a_constant
         return self.base.inferable_item_node(index)
 
     def may_be_none(self):
