@@ -776,9 +776,9 @@ class ControlFlowAnalysis(CythonTransform):
             if entry is None: # TODO: This shouldn't happen...
                 return
             self.flow.mark_assignment(lhs, rhs, entry)
-        elif isinstance(lhs, ExprNodes.SequenceNode):
-            for arg in lhs.args:
-                self.mark_assignment(arg)
+        elif lhs.is_sequence_constructor:
+            for i, arg in enumerate(lhs.args):
+                self.mark_assignment(arg, rhs.inferable_item_node(i) if rhs else None)
         else:
             self._visit(lhs)
 

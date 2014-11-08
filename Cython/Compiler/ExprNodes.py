@@ -476,6 +476,14 @@ class ExprNode(Node):
         # can't be modified as part of globals or closures.
         return self.is_literal or self.is_temp or self.type.is_array or self.type.is_cfunction
 
+    def inferable_item_node(self, index=0):
+        """
+        Return a node that represents the (type) result of an indexing operation,
+        e.g. for tuple unpacking or iteration.
+        """
+        return IndexNode(self.pos, base=self, index=IntNode(
+            self.pos, value=str(index), constant_result=index, type=PyrexTypes.c_py_ssize_t_type))
+
     # --------------- Type Analysis ------------------
 
     def analyse_as_module(self, env):
@@ -3845,6 +3853,10 @@ class SliceIndexNode(ExprNode):
         elif base_type.is_ptr or base_type.is_array:
             return PyrexTypes.c_array_type(base_type.base_type, None)
         return py_object_type
+
+    def inferable_item_node(self, index=0):
+        # slicing shouldn't change the result type of the base
+        return self.base.inferable_item_node(index)
 
     def may_be_none(self):
         base_type = self.base.type
