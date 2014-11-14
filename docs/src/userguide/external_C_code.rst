@@ -214,6 +214,8 @@ If ``__stdcall`` is used, the function is only considered compatible with
 other ``__stdcall`` functions of the same signature.
 
 
+.. _resolve-conflicts:
+
 Resolving naming conflicts - C name specifications
 --------------------------------------------------
 

@@ -283,6 +283,9 @@ attribute access, you could just implement some properties::
         def __set__(self, x0): self.thisptr.x0 = x0
     ...
 
+If you prefer giving the same name to the wrapper as the C++ class, see the
+section on :ref:`resolving naming conflicts <resolve-conflicts>`.
+
 
 Advanced C++ features
 ======================
@@ -476,6 +479,34 @@ All conversions create a new container and copy the data into it.
 The items in the containers are converted to a corresponding type
 automatically, which includes recursively converting containers
 inside of containers, e.g. a C++ vector of maps of strings.
+
+
+Simplified wrapping with default constructor
+--------------------------------------------
+
+If your extension type instantiates a wrapped C++ class using the default
+constructor (not passing any arguments), you may be able to simplify the
+lifecycle handling by tying it directly to the lifetime of the Python wrapper
+object.  Instead of a pointer attribute, you can declare an instance::
+
+    cdef class VectorStack:
+        cdef vector[int] v
+
+        def push(self, x):
+            self.v.push_back(x)
+
+        def pop(self):
+            if self.v.empty():
+                raise IndexError()
+            x = self.v.back()
+            self.v.pop_back()
+            return x
+
+Cython will automatically generate code that instantiates the C++ object
+instance when the Python object is created and deletes it when the Python
+object is garbage collected.
+
+
 
 Exceptions
 -----------
