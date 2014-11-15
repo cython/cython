@@ -185,7 +185,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         AutoTestDictTransform(context),
         EmbedSignature(context),
         EarlyReplaceBuiltinCalls(context),  ## Necessary?
-        TransformBuiltinMethods(context),  ## Necessary?
+        TransformBuiltinMethods(context),
         MarkParallelAssignments(context),
         ControlFlowAnalysis(context),
         RemoveUnreachableCode(context),

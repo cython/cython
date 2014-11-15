@@ -2530,6 +2530,9 @@ class GilCheck(VisitorTransform):
 
 
 class TransformBuiltinMethods(EnvTransform):
+    """
+    Replace Cython's own cython.* builtins by the corresponding tree nodes.
+    """
 
     def visit_SingleAssignmentNode(self, node):
         if node.declaration_only:
