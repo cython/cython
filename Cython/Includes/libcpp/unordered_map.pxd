@@ -60,3 +60,5 @@ cdef extern from "<unordered_map>" namespace "std" nogil:
         iterator upper_bound(T&)
         #const_iterator upper_bound(key_type&)
         #value_compare value_comp()
+        void max_load_factor(float)
+        float max_load_factor()
