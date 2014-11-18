@@ -2870,7 +2870,8 @@ class IndexNode(ExprNode):
                 type_node = Nodes.TemplatedTypeNode(
                     pos = self.pos,
                     positional_args = template_values,
-                    keyword_args = None)
+                    keyword_args = None,
+                    is_reference = False)
                 return type_node.analyse(env, base_type = base_type)
             else:
                 index = self.index.compile_time_value(env)
