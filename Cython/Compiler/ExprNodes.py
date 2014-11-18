@@ -11377,6 +11377,10 @@ class CoerceFromPyTypeNode(CoercionNode):
         if not result_type.create_from_py_utility_code(env):
             error(arg.pos,
                   "Cannot convert Python object to '%s'" % result_type)
+        elif result_type.is_reference:
+            warning(arg.pos,
+                    "Cannot pass Python object as %s reference, will pass by copy." % result_type,
+                    level=1)
         if self.type.is_string or self.type.is_pyunicode_ptr:
             if self.arg.is_name and self.arg.entry and self.arg.entry.is_pyglobal:
                 warning(arg.pos,

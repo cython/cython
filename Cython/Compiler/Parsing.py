@@ -2393,7 +2393,7 @@ def p_c_array_declarator(s, base):
     s.expect(']')
     return Nodes.CArrayDeclaratorNode(pos, base = base, dimension = dim)
 
-def p_c_func_declarator(s, pos, ctx, base, cmethod_flag): 
+def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
     #  Opening paren has already been skipped
     args = p_c_arg_list(s, ctx, cmethod_flag = cmethod_flag,
                         nonempty_declarators = 0)

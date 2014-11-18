@@ -4,7 +4,6 @@
 
 from __future__ import absolute_import
 
-import re
 import copy
 import re
 
@@ -12,7 +11,7 @@ from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
 
-from .Errors import error, warning
+from .Errors import error
 
 
 class BaseType(object):
@@ -3287,10 +3286,6 @@ class CppClassType(CType):
                 tags = type_identifier(self),
             else:
                 cls = self.cname[5:]
-
-            if self.is_reference:
-                warning("dwqkokw", -1)
-                print "warned"
             cname = '__pyx_convert_%s_from_py_%s' % (cls, '__and_'.join(tags))
             context = {
                 'template_type_declarations': '\n'.join(declarations),
