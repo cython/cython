@@ -1,8 +1,8 @@
 .. _array-array:
 
-============================
+==========================
 Working with Python arrays
-============================
+==========================
 
 Python has a builtin array module supporting dynamic 1-dimensional arrays of
 primitive types. It is possible to access the underlying C array of a Python
@@ -20,9 +20,9 @@ Safe usage with memory views
 
 ::
 
-    from cpython cimport array
+    from cpython cimport array as c_array
     from array import array
-    cdef array.array a = array('i', [1, 2, 3])
+    cdef c_array.array a = array('i', [1, 2, 3])
     cdef int[:] ca = a
 
     print ca[0]
@@ -36,9 +36,9 @@ memory view, there will be a slight overhead to construct the memory
 view. However, from that point on the variable can be passed to other
 functions without overhead, so long as it is typed::
 
-    from cpython cimport array
+    from cpython cimport array as c_array
     from array import array
-    cdef array.array a = array('i', [1, 2, 3])
+    cdef c_array.array a = array('i', [1, 2, 3])
     cdef int[:] ca = a
 
     cdef int overhead(object a):
@@ -60,10 +60,10 @@ right type and signedness.
 
 ::
 
-    from cpython cimport array
+    from cpython cimport array as c_array
     from array import array
 
-    cdef array.array a = array('i', [1, 2, 3])
+    cdef c_array.array a = array('i', [1, 2, 3])
 
     # access underlying pointer:
     print a.data.as_ints[0]
@@ -80,14 +80,14 @@ zero when requested.
 
 ::
 
-    from cpython cimport array
+    from cpython cimport array as c_array
     from array import array
 
-    cdef array.array int_array_template = array('i', [])
-    cdef array.array newarray
+    cdef c_array.array int_array_template = array('i', [])
+    cdef c_array.array newarray
 
     # create an array with 3 elements with same type as template
-    newarray = array.clone(int_array_template, 3, zero=False)
+    newarray = c_array.clone(int_array_template, 3, zero=False)
 
 An array can also be extended and resized; this avoids repeated memory
 reallocation which would occur if elements would be appended or removed
@@ -95,13 +95,13 @@ one by one.
 
 ::
 
-    from cpython cimport array
+    from cpython cimport array as c_array
     from array import array
 
-    cdef array.array a = array('i', [1, 2, 3])
-    cdef array.array b = array('i', [4, 5, 6])
+    cdef c_array.array a = array('i', [1, 2, 3])
+    cdef c_array.array b = array('i', [4, 5, 6])
 
     # extend a with b, resize as needed
-    array.extend(a, b)
+    c_array.extend(a, b)
     # resize a, leaving just original three elements
-    array.resize(a, len(a) - len(b))
+    c_array.resize(a, len(a) - len(b))
