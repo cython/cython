@@ -3373,7 +3373,7 @@ class CppClassType(CType):
             return self
         if self.templates is None:
             self.templates = []
-        key = tuple(values.items() + [is_reference]) # Python 3?
+        key = tuple(values.items()) + (is_reference,)
         if key in self.specializations:
             return self.specializations[key]
         template_values = [t.specialize(values) for t in self.templates]
