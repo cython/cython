@@ -454,3 +454,21 @@ statement, like this::
 .. Warning:: These two methods of setting directives are **not**
     affected by overriding the directive on the command-line using the
     -X option.
+
+In :file:`setup.py`
+:::::::::::::::::::
+
+Compiler directives can also be set in the :file:`setup.py` file by passing a keyword
+argument to ``cythonize``::
+
+    from distutils.core import setup
+    from Cython.Build import cythonize
+
+    setup(
+        name = "My hello app",
+        ext_modules = cythonize('hello.pyx', compiler_directives={'embedsignature': True}),
+    )
+
+This will override the default directives as specified in the ``compiler_directives`` dictionary.
+Note that explicit per-file or local directives as explained above take precedence over the
+values passed to ``cythonize``.
