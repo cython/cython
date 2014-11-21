@@ -160,6 +160,10 @@ with string attributes if they are to be used after the function returns.
 C functions, on the other hand, can have parameters of any type, since they're
 passed in directly using a normal C function call.
 
+Functions declared using :keyword:`cdef`, like Python functions, will return a :keyword:`False`
+value when execution leaves the function body without an explicit return value. This is in
+contrast to C/C++, which leaves the return value undefined. 
+
 A more complete comparison of the pros and cons of these different method
 types can be found at :ref:`early-binding-for-speed`.
 
@@ -216,7 +220,11 @@ returns ``-1``, an exception will be assumed to have occurred and will be
 propagated.
 
 When you declare an exception value for a function, you should never
-explicitly return that value. If all possible return values are legal and you
+explicitly or implicitly return that value. In particular, if the exceptional return value
+is a ``False`` value, then you should ensure the function will never terminate via an implicit
+or empty return.
+
+If all possible return values are legal and you
 can't reserve one entirely for signalling errors, you can use an alternative
 form of exception value declaration::
 
