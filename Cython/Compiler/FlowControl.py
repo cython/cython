@@ -16,6 +16,8 @@ from . import PyrexTypes
 
 from .Visitor import TreeVisitor, CythonTransform
 from .Errors import error, warning, InternalError
+from .Optimize import ConstantFolding
+
 
 class TypedExprNode(ExprNodes.ExprNode):
     # Used for declaring assignments of a specified type without a known entry.
@@ -674,6 +676,7 @@ class ControlFlowAnalysis(CythonTransform):
 
     def visit_ModuleNode(self, node):
         self.gv_ctx = GVContext()
+        self.constant_folder = ConstantFolding()
 
         # Set of NameNode reductions
         self.reductions = set()
@@ -830,7 +833,7 @@ class ControlFlowAnalysis(CythonTransform):
         self.in_inplace_assignment = True
         self.visitchildren(node)
         self.in_inplace_assignment = False
-        self.mark_assignment(node.lhs, node.create_binop_node())
+        self.mark_assignment(node.lhs, self.constant_folder(node.create_binop_node()))
         return node
 
     def visit_DelStatNode(self, node):
@@ -973,12 +976,11 @@ class ControlFlowAnalysis(CythonTransform):
                         for arg in sequence.args[:2]:
                             self.mark_assignment(target, arg)
                         if len(sequence.args) > 2:
-                            self.mark_assignment(
-                                target,
+                            self.mark_assignment(target, self.constant_folder(
                                 ExprNodes.binop_node(node.pos,
                                                      '+',
                                                      sequence.args[0],
-                                                     sequence.args[2]))
+                                                     sequence.args[2])))
 
         if not is_special:
             # A for-loop basically translates to subsequent calls to
@@ -1077,9 +1079,8 @@ class ControlFlowAnalysis(CythonTransform):
         self.flow.nextblock()
         self.mark_assignment(node.target, node.bound1)
         if node.step is not None:
-            self.mark_assignment(node.target,
-                                 ExprNodes.binop_node(node.pos, '+',
-                                                      node.bound1, node.step))
+            self.mark_assignment(node.target, self.constant_folder(
+                ExprNodes.binop_node(node.pos, '+', node.bound1, node.step)))
         # Body block
         self.flow.nextblock()
         self._visit(node.body)

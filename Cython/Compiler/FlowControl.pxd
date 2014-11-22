@@ -96,6 +96,7 @@ cdef check_definitions(ControlFlow flow, dict compiler_directives)
 @cython.final
 cdef class ControlFlowAnalysis(CythonTransform):
     cdef object gv_ctx
+    cdef object constant_folder
     cdef set reductions
     cdef list env_stack
     cdef list stack
