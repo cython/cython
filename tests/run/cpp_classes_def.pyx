@@ -1,6 +1,5 @@
 # mode: run
-# tag: cpp
-#### tag: werror   # FIXME: fix spurious warnings and enable
+# tag: cpp, werror
 # cython: experimental_cpp_class_def=True
 
 cdef double pi
@@ -61,9 +60,15 @@ def test_Static(x):
 
 cdef cppclass InitDealloc:
     __init__():
-        print "Init"
+        try:
+            print "Init"
+        finally:
+            return  # swallow any exceptions
     __dealloc__():
-        print "Dealloc"
+        try:
+            print "Dealloc"
+        finally:
+            return  # swallow any exceptions
 
 def test_init_dealloc():
     """
