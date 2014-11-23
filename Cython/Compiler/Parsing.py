@@ -1132,7 +1132,7 @@ def p_expression_or_assignment(s):
             expr = p_testlist_star_expr(s)
         expr_list.append(expr)
     if len(expr_list) == 1:
-        if re.match(r"([+*/\%^\&|-]|<<|>>|\*\*|//|@)=", s.sy):
+        if re.match(r"([-+*/%^&|]|<<|>>|\*\*|//|@)=", s.sy):
             lhs = expr_list[0]
             if isinstance(lhs, ExprNodes.SliceIndexNode):
                 # implementation requires IndexNode
