@@ -1097,6 +1097,7 @@ def p_genexp(s, expr):
 expr_terminators = cython.declare(set, set([
     ')', ']', '}', ':', '=', 'NEWLINE']))
 
+
 #-------------------------------------------------------
 #
 #   Statements
@@ -1110,11 +1111,13 @@ def p_global_statement(s):
     names = p_ident_list(s)
     return Nodes.GlobalNode(pos, names = names)
 
+
 def p_nonlocal_statement(s):
     pos = s.position()
     s.next()
     names = p_ident_list(s)
     return Nodes.NonlocalNode(pos, names = names)
+
 
 def p_expression_or_assignment(s):
     expr_list = [p_testlist_star_expr(s)]
@@ -1140,7 +1143,7 @@ def p_expression_or_assignment(s):
                     lhs.pos,
                     base=lhs.base,
                     index=make_slice_node(lhs.pos, lhs.start, lhs.stop))
-            elif not isinstance(lhs, (ExprNodes.AttributeNode, ExprNodes.IndexNode, ExprNodes.NameNode) ):
+            elif not isinstance(lhs, (ExprNodes.AttributeNode, ExprNodes.IndexNode, ExprNodes.NameNode)):
                 error(lhs.pos, "Illegal operand for inplace operation.")
             operator = s.sy[:-1]
             s.next()
@@ -1148,17 +1151,16 @@ def p_expression_or_assignment(s):
                 rhs = p_yield_expression(s)
             else:
                 rhs = p_testlist(s)
-            return Nodes.InPlaceAssignmentNode(lhs.pos, operator = operator, lhs = lhs, rhs = rhs)
+            return Nodes.InPlaceAssignmentNode(lhs.pos, operator=operator, lhs=lhs, rhs=rhs)
         expr = expr_list[0]
         return Nodes.ExprStatNode(expr.pos, expr=expr)
 
     rhs = expr_list[-1]
     if len(expr_list) == 2:
-        return Nodes.SingleAssignmentNode(rhs.pos,
-            lhs = expr_list[0], rhs = rhs)
+        return Nodes.SingleAssignmentNode(rhs.pos, lhs=expr_list[0], rhs=rhs)
     else:
-        return Nodes.CascadedAssignmentNode(rhs.pos,
-            lhs_list = expr_list[:-1], rhs = rhs)
+        return Nodes.CascadedAssignmentNode(rhs.pos, lhs_list=expr_list[:-1], rhs=rhs)
+
 
 def p_print_statement(s):
     # s.sy == 'print'
@@ -1182,10 +1184,11 @@ def p_print_statement(s):
                 ends_with_comma = 1
                 break
             args.append(p_test(s))
-    arg_tuple = ExprNodes.TupleNode(pos, args = args)
+    arg_tuple = ExprNodes.TupleNode(pos, args=args)
     return Nodes.PrintStatNode(pos,
-        arg_tuple = arg_tuple, stream = stream,
-        append_newline = not ends_with_comma)
+        arg_tuple=arg_tuple, stream=stream,
+        append_newline=not ends_with_comma)
+
 
 def p_exec_statement(s):
     # s.sy == 'exec'
