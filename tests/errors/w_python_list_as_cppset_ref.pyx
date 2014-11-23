@@ -1,5 +1,5 @@
 # mode: error
-# tag: werror
+# tag: cpp, werror
 
 from libcpp.set cimport set
 
@@ -15,27 +15,5 @@ def pass_py_obj_as_cpp_cont_ref():
 
 
 _ERRORS = """
-5:13: '<init>' redeclared
-5:13: '<init>' redeclared
-6:13: '<init>' redeclared
-6:13: '<init>' redeclared
-6:13: '<init>' redeclared
-6:13: '<init>' redeclared
-6:13: '<init>' redeclared
-7:13: '<init>' redeclared
-7:13: '<init>' redeclared
-7:13: '<init>' redeclared
 14:33: Cannot pass Python object as C++ data structure reference (set[int] &), will pass by copy.
-21:12: '<init>' redeclared
-21:12: '<init>' redeclared
-22:12: '<init>' redeclared
-40:18: 'erase' redeclared
-40:18: 'erase' redeclared
-41:18: 'erase' redeclared
-41:18: 'erase' redeclared
-41:18: 'erase' redeclared
-42:20: 'erase' redeclared
-45:35: 'insert' redeclared
-45:35: 'insert' redeclared
-46:23: 'insert' redeclared
 """
