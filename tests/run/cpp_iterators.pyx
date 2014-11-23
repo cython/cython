@@ -1,4 +1,5 @@
-# tag: cpp
+# mode: run
+# tag: cpp, werror
 
 from libcpp.vector cimport vector
 from cython.operator cimport dereference as deref
@@ -89,6 +90,6 @@ def test_iteration_in_generator_reassigned():
                 vint = new vector[int]()
                 vint.push_back(2)
     finally:
-        del orig_vint
         if vint is not orig_vint:
             del vint
+        del orig_vint

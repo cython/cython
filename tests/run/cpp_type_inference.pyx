@@ -1,4 +1,5 @@
-# tag: cpp
+# mode: run
+# tag: cpp, werror
 
 from cython cimport typeof
 

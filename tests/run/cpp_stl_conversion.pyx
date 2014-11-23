@@ -1,12 +1,12 @@
-# tag: cpp
-## Re-enable once our buildbot gcc is upgraded to a less-than-seven year old release.
-## distutils: extra_compile_args=-std=c++0x
+# mode: run
+# tag: cpp, werror
+# distutils: extra_compile_args=-std=c++0x
 
 import sys
 from libcpp.map cimport map
-#from libcpp.unordered_map cimport unordered_map
+from libcpp.unordered_map cimport unordered_map
 from libcpp.set cimport set as cpp_set
-#from libcpp.unordered_set cimport unordered_set
+from libcpp.unordered_set cimport unordered_set
 from libcpp.string cimport string
 from libcpp.pair cimport pair
 from libcpp.vector cimport vector
@@ -162,17 +162,17 @@ def test_set(o):
     cdef cpp_set[long] s = o
     return s
 
-#def test_unordered_set(o):
-#    """
-#    >>> sorted(test_unordered_set([1, 2, 3]))
-#    [1, 2, 3]
-#    >>> sorted(test_unordered_set([1, 2, 3, 3]))
-#    [1, 2, 3]
-#    >>> type(test_unordered_set([])) is py_set
-#    True
-#    """
-#    cdef unordered_set[long] s = o
-#    return s
+def test_unordered_set(o):
+   """
+   >>> sorted(test_unordered_set([1, 2, 3]))
+   [1, 2, 3]
+   >>> sorted(test_unordered_set([1, 2, 3, 3]))
+   [1, 2, 3]
+   >>> type(test_unordered_set([])) is py_set
+   True
+   """
+   cdef unordered_set[long] s = o
+   return s
 
 def test_map(o):
     """
@@ -182,13 +182,13 @@ def test_map(o):
     cdef map[int, double] m = o
     return m
 
-#def test_unordered_map(o):
-#    """
-#    >>> test_map({1: 1.0, 2: 0.5, 3: 0.25})
-#    {1: 1.0, 2: 0.5, 3: 0.25}
-#    """
-#    cdef unordered_map[int, double] m = o
-#    return m
+def test_unordered_map(o):
+   """
+   >>> test_map({1: 1.0, 2: 0.5, 3: 0.25})
+   {1: 1.0, 2: 0.5, 3: 0.25}
+   """
+   cdef unordered_map[int, double] m = o
+   return m
 
 def test_nested(o):
     """

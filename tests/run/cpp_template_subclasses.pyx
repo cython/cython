@@ -1,4 +1,5 @@
-# tag: cpp
+# mode: run
+# tag: cpp, werror
 
 from cython.operator import dereference as deref
 from libcpp.pair cimport pair

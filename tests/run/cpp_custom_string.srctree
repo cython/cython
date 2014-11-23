@@ -1,4 +1,5 @@
-# tag: cpp
+# mode: run
+# tag: cpp, werror
 
 PYTHON setup.py build_ext --inplace
 PYTHON -c "import a; a.test_convert()"
