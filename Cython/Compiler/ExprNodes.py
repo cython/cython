@@ -714,7 +714,8 @@ class ExprNode(Node):
         if self.check_for_coercion_error(dst_type, env):
             return self
 
-        if dst_type.is_reference and not src_type.is_reference:
+        used_as_reference = dst_type.is_reference
+        if used_as_reference and not src_type.is_reference:
             dst_type = dst_type.ref_base_type
 
         if src_type.is_const:
@@ -781,6 +782,11 @@ class ExprNode(Node):
                 if src.constant_result is not None:
                     src = PyTypeTestNode(src, dst_type, env)
         elif src.type.is_pyobject:
+            if used_as_reference:
+                warning(
+                    self.pos,
+                    "Cannot pass Python object as C++ data structure reference (%s &), will pass by copy." % dst_type,
+                    level=1)
             src = CoerceFromPyTypeNode(dst_type, src, env)
         elif (dst_type.is_complex
               and src_type != dst_type

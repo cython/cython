@@ -3,9 +3,9 @@
 
 from libcpp.set cimport set
 
-cdef extern from "foo.cpp":
-    void cpp_function_set1(set[int])
-    void cpp_function_set2(set[int] &)
+cdef extern from *:
+    void cpp_function_set1(set[int] arg)
+    void cpp_function_set2(set[int]& arg)
 
 
 def pass_py_obj_as_cpp_cont_ref():
