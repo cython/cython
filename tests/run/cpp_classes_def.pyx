@@ -1,5 +1,7 @@
-# cython: experimental_cpp_class_def=True
+# mode: run
 # tag: cpp
+#### tag: werror   # FIXME: fix spurious warnings and enable
+# cython: experimental_cpp_class_def=True
 
 cdef double pi
 from math import pi
