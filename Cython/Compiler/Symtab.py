@@ -418,7 +418,11 @@ class Scope(object):
             warning(pos, "'%s' is a reserved name in C." % cname, -1)
         entries = self.entries
         if name and name in entries and not shadow:
-            if visibility == 'extern':
+            old_type = entries[name].type
+            if self.is_cpp_class_scope and type.is_cfunction and old_type.is_cfunction and type != old_type:
+                # C++ method overrides are ok
+                pass
+            elif visibility == 'extern':
                 warning(pos, "'%s' redeclared " % name, 0)
             elif visibility != 'ignore':
                 error(pos, "'%s' redeclared " % name)
