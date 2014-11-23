@@ -184,9 +184,6 @@ cdef extern from *:
         pair(T&, U&)
     cdef cppclass map "std::{{maybe_unordered}}map" [T, U]:
         void insert(pair[T, U]&)
-
-    cdef cppclass pair "std::pair" [T, U]:
-        pass
     cdef cppclass vector "std::vector" [T]:
         pass
 
