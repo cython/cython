@@ -2868,11 +2868,10 @@ class IndexNode(ExprNode):
                 else:
                     template_values = [self.index]
                 type_node = Nodes.TemplatedTypeNode(
-                    pos = self.pos,
-                    positional_args = template_values,
-                    keyword_args = None,
-                    is_reference = False)
-                return type_node.analyse(env, base_type = base_type)
+                    pos=self.pos,
+                    positional_args=template_values,
+                    keyword_args=None)
+                return type_node.analyse(env, base_type=base_type)
             else:
                 index = self.index.compile_time_value(env)
                 if index is not None:
@@ -11377,11 +11376,6 @@ class CoerceFromPyTypeNode(CoercionNode):
         if not result_type.create_from_py_utility_code(env):
             error(arg.pos,
                   "Cannot convert Python object to '%s'" % result_type)
-        elif result_type.is_reference:
-            warning(arg.pos,
-                    "Cannot pass Python object as C++ data structure "
-                    "reference (%s &), will pass by copy." % result_type,
-                    level=1)
         if self.type.is_string or self.type.is_pyunicode_ptr:
             if self.arg.is_name and self.arg.entry and self.arg.entry.is_pyglobal:
                 warning(arg.pos,

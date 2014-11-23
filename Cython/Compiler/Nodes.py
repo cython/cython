@@ -1110,7 +1110,7 @@ class TemplatedTypeNode(CBaseTypeNode):
                         error(template_node.pos, "unknown type in template argument")
                         return error_type
                     template_types.append(type)
-                self.type = base_type.specialize_here(self.pos, template_types, is_reference=self.is_reference)
+                self.type = base_type.specialize_here(self.pos, template_types)
 
         elif base_type.is_pyobject:
             # Buffer
