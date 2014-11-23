@@ -2168,7 +2168,8 @@ def p_buffer_or_template(s, base_type_node, templates):
     result = Nodes.TemplatedTypeNode(pos,
         positional_args = positional_args,
         keyword_args = keyword_dict,
-        base_type_node = base_type_node)
+        base_type_node = base_type_node,
+        is_reference = (s.sy == '&'))
     return result
 
 def p_bracketed_base_type(s, base_type_node, nonempty, empty):

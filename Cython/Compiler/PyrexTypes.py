@@ -4,7 +4,6 @@
 
 from __future__ import absolute_import
 
-import re
 import copy
 import re
 
@@ -3217,7 +3216,7 @@ class CppClassType(CType):
 
     subtypes = ['templates']
 
-    def __init__(self, name, scope, cname, base_classes, templates = None, template_type = None):
+    def __init__(self, name, scope, cname, base_classes, templates = None, template_type = None, is_reference = False):
         self.name = name
         self.cname = cname
         self.scope = scope
@@ -3227,6 +3226,7 @@ class CppClassType(CType):
         self.template_type = template_type
         self.specializations = {}
         self.is_cpp_string = cname in cpp_string_conversions
+        self.is_reference = is_reference
 
     def use_conversion_utility(self, from_or_to):
         pass
@@ -3350,7 +3350,7 @@ class CppClassType(CType):
                 T.get_fused_types(result, seen)
         return result
 
-    def specialize_here(self, pos, template_values = None):
+    def specialize_here(self, pos, template_values = None, is_reference = False):
         if not self.is_template_type():
             error(pos, "'%s' type is not a template" % self)
             return error_type
@@ -3366,19 +3366,19 @@ class CppClassType(CType):
                       "Python object type '%s' cannot be used as a template argument" % value)
         if has_object_template_param:
             return error_type
-        return self.specialize(dict(zip(self.templates, template_values)))
+        return self.specialize(dict(zip(self.templates, template_values)), is_reference)
 
-    def specialize(self, values):
+    def specialize(self, values, is_reference = False):
         if not self.templates and not self.namespace:
             return self
         if self.templates is None:
             self.templates = []
-        key = tuple(values.items())
+        key = tuple(values.items()) + (is_reference,)
         if key in self.specializations:
             return self.specializations[key]
         template_values = [t.specialize(values) for t in self.templates]
         specialized = self.specializations[key] = \
-            CppClassType(self.name, None, self.cname, [], template_values, template_type=self)
+            CppClassType(self.name, None, self.cname, [], template_values, template_type=self, is_reference=is_reference)
         # Need to do these *after* self.specializations[key] is set
         # to avoid infinite recursion on circular references.
         specialized.base_classes = [b.specialize(values) for b in self.base_classes]
