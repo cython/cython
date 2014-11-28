@@ -101,3 +101,18 @@ def assign_carray():
     assert b[0] == 2
     assert c[1] == 3
     return a[0], b[0], c[1]
+
+
+def pyobject_from_cvalue(table, key):
+    """
+    >>> table = {'X':0, 'Y':1}
+    >>> pyobject_from_cvalue(table, 'Z')
+    2
+    >>> pyobject_from_cvalue(table, 'X')
+    0
+    """
+    cdef int num
+    num = table.get(key, -1)
+    if num < 0:
+        num = table[key] = len(table)
+    return num
