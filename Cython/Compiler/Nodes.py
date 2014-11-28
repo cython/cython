@@ -4788,10 +4788,11 @@ class CascadedAssignmentNode(AssignmentNode):
     #
     #  Used internally:
     #
-    #  coerced_rhs_list   [ExprNode]   RHS coerced to type of each LHS
+    #  coerced_values     [ExprNode]   RHS coerced to all distinct LHS types
+    #  cloned_values      [ExprNode]   cloned RHS value for each LHS
 
-    child_attrs = ["lhs_list", "rhs", "coerced_values", "coerced_rhs_list"]
-    coerced_rhs_list = None
+    child_attrs = ["lhs_list", "rhs", "coerced_values", "cloned_values"]
+    cloned_values = None
     coerced_values = None
 
     def analyse_declarations(self, env):
@@ -4801,6 +4802,7 @@ class CascadedAssignmentNode(AssignmentNode):
     def analyse_types(self, env, use_temp=0):
         from .ExprNodes import CloneNode, ProxyNode
 
+        # collect distinct types used on the LHS
         lhs_types = set()
         for lhs in self.lhs_list:
             lhs.analyse_target_types(env)
@@ -4819,6 +4821,7 @@ class CascadedAssignmentNode(AssignmentNode):
             rhs = rhs.coerce_to_simple(env)
         self.rhs = ProxyNode(rhs) if rhs.is_temp else rhs
 
+        # clone RHS and coerce it to all distinct LHS types
         self.coerced_values = []
         coerced_values = {}
         for lhs in self.lhs_list:
@@ -4827,22 +4830,28 @@ class CascadedAssignmentNode(AssignmentNode):
                 self.coerced_values.append(rhs)
                 coerced_values[lhs.type] = rhs
 
-        self.coerced_rhs_list = []
+        # clone coerced values for all LHS assignments
+        self.cloned_values = []
         for lhs in self.lhs_list:
             rhs = coerced_values.get(lhs.type, self.rhs)
-            self.coerced_rhs_list.append(CloneNode(rhs))
+            self.cloned_values.append(CloneNode(rhs))
         return self
 
     def generate_rhs_evaluation_code(self, code):
         self.rhs.generate_evaluation_code(code)
 
     def generate_assignment_code(self, code):
+        # prepare all coercions
         for rhs in self.coerced_values:
             rhs.generate_evaluation_code(code)
-        for lhs, rhs in zip(self.lhs_list, self.coerced_rhs_list):
+        # assign clones to LHS
+        for lhs, rhs in zip(self.lhs_list, self.cloned_values):
             rhs.generate_evaluation_code(code)
             lhs.generate_assignment_code(rhs, code)
-            # Assignment has disposed of the cloned RHS
+        # dispose of coerced values and original RHS
+        for rhs_value in self.coerced_values:
+            rhs_value.generate_disposal_code(code)
+            rhs_value.free_temps(code)
         self.rhs.generate_disposal_code(code)
         self.rhs.free_temps(code)
 
@@ -4852,7 +4861,7 @@ class CascadedAssignmentNode(AssignmentNode):
     def annotate(self, code):
         for rhs in self.coerced_values:
             rhs.annotate(code)
-        for lhs, rhs in zip(self.lhs_list, self.coerced_rhs_list):
+        for lhs, rhs in zip(self.lhs_list, self.cloned_values):
             lhs.annotate(code)
             rhs.annotate(code)
         self.rhs.annotate(code)
