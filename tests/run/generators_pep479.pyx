@@ -133,3 +133,24 @@ def test_yield_from_gen():
     """
     x = yield from test_return_value()
     print("RETURN: %s" % x)
+
+
+def test_genexpr(it):
+    """
+    >>> list(test_genexpr(iter([])))
+    []
+    >>> list(test_genexpr(iter([1, 2])))
+    [1]
+
+    >>> list(test_genexpr(iter([1])))
+    Traceback (most recent call last):
+    RuntimeError: generator raised StopIteration
+
+    >>> list(test_genexpr(iter([1, 2, 3])))
+    Traceback (most recent call last):
+    RuntimeError: generator raised StopIteration
+
+    >>> list(test_genexpr(iter([1, 2])))
+    [1]
+    """
+    return (x for x in it if next(it))
