@@ -20,6 +20,26 @@ static CYTHON_INLINE PyObject* __Pyx_Generator_Yield_From(__pyx_GeneratorObject 
     return NULL;
 }
 
+
+//////////////////// pep479.proto ////////////////////
+
+static void __Pyx_Generator_Replace_StopIteration(void); /*proto*/
+
+//////////////////// pep479 ////////////////////
+//@requires: Exceptions.c::GetException
+
+static void __Pyx_Generator_Replace_StopIteration(void) {
+    PyObject *exc, *val, *tb;
+    // Chain exceptions by moving StopIteration to exc_info before creating the RuntimeError.
+    // In Py2.x, no chaining happens, but the exception still stays visible in exc_info.
+    __Pyx_GetException(&exc, &val, &tb);
+    Py_XDECREF(exc);
+    Py_XDECREF(val);
+    Py_XDECREF(tb);
+    PyErr_SetString(PyExc_RuntimeError, "generator raised StopIteration");
+}
+
+
 //////////////////// Generator.proto ////////////////////
 #define __Pyx_Generator_USED
 #include <structmember.h>

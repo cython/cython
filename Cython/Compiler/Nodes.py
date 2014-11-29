@@ -25,6 +25,7 @@ from .Symtab import (ModuleScope, LocalScope, ClosureScope,
     StructOrUnionScope, PyClassScope, CppClassScope, TemplateScope)
 from .Code import UtilityCode
 from .StringEncoding import EncodedString, escape_byte_string, split_string_literal
+from . import Future
 from . import Options
 from . import DebugFlags
 
@@ -4028,6 +4029,11 @@ class GeneratorBodyDefNode(DefNode):
             if not self.body.is_terminator:
                 code.put_goto(code.return_label)
             code.put_label(code.error_label)
+            if Future.generator_stop in env.global_scope().context.future_directives:
+                # PEP 479: turn accidental StopIteration exceptions into a RuntimeError
+                code.globalstate.use_utility_code(UtilityCode.load_cached("pep479", "Generator.c"))
+                code.putln("if (unlikely(PyErr_ExceptionMatches(PyExc_StopIteration))) "
+                           "__Pyx_Generator_Replace_StopIteration();")
             for cname, type in code.funcstate.all_managed_temps():
                 code.put_xdecref(cname, type)
             code.put_add_traceback(self.entry.qualified_name)

@@ -20,6 +20,10 @@ Features added
 
 * Anonymous C tuple types can be declared as (ctype1, ctype2, ...).
 
+* PEP 479: turn accidental StopIteration exceptions that exit generators
+  into a RuntimeError, activated with future import "generator_stop".
+  See http://legacy.python.org/dev/peps/pep-0479/
+
 Bugs fixed
 ----------
 
