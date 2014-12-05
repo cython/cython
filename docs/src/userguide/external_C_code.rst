@@ -459,7 +459,7 @@ Acquiring the GIL
 
 A C function that is to be used as a callback from C code that is executed
 without the GIL needs to acquire the GIL before it can manipulate Python
-objects. This can be done by specifying with :keyword:`gil` in the function
+objects. This can be done by specifying ``with gil`` in the function
 header::
 
     cdef void my_callback(void *data) with gil:
@@ -494,6 +494,5 @@ performed in the future.
 .. NOTE:: This declaration declares that it is safe to call the function without the GIL,
           it does not in itself release the GIL.
 
-Declaring a function with :keyword:`gil` also implicitly makes its signature
-:keyword:`nogil`.
-
+Declaring a function ``with gil`` (i.e. as acquiring the GIL on entry) also
+implicitly makes its signature :keyword:`nogil`.
