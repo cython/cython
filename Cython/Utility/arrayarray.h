@@ -121,13 +121,15 @@ static CYTHON_INLINE int resize(arrayobject *self, Py_ssize_t n) {
 static CYTHON_INLINE int resize_smart(arrayobject *self, Py_ssize_t n) {
     void *items = (void*) self->data.ob_item;
     Py_ssize_t newsize;
-    if (n < self->allocated) {
-        if (n*4 > self->allocated) {
-            self->ob_size = n;
-            return 0;
-        }
+    if (n < self->ob_size) {
+        self->ob_size = n;
+        return 0;
     }
-    newsize = n  * 3 / 2 + 1;
+    newsize = n + (n / 2) + 1;
+    if (newsize <= self->allocated) {   /* overflow */
+        PyErr_NoMemory();
+        return -1;
+    }
     PyMem_Resize(items, char, (size_t)(newsize * self->ob_descr->itemsize));
     if (items == NULL) {
         PyErr_NoMemory();
