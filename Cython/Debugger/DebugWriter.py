@@ -42,7 +42,7 @@ class CythonDebugWriter(object):
         if etree is None:
             raise Errors.NoElementTreeInstalledException()
 
-        self.output_dir = os.path.join(output_dir, 'cython_debug')
+        self.output_dir = os.path.join(output_dir or os.curdir, 'cython_debug')
         self.tb = etree.TreeBuilder()
         # set by Cython.Compiler.ParseTreeTransforms.DebugTransform
         self.module_name = None

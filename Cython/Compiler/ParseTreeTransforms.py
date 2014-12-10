@@ -2937,6 +2937,7 @@ class DebugTransform(CythonTransform):
 
     def visit_NameNode(self, node):
         if (self.register_stepinto and
+            node.type is not None and
             node.type.is_cfunction and
             getattr(node, 'is_called', False) and
             node.entry.func_cname is not None):
