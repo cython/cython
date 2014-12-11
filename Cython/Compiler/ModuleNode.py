@@ -150,6 +150,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code.putln("#ifndef %s" % api_guard)
             h_code.putln("")
             self.generate_extern_c_macro_definition(h_code)
+            h_code.putln("")
+            self.generate_dl_import_macro(h_code)
             if h_extension_types:
                 h_code.putln("")
                 for entry in h_extension_types:
@@ -669,6 +671,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  #else")
         code.putln("    #define %s extern" % name)
         code.putln("  #endif")
+        code.putln("#endif")
+
+    def generate_dl_import_macro(self, code):
+        code.putln("#ifndef DL_IMPORT")
+        code.putln("  #define DL_IMPORT(_T) _T")
         code.putln("#endif")
 
     def generate_includes(self, env, cimported_modules, code):
