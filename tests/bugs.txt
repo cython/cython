@@ -48,5 +48,4 @@ pyregr.test_tuple
 # Inlined generators
 all
 any
-builtin_sorted
 inlined_generator_expressions
