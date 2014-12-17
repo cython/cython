@@ -1477,6 +1477,10 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             gen_expr_node.pos, loop = loop_node, result_node = result_ref,
             expr_scope = gen_expr_node.expr_scope, orig_func = is_any and 'any' or 'all')
 
+    PySequence_List_func_type = PyrexTypes.CFuncType(
+        Builtin.list_type,
+        [PyrexTypes.CFuncTypeArg("it", PyrexTypes.py_object_type, None)])
+
     def _handle_simple_function_sorted(self, node, pos_args):
         """Transform sorted(genexpr) and sorted([listcomp]) into
         [listcomp].sort().  CPython just reads the iterable into a
@@ -1514,7 +1518,11 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             expr = pos_args[0].as_list()
             listcomp_node = loop_node = expr
         else:
-            return node
+            # Interestingly, PySequence_List works on a lot of non-sequence
+            # things as well.
+            listcomp_node = loop_node = ExprNodes.PythonCapiCallNode(
+                node.pos, "PySequence_List", self.PySequence_List_func_type,
+                args=pos_args, is_temp=True)
 
         result_node = UtilNodes.ResultRefNode(
             pos = loop_node.pos, type = Builtin.list_type, may_hold_none=False)
