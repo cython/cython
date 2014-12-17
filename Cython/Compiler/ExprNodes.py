@@ -6556,6 +6556,12 @@ class TupleNode(SequenceNode):
         else:
             return SequenceNode.coerce_to(self, dst_type, env)
 
+    def as_list(self):
+        t = ListNode(self.pos, args=self.args, mult_factor=self.mult_factor)
+        if isinstance(self.constant_result, tuple):
+            t.constant_result = list(self.constant_result)
+        return t
+
     def is_simple(self):
         # either temp or constant => always simple
         return True
@@ -6683,6 +6689,9 @@ class ListNode(SequenceNode):
         else:
             self.type = error_type
             error(self.pos, "Cannot coerce list to type '%s'" % dst_type)
+        return self
+
+    def as_list(self):  # dummy for compatibility with TupleNode
         return self
 
     def as_tuple(self):

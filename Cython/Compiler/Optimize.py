@@ -1508,6 +1508,11 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
                 expr_scope = gen_expr_node.expr_scope,
                 has_local_scope = True)
             append_node.target = listcomp_node
+        elif isinstance(pos_args[0], (ExprNodes.ListNode, ExprNodes.TupleNode)):
+            # sorted([a, b, c]) or sorted((a, b, c)). The result of the latter
+            # is a list in CPython, so change it into one.
+            expr = pos_args[0].as_list()
+            listcomp_node = loop_node = expr
         else:
             return node
 
