@@ -1519,6 +1519,7 @@ class FileListExcluder:
 
     def __init__(self, list_file):
         self.excludes = {}
+        self._list_file = list_file
         f = open(list_file)
         try:
             for line in f.readlines():
@@ -1529,7 +1530,12 @@ class FileListExcluder:
             f.close()
 
     def __call__(self, testname, tags=None):
-        return testname in self.excludes or testname.split('.')[-1] in self.excludes
+        exclude = (testname in self.excludes
+                   or testname.split('.')[-1] in self.excludes)
+        if exclude:
+            print("Excluding %s because it's listed in %s"
+                  % (testname, self._list_file))
+        return exclude
 
 class TagsSelector:
 
