@@ -1,5 +1,36 @@
 cimport cython
 
+def generator():
+    yield 2
+    yield 1
+    yield 3
+
+def returns_set():
+    return set(["foo", "bar", "baz"])
+
+def returns_tuple():
+    return (1, 2, 3, 0)
+
+@cython.test_fail_if_path_exists("//SimpleCallNode")
+def sorted_arg(x):
+    """
+    >>> a = [3, 2, 1]
+    >>> sorted_arg(a)
+    [1, 2, 3]
+    >>> a
+    [3, 2, 1]
+    >>> sorted(generator())
+    [1, 2, 3]
+    >>> sorted(returns_set())
+    ['bar', 'baz', 'foo']
+    >>> sorted(returns_tuple())
+    [0, 1, 2, 3]
+    >>> sorted(object())
+    Traceback (most recent call last):
+    TypeError: 'object' object is not iterable
+    """
+    return sorted(x)
+
 #@cython.test_fail_if_path_exists("//GeneratorExpressionNode",
 #                                 "//ComprehensionNode//NoneCheckNode")
 #@cython.test_assert_path_exists("//ComprehensionNode")
@@ -10,7 +41,7 @@ def sorted_genexp():
     """
     return sorted(i*i for i in range(10,0,-1))
 
-#@cython.test_assert_path_exists("//SimpleCallNode//SimpleCallNode")
+@cython.test_assert_path_exists("//SimpleCallNode//SimpleCallNode")
 def sorted_list_of_range():
     """
     >>> sorted_list_of_range()
