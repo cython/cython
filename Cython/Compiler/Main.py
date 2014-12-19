@@ -646,7 +646,7 @@ def main(command_line = 0):
         os.chdir(options.working_path)
     if options.dep_makefile:
         dep_out = io.open(options.dep_makefile, mode="w+b")
-        dep_out.write(options.output_file+":")
+        dep_out.write(os.path.basename(options.output_file + ":"))
 
     try:
         result = compile(sources, options)
