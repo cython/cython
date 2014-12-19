@@ -2021,6 +2021,20 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 )
         return node
 
+    PySequence_List_func_type = PyrexTypes.CFuncType(
+        Builtin.list_type,
+        [PyrexTypes.CFuncTypeArg("it", PyrexTypes.py_object_type, None)])
+
+    def _handle_simple_function_list(self, node, function, pos_args):
+        """Turn list(ob) into PySequence_List(ob).
+        """
+        if len(pos_args) != 1:
+            return node
+        arg = pos_args[0]
+        return ExprNodes.PythonCapiCallNode(
+            node.pos, "PySequence_List", self.PySequence_List_func_type,
+            args=pos_args, is_temp=node.is_temp)
+
     PyList_AsTuple_func_type = PyrexTypes.CFuncType(
         Builtin.tuple_type, [
             PyrexTypes.CFuncTypeArg("list", Builtin.list_type, None)
