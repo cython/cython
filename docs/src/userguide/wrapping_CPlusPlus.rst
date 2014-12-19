@@ -26,7 +26,7 @@ main new features of Cython v0.13 regarding C++ support:
 * C++ objects can now be dynamically allocated with ``new`` and ``del`` keywords.
 * C++ objects can be stack-allocated.
 * C++ classes can be declared with the new keyword ``cppclass``.
-* Templated classes are supported.
+* Templated classes and functions are supported.
 * Overloaded functions are supported.
 * Overloading of C++ operators (such as operator+, operator[],...) is supported.
 
@@ -388,7 +388,15 @@ Cython uses a bracket syntax for templating. A simple example for wrapping C++ v
     del v
 
 Multiple template parameters can be defined as a list, such as [T, U, V]
-or [int, bool, char].
+or [int, bool, char].  Template functions are defined similarly, with
+the template parameter list following the function name::
+
+    cdef extern from "<algorithm>" namespace "std":
+        T max[T](T a, T b)
+
+    print max[long](3, 4)
+    print max(1.5, 2.5)  # simple template argument deduction
+
 
 Standard library
 -----------------

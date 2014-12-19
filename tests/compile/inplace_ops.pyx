@@ -1,6 +1,8 @@
-cdef int f() except -1:
-    cdef object a, b
-    cdef char *p
+# mode: compile
+
+def test():
+    cdef object a = 1, b = 2
+    cdef char *p = 'abc'
     a += b
     a -= b
     a *= b

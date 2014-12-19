@@ -42,6 +42,9 @@ class FusedCFuncDefNode(StatListNode):
     defaults_tuple = None
     decorators = None
 
+    child_attrs = StatListNode.child_attrs + [
+        '__signatures__', 'resulting_fused_function', 'fused_func_assignment']
+
     def __init__(self, node, env):
         super(FusedCFuncDefNode, self).__init__(node.pos)
 

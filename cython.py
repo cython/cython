@@ -19,3 +19,5 @@ if __name__ == '__main__':
 else:
     # Void cython.* directives.
     from Cython.Shadow import *
+    ## and bring in the __version__
+    from Cython import __version__

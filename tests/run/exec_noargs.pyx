@@ -1,5 +1,5 @@
 # mode: run
-# tags: exec
+# tag: exec
 
 exec "GLOBAL = 1234"
 

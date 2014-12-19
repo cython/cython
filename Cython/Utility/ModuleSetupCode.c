@@ -40,6 +40,10 @@
 #define CYTHON_COMPILING_IN_CPYTHON 1
 #endif
 
+#if CYTHON_COMPILING_IN_PYPY
+#define Py_OptimizeFlag 0
+#endif
+
 #if PY_VERSION_HEX < 0x02050000
   typedef int Py_ssize_t;
   #define PY_SSIZE_T_MAX INT_MAX
@@ -47,7 +51,7 @@
   #define PY_FORMAT_SIZE_T ""
   #define CYTHON_FORMAT_SSIZE_T ""
   #define PyInt_FromSsize_t(z) PyInt_FromLong(z)
-  #define PyInt_AsSsize_t(o)   __Pyx_PyInt_AsInt(o)
+  #define PyInt_AsSsize_t(o)   __Pyx_PyInt_As_int(o)
   #define PyNumber_Index(o)    ((PyNumber_Check(o) && !PyFloat_Check(o)) ? PyNumber_Int(o) : \
                                 (PyErr_Format(PyExc_TypeError, \
                                               "expected index value, got %.200s", Py_TYPE(o)->tp_name), \
@@ -104,14 +108,16 @@
 #if PY_MAJOR_VERSION < 3
   #define __Pyx_BUILTIN_MODULE_NAME "__builtin__"
   #define __Pyx_PyCode_New(a, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos) \
-          PyCode_New(a, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos)
+          PyCode_New(a+k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos)
+  #define __Pyx_DefaultClassType PyClass_Type
 #else
   #define __Pyx_BUILTIN_MODULE_NAME "builtins"
   #define __Pyx_PyCode_New(a, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos) \
           PyCode_New(a, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos)
+  #define __Pyx_DefaultClassType PyType_Type
 #endif
 
-#if PY_MAJOR_VERSION < 3 && PY_MINOR_VERSION < 6
+#if PY_VERSION_HEX < 0x02060000
   #define PyUnicode_FromString(s) PyUnicode_Decode(s, strlen(s), "UTF-8", "strict")
 #endif
 
@@ -127,6 +133,12 @@
 #if PY_VERSION_HEX < 0x02060000
   #define Py_TPFLAGS_HAVE_VERSION_TAG 0
 #endif
+#if PY_VERSION_HEX < 0x02060000 && !defined(Py_TPFLAGS_IS_ABSTRACT)
+  #define Py_TPFLAGS_IS_ABSTRACT 0
+#endif
+#if PY_VERSION_HEX < 0x030400a1 && !defined(Py_TPFLAGS_HAVE_FINALIZE)
+  #define Py_TPFLAGS_HAVE_FINALIZE 0
+#endif
 
 /* new Py3.3 unicode type (PEP 393) */
 #if PY_VERSION_HEX > 0x03030000 && defined(PyUnicode_KIND)
@@ -135,14 +147,36 @@
                                               0 : _PyUnicode_Ready((PyObject *)(op)))
   #define __Pyx_PyUnicode_GET_LENGTH(u)   PyUnicode_GET_LENGTH(u)
   #define __Pyx_PyUnicode_READ_CHAR(u, i) PyUnicode_READ_CHAR(u, i)
+  #define __Pyx_PyUnicode_KIND(u)         PyUnicode_KIND(u)
+  #define __Pyx_PyUnicode_DATA(u)         PyUnicode_DATA(u)
   #define __Pyx_PyUnicode_READ(k, d, i)   PyUnicode_READ(k, d, i)
 #else
   #define CYTHON_PEP393_ENABLED 0
   #define __Pyx_PyUnicode_READY(op)       (0)
   #define __Pyx_PyUnicode_GET_LENGTH(u)   PyUnicode_GET_SIZE(u)
   #define __Pyx_PyUnicode_READ_CHAR(u, i) ((Py_UCS4)(PyUnicode_AS_UNICODE(u)[i]))
-  /* (k=k) => avoid unused variable warning due to macro: */
-  #define __Pyx_PyUnicode_READ(k, d, i)   ((k=k), (Py_UCS4)(((Py_UNICODE*)d)[i]))
+  #define __Pyx_PyUnicode_KIND(u)         (sizeof(Py_UNICODE))
+  #define __Pyx_PyUnicode_DATA(u)         ((void*)PyUnicode_AS_UNICODE(u))
+  /* (void)(k) => avoid unused variable warning due to macro: */
+  #define __Pyx_PyUnicode_READ(k, d, i)   ((void)(k), (Py_UCS4)(((Py_UNICODE*)d)[i]))
+#endif
+
+#if CYTHON_COMPILING_IN_PYPY
+  #define __Pyx_PyUnicode_Concat(a, b)      PyNumber_Add(a, b)
+  #define __Pyx_PyUnicode_ConcatSafe(a, b)  PyNumber_Add(a, b)
+#else
+  #define __Pyx_PyUnicode_Concat(a, b)      PyUnicode_Concat(a, b)
+  #define __Pyx_PyUnicode_ConcatSafe(a, b)  ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
+      PyNumber_Add(a, b) : __Pyx_PyUnicode_Concat(a, b))
+#endif
+
+#define __Pyx_PyString_FormatSafe(a, b)  ((unlikely((a) == Py_None)) ? PyNumber_Remainder(a, b) : __Pyx_PyString_Format(a, b))
+#define __Pyx_PyUnicode_FormatSafe(a, b)  ((unlikely((a) == Py_None)) ? PyNumber_Remainder(a, b) : PyUnicode_Format(a, b))
+
+#if PY_MAJOR_VERSION >= 3
+  #define __Pyx_PyString_Format(a, b)  PyUnicode_Format(a, b)
+#else
+  #define __Pyx_PyString_Format(a, b)  PyString_Format(a, b)
 #endif
 
 #if PY_MAJOR_VERSION >= 3
@@ -178,7 +212,7 @@
 #else
   #define __Pyx_PyBaseString_Check(obj) (PyString_CheckExact(obj) || PyUnicode_CheckExact(obj) || \
                                          PyString_Check(obj) || PyUnicode_Check(obj))
-  #define __Pyx_PyBaseString_CheckExact(obj) (Py_TYPE(obj) == &PyBaseString_Type)
+  #define __Pyx_PyBaseString_CheckExact(obj) (PyString_CheckExact(obj) || PyUnicode_CheckExact(obj))
 #endif
 
 #if PY_VERSION_HEX < 0x02060000
@@ -206,13 +240,14 @@
   #define PyInt_AsSsize_t              PyLong_AsSsize_t
   #define PyInt_AsUnsignedLongMask     PyLong_AsUnsignedLongMask
   #define PyInt_AsUnsignedLongLongMask PyLong_AsUnsignedLongLongMask
+  #define PyNumber_Int                 PyNumber_Long
 #endif
 
 #if PY_MAJOR_VERSION >= 3
   #define PyBoolObject                 PyLongObject
 #endif
 
-#if PY_VERSION_HEX < 0x03020000
+#if PY_VERSION_HEX < 0x030200A4
   typedef long Py_hash_t;
   #define __Pyx_PyInt_FromHash_t PyInt_FromLong
   #define __Pyx_PyInt_AsHash_t   PyInt_AsLong

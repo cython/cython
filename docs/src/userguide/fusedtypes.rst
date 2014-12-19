@@ -14,7 +14,12 @@ Java / C#.
 
 .. _generic programming: http://en.wikipedia.org/wiki/Generic_programming
 
-.. Note:: Support is experimental and new in this release, there may be bugs!
+.. Note:: Support is still somewhat experimental, there may be bugs!
+
+.. Note:: Fused types are not currently supported as attributes of extension
+          types.  Only variables and function/method arguments can be declared
+          with fused types.
+
 
 Quickstart
 ==========

@@ -35,13 +35,14 @@ def test_set_add():
     >>> type(test_set_add()) is _set
     True
     >>> sorted(test_set_add())
-    ['a', 1]
+    ['a', 1, (1, 2)]
     """
     cdef set s1
-    s1 = set([1])
+    s1 = set([1, (1, 2)])
     s1.add(1)
     s1.add('a')
     s1.add(1)
+    s1.add((1,2))
     return s1
 
 def test_set_clear():
@@ -159,14 +160,18 @@ def test_set_of_tuple():
     return set((1, 2, 3))
 
 def sorted(it):
-    # Py3 can't compare strings to ints
+    # Py3 can't compare different types
     chars = []
     nums = []
+    tuples = []
     for item in it:
         if type(item) is int:
             nums.append(item)
+        elif type(item) is tuple:
+            tuples.append(item)
         else:
             chars.append(item)
     nums.sort()
     chars.sort()
-    return chars+nums
+    tuples.sort()
+    return chars+nums+tuples

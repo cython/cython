@@ -1,6 +1,6 @@
 # mode: run
 # ticket: 766
-# tags: letnode
+# tag: letnode
 
 def test_letnode_range(int n):
     """

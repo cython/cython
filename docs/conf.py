@@ -12,6 +12,9 @@
 # serve to show the default.
 
 import sys, os, os.path, re
+import datetime
+
+YEAR = datetime.date.today().strftime('%Y')
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -63,7 +66,7 @@ exclude_patterns = ['py*', 'build']
 # General information about the project.
 project = 'Cython'
 authors = 'Stefan Behnel, Robert Bradshaw, Dag Sverre Seljebotn, Greg Ewing, William Stein, Gabriel Gellner, et al.'
-copyright = '2012, ' + authors
+copyright = '%s, %s' % (YEAR, authors)
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -289,7 +292,7 @@ texinfo_documents = [
 epub_title = u'Cython'
 epub_author = authors
 epub_publisher = u''
-epub_copyright = u'2012, ' + authors
+epub_copyright = copyright
 
 # The language of the text. It defaults to the language option
 # or en if the language is not set.

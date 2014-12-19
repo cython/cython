@@ -67,6 +67,8 @@ def except_as_no_raise_does_not_touch_target(a):
     >>> except_as_no_raise_does_not_touch_target(TypeError)
     (1, 1)
     """
+    d = a  # mark used
+
     b = 1
     try:
         i = 1
@@ -291,7 +293,7 @@ def loop_over_unicode_literal():
     """
     # Py_UCS4 can represent any Unicode character
     for uchar in 'abcdefg':
-        pass
+        assert uchar in 'abcdefg'
     return cython.typeof(uchar)
 
 def list_comp():

@@ -190,3 +190,33 @@ def bytes_decode_unbound_method(bytes s, start=None, stop=None):
         return bytes.decode(s[start:], 'utf8')
     else:
         return bytes.decode(s[start:stop], 'utf8')
+
+
+@cython.test_assert_path_exists(
+    "//SimpleCallNode",
+    "//SimpleCallNode//NoneCheckNode",
+    "//SimpleCallNode//AttributeNode[@is_py_attr = false]")
+def bytes_join(bytes s, *args):
+    """
+    >>> print(bytes_join(b_a, b_b, b_b, b_b).decode('utf8'))
+    babab
+    """
+    result = s.join(args)
+    assert cython.typeof(result) == 'Python object', cython.typeof(result)
+    return result
+
+
+@cython.test_fail_if_path_exists(
+    "//SimpleCallNode//NoneCheckNode",
+)
+@cython.test_assert_path_exists(
+    "//SimpleCallNode",
+    "//SimpleCallNode//AttributeNode[@is_py_attr = false]")
+def literal_join(*args):
+    """
+    >>> print(literal_join(b_b, b_b, b_b, b_b).decode('utf8'))
+    b|b|b|b
+    """
+    result = b'|'.join(args)
+    assert cython.typeof(result) == 'Python object', cython.typeof(result)
+    return result

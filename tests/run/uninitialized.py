@@ -129,3 +129,51 @@ def test_class(cond):
         class A:
             x = 1
     return A.x
+
+
+def test_try_except_regression(c):
+    """
+    >>> test_try_except_regression(True)
+    (123,)
+    >>> test_try_except_regression(False)
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError: local variable 'a' referenced before assignment
+    """
+    if c:
+        a = (123,)
+    try:
+        return a
+    except:
+        return a
+
+
+def test_try_finally_regression(c):
+    """
+    >>> test_try_finally_regression(True)
+    (123,)
+    >>> test_try_finally_regression(False)
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError: local variable 'a' referenced before assignment
+    """
+    if c:
+        a = (123,)
+    try:
+        return a
+    finally:
+        return a
+
+
+def test_expression_calculation_order_bug(a):
+    """
+    >>> test_expression_calculation_order_bug(False)
+    []
+    >>> test_expression_calculation_order_bug(True)
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError: local variable 'b' referenced before assignment
+    """
+    if not a:
+        b = []
+    return (a or b) and (b or a)

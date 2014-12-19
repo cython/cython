@@ -175,6 +175,7 @@ def test_cdef_attribute():
     >>> test_cdef_attribute()
     Memoryview is not initialized
     local variable 'myview' referenced before assignment
+    local variable 'myview' referenced before assignment
     get_ext_obj called
     Memoryview is not initialized
     <MemoryView of 'array' object>
@@ -195,8 +196,11 @@ def test_cdef_attribute():
     else:
         print "No UnboundLocalError was raised"
 
-    # uninitialized assignment is valid
-    cdef int[:] otherview = myview
+    cdef int[:] otherview
+    try:
+         otherview = myview
+    except UnboundLocalError, e:
+        print e.args[0]
 
     try:
         print get_ext_obj().mview

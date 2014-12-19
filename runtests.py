@@ -58,6 +58,8 @@ except ImportError:
             self._dict[key] = value
         def __repr__(self):
             return repr(self._dict)
+        def __nonzero__(self):
+            return bool(self._dict)
 
 try:
     basestring
@@ -115,7 +117,14 @@ def update_linetrace_extension(ext):
 
 def update_numpy_extension(ext):
     import numpy
+    from numpy.distutils.misc_util import get_info
+
     ext.include_dirs.append(numpy.get_include())
+
+    # We need the npymath library for numpy.math.
+    # This is typically a static-only library.
+    for attr, value in get_info('npymath').items():
+        getattr(ext, attr).extend(value)
 
 def update_openmp_extension(ext):
     ext.openmp = True
@@ -198,6 +207,11 @@ EXT_EXTRAS = {
     'tag:trace':  update_linetrace_extension,
 }
 
+
+def _is_py3_before_32(excluded, version):
+    return version[0] >= 3 and version < (3,2)
+
+
 # TODO: use tags
 VER_DEP_MODULES = {
     # tests are excluded if 'CurrentPythonVersion OP VersionTuple', i.e.
@@ -216,6 +230,9 @@ VER_DEP_MODULES = {
                                           'run.relativeimport_star_T542',
                                           'run.initial_file_path',  # relative import
                                           'run.pynumber_subtype_conversion',  # bug in Py2.4
+                                          'build.cythonize_script',  # python2.4 -m a.b.c
+                                          'build.cythonize_script_excludes',  # python2.4 -m a.b.c
+                                          'build.cythonize_script_package',  # python2.4 -m a.b.c
                                           ]),
     (2,6) : (operator.lt, lambda x: x in ['run.print_function',
                                           'run.language_level', # print function
@@ -225,6 +242,10 @@ VER_DEP_MODULES = {
                                           'run.pure_py', # decorators, with statement
                                           'run.purecdef',
                                           'run.struct_conversion',
+                                          'run.bytearray_coercion',
+                                          'run.bytearraymethods',
+                                          'run.bytearray_ascii_auto_encoding',
+                                          'run.bytearray_default_auto_encoding',
                                           # memory views require buffer protocol
                                           'memoryview.relaxed_strides',
                                           'memoryview.cythonarray',
@@ -232,10 +253,12 @@ VER_DEP_MODULES = {
                                           'memoryview.numpy_memoryview',
                                           'memoryview.memoryviewattrs',
                                           'memoryview.memoryview',
+                                          'run.withstat_py',
                                           ]),
-    (2,7) : (operator.lt, lambda x: x in ['run.withstat_py', # multi context with statement
+    (2,7) : (operator.lt, lambda x: x in ['run.withstat_py27', # multi context with statement
                                           'run.yield_inside_lambda',
                                           'run.test_dictviews',
+                                          'run.pyclass_special_methods',
                                           ]),
     # The next line should start (3,); but this is a dictionary, so
     # we can only have one (3,) key.  Since 2.7 is supposed to be the
@@ -247,7 +270,14 @@ VER_DEP_MODULES = {
     (3,): (operator.ge, lambda x: x in ['run.non_future_division',
                                         'compile.extsetslice',
                                         'compile.extdelslice',
-                                        'run.special_methods_T561_py2']),
+                                        'run.special_methods_T561_py2'
+                                        ]),
+    (3,1): (_is_py3_before_32, lambda x: x in ['run.pyclass_special_methods',
+                                               ]),
+    (3,3) : (operator.lt, lambda x: x in ['build.package_compilation',
+                                          ]),
+    (3,4,0,'beta',3) : (operator.le, lambda x: x in ['run.py34_signature',
+                                          ]),
 }
 
 # files that should not be converted to Python 3 code with 2to3
@@ -266,6 +296,9 @@ TEST_SUPPORT_DIR = 'testsupport'
 
 BACKENDS = ['c', 'cpp']
 
+UTF8_BOM_BYTES = r'\xef\xbb\xbf'.encode('ISO-8859-1').decode('unicode_escape')
+
+
 def memoize(f):
     uncomputed = object()
     f._cache = {}
@@ -276,27 +309,51 @@ def memoize(f):
         return res
     return func
 
+
 @memoize
 def parse_tags(filepath):
     tags = defaultdict(list)
-    f = io_open(filepath, encoding='ISO-8859-1', errors='replace')
+    parse_tag = re.compile(r'#\s*(\w+)\s*:(.*)$').match
+    f = io_open(filepath, encoding='ISO-8859-1', errors='ignore')
     try:
         for line in f:
-            line = line.strip()
+            # ignore BOM-like bytes and whitespace
+            line = line.lstrip(UTF8_BOM_BYTES).strip()
             if not line:
-                continue
+                if tags:
+                    break  # assume all tags are in one block
+                else:
+                    continue
             if line[0] != '#':
                 break
-            ix = line.find(':')
-            if ix != -1:
-                tag = line[1:ix].strip()
-                values = line[ix+1:].split(',')
-                tags[tag].extend([value.strip() for value in values])
+            parsed = parse_tag(line)
+            if parsed:
+                tag, values = parsed.groups()
+                if tag in ('coding', 'encoding'):
+                    continue
+                if tag == 'tags':
+                    tag = 'tag'
+                    print("WARNING: test tags use the 'tag' directive, not 'tags' (%s)" % filepath)
+                if tag not in ('mode', 'tag', 'ticket', 'cython'):
+                    print("WARNING: unknown test directive '%s' found (%s)" % (tag, filepath))
+                values = values.split(',')
+                tags[tag].extend(filter(None, [value.strip() for value in values]))
+            elif tags:
+                break  # assume all tags are in one block
     finally:
         f.close()
     return tags
 
+
 list_unchanging_dir = memoize(lambda x: os.listdir(x))
+
+
+@memoize
+def _list_pyregr_data_files(test_directory):
+    is_data_file = re.compile('(?:[.](txt|pem|db|html)|^bad.*[.]py)$').search
+    return ['__init__.py'] + [
+        filename for filename in list_unchanging_dir(test_directory)
+        if is_data_file(filename)]
 
 
 def import_ext(module_name, file_path=None):
@@ -412,7 +469,10 @@ class TestBuilder(object):
                 continue
             if filename.startswith('.'):
                 continue # certain emacs backup files
-            tags = parse_tags(filepath)
+            if context == 'pyregr':
+                tags = defaultdict(list)
+            else:
+                tags = parse_tags(filepath)
             fqmodule = "%s.%s" % (context, module)
             if not [ 1 for match in self.selectors
                      if match(fqmodule, tags) ]:
@@ -468,21 +528,25 @@ class TestBuilder(object):
                 languages = self.languages[:1]
         else:
             languages = self.languages
+
         if 'cpp' in tags['tag'] and 'c' in languages:
             languages = list(languages)
             languages.remove('c')
-        tests = [ self.build_test(test_class, path, workdir, module,
+        elif 'no-cpp' in tags['tag'] and 'cpp' in self.languages:
+            languages = list(languages)
+            languages.remove('cpp')
+        tests = [ self.build_test(test_class, path, workdir, module, tags,
                                   language, expect_errors, warning_errors)
                   for language in languages ]
         return tests
 
-    def build_test(self, test_class, path, workdir, module,
+    def build_test(self, test_class, path, workdir, module, tags,
                    language, expect_errors, warning_errors):
         language_workdir = os.path.join(workdir, language)
         if not os.path.exists(language_workdir):
             os.makedirs(language_workdir)
         workdir = os.path.join(language_workdir, module)
-        return test_class(path, workdir, module,
+        return test_class(path, workdir, module, tags,
                           language=language,
                           expect_errors=expect_errors,
                           annotate=self.annotate,
@@ -495,11 +559,12 @@ class TestBuilder(object):
                           warning_errors=warning_errors)
 
 class CythonCompileTestCase(unittest.TestCase):
-    def __init__(self, test_directory, workdir, module, language='c',
+    def __init__(self, test_directory, workdir, module, tags, language='c',
                  expect_errors=False, annotate=False, cleanup_workdir=True,
                  cleanup_sharedlibs=True, cleanup_failures=True, cython_only=False,
                  fork=True, language_level=2, warning_errors=False):
         self.test_directory = test_directory
+        self.tags = tags
         self.workdir = workdir
         self.module = module
         self.language = language
@@ -521,10 +586,13 @@ class CythonCompileTestCase(unittest.TestCase):
         from Cython.Compiler import Options
         self._saved_options = [ (name, getattr(Options, name))
                                 for name in ('warning_errors',
+                                             'clear_to_none',
                                              'error_on_unknown_names',
                                              'error_on_uninitialized') ]
         self._saved_default_directives = Options.directive_defaults.items()
         Options.warning_errors = self.warning_errors
+        if sys.version_info >= (3, 4):
+            Options.directive_defaults['autotestdict'] = False
 
         if not os.path.exists(self.workdir):
             os.makedirs(self.workdir)
@@ -556,8 +624,8 @@ class CythonCompileTestCase(unittest.TestCase):
                 for rmfile in os.listdir(self.workdir):
                     if not cleanup_c_files:
                         if (rmfile[-2:] in (".c", ".h") or
-                            rmfile[-4:] == ".cpp" or
-                            rmfile.endswith(".html")):
+                                rmfile[-4:] == ".cpp" or
+                                rmfile.endswith(".html") and rmfile.startswith(self.module)):
                             continue
                     if not cleanup_lib_files and (rmfile.endswith(".so") or rmfile.endswith(".dll")):
                         continue
@@ -588,21 +656,29 @@ class CythonCompileTestCase(unittest.TestCase):
     def build_target_filename(self, module_name):
         target = '%s.%s' % (module_name, self.language)
         return target
-    
+
     def related_files(self, test_directory, module_name):
         is_related = re.compile('%s_.*[.].*' % module_name).match
         return [filename for filename in list_unchanging_dir(test_directory)
-            if is_related(filename)]
+                if is_related(filename)]
 
     def copy_files(self, test_directory, target_directory, file_list):
+        # use symlink on Unix, copy on Windows
+        try:
+            copy = os.symlink
+        except AttributeError:
+            copy = shutil.copy
+
+        join = os.path.join
         for filename in file_list:
-            shutil.copy(os.path.join(test_directory, filename),
-                        target_directory)
+            file_path = join(test_directory, filename)
+            if os.path.exists(file_path):
+                copy(file_path, join(target_directory, filename))
 
     def source_files(self, workdir, module_name, file_list):
         return ([self.build_target_filename(module_name)] +
             [filename for filename in file_list
-                if not os.path.isfile(os.path.join(workdir, filename))])
+             if not os.path.isfile(os.path.join(workdir, filename))])
 
     def split_source_and_output(self, test_directory, module, workdir):
         source_file = self.find_module_source_file(os.path.join(test_directory, module) + '.pyx')
@@ -662,12 +738,6 @@ class CythonCompileTestCase(unittest.TestCase):
 
     def run_distutils(self, test_directory, module, workdir, incdir,
                       extra_extension_args=None):
-        original_source = self.find_module_source_file(
-            os.path.join(test_directory, module + '.pyx'))
-        try:
-            tags = parse_tags(original_source)
-        except IOError:
-            tags = {}
         cwd = os.getcwd()
         os.chdir(workdir)
         try:
@@ -702,12 +772,13 @@ class CythonCompileTestCase(unittest.TestCase):
                 # Set the language now as the fixer might need it
                 extension.language = 'c++'
 
-            for matcher, fixer in EXT_EXTRAS.items():
+            for matcher, fixer in list(EXT_EXTRAS.items()):
                 if isinstance(matcher, str):
+                    # lazy init
                     del EXT_EXTRAS[matcher]
                     matcher = string_selector(matcher)
                     EXT_EXTRAS[matcher] = fixer
-                if matcher(module, tags):
+                if matcher(module, self.tags):
                     newext = fixer(extension)
                     if newext is EXCLUDE_EXT:
                         return
@@ -782,6 +853,11 @@ class CythonCompileTestCase(unittest.TestCase):
         return so_path
 
 class CythonRunTestCase(CythonCompileTestCase):
+    def setUp(self):
+        CythonCompileTestCase.setUp(self)
+        from Cython.Compiler import Options
+        Options.clear_to_none = False
+
     def shortDescription(self):
         if self.cython_only:
             return CythonCompileTestCase.shortDescription(self)
@@ -840,9 +916,10 @@ def run_forked_test(result, run_func, test_name, fork=True):
     child_id = os.fork()
     if not child_id:
         result_code = 0
+        output = None
         try:
             try:
-                tests = None
+                tests = partial_result = None
                 try:
                     partial_result = PartialTestResult(result)
                     run_func(partial_result)
@@ -850,21 +927,29 @@ def run_forked_test(result, run_func, test_name, fork=True):
                     sys.stderr.flush()
                     gc.collect()
                 except Exception:
-                    if tests is None:
-                        # importing failed, try to fake a test class
-                        tests = _FakeClass(
-                            failureException=sys.exc_info()[1],
-                            _shortDescription=test_name,
-                            module_name=None)
-                    partial_result.addError(tests, sys.exc_info())
                     result_code = 1
+                    if partial_result is not None:
+                        if tests is None:
+                            # importing failed, try to fake a test class
+                            tests = _FakeClass(
+                                failureException=sys.exc_info()[1],
+                                _shortDescription=test_name,
+                                module_name=None)
+                        partial_result.addError(tests, sys.exc_info())
                 output = open(result_file, 'wb')
                 pickle.dump(partial_result.data(), output)
             except:
                 traceback.print_exc()
         finally:
-            try: output.close()
+            try: sys.stderr.flush()
             except: pass
+            try: sys.stdout.flush()
+            except: pass
+            try:
+                if output is not None:
+                    output.close()
+            except:
+                pass
             os._exit(result_code)
 
     try:
@@ -996,6 +1081,9 @@ class CythonPyregrTestCase(CythonRunTestCase):
             binding=True, always_allow_keywords=True,
             set_initial_path="SOURCEFILE"))
         patch_inspect_isfunction()
+
+    def related_files(self, test_directory, module_name):
+        return _list_pyregr_data_files(test_directory)
 
     def _run_unittest(self, result, *classes):
         """Run tests from unittest.TestCase-derived classes."""
@@ -1626,13 +1714,13 @@ def main():
         _, return_code = runtests(options, cmd_args, coverage)
     print("ALL DONE")
 
-
     try:
         check_thread_termination(ignore_seen=False)
-        sys.exit(return_code)
     except PendingThreadsError:
         # normal program exit won't kill the threads, do it the hard way here
         flush_and_terminate(return_code)
+    else:
+        sys.exit(return_code)
 
 
 def runtests_callback(args):

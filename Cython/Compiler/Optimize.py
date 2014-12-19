@@ -19,6 +19,7 @@ from StringEncoding import EncodedString, BytesLiteral
 from Errors import error
 from ParseTreeTransforms import SkipDeclarations
 
+import copy
 import codecs
 
 try:
@@ -284,6 +285,29 @@ class IterationTransform(Visitor.EnvTransform):
         exception_value = '-1')
 
     def _transform_unicode_iteration(self, node, slice_node, reversed=False):
+        if slice_node.is_literal:
+            # try to reduce to byte iteration for plain Latin-1 strings
+            try:
+                bytes_value = BytesLiteral(slice_node.value.encode('latin1'))
+            except UnicodeEncodeError:
+                pass
+            else:
+                bytes_slice = ExprNodes.SliceIndexNode(
+                    slice_node.pos,
+                    base=ExprNodes.BytesNode(
+                        slice_node.pos, value=bytes_value,
+                        constant_result=bytes_value,
+                        type=PyrexTypes.c_char_ptr_type).coerce_to(
+                            PyrexTypes.c_uchar_ptr_type, self.current_env()),
+                    start=None,
+                    stop=ExprNodes.IntNode(
+                        slice_node.pos, value=str(len(bytes_value)),
+                        constant_result=len(bytes_value),
+                        type=PyrexTypes.c_py_ssize_t_type),
+                    type=Builtin.unicode_type,  # hint for Python conversion
+                )
+                return self._transform_carray_iteration(node, bytes_slice, reversed)
+
         unpack_temp_node = UtilNodes.LetRefNode(
             slice_node.as_none_safe_node("'NoneType' is not iterable"))
 
@@ -454,22 +478,32 @@ class IterationTransform(Visitor.EnvTransform):
         counter_temp = counter.ref(node.target.pos)
 
         if slice_base.type.is_string and node.target.type.is_pyobject:
-            # special case: char* -> bytes
-            target_value = ExprNodes.SliceIndexNode(
-                node.target.pos,
-                start=ExprNodes.IntNode(node.target.pos, value='0',
-                                        constant_result=0,
-                                        type=PyrexTypes.c_int_type),
-                stop=ExprNodes.IntNode(node.target.pos, value='1',
-                                       constant_result=1,
-                                       type=PyrexTypes.c_int_type),
-                base=counter_temp,
-                type=Builtin.bytes_type,
-                is_temp=1)
+            # special case: char* -> bytes/unicode
+            if slice_node.type is Builtin.unicode_type:
+                target_value = ExprNodes.CastNode(
+                    ExprNodes.DereferenceNode(
+                        node.target.pos, operand=counter_temp,
+                        type=ptr_type.base_type),
+                    PyrexTypes.c_py_ucs4_type).coerce_to(
+                        node.target.type, self.current_env())
+            else:
+                # char* -> bytes coercion requires slicing, not indexing
+                target_value = ExprNodes.SliceIndexNode(
+                    node.target.pos,
+                    start=ExprNodes.IntNode(node.target.pos, value='0',
+                                            constant_result=0,
+                                            type=PyrexTypes.c_int_type),
+                    stop=ExprNodes.IntNode(node.target.pos, value='1',
+                                           constant_result=1,
+                                           type=PyrexTypes.c_int_type),
+                    base=counter_temp,
+                    type=Builtin.bytes_type,
+                    is_temp=1)
         elif node.target.type.is_ptr and not node.target.type.assignable_from(ptr_type.base_type):
             # Allow iteration with pointer target to avoid copy.
             target_value = counter_temp
         else:
+            # TODO: can this safely be replaced with DereferenceNode() as above?
             target_value = ExprNodes.IndexNode(
                 node.target.pos,
                 index=ExprNodes.IntNode(node.target.pos, value='0',
@@ -1020,9 +1054,8 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
 
         args = node.operand2.args
         if len(args) == 0:
-            constant_result = node.operator == 'not_in'
-            return ExprNodes.BoolNode(pos = node.pos, value = constant_result,
-                                      constant_result = constant_result)
+            # note: lhs may have side effects
+            return node
 
         lhs = UtilNodes.ResultRefNode(node.operand1)
 
@@ -1521,8 +1554,11 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         """Replace min(a,b,...) and max(a,b,...) by explicit comparison code.
         """
         if len(args) <= 1:
-            # leave this to Python
-            return node
+            if len(args) == 1 and args[0].is_sequence_constructor:
+                args = args[0].args
+            else:
+                # leave this to Python
+                return node
 
         cascaded_nodes = list(map(UtilNodes.ResultRefNode, args[1:]))
 
@@ -1756,12 +1792,17 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
                 return arg.coerce_to(node.type, self.current_env())
         if isinstance(arg, ExprNodes.PyTypeTestNode):
             arg = arg.arg
-        if isinstance(arg, ExprNodes.CoerceToPyTypeNode):
+        if arg.is_literal:
+            if (node.type.is_int and isinstance(arg, ExprNodes.IntNode) or
+                    node.type.is_float and isinstance(arg, ExprNodes.FloatNode) or
+                    node.type.is_int and isinstance(arg, ExprNodes.BoolNode)):
+                return arg.coerce_to(node.type, self.current_env())
+        elif isinstance(arg, ExprNodes.CoerceToPyTypeNode):
             if arg.type is PyrexTypes.py_object_type:
                 if node.type.assignable_from(arg.arg.type):
                     # completely redundant C->Py->C coercion
                     return arg.arg.coerce_to(node.type, self.current_env())
-        if isinstance(arg, ExprNodes.SimpleCallNode):
+        elif isinstance(arg, ExprNodes.SimpleCallNode):
             if node.type.is_int or node.type.is_float:
                 return self._optimise_numeric_cast_call(node, arg)
         elif isinstance(arg, ExprNodes.IndexNode) and not arg.is_buffer_access:
@@ -1852,6 +1893,52 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             expected_str = ''
         error(node.pos, "%s(%s) called with wrong number of args, %sfound %d" % (
             function_name, arg_str, expected_str, len(args)))
+
+    ### generic fallbacks
+
+    def _handle_function(self, node, function_name, function, arg_list, kwargs):
+        return node
+
+    def _handle_method(self, node, type_name, attr_name, function,
+                       arg_list, is_unbound_method, kwargs):
+        """
+        Try to inject C-API calls for unbound method calls to builtin types.
+        While the method declarations in Builtin.py already handle this, we
+        can additionally resolve bound and unbound methods here that were
+        assigned to variables ahead of time.
+        """
+        if kwargs:
+            return node
+        if not function or not function.is_attribute or not function.obj.is_name:
+            # cannot track unbound method calls over more than one indirection as
+            # the names might have been reassigned in the meantime
+            return node
+        type_entry = self.current_env().lookup(type_name)
+        if not type_entry:
+            return node
+        method = ExprNodes.AttributeNode(
+            node.function.pos,
+            obj=ExprNodes.NameNode(
+                function.pos,
+                name=type_name,
+                entry=type_entry,
+                type=type_entry.type),
+            attribute=attr_name,
+            is_called=True).analyse_as_unbound_cmethod_node(self.current_env())
+        if method is None:
+            return node
+        args = node.args
+        if args is None and node.arg_tuple:
+            args = node.arg_tuple.args
+        call_node = ExprNodes.SimpleCallNode(
+            node.pos,
+            function=method,
+            args=args)
+        if not is_unbound_method:
+            call_node.self = function.obj
+        call_node.analyse_c_function_call(self.current_env())
+        call_node.analysed = True
+        return call_node.coerce_to(node.type, self.current_env())
 
     ### builtin types
 
@@ -1955,6 +2042,28 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             is_temp = node.is_temp,
             utility_code = load_c_utility('pyobject_as_double'),
             py_name = "float")
+
+    PyNumber_Int_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("o", PyrexTypes.py_object_type, None)
+            ])
+
+    def _handle_simple_function_int(self, node, function, pos_args):
+        """Transform int() into a faster C function call.
+        """
+        if len(pos_args) == 0:
+            return ExprNodes.IntNode(node, value="0", constant_result=0,
+                                     type=PyrexTypes.py_object_type)
+        elif len(pos_args) != 1:
+            return node  # int(x, base)
+        func_arg = pos_args[0]
+        if isinstance(func_arg, ExprNodes.CoerceToPyTypeNode):
+            return node  # handled in visit_CoerceFromPyTypeNode()
+        if func_arg.type.is_pyobject and node.type.is_pyobject:
+            return ExprNodes.PythonCapiCallNode(
+                node.pos, "PyNumber_Int", self.PyNumber_Int_func_type,
+                args=pos_args, is_temp=True)
+        return node
 
     def _handle_simple_function_bool(self, node, function, pos_args):
         """Transform bool(x) into a type coercion to a boolean.
@@ -2081,7 +2190,8 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         temp = None
         if isinstance(types, ExprNodes.TupleNode):
             types = types.args
-            arg = temp = UtilNodes.ResultRefNode(arg)
+            if arg.is_attribute or not arg.is_simple():
+                arg = temp = UtilNodes.ResultRefNode(arg)
         elif types.type is Builtin.type_type:
             types = [types]
         else:
@@ -2145,15 +2255,15 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         elif isinstance(arg, ExprNodes.UnicodeNode):
             if len(arg.value) == 1:
                 return ExprNodes.IntNode(
-                    ord(arg.value), type=PyrexTypes.c_int_type,
+                    arg.pos, type=PyrexTypes.c_int_type,
                     value=str(ord(arg.value)),
                     constant_result=ord(arg.value)
                     ).coerce_to(node.type, self.current_env())
         elif isinstance(arg, ExprNodes.StringNode):
             if arg.unicode_value and len(arg.unicode_value) == 1 \
-                   and ord(arg.unicode_value) <= 255: # Py2/3 portability
+                    and ord(arg.unicode_value) <= 255:  # Py2/3 portability
                 return ExprNodes.IntNode(
-                    ord(arg.unicode_value), type=PyrexTypes.c_int_type,
+                    arg.pos, type=PyrexTypes.c_int_type,
                     value=str(ord(arg.unicode_value)),
                     constant_result=ord(arg.unicode_value)
                     ).coerce_to(node.type, self.current_env())
@@ -2251,25 +2361,74 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
     ### methods of builtin types
 
     PyObject_Append_func_type = PyrexTypes.CFuncType(
-        PyrexTypes.py_object_type, [
+        PyrexTypes.c_returncode_type, [
             PyrexTypes.CFuncTypeArg("list", PyrexTypes.py_object_type, None),
             PyrexTypes.CFuncTypeArg("item", PyrexTypes.py_object_type, None),
-            ])
+            ],
+        exception_value="-1")
 
     def _handle_simple_method_object_append(self, node, function, args, is_unbound_method):
         """Optimistic optimisation as X.append() is almost always
         referring to a list.
         """
-        if len(args) != 2:
+        if len(args) != 2 or node.result_is_used:
             return node
 
         return ExprNodes.PythonCapiCallNode(
             node.pos, "__Pyx_PyObject_Append", self.PyObject_Append_func_type,
-            args = args,
-            may_return_none = True,
-            is_temp = node.is_temp,
-            utility_code = load_c_utility('append')
-            )
+            args=args,
+            may_return_none=False,
+            is_temp=node.is_temp,
+            result_is_used=False,
+            utility_code=load_c_utility('append')
+        )
+
+    PyByteArray_Append_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_returncode_type, [
+            PyrexTypes.CFuncTypeArg("bytearray", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("value", PyrexTypes.c_int_type, None),
+            ],
+        exception_value="-1")
+
+    PyByteArray_AppendObject_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_returncode_type, [
+            PyrexTypes.CFuncTypeArg("bytearray", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("value", PyrexTypes.py_object_type, None),
+            ],
+        exception_value="-1")
+
+    def _handle_simple_method_bytearray_append(self, node, function, args, is_unbound_method):
+        if len(args) != 2:
+            return node
+        func_name = "__Pyx_PyByteArray_Append"
+        func_type = self.PyByteArray_Append_func_type
+
+        value = unwrap_coerced_node(args[1])
+        if value.type.is_int:
+            value = value.coerce_to(PyrexTypes.c_int_type, self.current_env())
+            utility_code = UtilityCode.load_cached("ByteArrayAppend", "StringTools.c")
+        elif value.is_string_literal:
+            if not value.can_coerce_to_char_literal():
+                return node
+            value = value.coerce_to(PyrexTypes.c_char_type, self.current_env())
+            utility_code = UtilityCode.load_cached("ByteArrayAppend", "StringTools.c")
+        elif value.type.is_pyobject:
+            func_name = "__Pyx_PyByteArray_AppendObject"
+            func_type = self.PyByteArray_AppendObject_func_type
+            utility_code = UtilityCode.load_cached("ByteArrayAppendObject", "StringTools.c")
+        else:
+            return node
+
+        new_node = ExprNodes.PythonCapiCallNode(
+            node.pos, func_name, func_type,
+            args=[args[0], value],
+            may_return_none=False,
+            is_temp=node.is_temp,
+            utility_code=utility_code,
+        )
+        if node.result_is_used:
+            new_node = new_node.coerce_to(node.type, self.current_env())
+        return new_node
 
     PyObject_Pop_func_type = PyrexTypes.CFuncType(
         PyrexTypes.py_object_type, [
@@ -2282,41 +2441,53 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             PyrexTypes.CFuncTypeArg("index", PyrexTypes.c_long_type, None),
             ])
 
-    def _handle_simple_method_object_pop(self, node, function, args, is_unbound_method):
+    def _handle_simple_method_list_pop(self, node, function, args, is_unbound_method):
+        return self._handle_simple_method_object_pop(
+            node, function, args, is_unbound_method, is_list=True)
+
+    def _handle_simple_method_object_pop(self, node, function, args, is_unbound_method, is_list=False):
         """Optimistic optimisation as X.pop([n]) is almost always
         referring to a list.
         """
+        if not args:
+            return node
+        args = args[:]
+        if is_list:
+            type_name = 'List'
+            args[0] = args[0].as_none_safe_node(
+                "'NoneType' object has no attribute '%s'",
+                error="PyExc_AttributeError",
+                format_args=['pop'])
+        else:
+            type_name = 'Object'
         if len(args) == 1:
             return ExprNodes.PythonCapiCallNode(
-                node.pos, "__Pyx_PyObject_Pop", self.PyObject_Pop_func_type,
-                args = args,
-                may_return_none = True,
-                is_temp = node.is_temp,
-                utility_code = load_c_utility('pop')
-                )
+                node.pos, "__Pyx_Py%s_Pop" % type_name,
+                self.PyObject_Pop_func_type,
+                args=args,
+                may_return_none=True,
+                is_temp=node.is_temp,
+                utility_code=load_c_utility('pop'),
+            )
         elif len(args) == 2:
-            index = args[1]
-            if isinstance(index, ExprNodes.CoerceToPyTypeNode):
-                index = index.arg
-            if isinstance(index, ExprNodes.IntNode):
-                index = index.coerce_to(PyrexTypes.c_py_ssize_t_type, None)
+            index = unwrap_coerced_node(args[1])
+            if is_list or isinstance(index, ExprNodes.IntNode):
+                index = index.coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
             if index.type.is_int:
                 widest = PyrexTypes.widest_numeric_type(
                     index.type, PyrexTypes.c_py_ssize_t_type)
                 if widest == PyrexTypes.c_py_ssize_t_type:
                     args[1] = index
                     return ExprNodes.PythonCapiCallNode(
-                        node.pos, "__Pyx_PyObject_PopIndex",
+                        node.pos, "__Pyx_Py%s_PopIndex" % type_name,
                         self.PyObject_PopIndex_func_type,
-                        args = args,
-                        may_return_none = True,
-                        is_temp = node.is_temp,
-                        utility_code = load_c_utility("pop_index")
-                        )
+                        args=args,
+                        may_return_none=True,
+                        is_temp=node.is_temp,
+                        utility_code=load_c_utility("pop_index"),
+                    )
 
         return node
-
-    _handle_simple_method_list_pop = _handle_simple_method_object_pop
 
     single_param_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_returncode_type, [
@@ -2381,7 +2552,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         else:
             is_safe_type = 0   # definitely not
         args.append(ExprNodes.IntNode(
-            node.pos, value=is_safe_type, constant_result=is_safe_type))
+            node.pos, value=str(is_safe_type), constant_result=is_safe_type))
 
         return self._substitute_method_call(
             node, function,
@@ -2675,7 +2846,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             return node
         encoding, encoding_node, error_handling, error_handling_node = parameters
 
-        if isinstance(string_node, ExprNodes.UnicodeNode):
+        if encoding and isinstance(string_node, ExprNodes.UnicodeNode):
             # constant, so try to do the encoding at compile time
             try:
                 value = string_node.value.encode(encoding, error_handling)
@@ -2688,7 +2859,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
                 return ExprNodes.BytesNode(
                     string_node.pos, value=value, type=Builtin.bytes_type)
 
-        if error_handling == 'strict':
+        if encoding and error_handling == 'strict':
             # try to find a specific encoder function
             codec_name = self._find_special_codec_name(encoding)
             if codec_name is not None:
@@ -2731,7 +2902,7 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             PyrexTypes.CFuncTypeArg("decode_func", PyUnicode_DecodeXyz_func_ptr_type, None),
             ])
 
-    _decode_cpp_string_func_type = None # lazy init
+    _decode_cpp_string_func_type = None  # lazy init
 
     def _handle_simple_method_bytes_decode(self, node, function, args, is_unbound_method):
         """Replace char*.decode() by a direct C-API call to the
@@ -2754,16 +2925,16 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
             string_node = string_node.arg
 
         string_type = string_node.type
-        if string_type is Builtin.bytes_type:
+        if string_type in (Builtin.bytes_type, Builtin.bytearray_type):
             if is_unbound_method:
                 string_node = string_node.as_none_safe_node(
                     "descriptor '%s' requires a '%s' object but received a 'NoneType'",
-                    format_args = ['decode', 'bytes'])
+                    format_args=['decode', string_type.name])
             else:
                 string_node = string_node.as_none_safe_node(
                     "'NoneType' object has no attribute '%s'",
-                    error = "PyExc_AttributeError",
-                    format_args = ['decode'])
+                    error="PyExc_AttributeError",
+                    format_args=['decode'])
         elif not string_type.is_string and not string_type.is_cpp_string:
             # nothing to optimise here
             return node
@@ -2803,10 +2974,10 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
                     temps.append(string_node)
                 stop = ExprNodes.PythonCapiCallNode(
                     string_node.pos, "strlen", self.Pyx_strlen_func_type,
-                    args = [string_node],
-                    is_temp = False,
-                    utility_code = UtilityCode.load_cached("IncludeStringH", "StringTools.c"),
-                    ).coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
+                    args=[string_node],
+                    is_temp=False,
+                    utility_code=UtilityCode.load_cached("IncludeStringH", "StringTools.c"),
+                ).coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
             helper_func_type = self._decode_c_string_func_type
             utility_code_name = 'decode_c_string'
         elif string_type.is_cpp_string:
@@ -2824,38 +2995,43 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
                         PyrexTypes.CFuncTypeArg("encoding", PyrexTypes.c_char_ptr_type, None),
                         PyrexTypes.CFuncTypeArg("errors", PyrexTypes.c_char_ptr_type, None),
                         PyrexTypes.CFuncTypeArg("decode_func", self.PyUnicode_DecodeXyz_func_ptr_type, None),
-                        ])
+                    ])
             helper_func_type = self._decode_cpp_string_func_type
             utility_code_name = 'decode_cpp_string'
         else:
-            # Python bytes object
+            # Python bytes/bytearray object
             if not stop:
                 stop = ExprNodes.IntNode(node.pos, value='PY_SSIZE_T_MAX',
                                          constant_result=ExprNodes.not_a_constant)
             helper_func_type = self._decode_bytes_func_type
-            utility_code_name = 'decode_bytes'
+            if string_type is Builtin.bytes_type:
+                utility_code_name = 'decode_bytes'
+            else:
+                utility_code_name = 'decode_bytearray'
 
         node = ExprNodes.PythonCapiCallNode(
             node.pos, '__Pyx_%s' % utility_code_name, helper_func_type,
-            args = [string_node, start, stop, encoding_node, error_handling_node, decode_function],
-            is_temp = node.is_temp,
+            args=[string_node, start, stop, encoding_node, error_handling_node, decode_function],
+            is_temp=node.is_temp,
             utility_code=UtilityCode.load_cached(utility_code_name, 'StringTools.c'),
-            )
+        )
 
         for temp in temps[::-1]:
             node = UtilNodes.EvalWithTempExprNode(temp, node)
         return node
 
+    _handle_simple_method_bytearray_decode = _handle_simple_method_bytes_decode
+
     def _find_special_codec_name(self, encoding):
         try:
             requested_codec = codecs.getencoder(encoding)
-        except:
+        except LookupError:
             return None
         for name, codec in self._special_codecs:
             if codec == requested_codec:
                 if '_' in name:
-                    name = ''.join([ s.capitalize()
-                                     for s in name.split('_')])
+                    name = ''.join([s.capitalize()
+                                    for s in name.split('_')])
                 return name
         return None
 
@@ -2922,6 +3098,18 @@ class OptimizeBuiltinCalls(Visitor.MethodDispatcherTransform):
         return self._inject_tailmatch(
             node, function, args, is_unbound_method, 'bytes', 'startswith',
             bytes_tailmatch_utility_code, -1)
+
+    '''   # disabled for now, enable when we consider it worth it (see StringTools.c)
+    def _handle_simple_method_bytearray_endswith(self, node, function, args, is_unbound_method):
+        return self._inject_tailmatch(
+            node, function, args, is_unbound_method, 'bytearray', 'endswith',
+            bytes_tailmatch_utility_code, +1)
+
+    def _handle_simple_method_bytearray_startswith(self, node, function, args, is_unbound_method):
+        return self._inject_tailmatch(
+            node, function, args, is_unbound_method, 'bytearray', 'startswith',
+            bytes_tailmatch_utility_code, -1)
+    '''
 
     ### helpers
 
@@ -3043,19 +3231,24 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         except ValueError:
             return None
 
+    def _bool_node(self, node, value):
+        value = bool(value)
+        return ExprNodes.BoolNode(node.pos, value=value, constant_result=value)
+
     def visit_ExprNode(self, node):
         self._calculate_const(node)
         return node
 
     def visit_UnopNode(self, node):
         self._calculate_const(node)
-        if node.constant_result is ExprNodes.not_a_constant:
+        if not node.has_constant_result():
+            if node.operator == '!':
+                return self._handle_NotNode(node)
             return node
         if not node.operand.is_literal:
             return node
         if node.operator == '!':
-            return ExprNodes.BoolNode(node.pos, value=bool(node.constant_result),
-                                      constant_result=bool(node.constant_result))
+            return self._bool_node(node, node.constant_result)
         elif isinstance(node.operand, ExprNodes.BoolNode):
             return ExprNodes.IntNode(node.pos, value=str(int(node.constant_result)),
                                      type=PyrexTypes.c_int_type,
@@ -3066,6 +3259,23 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             return self._handle_UnaryMinusNode(node)
         return node
 
+    _negate_operator = {
+        'in': 'not_in',
+        'not_in': 'in',
+        'is': 'is_not',
+        'is_not': 'is'
+    }.get
+
+    def _handle_NotNode(self, node):
+        operand = node.operand
+        if isinstance(operand, ExprNodes.PrimaryCmpNode):
+            operator = self._negate_operator(operand.operator)
+            if operator:
+                node = copy.copy(operand)
+                node.operator = operator
+                node = self.visit_PrimaryCmpNode(node)
+        return node
+
     def _handle_UnaryMinusNode(self, node):
         def _negate(value):
             if value.startswith('-'):
@@ -3074,11 +3284,12 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 value = '-' + value
             return value
 
+        node_type = node.operand.type
         if isinstance(node.operand, ExprNodes.FloatNode):
             # this is a safe operation
             return ExprNodes.FloatNode(node.pos, value=_negate(node.operand.value),
+                                       type=node_type,
                                        constant_result=node.constant_result)
-        node_type = node.operand.type
         if node_type.is_int and node_type.signed or \
                 isinstance(node.operand, ExprNodes.IntNode) and node_type.is_pyobject:
             return ExprNodes.IntNode(node.pos, value=_negate(node.operand.value),
@@ -3088,15 +3299,16 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         return node
 
     def _handle_UnaryPlusNode(self, node):
-        if node.constant_result == node.operand.constant_result:
+        if (node.operand.has_constant_result() and
+                    node.constant_result == node.operand.constant_result):
             return node.operand
         return node
 
     def visit_BoolBinopNode(self, node):
         self._calculate_const(node)
-        if node.operand1.constant_result is ExprNodes.not_a_constant:
+        if not node.operand1.has_constant_result():
             return node
-        elif node.operand1.constant_result:
+        if node.operand1.constant_result:
             if node.operator == 'and':
                 return node.operand2
             else:
@@ -3133,10 +3345,10 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         target_class = self._widest_node_class(operand1, operand2)
         if target_class is None:
             return node
-        if target_class is ExprNodes.BoolNode and node.operator in '+-//<<%**>>':
+        elif target_class is ExprNodes.BoolNode and node.operator in '+-//<<%**>>':
             # C arithmetic results in at least an int type
             target_class = ExprNodes.IntNode
-        if target_class is ExprNodes.CharNode and node.operator in '+-//<<%**>>&|^':
+        elif target_class is ExprNodes.CharNode and node.operator in '+-//<<%**>>&|^':
             # C arithmetic results in at least an int type
             target_class = ExprNodes.IntNode
 
@@ -3166,39 +3378,118 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         return new_node
 
     def visit_MulNode(self, node):
-        if isinstance(node.operand1, (ExprNodes.ListNode, ExprNodes.TupleNode)):
-            sequence_node = node.operand1
-            factor = node.operand2
-            self._calculate_const(factor)
-            if factor.constant_result != 1:
-                sequence_node.mult_factor = factor
-            self.visitchildren(sequence_node)
-            return sequence_node
+        self._calculate_const(node)
+        if node.operand1.is_sequence_constructor:
+            return self._calculate_constant_seq(node, node.operand1, node.operand2)
         if isinstance(node.operand1, ExprNodes.IntNode) and \
-               isinstance(node.operand2, (ExprNodes.ListNode, ExprNodes.TupleNode)):
-            sequence_node = node.operand2
-            factor = node.operand1
-            self._calculate_const(factor)
-            if factor.constant_result != 1:
-                sequence_node.mult_factor = factor
-            self.visitchildren(sequence_node)
-            return sequence_node
+                node.operand2.is_sequence_constructor:
+            return self._calculate_constant_seq(node, node.operand2, node.operand1)
         return self.visit_BinopNode(node)
 
+    def _calculate_constant_seq(self, node, sequence_node, factor):
+        if factor.constant_result != 1 and sequence_node.args:
+            if isinstance(factor.constant_result, (int, long)) and factor.constant_result <= 0:
+                del sequence_node.args[:]
+                sequence_node.mult_factor = None
+            elif sequence_node.mult_factor is not None:
+                if (isinstance(factor.constant_result, (int, long)) and
+                        isinstance(sequence_node.mult_factor.constant_result, (int, long))):
+                    value = sequence_node.mult_factor.constant_result * factor.constant_result
+                    sequence_node.mult_factor = ExprNodes.IntNode(
+                        sequence_node.mult_factor.pos,
+                        value=str(value), constant_result=value)
+                else:
+                    # don't know if we can combine the factors, so don't
+                    return self.visit_BinopNode(node)
+            else:
+                sequence_node.mult_factor = factor
+        return sequence_node
+
     def visit_PrimaryCmpNode(self, node):
-        self._calculate_const(node)
-        if node.constant_result is not ExprNodes.not_a_constant:
-            bool_result = bool(node.constant_result)
-            return ExprNodes.BoolNode(node.pos, value=bool_result,
-                                      constant_result=bool_result)
-        if node.operator in ('in', 'not_in') and not node.cascade:
-            if isinstance(node.operand2, ExprNodes.ListNode):
-                node.operand2 = node.operand2.as_tuple()
+        # calculate constant partial results in the comparison cascade
+        self.visitchildren(node, ['operand1'])
+        left_node = node.operand1
+        cmp_node = node
+        while cmp_node is not None:
+            self.visitchildren(cmp_node, ['operand2'])
+            right_node = cmp_node.operand2
+            cmp_node.constant_result = not_a_constant
+            if left_node.has_constant_result() and right_node.has_constant_result():
+                try:
+                    cmp_node.calculate_cascaded_constant_result(left_node.constant_result)
+                except (ValueError, TypeError, KeyError, IndexError, AttributeError, ArithmeticError):
+                    pass  # ignore all 'normal' errors here => no constant result
+            left_node = right_node
+            cmp_node = cmp_node.cascade
+
+        if not node.cascade:
+            if node.has_constant_result():
+                return self._bool_node(node, node.constant_result)
+            return node
+
+        # collect partial cascades: [[value, CmpNode...], [value, CmpNode, ...], ...]
+        cascades = [[node.operand1]]
+        final_false_result = []
+
+        def split_cascades(cmp_node):
+            if cmp_node.has_constant_result():
+                if not cmp_node.constant_result:
+                    # False => short-circuit
+                    final_false_result.append(self._bool_node(cmp_node, False))
+                    return
+                else:
+                    # True => discard and start new cascade
+                    cascades.append([cmp_node.operand2])
+            else:
+                # not constant => append to current cascade
+                cascades[-1].append(cmp_node)
+            if cmp_node.cascade:
+                split_cascades(cmp_node.cascade)
+
+        split_cascades(node)
+
+        cmp_nodes = []
+        for cascade in cascades:
+            if len(cascade) < 2:
+                continue
+            cmp_node = cascade[1]
+            pcmp_node = ExprNodes.PrimaryCmpNode(
+                cmp_node.pos,
+                operand1=cascade[0],
+                operator=cmp_node.operator,
+                operand2=cmp_node.operand2,
+                constant_result=not_a_constant)
+            cmp_nodes.append(pcmp_node)
+
+            last_cmp_node = pcmp_node
+            for cmp_node in cascade[2:]:
+                last_cmp_node.cascade = cmp_node
+                last_cmp_node = cmp_node
+            last_cmp_node.cascade = None
+
+        if final_false_result:
+            # last cascade was constant False
+            cmp_nodes.append(final_false_result[0])
+        elif not cmp_nodes:
+            # only constants, but no False result
+            return self._bool_node(node, True)
+        node = cmp_nodes[0]
+        if len(cmp_nodes) == 1:
+            if node.has_constant_result():
+                return self._bool_node(node, node.constant_result)
+        else:
+            for cmp_node in cmp_nodes[1:]:
+                node = ExprNodes.BoolBinopNode(
+                    node.pos,
+                    operand1=node,
+                    operator='and',
+                    operand2=cmp_node,
+                    constant_result=not_a_constant)
         return node
 
     def visit_CondExprNode(self, node):
         self._calculate_const(node)
-        if node.test.constant_result is ExprNodes.not_a_constant:
+        if not node.test.has_constant_result():
             return node
         if node.test.constant_result:
             return node.true_val
@@ -3210,17 +3501,16 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         # eliminate dead code based on constant condition results
         if_clauses = []
         for if_clause in node.if_clauses:
-            condition_result = if_clause.get_constant_condition_result()
-            if condition_result is None:
+            condition = if_clause.condition
+            if condition.has_constant_result():
+                if condition.constant_result:
+                    # always true => subsequent clauses can safely be dropped
+                    node.else_clause = if_clause.body
+                    break
+                # else: false => drop clause
+            else:
                 # unknown result => normal runtime evaluation
                 if_clauses.append(if_clause)
-            elif condition_result == True:
-                # subsequent clauses can safely be dropped
-                node.else_clause = if_clause.body
-                break
-            else:
-                # False clauses can safely be deleted
-                assert condition_result == False
         if if_clauses:
             node.if_clauses = if_clauses
             return node
@@ -3243,7 +3533,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         # cut down sliced constant sequences
         if node.constant_result is not not_a_constant:
             base = node.base
-            if base.is_sequence_constructor:
+            if base.is_sequence_constructor and base.mult_factor is None:
                 base.args = base.args[start:stop]
                 return base
             elif base.is_string_literal:
@@ -3257,11 +3547,14 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         if isinstance(node.loop, Nodes.StatListNode) and not node.loop.stats:
             # loop was pruned already => transform into literal
             if node.type is Builtin.list_type:
-                return ExprNodes.ListNode(node.pos, args=[])
+                return ExprNodes.ListNode(
+                    node.pos, args=[], constant_result=[])
             elif node.type is Builtin.set_type:
-                return ExprNodes.SetNode(node.pos, args=[])
+                return ExprNodes.SetNode(
+                    node.pos, args=[], constant_result=set())
             elif node.type is Builtin.dict_type:
-                return ExprNodes.DictNode(node.pos, key_value_pairs=[])
+                return ExprNodes.DictNode(
+                    node.pos, key_value_pairs=[], constant_result={})
         return node
 
     def visit_ForInStatNode(self, node):
@@ -3281,22 +3574,23 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
     def visit_WhileStatNode(self, node):
         self.visitchildren(node)
-        if node.condition.has_constant_result():
+        if node.condition and node.condition.has_constant_result():
             if node.condition.constant_result:
+                node.condition = None
                 node.else_clause = None
             else:
                 return node.else_clause
         return node
 
-    def _find_genexpr_yield_stat(self, node):
-        body_node_types = (Nodes.ForInStatNode, Nodes.IfStatNode)
-        while isinstance(node, body_node_types):
-            node = node.body
-        if isinstance(node, Nodes.ExprStatNode):
-            expr = node.expr
-            if isinstance(expr, ExprNodes.YieldExprNode):
-                return node
-        return None
+    def visit_ExprStatNode(self, node):
+        self.visitchildren(node)
+        if not isinstance(node.expr, ExprNodes.ExprNode):
+            # ParallelRangeTransform does this ...
+            return node
+        # drop unused constant expressions
+        if node.expr.has_constant_result():
+            return None
+        return node
 
     # in the future, other nodes can have their own handler method here
     # that can replace them with a constant result node
@@ -3330,7 +3624,7 @@ class FinalOptimizePhase(Visitor.CythonTransform):
         """
         self.visitchildren(node)
         if node.function.type.is_cfunction and isinstance(node.function, ExprNodes.NameNode):
-            if node.function.name == 'isinstance':
+            if node.function.name == 'isinstance' and len(node.args) == 2:
                 type_arg = node.args[1]
                 if type_arg.type.is_builtin_type and type_arg.type.name == 'type':
                     cython_scope = self.context.cython_scope

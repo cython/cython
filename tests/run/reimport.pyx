@@ -1,5 +1,5 @@
 # mode: run
-# tags: import
+# tag: import
 
 # reimports at module init time used to be a problem in Py3
 import reimport

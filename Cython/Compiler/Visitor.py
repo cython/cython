@@ -4,14 +4,16 @@
 #   Tree visitor and transform framework
 #
 import inspect
-import TypeSlots
-import Builtin
-import Nodes
-import ExprNodes
-import Errors
-import DebugFlags
+
+from Cython.Compiler import TypeSlots
+from Cython.Compiler import Builtin
+from Cython.Compiler import Nodes
+from Cython.Compiler import ExprNodes
+from Cython.Compiler import Errors
+from Cython.Compiler import DebugFlags
 
 import cython
+
 
 class TreeVisitor(object):
     """
@@ -62,7 +64,7 @@ class TreeVisitor(object):
         self.access_path = []
 
     def dump_node(self, node, indent=0):
-        ignored = list(node.child_attrs) + [u'child_attrs', u'pos',
+        ignored = list(node.child_attrs or []) + [u'child_attrs', u'pos',
                                             u'gil_message', u'cpp_message',
                                             u'subexprs']
         values = []
@@ -580,7 +582,7 @@ class MethodDispatcherTransform(EnvTransform):
             function_handler = self._find_handler(
                 "function_%s" % function.name, kwargs)
             if function_handler is None:
-                return node
+                return self._handle_function(node, function.name, function, arg_list, kwargs)
             if kwargs:
                 return function_handler(node, function, arg_list, kwargs)
             else:
@@ -619,7 +621,9 @@ class MethodDispatcherTransform(EnvTransform):
                 method_handler = self._find_handler(
                     "slot%s" % attr_name, kwargs)
             if method_handler is None:
-                return node
+                return self._handle_method(
+                    node, type_name, attr_name, function,
+                    arg_list, is_unbound_method, kwargs)
         if self_arg is not None:
             arg_list = [self_arg] + list(arg_list)
         if kwargs:
@@ -628,6 +632,15 @@ class MethodDispatcherTransform(EnvTransform):
         else:
             return method_handler(
                 node, function, arg_list, is_unbound_method)
+
+    def _handle_function(self, node, function_name, function, arg_list, kwargs):
+        """Fallback handler"""
+        return node
+
+    def _handle_method(self, node, type_name, attr_name, function,
+                       arg_list, is_unbound_method, kwargs):
+        """Fallback handler"""
+        return node
 
 
 class RecursiveNodeReplacer(VisitorTransform):

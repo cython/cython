@@ -35,6 +35,7 @@ cdef class NameAssignment:
     cdef public object pos
     cdef public set refs
     cdef public object bit
+    cdef public object inferred_type
 
 cdef class AssignmentList:
     cdef public object bit

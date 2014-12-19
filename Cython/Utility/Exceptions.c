@@ -155,28 +155,45 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
         value = type;
         type = (PyObject*) Py_TYPE(value);
     } else if (PyExceptionClass_Check(type)) {
-        // instantiate the type now (we don't know when and how it will be caught)
-        PyObject *args;
-        if (!value)
-            args = PyTuple_New(0);
-        else if (PyTuple_Check(value)) {
-            Py_INCREF(value);
-            args = value;
-        } else
-            args = PyTuple_Pack(1, value);
-        if (!args)
-            goto bad;
-        owned_instance = PyEval_CallObject(type, args);
-        Py_DECREF(args);
-        if (!owned_instance)
-            goto bad;
-        value = owned_instance;
-        if (!PyExceptionInstance_Check(value)) {
-            PyErr_Format(PyExc_TypeError,
-                         "calling %R should have returned an instance of "
-                         "BaseException, not %R",
-                         type, Py_TYPE(value));
-            goto bad;
+        // make sure value is an exception instance of type
+        PyObject *instance_class = NULL;
+        if (value && PyExceptionInstance_Check(value)) {
+            instance_class = (PyObject*) Py_TYPE(value);
+            if (instance_class != type) {
+                if (PyObject_IsSubclass(instance_class, type)) {
+                    // believe the instance
+                    type = instance_class;
+                } else {
+                    instance_class = NULL;
+                }
+            }
+        }
+        if (!instance_class) {
+            // instantiate the type now (we don't know when and how it will be caught)
+            // assuming that 'value' is an argument to the type's constructor
+            // not using PyErr_NormalizeException() to avoid ref-counting problems
+            PyObject *args;
+            if (!value)
+                args = PyTuple_New(0);
+            else if (PyTuple_Check(value)) {
+                Py_INCREF(value);
+                args = value;
+            } else
+                args = PyTuple_Pack(1, value);
+            if (!args)
+                goto bad;
+            owned_instance = PyObject_Call(type, args, NULL);
+            Py_DECREF(args);
+            if (!owned_instance)
+                goto bad;
+            value = owned_instance;
+            if (!PyExceptionInstance_Check(value)) {
+                PyErr_Format(PyExc_TypeError,
+                             "calling %R should have returned an instance of "
+                             "BaseException, not %R",
+                             type, Py_TYPE(value));
+                goto bad;
+            }
         }
     } else {
         PyErr_SetString(PyExc_TypeError,
@@ -255,12 +272,16 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb) 
 #endif
         goto bad;
     #if PY_MAJOR_VERSION >= 3
-    if (unlikely(PyException_SetTraceback(local_value, local_tb) < 0))
-        goto bad;
+    if (local_tb) {
+        if (unlikely(PyException_SetTraceback(local_value, local_tb) < 0))
+            goto bad;
+    }
     #endif
-    Py_INCREF(local_type);
-    Py_INCREF(local_value);
-    Py_INCREF(local_tb);
+    // traceback may be NULL for freshly raised exceptions
+    Py_XINCREF(local_tb);
+    // exception state may be temporarily empty in parallel loops (race condition)
+    Py_XINCREF(local_type);
+    Py_XINCREF(local_value);
     *type = local_type;
     *value = local_value;
     *tb = local_tb;
@@ -271,8 +292,8 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb) 
     tstate->exc_type = local_type;
     tstate->exc_value = local_value;
     tstate->exc_traceback = local_tb;
-    /* Make sure tstate is in a consistent state when we XDECREF
-       these objects (DECREF may run arbitrary code). */
+    // Make sure tstate is in a consistent state when we XDECREF
+    // these objects (DECREF may run arbitrary code).
     Py_XDECREF(tmp_type);
     Py_XDECREF(tmp_value);
     Py_XDECREF(tmp_tb);
@@ -396,16 +417,25 @@ static CYTHON_INLINE void __Pyx_ExceptionSwap(PyObject **type, PyObject **value,
 /////////////// WriteUnraisableException.proto ///////////////
 
 static void __Pyx_WriteUnraisable(const char *name, int clineno,
-                                  int lineno, const char *filename); /*proto*/
+                                  int lineno, const char *filename,
+                                  int full_traceback); /*proto*/
 
 /////////////// WriteUnraisableException ///////////////
 //@requires: PyErrFetchRestore
 
 static void __Pyx_WriteUnraisable(const char *name, CYTHON_UNUSED int clineno,
-                                  CYTHON_UNUSED int lineno, CYTHON_UNUSED const char *filename) {
+                                  CYTHON_UNUSED int lineno, CYTHON_UNUSED const char *filename,
+                                  int full_traceback) {
     PyObject *old_exc, *old_val, *old_tb;
     PyObject *ctx;
     __Pyx_ErrFetch(&old_exc, &old_val, &old_tb);
+    if (full_traceback) {
+        Py_XINCREF(old_exc);
+        Py_XINCREF(old_val);
+        Py_XINCREF(old_tb);
+        __Pyx_ErrRestore(old_exc, old_val, old_tb);
+        PyErr_PrintEx(1);
+    }
     #if PY_MAJOR_VERSION < 3
     ctx = PyString_FromString(name);
     #else

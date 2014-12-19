@@ -469,6 +469,43 @@ object called :attr:`__weakref__`. For example,::
         cdef object __weakref__
 
 
+Controlling cyclic garbage collection in CPython
+================================================
+
+By default each extension type will support the cyclic garbage collector of
+CPython. If any Python objects can be referenced, Cython will automatically
+generate the ``tp_traverse`` and ``tp_clear`` slots. This is usually what you
+want.
+
+There is at least one reason why this might not be what you want: If you need
+to cleanup some external resources in the ``__dealloc__`` special function and
+your object happened to be in a reference cycle, the garbage collector may
+have triggered a call to ``tp_clear`` to drop references. This is the way that
+reference cycles are broken so that the garbage can actually be reclaimed.
+
+In that case any object references have vanished by the time when
+``__dealloc__`` is called. Now your cleanup code lost access to the objects it
+has to clean up. In that case you can disable the cycle breaker ``tp_clear``
+by using the ``no_gc_clear`` decorator ::
+
+    @cython.no_gc_clear
+    cdef class DBCursor:
+        cdef DBConnection conn
+        cdef DBAPI_Cursor *raw_cursor
+        # ...
+        def __dealloc__(self):
+            DBAPI_close_cursor(self.conn.raw_conn, self.raw_cursor)
+
+This example tries to close a cursor via a database connection when the Python
+object is destroyed. The ``DBConnection`` object is kept alive by the reference
+from ``DBCursor``. But if a cursor happens to be in a reference cycle, the
+garbage collector may effectively "steal" the database connection reference,
+which makes it impossible to clean up the cursor.
+
+Using the ``no_gc_clear`` decorator this can not happen anymore because the
+references of a cursor object will not be cleared anymore.
+
+
 Public and external extension types
 ====================================
 

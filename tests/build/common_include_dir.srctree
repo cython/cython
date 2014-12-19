@@ -1,0 +1,79 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import runner"
+
+# Verify some files were created.
+# ls common/AddTraceback_impl*.h common/RaiseException_impl_*.h
+PYTHON -c "import glob; assert glob.glob('common/AddTraceback_impl*.h')"
+PYTHON -c "import glob; assert glob.glob('common/RaiseException_impl_*.h')"
+
+# Verify that they're used.
+PYTHON fake_grep.py -c '#include "common/AddTraceback_impl_.*h"' a.c
+PYTHON fake_grep.py -c '#include "common/AddTraceback_impl_.*h"' b.c
+PYTHON fake_grep.py -c '#include "common/AddTraceback_impl_.*h"' c.c
+
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+
+from distutils.core import setup
+
+# Test concurrent safety if multiprocessing is available.
+# (In particular, TravisCI does not support spawning processes from tests.)
+try:
+    import multiprocessing
+    multiprocessing.Pool(2).close()
+    nthreads = 2
+except (ImportError, OSError):
+    nthreads = 0
+
+setup(
+  ext_modules = cythonize("*.pyx", common_utility_include_dir='common', nthreads=nthreads),
+)
+
+######## a.pyx ########
+
+def generator(n):
+    for k in range(n):
+        yield k
+
+assert list(generator(10)) == list(range(10))
+
+######## b.pyx ########
+
+def generator(n):
+    for k in range(n):
+        yield k
+
+assert list(generator(10)) == list(range(10))
+
+if __name__ == "__main__":
+    print("here b")
+
+######## c.pyx ########
+
+if __name__ == "__main__":
+    print("here c")
+
+######## runner.py ########
+
+import a, b, c
+
+######## fake_grep.py ########
+
+import re
+import sys
+
+if sys.platform == 'win32':
+    opt, pattern, file = sys.argv[1:]
+    assert opt == '-c'
+    count = 0
+    regex = re.compile(pattern)
+    for line in open(file):
+        if regex.search(line):
+            count += 1
+    print(count)
+    sys.exit(count == 0)
+else:
+    import subprocess
+    sys.exit(subprocess.call(['grep'] + sys.argv[1:]))

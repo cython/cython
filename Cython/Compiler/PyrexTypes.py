@@ -81,6 +81,18 @@ class BaseType(object):
     is_fused = property(_get_fused_types, doc="Whether this type or any of its "
                                              "subtypes is a fused type")
 
+    def deduce_template_params(self, actual):
+        """
+        Deduce any template params in this (argument) type given the actual
+        argument type.
+
+        http://en.cppreference.com/w/cpp/language/function_template#Template_argument_deduction
+        """
+        if self == actual:
+            return {}
+        else:
+            return None
+
     def __lt__(self, other):
         """
         For sorting. The sorting order should correspond to the preference of
@@ -368,11 +380,12 @@ class CTypedefType(BaseType):
             if not self.to_py_utility_code:
                 base_type = self.typedef_base_type
                 if type(base_type) is CIntType:
-                    # Various subclasses have special methods
-                    # that should be inherited.
-                    self.to_py_utility_code, self.to_py_function = \
-                        self._create_utility_code(c_typedef_int_to_py_function,
-                                                  '__Pyx_PyInt_to_py_%s')
+                    self.to_py_function = "__Pyx_PyInt_From_" + self.specialization_name()
+                    env.use_utility_code(TempitaUtilityCode.load(
+                        "CIntToPy", "TypeConversion.c",
+                        context={"TYPE": self.declaration_code(''),
+                                 "TO_PY_FUNCTION": self.to_py_function}))
+                    return True
                 elif base_type.is_float:
                     pass # XXX implement!
                 elif base_type.is_complex:
@@ -389,11 +402,12 @@ class CTypedefType(BaseType):
             if not self.from_py_utility_code:
                 base_type = self.typedef_base_type
                 if type(base_type) is CIntType:
-                    # Various subclasses have special methods
-                    # that should be inherited.
-                    self.from_py_utility_code, self.from_py_function = \
-                        self._create_utility_code(c_typedef_int_from_py_function,
-                                                  '__Pyx_PyInt_from_py_%s')
+                    self.from_py_function = "__Pyx_PyInt_As_" + self.specialization_name()
+                    env.use_utility_code(TempitaUtilityCode.load(
+                        "CIntFromPy", "TypeConversion.c",
+                        context={"TYPE": self.declaration_code(''),
+                                 "FROM_PY_FUNCTION": self.from_py_function}))
+                    return True
                 elif base_type.is_float:
                     pass # XXX implement!
                 elif base_type.is_complex:
@@ -859,6 +873,7 @@ class PyObjectType(PyrexType):
     buffer_defaults = None
     is_extern = False
     is_subclassed = False
+    is_gc_simple = False
 
     def __str__(self):
         return "Python object"
@@ -909,6 +924,12 @@ class PyObjectType(PyrexType):
         return cname
 
 
+builtin_types_that_cannot_create_refcycles = set([
+    'bool', 'int', 'long', 'float', 'complex',
+    'bytearray', 'bytes', 'unicode', 'str', 'basestring'
+])
+
+
 class BuiltinObjectType(PyObjectType):
     #  objstruct_cname  string           Name of PyObject struct
 
@@ -929,6 +950,7 @@ class BuiltinObjectType(PyObjectType):
         self.cname = cname
         self.typeptr_cname = "(&%s)" % cname
         self.objstruct_cname = objstruct_cname
+        self.is_gc_simple = name in builtin_types_that_cannot_create_refcycles
 
     def set_scope(self, scope):
         self.scope = scope
@@ -942,7 +964,7 @@ class BuiltinObjectType(PyObjectType):
         return "<%s>"% self.cname
 
     def default_coerced_ctype(self):
-        if self.name == 'bytes':
+        if self.name in ('bytes', 'bytearray'):
             return c_char_ptr_type
         elif self.name == 'bool':
             return c_bint_type
@@ -952,7 +974,10 @@ class BuiltinObjectType(PyObjectType):
 
     def assignable_from(self, src_type):
         if isinstance(src_type, BuiltinObjectType):
-            return src_type.name == self.name
+            if self.name == 'basestring':
+                return src_type.name in ('str', 'unicode', 'basestring')
+            else:
+                return src_type.name == self.name
         elif src_type.is_extension_type:
             # FIXME: This is an ugly special case that we currently
             # keep supporting.  It allows users to specify builtin
@@ -979,6 +1004,8 @@ class BuiltinObjectType(PyObjectType):
             type_check = 'PyString_Check'
         elif type_name == 'basestring':
             type_check = '__Pyx_PyBaseString_Check'
+        elif type_name == 'bytearray':
+            type_check = 'PyByteArray_Check'
         elif type_name == 'frozenset':
             type_check = 'PyFrozenSet_Check'
         else:
@@ -995,7 +1022,15 @@ class BuiltinObjectType(PyObjectType):
         check = 'likely(%s(%s))' % (type_check, arg)
         if not notnone:
             check += '||((%s) == Py_None)' % arg
-        error = '(PyErr_Format(PyExc_TypeError, "Expected %s, got %%.200s", Py_TYPE(%s)->tp_name), 0)' % (self.name, arg)
+        if self.name == 'basestring':
+            name = '(PY_MAJOR_VERSION < 3 ? "basestring" : "str")'
+            space_for_name = 16
+        else:
+            name = '"%s"' % self.name
+            # avoid wasting too much space but limit number of different format strings
+            space_for_name = (len(self.name) // 16 + 1) * 16
+        error = '(PyErr_Format(PyExc_TypeError, "Expected %%.%ds, got %%.200s", %s, Py_TYPE(%s)->tp_name), 0)' % (
+            space_for_name, name, arg)
         return check + '||' + error
 
     def declaration_code(self, entity_code,
@@ -1035,6 +1070,7 @@ class PyExtensionType(PyObjectType):
     #  vtabstruct_cname string           Name of C method table struct
     #  vtabptr_cname    string           Name of pointer to C method table
     #  vtable_cname     string           Name of C method table definition
+    #  defered_declarations [thunk]      Used to declare class hierarchies in order
 
     is_extension_type = 1
     has_attributes = 1
@@ -1057,6 +1093,7 @@ class PyExtensionType(PyObjectType):
         self.vtabptr_cname = None
         self.vtable_cname = None
         self.is_external = is_external
+        self.defered_declarations = []
 
     def set_scope(self, scope):
         self.scope = scope
@@ -1180,7 +1217,7 @@ class CType(PyrexType):
 class CConstType(BaseType):
 
     is_const = 1
-    
+
     def __init__(self, const_base_type):
         self.const_base_type = const_base_type
         if const_base_type.has_attributes and const_base_type.scope is not None:
@@ -1203,6 +1240,9 @@ class CConstType(BaseType):
             return self
         else:
             return CConstType(base_type)
+
+    def deduce_template_params(self, actual):
+        return self.const_base_type.deduce_template_params(actual)
 
     def create_to_py_utility_code(self, env):
         if self.const_base_type.create_to_py_utility_code(env):
@@ -1355,191 +1395,14 @@ class CNumericType(CType):
             return "(int, long)"
         return "float"
 
-c_int_from_py_function = UtilityCode(
-proto="""
-static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject *);
-""",
-impl="""
-static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
-    const %(type)s neg_one = (%(type)s)-1, const_zero = 0;
-    const int is_unsigned = neg_one > const_zero;
-    if (sizeof(%(type)s) < sizeof(long)) {
-        long val = __Pyx_PyInt_AsLong(x);
-        if (unlikely(val != (long)(%(type)s)val)) {
-            if (!unlikely(val == -1 && PyErr_Occurred())) {
-                PyErr_SetString(PyExc_OverflowError,
-                    (is_unsigned && unlikely(val < 0)) ?
-                    "can't convert negative value to %(type)s" :
-                    "value too large to convert to %(type)s");
-            }
-            return (%(type)s)-1;
-        }
-        return (%(type)s)val;
-    }
-    return (%(type)s)__Pyx_PyInt_As%(SignWord)sLong(x);
-}
-""") #fool emacs: '
 
-c_long_from_py_function = UtilityCode(
-proto="""
-static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject *);
-""",
-impl="""
-#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
-#if CYTHON_USE_PYLONG_INTERNALS
-#include "longintrepr.h"
-#endif
-#endif
-static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
-    const %(type)s neg_one = (%(type)s)-1, const_zero = 0;
-    const int is_unsigned = neg_one > const_zero;
-#if PY_MAJOR_VERSION < 3
-    if (likely(PyInt_Check(x))) {
-        long val = PyInt_AS_LONG(x);
-        if (is_unsigned && unlikely(val < 0)) {
-            PyErr_SetString(PyExc_OverflowError,
-                            "can't convert negative value to %(type)s");
-            return (%(type)s)-1;
-        }
-        return (%(type)s)val;
-    } else
-#endif
-    if (likely(PyLong_Check(x))) {
-        if (is_unsigned) {
-#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
-#if CYTHON_USE_PYLONG_INTERNALS
-            if (sizeof(digit) <= sizeof(%(type)s)) {
-                switch (Py_SIZE(x)) {
-                    case  0: return 0;
-                    case  1: return (%(type)s) ((PyLongObject*)x)->ob_digit[0];
-                }
-            }
-#endif
-#endif
-            if (unlikely(Py_SIZE(x) < 0)) {
-                PyErr_SetString(PyExc_OverflowError,
-                                "can't convert negative value to %(type)s");
-                return (%(type)s)-1;
-            }
-            return (%(type)s)PyLong_AsUnsigned%(TypeName)s(x);
-        } else {
-#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
-#if CYTHON_USE_PYLONG_INTERNALS
-            if (sizeof(digit) <= sizeof(%(type)s)) {
-                switch (Py_SIZE(x)) {
-                    case  0: return 0;
-                    case  1: return +(%(type)s) ((PyLongObject*)x)->ob_digit[0];
-                    case -1: return -(%(type)s) ((PyLongObject*)x)->ob_digit[0];
-                }
-            }
-#endif
-#endif
-            return (%(type)s)PyLong_As%(TypeName)s(x);
-        }
-    } else {
-        %(type)s val;
-        PyObject *tmp = __Pyx_PyNumber_Int(x);
-        if (!tmp) return (%(type)s)-1;
-        val = __Pyx_PyInt_As%(SignWord)s%(TypeName)s(tmp);
-        Py_DECREF(tmp);
-        return val;
-    }
-}
-""")
+class ForbidUseClass:
+    def __repr__(self):
+        raise RuntimeError()
+    def __str__(self):
+        raise RuntimeError()
+ForbidUse = ForbidUseClass()
 
-c_typedef_int_from_py_function = UtilityCode(
-proto="""
-static CYTHON_INLINE %(type)s __Pyx_PyInt_from_py_%(TypeName)s(PyObject *);
-""",
-impl="""
-static CYTHON_INLINE %(type)s __Pyx_PyInt_from_py_%(TypeName)s(PyObject* x) {
-    const %(type)s neg_one = (%(type)s)-1, const_zero = (%(type)s)0;
-    const int is_unsigned = const_zero < neg_one;
-    if (sizeof(%(type)s) == sizeof(char)) {
-        if (is_unsigned)
-            return (%(type)s)__Pyx_PyInt_AsUnsignedChar(x);
-        else
-            return (%(type)s)__Pyx_PyInt_AsSignedChar(x);
-    } else if (sizeof(%(type)s) == sizeof(short)) {
-        if (is_unsigned)
-            return (%(type)s)__Pyx_PyInt_AsUnsignedShort(x);
-        else
-            return (%(type)s)__Pyx_PyInt_AsSignedShort(x);
-    } else if (sizeof(%(type)s) == sizeof(int)) {
-        if (is_unsigned)
-            return (%(type)s)__Pyx_PyInt_AsUnsignedInt(x);
-        else
-            return (%(type)s)__Pyx_PyInt_AsSignedInt(x);
-    } else if (sizeof(%(type)s) == sizeof(long)) {
-        if (is_unsigned)
-            return (%(type)s)__Pyx_PyInt_AsUnsignedLong(x);
-        else
-            return (%(type)s)__Pyx_PyInt_AsSignedLong(x);
-    } else if (sizeof(%(type)s) == sizeof(PY_LONG_LONG)) {
-        if (is_unsigned)
-            return (%(type)s)__Pyx_PyInt_AsUnsignedLongLong(x);
-        else
-            return (%(type)s)__Pyx_PyInt_AsSignedLongLong(x);
-    }  else {
-        #if CYTHON_COMPILING_IN_PYPY && !defined(_PyLong_AsByteArray)
-        PyErr_SetString(PyExc_RuntimeError,
-                        "_PyLong_AsByteArray() not available in PyPy, cannot convert large numbers");
-        #else
-        %(type)s val;
-        PyObject *v = __Pyx_PyNumber_Int(x);
-        #if PY_MAJOR_VERSION < 3
-        if (likely(v) && !PyLong_Check(v)) {
-            PyObject *tmp = v;
-            v = PyNumber_Long(tmp);
-            Py_DECREF(tmp);
-        }
-        #endif
-        if (likely(v)) {
-            int one = 1; int is_little = (int)*(unsigned char *)&one;
-            unsigned char *bytes = (unsigned char *)&val;
-            int ret = _PyLong_AsByteArray((PyLongObject *)v,
-                                          bytes, sizeof(val),
-                                          is_little, !is_unsigned);
-            Py_DECREF(v);
-            if (likely(!ret))
-                return val;
-        }
-        #endif
-        return (%(type)s)-1;
-    }
-}
-""")
-
-c_typedef_int_to_py_function = UtilityCode(
-proto="""
-static CYTHON_INLINE PyObject *__Pyx_PyInt_to_py_%(TypeName)s(%(type)s);
-""",
-impl="""
-static CYTHON_INLINE PyObject *__Pyx_PyInt_to_py_%(TypeName)s(%(type)s val) {
-    const %(type)s neg_one = (%(type)s)-1, const_zero = (%(type)s)0;
-    const int is_unsigned = const_zero < neg_one;
-    if ((sizeof(%(type)s) == sizeof(char))  ||
-        (sizeof(%(type)s) == sizeof(short))) {
-        return PyInt_FromLong((long)val);
-    } else if ((sizeof(%(type)s) == sizeof(int)) ||
-               (sizeof(%(type)s) == sizeof(long))) {
-        if (is_unsigned)
-            return PyLong_FromUnsignedLong((unsigned long)val);
-        else
-            return PyInt_FromLong((long)val);
-    } else if (sizeof(%(type)s) == sizeof(PY_LONG_LONG)) {
-        if (is_unsigned)
-            return PyLong_FromUnsignedLongLong((unsigned PY_LONG_LONG)val);
-        else
-            return PyLong_FromLongLong((PY_LONG_LONG)val);
-    } else {
-        int one = 1; int little = (int)*(unsigned char *)&one;
-        unsigned char *bytes = (unsigned char *)&val;
-        return _PyLong_FromByteArray(bytes, sizeof(%(type)s),
-                                     little, !is_unsigned);
-    }
-}
-""")
 
 class CIntType(CNumericType):
 
@@ -1549,12 +1412,23 @@ class CIntType(CNumericType):
     from_py_function = None
     exception_value = -1
 
-    def __init__(self, rank, signed = 1):
-        CNumericType.__init__(self, rank, signed)
-        if self.to_py_function is None:
-            self.to_py_function = self.get_to_py_type_conversion()
-        if self.from_py_function is None:
-            self.from_py_function = self.get_from_py_type_conversion()
+    def create_to_py_utility_code(self, env):
+        if type(self).to_py_function is None:
+            self.to_py_function = "__Pyx_PyInt_From_" + self.specialization_name()
+            env.use_utility_code(TempitaUtilityCode.load(
+                "CIntToPy", "TypeConversion.c",
+                context={"TYPE": self.declaration_code(''),
+                         "TO_PY_FUNCTION": self.to_py_function}))
+        return True
+
+    def create_from_py_utility_code(self, env):
+        if type(self).from_py_function is None:
+            self.from_py_function = "__Pyx_PyInt_As_" + self.specialization_name()
+            env.use_utility_code(TempitaUtilityCode.load(
+                "CIntFromPy", "TypeConversion.c",
+                context={"TYPE": self.declaration_code(''),
+                         "FROM_PY_FUNCTION": self.from_py_function}))
+        return True
 
     def get_to_py_type_conversion(self):
         if self.rank < list(rank_to_type_name).index('int'):
@@ -1656,7 +1530,8 @@ class CReturnCodeType(CIntType):
 
     to_py_function = "__Pyx_Owned_Py_None"
 
-    is_returncode = 1
+    is_returncode = True
+    exception_check = False
 
 
 class CBIntType(CIntType):
@@ -1753,15 +1628,11 @@ class CSSizeTType(CIntType):
 class CSizeTType(CIntType):
 
     to_py_function = "__Pyx_PyInt_FromSize_t"
-    from_py_function = "__Pyx_PyInt_AsSize_t"
 
     def sign_and_name(self):
         return "size_t"
 
 class CPtrdiffTType(CIntType):
-
-    to_py_function = "__Pyx_PyInt_FromPtrdiff_t"
-    from_py_function = "__Pyx_PyInt_AsPtrdiff_t"
 
     def sign_and_name(self):
         return "ptrdiff_t"
@@ -1994,7 +1865,7 @@ proto="""
     #define __Pyx_CIMAG(z) ((z).imag)
 #endif
 
-#if defined(_WIN32) && defined(__cplusplus) && CYTHON_CCOMPLEX
+#if (defined(_WIN32) || defined(__clang__)) && defined(__cplusplus) && CYTHON_CCOMPLEX
     #define __Pyx_SET_CREAL(z,x) ((z).real(x))
     #define __Pyx_SET_CIMAG(z,y) ((z).imag(y))
 #else
@@ -2232,7 +2103,10 @@ class CPointerBaseType(CType):
             if base_type.signed:
                 self.to_py_function = "__Pyx_PyObject_FromString"
                 if self.is_ptr:
-                    self.from_py_function = "__Pyx_PyObject_AsString"
+                    if base_type.signed == 2:
+                        self.from_py_function = "__Pyx_PyObject_AsSString"
+                    else:
+                        self.from_py_function = "__Pyx_PyObject_AsString"
             else:
                 self.to_py_function = "__Pyx_PyObject_FromUString"
                 if self.is_ptr:
@@ -2309,6 +2183,19 @@ class CArrayType(CPointerBaseType):
     def is_complete(self):
         return self.size is not None
 
+    def specialize(self, values):
+        base_type = self.base_type.specialize(values)
+        if base_type == self.base_type:
+            return self
+        else:
+            return CArrayType(base_type)
+
+    def deduce_template_params(self, actual):
+        if isinstance(actual, CArrayType):
+            return self.base_type.deduce_template_params(actual.base_type)
+        else:
+            return None
+
 
 class CPtrType(CPointerBaseType):
     #  base_type     CType              Reference type
@@ -2370,6 +2257,12 @@ class CPtrType(CPointerBaseType):
         else:
             return CPtrType(base_type)
 
+    def deduce_template_params(self, actual):
+        if isinstance(actual, CPtrType):
+            return self.base_type.deduce_template_params(actual.base_type)
+        else:
+            return None
+
     def invalid_value(self):
         return "1"
 
@@ -2410,6 +2303,9 @@ class CReferenceType(BaseType):
         else:
             return CReferenceType(base_type)
 
+    def deduce_template_params(self, actual):
+        return self.ref_base_type.deduce_template_params(actual)
+
     def __getattr__(self, name):
         return getattr(self.ref_base_type, name)
 
@@ -2442,7 +2338,7 @@ class CFuncType(CType):
     def __init__(self, return_type, args, has_varargs = 0,
             exception_value = None, exception_check = 0, calling_convention = "",
             nogil = 0, with_gil = 0, is_overridable = 0, optional_arg_count = 0,
-            templates = None, is_strict_signature = False):
+            is_const_method = False, templates = None, is_strict_signature = False):
         self.return_type = return_type
         self.args = args
         self.has_varargs = has_varargs
@@ -2453,6 +2349,7 @@ class CFuncType(CType):
         self.nogil = nogil
         self.with_gil = with_gil
         self.is_overridable = is_overridable
+        self.is_const_method = is_const_method
         self.templates = templates
         self.is_strict_signature = is_strict_signature
 
@@ -2668,11 +2565,6 @@ class CFuncType(CType):
         return '(%s)' % s
 
     def specialize(self, values):
-        if self.templates is None:
-            new_templates = None
-        else:
-            new_templates = [v.specialize(values) for v in self.templates]
-
         result = CFuncType(self.return_type.specialize(values),
                            [arg.specialize(values) for arg in self.args],
                            has_varargs = self.has_varargs,
@@ -2683,7 +2575,8 @@ class CFuncType(CType):
                            with_gil = self.with_gil,
                            is_overridable = self.is_overridable,
                            optional_arg_count = self.optional_arg_count,
-                           templates = new_templates)
+                           is_const_method = self.is_const_method,
+                           templates = self.templates)
 
         result.from_fused = self.is_fused
         return result
@@ -2982,11 +2875,12 @@ class CStructOrUnionType(CType):
         if env.outer_scope is None:
             return False
 
-        if self._convert_to_py_code is False: return None # tri-state-ish
+        if self._convert_to_py_code is False: return None  # tri-state-ish
 
         if self._convert_to_py_code is None:
             for member in self.scope.var_entries:
-                if not member.type.to_py_function or not member.type.create_to_py_utility_code(env):
+                if (not member.type.to_py_function or
+                        not member.type.create_to_py_utility_code(env)):
                     self.to_py_function = None
                     self._convert_to_py_code = False
                     return False
@@ -3000,33 +2894,34 @@ class CStructOrUnionType(CType):
         if env.outer_scope is None:
             return False
 
-        if self._convert_from_py_code is False: return None # tri-state-ish
+        if self._convert_from_py_code is False: return None  # tri-state-ish
 
         if self._convert_from_py_code is None:
             for member in self.scope.var_entries:
-                if (not member.type.from_py_function or not
-                        member.type.create_from_py_utility_code(env)):
+                if (not member.type.from_py_function or
+                        not member.type.create_from_py_utility_code(env)):
                     self.from_py_function = None
                     self._convert_from_py_code = False
                     return False
 
             context = dict(
-                struct_type_decl = self.declaration_code(""),
-                var_entries = self.scope.var_entries,
-                funcname = self.from_py_function,
+                struct_type_decl=self.declaration_code(""),
+                var_entries=self.scope.var_entries,
+                funcname=self.from_py_function,
             )
             self._convert_from_py_code = TempitaUtilityCode.load(
-                      "FromPyStructUtility", "TypeConversion.c", context=context)
+                "FromPyStructUtility", "TypeConversion.c", context=context)
 
         env.use_utility_code(self._convert_from_py_code)
         return True
 
     def __repr__(self):
-        return "<CStructOrUnionType %s %s%s>" % (self.name, self.cname,
+        return "<CStructOrUnionType %s %s%s>" % (
+            self.name, self.cname,
             ("", " typedef")[self.typedef_flag])
 
     def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0):
+                         for_display=0, dll_linkage=None, pyrex=0):
         if pyrex or for_display:
             base_code = self.name
         else:
@@ -3093,7 +2988,7 @@ class CppClassType(CType):
     has_attributes = 1
     exception_check = True
     namespace = None
-    
+
     # For struct-like declaration.
     kind = "struct"
     packed = False
@@ -3114,7 +3009,7 @@ class CppClassType(CType):
 
     def use_conversion_utility(self, from_or_to):
         pass
-    
+
     def create_from_py_utility_code(self, env):
         if self.from_py_function is not None:
             return True
@@ -3151,7 +3046,7 @@ class CppClassType(CType):
             env.use_utility_code(CythonUtilityCode.load(cls + ".from_py", "CppConvert.pyx", context=context))
             self.from_py_function = cname
             return True
-    
+
     def create_to_py_utility_code(self, env):
         if self.to_py_function is not None:
             return True
@@ -3188,6 +3083,14 @@ class CppClassType(CType):
             error(pos, "%s templated type receives %d arguments, got %d" %
                   (self.name, len(self.templates), len(template_values)))
             return error_type
+        has_object_template_param = False
+        for value in template_values:
+            if value.is_pyobject:
+                has_object_template_param = True
+                error(pos,
+                      "Python object type '%s' cannot be used as a template argument" % value)
+        if has_object_template_param:
+            return error_type
         return self.specialize(dict(zip(self.templates, template_values)))
 
     def specialize(self, values):
@@ -3208,6 +3111,18 @@ class CppClassType(CType):
         if self.namespace is not None:
             specialized.namespace = self.namespace.specialize(values)
         return specialized
+
+    def deduce_template_params(self, actual):
+        if self == actual:
+            return {}
+        # TODO(robertwb): Actual type equality.
+        elif self.declaration_code("") == actual.template_type.declaration_code(""):
+            return reduce(
+                merge_template_deductions,
+                [formal_param.deduce_template_params(actual_param) for (formal_param, actual_param) in zip(self.templates, actual.templates)],
+                {})
+        else:
+            return None
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
@@ -3299,6 +3214,9 @@ class TemplatePlaceholderType(CType):
             return values[self]
         else:
             return self
+
+    def deduce_template_params(self, actual):
+        return {self: actual}
 
     def same_as_resolved_type(self, other_type):
         if isinstance(other_type, TemplatePlaceholderType):
@@ -3505,8 +3423,6 @@ c_pyx_buffer_nd_type = CStructOrUnionType("__Pyx_LocalBuf_ND", "struct",
 cython_memoryview_type = CStructOrUnionType("__pyx_memoryview_obj", "struct",
                                       None, 0, "__pyx_memoryview_obj")
 
-cython_memoryview_ptr_type = CPtrType(cython_memoryview_type)
-
 memoryviewslice_type = CStructOrUnionType("memoryviewslice", "struct",
                                           None, 1, "__Pyx_memviewslice")
 
@@ -3621,7 +3537,28 @@ def best_match(args, functions, pos=None, env=None):
                          % (expectation, actual_nargs)
             errors.append((func, error_mesg))
             continue
-        candidates.append((func, func_type))
+        if func_type.templates:
+            arg_types = [arg.type for arg in args]
+            deductions = reduce(
+                merge_template_deductions,
+                [pattern.type.deduce_template_params(actual) for (pattern, actual) in zip(func_type.args, arg_types)],
+                {})
+            if deductions is None:
+                errors.append((func, "Unable to deduce type parameters"))
+            elif len(deductions) < len(func_type.templates):
+                errors.append((func, "Unable to deduce type parameter %s" % (
+                    ", ".join([param.name for param in set(func_type.templates) - set(deductions.keys())]))))
+            else:
+                type_list = [deductions[param] for param in func_type.templates]
+                from Symtab import Entry
+                specialization = Entry(
+                    name = func.name + "[%s]" % ",".join([str(t) for t in type_list]),
+                    cname = func.cname + "<%s>" % ",".join([t.declaration_code("") for t in type_list]),
+                    type = func_type.specialize(deductions),
+                    pos = func.pos)
+                candidates.append((specialization, specialization.type))
+        else:
+            candidates.append((func, func_type))
 
     # Optimize the most common case of no overloading...
     if len(candidates) == 1:
@@ -3712,6 +3649,18 @@ def best_match(args, functions, pos=None, env=None):
             error(pos, "no suitable method found")
 
     return None
+
+def merge_template_deductions(a, b):
+    if a is None or b is None:
+        return None
+    all = a
+    for param, value in b.iteritems():
+        if param in all:
+            if a[param] != b[param]:
+                return None
+        else:
+            all[param] = value
+    return all
 
 def widest_numeric_type(type1, type2):
     # Given two numeric types, return the narrowest type
@@ -3904,9 +3853,13 @@ def typecast(to_type, from_type, expr_code):
     #  Return expr_code cast to a C type which can be
     #  assigned to to_type, assuming its existing C type
     #  is from_type.
-    if to_type is from_type or \
-        (not to_type.is_pyobject and assignable_from(to_type, from_type)):
-            return expr_code
+    if (to_type is from_type or
+            (not to_type.is_pyobject and assignable_from(to_type, from_type))):
+        return expr_code
+    elif (to_type is py_object_type and from_type and
+            from_type.is_builtin_type and from_type.name != 'type'):
+        # no cast needed, builtins are PyObject* already
+        return expr_code
     else:
         #print "typecast: to", to_type, "from", from_type ###
         return to_type.cast_code(expr_code)

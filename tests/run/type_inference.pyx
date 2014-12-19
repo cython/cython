@@ -110,7 +110,23 @@ def indexing():
     t = (4,5,6)
     assert typeof(t) == "tuple object", typeof(t)
     t1 = t[1]
-    assert typeof(t1) == "Python object", typeof(t1)
+    assert typeof(t1) == "long", typeof(t1)
+    t2 = ('abc', 'def', 'ghi')
+    assert typeof(t2) == "tuple object", typeof(t2)
+    t2_1 = t2[1]
+    assert typeof(t2_1) == "str object", typeof(t2_1)
+    t2_2 = t2[t[0]-3]
+    assert typeof(t2_2) == "str object", typeof(t2_2)
+    t5 = (b'abc', 'def', u'ghi')
+    t5_0 = t5[0]
+    assert typeof(t5_0) == "bytes object", typeof(t5_0)
+    t5_1 = t5[1]
+    assert typeof(t5_1) == "str object", typeof(t5_1)
+    t5_2 = t5[2]
+    assert typeof(t5_2) == "unicode object", typeof(t5_2)
+    t5_3 = t5[t[0]-3]
+    assert typeof(t5_3) == "Python object", typeof(t5_3)
+
 
 def multiple_assignments():
     """
@@ -631,3 +647,27 @@ def self_lookup(a):
 def bar(foo):
     qux = foo
     quux = foo[qux.baz]
+
+
+cdef enum MyEnum:
+    enum_x = 1
+    enum_y = 2
+
+
+cdef class InferInProperties:
+    """
+    >>> InferInProperties().x
+    ('double', 'unicode object', 'MyEnum', 'MyEnum')
+    """
+    cdef MyEnum attr
+    def __cinit__(self):
+        self.attr = enum_x
+
+    property x:
+        def __get__(self):
+            a = 1.0
+            b = u'abc'
+            c = self.attr
+            d = enum_y
+            c = d
+            return typeof(a), typeof(b), typeof(c), typeof(d)

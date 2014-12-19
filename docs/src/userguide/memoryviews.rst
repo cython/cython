@@ -12,7 +12,7 @@ Memoryviews are similar to the current NumPy array buffer support
 (``np.ndarray[np.float64_t, ndim=2]``), but
 they have more features and cleaner syntax.
 
-Memoryviews are more general than the old NumPy aray buffer support, because
+Memoryviews are more general than the old NumPy array buffer support, because
 they can handle a wider variety of sources of array data.  For example, they can
 handle C arrays and the Cython array type (:ref:`view_cython_arrays`).
 

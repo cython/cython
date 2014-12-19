@@ -1,5 +1,5 @@
 # mode: run
-# tags: kwargs, call
+# tag: kwargs, call
 # ticket: 717
 
 def f(**kwargs):

@@ -4,6 +4,7 @@ Tutorials
 .. toctree::
    :maxdepth: 2
 
+   cython_tutorial
    external
    clibraries
    cdef_classes
@@ -11,6 +12,7 @@ Tutorials
    caveats
    profiling_tutorial
    strings
+   memory_allocation
    pure
    numpy
    readings

@@ -133,45 +133,73 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Contains(PyObject* substring, PyObject*
 static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int equals); /*proto*/
 
 //////////////////// UnicodeEquals ////////////////////
+//@requires: BytesEquals
 
 static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int equals) {
 #if CYTHON_COMPILING_IN_PYPY
     return PyObject_RichCompareBool(s1, s2, equals);
 #else
+#if PY_MAJOR_VERSION < 3
+    PyObject* owned_ref = NULL;
+#endif
+    int s1_is_unicode, s2_is_unicode;
     if (s1 == s2) {
         /* as done by PyObject_RichCompareBool(); also catches the (interned) empty string */
-        return (equals == Py_EQ);
-    } else if (PyUnicode_CheckExact(s1) & PyUnicode_CheckExact(s2)) {
-        #if CYTHON_PEP393_ENABLED
-        if ((PyUnicode_READY(s1) < 0) || (PyUnicode_READY(s2) < 0))
+        goto return_eq;
+    }
+    s1_is_unicode = PyUnicode_CheckExact(s1);
+    s2_is_unicode = PyUnicode_CheckExact(s2);
+#if PY_MAJOR_VERSION < 3
+    if ((s1_is_unicode & (!s2_is_unicode)) && PyString_CheckExact(s2)) {
+        owned_ref = PyUnicode_FromObject(s2);
+        if (unlikely(!owned_ref))
             return -1;
-        if (PyUnicode_GET_LENGTH(s1) != PyUnicode_GET_LENGTH(s2)) {
-            return (equals == Py_NE);
-        } else if (PyUnicode_GET_LENGTH(s1) == 1) {
-            Py_UCS4 ch1 = PyUnicode_READ_CHAR(s1, 0);
-            Py_UCS4 ch2 = PyUnicode_READ_CHAR(s2, 0);
-            return (equals == Py_EQ) ? (ch1 == ch2) : (ch1 != ch2);
-//// currently disabled: may not be safe depending on who created the string
-//        } else if (PyUnicode_MAX_CHAR_VALUE(s1) != PyUnicode_MAX_CHAR_VALUE(s2)) {
-//            return (equals == Py_NE);
-        #else
-        if (PyUnicode_GET_SIZE(s1) != PyUnicode_GET_SIZE(s2)) {
-            return (equals == Py_NE);
-        } else if (PyUnicode_GET_SIZE(s1) == 1) {
-            Py_UNICODE ch1 = PyUnicode_AS_UNICODE(s1)[0];
-            Py_UNICODE ch2 = PyUnicode_AS_UNICODE(s2)[0];
-            return (equals == Py_EQ) ? (ch1 == ch2) : (ch1 != ch2);
+        s2 = owned_ref;
+        s2_is_unicode = 1;
+    } else if ((s2_is_unicode & (!s1_is_unicode)) && PyString_CheckExact(s1)) {
+        owned_ref = PyUnicode_FromObject(s1);
+        if (unlikely(!owned_ref))
+            return -1;
+        s1 = owned_ref;
+        s1_is_unicode = 1;
+    } else if (((!s2_is_unicode) & (!s1_is_unicode))) {
+        return __Pyx_PyBytes_Equals(s1, s2, equals);
+    }
+#endif
+    if (s1_is_unicode & s2_is_unicode) {
+        Py_ssize_t length;
+        int kind;
+        void *data1, *data2;
+        #if CYTHON_PEP393_ENABLED
+        if (unlikely(PyUnicode_READY(s1) < 0) || unlikely(PyUnicode_READY(s2) < 0))
+            return -1;
         #endif
+        length = __Pyx_PyUnicode_GET_LENGTH(s1);
+        if (length != __Pyx_PyUnicode_GET_LENGTH(s2)) {
+            goto return_ne;
+        }
+        // len(s1) == len(s2) >= 1  (empty string is interned, and "s1 is not s2")
+        kind = __Pyx_PyUnicode_KIND(s1);
+        if (kind != __Pyx_PyUnicode_KIND(s2)) {
+            goto return_ne;
+        }
+        data1 = __Pyx_PyUnicode_DATA(s1);
+        data2 = __Pyx_PyUnicode_DATA(s2);
+        if (__Pyx_PyUnicode_READ(kind, data1, 0) != __Pyx_PyUnicode_READ(kind, data2, 0)) {
+            goto return_ne;
+        } else if (length == 1) {
+            goto return_eq;
         } else {
-            int result = PyUnicode_Compare(s1, s2);
-            if ((result == -1) && unlikely(PyErr_Occurred()))
-                return -1;
+            int result = memcmp(data1, data2, length * kind);
+            #if PY_MAJOR_VERSION < 3
+            Py_XDECREF(owned_ref);
+            #endif
             return (equals == Py_EQ) ? (result == 0) : (result != 0);
         }
-    } else if ((s1 == Py_None) & PyUnicode_CheckExact(s2)) {
-        return (equals == Py_NE);
-    } else if ((s2 == Py_None) & PyUnicode_CheckExact(s1)) {
-        return (equals == Py_NE);
+    } else if ((s1 == Py_None) & s2_is_unicode) {
+        goto return_ne;
+    } else if ((s2 == Py_None) & s1_is_unicode) {
+        goto return_ne;
     } else {
         int result;
         PyObject* py_result = PyObject_RichCompare(s1, s2, equals);
@@ -181,6 +209,16 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
         Py_DECREF(py_result);
         return result;
     }
+return_eq:
+    #if PY_MAJOR_VERSION < 3
+    Py_XDECREF(owned_ref);
+    #endif
+    return (equals == Py_EQ);
+return_ne:
+    #if PY_MAJOR_VERSION < 3
+    Py_XDECREF(owned_ref);
+    #endif
+    return (equals == Py_NE);
 #endif
 }
 
@@ -200,15 +238,19 @@ static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int eq
         /* as done by PyObject_RichCompareBool(); also catches the (interned) empty string */
         return (equals == Py_EQ);
     } else if (PyBytes_CheckExact(s1) & PyBytes_CheckExact(s2)) {
-        if (PyBytes_GET_SIZE(s1) != PyBytes_GET_SIZE(s2)) {
+        const char *ps1, *ps2;
+        Py_ssize_t length = PyBytes_GET_SIZE(s1);
+        if (length != PyBytes_GET_SIZE(s2))
             return (equals == Py_NE);
-        } else if (PyBytes_GET_SIZE(s1) == 1) {
-            if (equals == Py_EQ)
-                return (PyBytes_AS_STRING(s1)[0] == PyBytes_AS_STRING(s2)[0]);
-            else
-                return (PyBytes_AS_STRING(s1)[0] != PyBytes_AS_STRING(s2)[0]);
+        // len(s1) == len(s2) >= 1  (empty string is interned, and "s1 is not s2")
+        ps1 = PyBytes_AS_STRING(s1);
+        ps2 = PyBytes_AS_STRING(s2);
+        if (ps1[0] != ps2[0]) {
+            return (equals == Py_NE);
+        } else if (length == 1) {
+            return (equals == Py_EQ);
         } else {
-            int result = memcmp(PyBytes_AS_STRING(s1), PyBytes_AS_STRING(s2), (size_t)PyBytes_GET_SIZE(s1));
+            int result = memcmp(ps1, ps2, (size_t)length);
             return (equals == Py_EQ) ? (result == 0) : (result != 0);
         }
     } else if ((s1 == Py_None) & PyBytes_CheckExact(s2)) {
@@ -227,16 +269,77 @@ static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int eq
 #endif
 }
 
+//////////////////// GetItemIntByteArray.proto ////////////////////
+
+#define __Pyx_GetItemInt_ByteArray(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
+    (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
+    __Pyx_GetItemInt_ByteArray_Fast(o, (Py_ssize_t)i, wraparound, boundscheck) : \
+    (PyErr_SetString(PyExc_IndexError, "bytearray index out of range"), -1))
+
+static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast(PyObject* string, Py_ssize_t i,
+                                                         int wraparound, int boundscheck);
+
+//////////////////// GetItemIntByteArray ////////////////////
+
+static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast(PyObject* string, Py_ssize_t i,
+                                                         int wraparound, int boundscheck) {
+    Py_ssize_t length;
+    if (wraparound | boundscheck) {
+        length = PyByteArray_GET_SIZE(string);
+        if (wraparound & unlikely(i < 0)) i += length;
+        if ((!boundscheck) || likely((0 <= i) & (i < length))) {
+            return (unsigned char) (PyByteArray_AS_STRING(string)[i]);
+        } else {
+            PyErr_SetString(PyExc_IndexError, "bytearray index out of range");
+            return -1;
+        }
+    } else {
+        return (unsigned char) (PyByteArray_AS_STRING(string)[i]);
+    }
+}
+
+
+//////////////////// SetItemIntByteArray.proto ////////////////////
+
+#define __Pyx_SetItemInt_ByteArray(o, i, v, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
+    (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
+    __Pyx_SetItemInt_ByteArray_Fast(o, (Py_ssize_t)i, v, wraparound, boundscheck) : \
+    (PyErr_SetString(PyExc_IndexError, "bytearray index out of range"), -1))
+
+static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast(PyObject* string, Py_ssize_t i, unsigned char v,
+                                                         int wraparound, int boundscheck);
+
+//////////////////// SetItemIntByteArray ////////////////////
+
+static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast(PyObject* string, Py_ssize_t i, unsigned char v,
+                                                         int wraparound, int boundscheck) {
+    Py_ssize_t length;
+    if (wraparound | boundscheck) {
+        length = PyByteArray_GET_SIZE(string);
+        if (wraparound & unlikely(i < 0)) i += length;
+        if ((!boundscheck) || likely((0 <= i) & (i < length))) {
+            PyByteArray_AS_STRING(string)[i] = (char) v;
+            return 0;
+        } else {
+            PyErr_SetString(PyExc_IndexError, "bytearray index out of range");
+            return -1;
+        }
+    } else {
+        PyByteArray_AS_STRING(string)[i] = (char) v;
+        return 0;
+    }
+}
+
+
 //////////////////// GetItemIntUnicode.proto ////////////////////
 
-#define __Pyx_GetItemInt_Unicode(o, i, size, to_py_func, is_list, wraparound, boundscheck) \
-    (((size) <= sizeof(Py_ssize_t)) ? \
-    __Pyx_GetItemInt_Unicode_Fast(o, i, wraparound, boundscheck) : \
-    __Pyx_GetItemInt_Unicode_Generic(o, to_py_func(i)))
+#define __Pyx_GetItemInt_Unicode(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
+    (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
+    __Pyx_GetItemInt_Unicode_Fast(o, (Py_ssize_t)i, wraparound, boundscheck) : \
+    (PyErr_SetString(PyExc_IndexError, "string index out of range"), (Py_UCS4)-1))
 
 static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Fast(PyObject* ustring, Py_ssize_t i,
                                                            int wraparound, int boundscheck);
-static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Generic(PyObject* ustring, PyObject* j);
 
 //////////////////// GetItemIntUnicode ////////////////////
 
@@ -260,60 +363,17 @@ static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Fast(PyObject* ustring, Py
     }
 }
 
-static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Generic(PyObject* ustring, PyObject* j) {
-    Py_UCS4 uchar;
-    PyObject *uchar_string;
-    if (!j) return (Py_UCS4)-1;
-    uchar_string = PyObject_GetItem(ustring, j);
-    Py_DECREF(j);
-    if (!uchar_string) return (Py_UCS4)-1;
-#if CYTHON_PEP393_ENABLED
-    if (unlikely(__Pyx_PyUnicode_READY(uchar_string) < 0)) {
-        Py_DECREF(uchar_string);
-        return (Py_UCS4)-1;
-    }
-#endif
-    uchar = __Pyx_PyUnicode_READ_CHAR(uchar_string, 0);
-    Py_DECREF(uchar_string);
-    return uchar;
-}
 
 /////////////// decode_cpp_string.proto ///////////////
-//@requires IncludeCppStringH
-
-static CYTHON_INLINE PyObject* __Pyx_decode_cpp_string(
-         std::string cppstring, Py_ssize_t start, Py_ssize_t stop,
-         const char* encoding, const char* errors,
-         PyObject* (*decode_func)(const char *s, Py_ssize_t size, const char *errors));
-
-/////////////// decode_cpp_string ///////////////
+//@requires: IncludeCppStringH
+//@requires: decode_c_bytes
 
 static CYTHON_INLINE PyObject* __Pyx_decode_cpp_string(
          std::string cppstring, Py_ssize_t start, Py_ssize_t stop,
          const char* encoding, const char* errors,
          PyObject* (*decode_func)(const char *s, Py_ssize_t size, const char *errors)) {
-    const char* cstring = cppstring.data();
-    Py_ssize_t length = cppstring.size();
-
-    if (unlikely(start < 0)) {
-        start += length;
-        if (unlikely(start < 0))
-            start = 0;
-    }
-    if (unlikely(stop < 0))
-        stop += length;
-    else if (stop >= length)
-        stop = length;
-    if (unlikely(start >= stop))
-        return PyUnicode_FromUnicode(NULL, 0);
-    cstring += start;
-    length = stop - start;
-
-    if (decode_func) {
-        return decode_func(cstring, length, errors);
-    } else {
-        return PyUnicode_Decode(cstring, length, encoding, errors);
-    }
+    return __Pyx_decode_c_bytes(
+        cppstring.data(), cppstring.size(), start, stop, encoding, errors, decode_func);
 }
 
 /////////////// decode_c_string.proto ///////////////
@@ -324,7 +384,9 @@ static CYTHON_INLINE PyObject* __Pyx_decode_c_string(
          PyObject* (*decode_func)(const char *s, Py_ssize_t size, const char *errors));
 
 /////////////// decode_c_string ///////////////
-//@requires IncludeStringH
+//@requires: IncludeStringH
+
+/* duplicate code to avoid calling strlen() if start >= 0 and stop >= 0 */
 
 static CYTHON_INLINE PyObject* __Pyx_decode_c_string(
          const char* cstring, Py_ssize_t start, Py_ssize_t stop,
@@ -352,21 +414,19 @@ static CYTHON_INLINE PyObject* __Pyx_decode_c_string(
     }
 }
 
-/////////////// decode_bytes.proto ///////////////
+/////////////// decode_c_bytes.proto ///////////////
 
-static CYTHON_INLINE PyObject* __Pyx_decode_bytes(
-         PyObject* string, Py_ssize_t start, Py_ssize_t stop,
+static CYTHON_INLINE PyObject* __Pyx_decode_c_bytes(
+         const char* cstring, Py_ssize_t length, Py_ssize_t start, Py_ssize_t stop,
          const char* encoding, const char* errors,
          PyObject* (*decode_func)(const char *s, Py_ssize_t size, const char *errors));
 
-/////////////// decode_bytes ///////////////
+/////////////// decode_c_bytes ///////////////
 
-static CYTHON_INLINE PyObject* __Pyx_decode_bytes(
-         PyObject* string, Py_ssize_t start, Py_ssize_t stop,
+static CYTHON_INLINE PyObject* __Pyx_decode_c_bytes(
+         const char* cstring, Py_ssize_t length, Py_ssize_t start, Py_ssize_t stop,
          const char* encoding, const char* errors,
          PyObject* (*decode_func)(const char *s, Py_ssize_t size, const char *errors)) {
-    char* cstring;
-    Py_ssize_t length = PyBytes_GET_SIZE(string);
     if (unlikely((start < 0) | (stop < 0))) {
         if (start < 0) {
             start += length;
@@ -381,12 +441,36 @@ static CYTHON_INLINE PyObject* __Pyx_decode_bytes(
     length = stop - start;
     if (unlikely(length <= 0))
         return PyUnicode_FromUnicode(NULL, 0);
-    cstring = PyBytes_AS_STRING(string) + start;
+    cstring += start;
     if (decode_func) {
         return decode_func(cstring, length, errors);
     } else {
         return PyUnicode_Decode(cstring, length, encoding, errors);
     }
+}
+
+/////////////// decode_bytes.proto ///////////////
+//@requires: decode_c_bytes
+
+static CYTHON_INLINE PyObject* __Pyx_decode_bytes(
+         PyObject* string, Py_ssize_t start, Py_ssize_t stop,
+         const char* encoding, const char* errors,
+         PyObject* (*decode_func)(const char *s, Py_ssize_t size, const char *errors)) {
+    return __Pyx_decode_c_bytes(
+        PyBytes_AS_STRING(string), PyBytes_GET_SIZE(string),
+        start, stop, encoding, errors, decode_func);
+}
+
+/////////////// decode_bytearray.proto ///////////////
+//@requires: decode_c_bytes
+
+static CYTHON_INLINE PyObject* __Pyx_decode_bytearray(
+         PyObject* string, Py_ssize_t start, Py_ssize_t stop,
+         const char* encoding, const char* errors,
+         PyObject* (*decode_func)(const char *s, Py_ssize_t size, const char *errors)) {
+    return __Pyx_decode_c_bytes(
+        PyByteArray_AS_STRING(string), PyByteArray_GET_SIZE(string),
+        start, stop, encoding, errors, decode_func);
 }
 
 /////////////// PyUnicode_Substring.proto ///////////////
@@ -596,11 +680,107 @@ static CYTHON_INLINE char __Pyx_PyBytes_GetItemInt(PyObject* bytes, Py_ssize_t i
     if (check_bounds) {
         Py_ssize_t size = PyBytes_GET_SIZE(bytes);
         if (unlikely(index >= size) | ((index < 0) & unlikely(index < -size))) {
-            PyErr_Format(PyExc_IndexError, "string index out of range");
+            PyErr_SetString(PyExc_IndexError, "string index out of range");
             return -1;
         }
     }
     if (index < 0)
         index += PyBytes_GET_SIZE(bytes);
     return PyBytes_AS_STRING(bytes)[index];
+}
+
+
+//////////////////// StringJoin.proto ////////////////////
+
+#if PY_MAJOR_VERSION < 3
+#define __Pyx_PyString_Join __Pyx_PyBytes_Join
+#define __Pyx_PyBaseString_Join(s, v) (PyUnicode_CheckExact(s) ? PyUnicode_Join(s, v) : __Pyx_PyBytes_Join(s, v))
+#else
+#define __Pyx_PyString_Join PyUnicode_Join
+#define __Pyx_PyBaseString_Join PyUnicode_Join
+#endif
+
+#if CYTHON_COMPILING_IN_CPYTHON
+    #if PY_MAJOR_VERSION < 3
+    #define __Pyx_PyBytes_Join _PyString_Join
+    #else
+    #define __Pyx_PyBytes_Join _PyBytes_Join
+    #endif
+#else
+static CYTHON_INLINE PyObject* __Pyx_PyBytes_Join(PyObject* sep, PyObject* values); /*proto*/
+#endif
+
+
+//////////////////// StringJoin ////////////////////
+
+#if !CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE PyObject* __Pyx_PyBytes_Join(PyObject* sep, PyObject* values) {
+    return PyObject_CallMethodObjArgs(sep, PYIDENT("join"), values, NULL)
+}
+#endif
+
+
+//////////////////// ByteArrayAppendObject.proto ////////////////////
+
+static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyObject* value);
+
+//////////////////// ByteArrayAppendObject ////////////////////
+//@requires: ByteArrayAppend
+
+static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyObject* value) {
+    Py_ssize_t ival;
+#if PY_MAJOR_VERSION < 3
+    if (unlikely(PyString_Check(value))) {
+        if (unlikely(PyString_GET_SIZE(value) != 1)) {
+            PyErr_SetString(PyExc_ValueError, "string must be of size 1");
+            return -1;
+        }
+        ival = (unsigned char) (PyString_AS_STRING(value)[0]);
+    } else
+#endif
+    {
+        // CPython calls PyNumber_Index() internally
+        ival = __Pyx_PyIndex_AsSsize_t(value);
+        if (unlikely((ival < 0) | (ival > 255))) {
+            if (ival == -1 && PyErr_Occurred())
+                return -1;
+            PyErr_SetString(PyExc_ValueError, "byte must be in range(0, 256)");
+            return -1;
+        }
+    }
+    return __Pyx_PyByteArray_Append(bytearray, ival);
+}
+
+//////////////////// ByteArrayAppend.proto ////////////////////
+
+static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value);
+
+//////////////////// ByteArrayAppend ////////////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod
+
+static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value) {
+    PyObject *pyval, *retval;
+#if CYTHON_COMPILING_IN_CPYTHON
+    if (likely((value >= 0) & (value <= 255))) {
+        Py_ssize_t n = Py_SIZE(bytearray);
+        if (likely(n != PY_SSIZE_T_MAX)) {
+            if (unlikely(PyByteArray_Resize(bytearray, n + 1) < 0))
+                return -1;
+            PyByteArray_AS_STRING(bytearray)[n] = value;
+            return 0;
+        }
+    } else {
+        PyErr_SetString(PyExc_ValueError, "byte must be in range(0, 256)");
+        return -1;
+    }
+#endif
+    pyval = PyInt_FromLong(value);
+    if (unlikely(!pyval))
+        return -1;
+    retval = __Pyx_PyObject_CallMethod1(bytearray, PYIDENT("append"), pyval);
+    Py_DECREF(pyval);
+    if (unlikely(!retval))
+        return -1;
+    Py_DECREF(retval);
+    return 0;
 }

@@ -7,7 +7,7 @@ cdef extern from *:
     cdef cppclass string "std::string":
         string()
         string(char* c_str, size_t size)
-    cdef char* __Pyx_PyObject_AsStringAndSize(object, Py_ssize_t*)
+    cdef char* __Pyx_PyObject_AsStringAndSize(object, Py_ssize_t*) except NULL
 
 @cname("{{cname}}")
 cdef string {{cname}}(object o) except *:

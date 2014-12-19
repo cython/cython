@@ -271,10 +271,12 @@ class TestDebugTransform(DebuggerTestCase):
             assert 'puts' in spam_stepinto
             assert 'some_c_function' in spam_stepinto
         except:
-            print open(self.debug_dest).read()
+            f = open(self.debug_dest)
+            try:
+                print(f.read())
+            finally:
+                f.close()
             raise
-
-
 
 
 

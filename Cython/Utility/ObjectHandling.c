@@ -1,3 +1,12 @@
+/*
+ * General object operations and protocol implementations,
+ * including their specialisations for certain builtins.
+ *
+ * Optional optimisations for builtins are in Optimize.c.
+ *
+ * Required replacements of builtins are in Builtins.c.
+ */
+
 /////////////// RaiseNoneIterError.proto ///////////////
 
 static CYTHON_INLINE void __Pyx_RaiseNoneNotIterableError(void);
@@ -27,7 +36,7 @@ static CYTHON_INLINE void __Pyx_RaiseNeedMoreValuesError(Py_ssize_t index);
 
 static CYTHON_INLINE void __Pyx_RaiseNeedMoreValuesError(Py_ssize_t index) {
     PyErr_Format(PyExc_ValueError,
-                 "need more than %" CYTHON_FORMAT_SSIZE_T "d value%s to unpack",
+                 "need more than %" CYTHON_FORMAT_SSIZE_T "d value%.1s to unpack",
                  index, (index == 1) ? "" : "s");
 }
 
@@ -238,16 +247,17 @@ static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key) {
 
 /////////////// GetItemInt.proto ///////////////
 
-#define __Pyx_GetItemInt(o, i, size, to_py_func, is_list, wraparound, boundscheck) \
-    (((size) <= sizeof(Py_ssize_t)) ? \
-    __Pyx_GetItemInt_Fast(o, i, is_list, wraparound, boundscheck) : \
-    __Pyx_GetItemInt_Generic(o, to_py_func(i)))
+#define __Pyx_GetItemInt(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
+    (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
+    __Pyx_GetItemInt_Fast(o, (Py_ssize_t)i, is_list, wraparound, boundscheck) : \
+    (is_list ? (PyErr_SetString(PyExc_IndexError, "list index out of range"), (PyObject*)NULL) : \
+               __Pyx_GetItemInt_Generic(o, to_py_func(i))))
 
 {{for type in ['List', 'Tuple']}}
-#define __Pyx_GetItemInt_{{type}}(o, i, size, to_py_func, is_list, wraparound, boundscheck) \
-    (((size) <= sizeof(Py_ssize_t)) ? \
-    __Pyx_GetItemInt_{{type}}_Fast(o, i, wraparound, boundscheck) : \
-    __Pyx_GetItemInt_Generic(o, to_py_func(i)))
+#define __Pyx_GetItemInt_{{type}}(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
+    (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
+    __Pyx_GetItemInt_{{type}}_Fast(o, (Py_ssize_t)i, wraparound, boundscheck) : \
+    (PyErr_SetString(PyExc_IndexError, "{{ type.lower() }} index out of range"), (PyObject*)NULL))
 
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ssize_t i,
                                                               int wraparound, int boundscheck);
@@ -331,10 +341,11 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i,
 
 /////////////// SetItemInt.proto ///////////////
 
-#define __Pyx_SetItemInt(o, i, v, size, to_py_func, is_list, wraparound, boundscheck) \
-    (((size) <= sizeof(Py_ssize_t)) ? \
-    __Pyx_SetItemInt_Fast(o, i, v, is_list, wraparound, boundscheck) : \
-    __Pyx_SetItemInt_Generic(o, to_py_func(i), v))
+#define __Pyx_SetItemInt(o, i, v, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
+    (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
+    __Pyx_SetItemInt_Fast(o, (Py_ssize_t)i, v, is_list, wraparound, boundscheck) : \
+    (is_list ? (PyErr_SetString(PyExc_IndexError, "list assignment index out of range"), -1) : \
+               __Pyx_SetItemInt_Generic(o, to_py_func(i), v)))
 
 static CYTHON_INLINE int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyObject *v);
 static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v,
@@ -396,10 +407,11 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
 
 /////////////// DelItemInt.proto ///////////////
 
-#define __Pyx_DelItemInt(o, i, size, to_py_func, is_list, wraparound, boundscheck) \
-    (((size) <= sizeof(Py_ssize_t)) ? \
-    __Pyx_DelItemInt_Fast(o, i, is_list, wraparound) : \
-    __Pyx_DelItem_Generic(o, to_py_func(i)))
+#define __Pyx_DelItemInt(o, i, type, is_signed, to_py_func, is_list, wraparound, boundscheck) \
+    (__Pyx_fits_Py_ssize_t(i, type, is_signed) ? \
+    __Pyx_DelItemInt_Fast(o, (Py_ssize_t)i, is_list, wraparound) : \
+    (is_list ? (PyErr_SetString(PyExc_IndexError, "list assignment index out of range"), -1) : \
+               __Pyx_DelItem_Generic(o, to_py_func(i))))
 
 static CYTHON_INLINE int __Pyx_DelItem_Generic(PyObject *o, PyObject *j);
 static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i,
@@ -581,7 +593,7 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(
 {{if access == 'Get'}}
         "'%.200s' object is unsliceable", Py_TYPE(obj)->tp_name);
 {{else}}
-        "'%.200s' object does not support slice %s",
+        "'%.200s' object does not support slice %.10s",
         Py_TYPE(obj)->tp_name, value ? "assignment" : "deletion");
 {{endif}}
 
@@ -651,36 +663,93 @@ static CYTHON_INLINE PyObject* __Pyx_Py{{type}}_GetSlice(
 {{endfor}}
 #endif
 
-/////////////// FindPy2Metaclass.proto ///////////////
 
-static PyObject *__Pyx_FindPy2Metaclass(PyObject *bases); /*proto*/
+/////////////// CalculateMetaclass.proto ///////////////
 
-/////////////// FindPy2Metaclass ///////////////
-//@requires: PyObjectGetAttrStr
+static PyObject *__Pyx_CalculateMetaclass(PyTypeObject *metaclass, PyObject *bases);
 
-static PyObject *__Pyx_FindPy2Metaclass(PyObject *bases) {
-    PyObject *metaclass;
-    /* Default metaclass */
+/////////////// CalculateMetaclass ///////////////
+
+static PyObject *__Pyx_CalculateMetaclass(PyTypeObject *metaclass, PyObject *bases) {
+    Py_ssize_t i, nbases = PyTuple_GET_SIZE(bases);
+    for (i=0; i < nbases; i++) {
+        PyTypeObject *tmptype;
+        PyObject *tmp = PyTuple_GET_ITEM(bases, i);
+        tmptype = Py_TYPE(tmp);
 #if PY_MAJOR_VERSION < 3
-    if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
-        PyObject *base = PyTuple_GET_ITEM(bases, 0);
-        metaclass = __Pyx_PyObject_GetAttrStr(base, PYIDENT("__class__"));
-        if (!metaclass) {
-            PyErr_Clear();
-            metaclass = (PyObject*) Py_TYPE(base);
-        }
-    } else {
-        metaclass = (PyObject *) &PyClass_Type;
-    }
-#else
-    if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
-        PyObject *base = PyTuple_GET_ITEM(bases, 0);
-        metaclass = (PyObject*) Py_TYPE(base);
-    } else {
-        metaclass = (PyObject *) &PyType_Type;
-    }
+        if (tmptype == &PyClass_Type)
+            continue;
 #endif
-    Py_INCREF(metaclass);
+        if (!metaclass) {
+            metaclass = tmptype;
+            continue;
+        }
+        if (PyType_IsSubtype(metaclass, tmptype))
+            continue;
+        if (PyType_IsSubtype(tmptype, metaclass)) {
+            metaclass = tmptype;
+            continue;
+        }
+        // else:
+        PyErr_SetString(PyExc_TypeError,
+                        "metaclass conflict: "
+                        "the metaclass of a derived class "
+                        "must be a (non-strict) subclass "
+                        "of the metaclasses of all its bases");
+        return NULL;
+    }
+    if (!metaclass) {
+#if PY_MAJOR_VERSION < 3
+        metaclass = &PyClass_Type;
+#else
+        metaclass = &PyType_Type;
+#endif
+    }
+    // make owned reference
+    Py_INCREF((PyObject*) metaclass);
+    return (PyObject*) metaclass;
+}
+
+
+/////////////// FindInheritedMetaclass.proto ///////////////
+
+static PyObject *__Pyx_FindInheritedMetaclass(PyObject *bases); /*proto*/
+
+/////////////// FindInheritedMetaclass ///////////////
+//@requires: PyObjectGetAttrStr
+//@requires: CalculateMetaclass
+
+static PyObject *__Pyx_FindInheritedMetaclass(PyObject *bases) {
+    PyObject *metaclass;
+    if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
+        PyTypeObject *metatype;
+        PyObject *base = PyTuple_GET_ITEM(bases, 0);
+#if PY_MAJOR_VERSION < 3
+        PyObject* basetype = __Pyx_PyObject_GetAttrStr(base, PYIDENT("__class__"));
+        if (basetype) {
+            metatype = (PyType_Check(basetype)) ? ((PyTypeObject*) basetype) : NULL;
+        } else {
+            PyErr_Clear();
+            metatype = Py_TYPE(base);
+            basetype = (PyObject*) metatype;
+            Py_INCREF(basetype);
+        }
+#else
+        metatype = Py_TYPE(base);
+#endif
+        metaclass = __Pyx_CalculateMetaclass(metatype, bases);
+#if PY_MAJOR_VERSION < 3
+        Py_DECREF(basetype);
+#endif
+    } else {
+        // no bases => use default metaclass
+#if PY_MAJOR_VERSION < 3
+        metaclass = (PyObject *) &PyClass_Type;
+#else
+        metaclass = (PyObject *) &PyType_Type;
+#endif
+        Py_INCREF(metaclass);
+    }
     return metaclass;
 }
 
@@ -689,7 +758,8 @@ static PyObject *__Pyx_FindPy2Metaclass(PyObject *bases) {
 static PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw); /*proto*/
 
 /////////////// Py3MetaclassGet ///////////////
-//@requires: FindPy2Metaclass
+//@requires: FindInheritedMetaclass
+//@requires: CalculateMetaclass
 
 static PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw) {
     PyObject *metaclass = PyDict_GetItem(mkw, PYIDENT("metaclass"));
@@ -699,9 +769,14 @@ static PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw) {
             Py_DECREF(metaclass);
             return NULL;
         }
+        if (PyType_Check(metaclass)) {
+            PyObject* orig = metaclass;
+            metaclass = __Pyx_CalculateMetaclass((PyTypeObject*) metaclass, bases);
+            Py_DECREF(orig);
+        }
         return metaclass;
     }
-    return __Pyx_FindPy2Metaclass(bases);
+    return __Pyx_FindInheritedMetaclass(bases);
 }
 
 /////////////// CreateClass.proto ///////////////
@@ -710,7 +785,8 @@ static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *na
                                    PyObject *qualname, PyObject *modname); /*proto*/
 
 /////////////// CreateClass ///////////////
-//@requires: FindPy2Metaclass
+//@requires: FindInheritedMetaclass
+//@requires: CalculateMetaclass
 
 static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *name,
                                    PyObject *qualname, PyObject *modname) {
@@ -726,9 +802,16 @@ static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *na
     metaclass = PyDict_GetItem(dict, PYIDENT("__metaclass__"));
     if (metaclass) {
         Py_INCREF(metaclass);
+        if (PyType_Check(metaclass)) {
+            PyObject* orig = metaclass;
+            metaclass = __Pyx_CalculateMetaclass((PyTypeObject*) metaclass, bases);
+            Py_DECREF(orig);
+        }
     } else {
-        metaclass = __Pyx_FindPy2Metaclass(bases);
+        metaclass = __Pyx_FindInheritedMetaclass(bases);
     }
+    if (unlikely(!metaclass))
+        return NULL;
     result = PyObject_CallFunctionObjArgs(metaclass, name, bases, dict, NULL);
     Py_DECREF(metaclass);
     return result;
@@ -736,41 +819,46 @@ static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *na
 
 /////////////// Py3ClassCreate.proto ///////////////
 
-static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name, PyObject *qualname, PyObject *mkw, PyObject *modname, PyObject *doc); /*proto*/
-static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObject *bases, PyObject *dict, PyObject *mkw); /*proto*/
+static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name, PyObject *qualname,
+                                           PyObject *mkw, PyObject *modname, PyObject *doc); /*proto*/
+static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObject *bases, PyObject *dict,
+                                      PyObject *mkw, int calculate_metaclass, int allow_py2_metaclass); /*proto*/
 
 /////////////// Py3ClassCreate ///////////////
 //@requires: PyObjectGetAttrStr
+//@requires: CalculateMetaclass
 
 static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name,
                                            PyObject *qualname, PyObject *mkw, PyObject *modname, PyObject *doc) {
-    PyObject *prep;
-    PyObject *pargs;
     PyObject *ns;
-
-    prep = __Pyx_PyObject_GetAttrStr(metaclass, PYIDENT("__prepare__"));
-    if (!prep) {
-        if (!PyErr_ExceptionMatches(PyExc_AttributeError))
-            return NULL;
-        PyErr_Clear();
-        return PyDict_New();
+    if (metaclass) {
+        PyObject *prep = __Pyx_PyObject_GetAttrStr(metaclass, PYIDENT("__prepare__"));
+        if (prep) {
+            PyObject *pargs = PyTuple_Pack(2, name, bases);
+            if (unlikely(!pargs)) {
+                Py_DECREF(prep);
+                return NULL;
+            }
+            ns = PyObject_Call(prep, pargs, mkw);
+            Py_DECREF(prep);
+            Py_DECREF(pargs);
+        } else {
+            if (unlikely(!PyErr_ExceptionMatches(PyExc_AttributeError)))
+                return NULL;
+            PyErr_Clear();
+            ns = PyDict_New();
+        }
+    } else {
+        ns = PyDict_New();
     }
-    pargs = PyTuple_Pack(2, name, bases);
-    if (!pargs) {
-        Py_DECREF(prep);
-        return NULL;
-    }
-    ns = PyObject_Call(prep, pargs, mkw);
-    Py_DECREF(prep);
-    Py_DECREF(pargs);
 
-    if (ns == NULL)
+    if (unlikely(!ns))
         return NULL;
 
     /* Required here to emulate assignment order */
-    if (PyObject_SetItem(ns, PYIDENT("__module__"), modname) < 0) goto bad;
-    if (PyObject_SetItem(ns, PYIDENT("__qualname__"), qualname) < 0) goto bad;
-    if (doc && PyObject_SetItem(ns, PYIDENT("__doc__"), doc) < 0) goto bad;
+    if (unlikely(PyObject_SetItem(ns, PYIDENT("__module__"), modname) < 0)) goto bad;
+    if (unlikely(PyObject_SetItem(ns, PYIDENT("__qualname__"), qualname) < 0)) goto bad;
+    if (unlikely(doc && PyObject_SetItem(ns, PYIDENT("__doc__"), doc) < 0)) goto bad;
     return ns;
 bad:
     Py_DECREF(ns);
@@ -778,13 +866,36 @@ bad:
 }
 
 static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObject *bases,
-                                      PyObject *dict, PyObject *mkw) {
-    PyObject *result;
-    PyObject *margs = PyTuple_Pack(3, name, bases, dict);
-    if (!margs)
-        return NULL;
-    result = PyObject_Call(metaclass, margs, mkw);
-    Py_DECREF(margs);
+                                      PyObject *dict, PyObject *mkw,
+                                      int calculate_metaclass, int allow_py2_metaclass) {
+    PyObject *result, *margs;
+    PyObject *owned_metaclass = NULL;
+    if (allow_py2_metaclass) {
+        /* honour Python2 __metaclass__ for backward compatibility */
+        owned_metaclass = PyObject_GetItem(dict, PYIDENT("__metaclass__"));
+        if (owned_metaclass) {
+            metaclass = owned_metaclass;
+        } else if (likely(PyErr_ExceptionMatches(PyExc_KeyError))) {
+            PyErr_Clear();
+        } else {
+            return NULL;
+        }
+    }
+    if (calculate_metaclass && (!metaclass || PyType_Check(metaclass))) {
+        metaclass = __Pyx_CalculateMetaclass((PyTypeObject*) metaclass, bases);
+        Py_XDECREF(owned_metaclass);
+        if (unlikely(!metaclass))
+            return NULL;
+        owned_metaclass = metaclass;
+    }
+    margs = PyTuple_Pack(3, name, bases, dict);
+    if (unlikely(!margs)) {
+        result = NULL;
+    } else {
+        result = PyObject_Call(metaclass, margs, mkw);
+        Py_DECREF(margs);
+    }
+    Py_XDECREF(owned_metaclass);
     return result;
 }
 
@@ -796,7 +907,7 @@ static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type); /*pr
 
 static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
     if (unlikely(!type)) {
-        PyErr_Format(PyExc_SystemError, "Missing type object");
+        PyErr_SetString(PyExc_SystemError, "Missing type object");
         return 0;
     }
     if (likely(PyObject_TypeCheck(obj, type)))
@@ -849,7 +960,7 @@ static PyObject *__Pyx_GetBuiltinName(PyObject *name) {
 #if PY_MAJOR_VERSION >= 3
             "name '%U' is not defined", name);
 #else
-            "name '%s' is not defined", PyString_AS_STRING(name));
+            "name '%.200s' is not defined", PyString_AS_STRING(name));
 #endif
     }
     return result;
@@ -896,6 +1007,55 @@ static CYTHON_INLINE PyObject *__Pyx_GetModuleGlobalName(PyObject *name) {
     return result;
 }
 
+//////////////////// GetAttr.proto ////////////////////
+
+static CYTHON_INLINE PyObject *__Pyx_GetAttr(PyObject *, PyObject *); /*proto*/
+
+//////////////////// GetAttr ////////////////////
+//@requires: PyObjectGetAttrStr
+
+static CYTHON_INLINE PyObject *__Pyx_GetAttr(PyObject *o, PyObject *n) {
+#if CYTHON_COMPILING_IN_CPYTHON
+#if PY_MAJOR_VERSION >= 3
+    if (likely(PyUnicode_Check(n)))
+#else
+    if (likely(PyString_Check(n)))
+#endif
+        return __Pyx_PyObject_GetAttrStr(o, n);
+#endif
+    return PyObject_GetAttr(o, n);
+}
+
+/////////////// PyObjectLookupSpecial.proto ///////////////
+//@requires: PyObjectGetAttrStr
+
+#if CYTHON_COMPILING_IN_CPYTHON && (PY_VERSION_HEX >= 0x03020000 || PY_MAJOR_VERSION < 3 && PY_VERSION_HEX >= 0x02070000)
+// looks like calling _PyType_Lookup() isn't safe in Py<=2.6/3.1
+static CYTHON_INLINE PyObject* __Pyx_PyObject_LookupSpecial(PyObject* obj, PyObject* attr_name) {
+    PyObject *res;
+    PyTypeObject *tp = Py_TYPE(obj);
+#if PY_MAJOR_VERSION < 3
+    if (unlikely(PyInstance_Check(obj)))
+        return __Pyx_PyObject_GetAttrStr(obj, attr_name);
+#endif
+    // adapted from CPython's special_lookup() in ceval.c
+    res = _PyType_Lookup(tp, attr_name);
+    if (likely(res)) {
+        descrgetfunc f = Py_TYPE(res)->tp_descr_get;
+        if (!f) {
+            Py_INCREF(res);
+        } else {
+            res = f(res, obj, (PyObject *)tp);
+        }
+    } else {
+        PyErr_SetObject(PyExc_AttributeError, attr_name);
+    }
+    return res;
+}
+#else
+#define __Pyx_PyObject_LookupSpecial(o,n) __Pyx_PyObject_GetAttrStr(o,n)
+#endif
+
 /////////////// PyObjectGetAttrStr.proto ///////////////
 
 #if CYTHON_COMPILING_IN_CPYTHON
@@ -934,6 +1094,7 @@ static CYTHON_INLINE int __Pyx_PyObject_SetAttrStr(PyObject* obj, PyObject* attr
 
 /////////////// PyObjectCallMethod.proto ///////////////
 //@requires: PyObjectGetAttrStr
+//@requires: PyObjectCall
 //@substitute: naming
 
 static PyObject* __Pyx_PyObject_CallMethodTuple(PyObject* obj, PyObject* method_name, PyObject* args) {
@@ -941,7 +1102,7 @@ static PyObject* __Pyx_PyObject_CallMethodTuple(PyObject* obj, PyObject* method_
     if (unlikely(!args)) return NULL;
     method = __Pyx_PyObject_GetAttrStr(obj, method_name);
     if (unlikely(!method)) goto bad;
-    result = PyObject_Call(method, args, NULL);
+    result = __Pyx_PyObject_Call(method, args, NULL);
     Py_DECREF(method);
 bad:
     Py_DECREF(args);
@@ -964,3 +1125,38 @@ bad:
 static CYTHON_INLINE PyObject* __Pyx_tp_new_kwargs(PyObject* type_obj, PyObject* args, PyObject* kwargs) {
     return (PyObject*) (((PyTypeObject*)type_obj)->tp_new((PyTypeObject*)type_obj, args, kwargs));
 }
+
+
+/////////////// PyObjectCall.proto ///////////////
+
+#if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE PyObject* __Pyx_PyObject_Call(PyObject *func, PyObject *arg, PyObject *kw); /*proto*/
+#else
+#define __Pyx_PyObject_Call(func, arg, kw) PyObject_Call(func, arg, kw)
+#endif
+
+/////////////// PyObjectCall ///////////////
+
+#if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE PyObject* __Pyx_PyObject_Call(PyObject *func, PyObject *arg, PyObject *kw) {
+    PyObject *result;
+    ternaryfunc call = func->ob_type->tp_call;
+
+    if (unlikely(!call))
+        return PyObject_Call(func, arg, kw);
+#if PY_VERSION_HEX >= 0x02060000
+    if (unlikely(Py_EnterRecursiveCall((char*)" while calling a Python object")))
+        return NULL;
+#endif
+    result = (*call)(func, arg, kw);
+#if PY_VERSION_HEX >= 0x02060000
+    Py_LeaveRecursiveCall();
+#endif
+    if (unlikely(!result) && unlikely(!PyErr_Occurred())) {
+        PyErr_SetString(
+            PyExc_SystemError,
+            "NULL result without error in PyObject_Call");
+    }
+    return result;
+}
+#endif

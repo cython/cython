@@ -95,7 +95,7 @@ within the function call.
 
 A side-effect of cdef is that the function is no longer available from
 Python-space, as Python wouldn't know how to call it. It is also no
-longer possible to change ``f` at runtime.
+longer possible to change :func:`f` at runtime.
 
 Using the ``cpdef`` keyword instead of ``cdef``, a Python wrapper is also
 created, so that the function is available both from Cython (fast, passing

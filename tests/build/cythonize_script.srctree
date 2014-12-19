@@ -1,0 +1,27 @@
+'''
+PYTHON -m Cython.Build.Cythonize -i '**/*_test.py'
+PYTHON -c "import cy_test; assert cy_test.TEST == 'cy_test', cy_test.TEST; assert '.py' not in cy_test.__file__, cy_test.__file__"
+PYTHON -c "import pkg.cy_test; assert pkg.cy_test.TEST == 'pkg.cy_test', pkg.cy_test.TEST; assert '.py' not in pkg.cy_test.__file__, pkg.cy_test.__file__"
+PYTHON -c "import pkg.sub.cy_test; assert pkg.sub.cy_test.TEST == 'pkg.sub.cy_test', pkg.sub.cy_test.TEST; assert '.py' not in pkg.sub.cy_test.__file__, pkg.cy_test.__file__"
+'''
+
+######## cy_test.py ########
+
+TEST = 'cy_test'
+
+######## pkg/__init__.py ########
+
+######## pkg/cy_test.py ########
+
+TEST = 'pkg.cy_test'
+
+######## pkg/sub/__init__.py ########
+
+######## pkg/sub/cy_test.py ########
+# cython: language_level=3
+
+TEST = 'pkg.sub.cy_test'
+
+ustring = 'abc'
+
+assert isinstance(ustring, unicode)

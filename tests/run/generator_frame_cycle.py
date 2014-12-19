@@ -1,5 +1,5 @@
 # mode: run
-# tags: generator
+# tag: generator
 
 import sys
 

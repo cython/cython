@@ -6,6 +6,7 @@ import DebugFlags
 import Options
 from Visitor import CythonTransform
 from Errors import CompileError, InternalError, AbortError
+import Naming
 
 #
 # Really small pipeline stages
@@ -18,7 +19,7 @@ def dumptree(t):
 def abort_on_errors(node):
     # Stop the pipeline if there are any errors.
     if Errors.num_errors != 0:
-        raise AbortError, "pipeline break"
+        raise AbortError("pipeline break")
     return node
 
 def parse_stage_factory(context):
@@ -119,7 +120,7 @@ class UseUtilityCodeDefinitions(CythonTransform):
         self.process_entry(node.entry)
         self.process_entry(node.type_entry)
         return node
-                     
+
 #
 # Pipeline factories
 #
@@ -133,6 +134,7 @@ def create_pipeline(context, mode, exclude_classes=()):
     from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
     from ParseTreeTransforms import InterpretCompilerDirectives, TransformBuiltinMethods
     from ParseTreeTransforms import ExpandInplaceOperators, ParallelRangeTransform
+    from ParseTreeTransforms import CalculateQualifiedNamesTransform
     from TypeInference import MarkParallelAssignments, MarkOverflowingArithmetic
     from ParseTreeTransforms import AdjustDefByDirectives, AlignFunctionDefinitions
     from ParseTreeTransforms import RemoveUnreachableCode, GilCheck
@@ -194,9 +196,10 @@ def create_pipeline(context, mode, exclude_classes=()):
         InlineDefNodeCalls(context),
         AnalyseExpressionsTransform(context),
         FindInvalidUseOfFusedTypes(context),
-        CreateClosureClasses(context),  ## After all lookups and type inference
         ExpandInplaceOperators(context),
         OptimizeBuiltinCalls(context),  ## Necessary?
+        CreateClosureClasses(context),  ## After all lookups and type inference
+        CalculateQualifiedNamesTransform(context),
         ConsolidateOverflowCheck(context),
         IterationTransform(context),
         SwitchTransform(),
@@ -277,6 +280,9 @@ def create_pyx_as_pxd_pipeline(context, result):
         for entry in root.scope.entries.values():
             if not entry.in_cinclude:
                 entry.defined_in_pxd = 1
+                if entry.name == entry.cname and entry.visibility != 'extern':
+                    # Always mangle non-extern cimported entries.
+                    entry.cname = entry.scope.mangle(Naming.func_prefix, entry.name)
         return StatListNode(root.pos, stats=[]), root.scope
     pipeline.append(fake_pxd)
     return pipeline

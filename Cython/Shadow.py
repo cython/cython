@@ -1,5 +1,5 @@
 # cython.* namespace for pure mode.
-__version__ = "0.20dev"
+__version__ = "0.20.1"
 
 
 # BEGIN shameless copy from Cython/minivect/minitypes.py
@@ -97,7 +97,7 @@ cclass = ccall = cfunc = _EmptyDecoratorAndManager()
 
 returns = lambda type_arg: _EmptyDecoratorAndManager()
 
-final = internal = type_version_tag = _empty_decorator
+final = internal = type_version_tag = no_gc_clear = _empty_decorator
 
 def inline(f, *args, **kwds):
   if isinstance(f, basestring):
@@ -144,7 +144,7 @@ def address(arg):
     return pointer(type(arg))([arg])
 
 def declare(type=None, value=_Unspecified, **kwds):
-    if type is not None and hasattr(type, '__call__'):
+    if type not in (None, object) and hasattr(type, '__call__'):
         if value is not _Unspecified:
             return type(value)
         else:

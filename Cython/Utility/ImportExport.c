@@ -147,6 +147,89 @@ bad:
 }
 #endif
 
+
+/////////////// SetPackagePathFromImportLib.proto ///////////////
+
+#if PY_VERSION_HEX >= 0x03030000
+static int __Pyx_SetPackagePathFromImportLib(const char* parent_package_name, PyObject *module_name);
+#else
+#define __Pyx_SetPackagePathFromImportLib(a, b) 0
+#endif
+
+/////////////// SetPackagePathFromImportLib ///////////////
+//@requires: ObjectHandling.c::PyObjectGetAttrStr
+//@substitute: naming
+
+#if PY_VERSION_HEX >= 0x03030000
+static int __Pyx_SetPackagePathFromImportLib(const char* parent_package_name, PyObject *module_name) {
+    PyObject *importlib, *loader, *osmod, *ossep, *parts, *package_path;
+    PyObject *path = NULL, *file_path = NULL;
+    int result;
+    if (parent_package_name) {
+        PyObject *package = PyImport_ImportModule(parent_package_name);
+        if (unlikely(!package))
+            goto bad;
+        path = PyObject_GetAttrString(package, "__path__");
+        Py_DECREF(package);
+        if (unlikely(!path) || unlikely(path == Py_None))
+            goto bad;
+    } else {
+        path = Py_None; Py_INCREF(Py_None);
+    }
+    // package_path = [importlib.find_loader(module_name, path).path.rsplit(os.sep, 1)[0]]
+    importlib = PyImport_ImportModule("importlib");
+    if (unlikely(!importlib))
+        goto bad;
+    loader = PyObject_CallMethod(importlib, "find_loader", "(OO)", module_name, path);
+    Py_DECREF(importlib);
+    Py_DECREF(path); path = NULL;
+    if (unlikely(!loader))
+        goto bad;
+    file_path = PyObject_GetAttrString(loader, "path");
+    Py_DECREF(loader);
+    if (unlikely(!file_path))
+        goto bad;
+
+    if (unlikely(__Pyx_SetAttrString($module_cname, "__file__", file_path) < 0))
+        goto bad;
+
+    osmod = PyImport_ImportModule("os");
+    if (unlikely(!osmod))
+        goto bad;
+    ossep = PyObject_GetAttrString(osmod, "sep");
+    Py_DECREF(osmod);
+    if (unlikely(!ossep))
+        goto bad;
+    parts = PyObject_CallMethod(file_path, "rsplit", "(Oi)", ossep, 1);
+    Py_DECREF(file_path); file_path = NULL;
+    Py_DECREF(ossep);
+    if (unlikely(!parts))
+        goto bad;
+    package_path = Py_BuildValue("[O]", PyList_GET_ITEM(parts, 0));
+    Py_DECREF(parts);
+    if (unlikely(!package_path))
+        goto bad;
+    goto set_path;
+
+bad:
+    PyErr_WriteUnraisable(module_name);
+    Py_XDECREF(path);
+    Py_XDECREF(file_path);
+
+    // set an empty path list on failure
+    PyErr_Clear();
+    package_path = PyList_New(0);
+    if (unlikely(!package_path))
+        return -1;
+
+set_path:
+    result = __Pyx_SetAttrString($module_cname, "__path__", package_path);
+    Py_DECREF(package_path);
+    return result;
+}
+#endif
+
+
 /////////////// TypeImport.proto ///////////////
 
 static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class_name, size_t size, int strict);  /*proto*/
@@ -184,7 +267,7 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
         goto bad;
     if (!PyType_Check(result)) {
         PyErr_Format(PyExc_TypeError,
-            "%s.%s is not a type object",
+            "%.200s.%.200s is not a type object",
             module_name, class_name);
         goto bad;
     }
@@ -212,7 +295,7 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
     }
     else if ((size_t)basicsize != size) {
         PyErr_Format(PyExc_ValueError,
-            "%s.%s has the wrong size, try recompiling",
+            "%.200s.%.200s has the wrong size, try recompiling",
             module_name, class_name);
         goto bad;
     }
@@ -247,14 +330,14 @@ static int __Pyx_ImportFunction(PyObject *module, const char *funcname, void (**
     cobj = PyDict_GetItemString(d, funcname);
     if (!cobj) {
         PyErr_Format(PyExc_ImportError,
-            "%s does not export expected C function %s",
+            "%.200s does not export expected C function %.200s",
                 PyModule_GetName(module), funcname);
         goto bad;
     }
 #if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION==3 && PY_MINOR_VERSION==0)
     if (!PyCapsule_IsValid(cobj, sig)) {
         PyErr_Format(PyExc_TypeError,
-            "C function %s.%s has wrong signature (expected %s, got %s)",
+            "C function %.200s.%.200s has wrong signature (expected %.500s, got %.500s)",
              PyModule_GetName(module), funcname, sig, PyCapsule_GetName(cobj));
         goto bad;
     }
@@ -268,7 +351,7 @@ static int __Pyx_ImportFunction(PyObject *module, const char *funcname, void (**
     while (*s1 != '\0' && *s1 == *s2) { s1++; s2++; }
     if (*s1 != *s2) {
         PyErr_Format(PyExc_TypeError,
-            "C function %s.%s has wrong signature (expected %s, got %s)",
+            "C function %.200s.%.200s has wrong signature (expected %.500s, got %.500s)",
              PyModule_GetName(module), funcname, sig, desc);
         goto bad;
     }
@@ -348,14 +431,14 @@ static int __Pyx_ImportVoidPtr(PyObject *module, const char *name, void **p, con
     cobj = PyDict_GetItemString(d, name);
     if (!cobj) {
         PyErr_Format(PyExc_ImportError,
-            "%s does not export expected C variable %s",
+            "%.200s does not export expected C variable %.200s",
                 PyModule_GetName(module), name);
         goto bad;
     }
 #if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION==3 && PY_MINOR_VERSION==0)
     if (!PyCapsule_IsValid(cobj, sig)) {
         PyErr_Format(PyExc_TypeError,
-            "C variable %s.%s has wrong signature (expected %s, got %s)",
+            "C variable %.200s.%.200s has wrong signature (expected %.500s, got %.500s)",
              PyModule_GetName(module), name, sig, PyCapsule_GetName(cobj));
         goto bad;
     }
@@ -369,7 +452,7 @@ static int __Pyx_ImportVoidPtr(PyObject *module, const char *name, void **p, con
     while (*s1 != '\0' && *s1 == *s2) { s1++; s2++; }
     if (*s1 != *s2) {
         PyErr_Format(PyExc_TypeError,
-            "C variable %s.%s has wrong signature (expected %s, got %s)",
+            "C variable %.200s.%.200s has wrong signature (expected %.500s, got %.500s)",
              PyModule_GetName(module), name, sig, desc);
         goto bad;
     }

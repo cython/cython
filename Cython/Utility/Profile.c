@@ -130,8 +130,10 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
             Py_INCREF(Py_None);
             (*frame)->f_trace = Py_None;
         }
+#if PY_VERSION_HEX < 0x030400B1
     } else {
         (*frame)->f_tstate = tstate;
+#endif
     }
     (*frame)->f_lineno = firstlineno;
     tstate->use_tracing = 0;

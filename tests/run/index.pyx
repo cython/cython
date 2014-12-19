@@ -75,6 +75,44 @@ def index_object(object o, int i):
     return o[i]
 
 
+def del_index_list(list L, Py_ssize_t index):
+    """
+    >>> del_index_list(list(range(4)), 0)
+    [1, 2, 3]
+    >>> del_index_list(list(range(4)), 1)
+    [0, 2, 3]
+    >>> del_index_list(list(range(4)), -1)
+    [0, 1, 2]
+    >>> del_index_list(list(range(4)), py_maxsize)
+    Traceback (most recent call last):
+    IndexError: list assignment index out of range
+    >>> del_index_list(list(range(4)), -py_maxsize)
+    Traceback (most recent call last):
+    IndexError: list assignment index out of range
+    """
+    del L[index]
+    return L
+
+
+def set_index_list(list L, Py_ssize_t index):
+    """
+    >>> set_index_list(list(range(4)), 0)
+    [5, 1, 2, 3]
+    >>> set_index_list(list(range(4)), 1)
+    [0, 5, 2, 3]
+    >>> set_index_list(list(range(4)), -1)
+    [0, 1, 2, 5]
+    >>> set_index_list(list(range(4)), py_maxsize)
+    Traceback (most recent call last):
+    IndexError: list assignment index out of range
+    >>> set_index_list(list(range(4)), -py_maxsize)
+    Traceback (most recent call last):
+    IndexError: list assignment index out of range
+    """
+    L[index] = 5
+    return L
+
+
 # These make sure that our fast indexing works with large and unsigned types.
 
 def test_unsigned_long():
@@ -123,7 +161,57 @@ def test_long_long():
         ix = (<long long>1) << i
         assert D[ix] is True
         del D[ix]
+
+    L = [1, 2, 3]
+    try:
+        ix = py_maxsize + 1
+    except OverflowError:
+        pass  # can't test this here
+    else:
+        try: L[ix] = 5
+        except IndexError: pass
+        else: assert False, "setting large index failed to raise IndexError"
+
+        try: del L[ix]
+        except IndexError: pass
+        else: assert False, "deleting large index failed to raise IndexError"
+
+    try:
+        ix = -py_maxsize - 2
+    except OverflowError:
+        pass  # can't test this here
+    else:
+        try: L[ix] = 5
+        except IndexError: pass
+        else: assert False, "setting large index failed to raise IndexError"
+
+        try: del L[ix]
+        except IndexError: pass
+        else: assert False, "deleting large index failed to raise IndexError"
+
     assert len(D) == 0
+
+
+def test_ulong_long():
+    """
+    >>> test_ulong_long()
+    """
+    cdef unsigned long long ix
+
+    L = [1, 2, 3]
+    try:
+        ix = py_maxsize + 1
+    except OverflowError:
+        pass  # can't test this here
+    else:
+        try: L[ix] = 5
+        except IndexError: pass
+        else: assert False, "setting large index failed to raise IndexError"
+
+        try: del L[ix]
+        except IndexError: pass
+        else: assert False, "deleting large index failed to raise IndexError"
+
 
 @cython.boundscheck(False)
 def test_boundscheck_unsigned(list L, tuple t, object o, unsigned long ix):

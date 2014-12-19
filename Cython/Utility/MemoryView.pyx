@@ -407,7 +407,8 @@ cdef class memoryview(object):
         cdef void *tmp = NULL
         cdef void *item
 
-        cdef {{memviewslice_name}} tmp_slice, *dst_slice
+        cdef {{memviewslice_name}} *dst_slice
+        cdef {{memviewslice_name}} tmp_slice
         dst_slice = get_slice_from_memview(dst, &tmp_slice)
 
         if <size_t>self.view.itemsize > sizeof(array):
@@ -580,12 +581,14 @@ cdef class memoryview(object):
 
     # Support the same attributes as memoryview slices
     def is_c_contig(self):
-        cdef {{memviewslice_name}} *mslice, tmp
+        cdef {{memviewslice_name}} *mslice
+        cdef {{memviewslice_name}} tmp
         mslice = get_slice_from_memview(self, &tmp)
         return slice_is_contig(mslice, 'C', self.view.ndim)
 
     def is_f_contig(self):
-        cdef {{memviewslice_name}} *mslice, tmp
+        cdef {{memviewslice_name}} *mslice
+        cdef {{memviewslice_name}} tmp
         mslice = get_slice_from_memview(self, &tmp)
         return slice_is_contig(mslice, 'F', self.view.ndim)
 
@@ -1017,7 +1020,7 @@ cdef {{memviewslice_name}} *get_slice_from_memview(memoryview memview,
 @cname('__pyx_memoryview_slice_copy')
 cdef void slice_copy(memoryview memview, {{memviewslice_name}} *dst):
     cdef int dim
-    cdef Py_ssize_t *shape, *strides, *suboffsets
+    cdef (Py_ssize_t*) shape, strides, suboffsets
 
     shape = memview.view.shape
     strides = memview.view.strides

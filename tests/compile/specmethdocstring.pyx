@@ -21,7 +21,7 @@ cdef class C:
         def __set__(self, x):
             "And here is another one."
 
-    def __add__(self, other):
+    def __div__(self, other):
         "usable docstring"
     def __iter__(self):
         "usable docstring"

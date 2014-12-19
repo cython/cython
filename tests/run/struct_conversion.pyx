@@ -87,7 +87,7 @@ def test_obj_to_struct(MyStruct mystruct):
     >>> test_obj_to_struct(None)
     Traceback (most recent call last):
        ...
-    TypeError: Expected a mapping, not NoneType
+    TypeError: Expected a mapping, got NoneType
     >>> test_obj_to_struct(dict(s=b"world"))
     Traceback (most recent call last):
        ...

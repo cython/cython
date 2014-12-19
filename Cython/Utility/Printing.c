@@ -47,10 +47,16 @@ static int __Pyx_Print(PyObject* f, PyObject *arg_tuple, int newline) {
         if (PyString_Check(v)) {
             char *s = PyString_AsString(v);
             Py_ssize_t len = PyString_Size(v);
-            if (len > 0 &&
-                isspace(Py_CHARMASK(s[len-1])) &&
-                s[len-1] != ' ')
-                    PyFile_SoftSpace(f, 0);
+            if (len > 0) {
+                // append soft-space if necessary (not using isspace() due to C/C++ problem on MacOS-X)
+                switch (s[len-1]) {
+                    case ' ': break;
+                    case '\f': case '\r': case '\n': case '\t': case '\v':
+                        PyFile_SoftSpace(f, 0);
+                        break;
+                    default:  break;
+                }
+            }
         }
     }
     if (newline) {

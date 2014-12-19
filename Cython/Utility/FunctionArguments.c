@@ -1,27 +1,34 @@
 //////////////////// ArgTypeTest.proto ////////////////////
 
-static int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed,
+static CYTHON_INLINE int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed,
     const char *name, int exact); /*proto*/
 
 //////////////////// ArgTypeTest ////////////////////
 
-static int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed,
+static void __Pyx_RaiseArgumentTypeInvalid(const char* name, PyObject *obj, PyTypeObject *type) {
+    PyErr_Format(PyExc_TypeError,
+        "Argument '%.200s' has incorrect type (expected %.200s, got %.200s)",
+        name, type->tp_name, Py_TYPE(obj)->tp_name);
+}
+
+static CYTHON_INLINE int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed,
     const char *name, int exact)
 {
-    if (!type) {
-        PyErr_Format(PyExc_SystemError, "Missing type object");
+    if (unlikely(!type)) {
+        PyErr_SetString(PyExc_SystemError, "Missing type object");
         return 0;
     }
     if (none_allowed && obj == Py_None) return 1;
     else if (exact) {
-        if (Py_TYPE(obj) == type) return 1;
+        if (likely(Py_TYPE(obj) == type)) return 1;
+        #if PY_MAJOR_VERSION == 2
+        else if ((type == &PyBaseString_Type) && likely(__Pyx_PyBaseString_CheckExact(obj))) return 1;
+        #endif
     }
     else {
-        if (PyObject_TypeCheck(obj, type)) return 1;
+        if (likely(PyObject_TypeCheck(obj, type))) return 1;
     }
-    PyErr_Format(PyExc_TypeError,
-        "Argument '%s' has incorrect type (expected %s, got %s)",
-        name, type->tp_name, Py_TYPE(obj)->tp_name);
+    __Pyx_RaiseArgumentTypeInvalid(name, obj, type);
     return 0;
 }
 
@@ -57,7 +64,7 @@ static void __Pyx_RaiseArgtupleInvalid(
         more_or_less = "exactly";
     }
     PyErr_Format(PyExc_TypeError,
-                 "%s() takes %s %" CYTHON_FORMAT_SSIZE_T "d positional argument%s (%" CYTHON_FORMAT_SSIZE_T "d given)",
+                 "%.200s() takes %.8s %" CYTHON_FORMAT_SSIZE_T "d positional argument%.1s (%" CYTHON_FORMAT_SSIZE_T "d given)",
                  func_name, more_or_less, num_expected,
                  (num_expected == 1) ? "" : "s", num_found);
 }
@@ -138,13 +145,13 @@ static CYTHON_INLINE int __Pyx_CheckKeywordStrings(
     return 1;
 invalid_keyword_type:
     PyErr_Format(PyExc_TypeError,
-        "%s() keywords must be strings", function_name);
+        "%.200s() keywords must be strings", function_name);
     return 0;
 #endif
 invalid_keyword:
     PyErr_Format(PyExc_TypeError,
     #if PY_MAJOR_VERSION < 3
-        "%s() got an unexpected keyword argument '%s'",
+        "%.200s() got an unexpected keyword argument '%.200s'",
         function_name, PyString_AsString(key));
     #else
         "%s() got an unexpected keyword argument '%U'",
@@ -269,12 +276,12 @@ arg_passed_twice:
     goto bad;
 invalid_keyword_type:
     PyErr_Format(PyExc_TypeError,
-        "%s() keywords must be strings", function_name);
+        "%.200s() keywords must be strings", function_name);
     goto bad;
 invalid_keyword:
     PyErr_Format(PyExc_TypeError,
     #if PY_MAJOR_VERSION < 3
-        "%s() got an unexpected keyword argument '%s'",
+        "%.200s() got an unexpected keyword argument '%.200s'",
         function_name, PyString_AsString(key));
     #else
         "%s() got an unexpected keyword argument '%U'",

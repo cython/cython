@@ -293,7 +293,7 @@ cdef extern from "numpy/arrayobject.h":
                 # info.shape was stored after info.strides in the same block
 
 
-    ctypedef signed char      npy_bool
+    ctypedef unsigned char      npy_bool
 
     ctypedef signed char      npy_byte
     ctypedef signed short     npy_short
@@ -445,8 +445,8 @@ cdef extern from "numpy/arrayobject.h":
     bint PyArray_ISVARIABLE(ndarray)
 
     bint PyArray_SAFEALIGNEDCOPY(ndarray)
-    bint PyArray_ISNBO(ndarray)
-    bint PyArray_IsNativeByteOrder(ndarray)
+    bint PyArray_ISNBO(char)              # works on ndarray.byteorder
+    bint PyArray_IsNativeByteOrder(char)  # works on ndarray.byteorder
     bint PyArray_ISNOTSWAPPED(ndarray)
     bint PyArray_ISBYTESWAPPED(ndarray)
 
@@ -866,7 +866,8 @@ cdef extern from "numpy/ufuncobject.h":
             void **data
             int ntypes
             int check_return
-            char *name, *types
+            char *name
+            char *types
             char *doc
             void *ptr
             PyObject *obj

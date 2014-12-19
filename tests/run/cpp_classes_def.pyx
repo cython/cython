@@ -7,7 +7,7 @@ from libc.math cimport sin, cos
 
 cdef extern from "shapes.h" namespace "shapes":
     cdef cppclass Shape:
-        float area()
+        float area() const
 
 cdef cppclass RegularPolygon(Shape):
     float radius # major
@@ -15,7 +15,7 @@ cdef cppclass RegularPolygon(Shape):
     __init__(int n, float radius):
         this.n = n
         this.radius = radius
-    float area():
+    float area() const:
         cdef double theta = pi / this.n
         return this.radius * this.radius * sin(theta) * cos(theta) * this.n
 
@@ -81,7 +81,7 @@ def test_templates(long value):
     """
     cdef WithTemplate[long] *base = new WithTemplate[long]()
     del base
-    
+
     cdef ResolveTemplate *resolved = new ResolveTemplate()
     resolved.set_value(value)
     assert resolved.value == resolved.get_value() == value, resolved.value
@@ -89,5 +89,5 @@ def test_templates(long value):
     base = resolved
     base.set_value(2 * value)
     assert base.get_value() == base.value == 2 * value, base.value
-    
+
     del base

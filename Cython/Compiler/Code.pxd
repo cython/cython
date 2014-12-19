@@ -25,6 +25,7 @@ cdef class FunctionState:
     cdef public object return_label
     cdef public object continue_label
     cdef public object break_label
+    cdef public list yield_labels
 
     cdef public object return_from_error_cleanup_label # not used in __init__ ?
 

@@ -607,7 +607,7 @@ class GetAndReleaseBufferUtilityCode(object):
 
         proto = util_code.format_code(util_code.proto)
         impl = util_code.format_code(
-            util_code.inject_string_constants(util_code.impl, output))
+            util_code.inject_string_constants(util_code.impl, output)[1])
 
         proto_code.putln(proto)
         code.putln(impl)

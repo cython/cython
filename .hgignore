@@ -3,6 +3,8 @@ syntax: glob
 *.pyc
 *.pyo
 __pycache__
+*.egg
+*.egg-info
 
 Cython/Compiler/*.c
 Cython/Plex/*.c

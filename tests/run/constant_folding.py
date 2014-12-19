@@ -27,6 +27,26 @@ def unop_floats():
 @cython.test_fail_if_path_exists(
     "//UnaryMinusNode",
     "//UnaryPlusNode",
+    "//CoerceToPyTypeNode",
+)
+def unop_py_floats_tuple():
+    """
+    >>> unop_floats()
+    (False, 2.0, -2.0, False, 2.0, -2.0, -2.0)
+    """
+    return (
+        not 2.0,
+        + 2.0,
+        - 2.0,
+        not not not 2.0,
+        +++ 2.0,
+        --- 2.0,
+        +-++-- 2.0)
+
+
+@cython.test_fail_if_path_exists(
+    "//UnaryMinusNode",
+    "//UnaryPlusNode",
 )
 def unop_ints():
     """
@@ -172,6 +192,9 @@ def while_false_else():
 
 @cython.test_fail_if_path_exists(
     "//WhileStatNode//PrintStatNode",
+    "//WhileStatNode//PrimaryCmpNode",
+    "//WhileStatNode/BoolNode",
+    "//WhileStatNode/IntNode",
 )
 @cython.test_assert_path_exists(
     "//WhileStatNode",
@@ -255,3 +278,203 @@ def for_in_nested_listcomp():
     []
     """
     return [x for x in [1, 2, 3] for _ in []]
+
+
+@cython.test_fail_if_path_exists(
+    "//MulNode",
+)
+def mult_empty_list():
+    """
+    >>> mult_empty_list()
+    []
+    """
+    return 5 * [] * 100
+
+
+@cython.test_fail_if_path_exists(
+    "//MulNode",
+)
+def mult_list_int_int():
+    """
+    >>> mult_list_int_int()
+    [1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2]
+    """
+    return [1, 2] * 2 * 3
+
+
+@cython.test_fail_if_path_exists(
+    "//MulNode",
+)
+def mult_int_list_int():
+    """
+    >>> mult_int_list_int()
+    [1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2]
+    """
+    return 3 * [1, 2] * 2
+
+
+@cython.test_fail_if_path_exists(
+    "//MulNode",
+    "//ListNode//IntNode",
+)
+def neg_mult_list():
+    """
+    >>> neg_mult_list()
+    []
+    """
+    return -5 * [1, 2] * -100
+
+
+@cython.test_fail_if_path_exists(
+    "//MulNode",
+    "//ListNode//IntNode",
+)
+def zero_mult_list():
+    """
+    >>> zero_mult_list()
+    []
+    """
+    return 0 * [1, 2] * 0
+
+
+@cython.test_assert_path_exists(
+    "//BoolNode",
+)
+@cython.test_fail_if_path_exists(
+    "//PrimaryCmpNode",
+    "//MulNode",
+    "//ListNode//IntNode",
+)
+def in_mult_list():
+    """
+    >>> in_mult_list()
+    False
+    """
+    return 5 in 100 * [1, 2] * 0
+
+
+@cython.test_assert_path_exists(
+    "//BoolNode",
+)
+@cython.test_fail_if_path_exists(
+    "//PrimaryCmpNode",
+    "//MulNode",
+    "//ListNode//IntNode",
+)
+def not_in_mult_list():
+    """
+    >>> not_in_mult_list()
+    True
+    """
+    return 5 not in 100 * [1, 2] * 0
+
+
+@cython.test_assert_path_exists(
+    "//BoolNode",
+)
+@cython.test_fail_if_path_exists(
+    "//PrimaryCmpNode",
+    "//MulNode",
+    "//ListNode//IntNode",
+)
+def combined():
+    """
+    >>> combined()
+    True
+    """
+    return 5 in 100 * [1, 2] * 0  or  5 not in 100 * [] * 10
+
+
+@cython.test_assert_path_exists(
+    '//IntNode[@value = "2"]',
+    '//IntNode[@value = "4"]',
+    '//IntNode[@value = "5"]',
+    '//IntNode[@value = "7"]',
+    '//BoolBinopNode//PrimaryCmpNode',
+    '//BoolBinopNode[.//PrimaryCmpNode//IntNode[@value = "4"] and .//PrimaryCmpNode//IntNode[@value = "5"]]',
+    '//PrimaryCmpNode[.//IntNode[@value = "2"] and .//IntNode[@value = "4"]]',
+    '//PrimaryCmpNode[.//IntNode[@value = "5"] and .//IntNode[@value = "7"]]',
+)
+@cython.test_fail_if_path_exists(
+    '//IntNode[@value = "1"]',
+    '//IntNode[@value = "8"]',
+    '//PrimaryCmpNode[.//IntNode[@value = "4"] and .//IntNode[@value = "5"]]',
+    '//PrimaryCmpNode[.//IntNode[@value = "2"] and .//IntNode[@value = "7"]]',
+    '//BoolNode',
+)
+def cascaded_cmp_with_partial_constants(a, b):
+    """
+    >>> cascaded_cmp_with_partial_constants(3, 6)
+    True
+    >>> cascaded_cmp_with_partial_constants(1, 6)
+    False
+    >>> cascaded_cmp_with_partial_constants(4, 6)
+    False
+    >>> cascaded_cmp_with_partial_constants(3, 7)
+    False
+    >>> cascaded_cmp_with_partial_constants(3, 6)
+    True
+    """
+    return 1 < 2 < a < 4 < 5 < b < 7 < 8
+
+
+@cython.test_assert_path_exists(
+    '//IntNode[@value = "2"]',
+    '//IntNode[@value = "4"]',
+    '//IntNode[@value = "5"]',
+    '//IntNode[@value = "7"]',
+    '//BoolBinopNode',
+    '//SingleAssignmentNode//BoolBinopNode',
+    '//SingleAssignmentNode//BoolBinopNode//NameNode[@name = "a"]',
+    '//SingleAssignmentNode//BoolBinopNode//NameNode[@name = "b"]',
+    '//BoolBinopNode[.//PrimaryCmpNode//IntNode[@value = "4"] and .//PrimaryCmpNode//IntNode[@value = "5"]]',
+    '//BoolNode[@value = False]',
+)
+@cython.test_fail_if_path_exists(
+    '//SingleAssignmentNode//NameNode[@name = "c"]',
+    '//IntNode[@value = "1"]',
+    '//PrimaryCmpNode[.//IntNode[@value = "4"] and .//IntNode[@value = "5"]]',
+    '//PrimaryCmpNode[.//IntNode[@value = "2"] and .//IntNode[@value = "7"]]',
+    '//BoolNode[@value = True]',
+)
+def cascaded_cmp_with_partial_constants_and_false_end(a, b, c):
+    """
+    >>> cascaded_cmp_with_partial_constants_and_false_end(3, 6, 8)
+    False
+    >>> cascaded_cmp_with_partial_constants_and_false_end(1, 6, 8)
+    False
+    >>> cascaded_cmp_with_partial_constants_and_false_end(4, 6, 8)
+    False
+    >>> cascaded_cmp_with_partial_constants_and_false_end(3, 7, 8)
+    False
+    """
+    x = 1 < 2 < a < 4 < 5 < b < 7 < 7 < c
+    return x
+
+
+@cython.test_assert_path_exists(
+    '//PrimaryCmpNode',
+    '//PrimaryCmpNode//IntNode',
+    '//PrimaryCmpNode//IntNode[@value = "0"]',
+    '//PrimaryCmpNode//IntNode[@value = "4294967296"]',
+)
+@cython.test_fail_if_path_exists(
+    '//PrimaryCmpNode//IntBinopNode',
+    '//PrimaryCmpNode//IntNode[@value = "1"]',
+    '//PrimaryCmpNode//IntNode[@value = "32"]',
+)
+def const_in_binop(v):
+    """
+    >>> const_in_binop(-1)
+    1
+    >>> const_in_binop(0)
+    0
+    >>> const_in_binop(1 << 32)
+    1
+    >>> const_in_binop(1 << 32 - 1)
+    0
+    """
+    if v < 0 or v >= (1 << 32):
+        return 1
+    else:
+        return 0

@@ -1,5 +1,5 @@
 # mode: run
-# tags: kwargs, argument unpacking
+# tag: kwargs, argument unpacking
 
 # This test validates the error handling in the different specialised
 # code paths of the argument unpacking code.  The have-kwargs and

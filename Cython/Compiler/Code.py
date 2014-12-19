@@ -43,6 +43,7 @@ non_portable_builtins_map = {
     'unicode'       : ('PY_MAJOR_VERSION >= 3', 'str'),
     'basestring'    : ('PY_MAJOR_VERSION >= 3', 'str'),
     'xrange'        : ('PY_MAJOR_VERSION >= 3', 'range'),
+    'raw_input'     : ('PY_MAJOR_VERSION >= 3', 'input'),
     'BaseException' : ('PY_VERSION_HEX < 0x02050000', 'Exception'),
     }
 
@@ -61,6 +62,8 @@ modifier_output_mapper = {
     'inline': 'CYTHON_INLINE'
 }.get
 
+is_self_assignment = re.compile(r" *(\w+) = (\1);\s*$").match
+
 
 def get_utility_dir():
     # make this a function and not global variables:
@@ -76,17 +79,17 @@ class UtilityCodeBase(object):
     Code sections in the file can be specified as follows:
 
         ##### MyUtility.proto #####
-        
+
         [proto declarations]
-        
+
         ##### MyUtility.init #####
-        
+
         [code run at module initialization]
 
         ##### MyUtility #####
         #@requires: MyOtherUtility
         #@substitute: naming
-        
+
         [definitions]
 
     for prototypes and implementation respectively.  For non-python or
@@ -246,7 +249,13 @@ class UtilityCodeBase(object):
                     continue
                 # only pass lists when we have to: most argument expect one value or None
                 if name == 'requires':
-                    values = [ cls.load(dep, from_file, **orig_kwargs) for dep in values ]
+                    if orig_kwargs:
+                        values = [cls.load(dep, from_file, **orig_kwargs)
+                                  for dep in sorted(values)]
+                    else:
+                        # dependencies are rarely unique, so use load_cached() when we can
+                        values = [cls.load_cached(dep, from_file)
+                                  for dep in sorted(values)]
                 elif not values:
                     values = None
                 elif len(values) == 1:
@@ -266,16 +275,16 @@ class UtilityCodeBase(object):
         return cls(**kwargs)
 
     @classmethod
-    def load_cached(cls, utility_code_name, from_file=None, _cache={}):
+    def load_cached(cls, utility_code_name, from_file=None, __cache={}):
         """
         Calls .load(), but using a per-type cache based on utility name and file name.
         """
         key = (cls, from_file, utility_code_name)
         try:
-            return _cache[key]
+            return __cache[key]
         except KeyError:
             pass
-        code = _cache[key] = cls.load(utility_code_name, from_file)
+        code = __cache[key] = cls.load(utility_code_name, from_file)
         return code
 
     @classmethod
@@ -384,12 +393,18 @@ class UtilityCode(UtilityCodeBase):
     def inject_string_constants(self, impl, output):
         """Replace 'PYIDENT("xyz")' by a constant Python identifier cname.
         """
-        pystrings = re.findall('(PYIDENT\("([^"]+)"\))', impl)
-        for ref, name in pystrings:
-            py_const = output.get_interned_identifier(
-                StringEncoding.EncodedString(name))
-            impl = impl.replace(ref, py_const.cname)
-        return impl
+        replacements = {}
+        def externalise(matchobj):
+            name = matchobj.group(1)
+            try:
+                cname = replacements[name]
+            except KeyError:
+                cname = replacements[name] = output.get_interned_identifier(
+                    StringEncoding.EncodedString(name)).cname
+            return cname
+
+        impl = re.sub('PYIDENT\("([^"]+)"\)', externalise, impl)
+        return bool(replacements), impl
 
     def put_code(self, output):
         if self.requires:
@@ -400,10 +415,14 @@ class UtilityCode(UtilityCodeBase):
                 self.format_code(self.proto),
                 '%s_proto' % self.name)
         if self.impl:
-            output['utility_code_def'].put_or_include(
-                self.format_code(
-                    self.inject_string_constants(self.impl, output)),
-                '%s_impl' % self.name)
+            impl = self.format_code(self.impl)
+            is_specialised, impl = self.inject_string_constants(impl, output)
+            if not is_specialised:
+                # no module specific adaptations => can be reused
+                output['utility_code_def'].put_or_include(
+                    impl, '%s_impl' % self.name)
+            else:
+                output['utility_code_def'].put(impl)
         if self.init:
             writer = output['init_globals']
             writer.putln("/* %s.init */" % self.name)
@@ -492,6 +511,7 @@ class FunctionState(object):
         self.new_error_label()
         self.continue_label = None
         self.break_label = None
+        self.yield_labels = []
 
         self.in_try_finally = 0
         self.exc_vars = None
@@ -523,6 +543,12 @@ class FunctionState(object):
         if name is not None:
             label += '_' + name
         return label
+
+    def new_yield_label(self):
+        label = self.new_label('resume_from_yield')
+        num_and_label = (len(self.yield_labels) + 1, label)
+        self.yield_labels.append(num_and_label)
+        return num_and_label
 
     def new_error_label(self):
         old_err_lbl = self.error_label
@@ -561,9 +587,9 @@ class FunctionState(object):
     def all_new_labels(self):
         old_labels = self.get_all_labels()
         new_labels = []
-        for old_label in old_labels:
+        for old_label, name in zip(old_labels, ['continue', 'break', 'return', 'error']):
             if old_label:
-                new_labels.append(self.new_label())
+                new_labels.append(self.new_label(name))
             else:
                 new_labels.append(old_label)
         self.set_all_labels(new_labels)
@@ -690,17 +716,21 @@ class FunctionState(object):
         self.closure_temps = ClosureTempAllocator(scope)
 
 
-class IntConst(object):
-    """Global info about a Python integer constant held by GlobalState.
-    """
-    # cname     string
-    # value     int
-    # is_long   boolean
+class NumConst(object):
+    """Global info about a Python number constant held by GlobalState.
 
-    def __init__(self, cname, value, is_long):
+    cname       string
+    value       string
+    py_type     string     int, long, float
+    value_code  string     evaluation code if different from value
+    """
+
+    def __init__(self, cname, value, py_type, value_code=None):
         self.cname = cname
         self.value = value
-        self.is_long = is_long
+        self.py_type = py_type
+        self.value_code = value_code or value
+
 
 class PyObjectConst(object):
     """Global info about a generic constant held by GlobalState.
@@ -712,11 +742,12 @@ class PyObjectConst(object):
         self.cname = cname
         self.type = type
 
+
 cython.declare(possible_unicode_identifier=object, possible_bytes_identifier=object,
-               nice_identifier=object, find_alphanums=object)
+               replace_identifier=object, find_alphanums=object)
 possible_unicode_identifier = re.compile(ur"(?![0-9])\w+$", re.U).match
 possible_bytes_identifier = re.compile(r"(?![0-9])\w+$".encode('ASCII')).match
-nice_identifier = re.compile(r'\A[a-zA-Z0-9_]+\Z').match
+replace_identifier = re.compile(r'[^a-zA-Z0-9_]+').sub
 find_alphanums = re.compile('([a-zA-Z0-9]+)').findall
 
 class StringConst(object):
@@ -778,7 +809,7 @@ class StringConst(object):
         else:
             intern = False
         if intern:
-            prefix = Naming.interned_str_prefix
+            prefix = Naming.interned_prefixes['str']
         else:
             prefix = Naming.py_const_prefix
 
@@ -836,7 +867,7 @@ class GlobalState(object):
     #                                  In time, hopefully the literals etc. will be
     #                                  supplied directly instead.
     #
-    # const_cname_counter int          global counter for constant identifiers
+    # const_cnames_used  dict          global counter for unique constant identifiers
     #
 
     # parts            {string:CCodeWriter}
@@ -892,10 +923,10 @@ class GlobalState(object):
         self.module_node = module_node # because some utility code generation needs it
                                        # (generating backwards-compatible Get/ReleaseBuffer
 
-        self.const_cname_counter = 1
+        self.const_cnames_used = {}
         self.string_const_index = {}
         self.pyunicode_ptr_const_index = {}
-        self.int_const_index = {}
+        self.num_const_index = {}
         self.py_constants = []
 
         assert writer.globalstate is None
@@ -1009,18 +1040,25 @@ class GlobalState(object):
         return self.parts['cached_constants']
 
     def get_int_const(self, str_value, longness=False):
-        longness = bool(longness)
+        py_type = longness and 'long' or 'int'
         try:
-            c = self.int_const_index[(str_value, longness)]
+            c = self.num_const_index[(str_value, py_type)]
         except KeyError:
-            c = self.new_int_const(str_value, longness)
+            c = self.new_num_const(str_value, py_type)
+        return c
+
+    def get_float_const(self, str_value, value_code):
+        try:
+            c = self.num_const_index[(str_value, 'float')]
+        except KeyError:
+            c = self.new_num_const(str_value, 'float', value_code)
         return c
 
     def get_py_const(self, type, prefix='', cleanup_level=None):
         # create a new Python object constant
         const = self.new_py_const(type, prefix)
         if cleanup_level is not None \
-               and cleanup_level <= Options.generate_cleanup_code:
+                and cleanup_level <= Options.generate_cleanup_code:
             cleanup_writer = self.parts['cleanup_globals']
             cleanup_writer.putln('Py_CLEAR(%s);' % const.cname)
         return const
@@ -1070,10 +1108,10 @@ class GlobalState(object):
         self.string_const_index[byte_string] = c
         return c
 
-    def new_int_const(self, value, longness):
-        cname = self.new_int_const_cname(value, longness)
-        c = IntConst(cname, value, longness)
-        self.int_const_index[(value, longness)] = c
+    def new_num_const(self, value, py_type, value_code=None):
+        cname = self.new_num_const_cname(value, py_type)
+        c = NumConst(cname, value, py_type, value_code)
+        self.num_const_index[(value, py_type)] = c
         return c
 
     def new_py_const(self, type, prefix=''):
@@ -1082,29 +1120,33 @@ class GlobalState(object):
         self.py_constants.append(c)
         return c
 
-    def new_string_const_cname(self, bytes_value, intern=None):
+    def new_string_const_cname(self, bytes_value):
         # Create a new globally-unique nice name for a C string constant.
-        try:
-            value = bytes_value.decode('ASCII')
-        except UnicodeError:
-            return self.new_const_cname()
+        value = bytes_value.decode('ASCII', 'ignore')
+        return self.new_const_cname(value=value)
 
-        if len(value) < 20 and nice_identifier(value):
-            return "%s_%s" % (Naming.const_prefix, value)
-        else:
-            return self.new_const_cname()
-
-    def new_int_const_cname(self, value, longness):
-        if longness:
+    def new_num_const_cname(self, value, py_type):
+        if py_type == 'long':
             value += 'L'
-        cname = "%s%s" % (Naming.interned_num_prefix, value)
-        cname = cname.replace('-', 'neg_').replace('.','_')
+            py_type = 'int'
+        prefix = Naming.interned_prefixes[py_type]
+        cname = "%s%s" % (prefix, value)
+        cname = cname.replace('+', '_').replace('-', 'neg_').replace('.', '_')
         return cname
 
-    def new_const_cname(self, prefix=''):
-        n = self.const_cname_counter
-        self.const_cname_counter += 1
-        return "%s%s%d" % (Naming.const_prefix, prefix, n)
+    def new_const_cname(self, prefix='', value=''):
+        value = replace_identifier('_', value)[:32].strip('_')
+        used = self.const_cnames_used
+        name_suffix = value
+        while name_suffix in used:
+            counter = used[value] = used[value] + 1
+            name_suffix = '%s_%d' % (value, counter)
+        used[name_suffix] = 1
+        if prefix:
+            prefix = Naming.interned_prefixes[prefix]
+        else:
+            prefix = Naming.const_prefix
+        return "%s%s" % (prefix, name_suffix)
 
     def add_cached_builtin_decl(self, entry):
         if entry.is_builtin and entry.is_const:
@@ -1138,7 +1180,7 @@ class GlobalState(object):
 
     def generate_const_declarations(self):
         self.generate_string_constants()
-        self.generate_int_constants()
+        self.generate_num_constants()
         self.generate_object_constant_decls()
 
     def generate_object_constant_decls(self):
@@ -1231,24 +1273,27 @@ class GlobalState(object):
                     Naming.stringtab_cname,
                     init_globals.error_goto(self.module_pos)))
 
-    def generate_int_constants(self):
-        consts = [ (len(c.value), c.value, c.is_long, c)
-                   for c in self.int_const_index.values() ]
+    def generate_num_constants(self):
+        consts = [(c.py_type, c.value[0] == '-', len(c.value), c.value, c.value_code, c)
+                  for c in self.num_const_index.values()]
         consts.sort()
         decls_writer = self.parts['decls']
-        for _, value, longness, c in consts:
+        init_globals = self.parts['init_globals']
+        for py_type, _, _, value, value_code, c in consts:
             cname = c.cname
             decls_writer.putln("static PyObject *%s;" % cname)
-            if longness:
-                function = '%s = PyLong_FromString((char *)"%s", 0, 0); %s;'
+            if py_type == 'float':
+                function = 'PyFloat_FromDouble(%s)'
+            elif py_type == 'long':
+                function = 'PyLong_FromString((char *)"%s", 0, 0)'
             elif Utils.long_literal(value):
-                function = '%s = PyInt_FromString((char *)"%s", 0, 0); %s;'
+                function = 'PyInt_FromString((char *)"%s", 0, 0)'
+            elif len(value.lstrip('-')) > 4:
+                function = "PyInt_FromLong(%sL)"
             else:
-                function = "%s = PyInt_FromLong(%s); %s;"
-            init_globals = self.parts['init_globals']
-            init_globals.putln(function % (
-                cname,
-                value,
+                function = "PyInt_FromLong(%s)"
+            init_globals.putln('%s = %s; %s' % (
+                cname, function % value_code,
                 init_globals.error_goto_if_null(cname, self.module_pos)))
 
     # The functions below are there in a transition phase only
@@ -1445,10 +1490,12 @@ class CCodeWriter(object):
     continue_label = funccontext_property("continue_label")
     break_label = funccontext_property("break_label")
     return_from_error_cleanup_label = funccontext_property("return_from_error_cleanup_label")
+    yield_labels = funccontext_property("yield_labels")
 
     # Functions delegated to function scope
     def new_label(self, name=None):    return self.funcstate.new_label(name)
     def new_error_label(self):         return self.funcstate.new_error_label()
+    def new_yield_label(self):         return self.funcstate.new_yield_label()
     def get_loop_labels(self):         return self.funcstate.get_loop_labels()
     def set_loop_labels(self, labels): return self.funcstate.set_loop_labels(labels)
     def new_loop_labels(self):         return self.funcstate.new_loop_labels()
@@ -1467,8 +1514,11 @@ class CCodeWriter(object):
 
     # constant handling
 
-    def get_py_num(self, str_value, longness):
+    def get_py_int(self, str_value, longness):
         return self.globalstate.get_int_const(str_value, longness).cname
+
+    def get_py_float(self, str_value, value_code):
+        return self.globalstate.get_float_const(str_value, value_code).cname
 
     def get_py_const(self, type, prefix='', cleanup_level=None):
         return self.globalstate.get_py_const(type, prefix, cleanup_level).cname
@@ -1529,18 +1579,25 @@ class CCodeWriter(object):
         self.bol = 0
 
     def put_or_include(self, code, name):
-        if code:
-            if self.globalstate.common_utility_include_dir and len(code) > 1042:
-                include_file = "%s_%s.h" % (name, hashlib.md5(code).hexdigest())
-                path = os.path.join(self.globalstate.common_utility_include_dir, include_file)
-                if not os.path.exists(path):
-                    tmp_path = '%s.tmp%s' % (path, os.getpid())
-                    open(tmp_path, 'w').write(code)
-                    os.rename(tmp_path, path)
-                code = '#include "%s"\n' % path
-            self.put(code)
+        include_dir = self.globalstate.common_utility_include_dir
+        if include_dir and len(code) > 1024:
+            include_file = "%s_%s.h" % (
+                name, hashlib.md5(code.encode('utf8')).hexdigest())
+            path = os.path.join(include_dir, include_file)
+            if not os.path.exists(path):
+                tmp_path = '%s.tmp%s' % (path, os.getpid())
+                f = Utils.open_new_file(tmp_path)
+                try:
+                    f.write(code)
+                finally:
+                    f.close()
+                os.rename(tmp_path, path)
+            code = '#include "%s"\n' % path
+        self.put(code)
 
     def put(self, code):
+        if is_self_assignment(code):
+            return
         fix_indent = False
         if "{" in code:
             dl = code.count("{")
@@ -2026,9 +2083,10 @@ class CCodeWriter(object):
             Naming.clineno_cname,
             Naming.lineno_cname,
             Naming.filename_cname,
+            int(self.globalstate.directives['unraisable_tracebacks'])
         )
         self.funcstate.uses_error_indicator = True
-        self.putln('__Pyx_WriteUnraisable("%s", %s, %s, %s);' % format_tuple)
+        self.putln('__Pyx_WriteUnraisable("%s", %s, %s, %s, %s);' % format_tuple)
         self.globalstate.use_utility_code(
             UtilityCode.load_cached("WriteUnraisableException", "Exceptions.c"))
 

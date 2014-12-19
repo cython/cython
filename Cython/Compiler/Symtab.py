@@ -42,6 +42,7 @@ class BufferAux(object):
     def __repr__(self):
         return "<BufferAux %r>" % self.__dict__
 
+
 class Entry(object):
     # A symbol table entry in a Scope or ModuleNamespace.
     #
@@ -240,6 +241,9 @@ class InnerEntry(Entry):
         self.inner_entries.append(self)
 
     def __getattr__(self, name):
+        if name.startswith('__'):
+            # we wouldn't have been called if it was there
+            raise AttributeError(name)
         return getattr(self.defining_entry, name)
 
     def all_entries(self):
@@ -272,7 +276,7 @@ class Scope(object):
     # qualified_name    string             "modname" or "modname.classname"
     #                                        Python strings in this scope
     # nogil             boolean            In a nogil section
-    # directives       dict                Helper variable for the recursive
+    # directives        dict               Helper variable for the recursive
     #                                      analysis, contains directive values.
     # is_internal       boolean            Is only used internally (simpler setup)
 
@@ -832,23 +836,6 @@ class Scope(object):
     def add_include_file(self, filename):
         self.outer_scope.add_include_file(filename)
 
-    def get_refcounted_entries(self, include_weakref=False):
-        py_attrs = []
-        py_buffers = []
-        memoryview_slices = []
-
-        for entry in self.var_entries:
-            if entry.type.is_pyobject:
-                if include_weakref or entry.name != "__weakref__":
-                    py_attrs.append(entry)
-            elif entry.type == PyrexTypes.c_py_buffer_type:
-                py_buffers.append(entry)
-            elif entry.type.is_memoryviewslice:
-                memoryview_slices.append(entry)
-
-        have_entries = py_attrs or py_buffers or memoryview_slices
-        return have_entries, (py_attrs, py_buffers, memoryview_slices)
-
 
 class PreImportScope(Scope):
 
@@ -957,6 +944,7 @@ class BuiltinScope(Scope):
         "complex":["((PyObject*)&PyComplex_Type)", py_object_type],
 
         "bytes":  ["((PyObject*)&PyBytes_Type)", py_object_type],
+        "bytearray":   ["((PyObject*)&PyByteArray_Type)", py_object_type],
         "str":    ["((PyObject*)&PyString_Type)", py_object_type],
         "unicode":["((PyObject*)&PyUnicode_Type)", py_object_type],
 
@@ -1483,6 +1471,7 @@ class ModuleScope(Scope):
         from TypeInference import PyObjectTypeInferer
         PyObjectTypeInferer().infer_types(self)
 
+
 class LocalScope(Scope):
 
     # Does the function have a 'with gil:' block?
@@ -1553,7 +1542,7 @@ class LocalScope(Scope):
         if entry is not None:
             if entry.scope is not self and entry.scope.is_closure_scope:
                 if hasattr(entry.scope, "scope_class"):
-                    raise InternalError, "lookup() after scope class created."
+                    raise InternalError("lookup() after scope class created.")
                 # The actual c fragment for the different scopes differs
                 # on the outside and inside, so we make a new entry
                 entry.in_closure = True
@@ -1576,6 +1565,7 @@ class LocalScope(Scope):
             elif entry.in_closure:
                 entry.original_cname = entry.cname
                 entry.cname = "%s->%s" % (Naming.cur_scope_cname, entry.cname)
+
 
 class GeneratorExpressionScope(Scope):
     """Scope for generator expressions and comprehensions.  As opposed
@@ -1675,6 +1665,7 @@ class StructOrUnionScope(Scope):
         return self.declare_var(name, type, pos,
                                 cname=cname, visibility=visibility)
 
+
 class ClassScope(Scope):
     #  Abstract base class for namespace of
     #  Python class or extension type.
@@ -1756,6 +1747,14 @@ class PyClassScope(ClassScope):
                 # right thing to do
                 self.entries[name] = entry
 
+    def declare_global(self, name, pos):
+        # Pull entry from global scope into local scope.
+        if self.lookup_here(name):
+            warning(pos, "'%s' redeclared  ", 0)
+        else:
+            entry = self.global_scope().lookup_target(name)
+            self.entries[name] = entry
+
     def add_default_value(self, type):
         return self.outer_scope.add_default_value(type)
 
@@ -1769,6 +1768,7 @@ class CClassScope(ClassScope):
     #  method_table_cname    string
     #  getset_table_cname    string
     #  has_pyobject_attrs    boolean  Any PyObject attributes?
+    #  has_cyclic_pyobject_attrs    boolean  Any PyObject attributes that may need GC?
     #  property_entries      [Entry]
     #  defined               boolean  Defined in .pxd file
     #  implemented           boolean  Defined in .pyx file
@@ -1776,24 +1776,56 @@ class CClassScope(ClassScope):
 
     is_c_class_scope = 1
 
+    has_pyobject_attrs = False
+    has_cyclic_pyobject_attrs = False
+    defined = False
+    implemented = False
+
     def __init__(self, name, outer_scope, visibility):
         ClassScope.__init__(self, name, outer_scope)
         if visibility != 'extern':
             self.method_table_cname = outer_scope.mangle(Naming.methtab_prefix, name)
             self.getset_table_cname = outer_scope.mangle(Naming.gstab_prefix, name)
-        self.has_pyobject_attrs = 0
         self.property_entries = []
         self.inherited_var_entries = []
-        self.defined = 0
-        self.implemented = 0
 
     def needs_gc(self):
         # If the type or any of its base types have Python-valued
         # C attributes, then it needs to participate in GC.
-        return self.has_pyobject_attrs or \
-            (self.parent_type.base_type and
-                self.parent_type.base_type.scope is not None and
-                self.parent_type.base_type.scope.needs_gc())
+        if self.has_cyclic_pyobject_attrs:
+            return True
+        base_type = self.parent_type.base_type
+        if base_type and base_type.scope is not None:
+            return base_type.scope.needs_gc()
+        elif self.parent_type.is_builtin_type:
+            return not self.parent_type.is_gc_simple
+        return False
+
+    def needs_tp_clear(self):
+        """
+        Do we need to generate an implementation for the tp_clear slot? Can
+        be disabled to keep references for the __dealloc__ cleanup function.
+        """
+        return self.needs_gc() and not self.directives.get('no_gc_clear', False)
+
+    def get_refcounted_entries(self, include_weakref=False,
+                               include_gc_simple=True):
+        py_attrs = []
+        py_buffers = []
+        memoryview_slices = []
+
+        for entry in self.var_entries:
+            if entry.type.is_pyobject:
+                if include_weakref or entry.name != "__weakref__":
+                    if include_gc_simple or not entry.type.is_gc_simple:
+                        py_attrs.append(entry)
+            elif entry.type == PyrexTypes.c_py_buffer_type:
+                py_buffers.append(entry)
+            elif entry.type.is_memoryviewslice:
+                memoryview_slices.append(entry)
+
+        have_entries = py_attrs or py_buffers or memoryview_slices
+        return have_entries, (py_attrs, py_buffers, memoryview_slices)
 
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',
@@ -1819,7 +1851,10 @@ class CClassScope(ClassScope):
             entry.is_variable = 1
             self.var_entries.append(entry)
             if type.is_pyobject and name != '__weakref__':
-                self.has_pyobject_attrs = 1
+                self.has_pyobject_attrs = True
+                if (not type.is_builtin_type
+                        or not type.scope or type.scope.needs_gc()):
+                    self.has_cyclic_pyobject_attrs = True
             if visibility not in ('private', 'public', 'readonly'):
                 error(pos,
                     "Attribute of extension type cannot be declared %s" % visibility)
@@ -1852,7 +1887,6 @@ class CClassScope(ClassScope):
                                   # later on
             self.namespace_cname = "(PyObject *)%s" % self.parent_type.typeptr_cname
             return entry
-
 
     def declare_pyfunction(self, name, pos, allow_redefine=False):
         # Add an entry for a method.
@@ -1987,10 +2021,11 @@ class CClassScope(ClassScope):
 
         entries = base_scope.inherited_var_entries + base_scope.var_entries
         for base_entry in entries:
-                entry = self.declare(base_entry.name, adapt(base_entry.cname),
-                    base_entry.type, None, 'private')
-                entry.is_variable = 1
-                self.inherited_var_entries.append(entry)
+            entry = self.declare(
+                base_entry.name, adapt(base_entry.cname),
+                base_entry.type, None, 'private')
+            entry.is_variable = 1
+            self.inherited_var_entries.append(entry)
 
         # If the class defined in a pxd, specific entries have not been added.
         # Ensure now that the parent (base) scope has specific entries
@@ -2013,13 +2048,14 @@ class CClassScope(ClassScope):
                 entry.is_final_cmethod = True
                 entry.is_inline_cmethod = base_entry.is_inline_cmethod
                 if (self.parent_scope == base_scope.parent_scope or
-                    entry.is_inline_cmethod):
+                        entry.is_inline_cmethod):
                     entry.final_func_cname = base_entry.final_func_cname
             if is_builtin:
                 entry.is_builtin_cmethod = True
                 entry.as_variable = var_entry
             if base_entry.utility_code:
                 entry.utility_code = base_entry.utility_code
+
 
 class CppClassScope(Scope):
     #  Namespace of a C++ class.
@@ -2159,7 +2195,7 @@ class CppClassScope(Scope):
                                   entry.pos,
                                   entry.cname,
                                   entry.visibility)
-                
+
         return scope
 
 
@@ -2184,6 +2220,7 @@ class PropertyScope(Scope):
                 "in a property declaration")
             return None
 
+
 class CConstScope(Scope):
 
     def __init__(self, const_base_type_scope):
@@ -2200,3 +2237,8 @@ class CConstScope(Scope):
             entry = copy.copy(entry)
             entry.type = PyrexTypes.c_const_type(entry.type)
             return entry
+
+class TemplateScope(Scope):
+    def __init__(self, name, outer_scope):
+        Scope.__init__(self, name, outer_scope, None)
+        self.directives = outer_scope.directives

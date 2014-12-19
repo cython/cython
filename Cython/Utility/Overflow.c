@@ -231,7 +231,8 @@ static int __Pyx_check_sane_{{NAME}}(void) {
         sizeof({{TYPE}}) == sizeof(long long)) {
         return 0;
     } else {
-        PyErr_Format(PyExc_RuntimeError, "Bad size for int type %s: %d", "{{TYPE}}", (int) sizeof({{TYPE}}));
+        PyErr_Format(PyExc_RuntimeError, \
+            "Bad size for int type %.{{max(60, len(TYPE))}}s: %d", "{{TYPE}}", (int) sizeof({{TYPE}}));
         return 1;
     }
 }

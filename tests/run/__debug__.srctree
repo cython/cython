@@ -1,0 +1,77 @@
+"""
+PYTHON setup.py build_ext -i
+PYTHON debug_test.py
+PYTHON -O debug_test.py
+PYTHON -OO debug_test.py
+"""
+
+######## setup.py ########
+
+from distutils.core import setup
+from Cython.Build import cythonize
+
+setup(ext_modules = cythonize('debug_test_cython.pyx'))
+
+######## debug_test.py ########
+
+if __debug__:
+    DBG = True
+else:
+    DBG = False
+
+import sys
+try:
+    optimised = bool(sys.flags.optimize)
+except AttributeError:
+    # Py2.[45]
+    optimised = eval('not __debug__')
+
+if DBG == optimised:
+    raise RuntimeError(
+        "PYTHON: unexpected debug value %s, expected %s" % (
+        DBG, optimised))
+
+ASSERT_CALLED = False
+def sideeffect():
+    global ASSERT_CALLED
+    ASSERT_CALLED = True
+    return True
+
+assert sideeffect()
+if ASSERT_CALLED == optimised:
+    raise RuntimeError("Assert called in optimised Python run")
+
+import debug_test_cython
+if debug_test_cython.DBG == optimised:
+    raise RuntimeError(
+        "CYTHON: unexpected debug value %s, expected %s" % (
+        debug_test_cython.DBG, optimised))
+
+
+######## debug_test_cython.pyx ########
+
+if __debug__:
+    DBG = True
+else:
+    DBG = False
+
+import sys
+try:
+    optimised = bool(sys.flags.optimize)
+except AttributeError:
+    # Py2.[45]
+    optimised = eval('not __debug__')
+
+ASSERT_CALLED = False
+def sideeffect():
+    global ASSERT_CALLED
+    ASSERT_CALLED = True
+    return True
+
+if DBG == optimised:
+    raise RuntimeError("Unexpected debug value %s, expected %s" % (
+                       DBG, optimised))
+
+assert sideeffect()
+if ASSERT_CALLED == optimised:
+    raise RuntimeError("Assert called in optimised Python run")

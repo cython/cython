@@ -30,7 +30,7 @@ cdef object m():
         17L
         <object>7j
         help
-        `"Hello"`
+        xxx = `"Hello"`
         import fred
         from fred import obj
         for x in obj:
@@ -102,9 +102,9 @@ _ERRORS = u"""
 27:9: Calling gil-requiring function not allowed without gil
 29:12: Assignment of Python object not allowed without gil
 31:16: Constructing complex number not allowed without gil
-33:8: Backquote expression not allowed without gil
-33:8: Discarding owned Python object not allowed without gil
-33:9: Operation not allowed without gil
+33:12: Assignment of Python object not allowed without gil
+33:14: Backquote expression not allowed without gil
+33:15: Operation not allowed without gil
 34:15: Assignment of Python object not allowed without gil
 34:15: Operation not allowed without gil
 34:15: Python import not allowed without gil

@@ -1,19 +1,29 @@
+/*
+ * Optional optimisations of built-in functions and methods.
+ *
+ * Required replacements of builtins are in Builtins.c.
+ *
+ * General object operations and protocols are in ObjectHandling.c.
+ */
+
 /////////////// append.proto ///////////////
 
-static CYTHON_INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x); /*proto*/
+static CYTHON_INLINE int __Pyx_PyObject_Append(PyObject* L, PyObject* x); /*proto*/
 
 /////////////// append ///////////////
 //@requires: ListAppend
 //@requires: ObjectHandling.c::PyObjectCallMethod
 
-static CYTHON_INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
+static CYTHON_INLINE int __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
     if (likely(PyList_CheckExact(L))) {
-        if (unlikely(__Pyx_PyList_Append(L, x) < 0)) return NULL;
-        Py_INCREF(Py_None);
-        return Py_None; /* this is just to have an accurate signature */
+        if (unlikely(__Pyx_PyList_Append(L, x) < 0)) return -1;
     } else {
-        return __Pyx_PyObject_CallMethod1(L, PYIDENT("append"), x);
+        PyObject* retval = __Pyx_PyObject_CallMethod1(L, PYIDENT("append"), x);
+        if (unlikely(!retval))
+            return -1;
+        Py_DECREF(retval);
     }
+    return 0;
 }
 
 /////////////// ListAppend.proto ///////////////
@@ -52,26 +62,47 @@ static CYTHON_INLINE int __Pyx_ListComp_Append(PyObject* list, PyObject* x) {
 #define __Pyx_ListComp_Append(L,x) PyList_Append(L,x)
 #endif
 
+//////////////////// ListExtend.proto ////////////////////
+
+static CYTHON_INLINE int __Pyx_PyList_Extend(PyObject* L, PyObject* v) {
+#if CYTHON_COMPILING_IN_CPYTHON
+    PyObject* none = _PyList_Extend((PyListObject*)L, v);
+    if (unlikely(!none))
+        return -1;
+    Py_DECREF(none);
+    return 0;
+#else
+    return PyList_SetSlice(L, PY_SSIZE_T_MAX, PY_SSIZE_T_MAX, v);
+#endif
+}
+
 /////////////// pop.proto ///////////////
 
-static CYTHON_INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L); /*proto*/
+#define __Pyx_PyObject_Pop(L) (PyList_CheckExact(L) ? \
+    __Pyx_PyList_Pop(L) : __Pyx__PyObject_Pop(L))
+
+static CYTHON_INLINE PyObject* __Pyx_PyList_Pop(PyObject* L); /*proto*/
+static CYTHON_INLINE PyObject* __Pyx__PyObject_Pop(PyObject* L); /*proto*/
 
 /////////////// pop ///////////////
 //@requires: ObjectHandling.c::PyObjectCallMethod
 
-static CYTHON_INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L) {
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x02040000
-    if (likely(PyList_CheckExact(L))
-        /* Check that both the size is positive and no reallocation shrinking needs to be done. */
-        && likely(PyList_GET_SIZE(L) > (((PyListObject*)L)->allocated >> 1))) {
-        Py_SIZE(L) -= 1;
-        return PyList_GET_ITEM(L, PyList_GET_SIZE(L));
-    }
-#if PY_VERSION_HEX >= 0x02050000
-    else if (Py_TYPE(L) == (&PySet_Type)) {
+static CYTHON_INLINE PyObject* __Pyx__PyObject_Pop(PyObject* L) {
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x02050000
+    if (Py_TYPE(L) == &PySet_Type) {
         return PySet_Pop(L);
     }
 #endif
+    return __Pyx_PyObject_CallMethod0(L, PYIDENT("pop"));
+}
+
+static CYTHON_INLINE PyObject* __Pyx_PyList_Pop(PyObject* L) {
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x02040000
+    /* Check that both the size is positive and no reallocation shrinking needs to be done. */
+    if (likely(PyList_GET_SIZE(L) > (((PyListObject*)L)->allocated >> 1))) {
+        Py_SIZE(L) -= 1;
+        return PyList_GET_ITEM(L, PyList_GET_SIZE(L));
+    }
 #endif
     return __Pyx_PyObject_CallMethod0(L, PYIDENT("pop"));
 }
@@ -79,36 +110,42 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L) {
 
 /////////////// pop_index.proto ///////////////
 
-static PyObject* __Pyx_PyObject_PopIndex(PyObject* L, Py_ssize_t ix); /*proto*/
+#define __Pyx_PyObject_PopIndex(L, ix) (PyList_CheckExact(L) ? \
+    __Pyx_PyList_PopIndex(L, ix) : __Pyx__PyObject_PopIndex(L, ix))
+
+static PyObject* __Pyx_PyList_PopIndex(PyObject* L, Py_ssize_t ix); /*proto*/
+static PyObject* __Pyx__PyObject_PopIndex(PyObject* L, Py_ssize_t ix); /*proto*/
 
 /////////////// pop_index ///////////////
 //@requires: ObjectHandling.c::PyObjectCallMethod
 
-static PyObject* __Pyx_PyObject_PopIndex(PyObject* L, Py_ssize_t ix) {
+static PyObject* __Pyx__PyObject_PopIndex(PyObject* L, Py_ssize_t ix) {
     PyObject *r, *py_ix;
-#if CYTHON_COMPILING_IN_CPYTHON
-    if (likely(PyList_CheckExact(L))) {
-        Py_ssize_t size = PyList_GET_SIZE(L);
-        if (likely(size > (((PyListObject*)L)->allocated >> 1))) {
-            Py_ssize_t cix = ix;
-            if (cix < 0) {
-                cix += size;
-            }
-            if (likely(0 <= cix && cix < size)) {
-                PyObject* v = PyList_GET_ITEM(L, cix);
-                Py_SIZE(L) -= 1;
-                size -= 1;
-                memmove(&PyList_GET_ITEM(L, cix), &PyList_GET_ITEM(L, cix+1), (size-cix)*sizeof(PyObject*));
-                return v;
-            }
-        }
-    }
-#endif
     py_ix = PyInt_FromSsize_t(ix);
     if (!py_ix) return NULL;
     r = __Pyx_PyObject_CallMethod1(L, PYIDENT("pop"), py_ix);
     Py_DECREF(py_ix);
     return r;
+}
+
+static PyObject* __Pyx_PyList_PopIndex(PyObject* L, Py_ssize_t ix) {
+#if CYTHON_COMPILING_IN_CPYTHON
+    Py_ssize_t size = PyList_GET_SIZE(L);
+    if (likely(size > (((PyListObject*)L)->allocated >> 1))) {
+        Py_ssize_t cix = ix;
+        if (cix < 0) {
+            cix += size;
+        }
+        if (likely(0 <= cix && cix < size)) {
+            PyObject* v = PyList_GET_ITEM(L, cix);
+            Py_SIZE(L) -= 1;
+            size -= 1;
+            memmove(&PyList_GET_ITEM(L, cix), &PyList_GET_ITEM(L, cix+1), (size-cix)*sizeof(PyObject*));
+            return v;
+        }
+    }
+#endif
+    return __Pyx__PyObject_PopIndex(L, ix);
 }
 
 

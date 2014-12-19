@@ -43,6 +43,7 @@ paths to libraries you need to link with]
 A ``yourmod.so`` file is now in the same directory and your module,
 ``yourmod``, is available for you to import as you normally would.
 
+
 Compiling with ``distutils``
 ============================
 
@@ -67,6 +68,10 @@ The ``cythonize`` command also allows for multi-threaded compilation and
 dependency resolution.  Recompilation will be skipped if the target file
 is up to date with its main source file and dependencies.
 
+
+Configuring the C-Build
+------------------------
+
 If you have include files in non-standard places you can pass an
 ``include_path`` parameter to ``cythonize``::
 
@@ -78,9 +83,15 @@ If you have include files in non-standard places you can pass an
         ext_modules = cythonize("src/*.pyx", include_path = [...]),
     )
 
-If you need to specify compiler options, libraries to link with or other linker
-options you will need to create ``Extension`` instances manually (note
-that glob syntax can still be used to specify multiple extensions in one line)::
+Often, Python packages that offer a C-level API provide a way to find
+the necessary include files, e.g. for NumPy::
+
+    include_path = [numpy.get_include()]
+
+If you need to specify compiler options, libraries to link with or other
+linker options you will need to create ``Extension`` instances manually
+(note that glob syntax can still be used to specify multiple extensions
+in one line)::
 
     from distutils.core import setup
     from distutils.extension import Extension
@@ -108,6 +119,101 @@ If your options are static (for example you do not need to call a tool like
 
     # distutils: libraries = spam eggs
     # distutils: include_dirs = /opt/food/include
+
+If you have some C files that have been wrapped with Cython and you want to
+compile them into your extension, you can define the distutils ``sources``
+parameter::
+
+    # distutils: sources = helper.c, another_helper.c
+
+Note that these sources are added to the list of sources of the current
+extension module.  Spelling this out in the :file:`setup.py` file looks
+as follows::
+
+    from distutils.core import setup
+    from Cython.Build import cythonize
+    from distutils.extension import Extension
+
+    sourcefiles = ['example.pyx', 'helper.c', 'another_helper.c']
+
+    extensions = [Extension("example", sourcefiles)]
+
+    setup(
+        ext_modules = cythonize(extensions)
+    )
+
+The :class:`Extension` class takes many options, and a fuller explanation can
+be found in the `distutils documentation`_. Some useful options to know about
+are ``include_dirs``, ``libraries``, and ``library_dirs`` which specify where
+to find the ``.h`` and library files when linking to external libraries.
+
+.. _distutils documentation: http://docs.python.org/extending/building.html
+
+
+Distributing Cython modules
+----------------------------
+
+It is strongly recommended that you distribute the generated ``.c`` files as well
+as your Cython sources, so that users can install your module without needing
+to have Cython available.
+
+It is also recommended that Cython compilation not be enabled by default in the
+version you distribute. Even if the user has Cython installed, he/she probably
+doesn't want to use it just to install your module. Also, the installed version
+may not be the same one you used, and may not compile your sources correctly.
+
+This simply means that the :file:`setup.py` file that you ship with will just
+be a normal distutils file on the generated `.c` files, for the basic example
+we would have instead::
+
+    from distutils.core import setup
+    from distutils.extension import Extension
+
+    setup(
+        ext_modules = [Extension("example", ["example.c"])]
+    )
+
+This is easy to combine with :func:`cythonize` by changing the file extension
+of the extension module sources::
+
+    from distutils.core import setup
+    from distutils.extension import Extension
+
+    USE_CYTHON = ...   # command line option, try-import, ...
+
+    ext = '.pyx' if USE_CYTHON else '.c'
+
+    extensions = [Extension("example", ["example"+ext])]
+
+    if USE_CYTHON:
+        from Cython.Build import cythonize
+        extensions = cythonize(extensions)
+
+    setup(
+        ext_modules = extensions
+    )
+
+If you have many extensions and want to avoid the additional complexity in the
+declarations, you can declare them with their normal Cython sources and then
+call the following function instead of ``cythonize()`` to adapt the sources
+list in the Extensions when not using Cython::
+
+    import os.path
+
+    def no_cythonize(extensions, **_ignore):
+        for extension in extensions:
+            sources = []
+            for sfile in extension.sources:
+                path, ext = os.path.splitext(sfile)
+                if ext in ('.pyx', '.py'):
+                    if extension.language == 'c++':
+                        ext = '.cpp'
+                    else:
+                        ext = '.c'
+                    sfile = path + ext
+                sources.append(sfile)
+            extension.sources[:] = sources
+        return extensions
 
 
 Compiling with ``pyximport``
@@ -279,6 +385,9 @@ Cython code.  Here is the list of currently supported directives:
     internally without paying attention to cache consistency, this option can
     be set to False.
 
+``unraisable_tracebacks`` (True / False)
+    Whether to print tracebacks when suppressing unraisable exceptions.
+
 
 How to set directives
 ---------------------
@@ -289,7 +398,7 @@ Globally
 One can set compiler directives through a special header comment at the top of the file, like this::
 
     #!python
-    #cython: boundscheck=False
+    #cython: language_level=3, boundscheck=False
 
 The comment must appear before any code (but can appear after other
 comments or whitespace).
@@ -317,7 +426,8 @@ statement, like this::
     @cython.boundscheck(False) # turn off boundscheck for this function
     def f():
         ...
-    	with cython.boundscheck(True): # turn it temporarily on again for this block
+        # turn it temporarily on again for this block
+        with cython.boundscheck(True):
             ...
 
 .. Warning:: These two methods of setting directives are **not**

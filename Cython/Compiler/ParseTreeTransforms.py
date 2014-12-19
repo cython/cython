@@ -121,12 +121,19 @@ class NormalizeTree(CythonTransform):
     def visit_CStructOrUnionDefNode(self, node):
         return self.visit_StatNode(node, True)
 
-    # Eliminate PassStatNode
     def visit_PassStatNode(self, node):
+        """Eliminate PassStatNode"""
         if not self.is_in_statlist:
             return Nodes.StatListNode(pos=node.pos, stats=[])
         else:
             return []
+
+    def visit_ExprStatNode(self, node):
+        """Eliminate useless string literals"""
+        if node.expr.is_string_literal:
+            return self.visit_PassStatNode(node)
+        else:
+            return self.visit_StatNode(node)
 
     def visit_CDeclaratorNode(self, node):
         return node
@@ -889,8 +896,8 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                     'The %s directive takes one compile-time integer argument' % optname)
             return (optname, int(args[0].value))
         elif directivetype is str:
-            if kwds is not None or len(args) != 1 or not isinstance(args[0], (ExprNodes.StringNode,
-                                                                              ExprNodes.UnicodeNode)):
+            if kwds is not None or len(args) != 1 or not isinstance(
+                    args[0], (ExprNodes.StringNode, ExprNodes.UnicodeNode)):
                 raise PostParseError(pos,
                     'The %s directive takes one compile-time string argument' % optname)
             return (optname, str(args[0].value))
@@ -909,6 +916,12 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                 raise PostParseError(pos,
                     'The %s directive takes no keyword arguments' % optname)
             return optname, [ str(arg.value) for arg in args ]
+        elif callable(directivetype):
+            if kwds is not None or len(args) != 1 or not isinstance(
+                    args[0], (ExprNodes.StringNode, ExprNodes.UnicodeNode)):
+                raise PostParseError(pos,
+                    'The %s directive takes one compile-time string argument' % optname)
+            return (optname, directivetype(optname, str(args[0].value)))
         else:
             assert False
 
@@ -940,8 +953,10 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
             if name == 'locals':
                 node.directive_locals = value
             elif name != 'final':
-                self.context.nonfatal_error(PostParseError(dec.pos,
-                    "Cdef functions can only take cython.locals() or final decorators, got %s." % name))
+                self.context.nonfatal_error(PostParseError(
+                    node.pos,
+                    "Cdef functions can only take cython.locals() "
+                    "or final decorators, got %s." % name))
         body = Nodes.StatListNode(node.pos, stats=[node])
         return self.visit_with_directives(body, directives)
 
@@ -1197,11 +1212,12 @@ class WithTransform(CythonTransform, SkipDeclarations):
         pos = node.pos
         body, target, manager = node.body, node.target, node.manager
         node.enter_call = ExprNodes.SimpleCallNode(
-            pos, function = ExprNodes.AttributeNode(
-                pos, obj = ExprNodes.CloneNode(manager),
-                attribute = EncodedString('__enter__')),
-            args = [],
-            is_temp = True)
+            pos, function=ExprNodes.AttributeNode(
+                pos, obj=ExprNodes.CloneNode(manager),
+                attribute=EncodedString('__enter__'),
+                is_special_lookup=True),
+            args=[],
+            is_temp=True)
         if target is not None:
             body = Nodes.StatListNode(
                 pos, stats = [
@@ -1211,38 +1227,40 @@ class WithTransform(CythonTransform, SkipDeclarations):
                         orig_rhs = node.enter_call),
                     body])
 
-        excinfo_target = ResultRefNode(
-            pos=pos, type=Builtin.tuple_type, may_hold_none=False)
+        excinfo_target = ExprNodes.TupleNode(pos, slow=True, args=[
+            ExprNodes.ExcValueNode(pos) for _ in range(3)])
         except_clause = Nodes.ExceptClauseNode(
-            pos, body = Nodes.IfStatNode(
-                pos, if_clauses = [
+            pos, body=Nodes.IfStatNode(
+                pos, if_clauses=[
                     Nodes.IfClauseNode(
-                        pos, condition = ExprNodes.NotNode(
-                            pos, operand = ExprNodes.WithExitCallNode(
-                                pos, with_stat = node,
-                                args = excinfo_target)),
-                        body = Nodes.ReraiseStatNode(pos),
+                        pos, condition=ExprNodes.NotNode(
+                            pos, operand=ExprNodes.WithExitCallNode(
+                                pos, with_stat=node,
+                                test_if_run=False,
+                                args=excinfo_target)),
+                        body=Nodes.ReraiseStatNode(pos),
                         ),
                     ],
-                else_clause = None),
-            pattern = None,
-            target = None,
-            excinfo_target = excinfo_target,
+                else_clause=None),
+            pattern=None,
+            target=None,
+            excinfo_target=excinfo_target,
             )
 
         node.body = Nodes.TryFinallyStatNode(
-            pos, body = Nodes.TryExceptStatNode(
-                pos, body = body,
-                except_clauses = [except_clause],
-                else_clause = None,
+            pos, body=Nodes.TryExceptStatNode(
+                pos, body=body,
+                except_clauses=[except_clause],
+                else_clause=None,
                 ),
-            finally_clause = Nodes.ExprStatNode(
-                pos, expr = ExprNodes.WithExitCallNode(
-                    pos, with_stat = node,
-                    args = ExprNodes.TupleNode(
-                        pos, args = [ExprNodes.NoneNode(pos) for _ in range(3)]
+            finally_clause=Nodes.ExprStatNode(
+                pos, expr=ExprNodes.WithExitCallNode(
+                    pos, with_stat=node,
+                    test_if_run=True,
+                    args=ExprNodes.TupleNode(
+                        pos, args=[ExprNodes.NoneNode(pos) for _ in range(3)]
                         ))),
-            handle_error_case = False,
+            handle_error_case=False,
             )
         return node
 
@@ -1804,6 +1822,68 @@ if VALUE is not None:
         return property
 
 
+class CalculateQualifiedNamesTransform(EnvTransform):
+    """
+    Calculate and store the '__qualname__' and the global
+    module name on some nodes.
+    """
+    def visit_ModuleNode(self, node):
+        self.module_name = self.global_scope().qualified_name
+        self.qualified_name = []
+        _super = super(CalculateQualifiedNamesTransform, self)
+        self._super_visit_FuncDefNode = _super.visit_FuncDefNode
+        self._super_visit_ClassDefNode = _super.visit_ClassDefNode
+        self.visitchildren(node)
+        return node
+
+    def _set_qualname(self, node, name=None):
+        if name:
+            qualname = self.qualified_name[:]
+            qualname.append(name)
+        else:
+            qualname = self.qualified_name
+        node.qualname = EncodedString('.'.join(qualname))
+        node.module_name = self.module_name
+        self.visitchildren(node)
+        return node
+
+    def _append_entry(self, entry):
+        if entry.is_pyglobal and not entry.is_pyclass_attr:
+            self.qualified_name = [entry.name]
+        else:
+            self.qualified_name.append(entry.name)
+
+    def visit_ClassNode(self, node):
+        return self._set_qualname(node, node.name)
+
+    def visit_PyClassNamespaceNode(self, node):
+        # class name was already added by parent node
+        return self._set_qualname(node)
+
+    def visit_PyCFunctionNode(self, node):
+        return self._set_qualname(node, node.def_node.name)
+
+    def visit_FuncDefNode(self, node):
+        orig_qualified_name = self.qualified_name[:]
+        if getattr(node, 'name', None) == '<lambda>':
+            self.qualified_name.append('<lambda>')
+        else:
+            self._append_entry(node.entry)
+        self.qualified_name.append('<locals>')
+        self._super_visit_FuncDefNode(node)
+        self.qualified_name = orig_qualified_name
+        return node
+
+    def visit_ClassDefNode(self, node):
+        orig_qualified_name = self.qualified_name[:]
+        entry = (getattr(node, 'entry', None) or             # PyClass
+                 self.current_env().lookup_here(node.name))  # CClass
+        self._append_entry(entry)
+        self._super_visit_ClassDefNode(node)
+        self.qualified_name = orig_qualified_name
+        return node
+
+
 class AnalyseExpressionsTransform(CythonTransform):
 
     def visit_ModuleNode(self, node):
@@ -1890,7 +1970,7 @@ class ExpandInplaceOperators(EnvTransform):
                 return node, [node]
             elif isinstance(node, ExprNodes.IndexNode):
                 if node.is_buffer_access:
-                    raise ValueError, "Buffer access"
+                    raise ValueError("Buffer access")
                 base, temps = side_effect_free_reference(node.base)
                 index = LetRefNode(node.index)
                 return ExprNodes.IndexNode(node.pos, base=base, index=index), temps + [index]
@@ -2051,10 +2131,6 @@ class AlignFunctionDefinitions(CythonTransform):
 
 
 class RemoveUnreachableCode(CythonTransform):
-    def visit_Node(self, node):
-        self.visitchildren(node)
-        return node
-
     def visit_StatListNode(self, node):
         if not self.current_directives['remove_unreachable']:
             return node
@@ -2086,6 +2162,14 @@ class RemoveUnreachableCode(CythonTransform):
                 node.is_terminator = True
         return node
 
+    def visit_TryExceptStatNode(self, node):
+        self.visitchildren(node)
+        if node.body.is_terminator and node.else_clause:
+            if self.current_directives['warn.unreachable']:
+                warning(node.else_clause.pos, "Unreachable code", 2)
+            node.else_clause = None
+        return node
+
 
 class YieldNodeCollector(TreeVisitor):
 
@@ -2096,13 +2180,14 @@ class YieldNodeCollector(TreeVisitor):
         self.has_return_value = False
 
     def visit_Node(self, node):
-        return self.visitchildren(node)
+        self.visitchildren(node)
 
     def visit_YieldExprNode(self, node):
         self.yields.append(node)
         self.visitchildren(node)
 
     def visit_ReturnStatNode(self, node):
+        self.visitchildren(node)
         if node.value:
             self.has_return_value = True
         self.returns.append(node)
@@ -2118,6 +2203,7 @@ class YieldNodeCollector(TreeVisitor):
 
     def visit_GeneratorExpressionNode(self, node):
         pass
+
 
 class MarkClosureVisitor(CythonTransform):
 
@@ -2140,7 +2226,7 @@ class MarkClosureVisitor(CythonTransform):
                 # Will report error later
                 return node
             for i, yield_expr in enumerate(collector.yields):
-                yield_expr.label_num = i + 1
+                yield_expr.label_num = i + 1  # no enumerate start arg in Py2.4
             for retnode in collector.returns:
                 retnode.in_generator = True
 
@@ -2218,7 +2304,7 @@ class CreateClosureClasses(CythonTransform):
         if not from_closure and (self.path or inner_node):
             if not inner_node:
                 if not node.py_cfunc_node:
-                    raise InternalError, "DefNode does not have assignment node"
+                    raise InternalError("DefNode does not have assignment node")
                 inner_node = node.py_cfunc_node
             inner_node.needs_self_code = False
             node.needs_outer_scope = False
