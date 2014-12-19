@@ -105,6 +105,16 @@ def test_resize(a):
     assert len(cb) == 10
     assert cb[9] == cb[-1] == cb.data.as_floats[9] == 9
 
+def test_resize_smart(a):
+    """
+    >>> a = array.array('d', [1, 2, 3])
+    >>> test_resize_smart(a)
+    2
+    """
+    cdef array.array cb = array.copy(a)
+    array.resize_smart(cb, 2)
+    return len(cb)
+
 def test_buffer():
     """
     >>> test_buffer()
