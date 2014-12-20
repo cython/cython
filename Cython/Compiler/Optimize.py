@@ -644,9 +644,6 @@ class IterationTransform(Visitor.EnvTransform):
             if step_value == 0:
                 # will lead to an error elsewhere
                 return node
-            if reversed and step_value not in (1, -1):
-                # FIXME: currently broken - requires calculation of the correct bounds
-                return node
             if not isinstance(step, ExprNodes.IntNode):
                 step = ExprNodes.IntNode(step_pos, value=str(step_value),
                                          constant_result=step_value)
@@ -658,6 +655,10 @@ class IterationTransform(Visitor.EnvTransform):
         else:
             bound1 = args[0].coerce_to_integer(self.current_env())
             bound2 = args[1].coerce_to_integer(self.current_env())
+            if (reversed and step_value not in (1, -1) and 
+                    (isinstance(bound1, ExprNodes.NameNode) or isinstance(bound2, ExprNodes.NameNode))):
+                # FIXME: currently broken - requires the value of the NameNode
+                return node
 
         relation1, relation2 = self._find_for_from_node_relations(step_value < 0, reversed)
 
@@ -665,6 +666,8 @@ class IterationTransform(Visitor.EnvTransform):
             bound1, bound2 = bound2, bound1
             if step_value < 0:
                 step_value = -step_value
+            if step_value != 1:
+                bound1.value = str(step_value*((int(bound1.value)-int(bound2.value)) / step_value) + 1)
         else:
             if step_value < 0:
                 step_value = -step_value
