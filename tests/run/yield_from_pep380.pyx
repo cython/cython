@@ -9,11 +9,6 @@ see <http://www.cosc.canterbury.ac.nz/greg.ewing/python/yield-from/YieldFrom-Pyt
 
 import sys
 
-try:
-    _next = next  # not in Py<=2.5
-except NameError:
-    def _next(it):
-        return it.next()
 
 def _lines(trace):
     for line in trace:
@@ -1018,7 +1013,7 @@ def yield_in_return(x):
     >>> x = yield_in_return(range(3))
     >>> for _ in range(10):
     ...     try:
-    ...         print(_next(x))
+    ...         print(next(x))
     ...     except StopIteration:
     ...         if sys.version_info >= (3,3):
     ...             print(sys.exc_info()[1].value is None)

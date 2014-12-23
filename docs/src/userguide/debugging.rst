@@ -8,7 +8,7 @@ Debugging your Cython program
 
 Cython comes with an extension for the GNU Debugger that helps users debug
 Cython code. To use this functionality, you will need to install gdb 7.2 or
-higher, built with Python support (linked to Python 2.5 or higher).
+higher, built with Python support (linked to Python 2.6 or higher).
 The debugger supports debuggees with versions 2.6 and higher. For Python 3,
 code should be built with Python 3 and the debugger should be run with
 Python 2 (or at least it should be able to find the Python 2 Cython
