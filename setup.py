@@ -6,11 +6,8 @@ except ImportError:
 import os
 import sys
 
-try:
-    import platform
-    is_cpython = not hasattr(platform, 'python_implementation') or platform.python_implementation() == 'CPython'
-except (ImportError, NameError):
-    is_cpython = True # CPython < 2.6
+import platform
+is_cpython = platform.python_implementation() == 'CPython'
 
 if sys.platform == "darwin":
     # Don't create resource files on OS X tar.
