@@ -5528,28 +5528,47 @@ class RaiseStatNode(StatNode):
             exc = self.exc_type
             from . import ExprNodes
             if (isinstance(exc, ExprNodes.SimpleCallNode) and
-                not (exc.args or (exc.arg_tuple is not None and
-                                  exc.arg_tuple.args))):
+                not exc.args and (exc.arg_tuple is None or
+                                  len(exc.arg_tuple.args) <= 1)):
                 exc = exc.function # extract the exception type
             if exc.is_name and exc.entry.is_builtin:
                 self.builtin_exc_name = exc.name
-                if self.builtin_exc_name == 'MemoryError':
-                    self.exc_type = None # has a separate implementation
         return self
 
     nogil_check = Node.gil_error
     gil_message = "Raising exception"
 
     def generate_execution_code(self, code):
-        if self.builtin_exc_name == 'MemoryError':
-            code.putln('PyErr_NoMemory(); %s' % code.error_goto(self.pos))
-            return
+        if self.builtin_exc_name:
+            # See if we can use PyErr_NoMemory, PyErr_SetNone or
+            # PyErr_SetObject.
+            from .ExprNodes import NameNode, SimpleCallNode
 
-        if self.exc_type:
+            raise_call = None
+            is_name = isinstance(self.exc_type, NameNode)
+            typ = self.exc_type
+            args = hasattr(typ, "arg_tuple") and self.exc_type.arg_tuple.args
+
+            if self.builtin_exc_name == 'MemoryError' and is_name:
+                raise_call = 'PyErr_NoMemory()'
+            elif is_name or not args:
+                raise_call = "PyErr_SetNone(PyExc_%s)" % self.builtin_exc_name
+            else:
+                arg = self.exc_type.arg_tuple.args[0]
+                arg.generate_evaluation_code(code)
+                raise_call = ("PyErr_SetObject(PyExc_%s, %s)"
+                              % (self.builtin_exc_name, arg.py_result()))
+
+            if raise_call is not None:
+                code.putln(raise_call + "; " + code.error_goto(self.pos))
+                return
+
+        elif self.exc_type:
             self.exc_type.generate_evaluation_code(code)
             type_code = self.exc_type.py_result()
         else:
             type_code = "0"
+
         if self.exc_value:
             self.exc_value.generate_evaluation_code(code)
             value_code = self.exc_value.py_result()
