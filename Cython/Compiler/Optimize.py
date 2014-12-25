@@ -666,8 +666,8 @@ class IterationTransform(Visitor.EnvTransform):
                 if isinstance(bound1, ExprNodes.NameNode) or isinstance(bound2, ExprNodes.NameNode):
                     end_value = bound2.get_constant_c_result_code()
                     begin_value = bound1.get_constant_c_result_code()
-                    bound1.for_value = ("%d*((%s-%s-1) / %d) + %s+1" %
-                                           (step_value, begin_value, end_value, step_value, end_value))
+                    bound1 = ExprNodes.ConstNode(range_function.pos, value="%d*((%s-%s-1) / %d) + %s+1" %
+                                 (step_value, begin_value, end_value, step_value, end_value), type=bound1.type)
                 else:
                     end_value = int(bound2.value)
                     begin_value = int(bound1.value)

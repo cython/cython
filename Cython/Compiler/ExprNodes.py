@@ -1599,7 +1599,6 @@ class NameNode(AtomicExprNode):
     allow_null = False
     nogil = False
     inferred_type = None
-    for_value = None
 
     def as_cython_attribute(self):
         return self.cython_attribute
