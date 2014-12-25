@@ -655,9 +655,9 @@ class IterationTransform(Visitor.EnvTransform):
         else:
             bound1 = args[0].coerce_to_integer(self.current_env())
             bound2 = args[1].coerce_to_integer(self.current_env())
-            if (reversed and step_value not in (1, -1) and 
+            if (step_value not in (-1, 1) and
                     (isinstance(bound1, ExprNodes.NameNode) or isinstance(bound2, ExprNodes.NameNode))):
-                # FIXME: currently broken - requires the value of the NameNode
+                # FIXME: Need to insert the equation as a string
                 return node
 
         relation1, relation2 = self._find_for_from_node_relations(step_value < 0, reversed)
@@ -667,7 +667,9 @@ class IterationTransform(Visitor.EnvTransform):
             if step_value < 0:
                 step_value = -step_value
             if step_value != 1:
-                bound1.value = str(step_value*((int(bound1.value)-int(bound2.value)) / step_value) + 1)
+                end_value = int(bound2.value)
+                begin_value = int(bound1.value)
+                bound1.value = str(step_value*((begin_value-end_value-1) // step_value) + end_value+1)
         else:
             if step_value < 0:
                 step_value = -step_value
