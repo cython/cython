@@ -6199,10 +6199,14 @@ class ForFromStatNode(LoopNode, StatNode):
             loopvar_name = code.funcstate.allocate_temp(self.target.type, False)
         else:
             loopvar_name = self.loopvar_node.result()
+        if isinstance(self.bound1, ExprNodes.NameNode) and self.bound1.for_value:
+            bound1_result = self.bound1.for_value
+        else:
+            bound1_result = self.bound1.result()
         code.putln(
             "for (%s = %s%s; %s %s %s; %s%s) {" % (
                 loopvar_name,
-                self.bound1.result(), offset,
+                bound1_result, offset,
                 loopvar_name, self.relation2, self.bound2.result(),
                 loopvar_name, incop))
         if self.py_loopvar_node:
