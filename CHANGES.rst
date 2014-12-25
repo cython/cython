@@ -34,6 +34,29 @@ Other changes
 -------------
 
 
+0.21.2 (2014-12-??)
+===================
+
+Bugs fixed
+----------
+
+* Crash when assigning a C value to both a Python and C target at the same time.
+
+* Automatic coercion from C++ strings to ``str`` generated incomplete code that
+  failed to compile.
+
+* Declaring a constructor in a C++ child class erroneously required a default
+  constructor declaration in the super class.
+
+* ``resize_smart()`` in ``cpython.array`` was broken.
+
+* Functions in ``libcpp.cast`` are now declared as ``nogil``.
+
+* Some missing C-API declarations were added.
+
+* Py3 main code in embedding program code was lacking casts.
+
+
 0.21.1 (2014-10-18)
 ===================
 
