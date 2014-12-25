@@ -292,24 +292,6 @@ def _is_py3_before_32(excluded, version):
 VER_DEP_MODULES = {
     # tests are excluded if 'CurrentPythonVersion OP VersionTuple', i.e.
     # (2,4) : (operator.lt, ...) excludes ... when PyVer < 2.4.x
-    (2,4) : (operator.lt, lambda x: x in ['run.extern_builtins_T258',
-                                          'run.builtin_sorted',
-                                          'run.reversed_iteration',
-                                          ]),
-    (2,5) : (operator.lt, lambda x: x in ['run.any',
-                                          'run.all',
-                                          'run.yield_from_pep380',  # GeneratorExit
-                                          'run.generator_frame_cycle', # yield in try-finally
-                                          'run.generator_expressions_in_class',
-                                          'run.absolute_import',
-                                          'run.relativeimport_T542',
-                                          'run.relativeimport_star_T542',
-                                          'run.initial_file_path',  # relative import
-                                          'run.pynumber_subtype_conversion',  # bug in Py2.4
-                                          'build.cythonize_script',  # python2.4 -m a.b.c
-                                          'build.cythonize_script_excludes',  # python2.4 -m a.b.c
-                                          'build.cythonize_script_package',  # python2.4 -m a.b.c
-                                          ]),
     (2,6) : (operator.lt, lambda x: x in ['run.print_function',
                                           'run.language_level', # print function
                                           'run.cython3',
