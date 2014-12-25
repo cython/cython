@@ -292,27 +292,6 @@ def _is_py3_before_32(excluded, version):
 VER_DEP_MODULES = {
     # tests are excluded if 'CurrentPythonVersion OP VersionTuple', i.e.
     # (2,4) : (operator.lt, ...) excludes ... when PyVer < 2.4.x
-    (2,6) : (operator.lt, lambda x: x in ['run.print_function',
-                                          'run.language_level', # print function
-                                          'run.cython3',
-                                          'run.property_decorator_T593', # prop.setter etc.
-                                          'run.generators_py', # generators, with statement
-                                          'run.pure_py', # decorators, with statement
-                                          'run.purecdef',
-                                          'run.struct_conversion',
-                                          'run.bytearray_coercion',
-                                          'run.bytearraymethods',
-                                          'run.bytearray_ascii_auto_encoding',
-                                          'run.bytearray_default_auto_encoding',
-                                          # memory views require buffer protocol
-                                          'memoryview.relaxed_strides',
-                                          'memoryview.cythonarray',
-                                          'memoryview.memslice',
-                                          'memoryview.numpy_memoryview',
-                                          'memoryview.memoryviewattrs',
-                                          'memoryview.memoryview',
-                                          'run.withstat_py',
-                                          ]),
     (2,7) : (operator.lt, lambda x: x in ['run.withstat_py27', # multi context with statement
                                           'run.yield_inside_lambda',
                                           'run.test_dictviews',
