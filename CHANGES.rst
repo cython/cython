@@ -56,6 +56,9 @@ Bugs fixed
 
 * Py3 main code in embedding program code was lacking casts.
 
+* Exception related to distutils "Distribution" class type in pyximport under
+  latest CPython 2.7 and 3.4 releases when setuptools is being imported later.
+
 
 0.21.1 (2014-10-18)
 ===================
