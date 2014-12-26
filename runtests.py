@@ -71,7 +71,6 @@ except NameError:
 WITH_CYTHON = True
 CY3_DIR = None
 
-from distutils.core import Extension
 from distutils.command.build_ext import build_ext as _build_ext
 from distutils import sysconfig
 
@@ -830,10 +829,12 @@ class CythonCompileTestCase(unittest.TestCase):
 
             related_files = self.related_files(test_directory, module)
             self.copy_files(test_directory, workdir, related_files)
+
+            from distutils.core import Extension
             extension = Extension(
                 module,
-                sources = self.source_files(workdir, module, related_files),
-                extra_compile_args = ext_compile_flags,
+                sources=self.source_files(workdir, module, related_files),
+                extra_compile_args=ext_compile_flags,
                 **extra_extension_args
                 )
 
