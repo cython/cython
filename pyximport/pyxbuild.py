@@ -6,7 +6,6 @@ out_fname = pyx_to_dll("foo.pyx")
 import os
 import sys
 
-from distutils.dist import Distribution
 from distutils.errors import DistutilsArgError, DistutilsError, CCompilerError
 from distutils.extension import Extension
 from distutils.util import grok_environment_error
@@ -67,9 +66,12 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0,
     if HAS_CYTHON and build_in_temp:
         args.append("--pyrex-c-in-temp")
     sargs = setup_args.copy()
-    sargs.update(
-        {"script_name": None,
-         "script_args": args + script_args} )
+    sargs.update({
+        "script_name": None,
+        "script_args": args + script_args,
+    })
+    # late import, in case setuptools replaced it
+    from distutils.dist import Distribution
     dist = Distribution(sargs)
     if not dist.ext_modules:
         dist.ext_modules = []
