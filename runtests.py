@@ -71,24 +71,32 @@ except NameError:
 WITH_CYTHON = True
 CY3_DIR = None
 
-from distutils.dist import Distribution
 from distutils.core import Extension
 from distutils.command.build_ext import build_ext as _build_ext
 from distutils import sysconfig
-distutils_distro = Distribution()
 
 
-if sys.platform == 'win32':
-    # TODO: Figure out why this hackery (see http://thread.gmane.org/gmane.comp.python.cython.devel/8280/).
-    config_files = distutils_distro.find_config_files()
-    try: config_files.remove('setup.cfg')
-    except ValueError: pass
-    distutils_distro.parse_config_files(config_files)
+def get_distutils_distro(_cache=[]):
+    if _cache:
+        return _cache[0]
+    # late import to accomodate for setuptools override
+    from distutils.dist import Distribution
+    distutils_distro = Distribution()
 
-    cfgfiles = distutils_distro.find_config_files()
-    try: cfgfiles.remove('setup.cfg')
-    except ValueError: pass
-    distutils_distro.parse_config_files(cfgfiles)
+    if sys.platform == 'win32':
+        # TODO: Figure out why this hackery (see http://thread.gmane.org/gmane.comp.python.cython.devel/8280/).
+        config_files = distutils_distro.find_config_files()
+        try: config_files.remove('setup.cfg')
+        except ValueError: pass
+        distutils_distro.parse_config_files(config_files)
+
+        cfgfiles = distutils_distro.find_config_files()
+        try: cfgfiles.remove('setup.cfg')
+        except ValueError: pass
+        distutils_distro.parse_config_files(cfgfiles)
+    _cache.append(distutils_distro)
+    return distutils_distro
+
 
 EXT_DEP_MODULES = {
     'tag:numpy' : 'numpy',
@@ -802,7 +810,7 @@ class CythonCompileTestCase(unittest.TestCase):
         cwd = os.getcwd()
         os.chdir(workdir)
         try:
-            build_extension = build_ext(distutils_distro)
+            build_extension = build_ext(get_distutils_distro())
             build_extension.include_dirs = INCLUDE_DIRS[:]
             if incdir:
                 build_extension.include_dirs.append(incdir)
