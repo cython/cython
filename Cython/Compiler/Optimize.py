@@ -644,9 +644,6 @@ class IterationTransform(Visitor.EnvTransform):
             if step_value == 0:
                 # will lead to an error elsewhere
                 return node
-            if reversed and step_value not in (1, -1):
-                # FIXME: currently broken - requires calculation of the correct bounds
-                return node
             if not isinstance(step, ExprNodes.IntNode):
                 step = ExprNodes.IntNode(step_pos, value=str(step_value),
                                          constant_result=step_value)
@@ -665,6 +662,16 @@ class IterationTransform(Visitor.EnvTransform):
             bound1, bound2 = bound2, bound1
             if step_value < 0:
                 step_value = -step_value
+            if step_value != 1:
+                if isinstance(bound1, ExprNodes.NameNode) or isinstance(bound2, ExprNodes.NameNode):
+                    end_value = bound2.get_constant_c_result_code()
+                    begin_value = bound1.get_constant_c_result_code()
+                    bound1 = ExprNodes.ConstNode(range_function.pos, value="%d*((%s-%s-1) / %d) + %s+1" %
+                                 (step_value, begin_value, end_value, step_value, end_value), type=bound1.type)
+                else:
+                    end_value = int(bound2.value)
+                    begin_value = int(bound1.value)
+                    bound1.value = str(step_value*((begin_value-end_value-1) // step_value) + end_value+1)
         else:
             if step_value < 0:
                 step_value = -step_value

@@ -133,7 +133,78 @@ def reversed_range_step_neg(int a, int b):
         result.append(i)
     return result, i
 
-#@cython.test_assert_path_exists('//ForFromStatNode')
+@cython.test_assert_path_exists('//ForFromStatNode')
+def reversed_range_step4():
+    """
+    >>> [ i for i in _reversed(range(0, 5, 3)) ]
+    [3, 0]
+    >>> reversed_range_step3(0, 5)
+    ([3, 0], 0)
+    """
+    cdef int i = 99
+    result = []
+    for i in reversed(range(1, 1, 4)):
+        result.append(i)
+    assert result == list(reversed(range(1, 1, 4)))
+    assert i == 99
+
+    for i in reversed(range(0, 1, 4)):
+        result.append(i)
+    assert result == list(reversed(range(0, 1, 4)))
+
+    result = []
+    for i in reversed(range(1, 8, 4)):
+        result.append(i)
+    assert result == list(reversed(range(1, 8, 4)))
+
+    result = []
+    for i in reversed(range(1, 9, 4)):
+        result.append(i)
+    assert result == list(reversed(range(1, 9, 4)))
+
+    result = []
+    for i in reversed(range(1, 10, 4)):
+        result.append(i)
+    assert result == list(reversed(range(1, 10, 4)))
+
+    result = []
+    for i in reversed(range(1, 11, 4)):
+        result.append(i)
+    assert result == list(reversed(range(1, 11, 4)))
+
+    result = []
+    for i in reversed(range(1, 12, 4)):
+        result.append(i)
+    assert result == list(reversed(range(1, 12, 4)))
+
+    result = []
+    for i in reversed(range(0, 8, 4)):
+        result.append(i)
+    assert result == list(reversed(range(0, 8, 4)))
+
+    result = []
+    for i in reversed(range(0, 9, 4)):
+        result.append(i)
+    assert result == list(reversed(range(0, 9, 4)))
+
+    result = []
+    for i in reversed(range(0, 10, 4)):
+        result.append(i)
+    assert result == list(reversed(range(0, 10, 4)))
+
+    result = []
+    for i in reversed(range(0, 11, 4)):
+        result.append(i)
+    assert result == list(reversed(range(0, 11, 4)))
+
+    result = []
+    for i in reversed(range(0, 12, 4)):
+        result.append(i)
+    assert result == list(reversed(range(0, 12, 4)))
+
+    return result, i
+
+@cython.test_assert_path_exists('//ForFromStatNode')
 def reversed_range_step3(int a, int b):
     """
     >>> [ i for i in _reversed(range(0, 5, 3)) ]
