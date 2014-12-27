@@ -133,12 +133,39 @@ def reversed_range_step_neg(int a, int b):
         result.append(i)
     return result, i
 
+
+#cython.test_assert_path_exists('//ForFromStatNode')
+def reversed_range_step3(int a, int b):
+    """
+    >>> [ i for i in _reversed(range(-5, 0, 3)) ]
+    [-2, -5]
+    >>> reversed_range_step3(-5, 0)
+    ([-2, -5], -5)
+
+    >>> [ i for i in _reversed(range(0, 5, 3)) ]
+    [3, 0]
+    >>> reversed_range_step3(0, 5)
+    ([3, 0], 0)
+
+    >>> [ i for i in _reversed(range(5, 0, 3)) ]
+    []
+    >>> reversed_range_step3(5, 0)
+    ([], 99)
+    """
+    cdef int i = 99
+    result = []
+    for i in reversed(range(a, b, 3)):
+        result.append(i)
+    return result, i
+
+
 @cython.test_assert_path_exists('//ForFromStatNode')
-def reversed_range_step4():
+@cython.test_fail_if_path_exists('//ForInStatNode')
+def reversed_range_constant():
     """
     >>> [ i for i in _reversed(range(-12, -2, 4)) ]
     [-4, -8, -12]
-    >>> reversed_range_step4()
+    >>> reversed_range_constant()
     ([-4, -8, -12], -12)
     """
     cdef int i = 99
@@ -207,29 +234,6 @@ def reversed_range_step4():
         result.append(i)
     return result, i
 
-#cython.test_assert_path_exists('//ForFromStatNode')
-def reversed_range_step3(int a, int b):
-    """
-    >>> [ i for i in _reversed(range(-5, 0, 3)) ]
-    [-2, -5]
-    >>> reversed_range_step3(-5, 0)
-    ([-2, -5], -5)
-
-    >>> [ i for i in _reversed(range(0, 5, 3)) ]
-    [3, 0]
-    >>> reversed_range_step3(0, 5)
-    ([3, 0], 0)
-
-    >>> [ i for i in _reversed(range(5, 0, 3)) ]
-    []
-    >>> reversed_range_step3(5, 0)
-    ([], 99)
-    """
-    cdef int i = 99
-    result = []
-    for i in reversed(range(a, b, 3)):
-        result.append(i)
-    return result, i
 
 unicode_string = u"abcDEF"
 

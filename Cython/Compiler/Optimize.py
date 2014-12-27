@@ -663,13 +663,16 @@ class IterationTransform(Visitor.EnvTransform):
             if step_value < 0:
                 step_value = -step_value
             if step_value != 1:
-                if isinstance(bound1, ExprNodes.NameNode) or isinstance(bound2, ExprNodes.NameNode): 
+                begin_value = bound1.constant_result
+                end_value = bound2.constant_result
+                if isinstance(begin_value, (int, long)) and isinstance(end_value, (int, long)):
+                    bound1_value = step_value * ((begin_value - end_value - 1) // step_value) + end_value + 1
+                    bound1 = ExprNodes.IntNode(
+                        bound1.pos, value=str(bound1_value), constant_result=bound1_value,
+                        type=PyrexTypes.widest_numeric_type(bound1.type, bound2.type))
+                else:
                     # FIXME: Optimize when variable is in range (e.g. reversed(range(x, y, 3)))
                     return node
-                else:
-                    end_value = int(bound2.value)
-                    begin_value = int(bound1.value)
-                    bound1.value = str(step_value*((begin_value-end_value-1) // step_value) + end_value+1)
         else:
             if step_value < 0:
                 step_value = -step_value
