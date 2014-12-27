@@ -669,7 +669,7 @@ class IterationTransform(Visitor.EnvTransform):
                     bound1_value = step_value * ((begin_value - end_value - 1) // step_value) + end_value + 1
                     bound1 = ExprNodes.IntNode(
                         bound1.pos, value=str(bound1_value), constant_result=bound1_value,
-                        type=PyrexTypes.widest_numeric_type(bound1.type, bound2.type))
+                        type=PyrexTypes.spanning_type(bound1.type, bound2.type))
                 else:
                     # FIXME: Optimize when variable is in range (e.g. reversed(range(x, y, 3)))
                     return node
