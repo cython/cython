@@ -172,67 +172,220 @@ def reversed_range_constant():
     result = []
     for i in reversed(range(1, 1, 4)):
         result.append(i)
-    assert result == list(reversed(range(1, 1, 4)))
+    assert result == list(reversed(range(1, 1, 4))), result
     assert i == 99
 
+    result = []
+    for i in reversed(range(1, 1, 1)):
+        result.append(i)
+    assert result == list(reversed(range(1, 1, 1))), result
+
+    result = []
     for i in reversed(range(0, 1, 4)):
         result.append(i)
-    assert result == list(reversed(range(0, 1, 4)))
+    assert result == list(reversed(range(0, 1, 4))), result
+
+    result = []
+    for i in reversed(range(0, 1, 1)):
+        result.append(i)
+    assert result == list(reversed(range(0, 1, 1))), result
 
     result = []
     for i in reversed(range(1, 8, 4)):
         result.append(i)
-    assert result == list(reversed(range(1, 8, 4)))
+    assert result == list(reversed(range(1, 8, 4))), result
+
+    result = []
+    for i in reversed(range(1, 8, 1)):
+        result.append(i)
+    assert result == list(reversed(range(1, 8, 1))), result
 
     result = []
     for i in reversed(range(1, 9, 4)):
         result.append(i)
-    assert result == list(reversed(range(1, 9, 4)))
+    assert result == list(reversed(range(1, 9, 4))), result
 
     result = []
     for i in reversed(range(1, 10, 4)):
         result.append(i)
-    assert result == list(reversed(range(1, 10, 4)))
+    assert result == list(reversed(range(1, 10, 4))), result
 
     result = []
     for i in reversed(range(1, 11, 4)):
         result.append(i)
-    assert result == list(reversed(range(1, 11, 4)))
+    assert result == list(reversed(range(1, 11, 4))), result
 
     result = []
     for i in reversed(range(1, 12, 4)):
         result.append(i)
-    assert result == list(reversed(range(1, 12, 4)))
+    assert result == list(reversed(range(1, 12, 4))), result
 
     result = []
     for i in reversed(range(0, 8, 4)):
         result.append(i)
-    assert result == list(reversed(range(0, 8, 4)))
+    assert result == list(reversed(range(0, 8, 4))), result
 
     result = []
     for i in reversed(range(0, 9, 4)):
         result.append(i)
-    assert result == list(reversed(range(0, 9, 4)))
+    assert result == list(reversed(range(0, 9, 4))), result
 
     result = []
     for i in reversed(range(0, 10, 4)):
         result.append(i)
-    assert result == list(reversed(range(0, 10, 4)))
+    assert result == list(reversed(range(0, 10, 4))), result
 
     result = []
     for i in reversed(range(0, 11, 4)):
         result.append(i)
-    assert result == list(reversed(range(0, 11, 4)))
+    assert result == list(reversed(range(0, 11, 4))), result
 
     result = []
     for i in reversed(range(0, 12, 4)):
         result.append(i)
-    assert result == list(reversed(range(0, 12, 4)))
+    assert result == list(reversed(range(0, 12, 4))), result
 
     result = []
     for i in reversed(range(-12, -2, 4)):
         result.append(i)
+    assert result == list(reversed(range(-12, -2, 4))), result
     return result, i
+
+
+@cython.test_assert_path_exists('//ForFromStatNode')
+@cython.test_fail_if_path_exists('//ForInStatNode')
+def FIXME_reversed_range_constant_neg():
+    FIXME = """
+    >>> [ i for i in _reversed(range(-2, -12, -4)) ]
+    [-10, -6, -2]
+    >>> reversed_range_constant_neg()
+    """
+    cdef int i = 99
+    result = []
+    for i in reversed(range(1, 1, -4)):
+        result.append(i)
+    assert result == list(reversed(range(1, 1, -4))), result
+    assert i == 99
+
+    result = []
+    for i in reversed(range(1, 1, -1)):
+        result.append(i)
+    assert result == list(reversed(range(1, 1, -1))), result
+
+    result = []
+    for i in reversed(range(1, 0, -4)):
+        result.append(i)
+    assert result == list(reversed(range(1, 0, -4))), result
+
+    result = []
+    for i in reversed(range(1, 0, -1)):
+        result.append(i)
+    assert result == list(reversed(range(1, 0, -1))), result
+
+    result = []
+    for i in reversed(range(8, 1, -4)):
+        result.append(i)
+    assert result == list(reversed(range(8, 1, -4))), result
+
+    result = []
+    for i in reversed(range(8, 1, -1)):
+        result.append(i)
+    assert result == list(reversed(range(8, 1, -1))), result
+
+    result = []
+    for i in reversed(range(9, 1, -4)):
+        result.append(i)
+    assert result == list(reversed(range(9, 1, -4))), result
+
+    result = []
+    for i in reversed(range(9, 1, -1)):
+        result.append(i)
+    assert result == list(reversed(range(9, 1, -1))), result
+
+    result = []
+    for i in reversed(range(10, 1, -4)):
+        result.append(i)
+    assert result == list(reversed(range(10, 1, -4))), result
+
+    result = []
+    for i in reversed(range(11, 1, -4)):
+        result.append(i)
+    assert result == list(reversed(range(11, 1, -4))), result
+
+    result = []
+    for i in reversed(range(11, 1, -1)):
+        result.append(i)
+    assert result == list(reversed(range(11, 1, -1))), result
+
+    result = []
+    for i in reversed(range(12, 1, -4)):
+        result.append(i)
+    assert result == list(reversed(range(12, 1, -4))), result
+
+    result = []
+    for i in reversed(range(12, 1, -1)):
+        result.append(i)
+    assert result == list(reversed(range(12, 1, -1))), result
+
+    result = []
+    for i in reversed(range(8, 0, -4)):
+        result.append(i)
+    assert result == list(reversed(range(8, 0, -4))), result
+
+    result = []
+    for i in reversed(range(8, 0, -1)):
+        result.append(i)
+    assert result == list(reversed(range(8, 0, -1))), result
+
+    result = []
+    for i in reversed(range(9, 0, -4)):
+        result.append(i)
+    assert result == list(reversed(range(9, 0, -4))), result
+
+    result = []
+    for i in reversed(range(9, 0, -1)):
+        result.append(i)
+    assert result == list(reversed(range(9, 0, -1))), result
+
+    result = []
+    for i in reversed(range(10, 0, -4)):
+        result.append(i)
+    assert result == list(reversed(range(10, 0, -4))), result
+
+    result = []
+    for i in reversed(range(10, 0, -1)):
+        result.append(i)
+    assert result == list(reversed(range(10, 0, -1))), result
+
+    result = []
+    for i in reversed(range(11, 0, -4)):
+        result.append(i)
+    assert result == list(reversed(range(11, 0, -4))), result
+
+    result = []
+    for i in reversed(range(11, 0, -1)):
+        result.append(i)
+    assert result == list(reversed(range(11, 0, -1))), result
+
+    result = []
+    for i in reversed(range(12, 0, -4)):
+        result.append(i)
+    assert result == list(reversed(range(12, 0, -4))), result
+
+    result = []
+    for i in reversed(range(12, 0, -1)):
+        result.append(i)
+    assert result == list(reversed(range(12, 0, -1))), result
+
+    result = []
+    for i in reversed(range(-2, -12, -4)):
+        result.append(i)
+    assert result == list(reversed(range(-2, -12, -4))), result
+
+    result = []
+    for i in reversed(range(-2, -12, -1)):
+        result.append(i)
+    assert result == list(reversed(range(-2, -12, -1))), result
 
 
 unicode_string = u"abcDEF"
