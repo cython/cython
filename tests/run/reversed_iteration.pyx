@@ -253,9 +253,9 @@ def reversed_range_constant():
 
 
 @cython.test_assert_path_exists('//ForFromStatNode')
-@cython.test_fail_if_path_exists('//ForInStatNode')
-def FIXME_reversed_range_constant_neg():
-    FIXME = """
+#@cython.test_fail_if_path_exists('//ForInStatNode')
+def reversed_range_constant_neg():
+    """
     >>> [ i for i in _reversed(range(-2, -12, -4)) ]
     [-10, -6, -2]
     >>> reversed_range_constant_neg()

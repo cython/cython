@@ -661,6 +661,9 @@ class IterationTransform(Visitor.EnvTransform):
         if reversed:
             bound1, bound2 = bound2, bound1
             if step_value < 0:
+                if step_value != -1:
+                    # FIXME: not currently supported
+                    return node
                 step_value = -step_value
             if step_value != 1:
                 begin_value = bound1.constant_result
