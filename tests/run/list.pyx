@@ -41,6 +41,18 @@ def k(obj1, obj2, obj3, obj4, obj5):
     obj1 = [17, 42, 88]
     return obj1
 
+@cython.test_fail_if_path_exists("//SimpleCallNode")
+def test_list_call(ob):
+    """
+    >>> def f():
+    ...     yield 1
+    ...     yield 2
+    ...
+    >>> list(f())
+    [1, 2]
+    """
+    return list(ob)
+
 def test_list_sort():
     """
     >>> test_list_sort()
