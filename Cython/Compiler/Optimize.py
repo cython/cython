@@ -660,25 +660,29 @@ class IterationTransform(Visitor.EnvTransform):
 
         if reversed:
             bound1, bound2 = bound2, bound1
-            if step_value < 0:
-                if step_value != -1:
-                    # FIXME: not currently supported
-                    return node
-                step_value = -step_value
-            if step_value != 1:
-                begin_value = bound1.constant_result
-                end_value = bound2.constant_result
-                if isinstance(begin_value, (int, long)) and isinstance(end_value, (int, long)):
-                    bound1_value = step_value * ((begin_value - end_value - 1) // step_value) + end_value + 1
-                    bound1 = ExprNodes.IntNode(
-                        bound1.pos, value=str(bound1_value), constant_result=bound1_value,
-                        type=PyrexTypes.spanning_type(bound1.type, bound2.type))
+            if step_value not in (-1, 1):
+                if isinstance(bound1.constant_result, (int, long)) and isinstance(bound2.constant_result, (int, long)):
+                    if step_value > 0:
+                        begin_value = bound1.constant_result
+                        end_value = bound2.constant_result
+                        bound1_value = end_value + step_value * ((begin_value - end_value - 1) // step_value) + 1
+                        bound1 = ExprNodes.IntNode(
+                            bound1.pos, value=str(bound1_value), constant_result=bound1_value,
+                            type=PyrexTypes.spanning_type(bound1.type, bound2.type)) 
+                    else:
+                        step_value = -step_value
+                        begin_value = bound2.constant_result
+                        end_value = bound1.constant_result
+                        bound1_value = begin_value - step_value * ((begin_value - end_value - 1) // step_value) - 1
+                        bound1 = ExprNodes.IntNode(
+                            bound1.pos, value=str(bound1_value), constant_result=bound1_value,
+                            type=PyrexTypes.spanning_type(bound1.type, bound2.type))
                 else:
                     # FIXME: Optimize when variable is in range (e.g. reversed(range(x, y, 3)))
                     return node
-        else:
-            if step_value < 0:
-                step_value = -step_value
+
+        if step_value < 0:
+            step_value = -step_value
 
         step.value = str(step_value)
         step.constant_result = step_value
@@ -2040,48 +2044,29 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 )
         return node
 
-    PySequence_List_func_type = PyrexTypes.CFuncType(
-        Builtin.list_type,
-        [PyrexTypes.CFuncTypeArg("it", PyrexTypes.py_object_type, None)])
-
-    def _handle_simple_function_list(self, node, function, pos_args):
-        """Turn list(ob) into PySequence_List(ob).
-        """
-        if len(pos_args) != 1:
-            return node
-        arg = pos_args[0]
-        return ExprNodes.PythonCapiCallNode(
-            node.pos, "PySequence_List", self.PySequence_List_func_type,
-            args=pos_args, is_temp=node.is_temp)
-
     PyList_AsTuple_func_type = PyrexTypes.CFuncType(
         Builtin.tuple_type, [
             PyrexTypes.CFuncTypeArg("list", Builtin.list_type, None)
             ])
 
-    PySequence_Tuple_func_type = PyrexTypes.CFuncType(
-        Builtin.tuple_type,
-        [PyrexTypes.CFuncTypeArg("it", PyrexTypes.py_object_type, None)])
-
     def _handle_simple_function_tuple(self, node, function, pos_args):
-        """Replace tuple([...]) by PyList_AsTuple or PySequence_Tuple.
+        """Replace tuple([...]) by a call to PyList_AsTuple.
         """
         if len(pos_args) != 1:
             return node
         arg = pos_args[0]
         if arg.type is Builtin.tuple_type and not arg.may_be_none():
             return arg
-        if arg.type is Builtin.list_type:
-            pos_args[0] = arg.as_none_safe_node(
-                "'NoneType' object is not iterable")
+        if arg.type is not Builtin.list_type:
+            return node
+        pos_args[0] = arg.as_none_safe_node(
+            "'NoneType' object is not iterable")
 
-            return ExprNodes.PythonCapiCallNode(
-                node.pos, "PyList_AsTuple", self.PyList_AsTuple_func_type,
-                args=pos_args, is_temp=node.is_temp)
-        else:
-            return ExprNodes.PythonCapiCallNode(
-                node.pos, "PySequence_Tuple", self.PySequence_Tuple_func_type,
-                args=pos_args, is_temp=node.is_temp)
+        return ExprNodes.PythonCapiCallNode(
+            node.pos, "PyList_AsTuple", self.PyList_AsTuple_func_type,
+            args = pos_args,
+            is_temp = node.is_temp
+            )
 
     PySet_New_func_type = PyrexTypes.CFuncType(
         Builtin.set_type, [
