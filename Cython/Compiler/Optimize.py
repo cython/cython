@@ -644,9 +644,8 @@ class IterationTransform(Visitor.EnvTransform):
             if step_value == 0:
                 # will lead to an error elsewhere
                 return node
-            if not isinstance(step, ExprNodes.IntNode):
-                step = ExprNodes.IntNode(step_pos, value=str(step_value),
-                                         constant_result=step_value)
+            step = ExprNodes.IntNode(step_pos, value=str(step_value),
+                                     constant_result=step_value)
 
         if len(args) == 1:
             bound1 = ExprNodes.IntNode(range_function.pos, value='0',
