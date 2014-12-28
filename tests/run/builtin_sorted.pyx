@@ -41,7 +41,8 @@ def sorted_genexp():
     """
     return sorted(i*i for i in range(10,0,-1))
 
-@cython.test_assert_path_exists("//SimpleCallNode//SimpleCallNode")
+@cython.test_fail_if_path_exists("//SimpleCallNode//SimpleCallNode")
+@cython.test_assert_path_exists("//SimpleCallNode/NameNode[@name = 'range']")
 def sorted_list_of_range():
     """
     >>> sorted_list_of_range()
