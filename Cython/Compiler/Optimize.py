@@ -660,33 +660,27 @@ class IterationTransform(Visitor.EnvTransform):
 
         if reversed:
             bound1, bound2 = bound2, bound1
-            if step_value < 0:
-                step_value = -step_value
-                if step_value != 1:
+            abs_step = abs(step_value)
+            if abs_step != 1:
+                if not (isinstance(bound1.constant_result, (int, long)) and
+                        isinstance(bound2.constant_result, (int, long))):
+                    # FIXME: calculate final bounds at runtime
+                    return node
+                if step_value < 0:
                     begin_value = bound2.constant_result
                     end_value = bound1.constant_result
-                    if isinstance(begin_value, (int, long)) and isinstance(end_value, (int, long)):
-                        bound1_value = begin_value - step_value * ((begin_value - end_value - 1) // step_value) - 1
-                        bound1 = ExprNodes.IntNode(
-                            bound1.pos, value=str(bound1_value), constant_result=bound1_value,
-                            type=PyrexTypes.spanning_type(bound1.type, bound2.type))
-                    else:
-                        # FIXME: Optimize when variable is in range (e.g. reversed(range(x, y, -3)))
-                        return node
-            elif step_value != 1:
-                begin_value = bound1.constant_result
-                end_value = bound2.constant_result
-                if isinstance(begin_value, (int, long)) and isinstance(end_value, (int, long)):
-                    bound1_value = end_value + step_value * ((begin_value - end_value - 1) // step_value) + 1
-                    bound1 = ExprNodes.IntNode(
-                        bound1.pos, value=str(bound1_value), constant_result=bound1_value,
-                        type=PyrexTypes.spanning_type(bound1.type, bound2.type))
+                    bound1_value = begin_value - abs_step * ((begin_value - end_value - 1) // abs_step) - 1
                 else:
-                    # FIXME: Optimize when variable is in range (e.g. reversed(range(x, y, 3)))
-                    return node
-        elif step_value < 0:
-            step_value = -step_value
+                    begin_value = bound1.constant_result
+                    end_value = bound2.constant_result
+                    bound1_value = end_value + abs_step * ((begin_value - end_value - 1) // abs_step) + 1
 
+                bound1 = ExprNodes.IntNode(
+                    bound1.pos, value=str(bound1_value), constant_result=bound1_value,
+                    type=PyrexTypes.spanning_type(bound1.type, bound2.type))
+
+        if step_value < 0:
+            step_value = -step_value
         step.value = str(step_value)
         step.constant_result = step_value
         step = step.coerce_to_integer(self.current_env())
