@@ -40,7 +40,7 @@
 #define CYTHON_COMPILING_IN_CPYTHON 1
 #endif
 
-#if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX < 0x02070600
+#if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX < 0x02070600 && !defined(Py_OptimizeFlag)
 #define Py_OptimizeFlag 0
 #endif
 
