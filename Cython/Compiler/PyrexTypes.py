@@ -552,6 +552,12 @@ class MemoryViewSliceType(PyrexType):
         if not self.dtype.is_fused:
             self.dtype_name = MemoryView.mangle_dtype_name(self.dtype)
 
+    def __hash__(self):
+        return hash(self.__class__) ^ hash(self.dtype) ^ hash(tuple(self.axes))
+
+    def __eq__(self,other):
+        return self.same_as_resolved_type(other)
+
     def same_as_resolved_type(self, other_type):
         return ((other_type.is_memoryviewslice and
             self.dtype.same_as(other_type.dtype) and
