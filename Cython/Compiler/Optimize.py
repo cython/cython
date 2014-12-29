@@ -680,13 +680,13 @@ class IterationTransform(Visitor.EnvTransform):
                     spanning_step_type = PyrexTypes.spanning_type(spanning_type, step.type)
 
                     if step_value < 0:
-                        begin_value = copy.copy(bound2)
-                        end_value = copy.copy(bound1)
+                        begin_value = copy.deepcopy(bound2)
+                        end_value = copy.deepcopy(bound1)
                         final_op = '-'
                         final_node = ExprNodes.SubNode
                     else:
-                        begin_value = copy.copy(bound1)
-                        end_value = copy.copy(bound2)
+                        begin_value = copy.deepcopy(bound1)
+                        end_value = copy.deepcopy(bound2)
                         final_op = '+'
                         final_node = ExprNodes.AddNode
 
@@ -694,7 +694,7 @@ class IterationTransform(Visitor.EnvTransform):
                         bound1.pos,
                         operand1=final_node(
                             bound1.pos,
-                            operand1=copy.copy(bound2),
+                            operand1=copy.deepcopy(bound2),
                             operator=final_op,
                             operand2=ExprNodes.MulNode(
                                 bound1.pos,
