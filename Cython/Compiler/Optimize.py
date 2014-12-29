@@ -661,54 +661,8 @@ class IterationTransform(Visitor.EnvTransform):
             bound1, bound2 = bound2, bound1
             abs_step = abs(step_value)
             if abs_step != 1:
-                if not (isinstance(bound1.constant_result, (int, long)) and
+                if (isinstance(bound1.constant_result, (int, long)) and
                         isinstance(bound2.constant_result, (int, long))):
-                    spanning_type = PyrexTypes.spanning_type(bound1.type, bound2.type)
-                    spanning_step_type = PyrexTypes.spanning_type(spanning_type, step.type)
-
-                    if step_value < 0:
-                        begin_value = bound2
-                        end_value = bound1
-                        final_op = '-'
-                        final_node = ExprNodes.SubNode
-                    else:
-                        begin_value = bound1
-                        end_value = bound2
-                        final_op = '+'
-                        final_node = ExprNodes.AddNode
-                    beg_sub_end = ExprNodes.SubNode(bound1.pos,
-                                                    operand1=begin_value,
-                                                    operator='-',
-                                                    operand2=end_value,
-                                                    type=spanning_type)
-                    one_node = ExprNodes.IntNode(bound1.pos, value='1', constant_result=1)
-                    beg_sub_end_sub_1 = ExprNodes.SubNode(bound1.pos,
-                                                          operand1=beg_sub_end,
-                                                          operator='-',
-                                                          operand2=one_node,
-                                                          type=spanning_step_type)
-                    abs_step_node = ExprNodes.IntNode(bound1.pos, value=str(abs_step), constant_value=abs_step)
-                    div_val_node = ExprNodes.DivNode(bound1.pos, 
-                                                     operand1=beg_sub_end_sub_1,
-                                                     operator='//',
-                                                     operand2=abs_step_node,
-                                                     type=spanning_step_type)
-                    delta_node = ExprNodes.MulNode(bound1.pos,
-                                                   operand1=abs_step_node,
-                                                   operator='*',
-                                                   operand2=div_val_node,
-                                                   type=spanning_step_type)
-                    beg_func_delta = final_node(bound1.pos,
-                                                operand1=bound2,
-                                                operator=final_op,
-                                                operand2=delta_node,
-                                                type=spanning_step_type)
-                    bound1 = final_node(bound1.pos,
-                                        operand1=beg_func_delta,
-                                        operator=final_op,
-                                        operand2=one_node,
-                                        type=spanning_type)
-                else:
                     if step_value < 0:
                         begin_value = bound2.constant_result
                         end_value = bound1.constant_result
@@ -721,6 +675,66 @@ class IterationTransform(Visitor.EnvTransform):
                     bound1 = ExprNodes.IntNode(
                         bound1.pos, value=str(bound1_value), constant_result=bound1_value,
                         type=PyrexTypes.spanning_type(bound1.type, bound2.type))
+                else:
+                    spanning_type = PyrexTypes.spanning_type(bound1.type, bound2.type)
+                    spanning_step_type = PyrexTypes.spanning_type(spanning_type, step.type)
+
+                    if step_value < 0:
+                        begin_value = copy.copy(bound2)
+                        end_value = copy.copy(bound1)
+                        final_op = '-'
+                        final_node = ExprNodes.SubNode
+                    else:
+                        begin_value = copy.copy(bound1)
+                        end_value = copy.copy(bound2)
+                        final_op = '+'
+                        final_node = ExprNodes.AddNode
+
+                    bound1 = final_node(
+                        bound1.pos,
+                        operand1=final_node(
+                            bound1.pos,
+                            operand1=copy.copy(bound2),
+                            operator=final_op,
+                            operand2=ExprNodes.MulNode(
+                                bound1.pos,
+                                operand1=ExprNodes.IntNode(
+                                    bound1.pos,
+                                    value=str(abs_step),
+                                    constant_value=abs_step,
+                                    type=spanning_step_type),
+                                operator='*',
+                                operand2=ExprNodes.DivNode(
+                                    bound1.pos, 
+                                    operand1=ExprNodes.SubNode(
+                                        bound1.pos,
+                                        operand1=ExprNodes.SubNode(
+                                            bound1.pos,
+                                            operand1=begin_value,
+                                            operator='-',
+                                            operand2=end_value,
+                                            type=spanning_type),
+                                        operator='-',
+                                        operand2=ExprNodes.IntNode(
+                                            bound1.pos,
+                                            value='1',
+                                            constant_result=1),
+                                        type=spanning_step_type),
+                                    operator='//',
+                                    operand2=ExprNodes.IntNode(
+                                        bound1.pos,
+                                        value=str(abs_step),
+                                        constant_value=abs_step,
+                                        type=spanning_step_type),
+                                    type=spanning_step_type),
+                                type=spanning_step_type),
+                            type=spanning_step_type),
+                        operator=final_op,
+                        operand2=ExprNodes.IntNode(
+                            bound1.pos,
+                            value='1',
+                            constant_result=1),
+                        type=spanning_type)
 
         if step_value < 0:
             step_value = -step_value
