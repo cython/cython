@@ -670,6 +670,10 @@ class MemoryViewSliceType(PyrexType):
 
         return True
 
+    def specialization_name(self):
+        return super(MemoryViewSliceType,self).specialization_name() \
+                + '_' + self.specialization_suffix()
+
     def specialization_suffix(self):
         return "%s_%s" % (self.axes_to_name(), self.dtype_name)
 
