@@ -214,14 +214,6 @@ def reversed_range_step3_py_args(a, b):
     []
     >>> reversed_range_step3_py_args(1, 1)
     ([], 99)
-
-    >>> reversed_range_step3_py_args(set(), 1)
-    Traceback (most recent call last):
-    TypeError: range() integer start argument expected, got set.
-
-    >>> reversed_range_step3_py_args(1, set())
-    Traceback (most recent call last):
-    TypeError: range() integer end argument expected, got set.
     """
     i = 99
     result = []
@@ -250,14 +242,6 @@ def reversed_range_step3_neg_py_args(a, b):
     []
     >>> reversed_range_step3_neg_py_args(1, 1)
     ([], 99)
-
-    >>> reversed_range_step3_neg_py_args(set(), 1)
-    Traceback (most recent call last):
-    TypeError: range() integer start argument expected, got set.
-
-    >>> reversed_range_step3_neg_py_args(1, set())
-    Traceback (most recent call last):
-    TypeError: range() integer end argument expected, got set.
     """
     i = 99
     result = []
