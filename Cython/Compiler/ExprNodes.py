@@ -352,6 +352,12 @@ class ExprNode(Node):
         else:
             return self.calculate_result_code()
 
+    def is_c_result_required(self):
+        """
+        Subtypes may return False here if result temp allocation can be skipped.
+        """
+        return True
+
     def result_as(self, type = None):
         #  Return the result code cast to the specified C type.
         if (self.is_temp and self.type.is_pyobject and
@@ -559,6 +565,9 @@ class ExprNode(Node):
         if not type.is_void:
             if type.is_pyobject:
                 type = PyrexTypes.py_object_type
+            elif not self.result_is_used and not self.is_c_result_required():
+                self.temp_code = None
+                return
             self.temp_code = code.funcstate.allocate_temp(
                 type, manage_ref=self.use_managed_ref)
         else:
@@ -4723,8 +4732,7 @@ class SimpleCallNode(CallNode):
         if self.type.is_pyobject:
             self.result_ctype = py_object_type
             self.is_temp = 1
-        elif func_type.exception_value is not None \
-                 or func_type.exception_check:
+        elif func_type.exception_value is not None or func_type.exception_check:
             self.is_temp = 1
         elif self.type.is_memoryviewslice:
             self.is_temp = 1
@@ -4773,6 +4781,12 @@ class SimpleCallNode(CallNode):
 
         result = "%s(%s)" % (self.function.result(), ', '.join(arg_list_code))
         return result
+
+    def is_c_result_required(self):
+        func_type = self.function_type()
+        if not func_type.exception_value or func_type.exception_check == '+':
+            return False  # skip allocation of unused result temp
+        return True
 
     def generate_result_code(self, code):
         func_type = self.function_type()
