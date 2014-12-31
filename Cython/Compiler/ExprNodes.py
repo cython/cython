@@ -565,7 +565,7 @@ class ExprNode(Node):
         if not type.is_void:
             if type.is_pyobject:
                 type = PyrexTypes.py_object_type
-            elif not self.result_is_used and not self.is_c_result_required():
+            elif not (self.result_is_used or type.is_memoryviewslice or self.is_c_result_required()):
                 self.temp_code = None
                 return
             self.temp_code = code.funcstate.allocate_temp(
