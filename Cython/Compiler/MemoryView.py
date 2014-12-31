@@ -291,9 +291,9 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
         new_ndim = 0
         src = self.cname
 
-        def load_slice_util(name, dict):
+        def load_slice_util(name, context_dict):
             proto, impl = TempitaUtilityCode.load_as_string(
-                        name, "MemoryView_C.c", context=dict)
+                name, "MemoryView_C.c", context=context_dict)
             return impl
 
         all_dimensions_direct = True
