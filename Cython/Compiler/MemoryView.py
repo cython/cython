@@ -290,11 +290,6 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
         """
         src = self.cname
 
-        def load_slice_util(name, context_dict):
-            proto, impl = TempitaUtilityCode.load_as_string(
-                name, "MemoryView_C.c", context=context_dict)
-            return impl
-
         code.putln("%(dst)s.data = %(src)s.data;" % locals())
         code.putln("%(dst)s.memview = %(src)s.memview;" % locals())
         code.put_incref_memoryviewslice(dst)
@@ -303,6 +298,7 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
         suboffset_dim_temp = []
 
         def get_suboffset_dim():
+            # create global temp variable at request
             if not suboffset_dim_temp:
                 suboffset_dim = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
                 code.putln("%s = -1;" % suboffset_dim)
@@ -336,9 +332,9 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
                     # full slice (:), simply copy over the extent, stride
                     # and suboffset. Also update suboffset_dim if needed
                     d['access'] = access
-                    code.put(load_slice_util("SimpleSlice", d))
+                    util_name = "SimpleSlice"
                 else:
-                    code.put(load_slice_util("ToughSlice", d))
+                    util_name = "ToughSlice"
 
                 new_ndim += 1
             else:
@@ -358,7 +354,10 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
                     wraparound=int(directives['wraparound']),
                     boundscheck=int(directives['boundscheck'])
                 )
-                code.put(load_slice_util("SliceIndex", d))
+                util_name = "SliceIndex"
+
+            _, impl = TempitaUtilityCode.load_as_string(util_name, "MemoryView_C.c", context=d)
+            code.put(impl)
 
         if suboffset_dim_temp:
             code.funcstate.release_temp(suboffset_dim_temp[0])
