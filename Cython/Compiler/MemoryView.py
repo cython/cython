@@ -320,7 +320,7 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
 
             if isinstance(index, ExprNodes.SliceNode):
                 # slice, unspecified dimension, or part of ellipsis
-                d = locals()
+                d = dict(locals())
                 for s in "start stop step".split():
                     idx = getattr(index, s)
                     have_idx = d['have_' + s] = not idx.is_none
