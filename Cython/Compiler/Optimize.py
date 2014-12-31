@@ -657,6 +657,7 @@ class IterationTransform(Visitor.EnvTransform):
 
         relation1, relation2 = self._find_for_from_node_relations(step_value < 0, reversed)
 
+        bound2_ref_node = None
         if reversed:
             bound1, bound2 = bound2, bound1
             abs_step = abs(step_value)
@@ -676,17 +677,18 @@ class IterationTransform(Visitor.EnvTransform):
                         bound1.pos, value=str(bound1_value), constant_result=bound1_value,
                         type=PyrexTypes.spanning_type(bound1.type, bound2.type))
                 else:
+                    bound2_ref_node = UtilNodes.LetRefNode(bound2)
                     spanning_type = PyrexTypes.spanning_type(bound1.type, bound2.type)
                     spanning_step_type = PyrexTypes.spanning_type(spanning_type, step.type)
 
                     if step_value < 0:
-                        begin_value = copy.deepcopy(bound2)
-                        end_value = copy.deepcopy(bound1)
+                        begin_value = bound2_ref_node
+                        end_value = bound1
                         final_op = '-'
                         final_node = ExprNodes.SubNode
                     else:
-                        begin_value = copy.deepcopy(bound1)
-                        end_value = copy.deepcopy(bound2)
+                        begin_value = bound1
+                        end_value = bound2_ref_node
                         final_op = '+'
                         final_node = ExprNodes.AddNode
 
@@ -694,7 +696,7 @@ class IterationTransform(Visitor.EnvTransform):
                         bound1.pos,
                         operand1=final_node(
                             bound1.pos,
-                            operand1=copy.deepcopy(bound2),
+                            operand1=bound2_ref_node,
                             operator=final_op,
                             operand2=ExprNodes.MulNode(
                                 bound1.pos,
@@ -745,7 +747,10 @@ class IterationTransform(Visitor.EnvTransform):
         if not bound2.is_literal:
             # stop bound must be immutable => keep it in a temp var
             bound2_is_temp = True
-            bound2 = UtilNodes.LetRefNode(bound2)
+            if bound2_ref_node:
+                bound2 = bound2_ref_node
+            else:
+                bound2 = UtilNodes.LetRefNode(bound2)
         else:
             bound2_is_temp = False
 

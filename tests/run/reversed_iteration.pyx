@@ -165,6 +165,21 @@ def reversed_range_step3(int a, int b):
 
 @cython.test_assert_path_exists('//ForFromStatNode')
 @cython.test_fail_if_path_exists('//ForInStatNode')
+def reversed_range_step3_expr(int a, int b):
+    """
+    >>> [ i for i in _reversed(range(0, 5, 3)) ]
+    [3, 0]
+    >>> reversed_range_step3_expr(0, 5)
+    ([3, 0], 0)
+    """
+    cdef int i = 99, c = 100
+    result = []
+    for i in reversed(range(c-c + a + c-c, c-c + b + c-c, 3)):
+        result.append(i)
+    return result, i
+
+@cython.test_assert_path_exists('//ForFromStatNode')
+@cython.test_fail_if_path_exists('//ForInStatNode')
 def reversed_range_step3_neg(int a, int b):
     """
     >>> [ i for i in _reversed(range(0, -5, -3)) ]
@@ -193,6 +208,21 @@ def reversed_range_step3_neg(int a, int b):
         result.append(i)
     return result, i
 
+@cython.test_assert_path_exists('//ForFromStatNode')
+@cython.test_fail_if_path_exists('//ForInStatNode')
+def reversed_range_step3_neg_expr(int a, int b):
+    """
+    >>> [ i for i in _reversed(range(5, 0, -3)) ]
+    [2, 5]
+    >>> reversed_range_step3_neg_expr(5, 0)
+    ([2, 5], 5)
+    """
+    cdef int i = 99, c = 100
+    result = []
+    for i in reversed(range(c-c + a + c-c, c-c + b + c-c, -3)):
+        result.append(i)
+    return result, i
+
 def reversed_range_step3_py_args(a, b):
     """
     >>> [ i for i in _reversed(range(-5, 0, 3)) ]
@@ -214,6 +244,14 @@ def reversed_range_step3_py_args(a, b):
     []
     >>> reversed_range_step3_py_args(1, 1)
     ([], 99)
+
+    >>> reversed_range_step3_py_args(set(), 1) # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...integer...
+
+    >>> reversed_range_step3_py_args(1, set()) # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...integer...
     """
     i = 99
     result = []
@@ -242,6 +280,14 @@ def reversed_range_step3_neg_py_args(a, b):
     []
     >>> reversed_range_step3_neg_py_args(1, 1)
     ([], 99)
+
+    >>> reversed_range_step3_neg_py_args(set(), 1) # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...integer...
+
+    >>> reversed_range_step3_neg_py_args(1, set()) # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...integer...
     """
     i = 99
     result = []
