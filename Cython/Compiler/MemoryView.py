@@ -296,12 +296,7 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
                 name, "MemoryView_C.c", context=context_dict)
             return impl
 
-        all_dimensions_direct = True
-        for access, packing in self.type.axes:
-            if access != 'direct':
-                all_dimensions_direct = False
-                break
-
+        all_dimensions_direct = all(access == 'direct' for access, packing in self.type.axes)
         no_suboffset_dim = all_dimensions_direct and not have_slices
         if not no_suboffset_dim:
             suboffset_dim = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
@@ -313,10 +308,17 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
 
         dim = -1
         for index in indices:
+            if index.is_none:
+                # newaxis
+                for attrib, value in [('shape', 1), ('strides', 0), ('suboffsets', -1)]:
+                    code.putln("%s.%s[%d] = %d;" % (dst, attrib, new_ndim, value))
+
+                new_ndim += 1
+                continue
+
+            dim += 1
+            access, packing = self.type.axes[dim]
             error_goto = code.error_goto(index.pos)
-            if not index.is_none:
-                dim += 1
-                access, packing = self.type.axes[dim]
 
             if isinstance(index, ExprNodes.SliceNode):
                 # slice, unspecified dimension, or part of ellipsis
@@ -324,14 +326,9 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
                 for s in "start stop step".split():
                     idx = getattr(index, s)
                     have_idx = d['have_' + s] = not idx.is_none
-                    if have_idx:
-                        d[s] = idx.result()
-                    else:
-                        d[s] = "0"
+                    d[s] = idx.result() if have_idx else "0"
 
-                if (not d['have_start'] and
-                    not d['have_stop'] and
-                    not d['have_step']):
+                if not (d['have_start'] or d['have_stop'] or d['have_step']):
                     # full slice (:), simply copy over the extent, stride
                     # and suboffset. Also update suboffset_dim if needed
                     d['access'] = access
@@ -340,32 +337,23 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
                     code.put(load_slice_util("ToughSlice", d))
 
                 new_ndim += 1
-
-            elif index.is_none:
-                # newaxis
-                attribs = [('shape', 1), ('strides', 0), ('suboffsets', -1)]
-                for attrib, value in attribs:
-                    code.putln("%s.%s[%d] = %d;" % (dst, attrib, new_ndim, value))
-
-                new_ndim += 1
-
             else:
                 # normal index
                 idx = index.result()
 
-                if access == 'direct':
-                    indirect = False
-                else:
-                    indirect = True
-                    generic = (access == 'full')
+                indirect = access != 'direct'
+                if indirect:
+                    generic = access == 'full'
                     if new_ndim != 0:
                         return error(index.pos,
                                      "All preceding dimensions must be "
                                      "indexed and not sliced")
 
-                wraparound = int(directives['wraparound'])
-                boundscheck = int(directives['boundscheck'])
-                d = locals()
+                d = dict(
+                    locals(),
+                    wraparound=int(directives['wraparound']),
+                    boundscheck=int(directives['boundscheck'])
+                )
                 code.put(load_slice_util("SliceIndex", d))
 
         if not no_suboffset_dim:
