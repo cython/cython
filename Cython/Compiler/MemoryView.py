@@ -304,8 +304,7 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
 
         no_suboffset_dim = all_dimensions_direct and not have_slices
         if not no_suboffset_dim:
-            suboffset_dim = code.funcstate.allocate_temp(
-                             PyrexTypes.c_int_type, False)
+            suboffset_dim = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
             code.putln("%s = -1;" % suboffset_dim)
 
         code.putln("%(dst)s.data = %(src)s.data;" % locals())
