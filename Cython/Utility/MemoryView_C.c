@@ -815,7 +815,7 @@ if (unlikely(__pyx_memoryview_slice_memviewslice(
     {{src}}.shape[{{dim}}], {{src}}.strides[{{dim}}], {{src}}.suboffsets[{{dim}}],
     {{dim}},
     {{new_ndim}},
-    &{{suboffset_dim}},
+    &{{get_suboffset_dim()}},
     {{start}},
     {{stop}},
     {{step}},
@@ -840,7 +840,7 @@ if (unlikely(__pyx_memoryview_slice_memviewslice(
 {{else}}
     {{dst}}.suboffsets[{{new_ndim}}] = {{src}}.suboffsets[{{dim}}];
     if ({{src}}.suboffsets[{{dim}}] >= 0)
-        {{suboffset_dim}} = {{new_ndim}};
+        {{get_suboffset_dim()}} = {{new_ndim}};
 {{endif}}
 
 
@@ -877,7 +877,7 @@ if (unlikely(__pyx_memoryview_slice_memviewslice(
     {{if all_dimensions_direct}}
         {{dst}}.data += __pyx_tmp_idx * __pyx_tmp_stride;
     {{else}}
-        if ({{suboffset_dim}} < 0) {
+        if ({{get_suboffset_dim()}} < 0) {
             {{dst}}.data += __pyx_tmp_idx * __pyx_tmp_stride;
 
             /* This dimension is the first dimension, or is preceded by    */
@@ -899,7 +899,7 @@ if (unlikely(__pyx_memoryview_slice_memviewslice(
             {{endif}}
 
         } else {
-            {{dst}}.suboffsets[{{suboffset_dim}}] += __pyx_tmp_idx * __pyx_tmp_stride;
+            {{dst}}.suboffsets[{{get_suboffset_dim()}}] += __pyx_tmp_idx * __pyx_tmp_stride;
 
             /* Note: dimension can not be indirect, the compiler will have */
             /*       issued an error */

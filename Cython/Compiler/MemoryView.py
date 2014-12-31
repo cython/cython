@@ -288,7 +288,6 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
         Simply call __pyx_memoryview_slice_memviewslice with the right
         arguments.
         """
-        new_ndim = 0
         src = self.cname
 
         def load_slice_util(name, context_dict):
@@ -296,17 +295,22 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
                 name, "MemoryView_C.c", context=context_dict)
             return impl
 
-        all_dimensions_direct = all(access == 'direct' for access, packing in self.type.axes)
-        no_suboffset_dim = all_dimensions_direct and not have_slices
-        if not no_suboffset_dim:
-            suboffset_dim = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
-            code.putln("%s = -1;" % suboffset_dim)
-
         code.putln("%(dst)s.data = %(src)s.data;" % locals())
         code.putln("%(dst)s.memview = %(src)s.memview;" % locals())
         code.put_incref_memoryviewslice(dst)
 
+        all_dimensions_direct = all(access == 'direct' for access, packing in self.type.axes)
+        suboffset_dim_temp = []
+
+        def get_suboffset_dim():
+            if not suboffset_dim_temp:
+                suboffset_dim = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
+                code.putln("%s = -1;" % suboffset_dim)
+                suboffset_dim_temp.append(suboffset_dim)
+            return suboffset_dim_temp[0]
+
         dim = -1
+        new_ndim = 0
         for index in indices:
             if index.is_none:
                 # newaxis
@@ -356,8 +360,8 @@ class MemoryViewSliceBufferEntry(Buffer.BufferEntry):
                 )
                 code.put(load_slice_util("SliceIndex", d))
 
-        if not no_suboffset_dim:
-            code.funcstate.release_temp(suboffset_dim)
+        if suboffset_dim_temp:
+            code.funcstate.release_temp(suboffset_dim_temp[0])
 
 
 def empty_slice(pos):
