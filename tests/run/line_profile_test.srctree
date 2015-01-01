@@ -26,7 +26,7 @@ from collatz import collatz
 try:
     import line_profiler
 except ImportError:
-    print "No line profiler, skipping test."
+    print("No line profiler, skipping test.")
     import sys
     sys.exit(0)
 
@@ -41,7 +41,7 @@ for key, timings in stats.timings.items():
         assert len(timings) > 0
         break
 else:
-    raise ValueError, "No stats for collatz."
+    raise ValueError("No stats for collatz.")
 
 ######## collatz.pyx ###########
 
