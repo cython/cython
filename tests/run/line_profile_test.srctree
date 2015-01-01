@@ -27,6 +27,8 @@ try:
     import line_profiler
 except ImportError:
     print "No line profiler, skipping test."
+    import sys
+    sys.exit(0)
 
 profile = line_profiler.LineProfiler(collatz)
 profile.runcall(collatz, 19)
