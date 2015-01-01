@@ -1964,14 +1964,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.enter_cfunc_scope()  # as we need labels
         code.putln("static int %s(PyObject *o, PyObject* py_name, char *name) {" % Naming.import_star_set)
 
-        code.putln("static const char* type_names[] = {")
+        code.putln("static const char* internal_type_names[] = {")
         for name, entry in sorted(env.entries.items()):
             if entry.is_type:
                 code.putln('"%s",' % name)
         code.putln("0")
         code.putln("};")
 
-        code.putln("const char** type_name = type_names;")
+        code.putln("const char** type_name = internal_type_names;")
         code.putln("while (*type_name) {")
         code.putln("if (__Pyx_StrEq(name, *type_name)) {")
         code.putln('PyErr_Format(PyExc_TypeError, "Cannot overwrite C type %s", name);')
