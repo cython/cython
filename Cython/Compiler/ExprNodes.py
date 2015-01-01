@@ -6694,7 +6694,7 @@ class ListNode(SequenceNode):
             error(self.pos, "Cannot coerce multiplied list to '%s'" % dst_type)
         elif dst_type.is_struct:
             if len(self.args) > len(dst_type.scope.var_entries):
-                error(self.pos, "Too may members for '%s'" % dst_type)
+                error(self.pos, "Too many members for '%s'" % dst_type)
             else:
                 if len(self.args) < len(dst_type.scope.var_entries):
                     warning(self.pos, "Too few members for '%s'" % dst_type, 1)
