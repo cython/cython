@@ -1,0 +1,51 @@
+PYTHON setup.py build_ext --inplace
+PYTHON test_profile.py
+
+######## setup.py ###########
+
+from distutils.extension import Extension
+from distutils.core import setup
+from Cython.Build import cythonize
+
+from Cython.Compiler.Options import directive_defaults
+directive_defaults['linetrace'] = True
+directive_defaults['binding'] = True
+
+extensions = [
+    Extension("collatz", ["collatz.pyx"], define_macros=[('CYTHON_TRACE', '1')])
+]
+
+setup(
+    ext_modules = cythonize(extensions)
+)
+
+######## test_profile.py ###########
+
+from collatz import collatz
+
+try:
+    import line_profiler
+except ImportError:
+    print "No line profiler, skipping test."
+
+profile = line_profiler.LineProfiler(collatz)
+profile.runcall(collatz, 19)
+profile.print_stats()
+
+stats = profile.get_stats()
+assert len(stats.timings) > 0, "No profile stats."
+for key, timings in stats.timings.items():
+    if key[-1] == 'collatz':
+        assert len(timings) > 0
+        break
+else:
+    raise ValueError, "No stats for collatz."
+
+######## collatz.pyx ###########
+
+def collatz(n):
+    while n > 1:
+        if n % 2 == 0:
+            n //= 2
+        else:
+            n = 3*n+1
