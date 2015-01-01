@@ -1941,7 +1941,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("")
             code.putln(
                 "static struct PyGetSetDef %s[] = {" %
-                    env.getset_table_cname)
+                env.getset_table_cname)
             for entry in env.property_entries:
                 if entry.doc:
                     doc_code = "%s" % code.get_string_const(entry.doc)
@@ -1954,14 +1954,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         entry.setter_cname or "0",
                         doc_code))
             code.putln(
-                    "{0, 0, 0, 0, 0}")
+                "{0, 0, 0, 0, 0}")
             code.putln(
                 "};")
 
     def generate_import_star(self, env, code):
         env.use_utility_code(streq_utility_code)
         code.putln()
-        code.enter_cfunc_scope() # as we need labels
+        code.enter_cfunc_scope()  # as we need labels
         code.putln("static int %s(PyObject *o, PyObject* py_name, char *name) {" % Naming.import_star_set)
 
         code.putln("static const char* type_names[] = {")
@@ -1981,7 +1981,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("}")
 
         old_error_label = code.new_error_label()
-        code.putln("if (0);") # so the first one can be "else if"
+        code.putln("if (0);")  # so the first one can be "else if"
         for name, entry in env.entries.items():
             if entry.is_cglobal and entry.used:
                 code.putln('else if (__Pyx_StrEq(name, "%s")) {' % name)
@@ -2005,7 +2005,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         entry.type.error_condition(entry.cname),
                         code.error_goto(entry.pos)))
                 else:
-                    code.putln('PyErr_Format(PyExc_TypeError, "Cannot convert Python object %s to %s");' % (name, entry.type))
+                    code.putln('PyErr_Format(PyExc_TypeError, "Cannot convert Python object %s to %s");' % (
+                        name, entry.type))
                     code.putln(code.error_goto(entry.pos))
                 code.putln("}")
         code.putln("else {")
