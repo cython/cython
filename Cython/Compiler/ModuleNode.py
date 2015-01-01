@@ -1961,7 +1961,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_import_star(self, env, code):
         env.use_utility_code(streq_utility_code)
         code.putln()
-        code.putln("static char* %s_type_names[] = {" % Naming.import_star)
+        code.putln("static const char* %s_type_names[] = {" % Naming.import_star)
         for name, entry in sorted(env.entries.items()):
             if entry.is_type:
                 code.putln('"%s",' % name)
@@ -1970,7 +1970,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln()
         code.enter_cfunc_scope() # as we need labels
         code.putln("static int %s(PyObject *o, PyObject* py_name, char *name) {" % Naming.import_star_set)
-        code.putln("char** type_name = %s_type_names;" % Naming.import_star)
+        code.putln("const char** type_name = %s_type_names;" % Naming.import_star)
         code.putln("while (*type_name) {")
         code.putln("if (__Pyx_StrEq(name, *type_name)) {")
         code.putln('PyErr_Format(PyExc_TypeError, "Cannot overwrite C type %s", name);')
