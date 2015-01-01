@@ -8359,7 +8359,7 @@ class ParallelRangeNode(ParallelStatNode):
 
         # And finally, release our privates and write back any closure
         # variables
-        for temp in start_stop_step:
+        for temp in start_stop_step + (self.chunksize, self.num_threads):
             if temp is not None:
                 temp.generate_disposal_code(code)
                 temp.free_temps(code)
