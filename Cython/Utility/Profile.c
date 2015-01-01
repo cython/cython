@@ -35,7 +35,7 @@
   #endif
 
   #define __Pyx_TraceDeclarations(codeobj)                            \
-  static PyCodeObject *$frame_code_cname = NULL; if (codeobj) $frame_code_cname = (PyCodeObject*) codeobj;   \
+  static PyCodeObject *$frame_code_cname = NULL; if (codeobj != NULL) $frame_code_cname = (PyCodeObject*) codeobj;   \
   CYTHON_FRAME_MODIFIER PyFrameObject *$frame_cname = NULL;           \
   int __Pyx_use_tracing = 0;
 
