@@ -61,6 +61,7 @@ interned_prefixes = {
     'ustring': pyrex_prefix + "ustring_",
 }
 
+ctuple_type_prefix = pyrex_prefix + "ctuple_"
 args_cname       = pyrex_prefix + "args"
 generator_cname  = pyrex_prefix + "generator"
 sent_value_cname = pyrex_prefix + "sent_value"
