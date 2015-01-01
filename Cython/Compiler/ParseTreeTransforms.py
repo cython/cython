@@ -1646,6 +1646,7 @@ if VALUE is not None:
         else:
             binding = self.current_directives.get('binding')
             rhs = ExprNodes.PyCFunctionNode.from_defnode(node, binding)
+            node.code_object = rhs.code_object
 
         if env.is_py_class_scope:
             rhs.binding = True

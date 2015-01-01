@@ -34,8 +34,8 @@
     #define CYTHON_FRAME_DEL Py_CLEAR($frame_cname)
   #endif
 
-  #define __Pyx_TraceDeclarations                                     \
-  static PyCodeObject *$frame_code_cname = NULL;                      \
+  #define __Pyx_TraceDeclarations(codeobj)                            \
+  static PyCodeObject *$frame_code_cname = NULL; if (codeobj) $frame_code_cname = (PyCodeObject*) codeobj;   \
   CYTHON_FRAME_MODIFIER PyFrameObject *$frame_cname = NULL;           \
   int __Pyx_use_tracing = 0;
 
@@ -81,7 +81,7 @@
 
 #else
 
-  #define __Pyx_TraceDeclarations
+  #define __Pyx_TraceDeclarations(codeobj)
   #define __Pyx_TraceCall(funcname, srcfile, firstlineno)
   #define __Pyx_TraceException()
   #define __Pyx_TraceReturn(result)

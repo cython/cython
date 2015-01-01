@@ -1592,6 +1592,7 @@ class FuncDefNode(StatNode, BlockNode):
     star_arg = None
     starstar_arg = None
     is_cyfunction = False
+    code_object = None
 
     def analyse_default_values(self, env):
         default_seen = 0
@@ -1761,7 +1762,8 @@ class FuncDefNode(StatNode, BlockNode):
         self.generate_keyword_list(code)
 
         if profile or linetrace:
-            code.put_trace_declarations()
+            code_object = self.code_object.calculate_result_code(code) if self.code_object else None
+            code.put_trace_declarations(code_object)
 
         # ----- Extern library function declarations
         lenv.generate_library_function_declarations(code)

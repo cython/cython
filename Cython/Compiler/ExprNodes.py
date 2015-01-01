@@ -8020,6 +8020,7 @@ class CodeObjectNode(ExprNode):
 
     subexprs = ['varnames']
     is_temp = False
+    result_code = None
 
     def __init__(self, def_node):
         ExprNode.__init__(self, def_node.pos, def_node=def_node)
@@ -8036,11 +8037,14 @@ class CodeObjectNode(ExprNode):
     def may_be_none(self):
         return False
 
-    def calculate_result_code(self):
+    def calculate_result_code(self, code=None):
+        if self.result_code is None:
+            self.result_code = code.get_py_const(py_object_type, 'codeobj', cleanup_level=2)
         return self.result_code
 
     def generate_result_code(self, code):
-        self.result_code = code.get_py_const(py_object_type, 'codeobj', cleanup_level=2)
+        if self.result_code is None:
+            self.result_code = code.get_py_const(py_object_type, 'codeobj', cleanup_level=2)
 
         code = code.get_cached_constants_writer()
         code.mark_pos(self.pos)
