@@ -116,6 +116,14 @@ def test_double_vector(o):
     cdef vector[double] v = o
     return v
 
+def test_repeated_double_vector(a, b, int n):
+    """
+    >>> test_repeated_double_vector(1, 1.5, 3)
+    [1.0, 1.5, 1.0, 1.5, 1.0, 1.5]
+    """
+    cdef vector[double] v = [a, b] * n
+    return v
+
 ctypedef int my_int
 
 def test_typedef_vector(o):

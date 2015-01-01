@@ -6687,6 +6687,9 @@ class ListNode(SequenceNode):
                 if isinstance(arg, CoerceToPyTypeNode):
                     arg = arg.arg
                 self.args[i] = arg.coerce_to(base_type, env)
+        elif dst_type.is_cpp_class:
+            # TODO(robertwb): Avoid object conversion for vector/list/set.
+            return TypecastNode(self.pos, operand=self, type=PyrexTypes.py_object_type).coerce_to(dst_type, env)
         elif self.mult_factor:
             error(self.pos, "Cannot coerce multiplied list to '%s'" % dst_type)
         elif dst_type.is_struct:
