@@ -65,6 +65,14 @@ else:
     basestring = str
 
 def extended_iglob(pattern):
+    if '{' in pattern:
+        m = re.match('(.*){([^}]+)}(.*)', pattern)
+        if m:
+            before, switch, after = m.groups()
+            for case in switch.split(','):
+                for path in extended_iglob(before + case + after):
+                    yield path
+            return
     if '**/' in pattern:
         seen = set()
         first, rest = pattern.split('**/', 1)
@@ -84,6 +92,14 @@ def extended_iglob(pattern):
     else:
         for path in iglob(pattern):
             yield path
+
+def nonempty(iter, error_msg="expected non-empty iterator"):
+    any = False
+    for file in iter:
+        any = True
+        yield file
+    if not any:
+        raise ValueError(error_msg)
 
 @cached_function
 def file_hash(filename):
@@ -627,7 +643,7 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
         else:
             raise TypeError(pattern)
 
-        for file in extended_iglob(filepattern):
+        for file in nonempty(extended_iglob(filepattern), "'%s' doesn't match any files" % filepattern):
             if os.path.abspath(file) in to_exclude:
                 continue
             pkg = deps.package(file)

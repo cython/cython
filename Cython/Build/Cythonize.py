@@ -74,8 +74,7 @@ def cython_compile(path_pattern, options):
 
             if os.path.isdir(path):
                 # recursively compiling a package
-                paths = [os.path.join(path, '**', '*.%s' % ext)
-                         for ext in ('py', 'pyx')]
+                paths = [os.path.join(path, '**', '*.{py,pyx}')]
             else:
                 # assume it's a file(-like thing)
                 paths = [path]
