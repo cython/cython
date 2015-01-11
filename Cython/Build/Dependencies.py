@@ -93,13 +93,15 @@ def extended_iglob(pattern):
         for path in iglob(pattern):
             yield path
 
-def nonempty(iter, error_msg="expected non-empty iterator"):
-    any = False
-    for file in iter:
-        any = True
-        yield file
-    if not any:
+
+def nonempty(it, error_msg="expected non-empty iterator"):
+    empty = True
+    for value in it:
+        empty = False
+        yield value
+    if empty:
         raise ValueError(error_msg)
+
 
 @cached_function
 def file_hash(filename):
