@@ -11049,14 +11049,18 @@ binop_node_classes = {
     "**":       PowNode,
 }
 
-def binop_node(pos, operator, operand1, operand2, inplace=False):
+
+def binop_node(pos, operator, operand1, operand2, inplace=False, **kwargs):
     # Construct binop node of appropriate class for
     # given operator.
-    return binop_node_classes[operator](pos,
-        operator = operator,
-        operand1 = operand1,
-        operand2 = operand2,
-        inplace = inplace)
+    return binop_node_classes[operator](
+        pos,
+        operator=operator,
+        operand1=operand1,
+        operand2=operand2,
+        inplace=inplace,
+        **kwargs)
+
 
 #-------------------------------------------------------------------
 #
