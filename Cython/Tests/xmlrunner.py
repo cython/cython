@@ -181,12 +181,27 @@ class _XMLTestResult(_TextTestResult):
         for test_info in errors:
             if isinstance(test_info, tuple):
                 test_info, exc_info = test_info
+
+            try:
+                t = test_info.get_elapsed_time()
+            except AttributeError:
+                t = 0
+            try:
+                descr = test_info.get_description()
+            except AttributeError:
+                try:
+                    descr = test_info.getDescription()
+                except AttributeError:
+                    descr = str(test_info)
+            try:
+                err_info = test_info.get_error_info()
+            except AttributeError:
+                err_info = str(test_info)
+
             self.stream.writeln(self.separator1)
-            self.stream.writeln('%s [%.3fs]: %s' % (
-                flavour, test_info.get_elapsed_time(),
-                test_info.get_description()))
+            self.stream.writeln('%s [%.3fs]: %s' % (flavour, t, descr))
             self.stream.writeln(self.separator2)
-            self.stream.writeln('%s' % test_info.get_error_info())
+            self.stream.writeln('%s' % err_info)
 
     def _get_info_by_testcase(self):
         """This method organizes test results by TestCase module. This
