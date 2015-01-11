@@ -632,8 +632,7 @@ class IterationTransform(Visitor.EnvTransform):
         if len(args) < 3:
             step_pos = range_function.pos
             step_value = 1
-            step = ExprNodes.IntNode(step_pos, value='1',
-                                     constant_result=1)
+            step = ExprNodes.IntNode(step_pos, value='1', constant_result=1)
         else:
             step = args[2]
             step_pos = step.pos
@@ -664,6 +663,7 @@ class IterationTransform(Visitor.EnvTransform):
             if abs_step != 1:
                 if (isinstance(bound1.constant_result, (int, long)) and
                         isinstance(bound2.constant_result, (int, long))):
+                    # calculate final bounds now
                     if step_value < 0:
                         begin_value = bound2.constant_result
                         end_value = bound1.constant_result
@@ -677,6 +677,7 @@ class IterationTransform(Visitor.EnvTransform):
                         bound1.pos, value=str(bound1_value), constant_result=bound1_value,
                         type=PyrexTypes.spanning_type(bound1.type, bound2.type))
                 else:
+                    # evaluate the same expression as above at runtime
                     bound2_ref_node = UtilNodes.LetRefNode(bound2)
                     spanning_type = PyrexTypes.spanning_type(bound1.type, bound2.type)
                     spanning_step_type = PyrexTypes.spanning_type(spanning_type, step.type)
@@ -685,19 +686,17 @@ class IterationTransform(Visitor.EnvTransform):
                         begin_value = bound2_ref_node
                         end_value = bound1
                         final_op = '-'
-                        final_node = ExprNodes.SubNode
                     else:
                         begin_value = bound1
                         end_value = bound2_ref_node
                         final_op = '+'
-                        final_node = ExprNodes.AddNode
 
-                    bound1 = final_node(
+                    bound1 = ExprNodes.binop_node(
                         bound1.pos,
-                        operand1=final_node(
+                        operand1=ExprNodes.binop_node(
                             bound1.pos,
                             operand1=bound2_ref_node,
-                            operator=final_op,
+                            operator=final_op,  # +/-
                             operand2=ExprNodes.MulNode(
                                 bound1.pos,
                                 operand1=ExprNodes.IntNode(
@@ -731,7 +730,7 @@ class IterationTransform(Visitor.EnvTransform):
                                     type=spanning_step_type),
                                 type=spanning_step_type),
                             type=spanning_step_type),
-                        operator=final_op,
+                        operator=final_op,  # +/-
                         operand2=ExprNodes.IntNode(
                             bound1.pos,
                             value='1',
@@ -747,10 +746,7 @@ class IterationTransform(Visitor.EnvTransform):
         if not bound2.is_literal:
             # stop bound must be immutable => keep it in a temp var
             bound2_is_temp = True
-            if bound2_ref_node:
-                bound2 = bound2_ref_node
-            else:
-                bound2 = UtilNodes.LetRefNode(bound2)
+            bound2 = bound2_ref_node or UtilNodes.LetRefNode(bound2)
         else:
             bound2_is_temp = False
 
