@@ -24,11 +24,17 @@ Features added
   into a RuntimeError, activated with future import "generator_stop".
   See http://legacy.python.org/dev/peps/pep-0479/
 
+* Looping over ``reversed(range())`` is optimised in the same way as
+  ``range()``.  Patch by Favian Contreras.
+
 Bugs fixed
 ----------
 
 * Mismatching 'except' declarations on signatures in .pxd and .pyx files failed
   to produce a compile error.
+
+* Failure to find any files for the path pattern(s) passed into ``cythonize()``
+  is now an error to more easily detect accidental typos.
 
 Other changes
 -------------
