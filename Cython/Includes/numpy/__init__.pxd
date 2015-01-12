@@ -157,10 +157,13 @@ cdef extern from "numpy/arrayobject.h":
         # for accessing some of the fields, so some are defined. Please
         # ask on cython-dev if you need more.
         cdef char kind
+        cdef char type
+        cdef char byteorder
+        cdef char flags
         cdef int type_num
         cdef int itemsize "elsize"
-        cdef char byteorder
-        cdef object fields
+        cdef int alignment
+        cdef dict fields
         cdef tuple names
 
     ctypedef extern class numpy.flatiter [object PyArrayIterObject]:
