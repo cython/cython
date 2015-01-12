@@ -154,8 +154,7 @@ cdef extern from "numpy/arrayobject.h":
 
     ctypedef class numpy.dtype [object PyArray_Descr]:
         # Use PyDataType_* macros when possible, however there are no macros
-        # for accessing some of the fields, so some are defined. Please
-        # ask on cython-dev if you need more.
+        # for accessing some of the fields, so some are defined.
         cdef char kind
         cdef char type
         cdef char byteorder
