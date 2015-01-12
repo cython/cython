@@ -156,6 +156,7 @@ cdef extern from "numpy/arrayobject.h":
         # Use PyDataType_* macros when possible, however there are no macros
         # for accessing some of the fields, so some are defined. Please
         # ask on cython-dev if you need more.
+        cdef char kind
         cdef int type_num
         cdef int itemsize "elsize"
         cdef char byteorder
