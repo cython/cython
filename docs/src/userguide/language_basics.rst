@@ -83,9 +83,16 @@ whereas ``x[0]`` is.
 
 Also, the Python types ``list``, ``dict``, ``tuple``, etc. may be used for
 static typing, as well as any user defined extension types.  The Python types
-int and long are not available for static typing and instead interpreted as C
-``int`` and ``long`` respectively, as statically typing variables with Python
-integer types has zero advantages.
+int, long, and float are not available for static typing and instead interpreted as C
+``int``, ``long``, and ``float`` respectively, as statically typing variables with these Python
+types has zero advantages.
+While these C types can be vastly faster, they have C semantics.
+Specifically, the integer types overflow
+and the C ``float`` type only has 32 bits of precision
+(as opposed to the 64-bit C ``double`` which Python floats wrap
+and is typically what one wants).
+If you want to use these numeric Python types simply omit the
+type declaration and let them be objects.
 
 
 Grouping multiple C declarations
