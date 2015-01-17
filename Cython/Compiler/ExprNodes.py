@@ -10280,7 +10280,7 @@ class CondExprNode(ExprNode):
         if self.true_val.type.is_pyobject or self.false_val.type.is_pyobject:
             self.true_val = self.true_val.coerce_to(self.type, env)
             self.false_val = self.false_val.coerce_to(self.type, env)
-        if self.type == PyrexTypes.error_type:
+        if self.type.is_error:
             self.type_error()
         return self
 

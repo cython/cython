@@ -555,8 +555,11 @@ class MemoryViewSliceType(PyrexType):
     def __hash__(self):
         return hash(self.__class__) ^ hash(self.dtype) ^ hash(tuple(self.axes))
 
-    def __eq__(self,other):
-        return self.same_as_resolved_type(other)
+    def __eq__(self, other):
+        if isinstance(other, BaseType):
+            return self.same_as_resolved_type(other)
+        else:
+            return False
 
     def same_as_resolved_type(self, other_type):
         return ((other_type.is_memoryviewslice and
