@@ -292,6 +292,12 @@ Cython code.  Here is the list of currently supported directives:
     data corruption.
     Default is True.
 
+``initializedcheck`` (True / False)
+    If set to True, Cython checks that a memoryview is initialized
+    whenever its elements are accessed or assigned to. Setting this
+    to False disables these checks.
+    Default is True.
+
 ``nonecheck``  (True / False)
     If set to False, Cython is free to assume that native field
     accesses on variables typed as an extension type, or buffer
