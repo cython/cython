@@ -84,7 +84,7 @@ def test_copy(char *a):
     True
     """
     cdef string t = string(a)
-    cdef char buffer[6]
+    cdef char[6] buffer
     cdef size_t length = t.copy(buffer, 4, 1)
     buffer[length] = c'\0'
     return buffer

@@ -1318,7 +1318,7 @@ cdef class TestIndexSlicingDirectIndirectDims(object):
 
     cdef Py_ssize_t[3] shape, strides, suboffsets
 
-    cdef int c_array[5]
+    cdef int[5] c_array
     cdef int *myarray[5][5]
     cdef bytes format
 
@@ -1643,8 +1643,8 @@ def test_memslice_struct_with_arrays():
     abc
     abc
     """
-    cdef ArrayStruct a1[10]
-    cdef PackedArrayStruct a2[10]
+    cdef ArrayStruct[10] a1
+    cdef PackedArrayStruct[10] a2
 
     test_structs_with_arr(a1)
     test_structs_with_arr(a2)
@@ -1756,14 +1756,14 @@ def test_padded_structs():
     """
     >>> test_padded_structs()
     """
-    cdef ArrayStruct a1[10]
-    cdef PackedArrayStruct a2[10]
-    cdef AlignedNested a3[10]
-    cdef AlignedNestedNormal a4[10]
-    cdef A a5[10]
-    cdef B a6[10]
-    cdef C a7[10]
-    cdef D a8[10]
+    cdef ArrayStruct[10] a1
+    cdef PackedArrayStruct[10] a2
+    cdef AlignedNested[10] a3
+    cdef AlignedNestedNormal[10] a4
+    cdef A[10] a5
+    cdef B[10] a6
+    cdef C[10] a7
+    cdef D[10] a8
 
     _test_padded(a1)
     _test_padded(a2)
@@ -1790,7 +1790,7 @@ def test_object_indices():
     1
     2
     """
-    cdef int array[3]
+    cdef int[3] array
     cdef int[:] myslice = array
     cdef int j
 
@@ -1831,7 +1831,7 @@ def test_slice_assignment():
     """
     >>> test_slice_assignment()
     """
-    cdef int carray[10][100]
+    cdef int[10][100] carray
     cdef int i, j
 
     for i in range(10):
@@ -1860,8 +1860,8 @@ def test_slice_assignment_broadcast_leading():
     """
     >>> test_slice_assignment_broadcast_leading()
     """
-    cdef int array1[1][10]
-    cdef int array2[10]
+    cdef int[1][10] array1
+    cdef int[10] array2
     cdef int i
 
     for i in range(10):
@@ -1892,8 +1892,8 @@ def test_slice_assignment_broadcast_strides():
     """
     >>> test_slice_assignment_broadcast_strides()
     """
-    cdef int src_array[10]
-    cdef int dst_array[10][5]
+    cdef int[10] src_array
+    cdef int[10][5] dst_array
     cdef int i, j
 
     for i in range(10):
@@ -2042,7 +2042,7 @@ def test_scalar_slice_assignment():
     cdef int[10] a
     cdef int[:] m = a
 
-    cdef int a2[5][10]
+    cdef int[5][10] a2
     cdef int[:, ::1] m2 = a2
 
     _test_scalar_slice_assignment(m, m2)
@@ -2098,7 +2098,7 @@ def test_contig_scalar_to_slice_assignment():
     14 14 14 14
     20 20 20 20
     """
-    cdef int a[5][10]
+    cdef int[5][10] a
     cdef int[:, ::1] m = a
 
     m[...] = 14

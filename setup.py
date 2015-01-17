@@ -4,6 +4,8 @@ try:
 except ImportError:
     from distutils.core import setup, Extension
 import os
+import stat
+import subprocess
 import sys
 
 import platform
@@ -25,7 +27,7 @@ from distutils.command.sdist import sdist as sdist_orig
 class sdist(sdist_orig):
     def run(self):
         self.force_manifest = 1
-        if (sys.platform != "win32" and 
+        if (sys.platform != "win32" and
             os.path.isdir('.git')):
             assert os.system("git rev-parse --verify HEAD > .gitrev") == 0
         sdist_orig.run(self)
@@ -114,6 +116,29 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
             "Cython.Compiler.ExprNodes",
             "Cython.Compiler.ModuleNode",
             "Cython.Compiler.Optimize",
+            ])
+
+    from distutils.spawn import find_executable
+    from distutils.sysconfig import get_python_inc
+    pgen = find_executable(
+        'pgen', os.pathsep.join([os.environ['PATH'], os.path.join(get_python_inc(), '..', 'Parser')]))
+    if not pgen:
+        print ("Unable to find pgen, not compiling formal grammar.")
+    else:
+        parser_dir = os.path.join(os.path.dirname(__file__), 'Cython', 'Parser')
+        grammar = os.path.join(parser_dir, 'Grammar')
+        subprocess.check_call([
+            pgen,
+            os.path.join(grammar),
+            os.path.join(parser_dir, 'graminit.h'),
+            os.path.join(parser_dir, 'graminit.c'),
+            ])
+        cst_pyx = os.path.join(parser_dir, 'ConcreteSyntaxTree.pyx')
+        if os.stat(grammar)[stat.ST_MTIME] > os.stat(cst_pyx)[stat.ST_MTIME]:
+            mtime = os.stat(grammar)[stat.ST_MTIME]
+            os.utime(cst_pyx, (mtime, mtime))
+        compiled_modules.extend([
+                "Cython.Parser.ConcreteSyntaxTree",
             ])
 
     defines = []

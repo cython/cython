@@ -148,6 +148,8 @@ directive_defaults = {
 # experimental, subject to change
     'binding': None,
     'freelist': 0,
+
+    'formal_grammar': False,
 }
 
 # Extra warning directives

@@ -296,28 +296,28 @@ def test_coerce_to_numpy():
     #
     ### First set up some C arrays that will be used to hold data
     #
-    cdef MyStruct mystructs[20]
-    cdef SmallStruct smallstructs[20]
-    cdef NestedStruct nestedstructs[20]
-    cdef PackedStruct packedstructs[20]
+    cdef MyStruct[20] mystructs
+    cdef SmallStruct[20] smallstructs
+    cdef NestedStruct[20] nestedstructs
+    cdef PackedStruct[20] packedstructs
 
-    cdef signed char chars[20]
-    cdef short shorts[20]
-    cdef int ints[20]
-    cdef long long longlongs[20]
-    cdef td_h_short externs[20]
+    cdef signed char[20] chars
+    cdef short[20] shorts
+    cdef int[20] ints
+    cdef long long[20] longlongs
+    cdef td_h_short[20] externs
 
-    cdef float floats[20]
-    cdef double doubles[20]
-    cdef long double longdoubles[20]
+    cdef float[20] floats
+    cdef double[20] doubles
+    cdef long double[20] longdoubles
 
-    cdef float complex floatcomplex[20]
-    cdef double complex doublecomplex[20]
-    cdef long double complex longdoublecomplex[20]
+    cdef float complex[20] floatcomplex
+    cdef double complex[20] doublecomplex
+    cdef long double complex[20] longdoublecomplex
 
-    cdef td_h_short h_shorts[20]
-    cdef td_h_double h_doubles[20]
-    cdef td_h_ushort h_ushorts[20]
+    cdef td_h_short[20] h_shorts
+    cdef td_h_double[20] h_doubles
+    cdef td_h_ushort[20] h_ushorts
 
     cdef Py_ssize_t idx = 17
 
@@ -586,7 +586,7 @@ cdef getbuffer(Buffer self, Py_buffer *info):
     info.format = self.format
 
 cdef class Buffer(object):
-    cdef Py_ssize_t _shape[2]
+    cdef Py_ssize_t[2] _shape
     cdef bytes format
     cdef float[:, :] m
     cdef object shape, strides

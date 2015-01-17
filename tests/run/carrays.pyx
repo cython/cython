@@ -3,7 +3,7 @@ def test1():
     >>> test1()
     2
     """
-    cdef int x[2][2]
+    cdef int[2][2] x
     x[0][0] = 1
     x[0][1] = 2
     x[1][0] = 3
@@ -19,7 +19,7 @@ def test2():
     >>> test2()
     0
     """
-    cdef int a1[5]
+    cdef int[5] a1
     cdef int a2[2+3]
     return sizeof(a1) - sizeof(a2)
 

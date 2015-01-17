@@ -6,7 +6,7 @@ cdef enum E:
 cdef void f():
     cdef int *p
     cdef void *v
-    cdef int a[5]
+    cdef int[5] a
     cdef int i=0
     cdef E e=z
     p = a

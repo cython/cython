@@ -11,7 +11,7 @@ else:
 """
 
 def test():
-    cdef char s[50]
+    cdef char[50] s
 
     s[ 0] = c'\0'
     s[ 1] = c'\x01'

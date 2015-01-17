@@ -153,7 +153,7 @@ def slice_charptr_for_loop_c_enumerate():
 ############################################################
 # tests for int* slicing
 
-cdef int cints[6]
+cdef int[6] cints
 for i in range(6):
     cints[i] = i
 
@@ -207,7 +207,7 @@ def slice_intptr_for_loop_c():
 ############################################################
 # tests for slicing other arrays
 
-cdef double cdoubles[6]
+cdef double[6] cdoubles
 for i in range(6):
     cdoubles[i] = i + 0.5
 
@@ -267,7 +267,7 @@ def struct_ptr_iter():
     >>> struct_ptr_iter()
     ([0, 1, 2, 3, 4], [0, 1, 2, 3, 4], [0, 1, 2, 3, 4])
     """
-    cdef MyStruct my_structs[5]
+    cdef MyStruct[5] my_structs
     for i in range(5):
         my_structs[i].i = i
     cdef MyStruct value

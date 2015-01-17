@@ -16,7 +16,7 @@ def eggs():
     >>> print(str(eggs()).replace("b'", "'"))
     ('abcdefg', 'abcdefg')
     """
-    cdef char silly[42]
+    cdef char[42] silly
     cdef Grail grail
     spam(silly)
     spam(grail.silly)
