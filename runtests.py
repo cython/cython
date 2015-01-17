@@ -1487,8 +1487,10 @@ class VersionDependencyExcluder:
 
 class FileListExcluder:
 
-    def __init__(self, list_file):
+    def __init__(self, list_file, verbose=False):
+        self.verbose = verbose
         self.excludes = {}
+        self._list_file = list_file
         f = open(list_file)
         try:
             for line in f.readlines():
@@ -1499,7 +1501,12 @@ class FileListExcluder:
             f.close()
 
     def __call__(self, testname, tags=None):
-        return testname in self.excludes or testname.split('.')[-1] in self.excludes
+        exclude = (testname in self.excludes
+                   or testname.split('.')[-1] in self.excludes)
+        if exclude and self.verbose:
+            print("Excluding %s because it's listed in %s"
+                  % (testname, self._list_file))
+        return exclude
 
 class TagsSelector:
 
@@ -1904,6 +1911,7 @@ def runtests(options, cmd_args, coverage=None):
                 test_bugs = True
 
     selectors = [ string_selector(r) for r in cmd_args ]
+    verbose_excludes = selectors or options.verbosity >= 2
     if not selectors:
         selectors = [ lambda x, tags=None: True ]
 
@@ -1935,7 +1943,7 @@ def runtests(options, cmd_args, coverage=None):
         exclude_selectors.append(ShardExcludeSelector(options.shard_num, options.shard_count))
 
     if not test_bugs:
-        exclude_selectors += [ FileListExcluder(os.path.join(ROOTDIR, "bugs.txt")) ]
+        exclude_selectors += [ FileListExcluder(os.path.join(ROOTDIR, "bugs.txt"), verbose=verbose_excludes) ]
 
     if sys.platform in ['win32', 'cygwin'] and sys.version_info < (2,6):
         exclude_selectors += [ lambda x: x == "run.specialfloat" ]
