@@ -5,6 +5,10 @@ Cython Changelog
 Latest changes
 ==============
 
+
+0.22.0 (2015-01-??)
+===================
+
 Features added
 --------------
 
@@ -38,6 +42,12 @@ Bugs fixed
 
 Other changes
 -------------
+
+* Preliminary support for defining the Cython language with a formal grammar.
+  To try parsing your files against this grammar, use the --formal_grammar directive.
+  Experimental.
+
+* ``_`` is no longer considered a cacheable builtin as it could interfere with gettext.
 
 
 0.21.2 (2014-12-27)
