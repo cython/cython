@@ -37,6 +37,9 @@ def test_func_signature(a):
     """
     >>> test_func_signature(Foo())
     <Foo>
+    >>> test_func_signature(123)
+    Traceback (most recent call last):
+    TypeError: Cannot convert int to closure_inlining.Foo
     """
 
     def inner(Foo a):
@@ -49,6 +52,9 @@ def test_func_signature2(a, b):
     """
     >>> test_func_signature2(Foo(), 123)
     (<Foo>, 123)
+    >>> test_func_signature2(321, 123)
+    Traceback (most recent call last):
+    TypeError: Cannot convert int to closure_inlining.Foo
     """
 
     def inner(Foo a, b):
