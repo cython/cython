@@ -212,6 +212,9 @@ class _XMLTestResult(_TextTestResult):
 
         for tests in (self.successes, self.failures, self.errors):
             for test_info in tests:
+                if not isinstance(test_info, _TestInfo):
+                    print("Unexpected test result type: %s" % test_info)
+                    continue
                 testcase = type(test_info.test_method)
 
                 # Ignore module name if it is '__main__'
