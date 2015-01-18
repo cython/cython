@@ -1,4 +1,4 @@
-# cython: language_level=3
+# cython: language_level=3, binding=True
 # mode: run
 # tag: generators, python3, exceptions
 
@@ -437,11 +437,24 @@ def int_literals():
     print(cython.typeof(1UL))
     print(cython.typeof(10000000000000UL))
 
-def annotation_syntax(a : "test new test", b : "other" = 2) -> "ret":
+def annotation_syntax(a: "test new test", b : "other" = 2, *args: "ARGS", **kwargs: "KWARGS") -> "ret":
     """
     >>> annotation_syntax(1)
     3
     >>> annotation_syntax(1,3)
     4
+
+    >>> len(annotation_syntax.__annotations__)
+    5
+    >>> print(annotation_syntax.__annotations__['a'])
+    test new test
+    >>> print(annotation_syntax.__annotations__['b'])
+    other
+    >>> print(annotation_syntax.__annotations__['args'])
+    ARGS
+    >>> print(annotation_syntax.__annotations__['kwargs'])
+    KWARGS
+    >>> print(annotation_syntax.__annotations__['return'])
+    ret
     """
     return a+b
