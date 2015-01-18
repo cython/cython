@@ -47,6 +47,8 @@ Other changes
   To try parsing your files against this grammar, use the --formal_grammar directive.
   Experimental.
 
+* ``_`` is no longer considered a cacheable builtin as it could interfere with gettext.
+
 
 0.21.2 (2014-12-27)
 ===================
