@@ -73,6 +73,27 @@ def test_defaults(a, b):
     return inner(a)
 
 @cython.test_assert_path_exists('//SimpleCallNode')
+def test_kwonly_args(a, b):
+    """
+    >>> test_kwonly_args(1, 2)
+    (1, 2, 123)
+    """
+    def inner(a, b=b, *, c=123):
+        return a, b, c
+    return inner(a)
+
+@cython.test_assert_path_exists('//SimpleCallNode')
+def test_kwonly_args_missing(a, b):
+    """
+    >>> test_kwonly_args_missing(1, 2)
+    Traceback (most recent call last):
+    TypeError: inner() needs keyword-only argument c
+    """
+    def inner(a, b=b, *, c):
+        return a, b, c
+    return inner(a)
+
+@cython.test_assert_path_exists('//SimpleCallNode')
 def test_starred(a):
     """
     >>> test_starred(123)
