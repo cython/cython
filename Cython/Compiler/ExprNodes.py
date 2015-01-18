@@ -5069,6 +5069,8 @@ class InlinedDefNodeCallNode(CallNode):
             return False
         if len(func_type.args) != len(self.args):
             return False
+        if func_type.num_kwonly_args:
+            return False  # actually wrong number of arguments
         return True
 
     def analyse_types(self, env):
