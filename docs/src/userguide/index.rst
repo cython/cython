@@ -19,6 +19,7 @@ Contents:
    limitations
    pyrex_differences
    memoryviews
+   buffer
    parallelism
    debugging
 
