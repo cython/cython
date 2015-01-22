@@ -37,6 +37,9 @@ def test_func_signature(a):
     """
     >>> test_func_signature(Foo())
     <Foo>
+    >>> test_func_signature(123)
+    Traceback (most recent call last):
+    TypeError: Cannot convert int to closure_inlining.Foo
     """
 
     def inner(Foo a):
@@ -49,6 +52,9 @@ def test_func_signature2(a, b):
     """
     >>> test_func_signature2(Foo(), 123)
     (<Foo>, 123)
+    >>> test_func_signature2(321, 123)
+    Traceback (most recent call last):
+    TypeError: Cannot convert int to closure_inlining.Foo
     """
 
     def inner(Foo a, b):
@@ -63,6 +69,27 @@ def test_defaults(a, b):
     (1, 2, 123)
     """
     def inner(a, b=b, c=123):
+        return a, b, c
+    return inner(a)
+
+@cython.test_assert_path_exists('//SimpleCallNode')
+def test_kwonly_args(a, b):
+    """
+    >>> test_kwonly_args(1, 2)
+    (1, 2, 123)
+    """
+    def inner(a, b=b, *, c=123):
+        return a, b, c
+    return inner(a)
+
+@cython.test_assert_path_exists('//SimpleCallNode')
+def test_kwonly_args_missing(a, b):
+    """
+    >>> test_kwonly_args_missing(1, 2)
+    Traceback (most recent call last):
+    TypeError: inner() needs keyword-only argument c
+    """
+    def inner(a, b=b, *, c):
         return a, b, c
     return inner(a)
 

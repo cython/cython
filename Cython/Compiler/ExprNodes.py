@@ -5069,6 +5069,8 @@ class InlinedDefNodeCallNode(CallNode):
             return False
         if len(func_type.args) != len(self.args):
             return False
+        if func_type.num_kwonly_args:
+            return False  # actually wrong number of arguments
         return True
 
     def analyse_types(self, env):
@@ -7810,6 +7812,14 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 if not arg.annotation.type.is_pyobject:
                     arg.annotation = arg.annotation.coerce_to_pyobject(env)
                 annotations.append((arg.pos, arg.name, arg.annotation))
+
+        for arg in (self.def_node.star_arg, self.def_node.starstar_arg):
+            if arg and arg.annotation:
+                arg.annotation = arg.annotation.analyse_types(env)
+                if not arg.annotation.type.is_pyobject:
+                    arg.annotation = arg.annotation.coerce_to_pyobject(env)
+                annotations.append((arg.pos, arg.name, arg.annotation))
+
         if self.def_node.return_type_annotation:
             annotations.append((self.def_node.return_type_annotation.pos,
                                 StringEncoding.EncodedString("return"),

@@ -50,14 +50,15 @@ non_portable_builtins_map = {
 
 basicsize_builtins_map = {
     # builtins whose type has a different tp_basicsize than sizeof(...)
-    'PyTypeObject' : 'PyHeapTypeObject',
-    }
+    'PyTypeObject': 'PyHeapTypeObject',
+}
 
 uncachable_builtins = [
     # builtin names that cannot be cached because they may or may not
     # be available at import time
     'WindowsError',
-    ]
+    '_',  # e.g. gettext
+]
 
 modifier_output_mapper = {
     'inline': 'CYTHON_INLINE'

@@ -62,7 +62,7 @@ With additional type declarations, this might look like::
 
 Since the iterator variable ``i`` is typed with C semantics, the for-loop will be compiled
 to pure C code.  Typing ``a``, ``s`` and ``dx`` is important as they are involved
-in arithmetic withing the for-loop; typing ``b`` and ``N`` makes less of a
+in arithmetic within the for-loop; typing ``b`` and ``N`` makes less of a
 difference, but in this case it is not much extra work to be
 consistent and type the entire function.
 
