@@ -6201,12 +6201,24 @@ class ForFromStatNode(LoopNode, StatNode):
             loopvar_name = code.funcstate.allocate_temp(self.target.type, False)
         else:
             loopvar_name = self.loopvar_node.result()
-        code.putln(
-            "for (%s = %s%s; %s %s %s; %s%s) {" % (
-                loopvar_name,
-                self.bound1.result(), offset,
-                loopvar_name, self.relation2, self.bound2.result(),
-                loopvar_name, incop))
+        if self.target.type.is_int and not self.target.type.signed and self.relation2[0] == '>':
+            # Handle the case where the endpoint of an unsigned int iteration
+            # is within step of 0.
+            if not self.step:
+                step = 1
+            code.putln(
+                "for (%s = %s%s + %s; %s %s %s + %s; ) { %s%s;" % (
+                    loopvar_name,
+                    self.bound1.result(), offset, step,
+                    loopvar_name, self.relation2, self.bound2.result(), step,
+                    loopvar_name, incop))
+        else:
+            code.putln(
+                "for (%s = %s%s; %s %s %s; %s%s) {" % (
+                    loopvar_name,
+                    self.bound1.result(), offset,
+                    loopvar_name, self.relation2, self.bound2.result(),
+                    loopvar_name, incop))
         if self.py_loopvar_node:
             self.py_loopvar_node.generate_evaluation_code(code)
             self.target.generate_assignment_code(self.py_loopvar_node, code)

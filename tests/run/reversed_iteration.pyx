@@ -759,3 +759,39 @@ def reversed_bytes_slice_step_only(bytes s):
     for c in reversed(s[::-1]):
         result.append(c)
     return result
+
+
+@cython.test_assert_path_exists('//ForFromStatNode')
+def reversed_unsigned(int a, int b):
+    """
+    >>> reversed_unsigned(0, 5)
+    [4, 3, 2, 1, 0]
+    >>> reversed_unsigned(1, 5)
+    [4, 3, 2, 1]
+    >>> reversed_unsigned(1, 1)
+    []
+    """
+    cdef unsigned int i
+    return [i for i in reversed(range(a, b))]
+
+@cython.test_assert_path_exists('//ForFromStatNode')
+def reversed_unsigned_by_3(int a, int b):
+    """
+    >>> reversed_unsigned_by_3(0, 5)
+    [3, 0]
+    >>> reversed_unsigned_by_3(0, 7)
+    [6, 3, 0]
+    """
+    cdef unsigned int i
+    return [i for i in reversed(range(a, b, 3))]
+
+@cython.test_assert_path_exists('//ForFromStatNode')
+def range_unsigned_by_neg_3(int a, int b):
+    """
+    >>> range_unsigned_by_neg_3(-1, 6)
+    [6, 3, 0]
+    >>> range_unsigned_by_neg_3(0, 7)
+    [7, 4, 1]
+    """
+    cdef unsigned int i
+    return [i for i in range(b, a, -3)]
