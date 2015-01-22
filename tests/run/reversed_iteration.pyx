@@ -301,7 +301,7 @@ def reversed_range_step3_py_obj_left(a, int b):
     Traceback (most recent call last):
     TypeError: an integer is required
     """
-    cdef int i
+    cdef long i
     result = []
     for i in reversed(range(a, b, 3)):
         result.append(i)
@@ -312,7 +312,7 @@ def reversed_range_step3_py_obj_right(int a, b):
     Traceback (most recent call last):
     TypeError: an integer is required
     """
-    cdef int i
+    cdef long i
     result = []
     for i in reversed(range(a, b, 3)):
         result.append(i)
@@ -323,7 +323,7 @@ def reversed_range_step3_neg_py_obj_left(a, int b):
     Traceback (most recent call last):
     TypeError: an integer is required
     """
-    cdef int i
+    cdef long i
     result = []
     for i in reversed(range(a, b, -3)):
         result.append(i)
@@ -334,7 +334,7 @@ def reversed_range_step3_neg_py_obj_right(int a, b):
     Traceback (most recent call last):
     TypeError: an integer is required
     """
-    cdef int i
+    cdef long i
     result = []
     for i in reversed(range(a, b, -3)):
         result.append(i)

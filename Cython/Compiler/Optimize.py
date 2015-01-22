@@ -680,7 +680,11 @@ class IterationTransform(Visitor.EnvTransform):
                     # evaluate the same expression as above at runtime
                     bound2_ref_node = UtilNodes.LetRefNode(bound2)
                     spanning_type = PyrexTypes.spanning_type(bound1.type, bound2.type)
-                    spanning_step_type = PyrexTypes.spanning_type(spanning_type, step.type)
+                    if step.type.is_int and abs(step_value) < 0x7FFF:
+                        # Avoid loss of integer precision warnings.
+                        spanning_step_type = PyrexTypes.spanning_type(spanning_type, PyrexTypes.c_int_type)
+                    else:
+                        spanning_step_type = PyrexTypes.spanning_type(spanning_type, step.type)
 
                     if step_value < 0:
                         begin_value = bound2_ref_node
@@ -706,7 +710,7 @@ class IterationTransform(Visitor.EnvTransform):
                                     type=spanning_step_type),
                                 operator='*',
                                 operand2=ExprNodes.DivNode(
-                                    bound1.pos, 
+                                    bound1.pos,
                                     operand1=ExprNodes.SubNode(
                                         bound1.pos,
                                         operand1=ExprNodes.SubNode(
