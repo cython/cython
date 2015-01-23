@@ -632,29 +632,108 @@ class IterationTransform(Visitor.EnvTransform):
         if len(args) < 3:
             step_pos = range_function.pos
             step_value = 1
-            step = ExprNodes.IntNode(step_pos, value='1', constant_result=1)
         else:
             step = args[2]
             step_pos = step.pos
-            if not isinstance(step.constant_result, (int, long)):
-                # cannot determine step direction
-                return node
-            step_value = step.constant_result
-            if step_value == 0:
-                # will lead to an error elsewhere
-                return node
-            step = ExprNodes.IntNode(step_pos, value=str(step_value),
-                                     constant_result=step_value)
+            if isinstance(step.constant_result, (int, long)):
+                step_value = step.constant_result
+                if step_value == 0:
+                    # will lead to an error elsewhere
+                    return node
+            else:
+                step_value = 1
+                if reversed:
+                    # TODO: optimize when reversed and variable step value
+                    return node
+
+        step = ExprNodes.IntNode(step_pos, value=str(step_value),
+                                 constant_result=step_value)
+
+        relation1, relation2 = self._find_for_from_node_relations(step_value < 0, reversed)
 
         if len(args) == 1:
             bound1 = ExprNodes.IntNode(range_function.pos, value='0',
                                        constant_result=0)
             bound2 = args[0].coerce_to_integer(self.current_env())
-        else:
+        elif isinstance(args[2].constant_result, (int, long)):
             bound1 = args[0].coerce_to_integer(self.current_env())
             bound2 = args[1].coerce_to_integer(self.current_env())
+        else:
+            relation1, relation2 = relation2, relation1
+            start = UtilNodes.LetRefNode(args[0].coerce_to_integer(self.current_env()))
+            stop = args[1].coerce_to_integer(self.current_env())
+            true_step = args[2].coerce_to_integer(self.current_env())
+            true_step.pos = stop.pos
+            true_step = UtilNodes.LetRefNode(true_step)
+            range_type = PyrexTypes.spanning_type(start.type, true_step.type)
+            spanning_type = PyrexTypes.spanning_type(range_type, stop.type)
 
-        relation1, relation2 = self._find_for_from_node_relations(step_value < 0, reversed)
+            step = ExprNodes.AddNode(
+                step.pos,
+                operand1=start,
+                operator='+',
+                operand2=true_step,
+                type=range_type)
+            bound1 = Nodes.StatListNode(step.pos, stats=[
+                Nodes.IfStatNode(
+                    step.pos,
+                    if_clauses=[
+                        Nodes.IfClauseNode(
+                            step.pos,
+                            condition=ExprNodes.PrimaryCmpNode(
+                                step.pos,
+                                operand1=true_step,
+                                operator='==',
+                                operand2=ExprNodes.IntNode(
+                                    step.pos,
+                                    value='0',
+                                    constant_result=0)),
+                            body=Nodes.ExprStatNode(step.pos,
+                                expr=ExprNodes.SimpleCallNode(
+                                    step.pos,
+                                    function=ExprNodes.NameNode(
+                                        step.pos,
+                                        name='range',
+                                        type=PyrexTypes.py_object_type,
+                                        entry=self.current_env().lookup('range')),   # fails
+                                    args=None,
+                                    arg_tuple=ExprNodes.TupleNode(
+                                        step.pos,
+                                        args=args,
+                                        type=Builtin.tuple_type,
+                                        is_literal=True),
+                                type=PyrexTypes.py_object_type)))],
+                    else_clause=None),
+                ExprNodes.IntNode(step.pos, value='-1', constant_result=-1)])
+            bound2 = ExprNodes.DivNode(
+                stop.pos,
+                operand1=ExprNodes.SubNode(
+                    step.pos,
+                    operand1=ExprNodes.AddNode(
+                        step.pos,
+                        operand1=stop,
+                        operator='+',
+                        operand2=ExprNodes.CondExprNode(
+                            step.pos,
+                            test=ExprNodes.PrimaryCmpNode(
+                                step.pos,
+                                operand1=true_step,
+                                operator='>',
+                                operand2=ExprNodes.IntNode(step.pos, value='0',
+                                                           constant_result=0)),
+                            true_val=ExprNodes.IntNode(step.pos, value='-1',
+                                                       constant_value=-1),
+                            false_val=ExprNodes.IntNode(step.pos, value='1',
+                                                        constant_value=1),
+                            is_temp=True,
+                            type=spanning_type),
+                        type=spanning_type),
+                    operator='-',
+                    operand2=start,
+                    type=spanning_type),
+                operator='//',
+                operand2=true_step,
+                type=spanning_type)
 
         bound2_ref_node = None
         if reversed:
@@ -743,8 +822,8 @@ class IterationTransform(Visitor.EnvTransform):
 
         if step_value < 0:
             step_value = -step_value
-        step.value = str(step_value)
-        step.constant_result = step_value
+            step.value = str(step_value)
+            step.constant_result = step_value
         step = step.coerce_to_integer(self.current_env())
 
         if not bound2.is_literal:
