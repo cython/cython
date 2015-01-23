@@ -40,6 +40,9 @@ Bugs fixed
 * Failure to find any files for the path pattern(s) passed into ``cythonize()``
   is now an error to more easily detect accidental typos.
 
+* The ``logaddexp`` family of functions in ``numpy.math`` now has correct
+  declarations.
+
 Other changes
 -------------
 
