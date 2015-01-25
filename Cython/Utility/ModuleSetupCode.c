@@ -1,4 +1,4 @@
-/////////////// CModulePreamble ///////////////
+/////////////// CommonModulePreamble ///////////////
 
 #include <stddef.h> /* For offsetof */
 #ifndef offsetof
@@ -176,20 +176,7 @@
   #define __Pyx_PyMethod_New(func, self, klass) PyMethod_New(func, self, klass)
 #endif
 
-/* inline attribute */
-#ifndef CYTHON_INLINE
-  #if defined(__GNUC__)
-    #define CYTHON_INLINE __inline__
-  #elif defined(_MSC_VER)
-    #define CYTHON_INLINE __inline
-  #elif defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
-    #define CYTHON_INLINE inline
-  #else
-    #define CYTHON_INLINE
-  #endif
-#endif
-
-/* restrict */
+// restrict
 #ifndef CYTHON_RESTRICT
   #if defined(__GNUC__)
     #define CYTHON_RESTRICT __restrict__
@@ -202,23 +189,29 @@
   #endif
 #endif
 
-#ifdef NAN
-#define __PYX_NAN() ((float) NAN)
-#else
-static CYTHON_INLINE float __PYX_NAN() {
-  /* Initialize NaN. The sign is irrelevant, an exponent with all bits 1 and
-   a nonzero mantissa means NaN. If the first bit in the mantissa is 1, it is
-   a quiet NaN. */
-  float value;
-  memset(&value, 0xFF, sizeof(value));
-  return value;
-}
-#endif
-
 #define __Pyx_void_to_None(void_result) (void_result, Py_INCREF(Py_None), Py_None)
 
-#ifdef __cplusplus
-// Work around clang bug http://stackoverflow.com/questions/21847816/c-invoke-nested-template-class-destructor
+/////////////// CModulePreamble ///////////////
+
+#ifndef CYTHON_INLINE
+  #if defined(__GNUC__)
+    #define CYTHON_INLINE __inline__
+  #elif defined(_MSC_VER)
+    #define CYTHON_INLINE __inline
+  #elif defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+    #define CYTHON_INLINE inline
+  #else
+    #define CYTHON_INLINE
+  #endif
+#endif
+
+/////////////// CPlusPlusModulePreamble ///////////////
+
+#ifndef CYTHON_INLINE
+  #define CYTHON_INLINE inline
+#endif
+
+// Work around Clang bug https://stackoverflow.com/q/21847816
 template<typename T>
 void __Pyx_call_destructor(T* x) {
     x->~T();
@@ -235,6 +228,20 @@ class __Pyx_FakeReference {
   private:
     T *ptr;
 };
+
+/////////////// NANPreamble ///////////////
+
+#ifdef NAN
+#define __PYX_NAN() ((float) NAN)
+#else
+static CYTHON_INLINE float __PYX_NAN() {
+  /* Initialize NaN. The sign is irrelevant, an exponent with all bits 1 and
+   a nonzero mantissa means NaN. If the first bit in the mantissa is 1, it is
+   a quiet NaN. */
+  float value;
+  memset(&value, 0xFF, sizeof(value));
+  return value;
+}
 #endif
 
 /////////////// UtilityFunctionPredeclarations.proto ///////////////
