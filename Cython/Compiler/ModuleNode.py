@@ -599,7 +599,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self._put_setup_code(code, "CPlusPlusModulePreamble")
         else:
             self._put_setup_code(code, "CModulePreamble")
-        self._put_setup_code(code, "NANPreamble")
+
+        self._put_setup_code(code, "MathPreamble")
 
         code.put("""
 #if PY_MAJOR_VERSION >= 3
@@ -618,11 +619,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("")
         self.generate_extern_c_macro_definition(code)
         code.putln("")
-
-        code.putln("#if defined(WIN32) || defined(MS_WINDOWS)")
-        code.putln("#define _USE_MATH_DEFINES")
-        code.putln("#endif")
-        code.putln("#include <math.h>")
 
         code.putln("#define %s" % Naming.h_guard_prefix + self.api_name(env))
         code.putln("#define %s" % Naming.api_guard_prefix + self.api_name(env))

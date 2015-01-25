@@ -229,7 +229,12 @@ class __Pyx_FakeReference {
     T *ptr;
 };
 
-/////////////// NANPreamble ///////////////
+/////////////// MathPreamble ///////////////
+
+#if defined(WIN32) || defined(MS_WINDOWS)
+  #define _USE_MATH_DEFINES
+#endif
+#include <math.h>
 
 #ifdef NAN
 #define __PYX_NAN() ((float) NAN)
