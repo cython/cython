@@ -290,3 +290,36 @@ cdef extern from "Python.h":
     # Takes an arbitrary object and returns the result of calling
     # obj.__format__(format_spec).
     # Added in Py2.6
+
+    # Type flags (tp_flags of PyTypeObject)
+    long Py_TPFLAGS_HAVE_GETCHARBUFFER
+    long Py_TPFLAGS_HAVE_SEQUENCE_IN
+    long Py_TPFLAGS_HAVE_INPLACEOPS
+    long Py_TPFLAGS_CHECKTYPES
+    long Py_TPFLAGS_HAVE_RICHCOMPARE
+    long Py_TPFLAGS_HAVE_WEAKREFS
+    long Py_TPFLAGS_HAVE_ITER
+    long Py_TPFLAGS_HAVE_CLASS
+    long Py_TPFLAGS_HEAPTYPE
+    long Py_TPFLAGS_BASETYPE
+    long Py_TPFLAGS_READY
+    long Py_TPFLAGS_READYING
+    long Py_TPFLAGS_HAVE_GC
+    long Py_TPFLAGS_HAVE_STACKLESS_EXTENSION
+    long Py_TPFLAGS_HAVE_INDEX
+    long Py_TPFLAGS_HAVE_VERSION_TAG
+    long Py_TPFLAGS_VALID_VERSION_TAG
+    long Py_TPFLAGS_IS_ABSTRACT
+    long Py_TPFLAGS_HAVE_NEWBUFFER
+    long Py_TPFLAGS_INT_SUBCLASS
+    long Py_TPFLAGS_LONG_SUBCLASS
+    long Py_TPFLAGS_LIST_SUBCLASS
+    long Py_TPFLAGS_TUPLE_SUBCLASS
+    long Py_TPFLAGS_STRING_SUBCLASS
+    long Py_TPFLAGS_UNICODE_SUBCLASS
+    long Py_TPFLAGS_DICT_SUBCLASS
+    long Py_TPFLAGS_BASE_EXC_SUBCLASS
+    long Py_TPFLAGS_TYPE_SUBCLASS
+    long Py_TPFLAGS_DEFAULT_EXTERNAL
+    long Py_TPFLAGS_DEFAULT_CORE
+    long Py_TPFLAGS_DEFAULT
