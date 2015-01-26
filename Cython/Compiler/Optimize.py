@@ -642,9 +642,6 @@ class IterationTransform(Visitor.EnvTransform):
                     return node
             else:
                 step_value = 1
-                if reversed:
-                    # TODO: optimize when reversed and variable step value
-                    return node
 
         step = ExprNodes.IntNode(step_pos, value=str(step_value),
                                  constant_result=step_value)
@@ -655,56 +652,42 @@ class IterationTransform(Visitor.EnvTransform):
             bound1 = ExprNodes.IntNode(range_function.pos, value='0',
                                        constant_result=0)
             bound2 = args[0].coerce_to_integer(self.current_env())
-        elif isinstance(args[2].constant_result, (int, long)):
+        elif len(args) == 2 or isinstance(args[2].constant_result, (int, long)):
             bound1 = args[0].coerce_to_integer(self.current_env())
             bound2 = args[1].coerce_to_integer(self.current_env())
         else:
             relation1, relation2 = relation2, relation1
-            start = UtilNodes.LetRefNode(args[0].coerce_to_integer(self.current_env()))
+            start = args[0].coerce_to_integer(self.current_env())
+            start_ref = UtilNodes.LetRefNode(start)
+            def get_start_node():
+                if isinstance(start.constant_result, (int, long)):
+                    return ExprNodes.IntNode(start.pos, value=start.value,
+                                             constant_result=start.constant_result)
+                return start_ref
             stop = args[1].coerce_to_integer(self.current_env())
             true_step = args[2].coerce_to_integer(self.current_env())
-            true_step.pos = stop.pos
-            true_step = UtilNodes.LetRefNode(true_step)
+            if (isinstance(true_step, ExprNodes.CoerceFromPyTypeNode) or
+                    hasattr(true_step, 'function')):
+                # TODO: Currently would generate 'None's.for PyTypes and
+                #       no temps for function calls.
+                return node
+            true_step_ref = UtilNodes.LetRefNode(true_step)
+            def get_true_step_node():
+                if isinstance(true_step.constant_result, (int, long)):
+                    return ExprNodes.IntNode(step.pos, value=true_step.value,
+                                             constant_result=true_step.constant_result)
+                return true_step_ref
+
             range_type = PyrexTypes.spanning_type(start.type, true_step.type)
             spanning_type = PyrexTypes.spanning_type(range_type, stop.type)
 
             step = ExprNodes.AddNode(
                 step.pos,
-                operand1=start,
+                operand1=get_start_node(),
                 operator='+',
-                operand2=true_step,
+                operand2=get_true_step_node(),
                 type=range_type)
-            bound1 = Nodes.StatListNode(step.pos, stats=[
-                Nodes.IfStatNode(
-                    step.pos,
-                    if_clauses=[
-                        Nodes.IfClauseNode(
-                            step.pos,
-                            condition=ExprNodes.PrimaryCmpNode(
-                                step.pos,
-                                operand1=true_step,
-                                operator='==',
-                                operand2=ExprNodes.IntNode(
-                                    step.pos,
-                                    value='0',
-                                    constant_result=0)),
-                            body=Nodes.ExprStatNode(step.pos,
-                                expr=ExprNodes.SimpleCallNode(
-                                    step.pos,
-                                    function=ExprNodes.NameNode(
-                                        step.pos,
-                                        name='range',
-                                        type=PyrexTypes.py_object_type,
-                                        entry=self.current_env().lookup('range')),   # fails
-                                    args=None,
-                                    arg_tuple=ExprNodes.TupleNode(
-                                        step.pos,
-                                        args=args,
-                                        type=Builtin.tuple_type,
-                                        is_literal=True),
-                                type=PyrexTypes.py_object_type)))],
-                    else_clause=None),
-                ExprNodes.IntNode(step.pos, value='-1', constant_result=-1)])
+            bound1 = ExprNodes.IntNode(step.pos, value='-1', constant_result=-1)
             bound2 = ExprNodes.DivNode(
                 stop.pos,
                 operand1=ExprNodes.SubNode(
@@ -717,7 +700,7 @@ class IterationTransform(Visitor.EnvTransform):
                             step.pos,
                             test=ExprNodes.PrimaryCmpNode(
                                 step.pos,
-                                operand1=true_step,
+                                operand1=get_true_step_node(),
                                 operator='>',
                                 operand2=ExprNodes.IntNode(step.pos, value='0',
                                                            constant_result=0)),
@@ -729,10 +712,16 @@ class IterationTransform(Visitor.EnvTransform):
                             type=spanning_type),
                         type=spanning_type),
                     operator='-',
-                    operand2=start,
+                    operand2=get_start_node(),
                     type=spanning_type),
                 operator='//',
-                operand2=true_step,
+                operand2=ExprNodes.BoolBinopNode(
+                    step.pos,
+                    operand1=get_true_step_node(),
+                    operator='or',
+                    operand2=ExprNodes.IntNode(step.pos, value='1',
+                                               constant_value=1),
+                    type=spanning_type),
                 type=spanning_type)
 
         bound2_ref_node = None

@@ -6185,14 +6185,23 @@ class ForFromStatNode(LoopNode, StatNode):
     def generate_execution_code(self, code):
         old_loop_labels = code.new_loop_labels()
         from_range = self.from_range
-        constant_step = isinstance(self.step.constant_result, (int, long))
-        if isinstance(self.bound1, StatListNode):
-            zero_step_check, self.bound1 = self.bound1.stats
-            #zero_step_check.generate_execution_code(code) <--- Fails
+        constant_step = (self.step is not None and
+                            isinstance(self.step.constant_result, (int, long)))
         self.bound1.generate_evaluation_code(code)
         self.bound2.generate_evaluation_code(code)
         offset, incop = self.relation_table[self.relation1]
-        if constant_step and self.step is not None:
+        if (self.from_range and self.step is not None and
+                not isinstance(self.step.constant_result, (int, long))):
+            self.step.generate_evaluation_code(code)
+            step = self.step.result()
+            code.putln('if (%s == 0) {' % step[step.index('+')+2:-1])
+            code.putln(    'PyErr_SetString('
+                                'PyExc_ValueError, (PY_MAJOR_VERSION < 3) ? '
+                                '"range() step argument must not be zero" : '
+                                '"range() arg 3 must not be zero"); %s' %
+                                code.error_goto(self.step.pos))
+            code.putln('}')
+        elif self.step is not None:
             self.step.generate_evaluation_code(code)
             step = self.step.result()
             incop = "%s=%s" % (incop[0], step)
@@ -6227,13 +6236,13 @@ class ForFromStatNode(LoopNode, StatNode):
             self.py_loopvar_node.generate_evaluation_code(code)
             self.target.generate_assignment_code(self.py_loopvar_node, code)
         elif from_range:
-            if constant_step:
+            if constant_step or self.step is None:
                 code.putln("%s = %s;" % (
                                 self.target.result(), loopvar_name))
             else:
                 code.putln("%s = %s*%s;" % (
                                 self.target.result(),
-                                self.step.result()[1:-1],
+                                step[1:-1],
                                 loopvar_name))
         self.body.generate_execution_code(code)
         code.put_label(code.continue_label)

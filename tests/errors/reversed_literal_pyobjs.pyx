@@ -1,7 +1,7 @@
 # mode: error
 # tag: reversed
 
-cdef int i, j
+cdef int i, j = 1
 for i in reversed(range([], j, 2)):
     pass
 for i in reversed(range([], j, -2)):
@@ -18,6 +18,10 @@ for i in reversed(range(j, {}, 2)):
     pass
 for i in reversed(range(j, {}, -2)):
     pass
+for i in reversed(range(j, 2, [])):
+    pass
+for i in reversed(range(j, 2, {})):
+    pass
 
 _ERRORS = """
 5:24: Cannot coerce list to type 'long'
@@ -28,4 +32,6 @@ _ERRORS = """
 15:24: Cannot interpret dict as type 'long'
 17:27: Cannot interpret dict as type 'long'
 19:27: Cannot interpret dict as type 'long'
+21:30: Cannot coerce list to type 'long'
+23:30: Cannot interpret dict as type 'long'
 """
