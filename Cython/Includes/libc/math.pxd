@@ -99,4 +99,4 @@ cdef extern from "math.h" nogil:
     bint isfinite(long double)
     bint isnormal(long double)
     bint isnan(long double)
-    bint isinf(long double)
+    int isinf(long double)
