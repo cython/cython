@@ -1,4 +1,4 @@
-from .utility cimport pair
+from libcpp.utility cimport pair
 
 cdef extern from "<unordered_map>" namespace "std" nogil:
     cdef cppclass unordered_map[T, U]:
