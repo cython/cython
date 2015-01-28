@@ -911,9 +911,9 @@ def reversed_all_var_neg_step(int a, int b, int c):
 
 def reversed_range_py_obj_var_step(int b, c):
     """
-    >>> reversed_range_py_obj_var_step(0, set()) # doctest: +ELLIPSIS
+    >>> reversed_range_py_obj_var_step(0, set())
     Traceback (most recent call last):
-    TypeError: ...set...
+    TypeError: an integer is required
     """
     cdef long i
     for i in reversed(range(0, b, c)):
@@ -1008,3 +1008,36 @@ def reversed_all_py_var_pos_step(a, b, c):
     for i in reversed(range(a, b, c)):
         result.append(i)
     return result, i
+
+#@cython.test_assert_path_exists('//ForFromStatNode')
+def reversed_unsigned_by_pos_var_step(int a, int b, int c):
+    """
+    >>> reversed_unsigned_by_pos_var_step(0, 5, 3)
+    [3, 0]
+    >>> reversed_unsigned_by_pos_var_step(0, 7, 3)
+    [6, 3, 0]
+    """
+    cdef unsigned int i
+    return [i for i in reversed(range(a, b, c))]
+
+#@cython.test_assert_path_exists('//ForFromStatNode')
+def range_unsigned_by_neg_var_step(int a, int b, int c):
+    """
+    >>> range_unsigned_by_neg_var_step(-1, 6, -3)
+    [6, 3, 0]
+    >>> range_unsigned_by_neg_var_step(0, 7, -3)
+    [7, 4, 1]
+    """
+    cdef unsigned int i
+    return [i for i in range(b, a, c)]
+
+#@cython.test_assert_path_exists('//ForFromStatNode')
+def range_unsigned_by_neg_var_step(int a, int b, int c):
+    """
+    >>> range_unsigned_by_neg_var_step(-1, 6, -3)
+    [6, 3, 0]
+    >>> range_unsigned_by_neg_var_step(0, 7, -3)
+    [7, 4, 1]
+    """
+    cdef unsigned int i
+    return [i for i in range(b, a, c)]

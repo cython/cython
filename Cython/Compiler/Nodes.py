@@ -6185,12 +6185,10 @@ class ForFromStatNode(LoopNode, StatNode):
     def generate_execution_code(self, code):
         old_loop_labels = code.new_loop_labels()
         from_range = self.from_range
-        constant_step = (self.step is not None and
-                            isinstance(self.step.constant_result, (int, long)))
         self.bound1.generate_evaluation_code(code)
         self.bound2.generate_evaluation_code(code)
         offset, incop = self.relation_table[self.relation1]
-        if (self.from_range and self.step is not None and
+        if (self.from_range and self.step and
                 not isinstance(self.step.constant_result, (int, long))):
             self.step.generate_evaluation_code(code)
             step = self.step.result()
@@ -6236,7 +6234,7 @@ class ForFromStatNode(LoopNode, StatNode):
             self.py_loopvar_node.generate_evaluation_code(code)
             self.target.generate_assignment_code(self.py_loopvar_node, code)
         elif from_range:
-            if constant_step or self.step is None:
+            if self.step is None or isinstance(self.step.constant_result, (int, long)):
                 code.putln("%s = %s;" % (
                                 self.target.result(), loopvar_name))
             else:

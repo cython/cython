@@ -480,3 +480,21 @@ def finally_yield(x):
                 return
         finally:
             yield 1
+
+def try_bad_range_step():
+    """
+    >>> try_bad_range_step()  # doctest: +ELLIPSIS
+    Caught "an integer is required" exception!
+    Caught "range() ...arg...must not be zero" exception!
+    """
+    cdef int i, zero = 0
+    try:
+        for i in range(0, 0, set([0])):
+            pass
+    except TypeError as e:
+        print('Caught "%s" exception!' % e)
+    try:
+        for i in range(0, 0, zero):
+            pass
+    except ValueError as e:
+        print('Caught "%s" exception!' % e)

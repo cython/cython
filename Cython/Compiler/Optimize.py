@@ -641,6 +641,10 @@ class IterationTransform(Visitor.EnvTransform):
                     # will lead to an error elsewhere
                     return node
             else:
+                if node.target.type.is_int and not node.target.type.signed:
+                    # TODO: Handle the case where the endpoint of an
+                    #       unsigned int iteration is within step of 0.
+                    return node
                 step_value = 1
 
         step = ExprNodes.IntNode(step_pos, value=str(step_value),
@@ -657,26 +661,16 @@ class IterationTransform(Visitor.EnvTransform):
             bound2 = args[1].coerce_to_integer(self.current_env())
         else:
             relation1, relation2 = relation2, relation1
+            true_step = args[2].coerce_to_integer(self.current_env())
+            #true_step = UtilNodes.LetRefNode(true_step)
             start = args[0].coerce_to_integer(self.current_env())
-            start_ref = UtilNodes.LetRefNode(start)
+            #start_ref = UtilNodes.LetRefNode(start)
             def get_start_node():
                 if isinstance(start.constant_result, (int, long)):
                     return ExprNodes.IntNode(start.pos, value=start.value,
                                              constant_result=start.constant_result)
-                return start_ref
+                return start#_ref
             stop = args[1].coerce_to_integer(self.current_env())
-            true_step = args[2].coerce_to_integer(self.current_env())
-            if (isinstance(true_step, ExprNodes.CoerceFromPyTypeNode) or
-                    hasattr(true_step, 'function')):
-                # TODO: Currently would generate 'None's.for PyTypes and
-                #       no temps for function calls.
-                return node
-            true_step_ref = UtilNodes.LetRefNode(true_step)
-            def get_true_step_node():
-                if isinstance(true_step.constant_result, (int, long)):
-                    return ExprNodes.IntNode(step.pos, value=true_step.value,
-                                             constant_result=true_step.constant_result)
-                return true_step_ref
 
             range_type = PyrexTypes.spanning_type(start.type, true_step.type)
             spanning_type = PyrexTypes.spanning_type(range_type, stop.type)
@@ -685,7 +679,7 @@ class IterationTransform(Visitor.EnvTransform):
                 step.pos,
                 operand1=get_start_node(),
                 operator='+',
-                operand2=get_true_step_node(),
+                operand2=true_step,
                 type=range_type)
             bound1 = ExprNodes.IntNode(step.pos, value='-1', constant_result=-1)
             bound2 = ExprNodes.DivNode(
@@ -700,10 +694,11 @@ class IterationTransform(Visitor.EnvTransform):
                             step.pos,
                             test=ExprNodes.PrimaryCmpNode(
                                 step.pos,
-                                operand1=get_true_step_node(),
+                                operand1=true_step,
                                 operator='>',
                                 operand2=ExprNodes.IntNode(step.pos, value='0',
-                                                           constant_result=0)),
+                                                           constant_result=0),
+                                type=spanning_type),
                             true_val=ExprNodes.IntNode(step.pos, value='-1',
                                                        constant_value=-1),
                             false_val=ExprNodes.IntNode(step.pos, value='1',
@@ -717,7 +712,7 @@ class IterationTransform(Visitor.EnvTransform):
                 operator='//',
                 operand2=ExprNodes.BoolBinopNode(
                     step.pos,
-                    operand1=get_true_step_node(),
+                    operand1=true_step,
                     operator='or',
                     operand2=ExprNodes.IntNode(step.pos, value='1',
                                                constant_value=1),
@@ -748,7 +743,7 @@ class IterationTransform(Visitor.EnvTransform):
                     # evaluate the same expression as above at runtime
                     bound2_ref_node = UtilNodes.LetRefNode(bound2)
                     spanning_type = PyrexTypes.spanning_type(bound1.type, bound2.type)
-                    if step.type.is_int and abs(step_value) < 0x7FFF:
+                    if step.type.is_int and abs_step < 0x7FFF:
                         # Avoid loss of integer precision warnings.
                         spanning_step_type = PyrexTypes.spanning_type(spanning_type, PyrexTypes.c_int_type)
                     else:
@@ -813,7 +808,7 @@ class IterationTransform(Visitor.EnvTransform):
             step_value = -step_value
             step.value = str(step_value)
             step.constant_result = step_value
-        step = step.coerce_to_integer(self.current_env())
+            step = step.coerce_to_integer(self.current_env())
 
         if not bound2.is_literal:
             # stop bound must be immutable => keep it in a temp var
