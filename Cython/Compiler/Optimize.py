@@ -632,29 +632,92 @@ class IterationTransform(Visitor.EnvTransform):
         if len(args) < 3:
             step_pos = range_function.pos
             step_value = 1
-            step = ExprNodes.IntNode(step_pos, value='1', constant_result=1)
         else:
             step = args[2]
             step_pos = step.pos
-            if not isinstance(step.constant_result, (int, long)):
-                # cannot determine step direction
-                return node
-            step_value = step.constant_result
-            if step_value == 0:
-                # will lead to an error elsewhere
-                return node
-            step = ExprNodes.IntNode(step_pos, value=str(step_value),
-                                     constant_result=step_value)
+            if isinstance(step.constant_result, (int, long)):
+                step_value = step.constant_result
+                if step_value == 0:
+                    # will lead to an error elsewhere
+                    return node
+            else:
+                if node.target.type.is_int and not node.target.type.signed:
+                    # TODO: Handle the case where the endpoint of an
+                    #       unsigned int iteration is within step of 0.
+                    return node
+                step_value = 1
+
+        step = ExprNodes.IntNode(step_pos, value=str(step_value),
+                                 constant_result=step_value)
+
+        relation1, relation2 = self._find_for_from_node_relations(step_value < 0, reversed)
 
         if len(args) == 1:
             bound1 = ExprNodes.IntNode(range_function.pos, value='0',
                                        constant_result=0)
             bound2 = args[0].coerce_to_integer(self.current_env())
-        else:
+        elif len(args) == 2 or isinstance(args[2].constant_result, (int, long)):
             bound1 = args[0].coerce_to_integer(self.current_env())
             bound2 = args[1].coerce_to_integer(self.current_env())
+        else:
+            relation1, relation2 = relation2, relation1
+            true_step = args[2].coerce_to_integer(self.current_env())
+            #true_step = UtilNodes.LetRefNode(true_step)
+            start = args[0].coerce_to_integer(self.current_env())
+            #start_ref = UtilNodes.LetRefNode(start)
+            def get_start_node():
+                if isinstance(start.constant_result, (int, long)):
+                    return ExprNodes.IntNode(start.pos, value=start.value,
+                                             constant_result=start.constant_result)
+                return start#_ref
+            stop = args[1].coerce_to_integer(self.current_env())
 
-        relation1, relation2 = self._find_for_from_node_relations(step_value < 0, reversed)
+            range_type = PyrexTypes.spanning_type(start.type, true_step.type)
+            spanning_type = PyrexTypes.spanning_type(range_type, stop.type)
+
+            step = ExprNodes.AddNode(
+                step.pos,
+                operand1=get_start_node(),
+                operator='+',
+                operand2=true_step,
+                type=range_type)
+            bound1 = ExprNodes.IntNode(step.pos, value='-1', constant_result=-1)
+            bound2 = ExprNodes.DivNode(
+                stop.pos,
+                operand1=ExprNodes.SubNode(
+                    step.pos,
+                    operand1=ExprNodes.AddNode(
+                        step.pos,
+                        operand1=stop,
+                        operator='+',
+                        operand2=ExprNodes.CondExprNode(
+                            step.pos,
+                            test=ExprNodes.PrimaryCmpNode(
+                                step.pos,
+                                operand1=true_step,
+                                operator='>',
+                                operand2=ExprNodes.IntNode(step.pos, value='0',
+                                                           constant_result=0),
+                                type=spanning_type),
+                            true_val=ExprNodes.IntNode(step.pos, value='-1',
+                                                       constant_value=-1),
+                            false_val=ExprNodes.IntNode(step.pos, value='1',
+                                                        constant_value=1),
+                            is_temp=True,
+                            type=spanning_type),
+                        type=spanning_type),
+                    operator='-',
+                    operand2=get_start_node(),
+                    type=spanning_type),
+                operator='//',
+                operand2=ExprNodes.BoolBinopNode(
+                    step.pos,
+                    operand1=true_step,
+                    operator='or',
+                    operand2=ExprNodes.IntNode(step.pos, value='1',
+                                               constant_value=1),
+                    type=spanning_type),
+                type=spanning_type)
 
         bound2_ref_node = None
         if reversed:
@@ -680,7 +743,7 @@ class IterationTransform(Visitor.EnvTransform):
                     # evaluate the same expression as above at runtime
                     bound2_ref_node = UtilNodes.LetRefNode(bound2)
                     spanning_type = PyrexTypes.spanning_type(bound1.type, bound2.type)
-                    if step.type.is_int and abs(step_value) < 0x7FFF:
+                    if step.type.is_int and abs_step < 0x7FFF:
                         # Avoid loss of integer precision warnings.
                         spanning_step_type = PyrexTypes.spanning_type(spanning_type, PyrexTypes.c_int_type)
                     else:
@@ -743,9 +806,9 @@ class IterationTransform(Visitor.EnvTransform):
 
         if step_value < 0:
             step_value = -step_value
-        step.value = str(step_value)
-        step.constant_result = step_value
-        step = step.coerce_to_integer(self.current_env())
+            step.value = str(step_value)
+            step.constant_result = step_value
+            step = step.coerce_to_integer(self.current_env())
 
         if not bound2.is_literal:
             # stop bound must be immutable => keep it in a temp var
