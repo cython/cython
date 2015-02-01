@@ -43,6 +43,11 @@ Bugs fixed
 * The ``logaddexp`` family of functions in ``numpy.math`` now has correct
   declarations.
 
+* In Py2.6/7 and Py3.2, simple Cython memory views could accidentally be
+  interpreted as non-contiguous by CPython, which could trigger a CPython
+  bug when copying data from them, thus leading to data corruption.
+  See CPython issues 12834 and 23349.
+
 Other changes
 -------------
 
