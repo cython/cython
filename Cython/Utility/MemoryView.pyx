@@ -511,7 +511,7 @@ cdef class memoryview(object):
     property shape:
         @cname('__pyx_memoryview_get_shape')
         def __get__(self):
-            return tuple([self.view.shape[i] for i in xrange(self.view.ndim)])
+            return tuple([length for length in self.view.shape[:self.view.ndim]])
 
     property strides:
         @cname('__pyx_memoryview_get_strides')
@@ -520,7 +520,7 @@ cdef class memoryview(object):
                 # Note: we always ask for strides, so if this is not set it's a bug
                 raise ValueError("Buffer view does not expose strides")
 
-            return tuple([self.view.strides[i] for i in xrange(self.view.ndim)])
+            return tuple([stride for stride in self.view.strides[:self.view.ndim]])
 
     property suboffsets:
         @cname('__pyx_memoryview_get_suboffsets')
@@ -528,7 +528,7 @@ cdef class memoryview(object):
             if self.view.suboffsets == NULL:
                 return [-1] * self.view.ndim
 
-            return tuple([self.view.suboffsets[i] for i in xrange(self.view.ndim)])
+            return tuple([suboffset for suboffset in self.view.suboffsets[:self.view.ndim]])
 
     property ndim:
         @cname('__pyx_memoryview_get_ndim')
@@ -551,7 +551,7 @@ cdef class memoryview(object):
             if self._size is None:
                 result = 1
 
-                for length in self.shape:
+                for length in self.view.shape[:self.view.ndim]:
                     result *= length
 
                 self._size = result
