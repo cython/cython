@@ -960,7 +960,6 @@ cdef memoryview_fromslice({{memviewslice_name}} memviewslice,
                           bint dtype_is_object):
 
     cdef _memoryviewslice result
-    cdef int i
 
     if <PyObject *> memviewslice.memview == Py_None:
         return None
@@ -995,8 +994,8 @@ cdef memoryview_fromslice({{memviewslice_name}} memviewslice,
             break
 
     result.view.len = result.view.itemsize
-    for i in range(ndim):
-        result.view.len *= result.view.shape[i]
+    for length in result.view.shape[:ndim]:
+        result.view.len *= length
 
     result.to_object_func = to_object_func
     result.to_dtype_func = to_dtype_func
