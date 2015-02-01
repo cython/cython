@@ -511,7 +511,7 @@ cdef class memoryview(object):
     property shape:
         @cname('__pyx_memoryview_get_shape')
         def __get__(self):
-            return tuple([self.view.shape[i] for i in xrange(self.view.ndim)])
+            return tuple([length for length in self.view.shape[:self.view.ndim]])
 
     property strides:
         @cname('__pyx_memoryview_get_strides')
@@ -520,15 +520,15 @@ cdef class memoryview(object):
                 # Note: we always ask for strides, so if this is not set it's a bug
                 raise ValueError("Buffer view does not expose strides")
 
-            return tuple([self.view.strides[i] for i in xrange(self.view.ndim)])
+            return tuple([stride for stride in self.view.strides[:self.view.ndim]])
 
     property suboffsets:
         @cname('__pyx_memoryview_get_suboffsets')
         def __get__(self):
             if self.view.suboffsets == NULL:
-                return [-1] * self.view.ndim
+                return (-1,) * self.view.ndim
 
-            return tuple([self.view.suboffsets[i] for i in xrange(self.view.ndim)])
+            return tuple([suboffset for suboffset in self.view.suboffsets[:self.view.ndim]])
 
     property ndim:
         @cname('__pyx_memoryview_get_ndim')
@@ -551,7 +551,7 @@ cdef class memoryview(object):
             if self._size is None:
                 result = 1
 
-                for length in self.shape:
+                for length in self.view.shape[:self.view.ndim]:
                     result *= length
 
                 self._size = result
@@ -654,9 +654,8 @@ cdef tuple _unellipsify(object index, int ndim):
     return have_slices or nslices, tuple(result)
 
 cdef assert_direct_dimensions(Py_ssize_t *suboffsets, int ndim):
-    cdef int i
-    for i in range(ndim):
-        if suboffsets[i] >= 0:
+    for suboffset in suboffsets[:ndim]:
+        if suboffset >= 0:
             raise ValueError("Indirect dimensions not supported")
 
 #
@@ -987,9 +986,11 @@ cdef memoryview_fromslice({{memviewslice_name}} memviewslice,
 
     result.view.shape = <Py_ssize_t *> result.from_slice.shape
     result.view.strides = <Py_ssize_t *> result.from_slice.strides
+
+    # only set suboffsets if actually used, otherwise set to NULL to improve compatibility
     result.view.suboffsets = NULL
-    for i in range(ndim):
-        if result.from_slice.suboffsets[i] >= 0:
+    for suboffset in result.from_slice.suboffsets[:ndim]:
+        if suboffset >= 0:
             result.view.suboffsets = <Py_ssize_t *> result.from_slice.suboffsets
             break
 
@@ -1028,10 +1029,7 @@ cdef void slice_copy(memoryview memview, {{memviewslice_name}} *dst):
     for dim in range(memview.view.ndim):
         dst.shape[dim] = shape[dim]
         dst.strides[dim] = strides[dim]
-        if suboffsets == NULL:
-            dst.suboffsets[dim] = -1
-        else:
-            dst.suboffsets[dim] = suboffsets[dim]
+        dst.suboffsets[dim] = suboffsets[dim] if suboffsets else -1
 
 @cname('__pyx_memoryview_copy_object')
 cdef memoryview_copy(memoryview memview):
@@ -1295,21 +1293,21 @@ cdef int memoryview_copy_contents({{memviewslice_name}} src,
     return 0
 
 @cname('__pyx_memoryview_broadcast_leading')
-cdef void broadcast_leading({{memviewslice_name}} *slice,
+cdef void broadcast_leading({{memviewslice_name}} *mslice,
                             int ndim,
                             int ndim_other) nogil:
     cdef int i
     cdef int offset = ndim_other - ndim
 
     for i in range(ndim - 1, -1, -1):
-        slice.shape[i + offset] = slice.shape[i]
-        slice.strides[i + offset] = slice.strides[i]
-        slice.suboffsets[i + offset] = slice.suboffsets[i]
+        mslice.shape[i + offset] = mslice.shape[i]
+        mslice.strides[i + offset] = mslice.strides[i]
+        mslice.suboffsets[i + offset] = mslice.suboffsets[i]
 
     for i in range(offset):
-        slice.shape[i] = 1
-        slice.strides[i] = slice.strides[0]
-        slice.suboffsets[i] = -1
+        mslice.shape[i] = 1
+        mslice.strides[i] = mslice.strides[0]
+        mslice.suboffsets[i] = -1
 
 #
 ### Take care of refcounting the objects in slices. Do this seperately from any copying,
