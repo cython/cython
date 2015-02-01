@@ -986,9 +986,11 @@ cdef memoryview_fromslice({{memviewslice_name}} memviewslice,
 
     result.view.shape = <Py_ssize_t *> result.from_slice.shape
     result.view.strides = <Py_ssize_t *> result.from_slice.strides
+
+    # only set suboffsets if actually used, otherwise set to NULL to improve compatibility
     result.view.suboffsets = NULL
-    for i in range(ndim):
-        if result.from_slice.suboffsets[i] >= 0:
+    for suboffset in result.from_slice.suboffsets[:ndim]:
+        if suboffset >= 0:
             result.view.suboffsets = <Py_ssize_t *> result.from_slice.suboffsets
             break
 

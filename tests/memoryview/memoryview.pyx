@@ -1012,3 +1012,13 @@ def test_assignment_in_conditional_expression(bint left):
     c = a if left else b
     for i in range(c.shape[0]):
         print c[i]
+
+
+def test_cpython_offbyone_issue_23349():
+    """
+    >>> print(test_cpython_offbyone_issue_23349())
+    testing
+    """
+    cdef unsigned char[:] v = bytearray(b"testing")
+    # the following returns 'estingt' without the workaround
+    return bytearray(v).decode('ascii')
