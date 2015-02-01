@@ -40,6 +40,9 @@ Bugs fixed
 * Failure to find any files for the path pattern(s) passed into ``cythonize()``
   is now an error to more easily detect accidental typos.
 
+* The ``logaddexp`` family of functions in ``numpy.math`` now has correct
+  declarations.
+
 Other changes
 -------------
 
@@ -47,7 +50,11 @@ Other changes
   To try parsing your files against this grammar, use the --formal_grammar directive.
   Experimental.
 
-* ``_`` is no longer considered a cacheable builtin as it could interfere with gettext.
+* ``_`` is no longer considered a cacheable builtin as it could interfere with
+  gettext.
+
+* The ``PyTypeObject`` declaration in ``cpython.object`` was extended to include
+  the CPython type flags.
 
 
 0.21.2 (2014-12-27)
