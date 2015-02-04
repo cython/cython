@@ -41,9 +41,9 @@ cdef extern from "<vector>" namespace "std" nogil:
         bint operator>(vector&, vector&)
         bint operator<=(vector&, vector&)
         bint operator>=(vector&, vector&)
-        void assign(size_t, T&)
-        void assign[input_iterator](input_iterator, input_iterator)
-        T& at(size_t)
+        void assign(size_t, const T&)
+        void assign[input_iterator](input_iterator, input_iterator) except +
+        T& at(size_t) except +
         T& back()
         iterator begin()
         #const_iterator begin()
@@ -55,22 +55,22 @@ cdef extern from "<vector>" namespace "std" nogil:
         iterator erase(iterator)
         iterator erase(iterator, iterator)
         T& front()
-        iterator insert(iterator, T&)
-        void insert(iterator, size_t, T&)
-        void insert(iterator, iterator, iterator)
+        iterator insert(iterator, const T&) except +
+        void insert(iterator, size_t, const T&) except +
+        void insert[Iter](iterator, Iter, Iter) except +
         size_t max_size()
         void pop_back()
-        void push_back(T&)
+        void push_back(T&) except +
         reverse_iterator rbegin()
         #const_reverse_iterator rbegin()
         reverse_iterator rend()
         #const_reverse_iterator rend()
         void reserve(size_t)
-        void resize(size_t)
-        void resize(size_t, T&)
+        void resize(size_t) except +
+        void resize(size_t, T&) except +
         size_t size()
         void swap(vector&)
         
-        #C++0x methods
+        # C++11 methods
         T* data()
         void shrink_to_fit()
