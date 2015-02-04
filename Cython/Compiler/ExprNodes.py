@@ -4739,8 +4739,7 @@ class SimpleCallNode(CallNode):
             # func_type.exception_check = True
 
         if self.is_temp and self.type.is_reference:
-            # TODO: Avoid the copy.
-            self.type = self.type.ref_base_type
+            self.type = PyrexTypes.CFakeReferenceType(self.type.ref_base_type)
 
         # Called in 'nogil' context?
         self.nogil = env.nogil
@@ -5701,6 +5700,8 @@ class AttributeNode(ExprNode):
             obj_type = obj_type.base_type
             self.op = "->"
         elif obj_type.is_extension_type or obj_type.is_builtin_type:
+            self.op = "->"
+        elif obj_type.is_reference and obj_type.is_fake_reference:
             self.op = "->"
         else:
             self.op = "."

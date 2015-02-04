@@ -2422,6 +2422,7 @@ class CNullPtrType(CPtrType):
 class CReferenceType(BaseType):
 
     is_reference = 1
+    is_fake_reference = 0
 
     def __init__(self, base_type):
         self.ref_base_type = base_type
@@ -2444,13 +2445,29 @@ class CReferenceType(BaseType):
         if base_type == self.ref_base_type:
             return self
         else:
-            return CReferenceType(base_type)
+            return type(self)(base_type)
 
     def deduce_template_params(self, actual):
         return self.ref_base_type.deduce_template_params(actual)
 
     def __getattr__(self, name):
         return getattr(self.ref_base_type, name)
+
+
+class CFakeReferenceType(CReferenceType):
+
+    is_fake_reference = 1
+
+    def __repr__(self):
+        return "<CFakeReferenceType %s>" % repr(self.ref_base_type)
+
+    def __str__(self):
+        return "%s [&]" % self.ref_base_type
+
+    def declaration_code(self, entity_code,
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        #print "CReferenceType.declaration_code: pointer to", self.base_type ###
+        return "__Pyx_FakeReference<%s> %s" % (self.ref_base_type.empty_declaration_code(), entity_code)
 
 
 class CFuncType(CType):

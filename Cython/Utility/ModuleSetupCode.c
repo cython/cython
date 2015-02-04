@@ -217,12 +217,24 @@ static CYTHON_INLINE float __PYX_NAN() {
 
 #define __Pyx_void_to_None(void_result) (void_result, Py_INCREF(Py_None), Py_None)
 
-// Work around clang bug http://stackoverflow.com/questions/21847816/c-invoke-nested-template-class-destructor
 #ifdef __cplusplus
+// Work around clang bug http://stackoverflow.com/questions/21847816/c-invoke-nested-template-class-destructor
 template<typename T>
 void __Pyx_call_destructor(T* x) {
     x->~T();
 }
+
+// Used for temporary variables of "reference" type.
+template<typename T>
+class __Pyx_FakeReference {
+  public:
+    __Pyx_FakeReference() : ptr(NULL) { }
+    __Pyx_FakeReference(T& ref) : ptr(&ref) { }
+    T *operator->() { return ptr; }
+    operator T&() { return *ptr; }
+  private:
+    T *ptr;
+};
 #endif
 
 /////////////// UtilityFunctionPredeclarations.proto ///////////////
