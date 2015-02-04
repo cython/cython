@@ -4738,6 +4738,10 @@ class SimpleCallNode(CallNode):
             self.is_temp = 1
             # func_type.exception_check = True
 
+        if self.is_temp and self.type.is_reference:
+            # TODO: Avoid the copy.
+            self.type = self.type.ref_base_type
+
         # Called in 'nogil' context?
         self.nogil = env.nogil
         if (self.nogil and
