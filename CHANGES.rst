@@ -58,8 +58,9 @@ Other changes
 * ``_`` is no longer considered a cacheable builtin as it could interfere with
   gettext.
 
-* The ``PyTypeObject`` declaration in ``cpython.object`` was extended to include
-  the CPython type flags.
+* Cythonize-computed metadata now cached in the generate C files.
+
+* Several corrections and extensions in numpy, cpython, and libcpp pxd files.
 
 
 0.21.2 (2014-12-27)
