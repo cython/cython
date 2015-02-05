@@ -400,6 +400,7 @@ def create_default_resultobj(compilation_source, options):
         else:
             c_suffix = ".c"
         result.c_file = Utils.replace_suffix(source_desc.filename, c_suffix)
+    result.embedded_metadata = options.embedded_metadata
     return result
 
 def run_pipeline(source, options, full_module_name=None, context=None):
@@ -479,7 +480,8 @@ class CompilationOptions(object):
                                 header files.
     timestamps        boolean   Only compile changed source files.
     verbose           boolean   Always print source names being compiled
-    compiler_directives  dict      Overrides for pragma options (see Options.py)
+    compiler_directives  dict   Overrides for pragma options (see Options.py)
+    embedded_metadata    dict   Metadata to embed in the C file as json.
     evaluate_tree_assertions boolean  Test support: evaluate parse tree assertions
     language_level    integer   The Python language level: 2 or 3
     formal_grammar    boolean  Parse the file with the formal grammar
@@ -690,6 +692,7 @@ default_options = dict(
     verbose = 0,
     quiet = 0,
     compiler_directives = {},
+    embedded_metadata = {},
     evaluate_tree_assertions = False,
     emit_linenums = False,
     relative_path_in_code_position_comments = True,

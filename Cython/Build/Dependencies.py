@@ -621,6 +621,7 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
         to_exclude.update(map(os.path.abspath, extended_iglob(pattern)))
 
     module_list = []
+    module_metadata = {}
     for pattern in patterns:
         if isinstance(pattern, str):
             filepattern = pattern
@@ -677,7 +678,10 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
                         source = encode_filename_in_py2(source)
                         if source not in sources:
                             sources.append(source)
+                    extra_sources = kwds['sources']
                     del kwds['sources']
+                else:
+                    extra_sources = None
                 if 'depends' in kwds:
                     depends = resolve_depends(kwds['depends'], (kwds.get('include_dirs') or []) + [find_root_package_dir(file)])
                     if template is not None:
@@ -692,9 +696,12 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
                         name=module_name,
                         sources=sources,
                         **kwds))
+                if extra_sources:
+                    kwds['sources'] = extra_sources
+                module_metadata[module_name] = {'distutils': kwds}
                 m = module_list[-1]
                 seen.add(name)
-    return module_list
+    return module_list, module_metadata
 
 
 # This is the user-exposed entry point.
@@ -737,7 +744,7 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
     cpp_options = CompilationOptions(**options); cpp_options.cplus = True
     ctx = c_options.create_context()
     options = c_options
-    module_list = create_extension_list(
+    module_list, module_metadata = create_extension_list(
         module_list,
         exclude=exclude,
         ctx=ctx,
@@ -809,7 +816,7 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
                     else:
                         fingerprint = None
                     to_compile.append((priority, source, c_file, fingerprint, quiet,
-                                       options, not exclude_failures))
+                                       options, not exclude_failures, module_metadata.get(m.name)))
                 new_sources.append(c_file)
                 if c_file not in modules_by_cfile:
                     modules_by_cfile[c_file] = [m]
@@ -920,7 +927,7 @@ else:
 
 # TODO: Share context? Issue: pyx processing leaks into pxd module
 @record_results
-def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None, raise_on_failure=True):
+def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None, raise_on_failure=True, embedded_metadata=None):
     from ..Compiler.Main import compile, default_options
     from ..Compiler.Errors import CompileError, PyrexError
 
@@ -954,6 +961,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None, raise_on_f
     if options is None:
         options = CompilationOptions(default_options)
     options.output_file = c_file
+    options.embedded_metadata = embedded_metadata
 
     any_failures = 0
     try:
