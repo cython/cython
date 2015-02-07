@@ -66,7 +66,7 @@ which Cython handles specially.
             self.shape[1] = self.ncols
 
             # Stride 1 is the distance, in bytes, between two items in a row;
-            # this is the distance between two adjance items in the vector.
+            # this is the distance between two adjacent items in the vector.
             # Stride 0 is the distance between the first elements of adjacent rows.
             self.strides[1] = <Py_ssize_t>(  <char *>&(self.v[1])
                                            - <char *>&(self.v[0]))
