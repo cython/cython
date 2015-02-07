@@ -76,6 +76,17 @@ def assign_int_array_array():
     return v
 
 
+def build_from_list_of_arrays():
+    """
+    >>> build_from_list_of_arrays()
+    [[11, 12, 13], [21, 22, 23]]
+    """
+    cdef int[3] x = [11, 12, 13]
+    cdef int[3] y = [21, 22, 23]
+    cdef int[2][3] v = [x, y]
+    return v
+
+
 ctypedef struct MyStructType:
     int x
     double y
