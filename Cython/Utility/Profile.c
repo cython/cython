@@ -136,17 +136,18 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
 #endif
     }
     (*frame)->f_lineno = firstlineno;
+    retval = 1;
+    tstate->tracing++;
     tstate->use_tracing = 0;
     #if CYTHON_TRACE
     if (tstate->c_tracefunc)
-        tstate->c_tracefunc(tstate->c_traceobj, *frame, PyTrace_CALL, NULL);
-    if (!tstate->c_profilefunc)
-        retval = 1;
-    else
+        retval = tstate->c_tracefunc(tstate->c_traceobj, *frame, PyTrace_CALL, NULL) == 0;
+    if (retval && tstate->c_profilefunc)
     #endif
         retval = tstate->c_profilefunc(tstate->c_profileobj, *frame, PyTrace_CALL, NULL) == 0;
     tstate->use_tracing = (tstate->c_profilefunc ||
                            (CYTHON_TRACE && tstate->c_tracefunc));
+    tstate->tracing--;
     return tstate->use_tracing && retval;
 }
 
