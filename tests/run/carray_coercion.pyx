@@ -85,6 +85,17 @@ def assign_int_array_array_from_tuples():
     return v
 
 
+''' FIXME: this currently crashes:
+def assign_int_array_array_from_tuples():
+    """
+    >>> assign_int_array_array_from_tuples()
+    [[11, 12, 13], [21, 22, 23]]
+    """
+    cdef int[2][3] v = ((11, 12, 13), (21, 22, 23))
+    return v
+'''
+
+
 def build_from_list_of_arrays():
     """
     >>> build_from_list_of_arrays()
