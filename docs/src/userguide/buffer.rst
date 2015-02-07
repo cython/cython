@@ -73,16 +73,16 @@ which Cython handles specially.
             self.strides[0] = self.ncols * self.strides[1]
 
             buffer.buf = <char *>&(self.v[0])
-            buffer.format = 'f'
-            buffer.internal = NULL
+            buffer.format = 'f'                     # float
+            buffer.internal = NULL                  # see References
             buffer.itemsize = itemsize
-            buffer.len = self.v.size() * itemsize
+            buffer.len = self.v.size() * itemsize   # product(shape) * itemsize
             buffer.ndim = 2
             buffer.obj = self
             buffer.readonly = 0
             buffer.shape = self.shape
             buffer.strides = self.strides
-            buffer.suboffsets = NULL
+            buffer.suboffsets = NULL                # for pointer arrays only
 
         def __releasebuffer__(self, Py_buffer *buffer):
             pass
