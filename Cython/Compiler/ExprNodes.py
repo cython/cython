@@ -6767,11 +6767,18 @@ class ListNode(SequenceNode):
             else:
                 offset = ''
             for i, arg in enumerate(self.args):
-                code.putln("%s[%s%s] = %s;" % (
-                    self.result(),
-                    i,
-                    offset,
-                    arg.result()))
+                if arg.type.is_array:
+                    code.globalstate.use_utility_code(UtilityCode.load_cached("IncludeStringH", "StringTools.c"))
+                    code.putln("memcpy(&(%s[%s%s]), %s, sizeof(%s[0]));" % (
+                        self.result(), i, offset,
+                        arg.result(), self.result()
+                    ))
+                else:
+                    code.putln("%s[%s%s] = %s;" % (
+                        self.result(),
+                        i,
+                        offset,
+                        arg.result()))
             if self.mult_factor:
                 code.putln("}")
                 code.putln("}")
