@@ -58,7 +58,7 @@ Other changes
 * ``_`` is no longer considered a cacheable builtin as it could interfere with
   gettext.
 
-* Cythonize-computed metadata now cached in the generate C files.
+* Cythonize-computed metadata now cached in the generated C files.
 
 * Several corrections and extensions in numpy, cpython, and libcpp pxd files.
 
