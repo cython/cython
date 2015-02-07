@@ -1,0 +1,64 @@
+# mode: run
+# tag: coverage,trace
+
+"""
+PYTHON setup.py build_ext -i
+PYTHON coverage_test.py
+"""
+
+######## setup.py ########
+
+from distutils.core import setup
+from Cython.Build import cythonize
+
+setup(ext_modules = cythonize('coverage_test_cy.py'))
+
+
+######## coverage_test_cy.py ########
+# cython: linetrace=True
+# distutils: define_macros=CYTHON_TRACE=1
+
+def func1(a, b):
+    x = 1               #  5
+    c = func2(a) + b    #  6
+    return x + c        #  7
+
+
+def func2(a):
+    return a * 2        # 11
+
+
+######## coverage_test.py ########
+
+try:
+    # io.StringIO in Py2.x cannot handle str ...
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
+
+from coverage import coverage
+
+import coverage_test_cy
+
+
+def run_coverage():
+    cov = coverage()
+    cov.start()
+    assert coverage_test_cy.func1(1, 2) == 5
+    assert coverage_test_cy.func2(2) == 4
+    cov.stop()
+
+    out = StringIO()
+    cov.report([coverage_test_cy], file=out)
+    lines = out.getvalue().splitlines()
+    assert any('coverage_test_cy' in line for line in lines), "coverage_test_cy not found in coverage"
+
+    mod_file, exec_lines, excl_lines, missing_lines, _ = cov.analysis2(coverage_test_cy)
+    assert 'coverage_test_cy' in mod_file
+
+    executed = set(exec_lines) - set(missing_lines)
+    assert all(line in executed for line in [5, 6, 7, 11]), '%s / %s' % (exec_lines, missing_lines)
+
+
+if __name__ == '__main__':
+    run_coverage()
