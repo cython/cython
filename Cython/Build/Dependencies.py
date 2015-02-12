@@ -646,7 +646,7 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
         else:
             raise TypeError(pattern)
 
-        for file in nonempty(extended_iglob(filepattern), "'%s' doesn't match any files" % filepattern):
+        for file in nonempty(sorted(extended_iglob(filepattern)), "'%s' doesn't match any files" % filepattern):
             if os.path.abspath(file) in to_exclude:
                 continue
             pkg = deps.package(file)
