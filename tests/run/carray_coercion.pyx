@@ -67,6 +67,57 @@ def from_int_array_array():
     return v
 
 
+def assign_int_array_array():
+    """
+    >>> assign_int_array_array()
+    [[11, 12, 13], [21, 22, 23]]
+    """
+    cdef int[2][3] v = [[11, 12, 13], [21, 22, 23]]
+    return v
+
+
+def assign_int_array_array_from_tuples():
+    """
+    >>> assign_int_array_array_from_tuples()
+    [[11, 12, 13], [21, 22, 23]]
+    """
+    cdef int[2][3] v = ([11, 12, 13], [21, 22, 23])
+    return v
+
+
+''' FIXME: this currently crashes:
+def assign_int_array_array_from_tuples():
+    """
+    >>> assign_int_array_array_from_tuples()
+    [[11, 12, 13], [21, 22, 23]]
+    """
+    cdef int[2][3] v = ((11, 12, 13), (21, 22, 23))
+    return v
+'''
+
+
+def build_from_list_of_arrays():
+    """
+    >>> build_from_list_of_arrays()
+    [[11, 12, 13], [21, 22, 23]]
+    """
+    cdef int[3] x = [11, 12, 13]
+    cdef int[3] y = [21, 22, 23]
+    cdef int[2][3] v = [x, y]
+    return v
+
+
+def build_from_tuple_of_arrays():
+    """
+    >>> build_from_tuple_of_arrays()
+    [[11, 12, 13], [21, 22, 23]]
+    """
+    cdef int[3] x = [11, 12, 13]
+    cdef int[3] y = [21, 22, 23]
+    cdef int[2][3] v = (x, y)
+    return v
+
+
 ctypedef struct MyStructType:
     int x
     double y
