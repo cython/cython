@@ -33,7 +33,11 @@ load-plugins=
 # can either give multiple identifier separated by comma (,) or put this option
 # multiple time (only on the command line, not in the configuration file where
 # it should appear only once).
-disable=E1101,C0111
+## R0201: Method could be a function
+## R0904: Too many public methods
+## W0201: Attribute defined outside __init__()
+## W0141: Used builtin function 'map'
+disable=E1101,C0111,R0201,R0904,W0201,W0141
 
 
 [REPORTS]
