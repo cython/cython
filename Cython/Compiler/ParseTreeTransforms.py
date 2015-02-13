@@ -692,7 +692,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
 
     # Set up processing and handle the cython: comments.
     def visit_ModuleNode(self, node):
-        for key, value in node.directive_comments.items():
+        for key in sorted(node.directive_comments):
             if not self.check_directive_scope(node.pos, key, 'module'):
                 self.wrong_scope_error(node.pos, key, 'module')
                 del node.directive_comments[key]
