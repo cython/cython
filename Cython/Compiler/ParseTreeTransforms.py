@@ -665,7 +665,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         "parallel",
         "prange",
         "threadid",
-#        "threadsavailable",
+        #"threadsavailable",
     ])
 
     def __init__(self, context, compilation_directive_defaults):
