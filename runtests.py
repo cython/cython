@@ -1938,9 +1938,12 @@ def runtests(options, cmd_args, coverage=None):
         exclude_selectors.append(RegExSelector('Jedi'))
 
     try:
-        import coverage
-        if list(map(int, re.findall('[0-9]+', coverage.__version__ or '0'))) < [4, 0]:
-            raise ImportError
+        if coverage is not None:
+            # cannot run coverage tests while collecting coverage data for Cython
+            raise ImportError("excluding coverage tests")
+        import coverage as coverage_module
+        if list(map(int, re.findall('[0-9]+', coverage_module.__version__ or '0'))) < [4, 0]:
+            raise ImportError("excluding coverage tests: version too old")
     except (ImportError, AttributeError, TypeError):
         exclude_selectors.append(RegExSelector('coverage'))
 
