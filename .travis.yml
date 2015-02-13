@@ -20,7 +20,7 @@ branches:
 before_install:
   - sudo apt-get update
   - sudo apt-get install gdb python$( python -c 'import sys; print("%d.%d" % sys.version_info[:2])' )-dbg || true
-  - dpkg -l | grep gdb || true
+  - dpkg -l gdb || true
 
 install:
   - CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" python setup.py build
