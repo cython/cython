@@ -5,6 +5,15 @@ Cython Changelog
 Latest changes
 ==============
 
+Features added
+--------------
+
+* Support for coverage.py 4.0+ can be enabled by adding the plugin
+  "Cython.Coverage" to the ".coveragerc" config file.
+
+Bugs fixed
+----------
+
 
 0.22 (2015-02-11)
 =================

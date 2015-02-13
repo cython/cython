@@ -2,6 +2,7 @@
 # tag: coverage,trace
 
 """
+PYTHON -c 'import shutil; shutil.copy("pkg/coverage_test_pyx.pyx", "pkg/coverage_test_pyx.pxi")'
 PYTHON setup.py build_ext -i
 PYTHON coverage_test.py
 """
@@ -11,10 +12,20 @@ PYTHON coverage_test.py
 from distutils.core import setup
 from Cython.Build import cythonize
 
-setup(ext_modules = cythonize('coverage_test_cy.py'))
+setup(ext_modules = cythonize([
+    'coverage_test_*.py*',
+    'pkg/coverage_test_*.py*'
+]))
 
 
-######## coverage_test_cy.py ########
+######## .coveragerc ########
+[run]
+plugins = Cython.Coverage
+
+
+######## pkg/__init__.py ########
+
+######## pkg/coverage_test_py.py ########
 # cython: linetrace=True
 # distutils: define_macros=CYTHON_TRACE=1
 
@@ -28,8 +39,38 @@ def func2(a):
     return a * 2        # 11
 
 
+######## pkg/coverage_test_pyx.pyx ########
+# cython: linetrace=True
+# distutils: define_macros=CYTHON_TRACE=1
+
+def func1(int a, int b):
+    cdef int x = 1      #  5
+    c = func2(a) + b    #  6
+    return x + c        #  7
+
+
+def func2(int a):
+    return a * 2        # 11
+
+
+######## coverage_test_include_pyx.pyx ########
+# cython: linetrace=True
+# distutils: define_macros=CYTHON_TRACE=1
+
+cdef int x = 5                                   #  4
+
+cdef int cfunc1(int x):                          #  6
+    return x * 3                                 #  7
+
+include "pkg/coverage_test_pyx.pxi"              #  9
+
+def main_func(int x):                            # 11
+    return cfunc1(x) + func1(x, 4) + func2(x)    # 12
+
+
 ######## coverage_test.py ########
 
+import os.path
 try:
     # io.StringIO in Py2.x cannot handle str ...
     from StringIO import StringIO
@@ -38,27 +79,52 @@ except ImportError:
 
 from coverage import coverage
 
-import coverage_test_cy
+from pkg import coverage_test_py
+from pkg import coverage_test_pyx
+import coverage_test_include_pyx
 
 
-def run_coverage():
+for module in [coverage_test_py, coverage_test_pyx, coverage_test_include_pyx]:
+    assert not any(module.__file__.endswith(ext) for ext in '.py .pyc .pyo .pyw .pyx .pxi'.split()), \
+        module.__file__
+
+
+def run_coverage(module):
+    module_name = module.__name__
+    module_path = module_name.replace('.', os.path.sep) + '.' + module_name.rsplit('_', 1)[-1]
+
     cov = coverage()
     cov.start()
-    assert coverage_test_cy.func1(1, 2) == 5
-    assert coverage_test_cy.func2(2) == 4
+    assert module.func1(1, 2) == (1 * 2) + 2 + 1
+    assert module.func2(2) == 2 * 2
+    if '_include_' in module_name:
+        assert module.main_func(2) == (2 * 3) + ((2 * 2) + 4 + 1) + (2 * 2)
     cov.stop()
 
     out = StringIO()
-    cov.report([coverage_test_cy], file=out)
+    cov.report(file=out)
+    #cov.report([module], file=out)
     lines = out.getvalue().splitlines()
-    assert any('coverage_test_cy' in line for line in lines), "coverage_test_cy not found in coverage"
+    assert any(module_path in line for line in lines), "'%s' not found in coverage report:\n\n%s" % (
+        module_path, out.getvalue())
 
-    mod_file, exec_lines, excl_lines, missing_lines, _ = cov.analysis2(coverage_test_cy)
-    assert 'coverage_test_cy' in mod_file
+    mod_file, exec_lines, excl_lines, missing_lines, _ = cov.analysis2(
+        os.path.splitext(module.__file__)[0] + '.' + module_name.rsplit('_', 1)[-1])
+    assert module_path in mod_file
+
+    if '_include_' in module_name:
+        executed = set(exec_lines) - set(missing_lines)
+        assert all(line in executed for line in [7, 12]), '%s / %s' % (exec_lines, missing_lines)
+
+        # rest of test if for include file
+        mod_file, exec_lines, excl_lines, missing_lines, _ = cov.analysis2(
+            os.path.join(os.path.dirname(module.__file__), "pkg", "coverage_test_pyx.pxi"))
 
     executed = set(exec_lines) - set(missing_lines)
     assert all(line in executed for line in [5, 6, 7, 11]), '%s / %s' % (exec_lines, missing_lines)
 
 
 if __name__ == '__main__':
-    run_coverage()
+    run_coverage(coverage_test_py)
+    run_coverage(coverage_test_pyx)
+    run_coverage(coverage_test_include_pyx)
