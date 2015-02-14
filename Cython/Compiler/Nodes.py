@@ -114,10 +114,10 @@ def write_func_call(func, codewriter_class):
             # but only if new code is generated
             node, code = args[:2]
             marker = '                    /* %s -> %s.%s %s */' % (
-                    ' ' * code.call_level,
-                    node.__class__.__name__,
-                    func.__name__,
-                    node.pos[1:])
+                ' ' * code.call_level,
+                node.__class__.__name__,
+                func.__name__,
+                node.pos[1:])
             pristine = code.buffer.stream.tell()
             code.putln(marker)
             start = code.buffer.stream.tell()
