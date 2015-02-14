@@ -1,5 +1,6 @@
 from cStringIO import StringIO
 
+
 class StringIOTree(object):
     """
     See module docs.
