@@ -553,7 +553,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("")
         if metadata:
             code.putln("/* BEGIN: Cython Metadata")
-            code.putln(json.dumps(metadata, indent=4))
+            code.putln(json.dumps(metadata, indent=4, sort_keys=True))
             code.putln("END: Cython Metadata */")
             code.putln("")
         code.putln("#define PY_SSIZE_T_CLEAN")
