@@ -10501,11 +10501,10 @@ class CmpNode(object):
 
         if new_common_type is None:
             # fall back to generic type compatibility tests
-            if type1 == type2:
-                if type1.is_ctuple:
-                    new_common_type = py_object_type
-                else:
-                    new_common_type = type1
+            if type1.is_ctuple or type2.is_ctuple:
+                new_common_type = py_object_type
+            elif type1 == type2:
+                new_common_type = type1
             elif type1.is_pyobject or type2.is_pyobject:
                 if type2.is_numeric or type2.is_string:
                     if operand2.check_for_coercion_error(type1, env):

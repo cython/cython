@@ -120,6 +120,17 @@ def test_equality((int, int) ab, (int, int) cd, (int, int) ef):
     """
     return ab < cd <= ef
 
+def test_equality_different_types((double, int) ab, (int, int) cd, (long, int) ef):
+    """
+    >>> test_equality((1, 2), (3, 4), (5, 6))
+    True
+    >>> test_equality((1, 2), (3, 4), (3, 4))
+    True
+    >>> test_equality((3, 4), (3, 4), (3, 4))
+    False
+    """
+    return ab < cd <= ef
+
 def test_binop((int, int) ab, (double, double) cd):
     """
     >>> test_binop((1, 2), (3, 4))
