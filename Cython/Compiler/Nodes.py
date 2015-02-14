@@ -125,9 +125,10 @@ def write_func_call(func, codewriter_class):
             res = func(*args, **kwds)
             code.call_level -= 4
             if start == code.buffer.stream.tell():
-                code.buffer.stream.seek(pristine)
+                # no code written => undo writing marker
+                code.buffer.stream.truncate(pristine)
             else:
-                marker = marker.replace('->', '<-')
+                marker = marker.replace('->', '<-', 1)
                 code.putln(marker)
             return res
         else:
