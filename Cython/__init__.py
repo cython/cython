@@ -6,5 +6,5 @@ from Cython.Shadow import *
 
 def load_ipython_extension(ip):
     """Load the extension in IPython."""
-    from Cython.Build.IpythonMagic import CythonMagics
+    from Cython.Build.IpythonMagic import CythonMagics  # pylint: disable=cyclic-import
     ip.register_magics(CythonMagics)
