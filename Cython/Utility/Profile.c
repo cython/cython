@@ -73,6 +73,8 @@
   if (likely(!__Pyx_use_tracing)); else {                                                 \
       PyThreadState* tstate = PyThreadState_GET();                                        \
       if (tstate->use_tracing) {                                                          \
+          PyObject *type, *value, *traceback;                                             \
+          PyErr_Fetch(&type, &value, &traceback);                                         \
           tstate->tracing++;                                                              \
           tstate->use_tracing = 0;                                                        \
           if (CYTHON_TRACE && tstate->c_tracefunc)                                        \
@@ -84,6 +86,7 @@
           CYTHON_FRAME_DEL;                                                               \
           tstate->use_tracing = 1;                                                        \
           tstate->tracing--;                                                              \
+          PyErr_Restore(type, value, traceback);                                          \
       }                                                                                   \
   }
 
@@ -100,16 +103,25 @@
 #endif /* CYTHON_PROFILE */
 
 #if CYTHON_TRACE
+  // FIXME: we should eventually propagate trace errors instead of just swallowing them
+  // see call_trace_protected() in CPython's ceval.c
+  static void __Pyx_call_line_trace_func(PyThreadState *tstate, PyFrameObject *frame, int lineno) {
+      PyObject *type, *value, *traceback;
+      PyErr_Fetch(&type, &value, &traceback);
+      frame->f_lineno = lineno;
+      tstate->tracing++;
+      tstate->use_tracing = 0;
+      tstate->c_tracefunc(tstate->c_traceobj, frame, PyTrace_LINE, NULL);
+      tstate->use_tracing = 1;
+      tstate->tracing--;
+      PyErr_Restore(type, value, traceback);
+  }
+
   #define __Pyx_TraceLine(lineno)                                                          \
   if (likely(!__Pyx_use_tracing)); else {                                                  \
       PyThreadState* tstate = PyThreadState_GET();                                         \
       if (unlikely(tstate->use_tracing && tstate->c_tracefunc)) {                          \
-          $frame_cname->f_lineno = lineno;                                                 \
-          tstate->tracing++;                                                               \
-          tstate->use_tracing = 0;                                                         \
-          tstate->c_tracefunc(tstate->c_traceobj, $frame_cname, PyTrace_LINE, NULL);       \
-          tstate->use_tracing = 1;                                                         \
-          tstate->tracing--;                                                               \
+          __Pyx_call_line_trace_func(tstate, $frame_cname, lineno);                        \
       }                                                                                    \
   }
 #else
@@ -126,6 +138,7 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
                                    const char *funcname,
                                    const char *srcfile,
                                    int firstlineno) {
+    PyObject *type, *value, *traceback;
     int retval;
     PyThreadState* tstate = PyThreadState_GET();
     if (*frame == NULL || !CYTHON_PROFILE_REUSE_FRAME) {
@@ -154,6 +167,7 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
     retval = 1;
     tstate->tracing++;
     tstate->use_tracing = 0;
+    PyErr_Fetch(&type, &value, &traceback);
     #if CYTHON_TRACE
     if (tstate->c_tracefunc)
         retval = tstate->c_tracefunc(tstate->c_traceobj, *frame, PyTrace_CALL, NULL) == 0;
@@ -163,6 +177,13 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
     tstate->use_tracing = (tstate->c_profilefunc ||
                            (CYTHON_TRACE && tstate->c_tracefunc));
     tstate->tracing--;
+    if (retval) {
+        PyErr_Restore(type, value, traceback);
+    } else {
+        Py_XDECREF(type);
+        Py_XDECREF(value);
+        Py_XDECREF(traceback);
+    }
     return tstate->use_tracing && retval;
 }
 
