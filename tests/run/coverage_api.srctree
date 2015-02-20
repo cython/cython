@@ -70,6 +70,7 @@ def main_func(int x):                            # 11
 
 ######## coverage_test.py ########
 
+import re
 import os.path
 try:
     # io.StringIO in Py2.x cannot handle str ...
@@ -87,6 +88,15 @@ import coverage_test_include_pyx
 for module in [coverage_test_py, coverage_test_pyx, coverage_test_include_pyx]:
     assert not any(module.__file__.endswith(ext) for ext in '.py .pyc .pyo .pyw .pyx .pxi'.split()), \
         module.__file__
+
+
+def source_file_for(module):
+    module_name = module.__name__
+    path, ext = os.path.splitext(module.__file__)
+    platform_suffix = re.search(r'[.]cpython-[0-9]+[a-z]*$', path, re.I)
+    if platform_suffix:
+        path = path[:platform_suffix.start()]
+    return path + '.' + module_name.rsplit('_', 1)[-1]
 
 
 def run_coverage(module):
@@ -108,8 +118,7 @@ def run_coverage(module):
     assert any(module_path in line for line in lines), "'%s' not found in coverage report:\n\n%s" % (
         module_path, out.getvalue())
 
-    mod_file, exec_lines, excl_lines, missing_lines, _ = cov.analysis2(
-        os.path.splitext(module.__file__)[0] + '.' + module_name.rsplit('_', 1)[-1])
+    mod_file, exec_lines, excl_lines, missing_lines, _ = cov.analysis2(source_file_for(module))
     assert module_path in mod_file
 
     if '_include_' in module_name:
