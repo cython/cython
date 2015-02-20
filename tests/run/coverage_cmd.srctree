@@ -112,12 +112,18 @@ import os
 import os.path
 import subprocess
 
-def run_report():
+
+def run_coverage_command(*command):
     env = dict(os.environ, LANG='', LC_ALL='C')
     process = subprocess.Popen(
-        [sys.executable, '-m', 'coverage', 'report', '--show-missing'],
+        [sys.executable, '-m', 'coverage'] + list(command),
         stdout=subprocess.PIPE, env=env)
     stdout, _ = process.communicate()
+    return stdout
+
+
+def run_report():
+    stdout = run_coverage_command('report', '--show-missing')
     stdout = stdout.decode('iso8859-1')  # 'safe' decoding
     lines = stdout.splitlines()
     print(stdout)
@@ -149,5 +155,26 @@ def run_report():
     assert 12 not in files['coverage_test_pyx.pyx'][-1], files['coverage_test_pyx.pyx']
 
 
+def run_xml_report():
+    stdout = run_coverage_command('xml', '-o', '-')
+    print(stdout)
+
+    import xml.etree.ElementTree as etree
+    data = etree.fromstring(stdout)
+
+    files = {}
+    for module in data.iterfind('.//class'):
+        files[module.get('filename').replace('\\', '/')] = dict(
+            (int(line.get('number')), int(line.get('hits')))
+            for line in module.findall('lines/line')
+        )
+
+    assert files['pkg/coverage_test_pyx.pyx'][5] > 0, files['pkg/coverage_test_pyx.pyx']
+    assert files['pkg/coverage_test_pyx.pyx'][6] > 0, files['pkg/coverage_test_pyx.pyx']
+    assert files['pkg/coverage_test_pyx.pyx'][7] > 0, files['pkg/coverage_test_pyx.pyx']
+
+
+
 if __name__ == '__main__':
     run_report()
+    run_xml_report()
