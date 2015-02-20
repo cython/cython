@@ -106,6 +106,7 @@ if __name__ == '__main__':
 
 ######## collect_coverage.py ########
 
+import re
 import sys
 import os
 import os.path
@@ -125,6 +126,27 @@ def run_report():
     for module_path in ('coverage_test_py.py', 'coverage_test_pyx.pyx', 'coverage_test_include_pyx.pyx'):
         assert any(module_path in line for line in lines), "'%s' not found in coverage report:\n\n%s" % (
             module_path, stdout)
+
+    files = {}
+    line_iter = iter(lines)
+    for line in line_iter:
+        if line.startswith('---'):
+            break
+    extend = [''] * 2
+    for line in line_iter:
+        if not line or line.startswith('---'):
+            continue
+        name, statements, missed, covered, _missing = (line.split(None, 4) + extend)[:5]
+        missing = []
+        for start, end in re.findall('([0-9]+)(?:-([0-9]+))?', _missing):
+            if end:
+                missing.extend(range(int(start), int(end)+1))
+            else:
+                missing.append(int(start))
+        files[os.path.basename(name)] = (statements, missed, covered, missing)
+
+    assert  7 not in files['coverage_test_pyx.pyx'][-1], files['coverage_test_pyx.pyx']
+    assert 12 not in files['coverage_test_pyx.pyx'][-1], files['coverage_test_pyx.pyx']
 
 
 if __name__ == '__main__':
