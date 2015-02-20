@@ -10,9 +10,10 @@ from collections import defaultdict
 
 try:
     from coverage.plugin import CoveragePlugin, FileTracer, FileReporter
+    from coverage.files import FileLocator
 except ImportError:
     # version too old?
-    CoveragePlugin = FileTracer = FileReporter = object
+    CoveragePlugin = FileTracer = FileReporter = FileLocator = object
 
 
 from . import __version__
@@ -179,6 +180,8 @@ class CythonModuleReporter(FileReporter):
     """
     Provide detailed trace information for one source file to coverage.py.
     """
+    file_locator = FileLocator()
+
     def __init__(self, c_file, source_file, rel_file_path, code, excluded):
         super(CythonModuleReporter, self).__init__(source_file)
         self.name = rel_file_path
