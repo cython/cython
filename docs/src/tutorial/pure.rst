@@ -61,7 +61,7 @@ file to be of the declared type.  Thus if one has a file :file:`A.py`::
 
 and adds :file:`A.pxd`::
 
-    cpdef int myfunction(int x, int y)
+    cpdef int myfunction(int x, int y=*)
     cdef double _helper(double a)
 
     cdef class A:
@@ -70,7 +70,7 @@ and adds :file:`A.pxd`::
 
 then Cython will compile the :file:`A.py` as if it had been written as follows::
 
-    cpdef int myfunction(int x, int y):
+    cpdef int myfunction(int x, int y=2):
         a = x-y
         return a + x * y
 
@@ -89,9 +89,10 @@ then Cython will compile the :file:`A.py` as if it had been written as follows::
 Notice how in order to provide the Python wrappers to the definitions
 in the :file:`.pxd`, that is, to be accessible from Python,
 
-* Python visible function signatures must be declared as `cpdef`::
+* Python visible function signatures must be declared as `cpdef` (with default
+  arguments replaced by a `*` to avoid repetition)::
 
-    cpdef int myfunction(int x, int y)
+    cpdef int myfunction(int x, int y=*)
 
 * C function signatures of internal functions can be declared as `cdef`::
 
