@@ -204,8 +204,8 @@ class CythonModuleReporter(FileReporter):
             yield code_line
 
     def source(self):
-        if os.path.exists(self.source_file):
-            with open(self.source_file) as f:
+        if os.path.exists(self.filename):
+            with open(self.filename) as f:
                 return f.read()
         else:
             return '\n'.join(self._iter_source_lines())
