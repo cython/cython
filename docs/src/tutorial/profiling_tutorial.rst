@@ -68,7 +68,7 @@ Note that even if line tracing is enabled via the compiler directive, it is
 not used by default.  As the runtime slowdown can be substantial, it must
 additionally be compiled in by the C compiler by setting the C macro definition
 ``CYTHON_TRACE=1``.  To include nogil functions in the trace, set
-``CYTHON_TRACE_NOGIL=1`` (which enforces ``CYTHON_TRACE=1``).  C macros can be
+``CYTHON_TRACE_NOGIL=1`` (which implies ``CYTHON_TRACE=1``).  C macros can be
 defined either in the extension definition of the ``setup.py`` script or by
 setting the respective distutils options in the source file with the following
 file header comment (if ``cythonize()`` is used for compilation)::
