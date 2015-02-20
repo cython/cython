@@ -202,6 +202,7 @@ class CythonModuleReporter(FileReporter):
                 yield ''
                 current_line += 1
             yield code_line
+            current_line += 1
 
     def source(self):
         if os.path.exists(self.filename):
