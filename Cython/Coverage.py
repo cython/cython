@@ -79,7 +79,9 @@ class Plugin(CoveragePlugin):
             # none of our business
             return None, None
 
-        if os.path.exists(basename + '.c'):
+        if ext in ('.c', '.cpp'):
+            c_file = filename
+        elif os.path.exists(basename + '.c'):
             c_file = basename + '.c'
         elif os.path.exists(basename + '.cpp'):
             c_file = basename + '.cpp'
