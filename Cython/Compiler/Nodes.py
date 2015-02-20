@@ -1698,9 +1698,6 @@ class FuncDefNode(StatNode, BlockNode):
 
         profile = code.globalstate.directives['profile']
         linetrace = code.globalstate.directives['linetrace']
-        if (linetrace or profile) and lenv.nogil:
-            warning(self.pos, "Cannot profile nogil function.", 1)
-            profile = linetrace = False
         if profile or linetrace:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("Profile", "Profile.c"))
@@ -1708,6 +1705,7 @@ class FuncDefNode(StatNode, BlockNode):
         # Generate C code for header and body of function
         code.enter_cfunc_scope()
         code.return_from_error_cleanup_label = code.new_label()
+        code.funcstate.gil_owned = not lenv.nogil
 
         # ----- Top-level constants used by this function
         code.mark_pos(self.pos)
@@ -1764,7 +1762,7 @@ class FuncDefNode(StatNode, BlockNode):
 
         if profile or linetrace:
             code_object = self.code_object.calculate_result_code(code) if self.code_object else None
-            code.put_trace_declarations(code_object)
+            code.put_trace_declarations(code_object, nogil=not code.funcstate.gil_owned)
 
         # ----- Extern library function declarations
         lenv.generate_library_function_declarations(code)
@@ -1775,10 +1773,9 @@ class FuncDefNode(StatNode, BlockNode):
         # See if we need to acquire the GIL for variable declarations, or for
         # refnanny only
 
-        # Profiling or closures are not currently possible for cdef nogil
-        # functions, but check them anyway
-        have_object_args = (self.needs_closure or self.needs_outer_scope or
-                            profile or linetrace)
+        # Closures are not currently possible for cdef nogil functions,
+        # but check them anyway
+        have_object_args = self.needs_closure or self.needs_outer_scope
         for arg in lenv.arg_entries:
             if arg.type.is_pyobject:
                 have_object_args = True
@@ -1796,6 +1793,7 @@ class FuncDefNode(StatNode, BlockNode):
 
         if acquire_gil or acquire_gil_for_var_decls_only:
             code.put_ensure_gil()
+            code.funcstate.gil_owned = True
         elif lenv.nogil and lenv.has_with_gil_block:
             code.declare_gilstate()
 
@@ -1855,7 +1853,7 @@ class FuncDefNode(StatNode, BlockNode):
         if profile or linetrace:
             # this looks a bit late, but if we don't get here due to a
             # fatal error before hand, it's not really worth tracing
-            code.put_trace_call(self.entry.name, self.pos)
+            code.put_trace_call(self.entry.name, self.pos, nogil=not code.funcstate.gil_owned)
             code.funcstate.can_trace = True
         # ----- Fetch arguments
         self.generate_argument_parsing_code(env, code)
@@ -1874,8 +1872,7 @@ class FuncDefNode(StatNode, BlockNode):
             #       incref our arguments
             elif (is_cdef and entry.type.is_memoryviewslice and
                   len(entry.cf_assignments) > 1):
-                code.put_incref_memoryviewslice(entry.cname,
-                                                have_gil=not lenv.nogil)
+                code.put_incref_memoryviewslice(entry.cname, have_gil=code.funcstate.gil_owned)
         for entry in lenv.var_entries:
             if entry.is_arg and len(entry.cf_assignments) > 1:
                 code.put_var_incref(entry)
@@ -1894,6 +1891,7 @@ class FuncDefNode(StatNode, BlockNode):
 
         if acquire_gil_for_var_decls_only:
             code.put_release_ensured_gil()
+            code.funcstate.gil_owned = False
 
         # -------------------------
         # ----- Function body -----
@@ -2054,9 +2052,9 @@ class FuncDefNode(StatNode, BlockNode):
         if profile or linetrace:
             code.funcstate.can_trace = False
             if self.return_type.is_pyobject:
-                code.put_trace_return(Naming.retval_cname)
+                code.put_trace_return(Naming.retval_cname, nogil=not code.funcstate.gil_owned)
             else:
-                code.put_trace_return("Py_None")
+                code.put_trace_return("Py_None", nogil=not code.funcstate.gil_owned)
 
         if not lenv.nogil:
             # GIL holding function
@@ -2065,6 +2063,7 @@ class FuncDefNode(StatNode, BlockNode):
         if acquire_gil or (lenv.nogil and lenv.has_with_gil_block):
             # release the GIL (note that with-gil blocks acquire it on exit in their EnsureGILNode)
             code.put_release_ensured_gil()
+            code.funcstate.gil_owned = False
 
         if not self.return_type.is_void:
             code.putln("return %s;" % Naming.retval_cname)
@@ -7073,21 +7072,20 @@ class GILStatNode(NogilTryFinallyStatNode):
         else:
             variable = None
 
-        old_trace_config = code.funcstate.can_trace
+        old_gil_config = code.funcstate.gil_owned
         if self.state == 'gil':
             code.put_ensure_gil(variable=variable)
-            # FIXME: not that easy, tracing may not be possible at all here
-            #code.funcstate.can_trace = True
+            code.funcstate.gil_owned = True
         else:
             code.put_release_gil(variable=variable)
-            code.funcstate.can_trace = False
+            code.funcstate.gil_owned = False
 
         TryFinallyStatNode.generate_execution_code(self, code)
 
         if self.state_temp:
             self.state_temp.release(code)
 
-        code.funcstate.can_trace = old_trace_config
+        code.funcstate.gil_owned = old_gil_config
         code.end_block()
 
 

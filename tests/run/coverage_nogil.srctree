@@ -23,7 +23,7 @@ plugins = Cython.Coverage
 
 ######## coverage_test_nogil.pyx ########
 # cython: linetrace=True
-# distutils: define_macros=CYTHON_TRACE=1
+# distutils: define_macros=CYTHON_TRACE=1 CYTHON_TRACE_NOGIL=1
 
 cdef int func1(int a, int b) nogil:
     cdef int x                   #  5
@@ -85,8 +85,8 @@ def run_coverage(module):
     executed = set(exec_lines) - set(missing_lines)
     # check that everything that runs with the gil owned was executed
     assert all(line in executed for line in [13, 17, 18, 20]), '%s / %s' % (exec_lines, missing_lines)
-    # currently, we do not trace nogil code lines, but that should eventually be implemented
-    # we also don't trace 'with gil' blocks in 'nogil' functions
+    # check that everything that runs in nogil sections was executed
+    assert all(line in executed for line in [6, 7, 8, 9]), '%s / %s' % (exec_lines, missing_lines)
 
 
 if __name__ == '__main__':

@@ -518,6 +518,7 @@ class FunctionState(object):
         self.in_try_finally = 0
         self.exc_vars = None
         self.can_trace = False
+        self.gil_owned = True
 
         self.temps_allocated = [] # of (name, type, manage_ref, static)
         self.temps_free = {} # (type, manage_ref) -> list of free vars with same type/managed status
@@ -1572,7 +1573,8 @@ class CCodeWriter(object):
         if (self.funcstate and self.funcstate.can_trace
                 and self.globalstate.directives['linetrace']):
             self.indent()
-            self.write('__Pyx_TraceLine(%d)\n' % self.marker[0])
+            self.write('__Pyx_TraceLine(%d,%d)\n' % (
+                self.marker[0], not self.funcstate.gil_owned))
         self.last_marker_line = self.marker[0]
         self.marker = None
 
@@ -2093,17 +2095,18 @@ class CCodeWriter(object):
         self.globalstate.use_utility_code(
             UtilityCode.load_cached("WriteUnraisableException", "Exceptions.c"))
 
-    def put_trace_declarations(self, codeobj=None):
-        self.putln('__Pyx_TraceDeclarations(%s)' % (codeobj or 'NULL'))
+    def put_trace_declarations(self, codeobj=None, nogil=False):
+        self.putln('__Pyx_TraceDeclarations(%s, %d)' % (codeobj or 'NULL', nogil))
 
-    def put_trace_call(self, name, pos):
-        self.putln('__Pyx_TraceCall("%s", %s[%s], %s);' % (name, Naming.filetable_cname, self.lookup_filename(pos[0]), pos[1]))
+    def put_trace_call(self, name, pos, nogil=False):
+        self.putln('__Pyx_TraceCall("%s", %s[%s], %s, %d);' % (
+            name, Naming.filetable_cname, self.lookup_filename(pos[0]), pos[1], nogil))
 
     def put_trace_exception(self):
         self.putln("__Pyx_TraceException();")
 
-    def put_trace_return(self, retvalue_cname):
-        self.putln("__Pyx_TraceReturn(%s);" % retvalue_cname)
+    def put_trace_return(self, retvalue_cname, nogil=False):
+        self.putln("__Pyx_TraceReturn(%s, %d);" % (retvalue_cname, nogil))
 
     def putln_openmp(self, string):
         self.putln("#ifdef _OPENMP")

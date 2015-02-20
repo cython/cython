@@ -31,9 +31,10 @@ cdef class FunctionState:
 
     cdef public object return_from_error_cleanup_label # not used in __init__ ?
 
-    cdef public bint in_try_finally
     cdef public object exc_vars
+    cdef public bint in_try_finally
     cdef public bint can_trace
+    cdef public bint gil_owned
 
     cdef public list temps_allocated
     cdef public dict temps_free
