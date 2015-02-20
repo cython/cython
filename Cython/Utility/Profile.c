@@ -8,12 +8,16 @@
   #define CYTHON_PROFILE 1
 #endif
 
-#ifndef CYTHON_TRACE
-  #define CYTHON_TRACE 0
-#endif
-
 #ifndef CYTHON_TRACE_NOGIL
   #define CYTHON_TRACE_NOGIL 0
+#else
+  #if CYTHON_TRACE_NOGIL && !defined(CYTHON_TRACE)
+    #define CYTHON_TRACE 1
+  #endif
+#endif
+
+#ifndef CYTHON_TRACE
+  #define CYTHON_TRACE 0
 #endif
 
 #if CYTHON_TRACE
