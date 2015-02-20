@@ -68,7 +68,15 @@ class Plugin(CoveragePlugin):
 
     def _find_source_files(self, filename):
         basename, ext = os.path.splitext(filename)
-        if ext.lower() not in ('.so', '.dll', '.c', '.cpp'):
+        ext = ext.lower()
+        if ext in ('.py', '.pyx', '.c', '.cpp'):
+            pass
+        elif ext in ('.so', '.pyd'):
+            platform_suffix = re.search(r'[.]cpython-[0-9]+[a-z]*$', basename, re.I)
+            if platform_suffix:
+                basename = basename[:platform_suffix.start()]
+        else:
+            # none of our business
             return None, None
 
         if os.path.exists(basename + '.c'):
@@ -131,7 +139,7 @@ class Plugin(CoveragePlugin):
                 c_file, filename, code_lines[filename], excluded_lines[filename])
 
         if sourcefile not in self._c_files_map:
-            return None, None  # shouldn't happen ...
+            return (None,) * 3  # shouldn't happen ...
         return self._c_files_map[sourcefile][1:]
 
 
