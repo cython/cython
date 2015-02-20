@@ -348,19 +348,17 @@ Cython code.  Here is the list of currently supported directives:
     calling conventions but disallow the use of keywords.
 
 ``profile`` (True / False)
-    Add hooks for Python profilers into the compiled C code.  Default
+    Write hooks for Python profilers into the compiled C code.  Default
     is False.
 
 ``linetrace`` (True / False)
-    Add line tracing hooks for Python profilers into the compiled C code.
-    This also enables profiling.  Default is False.  Note that the
-    generated module will not actually use line tracing, unless you
-    additionally pass the C macro definition ``CYTHON_TRACE=1`` to the
-    C compiler (e.g. using the distutils option ``define_macros``).
-
-    Note that this feature is currently EXPERIMENTAL.  It will slow down
-    your code, may not work at all for what you want to do with it, and
-    may even crash arbitrarily.
+    Write line tracing hooks for Python profilers or coverage reporting
+    into the compiled C code.  This also enables profiling.  Default is
+    False.  Note that the generated module will not actually use line
+    tracing, unless you additionally pass the C macro definition
+    ``CYTHON_TRACE=1`` to the C compiler (e.g. using the distutils option
+    ``define_macros``).  Define ``CYTHON_TRACE_NOGIL=1`` to also include
+    ``nogil`` functions and sections.
 
 ``infer_types`` (True / False)
     Infer types of untyped variables in function bodies. Default is

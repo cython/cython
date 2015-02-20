@@ -38,7 +38,7 @@ from the cProfile module. This means you can just profile your Cython code
 together with your Python code using the same tools as for Python code alone. 
 
 Disabling profiling function wise
-------------------------------------------
+---------------------------------
 
 If your profiling is messed up because of the call overhead to some small
 functions that you rather do not want to see in your profile - either because
@@ -51,6 +51,29 @@ function only::
    @cython.profile(False)
    def my_often_called_function():
       pass
+
+
+Enabling line tracing
+---------------------
+
+To get more detailed trace information (for tools that can make use of it),
+you can enable line tracing::
+
+   # cython: linetrace=True
+
+This will also enable profiling support, so the above ``profile=True`` option
+is not needed.  Line tracing is needed for coverage analysis, for example.
+
+Note that even if line tracing is enabled via the compiler directive, it is
+not used by default.  As the runtime slowdown can be substantial, it must
+additionally be compiled in by the C compiler by setting the C macro definition
+``CYTHON_TRACE=1``.  To include nogil functions in the trace, set
+``CYTHON_TRACE_NOGIL=1`` (which enforces ``CYTHON_TRACE=1``).  C macros can be
+defined either in the extension definition of the ``setup.py`` script or by
+setting the respective distutils options in the source file with the following
+file header comment (if ``cythonize()`` is used for compilation)::
+
+   # distutils: define_macros=CYTHON_TRACE_NOGIL=1
 
 
 .. _profiling_tutorial:
