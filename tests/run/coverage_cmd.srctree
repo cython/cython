@@ -111,6 +111,7 @@ import sys
 import os
 import os.path
 import subprocess
+from glob import iglob
 
 
 def run_coverage_command(*command):
@@ -174,7 +175,30 @@ def run_xml_report():
     assert files['pkg/coverage_test_pyx.pyx'][7] > 0, files['pkg/coverage_test_pyx.pyx']
 
 
+def run_html_report():
+    stdout = run_coverage_command('html', '-d', 'html')
+    _parse_lines = re.compile(
+        r'<p[^>]* id=["\'][^0-9"\']*(?P<id>[0-9]+)[^0-9"\']*["\'][^>]*'
+        r' class=["\'][^"\']*(?P<run>mis|run)[^"\']*["\']').findall
+
+    files = {}
+    for file_path in iglob('html/*.html'):
+        with open(file_path) as f:
+            page = f.read()
+        executed = set()
+        missing = set()
+        for line, has_run in _parse_lines(page):
+            (executed if has_run == 'run' else missing).add(int(line))
+        files[file_path] = (executed, missing)
+
+    executed, missing = [data for path, data in files.items() if 'coverage_test_pyx' in path][0]
+    assert executed
+    assert 5 in executed, executed
+    assert 6 in executed, executed
+    assert 7 in executed, executed
+
 
 if __name__ == '__main__':
     run_report()
     run_xml_report()
+    run_html_report()
