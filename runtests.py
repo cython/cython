@@ -103,6 +103,7 @@ EXT_DEP_MODULES = {
     'tag:posix' : 'posix',
     'tag:array' : 'array',
     'tag:coverage': 'Cython.Coverage',
+    'Coverage': 'Cython.Coverage',
     'tag:ipython': 'IPython',
     'tag:jedi': 'jedi',
 }
