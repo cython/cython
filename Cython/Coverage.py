@@ -8,12 +8,8 @@ import re
 import os.path
 from collections import defaultdict
 
-try:
-    from coverage.plugin import CoveragePlugin, FileTracer, FileReporter
-    from coverage.files import FileLocator
-except ImportError:
-    # version too old?
-    CoveragePlugin = FileTracer = FileReporter = FileLocator = object
+from coverage.plugin import CoveragePlugin, FileTracer, FileReporter  # requires coverage.py 4.0+
+from coverage.files import FileLocator  # requires coverage.py 4.0+
 
 
 from . import __version__
