@@ -27,6 +27,16 @@ def _find_c_source(base_path):
     return c_file
 
 
+def _find_dep_file_path(main_file, file_path):
+    abs_path = os.path.abspath(file_path)
+    if file_path.endswith('.pxi') and not os.path.exists(abs_path):
+        # include files are looked up relative to the main source file
+        pxi_file_path = os.path.join(os.path.dirname(main_file), file_path)
+        if os.path.exists(pxi_file_path):
+            abs_path = os.path.abspath(pxi_file_path)
+    return abs_path
+
+
 class Plugin(CoveragePlugin):
     _c_files_map = None
 
@@ -37,6 +47,8 @@ class Plugin(CoveragePlugin):
         """
         Try to find a C source file for a file path found by the tracer.
         """
+        if filename.startswith('<') or filename.startswith('memory:'):
+            return None
         c_file = py_file = None
         filename = os.path.abspath(filename)
         if self._c_files_map and filename in self._c_files_map:
@@ -44,16 +56,17 @@ class Plugin(CoveragePlugin):
 
         if c_file is None:
             c_file, py_file = self._find_source_files(filename)
-        if not c_file:
-            return None
+            if not c_file:
+                return None
 
-        # parse all source file paths and lines from C file
-        # to learn about all relevant source files right away (pyx/pxi/pxd)
-        # FIXME: this might already be too late if the first executed line
-        #        is not from the main .pyx file but a file with a different
-        #        name than the .c file (which prevents us from finding the
-        #        .c file)
-        self._parse_lines(c_file, filename)
+            # parse all source file paths and lines from C file
+            # to learn about all relevant source files right away (pyx/pxi/pxd)
+            # FIXME: this might already be too late if the first executed line
+            #        is not from the main .pyx file but a file with a different
+            #        name than the .c file (which prevents us from finding the
+            #        .c file)
+            self._parse_lines(c_file, filename)
+
         return CythonModuleTracer(filename, py_file, c_file, self._c_files_map)
 
     def file_reporter(self, filename):
@@ -148,7 +161,8 @@ class Plugin(CoveragePlugin):
             self._c_files_map = {}
 
         for filename in filenames:
-            self._c_files_map[os.path.abspath(filename)] = (
+            abs_path = _find_dep_file_path(c_file, filename)
+            self._c_files_map[abs_path] = (
                 c_file, filename, code_lines[filename], excluded_lines[filename])
 
         if sourcefile not in self._c_files_map:
