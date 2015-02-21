@@ -102,7 +102,7 @@ EXT_DEP_MODULES = {
     'tag:pstats': 'pstats',
     'tag:posix' : 'posix',
     'tag:array' : 'array',
-    'tag:coverage': 'coverage',
+    'tag:coverage': 'Cython.Coverage',
     'tag:ipython': 'IPython',
     'tag:jedi': 'jedi',
 }
@@ -1936,16 +1936,6 @@ def runtests(options, cmd_args, coverage=None):
             raise ImportError
     except (ImportError, AttributeError, TypeError):
         exclude_selectors.append(RegExSelector('Jedi'))
-
-    try:
-        if coverage is not None:
-            # cannot run coverage tests while collecting coverage data for Cython
-            raise ImportError("excluding coverage tests")
-        import coverage as coverage_module
-        if list(map(int, re.findall('[0-9]+', coverage_module.__version__ or '0'))) < [4, 0]:
-            raise ImportError("excluding coverage tests: version too old")
-    except (ImportError, AttributeError, TypeError):
-        exclude_selectors.append(RegExSelector('coverage'))
 
     if options.exclude:
         exclude_selectors += [ string_selector(r) for r in options.exclude ]
