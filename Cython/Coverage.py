@@ -11,8 +11,20 @@ from collections import defaultdict
 from coverage.plugin import CoveragePlugin, FileTracer, FileReporter  # requires coverage.py 4.0+
 from coverage.files import FileLocator  # requires coverage.py 4.0+
 
+from .Utils import find_root_package_dir
+
 
 from . import __version__
+
+
+def _find_c_source(base_path):
+    if os.path.exists(base_path + '.c'):
+        c_file = base_path + '.c'
+    elif os.path.exists(base_path + '.cpp'):
+        c_file = base_path + '.cpp'
+    else:
+        c_file = None
+    return c_file
 
 
 class Plugin(CoveragePlugin):
@@ -71,14 +83,14 @@ class Plugin(CoveragePlugin):
             # none of our business
             return None, None
 
-        if ext in ('.c', '.cpp'):
-            c_file = filename
-        elif os.path.exists(basename + '.c'):
-            c_file = basename + '.c'
-        elif os.path.exists(basename + '.cpp'):
-            c_file = basename + '.cpp'
-        else:
-            c_file = None
+        c_file = filename if ext in ('.c', '.cpp') else _find_c_source(basename)
+        if c_file is None:
+            # a module "pkg/mod.so" can have a source file "pkg/pkg.mod.c"
+            package_root = find_root_package_dir.uncached(filename)
+            package_path = os.path.relpath(basename, package_root).split(os.path.sep)
+            if len(package_path) > 1:
+                test_basepath = os.path.join(os.path.dirname(filename), '.'.join(package_path))
+                c_file = _find_c_source(test_basepath)
 
         py_source_file = None
         if c_file:

@@ -21,6 +21,7 @@ def cached_function(f):
         if res is uncomputed:
             res = cache[args] = f(*args)
         return res
+    wrapper.uncached = f
     return wrapper
 
 def cached_method(f):
