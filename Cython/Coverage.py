@@ -74,13 +74,13 @@ class Plugin(CoveragePlugin):
 
         filename = os.path.abspath(filename)
         if self._c_files_map and filename in self._c_files_map:
-            c_file, rel_file_path, code, excluded = self._c_files_map[filename]
+            c_file, rel_file_path, code = self._c_files_map[filename]
         else:
             c_file, _ = self._find_source_files(filename)
             if not c_file:
                 return None  # unknown file
-            rel_file_path, code, excluded = self._parse_lines(c_file, filename)
-        return CythonModuleReporter(c_file, filename, rel_file_path, code, excluded)
+            rel_file_path, code = self._parse_lines(c_file, filename)
+        return CythonModuleReporter(c_file, filename, rel_file_path, code)
 
     def _find_source_files(self, filename):
         basename, ext = os.path.splitext(filename)
@@ -155,7 +155,6 @@ class Plugin(CoveragePlugin):
         match_comment_end = re.compile(r' *[*]/$').match
 
         code_lines = defaultdict(dict)
-        max_line = defaultdict(int)
         filenames = set()
         with open(c_file) as lines:
             lines = iter(lines)
@@ -166,7 +165,6 @@ class Plugin(CoveragePlugin):
                 filename, lineno = match.groups()
                 filenames.add(filename)
                 lineno = int(lineno)
-                max_line[filename] = max(max_line[filename], lineno)
                 for comment_line in lines:
                     match = match_current_code_line(comment_line)
                     if match:
@@ -176,21 +174,15 @@ class Plugin(CoveragePlugin):
                         # unexpected comment format - false positive?
                         break
 
-        excluded_lines = dict(
-            (filename, set(range(1, max_line[filename] + 1)) - set(lines))
-            for filename, lines in code_lines.iteritems()
-        )
-
         if self._c_files_map is None:
             self._c_files_map = {}
 
         for filename in filenames:
             abs_path = _find_dep_file_path(c_file, filename)
-            self._c_files_map[abs_path] = (
-                c_file, filename, code_lines[filename], excluded_lines[filename])
+            self._c_files_map[abs_path] = (c_file, filename, code_lines[filename])
 
         if sourcefile not in self._c_files_map:
-            return (None,) * 3  # shouldn't happen ...
+            return (None,) * 2  # shouldn't happen ...
         return self._c_files_map[sourcefile][1:]
 
 
@@ -218,7 +210,7 @@ class CythonModuleTracer(FileTracer):
 
         assert self._c_files_map is not None
         if abs_path not in self._c_files_map:
-            self._c_files_map[abs_path] = (self.c_file, source_file, None, None)
+            self._c_files_map[abs_path] = (self.c_file, source_file, None)
         return abs_path
 
 
@@ -226,26 +218,22 @@ class CythonModuleReporter(FileReporter):
     """
     Provide detailed trace information for one source file to coverage.py.
     """
-    def __init__(self, c_file, source_file, rel_file_path, code, excluded):
+    def __init__(self, c_file, source_file, rel_file_path, code):
         super(CythonModuleReporter, self).__init__(source_file)
         self.name = rel_file_path
         self.c_file = c_file
         self._code = code
-        self._excluded = excluded
 
     def statements(self):
         return self._code.viewkeys()
 
-    def excluded_statements(self):
-        return self._excluded
-
-    def _iter_source_lines(self):
+    def _iter_source_tokens(self):
         current_line = 1
         for line_no, code_line in sorted(self._code.iteritems()):
             while line_no > current_line:
-                yield ''
+                yield []
                 current_line += 1
-            yield code_line
+            yield [('txt', code_line)]
             current_line += 1
 
     def source(self):
@@ -253,13 +241,15 @@ class CythonModuleReporter(FileReporter):
             with open(self.filename) as f:
                 return f.read()
         else:
-            return '\n'.join(self._iter_source_lines())
+            return '\n'.join(
+                (tokens[0][1] if tokens else '')
+                for tokens in self._iter_source_tokens())
 
     def source_token_lines(self):
         if os.path.exists(self.filename):
             with open(self.filename) as f:
                 for line in f:
-                    yield [('txt', line)]
+                    yield [('txt', line.rstrip('\n'))]
         else:
-            for line in self._iter_source_lines():
+            for line in self._iter_source_tokens():
                 yield [('txt', line)]
