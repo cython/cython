@@ -259,5 +259,10 @@ class CythonModuleReporter(FileReporter):
             return '\n'.join(self._iter_source_lines())
 
     def source_token_lines(self):
-        for line in self._iter_source_lines():
-            yield [('txt', line)]
+        if os.path.exists(self.filename):
+            with open(self.filename) as f:
+                for line in f:
+                    yield [('txt', line)]
+        else:
+            for line in self._iter_source_lines():
+                yield [('txt', line)]
