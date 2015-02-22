@@ -153,6 +153,12 @@ class Plugin(CoveragePlugin):
         match_source_path_line = re.compile(r' */[*] +"(.*)":([0-9]+)$').match
         match_current_code_line = re.compile(r' *[*] (.*) # <<<<<<+$').match
         match_comment_end = re.compile(r' *[*]/$').match
+        not_executable = re.compile(
+            r'\s*c(?:type)?def\s+'
+            r'(?:(?:public|external)\s+)?'
+            r'(?:struct|union|enum|class)'
+            r'(\s+[^:]+|)\s*:'
+        ).match
 
         code_lines = defaultdict(dict)
         filenames = set()
@@ -168,7 +174,10 @@ class Plugin(CoveragePlugin):
                 for comment_line in lines:
                     match = match_current_code_line(comment_line)
                     if match:
-                        code_lines[filename][lineno] = match.group(1).rstrip()
+                        code_line = match.group(1).rstrip()
+                        if not_executable(code_line):
+                            break
+                        code_lines[filename][lineno] = code_line
                         break
                     elif match_comment_end(comment_line):
                         # unexpected comment format - false positive?
