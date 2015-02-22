@@ -11,7 +11,7 @@ from collections import defaultdict
 from coverage.plugin import CoveragePlugin, FileTracer, FileReporter  # requires coverage.py 4.0+
 from coverage.files import FileLocator  # requires coverage.py 4.0+
 
-from .Utils import find_root_package_dir
+from .Utils import find_root_package_dir, is_package_dir
 
 
 from . import __version__
@@ -86,12 +86,19 @@ class Plugin(CoveragePlugin):
     def _find_source_files(self, filename):
         basename, ext = os.path.splitext(filename)
         ext = ext.lower()
-        if ext in ('.py', '.pyx', '.c', '.cpp'):
+        if ext in ('.py', '.pyx', '.pxd', '.c', '.cpp'):
             pass
         elif ext in ('.so', '.pyd'):
             platform_suffix = re.search(r'[.]cpython-[0-9]+[a-z]*$', basename, re.I)
             if platform_suffix:
                 basename = basename[:platform_suffix.start()]
+        elif ext == '.pxi':
+            # if we get here, it means that the first traced line of a Cython module was
+            # not in the main module but in an include file, so try a little harder to
+            # find the main source file
+            self._find_c_source_files(os.path.dirname(filename), filename)
+            if filename in self._c_files_map:
+                return self._c_files_map[filename][0], None
         else:
             # none of our business
             return None, None
@@ -119,6 +126,24 @@ class Plugin(CoveragePlugin):
                 c_file = None
 
         return c_file, py_source_file
+
+    def _find_c_source_files(self, dir_path, source_file):
+        """
+        Desperately parse all C files in the directory or its package parents
+        (not re-descending) to find the (included) source file in one of them.
+        """
+        if not os.path.isdir(dir_path):
+            return
+        splitext = os.path.splitext
+        for filename in os.listdir(dir_path):
+            ext = splitext(filename)[1].lower()
+            if ext in ('.c', '.cpp'):
+                self._parse_lines(os.path.join(dir_path, filename), source_file)
+                if source_file in self._c_files_map:
+                    return
+        # not found? then try one package up
+        if is_package_dir(dir_path):
+            self._find_c_source_files(os.path.dirname(dir_path), source_file)
 
     def _parse_lines(self, c_file, sourcefile):
         """
