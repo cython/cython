@@ -19,6 +19,11 @@ Bugs fixed
 * Runtime reported file paths of source files (e.g for profiling and tracing)
   are now relative to the build root directory instead of the main source file.
 
+* Tracing exception handling code could enter the trace function with an active
+  exception set.
+
+* Comparisons of (inferred) ctuples failed to compile.
+
 * C compilation could fail in pypy3.
 
 
