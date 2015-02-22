@@ -11,7 +11,7 @@ Features added
 * Support for coverage.py 4.0+ can be enabled by adding the plugin
   "Cython.Coverage" to the ".coveragerc" config file.
 
-* Tracing is supported in ``nogil`` functions/sections.
+* Tracing is supported in ``nogil`` functions/sections and module init code.
 
 Bugs fixed
 ----------
