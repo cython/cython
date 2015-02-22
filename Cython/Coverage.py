@@ -10,7 +10,7 @@ from collections import defaultdict
 
 from coverage.plugin import CoveragePlugin, FileTracer, FileReporter  # requires coverage.py 4.0+
 
-from .Utils import find_root_package_dir, is_package_dir
+from .Utils import find_root_package_dir, is_package_dir, open_source_file
 
 
 from . import __version__
@@ -238,7 +238,7 @@ class CythonModuleReporter(FileReporter):
 
     def source(self):
         if os.path.exists(self.filename):
-            with open(self.filename) as f:
+            with open_source_file(self.filename) as f:
                 return f.read()
         else:
             return '\n'.join(
@@ -247,7 +247,7 @@ class CythonModuleReporter(FileReporter):
 
     def source_token_lines(self):
         if os.path.exists(self.filename):
-            with open(self.filename) as f:
+            with open_source_file(self.filename) as f:
                 for line in f:
                     yield [('txt', line.rstrip('\n'))]
         else:
