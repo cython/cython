@@ -16,6 +16,9 @@ Features added
 Bugs fixed
 ----------
 
+* Runtime reported file paths of source files (e.g for profiling and tracing)
+  are now relative to the build root directory instead of the main source file.
+
 
 0.22 (2015-02-11)
 =================
