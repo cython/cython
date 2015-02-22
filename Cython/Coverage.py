@@ -9,7 +9,6 @@ import os.path
 from collections import defaultdict
 
 from coverage.plugin import CoveragePlugin, FileTracer, FileReporter  # requires coverage.py 4.0+
-from coverage.files import FileLocator  # requires coverage.py 4.0+
 
 from .Utils import find_root_package_dir, is_package_dir
 
@@ -227,8 +226,6 @@ class CythonModuleReporter(FileReporter):
     """
     Provide detailed trace information for one source file to coverage.py.
     """
-    file_locator = FileLocator()
-
     def __init__(self, c_file, source_file, rel_file_path, code, excluded):
         super(CythonModuleReporter, self).__init__(source_file)
         self.name = rel_file_path
