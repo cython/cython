@@ -225,7 +225,7 @@ static CYTHON_INLINE int __Pyx_IterFinish(void) {
 
 /////////////// DictGetItem.proto ///////////////
 
-#if PY_MAJOR_VERSION >= 3
+#if PY_MAJOR_VERSION >= 3 && !CYTHON_COMPILING_IN_PYPY
 static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key) {
     PyObject *value;
     value = PyDict_GetItemWithError(d, key);
