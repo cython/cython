@@ -701,15 +701,19 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         full_module_path = path.join(*self.full_module_name.split('.'))
         module_abspath = path.splitext(path.abspath(
             self.compilation_source.source_desc.get_filenametable_entry() ))[0]
-        module_rootpath = module_abspath[:-len(full_module_path)]
+        root_path = module_abspath[:-len(full_module_path)]
+        workdir = path.abspath(os.getcwd()) + os.sep
+        if root_path.startswith(workdir):
+            # prefer relative paths to current directory (which is most likely the project root)
+            root_path = workdir
 
         code.putln("")
         code.putln("static const char *%s[] = {" % Naming.filetable_cname)
         if code.globalstate.filename_list:
             for source_desc in code.globalstate.filename_list:
                 file_abspath = path.abspath(source_desc.get_filenametable_entry())
-                if file_abspath.startswith(module_rootpath):
-                    filename = file_abspath[len(module_rootpath):]
+                if file_abspath.startswith(root_path):
+                    filename = file_abspath[len(root_path):]
                 else:
                     filename = path.basename(file_abspath)
                 escaped_filename = filename.replace("\\", "\\\\").replace('"', r'\"')
