@@ -2049,7 +2049,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("{")
         tempdecl_code = code.insertion_point()
 
+        profile = code.globalstate.directives['profile']
+        linetrace = code.globalstate.directives['linetrace']
+        if profile or linetrace:
+            code.globalstate.use_utility_code(UtilityCode.load_cached("Profile", "Profile.c"))
+
         code.put_declare_refcount_context()
+        if profile or linetrace:
+            tempdecl_code.put_trace_declarations(None)
+
         code.putln("#if CYTHON_REFNANNY")
         code.putln("__Pyx_RefNanny = __Pyx_RefNannyImportAPI(\"refnanny\");")
         code.putln("if (!__Pyx_RefNanny) {")
@@ -2149,7 +2157,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("/*--- Execution code ---*/")
         code.mark_pos(None)
 
+        if profile or linetrace:
+            code.put_trace_call(header3, self.pos, nogil=not code.funcstate.gil_owned)
+            code.funcstate.can_trace = True
+
         self.body.generate_execution_code(code)
+
+        if profile or linetrace:
+            code.funcstate.can_trace = False
+            code.put_trace_return("Py_None", nogil=not code.funcstate.gil_owned)
 
         code.putln()
         code.putln("/*--- Wrapped vars code ---*/")
