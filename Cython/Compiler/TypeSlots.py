@@ -194,6 +194,10 @@ class SlotDescriptor(object):
         return guard
 
     def generate(self, scope, code):
+        preprocessor_guard = self.preprocessor_guard_code()
+        if preprocessor_guard:
+            code.putln(preprocessor_guard)
+
         end_pypy_guard = False
         if self.is_initialised_dynamically:
             value = "0"
@@ -217,16 +221,16 @@ class SlotDescriptor(object):
                     code.putln("%s, /*%s*/" % (inherited_value, self.slot_name))
                     code.putln("#else")
                     end_pypy_guard = True
-        preprocessor_guard = self.preprocessor_guard_code()
-        if preprocessor_guard:
-            code.putln(preprocessor_guard)
+
         code.putln("%s, /*%s*/" % (value, self.slot_name))
+
+        if end_pypy_guard:
+            code.putln("#endif")
+
         if self.py3 == '<RESERVED>':
             code.putln("#else")
             code.putln("0, /*reserved*/")
         if preprocessor_guard:
-            code.putln("#endif")
-        if end_pypy_guard:
             code.putln("#endif")
 
     # Some C implementations have trouble statically
