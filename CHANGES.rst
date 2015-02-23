@@ -24,6 +24,9 @@ Bugs fixed
 
 * Comparisons of (inferred) ctuples failed to compile.
 
+* C++ exception declarations with mapping functions could fail to compile when
+  pre-declared in .pxd files.
+
 * C compilation could fail in pypy3.
 
 
