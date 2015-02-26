@@ -25,9 +25,9 @@ files to generate.  For example::
 
     $ cython -a yourmod.pyx
 
-This creates a ``yourmod.c`` file, and the -a switch produces a
-generated html file.  Pass the ``-h`` flag for a complete list of
-supported flags.
+This creates a ``yourmod.c`` file, and the ``-a`` switch produces an
+annotated html file of the source code.  Pass the ``-h`` flag for a
+complete list of supported flags.
 
 Compiling your ``.c`` files will vary depending on your operating
 system.  Python documentation for writing extension modules should
