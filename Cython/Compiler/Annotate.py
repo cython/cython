@@ -18,7 +18,7 @@ from .. import Utils
 class AnnotationCCodeWriter(CCodeWriter):
 
     def __init__(self, create_from=None, buffer=None, copy_formatting=True):
-        CCodeWriter.__init__(self, create_from, buffer, copy_formatting=True)
+        CCodeWriter.__init__(self, create_from, buffer, copy_formatting=copy_formatting)
         if create_from is None:
             self.annotation_buffer = StringIO()
             self.annotations = []
