@@ -21,7 +21,12 @@ docstrings = True
 # (when all memory will be reclaimed anyways).
 generate_cleanup_code = False
 
+# Generate an annotated HTML version of the input source files.
 annotate = False
+
+# When annotating source files in HTML, include coverage information from
+# this file.
+annotate_coverage_xml = None
 
 # This will abort the compilation on the first error occured rather than trying
 # to keep going and printing further error messages.

@@ -359,11 +359,24 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if options.gdb_debug:
             self._serialize_lineno_map(env, rootwriter)
         if Options.annotate or options.annotate:
-            self._generate_annotations(rootwriter, result)
+            self._generate_annotations(rootwriter, result, options)
 
-    def _generate_annotations(self, rootwriter, result):
+    def _generate_annotations(self, rootwriter, result, options):
         self.annotate(rootwriter)
-        rootwriter.save_annotation(result.main_source_file, result.c_file)
+
+        coverage_xml_filename = Options.annotate_coverage_xml or options.annotate_coverage_xml
+        if coverage_xml_filename and os.path.exists(coverage_xml_filename):
+            try:
+                import xml.etree.cElementTree as ET
+            except ImportError:
+                import xml.etree.ElementTree as ET
+            coverage_xml = ET.parse(coverage_xml_filename).getroot()
+            for el in coverage_xml.getiterator():
+                el.tail = None  # save some memory
+        else:
+            coverage_xml = None
+
+        rootwriter.save_annotation(result.main_source_file, result.c_file, coverage_xml=coverage_xml)
 
         # if we included files, additionally generate one annotation file for each
         if not self.scope.included_files:
@@ -387,7 +400,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     import errno
                     if e.errno != errno.EEXIST:
                         raise
-            rootwriter.save_annotation(source_file, target_file)
+            rootwriter.save_annotation(source_file, target_file, coverage_xml=coverage_xml)
 
     def _serialize_lineno_map(self, env, ccodewriter):
         tb = env.context.gdb_debug_outputwriter

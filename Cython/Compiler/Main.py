@@ -685,6 +685,7 @@ default_options = dict(
     cplus = 0,
     output_file = None,
     annotate = None,
+    annotate_coverage_xml = None,
     generate_pxi = 0,
     capi_reexport_cincludes = 0,
     working_path = "",

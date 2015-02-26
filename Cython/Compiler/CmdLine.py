@@ -34,6 +34,7 @@ Options:
 
   -D, --no-docstrings            Strip docstrings from the compiled module.
   -a, --annotate                 Produce a colorized HTML version of the source.
+  --annotate-coverage <cov.xml>  Include coverage information from cov.xml in HTML annotation.
   --line-directives              Produce #line directives pointing to the .pyx source
   --cplus                        Output a C++ rather than C file.
   --embed[=<method_name>]        Generate a main() function that embeds the Python interpreter.
@@ -115,6 +116,8 @@ def parse_command_line(args):
                 Options.docstrings = False
             elif option in ("-a", "--annotate"):
                 Options.annotate = True
+            elif option == "--annotate-coverage":
+                Options.annotate_coverage_xml = pop_arg()
             elif option == "--convert-range":
                 Options.convert_range = True
             elif option == "--line-directives":
