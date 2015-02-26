@@ -78,10 +78,12 @@ class AnnotationCCodeWriter(CCodeWriter):
 
         .cython.tag  {  }
         .cython.line { margin: 0em }
-        .cython.code  { font-size: 9; color: #444444; display: none; margin: 0px 0px 0px 20px;  }
+        .cython.code { font-size: 9; color: #444444; display: none; margin: 0px 0px 0px 8px; border-left: 8px none; }
 
         .cython.line .run { background-color: #B0FFB0; }
         .cython.line .mis { background-color: #FFB0B0; }
+        .cython.code.run  { border-left: 8px solid #B0FFB0; }
+        .cython.code.mis  { border-left: 8px solid #FFB0B0; }
 
         .cython.code .py_c_api  { color: red; }
         .cython.code .py_macro_api  { color: #FF7000; }
@@ -261,7 +263,8 @@ class AnnotationCCodeWriter(CCodeWriter):
                     onclick=onclick,
                 ))
             if c_code:
-                outlist.append(u"<pre class='cython code score-%s'>%s</pre>" % (score, c_code))
+                outlist.append(u"<pre class='cython code score-{score} {covered}'>{code}</pre>".format(
+                    score=score, covered=covered, code=c_code))
         outlist.append(u"</div>")
         return outlist
 
