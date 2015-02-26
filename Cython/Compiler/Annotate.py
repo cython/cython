@@ -84,6 +84,7 @@ class AnnotationCCodeWriter(CCodeWriter):
         .cython.code .pyx_c_api  { color: #FF3000; }
         .cython.code .pyx_macro_api  { color: #FF7000; }
         .cython.code .refnanny  { color: #FFA000; }
+        .cython.code .trace  { color: #FFA000; }
         .cython.code .error_goto  { color: #FFA000; }
 
         .cython.code .coerce  { color: #008000; border: 1px dotted #008000 }
@@ -166,7 +167,7 @@ class AnnotationCCodeWriter(CCodeWriter):
         pos_comment_marker = u'/* \N{HORIZONTAL ELLIPSIS} */\n'
         new_calls_map = dict(
             (name, 0) for name in
-            'refnanny py_macro_api py_c_api pyx_macro_api pyx_c_api error_goto'.split()
+            'refnanny trace py_macro_api py_c_api pyx_macro_api pyx_c_api error_goto'.split()
         ).copy
 
         self.mark_pos(None)
@@ -223,6 +224,7 @@ class AnnotationCCodeWriter(CCodeWriter):
 
 _parse_code = re.compile(
     ur'(?P<refnanny>__Pyx_X?(?:GOT|GIVE)REF|__Pyx_RefNanny[A-Za-z]+)|'
+    ur'(?P<trace>__Pyx_Trace[A-Za-z]+)|'
     ur'(?:'
     ur'(?P<pyx_macro_api>__Pyx_[A-Z][A-Z_]+)|'
     ur'(?P<pyx_c_api>__Pyx_[A-Z][a-z_][A-Za-z_]+)|'
