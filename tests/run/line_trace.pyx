@@ -1,4 +1,5 @@
 # cython: linetrace=True
+# distutils: define_macros=CYTHON_TRACE_NOGIL=1
 # mode: run
 # tag: trace
 
@@ -39,24 +40,29 @@ cdef int _failing_call_trace_func(PyObject* _traceobj, PyFrameObject* _frame, in
 
 cdef int _failing_line_trace_func(PyObject* _traceobj, PyFrameObject* _frame, int what, PyObject* arg) except -1:
     if what == PyTrace_LINE and _traceobj:
-        trace = <object>_traceobj
-        if len(trace) == 1:
-            # right after call with empty trace list => fail!
+        frame, traceobj = <object>_frame, <object>_traceobj
+        if traceobj and traceobj[0] == frame.f_code.co_name:
+            # first line in the right function => fail!
             raise ValueError("failing line trace!")
     return _trace_func(_traceobj, _frame, what, arg)
 
 
 def cy_add(a,b):
-    x = a + b
-    return x
+    x = a + b     # 1
+    return x      # 2
 
 
-def cy_add_nogil(a,b):
-    cdef int z, x=a, y=b
-    with nogil:    # no traces in this block !
-        z = 0
-        z += x + y
-    return z
+def cy_add_with_nogil(a,b):
+    cdef int z, x=a, y=b         # 1
+    with nogil:                  # 2
+        z = 0                    # 3
+        z += cy_add_nogil(x, y)  # 4
+    return z                     # 5
+
+
+cdef int cy_add_nogil(int a, int b) nogil except -1:
+    x = a + b   # 1
+    return x    # 2
 
 
 def run_trace(func, *args):
@@ -68,8 +74,13 @@ def run_trace(func, *args):
     [('call', 0), ('line', 1), ('line', 2), ('return', 2)]
     >>> run_trace(cy_add, 1, 2)
     [('call', 0), ('line', 1), ('line', 2), ('return', 2)]
-    >>> run_trace(cy_add_nogil, 1, 2)
-    [('call', 0), ('line', 1), ('line', 2), ('line', 5), ('return', 5)]
+    >>> result = run_trace(cy_add_with_nogil, 1, 2)
+    >>> result[:5]
+    [('call', 0), ('line', 1), ('line', 2), ('line', 3), ('line', 4)]
+    >>> result[5:9]
+    [('call', 0), ('line', 1), ('line', 2), ('return', 2)]
+    >>> result[9:]
+    [('line', 2), ('line', 5), ('return', 5)]
     """
     trace = []
     PyEval_SetTrace(<Py_tracefunc>_trace_func, trace)
@@ -98,27 +109,51 @@ def fail_on_call_trace(func, *args):
     assert not trace
 
 
-def fail_on_line_trace(bint fail):
+def fail_on_line_trace(fail_func):
     """
-    >>> fail_on_line_trace(False)
-    ['STARTING', ('call', 0), ('line', 1), ('line', 2), ('return', 2), ('call', 0), ('line', 1), ('line', 2), ('return', 2)]
-    >>> fail_on_line_trace(True)
-    Traceback (most recent call last):
-    ValueError: failing line trace!
+    >>> result = fail_on_line_trace(None)
+    >>> len(result)
+    17
+    >>> result[:5]
+    ['NO ERROR', ('call', 0), ('line', 1), ('line', 2), ('return', 2)]
+    >>> result[5:10]
+    [('call', 0), ('line', 1), ('line', 2), ('line', 3), ('line', 4)]
+    >>> result[10:14]
+    [('call', 0), ('line', 1), ('line', 2), ('return', 2)]
+    >>> result[14:]
+    [('line', 2), ('line', 5), ('return', 5)]
+
+    >>> result = fail_on_line_trace('cy_add_with_nogil')
+    failing line trace!
+    >>> result
+    ['cy_add_with_nogil', ('call', 0), ('line', 1), ('line', 2), ('return', 2), ('call', 0), ('return', 1)]
+
+    >>> result = fail_on_line_trace('cy_add_nogil')
+    failing line trace!
+    >>> result[:5]
+    ['cy_add_nogil', ('call', 0), ('line', 1), ('line', 2), ('return', 2)]
+    >>> result[5:]
+    [('call', 0), ('line', 1), ('line', 2), ('line', 3), ('line', 4), ('call', 0), ('return', 1), ('return', 4)]
     """
     cdef int x = 1
-    trace = ['STARTING']
+    trace = ['NO ERROR']
+    exception = None
     PyEval_SetTrace(<Py_tracefunc>_failing_line_trace_func, trace)
     try:
         x += 1
         cy_add(1, 2)
         x += 1
-        if fail:
-            del trace[:]  # trigger error
+        if fail_func:
+            trace[0] = fail_func  # trigger error on first line
         x += 1
-        cy_add(3, 4)
+        cy_add_with_nogil(3, 4)
         x += 1
+    except Exception as exc:
+        exception = str(exc)
     finally:
         PyEval_SetTrace(NULL, None)
-    assert x == 5
+    if exception:
+        print(exception)
+    else:
+        assert x == 5
     return trace
