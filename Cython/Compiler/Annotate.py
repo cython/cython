@@ -41,9 +41,9 @@ class AnnotationCCodeWriter(CCodeWriter):
         CCodeWriter.write(self, s)
         self.annotation_buffer.write(s)
 
-    def mark_pos(self, pos):
+    def mark_pos(self, pos, trace=True):
         if pos is not None:
-            CCodeWriter.mark_pos(self, pos)
+            CCodeWriter.mark_pos(self, pos, trace)
         if self.last_annotated_pos:
             source_desc, line, _ = self.last_annotated_pos
             pos_code = self.code[source_desc.filename]

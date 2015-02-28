@@ -1563,20 +1563,21 @@ class CCodeWriter(object):
         self.write("\n")
         self.bol = 1
 
-    def mark_pos(self, pos):
+    def mark_pos(self, pos, trace=True):
         if pos is None:
             return
         if self.last_marked_pos and self.last_marked_pos[:2] == pos[:2]:
             return
-        self.last_pos = pos
+        self.last_pos = (pos, trace)
 
     def emit_marker(self):
-        pos = self.last_marked_pos = self.last_pos
+        pos, trace = self.last_pos
+        self.last_marked_pos = pos
         self.last_pos = None
         self.write("\n")
         self.indent()
         self.write("/* %s */\n" % self._build_marker(pos))
-        if self.funcstate and self.funcstate.can_trace and self.globalstate.directives['linetrace']:
+        if trace and self.funcstate and self.funcstate.can_trace and self.globalstate.directives['linetrace']:
             self.indent()
             self.write('__Pyx_TraceLine(%d,%d,%s)\n' % (
                 pos[1], not self.funcstate.gil_owned, self.error_goto(pos)))

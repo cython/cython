@@ -6505,7 +6505,6 @@ class TryExceptStatNode(StatNode):
     gil_message = "Try-except statement"
 
     def generate_execution_code(self, code):
-        code.mark_pos(self.pos)
         old_return_label = code.return_label
         old_break_label = code.break_label
         old_continue_label = code.continue_label
@@ -6521,6 +6520,7 @@ class TryExceptStatNode(StatNode):
 
         exc_save_vars = [code.funcstate.allocate_temp(py_object_type, False)
                          for _ in xrange(3)]
+        code.mark_pos(self.pos)
         code.putln("{")
         save_exc = code.insertion_point()
         code.putln(
@@ -6529,6 +6529,7 @@ class TryExceptStatNode(StatNode):
         code.break_label = try_break_label
         code.continue_label = try_continue_label
         self.body.generate_execution_code(code)
+        code.mark_pos(self.pos, trace=False)
         code.putln(
             "}")
         temps_to_clean_up = code.funcstate.all_free_managed_temps()
@@ -6559,6 +6560,7 @@ class TryExceptStatNode(StatNode):
         code.return_label = except_return_label
         normal_case_terminates = self.body.is_terminator
         if self.else_clause:
+            code.mark_pos(self.else_clause.pos)
             code.putln(
                 "/*else:*/ {")
             self.else_clause.generate_execution_code(code)
@@ -6589,6 +6591,7 @@ class TryExceptStatNode(StatNode):
                 if not normal_case_terminates and not code.label_used(try_end_label):
                     code.put_goto(try_end_label)
                 code.put_label(exit_label)
+                code.mark_pos(self.pos, trace=False)
                 restore_saved_exception()
                 code.put_goto(old_label)
 
