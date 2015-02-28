@@ -8,6 +8,8 @@ import re
 import codecs
 import textwrap
 from datetime import datetime
+from functools import partial
+from collections import defaultdict
 from xml.sax.saxutils import escape as html_escape
 from StringIO import StringIO
 
@@ -23,14 +25,14 @@ class AnnotationCCodeWriter(CCodeWriter):
         if create_from is None:
             self.annotation_buffer = StringIO()
             self.annotations = []
-            self.last_pos = None
-            self.code = {}
+            self.last_annotated_pos = None
+            self.code = defaultdict(partial(defaultdict, str))
         else:
             # When creating an insertion point, keep references to the same database
             self.annotation_buffer = create_from.annotation_buffer
             self.annotations = create_from.annotations
             self.code = create_from.code
-            self.last_pos = create_from.last_pos
+            self.last_annotated_pos = create_from.last_annotated_pos
 
     def create_new(self, create_from, buffer, copy_formatting):
         return AnnotationCCodeWriter(create_from, buffer, copy_formatting)
@@ -42,12 +44,12 @@ class AnnotationCCodeWriter(CCodeWriter):
     def mark_pos(self, pos):
         if pos is not None:
             CCodeWriter.mark_pos(self, pos)
-        if self.last_pos:
-            pos_code = self.code.setdefault(self.last_pos[0].filename, {})
-            code = pos_code.get(self.last_pos[1], "")
-            pos_code[self.last_pos[1]] = code + self.annotation_buffer.getvalue()
+        if self.last_annotated_pos:
+            source_desc, line, _ = self.last_annotated_pos
+            pos_code = self.code[source_desc.filename]
+            pos_code[line] += self.annotation_buffer.getvalue()
         self.annotation_buffer = StringIO()
-        self.last_pos = pos
+        self.last_annotated_pos = pos
 
     def annotate(self, pos, item):
         self.annotations.append((pos, item))
