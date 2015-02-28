@@ -356,6 +356,14 @@ C code wanting to use these functions or extension types needs to include the
 header and call the :func:`import_modulename` function. The other functions
 can then be called and the extension types used as usual.
 
+If the C code wanting to use these functions is part of more than one shared 
+library or executable, then :func:`import_modulename` function needs to be 
+called in each of the shared libraries which use these functions. If you
+crash with a segmentation fault (SIGSEGV on linux) when calling into one of
+these api calls, this is likely an indication that the shared library which
+contains the api call which is generating the segmentation fault does not call
+the :func:`import_modulename` function before the api call which crashes.
+
 Any public C type or extension type declarations in the Cython module are also
 made available when you include :file:`modulename_api.h`.::
 
