@@ -1496,6 +1496,7 @@ class CEnumDefNode(StatNode):
 
     def generate_execution_code(self, code):
         if self.visibility == 'public' or self.api:
+            code.mark_pos(self.pos)
             temp = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
             for item in self.entry.enum_values:
                 code.putln("%s = PyInt_FromLong(%s); %s" % (
@@ -2126,6 +2127,7 @@ class FuncDefNode(StatNode, BlockNode):
         pass
 
     def generate_execution_code(self, code):
+        code.mark_pos(self.pos)
         # Evaluate and store argument default values
         for arg in self.args:
             if not arg.is_dynamic:
@@ -4320,6 +4322,7 @@ class PyClassDefNode(ClassDefNode):
         self.body.generate_function_definitions(self.scope, code)
 
     def generate_execution_code(self, code):
+        code.mark_pos(self.pos)
         code.pyclass_stack.append(self)
         cenv = self.scope
         if self.bases:
@@ -4551,6 +4554,7 @@ class CClassDefNode(ClassDefNode):
     def generate_execution_code(self, code):
         # This is needed to generate evaluation code for
         # default values of method arguments.
+        code.mark_pos(self.pos)
         if self.body:
             self.body.generate_execution_code(code)
 
@@ -4659,6 +4663,7 @@ class ExprStatNode(StatNode):
     gil_message = "Discarding owned Python object"
 
     def generate_execution_code(self, code):
+        code.mark_pos(self.pos)
         self.expr.generate_evaluation_code(code)
         if not self.expr.is_temp and self.expr.result():
             code.putln("%s;" % self.expr.result())
@@ -4693,6 +4698,7 @@ class AssignmentNode(StatNode):
 #           self.analyse_expressions_2(env)
 
     def generate_execution_code(self, code):
+        code.mark_pos(self.pos)
         self.generate_rhs_evaluation_code(code)
         self.generate_assignment_code(code)
 
@@ -5103,6 +5109,7 @@ class ParallelAssignmentNode(AssignmentNode):
 #            stat.analyse_expressions_2(env)
 
     def generate_execution_code(self, code):
+        code.mark_pos(self.pos)
         for stat in self.stats:
             stat.generate_rhs_evaluation_code(code)
         for stat in self.stats:
@@ -5154,6 +5161,7 @@ class InPlaceAssignmentNode(AssignmentNode):
         return self
 
     def generate_execution_code(self, code):
+        code.mark_pos(self.pos)
         self.rhs.generate_evaluation_code(code)
         self.lhs.generate_subexpr_evaluation_code(code)
         c_op = self.operator
@@ -5210,6 +5218,7 @@ class PrintStatNode(StatNode):
     gil_message = "Python print statement"
 
     def generate_execution_code(self, code):
+        code.mark_pos(self.pos)
         if self.stream:
             self.stream.generate_evaluation_code(code)
             stream_result = self.stream.py_result()
@@ -5271,6 +5280,7 @@ class ExecStatNode(StatNode):
     gil_message = "Python exec statement"
 
     def generate_execution_code(self, code):
+        code.mark_pos(self.pos)
         args = []
         for arg in self.args:
             arg.generate_evaluation_code(code)
@@ -5331,6 +5341,7 @@ class DelStatNode(StatNode):
     gil_message = "Deleting Python object"
 
     def generate_execution_code(self, code):
+        code.mark_pos(self.pos)
         for arg in self.args:
             if (arg.type.is_pyobject or
                     arg.type.is_memoryviewslice or
@@ -5377,6 +5388,7 @@ class BreakStatNode(StatNode):
         return self
 
     def generate_execution_code(self, code):
+        code.mark_pos(self.pos)
         if not code.break_label:
             error(self.pos, "break statement not inside loop")
         else:
@@ -5392,6 +5404,7 @@ class ContinueStatNode(StatNode):
         return self
 
     def generate_execution_code(self, code):
+        code.mark_pos(self.pos)
         if code.funcstate.in_try_finally:
             error(self.pos, "continue statement inside try of try...finally")
         elif not code.continue_label:
@@ -5543,6 +5556,7 @@ class RaiseStatNode(StatNode):
     gil_message = "Raising exception"
 
     def generate_execution_code(self, code):
+        code.mark_pos(self.pos)
         if self.builtin_exc_name == 'MemoryError':
             code.putln('PyErr_NoMemory(); %s' % code.error_goto(self.pos))
             return
@@ -5614,6 +5628,7 @@ class ReraiseStatNode(StatNode):
     gil_message = "Raising exception"
 
     def generate_execution_code(self, code):
+        code.mark_pos(self.pos)
         vars = code.funcstate.exc_vars
         if vars:
             code.globalstate.use_utility_code(restore_exception_utility_code)
@@ -5658,6 +5673,7 @@ class AssertStatNode(StatNode):
     def generate_execution_code(self, code):
         code.putln("#ifndef CYTHON_WITHOUT_ASSERTIONS")
         code.putln("if (unlikely(!Py_OptimizeFlag)) {")
+        code.mark_pos(self.pos)
         self.cond.generate_evaluation_code(code)
         code.putln(
             "if (unlikely(!%s)) {" %
@@ -5813,6 +5829,7 @@ class SwitchStatNode(StatNode):
 
     def generate_execution_code(self, code):
         self.test.generate_evaluation_code(code)
+        code.mark_pos(self.pos)
         code.putln("switch (%s) {" % self.test.result())
         for case in self.cases:
             case.generate_execution_code(code)
@@ -5868,6 +5885,7 @@ class WhileStatNode(LoopNode, StatNode):
         return self
 
     def generate_execution_code(self, code):
+        code.mark_pos(self.pos)
         old_loop_labels = code.new_loop_labels()
         code.putln(
             "while (1) {")
@@ -6040,6 +6058,7 @@ class ForInStatNode(LoopNode, StatNode):
         return self
 
     def generate_execution_code(self, code):
+        code.mark_pos(self.pos)
         old_loop_labels = code.new_loop_labels()
         self.iterator.generate_evaluation_code(code)
         code.putln("for (;;) {")
@@ -6183,6 +6202,7 @@ class ForFromStatNode(LoopNode, StatNode):
         return self
 
     def generate_execution_code(self, code):
+        code.mark_pos(self.pos)
         old_loop_labels = code.new_loop_labels()
         from_range = self.from_range
         self.bound1.generate_evaluation_code(code)
@@ -6370,6 +6390,7 @@ class WithStatNode(StatNode):
         self.body.generate_function_definitions(env, code)
 
     def generate_execution_code(self, code):
+        code.mark_pos(self.pos)
         code.putln("/*with:*/ {")
         self.manager.generate_evaluation_code(code)
         self.exit_var = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
@@ -6484,6 +6505,7 @@ class TryExceptStatNode(StatNode):
     gil_message = "Try-except statement"
 
     def generate_execution_code(self, code):
+        code.mark_pos(self.pos)
         old_return_label = code.return_label
         old_break_label = code.break_label
         old_continue_label = code.continue_label
@@ -6791,6 +6813,7 @@ class TryFinallyStatNode(StatNode):
     gil_message = "Try-finally statement"
 
     def generate_execution_code(self, code):
+        code.mark_pos(self.pos)
         old_error_label = code.error_label
         old_labels = code.all_new_labels()
         new_labels = code.get_all_labels()
@@ -7313,6 +7336,7 @@ class FromImportStatNode(StatNode):
         return self
 
     def generate_execution_code(self, code):
+        code.mark_pos(self.pos)
         self.module.generate_evaluation_code(code)
         if self.import_star:
             code.putln(
