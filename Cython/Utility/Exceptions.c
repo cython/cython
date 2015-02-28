@@ -414,16 +414,21 @@ static CYTHON_INLINE void __Pyx_ExceptionSwap(PyObject **type, PyObject **value,
 
 static void __Pyx_WriteUnraisable(const char *name, int clineno,
                                   int lineno, const char *filename,
-                                  int full_traceback); /*proto*/
+                                  int full_traceback, int nogil); /*proto*/
 
 /////////////// WriteUnraisableException ///////////////
 //@requires: PyErrFetchRestore
 
 static void __Pyx_WriteUnraisable(const char *name, CYTHON_UNUSED int clineno,
                                   CYTHON_UNUSED int lineno, CYTHON_UNUSED const char *filename,
-                                  int full_traceback) {
+                                  int full_traceback, CYTHON_UNUSED int nogil) {
     PyObject *old_exc, *old_val, *old_tb;
     PyObject *ctx;
+#ifdef WITH_THREAD
+    PyGILState_STATE state;
+    if (nogil)
+        state = PyGILState_Ensure();
+#endif
     __Pyx_ErrFetch(&old_exc, &old_val, &old_tb);
     if (full_traceback) {
         Py_XINCREF(old_exc);
@@ -444,6 +449,10 @@ static void __Pyx_WriteUnraisable(const char *name, CYTHON_UNUSED int clineno,
         PyErr_WriteUnraisable(ctx);
         Py_DECREF(ctx);
     }
+#ifdef WITH_THREAD
+    if (nogil)
+        PyGILState_Release(state);
+#endif
 }
 
 /////////////// AddTraceback.proto ///////////////

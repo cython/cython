@@ -1972,7 +1972,7 @@ class FuncDefNode(StatNode, BlockNode):
                 warning(self.entry.pos,
                         "Unraisable exception in function '%s'." %
                         self.entry.qualified_name, 0)
-                code.put_unraisable(self.entry.qualified_name)
+                code.put_unraisable(self.entry.qualified_name, lenv.nogil)
             default_retval = self.return_type.default_value
             if err_val is None and default_retval:
                 err_val = default_retval

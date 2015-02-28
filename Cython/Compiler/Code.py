@@ -2075,7 +2075,7 @@ class CCodeWriter(object):
         self.funcstate.uses_error_indicator = True
         self.putln('__Pyx_AddTraceback("%s", %s, %s, %s);' % format_tuple)
 
-    def put_unraisable(self, qualified_name):
+    def put_unraisable(self, qualified_name, nogil=False):
         """
         Generate code to print a Python warning for an unraisable exception.
 
@@ -2086,10 +2086,11 @@ class CCodeWriter(object):
             Naming.clineno_cname,
             Naming.lineno_cname,
             Naming.filename_cname,
-            int(self.globalstate.directives['unraisable_tracebacks'])
+            self.globalstate.directives['unraisable_tracebacks'],
+            nogil,
         )
         self.funcstate.uses_error_indicator = True
-        self.putln('__Pyx_WriteUnraisable("%s", %s, %s, %s, %s);' % format_tuple)
+        self.putln('__Pyx_WriteUnraisable("%s", %s, %s, %s, %d, %d);' % format_tuple)
         self.globalstate.use_utility_code(
             UtilityCode.load_cached("WriteUnraisableException", "Exceptions.c"))
 
