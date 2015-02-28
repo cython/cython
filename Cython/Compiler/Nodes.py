@@ -1899,7 +1899,7 @@ class FuncDefNode(StatNode, BlockNode):
         # -------------------------
         self.generate_function_body(env, code)
 
-        code.mark_pos(self.pos)
+        code.mark_pos(self.pos, trace=False)
         code.putln("")
         code.putln("/* function exit code */")
 
