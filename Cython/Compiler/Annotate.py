@@ -59,13 +59,14 @@ class AnnotationCCodeWriter(CCodeWriter):
         css = [self._css_template]
         for i in range(255):
             color = u"FFFF%02x" % int(255/(1+i/10.0))
-            css.append('\n.cython.score-%d {background-color: #%s;}' % (i, color))
+            css.append('.cython.score-%d {background-color: #%s;}' % (i, color))
         try:
             from pygments.formatters import HtmlFormatter
-            css.append(HtmlFormatter().get_style_defs('.cython'))
         except ImportError:
             pass
-        return ''.join(css)
+        else:
+            css.append(HtmlFormatter().get_style_defs('.cython'))
+        return '\n'.join(css)
 
     _js = """
     function toggleDiv(id) {
