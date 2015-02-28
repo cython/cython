@@ -1415,9 +1415,8 @@ class CCodeWriter(object):
     def __init__(self, create_from=None, buffer=None, copy_formatting=False, emit_linenums=None, c_line_in_traceback=True):
         if buffer is None: buffer = StringIOTree()
         self.buffer = buffer
-        self.marker = None
-        self.last_marker_line = 0
-        self.source_desc = ""
+        self.last_pos = None
+        self.last_marked_pos = None
         self.pyclass_stack = []
 
         self.funcstate = None
@@ -1434,6 +1433,8 @@ class CCodeWriter(object):
                 self.level = create_from.level
                 self.bol = create_from.bol
                 self.call_level = create_from.call_level
+            self.last_pos = create_from.last_pos
+            self.last_marked_pos = create_from.last_marked_pos
 
         if emit_linenums is None and self.globalstate:
             self.emit_linenums = self.globalstate.emit_linenums
@@ -1457,11 +1458,7 @@ class CCodeWriter(object):
     def write(self, s):
         # also put invalid markers (lineno 0), to indicate that those lines
         # have no Cython source code correspondence
-        if self.marker is None:
-            cython_lineno = self.last_marker_line
-        else:
-            cython_lineno = self.marker[0]
-
+        cython_lineno = self.last_marked_pos[1] if self.last_marked_pos else 0
         self.buffer.markers.extend([cython_lineno] * s.count('\n'))
         self.buffer.write(s)
 
@@ -1553,11 +1550,11 @@ class CCodeWriter(object):
     # code generation
 
     def putln(self, code="", safe=False):
-        if self.marker and self.bol:
+        if self.last_pos and self.bol:
             self.emit_marker()
-        if self.emit_linenums and self.last_marker_line != 0:
-            self.write('\n#line %s "%s"\n' % (self.last_marker_line, self.source_desc))
-
+        if self.emit_linenums and self.last_marked_pos:
+            source_desc, line, _ = self.last_marked_pos
+            self.write('\n#line %s "%s"\n' % (line, source_desc.get_escaped_description()))
         if code:
             if safe:
                 self.put_safe(code)
@@ -1566,17 +1563,32 @@ class CCodeWriter(object):
         self.write("\n")
         self.bol = 1
 
+    def mark_pos(self, pos):
+        if pos is None:
+            return
+        if self.last_marked_pos and self.last_marked_pos[:2] == pos[:2]:
+            return
+        self.last_pos = pos
+
     def emit_marker(self):
+        pos = self.last_marked_pos = self.last_pos
+        self.last_pos = None
         self.write("\n")
         self.indent()
-        self.write("/* %s */\n" % self.marker[1])
-        if (self.funcstate and self.funcstate.can_trace
-                and self.globalstate.directives['linetrace']):
+        self.write("/* %s */\n" % self._build_marker(pos))
+        if self.funcstate and self.funcstate.can_trace and self.globalstate.directives['linetrace']:
             self.indent()
-            self.write('__Pyx_TraceLine(%d,%d)\n' % (
-                self.marker[0], not self.funcstate.gil_owned))
-        self.last_marker_line = self.marker[0]
-        self.marker = None
+            self.write('__Pyx_TraceLine(%d,%d,%s)\n' % (
+                pos[1], not self.funcstate.gil_owned, self.error_goto(pos)))
+
+    def _build_marker(self, pos):
+        source_desc, line, col = pos
+        assert isinstance(source_desc, SourceDescriptor)
+        contents = self.globalstate.commented_file_contents(source_desc)
+        lines = contents[max(0, line-3):line]  # line numbers start at 1
+        lines[-1] += u'             # <<<<<<<<<<<<<<'
+        lines += contents[line:line+2]
+        return u'"%s":%d\n%s\n' % (source_desc.get_escaped_description(), line, u'\n'.join(lines))
 
     def put_safe(self, code):
         # put code, but ignore {}
@@ -1652,24 +1664,6 @@ class CCodeWriter(object):
 
     def get_py_version_hex(self, pyversion):
         return "0x%02X%02X%02X%02X" % (tuple(pyversion) + (0,0,0,0))[:4]
-
-    def mark_pos(self, pos):
-        if pos is None:
-            return
-        source_desc, line, col = pos
-        if self.last_marker_line == line:
-            return
-        assert isinstance(source_desc, SourceDescriptor)
-        contents = self.globalstate.commented_file_contents(source_desc)
-        lines = contents[max(0, line-3):line]  # line numbers start at 1
-        lines[-1] += u'             # <<<<<<<<<<<<<<'
-        lines += contents[line:line+2]
-
-        marker = u'"%s":%d\n%s\n' % (
-            source_desc.get_escaped_description(), line, u'\n'.join(lines))
-        self.marker = (line, marker)
-        if self.emit_linenums:
-            self.source_desc = source_desc.get_escaped_description()
 
     def put_label(self, lbl):
         if lbl in self.funcstate.labels_used:
@@ -2099,8 +2093,8 @@ class CCodeWriter(object):
         self.putln('__Pyx_TraceDeclarations(%s, %d)' % (codeobj or 'NULL', nogil))
 
     def put_trace_call(self, name, pos, nogil=False):
-        self.putln('__Pyx_TraceCall("%s", %s[%s], %s, %d);' % (
-            name, Naming.filetable_cname, self.lookup_filename(pos[0]), pos[1], nogil))
+        self.putln('__Pyx_TraceCall("%s", %s[%s], %s, %d, %s);' % (
+            name, Naming.filetable_cname, self.lookup_filename(pos[0]), pos[1], nogil, self.error_goto(pos)))
 
     def put_trace_exception(self):
         self.putln("__Pyx_TraceException();")

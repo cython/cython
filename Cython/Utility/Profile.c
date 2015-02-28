@@ -49,7 +49,7 @@
   if (codeobj) $frame_code_cname = (PyCodeObject*) codeobj;
 
   #ifdef WITH_THREAD
-  #define __Pyx_TraceCall(funcname, srcfile, firstlineno, nogil)                         \
+  #define __Pyx_TraceCall(funcname, srcfile, firstlineno, nogil, goto_error)             \
   if (nogil) {                                                                           \
       if (CYTHON_TRACE_NOGIL) {                                                          \
           PyThreadState *tstate;                                                         \
@@ -60,20 +60,23 @@
               __Pyx_use_tracing = __Pyx_TraceSetupAndCall(&$frame_code_cname, &$frame_cname, funcname, srcfile, firstlineno);  \
           }                                                                              \
           PyGILState_Release(state);                                                     \
+          if (unlikely(__Pyx_use_tracing < 0)) goto_error;                               \
       }                                                                                  \
   } else {                                                                               \
       PyThreadState* tstate = PyThreadState_GET();                                       \
       if (unlikely(tstate->use_tracing) && !tstate->tracing &&                           \
               (tstate->c_profilefunc || (CYTHON_TRACE && tstate->c_tracefunc))) {        \
           __Pyx_use_tracing = __Pyx_TraceSetupAndCall(&$frame_code_cname, &$frame_cname, funcname, srcfile, firstlineno);  \
+          if (unlikely(__Pyx_use_tracing < 0)) goto_error;                               \
       }                                                                                  \
   }
   #else
-  #define __Pyx_TraceCall(funcname, srcfile, firstlineno, nogil)                         \
+  #define __Pyx_TraceCall(funcname, srcfile, firstlineno, nogil, goto_error)             \
   {   PyThreadState* tstate = PyThreadState_GET();                                       \
       if (unlikely(tstate->use_tracing) && !tstate->tracing &&                           \
               (tstate->c_profilefunc || (CYTHON_TRACE && tstate->c_tracefunc))) {        \
           __Pyx_use_tracing = __Pyx_TraceSetupAndCall(&$frame_code_cname, &$frame_cname, funcname, srcfile, firstlineno);  \
+          if (unlikely(__Pyx_use_tracing < 0)) goto_error;                               \
       }                                                                                  \
   }
   #endif
@@ -150,58 +153,71 @@
 #else
 
   #define __Pyx_TraceDeclarations(codeobj, nogil)
-  #define __Pyx_TraceCall(funcname, srcfile, firstlineno, nogil)
+  // mark error label as used to avoid compiler warnings
+  #define __Pyx_TraceCall(funcname, srcfile, firstlineno, nogil, goto_error)   if (1); else goto_error;
   #define __Pyx_TraceException()
   #define __Pyx_TraceReturn(result, nogil)
 
 #endif /* CYTHON_PROFILE */
 
 #if CYTHON_TRACE
-  // FIXME: we should eventually propagate trace errors instead of just swallowing them
   // see call_trace_protected() in CPython's ceval.c
-  static void __Pyx_call_line_trace_func(PyThreadState *tstate, PyFrameObject *frame, int lineno) {
+  static int __Pyx_call_line_trace_func(PyThreadState *tstate, PyFrameObject *frame, int lineno) {
+      int ret;
       PyObject *type, *value, *traceback;
       PyErr_Fetch(&type, &value, &traceback);
       frame->f_lineno = lineno;
       tstate->tracing++;
       tstate->use_tracing = 0;
-      tstate->c_tracefunc(tstate->c_traceobj, frame, PyTrace_LINE, NULL);
+      ret = tstate->c_tracefunc(tstate->c_traceobj, frame, PyTrace_LINE, NULL);
       tstate->use_tracing = 1;
       tstate->tracing--;
-      PyErr_Restore(type, value, traceback);
+      if (likely(!ret)) {
+          PyErr_Restore(type, value, traceback);
+      } else {
+          Py_XDECREF(type);
+          Py_XDECREF(value);
+          Py_XDECREF(traceback);
+      }
+      return ret;
   }
 
   #ifdef WITH_THREAD
-  #define __Pyx_TraceLine(lineno, nogil)                                                   \
+  #define __Pyx_TraceLine(lineno, nogil, goto_error)                                       \
   if (likely(!__Pyx_use_tracing)); else {                                                  \
       if (nogil) {                                                                         \
           if (CYTHON_TRACE_NOGIL) {                                                        \
+              int ret = 0;                                                                 \
               PyThreadState *tstate;                                                       \
               PyGILState_STATE state = PyGILState_Ensure();                                \
               tstate = PyThreadState_GET();                                                \
               if (unlikely(tstate->use_tracing && tstate->c_tracefunc)) {                  \
-                  __Pyx_call_line_trace_func(tstate, $frame_cname, lineno);                \
+                  ret = __Pyx_call_line_trace_func(tstate, $frame_cname, lineno);          \
               }                                                                            \
               PyGILState_Release(state);                                                   \
+              if (unlikely(ret)) goto_error;                                               \
           }                                                                                \
       } else {                                                                             \
           PyThreadState* tstate = PyThreadState_GET();                                     \
           if (unlikely(tstate->use_tracing && tstate->c_tracefunc)) {                      \
-              __Pyx_call_line_trace_func(tstate, $frame_cname, lineno);                    \
+              int ret = __Pyx_call_line_trace_func(tstate, $frame_cname, lineno);          \
+              if (unlikely(ret)) goto_error;                                               \
           }                                                                                \
       }                                                                                    \
   }
   #else
-  #define __Pyx_TraceLine(lineno, nogil)                                                   \
+  #define __Pyx_TraceLine(lineno, nogil, goto_error)                                       \
   if (likely(!__Pyx_use_tracing)); else {                                                  \
       PyThreadState* tstate = PyThreadState_GET();                                         \
       if (unlikely(tstate->use_tracing && tstate->c_tracefunc)) {                          \
-          __Pyx_call_line_trace_func(tstate, $frame_cname, lineno);                        \
+          int ret = __Pyx_call_line_trace_func(tstate, $frame_cname, lineno);              \
+          if (unlikely(ret)) goto_error;                                                   \
       }                                                                                    \
   }
   #endif
 #else
-  #define __Pyx_TraceLine(lineno, nogil)
+  // mark error label as used to avoid compiler warnings
+  #define __Pyx_TraceLine(lineno, nogil, goto_error)   if (1); else goto_error;
 #endif
 
 /////////////// Profile ///////////////
@@ -255,12 +271,13 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
     tstate->tracing--;
     if (retval) {
         PyErr_Restore(type, value, traceback);
+        return tstate->use_tracing && retval;
     } else {
         Py_XDECREF(type);
         Py_XDECREF(value);
         Py_XDECREF(traceback);
+        return -1;
     }
-    return tstate->use_tracing && retval;
 }
 
 static PyCodeObject *__Pyx_createFrameCodeObject(const char *funcname, const char *srcfile, int firstlineno) {
