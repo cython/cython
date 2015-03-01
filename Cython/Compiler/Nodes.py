@@ -5724,8 +5724,7 @@ class IfStatNode(StatNode):
             self.else_clause.analyse_declarations(env)
 
     def analyse_expressions(self, env):
-        self.if_clauses = [ if_clause.analyse_expressions(env)
-                            for if_clause in self.if_clauses ]
+        self.if_clauses = [if_clause.analyse_expressions(env) for if_clause in self.if_clauses]
         if self.else_clause:
             self.else_clause = self.else_clause.analyse_expressions(env)
         return self
@@ -5733,9 +5732,11 @@ class IfStatNode(StatNode):
     def generate_execution_code(self, code):
         code.mark_pos(self.pos)
         end_label = code.new_label()
-        for if_clause in self.if_clauses:
-            if_clause.generate_execution_code(code, end_label)
+        last = len(self.if_clauses)
+        for i, if_clause in enumerate(self.if_clauses):
+            if_clause.generate_execution_code(code, end_label, is_last=i == last)
         if self.else_clause:
+            code.mark_pos(self.else_clause.pos)
             code.putln("/*else*/ {")
             self.else_clause.generate_execution_code(code)
             code.putln("}")
@@ -5766,20 +5767,19 @@ class IfClauseNode(Node):
         self.body.analyse_declarations(env)
 
     def analyse_expressions(self, env):
-        self.condition = \
-            self.condition.analyse_temp_boolean_expression(env)
+        self.condition = self.condition.analyse_temp_boolean_expression(env)
         self.body = self.body.analyse_expressions(env)
         return self
 
-    def generate_execution_code(self, code, end_label):
+    def generate_execution_code(self, code, end_label, is_last):
         self.condition.generate_evaluation_code(code)
-        code.putln(
-            "if (%s) {" %
-                self.condition.result())
+        code.mark_pos(self.pos)
+        code.putln("if (%s) {" % self.condition.result())
         self.condition.generate_disposal_code(code)
         self.condition.free_temps(code)
         self.body.generate_execution_code(code)
-        if not self.body.is_terminator:
+        code.mark_pos(self.pos, trace=False)
+        if not (is_last or self.body.is_terminator):
             code.put_goto(end_label)
         code.putln("}")
 
@@ -5806,6 +5806,7 @@ class SwitchCaseNode(StatNode):
             cond.generate_evaluation_code(code)
             code.putln("case %s:" % cond.result())
         self.body.generate_execution_code(code)
+        code.mark_pos(self.pos, trace=False)
         code.putln("break;")
 
     def generate_function_definitions(self, env, code):
@@ -5817,6 +5818,7 @@ class SwitchCaseNode(StatNode):
         for cond in self.conditions:
             cond.annotate(code)
         self.body.annotate(code)
+
 
 class SwitchStatNode(StatNode):
     # Generated in the optimization of an if-elif-else node
@@ -5857,6 +5859,7 @@ class SwitchStatNode(StatNode):
             case.annotate(code)
         if self.else_clause is not None:
             self.else_clause.annotate(code)
+
 
 class LoopNode(object):
     pass
