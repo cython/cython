@@ -5732,7 +5732,9 @@ class IfStatNode(StatNode):
     def generate_execution_code(self, code):
         code.mark_pos(self.pos)
         end_label = code.new_label()
-        last = len(self.if_clauses) - 1
+        last = len(self.if_clauses)
+        if not self.else_clause:
+            last -= 1  # avoid redundant goto at end of last if-clause
         for i, if_clause in enumerate(self.if_clauses):
             if_clause.generate_execution_code(code, end_label, is_last=i == last)
         if self.else_clause:
