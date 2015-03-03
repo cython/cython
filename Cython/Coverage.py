@@ -37,10 +37,12 @@ def _find_dep_file_path(main_file, file_path):
 
 
 class Plugin(CoveragePlugin):
-    # map from traced file paths to corresponding C files
-    _c_files_map = None
     # map from traced file paths to absolute file paths
     _file_path_map = None
+    # map from traced file paths to corresponding C files
+    _c_files_map = None
+    # map from parsed C files to their content
+    _parsed_c_files = None
 
     def sys_info(self):
         return [('Cython version', __version__)]
@@ -155,48 +157,55 @@ class Plugin(CoveragePlugin):
         Each executable line starts with a comment header that states source file
         and line number, as well as the surrounding range of source code lines.
         """
-        match_source_path_line = re.compile(r' */[*] +"(.*)":([0-9]+)$').match
-        match_current_code_line = re.compile(r' *[*] (.*) # <<<<<<+$').match
-        match_comment_end = re.compile(r' *[*]/$').match
-        not_executable = re.compile(
-            r'\s*c(?:type)?def\s+'
-            r'(?:(?:public|external)\s+)?'
-            r'(?:struct|union|enum|class)'
-            r'(\s+[^:]+|)\s*:'
-        ).match
+        if self._parsed_c_files is None:
+            self._parsed_c_files = {}
+        if c_file in self._parsed_c_files:
+            code_lines = self._parsed_c_files[c_file]
+        else:
+            match_source_path_line = re.compile(r' */[*] +"(.*)":([0-9]+)$').match
+            match_current_code_line = re.compile(r' *[*] (.*) # <<<<<<+$').match
+            match_comment_end = re.compile(r' *[*]/$').match
+            not_executable = re.compile(
+                r'\s*c(?:type)?def\s+'
+                r'(?:(?:public|external)\s+)?'
+                r'(?:struct|union|enum|class)'
+                r'(\s+[^:]+|)\s*:'
+            ).match
 
-        code_lines = defaultdict(dict)
-        filenames = set()
-        with open(c_file) as lines:
-            lines = iter(lines)
-            for line in lines:
-                match = match_source_path_line(line)
-                if not match:
-                    continue
-                filename, lineno = match.groups()
-                filenames.add(filename)
-                lineno = int(lineno)
-                for comment_line in lines:
-                    match = match_current_code_line(comment_line)
-                    if match:
-                        code_line = match.group(1).rstrip()
-                        if not_executable(code_line):
+            code_lines = defaultdict(dict)
+            filenames = set()
+            with open(c_file) as lines:
+                lines = iter(lines)
+                for line in lines:
+                    match = match_source_path_line(line)
+                    if not match:
+                        continue
+                    filename, lineno = match.groups()
+                    filenames.add(filename)
+                    lineno = int(lineno)
+                    for comment_line in lines:
+                        match = match_current_code_line(comment_line)
+                        if match:
+                            code_line = match.group(1).rstrip()
+                            if not_executable(code_line):
+                                break
+                            code_lines[filename][lineno] = code_line
                             break
-                        code_lines[filename][lineno] = code_line
-                        break
-                    elif match_comment_end(comment_line):
-                        # unexpected comment format - false positive?
-                        break
+                        elif match_comment_end(comment_line):
+                            # unexpected comment format - false positive?
+                            break
+
+            self._parsed_c_files[c_file] = code_lines
 
         if self._c_files_map is None:
             self._c_files_map = {}
 
-        for filename in filenames:
+        for filename, code in code_lines.iteritems():
             abs_path = _find_dep_file_path(c_file, filename)
-            self._c_files_map[abs_path] = (c_file, filename, code_lines[filename])
+            self._c_files_map[abs_path] = (c_file, filename, code)
 
         if sourcefile not in self._c_files_map:
-            return (None,) * 2  # shouldn't happen ...
+            return (None,) * 2  # e.g. shared library file
         return self._c_files_map[sourcefile][1:]
 
 
