@@ -37,7 +37,10 @@ def _find_dep_file_path(main_file, file_path):
 
 
 class Plugin(CoveragePlugin):
+    # map from traced file paths to corresponding C files
     _c_files_map = None
+    # map from traced file paths to absolute file paths
+    _file_path_map = None
 
     def sys_info(self):
         return [('Cython version', __version__)]
@@ -66,7 +69,9 @@ class Plugin(CoveragePlugin):
             #        .c file)
             self._parse_lines(c_file, filename)
 
-        return CythonModuleTracer(filename, py_file, c_file, self._c_files_map)
+        if self._file_path_map is None:
+            self._file_path_map = {}
+        return CythonModuleTracer(filename, py_file, c_file, self._c_files_map, self._file_path_map)
 
     def file_reporter(self, filename):
         if os.path.splitext(filename)[1].lower() not in ('.pyx', '.pxi', '.pxd'):
@@ -199,27 +204,37 @@ class CythonModuleTracer(FileTracer):
     """
     Find the Python/Cython source file for a Cython module.
     """
-    def __init__(self, module_file, py_file, c_file, c_files_map):
+    def __init__(self, module_file, py_file, c_file, c_files_map, file_path_map):
         super(CythonModuleTracer, self).__init__()
         self.module_file = module_file
         self.py_file = py_file
         self.c_file = c_file
         self._c_files_map = c_files_map
+        self._file_path_map = file_path_map
 
     def has_dynamic_source_filename(self):
         return True
 
     def dynamic_source_filename(self, filename, frame):
+        """
+        Determine source file path.  Called by the function call tracer.
+        """
         source_file = frame.f_code.co_filename
+        try:
+            return self._file_path_map[source_file]
+        except KeyError:
+            pass
         abs_path = os.path.abspath(source_file)
 
         if self.py_file and source_file.lower().endswith('.py'):
             # always let coverage.py handle this case itself
+            self._file_path_map[source_file] = self.py_file
             return self.py_file
 
         assert self._c_files_map is not None
         if abs_path not in self._c_files_map:
             self._c_files_map[abs_path] = (self.c_file, source_file, None)
+        self._file_path_map[source_file] = abs_path
         return abs_path
 
 
