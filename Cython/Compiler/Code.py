@@ -159,7 +159,7 @@ class UtilityCodeBase(object):
         else:
             comment = '/'
             strip_comments = partial(re.compile(r'^\s*//.*|/\*[^*]*\*/').sub, '')
-            rstrip = partial(re.compile(r'\s*(\\?)$').sub, r'\1')
+            rstrip = partial(re.compile(r'\s+(\\?)$').sub, r'\1')
         match_special = re.compile(
             (r'^%(C)s{5,30}\s*(?P<name>(?:\w|\.)+)\s*%(C)s{5,30}|'
              r'^%(C)s+@(?P<tag>\w+)\s*:\s*(?P<value>(?:\w|[.:])+)') %
