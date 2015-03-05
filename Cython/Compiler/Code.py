@@ -152,16 +152,16 @@ class UtilityCodeBase(object):
         _, ext = os.path.splitext(path)
         if ext in ('.pyx', '.py', '.pxd', '.pxi'):
             comment = '#'
-            replace_comments = re.compile(r'^\s*#.*').sub
+            strip_comments = partial(re.compile(r'^\s*#.*').sub, '')
             rstrip = unicode.rstrip
         else:
             comment = '/'
-            replace_comments = re.compile(r'^\s*//.*|/\*[^*]*\*/').sub
+            strip_comments = partial(re.compile(r'^\s*//.*|/\*[^*]*\*/').sub, '')
             rstrip = partial(re.compile(r'\s*(\\?)$').sub, r'\1')
         match_special = re.compile(
             (r'^%(C)s{5,30}\s*(?P<name>(?:\w|\.)+)\s*%(C)s{5,30}|'
-             r'^%(C)s+@(?P<tag>\w+)\s*:\s*(?P<value>(?:\w|[.:])+)'
-                ) % {'C':comment}).match
+             r'^%(C)s+@(?P<tag>\w+)\s*:\s*(?P<value>(?:\w|[.:])+)') %
+            {'C': comment}).match
         match_type = re.compile('(.+)[.](proto|impl|init|cleanup)$').match
 
         f = Utils.open_source_file(filename, encoding='UTF-8')
@@ -197,7 +197,7 @@ class UtilityCodeBase(object):
                     tags.setdefault(m.group('tag'), set()).add(m.group('value'))
                     lines.append('') # keep line number correct
             else:
-                lines.append(rstrip(replace_comments('', line)))
+                lines.append(rstrip(strip_comments(line)))
 
         if utility is None:
             raise ValueError("Empty utility code file")
