@@ -18,6 +18,8 @@ import operator
 import textwrap
 from string import Template
 from functools import partial
+from contextlib import closing
+from collections import defaultdict
 
 try:
     import hashlib
@@ -164,15 +166,12 @@ class UtilityCodeBase(object):
             {'C': comment}).match
         match_type = re.compile('(.+)[.](proto|impl|init|cleanup)$').match
 
-        f = Utils.open_source_file(filename, encoding='UTF-8')
-        try:
+        with closing(Utils.open_source_file(filename, encoding='UTF-8')) as f:
             all_lines = f.readlines()
-        finally:
-            f.close()
 
-        utilities = {}
+        utilities = defaultdict(lambda: [None, None, {}])
         lines = []
-        tags = {}
+        tags = defaultdict(set)
         utility = type = None
         begin_lineno = 0
 
@@ -192,10 +191,10 @@ class UtilityCodeBase(object):
                         name, type = mtype.groups()
                     else:
                         type = 'impl'
-                    utility = utilities.setdefault(name, [None, None, {}])
+                    utility = utilities[name]
                 else:
-                    tags.setdefault(m.group('tag'), set()).add(m.group('value'))
-                    lines.append('') # keep line number correct
+                    tags[m.group('tag')].add(m.group('value'))
+                    lines.append('')  # keep line number correct
             else:
                 lines.append(rstrip(strip_comments(line)))
 
@@ -205,6 +204,7 @@ class UtilityCodeBase(object):
         # Don't forget to add the last utility code
         cls._add_utility(utility, type, lines, begin_lineno, tags)
 
+        utilities = dict(utilities)  # un-defaultdict-ify
         cls._utility_cache[path] = utilities
         return utilities
 
@@ -230,11 +230,10 @@ class UtilityCodeBase(object):
                 global __loader__
                 loader = __loader__
                 archive = loader.archive
-                fileobj = zipfile.ZipFile(archive)
-                listing = [ os.path.basename(name)
-                            for name in fileobj.namelist()
-                            if os.path.join(archive, name).startswith(utility_dir)]
-                fileobj.close()
+                with closing(zipfile.ZipFile(archive)) as fileobj:
+                    listing = [ os.path.basename(name)
+                                for name in fileobj.namelist()
+                                if os.path.join(archive, name).startswith(utility_dir)]
             files = [ os.path.join(utility_dir, filename)
                       for filename in listing
                       if filename.startswith(prefix) ]
@@ -1607,11 +1606,8 @@ class CCodeWriter(object):
             path = os.path.join(include_dir, include_file)
             if not os.path.exists(path):
                 tmp_path = '%s.tmp%s' % (path, os.getpid())
-                f = Utils.open_new_file(tmp_path)
-                try:
+                with closing(Utils.open_new_file(tmp_path)) as f:
                     f.write(code)
-                finally:
-                    f.close()
                 os.rename(tmp_path, path)
             code = '#include "%s"\n' % path
         self.put(code)
