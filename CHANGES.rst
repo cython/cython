@@ -52,7 +52,7 @@ Features added
 
 * PEP 479: turn accidental StopIteration exceptions that exit generators
   into a RuntimeError, activated with future import "generator_stop".
-  See http://legacy.python.org/dev/peps/pep-0479/
+  See https://www.python.org/dev/peps/pep-0479/
 
 * Looping over ``reversed(range())`` is optimised in the same way as
   ``range()``.  Patch by Favian Contreras.
