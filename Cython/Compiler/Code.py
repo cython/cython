@@ -14,9 +14,10 @@ cython.declare(os=object, re=object, operator=object,
 import os
 import re
 import sys
-from string import Template
 import operator
 import textwrap
+from string import Template
+from functools import partial
 
 try:
     import hashlib
@@ -152,9 +153,11 @@ class UtilityCodeBase(object):
         if ext in ('.pyx', '.py', '.pxd', '.pxi'):
             comment = '#'
             replace_comments = re.compile(r'^\s*#.*').sub
+            rstrip = unicode.rstrip
         else:
             comment = '/'
             replace_comments = re.compile(r'^\s*//.*|/\*[^*]*\*/').sub
+            rstrip = partial(re.compile(r'\s*(\\?)$').sub, r'\1')
         match_special = re.compile(
             (r'^%(C)s{5,30}\s*(?P<name>(?:\w|\.)+)\s*%(C)s{5,30}|'
              r'^%(C)s+@(?P<tag>\w+)\s*:\s*(?P<value>(?:\w|[.:])+)'
@@ -194,7 +197,7 @@ class UtilityCodeBase(object):
                     tags.setdefault(m.group('tag'), set()).add(m.group('value'))
                     lines.append('') # keep line number correct
             else:
-                lines.append(replace_comments('', line).rstrip())
+                lines.append(rstrip(replace_comments('', line)))
 
         if utility is None:
             raise ValueError("Empty utility code file")
