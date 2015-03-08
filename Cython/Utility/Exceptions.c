@@ -215,7 +215,7 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
     if (tb) {
 #if CYTHON_COMPILING_IN_PYPY
         PyObject *tmp_type, *tmp_value, *tmp_tb;
-        PyErr_Fetch(tmp_type, tmp_value, tmp_tb);
+        PyErr_Fetch(&tmp_type, &tmp_value, &tmp_tb);
         Py_INCREF(tb);
         PyErr_Restore(tmp_type, tmp_value, tb);
         Py_XDECREF(tmp_tb);
