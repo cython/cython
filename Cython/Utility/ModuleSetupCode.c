@@ -59,13 +59,16 @@
   #define __Pyx_DefaultClassType PyType_Type
 #endif
 
-#if PY_MAJOR_VERSION >= 3
+#if !defined(Py_TPFLAGS_CHECKTYPES)
   #define Py_TPFLAGS_CHECKTYPES 0
+#endif
+#if !defined(Py_TPFLAGS_HAVE_INDEX)
   #define Py_TPFLAGS_HAVE_INDEX 0
+#endif
+#if !defined(Py_TPFLAGS_HAVE_NEWBUFFER)
   #define Py_TPFLAGS_HAVE_NEWBUFFER 0
 #endif
-
-#if PY_VERSION_HEX < 0x030400a1 && !defined(Py_TPFLAGS_HAVE_FINALIZE)
+#if !defined(Py_TPFLAGS_HAVE_FINALIZE)
   #define Py_TPFLAGS_HAVE_FINALIZE 0
 #endif
 
