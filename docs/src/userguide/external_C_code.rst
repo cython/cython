@@ -124,6 +124,35 @@ A few more tricks and tips:
     cdef extern from *:
         ...
 
+Implementing functions in C
+---------------------------
+
+When you want to call C code from a Cython module, usually that code
+will be in some external library that you link your extension against.
+However, you can also directly compile C (or C++) code as part of your
+Cython module. In the ``.pyx`` file, you can put something like::
+
+    cdef extern from "spam.c":
+        void order_spam(int tons)
+
+Cython will assume that the function ``order_spam()`` is defined in the
+file ``spam.c``. If you also want to cimport this function from another
+module, it must be declared (not extern!) in the ``.pxd`` file::
+
+    cdef void order_spam(int tons)
+
+For this to work, the signature of ``order_spam()`` in ``spam.c`` must
+match the signature that Cython uses, in particular the function must
+be static:
+
+.. code-block:: c
+
+    static void order_spam(int tons)
+    {
+        printf("Ordered %i tons of spam!\n", tons);
+    }
+
+
 .. _struct-union-enum-styles:
 
 Styles of struct, union and enum declaration
