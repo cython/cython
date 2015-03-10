@@ -664,11 +664,13 @@ property_accessor_signatures = {
 #
 #------------------------------------------------------------------------------------------
 
+PyNumberMethods_Py3_GUARD = "PY_MAJOR_VERSION < 3 || CYTHON_COMPILING_IN_PYPY"
+
 PyNumberMethods = (
     MethodSlot(binaryfunc, "nb_add", "__add__"),
     MethodSlot(binaryfunc, "nb_subtract", "__sub__"),
     MethodSlot(binaryfunc, "nb_multiply", "__mul__"),
-    MethodSlot(binaryfunc, "nb_divide", "__div__", py3 = False),
+    MethodSlot(binaryfunc, "nb_divide", "__div__", ifdef = PyNumberMethods_Py3_GUARD),
     MethodSlot(binaryfunc, "nb_remainder", "__mod__"),
     MethodSlot(binaryfunc, "nb_divmod", "__divmod__"),
     MethodSlot(ternaryfunc, "nb_power", "__pow__"),
@@ -682,18 +684,18 @@ PyNumberMethods = (
     MethodSlot(binaryfunc, "nb_and", "__and__"),
     MethodSlot(binaryfunc, "nb_xor", "__xor__"),
     MethodSlot(binaryfunc, "nb_or", "__or__"),
-    EmptySlot("nb_coerce", py3 = False),
+    EmptySlot("nb_coerce", ifdef = PyNumberMethods_Py3_GUARD),
     MethodSlot(unaryfunc, "nb_int", "__int__", fallback="__long__"),
     MethodSlot(unaryfunc, "nb_long", "__long__", fallback="__int__", py3 = "<RESERVED>"),
     MethodSlot(unaryfunc, "nb_float", "__float__"),
-    MethodSlot(unaryfunc, "nb_oct", "__oct__", py3 = False),
-    MethodSlot(unaryfunc, "nb_hex", "__hex__", py3 = False),
+    MethodSlot(unaryfunc, "nb_oct", "__oct__", ifdef = PyNumberMethods_Py3_GUARD),
+    MethodSlot(unaryfunc, "nb_hex", "__hex__", ifdef = PyNumberMethods_Py3_GUARD),
 
     # Added in release 2.0
     MethodSlot(ibinaryfunc, "nb_inplace_add", "__iadd__"),
     MethodSlot(ibinaryfunc, "nb_inplace_subtract", "__isub__"),
     MethodSlot(ibinaryfunc, "nb_inplace_multiply", "__imul__"),
-    MethodSlot(ibinaryfunc, "nb_inplace_divide", "__idiv__", py3 = False),
+    MethodSlot(ibinaryfunc, "nb_inplace_divide", "__idiv__", ifdef = PyNumberMethods_Py3_GUARD),
     MethodSlot(ibinaryfunc, "nb_inplace_remainder", "__imod__"),
     MethodSlot(ibinaryfunc, "nb_inplace_power", "__ipow__"), # actually ternaryfunc!!!
     MethodSlot(ibinaryfunc, "nb_inplace_lshift", "__ilshift__"),
