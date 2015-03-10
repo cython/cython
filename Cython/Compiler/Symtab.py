@@ -698,8 +698,15 @@ class Scope(object):
                 cname = self.mangle(Naming.func_prefix, name)
         entry = self.lookup_here(name)
         if entry:
+            if not in_pxd and visibility != entry.visibility and visibility == 'extern':
+                # Previously declared, but now extern => treat this
+                # as implementing the function, using the new cname
+                defining = True
+                visibility = entry.visibility
+                entry.cname = cname
+                entry.func_cname = cname
             if visibility != 'private' and visibility != entry.visibility:
-                warning(pos, "Function '%s' previously declared as '%s'" % (name, entry.visibility), 1)
+                warning(pos, "Function '%s' previously declared as '%s', now as '%s'" % (name, entry.visibility, visibility), 1)
             if overridable != entry.is_overridable:
                 warning(pos, "Function '%s' previously declared as '%s'" % (
                     name, 'cpdef' if overridable else 'cdef'), 1)
