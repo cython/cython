@@ -554,11 +554,11 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
                 case  0: return 0;
                 case  1: __PYX_VERIFY_RETURN_INT({{TYPE}}, digit, ((PyLongObject*)x)->ob_digit[0]);
             }
- #endif
-#endif
             if (unlikely(Py_SIZE(x) < 0)) {
                 goto raise_neg_overflow;
             }
+ #endif
+#endif
             if (sizeof({{TYPE}}) <= sizeof(unsigned long)) {
                 __PYX_VERIFY_RETURN_INT({{TYPE}}, unsigned long, PyLong_AsUnsignedLong(x))
             } else if (sizeof({{TYPE}}) <= sizeof(unsigned long long)) {
