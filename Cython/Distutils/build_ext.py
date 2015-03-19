@@ -9,13 +9,9 @@ __revision__ = "$Id:$"
 
 import sys
 import os
-import re
-from distutils.core import Command
 from distutils.errors import DistutilsPlatformError
-from distutils.sysconfig import customize_compiler, get_python_version
 from distutils.dep_util import newer, newer_group
 from distutils import log
-from distutils.dir_util import mkpath
 from distutils.command import build_ext as _build_ext
 from distutils import sysconfig
 
