@@ -15,7 +15,7 @@ from . import Builtin
 from . import UtilNodes
 from . import Options
 
-from .Code import UtilityCode
+from .Code import UtilityCode, TempitaUtilityCode
 from .StringEncoding import EncodedString, BytesLiteral
 from .Errors import error
 from .ParseTreeTransforms import SkipDeclarations
@@ -2780,6 +2780,60 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             may_return_none=True,
             utility_code=load_c_utility('dict_setdefault'))
 
+    Pyx_PyNumber_BinopInt_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("op1", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("op2", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("int_op", PyrexTypes.c_long_type, None),
+            PyrexTypes.CFuncTypeArg("inplace", PyrexTypes.c_int_type, None),
+        ])
+
+    def _handle_simple_method_object___add__(self, node, function, args, is_unbound_method):
+        return self._optimise_int_binop('Add', node, function, args, is_unbound_method)
+
+    def _handle_simple_method_object___sub__(self, node, function, args, is_unbound_method):
+        return self._optimise_int_binop('Subtract', node, function, args, is_unbound_method)
+
+    def _optimise_int_binop(self, operator, node, function, args, is_unbound_method):
+        """
+        Optimise '+' / '-' operator for (likely) small integer operations.
+        """
+        if len(args) != 2:
+            return node
+        if not node.type.is_pyobject:
+            return node
+
+        # when adding IntNode to something else, assume other operand is also numeric
+        if isinstance(args[0], ExprNodes.IntNode):
+            if args[1].type is not PyrexTypes.py_object_type:
+                return node
+            intval = args[0]
+            arg_order = 'IntObj'
+        elif isinstance(args[1], ExprNodes.IntNode):
+            if args[0].type is not PyrexTypes.py_object_type:
+                return node
+            intval = args[1]
+            arg_order = 'ObjInt'
+        else:
+            return node
+
+        if not intval.has_constant_result() or abs(intval.constant_result) > 2**30:
+            return node
+        args = list(args)
+        self._inject_int_default_argument(intval, args, len(args), PyrexTypes.c_long_type, intval.constant_result)
+        self._inject_int_default_argument(node, args, len(args), PyrexTypes.c_long_type, int(node.inplace))
+
+        utility_code = TempitaUtilityCode.load_cached(
+            "PyNumberBinopWithInt", "Optimize.c",
+            context=dict(op=operator, order=arg_order))
+
+        return self._substitute_method_call(
+            node, function, "__Pyx_PyNumber_%s%s" % (operator, arg_order),
+            self.Pyx_PyNumber_BinopInt_func_type,
+            '__%s__' % operator[:3].lower(), is_unbound_method, args,
+            may_return_none=True,
+            with_none_check=False,
+            utility_code=utility_code)
 
     ### unicode type methods
 
@@ -3335,9 +3389,10 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     def _substitute_method_call(self, node, function, name, func_type,
                                 attr_name, is_unbound_method, args=(),
                                 utility_code=None, is_temp=None,
-                                may_return_none=ExprNodes.PythonCapiCallNode.may_return_none):
+                                may_return_none=ExprNodes.PythonCapiCallNode.may_return_none,
+                                with_none_check=True):
         args = list(args)
-        if args and not args[0].is_literal:
+        if with_none_check and args and not args[0].is_literal:
             self_arg = args[0]
             if is_unbound_method:
                 self_arg = self_arg.as_none_safe_node(

@@ -477,3 +477,51 @@ fallback:
 #endif
     return (inplace ? PyNumber_InPlacePower : PyNumber_Power)(two, exp, none);
 }
+
+
+/////////////// PyNumberBinopWithInt.proto ///////////////
+
+static PyObject* __Pyx_PyNumber_{{op}}{{order}}(PyObject *op1, PyObject *op2, long intval, int inplace); /*proto*/
+
+/////////////// PyNumberBinopWithInt ///////////////
+//@requires: TypeConversion.c::PyLongInternals
+
+{{py: pyval, ival = ('op2', 'b') if order == 'IntObj' else ('op1', 'a') }}
+
+static PyObject* __Pyx_PyNumber_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHON_UNUSED long intval, int inplace) {
+#if CYTHON_COMPILING_IN_CPYTHON
+    const long {{'a' if order == 'IntObj' else 'b'}} = intval;
+
+    #if PY_MAJOR_VERSION < 3
+    if (likely(PyInt_CheckExact({{pyval}}))) {
+        long x, {{ival}};
+        {{ival}} = PyInt_AS_LONG({{pyval}});
+        // copied from intobject.c in Py2.7:
+        // casts in the line below avoid undefined behaviour on overflow
+        x = (long)((unsigned long)a {{ '+' if op == 'Add' else '-' }} b);
+        if ((x^a) >= 0 || (x^{{ '~' if op == 'Subtract' else '' }}b) >= 0)
+            return PyInt_FromLong(x);
+        return PyLong_Type.tp_as_number->nb_{{op.lower()}}(op1, op2);
+    }
+    #endif
+
+    #if PY_MAJOR_VERSION >= 3 && CYTHON_USE_PYLONG_INTERNALS
+    if (likely(PyLong_CheckExact({{pyval}}))) {
+        long {{ival}};
+        switch (Py_SIZE({{pyval}})) {
+            case -1: {{ival}} = -(sdigit)((PyLongObject*){{pyval}})->ob_digit[0]; break;
+            case  0: {{ival}} = 0; break;
+            case  1: {{ival}} = ((PyLongObject*){{pyval}})->ob_digit[0]; break;
+            default: return PyLong_Type.tp_as_number->nb_{{op.lower()}}(op1, op2);
+        }
+        return PyLong_FromLong(a {{ '+' if op == 'Add' else '-' }} b);
+    }
+    #endif
+
+    if (PyFloat_CheckExact({{pyval}})) {
+        double {{ival}} = PyFloat_AS_DOUBLE({{pyval}});
+        return PyFloat_FromDouble(((double)a) {{ '+' if op == 'Add' else '-' }} (double)b);
+    }
+#endif
+    return (inplace ? PyNumber_InPlace{{op}} : PyNumber_{{op}})(op1, op2);
+}

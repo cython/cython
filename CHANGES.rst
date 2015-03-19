@@ -15,6 +15,8 @@ Features added
 
 * Tracing is supported in ``nogil`` functions/sections and module init code.
 
+* Adding/subtracting small constant Python integers is faster.
+
 Bugs fixed
 ----------
 
