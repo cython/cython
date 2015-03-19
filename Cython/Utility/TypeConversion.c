@@ -502,7 +502,7 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
         func_type value = func_value;                                     \
         if (sizeof(target_type) < sizeof(func_type)) {                    \
             if (unlikely(value != (func_type) (target_type) value)) {     \
-                const func_type zero = 0;                                 \
+                func_type zero = 0;                                       \
                 if (is_unsigned && unlikely(value < zero))                \
                     goto raise_neg_overflow;                              \
                 else                                                      \
