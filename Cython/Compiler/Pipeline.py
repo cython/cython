@@ -197,12 +197,12 @@ def create_pipeline(context, mode, exclude_classes=()):
         AnalyseExpressionsTransform(context),
         FindInvalidUseOfFusedTypes(context),
         ExpandInplaceOperators(context),
+        IterationTransform(context),
+        SwitchTransform(context),
         OptimizeBuiltinCalls(context),  ## Necessary?
         CreateClosureClasses(context),  ## After all lookups and type inference
         CalculateQualifiedNamesTransform(context),
         ConsolidateOverflowCheck(context),
-        IterationTransform(context),
-        SwitchTransform(context),
         DropRefcountingTransform(),
         FinalOptimizePhase(context),
         GilCheck(),
