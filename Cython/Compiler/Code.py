@@ -459,6 +459,7 @@ def sub_tempita(s, context, file=None, name=None):
     from ..Tempita import sub
     return sub(s, **context)
 
+
 class TempitaUtilityCode(UtilityCode):
     def __init__(self, name=None, proto=None, impl=None, init=None, file=None, context=None, **kwargs):
         if context is None:
@@ -468,6 +469,18 @@ class TempitaUtilityCode(UtilityCode):
         init = sub_tempita(init, context, file, name)
         super(TempitaUtilityCode, self).__init__(
             proto, impl, init=init, name=name, file=file, **kwargs)
+
+    @classmethod
+    def load_cached(cls, utility_code_name, from_file=None, context=None, __cache={}):
+        context_key = tuple(sorted(context.items())) if context else None
+        assert hash(context_key) is not None  # raise TypeError if not hashable
+        key = (cls, from_file, utility_code_name, context_key)
+        try:
+            return __cache[key]
+        except KeyError:
+            pass
+        code = __cache[key] = cls.load(utility_code_name, from_file, context=context)
+        return code
 
     def none_or_sub(self, s, context):
         """
