@@ -2819,9 +2819,11 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
 
         if not intval.has_constant_result() or abs(intval.constant_result) > 2**30:
             return node
+
         args = list(args)
         self._inject_int_default_argument(intval, args, len(args), PyrexTypes.c_long_type, intval.constant_result)
-        self._inject_int_default_argument(node, args, len(args), PyrexTypes.c_long_type, int(node.inplace))
+        inplace = node.inplace if isinstance(node, ExprNodes.NumBinopNode) else False
+        self._inject_int_default_argument(node, args, len(args), PyrexTypes.c_long_type, int(inplace))
 
         utility_code = TempitaUtilityCode.load_cached(
             "PyNumberBinopWithInt", "Optimize.c",
