@@ -27,6 +27,39 @@ def locals_function(a, b=2):
     return locals()
 
 
+### true division
+
+def truediv(x):
+    """
+    >>> truediv(4)
+    2.0
+    >>> truediv(3)
+    1.5
+    """
+    return x / 2
+
+
+def truediv_int(int x):
+    """
+    >>> truediv_int(4)
+    2.0
+    >>> truediv_int(3)
+    1.5
+    """
+    return x / 2
+
+
+@cython.cdivision(True)
+def cdiv_int(int x):
+    """
+    >>> cdiv_int(4)
+    2
+    >>> cdiv_int(3)
+    1
+    """
+    return x / 2
+
+
 ### module level except-as tests
 
 exc = [None]

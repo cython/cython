@@ -89,8 +89,8 @@ class Context(object):
     def set_language_level(self, level):
         self.language_level = level
         if level >= 3:
-            from .Future import print_function, unicode_literals, absolute_import
-            self.future_directives.update([print_function, unicode_literals, absolute_import])
+            from .Future import print_function, unicode_literals, absolute_import, division
+            self.future_directives.update([print_function, unicode_literals, absolute_import, division])
             self.modules['builtins'] = self.modules['__builtin__']
 
     # pipeline creation functions can now be found in Pipeline.py
