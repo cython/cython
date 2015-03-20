@@ -564,7 +564,9 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYT
             case -1: {{fval}} = -(double)((PyLongObject*){{pyval}})->ob_digit[0]; break;
             case  0: {{fval}} = 0.0; break;
             case  1: {{fval}} = (double)((PyLongObject*){{pyval}})->ob_digit[0]; break;
-            default: {{fval}} = PyLong_AsDouble({{pyval}}); break;
+            default: {{fval}} = PyLong_AsDouble({{pyval}});
+                if (unlikely({{fval}} == -1 && PyErr_Occurred())) return NULL;
+                break;
         }
     } else
     #endif
