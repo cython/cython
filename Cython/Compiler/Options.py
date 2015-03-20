@@ -249,6 +249,7 @@ directive_scopes = { # defaults to available everywhere
     'c_string_type': ('module',),
     'c_string_encoding': ('module',),
     'type_version_tag': ('module', 'cclass'),
+    'language_level': ('module',),
 }
 
 def parse_directive_value(name, value, relaxed_bool=False):
