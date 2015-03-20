@@ -501,10 +501,10 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, long 
     if (likely(PyInt_CheckExact({{pyval}}))) {
         long x, {{ival}};
         {{ival}} = PyInt_AS_LONG({{pyval}});
-        // copied from intobject.c in Py2.7:
+        // adapted from intobject.c in Py2.7:
         // casts in the line below avoid undefined behaviour on overflow
         x = (long)((unsigned long)a {{ '+' if op == 'Add' else '-' }} b);
-        if ((x^a) >= 0 || (x^{{ '~' if op == 'Subtract' else '' }}b) >= 0)
+        if (likely((x^a) >= 0 || (x^{{ '~' if op == 'Subtract' else '' }}b) >= 0))
             return PyInt_FromLong(x);
         return PyLong_Type.tp_as_number->nb_{{op.lower()}}(op1, op2);
     }
