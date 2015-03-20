@@ -526,6 +526,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, long 
     if (PyFloat_CheckExact({{pyval}})) {
         double result;
         double {{ival}} = PyFloat_AS_DOUBLE({{pyval}});
+        // copied from floatobject.c in Py3.5:
         PyFPE_START_PROTECT("{{op.lower()}}", return NULL)
         result = ((double)a) {{ '+' if op == 'Add' else '-' }} (double)b;
         PyFPE_END_PROTECT(result)
@@ -576,11 +577,12 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
         }
         #else
         {{fval}} = PyLong_AsDouble({{pyval}});
-        if (unlikely({{fval}} == -1 && PyErr_Occurred())) return NULL;
+        if (unlikely({{fval}} == -1.0 && PyErr_Occurred())) return NULL;
         #endif
     } else
         return (inplace ? PyNumber_InPlace{{op}} : PyNumber_{{op}})(op1, op2);
 
+    // copied from floatobject.c in Py3.5:
     PyFPE_START_PROTECT("{{op.lower()}}", return NULL)
     result = a {{ '+' if op == 'Add' else '-' }} b;
     PyFPE_END_PROTECT(result)
