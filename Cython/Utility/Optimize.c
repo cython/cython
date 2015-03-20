@@ -494,7 +494,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, long 
 #if CYTHON_COMPILING_IN_CPYTHON
 {{py: pyval, ival = ('op2', 'b') if order == 'CObj' else ('op1', 'a') }}
 
-static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHON_UNUSED long intval, int inplace) {
+static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, long intval, int inplace) {
     const long {{'a' if order == 'CObj' else 'b'}} = intval;
 
     #if PY_MAJOR_VERSION < 3
@@ -546,7 +546,7 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
 #if CYTHON_COMPILING_IN_CPYTHON
 {{py: pyval, fval = ('op2', 'b') if order == 'CObj' else ('op1', 'a') }}
 
-static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHON_UNUSED double floatval, int inplace) {
+static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, double floatval, int inplace) {
     const double {{'a' if order == 'CObj' else 'b'}} = floatval;
     double {{fval}};
 
