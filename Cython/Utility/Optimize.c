@@ -524,8 +524,12 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, long 
     #endif
 
     if (PyFloat_CheckExact({{pyval}})) {
+        double result;
         double {{ival}} = PyFloat_AS_DOUBLE({{pyval}});
-        return PyFloat_FromDouble(((double)a) {{ '+' if op == 'Add' else '-' }} (double)b);
+        PyFPE_START_PROTECT("{{op.lower()}}", return NULL)
+        result = ((double)a) {{ '+' if op == 'Add' else '-' }} (double)b;
+        PyFPE_END_PROTECT(result)
+        return PyFloat_FromDouble(result);
     }
     return (inplace ? PyNumber_InPlace{{op}} : PyNumber_{{op}})(op1, op2);
 }
@@ -548,7 +552,7 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
 
 static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, double floatval, int inplace) {
     const double {{'a' if order == 'CObj' else 'b'}} = floatval;
-    double {{fval}};
+    double result, {{fval}};
 
     if (likely(PyFloat_CheckExact({{pyval}}))) {
         {{fval}} = PyFloat_AS_DOUBLE({{pyval}});
@@ -576,6 +580,10 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
         #endif
     } else
         return (inplace ? PyNumber_InPlace{{op}} : PyNumber_{{op}})(op1, op2);
-    return PyFloat_FromDouble(a {{ '+' if op == 'Add' else '-' }} b);
+
+    PyFPE_START_PROTECT("{{op.lower()}}", return NULL)
+    result = a {{ '+' if op == 'Add' else '-' }} b;
+    PyFPE_END_PROTECT(result)
+    return PyFloat_FromDouble(result);
 }
 #endif
