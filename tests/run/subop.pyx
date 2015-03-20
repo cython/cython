@@ -55,6 +55,25 @@ def sub_x_1(x):
 
 
 @cython.test_fail_if_path_exists('//SubNode')
+def sub_x_1f(x):
+    """
+    >>> sub_x_1f(0)
+    -1.0
+    >>> sub_x_1f(1)
+    0.0
+    >>> sub_x_1f(-1)
+    -2.0
+    >>> sub_x_1f(1.5)
+    0.5
+    >>> sub_x_1f(-1.5)
+    -2.5
+    >>> try: sub_x_1f("abc")
+    ... except TypeError: pass
+    """
+    return x - 1.0
+
+
+@cython.test_fail_if_path_exists('//SubNode')
 def sub_x_large(x):
     """
     >>> sub_x_large(0)
@@ -96,6 +115,25 @@ def sub_1_x(x):
     ... except TypeError: pass
     """
     return 1 - x
+
+
+@cython.test_fail_if_path_exists('//SubNode')
+def sub_1f_x(x):
+    """
+    >>> sub_1f_x(0)
+    1.0
+    >>> sub_1f_x(-1)
+    2.0
+    >>> sub_1f_x(1)
+    0.0
+    >>> sub_1f_x(1.5)
+    -0.5
+    >>> sub_1f_x(-1.5)
+    2.5
+    >>> try: sub_1f_x("abc")
+    ... except TypeError: pass
+    """
+    return 1.0 - x
 
 
 @cython.test_fail_if_path_exists('//SubNode')

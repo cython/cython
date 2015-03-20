@@ -479,18 +479,18 @@ fallback:
 }
 
 
-/////////////// PyIntBinopWithInt.proto ///////////////
+/////////////// PyIntBinop.proto ///////////////
 
 static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, long intval, int inplace); /*proto*/
 
-/////////////// PyIntBinopWithInt ///////////////
+/////////////// PyIntBinop ///////////////
 //@requires: TypeConversion.c::PyLongInternals
 
-{{py: pyval, ival = ('op2', 'b') if order == 'IntObj' else ('op1', 'a') }}
+{{py: pyval, ival = ('op2', 'b') if order == 'CObj' else ('op1', 'a') }}
 
 static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHON_UNUSED long intval, int inplace) {
 #if CYTHON_COMPILING_IN_CPYTHON
-    const long {{'a' if order == 'IntObj' else 'b'}} = intval;
+    const long {{'a' if order == 'CObj' else 'b'}} = intval;
 
     #if PY_MAJOR_VERSION < 3
     if (likely(PyInt_CheckExact({{pyval}}))) {
@@ -524,4 +524,43 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
     }
 #endif
     return (inplace ? PyNumber_InPlace{{op}} : PyNumber_{{op}})(op1, op2);
+}
+
+/////////////// PyFloatBinop.proto ///////////////
+
+static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, double floatval, int inplace); /*proto*/
+
+/////////////// PyFloatBinop ///////////////
+//@requires: TypeConversion.c::PyLongInternals
+
+{{py: pyval, fval = ('op2', 'b') if order == 'CObj' else ('op1', 'a') }}
+
+static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHON_UNUSED double floatval, int inplace) {
+#if CYTHON_COMPILING_IN_CPYTHON
+    const double {{'a' if order == 'CObj' else 'b'}} = floatval;
+    double {{fval}};
+
+    if (likely(PyFloat_CheckExact({{pyval}}))) {
+        {{fval}} = PyFloat_AS_DOUBLE({{pyval}});
+    } else
+    #if PY_MAJOR_VERSION < 3
+    if (likely(PyInt_CheckExact({{pyval}}))) {
+        {{fval}} = (double) PyInt_AS_LONG({{pyval}});
+    } else
+    #endif
+    #if PY_MAJOR_VERSION >= 3 && CYTHON_USE_PYLONG_INTERNALS
+    if (likely(PyLong_CheckExact({{pyval}}))) {
+        switch (Py_SIZE({{pyval}})) {
+            case -1: {{fval}} = -(double)((PyLongObject*){{pyval}})->ob_digit[0]; break;
+            case  0: {{fval}} = 0.0; break;
+            case  1: {{fval}} = (double)((PyLongObject*){{pyval}})->ob_digit[0]; break;
+            default: {{fval}} = PyLong_AsDouble({{pyval}}); break;
+        }
+    } else
+    #endif
+#endif
+    return (inplace ? PyNumber_InPlace{{op}} : PyNumber_{{op}})(op1, op2);
+#if CYTHON_COMPILING_IN_CPYTHON
+    return PyFloat_FromDouble(a {{ '+' if op == 'Add' else '-' }} b);
+#endif
 }

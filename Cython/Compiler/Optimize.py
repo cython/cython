@@ -2784,54 +2784,72 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         PyrexTypes.py_object_type, [
             PyrexTypes.CFuncTypeArg("op1", PyrexTypes.py_object_type, None),
             PyrexTypes.CFuncTypeArg("op2", PyrexTypes.py_object_type, None),
-            PyrexTypes.CFuncTypeArg("int_op", PyrexTypes.c_long_type, None),
-            PyrexTypes.CFuncTypeArg("inplace", PyrexTypes.c_int_type, None),
+            PyrexTypes.CFuncTypeArg("intval", PyrexTypes.c_long_type, None),
+            PyrexTypes.CFuncTypeArg("inplace", PyrexTypes.c_bint_type, None),
+        ])
+
+    Pyx_PyFloat_BinopInt_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("op1", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("op2", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("fval", PyrexTypes.c_double_type, None),
+            PyrexTypes.CFuncTypeArg("inplace", PyrexTypes.c_bint_type, None),
         ])
 
     def _handle_simple_method_object___add__(self, node, function, args, is_unbound_method):
-        return self._optimise_int_binop('Add', node, function, args, is_unbound_method)
+        return self._optimise_num_binop('Add', node, function, args, is_unbound_method)
 
     def _handle_simple_method_object___sub__(self, node, function, args, is_unbound_method):
-        return self._optimise_int_binop('Subtract', node, function, args, is_unbound_method)
+        return self._optimise_num_binop('Subtract', node, function, args, is_unbound_method)
 
-    def _optimise_int_binop(self, operator, node, function, args, is_unbound_method):
+    def _handle_simple_method_float___add__(self, node, function, args, is_unbound_method):
+        return self._optimise_num_binop('Add', node, function, args, is_unbound_method)
+
+    def _handle_simple_method_float___sub__(self, node, function, args, is_unbound_method):
+        return self._optimise_num_binop('Subtract', node, function, args, is_unbound_method)
+
+    def _optimise_num_binop(self, operator, node, function, args, is_unbound_method):
         """
-        Optimise '+' / '-' operator for (likely) small integer operations.
+        Optimise '+' / '-' operator for (likely) float or small integer operations.
         """
         if len(args) != 2:
             return node
         if not node.type.is_pyobject:
             return node
 
-        # when adding IntNode to something else, assume other operand is also numeric
-        if isinstance(args[0], ExprNodes.IntNode):
+        # when adding IntNode/FloatNode to something else, assume other operand is also numeric
+        num_nodes = (ExprNodes.IntNode, ExprNodes.FloatNode)
+        if isinstance(args[0], num_nodes):
             if args[1].type is not PyrexTypes.py_object_type:
                 return node
-            intval = args[0]
-            arg_order = 'IntObj'
-        elif isinstance(args[1], ExprNodes.IntNode):
+            numval = args[0]
+            arg_order = 'CObj'
+        elif isinstance(args[1], num_nodes):
             if args[0].type is not PyrexTypes.py_object_type:
                 return node
-            intval = args[1]
-            arg_order = 'ObjInt'
+            numval = args[1]
+            arg_order = 'ObjC'
         else:
             return node
 
-        if not intval.has_constant_result() or abs(intval.constant_result) > 2**30:
+        is_float = isinstance(numval, ExprNodes.FloatNode)
+        if not numval.has_constant_result() or (not is_float and abs(numval.constant_result) > 2**30):
             return node
 
         args = list(args)
-        self._inject_int_default_argument(intval, args, len(args), PyrexTypes.c_long_type, intval.constant_result)
+        args.append((ExprNodes.FloatNode if is_float else ExprNodes.IntNode)(
+            numval.pos, value=numval.value, constant_result=numval.constant_result,
+            type=PyrexTypes.c_double_type if is_float else PyrexTypes.c_long_type))
         inplace = node.inplace if isinstance(node, ExprNodes.NumBinopNode) else False
-        self._inject_int_default_argument(node, args, len(args), PyrexTypes.c_long_type, int(inplace))
+        args.append(ExprNodes.BoolNode(node.pos, value=inplace, constant_result=inplace))
 
         utility_code = TempitaUtilityCode.load_cached(
-            "PyIntBinopWithInt", "Optimize.c",
+            "PyFloatBinop" if is_float else "PyIntBinop", "Optimize.c",
             context=dict(op=operator, order=arg_order))
 
         return self._substitute_method_call(
-            node, function, "__Pyx_PyInt_%s%s" % (operator, arg_order),
-            self.Pyx_PyInt_BinopInt_func_type,
+            node, function, "__Pyx_Py%s_%s%s" % ('Float' if is_float else 'Int', operator, arg_order),
+            self.Pyx_PyFloat_BinopInt_func_type if is_float else self.Pyx_PyInt_BinopInt_func_type,
             '__%s__' % operator[:3].lower(), is_unbound_method, args,
             may_return_none=True,
             with_none_check=False,
