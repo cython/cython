@@ -481,15 +481,20 @@ fallback:
 
 /////////////// PyIntBinop.proto ///////////////
 
+#if CYTHON_COMPILING_IN_CPYTHON
 static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, long intval, int inplace); /*proto*/
+#else
+#define __Pyx_PyInt_{{op}}{{order}}(op1, op2, intval, inplace) \
+    ((inplace ? PyNumber_InPlace{{op}} : PyNumber_{{op}})(op1, op2))
+#endif
 
 /////////////// PyIntBinop ///////////////
 //@requires: TypeConversion.c::PyLongInternals
 
+#if CYTHON_COMPILING_IN_CPYTHON
 {{py: pyval, ival = ('op2', 'b') if order == 'CObj' else ('op1', 'a') }}
 
 static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHON_UNUSED long intval, int inplace) {
-#if CYTHON_COMPILING_IN_CPYTHON
     const long {{'a' if order == 'CObj' else 'b'}} = intval;
 
     #if PY_MAJOR_VERSION < 3
@@ -522,21 +527,26 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
         double {{ival}} = PyFloat_AS_DOUBLE({{pyval}});
         return PyFloat_FromDouble(((double)a) {{ '+' if op == 'Add' else '-' }} (double)b);
     }
-#endif
     return (inplace ? PyNumber_InPlace{{op}} : PyNumber_{{op}})(op1, op2);
 }
+#endif
 
 /////////////// PyFloatBinop.proto ///////////////
 
+#if CYTHON_COMPILING_IN_CPYTHON
 static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, double floatval, int inplace); /*proto*/
+#else
+#define __Pyx_PyFloat_{{op}}{{order}}(op1, op2, floatval, inplace) \
+    ((inplace ? PyNumber_InPlace{{op}} : PyNumber_{{op}})(op1, op2))
+#endif
 
 /////////////// PyFloatBinop ///////////////
 //@requires: TypeConversion.c::PyLongInternals
 
+#if CYTHON_COMPILING_IN_CPYTHON
 {{py: pyval, fval = ('op2', 'b') if order == 'CObj' else ('op1', 'a') }}
 
 static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHON_UNUSED double floatval, int inplace) {
-#if CYTHON_COMPILING_IN_CPYTHON
     const double {{'a' if order == 'CObj' else 'b'}} = floatval;
     double {{fval}};
 
@@ -558,9 +568,7 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYT
         }
     } else
     #endif
-#endif
-    return (inplace ? PyNumber_InPlace{{op}} : PyNumber_{{op}})(op1, op2);
-#if CYTHON_COMPILING_IN_CPYTHON
+        return (inplace ? PyNumber_InPlace{{op}} : PyNumber_{{op}})(op1, op2);
     return PyFloat_FromDouble(a {{ '+' if op == 'Add' else '-' }} b);
-#endif
 }
+#endif
