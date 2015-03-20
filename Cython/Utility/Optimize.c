@@ -479,16 +479,16 @@ fallback:
 }
 
 
-/////////////// PyNumberBinopWithInt.proto ///////////////
+/////////////// PyIntBinopWithInt.proto ///////////////
 
-static PyObject* __Pyx_PyNumber_{{op}}{{order}}(PyObject *op1, PyObject *op2, long intval, int inplace); /*proto*/
+static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, long intval, int inplace); /*proto*/
 
-/////////////// PyNumberBinopWithInt ///////////////
+/////////////// PyIntBinopWithInt ///////////////
 //@requires: TypeConversion.c::PyLongInternals
 
 {{py: pyval, ival = ('op2', 'b') if order == 'IntObj' else ('op1', 'a') }}
 
-static PyObject* __Pyx_PyNumber_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHON_UNUSED long intval, int inplace) {
+static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHON_UNUSED long intval, int inplace) {
 #if CYTHON_COMPILING_IN_CPYTHON
     const long {{'a' if order == 'IntObj' else 'b'}} = intval;
 

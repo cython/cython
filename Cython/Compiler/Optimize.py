@@ -2780,7 +2780,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             may_return_none=True,
             utility_code=load_c_utility('dict_setdefault'))
 
-    Pyx_PyNumber_BinopInt_func_type = PyrexTypes.CFuncType(
+    Pyx_PyInt_BinopInt_func_type = PyrexTypes.CFuncType(
         PyrexTypes.py_object_type, [
             PyrexTypes.CFuncTypeArg("op1", PyrexTypes.py_object_type, None),
             PyrexTypes.CFuncTypeArg("op2", PyrexTypes.py_object_type, None),
@@ -2826,12 +2826,12 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         self._inject_int_default_argument(node, args, len(args), PyrexTypes.c_long_type, int(inplace))
 
         utility_code = TempitaUtilityCode.load_cached(
-            "PyNumberBinopWithInt", "Optimize.c",
+            "PyIntBinopWithInt", "Optimize.c",
             context=dict(op=operator, order=arg_order))
 
         return self._substitute_method_call(
-            node, function, "__Pyx_PyNumber_%s%s" % (operator, arg_order),
-            self.Pyx_PyNumber_BinopInt_func_type,
+            node, function, "__Pyx_PyInt_%s%s" % (operator, arg_order),
+            self.Pyx_PyInt_BinopInt_func_type,
             '__%s__' % operator[:3].lower(), is_unbound_method, args,
             may_return_none=True,
             with_none_check=False,
