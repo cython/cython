@@ -553,13 +553,15 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYT
     if (likely(PyFloat_CheckExact({{pyval}}))) {
         {{fval}} = PyFloat_AS_DOUBLE({{pyval}});
     } else
+
     #if PY_MAJOR_VERSION < 3
     if (likely(PyInt_CheckExact({{pyval}}))) {
         {{fval}} = (double) PyInt_AS_LONG({{pyval}});
     } else
     #endif
-    #if PY_MAJOR_VERSION >= 3 && CYTHON_USE_PYLONG_INTERNALS
+
     if (likely(PyLong_CheckExact({{pyval}}))) {
+        #if PY_MAJOR_VERSION >= 3 && CYTHON_USE_PYLONG_INTERNALS
         switch (Py_SIZE({{pyval}})) {
             case -1: {{fval}} = -(double)((PyLongObject*){{pyval}})->ob_digit[0]; break;
             case  0: {{fval}} = 0.0; break;
@@ -568,8 +570,11 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYT
                 if (unlikely({{fval}} == -1 && PyErr_Occurred())) return NULL;
                 break;
         }
+        #else
+        {{fval}} = PyLong_AsDouble({{pyval}});
+        if (unlikely({{fval}} == -1 && PyErr_Occurred())) return NULL;
+        #endif
     } else
-    #endif
         return (inplace ? PyNumber_InPlace{{op}} : PyNumber_{{op}})(op1, op2);
     return PyFloat_FromDouble(a {{ '+' if op == 'Add' else '-' }} b);
 }
