@@ -493,6 +493,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, long 
 
 #if CYTHON_COMPILING_IN_CPYTHON
 {{py: pyval, ival = ('op2', 'b') if order == 'CObj' else ('op1', 'a') }}
+{{py: c_op = '+' if op == 'Add' else '-' }}
 
 static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, long intval, int inplace) {
     const long {{'a' if order == 'CObj' else 'b'}} = intval;
@@ -503,7 +504,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, long 
         {{ival}} = PyInt_AS_LONG({{pyval}});
         // adapted from intobject.c in Py2.7:
         // casts in the line below avoid undefined behaviour on overflow
-        x = (long)((unsigned long)a {{ '+' if op == 'Add' else '-' }} b);
+        x = (long)((unsigned long)a {{c_op}} b);
         if (likely((x^a) >= 0 || (x^{{ '~' if op == 'Subtract' else '' }}b) >= 0))
             return PyInt_FromLong(x);
         return PyLong_Type.tp_as_number->nb_{{op.lower()}}(op1, op2);
@@ -519,7 +520,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, long 
             case  1: {{ival}} = ((PyLongObject*){{pyval}})->ob_digit[0]; break;
             default: return PyLong_Type.tp_as_number->nb_{{op.lower()}}(op1, op2);
         }
-        return PyLong_FromLong(a {{ '+' if op == 'Add' else '-' }} b);
+        return PyLong_FromLong(a {{c_op}} b);
     }
     #endif
 
@@ -528,7 +529,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, long 
         double {{ival}} = PyFloat_AS_DOUBLE({{pyval}});
         // copied from floatobject.c in Py3.5:
         PyFPE_START_PROTECT("{{op.lower()}}", return NULL)
-        result = ((double)a) {{ '+' if op == 'Add' else '-' }} (double)b;
+        result = ((double)a) {{c_op}} (double)b;
         PyFPE_END_PROTECT(result)
         return PyFloat_FromDouble(result);
     }
@@ -550,6 +551,7 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
 
 #if CYTHON_COMPILING_IN_CPYTHON
 {{py: pyval, fval = ('op2', 'b') if order == 'CObj' else ('op1', 'a') }}
+{{py: c_op = '+' if op == 'Add' else '-' }}
 
 static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, double floatval, int inplace) {
     const double {{'a' if order == 'CObj' else 'b'}} = floatval;
@@ -584,7 +586,7 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
 
     // copied from floatobject.c in Py3.5:
     PyFPE_START_PROTECT("{{op.lower()}}", return NULL)
-    result = a {{ '+' if op == 'Add' else '-' }} b;
+    result = a {{c_op}} b;
     PyFPE_END_PROTECT(result)
     return PyFloat_FromDouble(result);
 }
