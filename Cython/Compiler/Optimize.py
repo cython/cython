@@ -2802,6 +2802,15 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     def _handle_simple_method_object___sub__(self, node, function, args, is_unbound_method):
         return self._optimise_num_binop('Subtract', node, function, args, is_unbound_method)
 
+    def _handle_simple_method_object___and__(self, node, function, args, is_unbound_method):
+        return self._optimise_num_binop('And', node, function, args, is_unbound_method)
+
+    def _handle_simple_method_object___or__(self, node, function, args, is_unbound_method):
+        return self._optimise_num_binop('Or', node, function, args, is_unbound_method)
+
+    def _handle_simple_method_object___xor__(self, node, function, args, is_unbound_method):
+        return self._optimise_num_binop('Xor', node, function, args, is_unbound_method)
+
     def _handle_simple_method_float___add__(self, node, function, args, is_unbound_method):
         return self._optimise_num_binop('Add', node, function, args, is_unbound_method)
 
@@ -2832,8 +2841,14 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         else:
             return node
 
+        if not numval.has_constant_result():
+            return node
+
         is_float = isinstance(numval, ExprNodes.FloatNode)
-        if not numval.has_constant_result() or (not is_float and abs(numval.constant_result) > 2**30):
+        if is_float:
+            if operator not in ('Add', 'Subtract'):
+                return node
+        elif abs(numval.constant_result) > 2**30:
             return node
 
         args = list(args)

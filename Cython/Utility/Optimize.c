@@ -493,20 +493,30 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, long 
 
 #if CYTHON_COMPILING_IN_CPYTHON
 {{py: pyval, ival = ('op2', 'b') if order == 'CObj' else ('op1', 'a') }}
-{{py: c_op = '+' if op == 'Add' else '-' }}
+{{py: c_op = {'Add': '+', 'Subtract': '-', 'Or': '|', 'Xor': '^', 'And': '&'}[op] }}
 
 static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, long intval, int inplace) {
     const long {{'a' if order == 'CObj' else 'b'}} = intval;
 
     #if PY_MAJOR_VERSION < 3
     if (likely(PyInt_CheckExact({{pyval}}))) {
-        long x, {{ival}};
-        {{ival}} = PyInt_AS_LONG({{pyval}});
+        {{if c_op in '+-'}}
+        long x;
+        {{endif}}
+        long {{ival}} = PyInt_AS_LONG({{pyval}});
+
+        {{if c_op not in '+-'}}
+        // binary operators are safe, no overflow
+        return PyInt_FromLong(a {{c_op}} b);
+
+        {{else}}
         // adapted from intobject.c in Py2.7:
         // casts in the line below avoid undefined behaviour on overflow
         x = (long)((unsigned long)a {{c_op}} b);
         if (likely((x^a) >= 0 || (x^{{ '~' if op == 'Subtract' else '' }}b) >= 0))
             return PyInt_FromLong(x);
+        {{endif}}
+
         return PyLong_Type.tp_as_number->nb_{{op.lower()}}(op1, op2);
     }
     #endif
@@ -524,6 +534,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, long 
     }
     #endif
 
+    {{if c_op in '+-'}}
     if (PyFloat_CheckExact({{pyval}})) {
         double result;
         double {{ival}} = PyFloat_AS_DOUBLE({{pyval}});
@@ -533,6 +544,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, long 
         PyFPE_END_PROTECT(result)
         return PyFloat_FromDouble(result);
     }
+    {{endif}}
     return (inplace ? PyNumber_InPlace{{op}} : PyNumber_{{op}})(op1, op2);
 }
 #endif
