@@ -277,9 +277,9 @@ _parse_code = re.compile(
     ur'(?P<trace>__Pyx_Trace[A-Za-z]+)|'
     ur'(?:'
     ur'(?P<pyx_macro_api>__Pyx_[A-Z][A-Z_]+)|'
-    ur'(?P<pyx_c_api>__Pyx_[A-Z][a-z_][A-Za-z_]+)|'
+    ur'(?P<pyx_c_api>__Pyx_[A-Z][a-z_][A-Za-z_]*)|'
     ur'(?P<py_macro_api>Py[A-Z][a-z]+_[A-Z][A-Z_]+)|'
-    ur'(?P<py_c_api>Py[A-Z][a-z]+_[A-Z][a-z][A-Za-z_]+)'
+    ur'(?P<py_c_api>Py[A-Z][a-z]+_[A-Z][a-z][A-Za-z_]*)'
     ur')(?=\()|'       # look-ahead to exclude subsequent '(' from replacement
     ur'(?P<error_goto>(?:(?<=;) *if .* +)?\{__pyx_filename = .*goto __pyx_L\w+;\})'
 ).sub
