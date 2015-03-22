@@ -537,7 +537,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
             case  0: {{ival}} = 0; break;
             case  1: {{ival}} = ((PyLongObject*){{pyval}})->ob_digit[0]; break;
             case  2:
-                if (8 * sizeof(long) > 2 * PyLong_SHIFT) {
+                if (8 * sizeof(long) - 1 > 2 * PyLong_SHIFT) {
                     {{ival}} = (long) ((((unsigned long)((PyLongObject*){{pyval}})->ob_digit[1]) << PyLong_SHIFT) | ((PyLongObject*){{pyval}})->ob_digit[0]);
                     break;
                 }
