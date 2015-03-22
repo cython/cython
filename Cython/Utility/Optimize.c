@@ -604,7 +604,8 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
             case  2:
                 if (8 * sizeof(unsigned long) > 2 * PyLong_SHIFT) {
                     {{fval}} = (double) ((((unsigned long)((PyLongObject*){{pyval}})->ob_digit[1]) << PyLong_SHIFT) | ((PyLongObject*){{pyval}})->ob_digit[0]);
-                    if (8 * sizeof(unsigned long) < 53 || {{fval}} < (double) (1L<<53)) {
+                    // let CPython do its own float rounding from 2**53 on (max. consecutive integer in double float)
+                    if ((8 * sizeof(unsigned long) < 53) || (2 * PyLong_SHIFT < 53) || ({{fval}} < (double) (1L<<53))) {
                         break;
                     }
                 }
