@@ -284,8 +284,12 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
   Py_ssize_t ival;
   PyObject *x;
 #if PY_MAJOR_VERSION < 3
-  if (likely(PyInt_CheckExact(b)))
-      return PyInt_AS_LONG(b);
+  if (likely(PyInt_CheckExact(b))) {
+    if (sizeof(Py_ssize_t) >= sizeof(long))
+        return PyInt_AS_LONG(b);
+    else
+        return PyInt_AsSsize_t(x);
+  }
 #endif
   if (likely(PyLong_CheckExact(b))) {
     #if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3 && CYTHON_USE_PYLONG_INTERNALS
