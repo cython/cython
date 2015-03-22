@@ -493,28 +493,32 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, long 
 
 #if CYTHON_COMPILING_IN_CPYTHON
 {{py: pyval, ival = ('op2', 'b') if order == 'CObj' else ('op1', 'a') }}
-{{py: c_op = {'Add': '+', 'Subtract': '-', 'Or': '|', 'Xor': '^', 'And': '&'}[op] }}
+{{py: c_op = {'Add': '+', 'Subtract': '-', 'Remainder': '%', 'Or': '|', 'Xor': '^', 'And': '&'}[op] }}
 
-static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, long intval, int inplace) {
-    const long {{'a' if order == 'CObj' else 'b'}} = intval;
-
+static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHON_UNUSED long intval, int inplace) {
     #if PY_MAJOR_VERSION < 3
     if (likely(PyInt_CheckExact({{pyval}}))) {
+        const long {{'a' if order == 'CObj' else 'b'}} = intval;
         {{if c_op in '+-'}}
         long x;
         {{endif}}
         long {{ival}} = PyInt_AS_LONG({{pyval}});
 
-        {{if c_op not in '+-'}}
-        // binary operators are safe, no overflow
-        return PyInt_FromLong(a {{c_op}} b);
+        {{if c_op in '+-'}}
+            // adapted from intobject.c in Py2.7:
+            // casts in the line below avoid undefined behaviour on overflow
+            x = (long)((unsigned long)a {{c_op}} b);
+            if (likely((x^a) >= 0 || (x^{{ '~' if op == 'Subtract' else '' }}b) >= 0))
+                return PyInt_FromLong(x);
 
         {{else}}
-        // adapted from intobject.c in Py2.7:
-        // casts in the line below avoid undefined behaviour on overflow
-        x = (long)((unsigned long)a {{c_op}} b);
-        if (likely((x^a) >= 0 || (x^{{ '~' if op == 'Subtract' else '' }}b) >= 0))
-            return PyInt_FromLong(x);
+            {{if c_op == '%'}}
+            // modulus with differing signs isn't safely portable
+            if (unlikely({{ival}} < 0))
+                return (inplace ? PyNumber_InPlace{{op}} : PyNumber_{{op}})(op1, op2);
+            {{endif}}
+            // other operations are safe, no overflow
+            return PyInt_FromLong(a {{c_op}} b);
         {{endif}}
 
         return PyLong_Type.tp_as_number->nb_{{op.lower()}}(op1, op2);
@@ -523,11 +527,20 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, long 
 
     #if PY_MAJOR_VERSION >= 3 && CYTHON_USE_PYLONG_INTERNALS
     if (likely(PyLong_CheckExact({{pyval}}))) {
+        const long {{'a' if order == 'CObj' else 'b'}} = intval;
         long {{ival}};
         switch (Py_SIZE({{pyval}})) {
+            {{if c_op != '%'}}
             case -1: {{ival}} = -(sdigit)((PyLongObject*){{pyval}})->ob_digit[0]; break;
+            {{endif}}
             case  0: {{ival}} = 0; break;
             case  1: {{ival}} = ((PyLongObject*){{pyval}})->ob_digit[0]; break;
+            case  2:
+                if (8 * sizeof(long) > 2 * PyLong_SHIFT) {
+                    {{ival}} = (long) ((((unsigned long)((PyLongObject*){{pyval}})->ob_digit[1]) << PyLong_SHIFT) | ((PyLongObject*){{pyval}})->ob_digit[0]);
+                    break;
+                }
+                // fall through if two platform digits don't fit into a long
             default: return PyLong_Type.tp_as_number->nb_{{op.lower()}}(op1, op2);
         }
         return PyLong_FromLong(a {{c_op}} b);
@@ -536,6 +549,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, long 
 
     {{if c_op in '+-'}}
     if (PyFloat_CheckExact({{pyval}})) {
+        const long {{'a' if order == 'CObj' else 'b'}} = intval;
         double result;
         double {{ival}} = PyFloat_AS_DOUBLE({{pyval}});
         // copied from floatobject.c in Py3.5:

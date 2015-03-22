@@ -1,6 +1,10 @@
 cimport cython
 
 
+def bigint(x):
+    print(str(x).rstrip('L'))
+
+
 def mixed_test():
     """
     >>> mixed_test()
@@ -29,6 +33,10 @@ def add_x_1(x):
     2
     >>> add_x_1(-1)
     0
+    >>> bigint(2**50 + 1)
+    1125899906842625
+    >>> bigint(add_x_1(2**50))
+    1125899906842625
     >>> add_x_1(1.5)
     2.5
     >>> add_x_1(-1.5)
@@ -73,13 +81,17 @@ def add_x_large(x):
     -1073741824.0
     >>> add_x_large(2**30 + 1)
     2147483649
+    >>> bigint(2**50 + 1 + 2**30)
+    1125900980584449
+    >>> bigint(add_x_large(2**50 + 1))
+    1125900980584449
     >>> 2**31 + 2**30
     3221225472
     >>> add_x_large(2**31)
     3221225472
-    >>> print(2**66 + 2**30)
+    >>> bigint(2**66 + 2**30)
     73786976295911948288
-    >>> print(add_x_large(2**66))
+    >>> bigint(add_x_large(2**66))
     73786976295911948288
     >>> try: add_x_large("abc")
     ... except TypeError: pass
@@ -96,6 +108,10 @@ def add_1_x(x):
     2
     >>> add_1_x(-1)
     0
+    >>> bigint(2**50 + 1)
+    1125899906842625
+    >>> bigint(add_1_x(2**50))
+    1125899906842625
     >>> add_1_x(1.5)
     2.5
     >>> add_1_x(-1.5)
