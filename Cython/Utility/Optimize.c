@@ -448,7 +448,7 @@ static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject
     } else
 #endif
     if (likely(PyLong_CheckExact(exp))) {
-        #if PY_MAJOR_VERSION >= 3 && CYTHON_USE_PYLONG_INTERNALS
+        #if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3 && CYTHON_USE_PYLONG_INTERNALS
         switch (Py_SIZE(exp)) {
             case  0: shiftby = 0; break;
             case  1: shiftby = ((PyLongObject*)exp)->ob_digit[0]; break;
@@ -526,7 +526,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
     }
     #endif
 
-    #if PY_MAJOR_VERSION >= 3 && CYTHON_USE_PYLONG_INTERNALS
+    #if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3 && CYTHON_USE_PYLONG_INTERNALS
     if (likely(PyLong_CheckExact({{pyval}}))) {
         const long {{'a' if order == 'CObj' else 'b'}} = intval;
         long {{ival}};
@@ -595,7 +595,7 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
     #endif
 
     if (likely(PyLong_CheckExact({{pyval}}))) {
-        #if PY_MAJOR_VERSION >= 3 && CYTHON_USE_PYLONG_INTERNALS
+        #if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3 && CYTHON_USE_PYLONG_INTERNALS
         switch (Py_SIZE({{pyval}})) {
             case -1: {{fval}} = -(double)((PyLongObject*){{pyval}})->ob_digit[0]; break;
             case  0: {{fval}} = 0.0; break;
