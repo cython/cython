@@ -456,7 +456,7 @@ static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject
         #endif
 #if PY_MAJOR_VERSION < 3
     } else if (likely(PyInt_CheckExact(exp))) {
-        shiftby = PyInt_AsLong(exp);
+        shiftby = PyInt_AS_LONG(exp);
 #endif
     } else {
         goto fallback;
