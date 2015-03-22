@@ -442,6 +442,11 @@ static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject
 // see http://bugs.python.org/issue21420
 #if CYTHON_COMPILING_IN_CPYTHON
     Py_ssize_t shiftby;
+#if PY_MAJOR_VERSION < 3
+    if (likely(PyInt_CheckExact(exp))) {
+        shiftby = PyInt_AS_LONG(exp);
+    } else
+#endif
     if (likely(PyLong_CheckExact(exp))) {
         #if PY_MAJOR_VERSION >= 3 && CYTHON_USE_PYLONG_INTERNALS
         switch (Py_SIZE(exp)) {
@@ -454,10 +459,6 @@ static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject
         #else
         shiftby = PyLong_AsSsize_t(exp);
         #endif
-#if PY_MAJOR_VERSION < 3
-    } else if (likely(PyInt_CheckExact(exp))) {
-        shiftby = PyInt_AS_LONG(exp);
-#endif
     } else {
         goto fallback;
     }
