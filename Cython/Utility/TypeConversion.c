@@ -581,8 +581,8 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
 #if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3 && CYTHON_USE_PYLONG_INTERNALS
             switch (Py_SIZE(x)) {
                 case  0: return 0;
-                case  1: __PYX_VERIFY_RETURN_INT({{TYPE}},  digit, +(((PyLongObject*)x)->ob_digit[0]));
                 case -1: __PYX_VERIFY_RETURN_INT({{TYPE}}, sdigit, -(sdigit) ((PyLongObject*)x)->ob_digit[0]);
+                case  1: __PYX_VERIFY_RETURN_INT({{TYPE}},  digit, +(((PyLongObject*)x)->ob_digit[0]));
                 case  2:
                     if ((8 * sizeof({{TYPE}}) > PyLong_SHIFT) && (8 * sizeof(unsigned long) > 2 * PyLong_SHIFT)) {
                         __PYX_VERIFY_RETURN_INT({{TYPE}}, unsigned long,
