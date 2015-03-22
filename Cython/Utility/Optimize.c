@@ -600,6 +600,12 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
             case -1: {{fval}} = -(double)((PyLongObject*){{pyval}})->ob_digit[0]; break;
             case  0: {{fval}} = 0.0; break;
             case  1: {{fval}} = (double)((PyLongObject*){{pyval}})->ob_digit[0]; break;
+            case  2:
+                if (8 * sizeof(unsigned long) > 2 * PyLong_SHIFT) {
+                    {{fval}} = (double) ((((unsigned long)((PyLongObject*){{pyval}})->ob_digit[1]) << PyLong_SHIFT) | ((PyLongObject*){{pyval}})->ob_digit[0]);
+                    break;
+                }
+                // fall through if two platform digits don't fit into a double
             default: {{fval}} = PyLong_AsDouble({{pyval}});
                 if (unlikely({{fval}} == -1 && PyErr_Occurred())) return NULL;
                 break;
