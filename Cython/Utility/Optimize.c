@@ -607,8 +607,9 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
         {{fval}} = PyLong_AsDouble({{pyval}});
         if (unlikely({{fval}} == -1.0 && PyErr_Occurred())) return NULL;
         #endif
-    } else
+    } else {
         return (inplace ? PyNumber_InPlace{{op}} : PyNumber_{{op}})(op1, op2);
+    }
 
     // copied from floatobject.c in Py3.5:
     PyFPE_START_PROTECT("{{op.lower()}}", return NULL)
