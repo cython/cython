@@ -596,14 +596,17 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
 
     if (likely(PyLong_CheckExact({{pyval}}))) {
         #if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3 && CYTHON_USE_PYLONG_INTERNALS
-        switch (Py_SIZE({{pyval}})) {
+        const Py_ssize_t size = Py_SIZE({{pyval}});
+        switch (size) {
             case -1: {{fval}} = -(double)((PyLongObject*){{pyval}})->ob_digit[0]; break;
             case  0: {{fval}} = 0.0; break;
             case  1: {{fval}} = (double)((PyLongObject*){{pyval}})->ob_digit[0]; break;
             case  2:
                 if (8 * sizeof(unsigned long) > 2 * PyLong_SHIFT) {
                     {{fval}} = (double) ((((unsigned long)((PyLongObject*){{pyval}})->ob_digit[1]) << PyLong_SHIFT) | ((PyLongObject*){{pyval}})->ob_digit[0]);
-                    break;
+                    if (8 * sizeof(unsigned long) < 53 || {{fval}} < (double) (1L<<53)) {
+                        break;
+                    }
                 }
                 // fall through if two platform digits don't fit into a double
             default: {{fval}} = PyLong_AsDouble({{pyval}});
