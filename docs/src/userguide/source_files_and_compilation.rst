@@ -68,7 +68,7 @@ explicitly, you can use glob patterns::
 You can also use glob patterns in :class:`Extension` objects if you pass
 them through :func:`cythonize`::
 
-    extensions = [Extension("*", "*.pyx")]
+    extensions = [Extension("*", ["*.pyx"])]
 
     setup(
         ext_modules = cythonize(extensions)
