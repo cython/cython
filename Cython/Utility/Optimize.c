@@ -511,7 +511,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
             x = (long)((unsigned long)a {{c_op}} b);
             if (likely((x^a) >= 0 || (x^{{ '~' if op == 'Subtract' else '' }}b) >= 0))
                 return PyInt_FromLong(x);
-
+            return PyLong_Type.tp_as_number->nb_{{op.lower()}}(op1, op2);
         {{else}}
             {{if c_op == '%'}}
             // modulus with differing signs isn't safely portable
@@ -521,8 +521,6 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
             // other operations are safe, no overflow
             return PyInt_FromLong(a {{c_op}} b);
         {{endif}}
-
-        return PyLong_Type.tp_as_number->nb_{{op.lower()}}(op1, op2);
     }
     #endif
 
