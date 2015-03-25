@@ -500,7 +500,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
     #if PY_MAJOR_VERSION < 3
     if (likely(PyInt_CheckExact({{pyval}}))) {
         const long {{'a' if order == 'CObj' else 'b'}} = intval;
-        {{if c_op in '+-'}}
+        {{if c_op in '+-%'}}
         long x;
         {{endif}}
         long {{ival}} = PyInt_AS_LONG({{pyval}});
@@ -512,12 +512,16 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
             if (likely((x^a) >= 0 || (x^{{ '~' if op == 'Subtract' else '' }}b) >= 0))
                 return PyInt_FromLong(x);
             return PyLong_Type.tp_as_number->nb_{{op.lower()}}(op1, op2);
+        {{elif c_op == '%'}}
+            // modulus with differing signs isn't safely portable, emulate CPython
+            if (unlikely(a < 0)) {
+                x = (-a) % b;
+                if (x) x = b - x;
+            } else {
+                x = a % b;
+            }
+            return PyInt_FromLong(x);
         {{else}}
-            {{if c_op == '%'}}
-            // modulus with differing signs isn't safely portable
-            if (unlikely({{ival}} < 0))
-                return (inplace ? PyNumber_InPlace{{op}} : PyNumber_{{op}})(op1, op2);
-            {{endif}}
             // other operations are safe, no overflow
             return PyInt_FromLong(a {{c_op}} b);
         {{endif}}
@@ -527,13 +531,18 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
     #if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3 && CYTHON_USE_PYLONG_INTERNALS
     if (likely(PyLong_CheckExact({{pyval}}))) {
         const long {{'a' if order == 'CObj' else 'b'}} = intval;
-        long {{ival}};
-        switch (Py_SIZE({{pyval}})) {
+        long x, {{ival}};
+        const Py_ssize_t size = Py_SIZE({{pyval}});
+        switch (size) {
+            case  0: {{ival}} = 0; break;
             {{if c_op != '%'}}
             case -1: {{ival}} = -(sdigit)((PyLongObject*){{pyval}})->ob_digit[0]; break;
+            {{else}}
+            case -1:
+            // fall through to positive calculation for '%'
             {{endif}}
-            case  0: {{ival}} = 0; break;
             case  1: {{ival}} = ((PyLongObject*){{pyval}})->ob_digit[0]; break;
+            case -2:
             case  2:
                 if (8 * sizeof(long) - 1 > 2 * PyLong_SHIFT) {
                     {{ival}} = (long) ((((unsigned long)((PyLongObject*){{pyval}})->ob_digit[1]) << PyLong_SHIFT) | ((PyLongObject*){{pyval}})->ob_digit[0]);
@@ -542,7 +551,17 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
                 // fall through if two platform digits don't fit into a long
             default: return PyLong_Type.tp_as_number->nb_{{op.lower()}}(op1, op2);
         }
-        return PyLong_FromLong(a {{c_op}} b);
+        {{if c_op == '%'}}
+            if (unlikely(size < 0)) {
+                x = (-a) % b;
+                if (x) x = b - x;
+            } else {
+                x = a % b;
+            }
+        {{else}}
+            x = a {{c_op}} b;
+        {{endif}}
+        return PyLong_FromLong(x);
     }
     #endif
 
