@@ -448,7 +448,7 @@ static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject
     } else
 #endif
     if (likely(PyLong_CheckExact(exp))) {
-        #if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3 && CYTHON_USE_PYLONG_INTERNALS
+        #if CYTHON_USE_PYLONG_INTERNALS
         switch (Py_SIZE(exp)) {
             case  0: shiftby = 0; break;
             case  1: shiftby = ((PyLongObject*)exp)->ob_digit[0]; break;
@@ -528,21 +528,25 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
     }
     #endif
 
-    #if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3 && CYTHON_USE_PYLONG_INTERNALS
+    #if CYTHON_USE_PYLONG_INTERNALS
     if (likely(PyLong_CheckExact({{pyval}}))) {
         const long {{'a' if order == 'CObj' else 'b'}} = intval;
         long x, {{ival}};
         const Py_ssize_t size = Py_SIZE({{pyval}});
         switch (size) {
             case  0: {{ival}} = 0; break;
-            {{if c_op != '%'}}
-            case -1: {{ival}} = -(sdigit)((PyLongObject*){{pyval}})->ob_digit[0]; break;
-            {{else}}
-            case -1:
-            // fall through to positive calculation for '%'
-            {{endif}}
+            case -1: {{if c_op != '%'}}
+                {{ival}} = -(sdigit)((PyLongObject*){{pyval}})->ob_digit[0]; break;
+                {{endif}}
+                // fall through to positive calculation for '%'
             case  1: {{ival}} = ((PyLongObject*){{pyval}})->ob_digit[0]; break;
-            case -2:
+            case -2: {{if c_op != '%'}}
+                if (8 * sizeof(long) - 1 > 2 * PyLong_SHIFT) {
+                    {{ival}} = -(long) ((((unsigned long)((PyLongObject*){{pyval}})->ob_digit[1]) << PyLong_SHIFT) | ((PyLongObject*){{pyval}})->ob_digit[0]);
+                    break;
+                }
+                {{endif}}
+                // fall through to positive calculation for '%'
             case  2:
                 if (8 * sizeof(long) - 1 > 2 * PyLong_SHIFT) {
                     {{ival}} = (long) ((((unsigned long)((PyLongObject*){{pyval}})->ob_digit[1]) << PyLong_SHIFT) | ((PyLongObject*){{pyval}})->ob_digit[0]);
@@ -552,11 +556,9 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
             default: return PyLong_Type.tp_as_number->nb_{{op.lower()}}(op1, op2);
         }
         {{if c_op == '%'}}
-            if (unlikely(size < 0)) {
-                x = (-a) % b;
-                if (x) x = b - x;
-            } else {
-                x = a % b;
+            x = a % b;
+            if (unlikely(size < 0) && x) {
+                x = b - x;
             }
         {{else}}
             x = a {{c_op}} b;
@@ -612,7 +614,7 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
     #endif
 
     if (likely(PyLong_CheckExact({{pyval}}))) {
-        #if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3 && CYTHON_USE_PYLONG_INTERNALS
+        #if CYTHON_USE_PYLONG_INTERNALS
         const Py_ssize_t size = Py_SIZE({{pyval}});
         switch (size) {
             case -1: {{fval}} = -(double)((PyLongObject*){{pyval}})->ob_digit[0]; break;
