@@ -14,6 +14,7 @@ from . import Nodes
 from . import ExprNodes
 from . import Errors
 from . import DebugFlags
+from . import Future
 
 import cython
 
@@ -434,7 +435,7 @@ find_special_method_for_binary_operator = {
     '>':  '__gt__',
     '+':  '__add__',
     '&':  '__and__',
-    '/':  '__truediv__',
+    '/':  '__div__',
     '//': '__floordiv__',
     '<<': '__lshift__',
     '%':  '__mod__',
@@ -515,6 +516,9 @@ class MethodDispatcherTransform(EnvTransform):
             operand1, operand2 = node.operand1, node.operand2
             if special_method_name == '__contains__':
                 operand1, operand2 = operand2, operand1
+            elif special_method_name == '__div__':
+                if Future.division in self.current_env().global_scope().context.future_directives:
+                    special_method_name = '__truediv__'
             obj_type = operand1.type
             if obj_type.is_builtin_type:
                 type_name = obj_type.name

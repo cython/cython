@@ -19,8 +19,8 @@ Features added
 
 * Adding/subtracting constant Python floats and small integers is faster.
 
-* Binary and/or/xor/rshift operations and modulus with small constant Python
-  integers are faster.
+* Binary and/or/xor/rshift operations and division/modulus with small
+  constant Python integers are faster.
 
 Bugs fixed
 ----------

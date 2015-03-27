@@ -2825,6 +2825,25 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             return node
         return self._optimise_num_binop('Remainder', node, function, args, is_unbound_method)
 
+    def _handle_simple_method_object___floordiv__(self, node, function, args, is_unbound_method):
+        return self._optimise_num_div('FloorDivide', node, function, args, is_unbound_method)
+
+    def _handle_simple_method_object___truediv__(self, node, function, args, is_unbound_method):
+        return self._optimise_num_div('TrueDivide', node, function, args, is_unbound_method)
+
+    def _optimise_num_div(self, operator, node, function, args, is_unbound_method):
+        if len(args) != 2 or not args[1].has_constant_result() or args[1].constant_result == 0:
+            return node
+        if isinstance(args[1], ExprNodes.IntNode):
+            if not (-2**30 <= args[1].constant_result <= 2**30):
+                return node
+        elif isinstance(args[1], ExprNodes.FloatNode):
+            if not (-2**53 <= args[1].constant_result <= 2**53):
+                return node
+        else:
+            return node
+        return self._optimise_num_binop(operator, node, function, args, is_unbound_method)
+
     def _handle_simple_method_float___add__(self, node, function, args, is_unbound_method):
         return self._optimise_num_binop('Add', node, function, args, is_unbound_method)
 
@@ -2861,7 +2880,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
 
         is_float = isinstance(numval, ExprNodes.FloatNode)
         if is_float:
-            if operator not in ('Add', 'Subtract'):
+            if operator not in ('Add', 'Subtract', 'TrueDivide'):
                 return node
         elif abs(numval.constant_result) > 2**30:
             return node

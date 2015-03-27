@@ -495,13 +495,17 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, long 
 #if CYTHON_COMPILING_IN_CPYTHON
 {{py: from Cython.Utility import pylong_join }}
 {{py: pyval, ival = ('op2', 'b') if order == 'CObj' else ('op1', 'a') }}
-{{py: c_op = {'Add': '+', 'Subtract': '-', 'Remainder': '%', 'Or': '|', 'Xor': '^', 'And': '&', 'Rshift': '>>'}[op] }}
+{{py: slot_name = {'TrueDivide': 'true_divide', 'FloorDivide': 'floor_divide'}.get(op, op.lower()) }}
+{{py:
+c_op = {'Add': '+', 'Subtract': '-', 'Remainder': '%', 'TrueDivide': '/', 'FloorDivide': '/',
+        'Or': '|', 'Xor': '^', 'And': '&', 'Rshift': '>>'}[op]
+}}
 
 static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHON_UNUSED long intval, int inplace) {
     #if PY_MAJOR_VERSION < 3
     if (likely(PyInt_CheckExact({{pyval}}))) {
         const long {{'a' if order == 'CObj' else 'b'}} = intval;
-        {{if c_op in '+-%'}}
+        {{if c_op in '+-%' or op == 'FloorDivide'}}
         long x;
         {{endif}}
         long {{ival}} = PyInt_AS_LONG({{pyval}});
@@ -512,7 +516,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
             x = (long)((unsigned long)a {{c_op}} b);
             if (likely((x^a) >= 0 || (x^{{ '~' if op == 'Subtract' else '' }}b) >= 0))
                 return PyInt_FromLong(x);
-            return PyLong_Type.tp_as_number->nb_{{op.lower()}}(op1, op2);
+            return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
         {{elif c_op == '%'}}
             // modulus with differing signs isn't safely portable, emulate CPython
             if (unlikely(a < 0)) {
@@ -520,6 +524,30 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
                 if (x) x = b - x;
             } else {
                 x = a % b;
+            }
+            return PyInt_FromLong(x);
+        {{elif op == 'TrueDivide'}}
+            if (8 * sizeof(long) <= 53 || likely({{ival}} <= (1L << 53) && {{ival}} >= (-(1L << 53)))) {
+                return PyFloat_FromDouble((double)a / (double)b);
+            }
+            // let Python do the rounding
+            return PyInt_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
+        {{elif op == 'FloorDivide'}}
+            if ((a^b) >= 0) {
+                {{if order == 'ObjC'}}
+                // INT_MIN / -1  is the only case that overflows
+                if (unlikely(b == -1 && ((unsigned long)a) == 0-(unsigned long)a))
+                    return PyInt_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
+                {{endif}}
+                x = a / b;
+            } else {
+                // use manual rounding when result is negative (signs differ)
+                long la = labs(a), lb = labs(b);
+                x = la / lb;
+                if (x * lb != la)
+                    x = -x - 1;
+                else
+                    x = -x;
             }
             return PyInt_FromLong(x);
         {{else}}
@@ -545,21 +573,38 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
             {{for _size in (2, 3, 4)}}
             {{for _case in (-_size, _size)}}
             case {{_case}}: {{if c_op != '%' or _case > 0}}
-                if (8 * sizeof(long) - 1 > {{_size}} * PyLong_SHIFT) {
+                if (8 * sizeof(long) - 1 > {{_size}} * PyLong_SHIFT{{if op == 'TrueDivide'}} && {{_size-1}} * PyLong_SHIFT < 53{{endif}}) {
                     {{ival}} = {{'-' if _case < 0 else ''}}(long) {{pylong_join(_size, 'digits')}};
                     break;
                 }
                 {{endif}}
-                // in negative case, fall through to positive calculation for '%'
+                // in negative case, fall through to positive calculation for '%' and '//'
                 // if size doesn't fit into a long anymore, fall through to default
             {{endfor}}
             {{endfor}}
-            default: return PyLong_Type.tp_as_number->nb_{{op.lower()}}(op1, op2);
+            default: return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
         }
         {{if c_op == '%'}}
             x = a % b;
             if (unlikely(size < 0) && x) {
                 x = b - x;
+            }
+        {{elif op == 'TrueDivide'}}
+            if (8 * sizeof(long) <= 53 || (size >= -52 / PyLong_SHIFT && size <= 52 / PyLong_SHIFT) || likely({{ival}} <= (1L << 53) && {{ival}} >= (-(1L << 53)))) {
+                return PyFloat_FromDouble((double)a / (double)b);
+            }
+            return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
+        {{elif op == 'FloorDivide'}}
+            if ((a^b) >= 0) {
+                x = a / b;
+            } else {
+                // use manual rounding when result is negative (signs differ)
+                long {{'la = %s(a), lb = %s(b)' % (('', 'labs') if order == 'ObjC' else ('labs', ''))}};
+                x = la / lb;
+                if (x * lb != la)
+                    x = -x - 1;
+                else
+                    x = -x;
             }
         {{else}}
             x = a {{c_op}} b;
@@ -568,13 +613,13 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
     }
     #endif
 
-    {{if c_op in '+-'}}
+    {{if c_op in '+-' or op == 'TrueDivide'}}
     if (PyFloat_CheckExact({{pyval}})) {
         const long {{'a' if order == 'CObj' else 'b'}} = intval;
         double result;
         double {{ival}} = PyFloat_AS_DOUBLE({{pyval}});
         // copied from floatobject.c in Py3.5:
-        PyFPE_START_PROTECT("{{op.lower()}}", return NULL)
+        PyFPE_START_PROTECT("{{op.lower() if not op.endswith('Divide') else 'divide'}}", return NULL)
         result = ((double)a) {{c_op}} (double)b;
         PyFPE_END_PROTECT(result)
         return PyFloat_FromDouble(result);
@@ -599,7 +644,7 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
 #if CYTHON_COMPILING_IN_CPYTHON
 {{py: from Cython.Utility import pylong_join }}
 {{py: pyval, fval = ('op2', 'b') if order == 'CObj' else ('op1', 'a') }}
-{{py: c_op = '+' if op == 'Add' else '-' }}
+{{py: c_op = {'Add': '+', 'Subtract': '-', 'TrueDivide': '/'}[op] }}
 
 static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, double floatval, int inplace) {
     const double {{'a' if order == 'CObj' else 'b'}} = floatval;
@@ -654,7 +699,7 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
     }
 
     // copied from floatobject.c in Py3.5:
-    PyFPE_START_PROTECT("{{op.lower()}}", return NULL)
+    PyFPE_START_PROTECT("{{op.lower() if not op.endswith('Divide') else 'divide'}}", return NULL)
     result = a {{c_op}} b;
     PyFPE_END_PROTECT(result)
     return PyFloat_FromDouble(result);
