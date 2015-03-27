@@ -635,7 +635,7 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
                         break;
                     }
                 }
-                // fall through if size don't fit safely into a double anymore
+                // fall through if size doesn't fit safely into a double anymore
             {{endfor}}
             default: {{fval}} = PyLong_AsDouble({{pyval}});
                 if (unlikely({{fval}} == -1 && PyErr_Occurred())) return NULL;
