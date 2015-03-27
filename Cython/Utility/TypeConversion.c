@@ -280,6 +280,8 @@ static CYTHON_INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x) {
   return res;
 }
 
+{{py: from Cython.Utility import pylong_join }}
+
 static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
   Py_ssize_t ival;
   PyObject *x;
@@ -293,20 +295,25 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
 #endif
   if (likely(PyLong_CheckExact(b))) {
     #if CYTHON_USE_PYLONG_INTERNALS
-    switch (Py_SIZE(b)) {
+    const digit* digits = ((PyLongObject*)b)->ob_digit;
+    const Py_ssize_t size = Py_SIZE(b);
+    switch (size) {
        case  0: return 0;
-       case  1: return ((PyLongObject*)b)->ob_digit[0];
-       case -1: return -(sdigit)((PyLongObject*)b)->ob_digit[0];
-       case  2:
-           if (8 * sizeof(Py_ssize_t) > 2 * PyLong_SHIFT) {
-               return (Py_ssize_t) ((((size_t)((PyLongObject*)b)->ob_digit[1]) << PyLong_SHIFT) | ((PyLongObject*)b)->ob_digit[0]);
-           }
-           break;
-       case  -2:
-           if (8 * sizeof(Py_ssize_t) > 2 * PyLong_SHIFT) {
-               return -(Py_ssize_t) ((((size_t)((PyLongObject*)b)->ob_digit[1]) << PyLong_SHIFT) | ((PyLongObject*)b)->ob_digit[0]);
-           }
-           break;
+       case  1: return digits[0];
+       case -1: return -(sdigit) digits[0];
+       default:
+          // move the substantially less common cases out of the way
+          switch (size) {
+             {{for _size in (2, 3, 4)}}
+             {{for _case in (_size, -_size)}}
+             case {{_case}}:
+               if (8 * sizeof(Py_ssize_t) > {{_size}} * PyLong_SHIFT) {
+                 return (Py_ssize_t) {{pylong_join(_size, 'digits', 'size_t')}};
+               }
+               break;
+             {{endfor}}
+             {{endfor}}
+          }
     }
     #endif
     return PyLong_AsSsize_t(b);
@@ -540,6 +547,8 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *);
 //@requires: CIntFromPyVerify
 //@requires: PyLongInternals
 
+{{py: from Cython.Utility import pylong_join }}
+
 static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
     const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = 0;
     const int is_unsigned = neg_one > const_zero;
@@ -559,15 +568,17 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
     if (likely(PyLong_Check(x))) {
         if (is_unsigned) {
 #if CYTHON_USE_PYLONG_INTERNALS
+            const digit* digits = ((PyLongObject*)x)->ob_digit;
             switch (Py_SIZE(x)) {
                 case  0: return 0;
-                case  1: __PYX_VERIFY_RETURN_INT({{TYPE}}, digit, ((PyLongObject*)x)->ob_digit[0])
-                case  2:
-                    if ((8 * sizeof({{TYPE}}) > PyLong_SHIFT) && (8 * sizeof(unsigned long) > 2 * PyLong_SHIFT)) {
-                        __PYX_VERIFY_RETURN_INT({{TYPE}}, unsigned long,
-                            (((unsigned long)((PyLongObject*)x)->ob_digit[1]) << PyLong_SHIFT) | ((PyLongObject*)x)->ob_digit[0])
+                case  1: __PYX_VERIFY_RETURN_INT({{TYPE}}, digit, digits[0])
+                {{for _size in (2, 3, 4)}}
+                case {{_size}}:
+                    if ((8 * sizeof({{TYPE}}) > {{_size-1}} * PyLong_SHIFT) && (8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT)) {
+                        __PYX_VERIFY_RETURN_INT({{TYPE}}, unsigned long, {{pylong_join(_size, 'digits')}})
                     }
                     break;
+                {{endfor}}
             }
 #endif
 #if CYTHON_COMPILING_IN_CPYTHON
@@ -583,22 +594,20 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
         } else {
             // signed
 #if CYTHON_USE_PYLONG_INTERNALS
+            const digit* digits = ((PyLongObject*)x)->ob_digit;
             switch (Py_SIZE(x)) {
                 case  0: return 0;
-                case -1: __PYX_VERIFY_RETURN_INT({{TYPE}}, sdigit, -(sdigit) ((PyLongObject*)x)->ob_digit[0])
-                case  1: __PYX_VERIFY_RETURN_INT({{TYPE}},  digit, +(((PyLongObject*)x)->ob_digit[0]))
-                case  2:
-                    if ((8 * sizeof({{TYPE}}) > PyLong_SHIFT) && (8 * sizeof(unsigned long) > 2 * PyLong_SHIFT)) {
-                        __PYX_VERIFY_RETURN_INT({{TYPE}}, unsigned long,
-                            (((unsigned long)((PyLongObject*)x)->ob_digit[1]) << PyLong_SHIFT) | ((PyLongObject*)x)->ob_digit[0])
+                case -1: __PYX_VERIFY_RETURN_INT({{TYPE}}, sdigit, -(sdigit) digits[0])
+                case  1: __PYX_VERIFY_RETURN_INT({{TYPE}},  digit, +digits[0])
+                {{for _size in (2, 3, 4)}}
+                {{for _case in (-_size, _size)}}
+                case {{_case}}:
+                    if ((8 * sizeof({{TYPE}}) > {{_size if _case < 0 else _size-1}} * PyLong_SHIFT) && (8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT)) {
+                        __PYX_VERIFY_RETURN_INT({{TYPE}}, {{'long' if _case < 0 else 'unsigned long'}}, {{'-(long) ' if _case < 0 else ''}}{{pylong_join(_size, 'digits')}})
                     }
                     break;
-                case  -2:
-                    if ((8 * sizeof({{TYPE}}) > 2 * PyLong_SHIFT) && (8 * sizeof(unsigned long) > 2 * PyLong_SHIFT)) {
-                        __PYX_VERIFY_RETURN_INT({{TYPE}}, long,
-                            -(long) (((unsigned long)((PyLongObject*)x)->ob_digit[1]) << PyLong_SHIFT) | ((PyLongObject*)x)->ob_digit[0])
-                    }
-                    break;
+                {{endfor}}
+                {{endfor}}
             }
 #endif
             if (sizeof({{TYPE}}) <= sizeof(long)) {

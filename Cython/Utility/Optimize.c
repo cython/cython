@@ -493,6 +493,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, long 
 //@requires: TypeConversion.c::PyLongInternals
 
 #if CYTHON_COMPILING_IN_CPYTHON
+{{py: from Cython.Utility import pylong_join }}
 {{py: pyval, ival = ('op2', 'b') if order == 'CObj' else ('op1', 'a') }}
 {{py: c_op = {'Add': '+', 'Subtract': '-', 'Remainder': '%', 'Or': '|', 'Xor': '^', 'And': '&', 'Rshift': '>>'}[op] }}
 
@@ -532,27 +533,26 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
     if (likely(PyLong_CheckExact({{pyval}}))) {
         const long {{'a' if order == 'CObj' else 'b'}} = intval;
         long x, {{ival}};
+        const digit* digits = ((PyLongObject*){{pyval}})->ob_digit;
         const Py_ssize_t size = Py_SIZE({{pyval}});
         switch (size) {
             case  0: {{ival}} = 0; break;
             case -1: {{if c_op != '%'}}
-                {{ival}} = -(sdigit)((PyLongObject*){{pyval}})->ob_digit[0]; break;
+                {{ival}} = -(sdigit)digits[0]; break;
                 {{endif}}
                 // fall through to positive calculation for '%'
-            case  1: {{ival}} = ((PyLongObject*){{pyval}})->ob_digit[0]; break;
-            case -2: {{if c_op != '%'}}
-                if (8 * sizeof(long) - 1 > 2 * PyLong_SHIFT) {
-                    {{ival}} = -(long) ((((unsigned long)((PyLongObject*){{pyval}})->ob_digit[1]) << PyLong_SHIFT) | ((PyLongObject*){{pyval}})->ob_digit[0]);
+            case  1: {{ival}} = digits[0]; break;
+            {{for _size in (2, 3, 4)}}
+            {{for _case in (-_size, _size)}}
+            case {{_case}}: {{if c_op != '%' or _case > 0}}
+                if (8 * sizeof(long) - 1 > {{_size}} * PyLong_SHIFT) {
+                    {{ival}} = {{'-' if _case < 0 else ''}}(long) {{pylong_join(_size, 'digits')}};
                     break;
                 }
                 {{endif}}
-                // fall through to positive calculation for '%'
-            case  2:
-                if (8 * sizeof(long) - 1 > 2 * PyLong_SHIFT) {
-                    {{ival}} = (long) ((((unsigned long)((PyLongObject*){{pyval}})->ob_digit[1]) << PyLong_SHIFT) | ((PyLongObject*){{pyval}})->ob_digit[0]);
-                    break;
-                }
-                // fall through if two platform digits don't fit into a long
+                // in negative case, fall through to positive calculation for '%'
+            {{endfor}}
+            {{endfor}}
             default: return PyLong_Type.tp_as_number->nb_{{op.lower()}}(op1, op2);
         }
         {{if c_op == '%'}}
@@ -596,6 +596,7 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
 //@requires: TypeConversion.c::PyLongInternals
 
 #if CYTHON_COMPILING_IN_CPYTHON
+{{py: from Cython.Utility import pylong_join }}
 {{py: pyval, fval = ('op2', 'b') if order == 'CObj' else ('op1', 'a') }}
 {{py: c_op = '+' if op == 'Add' else '-' }}
 
@@ -615,22 +616,25 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
 
     if (likely(PyLong_CheckExact({{pyval}}))) {
         #if CYTHON_USE_PYLONG_INTERNALS
+        const digit* digits = ((PyLongObject*){{pyval}})->ob_digit;
         const Py_ssize_t size = Py_SIZE({{pyval}});
         switch (size) {
-            case -1: {{fval}} = -(double)((PyLongObject*){{pyval}})->ob_digit[0]; break;
             case  0: {{fval}} = 0.0; break;
-            case  1: {{fval}} = (double)((PyLongObject*){{pyval}})->ob_digit[0]; break;
-            case  2:
-            case -2:
-                if (8 * sizeof(unsigned long) > 2 * PyLong_SHIFT) {
-                    {{fval}} = (double) ((((unsigned long)((PyLongObject*){{pyval}})->ob_digit[1]) << PyLong_SHIFT) | ((PyLongObject*){{pyval}})->ob_digit[0]);
+            case -1: {{fval}} = -(double) digits[0]; break;
+            case  1: {{fval}} = (double) digits[0]; break;
+            {{for _size in (2, 3, 4)}}
+            case -{{_size}}:
+            case {{_size}}:
+                if (8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT && ((8 * sizeof(unsigned long) < 53) || ({{_size-1}} * PyLong_SHIFT < 53))) {
+                    {{fval}} = (double) {{pylong_join(_size, 'digits')}};
                     // let CPython do its own float rounding from 2**53 on (max. consecutive integer in double float)
-                    if ((8 * sizeof(unsigned long) < 53) || (2 * PyLong_SHIFT < 53) || ({{fval}} < (double) (1L<<53))) {
-                        if (size == -2)
+                    if ((8 * sizeof(unsigned long) < 53) || ({{_size}} * PyLong_SHIFT < 53) || ({{fval}} < (double) (1L<<53))) {
+                        if (size == {{-_size}})
                             {{fval}} = -{{fval}};
                         break;
                     }
                 }
+            {{endfor}}
                 // fall through if two platform digits don't fit into a double
             default: {{fval}} = PyLong_AsDouble({{pyval}});
                 if (unlikely({{fval}} == -1 && PyErr_Occurred())) return NULL;
