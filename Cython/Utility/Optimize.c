@@ -635,7 +635,11 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
                         break;
                     }
                 }
-                // fall through if size doesn't fit safely into a double anymore
+                // Fall through if size doesn't fit safely into a double anymore.
+                // It may not be obvious that this is a safe fall-through given the "fval < 2**53"
+                // check above.  However, the number of digits that CPython uses for a given PyLong
+                // value is minimal, and together with the "(size-1) * SHIFT < 53" check above,
+                // this should make it safe.
             {{endfor}}
             default: {{fval}} = PyLong_AsDouble({{pyval}});
                 if (unlikely({{fval}} == -1 && PyErr_Occurred())) return NULL;
