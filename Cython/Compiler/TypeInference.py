@@ -12,8 +12,10 @@ from .Visitor import CythonTransform, EnvTransform
 
 class TypedExprNode(ExprNodes.ExprNode):
     # Used for declaring assignments of a specified type without a known entry.
-    def __init__(self, type):
-        self.type = type
+    subexprs = []
+
+    def __init__(self, type, pos=None):
+        super(TypedExprNode, self).__init__(pos, type=type)
 
 object_expr = TypedExprNode(py_object_type)
 
@@ -184,10 +186,10 @@ class MarkParallelAssignments(EnvTransform):
         # use fake expressions with the right result type
         if node.star_arg:
             self.mark_assignment(
-                node.star_arg, TypedExprNode(Builtin.tuple_type))
+                node.star_arg, TypedExprNode(Builtin.tuple_type, node.pos))
         if node.starstar_arg:
             self.mark_assignment(
-                node.starstar_arg, TypedExprNode(Builtin.dict_type))
+                node.starstar_arg, TypedExprNode(Builtin.dict_type, node.pos))
         EnvTransform.visit_FuncDefNode(self, node)
         return node
 
