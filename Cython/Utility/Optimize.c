@@ -551,6 +551,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
                 }
                 {{endif}}
                 // in negative case, fall through to positive calculation for '%'
+                // if size doesn't fit into a long anymore, fall through to default
             {{endfor}}
             {{endfor}}
             default: return PyLong_Type.tp_as_number->nb_{{op.lower()}}(op1, op2);
@@ -634,8 +635,8 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
                         break;
                     }
                 }
+                // fall through if size don't fit safely into a double anymore
             {{endfor}}
-                // fall through if two platform digits don't fit into a double
             default: {{fval}} = PyLong_AsDouble({{pyval}});
                 if (unlikely({{fval}} == -1 && PyErr_Occurred())) return NULL;
                 break;
