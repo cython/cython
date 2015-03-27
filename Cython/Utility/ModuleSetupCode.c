@@ -59,16 +59,16 @@
   #define __Pyx_DefaultClassType PyType_Type
 #endif
 
-#if !defined(Py_TPFLAGS_CHECKTYPES)
+#ifndef Py_TPFLAGS_CHECKTYPES
   #define Py_TPFLAGS_CHECKTYPES 0
 #endif
-#if !defined(Py_TPFLAGS_HAVE_INDEX)
+#ifndef Py_TPFLAGS_HAVE_INDEX
   #define Py_TPFLAGS_HAVE_INDEX 0
 #endif
-#if !defined(Py_TPFLAGS_HAVE_NEWBUFFER)
+#ifndef Py_TPFLAGS_HAVE_NEWBUFFER
   #define Py_TPFLAGS_HAVE_NEWBUFFER 0
 #endif
-#if !defined(Py_TPFLAGS_HAVE_FINALIZE)
+#ifndef Py_TPFLAGS_HAVE_FINALIZE
   #define Py_TPFLAGS_HAVE_FINALIZE 0
 #endif
 
