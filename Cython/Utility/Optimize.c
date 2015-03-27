@@ -494,7 +494,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, long 
 
 #if CYTHON_COMPILING_IN_CPYTHON
 {{py: pyval, ival = ('op2', 'b') if order == 'CObj' else ('op1', 'a') }}
-{{py: c_op = {'Add': '+', 'Subtract': '-', 'Remainder': '%', 'Or': '|', 'Xor': '^', 'And': '&'}[op] }}
+{{py: c_op = {'Add': '+', 'Subtract': '-', 'Remainder': '%', 'Or': '|', 'Xor': '^', 'And': '&', 'Rshift': '>>'}[op] }}
 
 static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHON_UNUSED long intval, int inplace) {
     #if PY_MAJOR_VERSION < 3

@@ -1,6 +1,11 @@
 # mode: run
 
 
+def bigint(x):
+    # avoid 'L' postfix in Py2.x
+    print(str(x).rstrip('L'))
+
+
 def or_obj(obj2, obj3):
     """
     >>> or_obj(2, 3)
@@ -76,6 +81,52 @@ def rshift_obj(obj2, obj3):
     0
     """
     obj1 = obj2 >> obj3
+    return obj1
+
+
+def rshift_int(obj2):
+    """
+    >>> rshift_int(2)
+    0
+
+    >>> rshift_int(27)
+    3
+    >>> (-27) >> 3
+    -4
+    >>> rshift_int(-27)
+    -4
+
+    >>> rshift_int(32)
+    4
+    >>> (-32) >> 3
+    -4
+    >>> rshift_int(-32)
+    -4
+
+    >>> (2**28) >> 3
+    33554432
+    >>> rshift_int(2**28)
+    33554432
+    >>> (-2**28) >> 3
+    -33554432
+    >>> rshift_int(-2**28)
+    -33554432
+
+    >>> (2**30) >> 3
+    134217728
+    >>> rshift_int(2**30)
+    134217728
+    >>> rshift_int(-2**30)
+    -134217728
+
+    >>> bigint((2**60) >> 3)
+    144115188075855872
+    >>> bigint(rshift_int(2**60))
+    144115188075855872
+    >>> bigint(rshift_int(-2**60))
+    -144115188075855872
+    """
+    obj1 = obj2 >> 3
     return obj1
 
 

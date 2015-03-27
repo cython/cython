@@ -2811,6 +2811,13 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     def _handle_simple_method_object___xor__(self, node, function, args, is_unbound_method):
         return self._optimise_num_binop('Xor', node, function, args, is_unbound_method)
 
+    def _handle_simple_method_object___rshift__(self, node, function, args, is_unbound_method):
+        if len(args) != 2 or not isinstance(args[1], ExprNodes.IntNode):
+            return node
+        if not args[1].has_constant_result() or not (1 <= args[1].constant_result <= 63):
+            return node
+        return self._optimise_num_binop('Rshift', node, function, args, is_unbound_method)
+
     def _handle_simple_method_object___mod__(self, node, function, args, is_unbound_method):
         if len(args) != 2 or not isinstance(args[1], ExprNodes.IntNode):
             return node
@@ -2826,25 +2833,26 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
 
     def _optimise_num_binop(self, operator, node, function, args, is_unbound_method):
         """
-        Optimise '+' / '-' operator for (likely) float or small integer operations.
+        Optimise math operators for (likely) float or small integer operations.
         """
         if len(args) != 2:
             return node
         if not node.type.is_pyobject:
             return node
 
-        # when adding IntNode/FloatNode to something else, assume other operand is also numeric
+        # When adding IntNode/FloatNode to something else, assume other operand is also numeric.
+        # Prefer constants on RHS as they allows better size control for some operators.
         num_nodes = (ExprNodes.IntNode, ExprNodes.FloatNode)
-        if isinstance(args[0], num_nodes):
-            if args[1].type is not PyrexTypes.py_object_type:
-                return node
-            numval = args[0]
-            arg_order = 'CObj'
-        elif isinstance(args[1], num_nodes):
+        if isinstance(args[1], num_nodes):
             if args[0].type is not PyrexTypes.py_object_type:
                 return node
             numval = args[1]
             arg_order = 'ObjC'
+        elif isinstance(args[0], num_nodes):
+            if args[1].type is not PyrexTypes.py_object_type:
+                return node
+            numval = args[0]
+            arg_order = 'CObj'
         else:
             return node
 
