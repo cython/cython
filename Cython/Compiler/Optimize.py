@@ -2802,6 +2802,12 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     def _handle_simple_method_object___sub__(self, node, function, args, is_unbound_method):
         return self._optimise_num_binop('Subtract', node, function, args, is_unbound_method)
 
+    def _handle_simple_method_object___eq__(self, node, function, args, is_unbound_method):
+        return self._optimise_num_binop('Eq', node, function, args, is_unbound_method)
+
+    def _handle_simple_method_object___neq__(self, node, function, args, is_unbound_method):
+        return self._optimise_num_binop('Ne', node, function, args, is_unbound_method)
+
     def _handle_simple_method_object___and__(self, node, function, args, is_unbound_method):
         return self._optimise_num_binop('And', node, function, args, is_unbound_method)
 
@@ -2859,6 +2865,12 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     def _handle_simple_method_float___div__(self, node, function, args, is_unbound_method):
         return self._optimise_num_binop('Divide', node, function, args, is_unbound_method)
 
+    def _handle_simple_method_float___eq__(self, node, function, args, is_unbound_method):
+        return self._optimise_num_binop('Eq', node, function, args, is_unbound_method)
+
+    def _handle_simple_method_float___neq__(self, node, function, args, is_unbound_method):
+        return self._optimise_num_binop('Ne', node, function, args, is_unbound_method)
+
     def _optimise_num_binop(self, operator, node, function, args, is_unbound_method):
         """
         Optimise math operators for (likely) float or small integer operations.
@@ -2889,7 +2901,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
 
         is_float = isinstance(numval, ExprNodes.FloatNode)
         if is_float:
-            if operator not in ('Add', 'Subtract', 'TrueDivide', 'Divide'):
+            if operator not in ('Add', 'Subtract', 'TrueDivide', 'Divide', 'Eq', 'Ne'):
                 return node
         elif operator == 'Divide':
             # mixed old-/new-style division is not currently optimised for integers
