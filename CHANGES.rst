@@ -17,7 +17,7 @@ Features added
 
 * Optimisations for PyLong are enabled in Py2.7 (not only Py3.x).
 
-* Adding/subtracting constant Python floats and small integers is faster.
+* Adding/subtracting/dividing constant Python floats and small integers is faster.
 
 * Binary and/or/xor/rshift operations and division/modulus with small
   constant Python integers are faster.

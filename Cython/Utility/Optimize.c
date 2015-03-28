@@ -490,7 +490,7 @@ fallback:
 static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, long intval, int inplace); /*proto*/
 #else
 #define __Pyx_PyInt_{{op}}{{order}}(op1, op2, intval, inplace) \
-    ((inplace ? PyNumber_InPlace{{op}} : PyNumber_{{op}})(op1, op2))
+    (inplace ? PyNumber_InPlace{{op}}(op1, op2) : PyNumber_{{op}}(op1, op2))
 #endif
 
 /////////////// PyIntBinop ///////////////
@@ -639,7 +639,9 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
 static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, double floatval, int inplace); /*proto*/
 #else
 #define __Pyx_PyFloat_{{op}}{{order}}(op1, op2, floatval, inplace) \
-    ((inplace ? PyNumber_InPlace{{op}} : PyNumber_{{op}})(op1, op2))
+    {{if op == 'Divide'}}((inplace ? __Pyx_PyNumber_InPlaceDivide(op1, op2) : __Pyx_PyNumber_Divide(op1, op2)))
+    {{else}}(inplace ? PyNumber_InPlace{{op}}(op1, op2) : PyNumber_{{op}}(op1, op2))
+    {{endif}}
 #endif
 
 /////////////// PyFloatBinop ///////////////
@@ -648,7 +650,7 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
 #if CYTHON_COMPILING_IN_CPYTHON
 {{py: from Cython.Utility import pylong_join }}
 {{py: pyval, fval = ('op2', 'b') if order == 'CObj' else ('op1', 'a') }}
-{{py: c_op = {'Add': '+', 'Subtract': '-', 'TrueDivide': '/'}[op] }}
+{{py: c_op = {'Add': '+', 'Subtract': '-', 'TrueDivide': '/', 'Divide': '/'}[op] }}
 
 static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, double floatval, int inplace) {
     const double {{'a' if order == 'CObj' else 'b'}} = floatval;
@@ -699,7 +701,11 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
         if (unlikely({{fval}} == -1.0 && PyErr_Occurred())) return NULL;
         #endif
     } else {
+        {{if op == 'Divide'}}
+        return (inplace ? __Pyx_PyNumber_InPlaceDivide(op1, op2) : __Pyx_PyNumber_Divide(op1, op2));
+        {{else}}
         return (inplace ? PyNumber_InPlace{{op}} : PyNumber_{{op}})(op1, op2);
+        {{endif}}
     }
 
     // copied from floatobject.c in Py3.5:
