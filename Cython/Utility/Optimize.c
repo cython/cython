@@ -449,12 +449,16 @@ static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject
 #endif
     if (likely(PyLong_CheckExact(exp))) {
         #if CYTHON_USE_PYLONG_INTERNALS
-        switch (Py_SIZE(exp)) {
-            case  0: shiftby = 0; break;
-            case  1: shiftby = ((PyLongObject*)exp)->ob_digit[0]; break;
-            default:
-                if (unlikely(Py_SIZE(exp) < 0)) goto fallback;
-                shiftby = PyLong_AsSsize_t(exp); break;
+        const Py_ssize_t size = Py_SIZE(exp);
+        // tuned to optimise branch prediction
+        if (likely(size == 1)) {
+            shiftby = ((PyLongObject*)exp)->ob_digit[0];
+        } else if (size == 0) {
+            return PyInt_FromLong(1L);
+        } else if (unlikely(size < 0)) {
+            goto fallback;
+        } else {
+            shiftby = PyLong_AsSsize_t(exp);
         }
         #else
         shiftby = PyLong_AsSsize_t(exp);
@@ -563,26 +567,26 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
         long x, {{ival}};
         const digit* digits = ((PyLongObject*){{pyval}})->ob_digit;
         const Py_ssize_t size = Py_SIZE({{pyval}});
-        switch (size) {
-            case  0: {{ival}} = 0; break;
-            case -1: {{if c_op != '%'}}
-                {{ival}} = -(sdigit)digits[0]; break;
-                {{endif}}
-                // fall through to positive calculation for '%'
-            case  1: {{ival}} = digits[0]; break;
-            {{for _size in (2, 3, 4)}}
-            {{for _case in (-_size, _size)}}
-            case {{_case}}: {{if c_op != '%' or _case > 0}}
-                if (8 * sizeof(long) - 1 > {{_size}} * PyLong_SHIFT{{if op == 'TrueDivide'}} && {{_size-1}} * PyLong_SHIFT < 53{{endif}}) {
-                    {{ival}} = {{'-' if _case < 0 else ''}}(long) {{pylong_join(_size, 'digits')}};
-                    break;
-                }
-                {{endif}}
-                // in negative case, fall through to positive calculation for '%'
-                // if size doesn't fit into a long anymore, fall through to default
-            {{endfor}}
-            {{endfor}}
-            default: return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
+        // handle most common case first to avoid indirect branch and optimise branch prediction
+        if (likely(__Pyx_sst_abs(size) <= 1)) {
+            {{ival}} = likely(size) ? digits[0] : 0;
+            {{if c_op != '%'}}if (size == -1) {{ival}} = -{{ival}};{{endif}}
+        } else {
+            switch (size) {
+                {{for _size in (2, 3, 4)}}
+                {{for _case in (-_size, _size)}}
+                case {{_case}}: {{if c_op != '%' or _case > 0}}
+                    if (8 * sizeof(long) - 1 > {{_size}} * PyLong_SHIFT{{if op == 'TrueDivide'}} && {{_size-1}} * PyLong_SHIFT < 53{{endif}}) {
+                        {{ival}} = {{'-' if _case < 0 else ''}}(long) {{pylong_join(_size, 'digits')}};
+                        break;
+                    }
+                    {{endif}}
+                    // in negative case, fall through to positive calculation for '%'
+                    // if size doesn't fit into a long anymore, fall through to default
+                {{endfor}}
+                {{endfor}}
+                default: return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
+            }
         }
         {{if c_op == '%'}}
             x = a % b;

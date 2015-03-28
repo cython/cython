@@ -183,6 +183,10 @@
   #define __Pyx_PyMethod_New(func, self, klass) PyMethod_New(func, self, klass)
 #endif
 
+#define __Pyx_sst_abs(value) \
+    (sizeof(int) >= sizeof(Py_ssize_t) ? abs(value) : \
+     (sizeof(long) >= sizeof(Py_ssize_t) ? labs(value) : llabs(value)))
+
 /* inline attribute */
 #ifndef CYTHON_INLINE
   #if defined(__GNUC__)

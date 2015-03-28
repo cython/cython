@@ -297,23 +297,23 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
     #if CYTHON_USE_PYLONG_INTERNALS
     const digit* digits = ((PyLongObject*)b)->ob_digit;
     const Py_ssize_t size = Py_SIZE(b);
-    switch (size) {
-       case  0: return 0;
-       case  1: return digits[0];
-       case -1: return -(sdigit) digits[0];
-       default:
-          // move the substantially less common cases out of the way
-          switch (size) {
-             {{for _size in (2, 3, 4)}}
-             {{for _case in (_size, -_size)}}
-             case {{_case}}:
-               if (8 * sizeof(Py_ssize_t) > {{_size}} * PyLong_SHIFT) {
-                 return (Py_ssize_t) {{pylong_join(_size, 'digits', 'size_t')}};
-               }
-               break;
-             {{endfor}}
-             {{endfor}}
-          }
+    // handle most common case first to avoid indirect branch and optimise branch prediction
+    if (likely(__Pyx_sst_abs(size) <= 1)) {
+        ival = likely(size) ? digits[0] : 0;
+        if (size == -1) ival = -ival;
+        return ival;
+    } else {
+      switch (size) {
+         {{for _size in (2, 3, 4)}}
+         {{for _case in (_size, -_size)}}
+         case {{_case}}:
+           if (8 * sizeof(Py_ssize_t) > {{_size}} * PyLong_SHIFT) {
+             return (Py_ssize_t) {{pylong_join(_size, 'digits', 'size_t')}};
+           }
+           break;
+         {{endfor}}
+         {{endfor}}
+      }
     }
     #endif
     return PyLong_AsSsize_t(b);
