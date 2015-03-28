@@ -15,8 +15,6 @@ Features added
 
 * Tracing is supported in ``nogil`` functions/sections and module init code.
 
-* Optimisations for PyLong are enabled in Py2.7 (not only Py3.x).
-
 * Adding/subtracting/dividing and equality comparisons with constant Python
   floats and small integers are faster.
 
