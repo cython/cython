@@ -25,6 +25,7 @@ def temps(x):
     """
     return ident(1) if ident(x) < ident(5) else ident(10)
 
+
 def nested(x):
     """
     >>> nested(1)
@@ -34,7 +35,9 @@ def nested(x):
     >>> nested(3)
     3
     """
-    return 1 if x == 1 else (2 if x == 2 else 3)
+    a = 1 if x == 1 else (2 if x == 2 else 3)
+    return a
+
 
 @cython.test_fail_if_path_exists('//CondExprNode')
 def const_true(a,b):
