@@ -578,7 +578,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
                     break;
                 }
                 {{endif}}
-                // in negative case, fall through to positive calculation for '%' and '//'
+                // in negative case, fall through to positive calculation for '%'
                 // if size doesn't fit into a long anymore, fall through to default
             {{endfor}}
             {{endfor}}
