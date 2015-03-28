@@ -2891,6 +2891,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         if is_float:
             if operator not in ('Add', 'Subtract', 'TrueDivide', 'Divide'):
                 return node
+        elif operator == 'Divide':
+            # mixed old-/new-style division is not currently optimised for integers
+            return node
         elif abs(numval.constant_result) > 2**30:
             return node
 
