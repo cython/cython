@@ -521,14 +521,14 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
             return PyInt_FromLong((long) value);
         } else if (sizeof({{TYPE}}) <= sizeof(unsigned long)) {
             return PyLong_FromUnsignedLong((unsigned long) value);
-        } else if (sizeof({{TYPE}}) <= sizeof(unsigned long long)) {
-            return PyLong_FromUnsignedLongLong((unsigned long long) value);
+        } else if (sizeof({{TYPE}}) <= sizeof(unsigned PY_LONG_LONG)) {
+            return PyLong_FromUnsignedLongLong((unsigned PY_LONG_LONG) value);
         }
     } else {
         if (sizeof({{TYPE}}) <= sizeof(long)) {
             return PyInt_FromLong((long) value);
-        } else if (sizeof({{TYPE}}) <= sizeof(long long)) {
-            return PyLong_FromLongLong((long long) value);
+        } else if (sizeof({{TYPE}}) <= sizeof(PY_LONG_LONG)) {
+            return PyLong_FromLongLong((PY_LONG_LONG) value);
         }
     }
     {
@@ -615,8 +615,8 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
 #endif
             if (sizeof({{TYPE}}) <= sizeof(unsigned long)) {
                 __PYX_VERIFY_RETURN_INT({{TYPE}}, unsigned long, PyLong_AsUnsignedLong(x))
-            } else if (sizeof({{TYPE}}) <= sizeof(unsigned long long)) {
-                __PYX_VERIFY_RETURN_INT({{TYPE}}, unsigned long long, PyLong_AsUnsignedLongLong(x))
+            } else if (sizeof({{TYPE}}) <= sizeof(unsigned PY_LONG_LONG)) {
+                __PYX_VERIFY_RETURN_INT({{TYPE}}, unsigned PY_LONG_LONG, PyLong_AsUnsignedLongLong(x))
             }
         } else {
             // signed
@@ -639,8 +639,8 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
 #endif
             if (sizeof({{TYPE}}) <= sizeof(long)) {
                 __PYX_VERIFY_RETURN_INT({{TYPE}}, long, PyLong_AsLong(x))
-            } else if (sizeof({{TYPE}}) <= sizeof(long long)) {
-                __PYX_VERIFY_RETURN_INT({{TYPE}}, long long, PyLong_AsLongLong(x))
+            } else if (sizeof({{TYPE}}) <= sizeof(PY_LONG_LONG)) {
+                __PYX_VERIFY_RETURN_INT({{TYPE}}, PY_LONG_LONG, PyLong_AsLongLong(x))
             }
         }
         {
