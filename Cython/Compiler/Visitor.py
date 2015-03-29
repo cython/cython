@@ -709,12 +709,17 @@ class PrintTree(TreeVisitor):
     """Prints a representation of the tree to standard output.
     Subclass and override repr_of to provide more information
     about nodes. """
-    def __init__(self):
+    def __init__(self, start=None, end=None):
         TreeVisitor.__init__(self)
         self._indent = ""
+        if start is not None or end is not None:
+            self._line_range = (start or 0, end or 2**30)
+        else:
+            self._line_range = None
 
     def indent(self):
         self._indent += "  "
+
     def unindent(self):
         self._indent = self._indent[:-2]
 
@@ -728,15 +733,17 @@ class PrintTree(TreeVisitor):
     # under the parent-node, not displaying the list itself in
     # the hierarchy.
     def visit_Node(self, node):
-        if len(self.access_path) == 0:
-            name = "(root)"
-        else:
-            parent, attr, idx = self.access_path[-1]
-            if idx is not None:
-                name = "%s[%d]" % (attr, idx)
+        line = node.pos[1]
+        if self._line_range is None or self._line_range[0] <= line <= self._line_range[1]:
+            if len(self.access_path) == 0:
+                name = "(root)"
             else:
-                name = attr
-        print("%s- %s: %s" % (self._indent, name, self.repr_of(node)))
+                parent, attr, idx = self.access_path[-1]
+                if idx is not None:
+                    name = "%s[%d]" % (attr, idx)
+                else:
+                    name = attr
+            print("%s- %s: %s" % (self._indent, name, self.repr_of(node)))
         self.indent()
         self.visitchildren(node)
         self.unindent()
