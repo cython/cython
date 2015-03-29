@@ -1422,6 +1422,31 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             stop=stop,
             step=step or ExprNodes.NoneNode(node.pos))
 
+    def _handle_simple_function_ord(self, node, pos_args):
+        """Unpack ord('X').
+        """
+        if len(pos_args) != 1:
+            return node
+        arg = pos_args[0]
+        if isinstance(arg, (ExprNodes.UnicodeNode, ExprNodes.BytesNode)):
+            if len(arg.value) == 1:
+                return ExprNodes.IntNode(
+                    arg.pos, type=PyrexTypes.c_long_type,
+                    value=str(ord(arg.value)),
+                    constant_result=ord(arg.value)
+                )
+        elif isinstance(arg, ExprNodes.StringNode):
+            if arg.unicode_value and len(arg.unicode_value) == 1 \
+                    and ord(arg.unicode_value) <= 255:  # Py2/3 portability
+                return ExprNodes.IntNode(
+                    arg.pos, type=PyrexTypes.c_int_type,
+                    value=str(ord(arg.unicode_value)),
+                    constant_result=ord(arg.unicode_value)
+                )
+        return node
+
+    # sequence processing
+
     class YieldNodeCollector(Visitor.TreeVisitor):
         def __init__(self):
             Visitor.TreeVisitor.__init__(self)
@@ -1632,7 +1657,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             yield_expression, yield_stat_node = self._find_single_yield_expression(loop_node)
             if yield_expression is None:
                 return node
-        else: # ComprehensionNode
+        else:  # ComprehensionNode
             yield_stat_node = gen_expr_node.append
             yield_expression = yield_stat_node.expr
             try:
@@ -1711,6 +1736,8 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             last_result = UtilNodes.EvalWithTempExprNode(ref_node, last_result)
 
         return last_result
+
+    # builtin type creation
 
     def _DISABLED_handle_simple_function_tuple(self, node, pos_args):
         if not pos_args:
@@ -2452,7 +2479,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         if isinstance(arg, ExprNodes.CoerceToPyTypeNode):
             if arg.arg.type.is_unicode_char:
                 return ExprNodes.TypecastNode(
-                    arg.pos, operand=arg.arg, type=PyrexTypes.c_int_type
+                    arg.pos, operand=arg.arg, type=PyrexTypes.c_long_type
                     ).coerce_to(node.type, self.current_env())
         elif isinstance(arg, ExprNodes.UnicodeNode):
             if len(arg.value) == 1:

@@ -239,9 +239,52 @@ static CYTHON_INLINE unsigned PY_LONG_LONG __Pyx_abs_longlong(PY_LONG_LONG x) {
 #endif
 }
 
+
 //////////////////// pow2.proto ////////////////////
 
 #define __Pyx_PyNumber_Power2(a, b) PyNumber_Power(a, b, Py_None)
+
+
+//////////////////// object_ord.proto ////////////////////
+//@requires: TypeConversion.c::UnicodeAsUCS4
+
+#if PY_MAJOR_VERSION >= 3
+#define __Pyx_PyObject_Ord(c) \
+    (likely(PyUnicode_Check(c)) ? (long)__Pyx_PyUnicode_AsPy_UCS4(c) : __Pyx__PyObject_Ord(c))
+#else
+#define __Pyx_PyObject_Ord(c) __Pyx__PyObject_Ord(c)
+#endif
+static long __Pyx__PyObject_Ord(PyObject* c); /*proto*/
+
+//////////////////// object_ord ////////////////////
+
+static long __Pyx__PyObject_Ord(PyObject* c) {
+    Py_ssize_t size;
+    if (PyBytes_Check(c)) {
+        size = PyBytes_GET_SIZE(c);
+        if (likely(size == 1)) {
+            return (unsigned char) PyBytes_AS_STRING(c)[0];
+        }
+#if PY_MAJOR_VERSION < 3
+    } else if (PyUnicode_Check(c)) {
+        return (long)__Pyx_PyUnicode_AsPy_UCS4(c);
+#endif
+    } else if (PyByteArray_Check(c)) {
+        size = PyByteArray_GET_SIZE(c);
+        if (likely(size == 1)) {
+            return (unsigned char) PyByteArray_AS_STRING(c)[0];
+        }
+    } else {
+        // FIXME: support character buffers - but CPython doesn't support them either
+        PyErr_Format(PyExc_TypeError,
+            "ord() expected string of length 1, but %.200s found", c->ob_type->tp_name);
+        return (long)(Py_UCS4)-1;
+    }
+    PyErr_Format(PyExc_TypeError,
+        "ord() expected a character, but string of length %zd found", size);
+    return (long)(Py_UCS4)-1;
+}
+
 
 //////////////////// py_dict_keys.proto ////////////////////
 
