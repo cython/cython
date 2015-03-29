@@ -561,6 +561,15 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
                 goto raise_neg_overflow;
             }
 #endif
+#if CYTHON_COMPILING_IN_PYPY
+            {
+              int result = PyObject_RichCompareBool(x, Py_False, Py_LT);
+              if (unlikely(result < 0))
+                    return -1;
+              if (unlikely(result == 1))
+                    goto raise_neg_overflow;
+            }
+#endif
             if (sizeof({{TYPE}}) <= sizeof(unsigned long)) {
                 __PYX_VERIFY_RETURN_INT({{TYPE}}, unsigned long, PyLong_AsUnsignedLong(x))
             } else if (sizeof({{TYPE}}) <= sizeof(unsigned PY_LONG_LONG)) {
