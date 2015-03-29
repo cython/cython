@@ -183,9 +183,17 @@
   #define __Pyx_PyMethod_New(func, self, klass) PyMethod_New(func, self, klass)
 #endif
 
-#define __Pyx_sst_abs(value) \
-    (sizeof(int) >= sizeof(Py_ssize_t) ? abs(value) : \
-     (sizeof(long) >= sizeof(Py_ssize_t) ? labs(value) : llabs(value)))
+// fast and unsafe abs(Py_ssize_t) that ignores the overflow for (-PY_SSIZE_T_MAX-1)
+#if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+    #define __Pyx_sst_abs(value) \
+        (sizeof(int) >= sizeof(Py_ssize_t) ? abs(value) : \
+         (sizeof(long) >= sizeof(Py_ssize_t) ? labs(value) : llabs(value)))
+#else
+    #define __Pyx_sst_abs(value) \
+        (sizeof(int) >= sizeof(Py_ssize_t) ? abs(value) : \
+         (sizeof(long) >= sizeof(Py_ssize_t) ? labs(value) : \
+          ((value<0) ? -value : value)))
+#endif
 
 /* inline attribute */
 #ifndef CYTHON_INLINE
