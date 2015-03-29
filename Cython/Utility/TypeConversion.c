@@ -13,6 +13,18 @@
           (is_signed || likely(v < (type)PY_SSIZE_T_MAX ||        \
                                v == (type)PY_SSIZE_T_MAX)))  )
 
+// fast and unsafe abs(Py_ssize_t) that ignores the overflow for (-PY_SSIZE_T_MAX-1)
+#if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+    #define __Pyx_sst_abs(value) \
+        (sizeof(int) >= sizeof(Py_ssize_t) ? abs(value) : \
+         (sizeof(long) >= sizeof(Py_ssize_t) ? labs(value) : llabs(value)))
+#else
+    #define __Pyx_sst_abs(value) \
+        (sizeof(int) >= sizeof(Py_ssize_t) ? abs(value) : \
+         (sizeof(long) >= sizeof(Py_ssize_t) ? labs(value) : \
+          ((value<0) ? -value : value)))
+#endif
+
 static CYTHON_INLINE char* __Pyx_PyObject_AsString(PyObject*);
 static CYTHON_INLINE char* __Pyx_PyObject_AsStringAndSize(PyObject*, Py_ssize_t* length);
 
