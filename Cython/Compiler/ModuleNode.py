@@ -2940,7 +2940,7 @@ bad:
 """ % {'IMPORT_STAR'     : Naming.import_star,
        'IMPORT_STAR_SET' : Naming.import_star_set }
 
-refnanny_utility_code = UtilityCode.load_cached("Refnanny", "ModuleSetupCode.c")
+refnanny_utility_code = UtilityCode.load("Refnanny", "ModuleSetupCode.c")
 
 main_method = UtilityCode.load("MainFunction", "Embed.c")
 
