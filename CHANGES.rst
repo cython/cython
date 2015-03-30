@@ -15,11 +15,11 @@ Features added
 
 * Tracing is supported in ``nogil`` functions/sections and module init code.
 
-* Adding/subtracting/dividing and equality comparisons with constant Python
-  floats and small integers are faster.
+* Adding/subtracting/dividing/modulus and equality comparisons with
+  constant Python floats and small integers are faster.
 
-* Binary and/or/xor/rshift operations and division/modulus with small
-  constant Python integers are faster.
+* Binary and/or/xor/rshift operations with small constant Python integers
+  are faster.
 
 Bugs fixed
 ----------
