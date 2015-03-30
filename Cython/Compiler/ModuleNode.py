@@ -2338,6 +2338,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             wmain = "wmain"
         else:
             wmain = Options.embed
+        main_method = UtilityCode.load_cached("MainFunction", "Embed.c")
         code.globalstate.use_utility_code(
             main_method.specialize(
                 module_name=env.module_name,
@@ -2941,8 +2942,6 @@ bad:
        'IMPORT_STAR_SET': Naming.import_star_set}
 
 refnanny_utility_code = UtilityCode.load("Refnanny", "ModuleSetupCode.c")
-
-main_method = UtilityCode.load("MainFunction", "Embed.c")
 
 packed_struct_utility_code = UtilityCode(proto="""
 #if defined(__GNUC__)
