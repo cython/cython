@@ -2340,10 +2340,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             wmain = Options.embed
         code.globalstate.use_utility_code(
             main_method.specialize(
-                module_name = env.module_name,
-                module_is_main = module_is_main,
-                main_method = Options.embed,
-                wmain_method = wmain))
+                module_name=env.module_name,
+                module_is_main=module_is_main,
+                main_method=Options.embed,
+                wmain_method=wmain))
 
     def generate_pymoduledef_struct(self, env, code):
         if env.doc:
@@ -2937,8 +2937,8 @@ bad:
 #endif
     return ret;
 }
-""" % {'IMPORT_STAR'     : Naming.import_star,
-       'IMPORT_STAR_SET' : Naming.import_star_set }
+""" % {'IMPORT_STAR': Naming.import_star,
+       'IMPORT_STAR_SET': Naming.import_star_set}
 
 refnanny_utility_code = UtilityCode.load("Refnanny", "ModuleSetupCode.c")
 
