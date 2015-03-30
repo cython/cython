@@ -2852,11 +2852,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         return self._optimise_num_binop('Rshift', node, function, args, is_unbound_method)
 
     def _handle_simple_method_object___mod__(self, node, function, args, is_unbound_method):
-        if len(args) != 2 or not isinstance(args[1], ExprNodes.IntNode):
-            return node
-        if not args[1].has_constant_result() or not (2 <= args[1].constant_result <= 2**30):
-            return node
-        return self._optimise_num_binop('Remainder', node, function, args, is_unbound_method)
+        return self._optimise_num_div('Remainder', node, function, args, is_unbound_method)
 
     def _handle_simple_method_object___floordiv__(self, node, function, args, is_unbound_method):
         return self._optimise_num_div('FloorDivide', node, function, args, is_unbound_method)
@@ -2891,6 +2887,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
 
     def _handle_simple_method_float___div__(self, node, function, args, is_unbound_method):
         return self._optimise_num_binop('Divide', node, function, args, is_unbound_method)
+
+    def _handle_simple_method_float___mod__(self, node, function, args, is_unbound_method):
+        return self._optimise_num_binop('Remainder', node, function, args, is_unbound_method)
 
     def _handle_simple_method_float___eq__(self, node, function, args, is_unbound_method):
         return self._optimise_num_binop('Eq', node, function, args, is_unbound_method)
@@ -2928,7 +2927,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
 
         is_float = isinstance(numval, ExprNodes.FloatNode)
         if is_float:
-            if operator not in ('Add', 'Subtract', 'TrueDivide', 'Divide', 'Eq', 'Ne'):
+            if operator not in ('Add', 'Subtract', 'Remainder', 'TrueDivide', 'Divide', 'Eq', 'Ne'):
                 return node
         elif operator == 'Divide':
             # mixed old-/new-style division is not currently optimised for integers

@@ -173,6 +173,25 @@ def mod_obj_m2(int2):
     return int1
 
 
+def mod_obj_m2f(obj2):
+    """
+    >>> 0 % -2.0
+    -0.0
+    >>> mod_obj_m2f(0)
+    -0.0
+    >>> 1 % -2.0
+    -1.0
+    >>> mod_obj_m2f(1)
+    -1.0
+    >>> 9 % -2.0
+    -1.0
+    >>> mod_obj_m2f(9)
+    -1.0
+    """
+    result = obj2 % -2.0
+    return result
+
+
 def modint(int int2, int int3):
     """
     >>> modint(9,2)

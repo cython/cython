@@ -687,7 +687,7 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
 {{py: pyval, fval = ('op2', 'b') if order == 'CObj' else ('op1', 'a') }}
 {{py:
 c_op = {
-    'Add': '+', 'Subtract': '-', 'TrueDivide': '/', 'Divide': '/',
+    'Add': '+', 'Subtract': '-', 'TrueDivide': '/', 'Divide': '/', 'Remainder': '%',
     'Eq': '==', 'Ne': '!=',
     }[op]
 }}
@@ -768,7 +768,15 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
     {{else}}
         // copied from floatobject.c in Py3.5:
         PyFPE_START_PROTECT("{{op.lower() if not op.endswith('Divide') else 'divide'}}", return NULL)
+        {{if c_op == '%'}}
+        result = fmod(a, b);
+        if (result)
+            result += ((result < 0) ^ (b < 0)) * b;
+        else
+            result = copysign(0.0, b);
+        {{else}}
         result = a {{c_op}} b;
+        {{endif}}
         PyFPE_END_PROTECT(result)
         return PyFloat_FromDouble(result);
     {{endif}}
