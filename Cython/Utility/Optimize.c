@@ -707,7 +707,7 @@ c_op = {
     }[op]
 }}
 
-static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, double floatval, int inplace) {
+static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, double floatval, CYTHON_UNUSED int inplace) {
     const double {{'a' if order == 'CObj' else 'b'}} = floatval;
     double {{fval}}{{if op not in ('Eq', 'Ne')}}, result{{endif}};
 
