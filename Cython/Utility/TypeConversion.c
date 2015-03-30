@@ -560,13 +560,13 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
             if (unlikely(Py_SIZE(x) < 0)) {
                 goto raise_neg_overflow;
             }
-#endif
-#if CYTHON_COMPILING_IN_PYPY
+#elif CYTHON_COMPILING_IN_PYPY
             {
-              int result = PyObject_RichCompareBool(x, Py_False, Py_LT);
-              if (unlikely(result < 0))
-                    return -1;
-              if (unlikely(result == 1))
+                // misuse Py_False as a quick way to compare to a '0' int object in PyPy
+                int result = PyObject_RichCompareBool(x, Py_False, Py_LT);
+                if (unlikely(result < 0))
+                    return ({{TYPE}}) -1;
+                if (unlikely(result == 1))
                     goto raise_neg_overflow;
             }
 #endif
