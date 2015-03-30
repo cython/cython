@@ -1962,7 +1962,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "};")
 
     def generate_import_star(self, env, code):
-        env.use_utility_code(streq_utility_code)
+        env.use_utility_code(UtilityCode.load_cached("CStringEquals", "StringTools.c"))
         code.putln()
         code.enter_cfunc_scope()  # as we need labels
         code.putln("static int %s(PyObject *o, PyObject* py_name, char *name) {" % Naming.import_star_set)
@@ -2809,19 +2809,6 @@ def generate_cfunction_declaration(entry, env, code, definition):
 #
 #  Runtime support code
 #
-#------------------------------------------------------------------------------------
-
-streq_utility_code = UtilityCode(
-proto = """
-static CYTHON_INLINE int __Pyx_StrEq(const char *, const char *); /*proto*/
-""",
-impl = """
-static CYTHON_INLINE int __Pyx_StrEq(const char *s1, const char *s2) {
-     while (*s1 != '\\0' && *s1 == *s2) { s1++; s2++; }
-     return *s1 == *s2;
-}
-""")
-
 #------------------------------------------------------------------------------------
 
 refnanny_utility_code = UtilityCode.load("Refnanny", "ModuleSetupCode.c")

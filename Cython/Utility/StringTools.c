@@ -117,6 +117,18 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Contains(PyObject* substring, PyObject*
 }
 
 
+//////////////////// CStringEquals.proto ////////////////////
+
+static CYTHON_INLINE int __Pyx_StrEq(const char *, const char *); /*proto*/
+
+//////////////////// CStringEquals ////////////////////
+
+static CYTHON_INLINE int __Pyx_StrEq(const char *s1, const char *s2) {
+    while (*s1 != '\0' && *s1 == *s2) { s1++; s2++; }
+    return *s1 == *s2;
+}
+
+
 //////////////////// StrEquals.proto ////////////////////
 //@requires: BytesEquals
 //@requires: UnicodeEquals
