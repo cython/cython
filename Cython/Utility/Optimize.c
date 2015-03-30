@@ -539,13 +539,9 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
                 return PyInt_FromLong(x);
             return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
         {{elif c_op == '%'}}
-            // modulus with differing signs isn't safely portable, emulate CPython
-            if (unlikely(a < 0)) {
-                x = (-a) % b;
-                if (x) x = b - x;
-            } else {
-                x = a % b;
-            }
+            // see ExprNodes.py :: mod_int_utility_code
+            x = a % b;
+            x += ((x != 0) & ((x ^ b) < 0)) * b;
             return PyInt_FromLong(x);
         {{elif op == 'TrueDivide'}}
             if (8 * sizeof(long) <= 53 || likely({{ival}} <= (1L << 53) && {{ival}} >= (-(1L << 53)))) {
@@ -554,21 +550,16 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
             // let Python do the rounding
             return PyInt_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
         {{elif op == 'FloorDivide'}}
-            if ((a^b) >= 0) {
-                {{if order == 'ObjC'}}
-                // INT_MIN / -1  is the only case that overflows
-                if (unlikely(b == -1 && ((unsigned long)a) == 0-(unsigned long)a))
-                    return PyInt_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
-                {{endif}}
-                x = a / b;
-            } else {
-                // use manual rounding when result is negative (signs differ)
-                long la = labs(a), lb = labs(b);
-                x = la / lb;
-                if (x * lb != la)
-                    x = -x - 1;
-                else
-                    x = -x;
+            // INT_MIN / -1  is the only case that overflows
+            if (unlikely(b == -1 && ((unsigned long)a) == 0-(unsigned long)a))
+                return PyInt_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
+            else {
+                long q, r;
+                // see ExprNodes.py :: div_int_utility_code
+                q = a / b;
+                r = a - q*b;
+                q -= ((r != 0) & ((r ^ b) < 0));
+                x = q;
             }
             return PyInt_FromLong(x);
         {{else}}
@@ -587,18 +578,16 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
         // handle most common case first to avoid indirect branch and optimise branch prediction
         if (likely(__Pyx_sst_abs(size) <= 1)) {
             {{ival}} = likely(size) ? digits[0] : 0;
-            {{if c_op != '%'}}if (size == -1) {{ival}} = -{{ival}};{{endif}}
+            if (size == -1) {{ival}} = -{{ival}};
         } else {
             switch (size) {
                 {{for _size in (2, 3, 4)}}
                 {{for _case in (-_size, _size)}}
-                case {{_case}}: {{if c_op != '%' or _case > 0}}
+                case {{_case}}:
                     if (8 * sizeof(long) - 1 > {{_size}} * PyLong_SHIFT{{if op == 'TrueDivide'}} && {{_size-1}} * PyLong_SHIFT < 53{{endif}}) {
                         {{ival}} = {{'-' if _case < 0 else ''}}(long) {{pylong_join(_size, 'digits')}};
                         break;
                     }
-                    {{endif}}
-                    // in negative case, fall through to positive calculation for '%'
                     // if size doesn't fit into a long anymore, fall through to default
                 {{endfor}}
                 {{endfor}}
@@ -624,26 +613,22 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
             }
         {{else}}
             {{if c_op == '%'}}
+                // see ExprNodes.py :: mod_int_utility_code
                 x = a % b;
-                if (unlikely(size < 0) && x) {
-                    x = b - x;
-                }
+                x += ((x != 0) & ((x ^ b) < 0)) * b;
             {{elif op == 'TrueDivide'}}
                 if (8 * sizeof(long) <= 53 || (size >= -52 / PyLong_SHIFT && size <= 52 / PyLong_SHIFT) || likely({{ival}} <= (1L << 53) && {{ival}} >= (-(1L << 53)))) {
                     return PyFloat_FromDouble((double)a / (double)b);
                 }
                 return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
             {{elif op == 'FloorDivide'}}
-                if ((a^b) >= 0) {
-                    x = a / b;
-                } else {
-                    // use manual rounding when result is negative (signs differ)
-                    long {{'la = %s(a), lb = %s(b)' % (('', 'labs') if order == 'ObjC' else ('labs', ''))}};
-                    x = la / lb;
-                    if (x * lb != la)
-                        x = -x - 1;
-                    else
-                        x = -x;
+                {
+                    long q, r;
+                    // see ExprNodes.py :: div_int_utility_code
+                    q = a / b;
+                    r = a - q*b;
+                    q -= ((r != 0) & ((r ^ b) < 0));
+                    x = q;
                 }
             {{else}}
                 x = a {{c_op}} b;
