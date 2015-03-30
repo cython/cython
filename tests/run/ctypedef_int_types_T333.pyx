@@ -25,7 +25,7 @@ def test_schar(SChar x):
    >>> test_schar(-129) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: value too large to convert to SChar
    >>> test_schar(-128)
    -128
    >>> test_schar(0)
@@ -35,7 +35,7 @@ def test_schar(SChar x):
    >>> test_schar(128) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: value too large to convert to SChar
    """
    return x
 
@@ -44,7 +44,7 @@ def test_add_schar(x, y):
    >>> test_add_schar(SCHAR_MIN, -1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: value too large to convert to SChar
    >>> test_add_schar(SCHAR_MIN, 0) == SCHAR_MIN
    True
    >>> test_add_schar(SCHAR_MIN, 1) == SCHAR_MIN+1
@@ -56,7 +56,7 @@ def test_add_schar(x, y):
    >>> test_add_schar(SCHAR_MAX, 1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: value too large to convert to SChar
    """
    cdef SChar r = x + y
    return r
@@ -68,7 +68,7 @@ def test_uchar(UChar x):
    >>> test_uchar(-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: can't convert negative value to UChar
    >>> test_uchar(0)
    0
    >>> test_uchar(1)
@@ -78,7 +78,7 @@ def test_uchar(UChar x):
    >>> test_uchar(UCHAR_MAX+1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: value too large to convert to UChar
    """
    return x
 
@@ -89,7 +89,7 @@ def test_add_uchar(x, y):
    >>> test_add_uchar(UCHAR_MAX, 1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: value too large to convert to UChar
    """
    cdef UChar r = x + y
    return r
@@ -99,12 +99,12 @@ def test_add_uchar(x, y):
 SSHORT_MAX = <SShort>((<UShort>-1)>>1)
 SSHORT_MIN = (-SSHORT_MAX-1)
 
-def test_sshort(short x):
+def test_sshort(SShort x):
    u"""
    >>> test_sshort(SSHORT_MIN-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: value too large to convert to SShort
    >>> test_sshort(SSHORT_MIN) == SSHORT_MIN
    True
    >>> test_sshort(-1)
@@ -127,7 +127,7 @@ def test_add_sshort(x, y):
    >>> test_add_sshort(SSHORT_MIN, -1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: value too large to convert to SShort
    >>> test_add_sshort(SSHORT_MIN, 0) == SSHORT_MIN
    True
    >>> test_add_sshort(SSHORT_MIN, 1) == SSHORT_MIN+1
@@ -139,7 +139,7 @@ def test_add_sshort(x, y):
    >>> test_add_sshort(SSHORT_MAX, 1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: value too large to convert to SShort
    """
    cdef SShort r = x + y
    return r
@@ -151,7 +151,7 @@ def test_ushort(UShort x):
    >>> test_ushort(-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: can't convert negative value to UShort
    >>> test_ushort(0)
    0
    >>> test_ushort(1)
@@ -161,7 +161,7 @@ def test_ushort(UShort x):
    >>> test_ushort(USHORT_MAX+1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: value too large to convert to UShort
    """
    return x
 
@@ -172,7 +172,7 @@ def test_add_ushort(x, y):
    >>> test_add_ushort(USHORT_MAX, 1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: value too large to convert to UShort
    """
    cdef UShort r = x + y
    return r
@@ -182,7 +182,7 @@ def test_add_ushort(x, y):
 SINT_MAX = <SInt>((<UInt>-1)>>1)
 SINT_MIN = (-SINT_MAX-1)
 
-def test_sint(int x):
+def test_sint(SInt x):
    u"""
    >>> test_sint(SINT_MIN-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
@@ -234,7 +234,7 @@ def test_uint(UInt x):
    >>> test_uint(-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: can't convert negative value to UInt
    >>> print(test_uint(0))
    0
    >>> print(test_uint(1))
@@ -317,7 +317,7 @@ def test_ulong(ULong x):
    >>> test_ulong(-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: can't convert negative value to ULong
    >>> print(test_ulong(0))
    0
    >>> print(test_ulong(1))
@@ -400,7 +400,7 @@ def test_ulonglong(ULongLong x):
    >>> test_ulonglong(-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: can't convert negative value to ULongLong
    >>> print(test_ulonglong(0))
    0
    >>> print(test_ulonglong(1))
@@ -554,7 +554,7 @@ def test_MyUInt2(MyUInt2 x):
    >>> test_MyUInt2(-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: can't convert negative value to ...
    >>> test_MyUInt2(0)
    0
    >>> test_MyUInt2(1)
@@ -582,7 +582,7 @@ def test_DefUChar(defs.UChar x):
    >>> test_DefUChar(-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: can't convert negative value to ...
    >>> test_DefUChar(0)
    0
    >>> test_DefUChar(1)
@@ -606,7 +606,7 @@ def test_ExtUInt(defs.ExtUInt x):
    >>> test_ExtUInt(-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: can't convert negative value to ...
    >>> test_ExtUInt(0)
    0
    >>> test_ExtUInt(1)
@@ -634,7 +634,7 @@ def test_LocUInt(LocUInt x):
    >>> test_LocUInt(-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: can't convert negative value to ...
    >>> test_LocUInt(0)
    0
    >>> test_LocUInt(1)
