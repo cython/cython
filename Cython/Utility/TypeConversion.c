@@ -68,8 +68,9 @@ static CYTHON_INLINE size_t __Pyx_Py_UNICODE_strlen(const Py_UNICODE *u)
 #define __Pyx_PyUnicode_FromUnicodeAndLength PyUnicode_FromUnicode
 #define __Pyx_PyUnicode_AsUnicode            PyUnicode_AsUnicode
 
-#define __Pyx_Owned_Py_None(b) (Py_INCREF(Py_None), Py_None)
-#define __Pyx_PyBool_FromLong(b) ((b) ? (Py_INCREF(Py_True), Py_True) : (Py_INCREF(Py_False), Py_False))
+#define __Pyx_NewRef(obj) (Py_INCREF(obj), obj)
+#define __Pyx_Owned_Py_None(b) __Pyx_NewRef(Py_None)
+#define __Pyx_PyBool_FromLong(b) ((b) ? __Pyx_NewRef(Py_True) : __Pyx_NewRef(Py_False))
 static CYTHON_INLINE int __Pyx_PyObject_IsTrue(PyObject*);
 static CYTHON_INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x);
 
@@ -258,7 +259,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x) {
 #else
   if (PyLong_Check(x))
 #endif
-    return Py_INCREF(x), x;
+    return __Pyx_NewRef(x);
   m = Py_TYPE(x)->tp_as_number;
 #if PY_MAJOR_VERSION < 3
   if (m && m->nb_int) {
