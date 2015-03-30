@@ -9839,7 +9839,7 @@ class DivNode(NumBinopNode):
                 code.putln(code.error_goto(self.pos))
                 code.putln("}")
                 if self.type.is_int and self.type.signed and self.operator != '%':
-                    code.globalstate.use_utility_code(division_overflow_test_code)
+                    code.globalstate.use_utility_code(UtilityCode.load_cached("UnaryNegOverflows", "Overflow.c"))
                     if self.operand2.type.signed == 2:
                         # explicitly signed, no runtime check needed
                         minus1_check = 'unlikely(%s == -1)' % self.operand2.result()
@@ -11902,11 +11902,4 @@ static int __Pyx_cdivision_warning(const char *filename, int lineno) {
                               NULL);
 #endif
 }
-""")
-
-# from intobject.c
-division_overflow_test_code = UtilityCode(
-proto="""
-#define UNARY_NEG_WOULD_OVERFLOW(x)    \
-        (((x) < 0) & ((unsigned long)(x) == 0-(unsigned long)(x)))
 """)
