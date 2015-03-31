@@ -573,6 +573,10 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
     if (likely(PyLong_CheckExact({{pyval}}))) {
         const long {{'a' if order == 'CObj' else 'b'}} = intval;
         long {{ival}}{{if op not in ('Eq', 'Ne')}}, x{{endif}};
+        {{if op not in ('Eq', 'Ne', 'TrueDivide')}}
+        const PY_LONG_LONG ll{{'a' if order == 'CObj' else 'b'}} = intval;
+        PY_LONG_LONG ll{{ival}}, llx;
+        {{endif}}
         const digit* digits = ((PyLongObject*){{pyval}})->ob_digit;
         const Py_ssize_t size = Py_SIZE({{pyval}});
         // handle most common case first to avoid indirect branch and optimise branch prediction
@@ -581,14 +585,19 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
             if (size == -1) {{ival}} = -{{ival}};
         } else {
             switch (size) {
-                {{for _size in (2, 3, 4)}}
+                {{for _size in range(2, 9)}}
                 {{for _case in (-_size, _size)}}
                 case {{_case}}:
                     if (8 * sizeof(long) - 1 > {{_size}} * PyLong_SHIFT{{if op == 'TrueDivide'}} && {{_size-1}} * PyLong_SHIFT < 53{{endif}}) {
                         {{ival}} = {{'-' if _case < 0 else ''}}(long) {{pylong_join(_size, 'digits')}};
                         break;
+                    {{if op not in ('Eq', 'Ne', 'TrueDivide')}}
+                    } else if (8 * sizeof(PY_LONG_LONG) - 1 > {{_size}} * PyLong_SHIFT) {
+                        ll{{ival}} = {{'-' if _case < 0 else ''}}(PY_LONG_LONG) {{pylong_join(_size, 'digits', 'unsigned PY_LONG_LONG')}};
+                        goto long_long;
+                    {{endif}}
                     }
-                    // if size doesn't fit into a long anymore, fall through to default
+                    // if size doesn't fit into a long or PY_LONG_LONG anymore, fall through to default
                 {{endfor}}
                 {{endfor}}
 
@@ -597,7 +606,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
                 // unusual setup - your fault
                 default: return PyLong_Type.tp_richcompare({{'op1, op2' if order == 'ObjC' else 'op2, op1'}}, Py_{{op.upper()}});
                 #else
-                // too large for a long => definitely not equal
+                // too large for the long values we allow => definitely not equal
                 default: Py_RETURN_{{'FALSE' if op == 'Eq' else 'TRUE'}};
                 #endif
                 {{else}}
@@ -634,6 +643,27 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
                 x = a {{c_op}} b;
             {{endif}}
             return PyLong_FromLong(x);
+
+        {{if op != 'TrueDivide'}}
+        long_long:
+            {{if c_op == '%'}}
+                // see ExprNodes.py :: mod_int_utility_code
+                llx = lla % llb;
+                llx += ((llx != 0) & ((llx ^ llb) < 0)) * llb;
+            {{elif op == 'FloorDivide'}}
+                {
+                    PY_LONG_LONG q, r;
+                    // see ExprNodes.py :: div_int_utility_code
+                    q = lla / llb;
+                    r = lla - q*llb;
+                    q -= ((r != 0) & ((r ^ llb) < 0));
+                    llx = q;
+                }
+            {{else}}
+                llx = lla {{c_op}} llb;
+            {{endif}}
+            return PyLong_FromLongLong(llx);
+        {{endif}}
         {{endif}}
     }
     #endif
