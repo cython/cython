@@ -544,7 +544,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
             x += ((x != 0) & ((x ^ b) < 0)) * b;
             return PyInt_FromLong(x);
         {{elif op == 'TrueDivide'}}
-            if (8 * sizeof(long) <= 53 || likely({{ival}} <= (1L << 53) && {{ival}} >= (-(1L << 53)))) {
+            if (8 * sizeof(long) <= 53 || likely(labs({{ival}}) <= (1L << 53))) {
                 return PyFloat_FromDouble((double)a / (double)b);
             }
             // let Python do the rounding
@@ -626,7 +626,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
                 x = a % b;
                 x += ((x != 0) & ((x ^ b) < 0)) * b;
             {{elif op == 'TrueDivide'}}
-                if (8 * sizeof(long) <= 53 || (size >= -52 / PyLong_SHIFT && size <= 52 / PyLong_SHIFT) || likely({{ival}} <= (1L << 53) && {{ival}} >= (-(1L << 53)))) {
+                if (8 * sizeof(long) <= 53 || (abs(size) <= 52 / PyLong_SHIFT) || likely(labs({{ival}}) <= (1L << 53))) {
                     return PyFloat_FromDouble((double)a / (double)b);
                 }
                 return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
