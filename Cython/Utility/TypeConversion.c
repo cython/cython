@@ -324,7 +324,7 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
          {{for _case in (_size, -_size)}}
          case {{_case}}:
            if (8 * sizeof(Py_ssize_t) > {{_size}} * PyLong_SHIFT) {
-             return (Py_ssize_t) {{pylong_join(_size, 'digits', 'size_t')}};
+             return {{'-' if _case < 0 else ''}}(Py_ssize_t) {{pylong_join(_size, 'digits', 'size_t')}};
            }
            break;
          {{endfor}}
