@@ -585,7 +585,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
             if (size == -1) {{ival}} = -{{ival}};
         } else {
             switch (size) {
-                {{for _size in range(2, 9)}}
+                {{for _size in range(2, 5)}}
                 {{for _case in (-_size, _size)}}
                 case {{_case}}:
                     if (8 * sizeof(long) - 1 > {{_size}} * PyLong_SHIFT{{if op == 'TrueDivide'}} && {{_size-1}} * PyLong_SHIFT < 53{{endif}}) {
