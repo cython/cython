@@ -602,8 +602,12 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
                 case  1: __PYX_VERIFY_RETURN_INT({{TYPE}}, digit, digits[0])
                 {{for _size in (2, 3, 4)}}
                 case {{_size}}:
-                    if ((8 * sizeof({{TYPE}}) > {{_size-1}} * PyLong_SHIFT) && (8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT)) {
-                        __PYX_VERIFY_RETURN_INT({{TYPE}}, unsigned long, {{pylong_join(_size, 'digits')}})
+                    if (8 * sizeof({{TYPE}}) > {{_size-1}} * PyLong_SHIFT) {
+                        if (8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT) {
+                            __PYX_VERIFY_RETURN_INT({{TYPE}}, unsigned long, {{pylong_join(_size, 'digits')}})
+                        } else if (8 * sizeof({{TYPE}}) >= {{_size}} * PyLong_SHIFT) {
+                            return {{pylong_join(_size, 'digits', TYPE)}};
+                        }
                     }
                     break;
                 {{endfor}}
@@ -639,8 +643,12 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
                 {{for _size in (2, 3, 4)}}
                 {{for _case in (-_size, _size)}}
                 case {{_case}}:
-                    if ((8 * sizeof({{TYPE}}) > {{_size if _case < 0 else _size-1}} * PyLong_SHIFT) && (8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT)) {
-                        __PYX_VERIFY_RETURN_INT({{TYPE}}, {{'long' if _case < 0 else 'unsigned long'}}, {{'-(long) ' if _case < 0 else ''}}{{pylong_join(_size, 'digits')}})
+                    if (8 * sizeof({{TYPE}}){{' - 1' if _case < 0 else ''}} > {{_size-1}} * PyLong_SHIFT) {
+                        if (8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT) {
+                            __PYX_VERIFY_RETURN_INT({{TYPE}}, {{'long' if _case < 0 else 'unsigned long'}}, {{'-(long) ' if _case < 0 else ''}}{{pylong_join(_size, 'digits')}})
+                        } else if (8 * sizeof({{TYPE}}) - 1 > {{_size}} * PyLong_SHIFT) {
+                            return {{'-' if _case < 0 else ''}}{{pylong_join(_size, 'digits', TYPE)}};
+                        }
                     }
                     break;
                 {{endfor}}

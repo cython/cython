@@ -271,6 +271,10 @@ def get_openmp_compiler_flags(language):
     if not gcc_version:
         return None # not gcc - FIXME: do something about other compilers
 
+    # gcc defines "__int128_t", assume that at least all 64 bit architectures have it
+    global COMPILER_HAS_INT128
+    COMPILER_HAS_INT128 = getattr(sys, 'maxsize', getattr(sys, 'maxint', 0)) > 2**60
+
     compiler_version = gcc_version.group(1)
     if compiler_version and compiler_version.split('.') >= ['4', '2']:
         return '-fopenmp', '-fopenmp'
@@ -280,6 +284,8 @@ try:
 except locale.Error:
     pass
 
+COMPILER = None
+COMPILER_HAS_INT128 = False
 OPENMP_C_COMPILER_FLAGS = get_openmp_compiler_flags('c')
 OPENMP_CPP_COMPILER_FLAGS = get_openmp_compiler_flags('cpp')
 
@@ -327,7 +333,6 @@ VER_DEP_MODULES = {
                                           ]),
 }
 
-COMPILER = None
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
 CFLAGS = os.getenv('CFLAGS', '').split()
 CCACHE = os.getenv('CYTHON_RUNTESTS_CCACHE', '').split()
@@ -1940,6 +1945,9 @@ def runtests(options, cmd_args, coverage=None):
 
     if options.exclude:
         exclude_selectors += [ string_selector(r) for r in options.exclude ]
+
+    if not COMPILER_HAS_INT128 or not IS_CPYTHON:
+        exclude_selectors += [RegExSelector('int128')]
 
     if options.shard_num > -1:
         exclude_selectors.append(ShardExcludeSelector(options.shard_num, options.shard_count))
