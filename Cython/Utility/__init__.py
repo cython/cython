@@ -3,6 +3,8 @@ def pylong_join(count, digits_ptr='digits', join_type='unsigned long'):
     """
     Generate an unrolled shift-then-or loop over the first 'count' digits.
     Assumes that they fit into 'join_type'.
+
+    (((d[2] << n) | d[1]) << n) | d[0]
     """
     return ('(' * (count * 2) + "(%s)" % join_type + ' | '.join(
         "%s[%d])%s)" % (digits_ptr, _i, " << PyLong_SHIFT" if _i else '')
@@ -13,8 +15,10 @@ def pylong_join(count, digits_ptr='digits', join_type='unsigned long'):
 # this implementation is a bit slower than the simpler one above
 def _pylong_join(count, digits_ptr='digits', join_type='unsigned long'):
     """
-    Generate an unrolled shift-then-or loop over the first 'count' digits.
+    Generate an or-ed series of shifts for the first 'count' digits.
     Assumes that they fit into 'join_type'.
+
+    (d[2] << 2*n) | (d[1] << 1*n) | d[0]
     """
     def shift(n):
         # avoid compiler warnings for overly large shifts that will be discarded anyway
