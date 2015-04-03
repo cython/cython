@@ -105,10 +105,14 @@ def optimised_pow2(n):
     1024
     >>> optimised_pow2(30)
     1073741824
+    >>> print(repr(optimised_pow2(31)).rstrip('L'))
+    2147483648
     >>> print(repr(optimised_pow2(32)).rstrip('L'))
     4294967296
     >>> print(repr(optimised_pow2(60)).rstrip('L'))
     1152921504606846976
+    >>> print(repr(optimised_pow2(63)).rstrip('L'))
+    9223372036854775808
     >>> print(repr(optimised_pow2(64)).rstrip('L'))
     18446744073709551616
     >>> print(repr(optimised_pow2(100)).rstrip('L'))
