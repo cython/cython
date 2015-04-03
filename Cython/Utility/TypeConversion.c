@@ -545,11 +545,19 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
 
 // see CIntFromPy
 #define __PYX_VERIFY_RETURN_INT(target_type, func_type, func_value)       \
+    __PYX__VERIFY_RETURN_INT(target_type, func_type, func_value, 0)
+
+#define __PYX_VERIFY_RETURN_INT_EXC(target_type, func_type, func_value)   \
+    __PYX__VERIFY_RETURN_INT(target_type, func_type, func_value, 1)
+
+#define __PYX__VERIFY_RETURN_INT(target_type, func_type, func_value, exc) \
     {                                                                     \
         func_type value = func_value;                                     \
         if (sizeof(target_type) < sizeof(func_type)) {                    \
             if (unlikely(value != (func_type) (target_type) value)) {     \
                 func_type zero = 0;                                       \
+                if (exc && unlikely(value == (func_type)-1 && PyErr_Occurred()))  \
+                    return (target_type) -1;                              \
                 if (is_unsigned && unlikely(value < zero))                \
                     goto raise_neg_overflow;                              \
                 else                                                      \
@@ -628,9 +636,9 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
             }
 #endif
             if (sizeof({{TYPE}}) <= sizeof(unsigned long)) {
-                __PYX_VERIFY_RETURN_INT({{TYPE}}, unsigned long, PyLong_AsUnsignedLong(x))
+                __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned long, PyLong_AsUnsignedLong(x))
             } else if (sizeof({{TYPE}}) <= sizeof(unsigned PY_LONG_LONG)) {
-                __PYX_VERIFY_RETURN_INT({{TYPE}}, unsigned PY_LONG_LONG, PyLong_AsUnsignedLongLong(x))
+                __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned PY_LONG_LONG, PyLong_AsUnsignedLongLong(x))
             }
         } else {
             // signed
@@ -656,9 +664,9 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
             }
 #endif
             if (sizeof({{TYPE}}) <= sizeof(long)) {
-                __PYX_VERIFY_RETURN_INT({{TYPE}}, long, PyLong_AsLong(x))
+                __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, long, PyLong_AsLong(x))
             } else if (sizeof({{TYPE}}) <= sizeof(PY_LONG_LONG)) {
-                __PYX_VERIFY_RETURN_INT({{TYPE}}, PY_LONG_LONG, PyLong_AsLongLong(x))
+                __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, PY_LONG_LONG, PyLong_AsLongLong(x))
             }
         }
         {
