@@ -443,11 +443,11 @@ static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject
 #if CYTHON_COMPILING_IN_CPYTHON
     Py_ssize_t shiftby;
 #if PY_MAJOR_VERSION < 3
-    if (likely(PyInt_Check(exp))) {
+    if (likely(PyInt_CheckExact(exp))) {
         shiftby = PyInt_AS_LONG(exp);
     } else
 #endif
-    if (likely(PyLong_Check(exp))) {
+    if (likely(PyLong_CheckExact(exp))) {
         #if CYTHON_USE_PYLONG_INTERNALS
         const Py_ssize_t size = Py_SIZE(exp);
         // tuned to optimise branch prediction
@@ -521,7 +521,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
     {{endif}}
 
     #if PY_MAJOR_VERSION < 3
-    if (likely(PyInt_Check{{ 'Exact' if order == 'ObjC' else ''}}({{pyval}}))) {
+    if (likely(PyInt_CheckExact({{pyval}}))) {
         const long {{'a' if order == 'CObj' else 'b'}} = intval;
         {{if c_op in '+-%' or op == 'FloorDivide'}}
         long x;
@@ -573,7 +573,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
     #endif
 
     #if CYTHON_USE_PYLONG_INTERNALS && PY_MAJOR_VERSION >= 3
-    if (likely(PyLong_Check{{ 'Exact' if order == 'ObjC' else ''}}({{pyval}}))) {
+    if (likely(PyLong_CheckExact({{pyval}}))) {
         const long {{'a' if order == 'CObj' else 'b'}} = intval;
         long {{ival}}{{if op not in ('Eq', 'Ne')}}, x{{endif}};
         {{if op not in ('Eq', 'Ne', 'TrueDivide')}}
@@ -672,7 +672,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
     #endif
 
     {{if c_op in '+-' or op in ('TrueDivide', 'Eq', 'Ne')}}
-    if (PyFloat_Check{{ 'Exact' if order == 'ObjC' else ''}}({{pyval}})) {
+    if (PyFloat_CheckExact({{pyval}})) {
         const long {{'a' if order == 'CObj' else 'b'}} = intval;
         double {{ival}} = PyFloat_AS_DOUBLE({{pyval}});
         {{if op in ('Eq', 'Ne')}}
@@ -735,17 +735,17 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
     }
     {{endif}}
 
-    if (likely(PyFloat_Check{{ 'Exact' if order == 'ObjC' else ''}}({{pyval}}))) {
+    if (likely(PyFloat_CheckExact({{pyval}}))) {
         {{fval}} = PyFloat_AS_DOUBLE({{pyval}});
     } else
 
     #if PY_MAJOR_VERSION < 3
-    if (likely(PyInt_Check{{ 'Exact' if order == 'ObjC' else ''}}({{pyval}}))) {
+    if (likely(PyInt_CheckExact({{pyval}}))) {
         {{fval}} = (double) PyInt_AS_LONG({{pyval}});
     } else
     #endif
 
-    if (likely(PyLong_Check{{ 'Exact' if order == 'ObjC' else ''}}({{pyval}}))) {
+    if (likely(PyLong_CheckExact({{pyval}}))) {
         #if CYTHON_USE_PYLONG_INTERNALS && PY_MAJOR_VERSION >= 3
         const digit* digits = ((PyLongObject*){{pyval}})->ob_digit;
         const Py_ssize_t size = Py_SIZE({{pyval}});
