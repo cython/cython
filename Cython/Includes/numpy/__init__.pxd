@@ -241,7 +241,6 @@ cdef extern from "numpy/arrayobject.h":
             cdef int t
             cdef char* f = NULL
             cdef dtype descr = self.descr
-            cdef list stack
             cdef int offset
 
             cdef bint hasfields = PyDataType_HASFIELDS(descr)
@@ -788,8 +787,6 @@ cdef inline char* _util_dtypestring(dtype descr, char* f, char* end, int* offset
     # string. The new location in the format string is returned.
 
     cdef dtype child
-    cdef int delta_offset
-    cdef tuple i
     cdef int endian_detector = 1
     cdef bint little_endian = ((<char*>&endian_detector)[0] != 0)
     cdef tuple fields
