@@ -1,8 +1,27 @@
+from cpython.type cimport type
+
 cdef extern from "Python.h":
+    ctypedef object (*newfunc)(type, tuple, dict)
+    ctypedef void (*destructor)(PyObject*)
+    ctypedef object (*ternaryfunc)(object, object, object)
+    ctypedef int (*visitproc)(PyObject*, void*)
+    ctypedef int (*traverseproc)(object, visitproc, void*)
+    ctypedef int (*inquiry)(object)
+
     ctypedef struct PyTypeObject:
+        char* tp_name
+        char* tp_doc
+
         Py_ssize_t tp_basicsize
         Py_ssize_t tp_itemsize
+        long tp_dictoffset
         long tp_flags
+
+        newfunc tp_new
+        destructor tp_dealloc
+        ternaryfunc tp_call
+        traverseproc tp_traverse
+        inquiry tp_clear
 
     ctypedef struct PyObject:
         Py_ssize_t ob_refcnt
