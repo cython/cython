@@ -1,7 +1,44 @@
-from cpython.ref cimport PyObject, PyTypeObject
 from libc.stdio cimport FILE
 
 cdef extern from "Python.h":
+
+    ctypedef object (*newfunc)(object, object, object)  # (type, args, kwargs)
+    ctypedef void (*destructor)(object)
+
+    ctypedef object (*unaryfunc)(object)
+    ctypedef object (*binaryfunc)(object, object)
+    ctypedef object (*ternaryfunc)(object, object, object)
+    ctypedef int (*inquiry)(object)
+    ctypedef Py_ssize_t (*lenfunc)(object)
+    ctypedef object (*ssizeargfunc)(object, Py_ssize_t)
+    ctypedef object (*ssizessizeargfunc)(object, Py_ssize_t, Py_ssize_t)
+    ctypedef int (*ssizeobjargproc)(object, Py_ssize_t, object)
+    ctypedef int (*ssizessizeobjargproc)(object, Py_ssize_t, Py_ssize_t, object)
+    ctypedef int (*objobjargproc)(object, object, object)
+
+    ctypedef int (*objobjproc)(object, object);
+    ctypedef int (*visitproc)(object, void *);
+    ctypedef int (*traverseproc)(object, visitproc, void*)
+
+    ctypedef struct PyTypeObject:
+        const char* tp_name
+        const char* tp_doc
+        Py_ssize_t tp_basicsize
+        Py_ssize_t tp_itemsize
+        Py_ssize_t tp_dictoffset
+        unsigned long tp_flags
+
+        newfunc tp_new
+        destructor tp_dealloc
+        ternaryfunc tp_call
+        traverseproc tp_traverse
+        inquiry tp_clear
+
+    ctypedef struct PyObject:
+        Py_ssize_t ob_refcnt
+        PyTypeObject *ob_type
+
+    cdef PyTypeObject *Py_TYPE(object)
 
     #####################################################################
     # 6.1 Object Protocol
