@@ -21,6 +21,8 @@ Features added
 * Binary and/or/xor/rshift operations with small constant Python integers
   are faster.
 
+* The ``PyTypeObject`` declaration in ``cpython.object`` was extended.
+
 Bugs fixed
 ----------
 
