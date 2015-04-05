@@ -16,8 +16,8 @@ cdef extern from "Python.h":
     ctypedef int (*ssizessizeobjargproc)(object, Py_ssize_t, Py_ssize_t, object)
     ctypedef int (*objobjargproc)(object, object, object)
 
-    ctypedef int (*objobjproc)(object, object);
-    ctypedef int (*visitproc)(object, void *);
+    ctypedef int (*objobjproc)(object, object)
+    ctypedef int (*visitproc)(object, void *)
     ctypedef int (*traverseproc)(object, visitproc, void*)
 
     ctypedef struct PyTypeObject:
