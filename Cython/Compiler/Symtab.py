@@ -1127,14 +1127,20 @@ class ModuleScope(Scope):
         # relative imports relative to this module's parent.
         # Finds and parses the module's .pxd file if the module
         # has not been referenced before.
-        module_scope = self.global_scope()
+        relative_to = None
         if relative_level is not None and relative_level > 0:
-            # merge current absolute module name and relative import name into qualified name
-            current_module = module_scope.qualified_name.split('.')
-            base_package = current_module[:-relative_level]
-            module_name = '.'.join(base_package + (module_name.split('.') if module_name else []))
+            absolute_fallback = False
+            # error of going beyond top-level is handled in cimport node
+            relative_to = self
+            while relative_level > 0 and relative_to:
+                relative_to = relative_to.parent_module
+                relative_level -= 1
+        else:
+            absolute_fallback = relative_level != 0  # might be None!
+
+        module_scope = self.global_scope()
         return module_scope.context.find_module(
-            module_name, relative_to=None if relative_level == 0 else self.parent_module, pos=pos)
+            module_name, relative_to=relative_to, pos=pos, absolute_fallback=absolute_fallback)
 
     def find_submodule(self, name):
         # Find and return scope for a submodule of this module,

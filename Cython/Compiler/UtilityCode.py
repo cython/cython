@@ -34,7 +34,9 @@ class NonManglingModuleScope(Symtab.ModuleScope):
 class CythonUtilityCodeContext(StringParseContext):
     scope = None
 
-    def find_module(self, module_name, relative_to=None, pos=None, need_pxd=True):
+    def find_module(self, module_name, relative_to=None, pos=None, need_pxd=True, absolute_fallback=True):
+        if relative_to:
+            raise AssertionError("Relative imports not supported in utility code.")
         if module_name != self.module_name:
             if module_name not in self.modules:
                 raise AssertionError("Only the cython cimport is supported.")

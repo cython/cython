@@ -7224,6 +7224,7 @@ class FromCImportStatNode(StatNode):
             return
         if self.relative_level and self.relative_level > env.qualified_name.count('.'):
             error(self.pos, "relative cimport beyond main package is not allowed")
+            return
         module_scope = env.find_module(self.module_name, self.pos, relative_level=self.relative_level)
         module_name = module_scope.qualified_name
         env.add_imported_module(module_scope)
@@ -7244,7 +7245,8 @@ class FromCImportStatNode(StatNode):
                     elif kind == 'class':
                         entry = module_scope.declare_c_class(name, pos=pos, module_name=module_name)
                     else:
-                        submodule_scope = env.context.find_module(name, relative_to=module_scope, pos=self.pos)
+                        submodule_scope = env.context.find_module(
+                            name, relative_to=module_scope, pos=self.pos, absolute_fallback=False)
                         if submodule_scope.parent_module is module_scope:
                             env.declare_module(as_name or name, submodule_scope, self.pos)
                         else:
