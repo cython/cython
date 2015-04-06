@@ -37,8 +37,10 @@ cdef class test_pxd:
 
 from . cimport a
 from .a cimport test_pxd
+cimport a as implicitly_relative_a
 
 assert a.test_pxd is test_pxd
+assert implicitly_relative_a.test_pxd is test_pxd
 
 def test():
     cdef test_pxd obj = test_pxd()

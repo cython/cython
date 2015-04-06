@@ -1128,15 +1128,18 @@ class ModuleScope(Scope):
         # Finds and parses the module's .pxd file if the module
         # has not been referenced before.
         relative_to = None
+        absolute_fallback = False
         if relative_level is not None and relative_level > 0:
-            absolute_fallback = False
+            # explicit relative cimport
             # error of going beyond top-level is handled in cimport node
             relative_to = self
             while relative_level > 0 and relative_to:
                 relative_to = relative_to.parent_module
                 relative_level -= 1
-        else:
-            absolute_fallback = relative_level != 0  # might be None!
+        elif relative_level != 0:
+            # -1 or None: try relative cimport first, then absolute
+            relative_to = self.parent_module
+            absolute_fallback = True
 
         module_scope = self.global_scope()
         return module_scope.context.find_module(
