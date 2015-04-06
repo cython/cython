@@ -3380,7 +3380,7 @@ class DefNodeWrapper(FuncDefNode):
             code.putln("}")
 
         if self.starstar_arg:
-            if self.star_arg:
+            if self.star_arg or not self.starstar_arg.entry.cf_used:
                 kwarg_check = "unlikely(%s)" % Naming.kwds_cname
             else:
                 kwarg_check = "%s" % Naming.kwds_cname
@@ -3394,9 +3394,8 @@ class DefNodeWrapper(FuncDefNode):
                 kwarg_check, Naming.kwds_cname, self.name,
                 bool(self.starstar_arg), self.error_value()))
 
-        if self.starstar_arg:
-            allow_null = all(ref.node.allow_null for ref in self.starstar_arg.entry.cf_references)
-            if allow_null:
+        if self.starstar_arg and self.starstar_arg.entry.cf_used:
+            if all(ref.node.allow_null for ref in self.starstar_arg.entry.cf_references):
                 code.putln("if (%s) {" % kwarg_check)
                 code.putln("%s = PyDict_Copy(%s); if (unlikely(!%s)) return %s;" % (
                         self.starstar_arg.entry.cname,
@@ -3405,12 +3404,11 @@ class DefNodeWrapper(FuncDefNode):
                         self.error_value()))
                 code.put_gotref(self.starstar_arg.entry.cname)
                 code.putln("} else {")
-                code.putln("%s = NULL;" % (
-                    self.starstar_arg.entry.cname,))
+                code.putln("%s = NULL;" % (self.starstar_arg.entry.cname,))
                 code.putln("}")
                 self.starstar_arg.entry.xdecref_cleanup = 1
             else:
-                code.putln("%s = (%s) ? PyDict_Copy(%s) : PyDict_New();" % (
+                code.put("%s = (%s) ? PyDict_Copy(%s) : PyDict_New(); " % (
                         self.starstar_arg.entry.cname,
                         Naming.kwds_cname,
                         Naming.kwds_cname))

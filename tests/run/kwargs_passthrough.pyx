@@ -19,6 +19,48 @@ def wrap_passthrough(f):
     return wrapper
 
 
+@cython.test_fail_if_path_exists('//KeywordArgsNode')
+def unused(*args, **kwargs):
+    """
+    >>> unused()
+    ()
+    >>> unused(1, 2)
+    (1, 2)
+    """
+    return args
+
+
+@cython.test_fail_if_path_exists('//KeywordArgsNode')
+def used_in_closure(**kwargs):
+    """
+    >>> used_in_closure()
+    >>> d = {}
+    >>> used_in_closure(**d)
+    >>> d  # must not be modified
+    {}
+    """
+    def func():
+        kwargs['test'] = 1
+    return func()
+
+
+@cython.test_fail_if_path_exists('//KeywordArgsNode')
+def modify_in_closure(**kwargs):
+    """
+    >>> func = modify_in_closure()
+    >>> func()
+
+    >>> d = {}
+    >>> func = modify_in_closure(**d)
+    >>> func()
+    >>> d  # must not be modified
+    {}
+    """
+    def func():
+        kwargs['test'] = 1
+    return func
+
+
 @cython.test_assert_path_exists('//KeywordArgsNode')
 def wrap_passthrough_more(f):
     """
