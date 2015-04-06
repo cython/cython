@@ -165,3 +165,26 @@ def test_minN():
     print min(my_int, 2, my_int, 0, my_pyint, my_int, len(my_list))
     print min(my_int, my_int, 0, my_pyint, my_int, len(my_list))
     print min(my_int, my_int, 2, my_int, 0, my_pyint, my_int, len(my_list))
+
+
+'''
+# ticket 772
+# FIXME: signed vs. unsigned fails to safely handle intermediate results
+
+@cython.test_assert_path_exists("//CondExprNode")
+@cython.test_fail_if_path_exists("//SimpleCallNode")
+def max3_typed_signed_unsigned(int a, unsigned int b, int c):
+    """
+    >>> max3_typed_signed_unsigned(1,2,-3)
+    2
+    >>> max3_typed_signed_unsigned(-2,3,1)
+    3
+    >>> max3_typed_signed_unsigned(-2,1,-3)
+    1
+    >>> max3_typed_signed_unsigned(3,-1,2)
+    3
+    >>> max3_typed_signed_unsigned(-3,2,1)
+    2
+    """
+    return max(a,b,c)
+'''
