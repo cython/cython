@@ -1,9 +1,11 @@
 from libc.stdio cimport FILE
+cimport cpython.type
 
 cdef extern from "Python.h":
 
-    ctypedef object (*newfunc)(object, object, object)  # (type, args, kwargs)
-    ctypedef void (*destructor)(object)
+    ctypedef struct PyObject  # forward declaration
+
+    ctypedef object (*newfunc)(cpython.type.type, object, object)  # (type, args, kwargs)
 
     ctypedef object (*unaryfunc)(object)
     ctypedef object (*binaryfunc)(object, object)
@@ -15,10 +17,13 @@ cdef extern from "Python.h":
     ctypedef int (*ssizeobjargproc)(object, Py_ssize_t, object)
     ctypedef int (*ssizessizeobjargproc)(object, Py_ssize_t, Py_ssize_t, object)
     ctypedef int (*objobjargproc)(object, object, object)
-
     ctypedef int (*objobjproc)(object, object)
-    ctypedef int (*visitproc)(object, void *)
-    ctypedef int (*traverseproc)(object, visitproc, void*)
+
+    # The following functions use 'PyObject*' as first argument instead of 'object' to prevent
+    # accidental reference counting when calling them during a garbage collection run.
+    ctypedef void (*destructor)(PyObject*)
+    ctypedef int (*visitproc)(PyObject*, void *)
+    ctypedef int (*traverseproc)(PyObject*, visitproc, void*)
 
     ctypedef struct PyTypeObject:
         const char* tp_name
