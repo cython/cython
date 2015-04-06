@@ -19,6 +19,9 @@ cdef extern from "Python.h":
     ctypedef int (*objobjargproc)(object, object, object)
     ctypedef int (*objobjproc)(object, object)
 
+    ctypedef Py_hash_t (*hashfunc)(object)
+    ctypedef object (*reprfunc)(object)
+
     # The following functions use 'PyObject*' as first argument instead of 'object' to prevent
     # accidental reference counting when calling them during a garbage collection run.
     ctypedef void (*destructor)(PyObject*)
@@ -35,9 +38,13 @@ cdef extern from "Python.h":
 
         newfunc tp_new
         destructor tp_dealloc
-        ternaryfunc tp_call
         traverseproc tp_traverse
         inquiry tp_clear
+
+        ternaryfunc tp_call
+        hashfunc tp_hash
+        reprfunc tp_str
+        reprfunc tp_repr
 
     ctypedef struct PyObject:
         Py_ssize_t ob_refcnt
