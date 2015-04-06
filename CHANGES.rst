@@ -29,6 +29,9 @@ Bugs fixed
 * Language level 3 did not enable true division (a.k.a. float division) for
   integer operands.
 
+* Relative cimports could accidentally fall back to trying an absolute cimport
+  on failure.
+
 * Runtime reported file paths of source files (e.g for profiling and tracing)
   are now relative to the build root directory instead of the main source file.
 
