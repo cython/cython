@@ -1863,20 +1863,21 @@ class FuncDefNode(StatNode, BlockNode):
         is_cdef = isinstance(self, CFuncDefNode)
         for entry in lenv.arg_entries:
             if entry.type.is_pyobject:
-                if ((acquire_gil or len(entry.cf_assignments) > 1) and
-                    not entry.in_closure):
+                if (acquire_gil or len(entry.cf_assignments) > 1) and not entry.in_closure:
                     code.put_var_incref(entry)
 
             # Note: defaults are always incref-ed. For def functions, we
             #       we aquire arguments from object converstion, so we have
             #       new references. If we are a cdef function, we need to
             #       incref our arguments
-            elif (is_cdef and entry.type.is_memoryviewslice and
-                  len(entry.cf_assignments) > 1):
+            elif is_cdef and entry.type.is_memoryviewslice and len(entry.cf_assignments) > 1:
                 code.put_incref_memoryviewslice(entry.cname, have_gil=code.funcstate.gil_owned)
         for entry in lenv.var_entries:
             if entry.is_arg and len(entry.cf_assignments) > 1:
-                code.put_var_incref(entry)
+                if entry.xdecref_cleanup:
+                    code.put_var_xincref(entry)
+                else:
+                    code.put_var_incref(entry)
 
         # ----- Initialise local buffer auxiliary variables
         for entry in lenv.var_entries + lenv.arg_entries:
@@ -2017,7 +2018,10 @@ class FuncDefNode(StatNode, BlockNode):
                                                  have_gil=not lenv.nogil)
             elif entry.type.is_pyobject:
                 if not entry.is_arg or len(entry.cf_assignments) > 1:
-                    code.put_var_decref(entry)
+                    if entry.xdecref_cleanup:
+                        code.put_var_xdecref(entry)
+                    else:
+                        code.put_var_decref(entry)
 
         # Decref any increfed args
         for entry in lenv.arg_entries:
@@ -3131,6 +3135,15 @@ class DefNodeWrapper(FuncDefNode):
                 if not arg.hdr_type.create_to_py_utility_code(env):
                     pass # will fail later
 
+        if self.starstar_arg and not self.starstar_arg.entry.cf_used:
+            # we will set the kwargs argument to NULL instead of a new dict
+            # and must therefore correct the control flow state
+            entry = self.starstar_arg.entry
+            entry.xdecref_cleanup = 1
+            for ass in entry.cf_assignments:
+                if not ass.is_arg and ass.lhs.is_name:
+                    ass.lhs.cf_maybe_null = True
+
     def signature_has_nongeneric_args(self):
         argcount = len(self.args)
         if argcount == 0 or (
@@ -3423,9 +3436,9 @@ class DefNodeWrapper(FuncDefNode):
                     self.star_arg.entry.cname,
                     Naming.args_cname,
                     self.star_arg.entry.cname))
-            if self.starstar_arg:
+            if self.starstar_arg and self.starstar_arg.entry.cf_used:
                 code.putln("{")
-                code.put_decref_clear(self.starstar_arg.entry.cname, py_object_type)
+                code.put_xdecref_clear(self.starstar_arg.entry.cname, py_object_type)
                 code.putln("return %s;" % self.error_value())
                 code.putln("}")
             else:

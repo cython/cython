@@ -1798,6 +1798,10 @@ class CCodeWriter(object):
         if entry.type.is_pyobject:
             self.putln("__Pyx_INCREF(%s);" % self.entry_as_pyobject(entry))
 
+    def put_var_xincref(self, entry):
+        if entry.type.is_pyobject:
+            self.putln("__Pyx_XINCREF(%s);" % self.entry_as_pyobject(entry))
+
     def put_decref_clear(self, cname, type, nanny=True, clear_before_decref=False):
         self._put_decref(cname, type, nanny, null_check=False,
                          clear=True, clear_before_decref=clear_before_decref)
