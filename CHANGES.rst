@@ -32,6 +32,9 @@ Bugs fixed
 * Relative cimports could accidentally fall back to trying an absolute cimport
   on failure.
 
+* The result of calling a C struct constructor no longer requires an intermediate
+  assignment when coercing to a Python dict.
+
 * Runtime reported file paths of source files (e.g for profiling and tracing)
   are now relative to the build root directory instead of the main source file.
 

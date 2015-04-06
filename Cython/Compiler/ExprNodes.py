@@ -7164,6 +7164,13 @@ class DictNode(ExprNode):
     def coerce_to(self, dst_type, env):
         if dst_type.is_pyobject:
             self.release_errors()
+            if self.type.is_struct_or_union:
+                if not dict_type.subtype_of(dst_type):
+                    error(self.pos, "Cannot interpret struct as non-dict type '%s'" % dst_type)
+                return DictNode(self.pos, key_value_pairs=[
+                    DictItemNode(item.pos, key=item.key.coerce_to_pyobject(env),
+                                 value=item.value.coerce_to_pyobject(env))
+                    for item in self.key_value_pairs])
             if not self.type.subtype_of(dst_type):
                 error(self.pos, "Cannot interpret dict as type '%s'" % dst_type)
         elif dst_type.is_struct_or_union:

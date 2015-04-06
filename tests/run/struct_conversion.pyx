@@ -13,6 +13,17 @@ def test_constructor(x, y, color):
     cdef Point p = Point(x, y, color)
     return p
 
+
+def return_constructor(x, y, color):
+    """
+    >>> sorted(return_constructor(1,2,255).items())
+    [('color', 255), ('x', 1.0), ('y', 2.0)]
+    >>> try: return_constructor(1, None, 255)
+    ... except TypeError: pass
+    """
+    return Point(x, y, color)
+
+
 def test_constructor_kwds(x, y, color):
     """
     >>> sorted(test_constructor_kwds(1.25, 2.5, 128).items())
@@ -24,6 +35,19 @@ def test_constructor_kwds(x, y, color):
     """
     cdef Point p = Point(x=x, y=y, color=color)
     return p
+
+
+def return_constructor_kwds(x, y, color):
+    """
+    >>> sorted(return_constructor_kwds(1.25, 2.5, 128).items())
+    [('color', 128), ('x', 1.25), ('y', 2.5)]
+    >>> return_constructor_kwds(1.25, 2.5, None)
+    Traceback (most recent call last):
+    ...
+    TypeError: an integer is required
+    """
+    return Point(x=x, y=y, color=color)
+
 
 def test_dict_construction(x, y, color):
     """
