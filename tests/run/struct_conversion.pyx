@@ -3,7 +3,7 @@ cdef struct Point:
     double y
     int color
 
-def test_constructor(x, y, color):
+def test_constructor(x, y, int color):
     """
     >>> sorted(test_constructor(1,2,255).items())
     [('color', 255), ('x', 1.0), ('y', 2.0)]
@@ -14,7 +14,7 @@ def test_constructor(x, y, color):
     return p
 
 
-def return_constructor(x, y, color):
+def return_constructor(x, y, int color):
     """
     >>> sorted(return_constructor(1,2,255).items())
     [('color', 255), ('x', 1.0), ('y', 2.0)]
@@ -37,7 +37,7 @@ def test_constructor_kwds(x, y, color):
     return p
 
 
-def return_constructor_kwds(x, y, color):
+def return_constructor_kwds(double x, y, color):
     """
     >>> sorted(return_constructor_kwds(1.25, 2.5, 128).items())
     [('color', 128), ('x', 1.25), ('y', 2.5)]
