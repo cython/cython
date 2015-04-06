@@ -199,6 +199,9 @@ __doc__ = ur"""
 
     >>> print(funcdoc(f_defexpr5))
     f_defexpr5(int x=4)
+
+    >>> print(funcdoc(f_charptr_null))
+    f_charptr_null(char *s=NULL) -> char *
 """
 
 cdef class Ext:
@@ -402,6 +405,10 @@ cpdef f_defexpr4(int x = (Ext.CONST1 + FLAG1) * Ext.CONST2):
 
 cpdef f_defexpr5(int x = 2+2):
     pass
+
+cpdef (char*) f_charptr_null(char* s=NULL):
+    return s or b'abc'
+
 
 # no signatures for lambda functions
 lambda_foo = lambda x: 10
