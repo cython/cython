@@ -23,6 +23,9 @@ Features added
 
 * The ``PyTypeObject`` declaration in ``cpython.object`` was extended.
 
+* ``NULL`` is allowed as default argument when embedding signatures.
+  This fixes ticket 843.
+
 Bugs fixed
 ----------
 
