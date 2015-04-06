@@ -762,7 +762,7 @@ static PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw); /*proto*
 //@requires: CalculateMetaclass
 
 static PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw) {
-    PyObject *metaclass = PyDict_GetItem(mkw, PYIDENT("metaclass"));
+    PyObject *metaclass = mkw ? PyDict_GetItem(mkw, PYIDENT("metaclass")) : NULL;
     if (metaclass) {
         Py_INCREF(metaclass);
         if (PyDict_DelItem(mkw, PYIDENT("metaclass")) < 0) {

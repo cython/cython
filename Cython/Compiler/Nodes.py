@@ -3395,14 +3395,29 @@ class DefNodeWrapper(FuncDefNode):
                 bool(self.starstar_arg), self.error_value()))
 
         if self.starstar_arg:
-            code.putln("%s = (%s) ? PyDict_Copy(%s) : PyDict_New();" % (
-                    self.starstar_arg.entry.cname,
-                    Naming.kwds_cname,
-                    Naming.kwds_cname))
-            code.putln("if (unlikely(!%s)) return %s;" % (
-                    self.starstar_arg.entry.cname, self.error_value()))
-            self.starstar_arg.entry.xdecref_cleanup = 0
-            code.put_gotref(self.starstar_arg.entry.cname)
+            allow_null = all(ref.node.allow_null for ref in self.starstar_arg.entry.cf_references)
+            if allow_null:
+                code.putln("if (%s) {" % kwarg_check)
+                code.putln("%s = PyDict_Copy(%s); if (unlikely(!%s)) return %s;" % (
+                        self.starstar_arg.entry.cname,
+                        Naming.kwds_cname,
+                        self.starstar_arg.entry.cname,
+                        self.error_value()))
+                code.put_gotref(self.starstar_arg.entry.cname)
+                code.putln("} else {")
+                code.putln("%s = NULL;" % (
+                    self.starstar_arg.entry.cname,))
+                code.putln("}")
+                self.starstar_arg.entry.xdecref_cleanup = 1
+            else:
+                code.putln("%s = (%s) ? PyDict_Copy(%s) : PyDict_New();" % (
+                        self.starstar_arg.entry.cname,
+                        Naming.kwds_cname,
+                        Naming.kwds_cname))
+                code.putln("if (unlikely(!%s)) return %s;" % (
+                        self.starstar_arg.entry.cname, self.error_value()))
+                self.starstar_arg.entry.xdecref_cleanup = 0
+                code.put_gotref(self.starstar_arg.entry.cname)
 
         if self.self_in_stararg and not self.target.is_staticmethod:
             # need to create a new tuple with 'self' inserted as first item
@@ -4189,9 +4204,9 @@ class PyClassDefNode(ClassDefNode):
                         self.metaclass = item.value
                         del keyword_args.key_value_pairs[i]
             if starstar_arg:
-                self.mkw = ExprNodes.KeywordArgsNode(
+                self.mkw = ExprNodes.ProxyNode(ExprNodes.KeywordArgsNode(
                     pos, keyword_args=keyword_args and keyword_args.key_value_pairs or [],
-                    starstar_arg=starstar_arg)
+                    starstar_arg=starstar_arg))
             elif keyword_args.key_value_pairs:
                 self.mkw = keyword_args
             else:

@@ -7442,6 +7442,7 @@ class Py3ClassNode(ExprNode):
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
 
+
 class KeywordArgsNode(ExprNode):
     #  Helper class for keyword arguments.
     #
@@ -7484,11 +7485,17 @@ class KeywordArgsNode(ExprNode):
     def analyse_types(self, env):
         arg = self.starstar_arg.analyse_types(env)
         arg = arg.coerce_to_pyobject(env)
-        self.starstar_arg = arg.as_none_safe_node(
+        arg = arg.as_none_safe_node(
             # FIXME: CPython's error message starts with the runtime function name
             'argument after ** must be a mapping, not NoneType')
-        self.keyword_args = [ item.analyse_types(env)
-                              for item in self.keyword_args ]
+        self.starstar_arg = arg
+        if not self.keyword_args and arg.type is dict_type:
+            # strip this intermediate node and use the bare dict
+            if arg.is_name and arg.entry.is_arg and len(arg.entry.cf_assignments) == 1:
+                # passing **kwargs through to function call => allow NULL
+                arg.allow_null = True
+            return arg
+        self.keyword_args = [item.analyse_types(env) for item in self.keyword_args]
         return self
 
     def may_be_none(self):
@@ -7500,7 +7507,7 @@ class KeywordArgsNode(ExprNode):
         code.mark_pos(self.pos)
         self.allocate_temp_result(code)
         self.starstar_arg.generate_evaluation_code(code)
-        if self.starstar_arg.type is not Builtin.dict_type:
+        if self.starstar_arg.type is not dict_type:
             # CPython supports calling functions with non-dicts, so do we
             code.putln('if (likely(PyDict_Check(%s))) {' %
                        self.starstar_arg.py_result())
@@ -7516,7 +7523,7 @@ class KeywordArgsNode(ExprNode):
                 self.result(),
                 self.starstar_arg.py_result()))
             code.put_incref(self.result(), py_object_type)
-        if self.starstar_arg.type is not Builtin.dict_type:
+        if self.starstar_arg.type is not dict_type:
             code.putln('} else {')
             code.putln(
                 "%s = PyObject_CallFunctionObjArgs("
@@ -7556,6 +7563,7 @@ class KeywordArgsNode(ExprNode):
         self.starstar_arg.annotate(code)
         for item in self.keyword_args:
             item.annotate(code)
+
 
 class PyClassMetaclassNode(ExprNode):
     # Helper class holds Python3 metaclass object
