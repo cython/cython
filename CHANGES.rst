@@ -21,6 +21,10 @@ Features added
 * Binary and/or/xor/rshift operations with small constant Python integers
   are faster.
 
+* Keyword argument dicts are no longer copied on function entry when they
+  are not being used or only passed through to other function calls (e.g.
+  in wrapper functions).
+
 * The ``PyTypeObject`` declaration in ``cpython.object`` was extended.
 
 * ``NULL`` is allowed as default argument when embedding signatures.
