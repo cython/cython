@@ -53,6 +53,9 @@ Bugs fixed
 
 * Comparisons of (inferred) ctuples failed to compile.
 
+* Using ``const`` C++ references in intermediate parts of longer expressions
+  could fail to compile.
+
 * C++ exception declarations with mapping functions could fail to compile when
   pre-declared in .pxd files.
 
