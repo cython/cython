@@ -5,6 +5,7 @@ is_compiled = cython.compiled
 NULL = 5
 _NULL = NULL
 
+
 def test_sizeof():
     """
     >>> test_sizeof()
@@ -23,6 +24,7 @@ def test_sizeof():
         print(cython.sizeof(cython.char) < cython.sizeof(cython.longlong))
     else:
         print(cython.sizeof(cython.char) == 1)
+
 
 def test_declare(n):
     """
@@ -43,6 +45,7 @@ def test_declare(n):
     ptr = cython.declare(cython.p_int, cython.address(y))
     return y, ptr[0]
 
+
 @cython.locals(x=cython.double, n=cython.int)
 def test_cast(x):
     """
@@ -52,6 +55,7 @@ def test_cast(x):
     n = cython.cast(cython.int, x)
     return n
 
+
 @cython.locals(x=cython.int, y=cython.p_int)
 def test_address(x):
     """
@@ -60,6 +64,30 @@ def test_address(x):
     """
     y = cython.address(x)
     return y[0]
+
+
+@cython.wraparound(False)
+def test_wraparound(x):
+    """
+    >>> test_wraparound([1, 2, 3])
+    [1, 2, 1]
+    """
+    with cython.wraparound(True):
+        x[-1] = x[0]
+    return x
+
+
+@cython.boundscheck(False)
+def test_boundscheck(x):
+    """
+    >>> test_boundscheck([1, 2, 3])
+    3
+    >>> try: test_boundscheck([1, 2])
+    ... except IndexError: pass
+    """
+    with cython.boundscheck(True):
+        return x[2]
+
 
 ## CURRENTLY BROKEN - FIXME!!
 ## Is this test make sense? Implicit conversion in pure Python??
@@ -73,6 +101,7 @@ def test_address(x):
 ##     """
 ##     y = x
 ##     return y
+
 
 def test_with_nogil(nogil):
     """

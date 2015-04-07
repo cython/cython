@@ -27,6 +27,9 @@ Features added
 
 * The ``PyTypeObject`` declaration in ``cpython.object`` was extended.
 
+* ``wraparound()`` and ``boundscheck()`` are available as no-ops in pure
+  Python mode.
+
 * ``NULL`` is allowed as default argument when embedding signatures.
   This fixes ticket 843.
 
