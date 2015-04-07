@@ -52,6 +52,10 @@ cdef extern from "Python.h":
 
     cdef PyTypeObject *Py_TYPE(object)
 
+    void* PyObject_Malloc(size_t)
+    void* PyObject_Realloc(void *, size_t)
+    void PyObject_Free(void *)
+
     #####################################################################
     # 6.1 Object Protocol
     #####################################################################
