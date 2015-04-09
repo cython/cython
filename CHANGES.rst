@@ -59,6 +59,9 @@ Bugs fixed
 * C++ exception declarations with mapping functions could fail to compile when
   pre-declared in .pxd files.
 
+* C++ compilation could fail with an ambiguity error in recent MacOS-X Xcode
+  versions.
+
 * C compilation could fail in pypy3.
 
 
