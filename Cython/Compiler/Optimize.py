@@ -2667,7 +2667,8 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     PyObject_PopIndex_func_type = PyrexTypes.CFuncType(
         PyrexTypes.py_object_type, [
             PyrexTypes.CFuncTypeArg("list", PyrexTypes.py_object_type, None),
-            PyrexTypes.CFuncTypeArg("index", PyrexTypes.c_py_ssize_t_type, None),
+            PyrexTypes.CFuncTypeArg("py_index", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("c_index", PyrexTypes.c_py_ssize_t_type, None),
             PyrexTypes.CFuncTypeArg("is_signed", PyrexTypes.c_int_type, None),
         ],
         has_varargs=True)  # to fake the additional macro args that lack a proper C type
@@ -2702,14 +2703,23 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             )
         elif len(args) == 2:
             index = unwrap_coerced_node(args[1])
+            py_index = ExprNodes.NoneNode(index.pos)
             orig_index_type = index.type
             if not index.type.is_int:
-                if is_list or isinstance(index, ExprNodes.IntNode):
+                if isinstance(index, ExprNodes.IntNode):
+                    py_index = index.coerce_to_pyobject(self.current_env())
+                    index = index.coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
+                elif is_list:
+                    if index.type.is_pyobject:
+                        py_index = index.coerce_to_simple(self.current_env())
+                        index = ExprNodes.CloneNode(py_index)
                     index = index.coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
                 else:
                     return node
             elif not PyrexTypes.numeric_type_fits(index.type, PyrexTypes.c_py_ssize_t_type):
                 return node
+            elif isinstance(index, ExprNodes.IntNode):
+                py_index = index.coerce_to_pyobject(self.current_env())
             # real type might still be larger at runtime
             if not orig_index_type.is_int:
                 orig_index_type = index.type
@@ -2721,7 +2731,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             return ExprNodes.PythonCapiCallNode(
                 node.pos, "__Pyx_Py%s_PopIndex" % type_name,
                 self.PyObject_PopIndex_func_type,
-                args=[obj, index,
+                args=[obj, py_index, index,
                       ExprNodes.IntNode(index.pos, value=str(orig_index_type.signed and 1 or 0),
                                         constant_result=orig_index_type.signed and 1 or 0,
                                         type=PyrexTypes.c_int_type),

@@ -78,11 +78,17 @@ static CYTHON_INLINE int __Pyx_PyList_Extend(PyObject* L, PyObject* v) {
 
 /////////////// pop.proto ///////////////
 
-#define __Pyx_PyObject_Pop(L) (PyList_CheckExact(L) ? \
+static CYTHON_INLINE PyObject* __Pyx__PyObject_Pop(PyObject* L); /*proto*/
+
+#if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE PyObject* __Pyx_PyList_Pop(PyObject* L); /*proto*/
+#define __Pyx_PyObject_Pop(L) (likely(PyList_CheckExact(L)) ? \
     __Pyx_PyList_Pop(L) : __Pyx__PyObject_Pop(L))
 
-static CYTHON_INLINE PyObject* __Pyx_PyList_Pop(PyObject* L); /*proto*/
-static CYTHON_INLINE PyObject* __Pyx__PyObject_Pop(PyObject* L); /*proto*/
+#else
+#define __Pyx_PyList_Pop(L)  __Pyx__PyObject_Pop(L)
+#define __Pyx_PyObject_Pop(L)  __Pyx__PyObject_Pop(L)
+#endif
 
 /////////////// pop ///////////////
 //@requires: ObjectHandling.c::PyObjectCallMethod0
@@ -96,44 +102,65 @@ static CYTHON_INLINE PyObject* __Pyx__PyObject_Pop(PyObject* L) {
     return __Pyx_PyObject_CallMethod0(L, PYIDENT("pop"));
 }
 
-static CYTHON_INLINE PyObject* __Pyx_PyList_Pop(PyObject* L) {
 #if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE PyObject* __Pyx_PyList_Pop(PyObject* L) {
     /* Check that both the size is positive and no reallocation shrinking needs to be done. */
     if (likely(PyList_GET_SIZE(L) > (((PyListObject*)L)->allocated >> 1))) {
         Py_SIZE(L) -= 1;
         return PyList_GET_ITEM(L, PyList_GET_SIZE(L));
     }
-#endif
     return __Pyx_PyObject_CallMethod0(L, PYIDENT("pop"));
 }
+#endif
 
 
 /////////////// pop_index.proto ///////////////
 
-#define __Pyx_PyObject_PopIndex(L, ix, is_signed, type, to_py_func) ( \
-    (PyList_CheckExact(L) && __Pyx_fits_Py_ssize_t(ix, type, is_signed)) ? \
-        __Pyx__PyList_PopIndex(L, ix) : __Pyx__PyObject_PopIndex(L, to_py_func(ix)))
-
-#define __Pyx_PyList_PopIndex(L, ix, is_signed, type, to_py_func) ( \
-    __Pyx_fits_Py_ssize_t(ix, type, is_signed) ? \
-        __Pyx__PyList_PopIndex(L, ix) : __Pyx__PyObject_PopIndex(L, to_py_func(ix)))
-
-static PyObject* __Pyx__PyList_PopIndex(PyObject* L, Py_ssize_t ix); /*proto*/
+static PyObject* __Pyx__PyObject_PopNewIndex(PyObject* L, PyObject* py_ix); /*proto*/
 static PyObject* __Pyx__PyObject_PopIndex(PyObject* L, PyObject* py_ix); /*proto*/
+
+#if CYTHON_COMPILING_IN_CPYTHON
+static PyObject* __Pyx__PyList_PopIndex(PyObject* L, PyObject* py_ix, Py_ssize_t ix); /*proto*/
+
+#define __Pyx_PyObject_PopIndex(L, py_ix, ix, is_signed, type, to_py_func) ( \
+    (likely(PyList_CheckExact(L) && __Pyx_fits_Py_ssize_t(ix, type, is_signed))) ? \
+        __Pyx__PyList_PopIndex(L, py_ix, ix) : ( \
+        (unlikely(py_ix == Py_None)) ? __Pyx__PyObject_PopNewIndex(L, to_py_func(ix)) : \
+            __Pyx__PyObject_PopIndex(L, py_ix)))
+
+#define __Pyx_PyList_PopIndex(L, py_ix, ix, is_signed, type, to_py_func) ( \
+    __Pyx_fits_Py_ssize_t(ix, type, is_signed) ? \
+        __Pyx__PyList_PopIndex(L, py_ix, ix) : ( \
+        (unlikely(py_ix == Py_None)) ? __Pyx__PyObject_PopNewIndex(L, to_py_func(ix)) : \
+            __Pyx__PyObject_PopIndex(L, py_ix)))
+
+#else
+
+#define __Pyx_PyList_PopIndex(L, py_ix, ix, is_signed, type, to_py_func) \
+    __Pyx_PyObject_PopIndex(L, py_ix, ix, is_signed, type, to_py_func)
+
+#define __Pyx_PyObject_PopIndex(L, py_ix, ix, is_signed, type, to_py_func) ( \
+    (unlikely(py_ix == Py_None)) ? __Pyx__PyObject_PopNewIndex(L, to_py_func(ix)) : \
+        __Pyx__PyObject_PopIndex(L, py_ix))
+#endif
 
 /////////////// pop_index ///////////////
 //@requires: ObjectHandling.c::PyObjectCallMethod1
 
-static PyObject* __Pyx__PyObject_PopIndex(PyObject* L, PyObject* py_ix) {
+static PyObject* __Pyx__PyObject_PopNewIndex(PyObject* L, PyObject* py_ix) {
     PyObject *r;
     if (unlikely(!py_ix)) return NULL;
-    r = __Pyx_PyObject_CallMethod1(L, PYIDENT("pop"), py_ix);
+    r = __Pyx__PyObject_PopIndex(L, py_ix);
     Py_DECREF(py_ix);
     return r;
 }
 
-static PyObject* __Pyx__PyList_PopIndex(PyObject* L, Py_ssize_t ix) {
+static PyObject* __Pyx__PyObject_PopIndex(PyObject* L, PyObject* py_ix) {
+    return __Pyx_PyObject_CallMethod1(L, PYIDENT("pop"), py_ix);
+}
+
 #if CYTHON_COMPILING_IN_CPYTHON
+static PyObject* __Pyx__PyList_PopIndex(PyObject* L, PyObject* py_ix, Py_ssize_t ix) {
     Py_ssize_t size = PyList_GET_SIZE(L);
     if (likely(size > (((PyListObject*)L)->allocated >> 1))) {
         Py_ssize_t cix = ix;
@@ -148,9 +175,13 @@ static PyObject* __Pyx__PyList_PopIndex(PyObject* L, Py_ssize_t ix) {
             return v;
         }
     }
-#endif
-    return __Pyx__PyObject_PopIndex(L, PyInt_FromSsize_t(ix));
+    if (py_ix == Py_None) {
+        return __Pyx__PyObject_PopNewIndex(L, PyInt_FromSsize_t(ix));
+    } else {
+        return __Pyx__PyObject_PopIndex(L, py_ix);
+    }
 }
+#endif
 
 
 /////////////// dict_getitem_default.proto ///////////////
