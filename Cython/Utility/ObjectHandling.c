@@ -279,7 +279,8 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j
 
 {{for type in ['List', 'Tuple']}}
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ssize_t i,
-                                                              CYTHON_UNUSED int wraparound, CYTHON_UNUSED int boundscheck) {
+                                                              CYTHON_NCP_UNUSED int wraparound,
+                                                              CYTHON_NCP_UNUSED int boundscheck) {
 #if CYTHON_COMPILING_IN_CPYTHON
     if (wraparound & unlikely(i < 0)) i += Py{{type}}_GET_SIZE(o);
     if ((!boundscheck) || likely((0 <= i) & (i < Py{{type}}_GET_SIZE(o)))) {
@@ -294,8 +295,9 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ss
 }
 {{endfor}}
 
-static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i,
-                                                     int is_list, CYTHON_UNUSED int wraparound, CYTHON_UNUSED int boundscheck) {
+static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, int is_list,
+                                                     CYTHON_NCP_UNUSED int wraparound,
+                                                     CYTHON_NCP_UNUSED int boundscheck) {
 #if CYTHON_COMPILING_IN_CPYTHON
     if (is_list || PyList_CheckExact(o)) {
         Py_ssize_t n = ((!wraparound) | likely(i >= 0)) ? i : i + PyList_GET_SIZE(o);
@@ -361,8 +363,8 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyOb
     return r;
 }
 
-static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v,
-                                               int is_list, CYTHON_UNUSED int wraparound, CYTHON_UNUSED int boundscheck) {
+static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v, int is_list,
+                                               CYTHON_NCP_UNUSED int wraparound, CYTHON_NCP_UNUSED int boundscheck) {
 #if CYTHON_COMPILING_IN_CPYTHON
     if (is_list || PyList_CheckExact(o)) {
         Py_ssize_t n = (!wraparound) ? i : ((likely(i >= 0)) ? i : i + PyList_GET_SIZE(o));
@@ -428,7 +430,7 @@ static CYTHON_INLINE int __Pyx_DelItem_Generic(PyObject *o, PyObject *j) {
 }
 
 static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i,
-                                               CYTHON_UNUSED int is_list, CYTHON_UNUSED int wraparound) {
+                                               CYTHON_NCP_UNUSED int is_list, CYTHON_NCP_UNUSED int wraparound) {
 #if CYTHON_COMPILING_IN_PYPY
     if (is_list || PySequence_Check(o)) {
         return PySequence_DelItem(o, i);
@@ -485,7 +487,7 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(
         PyObject* obj, PyObject* value, Py_ssize_t cstart, Py_ssize_t cstop,
 {{endif}}
         PyObject** _py_start, PyObject** _py_stop, PyObject** _py_slice,
-        int has_cstart, int has_cstop, CYTHON_UNUSED int wraparound) {
+        int has_cstart, int has_cstop, CYTHON_NCP_UNUSED int wraparound) {
 #if CYTHON_COMPILING_IN_CPYTHON
     PyMappingMethods* mp;
 #if PY_MAJOR_VERSION < 3
