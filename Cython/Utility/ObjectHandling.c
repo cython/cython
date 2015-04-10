@@ -362,7 +362,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyOb
 }
 
 static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v,
-                                               int is_list, int wraparound, int boundscheck) {
+                                               int is_list, CYTHON_UNUSED int wraparound, CYTHON_UNUSED int boundscheck) {
 #if CYTHON_COMPILING_IN_CPYTHON
     if (is_list || PyList_CheckExact(o)) {
         Py_ssize_t n = (!wraparound) ? i : ((likely(i >= 0)) ? i : i + PyList_GET_SIZE(o));
@@ -415,7 +415,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
 
 static CYTHON_INLINE int __Pyx_DelItem_Generic(PyObject *o, PyObject *j);
 static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i,
-                                               CYTHON_UNUSED int is_list, int wraparound);
+                                               int is_list, int wraparound);
 
 /////////////// DelItemInt ///////////////
 
@@ -428,7 +428,7 @@ static CYTHON_INLINE int __Pyx_DelItem_Generic(PyObject *o, PyObject *j) {
 }
 
 static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i,
-                                               CYTHON_UNUSED int is_list, int wraparound) {
+                                               CYTHON_UNUSED int is_list, CYTHON_UNUSED int wraparound) {
 #if CYTHON_COMPILING_IN_PYPY
     if (is_list || PySequence_Check(o)) {
         return PySequence_DelItem(o, i);
