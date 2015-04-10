@@ -430,7 +430,7 @@ static CYTHON_INLINE int __Pyx_DelItem_Generic(PyObject *o, PyObject *j) {
 }
 
 static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i,
-                                               CYTHON_NCP_UNUSED int is_list, CYTHON_NCP_UNUSED int wraparound) {
+                                               CYTHON_UNUSED int is_list, CYTHON_NCP_UNUSED int wraparound) {
 #if CYTHON_COMPILING_IN_PYPY
     if (is_list || PySequence_Check(o)) {
         return PySequence_DelItem(o, i);

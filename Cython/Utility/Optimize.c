@@ -311,8 +311,9 @@ static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_di
     return PyObject_GetIter(iterable);
 }
 
-static CYTHON_INLINE int __Pyx_dict_iter_next(PyObject* iter_obj, Py_ssize_t orig_length, Py_ssize_t* ppos,
-                                              PyObject** pkey, PyObject** pvalue, PyObject** pitem, int source_is_dict) {
+static CYTHON_INLINE int __Pyx_dict_iter_next(
+        PyObject* iter_obj, CYTHON_NCP_UNUSED Py_ssize_t orig_length, CYTHON_NCP_UNUSED Py_ssize_t* ppos,
+        PyObject** pkey, PyObject** pvalue, PyObject** pitem, int source_is_dict) {
     PyObject* next_item;
 #if !CYTHON_COMPILING_IN_PYPY
     if (source_is_dict) {
