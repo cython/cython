@@ -2324,14 +2324,14 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         exception_value="-1")
 
     _map_to_capi_len_function = {
-        Builtin.unicode_type   : "__Pyx_PyUnicode_GET_LENGTH",
-        Builtin.bytes_type     : "PyBytes_GET_SIZE",
-        Builtin.list_type      : "PyList_GET_SIZE",
-        Builtin.tuple_type     : "PyTuple_GET_SIZE",
-        Builtin.dict_type      : "PyDict_Size",
-        Builtin.set_type       : "PySet_Size",
-        Builtin.frozenset_type : "__Pyx_PyFrozenSet_Size",
-        }.get
+        Builtin.unicode_type:    "__Pyx_PyUnicode_GET_LENGTH",
+        Builtin.bytes_type:      "PyBytes_GET_SIZE",
+        Builtin.list_type:       "PyList_GET_SIZE",
+        Builtin.tuple_type:      "PyTuple_GET_SIZE",
+        Builtin.set_type:        "PySet_GET_SIZE",
+        Builtin.frozenset_type:  "PySet_GET_SIZE",
+        Builtin.dict_type:       "PyDict_Size",
+    }.get
 
     _ext_types_with_pysize = set(["cpython.array.array"])
 

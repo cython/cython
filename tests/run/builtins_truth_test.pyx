@@ -10,6 +10,7 @@ def bool_list(list obj):
     """
     return bool(obj)
 
+
 def if_list(list obj):
     """
     >>> if_list( [] )
@@ -23,6 +24,7 @@ def if_list(list obj):
         return True
     else:
         return False
+
 
 def if_list_nogil(list obj):
     """
@@ -40,6 +42,7 @@ def if_list_nogil(list obj):
         else:
             result = False
     return result
+
 
 def if_list_literal(t):
     """
@@ -71,6 +74,7 @@ def bool_tuple(tuple obj):
     """
     return bool(obj)
 
+
 def if_tuple(tuple obj):
     """
     >>> if_tuple( () )
@@ -84,6 +88,7 @@ def if_tuple(tuple obj):
         return True
     else:
         return False
+
 
 def if_tuple_literal(t):
     """
@@ -102,6 +107,97 @@ def if_tuple_literal(t):
             return True
         else:
             return False
+
+
+def bool_set(set obj):
+    """
+    >>> bool_set( set() )
+    False
+    >>> bool_set( set([1]) )
+    True
+    >>> bool_set(None)
+    False
+    """
+    return bool(obj)
+
+
+def if_set(set obj):
+    """
+    >>> if_set( set() )
+    False
+    >>> if_set( set([1]) )
+    True
+    >>> if_set(None)
+    False
+    """
+    if obj:
+        return True
+    else:
+        return False
+
+
+def if_set_nogil(set obj):
+    """
+    >>> if_set_nogil( set() )
+    False
+    >>> if_set_nogil( set([1]) )
+    True
+    >>> if_set_nogil(None)
+    False
+    """
+    cdef bint result
+    with nogil:
+        if obj:
+            result = True
+        else:
+            result = False
+    return result
+
+
+def if_set_literal(t):
+    """
+    >>> if_set_literal(True)
+    True
+    >>> if_set_literal(False)
+    False
+    """
+    if t:
+        if {1,2,3}:
+            return True
+        else:
+            return False
+    else:
+        if set():
+            return True
+        else:
+            return False
+
+
+def bool_frozenset(frozenset obj):
+    """
+    >>> bool_frozenset( frozenset() )
+    False
+    >>> bool_frozenset( frozenset([1]) )
+    True
+    >>> bool_frozenset(None)
+    False
+    """
+    return bool(obj)
+
+
+def if_frozenset(frozenset obj):
+    """
+    >>> if_frozenset( frozenset() )
+    False
+    >>> if_frozenset( frozenset([1]) )
+    True
+    >>> if_frozenset(None)
+    False
+    """
+    if obj:
+        return True
+    else:
+        return False
 
 
 b0 = b''

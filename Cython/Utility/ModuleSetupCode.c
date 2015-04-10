@@ -100,13 +100,10 @@
 #if CYTHON_COMPILING_IN_PYPY
   #define __Pyx_PyUnicode_Concat(a, b)      PyNumber_Add(a, b)
   #define __Pyx_PyUnicode_ConcatSafe(a, b)  PyNumber_Add(a, b)
-  // PyPy doesn't handle frozenset() in PySet_Size()
-  #define __Pyx_PyFrozenSet_Size(s)         PyObject_Size(s)
 #else
   #define __Pyx_PyUnicode_Concat(a, b)      PyUnicode_Concat(a, b)
   #define __Pyx_PyUnicode_ConcatSafe(a, b)  ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
       PyNumber_Add(a, b) : __Pyx_PyUnicode_Concat(a, b))
-  #define __Pyx_PyFrozenSet_Size(s)         PySet_Size(s)
 #endif
 
 #define __Pyx_PyString_FormatSafe(a, b)   ((unlikely((a) == Py_None)) ? PyNumber_Remainder(a, b) : __Pyx_PyString_Format(a, b))
