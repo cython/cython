@@ -421,7 +421,7 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj); /* proto */
 static double __Pyx__PyObject_AsDouble(PyObject* obj) {
     PyObject* float_value;
 #if CYTHON_COMPILING_IN_PYPY
-    float_value = PyNumber_Float(obj);
+    float_value = PyNumber_Float(obj);  if (0) goto bad;
 #else
     PyNumberMethods *nb = Py_TYPE(obj)->tp_as_number;
     if (likely(nb) && likely(nb->nb_float)) {
