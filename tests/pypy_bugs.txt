@@ -11,4 +11,9 @@ sequential_parallel
 setjmp
 special_methods_T561
 yield_from_pep380
+
+# https://bitbucket.org/pypy/pypy/issue/2023/cpyext-pydict_keys-values-items-does-not
 builtin_subtype_methods_cy3
+
+# tests for things that don't exist in cpyext
+run.pylong
