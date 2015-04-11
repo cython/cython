@@ -1698,7 +1698,7 @@ def main():
                       action="store_true", default=False,
                       help="only compile pyx to c, do not run C compiler or run the tests")
     parser.add_option("--no-refnanny", dest="with_refnanny",
-                      action="store_false", default=not IS_PYPY,
+                      action="store_false", default=True,
                       help="do not regression test reference counting")
     parser.add_option("--no-fork", dest="fork",
                       action="store_false", default=True,
