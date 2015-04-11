@@ -2,7 +2,7 @@ Porting Cython code to PyPy
 ============================
 
 Since version 0.17, Cython has basic support for cpyext, the layer in
-`PyPy <http://pypy.org>`_ that emulates CPython's C-API.  This is
+`PyPy <http://pypy.org/>`_ that emulates CPython's C-API.  This is
 achieved by making the generated C code adapt at C compile time, so
 the generated code will compile in both CPython and PyPy unchanged.
 
@@ -110,6 +110,17 @@ protocols for object operations.  Cython will map them to an appropriate
 usage of the C-API in both CPython and cpyext.
 
 
+GIL handling
+------------
+
+Currently, the GIL handling function :c:func:`PyGILState_Ensure` is not
+re-entrant in PyPy and deadlocks when called twice.  This means that
+code that tries to acquire the GIL "just in case", because it might be
+called with or without the GIL, will not work as expected in PyPy.
+See `PyGILState_Ensure should not deadlock if GIL already held
+<https://bitbucket.org/pypy/pypy/issue/1778>`_.
+
+
 Efficiency
 -----------
 
@@ -143,6 +154,9 @@ Known problems
   on method calls in some rare cases.
 
 * Docstrings of special methods are not propagated to Python space.
+
+* The Python 3.x adaptations in pypy3 only slowly start to include the
+  C-API, so more incompatibilities can be expected there.
 
 
 Bugs and crashes
