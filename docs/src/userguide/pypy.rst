@@ -1,5 +1,5 @@
 Porting Cython code to PyPy
-============================
+===========================
 
 Since version 0.17, Cython has basic support for cpyext, the layer in
 `PyPy <http://pypy.org>`_ that emulates CPython's C-API.  This is
@@ -14,7 +14,7 @@ that works in both CPython and PyPy.
 
 
 Reference counts
------------------
+----------------
 
 A general design difference in PyPy is that the runtime does not use
 reference counting internally but always a garbage collector.  Reference
@@ -25,7 +25,7 @@ any references held in Python space.
 
 
 Object lifetime
-----------------
+---------------
 
 As a direct consequence of the different garbage collection characteristics,
 objects may see the end of their lifetime at other points than in
@@ -45,7 +45,7 @@ e.g. when context managers can be used together with the ``with`` statement.
 
 
 Borrowed references and data pointers
---------------------------------------
+-------------------------------------
 
 The memory management in PyPy is allowed to move objects around in memory.
 The C-API layer is only an indirect view on PyPy objects and often replicates
@@ -88,7 +88,7 @@ when done with it to convert it into an owned reference.
 
 
 Builtin types, slots and fields
---------------------------------
+-------------------------------
 
 The following builtin types are not currently available in cpyext in
 form of their C level representation: :c:type:`PyComplexObject`,
@@ -111,7 +111,7 @@ usage of the C-API in both CPython and cpyext.
 
 
 Efficiency
------------
+----------
 
 Simple functions and especially macros that are used for speed in CPython
 may exhibit substantially different performance characteristics in cpyext.
@@ -137,7 +137,7 @@ than Cython currently does, it's best to fix Cython for everyone's benefit.
 
 
 Known problems
----------------
+--------------
 
 * As of PyPy 1.9, subtyping builtin types can result in infinite recursion
   on method calls in some rare cases.
@@ -146,7 +146,7 @@ Known problems
 
 
 Bugs and crashes
------------------
+----------------
 
 The cpyext implementation in PyPy is much younger and substantially less
 mature than the well tested C-API and its underlying native implementation
