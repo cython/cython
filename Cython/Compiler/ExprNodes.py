@@ -2470,6 +2470,7 @@ class IteratorNode(ExprNode):
                 self.counter_cname,
                 inc_dec,
                 code.error_goto_if_null(result_name, self.pos)))
+        code.put_gotref(result_name)
         code.putln("#endif")
 
     def generate_iter_next_result_code(self, result_name, code):
