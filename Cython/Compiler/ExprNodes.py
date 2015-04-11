@@ -7676,7 +7676,7 @@ class ClassCellInjectorNode(ExprNode):
 
     def generate_injection_code(self, code, classobj_cname):
         if self.is_active:
-            code.putln('__Pyx_CyFunction_InitClassCell(%s, %s);' % (
+            code.put_error_if_neg(self.pos, '__Pyx_CyFunction_InitClassCell(%s, %s)' % (
                 self.result(), classobj_cname))
 
 

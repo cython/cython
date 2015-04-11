@@ -724,7 +724,11 @@ static PyObject *__Pyx_FindInheritedMetaclass(PyObject *bases) {
     PyObject *metaclass;
     if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
         PyTypeObject *metatype;
+#if CYTHON_COMPILING_IN_CPYTHON
         PyObject *base = PyTuple_GET_ITEM(bases, 0);
+#else
+        PyObject *base = PySequence_ITEM(bases, 0);
+#endif
 #if PY_MAJOR_VERSION < 3
         PyObject* basetype = __Pyx_PyObject_GetAttrStr(base, PYIDENT("__class__"));
         if (basetype) {
@@ -739,6 +743,9 @@ static PyObject *__Pyx_FindInheritedMetaclass(PyObject *bases) {
         metatype = Py_TYPE(base);
 #endif
         metaclass = __Pyx_CalculateMetaclass(metatype, bases);
+#if !CYTHON_COMPILING_IN_CPYTHON
+        Py_DECREF(base);
+#endif
 #if PY_MAJOR_VERSION < 3
         Py_DECREF(basetype);
 #endif

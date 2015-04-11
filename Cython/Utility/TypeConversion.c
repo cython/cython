@@ -382,13 +382,25 @@ static {{struct_type_decl}} {{funcname}}(PyObject * o) {
         goto bad;
     }
     
+#if CYTHON_COMPILING_IN_CPYTHON
     {{for ix, component in enumerate(components):}}
         {{py:attr = "result.f%s" % ix}}
         {{attr}} = {{component.from_py_function}}(PyTuple_GET_ITEM(o, {{ix}}));
-        if ({{component.error_condition(attr)}})
-            goto bad;
+        if ({{component.error_condition(attr)}}) goto bad;
     {{endfor}}
-    
+#else
+    {
+        PyObject *item;
+    {{for ix, component in enumerate(components):}}
+        {{py:attr = "result.f%s" % ix}}
+        item = PySequence_ITEM(o, {{ix}});  if (unlikely(!item)) goto bad;
+        {{attr}} = {{component.from_py_function}}(item);
+        Py_DECREF(item);
+        if ({{component.error_condition(attr)}}) goto bad;
+    {{endfor}}
+    }
+#endif
+
     return result;
 bad:
     return result;
