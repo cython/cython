@@ -9836,7 +9836,8 @@ class DivNode(NumBinopNode):
                                     or not self.type.signed
                                     or self.type.is_float)
             if not self.cdivision:
-                code.globalstate.use_utility_code(div_int_utility_code.specialize(self.type))
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("DivInt", "CMath.c").specialize(self.type))
         NumBinopNode.generate_evaluation_code(self, code)
         self.generate_div_warning_code(code)
 
@@ -9878,7 +9879,8 @@ class DivNode(NumBinopNode):
                     code.putln(code.error_goto(self.pos))
                     code.putln("}")
             if code.globalstate.directives['cdivision_warnings'] and self.operator != '/':
-                code.globalstate.use_utility_code(cdivision_warning_utility_code)
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("CDivisionWarning", "CMath.c"))
                 code.putln("if (unlikely((%s < 0) ^ (%s < 0))) {" % (
                                 self.operand1.result(),
                                 self.operand2.result()))
@@ -9968,12 +9970,12 @@ class ModNode(DivNode):
         if not self.type.is_pyobject and not self.cdivision:
             if self.type.is_int:
                 code.globalstate.use_utility_code(
-                    mod_int_utility_code.specialize(self.type))
+                    UtilityCode.load_cached("ModInt", "CMath.c").specialize(self.type))
             else:  # float
                 code.globalstate.use_utility_code(
-                    mod_float_utility_code.specialize(
+                    UtilityCode.load_cached("ModFloat", "CMath.c").specialize(
                         self.type, math_h_modifier=self.type.math_h_modifier))
-        # note: skipping over DivNode here
+        # NOTE: skipping over DivNode here
         NumBinopNode.generate_evaluation_code(self, code)
         self.generate_div_warning_code(code)
 
@@ -10026,7 +10028,7 @@ class PowNode(NumBinopNode):
         elif self.type.is_int:
             self.pow_func = "__Pyx_pow_%s" % self.type.empty_declaration_code().replace(' ', '_')
             env.use_utility_code(
-                int_pow_utility_code.specialize(
+                UtilityCode.load_cached("IntPow", "CMath.c").specialize(
                     func_name=self.pow_func,
                     type=self.type.empty_declaration_code(),
                     signed=self.type.signed and 1 or 0))
@@ -11840,96 +11842,3 @@ requires = [raise_unbound_local_error_utility_code])
 raise_too_many_values_to_unpack = UtilityCode.load_cached("RaiseTooManyValuesToUnpack", "ObjectHandling.c")
 raise_need_more_values_to_unpack = UtilityCode.load_cached("RaiseNeedMoreValuesToUnpack", "ObjectHandling.c")
 tuple_unpacking_error_code = UtilityCode.load_cached("UnpackTupleError", "ObjectHandling.c")
-
-#------------------------------------------------------------------------------------
-
-int_pow_utility_code = UtilityCode(
-proto="""
-static CYTHON_INLINE %(type)s %(func_name)s(%(type)s, %(type)s); /* proto */
-""",
-impl="""
-static CYTHON_INLINE %(type)s %(func_name)s(%(type)s b, %(type)s e) {
-    %(type)s t = b;
-    switch (e) {
-        case 3:
-            t *= b;
-        case 2:
-            t *= b;
-        case 1:
-            return t;
-        case 0:
-            return 1;
-    }
-    #if %(signed)s
-    if (unlikely(e<0)) return 0;
-    #endif
-    t = 1;
-    while (likely(e)) {
-        t *= (b * (e&1)) | ((~e)&1);    /* 1 or b */
-        b *= b;
-        e >>= 1;
-    }
-    return t;
-}
-""")
-
-# ------------------------------ Division ------------------------------------
-
-div_int_utility_code = UtilityCode(
-proto="""
-static CYTHON_INLINE %(type)s __Pyx_div_%(type_name)s(%(type)s, %(type)s); /* proto */
-""",
-impl="""
-static CYTHON_INLINE %(type)s __Pyx_div_%(type_name)s(%(type)s a, %(type)s b) {
-    %(type)s q = a / b;
-    %(type)s r = a - q*b;
-    q -= ((r != 0) & ((r ^ b) < 0));
-    return q;
-}
-""")
-
-mod_int_utility_code = UtilityCode(
-proto="""
-static CYTHON_INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s, %(type)s); /* proto */
-""",
-impl="""
-static CYTHON_INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s a, %(type)s b) {
-    %(type)s r = a %% b;
-    r += ((r != 0) & ((r ^ b) < 0)) * b;
-    return r;
-}
-""")
-
-mod_float_utility_code = UtilityCode(
-proto="""
-static CYTHON_INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s, %(type)s); /* proto */
-""",
-impl="""
-static CYTHON_INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s a, %(type)s b) {
-    %(type)s r = fmod%(math_h_modifier)s(a, b);
-    r += ((r != 0) & ((r < 0) ^ (b < 0))) * b;
-    return r;
-}
-""")
-
-cdivision_warning_utility_code = UtilityCode(
-proto="""
-static int __Pyx_cdivision_warning(const char *, int); /* proto */
-""",
-impl="""
-static int __Pyx_cdivision_warning(const char *filename, int lineno) {
-#if CYTHON_COMPILING_IN_PYPY
-    filename++; // avoid compiler warnings
-    lineno++;
-    return PyErr_Warn(PyExc_RuntimeWarning,
-                     "division with oppositely signed operands, C and Python semantics differ");
-#else
-    return PyErr_WarnExplicit(PyExc_RuntimeWarning,
-                              "division with oppositely signed operands, C and Python semantics differ",
-                              filename,
-                              lineno,
-                              __Pyx_MODULE_NAME,
-                              NULL);
-#endif
-}
-""")
