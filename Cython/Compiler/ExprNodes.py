@@ -5012,17 +5012,17 @@ class PyMethodCallNode(SimpleCallNode):
 
             if len(args) > 1:
                 code.putln("if (%s) {" % self_arg)
-            code.putln("PyTuple_SET_ITEM(%s, 0, %s); __Pyx_GIVEREF(%s); %s = NULL;" % (
-                args_tuple, self_arg, self_arg, self_arg))  # stealing owned ref in this case
+            code.putln("__Pyx_GIVEREF(%s); PyTuple_SET_ITEM(%s, 0, %s); %s = NULL;" % (
+                self_arg, args_tuple, self_arg, self_arg))  # stealing owned ref in this case
             code.funcstate.release_temp(self_arg)
             if len(args) > 1:
                 code.putln("}")
 
             for i, arg in enumerate(args):
                 arg.make_owned_reference(code)
+                code.put_giveref(arg.py_result())
                 code.putln("PyTuple_SET_ITEM(%s, %d+%s, %s);" % (
                     args_tuple, i, arg_offset, arg.py_result()))
-                code.put_giveref(arg.py_result())
             if len(args) > 1:
                 code.funcstate.release_temp(arg_offset_cname)
 
@@ -6184,12 +6184,12 @@ class SequenceNode(ExprNode):
                 arg = self.args[i]
                 if c_mult or not arg.result_in_temp():
                     code.put_incref(arg.result(), arg.ctype())
+                code.put_giveref(arg.py_result())
                 code.putln("%s(%s, %s, %s);" % (
                     set_item_func,
                     target,
                     (offset and i) and ('%s + %s' % (offset, i)) or (offset or i),
                     arg.py_result()))
-                code.put_giveref(arg.py_result())
 
             if c_mult:
                 code.putln('}')
