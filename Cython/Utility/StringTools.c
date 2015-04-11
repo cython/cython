@@ -533,7 +533,7 @@ static int __Pyx_PyUnicode_Tailmatch(PyObject* s, PyObject* substr,
             result = PyUnicode_Tailmatch(s, PyTuple_GET_ITEM(substr, i),
                                          start, end, direction);
 #else
-            PyObject* sub = PySequence_GetItem(substr, i);
+            PyObject* sub = PySequence_ITEM(substr, i);
             if (unlikely(!sub)) return -1;
             result = PyUnicode_Tailmatch(s, sub, start, end, direction);
             Py_DECREF(sub);
@@ -618,7 +618,7 @@ static int __Pyx_PyBytes_Tailmatch(PyObject* self, PyObject* substr, Py_ssize_t 
             result = __Pyx_PyBytes_SingleTailmatch(self, PyTuple_GET_ITEM(substr, i),
                                                    start, end, direction);
 #else
-            PyObject* sub = PySequence_GetItem(substr, i);
+            PyObject* sub = PySequence_ITEM(substr, i);
             if (unlikely(!sub)) return -1;
             result = __Pyx_PyBytes_SingleTailmatch(self, sub, start, end, direction);
             Py_DECREF(sub);
