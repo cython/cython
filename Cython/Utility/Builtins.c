@@ -269,11 +269,13 @@ static long __Pyx__PyObject_Ord(PyObject* c) {
     } else if (PyUnicode_Check(c)) {
         return (long)__Pyx_PyUnicode_AsPy_UCS4(c);
 #endif
+#if (!CYTHON_COMPILING_IN_PYPY) || (defined(PyByteArray_AS_STRING) && defined(PyByteArray_GET_SIZE))
     } else if (PyByteArray_Check(c)) {
         size = PyByteArray_GET_SIZE(c);
         if (likely(size == 1)) {
             return (unsigned char) PyByteArray_AS_STRING(c)[0];
         }
+#endif
     } else {
         // FIXME: support character buffers - but CPython doesn't support them either
         PyErr_Format(PyExc_TypeError,
