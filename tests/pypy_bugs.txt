@@ -12,6 +12,10 @@ setjmp
 special_methods_T561
 yield_from_pep380
 
+# GIL issues
+# https://bitbucket.org/pypy/pypy/issue/2025/cpyext-finish-implementation-of
+exceptions_nogil
+
 # gc issue?
 memoryview_in_subclasses
 
