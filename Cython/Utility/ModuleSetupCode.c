@@ -105,6 +105,10 @@
   #define __Pyx_PyFrozenSet_Size(s)         PySet_Size(s)
 #endif
 
+#if CYTHON_COMPILING_IN_PYPY && !defined(PyUnicode_Contains)
+  #define PyUnicode_Contains(u, s)  PySequence_Contains(u, s)
+#endif
+
 #define __Pyx_PyString_FormatSafe(a, b)   ((unlikely((a) == Py_None)) ? PyNumber_Remainder(a, b) : __Pyx_PyString_Format(a, b))
 #define __Pyx_PyUnicode_FormatSafe(a, b)  ((unlikely((a) == Py_None)) ? PyNumber_Remainder(a, b) : PyUnicode_Format(a, b))
 
