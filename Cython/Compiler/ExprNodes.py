@@ -9882,20 +9882,24 @@ class DivNode(NumBinopNode):
                 code.putln("if (unlikely((%s < 0) ^ (%s < 0))) {" % (
                                 self.operand1.result(),
                                 self.operand2.result()))
-                if in_nogil:
-                    code.put_ensure_gil()
-                code.putln(code.set_error_info(self.pos, used=True))
-                code.putln("if (__Pyx_cdivision_warning(%(FILENAME)s, "
-                                                       "%(LINENO)s)) {" % {
+                warning_code = "__Pyx_cdivision_warning(%(FILENAME)s, %(LINENO)s)" % {
                     'FILENAME': Naming.filename_cname,
                     'LINENO':  Naming.lineno_cname,
-                    })
+                }
+
                 if in_nogil:
+                    result_code = 'result'
+                    code.putln("int %s;" % result_code)
+                    code.put_ensure_gil()
+                    code.putln(code.set_error_info(self.pos, used=True))
+                    code.putln("%s = %s;" % (result_code, warning_code))
                     code.put_release_ensured_gil()
+                else:
+                    result_code = warning_code
+                    code.putln(code.set_error_info(self.pos, used=True))
+
+                code.put("if (unlikely(%s)) " % result_code)
                 code.put_goto(code.error_label)
-                code.putln("}")
-                if in_nogil:
-                    code.put_release_ensured_gil()
                 code.putln("}")
 
     def calculate_result_code(self):
