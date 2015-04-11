@@ -16,6 +16,7 @@ yield_from_pep380
 # https://bitbucket.org/pypy/pypy/issue/2025/cpyext-finish-implementation-of
 run.exceptions_nogil
 run.nogil
+run.with_gil
 
 # gc issue?
 memoryview_in_subclasses
