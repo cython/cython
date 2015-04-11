@@ -9841,6 +9841,7 @@ class DivNode(NumBinopNode):
         self.generate_div_warning_code(code)
 
     def generate_div_warning_code(self, code):
+        in_nogil = self.in_nogil_context
         if not self.type.is_pyobject:
             if self.zerodivision_check:
                 if not self.infix:
@@ -9848,9 +9849,11 @@ class DivNode(NumBinopNode):
                 else:
                     zero_test = "%s == 0" % self.operand2.result()
                 code.putln("if (unlikely(%s)) {" % zero_test)
-                code.put_ensure_gil()
+                if in_nogil:
+                    code.put_ensure_gil()
                 code.putln('PyErr_SetString(PyExc_ZeroDivisionError, "%s");' % self.zero_division_message())
-                code.put_release_ensured_gil()
+                if in_nogil:
+                    code.put_release_ensured_gil()
                 code.putln(code.error_goto(self.pos))
                 code.putln("}")
                 if self.type.is_int and self.type.signed and self.operator != '%':
@@ -9867,9 +9870,11 @@ class DivNode(NumBinopNode):
                                self.type.empty_declaration_code(),
                                minus1_check,
                                self.operand1.result()))
-                    code.put_ensure_gil()
+                    if in_nogil:
+                        code.put_ensure_gil()
                     code.putln('PyErr_SetString(PyExc_OverflowError, "value too large to perform division");')
-                    code.put_release_ensured_gil()
+                    if in_nogil:
+                        code.put_release_ensured_gil()
                     code.putln(code.error_goto(self.pos))
                     code.putln("}")
             if code.globalstate.directives['cdivision_warnings'] and self.operator != '/':
@@ -9877,17 +9882,20 @@ class DivNode(NumBinopNode):
                 code.putln("if (unlikely((%s < 0) ^ (%s < 0))) {" % (
                                 self.operand1.result(),
                                 self.operand2.result()))
-                code.put_ensure_gil()
+                if in_nogil:
+                    code.put_ensure_gil()
                 code.putln(code.set_error_info(self.pos, used=True))
                 code.putln("if (__Pyx_cdivision_warning(%(FILENAME)s, "
                                                        "%(LINENO)s)) {" % {
                     'FILENAME': Naming.filename_cname,
                     'LINENO':  Naming.lineno_cname,
                     })
-                code.put_release_ensured_gil()
+                if in_nogil:
+                    code.put_release_ensured_gil()
                 code.put_goto(code.error_label)
                 code.putln("}")
-                code.put_release_ensured_gil()
+                if in_nogil:
+                    code.put_release_ensured_gil()
                 code.putln("}")
 
     def calculate_result_code(self):
