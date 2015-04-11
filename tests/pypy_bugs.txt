@@ -1,0 +1,14 @@
+# This file contains tests corresponding to unresolved bugs
+# either in PyPy, PyPy's cpyext, or Cython under PyPy,
+# which will be skipped in the normal testing run.
+
+broken_exception
+bufaccess
+exarkun
+memoryview
+memslice
+sequential_parallel
+setjmp
+special_methods_T561
+yield_from_pep380
+builtin_subtype_methods_cy3
