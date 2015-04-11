@@ -29,7 +29,7 @@ static PyObject* __Pyx_Globals(void) {
         goto bad;
     for (i = PyList_GET_SIZE(names)-1; i >= 0; i--) {
 #if CYTHON_COMPILING_IN_PYPY
-        PyObject* name = PySequence_GetItem(names, i);
+        PyObject* name = PySequence_ITEM(names, i);
         if (!name)
             goto bad;
 #else
