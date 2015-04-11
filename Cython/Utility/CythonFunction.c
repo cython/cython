@@ -576,11 +576,11 @@ __Pyx_CyFunction_repr(__pyx_CyFunctionObject *op)
 // PyPy does not have this function
 static PyObject * __Pyx_CyFunction_Call(PyObject *func, PyObject *arg, PyObject *kw) {
     PyCFunctionObject* f = (PyCFunctionObject*)func;
-    PyCFunction meth = PyCFunction_GET_FUNCTION(func);
-    PyObject *self = PyCFunction_GET_SELF(func);
+    PyCFunction meth = f->m_ml->ml_meth;
+    PyObject *self = (((__pyx_CyFunctionObject*)f)->flags & __Pyx_CYFUNCTION_STATICMETHOD) ? NULL : f->m_self;
     Py_ssize_t size;
 
-    switch (PyCFunction_GET_FLAGS(func) & ~(METH_CLASS | METH_STATIC | METH_COEXIST)) {
+    switch (f->m_ml->ml_flags & (METH_VARARGS | METH_KEYWORDS | METH_NOARGS | METH_O)) {
     case METH_VARARGS:
         if (likely(kw == NULL || PyDict_Size(kw) == 0))
             return (*meth)(self, arg);
