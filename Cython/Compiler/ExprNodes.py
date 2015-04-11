@@ -6102,11 +6102,11 @@ class SequenceNode(ExprNode):
         for i, arg in enumerate(self.args):
             arg = self.args[i] = arg.analyse_target_types(env)
             if arg.is_starred:
-                if not arg.type.assignable_from(Builtin.list_type):
+                if not arg.type.assignable_from(list_type):
                     error(arg.pos,
                           "starred target must have Python object (list) type")
                 if arg.type is py_object_type:
-                    arg.type = Builtin.list_type
+                    arg.type = list_type
             unpacked_item = PyTempNode(self.pos, env)
             coerced_unpacked_item = unpacked_item.coerce_to(arg.type, env)
             if unpacked_item is not coerced_unpacked_item:
@@ -6137,12 +6137,12 @@ class SequenceNode(ExprNode):
                 else:
                     size_factor = ' * (%s)' % (c_mult,)
 
-        if self.type is Builtin.tuple_type and (self.is_literal or self.slow) and not c_mult:
+        if self.type is tuple_type and (self.is_literal or self.slow) and not c_mult:
             # use PyTuple_Pack() to avoid generating huge amounts of one-time code
             code.putln('%s = PyTuple_Pack(%d, %s); %s' % (
                 target,
                 len(self.args),
-                ', '.join([ arg.py_result() for arg in self.args ]),
+                ', '.join(arg.py_result() for arg in self.args),
                 code.error_goto_if_null(target, self.pos)))
             code.put_gotref(target)
         elif self.type.is_ctuple:
@@ -6151,9 +6151,9 @@ class SequenceNode(ExprNode):
                     target, i, arg.result()))
         else:
             # build the tuple/list step by step, potentially multiplying it as we go
-            if self.type is Builtin.list_type:
+            if self.type is list_type:
                 create_func, set_item_func = 'PyList_New', 'PyList_SET_ITEM'
-            elif self.type is Builtin.tuple_type:
+            elif self.type is tuple_type:
                 create_func, set_item_func = 'PyTuple_New', 'PyTuple_SET_ITEM'
             else:
                 raise InternalError("sequence packing for unexpected type %s" % self.type)
@@ -6210,7 +6210,7 @@ class SequenceNode(ExprNode):
     def generate_subexpr_disposal_code(self, code):
         if self.mult_factor and self.mult_factor.type.is_int:
             super(SequenceNode, self).generate_subexpr_disposal_code(code)
-        elif self.type is Builtin.tuple_type and (self.is_literal or self.slow):
+        elif self.type is tuple_type and (self.is_literal or self.slow):
             super(SequenceNode, self).generate_subexpr_disposal_code(code)
         else:
             # We call generate_post_assignment_code here instead
