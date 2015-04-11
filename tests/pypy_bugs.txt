@@ -20,6 +20,7 @@ run.with_gil
 
 # gc issue?
 memoryview_in_subclasses
+external_ref_assignment
 
 # https://bitbucket.org/pypy/pypy/issue/2023/cpyext-pydict_keys-values-items-does-not
 builtin_subtype_methods_cy3
