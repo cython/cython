@@ -37,3 +37,6 @@ run.datetime_cimport
 run.datetime_members
 run.extern_builtins_T258
 run.unicode_ascii_auto_encoding
+run.unicode_default_auto_encoding
+run.str_ascii_auto_encoding
+run.str_default_auto_encoding
