@@ -180,7 +180,7 @@ static CYTHON_INLINE char* __Pyx_PyObject_AsString(PyObject* o) {
 }
 
 static CYTHON_INLINE char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_ssize_t *length) {
-#if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT
+#if CYTHON_COMPILING_IN_CPYTHON && (__PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT)
     if (
 #if PY_MAJOR_VERSION < 3 && __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
             __Pyx_sys_getdefaultencoding_not_ascii && 
@@ -188,7 +188,7 @@ static CYTHON_INLINE char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_ssize_
             PyUnicode_Check(o)) {
 #if PY_VERSION_HEX < 0x03030000
         char* defenc_c;
-        // borrowed, cached reference
+        // borrowed reference, cached internally in 'o' by CPython
         PyObject* defenc = _PyUnicode_AsDefaultEncodedString(o, NULL);
         if (!defenc) return NULL;
         defenc_c = PyBytes_AS_STRING(defenc);

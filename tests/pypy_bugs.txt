@@ -36,3 +36,4 @@ run.datetime_pxd
 run.datetime_cimport
 run.datetime_members
 run.extern_builtins_T258
+run.unicode_ascii_auto_encoding
