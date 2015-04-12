@@ -17,6 +17,7 @@ yield_from_pep380
 run.exceptions_nogil
 run.nogil
 run.with_gil
+run.parallel
 
 # gc issue?
 memoryview_in_subclasses
