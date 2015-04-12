@@ -577,7 +577,7 @@ __Pyx_CyFunction_repr(__pyx_CyFunctionObject *op)
 static PyObject * __Pyx_CyFunction_Call(PyObject *func, PyObject *arg, PyObject *kw) {
     PyCFunctionObject* f = (PyCFunctionObject*)func;
     PyCFunction meth = f->m_ml->ml_meth;
-    PyObject *self = (((__pyx_CyFunctionObject*)f)->flags & __Pyx_CYFUNCTION_STATICMETHOD) ? NULL : f->m_self;
+    PyObject *self = f->m_self;
     Py_ssize_t size;
 
     switch (f->m_ml->ml_flags & (METH_VARARGS | METH_KEYWORDS | METH_NOARGS | METH_O)) {
