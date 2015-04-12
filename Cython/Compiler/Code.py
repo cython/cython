@@ -999,7 +999,8 @@ class GlobalState(object):
         # utility_code_def
         #
         code = self.parts['utility_code_def']
-        code.put(TempitaUtilityCode.load_cached("TypeConversions", "TypeConversion.c").impl)
+        util = TempitaUtilityCode.load_cached("TypeConversions", "TypeConversion.c")
+        code.put(util.format_code(util.impl))
         code.putln("")
 
     def __getitem__(self, key):
