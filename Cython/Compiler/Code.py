@@ -231,12 +231,11 @@ class UtilityCodeBase(object):
                 loader = __loader__
                 archive = loader.archive
                 with closing(zipfile.ZipFile(archive)) as fileobj:
-                    listing = [ os.path.basename(name)
-                                for name in fileobj.namelist()
-                                if os.path.join(archive, name).startswith(utility_dir)]
-            files = [ os.path.join(utility_dir, filename)
-                      for filename in listing
-                      if filename.startswith(prefix) ]
+                    listing = [os.path.basename(name)
+                               for name in fileobj.namelist()
+                               if os.path.join(archive, name).startswith(utility_dir)]
+            files = [filename for filename in listing
+                     if filename.startswith(prefix)]
             if not files:
                 raise ValueError("No match found for utility code " + util_code_name)
             if len(files) > 1:
