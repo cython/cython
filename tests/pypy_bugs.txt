@@ -27,5 +27,7 @@ builtin_subtype_methods_cy3
 
 # tests for things that don't exist in cpyext
 compile.pylong
-run.datetime
+run.datetime_pxd
+run.datetime_cimport
+run.datetime_members
 run.extern_builtins_T258
