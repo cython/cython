@@ -2,12 +2,12 @@
 # tag: syntax
 
 """
->>> y
+>>> y  # doctest: +ELLIPSIS
 Traceback (most recent call last):
-NameError: name 'y' is not defined
->>> z
+NameError: ...name 'y' is not defined
+>>> z  # doctest: +ELLIPSIS
 Traceback (most recent call last):
-NameError: name 'z' is not defined
+NameError: ...name 'z' is not defined
 >>> f()
 17
 """
