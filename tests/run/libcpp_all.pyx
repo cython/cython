@@ -1,5 +1,7 @@
 # tag: cpp
 
+import cython
+
 cimport libcpp
 
 cimport libcpp.deque
@@ -67,3 +69,23 @@ def test_vector_coercion(*args):
     for a in args:
         v.push_back(a)
     return [v[0][i] for i in range(v.size())]
+
+def test_const_vector(*args):
+    """
+    >>> test_const_vector(1.75)
+    [1.75]
+    >>> test_const_vector(1, 10, 100)
+    [1.0, 10.0, 100.0]
+    """
+    cdef vector[double] v
+    for a in args:
+        v.push_back(a)
+    return const_vector_to_list(v)
+
+cdef const_vector_to_list(const vector[double]& cv):
+    cdef vector[double].const_iterator iter = cv.const_begin()
+    cdef lst = []
+    while iter != cv.const_end():
+        lst.append(cython.operator.dereference(iter))
+        cython.operator.preincrement(iter)
+    return lst
