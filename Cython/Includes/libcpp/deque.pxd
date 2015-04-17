@@ -12,8 +12,8 @@ cdef extern from "<deque>" namespace "std" nogil:
             iterator operator--()
             bint operator==(reverse_iterator)
             bint operator!=(reverse_iterator)
-        #cppclass const_iterator(iterator):
-        #    pass
+        cppclass const_iterator(iterator):
+            pass
         #cppclass const_reverse_iterator(reverse_iterator):
         #    pass
         deque() except +
@@ -34,11 +34,11 @@ cdef extern from "<deque>" namespace "std" nogil:
         T& at(size_t)
         T& back()
         iterator begin()
-        #const_iterator begin()
+        const_iterator const_begin "begin"()
         void clear()
         bint empty()
         iterator end()
-        #const_iterator end()
+        const_iterator const_end "end"()
         iterator erase(iterator)
         iterator erase(iterator, iterator)
         T& front()
