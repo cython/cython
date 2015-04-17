@@ -30,6 +30,8 @@ Features added
 * ``wraparound()`` and ``boundscheck()`` are available as no-ops in pure
   Python mode.
 
+* Const iterators were added to the provided C++ STL declarations.
+
 * ``NULL`` is allowed as default argument when embedding signatures.
   This fixes ticket 843.
 
