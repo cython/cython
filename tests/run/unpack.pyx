@@ -3,11 +3,11 @@
 
 import cython
 
-_set = set
 
 def _it(N):
     for i in range(N):
         yield i
+
 
 cdef class ItCount(object):
     cdef object values
@@ -89,9 +89,9 @@ def unpack_partial(it):
     """
     >>> it = _it(2)
     >>> a = b = c = 0
-    >>> a,b,c = it
-    Traceback (most recent call last):
-    ValueError: need more than 2 values to unpack
+    >>> try: a,b,c = it
+    ... except ValueError: pass
+    ... else: print("DID NOT FAIL!")
     >>> a, b, c
     (0, 0, 0)
     >>> unpack_partial([1,2])
@@ -103,9 +103,9 @@ def unpack_partial(it):
 
     >>> it = ItCount([1,2])
     >>> a = b = c = 0
-    >>> a,b,c = it
-    Traceback (most recent call last):
-    ValueError: need more than 2 values to unpack
+    >>> try: a,b,c = it
+    ... except ValueError: pass
+    ... else: print("DID NOT FAIL!")
     >>> a, b, c
     (0, 0, 0)
     >>> it.count
@@ -153,7 +153,7 @@ def unpack_partial_typed(it):
     (0, 0, 0)
     >>> unpack_partial_typed((1, 'abc', 3))
     (0, 0, 0)
-    >>> unpack_partial_typed(_set([1, 'abc', 3]))
+    >>> unpack_partial_typed(set([1, 'abc', 3]))
     (0, 0, 0)
 
     >>> it = ItCount([1, 'abc', 3])
@@ -222,10 +222,10 @@ def failure_too_many(it):
     Traceback (most recent call last):
     ValueError: too many values to unpack (expected 3)
 
-    >>> a,b,c = _set([1,2,3,4])    # doctest: +ELLIPSIS
+    >>> a,b,c = set([1,2,3,4])    # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ValueError: too many values to unpack...
-    >>> failure_too_many(_set([1,2,3,4]))
+    >>> failure_too_many(set([1,2,3,4]))
     Traceback (most recent call last):
     ValueError: too many values to unpack (expected 3)
 
@@ -238,6 +238,7 @@ def failure_too_many(it):
     """
     a,b,c = it
     return a,b,c
+
 
 def failure_too_few(it):
     """
@@ -253,22 +254,23 @@ def failure_too_few(it):
     Traceback (most recent call last):
     ValueError: need more than 2 values to unpack
 
-    >>> a,b,c = _set([1,2])
-    Traceback (most recent call last):
-    ValueError: need more than 2 values to unpack
-    >>> failure_too_few(_set([1,2]))
+    >>> try: a,b,c = set([1,2])
+    ... except ValueError: pass
+    ... else: print("DID NOT FAIL!")
+    >>> failure_too_few(set([1,2]))
     Traceback (most recent call last):
     ValueError: need more than 2 values to unpack
 
-    >>> a,b,c = _it(2)
-    Traceback (most recent call last):
-    ValueError: need more than 2 values to unpack
+    >>> try: a,b,c = _it(2)
+    ... except ValueError: pass
+    ... else: print("DID NOT FAIL!")
     >>> failure_too_few(_it(2))
     Traceback (most recent call last):
     ValueError: need more than 2 values to unpack
     """
     a,b,c = it
     return a,b,c
+
 
 def _it_failure(N):
     for i in range(N):
