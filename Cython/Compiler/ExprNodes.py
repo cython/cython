@@ -25,7 +25,7 @@ from .Code import UtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
 from . import Nodes
-from .Nodes import Node
+from .Nodes import Node, utility_code_for_imports
 from . import PyrexTypes
 from .PyrexTypes import py_object_type, c_long_type, typecast, error_type, \
     unspecified_type
@@ -2251,7 +2251,6 @@ class ImportNode(ExprNode):
             name_list = self.name_list.analyse_types(env)
             self.name_list = name_list.coerce_to_pyobject(env)
         self.is_temp = 1
-        env.use_utility_code(UtilityCode.load_cached("Import", "ImportExport.c"))
         return self
 
     gil_message = "Python import"
@@ -2261,13 +2260,24 @@ class ImportNode(ExprNode):
             name_list_code = self.name_list.py_result()
         else:
             name_list_code = "0"
-        code.putln(
-            "%s = __Pyx_Import(%s, %s, %d); %s" % (
-                self.result(),
-                self.module_name.py_result(),
-                name_list_code,
-                self.level,
-                code.error_goto_if_null(self.result(), self.pos)))
+
+        code.globalstate.use_utility_code(UtilityCode.load_cached("Import", "ImportExport.c"))
+        import_code = "__Pyx_Import(%s, %s, %d)" % (
+            self.module_name.py_result(),
+            name_list_code,
+            self.level)
+
+        if (self.level <= 0 and
+                self.module_name.is_string_literal and
+                self.module_name.value in utility_code_for_imports):
+            helper_func, code_name, code_file = utility_code_for_imports[self.module_name.value]
+            code.globalstate.use_utility_code(UtilityCode.load_cached(code_name, code_file))
+            import_code = '%s(%s)' % (helper_func, import_code)
+
+        code.putln("%s = %s; %s" % (
+            self.result(),
+            import_code,
+            code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
 
 

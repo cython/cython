@@ -739,3 +739,150 @@ static int __pyx_Generator_init(void) {
     }
     return 0;
 }
+
+
+//////////////////// PatchModuleWithGenerator.proto ////////////////////
+
+#ifdef __Pyx_Generator_USED
+static PyObject* __Pyx_Generator_patch_module(PyObject* module, const char* py_code); /*proto*/
+#endif
+
+//////////////////// PatchModuleWithGenerator ////////////////////
+//@substitute: naming
+
+#ifdef __Pyx_Generator_USED
+static PyObject* __Pyx_Generator_patch_module(PyObject* module, const char* py_code) {
+    PyObject *globals, *result_obj;
+    globals = PyDict_New();  if (unlikely(!globals)) goto ignore;
+    if (unlikely(PyDict_SetItemString(globals, "_cython_generator_type", (PyObject*)__pyx_GeneratorType) < 0)) goto ignore;
+    if (unlikely(PyDict_SetItemString(globals, "_module", module) < 0)) goto ignore;
+    if (unlikely(PyDict_SetItemString(globals, "_b", $builtins_cname) < 0)) goto ignore;
+    result_obj = PyRun_String(py_code, Py_file_input, globals, globals);
+    if (unlikely(!result_obj)) goto ignore;
+    Py_DECREF(result_obj);
+    Py_DECREF(globals);
+    return module;
+
+ignore:
+    PyErr_WriteUnraisable(module);
+    Py_XDECREF(globals);
+    if (unlikely(PyErr_WarnEx(PyExc_RuntimeWarning, "Cython module failed to patch module with custom type", 1) < 0)) {
+        Py_DECREF(module);
+        module = NULL;
+    }
+    return module;
+}
+#endif
+
+//////////////////// PatchAsyncIO.proto ////////////////////
+
+// run after importing "asyncio" to patch Cython generator support into it
+#if defined(__Pyx_Generator_USED) && (!defined(CYTHON_PATCH_ASYNCIO) || CYTHON_PATCH_ASYNCIO)
+static PyObject* __Pyx_patch_asyncio(PyObject* module); /*proto*/
+#else
+#define __Pyx_patch_asyncio(module)  (module)
+#endif
+
+//////////////////// PatchAsyncIO ////////////////////
+//@requires: PatchModuleWithGenerator
+//@requires: PatchInspect
+
+#if defined(__Pyx_Generator_USED) && (!defined(CYTHON_PATCH_ASYNCIO) || CYTHON_PATCH_ASYNCIO)
+static PyObject* __Pyx_patch_asyncio(PyObject* module) {
+    PyObject *patch_module = NULL;
+    static int asyncio_patched = 0;
+    if (unlikely((!asyncio_patched) && module)) {
+        PyObject *package;
+        package = __Pyx_Import(PYIDENT("asyncio.coroutines"), NULL, 0);
+        if (package) {
+            patch_module = __Pyx_Generator_patch_module(
+                PyObject_GetAttrString(package, "coroutines"),
+                "old_types = _b.getattr(_module, '_COROUTINE_TYPES', None)\n"
+                "if old_types is not None and _cython_generator_type not in old_types:\n"
+                "    _module._COROUTINE_TYPES = _b.type(old_types) (_b.tuple(old_types) + (_cython_generator_type,))\n"
+            );
+        #if PY_VERSION_HEX < 0x03050000
+        } else {
+            // Py3.4 used to have asyncio.tasks instead of asyncio.coroutines
+            PyErr_Clear();
+            package = __Pyx_Import(PYIDENT("asyncio.tasks"), NULL, 0);
+            if (unlikely(!package)) goto asyncio_done;
+            patch_module = __Pyx_Generator_patch_module(
+                PyObject_GetAttrString(package, "tasks"),
+                "if (_b.hasattr(_module, 'iscoroutine') and"
+                "        _b.getattr(_module.iscoroutine, '_cython_generator_type', None) is not _cython_generator_type):\n"
+                "    def cy_wrap(orig_func, cython_generator_type=_cython_generator_type, type=_b.type):\n"
+                "        def cy_iscoroutine(obj): return type(obj) is cython_generator_type or orig_func(obj)\n"
+                "        cy_iscoroutine._cython_generator_type = cython_generator_type\n"
+                "        return cy_iscoroutine\n"
+                "    _module.iscoroutine = cy_wrap(_module.iscoroutine)\n"
+            );
+        #endif
+        }
+        Py_DECREF(package);
+        if (unlikely(!patch_module)) goto ignore;
+#if PY_VERSION_HEX < 0x03050000
+asyncio_done:
+        PyErr_Clear();
+#endif
+        asyncio_patched = 1;
+        // now patch inspect.isgenerator() by looking up the imported module in the patched asyncio module
+        {
+            PyObject *inspect_module;
+            if (patch_module) {
+                inspect_module = PyObject_GetAttrString(patch_module, "inspect");
+                Py_DECREF(patch_module);
+            } else {
+                inspect_module = __Pyx_Import(PYIDENT("inspect"), NULL, 0);
+            }
+            if (unlikely(!inspect_module)) goto ignore;
+            inspect_module = __Pyx_patch_inspect(inspect_module);
+            if (unlikely(!inspect_module)) {
+                Py_DECREF(module);
+                module = NULL;
+            }
+            Py_DECREF(inspect_module);
+        }
+    }
+    return module;
+ignore:
+    PyErr_WriteUnraisable(module);
+    if (unlikely(PyErr_WarnEx(PyExc_RuntimeWarning, "Cython module failed to patch asyncio package with custom generator type", 1) < 0)) {
+        Py_DECREF(module);
+        module = NULL;
+    }
+    return module;
+}
+#endif
+
+
+//////////////////// PatchInspect.proto ////////////////////
+
+// run after importing "inspect" to patch Cython generator support into it
+#if defined(__Pyx_Generator_USED) && (!defined(CYTHON_PATCH_INSPECT) || CYTHON_PATCH_INSPECT)
+static PyObject* __Pyx_patch_inspect(PyObject* module); /*proto*/
+#else
+#define __Pyx_patch_inspect(module)  (module)
+#endif
+
+//////////////////// PatchInspect ////////////////////
+//@requires: PatchModuleWithGenerator
+
+#if defined(__Pyx_Generator_USED) && (!defined(CYTHON_PATCH_INSPECT) || CYTHON_PATCH_INSPECT)
+static PyObject* __Pyx_patch_inspect(PyObject* module) {
+    static int inspect_patched = 0;
+    if (unlikely((!inspect_patched) && module)) {
+        module = __Pyx_Generator_patch_module(
+            module,
+            "if _b.getattr(_module.isgenerator, '_cython_generator_type', None) is not _cython_generator_type:\n"
+            "    def cy_wrap(orig_func, cython_generator_type=_cython_generator_type, type=_b.type):\n"
+            "        def cy_isgenerator(obj): return type(obj) is cython_generator_type or orig_func(obj)\n"
+            "        cy_isgenerator._cython_generator_type = cython_generator_type\n"
+            "        return cy_isgenerator\n"
+            "    _module.isgenerator = cy_wrap(_module.isgenerator)\n"
+        );
+        inspect_patched = 1;
+    }
+    return module;
+}
+#endif

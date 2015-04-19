@@ -98,14 +98,15 @@ def get_distutils_distro(_cache=[]):
 
 
 EXT_DEP_MODULES = {
-    'tag:numpy' : 'numpy',
-    'tag:pstats': 'pstats',
-    'tag:posix' : 'posix',
-    'tag:array' : 'array',
+    'tag:numpy':    'numpy',
+    'tag:asyncio':  'asyncio',
+    'tag:pstats':   'pstats',
+    'tag:posix':    'posix',
+    'tag:array':    'array',
     'tag:coverage': 'Cython.Coverage',
-    'Coverage': 'Cython.Coverage',
-    'tag:ipython': 'IPython',
-    'tag:jedi': 'jedi',
+    'Coverage':     'Cython.Coverage',
+    'tag:ipython':  'IPython',
+    'tag:jedi':     'jedi',
 }
 
 def patch_inspect_isfunction():

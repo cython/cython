@@ -15,6 +15,12 @@ Features added
 
 * Tracing is supported in ``nogil`` functions/sections and module init code.
 
+* When generators are used in a Cython module and the module imports the
+  modules "inspect" and/or "asyncio", Cython enables interoperability by
+  patching these modules to recognise Cython's internal generator type.
+  This can be disabled by C compiling the module with
+  "-D CYTHON_PATCH_ASYNCIO=0" or "-D CYTHON_PATCH_INSPECT=0"
+
 * Adding/subtracting/dividing/modulus and equality comparisons with
   constant Python floats and small integers are faster.
 

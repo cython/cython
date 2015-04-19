@@ -7188,6 +7188,14 @@ utility_code_for_cimports = {
 }
 
 
+utility_code_for_imports = {
+    # utility code used when special modules are imported.
+    # TODO: Consider a generic user-level mechanism for importing
+    'asyncio': ("__Pyx_patch_asyncio", "PatchAsyncIO", "Generator.c"),
+    'inspect': ("__Pyx_patch_inspect", "PatchInspect", "Generator.c"),
+}
+
+
 class CImportStatNode(StatNode):
     #  cimport statement
     #
