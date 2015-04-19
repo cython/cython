@@ -355,6 +355,7 @@ def __test_value_attribute_of_StopIteration_exception():
     pex(e)
     return trace
 
+
 def test_exception_value_crash():
     """
     >>> test_exception_value_crash()
@@ -368,6 +369,50 @@ def test_exception_value_crash():
         yield "g2"
         return [42]
     return list(g1())
+
+
+def test_return_none():
+    """
+    >>> test_return_none()
+    ['g2']
+    """
+    # There used to be a refcount error in CPython when the return value
+    # stored in the StopIteration has a refcount of 1.
+    def g1():
+        yield from g2()
+    def g2():
+        yield "g2"
+        return None
+    return list(g1())
+
+
+def test_finally_return_none(raise_exc=None):
+    """
+    >>> gen = test_finally_return_none()
+    >>> next(gen)
+    'g2'
+    >>> next(gen)
+    Traceback (most recent call last):
+    StopIteration
+
+    >>> gen = test_finally_return_none()
+    >>> next(gen)
+    'g2'
+    >>> gen.throw(ValueError())
+    Traceback (most recent call last):
+    StopIteration
+    """
+    # There used to be a refcount error in CPython when the return value
+    # stored in the StopIteration has a refcount of 1.
+    def g1():
+        yield from g2()
+    def g2():
+        try:
+            yield "g2"
+        finally:
+            return None
+    return g1()
+
 
 def test_generator_return_value():
     """
