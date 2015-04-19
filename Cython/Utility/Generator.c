@@ -122,7 +122,18 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
 
     // most common case: plain StopIteration without or with separate argument
     if (likely(et == PyExc_StopIteration)) {
-        if (likely(!ev) || !PyObject_IsInstance(ev, PyExc_StopIteration)) {
+#if PY_VERSION_HEX >= 0x030300A0
+        if (ev && Py_TYPE(ev) == (PyTypeObject*)PyExc_StopIteration) {
+            value = ((PyStopIterationObject *)ev)->value;
+            Py_INCREF(value);
+            Py_DECREF(ev);
+            Py_XDECREF(tb);
+            Py_DECREF(et);
+            *pvalue = value;
+            return 0;
+        }
+#endif
+        if (!ev || !PyObject_IsInstance(ev, PyExc_StopIteration)) {
             // PyErr_SetObject() and friends put the value directly into ev
             if (!ev) {
                 Py_INCREF(Py_None);
