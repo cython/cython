@@ -5503,8 +5503,8 @@ class ReturnStatNode(StatNode):
                 # return value == raise StopIteration(value), but uncatchable
                 code.putln("%s = NULL;" % Naming.retval_cname)
                 if not self.value.is_none:
-                    code.putln("PyErr_SetObject(PyExc_StopIteration, %s);" %
-                        self.value.result_as(self.return_type))
+                    code.putln("PyErr_SetObject(PyExc_StopIteration, %s);" % (
+                        self.value.py_result()))
                 self.value.generate_disposal_code(code)
             else:
                 self.value.make_owned_reference(code)
