@@ -751,6 +751,34 @@ static int __pyx_Generator_init(void) {
 }
 
 
+/////////////// ReturnWithStopIteration.proto ///////////////
+
+#if CYTHON_COMPILING_IN_CPYTHON
+// CPython 3.3+ crashes in yield-from when the StopIteration is not instantiated
+#define __Pyx_ReturnWithStopIteration(value)  if (value == Py_None); else __Pyx__ReturnWithStopIteration(value)
+static void __Pyx__ReturnWithStopIteration(PyObject* value); /*proto*/
+#else
+#define __Pyx_ReturnWithStopIteration(value)  PyErr_SetObject(PyExc_StopIteration, value)
+#endif
+
+/////////////// ReturnWithStopIteration ///////////////
+
+#if CYTHON_COMPILING_IN_CPYTHON
+static void __Pyx__ReturnWithStopIteration(PyObject* value) {
+    PyObject *exc, *args;
+    args = PyTuple_New(1);
+    if (!args) return;
+    Py_INCREF(value);
+    PyTuple_SET_ITEM(args, 0, value);
+    exc = PyObject_Call(PyExc_StopIteration, args, NULL);
+    Py_DECREF(args);
+    if (!exc) return;
+    Py_INCREF(PyExc_StopIteration);
+    PyErr_Restore(PyExc_StopIteration, exc, NULL);
+}
+#endif
+
+
 //////////////////// PatchModuleWithGenerator.proto ////////////////////
 
 #ifdef __Pyx_Generator_USED

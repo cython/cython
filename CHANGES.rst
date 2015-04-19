@@ -44,6 +44,9 @@ Features added
 Bugs fixed
 ----------
 
+* Calling "yield from" from Python on a Cython generator that returned a value
+  triggered a crash in CPython (issue 23996).  This is now being worked around.
+
 * Language level 3 did not enable true division (a.k.a. float division) for
   integer operands.
 

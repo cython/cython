@@ -5503,7 +5503,10 @@ class ReturnStatNode(StatNode):
                 # return value == raise StopIteration(value), but uncatchable
                 code.putln("%s = NULL;" % Naming.retval_cname)
                 if not self.value.is_none:
-                    code.putln("PyErr_SetObject(PyExc_StopIteration, %s);" % (
+                    # CPython 3.3+ crashes in yield-from when the StopIteration is not instantiated
+                    code.globalstate.use_utility_code(
+                        UtilityCode.load_cached("ReturnWithStopIteration", "Generator.c"))
+                    code.putln("__Pyx_ReturnWithStopIteration(%s);" % (
                         self.value.py_result()))
                 self.value.generate_disposal_code(code)
             else:
