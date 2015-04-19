@@ -293,6 +293,7 @@ def test_decorated(*args):
     for i in args:
         yield i
 
+
 def test_return(a):
     """
     >>> d = dict()
@@ -308,6 +309,59 @@ def test_return(a):
     yield 1
     a['i_was_here'] = True
     return
+
+
+def test_return_in_finally(a):
+    """
+    >>> d = dict()
+    >>> obj = test_return_in_finally(d)
+    >>> next(obj)
+    1
+    >>> next(obj)
+    Traceback (most recent call last):
+    StopIteration
+    >>> d['i_was_here']
+    True
+
+    >>> obj = test_return_in_finally(None)
+    >>> next(obj)
+    1
+    >>> next(obj)
+    Traceback (most recent call last):
+    StopIteration
+    """
+    yield 1
+    try:
+        a['i_was_here'] = True
+    finally:
+        return
+
+
+def test_return_none_in_finally(a):
+    """
+    >>> d = dict()
+    >>> obj = test_return_none_in_finally(d)
+    >>> next(obj)
+    1
+    >>> next(obj)
+    Traceback (most recent call last):
+    StopIteration
+    >>> d['i_was_here']
+    True
+
+    >>> obj = test_return_none_in_finally(None)
+    >>> next(obj)
+    1
+    >>> next(obj)
+    Traceback (most recent call last):
+    StopIteration
+    """
+    yield 1
+    try:
+        a['i_was_here'] = True
+    finally:
+        return None
+
 
 def test_copied_yield(foo):
     """

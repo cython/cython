@@ -5501,10 +5501,10 @@ class ReturnStatNode(StatNode):
                         have_gil=self.in_nogil_context)
             elif self.in_generator:
                 # return value == raise StopIteration(value), but uncatchable
-                code.putln(
-                    "%s = NULL; PyErr_SetObject(PyExc_StopIteration, %s);" % (
-                        Naming.retval_cname,
-                        self.value.result_as(self.return_type)))
+                code.putln("%s = NULL;" % Naming.retval_cname)
+                if not self.value.is_none:
+                    code.putln("PyErr_SetObject(PyExc_StopIteration, %s);" %
+                        self.value.result_as(self.return_type))
                 self.value.generate_disposal_code(code)
             else:
                 self.value.make_owned_reference(code)
@@ -5516,7 +5516,10 @@ class ReturnStatNode(StatNode):
             self.value.free_temps(code)
         else:
             if self.return_type.is_pyobject:
-                code.put_init_to_py_none(Naming.retval_cname, self.return_type)
+                if self.in_generator:
+                    code.putln("%s = NULL;" % Naming.retval_cname)
+                else:
+                    code.put_init_to_py_none(Naming.retval_cname, self.return_type)
             elif self.return_type.is_returncode:
                 self.put_return(code, self.return_type.default_value)
 
