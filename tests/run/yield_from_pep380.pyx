@@ -398,9 +398,9 @@ def test_finally_return_none(raise_exc=None):
     >>> gen = test_finally_return_none()
     >>> next(gen)
     'g2'
-    >>> gen.throw(ValueError())
-    Traceback (most recent call last):
-    StopIteration
+    >>> try: gen.throw(ValueError())
+    ... except StopIteration: pass
+    ... else: print("FAILED")
     """
     # There used to be a refcount error in CPython when the return value
     # stored in the StopIteration has a refcount of 1.
