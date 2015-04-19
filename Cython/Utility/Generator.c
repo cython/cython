@@ -703,7 +703,7 @@ static PyTypeObject __pyx_GeneratorType_type = {
 static __pyx_GeneratorObject *__Pyx_Generator_New(__pyx_generator_body_t body,
                                                   PyObject *closure, PyObject *name, PyObject *qualname) {
     __pyx_GeneratorObject *gen =
-        PyObject_GC_New(__pyx_GeneratorObject, &__pyx_GeneratorType_type);
+        PyObject_GC_New(__pyx_GeneratorObject, __pyx_GeneratorType);
 
     if (gen == NULL)
         return NULL;

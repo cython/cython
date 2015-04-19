@@ -14,6 +14,8 @@ Bugs fixed
 * Tracing exception handling code could enter the trace function with an active
   exception set.
 
+* The internal generator function type was not shared across modules.
+
 * Comparisons of (inferred) ctuples failed to compile.
 
 * Using ``const`` C++ references in intermediate parts of longer expressions
