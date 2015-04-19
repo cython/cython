@@ -114,12 +114,6 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
         return 0;
     }
 
-    if (unlikely(et != PyExc_StopIteration) &&
-            unlikely(!PyErr_GivenExceptionMatches(et, PyExc_StopIteration))) {
-        __Pyx_ErrRestore(et, ev, tb);
-        return -1;
-    }
-
     // most common case: plain StopIteration without or with separate argument
     if (likely(et == PyExc_StopIteration)) {
 #if PY_VERSION_HEX >= 0x030300A0
@@ -144,7 +138,11 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
             *pvalue = ev;
             return 0;
         }
+    } else if (!PyErr_GivenExceptionMatches(et, PyExc_StopIteration)) {
+        __Pyx_ErrRestore(et, ev, tb);
+        return -1;
     }
+
     // otherwise: normalise and check what that gives us
     PyErr_NormalizeException(&et, &ev, &tb);
     if (unlikely(!PyObject_IsInstance(ev, PyExc_StopIteration))) {
