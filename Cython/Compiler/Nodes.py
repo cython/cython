@@ -5501,13 +5501,11 @@ class ReturnStatNode(StatNode):
                         have_gil=self.in_nogil_context)
             elif self.in_generator:
                 # return value == raise StopIteration(value), but uncatchable
-                code.putln("%s = NULL;" % Naming.retval_cname)
-                if not self.value.is_none:
-                    # CPython 3.3+ crashes in yield-from when the StopIteration is not instantiated
-                    code.globalstate.use_utility_code(
-                        UtilityCode.load_cached("ReturnWithStopIteration", "Generator.c"))
-                    code.putln("__Pyx_ReturnWithStopIteration(%s);" % (
-                        self.value.py_result()))
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("ReturnWithStopIteration", "Generator.c"))
+                code.putln("%s = NULL; __Pyx_ReturnWithStopIteration(%s);" % (
+                    Naming.retval_cname,
+                    self.value.py_result()))
                 self.value.generate_disposal_code(code)
             else:
                 self.value.make_owned_reference(code)

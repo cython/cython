@@ -755,7 +755,8 @@ static int __pyx_Generator_init(void) {
 
 #if CYTHON_COMPILING_IN_CPYTHON
 // CPython 3.3+ crashes in yield-from when the StopIteration is not instantiated
-#define __Pyx_ReturnWithStopIteration(value)  if (value == Py_None); else __Pyx__ReturnWithStopIteration(value)
+#define __Pyx_ReturnWithStopIteration(value)  \
+    if (value == Py_None) PyErr_SetNone(PyExc_StopIteration); else __Pyx__ReturnWithStopIteration(value)
 static void __Pyx__ReturnWithStopIteration(PyObject* value); /*proto*/
 #else
 #define __Pyx_ReturnWithStopIteration(value)  PyErr_SetObject(PyExc_StopIteration, value)
