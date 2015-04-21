@@ -45,7 +45,7 @@ except ImportError:
 from distutils.extension import Extension
 
 from .. import Utils
-from ..Utils import cached_function, cached_method, path_exists, find_root_package_dir
+from ..Utils import cached_function, cached_method, path_exists, find_root_package_dir, is_package_dir
 from ..Compiler.Main import Context, CompilationOptions, default_options
 
 join_path = cached_function(os.path.join)
@@ -383,7 +383,7 @@ def resolve_depend(depend, include_dirs):
 @cached_function
 def package(filename):
     dir = os.path.dirname(os.path.abspath(str(filename)))
-    if dir != filename and path_exists(join_path(dir, '__init__.py')):
+    if dir != filename and is_package_dir(dir):
         return package(dir) + (os.path.basename(dir),)
     else:
         return ()
