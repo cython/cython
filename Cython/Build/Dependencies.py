@@ -216,12 +216,13 @@ class DistutilsInfo(object):
                 self.values[key] = value
             elif type is transitive_list:
                 if key in self.values:
-                    all = self.values[key]
+                    # Change a *copy* of the list (Trac #845)
+                    all = self.values[key][:]
                     for v in value:
                         if v not in all:
                             all.append(v)
-                else:
-                    self.values[key] = value
+                    value = all
+                self.values[key] = value
         return self
 
     def subs(self, aliases):
@@ -250,9 +251,8 @@ class DistutilsInfo(object):
         for key, value in self.values.items():
             type = distutils_settings[key]
             if type in [list, transitive_list]:
-                getattr(extension, key).extend(value)
-            else:
-                setattr(extension, key, value)
+                value = getattr(extension, key) + list(value)
+            setattr(extension, key, value)
 
 @cython.locals(start=long, q=long, single_q=long, double_q=long, hash_mark=long,
                end=long, k=long, counter=long, quote_len=long)
