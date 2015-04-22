@@ -8,6 +8,8 @@ Latest changes
 Bugs fixed
 ----------
 
+* Crash when returning values on generator termination.
+
 * Runtime reported file paths of source files (e.g for profiling and tracing)
   are now relative to the build root directory instead of the main source file.
 
