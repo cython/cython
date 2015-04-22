@@ -56,6 +56,18 @@ Bugs fixed
 * The result of calling a C struct constructor no longer requires an intermediate
   assignment when coercing to a Python dict.
 
+* C++ exception declarations with mapping functions could fail to compile when
+  pre-declared in .pxd files.
+
+
+Latest changes
+==============
+
+Bugs fixed
+----------
+
+* Crash when returning values on generator termination.
+
 * Runtime reported file paths of source files (e.g for profiling and tracing)
   are now relative to the build root directory instead of the main source file.
 
@@ -68,9 +80,6 @@ Bugs fixed
 
 * Using ``const`` C++ references in intermediate parts of longer expressions
   could fail to compile.
-
-* C++ exception declarations with mapping functions could fail to compile when
-  pre-declared in .pxd files.
 
 * C++ compilation could fail with an ambiguity error in recent MacOS-X Xcode
   versions.
