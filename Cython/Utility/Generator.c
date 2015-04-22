@@ -151,7 +151,7 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
         PyObject* args = PyObject_GetAttr(ev, PYIDENT("args"));
         Py_DECREF(ev);
         if (likely(args)) {
-            value = PyObject_GetItem(args, 0);
+            value = PySequence_GetItem(args, 0);
             Py_DECREF(args);
         }
         if (unlikely(!value)) {
