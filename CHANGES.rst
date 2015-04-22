@@ -84,6 +84,9 @@ Bugs fixed
 * C++ compilation could fail with an ambiguity error in recent MacOS-X Xcode
   versions.
 
+* C++ compilation could fail with an ambiguity error in recent MacOS-X Xcode
+  versions.
+
 * C compilation could fail in pypy3.
 
 
