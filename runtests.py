@@ -331,8 +331,8 @@ VER_DEP_MODULES = {
     (3,3) : (operator.lt, lambda x: x in ['build.package_compilation',
                                           'run.yield_from_py33',
                                           ]),
-    (3,4,0,'beta',3) : (operator.le, lambda x: x in ['run.py34_signature',
-                                          ]),
+    (3,4): (operator.lt, lambda x: x in ['run.py34_signature',
+                                         ]),
 }
 
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
