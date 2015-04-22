@@ -64,6 +64,8 @@ typedef struct {
     char is_running;
 } __pyx_GeneratorObject;
 
+static PyTypeObject *__pyx_GeneratorType = 0;
+
 static __pyx_GeneratorObject *__Pyx_Generator_New(__pyx_generator_body_t body,
                                                   PyObject *closure, PyObject *name, PyObject *qualname);
 static int __pyx_Generator_init(void);
@@ -87,8 +89,6 @@ static PyObject *__Pyx_Generator_Next(PyObject *self);
 static PyObject *__Pyx_Generator_Send(PyObject *self, PyObject *value);
 static PyObject *__Pyx_Generator_Close(PyObject *self);
 static PyObject *__Pyx_Generator_Throw(PyObject *gen, PyObject *args);
-
-static PyTypeObject *__pyx_GeneratorType = 0;
 
 #define __Pyx_Generator_CheckExact(obj) (Py_TYPE(obj) == __pyx_GeneratorType)
 #define __Pyx_Generator_Undelegate(gen) Py_CLEAR((gen)->yieldfrom)
@@ -782,15 +782,13 @@ static void __Pyx__ReturnWithStopIteration(PyObject* value) {
 
 //////////////////// PatchModuleWithGenerator.proto ////////////////////
 
-#ifdef __Pyx_Generator_USED
 static PyObject* __Pyx_Generator_patch_module(PyObject* module, const char* py_code); /*proto*/
-#endif
 
 //////////////////// PatchModuleWithGenerator ////////////////////
 //@substitute: naming
 
-#ifdef __Pyx_Generator_USED
 static PyObject* __Pyx_Generator_patch_module(PyObject* module, const char* py_code) {
+#ifdef __Pyx_Generator_USED
     PyObject *globals, *result_obj;
     globals = PyDict_New();  if (unlikely(!globals)) goto ignore;
     if (unlikely(PyDict_SetItemString(globals, "_cython_generator_type", (PyObject*)__pyx_GeneratorType) < 0)) goto ignore;
@@ -803,31 +801,31 @@ static PyObject* __Pyx_Generator_patch_module(PyObject* module, const char* py_c
     return module;
 
 ignore:
-    PyErr_WriteUnraisable(module);
     Py_XDECREF(globals);
+    PyErr_WriteUnraisable(module);
     if (unlikely(PyErr_WarnEx(PyExc_RuntimeWarning, "Cython module failed to patch module with custom type", 1) < 0)) {
         Py_DECREF(module);
         module = NULL;
     }
+#else
+    // avoid "unused" warning
+    py_code++;
+#endif
     return module;
 }
-#endif
+
 
 //////////////////// PatchAsyncIO.proto ////////////////////
 
 // run after importing "asyncio" to patch Cython generator support into it
-#if defined(__Pyx_Generator_USED) && (!defined(CYTHON_PATCH_ASYNCIO) || CYTHON_PATCH_ASYNCIO)
 static PyObject* __Pyx_patch_asyncio(PyObject* module); /*proto*/
-#else
-#define __Pyx_patch_asyncio(module)  (module)
-#endif
 
 //////////////////// PatchAsyncIO ////////////////////
 //@requires: PatchModuleWithGenerator
 //@requires: PatchInspect
 
-#if defined(__Pyx_Generator_USED) && (!defined(CYTHON_PATCH_ASYNCIO) || CYTHON_PATCH_ASYNCIO)
 static PyObject* __Pyx_patch_asyncio(PyObject* module) {
+#if defined(__Pyx_Generator_USED) && (!defined(CYTHON_PATCH_ASYNCIO) || CYTHON_PATCH_ASYNCIO)
     PyObject *patch_module = NULL;
     static int asyncio_patched = 0;
     if (unlikely((!asyncio_patched) && module)) {
@@ -890,25 +888,24 @@ ignore:
         Py_DECREF(module);
         module = NULL;
     }
+#else
+    // avoid "unused" warning for __Pyx_Generator_patch_module()
+    if (0) return __Pyx_Generator_patch_module(module, NULL);
+#endif
     return module;
 }
-#endif
 
 
 //////////////////// PatchInspect.proto ////////////////////
 
 // run after importing "inspect" to patch Cython generator support into it
-#if defined(__Pyx_Generator_USED) && (!defined(CYTHON_PATCH_INSPECT) || CYTHON_PATCH_INSPECT)
 static PyObject* __Pyx_patch_inspect(PyObject* module); /*proto*/
-#else
-#define __Pyx_patch_inspect(module)  (module)
-#endif
 
 //////////////////// PatchInspect ////////////////////
 //@requires: PatchModuleWithGenerator
 
-#if defined(__Pyx_Generator_USED) && (!defined(CYTHON_PATCH_INSPECT) || CYTHON_PATCH_INSPECT)
 static PyObject* __Pyx_patch_inspect(PyObject* module) {
+#if defined(__Pyx_Generator_USED) && (!defined(CYTHON_PATCH_INSPECT) || CYTHON_PATCH_INSPECT)
     static int inspect_patched = 0;
     if (unlikely((!inspect_patched) && module)) {
         module = __Pyx_Generator_patch_module(
@@ -922,6 +919,9 @@ static PyObject* __Pyx_patch_inspect(PyObject* module) {
         );
         inspect_patched = 1;
     }
+#else
+    // avoid "unused" warning for __Pyx_Generator_patch_module()
+    if (0) return __Pyx_Generator_patch_module(module, NULL);
+#endif
     return module;
 }
-#endif
