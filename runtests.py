@@ -329,7 +329,7 @@ VER_DEP_MODULES = {
     (3,1): (_is_py3_before_32, lambda x: x in ['run.pyclass_special_methods',
                                                ]),
     (3,3) : (operator.lt, lambda x: x in ['build.package_compilation',
-                                          'yield_from_py33',
+                                          'run.yield_from_py33',
                                           ]),
     (3,4,0,'beta',3) : (operator.le, lambda x: x in ['run.py34_signature',
                                           ]),
