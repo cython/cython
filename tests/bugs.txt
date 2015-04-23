@@ -46,6 +46,8 @@ pyregr.test_exceptions
 pyregr.test_subprocess
 pyregr.test_zipfile64
 pyregr.test_tuple
+pyregr.test_urllib2net
+pyregr.test_urllibnet
 
 # Inlined generators
 all
