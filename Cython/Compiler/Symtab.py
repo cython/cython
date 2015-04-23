@@ -1251,6 +1251,8 @@ class ModuleScope(Scope):
                 cname = name
             else:
                 cname = self.mangle(Naming.func_prefix, name)
+        if visibility == 'extern' and type.optional_arg_count:
+          error(pos, "Extern functions cannot have default arguments values.")
         entry = self.lookup_here(name)
         if entry and entry.defined_in_pxd:
             if entry.visibility != "private":
