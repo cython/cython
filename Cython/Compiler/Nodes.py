@@ -6586,7 +6586,7 @@ class TryExceptStatNode(StatNode):
         else:
             # try block cannot raise exceptions, but we had to allocate the temps above,
             # so just keep the C compiler from complaining about them being unused
-            save_exc.putln("if (%s); else {/*mark used*/};" % '||'.join(exc_save_vars))
+            save_exc.putln("if (%s); else {/*mark used*/}" % '||'.join(exc_save_vars))
 
             def restore_saved_exception():
                 pass
