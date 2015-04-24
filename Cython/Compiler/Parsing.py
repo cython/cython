@@ -1333,7 +1333,7 @@ def p_from_import_statement(s, first_statement = 0):
         level = None
     if level is not None and s.sy in ('import', 'cimport'):
         # we are dealing with "from .. import foo, bar"
-        dotted_name_pos, dotted_name = s.position(), ''
+        dotted_name_pos, dotted_name = s.position(), s.context.intern_ustring('')
     else:
         if level is None and Future.absolute_import in s.context.future_directives:
             level = 0
