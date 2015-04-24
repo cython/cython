@@ -111,7 +111,7 @@ class Context(object):
         return Errors.report_error(exc)
 
     def find_module(self, module_name, relative_to=None, pos=None, need_pxd=1,
-                    check_module_name=True, absolute_fallback=True):
+                    absolute_fallback=True):
         # Finds and returns the module scope corresponding to
         # the given relative or absolute module name. If this
         # is the first time the module has been requested, finds
@@ -138,7 +138,7 @@ class Context(object):
         else:
             qualified_name = module_name
 
-        if check_module_name and not module_name_pattern.match(qualified_name):
+        if not module_name_pattern.match(qualified_name):
             raise CompileError(pos or (module_name, 0, 0),
                                "'%s' is not a valid module name" % module_name)
 
