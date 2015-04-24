@@ -19,6 +19,7 @@ from . import Errors
 # conditional metaclass. These options are processed by CmdLine called from
 # main() in this file.
 # import Parsing
+from .StringEncoding import EncodedString
 from .Scanning import PyrexScanner, FileSourceDescriptor
 from .Errors import PyrexError, CompileError, error, warning
 from .Symtab import ModuleScope
@@ -76,7 +77,8 @@ class Context(object):
         self.cpp = cpp
         self.options = options
 
-        self.pxds = {} # full name -> node tree
+        self.pxds = {}  # full name -> node tree
+        self._interned = {}  # (type(value), value, *key_args) -> interned_value
 
         standard_include_path = os.path.abspath(os.path.normpath(
             os.path.join(os.path.dirname(__file__), os.path.pardir, 'Includes')))
@@ -92,6 +94,27 @@ class Context(object):
             from .Future import print_function, unicode_literals, absolute_import, division
             self.future_directives.update([print_function, unicode_literals, absolute_import, division])
             self.modules['builtins'] = self.modules['__builtin__']
+
+    def intern_ustring(self, value, encoding=None):
+        key = (EncodedString, value, encoding)
+        try:
+            return self._interned[key]
+        except KeyError:
+            pass
+        value = EncodedString(value)
+        if encoding:
+            value.encoding = encoding
+        self._interned[key] = value
+        return value
+
+    def intern_value(self, value, *key):
+        key = (type(value), value) + key
+        try:
+            return self._interned[key]
+        except KeyError:
+            pass
+        self._interned[key] = value
+        return value
 
     # pipeline creation functions can now be found in Pipeline.py
 

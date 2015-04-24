@@ -421,14 +421,11 @@ class PyrexScanner(Scanner):
             if systring in self.keywords:
                 if systring == u'print' and print_function in self.context.future_directives:
                     self.keywords.discard('print')
-                    systring = EncodedString(systring)
                 elif systring == u'exec' and self.context.language_level >= 3:
                     self.keywords.discard('exec')
-                    systring = EncodedString(systring)
                 else:
                     sy = systring
-            else:
-                systring = EncodedString(systring)
+            systring = self.context.intern_ustring(systring)
         self.sy = sy
         self.systring = systring
         if False: # debug_scanner:

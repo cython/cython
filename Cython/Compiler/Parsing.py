@@ -53,7 +53,7 @@ class Ctx(object):
         d.update(kwds)
         return ctx
 
-def p_ident(s, message = "Expected an identifier"):
+def p_ident(s, message="Expected an identifier"):
     if s.sy == 'IDENT':
         name = s.systring
         s.next()
@@ -405,9 +405,9 @@ def p_trailer(s, node1):
         return p_index(s, node1)
     else: # s.sy == '.'
         s.next()
-        name = EncodedString( p_ident(s) )
+        name = p_ident(s)
         return ExprNodes.AttributeNode(pos,
-            obj = node1, attribute = name)
+            obj=node1, attribute=name)
 
 # arglist:  argument (',' argument)* [',']
 # argument: [test '='] test       # Really [keyword '='] test
@@ -434,7 +434,7 @@ def p_call_parse_args(s, allow_genexp = True):
                 if not arg.is_name:
                     s.error("Expected an identifier before '='",
                             pos=arg.pos)
-                encoded_name = EncodedString(arg.name)
+                encoded_name = s.context.intern_ustring(arg.name)
                 keyword = ExprNodes.IdentifierStringNode(
                     arg.pos, value=encoded_name)
                 arg = p_test(s)
@@ -643,7 +643,7 @@ def p_atom(s):
         else:
             return ExprNodes.StringNode(pos, value = bytes_value, unicode_value = unicode_value)
     elif sy == 'IDENT':
-        name = EncodedString( s.systring )
+        name = s.systring
         s.next()
         if name == "None":
             return ExprNodes.NoneNode(pos)
@@ -1295,7 +1295,6 @@ def p_import_statement(s):
     stats = []
     is_absolute = Future.absolute_import in s.context.future_directives
     for pos, target_name, dotted_name, as_name in items:
-        dotted_name = EncodedString(dotted_name)
         if kind == 'cimport':
             stat = Nodes.CImportStatNode(
                 pos,
@@ -1305,7 +1304,7 @@ def p_import_statement(s):
         else:
             if as_name and "." in dotted_name:
                 name_list = ExprNodes.ListNode(pos, args=[
-                    ExprNodes.IdentifierStringNode(pos, value=EncodedString("*"))])
+                    ExprNodes.IdentifierStringNode(pos, value=s.context.intern_ustring("*"))])
             else:
                 name_list = None
             stat = Nodes.SingleAssignmentNode(
@@ -1347,7 +1346,7 @@ def p_from_import_statement(s, first_statement = 0):
     is_cimport = kind == 'cimport'
     is_parenthesized = False
     if s.sy == '*':
-        imported_names = [(s.position(), "*", None, None)]
+        imported_names = [(s.position(), s.context.intern_ustring("*"), None, None)]
         s.next()
     else:
         if s.sy == '(':
@@ -1361,7 +1360,6 @@ def p_from_import_statement(s, first_statement = 0):
         imported_names.append(p_imported_name(s, is_cimport))
     if is_parenthesized:
         s.expect(')')
-    dotted_name = EncodedString(dotted_name)
     if dotted_name == '__future__':
         if not first_statement:
             s.error("from __future__ imports must occur at the beginning of the file")
@@ -1388,16 +1386,12 @@ def p_from_import_statement(s, first_statement = 0):
         imported_name_strings = []
         items = []
         for (name_pos, name, as_name, kind) in imported_names:
-            encoded_name = EncodedString(name)
             imported_name_strings.append(
-                ExprNodes.IdentifierStringNode(name_pos, value = encoded_name))
+                ExprNodes.IdentifierStringNode(name_pos, value=name))
             items.append(
-                (name,
-                 ExprNodes.NameNode(name_pos,
-                                    name = as_name or name)))
+                (name, ExprNodes.NameNode(name_pos, name=as_name or name)))
         import_list = ExprNodes.ListNode(
-            imported_names[0][0], args = imported_name_strings)
-        dotted_name = EncodedString(dotted_name)
+            imported_names[0][0], args=imported_name_strings)
         return Nodes.FromImportStatNode(pos,
             module = ExprNodes.ImportNode(dotted_name_pos,
                 module_name = ExprNodes.IdentifierStringNode(pos, value = dotted_name),
@@ -1405,8 +1399,8 @@ def p_from_import_statement(s, first_statement = 0):
                 name_list = import_list),
             items = items)
 
-imported_name_kinds = cython.declare(
-    set, set(['class', 'struct', 'union']))
+
+imported_name_kinds = cython.declare(set, set(['class', 'struct', 'union']))
 
 def p_imported_name(s, is_cimport):
     pos = s.position()
@@ -1418,6 +1412,7 @@ def p_imported_name(s, is_cimport):
     as_name = p_as_name(s)
     return (pos, name, as_name, kind)
 
+
 def p_dotted_name(s, as_allowed):
     pos = s.position()
     target_name = p_ident(s)
@@ -1428,7 +1423,8 @@ def p_dotted_name(s, as_allowed):
         names.append(p_ident(s))
     if as_allowed:
         as_name = p_as_name(s)
-    return (pos, target_name, u'.'.join(names), as_name)
+    return (pos, target_name, s.context.intern_ustring(u'.'.join(names)), as_name)
+
 
 def p_as_name(s):
     if s.sy == 'IDENT' and s.systring == 'as':
@@ -1436,6 +1432,7 @@ def p_as_name(s):
         return p_ident(s)
     else:
         return None
+
 
 def p_assert_statement(s):
     # s.sy == 'assert'
@@ -1448,6 +1445,7 @@ def p_assert_statement(s):
     else:
         value = None
     return Nodes.AssertStatNode(pos, cond = cond, value = value)
+
 
 statement_terminators = cython.declare(set, set([';', 'NEWLINE', 'EOF']))
 
@@ -1993,8 +1991,7 @@ def p_positional_and_keyword_args(s, end_sy_set, templates = None):
                 arg = Nodes.CComplexBaseTypeNode(base_type.pos,
                     base_type = base_type, declarator = declarator)
                 parsed_type = True
-            keyword_node = ExprNodes.IdentifierStringNode(
-                arg.pos, value = EncodedString(ident))
+            keyword_node = ExprNodes.IdentifierStringNode(arg.pos, value=ident)
             keyword_args.append((keyword_node, arg))
             was_keyword = True
 
@@ -2105,7 +2102,7 @@ def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
             s.next()
     elif looking_at_dotted_name(s):
         #print "p_c_simple_base_type: looking_at_type_name at", s.position()
-        name = s.systring
+        name = s.context.intern_ustring(s.systring)
         s.next()
         while s.sy == '.':
             module_path.append(name)
@@ -2361,7 +2358,7 @@ def p_c_declarator(s, ctx = Ctx(), empty = 0, is_type = 0, cmethod_flag = 0,
     if s.sy == '(':
         s.next()
         if s.sy == ')' or looking_at_name(s):
-            base = Nodes.CNameDeclaratorNode(pos, name = EncodedString(u""), cname = None)
+            base = Nodes.CNameDeclaratorNode(pos, name=s.context.intern_ustring(u""), cname=None)
             result = p_c_func_declarator(s, pos, ctx, base, cmethod_flag)
         else:
             result = p_c_declarator(s, ctx, empty = empty, is_type = is_type,
@@ -2454,7 +2451,7 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
     else:
         rhs = None
         if s.sy == 'IDENT':
-            name = EncodedString(s.systring)
+            name = s.systring
             if empty:
                 error(s.position(), "Declarator should be empty")
             s.next()
@@ -2913,11 +2910,10 @@ def p_decorators(s):
         s.next()
         decstring = p_dotted_name(s, as_allowed=0)[2]
         names = decstring.split('.')
-        decorator = ExprNodes.NameNode(pos, name=EncodedString(names[0]))
+        decorator = ExprNodes.NameNode(pos, name=s.context.intern_ustring(names[0]))
         for name in names[1:]:
-            decorator = ExprNodes.AttributeNode(pos,
-                                           attribute=EncodedString(name),
-                                           obj=decorator)
+            decorator = ExprNodes.AttributeNode(
+                pos, attribute=s.context.intern_ustring(name), obj=decorator)
         if s.sy == '(':
             decorator = p_call(s, decorator)
         decorators.append(Nodes.DecoratorNode(pos, decorator=decorator))
@@ -2928,7 +2924,7 @@ def p_def_statement(s, decorators=None):
     # s.sy == 'def'
     pos = s.position()
     s.next()
-    name = EncodedString( p_ident(s) )
+    name = p_ident(s)
     s.expect('(')
     args, star_arg, starstar_arg = p_varargslist(s, terminator=')')
     s.expect(')')
@@ -2977,8 +2973,8 @@ def p_class_statement(s, decorators):
     # s.sy == 'class'
     pos = s.position()
     s.next()
-    class_name = EncodedString( p_ident(s) )
-    class_name.encoding = s.source_encoding
+    class_name = EncodedString(p_ident(s))
+    class_name.encoding = s.source_encoding  # FIXME: why is this needed?
     arg_tuple = None
     keyword_dict = None
     starstar_arg = None
