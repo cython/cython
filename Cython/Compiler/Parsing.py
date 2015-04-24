@@ -2102,7 +2102,7 @@ def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
             s.next()
     elif looking_at_dotted_name(s):
         #print "p_c_simple_base_type: looking_at_type_name at", s.position()
-        name = s.context.intern_ustring(s.systring)
+        name = s.systring
         s.next()
         while s.sy == '.':
             module_path.append(name)
