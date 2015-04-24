@@ -1180,10 +1180,9 @@ class CTupleBaseTypeNode(CBaseTypeNode):
                 error(c.pos, "Tuple types can't (yet) contain Python objects.")
                 return error_type
             component_types.append(type)
-        type = PyrexTypes.c_tuple_type(component_types)
-        entry = env.declare_tuple_type(self.pos, type)
+        entry = env.declare_tuple_type(self.pos, component_types)
         entry.used = True
-        return type
+        return entry.type
 
 
 class FusedTypeNode(CBaseTypeNode):

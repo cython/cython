@@ -6529,9 +6529,7 @@ class TupleNode(SequenceNode):
         if any(type.is_pyobject or type.is_unspecified or type.is_fused for type in arg_types):
             return tuple_type
         else:
-            type = PyrexTypes.c_tuple_type(arg_types)
-            env.declare_tuple_type(self.pos, type)
-            return type
+            return env.declare_tuple_type(self.pos, arg_types).type
 
     def analyse_types(self, env, skip_children=False):
         if len(self.args) == 0:
@@ -6542,8 +6540,7 @@ class TupleNode(SequenceNode):
             if not skip_children:
                 self.args = [arg.analyse_types(env) for arg in self.args]
             if not self.mult_factor and not any(arg.type.is_pyobject or arg.type.is_fused for arg in self.args):
-                self.type = PyrexTypes.c_tuple_type(arg.type for arg in self.args)
-                env.declare_tuple_type(self.pos, self.type)
+                self.type = env.declare_tuple_type(self.pos, (arg.type for arg in self.args)).type
                 self.is_temp = 1
                 return self
             else:

@@ -3684,13 +3684,11 @@ class CTupleType(CType):
         env.use_utility_code(self._convert_from_py_code)
         return True
 
-c_tuple_types = {}
+
 def c_tuple_type(components):
     components = tuple(components)
-    tuple_type = c_tuple_types.get(components)
-    if tuple_type is None:
-        cname = Naming.ctuple_type_prefix + type_list_identifier(components)
-        tuple_type = c_tuple_types[components] = CTupleType(cname, components)
+    cname = Naming.ctuple_type_prefix + type_list_identifier(components)
+    tuple_type = CTupleType(cname, components)
     return tuple_type
 
 
