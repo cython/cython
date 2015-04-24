@@ -4,10 +4,9 @@
 import cython
 
 try:
-    from builtins import next # Py3k
+    from collections.abc import Generator
 except ImportError:
-    def next(it):
-        return it.next()
+    from collections import Generator
 
 
 def very_simple():
@@ -384,3 +383,23 @@ def test_yield_in_const_conditional_true():
     """
     if True:
         print((yield 1))
+
+
+def test_generator_abc():
+    """
+    >>> isinstance(test_generator_abc(), Generator)
+    True
+    >>> isinstance((lambda:(yield))(), Generator)
+    True
+
+    >>> try:
+    ...     from collections.abc import Generator
+    ... except ImportError:
+    ...     from collections import Generator
+
+    >>> isinstance(test_generator_abc(), Generator)
+    True
+    >>> isinstance((lambda:(yield))(), Generator)
+    True
+    """
+    yield 1

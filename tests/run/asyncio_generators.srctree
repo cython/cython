@@ -63,6 +63,15 @@ runloop(import_asyncio.wait3)       # 2b)
 runloop(from_asyncio_import.wait3)  # 3a)
 runloop(import_asyncio.wait3)       # 3b)
 
+try:
+    from collections.abc import Generator
+except ImportError:
+    from collections import Generator
+
+assert isinstance(from_asyncio_import.wait3(), Generator)
+assert isinstance(import_asyncio.wait3(), Generator)
+assert isinstance((lambda:(yield))(), Generator)
+
 
 ######## import_asyncio.pyx ########
 # cython: binding=True

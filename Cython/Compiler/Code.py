@@ -396,6 +396,9 @@ class UtilityCode(UtilityCodeBase):
     def inject_string_constants(self, impl, output):
         """Replace 'PYIDENT("xyz")' by a constant Python identifier cname.
         """
+        if 'PYIDENT(' not in impl:
+            return False, impl
+
         replacements = {}
         def externalise(matchobj):
             name = matchobj.group(1)
@@ -406,8 +409,25 @@ class UtilityCode(UtilityCodeBase):
                     StringEncoding.EncodedString(name)).cname
             return cname
 
-        impl = re.sub('PYIDENT\("([^"]+)"\)', externalise, impl)
+        impl = re.sub(r'PYIDENT\("([^"]+)"\)', externalise, impl)
+        assert 'PYIDENT(' not in impl
         return bool(replacements), impl
+
+    def wrap_c_strings(self, impl):
+        """Replace CSTRING('''xyz''') by a C compatible string
+        """
+        if 'CSTRING(' not in impl:
+            return impl
+
+        def split_string(matchobj):
+            content = matchobj.group(1).replace('"', '\042')
+            return ''.join(
+                '"%s\\n"\n' % line if not line.endswith('\\') or line.endswith('\\\\') else '"%s"\n' % line[:-1]
+                for line in content.splitlines())
+
+        impl = re.sub(r'CSTRING\(\s*"""([^"]+|"[^"])"""\s*\)', split_string, impl)
+        assert 'CSTRING(' not in impl
+        return impl
 
     def put_code(self, output):
         if self.requires:
@@ -418,7 +438,7 @@ class UtilityCode(UtilityCodeBase):
                 self.format_code(self.proto),
                 '%s_proto' % self.name)
         if self.impl:
-            impl = self.format_code(self.impl)
+            impl = self.format_code(self.wrap_c_strings(self.impl))
             is_specialised, impl = self.inject_string_constants(impl, output)
             if not is_specialised:
                 # no module specific adaptations => can be reused
