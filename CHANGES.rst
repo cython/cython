@@ -21,6 +21,13 @@ Features added
   This can be disabled by C compiling the module with
   "-D CYTHON_PATCH_ASYNCIO=0" or "-D CYTHON_PATCH_INSPECT=0"
 
+* When generators are used in a Cython module, the new ``Generator`` ABC
+  will be patched into the ``collections`` or ``collections.abc``
+  stdlib module if it is not there yet.  It allows tests for
+  ``isinstance(obj, Generator)`` which includes both Python generators
+  and Cython generators.  This can be disabled by C compiling the module
+  with "-D CYTHON_PATCH_ABC=0".
+
 * Adding/subtracting/dividing/modulus and equality comparisons with
   constant Python floats and small integers are faster.
 
