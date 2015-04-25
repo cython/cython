@@ -2,8 +2,8 @@
 Cython Changelog
 ================
 
-0.22.1 (2015-04-??)
-===================
+Latest changes
+==============
 
 Features added
 --------------
@@ -72,8 +72,8 @@ Bugs fixed
   pre-declared in .pxd files.
 
 
-Latest changes
-==============
+0.22.1 (2015-04-??)
+===================
 
 Bugs fixed
 ----------
