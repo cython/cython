@@ -830,14 +830,19 @@ static int __Pyx_patch_abc(void) {
     static int abc_patched = 0;
     if (!abc_patched) {
         PyObject *module;
-        module = PyImport_ImportModule("collections.abc");
+        module = PyImport_ImportModule((PY_MAJOR_VERSION >= 3) ? "collections.abc" : "collections");
         if (!module) {
-            PyErr_Clear();
-            module = PyImport_ImportModule("collections");
-            if (!module)
-                PyErr_Clear();
-        }
-        if (module) {
+            PyErr_WriteUnraisable(NULL);
+            if (unlikely(PyErr_WarnEx(PyExc_RuntimeWarning, "Cython module failed to patch "
+                    #if PY_MAJOR_VERSION >= 3
+                    "collections.abc.Generator"
+                    #else
+                    "collections.Generator"
+                    #endif
+                    , 1) < 0)) {
+                return -1;
+            }
+        } else {
             PyObject *abc = PyObject_GetAttrString(module, "Generator");
             if (abc) {
                 abc_patched = 1;
