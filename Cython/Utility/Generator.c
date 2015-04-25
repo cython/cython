@@ -830,11 +830,11 @@ static int __Pyx_patch_abc(void) {
     static int abc_patched = 0;
     if (!abc_patched) {
         PyObject *module;
-        module = PyImport_ImportModule((PY_MAJOR_VERSION >= 3) ? "collections.abc" : "collections");
+        module = PyImport_ImportModule((PY_VERSION_HEX >= 0x03030000) ? "collections.abc" : "collections");
         if (!module) {
             PyErr_WriteUnraisable(NULL);
             if (unlikely(PyErr_WarnEx(PyExc_RuntimeWarning, "Cython module failed to patch "
-                    #if PY_MAJOR_VERSION >= 3
+                    #if PY_VERSION_HEX >= 0x03030000
                     "collections.abc.Generator"
                     #else
                     "collections.Generator"
