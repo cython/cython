@@ -6546,29 +6546,28 @@ class TupleNode(SequenceNode):
             self.is_temp = False
             self.is_literal = True
             return self
+
+        if not skip_children:
+            self.args = [arg.analyse_types(env) for arg in self.args]
+        if not self.mult_factor and not any((arg.type.is_pyobject or arg.type.is_fused) for arg in self.args):
+            self.type = env.declare_tuple_type(self.pos, (arg.type for arg in self.args)).type
+            self.is_temp = 1
+            return self
+
+        node = SequenceNode.analyse_types(self, env, skip_children=True)
+        if not all(child.is_literal for child in node.args):
+            return node
+
+        if not node.mult_factor or (
+                node.mult_factor.is_literal and isinstance(node.mult_factor.constant_result, (int, long))):
+            node.is_temp = False
+            node.is_literal = True
         else:
-            if not skip_children:
-                self.args = [arg.analyse_types(env) for arg in self.args]
-            if not self.mult_factor and not any(arg.type.is_pyobject or arg.type.is_fused for arg in self.args):
-                self.type = env.declare_tuple_type(self.pos, (arg.type for arg in self.args)).type
-                self.is_temp = 1
-                return self
-            else:
-                node = SequenceNode.analyse_types(self, env, skip_children=True)
-                for child in node.args:
-                    if not child.is_literal:
-                        break
-                else:
-                    if not node.mult_factor or node.mult_factor.is_literal and \
-                           isinstance(node.mult_factor.constant_result, (int, long)):
-                        node.is_temp = False
-                        node.is_literal = True
-                    else:
-                        if not node.mult_factor.type.is_pyobject:
-                            node.mult_factor = node.mult_factor.coerce_to_pyobject(env)
-                        node.is_temp = True
-                        node.is_partly_literal = True
-                return node
+            if not node.mult_factor.type.is_pyobject:
+                node.mult_factor = node.mult_factor.coerce_to_pyobject(env)
+            node.is_temp = True
+            node.is_partly_literal = True
+        return node
 
     def coerce_to(self, dst_type, env):
         if self.type.is_ctuple:
