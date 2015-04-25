@@ -832,7 +832,15 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
         if not os.path.exists(options.cache):
             os.makedirs(options.cache)
     to_compile.sort()
-    if len(to_compile) <= 1:
+    # Drop "priority" component of "to_compile" entries and add a
+    # simple progress indicator.
+    N = len(to_compile)
+    progress_fmt = "[{:%i}/{}] " % len(str(N))
+    for i in range(N):
+        progress = progress_fmt.format(i+1, N)
+        to_compile[i] = to_compile[i][1:] + (progress,)
+
+    if N <= 1:
         nthreads = 0
     if nthreads:
         # Requires multiprocessing (or Python >= 2.6)
@@ -862,7 +870,7 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
             pool.join()
     if not nthreads:
         for args in to_compile:
-            cythonize_one(*args[1:])
+            cythonize_one(*args)
 
     if exclude_failures:
         failed_modules = set()
@@ -927,7 +935,7 @@ else:
 
 # TODO: Share context? Issue: pyx processing leaks into pxd module
 @record_results
-def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None, raise_on_failure=True, embedded_metadata=None):
+def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None, raise_on_failure=True, embedded_metadata=None, progress=""):
     from ..Compiler.Main import compile, default_options
     from ..Compiler.Errors import CompileError, PyrexError
 
@@ -944,7 +952,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None, raise_on_f
             options.cache, "%s-%s%s" % (os.path.basename(c_file), fingerprint, gzip_ext))
         if os.path.exists(fingerprint_file):
             if not quiet:
-                print("Found compiled %s in cache" % pyx_file)
+                print("%sFound compiled %s in cache" % (progress, pyx_file))
             os.utime(fingerprint_file, None)
             g = gzip_open(fingerprint_file, 'rb')
             try:
@@ -957,7 +965,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None, raise_on_f
                 g.close()
             return
     if not quiet:
-        print("Cythonizing %s" % pyx_file)
+        print("%sCythonizing %s" % (progress, pyx_file))
     if options is None:
         options = CompilationOptions(default_options)
     options.output_file = c_file
@@ -1000,7 +1008,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None, raise_on_f
 def cythonize_one_helper(m):
     import traceback
     try:
-        return cythonize_one(*m[1:])
+        return cythonize_one(*m)
     except Exception:
         traceback.print_exc()
         raise
