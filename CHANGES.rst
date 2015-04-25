@@ -48,6 +48,11 @@ Features added
 * ``NULL`` is allowed as default argument when embedding signatures.
   This fixes ticket 843.
 
+* When compiling with ``--embed``, the internal module name is changed to
+  ``__main__`` to allow arbitrary program names, including those that would
+  be invalid for modules.  Note that this prevents reuse of the generated
+  C code as an importable module.
+
 Bugs fixed
 ----------
 
