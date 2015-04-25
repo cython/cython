@@ -2,8 +2,8 @@
 Cython Changelog
 ================
 
-Latest changes
-==============
+0.22.1 (2015-04-??)
+===================
 
 Features added
 --------------
@@ -100,6 +100,9 @@ Bugs fixed
   versions.
 
 * C compilation could fail in pypy3.
+
+* When compiling multiple modules, external library dependencies could leak
+  into later compiler runs.  Fix by Jeroen Demeyer.  This fixes ticket 845.
 
 
 0.22 (2015-02-11)
