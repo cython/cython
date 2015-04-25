@@ -23,10 +23,10 @@ Features added
 
 * When generators are used in a Cython module, the new ``Generator`` ABC
   will be patched into the ``collections`` or ``collections.abc``
-  stdlib module if it is not there yet.  It allows tests for
+  stdlib module if it is not there yet.  It allows type checks for
   ``isinstance(obj, Generator)`` which includes both Python generators
   and Cython generators.  This can be disabled by C compiling the module
-  with "-D CYTHON_PATCH_ABC=0".
+  with "-D CYTHON_PATCH_ABC=0".  See https://bugs.python.org/issue24018
 
 * Adding/subtracting/dividing/modulus and equality comparisons with
   constant Python floats and small integers are faster.
@@ -57,7 +57,8 @@ Bugs fixed
 ----------
 
 * Calling "yield from" from Python on a Cython generator that returned a value
-  triggered a crash in CPython (issue 23996).  This is now being worked around.
+  triggered a crash in CPython.  This is now being worked around.
+  See https://bugs.python.org/issue23996
 
 * Language level 3 did not enable true division (a.k.a. float division) for
   integer operands.
