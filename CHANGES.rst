@@ -31,6 +31,8 @@ Bugs fixed
 
 * C compilation could fail in pypy3.
 
+* Fixed a memory leak in the compiler when compiling multiple modules.
+
 * When compiling multiple modules, external library dependencies could leak
   into later compiler runs.  Fix by Jeroen Demeyer.  This fixes ticket 845.
 
