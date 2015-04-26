@@ -835,7 +835,7 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
     # Drop "priority" component of "to_compile" entries and add a
     # simple progress indicator.
     N = len(to_compile)
-    progress_fmt = "[{:%i}/{}] " % len(str(N))
+    progress_fmt = "[{0:%d}/{1}] " % len(str(N))
     for i in range(N):
         progress = progress_fmt.format(i+1, N)
         to_compile[i] = to_compile[i][1:] + (progress,)
