@@ -261,6 +261,15 @@ PyObject *__Pyx_Generator_SendEx(__pyx_GeneratorObject *self, PyObject *value) {
 }
 
 static CYTHON_INLINE
+PyObject *__Pyx_Generator_MethodReturn(PyObject *retval) {
+    if (unlikely(!retval && !PyErr_Occurred())) {
+        // method call must not terminate with NULL without setting an exception
+        PyErr_SetNone(PyExc_StopIteration);
+    }
+    return retval;
+}
+
+static CYTHON_INLINE
 PyObject *__Pyx_Generator_FinishDelegation(__pyx_GeneratorObject *gen) {
     PyObject *ret;
     PyObject *val = NULL;
@@ -295,6 +304,7 @@ static PyObject *__Pyx_Generator_Next(PyObject *self) {
 }
 
 static PyObject *__Pyx_Generator_Send(PyObject *self, PyObject *value) {
+    PyObject *retval;
     __pyx_GeneratorObject *gen = (__pyx_GeneratorObject*) self;
     PyObject *yf = gen->yieldfrom;
     if (unlikely(__Pyx_Generator_CheckRunning(gen)))
@@ -317,9 +327,11 @@ static PyObject *__Pyx_Generator_Send(PyObject *self, PyObject *value) {
         if (likely(ret)) {
             return ret;
         }
-        return __Pyx_Generator_FinishDelegation(gen);
+        retval = __Pyx_Generator_FinishDelegation(gen);
+    } else {
+        retval = __Pyx_Generator_SendEx(gen, value);
     }
-    return __Pyx_Generator_SendEx(gen, value);
+    return __Pyx_Generator_MethodReturn(retval);
 }
 
 //   This helper function is used by gen_close and gen_throw to
@@ -413,7 +425,7 @@ static PyObject *__Pyx_Generator_Throw(PyObject *self, PyObject *args) {
             Py_DECREF(yf);
             __Pyx_Generator_Undelegate(gen);
             if (err < 0)
-                return __Pyx_Generator_SendEx(gen, NULL);
+                return __Pyx_Generator_MethodReturn(__Pyx_Generator_SendEx(gen, NULL));
             goto throw_here;
         }
         gen->is_running = 1;
@@ -440,11 +452,11 @@ static PyObject *__Pyx_Generator_Throw(PyObject *self, PyObject *args) {
         if (!ret) {
             ret = __Pyx_Generator_FinishDelegation(gen);
         }
-        return ret;
+        return __Pyx_Generator_MethodReturn(ret);
     }
 throw_here:
     __Pyx_Raise(typ, val, tb, NULL);
-    return __Pyx_Generator_SendEx(gen, NULL);
+    return __Pyx_Generator_MethodReturn(__Pyx_Generator_SendEx(gen, NULL));
 }
 
 static int __Pyx_Generator_traverse(PyObject *self, visitproc visit, void *arg) {
