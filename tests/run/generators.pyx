@@ -329,10 +329,27 @@ def test_return_in_finally(a):
     >>> d['i_was_here']
     True
 
+    >>> d = dict()
+    >>> obj = test_return_in_finally(d)
+    >>> next(obj)
+    1
+    >>> obj.send(2)
+    Traceback (most recent call last):
+    StopIteration
+    >>> d['i_was_here']
+    True
+
     >>> obj = test_return_in_finally(None)
     >>> next(obj)
     1
     >>> next(obj)
+    Traceback (most recent call last):
+    StopIteration
+
+    >>> obj = test_return_in_finally(None)
+    >>> next(obj)
+    1
+    >>> obj.send(2)
     Traceback (most recent call last):
     StopIteration
     """
