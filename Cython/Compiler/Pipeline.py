@@ -27,10 +27,7 @@ def abort_on_errors(node):
 def parse_stage_factory(context):
     def parse(compsrc):
         source_desc = compsrc.source_desc
-        if Options.embed:
-            full_module_name = "__main__"
-        else:
-            full_module_name = compsrc.full_module_name
+        full_module_name = compsrc.full_module_name
         initial_pos = (source_desc, 1, 0)
         saved_cimport_from_pyx, Options.cimport_from_pyx = Options.cimport_from_pyx, False
         scope = context.find_module(full_module_name, pos = initial_pos, need_pxd = 0)
