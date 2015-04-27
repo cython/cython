@@ -881,6 +881,7 @@ def mk_gen():
         def send(self, value):
             raise StopIteration
 
+        @abstractmethod
         def throw(self, typ, val=None, tb=None):
             if val is None:
                 if tb is None:
