@@ -845,13 +845,10 @@ static int __Pyx_patch_abc(void) {
         module = PyImport_ImportModule((PY_VERSION_HEX >= 0x03030000) ? "collections.abc" : "collections");
         if (!module) {
             PyErr_WriteUnraisable(NULL);
-            if (unlikely(PyErr_WarnEx(PyExc_RuntimeWarning, "Cython module failed to patch "
-                    #if PY_VERSION_HEX >= 0x03030000
-                    "collections.abc.Generator"
-                    #else
-                    "collections.Generator"
-                    #endif
-                    , 1) < 0)) {
+            if (unlikely(PyErr_WarnEx(PyExc_RuntimeWarning,
+                    ((PY_VERSION_HEX >= 0x03030000) ?
+                        "Cython module failed to patch collections.abc.Generator" :
+                        "Cython module failed to patch collections.Generator"), 1) < 0)) {
                 return -1;
             }
         } else {
