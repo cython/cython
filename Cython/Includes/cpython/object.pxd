@@ -22,6 +22,9 @@ cdef extern from "Python.h":
     ctypedef Py_hash_t (*hashfunc)(object)
     ctypedef object (*reprfunc)(object)
 
+    ctypedef int (*cmpfunc)(object, object)
+    ctypedef object (*richcmpfunc)(object, object, int)
+
     # The following functions use 'PyObject*' as first argument instead of 'object' to prevent
     # accidental reference counting when calling them during a garbage collection run.
     ctypedef void (*destructor)(PyObject*)
@@ -45,6 +48,11 @@ cdef extern from "Python.h":
         hashfunc tp_hash
         reprfunc tp_str
         reprfunc tp_repr
+
+        cmpfunc tp_compare
+        richcmpfunc tp_richcompare
+
+        PyTypeObject* tp_base
 
     ctypedef struct PyObject:
         Py_ssize_t ob_refcnt
