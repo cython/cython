@@ -1,3 +1,4 @@
+# tag: forin
 def go_py():
     """
     >>> go_py()
@@ -52,6 +53,16 @@ def go_c_int(int a, int b):
     for i in range(a,b,2):
         print u"Spam!"
 
+def go_3_int(int a, int b, int c):
+    """
+    >>> go_3_int(1,5,2)
+    Spam!
+    Spam!
+    """
+    cdef int i
+    for i in range(a,b,c):
+        print u"Spam!"
+
 def go_c_all():
     """
     >>> go_c_all()
@@ -75,6 +86,19 @@ def go_c_all_exprs(x):
     for i in range(4*x,2*x,-3):
         print u"Spam!"
 
+def go_c_3_exprs(x):
+    """
+    >>> go_c_3_exprs(1)
+    Spam!
+    Spam!
+    >>> go_c_3_exprs(3)
+    Spam!
+    Spam!
+    """
+    cdef int i
+    for i in range(4*x,2*x,-1*x):
+        print u"Spam!"
+
 def go_c_const_exprs():
     """
     >>> go_c_const_exprs()
@@ -87,6 +111,15 @@ def go_c_const_exprs():
 
 def f(x):
     return 2*x
+
+def go_3_calc(x):
+    """
+    >>> go_3_calc(2)
+    Spam!
+    """
+    cdef int i
+    for i in range(2*f(x),f(x), -1*f(x)):
+        print u"Spam!"
 
 def go_c_calc(x):
     """

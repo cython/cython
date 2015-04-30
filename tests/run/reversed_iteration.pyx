@@ -256,13 +256,18 @@ def reversed_range_step3_py_args(a, b):
     >>> reversed_range_step3_py_args(1, 1)
     ([], 99)
 
+    >>> [ i for i in _reversed(range(10**50, 10**50+4, 3)) ] == [10**50+3, 10**50]
+    True
+    >>> reversed_range_step3_py_args(10**50, 10**50+4) == ([10**50+3, 10**50], 10**50)
+    True
+
     >>> reversed_range_step3_py_args(set(), 1) # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: ...integer...
+    TypeError: ...set...
 
     >>> reversed_range_step3_py_args(1, set()) # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: ...integer...
+    TypeError: ...set...
     """
     i = 99
     result = []
@@ -294,11 +299,11 @@ def reversed_range_step3_neg_py_args(a, b):
 
     >>> reversed_range_step3_neg_py_args(set(), 1) # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: ...integer...
+    TypeError: ...set...
 
     >>> reversed_range_step3_neg_py_args(1, set()) # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: ...integer...
+    TypeError: ...set...
     """
     i = 99
     result = []
@@ -313,9 +318,8 @@ def reversed_range_step3_py_obj_left(a, int b):
     TypeError: an integer is required
     """
     cdef long i
-    result = []
     for i in reversed(range(a, b, 3)):
-        result.append(i)
+        pass
 
 def reversed_range_step3_py_obj_right(int a, b):
     """
@@ -324,9 +328,8 @@ def reversed_range_step3_py_obj_right(int a, b):
     TypeError: an integer is required
     """
     cdef long i
-    result = []
     for i in reversed(range(a, b, 3)):
-        result.append(i)
+        pass
 
 def reversed_range_step3_neg_py_obj_left(a, int b):
     """
@@ -335,9 +338,8 @@ def reversed_range_step3_neg_py_obj_left(a, int b):
     TypeError: an integer is required
     """
     cdef long i
-    result = []
     for i in reversed(range(a, b, -3)):
-        result.append(i)
+        pass
 
 def reversed_range_step3_neg_py_obj_right(int a, b):
     """
@@ -346,10 +348,10 @@ def reversed_range_step3_neg_py_obj_right(int a, b):
     TypeError: an integer is required
     """
     cdef long i
-    result = []
     for i in reversed(range(a, b, -3)):
-        result.append(i)
+        pass
 
+@cython.test_assert_path_exists('//ForFromStatNode')
 @cython.test_fail_if_path_exists('//ForInStatNode')
 def reversed_range_constant():
     """
@@ -806,3 +808,361 @@ def range_unsigned_by_neg_3(int a, int b):
     """
     cdef unsigned int i
     return [i for i in range(b, a, -3)]
+
+
+@cython.test_assert_path_exists('//ForFromStatNode')
+def reversed_pos_var_step(int c):
+    """
+    >>> reversed_pos_var_step(1)
+    ([4, 3, 2, 1, 0], 0)
+    >>> reversed_pos_var_step(2)
+    ([4, 2, 0], 0)
+    >>> reversed_pos_var_step(3)
+    ([3, 0], 0)
+    >>> reversed_pos_var_step(5)
+    ([0], 0)
+    >>> reversed_pos_var_step(0) # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: range() ...arg...must not be zero
+    """
+    cdef int i = 99
+    result = []
+    for i in reversed(range(0, 5, c)):
+        result.append(i)
+    return result, i
+
+@cython.test_assert_path_exists('//ForFromStatNode')
+def reversed_neg_var_step(int c):
+    """
+    >>> reversed_neg_var_step(-1)
+    ([1, 2, 3, 4, 5], 5)
+    >>> reversed_neg_var_step(-2)
+    ([1, 3, 5], 5)
+    >>> reversed_neg_var_step(-3)
+    ([2, 5], 5)
+    >>> reversed_neg_var_step(-5)
+    ([5], 5)
+    """
+    cdef int i = 99
+    result = []
+    for i in reversed(range(5, 0, c)):
+        result.append(i)
+    return result, i
+
+@cython.test_assert_path_exists('//ForFromStatNode')
+def reversed_all_var_pos_step(int a, int b, int c):
+    """
+    >>> reversed_all_var_pos_step(-10, -7, 3)
+    ([-10], -10)
+    >>> reversed_all_var_pos_step(-10, -6, 3)
+    ([-7, -10], -10)
+    >>> reversed_all_var_pos_step(-10, -5, 3)
+    ([-7, -10], -10)
+    >>> reversed_all_var_pos_step(-10, -4, 3)
+    ([-7, -10], -10)
+    >>> reversed_all_var_pos_step(-10, -3, 3)
+    ([-4, -7, -10], -10)
+    >>> reversed_all_var_pos_step(-2, 5, 3)
+    ([4, 1, -2], -2)
+    >>> reversed_all_var_pos_step(-1, 5, 3)
+    ([2, -1], -1)
+    >>> reversed_all_var_pos_step(0, 5, 3)
+    ([3, 0], 0)
+    >>> reversed_all_var_pos_step(1, 5, 3)
+    ([4, 1], 1)
+    >>> reversed_all_var_pos_step(2, 5, 3)
+    ([2], 2)
+    >>> reversed_all_var_pos_step(-5, -5, 1)
+    ([], 99)
+    >>> reversed_all_var_pos_step(-5, -7, 1)
+    ([], 99)
+    >>> reversed_all_var_pos_step(5, 5, 1)
+    ([], 99)
+    >>> reversed_all_var_pos_step(7, 5, 1)
+    ([], 99)
+    """
+    cdef int i = 99
+    result = []
+    for i in reversed(range(a, b, c)):
+        result.append(i)
+    return result, i
+
+@cython.test_assert_path_exists('//ForFromStatNode')
+def reversed_all_var_neg_step(int a, int b, int c):
+    """
+    >>> reversed_all_var_neg_step(-7, -10, -3)
+    ([-7], -7)
+    >>> reversed_all_var_neg_step(-6, -10, -3)
+    ([-9, -6], -6)
+    >>> reversed_all_var_neg_step(-5, -10, -3)
+    ([-8, -5], -5)
+    >>> reversed_all_var_neg_step(-4, -10, -3)
+    ([-7, -4], -4)
+    >>> reversed_all_var_neg_step(-3, -10, -3)
+    ([-9, -6, -3], -3)
+    >>> reversed_all_var_neg_step(5, -2, -3)
+    ([-1, 2, 5], 5)
+    >>> reversed_all_var_neg_step(5, -1, -3)
+    ([2, 5], 5)
+    >>> reversed_all_var_neg_step(5, 0, -3)
+    ([2, 5], 5)
+    >>> reversed_all_var_neg_step(5, 1, -3)
+    ([2, 5], 5)
+    >>> reversed_all_var_neg_step(5, 2, -3)
+    ([5], 5)
+    >>> reversed_all_var_neg_step(-5, -5, -1)
+    ([], 99)
+    >>> reversed_all_var_neg_step(-5, -3, -1)
+    ([], 99)
+    >>> reversed_all_var_neg_step(5, 5, -1)
+    ([], 99)
+    >>> reversed_all_var_neg_step(3, 5, -1)
+    ([], 99)
+    """
+    cdef int i = 99
+    result = []
+    for i in reversed(range(a, b, c)):
+        result.append(i)
+    return result, i
+
+def reversed_range_py_obj_var_step(int b, c):
+    """
+    >>> reversed_range_py_obj_var_step(0, set())
+    Traceback (most recent call last):
+    TypeError: an integer is required
+    """
+    cdef long i
+    for i in reversed(range(0, b, c)):
+        pass
+
+@cython.test_assert_path_exists('//ForFromStatNode')
+@cython.test_fail_if_path_exists('//ForInStatNode')
+def reversed_range_neg_expr_step(int c):
+    """
+    >>> [ i for i in _reversed(range(5, 0, -3)) ]
+    [2, 5]
+    >>> reversed_range_neg_expr_step(-3)
+    ([2, 5], 5)
+    """
+    cdef int i = 99, d = 100
+    result = []
+    for i in reversed(range(5, 0, d-d + c + d-d)):
+        result.append(i)
+    return result, i
+
+@cython.test_assert_path_exists('//ForFromStatNode')
+@cython.test_fail_if_path_exists('//ForInStatNode')
+def reversed_range_pos_expr_step(int c):
+    """
+    >>> [ i for i in _reversed(range(0, 5, 3)) ]
+    [3, 0]
+    >>> reversed_range_pos_expr_step(3)
+    ([3, 0], 0)
+    """
+    cdef int i = 99, d = 100
+    result = []
+    for i in reversed(range(0, 5, d-d + c + d-d)):
+        result.append(i)
+    return result, i
+
+def reversed_all_py_var_neg_step(a, b, c):
+    """
+    >>> [ i for i in _reversed(range(0, -5, -3)) ]
+    [-3, 0]
+    >>> reversed_all_py_var_neg_step(0, -5, -3)
+    ([-3, 0], 0)
+
+    >>> [ i for i in _reversed(range(5, 0, -3)) ]
+    [2, 5]
+    >>> reversed_all_py_var_neg_step(5, 0, -3)
+    ([2, 5], 5)
+
+    >>> [ i for i in _reversed(range(0, 5, -3)) ]
+    []
+    >>> reversed_all_py_var_neg_step(0, 5, -3)
+    ([], 99)
+
+    >>> [ i for i in _reversed(range(1, 1, -1)) ]
+    []
+    >>> reversed_all_py_var_neg_step(1, 1, -1)
+    ([], 99)
+
+    >>> reversed_all_py_var_neg_step(1000, 0, 0) # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError: range() ...arg...must not be zero
+    """
+    i = 99
+    result = []
+    for i in reversed(range(a, b, c)):
+        result.append(i)
+    return result, i
+
+def reversed_all_py_var_pos_step(a, b, c):
+    """
+    >>> [ i for i in _reversed(range(-5, 0, 3)) ]
+    [-2, -5]
+    >>> reversed_all_py_var_pos_step(-5, 0, 3)
+    ([-2, -5], -5)
+
+    >>> [ i for i in _reversed(range(0, 5, 3)) ]
+    [3, 0]
+    >>> reversed_all_py_var_pos_step(0, 5, 3)
+    ([3, 0], 0)
+
+    >>> [ i for i in _reversed(range(5, 0, 3)) ]
+    []
+    >>> reversed_all_py_var_pos_step(5, 0, 3)
+    ([], 99)
+
+    >>> [ i for i in _reversed(range(1, 1, 1)) ]
+    []
+    >>> reversed_all_py_var_pos_step(1, 1, 1)
+    ([], 99)
+
+    >>> [ i for i in _reversed(range(10**50, 10**50+4, 3)) ] == [10**50+3, 10**50]
+    True
+    >>> reversed_all_py_var_pos_step(10**50, 10**50+4, 3) == ([10**50+3, 10**50], 10**50)
+    True
+    """
+    i = 99
+    result = []
+    for i in reversed(range(a, b, c)):
+        result.append(i)
+    return result, i
+
+@cython.test_assert_path_exists('//ForFromStatNode')
+def reversed_unsigned_by_pos_var_step(int a, int b, int c):
+    """
+    >>> reversed_unsigned_by_pos_var_step(0, 5, 3)
+    [3, 0]
+    >>> reversed_unsigned_by_pos_var_step(0, 7, 3)
+    [6, 3, 0]
+    """
+    cdef unsigned int i
+    return [i for i in reversed(range(a, b, c))]
+
+@cython.test_assert_path_exists('//ForFromStatNode')
+def range_unsigned_by_neg_var_step(int a, int b, int c):
+    """
+    >>> range_unsigned_by_neg_var_step(-1, 6, -3)
+    [6, 3, 0]
+    >>> range_unsigned_by_neg_var_step(0, 7, -3)
+    [7, 4, 1]
+    """
+    cdef unsigned int i
+    return [i for i in range(b, a, c)]
+
+INT_MAX = <int>((<unsigned int>-1)>>1)
+INT_MIN = (-INT_MAX-1)
+UINT_MAX = <unsigned int>(<unsigned int>-1)
+
+@cython.test_assert_path_exists('//ForFromStatNode')
+def reversed_mixed_signs_pos_step(int a, unsigned int b, int c, int d):
+    """
+    >>> reversed_mixed_signs_pos_step(-3, 7, 3, 0)
+    ([6, 3, 0, -3], -3)
+    >>> reversed_mixed_signs_pos_step(0, 7, 3, 0)
+    ([6, 3, 0], 0)
+    >>> reversed_mixed_signs_pos_step(1, 7, 3, 0)
+    ([4, 1], 1)
+    >>> reversed_mixed_signs_pos_step(7, 7, 3, 0)
+    ([], 99)
+    >>> INT_MAX-1 == reversed_mixed_signs_pos_step(INT_MIN, INT_MAX, 1, 1)
+    True
+    >>> INT_MAX-3 == reversed_mixed_signs_pos_step(INT_MIN, INT_MAX, 3, 1)
+    True
+    >>> UINT_MAX-1 == reversed_mixed_signs_pos_step(INT_MIN, UINT_MAX, 1, 2)
+    True
+    >>> UINT_MAX-2 == reversed_mixed_signs_pos_step(INT_MIN, UINT_MAX, 3, 2)
+    True
+    """
+    cdef int i = 99
+    if d == 0:
+        result = []
+        for i in reversed(range(a, b, c)):
+            result.append(i)
+        return result, i
+
+    if d == 1:
+        for i in reversed(range(a, b, c)):
+            return i
+
+    cdef long j = 0
+    for j in reversed(range(a, b, c)):
+        return j
+
+@cython.test_assert_path_exists('//ForFromStatNode')
+def reversed_mixed_signs_neg_step(unsigned int a, int b, int c, int d):
+    """
+    >>> reversed_mixed_signs_neg_step(5, 5, -2, 0)
+    ([], 99)
+    >>> reversed_mixed_signs_neg_step(5, 1, -2, 0)
+    ([3, 5], 5)
+    >>> reversed_mixed_signs_neg_step(5, 0, -2, 0)
+    ([1, 3, 5], 5)
+    >>> reversed_mixed_signs_neg_step(5, -1, -2, 0)
+    ([1, 3, 5], 5)
+    >>> INT_MIN+1 == reversed_mixed_signs_neg_step(INT_MAX, INT_MIN, -1, 1)
+    True
+    >>> INT_MIN+3 == reversed_mixed_signs_neg_step(INT_MAX, INT_MIN, -3, 1)
+    True
+    >>> INT_MIN+1 == reversed_mixed_signs_neg_step(UINT_MAX, INT_MIN, -1, 2)
+    True
+    >>> INT_MIN+2 == reversed_mixed_signs_neg_step(UINT_MAX, INT_MIN, -3, 2)
+    True
+    """
+    cdef unsigned int i = 99
+    if d == 0:
+        result = []
+        for i in reversed(range(a, b, c)):
+            result.append(i)
+        return result, i
+
+    cdef int j = 0
+    if d == 1:
+        for j in reversed(range(a, b, c)):
+            return j
+
+    cdef long k = 0
+    for k in reversed(range(a, b, c)):
+        return k
+
+@cython.test_assert_path_exists('//ForFromStatNode')
+def reversed_mixed_signs_bounds(int a, unsigned int b, int c):
+    """
+    >>> reversed_mixed_signs_bounds(-1, 1, 1)
+    ([0, -1], -1)
+    >>> reversed_mixed_signs_bounds(-1, 1, -1)
+    ([], 99)
+    >>> reversed_mixed_signs_bounds(2, 3, 1)
+    ([2], 2)
+    >>> reversed_mixed_signs_bounds(2, 3, -1)
+    ([], 99)
+    >>> reversed_mixed_signs_bounds(2, 0, 1)
+    ([], 99)
+    >>> reversed_mixed_signs_bounds(2, 0, -1)
+    ([1, 2], 2)
+    """
+    cdef int i = 99
+    result = []
+    for i in reversed(range(a, b, c)):
+        result.append(i)
+    return result, i
+
+@cython.test_assert_path_exists('//ForFromStatNode')
+def reversed_all_unsigned(unsigned int a, unsigned int b, unsigned int c):
+    """
+    >>> reversed_all_unsigned(0, 7, 3)
+    ([6, 3, 0], 0)
+    >>> reversed_all_unsigned(5, 5, 3)
+    ([], 99)
+    >>> reversed_all_unsigned(500, 5, 3)
+    ([], 99)
+    """
+    cdef unsigned int i = 99
+    result = []
+    for i in reversed(range(a, b, c)):
+        result.append(i)
+        if i > 10:
+            break
+    return result, i

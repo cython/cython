@@ -1,5 +1,5 @@
 # mode: run
-# tag: tryfinally
+# tag: forin, tryfinally
 
 import sys
 IS_PY3 = sys.version_info[0] >= 3
@@ -480,3 +480,33 @@ def finally_yield(x):
                 return
         finally:
             yield 1
+
+
+def get_start():
+    print 'start'
+    return 0
+
+def get_stop():
+    print 'stop'
+    return 0
+
+@cython.test_assert_path_exists('//ForFromStatNode')
+def try_bad_range_step():
+    """
+    >>> try_bad_range_step()  # doctest: +ELLIPSIS
+    Caught "...set..." exception!
+    start
+    stop
+    Caught "range() ...arg...must not be zero" exception!
+    """
+    cdef int i, zero = 0
+    try:
+        for i in range(0, 0, set()):
+            pass
+    except TypeError as e:
+        print 'Caught "%s" exception!' % e
+    try:
+        for i in range(get_start(), get_stop(), zero):
+            pass
+    except ValueError as e:
+        print 'Caught "%s" exception!' % e

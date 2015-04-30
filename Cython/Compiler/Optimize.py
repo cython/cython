@@ -629,22 +629,30 @@ class IterationTransform(Visitor.EnvTransform):
 
     def _transform_range_iteration(self, node, range_function, reversed=False):
         args = range_function.arg_tuple.args
+        if any((hasattr(arg, 'arg') and arg.arg.type.is_float) or
+                arg.type.is_builtin_type for arg in args):
+            # will lead to an error elsewhere
+            return node
+
         if len(args) < 3:
             step_pos = range_function.pos
+            is_step_const = True
             step_value = 1
             step = ExprNodes.IntNode(step_pos, value='1', constant_result=1)
         else:
             step = args[2]
-            step_pos = step.pos
-            if not isinstance(step.constant_result, (int, long)):
-                # cannot determine step direction
-                return node
-            step_value = step.constant_result
-            if step_value == 0:
-                # will lead to an error elsewhere
-                return node
-            step = ExprNodes.IntNode(step_pos, value=str(step_value),
-                                     constant_result=step_value)
+            is_step_const = isinstance(step.constant_result, (int, long))
+            if is_step_const:
+                step_value = step.constant_result
+                if step_value == 0:
+                    # will lead to an error elsewhere
+                    return node
+                step = ExprNodes.IntNode(step.pos, value=str(step_value),
+                                         constant_result=step_value)
+            else:
+                step_value = 1
+
+        relation1, relation2 = self._find_for_from_node_relations(step_value < 0, reversed)
 
         if len(args) == 1:
             bound1 = ExprNodes.IntNode(range_function.pos, value='0',
@@ -653,8 +661,121 @@ class IterationTransform(Visitor.EnvTransform):
         else:
             bound1 = args[0].coerce_to_integer(self.current_env())
             bound2 = args[1].coerce_to_integer(self.current_env())
+            if not is_step_const:
+                step = UtilNodes.LetRefNode(args[2].coerce_to_integer(self.current_env()))
+                refs = [step]
+                if not bound2.is_literal:
+                    bound2 = UtilNodes.LetRefNode(bound2)
+                    refs.append(bound2)
+                if not bound1.is_literal:
+                    bound1 = UtilNodes.LetRefNode(bound1)
+                    refs.append(bound1)
+                def get_bound_node(bound):
+                    if not bound.is_literal:
+                        # bound is a LetRefNode
+                        return bound
+                    return ExprNodes.IntNode(bound.pos, value=bound.value,
+                                             constant_result=bound.constant_result,
+                                             type=bound.type)
+                if reversed:
+                    relation1 = relation2
+                else:
+                    relation2 = relation1
 
-        relation1, relation2 = self._find_for_from_node_relations(step_value < 0, reversed)
+                # If target is of higher rank, and same signedness, cast
+                # bound up for correctness in the intermediate arithmetic
+                bound1_cast_type, bound2_cast_type = bound1.type, bound2.type
+                if (node.target.type.rank > bound1.type.rank and
+                        node.target.type.signed == bound1.type.signed):
+                    bound1_cast_type = node.target.type
+                if (node.target.type.rank > bound2.type.rank and
+                        node.target.type.signed == bound2.type.signed):
+                    bound2_cast_type = node.target.type
+
+                # Force an unsigned spanning type to allow maximum
+                # number of steps
+                spanning_type = PyrexTypes.spanning_type(bound1_cast_type, bound2_cast_type)
+                loopvar_type = PyrexTypes.spanning_type(step.type, spanning_type)
+                loopvar_type = PyrexTypes.spanning_type(node.target.type, loopvar_type)
+                if 'unsigned' not in loopvar_type._empty_declaration:
+                    loopvar_type = PyrexTypes.parse_basic_type(
+                                        'u' + loopvar_type.sign_and_name())
+
+                ## Set bound2 equal to the number of steps in this
+                ## iteration expressed as this:
+                ##
+                ##  if (step > 0) {
+                ##    nsteps = (loopvar_type)((bound2_cast_type)bound2 - (bound1_cast_type)bound1 - 1) /  step;
+                ##  } else {
+                ##    nsteps = (loopvar_type)((bound1_cast_type)bound1 - (bound2_cast_type)bound2 - 1) / -step;
+                ##  }
+                bound2 = ExprNodes.CondExprNode(
+                    step.pos,
+                    test=ExprNodes.PrimaryCmpNode(
+                        step.pos,
+                        operand1=step,
+                        operator='>',
+                        operand2=ExprNodes.IntNode(step.pos, value='0',
+                                                   constant_result=0),
+                        type=PyrexTypes.c_bint_type),
+                    true_val=ExprNodes.DivNode(
+                        step.pos,
+                        operand1=ExprNodes.TypecastNode(
+                            step.pos,
+                            operand=ExprNodes.SubNode(
+                                step.pos,
+                                operand1=ExprNodes.SubNode(
+                                    step.pos,
+                                    operand1=ExprNodes.TypecastNode(
+                                        bound2.pos,
+                                        operand=get_bound_node(bound2),
+                                        type=bound2_cast_type),
+                                    operator='-',
+                                    operand2=ExprNodes.TypecastNode(
+                                        bound1.pos,
+                                        operand=get_bound_node(bound1),
+                                        type=bound1_cast_type),
+                                    type=spanning_type),
+                                operator='-',
+                                operand2=ExprNodes.IntNode(step.pos, value='1',
+                                                           constant_result=1),
+                                type=spanning_type),
+                            type=loopvar_type),
+                        operator='/',
+                        operand2=step,
+                        type=loopvar_type),
+                    false_val=ExprNodes.DivNode(
+                        step.pos,
+                        operand1=ExprNodes.TypecastNode(
+                            step.pos,
+                            operand=ExprNodes.SubNode(
+                                step.pos,
+                                operand1=ExprNodes.SubNode(
+                                    step.pos,
+                                    operand1=ExprNodes.TypecastNode(
+                                        bound1.pos,
+                                        operand=get_bound_node(bound1),
+                                        type=bound1_cast_type),
+                                    operator='-',
+                                    operand2=ExprNodes.TypecastNode(
+                                        bound2.pos,
+                                        operand=get_bound_node(bound2),
+                                        type=bound2_cast_type),
+                                    type=spanning_type),
+                                operator='-',
+                                operand2=ExprNodes.IntNode(step.pos, value='1',
+                                                           constant_result=1),
+                                type=spanning_type),
+                            type=loopvar_type),
+                        operator='/',
+                        operand2=ExprNodes.UnaryMinusNode(step.pos,
+                                                          operand=step,
+                                                          type=step.type),
+                        type=loopvar_type),
+                    is_temp=True,
+                    type=loopvar_type)
+                bound1 = ExprNodes.IntNode(step.pos, value='0', constant_result=0,
+                                           type=loopvar_type)
 
         bound2_ref_node = None
         if reversed:
@@ -680,7 +801,7 @@ class IterationTransform(Visitor.EnvTransform):
                     # evaluate the same expression as above at runtime
                     bound2_ref_node = UtilNodes.LetRefNode(bound2)
                     spanning_type = PyrexTypes.spanning_type(bound1.type, bound2.type)
-                    if step.type.is_int and abs(step_value) < 0x7FFF:
+                    if step.type.is_int and abs_step < 0x7FFF:
                         # Avoid loss of integer precision warnings.
                         spanning_step_type = PyrexTypes.spanning_type(spanning_type, PyrexTypes.c_int_type)
                     else:
@@ -706,7 +827,7 @@ class IterationTransform(Visitor.EnvTransform):
                                 operand1=ExprNodes.IntNode(
                                     bound1.pos,
                                     value=str(abs_step),
-                                    constant_value=abs_step,
+                                    constant_result=abs_step,
                                     type=spanning_step_type),
                                 operator='*',
                                 operand2=ExprNodes.DivNode(
@@ -729,7 +850,7 @@ class IterationTransform(Visitor.EnvTransform):
                                     operand2=ExprNodes.IntNode(
                                         bound1.pos,
                                         value=str(abs_step),
-                                        constant_value=abs_step,
+                                        constant_result=abs_step,
                                         type=spanning_step_type),
                                     type=spanning_step_type),
                                 type=spanning_step_type),
@@ -743,11 +864,11 @@ class IterationTransform(Visitor.EnvTransform):
 
         if step_value < 0:
             step_value = -step_value
-        step.value = str(step_value)
-        step.constant_result = step_value
-        step = step.coerce_to_integer(self.current_env())
+            step.value = str(step_value)
+            step.constant_result = step_value
+            step = step.coerce_to_integer(self.current_env())
 
-        if not bound2.is_literal:
+        if is_step_const and not bound2.is_literal:
             # stop bound must be immutable => keep it in a temp var
             bound2_is_temp = True
             bound2 = bound2_ref_node or UtilNodes.LetRefNode(bound2)
@@ -763,7 +884,10 @@ class IterationTransform(Visitor.EnvTransform):
             else_clause=node.else_clause,
             from_range=True)
 
-        if bound2_is_temp:
+        if not is_step_const:
+            for ref in refs:
+                for_node = UtilNodes.LetNode(ref, for_node)
+        elif bound2_is_temp:
             for_node = UtilNodes.LetNode(bound2, for_node)
 
         return for_node
