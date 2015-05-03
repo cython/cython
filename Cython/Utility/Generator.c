@@ -102,6 +102,7 @@ static PyTypeObject *__pyx_GeneratorType = 0;
 static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
     PyObject *et, *ev, *tb;
     PyObject *value = NULL;
+    int result;
 
     __Pyx_ErrFetch(&et, &ev, &tb);
 
@@ -121,7 +122,8 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
 
     // most common case: plain StopIteration without or with separate argument
     if (likely(et == PyExc_StopIteration)) {
-        if (likely(!ev) || !PyObject_IsInstance(ev, PyExc_StopIteration)) {
+        int error = 0;
+        if (!ev || !(error = PyObject_IsInstance(ev, PyExc_StopIteration))) {
             // PyErr_SetObject() and friends put the value directly into ev
             if (!ev) {
                 Py_INCREF(Py_None);
@@ -132,16 +134,26 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
             *pvalue = ev;
             return 0;
         }
+        if (unlikely(error == -1)) {
+            // error during isinstance() check
+            return -1;
+        }
     }
     // otherwise: normalise and check what that gives us
     PyErr_NormalizeException(&et, &ev, &tb);
-    if (unlikely(!PyObject_IsInstance(ev, PyExc_StopIteration))) {
+    result = PyObject_IsInstance(ev, PyExc_StopIteration);
+    if (unlikely(!result)) {
         // looks like normalisation failed - raise the new exception
         __Pyx_ErrRestore(et, ev, tb);
         return -1;
     }
     Py_XDECREF(tb);
     Py_DECREF(et);
+    if (unlikely(result == -1)) {
+        // error during isinstance() check
+        Py_DECREF(ev);
+        return -1;
+    }
 #if PY_VERSION_HEX >= 0x030300A0
     value = ((PyStopIterationObject *)ev)->value;
     Py_INCREF(value);

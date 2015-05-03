@@ -1415,6 +1415,8 @@ bad:
 
 static PyObject* __Pyx__PyNumber_MatrixMultiply(PyObject* x, PyObject* y, const char* op_name) {
     int right_is_subtype = PyObject_IsSubclass((PyObject*)Py_TYPE(y), (PyObject*)Py_TYPE(x));
+    if (unlikely(right_is_subtype == -1))
+        return NULL;
     if (right_is_subtype) {
         // to allow subtypes to override parent behaviour, try reversed operation first
         // see note at https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types
