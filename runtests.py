@@ -1932,7 +1932,7 @@ def runtests(options, cmd_args, coverage=None):
 
     try:
         import jedi
-        if list(map(int, re.findall('[0-9]+', jedi.__version__ or '0'))) < [0, 8, 1]:
+        if not ([0, 8, 1] <= list(map(int, re.findall('[0-9]+', jedi.__version__ or '0'))) < [0, 9]):
             raise ImportError
     except (ImportError, AttributeError, TypeError):
         exclude_selectors.append(RegExSelector('Jedi'))
