@@ -144,11 +144,15 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
         if (value && PyExceptionInstance_Check(value)) {
             instance_class = (PyObject*) Py_TYPE(value);
             if (instance_class != type) {
-                if (PyObject_IsSubclass(instance_class, type)) {
+                int is_subclass = PyObject_IsSubclass(instance_class, type);
+                if (!is_subclass) {
+                    instance_class = NULL;
+                } else if (unlikely(is_subclass == -1)) {
+                    // error on subclass test
+                    goto bad;
+                } else {
                     // believe the instance
                     type = instance_class;
-                } else {
-                    instance_class = NULL;
                 }
             }
         }

@@ -1058,13 +1058,17 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
 #endif
     }
 
-    if (self && !is_classmethod && !is_staticmethod &&
-            !PyObject_IsInstance(self, binding_func->type)) {
-        PyErr_Format(PyExc_TypeError,
-                     "First argument should be of type %.200s, got %.200s.",
-                     ((PyTypeObject *) binding_func->type)->tp_name,
-                     self->ob_type->tp_name);
-        goto bad;
+    if (self && !is_classmethod && !is_staticmethod) {
+        int is_instance = PyObject_IsInstance(self, binding_func->type);
+        if (unlikely(!is_instance)) {
+            PyErr_Format(PyExc_TypeError,
+                         "First argument should be of type %.200s, got %.200s.",
+                         ((PyTypeObject *) binding_func->type)->tp_name,
+                         self->ob_type->tp_name);
+            goto bad;
+        } else if (unlikely(is_instance == -1)) {
+            goto bad;
+        }
     }
 #if !CYTHON_COMPILING_IN_CPYTHON
     Py_XDECREF(self);
