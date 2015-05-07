@@ -1155,7 +1155,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         cpp_class_attrs = [entry for entry in scope.var_entries
                            if entry.type.is_cpp_class]
 
-        new_func_entry = scope.lookup_here("__new__")
+        new_func_entry = scope.lookup_here("__cinit__")
         if base_type or (new_func_entry and new_func_entry.is_special
                          and not new_func_entry.trivial_signature):
             unused_marker = ''
