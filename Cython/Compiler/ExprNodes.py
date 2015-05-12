@@ -5566,6 +5566,7 @@ class KeywordArgsNode(ExprNode):
             code.putln('if (likely(PyDict_Check(%s))) {' %
                        item.py_result())
 
+        item.make_owned_reference(code)
         code.putln("%s = %s;" % (self.result(), item.py_result()))
         item.generate_post_assignment_code(code)
 
