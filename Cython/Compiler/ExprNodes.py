@@ -7391,24 +7391,47 @@ class DictNode(ExprNode):
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("RaiseDoubleKeywords", "FunctionArguments.c"))
 
-        for i, item in enumerate(self.key_value_pairs):
+        keys_seen = set()
+        key_type = None
+
+        for item in self.key_value_pairs:
             item.generate_evaluation_code(code)
             if is_dict:
                 if self.exclude_null_values:
                     code.putln('if (%s) {' % item.value.py_result())
-                if self.reject_duplicates and i >= 1:
-                    code.putln('if (unlikely(PyDict_Contains(%s, %s))) {' % (
-                        self.result(), item.key.py_result()))
-                    # currently only used in function calls
-                    code.putln('__Pyx_RaiseDoubleKeywordsError("function", %s); %s' % (
-                        item.key.py_result(),
-                        code.error_goto(item.pos)))
-                    code.putln("} else {")
+                key = item.key
+                if self.reject_duplicates:
+                    if keys_seen is not None:
+                        # avoid runtime 'in' checks for literals that we can do at compile time
+                        if not key.is_string_literal:
+                            keys_seen = None
+                        elif key.value in keys_seen:
+                            # FIXME: this could be a compile time error, at least in Cython code
+                            keys_seen = None
+                        elif key_type is not type(key.value):
+                            if key_type is None:
+                                key_type = type(key.value)
+                                keys_seen.add(key.value)
+                            else:
+                                # different types => may not be able to compare at compile time
+                                keys_seen = None
+                        else:
+                            keys_seen.add(key.value)
+
+                    if keys_seen is None:
+                        code.putln('if (unlikely(PyDict_Contains(%s, %s))) {' % (
+                            self.result(), key.py_result()))
+                        # currently only used in function calls
+                        code.putln('__Pyx_RaiseDoubleKeywordsError("function", %s); %s' % (
+                            key.py_result(),
+                            code.error_goto(item.pos)))
+                        code.putln("} else {")
+
                 code.put_error_if_neg(self.pos, "PyDict_SetItem(%s, %s, %s)" % (
                     self.result(),
                     item.key.py_result(),
                     item.value.py_result()))
-                if self.reject_duplicates and i >= 1:
+                if self.reject_duplicates and keys_seen is None:
                     code.putln('}')
                 if self.exclude_null_values:
                     code.putln('}')
