@@ -12,11 +12,12 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
                FileSourceDescriptor=object, lookup_unicodechar=object,
                Future=object, Options=object, error=object, warning=object,
                Builtin=object, ModuleNode=object, Utils=object,
-               re=object, _unicode=object, _bytes=object, partial=object)
+               re=object, _unicode=object, _bytes=object,
+               partial=object, reduce=object)
 
 import re
 from unicodedata import lookup as lookup_unicodechar
-from functools import partial
+from functools import partial, reduce
 
 from .Scanning import PyrexScanner, FileSourceDescriptor
 from . import Nodes
