@@ -467,7 +467,7 @@ def p_call_parse_args(s, allow_genexp=True):
     if s.sy == 'for':
         if not keyword_args and not last_was_tuple_unpack:
             if len(positional_args) == 1 and len(positional_args[0]) == 1:
-                positional_args = [p_genexp(s, positional_args[0][0])]
+                positional_args = [[p_genexp(s, positional_args[0][0])]]
     s.expect(')')
     return positional_args or [[]], keyword_args
 
