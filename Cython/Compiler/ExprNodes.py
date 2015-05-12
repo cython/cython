@@ -5450,8 +5450,9 @@ class AsTupleNode(ExprNode):
             self.compile_time_value_error(e)
 
     def analyse_types(self, env):
-        self.arg = self.arg.analyse_types(env)
-        self.arg = self.arg.coerce_to_pyobject(env)
+        self.arg = self.arg.analyse_types(env).coerce_to_pyobject(env)
+        if self.arg.type is tuple_type:
+            return self.arg.as_none_safe_node("'NoneType' object is not iterable")
         self.type = tuple_type
         self.is_temp = 1
         return self
@@ -5469,6 +5470,159 @@ class AsTupleNode(ExprNode):
                 self.arg.py_result(),
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
+
+
+class KeywordArgsNode(ExprNode):
+    #  Helper class for keyword arguments.
+    #
+    #  keyword_args      [DictNode or other ExprNode]
+
+    subexprs = ['keyword_args']
+    is_temp = 1
+    type = dict_type
+    reject_duplicates = True
+
+    def calculate_constant_result(self):
+        result = {}
+        reject_duplicates = self.reject_duplicates
+        for item in self.keyword_args:
+            if item.is_dict_literal:
+                # process items in order
+                items = ((key.constant_result, value.constant_result)
+                         for key, value in item.key_value_pairs)
+            else:
+                items = item.constant_result.iteritems()
+
+            for key, value in items:
+                if reject_duplicates and key in result:
+                    raise ValueError("duplicate keyword argument found: %s" % key)
+                result[key] = value
+
+        self.constant_result = result
+
+    def compile_time_value(self, denv):
+        result = {}
+        reject_duplicates = self.reject_duplicates
+        for item in self.keyword_args:
+            if item.is_dict_literal:
+                # process items in order
+                items = [(key.compile_time_value(denv), value.compile_time_value(denv))
+                         for key, value in item.key_value_pairs]
+            else:
+                items = item.compile_time_value(denv).iteritems()
+
+            try:
+                for key, value in items:
+                    if reject_duplicates and key in result:
+                        raise ValueError("duplicate keyword argument found: %s" % key)
+                    result[key] = value
+            except Exception, e:
+                self.compile_time_value_error(e)
+        return result
+
+    def type_dependencies(self, env):
+        return ()
+
+    def infer_type(self, env):
+        return dict_type
+
+    def analyse_types(self, env):
+        args = [
+            arg.analyse_types(env).coerce_to_pyobject(env).as_none_safe_node(
+                # FIXME: CPython's error message starts with the runtime function name
+                'argument after ** must be a mapping, not NoneType')
+            for arg in self.keyword_args
+        ]
+
+        if len(args) == 1 and args[0].type is dict_type:
+            # strip this intermediate node and use the bare dict
+            arg = args[0]
+            if arg.is_name and arg.entry.is_arg and len(arg.entry.cf_assignments) == 1:
+                # passing **kwargs through to function call => allow NULL
+                arg.allow_null = True
+            return arg
+
+        self.keyword_args = args
+        return self
+
+    def may_be_none(self):
+        return False
+
+    gil_message = "Constructing Python dict"
+
+    def generate_evaluation_code(self, code):
+        code.mark_pos(self.pos)
+        self.allocate_temp_result(code)
+
+        if self.reject_duplicates and len(self.keyword_args) > 1:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("RaiseDoubleKeywords", "FunctionArguments.c"))
+
+        args = iter(self.keyword_args)
+        item = next(args)
+        item.generate_evaluation_code(code)
+        if item.type is not dict_type:
+            # CPython supports calling functions with non-dicts, so do we
+            code.putln('if (likely(PyDict_Check(%s))) {' %
+                       item.py_result())
+
+        code.putln("%s = %s;" % (self.result(), item.py_result()))
+        item.generate_post_assignment_code(code)
+
+        if item.type is not dict_type:
+            code.putln('} else {')
+            code.putln("%s = PyObject_CallFunctionObjArgs((PyObject*)&PyDict_Type, %s, NULL); %s" % (
+                self.result(),
+                item.py_result(),
+                code.error_goto_if_null(self.result(), self.pos)))
+            code.put_gotref(self.py_result())
+            item.generate_disposal_code(code)
+            code.putln('}')
+        item.free_temps(code)
+
+        for item in args:
+            if item.is_dict_literal:
+                for arg in item.keyword_args:
+                    arg.generate_evaluation_code(code)
+                    if self.reject_duplicates:
+                        code.putln("if (unlikely(PyDict_Contains(%s, %s))) {" % (
+                            self.result(),
+                            arg.key.py_result()))
+                        # FIXME: find out function name at runtime!
+                        code.putln('__Pyx_RaiseDoubleKeywordsError("function", %s); %s' % (
+                            arg.key.py_result(),
+                            code.error_goto(self.pos)))
+                        code.putln("}")
+                    code.put_error_if_neg(arg.key.pos, "PyDict_SetItem(%s, %s, %s)" % (
+                        self.result(),
+                        arg.key.py_result(),
+                        arg.value.py_result()))
+                    arg.generate_disposal_code(code)
+                    arg.free_temps(code)
+                continue
+
+            item.generate_evaluation_code(code)
+            if self.reject_duplicates:
+                # merge mapping into kwdict one by one as we need to check for duplicates
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("MergeKeywords", "FunctionArguments.c"))
+                code.put_error_if_neg(item.pos, "__Pyx_MergeKeywords(%s, %s)" % (self.result(), item.py_result()))
+            else:
+                # simple case, just add all entries
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("RaiseMappingExpected", "FunctionArguments.c"))
+                code.putln("if (unlikely(PyDict_Update(%s, %s) < 0)) {" % (self.result(), item.py_result()))
+                code.putln("if (PyErr_ExceptionMatches(PyExc_AttributeError)) __Pyx_RaiseMappingExpected(%s);" % (
+                    item.py_result()))
+                code.putln(code.error_goto(item.pos))
+                code.putln("}")
+                code.putln("}")
+            item.generate_disposal_code(code)
+            item.free_temps(code)
+
+    def annotate(self, code):
+        for item in self.keyword_args:
+            item.annotate(code)
 
 
 class AttributeNode(ExprNode):
@@ -7134,6 +7288,7 @@ class DictNode(ExprNode):
     exclude_null_values = False
     type = dict_type
     is_dict_literal = True
+    reject_duplicates = False
 
     obj_conversion_errors = []
 
@@ -7223,23 +7378,38 @@ class DictNode(ExprNode):
         #  pairs are evaluated and used one at a time.
         code.mark_pos(self.pos)
         self.allocate_temp_result(code)
-        if self.type.is_pyobject:
+
+        is_dict = self.type.is_pyobject
+        if is_dict:
             self.release_errors()
             code.putln(
                 "%s = PyDict_New(); %s" % (
                     self.result(),
                     code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
-        for item in self.key_value_pairs:
+            if self.reject_duplicates and len(self.key_value_pairs) > 1:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("RaiseDoubleKeywords", "FunctionArguments.c"))
+
+        for i, item in enumerate(self.key_value_pairs):
             item.generate_evaluation_code(code)
-            if self.type.is_pyobject:
+            if is_dict:
                 if self.exclude_null_values:
                     code.putln('if (%s) {' % item.value.py_result())
-                code.put_error_if_neg(self.pos,
-                    "PyDict_SetItem(%s, %s, %s)" % (
-                        self.result(),
+                if self.reject_duplicates and i >= 1:
+                    code.putln('if (unlikely(PyDict_Contains(%s, %s))) {' % (
+                        self.result(), item.key.py_result()))
+                    # currently only used in function calls
+                    code.putln('__Pyx_RaiseDoubleKeywordsError("function", %s); %s' % (
                         item.key.py_result(),
-                        item.value.py_result()))
+                        code.error_goto(item.pos)))
+                    code.putln("} else {")
+                code.put_error_if_neg(self.pos, "PyDict_SetItem(%s, %s, %s)" % (
+                    self.result(),
+                    item.key.py_result(),
+                    item.value.py_result()))
+                if self.reject_duplicates and i >= 1:
+                    code.putln('}')
                 if self.exclude_null_values:
                     code.putln('}')
             else:
@@ -7253,6 +7423,7 @@ class DictNode(ExprNode):
     def annotate(self, code):
         for item in self.key_value_pairs:
             item.annotate(code)
+
 
 class DictItemNode(ExprNode):
     # Represents a single item in a DictNode
@@ -7452,128 +7623,6 @@ class Py3ClassNode(ExprNode):
                 self.allow_py2_metaclass,
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
-
-
-class KeywordArgsNode(ExprNode):
-    #  Helper class for keyword arguments.
-    #
-    #  starstar_arg      DictNode
-    #  keyword_args      [DictItemNode]
-
-    subexprs = ['starstar_arg', 'keyword_args']
-    is_temp = 1
-    type = dict_type
-
-    def calculate_constant_result(self):
-        result = dict(self.starstar_arg.constant_result)
-        for item in self.keyword_args:
-            key, value = item.constant_result
-            if key in result:
-                raise ValueError("duplicate keyword argument found: %s" % key)
-            result[key] = value
-        self.constant_result = result
-
-    def compile_time_value(self, denv):
-        result = self.starstar_arg.compile_time_value(denv)
-        pairs = [ (item.key.compile_time_value(denv), item.value.compile_time_value(denv))
-                  for item in self.keyword_args ]
-        try:
-            result = dict(result)
-            for key, value in pairs:
-                if key in result:
-                    raise ValueError("duplicate keyword argument found: %s" % key)
-                result[key] = value
-        except Exception, e:
-            self.compile_time_value_error(e)
-        return result
-
-    def type_dependencies(self, env):
-        return ()
-
-    def infer_type(self, env):
-        return dict_type
-
-    def analyse_types(self, env):
-        arg = self.starstar_arg.analyse_types(env)
-        arg = arg.coerce_to_pyobject(env)
-        arg = arg.as_none_safe_node(
-            # FIXME: CPython's error message starts with the runtime function name
-            'argument after ** must be a mapping, not NoneType')
-        self.starstar_arg = arg
-        if not self.keyword_args and arg.type is dict_type:
-            # strip this intermediate node and use the bare dict
-            if arg.is_name and arg.entry.is_arg and len(arg.entry.cf_assignments) == 1:
-                # passing **kwargs through to function call => allow NULL
-                arg.allow_null = True
-            return arg
-        self.keyword_args = [item.analyse_types(env) for item in self.keyword_args]
-        return self
-
-    def may_be_none(self):
-        return False
-
-    gil_message = "Constructing Python dict"
-
-    def generate_evaluation_code(self, code):
-        code.mark_pos(self.pos)
-        self.allocate_temp_result(code)
-        self.starstar_arg.generate_evaluation_code(code)
-        if self.starstar_arg.type is not dict_type:
-            # CPython supports calling functions with non-dicts, so do we
-            code.putln('if (likely(PyDict_Check(%s))) {' %
-                       self.starstar_arg.py_result())
-        if self.keyword_args:
-            code.putln(
-                "%s = PyDict_Copy(%s); %s" % (
-                    self.result(),
-                    self.starstar_arg.py_result(),
-                    code.error_goto_if_null(self.result(), self.pos)))
-            code.put_gotref(self.py_result())
-        else:
-            code.putln("%s = %s;" % (
-                self.result(),
-                self.starstar_arg.py_result()))
-            code.put_incref(self.result(), py_object_type)
-        if self.starstar_arg.type is not dict_type:
-            code.putln('} else {')
-            code.putln(
-                "%s = PyObject_CallFunctionObjArgs("
-                "(PyObject*)&PyDict_Type, %s, NULL); %s" % (
-                    self.result(),
-                    self.starstar_arg.py_result(),
-                    code.error_goto_if_null(self.result(), self.pos)))
-            code.put_gotref(self.py_result())
-            code.putln('}')
-        self.starstar_arg.generate_disposal_code(code)
-        self.starstar_arg.free_temps(code)
-
-        if not self.keyword_args:
-            return
-
-        code.globalstate.use_utility_code(
-            UtilityCode.load_cached("RaiseDoubleKeywords", "FunctionArguments.c"))
-        for item in self.keyword_args:
-            item.generate_evaluation_code(code)
-            code.putln("if (unlikely(PyDict_GetItem(%s, %s))) {" % (
-                    self.result(),
-                    item.key.py_result()))
-            # FIXME: find out function name at runtime!
-            code.putln('__Pyx_RaiseDoubleKeywordsError("function", %s); %s' % (
-                item.key.py_result(),
-                code.error_goto(self.pos)))
-            code.putln("}")
-            code.put_error_if_neg(self.pos,
-                "PyDict_SetItem(%s, %s, %s)" % (
-                    self.result(),
-                    item.key.py_result(),
-                    item.value.py_result()))
-            item.generate_disposal_code(code)
-            item.free_temps(code)
-
-    def annotate(self, code):
-        self.starstar_arg.annotate(code)
-        for item in self.keyword_args:
-            item.annotate(code)
 
 
 class PyClassMetaclassNode(ExprNode):

@@ -12,10 +12,11 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
                FileSourceDescriptor=object, lookup_unicodechar=object,
                Future=object, Options=object, error=object, warning=object,
                Builtin=object, ModuleNode=object, Utils=object,
-               re=object, _unicode=object, _bytes=object)
+               re=object, _unicode=object, _bytes=object, partial=object)
 
 import re
 from unicodedata import lookup as lookup_unicodechar
+from functools import partial
 
 from .Scanning import PyrexScanner, FileSourceDescriptor
 from . import Nodes
@@ -409,24 +410,35 @@ def p_trailer(s, node1):
         return ExprNodes.AttributeNode(pos,
             obj=node1, attribute=name)
 
+
 # arglist:  argument (',' argument)* [',']
 # argument: [test '='] test       # Really [keyword '='] test
 
-def p_call_parse_args(s, allow_genexp = True):
+# since PEP 448:
+# argument: ( test [comp_for] |
+#             test '=' test |
+#             '**' expr |
+#             star_expr )
+
+def p_call_parse_args(s, allow_genexp=True):
     # s.sy == '('
     pos = s.position()
     s.next()
     positional_args = []
     keyword_args = []
-    star_arg = None
-    starstar_arg = None
-    while s.sy not in ('**', ')'):
+    starstar_seen = False
+    last_was_tuple_unpack = False
+    while s.sy != ')':
         if s.sy == '*':
-            if star_arg:
-                s.error("only one star-arg parameter allowed",
-                        pos=s.position())
+            if starstar_seen:
+                s.error("Non-keyword arg following keyword arg", pos=s.position())
             s.next()
-            star_arg = p_test(s)
+            positional_args.append(p_test(s))
+            last_was_tuple_unpack = True
+        elif s.sy == '**':
+            s.next()
+            keyword_args.append(p_test(s))
+            starstar_seen = True
         else:
             arg = p_test(s)
             if s.sy == '=':
@@ -441,73 +453,78 @@ def p_call_parse_args(s, allow_genexp = True):
                 keyword_args.append((keyword, arg))
             else:
                 if keyword_args:
-                    s.error("Non-keyword arg following keyword arg",
-                            pos=arg.pos)
-                if star_arg:
-                    s.error("Non-keyword arg following star-arg",
-                            pos=arg.pos)
-                positional_args.append(arg)
+                    s.error("Non-keyword arg following keyword arg", pos=arg.pos)
+                if positional_args and not last_was_tuple_unpack:
+                    positional_args[-1].append(arg)
+                else:
+                    positional_args.append([arg])
+                last_was_tuple_unpack = False
         if s.sy != ',':
             break
         s.next()
 
     if s.sy == 'for':
-        if len(positional_args) == 1 and not star_arg:
-            positional_args = [ p_genexp(s, positional_args[0]) ]
-    elif s.sy == '**':
-        s.next()
-        starstar_arg = p_test(s)
-        if s.sy == ',':
-            s.next()  # FIXME: this is actually not valid Python syntax
+        if not keyword_args and not last_was_tuple_unpack:
+            if len(positional_args) == 1 and len(positional_args[0]) == 1:
+                positional_args = [p_genexp(s, positional_args[0][0])]
     s.expect(')')
-    return positional_args, keyword_args, star_arg, starstar_arg
+    return positional_args or [[]], keyword_args
 
-def p_call_build_packed_args(pos, positional_args, keyword_args,
-                             star_arg, starstar_arg):
-    arg_tuple = None
+
+def p_call_build_packed_args(pos, positional_args, keyword_args):
     keyword_dict = None
-    if positional_args or not star_arg:
-        arg_tuple = ExprNodes.TupleNode(pos,
-            args = positional_args)
-    if star_arg:
-        star_arg_tuple = ExprNodes.AsTupleNode(pos, arg = star_arg)
-        if arg_tuple:
-            arg_tuple = ExprNodes.binop_node(pos,
-                operator = '+', operand1 = arg_tuple,
-                operand2 = star_arg_tuple)
-        else:
-            arg_tuple = star_arg_tuple
-    if keyword_args or starstar_arg:
-        keyword_args = [ExprNodes.DictItemNode(pos=key.pos, key=key, value=value)
-                          for key, value in keyword_args]
-        if starstar_arg:
-            keyword_dict = ExprNodes.KeywordArgsNode(
-                pos,
-                starstar_arg = starstar_arg,
-                keyword_args = keyword_args)
-        else:
-            keyword_dict = ExprNodes.DictNode(
-                pos, key_value_pairs = keyword_args)
+
+    subtuples = [
+        ExprNodes.TupleNode(pos, args=arg) if isinstance(arg, list) else ExprNodes.AsTupleNode(pos, arg=arg)
+        for arg in positional_args
+    ]
+    # TODO: implement a faster way to join tuples than creating each one and adding them
+    arg_tuple = reduce(partial(ExprNodes.binop_node, pos, '+'), subtuples)
+
+    if keyword_args:
+        kwargs = []
+        dict_items = []
+        for item in keyword_args:
+            if isinstance(item, tuple):
+                key, value = item
+                dict_items.append(ExprNodes.DictItemNode(pos=key.pos, key=key, value=value))
+            elif item.is_dict_literal:
+                # unpack "**{a:b}" directly
+                dict_items.extend(item.key_value_pairs)
+            else:
+                if dict_items:
+                    kwargs.append(ExprNodes.DictNode(
+                        dict_items[0].pos, key_value_pairs=dict_items, reject_duplicates=True))
+                    dict_items = []
+                kwargs.append(item)
+
+        if dict_items:
+            kwargs.append(ExprNodes.DictNode(
+                dict_items[0].pos, key_value_pairs=dict_items, reject_duplicates=True))
+
+        if kwargs:
+            if len(kwargs) == 1 and kwargs[0].is_dict_literal:
+                # only simple keyword arguments found -> one dict
+                keyword_dict = kwargs[0]
+            else:
+                # at least one **kwargs
+                keyword_dict = ExprNodes.KeywordArgsNode(pos, keyword_args=kwargs)
+
     return arg_tuple, keyword_dict
+
 
 def p_call(s, function):
     # s.sy == '('
     pos = s.position()
+    positional_args, keyword_args = p_call_parse_args(s)
 
-    positional_args, keyword_args, star_arg, starstar_arg = \
-                     p_call_parse_args(s)
-
-    if not (keyword_args or star_arg or starstar_arg):
-        return ExprNodes.SimpleCallNode(pos,
-            function = function,
-            args = positional_args)
+    if not keyword_args and len(positional_args) == 1 and isinstance(positional_args[0], list):
+        return ExprNodes.SimpleCallNode(pos, function=function, args=positional_args[0])
     else:
-        arg_tuple, keyword_dict = p_call_build_packed_args(
-            pos, positional_args, keyword_args, star_arg, starstar_arg)
-        return ExprNodes.GeneralCallNode(pos,
-            function = function,
-            positional_args = arg_tuple,
-            keyword_args = keyword_dict)
+        arg_tuple, keyword_dict = p_call_build_packed_args(pos, positional_args, keyword_args)
+        return ExprNodes.GeneralCallNode(
+            pos, function=function, positional_args=arg_tuple, keyword_args=keyword_dict)
+
 
 #lambdef: 'lambda' [varargslist] ':' test
 
@@ -2969,6 +2986,7 @@ def p_py_arg_decl(s, annotated = 1):
         annotation = p_test(s)
     return Nodes.PyArgDeclNode(pos, name = name, annotation = annotation)
 
+
 def p_class_statement(s, decorators):
     # s.sy == 'class'
     pos = s.position()
@@ -2979,10 +2997,8 @@ def p_class_statement(s, decorators):
     keyword_dict = None
     starstar_arg = None
     if s.sy == '(':
-        positional_args, keyword_args, star_arg, starstar_arg = \
-                            p_call_parse_args(s, allow_genexp = False)
-        arg_tuple, keyword_dict = p_call_build_packed_args(
-            pos, positional_args, keyword_args, star_arg, None)
+        positional_args, keyword_args = p_call_parse_args(s, allow_genexp=False)
+        arg_tuple, keyword_dict = p_call_build_packed_args(pos, positional_args, keyword_args)
     if arg_tuple is None:
         # XXX: empty arg_tuple
         arg_tuple = ExprNodes.TupleNode(pos, args=[])
@@ -2994,6 +3010,7 @@ def p_class_statement(s, decorators):
         starstar_arg=starstar_arg,
         doc=doc, body=body, decorators=decorators,
         force_py3_semantics=s.context.language_level >= 3)
+
 
 def p_c_class_definition(s, pos,  ctx):
     # s.sy == 'class'
