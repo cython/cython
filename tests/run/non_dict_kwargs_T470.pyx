@@ -1,31 +1,16 @@
+# mode: run
 # ticket: 470
 
-__doc__ = u"""
->>> func(**{'a' : 7})
-True
->>> func(**SubDict())
-True
-
->>> call_non_dict_test()
-True
->>> call_non_dict_test_kw()
-True
-
->>> call_sub_dict_test()
-True
->>> call_sub_dict_test_kw()
-True
-"""
-
-import sys
-
-if sys.version_info >= (2,6):
-    __doc__ += u"""
->>> func(**NonDict())
-True
-"""
 
 def func(**kwargs):
+    """
+    >>> func(**{'a' : 7})
+    True
+    >>> func(**SubDict())
+    True
+    >>> func(**NonDict())
+    True
+    """
     return type(kwargs) is dict and kwargs['a'] == 7
 
 
@@ -37,9 +22,17 @@ class NonDict(object):
        return ['a']
 
 def call_non_dict_test():
+    """
+    >>> call_non_dict_test()
+    True
+    """
     return func(**NonDict())
 
 def call_non_dict_test_kw():
+    """
+    >>> call_non_dict_test_kw()
+    True
+    """
     return func(b=5, **NonDict())
 
 
@@ -48,7 +41,15 @@ class SubDict(dict):
         self['a'] = 7
 
 def call_sub_dict_test():
+    """
+    >>> call_sub_dict_test()
+    True
+    """
     return func(**SubDict())
 
 def call_sub_dict_test_kw():
+    """
+    >>> call_sub_dict_test_kw()
+    True
+    """
     return func(b=5, **SubDict())
