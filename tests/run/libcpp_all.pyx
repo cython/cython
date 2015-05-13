@@ -12,6 +12,7 @@ cimport libcpp.queue
 cimport libcpp.set
 cimport libcpp.stack
 cimport libcpp.vector
+cimport libcpp.complex
 
 from libcpp.deque  cimport *
 from libcpp.list   cimport *
@@ -21,6 +22,7 @@ from libcpp.queue  cimport *
 from libcpp.set    cimport *
 from libcpp.stack  cimport *
 from libcpp.vector cimport *
+from libcpp.complex cimport *
 
 cdef libcpp.deque.deque[int]   d1 = deque[int]()
 cdef libcpp.list.list[int]     l1 = list[int]()
