@@ -4157,8 +4157,10 @@ class OverrideCheckNode(StatNode):
         code.funcstate.release_temp(func_node_temp)
         code.putln("}")
 
+
 class ClassDefNode(StatNode, BlockNode):
     pass
+
 
 class PyClassDefNode(ClassDefNode):
     #  A Python class definition.
@@ -4185,7 +4187,7 @@ class PyClassDefNode(ClassDefNode):
     mkw = None
 
     def __init__(self, pos, name, bases, doc, body, decorators=None,
-                 keyword_args=None, starstar_arg=None, force_py3_semantics=False):
+                 keyword_args=None, force_py3_semantics=False):
         StatNode.__init__(self, pos)
         self.name = name
         self.doc = doc
@@ -4200,31 +4202,30 @@ class PyClassDefNode(ClassDefNode):
             doc_node = None
 
         allow_py2_metaclass = not force_py3_semantics
-        if keyword_args or starstar_arg:
+        if keyword_args:
             allow_py2_metaclass = False
             self.is_py3_style_class = True
-            if keyword_args and not starstar_arg:
-                for i, item in list(enumerate(keyword_args.key_value_pairs))[::-1]:
-                    if item.key.value == 'metaclass':
-                        if self.metaclass is not None:
-                            error(item.pos, "keyword argument 'metaclass' passed multiple times")
-                        # special case: we already know the metaclass,
-                        # so we don't need to do the "build kwargs,
-                        # find metaclass" dance at runtime
-                        self.metaclass = item.value
-                        del keyword_args.key_value_pairs[i]
-            if starstar_arg:
-                self.mkw = ExprNodes.ProxyNode(ExprNodes.KeywordArgsNode(
-                    pos, keyword_args=keyword_args and keyword_args.key_value_pairs or [],
-                    starstar_arg=starstar_arg))
-            elif keyword_args.key_value_pairs:
-                self.mkw = keyword_args
+            if keyword_args.is_dict_literal:
+                if keyword_args.key_value_pairs:
+                    for i, item in list(enumerate(keyword_args.key_value_pairs))[::-1]:
+                        if item.key.value == 'metaclass':
+                            if self.metaclass is not None:
+                                error(item.pos, "keyword argument 'metaclass' passed multiple times")
+                            # special case: we already know the metaclass,
+                            # so we don't need to do the "build kwargs,
+                            # find metaclass" dance at runtime
+                            self.metaclass = item.value
+                            del keyword_args.key_value_pairs[i]
+                    self.mkw = keyword_args
+                else:
+                    assert self.metaclass is not None
             else:
-                assert self.metaclass is not None
+                # KeywordArgsNode
+                self.mkw = ExprNodes.ProxyNode(keyword_args)
 
         if force_py3_semantics or self.bases or self.mkw or self.metaclass:
             if self.metaclass is None:
-                if starstar_arg:
+                if keyword_args and not keyword_args.is_dict_literal:
                     # **kwargs may contain 'metaclass' arg
                     mkdict = self.mkw
                 else:

@@ -2996,7 +2996,6 @@ def p_class_statement(s, decorators):
     class_name.encoding = s.source_encoding  # FIXME: why is this needed?
     arg_tuple = None
     keyword_dict = None
-    starstar_arg = None
     if s.sy == '(':
         positional_args, keyword_args = p_call_parse_args(s, allow_genexp=False)
         arg_tuple, keyword_dict = p_call_build_packed_args(pos, positional_args, keyword_args)
@@ -3008,7 +3007,6 @@ def p_class_statement(s, decorators):
         pos, name=class_name,
         bases=arg_tuple,
         keyword_args=keyword_dict,
-        starstar_arg=starstar_arg,
         doc=doc, body=body, decorators=decorators,
         force_py3_semantics=s.context.language_level >= 3)
 
