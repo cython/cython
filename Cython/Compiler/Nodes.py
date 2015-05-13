@@ -4220,7 +4220,7 @@ class PyClassDefNode(ClassDefNode):
                 else:
                     assert self.metaclass is not None
             else:
-                # KeywordArgsNode
+                # MergedDictNode
                 self.mkw = ExprNodes.ProxyNode(keyword_args)
 
         if force_py3_semantics or self.bases or self.mkw or self.metaclass:

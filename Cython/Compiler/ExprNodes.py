@@ -5229,8 +5229,8 @@ class GeneralCallNode(CallNode):
             self.compile_time_value_error(e)
 
     def explicit_args_kwds(self):
-        if (self.keyword_args and not isinstance(self.keyword_args, DictNode) or
-            not isinstance(self.positional_args, TupleNode)):
+        if (self.keyword_args and not self.keyword_args.is_dict_literal or
+                not self.positional_args.is_sequence_constructor):
             raise CompileError(self.pos,
                 'Compile-time keyword arguments must be explicit.')
         return self.positional_args.args, self.keyword_args
@@ -5284,7 +5284,7 @@ class GeneralCallNode(CallNode):
         if not isinstance(self.positional_args, TupleNode):
             # has starred argument
             return self
-        if not isinstance(self.keyword_args, DictNode):
+        if not self.keyword_args.is_dict_literal:
             # keywords come from arbitrary expression => nothing to do here
             return self
         function = self.function
@@ -5472,8 +5472,8 @@ class AsTupleNode(ExprNode):
         code.put_gotref(self.py_result())
 
 
-class KeywordArgsNode(ExprNode):
-    #  Helper class for keyword arguments.
+class MergedDictNode(ExprNode):
+    #  Helper class for keyword arguments and other merged dicts.
     #
     #  keyword_args      [DictNode or other ExprNode]
 
