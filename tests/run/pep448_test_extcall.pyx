@@ -20,7 +20,7 @@ if IS_PY3:
 ... else: print("FAILED!")
 
 >>> def f(*, kw, b): pass
->>> errors_call_3args_2kwargs(f)
+>>> try: errors_call_3args_2kwargs(f)
 ... except TypeError: pass
 ... else: print("FAILED!")
 
