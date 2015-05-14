@@ -441,3 +441,33 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
     return PyObject_Call((PyObject*)&PyFrozenSet_Type, $empty_tuple, NULL);
 #endif
 }
+
+
+//////////////////// PySet_Update.proto ////////////////////
+
+static CYTHON_INLINE int __Pyx_PySet_Update(PyObject* set, PyObject* it); /*proto*/
+
+//////////////////// PySet_Update ////////////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod1
+
+static CYTHON_INLINE int __Pyx_PySet_Update(PyObject* set, PyObject* it) {
+    PyObject *retval;
+    #if CYTHON_COMPILING_IN_CPYTHON
+    if (PyAnySet_Check(it)) {
+        // fast and safe case: CPython will update our result set and return it
+        retval = PySet_Type.tp_as_number->nb_inplace_or(set, it);
+        if (likely(retval == set)) {
+            Py_DECREF(retval);
+            return 0;
+        }
+        if (unlikely(!retval))
+            return -1;
+        // unusual result, fall through to set.update() call below
+        Py_DECREF(retval);
+    }
+    #endif
+    retval = __Pyx_PyObject_CallMethod1(set, PYIDENT("update"), it);
+    if (unlikely(!retval)) return -1;
+    Py_DECREF(retval);
+    return 0;
+}

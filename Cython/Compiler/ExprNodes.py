@@ -297,6 +297,7 @@ class ExprNode(Node):
 
     is_sequence_constructor = False
     is_dict_literal = False
+    is_set_literal = False
     is_string_literal = False
     is_attribute = False
     is_subscript = False
@@ -5554,10 +5555,6 @@ class MergedDictNode(ExprNode):
         code.mark_pos(self.pos)
         self.allocate_temp_result(code)
 
-        if self.reject_duplicates and len(self.keyword_args) > 1:
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("RaiseDoubleKeywords", "FunctionArguments.c"))
-
         args = iter(self.keyword_args)
         item = next(args)
         item.generate_evaluation_code(code)
@@ -5581,14 +5578,16 @@ class MergedDictNode(ExprNode):
             code.putln('}')
         item.free_temps(code)
 
+        helpers = set()
         for item in args:
             if item.is_dict_literal:
-                for arg in item.keyword_args:
+                for arg in item.key_value_pairs:
                     arg.generate_evaluation_code(code)
                     if self.reject_duplicates:
                         code.putln("if (unlikely(PyDict_Contains(%s, %s))) {" % (
                             self.result(),
                             arg.key.py_result()))
+                        helpers.add("RaiseDoubleKeywords")
                         # FIXME: find out function name at runtime!
                         code.putln('__Pyx_RaiseDoubleKeywordsError("function", %s); %s' % (
                             arg.key.py_result(),
@@ -5605,21 +5604,21 @@ class MergedDictNode(ExprNode):
             item.generate_evaluation_code(code)
             if self.reject_duplicates:
                 # merge mapping into kwdict one by one as we need to check for duplicates
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("MergeKeywords", "FunctionArguments.c"))
+                helpers.add("MergeKeywords")
                 code.put_error_if_neg(item.pos, "__Pyx_MergeKeywords(%s, %s)" % (self.result(), item.py_result()))
             else:
                 # simple case, just add all entries
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("RaiseMappingExpected", "FunctionArguments.c"))
+                helpers.add("RaiseMappingExpected")
                 code.putln("if (unlikely(PyDict_Update(%s, %s) < 0)) {" % (self.result(), item.py_result()))
-                code.putln("if (PyErr_ExceptionMatches(PyExc_AttributeError)) __Pyx_RaiseMappingExpected(%s);" % (
+                code.putln("if (PyErr_ExceptionMatches(PyExc_AttributeError)) __Pyx_RaiseMappingExpectedError(%s);" % (
                     item.py_result()))
                 code.putln(code.error_goto(item.pos))
                 code.putln("}")
-                code.putln("}")
             item.generate_disposal_code(code)
             item.free_temps(code)
+
+        for helper in helpers:
+            code.globalstate.use_utility_code(UtilityCode.load_cached(helper, "FunctionArguments.c"))
 
     def annotate(self, code):
         for item in self.keyword_args:
@@ -7228,13 +7227,122 @@ class InlinedGeneratorExpressionNode(ScopedExprNode):
         self.loop.generate_execution_code(code)
 
 
-class SetNode(ExprNode):
-    #  Set constructor.
+class MergedSetNode(ExprNode):
+    """
+    Merge a sequence of iterables into a set.
 
-    type = set_type
-
+    args    [SetNode or other ExprNode]
+    """
     subexprs = ['args']
+    type = set_type
+    is_temp = True
+    gil_message = "Constructing Python set"
 
+    def calculate_constant_result(self):
+        result = set()
+        for item in self.args:
+            if item.is_sequence_constructor and item.mult_factor:
+                if item.mult_factor.constant_result <= 0:
+                    continue
+            if item.is_set_literal or item.is_sequence_constructor:
+                # process items in order
+                items = (arg.constant_result for arg in item.args)
+            else:
+                items = item.constant_result
+            result.update(items)
+        self.constant_result = result
+
+    def compile_time_value(self, denv):
+        result = set()
+        for item in self.args:
+            if item.is_sequence_constructor and item.mult_factor:
+                if item.mult_factor.compile_time_value(denv) <= 0:
+                    continue
+            if item.is_set_literal or item.is_sequence_constructor:
+                # process items in order
+                items = (arg.compile_time_value(denv) for arg in item.args)
+            else:
+                items = item.compile_time_value(denv)
+            try:
+                result.update(items)
+            except Exception as e:
+                self.compile_time_value_error(e)
+        return result
+
+    def type_dependencies(self, env):
+        return ()
+
+    def infer_type(self, env):
+        return set_type
+
+    def analyse_types(self, env):
+        args = [
+            arg.analyse_types(env).coerce_to_pyobject(env).as_none_safe_node(
+                # FIXME: CPython's error message starts with the runtime function name
+                'argument after * must be an iterable, not NoneType')
+            for arg in self.args
+        ]
+
+        if len(args) == 1 and args[0].type is set_type:
+            # strip this intermediate node and use the bare set
+            return args[0]
+
+        self.args = args
+        return self
+
+    def may_be_none(self):
+        return False
+
+    def generate_evaluation_code(self, code):
+        code.mark_pos(self.pos)
+        self.allocate_temp_result(code)
+
+        args = iter(self.args)
+        item = next(args)
+        item.generate_evaluation_code(code)
+        if item.is_set_literal:
+            code.putln("%s = %s;" % (self.result(), item.py_result()))
+            item.generate_post_assignment_code(code)
+        else:
+            code.putln("%s = PySet_New(%s); %s" % (
+                self.result(),
+                item.py_result(),
+                code.error_goto_if_null(self.result(), self.pos)))
+            code.put_gotref(self.py_result())
+            item.generate_disposal_code(code)
+        item.free_temps(code)
+
+        for item in args:
+            if item.is_set_literal or (item.is_sequence_constructor and not item.mult_factor):
+                for arg in item.args:
+                    arg.generate_evaluation_code(code)
+                    code.put_error_if_neg(arg.pos, "PySet_Add(%s, %s)" % (
+                        self.result(),
+                        arg.py_result()))
+                    arg.generate_disposal_code(code)
+                    arg.free_temps(code)
+                continue
+
+            item.generate_evaluation_code(code)
+            code.globalstate.use_utility_code(UtilityCode.load_cached("PySet_Update", "Builtins.c"))
+            code.put_error_if_neg(item.pos, "__Pyx_PySet_Update(%s, %s)" % (
+                self.result(),
+                item.py_result()))
+            item.generate_disposal_code(code)
+            item.free_temps(code)
+
+    def annotate(self, code):
+        for item in self.args:
+            item.annotate(code)
+
+
+class SetNode(ExprNode):
+    """
+    Set constructor.
+    """
+    subexprs = ['args']
+    type = set_type
+    is_set_literal = True
     gil_message = "Constructing Python set"
 
     def analyse_types(self, env):
@@ -7388,12 +7496,10 @@ class DictNode(ExprNode):
                     self.result(),
                     code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
-            if self.reject_duplicates and len(self.key_value_pairs) > 1:
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("RaiseDoubleKeywords", "FunctionArguments.c"))
 
         keys_seen = set()
         key_type = None
+        needs_error_helper = False
 
         for item in self.key_value_pairs:
             item.generate_evaluation_code(code)
@@ -7423,6 +7529,7 @@ class DictNode(ExprNode):
                         code.putln('if (unlikely(PyDict_Contains(%s, %s))) {' % (
                             self.result(), key.py_result()))
                         # currently only used in function calls
+                        needs_error_helper = True
                         code.putln('__Pyx_RaiseDoubleKeywordsError("function", %s); %s' % (
                             key.py_result(),
                             code.error_goto(item.pos)))
@@ -7443,6 +7550,10 @@ class DictNode(ExprNode):
                         item.value.result()))
             item.generate_disposal_code(code)
             item.free_temps(code)
+
+        if needs_error_helper:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("RaiseDoubleKeywords", "FunctionArguments.c"))
 
     def annotate(self, code):
         for item in self.key_value_pairs:

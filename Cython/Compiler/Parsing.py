@@ -973,7 +973,12 @@ def p_comp_if(s, body):
                                          body = p_comp_iter(s, body))],
         else_clause = None )
 
-#dictmaker: test ':' test (',' test ':' test)* [',']
+
+# since PEP 448:
+#dictorsetmaker: ( ((test ':' test | '**' expr)
+#                   (comp_for | (',' (test ':' test | '**' expr))* [','])) |
+#                  ((test | star_expr)
+#                   (comp_for | (',' (test | star_expr))* [','])) )
 
 def p_dict_or_set_maker(s):
     # s.sy == '{'
@@ -981,57 +986,112 @@ def p_dict_or_set_maker(s):
     s.next()
     if s.sy == '}':
         s.next()
-        return ExprNodes.DictNode(pos, key_value_pairs = [])
-    item = p_test(s)
-    if s.sy == ',' or s.sy == '}':
-        # set literal
-        values = [item]
-        while s.sy == ',':
+        return ExprNodes.DictNode(pos, key_value_pairs=[])
+
+    parts = []
+    target_type = 0
+    last_was_simple_item = False
+    while True:
+        if s.sy in ('*', '**'):
+            # merged set/dict literal
+            if target_type == 0:
+                target_type = 1 if s.sy == '*' else 2  # 'stars'
+            elif target_type != len(s.sy):
+                s.error("unexpected %sitem found in %s literal" % (
+                    s.sy, 'set' if target_type == 1 else 'dict'))
+            s.next()
+            item = p_test(s)
+            parts.append(item)
+            last_was_simple_item = False
+        else:
+            item = p_test(s)
+            if target_type == 0:
+                target_type = 2 if s.sy == ':' else 1  # dict vs. set
+            if target_type == 2:
+                # dict literal
+                s.expect(':')
+                key = item
+                value = p_test(s)
+                item = ExprNodes.DictItemNode(key.pos, key=key, value=value)
+            if last_was_simple_item:
+                parts[-1].append(item)
+            else:
+                parts.append([item])
+                last_was_simple_item = True
+
+        if s.sy == ',':
             s.next()
             if s.sy == '}':
                 break
-            values.append( p_test(s) )
-        s.expect('}')
-        return ExprNodes.SetNode(pos, args=values)
-    elif s.sy == 'for':
-        # set comprehension
-        append = ExprNodes.ComprehensionAppendNode(
-            item.pos, expr=item)
-        loop = p_comp_for(s, append)
-        s.expect('}')
-        return ExprNodes.ComprehensionNode(
-            pos, loop=loop, append=append, type=Builtin.set_type)
-    elif s.sy == ':':
-        # dict literal or comprehension
-        key = item
-        s.next()
-        value = p_test(s)
-        if s.sy == 'for':
-            # dict comprehension
-            append = ExprNodes.DictComprehensionAppendNode(
-                item.pos, key_expr=key, value_expr=value)
+        else:
+            break
+
+    if s.sy == 'for':
+        # dict/set comprehension
+        if len(parts) == 1 and isinstance(parts[0], list) and len(parts[0]) == 1:
+            item = parts[0][0]
+            if target_type == 2:
+                assert isinstance(item, ExprNodes.DictItemNode), type(item)
+                comprehension_type = Builtin.dict_type
+                append = ExprNodes.DictComprehensionAppendNode(
+                    item.pos, key_expr=item.key, value_expr=item.value)
+            else:
+                comprehension_type = Builtin.set_type
+                append = ExprNodes.ComprehensionAppendNode(item.pos, expr=item)
             loop = p_comp_for(s, append)
             s.expect('}')
-            return ExprNodes.ComprehensionNode(
-                pos, loop=loop, append=append, type=Builtin.dict_type)
+            return ExprNodes.ComprehensionNode(pos, loop=loop, append=append, type=comprehension_type)
         else:
-            # dict literal
-            items = [ExprNodes.DictItemNode(key.pos, key=key, value=value)]
-            while s.sy == ',':
-                s.next()
-                if s.sy == '}':
-                    break
-                key = p_test(s)
-                s.expect(':')
-                value = p_test(s)
-                items.append(
-                    ExprNodes.DictItemNode(key.pos, key=key, value=value))
-            s.expect('}')
-            return ExprNodes.DictNode(pos, key_value_pairs=items)
+            # syntax error, try to find a good error message
+            if len(parts) == 1 and not isinstance(parts[0], list):
+                s.error("iterable unpacking cannot be used in comprehension")
+            else:
+                # e.g. "{1,2,3 for ..."
+                s.expect('}')
+            return ExprNodes.DictNode(pos, key_value_pairs=[])
+
+    s.expect('}')
+    if target_type == 1:
+        # (merged) set literal
+        items = []
+        set_items = []
+        for part in parts:
+            if isinstance(part, list):
+                set_items.extend(part)
+            elif part.is_set_literal or part.is_sequence_constructor:
+                # unpack *{1,2,3} and *[1,2,3] in place
+                set_items.extend(part.args)
+            else:
+                if set_items:
+                    items.append(ExprNodes.SetNode(set_items[0].pos, args=set_items))
+                    set_items = []
+                items.append(part)
+        if set_items:
+            items.append(ExprNodes.SetNode(set_items[0].pos, args=set_items))
+        if len(items) == 1 and items[0].is_set_literal:
+            return items[0]
+        return ExprNodes.MergedSetNode(pos, args=items)
     else:
-        # raise an error
-        s.expect('}')
-    return ExprNodes.DictNode(pos, key_value_pairs = [])
+        # (merged) dict literal
+        items = []
+        dict_items = []
+        for part in parts:
+            if isinstance(part, list):
+                dict_items.extend(part)
+            elif part.is_dict_literal:
+                # unpack **{...} in place
+                dict_items.extend(part.key_value_pairs)
+            else:
+                if dict_items:
+                    items.append(ExprNodes.DictNode(dict_items[0].pos, key_value_pairs=dict_items))
+                    dict_items = []
+                items.append(part)
+        if dict_items:
+            items.append(ExprNodes.DictNode(dict_items[0].pos, key_value_pairs=dict_items))
+        if len(items) == 1 and items[0].is_dict_literal:
+            return items[0]
+        return ExprNodes.MergedDictNode(pos, keyword_args=items, reject_duplicates=False)
+
 
 # NOTE: no longer in Py3 :)
 def p_backquote_expr(s):
