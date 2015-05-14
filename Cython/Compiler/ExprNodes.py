@@ -5563,7 +5563,7 @@ class MergedDictNode(ExprNode):
         item.generate_evaluation_code(code)
         if item.type is not dict_type:
             # CPython supports calling functions with non-dicts, so do we
-            code.putln('if (likely(PyDict_Check(%s))) {' %
+            code.putln('if (likely(PyDict_CheckExact(%s))) {' %
                        item.py_result())
 
         item.make_owned_reference(code)
