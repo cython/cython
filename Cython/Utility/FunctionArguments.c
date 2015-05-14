@@ -312,7 +312,7 @@ static int __Pyx_MergeKeywords(PyObject *kwdict, PyObject *source_mapping); /*pr
 //@requires: Optimize.c::dict_iter
 
 static int __Pyx_MergeKeywords(PyObject *kwdict, PyObject *source_mapping) {
-    PyObject *iter, *key, *value;
+    PyObject *iter, *key = NULL, *value = NULL;
     int source_is_dict, result;
     Py_ssize_t orig_length, ppos = 0;
 
