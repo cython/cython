@@ -210,7 +210,7 @@ def p_starred_expr(s):
         starred = False
     expr = p_bit_expr(s)
     if starred:
-        expr = ExprNodes.StarredTargetNode(pos, expr)
+        expr = ExprNodes.StarredUnpackingNode(pos, expr)
     return expr
 
 def p_cascaded_cmp(s):
@@ -915,11 +915,13 @@ def p_string_literal(s, kind_override=None):
     s.next()
     return (kind, bytes_value, unicode_value)
 
-# list_display      ::=      "[" [listmaker] "]"
-# listmaker     ::=     expression ( comp_for | ( "," expression )* [","] )
+
+# since PEP 448:
+# list_display  ::=     "[" [listmaker] "]"
+# listmaker     ::=     (test|star_expr) ( comp_for | (',' (test|star_expr))* [','] )
 # comp_iter     ::=     comp_for | comp_if
-# comp_for     ::=     "for" expression_list "in" testlist [comp_iter]
-# comp_if     ::=     "if" test [comp_iter]
+# comp_for      ::=     "for" expression_list "in" testlist [comp_iter]
+# comp_if       ::=     "if" test [comp_iter]
 
 def p_list_maker(s):
     # s.sy == '['
@@ -927,24 +929,29 @@ def p_list_maker(s):
     s.next()
     if s.sy == ']':
         s.expect(']')
-        return ExprNodes.ListNode(pos, args = [])
-    expr = p_test(s)
+        return ExprNodes.ListNode(pos, args=[])
+
+    expr = p_test_or_starred_expr(s)
     if s.sy == 'for':
+        if expr.is_starred:
+            s.error("iterable unpacking cannot be used in comprehension")
         append = ExprNodes.ComprehensionAppendNode(pos, expr=expr)
         loop = p_comp_for(s, append)
         s.expect(']')
         return ExprNodes.ComprehensionNode(
-            pos, loop=loop, append=append, type = Builtin.list_type,
+            pos, loop=loop, append=append, type=Builtin.list_type,
             # list comprehensions leak their loop variable in Py2
-            has_local_scope = s.context.language_level >= 3)
+            has_local_scope=s.context.language_level >= 3)
+
+    # (merged) list literal
+    if s.sy == ',':
+        s.next()
+        exprs = p_test_or_starred_expr_list(s, expr)
     else:
-        if s.sy == ',':
-            s.next()
-            exprs = p_simple_expr_list(s, expr)
-        else:
-            exprs = [expr]
-        s.expect(']')
-        return ExprNodes.ListNode(pos, args = exprs)
+        exprs = [expr]
+    s.expect(']')
+    return ExprNodes.ListNode(pos, args=exprs)
+
 
 def p_comp_iter(s, body):
     if s.sy == 'for':
@@ -1000,7 +1007,9 @@ def p_dict_or_set_maker(s):
                 s.error("unexpected %sitem found in %s literal" % (
                     s.sy, 'set' if target_type == 1 else 'dict'))
             s.next()
-            item = p_test(s)
+            if s.sy == '*':
+                s.error("expected expression, found '*'")
+            item = p_starred_expr(s)
             parts.append(item)
             last_was_simple_item = False
         else:
@@ -1058,9 +1067,6 @@ def p_dict_or_set_maker(s):
         for part in parts:
             if isinstance(part, list):
                 set_items.extend(part)
-            elif part.is_set_literal or part.is_sequence_constructor:
-                # unpack *{1,2,3} and *[1,2,3] in place
-                set_items.extend(part.args)
             else:
                 if set_items:
                     items.append(ExprNodes.SetNode(set_items[0].pos, args=set_items))
@@ -1070,7 +1076,7 @@ def p_dict_or_set_maker(s):
             items.append(ExprNodes.SetNode(set_items[0].pos, args=set_items))
         if len(items) == 1 and items[0].is_set_literal:
             return items[0]
-        return ExprNodes.MergedSetNode(pos, args=items)
+        return ExprNodes.MergedSequenceNode(pos, args=items, type=Builtin.set_type)
     else:
         # (merged) dict literal
         items = []
@@ -1078,9 +1084,6 @@ def p_dict_or_set_maker(s):
         for part in parts:
             if isinstance(part, list):
                 dict_items.extend(part)
-            elif part.is_dict_literal:
-                # unpack **{...} in place
-                dict_items.extend(part.key_value_pairs)
             else:
                 if dict_items:
                     items.append(ExprNodes.DictNode(dict_items[0].pos, key_value_pairs=dict_items))
@@ -1118,10 +1121,11 @@ def p_simple_expr_list(s, expr=None):
         s.next()
     return exprs
 
+
 def p_test_or_starred_expr_list(s, expr=None):
     exprs = expr is not None and [expr] or []
     while s.sy not in expr_terminators:
-        exprs.append( p_test_or_starred_expr(s) )
+        exprs.append(p_test_or_starred_expr(s))
         if s.sy != ',':
             break
         s.next()

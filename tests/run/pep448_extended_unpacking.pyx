@@ -23,10 +23,200 @@ class Map(object):
         return self.mapping[key]
 
 
+#### tuples
+
+
+@cython.test_fail_if_path_exists(
+    "//TupleNode//TupleNode",
+    "//MergedSequenceNode",
+)
+def unpack_tuple_literal():
+    """
+    >>> unpack_tuple_literal()
+    (1, 2, 4, 5)
+    """
+    return (*(1, 2, *(4, 5)),)
+
+
+def unpack_tuple_literal_mult():
+    """
+    >>> unpack_tuple_literal_mult()
+    (1, 2, 4, 5, 4, 5, 1, 2, 4, 5, 4, 5, 1, 2, 4, 5, 4, 5)
+    """
+    return (*((1, 2, *((4, 5) * 2)) * 3),)
+
+
+@cython.test_fail_if_path_exists(
+    "//TupleNode//TupleNode",
+    "//MergedSequenceNode",
+)
+def unpack_tuple_literal_empty():
+    """
+    >>> unpack_tuple_literal_empty()
+    ()
+    """
+    return (*(*(), *()), *(), *(*(*(),),))
+
+
+def unpack_tuple_simple(it):
+    """
+    >>> unpack_tuple_simple([])
+    ()
+    >>> unpack_tuple_simple(set())
+    ()
+    >>> unpack_tuple_simple(Iter())
+    ()
+
+    >>> unpack_tuple_simple([1])
+    (1,)
+
+    >>> unpack_tuple_simple([2, 1])
+    (2, 1)
+    >>> unpack_tuple_simple((2, 1))
+    (2, 1)
+    >>> sorted(unpack_tuple_simple(set([2, 1])))
+    [1, 2]
+    >>> unpack_tuple_simple(Iter([2, 1]))
+    (2, 1)
+    """
+    return (*it,)
+
+
+def unpack_tuple_from_iterable(it):
+    """
+    >>> unpack_tuple_from_iterable([1, 2, 3])
+    (1, 2, 1, 2, 3, 1, 1, 2, 3, 1, 2, 3, 1, 2, 3, 2, 1, 1, 2, 3)
+    >>> unpack_tuple_from_iterable((1, 2, 3))
+    (1, 2, 1, 2, 3, 1, 1, 2, 3, 1, 2, 3, 1, 2, 3, 2, 1, 1, 2, 3)
+    >>> sorted(unpack_tuple_from_iterable(set([1, 2, 3])))
+    [1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3]
+
+    >>> unpack_tuple_from_iterable([1, 2])
+    (1, 2, 1, 2, 1, 1, 2, 1, 2, 1, 2, 2, 1, 1, 2)
+    >>> sorted(unpack_tuple_from_iterable(set([1, 2])))
+    [1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2]
+    >>> unpack_tuple_from_iterable(Iter([1, 2]))
+    (1, 2, 1, 2, 1, 2, 1)
+
+    >>> unpack_tuple_from_iterable([3])
+    (1, 2, 3, 1, 3, 3, 3, 2, 1, 3)
+    >>> unpack_tuple_from_iterable(set([3]))
+    (1, 2, 3, 1, 3, 3, 3, 2, 1, 3)
+    >>> unpack_tuple_from_iterable(Iter([3]))
+    (1, 2, 3, 1, 2, 1)
+
+    >>> unpack_tuple_from_iterable([])
+    (1, 2, 1, 2, 1)
+    >>> unpack_tuple_from_iterable(set([]))
+    (1, 2, 1, 2, 1)
+    >>> unpack_tuple_from_iterable([])
+    (1, 2, 1, 2, 1)
+    >>> unpack_tuple_from_iterable(Iter([1, 2, 3]))
+    (1, 2, 1, 2, 3, 1, 2, 1)
+    """
+    return (1, 2, *it, 1, *(*it, *it), *it, 2, 1, *it)
+
+
+#### lists
+
+
+@cython.test_fail_if_path_exists(
+    "//ListNode//ListNode",
+    "//MergedSequenceNode",
+)
+def unpack_list_literal():
+    """
+    >>> unpack_list_literal()
+    [1, 2, 4, 5]
+    """
+    return [*[1, 2, *[4, 5]]]
+
+
+def unpack_list_literal_mult():
+    """
+    >>> unpack_list_literal_mult()
+    [1, 2, 4, 5, 4, 5, 1, 2, 4, 5, 4, 5, 1, 2, 4, 5, 4, 5]
+    """
+    return [*([1, 2, *([4, 5] * 2)] * 3)]
+
+
+@cython.test_fail_if_path_exists(
+    "//ListNode//ListNode",
+    "//MergedSequenceNode",
+)
+def unpack_list_literal_empty():
+    """
+    >>> unpack_list_literal_empty()
+    []
+    """
+    return [*[*[], *[]], *[], *[*[*[]]]]
+
+
+def unpack_list_simple(it):
+    """
+    >>> unpack_list_simple([])
+    []
+    >>> unpack_list_simple(set())
+    []
+    >>> unpack_list_simple(Iter())
+    []
+
+    >>> unpack_list_simple([1])
+    [1]
+
+    >>> unpack_list_simple([2, 1])
+    [2, 1]
+    >>> unpack_list_simple((2, 1))
+    [2, 1]
+    >>> sorted(unpack_list_simple(set([2, 1])))
+    [1, 2]
+    >>> unpack_list_simple(Iter([2, 1]))
+    [2, 1]
+    """
+    return [*it]
+
+
+def unpack_list_from_iterable(it):
+    """
+    >>> unpack_list_from_iterable([1, 2, 3])
+    [1, 2, 1, 2, 3, 1, 1, 2, 3, 1, 2, 3, 1, 2, 3, 2, 1, 1, 2, 3]
+    >>> unpack_list_from_iterable((1, 2, 3))
+    [1, 2, 1, 2, 3, 1, 1, 2, 3, 1, 2, 3, 1, 2, 3, 2, 1, 1, 2, 3]
+    >>> sorted(unpack_list_from_iterable(set([1, 2, 3])))
+    [1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3]
+
+    >>> unpack_list_from_iterable([1, 2])
+    [1, 2, 1, 2, 1, 1, 2, 1, 2, 1, 2, 2, 1, 1, 2]
+    >>> sorted(unpack_list_from_iterable(set([1, 2])))
+    [1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2]
+    >>> unpack_list_from_iterable(Iter([1, 2]))
+    [1, 2, 1, 2, 1, 2, 1]
+
+    >>> unpack_list_from_iterable([3])
+    [1, 2, 3, 1, 3, 3, 3, 2, 1, 3]
+    >>> unpack_list_from_iterable(set([3]))
+    [1, 2, 3, 1, 3, 3, 3, 2, 1, 3]
+    >>> unpack_list_from_iterable(Iter([3]))
+    [1, 2, 3, 1, 2, 1]
+
+    >>> unpack_list_from_iterable([])
+    [1, 2, 1, 2, 1]
+    >>> unpack_list_from_iterable(set([]))
+    [1, 2, 1, 2, 1]
+    >>> unpack_list_from_iterable([])
+    [1, 2, 1, 2, 1]
+    >>> unpack_list_from_iterable(Iter([1, 2, 3]))
+    [1, 2, 1, 2, 3, 1, 2, 1]
+    """
+    return [1, 2, *it, 1, *[*it, *it], *it, 2, 1, *it]
+
+
+###### sets
+
+
 @cython.test_fail_if_path_exists(
     "//SetNode//SetNode",
-    "//MergedSetNode//SetNode",
-    "//MergedSetNode//MergedSetNode",
+    "//MergedSequenceNode",
 )
 def unpack_set_literal():
     """
@@ -131,10 +321,12 @@ def unpack_set_from_iterable(it):
     return {1, 2, *it, 1, *{*it, *it}, *it, 2, 1, *it, *it}
 
 
+#### dicts
+
+
 @cython.test_fail_if_path_exists(
     "//DictNode//DictNode",
-    "//MergedDictNode//DictNode",
-    "//MergedDictNode//MergedDictNode",
+    "//MergedDictNode",
 )
 def unpack_dict_literal():
     """
@@ -143,6 +335,18 @@ def unpack_dict_literal():
     True
     """
     return {**{'a': 1, 'b': 2, **{'c': 4, 'd': 5}}}
+
+
+@cython.test_fail_if_path_exists(
+    "//DictNode//DictNode",
+    "//MergedDictNode",
+)
+def unpack_dict_literal_empty():
+    """
+    >>> unpack_dict_literal_empty()
+    {}
+    """
+    return {**{**{}, **{}}, **{}, **{**{**{}}}}
 
 
 def unpack_dict_simple(it):

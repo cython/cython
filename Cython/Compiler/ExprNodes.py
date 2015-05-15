@@ -5617,7 +5617,7 @@ class MergedDictNode(ExprNode):
             item.generate_disposal_code(code)
             item.free_temps(code)
 
-        for helper in helpers:
+        for helper in sorted(helpers):
             code.globalstate.use_utility_code(UtilityCode.load_cached(helper, "FunctionArguments.c"))
 
     def annotate(self, code):
@@ -6161,14 +6161,14 @@ class AttributeNode(ExprNode):
 #
 #-------------------------------------------------------------------
 
-class StarredTargetNode(ExprNode):
+class StarredUnpackingNode(ExprNode):
     #  A starred expression like "*a"
     #
-    #  This is only allowed in sequence assignment targets such as
+    #  This is only allowed in sequence assignment or construction such as
     #
     #      a, *b = (1,2,3,4)    =>     a = 1 ; b = [2,3,4]
     #
-    #  and will be removed during type analysis (or generate an error
+    #  and will be special cased during type analysis (or generate an error
     #  if it's found at unexpected places).
     #
     #  target          ExprNode
@@ -6177,17 +6177,22 @@ class StarredTargetNode(ExprNode):
     is_starred = 1
     type = py_object_type
     is_temp = 1
+    starred_expr_allowed_here = False
 
     def __init__(self, pos, target):
-        ExprNode.__init__(self, pos)
-        self.target = target
+        ExprNode.__init__(self, pos, target=target)
 
     def analyse_declarations(self, env):
-        error(self.pos, "can use starred expression only as assignment target")
+        if not self.starred_expr_allowed_here:
+            error(self.pos, "starred expression is not allowed here")
         self.target.analyse_declarations(env)
 
+    def infer_type(self, env):
+        return self.target.infer_type(env)
+
     def analyse_types(self, env):
-        error(self.pos, "can use starred expression only as assignment target")
+        if not self.starred_expr_allowed_here:
+            error(self.pos, "starred expression is not allowed here")
         self.target = self.target.analyse_types(env)
         self.type = self.target.type
         return self
@@ -6246,9 +6251,9 @@ class SequenceNode(ExprNode):
             arg.analyse_target_declaration(env)
 
     def analyse_types(self, env, skip_children=False):
-        for i in range(len(self.args)):
-            arg = self.args[i]
-            if not skip_children: arg = arg.analyse_types(env)
+        for i, arg in enumerate(self.args):
+            if not skip_children:
+                arg = arg.analyse_types(env)
             self.args[i] = arg.coerce_to_pyobject(env)
         if self.mult_factor:
             self.mult_factor = self.mult_factor.analyse_types(env)
@@ -6257,6 +6262,39 @@ class SequenceNode(ExprNode):
         self.is_temp = 1
         # not setting self.type here, subtypes do this
         return self
+
+    def _create_merge_node_if_necessary(self, env):
+        self._flatten_starred_args()
+        if not any(arg.is_starred for arg in self.args):
+            return self
+        # convert into MergedSequenceNode by building partial sequences
+        args = []
+        values = []
+        for arg in self.args:
+            if arg.is_starred:
+                if values:
+                    args.append(TupleNode(values[0].pos, args=values).analyse_types(env, skip_children=True))
+                    values = []
+                args.append(arg.target)
+            else:
+                values.append(arg)
+        if values:
+            args.append(TupleNode(values[0].pos, args=values).analyse_types(env, skip_children=True))
+        node = MergedSequenceNode(self.pos, args, self.type)
+        if self.mult_factor:
+            node = binop_node(
+                self.pos, '*', node, self.mult_factor.coerce_to_pyobject(env),
+                inplace=True, type=self.type, is_temp=True)
+        return node
+
+    def _flatten_starred_args(self):
+        args = []
+        for arg in self.args:
+            if arg.is_starred and arg.target.is_sequence_constructor and not arg.target.mult_factor:
+                args.extend(arg.target.args)
+            else:
+                args.append(arg)
+        self.args[:] = args
 
     def may_be_none(self):
         return False
@@ -6706,16 +6744,23 @@ class TupleNode(SequenceNode):
             return self
 
         if not skip_children:
-            self.args = [arg.analyse_types(env) for arg in self.args]
-        if not self.mult_factor and not any((arg.type.is_pyobject or arg.type.is_fused) for arg in self.args):
+            for i, arg in enumerate(self.args):
+                if arg.is_starred:
+                    arg.starred_expr_allowed_here = True
+                self.args[i] = arg.analyse_types(env)
+        if (not self.mult_factor and
+                not any((arg.is_starred or arg.type.is_pyobject or arg.type.is_fused) for arg in self.args)):
             self.type = env.declare_tuple_type(self.pos, (arg.type for arg in self.args)).type
             self.is_temp = 1
             return self
 
         node = SequenceNode.analyse_types(self, env, skip_children=True)
-        if not all(child.is_literal for child in node.args):
+        node = node._create_merge_node_if_necessary(env)
+        if not node.is_sequence_constructor:
             return node
 
+        if not all(child.is_literal for child in node.args):
+            return node
         if not node.mult_factor or (
                 node.mult_factor.is_literal and isinstance(node.mult_factor.constant_result, (int, long))):
             node.is_temp = False
@@ -6822,6 +6867,9 @@ class ListNode(SequenceNode):
         return list_type
 
     def analyse_expressions(self, env):
+        for arg in self.args:
+            if arg.is_starred:
+                arg.starred_expr_allowed_here = True
         node = SequenceNode.analyse_expressions(self, env)
         return node.coerce_to_pyobject(env)
 
@@ -6833,6 +6881,7 @@ class ListNode(SequenceNode):
         release_errors(ignore=True)
         if env.is_module_scope:
             self.in_module_scope = True
+        node = node._create_merge_node_if_necessary(env)
         return node
 
     def coerce_to(self, dst_type, env):
@@ -7227,33 +7276,48 @@ class InlinedGeneratorExpressionNode(ScopedExprNode):
         self.loop.generate_execution_code(code)
 
 
-class MergedSetNode(ExprNode):
+class MergedSequenceNode(ExprNode):
     """
-    Merge a sequence of iterables into a set.
+    Merge a sequence of iterables into a set/list/tuple.
 
-    args    [SetNode or other ExprNode]
+    The target collection is determined by self.type, which must be set externally.
+
+    args    [ExprNode]
     """
     subexprs = ['args']
-    type = set_type
     is_temp = True
-    gil_message = "Constructing Python set"
+    gil_message = "Constructing Python collection"
+
+    def __init__(self, pos, args, type):
+        if type in (list_type, tuple_type) and args and args[0].is_sequence_constructor:
+            # construct a list directly from the first argument that we can then extend
+            if args[0].type is not list_type:
+                args[0] = ListNode(args[0].pos, args=args[0].args, is_temp=True)
+        ExprNode.__init__(self, pos, args=args, type=type)
 
     def calculate_constant_result(self):
-        result = set()
+        result = []
         for item in self.args:
             if item.is_sequence_constructor and item.mult_factor:
                 if item.mult_factor.constant_result <= 0:
                     continue
+                # otherwise, adding each item once should be enough
             if item.is_set_literal or item.is_sequence_constructor:
                 # process items in order
                 items = (arg.constant_result for arg in item.args)
             else:
                 items = item.constant_result
-            result.update(items)
+            result.extend(items)
+        if self.type is set_type:
+            result = set(result)
+        elif self.type is tuple_type:
+            result = tuple(result)
+        else:
+            assert self.type is list_type
         self.constant_result = result
 
     def compile_time_value(self, denv):
-        result = set()
+        result = []
         for item in self.args:
             if item.is_sequence_constructor and item.mult_factor:
                 if item.mult_factor.compile_time_value(denv) <= 0:
@@ -7263,17 +7327,23 @@ class MergedSetNode(ExprNode):
                 items = (arg.compile_time_value(denv) for arg in item.args)
             else:
                 items = item.compile_time_value(denv)
+            result.extend(items)
+        if self.type is set_type:
             try:
-                result.update(items)
+                result = set(result)
             except Exception as e:
                 self.compile_time_value_error(e)
+        elif self.type is tuple_type:
+            result = tuple(result)
+        else:
+            assert self.type is list_type
         return result
 
     def type_dependencies(self, env):
         return ()
 
     def infer_type(self, env):
-        return set_type
+        return self.type
 
     def analyse_types(self, env):
         args = [
@@ -7283,9 +7353,11 @@ class MergedSetNode(ExprNode):
             for arg in self.args
         ]
 
-        if len(args) == 1 and args[0].type is set_type:
-            # strip this intermediate node and use the bare set
+        if len(args) == 1 and args[0].type is self.type:
+            # strip this intermediate node and use the bare collection
             return args[0]
+
+        assert self.type in (set_type, list_type, tuple_type)
 
         self.args = args
         return self
@@ -7297,39 +7369,78 @@ class MergedSetNode(ExprNode):
         code.mark_pos(self.pos)
         self.allocate_temp_result(code)
 
+        is_set = self.type is set_type
+
         args = iter(self.args)
         item = next(args)
         item.generate_evaluation_code(code)
-        if item.is_set_literal:
+        if item.pos[1] == 140:
+            print item.type, item.dump()
+        if (is_set and item.is_set_literal or
+                not is_set and item.is_sequence_constructor and item.type is list_type):
             code.putln("%s = %s;" % (self.result(), item.py_result()))
             item.generate_post_assignment_code(code)
         else:
-            code.putln("%s = PySet_New(%s); %s" % (
+            code.putln("%s = %s(%s); %s" % (
                 self.result(),
+                'PySet_New' if is_set else 'PySequence_List',
                 item.py_result(),
                 code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
             item.generate_disposal_code(code)
         item.free_temps(code)
 
+        helpers = set()
+        if is_set:
+            add_func = "PySet_Add"
+            extend_func = "__Pyx_PySet_Update"
+        else:
+            add_func = "__Pyx_ListComp_Append"
+            extend_func = "__Pyx_PyList_Extend"
+
         for item in args:
-            if item.is_set_literal or (item.is_sequence_constructor and not item.mult_factor):
+            if (is_set and (item.is_set_literal or item.is_sequence_constructor) or
+                    (item.is_sequence_constructor and not item.mult_factor)):
+                if not is_set and item.args:
+                    helpers.add(("ListCompAppend", "Optimize.c"))
                 for arg in item.args:
                     arg.generate_evaluation_code(code)
-                    code.put_error_if_neg(arg.pos, "PySet_Add(%s, %s)" % (
+                    code.put_error_if_neg(arg.pos, "%s(%s, %s)" % (
+                        add_func,
                         self.result(),
                         arg.py_result()))
                     arg.generate_disposal_code(code)
                     arg.free_temps(code)
                 continue
 
+            if is_set:
+                helpers.add(("PySet_Update", "Builtins.c"))
+            else:
+                helpers.add(("ListExtend", "Optimize.c"))
+
             item.generate_evaluation_code(code)
-            code.globalstate.use_utility_code(UtilityCode.load_cached("PySet_Update", "Builtins.c"))
-            code.put_error_if_neg(item.pos, "__Pyx_PySet_Update(%s, %s)" % (
+            code.put_error_if_neg(item.pos, "%s(%s, %s)" % (
+                extend_func,
                 self.result(),
                 item.py_result()))
             item.generate_disposal_code(code)
             item.free_temps(code)
+
+        if self.type is tuple_type:
+            code.putln("{")
+            code.putln("PyObject *%s = PyList_AsTuple(%s);" % (
+                Naming.quick_temp_cname,
+                self.result()))
+            code.put_decref(self.result(), py_object_type)
+            code.putln("%s = %s; %s" % (
+                self.result(),
+                Naming.quick_temp_cname,
+                code.error_goto_if_null(self.result(), self.pos)))
+            code.put_gotref(self.result())
+            code.putln("}")
+
+        for helper in sorted(helpers):
+            code.globalstate.use_utility_code(UtilityCode.load_cached(*helper))
 
     def annotate(self, code):
         for item in self.args:

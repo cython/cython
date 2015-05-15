@@ -15,8 +15,7 @@ Features added
 
 * Tracing is supported in ``nogil`` functions/sections and module init code.
 
-* PEP 448 (Additional Unpacking Generalizations) was partially implemented
-  for function calls, set and dict literals.
+* PEP 448 (Additional Unpacking Generalizations) was implemented.
 
 * When generators are used in a Cython module and the module imports the
   modules "inspect" and/or "asyncio", Cython enables interoperability by

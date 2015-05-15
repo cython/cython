@@ -3833,6 +3833,93 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 sequence_node.mult_factor = factor
         return sequence_node
 
+    def visit_MergedDictNode(self, node):
+        """Unpack **args in place if we can."""
+        self.visitchildren(node)
+        args = []
+        items = []
+
+        def add(arg):
+            if arg.is_dict_literal:
+                if items:
+                    items[0].key_value_pairs.extend(arg.key_value_pairs)
+                else:
+                    items.append(arg)
+            elif isinstance(arg, ExprNodes.MergedDictNode):
+                for child_arg in arg.keyword_args:
+                    add(child_arg)
+            else:
+                if items:
+                    args.append(items[0])
+                    del items[:]
+                args.append(arg)
+
+        for arg in node.keyword_args:
+            add(arg)
+        if items:
+            args.append(items[0])
+
+        if len(args) == 1:
+            arg = args[0]
+            if arg.is_dict_literal or isinstance(arg, ExprNodes.MergedDictNode):
+                return arg
+        node.keyword_args[:] = args
+        self._calculate_const(node)
+        return node
+
+    def visit_MergedSequenceNode(self, node):
+        """Unpack *args in place if we can."""
+        self.visitchildren(node)
+
+        is_set = node.type is Builtin.set_type
+        args = []
+        values = []
+
+        def add(arg):
+            if (is_set and arg.is_set_literal) or (arg.is_sequence_constructor and not arg.mult_factor):
+                if values:
+                    values[0].args.extend(arg.args)
+                else:
+                    values.append(arg)
+            elif isinstance(arg, ExprNodes.MergedSequenceNode):
+                for child_arg in arg.args:
+                    add(child_arg)
+            else:
+                if values:
+                    args.append(values[0])
+                    del values[:]
+                args.append(arg)
+
+        for arg in node.args:
+            add(arg)
+        if values:
+            args.append(values[0])
+
+        if len(args) == 1:
+            arg = args[0]
+            if ((is_set and arg.is_set_literal) or
+                    (arg.is_sequence_constructor and arg.type is node.type) or
+                    isinstance(arg, ExprNodes.MergedSequenceNode)):
+                return arg
+        node.args[:] = args
+        self._calculate_const(node)
+        return node
+
+    def visit_SequenceNode(self, node):
+        """Unpack *args in place if we can."""
+        self.visitchildren(node)
+        args = []
+        for arg in node.args:
+            if not arg.is_starred:
+                args.append(arg)
+            elif arg.target.is_sequence_constructor and not arg.target.mult_factor:
+                args.extend(arg.target.args)
+            else:
+                args.append(arg)
+        node.args[:] = args
+        self._calculate_const(node)
+        return node
+
     def visit_PrimaryCmpNode(self, node):
         # calculate constant partial results in the comparison cascade
         self.visitchildren(node, ['operand1'])
