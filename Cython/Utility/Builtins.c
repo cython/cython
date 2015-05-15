@@ -454,6 +454,8 @@ static CYTHON_INLINE int __Pyx_PySet_Update(PyObject* set, PyObject* it) {
     PyObject *retval;
     #if CYTHON_COMPILING_IN_CPYTHON
     if (PyAnySet_Check(it)) {
+        if (PySet_GET_SIZE(it) == 0)
+            return 0;
         // fast and safe case: CPython will update our result set and return it
         retval = PySet_Type.tp_as_number->nb_inplace_or(set, it);
         if (likely(retval == set)) {
