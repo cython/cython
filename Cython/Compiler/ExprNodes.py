@@ -7374,8 +7374,6 @@ class MergedSequenceNode(ExprNode):
         args = iter(self.args)
         item = next(args)
         item.generate_evaluation_code(code)
-        if item.pos[1] == 140:
-            print item.type, item.dump()
         if (is_set and item.is_set_literal or
                 not is_set and item.is_sequence_constructor and item.type is list_type):
             code.putln("%s = %s;" % (self.result(), item.py_result()))
