@@ -80,13 +80,19 @@ If you have include files in non-standard places you can pass an
 
     setup(
         name = "My hello app",
-        ext_modules = cythonize("src/*.pyx", include_path = [...]),
+        ext_modules = cythonize("src/*.pyx", include_dirs = [...]),
     )
 
 Often, Python packages that offer a C-level API provide a way to find
 the necessary include files, e.g. for NumPy::
 
-    include_path = [numpy.get_include()]
+    include_dirs = [numpy.get_include()]
+
+Note for Numpy users. Despite this, you will still get warnings like this from the compiler, because Cython is using a deprecated Numpy API::
+
+   /usr/local/lib/python2.7/dist-packages/numpy/core/include/numpy/npy_1_7_deprecated_api.h:15:2: warning: #warning "Using deprecated NumPy API, disable it by " "#defining NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION" [-Wcpp]
+
+For the time being, if compilation succeeds, just ignore the warning. 
 
 If you need to specify compiler options, libraries to link with or other
 linker options you will need to create ``Extension`` instances manually
