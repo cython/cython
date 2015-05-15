@@ -778,8 +778,8 @@ static int __pyx_Generator_init(void) {
 
 /////////////// ReturnWithStopIteration.proto ///////////////
 
-#if CYTHON_COMPILING_IN_CPYTHON
-// CPython 3.3+ crashes in yield-from when the StopIteration is not instantiated
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030500B1
+// CPython 3.3 <= x < 3.5b1 crash in yield-from when the StopIteration is not instantiated
 #define __Pyx_ReturnWithStopIteration(value)  \
     if (value == Py_None) PyErr_SetNone(PyExc_StopIteration); else __Pyx__ReturnWithStopIteration(value)
 static void __Pyx__ReturnWithStopIteration(PyObject* value); /*proto*/
@@ -789,7 +789,7 @@ static void __Pyx__ReturnWithStopIteration(PyObject* value); /*proto*/
 
 /////////////// ReturnWithStopIteration ///////////////
 
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030500B1
 static void __Pyx__ReturnWithStopIteration(PyObject* value) {
     PyObject *exc, *args;
     args = PyTuple_New(1);
