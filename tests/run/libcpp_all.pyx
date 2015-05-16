@@ -91,3 +91,23 @@ cdef const_vector_to_list(const vector[double]& cv):
         lst.append(cython.operator.dereference(iter))
         cython.operator.preincrement(iter)
     return lst
+
+def complex_operators():
+    """
+    >>> complex_operators()
+    [-1.0, 0.0, 0.0, 2.0, 0.0, 2.0]
+    """
+    cdef libcpp.complex.complex[double] a = libcpp.complex.complex[double](0.0,1.0)
+    cdef libcpp.complex.complex[double] r1=a*a
+    cdef libcpp.complex.complex[double] r2=a*2.0
+    cdef libcpp.complex.complex[double] r3=2.0*a
+    return [r1.real(), r1.imag(), r2.real(), r2.imag(), r3.real(), r3.imag()]
+
+def pair_comparison():
+    """
+    >>> pair_comparison()
+    [False, True, False, True, False]
+    """
+    cdef pair[double, double] p1 = pair[double, double](1.0,2.0)
+    cdef pair[double, double] p2 = pair[double, double](2.0,2.0)
+    return [p1==p2,p1==p1,p1>p2,p1<p2,p2>p2]
