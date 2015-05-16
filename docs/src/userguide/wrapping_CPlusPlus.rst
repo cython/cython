@@ -312,6 +312,10 @@ Cython uses C++ for overloading operators::
             Foo* operator-(Foo)
             int operator*(Foo*)
             int operator/(int)
+            int operator*(int, Foo) # allows 1*Foo()
+        # nonmember operators can also be specified outside the class
+        double operator/(double, Foo)
+        
 
     cdef Foo* foo = new Foo()
     cdef int x
@@ -321,6 +325,10 @@ Cython uses C++ for overloading operators::
 
     x = foo[0] * foo2
     x = foo[0] / 1
+    x = 1*foo[0]
+    
+    cdef double y
+    y = 2.0/foo[0]    
 
     cdef Foo f
     foo = f + &f
