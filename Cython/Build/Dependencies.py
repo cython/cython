@@ -516,11 +516,21 @@ class DependencyTree(object):
         return tuple(pxd_list)
 
     @cached_method
+    def referenced_files(self, filename):
+        """
+        Return a list of relative pathnames of all source files
+        directly referenced by the file ``filename``.
+        """
+        files = []
+        for f in self.cimported_files(filename):
+            files.append(os.path.relpath(f))
+        for f in self.included_files(filename):
+            files.append(os.path.relpath(f))
+        return files
+
     def immediate_dependencies(self, filename):
-        all = set([filename])
-        all.update(self.cimported_files(filename))
-        all.update(self.included_files(filename))
-        return all
+        all = [os.path.relpath(filename)] + self.referenced_files(filename)
+        return set(all)
 
     def all_dependencies(self, filename):
         return self.transitive_merge(filename, self.immediate_dependencies, set.union)
@@ -569,7 +579,7 @@ class DependencyTree(object):
         except KeyError:
             seen = self._transitive_cache[extract, merge] = {}
         return self.transitive_merge_helper(
-            node, extract, merge, seen, {}, self.cimported_files)[0]
+            node, extract, merge, seen, {}, self.referenced_files)[0]
 
     def transitive_merge_helper(self, node, extract, merge, seen, stack, outgoing):
         if node in seen:
