@@ -1277,7 +1277,7 @@ class GlobalState(object):
 
         w = self.parts['decls']
         cnames = []
-        for (type_cname, method_name, _), cname in sorted(self.cached_cmethods.iteritems()):
+        for (type_cname, method_name, _), cname in sorted(self.cached_cmethods.items()):
             cnames.append(cname)
             method_name_cname = self.get_interned_identifier(StringEncoding.EncodedString(method_name)).cname
             w.putln('static __Pyx_CachedCFunction %s = {(PyObject*)&%s, &%s, 0, 0, 0};' % (
