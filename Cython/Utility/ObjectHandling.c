@@ -1101,6 +1101,110 @@ static CYTHON_INLINE int __Pyx_PyObject_SetAttrStr(PyObject* obj, PyObject* attr
 #endif
 
 
+/////////////// UnpackUnboundCMethod.proto ///////////////
+
+typedef struct {
+    PyObject *type;
+    PyObject **method_name;
+    PyCFunction func;   // set on first access (direct C function pointer)
+    PyObject *method;   // set on first access (fallback)
+    int flag;
+} __Pyx_CachedCFunction;
+
+/////////////// UnpackUnboundCMethod ///////////////
+//@requires: PyObjectGetAttrStr
+
+static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
+    PyObject *method;
+    method = __Pyx_PyObject_GetAttrStr(target->type, *target->method_name);
+    if (unlikely(!method))
+        return -1;
+    target->method = method;
+#if CYTHON_COMPILING_IN_CPYTHON
+    assert (target->flag == METH_NOARGS || target->flag == METH_O);
+    #if PY_MAJOR_VERSION >= 3
+    assert (PyObject_TypeCheck(method, &PyMethodDescr_Type));
+    #endif
+    {
+        PyMethodDescrObject *descr = (PyMethodDescrObject*) method;
+        if (!(descr->d_method->ml_flags & (METH_VARARGS | METH_KEYWORDS)) && (descr->d_method->ml_flags & target->flag)) {
+            target->func = descr->d_method->ml_meth;
+        }
+    }
+#endif
+    return 0;
+}
+
+
+/////////////// CallUnboundCMethod0.proto ///////////////
+
+static PyObject* __Pyx__CallUnboundCMethod0(__Pyx_CachedCFunction* cfunc, PyObject* self); /*proto*/
+#if CYTHON_COMPILING_IN_CPYTHON
+#define __Pyx_CallUnboundCMethod0(cfunc, self)  \
+    ((likely((cfunc)->func)) ?  (*((cfunc)->func))(self, NULL) : __Pyx__CallUnboundCMethod0(cfunc, self))
+#else
+#define __Pyx_CallUnboundCMethod0(cfunc, self)  __Pyx__CallUnboundCMethod0(cfunc, self)
+#endif
+
+/////////////// CallUnboundCMethod0 ///////////////
+//@requires: UnpackUnboundCMethod
+//@requires: PyObjectCall
+
+static PyObject* __Pyx__CallUnboundCMethod0(__Pyx_CachedCFunction* cfunc, PyObject* self) {
+    PyObject *args, *result = NULL;
+    if (unlikely(!cfunc->method) && unlikely(__Pyx_TryUnpackUnboundCMethod(cfunc) < 0)) return NULL;
+#if CYTHON_COMPILING_IN_CPYTHON
+    args = PyTuple_New(1);
+    if (unlikely(!args)) goto bad;
+    Py_INCREF(self);
+    PyTuple_SET_ITEM(args, 0, self);
+#else
+    args = PyTuple_Pack(1, self);
+    if (unlikely(!args)) goto bad;
+#endif
+    result = __Pyx_PyObject_Call(cfunc->method, args, NULL);
+    Py_DECREF(args);
+bad:
+    return result;
+}
+
+
+/////////////// CallUnboundCMethod1.proto ///////////////
+
+static PyObject* __Pyx__CallUnboundCMethod1(__Pyx_CachedCFunction* cfunc, PyObject* self, PyObject* arg); /*proto*/
+
+#if CYTHON_COMPILING_IN_CPYTHON
+#define __Pyx_CallUnboundCMethod1(cfunc, self, arg)  \
+    ((likely((cfunc)->func)) ?  (*((cfunc)->func))(self, arg) : __Pyx__CallUnboundCMethod1(cfunc, self, arg))
+#else
+#define __Pyx_CallUnboundCMethod1(cfunc, self, arg)  __Pyx__CallUnboundCMethod1(cfunc, self, arg)
+#endif
+
+/////////////// CallUnboundCMethod1 ///////////////
+//@requires: UnpackUnboundCMethod
+//@requires: PyObjectCall
+
+static PyObject* __Pyx__CallUnboundCMethod1(__Pyx_CachedCFunction* cfunc, PyObject* self, PyObject* arg){
+    PyObject *args, *result = NULL;
+    if (unlikely(!cfunc->method) && unlikely(__Pyx_TryUnpackUnboundCMethod(cfunc) < 0)) return NULL;
+#if CYTHON_COMPILING_IN_CPYTHON
+    args = PyTuple_New(2);
+    if (unlikely(!args)) goto bad;
+    Py_INCREF(self);
+    PyTuple_SET_ITEM(args, 0, self);
+    Py_INCREF(arg);
+    PyTuple_SET_ITEM(args, 1, arg);
+#else
+    args = PyTuple_Pack(2, self, arg);
+    if (unlikely(!args)) goto bad;
+#endif
+    result = __Pyx_PyObject_Call(cfunc->method, args, NULL);
+bad:
+    Py_XDECREF(args);
+    return result;
+}
+
+
 /////////////// PyObjectCallMethod0.proto ///////////////
 
 static PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name); /*proto*/

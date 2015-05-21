@@ -109,7 +109,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyList_Pop(PyObject* L) {
         Py_SIZE(L) -= 1;
         return PyList_GET_ITEM(L, PyList_GET_SIZE(L));
     }
-    return __Pyx_PyObject_CallMethod0(L, PYIDENT("pop"));
+    return CALL_UNBOUND_METHOD(PyList_Type, "pop", L);
 }
 #endif
 
