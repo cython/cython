@@ -438,7 +438,7 @@ class UtilityCode(UtilityCodeBase):
             replacements.append(cname)
             return '%s(&%s, %s)' % (call, cname, ', '.join(args))
 
-        impl = re.sub(r'CALL_UNBOUND_METHOD\(([a-zA-Z_]+),\s*"([^"]+)"(,\s*[^),]+)+\)', externalise, impl)
+        impl = re.sub(r'CALL_UNBOUND_METHOD\(([a-zA-Z_]+),\s*"([^"]+)"((?:,\s*[^),]+)+)\)', externalise, impl)
         assert 'CALL_UNBOUND_METHOD(' not in impl
         return bool(replacements), impl
 

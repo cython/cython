@@ -477,7 +477,7 @@ static CYTHON_INLINE int __Pyx_PySet_Update(PyObject* set, PyObject* it) {
         Py_DECREF(retval);
     }
     #endif
-    retval = __Pyx_PyObject_CallMethod1(set, PYIDENT("update"), it);
+    retval = CALL_UNBOUND_METHOD(PySet_Type, "update", set, it);
     if (unlikely(!retval)) return -1;
     Py_DECREF(retval);
     return 0;
