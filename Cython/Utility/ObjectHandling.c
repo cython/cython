@@ -1128,9 +1128,7 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
     {
         PyMethodDescrObject *descr = (PyMethodDescrObject*) method;
         target->func = descr->d_method->ml_meth;
-        if (descr->d_method->ml_flags & (METH_VARARGS | METH_KEYWORDS) || !(descr->d_method->ml_flags & target->flag)) {
-            target->flag = descr->d_method->ml_flags & (METH_VARARGS | METH_KEYWORDS | METH_O | METH_NOARGS);
-        }
+        target->flag = descr->d_method->ml_flags & (METH_VARARGS | METH_KEYWORDS | METH_O | METH_NOARGS);
     }
 #endif
     return 0;

@@ -425,16 +425,14 @@ class UtilityCode(UtilityCodeBase):
             args = [arg.strip() for arg in args[1:].split(',')]
             if len(args) == 1:
                 call = '__Pyx_CallUnboundCMethod0'
-                flag = 'METH_NOARGS'
                 output.use_utility_code(UtilityCode.load_cached("CallUnboundCMethod0", "ObjectHandling.c"))
             elif len(args) == 2:
                 call = '__Pyx_CallUnboundCMethod1'
-                flag = 'METH_O'
                 output.use_utility_code(UtilityCode.load_cached("CallUnboundCMethod1", "ObjectHandling.c"))
             else:
                 assert False, "CALL_UNBOUND_METHOD() requires 1 or 2 call arguments"
 
-            cname = output.get_cached_unbound_method(type_cname, method_name, flag)
+            cname = output.get_cached_unbound_method(type_cname, method_name, len(args))
             replacements.append(cname)
             return '%s(&%s, %s)' % (call, cname, ', '.join(args))
 
@@ -1219,8 +1217,8 @@ class GlobalState(object):
             prefix = Naming.const_prefix
         return "%s%s" % (prefix, name_suffix)
 
-    def get_cached_unbound_method(self, type_cname, method_name, flag):
-        key = (type_cname, method_name, flag)
+    def get_cached_unbound_method(self, type_cname, method_name, args_count):
+        key = (type_cname, method_name, args_count)
         try:
             cname = self.cached_cmethods[key]
         except KeyError:
@@ -1279,11 +1277,11 @@ class GlobalState(object):
 
         w = self.parts['decls']
         cnames = []
-        for (type_cname, method_name, flag), cname in sorted(self.cached_cmethods.iteritems()):
+        for (type_cname, method_name, _), cname in sorted(self.cached_cmethods.iteritems()):
             cnames.append(cname)
             method_name_cname = self.get_interned_identifier(StringEncoding.EncodedString(method_name)).cname
-            w.putln('static __Pyx_CachedCFunction %s = {(PyObject*)&%s, &%s, 0, 0, %s};' % (
-                cname, type_cname, method_name_cname, flag))
+            w.putln('static __Pyx_CachedCFunction %s = {(PyObject*)&%s, &%s, 0, 0, 0};' % (
+                cname, type_cname, method_name_cname))
 
         if Options.generate_cleanup_code:
             cleanup = self.parts['cleanup_globals']
