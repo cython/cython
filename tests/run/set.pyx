@@ -1,16 +1,10 @@
 
-# Py2.3 doesn't have the 'set' builtin type, but Cython does :)
-_set = set
-_frozenset = frozenset
-
 cimport cython
-
-import sys
 
 
 def cython_set():
     """
-    >>> cython_set() is _set
+    >>> cython_set() is set
     True
     """
     assert set is cython.set
@@ -19,7 +13,7 @@ def cython_set():
 
 def cython_frozenset():
     """
-    >>> cython_frozenset() is _frozenset
+    >>> cython_frozenset() is frozenset
     True
     """
     assert frozenset is cython.frozenset
@@ -28,7 +22,7 @@ def cython_frozenset():
 
 def cython_set_override():
     """
-    >>> cython_set_override() is _set
+    >>> cython_set_override() is set
     True
     """
     set = 1
@@ -37,7 +31,7 @@ def cython_set_override():
 
 def cython_frozenset_override():
     """
-    >>> cython_frozenset_override() is _frozenset
+    >>> cython_frozenset_override() is frozenset
     True
     """
     frozenset = 1
@@ -46,7 +40,7 @@ def cython_frozenset_override():
 
 def test_set_literal():
     """
-    >>> type(test_set_literal()) is _set
+    >>> type(test_set_literal()) is set
     True
     >>> sorted(test_set_literal())
     ['a', 'b', 1]
@@ -57,7 +51,7 @@ def test_set_literal():
 
 def test_set_add():
     """
-    >>> type(test_set_add()) is _set
+    >>> type(test_set_add()) is set
     True
     >>> sorted(test_set_add())
     ['a', 1, (1, 2)]
@@ -73,7 +67,7 @@ def test_set_add():
 
 def test_set_update(v=None):
     """
-    >>> type(test_set_update()) is _set
+    >>> type(test_set_update()) is set
     True
     >>> sorted(test_set_update())
     ['a', 'b', 'c', 1, 2, (1, 2)]
@@ -96,7 +90,7 @@ def test_set_update(v=None):
 
 def test_object_update(v=None):
     """
-    >>> type(test_object_update()) is _set
+    >>> type(test_object_update()) is set
     True
     >>> sorted(test_object_update())
     ['a', 'b', 'c', 1, 2, (1, 2)]
@@ -119,7 +113,7 @@ def test_object_update(v=None):
 
 def test_set_clear():
     """
-    >>> type(test_set_clear()) is _set
+    >>> type(test_set_clear()) is set
     True
     >>> list(test_set_clear())
     []
@@ -142,7 +136,7 @@ def test_set_clear_None():
 
 def test_set_list_comp():
     """
-    >>> type(test_set_list_comp()) is _set
+    >>> type(test_set_list_comp()) is set
     True
     >>> sorted(test_set_list_comp())
     [0, 1, 2]
@@ -154,7 +148,7 @@ def test_set_list_comp():
 
 def test_frozenset_list_comp():
     """
-    >>> type(test_frozenset_list_comp()) is _frozenset
+    >>> type(test_frozenset_list_comp()) is frozenset
     True
     >>> sorted(test_frozenset_list_comp())
     [0, 1, 2]
@@ -166,7 +160,7 @@ def test_frozenset_list_comp():
 
 def test_set_pop():
     """
-    >>> type(test_set_pop()) is _set
+    >>> type(test_set_pop()) is set
     True
     >>> list(test_set_pop())
     []
@@ -181,7 +175,7 @@ def test_set_pop():
 @cython.test_fail_if_path_exists("//SimpleCallNode//NameNode")
 def test_object_pop(s):
     """
-    >>> s = _set([2])
+    >>> s = set([2])
     >>> test_object_pop(s)
     2
     >>> list(s)
@@ -208,7 +202,7 @@ def test_noop_pop_exception():
 
 def test_set_discard():
     """
-    >>> type(test_set_discard()) is _set
+    >>> type(test_set_discard()) is set
     True
     >>> sorted(test_set_discard())
     ['12', 233]
@@ -288,7 +282,7 @@ def test_frozenset_sideeffect_unhashable_failure():
 def test_set_of_list():
     """
     >>> s = test_set_of_list()
-    >>> isinstance(s, _set)
+    >>> isinstance(s, set)
     True
     >>> sorted(s)
     [1, 2, 3]
@@ -301,7 +295,7 @@ def test_set_of_list():
 def test_frozenset_of_list():
     """
     >>> s = test_frozenset_of_list()
-    >>> isinstance(s, _frozenset)
+    >>> isinstance(s, frozenset)
     True
     >>> sorted(s)
     [1, 2, 3]
@@ -314,7 +308,7 @@ def test_frozenset_of_list():
 def test_set_of_tuple():
     """
     >>> s = test_set_of_tuple()
-    >>> isinstance(s, _set)
+    >>> isinstance(s, set)
     True
     >>> sorted(s)
     [1, 2, 3]
@@ -327,7 +321,7 @@ def test_set_of_tuple():
 def test_frozenset_of_tuple():
     """
     >>> s = test_frozenset_of_tuple()
-    >>> isinstance(s, _frozenset)
+    >>> isinstance(s, frozenset)
     True
     >>> sorted(s)
     [1, 2, 3]
@@ -343,7 +337,7 @@ def test_frozenset_of_tuple():
 def test_set_of_iterable(x):
     """
     >>> s = test_set_of_iterable([1, 2, 3])
-    >>> isinstance(s, _set)
+    >>> isinstance(s, set)
     True
     >>> sorted(s)
     [1, 2, 3]
@@ -359,13 +353,13 @@ def test_set_of_iterable(x):
 def test_frozenset_of_iterable(x):
     """
     >>> s = test_frozenset_of_iterable([1, 2, 3])
-    >>> isinstance(s, _frozenset)
+    >>> isinstance(s, frozenset)
     True
     >>> sorted(s)
     [1, 2, 3]
 
-    >>> s = test_frozenset_of_iterable(_frozenset([1, 2, 3]))
-    >>> isinstance(s, _frozenset)
+    >>> s = test_frozenset_of_iterable(frozenset([1, 2, 3]))
+    >>> isinstance(s, frozenset)
     True
     >>> sorted(s)
     [1, 2, 3]
@@ -381,11 +375,11 @@ def test_frozenset_of_iterable(x):
 def test_empty_frozenset():
     """
     >>> s = test_empty_frozenset()
-    >>> isinstance(s, _frozenset)
+    >>> isinstance(s, frozenset)
     True
     >>> len(s)
     0
-    >>> sys.version_info < (2,5) or s is frozenset()   # singleton!
+    >>> s is frozenset()   # singleton!
     True
     """
     return frozenset()
@@ -406,7 +400,7 @@ def test_singleton_empty_frozenset():
            frozenset(), frozenset([]), frozenset(()), frozenset(''),
            frozenset(range(0)), frozenset(frozenset()),
            frozenset(f), f]
-    return len(set(map(id, efs))) if sys.version_info >= (2,5) else 1
+    return len(set(map(id, efs)))
 
 
 def sorted(it):
