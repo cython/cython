@@ -1121,14 +1121,15 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
         return -1;
     target->method = method;
 #if CYTHON_COMPILING_IN_CPYTHON
-    assert (target->flag == METH_NOARGS || target->flag == METH_O);
     #if PY_MAJOR_VERSION >= 3
-    assert (PyObject_TypeCheck(method, &PyMethodDescr_Type));
+    // method dscriptor type isn't exported in Py2.x, cannot easily check the type there
+    if (likely(PyObject_TypeCheck(method, &PyMethodDescr_Type)))
     #endif
     {
         PyMethodDescrObject *descr = (PyMethodDescrObject*) method;
-        if (!(descr->d_method->ml_flags & (METH_VARARGS | METH_KEYWORDS)) && (descr->d_method->ml_flags & target->flag)) {
-            target->func = descr->d_method->ml_meth;
+        target->func = descr->d_method->ml_meth;
+        if (descr->d_method->ml_flags & (METH_VARARGS | METH_KEYWORDS) || !(descr->d_method->ml_flags & target->flag)) {
+            target->flag = descr->d_method->ml_flags & (METH_VARARGS | METH_KEYWORDS | METH_O | METH_NOARGS);
         }
     }
 #endif
@@ -1137,11 +1138,16 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
 
 
 /////////////// CallUnboundCMethod0.proto ///////////////
+//@substitute: naming
 
 static PyObject* __Pyx__CallUnboundCMethod0(__Pyx_CachedCFunction* cfunc, PyObject* self); /*proto*/
 #if CYTHON_COMPILING_IN_CPYTHON
 #define __Pyx_CallUnboundCMethod0(cfunc, self)  \
-    ((likely((cfunc)->func)) ?  (*((cfunc)->func))(self, NULL) : __Pyx__CallUnboundCMethod0(cfunc, self))
+    ((likely((cfunc)->func)) ? \
+        (likely((cfunc)->flag == METH_NOARGS) ?  (*((cfunc)->func))(self, NULL) : \
+         (likely((cfunc)->flag == (METH_VARARGS | METH_KEYWORDS)) ?  ((*(PyCFunctionWithKeywords)(cfunc)->func)(self, $empty_tuple, NULL)) : \
+             ((cfunc)->flag == METH_VARARGS ?  (*((cfunc)->func))(self, $empty_tuple) : __Pyx__CallUnboundCMethod0(cfunc, self)))) : \
+        __Pyx__CallUnboundCMethod0(cfunc, self))
 #else
 #define __Pyx_CallUnboundCMethod0(cfunc, self)  __Pyx__CallUnboundCMethod0(cfunc, self)
 #endif
@@ -1175,7 +1181,8 @@ static PyObject* __Pyx__CallUnboundCMethod1(__Pyx_CachedCFunction* cfunc, PyObje
 
 #if CYTHON_COMPILING_IN_CPYTHON
 #define __Pyx_CallUnboundCMethod1(cfunc, self, arg)  \
-    ((likely((cfunc)->func)) ?  (*((cfunc)->func))(self, arg) : __Pyx__CallUnboundCMethod1(cfunc, self, arg))
+    ((likely((cfunc)->func && (cfunc)->flag == METH_O)) ? (*((cfunc)->func))(self, arg) : \
+        __Pyx__CallUnboundCMethod1(cfunc, self, arg))
 #else
 #define __Pyx_CallUnboundCMethod1(cfunc, self, arg)  __Pyx__CallUnboundCMethod1(cfunc, self, arg)
 #endif
@@ -1188,17 +1195,29 @@ static PyObject* __Pyx__CallUnboundCMethod1(__Pyx_CachedCFunction* cfunc, PyObje
     PyObject *args, *result = NULL;
     if (unlikely(!cfunc->method) && unlikely(__Pyx_TryUnpackUnboundCMethod(cfunc) < 0)) return NULL;
 #if CYTHON_COMPILING_IN_CPYTHON
-    args = PyTuple_New(2);
-    if (unlikely(!args)) goto bad;
-    Py_INCREF(self);
-    PyTuple_SET_ITEM(args, 0, self);
-    Py_INCREF(arg);
-    PyTuple_SET_ITEM(args, 1, arg);
+    if (cfunc->func && (cfunc->flag & METH_VARARGS)) {
+        args = PyTuple_New(1);
+        if (unlikely(!args)) goto bad;
+        Py_INCREF(arg);
+        PyTuple_SET_ITEM(args, 0, arg);
+        if (cfunc->flag & METH_KEYWORDS)
+            result = (*(PyCFunctionWithKeywords)cfunc->func)(self, args, NULL);
+        else
+            result = (*cfunc->func)(self, args);
+    } else {
+        args = PyTuple_New(2);
+        if (unlikely(!args)) goto bad;
+        Py_INCREF(self);
+        PyTuple_SET_ITEM(args, 0, self);
+        Py_INCREF(arg);
+        PyTuple_SET_ITEM(args, 1, arg);
+        result = __Pyx_PyObject_Call(cfunc->method, args, NULL);
+    }
 #else
     args = PyTuple_Pack(2, self, arg);
     if (unlikely(!args)) goto bad;
-#endif
     result = __Pyx_PyObject_Call(cfunc->method, args, NULL);
+#endif
 bad:
     Py_XDECREF(args);
     return result;
