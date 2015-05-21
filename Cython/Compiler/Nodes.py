@@ -1828,7 +1828,17 @@ class FuncDefNode(StatNode, BlockNode):
                     code.put_release_ensured_gil()
 
             # FIXME: what if the error return value is a Python value?
-            code.putln("return %s;" % self.error_value())
+            err_val = self.error_value()
+            if err_val is None:
+                if not self.caller_will_check_exceptions():
+                    warning(self.entry.pos,
+                            "Unraisable exception in function '%s'." %
+                            self.entry.qualified_name, 0)
+                    code.put_unraisable(self.entry.qualified_name, lenv.nogil)
+                #if self.return_type.is_void:
+                code.putln("return;")
+            else:
+                code.putln("return %s;" % err_val)
             code.putln("}")
             code.put_gotref(Naming.cur_scope_cname)
             # Note that it is unsafe to decref the scope at this point.
