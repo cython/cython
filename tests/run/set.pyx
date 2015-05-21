@@ -71,6 +71,52 @@ def test_set_add():
     return s1
 
 
+def test_set_update(v=None):
+    """
+    >>> type(test_set_update()) is _set
+    True
+    >>> sorted(test_set_update())
+    ['a', 'b', 'c', 1, 2, (1, 2)]
+    >>> sorted(test_set_update([]))
+    ['a', 'b', 'c', 1, 2, (1, 2)]
+    >>> try: test_set_update(object())
+    ... except TypeError: pass
+    ... else: print("NOT RAISED!")
+    """
+    cdef set s1
+    s1 = set([1, (1, 2)])
+    s1.update((1,))
+    s1.update('abc')
+    s1.update(set([1]))
+    s1.update(frozenset((1,2)))
+    if v is not None:
+        s1.update(v)
+    return s1
+
+
+def test_object_update(v=None):
+    """
+    >>> type(test_object_update()) is _set
+    True
+    >>> sorted(test_object_update())
+    ['a', 'b', 'c', 1, 2, (1, 2)]
+    >>> sorted(test_object_update([]))
+    ['a', 'b', 'c', 1, 2, (1, 2)]
+    >>> try: test_object_update(object())
+    ... except TypeError: pass
+    ... else: print("NOT RAISED!")
+    """
+    cdef object s1
+    s1 = set([1, (1, 2)])
+    s1.update((1,))
+    s1.update('abc')
+    s1.update(set([1]))
+    s1.update(frozenset((1,2)))
+    if v is not None:
+        s1.update(v)
+    return s1
+
+
 def test_set_clear():
     """
     >>> type(test_set_clear()) is _set
