@@ -318,10 +318,9 @@ def errors_args_kwargs_overlap():
 
 def errors_non_string_kwarg():
     """
-    >>> errors_non_string_kwarg()
+    >>> errors_non_string_kwarg()  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-      ...
-    TypeError: f() keywords must be strings
+    TypeError: ...keywords must be strings
     """
     f(**{1:2})
 
