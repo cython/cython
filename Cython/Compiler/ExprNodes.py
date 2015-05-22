@@ -5589,6 +5589,7 @@ class MergedDictNode(ExprNode):
         helpers = set()
         for item in args:
             if item.is_dict_literal:
+                # inline update instead of creating an intermediate dict
                 for arg in item.key_value_pairs:
                     arg.generate_evaluation_code(code)
                     if self.reject_duplicates:
@@ -5607,23 +5608,24 @@ class MergedDictNode(ExprNode):
                         arg.value.py_result()))
                     arg.generate_disposal_code(code)
                     arg.free_temps(code)
-                continue
-
-            item.generate_evaluation_code(code)
-            if self.reject_duplicates:
-                # merge mapping into kwdict one by one as we need to check for duplicates
-                helpers.add("MergeKeywords")
-                code.put_error_if_neg(item.pos, "__Pyx_MergeKeywords(%s, %s)" % (self.result(), item.py_result()))
             else:
-                # simple case, just add all entries
-                helpers.add("RaiseMappingExpected")
-                code.putln("if (unlikely(PyDict_Update(%s, %s) < 0)) {" % (self.result(), item.py_result()))
-                code.putln("if (PyErr_ExceptionMatches(PyExc_AttributeError)) __Pyx_RaiseMappingExpectedError(%s);" % (
-                    item.py_result()))
-                code.putln(code.error_goto(item.pos))
-                code.putln("}")
-            item.generate_disposal_code(code)
-            item.free_temps(code)
+                item.generate_evaluation_code(code)
+                if self.reject_duplicates:
+                    # merge mapping into kwdict one by one as we need to check for duplicates
+                    helpers.add("MergeKeywords")
+                    code.put_error_if_neg(item.pos, "__Pyx_MergeKeywords(%s, %s)" % (
+                        self.result(), item.py_result()))
+                else:
+                    # simple case, just add all entries
+                    helpers.add("RaiseMappingExpected")
+                    code.putln("if (unlikely(PyDict_Update(%s, %s) < 0)) {" % (
+                        self.result(), item.py_result()))
+                    code.putln("if (PyErr_ExceptionMatches(PyExc_AttributeError)) "
+                               "__Pyx_RaiseMappingExpectedError(%s);" % item.py_result())
+                    code.putln(code.error_goto(item.pos))
+                    code.putln("}")
+                item.generate_disposal_code(code)
+                item.free_temps(code)
 
         for helper in sorted(helpers):
             code.globalstate.use_utility_code(UtilityCode.load_cached(helper, "FunctionArguments.c"))
