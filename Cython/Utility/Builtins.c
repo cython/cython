@@ -457,7 +457,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
 static CYTHON_INLINE int __Pyx_PySet_Update(PyObject* set, PyObject* it); /*proto*/
 
 //////////////////// PySet_Update ////////////////////
-//@requires: ObjectHandling.c::PyObjectCallMethod1
 
 static CYTHON_INLINE int __Pyx_PySet_Update(PyObject* set, PyObject* it) {
     PyObject *retval;
