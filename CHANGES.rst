@@ -75,7 +75,7 @@ Bugs fixed
   pre-declared in .pxd files.
 
 
-0.22.1 (2015-04-??)
+0.22.1 (2015-05-??)
 ===================
 
 Bugs fixed
@@ -95,6 +95,8 @@ Bugs fixed
 * The internal generator function type was not shared across modules.
 
 * Comparisons of (inferred) ctuples failed to compile.
+
+* Closures inside of cdef functions returning ``void`` failed to compile.
 
 * Using ``const`` C++ references in intermediate parts of longer expressions
   could fail to compile.
