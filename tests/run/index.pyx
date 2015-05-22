@@ -83,12 +83,12 @@ def del_index_list(list L, Py_ssize_t index):
     [0, 2, 3]
     >>> del_index_list(list(range(4)), -1)
     [0, 1, 2]
-    >>> del_index_list(list(range(4)), py_maxsize)
+    >>> del_index_list(list(range(4)), py_maxsize)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    IndexError: list assignment index out of range
-    >>> del_index_list(list(range(4)), -py_maxsize)
+    IndexError: list... index out of range
+    >>> del_index_list(list(range(4)), -py_maxsize)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    IndexError: list assignment index out of range
+    IndexError: list... index out of range
     """
     del L[index]
     return L
@@ -102,12 +102,12 @@ def set_index_list(list L, Py_ssize_t index):
     [0, 5, 2, 3]
     >>> set_index_list(list(range(4)), -1)
     [0, 1, 2, 5]
-    >>> set_index_list(list(range(4)), py_maxsize)
+    >>> set_index_list(list(range(4)), py_maxsize)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    IndexError: list assignment index out of range
-    >>> set_index_list(list(range(4)), -py_maxsize)
+    IndexError: list... index out of range
+    >>> set_index_list(list(range(4)), -py_maxsize)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    IndexError: list assignment index out of range
+    IndexError: list... index out of range
     """
     L[index] = 5
     return L
