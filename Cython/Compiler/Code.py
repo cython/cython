@@ -419,26 +419,28 @@ class UtilityCode(UtilityCodeBase):
         if 'CALL_UNBOUND_METHOD(' not in impl:
             return False, impl
 
-        replacements = []
+        utility_code = set()
         def externalise(matchobj):
             type_cname, method_name, args = matchobj.groups()
             args = [arg.strip() for arg in args[1:].split(',')]
             if len(args) == 1:
                 call = '__Pyx_CallUnboundCMethod0'
-                output.use_utility_code(UtilityCode.load_cached("CallUnboundCMethod0", "ObjectHandling.c"))
+                utility_code.add("CallUnboundCMethod0")
             elif len(args) == 2:
                 call = '__Pyx_CallUnboundCMethod1'
-                output.use_utility_code(UtilityCode.load_cached("CallUnboundCMethod1", "ObjectHandling.c"))
+                utility_code.add("CallUnboundCMethod1")
             else:
                 assert False, "CALL_UNBOUND_METHOD() requires 1 or 2 call arguments"
 
             cname = output.get_cached_unbound_method(type_cname, method_name, len(args))
-            replacements.append(cname)
             return '%s(&%s, %s)' % (call, cname, ', '.join(args))
 
         impl = re.sub(r'CALL_UNBOUND_METHOD\(([a-zA-Z_]+),\s*"([^"]+)"((?:,\s*[^),]+)+)\)', externalise, impl)
         assert 'CALL_UNBOUND_METHOD(' not in impl
-        return bool(replacements), impl
+
+        for helper in sorted(utility_code):
+            output.use_utility_code(UtilityCode.load_cached(helper, "ObjectHandling.c"))
+        return bool(utility_code), impl
 
     def wrap_c_strings(self, impl):
         """Replace CSTRING('''xyz''') by a C compatible string
