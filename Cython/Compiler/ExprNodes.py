@@ -5563,9 +5563,17 @@ class MergedDictNode(ExprNode):
             code.putln('if (likely(PyDict_CheckExact(%s))) {' %
                        item.py_result())
 
-        item.make_owned_reference(code)
-        code.putln("%s = %s;" % (self.result(), item.py_result()))
-        item.generate_post_assignment_code(code)
+        if item.is_dict_literal:
+            item.make_owned_reference(code)
+            code.putln("%s = %s;" % (self.result(), item.py_result()))
+            item.generate_post_assignment_code(code)
+        else:
+            code.putln("%s = PyDict_Copy(%s); %s" % (
+                self.result(),
+                item.py_result(),
+                code.error_goto_if_null(self.result(), item.pos)))
+            code.put_gotref(self.result())
+            item.generate_disposal_code(code)
 
         if item.type is not dict_type:
             code.putln('} else {')

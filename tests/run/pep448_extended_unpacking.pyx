@@ -117,6 +117,33 @@ def unpack_tuple_from_iterable(it):
     return (1, 2, *it, 1, *(*it, *it), *it, 2, 1, *it)
 
 
+def unpack_tuple_keep_originals(a, b, c):
+    """
+    >>> a = b = [1, 2]
+    >>> c = [3, 4]
+    >>> unpack_tuple_keep_originals(a, b, c)
+    (1, 2, 1, 2, 2, 3, 4)
+    >>> a
+    [1, 2]
+    >>> b
+    [1, 2]
+    >>> c
+    [3, 4]
+
+    >>> a = b = (1, 2)
+    >>> c = (3, 4)
+    >>> unpack_tuple_keep_originals(a, b, c)
+    (1, 2, 1, 2, 2, 3, 4)
+    >>> a
+    (1, 2)
+    >>> b
+    (1, 2)
+    >>> c
+    (3, 4)
+    """
+    return (*a, *b, 2, *c)
+
+
 #### lists
 
 
@@ -209,6 +236,22 @@ def unpack_list_from_iterable(it):
     [1, 2, 1, 2, 3, 1, 2, 1]
     """
     return [1, 2, *it, 1, *[*it, *it], *it, 2, 1, *it]
+
+
+def unpack_list_keep_originals(a, b, c):
+    """
+    >>> a = b = [1, 2]
+    >>> c = [3, 4]
+    >>> unpack_list_keep_originals(a, b, c)
+    [1, 2, 1, 2, 2, 3, 4]
+    >>> a
+    [1, 2]
+    >>> b
+    [1, 2]
+    >>> c
+    [3, 4]
+    """
+    return [*a, *b, 2, *c]
 
 
 ###### sets
@@ -319,6 +362,23 @@ def unpack_set_from_iterable(it):
     True
     """
     return {1, 2, *it, 1, *{*it, *it}, *it, 2, 1, *it, *it}
+
+
+def unpack_set_keep_originals(a, b, c):
+    """
+    >>> a = b = {1, 2}
+    >>> c = {3, 4}
+    >>> s = unpack_set_keep_originals(a, b, c)
+    >>> s == set([1, 2, 3, 4]) or s
+    True
+    >>> a == set([1, 2]) or a
+    True
+    >>> b == set([1, 2]) or b
+    True
+    >>> c == set([3, 4]) or c
+    True
+    """
+    return {*a, *b, 2, *c}
 
 
 #### dicts
@@ -441,3 +501,20 @@ def unpack_dict_from_iterable(it):
     True
     """
     return {'a': 2, 'b': 3, **it, 'a': 1, **{**it, **it}, **it, 'a': 4, 'b': 5, **it, **it}
+
+
+def unpack_dict_keep_originals(a, b, c):
+    """
+    >>> a = b = {1: 2}
+    >>> c = {2: 3, 4: 5}
+    >>> d = unpack_dict_keep_originals(a, b, c)
+    >>> d == {1: 2, 2: 3, 4: 5} or d
+    True
+    >>> a
+    {1: 2}
+    >>> b
+    {1: 2}
+    >>> c == {2: 3, 4: 5} or c
+    True
+    """
+    return {**a, **b, 2: 4, **c}
