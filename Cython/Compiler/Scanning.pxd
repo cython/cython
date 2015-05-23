@@ -30,6 +30,7 @@ cdef class PyrexScanner(Scanner):
     cdef public bint in_python_file
     cdef public source_encoding
     cdef set keywords
+    cdef public dict keywords_stack
     cdef public list indentation_stack
     cdef public indentation_char
     cdef public int bracket_nesting_level
@@ -57,3 +58,5 @@ cdef class PyrexScanner(Scanner):
     cdef expect_indent(self)
     cdef expect_dedent(self)
     cdef expect_newline(self, message=*, bint ignore_semicolon=*)
+    cdef enable_keyword(self, name)
+    cdef disable_keyword(self, name)

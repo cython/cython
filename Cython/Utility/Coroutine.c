@@ -1,8 +1,8 @@
-//////////////////// YieldFrom.proto ////////////////////
+//////////////////// GeneratorYieldFrom.proto ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_Generator_Yield_From(__pyx_CoroutineObject *gen, PyObject *source);
 
-//////////////////// YieldFrom ////////////////////
+//////////////////// GeneratorYieldFrom ////////////////////
 //@requires: Generator
 
 static CYTHON_INLINE PyObject* __Pyx_Generator_Yield_From(__pyx_CoroutineObject *gen, PyObject *source) {
@@ -17,6 +17,125 @@ static CYTHON_INLINE PyObject* __Pyx_Generator_Yield_From(__pyx_CoroutineObject 
         return retval;
     }
     Py_DECREF(source_gen);
+    return NULL;
+}
+
+
+//////////////////// CoroutineYieldFrom.proto ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_Coroutine_Yield_From(__pyx_CoroutineObject *gen, PyObject *source);
+
+//////////////////// CoroutineYieldFrom ////////////////////
+//@requires: Coroutine
+//@requires: GetAwaitIter
+
+static CYTHON_INLINE PyObject* __Pyx_Coroutine_Yield_From(__pyx_CoroutineObject *gen, PyObject *source) {
+    PyObject *retval;
+    if (__Pyx_Coroutine_CheckExact(source)) {
+        retval = __Pyx_Generator_Next(source);
+        if (retval) {
+            Py_INCREF(source);
+            gen->yieldfrom = source;
+            return retval;
+        }
+    } else {
+        PyObject *source_gen = __Pyx__Coroutine_GetAwaitableIter(source);
+        if (unlikely(!source_gen))
+            return NULL;
+        // source_gen is now the iterator, make the first next() call
+        if (__Pyx_Coroutine_CheckExact(source_gen)) {
+            retval = __Pyx_Generator_Next(source_gen);
+        } else {
+            retval = Py_TYPE(source_gen)->tp_iternext(source_gen);
+        }
+        if (retval) {
+            gen->yieldfrom = source_gen;
+            return retval;
+        }
+        Py_DECREF(source_gen);
+    }
+    return NULL;
+}
+
+
+//////////////////// GetAwaitIter.proto ////////////////////
+
+static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAwaitableIter(PyObject *o); /*proto*/
+static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *o); /*proto*/
+
+//////////////////// GetAwaitIter ////////////////////
+//@requires: Coroutine
+//@requires: ObjectHandling.c::PyObjectGetAttrStr
+//@requires: ObjectHandling.c::PyObjectCallNoArg
+//@requires: ObjectHandling.c::PyObjectCallOneArg
+
+static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAwaitableIter(PyObject *o) {
+#ifdef __Pyx_Coroutine_USED
+    if (__Pyx_Coroutine_CheckExact(o)) {
+        Py_INCREF(o);
+        return o;
+    }
+#endif
+    return __Pyx__Coroutine_GetAwaitableIter(o);
+}
+
+// copied and adapted from genobject.c in Py3.5
+static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *o) {
+    PyObject *res;
+#if PY_VERSION_HEX >= 0x030500B1
+    unaryfunc getter = NULL;
+    PyTypeObject *ot;
+
+    ot = Py_TYPE(o);
+    if (likely(ot->tp_as_async)) {
+        getter = (unaryfunc) ot->tp_as_async->am_await;
+    }
+    if (unlikely(getter)) goto slot_error;
+    res = (*getter)(o);
+#else
+    PyObject *method = __Pyx_PyObject_GetAttrStr(o, PYIDENT("__await__"));
+    if (unlikely(!method)) goto slot_error;
+    #if CYTHON_COMPILING_IN_CPYTHON
+    if (likely(PyMethod_Check(method))) {
+        PyObject *self = PyMethod_GET_SELF(method);
+        if (likely(self)) {
+            PyObject *function = PyMethod_GET_FUNCTION(method);
+            res = __Pyx_PyObject_CallOneArg(function, self);
+        } else
+            res = __Pyx_PyObject_CallNoArg(method);
+    } else
+    #endif
+        res = __Pyx_PyObject_CallNoArg(method);
+    Py_DECREF(method);
+#endif
+    if (unlikely(!res)) goto bad;
+    if (!PyIter_Check(res)) {
+        PyErr_Format(PyExc_TypeError,
+                     "__await__() returned non-iterator of type '%.100s'",
+                     Py_TYPE(res)->tp_name);
+        Py_CLEAR(res);
+    } else {
+        int is_coroutine = 0;
+        #ifdef __Pyx_Coroutine_USED
+        is_coroutine |= __Pyx_Coroutine_CheckExact(res);
+        #endif
+        #if PY_VERSION_HEX >= 0x030500B1
+        is_coroutine |= PyGen_CheckCoroutineExact(res);
+        #endif
+        if (unlikely(is_coroutine)) {
+            /* __await__ must return an *iterator*, not
+               a coroutine or another awaitable (see PEP 492) */
+            PyErr_SetString(PyExc_TypeError,
+                            "__await__() returned a coroutine");
+            Py_CLEAR(res);
+        }
+    }
+    return res;
+slot_error:
+    PyErr_Format(PyExc_TypeError,
+                 "object %.100s can't be used in 'await' expression",
+                 Py_TYPE(o)->tp_name);
+bad:
     return NULL;
 }
 
@@ -107,6 +226,7 @@ static int __pyx_Generator_init(void);
 #include <structmember.h>
 #include <frameobject.h>
 
+static PyObject *__Pyx_Generator_Next(PyObject *self);
 static PyObject *__Pyx_Coroutine_Send(PyObject *self, PyObject *value);
 static PyObject *__Pyx_Coroutine_Close(PyObject *self);
 static PyObject *__Pyx_Coroutine_Throw(PyObject *gen, PyObject *args);
@@ -401,6 +521,28 @@ static int __Pyx_Coroutine_CloseIter(__pyx_CoroutineObject *gen, PyObject *yf) {
     }
     Py_XDECREF(retval);
     return err;
+}
+
+static PyObject *__Pyx_Generator_Next(PyObject *self) {
+    __pyx_CoroutineObject *gen = (__pyx_CoroutineObject*) self;
+    PyObject *yf = gen->yieldfrom;
+    if (unlikely(__Pyx_Coroutine_CheckRunning(gen)))
+        return NULL;
+    if (yf) {
+        PyObject *ret;
+        // FIXME: does this really need an INCREF() ?
+        //Py_INCREF(yf);
+        // YieldFrom code ensures that yf is an iterator
+        gen->is_running = 1;
+        ret = Py_TYPE(yf)->tp_iternext(yf);
+        gen->is_running = 0;
+        //Py_DECREF(yf);
+        if (likely(ret)) {
+            return ret;
+        }
+        return __Pyx_Coroutine_FinishDelegation(gen);
+    }
+    return __Pyx_Coroutine_SendEx(gen, Py_None);
 }
 
 static PyObject *__Pyx_Coroutine_Close(PyObject *self) {
@@ -729,6 +871,14 @@ static __pyx_CoroutineObject *__Pyx__Coroutine_New(PyTypeObject* type, __pyx_cor
 //@requires: CoroutineBase
 //@requires: PatchGeneratorABC
 
+#if PY_VERSION_HEX >= 0x030500B1
+static PyAsyncMethods __pyx_Coroutine_as_async {
+    0, /*am_await*/
+    0, /*am_aiter*/
+    0, /*am_anext*/
+}
+#endif
+
 static PyTypeObject __pyx_CoroutineType_type = {
     PyVarObject_HEAD_INIT(0, 0)
     "coroutine",                        /*tp_name*/
@@ -738,10 +888,10 @@ static PyTypeObject __pyx_CoroutineType_type = {
     0,                                  /*tp_print*/
     0,                                  /*tp_getattr*/
     0,                                  /*tp_setattr*/
-#if PY_MAJOR_VERSION < 3
-    0,                                  /*tp_compare*/
+#if PY_VERSION_HEX >= 0x030500B1
+    __pyx_Coroutine_as_async,           /*tp_as_async*/
 #else
-    0,                                  /*reserved*/
+    0,                                  /*tp_reserved resp. tp_compare*/
 #endif
     0,                                  /*tp_repr*/
     0,                                  /*tp_as_number*/
@@ -759,8 +909,9 @@ static PyTypeObject __pyx_CoroutineType_type = {
     0,                                  /*tp_clear*/
     0,                                  /*tp_richcompare*/
     offsetof(__pyx_CoroutineObject, gi_weakreflist), /*tp_weaklistoffset*/
+// no tp_iter() as iterator is only available through __await__()
     0,                                  /*tp_iter*/
-    0,                                  /*tp_iternext*/
+    (iternextfunc) __Pyx_Generator_Next, /*tp_iternext*/
     __pyx_Coroutine_methods,            /*tp_methods*/
     __pyx_Coroutine_memberlist,         /*tp_members*/
     __pyx_Coroutine_getsets,            /*tp_getset*/
@@ -790,7 +941,7 @@ static PyTypeObject __pyx_CoroutineType_type = {
 #endif
 };
 
-static int __pyx_Generator_init(void) {
+static int __pyx_Coroutine_init(void) {
     // on Windows, C-API functions can't be used in slots statically
     __pyx_CoroutineType_type.tp_getattro = PyObject_GenericGetAttr;
 
@@ -801,34 +952,9 @@ static int __pyx_Generator_init(void) {
     return 0;
 }
 
-
 //////////////////// Generator ////////////////////
 //@requires: CoroutineBase
 //@requires: PatchGeneratorABC
-
-static PyObject *__Pyx_Generator_Next(PyObject *self);
-
-static PyObject *__Pyx_Generator_Next(PyObject *self) {
-    __pyx_CoroutineObject *gen = (__pyx_CoroutineObject*) self;
-    PyObject *yf = gen->yieldfrom;
-    if (unlikely(__Pyx_Coroutine_CheckRunning(gen)))
-        return NULL;
-    if (yf) {
-        PyObject *ret;
-        // FIXME: does this really need an INCREF() ?
-        //Py_INCREF(yf);
-        // YieldFrom code ensures that yf is an iterator
-        gen->is_running = 1;
-        ret = Py_TYPE(yf)->tp_iternext(yf);
-        gen->is_running = 0;
-        //Py_DECREF(yf);
-        if (likely(ret)) {
-            return ret;
-        }
-        return __Pyx_Coroutine_FinishDelegation(gen);
-    }
-    return __Pyx_Coroutine_SendEx(gen, Py_None);
-}
 
 static PyTypeObject __pyx_GeneratorType_type = {
     PyVarObject_HEAD_INIT(0, 0)

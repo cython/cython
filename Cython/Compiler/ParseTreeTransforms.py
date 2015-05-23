@@ -200,7 +200,7 @@ class PostParse(ScopeTrackingTransform):
         node.lambda_name = EncodedString(u'lambda%d' % lambda_id)
         collector = YieldNodeCollector()
         collector.visitchildren(node.result_expr)
-        if collector.yields or isinstance(node.result_expr, ExprNodes.YieldExprNode):
+        if collector.yields or collector.awaits or isinstance(node.result_expr, ExprNodes.YieldExprNode):
             body = Nodes.ExprStatNode(
                 node.result_expr.pos, expr=node.result_expr)
         else:
@@ -2205,6 +2205,7 @@ class YieldNodeCollector(TreeVisitor):
     def __init__(self):
         super(YieldNodeCollector, self).__init__()
         self.yields = []
+        self.awaits = []
         self.returns = []
         self.has_return_value = False
 
@@ -2213,6 +2214,10 @@ class YieldNodeCollector(TreeVisitor):
 
     def visit_YieldExprNode(self, node):
         self.yields.append(node)
+        self.visitchildren(node)
+
+    def visit_AwaitExprNode(self, node):
+        self.awaits.append(node)
         self.visitchildren(node)
 
     def visit_ReturnStatNode(self, node):
@@ -2250,27 +2255,36 @@ class MarkClosureVisitor(CythonTransform):
         collector = YieldNodeCollector()
         collector.visitchildren(node)
 
-        if collector.yields:
-            if isinstance(node, Nodes.CFuncDefNode):
-                # Will report error later
-                return node
-            for i, yield_expr in enumerate(collector.yields, 1):
-                yield_expr.label_num = i
-            for retnode in collector.returns:
-                retnode.in_generator = True
+        if node.is_async_def:
+            if collector.yields:
+                error(collector.yields[0].pos, "'yield' not allowed in async coroutines (use 'await')")
+            yields = collector.awaits
+        elif collector.yields:
+            if collector.awaits:
+                error(collector.yields[0].pos, "'await' not allowed in generators (use 'yield')")
+            yields = collector.yields
+        else:
+            return node
 
-            gbody = Nodes.GeneratorBodyDefNode(
-                pos=node.pos, name=node.name, body=node.body)
-            generator = Nodes.GeneratorDefNode(
-                pos=node.pos, name=node.name, args=node.args,
-                star_arg=node.star_arg, starstar_arg=node.starstar_arg,
-                doc=node.doc, decorators=node.decorators,
-                gbody=gbody, lambda_name=node.lambda_name)
-            return generator
-        return node
+        for i, yield_expr in enumerate(yields, 1):
+            yield_expr.label_num = i
+        for retnode in collector.returns:
+            retnode.in_generator = True
+
+        gbody = Nodes.GeneratorBodyDefNode(
+            pos=node.pos, name=node.name, body=node.body)
+        coroutine = (Nodes.AsyncDefNode if node.is_async_def else Nodes.GeneratorDefNode)(
+            pos=node.pos, name=node.name, args=node.args,
+            star_arg=node.star_arg, starstar_arg=node.starstar_arg,
+            doc=node.doc, decorators=node.decorators,
+            gbody=gbody, lambda_name=node.lambda_name)
+        return coroutine
 
     def visit_CFuncDefNode(self, node):
-        self.visit_FuncDefNode(node)
+        self.needs_closure = False
+        self.visitchildren(node)
+        node.needs_closure = self.needs_closure
+        self.needs_closure = True
         if node.needs_closure and node.overridable:
             error(node.pos, "closures inside cpdef functions not yet supported")
         return node
@@ -2286,6 +2300,7 @@ class MarkClosureVisitor(CythonTransform):
         self.visitchildren(node)
         self.needs_closure = True
         return node
+
 
 class CreateClosureClasses(CythonTransform):
     # Output closure classes in module scope for all functions

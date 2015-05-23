@@ -1574,9 +1574,11 @@ class FuncDefNode(StatNode, BlockNode):
     #  pymethdef_required boolean     Force Python method struct generation
     #  directive_locals { string : ExprNode } locals defined by cython.locals(...)
     #  directive_returns [ExprNode] type defined by cython.returns(...)
-    # star_arg      PyArgDeclNode or None  * argument
-    # starstar_arg  PyArgDeclNode or None  ** argument
-
+    #  star_arg      PyArgDeclNode or None  * argument
+    #  starstar_arg  PyArgDeclNode or None  ** argument
+    #
+    #  is_async_def  boolean          is a Coroutine function
+    #
     #  has_fused_arguments  boolean
     #       Whether this cdef function has fused parameters. This is needed
     #       by AnalyseDeclarationsTransform, so it can replace CFuncDefNodes
@@ -1588,6 +1590,7 @@ class FuncDefNode(StatNode, BlockNode):
     pymethdef_required = False
     is_generator = False
     is_generator_body = False
+    is_async_def = False
     modifiers = []
     has_fused_arguments = False
     star_arg = None
@@ -3936,6 +3939,7 @@ class GeneratorDefNode(DefNode):
     #
 
     is_generator = True
+    is_coroutine = False
     needs_closure = True
 
     child_attrs = DefNode.child_attrs + ["gbody"]
@@ -3956,8 +3960,9 @@ class GeneratorDefNode(DefNode):
         qualname = code.intern_identifier(self.qualname)
 
         code.putln('{')
-        code.putln('__pyx_CoroutineObject *gen = __Pyx_Generator_New('
+        code.putln('__pyx_CoroutineObject *gen = __Pyx_%s_New('
                    '(__pyx_coroutine_body_t) %s, (PyObject *) %s, %s, %s); %s' % (
+                       'Coroutine' if self.is_coroutine else 'Generator',
                        body_cname, Naming.cur_scope_cname, name, qualname,
                        code.error_goto_if_null('gen', self.pos)))
         code.put_decref(Naming.cur_scope_cname, py_object_type)
@@ -3972,11 +3977,16 @@ class GeneratorDefNode(DefNode):
         code.putln('}')
 
     def generate_function_definitions(self, env, code):
-        env.use_utility_code(UtilityCode.load_cached("Generator", "Coroutine.c"))
+        env.use_utility_code(UtilityCode.load_cached(
+            'Coroutine' if self.is_coroutine else 'Generator', "Coroutine.c"))
 
         self.gbody.generate_function_header(code, proto=True)
         super(GeneratorDefNode, self).generate_function_definitions(env, code)
         self.gbody.generate_function_definitions(env, code)
+
+
+class AsyncDefNode(GeneratorDefNode):
+    is_coroutine = True
 
 
 class GeneratorBodyDefNode(DefNode):
@@ -7108,7 +7118,7 @@ class GILStatNode(NogilTryFinallyStatNode):
         from .ParseTreeTransforms import YieldNodeCollector
         collector = YieldNodeCollector()
         collector.visitchildren(body)
-        if not collector.yields:
+        if not collector.yields and not collector.awaits:
             return
 
         if state == 'gil':

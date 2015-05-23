@@ -8593,10 +8593,12 @@ class YieldExprNode(ExprNode):
     type = py_object_type
     label_num = 0
     is_yield_from = False
+    is_await = False
+    expr_keyword = 'yield'
 
     def analyse_types(self, env):
         if not self.label_num:
-            error(self.pos, "'yield' not supported here")
+            error(self.pos, "'%s' not supported here" % self.expr_keyword)
         self.is_temp = 1
         if self.arg is not None:
             self.arg = self.arg.analyse_types(env)
@@ -8661,6 +8663,7 @@ class YieldExprNode(ExprNode):
 class YieldFromExprNode(YieldExprNode):
     # "yield from GEN" expression
     is_yield_from = True
+    expr_keyword = 'yield from'
 
     def coerce_yield_argument(self, env):
         if not self.arg.type.is_string:
@@ -8668,14 +8671,17 @@ class YieldFromExprNode(YieldExprNode):
             error(self.pos, "yielding from non-Python object not supported")
         self.arg = self.arg.coerce_to_pyobject(env)
 
-    def generate_evaluation_code(self, code):
-        code.globalstate.use_utility_code(UtilityCode.load_cached("YieldFrom", "Coroutine.c"))
+    def yield_from_func(self, code):
+        code.globalstate.use_utility_code(UtilityCode.load_cached("GeneratorYieldFrom", "Coroutine.c"))
+        return "__Pyx_Generator_Yield_From"
 
+    def generate_evaluation_code(self, code):
         self.arg.generate_evaluation_code(code)
-        code.putln("%s = __Pyx_Generator_Yield_From(%s, %s);" % (
+        code.putln("%s = %s(%s, %s);" % (
             Naming.retval_cname,
+            self.yield_from_func(code),
             Naming.generator_cname,
-            self.arg.result_as(py_object_type)))
+            self.arg.py_result()))
         self.arg.generate_disposal_code(code)
         self.arg.free_temps(code)
         code.put_xgotref(Naming.retval_cname)
@@ -8687,9 +8693,7 @@ class YieldFromExprNode(YieldExprNode):
         if self.result_is_used:
             # YieldExprNode has allocated the result temp for us
             code.putln("%s = NULL;" % self.result())
-            code.putln("if (unlikely(__Pyx_PyGen_FetchStopIterationValue(&%s) < 0)) %s" % (
-                self.result(),
-                code.error_goto(self.pos)))
+            code.put_error_if_neg(self.pos, "__Pyx_PyGen_FetchStopIterationValue(&%s)" % self.result())
             code.put_gotref(self.result())
         else:
             code.putln("PyObject* exc_type = PyErr_Occurred();")
@@ -8699,6 +8703,25 @@ class YieldFromExprNode(YieldExprNode):
             code.putln("else %s" % code.error_goto(self.pos))
             code.putln("}")
         code.putln("}")
+
+
+class AwaitExprNode(YieldFromExprNode):
+    # 'await' expression node
+    #
+    # arg         ExprNode   the Awaitable value to await
+    # label_num   integer    yield label number
+    # is_yield_from  boolean is a YieldFromExprNode to delegate to another generator
+    is_await = True
+    expr_keyword = 'await'
+
+    def coerce_yield_argument(self, env):
+        # FIXME: use same check as in YieldFromExprNode.coerce_yield_argument() ?
+        self.arg = self.arg.coerce_to_pyobject(env)
+
+    def yield_from_func(self, code):
+        code.globalstate.use_utility_code(UtilityCode.load_cached("CoroutineYieldFrom", "Coroutine.c"))
+        return "__Pyx_Coroutine_Yield_From"
+
 
 class GlobalsExprNode(AtomicExprNode):
     type = dict_type
