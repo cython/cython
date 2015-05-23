@@ -3,6 +3,7 @@
 import gc
 import sys
 import types
+import os.path
 import inspect
 import unittest
 import warnings
@@ -48,52 +49,12 @@ def silence_coro_gc():
         gc.collect()
 
 
-class AsyncBadSyntaxTest(unittest.TestCase):
-
-    def test_badsyntax_1(self):
-        with self.assertRaisesRegex(SyntaxError, 'invalid syntax'):
-            import test.badsyntax_async1
-
-    def test_badsyntax_2(self):
-        with self.assertRaisesRegex(SyntaxError, 'invalid syntax'):
-            import test.badsyntax_async2
-
-    def test_badsyntax_3(self):
-        with self.assertRaisesRegex(SyntaxError, 'invalid syntax'):
-            import test.badsyntax_async3
-
-    def test_badsyntax_4(self):
-        with self.assertRaisesRegex(SyntaxError, 'invalid syntax'):
-            import test.badsyntax_async4
-
-    def test_badsyntax_5(self):
-        with self.assertRaisesRegex(SyntaxError, 'invalid syntax'):
-            import test.badsyntax_async5
-
-    def test_badsyntax_6(self):
-        with self.assertRaisesRegex(
-            SyntaxError, "'yield' inside async function"):
-
-            import test.badsyntax_async6
-
-    def test_badsyntax_7(self):
-        with self.assertRaisesRegex(
-            SyntaxError, "'yield from' inside async function"):
-
-            import test.badsyntax_async7
-
-    def test_badsyntax_8(self):
-        with self.assertRaisesRegex(SyntaxError, 'invalid syntax'):
-            import test.badsyntax_async8
-
-    def test_badsyntax_9(self):
-        with self.assertRaisesRegex(SyntaxError, 'invalid syntax'):
-            import test.badsyntax_async9
-
-
 class TokenizerRegrTest(unittest.TestCase):
 
     def test_oneline_defs(self):
+        import Cython.Shadow
+        compile_dir = os.path.dirname(__file__)
+
         buf = []
         for i in range(500):
             buf.append('def i{i}(): return {i}'.format(i=i))
@@ -101,16 +62,19 @@ class TokenizerRegrTest(unittest.TestCase):
 
         # Test that 500 consequent, one-line defs is OK
         ns = {}
-        exec(buf, ns, ns)
+        #exec(buf, ns, ns)
+        ns = Cython.Shadow.inline(buf, locals=ns, globals=ns, lib_dir=compile_dir)
         self.assertEqual(ns['i499'](), 499)
 
         # Test that 500 consequent, one-line defs *and*
         # one 'async def' following them is OK
         buf += '\nasync def foo():\n    return'
         ns = {}
-        exec(buf, ns, ns)
+        #exec(buf, ns, ns)
+        ns = Cython.Shadow.inline(buf, locals=ns, globals=ns, lib_dir=compile_dir)
         self.assertEqual(ns['i499'](), 499)
-        self.assertTrue(inspect.iscoroutinefunction(ns['foo']))
+        if hasattr(inspect, 'iscoroutinefunction'):
+            self.assertTrue(inspect.iscoroutinefunction(ns['foo']))
 
 
 class CoroutineTest(unittest.TestCase):
@@ -1010,41 +974,15 @@ class SysSetCoroWrapperTest(unittest.TestCase):
         self.assertIsNone(sys.get_coroutine_wrapper())
 
 
-class CAPITest(unittest.TestCase):
-
-    def test_tp_await_1(self):
-        from _testcapi import awaitType as at
-
-        async def foo():
-            future = at(iter([1]))
-            return (await future)
-
-        self.assertEqual(foo().send(None), 1)
-
-    def test_tp_await_2(self):
-        # Test tp_await to __await__ mapping
-        from _testcapi import awaitType as at
-        future = at(iter([1]))
-        self.assertEqual(next(future.__await__()), 1)
-
-    def test_tp_await_3(self):
-        from _testcapi import awaitType as at
-
-        async def foo():
-            future = at(1)
-            return (await future)
-
-        with self.assertRaisesRegex(
-                TypeError, "__await__.*returned non-iterator of type 'int'"):
-            self.assertEqual(foo().send(None), 1)
-
-
 # disable some tests that only apply to CPython
-
-CAPITest = None  # no CAPI module
 
 if sys.version_info < (3, 5):
     SysSetCoroWrapperTest = None
+
+try:
+    import asyncio
+except ImportError:
+    CoroAsyncIOCompatTest = None
 
 if __name__=="__main__":
     unittest.main()
