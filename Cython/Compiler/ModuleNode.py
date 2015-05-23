@@ -2071,17 +2071,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("%s = PyBytes_FromStringAndSize(\"\", 0); %s" % (
             Naming.empty_bytes, code.error_goto_if_null(Naming.empty_bytes, self.pos)))
 
-        code.putln("#ifdef __Pyx_CyFunction_USED")
-        code.put_error_if_neg(self.pos, "__Pyx_CyFunction_init()")
-        code.putln("#endif")
-
-        code.putln("#ifdef __Pyx_FusedFunction_USED")
-        code.put_error_if_neg(self.pos, "__pyx_FusedFunction_init()")
-        code.putln("#endif")
-
-        code.putln("#ifdef __Pyx_Generator_USED")
-        code.put_error_if_neg(self.pos, "__pyx_Generator_init()")
-        code.putln("#endif")
+        for ext_type in ('CyFunction', 'FusedFunction', 'Coroutine', 'Generator'):
+            code.putln("#ifdef __Pyx_%s_USED" % ext_type)
+            code.put_error_if_neg(self.pos, "__pyx_%s_init()" % ext_type)
+            code.putln("#endif")
 
         code.putln("/*--- Library function declarations ---*/")
         env.generate_library_function_declarations(code)

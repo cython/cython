@@ -3956,8 +3956,8 @@ class GeneratorDefNode(DefNode):
         qualname = code.intern_identifier(self.qualname)
 
         code.putln('{')
-        code.putln('__pyx_GeneratorObject *gen = __Pyx_Generator_New('
-                   '(__pyx_generator_body_t) %s, (PyObject *) %s, %s, %s); %s' % (
+        code.putln('__pyx_CoroutineObject *gen = __Pyx_Generator_New('
+                   '(__pyx_coroutine_body_t) %s, (PyObject *) %s, %s, %s); %s' % (
                        body_cname, Naming.cur_scope_cname, name, qualname,
                        code.error_goto_if_null('gen', self.pos)))
         code.put_decref(Naming.cur_scope_cname, py_object_type)
@@ -3972,7 +3972,7 @@ class GeneratorDefNode(DefNode):
         code.putln('}')
 
     def generate_function_definitions(self, env, code):
-        env.use_utility_code(UtilityCode.load_cached("Generator", "Generator.c"))
+        env.use_utility_code(UtilityCode.load_cached("Generator", "Coroutine.c"))
 
         self.gbody.generate_function_header(code, proto=True)
         super(GeneratorDefNode, self).generate_function_definitions(env, code)
@@ -4005,7 +4005,7 @@ class GeneratorBodyDefNode(DefNode):
         self.declare_generator_body(env)
 
     def generate_function_header(self, code, proto=False):
-        header = "static PyObject *%s(__pyx_GeneratorObject *%s, PyObject *%s)" % (
+        header = "static PyObject *%s(__pyx_CoroutineObject *%s, PyObject *%s)" % (
             self.entry.func_cname,
             Naming.generator_cname,
             Naming.sent_value_cname)
@@ -4070,7 +4070,7 @@ class GeneratorBodyDefNode(DefNode):
             code.put_label(code.error_label)
             if Future.generator_stop in env.global_scope().context.future_directives:
                 # PEP 479: turn accidental StopIteration exceptions into a RuntimeError
-                code.globalstate.use_utility_code(UtilityCode.load_cached("pep479", "Generator.c"))
+                code.globalstate.use_utility_code(UtilityCode.load_cached("pep479", "Coroutine.c"))
                 code.putln("if (unlikely(PyErr_ExceptionMatches(PyExc_StopIteration))) "
                            "__Pyx_Generator_Replace_StopIteration();")
             for cname, type in code.funcstate.all_managed_temps():
@@ -4082,7 +4082,7 @@ class GeneratorBodyDefNode(DefNode):
         code.put_xdecref(Naming.retval_cname, py_object_type)
         code.putln('%s->resume_label = -1;' % Naming.generator_cname)
         # clean up as early as possible to help breaking any reference cycles
-        code.putln('__Pyx_Generator_clear((PyObject*)%s);' % Naming.generator_cname)
+        code.putln('__Pyx_Coroutine_clear((PyObject*)%s);' % Naming.generator_cname)
         code.put_finish_refcount_context()
         code.putln('return NULL;')
         code.putln("}")
@@ -5512,7 +5512,7 @@ class ReturnStatNode(StatNode):
             elif self.in_generator:
                 # return value == raise StopIteration(value), but uncatchable
                 code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("ReturnWithStopIteration", "Generator.c"))
+                    UtilityCode.load_cached("ReturnWithStopIteration", "Coroutine.c"))
                 code.putln("%s = NULL; __Pyx_ReturnWithStopIteration(%s);" % (
                     Naming.retval_cname,
                     self.value.py_result()))
@@ -7205,8 +7205,8 @@ utility_code_for_cimports = {
 utility_code_for_imports = {
     # utility code used when special modules are imported.
     # TODO: Consider a generic user-level mechanism for importing
-    'asyncio': ("__Pyx_patch_asyncio", "PatchAsyncIO", "Generator.c"),
-    'inspect': ("__Pyx_patch_inspect", "PatchInspect", "Generator.c"),
+    'asyncio': ("__Pyx_patch_asyncio", "PatchAsyncIO", "Coroutine.c"),
+    'inspect': ("__Pyx_patch_inspect", "PatchInspect", "Coroutine.c"),
 }
 
 

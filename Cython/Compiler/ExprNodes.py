@@ -8669,7 +8669,7 @@ class YieldFromExprNode(YieldExprNode):
         self.arg = self.arg.coerce_to_pyobject(env)
 
     def generate_evaluation_code(self, code):
-        code.globalstate.use_utility_code(UtilityCode.load_cached("YieldFrom", "Generator.c"))
+        code.globalstate.use_utility_code(UtilityCode.load_cached("YieldFrom", "Coroutine.c"))
 
         self.arg.generate_evaluation_code(code)
         code.putln("%s = __Pyx_Generator_Yield_From(%s, %s);" % (
