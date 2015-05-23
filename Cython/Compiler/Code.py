@@ -454,7 +454,7 @@ class UtilityCode(UtilityCodeBase):
                 '"%s\\n"\n' % line if not line.endswith('\\') or line.endswith('\\\\') else '"%s"\n' % line[:-1]
                 for line in content.splitlines())
 
-        impl = re.sub(r'CSTRING\(\s*"""([^"]+|"[^"])"""\s*\)', split_string, impl)
+        impl = re.sub(r'CSTRING\(\s*"""([^"]*(?:"[^"]+)*)"""\s*\)', split_string, impl)
         assert 'CSTRING(' not in impl
         return impl
 
