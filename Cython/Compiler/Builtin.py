@@ -165,7 +165,26 @@ builtin_function_table = [
                     utility_code = iter_next_utility_code),  # not available in Py2 => implemented here
     #('oct',       "",     "",      ""),
     #('open',       "ss",   "O",     "PyFile_FromString"),   # not in Py3
-    #('ord',       "",     "",      ""),
+] + [
+    BuiltinFunction('ord',        None,    None,   "__Pyx_long_cast",
+                    func_type=PyrexTypes.CFuncType(
+                        PyrexTypes.c_long_type, [PyrexTypes.CFuncTypeArg("c", c_type, None)],
+                        is_strict_signature=True))
+    for c_type in [PyrexTypes.c_py_ucs4_type, PyrexTypes.c_py_unicode_type]
+] + [
+    BuiltinFunction('ord',        None,    None,   "__Pyx_uchar_cast",
+                    func_type=PyrexTypes.CFuncType(
+                        PyrexTypes.c_uchar_type, [PyrexTypes.CFuncTypeArg("c", c_type, None)],
+                        is_strict_signature=True))
+    for c_type in [PyrexTypes.c_char_type, PyrexTypes.c_schar_type, PyrexTypes.c_uchar_type]
+] + [
+    BuiltinFunction('ord',        None,    None,   "__Pyx_PyObject_Ord",
+                    utility_code=UtilityCode.load_cached("object_ord", "Builtins.c"),
+                    func_type=PyrexTypes.CFuncType(
+                        PyrexTypes.c_long_type, [
+                            PyrexTypes.CFuncTypeArg("c", PyrexTypes.py_object_type, None)
+                        ],
+                        exception_value="(long)(Py_UCS4)-1")),
     BuiltinFunction('pow',        "OOO",  "O",     "PyNumber_Power"),
     BuiltinFunction('pow',        "OO",   "O",     "__Pyx_PyNumber_Power2",
                     utility_code = UtilityCode.load("pow2", "Builtins.c")),
@@ -300,6 +319,8 @@ builtin_types_table = [
                                     BuiltinMethod("clear",   "T",  "r", "PySet_Clear"),
                                     # discard() and remove() have a special treatment for unhashable values
 #                                    BuiltinMethod("discard", "TO", "r", "PySet_Discard"),
+                                    BuiltinMethod("update",     "TO", "r", "__Pyx_PySet_Update",
+                                                  utility_code=UtilityCode.load_cached("PySet_Update", "Builtins.c")),
                                     BuiltinMethod("add",     "TO", "r", "PySet_Add"),
                                     BuiltinMethod("pop",     "T",  "O", "PySet_Pop")]),
     ("frozenset", "PyFrozenSet_Type", []),

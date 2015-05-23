@@ -6,7 +6,7 @@
 from __future__ import absolute_import
 
 import cython
-cython.declare(EncodedString=object, make_lexicon=object, lexicon=object,
+cython.declare(make_lexicon=object, lexicon=object,
                any_string_prefix=unicode, IDENT=unicode,
                print_function=object, error=object, warning=object,
                os=object, platform=object)
@@ -20,8 +20,6 @@ from ..Plex.Errors import UnrecognizedInput
 from .Errors import error, warning
 from .Lexicon import any_string_prefix, make_lexicon, IDENT
 from .Future import print_function
-
-from .StringEncoding import EncodedString
 
 debug_scanner = 0
 trace_scanner = 0
@@ -421,14 +419,11 @@ class PyrexScanner(Scanner):
             if systring in self.keywords:
                 if systring == u'print' and print_function in self.context.future_directives:
                     self.keywords.discard('print')
-                    systring = EncodedString(systring)
                 elif systring == u'exec' and self.context.language_level >= 3:
                     self.keywords.discard('exec')
-                    systring = EncodedString(systring)
                 else:
                     sy = systring
-            else:
-                systring = EncodedString(systring)
+            systring = self.context.intern_ustring(systring)
         self.sy = sy
         self.systring = systring
         if False: # debug_scanner:

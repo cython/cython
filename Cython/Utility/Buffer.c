@@ -858,16 +858,13 @@ static struct __pyx_typeinfo_string __Pyx_TypeInfoToFormat(__Pyx_TypeInfo *type)
         case 'I':
         case 'U':
             if (size == 1)
-                *buf = 'b';
+                *buf = (type->is_unsigned) ? 'B' : 'b';
             else if (size == 2)
-                *buf = 'h';
+                *buf = (type->is_unsigned) ? 'H' : 'h';
             else if (size == 4)
-                *buf = 'i';
+                *buf = (type->is_unsigned) ? 'I' : 'i';
             else if (size == 8)
-                *buf = 'q';
-
-            if (type->is_unsigned)
-                *buf = toupper(*buf);
+                *buf = (type->is_unsigned) ? 'Q' : 'q';
             break;
         case 'P':
             *buf = 'P';

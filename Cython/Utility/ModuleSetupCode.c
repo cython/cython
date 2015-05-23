@@ -40,6 +40,10 @@
 #define CYTHON_COMPILING_IN_CPYTHON 1
 #endif
 
+#if !defined(CYTHON_USE_PYLONG_INTERNALS) && CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x02070000
+#define CYTHON_USE_PYLONG_INTERNALS 1
+#endif
+
 #if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX < 0x02070600 && !defined(Py_OptimizeFlag)
 #define Py_OptimizeFlag 0
 #endif
@@ -59,16 +63,16 @@
   #define __Pyx_DefaultClassType PyType_Type
 #endif
 
-#if !defined(Py_TPFLAGS_CHECKTYPES)
+#ifndef Py_TPFLAGS_CHECKTYPES
   #define Py_TPFLAGS_CHECKTYPES 0
 #endif
-#if !defined(Py_TPFLAGS_HAVE_INDEX)
+#ifndef Py_TPFLAGS_HAVE_INDEX
   #define Py_TPFLAGS_HAVE_INDEX 0
 #endif
-#if !defined(Py_TPFLAGS_HAVE_NEWBUFFER)
+#ifndef Py_TPFLAGS_HAVE_NEWBUFFER
   #define Py_TPFLAGS_HAVE_NEWBUFFER 0
 #endif
-#if !defined(Py_TPFLAGS_HAVE_FINALIZE)
+#ifndef Py_TPFLAGS_HAVE_FINALIZE
   #define Py_TPFLAGS_HAVE_FINALIZE 0
 #endif
 
@@ -96,13 +100,14 @@
 #if CYTHON_COMPILING_IN_PYPY
   #define __Pyx_PyUnicode_Concat(a, b)      PyNumber_Add(a, b)
   #define __Pyx_PyUnicode_ConcatSafe(a, b)  PyNumber_Add(a, b)
-  // PyPy doesn't handle frozenset() in PySet_Size()
-  #define __Pyx_PyFrozenSet_Size(s)         PyObject_Size(s)
 #else
   #define __Pyx_PyUnicode_Concat(a, b)      PyUnicode_Concat(a, b)
   #define __Pyx_PyUnicode_ConcatSafe(a, b)  ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
       PyNumber_Add(a, b) : __Pyx_PyUnicode_Concat(a, b))
-  #define __Pyx_PyFrozenSet_Size(s)         PySet_Size(s)
+#endif
+
+#if CYTHON_COMPILING_IN_PYPY && !defined(PyUnicode_Contains)
+  #define PyUnicode_Contains(u, s)  PySequence_Contains(u, s)
 #endif
 
 #define __Pyx_PyString_FormatSafe(a, b)   ((unlikely((a) == Py_None)) ? PyNumber_Remainder(a, b) : __Pyx_PyString_Format(a, b))
@@ -254,6 +259,14 @@ class __Pyx_FakeReference {
 #   define CYTHON_UNUSED __attribute__ ((__unused__))
 # else
 #   define CYTHON_UNUSED
+# endif
+#endif
+
+#ifndef CYTHON_NCP_UNUSED
+# if CYTHON_COMPILING_IN_CPYTHON
+#  define CYTHON_NCP_UNUSED
+# else
+#  define CYTHON_NCP_UNUSED CYTHON_UNUSED
 # endif
 #endif
 

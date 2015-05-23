@@ -1,5 +1,5 @@
 # cython.* namespace for pure mode.
-__version__ = "0.22"
+__version__ = "0.23dev"
 
 
 # BEGIN shameless copy from Cython/minivect/minitypes.py
@@ -97,7 +97,7 @@ class _EmptyDecoratorAndManager(object):
 
 cclass = ccall = cfunc = _EmptyDecoratorAndManager()
 
-returns = lambda type_arg: _EmptyDecoratorAndManager()
+returns = wraparound = boundscheck = lambda arg: _EmptyDecoratorAndManager()
 
 final = internal = type_version_tag = no_gc_clear = _empty_decorator
 

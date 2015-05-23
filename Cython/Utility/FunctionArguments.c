@@ -110,6 +110,17 @@ static void __Pyx_RaiseDoubleKeywordsError(
 }
 
 
+//////////////////// RaiseMappingExpected.proto ////////////////////
+
+static void __Pyx_RaiseMappingExpectedError(PyObject* arg); /*proto*/
+
+//////////////////// RaiseMappingExpected ////////////////////
+
+static void __Pyx_RaiseMappingExpectedError(PyObject* arg) {
+    PyErr_Format(PyExc_TypeError, "'%.200s' object is not a mapping", Py_TYPE(arg)->tp_name);
+}
+
+
 //////////////////// KeywordStringCheck.proto ////////////////////
 
 static CYTHON_INLINE int __Pyx_CheckKeywordStrings(PyObject *kwdict, const char* function_name, int kw_allowed); /*proto*/
@@ -288,5 +299,60 @@ invalid_keyword:
         function_name, key);
     #endif
 bad:
+    return -1;
+}
+
+
+//////////////////// MergeKeywords.proto ////////////////////
+
+static int __Pyx_MergeKeywords(PyObject *kwdict, PyObject *source_mapping); /*proto*/
+
+//////////////////// MergeKeywords ////////////////////
+//@requires: RaiseDoubleKeywords
+//@requires: Optimize.c::dict_iter
+
+static int __Pyx_MergeKeywords(PyObject *kwdict, PyObject *source_mapping) {
+    PyObject *iter, *key = NULL, *value = NULL;
+    int source_is_dict, result;
+    Py_ssize_t orig_length, ppos = 0;
+
+    iter = __Pyx_dict_iterator(source_mapping, 0, PYIDENT("items"), &orig_length, &source_is_dict);
+    if (unlikely(!iter)) {
+        // slow fallback: try converting to dict, then iterate
+        PyObject *args;
+        if (!PyErr_ExceptionMatches(PyExc_AttributeError)) goto bad;
+        PyErr_Clear();
+        args = PyTuple_Pack(1, source_mapping);
+        if (likely(args)) {
+            PyObject *fallback = PyObject_Call((PyObject*)&PyDict_Type, args, NULL);
+            Py_DECREF(args);
+            if (likely(fallback)) {
+                iter = __Pyx_dict_iterator(fallback, 1, PYIDENT("items"), &orig_length, &source_is_dict);
+                Py_DECREF(fallback);
+            }
+        }
+        if (unlikely(!iter)) goto bad;
+    }
+
+    while (1) {
+        result = __Pyx_dict_iter_next(iter, orig_length, &ppos, &key, &value, NULL, source_is_dict);
+        if (unlikely(result < 0)) goto bad;
+        if (!result) break;
+
+        if (unlikely(PyDict_Contains(kwdict, key))) {
+            __Pyx_RaiseDoubleKeywordsError("function", key);
+            result = -1;
+        } else {
+            result = PyDict_SetItem(kwdict, key, value);
+        }
+        Py_DECREF(key);
+        Py_DECREF(value);
+        if (unlikely(result < 0)) goto bad;
+    }
+    Py_XDECREF(iter);
+    return 0;
+
+bad:
+    Py_XDECREF(iter);
     return -1;
 }

@@ -98,14 +98,15 @@ def get_distutils_distro(_cache=[]):
 
 
 EXT_DEP_MODULES = {
-    'tag:numpy' : 'numpy',
-    'tag:pstats': 'pstats',
-    'tag:posix' : 'posix',
-    'tag:array' : 'array',
+    'tag:numpy':    'numpy',
+    'tag:asyncio':  'asyncio',
+    'tag:pstats':   'pstats',
+    'tag:posix':    'posix',
+    'tag:array':    'array',
     'tag:coverage': 'Cython.Coverage',
-    'Coverage': 'Cython.Coverage',
-    'tag:ipython': 'IPython',
-    'tag:jedi': 'jedi',
+    'Coverage':     'Cython.Coverage',
+    'tag:ipython':  'IPython',
+    'tag:jedi':     'jedi',
 }
 
 def patch_inspect_isfunction():
@@ -271,6 +272,10 @@ def get_openmp_compiler_flags(language):
     if not gcc_version:
         return None # not gcc - FIXME: do something about other compilers
 
+    # gcc defines "__int128_t", assume that at least all 64 bit architectures have it
+    global COMPILER_HAS_INT128
+    COMPILER_HAS_INT128 = getattr(sys, 'maxsize', getattr(sys, 'maxint', 0)) > 2**60
+
     compiler_version = gcc_version.group(1)
     if compiler_version and compiler_version.split('.') >= ['4', '2']:
         return '-fopenmp', '-fopenmp'
@@ -280,6 +285,8 @@ try:
 except locale.Error:
     pass
 
+COMPILER = None
+COMPILER_HAS_INT128 = False
 OPENMP_C_COMPILER_FLAGS = get_openmp_compiler_flags('c')
 OPENMP_CPP_COMPILER_FLAGS = get_openmp_compiler_flags('cpp')
 
@@ -322,12 +329,12 @@ VER_DEP_MODULES = {
     (3,1): (_is_py3_before_32, lambda x: x in ['run.pyclass_special_methods',
                                                ]),
     (3,3) : (operator.lt, lambda x: x in ['build.package_compilation',
+                                          'run.yield_from_py33',
                                           ]),
-    (3,4,0,'beta',3) : (operator.le, lambda x: x in ['run.py34_signature',
-                                          ]),
+    (3,4): (operator.lt, lambda x: x in ['run.py34_signature',
+                                         ]),
 }
 
-COMPILER = None
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
 CFLAGS = os.getenv('CFLAGS', '').split()
 CCACHE = os.getenv('CYTHON_RUNTESTS_CCACHE', '').split()
@@ -1693,7 +1700,7 @@ def main():
                       action="store_true", default=False,
                       help="only compile pyx to c, do not run C compiler or run the tests")
     parser.add_option("--no-refnanny", dest="with_refnanny",
-                      action="store_false", default=not IS_PYPY,
+                      action="store_false", default=True,
                       help="do not regression test reference counting")
     parser.add_option("--no-fork", dest="fork",
                       action="store_false", default=True,
@@ -1933,7 +1940,7 @@ def runtests(options, cmd_args, coverage=None):
 
     try:
         import jedi
-        if list(map(int, re.findall('[0-9]+', jedi.__version__ or '0'))) < [0, 8, 1]:
+        if not ([0, 8, 1] <= list(map(int, re.findall('[0-9]+', jedi.__version__ or '0'))) < [0, 9]):
             raise ImportError
     except (ImportError, AttributeError, TypeError):
         exclude_selectors.append(RegExSelector('Jedi'))
@@ -1941,11 +1948,17 @@ def runtests(options, cmd_args, coverage=None):
     if options.exclude:
         exclude_selectors += [ string_selector(r) for r in options.exclude ]
 
+    if not COMPILER_HAS_INT128 or not IS_CPYTHON:
+        exclude_selectors += [RegExSelector('int128')]
+
     if options.shard_num > -1:
         exclude_selectors.append(ShardExcludeSelector(options.shard_num, options.shard_count))
 
     if not test_bugs:
-        exclude_selectors += [ FileListExcluder(os.path.join(ROOTDIR, "bugs.txt"), verbose=verbose_excludes) ]
+        exclude_selectors += [
+            FileListExcluder(os.path.join(ROOTDIR, bugs_file_name), verbose=verbose_excludes)
+            for bugs_file_name in ['bugs.txt'] + (['pypy_bugs.txt'] if IS_PYPY else [])
+        ]
 
     if sys.platform in ['win32', 'cygwin'] and sys.version_info < (2,6):
         exclude_selectors += [ lambda x: x == "run.specialfloat" ]

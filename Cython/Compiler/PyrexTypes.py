@@ -393,7 +393,7 @@ class CTypedefType(BaseType):
                 base_type = self.typedef_base_type
                 if type(base_type) is CIntType:
                     self.to_py_function = "__Pyx_PyInt_From_" + self.specialization_name()
-                    env.use_utility_code(TempitaUtilityCode.load(
+                    env.use_utility_code(TempitaUtilityCode.load_cached(
                         "CIntToPy", "TypeConversion.c",
                         context={"TYPE": self.empty_declaration_code(),
                                  "TO_PY_FUNCTION": self.to_py_function}))
@@ -415,7 +415,7 @@ class CTypedefType(BaseType):
                 base_type = self.typedef_base_type
                 if type(base_type) is CIntType:
                     self.from_py_function = "__Pyx_PyInt_As_" + self.specialization_name()
-                    env.use_utility_code(TempitaUtilityCode.load(
+                    env.use_utility_code(TempitaUtilityCode.load_cached(
                         "CIntFromPy", "TypeConversion.c",
                         context={"TYPE": self.empty_declaration_code(),
                                  "FROM_PY_FUNCTION": self.from_py_function}))
@@ -450,17 +450,17 @@ class CTypedefType(BaseType):
         type = self.empty_declaration_code()
         name = self.specialization_name()
         if binop == "lshift":
-            env.use_utility_code(TempitaUtilityCode.load(
+            env.use_utility_code(TempitaUtilityCode.load_cached(
                 "LeftShift", "Overflow.c",
                 context={'TYPE': type, 'NAME': name, 'SIGNED': self.signed}))
         else:
             if const_rhs:
                 binop += "_const"
             _load_overflow_base(env)
-            env.use_utility_code(TempitaUtilityCode.load(
+            env.use_utility_code(TempitaUtilityCode.load_cached(
                 "SizeCheck", "Overflow.c",
                 context={'TYPE': type, 'NAME': name}))
-            env.use_utility_code(TempitaUtilityCode.load(
+            env.use_utility_code(TempitaUtilityCode.load_cached(
                 "Binop", "Overflow.c",
                 context={'TYPE': type, 'NAME': name, 'BINOP': binop}))
         return "__Pyx_%s_%s_checking_overflow" % (binop, name)
@@ -697,10 +697,9 @@ class MemoryViewSliceType(PyrexType):
 
         # We don't have 'code', so use a LazyUtilityCode with a callback.
         def lazy_utility_callback(code):
-            context['dtype_typeinfo'] = Buffer.get_type_information_cname(
-                                                          code, self.dtype)
+            context['dtype_typeinfo'] = Buffer.get_type_information_cname(code, self.dtype)
             return TempitaUtilityCode.load(
-                        "ObjectToMemviewSlice", "MemoryView_C.c", context=context)
+                "ObjectToMemviewSlice", "MemoryView_C.c", context=context)
 
         env.use_utility_code(Buffer.acquire_utility_code)
         env.use_utility_code(MemoryView.memviewslice_init_code)
@@ -777,8 +776,8 @@ class MemoryViewSliceType(PyrexType):
                 error_condition = error_condition,
             )
 
-        utility = TempitaUtilityCode.load(
-                        utility_name, "MemoryView_C.c", context=context)
+        utility = TempitaUtilityCode.load_cached(
+            utility_name, "MemoryView_C.c", context=context)
         env.use_utility_code(utility)
         return get_function, set_function
 
@@ -1490,7 +1489,7 @@ class CIntType(CNumericType):
     def create_to_py_utility_code(self, env):
         if type(self).to_py_function is None:
             self.to_py_function = "__Pyx_PyInt_From_" + self.specialization_name()
-            env.use_utility_code(TempitaUtilityCode.load(
+            env.use_utility_code(TempitaUtilityCode.load_cached(
                 "CIntToPy", "TypeConversion.c",
                 context={"TYPE": self.empty_declaration_code(),
                          "TO_PY_FUNCTION": self.to_py_function}))
@@ -1499,7 +1498,7 @@ class CIntType(CNumericType):
     def create_from_py_utility_code(self, env):
         if type(self).from_py_function is None:
             self.from_py_function = "__Pyx_PyInt_As_" + self.specialization_name()
-            env.use_utility_code(TempitaUtilityCode.load(
+            env.use_utility_code(TempitaUtilityCode.load_cached(
                 "CIntFromPy", "TypeConversion.c",
                 context={"TYPE": self.empty_declaration_code(),
                          "FROM_PY_FUNCTION": self.from_py_function}))
@@ -1539,18 +1538,18 @@ class CIntType(CNumericType):
         type = self.empty_declaration_code()
         name = self.specialization_name()
         if binop == "lshift":
-            env.use_utility_code(TempitaUtilityCode.load(
+            env.use_utility_code(TempitaUtilityCode.load_cached(
                 "LeftShift", "Overflow.c",
                 context={'TYPE': type, 'NAME': name, 'SIGNED': self.signed}))
         else:
             if const_rhs:
                 binop += "_const"
             if type in ('int', 'long', 'long long'):
-                env.use_utility_code(TempitaUtilityCode.load(
+                env.use_utility_code(TempitaUtilityCode.load_cached(
                     "BaseCaseSigned", "Overflow.c",
                     context={'INT': type, 'NAME': name}))
             elif type in ('unsigned int', 'unsigned long', 'unsigned long long'):
-                env.use_utility_code(TempitaUtilityCode.load(
+                env.use_utility_code(TempitaUtilityCode.load_cached(
                     "BaseCaseUnsigned", "Overflow.c",
                     context={'UINT': type, 'NAME': name}))
             elif self.rank <= 1:
@@ -1558,22 +1557,23 @@ class CIntType(CNumericType):
                 return "__Pyx_%s_%s_no_overflow" % (binop, name)
             else:
                 _load_overflow_base(env)
-                env.use_utility_code(TempitaUtilityCode.load(
+                env.use_utility_code(TempitaUtilityCode.load_cached(
                     "SizeCheck", "Overflow.c",
                     context={'TYPE': type, 'NAME': name}))
-                env.use_utility_code(TempitaUtilityCode.load(
+                env.use_utility_code(TempitaUtilityCode.load_cached(
                     "Binop", "Overflow.c",
                     context={'TYPE': type, 'NAME': name, 'BINOP': binop}))
         return "__Pyx_%s_%s_checking_overflow" % (binop, name)
 
+
 def _load_overflow_base(env):
     env.use_utility_code(UtilityCode.load("Common", "Overflow.c"))
     for type in ('int', 'long', 'long long'):
-        env.use_utility_code(TempitaUtilityCode.load(
+        env.use_utility_code(TempitaUtilityCode.load_cached(
             "BaseCaseSigned", "Overflow.c",
             context={'INT': type, 'NAME': type.replace(' ', '_')}))
     for type in ('unsigned int', 'unsigned long', 'unsigned long long'):
-        env.use_utility_code(TempitaUtilityCode.load(
+        env.use_utility_code(TempitaUtilityCode.load_cached(
             "BaseCaseUnsigned", "Overflow.c",
             context={'UINT': type, 'NAME': type.replace(' ', '_')}))
 
@@ -2710,8 +2710,9 @@ class CFuncType(CType):
                 trailer = " except %s" % self.exception_value
             elif self.exception_check == '+':
                 trailer = " except +"
-            else:
-                " except *" # ignored
+            elif self.exception_check and for_display:
+                # not spelled out by default, unless for human eyes
+                trailer = " except *"
             if self.nogil:
                 trailer += " nogil"
         if not with_calling_convention:
@@ -3684,13 +3685,11 @@ class CTupleType(CType):
         env.use_utility_code(self._convert_from_py_code)
         return True
 
-c_tuple_types = {}
+
 def c_tuple_type(components):
     components = tuple(components)
-    tuple_type = c_tuple_types.get(components)
-    if tuple_type is None:
-        cname = Naming.ctuple_type_prefix + type_list_identifier(components)
-        tuple_type = c_tuple_types[components] = CTupleType(cname, components)
+    cname = Naming.ctuple_type_prefix + type_list_identifier(components)
+    tuple_type = CTupleType(cname, components)
     return tuple_type
 
 

@@ -231,12 +231,11 @@ class UtilityCodeBase(object):
                 loader = __loader__
                 archive = loader.archive
                 with closing(zipfile.ZipFile(archive)) as fileobj:
-                    listing = [ os.path.basename(name)
-                                for name in fileobj.namelist()
-                                if os.path.join(archive, name).startswith(utility_dir)]
-            files = [ os.path.join(utility_dir, filename)
-                      for filename in listing
-                      if filename.startswith(prefix) ]
+                    listing = [os.path.basename(name)
+                               for name in fileobj.namelist()
+                               if os.path.join(archive, name).startswith(utility_dir)]
+            files = [filename for filename in listing
+                     if filename.startswith(prefix)]
             if not files:
                 raise ValueError("No match found for utility code " + util_code_name)
             if len(files) > 1:
@@ -397,6 +396,9 @@ class UtilityCode(UtilityCodeBase):
     def inject_string_constants(self, impl, output):
         """Replace 'PYIDENT("xyz")' by a constant Python identifier cname.
         """
+        if 'PYIDENT(' not in impl:
+            return False, impl
+
         replacements = {}
         def externalise(matchobj):
             name = matchobj.group(1)
@@ -407,8 +409,54 @@ class UtilityCode(UtilityCodeBase):
                     StringEncoding.EncodedString(name)).cname
             return cname
 
-        impl = re.sub('PYIDENT\("([^"]+)"\)', externalise, impl)
+        impl = re.sub(r'PYIDENT\("([^"]+)"\)', externalise, impl)
+        assert 'PYIDENT(' not in impl
         return bool(replacements), impl
+
+    def inject_unbound_methods(self, impl, output):
+        """Replace 'UNBOUND_METHOD(type, "name")' by a constant Python identifier cname.
+        """
+        if 'CALL_UNBOUND_METHOD(' not in impl:
+            return False, impl
+
+        utility_code = set()
+        def externalise(matchobj):
+            type_cname, method_name, args = matchobj.groups()
+            args = [arg.strip() for arg in args[1:].split(',')]
+            if len(args) == 1:
+                call = '__Pyx_CallUnboundCMethod0'
+                utility_code.add("CallUnboundCMethod0")
+            elif len(args) == 2:
+                call = '__Pyx_CallUnboundCMethod1'
+                utility_code.add("CallUnboundCMethod1")
+            else:
+                assert False, "CALL_UNBOUND_METHOD() requires 1 or 2 call arguments"
+
+            cname = output.get_cached_unbound_method(type_cname, method_name, len(args))
+            return '%s(&%s, %s)' % (call, cname, ', '.join(args))
+
+        impl = re.sub(r'CALL_UNBOUND_METHOD\(([a-zA-Z_]+),\s*"([^"]+)"((?:,\s*[^),]+)+)\)', externalise, impl)
+        assert 'CALL_UNBOUND_METHOD(' not in impl
+
+        for helper in sorted(utility_code):
+            output.use_utility_code(UtilityCode.load_cached(helper, "ObjectHandling.c"))
+        return bool(utility_code), impl
+
+    def wrap_c_strings(self, impl):
+        """Replace CSTRING('''xyz''') by a C compatible string
+        """
+        if 'CSTRING(' not in impl:
+            return impl
+
+        def split_string(matchobj):
+            content = matchobj.group(1).replace('"', '\042')
+            return ''.join(
+                '"%s\\n"\n' % line if not line.endswith('\\') or line.endswith('\\\\') else '"%s"\n' % line[:-1]
+                for line in content.splitlines())
+
+        impl = re.sub(r'CSTRING\(\s*"""([^"]+|"[^"])"""\s*\)', split_string, impl)
+        assert 'CSTRING(' not in impl
+        return impl
 
     def put_code(self, output):
         if self.requires:
@@ -419,9 +467,10 @@ class UtilityCode(UtilityCodeBase):
                 self.format_code(self.proto),
                 '%s_proto' % self.name)
         if self.impl:
-            impl = self.format_code(self.impl)
-            is_specialised, impl = self.inject_string_constants(impl, output)
-            if not is_specialised:
+            impl = self.format_code(self.wrap_c_strings(self.impl))
+            is_specialised1, impl = self.inject_string_constants(impl, output)
+            is_specialised2, impl = self.inject_unbound_methods(impl, output)
+            if not (is_specialised1 or is_specialised2):
                 # no module specific adaptations => can be reused
                 output['utility_code_def'].put_or_include(
                     impl, '%s_impl' % self.name)
@@ -642,7 +691,7 @@ class FunctionState(object):
 
         A C string referring to the variable is returned.
         """
-        if type.is_const:
+        if type.is_const and not type.is_reference:
             type = type.const_base_type
         if not type.is_pyobject and not type.is_memoryviewslice:
             # Make manage_ref canonical, so that manage_ref will always mean
@@ -913,6 +962,7 @@ class GlobalState(object):
         'typeinfo',
         'before_global_var',
         'global_var',
+        'string_decls',
         'decls',
         'all_the_rest',
         'pystring_table',
@@ -946,6 +996,7 @@ class GlobalState(object):
         self.pyunicode_ptr_const_index = {}
         self.num_const_index = {}
         self.py_constants = []
+        self.cached_cmethods = {}
 
         assert writer.globalstate is None
         writer.globalstate = self
@@ -1000,7 +1051,8 @@ class GlobalState(object):
         # utility_code_def
         #
         code = self.parts['utility_code_def']
-        code.put(UtilityCode.load_as_string("TypeConversions", "TypeConversion.c")[1])
+        util = TempitaUtilityCode.load_cached("TypeConversions", "TypeConversion.c")
+        code.put(util.format_code(util.impl))
         code.putln("")
 
     def __getitem__(self, key):
@@ -1167,6 +1219,15 @@ class GlobalState(object):
             prefix = Naming.const_prefix
         return "%s%s" % (prefix, name_suffix)
 
+    def get_cached_unbound_method(self, type_cname, method_name, args_count):
+        key = (type_cname, method_name, args_count)
+        try:
+            cname = self.cached_cmethods[key]
+        except KeyError:
+            cname = self.cached_cmethods[key] = self.new_const_cname(
+                'umethod', '%s_%s' % (type_cname, method_name))
+        return cname
+
     def add_cached_builtin_decl(self, entry):
         if entry.is_builtin and entry.is_const:
             if self.should_declare(entry.cname, entry):
@@ -1198,6 +1259,7 @@ class GlobalState(object):
             w.error_goto(pos)))
 
     def generate_const_declarations(self):
+        self.generate_cached_methods_decls()
         self.generate_string_constants()
         self.generate_num_constants()
         self.generate_object_constant_decls()
@@ -1211,13 +1273,34 @@ class GlobalState(object):
             decls_writer.putln(
                 "static %s;" % c.type.declaration_code(cname))
 
+    def generate_cached_methods_decls(self):
+        if not self.cached_cmethods:
+            return
+
+        decl = self.parts['decls']
+        init = self.parts['init_globals']
+        cnames = []
+        for (type_cname, method_name, _), cname in sorted(self.cached_cmethods.items()):
+            cnames.append(cname)
+            method_name_cname = self.get_interned_identifier(StringEncoding.EncodedString(method_name)).cname
+            decl.putln('static __Pyx_CachedCFunction %s = {0, &%s, 0, 0, 0};' % (
+                cname, method_name_cname))
+            # split type reference storage as it might not be static
+            init.putln('%s.type = (PyObject*)&%s;' % (
+                cname, type_cname))
+
+        if Options.generate_cleanup_code:
+            cleanup = self.parts['cleanup_globals']
+            for cname in cnames:
+                cleanup.putln("Py_CLEAR(%s.method);" % cname)
+
     def generate_string_constants(self):
         c_consts = [ (len(c.cname), c.cname, c)
                      for c in self.string_const_index.values() ]
         c_consts.sort()
         py_strings = []
 
-        decls_writer = self.parts['decls']
+        decls_writer = self.parts['string_decls']
         for _, cname, c in c_consts:
             conditional = False
             if c.py_versions and (2 not in c.py_versions or 3 not in c.py_versions):
@@ -1797,6 +1880,10 @@ class CCodeWriter(object):
     def put_var_incref(self, entry):
         if entry.type.is_pyobject:
             self.putln("__Pyx_INCREF(%s);" % self.entry_as_pyobject(entry))
+
+    def put_var_xincref(self, entry):
+        if entry.type.is_pyobject:
+            self.putln("__Pyx_XINCREF(%s);" % self.entry_as_pyobject(entry))
 
     def put_decref_clear(self, cname, type, nanny=True, clear_before_decref=False):
         self._put_decref(cname, type, nanny, null_check=False,

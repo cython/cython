@@ -111,9 +111,21 @@ static CYTHON_INLINE int __Pyx_PyUnicodeBufferContainsUCS4(Py_UNICODE* buffer, P
 
 //////////////////// PyUnicodeContains.proto ////////////////////
 
-static CYTHON_INLINE int __Pyx_PyUnicode_Contains(PyObject* substring, PyObject* text, int eq) {
+static CYTHON_INLINE int __Pyx_PyUnicode_ContainsTF(PyObject* substring, PyObject* text, int eq) {
     int result = PyUnicode_Contains(text, substring);
     return unlikely(result < 0) ? result : (result == (eq == Py_EQ));
+}
+
+
+//////////////////// CStringEquals.proto ////////////////////
+
+static CYTHON_INLINE int __Pyx_StrEq(const char *, const char *); /*proto*/
+
+//////////////////// CStringEquals ////////////////////
+
+static CYTHON_INLINE int __Pyx_StrEq(const char *s1, const char *s2) {
+    while (*s1 != '\0' && *s1 == *s2) { s1++; s2++; }
+    return *s1 == *s2;
 }
 
 
@@ -533,7 +545,7 @@ static int __Pyx_PyUnicode_Tailmatch(PyObject* s, PyObject* substr,
             result = PyUnicode_Tailmatch(s, PyTuple_GET_ITEM(substr, i),
                                          start, end, direction);
 #else
-            PyObject* sub = PySequence_GetItem(substr, i);
+            PyObject* sub = PySequence_ITEM(substr, i);
             if (unlikely(!sub)) return -1;
             result = PyUnicode_Tailmatch(s, sub, start, end, direction);
             Py_DECREF(sub);
@@ -618,7 +630,7 @@ static int __Pyx_PyBytes_Tailmatch(PyObject* self, PyObject* substr, Py_ssize_t 
             result = __Pyx_PyBytes_SingleTailmatch(self, PyTuple_GET_ITEM(substr, i),
                                                    start, end, direction);
 #else
-            PyObject* sub = PySequence_GetItem(substr, i);
+            PyObject* sub = PySequence_ITEM(substr, i);
             if (unlikely(!sub)) return -1;
             result = __Pyx_PyBytes_SingleTailmatch(self, sub, start, end, direction);
             Py_DECREF(sub);
@@ -721,7 +733,7 @@ static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyO
         }
         ival = (unsigned char) (PyString_AS_STRING(value)[0]);
     } else
-#else
+#endif
 #if CYTHON_USE_PYLONG_INTERNALS
     if (likely(PyLong_CheckExact(value)) && likely(Py_SIZE(value) == 1 || Py_SIZE(value) == 0)) {
         if (Py_SIZE(value) == 0) {
@@ -731,7 +743,6 @@ static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyO
             if (unlikely(ival > 255)) goto bad_range;
         }
     } else
-#endif
 #endif
     {
         // CPython calls PyNumber_Index() internally

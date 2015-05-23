@@ -8,10 +8,9 @@ __doc__ = """
 2.0
 >>> pxd_sqrt(9)
 3.0
->>> log(10)
+>>> log(10)  # doctest: +ELLIPSIS
 Traceback (most recent call last):
-...
-NameError: name 'log' is not defined
+NameError: ...name 'log' is not defined
 >>> strchr('abcabc', ord('c'))
 'cabc'
 >>> strchr(needle=ord('c'), haystack='abcabc')

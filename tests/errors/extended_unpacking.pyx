@@ -16,6 +16,8 @@ def syntax1():
     [*a, *b]
 
     (a, b, *c, d, e, f, *g, h, i)
+    [a, b, *c, d, e, f, *g, h, i]
+    {a, b, *c, d, e, f, *g, h, i}
 
 
 def syntax2():
@@ -33,19 +35,15 @@ def types(l):
 
 _ERRORS = u"""
 # syntax1()
- 8: 4: can use starred expression only as assignment target
-10: 4: can use starred expression only as assignment target
-12: 4: can use starred expression only as assignment target
-14: 4: can use starred expression only as assignment target
-16: 5: can use starred expression only as assignment target
-16: 9: can use starred expression only as assignment target
-18:11: can use starred expression only as assignment target
-18:24: can use starred expression only as assignment target
+ 8: 4: starred expression is not allowed here
+10: 4: starred expression is not allowed here
+12: 4: starred expression is not allowed here
+14: 4: starred expression is not allowed here
 
 # syntax2()
-24:11: more than 1 starred expression in assignment
+26:11: more than 1 starred expression in assignment
 
 # types()
-30:15: Cannot coerce list to type 'int'
-31:10: starred target must have Python object (list) type
+32:15: Cannot coerce list to type 'int'
+33:10: starred target must have Python object (list) type
 """

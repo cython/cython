@@ -19,6 +19,7 @@ from . import Errors
 # conditional metaclass. These options are processed by CmdLine called from
 # main() in this file.
 # import Parsing
+from .StringEncoding import EncodedString
 from .Scanning import PyrexScanner, FileSourceDescriptor
 from .Errors import PyrexError, CompileError, error, warning
 from .Symtab import ModuleScope
@@ -76,7 +77,8 @@ class Context(object):
         self.cpp = cpp
         self.options = options
 
-        self.pxds = {} # full name -> node tree
+        self.pxds = {}  # full name -> node tree
+        self._interned = {}  # (type(value), value, *key_args) -> interned_value
 
         standard_include_path = os.path.abspath(os.path.normpath(
             os.path.join(os.path.dirname(__file__), os.path.pardir, 'Includes')))
@@ -92,6 +94,27 @@ class Context(object):
             from .Future import print_function, unicode_literals, absolute_import, division
             self.future_directives.update([print_function, unicode_literals, absolute_import, division])
             self.modules['builtins'] = self.modules['__builtin__']
+
+    def intern_ustring(self, value, encoding=None):
+        key = (EncodedString, value, encoding)
+        try:
+            return self._interned[key]
+        except KeyError:
+            pass
+        value = EncodedString(value)
+        if encoding:
+            value.encoding = encoding
+        self._interned[key] = value
+        return value
+
+    def intern_value(self, value, *key):
+        key = (type(value), value) + key
+        try:
+            return self._interned[key]
+        except KeyError:
+            pass
+        self._interned[key] = value
+        return value
 
     # pipeline creation functions can now be found in Pipeline.py
 
@@ -110,7 +133,8 @@ class Context(object):
     def nonfatal_error(self, exc):
         return Errors.report_error(exc)
 
-    def find_module(self, module_name, relative_to=None, pos=None, need_pxd=1, check_module_name=True):
+    def find_module(self, module_name, relative_to=None, pos=None, need_pxd=1,
+                    absolute_fallback=True):
         # Finds and returns the module scope corresponding to
         # the given relative or absolute module name. If this
         # is the first time the module has been requested, finds
@@ -125,25 +149,39 @@ class Context(object):
 
         scope = None
         pxd_pathname = None
-        if check_module_name and not module_name_pattern.match(module_name):
-            if pos is None:
-                pos = (module_name, 0, 0)
-            raise CompileError(pos, "'%s' is not a valid module name" % module_name)
+        if relative_to:
+            if module_name:
+                # from .module import ...
+                qualified_name = relative_to.qualify_name(module_name)
+            else:
+                # from . import ...
+                qualified_name = relative_to.qualified_name
+                scope = relative_to
+                relative_to = None
+        else:
+            qualified_name = module_name
+
+        if not module_name_pattern.match(qualified_name):
+            raise CompileError(pos or (module_name, 0, 0),
+                               "'%s' is not a valid module name" % module_name)
+
         if relative_to:
             if debug_find_module:
                 print("...trying relative import")
             scope = relative_to.lookup_submodule(module_name)
             if not scope:
-                qualified_name = relative_to.qualify_name(module_name)
                 pxd_pathname = self.find_pxd_file(qualified_name, pos)
                 if pxd_pathname:
                     scope = relative_to.find_submodule(module_name)
         if not scope:
             if debug_find_module:
                 print("...trying absolute import")
+            if absolute_fallback:
+                qualified_name = module_name
             scope = self
-            for name in module_name.split("."):
+            for name in qualified_name.split("."):
                 scope = scope.find_submodule(name)
+
         if debug_find_module:
             print("...scope = %s" % scope)
         if not scope.pxd_file_loaded:
@@ -153,15 +191,15 @@ class Context(object):
             if not pxd_pathname:
                 if debug_find_module:
                     print("...looking for pxd file")
-                pxd_pathname = self.find_pxd_file(module_name, pos)
+                pxd_pathname = self.find_pxd_file(qualified_name, pos)
                 if debug_find_module:
                     print("......found %s" % pxd_pathname)
                 if not pxd_pathname and need_pxd:
-                    package_pathname = self.search_include_directories(module_name, ".py", pos)
+                    package_pathname = self.search_include_directories(qualified_name, ".py", pos)
                     if package_pathname and package_pathname.endswith('__init__.py'):
                         pass
                     else:
-                        error(pos, "'%s.pxd' not found" % module_name.replace('.', os.sep))
+                        error(pos, "'%s.pxd' not found" % qualified_name.replace('.', os.sep))
             if pxd_pathname:
                 try:
                     if debug_find_module:
@@ -170,7 +208,7 @@ class Context(object):
                     if not pxd_pathname.endswith(rel_path):
                         rel_path = pxd_pathname  # safety measure to prevent printing incorrect paths
                     source_desc = FileSourceDescriptor(pxd_pathname, rel_path)
-                    err, result = self.process_pxd(source_desc, scope, module_name)
+                    err, result = self.process_pxd(source_desc, scope, qualified_name)
                     if err:
                         raise err
                     (pxd_codenodes, pxd_scope) = result

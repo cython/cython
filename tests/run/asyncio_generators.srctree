@@ -1,0 +1,103 @@
+# mode: run
+# tag: asyncio
+
+"""
+PYTHON setup.py build_ext -i
+PYTHON test_from_import.py
+PYTHON test_import.py
+PYTHON test_both.py
+"""
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("*.pyx"),
+)
+
+
+######## test_from_import.py ########
+
+import from_asyncio_import
+import asyncio
+
+def runloop(task):
+    loop = asyncio.get_event_loop()
+    result = loop.run_until_complete(task())
+    assert 3 == result, result
+
+runloop(from_asyncio_import.wait3)
+
+
+######## test_import.py ########
+
+import import_asyncio
+import asyncio
+
+def runloop(task):
+    loop = asyncio.get_event_loop()
+    result = loop.run_until_complete(task())
+    assert 3 == result, result
+
+runloop(import_asyncio.wait3)
+
+
+######## test_both.py ########
+
+import asyncio
+
+def runloop(task):
+    loop = asyncio.get_event_loop()
+    result = loop.run_until_complete(task())
+    assert 3 == result, result
+
+import import_asyncio
+runloop(import_asyncio.wait3)       # 1a)
+import from_asyncio_import
+runloop(from_asyncio_import.wait3)  # 1b)
+
+runloop(from_asyncio_import.wait3)  # 2a)
+runloop(import_asyncio.wait3)       # 2b)
+runloop(from_asyncio_import.wait3)  # 3a)
+runloop(import_asyncio.wait3)       # 3b)
+
+try:
+    from collections.abc import Generator
+except ImportError:
+    from collections import Generator
+
+assert isinstance(from_asyncio_import.wait3(), Generator)
+assert isinstance(import_asyncio.wait3(), Generator)
+assert isinstance((lambda:(yield))(), Generator)
+
+
+######## import_asyncio.pyx ########
+# cython: binding=True
+
+import asyncio
+
+@asyncio.coroutine
+def wait3():
+    counter = 0
+    for i in range(3):
+        print(counter)
+        yield from asyncio.sleep(0.01)
+        counter += 1
+    return counter
+
+
+######## from_asyncio_import.pyx ########
+# cython: binding=True
+
+from asyncio import coroutine, sleep
+
+@coroutine
+def wait3():
+    counter = 0
+    for i in range(3):
+        print(counter)
+        yield from sleep(0.01)
+        counter += 1
+    return counter

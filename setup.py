@@ -6,6 +6,7 @@ except ImportError:
 import os
 import stat
 import subprocess
+import textwrap
 import sys
 
 import platform
@@ -313,48 +314,45 @@ if include_debugger:
     setup_args['package_data']['Cython.Debugger.Tests'] = ['codefile', 'cfuncs.c']
 
 setup(
-  name = 'Cython',
-  version = version,
-  url = 'http://www.cython.org',
-  author = 'Robert Bradshaw, Stefan Behnel, Dag Seljebotn, Greg Ewing, et al.',
-  author_email = 'cython-devel@python.org',
-  description = "The Cython compiler for writing C extensions for the Python language.",
-  long_description = """\
-  The Cython language makes writing C extensions for the Python language as
-  easy as Python itself.  Cython is a source code translator based on the
-  well-known Pyrex_, but supports more cutting edge functionality and
-  optimizations.
+    name='Cython',
+    version=version,
+    url='http://www.cython.org',
+    author='Robert Bradshaw, Stefan Behnel, Dag Seljebotn, Greg Ewing, et al.',
+    author_email='cython-devel@python.org',
+    description="The Cython compiler for writing C extensions for the Python language.",
+    long_description=textwrap.dedent("""\
+    The Cython language makes writing C extensions for the Python language as
+    easy as Python itself.  Cython is a source code translator based on Pyrex_,
+    but supports more cutting edge functionality and optimizations.
 
-  The Cython language is very close to the Python language (and most Python
-  code is also valid Cython code), but Cython additionally supports calling C
-  functions and declaring C types on variables and class attributes. This
-  allows the compiler to generate very efficient C code from Cython code.
+    The Cython language is very close to the Python language (and most Python
+    code is also valid Cython code), but Cython additionally supports calling C
+    functions and declaring C types on variables and class attributes. This
+    allows the compiler to generate very efficient C code from Cython code.
 
-  This makes Cython the ideal language for writing glue code for external C
-  libraries, and for fast C modules that speed up the execution of Python
-  code.
+    This makes Cython the ideal language for writing glue code for external C
+    libraries, and for fast C modules that speed up the execution of Python
+    code.
 
-  .. _Pyrex: http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
-  """,
-  classifiers = [
-    "Development Status :: 5 - Production/Stable",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: Apache Software License",
-    "Operating System :: OS Independent",
-    "Programming Language :: Python",
-    "Programming Language :: Python :: 2",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: C",
-    "Programming Language :: Cython",
-    "Topic :: Software Development :: Code Generators",
-    "Topic :: Software Development :: Compilers",
-    "Topic :: Software Development :: Libraries :: Python Modules"
-  ],
+    .. _Pyrex: http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
+    """),
+    classifiers=[
+        "Development Status :: 5 - Production/Stable",
+        "Intended Audience :: Developers",
+        "License :: OSI Approved :: Apache Software License",
+        "Operating System :: OS Independent",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 2",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: C",
+        "Programming Language :: Cython",
+        "Topic :: Software Development :: Code Generators",
+        "Topic :: Software Development :: Compilers",
+        "Topic :: Software Development :: Libraries :: Python Modules"
+    ],
 
-  scripts = scripts,
-  packages=packages,
-
-  py_modules = ["cython"],
-
-  **setup_args
-  )
+    scripts=scripts,
+    packages=packages,
+    py_modules=["cython"],
+    **setup_args
+)

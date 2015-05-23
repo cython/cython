@@ -1,3 +1,8 @@
+import sys
+
+IS_PY35 = sys.version_info >= (3, 5)
+
+
 def empty():
     """
     >>> empty()
@@ -90,15 +95,15 @@ def item_creation_sideeffect(L, sideeffect, unhashable):
     >>> L = []
     >>> item_creation_sideeffect(L, sideeffect, unhashable)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError:... unhashable ...
+    TypeError: ...unhashable...
     >>> L
     [2, 4]
 
     >>> L = []
     >>> {1:2, sideeffect(2): 3, 3: 4, unhashable(4): 5, sideeffect(5): 6}  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError:... unhashable ...
-    >>> L
-    [2, 4]
+    TypeError: ...unhashable...
+    >>> L if IS_PY35 else (L + [5])
+    [2, 4, 5]
     """
     return {1:2, sideeffect(2): 3, 3: 4, unhashable(4): 5, sideeffect(5): 6}

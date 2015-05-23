@@ -20,8 +20,8 @@ cdef extern from "<map>" namespace "std" nogil:
             iterator operator--()
             bint operator==(reverse_iterator)
             bint operator!=(reverse_iterator)
-        #cppclass const_reverse_iterator(reverse_iterator):
-        #    pass
+        cppclass const_reverse_iterator(reverse_iterator):
+            pass
         map() except +
         map(map&) except +
         #map(key_compare&)
@@ -53,14 +53,14 @@ cdef extern from "<map>" namespace "std" nogil:
         #void insert(input_iterator, input_iterator)
         #key_compare key_comp()
         iterator lower_bound(const T&)
-        #const_iterator lower_bound(const key_type&)
+        const_iterator const_lower_bound "lower_bound"(const T&)
         size_t max_size()
         reverse_iterator rbegin()
-        #const_reverse_iterator rbegin()
+        const_reverse_iterator const_rbegin "rbegin"()
         reverse_iterator rend()
-        #const_reverse_iterator rend()
+        const_reverse_iterator const_rend "rend"()
         size_t size()
         void swap(map&)
         iterator upper_bound(const T&)
-        #const_iterator upper_bound(const key_type&)
+        const_iterator const_upper_bound "upper_bound"(const T&)
         #value_compare value_comp()

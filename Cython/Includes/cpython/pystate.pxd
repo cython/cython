@@ -1,6 +1,6 @@
 # Thread and interpreter state structures and their interfaces
 
-from cpython.ref cimport PyObject
+from .object cimport PyObject
 
 cdef extern from "Python.h":
 

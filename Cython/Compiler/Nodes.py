@@ -1180,10 +1180,9 @@ class CTupleBaseTypeNode(CBaseTypeNode):
                 error(c.pos, "Tuple types can't (yet) contain Python objects.")
                 return error_type
             component_types.append(type)
-        type = PyrexTypes.c_tuple_type(component_types)
-        entry = env.declare_tuple_type(self.pos, type)
+        entry = env.declare_tuple_type(self.pos, component_types)
         entry.used = True
-        return type
+        return entry.type
 
 
 class FusedTypeNode(CBaseTypeNode):
@@ -1829,7 +1828,17 @@ class FuncDefNode(StatNode, BlockNode):
                     code.put_release_ensured_gil()
 
             # FIXME: what if the error return value is a Python value?
-            code.putln("return %s;" % self.error_value())
+            err_val = self.error_value()
+            if err_val is None:
+                if not self.caller_will_check_exceptions():
+                    warning(self.entry.pos,
+                            "Unraisable exception in function '%s'." %
+                            self.entry.qualified_name, 0)
+                    code.put_unraisable(self.entry.qualified_name, lenv.nogil)
+                #if self.return_type.is_void:
+                code.putln("return;")
+            else:
+                code.putln("return %s;" % err_val)
             code.putln("}")
             code.put_gotref(Naming.cur_scope_cname)
             # Note that it is unsafe to decref the scope at this point.
@@ -1863,20 +1872,21 @@ class FuncDefNode(StatNode, BlockNode):
         is_cdef = isinstance(self, CFuncDefNode)
         for entry in lenv.arg_entries:
             if entry.type.is_pyobject:
-                if ((acquire_gil or len(entry.cf_assignments) > 1) and
-                    not entry.in_closure):
+                if (acquire_gil or len(entry.cf_assignments) > 1) and not entry.in_closure:
                     code.put_var_incref(entry)
 
             # Note: defaults are always incref-ed. For def functions, we
             #       we aquire arguments from object converstion, so we have
             #       new references. If we are a cdef function, we need to
             #       incref our arguments
-            elif (is_cdef and entry.type.is_memoryviewslice and
-                  len(entry.cf_assignments) > 1):
+            elif is_cdef and entry.type.is_memoryviewslice and len(entry.cf_assignments) > 1:
                 code.put_incref_memoryviewslice(entry.cname, have_gil=code.funcstate.gil_owned)
         for entry in lenv.var_entries:
             if entry.is_arg and len(entry.cf_assignments) > 1:
-                code.put_var_incref(entry)
+                if entry.xdecref_cleanup:
+                    code.put_var_xincref(entry)
+                else:
+                    code.put_var_incref(entry)
 
         # ----- Initialise local buffer auxiliary variables
         for entry in lenv.var_entries + lenv.arg_entries:
@@ -2017,7 +2027,10 @@ class FuncDefNode(StatNode, BlockNode):
                                                  have_gil=not lenv.nogil)
             elif entry.type.is_pyobject:
                 if not entry.is_arg or len(entry.cf_assignments) > 1:
-                    code.put_var_decref(entry)
+                    if entry.xdecref_cleanup:
+                        code.put_var_xdecref(entry)
+                    else:
+                        code.put_var_decref(entry)
 
         # Decref any increfed args
         for entry in lenv.arg_entries:
@@ -3131,6 +3144,15 @@ class DefNodeWrapper(FuncDefNode):
                 if not arg.hdr_type.create_to_py_utility_code(env):
                     pass # will fail later
 
+        if self.starstar_arg and not self.starstar_arg.entry.cf_used:
+            # we will set the kwargs argument to NULL instead of a new dict
+            # and must therefore correct the control flow state
+            entry = self.starstar_arg.entry
+            entry.xdecref_cleanup = 1
+            for ass in entry.cf_assignments:
+                if not ass.is_arg and ass.lhs.is_name:
+                    ass.lhs.cf_maybe_null = True
+
     def signature_has_nongeneric_args(self):
         argcount = len(self.args)
         if argcount == 0 or (
@@ -3380,7 +3402,7 @@ class DefNodeWrapper(FuncDefNode):
             code.putln("}")
 
         if self.starstar_arg:
-            if self.star_arg:
+            if self.star_arg or not self.starstar_arg.entry.cf_used:
                 kwarg_check = "unlikely(%s)" % Naming.kwds_cname
             else:
                 kwarg_check = "%s" % Naming.kwds_cname
@@ -3394,15 +3416,28 @@ class DefNodeWrapper(FuncDefNode):
                 kwarg_check, Naming.kwds_cname, self.name,
                 bool(self.starstar_arg), self.error_value()))
 
-        if self.starstar_arg:
-            code.putln("%s = (%s) ? PyDict_Copy(%s) : PyDict_New();" % (
-                    self.starstar_arg.entry.cname,
-                    Naming.kwds_cname,
-                    Naming.kwds_cname))
-            code.putln("if (unlikely(!%s)) return %s;" % (
-                    self.starstar_arg.entry.cname, self.error_value()))
-            self.starstar_arg.entry.xdecref_cleanup = 0
-            code.put_gotref(self.starstar_arg.entry.cname)
+        if self.starstar_arg and self.starstar_arg.entry.cf_used:
+            if all(ref.node.allow_null for ref in self.starstar_arg.entry.cf_references):
+                code.putln("if (%s) {" % kwarg_check)
+                code.putln("%s = PyDict_Copy(%s); if (unlikely(!%s)) return %s;" % (
+                        self.starstar_arg.entry.cname,
+                        Naming.kwds_cname,
+                        self.starstar_arg.entry.cname,
+                        self.error_value()))
+                code.put_gotref(self.starstar_arg.entry.cname)
+                code.putln("} else {")
+                code.putln("%s = NULL;" % (self.starstar_arg.entry.cname,))
+                code.putln("}")
+                self.starstar_arg.entry.xdecref_cleanup = 1
+            else:
+                code.put("%s = (%s) ? PyDict_Copy(%s) : PyDict_New(); " % (
+                        self.starstar_arg.entry.cname,
+                        Naming.kwds_cname,
+                        Naming.kwds_cname))
+                code.putln("if (unlikely(!%s)) return %s;" % (
+                        self.starstar_arg.entry.cname, self.error_value()))
+                self.starstar_arg.entry.xdecref_cleanup = 0
+                code.put_gotref(self.starstar_arg.entry.cname)
 
         if self.self_in_stararg and not self.target.is_staticmethod:
             # need to create a new tuple with 'self' inserted as first item
@@ -3410,9 +3445,9 @@ class DefNodeWrapper(FuncDefNode):
                     self.star_arg.entry.cname,
                     Naming.args_cname,
                     self.star_arg.entry.cname))
-            if self.starstar_arg:
+            if self.starstar_arg and self.starstar_arg.entry.cf_used:
                 code.putln("{")
-                code.put_decref_clear(self.starstar_arg.entry.cname, py_object_type)
+                code.put_xdecref_clear(self.starstar_arg.entry.cname, py_object_type)
                 code.putln("return %s;" % self.error_value())
                 code.putln("}")
             else:
@@ -4132,8 +4167,10 @@ class OverrideCheckNode(StatNode):
         code.funcstate.release_temp(func_node_temp)
         code.putln("}")
 
+
 class ClassDefNode(StatNode, BlockNode):
     pass
+
 
 class PyClassDefNode(ClassDefNode):
     #  A Python class definition.
@@ -4160,7 +4197,7 @@ class PyClassDefNode(ClassDefNode):
     mkw = None
 
     def __init__(self, pos, name, bases, doc, body, decorators=None,
-                 keyword_args=None, starstar_arg=None, force_py3_semantics=False):
+                 keyword_args=None, force_py3_semantics=False):
         StatNode.__init__(self, pos)
         self.name = name
         self.doc = doc
@@ -4175,31 +4212,30 @@ class PyClassDefNode(ClassDefNode):
             doc_node = None
 
         allow_py2_metaclass = not force_py3_semantics
-        if keyword_args or starstar_arg:
+        if keyword_args:
             allow_py2_metaclass = False
             self.is_py3_style_class = True
-            if keyword_args and not starstar_arg:
-                for i, item in list(enumerate(keyword_args.key_value_pairs))[::-1]:
-                    if item.key.value == 'metaclass':
-                        if self.metaclass is not None:
-                            error(item.pos, "keyword argument 'metaclass' passed multiple times")
-                        # special case: we already know the metaclass,
-                        # so we don't need to do the "build kwargs,
-                        # find metaclass" dance at runtime
-                        self.metaclass = item.value
-                        del keyword_args.key_value_pairs[i]
-            if starstar_arg:
-                self.mkw = ExprNodes.KeywordArgsNode(
-                    pos, keyword_args=keyword_args and keyword_args.key_value_pairs or [],
-                    starstar_arg=starstar_arg)
-            elif keyword_args.key_value_pairs:
-                self.mkw = keyword_args
+            if keyword_args.is_dict_literal:
+                if keyword_args.key_value_pairs:
+                    for i, item in list(enumerate(keyword_args.key_value_pairs))[::-1]:
+                        if item.key.value == 'metaclass':
+                            if self.metaclass is not None:
+                                error(item.pos, "keyword argument 'metaclass' passed multiple times")
+                            # special case: we already know the metaclass,
+                            # so we don't need to do the "build kwargs,
+                            # find metaclass" dance at runtime
+                            self.metaclass = item.value
+                            del keyword_args.key_value_pairs[i]
+                    self.mkw = keyword_args
+                else:
+                    assert self.metaclass is not None
             else:
-                assert self.metaclass is not None
+                # MergedDictNode
+                self.mkw = ExprNodes.ProxyNode(keyword_args)
 
         if force_py3_semantics or self.bases or self.mkw or self.metaclass:
             if self.metaclass is None:
-                if starstar_arg:
+                if keyword_args and not keyword_args.is_dict_literal:
                     # **kwargs may contain 'metaclass' arg
                     mkdict = self.mkw
                 else:
@@ -5475,10 +5511,11 @@ class ReturnStatNode(StatNode):
                         have_gil=self.in_nogil_context)
             elif self.in_generator:
                 # return value == raise StopIteration(value), but uncatchable
-                code.putln(
-                    "%s = NULL; PyErr_SetObject(PyExc_StopIteration, %s);" % (
-                        Naming.retval_cname,
-                        self.value.result_as(self.return_type)))
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("ReturnWithStopIteration", "Generator.c"))
+                code.putln("%s = NULL; __Pyx_ReturnWithStopIteration(%s);" % (
+                    Naming.retval_cname,
+                    self.value.py_result()))
                 self.value.generate_disposal_code(code)
             else:
                 self.value.make_owned_reference(code)
@@ -5490,7 +5527,10 @@ class ReturnStatNode(StatNode):
             self.value.free_temps(code)
         else:
             if self.return_type.is_pyobject:
-                code.put_init_to_py_none(Naming.retval_cname, self.return_type)
+                if self.in_generator:
+                    code.putln("%s = NULL;" % Naming.retval_cname)
+                else:
+                    code.put_init_to_py_none(Naming.retval_cname, self.return_type)
             elif self.return_type.is_returncode:
                 self.put_return(code, self.return_type.default_value)
 
@@ -6556,7 +6596,7 @@ class TryExceptStatNode(StatNode):
         else:
             # try block cannot raise exceptions, but we had to allocate the temps above,
             # so just keep the C compiler from complaining about them being unused
-            save_exc.putln("if (%s); else {/*mark used*/};" % '||'.join(exc_save_vars))
+            save_exc.putln("if (%s); else {/*mark used*/}" % '||'.join(exc_save_vars))
 
             def restore_saved_exception():
                 pass
@@ -7162,6 +7202,14 @@ utility_code_for_cimports = {
 }
 
 
+utility_code_for_imports = {
+    # utility code used when special modules are imported.
+    # TODO: Consider a generic user-level mechanism for importing
+    'asyncio': ("__Pyx_patch_asyncio", "PatchAsyncIO", "Generator.c"),
+    'inspect': ("__Pyx_patch_inspect", "PatchInspect", "Generator.c"),
+}
+
+
 class CImportStatNode(StatNode):
     #  cimport statement
     #
@@ -7224,6 +7272,7 @@ class FromCImportStatNode(StatNode):
             return
         if self.relative_level and self.relative_level > env.qualified_name.count('.'):
             error(self.pos, "relative cimport beyond main package is not allowed")
+            return
         module_scope = env.find_module(self.module_name, self.pos, relative_level=self.relative_level)
         module_name = module_scope.qualified_name
         env.add_imported_module(module_scope)
@@ -7244,7 +7293,8 @@ class FromCImportStatNode(StatNode):
                     elif kind == 'class':
                         entry = module_scope.declare_c_class(name, pos=pos, module_name=module_name)
                     else:
-                        submodule_scope = env.context.find_module(name, relative_to=module_scope, pos=self.pos)
+                        submodule_scope = env.context.find_module(
+                            name, relative_to=module_scope, pos=self.pos, absolute_fallback=False)
                         if submodule_scope.parent_module is module_scope:
                             env.declare_module(as_name or name, submodule_scope, self.pos)
                         else:

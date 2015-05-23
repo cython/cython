@@ -51,6 +51,8 @@ class EmbedSignature(CythonTransform):
         default_val = arg.default
         if not default_val:
             return None
+        if isinstance(default_val, ExprNodes.NullNode):
+            return 'NULL'
         try:
             denv = self.denv  # XXX
             ctval = default_val.compile_time_value(self.denv)

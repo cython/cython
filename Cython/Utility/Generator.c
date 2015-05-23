@@ -64,6 +64,8 @@ typedef struct {
     char is_running;
 } __pyx_GeneratorObject;
 
+static PyTypeObject *__pyx_GeneratorType = 0;
+
 static __pyx_GeneratorObject *__Pyx_Generator_New(__pyx_generator_body_t body,
                                                   PyObject *closure, PyObject *name, PyObject *qualname);
 static int __pyx_Generator_init(void);
@@ -80,14 +82,14 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue);
 //@requires: Exceptions.c::SwapException
 //@requires: Exceptions.c::RaiseException
 //@requires: ObjectHandling.c::PyObjectCallMethod1
+//@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@requires: CommonTypes.c::FetchCommonType
+//@requires: PatchGeneratorABC
 
 static PyObject *__Pyx_Generator_Next(PyObject *self);
 static PyObject *__Pyx_Generator_Send(PyObject *self, PyObject *value);
 static PyObject *__Pyx_Generator_Close(PyObject *self);
 static PyObject *__Pyx_Generator_Throw(PyObject *gen, PyObject *args);
-
-static PyTypeObject *__pyx_GeneratorType = 0;
 
 #define __Pyx_Generator_CheckExact(obj) (Py_TYPE(obj) == __pyx_GeneratorType)
 #define __Pyx_Generator_Undelegate(gen) Py_CLEAR((gen)->yieldfrom)
@@ -102,6 +104,7 @@ static PyTypeObject *__pyx_GeneratorType = 0;
 static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
     PyObject *et, *ev, *tb;
     PyObject *value = NULL;
+    int result;
 
     __Pyx_ErrFetch(&et, &ev, &tb);
 
@@ -113,15 +116,21 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
         return 0;
     }
 
-    if (unlikely(et != PyExc_StopIteration) &&
-            unlikely(!PyErr_GivenExceptionMatches(et, PyExc_StopIteration))) {
-        __Pyx_ErrRestore(et, ev, tb);
-        return -1;
-    }
-
     // most common case: plain StopIteration without or with separate argument
     if (likely(et == PyExc_StopIteration)) {
-        if (likely(!ev) || !PyObject_IsInstance(ev, PyExc_StopIteration)) {
+        int error = 0;
+#if PY_VERSION_HEX >= 0x030300A0
+        if (ev && Py_TYPE(ev) == (PyTypeObject*)PyExc_StopIteration) {
+            value = ((PyStopIterationObject *)ev)->value;
+            Py_INCREF(value);
+            Py_DECREF(ev);
+            Py_XDECREF(tb);
+            Py_DECREF(et);
+            *pvalue = value;
+            return 0;
+        }
+#endif
+        if (!ev || !(error = PyObject_IsInstance(ev, PyExc_StopIteration))) {
             // PyErr_SetObject() and friends put the value directly into ev
             if (!ev) {
                 Py_INCREF(Py_None);
@@ -132,26 +141,40 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
             *pvalue = ev;
             return 0;
         }
+        if (unlikely(error == -1)) {
+            // error during isinstance() check
+            return -1;
+        }
+    } else if (!PyErr_GivenExceptionMatches(et, PyExc_StopIteration)) {
+        __Pyx_ErrRestore(et, ev, tb);
+        return -1;
     }
+
     // otherwise: normalise and check what that gives us
     PyErr_NormalizeException(&et, &ev, &tb);
-    if (unlikely(!PyObject_IsInstance(ev, PyExc_StopIteration))) {
+    result = PyObject_IsInstance(ev, PyExc_StopIteration);
+    if (unlikely(!result)) {
         // looks like normalisation failed - raise the new exception
         __Pyx_ErrRestore(et, ev, tb);
         return -1;
     }
     Py_XDECREF(tb);
     Py_DECREF(et);
+    if (unlikely(result == -1)) {
+        // error during isinstance() check
+        Py_DECREF(ev);
+        return -1;
+    }
 #if PY_VERSION_HEX >= 0x030300A0
     value = ((PyStopIterationObject *)ev)->value;
     Py_INCREF(value);
     Py_DECREF(ev);
 #else
     {
-        PyObject* args = PyObject_GetAttr(ev, PYIDENT("args"));
+        PyObject* args = __Pyx_PyObject_GetAttrStr(ev, PYIDENT("args"));
         Py_DECREF(ev);
         if (likely(args)) {
-            value = PyObject_GetItem(args, 0);
+            value = PySequence_GetItem(args, 0);
             Py_DECREF(args);
         }
         if (unlikely(!value)) {
@@ -261,6 +284,15 @@ PyObject *__Pyx_Generator_SendEx(__pyx_GeneratorObject *self, PyObject *value) {
 }
 
 static CYTHON_INLINE
+PyObject *__Pyx_Generator_MethodReturn(PyObject *retval) {
+    if (unlikely(!retval && !PyErr_Occurred())) {
+        // method call must not terminate with NULL without setting an exception
+        PyErr_SetNone(PyExc_StopIteration);
+    }
+    return retval;
+}
+
+static CYTHON_INLINE
 PyObject *__Pyx_Generator_FinishDelegation(__pyx_GeneratorObject *gen) {
     PyObject *ret;
     PyObject *val = NULL;
@@ -295,6 +327,7 @@ static PyObject *__Pyx_Generator_Next(PyObject *self) {
 }
 
 static PyObject *__Pyx_Generator_Send(PyObject *self, PyObject *value) {
+    PyObject *retval;
     __pyx_GeneratorObject *gen = (__pyx_GeneratorObject*) self;
     PyObject *yf = gen->yieldfrom;
     if (unlikely(__Pyx_Generator_CheckRunning(gen)))
@@ -317,9 +350,11 @@ static PyObject *__Pyx_Generator_Send(PyObject *self, PyObject *value) {
         if (likely(ret)) {
             return ret;
         }
-        return __Pyx_Generator_FinishDelegation(gen);
+        retval = __Pyx_Generator_FinishDelegation(gen);
+    } else {
+        retval = __Pyx_Generator_SendEx(gen, value);
     }
-    return __Pyx_Generator_SendEx(gen, value);
+    return __Pyx_Generator_MethodReturn(retval);
 }
 
 //   This helper function is used by gen_close and gen_throw to
@@ -335,7 +370,7 @@ static int __Pyx_Generator_CloseIter(__pyx_GeneratorObject *gen, PyObject *yf) {
     } else {
         PyObject *meth;
         gen->is_running = 1;
-        meth = PyObject_GetAttr(yf, PYIDENT("close"));
+        meth = __Pyx_PyObject_GetAttrStr(yf, PYIDENT("close"));
         if (unlikely(!meth)) {
             if (!PyErr_ExceptionMatches(PyExc_AttributeError)) {
                 PyErr_WriteUnraisable(yf);
@@ -413,14 +448,14 @@ static PyObject *__Pyx_Generator_Throw(PyObject *self, PyObject *args) {
             Py_DECREF(yf);
             __Pyx_Generator_Undelegate(gen);
             if (err < 0)
-                return __Pyx_Generator_SendEx(gen, NULL);
+                return __Pyx_Generator_MethodReturn(__Pyx_Generator_SendEx(gen, NULL));
             goto throw_here;
         }
         gen->is_running = 1;
         if (__Pyx_Generator_CheckExact(yf)) {
             ret = __Pyx_Generator_Throw(yf, args);
         } else {
-            PyObject *meth = PyObject_GetAttr(yf, PYIDENT("throw"));
+            PyObject *meth = __Pyx_PyObject_GetAttrStr(yf, PYIDENT("throw"));
             if (unlikely(!meth)) {
                 Py_DECREF(yf);
                 if (!PyErr_ExceptionMatches(PyExc_AttributeError)) {
@@ -440,11 +475,11 @@ static PyObject *__Pyx_Generator_Throw(PyObject *self, PyObject *args) {
         if (!ret) {
             ret = __Pyx_Generator_FinishDelegation(gen);
         }
-        return ret;
+        return __Pyx_Generator_MethodReturn(ret);
     }
 throw_here:
     __Pyx_Raise(typ, val, tb, NULL);
-    return __Pyx_Generator_SendEx(gen, NULL);
+    return __Pyx_Generator_MethodReturn(__Pyx_Generator_SendEx(gen, NULL));
 }
 
 static int __Pyx_Generator_traverse(PyObject *self, visitproc visit, void *arg) {
@@ -703,7 +738,7 @@ static PyTypeObject __pyx_GeneratorType_type = {
 static __pyx_GeneratorObject *__Pyx_Generator_New(__pyx_generator_body_t body,
                                                   PyObject *closure, PyObject *name, PyObject *qualname) {
     __pyx_GeneratorObject *gen =
-        PyObject_GC_New(__pyx_GeneratorObject, &__pyx_GeneratorType_type);
+        PyObject_GC_New(__pyx_GeneratorObject, __pyx_GeneratorType);
 
     if (gen == NULL)
         return NULL;
@@ -738,4 +773,290 @@ static int __pyx_Generator_init(void) {
         return -1;
     }
     return 0;
+}
+
+
+/////////////// ReturnWithStopIteration.proto ///////////////
+
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030500B1
+// CPython 3.3 <= x < 3.5b1 crash in yield-from when the StopIteration is not instantiated
+#define __Pyx_ReturnWithStopIteration(value)  \
+    if (value == Py_None) PyErr_SetNone(PyExc_StopIteration); else __Pyx__ReturnWithStopIteration(value)
+static void __Pyx__ReturnWithStopIteration(PyObject* value); /*proto*/
+#else
+#define __Pyx_ReturnWithStopIteration(value)  PyErr_SetObject(PyExc_StopIteration, value)
+#endif
+
+/////////////// ReturnWithStopIteration ///////////////
+
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030500B1
+static void __Pyx__ReturnWithStopIteration(PyObject* value) {
+    PyObject *exc, *args;
+    args = PyTuple_New(1);
+    if (!args) return;
+    Py_INCREF(value);
+    PyTuple_SET_ITEM(args, 0, value);
+    exc = PyObject_Call(PyExc_StopIteration, args, NULL);
+    Py_DECREF(args);
+    if (!exc) return;
+    Py_INCREF(PyExc_StopIteration);
+    PyErr_Restore(PyExc_StopIteration, exc, NULL);
+}
+#endif
+
+
+//////////////////// PatchModuleWithGenerator.proto ////////////////////
+
+static PyObject* __Pyx_Generator_patch_module(PyObject* module, const char* py_code); /*proto*/
+
+//////////////////// PatchModuleWithGenerator ////////////////////
+//@substitute: naming
+
+static PyObject* __Pyx_Generator_patch_module(PyObject* module, const char* py_code) {
+#ifdef __Pyx_Generator_USED
+    PyObject *globals, *result_obj;
+    globals = PyDict_New();  if (unlikely(!globals)) goto ignore;
+    if (unlikely(PyDict_SetItemString(globals, "_cython_generator_type", (PyObject*)__pyx_GeneratorType) < 0)) goto ignore;
+    if (unlikely(PyDict_SetItemString(globals, "_module", module) < 0)) goto ignore;
+    if (unlikely(PyDict_SetItemString(globals, "__builtins__", $builtins_cname) < 0)) goto ignore;
+    result_obj = PyRun_String(py_code, Py_file_input, globals, globals);
+    if (unlikely(!result_obj)) goto ignore;
+    Py_DECREF(result_obj);
+    Py_DECREF(globals);
+    return module;
+
+ignore:
+    Py_XDECREF(globals);
+    PyErr_WriteUnraisable(module);
+    if (unlikely(PyErr_WarnEx(PyExc_RuntimeWarning, "Cython module failed to patch module with custom type", 1) < 0)) {
+        Py_DECREF(module);
+        module = NULL;
+    }
+#else
+    // avoid "unused" warning
+    py_code++;
+#endif
+    return module;
+}
+
+
+//////////////////// PatchGeneratorABC.proto ////////////////////
+
+// patch 'collections.abc' if it lacks generator support
+// see https://bugs.python.org/issue24018
+static int __Pyx_patch_abc(void); /*proto*/
+
+//////////////////// PatchGeneratorABC ////////////////////
+//@requires: PatchModuleWithGenerator
+
+static int __Pyx_patch_abc(void) {
+#if defined(__Pyx_Generator_USED) && (!defined(CYTHON_PATCH_ABC) || CYTHON_PATCH_ABC)
+    static int abc_patched = 0;
+    if (!abc_patched) {
+        PyObject *module;
+        module = PyImport_ImportModule((PY_VERSION_HEX >= 0x03030000) ? "collections.abc" : "collections");
+        if (!module) {
+            PyErr_WriteUnraisable(NULL);
+            if (unlikely(PyErr_WarnEx(PyExc_RuntimeWarning,
+                    ((PY_VERSION_HEX >= 0x03030000) ?
+                        "Cython module failed to patch collections.abc.Generator" :
+                        "Cython module failed to patch collections.Generator"), 1) < 0)) {
+                return -1;
+            }
+        } else {
+            PyObject *abc = PyObject_GetAttrString(module, "Generator");
+            if (abc) {
+                abc_patched = 1;
+                Py_DECREF(abc);
+            } else {
+                PyErr_Clear();
+                module = __Pyx_Generator_patch_module(
+                    module, CSTRING("""\
+def mk_gen():
+    from abc import abstractmethod
+
+    required_methods = (
+        '__iter__', '__next__' if hasattr(iter(()), '__next__') else 'next',
+         'send', 'throw', 'close')
+
+    class Generator(_module.Iterator):
+        __slots__ = ()
+
+        if '__next__' in required_methods:
+            def __next__(self):
+                return self.send(None)
+        else:
+            def next(self):
+                return self.send(None)
+
+        @abstractmethod
+        def send(self, value):
+            raise StopIteration
+
+        @abstractmethod
+        def throw(self, typ, val=None, tb=None):
+            if val is None:
+                if tb is None:
+                    raise typ
+                val = typ()
+            if tb is not None:
+                val = val.with_traceback(tb)
+            raise val
+
+        def close(self):
+            try:
+                self.throw(GeneratorExit)
+            except (GeneratorExit, StopIteration):
+                pass
+            else:
+                raise RuntimeError('generator ignored GeneratorExit')
+
+        @classmethod
+        def __subclasshook__(cls, C):
+            if cls is Generator:
+                mro = C.__mro__
+                for method in required_methods:
+                    for base in mro:
+                        if method in base.__dict__:
+                            break
+                    else:
+                        return NotImplemented
+                return True
+            return NotImplemented
+
+    generator = type((lambda: (yield))())
+    Generator.register(generator)
+    Generator.register(_cython_generator_type)
+    return Generator
+
+_module.Generator = mk_gen()
+""")
+                );
+                abc_patched = 1;
+                if (unlikely(!module))
+                    return -1;
+            }
+            Py_DECREF(module);
+        }
+    }
+#else
+    // avoid "unused" warning for __Pyx_Generator_patch_module()
+    if (0) __Pyx_Generator_patch_module(NULL, NULL);
+#endif
+    return 0;
+}
+
+
+//////////////////// PatchAsyncIO.proto ////////////////////
+
+// run after importing "asyncio" to patch Cython generator support into it
+static PyObject* __Pyx_patch_asyncio(PyObject* module); /*proto*/
+
+//////////////////// PatchAsyncIO ////////////////////
+//@requires: PatchModuleWithGenerator
+//@requires: PatchInspect
+
+static PyObject* __Pyx_patch_asyncio(PyObject* module) {
+#if defined(__Pyx_Generator_USED) && (!defined(CYTHON_PATCH_ASYNCIO) || CYTHON_PATCH_ASYNCIO)
+    PyObject *patch_module = NULL;
+    static int asyncio_patched = 0;
+    if (unlikely((!asyncio_patched) && module)) {
+        PyObject *package;
+        package = __Pyx_Import(PYIDENT("asyncio.coroutines"), NULL, 0);
+        if (package) {
+            patch_module = __Pyx_Generator_patch_module(
+                PyObject_GetAttrString(package, "coroutines"), CSTRING("""\
+old_types = getattr(_module, '_COROUTINE_TYPES', None)
+if old_types is not None and _cython_generator_type not in old_types:
+    _module._COROUTINE_TYPES = type(old_types) (tuple(old_types) + (_cython_generator_type,))
+""")
+            );
+        #if PY_VERSION_HEX < 0x03050000
+        } else {
+            // Py3.4 used to have asyncio.tasks instead of asyncio.coroutines
+            PyErr_Clear();
+            package = __Pyx_Import(PYIDENT("asyncio.tasks"), NULL, 0);
+            if (unlikely(!package)) goto asyncio_done;
+            patch_module = __Pyx_Generator_patch_module(
+                PyObject_GetAttrString(package, "tasks"), CSTRING("""\
+if (hasattr(_module, 'iscoroutine') and
+        getattr(_module.iscoroutine, '_cython_generator_type', None) is not _cython_generator_type):
+    def cy_wrap(orig_func, cython_generator_type=_cython_generator_type, type=type):
+        def cy_iscoroutine(obj): return type(obj) is cython_generator_type or orig_func(obj)
+        cy_iscoroutine._cython_generator_type = cython_generator_type
+        return cy_iscoroutine
+    _module.iscoroutine = cy_wrap(_module.iscoroutine)
+""")
+            );
+        #endif
+        }
+        Py_DECREF(package);
+        if (unlikely(!patch_module)) goto ignore;
+#if PY_VERSION_HEX < 0x03050000
+asyncio_done:
+        PyErr_Clear();
+#endif
+        asyncio_patched = 1;
+        // now patch inspect.isgenerator() by looking up the imported module in the patched asyncio module
+        {
+            PyObject *inspect_module;
+            if (patch_module) {
+                inspect_module = PyObject_GetAttrString(patch_module, "inspect");
+                Py_DECREF(patch_module);
+            } else {
+                inspect_module = __Pyx_Import(PYIDENT("inspect"), NULL, 0);
+            }
+            if (unlikely(!inspect_module)) goto ignore;
+            inspect_module = __Pyx_patch_inspect(inspect_module);
+            if (unlikely(!inspect_module)) {
+                Py_DECREF(module);
+                module = NULL;
+            }
+            Py_DECREF(inspect_module);
+        }
+    }
+    return module;
+ignore:
+    PyErr_WriteUnraisable(module);
+    if (unlikely(PyErr_WarnEx(PyExc_RuntimeWarning, "Cython module failed to patch asyncio package with custom generator type", 1) < 0)) {
+        Py_DECREF(module);
+        module = NULL;
+    }
+#else
+    // avoid "unused" warning for __Pyx_Generator_patch_module()
+    if (0) return __Pyx_Generator_patch_module(module, NULL);
+#endif
+    return module;
+}
+
+
+//////////////////// PatchInspect.proto ////////////////////
+
+// run after importing "inspect" to patch Cython generator support into it
+static PyObject* __Pyx_patch_inspect(PyObject* module); /*proto*/
+
+//////////////////// PatchInspect ////////////////////
+//@requires: PatchModuleWithGenerator
+
+static PyObject* __Pyx_patch_inspect(PyObject* module) {
+#if defined(__Pyx_Generator_USED) && (!defined(CYTHON_PATCH_INSPECT) || CYTHON_PATCH_INSPECT)
+    static int inspect_patched = 0;
+    if (unlikely((!inspect_patched) && module)) {
+        module = __Pyx_Generator_patch_module(
+            module, CSTRING("""\
+if getattr(_module.isgenerator, '_cython_generator_type', None) is not _cython_generator_type:
+    def cy_wrap(orig_func, cython_generator_type=_cython_generator_type, type=type):
+        def cy_isgenerator(obj): return type(obj) is cython_generator_type or orig_func(obj)
+        cy_isgenerator._cython_generator_type = cython_generator_type
+        return cy_isgenerator
+    _module.isgenerator = cy_wrap(_module.isgenerator)
+""")
+        );
+        inspect_patched = 1;
+    }
+#else
+    // avoid "unused" warning for __Pyx_Generator_patch_module()
+    if (0) return __Pyx_Generator_patch_module(module, NULL);
+#endif
+    return module;
 }

@@ -1,4 +1,3 @@
-from cpython.ref cimport PyObject
 
 # available since Python 3.1!
 

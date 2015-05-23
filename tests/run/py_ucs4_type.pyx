@@ -5,6 +5,10 @@ cimport cython
 cdef Py_UCS4 char_ASCII = u'A'
 cdef Py_UCS4 char_KLINGON = u'\uF8D2'
 
+u_A = char_ASCII
+u_KLINGON = char_KLINGON
+
+
 def compare_ASCII():
     """
     >>> compare_ASCII()
@@ -85,6 +89,19 @@ def unicode_ordinal(Py_UCS4 i):
     ValueError: only single character unicode strings can be converted to Py_UCS4, got length 2
     """
     return i
+
+
+def ord_py_ucs4(Py_UCS4 x):
+    """
+    >>> ord_py_ucs4(u0)
+    0
+    >>> ord_py_ucs4(u_A)
+    65
+    >>> ord_py_ucs4(u_KLINGON)
+    63698
+    """
+    return ord(x)
+
 
 @cython.test_assert_path_exists('//PythonCapiCallNode')
 @cython.test_fail_if_path_exists('//SimpleCallNode')

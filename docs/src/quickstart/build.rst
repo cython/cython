@@ -60,9 +60,9 @@ use pip:
     (venv)$ ipython notebook
 
 To enable support for Cython compilation, install Cython and load the
-``cythonmagic`` extension from within IPython::
+``Cython`` extension from within IPython::
 
-    %load_ext cythonmagic
+    %load_ext Cython
 
 Then, prefix a cell with the ``%%cython`` marker to compile it::
 

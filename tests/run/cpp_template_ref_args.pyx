@@ -8,6 +8,7 @@ cdef extern from "cpp_template_ref_args.h":
         # bug: Bar[T] created before class fully defined
         T value
         Bar[T] & ref() except +
+        const Bar[T] & const_ref() except +
 
     cdef cppclass Foo[T]:
         Foo()
@@ -33,8 +34,8 @@ def test_template_ref_arg(int x):
 def test_template_ref_attr(int x):
     """
     >>> test_template_ref_attr(4)
-    4
+    (4, 4)
     """
     cdef Bar[int] bar
     bar.value = x
-    return bar.ref().value
+    return bar.ref().value, bar.const_ref().value

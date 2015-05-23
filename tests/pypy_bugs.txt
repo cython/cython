@@ -1,0 +1,43 @@
+# This file contains tests corresponding to unresolved bugs
+# either in PyPy, PyPy's cpyext, or Cython under PyPy,
+# which will be skipped in the normal testing run.
+
+broken_exception
+bufaccess
+exarkun
+memoryview
+memslice
+sequential_parallel
+setjmp
+yield_from_pep380
+memoryview_inplace_division
+
+# GIL issues
+# https://bitbucket.org/pypy/pypy/issue/2025/cpyext-finish-implementation-of
+run.exceptions_nogil
+run.nogil
+run.with_gil
+run.parallel
+
+# gc issue?
+memoryview_in_subclasses
+external_ref_reassignment
+run.exttype_dealloc
+
+# https://bitbucket.org/pypy/pypy/issue/2023/cpyext-pydict_keys-values-items-does-not
+builtin_subtype_methods_cy3
+
+# bugs in cpyext
+run.special_methods_T561
+run.special_methods_T561_py2
+
+# tests for things that don't exist in cpyext
+compile.pylong
+run.datetime_pxd
+run.datetime_cimport
+run.datetime_members
+run.extern_builtins_T258
+run.unicode_ascii_auto_encoding
+run.unicode_default_auto_encoding
+run.str_ascii_auto_encoding
+run.str_default_auto_encoding

@@ -45,7 +45,7 @@ except ImportError:
 from distutils.extension import Extension
 
 from .. import Utils
-from ..Utils import cached_function, cached_method, path_exists, find_root_package_dir
+from ..Utils import cached_function, cached_method, path_exists, find_root_package_dir, is_package_dir
 from ..Compiler.Main import Context, CompilationOptions, default_options
 
 join_path = cached_function(os.path.join)
@@ -216,12 +216,13 @@ class DistutilsInfo(object):
                 self.values[key] = value
             elif type is transitive_list:
                 if key in self.values:
-                    all = self.values[key]
+                    # Change a *copy* of the list (Trac #845)
+                    all = self.values[key][:]
                     for v in value:
                         if v not in all:
                             all.append(v)
-                else:
-                    self.values[key] = value
+                    value = all
+                self.values[key] = value
         return self
 
     def subs(self, aliases):
@@ -250,9 +251,8 @@ class DistutilsInfo(object):
         for key, value in self.values.items():
             type = distutils_settings[key]
             if type in [list, transitive_list]:
-                getattr(extension, key).extend(value)
-            else:
-                setattr(extension, key, value)
+                value = getattr(extension, key) + list(value)
+            setattr(extension, key, value)
 
 @cython.locals(start=long, q=long, single_q=long, double_q=long, hash_mark=long,
                end=long, k=long, counter=long, quote_len=long)
@@ -383,7 +383,7 @@ def resolve_depend(depend, include_dirs):
 @cached_function
 def package(filename):
     dir = os.path.dirname(os.path.abspath(str(filename)))
-    if dir != filename and path_exists(join_path(dir, '__init__.py')):
+    if dir != filename and is_package_dir(dir):
         return package(dir) + (os.path.basename(dir),)
     else:
         return ()
@@ -832,7 +832,15 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
         if not os.path.exists(options.cache):
             os.makedirs(options.cache)
     to_compile.sort()
-    if len(to_compile) <= 1:
+    # Drop "priority" component of "to_compile" entries and add a
+    # simple progress indicator.
+    N = len(to_compile)
+    progress_fmt = "[{0:%d}/{1}] " % len(str(N))
+    for i in range(N):
+        progress = progress_fmt.format(i+1, N)
+        to_compile[i] = to_compile[i][1:] + (progress,)
+
+    if N <= 1:
         nthreads = 0
     if nthreads:
         # Requires multiprocessing (or Python >= 2.6)
@@ -862,7 +870,7 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
             pool.join()
     if not nthreads:
         for args in to_compile:
-            cythonize_one(*args[1:])
+            cythonize_one(*args)
 
     if exclude_failures:
         failed_modules = set()
@@ -927,7 +935,7 @@ else:
 
 # TODO: Share context? Issue: pyx processing leaks into pxd module
 @record_results
-def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None, raise_on_failure=True, embedded_metadata=None):
+def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None, raise_on_failure=True, embedded_metadata=None, progress=""):
     from ..Compiler.Main import compile, default_options
     from ..Compiler.Errors import CompileError, PyrexError
 
@@ -944,7 +952,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None, raise_on_f
             options.cache, "%s-%s%s" % (os.path.basename(c_file), fingerprint, gzip_ext))
         if os.path.exists(fingerprint_file):
             if not quiet:
-                print("Found compiled %s in cache" % pyx_file)
+                print("%sFound compiled %s in cache" % (progress, pyx_file))
             os.utime(fingerprint_file, None)
             g = gzip_open(fingerprint_file, 'rb')
             try:
@@ -957,7 +965,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None, raise_on_f
                 g.close()
             return
     if not quiet:
-        print("Cythonizing %s" % pyx_file)
+        print("%sCythonizing %s" % (progress, pyx_file))
     if options is None:
         options = CompilationOptions(default_options)
     options.output_file = c_file
@@ -1000,7 +1008,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None, raise_on_f
 def cythonize_one_helper(m):
     import traceback
     try:
-        return cythonize_one(*m[1:])
+        return cythonize_one(*m)
     except Exception:
         traceback.print_exc()
         raise

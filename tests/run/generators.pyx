@@ -1,6 +1,12 @@
 # mode: run
 # tag: generators
 
+try:
+    from collections.abc import Generator
+except ImportError:
+    from collections import Generator
+
+
 def very_simple():
     """
     >>> x = very_simple()
@@ -293,6 +299,7 @@ def test_decorated(*args):
     for i in args:
         yield i
 
+
 def test_return(a):
     """
     >>> d = dict()
@@ -308,6 +315,76 @@ def test_return(a):
     yield 1
     a['i_was_here'] = True
     return
+
+
+def test_return_in_finally(a):
+    """
+    >>> d = dict()
+    >>> obj = test_return_in_finally(d)
+    >>> next(obj)
+    1
+    >>> next(obj)
+    Traceback (most recent call last):
+    StopIteration
+    >>> d['i_was_here']
+    True
+
+    >>> d = dict()
+    >>> obj = test_return_in_finally(d)
+    >>> next(obj)
+    1
+    >>> obj.send(2)
+    Traceback (most recent call last):
+    StopIteration
+    >>> d['i_was_here']
+    True
+
+    >>> obj = test_return_in_finally(None)
+    >>> next(obj)
+    1
+    >>> next(obj)
+    Traceback (most recent call last):
+    StopIteration
+
+    >>> obj = test_return_in_finally(None)
+    >>> next(obj)
+    1
+    >>> obj.send(2)
+    Traceback (most recent call last):
+    StopIteration
+    """
+    yield 1
+    try:
+        a['i_was_here'] = True
+    finally:
+        return
+
+
+def test_return_none_in_finally(a):
+    """
+    >>> d = dict()
+    >>> obj = test_return_none_in_finally(d)
+    >>> next(obj)
+    1
+    >>> next(obj)
+    Traceback (most recent call last):
+    StopIteration
+    >>> d['i_was_here']
+    True
+
+    >>> obj = test_return_none_in_finally(None)
+    >>> next(obj)
+    1
+    >>> next(obj)
+    Traceback (most recent call last):
+    StopIteration
+    """
+    yield 1
+    try:
+        a['i_was_here'] = True
+    finally:
+        return None
+
 
 def test_copied_yield(foo):
     """
@@ -396,3 +473,21 @@ def test_double_with_gil_section():
                     pass
             with gil:
                 pass
+
+
+def test_generator_abc():
+    """
+    >>> isinstance(test_generator_abc(), Generator)
+    True
+
+    >>> try:
+    ...     from collections.abc import Generator
+    ... except ImportError:
+    ...     from collections import Generator
+
+    >>> isinstance(test_generator_abc(), Generator)
+    True
+    >>> isinstance((lambda:(yield))(), Generator)
+    True
+    """
+    yield 1

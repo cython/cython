@@ -15,13 +15,76 @@ Features added
 
 * Tracing is supported in ``nogil`` functions/sections and module init code.
 
-* Adding/subtracting constant Python floats and small integers is faster.
+* PEP 448 (Additional Unpacking Generalizations) was implemented.
+
+* When generators are used in a Cython module and the module imports the
+  modules "inspect" and/or "asyncio", Cython enables interoperability by
+  patching these modules to recognise Cython's internal generator type.
+  This can be disabled by C compiling the module with
+  "-D CYTHON_PATCH_ASYNCIO=0" or "-D CYTHON_PATCH_INSPECT=0"
+
+* When generators are used in a Cython module, the new ``Generator`` ABC
+  will be patched into the ``collections`` or ``collections.abc``
+  stdlib module if it is not there yet.  It allows type checks for
+  ``isinstance(obj, Generator)`` which includes both Python generators
+  and Cython generators.  This can be disabled by C compiling the module
+  with "-D CYTHON_PATCH_ABC=0".  See https://bugs.python.org/issue24018
+
+* Adding/subtracting/dividing/modulus and equality comparisons with
+  constant Python floats and small integers are faster.
+
+* Binary and/or/xor/rshift operations with small constant Python integers
+  are faster.
+
+* Keyword argument dicts are no longer copied on function entry when they
+  are not being used or only passed through to other function calls (e.g.
+  in wrapper functions).
+
+* The ``PyTypeObject`` declaration in ``cpython.object`` was extended.
+
+* ``wraparound()`` and ``boundscheck()`` are available as no-ops in pure
+  Python mode.
+
+* Const iterators were added to the provided C++ STL declarations.
+
+* ``NULL`` is allowed as default argument when embedding signatures.
+  This fixes ticket 843.
+
+* When compiling with ``--embed``, the internal module name is changed to
+  ``__main__`` to allow arbitrary program names, including those that would
+  be invalid for modules.  Note that this prevents reuse of the generated
+  C code as an importable module.
 
 Bugs fixed
 ----------
 
+* Calling "yield from" from Python on a Cython generator that returned a value
+  triggered a crash in CPython.  This is now being worked around.
+  See https://bugs.python.org/issue23996
+
 * Language level 3 did not enable true division (a.k.a. float division) for
   integer operands.
+
+* Relative cimports could accidentally fall back to trying an absolute cimport
+  on failure.
+
+* The result of calling a C struct constructor no longer requires an intermediate
+  assignment when coercing to a Python dict.
+
+* C++ exception declarations with mapping functions could fail to compile when
+  pre-declared in .pxd files.
+
+
+0.22.1 (2015-05-??)
+===================
+
+Bugs fixed
+----------
+
+* Crash when returning values on generator termination.
+
+* In some cases, exceptions raised during internal isinstance() checks were
+  not propagated.
 
 * Runtime reported file paths of source files (e.g for profiling and tracing)
   are now relative to the build root directory instead of the main source file.
@@ -29,12 +92,27 @@ Bugs fixed
 * Tracing exception handling code could enter the trace function with an active
   exception set.
 
+* The internal generator function type was not shared across modules.
+
 * Comparisons of (inferred) ctuples failed to compile.
+
+* Closures inside of cdef functions returning ``void`` failed to compile.
+
+* Using ``const`` C++ references in intermediate parts of longer expressions
+  could fail to compile.
 
 * C++ exception declarations with mapping functions could fail to compile when
   pre-declared in .pxd files.
 
+* C++ compilation could fail with an ambiguity error in recent MacOS-X Xcode
+  versions.
+
 * C compilation could fail in pypy3.
+
+* Fixed a memory leak in the compiler when compiling multiple modules.
+
+* When compiling multiple modules, external library dependencies could leak
+  into later compiler runs.  Fix by Jeroen Demeyer.  This fixes ticket 845.
 
 
 0.22 (2015-02-11)

@@ -610,8 +610,8 @@ class Scope(object):
         self.sue_entries.append(entry)
         return entry
 
-    def declare_tuple_type(self, pos, type):
-        return self.outer_scope.declare_tuple_type(pos, type)
+    def declare_tuple_type(self, pos, components):
+        return self.outer_scope.declare_tuple_type(pos, components)
 
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',
@@ -1056,6 +1056,7 @@ class ModuleScope(Scope):
         self.cached_builtins = []
         self.undeclared_cached_builtins = []
         self.namespace_cname = self.module_cname
+        self._cached_tuple_types = {}
         for var_name in ['__builtins__', '__name__', '__file__', '__doc__', '__path__']:
             self.declare_var(EncodedString(var_name), py_object_type, None)
 
@@ -1075,18 +1076,24 @@ class ModuleScope(Scope):
 
         return self.outer_scope.lookup(name, language_level=language_level)
 
-    def declare_tuple_type(self, pos, type):
-        cname = type.cname
+    def declare_tuple_type(self, pos, components):
+        components = tuple(components)
+        try:
+            ttype = self._cached_tuple_types[components]
+        except KeyError:
+            ttype = self._cached_tuple_types[components] = PyrexTypes.c_tuple_type(components)
+        cname = ttype.cname
         entry = self.lookup_here(cname)
         if not entry:
             scope = StructOrUnionScope(cname)
-            for ix, component in enumerate(type.components):
+            for ix, component in enumerate(components):
                 scope.declare_var(name="f%s" % ix, type=component, pos=pos)
-            struct_entry = self.declare_struct_or_union(cname + '_struct', 'struct', scope, typedef_flag=True, pos=pos, cname=cname)
+            struct_entry = self.declare_struct_or_union(
+                cname + '_struct', 'struct', scope, typedef_flag=True, pos=pos, cname=cname)
             self.type_entries.remove(struct_entry)
-            type.struct_entry = struct_entry
-            entry = self.declare_type(cname, type, pos, cname)
-        type.entry = entry
+            ttype.struct_entry = struct_entry
+            entry = self.declare_type(cname, ttype, pos, cname)
+        ttype.entry = entry
         return entry
 
     def declare_builtin(self, name, pos):
@@ -1127,14 +1134,23 @@ class ModuleScope(Scope):
         # relative imports relative to this module's parent.
         # Finds and parses the module's .pxd file if the module
         # has not been referenced before.
-        module_scope = self.global_scope()
+        relative_to = None
+        absolute_fallback = False
         if relative_level is not None and relative_level > 0:
-            # merge current absolute module name and relative import name into qualified name
-            current_module = module_scope.qualified_name.split('.')
-            base_package = current_module[:-relative_level]
-            module_name = '.'.join(base_package + (module_name.split('.') if module_name else []))
+            # explicit relative cimport
+            # error of going beyond top-level is handled in cimport node
+            relative_to = self
+            while relative_level > 0 and relative_to:
+                relative_to = relative_to.parent_module
+                relative_level -= 1
+        elif relative_level != 0:
+            # -1 or None: try relative cimport first, then absolute
+            relative_to = self.parent_module
+            absolute_fallback = True
+
+        module_scope = self.global_scope()
         return module_scope.context.find_module(
-            module_name, relative_to=None if relative_level == 0 else self.parent_module, pos=pos)
+            module_name, relative_to=relative_to, pos=pos, absolute_fallback=absolute_fallback)
 
     def find_submodule(self, name):
         # Find and return scope for a submodule of this module,
@@ -1258,6 +1274,8 @@ class ModuleScope(Scope):
                 cname = name
             else:
                 cname = self.mangle(Naming.func_prefix, name)
+        if visibility == 'extern' and type.optional_arg_count:
+            error(pos, "Extern functions cannot have default arguments values.")
         entry = self.lookup_here(name)
         if entry and entry.defined_in_pxd:
             if entry.visibility != "private":

@@ -12,10 +12,12 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
                FileSourceDescriptor=object, lookup_unicodechar=object,
                Future=object, Options=object, error=object, warning=object,
                Builtin=object, ModuleNode=object, Utils=object,
-               re=object, _unicode=object, _bytes=object)
+               re=object, _unicode=object, _bytes=object,
+               partial=object, reduce=object)
 
 import re
 from unicodedata import lookup as lookup_unicodechar
+from functools import partial, reduce
 
 from .Scanning import PyrexScanner, FileSourceDescriptor
 from . import Nodes
@@ -53,7 +55,7 @@ class Ctx(object):
         d.update(kwds)
         return ctx
 
-def p_ident(s, message = "Expected an identifier"):
+def p_ident(s, message="Expected an identifier"):
     if s.sy == 'IDENT':
         name = s.systring
         s.next()
@@ -208,7 +210,7 @@ def p_starred_expr(s):
         starred = False
     expr = p_bit_expr(s)
     if starred:
-        expr = ExprNodes.StarredTargetNode(pos, expr)
+        expr = ExprNodes.StarredUnpackingNode(pos, expr)
     return expr
 
 def p_cascaded_cmp(s):
@@ -405,28 +407,39 @@ def p_trailer(s, node1):
         return p_index(s, node1)
     else: # s.sy == '.'
         s.next()
-        name = EncodedString( p_ident(s) )
+        name = p_ident(s)
         return ExprNodes.AttributeNode(pos,
-            obj = node1, attribute = name)
+            obj=node1, attribute=name)
+
 
 # arglist:  argument (',' argument)* [',']
 # argument: [test '='] test       # Really [keyword '='] test
 
-def p_call_parse_args(s, allow_genexp = True):
+# since PEP 448:
+# argument: ( test [comp_for] |
+#             test '=' test |
+#             '**' expr |
+#             star_expr )
+
+def p_call_parse_args(s, allow_genexp=True):
     # s.sy == '('
     pos = s.position()
     s.next()
     positional_args = []
     keyword_args = []
-    star_arg = None
-    starstar_arg = None
-    while s.sy not in ('**', ')'):
+    starstar_seen = False
+    last_was_tuple_unpack = False
+    while s.sy != ')':
         if s.sy == '*':
-            if star_arg:
-                s.error("only one star-arg parameter allowed",
-                        pos=s.position())
+            if starstar_seen:
+                s.error("Non-keyword arg following keyword arg", pos=s.position())
             s.next()
-            star_arg = p_test(s)
+            positional_args.append(p_test(s))
+            last_was_tuple_unpack = True
+        elif s.sy == '**':
+            s.next()
+            keyword_args.append(p_test(s))
+            starstar_seen = True
         else:
             arg = p_test(s)
             if s.sy == '=':
@@ -434,80 +447,85 @@ def p_call_parse_args(s, allow_genexp = True):
                 if not arg.is_name:
                     s.error("Expected an identifier before '='",
                             pos=arg.pos)
-                encoded_name = EncodedString(arg.name)
+                encoded_name = s.context.intern_ustring(arg.name)
                 keyword = ExprNodes.IdentifierStringNode(
                     arg.pos, value=encoded_name)
                 arg = p_test(s)
                 keyword_args.append((keyword, arg))
             else:
                 if keyword_args:
-                    s.error("Non-keyword arg following keyword arg",
-                            pos=arg.pos)
-                if star_arg:
-                    s.error("Non-keyword arg following star-arg",
-                            pos=arg.pos)
-                positional_args.append(arg)
+                    s.error("Non-keyword arg following keyword arg", pos=arg.pos)
+                if positional_args and not last_was_tuple_unpack:
+                    positional_args[-1].append(arg)
+                else:
+                    positional_args.append([arg])
+                last_was_tuple_unpack = False
         if s.sy != ',':
             break
         s.next()
 
     if s.sy == 'for':
-        if len(positional_args) == 1 and not star_arg:
-            positional_args = [ p_genexp(s, positional_args[0]) ]
-    elif s.sy == '**':
-        s.next()
-        starstar_arg = p_test(s)
-        if s.sy == ',':
-            s.next()  # FIXME: this is actually not valid Python syntax
+        if not keyword_args and not last_was_tuple_unpack:
+            if len(positional_args) == 1 and len(positional_args[0]) == 1:
+                positional_args = [[p_genexp(s, positional_args[0][0])]]
     s.expect(')')
-    return positional_args, keyword_args, star_arg, starstar_arg
+    return positional_args or [[]], keyword_args
 
-def p_call_build_packed_args(pos, positional_args, keyword_args,
-                             star_arg, starstar_arg):
-    arg_tuple = None
+
+def p_call_build_packed_args(pos, positional_args, keyword_args):
     keyword_dict = None
-    if positional_args or not star_arg:
-        arg_tuple = ExprNodes.TupleNode(pos,
-            args = positional_args)
-    if star_arg:
-        star_arg_tuple = ExprNodes.AsTupleNode(pos, arg = star_arg)
-        if arg_tuple:
-            arg_tuple = ExprNodes.binop_node(pos,
-                operator = '+', operand1 = arg_tuple,
-                operand2 = star_arg_tuple)
-        else:
-            arg_tuple = star_arg_tuple
-    if keyword_args or starstar_arg:
-        keyword_args = [ExprNodes.DictItemNode(pos=key.pos, key=key, value=value)
-                          for key, value in keyword_args]
-        if starstar_arg:
-            keyword_dict = ExprNodes.KeywordArgsNode(
-                pos,
-                starstar_arg = starstar_arg,
-                keyword_args = keyword_args)
-        else:
-            keyword_dict = ExprNodes.DictNode(
-                pos, key_value_pairs = keyword_args)
+
+    subtuples = [
+        ExprNodes.TupleNode(pos, args=arg) if isinstance(arg, list) else ExprNodes.AsTupleNode(pos, arg=arg)
+        for arg in positional_args
+    ]
+    # TODO: implement a faster way to join tuples than creating each one and adding them
+    arg_tuple = reduce(partial(ExprNodes.binop_node, pos, '+'), subtuples)
+
+    if keyword_args:
+        kwargs = []
+        dict_items = []
+        for item in keyword_args:
+            if isinstance(item, tuple):
+                key, value = item
+                dict_items.append(ExprNodes.DictItemNode(pos=key.pos, key=key, value=value))
+            elif item.is_dict_literal:
+                # unpack "**{a:b}" directly
+                dict_items.extend(item.key_value_pairs)
+            else:
+                if dict_items:
+                    kwargs.append(ExprNodes.DictNode(
+                        dict_items[0].pos, key_value_pairs=dict_items, reject_duplicates=True))
+                    dict_items = []
+                kwargs.append(item)
+
+        if dict_items:
+            kwargs.append(ExprNodes.DictNode(
+                dict_items[0].pos, key_value_pairs=dict_items, reject_duplicates=True))
+
+        if kwargs:
+            if len(kwargs) == 1 and kwargs[0].is_dict_literal:
+                # only simple keyword arguments found -> one dict
+                keyword_dict = kwargs[0]
+            else:
+                # at least one **kwargs
+                keyword_dict = ExprNodes.MergedDictNode(pos, keyword_args=kwargs)
+
     return arg_tuple, keyword_dict
+
 
 def p_call(s, function):
     # s.sy == '('
     pos = s.position()
+    positional_args, keyword_args = p_call_parse_args(s)
 
-    positional_args, keyword_args, star_arg, starstar_arg = \
-                     p_call_parse_args(s)
-
-    if not (keyword_args or star_arg or starstar_arg):
-        return ExprNodes.SimpleCallNode(pos,
-            function = function,
-            args = positional_args)
+    if not keyword_args and len(positional_args) == 1 and isinstance(positional_args[0], list):
+        return ExprNodes.SimpleCallNode(pos, function=function, args=positional_args[0])
     else:
-        arg_tuple, keyword_dict = p_call_build_packed_args(
-            pos, positional_args, keyword_args, star_arg, starstar_arg)
-        return ExprNodes.GeneralCallNode(pos,
-            function = function,
-            positional_args = arg_tuple,
-            keyword_args = keyword_dict)
+        arg_tuple, keyword_dict = p_call_build_packed_args(pos, positional_args, keyword_args)
+        return ExprNodes.GeneralCallNode(
+            pos, function=function, positional_args=arg_tuple, keyword_args=keyword_dict)
+
 
 #lambdef: 'lambda' [varargslist] ':' test
 
@@ -643,7 +661,7 @@ def p_atom(s):
         else:
             return ExprNodes.StringNode(pos, value = bytes_value, unicode_value = unicode_value)
     elif sy == 'IDENT':
-        name = EncodedString( s.systring )
+        name = s.systring
         s.next()
         if name == "None":
             return ExprNodes.NoneNode(pos)
@@ -897,11 +915,13 @@ def p_string_literal(s, kind_override=None):
     s.next()
     return (kind, bytes_value, unicode_value)
 
-# list_display      ::=      "[" [listmaker] "]"
-# listmaker     ::=     expression ( comp_for | ( "," expression )* [","] )
+
+# since PEP 448:
+# list_display  ::=     "[" [listmaker] "]"
+# listmaker     ::=     (test|star_expr) ( comp_for | (',' (test|star_expr))* [','] )
 # comp_iter     ::=     comp_for | comp_if
-# comp_for     ::=     "for" expression_list "in" testlist [comp_iter]
-# comp_if     ::=     "if" test [comp_iter]
+# comp_for      ::=     "for" expression_list "in" testlist [comp_iter]
+# comp_if       ::=     "if" test [comp_iter]
 
 def p_list_maker(s):
     # s.sy == '['
@@ -909,24 +929,29 @@ def p_list_maker(s):
     s.next()
     if s.sy == ']':
         s.expect(']')
-        return ExprNodes.ListNode(pos, args = [])
-    expr = p_test(s)
+        return ExprNodes.ListNode(pos, args=[])
+
+    expr = p_test_or_starred_expr(s)
     if s.sy == 'for':
+        if expr.is_starred:
+            s.error("iterable unpacking cannot be used in comprehension")
         append = ExprNodes.ComprehensionAppendNode(pos, expr=expr)
         loop = p_comp_for(s, append)
         s.expect(']')
         return ExprNodes.ComprehensionNode(
-            pos, loop=loop, append=append, type = Builtin.list_type,
+            pos, loop=loop, append=append, type=Builtin.list_type,
             # list comprehensions leak their loop variable in Py2
-            has_local_scope = s.context.language_level >= 3)
+            has_local_scope=s.context.language_level >= 3)
+
+    # (merged) list literal
+    if s.sy == ',':
+        s.next()
+        exprs = p_test_or_starred_expr_list(s, expr)
     else:
-        if s.sy == ',':
-            s.next()
-            exprs = p_simple_expr_list(s, expr)
-        else:
-            exprs = [expr]
-        s.expect(']')
-        return ExprNodes.ListNode(pos, args = exprs)
+        exprs = [expr]
+    s.expect(']')
+    return ExprNodes.ListNode(pos, args=exprs)
+
 
 def p_comp_iter(s, body):
     if s.sy == 'for':
@@ -955,7 +980,12 @@ def p_comp_if(s, body):
                                          body = p_comp_iter(s, body))],
         else_clause = None )
 
-#dictmaker: test ':' test (',' test ':' test)* [',']
+
+# since PEP 448:
+#dictorsetmaker: ( ((test ':' test | '**' expr)
+#                   (comp_for | (',' (test ':' test | '**' expr))* [','])) |
+#                  ((test | star_expr)
+#                   (comp_for | (',' (test | star_expr))* [','])) )
 
 def p_dict_or_set_maker(s):
     # s.sy == '{'
@@ -963,57 +993,108 @@ def p_dict_or_set_maker(s):
     s.next()
     if s.sy == '}':
         s.next()
-        return ExprNodes.DictNode(pos, key_value_pairs = [])
-    item = p_test(s)
-    if s.sy == ',' or s.sy == '}':
-        # set literal
-        values = [item]
-        while s.sy == ',':
+        return ExprNodes.DictNode(pos, key_value_pairs=[])
+
+    parts = []
+    target_type = 0
+    last_was_simple_item = False
+    while True:
+        if s.sy in ('*', '**'):
+            # merged set/dict literal
+            if target_type == 0:
+                target_type = 1 if s.sy == '*' else 2  # 'stars'
+            elif target_type != len(s.sy):
+                s.error("unexpected %sitem found in %s literal" % (
+                    s.sy, 'set' if target_type == 1 else 'dict'))
+            s.next()
+            if s.sy == '*':
+                s.error("expected expression, found '*'")
+            item = p_starred_expr(s)
+            parts.append(item)
+            last_was_simple_item = False
+        else:
+            item = p_test(s)
+            if target_type == 0:
+                target_type = 2 if s.sy == ':' else 1  # dict vs. set
+            if target_type == 2:
+                # dict literal
+                s.expect(':')
+                key = item
+                value = p_test(s)
+                item = ExprNodes.DictItemNode(key.pos, key=key, value=value)
+            if last_was_simple_item:
+                parts[-1].append(item)
+            else:
+                parts.append([item])
+                last_was_simple_item = True
+
+        if s.sy == ',':
             s.next()
             if s.sy == '}':
                 break
-            values.append( p_test(s) )
-        s.expect('}')
-        return ExprNodes.SetNode(pos, args=values)
-    elif s.sy == 'for':
-        # set comprehension
-        append = ExprNodes.ComprehensionAppendNode(
-            item.pos, expr=item)
-        loop = p_comp_for(s, append)
-        s.expect('}')
-        return ExprNodes.ComprehensionNode(
-            pos, loop=loop, append=append, type=Builtin.set_type)
-    elif s.sy == ':':
-        # dict literal or comprehension
-        key = item
-        s.next()
-        value = p_test(s)
-        if s.sy == 'for':
-            # dict comprehension
-            append = ExprNodes.DictComprehensionAppendNode(
-                item.pos, key_expr=key, value_expr=value)
+        else:
+            break
+
+    if s.sy == 'for':
+        # dict/set comprehension
+        if len(parts) == 1 and isinstance(parts[0], list) and len(parts[0]) == 1:
+            item = parts[0][0]
+            if target_type == 2:
+                assert isinstance(item, ExprNodes.DictItemNode), type(item)
+                comprehension_type = Builtin.dict_type
+                append = ExprNodes.DictComprehensionAppendNode(
+                    item.pos, key_expr=item.key, value_expr=item.value)
+            else:
+                comprehension_type = Builtin.set_type
+                append = ExprNodes.ComprehensionAppendNode(item.pos, expr=item)
             loop = p_comp_for(s, append)
             s.expect('}')
-            return ExprNodes.ComprehensionNode(
-                pos, loop=loop, append=append, type=Builtin.dict_type)
+            return ExprNodes.ComprehensionNode(pos, loop=loop, append=append, type=comprehension_type)
         else:
-            # dict literal
-            items = [ExprNodes.DictItemNode(key.pos, key=key, value=value)]
-            while s.sy == ',':
-                s.next()
-                if s.sy == '}':
-                    break
-                key = p_test(s)
-                s.expect(':')
-                value = p_test(s)
-                items.append(
-                    ExprNodes.DictItemNode(key.pos, key=key, value=value))
-            s.expect('}')
-            return ExprNodes.DictNode(pos, key_value_pairs=items)
+            # syntax error, try to find a good error message
+            if len(parts) == 1 and not isinstance(parts[0], list):
+                s.error("iterable unpacking cannot be used in comprehension")
+            else:
+                # e.g. "{1,2,3 for ..."
+                s.expect('}')
+            return ExprNodes.DictNode(pos, key_value_pairs=[])
+
+    s.expect('}')
+    if target_type == 1:
+        # (merged) set literal
+        items = []
+        set_items = []
+        for part in parts:
+            if isinstance(part, list):
+                set_items.extend(part)
+            else:
+                if set_items:
+                    items.append(ExprNodes.SetNode(set_items[0].pos, args=set_items))
+                    set_items = []
+                items.append(part)
+        if set_items:
+            items.append(ExprNodes.SetNode(set_items[0].pos, args=set_items))
+        if len(items) == 1 and items[0].is_set_literal:
+            return items[0]
+        return ExprNodes.MergedSequenceNode(pos, args=items, type=Builtin.set_type)
     else:
-        # raise an error
-        s.expect('}')
-    return ExprNodes.DictNode(pos, key_value_pairs = [])
+        # (merged) dict literal
+        items = []
+        dict_items = []
+        for part in parts:
+            if isinstance(part, list):
+                dict_items.extend(part)
+            else:
+                if dict_items:
+                    items.append(ExprNodes.DictNode(dict_items[0].pos, key_value_pairs=dict_items))
+                    dict_items = []
+                items.append(part)
+        if dict_items:
+            items.append(ExprNodes.DictNode(dict_items[0].pos, key_value_pairs=dict_items))
+        if len(items) == 1 and items[0].is_dict_literal:
+            return items[0]
+        return ExprNodes.MergedDictNode(pos, keyword_args=items, reject_duplicates=False)
+
 
 # NOTE: no longer in Py3 :)
 def p_backquote_expr(s):
@@ -1040,10 +1121,11 @@ def p_simple_expr_list(s, expr=None):
         s.next()
     return exprs
 
+
 def p_test_or_starred_expr_list(s, expr=None):
     exprs = expr is not None and [expr] or []
     while s.sy not in expr_terminators:
-        exprs.append( p_test_or_starred_expr(s) )
+        exprs.append(p_test_or_starred_expr(s))
         if s.sy != ',':
             break
         s.next()
@@ -1295,7 +1377,6 @@ def p_import_statement(s):
     stats = []
     is_absolute = Future.absolute_import in s.context.future_directives
     for pos, target_name, dotted_name, as_name in items:
-        dotted_name = EncodedString(dotted_name)
         if kind == 'cimport':
             stat = Nodes.CImportStatNode(
                 pos,
@@ -1305,7 +1386,7 @@ def p_import_statement(s):
         else:
             if as_name and "." in dotted_name:
                 name_list = ExprNodes.ListNode(pos, args=[
-                    ExprNodes.IdentifierStringNode(pos, value=EncodedString("*"))])
+                    ExprNodes.IdentifierStringNode(pos, value=s.context.intern_ustring("*"))])
             else:
                 name_list = None
             stat = Nodes.SingleAssignmentNode(
@@ -1334,7 +1415,7 @@ def p_from_import_statement(s, first_statement = 0):
         level = None
     if level is not None and s.sy in ('import', 'cimport'):
         # we are dealing with "from .. import foo, bar"
-        dotted_name_pos, dotted_name = s.position(), ''
+        dotted_name_pos, dotted_name = s.position(), s.context.intern_ustring('')
     else:
         if level is None and Future.absolute_import in s.context.future_directives:
             level = 0
@@ -1347,7 +1428,7 @@ def p_from_import_statement(s, first_statement = 0):
     is_cimport = kind == 'cimport'
     is_parenthesized = False
     if s.sy == '*':
-        imported_names = [(s.position(), "*", None, None)]
+        imported_names = [(s.position(), s.context.intern_ustring("*"), None, None)]
         s.next()
     else:
         if s.sy == '(':
@@ -1361,7 +1442,6 @@ def p_from_import_statement(s, first_statement = 0):
         imported_names.append(p_imported_name(s, is_cimport))
     if is_parenthesized:
         s.expect(')')
-    dotted_name = EncodedString(dotted_name)
     if dotted_name == '__future__':
         if not first_statement:
             s.error("from __future__ imports must occur at the beginning of the file")
@@ -1388,16 +1468,12 @@ def p_from_import_statement(s, first_statement = 0):
         imported_name_strings = []
         items = []
         for (name_pos, name, as_name, kind) in imported_names:
-            encoded_name = EncodedString(name)
             imported_name_strings.append(
-                ExprNodes.IdentifierStringNode(name_pos, value = encoded_name))
+                ExprNodes.IdentifierStringNode(name_pos, value=name))
             items.append(
-                (name,
-                 ExprNodes.NameNode(name_pos,
-                                    name = as_name or name)))
+                (name, ExprNodes.NameNode(name_pos, name=as_name or name)))
         import_list = ExprNodes.ListNode(
-            imported_names[0][0], args = imported_name_strings)
-        dotted_name = EncodedString(dotted_name)
+            imported_names[0][0], args=imported_name_strings)
         return Nodes.FromImportStatNode(pos,
             module = ExprNodes.ImportNode(dotted_name_pos,
                 module_name = ExprNodes.IdentifierStringNode(pos, value = dotted_name),
@@ -1405,8 +1481,8 @@ def p_from_import_statement(s, first_statement = 0):
                 name_list = import_list),
             items = items)
 
-imported_name_kinds = cython.declare(
-    set, set(['class', 'struct', 'union']))
+
+imported_name_kinds = cython.declare(set, set(['class', 'struct', 'union']))
 
 def p_imported_name(s, is_cimport):
     pos = s.position()
@@ -1418,6 +1494,7 @@ def p_imported_name(s, is_cimport):
     as_name = p_as_name(s)
     return (pos, name, as_name, kind)
 
+
 def p_dotted_name(s, as_allowed):
     pos = s.position()
     target_name = p_ident(s)
@@ -1428,7 +1505,8 @@ def p_dotted_name(s, as_allowed):
         names.append(p_ident(s))
     if as_allowed:
         as_name = p_as_name(s)
-    return (pos, target_name, u'.'.join(names), as_name)
+    return (pos, target_name, s.context.intern_ustring(u'.'.join(names)), as_name)
+
 
 def p_as_name(s):
     if s.sy == 'IDENT' and s.systring == 'as':
@@ -1436,6 +1514,7 @@ def p_as_name(s):
         return p_ident(s)
     else:
         return None
+
 
 def p_assert_statement(s):
     # s.sy == 'assert'
@@ -1448,6 +1527,7 @@ def p_assert_statement(s):
     else:
         value = None
     return Nodes.AssertStatNode(pos, cond = cond, value = value)
+
 
 statement_terminators = cython.declare(set, set([';', 'NEWLINE', 'EOF']))
 
@@ -1993,8 +2073,7 @@ def p_positional_and_keyword_args(s, end_sy_set, templates = None):
                 arg = Nodes.CComplexBaseTypeNode(base_type.pos,
                     base_type = base_type, declarator = declarator)
                 parsed_type = True
-            keyword_node = ExprNodes.IdentifierStringNode(
-                arg.pos, value = EncodedString(ident))
+            keyword_node = ExprNodes.IdentifierStringNode(arg.pos, value=ident)
             keyword_args.append((keyword_node, arg))
             was_keyword = True
 
@@ -2361,7 +2440,7 @@ def p_c_declarator(s, ctx = Ctx(), empty = 0, is_type = 0, cmethod_flag = 0,
     if s.sy == '(':
         s.next()
         if s.sy == ')' or looking_at_name(s):
-            base = Nodes.CNameDeclaratorNode(pos, name = EncodedString(u""), cname = None)
+            base = Nodes.CNameDeclaratorNode(pos, name=s.context.intern_ustring(u""), cname=None)
             result = p_c_func_declarator(s, pos, ctx, base, cmethod_flag)
         else:
             result = p_c_declarator(s, ctx, empty = empty, is_type = is_type,
@@ -2454,7 +2533,7 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
     else:
         rhs = None
         if s.sy == 'IDENT':
-            name = EncodedString(s.systring)
+            name = s.systring
             if empty:
                 error(s.position(), "Declarator should be empty")
             s.next()
@@ -2913,11 +2992,10 @@ def p_decorators(s):
         s.next()
         decstring = p_dotted_name(s, as_allowed=0)[2]
         names = decstring.split('.')
-        decorator = ExprNodes.NameNode(pos, name=EncodedString(names[0]))
+        decorator = ExprNodes.NameNode(pos, name=s.context.intern_ustring(names[0]))
         for name in names[1:]:
-            decorator = ExprNodes.AttributeNode(pos,
-                                           attribute=EncodedString(name),
-                                           obj=decorator)
+            decorator = ExprNodes.AttributeNode(
+                pos, attribute=s.context.intern_ustring(name), obj=decorator)
         if s.sy == '(':
             decorator = p_call(s, decorator)
         decorators.append(Nodes.DecoratorNode(pos, decorator=decorator))
@@ -2928,7 +3006,7 @@ def p_def_statement(s, decorators=None):
     # s.sy == 'def'
     pos = s.position()
     s.next()
-    name = EncodedString( p_ident(s) )
+    name = p_ident(s)
     s.expect('(')
     args, star_arg, starstar_arg = p_varargslist(s, terminator=')')
     s.expect(')')
@@ -2973,20 +3051,18 @@ def p_py_arg_decl(s, annotated = 1):
         annotation = p_test(s)
     return Nodes.PyArgDeclNode(pos, name = name, annotation = annotation)
 
+
 def p_class_statement(s, decorators):
     # s.sy == 'class'
     pos = s.position()
     s.next()
-    class_name = EncodedString( p_ident(s) )
-    class_name.encoding = s.source_encoding
+    class_name = EncodedString(p_ident(s))
+    class_name.encoding = s.source_encoding  # FIXME: why is this needed?
     arg_tuple = None
     keyword_dict = None
-    starstar_arg = None
     if s.sy == '(':
-        positional_args, keyword_args, star_arg, starstar_arg = \
-                            p_call_parse_args(s, allow_genexp = False)
-        arg_tuple, keyword_dict = p_call_build_packed_args(
-            pos, positional_args, keyword_args, star_arg, None)
+        positional_args, keyword_args = p_call_parse_args(s, allow_genexp=False)
+        arg_tuple, keyword_dict = p_call_build_packed_args(pos, positional_args, keyword_args)
     if arg_tuple is None:
         # XXX: empty arg_tuple
         arg_tuple = ExprNodes.TupleNode(pos, args=[])
@@ -2995,9 +3071,9 @@ def p_class_statement(s, decorators):
         pos, name=class_name,
         bases=arg_tuple,
         keyword_args=keyword_dict,
-        starstar_arg=starstar_arg,
         doc=doc, body=body, decorators=decorators,
         force_py3_semantics=s.context.language_level >= 3)
+
 
 def p_c_class_definition(s, pos,  ctx):
     # s.sy == 'class'

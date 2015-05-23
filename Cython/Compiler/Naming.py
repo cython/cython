@@ -61,6 +61,7 @@ interned_prefixes = {
     'codeobj': pyrex_prefix + "codeobj_",
     'slice': pyrex_prefix + "slice_",
     'ustring': pyrex_prefix + "ustring_",
+    'umethod': pyrex_prefix + "umethod_",
 }
 
 ctuple_type_prefix = pyrex_prefix + "ctuple_"

@@ -1422,6 +1422,31 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             stop=stop,
             step=step or ExprNodes.NoneNode(node.pos))
 
+    def _handle_simple_function_ord(self, node, pos_args):
+        """Unpack ord('X').
+        """
+        if len(pos_args) != 1:
+            return node
+        arg = pos_args[0]
+        if isinstance(arg, (ExprNodes.UnicodeNode, ExprNodes.BytesNode)):
+            if len(arg.value) == 1:
+                return ExprNodes.IntNode(
+                    arg.pos, type=PyrexTypes.c_long_type,
+                    value=str(ord(arg.value)),
+                    constant_result=ord(arg.value)
+                )
+        elif isinstance(arg, ExprNodes.StringNode):
+            if arg.unicode_value and len(arg.unicode_value) == 1 \
+                    and ord(arg.unicode_value) <= 255:  # Py2/3 portability
+                return ExprNodes.IntNode(
+                    arg.pos, type=PyrexTypes.c_int_type,
+                    value=str(ord(arg.unicode_value)),
+                    constant_result=ord(arg.unicode_value)
+                )
+        return node
+
+    # sequence processing
+
     class YieldNodeCollector(Visitor.TreeVisitor):
         def __init__(self):
             Visitor.TreeVisitor.__init__(self)
@@ -1632,7 +1657,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             yield_expression, yield_stat_node = self._find_single_yield_expression(loop_node)
             if yield_expression is None:
                 return node
-        else: # ComprehensionNode
+        else:  # ComprehensionNode
             yield_stat_node = gen_expr_node.append
             yield_expression = yield_stat_node.expr
             try:
@@ -1711,6 +1736,8 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             last_result = UtilNodes.EvalWithTempExprNode(ref_node, last_result)
 
         return last_result
+
+    # builtin type creation
 
     def _DISABLED_handle_simple_function_tuple(self, node, pos_args):
         if not pos_args:
@@ -2297,14 +2324,14 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         exception_value="-1")
 
     _map_to_capi_len_function = {
-        Builtin.unicode_type   : "__Pyx_PyUnicode_GET_LENGTH",
-        Builtin.bytes_type     : "PyBytes_GET_SIZE",
-        Builtin.list_type      : "PyList_GET_SIZE",
-        Builtin.tuple_type     : "PyTuple_GET_SIZE",
-        Builtin.dict_type      : "PyDict_Size",
-        Builtin.set_type       : "PySet_Size",
-        Builtin.frozenset_type : "__Pyx_PyFrozenSet_Size",
-        }.get
+        Builtin.unicode_type:    "__Pyx_PyUnicode_GET_LENGTH",
+        Builtin.bytes_type:      "PyBytes_GET_SIZE",
+        Builtin.list_type:       "PyList_GET_SIZE",
+        Builtin.tuple_type:      "PyTuple_GET_SIZE",
+        Builtin.set_type:        "PySet_GET_SIZE",
+        Builtin.frozenset_type:  "PySet_GET_SIZE",
+        Builtin.dict_type:       "PyDict_Size",
+    }.get
 
     _ext_types_with_pysize = set(["cpython.array.array"])
 
@@ -2452,7 +2479,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         if isinstance(arg, ExprNodes.CoerceToPyTypeNode):
             if arg.arg.type.is_unicode_char:
                 return ExprNodes.TypecastNode(
-                    arg.pos, operand=arg.arg, type=PyrexTypes.c_int_type
+                    arg.pos, operand=arg.arg, type=PyrexTypes.c_long_type
                     ).coerce_to(node.type, self.current_env())
         elif isinstance(arg, ExprNodes.UnicodeNode):
             if len(arg.value) == 1:
@@ -2640,7 +2667,8 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     PyObject_PopIndex_func_type = PyrexTypes.CFuncType(
         PyrexTypes.py_object_type, [
             PyrexTypes.CFuncTypeArg("list", PyrexTypes.py_object_type, None),
-            PyrexTypes.CFuncTypeArg("index", PyrexTypes.c_py_ssize_t_type, None),
+            PyrexTypes.CFuncTypeArg("py_index", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("c_index", PyrexTypes.c_py_ssize_t_type, None),
             PyrexTypes.CFuncTypeArg("is_signed", PyrexTypes.c_int_type, None),
         ],
         has_varargs=True)  # to fake the additional macro args that lack a proper C type
@@ -2675,14 +2703,23 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             )
         elif len(args) == 2:
             index = unwrap_coerced_node(args[1])
+            py_index = ExprNodes.NoneNode(index.pos)
             orig_index_type = index.type
             if not index.type.is_int:
-                if is_list or isinstance(index, ExprNodes.IntNode):
+                if isinstance(index, ExprNodes.IntNode):
+                    py_index = index.coerce_to_pyobject(self.current_env())
+                    index = index.coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
+                elif is_list:
+                    if index.type.is_pyobject:
+                        py_index = index.coerce_to_simple(self.current_env())
+                        index = ExprNodes.CloneNode(py_index)
                     index = index.coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
                 else:
                     return node
             elif not PyrexTypes.numeric_type_fits(index.type, PyrexTypes.c_py_ssize_t_type):
                 return node
+            elif isinstance(index, ExprNodes.IntNode):
+                py_index = index.coerce_to_pyobject(self.current_env())
             # real type might still be larger at runtime
             if not orig_index_type.is_int:
                 orig_index_type = index.type
@@ -2694,7 +2731,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             return ExprNodes.PythonCapiCallNode(
                 node.pos, "__Pyx_Py%s_PopIndex" % type_name,
                 self.PyObject_PopIndex_func_type,
-                args=[obj, index,
+                args=[obj, py_index, index,
                       ExprNodes.IntNode(index.pos, value=str(orig_index_type.signed and 1 or 0),
                                         constant_result=orig_index_type.signed and 1 or 0,
                                         type=PyrexTypes.c_int_type),
@@ -2802,38 +2839,110 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     def _handle_simple_method_object___sub__(self, node, function, args, is_unbound_method):
         return self._optimise_num_binop('Subtract', node, function, args, is_unbound_method)
 
+    def _handle_simple_method_object___eq__(self, node, function, args, is_unbound_method):
+        return self._optimise_num_binop('Eq', node, function, args, is_unbound_method)
+
+    def _handle_simple_method_object___neq__(self, node, function, args, is_unbound_method):
+        return self._optimise_num_binop('Ne', node, function, args, is_unbound_method)
+
+    def _handle_simple_method_object___and__(self, node, function, args, is_unbound_method):
+        return self._optimise_num_binop('And', node, function, args, is_unbound_method)
+
+    def _handle_simple_method_object___or__(self, node, function, args, is_unbound_method):
+        return self._optimise_num_binop('Or', node, function, args, is_unbound_method)
+
+    def _handle_simple_method_object___xor__(self, node, function, args, is_unbound_method):
+        return self._optimise_num_binop('Xor', node, function, args, is_unbound_method)
+
+    def _handle_simple_method_object___rshift__(self, node, function, args, is_unbound_method):
+        if len(args) != 2 or not isinstance(args[1], ExprNodes.IntNode):
+            return node
+        if not args[1].has_constant_result() or not (1 <= args[1].constant_result <= 63):
+            return node
+        return self._optimise_num_binop('Rshift', node, function, args, is_unbound_method)
+
+    def _handle_simple_method_object___mod__(self, node, function, args, is_unbound_method):
+        return self._optimise_num_div('Remainder', node, function, args, is_unbound_method)
+
+    def _handle_simple_method_object___floordiv__(self, node, function, args, is_unbound_method):
+        return self._optimise_num_div('FloorDivide', node, function, args, is_unbound_method)
+
+    def _handle_simple_method_object___truediv__(self, node, function, args, is_unbound_method):
+        return self._optimise_num_div('TrueDivide', node, function, args, is_unbound_method)
+
+    def _handle_simple_method_object___div__(self, node, function, args, is_unbound_method):
+        return self._optimise_num_div('Divide', node, function, args, is_unbound_method)
+
+    def _optimise_num_div(self, operator, node, function, args, is_unbound_method):
+        if len(args) != 2 or not args[1].has_constant_result() or args[1].constant_result == 0:
+            return node
+        if isinstance(args[1], ExprNodes.IntNode):
+            if not (-2**30 <= args[1].constant_result <= 2**30):
+                return node
+        elif isinstance(args[1], ExprNodes.FloatNode):
+            if not (-2**53 <= args[1].constant_result <= 2**53):
+                return node
+        else:
+            return node
+        return self._optimise_num_binop(operator, node, function, args, is_unbound_method)
+
     def _handle_simple_method_float___add__(self, node, function, args, is_unbound_method):
         return self._optimise_num_binop('Add', node, function, args, is_unbound_method)
 
     def _handle_simple_method_float___sub__(self, node, function, args, is_unbound_method):
         return self._optimise_num_binop('Subtract', node, function, args, is_unbound_method)
 
+    def _handle_simple_method_float___truediv__(self, node, function, args, is_unbound_method):
+        return self._optimise_num_binop('TrueDivide', node, function, args, is_unbound_method)
+
+    def _handle_simple_method_float___div__(self, node, function, args, is_unbound_method):
+        return self._optimise_num_binop('Divide', node, function, args, is_unbound_method)
+
+    def _handle_simple_method_float___mod__(self, node, function, args, is_unbound_method):
+        return self._optimise_num_binop('Remainder', node, function, args, is_unbound_method)
+
+    def _handle_simple_method_float___eq__(self, node, function, args, is_unbound_method):
+        return self._optimise_num_binop('Eq', node, function, args, is_unbound_method)
+
+    def _handle_simple_method_float___neq__(self, node, function, args, is_unbound_method):
+        return self._optimise_num_binop('Ne', node, function, args, is_unbound_method)
+
     def _optimise_num_binop(self, operator, node, function, args, is_unbound_method):
         """
-        Optimise '+' / '-' operator for (likely) float or small integer operations.
+        Optimise math operators for (likely) float or small integer operations.
         """
         if len(args) != 2:
             return node
         if not node.type.is_pyobject:
             return node
 
-        # when adding IntNode/FloatNode to something else, assume other operand is also numeric
+        # When adding IntNode/FloatNode to something else, assume other operand is also numeric.
+        # Prefer constants on RHS as they allows better size control for some operators.
         num_nodes = (ExprNodes.IntNode, ExprNodes.FloatNode)
-        if isinstance(args[0], num_nodes):
-            if args[1].type is not PyrexTypes.py_object_type:
-                return node
-            numval = args[0]
-            arg_order = 'CObj'
-        elif isinstance(args[1], num_nodes):
+        if isinstance(args[1], num_nodes):
             if args[0].type is not PyrexTypes.py_object_type:
                 return node
             numval = args[1]
             arg_order = 'ObjC'
+        elif isinstance(args[0], num_nodes):
+            if args[1].type is not PyrexTypes.py_object_type:
+                return node
+            numval = args[0]
+            arg_order = 'CObj'
         else:
             return node
 
+        if not numval.has_constant_result():
+            return node
+
         is_float = isinstance(numval, ExprNodes.FloatNode)
-        if not numval.has_constant_result() or (not is_float and abs(numval.constant_result) > 2**30):
+        if is_float:
+            if operator not in ('Add', 'Subtract', 'Remainder', 'TrueDivide', 'Divide', 'Eq', 'Ne'):
+                return node
+        elif operator == 'Divide':
+            # mixed old-/new-style division is not currently optimised for integers
+            return node
+        elif abs(numval.constant_result) > 2**30:
             return node
 
         args = list(args)
@@ -3723,6 +3832,93 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             else:
                 sequence_node.mult_factor = factor
         return sequence_node
+
+    def visit_MergedDictNode(self, node):
+        """Unpack **args in place if we can."""
+        self.visitchildren(node)
+        args = []
+        items = []
+
+        def add(arg):
+            if arg.is_dict_literal:
+                if items:
+                    items[0].key_value_pairs.extend(arg.key_value_pairs)
+                else:
+                    items.append(arg)
+            elif isinstance(arg, ExprNodes.MergedDictNode):
+                for child_arg in arg.keyword_args:
+                    add(child_arg)
+            else:
+                if items:
+                    args.append(items[0])
+                    del items[:]
+                args.append(arg)
+
+        for arg in node.keyword_args:
+            add(arg)
+        if items:
+            args.append(items[0])
+
+        if len(args) == 1:
+            arg = args[0]
+            if arg.is_dict_literal or isinstance(arg, ExprNodes.MergedDictNode):
+                return arg
+        node.keyword_args[:] = args
+        self._calculate_const(node)
+        return node
+
+    def visit_MergedSequenceNode(self, node):
+        """Unpack *args in place if we can."""
+        self.visitchildren(node)
+
+        is_set = node.type is Builtin.set_type
+        args = []
+        values = []
+
+        def add(arg):
+            if (is_set and arg.is_set_literal) or (arg.is_sequence_constructor and not arg.mult_factor):
+                if values:
+                    values[0].args.extend(arg.args)
+                else:
+                    values.append(arg)
+            elif isinstance(arg, ExprNodes.MergedSequenceNode):
+                for child_arg in arg.args:
+                    add(child_arg)
+            else:
+                if values:
+                    args.append(values[0])
+                    del values[:]
+                args.append(arg)
+
+        for arg in node.args:
+            add(arg)
+        if values:
+            args.append(values[0])
+
+        if len(args) == 1:
+            arg = args[0]
+            if ((is_set and arg.is_set_literal) or
+                    (arg.is_sequence_constructor and arg.type is node.type) or
+                    isinstance(arg, ExprNodes.MergedSequenceNode)):
+                return arg
+        node.args[:] = args
+        self._calculate_const(node)
+        return node
+
+    def visit_SequenceNode(self, node):
+        """Unpack *args in place if we can."""
+        self.visitchildren(node)
+        args = []
+        for arg in node.args:
+            if not arg.is_starred:
+                args.append(arg)
+            elif arg.target.is_sequence_constructor and not arg.target.mult_factor:
+                args.extend(arg.target.args)
+            else:
+                args.append(arg)
+        node.args[:] = args
+        self._calculate_const(node)
+        return node
 
     def visit_PrimaryCmpNode(self, node):
         # calculate constant partial results in the comparison cascade
