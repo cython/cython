@@ -1215,14 +1215,18 @@ _module.Generator = mk_gen()
 #ifdef __Pyx_Coroutine_USED
                     CSTRING("""\
 def mk_coroutine():
-    from abc import abstractmethod
+    from abc import abstractmethod, ABCMeta
 
 """)
 #if PY_MAJOR_VERSION >= 3
-"    class Coroutine(metaclass=_module.ABCMeta):\n"
+                    CSTRING("""\
+    class Coroutine(metaclass=ABCMeta):
+""")
 #else
-"    class Coroutine(object):\n"
-"       __metaclass__ = _module.ABCMeta\n"
+                    CSTRING("""\
+    class Coroutine(object):
+        __metaclass__ = ABCMeta
+""")
 #endif
                     CSTRING("""\
         __slots__ = ()
@@ -1259,10 +1263,14 @@ def mk_coroutine():
 
 """)
 #if PY_MAJOR_VERSION >= 3
-"    class Awaitable(metaclass=_module.ABCMeta):\n"
+                    CSTRING("""\
+    class Awaitable(metaclass=ABCMeta):
+""")
 #else
-"    class Awaitable(object):\n"
-"       __metaclass__ = _module.ABCMeta\n"
+                    CSTRING("""\
+    class Awaitable(object):
+        __metaclass__ = ABCMeta
+""")
 #endif
                     CSTRING("""\
         __slots__ = ()
