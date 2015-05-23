@@ -6454,7 +6454,7 @@ class WithStatNode(StatNode):
         code.putln("%s = __Pyx_PyObject_LookupSpecial(%s, %s); %s" % (
             self.exit_var,
             self.manager.py_result(),
-            code.intern_identifier(EncodedString('__exit__')),
+            code.intern_identifier(EncodedString('__aexit__' if self.is_async else '__exit__')),
             code.error_goto_if_null(self.exit_var, self.pos),
             ))
         code.put_gotref(self.exit_var)

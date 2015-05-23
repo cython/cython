@@ -2602,12 +2602,16 @@ class WithExitCallNode(ExprNode):
 
     # with_stat  WithStatNode                the surrounding 'with' statement
     # args       TupleNode or ResultStatNode the exception info tuple
+    # await      AwaitExprNode               the await
 
-    subexprs = ['args']
+    subexprs = ['args', 'await']
     test_if_run = True
+    await = None
 
     def analyse_types(self, env):
         self.args = self.args.analyse_types(env)
+        if self.await:
+            self.await = self.await.analyse_types(env)
         self.type = PyrexTypes.c_bint_type
         self.is_temp = True
         return self
@@ -2633,6 +2637,13 @@ class WithExitCallNode(ExprNode):
 
         code.putln(code.error_goto_if_null(result_var, self.pos))
         code.put_gotref(result_var)
+
+        if self.await:
+            self.await.generate_evaluation_code(code, source_cname=result_var)
+            code.putln("%s = %s;" % (result_var, self.await.py_result()))
+            self.await.generate_post_assignment_code(code)
+            self.await.free_temps(code)
+
         if self.result_is_used:
             self.allocate_temp_result(code)
             code.putln("%s = __Pyx_PyObject_IsTrue(%s);" % (self.result(), result_var))
@@ -8675,15 +8686,19 @@ class YieldFromExprNode(YieldExprNode):
         code.globalstate.use_utility_code(UtilityCode.load_cached("GeneratorYieldFrom", "Coroutine.c"))
         return "__Pyx_Generator_Yield_From"
 
-    def generate_evaluation_code(self, code):
-        self.arg.generate_evaluation_code(code)
+    def generate_evaluation_code(self, code, source_cname=None):
+        if source_cname is None:
+            self.arg.generate_evaluation_code(code)
         code.putln("%s = %s(%s, %s);" % (
             Naming.retval_cname,
             self.yield_from_func(code),
             Naming.generator_cname,
-            self.arg.py_result()))
-        self.arg.generate_disposal_code(code)
-        self.arg.free_temps(code)
+            self.arg.py_result() if source_cname is None else source_cname))
+        if source_cname is None:
+            self.arg.generate_disposal_code(code)
+            self.arg.free_temps(code)
+        else:
+            code.put_decref_clear(source_cname, py_object_type)
         code.put_xgotref(Naming.retval_cname)
 
         code.putln("if (likely(%s)) {" % Naming.retval_cname)
@@ -8715,8 +8730,9 @@ class AwaitExprNode(YieldFromExprNode):
     expr_keyword = 'await'
 
     def coerce_yield_argument(self, env):
-        # FIXME: use same check as in YieldFromExprNode.coerce_yield_argument() ?
-        self.arg = self.arg.coerce_to_pyobject(env)
+        if self.arg is not None:
+            # FIXME: use same check as in YieldFromExprNode.coerce_yield_argument() ?
+            self.arg = self.arg.coerce_to_pyobject(env)
 
     def yield_from_func(self, code):
         code.globalstate.use_utility_code(UtilityCode.load_cached("CoroutineYieldFrom", "Coroutine.c"))

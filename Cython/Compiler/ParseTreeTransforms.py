@@ -1219,14 +1219,18 @@ class WithTransform(CythonTransform, SkipDeclarations):
     def visit_WithStatNode(self, node):
         self.visitchildren(node, 'body')
         pos = node.pos
+        is_async = node.is_async
         body, target, manager = node.body, node.target, node.manager
         node.enter_call = ExprNodes.SimpleCallNode(
             pos, function=ExprNodes.AttributeNode(
                 pos, obj=ExprNodes.CloneNode(manager),
-                attribute=EncodedString('__enter__'),
+                attribute=EncodedString('__aenter__' if is_async else '__enter__'),
                 is_special_lookup=True),
             args=[],
             is_temp=True)
+
+        if is_async:
+            node.enter_call = ExprNodes.AwaitExprNode(pos, arg=node.enter_call)
 
         if target is not None:
             body = Nodes.StatListNode(
@@ -1245,7 +1249,8 @@ class WithTransform(CythonTransform, SkipDeclarations):
                             pos, operand=ExprNodes.WithExitCallNode(
                                 pos, with_stat=node,
                                 test_if_run=False,
-                                args=excinfo_target)),
+                                args=excinfo_target,
+                                await=ExprNodes.AwaitExprNode(pos, arg=None) if is_async else None)),
                         body=Nodes.ReraiseStatNode(pos),
                     ),
                 ],
@@ -1266,8 +1271,8 @@ class WithTransform(CythonTransform, SkipDeclarations):
                     pos, with_stat=node,
                     test_if_run=True,
                     args=ExprNodes.TupleNode(
-                        pos, args=[ExprNodes.NoneNode(pos) for _ in range(3)]
-                    ))),
+                        pos, args=[ExprNodes.NoneNode(pos) for _ in range(3)]),
+                    await=ExprNodes.AwaitExprNode(pos, arg=None) if is_async else None)),
             handle_error_case=False,
         )
         return node

@@ -393,8 +393,8 @@ def p_async_statement(s, ctx, decorators):
         #s.error("'async for' is not currently supported", fatal=False)
         return p_statement(s, ctx)  # TODO: implement
     elif s.sy == 'with':
-        #s.error("'async with' is not currently supported", fatal=False)
-        return p_statement(s, ctx)  # TODO: implement
+        s.next()
+        return p_with_items(s, is_async=True)
     else:
         s.error("expected one of 'def', 'for', 'with' after 'async'")
 
@@ -1781,17 +1781,21 @@ def p_include_statement(s, ctx):
     else:
         return Nodes.PassStatNode(pos)
 
+
 def p_with_statement(s):
-    s.next() # 'with'
+    s.next()  # 'with'
     if s.systring == 'template' and not s.in_python_file:
         node = p_with_template(s)
     else:
         node = p_with_items(s)
     return node
 
-def p_with_items(s):
+
+def p_with_items(s, is_async=False):
     pos = s.position()
     if not s.in_python_file and s.sy == 'IDENT' and s.systring in ('nogil', 'gil'):
+        if is_async:
+            s.error("with gil/nogil cannot be async")
         state = s.systring
         s.next()
         if s.sy == ',':
@@ -1799,7 +1803,7 @@ def p_with_items(s):
             body = p_with_items(s)
         else:
             body = p_suite(s)
-        return Nodes.GILStatNode(pos, state = state, body = body)
+        return Nodes.GILStatNode(pos, state=state, body=body)
     else:
         manager = p_test(s)
         target = None
@@ -1808,11 +1812,11 @@ def p_with_items(s):
             target = p_starred_expr(s)
         if s.sy == ',':
             s.next()
-            body = p_with_items(s)
+            body = p_with_items(s, is_async=is_async)
         else:
             body = p_suite(s)
-    return Nodes.WithStatNode(pos, manager = manager,
-                              target = target, body = body)
+    return Nodes.WithStatNode(pos, manager=manager, target=target, body=body, is_async=is_async)
+
 
 def p_with_template(s):
     pos = s.position()

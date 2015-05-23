@@ -1,5 +1,6 @@
 # cython: language_level=3, binding=True
 
+import re
 import gc
 import sys
 import types
@@ -88,6 +89,10 @@ class CoroutineTest(unittest.TestCase):
             self.assertTrue(True)
         else:
             self.assertTrue(False)
+
+    def assertRegex(self, value, regex):
+        self.assertTrue(re.search(regex, str(value)),
+                        "'%s' did not match '%s'" % (value, regex))
 
     def test_gen_1(self):
         def gen(): yield
@@ -508,8 +513,9 @@ class CoroutineTest(unittest.TestCase):
         except TypeError as exc:
             self.assertRegex(
                 exc.args[0], "object int can't be used in 'await' expression")
-            self.assertTrue(exc.__context__ is not None)
-            self.assertTrue(isinstance(exc.__context__, ZeroDivisionError))
+            if sys.version_info[0] >= 3:
+                self.assertTrue(exc.__context__ is not None)
+                self.assertTrue(isinstance(exc.__context__, ZeroDivisionError))
         else:
             self.fail('invalid asynchronous context manager did not fail')
 
@@ -577,10 +583,10 @@ class CoroutineTest(unittest.TestCase):
         try:
             run_async(foo())
         except ZeroDivisionError as exc:
-            self.assertTrue(exc.__context__ is not None)
-            self.assertTrue(isinstance(exc.__context__, ZeroDivisionError))
-            self.assertTrue(isinstance(exc.__context__.__context__,
-                                       RuntimeError))
+            if sys.version_info[0] >= 3:
+                self.assertTrue(exc.__context__ is not None)
+                self.assertTrue(isinstance(exc.__context__, ZeroDivisionError))
+                self.assertTrue(isinstance(exc.__context__.__context__, RuntimeError))
         else:
             self.fail('exception from __aexit__ did not propagate')
 
@@ -602,7 +608,8 @@ class CoroutineTest(unittest.TestCase):
         try:
             run_async(foo())
         except NotImplementedError as exc:
-            self.assertTrue(exc.__context__ is None)
+            if sys.version_info[0] >= 3:
+                self.assertTrue(exc.__context__ is None)
         else:
             self.fail('exception from __aenter__ did not propagate')
 
