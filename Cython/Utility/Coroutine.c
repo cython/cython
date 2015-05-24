@@ -8,8 +8,23 @@ static CYTHON_INLINE PyObject* __Pyx_Generator_Yield_From(__pyx_CoroutineObject 
 static CYTHON_INLINE PyObject* __Pyx_Generator_Yield_From(__pyx_CoroutineObject *gen, PyObject *source) {
     PyObject *source_gen, *retval;
     source_gen = PyObject_GetIter(source);
-    if (unlikely(!source_gen))
+    if (unlikely(!source_gen)) {
+        #ifdef __Pyx_Coroutine_USED
+        #if CYTHON_COMPILING_IN_CPYTHON
+        // avoid exception instantiation if possible
+        if (PyErr_Occurred() == PyExc_TypeError
+        #else
+        if (PyErr_ExceptionMatches(PyExc_TypeError)
+        #endif
+                && __Pyx_Coroutine_CheckExact(source)) {
+            PyErr_Clear();
+            // TODO: this should only happen for types.coroutine()ed generators, but we can't determine that here
+            Py_INCREF(source);
+            source_gen = source;
+        } else
+        #endif
         return NULL;
+    }
     // source_gen is now the iterator, make the first next() call
     retval = Py_TYPE(source_gen)->tp_iternext(source_gen);
     if (likely(retval)) {
@@ -871,6 +886,54 @@ static __pyx_CoroutineObject *__Pyx__Coroutine_New(PyTypeObject* type, __pyx_cor
 //@requires: CoroutineBase
 //@requires: PatchGeneratorABC
 
+static void __Pyx_Coroutine_check_and_dealloc(PyObject *self) {
+    __pyx_CoroutineObject *gen = (__pyx_CoroutineObject *) self;
+
+    if (gen->resume_label == 0 && !PyErr_Occurred()) {
+#if PY_VERSION_HEX >= 0x03030000 || defined(PyErr_WarnFormat)
+        PyErr_WarnFormat(PyExc_RuntimeWarning, 1, "coroutine '%.50S' was never awaited", gen->gi_qualname);
+#else
+        PyObject *msg, *qualname;
+        char *cname, *cmsg;
+        #if PY_MAJOR_VERSION >= 3
+        qualname = PyUnicode_AsUTF8String(gen->gi_qualname);
+        if (likely(qualname)) {
+            cname = PyBytes_AS_STRING(qualname);
+        } else {
+            PyErr_Clear();
+            cname = (char*) "?";
+        }
+        msg = PyBytes_FromFormat(
+        #else
+        qualname = gen->gi_qualname;
+        cname = PyString_AS_STRING(qualname);
+        msg = PyString_FromFormat(
+        #endif
+            "coroutine '%.50s' was never awaited", cname);
+
+        #if PY_MAJOR_VERSION >= 3
+        Py_XDECREF(qualname);
+        #endif
+
+        if (unlikely(!msg)) {
+            PyErr_Clear();
+            cmsg = (char*) "coroutine was never awaited";
+        } else {
+            #if PY_MAJOR_VERSION >= 3
+            cmsg = PyBytes_AS_STRING(msg);
+            #else
+            cmsg = PyString_AS_STRING(msg);
+            #endif
+        }
+        if (unlikely(PyErr_WarnEx(PyExc_RuntimeWarning, cmsg, 1) < 0))
+            PyErr_WriteUnraisable(self);
+        Py_XDECREF(msg);
+#endif
+    }
+
+    __Pyx_Coroutine_dealloc(self);
+}
+
 #if PY_VERSION_HEX >= 0x030500B1
 static PyAsyncMethods __pyx_Coroutine_as_async {
     0, /*am_await*/
@@ -884,7 +947,7 @@ static PyTypeObject __pyx_CoroutineType_type = {
     "coroutine",                        /*tp_name*/
     sizeof(__pyx_CoroutineObject),      /*tp_basicsize*/
     0,                                  /*tp_itemsize*/
-    (destructor) __Pyx_Coroutine_dealloc,/*tp_dealloc*/
+    (destructor) __Pyx_Coroutine_check_and_dealloc,/*tp_dealloc*/
     0,                                  /*tp_print*/
     0,                                  /*tp_getattr*/
     0,                                  /*tp_setattr*/

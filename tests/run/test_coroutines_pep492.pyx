@@ -3,12 +3,41 @@
 import re
 import gc
 import sys
-import types
+#import types
 import os.path
 import inspect
 import unittest
 import warnings
 import contextlib
+
+
+# fake types.coroutine() decorator
+class types_coroutine(object):
+    def __init__(self, gen):
+        self._gen = gen
+
+    class as_coroutine(object):
+        def __init__(self, gen):
+            self._gen = gen
+            self.send = gen.send
+            self.throw = gen.throw
+            self.close = gen.close
+
+        def __await__(self):
+            return self._gen
+
+        def __iter__(self):
+            return self._gen
+
+    def __call__(self, *args, **kwargs):
+        return self.as_coroutine(self._gen(*args, **kwargs))
+
+
+# compiled exec()
+def exec(code_string, l, g):
+    from Cython.Shadow import inline
+    ns = inline(code_string, locals=l, globals=g, lib_dir=os.path.dirname(__file__))
+    g.update(ns)
 
 
 class AsyncYieldFrom:
@@ -29,7 +58,7 @@ class AsyncYield:
 
 def run_async(coro):
     #assert coro.__class__ is types.GeneratorType
-    assert coro.__class__.__name__ == 'coroutine'
+    assert coro.__class__.__name__ in ('coroutine', 'as_coroutine')
 
     buffer = []
     result = None
@@ -53,9 +82,6 @@ def silence_coro_gc():
 class TokenizerRegrTest(unittest.TestCase):
 
     def test_oneline_defs(self):
-        import Cython.Shadow
-        compile_dir = os.path.dirname(__file__)
-
         buf = []
         for i in range(500):
             buf.append('def i{i}(): return {i}'.format(i=i))
@@ -63,22 +89,34 @@ class TokenizerRegrTest(unittest.TestCase):
 
         # Test that 500 consequent, one-line defs is OK
         ns = {}
-        #exec(buf, ns, ns)
-        ns = Cython.Shadow.inline(buf, locals=ns, globals=ns, lib_dir=compile_dir)
+        exec(buf, ns, ns)
         self.assertEqual(ns['i499'](), 499)
 
         # Test that 500 consequent, one-line defs *and*
         # one 'async def' following them is OK
         buf += '\nasync def foo():\n    return'
         ns = {}
-        #exec(buf, ns, ns)
-        ns = Cython.Shadow.inline(buf, locals=ns, globals=ns, lib_dir=compile_dir)
+        exec(buf, ns, ns)
         self.assertEqual(ns['i499'](), 499)
         if hasattr(inspect, 'iscoroutinefunction'):
             self.assertTrue(inspect.iscoroutinefunction(ns['foo']))
 
 
 class CoroutineTest(unittest.TestCase):
+
+    def setUpClass(cls):
+        # never mark warnings as "already seen" to prevent them from being suppressed
+        from warnings import simplefilter
+        simplefilter("always")
+
+    @contextlib.contextmanager
+    def assertRaises(self, exc_type):
+        try:
+            yield
+        except exc_type:
+            self.assertTrue(True)
+        else:
+            self.assertTrue(False)
 
     @contextlib.contextmanager
     def assertRaisesRegex(self, exc_type, regex):
@@ -89,6 +127,28 @@ class CoroutineTest(unittest.TestCase):
             self.assertTrue(True)
         else:
             self.assertTrue(False)
+
+    @contextlib.contextmanager
+    def assertWarnsRegex(self, exc_type, regex):
+        from warnings import catch_warnings
+        with catch_warnings(record=True) as log:
+            yield
+
+        first_match = None
+        for warning in log:
+            w = warning.message
+            if not isinstance(w, exc_type):
+                continue
+            if first_match is None:
+                first_match = w
+            if re.search(regex, str(w)):
+                self.assertTrue(True)
+                return
+
+        if first_match is None:
+            self.assertTrue(False, "no warning was raised of type '%s'" % exc_type.__name__)
+        else:
+            self.assertTrue(False, "'%s' did not match '%s'" % (first_match, regex))
 
     def assertRegex(self, value, regex):
         self.assertTrue(re.search(regex, str(value)),
@@ -160,7 +220,7 @@ class CoroutineTest(unittest.TestCase):
             [i for i in foo()]
 
     def test_func_5(self):
-        @types.coroutine
+        @types_coroutine
         def bar():
             yield 1
 
@@ -181,7 +241,7 @@ class CoroutineTest(unittest.TestCase):
         self.assertEqual(next(iter(bar())), 1)
 
     def test_func_6(self):
-        @types.coroutine
+        @types_coroutine
         def bar():
             yield 1
             yield 2
@@ -209,7 +269,7 @@ class CoroutineTest(unittest.TestCase):
             list(foo())
 
     def test_func_8(self):
-        @types.coroutine
+        @types_coroutine
         def bar():
             return (yield from foo())
 
