@@ -336,6 +336,23 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
             if (!ev) {
                 Py_INCREF(Py_None);
                 ev = Py_None;
+            } else if (PyTuple_Check(ev)) {
+                // however, if it's a tuple, it is interpreted as separate constructor arguments (surprise!)
+                if (PyTuple_GET_SIZE(ev) >= 1) {
+                    PyObject *value;
+#if CYTHON_COMPILING_IN_CPYTHON
+                    value = PySequence_ITEM(ev, 0);
+#else
+                    value = PyTuple_GET_ITEM(ev, 0);
+                    Py_INCREF(value);
+#endif
+                    Py_DECREF(ev);
+                    ev = value;
+                } else {
+                    Py_INCREF(Py_None);
+                    Py_DECREF(ev);
+                    ev = Py_None;
+                }
             }
             Py_XDECREF(tb);
             Py_DECREF(et);
@@ -1153,31 +1170,51 @@ static int __pyx_Generator_init(void) {
 
 /////////////// ReturnWithStopIteration.proto ///////////////
 
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030500B1
-// CPython 3.3 <= x < 3.5b1 crash in yield-from when the StopIteration is not instantiated
 #define __Pyx_ReturnWithStopIteration(value)  \
     if (value == Py_None) PyErr_SetNone(PyExc_StopIteration); else __Pyx__ReturnWithStopIteration(value)
 static void __Pyx__ReturnWithStopIteration(PyObject* value); /*proto*/
-#else
-#define __Pyx_ReturnWithStopIteration(value)  PyErr_SetObject(PyExc_StopIteration, value)
-#endif
 
 /////////////// ReturnWithStopIteration ///////////////
+//@requires: Exceptions.c::PyErrFetchRestore
+//@substitute: naming
 
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030500B1
+// 1) Instantiating an exception just to pass back a value is costly.
+// 2) CPython 3.3 <= x < 3.5b1 crash in yield-from when the StopIteration is not instantiated.
+// 3) Passing a tuple as value into PyErr_SetObject() passes its items on as arguments.
+// 4) If there is currently an exception being handled, we need to chain it.
+
 static void __Pyx__ReturnWithStopIteration(PyObject* value) {
     PyObject *exc, *args;
-    args = PyTuple_New(1);
-    if (!args) return;
-    Py_INCREF(value);
-    PyTuple_SET_ITEM(args, 0, value);
+#if CYTHON_COMPILING_IN_CPYTHON
+    if ((PY_VERSION_HEX >= 0x03030000 && PY_VERSION_HEX < 0x030500B1) || PyTuple_Check(value)) {
+        args = PyTuple_New(1);
+        if (unlikely(!args)) return;
+        Py_INCREF(value);
+        PyTuple_SET_ITEM(args, 0, value);
+        exc = PyType_Type.tp_call(PyExc_StopIteration, args, NULL);
+        Py_DECREF(args);
+        if (!exc) return;
+    } else {
+        // it's safe to avoid instantiating the exception
+        Py_INCREF(value);
+        exc = value;
+    }
+    if (!PyThreadState_GET()->exc_type) {
+        // no chaining needed => avoid the overhead in PyErr_SetObject()
+        Py_INCREF(PyExc_StopIteration);
+        __Pyx_ErrRestore(PyExc_StopIteration, exc, NULL);
+        return;
+    }
+#else
+    args = PyTuple_Pack(1, value);
+    if (unlikely(!args)) return;
     exc = PyObject_Call(PyExc_StopIteration, args, NULL);
     Py_DECREF(args);
-    if (!exc) return;
-    Py_INCREF(PyExc_StopIteration);
-    PyErr_Restore(PyExc_StopIteration, exc, NULL);
-}
+    if (unlikely(!exc)) return;
 #endif
+    PyErr_SetObject(PyExc_StopIteration, exc);
+    Py_DECREF(exc);
+}
 
 
 //////////////////// PatchModuleWithCoroutine.proto ////////////////////
