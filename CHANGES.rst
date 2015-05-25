@@ -8,14 +8,18 @@ Latest changes
 Features added
 --------------
 
+* PEP 492 (async/await) was implemented.
+  See https://www.python.org/dev/peps/pep-0492/
+
+* PEP 448 (Additional Unpacking Generalizations) was implemented.
+  See https://www.python.org/dev/peps/pep-0448/
+
 * Support for coverage.py 4.0+ can be enabled by adding the plugin
   "Cython.Coverage" to the ".coveragerc" config file.
 
 * Annotated HTML source pages can integrate (XML) coverage reports.
 
 * Tracing is supported in ``nogil`` functions/sections and module init code.
-
-* PEP 448 (Additional Unpacking Generalizations) was implemented.
 
 * When generators are used in a Cython module and the module imports the
   modules "inspect" and/or "asyncio", Cython enables interoperability by
