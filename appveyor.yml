@@ -7,6 +7,10 @@ environment:
     WITH_COMPILER: "cmd /E:ON /V:ON /C .\\appveyor\\run_with_compiler.cmd"
 
   matrix:
+    - PYTHON: "C:\\Python26"
+      PYTHON_VERSION: "2.6.6"
+      PYTHON_ARCH: "32"
+
     - PYTHON: "C:\\Python27"
       PYTHON_VERSION: "2.7.9"
       PYTHON_ARCH: "32"
@@ -18,6 +22,10 @@ environment:
     - PYTHON: "C:\\Python34"
       PYTHON_VERSION: "3.4.3"
       PYTHON_ARCH: "32"
+
+    - PYTHON: "C:\\Python26-x64"
+      PYTHON_VERSION: "2.6.6"
+      PYTHON_ARCH: "64"
 
     - PYTHON: "C:\\Python27-x64"
       PYTHON_VERSION: "2.7.9"
@@ -34,20 +42,32 @@ environment:
       PYTHON_ARCH: "64"
       WINDOWS_SDK_VERSION: "v7.1"
 
+clone_depth: 5
+
+branches:
+  only:
+    - master
+    - 0.22.x
+
 init:
   - "ECHO %PYTHON% %PYTHON_VERSION% %PYTHON_ARCH%"
 
 install:
   - "powershell appveyor\\install.ps1"
-  - "%PYTHON%\\python --version"
+  - "%PYTHON%\\python.exe --version"
+  - "%PYTHON%\\Scripts\\pip.exe --version"
+  - "%PYTHON%\\Scripts\\wheel.exe version"
 
 build: off
+build_script:
+  - "%WITH_COMPILER% %PYTHON%\\python.exe setupegg.py build"
+  - "%WITH_COMPILER% %PYTHON%\\python.exe setupegg.py --quiet bdist_wheel"
+  - "%WITH_COMPILER% %PYTHON%\\python.exe setupegg.py --quiet bdist_msi"
+  - "%WITH_COMPILER% %PYTHON%\\python.exe setupegg.py --quiet bdist_wininst"
 
+test: off
 test_script:
-  - "%WITH_COMPILER% %PYTHON%\\python setup.py test"
-
-after_test:
-  - "%WITH_COMPILER% %PYTHON%\\python setup.py bdist_wheel"
+  - "%WITH_COMPILER% %PYTHON%\\python.exe setupegg.py test"
 
 artifacts:
   - path: dist\*
