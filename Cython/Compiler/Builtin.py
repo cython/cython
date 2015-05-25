@@ -398,9 +398,16 @@ def init_builtins():
     init_builtin_structs()
     init_builtin_types()
     init_builtin_funcs()
+
     builtin_scope.declare_var(
         '__debug__', PyrexTypes.c_const_type(PyrexTypes.c_bint_type),
         pos=None, cname='(!Py_OptimizeFlag)', is_cdef=True)
+
+    entry = builtin_scope.declare_var(
+        'StopAsyncIteration', PyrexTypes.py_object_type,
+        pos=None, cname='__Pyx_PyExc_StopAsyncIteration')
+    entry.utility_code = UtilityCode.load_cached("StopAsyncIteration", "Coroutine.c")
+
     global list_type, tuple_type, dict_type, set_type, frozenset_type
     global bytes_type, str_type, unicode_type, basestring_type, slice_type
     global float_type, bool_type, type_type, complex_type, bytearray_type

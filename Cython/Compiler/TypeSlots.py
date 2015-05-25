@@ -431,8 +431,8 @@ class SuiteSlot(SlotDescriptor):
     #
     #  sub_slots   [SlotDescriptor]
 
-    def __init__(self, sub_slots, slot_type, slot_name):
-        SlotDescriptor.__init__(self, slot_name)
+    def __init__(self, sub_slots, slot_type, slot_name, ifdef=None):
+        SlotDescriptor.__init__(self, slot_name, ifdef=ifdef)
         self.sub_slots = sub_slots
         self.slot_type = slot_type
         substructures.append(self)
@@ -454,6 +454,8 @@ class SuiteSlot(SlotDescriptor):
     def generate_substructure(self, scope, code):
         if not self.is_empty(scope):
             code.putln("")
+            if self.ifdef:
+                code.putln("#if %s" % self.ifdef)
             code.putln(
                 "static %s %s = {" % (
                     self.slot_type,
@@ -461,6 +463,8 @@ class SuiteSlot(SlotDescriptor):
             for slot in self.sub_slots:
                 slot.generate(scope, code)
             code.putln("};")
+            if self.ifdef:
+                code.putln("#endif")
 
 substructures = []   # List of all SuiteSlot instances
 
@@ -504,6 +508,29 @@ class BaseClassSlot(SlotDescriptor):
                 scope.parent_type.typeobj_cname,
                 self.slot_name,
                 base_type.typeptr_cname))
+
+
+class AlternativeSlot(SlotDescriptor):
+    """Slot descriptor that delegates to different slots using C macros."""
+    def __init__(self, alternatives):
+        SlotDescriptor.__init__(self, "")
+        self.alternatives = alternatives
+
+    def generate(self, scope, code):
+        # state machine:  "#if ... (#elif ...)* #else ... #endif"
+        test = 'if'
+        for guard, slot in self.alternatives:
+            if guard:
+                assert test in ('if', 'elif'), test
+            else:
+                assert test == 'elif', test
+                test = 'else'
+            code.putln("#%s %s" % (test, guard))
+            slot.generate(scope, code)
+            if test == 'if':
+                test = 'elif'
+        assert test == 'else', test
+        code.putln("#endif")
 
 
 # The following dictionary maps __xxx__ method names to slot descriptors.
@@ -748,6 +775,12 @@ PyBufferProcs = (
     MethodSlot(releasebufferproc, "bf_releasebuffer", "__releasebuffer__")
 )
 
+PyAsyncMethods = (
+    MethodSlot(unaryfunc, "am_await", "__await__"),
+    MethodSlot(unaryfunc, "am_aiter", "__aiter__"),
+    MethodSlot(unaryfunc, "am_anext", "__anext__"),
+)
+
 #------------------------------------------------------------------------------------------
 #
 #  The main slot table. This table contains descriptors for all the
@@ -761,7 +794,11 @@ slot_table = (
     EmptySlot("tp_print"), #MethodSlot(printfunc, "tp_print", "__print__"),
     EmptySlot("tp_getattr"),
     EmptySlot("tp_setattr"),
-    MethodSlot(cmpfunc, "tp_compare", "__cmp__", py3 = '<RESERVED>'),
+    AlternativeSlot([
+        ("PY_MAJOR_VERSION < 3", MethodSlot(cmpfunc, "tp_compare", "__cmp__")),
+        ("PY_VERSION_HEX < 0x030500B1", EmptySlot("tp_reserved")),
+        ("", SuiteSlot(PyAsyncMethods, "PyAsyncMethods", "tp_as_async", ifdef="PY_VERSION_HEX >= 0x030500B1")),
+    ]),
     MethodSlot(reprfunc, "tp_repr", "__repr__"),
 
     SuiteSlot(PyNumberMethods, "PyNumberMethods", "tp_as_number"),
