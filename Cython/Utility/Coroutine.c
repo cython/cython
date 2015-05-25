@@ -894,13 +894,6 @@ static PyMemberDef __pyx_Coroutine_memberlist[] = {
     {0, 0, 0, 0, 0}
 };
 
-static PyMethodDef __pyx_Coroutine_methods[] = {
-    {"send", (PyCFunction) __Pyx_Coroutine_Send, METH_O, 0},
-    {"throw", (PyCFunction) __Pyx_Coroutine_Throw, METH_VARARGS, 0},
-    {"close", (PyCFunction) __Pyx_Coroutine_Close, METH_NOARGS, 0},
-    {0, 0, 0, 0}
-};
-
 static __pyx_CoroutineObject *__Pyx__Coroutine_New(PyTypeObject* type, __pyx_coroutine_body_t body,
                                                    PyObject *closure, PyObject *name, PyObject *qualname) {
     __pyx_CoroutineObject *gen = PyObject_GC_New(__pyx_CoroutineObject, type);
@@ -981,9 +974,24 @@ static void __Pyx_Coroutine_check_and_dealloc(PyObject *self) {
     __Pyx_Coroutine_dealloc(self);
 }
 
+static PyObject *__Pyx_Coroutine_return_self(PyObject *self) {
+    Py_INCREF(self);
+    return self;
+}
+
+static PyMethodDef __pyx_Coroutine_methods[] = {
+    {"send", (PyCFunction) __Pyx_Coroutine_Send, METH_O, 0},
+    {"throw", (PyCFunction) __Pyx_Coroutine_Throw, METH_VARARGS, 0},
+    {"close", (PyCFunction) __Pyx_Coroutine_Close, METH_NOARGS, 0},
+#if PY_VERSION_HEX < 0x030500B1
+    {"__await__", (PyCFunction) __Pyx_Coroutine_return_self, METH_NOARGS, 0},
+#endif
+    {0, 0, 0, 0}
+};
+
 #if PY_VERSION_HEX >= 0x030500B1
 static PyAsyncMethods __pyx_Coroutine_as_async = {
-    0, /*am_await*/
+    __Pyx_Coroutine_return_self, /*am_await*/
     0, /*am_aiter*/
     0, /*am_anext*/
 };
@@ -1066,6 +1074,13 @@ static int __pyx_Coroutine_init(void) {
 //@requires: CoroutineBase
 //@requires: PatchGeneratorABC
 
+static PyMethodDef __pyx_Generator_methods[] = {
+    {"send", (PyCFunction) __Pyx_Coroutine_Send, METH_O, 0},
+    {"throw", (PyCFunction) __Pyx_Coroutine_Throw, METH_VARARGS, 0},
+    {"close", (PyCFunction) __Pyx_Coroutine_Close, METH_NOARGS, 0},
+    {0, 0, 0, 0}
+};
+
 static PyTypeObject __pyx_GeneratorType_type = {
     PyVarObject_HEAD_INIT(0, 0)
     "generator",                        /*tp_name*/
@@ -1075,11 +1090,7 @@ static PyTypeObject __pyx_GeneratorType_type = {
     0,                                  /*tp_print*/
     0,                                  /*tp_getattr*/
     0,                                  /*tp_setattr*/
-#if PY_MAJOR_VERSION < 3
-    0,                                  /*tp_compare*/
-#else
-    0,                                  /*reserved*/
-#endif
+    0,                                  /*tp_compare / tp_as_async*/
     0,                                  /*tp_repr*/
     0,                                  /*tp_as_number*/
     0,                                  /*tp_as_sequence*/
@@ -1098,7 +1109,7 @@ static PyTypeObject __pyx_GeneratorType_type = {
     offsetof(__pyx_CoroutineObject, gi_weakreflist), /*tp_weaklistoffset*/
     0,                                  /*tp_iter*/
     (iternextfunc) __Pyx_Generator_Next, /*tp_iternext*/
-    __pyx_Coroutine_methods,            /*tp_methods*/
+    __pyx_Generator_methods,            /*tp_methods*/
     __pyx_Coroutine_memberlist,         /*tp_members*/
     __pyx_Coroutine_getsets,            /*tp_getset*/
     0,                                  /*tp_base*/
