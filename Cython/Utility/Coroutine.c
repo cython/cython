@@ -94,21 +94,18 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAwaitableIter(PyObject *o) {
     return __Pyx__Coroutine_GetAwaitableIter(o);
 }
 
-// copied and adapted from genobject.c in Py3.5
-static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *o) {
+// adapted from genobject.c in Py3.5
+static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
     PyObject *res;
 #if PY_VERSION_HEX >= 0x030500B1
-    unaryfunc getter = NULL;
-    PyTypeObject *ot;
-
-    ot = Py_TYPE(o);
-    if (likely(ot->tp_as_async)) {
-        getter = (unaryfunc) ot->tp_as_async->am_await;
+    PyAsyncMethods* am = Py_TYPE(obj)->tp_as_async;
+    if (likely(am && am->am_await)) {
+        res = (*am->am_await)(obj);
+    } else {
+        goto slot_error;
     }
-    if (unlikely(getter)) goto slot_error;
-    res = (*getter)(o);
 #else
-    PyObject *method = __Pyx_PyObject_GetAttrStr(o, PYIDENT("__await__"));
+    PyObject *method = __Pyx_PyObject_GetAttrStr(obj, PYIDENT("__await__"));
     if (unlikely(!method)) goto slot_error;
     #if CYTHON_COMPILING_IN_CPYTHON
     if (likely(PyMethod_Check(method))) {
@@ -149,7 +146,7 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *o) {
 slot_error:
     PyErr_Format(PyExc_TypeError,
                  "object %.100s can't be used in 'await' expression",
-                 Py_TYPE(o)->tp_name);
+                 Py_TYPE(obj)->tp_name);
 bad:
     return NULL;
 }
@@ -985,11 +982,11 @@ static void __Pyx_Coroutine_check_and_dealloc(PyObject *self) {
 }
 
 #if PY_VERSION_HEX >= 0x030500B1
-static PyAsyncMethods __pyx_Coroutine_as_async {
+static PyAsyncMethods __pyx_Coroutine_as_async = {
     0, /*am_await*/
     0, /*am_aiter*/
     0, /*am_anext*/
-}
+};
 #endif
 
 static PyTypeObject __pyx_CoroutineType_type = {
@@ -1002,7 +999,7 @@ static PyTypeObject __pyx_CoroutineType_type = {
     0,                                  /*tp_getattr*/
     0,                                  /*tp_setattr*/
 #if PY_VERSION_HEX >= 0x030500B1
-    __pyx_Coroutine_as_async,           /*tp_as_async*/
+    &__pyx_Coroutine_as_async,          /*tp_as_async*/
 #else
     0,                                  /*tp_reserved resp. tp_compare*/
 #endif
