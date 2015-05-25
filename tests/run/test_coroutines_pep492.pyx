@@ -1,4 +1,6 @@
 # cython: language_level=3, binding=True
+# mode: run
+# tag: pep492, asyncfor, await
 
 import re
 import gc
