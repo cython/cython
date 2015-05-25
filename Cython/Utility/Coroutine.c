@@ -155,6 +155,56 @@ bad:
 }
 
 
+//////////////////// AsyncIter.proto ////////////////////
+
+static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *o); /*proto*/
+static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *o); /*proto*/
+
+//////////////////// AsyncIter ////////////////////
+//@requires: GetAwaitIter
+//@requires: ObjectHandling.c::PyObjectCallMethod0
+
+static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *obj) {
+#if PY_VERSION_HEX >= 0x030500B1
+    PyAsyncMethods* am = Py_TYPE(obj)->tp_as_async;
+    if (likely(am && am->am_aiter)) {
+        return (*am->am_aiter)(obj);
+    }
+#else
+    PyObject *iter = __Pyx_PyObject_CallMethod0(obj, PYIDENT("__aiter__"));
+    if (likely(iter))
+        return iter;
+    // FIXME: for the sake of a nicely conforming exception message, assume any AttributeError meant '__aiter__'
+    if (!PyErr_ExceptionMatches(PyExc_AttributeError))
+        return NULL;
+#endif
+
+    PyErr_Format(PyExc_TypeError, "'async for' requires an object with __aiter__ method, got %.100s",
+                 Py_TYPE(obj)->tp_name);
+    return NULL;
+}
+
+static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *obj) {
+#if PY_VERSION_HEX >= 0x030500B1
+    PyAsyncMethods* am = Py_TYPE(obj)->tp_as_async;
+    if (likely(am && am->am_anext)) {
+        return (*am->am_anext)(obj);
+    } else {
+#else
+    PyObject *value = __Pyx_PyObject_CallMethod0(obj, PYIDENT("__anext__"));
+    if (likely(value))
+        return value;
+    // FIXME: for the sake of a nicely conforming exception message, assume any AttributeError meant '__anext__'
+    if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
+#endif
+
+        PyErr_Format(PyExc_TypeError, "'async for' requires an object with __anext__ method, got %.100s",
+                     Py_TYPE(obj)->tp_name);
+    }
+    return NULL;
+}
+
+
 //////////////////// pep479.proto ////////////////////
 
 static void __Pyx_Generator_Replace_StopIteration(void); /*proto*/
@@ -1530,4 +1580,103 @@ except AttributeError:
     if (0) return __Pyx_Coroutine_patch_module(module, NULL);
 #endif
     return module;
+}
+
+
+//////////////////// StopAsyncIteration.proto ////////////////////
+
+#define __Pyx_StopAsyncIteration_USED
+static PyObject *__Pyx_PyExc_StopAsyncIteration;
+static int __pyx_StopAsyncIteration_init(void); /*proto*/
+
+//////////////////// StopAsyncIteration ////////////////////
+
+#if PY_VERSION_HEX < 0x030500B1
+static PyTypeObject __Pyx__PyExc_StopAsyncIteration_type = {
+    PyVarObject_HEAD_INIT(0, 0)
+    "StopAsyncIteration",               /*tp_name*/
+    sizeof(PyBaseExceptionObject),      /*tp_basicsize*/
+    0,                                  /*tp_itemsize*/
+    0,                                  /*tp_dealloc*/
+    0,                                  /*tp_print*/
+    0,                                  /*tp_getattr*/
+    0,                                  /*tp_setattr*/
+#if PY_MAJOR_VERSION < 3
+    0,                                  /*tp_compare*/
+#else
+    0,                                  /*reserved*/
+#endif
+    0,                                  /*tp_repr*/
+    0,                                  /*tp_as_number*/
+    0,                                  /*tp_as_sequence*/
+    0,                                  /*tp_as_mapping*/
+    0,                                  /*tp_hash*/
+    0,                                  /*tp_call*/
+    0,                                  /*tp_str*/
+    0,                                  /*tp_getattro*/
+    0,                                  /*tp_setattro*/
+    0,                                  /*tp_as_buffer*/
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC,  /*tp_flags*/
+    PyDoc_STR("Signal the end from iterator.__anext__()."),  /*tp_doc*/
+    0,                                  /*tp_traverse*/
+    0,                                  /*tp_clear*/
+    0,                                  /*tp_richcompare*/
+    0,                                  /*tp_weaklistoffset*/
+    0,                                  /*tp_iter*/
+    0,                                  /*tp_iternext*/
+    0,                                  /*tp_methods*/
+    0,                                  /*tp_members*/
+    0,                                  /*tp_getset*/
+    0,                                  /*tp_base*/
+    0,                                  /*tp_dict*/
+    0,                                  /*tp_descr_get*/
+    0,                                  /*tp_descr_set*/
+    0,                                  /*tp_dictoffset*/
+    0,                                  /*tp_init*/
+    0,                                  /*tp_alloc*/
+    0,                                  /*tp_new*/
+    0,                                  /*tp_free*/
+    0,                                  /*tp_is_gc*/
+    0,                                  /*tp_bases*/
+    0,                                  /*tp_mro*/
+    0,                                  /*tp_cache*/
+    0,                                  /*tp_subclasses*/
+    0,                                  /*tp_weaklist*/
+    0,                                  /*tp_del*/
+    0,                                  /*tp_version_tag*/
+#if PY_VERSION_HEX >= 0x030400a1
+    0,                                  /*tp_finalize*/
+#endif
+};
+#endif
+
+static int __pyx_StopAsyncIteration_init(void) {
+#if PY_VERSION_HEX >= 0x030500B1
+    __Pyx_PyExc_StopAsyncIteration = PyExc_StopAsyncIteration;
+#else
+    PyObject *builtins = PyEval_GetBuiltins();
+    if (likely(builtins)) {
+        PyObject *exc = PyMapping_GetItemString(builtins, "StopAsyncIteration");
+        if (exc) {
+            __Pyx_PyExc_StopAsyncIteration = exc;
+            return 0;
+        }
+    }
+    PyErr_Clear();
+
+    __Pyx__PyExc_StopAsyncIteration_type.tp_traverse = ((PyTypeObject*)PyExc_BaseException)->tp_traverse;
+    __Pyx__PyExc_StopAsyncIteration_type.tp_clear = ((PyTypeObject*)PyExc_BaseException)->tp_clear;
+    __Pyx__PyExc_StopAsyncIteration_type.tp_dealloc = ((PyTypeObject*)PyExc_BaseException)->tp_dealloc;
+    __Pyx__PyExc_StopAsyncIteration_type.tp_dictoffset = ((PyTypeObject*)PyExc_BaseException)->tp_dictoffset;
+    __Pyx__PyExc_StopAsyncIteration_type.tp_base = (PyTypeObject*)PyExc_Exception;
+    __Pyx__PyExc_StopAsyncIteration_type.tp_init = ((PyTypeObject*)PyExc_BaseException)->tp_init;
+    __Pyx__PyExc_StopAsyncIteration_type.tp_new = ((PyTypeObject*)PyExc_BaseException)->tp_new;
+
+    __Pyx_PyExc_StopAsyncIteration = (PyObject*) __Pyx_FetchCommonType(&__Pyx__PyExc_StopAsyncIteration_type);
+    if (unlikely(!__Pyx_PyExc_StopAsyncIteration))
+        return -1;
+    if (builtins && unlikely(PyMapping_SetItemString(builtins, "StopAsyncIteration", __Pyx_PyExc_StopAsyncIteration) < 0))
+        return -1;
+#endif
+    return 0;
 }

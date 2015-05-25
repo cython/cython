@@ -49,7 +49,6 @@ non_portable_builtins_map = {
     'basestring'    : ('PY_MAJOR_VERSION >= 3', 'str'),
     'xrange'        : ('PY_MAJOR_VERSION >= 3', 'range'),
     'raw_input'     : ('PY_MAJOR_VERSION >= 3', 'input'),
-    'StopAsyncIteration': ('PY_VERSION_HEX < 0x030500B1', 'StopIteration'),
 }
 
 basicsize_builtins_map = {

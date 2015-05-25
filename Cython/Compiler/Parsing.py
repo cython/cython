@@ -390,17 +390,12 @@ def p_async_statement(s, ctx, decorators):
     elif decorators:
         s.error("Decorators can only be followed by functions or classes")
     elif s.sy == 'for':
-        #s.error("'async for' is not currently supported", fatal=False)
-        return p_statement(s, ctx)  # TODO: implement
+        return p_for_statement(s, is_async=True)
     elif s.sy == 'with':
         s.next()
         return p_with_items(s, is_async=True)
     else:
         s.error("expected one of 'def', 'for', 'with' after 'async'")
-
-
-def p_await_expression(s):
-    n1 = p_atom(s)
 
 
 #power: atom_expr ('**' factor)*
@@ -1604,23 +1599,25 @@ def p_while_statement(s):
         condition = test, body = body,
         else_clause = else_clause)
 
-def p_for_statement(s):
+
+def p_for_statement(s, is_async=False):
     # s.sy == 'for'
     pos = s.position()
     s.next()
-    kw = p_for_bounds(s, allow_testlist=True)
+    kw = p_for_bounds(s, allow_testlist=True, is_async=is_async)
     body = p_suite(s)
     else_clause = p_else_clause(s)
-    kw.update(body = body, else_clause = else_clause)
+    kw.update(body=body, else_clause=else_clause, is_async=is_async)
     return Nodes.ForStatNode(pos, **kw)
 
-def p_for_bounds(s, allow_testlist=True):
+
+def p_for_bounds(s, allow_testlist=True, is_async=False):
     target = p_for_target(s)
     if s.sy == 'in':
         s.next()
-        iterator = p_for_iterator(s, allow_testlist)
-        return dict( target = target, iterator = iterator )
-    elif not s.in_python_file:
+        iterator = p_for_iterator(s, allow_testlist, is_async=is_async)
+        return dict(target=target, iterator=iterator)
+    elif not s.in_python_file and not is_async:
         if s.sy == 'from':
             s.next()
             bound1 = p_bit_expr(s)
@@ -1690,16 +1687,19 @@ def p_target(s, terminator):
     else:
         return expr
 
+
 def p_for_target(s):
     return p_target(s, 'in')
 
-def p_for_iterator(s, allow_testlist=True):
+
+def p_for_iterator(s, allow_testlist=True, is_async=False):
     pos = s.position()
     if allow_testlist:
         expr = p_testlist(s)
     else:
         expr = p_or_test(s)
-    return ExprNodes.IteratorNode(pos, sequence = expr)
+    return (ExprNodes.AsyncIteratorNode if is_async else ExprNodes.IteratorNode)(pos, sequence=expr)
+
 
 def p_try_statement(s):
     # s.sy == 'try'

@@ -2071,7 +2071,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("%s = PyBytes_FromStringAndSize(\"\", 0); %s" % (
             Naming.empty_bytes, code.error_goto_if_null(Naming.empty_bytes, self.pos)))
 
-        for ext_type in ('CyFunction', 'FusedFunction', 'Coroutine', 'Generator'):
+        for ext_type in ('CyFunction', 'FusedFunction', 'Coroutine', 'Generator', 'StopAsyncIteration'):
             code.putln("#ifdef __Pyx_%s_USED" % ext_type)
             code.put_error_if_neg(self.pos, "__pyx_%s_init()" % ext_type)
             code.putln("#endif")

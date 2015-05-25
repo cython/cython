@@ -6069,40 +6069,49 @@ class DictIterationNextNode(Node):
             target.generate_assignment_code(result, code)
             var.release(code)
 
+
 def ForStatNode(pos, **kw):
     if 'iterator' in kw:
-        return ForInStatNode(pos, **kw)
+        if kw['iterator'].is_async:
+            return AsyncForStatNode(pos, **kw)
+        else:
+            return ForInStatNode(pos, **kw)
     else:
         return ForFromStatNode(pos, **kw)
 
-class ForInStatNode(LoopNode, StatNode):
-    #  for statement
+
+class _ForInStatNode(LoopNode, StatNode):
+    #  Base class of 'for-in' statements.
     #
     #  target        ExprNode
-    #  iterator      IteratorNode
+    #  iterator      IteratorNode | AwaitExprNode(AsyncIteratorNode)
     #  body          StatNode
     #  else_clause   StatNode
-    #  item          NextNode       used internally
+    #  item          NextNode | AwaitExprNode(AsyncNextNode)
+    #  is_async      boolean        true for 'async for' statements
 
-    child_attrs = ["target", "iterator", "body", "else_clause"]
+    child_attrs = ["target", "item", "iterator", "body", "else_clause"]
     item = None
+    is_async = False
+
+    def _create_item_node(self):
+        raise NotImplementedError("must be implemented by subclasses")
 
     def analyse_declarations(self, env):
-        from . import ExprNodes
         self.target.analyse_target_declaration(env)
         self.body.analyse_declarations(env)
         if self.else_clause:
             self.else_clause.analyse_declarations(env)
-        self.item = ExprNodes.NextNode(self.iterator)
+        self._create_item_node()
 
     def analyse_expressions(self, env):
         self.target = self.target.analyse_target_types(env)
         self.iterator = self.iterator.analyse_expressions(env)
-        from . import ExprNodes
-        self.item = ExprNodes.NextNode(self.iterator)  # must rewrap after analysis
+        self._create_item_node()  # must rewrap self.item after analysis
         self.item = self.item.analyse_expressions(env)
-        if (self.iterator.type.is_ptr or self.iterator.type.is_array) and \
-            self.target.type.assignable_from(self.iterator.type):
+        if (not self.is_async and
+                (self.iterator.type.is_ptr or self.iterator.type.is_array) and
+                self.target.type.assignable_from(self.iterator.type)):
             # C array slice optimization.
             pass
         else:
@@ -6166,6 +6175,37 @@ class ForInStatNode(LoopNode, StatNode):
         if self.else_clause:
             self.else_clause.annotate(code)
         self.item.annotate(code)
+
+
+class ForInStatNode(_ForInStatNode):
+    #  'for' statement
+
+    is_async = False
+
+    def _create_item_node(self):
+        from .ExprNodes import NextNode
+        self.item = NextNode(self.iterator)
+
+
+class AsyncForStatNode(_ForInStatNode):
+    #  'async for' statement
+    #
+    #  iterator      AwaitExprNode(AsyncIteratorNode)
+    #  item          AwaitIterNextExprNode(AsyncIteratorNode)
+
+    is_async = True
+
+    def __init__(self, pos, iterator, **kw):
+        assert 'item' not in kw
+        from . import ExprNodes
+        # AwaitExprNodes must appear before running MarkClosureVisitor
+        kw['iterator'] = ExprNodes.AwaitExprNode(iterator.pos, arg=iterator)
+        kw['item'] = ExprNodes.AwaitIterNextExprNode(iterator.pos, arg=None)
+        _ForInStatNode.__init__(self, pos, **kw)
+
+    def _create_item_node(self):
+        from . import ExprNodes
+        self.item.arg = ExprNodes.AsyncNextNode(self.iterator)
 
 
 class ForFromStatNode(LoopNode, StatNode):
