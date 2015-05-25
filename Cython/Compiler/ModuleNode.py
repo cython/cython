@@ -2142,7 +2142,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("/*--- Execution code ---*/")
         code.mark_pos(None)
 
-        code.putln("#ifdef __Pyx_Generator_USED")
+        code.putln("#if defined(__Pyx_Generator_USED) || defined(__Pyx_Coroutine_USED)")
         code.put_error_if_neg(self.pos, "__Pyx_patch_abc()")
         code.putln("#endif")
 
