@@ -331,13 +331,13 @@ Cython code.  Here is the list of currently supported directives:
     the operands have opposite signs) and raise a
     ``ZeroDivisionError`` when the right operand is 0. This has up to
     a 35% speed penalty. If set to True, no checks are performed.  See
-    `CEP 516 <http://wiki.cython.org/enhancements/division>`_.  Default
+    `CEP 516 <https://github.com/cython/cython/wiki/enhancements-division>`_.  Default
     is False.
 
 ``cdivision_warnings`` (True / False)
     If set to True, Cython will emit a runtime warning whenever
     division is performed with negative operands.  See `CEP 516
-    <http://wiki.cython.org/enhancements/division>`_.  Default is
+    <https://github.com/cython/cython/wiki/enhancements-division>`_.  Default is
     False.
 
 ``always_allow_keywords`` (True / False)

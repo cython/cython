@@ -223,14 +223,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 h_code.putln("")
                 for entry in api_funcs:
                     type = CPtrType(entry.type)
-                    cname = env.mangle(Naming.func_prefix, entry.name)
+                    cname = env.mangle(Naming.func_prefix_api, entry.name)
                     h_code.putln("static %s = 0;" % type.declaration_code(cname))
                     h_code.putln("#define %s %s" % (entry.name, cname))
             if api_vars:
                 h_code.putln("")
                 for entry in api_vars:
                     type = CPtrType(entry.type)
-                    cname = env.mangle(Naming.varptr_prefix, entry.name)
+                    cname = env.mangle(Naming.varptr_prefix_api, entry.name)
                     h_code.putln("static %s = 0;" %  type.declaration_code(cname))
                     h_code.putln("#define %s (*%s)" % (entry.name, cname))
             h_code.put(UtilityCode.load_as_string("PyIdentifierFromString", "ImportExport.c")[0])
@@ -247,13 +247,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code.putln('module = __Pyx_ImportModule("%s");' % env.qualified_name)
             h_code.putln("if (!module) goto bad;")
             for entry in api_funcs:
-                cname = env.mangle(Naming.func_prefix, entry.name)
+                cname = env.mangle(Naming.func_prefix_api, entry.name)
                 sig = entry.type.signature_string()
                 h_code.putln(
                     'if (__Pyx_ImportFunction(module, "%s", (void (**)(void))&%s, "%s") < 0) goto bad;'
                     % (entry.name, cname, sig))
             for entry in api_vars:
-                cname = env.mangle(Naming.varptr_prefix, entry.name)
+                cname = env.mangle(Naming.varptr_prefix_api, entry.name)
                 sig = entry.type.empty_declaration_code()
                 h_code.putln(
                     'if (__Pyx_ImportVoidPtr(module, "%s", (void **)&%s, "%s") < 0) goto bad;'
