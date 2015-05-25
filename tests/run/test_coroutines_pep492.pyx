@@ -100,8 +100,8 @@ class TokenizerRegrTest(unittest.TestCase):
         ns = {}
         exec(buf, ns, ns)
         self.assertEqual(ns['i499'](), 499)
-        if hasattr(inspect, 'iscoroutinefunction'):
-            self.assertTrue(inspect.iscoroutinefunction(ns['foo']))
+        self.assertEqual(type(ns['foo']()).__name__, 'coroutine')
+        #self.assertTrue(inspect.iscoroutinefunction(ns['foo']))
 
 
 class CoroutineTest(unittest.TestCase):
@@ -1045,7 +1045,7 @@ class SysSetCoroWrapperTest(unittest.TestCase):
 # disable some tests that only apply to CPython
 
 # TODO?
-if False and sys.version_info < (3, 5):
+if True or sys.version_info < (3, 5):
     SysSetCoroWrapperTest = None
 
 try:
