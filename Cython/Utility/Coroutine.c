@@ -1267,7 +1267,8 @@ static int __Pyx_patch_abc(void); /*proto*/
 //@requires: PatchModuleWithCoroutine
 
 static int __Pyx_patch_abc(void) {
-#if (defined(__Pyx_Generator_USED) || defined(__Pyx_Coroutine_USED)) && (!defined(CYTHON_PATCH_ABC) || CYTHON_PATCH_ABC)
+#if (defined(__Pyx_Generator_USED) || defined(__Pyx_Coroutine_USED)) && \
+        (!defined(CYTHON_PATCH_ABC) || CYTHON_PATCH_ABC)
     static int abc_patched = 0;
     if (!abc_patched) {
         PyObject *module;
@@ -1281,35 +1282,10 @@ static int __Pyx_patch_abc(void) {
                 return -1;
             }
         } else {
-            PyObject *abc;
-            int needs_generator = 1, needs_coroutine = 1;
-            #ifdef __Pyx_Generator_USED
-            abc = PyObject_GetAttrString(module, "Generator");
-            if (abc) {
-                needs_generator = 0;
-                Py_DECREF(abc);
-            } else {
-                PyErr_Clear();
-            }
-            #else
-            needs_generator = 0;
-            #endif
-            #ifdef __Pyx_Coroutine_USED
-            abc = PyObject_GetAttrString(module, "Coroutine");
-            if (abc) {
-                needs_coroutine = 0;
-                Py_DECREF(abc);
-            } else {
-                PyErr_Clear();
-            }
-            #else
-            needs_coroutine = 0;
-            #endif
-            if (needs_coroutine || needs_generator) {
-                module = __Pyx_Coroutine_patch_module(
-                    module,
+            module = __Pyx_Coroutine_patch_module(
+                module,
 #ifdef __Pyx_Generator_USED
-                    CSTRING("""\
+                CSTRING("""\
 def mk_gen():
     from abc import abstractmethod
 
@@ -1364,29 +1340,31 @@ def mk_gen():
 
     generator = type((lambda: (yield))())
     Generator.register(generator)
-    Generator.register(_cython_generator_type)
     return Generator
 
-_module.Generator = mk_gen()
+try:
+    Generator = _module.Generator
+except AttributeError:
+    Generator = _module.Generator = mk_gen()
+Generator.register(_cython_generator_type)
 """)
 #endif
 #ifdef __Pyx_Coroutine_USED
-                    CSTRING("""\
+                CSTRING("""\
 def mk_coroutine():
     from abc import abstractmethod, ABCMeta
-
 """)
 #if PY_MAJOR_VERSION >= 3
-                    CSTRING("""\
+                CSTRING("""\
     class Coroutine(metaclass=ABCMeta):
 """)
 #else
-                    CSTRING("""\
+                CSTRING("""\
     class Coroutine(object):
         __metaclass__ = ABCMeta
 """)
 #endif
-                    CSTRING("""\
+                CSTRING("""\
         __slots__ = ()
 
         @abstractmethod
@@ -1419,18 +1397,28 @@ def mk_coroutine():
             else:
                 raise RuntimeError('coroutine ignored GeneratorExit')
 
+    return Coroutine
+
+try:
+    Coroutine = _module.Coroutine
+except AttributeError:
+    Coroutine = _module.Coroutine = mk_coroutine()
+Coroutine.register(_cython_coroutine_type)
+
+def mk_awaitable():
+    from abc import abstractmethod, ABCMeta
 """)
 #if PY_MAJOR_VERSION >= 3
-                    CSTRING("""\
+                CSTRING("""\
     class Awaitable(metaclass=ABCMeta):
 """)
 #else
-                    CSTRING("""\
+                CSTRING("""\
     class Awaitable(object):
         __metaclass__ = ABCMeta
 """)
 #endif
-                    CSTRING("""\
+                CSTRING("""\
         __slots__ = ()
 
         @abstractmethod
@@ -1447,23 +1435,21 @@ def mk_coroutine():
                         break
             return NotImplemented
 
-    try:
-        _module.Awaitable
-    except AttributeError:
-        Awaitable.register(Coroutine)
-        _module.Awaitable = Awaitable
+    return Awaitable
 
-    Coroutine.register(_cython_coroutine_type)
-    return Coroutine
+try:
+    Awaitable = _module.Awaitable
+except AttributeError:
+    Awaitable = _module.Awaitable = mk_awaitable()
+    Awaitable.register(Coroutine)
 
-_module.Coroutine = mk_coroutine()
+Awaitable.register(_cython_coroutine_type)
 """)
 #endif
-                );
-                abc_patched = 1;
-                if (unlikely(!module))
-                    return -1;
-            }
+            );
+            abc_patched = 1;
+            if (unlikely(!module))
+                return -1;
             Py_DECREF(module);
         }
     }
@@ -1481,11 +1467,14 @@ _module.Coroutine = mk_coroutine()
 static PyObject* __Pyx_patch_asyncio(PyObject* module); /*proto*/
 
 //////////////////// PatchAsyncIO ////////////////////
+//@requires: ImportExport.c::Import
 //@requires: PatchModuleWithCoroutine
 //@requires: PatchInspect
 
 static PyObject* __Pyx_patch_asyncio(PyObject* module) {
-#if defined(__Pyx_Generator_USED) && (!defined(CYTHON_PATCH_ASYNCIO) || CYTHON_PATCH_ASYNCIO)
+#if PY_VERSION_HEX < 0x030500B1 && \
+        (defined(__Pyx_Coroutine_USED) || defined(__Pyx_Generator_USED)) && \
+        (!defined(CYTHON_PATCH_ASYNCIO) || CYTHON_PATCH_ASYNCIO)
     PyObject *patch_module = NULL;
     static int asyncio_patched = 0;
     if (unlikely((!asyncio_patched) && module)) {
@@ -1494,12 +1483,25 @@ static PyObject* __Pyx_patch_asyncio(PyObject* module) {
         if (package) {
             patch_module = __Pyx_Coroutine_patch_module(
                 PyObject_GetAttrString(package, "coroutines"), CSTRING("""\
-old_types = getattr(_module, '_COROUTINE_TYPES', None)
-if old_types is not None and _cython_generator_type not in old_types:
-    _module._COROUTINE_TYPES = type(old_types) (tuple(old_types) + (_cython_generator_type,))
+coro_types = getattr(_module, '_COROUTINE_TYPES', None)
+""")
+#ifdef __Pyx_Coroutine_USED
+CSTRING("""\
+if coro_types is not None and _cython_coroutine_type not in coro_types:
+    coro_types = type(coro_types) (tuple(coro_types) + (_cython_coroutine_type,))
+""")
+#endif
+#ifdef __Pyx_Generator_USED
+CSTRING("""\
+if coro_types is not None and _cython_generator_type not in coro_types:
+    coro_types = type(coro_types) (tuple(coro_types) + (_cython_generator_type,))
+""")
+#endif
+CSTRING("""
+_module._COROUTINE_TYPES = coro_types
 """)
             );
-        #if PY_VERSION_HEX < 0x03050000
+#if PY_VERSION_HEX < 0x03050000
         } else {
             // Py3.4 used to have asyncio.tasks instead of asyncio.coroutines
             PyErr_Clear();
@@ -1507,14 +1509,26 @@ if old_types is not None and _cython_generator_type not in old_types:
             if (unlikely(!package)) goto asyncio_done;
             patch_module = __Pyx_Coroutine_patch_module(
                 PyObject_GetAttrString(package, "tasks"), CSTRING("""\
-if (hasattr(_module, 'iscoroutine') and
-        getattr(_module.iscoroutine, '_cython_generator_type', None) is not _cython_generator_type):
-    def cy_wrap(orig_func, cython_generator_type=_cython_generator_type, type=type):
-        def cy_iscoroutine(obj): return type(obj) is cython_generator_type or orig_func(obj)
-        cy_iscoroutine._cython_generator_type = cython_generator_type
-        return cy_iscoroutine
-    _module.iscoroutine = cy_wrap(_module.iscoroutine)
+if hasattr(_module, 'iscoroutine'):
+    old_coroutine_types = getattr(_module.iscoroutine, '_cython_coroutine_types', None)
+    if old_coroutine_types is None or not isinstance(old_coroutine_types, list):
+        old_coroutine_types = []
+        def cy_wrap(orig_func, type=type, cython_coroutine_types=old_coroutine_types):
+            def cy_iscoroutine(obj): return type(obj) in cython_coroutine_types or orig_func(obj)
+            cy_iscoroutine._cython_coroutine_types = cython_coroutine_types
+            return cy_iscoroutine
+        _module.iscoroutine = cy_wrap(_module.iscoroutine)
 """)
+#ifdef __Pyx_Coroutine_USED
+CSTRING("""\
+    if _cython_coroutine_type not in old_coroutine_types: old_coroutine_types.append(_cython_coroutine_type)
+""")
+#endif
+#ifdef __Pyx_Generator_USED
+CSTRING("""\
+    if _cython_generator_type not in old_coroutine_types: old_coroutine_types.append(_cython_generator_type)
+""")
+#endif
             );
         #endif
         }
