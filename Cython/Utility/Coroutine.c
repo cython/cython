@@ -1424,19 +1424,18 @@ def mk_coroutine():
             else:
                 raise RuntimeError('coroutine ignored GeneratorExit')
 
-         @classmethod
-         def __subclasshook__(cls, C):
-             if cls is Coroutine:
-                 mro = C.__mro__
-                 for method in ('__await__', 'send', 'throw', 'close'):
-                     for base in mro:
-                         if method in base.__dict__:
-                             break
-                     else:
-                         return NotImplemented
-                 return True
-             return NotImplemented
-
+        @classmethod
+        def __subclasshook__(cls, C):
+            if cls is Coroutine:
+                mro = C.__mro__
+                for method in ('__await__', 'send', 'throw', 'close'):
+                    for base in mro:
+                        if method in base.__dict__:
+                            break
+                    else:
+                        return NotImplemented
+                return True
+            return NotImplemented
 
     return Coroutine
 
