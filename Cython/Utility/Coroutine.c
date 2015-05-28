@@ -1825,11 +1825,8 @@ static int __pyx_StopAsyncIteration_init(void) {
 
     __Pyx__PyExc_StopAsyncIteration_type.tp_traverse = ((PyTypeObject*)PyExc_BaseException)->tp_traverse;
     __Pyx__PyExc_StopAsyncIteration_type.tp_clear = ((PyTypeObject*)PyExc_BaseException)->tp_clear;
-    __Pyx__PyExc_StopAsyncIteration_type.tp_dealloc = ((PyTypeObject*)PyExc_BaseException)->tp_dealloc;
     __Pyx__PyExc_StopAsyncIteration_type.tp_dictoffset = ((PyTypeObject*)PyExc_BaseException)->tp_dictoffset;
     __Pyx__PyExc_StopAsyncIteration_type.tp_base = (PyTypeObject*)PyExc_Exception;
-    __Pyx__PyExc_StopAsyncIteration_type.tp_init = ((PyTypeObject*)PyExc_BaseException)->tp_init;
-    __Pyx__PyExc_StopAsyncIteration_type.tp_new = ((PyTypeObject*)PyExc_BaseException)->tp_new;
 
     __Pyx_PyExc_StopAsyncIteration = (PyObject*) __Pyx_FetchCommonType(&__Pyx__PyExc_StopAsyncIteration_type);
     if (unlikely(!__Pyx_PyExc_StopAsyncIteration))
