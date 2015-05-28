@@ -19,8 +19,8 @@ static CYTHON_INLINE PyObject* __Pyx_Generator_Yield_From(__pyx_CoroutineObject 
                 && __Pyx_Coroutine_CheckExact(source)) {
             PyErr_Clear();
             // TODO: this should only happen for types.coroutine()ed generators, but we can't determine that here
-            Py_INCREF(source);
-            source_gen = source;
+            source_gen = __Pyx__Coroutine_await(source);
+            if (unlikely(!source_gen)) return NULL;
         } else
         #endif
         return NULL;
@@ -257,12 +257,14 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue);
 
 #define __Pyx_Coroutine_USED
 static PyTypeObject *__pyx_CoroutineType = 0;
+static PyTypeObject *__pyx_CoroutineAwaitType = 0;
 #define __Pyx_Coroutine_CheckExact(obj) (Py_TYPE(obj) == __pyx_CoroutineType)
 
 #define __Pyx_Coroutine_New(body, closure, name, qualname)  \
     __Pyx__Coroutine_New(__pyx_CoroutineType, body, closure, name, qualname)
 
 static int __pyx_Coroutine_init(void);
+static CYTHON_INLINE PyObject *__Pyx__Coroutine_await(PyObject *coroutine);
 
 
 //////////////////// Generator.proto ////////////////////
@@ -943,6 +945,105 @@ static __pyx_CoroutineObject *__Pyx__Coroutine_New(PyTypeObject* type, __pyx_cor
 //@requires: CoroutineBase
 //@requires: PatchGeneratorABC
 
+typedef struct {
+    PyObject_HEAD
+    PyObject *coroutine;
+} __pyx_CoroutineAwaitObject;
+
+static void __Pyx_CoroutineAwait_dealloc(PyObject *self) {
+    PyObject_GC_UnTrack(self);
+    Py_CLEAR(((__pyx_CoroutineAwaitObject*)self)->coroutine);
+    PyObject_GC_Del(self);
+}
+
+static int __Pyx_CoroutineAwait_traverse(__pyx_CoroutineAwaitObject *self, visitproc visit, void *arg) {
+    Py_VISIT(self->coroutine);
+    return 0;
+}
+
+static int __Pyx_CoroutineAwait_clear(__pyx_CoroutineAwaitObject *self) {
+    Py_CLEAR(self->coroutine);
+    return 0;
+}
+
+static PyObject *__Pyx_CoroutineAwait_Next(__pyx_CoroutineAwaitObject *self) {
+    return __Pyx_Generator_Next(self->coroutine);
+}
+
+static PyObject *__Pyx_CoroutineAwait_self(PyObject *self) {
+    Py_INCREF(self);
+    return self;
+}
+
+static PyTypeObject __pyx_CoroutineAwaitType_type = {
+    PyVarObject_HEAD_INIT(0, 0)
+    "coroutine_await",                  /*tp_name*/
+    sizeof(__pyx_CoroutineAwaitObject), /*tp_basicsize*/
+    0,                                  /*tp_itemsize*/
+    (destructor) __Pyx_CoroutineAwait_dealloc,/*tp_dealloc*/
+    0,                                  /*tp_print*/
+    0,                                  /*tp_getattr*/
+    0,                                  /*tp_setattr*/
+    0,                                  /*tp_as_async resp. tp_compare*/
+    0,                                  /*tp_repr*/
+    0,                                  /*tp_as_number*/
+    0,                                  /*tp_as_sequence*/
+    0,                                  /*tp_as_mapping*/
+    0,                                  /*tp_hash*/
+    0,                                  /*tp_call*/
+    0,                                  /*tp_str*/
+    0,                                  /*tp_getattro*/
+    0,                                  /*tp_setattro*/
+    0,                                  /*tp_as_buffer*/
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE, /*tp_flags*/
+    0,                                  /*tp_doc*/
+    (traverseproc) __Pyx_CoroutineAwait_traverse,   /*tp_traverse*/
+    (inquiry) __Pyx_CoroutineAwait_clear,           /*tp_clear*/
+    0,                                  /*tp_richcompare*/
+    0,                                  /*tp_weaklistoffset*/
+    __Pyx_CoroutineAwait_self,          /*tp_iter*/
+    (iternextfunc) __Pyx_CoroutineAwait_Next, /*tp_iternext*/
+    0,                                  /*tp_methods*/
+    0                         ,         /*tp_members*/
+    0                      ,            /*tp_getset*/
+    0,                                  /*tp_base*/
+    0,                                  /*tp_dict*/
+    0,                                  /*tp_descr_get*/
+    0,                                  /*tp_descr_set*/
+    0,                                  /*tp_dictoffset*/
+    0,                                  /*tp_init*/
+    0,                                  /*tp_alloc*/
+    0,                                  /*tp_new*/
+    0,                                  /*tp_free*/
+    0,                                  /*tp_is_gc*/
+    0,                                  /*tp_bases*/
+    0,                                  /*tp_mro*/
+    0,                                  /*tp_cache*/
+    0,                                  /*tp_subclasses*/
+    0,                                  /*tp_weaklist*/
+    0,                                  /*tp_del*/
+    0,                                  /*tp_version_tag*/
+#if PY_VERSION_HEX >= 0x030400a1
+    0,                                  /*tp_finalize*/
+#endif
+};
+
+static CYTHON_INLINE PyObject *__Pyx__Coroutine_await(PyObject *coroutine) {
+    PyObject *await = __pyx_CoroutineAwaitType->tp_alloc(__pyx_CoroutineAwaitType, 0);
+    if (unlikely(!await)) return NULL;
+    Py_INCREF(coroutine);
+    ((__pyx_CoroutineAwaitObject*)await)->coroutine = coroutine;
+    return await;
+}
+
+static PyObject *__Pyx_Coroutine_await(PyObject *coroutine) {
+    if (unlikely(!coroutine || !__Pyx_Coroutine_CheckExact(coroutine))) {
+        PyErr_SetString(PyExc_TypeError, "invalid input, expected coroutine");
+        return NULL;
+    }
+    return __Pyx__Coroutine_await(coroutine);
+}
+
 static void __Pyx_Coroutine_check_and_dealloc(PyObject *self) {
     __pyx_CoroutineObject *gen = (__pyx_CoroutineObject *) self;
 
@@ -991,24 +1092,19 @@ static void __Pyx_Coroutine_check_and_dealloc(PyObject *self) {
     __Pyx_Coroutine_dealloc(self);
 }
 
-static PyObject *__Pyx_Coroutine_return_self(PyObject *self) {
-    Py_INCREF(self);
-    return self;
-}
-
 static PyMethodDef __pyx_Coroutine_methods[] = {
     {"send", (PyCFunction) __Pyx_Coroutine_Send, METH_O, 0},
     {"throw", (PyCFunction) __Pyx_Coroutine_Throw, METH_VARARGS, 0},
     {"close", (PyCFunction) __Pyx_Coroutine_Close, METH_NOARGS, 0},
 #if PY_VERSION_HEX < 0x030500B1
-    {"__await__", (PyCFunction) __Pyx_Coroutine_return_self, METH_NOARGS, 0},
+    {"__await__", (PyCFunction) __Pyx_Coroutine_await, METH_NOARGS, 0},
 #endif
     {0, 0, 0, 0}
 };
 
 #if PY_VERSION_HEX >= 0x030500B1
 static PyAsyncMethods __pyx_Coroutine_as_async = {
-    __Pyx_Coroutine_return_self, /*am_await*/
+    __Pyx_Coroutine_await, /*am_await*/
     0, /*am_aiter*/
     0, /*am_anext*/
 };
@@ -1046,7 +1142,7 @@ static PyTypeObject __pyx_CoroutineType_type = {
     offsetof(__pyx_CoroutineObject, gi_weakreflist), /*tp_weaklistoffset*/
 // no tp_iter() as iterator is only available through __await__()
     0,                                  /*tp_iter*/
-    (iternextfunc) __Pyx_Generator_Next, /*tp_iternext*/
+    0,                                  /*tp_iternext*/
     __pyx_Coroutine_methods,            /*tp_methods*/
     __pyx_Coroutine_memberlist,         /*tp_members*/
     __pyx_Coroutine_getsets,            /*tp_getset*/
@@ -1081,9 +1177,12 @@ static int __pyx_Coroutine_init(void) {
     __pyx_CoroutineType_type.tp_getattro = PyObject_GenericGetAttr;
 
     __pyx_CoroutineType = __Pyx_FetchCommonType(&__pyx_CoroutineType_type);
-    if (unlikely(!__pyx_CoroutineType)) {
+    if (unlikely(!__pyx_CoroutineType))
         return -1;
-    }
+
+    __pyx_CoroutineAwaitType = __Pyx_FetchCommonType(&__pyx_CoroutineAwaitType_type);
+    if (unlikely(!__pyx_CoroutineType))
+        return -1;
     return 0;
 }
 
@@ -1230,6 +1329,7 @@ static PyObject* __Pyx_Coroutine_patch_module(PyObject* module, const char* py_c
     globals = PyDict_New();  if (unlikely(!globals)) goto ignore;
     #ifdef __Pyx_Coroutine_USED
     if (unlikely(PyDict_SetItemString(globals, "_cython_coroutine_type", (PyObject*)__pyx_CoroutineType) < 0)) goto ignore;
+    if (unlikely(PyDict_SetItemString(globals, "_cython_coroutine_await_type", (PyObject*)__pyx_CoroutineAwaitType) < 0)) goto ignore;
     #endif
     #ifdef __Pyx_Generator_USED
     if (unlikely(PyDict_SetItemString(globals, "_cython_generator_type", (PyObject*)__pyx_GeneratorType) < 0)) goto ignore;
