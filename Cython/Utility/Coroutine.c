@@ -1451,60 +1451,6 @@ Generator.register(_cython_generator_type)
 #endif
 #ifdef __Pyx_Coroutine_USED
                 CSTRING("""\
-def mk_coroutine():
-    from abc import abstractmethod, ABCMeta
-""")
-#if PY_MAJOR_VERSION >= 3
-                CSTRING("""\
-    class Coroutine(metaclass=ABCMeta):
-""")
-#else
-                CSTRING("""\
-    class Coroutine(object):
-        __metaclass__ = ABCMeta
-""")
-#endif
-                CSTRING("""\
-        __slots__ = ()
-
-        @abstractmethod
-        def send(self, value):
-            '''Send a value into the coroutine.
-            Return next yielded value or raise StopIteration.
-            '''
-            raise StopIteration
-
-        @abstractmethod
-        def throw(self, typ, val=None, tb=None):
-            '''Raise an exception in the coroutine.
-            Return next yielded value or raise StopIteration.
-            '''
-            if val is None:
-                if tb is None:
-                    raise typ
-                val = typ()
-            if tb is not None:
-                val = val.with_traceback(tb)
-            raise val
-
-        def close(self):
-            '''Raise GeneratorExit inside coroutine.
-            '''
-            try:
-                self.throw(GeneratorExit)
-            except (GeneratorExit, StopIteration):
-                pass
-            else:
-                raise RuntimeError('coroutine ignored GeneratorExit')
-
-    return Coroutine
-
-try:
-    Coroutine = _module.Coroutine
-except AttributeError:
-    Coroutine = _module.Coroutine = mk_coroutine()
-Coroutine.register(_cython_coroutine_type)
-
 def mk_awaitable():
     from abc import abstractmethod, ABCMeta
 """)
@@ -1541,9 +1487,64 @@ try:
     Awaitable = _module.Awaitable
 except AttributeError:
     Awaitable = _module.Awaitable = mk_awaitable()
-    Awaitable.register(Coroutine)
 
-Awaitable.register(_cython_coroutine_type)
+def mk_coroutine():
+    from abc import abstractmethod, ABCMeta
+
+    class Coroutine(Awaitable):
+        __slots__ = ()
+
+        @abstractmethod
+        def send(self, value):
+            '''Send a value into the coroutine.
+            Return next yielded value or raise StopIteration.
+            '''
+            raise StopIteration
+
+        @abstractmethod
+        def throw(self, typ, val=None, tb=None):
+            '''Raise an exception in the coroutine.
+            Return next yielded value or raise StopIteration.
+            '''
+            if val is None:
+                if tb is None:
+                    raise typ
+                val = typ()
+            if tb is not None:
+                val = val.with_traceback(tb)
+            raise val
+
+        def close(self):
+            '''Raise GeneratorExit inside coroutine.
+            '''
+            try:
+                self.throw(GeneratorExit)
+            except (GeneratorExit, StopIteration):
+                pass
+            else:
+                raise RuntimeError('coroutine ignored GeneratorExit')
+
+         @classmethod
+         def __subclasshook__(cls, C):
+             if cls is Coroutine:
+                 mro = C.__mro__
+                 for method in ('__await__', 'send', 'throw', 'close'):
+                     for base in mro:
+                         if method in base.__dict__:
+                             break
+                     else:
+                         return NotImplemented
+                 return True
+             return NotImplemented
+
+
+    return Coroutine
+
+try:
+    Coroutine = _module.Coroutine
+except AttributeError:
+    Coroutine = _module.Coroutine = mk_coroutine()
+Coroutine.register(_cython_coroutine_type)
 """)
 #endif
             );
