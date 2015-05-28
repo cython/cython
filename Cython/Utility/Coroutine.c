@@ -19,8 +19,7 @@ static CYTHON_INLINE PyObject* __Pyx_Generator_Yield_From(__pyx_CoroutineObject 
                 && __Pyx_Coroutine_CheckExact(source)) {
             PyErr_Clear();
             // TODO: this should only happen for types.coroutine()ed generators, but we can't determine that here
-            Py_INCREF(source);
-            source_gen = source;
+            source_gen = __Pyx_Coroutine_await(source);
         } else
         #endif
         return NULL;
@@ -247,7 +246,7 @@ static __pyx_CoroutineObject *__Pyx__Coroutine_New(PyTypeObject *type, __pyx_cor
 static int __Pyx_Coroutine_clear(PyObject *self); /*proto*/
 
 #if 1 || PY_VERSION_HEX < 0x030300B0
-static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue);
+static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue); /*proto*/
 #else
 #define __Pyx_PyGen_FetchStopIterationValue(pvalue) PyGen_FetchStopIterationValue(pvalue)
 #endif
@@ -262,7 +261,8 @@ static PyTypeObject *__pyx_CoroutineType = 0;
 #define __Pyx_Coroutine_New(body, closure, name, qualname)  \
     __Pyx__Coroutine_New(__pyx_CoroutineType, body, closure, name, qualname)
 
-static int __pyx_Coroutine_init(void);
+static int __pyx_Coroutine_init(void); /*proto*/
+static PyObject *__Pyx_Coroutine_await(PyObject *coroutine); /*proto*/
 
 
 //////////////////// Generator.proto ////////////////////
@@ -274,7 +274,7 @@ static PyTypeObject *__pyx_GeneratorType = 0;
 #define __Pyx_Generator_New(body, closure, name, qualname)  \
     __Pyx__Coroutine_New(__pyx_GeneratorType, body, closure, name, qualname)
 
-static int __pyx_Generator_init(void);
+static int __pyx_Generator_init(void); /*proto*/
 
 
 //////////////////// CoroutineBase ////////////////////
@@ -991,7 +991,7 @@ static void __Pyx_Coroutine_check_and_dealloc(PyObject *self) {
     __Pyx_Coroutine_dealloc(self);
 }
 
-static PyObject *__Pyx_Coroutine_return_self(PyObject *self) {
+static PyObject *__Pyx_Coroutine_await(PyObject *self) {
     Py_INCREF(self);
     return self;
 }
@@ -1001,14 +1001,14 @@ static PyMethodDef __pyx_Coroutine_methods[] = {
     {"throw", (PyCFunction) __Pyx_Coroutine_Throw, METH_VARARGS, 0},
     {"close", (PyCFunction) __Pyx_Coroutine_Close, METH_NOARGS, 0},
 #if PY_VERSION_HEX < 0x030500B1
-    {"__await__", (PyCFunction) __Pyx_Coroutine_return_self, METH_NOARGS, 0},
+    {"__await__", (PyCFunction) __Pyx_Coroutine_await, METH_NOARGS, 0},
 #endif
     {0, 0, 0, 0}
 };
 
 #if PY_VERSION_HEX >= 0x030500B1
 static PyAsyncMethods __pyx_Coroutine_as_async = {
-    __Pyx_Coroutine_return_self, /*am_await*/
+    __Pyx_Coroutine_await, /*am_await*/
     0, /*am_aiter*/
     0, /*am_anext*/
 };
