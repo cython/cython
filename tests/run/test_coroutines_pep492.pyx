@@ -213,8 +213,9 @@ class CoroutineTest(unittest.TestCase):
         with check():
             iter(foo())
 
-        with check():
-            next(foo())
+        # in Cython: not iterable, but an iterator ...
+        #with check():
+        #    next(foo())
 
         with silence_coro_gc(), check():
             for i in foo():
