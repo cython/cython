@@ -366,8 +366,8 @@ def unpack_set_from_iterable(it):
 
 def unpack_set_keep_originals(a, b, c):
     """
-    >>> a = b = {1, 2}
-    >>> c = {3, 4}
+    >>> a = b = set([1, 2])
+    >>> c = set([3, 4])
     >>> s = unpack_set_keep_originals(a, b, c)
     >>> s == set([1, 2, 3, 4]) or s
     True
