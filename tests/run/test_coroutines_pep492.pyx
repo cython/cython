@@ -7,32 +7,45 @@ import gc
 import sys
 #import types
 import os.path
-import inspect
+#import inspect
 import unittest
 import warnings
 import contextlib
 
 
-# fake types.coroutine() decorator
-class types_coroutine(object):
-    def __init__(self, gen):
-        self._gen = gen
-
-    class as_coroutine(object):
+try:
+    from types import coroutine as types_coroutine
+except ImportError:
+    # duck typed types.coroutine() decorator copied from types.py in Py3.5
+    class types_coroutine(object):
         def __init__(self, gen):
             self._gen = gen
-            self.send = gen.send
-            self.throw = gen.throw
-            self.close = gen.close
 
-        def __await__(self):
-            return self._gen
+        class GeneratorWrapper:
+            def __init__(self, gen):
+                self.__wrapped__ = gen
+                self.send = gen.send
+                self.throw = gen.throw
+                self.close = gen.close
+                self.__name__ = getattr(gen, '__name__', None)
+                self.__qualname__ = getattr(gen, '__qualname__', None)
+            @property
+            def gi_code(self):
+                return self.__wrapped__.gi_code
+            @property
+            def gi_frame(self):
+                return self.__wrapped__.gi_frame
+            @property
+            def gi_running(self):
+                return self.__wrapped__.gi_running
+            def __next__(self):
+                return next(self.__wrapped__)
+            def __iter__(self):
+                return self.__wrapped__
+            __await__ = __iter__
 
-        def __iter__(self):
-            return self._gen
-
-    def __call__(self, *args, **kwargs):
-        return self.as_coroutine(self._gen(*args, **kwargs))
+        def __call__(self, *args, **kwargs):
+            return self.GeneratorWrapper(self._gen(*args, **kwargs))
 
 
 # compiled exec()
@@ -60,7 +73,7 @@ class AsyncYield:
 
 def run_async(coro):
     #assert coro.__class__ is types.GeneratorType
-    assert coro.__class__.__name__ in ('coroutine', 'as_coroutine')
+    assert coro.__class__.__name__ in ('coroutine', 'GeneratorWrapper')
 
     buffer = []
     result = None
