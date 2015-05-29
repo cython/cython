@@ -184,6 +184,22 @@
   #define __Pyx_PyMethod_New(func, self, klass) PyMethod_New(func, self, klass)
 #endif
 
+// backport of PyAsyncMethods from Py3.5 to older Py3.x versions
+// (mis-)using the "tp_reserved" type slot which is re-activated as "tp_as_async" in Py3.5
+#if PY_VERSION_HEX >= 0x030500B1
+#define __Pyx_PyAsyncMethodsStruct PyAsyncMethods
+#define __Pyx_PyType_AsAsync(obj) (Py_TYPE(obj)->tp_as_async)
+#elif PY_MAJOR_VERSION >= 3
+typedef struct {
+    unaryfunc am_await;
+    unaryfunc am_aiter;
+    unaryfunc am_anext;
+} __Pyx_PyAsyncMethodsStruct;
+#define __Pyx_PyType_AsAsync(obj) ((__Pyx_PyAsyncMethodsStruct*) (Py_TYPE(obj)->tp_reserved))
+#else
+#define __Pyx_PyType_AsAsync(obj) NULL
+#endif
+
 /* inline attribute */
 #ifndef CYTHON_INLINE
   #if defined(__GNUC__)

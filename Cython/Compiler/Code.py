@@ -49,7 +49,7 @@ non_portable_builtins_map = {
     'basestring'    : ('PY_MAJOR_VERSION >= 3', 'str'),
     'xrange'        : ('PY_MAJOR_VERSION >= 3', 'range'),
     'raw_input'     : ('PY_MAJOR_VERSION >= 3', 'input'),
-    }
+}
 
 basicsize_builtins_map = {
     # builtins whose type has a different tp_basicsize than sizeof(...)
@@ -62,6 +62,13 @@ uncachable_builtins = [
     'WindowsError',
     '_',  # e.g. gettext
 ]
+
+special_py_methods = set([
+    '__cinit__', '__dealloc__', '__richcmp__', '__next__',
+    '__await__', '__aiter__', '__anext__',
+    '__getreadbuffer__', '__getwritebuffer__', '__getsegcount__',
+    '__getcharbuffer__', '__getbuffer__', '__releasebuffer__'
+])
 
 modifier_output_mapper = {
     'inline': 'CYTHON_INLINE'
@@ -454,7 +461,7 @@ class UtilityCode(UtilityCodeBase):
                 '"%s\\n"\n' % line if not line.endswith('\\') or line.endswith('\\\\') else '"%s"\n' % line[:-1]
                 for line in content.splitlines())
 
-        impl = re.sub(r'CSTRING\(\s*"""([^"]+|"[^"])"""\s*\)', split_string, impl)
+        impl = re.sub(r'CSTRING\(\s*"""([^"]*(?:"[^"]+)*)"""\s*\)', split_string, impl)
         assert 'CSTRING(' not in impl
         return impl
 
@@ -1999,7 +2006,7 @@ class CCodeWriter(object):
 
     def put_pymethoddef(self, entry, term, allow_skip=True):
         if entry.is_special or entry.name == '__getattribute__':
-            if entry.name not in ['__cinit__', '__dealloc__', '__richcmp__', '__next__', '__getreadbuffer__', '__getwritebuffer__', '__getsegcount__', '__getcharbuffer__', '__getbuffer__', '__releasebuffer__']:
+            if entry.name not in special_py_methods:
                 if entry.name == '__getattr__' and not self.globalstate.directives['fast_getattr']:
                     pass
                 # Python's typeobject.c will automatically fill in our slot

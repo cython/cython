@@ -431,8 +431,8 @@ class SuiteSlot(SlotDescriptor):
     #
     #  sub_slots   [SlotDescriptor]
 
-    def __init__(self, sub_slots, slot_type, slot_name):
-        SlotDescriptor.__init__(self, slot_name)
+    def __init__(self, sub_slots, slot_type, slot_name, ifdef=None):
+        SlotDescriptor.__init__(self, slot_name, ifdef=ifdef)
         self.sub_slots = sub_slots
         self.slot_type = slot_type
         substructures.append(self)
@@ -454,6 +454,8 @@ class SuiteSlot(SlotDescriptor):
     def generate_substructure(self, scope, code):
         if not self.is_empty(scope):
             code.putln("")
+            if self.ifdef:
+                code.putln("#if %s" % self.ifdef)
             code.putln(
                 "static %s %s = {" % (
                     self.slot_type,
@@ -461,6 +463,8 @@ class SuiteSlot(SlotDescriptor):
             for slot in self.sub_slots:
                 slot.generate(scope, code)
             code.putln("};")
+            if self.ifdef:
+                code.putln("#endif")
 
 substructures = []   # List of all SuiteSlot instances
 
@@ -748,6 +752,12 @@ PyBufferProcs = (
     MethodSlot(releasebufferproc, "bf_releasebuffer", "__releasebuffer__")
 )
 
+PyAsyncMethods = (
+    MethodSlot(unaryfunc, "am_await", "__await__"),
+    MethodSlot(unaryfunc, "am_aiter", "__aiter__"),
+    MethodSlot(unaryfunc, "am_anext", "__anext__"),
+)
+
 #------------------------------------------------------------------------------------------
 #
 #  The main slot table. This table contains descriptors for all the
@@ -761,7 +771,11 @@ slot_table = (
     EmptySlot("tp_print"), #MethodSlot(printfunc, "tp_print", "__print__"),
     EmptySlot("tp_getattr"),
     EmptySlot("tp_setattr"),
-    MethodSlot(cmpfunc, "tp_compare", "__cmp__", py3 = '<RESERVED>'),
+
+    # tp_compare (Py2) / tp_reserved (Py3<3.5) / tp_as_async (Py3.5+) is always used as tp_as_async in Py3
+    MethodSlot(cmpfunc, "tp_compare", "__cmp__", ifdef="PY_MAJOR_VERSION < 3"),
+    SuiteSlot(PyAsyncMethods, "__Pyx_PyAsyncMethodsStruct", "tp_as_async", ifdef="PY_MAJOR_VERSION >= 3"),
+
     MethodSlot(reprfunc, "tp_repr", "__repr__"),
 
     SuiteSlot(PyNumberMethods, "PyNumberMethods", "tp_as_number"),

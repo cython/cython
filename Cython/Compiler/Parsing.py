@@ -55,6 +55,7 @@ class Ctx(object):
         d.update(kwds)
         return ctx
 
+
 def p_ident(s, message="Expected an identifier"):
     if s.sy == 'IDENT':
         name = s.systring
@@ -350,6 +351,7 @@ def p_sizeof(s):
     s.expect(')')
     return node
 
+
 def p_yield_expression(s):
     # s.sy == "yield"
     pos = s.position()
@@ -370,25 +372,54 @@ def p_yield_expression(s):
     else:
         return ExprNodes.YieldExprNode(pos, arg=arg)
 
+
 def p_yield_statement(s):
     # s.sy == "yield"
     yield_expr = p_yield_expression(s)
     return Nodes.ExprStatNode(yield_expr.pos, expr=yield_expr)
 
-#power: atom trailer* ('**' factor)*
+
+def p_async_statement(s, ctx, decorators):
+    # s.sy >> 'async' ...
+    if s.sy == 'def':
+        # 'async def' statements aren't allowed in pxd files
+        if 'pxd' in ctx.level:
+            s.error('def statement not allowed here')
+        s.level = ctx.level
+        return p_def_statement(s, decorators, is_async_def=True)
+    elif decorators:
+        s.error("Decorators can only be followed by functions or classes")
+    elif s.sy == 'for':
+        return p_for_statement(s, is_async=True)
+    elif s.sy == 'with':
+        s.next()
+        return p_with_items(s, is_async=True)
+    else:
+        s.error("expected one of 'def', 'for', 'with' after 'async'")
+
+
+#power: atom_expr ('**' factor)*
+#atom_expr: ['await'] atom trailer*
 
 def p_power(s):
     if s.systring == 'new' and s.peek()[0] == 'IDENT':
         return p_new_expr(s)
+    await_pos = None
+    if s.sy == 'await':
+        await_pos = s.position()
+        s.next()
     n1 = p_atom(s)
     while s.sy in ('(', '[', '.'):
         n1 = p_trailer(s, n1)
+    if await_pos:
+        n1 = ExprNodes.AwaitExprNode(await_pos, arg=n1)
     if s.sy == '**':
         pos = s.position()
         s.next()
         n2 = p_factor(s)
         n1 = ExprNodes.binop_node(pos, '**', n1, n2)
     return n1
+
 
 def p_new_expr(s):
     # s.systring == 'new'.
@@ -1568,23 +1599,25 @@ def p_while_statement(s):
         condition = test, body = body,
         else_clause = else_clause)
 
-def p_for_statement(s):
+
+def p_for_statement(s, is_async=False):
     # s.sy == 'for'
     pos = s.position()
     s.next()
-    kw = p_for_bounds(s, allow_testlist=True)
+    kw = p_for_bounds(s, allow_testlist=True, is_async=is_async)
     body = p_suite(s)
     else_clause = p_else_clause(s)
-    kw.update(body = body, else_clause = else_clause)
+    kw.update(body=body, else_clause=else_clause, is_async=is_async)
     return Nodes.ForStatNode(pos, **kw)
 
-def p_for_bounds(s, allow_testlist=True):
+
+def p_for_bounds(s, allow_testlist=True, is_async=False):
     target = p_for_target(s)
     if s.sy == 'in':
         s.next()
-        iterator = p_for_iterator(s, allow_testlist)
-        return dict( target = target, iterator = iterator )
-    elif not s.in_python_file:
+        iterator = p_for_iterator(s, allow_testlist, is_async=is_async)
+        return dict(target=target, iterator=iterator)
+    elif not s.in_python_file and not is_async:
         if s.sy == 'from':
             s.next()
             bound1 = p_bit_expr(s)
@@ -1654,16 +1687,19 @@ def p_target(s, terminator):
     else:
         return expr
 
+
 def p_for_target(s):
     return p_target(s, 'in')
 
-def p_for_iterator(s, allow_testlist=True):
+
+def p_for_iterator(s, allow_testlist=True, is_async=False):
     pos = s.position()
     if allow_testlist:
         expr = p_testlist(s)
     else:
         expr = p_or_test(s)
-    return ExprNodes.IteratorNode(pos, sequence = expr)
+    return (ExprNodes.AsyncIteratorNode if is_async else ExprNodes.IteratorNode)(pos, sequence=expr)
+
 
 def p_try_statement(s):
     # s.sy == 'try'
@@ -1745,17 +1781,21 @@ def p_include_statement(s, ctx):
     else:
         return Nodes.PassStatNode(pos)
 
+
 def p_with_statement(s):
-    s.next() # 'with'
+    s.next()  # 'with'
     if s.systring == 'template' and not s.in_python_file:
         node = p_with_template(s)
     else:
         node = p_with_items(s)
     return node
 
-def p_with_items(s):
+
+def p_with_items(s, is_async=False):
     pos = s.position()
     if not s.in_python_file and s.sy == 'IDENT' and s.systring in ('nogil', 'gil'):
+        if is_async:
+            s.error("with gil/nogil cannot be async")
         state = s.systring
         s.next()
         if s.sy == ',':
@@ -1763,7 +1803,7 @@ def p_with_items(s):
             body = p_with_items(s)
         else:
             body = p_suite(s)
-        return Nodes.GILStatNode(pos, state = state, body = body)
+        return Nodes.GILStatNode(pos, state=state, body=body)
     else:
         manager = p_test(s)
         target = None
@@ -1772,11 +1812,11 @@ def p_with_items(s):
             target = p_starred_expr(s)
         if s.sy == ',':
             s.next()
-            body = p_with_items(s)
+            body = p_with_items(s, is_async=is_async)
         else:
             body = p_suite(s)
-    return Nodes.WithStatNode(pos, manager = manager,
-                              target = target, body = body)
+    return Nodes.WithStatNode(pos, manager=manager, target=target, body=body, is_async=is_async)
+
 
 def p_with_template(s):
     pos = s.position()
@@ -1929,12 +1969,14 @@ def p_statement(s, ctx, first_statement = 0):
             s.error('decorator not allowed here')
         s.level = ctx.level
         decorators = p_decorators(s)
-        bad_toks =  'def', 'cdef', 'cpdef', 'class'
-        if not ctx.allow_struct_enum_decorator and s.sy not in bad_toks:
-            s.error("Decorators can only be followed by functions or classes")
+        if not ctx.allow_struct_enum_decorator and s.sy not in ('def', 'cdef', 'cpdef', 'class'):
+            if s.sy == 'IDENT' and s.systring == 'async':
+                pass  # handled below
+            else:
+                s.error("Decorators can only be followed by functions or classes")
     elif s.sy == 'pass' and cdef_flag:
         # empty cdef block
-        return p_pass_statement(s, with_newline = 1)
+        return p_pass_statement(s, with_newline=1)
 
     overridable = 0
     if s.sy == 'cdef':
@@ -1948,11 +1990,11 @@ def p_statement(s, ctx, first_statement = 0):
         if ctx.level not in ('module', 'module_pxd', 'function', 'c_class', 'c_class_pxd'):
             s.error('cdef statement not allowed here')
         s.level = ctx.level
-        node = p_cdef_statement(s, ctx(overridable = overridable))
+        node = p_cdef_statement(s, ctx(overridable=overridable))
         if decorators is not None:
-            tup = Nodes.CFuncDefNode, Nodes.CVarDefNode, Nodes.CClassDefNode
+            tup = (Nodes.CFuncDefNode, Nodes.CVarDefNode, Nodes.CClassDefNode)
             if ctx.allow_struct_enum_decorator:
-                tup += Nodes.CStructOrUnionDefNode, Nodes.CEnumDefNode
+                tup += (Nodes.CStructOrUnionDefNode, Nodes.CEnumDefNode)
             if not isinstance(node, tup):
                 s.error("Decorators can only be followed by functions or classes")
             node.decorators = decorators
@@ -1995,9 +2037,25 @@ def p_statement(s, ctx, first_statement = 0):
                 return p_try_statement(s)
             elif s.sy == 'with':
                 return p_with_statement(s)
+            elif s.sy == 'async':
+                s.next()
+                return p_async_statement(s, ctx, decorators)
             else:
-                return p_simple_statement_list(
-                    s, ctx, first_statement = first_statement)
+                if s.sy == 'IDENT' and s.systring == 'async':
+                    # PEP 492 enables the async/await keywords when it spots "async def ..."
+                    s.next()
+                    if s.sy == 'def':
+                        s.enable_keyword('async')
+                        s.enable_keyword('await')
+                        result = p_async_statement(s, ctx, decorators)
+                        s.enable_keyword('await')
+                        s.disable_keyword('async')
+                        return result
+                    elif decorators:
+                        s.error("Decorators can only be followed by functions or classes")
+                    s.put_back('IDENT', 'async')
+                return p_simple_statement_list(s, ctx, first_statement=first_statement)
+
 
 def p_statement_list(s, ctx, first_statement = 0):
     # Parse a series of statements separated by newlines.
@@ -3002,7 +3060,8 @@ def p_decorators(s):
         s.expect_newline("Expected a newline after decorator")
     return decorators
 
-def p_def_statement(s, decorators=None):
+
+def p_def_statement(s, decorators=None, is_async_def=False):
     # s.sy == 'def'
     pos = s.position()
     s.next()
@@ -3017,10 +3076,11 @@ def p_def_statement(s, decorators=None):
         s.next()
         return_type_annotation = p_test(s)
     doc, body = p_suite_with_docstring(s, Ctx(level='function'))
-    return Nodes.DefNode(pos, name = name, args = args,
-        star_arg = star_arg, starstar_arg = starstar_arg,
-        doc = doc, body = body, decorators = decorators,
-        return_type_annotation = return_type_annotation)
+    return Nodes.DefNode(
+        pos, name=name, args=args, star_arg=star_arg, starstar_arg=starstar_arg,
+        doc=doc, body=body, decorators=decorators, is_async_def=is_async_def,
+        return_type_annotation=return_type_annotation)
+
 
 def p_varargslist(s, terminator=')', annotated=1):
     args = p_c_arg_list(s, in_pyfunc = 1, nonempty_declarators = 1,

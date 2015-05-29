@@ -68,7 +68,7 @@ static CYTHON_INLINE void __Pyx_CyFunction_SetAnnotationsDict(PyObject *m,
                                                               PyObject *dict);
 
 
-static int __Pyx_CyFunction_init(void);
+static int __pyx_CyFunction_init(void);
 
 //////////////////// CythonFunction ////////////////////
 //@substitute: naming
@@ -693,7 +693,7 @@ static PyTypeObject __pyx_CyFunctionType_type = {
 };
 
 
-static int __Pyx_CyFunction_init(void) {
+static int __pyx_CyFunction_init(void) {
 #if !CYTHON_COMPILING_IN_PYPY
     // avoid a useless level of call indirection
     __pyx_CyFunctionType_type.tp_call = PyCFunction_Call;

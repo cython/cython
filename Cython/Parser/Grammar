@@ -13,7 +13,8 @@ eval_input: testlist NEWLINE* ENDMARKER
 
 decorator: '@' dotted_PY_NAME [ '(' [arglist] ')' ] NEWLINE
 decorators: decorator+
-decorated: decorators (classdef | funcdef | cdef_stmt)
+decorated: decorators (classdef | funcdef | async_funcdef | cdef_stmt)
+async_funcdef: 'async' funcdef
 funcdef: 'def' PY_NAME parameters ['->' test] ':' suite
 parameters: '(' [typedargslist] ')'
 typedargslist: (tfpdef ['=' (test | '*')] (',' tfpdef ['=' (test | '*')])* [','
@@ -96,7 +97,8 @@ shift_expr: arith_expr (('<<'|'>>') arith_expr)*
 arith_expr: term (('+'|'-') term)*
 term: factor (('*'|'/'|'%'|'//') factor)*
 factor: ('+'|'-'|'~') factor | power | address | size_of | cast
-power: atom trailer* ['**' factor]
+power: atom_expr ['**' factor]
+atom_expr: ['await'] atom trailer*
 atom: ('(' [yield_expr|testlist_comp] ')' |
        '[' [testlist_comp] ']' |
        '{' [dictorsetmaker] '}' |

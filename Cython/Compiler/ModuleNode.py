@@ -2064,24 +2064,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put_setup_refcount_context(header3)
 
         env.use_utility_code(UtilityCode.load("CheckBinaryVersion", "ModuleSetupCode.c"))
-        code.putln("if ( __Pyx_check_binary_version() < 0) %s" % code.error_goto(self.pos))
+        code.put_error_if_neg(self.pos, "__Pyx_check_binary_version()")
 
         code.putln("%s = PyTuple_New(0); %s" % (
             Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)))
         code.putln("%s = PyBytes_FromStringAndSize(\"\", 0); %s" % (
             Naming.empty_bytes, code.error_goto_if_null(Naming.empty_bytes, self.pos)))
 
-        code.putln("#ifdef __Pyx_CyFunction_USED")
-        code.putln("if (__Pyx_CyFunction_init() < 0) %s" % code.error_goto(self.pos))
-        code.putln("#endif")
-
-        code.putln("#ifdef __Pyx_FusedFunction_USED")
-        code.putln("if (__pyx_FusedFunction_init() < 0) %s" % code.error_goto(self.pos))
-        code.putln("#endif")
-
-        code.putln("#ifdef __Pyx_Generator_USED")
-        code.putln("if (__pyx_Generator_init() < 0) %s" % code.error_goto(self.pos))
-        code.putln("#endif")
+        for ext_type in ('CyFunction', 'FusedFunction', 'Coroutine', 'Generator', 'StopAsyncIteration'):
+            code.putln("#ifdef __Pyx_%s_USED" % ext_type)
+            code.put_error_if_neg(self.pos, "__pyx_%s_init()" % ext_type)
+            code.putln("#endif")
 
         code.putln("/*--- Library function declarations ---*/")
         env.generate_library_function_declarations(code)
@@ -2097,20 +2090,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_module_creation_code(env, code)
 
         code.putln("/*--- Initialize various global constants etc. ---*/")
-        code.putln(code.error_goto_if_neg("__Pyx_InitGlobals()", self.pos))
+        code.put_error_if_neg(self.pos, "__Pyx_InitGlobals()")
 
         code.putln("#if PY_MAJOR_VERSION < 3 && (__PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT)")
-        code.putln("if (__Pyx_init_sys_getdefaultencoding_params() < 0) %s" % code.error_goto(self.pos))
+        code.put_error_if_neg(self.pos, "__Pyx_init_sys_getdefaultencoding_params()")
         code.putln("#endif")
 
         __main__name = code.globalstate.get_py_string_const(
             EncodedString("__main__"), identifier=True)
         code.putln("if (%s%s) {" % (Naming.module_is_main, self.full_module_name.replace('.', '__')))
-        code.putln(
-            'if (PyObject_SetAttrString(%s, "__name__", %s) < 0) %s;' % (
-                env.module_cname,
-                __main__name.cname,
-                code.error_goto(self.pos)))
+        code.put_error_if_neg(self.pos, 'PyObject_SetAttrString(%s, "__name__", %s)' % (
+            env.module_cname,
+            __main__name.cname))
         code.putln("}")
 
         # set up __file__ and __path__, then add the module to sys.modules
@@ -2118,10 +2109,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if Options.cache_builtins:
             code.putln("/*--- Builtin init code ---*/")
-            code.putln(code.error_goto_if_neg("__Pyx_InitCachedBuiltins()", self.pos))
+            code.put_error_if_neg(self.pos, "__Pyx_InitCachedBuiltins()")
 
         code.putln("/*--- Constants init code ---*/")
-        code.putln(code.error_goto_if_neg("__Pyx_InitCachedConstants()", self.pos))
+        code.put_error_if_neg(self.pos, "__Pyx_InitCachedConstants()")
 
         code.putln("/*--- Global init code ---*/")
         self.generate_global_init_code(env, code)
@@ -2151,7 +2142,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("/*--- Execution code ---*/")
         code.mark_pos(None)
 
-        code.putln("#ifdef __Pyx_Generator_USED")
+        code.putln("#if defined(__Pyx_Generator_USED) || defined(__Pyx_Coroutine_USED)")
         code.put_error_if_neg(self.pos, "__Pyx_patch_abc()")
         code.putln("#endif")
 

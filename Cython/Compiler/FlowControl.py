@@ -991,6 +991,9 @@ class ControlFlowAnalysis(CythonTransform):
 
             self.mark_assignment(target, node.item)
 
+    def visit_AsyncForStatNode(self, node):
+        return self.visit_ForInStatNode(node)
+
     def visit_ForInStatNode(self, node):
         condition_block = self.flow.nextblock()
         next_block = self.flow.newblock()
@@ -1002,6 +1005,9 @@ class ControlFlowAnalysis(CythonTransform):
 
         if isinstance(node, Nodes.ForInStatNode):
             self.mark_forloop_target(node)
+        elif isinstance(node, Nodes.AsyncForStatNode):
+            # not entirely correct, but good enough for now
+            self.mark_assignment(node.target, node.item)
         else: # Parallel
             self.mark_assignment(node.target)
 

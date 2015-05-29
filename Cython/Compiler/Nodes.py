@@ -1574,9 +1574,11 @@ class FuncDefNode(StatNode, BlockNode):
     #  pymethdef_required boolean     Force Python method struct generation
     #  directive_locals { string : ExprNode } locals defined by cython.locals(...)
     #  directive_returns [ExprNode] type defined by cython.returns(...)
-    # star_arg      PyArgDeclNode or None  * argument
-    # starstar_arg  PyArgDeclNode or None  ** argument
-
+    #  star_arg      PyArgDeclNode or None  * argument
+    #  starstar_arg  PyArgDeclNode or None  ** argument
+    #
+    #  is_async_def  boolean          is a Coroutine function
+    #
     #  has_fused_arguments  boolean
     #       Whether this cdef function has fused parameters. This is needed
     #       by AnalyseDeclarationsTransform, so it can replace CFuncDefNodes
@@ -1588,6 +1590,7 @@ class FuncDefNode(StatNode, BlockNode):
     pymethdef_required = False
     is_generator = False
     is_generator_body = False
+    is_async_def = False
     modifiers = []
     has_fused_arguments = False
     star_arg = None
@@ -3936,6 +3939,7 @@ class GeneratorDefNode(DefNode):
     #
 
     is_generator = True
+    is_coroutine = False
     needs_closure = True
 
     child_attrs = DefNode.child_attrs + ["gbody"]
@@ -3956,8 +3960,9 @@ class GeneratorDefNode(DefNode):
         qualname = code.intern_identifier(self.qualname)
 
         code.putln('{')
-        code.putln('__pyx_GeneratorObject *gen = __Pyx_Generator_New('
-                   '(__pyx_generator_body_t) %s, (PyObject *) %s, %s, %s); %s' % (
+        code.putln('__pyx_CoroutineObject *gen = __Pyx_%s_New('
+                   '(__pyx_coroutine_body_t) %s, (PyObject *) %s, %s, %s); %s' % (
+                       'Coroutine' if self.is_coroutine else 'Generator',
                        body_cname, Naming.cur_scope_cname, name, qualname,
                        code.error_goto_if_null('gen', self.pos)))
         code.put_decref(Naming.cur_scope_cname, py_object_type)
@@ -3972,11 +3977,16 @@ class GeneratorDefNode(DefNode):
         code.putln('}')
 
     def generate_function_definitions(self, env, code):
-        env.use_utility_code(UtilityCode.load_cached("Generator", "Generator.c"))
+        env.use_utility_code(UtilityCode.load_cached(
+            'Coroutine' if self.is_coroutine else 'Generator', "Coroutine.c"))
 
         self.gbody.generate_function_header(code, proto=True)
         super(GeneratorDefNode, self).generate_function_definitions(env, code)
         self.gbody.generate_function_definitions(env, code)
+
+
+class AsyncDefNode(GeneratorDefNode):
+    is_coroutine = True
 
 
 class GeneratorBodyDefNode(DefNode):
@@ -4005,7 +4015,7 @@ class GeneratorBodyDefNode(DefNode):
         self.declare_generator_body(env)
 
     def generate_function_header(self, code, proto=False):
-        header = "static PyObject *%s(__pyx_GeneratorObject *%s, PyObject *%s)" % (
+        header = "static PyObject *%s(__pyx_CoroutineObject *%s, PyObject *%s)" % (
             self.entry.func_cname,
             Naming.generator_cname,
             Naming.sent_value_cname)
@@ -4070,7 +4080,7 @@ class GeneratorBodyDefNode(DefNode):
             code.put_label(code.error_label)
             if Future.generator_stop in env.global_scope().context.future_directives:
                 # PEP 479: turn accidental StopIteration exceptions into a RuntimeError
-                code.globalstate.use_utility_code(UtilityCode.load_cached("pep479", "Generator.c"))
+                code.globalstate.use_utility_code(UtilityCode.load_cached("pep479", "Coroutine.c"))
                 code.putln("if (unlikely(PyErr_ExceptionMatches(PyExc_StopIteration))) "
                            "__Pyx_Generator_Replace_StopIteration();")
             for cname, type in code.funcstate.all_managed_temps():
@@ -4082,7 +4092,7 @@ class GeneratorBodyDefNode(DefNode):
         code.put_xdecref(Naming.retval_cname, py_object_type)
         code.putln('%s->resume_label = -1;' % Naming.generator_cname)
         # clean up as early as possible to help breaking any reference cycles
-        code.putln('__Pyx_Generator_clear((PyObject*)%s);' % Naming.generator_cname)
+        code.putln('__Pyx_Coroutine_clear((PyObject*)%s);' % Naming.generator_cname)
         code.put_finish_refcount_context()
         code.putln('return NULL;')
         code.putln("}")
@@ -5512,7 +5522,7 @@ class ReturnStatNode(StatNode):
             elif self.in_generator:
                 # return value == raise StopIteration(value), but uncatchable
                 code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("ReturnWithStopIteration", "Generator.c"))
+                    UtilityCode.load_cached("ReturnWithStopIteration", "Coroutine.c"))
                 code.putln("%s = NULL; __Pyx_ReturnWithStopIteration(%s);" % (
                     Naming.retval_cname,
                     self.value.py_result()))
@@ -6059,40 +6069,49 @@ class DictIterationNextNode(Node):
             target.generate_assignment_code(result, code)
             var.release(code)
 
+
 def ForStatNode(pos, **kw):
     if 'iterator' in kw:
-        return ForInStatNode(pos, **kw)
+        if kw['iterator'].is_async:
+            return AsyncForStatNode(pos, **kw)
+        else:
+            return ForInStatNode(pos, **kw)
     else:
         return ForFromStatNode(pos, **kw)
 
-class ForInStatNode(LoopNode, StatNode):
-    #  for statement
+
+class _ForInStatNode(LoopNode, StatNode):
+    #  Base class of 'for-in' statements.
     #
     #  target        ExprNode
-    #  iterator      IteratorNode
+    #  iterator      IteratorNode | AwaitExprNode(AsyncIteratorNode)
     #  body          StatNode
     #  else_clause   StatNode
-    #  item          NextNode       used internally
+    #  item          NextNode | AwaitExprNode(AsyncNextNode)
+    #  is_async      boolean        true for 'async for' statements
 
-    child_attrs = ["target", "iterator", "body", "else_clause"]
+    child_attrs = ["target", "item", "iterator", "body", "else_clause"]
     item = None
+    is_async = False
+
+    def _create_item_node(self):
+        raise NotImplementedError("must be implemented by subclasses")
 
     def analyse_declarations(self, env):
-        from . import ExprNodes
         self.target.analyse_target_declaration(env)
         self.body.analyse_declarations(env)
         if self.else_clause:
             self.else_clause.analyse_declarations(env)
-        self.item = ExprNodes.NextNode(self.iterator)
+        self._create_item_node()
 
     def analyse_expressions(self, env):
         self.target = self.target.analyse_target_types(env)
         self.iterator = self.iterator.analyse_expressions(env)
-        from . import ExprNodes
-        self.item = ExprNodes.NextNode(self.iterator)  # must rewrap after analysis
+        self._create_item_node()  # must rewrap self.item after analysis
         self.item = self.item.analyse_expressions(env)
-        if (self.iterator.type.is_ptr or self.iterator.type.is_array) and \
-            self.target.type.assignable_from(self.iterator.type):
+        if (not self.is_async and
+                (self.iterator.type.is_ptr or self.iterator.type.is_array) and
+                self.target.type.assignable_from(self.iterator.type)):
             # C array slice optimization.
             pass
         else:
@@ -6156,6 +6175,37 @@ class ForInStatNode(LoopNode, StatNode):
         if self.else_clause:
             self.else_clause.annotate(code)
         self.item.annotate(code)
+
+
+class ForInStatNode(_ForInStatNode):
+    #  'for' statement
+
+    is_async = False
+
+    def _create_item_node(self):
+        from .ExprNodes import NextNode
+        self.item = NextNode(self.iterator)
+
+
+class AsyncForStatNode(_ForInStatNode):
+    #  'async for' statement
+    #
+    #  iterator      AwaitExprNode(AsyncIteratorNode)
+    #  item          AwaitIterNextExprNode(AsyncIteratorNode)
+
+    is_async = True
+
+    def __init__(self, pos, iterator, **kw):
+        assert 'item' not in kw
+        from . import ExprNodes
+        # AwaitExprNodes must appear before running MarkClosureVisitor
+        kw['iterator'] = ExprNodes.AwaitExprNode(iterator.pos, arg=iterator)
+        kw['item'] = ExprNodes.AwaitIterNextExprNode(iterator.pos, arg=None)
+        _ForInStatNode.__init__(self, pos, **kw)
+
+    def _create_item_node(self):
+        from . import ExprNodes
+        self.item.arg = ExprNodes.AsyncNextNode(self.iterator)
 
 
 class ForFromStatNode(LoopNode, StatNode):
@@ -6444,7 +6494,7 @@ class WithStatNode(StatNode):
         code.putln("%s = __Pyx_PyObject_LookupSpecial(%s, %s); %s" % (
             self.exit_var,
             self.manager.py_result(),
-            code.intern_identifier(EncodedString('__exit__')),
+            code.intern_identifier(EncodedString('__aexit__' if self.is_async else '__exit__')),
             code.error_goto_if_null(self.exit_var, self.pos),
             ))
         code.put_gotref(self.exit_var)
@@ -7108,7 +7158,7 @@ class GILStatNode(NogilTryFinallyStatNode):
         from .ParseTreeTransforms import YieldNodeCollector
         collector = YieldNodeCollector()
         collector.visitchildren(body)
-        if not collector.yields:
+        if not collector.yields and not collector.awaits:
             return
 
         if state == 'gil':
@@ -7205,8 +7255,8 @@ utility_code_for_cimports = {
 utility_code_for_imports = {
     # utility code used when special modules are imported.
     # TODO: Consider a generic user-level mechanism for importing
-    'asyncio': ("__Pyx_patch_asyncio", "PatchAsyncIO", "Generator.c"),
-    'inspect': ("__Pyx_patch_inspect", "PatchInspect", "Generator.c"),
+    'asyncio': ("__Pyx_patch_asyncio", "PatchAsyncIO", "Coroutine.c"),
+    'inspect': ("__Pyx_patch_inspect", "PatchInspect", "Coroutine.c"),
 }
 
 

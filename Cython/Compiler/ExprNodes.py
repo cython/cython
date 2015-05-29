@@ -2298,6 +2298,7 @@ class IteratorNode(ExprNode):
     counter_cname = None
     cpp_iterator_cname = None
     reversed = False      # currently only used for list/tuple types (see Optimize.py)
+    is_async = False
 
     subexprs = ['sequence']
 
@@ -2311,8 +2312,7 @@ class IteratorNode(ExprNode):
             self.analyse_cpp_types(env)
         else:
             self.sequence = self.sequence.coerce_to_pyobject(env)
-            if self.sequence.type is list_type or \
-                   self.sequence.type is tuple_type:
+            if self.sequence.type in (list_type, tuple_type):
                 self.sequence = self.sequence.as_none_safe_node("'NoneType' object is not iterable")
         self.is_temp = 1
         return self
@@ -2400,8 +2400,8 @@ class IteratorNode(ExprNode):
             return
         if sequence_type.is_array or sequence_type.is_ptr:
             raise InternalError("for in carray slice not transformed")
-        is_builtin_sequence = sequence_type is list_type or \
-                              sequence_type is tuple_type
+
+        is_builtin_sequence = sequence_type in (list_type, tuple_type)
         if not is_builtin_sequence:
             # reversed() not currently optimised (see Optimize.py)
             assert not self.reversed, "internal error: reversed() only implemented for list/tuple objects"
@@ -2411,6 +2411,7 @@ class IteratorNode(ExprNode):
                 "if (likely(PyList_CheckExact(%s)) || PyTuple_CheckExact(%s)) {" % (
                     self.sequence.py_result(),
                     self.sequence.py_result()))
+
         if is_builtin_sequence or self.may_be_a_sequence:
             self.counter_cname = code.funcstate.allocate_temp(
                 PyrexTypes.c_py_ssize_t_type, manage_ref=False)
@@ -2421,25 +2422,25 @@ class IteratorNode(ExprNode):
                     init_value = 'PyTuple_GET_SIZE(%s) - 1' % self.result()
             else:
                 init_value = '0'
-            code.putln(
-                "%s = %s; __Pyx_INCREF(%s); %s = %s;" % (
-                    self.result(),
-                    self.sequence.py_result(),
-                    self.result(),
-                    self.counter_cname,
-                    init_value
-                    ))
+            code.putln("%s = %s; __Pyx_INCREF(%s); %s = %s;" % (
+                self.result(),
+                self.sequence.py_result(),
+                self.result(),
+                self.counter_cname,
+                init_value))
         if not is_builtin_sequence:
             self.iter_func_ptr = code.funcstate.allocate_temp(self._func_iternext_type, manage_ref=False)
             if self.may_be_a_sequence:
                 code.putln("%s = NULL;" % self.iter_func_ptr)
                 code.putln("} else {")
                 code.put("%s = -1; " % self.counter_cname)
+
             code.putln("%s = PyObject_GetIter(%s); %s" % (
-                    self.result(),
-                    self.sequence.py_result(),
-                    code.error_goto_if_null(self.result(), self.pos)))
+                self.result(),
+                self.sequence.py_result(),
+                code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
+
             # PyObject_GetIter() fails if "tp_iternext" is not set, but the check below
             # makes it visible to the C compiler that the pointer really isn't NULL, so that
             # it can distinguish between the special cases and the generic case
@@ -2553,7 +2554,7 @@ class IteratorNode(ExprNode):
 
 class NextNode(AtomicExprNode):
     #  Used as part of for statement implementation.
-    #  Implements result = iterator.next()
+    #  Implements result = next(iterator)
     #  Created during analyse_types phase.
     #  The iterator is not owned by this node.
     #
@@ -2563,10 +2564,14 @@ class NextNode(AtomicExprNode):
         AtomicExprNode.__init__(self, iterator.pos)
         self.iterator = iterator
 
+    def nogil_check(self, env):
+        # ignore - errors (if any) are already handled by IteratorNode
+        pass
+
     def type_dependencies(self, env):
         return self.iterator.type_dependencies(env)
 
-    def infer_type(self, env, iterator_type = None):
+    def infer_type(self, env, iterator_type=None):
         if iterator_type is None:
             iterator_type = self.iterator.infer_type(env)
         if iterator_type.is_ptr or iterator_type.is_array:
@@ -2596,18 +2601,84 @@ class NextNode(AtomicExprNode):
         self.iterator.generate_iter_next_result_code(self.result(), code)
 
 
+class AsyncIteratorNode(ExprNode):
+    #  Used as part of 'async for' statement implementation.
+    #
+    #  Implements result = sequence.__aiter__()
+    #
+    #  sequence   ExprNode
+
+    subexprs = ['sequence']
+
+    is_async = True
+    type = py_object_type
+    is_temp = 1
+
+    def infer_type(self, env):
+        return py_object_type
+
+    def analyse_types(self, env):
+        self.sequence = self.sequence.analyse_types(env)
+        if not self.sequence.type.is_pyobject:
+            error(self.pos, "async for loops not allowed on C/C++ types")
+            self.sequence = self.sequence.coerce_to_pyobject(env)
+        return self
+
+    def generate_result_code(self, code):
+        code.globalstate.use_utility_code(UtilityCode.load_cached("AsyncIter", "Coroutine.c"))
+        code.putln("%s = __Pyx_Coroutine_GetAsyncIter(%s); %s" % (
+            self.result(),
+            self.sequence.py_result(),
+            code.error_goto_if_null(self.result(), self.pos)))
+        code.put_gotref(self.result())
+
+
+class AsyncNextNode(AtomicExprNode):
+    #  Used as part of 'async for' statement implementation.
+    #  Implements result = iterator.__anext__()
+    #  Created during analyse_types phase.
+    #  The iterator is not owned by this node.
+    #
+    #  iterator   IteratorNode
+
+    type = py_object_type
+    is_temp = 1
+
+    def __init__(self, iterator):
+        AtomicExprNode.__init__(self, iterator.pos)
+        self.iterator = iterator
+
+    def infer_type(self, env):
+        return py_object_type
+
+    def analyse_types(self, env):
+        return self
+
+    def generate_result_code(self, code):
+        code.globalstate.use_utility_code(UtilityCode.load_cached("AsyncIter", "Coroutine.c"))
+        code.putln("%s = __Pyx_Coroutine_AsyncIterNext(%s); %s" % (
+            self.result(),
+            self.iterator.py_result(),
+            code.error_goto_if_null(self.result(), self.pos)))
+        code.put_gotref(self.result())
+
+
 class WithExitCallNode(ExprNode):
     # The __exit__() call of a 'with' statement.  Used in both the
     # except and finally clauses.
 
     # with_stat  WithStatNode                the surrounding 'with' statement
     # args       TupleNode or ResultStatNode the exception info tuple
+    # await      AwaitExprNode               the await expression of an 'async with' statement
 
-    subexprs = ['args']
+    subexprs = ['args', 'await']
     test_if_run = True
+    await = None
 
     def analyse_types(self, env):
         self.args = self.args.analyse_types(env)
+        if self.await:
+            self.await = self.await.analyse_types(env)
         self.type = PyrexTypes.c_bint_type
         self.is_temp = True
         return self
@@ -2633,6 +2704,14 @@ class WithExitCallNode(ExprNode):
 
         code.putln(code.error_goto_if_null(result_var, self.pos))
         code.put_gotref(result_var)
+
+        if self.await:
+            # FIXME: result_var temp currently leaks into the closure
+            self.await.generate_evaluation_code(code, source_cname=result_var, decref_source=True)
+            code.putln("%s = %s;" % (result_var, self.await.py_result()))
+            self.await.generate_post_assignment_code(code)
+            self.await.free_temps(code)
+
         if self.result_is_used:
             self.allocate_temp_result(code)
             code.putln("%s = __Pyx_PyObject_IsTrue(%s);" % (self.result(), result_var))
@@ -8593,10 +8672,12 @@ class YieldExprNode(ExprNode):
     type = py_object_type
     label_num = 0
     is_yield_from = False
+    is_await = False
+    expr_keyword = 'yield'
 
     def analyse_types(self, env):
         if not self.label_num:
-            error(self.pos, "'yield' not supported here")
+            error(self.pos, "'%s' not supported here" % self.expr_keyword)
         self.is_temp = 1
         if self.arg is not None:
             self.arg = self.arg.analyse_types(env)
@@ -8661,6 +8742,7 @@ class YieldExprNode(ExprNode):
 class YieldFromExprNode(YieldExprNode):
     # "yield from GEN" expression
     is_yield_from = True
+    expr_keyword = 'yield from'
 
     def coerce_yield_argument(self, env):
         if not self.arg.type.is_string:
@@ -8668,16 +8750,23 @@ class YieldFromExprNode(YieldExprNode):
             error(self.pos, "yielding from non-Python object not supported")
         self.arg = self.arg.coerce_to_pyobject(env)
 
-    def generate_evaluation_code(self, code):
-        code.globalstate.use_utility_code(UtilityCode.load_cached("YieldFrom", "Generator.c"))
+    def yield_from_func(self, code):
+        code.globalstate.use_utility_code(UtilityCode.load_cached("GeneratorYieldFrom", "Coroutine.c"))
+        return "__Pyx_Generator_Yield_From"
 
-        self.arg.generate_evaluation_code(code)
-        code.putln("%s = __Pyx_Generator_Yield_From(%s, %s);" % (
+    def generate_evaluation_code(self, code, source_cname=None, decref_source=False):
+        if source_cname is None:
+            self.arg.generate_evaluation_code(code)
+        code.putln("%s = %s(%s, %s);" % (
             Naming.retval_cname,
+            self.yield_from_func(code),
             Naming.generator_cname,
-            self.arg.result_as(py_object_type)))
-        self.arg.generate_disposal_code(code)
-        self.arg.free_temps(code)
+            self.arg.py_result() if source_cname is None else source_cname))
+        if source_cname is None:
+            self.arg.generate_disposal_code(code)
+            self.arg.free_temps(code)
+        elif decref_source:
+            code.put_decref_clear(source_cname, py_object_type)
         code.put_xgotref(Naming.retval_cname)
 
         code.putln("if (likely(%s)) {" % Naming.retval_cname)
@@ -8685,20 +8774,61 @@ class YieldFromExprNode(YieldExprNode):
         code.putln("} else {")
         # either error or sub-generator has normally terminated: return value => node result
         if self.result_is_used:
-            # YieldExprNode has allocated the result temp for us
-            code.putln("%s = NULL;" % self.result())
-            code.putln("if (unlikely(__Pyx_PyGen_FetchStopIterationValue(&%s) < 0)) %s" % (
-                self.result(),
-                code.error_goto(self.pos)))
-            code.put_gotref(self.result())
+            self.fetch_iteration_result(code)
         else:
-            code.putln("PyObject* exc_type = PyErr_Occurred();")
-            code.putln("if (exc_type) {")
-            code.putln("if (likely(exc_type == PyExc_StopIteration ||"
-                       " PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))) PyErr_Clear();")
-            code.putln("else %s" % code.error_goto(self.pos))
-            code.putln("}")
+            self.handle_iteration_exception(code)
         code.putln("}")
+
+    def fetch_iteration_result(self, code):
+        # YieldExprNode has allocated the result temp for us
+        code.putln("%s = NULL;" % self.result())
+        code.put_error_if_neg(self.pos, "__Pyx_PyGen_FetchStopIterationValue(&%s)" % self.result())
+        code.put_gotref(self.result())
+
+    def handle_iteration_exception(self, code):
+        code.putln("PyObject* exc_type = PyErr_Occurred();")
+        code.putln("if (exc_type) {")
+        code.putln("if (likely(exc_type == PyExc_StopIteration ||"
+                   " PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))) PyErr_Clear();")
+        code.putln("else %s" % code.error_goto(self.pos))
+        code.putln("}")
+
+
+class AwaitExprNode(YieldFromExprNode):
+    # 'await' expression node
+    #
+    # arg         ExprNode   the Awaitable value to await
+    # label_num   integer    yield label number
+
+    is_await = True
+    expr_keyword = 'await'
+
+    def coerce_yield_argument(self, env):
+        if self.arg is not None:
+            # FIXME: use same check as in YieldFromExprNode.coerce_yield_argument() ?
+            self.arg = self.arg.coerce_to_pyobject(env)
+
+    def yield_from_func(self, code):
+        code.globalstate.use_utility_code(UtilityCode.load_cached("CoroutineYieldFrom", "Coroutine.c"))
+        return "__Pyx_Coroutine_Yield_From"
+
+
+class AwaitIterNextExprNode(AwaitExprNode):
+    # 'await' expression node as part of 'async for' iteration
+    #
+    # Breaks out of loop on StopAsyncIteration exception.
+
+    def fetch_iteration_result(self, code):
+        assert code.break_label, "AwaitIterNextExprNode outside of 'async for' loop"
+        code.globalstate.use_utility_code(UtilityCode.load_cached("StopAsyncIteration", "Coroutine.c"))
+        code.putln("PyObject* exc_type = PyErr_Occurred();")
+        code.putln("if (exc_type && likely(exc_type == __Pyx_PyExc_StopAsyncIteration ||"
+                   " PyErr_GivenExceptionMatches(exc_type, __Pyx_PyExc_StopAsyncIteration))) {")
+        code.putln("PyErr_Clear();")
+        code.putln("break;")
+        code.putln("}")
+        super(AwaitIterNextExprNode, self).fetch_iteration_result(code)
+
 
 class GlobalsExprNode(AtomicExprNode):
     type = dict_type
