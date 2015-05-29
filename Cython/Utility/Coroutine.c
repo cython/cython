@@ -104,6 +104,13 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
 #endif
     {
 #if PY_VERSION_HEX >= 0x030500B1
+    #if CYTHON_COMPILING_IN_CPYTHON
+        if (PyGen_CheckCoroutineExact(obj)) {
+            // Python generator marked with "@types.coroutine" decorator
+            Py_INCREF(obj);
+            return obj;
+        }
+    #endif
         // no slot => no method
         goto slot_error;
 #else
