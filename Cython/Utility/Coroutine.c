@@ -96,29 +96,33 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAwaitableIter(PyObject *o) {
 // adapted from genobject.c in Py3.5
 static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
     PyObject *res;
-#if PY_VERSION_HEX >= 0x030500B1
-    PyAsyncMethods* am = Py_TYPE(obj)->tp_as_async;
+#if PY_MAJOR_VERSION >= 3
+    __Pyx_PyAsyncMethodsStruct* am = __Pyx_PyType_AsAsync(obj);
     if (likely(am && am->am_await)) {
         res = (*am->am_await)(obj);
-    } else {
-        goto slot_error;
-    }
-#else
-    PyObject *method = __Pyx_PyObject_GetAttrStr(obj, PYIDENT("__await__"));
-    if (unlikely(!method)) goto slot_error;
-    #if CYTHON_COMPILING_IN_CPYTHON
-    if (likely(PyMethod_Check(method))) {
-        PyObject *self = PyMethod_GET_SELF(method);
-        if (likely(self)) {
-            PyObject *function = PyMethod_GET_FUNCTION(method);
-            res = __Pyx_PyObject_CallOneArg(function, self);
-        } else
-            res = __Pyx_PyObject_CallNoArg(method);
     } else
-    #endif
-        res = __Pyx_PyObject_CallNoArg(method);
-    Py_DECREF(method);
 #endif
+    {
+#if PY_VERSION_HEX >= 0x030500B1
+        // no slot => no method
+        goto slot_error;
+#else
+        PyObject *method = __Pyx_PyObject_GetAttrStr(obj, PYIDENT("__await__"));
+        if (unlikely(!method)) goto slot_error;
+        #if CYTHON_COMPILING_IN_CPYTHON
+        if (likely(PyMethod_Check(method))) {
+            PyObject *self = PyMethod_GET_SELF(method);
+            if (likely(self)) {
+                PyObject *function = PyMethod_GET_FUNCTION(method);
+                res = __Pyx_PyObject_CallOneArg(function, self);
+            } else
+                res = __Pyx_PyObject_CallNoArg(method);
+        } else
+        #endif
+            res = __Pyx_PyObject_CallNoArg(method);
+        Py_DECREF(method);
+#endif
+    }
     if (unlikely(!res)) goto bad;
     if (!PyIter_Check(res)) {
         PyErr_Format(PyExc_TypeError,
@@ -161,18 +165,21 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *o); /*pro
 //@requires: ObjectHandling.c::PyObjectCallMethod0
 
 static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *obj) {
-#if PY_VERSION_HEX >= 0x030500B1
-    PyAsyncMethods* am = Py_TYPE(obj)->tp_as_async;
+#if PY_MAJOR_VERSION >= 3
+    __Pyx_PyAsyncMethodsStruct* am = __Pyx_PyType_AsAsync(obj);
     if (likely(am && am->am_aiter)) {
         return (*am->am_aiter)(obj);
     }
-#else
-    PyObject *iter = __Pyx_PyObject_CallMethod0(obj, PYIDENT("__aiter__"));
-    if (likely(iter))
-        return iter;
-    // FIXME: for the sake of a nicely conforming exception message, assume any AttributeError meant '__aiter__'
-    if (!PyErr_ExceptionMatches(PyExc_AttributeError))
-        return NULL;
+#endif
+#if PY_VERSION_HEX < 0x030500B1
+    {
+        PyObject *iter = __Pyx_PyObject_CallMethod0(obj, PYIDENT("__aiter__"));
+        if (likely(iter))
+            return iter;
+        // FIXME: for the sake of a nicely conforming exception message, assume any AttributeError meant '__aiter__'
+        if (!PyErr_ExceptionMatches(PyExc_AttributeError))
+            return NULL;
+    }
 #endif
 
     PyErr_Format(PyExc_TypeError, "'async for' requires an object with __aiter__ method, got %.100s",
@@ -181,22 +188,23 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *obj) {
 }
 
 static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *obj) {
-#if PY_VERSION_HEX >= 0x030500B1
-    PyAsyncMethods* am = Py_TYPE(obj)->tp_as_async;
+#if PY_MAJOR_VERSION >= 3
+    __Pyx_PyAsyncMethodsStruct* am = __Pyx_PyType_AsAsync(obj);
     if (likely(am && am->am_anext)) {
         return (*am->am_anext)(obj);
-    } else {
-#else
-    PyObject *value = __Pyx_PyObject_CallMethod0(obj, PYIDENT("__anext__"));
-    if (likely(value))
-        return value;
-    // FIXME: for the sake of a nicely conforming exception message, assume any AttributeError meant '__anext__'
-    if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
+    }
 #endif
-
+#if PY_VERSION_HEX < 0x030500B1
+    {
+        PyObject *value = __Pyx_PyObject_CallMethod0(obj, PYIDENT("__anext__"));
+        if (likely(value))
+            return value;
+    }
+    // FIXME: for the sake of a nicely conforming exception message, assume any AttributeError meant '__anext__'
+    if (PyErr_ExceptionMatches(PyExc_AttributeError))
+#endif
         PyErr_Format(PyExc_TypeError, "'async for' requires an object with __anext__ method, got %.100s",
                      Py_TYPE(obj)->tp_name);
-    }
     return NULL;
 }
 
@@ -991,6 +999,20 @@ static void __Pyx_Coroutine_check_and_dealloc(PyObject *self) {
     __Pyx_Coroutine_dealloc(self);
 }
 
+#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3 && PY_VERSION_HEX < 0x030500B1
+static PyObject *__Pyx_Coroutine_compare(PyObject *obj, PyObject *other, int op) {
+    PyObject* result;
+    switch (op) {
+        case Py_EQ: result = (other == obj) ? Py_True : Py_False; break;
+        case Py_NE: result = (other != obj) ? Py_True : Py_False; break;
+        default:
+            result = Py_NotImplemented;
+    }
+    Py_INCREF(result);
+    return result;
+}
+#endif
+
 static PyObject *__Pyx_Coroutine_await(PyObject *self) {
     Py_INCREF(self);
     return self;
@@ -1006,8 +1028,8 @@ static PyMethodDef __pyx_Coroutine_methods[] = {
     {0, 0, 0, 0}
 };
 
-#if PY_VERSION_HEX >= 0x030500B1
-static PyAsyncMethods __pyx_Coroutine_as_async = {
+#if PY_MAJOR_VERSION >= 3
+static __Pyx_PyAsyncMethodsStruct __pyx_Coroutine_as_async = {
     __Pyx_Coroutine_await, /*am_await*/
     0, /*am_aiter*/
     0, /*am_anext*/
@@ -1023,10 +1045,10 @@ static PyTypeObject __pyx_CoroutineType_type = {
     0,                                  /*tp_print*/
     0,                                  /*tp_getattr*/
     0,                                  /*tp_setattr*/
-#if PY_VERSION_HEX >= 0x030500B1
-    &__pyx_Coroutine_as_async,          /*tp_as_async*/
+#if PY_MAJOR_VERSION >= 3
+    &__pyx_Coroutine_as_async,          /*tp_as_async (tp_reserved)*/
 #else
-    0,                                  /*tp_reserved resp. tp_compare*/
+    0,                                  /*tp_reserved*/
 #endif
     0,                                  /*tp_repr*/
     0,                                  /*tp_as_number*/
@@ -1042,7 +1064,12 @@ static PyTypeObject __pyx_CoroutineType_type = {
     0,                                  /*tp_doc*/
     (traverseproc) __Pyx_Coroutine_traverse,   /*tp_traverse*/
     0,                                  /*tp_clear*/
+#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3 && PY_VERSION_HEX < 0x030500B1
+    // in order to (mis-)use tp_reserved above, we must also implement tp_richcompare
+    __Pyx_Coroutine_compare,            /*tp_richcompare*/
+#else
     0,                                  /*tp_richcompare*/
+#endif
     offsetof(__pyx_CoroutineObject, gi_weakreflist), /*tp_weaklistoffset*/
 // no tp_iter() as iterator is only available through __await__()
     0,                                  /*tp_iter*/

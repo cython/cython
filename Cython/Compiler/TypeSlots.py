@@ -510,29 +510,6 @@ class BaseClassSlot(SlotDescriptor):
                 base_type.typeptr_cname))
 
 
-class AlternativeSlot(SlotDescriptor):
-    """Slot descriptor that delegates to different slots using C macros."""
-    def __init__(self, alternatives):
-        SlotDescriptor.__init__(self, "")
-        self.alternatives = alternatives
-
-    def generate(self, scope, code):
-        # state machine:  "#if ... (#elif ...)* #else ... #endif"
-        test = 'if'
-        for guard, slot in self.alternatives:
-            if guard:
-                assert test in ('if', 'elif'), test
-            else:
-                assert test == 'elif', test
-                test = 'else'
-            code.putln("#%s %s" % (test, guard))
-            slot.generate(scope, code)
-            if test == 'if':
-                test = 'elif'
-        assert test == 'else', test
-        code.putln("#endif")
-
-
 # The following dictionary maps __xxx__ method names to slot descriptors.
 
 method_name_to_slot = {}
@@ -794,11 +771,11 @@ slot_table = (
     EmptySlot("tp_print"), #MethodSlot(printfunc, "tp_print", "__print__"),
     EmptySlot("tp_getattr"),
     EmptySlot("tp_setattr"),
-    AlternativeSlot([
-        ("PY_MAJOR_VERSION < 3", MethodSlot(cmpfunc, "tp_compare", "__cmp__")),
-        ("PY_VERSION_HEX < 0x030500B1", EmptySlot("tp_reserved")),
-        ("", SuiteSlot(PyAsyncMethods, "PyAsyncMethods", "tp_as_async", ifdef="PY_VERSION_HEX >= 0x030500B1")),
-    ]),
+
+    # tp_compare (Py2) / tp_reserved (Py3<3.5) / tp_as_async (Py3.5+) is always used as tp_as_async in Py3
+    MethodSlot(cmpfunc, "tp_compare", "__cmp__", ifdef="PY_MAJOR_VERSION < 3"),
+    SuiteSlot(PyAsyncMethods, "__Pyx_PyAsyncMethodsStruct", "tp_as_async", ifdef="PY_MAJOR_VERSION >= 3"),
+
     MethodSlot(reprfunc, "tp_repr", "__repr__"),
 
     SuiteSlot(PyNumberMethods, "PyNumberMethods", "tp_as_number"),
