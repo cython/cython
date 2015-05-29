@@ -2564,6 +2564,10 @@ class NextNode(AtomicExprNode):
         AtomicExprNode.__init__(self, iterator.pos)
         self.iterator = iterator
 
+    def nogil_check(self, env):
+        # ignore - errors (if any) are already handled by IteratorNode
+        pass
+
     def type_dependencies(self, env):
         return self.iterator.type_dependencies(env)
 
