@@ -1048,10 +1048,13 @@ class SysSetCoroWrapperTest(unittest.TestCase):
 if True or sys.version_info < (3, 5):
     SysSetCoroWrapperTest = None
 
-try:
-    import asyncio
-except ImportError:
+if sys.version_info < (3, 5):  # (3, 4, 4)
     CoroAsyncIOCompatTest = None
+else:
+    try:
+        import asyncio
+    except ImportError:
+        CoroAsyncIOCompatTest = None
 
 if __name__=="__main__":
     unittest.main()
