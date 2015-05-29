@@ -260,7 +260,7 @@ class CoroutineTest(unittest.TestCase):
         with self.assertRaises(StopIteration):
             f.send(None)
 
-    # TODO
+    # TODO (or not? see test_func_8() below)
     def __test_func_7(self):
         async def bar():
             return 10
