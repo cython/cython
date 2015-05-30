@@ -5,7 +5,8 @@
 PYTHON setup.py build_ext -i
 PYTHON test_from_import.py
 PYTHON test_import.py
-PYTHON test_both.py
+PYTHON test_async_def.py
+PYTHON test_all.py
 """
 
 ######## setup.py ########
@@ -44,24 +45,54 @@ def runloop(task):
 runloop(import_asyncio.wait3)
 
 
-######## test_both.py ########
+######## test_async_def.py ########
 
+import sys
+
+ASYNCIO_SUPPORTS_COROUTINE = sys.version_info[:2] >= (3, 5)
+
+if ASYNCIO_SUPPORTS_COROUTINE:
+    import async_def
+    import asyncio
+
+    def runloop(task):
+        loop = asyncio.get_event_loop()
+        result = loop.run_until_complete(task())
+        assert 3 == result, result
+
+    runloop(async_def.wait3)
+
+
+######## test_all.py ########
+
+import sys
 import asyncio
+
+ASYNCIO_SUPPORTS_COROUTINE = sys.version_info[:2] >= (3, 5)
 
 def runloop(task):
     loop = asyncio.get_event_loop()
     result = loop.run_until_complete(task())
     assert 3 == result, result
 
-import import_asyncio
+import import_asyncio  # patches Generator into ABCs if necessary
 runloop(import_asyncio.wait3)       # 1a)
 import from_asyncio_import
 runloop(from_asyncio_import.wait3)  # 1b)
 
+import async_def  # patches Awaitable/Coroutine into ABCs if necessary
+if ASYNCIO_SUPPORTS_COROUTINE:
+    runloop(async_def.wait3)            # 1c)
+
 runloop(from_asyncio_import.wait3)  # 2a)
 runloop(import_asyncio.wait3)       # 2b)
+if ASYNCIO_SUPPORTS_COROUTINE:
+    runloop(async_def.wait3)        # 2c)
+
 runloop(from_asyncio_import.wait3)  # 3a)
 runloop(import_asyncio.wait3)       # 3b)
+if ASYNCIO_SUPPORTS_COROUTINE:
+    runloop(async_def.wait3)        # 3c)
 
 try:
     from collections.abc import Generator
@@ -72,13 +103,33 @@ assert isinstance(from_asyncio_import.wait3(), Generator)
 assert isinstance(import_asyncio.wait3(), Generator)
 assert isinstance((lambda:(yield))(), Generator)
 
+try:
+    from collections.abc import Awaitable
+except ImportError:
+    from collections import Awaitable
+
+assert isinstance(async_def.wait3(), Awaitable)
+
+try:
+    from collections.abc import Coroutine
+except ImportError:
+    from collections import Coroutine
+
+assert isinstance(async_def.wait3(), Coroutine)
+
 
 ######## import_asyncio.pyx ########
 # cython: binding=True
 
+try:
+    from types import coroutine as types_coroutine
+except ImportError:
+    types_coroutine = lambda f:f
+
 import asyncio
 
 @asyncio.coroutine
+@types_coroutine
 def wait3():
     counter = 0
     for i in range(3):
@@ -91,13 +142,33 @@ def wait3():
 ######## from_asyncio_import.pyx ########
 # cython: binding=True
 
+try:
+    from types import coroutine as types_coroutine
+except ImportError:
+    types_coroutine = lambda f:f
+
 from asyncio import coroutine, sleep
 
 @coroutine
+@types_coroutine
 def wait3():
     counter = 0
     for i in range(3):
         print(counter)
         yield from sleep(0.01)
+        counter += 1
+    return counter
+
+
+######## async_def.pyx ########
+# cython: binding=True
+
+import asyncio
+
+async def wait3():
+    counter = 0
+    for i in range(3):
+        print(counter)
+        await asyncio.sleep(0.01)
         counter += 1
     return counter
