@@ -1768,13 +1768,10 @@ def p_include_statement(s, ctx):
         include_file_path = s.context.find_include_file(include_file_name, pos)
         if include_file_path:
             s.included_files.append(include_file_name)
-            f = Utils.open_source_file(include_file_path, mode="rU")
-            source_desc = FileSourceDescriptor(include_file_path)
-            s2 = PyrexScanner(f, source_desc, s, source_encoding=f.encoding, parse_comments=s.parse_comments)
-            try:
+            with Utils.open_source_file(include_file_path) as f:
+                source_desc = FileSourceDescriptor(include_file_path)
+                s2 = PyrexScanner(f, source_desc, s, source_encoding=f.encoding, parse_comments=s.parse_comments)
                 tree = p_statement_list(s2, ctx)
-            finally:
-                f.close()
             return tree
         else:
             return None

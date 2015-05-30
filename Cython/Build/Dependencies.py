@@ -399,7 +399,7 @@ def parse_dependencies(source_filename):
     # Actual parsing is way to slow, so we use regular expressions.
     # The only catch is that we must strip comments and string
     # literals ahead of time.
-    fh = Utils.open_source_file(source_filename, "rU", error_handling='ignore')
+    fh = Utils.open_source_file(source_filename, error_handling='ignore')
     try:
         source = fh.read()
     finally:

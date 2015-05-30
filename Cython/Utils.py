@@ -244,16 +244,13 @@ def skip_bom(f):
 
 
 def open_source_file(source_filename, mode="r",
-                     encoding=None, error_handling=None,
-                     require_normalised_newlines=True):
+                     encoding=None, error_handling=None):
     if encoding is None:
         # Most of the time the coding is unspecified, so be optimistic that
         # it's UTF-8.
         f = open_source_file(source_filename, encoding="UTF-8", mode=mode, error_handling='ignore')
         encoding = detect_opened_file_encoding(f)
-        if (encoding == "UTF-8"
-                and error_handling == 'ignore'
-                and require_normalised_newlines):
+        if encoding == "UTF-8" and error_handling == 'ignore':
             f.seek(0)
             skip_bom(f)
             return f
@@ -266,8 +263,7 @@ def open_source_file(source_filename, mode="r",
             if source_filename.startswith(loader.archive):
                 return open_source_from_loader(
                     loader, source_filename,
-                    encoding, error_handling,
-                    require_normalised_newlines)
+                    encoding, error_handling)
         except (NameError, AttributeError):
             pass
 
@@ -279,8 +275,7 @@ def open_source_file(source_filename, mode="r",
 
 def open_source_from_loader(loader,
                             source_filename,
-                            encoding=None, error_handling=None,
-                            require_normalised_newlines=True):
+                            encoding=None, error_handling=None):
     nrmpath = os.path.normpath(source_filename)
     arcname = nrmpath[len(loader.archive)+1:]
     data = loader.get_data(arcname)

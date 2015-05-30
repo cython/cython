@@ -336,8 +336,7 @@ class Context(object):
         # Parse the given source file and return a parse tree.
         num_errors = Errors.num_errors
         try:
-            f = Utils.open_source_file(source_filename, "rU")
-            try:
+            with Utils.open_source_file(source_filename) as f:
                 from . import Parsing
                 s = PyrexScanner(f, source_desc, source_encoding = f.encoding,
                                  scope = scope, context = self)
@@ -349,8 +348,6 @@ class Context(object):
                         raise RuntimeError(
                             "Formal grammer can only be used with compiled Cython with an available pgen.")
                     ConcreteSyntaxTree.p_module(source_filename)
-            finally:
-                f.close()
         except UnicodeDecodeError, e:
             #import traceback
             #traceback.print_exc()
@@ -360,11 +357,8 @@ class Context(object):
             position = e.args[2]
             encoding = e.args[0]
 
-            f = open(source_filename, "rb")
-            try:
+            with open(source_filename, "rb") as f:
                 byte_data = f.read()
-            finally:
-                f.close()
 
             # FIXME: make this at least a little less inefficient
             for idx, c in enumerate(byte_data):

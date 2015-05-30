@@ -199,15 +199,10 @@ class FileSourceDescriptor(SourceDescriptor):
                 return lines
         except KeyError:
             pass
-        f = Utils.open_source_file(
-            self.filename, encoding=encoding,
-            error_handling=error_handling,
-            # newline normalisation is costly before Py2.6
-            require_normalised_newlines=False)
-        try:
+
+        with Utils.open_source_file(self.filename, encoding=encoding, error_handling=error_handling) as f:
             lines = list(f)
-        finally:
-            f.close()
+
         if key in self._lines:
             self._lines[key] = lines
         else:
