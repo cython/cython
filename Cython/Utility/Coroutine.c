@@ -1564,7 +1564,8 @@ CSTRING("""\
 """)
 #endif
             );
-        #endif
+#endif
+// Py<3.5
         }
         Py_DECREF(package);
         if (unlikely(!patch_module)) goto ignore;
