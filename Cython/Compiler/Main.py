@@ -351,32 +351,29 @@ class Context(object):
         except UnicodeDecodeError, e:
             #import traceback
             #traceback.print_exc()
-            line = 1
-            column = 0
-            msg = e.args[-1]
-            position = e.args[2]
-            encoding = e.args[0]
-
-            with open(source_filename, "rb") as f:
-                byte_data = f.read()
-
-            # FIXME: make this at least a little less inefficient
-            for idx, c in enumerate(byte_data):
-                if c in (ord('\n'), '\n'):
-                    line += 1
-                    column = 0
-                if idx == position:
-                    break
-
-                column += 1
-
-            error((source_desc, line, column),
-                  "Decoding error, missing or incorrect coding=<encoding-name> "
-                  "at top of source (cannot decode with encoding %r: %s)" % (encoding, msg))
+            raise self._report_decode_error(source_desc, e)
 
         if Errors.num_errors > num_errors:
             raise CompileError()
         return tree
+
+    def _report_decode_error(self, source_desc, exc):
+        msg = exc.args[-1]
+        position = exc.args[2]
+        encoding = exc.args[0]
+
+        line = 1
+        column = idx = 0
+        with io.open(source_desc.filename, "r", encoding='iso8859-1', newline='') as f:
+            for line, data in enumerate(f, 1):
+                idx += len(data)
+                if idx >= position:
+                    column = position - (idx - len(data)) + 1
+                    break
+
+        return error((source_desc, line, column),
+                     "Decoding error, missing or incorrect coding=<encoding-name> "
+                     "at top of source (cannot decode with encoding %r: %s)" % (encoding, msg))
 
     def extract_module_name(self, path, options):
         # Find fully_qualified module name from the full pathname
