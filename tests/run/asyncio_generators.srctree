@@ -75,14 +75,14 @@ def runloop(task):
     result = loop.run_until_complete(task())
     assert 3 == result, result
 
-import import_asyncio  # patches Generator into ABCs if necessary
+import import_asyncio  # patches Generator into ABCs if missing
 runloop(import_asyncio.wait3)       # 1a)
 import from_asyncio_import
 runloop(from_asyncio_import.wait3)  # 1b)
 
-import async_def  # patches Awaitable/Coroutine into ABCs if necessary
+import async_def  # patches Awaitable/Coroutine into ABCs if missing
 if ASYNCIO_SUPPORTS_COROUTINE:
-    runloop(async_def.wait3)            # 1c)
+    runloop(async_def.wait3)        # 1c)
 
 runloop(from_asyncio_import.wait3)  # 2a)
 runloop(import_asyncio.wait3)       # 2b)
