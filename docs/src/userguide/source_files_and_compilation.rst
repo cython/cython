@@ -86,8 +86,8 @@ Pyximport
 Cython is a compiler. Therefore it is natural that people tend to go
 through an edit/compile/test cycle with Cython modules. But my personal
 opinion is that one of the deep insights in Python's implementation is
-that a language can be compiled (Python modules are compiled to ``.pyc``)
-files and hide that compilation process from the end-user so that they
+that a language can be compiled (Python modules are compiled to ``.pyc``
+files) and hide that compilation process from the end-user so that they
 do not have to worry about it. Pyximport does this for Cython modules.
 For instance if you write a Cython module called :file:`foo.pyx`, with
 Pyximport you can import it in a regular Python module like this::
