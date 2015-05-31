@@ -67,7 +67,6 @@ func(x, y)
 _ERRORS = u"""
 10:15: fused_type does not take keyword arguments
 15:38: Type specified multiple times
-17:33: Cannot fuse a fused type
 26:4: Invalid use of fused types, type cannot be specialized
 26:4: Not enough types specified to specialize the function, int2_t is still fused
 27:4: Invalid use of fused types, type cannot be specialized

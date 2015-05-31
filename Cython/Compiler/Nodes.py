@@ -1215,8 +1215,6 @@ class FusedTypeNode(CBaseTypeNode):
 
             if type in types:
                 error(type_node.pos, "Type specified multiple times")
-            elif type.is_fused:
-                error(type_node.pos, "Cannot fuse a fused type")
             else:
                 types.append(type)
 

@@ -19,6 +19,7 @@ other_t = cython.fused_type(int, double)
 ctypedef double *p_double
 ctypedef int *p_int
 fused_type3 = cython.fused_type(int, double)
+fused_composite = cython.fused_type(fused_type2, fused_type3)
 
 def test_pure():
     """
@@ -349,3 +350,17 @@ def test_index_fused_args(cython.floating f, ints_t i):
     double int
     """
     _test_index_fused_args[cython.floating, ints_t](f, i)
+
+def test_composite(fused_composite x):
+    """
+    >>> test_composite('a')
+    'a'
+    >>> test_composite(3)
+    6
+    >>> test_composite(3.0)
+    6.0
+    """
+    if fused_composite is string_t:
+        return x
+    else:
+        return 2 * x

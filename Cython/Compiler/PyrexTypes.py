@@ -1339,7 +1339,13 @@ class FusedType(CType):
     exception_check = 0
 
     def __init__(self, types, name=None):
-        self.types = types
+        # Use list rather than set to preserve order.
+        flattened_types = [t for t in types if not t.is_fused]
+        subtypes = sum([t.types for t in types if t.is_fused], [])
+        for type in subtypes:
+            if type not in flattened_types:
+                flattened_types.append(type)
+        self.types = flattened_types
         self.name = name
 
     def declaration_code(self, entity_code, for_display = 0,
