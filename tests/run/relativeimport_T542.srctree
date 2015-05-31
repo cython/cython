@@ -53,9 +53,12 @@ def bfunc(): return 'b'
 ######## relimport/testmod.pyx ########
 # cython: language_level=3
 
-from relimport import a, bmod
+from relimport import a as global_a, bmod as global_bmod
 
 from . import *
+
+assert a is global_a, a
+assert bmod is global_bmod, bmod
 
 def test_relative():
     from . import a, bmod
