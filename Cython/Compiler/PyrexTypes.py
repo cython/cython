@@ -1339,12 +1339,16 @@ class FusedType(CType):
     exception_check = 0
 
     def __init__(self, types, name=None):
-        # Use list rather than set to preserve order.
-        flattened_types = [t for t in types if not t.is_fused]
-        subtypes = sum([t.types for t in types if t.is_fused], [])
-        for type in subtypes:
-            if type not in flattened_types:
-                flattened_types.append(type)
+        # Use list rather than set to preserve order (list should be short).
+        flattened_types = []
+        for t in types:
+            if t.is_fused:
+                # recursively merge in subtypes
+                for subtype in t.types:
+                    if subtype not in flattened_types:
+                        flattened_types.append(subtype)
+            elif t not in flattened_types:
+                flattened_types.append(t)
         self.types = flattened_types
         self.name = name
 
