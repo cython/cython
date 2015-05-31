@@ -351,10 +351,11 @@ def test_index_fused_args(cython.floating f, ints_t i):
     """
     _test_index_fused_args[cython.floating, ints_t](f, i)
 
+
 def test_composite(fused_composite x):
     """
-    >>> test_composite('a')
-    'a'
+    >>> print(test_composite(b'a').decode('ascii'))
+    a
     >>> test_composite(3)
     6
     >>> test_composite(3.0)
