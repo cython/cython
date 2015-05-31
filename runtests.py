@@ -1494,20 +1494,18 @@ class VersionDependencyExcluder:
                 return True
         return False
 
+
 class FileListExcluder:
 
     def __init__(self, list_file, verbose=False):
         self.verbose = verbose
         self.excludes = {}
-        self._list_file = list_file
-        f = open(list_file)
-        try:
-            for line in f.readlines():
+        self._list_file = os.path.relpath(list_file)
+        with open(list_file) as f:
+            for line in f:
                 line = line.strip()
                 if line and line[0] != '#':
                     self.excludes[line.split()[0]] = True
-        finally:
-            f.close()
 
     def __call__(self, testname, tags=None):
         exclude = (testname in self.excludes
@@ -1516,6 +1514,7 @@ class FileListExcluder:
             print("Excluding %s because it's listed in %s"
                   % (testname, self._list_file))
         return exclude
+
 
 class TagsSelector:
 
