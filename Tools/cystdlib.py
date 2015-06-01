@@ -33,6 +33,8 @@ broken = [
     'traceback.py',
     'types.py',
     'enum.py',
+    'keyword.py',
+    '_collections_abc.py',
     'importlib/_bootstrap',
 ]
 
