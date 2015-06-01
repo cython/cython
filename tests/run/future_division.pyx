@@ -1,5 +1,7 @@
 from __future__ import division
 
+cimport cython
+
 def doit(x,y):
     """
     >>> doit(1,2)
@@ -115,3 +117,15 @@ def float_mix_rev(float a):
     (0.25, 0.0, 1.25, 1.0, 1.25, 1.0)
     """
     return 1/a, 1//a, 5.0/a, 5.0//a, 5/a, 5//a
+
+
+def infer_division_type():
+    """
+    >>> v = infer_division_type()
+    double
+    >>> v
+    8333333.25
+    """
+    v = (10000**2 - 1) / 12
+    print(cython.typeof(v))
+    return v

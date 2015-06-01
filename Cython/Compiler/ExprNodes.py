@@ -10241,11 +10241,20 @@ class DivNode(NumBinopNode):
         except Exception, e:
             self.compile_time_value_error(e)
 
-    def analyse_operation(self, env):
+    def _check_truedivision(self, env):
         if self.cdivision or env.directives['cdivision']:
             self.ctruedivision = False
         else:
             self.ctruedivision = self.truedivision
+
+    def infer_type(self, env):
+        self._check_truedivision(env)
+        return self.result_type(
+            self.operand1.infer_type(env),
+            self.operand2.infer_type(env))
+
+    def analyse_operation(self, env):
+        self._check_truedivision(env)
         NumBinopNode.analyse_operation(self, env)
         if self.is_cpp_operation():
             self.cdivision = True
