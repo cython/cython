@@ -3617,6 +3617,10 @@ class CEnumType(CType):
             typecast(self, c_long_type, rhs),
             ' %s' % code.error_goto_if(error_condition or self.error_condition(result_code), error_pos))
 
+    @property
+    def default_value(self):
+        if self.values:
+            return self.values[0]
 
 class CTupleType(CType):
     # components [PyrexType]

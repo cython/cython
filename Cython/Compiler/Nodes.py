@@ -1528,6 +1528,8 @@ class CEnumDefItemNode(StatNode):
             visibility = enum_entry.visibility, api = enum_entry.api,
             create_wrapper = enum_entry.create_wrapper)
         enum_entry.enum_values.append(entry)
+        if enum_entry.name:
+            enum_entry.type.values.append(entry.cname)
 
 
 class CTypeDefNode(StatNode):
