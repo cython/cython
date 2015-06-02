@@ -3587,6 +3587,7 @@ class CEnumType(CType):
         self.cname = cname
         self.values = []
         self.typedef_flag = typedef_flag
+        self.default_value = "(%s) 0" % self.empty_declaration_code()
 
     def __str__(self):
         return self.name
@@ -3617,10 +3618,6 @@ class CEnumType(CType):
             typecast(self, c_long_type, rhs),
             ' %s' % code.error_goto_if(error_condition or self.error_condition(result_code), error_pos))
 
-    @property
-    def default_value(self):
-        if self.values:
-            return self.values[0]
 
 class CTupleType(CType):
     # components [PyrexType]
