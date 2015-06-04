@@ -187,6 +187,9 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *obj) {
         if (!PyErr_ExceptionMatches(PyExc_AttributeError))
             return NULL;
     }
+#else
+    // avoid 'unused function' warning
+    if (0) (void) __Pyx_PyObject_CallMethod0(obj, PYIDENT("__aiter__"));
 #endif
 
     PyErr_Format(PyExc_TypeError, "'async for' requires an object with __aiter__ method, got %.100s",
