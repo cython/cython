@@ -1750,7 +1750,7 @@ static int __pyx_StopAsyncIteration_init(void) {
 #else
     PyObject *builtins = PyEval_GetBuiltins();
     if (likely(builtins)) {
-        PyObject *exc = PyMapping_GetItemString(builtins, "StopAsyncIteration");
+        PyObject *exc = PyMapping_GetItemString(builtins, (char*) "StopAsyncIteration");
         if (exc) {
             __Pyx_PyExc_StopAsyncIteration = exc;
             return 0;
@@ -1766,7 +1766,7 @@ static int __pyx_StopAsyncIteration_init(void) {
     __Pyx_PyExc_StopAsyncIteration = (PyObject*) __Pyx_FetchCommonType(&__Pyx__PyExc_StopAsyncIteration_type);
     if (unlikely(!__Pyx_PyExc_StopAsyncIteration))
         return -1;
-    if (builtins && unlikely(PyMapping_SetItemString(builtins, "StopAsyncIteration", __Pyx_PyExc_StopAsyncIteration) < 0))
+    if (builtins && unlikely(PyMapping_SetItemString(builtins, (char*) "StopAsyncIteration", __Pyx_PyExc_StopAsyncIteration) < 0))
         return -1;
 #endif
     return 0;
