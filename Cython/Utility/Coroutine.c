@@ -1578,7 +1578,7 @@ asyncio_done:
         {
             PyObject *inspect_module;
             if (patch_module) {
-                inspect_module = PyObject_GetAttrString(patch_module, "inspect");
+                inspect_module = PyObject_GetAttr(patch_module, PYIDENT("inspect"));
                 Py_DECREF(patch_module);
             } else {
                 inspect_module = __Pyx_Import(PYIDENT("inspect"), NULL, 0);
@@ -1601,7 +1601,7 @@ ignore:
     }
 #else
     // avoid "unused" warning for __Pyx_Coroutine_patch_module()
-    if (0) return __Pyx_Coroutine_patch_module(module, NULL);
+    if (0) return __Pyx_patch_inspect(__Pyx_Coroutine_patch_module(module, NULL));
 #endif
     return module;
 }
