@@ -2202,8 +2202,11 @@ class CCodeWriter(object):
         self.globalstate.use_utility_code(
             UtilityCode.load_cached("WriteUnraisableException", "Exceptions.c"))
 
-    def put_trace_declarations(self, codeobj=None, nogil=False):
-        self.putln('__Pyx_TraceDeclarations(%s, %d)' % (codeobj or 'NULL', nogil))
+    def put_trace_declarations(self):
+        self.putln('__Pyx_TraceDeclarations')
+
+    def put_trace_frame_init(self, codeobj=None):
+        self.putln('__Pyx_TraceFrameInit(%s)' % (codeobj or 'NULL'))
 
     def put_trace_call(self, name, pos, nogil=False):
         self.putln('__Pyx_TraceCall("%s", %s[%s], %s, %d, %s);' % (

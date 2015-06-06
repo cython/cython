@@ -42,10 +42,12 @@
     #define CYTHON_FRAME_DEL(frame) Py_CLEAR(frame)
   #endif
 
-  #define __Pyx_TraceDeclarations(codeobj, nogil)                     \
+  #define __Pyx_TraceDeclarations                                     \
   static PyCodeObject *$frame_code_cname = NULL;                      \
   CYTHON_FRAME_MODIFIER PyFrameObject *$frame_cname = NULL;           \
-  int __Pyx_use_tracing = 0;                                          \
+  int __Pyx_use_tracing = 0;
+
+  #define __Pyx_TraceFrameInit(codeobj)                               \
   if (codeobj) $frame_code_cname = (PyCodeObject*) codeobj;
 
   #ifdef WITH_THREAD
@@ -152,7 +154,8 @@
 
 #else
 
-  #define __Pyx_TraceDeclarations(codeobj, nogil)
+  #define __Pyx_TraceDeclarations
+  #define __Pyx_TraceFrameInit(codeobj)
   // mark error label as used to avoid compiler warnings
   #define __Pyx_TraceCall(funcname, srcfile, firstlineno, nogil, goto_error)   if (1); else goto_error;
   #define __Pyx_TraceException()

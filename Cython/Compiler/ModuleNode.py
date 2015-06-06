@@ -2053,7 +2053,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.put_declare_refcount_context()
         if profile or linetrace:
-            tempdecl_code.put_trace_declarations(None)
+            tempdecl_code.put_trace_declarations()
+            code.put_trace_frame_init()
 
         code.putln("#if CYTHON_REFNANNY")
         code.putln("__Pyx_RefNanny = __Pyx_RefNannyImportAPI(\"refnanny\");")

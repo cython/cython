@@ -1763,10 +1763,6 @@ class FuncDefNode(StatNode, BlockNode):
         tempvardecl_code = code.insertion_point()
         self.generate_keyword_list(code)
 
-        if profile or linetrace:
-            code_object = self.code_object.calculate_result_code(code) if self.code_object else None
-            code.put_trace_declarations(code_object, nogil=not code.funcstate.gil_owned)
-
         # ----- Extern library function declarations
         lenv.generate_library_function_declarations(code)
 
@@ -1799,6 +1795,11 @@ class FuncDefNode(StatNode, BlockNode):
             code.funcstate.gil_owned = True
         elif lenv.nogil and lenv.has_with_gil_block:
             code.declare_gilstate()
+
+        if profile or linetrace:
+            tempvardecl_code.put_trace_declarations()
+            code_object = self.code_object.calculate_result_code(code) if self.code_object else None
+            code.put_trace_frame_init(code_object)
 
         # ----- set up refnanny
         if use_refnanny:
