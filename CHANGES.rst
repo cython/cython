@@ -23,16 +23,16 @@ Features added
 
 * When generators are used in a Cython module and the module imports the
   modules "inspect" and/or "asyncio", Cython enables interoperability by
-  patching these modules to recognise Cython's internal generator type.
-  This can be disabled by C compiling the module with
+  patching these modules during the import to recognise Cython's internal
+  generator type. This can be disabled by C compiling the module with
   "-D CYTHON_PATCH_ASYNCIO=0" or "-D CYTHON_PATCH_INSPECT=0"
 
 * When generators are used in a Cython module, the new ``Generator`` ABC
   will be patched into the ``collections`` or ``collections.abc``
-  stdlib module if it is not there yet.  It allows type checks for
-  ``isinstance(obj, Generator)`` which includes both Python generators
-  and Cython generators.  This can be disabled by C compiling the module
-  with "-D CYTHON_PATCH_ABC=0".  See https://bugs.python.org/issue24018
+  stdlib module at import time if it is not there yet.  It allows type
+  checks for ``isinstance(obj, Generator)`` which includes both Python
+  generators and Cython generators.  This can be disabled by C compiling the
+  module with "-D CYTHON_PATCH_ABC=0".  See https://bugs.python.org/issue24018
 
 * Adding/subtracting/dividing/modulus and equality comparisons with
   constant Python floats and small integers are faster.
