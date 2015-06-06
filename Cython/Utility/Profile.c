@@ -43,10 +43,9 @@
   #endif
 
   #define __Pyx_TraceDeclarations(codeobj, nogil)                     \
-  static PyCodeObject *$frame_code_cname = NULL;                      \
+  PyCodeObject *$frame_code_cname = (PyCodeObject*) codeobj;          \
   CYTHON_FRAME_MODIFIER PyFrameObject *$frame_cname = NULL;           \
-  int __Pyx_use_tracing = 0;                                          \
-  if (codeobj) $frame_code_cname = (PyCodeObject*) codeobj;
+  int __Pyx_use_tracing = 0;
 
   #ifdef WITH_THREAD
   #define __Pyx_TraceCall(funcname, srcfile, firstlineno, nogil, goto_error)             \
