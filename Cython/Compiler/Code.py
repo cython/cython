@@ -2206,7 +2206,8 @@ class CCodeWriter(object):
         self.putln('__Pyx_TraceDeclarations')
 
     def put_trace_frame_init(self, codeobj=None):
-        self.putln('__Pyx_TraceFrameInit(%s)' % (codeobj or 'NULL'))
+        if codeobj:
+            self.putln('__Pyx_TraceFrameInit(%s)' % codeobj)
 
     def put_trace_call(self, name, pos, nogil=False):
         self.putln('__Pyx_TraceCall("%s", %s[%s], %s, %d, %s);' % (
