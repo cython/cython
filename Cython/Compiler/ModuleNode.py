@@ -562,6 +562,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_cvariable_declarations(module, modulecode, defined_here)
             self.generate_cfunction_declarations(module, modulecode, defined_here)
 
+    def _put_setup_code(self, code, name):
+        code.put(UtilityCode.load_as_string(name, "ModuleSetupCode.c")[1])
+
     def generate_module_preamble(self, env, cimported_modules, metadata, code):
         code.put_generated_by()
         if metadata:
@@ -583,7 +586,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         from .. import __version__
         code.putln('#define CYTHON_ABI "%s"' % __version__.replace('.', '_'))
 
-        code.put(UtilityCode.load_as_string("CModulePreamble", "ModuleSetupCode.c")[1])
+        self._put_setup_code(code, "CModulePreamble")
+        if env.context.options.cplus:
+            self._put_setup_code(code, "CppInitCode")
+        else:
+            self._put_setup_code(code, "CInitCode")
+        self._put_setup_code(code, "MathInitCode")
 
         code.put("""
 #if PY_MAJOR_VERSION >= 3
@@ -602,11 +610,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("")
         self.generate_extern_c_macro_definition(code)
         code.putln("")
-
-        code.putln("#if defined(WIN32) || defined(MS_WINDOWS)")
-        code.putln("#define _USE_MATH_DEFINES")
-        code.putln("#endif")
-        code.putln("#include <math.h>")
 
         code.putln("#define %s" % Naming.h_guard_prefix + self.api_name(env))
         code.putln("#define %s" % Naming.api_guard_prefix + self.api_name(env))
