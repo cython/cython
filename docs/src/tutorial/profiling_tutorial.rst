@@ -76,6 +76,35 @@ file header comment (if ``cythonize()`` is used for compilation)::
    # distutils: define_macros=CYTHON_TRACE_NOGIL=1
 
 
+Enabling coverage analysis
+--------------------------
+
+Since Cython 0.23, line tracing (see above) also enables support for coverage
+reporting with the `coverage.py <http://nedbatchelder.com/code/coverage/>`_ tool.
+To make the coverage analysis understand Cython modules, you also need to enable
+Cython's coverage plugin in your ``.coveragerc`` file as follows:
+
+.. code-block:: ini
+
+   [run]
+   plugins = Cython.Coverage
+
+With this plugin, your Cython source files should show up normally in the
+coverage reports.
+
+To include the coverage report in the Cython annotated HTML file, you need
+to first run the coverage.py tool to generate an XML result file.  Pass
+this file into the ``cython`` command as follows:
+
+.. code-block:: bash
+
+   $ cython  --annotate-coverage coverage.xml  package/mymodule.pyx
+
+This will recompile the Cython module and generate one HTML output
+file next to each Cython source file it processes, containing colour
+markers for lines that were contained in the coverage report.
+
+
 .. _profiling_tutorial:
 
 Profiling Tutorial
