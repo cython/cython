@@ -1,11 +1,12 @@
 # mode: run
-# tag: asyncio
+# tag: asyncio, pep492
 
 """
 PYTHON setup.py build_ext -i
 PYTHON test_from_import.py
 PYTHON test_import.py
 PYTHON test_async_def.py
+PYTHON test_async_def_future.py
 PYTHON test_all.py
 """
 
@@ -61,6 +62,25 @@ if ASYNCIO_SUPPORTS_COROUTINE:
         assert 3 == result, result
 
     runloop(async_def.wait3)
+
+
+######## test_async_def_future.py ########
+
+import sys
+
+ASYNCIO_SUPPORTS_COROUTINE = sys.version_info[:2] >= (3, 5)
+
+if ASYNCIO_SUPPORTS_COROUTINE:
+    from async_def_future import await_future
+    import asyncio
+
+    def runloop():
+        loop = asyncio.get_event_loop()
+        task, events, expected = await_future(loop)
+        result = loop.run_until_complete(task())
+        assert events == expected, events
+
+    runloop()
 
 
 ######## test_all.py ########
@@ -172,3 +192,27 @@ async def wait3():
         await asyncio.sleep(0.01)
         counter += 1
     return counter
+
+
+######## async_def_future.pyx ########
+
+import asyncio
+
+def await_future(loop):
+    events = []
+    async def worker():
+        fut = asyncio.Future()
+
+        def setval():
+            events.append('setval')
+            fut.set_result(123)
+
+        events.append('setup')
+        loop.call_later(0.2, setval)
+        events.append(await fut)
+
+    async def test():
+        await worker()
+
+    expected = ['setup', 'setval', 123]
+    return test, events, expected

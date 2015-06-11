@@ -73,7 +73,7 @@ class AsyncYield:
 
 def run_async(coro):
     #assert coro.__class__ is types.GeneratorType
-    assert coro.__class__.__name__ in ('coroutine', 'GeneratorWrapper')
+    assert coro.__class__.__name__ in ('coroutine', 'GeneratorWrapper'), coro.__class__.__name__
 
     buffer = []
     result = None
@@ -226,9 +226,8 @@ class CoroutineTest(unittest.TestCase):
         with check():
             iter(foo())
 
-        # in Cython: not iterable, but an iterator ...
-        #with check():
-        #    next(foo())
+        with check():
+            next(foo())
 
         with silence_coro_gc(), check():
             for i in foo():
@@ -305,6 +304,47 @@ class CoroutineTest(unittest.TestCase):
 
             foo()
             gc.collect()
+
+    def test_func_10(self):
+        N = 0
+
+        @types_coroutine
+        def gen():
+            nonlocal N
+            try:
+                a = yield
+                yield (a ** 2)
+            except ZeroDivisionError:
+                N += 100
+                raise
+            finally:
+                N += 1
+
+        async def foo():
+            await gen()
+
+        coro = foo()
+        aw = coro.__await__()
+        self.assertIs(aw, iter(aw))
+        next(aw)
+        self.assertEqual(aw.send(10), 100)
+        with self.assertRaises(TypeError):
+            type(aw).send(None, None)
+
+        self.assertEqual(N, 0)
+        aw.close()
+        self.assertEqual(N, 1)
+        with self.assertRaises(TypeError):
+            type(aw).close(None)
+
+        coro = foo()
+        aw = coro.__await__()
+        next(aw)
+        with self.assertRaises(ZeroDivisionError):
+            aw.throw(ZeroDivisionError, None, None)
+        self.assertEqual(N, 102)
+        with self.assertRaises(TypeError):
+            type(aw).throw(None, None, None, None)
 
     def test_await_1(self):
 
@@ -459,6 +499,20 @@ class CoroutineTest(unittest.TestCase):
             TypeError, "__await__.*returned non-iterator of type"):
 
             run_async(foo())
+
+    def test_await_iterator(self):
+        async def foo():
+            return 123
+
+        coro = foo()
+        it = coro.__await__()
+        self.assertEqual(type(it).__name__, 'coroutine_await')
+
+        with self.assertRaisesRegex(TypeError, "cannot instantiate 'coroutine_await' type"):
+            type(it)()  # cannot instantiate
+
+        with self.assertRaisesRegex(StopIteration, "123"):
+            next(it)
 
     def test_with_1(self):
         class Manager:
