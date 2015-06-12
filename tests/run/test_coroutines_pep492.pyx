@@ -325,7 +325,7 @@ class CoroutineTest(unittest.TestCase):
 
         coro = foo()
         aw = coro.__await__()
-        self.assertIs(aw, iter(aw))
+        self.assertTrue(aw is iter(aw))
         next(aw)
         self.assertEqual(aw.send(10), 100)
         with self.assertRaises(TypeError):
