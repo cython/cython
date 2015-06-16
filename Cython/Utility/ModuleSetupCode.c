@@ -348,7 +348,7 @@ static int __pyx_bisect_code_objects(__Pyx_CodeObjectCacheEntry* entries, int co
         return count;
     }
     while (start < end) {
-        mid = (start + end) / 2;
+        mid = start + (end - start) / 2;
         if (code_line < entries[mid].code_line) {
             end = mid;
         } else if (code_line > entries[mid].code_line) {
