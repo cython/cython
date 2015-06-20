@@ -1004,7 +1004,7 @@ static PyObject *__Pyx_CoroutineAwait_self(PyObject *self) {
 }
 
 static PyObject *__Pyx_CoroutineAwait_no_new(CYTHON_UNUSED PyTypeObject *type, CYTHON_UNUSED PyObject *args, CYTHON_UNUSED PyObject *kwargs) {
-    PyErr_SetString(PyExc_TypeError, "cannot instantiate 'coroutine_await' type, call coroutine.__await__() instead");
+    PyErr_SetString(PyExc_TypeError, "cannot instantiate type, use 'await coroutine' instead");
     return NULL;
 }
 
