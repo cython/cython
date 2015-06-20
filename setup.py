@@ -316,7 +316,7 @@ if include_debugger:
 setup(
     name='Cython',
     version=version,
-    url='http://www.cython.org',
+    url='http://cython.org/',
     author='Robert Bradshaw, Stefan Behnel, Dag Seljebotn, Greg Ewing, et al.',
     author_email='cython-devel@python.org',
     description="The Cython compiler for writing C extensions for the Python language.",
