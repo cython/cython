@@ -2547,7 +2547,7 @@ supported_overloaded_operators = cython.declare(set, set([
     '+', '-', '*', '/', '%',
     '++', '--', '~', '|', '&', '^', '<<', '>>', ',',
     '==', '!=', '>=', '>', '<=', '<',
-    '[]', '()', '!',
+    '[]', '()', '!', '='
 ]))
 
 def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
