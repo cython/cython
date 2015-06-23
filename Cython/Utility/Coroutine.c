@@ -86,7 +86,6 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAwaitableIter(PyObject *o); /*
 static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *o); /*proto*/
 
 //////////////////// GetAwaitIter ////////////////////
-//@requires: Coroutine
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@requires: ObjectHandling.c::PyObjectCallNoArg
 //@requires: ObjectHandling.c::PyObjectCallOneArg
@@ -110,18 +109,20 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
         res = (*am->am_await)(obj);
     } else
 #endif
+#if (CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500B2) || defined(PyCoro_CheckExact)
+    if (PyCoro_CheckExact(obj)) {
+        Py_INCREF(obj);
+        return obj;
+    } else
+#endif
+#if CYTHON_COMPILING_IN_CPYTHON && defined(CO_ITERABLE_COROUTINE)
+    if (PyGen_CheckExact(obj) && ((PyGenObject*)obj)->gi_code && ((PyCodeObject *)((PyGenObject*)obj)->gi_code)->co_flags & CO_ITERABLE_COROUTINE) {
+        // Python generator marked with "@types.coroutine" decorator
+        Py_INCREF(obj);
+        return obj;
+    } else
+#endif
     {
-#if PY_VERSION_HEX >= 0x030500B1
-    #if CYTHON_COMPILING_IN_CPYTHON
-        if (PyGen_CheckCoroutineExact(obj)) {
-            // Python generator marked with "@types.coroutine" decorator
-            Py_INCREF(obj);
-            return obj;
-        }
-    #endif
-        // no slot => no method
-        goto slot_error;
-#else
         PyObject *method = __Pyx_PyObject_GetAttrStr(obj, PYIDENT("__await__"));
         if (unlikely(!method)) goto slot_error;
         #if CYTHON_COMPILING_IN_CPYTHON
@@ -136,7 +137,6 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
         #endif
             res = __Pyx_PyObject_CallNoArg(method);
         Py_DECREF(method);
-#endif
     }
     if (unlikely(!res)) goto bad;
     if (!PyIter_Check(res)) {
@@ -149,8 +149,8 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
         #ifdef __Pyx_Coroutine_USED
         is_coroutine |= __Pyx_Coroutine_CheckExact(res);
         #endif
-        #if PY_VERSION_HEX >= 0x030500B1
-        is_coroutine |= PyGen_CheckCoroutineExact(res);
+        #if (CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500B2) || defined(PyCoro_CheckExact)
+        is_coroutine |= PyCoro_CheckExact(res);
         #endif
         if (unlikely(is_coroutine)) {
             /* __await__ must return an *iterator*, not
@@ -1009,15 +1009,18 @@ static PyObject *__Pyx_CoroutineAwait_no_new(CYTHON_UNUSED PyTypeObject *type, C
 }
 
 static PyMethodDef __pyx_CoroutineAwait_methods[] = {
-    {"send", (PyCFunction) __Pyx_CoroutineAwait_Send, METH_O, 0},
-    {"throw", (PyCFunction) __Pyx_CoroutineAwait_Throw, METH_VARARGS, 0},
-    {"close", (PyCFunction) __Pyx_CoroutineAwait_Close, METH_NOARGS, 0},
+    {"send", (PyCFunction) __Pyx_CoroutineAwait_Send, METH_O,
+     (char*) PyDoc_STR("send(arg) -> send 'arg' into coroutine,\nreturn next yielded value or raise StopIteration.")},
+    {"throw", (PyCFunction) __Pyx_CoroutineAwait_Throw, METH_VARARGS,
+     (char*) PyDoc_STR("throw(typ[,val[,tb]]) -> raise exception in coroutine,\nreturn next yielded value or raise StopIteration.")},
+    {"close", (PyCFunction) __Pyx_CoroutineAwait_Close, METH_NOARGS,
+     (char*) PyDoc_STR("close() -> raise GeneratorExit inside coroutine.")},
     {0, 0, 0, 0}
 };
 
 static PyTypeObject __pyx_CoroutineAwaitType_type = {
     PyVarObject_HEAD_INIT(0, 0)
-    "coroutine_await",                  /*tp_name*/
+    "coroutine_wrapper",                /*tp_name*/
     sizeof(__pyx_CoroutineAwaitObject), /*tp_basicsize*/
     0,                                  /*tp_itemsize*/
     (destructor) __Pyx_CoroutineAwait_dealloc,/*tp_dealloc*/
@@ -1154,11 +1157,15 @@ static PyObject *__Pyx_Coroutine_compare(PyObject *obj, PyObject *other, int op)
 #endif
 
 static PyMethodDef __pyx_Coroutine_methods[] = {
-    {"send", (PyCFunction) __Pyx_Coroutine_Send, METH_O, 0},
-    {"throw", (PyCFunction) __Pyx_Coroutine_Throw, METH_VARARGS, 0},
-    {"close", (PyCFunction) __Pyx_Coroutine_Close, METH_NOARGS, 0},
+    {"send", (PyCFunction) __Pyx_Coroutine_Send, METH_O,
+     (char*) PyDoc_STR("send(arg) -> send 'arg' into coroutine,\nreturn next yielded value or raise StopIteration.")},
+    {"throw", (PyCFunction) __Pyx_Coroutine_Throw, METH_VARARGS,
+     (char*) PyDoc_STR("throw(typ[,val[,tb]]) -> raise exception in coroutine,\nreturn next yielded value or raise StopIteration.")},
+    {"close", (PyCFunction) __Pyx_Coroutine_Close, METH_NOARGS,
+     (char*) PyDoc_STR("close() -> raise GeneratorExit inside coroutine.")},
 #if PY_VERSION_HEX < 0x030500B1
-    {"__await__", (PyCFunction) __Pyx_Coroutine_await, METH_NOARGS, 0},
+    {"__await__", (PyCFunction) __Pyx_Coroutine_await, METH_NOARGS,
+     (char*) PyDoc_STR("")},
 #endif
     {0, 0, 0, 0}
 };
@@ -1270,9 +1277,12 @@ static int __pyx_Coroutine_init(void) {
 //@requires: PatchGeneratorABC
 
 static PyMethodDef __pyx_Generator_methods[] = {
-    {"send", (PyCFunction) __Pyx_Coroutine_Send, METH_O, 0},
-    {"throw", (PyCFunction) __Pyx_Coroutine_Throw, METH_VARARGS, 0},
-    {"close", (PyCFunction) __Pyx_Coroutine_Close, METH_NOARGS, 0},
+    {"send", (PyCFunction) __Pyx_Coroutine_Send, METH_O,
+     (char*) PyDoc_STR("send(arg) -> send 'arg' into generator,\nreturn next yielded value or raise StopIteration.")},
+    {"throw", (PyCFunction) __Pyx_Coroutine_Throw, METH_VARARGS,
+     (char*) PyDoc_STR("throw(typ[,val[,tb]]) -> raise exception in generator,\nreturn next yielded value or raise StopIteration.")},
+    {"close", (PyCFunction) __Pyx_Coroutine_Close, METH_NOARGS,
+     (char*) PyDoc_STR("close() -> raise GeneratorExit inside generator.")},
     {0, 0, 0, 0}
 };
 

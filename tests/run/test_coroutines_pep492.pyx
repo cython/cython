@@ -38,6 +38,9 @@ except ImportError:
             @property
             def gi_running(self):
                 return self.__wrapped__.gi_running
+            cr_code = gi_code
+            cr_frame = gi_frame
+            cr_running = gi_running
             def __next__(self):
                 return next(self.__wrapped__)
             def __iter__(self):
@@ -80,6 +83,25 @@ def run_async(coro):
     while True:
         try:
             buffer.append(coro.send(None))
+        except StopIteration as ex:
+            result = ex.args[0] if ex.args else None
+            break
+    return buffer, result
+
+
+def run_async__await__(coro):
+    assert coro.__class__.__name__ in ('coroutine', 'GeneratorWrapper'), coro.__class__.__name__
+    aw = coro.__await__()
+    buffer = []
+    result = None
+    i = 0
+    while True:
+        try:
+            if i % 2:
+                buffer.append(next(aw))
+            else:
+                buffer.append(aw.send(None))
+            i += 1
         except StopIteration as ex:
             result = ex.args[0] if ex.args else None
             break
@@ -166,9 +188,14 @@ class CoroutineTest(unittest.TestCase):
         else:
             self.assertTrue(False, "'%s' did not match '%s'" % (first_match, regex))
 
-    def assertRegex(self, value, regex):
-        self.assertTrue(re.search(regex, str(value)),
-                        "'%s' did not match '%s'" % (value, regex))
+    if not hasattr(unittest.TestCase, 'assertRegex'):
+        def assertRegex(self, value, regex):
+            self.assertTrue(re.search(regex, str(value)),
+                            "'%s' did not match '%s'" % (value, regex))
+
+    if not hasattr(unittest.TestCase, 'assertIn'):
+        def assertIn(self, member, container, msg=None):
+            self.assertTrue(member in container, msg)
 
     def test_gen_1(self):
         def gen(): yield
@@ -180,12 +207,14 @@ class CoroutineTest(unittest.TestCase):
 
         f = foo()
         self.assertEqual(f.__class__.__name__, 'coroutine')
-        #self.assertIsInstance(f, types.GeneratorType)
+        #self.assertIsInstance(f, types.CoroutineType)
         #self.assertTrue(bool(foo.__code__.co_flags & 0x80))
         #self.assertTrue(bool(foo.__code__.co_flags & 0x20))
-        #self.assertTrue(bool(f.gi_code.co_flags & 0x80))
-        #self.assertTrue(bool(f.gi_code.co_flags & 0x20))
+        #self.assertTrue(bool(f.cr_code.co_flags & 0x80))
+        #self.assertTrue(bool(f.cr_code.co_flags & 0x20))
         self.assertEqual(run_async(f), ([], 10))
+
+        self.assertEqual(run_async__await__(foo()), ([], 10))
 
         def bar(): pass
         self.assertFalse(bool(bar.__code__.co_flags & 0x80))
@@ -196,7 +225,7 @@ class CoroutineTest(unittest.TestCase):
             raise StopIteration
 
         with self.assertRaisesRegex(
-                RuntimeError, "generator raised StopIteration"):
+                RuntimeError, "coroutine raised StopIteration"):
 
             run_async(foo())
 
@@ -212,7 +241,7 @@ class CoroutineTest(unittest.TestCase):
             raise StopIteration
 
         check = lambda: self.assertRaisesRegex(
-            TypeError, "coroutine-objects do not support iteration")
+            TypeError, "'coroutine' object is not iterable")
 
         with check():
             list(foo())
@@ -245,7 +274,7 @@ class CoroutineTest(unittest.TestCase):
             await bar()
 
         check = lambda: self.assertRaisesRegex(
-            TypeError, "coroutine-objects do not support iteration")
+            TypeError, "'coroutine' object is not iterable")
 
         with check():
             for el in foo(): pass
@@ -282,7 +311,7 @@ class CoroutineTest(unittest.TestCase):
 
         with silence_coro_gc(), self.assertRaisesRegex(
             TypeError,
-            "cannot 'yield from' a coroutine object from a generator"):
+            "cannot 'yield from' a coroutine object in a non-coroutine generator"):
 
             list(foo())
 
@@ -334,7 +363,7 @@ class CoroutineTest(unittest.TestCase):
         self.assertEqual(N, 0)
         aw.close()
         self.assertEqual(N, 1)
-        with self.assertRaises(TypeError):
+        with self.assertRaises(TypeError):   # removed from CPython test suite?
             type(aw).close(None)
 
         coro = foo()
@@ -343,8 +372,66 @@ class CoroutineTest(unittest.TestCase):
         with self.assertRaises(ZeroDivisionError):
             aw.throw(ZeroDivisionError, None, None)
         self.assertEqual(N, 102)
-        with self.assertRaises(TypeError):
+        with self.assertRaises(TypeError):   # removed from CPython test suite?
             type(aw).throw(None, None, None, None)
+
+    def test_func_11(self):
+        async def func(): pass
+        coro = func()
+        # Test that PyCoro_Type and _PyCoroWrapper_Type types were properly
+        # initialized
+        self.assertIn('__await__', dir(coro))
+        self.assertIn('__iter__', dir(coro.__await__()))
+        self.assertIn('coroutine_wrapper', repr(coro.__await__()))
+        coro.close() # avoid RuntimeWarning
+
+    def test_func_12(self):
+        async def g():
+            i = me.send(None)
+            await None
+        me = g()
+        with self.assertRaisesRegex(ValueError,
+                                    "coroutine already executing"):
+            me.send(None)
+
+    def test_func_13(self):
+        async def g():
+            pass
+        with self.assertRaisesRegex(
+            TypeError,
+            "can't send non-None value to a just-started coroutine"):
+
+            g().send('spam')
+
+    def test_func_14(self):
+        @types_coroutine
+        def gen():
+            yield
+        async def coro():
+            try:
+                await gen()
+            except GeneratorExit:
+                await gen()
+        c = coro()
+        c.send(None)
+        with self.assertRaisesRegex(RuntimeError,
+                                    "coroutine ignored GeneratorExit"):
+            c.close()
+
+    def test_corotype_1(self):
+        async def f(): pass
+        ct = type(f())
+        self.assertIn('into coroutine', ct.send.__doc__)
+        self.assertIn('inside coroutine', ct.close.__doc__)
+        self.assertIn('in coroutine', ct.throw.__doc__)
+        self.assertIn('of the coroutine', ct.__dict__['__name__'].__doc__)
+        self.assertIn('of the coroutine', ct.__dict__['__qualname__'].__doc__)
+        self.assertEqual(ct.__name__, 'coroutine')
+
+        async def f(): pass
+        c = f()
+        self.assertIn('coroutine object', repr(c))
+        c.close()
 
     def test_await_1(self):
 
@@ -364,6 +451,7 @@ class CoroutineTest(unittest.TestCase):
             await AsyncYieldFrom([1, 2, 3])
 
         self.assertEqual(run_async(foo()), ([1, 2, 3], None))
+        self.assertEqual(run_async__await__(foo()), ([1, 2, 3], None))
 
     def test_await_4(self):
         async def bar():
@@ -432,7 +520,7 @@ class CoroutineTest(unittest.TestCase):
 
             db = {'b':  lambda: wrap}
 
-            class DB:
+            class DB(object):
                 b = staticmethod(wrap)
 
             return (await bar() + await wrap()() + await db['b']()()() +
@@ -506,9 +594,9 @@ class CoroutineTest(unittest.TestCase):
 
         coro = foo()
         it = coro.__await__()
-        self.assertEqual(type(it).__name__, 'coroutine_await')
+        self.assertEqual(type(it).__name__, 'coroutine_wrapper')
 
-        with self.assertRaisesRegex(TypeError, "cannot instantiate 'coroutine_await' type"):
+        with self.assertRaisesRegex(TypeError, "cannot instantiate 'coroutine_wrapper' type"):
             type(it)()  # cannot instantiate
 
         with self.assertRaisesRegex(StopIteration, "123"):
@@ -675,7 +763,6 @@ class CoroutineTest(unittest.TestCase):
             run_async(foo())
 
         self.assertEqual(CNT, 1)
-
 
     def test_with_9(self):
         CNT = 0
@@ -1108,12 +1195,89 @@ class SysSetCoroWrapperTest(unittest.TestCase):
             foo()
         self.assertFalse(wrapped)
 
+    def test_set_wrapper_2(self):
+        self.assertIsNone(sys.get_coroutine_wrapper())
+        with self.assertRaisesRegex(TypeError, "callable expected, got int"):
+            sys.set_coroutine_wrapper(1)
+        self.assertIsNone(sys.get_coroutine_wrapper())
+
+    def test_set_wrapper_3(self):
+        async def foo():
+            return 'spam'
+
+        def wrapper(coro):
+            async def wrap(coro):
+                return await coro
+            return wrap(coro)
+
+        sys.set_coroutine_wrapper(wrapper)
+        try:
+            with silence_coro_gc(), self.assertRaisesRegex(
+                RuntimeError,
+                "coroutine wrapper.*\.wrapper at 0x.*attempted to "
+                "recursively wrap .* wrap .*"):
+
+                foo()
+        finally:
+            sys.set_coroutine_wrapper(None)
+
+    def test_set_wrapper_4(self):
+        @types_coroutine
+        def foo():
+            return 'spam'
+
+        wrapped = None
+        def wrap(gen):
+            nonlocal wrapped
+            wrapped = gen
+            return gen
+
+        sys.set_coroutine_wrapper(wrap)
+        try:
+            foo()
+            self.assertIs(
+                wrapped, None,
+                "generator-based coroutine was wrapped via "
+                "sys.set_coroutine_wrapper")
+        finally:
+            sys.set_coroutine_wrapper(None)
+
+
+class CAPITest(unittest.TestCase):
+
+    def test_tp_await_1(self):
+        from _testcapi import awaitType as at
+
+        async def foo():
+            future = at(iter([1]))
+            return (await future)
+
+        self.assertEqual(foo().send(None), 1)
+
+    def test_tp_await_2(self):
+        # Test tp_await to __await__ mapping
+        from _testcapi import awaitType as at
+        future = at(iter([1]))
+        self.assertEqual(next(future.__await__()), 1)
+
+    def test_tp_await_3(self):
+        from _testcapi import awaitType as at
+
+        async def foo():
+            future = at(1)
+            return (await future)
+
+        with self.assertRaisesRegex(
+                TypeError, "__await__.*returned non-iterator of type 'int'"):
+            self.assertEqual(foo().send(None), 1)
+
 
 # disable some tests that only apply to CPython
 
 # TODO?
 if True or sys.version_info < (3, 5):
     SysSetCoroWrapperTest = None
+    CAPITest = None
 
 if sys.version_info < (3, 5):  # (3, 4, 4)
     CoroAsyncIOCompatTest = None
