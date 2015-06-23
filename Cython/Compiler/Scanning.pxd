@@ -9,7 +9,7 @@ cdef initial_compile_time_env()
 
 cdef class Method:
     cdef object name
-    cdef object __name__
+    cdef readonly object __name__
 
 @cython.final
 cdef class CompileTimeScope:
