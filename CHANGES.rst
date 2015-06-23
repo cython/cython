@@ -59,6 +59,8 @@ Features added
   be invalid for modules.  Note that this prevents reuse of the generated
   C code as an importable module.
 
+* External C++ classes that overload the assignment operator can be used.
+
 Bugs fixed
 ----------
 
