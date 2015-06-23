@@ -1,3 +1,4 @@
+# mode: run
 # tag: cpp
 
 """
@@ -10,6 +11,7 @@ PYTHON -c "from assignment_overload import test; test()"
 from distutils.core import setup
 from Cython.Build import cythonize
 setup(ext_modules=cythonize("*.pyx", language='c++'))
+
 
 ######## assign.cpp ########
 
@@ -24,6 +26,7 @@ public:
   }
 };
 
+
 ######## assign.pxd ########
 
 cdef extern from "assign.cpp" nogil:
@@ -33,11 +36,18 @@ cdef extern from "assign.cpp" nogil:
         wrapped_int(long long val)
         wrapped_int& operator=(const wrapped_int &other)
 
+
 ######## assignment_overload.pyx ########
 
 from assign cimport wrapped_int
+
 def test():
-    cdef wrapped_int a=wrapped_int(2), b=wrapped_int(3)
+    cdef wrapped_int a = wrapped_int(2)
+    cdef wrapped_int b = wrapped_int(3)
+
+    assert &a != &b
+    assert a.val != b.val
+
     a = b
     assert &a != &b
     assert a.val == b.val
