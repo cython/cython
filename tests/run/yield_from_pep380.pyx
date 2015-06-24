@@ -1071,3 +1071,18 @@ def yield_in_return(x):
     True
     """
     return (yield from x)
+
+
+def gi_yieldfrom(it):
+    """
+    >>> it = iter([1, 2, 3])
+    >>> g = gi_yieldfrom(it)
+    >>> g.gi_yieldfrom is None or "ERROR: %r" % g.gi_yieldfrom
+    True
+    >>> next(g)
+    1
+    >>> g.gi_yieldfrom is it or "ERROR: %r" % g.gi_yieldfrom
+    True
+    """
+    x = yield from it
+    return x

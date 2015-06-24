@@ -1172,6 +1172,8 @@ static PyMethodDef __pyx_Coroutine_methods[] = {
 
 static PyMemberDef __pyx_Coroutine_memberlist[] = {
     {(char *) "cr_running", T_BOOL, offsetof(__pyx_CoroutineObject, is_running), READONLY, NULL},
+    {(char*) "cr_yieldfrom", T_OBJECT, offsetof(__pyx_CoroutineObject, yieldfrom), READONLY,
+     (char*) PyDoc_STR("object being awaited, or None")},
     {0, 0, 0, 0, 0}
 };
 
@@ -1288,6 +1290,8 @@ static PyMethodDef __pyx_Generator_methods[] = {
 
 static PyMemberDef __pyx_Generator_memberlist[] = {
     {(char *) "gi_running", T_BOOL, offsetof(__pyx_CoroutineObject, is_running), READONLY, NULL},
+    {(char*) "gi_yieldfrom", T_OBJECT, offsetof(__pyx_CoroutineObject, yieldfrom), READONLY,
+     (char*) PyDoc_STR("object being iterated by 'yield from', or None")},
     {0, 0, 0, 0, 0}
 };
 
