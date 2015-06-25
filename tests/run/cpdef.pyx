@@ -15,3 +15,27 @@ cpdef void raisable() except *:
     """
     print('here')
     raise RuntimeError()
+
+cdef class A:
+    """
+    >>> A().foo()
+    A
+    """
+    cpdef void foo(self):
+        print "A"
+
+cdef class B(A):
+    """
+    >>> B().foo()
+    B
+    """
+    cpdef void foo(self):
+        print "B"
+
+class C(B):
+    """
+    >>> C().foo()
+    C
+    """
+    def foo(self):
+        print "C"

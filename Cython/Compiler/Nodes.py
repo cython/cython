@@ -4141,7 +4141,12 @@ class OverrideCheckNode(StatNode):
             self.pos, function=self.func_node,
             args=[ ExprNodes.NameNode(self.pos, name=arg.name)
                    for arg in self.args[first_arg:] ])
-        self.body = ReturnStatNode(self.pos, value=call_node)
+        if env.return_type.is_void or env.return_type.is_returncode:
+            self.body = StatListNode(self.pos, stats=[
+                            ExprStatNode(self.pos, expr=call_node),
+                            ReturnStatNode(self.pos, value=None)])
+        else:
+            self.body = ReturnStatNode(self.pos, value=call_node)
         self.body = self.body.analyse_expressions(env)
         return self
 
