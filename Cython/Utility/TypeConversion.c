@@ -17,7 +17,10 @@
                                v == (type)PY_SSIZE_T_MAX)))  )
 
 // fast and unsafe abs(Py_ssize_t) that ignores the overflow for (-PY_SSIZE_T_MAX-1)
-#if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+#if defined __cplusplus
+    #define __Pyx_sst_abs(value) \
+        (::std::abs(value))
+#elif defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
     #define __Pyx_sst_abs(value) \
         (sizeof(int) >= sizeof(Py_ssize_t) ? abs(value) : \
          (sizeof(long) >= sizeof(Py_ssize_t) ? labs(value) : llabs(value)))
