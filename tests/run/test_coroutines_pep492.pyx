@@ -21,7 +21,7 @@ except ImportError:
         def __init__(self, gen):
             self._gen = gen
 
-        class GeneratorWrapper:
+        class _GeneratorWrapper:
             def __init__(self, gen):
                 self.__wrapped__ = gen
                 self.send = gen.send
@@ -76,7 +76,7 @@ class AsyncYield:
 
 def run_async(coro):
     #assert coro.__class__ is types.GeneratorType
-    assert coro.__class__.__name__ in ('coroutine', 'GeneratorWrapper'), coro.__class__.__name__
+    assert coro.__class__.__name__ in ('coroutine', '_GeneratorWrapper'), coro.__class__.__name__
 
     buffer = []
     result = None
@@ -90,7 +90,7 @@ def run_async(coro):
 
 
 def run_async__await__(coro):
-    assert coro.__class__.__name__ in ('coroutine', 'GeneratorWrapper'), coro.__class__.__name__
+    assert coro.__class__.__name__ in ('coroutine', '_GeneratorWrapper'), coro.__class__.__name__
     aw = coro.__await__()
     buffer = []
     result = None
