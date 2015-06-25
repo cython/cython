@@ -48,7 +48,7 @@ except ImportError:
             __await__ = __iter__
 
         def __call__(self, *args, **kwargs):
-            return self.GeneratorWrapper(self._gen(*args, **kwargs))
+            return self._GeneratorWrapper(self._gen(*args, **kwargs))
 
 
 # compiled exec()
