@@ -3897,13 +3897,13 @@ class IndexNode(ExprNode):
             negative_indices = Buffer.buffer_defaults['negative_indices']
 
         return buffer_entry, Buffer.put_buffer_lookup_code(
-               entry=buffer_entry,
-               index_signeds=[ivar.type.signed for ivar in self.indices],
-               index_cnames=index_temps,
-               directives=code.globalstate.directives,
-               pos=self.pos, code=code,
-               negative_indices=negative_indices,
-               in_nogil_context=self.in_nogil_context)
+            entry=buffer_entry,
+            index_signeds=[ivar.type.signed for ivar in self.indices],
+            index_cnames=index_temps,
+            directives=code.globalstate.directives,
+            pos=self.pos, code=code,
+            negative_indices=negative_indices,
+            in_nogil_context=self.in_nogil_context)
 
     def put_memoryviewslice_slice_code(self, code):
         "memslice[:]"
