@@ -415,6 +415,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buf_entry,
 
     code.putln("}") # Release stack
 
+
 def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives,
                            pos, code, negative_indices, in_nogil_context):
     """
@@ -435,21 +436,21 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives,
     if directives['boundscheck']:
         # Check bounds and fix negative indices.
         # We allocate a temporary which is initialized to -1, meaning OK (!).
-        # If an error occurs, the temp is set to the dimension index the
-        # error is occuring at.
-        tmp_cname = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
-        code.putln("%s = -1;" % tmp_cname)
-        for dim, (signed, cname, shape) in enumerate(zip(index_signeds, index_cnames,
-                                                         entry.get_buf_shapevars())):
+        # If an error occurs, the temp is set to the index dimension the
+        # error is occurring at.
+        failed_dim_temp = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
+        code.putln("%s = -1;" % failed_dim_temp)
+        for dim, (signed, cname, shape) in enumerate(zip(index_signeds, index_cnames, entry.get_buf_shapevars())):
             if signed != 0:
                 # not unsigned, deal with negative index
                 code.putln("if (%s < 0) {" % cname)
                 if negative_indices:
                     code.putln("%s += %s;" % (cname, shape))
                     code.putln("if (%s) %s = %d;" % (
-                        code.unlikely("%s < 0" % cname), tmp_cname, dim))
+                        code.unlikely("%s < 0" % cname),
+                        failed_dim_temp, dim))
                 else:
-                    code.putln("%s = %d;" % (tmp_cname, dim))
+                    code.putln("%s = %d;" % (failed_dim_temp, dim))
                 code.put("} else ")
             # check bounds in positive direction
             if signed != 0:
@@ -458,7 +459,7 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives,
                 cast = "(size_t)"
             code.putln("if (%s) %s = %d;" % (
                 code.unlikely("%s >= %s%s" % (cname, cast, shape)),
-                              tmp_cname, dim))
+                failed_dim_temp, dim))
 
         if in_nogil_context:
             code.globalstate.use_utility_code(raise_indexerror_nogil)
@@ -467,15 +468,14 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives,
             code.globalstate.use_utility_code(raise_indexerror_code)
             func = '__Pyx_RaiseBufferIndexError'
 
-        code.putln("if (%s) {" % code.unlikely("%s != -1" % tmp_cname))
-        code.putln('%s(%s);' % (func, tmp_cname))
+        code.putln("if (%s) {" % code.unlikely("%s != -1" % failed_dim_temp))
+        code.putln('%s(%s);' % (func, failed_dim_temp))
         code.putln(code.error_goto(pos))
         code.putln('}')
-        code.funcstate.release_temp(tmp_cname)
+        code.funcstate.release_temp(failed_dim_temp)
     elif negative_indices:
         # Only fix negative indices.
-        for signed, cname, shape in zip(index_signeds, index_cnames,
-                                        entry.get_buf_shapevars()):
+        for signed, cname, shape in zip(index_signeds, index_cnames, entry.get_buf_shapevars()):
             if signed != 0:
                 code.putln("if (%s < 0) %s += %s;" % (cname, cname, shape))
 
