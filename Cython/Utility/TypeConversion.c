@@ -25,7 +25,7 @@
     #define __Pyx_sst_abs(value) labs(value)
 #elif defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
     #define __Pyx_sst_abs(value) llabs(value)
-#elif defined (_M_X64)
+#elif defined (_MSC_VER) && defined (_M_X64)
     // abs() is defined for long, but 64-bits type on MSVC is long long.
     // Use MS-specific _abs64 instead.
     #define __Pyx_sst_abs(value) _abs64(value)
