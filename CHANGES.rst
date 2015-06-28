@@ -82,7 +82,8 @@ Bugs fixed
 
 * ``cpdef void`` methods are now permitted.
 
-* ``abs(cint)`` could fail to compile in MSVC.  Patch by David Vierra.
+* ``abs(cint)`` could fail to compile in MSVC and used sub-optimal code
+  in C++.  Patch by David Vierra, original patch by Michael Enßlin.
 
 * Buffer index calculations using index variables with small C integer
   types could overflow for large buffer sizes.  Original patch by
