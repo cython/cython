@@ -4093,8 +4093,8 @@ def merge_template_deductions(a, b):
 
 
 def widest_numeric_type(type1, type2):
-    # Given two numeric types, return the narrowest type
-    # encompassing both of them.
+    """Given two numeric types, return the narrowest type encompassing both of them.
+    """
     if type1 == type2:
         widest_type = type1
     elif type1.is_complex or type2.is_complex:
