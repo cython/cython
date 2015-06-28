@@ -28,7 +28,7 @@ from . import Nodes
 from .Nodes import Node, utility_code_for_imports
 from . import PyrexTypes
 from .PyrexTypes import py_object_type, c_long_type, typecast, error_type, \
-    unspecified_type
+    unspecified_type, c_ssize_t_type
 from . import TypeSlots
 from .Builtin import list_type, tuple_type, set_type, dict_type, type_type, \
      unicode_type, str_type, bytes_type, bytearray_type, basestring_type, slice_type
@@ -3876,7 +3876,7 @@ class IndexNode(ExprNode):
     def buffer_lookup_code(self, code):
         "ndarray[1, 2, 3] and memslice[1, 2, 3]"
         # Assign indices to temps
-        index_temps = [code.funcstate.allocate_temp(i.type, manage_ref=False)
+        index_temps = [code.funcstate.allocate_temp(c_ssize_t_type, manage_ref=False)
                            for i in self.indices]
 
         for temp, index in zip(index_temps, self.indices):
