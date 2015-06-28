@@ -27,6 +27,7 @@ pyregr.test_ioctl
 # CPython regression tests with threading issues
 pyregr.test_threadsignals
 pyregr.test_threading
+pyregr.test_threaded_import
 pyregr.test_logging
 
 # CPython regression tests that don't make sense
