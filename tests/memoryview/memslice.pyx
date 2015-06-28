@@ -425,6 +425,166 @@ def set_int_2d(int[:, :] buf, int i, int j, int value):
     """
     buf[i, j] = value
 
+
+def _read_int2d(int[:, :] buf, int i, int j):
+    return buf[i, j]
+
+
+@testcase
+def schar_index_vars(int[:, :] buf, signed char i, signed char j, int value):
+    """
+    >>> C = IntMockBuffer("C", range(300*300), (300, 300))  # > sizeof(char)
+    >>> schar_index_vars(C, 1, 1, 5)
+    acquired C
+    reading
+    writing
+    validated
+    released C
+    301
+    >>> _read_int2d(C, 1, 1)  # validate with int indices
+    acquired C
+    released C
+    5
+
+    >>> schar_index_vars(C, -1, 1, 6)
+    acquired C
+    reading
+    writing
+    validated
+    released C
+    89701
+    >>> _read_int2d(C, -1, 1)  # validate with int indices
+    acquired C
+    released C
+    6
+
+    >>> schar_index_vars(C, -1, -2, 7)
+    acquired C
+    reading
+    writing
+    validated
+    released C
+    89998
+    >>> _read_int2d(C, -1, -2)  # validate with int indices
+    acquired C
+    released C
+    7
+
+    >>> schar_index_vars(C, -2, -3, 8)
+    acquired C
+    reading
+    writing
+    validated
+    released C
+    89697
+    >>> _read_int2d(C, -2, -3)  # validate with int indices
+    acquired C
+    released C
+    8
+
+    >>> C = IntMockBuffer("C", range(6), (2, 3))
+    >>> schar_index_vars(C, 5, 1, 10)
+    Traceback (most recent call last):
+    IndexError: Out of bounds on buffer access (axis 0)
+    >>> schar_index_vars(C, 1, 5, 10)
+    Traceback (most recent call last):
+    IndexError: Out of bounds on buffer access (axis 1)
+    >>> schar_index_vars(C, -2, 1, 10)
+    acquired C
+    reading
+    writing
+    validated
+    released C
+    1
+    >>> schar_index_vars(C, -3, 1, 10)
+    Traceback (most recent call last):
+    IndexError: Out of bounds on buffer access (axis 0)
+    >>> schar_index_vars(C, 1, -3, 10)
+    acquired C
+    reading
+    writing
+    validated
+    released C
+    3
+    >>> schar_index_vars(C, 1, -4, 10)
+    Traceback (most recent call last):
+    IndexError: Out of bounds on buffer access (axis 1)
+    """
+    print("reading")
+    old_value = buf[i, j]
+    print("writing")
+    buf[i, j] = value
+    if buf[i, j] == value:
+        print("validated")
+    return old_value
+
+
+@testcase
+def uchar_index_vars(int[:, :] buf, unsigned char i, unsigned char j, int value):
+    """
+    >>> C = IntMockBuffer("C", range(300*300), (300, 300))  # > sizeof(char)
+    >>> uchar_index_vars(C, 1, 1, 5)
+    acquired C
+    reading
+    writing
+    validated
+    released C
+    301
+    >>> _read_int2d(C, 1, 1)  # validate with int indices
+    acquired C
+    released C
+    5
+
+    >>> C = IntMockBuffer("C", range(6), (2, 3))
+    >>> uchar_index_vars(C, 5, 1, 10)
+    Traceback (most recent call last):
+    IndexError: Out of bounds on buffer access (axis 0)
+    >>> uchar_index_vars(C, 1, 5, 10)
+    Traceback (most recent call last):
+    IndexError: Out of bounds on buffer access (axis 1)
+    """
+    print("reading")
+    old_value = buf[i, j]
+    print("writing")
+    buf[i, j] = value
+    if buf[i, j] == value:
+        print("validated")
+    return old_value
+
+
+@testcase
+def char_index_vars(int[:, :] buf, char i, char j, int value):
+    """
+    >>> C = IntMockBuffer("C", range(300*300), (300, 300))  # > sizeof(char)
+    >>> char_index_vars(C, 1, 1, 5)
+    acquired C
+    reading
+    writing
+    validated
+    released C
+    301
+    >>> _read_int2d(C, 1, 1)  # validate with int indices
+    acquired C
+    released C
+    5
+
+    >>> C = IntMockBuffer("C", range(6), (2, 3))
+    >>> char_index_vars(C, 5, 1, 10)
+    Traceback (most recent call last):
+    IndexError: Out of bounds on buffer access (axis 0)
+    >>> char_index_vars(C, 1, 5, 10)
+    Traceback (most recent call last):
+    IndexError: Out of bounds on buffer access (axis 1)
+    """
+    print("reading")
+    old_value = buf[i, j]
+    print("writing")
+    buf[i, j] = value
+    if buf[i, j] == value:
+        print("validated")
+    return old_value
+
+
 @testcase
 def list_comprehension(int[:] buf, len):
     """

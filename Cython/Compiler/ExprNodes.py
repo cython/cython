@@ -3780,10 +3780,16 @@ class IndexNode(ExprNode):
         return buffer_entry
 
     def buffer_lookup_code(self, code):
-        "ndarray[1, 2, 3] and memslice[1, 2, 3]"
-        # Assign indices to temps
-        index_temps = [code.funcstate.allocate_temp(i.type, manage_ref=False)
-                           for i in self.indices]
+        """
+        ndarray[1, 2, 3] and memslice[1, 2, 3]
+        """
+        # Assign indices to temps of at least (s)size_t to allow further index calculations.
+        index_temps = [
+            code.funcstate.allocate_temp(
+                PyrexTypes.widest_numeric_type(
+                    ivar.type, PyrexTypes.c_ssize_t_type if ivar.type.signed else PyrexTypes.c_size_t_type),
+                manage_ref=False)
+            for ivar in self.indices]
 
         for temp, index in zip(index_temps, self.indices):
             code.putln("%s = %s;" % (temp, index.result()))
@@ -3798,7 +3804,7 @@ class IndexNode(ExprNode):
 
         return buffer_entry, Buffer.put_buffer_lookup_code(
                entry=buffer_entry,
-               index_signeds=[i.type.signed for i in self.indices],
+               index_signeds=[ivar.type.signed for ivar in self.indices],
                index_cnames=index_temps,
                directives=code.globalstate.directives,
                pos=self.pos, code=code,
