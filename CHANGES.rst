@@ -64,23 +64,29 @@ Features added
 Bugs fixed
 ----------
 
-* Calling "yield from" from Python on a Cython generator that returned a value
-  triggered a crash in CPython.  This is now being worked around.
+* Calling "yield from" from Python on a Cython generator that returned a
+  value triggered a crash in CPython.  This is now being worked around.
   See https://bugs.python.org/issue23996
 
-* Language level 3 did not enable true division (a.k.a. float division) for
-  integer operands.
+* Language level 3 did not enable true division (a.k.a. float division)
+  for integer operands.
 
-* Relative cimports could accidentally fall back to trying an absolute cimport
-  on failure.
+* Relative cimports could accidentally fall back to trying an absolute
+  cimport on failure.
 
-* The result of calling a C struct constructor no longer requires an intermediate
-  assignment when coercing to a Python dict.
+* The result of calling a C struct constructor no longer requires an
+  intermediate assignment when coercing to a Python dict.
 
-* C++ exception declarations with mapping functions could fail to compile when
-  pre-declared in .pxd files.
+* C++ exception declarations with mapping functions could fail to compile
+  when pre-declared in .pxd files.
 
 * ``cpdef void`` methods are now permitted.
+
+* ``abs(cint)`` could fail to compile in MSVC.  Patch by David Vierra.
+
+* Buffer index calculations using index variables with small C integer
+  types could overflow for large buffer sizes.  Original patch by
+  David Vierra.
 
 Other changes
 -------------
