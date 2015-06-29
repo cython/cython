@@ -3149,11 +3149,27 @@ class CStructOrUnionType(CType):
             return None  # tri-state-ish
 
         if self._convert_to_py_code is None:
+            is_union = not self.is_struct
+            unsafe_union_types = set()
+            safe_union_types = set()
             for member in self.scope.var_entries:
-                if not member.type.create_to_py_utility_code(env):
+                member_type = member.type
+                if not member_type.create_to_py_utility_code(env):
                     self.to_py_function = None
                     self._convert_to_py_code = False
                     return False
+                if is_union:
+                    if member_type.is_ptr or member_type.is_cpp_class:
+                        unsafe_union_types.add(member_type)
+                    else:
+                        safe_union_types.add(member_type)
+
+            if unsafe_union_types and (safe_union_types or len(unsafe_union_types) > 1):
+                # unsafe mix of safe and unsafe to convert types
+                self.from_py_function = None
+                self._convert_from_py_code = False
+                return False
+
             forward_decl = self.entry.visibility != 'extern' and not self.typedef_flag
             self._convert_to_py_code = ToPyStructUtilityCode(self, forward_decl, env)
 
@@ -3181,7 +3197,8 @@ class CStructOrUnionType(CType):
             )
             from .UtilityCode import CythonUtilityCode
             self._convert_from_py_code = CythonUtilityCode.load(
-                "FromPyStructUtility", "CConvert.pyx",
+                "FromPyStructUtility" if self.is_struct else "FromPyUnionUtility",
+                "CConvert.pyx",
                 outer_module_scope=env.global_scope(),  # need access to types declared in module
                 context=context)
 

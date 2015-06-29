@@ -23,6 +23,41 @@ cdef {{struct_name}} {{funcname}}(obj) except *:
     return result
 
 
+#################### FromPyUnionUtility ####################
+
+cdef extern from *:
+    ctypedef struct PyTypeObject:
+        char* tp_name
+    PyTypeObject *Py_TYPE(obj)
+    bint PyMapping_Check(obj)
+    object PyErr_Format(exc, const char *format, ...)
+
+@cname("{{funcname}}")
+cdef {{struct_name}} {{funcname}}(obj) except *:
+    cdef {{struct_name}} result
+    cdef Py_ssize_t length
+    if not PyMapping_Check(obj):
+        PyErr_Format(TypeError, b"Expected %.16s, got %.200s", b"a mapping", Py_TYPE(obj).tp_name)
+
+    last_found = None
+    length = len(obj)
+    if length:
+        {{for member in var_entries:}}
+        if '{{member.name}}' in obj:
+            if last_found is not None:
+                raise ValueError("More than one union attribute passed: '%s' and '%s'" % (last_found, '{{member.name}}'))
+            last_found = '{{member.name}}'
+            result.{{member.cname}} = obj['{{member.name}}']
+            length -= 1
+            if not length:
+                return result
+        {{endfor}}
+    if last_found is None:
+        raise ValueError("No value specified for any of the union attributes (%s)" %
+                         '{{", ".join(member.name for member in var_entries)}}')
+    return result
+
+
 #################### cfunc.to_py ####################
 
 @cname("{{cname}}")

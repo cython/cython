@@ -89,6 +89,8 @@ Bugs fixed
   types could overflow for large buffer sizes.  Original patch by
   David Vierra.
 
+* C unions use a saner way to coerce from and to Python dicts.
+
 Other changes
 -------------
 

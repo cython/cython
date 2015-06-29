@@ -76,6 +76,36 @@ def c_types(int a, double b):
     a_ptr, b_ptr = ab
     return a_ptr[0], b_ptr[0]
 
+
+cdef union Union:
+    int x
+    double y
+
+
+def union_in_ctuple_literal():
+    """
+    >>> union_in_ctuple_literal()
+    (1, 2.0)
+    """
+    cdef (Union,) a = ({"x": 1},)
+    cdef (Union,) b = ({"y": 2},)
+    return a[0].x, b[0].y
+
+
+def union_in_ctuple_dynamic(*values):
+    """
+    >>> union_in_ctuple_dynamic(1, {'x': 1})
+    1
+    >>> union_in_ctuple_dynamic(2, {'y': 2})
+    2.0
+    >>> union_in_ctuple_dynamic(1, {'x': 1, 'y': 2})
+    Traceback (most recent call last):
+    ValueError: More than one union attribute passed: 'x' and 'y'
+    """
+    cdef (int, Union) a = values
+    return a[1].x if a[0] == 1 else a[1].y
+
+
 cdef (int, int*) cdef_ctuple_return_type(int x, int* x_ptr):
     return x, x_ptr
 
