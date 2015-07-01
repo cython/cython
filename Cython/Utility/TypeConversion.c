@@ -29,8 +29,11 @@
     // abs() is defined for long, but 64-bits type on MSVC is long long.
     // Use MS-specific _abs64 instead.
     #define __Pyx_sst_abs(value) _abs64(value)
+#elif defined (__GNUC__)
+    // gcc or clang on 64 bit windows.
+    #define __Pyx_sst_abs(value) __builtin_llabs(value)
 #else
-    #define __Pyx_sst_abs(value) ((value<0) ? -value : value))
+    #define __Pyx_sst_abs(value) ((value<0) ? -value : value)
 #endif
 
 static CYTHON_INLINE char* __Pyx_PyObject_AsString(PyObject*);
