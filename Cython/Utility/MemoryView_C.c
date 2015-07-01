@@ -33,7 +33,7 @@ typedef struct {
     #ifdef __PYX_DEBUG_ATOMICS
         #warning "Using GNU atomics"
     #endif
-#elif CYTHON_ATOMICS && MSC_VER
+#elif CYTHON_ATOMICS && defined(_MSC_VER)
     /* msvc */
     #include <Windows.h>
     #define __pyx_atomic_int_type LONG
