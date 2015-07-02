@@ -686,7 +686,7 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
                     depends = resolve_depends(kwds['depends'], (kwds.get('include_dirs') or []) + [find_root_package_dir(file)])
                     if template is not None:
                         # Always include everything from the template.
-                        depends = list(set(template.depends).union(set(depends)))
+                        depends = set(template.depends).union(depends)
                     # Sort depends to make the metadata dump in the
                     # Cython-generated C code predictable.
                     kwds['depends'] = sorted(depends)
