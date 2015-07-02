@@ -84,5 +84,3 @@ cdef extern from "<memory>" namespace "std" nogil:
         shared_ptr[T] lock()
         bool owner_before[Y](const weak_ptr[Y]&)
         bool owner_before[Y](const shared_ptr[Y]&)
-    
-    
