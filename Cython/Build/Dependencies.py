@@ -687,7 +687,9 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
                     if template is not None:
                         # Always include everything from the template.
                         depends = list(set(template.depends).union(set(depends)))
-                    kwds['depends'] = depends
+                    # Sort depends to make the metadata dump in the
+                    # Cython-generated C code predictable.
+                    kwds['depends'] = sorted(depends)
 
                 if ext_language and 'language' not in kwds:
                     kwds['language'] = ext_language
