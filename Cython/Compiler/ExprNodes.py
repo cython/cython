@@ -10023,6 +10023,14 @@ class BinopNode(ExprNode):
             self.type_error()
             return
         func_type = entry.type
+        self.exception_check = func_type.exception_check
+        self.exception_value = func_type.exception_value
+        if self.exception_check == '+':
+            # Used by NumBinopNodes to break up expressions involving multiple
+            # operators so that exceptions can be handled properly.
+            self.is_temp = 1
+            if self.exception_value is None:
+                env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
         if func_type.is_ptr:
             func_type = func_type.base_type
         if len(func_type.args) == 1:
@@ -10089,7 +10097,14 @@ class BinopNode(ExprNode):
                     code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
         elif self.is_temp:
-            code.putln("%s = %s;" % (self.result(), self.calculate_result_code()))
+            # C++ overloaded operators with exception values are currently all
+            # handled through temporaries.
+            if self.is_cpp_operation() and self.exception_check == '+':
+                translate_cpp_exception(code, self.pos,
+                                        "%s = %s;" % (self.result(), self.calculate_result_code()),
+                                        self.exception_value, self.in_nogil_context)
+            else:
+                code.putln("%s = %s;" % (self.result(), self.calculate_result_code()))
 
     def type_error(self):
         if not (self.operand1.type.is_error
@@ -10227,7 +10242,7 @@ class NumBinopNode(BinopNode):
                 self.operand1.result(),
                 self.operand2.result(),
                 self.overflow_bit_node.overflow_bit)
-        elif self.infix:
+        elif self.type.is_cpp_class or self.infix:
             return "(%s %s %s)" % (
                 self.operand1.result(),
                 self.operator,
