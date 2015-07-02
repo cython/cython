@@ -179,6 +179,25 @@ def infer_sequence_item_type(env, seq_node, index_node=None, seq_type=None):
             return item_types.pop()
     return None
 
+def translate_cpp_exception(code, pos, inside, exception_value, nogil):
+    if exception_value is None:
+        raise_py_exception = "__Pyx_CppExn2PyErr();"
+    elif exception_value.type.is_pyobject:
+        raise_py_exception = 'try { throw; } catch(const std::exception& exn) { PyErr_SetString(%s, exn.what()); } catch(...) { PyErr_SetNone(%s); }' % (
+            exception_value.entry.cname,
+            exception_value.entry.cname)
+    else:
+        raise_py_exception = '%s(); if (!PyErr_Occurred()) PyErr_SetString(PyExc_RuntimeError , "Error converting c++ exception.");' % exception_value.entry.cname
+    code.putln("try {")
+    code.putln("%s;" % inside)
+    code.putln("} catch(...) {")
+    if nogil:
+        code.put_ensure_gil(declare_gilstate=True)
+    code.putln(raise_py_exception)
+    if nogil:
+        code.put_release_ensured_gil()
+    code.putln(code.error_goto(pos))
+    code.putln("}")
 
 class ExprNode(Node):
     #  subexprs     [string]     Class var holding names of subexpr node attrs
@@ -5132,24 +5151,8 @@ class SimpleCallNode(CallNode):
                 else:
                     lhs = ""
                 if func_type.exception_check == '+':
-                    if func_type.exception_value is None:
-                        raise_py_exception = "__Pyx_CppExn2PyErr();"
-                    elif func_type.exception_value.type.is_pyobject:
-                        raise_py_exception = 'try { throw; } catch(const std::exception& exn) { PyErr_SetString(%s, exn.what()); } catch(...) { PyErr_SetNone(%s); }' % (
-                            func_type.exception_value.entry.cname,
-                            func_type.exception_value.entry.cname)
-                    else:
-                        raise_py_exception = '%s(); if (!PyErr_Occurred()) PyErr_SetString(PyExc_RuntimeError , "Error converting c++ exception.");' % func_type.exception_value.entry.cname
-                    code.putln("try {")
-                    code.putln("%s%s;" % (lhs, rhs))
-                    code.putln("} catch(...) {")
-                    if self.nogil:
-                        code.put_ensure_gil(declare_gilstate=True)
-                    code.putln(raise_py_exception)
-                    if self.nogil:
-                        code.put_release_ensured_gil()
-                    code.putln(code.error_goto(self.pos))
-                    code.putln("}")
+                    translate_cpp_exception(code, self.pos, '%s%s;' % (lhs, rhs),
+                                            func_type.exception_value, self.nogil)
                 else:
                     if exc_checks:
                         goto_error = code.error_goto_if(" && ".join(exc_checks), self.pos)
