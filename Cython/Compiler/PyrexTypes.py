@@ -4131,6 +4131,10 @@ def widest_numeric_type(type1, type2):
         widest_type = type1
     elif type1.signed < type2.signed:
         widest_type = type1
+    elif type1.signed > type2.signed:
+        widest_type = type2
+    elif type1.is_typedef > type2.is_typedef:
+        widest_type = type1
     else:
         widest_type = type2
     return widest_type
