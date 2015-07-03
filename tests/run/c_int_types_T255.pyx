@@ -215,7 +215,7 @@ def test_add_sshort(x, y):
    >>> test_add_sshort(SSHORT_MIN, -1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: value too large to convert to signed short
+   OverflowError: value too large to convert to short
    >>> test_add_sshort(SSHORT_MIN, 0) == SSHORT_MIN
    True
    >>> test_add_sshort(SSHORT_MIN, 1) == SSHORT_MIN+1
@@ -227,7 +227,7 @@ def test_add_sshort(x, y):
    >>> test_add_sshort(SSHORT_MAX, 1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: value too large to convert to signed short
+   OverflowError: value too large to convert to short
    """
    cdef signed short r = x + y
    return r

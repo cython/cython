@@ -123,18 +123,11 @@ __doc__ = ur"""
     >>> print(funcdoc(f_uc))
     f_uc(unsigned char c) -> unsigned char
 
-    >>> print(funcdoc(f_sc))
-    f_sc(signed char c) -> signed char
-
-
     >>> print(funcdoc(f_s))
     f_s(short s) -> short
 
     >>> print(funcdoc(f_us))
     f_us(unsigned short s) -> unsigned short
-
-    >>> print(funcdoc(f_ss))
-    f_ss(signed short s) -> signed short
 
 
     >>> print(funcdoc(f_i))
@@ -142,9 +135,6 @@ __doc__ = ur"""
 
     >>> print(funcdoc(f_ui))
     f_ui(unsigned int i) -> unsigned int
-
-    >>> print(funcdoc(f_si))
-    f_si(signed int i) -> signed int
 
     >>> print(funcdoc(f_bint))
     f_bint(bool i) -> bool
@@ -156,18 +146,12 @@ __doc__ = ur"""
     >>> print(funcdoc(f_ul))
     f_ul(unsigned long l) -> unsigned long
 
-    >>> print(funcdoc(f_sl))
-    f_sl(signed long l) -> signed long
-
 
     >>> print(funcdoc(f_L))
     f_L(long long L) -> long long
 
     >>> print(funcdoc(f_uL))
     f_uL(unsigned long long L) -> unsigned long long
-
-    >>> print(funcdoc(f_sL))
-    f_sL(signed long long L) -> signed long long
 
 
     >>> print(funcdoc(f_f))
@@ -333,17 +317,11 @@ cpdef short f_s(short s):
 cpdef unsigned short f_us(unsigned short s):
     return s
 
-cpdef signed short f_ss(signed short s):
-    return s
-
 
 cpdef int f_i(int i):
     return i
 
 cpdef unsigned int f_ui(unsigned int i):
-    return i
-
-cpdef signed int f_si(signed int i):
     return i
 
 cpdef bint f_bint(bint i):
@@ -356,17 +334,11 @@ cpdef long f_l(long l):
 cpdef unsigned long f_ul(unsigned long l):
     return l
 
-cpdef signed long f_sl(signed long l):
-    return l
-
 
 cpdef long long f_L(long long L):
     return L
 
 cpdef unsigned long long f_uL(unsigned long long L):
-    return L
-
-cpdef signed long long f_sL(signed long long L):
     return L
 
 
