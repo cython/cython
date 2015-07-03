@@ -681,6 +681,24 @@ cdef enum MyEnum:
     enum_x = 1
     enum_y = 2
 
+ctypedef long my_long
+def test_int_typedef_inference():
+    """
+    >>> test_int_typedef_inference()
+    """
+    cdef long x = 1
+    cdef my_long y = 2
+    cdef long long z = 3
+    assert typeof(x + y) == typeof(y + x) == 'my_long', typeof(x + y)
+    assert typeof(y + z) == typeof(z + y) == 'long long', typeof(y + z)
+
+from libc.stdint cimport int32_t, int64_t
+def int64_long_sum():
+    cdef long x = 1
+    cdef int32_t x32 = 2
+    cdef int64_t x64 = 3
+    assert typeof(x + x32) == typeof(x32 + x) == 'long', typeof(x + x32)
+    assert typeof(x + x64) == typeof(x64 + x) == 'int64_t', typeof(x + x64)
 
 cdef class InferInProperties:
     """
