@@ -187,20 +187,25 @@ class Context(object):
         if not scope.pxd_file_loaded:
             if debug_find_module:
                 print("...pxd not loaded")
-            scope.pxd_file_loaded = 1
             if not pxd_pathname:
                 if debug_find_module:
                     print("...looking for pxd file")
-                pxd_pathname = self.find_pxd_file(qualified_name, pos)
+                # Only look in sys.path if we are explicitly looking
+                # for a .pxd file.
+                pxd_pathname = self.find_pxd_file(qualified_name, pos, sys_path=need_pxd)
                 if debug_find_module:
                     print("......found %s" % pxd_pathname)
                 if not pxd_pathname and need_pxd:
+                    # Set pxd_file_loaded such that we don't need to
+                    # look for the non-existing pxd file next time.
+                    scope.pxd_file_loaded = True
                     package_pathname = self.search_include_directories(qualified_name, ".py", pos)
                     if package_pathname and package_pathname.endswith('__init__.py'):
                         pass
                     else:
                         error(pos, "'%s.pxd' not found" % qualified_name.replace('.', os.sep))
             if pxd_pathname:
+                scope.pxd_file_loaded = True
                 try:
                     if debug_find_module:
                         print("Context.find_module: Parsing %s" % pxd_pathname)
@@ -217,15 +222,16 @@ class Context(object):
                     pass
         return scope
 
-    def find_pxd_file(self, qualified_name, pos):
-        # Search include path for the .pxd file corresponding to the
-        # given fully-qualified module name.
+    def find_pxd_file(self, qualified_name, pos, sys_path=True):
+        # Search include path (and sys.path if sys_path is True) for
+        # the .pxd file corresponding to the given fully-qualified
+        # module name.
         # Will find either a dotted filename or a file in a
         # package directory. If a source file position is given,
         # the directory containing the source file is searched first
         # for a dotted filename, and its containing package root
         # directory is searched first for a non-dotted filename.
-        pxd = self.search_include_directories(qualified_name, ".pxd", pos, sys_path=True)
+        pxd = self.search_include_directories(qualified_name, ".pxd", pos, sys_path=sys_path)
         if pxd is None: # XXX Keep this until Includes/Deprecated is removed
             if (qualified_name.startswith('python') or
                 qualified_name in ('stdlib', 'stdio', 'stl')):

@@ -91,6 +91,9 @@ Bugs fixed
 
 * C unions use a saner way to coerce from and to Python dicts.
 
+* When compiling a module ``foo.pyx``, the directories in ``sys.path``
+  are no longer searched when looking for ``foo.pxd``.
+
 Other changes
 -------------
 
