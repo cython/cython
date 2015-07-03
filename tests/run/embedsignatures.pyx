@@ -123,6 +123,9 @@ __doc__ = ur"""
     >>> print(funcdoc(f_uc))
     f_uc(unsigned char c) -> unsigned char
 
+    >>> print(funcdoc(f_sc))
+    f_sc(signed char c) -> signed char
+
     >>> print(funcdoc(f_s))
     f_s(short s) -> short
 
