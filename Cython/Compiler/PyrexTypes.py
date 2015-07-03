@@ -1427,6 +1427,10 @@ class CNumericType(CType):
 
     def __init__(self, rank, signed = 1):
         self.rank = rank
+        if rank > 0 and signed == SIGNED:
+            # Signed is meaningless for anything but char, and complicates
+            # type promotion.
+            signed = 1
         self.signed = signed
 
     def sign_and_name(self):
