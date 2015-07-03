@@ -9395,7 +9395,8 @@ class AmpersandNode(CUnopNode):
         if argtype.is_pyobject:
             self.error("Cannot take address of Python variable")
             return self
-        self.type = PyrexTypes.c_ptr_type(argtype)
+        if not argtype.is_cpp_class or not self.type:
+            self.type = PyrexTypes.c_ptr_type(argtype)
         return self
 
     def check_const(self):
@@ -9410,7 +9411,10 @@ class AmpersandNode(CUnopNode):
         return "(&%s)" % self.operand.result()
 
     def generate_result_code(self, code):
-        pass
+        if (self.operand.type.is_cpp_class and self.exception_check == '+'):
+            translate_cpp_exception(code, self.pos,
+                "%s = %s %s;" % (self.result(), self.operator, self.operand.result()),
+                self.exception_value, self.in_nogil_context)
 
 
 unop_node_classes = {
