@@ -36,12 +36,13 @@ typedef struct {
 #elif CYTHON_ATOMICS && defined(_MSC_VER)
     /* msvc */
     #include <Windows.h>
+    #undef __pyx_atomic_int_type
     #define __pyx_atomic_int_type LONG
     #define __pyx_atomic_incr_aligned(value, lock) InterlockedIncrement(value)
     #define __pyx_atomic_decr_aligned(value, lock) InterlockedDecrement(value)
 
     #ifdef __PYX_DEBUG_ATOMICS
-        #warning "Using MSVC atomics"
+        #pragma message "Using MSVC atomics"
     #endif
 #elif CYTHON_ATOMICS && (defined(__ICC) || defined(__INTEL_COMPILER)) && 0
     #define __pyx_atomic_incr_aligned(value, lock) _InterlockedIncrement(value)
