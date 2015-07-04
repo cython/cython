@@ -2045,7 +2045,7 @@ def p_statement(s, ctx, first_statement = 0):
                         s.enable_keyword('async')
                         s.enable_keyword('await')
                         result = p_async_statement(s, ctx, decorators)
-                        s.enable_keyword('await')
+                        s.disable_keyword('await')
                         s.disable_keyword('async')
                         return result
                     elif decorators:
