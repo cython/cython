@@ -182,10 +182,13 @@ Docstrings
 
  * This a Python library limitation because the ``PyTypeObject`` data structure is limited
 
+
 Initialization: ``__cinit__()`` and ``__init__()``
 ==================================================
 
-* Any arguments passed to the extension type's constructor, will be passed to both initialization methods.
+* Any arguments passed to the extension type's constructor
+  will be passed to both initialization methods.
+
 * ``__cinit__()`` is where you should perform C-level initialization of the object
 
  * This includes any allocation of C data structures.
@@ -209,9 +212,11 @@ Initialization: ``__cinit__()`` and ``__init__()``
   * It may be wise to give the ``__cinit__()`` method both ``"*"`` and ``"**"`` arguments.
 
    * Allows the method to accept or ignore additional arguments.
-   * Eliminates the need for a Python level sub-class, that changes the ``__init__()`` method's signature, to have to override both the ``__new__()`` and ``__init__()`` methods.
+   * Eliminates the need for a Python level sub-class, that changes the ``__init__()``
+     method's signature, to have to override both the ``__new__()`` and ``__init__()`` methods.
 
-  * If ``__cinit__()`` is declared to take no arguments except ``self``, it will ignore any extra arguments passed to the constructor without complaining about a signature mis-match
+  * If ``__cinit__()`` is declared to take no arguments except ``self``, it will ignore any
+    extra arguments passed to the constructor without complaining about a signature mis-match.
 
 
 * ``__init__()`` is for higher-level initialization and is safer for Python access.
@@ -221,6 +226,14 @@ Initialization: ``__cinit__()`` and ``__init__()``
  * This method may sometimes be called more than once, or possibly not at all.
 
   * Take this into consideration to make sure the design of your other methods are robust of this fact.
+
+Note that all constructor arguments will be passed as Python objects.
+This implies that non-convertible C types such as pointers or C++ objects
+cannot be passed into the constructor from Cython code.  If this is needed,
+use a factory function instead that handles the object initialisation.
+It often helps to directly call ``__new__()`` in this function to bypass the
+call to the ``__init__()`` constructor.
+
 
 Finalization: ``__dealloc__()``
 ===============================
