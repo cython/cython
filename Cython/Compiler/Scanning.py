@@ -314,7 +314,6 @@ class PyrexScanner(Scanner):
             self.in_python_file = False
             self.keywords = set(pyx_reserved_words)
         self.trace = trace_scanner
-        self.keywords_stack = {}
         self.indentation_stack = [0]
         self.indentation_char = None
         self.bracket_nesting_level = 0
@@ -495,16 +494,13 @@ class PyrexScanner(Scanner):
             warning(useless_trailing_semicolon, "useless trailing semicolon")
 
     def enable_keyword(self, name):
-        if name in self.keywords_stack:
-            self.keywords_stack[name] += 1
-        else:
-            self.keywords_stack[name] = 1
-            self.keywords.add(name)
+        if name in self.keywords:
+            return True  # was enabled before
+        self.keywords.add(name)
+        return False  # was not enabled before
 
     def disable_keyword(self, name):
-        count = self.keywords_stack.get(name, 1)
-        if count == 1:
-            self.keywords.discard(name)
-            del self.keywords_stack[name]
-        else:
-            self.keywords_stack[name] = count - 1
+        if name not in self.keywords:
+            return False  # was not enabled before
+        self.keywords.remove(name)
+        return True  # was enabled before

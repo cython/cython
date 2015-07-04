@@ -138,6 +138,17 @@ class TokenizerRegrTest(unittest.TestCase):
         self.assertEqual(type(ns['foo']()).__name__, 'coroutine')
         #self.assertTrue(inspect.iscoroutinefunction(ns['foo']))
 
+    def test_syntax_async_await_as_names(self):
+        async def enable():
+            await 123
+
+            def disable():
+                await = 123
+                async = 'abc'
+
+                async def reenable():
+                    await 432
+
 
 class CoroutineTest(unittest.TestCase):
 

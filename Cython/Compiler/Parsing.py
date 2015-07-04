@@ -2039,18 +2039,14 @@ def p_statement(s, ctx, first_statement = 0):
                 return p_async_statement(s, ctx, decorators)
             else:
                 if s.sy == 'IDENT' and s.systring == 'async':
+                    ident_name = s.systring
                     # PEP 492 enables the async/await keywords when it spots "async def ..."
                     s.next()
                     if s.sy == 'def':
-                        s.enable_keyword('async')
-                        s.enable_keyword('await')
-                        result = p_async_statement(s, ctx, decorators)
-                        s.disable_keyword('await')
-                        s.disable_keyword('async')
-                        return result
+                        return p_async_statement(s, ctx, decorators)
                     elif decorators:
                         s.error("Decorators can only be followed by functions or classes")
-                    s.put_back('IDENT', 'async')
+                    s.put_back('IDENT', ident_name)  # re-insert original token
                 return p_simple_statement_list(s, ctx, first_statement=first_statement)
 
 
@@ -3072,7 +3068,25 @@ def p_def_statement(s, decorators=None, is_async_def=False):
     if s.sy == '->':
         s.next()
         return_type_annotation = p_test(s)
+
+    # PEP 492 switches the async/await keywords off in simple "def" functions
+    # and on in "async def" functions
+    await_was_enabled = s.enable_keyword('await') if is_async_def else s.disable_keyword('await')
+    async_was_enabled = s.enable_keyword('async') if is_async_def else s.disable_keyword('async')
+
     doc, body = p_suite_with_docstring(s, Ctx(level='function'))
+
+    if is_async_def:
+        if not async_was_enabled:
+            s.disable_keyword('async')
+        if not await_was_enabled:
+            s.disable_keyword('await')
+    else:
+        if async_was_enabled:
+            s.enable_keyword('async')
+        if await_was_enabled:
+            s.enable_keyword('await')
+
     return Nodes.DefNode(
         pos, name=name, args=args, star_arg=star_arg, starstar_arg=starstar_arg,
         doc=doc, body=body, decorators=decorators, is_async_def=is_async_def,
