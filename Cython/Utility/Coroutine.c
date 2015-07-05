@@ -1431,15 +1431,23 @@ static PyObject* __Pyx_Coroutine_patch_module(PyObject* module, const char* py_c
 
 static PyObject* __Pyx_Coroutine_patch_module(PyObject* module, const char* py_code) {
 #if defined(__Pyx_Generator_USED) || defined(__Pyx_Coroutine_USED)
+    int result;
     PyObject *globals, *result_obj;
     globals = PyDict_New();  if (unlikely(!globals)) goto ignore;
+    result = PyDict_SetItemString(globals, "_cython_coroutine_type",
     #ifdef __Pyx_Coroutine_USED
-    if (unlikely(PyDict_SetItemString(globals, "_cython_coroutine_type", (PyObject*)__pyx_CoroutineType) < 0)) goto ignore;
-    if (unlikely(PyDict_SetItemString(globals, "_cython_coroutine_await_type", (PyObject*)__pyx_CoroutineAwaitType) < 0)) goto ignore;
+        (PyObject*)__pyx_CoroutineType);
+    #else
+        Py_None);
     #endif
+    if (unlikely(result < 0)) goto ignore;
+    result = PyDict_SetItemString(globals, "_cython_generator_type",
     #ifdef __Pyx_Generator_USED
-    if (unlikely(PyDict_SetItemString(globals, "_cython_generator_type", (PyObject*)__pyx_GeneratorType) < 0)) goto ignore;
+        (PyObject*)__pyx_GeneratorType);
+    #else
+        Py_None);
     #endif
+    if (unlikely(result < 0)) goto ignore;
     if (unlikely(PyDict_SetItemString(globals, "_module", module) < 0)) goto ignore;
     if (unlikely(PyDict_SetItemString(globals, "__builtins__", $builtins_cname) < 0)) goto ignore;
     result_obj = PyRun_String(py_code, Py_file_input, globals, globals);
@@ -1473,8 +1481,7 @@ static int __Pyx_patch_abc(void); /*proto*/
 //@requires: PatchModuleWithCoroutine
 
 static int __Pyx_patch_abc(void) {
-#if (defined(__Pyx_Generator_USED) || defined(__Pyx_Coroutine_USED)) && \
-        (!defined(CYTHON_PATCH_ABC) || CYTHON_PATCH_ABC)
+#if defined(__Pyx_Generator_USED) || defined(__Pyx_Coroutine_USED)
     static int abc_patched = 0;
     if (!abc_patched) {
         PyObject *module;
@@ -1483,175 +1490,22 @@ static int __Pyx_patch_abc(void) {
             PyErr_WriteUnraisable(NULL);
             if (unlikely(PyErr_WarnEx(PyExc_RuntimeWarning,
                     ((PY_VERSION_HEX >= 0x03030000) ?
-                        "Cython module failed to patch collections.abc module" :
-                        "Cython module failed to patch collections module"), 1) < 0)) {
+                        "Cython module failed to register with collections.abc module" :
+                        "Cython module failed to register with collections module"), 1) < 0)) {
                 return -1;
             }
         } else {
             module = __Pyx_Coroutine_patch_module(
-                module,
-#ifdef __Pyx_Generator_USED
-                CSTRING("""\
-def mk_gen():
-    from abc import abstractmethod
-
-    required_methods = (
-        '__iter__', '__next__' if hasattr(iter(()), '__next__') else 'next',
-         'send', 'throw', 'close')
-
-    class Generator(_module.Iterator):
-        __slots__ = ()
-
-        if '__next__' in required_methods:
-            def __next__(self):
-                return self.send(None)
-        else:
-            def next(self):
-                return self.send(None)
-
-        @abstractmethod
-        def send(self, value):
-            raise StopIteration
-
-        @abstractmethod
-        def throw(self, typ, val=None, tb=None):
-            if val is None:
-                if tb is None:
-                    raise typ
-                val = typ()
-            if tb is not None:
-                val = val.with_traceback(tb)
-            raise val
-
-        def close(self):
-            try:
-                self.throw(GeneratorExit)
-            except (GeneratorExit, StopIteration):
-                pass
-            else:
-                raise RuntimeError('generator ignored GeneratorExit')
-
-        @classmethod
-        def __subclasshook__(cls, C):
-            if cls is Generator:
-                mro = C.__mro__
-                for method in required_methods:
-                    for base in mro:
-                        if method in base.__dict__:
-                            break
-                    else:
-                        return NotImplemented
-                return True
-            return NotImplemented
-
-    generator = type((lambda: (yield))())
-    Generator.register(generator)
-    return Generator
-
-try:
-    Generator = _module.Generator
-except AttributeError:
-    Generator = _module.Generator = mk_gen()
-Generator.register(_cython_generator_type)
+                module, CSTRING("""\
+if _cython_generator_type is not None:
+    try: Generator = _module.Generator
+    except AttributeError: pass
+    else: Generator.register(_cython_generator_type)
+if _cython_coroutine_type is not None:
+    try: Coroutine = _module.Coroutine
+    except AttributeError: pass
+    else: Coroutine.register(_cython_coroutine_type)
 """)
-#endif
-#ifdef __Pyx_Coroutine_USED
-                CSTRING("""\
-def mk_awaitable():
-    from abc import abstractmethod, ABCMeta
-""")
-#if PY_MAJOR_VERSION >= 3
-                CSTRING("""\
-    class Awaitable(metaclass=ABCMeta):
-""")
-#else
-                CSTRING("""\
-    class Awaitable(object):
-        __metaclass__ = ABCMeta
-""")
-#endif
-                CSTRING("""\
-        __slots__ = ()
-
-        @abstractmethod
-        def __await__(self):
-            yield
-
-        @classmethod
-        def __subclasshook__(cls, C):
-            if cls is Awaitable:
-                for B in C.__mro__:
-                    if '__await__' in B.__dict__:
-                        if B.__dict__['__await__']:
-                            return True
-                        break
-            return NotImplemented
-
-    return Awaitable
-
-try:
-    Awaitable = _module.Awaitable
-except AttributeError:
-    Awaitable = _module.Awaitable = mk_awaitable()
-
-def mk_coroutine():
-    from abc import abstractmethod, ABCMeta
-
-    class Coroutine(Awaitable):
-        __slots__ = ()
-
-        @abstractmethod
-        def send(self, value):
-            '''Send a value into the coroutine.
-            Return next yielded value or raise StopIteration.
-            '''
-            raise StopIteration
-
-        @abstractmethod
-        def throw(self, typ, val=None, tb=None):
-            '''Raise an exception in the coroutine.
-            Return next yielded value or raise StopIteration.
-            '''
-            if val is None:
-                if tb is None:
-                    raise typ
-                val = typ()
-            if tb is not None:
-                val = val.with_traceback(tb)
-            raise val
-
-        def close(self):
-            '''Raise GeneratorExit inside coroutine.
-            '''
-            try:
-                self.throw(GeneratorExit)
-            except (GeneratorExit, StopIteration):
-                pass
-            else:
-                raise RuntimeError('coroutine ignored GeneratorExit')
-
-        @classmethod
-        def __subclasshook__(cls, C):
-            if cls is Coroutine:
-                mro = C.__mro__
-                for method in ('__await__', 'send', 'throw', 'close'):
-                    for base in mro:
-                        if method in base.__dict__:
-                            break
-                    else:
-                        return NotImplemented
-                return True
-            return NotImplemented
-
-    return Coroutine
-
-try:
-    Coroutine = _module.Coroutine
-except AttributeError:
-    Coroutine = _module.Coroutine = mk_coroutine()
-Coroutine.register(_cython_coroutine_type)
-""")
-#endif
             );
             abc_patched = 1;
             if (unlikely(!module))
@@ -1678,7 +1532,7 @@ static PyObject* __Pyx_patch_asyncio(PyObject* module); /*proto*/
 //@requires: PatchInspect
 
 static PyObject* __Pyx_patch_asyncio(PyObject* module) {
-#if PY_VERSION_HEX < 0x030500B1 && \
+#if PY_VERSION_HEX < 0x030500B2 && \
         (defined(__Pyx_Coroutine_USED) || defined(__Pyx_Generator_USED)) && \
         (!defined(CYTHON_PATCH_ASYNCIO) || CYTHON_PATCH_ASYNCIO)
     PyObject *patch_module = NULL;
@@ -1689,52 +1543,39 @@ static PyObject* __Pyx_patch_asyncio(PyObject* module) {
         if (package) {
             patch_module = __Pyx_Coroutine_patch_module(
                 PyObject_GetAttrString(package, "coroutines"), CSTRING("""\
-coro_types = getattr(_module, '_COROUTINE_TYPES', None)
-""")
-#ifdef __Pyx_Coroutine_USED
-CSTRING("""\
-if coro_types is not None and _cython_coroutine_type not in coro_types:
-    coro_types = type(coro_types) (tuple(coro_types) + (_cython_coroutine_type,))
-""")
-#endif
-#ifdef __Pyx_Generator_USED
-CSTRING("""\
-if coro_types is not None and _cython_generator_type not in coro_types:
-    coro_types = type(coro_types) (tuple(coro_types) + (_cython_generator_type,))
-""")
-#endif
-CSTRING("""
+try:
+    coro_types = _module._COROUTINE_TYPES
+except AttributeError: pass
+else:
+    if _cython_coroutine_type is not None and _cython_coroutine_type not in coro_types:
+        coro_types = tuple(coro_types) + (_cython_coroutine_type,)
+    if _cython_generator_type is not None and _cython_generator_type not in coro_types:
+        coro_types = tuple(coro_types) + (_cython_generator_type,)
 _module._COROUTINE_TYPES = coro_types
 """)
             );
-#if PY_VERSION_HEX < 0x03050000
         } else {
-            // Py3.4 used to have asyncio.tasks instead of asyncio.coroutines
             PyErr_Clear();
+#if PY_VERSION_HEX < 0x03040200
+            // Py3.4.1 used to have asyncio.tasks instead of asyncio.coroutines
             package = __Pyx_Import(PYIDENT("asyncio.tasks"), NULL, 0);
             if (unlikely(!package)) goto asyncio_done;
             patch_module = __Pyx_Coroutine_patch_module(
                 PyObject_GetAttrString(package, "tasks"), CSTRING("""\
 if hasattr(_module, 'iscoroutine'):
-    old_coroutine_types = getattr(_module.iscoroutine, '_cython_coroutine_types', None)
-    if old_coroutine_types is None or not isinstance(old_coroutine_types, list):
-        old_coroutine_types = []
-        def cy_wrap(orig_func, type=type, cython_coroutine_types=old_coroutine_types):
+    old_types = getattr(_module.iscoroutine, '_cython_coroutine_types', None)
+    if old_types is None or not isinstance(old_types, set):
+        old_types = set()
+        def cy_wrap(orig_func, type=type, cython_coroutine_types=old_types):
             def cy_iscoroutine(obj): return type(obj) in cython_coroutine_types or orig_func(obj)
             cy_iscoroutine._cython_coroutine_types = cython_coroutine_types
             return cy_iscoroutine
         _module.iscoroutine = cy_wrap(_module.iscoroutine)
+    if _cython_coroutine_type is not None:
+        old_types.add(_cython_coroutine_type)
+    if _cython_generator_type is not None:
+        old_types.add(_cython_generator_type)
 """)
-#ifdef __Pyx_Coroutine_USED
-CSTRING("""\
-    if _cython_coroutine_type not in old_coroutine_types: old_coroutine_types.append(_cython_coroutine_type)
-""")
-#endif
-#ifdef __Pyx_Generator_USED
-CSTRING("""\
-    if _cython_generator_type not in old_coroutine_types: old_coroutine_types.append(_cython_generator_type)
-""")
-#endif
             );
 #endif
 // Py<3.5
@@ -1746,6 +1587,7 @@ asyncio_done:
         PyErr_Clear();
 #endif
         asyncio_patched = 1;
+#ifdef __Pyx_Generator_USED
         // now patch inspect.isgenerator() by looking up the imported module in the patched asyncio module
         {
             PyObject *inspect_module;
@@ -1761,8 +1603,12 @@ asyncio_done:
                 Py_DECREF(module);
                 module = NULL;
             }
-            Py_DECREF(inspect_module);
+            Py_XDECREF(inspect_module);
         }
+#else
+        // avoid "unused" warning for __Pyx_patch_inspect()
+        if (0) return __Pyx_patch_inspect(module);
+#endif
     }
     return module;
 ignore:
@@ -1788,56 +1634,21 @@ static PyObject* __Pyx_patch_inspect(PyObject* module); /*proto*/
 //@requires: PatchModuleWithCoroutine
 
 static PyObject* __Pyx_patch_inspect(PyObject* module) {
-#if (defined(__Pyx_Generator_USED) || defined(__Pyx_Coroutine_USED)) && (!defined(CYTHON_PATCH_INSPECT) || CYTHON_PATCH_INSPECT)
+#if defined(__Pyx_Generator_USED) && (!defined(CYTHON_PATCH_INSPECT) || CYTHON_PATCH_INSPECT)
     static int inspect_patched = 0;
     if (unlikely((!inspect_patched) && module)) {
         module = __Pyx_Coroutine_patch_module(
-            module,
-#ifdef __Pyx_Generator_USED
-            CSTRING("""\
-if getattr(_module.isgenerator, '_cython_generator_type', None) is not _cython_generator_type:
-    def cy_wrap(orig_func, cython_generator_type=_cython_generator_type, type=type):
-        def cy_isgenerator(obj): return type(obj) is cython_generator_type or orig_func(obj)
-        cy_isgenerator._cython_generator_type = cython_generator_type
+            module, CSTRING("""\
+old_types = getattr(_module.isgenerator, '_cython_generator_types', None)
+if old_types is None or not isinstance(old_types, set):
+    old_types = set()
+    def cy_wrap(orig_func, type=type, cython_generator_types=old_types):
+        def cy_isgenerator(obj): return type(obj) in cython_generator_types or orig_func(obj)
+        cy_isgenerator._cython_generator_types = cython_generator_types
         return cy_isgenerator
     _module.isgenerator = cy_wrap(_module.isgenerator)
+old_types.add(_cython_generator_type)
 """)
-#endif
-#ifdef __Pyx_Coroutine_USED
-            CSTRING("""\
-try:
-    _module.iscoroutine
-except AttributeError:
-    def cy_wrap(cython_coroutine_type=_cython_coroutine_type, type=type):
-        try:
-            from collections.abc import Coroutine
-        except ImportError:
-            from collections import Coroutine
-        def cy_iscoroutine(obj): return isinstance(obj, Coroutine)
-        return cy_iscoroutine
-
-    try:
-        _module.iscoroutine = cy_wrap()
-    except ImportError:
-        pass
-
-try:
-    _module.isawaitable
-except AttributeError:
-    def cy_wrap(cython_coroutine_type=_cython_coroutine_type, type=type):
-        try:
-            from collections.abc import Awaitable
-        except ImportError:
-            from collections import Awaitable
-        def cy_isawaitable(obj): return isinstance(obj, Awaitable)
-        return cy_isawaitable
-
-    try:
-        _module.isawaitable = cy_wrap()
-    except ImportError:
-        pass
-""")
-#endif
         );
         inspect_patched = 1;
     }
