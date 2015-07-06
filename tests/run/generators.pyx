@@ -2,9 +2,17 @@
 # tag: generators
 
 try:
+    import backports_abc
+except ImportError: pass
+else: backports_abc.patch()
+
+try:
     from collections.abc import Generator
 except ImportError:
-    from collections import Generator
+    try:
+        from collections import Generator
+    except ImportError:
+        Generator = object  # easy win
 
 
 def very_simple():
@@ -483,7 +491,10 @@ def test_generator_abc():
     >>> try:
     ...     from collections.abc import Generator
     ... except ImportError:
-    ...     from collections import Generator
+    ...     try:
+    ...         from collections import Generator
+    ...     except ImportError:
+    ...         Generator = object  # easy win
 
     >>> isinstance(test_generator_abc(), Generator)
     True
