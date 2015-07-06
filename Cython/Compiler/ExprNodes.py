@@ -7315,7 +7315,39 @@ class DictComprehensionAppendNode(ComprehensionAppendNode):
         self.value_expr.annotate(code)
 
 
-class InlinedGeneratorExpressionNode(ScopedExprNode):
+class InlinedGeneratorExpressionNode(ExprNode):
+    # An inlined generator expression for which the result is
+    # calculated inside of the loop.  This will only be created by
+    # transforms when replacing builtin calls on generator
+    # expressions.
+    #
+    # gen            GeneratorExpressionNode      the generator, not containing any YieldExprNodes
+    # orig_func      String                       the name of the builtin function this node replaces
+
+    subexprs = ["gen"]
+    orig_func = None
+    type = py_object_type
+
+    def may_be_none(self):
+        return self.orig_func not in ('any', 'all')
+
+    def infer_type(self, env):
+        return py_object_type
+
+    def analyse_types(self, env):
+        self.gen = self.gen.analyse_expressions(env)
+        self.is_temp = True
+        return self
+
+    def generate_result_code(self, code):
+        code.globalstate.use_utility_code(UtilityCode.load_cached("GetGenexpResult", "Coroutine.c"))
+        code.putln("%s = __Pyx_Generator_GetGenexpResult(%s); %s" % (
+            self.result(), self.gen.result(),
+            code.error_goto_if_null(self.result(), self.pos)))
+        code.put_gotref(self.result())
+
+
+class __InlinedGeneratorExpressionNode(ScopedExprNode):
     # An inlined generator expression for which the result is
     # calculated inside of the loop.  This will only be created by
     # transforms when replacing builtin calls on generator

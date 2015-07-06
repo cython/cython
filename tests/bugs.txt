@@ -52,6 +52,4 @@ pyregr.test_urllib2net
 pyregr.test_urllibnet
 
 # Inlined generators
-all
-any
 inlined_generator_expressions

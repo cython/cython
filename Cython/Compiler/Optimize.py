@@ -1455,16 +1455,16 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
 
         visit_Node = Visitor.TreeVisitor.visitchildren
         # XXX: disable inlining while it's not back supported
-        def __visit_YieldExprNode(self, node):
+        def visit_YieldExprNode(self, node):
             self.yield_nodes.append(node)
             self.visitchildren(node)
 
-        def __visit_ExprStatNode(self, node):
+        def visit_ExprStatNode(self, node):
             self.visitchildren(node)
             if node.expr in self.yield_nodes:
                 self.yield_stat_nodes[node.expr] = node
 
-        def __visit_GeneratorExpressionNode(self, node):
+        def visit_GeneratorExpressionNode(self, node):
             # enable when we support generic generator expressions
             #
             # everything below this node is out of scope
@@ -1527,7 +1527,8 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         if not isinstance(pos_args[0], ExprNodes.GeneratorExpressionNode):
             return node
         gen_expr_node = pos_args[0]
-        loop_node = gen_expr_node.loop
+        generator_body = gen_expr_node.def_node.gbody
+        loop_node = generator_body.body
         yield_expression, yield_stat_node = self._find_single_yield_expression(loop_node)
         if yield_expression is None:
             return node
@@ -1535,46 +1536,37 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         if is_any:
             condition = yield_expression
         else:
-            condition = ExprNodes.NotNode(yield_expression.pos, operand = yield_expression)
+            condition = ExprNodes.NotNode(yield_expression.pos, operand=yield_expression)
 
-        result_ref = UtilNodes.ResultRefNode(pos=node.pos, type=PyrexTypes.c_bint_type)
         test_node = Nodes.IfStatNode(
-            yield_expression.pos,
-            else_clause = None,
-            if_clauses = [ Nodes.IfClauseNode(
-                yield_expression.pos,
-                condition = condition,
-                body = Nodes.StatListNode(
-                    node.pos,
-                    stats = [
-                        Nodes.SingleAssignmentNode(
-                            node.pos,
-                            lhs = result_ref,
-                            rhs = ExprNodes.BoolNode(yield_expression.pos, value = is_any,
-                                                     constant_result = is_any)),
-                        Nodes.BreakStatNode(node.pos)
-                        ])) ]
-            )
+            yield_expression.pos, else_clause=None, if_clauses=[
+                Nodes.IfClauseNode(
+                    yield_expression.pos,
+                    condition=condition,
+                    body=Nodes.ReturnStatNode(
+                        node.pos,
+                        value=ExprNodes.BoolNode(yield_expression.pos, value=is_any, constant_result=is_any),
+                        in_generator=True)
+                )]
+        )
         loop = loop_node
         while isinstance(loop.body, Nodes.LoopNode):
             next_loop = loop.body
-            loop.body = Nodes.StatListNode(loop.body.pos, stats = [
+            loop.body = Nodes.StatListNode(loop.body.pos, stats=[
                 loop.body,
                 Nodes.BreakStatNode(yield_expression.pos)
-                ])
+            ])
             next_loop.else_clause = Nodes.ContinueStatNode(yield_expression.pos)
             loop = next_loop
-        loop_node.else_clause = Nodes.SingleAssignmentNode(
+        loop_node.else_clause = Nodes.ReturnStatNode(
             node.pos,
-            lhs = result_ref,
-            rhs = ExprNodes.BoolNode(yield_expression.pos, value = not is_any,
-                                     constant_result = not is_any))
+            value=ExprNodes.BoolNode(yield_expression.pos, value=not is_any, constant_result=not is_any),
+            in_generator=True)
 
         Visitor.recursively_replace_node(loop_node, yield_stat_node, test_node)
 
         return ExprNodes.InlinedGeneratorExpressionNode(
-            gen_expr_node.pos, loop = loop_node, result_node = result_ref,
-            expr_scope = gen_expr_node.expr_scope, orig_func = is_any and 'any' or 'all')
+            gen_expr_node.pos, gen=gen_expr_node, orig_func='any' if is_any else 'all')
 
     PySequence_List_func_type = PyrexTypes.CFuncType(
         Builtin.list_type,
@@ -1597,6 +1589,8 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             gen_expr_node = pos_args[0]
             loop_node = gen_expr_node.loop
             yield_expression, yield_stat_node = self._find_single_yield_expression(loop_node)
+            # FIXME: currently nonfunctional
+            yield_expression = None
             if yield_expression is None:
                 return node
 
@@ -1642,7 +1636,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             result_node,
             Nodes.StatListNode(node.pos, stats = [ listcomp_assign_node, sort_node ]))
 
-    def _handle_simple_function_sum(self, node, pos_args):
+    def __handle_simple_function_sum(self, node, pos_args):
         """Transform sum(genexpr) into an equivalent inlined aggregation loop.
         """
         if len(pos_args) not in (1,2):
@@ -1655,6 +1649,8 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
 
         if isinstance(gen_expr_node, ExprNodes.GeneratorExpressionNode):
             yield_expression, yield_stat_node = self._find_single_yield_expression(loop_node)
+            # FIXME: currently nonfunctional
+            yield_expression = None
             if yield_expression is None:
                 return node
         else:  # ComprehensionNode
@@ -1786,6 +1782,8 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         loop_node = gen_expr_node.loop
 
         yield_expression, yield_stat_node = self._find_single_yield_expression(loop_node)
+        # FIXME: currently nonfunctional
+        yield_expression = None
         if yield_expression is None:
             return node
 
@@ -1818,6 +1816,8 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         loop_node = gen_expr_node.loop
 
         yield_expression, yield_stat_node = self._find_single_yield_expression(loop_node)
+        # FIXME: currently nonfunctional
+        yield_expression = None
         if yield_expression is None:
             return node
 
