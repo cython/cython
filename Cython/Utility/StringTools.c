@@ -535,12 +535,13 @@ static CYTHON_INLINE int __Pyx_Py_UNICODE_ISTITLE(Py_UCS4 uchar)
 // tuple of prefixes/suffixes, whereas it's much more common to
 // test for a single unicode string.
 
-static int __Pyx_PyUnicode_Tailmatch(PyObject* s, PyObject* substr,
-                                     Py_ssize_t start, Py_ssize_t end, int direction) {
+static Py_ssize_t __Pyx_PyUnicode_Tailmatch(PyObject* s, PyObject* substr,
+                                            Py_ssize_t start, Py_ssize_t end,
+                                            int direction) {
     if (unlikely(PyTuple_Check(substr))) {
         Py_ssize_t i, count = PyTuple_GET_SIZE(substr);
         for (i = 0; i < count; i++) {
-            int result;
+            Py_ssize_t result;
 #if CYTHON_COMPILING_IN_CPYTHON
             result = PyUnicode_Tailmatch(s, PyTuple_GET_ITEM(substr, i),
                                          start, end, direction);
@@ -562,14 +563,15 @@ static int __Pyx_PyUnicode_Tailmatch(PyObject* s, PyObject* substr,
 
 /////////////// bytes_tailmatch.proto ///////////////
 
-static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg, Py_ssize_t start,
-                                         Py_ssize_t end, int direction)
+static Py_ssize_t __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg,
+                                                Py_ssize_t start, Py_ssize_t end,
+                                                int direction)
 {
     const char* self_ptr = PyBytes_AS_STRING(self);
     Py_ssize_t self_len = PyBytes_GET_SIZE(self);
     const char* sub_ptr;
     Py_ssize_t sub_len;
-    int retval;
+    Py_ssize_t retval;
 
     Py_buffer view;
     view.obj = NULL;
@@ -619,13 +621,14 @@ static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg, Py_ssize
     return retval;
 }
 
-static int __Pyx_PyBytes_Tailmatch(PyObject* self, PyObject* substr, Py_ssize_t start,
-                                   Py_ssize_t end, int direction)
+static Py_ssize_t __Pyx_PyBytes_Tailmatch(PyObject* self, PyObject* substr,
+                                          Py_ssize_t start, Py_ssize_t end,
+                                          int direction)
 {
     if (unlikely(PyTuple_Check(substr))) {
         Py_ssize_t i, count = PyTuple_GET_SIZE(substr);
         for (i = 0; i < count; i++) {
-            int result;
+            Py_ssize_t result;
 #if CYTHON_COMPILING_IN_CPYTHON
             result = __Pyx_PyBytes_SingleTailmatch(self, PyTuple_GET_ITEM(substr, i),
                                                    start, end, direction);
