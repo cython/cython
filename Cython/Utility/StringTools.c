@@ -535,9 +535,8 @@ static CYTHON_INLINE int __Pyx_Py_UNICODE_ISTITLE(Py_UCS4 uchar)
 // tuple of prefixes/suffixes, whereas it's much more common to
 // test for a single unicode string.
 
-static Py_ssize_t __Pyx_PyUnicode_Tailmatch(PyObject* s, PyObject* substr,
-                                            Py_ssize_t start, Py_ssize_t end,
-                                            int direction) {
+static int __Pyx_PyUnicode_Tailmatch(PyObject* s, PyObject* substr,
+                                     Py_ssize_t start, Py_ssize_t end, int direction) {
     if (unlikely(PyTuple_Check(substr))) {
         Py_ssize_t i, count = PyTuple_GET_SIZE(substr);
         for (i = 0; i < count; i++) {
@@ -552,26 +551,24 @@ static Py_ssize_t __Pyx_PyUnicode_Tailmatch(PyObject* s, PyObject* substr,
             Py_DECREF(sub);
 #endif
             if (result) {
-                return result;
+                return (int) result;
             }
         }
         return 0;
     }
-    return PyUnicode_Tailmatch(s, substr, start, end, direction);
+    return (int) PyUnicode_Tailmatch(s, substr, start, end, direction);
 }
 
 
 /////////////// bytes_tailmatch.proto ///////////////
 
-static Py_ssize_t __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg,
-                                                Py_ssize_t start, Py_ssize_t end,
-                                                int direction)
-{
+static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg,
+                                         Py_ssize_t start, Py_ssize_t end, int direction) {
     const char* self_ptr = PyBytes_AS_STRING(self);
     Py_ssize_t self_len = PyBytes_GET_SIZE(self);
     const char* sub_ptr;
     Py_ssize_t sub_len;
-    Py_ssize_t retval;
+    int retval;
 
     Py_buffer view;
     view.obj = NULL;
@@ -583,7 +580,7 @@ static Py_ssize_t __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg,
 #if PY_MAJOR_VERSION < 3
     // Python 2.x allows mixing unicode and str
     else if ( PyUnicode_Check(arg) ) {
-        return PyUnicode_Tailmatch(self, arg, start, end, direction);
+        return (int) PyUnicode_Tailmatch(self, arg, start, end, direction);
     }
 #endif
     else {
@@ -621,14 +618,13 @@ static Py_ssize_t __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg,
     return retval;
 }
 
-static Py_ssize_t __Pyx_PyBytes_Tailmatch(PyObject* self, PyObject* substr,
-                                          Py_ssize_t start, Py_ssize_t end,
-                                          int direction)
+static int __Pyx_PyBytes_Tailmatch(PyObject* self, PyObject* substr,
+                                   Py_ssize_t start, Py_ssize_t end, int direction)
 {
     if (unlikely(PyTuple_Check(substr))) {
         Py_ssize_t i, count = PyTuple_GET_SIZE(substr);
         for (i = 0; i < count; i++) {
-            Py_ssize_t result;
+            int result;
 #if CYTHON_COMPILING_IN_CPYTHON
             result = __Pyx_PyBytes_SingleTailmatch(self, PyTuple_GET_ITEM(substr, i),
                                                    start, end, direction);
