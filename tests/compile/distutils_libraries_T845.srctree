@@ -13,6 +13,7 @@ ext_modules = [
 
 ext_modules = cythonize(ext_modules)
 
+assert len(ext_modules[0].libraries) == 2
 assert ext_modules[1].libraries == ["lib_x"]
 assert ext_modules[2].libraries == ["lib_y"]
 
@@ -23,8 +24,7 @@ assert ext_modules[2].libraries == ["lib_y"]
 # distutils: libraries = lib_y
 
 ######## a.pyx ########
-cimport libx
-cimport liby
+cimport libx , liby
 
 ######## x.pyx ########
 cimport libx

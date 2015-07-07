@@ -342,8 +342,8 @@ def strip_string_literals(code, prefix='__Pyx_L'):
     return "".join(new_code), literals
 
 
-dependancy_regex = re.compile(r"(?:^from +([0-9a-zA-Z_.]+) +cimport)|"
-                              r"(?:^cimport +([0-9a-zA-Z_.]+)\b)|"
+dependency_regex = re.compile(r"(?:^from +([0-9a-zA-Z_.]+) +cimport)|"
+                              r"(?:^cimport +([0-9a-zA-Z_.]+(?: *, *[0-9a-zA-Z_.]+)*))|"
                               r"(?:^cdef +extern +from +['\"]([^'\"]+)['\"])|"
                               r"(?:^include +['\"]([^'\"]+)['\"])", re.M)
 
@@ -412,12 +412,12 @@ def parse_dependencies(source_filename):
     cimports = []
     includes = []
     externs  = []
-    for m in dependancy_regex.finditer(source):
-        cimport_from, cimport, extern, include = m.groups()
+    for m in dependency_regex.finditer(source):
+        cimport_from, cimport_list, extern, include = m.groups()
         if cimport_from:
             cimports.append(cimport_from)
-        elif cimport:
-            cimports.append(cimport)
+        elif cimport_list:
+            cimports.extend(x.strip() for x in cimport_list.split(","))
         elif extern:
             externs.append(literals[extern])
         else:
