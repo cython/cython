@@ -122,10 +122,24 @@ in one line)::
 
 If your options are static (for example you do not need to call a tool like
 ``pkg-config`` to determine them) you can also provide them directly in your
-.pyx source file using a special comment block at the start of the file::
+.pyx or .pxd source file using a special comment block at the start of the file::
 
     # distutils: libraries = spam eggs
     # distutils: include_dirs = /opt/food/include
+
+If you cimport multiple .pxd files defining libraries, then Cython
+merges the list of libraries, so this works as expected (similarly
+with other options, like ``include_dirs`` above).
+There is one caveat: for libraries, the order often matters.
+Since it's usually not practical to control the order of cimporting,
+you can use the option ``libraries_sort_key`` to ``cythonize()``:
+it allows you to provide a function to be used as "key" function for
+sorting libraries. In the example below, the libraries will always be
+linked in the order ``-lfirst -lsecond -lthird``, no matter in which
+order Cython sees them::
+
+    library_order = ["first", "second", "third"]
+    ext_modules = cythonize(..., libraries_sort_key = lambda lib: library_order.index(lib))
 
 If you have some C files that have been wrapped with Cython and you want to
 compile them into your extension, you can define the distutils ``sources``
