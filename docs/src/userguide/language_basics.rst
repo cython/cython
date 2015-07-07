@@ -311,22 +311,30 @@ possibilities.
 +----------------------------+--------------------+------------------+
 | C types                    | From Python types  | To Python types  |
 +============================+====================+==================+
-| [unsigned] char            | int, long          | int              |
-| [unsigned] short           |                    |                  |
+| [unsigned] char,           | int, long          | int              |
+| [unsigned] short,          |                    |                  |
 | int, long                  |                    |                  |
 +----------------------------+--------------------+------------------+
-| unsigned int               | int, long          | long             |
-| unsigned long              |                    |                  |
+| unsigned int,              | int, long          | long             |
+| unsigned long,             |                    |                  |
 | [unsigned] long long       |                    |                  |
 +----------------------------+--------------------+------------------+
 | float, double, long double | int, long, float   | float            |
 +----------------------------+--------------------+------------------+
 | char*                      | str/bytes          | str/bytes [#]_   |
 +----------------------------+--------------------+------------------+
-| struct                     |                    | dict             |
+| struct,                    |                    | dict [#1]_       |
+| union                      |                    |                  |
 +----------------------------+--------------------+------------------+
 
 .. [#] The conversion is to/from str for Python 2.x, and bytes for Python 3.x.
+
+.. [#1] The conversion from a C union type to a Python dict will add
+   a value for each of the union fields.  Cython 0.23 and later, however,
+   will refuse to automatically convert a union with unsafe type
+   combinations.  An example is a union of an ``int`` and a ``char*``,
+   in which case the pointer value may or be not be a valid pointer.
+
 
 Caveats when using a Python string in a C context
 -------------------------------------------------
