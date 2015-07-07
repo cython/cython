@@ -41,6 +41,9 @@ Features added
 * Binary and/or/xor/rshift operations with small constant Python integers
   are faster.
 
+* ``any()`` and ``all()`` used inlined loops when called on generator
+  expressions.
+
 * Keyword argument dicts are no longer copied on function entry when they
   are not being used or only passed through to other function calls (e.g.
   in wrapper functions).
