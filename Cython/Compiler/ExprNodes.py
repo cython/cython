@@ -7328,6 +7328,11 @@ class InlinedGeneratorExpressionNode(ExprNode):
     orig_func = None
     type = py_object_type
 
+    def __init__(self, pos, gen, **kwargs):
+        gen.def_node.gbody.is_inlined = True
+        kwargs['gen'] = gen
+        super(InlinedGeneratorExpressionNode, self).__init__(pos, **kwargs)
+
     def may_be_none(self):
         return self.orig_func not in ('any', 'all')
 
@@ -7340,8 +7345,7 @@ class InlinedGeneratorExpressionNode(ExprNode):
         return self
 
     def generate_result_code(self, code):
-        code.globalstate.use_utility_code(UtilityCode.load_cached("GetGenexpResult", "Coroutine.c"))
-        code.putln("%s = __Pyx_Generator_GetGenexpResult(%s); %s" % (
+        code.putln("%s = __Pyx_Generator_Next(%s); %s" % (
             self.result(), self.gen.result(),
             code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.result())

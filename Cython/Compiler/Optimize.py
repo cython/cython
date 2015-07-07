@@ -1545,8 +1545,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
                     condition=condition,
                     body=Nodes.ReturnStatNode(
                         node.pos,
-                        value=ExprNodes.BoolNode(yield_expression.pos, value=is_any, constant_result=is_any),
-                        in_generator=True)
+                        value=ExprNodes.BoolNode(yield_expression.pos, value=is_any, constant_result=is_any))
                 )]
         )
         loop = loop_node
@@ -1560,8 +1559,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             loop = next_loop
         loop_node.else_clause = Nodes.ReturnStatNode(
             node.pos,
-            value=ExprNodes.BoolNode(yield_expression.pos, value=not is_any, constant_result=not is_any),
-            in_generator=True)
+            value=ExprNodes.BoolNode(yield_expression.pos, value=not is_any, constant_result=not is_any))
 
         Visitor.recursively_replace_node(loop_node, yield_stat_node, test_node)
 

@@ -3995,6 +3995,7 @@ class GeneratorBodyDefNode(DefNode):
     #
 
     is_generator_body = True
+    is_inlined = False
 
     def __init__(self, pos=None, name=None, body=None):
         super(GeneratorBodyDefNode, self).__init__(
@@ -4090,12 +4091,15 @@ class GeneratorBodyDefNode(DefNode):
 
         # ----- Non-error return cleanup
         code.put_label(code.return_label)
-        code.put_xdecref(Naming.retval_cname, py_object_type)
+        if self.is_inlined:
+            code.put_xgiveref(Naming.retval_cname)
+        else:
+            code.put_xdecref_clear(Naming.retval_cname, py_object_type)
         code.putln('%s->resume_label = -1;' % Naming.generator_cname)
         # clean up as early as possible to help breaking any reference cycles
         code.putln('__Pyx_Coroutine_clear((PyObject*)%s);' % Naming.generator_cname)
         code.put_finish_refcount_context()
-        code.putln('return NULL;')
+        code.putln("return %s;" % Naming.retval_cname)
         code.putln("}")
 
         # ----- Go back and insert temp variable declarations

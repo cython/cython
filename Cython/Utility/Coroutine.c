@@ -246,28 +246,6 @@ static void __Pyx_Generator_Replace_StopIteration(void) {
 }
 
 
-//////////////////// GetGenexpResult.proto ////////////////////
-
-static CYTHON_INLINE PyObject* __Pyx_Generator_GetGenexpResult(PyObject* gen); /*proto*/
-
-//////////////////// GetGenexpResult ////////////////////
-//@requires: Generator
-
-static CYTHON_INLINE PyObject* __Pyx_Generator_GetGenexpResult(PyObject* gen) {
-    PyObject *result;
-    result = __Pyx_Generator_Next(gen);
-    if (unlikely(result)) {
-        PyErr_Format(PyExc_RuntimeError, "Generator expression returned with non-StopIteration result '%.100s'",
-                     result ? Py_TYPE(result)->tp_name : "NULL");
-        Py_XDECREF(result);
-        return NULL;
-    }
-    if (unlikely(__Pyx_PyGen_FetchStopIterationValue(&result) < 0))
-        return NULL;
-    return result;
-}
-
-
 //////////////////// CoroutineBase.proto ////////////////////
 
 typedef PyObject *(*__pyx_coroutine_body_t)(PyObject *, PyObject *);
@@ -323,6 +301,7 @@ static PyTypeObject *__pyx_GeneratorType = 0;
 #define __Pyx_Generator_New(body, closure, name, qualname)  \
     __Pyx__Coroutine_New(__pyx_GeneratorType, body, closure, name, qualname)
 
+static PyObject *__Pyx_Generator_Next(PyObject *self);
 static int __pyx_Generator_init(void); /*proto*/
 
 
@@ -337,7 +316,6 @@ static int __pyx_Generator_init(void); /*proto*/
 #include <structmember.h>
 #include <frameobject.h>
 
-static PyObject *__Pyx_Generator_Next(PyObject *self);
 static PyObject *__Pyx_Coroutine_Send(PyObject *self, PyObject *value);
 static PyObject *__Pyx_Coroutine_Close(PyObject *self);
 static PyObject *__Pyx_Coroutine_Throw(PyObject *gen, PyObject *args);
