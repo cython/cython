@@ -9,12 +9,14 @@ ext_modules = [
     Extension("a", ["a.pyx"]),
     Extension("x", ["x.pyx"]),
     Extension("y", ["y.pyx"]),
+    Extension("z", ["z.pyx"]),
 ]
 
 ext_modules = cythonize(ext_modules)
 
 assert ext_modules[1].libraries == ["lib_x"]
 assert ext_modules[2].libraries == ["lib_y"]
+assert ext_modules[3].libraries == ["lib_z"]
 
 ######## libx.pxd ########
 # distutils: libraries = lib_x
@@ -22,12 +24,19 @@ assert ext_modules[2].libraries == ["lib_y"]
 ######## liby.pxd ########
 # distutils: libraries = lib_y
 
+######## libz.pxi ########
+# distutils: libraries = lib_z
+
 ######## a.pyx ########
 cimport libx
 cimport liby
+include 'libz.pxi'
 
 ######## x.pyx ########
 cimport libx
 
 ######## y.pyx ########
 cimport liby
+
+######## z.pyx ########
+include 'libz.pxi'
