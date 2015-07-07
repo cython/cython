@@ -531,6 +531,12 @@ static CYTHON_INLINE int __Pyx_Py_UNICODE_ISTITLE(Py_UCS4 uchar)
 
 /////////////// unicode_tailmatch.proto ///////////////
 
+static int __Pyx_PyUnicode_Tailmatch(PyObject* s, PyObject* substr,
+                                     Py_ssize_t start, Py_ssize_t end, int direction); /*proto*/
+
+
+/////////////// unicode_tailmatch ///////////////
+
 // Python's unicode.startswith() and unicode.endswith() support a
 // tuple of prefixes/suffixes, whereas it's much more common to
 // test for a single unicode string.
@@ -561,6 +567,13 @@ static int __Pyx_PyUnicode_Tailmatch(PyObject* s, PyObject* substr,
 
 
 /////////////// bytes_tailmatch.proto ///////////////
+
+static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg,
+                                         Py_ssize_t start, Py_ssize_t end, int direction); /*proto*/
+static int __Pyx_PyBytes_Tailmatch(PyObject* self, PyObject* substr,
+                                   Py_ssize_t start, Py_ssize_t end, int direction); /*proto*/
+
+/////////////// bytes_tailmatch ///////////////
 
 static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg,
                                          Py_ssize_t start, Py_ssize_t end, int direction) {
@@ -619,8 +632,7 @@ static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg,
 }
 
 static int __Pyx_PyBytes_Tailmatch(PyObject* self, PyObject* substr,
-                                   Py_ssize_t start, Py_ssize_t end, int direction)
-{
+                                   Py_ssize_t start, Py_ssize_t end, int direction) {
     if (unlikely(PyTuple_Check(substr))) {
         Py_ssize_t i, count = PyTuple_GET_SIZE(substr);
         for (i = 0; i < count; i++) {
@@ -648,7 +660,7 @@ static int __Pyx_PyBytes_Tailmatch(PyObject* self, PyObject* substr,
 /////////////// str_tailmatch.proto ///////////////
 
 static CYTHON_INLINE int __Pyx_PyStr_Tailmatch(PyObject* self, PyObject* arg, Py_ssize_t start,
-                                               Py_ssize_t end, int direction);
+                                               Py_ssize_t end, int direction); /*proto*/
 
 /////////////// str_tailmatch ///////////////
 //@requires: bytes_tailmatch
@@ -669,6 +681,10 @@ static CYTHON_INLINE int __Pyx_PyStr_Tailmatch(PyObject* self, PyObject* arg, Py
 
 
 /////////////// bytes_index.proto ///////////////
+
+static CYTHON_INLINE char __Pyx_PyBytes_GetItemInt(PyObject* bytes, Py_ssize_t index, int check_bounds); /*proto*/
+
+/////////////// bytes_index ///////////////
 
 static CYTHON_INLINE char __Pyx_PyBytes_GetItemInt(PyObject* bytes, Py_ssize_t index, int check_bounds) {
     if (check_bounds) {
