@@ -78,7 +78,7 @@ started with Cython memory views.
     # a C array, a Cython array...
     print("Memoryview sum of NumPy array is %s" % sum3d(narr))
     print("Memoryview sum of C array is %s" % sum3d(carr))
-    print("Memoryview sum of Cython array is %s" % sum3d(cyarr)
+    print("Memoryview sum of Cython array is %s" % sum3d(cyarr))
     # ... and of course, a memoryview.
     print("Memoryview sum of C memoryview is %s" % sum3d(carr_view))
 
