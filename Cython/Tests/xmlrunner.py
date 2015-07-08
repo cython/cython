@@ -361,6 +361,11 @@ class XMLTestRunner(TextTestRunner):
         stop_time = time.time()
         time_taken = stop_time - start_time
 
+        # Generate reports
+        self.stream.writeln()
+        self.stream.writeln('Generating XML reports...')
+        result.generate_reports(self)
+
         # Print results
         result.printErrors()
         self.stream.writeln(result.separator2)
@@ -382,10 +387,5 @@ class XMLTestRunner(TextTestRunner):
             self.stream.writeln(")")
         else:
             self.stream.writeln("OK")
-
-        # Generate reports
-        self.stream.writeln()
-        self.stream.writeln('Generating XML reports...')
-        result.generate_reports(self)
 
         return result
