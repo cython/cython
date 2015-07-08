@@ -1101,8 +1101,12 @@ static void __Pyx_Coroutine_check_and_dealloc(PyObject *self) {
 #if PY_VERSION_HEX >= 0x03030000 || defined(PyErr_WarnFormat)
         PyErr_WarnFormat(PyExc_RuntimeWarning, 1, "coroutine '%.50S' was never awaited", gen->gi_qualname);
 #else
-        PyObject *msg, *qualname;
+        PyObject *msg;
         char *cname, *cmsg;
+        #if CYTHON_COMPILING_IN_PYPY
+        msg = NULL;
+        #else
+        PyObject *qualname;
         #if PY_MAJOR_VERSION >= 3
         qualname = PyUnicode_AsUTF8String(gen->gi_qualname);
         if (likely(qualname)) {
@@ -1121,6 +1125,7 @@ static void __Pyx_Coroutine_check_and_dealloc(PyObject *self) {
 
         #if PY_MAJOR_VERSION >= 3
         Py_XDECREF(qualname);
+        #endif
         #endif
 
         if (unlikely(!msg)) {
