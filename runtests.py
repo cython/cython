@@ -1863,8 +1863,11 @@ def runtests(options, cmd_args, coverage=None):
     ROOTDIR = os.path.abspath(options.root_dir)
     WORKDIR = os.path.abspath(options.work_dir)
 
+    xml_output_dir = options.xml_output_dir
     if options.shard_num > -1:
         WORKDIR = os.path.join(WORKDIR, str(options.shard_num))
+        if xml_output_dir:
+            xml_output_dir = os.path.join(xml_output_dir, 'shard-%03d' % options.shard_num)
 
     # RUN ALL TESTS!
     UNITTEST_MODULE = "Cython"
@@ -1902,7 +1905,7 @@ def runtests(options, cmd_args, coverage=None):
         sys.path.insert(0, os.path.split(libpath)[0])
         CFLAGS.append("-DCYTHON_REFNANNY=1")
 
-    if options.xml_output_dir and options.fork:
+    if xml_output_dir and options.fork:
         # doesn't currently work together
         sys.stderr.write("Disabling forked testing to support XML test output\n")
         options.fork = False
@@ -2024,9 +2027,12 @@ def runtests(options, cmd_args, coverage=None):
             sys.stderr.write("Including CPython regression tests in %s\n" % sys_pyregr_dir)
             test_suite.addTest(filetests.handle_directory(sys_pyregr_dir, 'pyregr'))
 
-    if options.xml_output_dir:
+    if xml_output_dir:
         from Cython.Tests.xmlrunner import XMLTestRunner
-        test_runner = XMLTestRunner(output=options.xml_output_dir,
+        if not os.path.exists(xml_output_dir):
+            try: os.makedirs(xml_output_dir)
+            except OSError: pass  # concurrency issue?
+        test_runner = XMLTestRunner(output=xml_output_dir,
                                     verbose=options.verbosity > 0)
     else:
         test_runner = unittest.TextTestRunner(verbosity=options.verbosity)
