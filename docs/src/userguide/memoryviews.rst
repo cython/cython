@@ -25,6 +25,9 @@ exposes writable buffer through the `PEP 3118`_ buffer interface.
 Quickstart
 ==========
 
+If you are used to working with NumPy, the following examples should get you
+started with Cython memory views.
+
 ::
 
     from cython.view cimport array as cvarray
@@ -88,28 +91,93 @@ This code should give the following output::
     Memoryview sum of Cython array is 1351
     Memoryview sum of C memoryview is 451
 
+
 Using memoryviews
 =================
 
-Indexing and Slicing
---------------------
+Syntax
+------
 
-Indexing and slicing can be done with or without the GIL. It basically works
-like NumPy. If indices are specified for every dimension you will get an element
-of the base type (e.g. `int`), otherwise you will get a new view. An Ellipsis
+Memory views use Python slicing syntax in a similar way as NumPy.
+
+To create a complete view on a one-dimensional int buffer::
+
+    cdef int[:] view1D = exporting_object
+
+A complete 3D view::
+
+    cdef int[:,:,:] view3D = exporting_object
+
+A 2D view that restricts the first dimension of a buffer to 100 rows
+starting at the second and then skipps every second (odd) row::
+
+    cdef int[1:102:2,:] partial_view = exporting_object
+
+This also works conveniently as function arguments::
+
+..  code-block:: cython
+
+    def process_3d_buffer(int[1:102:2,:] view not None):
+        ...
+
+The ``not None`` declaration for the argument automatically rejects
+None values as input, which would otherwise be allowed.  The reason why
+None is allowed by default is that it is conveniently used for return
+arguments::
+
+   def process_buffer(int[:,:] input not None,
+                      int[:,:] output = None):
+       if output is None:
+           output = ...  # e.g. numpy.empty_like(input)
+       # process 'input' into 'output'
+       return output
+
+Cython will reject incompatible buffers automatically, e.g. passing a
+three dimensional buffer into a function that requires a two
+dimensional buffer will raise a ``ValueError``.
+
+
+Indexing
+--------
+
+In Cython, index access on memory views is automatically translated
+into memory addresses.  The following code requests a two-dimensional
+memory view of C ``int`` typed items and indexes into it::
+
+   cdef int[:,:] buf = exporting_object
+
+   print(buf[1,2])
+
+Negative indices work as well, counting from the end of the respective
+dimension::
+
+   print(buf[-1,-2])
+
+The following function loops over each dimension of a 2D array and
+adds 1 to each item::
+
+   def add_one(int[:,:] buf):
+       for x in xrange(buf.shape[0]):
+           for y in xrange(buf.shape[1]):
+               buf[x,y] += 1
+
+Indexing and slicing can be done with or without the GIL.  It basically works
+like NumPy.  If indices are specified for every dimension you will get an element
+of the base type (e.g. `int`).  Otherwise, you will get a new view.  An Ellipsis
 means you get consecutive slices for every unspecified dimension::
 
-    cdef int[:, :, :] my_view = ...
+    cdef int[:, :, :] my_view = exporting_object
 
     # These are all equivalent
     my_view[10]
     my_view[10, :, :]
     my_view[10, ...]
 
+
 Copying
 -------
 
-Memoryviews can be copied inplace::
+Memory views can be copied in place::
 
     cdef int[:, :, :] to_view, from_view
     ...
@@ -315,7 +383,9 @@ in memory.  If you know you will have a 3D Fortran contiguous array::
 
     cdef int[::1, :, :] f_contiguous = f_contig
 
-If you try to do this kind of thing::
+If you pass a non-contiguous buffer, for example
+
+::
 
     # This array is C contiguous
     c_contig = np.arange(24).reshape((2,3,4))
@@ -324,7 +394,7 @@ If you try to do this kind of thing::
     # But this isn't
     c_contiguous = np.array(c_contig, order='F')
 
-you will get a ``ValueError`` like this at runtime::
+you will get a ``ValueError`` at runtime::
 
     /Users/mb312/dev_trees/minimal-cython/mincy.pyx in init mincy (mincy.c:17267)()
         69 
