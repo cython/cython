@@ -1,0 +1,39 @@
+PYTHON setup.py build_ext --inplace
+
+######## setup.py ########
+
+from Cython.Build import cythonize
+from Cython.Distutils.extension import Extension
+
+import sys
+sys.path.append("path")
+
+ext_modules = [
+    Extension("a", ["a.pyx"]),
+    Extension("b", ["b.pyx"]),
+    Extension("c", ["c.pyx"]),
+]
+
+ext_modules = cythonize(ext_modules, include_path=["include"])
+
+
+######## a.pyx ########
+# Implicit cimport looking in include_path
+cdef my_type foo
+
+######## include/a.pxd ########
+ctypedef int my_type
+
+######## b.pyx ########
+# Explicit cimport looking in sys.path
+from b cimport *
+cdef my_type foo
+
+######## path/b.pxd ########
+ctypedef int my_type
+
+######## c.pyx ########
+# Implicit cimport NOT looking in sys.path
+
+######## path/c.pxd ########
++++syntax error just to show that this file is not actually cimported+++

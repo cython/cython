@@ -123,12 +123,15 @@ Search paths for definition files
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 When you :keyword:`cimport` a module called ``modulename``, the Cython
-compiler searches for a file called :file:`modulename.pxd` along the search
-path for include files, as specified by ``-I`` command line options.
+compiler searches for a file called :file:`modulename.pxd`.
+It searches for this file along the path for include files
+(as specified by ``-I`` command line options or the ``include_path``
+option to ``cythonize()``), as well as ``sys.path``.
 
 Also, whenever you compile a file :file:`modulename.pyx`, the corresponding
-definition file :file:`modulename.pxd` is first searched for along the same
-path, and if found, it is processed before processing the ``.pyx`` file.  
+definition file :file:`modulename.pxd` is first searched for along the
+include path (but not ``sys.path``), and if found, it is processed before
+processing the ``.pyx`` file.
 
 
 Using cimport to resolve naming conflicts 
