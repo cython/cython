@@ -64,6 +64,7 @@ started with Cython memory views.
 
     # A function using a memoryview does not usually need the GIL
     cpdef int sum3d(int[:, :, :] arr) nogil:
+        cdef size_t i, j, k
         cdef int total = 0
         I = arr.shape[0]
         J = arr.shape[1]
