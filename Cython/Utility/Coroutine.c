@@ -1003,10 +1003,12 @@ static PyObject *__Pyx_CoroutineAwait_self(PyObject *self) {
     return self;
 }
 
+#if CYTHON_COMPILING_IN_CPYTHON
 static PyObject *__Pyx_CoroutineAwait_no_new(CYTHON_UNUSED PyTypeObject *type, CYTHON_UNUSED PyObject *args, CYTHON_UNUSED PyObject *kwargs) {
     PyErr_SetString(PyExc_TypeError, "cannot instantiate type, use 'await coroutine' instead");
     return NULL;
 }
+#endif
 
 static PyMethodDef __pyx_CoroutineAwait_methods[] = {
     {"send", (PyCFunction) __Pyx_CoroutineAwait_Send, METH_O,
@@ -1056,7 +1058,11 @@ static PyTypeObject __pyx_CoroutineAwaitType_type = {
     0,                                  /*tp_dictoffset*/
     0,                                  /*tp_init*/
     0,                                  /*tp_alloc*/
+#if CYTHON_COMPILING_IN_CPYTHON
     __Pyx_CoroutineAwait_no_new,        /*tp_new*/
+#else
+    0,                                  /*tp_new*/
+#endif
     0,                                  /*tp_free*/
     0,                                  /*tp_is_gc*/
     0,                                  /*tp_bases*/
@@ -1075,7 +1081,8 @@ static CYTHON_INLINE PyObject *__Pyx__Coroutine_await(PyObject *coroutine) {
 #if CYTHON_COMPILING_IN_CPYTHON
     __pyx_CoroutineAwaitObject *await = PyObject_GC_New(__pyx_CoroutineAwaitObject, __pyx_CoroutineAwaitType);
 #else
-    __pyx_CoroutineAwaitObject *await = __pyx_CoroutineAwaitType->tp_alloc(__pyx_CoroutineAwaitType);
+    __pyx_CoroutineAwaitObject *await = (__pyx_CoroutineAwaitObject*)
+        __pyx_CoroutineAwaitType->tp_new(__pyx_CoroutineAwaitType, __pyx_empty_tuple, NULL);
 #endif
     if (unlikely(!await)) return NULL;
     Py_INCREF(coroutine);
@@ -1102,10 +1109,12 @@ static void __Pyx_Coroutine_check_and_dealloc(PyObject *self) {
         PyErr_WarnFormat(PyExc_RuntimeWarning, 1, "coroutine '%.50S' was never awaited", gen->gi_qualname);
 #else
         PyObject *msg;
-        char *cname, *cmsg;
+        char *cmsg;
         #if CYTHON_COMPILING_IN_PYPY
         msg = NULL;
+        cmsg = (char*) "coroutine was never awaited";
         #else
+        char *cname;
         PyObject *qualname;
         #if PY_MAJOR_VERSION >= 3
         qualname = PyUnicode_AsUTF8String(gen->gi_qualname);
@@ -1126,7 +1135,6 @@ static void __Pyx_Coroutine_check_and_dealloc(PyObject *self) {
         #if PY_MAJOR_VERSION >= 3
         Py_XDECREF(qualname);
         #endif
-        #endif
 
         if (unlikely(!msg)) {
             PyErr_Clear();
@@ -1138,6 +1146,7 @@ static void __Pyx_Coroutine_check_and_dealloc(PyObject *self) {
             cmsg = PyString_AS_STRING(msg);
             #endif
         }
+        #endif
         if (unlikely(PyErr_WarnEx(PyExc_RuntimeWarning, cmsg, 1) < 0))
             PyErr_WriteUnraisable(self);
         Py_XDECREF(msg);
