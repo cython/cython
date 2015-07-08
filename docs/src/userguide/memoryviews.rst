@@ -46,7 +46,7 @@ started with Cython memory views.
     cdef int [:, :, :] cyarr_view = cyarr
 
     # Show the sum of all the arrays before altering it
-    print "NumPy sum of the NumPy array before assignments:", narr.sum()
+    print("NumPy sum of the NumPy array before assignments: %s" % narr.sum())
 
     # We can copy the values from one memoryview into another using a single
     # statement, by either indexing with ... or (NumPy-style) with a colon.
@@ -60,7 +60,7 @@ started with Cython memory views.
     cyarr_view[0, 0, 0] = 1000
 
     # Assigning into the memoryview on the NumPy array alters the latter
-    print "NumPy sum of NumPy array after assignments:", narr.sum()
+    print("NumPy sum of NumPy array after assignments: %s" % narr.sum())
 
     # A function using a memoryview does not usually need the GIL
     cpdef int sum3d(int[:, :, :] arr) nogil:
@@ -76,11 +76,11 @@ started with Cython memory views.
 
     # A function accepting a memoryview knows how to use a NumPy array,
     # a C array, a Cython array...
-    print "Memoryview sum of NumPy array is", sum3d(narr)
-    print "Memoryview sum of C array is", sum3d(carr)
-    print "Memoryview sum of Cython array is", sum3d(cyarr)
+    print("Memoryview sum of NumPy array is %s" % sum3d(narr))
+    print("Memoryview sum of C array is %s" % sum3d(carr))
+    print("Memoryview sum of Cython array is %s" % sum3d(cyarr)
     # ... and of course, a memoryview.
-    print "Memoryview sum of C memoryview is", sum3d(carr_view)
+    print("Memoryview sum of C memoryview is %s" % sum3d(carr_view))
 
 This code should give the following output::
 
@@ -546,9 +546,14 @@ retrieve the original object::
     cdef cnp.int32_t[:] a = numpy.arange(10, dtype=numpy.int32)
     a = a[::2]
 
-    print a, numpy.asarray(a), a.base
+    print(a)
+    print(numpy.asarray(a))
+    print(a.base)
 
-    # this prints: <MemoryView of 'ndarray' object> [0 2 4 6 8] [0 1 2 3 4 5 6 7 8 9]
+    # this prints:
+    #    <MemoryView of 'ndarray' object>
+    #    [0 2 4 6 8]
+    #    [0 1 2 3 4 5 6 7 8 9]
 
 Note that this example returns the original object from which the view was
 obtained, and that the view was resliced in the meantime.
@@ -646,7 +651,7 @@ Although memoryview slices are not objects they can be set to None and they can
 be be checked for being None as well::
 
     def func(double[:] myarray = None):
-        print myarray is None
+        print(myarray is None)
 
 If the function requires real memory views as input, it is therefore best to
 reject None input straight away in the signature, which is supported in Cython
