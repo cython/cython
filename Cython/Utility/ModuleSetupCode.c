@@ -189,7 +189,7 @@
 #if PY_VERSION_HEX >= 0x030500B1
 #define __Pyx_PyAsyncMethodsStruct PyAsyncMethods
 #define __Pyx_PyType_AsAsync(obj) (Py_TYPE(obj)->tp_as_async)
-#elif PY_MAJOR_VERSION >= 3
+#elif CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
 typedef struct {
     unaryfunc am_await;
     unaryfunc am_aiter;

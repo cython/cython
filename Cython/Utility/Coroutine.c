@@ -1185,7 +1185,7 @@ static PyGetSetDef __pyx_Coroutine_getsets[] = {
     {0, 0, 0, 0, 0}
 };
 
-#if PY_MAJOR_VERSION >= 3
+#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
 static __Pyx_PyAsyncMethodsStruct __pyx_Coroutine_as_async = {
     __Pyx_Coroutine_await, /*am_await*/
     0, /*am_aiter*/
@@ -1202,7 +1202,7 @@ static PyTypeObject __pyx_CoroutineType_type = {
     0,                                  /*tp_print*/
     0,                                  /*tp_getattr*/
     0,                                  /*tp_setattr*/
-#if PY_MAJOR_VERSION >= 3
+#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
     &__pyx_Coroutine_as_async,          /*tp_as_async (tp_reserved)*/
 #else
     0,                                  /*tp_reserved*/
