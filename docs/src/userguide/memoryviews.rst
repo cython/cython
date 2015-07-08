@@ -109,7 +109,7 @@ A complete 3D view::
     cdef int[:,:,:] view3D = exporting_object
 
 A 2D view that restricts the first dimension of a buffer to 100 rows
-starting at the second and then skipps every second (odd) row::
+starting at the second (index 1) and then skips every second (odd) row::
 
     cdef int[1:102:2,:] partial_view = exporting_object
 
