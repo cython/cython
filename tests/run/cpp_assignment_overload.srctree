@@ -24,6 +24,10 @@ public:
     this->val = other.val;
     return *this;
   }
+  wrapped_int &operator=(const long long val) {
+    this->val = val;
+    return *this;
+  }
 };
 
 
@@ -35,6 +39,7 @@ cdef extern from "assign.cpp" nogil:
         wrapped_int()
         wrapped_int(long long val)
         wrapped_int& operator=(const wrapped_int &other)
+        wrapped_int& operator=(const long long &other)
 
 
 ######## assignment_overload.pyx ########
@@ -44,6 +49,7 @@ from assign cimport wrapped_int
 def test():
     cdef wrapped_int a = wrapped_int(2)
     cdef wrapped_int b = wrapped_int(3)
+    cdef long long c = 4
 
     assert &a != &b
     assert a.val != b.val
@@ -51,3 +57,5 @@ def test():
     a = b
     assert &a != &b
     assert a.val == b.val
+    a = c
+    assert a.val == c
