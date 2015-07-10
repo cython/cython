@@ -1,7 +1,7 @@
+# mode: compile
+# tag: cdef
+
 def f():
-    """
-    >>> f()
-    """
     cdef char a_char
     cdef short a_short
     cdef int i1, i2
