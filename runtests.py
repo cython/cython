@@ -1808,6 +1808,9 @@ def main():
                 coverage.erase()
                 coverage.start()
 
+    if options.xml_output_dir:
+        shutil.rmtree(options.xml_output_dir, ignore_errors=True)
+
     if WITH_CYTHON:
         global CompilationOptions, pyrex_default_options, cython_compile
         from Cython.Compiler.Main import \
