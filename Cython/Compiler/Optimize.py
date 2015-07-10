@@ -1770,7 +1770,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         return self._transform_list_set_genexpr(node, pos_args, Builtin.set_type)
 
     def _transform_list_set_genexpr(self, node, pos_args, target_type):
-        """Replace set(genexpr) and list(genexpr) by a literal comprehension.
+        """Replace set(genexpr) and list(genexpr) by an inlined comprehension.
         """
         if len(pos_args) > 1:
             return node
@@ -1780,29 +1780,24 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         loop_node = gen_expr_node.loop
 
         yield_expression, yield_stat_node = self._find_single_yield_expression(loop_node)
-        # FIXME: currently nonfunctional
-        yield_expression = None
         if yield_expression is None:
             return node
 
+        result_node = ExprNodes.InlinedGeneratorExpressionNode(
+            node.pos, gen_expr_node,
+            orig_func='set' if target_type is Builtin.set_type else 'list',
+            comprehension_type=target_type)
+
         append_node = ExprNodes.ComprehensionAppendNode(
             yield_expression.pos,
-            expr = yield_expression)
+            expr=yield_expression,
+            target=result_node.target)
 
         Visitor.recursively_replace_node(loop_node, yield_stat_node, append_node)
-
-        comp = ExprNodes.ComprehensionNode(
-            node.pos,
-            has_local_scope = True,
-            expr_scope = gen_expr_node.expr_scope,
-            loop = loop_node,
-            append = append_node,
-            type = target_type)
-        append_node.target = comp
-        return comp
+        return result_node
 
     def _handle_simple_function_dict(self, node, pos_args):
-        """Replace dict( (a,b) for ... ) by a literal { a:b for ... }.
+        """Replace dict( (a,b) for ... ) by an inlined { a:b for ... }
         """
         if len(pos_args) == 0:
             return ExprNodes.DictNode(node.pos, key_value_pairs=[], constant_result={})
@@ -1814,8 +1809,6 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         loop_node = gen_expr_node.loop
 
         yield_expression, yield_stat_node = self._find_single_yield_expression(loop_node)
-        # FIXME: currently nonfunctional
-        yield_expression = None
         if yield_expression is None:
             return node
 
@@ -1824,22 +1817,18 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         if len(yield_expression.args) != 2:
             return node
 
+        result_node = ExprNodes.InlinedGeneratorExpressionNode(
+            node.pos, gen_expr_node, orig_func='dict',
+            comprehension_type=Builtin.dict_type)
+
         append_node = ExprNodes.DictComprehensionAppendNode(
             yield_expression.pos,
             key_expr = yield_expression.args[0],
-            value_expr = yield_expression.args[1])
+            value_expr = yield_expression.args[1],
+            target=result_node.target)
 
         Visitor.recursively_replace_node(loop_node, yield_stat_node, append_node)
-
-        dictcomp = ExprNodes.ComprehensionNode(
-            node.pos,
-            has_local_scope = True,
-            expr_scope = gen_expr_node.expr_scope,
-            loop = loop_node,
-            append = append_node,
-            type = Builtin.dict_type)
-        append_node.target = dictcomp
-        return dictcomp
+        return result_node
 
     # specific handlers for general call nodes
 

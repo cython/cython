@@ -20,13 +20,9 @@ def setcomp():
     assert x == 'abc' # do not leak
     return result
 
-# enable when inlined:
-#@cython.test_fail_if_path_exists(
-#    "//GeneratorExpressionNode",
-#    "//SimpleCallNode")
-#@cython.test_assert_path_exists(
-#    "//ComprehensionNode",
-#    "//ComprehensionNode//ComprehensionAppendNode")
+@cython.test_assert_path_exists(
+    "//InlinedGeneratorExpressionNode",
+    "//ComprehensionAppendNode")
 def genexp_set():
     """
     >>> type(genexp_set()) is _set

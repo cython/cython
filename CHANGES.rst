@@ -41,12 +41,10 @@ Features added
 * Binary and/or/xor/rshift operations with small constant Python integers
   are faster.
 
-* The builtin functions ``any()`` and ``all()`` are inlined into the
-  for-loops when called on generator expressions to avoid the generator
-  iteration overhead.
-
-* The builtin function ``sorted()`` is optimised when called on a
-  generator expression.
+* When called on generator expressions, the builtin functions ``all()``,
+  ``any()``, ``dict()``, ``list()``, ``set()`` and ``sorted()`` are
+  (partially) inlined into the for-loops to avoid the generator iteration
+  overhead.
 
 * Keyword argument dicts are no longer copied on function entry when they
   are not being used or only passed through to other function calls (e.g.

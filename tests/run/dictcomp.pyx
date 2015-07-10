@@ -15,13 +15,9 @@ def dictcomp():
     assert x == 'abc' # do not leak!
     return result
 
-# enable when inlined:
-#@cython.test_fail_if_path_exists(
-#    "//GeneratorExpressionNode",
-#    "//SimpleCallNode")
-#@cython.test_assert_path_exists(
-#    "//ComprehensionNode",
-#    "//ComprehensionNode//DictComprehensionAppendNode")
+@cython.test_assert_path_exists(
+    "//InlinedGeneratorExpressionNode",
+    "//DictComprehensionAppendNode")
 def genexpr():
     """
     >>> type(genexpr()) is dict
