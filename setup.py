@@ -97,18 +97,19 @@ if include_debugger:
 
 def compile_cython_modules(profile=False, compile_more=False, cython_with_refnanny=False):
     source_root = os.path.abspath(os.path.dirname(__file__))
-    compiled_modules = ["Cython.Plex.Scanners",
-                        "Cython.Plex.Actions",
-                        "Cython.Compiler.Lexicon",
-                        "Cython.Compiler.Scanning",
-                        "Cython.Compiler.Parsing",
-                        "Cython.Compiler.Visitor",
-                        "Cython.Compiler.FlowControl",
-                        "Cython.Compiler.Code",
-                        "Cython.Runtime.refnanny",
-                        # "Cython.Compiler.FusedNode",
-                        "Cython.Tempita._tempita",
-                        ]
+    compiled_modules = [
+        "Cython.Plex.Scanners",
+        "Cython.Plex.Actions",
+        "Cython.Compiler.Lexicon",
+        "Cython.Compiler.Scanning",
+        "Cython.Compiler.Parsing",
+        "Cython.Compiler.Visitor",
+        "Cython.Compiler.FlowControl",
+        "Cython.Compiler.Code",
+        "Cython.Runtime.refnanny",
+        # "Cython.Compiler.FusedNode",
+        "Cython.Tempita._tempita",
+    ]
     if compile_more:
         compiled_modules.extend([
             "Cython.Build.Dependencies",
