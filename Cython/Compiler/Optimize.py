@@ -33,18 +33,22 @@ try:
 except ImportError:
     basestring = str # Python 3
 
+
 def load_c_utility(name):
     return UtilityCode.load_cached(name, "Optimize.c")
+
 
 def unwrap_coerced_node(node, coercion_nodes=(ExprNodes.CoerceToPyTypeNode, ExprNodes.CoerceFromPyTypeNode)):
     if isinstance(node, coercion_nodes):
         return node.arg
     return node
 
+
 def unwrap_node(node):
     while isinstance(node, UtilNodes.ResultRefNode):
         node = node.expression
     return node
+
 
 def is_common_value(a, b):
     a = unwrap_node(a)
@@ -55,10 +59,53 @@ def is_common_value(a, b):
         return not a.is_py_attr and is_common_value(a.obj, b.obj) and a.attribute == b.attribute
     return False
 
+
 def filter_none_node(node):
     if node is not None and node.constant_result is None:
         return None
     return node
+
+
+class _YieldNodeCollector(Visitor.TreeVisitor):
+    """
+    YieldExprNode finder for generator expressions.
+    """
+    def __init__(self):
+        Visitor.TreeVisitor.__init__(self)
+        self.yield_stat_nodes = {}
+        self.yield_nodes = []
+
+    visit_Node = Visitor.TreeVisitor.visitchildren
+
+    def visit_YieldExprNode(self, node):
+        self.yield_nodes.append(node)
+        self.visitchildren(node)
+
+    def visit_ExprStatNode(self, node):
+        self.visitchildren(node)
+        if node.expr in self.yield_nodes:
+            self.yield_stat_nodes[node.expr] = node
+
+    # everything below these nodes is out of scope:
+
+    def visit_GeneratorExpressionNode(self, node):
+        pass
+
+    def visit_LambdaNode(self, node):
+        pass
+
+
+def _find_single_yield_expression(node):
+    collector = _YieldNodeCollector()
+    collector.visitchildren(node)
+    if len(collector.yield_nodes) != 1:
+        return None, None
+    yield_node = collector.yield_nodes[0]
+    try:
+        return yield_node.arg, collector.yield_stat_nodes[yield_node]
+    except KeyError:
+        return None, None
+
 
 class IterationTransform(Visitor.EnvTransform):
     """Transform some common for-in loop patterns into efficient C loops:
@@ -1447,40 +1494,6 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
 
     # sequence processing
 
-    class YieldNodeCollector(Visitor.TreeVisitor):
-        def __init__(self):
-            Visitor.TreeVisitor.__init__(self)
-            self.yield_stat_nodes = {}
-            self.yield_nodes = []
-
-        visit_Node = Visitor.TreeVisitor.visitchildren
-        # XXX: disable inlining while it's not back supported
-        def visit_YieldExprNode(self, node):
-            self.yield_nodes.append(node)
-            self.visitchildren(node)
-
-        def visit_ExprStatNode(self, node):
-            self.visitchildren(node)
-            if node.expr in self.yield_nodes:
-                self.yield_stat_nodes[node.expr] = node
-
-        def visit_GeneratorExpressionNode(self, node):
-            # enable when we support generic generator expressions
-            #
-            # everything below this node is out of scope
-            pass
-
-    def _find_single_yield_expression(self, node):
-        collector = self.YieldNodeCollector()
-        collector.visitchildren(node)
-        if len(collector.yield_nodes) != 1:
-            return None, None
-        yield_node = collector.yield_nodes[0]
-        try:
-            return (yield_node.arg, collector.yield_stat_nodes[yield_node])
-        except KeyError:
-            return None, None
-
     def _handle_simple_function_all(self, node, pos_args):
         """Transform
 
@@ -1529,7 +1542,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         gen_expr_node = pos_args[0]
         generator_body = gen_expr_node.def_node.gbody
         loop_node = generator_body.body
-        yield_expression, yield_stat_node = self._find_single_yield_expression(loop_node)
+        yield_expression, yield_stat_node = _find_single_yield_expression(loop_node)
         if yield_expression is None:
             return node
 
@@ -1588,7 +1601,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         elif isinstance(arg, ExprNodes.GeneratorExpressionNode):
             gen_expr_node = arg
             loop_node = gen_expr_node.loop
-            yield_expression, yield_stat_node = self._find_single_yield_expression(loop_node)
+            yield_expression, yield_stat_node = _find_single_yield_expression(loop_node)
             if yield_expression is None:
                 return node
 
@@ -1646,7 +1659,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         loop_node = gen_expr_node.loop
 
         if isinstance(gen_expr_node, ExprNodes.GeneratorExpressionNode):
-            yield_expression, yield_stat_node = self._find_single_yield_expression(loop_node)
+            yield_expression, yield_stat_node = _find_single_yield_expression(loop_node)
             # FIXME: currently nonfunctional
             yield_expression = None
             if yield_expression is None:
@@ -1779,7 +1792,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         gen_expr_node = pos_args[0]
         loop_node = gen_expr_node.loop
 
-        yield_expression, yield_stat_node = self._find_single_yield_expression(loop_node)
+        yield_expression, yield_stat_node = _find_single_yield_expression(loop_node)
         if yield_expression is None:
             return node
 
@@ -1808,7 +1821,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         gen_expr_node = pos_args[0]
         loop_node = gen_expr_node.loop
 
-        yield_expression, yield_stat_node = self._find_single_yield_expression(loop_node)
+        yield_expression, yield_stat_node = _find_single_yield_expression(loop_node)
         if yield_expression is None:
             return node
 
@@ -3065,6 +3078,42 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             node, function,
             "PyUnicode_Split", self.PyUnicode_Split_func_type,
             'split', is_unbound_method, args)
+
+    PyUnicode_Join_func_type = PyrexTypes.CFuncType(
+        Builtin.unicode_type, [
+            PyrexTypes.CFuncTypeArg("str", Builtin.unicode_type, None),
+            PyrexTypes.CFuncTypeArg("seq", PyrexTypes.py_object_type, None),
+            ])
+
+    def _handle_simple_method_unicode_join(self, node, function, args, is_unbound_method):
+        """
+        unicode.join() builds a list first => see if we can do this more efficiently
+        """
+        if len(args) != 2:
+            self._error_wrong_arg_count('unicode.join', node, args, "2")
+            return node
+        if isinstance(args[1], ExprNodes.GeneratorExpressionNode):
+            gen_expr_node = args[1]
+            loop_node = gen_expr_node.loop
+
+            yield_expression, yield_stat_node = _find_single_yield_expression(loop_node)
+            if yield_expression is not None:
+                inlined_genexpr = ExprNodes.InlinedGeneratorExpressionNode(
+                    node.pos, gen_expr_node, orig_func='list',
+                    comprehension_type=Builtin.list_type)
+
+                append_node = ExprNodes.ComprehensionAppendNode(
+                    yield_expression.pos,
+                    expr=yield_expression,
+                    target=inlined_genexpr.target)
+
+                Visitor.recursively_replace_node(loop_node, yield_stat_node, append_node)
+                args[1] = inlined_genexpr
+
+        return self._substitute_method_call(
+            node, function,
+            "PyUnicode_Join", self.PyUnicode_Join_func_type,
+            'join', is_unbound_method, args)
 
     PyString_Tailmatch_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_bint_type, [

@@ -594,9 +594,15 @@ class MethodDispatcherTransform(EnvTransform):
                 return function_handler(node, function, arg_list, kwargs)
             else:
                 return function_handler(node, function, arg_list)
-        elif function.is_attribute and function.type.is_pyobject:
+        elif function.is_attribute:
             attr_name = function.attribute
-            self_arg = function.obj
+            if function.type.is_pyobject:
+                self_arg = function.obj
+            elif node.self:
+                self_arg = node.self
+                arg_list = arg_list[1:]  # drop CloneNode of self argument
+            else:
+                return node
             obj_type = self_arg.type
             is_unbound_method = False
             if obj_type.is_builtin_type:
@@ -634,11 +640,12 @@ class MethodDispatcherTransform(EnvTransform):
         if self_arg is not None:
             arg_list = [self_arg] + list(arg_list)
         if kwargs:
-            return method_handler(
+            result = method_handler(
                 node, function, arg_list, is_unbound_method, kwargs)
         else:
-            return method_handler(
+            result = method_handler(
                 node, function, arg_list, is_unbound_method)
+        return result
 
     def _handle_function(self, node, function_name, function, arg_list, kwargs):
         """Fallback handler"""

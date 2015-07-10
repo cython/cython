@@ -186,9 +186,8 @@ pipe_sep = u'|'
     "//CastNode", "//TypecastNode",
     "//SimpleCallNode//AttributeNode[@is_py_attr = true]")
 @cython.test_assert_path_exists(
-    "//SimpleCallNode",
-    "//SimpleCallNode//NoneCheckNode",
-    "//SimpleCallNode//AttributeNode[@is_py_attr = false]")
+    "//PythonCapiCallNode",
+)
 def join(unicode sep, l):
     """
     >>> l = text.split()
@@ -201,13 +200,14 @@ def join(unicode sep, l):
     """
     return sep.join(l)
 
+
 @cython.test_fail_if_path_exists(
     "//CoerceToPyTypeNode", "//CoerceFromPyTypeNode",
     "//CastNode", "//TypecastNode", "//NoneCheckNode",
     "//SimpleCallNode//AttributeNode[@is_py_attr = true]")
 @cython.test_assert_path_exists(
-    "//SimpleCallNode",
-    "//SimpleCallNode//AttributeNode[@is_py_attr = false]")
+    "//PythonCapiCallNode",
+)
 def join_sep(l):
     """
     >>> l = text.split()
@@ -222,9 +222,34 @@ def join_sep(l):
     assert cython.typeof(result) == 'unicode object', cython.typeof(result)
     return result
 
+
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode", "//CoerceFromPyTypeNode",
+    "//CastNode", "//TypecastNode", "//NoneCheckNode",
+    "//SimpleCallNode//AttributeNode[@is_py_attr = true]"
+)
 @cython.test_assert_path_exists(
-    "//SimpleCallNode",
-    "//SimpleCallNode//NameNode")
+    "//PythonCapiCallNode",
+    "//InlinedGeneratorExpressionNode"
+)
+def join_sep_genexpr(l):
+    """
+    >>> l = text.split()
+    >>> len(l)
+    8
+    >>> print( '<<%s>>' % '|'.join(s + ' ' for s in l) )
+    <<ab |jd |sdflk |as |sa |sadas |asdas |fsdf >>
+    >>> print( '<<%s>>' % join_sep_genexpr(l) )
+    <<ab |jd |sdflk |as |sa |sadas |asdas |fsdf >>
+    """
+    result = u'|'.join(s + u' ' for s in l)
+    assert cython.typeof(result) == 'unicode object', cython.typeof(result)
+    return result
+
+
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode",
+)
 def join_unbound(unicode sep, l):
     """
     >>> l = text.split()

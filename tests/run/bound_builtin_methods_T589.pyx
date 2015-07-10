@@ -22,8 +22,8 @@ pipe_sep = u'|'
 
 
 @cython.test_assert_path_exists(
-    "//SimpleCallNode",
-    "//SimpleCallNode//NameNode")
+    "//PythonCapiCallNode",
+)
 def test_unicode_join_bound(unicode sep, l):
     """
     >>> l = text.split()
