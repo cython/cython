@@ -1712,7 +1712,7 @@ def main():
     parser.add_option("-x", "--exclude", dest="exclude",
                       action="append", metavar="PATTERN",
                       help="exclude tests matching the PATTERN")
-    parser.add_option("--shard_count", dest="shard_count", metavar="N",
+    parser.add_option("-j", "--shard_count", dest="shard_count", metavar="N",
                       type=int, default=1,
                       help="shard this run into several parallel runs")
     parser.add_option("--shard_num", dest="shard_num", metavar="K",
