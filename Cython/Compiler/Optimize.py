@@ -1574,7 +1574,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             node.pos,
             value=ExprNodes.BoolNode(yield_expression.pos, value=not is_any, constant_result=not is_any))
 
-        Visitor.recursively_replace_node(loop_node, yield_stat_node, test_node)
+        Visitor.recursively_replace_node(gen_expr_node, yield_stat_node, test_node)
 
         return ExprNodes.InlinedGeneratorExpressionNode(
             gen_expr_node.pos, gen=gen_expr_node, orig_func='any' if is_any else 'all')
@@ -1614,7 +1614,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
                 expr=yield_expression,
                 target=list_node.target)
 
-            Visitor.recursively_replace_node(loop_node, yield_stat_node, append_node)
+            Visitor.recursively_replace_node(gen_expr_node, yield_stat_node, append_node)
 
         elif arg.is_sequence_constructor:
             # sorted([a, b, c]) or sorted((a, b, c)).  The result is always a list,
@@ -1687,7 +1687,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             rhs = ExprNodes.binop_node(node.pos, '+', result_ref, yield_expression)
             )
 
-        Visitor.recursively_replace_node(loop_node, yield_stat_node, add_node)
+        Visitor.recursively_replace_node(gen_expr_node, yield_stat_node, add_node)
 
         exec_code = Nodes.StatListNode(
             node.pos,
@@ -1806,7 +1806,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             expr=yield_expression,
             target=result_node.target)
 
-        Visitor.recursively_replace_node(loop_node, yield_stat_node, append_node)
+        Visitor.recursively_replace_node(gen_expr_node, yield_stat_node, append_node)
         return result_node
 
     def _handle_simple_function_dict(self, node, pos_args):
@@ -1840,7 +1840,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             value_expr = yield_expression.args[1],
             target=result_node.target)
 
-        Visitor.recursively_replace_node(loop_node, yield_stat_node, append_node)
+        Visitor.recursively_replace_node(gen_expr_node, yield_stat_node, append_node)
         return result_node
 
     # specific handlers for general call nodes
@@ -3107,7 +3107,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                     expr=yield_expression,
                     target=inlined_genexpr.target)
 
-                Visitor.recursively_replace_node(loop_node, yield_stat_node, append_node)
+                Visitor.recursively_replace_node(gen_expr_node, yield_stat_node, append_node)
                 args[1] = inlined_genexpr
 
         return self._substitute_method_call(

@@ -247,6 +247,28 @@ def join_sep_genexpr(l):
     return result
 
 
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode", "//CoerceFromPyTypeNode",
+    "//CastNode", "//TypecastNode",
+)
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode",
+    "//InlinedGeneratorExpressionNode"
+)
+def join_sep_genexpr_dictiter(dict d):
+    """
+    >>> l = text.split()
+    >>> d = dict(zip(range(len(l)), l))
+    >>> print('|'.join( sorted(' '.join('%s:%s' % (k, v) for k, v in d.items()).split()) ))
+    0:ab|1:jd|2:sdflk|3:as|4:sa|5:sadas|6:asdas|7:fsdf
+    >>> print('|'.join( sorted(join_sep_genexpr_dictiter(d).split())) )
+    0:ab|1:jd|2:sdflk|3:as|4:sa|5:sadas|6:asdas|7:fsdf
+    """
+    result = u' '.join('%s:%s' % (k, v) for k, v in d.iteritems())
+    assert cython.typeof(result) == 'unicode object', cython.typeof(result)
+    return result
+
+
 @cython.test_assert_path_exists(
     "//PythonCapiCallNode",
 )
