@@ -6,7 +6,7 @@ def generator():
     yield 3
 
 def returns_set():
-    return set(["foo", "bar", "baz"])
+    return {"foo", "bar", "baz"}
 
 def returns_tuple():
     return (1, 2, 3, 0)
@@ -31,9 +31,9 @@ def sorted_arg(x):
     """
     return sorted(x)
 
-#@cython.test_fail_if_path_exists("//GeneratorExpressionNode",
-#                                 "//ComprehensionNode//NoneCheckNode")
-#@cython.test_assert_path_exists("//ComprehensionNode")
+@cython.test_fail_if_path_exists("//YieldExprNode",
+                                 "//NoneCheckNode")
+@cython.test_assert_path_exists("//InlinedGeneratorExpressionNode")
 def sorted_genexp():
     """
     >>> sorted_genexp()

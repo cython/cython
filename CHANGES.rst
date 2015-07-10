@@ -45,6 +45,9 @@ Features added
   for-loops when called on generator expressions to avoid the generator
   iteration overhead.
 
+* The builtin function ``sorted()`` is optimised when called on a
+  generator expression.
+
 * Keyword argument dicts are no longer copied on function entry when they
   are not being used or only passed through to other function calls (e.g.
   in wrapper functions).

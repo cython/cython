@@ -7316,32 +7316,42 @@ class DictComprehensionAppendNode(ComprehensionAppendNode):
 
 
 class InlinedGeneratorExpressionNode(ExprNode):
-    # An inlined generator expression for which the result is
-    # calculated inside of the loop.  This will only be created by
-    # transforms when replacing builtin calls on generator
-    # expressions.
+    # An inlined generator expression for which the result is calculated
+    # inside of the loop and returned as a single, first and only Generator
+    # return value.
+    # This will only be created by transforms when replacing safe builtin
+    # calls on generator expressions.
     #
     # gen            GeneratorExpressionNode      the generator, not containing any YieldExprNodes
     # orig_func      String                       the name of the builtin function this node replaces
+    # target         ExprNode or None             a 'target' for a ComprehensionAppend node
 
     subexprs = ["gen"]
     orig_func = None
+    target = None
+    is_temp = True
     type = py_object_type
 
-    def __init__(self, pos, gen, **kwargs):
-        gen.def_node.gbody.is_inlined = True
-        kwargs['gen'] = gen
-        super(InlinedGeneratorExpressionNode, self).__init__(pos, **kwargs)
+    def __init__(self, pos, gen, comprehension_type=None, **kwargs):
+        gbody = gen.def_node.gbody
+        gbody.is_inlined = True
+        if comprehension_type is not None:
+            assert comprehension_type in (list_type, set_type, dict_type), comprehension_type
+            gbody.inlined_comprehension_type = comprehension_type
+            kwargs.update(
+                target=RawCNameExprNode(pos, comprehension_type, Naming.retval_cname),
+                type=comprehension_type,
+            )
+        super(InlinedGeneratorExpressionNode, self).__init__(pos, gen=gen, **kwargs)
 
     def may_be_none(self):
-        return self.orig_func not in ('any', 'all')
+        return self.orig_func not in ('any', 'all', 'sorted')
 
     def infer_type(self, env):
-        return py_object_type
+        return self.type
 
     def analyse_types(self, env):
         self.gen = self.gen.analyse_expressions(env)
-        self.is_temp = True
         return self
 
     def generate_result_code(self, code):
@@ -7349,62 +7359,6 @@ class InlinedGeneratorExpressionNode(ExprNode):
             self.result(), self.gen.result(),
             code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.result())
-
-
-class __InlinedGeneratorExpressionNode(ScopedExprNode):
-    # An inlined generator expression for which the result is
-    # calculated inside of the loop.  This will only be created by
-    # transforms when replacing builtin calls on generator
-    # expressions.
-    #
-    # loop           ForStatNode      the for-loop, not containing any YieldExprNodes
-    # result_node    ResultRefNode    the reference to the result value temp
-    # orig_func      String           the name of the builtin function this node replaces
-
-    child_attrs = ["loop"]
-    loop_analysed = False
-    type = py_object_type
-
-    def analyse_scoped_declarations(self, env):
-        self.loop.analyse_declarations(env)
-
-    def may_be_none(self):
-        return False
-
-    def annotate(self, code):
-        self.loop.annotate(code)
-
-    def infer_type(self, env):
-        return self.result_node.infer_type(env)
-
-    def analyse_types(self, env):
-        if not self.has_local_scope:
-            self.loop_analysed = True
-            self.loop = self.loop.analyse_expressions(env)
-        self.type = self.result_node.type
-        self.is_temp = True
-        return self
-
-    def analyse_scoped_expressions(self, env):
-        self.loop_analysed = True
-        if self.has_local_scope:
-            self.loop = self.loop.analyse_expressions(env)
-        return self
-
-    def coerce_to(self, dst_type, env):
-        if self.orig_func == 'sum' and dst_type.is_numeric and not self.loop_analysed:
-            # We can optimise by dropping the aggregation variable and
-            # the add operations into C.  This can only be done safely
-            # before analysing the loop body, after that, the result
-            # reference type will have infected expressions and
-            # assignments.
-            self.result_node.type = self.type = dst_type
-            return self
-        return super(InlinedGeneratorExpressionNode, self).coerce_to(dst_type, env)
-
-    def generate_result_code(self, code):
-        self.result_node.result_code = self.result()
-        self.loop.generate_execution_code(code)
 
 
 class MergedSequenceNode(ExprNode):

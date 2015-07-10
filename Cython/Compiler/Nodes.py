@@ -3996,6 +3996,7 @@ class GeneratorBodyDefNode(DefNode):
 
     is_generator_body = True
     is_inlined = False
+    inlined_comprehension_type = None  # container type for inlined comprehensions
 
     def __init__(self, pos=None, name=None, body=None):
         super(GeneratorBodyDefNode, self).__init__(
@@ -4058,6 +4059,23 @@ class GeneratorBodyDefNode(DefNode):
         code.putln('%s' %
                    (code.error_goto_if_null(Naming.sent_value_cname, self.pos)))
 
+        # ----- prepare target container for inlined comprehension
+        if self.is_inlined and self.inlined_comprehension_type is not None:
+            target_type = self.inlined_comprehension_type
+            if target_type is Builtin.list_type:
+                comp_init = 'PyList_New(0)'
+            elif target_type is Builtin.set_type:
+                comp_init = 'PySet_New(NULL)'
+            elif target_type is Builtin.dict_type:
+                comp_init = 'PyDict_New()'
+            else:
+                raise InternalError(
+                    "invalid type of inlined comprehension: %s" % target_type)
+            code.putln("%s = %s; %s" % (
+                Naming.retval_cname, comp_init,
+                code.error_goto_if_null(Naming.retval_cname, self.pos)))
+            code.put_gotref(Naming.retval_cname)
+
         # ----- Function body
         self.generate_function_body(env, code)
         # ----- Closure initialization
@@ -4073,13 +4091,15 @@ class GeneratorBodyDefNode(DefNode):
 
         # on normal generator termination, we do not take the exception propagation
         # path: no traceback info is required and not creating it is much faster
-        if not self.body.is_terminator:
+        if not self.is_inlined and not self.body.is_terminator:
             code.putln('PyErr_SetNone(PyExc_StopIteration);')
         # ----- Error cleanup
         if code.error_label in code.labels_used:
             if not self.body.is_terminator:
                 code.put_goto(code.return_label)
             code.put_label(code.error_label)
+            if self.is_inlined and self.inlined_comprehension_type is not None:
+                code.put_xdecref_clear(Naming.retval_cname, py_object_type)
             if Future.generator_stop in env.global_scope().context.future_directives:
                 # PEP 479: turn accidental StopIteration exceptions into a RuntimeError
                 code.globalstate.use_utility_code(UtilityCode.load_cached("pep479", "Coroutine.c"))

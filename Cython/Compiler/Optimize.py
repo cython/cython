@@ -1579,60 +1579,60 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         """
         if len(pos_args) != 1:
             return node
-        if isinstance(pos_args[0], ExprNodes.ComprehensionNode) \
-               and pos_args[0].type is Builtin.list_type:
-            listcomp_node = pos_args[0]
-            loop_node = listcomp_node.loop
-        elif isinstance(pos_args[0], ExprNodes.GeneratorExpressionNode):
-            gen_expr_node = pos_args[0]
+
+        arg = pos_args[0]
+        if isinstance(arg, ExprNodes.ComprehensionNode) and arg.type is Builtin.list_type:
+            list_node = pos_args[0]
+            loop_node = list_node.loop
+
+        elif isinstance(arg, ExprNodes.GeneratorExpressionNode):
+            gen_expr_node = arg
             loop_node = gen_expr_node.loop
             yield_expression, yield_stat_node = self._find_single_yield_expression(loop_node)
-            # FIXME: currently nonfunctional
-            yield_expression = None
             if yield_expression is None:
                 return node
 
+            list_node = ExprNodes.InlinedGeneratorExpressionNode(
+                node.pos, gen_expr_node, orig_func='sorted',
+                comprehension_type=Builtin.list_type)
+
             append_node = ExprNodes.ComprehensionAppendNode(
-                yield_expression.pos, expr = yield_expression)
+                yield_expression.pos,
+                expr=yield_expression,
+                target=list_node.target)
 
             Visitor.recursively_replace_node(loop_node, yield_stat_node, append_node)
 
-            listcomp_node = ExprNodes.ComprehensionNode(
-                gen_expr_node.pos, loop = loop_node,
-                append = append_node, type = Builtin.list_type,
-                expr_scope = gen_expr_node.expr_scope,
-                has_local_scope = True)
-            append_node.target = listcomp_node
-        elif isinstance(pos_args[0], (ExprNodes.ListNode, ExprNodes.TupleNode)):
-            # sorted([a, b, c]) or sorted((a, b, c)). The result of the latter
-            # is a list in CPython, so change it into one.
-            expr = pos_args[0].as_list()
-            listcomp_node = loop_node = expr
+        elif arg.is_sequence_constructor:
+            # sorted([a, b, c]) or sorted((a, b, c)).  The result is always a list,
+            # so starting off with a fresh one is more efficient.
+            list_node = loop_node = arg.as_list()
+
         else:
             # Interestingly, PySequence_List works on a lot of non-sequence
             # things as well.
-            listcomp_node = loop_node = ExprNodes.PythonCapiCallNode(
+            list_node = loop_node = ExprNodes.PythonCapiCallNode(
                 node.pos, "PySequence_List", self.PySequence_List_func_type,
                 args=pos_args, is_temp=True)
 
         result_node = UtilNodes.ResultRefNode(
-            pos = loop_node.pos, type = Builtin.list_type, may_hold_none=False)
-        listcomp_assign_node = Nodes.SingleAssignmentNode(
-            node.pos, lhs = result_node, rhs = listcomp_node, first = True)
+            pos=loop_node.pos, type=Builtin.list_type, may_hold_none=False)
+        list_assign_node = Nodes.SingleAssignmentNode(
+            node.pos, lhs=result_node, rhs=list_node, first=True)
 
         sort_method = ExprNodes.AttributeNode(
-            node.pos, obj = result_node, attribute = EncodedString('sort'),
+            node.pos, obj=result_node, attribute=EncodedString('sort'),
             # entry ? type ?
-            needs_none_check = False)
+            needs_none_check=False)
         sort_node = Nodes.ExprStatNode(
-            node.pos, expr = ExprNodes.SimpleCallNode(
-                node.pos, function = sort_method, args = []))
+            node.pos, expr=ExprNodes.SimpleCallNode(
+                node.pos, function=sort_method, args=[]))
 
         sort_node.analyse_declarations(self.current_env())
 
         return UtilNodes.TempResultFromStatNode(
             result_node,
-            Nodes.StatListNode(node.pos, stats = [ listcomp_assign_node, sort_node ]))
+            Nodes.StatListNode(node.pos, stats=[list_assign_node, sort_node]))
 
     def __handle_simple_function_sum(self, node, pos_args):
         """Transform sum(genexpr) into an equivalent inlined aggregation loop.
