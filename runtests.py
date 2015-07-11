@@ -1246,7 +1246,15 @@ class CythonPyregrTestCase(CythonRunTestCase):
                     module = import_ext(self.module, ext_so_path)
                     sys.stdout.flush() # helps in case of crashes
                     if hasattr(module, 'test_main'):
-                        module.test_main()
+                        # help 'doctest.DocFileTest' find the module path through frame inspection
+                        fake_caller_module_globals = {
+                            'module': module,
+                            '__name__': module.__name__,
+                        }
+                        call_tests = eval(
+                            'lambda: module.test_main()',
+                            fake_caller_module_globals, fake_caller_module_globals)
+                        call_tests()
                         sys.stdout.flush() # helps in case of crashes
                 except (unittest.SkipTest, support.ResourceDenied):
                     result.addSkip(self, 'ok')
