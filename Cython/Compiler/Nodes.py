@@ -6330,6 +6330,44 @@ class ForFromStatNode(LoopNode, StatNode):
         code.mark_pos(self.pos)
         old_loop_labels = code.new_loop_labels()
         from_range = self.from_range
+        loopvar_type = self.target.type
+        is_not_const_step = self.step and not isinstance(self.step.constant_result, (int, long))
+        if is_not_const_step and from_range:
+            loopvar_type = self.bound1.type
+            orig_step = self.step.result()
+            self.generate_zero_step_range_arg_error(code, orig_step, self.step.pos)
+            self.step = None
+
+            # Fetch original bounds
+            if self.bound1.constant_result == 0:
+                bounds_encap_node = self.bound2.true_val.operand1.operand.operand1
+            else:
+                bounds_encap_node = self.bound1.true_val.operand1.operand.operand1
+            orig_bound1 = bounds_encap_node.operand2.operand
+            orig_bound2 = bounds_encap_node.operand1.operand
+            fmt_dict = {'step': orig_step}
+            for name, node in (('bound1', orig_bound1), ('bound2', orig_bound2)):
+                if node.is_literal:
+                    fmt_dict[name] = node.get_constant_c_result_code()
+                else:
+                    fmt_dict[name] = node.result()
+
+            # Conditional check on when to skip the for-loop entirely
+            bound1_cast = bound2_cast = unsigned_cmp1 = unsigned_cmp2 = ''
+            if (orig_bound1.type.signed != orig_bound2.type.signed and
+                    not (orig_bound1.is_literal or orig_bound2.is_literal)):
+                # Add extra conditions for unsigned to signed comparison
+                if orig_bound1.type.signed:
+                    unsigned_cmp1 = '%(bound1)s < 0 || ' % fmt_dict
+                    unsigned_cmp2 = '%(bound1)s > 0 && ' % fmt_dict
+                    bound1_cast = '(unsigned %s)' % orig_bound1.type
+                else:
+                    unsigned_cmp1 = '%(bound2)s > 0 && ' % fmt_dict
+                    unsigned_cmp2 = '%(bound2)s < 0 || ' % fmt_dict
+                    bound2_cast = '(unsigned %s)' % orig_bound2.type
+            code.putln("if (({step} > 0 && ({0}{2}{bound1} < {3}{bound2})) || "
+                           "({step} < 0 && ({1}{2}{bound1} > {3}{bound2}))) {{".format(
+                       unsigned_cmp1, unsigned_cmp2, bound1_cast, bound2_cast, **fmt_dict))
         self.bound1.generate_evaluation_code(code)
         self.bound2.generate_evaluation_code(code)
         offset, incop = self.relation_table[self.relation1]
@@ -6343,10 +6381,10 @@ class ForFromStatNode(LoopNode, StatNode):
         if isinstance(self.py_loopvar_node, ExprNodes.TempNode):
             self.py_loopvar_node.allocate(code)
         if from_range:
-            loopvar_name = code.funcstate.allocate_temp(self.target.type, False)
+            loopvar_name = code.funcstate.allocate_temp(loopvar_type, False)
         else:
             loopvar_name = self.loopvar_node.result()
-        if self.target.type.is_int and not self.target.type.signed and self.relation2[0] == '>':
+        if loopvar_type.is_int and not loopvar_type.signed and self.relation2[0] == '>':
             # Handle the case where the endpoint of an unsigned int iteration
             # is within step of 0.
             if not self.step:
@@ -6368,8 +6406,13 @@ class ForFromStatNode(LoopNode, StatNode):
             self.py_loopvar_node.generate_evaluation_code(code)
             self.target.generate_assignment_code(self.py_loopvar_node, code)
         elif from_range:
-            code.putln("%s = %s;" % (
-                            self.target.result(), loopvar_name))
+            if is_not_const_step:
+                code.putln("%s = %s + %s*%s;" % (
+                                self.target.result(),
+                                orig_bound1.result(), orig_step, loopvar_name))
+            else:
+                code.putln("%s = %s;" % (
+                                self.target.result(), loopvar_name))
         self.body.generate_execution_code(code)
         code.put_label(code.continue_label)
         if self.py_loopvar_node:
@@ -6412,6 +6455,8 @@ class ForFromStatNode(LoopNode, StatNode):
             self.target.generate_assignment_code(self.py_loopvar_node, code)
         if from_range:
             code.funcstate.release_temp(loopvar_name)
+            if is_not_const_step:
+                code.putln("}")
         break_label = code.break_label
         code.set_loop_labels(old_loop_labels)
         if self.else_clause:
@@ -6438,6 +6483,19 @@ class ForFromStatNode(LoopNode, StatNode):
         '>=': ("",   "--"),
         '>' : ("-1", "--")
     }
+
+    def generate_zero_step_range_arg_error(self, code, step, step_pos):
+        # Generate Python version specific range error msg, if step equals 0
+        code.putln("if (%s == 0) {" % step)
+        code.putln(    "PyErr_SetString("
+                           "PyExc_ValueError,")
+        code.putln(     "  #if PY_MAJOR_VERSION < 3")
+        code.putln(     '    "range() step argument must not be zero");')
+        code.putln(     "  #else")
+        code.putln(     '    "range() arg 3 must not be zero");')
+        code.putln(     "  #endif")
+        code.putln(     code.error_goto(step_pos))
+        code.putln("}")
 
     def generate_function_definitions(self, env, code):
         self.target.generate_function_definitions(env, code)

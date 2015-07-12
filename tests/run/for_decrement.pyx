@@ -1,11 +1,34 @@
+#tag: forin, reversed
+
 """
 >>> range_loop_indices()
+** Calculating start **
+** Calculating stop **
 ** Calculating step **
 (9, 9, 8, 1, 2)
+>>> reversed_loop_indices()
+** Calculating start **
+** Calculating stop **
+** Calculating step **
+(0, 2, 0, 10, 10)
 >>> from_loop_indices()
 ** Calculating step **
 (10, 10, 0)
 """
+
+cdef int get_start():
+    """
+    This should only be called once, when used in range().
+    """
+    print u"** Calculating start **"
+    return 0
+
+cdef int get_stop():
+    """
+    This should only be called once, when used in range().
+    """
+    print u"** Calculating stop **"
+    return 10
 
 cdef int get_step():
     """
@@ -22,9 +45,22 @@ def range_loop_indices():
     cdef int i, j, k=0, l=10, m=10
     for i in range(10): pass
     for j in range(2,10): pass
-    for k in range(0,10,get_step()): pass
+    for k in range(get_start(),get_stop(),get_step()): pass
     for l in range(10,0,-1): pass
     for m in range(10,0,-2): pass
+    return i, j, k, l, m
+
+def reversed_loop_indices():
+    """
+    Optimized integer for loops using reversed(range()) should follow Python
+    behavior, and leave the index variable with the last value of the range.
+    """
+    cdef int i, j, k=0, l=10, m=10
+    for i in reversed(range(10)): pass
+    for j in reversed(range(2,10)): pass
+    for k in reversed(range(get_start(),get_stop(),get_step())): pass
+    for l in reversed(range(10,0,-1)): pass
+    for m in reversed(range(10,0,-2)): pass
     return i, j, k, l, m
 
 def from_loop_indices():
