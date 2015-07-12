@@ -188,16 +188,8 @@ class PostParse(ScopeTrackingTransform):
             '__cythonbufferdefaults__' : self.handle_bufferdefaults
         }
 
-    def visit_ModuleNode(self, node):
-        self.lambda_counter = 1
-        self.genexpr_counter = 1
-        return super(PostParse, self).visit_ModuleNode(node)
-
     def visit_LambdaNode(self, node):
         # unpack a lambda expression into the corresponding DefNode
-        lambda_id = self.lambda_counter
-        self.lambda_counter += 1
-        node.lambda_name = EncodedString(u'lambda%d' % lambda_id)
         collector = YieldNodeCollector()
         collector.visitchildren(node.result_expr)
         if collector.yields or collector.awaits or isinstance(node.result_expr, ExprNodes.YieldExprNode):
@@ -207,7 +199,7 @@ class PostParse(ScopeTrackingTransform):
             body = Nodes.ReturnStatNode(
                 node.result_expr.pos, value=node.result_expr)
         node.def_node = Nodes.DefNode(
-            node.pos, name=node.name, lambda_name=node.lambda_name,
+            node.pos, name=node.name,
             args=node.args, star_arg=node.star_arg,
             starstar_arg=node.starstar_arg,
             body=body, doc=None)
@@ -216,10 +208,6 @@ class PostParse(ScopeTrackingTransform):
 
     def visit_GeneratorExpressionNode(self, node):
         # unpack a generator expression into the corresponding DefNode
-        genexpr_id = self.genexpr_counter
-        self.genexpr_counter += 1
-        node.genexpr_name = EncodedString(u'genexpr%d' % genexpr_id)
-
         node.def_node = Nodes.DefNode(node.pos, name=node.name,
                                       doc=None,
                                       args=[], star_arg=None,
@@ -1577,7 +1565,8 @@ if VALUE is not None:
             node.body = Nodes.NogilTryFinallyStatNode(
                 node.body.pos,
                 body=node.body,
-                finally_clause=Nodes.EnsureGILNode(node.body.pos))
+                finally_clause=Nodes.EnsureGILNode(node.body.pos),
+                finally_except_clause=Nodes.EnsureGILNode(node.body.pos))
 
     def _handle_fused(self, node):
         if node.is_generator and node.has_fused_arguments:

@@ -3,9 +3,11 @@ from __future__ import absolute_import
 import cython
 cython.declare(PyrexTypes=object, ExprNodes=object, Nodes=object,
                Builtin=object, InternalError=object,
-               error=object, warning=object,
+               error=object, warning=object, deepcopy=object,
                py_object_type=object, unspecified_type=object,
                object_expr=object, fake_rhs_expr=object, TypedExprNode=object)
+
+from copy import deepcopy
 
 from . import Builtin
 from . import ExprNodes
@@ -326,6 +328,17 @@ class NameAssignment(object):
         self.is_deletion = False
         self.inferred_type = None
 
+    def __deepcopy__(self, memo):
+        ass = NameAssignment.__new__(type(self))
+        ass.lhs = deepcopy(self.lhs, memo)
+        ass.rhs = deepcopy(self.rhs, memo)
+        ass.entry = self.entry
+        ass.refs = deepcopy(self.refs, memo)
+        ass.is_arg = self.is_arg
+        ass.is_deletion = self.is_deletion
+        ass.inferred_type = self.inferred_type
+        return ass
+
     def __repr__(self):
         return '%s(entry=%r)' % (self.__class__.__name__, self.entry)
 
@@ -399,6 +412,12 @@ class NameReference(object):
 
     def __repr__(self):
         return '%s(entry=%r)' % (self.__class__.__name__, self.entry)
+
+    def __deepcopy__(self, memo):
+        ref = NameReference.__new__(type(self))
+        ref.node = deepcopy(self.node, memo)
+        ref.entry = self.entry
+        ref.pos = self.node.pos
 
 
 class ControlFlowState(list):
@@ -487,10 +506,11 @@ class GV(object):
             if annotate_defs:
                 for stat in block.stats:
                     if isinstance(stat, NameAssignment):
-                        label += '\n %s [definition]' % stat.entry.name
+                        label += '\n %s [%s %s]' % (
+                            stat.entry.name, 'deletion' if stat.is_deletion else 'definition', stat.pos[1])
                     elif isinstance(stat, NameReference):
                         if stat.entry:
-                            label += '\n %s [reference]' % stat.entry.name
+                            label += '\n %s [reference %s]' % (stat.entry.name, stat.pos[1])
             if not label:
                 label = 'empty'
             pid = ctx.nodeid(block)
@@ -505,17 +525,16 @@ class GV(object):
 class MessageCollection(object):
     """Collect error/warnings messages first then sort"""
     def __init__(self):
-        self.messages = []
+        self.messages = set()
 
     def error(self, pos, message):
-        self.messages.append((pos, True, message))
+        self.messages.add((pos, True, message))
 
     def warning(self, pos, message):
-        self.messages.append((pos, False, message))
+        self.messages.add((pos, False, message))
 
     def report(self):
-        self.messages.sort()
-        for pos, is_error, message in self.messages:
+        for pos, is_error, message in sorted(self.messages):
             if is_error:
                 error(pos, message)
             else:
@@ -589,8 +608,8 @@ def check_definitions(flow, compiler_directives):
             if not entry.from_closure and len(node.cf_state) == 1:
                 node.cf_is_null = True
             if (node.allow_null or entry.from_closure
-                or entry.is_pyclass_attr or entry.type.is_error):
-                pass # Can be uninitialized here
+                    or entry.is_pyclass_attr or entry.type.is_error):
+                pass  # Can be uninitialized here
             elif node.cf_is_null:
                 if entry.error_on_uninitialized or (
                         Options.error_on_uninitialized and (
@@ -844,8 +863,8 @@ class ControlFlowAnalysis(CythonTransform):
                     error(arg.pos,
                           "can not delete variable '%s' "
                           "referenced in nested scope" % entry.name)
-                # Mark reference
-                self._visit(arg)
+                if not node.ignore_nonexisting:
+                    self._visit(arg)  # mark reference
                 self.flow.mark_deletion(arg, entry)
             else:
                 self._visit(arg)
@@ -1177,7 +1196,7 @@ class ControlFlowAnalysis(CythonTransform):
         # Exception entry point
         entry_point = self.flow.newblock()
         self.flow.block = entry_point
-        self._visit(node.finally_clause)
+        self._visit(node.finally_except_clause)
 
         if self.flow.block and self.flow.exceptions:
             self.flow.block.add_child(self.flow.exceptions[-1].entry_point)

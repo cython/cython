@@ -1,6 +1,7 @@
 # mode: run
 # tag: tryfinally
 
+import string
 import sys
 IS_PY3 = sys.version_info[0] >= 3
 
@@ -480,3 +481,59 @@ def finally_yield(x):
                 return
         finally:
             yield 1
+
+
+def complex_finally_clause(x, obj):
+    """
+    >>> class T(object):
+    ...     def method(self, value):
+    ...         print(value)
+
+    >>> complex_finally_clause('finish', T())
+    module.py
+    module.py
+    module.py
+    99
+    >>> complex_finally_clause('tryreturn', T())
+    module.py
+    module.py
+    module.py
+    2
+    >>> complex_finally_clause('trybreak', T())
+    module.py
+    module.py
+    module.py
+    99
+    >>> complex_finally_clause('tryraise', T())
+    Traceback (most recent call last):
+    TypeError
+    """
+    name = 'module'
+    l = []
+    cdef object lobj = l
+
+    for i in range(3):
+        l[:] = [1, 2, 3]
+        try:
+            if i == 0:
+                pass
+            elif i == 1:
+                continue
+            elif x == 'trybreak':
+                break
+            elif x == 'tryraise':
+                raise TypeError()
+            elif x == 'tryreturn':
+                return 2
+            else:
+                pass
+        finally:
+            obj.method(name + '.py')
+            from contextlib import contextmanager
+            with contextmanager(lambda: (yield 1))() as y:
+                assert y == 1
+            assert name[0] in string.ascii_letters
+            string.Template("-- huhu $name --").substitute(**{'name': '(%s)' % name})
+            del l[0], lobj[0]
+            assert all(i == 3 for i in l), l
+    return 99

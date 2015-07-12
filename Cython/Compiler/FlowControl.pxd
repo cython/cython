@@ -89,6 +89,11 @@ cdef class Uninitialized:
 cdef class Unknown:
     pass
 
+
+cdef class MessageCollection:
+    cdef set messages
+
+
 @cython.locals(dirty=bint, block=ControlBlock, parent=ControlBlock,
                assmt=NameAssignment)
 cdef check_definitions(ControlFlow flow, dict compiler_directives)

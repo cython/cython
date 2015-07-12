@@ -405,10 +405,10 @@ class StatListNode(Node):
 
     child_attrs = ["stats"]
 
+    @staticmethod
     def create_analysed(pos, env, *args, **kw):
         node = StatListNode(pos, *args, **kw)
-        return node # No node-specific analysis necesarry
-    create_analysed = staticmethod(create_analysed)
+        return node  # No node-specific analysis needed
 
     def analyse_declarations(self, env):
         #print "StatListNode.analyse_declarations" ###
@@ -6896,6 +6896,7 @@ class TryFinallyStatNode(StatNode):
     #
     #  body             StatNode
     #  finally_clause   StatNode
+    #  finally_except_clause  deep-copy of finally_clause for exception case
     #
     #  The plan is that we funnel all continue, break
     #  return and error gotos into the beginning of the
@@ -6906,13 +6907,14 @@ class TryFinallyStatNode(StatNode):
     #  exception on entry to the finally block and restore
     #  it on exit.
 
-    child_attrs = ["body", "finally_clause"]
+    child_attrs = ["body", "finally_clause", "finally_except_clause"]
 
     preserve_exception = 1
 
     # handle exception case, in addition to return/break/continue
     handle_error_case = True
     func_return_type = None
+    finally_except_clause = None
 
     disallow_continue_in_try_finally = 0
     # There doesn't seem to be any point in disallowing
@@ -6921,18 +6923,21 @@ class TryFinallyStatNode(StatNode):
 
     is_try_finally_in_nogil = False
 
+    @staticmethod
     def create_analysed(pos, env, body, finally_clause):
         node = TryFinallyStatNode(pos, body=body, finally_clause=finally_clause)
         return node
-    create_analysed = staticmethod(create_analysed)
 
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)
+        self.finally_except_clause = copy.deepcopy(self.finally_clause)
+        self.finally_except_clause.analyse_declarations(env)
         self.finally_clause.analyse_declarations(env)
 
     def analyse_expressions(self, env):
         self.body = self.body.analyse_expressions(env)
         self.finally_clause = self.finally_clause.analyse_expressions(env)
+        self.finally_except_clause = self.finally_except_clause.analyse_expressions(env)
         if env.return_type and not env.return_type.is_void:
             self.func_return_type = env.return_type
         return self
@@ -7012,7 +7017,7 @@ class TryFinallyStatNode(StatNode):
             code.putln('{')
             old_exc_vars = code.funcstate.exc_vars
             code.funcstate.exc_vars = exc_vars[:3]
-            fresh_finally_clause().generate_execution_code(code)
+            self.finally_except_clause.generate_execution_code(code)
             code.funcstate.exc_vars = old_exc_vars
             code.putln('}')
 
