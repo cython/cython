@@ -217,12 +217,6 @@ class Entry(object):
     def all_entries(self):
         return [self] + self.inner_entries
 
-    def __deepcopy__(self, memo):
-        return self
-
-    def __copy__(self):
-        return self
-
 
 class InnerEntry(Entry):
     """
