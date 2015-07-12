@@ -111,6 +111,7 @@ __Pyx_char2wchar(char* arg)
                unless there is a bug in the C library, or I
                misunderstood how mbrtowc works. */
             fprintf(stderr, "unexpected mbrtowc result -2\\n");
+            free(res);
             return NULL;
         }
         if (converted == (size_t)-1) {
@@ -169,14 +170,23 @@ int
         char *oldloc;
         if (!argv_copy || !argv_copy2) {
             fprintf(stderr, "out of memory\\n");
+            if (argv_copy)
+                free(argv_copy);
+            if (argv_copy2)
+                free(argv_copy2);
             return 1;
         }
         oldloc = strdup(setlocale(LC_ALL, NULL));
         setlocale(LC_ALL, "");
         for (i = 0; i < argc; i++) {
             argv_copy2[i] = argv_copy[i] = __Pyx_char2wchar(argv[i]);
-            if (!argv_copy[i])
+            if (!argv_copy[i]) {
+                setlocale(LC_ALL, oldloc);
+                free(oldloc);
+                free(argv_copy);
+                free(argv_copy2);
                 return 1;
+            }
         }
         setlocale(LC_ALL, oldloc);
         free(oldloc);
