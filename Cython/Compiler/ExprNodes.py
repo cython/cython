@@ -3378,10 +3378,13 @@ class IndexNode(ExprNode):
                         self.type_indices = self.parse_index_as_types(env)
                         if base_type.templates is None:
                             error(self.pos, "Can only parameterize template functions.")
+                            self.type = error_type
                         elif len(base_type.templates) != len(self.type_indices):
                             error(self.pos, "Wrong number of template arguments: expected %s, got %s" % (
                                     (len(base_type.templates), len(self.type_indices))))
-                        self.type = base_type.specialize(dict(zip(base_type.templates, self.type_indices)))
+                            self.type = error_type
+                        else:
+                            self.type = base_type.specialize(dict(zip(base_type.templates, self.type_indices)))
                 elif base_type.is_ctuple:
                     if isinstance(self.index, IntNode) and self.index.has_constant_result():
                         index = self.index.constant_result
