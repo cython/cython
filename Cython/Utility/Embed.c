@@ -176,19 +176,15 @@ int
         }
         oldloc = strdup(setlocale(LC_ALL, NULL));
         setlocale(LC_ALL, "");
+        res = 0;
         for (i = 0; i < argc; i++) {
             argv_copy2[i] = argv_copy[i] = __Pyx_char2wchar(argv[i]);
-            if (!argv_copy[i]) {
-                setlocale(LC_ALL, oldloc);
-                free(oldloc);
-                free(argv_copy);
-                free(argv_copy2);
-                return 1;
-            }
+            if (!argv_copy[i]) res = 1;  /* failure, but continue to simplify cleanup */
         }
         setlocale(LC_ALL, oldloc);
         free(oldloc);
-        res = __Pyx_main(argc, argv_copy);
+        if (res == 0)
+            res = __Pyx_main(argc, argv_copy);
         for (i = 0; i < argc; i++) {
             free(argv_copy2[i]);
         }
