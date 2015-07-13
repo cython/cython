@@ -163,17 +163,15 @@ int
         return __Pyx_main(0, NULL);
     }
     else {
-        wchar_t **argv_copy = (wchar_t **)malloc(sizeof(wchar_t*)*argc);
-        /* We need a second copies, as Python might modify the first one. */
-        wchar_t **argv_copy2 = (wchar_t **)malloc(sizeof(wchar_t*)*argc);
         int i, res;
         char *oldloc;
+        wchar_t **argv_copy = (wchar_t **)malloc(sizeof(wchar_t*)*argc);
+        /* We need a second copy, as Python might modify the first one. */
+        wchar_t **argv_copy2 = (wchar_t **)malloc(sizeof(wchar_t*)*argc);
         if (!argv_copy || !argv_copy2) {
             fprintf(stderr, "out of memory\\n");
-            if (argv_copy)
-                free(argv_copy);
-            if (argv_copy2)
-                free(argv_copy2);
+            free(argv_copy);
+            free(argv_copy2);
             return 1;
         }
         oldloc = strdup(setlocale(LC_ALL, NULL));
