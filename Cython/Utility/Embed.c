@@ -164,19 +164,19 @@ int
     }
     else {
         int i, res;
-        char *oldloc;
         wchar_t **argv_copy = (wchar_t **)malloc(sizeof(wchar_t*)*argc);
         /* We need a second copy, as Python might modify the first one. */
         wchar_t **argv_copy2 = (wchar_t **)malloc(sizeof(wchar_t*)*argc);
-        if (!argv_copy || !argv_copy2) {
+        char *oldloc = strdup(setlocale(LC_ALL, NULL));
+        if (!argv_copy || !argv_copy2 || !oldloc) {
             fprintf(stderr, "out of memory\\n");
             free(argv_copy);
             free(argv_copy2);
+            free(oldloc);
             return 1;
         }
-        oldloc = strdup(setlocale(LC_ALL, NULL));
-        setlocale(LC_ALL, "");
         res = 0;
+        setlocale(LC_ALL, "");
         for (i = 0; i < argc; i++) {
             argv_copy2[i] = argv_copy[i] = __Pyx_char2wchar(argv[i]);
             if (!argv_copy[i]) res = 1;  /* failure, but continue to simplify cleanup */
