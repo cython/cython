@@ -7,6 +7,16 @@ class A:
         print args
         return None
 
+cdef class B:
+    """
+    >>> B().call_pop()
+    'B'
+    """
+    cdef pop(self):
+        return "B"
+    def call_pop(self):
+        return self.pop()
+
 
 @cython.test_assert_path_exists('//PythonCapiCallNode')
 @cython.test_fail_if_path_exists('//SimpleCallNode/AttributeNode')
