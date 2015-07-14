@@ -4,6 +4,8 @@ A Cython plugin for coverage.py
 Requires the coverage package at least in version 4.0 (which added the plugin API).
 """
 
+from __future__ import absolute_import
+
 import re
 import os.path
 from collections import defaultdict
@@ -235,7 +237,7 @@ class CythonModuleTracer(FileTracer):
             pass
         abs_path = os.path.abspath(source_file)
 
-        if self.py_file and source_file.lower().endswith('.py'):
+        if self.py_file and source_file[-3:].lower() == '.py':
             # always let coverage.py handle this case itself
             self._file_path_map[source_file] = self.py_file
             return self.py_file
@@ -286,3 +288,7 @@ class CythonModuleReporter(FileReporter):
         else:
             for line in self._iter_source_tokens():
                 yield [('txt', line)]
+
+
+def coverage_init(reg, options):
+    reg.add_file_tracer(Plugin())
