@@ -66,6 +66,7 @@ Features added
   C code as an importable module.
 
 * External C++ classes that overload the assignment operator can be used.
+  Patch by Ian Henriksen.
 
 Bugs fixed
 ----------
@@ -92,13 +93,20 @@ Bugs fixed
   in C++.  Patch by David Vierra, original patch by Michael Enßlin.
 
 * Buffer index calculations using index variables with small C integer
-  types could overflow for large buffer sizes.  Original patch by
-  David Vierra.
+  types could overflow for large buffer sizes.
+  Original patch by David Vierra.
 
 * C unions use a saner way to coerce from and to Python dicts.
 
 * When compiling a module ``foo.pyx``, the directories in ``sys.path``
   are no longer searched when looking for ``foo.pxd``.
+  Patch by Jeroen Demeyer.
+
+* Memory leaks in the embedding main function were fixed.
+  Original patch by Michael Enßlin.
+
+* Some complex Python expressions could fail to compile inside of finally
+  clauses.
 
 Other changes
 -------------
@@ -496,7 +504,6 @@ Bugs fixed
 * Type inference could deduce unsafe or inefficient types from integer
   assignments within a mix of inferred Python variables and integer
   variables.
-
 
 
 0.20 (2014-01-18)
