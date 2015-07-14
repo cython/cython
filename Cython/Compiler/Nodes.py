@@ -4760,12 +4760,14 @@ class SingleAssignmentNode(AssignmentNode):
     #
     #    a = b
     #
-    #  lhs      ExprNode      Left hand side
-    #  rhs      ExprNode      Right hand side
-    #  first    bool          Is this guaranteed the first assignment to lhs?
+    #  lhs                      ExprNode      Left hand side
+    #  rhs                      ExprNode      Right hand side
+    #  first                    bool          Is this guaranteed the first assignment to lhs?
+    #  is_overloaded_assignment bool          Is this assignment done via an overloaded operator=
 
     child_attrs = ["lhs", "rhs"]
     first = False
+    is_overloaded_assignment = False
     declaration_only = False
 
     def analyse_declarations(self, env):
@@ -4882,7 +4884,15 @@ class SingleAssignmentNode(AssignmentNode):
         else:
             dtype = self.lhs.type
 
-        rhs = self.rhs.coerce_to(dtype, env)
+        if self.lhs.type.is_cpp_class:
+            op = env.lookup_operator_for_types(self.pos, '=', [self.lhs.type, self.rhs.type])
+            if op:
+                rhs = self.rhs
+                self.is_overloaded_assignment = 1
+            else:
+                rhs = self.rhs.coerce_to(dtype, env)
+        else:
+            rhs = self.rhs.coerce_to(dtype, env)
         if use_temp or rhs.is_attribute or (
                 not rhs.is_name and not rhs.is_literal and
                 rhs.type.is_pyobject):
@@ -5030,7 +5040,11 @@ class SingleAssignmentNode(AssignmentNode):
         self.rhs.generate_evaluation_code(code)
 
     def generate_assignment_code(self, code):
-        self.lhs.generate_assignment_code(self.rhs, code)
+        if self.is_overloaded_assignment:
+            self.lhs.generate_assignment_code(self.rhs, code, overloaded_assignment=True)
+        else:
+            self.lhs.generate_assignment_code(self.rhs, code)
+
 
     def generate_function_definitions(self, env, code):
         self.rhs.generate_function_definitions(env, code)

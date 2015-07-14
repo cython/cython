@@ -1992,7 +1992,7 @@ class NameNode(AtomicExprNode):
             if null_code and raise_unbound and (entry.type.is_pyobject or memslice_check):
                 code.put_error_if_unbound(self.pos, entry, self.in_nogil_context)
 
-    def generate_assignment_code(self, rhs, code):
+    def generate_assignment_code(self, rhs, code, overloaded_assignment=False):
         #print "NameNode.generate_assignment_code:", self.name ###
         entry = self.entry
         if entry is None:
@@ -2082,8 +2082,11 @@ class NameNode(AtomicExprNode):
                         code.put_giveref(rhs.py_result())
             if not self.type.is_memoryviewslice:
                 if not assigned:
-                    code.putln('%s = %s;' % (
-                        self.result(), rhs.result_as(self.ctype())))
+                    if overloaded_assignment:
+                        code.putln('%s = %s;' % (self.result(), rhs.result()))
+                    else:
+                        code.putln('%s = %s;' % (
+                            self.result(), rhs.result_as(self.ctype())))
                 if debug_disposal_code:
                     print("NameNode.generate_assignment_code:")
                     print("...generating post-assignment code for %s" % rhs)
