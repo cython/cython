@@ -8,6 +8,16 @@ class B(list):
         for arg in args:
             list.append(self, arg)
 
+cdef class C:
+    """
+    >>> c = C(100)
+    appending 100
+    """
+    def __init__(self, value):
+        self.append(value)
+    cdef append(self, value):
+        print u"appending", value
+        return value
 
 def test_append(L):
     """

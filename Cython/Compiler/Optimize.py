@@ -2600,7 +2600,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         """Optimistic optimisation as X.append() is almost always
         referring to a list.
         """
-        if len(args) != 2 or node.result_is_used:
+        if function.type.is_cfunction or len(args) != 2 or node.result_is_used:
             return node
 
         return ExprNodes.PythonCapiCallNode(
