@@ -598,7 +598,11 @@ class MethodDispatcherTransform(EnvTransform):
             attr_name = function.attribute
             if function.type.is_pyobject:
                 self_arg = function.obj
-            elif node.self:
+            elif node.self and function.entry:
+                entry = function.entry.as_variable
+                if not entry or not entry.is_builtin:
+                    return node
+                # C implementation of a Python builtin method - see if we find further matches
                 self_arg = node.self
                 arg_list = arg_list[1:]  # drop CloneNode of self argument
             else:

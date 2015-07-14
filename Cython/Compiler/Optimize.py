@@ -2596,16 +2596,6 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             ],
         exception_value="-1")
 
-    def _dispatch_to_method_handler(self, attr_name, self_arg,
-                                    is_unbound_method, type_name,
-                                    node, function, arg_list, kwargs):
-        if hasattr(function, 'type') and function.type.is_cfunction:
-            # Don't "optimize" already bound C calls.
-            return node
-        return super(OptimizeBuiltinCalls, self)._dispatch_to_method_handler(
-            attr_name, self_arg, is_unbound_method, type_name,
-            node, function, arg_list, kwargs)
-
     def _handle_simple_method_object_append(self, node, function, args, is_unbound_method):
         """Optimistic optimisation as X.append() is almost always
         referring to a list.

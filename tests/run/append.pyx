@@ -52,6 +52,19 @@ def test_append(L):
     return L
 
 
+def test_append_typed(list L not None):
+    """
+    >>> test_append_typed([])
+    None
+    None
+    [1, 2, (3, 4)]
+    """
+    print L.append(1)
+    L.append(2)
+    print L.append((3,4))
+    return L
+
+
 def append_unused_retval(L):
     """
     >>> append_unused_retval([])
