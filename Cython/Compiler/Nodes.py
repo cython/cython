@@ -5088,9 +5088,15 @@ class CascadedAssignmentNode(AssignmentNode):
             lhs_types.add(lhs.type)
 
         rhs = self.rhs.analyse_types(env)
+        # common special case: only one type needed on the LHS => coerce only once
         if len(lhs_types) == 1:
-            # common special case: only one type needed on the LHS => coerce only once
-            rhs = rhs.coerce_to(lhs_types.pop(), env)
+            # Avoid coercion for overloaded assignment operators.
+            if next(iter(lhs_types)).is_cpp_class:
+                op = env.lookup_operator('=', [lhs, self.rhs])
+                if not op:
+                    rhs = rhs.coerce_to(lhs_types.pop(), env)
+            else:
+                rhs = rhs.coerce_to(lhs_types.pop(), env)
 
         if not rhs.is_name and not rhs.is_literal and (
                 use_temp or rhs.is_attribute or rhs.type.is_pyobject):
