@@ -59,3 +59,9 @@ def test():
     assert a.val == b.val
     a = c
     assert a.val == c
+
+    a, b, c = 2, 3, 4
+    a = b = c
+    assert &a != &b
+    assert a.val == b.val
+    assert b.val == c
