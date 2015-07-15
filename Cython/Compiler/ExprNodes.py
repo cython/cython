@@ -3263,6 +3263,10 @@ class IndexNode(_IndexingBaseNode):
         func_type = function.type
         if func_type.is_ptr:
             func_type = func_type.base_type
+        self.exception_check = func_type.exception_check
+        self.exception_value = func_type.exception_value
+        if func_type.exception_check and not setting:
+            self.is_temp = True
         self.index = self.index.coerce_to(func_type.args[0].type, env)
         self.type = func_type.return_type
         if setting and not func_type.return_type.is_reference:
@@ -3532,7 +3536,7 @@ class IndexNode(_IndexingBaseNode):
             error_value = '-1'
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("GetItemIntByteArray", "StringTools.c"))
-        else:
+        elif not (self.base.type.is_cpp_class and self.exception_check):
             assert False, "unexpected type %s and base type %s for indexing" % (
                 self.type, self.base.type)
 
@@ -3541,16 +3545,22 @@ class IndexNode(_IndexingBaseNode):
         else:
             index_code = self.index.py_result()
 
-        code.putln(
-            "%s = %s(%s, %s%s); if (unlikely(%s == %s)) %s;" % (
-                self.result(),
-                function,
-                self.base.py_result(),
-                index_code,
-                self.extra_index_params(code),
-                self.result(),
-                error_value,
-                code.error_goto(self.pos)))
+        if self.base.type.is_cpp_class and self.exception_check:
+            translate_cpp_exception(code, self.pos,
+                "%s = %s[%s];" % (self.result(), self.base.result(),
+                                  self.index.result()),
+                self.exception_value, self.in_nogil_context)
+        else:
+            code.putln(
+                "%s = %s(%s, %s%s); if (unlikely(%s == %s)) %s;" % (
+                    self.result(),
+                    function,
+                    self.base.py_result(),
+                    index_code,
+                    self.extra_index_params(code),
+                    self.result(),
+                    error_value,
+                    code.error_goto(self.pos)))
         if self.type.is_pyobject:
             code.put_gotref(self.py_result())
 
