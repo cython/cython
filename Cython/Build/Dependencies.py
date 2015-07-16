@@ -642,6 +642,14 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
 
     module_list = []
     module_metadata = {}
+
+    # workaround for setuptools
+    try:
+       from setuptools.extension import Extension as Extension_setuptools
+    except ImportError:
+         # dummy class, in case we do not have setuptools
+         class Extension_setuptools(Extension): pass
+
     for pattern in patterns:
         if isinstance(pattern, str):
             filepattern = pattern
@@ -650,7 +658,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
             base = None
             exn_type = Extension
             ext_language = language
-        elif isinstance(pattern, Extension):
+        elif isinstance(pattern, Extension) or isinstance(pattern, Extension_setuptools):
             for filepattern in pattern.sources:
                 if os.path.splitext(filepattern)[1] in ('.py', '.pyx'):
                     break
@@ -664,7 +672,11 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
             exn_type = template.__class__
             ext_language = None  # do not override whatever the Extension says
         else:
-            raise TypeError(pattern)
+            msg = str("pattern is not of type str nor subclass of Extension (%s)"
+                      " but of type %s and class %s" % (repr(Extension),
+                                                        type(pattern),
+                                                        pattern.__class__))
+            raise TypeError(msg)
 
         for file in nonempty(sorted(extended_iglob(filepattern)), "'%s' doesn't match any files" % filepattern):
             if os.path.abspath(file) in to_exclude:
