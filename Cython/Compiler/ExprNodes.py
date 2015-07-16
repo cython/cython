@@ -3265,8 +3265,11 @@ class IndexNode(_IndexingBaseNode):
             func_type = func_type.base_type
         self.exception_check = func_type.exception_check
         self.exception_value = func_type.exception_value
-        if func_type.exception_check and not setting:
-            self.is_temp = True
+        if self.exception_check:
+            if not setting:
+                self.is_temp = True
+            if self.exception_value is None:
+                env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
         self.index = self.index.coerce_to(func_type.args[0].type, env)
         self.type = func_type.return_type
         if setting and not func_type.return_type.is_reference:
@@ -9221,6 +9224,8 @@ class UnopNode(ExprNode):
             self.exception_value = entry.type.exception_value
             if self.exception_check == '+':
                 self.is_temp = True
+                if self.exception_value is None:
+                    env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
         else:
             self.exception_check = ''
             self.exception_value = ''
