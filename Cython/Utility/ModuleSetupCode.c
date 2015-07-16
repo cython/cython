@@ -250,7 +250,9 @@ template<typename T>
 class __Pyx_FakeReference {
   public:
     __Pyx_FakeReference() : ptr(NULL) { }
-    __Pyx_FakeReference(T& ref) : ptr(&ref) { }
+    // __Pyx_FakeReference(T& ref) : ptr(&ref) { }
+    // Const version needed as Cython doesn't know about const overloads (e.g. for stl containers).
+    __Pyx_FakeReference(const T& ref) : ptr(const_cast<T*>(&ref)) { }
     T *operator->() { return ptr; }
     operator T&() { return *ptr; }
   private:
