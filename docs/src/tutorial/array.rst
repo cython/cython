@@ -20,12 +20,15 @@ Safe usage with memory views
 
 ::
 
-    from cpython cimport array as c_array
+    from cpython cimport array
     from array import array
-    cdef c_array.array a = array('i', [1, 2, 3])
+    cdef array.array a = array('i', [1, 2, 3])
     cdef int[:] ca = a
 
     print ca[0]
+
+NB: the import brings the regular Python array object into the namespace
+while the cimport adds functions accessible from Cython.
 
 A Python array is constructed with a type signature and sequence of
 initial values. For the possible type signatures, refer to the Python
@@ -36,9 +39,9 @@ memory view, there will be a slight overhead to construct the memory
 view. However, from that point on the variable can be passed to other
 functions without overhead, so long as it is typed::
 
-    from cpython cimport array as c_array
+    from cpython cimport array
     from array import array
-    cdef c_array.array a = array('i', [1, 2, 3])
+    cdef array.array a = array('i', [1, 2, 3])
     cdef int[:] ca = a
 
     cdef int overhead(object a):
@@ -60,16 +63,20 @@ right type and signedness.
 
 ::
 
-    from cpython cimport array as c_array
+    from cpython cimport array
     from array import array
 
-    cdef c_array.array a = array('i', [1, 2, 3])
+    cdef array.array a = array('i', [1, 2, 3])
 
     # access underlying pointer:
     print a.data.as_ints[0]
 
     from libc.string cimport memset
     memset(a.data.as_voidptr, 0, len(a) * sizeof(int))
+
+Note that any length-changing operation on the array object may invalidate the
+pointer.
+
 
 Cloning, extending arrays
 -------------------------
@@ -80,14 +87,14 @@ zero when requested.
 
 ::
 
-    from cpython cimport array as c_array
+    from cpython cimport array, clone
     from array import array
 
-    cdef c_array.array int_array_template = array('i', [])
-    cdef c_array.array newarray
+    cdef array.array int_array_template = array('i', [])
+    cdef array.array newarray
 
     # create an array with 3 elements with same type as template
-    newarray = c_array.clone(int_array_template, 3, zero=False)
+    newarray = clone(int_array_template, 3, zero=False)
 
 An array can also be extended and resized; this avoids repeated memory
 reallocation which would occur if elements would be appended or removed
@@ -95,13 +102,89 @@ one by one.
 
 ::
 
-    from cpython cimport array as c_array
+    from cpython cimport array
     from array import array
 
-    cdef c_array.array a = array('i', [1, 2, 3])
-    cdef c_array.array b = array('i', [4, 5, 6])
+    cdef array.array a = array('i', [1, 2, 3])
+    cdef array.array b = array('i', [4, 5, 6])
 
     # extend a with b, resize as needed
-    c_array.extend(a, b)
+    array.extend(a, b)
     # resize a, leaving just original three elements
-    c_array.resize(a, len(a) - len(b))
+    a.resize(len(a) - len(b))
+
+
+API reference
+-------------
+
+Data fields
+~~~~~~~~~~~
+
+::
+
+    data.as_voidptr
+    data.as_chars
+    data.as_schars
+    data.as_uchars
+    data.as_shorts
+    data.as_ushorts
+    data.as_ints
+    data.as_uints
+    data.as_longs
+    data.as_ulongs
+    data.as_floats
+    data.as_doubles
+    data.as_pyunicodes
+
+Direct access to the underlying contiguous C array, with given type;
+e.g., ``myarray.data.as_ints``.
+
+Methods
+~~~~~~~
+The following methods are available on cdef'ed array objects::
+
+    int resize(array self, Py_ssize_t n) except -1
+
+Fast resize / realloc. Not suitable for repeated, small increments; resizes
+underlying array to exactly the requested amount.
+
+::
+
+    int resize_smart(array self, Py_ssize_t n) except -1
+
+Efficient for small increments (not available in Python 2.3 and lower); uses
+growth pattern that delivers amortized linear-time appends.
+
+Functions
+~~~~~~~~~
+The following functions are available to Cython from the array module::
+
+    cdef inline array clone(array template, Py_ssize_t length, bint zero)
+
+Fast creation of a new array, given a template array. Type will be same as
+``template``. If zero is ``True``, new array will be initialized with zeroes.
+
+::
+
+    cdef inline array copy(array self)
+
+Make a copy of an array.
+
+::
+
+    cdef inline int extend_buffer(array self, char* stuff, Py_ssize_t n) except -1
+
+Efficient appending of new data of same type (e.g. of same array type)
+``n``: number of elements (not number of bytes!)
+
+::
+
+    cdef inline int extend(array self, array other) except -1
+
+Extend array with data from another array; types must match.
+
+::
+
+    cdef inline void zero(array self)
+
+Set all elements of array to zero.
