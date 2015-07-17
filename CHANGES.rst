@@ -78,6 +78,10 @@ Bugs fixed
 * Language level 3 did not enable true division (a.k.a. float division)
   for integer operands.
 
+* Functions with fused argument types that included a generic 'object'
+  fallback could end up using that fallback also for other explicitly
+  listed object types.
+
 * Relative cimports could accidentally fall back to trying an absolute
   cimport on failure.
 

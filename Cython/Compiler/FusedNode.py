@@ -268,8 +268,8 @@ class FusedCFuncDefNode(StatListNode):
             )
             pyx_code.put_chunk(
                 u"""
-                    elif isinstance(arg, {{py_type_name}}):
-                        dest_sig[{{dest_sig_idx}}] = '{{specialized_type_name}}'
+                    if isinstance(arg, {{py_type_name}}):
+                        dest_sig[{{dest_sig_idx}}] = '{{specialized_type_name}}'; break
                 """)
 
     def _dtype_name(self, dtype):
@@ -394,39 +394,34 @@ class FusedCFuncDefNode(StatListNode):
         to match the format string.
         """
         # The first thing to find a match in this loop breaks out of the loop
-        if pyx_code.indenter(u"while 1:"):
-            pyx_code.put_chunk(
-                u"""
-                    if ndarray is not None:
-                        if isinstance(arg, ndarray):
-                            dtype = arg.dtype
-                        elif __pyx_memoryview_check(arg):
-                            arg_base = arg.base
-                            if isinstance(arg_base, ndarray):
-                                dtype = arg_base.dtype
-                            else:
-                                dtype = None
+        pyx_code.put_chunk(
+            u"""
+                if ndarray is not None:
+                    if isinstance(arg, ndarray):
+                        dtype = arg.dtype
+                    elif __pyx_memoryview_check(arg):
+                        arg_base = arg.base
+                        if isinstance(arg_base, ndarray):
+                            dtype = arg_base.dtype
                         else:
                             dtype = None
+                    else:
+                        dtype = None
 
-                        itemsize = -1
-                        if dtype is not None:
-                            itemsize = dtype.itemsize
-                            kind = ord(dtype.kind)
-                            dtype_signed = kind == 'i'
-                """)
-            pyx_code.indent(2)
-            pyx_code.named_insertion_point("numpy_dtype_checks")
-            self._buffer_check_numpy_dtype(pyx_code, buffer_types)
-            pyx_code.dedent(2)
+                    itemsize = -1
+                    if dtype is not None:
+                        itemsize = dtype.itemsize
+                        kind = ord(dtype.kind)
+                        dtype_signed = kind == 'i'
+            """)
+        pyx_code.indent(2)
+        pyx_code.named_insertion_point("numpy_dtype_checks")
+        self._buffer_check_numpy_dtype(pyx_code, buffer_types)
+        pyx_code.dedent(2)
 
-            for specialized_type in buffer_types:
-                self._buffer_parse_format_string_check(
-                        pyx_code, decl_code, specialized_type, env)
-
-            pyx_code.putln(self.no_match)
-            pyx_code.putln("break")
-            pyx_code.dedent()
+        for specialized_type in buffer_types:
+            self._buffer_parse_format_string_check(
+                    pyx_code, decl_code, specialized_type, env)
 
     def _buffer_declarations(self, pyx_code, decl_code, all_buffer_types):
         """
@@ -492,17 +487,21 @@ class FusedCFuncDefNode(StatListNode):
         # specialized_types.sort()
         seen_py_type_names = set()
         normal_types, buffer_types = [], []
+        has_object_fallback = False
         for specialized_type in specialized_types:
             py_type_name = specialized_type.py_type_name()
             if py_type_name:
                 if py_type_name in seen_py_type_names:
                     continue
                 seen_py_type_names.add(py_type_name)
-                normal_types.append(specialized_type)
+                if py_type_name == 'object':
+                    has_object_fallback = True
+                else:
+                    normal_types.append(specialized_type)
             elif specialized_type.is_buffer or specialized_type.is_memoryviewslice:
                 buffer_types.append(specialized_type)
 
-        return normal_types, buffer_types
+        return normal_types, buffer_types, has_object_fallback
 
     def _unpack_argument(self, pyx_code):
         pyx_code.put_chunk(
@@ -593,18 +592,21 @@ class FusedCFuncDefNode(StatListNode):
                     default_idx=default_idx,
                 )
 
-                normal_types, buffer_types = self._split_fused_types(arg)
+                normal_types, buffer_types, has_object_fallback = self._split_fused_types(arg)
                 self._unpack_argument(pyx_code)
 
-                # we need an 'if' to allow the following elif/else branches
-                pyx_code.putln("if 0: pass")
-                if normal_types:
-                    self._fused_instance_checks(normal_types, pyx_code, env)
-                if pyx_code.indenter("else:"):
+                # 'unrolled' loop, first match breaks out of it
+                if pyx_code.indenter("while 1:"):
+                    if normal_types:
+                        self._fused_instance_checks(normal_types, pyx_code, env)
                     if buffer_types:
                         self._buffer_checks(buffer_types, pyx_code, decl_code, env)
+                    if has_object_fallback:
+                        pyx_code.context.update(specialized_type_name='object')
+                        pyx_code.putln(self.match)
                     else:
                         pyx_code.putln(self.no_match)
+                    pyx_code.putln("break")
                     pyx_code.dedent()
 
                 fused_index += 1
