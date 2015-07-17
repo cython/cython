@@ -3019,7 +3019,7 @@ def get_specialized_types(type):
     assert type.is_fused
 
     if isinstance(type, FusedType):
-        result = type.types
+        result = list(type.types)
         for specialized_type in result:
             specialized_type.specialization_string = specialized_type.typeof_name()
     else:
