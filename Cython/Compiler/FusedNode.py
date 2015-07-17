@@ -483,8 +483,10 @@ class FusedCFuncDefNode(StatListNode):
         Specialize fused types and split into normal types and buffer types.
         """
         specialized_types = PyrexTypes.get_specialized_types(arg.type)
-        # Prefer long over int, etc
-        # specialized_types.sort()
+
+        # Prefer long over int, etc by sorting (see type classes in PyrexTypes.py)
+        specialized_types.sort()
+
         seen_py_type_names = set()
         normal_types, buffer_types = [], []
         has_object_fallback = False

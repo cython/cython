@@ -3011,10 +3011,10 @@ def specialization_signature_string(fused_compound_type, fused_to_specific):
 
     return fused_type.specialize(fused_to_specific).typeof_name()
 
+
 def get_specialized_types(type):
     """
-    Return a list of specialized types sorted in reverse order in accordance
-    with their preference in runtime fused-type dispatch
+    Return a list of specialized types in their declared order.
     """
     assert type.is_fused
 
@@ -3030,7 +3030,7 @@ def get_specialized_types(type):
                             specialization_signature_string(type, f2s))
             result.append(specialized_type)
 
-    return sorted(result)
+    return result
 
 
 class CFuncTypeArg(BaseType):
