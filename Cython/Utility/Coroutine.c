@@ -332,7 +332,6 @@ static PyObject *__Pyx_Coroutine_Throw(PyObject *gen, PyObject *args);
 static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
     PyObject *et, *ev, *tb;
     PyObject *value = NULL;
-    int result;
 
     __Pyx_ErrFetch(&et, &ev, &tb);
 
@@ -346,7 +345,6 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
 
     // most common case: plain StopIteration without or with separate argument
     if (likely(et == PyExc_StopIteration)) {
-        int error = 0;
 #if PY_VERSION_HEX >= 0x030300A0
         if (ev && Py_TYPE(ev) == (PyTypeObject*)PyExc_StopIteration) {
             value = ((PyStopIterationObject *)ev)->value;
@@ -358,7 +356,7 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
             return 0;
         }
 #endif
-        if (!ev || !(error = PyObject_IsInstance(ev, PyExc_StopIteration))) {
+        if (!ev || !PyObject_TypeCheck(ev, (PyTypeObject*)PyExc_StopIteration)) {
             // PyErr_SetObject() and friends put the value directly into ev
             if (!ev) {
                 Py_INCREF(Py_None);
@@ -386,10 +384,6 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
             *pvalue = ev;
             return 0;
         }
-        if (unlikely(error == -1)) {
-            // error during isinstance() check
-            return -1;
-        }
     } else if (!PyErr_GivenExceptionMatches(et, PyExc_StopIteration)) {
         __Pyx_ErrRestore(et, ev, tb);
         return -1;
@@ -397,19 +391,13 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
 
     // otherwise: normalise and check what that gives us
     PyErr_NormalizeException(&et, &ev, &tb);
-    result = PyObject_IsInstance(ev, PyExc_StopIteration);
-    if (unlikely(!result)) {
+    if (unlikely(!PyObject_TypeCheck(ev, (PyTypeObject*)PyExc_StopIteration))) {
         // looks like normalisation failed - raise the new exception
         __Pyx_ErrRestore(et, ev, tb);
         return -1;
     }
     Py_XDECREF(tb);
     Py_DECREF(et);
-    if (unlikely(result == -1)) {
-        // error during isinstance() check
-        Py_DECREF(ev);
-        return -1;
-    }
 #if PY_VERSION_HEX >= 0x030300A0
     value = ((PyStopIterationObject *)ev)->value;
     Py_INCREF(value);
