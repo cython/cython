@@ -3600,8 +3600,6 @@ class CEnumType(CType):
     is_enum = 1
     signed = 1
     rank = -1 # Ranks below any integer type
-    to_py_function = "PyInt_FromLong"
-    from_py_function = "PyInt_AsLong"
 
     def __init__(self, name, cname, typedef_flag):
         self.name = name
@@ -3628,6 +3626,22 @@ class CEnumType(CType):
                 base_code = "enum %s" % self.cname
             base_code = public_decl(base_code, dll_linkage)
         return self.base_declaration_code(base_code, entity_code)
+
+    def create_to_py_utility_code(self, env):
+        self.to_py_function = "__Pyx_PyInt_From_" + self.specialization_name()
+        env.use_utility_code(TempitaUtilityCode.load_cached(
+            "CIntToPy", "TypeConversion.c",
+            context={"TYPE": self.empty_declaration_code(),
+                     "TO_PY_FUNCTION": self.to_py_function}))
+        return True
+
+    def create_from_py_utility_code(self, env):
+        self.from_py_function = "__Pyx_PyInt_As_" + self.specialization_name()
+        env.use_utility_code(TempitaUtilityCode.load_cached(
+            "CIntFromPy", "TypeConversion.c",
+            context={"TYPE": self.empty_declaration_code(),
+                     "FROM_PY_FUNCTION": self.from_py_function}))
+        return True
 
     def from_py_call_code(self, source_code, result_code, error_pos, code,
                           from_py_function=None, error_condition=None):

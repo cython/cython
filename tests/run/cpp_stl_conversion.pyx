@@ -207,3 +207,16 @@ def test_nested(o):
     """
     cdef map[pair[double, double], vector[int]] m = o
     return m
+
+cpdef enum Color:
+    RED = 0
+    GREEN
+    BLUE
+
+def test_enum_map(o):
+    """
+    >>> test_enum_map({RED: GREEN})
+    {0: 1}
+    """
+    cdef map[Color, Color] m = o
+    return m
