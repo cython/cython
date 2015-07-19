@@ -3446,11 +3446,18 @@ class IndexNode(_IndexingBaseNode):
             indices = [self.index]
         type_indices = []
         for index in indices:
-            type_indices.append(index.analyse_as_type(env))
-            if type_indices[-1] is None:
-                if required:
-                    error(index.pos, "not parsable as a type")
+            type_index = index.analyse_as_type(env)
+            if type_index is None and self.base.type.templates:
+                # Handle the case that this is a template specialization
+                # that uses a non-type value.
+                if index.type is None:
+                    index.analyse_types(env)
+                if index.type.is_int or index.type.is_enum or index.type.is_ptr:
+                    type_index = index
+            if required and type_index is None:
+                error(index.pos, "not parsable as a type")
                 return None
+            type_indices.append(type_index)
         return type_indices
 
     def parse_indexed_fused_cdef(self, env):
@@ -3557,9 +3564,19 @@ class IndexNode(_IndexingBaseNode):
             else:
                 assert False, "unexpected base type in indexing: %s" % self.base.type
         elif self.base.type.is_cfunction:
+            template_indices = []
+            for param in self.type_indices:
+                if isinstance(param, PyrexTypes.CType):
+                    template_indices.append(param.empty_declaration_code())
+                elif param.type.is_int:
+                    template_indices.append(param.value_as_c_integer_string())
+                elif param.type.is_enum or param.type.is_ptr:
+                    template_indices.append(param.result())
+                else:
+                    error(self.pos, "Invalid or unsupported template parameter.")
             return "%s<%s>" % (
                 self.base.result(),
-                ",".join([param.empty_declaration_code() for param in self.type_indices]))
+                ",".join(template_indices))
         elif self.base.type.is_ctuple:
             index = self.index.constant_result
             if index < 0:
