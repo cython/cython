@@ -1,9 +1,9 @@
 cdef extern from *:
-    cpdef enum ExternPxdEnum:
+    cpdef enum: # ExternPxd
         FOUR "4"
         EIGHT "8"
 
-    cdef enum ExternSecretPxdEnum:
+    cdef enum: # ExternSecretPxd
         SIXTEEN "16"
 
 cpdef enum PxdEnum:

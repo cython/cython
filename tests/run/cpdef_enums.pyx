@@ -26,12 +26,12 @@ NameError: ...name 'RANK_3' is not defined
 
 
 cdef extern from *:
-    cpdef enum ExternPyxEnum:
+    cpdef enum: # ExternPyx
         ONE "1"
         TEN "10"
         HUNDRED "100"
 
-    cdef enum ExternSecretPyxEnum:
+    cdef enum: # ExternSecretPyx
         THOUSAND "1000"
 
 cpdef enum PyxEnum:
