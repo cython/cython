@@ -21,8 +21,8 @@ Safe usage with memory views
 ::
 
     from cpython cimport array
-    from array import array
-    cdef array.array a = array('i', [1, 2, 3])
+    import array
+    cdef array.array a = array.array('i', [1, 2, 3])
     cdef int[:] ca = a
 
     print ca[0]
@@ -40,8 +40,8 @@ view. However, from that point on the variable can be passed to other
 functions without overhead, so long as it is typed::
 
     from cpython cimport array
-    from array import array
-    cdef array.array a = array('i', [1, 2, 3])
+    import array
+    cdef array.array a = array.array('i', [1, 2, 3])
     cdef int[:] ca = a
 
     cdef int overhead(object a):
@@ -64,9 +64,9 @@ right type and signedness.
 ::
 
     from cpython cimport array
-    from array import array
+    import array
 
-    cdef array.array a = array('i', [1, 2, 3])
+    cdef array.array a = array.array('i', [1, 2, 3])
 
     # access underlying pointer:
     print a.data.as_ints[0]
@@ -87,14 +87,14 @@ zero when requested.
 
 ::
 
-    from cpython cimport array, clone
-    from array import array
+    from cpython cimport array
+    import array
 
-    cdef array.array int_array_template = array('i', [])
+    cdef array.array int_array_template = array.array('i', [])
     cdef array.array newarray
 
     # create an array with 3 elements with same type as template
-    newarray = clone(int_array_template, 3, zero=False)
+    newarray = array.clone(int_array_template, 3, zero=False)
 
 An array can also be extended and resized; this avoids repeated memory
 reallocation which would occur if elements would be appended or removed
@@ -103,15 +103,15 @@ one by one.
 ::
 
     from cpython cimport array
-    from array import array
+    import array
 
-    cdef array.array a = array('i', [1, 2, 3])
-    cdef array.array b = array('i', [4, 5, 6])
+    cdef array.array a = array.array('i', [1, 2, 3])
+    cdef array.array b = array.array('i', [4, 5, 6])
 
     # extend a with b, resize as needed
     array.extend(a, b)
     # resize a, leaving just original three elements
-    a.resize(len(a) - len(b))
+    array.resize(a, len(a) - len(b))
 
 
 API reference
@@ -139,9 +139,10 @@ Data fields
 Direct access to the underlying contiguous C array, with given type;
 e.g., ``myarray.data.as_ints``.
 
-Methods
-~~~~~~~
-The following methods are available on cdef'ed array objects::
+
+Functions
+~~~~~~~~~
+The following functions are available to Cython from the array module::
 
     int resize(array self, Py_ssize_t n) except -1
 
@@ -155,9 +156,7 @@ underlying array to exactly the requested amount.
 Efficient for small increments (not available in Python 2.3 and lower); uses
 growth pattern that delivers amortized linear-time appends.
 
-Functions
-~~~~~~~~~
-The following functions are available to Cython from the array module::
+::
 
     cdef inline array clone(array template, Py_ssize_t length, bint zero)
 
