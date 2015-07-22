@@ -4678,6 +4678,8 @@ class SimpleCallNode(CallNode):
                 self.type = PyrexTypes.error_type
                 self.result_code = "<error>"
                 return
+            self.function.type = overloaded_entry.type
+            overloaded_entry = None
         elif hasattr(self.function, 'entry'):
             overloaded_entry = self.function.entry
         elif (isinstance(self.function, IndexNode) and
@@ -4707,7 +4709,7 @@ class SimpleCallNode(CallNode):
         else:
             entry = None
             func_type = self.function_type()
-            if not func_type.is_cfunction:
+            if not (func_type.is_cfunction or func_type.is_cpp_class):
                 error(self.pos, "Calling non-function type '%s'" % func_type)
                 self.type = PyrexTypes.error_type
                 self.result_code = "<error>"
