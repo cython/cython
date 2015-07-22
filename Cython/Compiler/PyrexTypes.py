@@ -4170,6 +4170,11 @@ def independent_spanning_type(type1, type2):
     # whereas "x = True or 2" must evaluate to a type that can hold
     # both a boolean value and an integer, so this function works
     # better.
+    if type1.is_reference ^ type2.is_reference:
+        if type1.is_reference:
+            type1 = type1.ref_base_type
+        else:
+            type2 = type2.ref_base_type
     if type1 == type2:
         return type1
     elif (type1 is c_bint_type or type2 is c_bint_type) and (type1.is_numeric and type2.is_numeric):

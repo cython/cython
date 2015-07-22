@@ -10800,6 +10800,8 @@ class CondExprNode(ExprNode):
     def analyse_result_type(self, env):
         self.type = PyrexTypes.independent_spanning_type(
             self.true_val.type, self.false_val.type)
+        if self.type.is_reference:
+            self.type = PyrexTypes.CFakeReferenceType(self.type.ref_base_type)
         if self.type.is_pyobject:
             self.result_ctype = py_object_type
         elif self.true_val.is_ephemeral() or self.false_val.is_ephemeral():
