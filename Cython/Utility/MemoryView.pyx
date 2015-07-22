@@ -2,7 +2,9 @@
 
 # This utility provides cython.array and cython.view.memoryview
 
-import cython
+from __future__ import absolute_import
+
+cimport cython
 
 # from cpython cimport ...
 cdef extern from "Python.h":
