@@ -234,6 +234,10 @@ typedef struct {
 
 /////////////// CppInitCode ///////////////
 
+#ifndef __cplusplus
+  #error "Cython files generated with the C++ option must be compiled with a C++ compiler."
+#endif
+
 // inline attribute
 #ifndef CYTHON_INLINE
   #define CYTHON_INLINE inline
