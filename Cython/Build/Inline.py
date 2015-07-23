@@ -221,26 +221,28 @@ def __invoke(%(params)s):
 # overridden with actual value upon the first cython_inline invocation
 cython_inline.so_ext = None
 
-non_space = re.compile('[^ ]')
+_find_non_space = re.compile('[^ ]').search
+
+
 def strip_common_indent(code):
     min_indent = None
-    lines = code.split('\n')
+    lines = code.splitlines()
     for line in lines:
-        match = non_space.search(line)
+        match = _find_non_space(line)
         if not match:
-            continue # blank
+            continue  # blank
         indent = match.start()
         if line[indent] == '#':
-            continue # comment
-        elif min_indent is None or min_indent > indent:
+            continue  # comment
+        if min_indent is None or min_indent > indent:
             min_indent = indent
     for ix, line in enumerate(lines):
-        match = non_space.search(line)
-        if not match or line[indent] == '#':
+        match = _find_non_space(line)
+        if not match or not line or line[indent:indent+1] == '#':
             continue
-        else:
-            lines[ix] = line[min_indent:]
+        lines[ix] = line[min_indent:]
     return '\n'.join(lines)
+
 
 module_statement = re.compile(r'^((cdef +(extern|class))|cimport|(from .+ cimport)|(from .+ import +[*]))')
 def extract_func_code(code):
