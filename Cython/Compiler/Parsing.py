@@ -3057,6 +3057,9 @@ def p_decorators(s):
 def p_def_statement(s, decorators=None, is_async_def=False):
     # s.sy == 'def'
     pos = s.position()
+    # PEP 492 switches the async/await keywords on in "async def" functions
+    if is_async_def:
+        s.enter_async()
     s.next()
     name = p_ident(s)
     s.expect('(')
@@ -3069,23 +3072,9 @@ def p_def_statement(s, decorators=None, is_async_def=False):
         s.next()
         return_type_annotation = p_test(s)
 
-    # PEP 492 switches the async/await keywords off in simple "def" functions
-    # and on in "async def" functions
-    await_was_enabled = s.enable_keyword('await') if is_async_def else s.disable_keyword('await')
-    async_was_enabled = s.enable_keyword('async') if is_async_def else s.disable_keyword('async')
-
     doc, body = p_suite_with_docstring(s, Ctx(level='function'))
-
     if is_async_def:
-        if not async_was_enabled:
-            s.disable_keyword('async')
-        if not await_was_enabled:
-            s.disable_keyword('await')
-    else:
-        if async_was_enabled:
-            s.enable_keyword('async')
-        if await_was_enabled:
-            s.enable_keyword('await')
+        s.exit_async()
 
     return Nodes.DefNode(
         pos, name=name, args=args, star_arg=star_arg, starstar_arg=starstar_arg,
