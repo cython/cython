@@ -138,7 +138,7 @@ class AsyncBadSyntaxTest(unittest.TestCase):
                      '{await a: a for a in b}'}:
 
             with self.assertRaisesRegex(Errors.CompileError, 'await.*in comprehen'):
-                exec('async def f():\n\t{}'.format(comp), ns, ns)
+                exec('async def f():\n\t{0}'.format(comp), ns, ns)
 
     def test_badsyntax_10(self):
         # Tests for issue 24619
@@ -306,7 +306,8 @@ class AsyncBadSyntaxTest(unittest.TestCase):
             """]
 
         for code in samples:
-            with self.subTest(code=code), self.assertRaises(Errors.CompileError):
+            # assertRaises() differs in Py2.6, so use our own assertRaisesRegex() instead
+            with self.subTest(code=code), self.assertRaisesRegex(Errors.CompileError, '.'):
                 exec(code, {}, {})
 
     if not hasattr(unittest.TestCase, 'subTest'):
