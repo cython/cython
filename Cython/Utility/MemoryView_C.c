@@ -442,8 +442,6 @@ static CYTHON_INLINE void __pyx_fatalerror(const char *fmt, ...) {
     va_list vargs;
     char msg[200];
 
-    va_start(vargs, fmt);
-
 #ifdef HAVE_STDARG_PROTOTYPES
     va_start(vargs, fmt);
 #else
