@@ -317,7 +317,7 @@ class PyrexScanner(Scanner):
         self.indentation_stack = [0]
         self.indentation_char = None
         self.bracket_nesting_level = 0
-        self.async_enabled = False
+        self.async_enabled = 0
         self.begin('INDENT')
         self.sy = ''
         self.next()
@@ -506,3 +506,5 @@ class PyrexScanner(Scanner):
         if not self.async_enabled:
             self.keywords.discard('await')
             self.keywords.discard('async')
+            if self.sy in ('async', 'await'):
+                self.sy, self.systring = IDENT, self.context.intern_ustring(self.sy)
