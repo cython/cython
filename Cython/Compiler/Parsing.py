@@ -2543,7 +2543,8 @@ supported_overloaded_operators = cython.declare(set, set([
     '+', '-', '*', '/', '%',
     '++', '--', '~', '|', '&', '^', '<<', '>>', ',',
     '==', '!=', '>=', '>', '<=', '<',
-    '[]', '()', '!', '='
+    '[]', '()', '!', '=',
+    'bool',
 ]))
 
 def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
@@ -2620,6 +2621,13 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
                     s.error("Overloading operator '%s' not yet supported." % op,
                             fatal=False)
                 name += op
+            elif op == 'IDENT':
+                op = s.systring;
+                if op not in supported_overloaded_operators:
+                    s.error("Overloading operator '%s' not yet supported." % op,
+                            fatal=False)
+                name = name + ' ' + op
+                s.next()
         result = Nodes.CNameDeclaratorNode(pos,
             name = name, cname = cname, default = rhs)
     result.calling_convention = calling_convention

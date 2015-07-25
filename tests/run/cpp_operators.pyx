@@ -7,6 +7,7 @@ cimport cython.operator
 from cython.operator cimport dereference as deref
 
 from libc.string cimport const_char
+from libcpp cimport bool
 
 cdef out(s, result_type=None):
     print '%s [%s]' % (s.decode('ascii'), result_type)
@@ -48,6 +49,12 @@ cdef extern from "cpp_operators_helper.h":
 
         const_char* operator[](int)
         const_char* operator()(int)
+
+    cppclass TruthClass:
+        TruthClass()
+        TruthClass(bool)
+        bool operator bool()
+        bool value
 
 def test_unops():
     """
@@ -148,3 +155,30 @@ def test_index_call():
     out(t[0][100], typeof(t[0][100]))
     out(t[0](100), typeof(t[0](100)))
     del t
+
+def test_bool_op():
+    """
+    >>> test_bool_op()
+    """
+    cdef TruthClass yes = TruthClass(True)
+    cdef TruthClass no = TruthClass(False)
+    if yes:
+        pass
+    else:
+        assert False
+    if no:
+        assert False
+
+def test_bool_cond():
+    """
+    >>> test_bool_cond()
+    """
+    assert (TruthClass(False) or TruthClass(False)).value == False
+    assert (TruthClass(False) or TruthClass(True)).value == True
+    assert (TruthClass(True) or TruthClass(False)).value == True
+    assert (TruthClass(True) or TruthClass(True)).value == True
+
+    assert (TruthClass(False) and TruthClass(False)).value == False
+    assert (TruthClass(False) and TruthClass(True)).value == False
+    assert (TruthClass(True) and TruthClass(False)).value == False
+    assert (TruthClass(True) and TruthClass(True)).value == True
