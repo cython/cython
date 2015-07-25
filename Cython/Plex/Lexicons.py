@@ -115,7 +115,7 @@ class Lexicon(object):
     tables = None   # StateTableMachine
 
     def __init__(self, specifications, debug=None, debug_flags=7, timings=None):
-        if type(specifications) != types.ListType:
+        if not isinstance(specifications, list):
             raise Errors.InvalidScanner("Scanner definition is not a list")
         if timings:
             from .Timing import time
@@ -132,7 +132,7 @@ class Lexicon(object):
                     self.add_token_to_machine(
                         nfa, user_initial_state, token, token_number)
                     token_number += 1
-            elif type(spec) == types.TupleType:
+            elif isinstance(spec, tuple):
                 self.add_token_to_machine(
                     nfa, default_initial_state, spec, token_number)
                 token_number += 1
@@ -184,7 +184,7 @@ class Lexicon(object):
             raise e.__class__("Token number %d: %s" % (token_number, e))
 
     def parse_token_definition(self, token_spec):
-        if type(token_spec) != types.TupleType:
+        if not isinstance(token_spec, tuple):
             raise Errors.InvalidToken("Token definition is not a tuple")
         if len(token_spec) != 2:
             raise Errors.InvalidToken("Wrong number of items in token definition")
