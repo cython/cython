@@ -4,6 +4,11 @@ GDB extension that adds Cython support.
 
 from __future__ import print_function
 
+try:
+    input = raw_input
+except NameError:
+    pass
+
 import sys
 import textwrap
 import traceback
@@ -726,7 +731,7 @@ class CyImport(CythonCommand):
 
                 for marker in module.find('LineNumberMapping'):
                     cython_lineno = int(marker.attrib['cython_lineno'])
-                    c_linenos = map(int, marker.attrib['c_linenos'].split())
+                    c_linenos = list(map(int, marker.attrib['c_linenos'].split()))
                     cython_module.lineno_cy2c[cython_lineno] = min(c_linenos)
                     for c_lineno in c_linenos:
                         cython_module.lineno_c2cy[c_lineno] = cython_lineno
@@ -799,7 +804,7 @@ class CyBreak(CythonCommand):
 
                 while True:
                     try:
-                        result = raw_input(
+                        result = input(
                             "Select a function, press 'a' for all "
                             "functions or press 'q' or '^D' to quit: ")
                     except EOFError:

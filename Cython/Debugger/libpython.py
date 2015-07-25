@@ -45,6 +45,12 @@ the type names are known to the debugger
 
 The module also extends gdb with some python-specific commands.
 '''
+
+try:
+    input = raw_input
+except NameError:
+    pass
+
 import os
 import re
 import sys
@@ -2549,7 +2555,7 @@ class PyExec(gdb.Command):
             lines = []
             while True:
                 try:
-                    line = raw_input('>')
+                    line = input('>')
                 except EOFError:
                     break
                 else:

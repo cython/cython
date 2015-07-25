@@ -289,7 +289,7 @@ def split_string_literal(s, limit=2000):
 def encode_pyunicode_string(s):
     """Create Py_UNICODE[] representation of a given unicode string.
     """
-    s = map(ord, s) + [0]
+    s = list(map(ord, s)) + [0]
 
     if sys.maxunicode >= 0x10000:  # Wide build or Py3.3
         utf16, utf32 = [], s

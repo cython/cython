@@ -12,7 +12,12 @@ import sys
 
 from .Transitions import TransitionMap
 
-LOWEST_PRIORITY = -sys.maxint
+try:
+    from sys import maxsize as maxint
+except ImportError:
+    from sys import maxint
+
+LOWEST_PRIORITY = -maxint
 
 
 class Machine(object):
@@ -172,7 +177,7 @@ class FastMachine(object):
     def make_initial_state(self, name, state):
         self.initial_states[name] = state
 
-    def add_transitions(self, state, event, new_state, maxint=sys.maxint):
+    def add_transitions(self, state, event, new_state, maxint=maxint):
         if type(event) is tuple:
             code0, code1 = event
             if code0 == -maxint:
