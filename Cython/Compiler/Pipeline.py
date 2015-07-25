@@ -15,7 +15,7 @@ from . import Naming
 #
 def dumptree(t):
     # For quick debugging in pipelines
-    print t.dump()
+    print(t.dump())
     return t
 
 def abort_on_errors(node):
@@ -321,12 +321,12 @@ def run_pipeline(pipeline, source, printtree=True):
                 if phase is not None:
                     if DebugFlags.debug_verbose_pipeline:
                         t = time()
-                        print "Entering pipeline phase %r" % phase
+                        print("Entering pipeline phase %r" % phase)
                     if not printtree and isinstance(phase, PrintTree):
                         continue
                     data = phase(data)
                     if DebugFlags.debug_verbose_pipeline:
-                        print "    %.3f seconds" % (time() - t)
+                        print("    %.3f seconds" % (time() - t))
         except CompileError as err:
             # err is set
             Errors.report_error(err)

@@ -167,7 +167,7 @@ class CheckAnalysers(type):
             def call(*args, **kwargs):
                 retval = func(*args, **kwargs)
                 if retval is None:
-                    print name, args, kwargs
+                    print('%s %s %s' % (name, args, kwargs))
                 return retval
             return call
 

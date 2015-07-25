@@ -22,7 +22,7 @@ import cython
 
 cython.declare(_PRINTABLE=tuple)
 
-if sys.version_info >= 3:
+if sys.version_info[0] >= 3:
     _PRINTABLE = (bytes, str, int, float)
 else:
     _PRINTABLE = (str, unicode, long, int, float)
@@ -57,9 +57,9 @@ class TreeVisitor(object):
     >>> tree = SampleNode(0, SampleNode(1), [SampleNode(2), SampleNode(3)])
     >>> class MyVisitor(TreeVisitor):
     ...     def visit_SampleNode(self, node):
-    ...         print "in", node.value, self.access_path
+    ...         print("in %s %s" % (node.value, self.access_path)
     ...         self.visitchildren(node)
-    ...         print "out", node.value
+    ...         print("out %s" % node.value)
     ...
     >>> MyVisitor().visit(tree)
     in 0 []
@@ -162,11 +162,11 @@ class TreeVisitor(object):
             handler_method = getattr(self, pattern % mro_cls.__name__, None)
             if handler_method is not None:
                 return handler_method
-        print type(self), cls
+        print('%s: %s' % (type(self), cls))
         if self.access_path:
-            print self.access_path
-            print self.access_path[-1][0].pos
-            print self.access_path[-1][0].__dict__
+            print(self.access_path)
+            print(self.access_path[-1][0].pos)
+            print(self.access_path[-1][0].__dict__)
         raise RuntimeError("Visitor %r does not accept object: %s" % (self, obj))
 
     def visit(self, obj):
