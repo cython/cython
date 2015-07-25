@@ -4,6 +4,11 @@ GDB extension that adds Cython support.
 
 from __future__ import print_function
 
+try:
+    input = raw_input
+except NameError:
+    pass
+
 import sys
 import textwrap
 import traceback
@@ -799,7 +804,7 @@ class CyBreak(CythonCommand):
 
                 while True:
                     try:
-                        result = raw_input(
+                        result = input(
                             "Select a function, press 'a' for all "
                             "functions or press 'q' or '^D' to quit: ")
                     except EOFError:
