@@ -21,9 +21,8 @@ except ImportError:
 
 class _FakePool(object):
     def map_async(self, func, args):
-        from itertools import imap
-        for _ in imap(func, args):
-            pass
+        for arg in args:
+            func(arg)
 
     def close(self): pass
     def terminate(self): pass
