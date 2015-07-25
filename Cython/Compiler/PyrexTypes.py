@@ -7,6 +7,11 @@ from __future__ import absolute_import
 import copy
 import re
 
+try:
+    reduce
+except NameError:
+    from functools import reduce
+
 from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
