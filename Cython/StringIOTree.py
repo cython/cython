@@ -1,4 +1,7 @@
-from io import StringIO
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO  # does not support writing 'str' in Py2
 
 
 class StringIOTree(object):

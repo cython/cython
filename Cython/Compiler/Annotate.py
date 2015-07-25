@@ -11,7 +11,10 @@ from datetime import datetime
 from functools import partial
 from collections import defaultdict
 from xml.sax.saxutils import escape as html_escape
-from io import StringIO
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO  # does not support writing 'str' in Py2
 
 from . import Version
 from .Code import CCodeWriter
