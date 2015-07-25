@@ -1781,12 +1781,7 @@ def main():
                 # hasn't been refactored yet - do it now
                 global CY3_DIR
                 CY3_DIR = cy3_dir = os.path.join(WORKDIR, 'Cy3')
-                if sys.version_info >= (3,1):
-                    refactor_for_py3(DISTDIR, cy3_dir)
-                elif os.path.isdir(cy3_dir):
-                    sys.path.insert(0, cy3_dir)
-                else:
-                    options.with_cython = False
+                refactor_for_py3(DISTDIR, cy3_dir)
 
     if options.watermark:
         import Cython.Compiler.Version
