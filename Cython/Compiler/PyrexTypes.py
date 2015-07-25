@@ -4118,7 +4118,7 @@ def merge_template_deductions(a, b):
     if a is None or b is None:
         return None
     all = a
-    for param, value in b.iteritems():
+    for param, value in b.items():
         if param in all:
             if a[param] != b[param]:
                 return None

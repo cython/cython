@@ -57,7 +57,7 @@ def generate_pyx_code_stage_factory(options, result):
 
 def inject_pxd_code_stage_factory(context):
     def inject_pxd_code_stage(module_node):
-        for name, (statlistnode, scope) in context.pxds.iteritems():
+        for name, (statlistnode, scope) in context.pxds.items():
             module_node.merge_in(statlistnode, scope)
         return module_node
     return inject_pxd_code_stage
@@ -66,7 +66,7 @@ def use_utility_code_definitions(scope, target, seen=None):
     if seen is None:
         seen = set()
 
-    for entry in scope.entries.itervalues():
+    for entry in scope.entries.values():
         if entry in seen:
             continue
 

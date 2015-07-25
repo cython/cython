@@ -457,7 +457,7 @@ def _write_instance_repr(out, visited, name, pyop_attrdict, address):
     if isinstance(pyop_attrdict, PyDictObjectPtr):
         out.write('(')
         first = True
-        for pyop_arg, pyop_val in pyop_attrdict.iteritems():
+        for pyop_arg, pyop_val in pyop_attrdict.items():
             if not first:
                 out.write(', ')
             first = False
@@ -478,7 +478,7 @@ class InstanceProxy(object):
     def __repr__(self):
         if isinstance(self.attrdict, dict):
             kwargs = ', '.join("%s=%r" % (arg, val)
-                               for arg, val in self.attrdict.iteritems())
+                               for arg, val in self.attrdict.items())
             return '<%s(%s) at remote 0x%x>' % (
                 self.cl_name, kwargs, self.address)
         else:
@@ -703,7 +703,7 @@ class PyDictObjectPtr(PyObjectPtr):
         visited.add(self.as_address())
 
         result = {}
-        for pyop_key, pyop_value in self.iteritems():
+        for pyop_key, pyop_value in self.items():
             proxy_key = pyop_key.proxyval(visited)
             proxy_value = pyop_value.proxyval(visited)
             result[proxy_key] = proxy_value
@@ -718,7 +718,7 @@ class PyDictObjectPtr(PyObjectPtr):
 
         out.write('{')
         first = True
-        for pyop_key, pyop_value in self.iteritems():
+        for pyop_key, pyop_value in self.items():
             if not first:
                 out.write(', ')
             first = False
@@ -918,7 +918,7 @@ class PyFrameObjectPtr(PyObjectPtr):
             return
 
         pyop_globals = self.pyop_field('f_globals')
-        return pyop_globals.iteritems()
+        return iter(pyop_globals.items())
 
     def iter_builtins(self):
         '''
@@ -929,7 +929,7 @@ class PyFrameObjectPtr(PyObjectPtr):
             return
 
         pyop_builtins = self.pyop_field('f_builtins')
-        return pyop_builtins.iteritems()
+        return iter(pyop_builtins.items())
 
     def get_var_by_name(self, name):
         '''

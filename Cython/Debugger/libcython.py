@@ -376,7 +376,7 @@ class CythonBase(object):
 
         result = {}
         seen = set()
-        for k, v in pyobject_dict.iteritems():
+        for k, v in pyobject_dict.items():
             result[k.proxyval(seen)] = v
 
         return result
@@ -844,9 +844,9 @@ class CyBreak(CythonCommand):
     def complete(self, text, word):
         # Filter init-module functions (breakpoints can be set using
         # modulename:linenumber).
-        names =  [n for n, L in self.cy.functions_by_name.iteritems()
+        names =  [n for n, L in self.cy.functions_by_name.items()
                         if any(not f.is_initmodule_function for f in L)]
-        qnames = [n for n, f in self.cy.functions_by_qualified_name.iteritems()
+        qnames = [n for n, f in self.cy.functions_by_qualified_name.items()
                         if not f.is_initmodule_function]
 
         if parameters.complete_unqualified:
@@ -1199,7 +1199,7 @@ class EvaluateOrExecuteCodeMixin(object):
         "Fill a remotely allocated dict with values from the Cython C stack"
         cython_func = self.get_cython_function()
 
-        for name, cyvar in cython_func.locals.iteritems():
+        for name, cyvar in cython_func.locals.items():
             if (cyvar.type == PythonObject and
                 self.is_initialized(cython_func, name)):
 

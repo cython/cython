@@ -237,7 +237,7 @@ class StructType(CythonType):
             for key, value in cast_from.__dict__.items():
                 setattr(self, key, value)
         else:
-            for key, value in data.iteritems():
+            for key, value in data.items():
                 setattr(self, key, value)
 
     def __setattr__(self, key, value):
@@ -264,7 +264,7 @@ class UnionType(CythonType):
             datadict = data
         if len(datadict) > 1:
             raise AttributeError("Union can only store one field at a time.")
-        for key, value in datadict.iteritems():
+        for key, value in datadict.items():
             setattr(self, key, value)
 
     def __setattr__(self, key, value):

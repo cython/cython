@@ -413,7 +413,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 d.setdefault(cython_lineno, []).append(c_lineno + 1)
 
         tb.start('LineNumberMapping')
-        for cython_lineno, c_linenos in sorted(d.iteritems()):
+        for cython_lineno, c_linenos in sorted(d.items()):
                 attrs = {
                     'c_linenos': ' '.join(map(str, c_linenos)),
                     'cython_lineno': str(cython_lineno),

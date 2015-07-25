@@ -934,7 +934,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         directives = self._extract_directives(node, 'function')
         if not directives:
             return node
-        for name, value in directives.iteritems():
+        for name, value in directives.items():
             if name == 'locals':
                 node.directive_locals = value
             elif name not in ('final', 'staticmethod'):
@@ -2888,7 +2888,7 @@ class DebugTransform(CythonTransform):
         self.tb.start('Globals')
         entries = {}
 
-        for k, v in node.scope.entries.iteritems():
+        for k, v in node.scope.entries.items():
             if (v.qualified_name not in self.visited and not
                 v.name.startswith('__pyx_') and not
                 v.type.is_cfunction and not

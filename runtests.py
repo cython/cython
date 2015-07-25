@@ -650,7 +650,7 @@ class CythonCompileTestCase(unittest.TestCase):
                                              'clear_to_none',
                                              'error_on_unknown_names',
                                              'error_on_uninitialized') ]
-        self._saved_default_directives = Options.directive_defaults.items()
+        self._saved_default_directives = list(Options.directive_defaults.items())
         Options.warning_errors = self.warning_errors
         if sys.version_info >= (3, 4):
             Options.directive_defaults['autotestdict'] = False

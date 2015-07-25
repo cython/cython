@@ -1,4 +1,3 @@
-lib2to3.fixes.fix_dict
 lib2to3.fixes.fix_future
 lib2to3.fixes.fix_imports
 lib2to3.fixes.fix_isinstance

@@ -145,12 +145,11 @@ def cython_inline(code,
             # Parsing from strings not fully supported (e.g. cimports).
             print("Could not parse code as a string (to extract unbound symbols).")
     cimports = []
-    for name, arg in kwds.items():
+    for name, arg in list(kwds.items()):
         if arg is cython_module:
             cimports.append('\ncimport cython as %s' % name)
             del kwds[name]
-    arg_names = kwds.keys()
-    arg_names.sort()
+    arg_names = sorted(kwds.keys())
     arg_sigs = tuple([(get_type(kwds[arg], ctx), arg) for arg in arg_names])
     key = orig_code, arg_sigs, sys.version_info, sys.executable, Cython.__version__
     module_name = "_cython_inline_" + hashlib.md5(str(key).encode('utf-8')).hexdigest()
@@ -282,7 +281,7 @@ except ImportError:
         if kwds is not None:
             all[kwds] = kwd_values
         elif kwd_values:
-            raise TypeError("Unexpected keyword arguments: %s" % kwd_values.keys())
+            raise TypeError("Unexpected keyword arguments: %s" % list(kwd_values.keys()))
         if defaults is None:
             defaults = ()
         first_default = len(args) - len(defaults)

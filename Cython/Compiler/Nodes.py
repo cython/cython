@@ -1940,7 +1940,7 @@ class FuncDefNode(StatNode, BlockNode):
             # Clean up buffers -- this calls a Python function
             # so need to save and restore error state
             buffers_present = len(lenv.buffer_entries) > 0
-            memslice_entries = [e for e in lenv.entries.itervalues()
+            memslice_entries = [e for e in lenv.entries.values()
                                       if e.type.is_memoryviewslice]
             if buffers_present:
                 code.globalstate.use_utility_code(restore_exception_utility_code)
@@ -7663,7 +7663,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         else:
             self.kwargs = {}
 
-        for kw, val in self.kwargs.iteritems():
+        for kw, val in self.kwargs.items():
             if kw not in self.valid_keyword_arguments:
                 error(self.pos, "Invalid keyword argument: %s" % kw)
             else:
@@ -7704,7 +7704,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         This should be called in a post-order fashion during the
         analyse_expressions phase
         """
-        for entry, (pos, op) in self.assignments.iteritems():
+        for entry, (pos, op) in self.assignments.items():
 
             if self.is_prange and not self.is_parallel:
                 # closely nested prange in a with parallel block, disallow
@@ -7821,7 +7821,7 @@ class ParallelStatNode(StatNode, ParallelNode):
     def initialize_privates_to_nan(self, code, exclude=None):
         first = True
 
-        for entry, (op, lastprivate) in self.privates.iteritems():
+        for entry, (op, lastprivate) in self.privates.items():
             if not op and (not exclude or entry != exclude):
                 invalid_value = entry.type.invalid_value()
 
@@ -8083,7 +8083,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         c = self.begin_of_parallel_control_block_point
 
         temp_count = 0
-        for entry, (op, lastprivate) in self.privates.iteritems():
+        for entry, (op, lastprivate) in self.privates.items():
             if not lastprivate or entry.type.is_pyobject:
                 continue
 
@@ -8612,7 +8612,7 @@ class ParallelRangeNode(ParallelStatNode):
                 code.putln("#ifdef _OPENMP")
             code.put("#pragma omp for")
 
-        for entry, (op, lastprivate) in self.privates.iteritems():
+        for entry, (op, lastprivate) in self.privates.items():
             # Don't declare the index variable as a reduction
             if op and op in "+*-&^|" and entry != self.target.entry:
                 if entry.type.is_pyobject:
@@ -8732,7 +8732,7 @@ class CnameDecoratorNode(StatNode):
 
             scope.scope_prefix = self.cname + "_"
 
-            for name, entry in scope.entries.iteritems():
+            for name, entry in scope.entries.items():
                 if entry.func_cname:
                     entry.func_cname = self.mangle(entry.cname)
                 if entry.pyfunc_cname:
