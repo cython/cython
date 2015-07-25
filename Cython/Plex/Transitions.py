@@ -6,7 +6,10 @@
 
 from __future__ import absolute_import
 
-from sys import maxint as maxint
+try:
+    from sys import maxsize as maxint
+except ImportError:
+    from sys import maxint
 
 
 class TransitionMap(object):
