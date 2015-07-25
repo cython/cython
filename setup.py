@@ -201,7 +201,7 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
                 def build_extension(self, ext, *args, **kargs):
                     try:
                         build_ext_orig.build_extension(self, ext, *args, **kargs)
-                    except StandardError:
+                    except Exception:
                         print("Compilation of '%s' failed" % ext.sources[0])
             from Cython.Compiler.Main import compile
             from Cython import Utils
