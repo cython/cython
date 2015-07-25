@@ -15,7 +15,11 @@ from .TypeSlots import \
     pyfunction_signature, pymethod_signature, \
     get_special_method_signature, get_property_accessor_signature
 from . import Code
-import __builtin__ as builtins
+
+try:
+    import builtins
+except:
+    import __builtin__ as builtins
 
 iso_c99_keywords = set(
 ['auto', 'break', 'case', 'char', 'const', 'continue', 'default', 'do',

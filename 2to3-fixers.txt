@@ -1,4 +1,3 @@
-lib2to3.fixes.fix_imports
 lib2to3.fixes.fix_long
 lib2to3.fixes.fix_metaclass
 lib2to3.fixes.fix_raise
