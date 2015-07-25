@@ -45,3 +45,11 @@ public:
     BIN_OP(());
 
 };
+
+class TruthClass {
+public:
+  TruthClass() : value(false) {}
+  TruthClass(bool value) : value(value) {}
+  operator bool() { return value; }
+  bool value;
+};

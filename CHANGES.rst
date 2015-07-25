@@ -68,6 +68,8 @@ Features added
 * External C++ classes that overload the assignment operator can be used.
   Patch by Ian Henriksen.
 
+* Support operator bool() for C++ classes so they can be used in if statements.
+
 Bugs fixed
 ----------
 
