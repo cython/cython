@@ -79,23 +79,23 @@ at that spot and get a new StringIOTree object that is "left behind".
 EXAMPLE:
 
 >>> a = StringIOTree()
->>> a.write('first\n')
+>>> _= a.write('first\n')
 >>> b = a.insertion_point()
->>> a.write('third\n')
->>> b.write('second\n')
+>>> _= a.write('third\n')
+>>> _= b.write('second\n')
 >>> a.getvalue().split()
 ['first', 'second', 'third']
 
 >>> c = b.insertion_point()
 >>> d = c.insertion_point()
->>> d.write('alpha\n')
->>> b.write('gamma\n')
->>> c.write('beta\n')
+>>> _= d.write('alpha\n')
+>>> _= b.write('gamma\n')
+>>> _= c.write('beta\n')
 >>> b.getvalue().split()
 ['second', 'alpha', 'beta', 'gamma']
 >>> i = StringIOTree()
 >>> d.insert(i)
->>> i.write('inserted\n')
+>>> _= i.write('inserted\n')
 >>> out = StringIO()
 >>> a.copyto(out)
 >>> out.getvalue().split()

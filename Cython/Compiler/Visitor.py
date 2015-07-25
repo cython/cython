@@ -57,7 +57,7 @@ class TreeVisitor(object):
     >>> tree = SampleNode(0, SampleNode(1), [SampleNode(2), SampleNode(3)])
     >>> class MyVisitor(TreeVisitor):
     ...     def visit_SampleNode(self, node):
-    ...         print("in %s %s" % (node.value, self.access_path)
+    ...         print("in %s %s" % (node.value, self.access_path))
     ...         self.visitchildren(node)
     ...         print("out %s" % node.value)
     ...

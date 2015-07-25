@@ -1303,7 +1303,7 @@ def collect_doctests(path, module_prefix, suite, selectors, exclude_selectors):
     def package_matches(dirname):
         if dirname == 'Debugger' and not include_debugger:
             return False
-        return dirname not in ("Mac", "Distutils", "Plex")
+        return dirname not in ("Mac", "Distutils", "Plex", "Tempita")
     def file_matches(filename):
         filename, ext = os.path.splitext(filename)
         blacklist = ['libcython', 'libpython', 'test_libcython_in_gdb',
@@ -1766,7 +1766,6 @@ def main():
     WORKDIR = os.path.abspath(options.work_dir)
 
     if sys.version_info[0] >= 3:
-        options.doctests = False
         if options.with_cython:
             sys.path.insert(0, options.cython_dir)
             try:
