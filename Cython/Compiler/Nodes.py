@@ -4912,7 +4912,7 @@ class SingleAssignmentNode(AssignmentNode):
             op = env.lookup_operator_for_types(self.pos, '=', [self.lhs.type, self.rhs.type])
             if op:
                 rhs = self.rhs
-                self.is_overloaded_assignment = 1
+                self.is_overloaded_assignment = True
             else:
                 rhs = self.rhs.coerce_to(dtype, env)
         else:
@@ -5064,11 +5064,8 @@ class SingleAssignmentNode(AssignmentNode):
         self.rhs.generate_evaluation_code(code)
 
     def generate_assignment_code(self, code):
-        if self.is_overloaded_assignment:
-            self.lhs.generate_assignment_code(self.rhs, code, overloaded_assignment=True)
-        else:
-            self.lhs.generate_assignment_code(self.rhs, code)
-
+        self.lhs.generate_assignment_code(
+            self.rhs, code, overloaded_assignment=self.is_overloaded_assignment)
 
     def generate_function_definitions(self, env, code):
         self.rhs.generate_function_definitions(env, code)
@@ -5134,24 +5131,14 @@ class CascadedAssignmentNode(AssignmentNode):
         coerced_values = {}
         self.assignment_overloads = []
         for lhs in self.lhs_list:
-            overloaded = False
-            if lhs.type.is_cpp_class:
-                op = env.lookup_operator('=', [lhs, self.rhs])
-                if op:
-                    rhs = self.rhs
-                    self.assignment_overloads.append(True)
-                    overloaded = True
-                else:
-                    self.assignment_overloads.append(False)
-            else:
-                self.assignment_overloads.append(False)
+            overloaded = lhs.type.is_cpp_class and env.lookup_operator('=', [lhs, self.rhs])
+            self.assignment_overloads.append(overloaded)
             if lhs.type not in coerced_values and lhs.type != rhs.type:
+                rhs = CloneNode(self.rhs)
                 if not overloaded:
-                    rhs = CloneNode(self.rhs).coerce_to(lhs.type, env)
+                    rhs = rhs.coerce_to(lhs.type, env)
                 self.coerced_values.append(rhs)
                 coerced_values[lhs.type] = rhs
-            else:
-                self.assignment_overloads.append(False)
 
         # clone coerced values for all LHS assignments
         self.cloned_values = []
