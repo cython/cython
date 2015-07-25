@@ -153,5 +153,5 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0,
 
 if __name__=="__main__":
     pyx_to_dll("dummy.pyx")
-    import test
+    from . import test
 
