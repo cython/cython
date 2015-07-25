@@ -1,4 +1,4 @@
-from cStringIO import StringIO
+from io import StringIO
 
 
 class StringIOTree(object):

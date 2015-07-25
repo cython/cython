@@ -9,7 +9,7 @@ Support for parsing strings into code trees.
 from __future__ import absolute_import
 
 import re
-from StringIO import StringIO
+from io import StringIO
 
 from .Scanning import PyrexScanner, StringSourceDescriptor
 from .Symtab import ModuleScope

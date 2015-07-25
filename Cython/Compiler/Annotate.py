@@ -11,7 +11,7 @@ from datetime import datetime
 from functools import partial
 from collections import defaultdict
 from xml.sax.saxutils import escape as html_escape
-from StringIO import StringIO
+from io import StringIO
 
 from . import Version
 from .Code import CCodeWriter

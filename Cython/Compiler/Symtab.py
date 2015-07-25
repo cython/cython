@@ -6,6 +6,12 @@ from __future__ import absolute_import
 
 import copy
 import re
+
+try:
+    import __builtin__ as builtins
+except ImportError:  # Py3
+    import builtins
+
 from .Errors import warning, error, InternalError
 from .StringEncoding import EncodedString
 from . import Options, Naming
@@ -14,8 +20,8 @@ from .PyrexTypes import py_object_type, unspecified_type
 from .TypeSlots import \
     pyfunction_signature, pymethod_signature, \
     get_special_method_signature, get_property_accessor_signature
+
 from . import Code
-import __builtin__ as builtins
 
 iso_c99_keywords = set(
 ['auto', 'break', 'case', 'char', 'const', 'continue', 'default', 'do',

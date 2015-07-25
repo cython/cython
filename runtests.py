@@ -23,20 +23,12 @@ except (ImportError, AttributeError):
     IS_CPYTHON = True
     IS_PYPY = False
 
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+from io import StringIO, open as io_open
 
 try:
     import cPickle as pickle
 except ImportError:
     import pickle
-
-try:
-    from io import open as io_open
-except ImportError:
-    from codecs import open as io_open
 
 try:
     import threading

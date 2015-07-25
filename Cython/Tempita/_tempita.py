@@ -29,6 +29,8 @@ can use ``__name='tmpl.html'`` to set the name of the template.
 If there are syntax errors ``TemplateError`` will be raised.
 """
 
+from __future__ import absolute_import
+
 import re
 import sys
 import cgi
@@ -38,12 +40,10 @@ except ImportError:  # Py3
     from urllib.parse import quote as url_quote
 import os
 import tokenize
-try:
-    from io import StringIO
-except ImportError:
-    from cStringIO import StringIO
-from Cython.Tempita._looper import looper
-from Cython.Tempita.compat3 import bytes, basestring_, next, is_unicode, coerce_text
+from io import StringIO
+
+from ._looper import looper
+from .compat3 import bytes, basestring_, next, is_unicode, coerce_text
 
 __all__ = ['TemplateError', 'Template', 'sub', 'HTMLTemplate',
            'sub_html', 'html', 'bunch']
