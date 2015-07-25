@@ -163,7 +163,7 @@ distutils_settings = {
     'language':             transitive_str,
 }
 
-@cython.locals(start=long, end=long)
+@cython.locals(start=cython.Py_ssize_t, end=cython.Py_ssize_t)
 def line_iter(source):
     if isinstance(source, basestring):
         start = 0
@@ -254,8 +254,10 @@ class DistutilsInfo(object):
                 value = getattr(extension, key) + list(value)
             setattr(extension, key, value)
 
-@cython.locals(start=long, q=long, single_q=long, double_q=long, hash_mark=long,
-               end=long, k=long, counter=long, quote_len=long)
+@cython.locals(start=cython.Py_ssize_t, q=cython.Py_ssize_t,
+               single_q=cython.Py_ssize_t, double_q=cython.Py_ssize_t,
+               hash_mark=cython.Py_ssize_t, end=cython.Py_ssize_t,
+               k=cython.Py_ssize_t, counter=cython.Py_ssize_t, quote_len=cython.Py_ssize_t)
 def strip_string_literals(code, prefix='__Pyx_L'):
     """
     Normalizes every string literal to be of the form '__Pyx_Lxxx',

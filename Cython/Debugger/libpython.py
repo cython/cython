@@ -269,7 +269,7 @@ class PyObjectPtr(object):
         return PyTypeObjectPtr(self.field('ob_type'))
 
     def is_null(self):
-        return 0 == long(self._gdbval)
+        return 0 == int(self._gdbval)
 
     def is_optimized_out(self):
         '''
@@ -330,7 +330,7 @@ class PyObjectPtr(object):
                 return '<%s at remote 0x%x>' % (self.tp_name, self.address)
 
         return FakeRepr(self.safe_tp_name(),
-                        long(self._gdbval))
+                        int(self._gdbval))
 
     def write_repr(self, out, visited):
         '''
@@ -432,7 +432,7 @@ class PyObjectPtr(object):
         return gdb.lookup_type(cls._typename).pointer()
 
     def as_address(self):
-        return long(self._gdbval)
+        return int(self._gdbval)
 
 
 class PyVarObjectPtr(PyObjectPtr):
@@ -553,7 +553,7 @@ class PyTypeObjectPtr(PyObjectPtr):
         tp_name = self.safe_tp_name()
 
         # New-style class:
-        return InstanceProxy(tp_name, attr_dict, long(self._gdbval))
+        return InstanceProxy(tp_name, attr_dict, int(self._gdbval))
 
     def write_repr(self, out, visited):
         # Guard against infinite loops:
@@ -751,7 +751,7 @@ class PyInstanceObjectPtr(PyObjectPtr):
         in_dict = self.pyop_field('in_dict').proxyval(visited)
 
         # Old-style class:
-        return InstanceProxy(cl_name, in_dict, long(self._gdbval))
+        return InstanceProxy(cl_name, in_dict, int(self._gdbval))
 
     def write_repr(self, out, visited):
         # Guard against infinite loops:
@@ -836,9 +836,9 @@ class PyLongObjectPtr(PyObjectPtr):
             #define PyLong_SHIFT        30
             #define PyLong_SHIFT        15
         '''
-        ob_size = long(self.field('ob_size'))
+        ob_size = int(self.field('ob_size'))
         if ob_size == 0:
-            return long(0)
+            return int(0)
 
         ob_digit = self.field('ob_digit')
 
@@ -971,7 +971,7 @@ class PyFrameObjectPtr(PyObjectPtr):
         if self.is_optimized_out():
             return None
         f_trace = self.field('f_trace')
-        if long(f_trace) != 0:
+        if int(f_trace) != 0:
             # we have a non-NULL f_trace:
             return self.f_lineno
         else:
@@ -1203,7 +1203,7 @@ class PyUnicodeObjectPtr(PyObjectPtr):
         # From unicodeobject.h:
         #     Py_ssize_t length;  /* Length of raw Unicode data in buffer */
         #     Py_UNICODE *str;    /* Raw Unicode buffer */
-        field_length = long(self.field('length'))
+        field_length = int(self.field('length'))
         field_str = self.field('str')
 
         # Gather a list of ints from the Py_UNICODE array; these are either
@@ -2321,11 +2321,11 @@ def _pointervalue(gdbval):
     """
     # don't convert with int() as it will raise a RuntimeError
     if gdbval.address is not None:
-        return long(gdbval.address)
+        return int(gdbval.address)
     else:
         # the address attribute is None sometimes, in which case we can
         # still convert the pointer to an int
-        return long(gdbval)
+        return int(gdbval)
 
 
 def pointervalue(gdbval):
@@ -2517,7 +2517,7 @@ class FixGdbCommand(gdb.Command):
         warnings.filterwarnings('ignore', r'.*', RuntimeWarning,
                                 re.escape(__name__))
         try:
-            long(gdb.parse_and_eval("(void *) 0")) == 0
+            int(gdb.parse_and_eval("(void *) 0")) == 0
         except RuntimeError:
             pass
         # warnings.resetwarnings()

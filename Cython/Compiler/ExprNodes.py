@@ -13,10 +13,11 @@ cython.declare(error=object, warning=object, warn_once=object, InternalError=obj
                unicode_type=object, str_type=object, bytes_type=object, type_type=object,
                Builtin=object, Symtab=object, Utils=object, find_coercion_error=object,
                debug_disposal_code=object, debug_temp_alloc=object, debug_coercion=object,
-               bytearray_type=object, slice_type=object)
+               bytearray_type=object, slice_type=object, _py_int_types=object)
 
-import os.path
+import sys
 import copy
+import os.path
 import operator
 
 from .Errors import error, warning, warn_once, InternalError, CompileError
@@ -50,6 +51,12 @@ try:
     from builtins import bytes
 except ImportError:
     bytes = str # Python 2
+
+
+if sys.version_info[0] >= 3:
+    _py_int_types = int
+else:
+    _py_int_types = (int, long)
 
 
 class NotConstant(object):
@@ -123,8 +130,9 @@ def check_negative_indices(*nodes):
     Used to find (potential) bugs inside of "wraparound=False" sections.
     """
     for node in nodes:
-        if (node is None
-                or not isinstance(node.constant_result, (int, float, long))):
+        if node is None or (
+                not isinstance(node.constant_result, _py_int_types) and
+                not isinstance(node.constant_result, float)):
             continue
         if node.constant_result < 0:
             warning(node.pos,
@@ -2466,7 +2474,7 @@ class IteratorNode(ExprNode):
             item_count = len(self.sequence.args)
             if self.sequence.mult_factor is None:
                 final_size = item_count
-            elif isinstance(self.sequence.mult_factor.constant_result, (int, long)):
+            elif isinstance(self.sequence.mult_factor.constant_result, _py_int_types):
                 final_size = item_count * self.sequence.mult_factor.constant_result
         code.putln("if (%s >= %s) break;" % (self.counter_cname, final_size))
         if self.reversed:
@@ -3609,7 +3617,7 @@ class IndexNode(ExprNode):
             wraparound = (
                 bool(code.globalstate.directives['wraparound']) and
                 self.original_index_type.signed and
-                not (isinstance(self.index.constant_result, (int, long))
+                not (isinstance(self.index.constant_result, _py_int_types)
                      and self.index.constant_result >= 0))
             boundscheck = bool(code.globalstate.directives['boundscheck'])
             return ", %s, %d, %s, %d, %d, %d" % (
@@ -4336,7 +4344,7 @@ class SliceIndexNode(ExprNode):
                         start = '%s + %d' % (self.base.type.size, start)
                     else:
                         start += total_length
-                if isinstance(slice_size, (int, long)):
+                if isinstance(slice_size, _py_int_types):
                     slice_size -= start
                 else:
                     slice_size = '%s - (%s)' % (slice_size, start)
@@ -4351,7 +4359,7 @@ class SliceIndexNode(ExprNode):
         except ValueError:
             int_target_size = None
         else:
-            compile_time_check = isinstance(slice_size, (int, long))
+            compile_time_check = isinstance(slice_size, _py_int_types)
 
         if compile_time_check and slice_size < 0:
             if int_target_size > 0:
@@ -6443,8 +6451,8 @@ class SequenceNode(ExprNode):
             mult_factor = self.mult_factor
             if mult_factor.type.is_int:
                 c_mult = mult_factor.result()
-                if isinstance(mult_factor.constant_result, (int,long)) \
-                       and mult_factor.constant_result > 0:
+                if (isinstance(mult_factor.constant_result, _py_int_types) and
+                        mult_factor.constant_result > 0):
                     size_factor = ' * %s' % mult_factor.constant_result
                 elif mult_factor.type.signed:
                     size_factor = ' * ((%s<0) ? 0:%s)' % (c_mult, c_mult)
@@ -6870,7 +6878,8 @@ class TupleNode(SequenceNode):
         if not all(child.is_literal for child in node.args):
             return node
         if not node.mult_factor or (
-                node.mult_factor.is_literal and isinstance(node.mult_factor.constant_result, (int, long))):
+                node.mult_factor.is_literal and
+                isinstance(node.mult_factor.constant_result, _py_int_types)):
             node.is_temp = False
             node.is_literal = True
         else:
@@ -7002,7 +7011,7 @@ class ListNode(SequenceNode):
         elif (dst_type.is_array or dst_type.is_ptr) and dst_type.base_type is not PyrexTypes.c_void_type:
             array_length = len(self.args)
             if self.mult_factor:
-                if isinstance(self.mult_factor.constant_result, (int, long)):
+                if isinstance(self.mult_factor.constant_result, _py_int_types):
                     if self.mult_factor.constant_result <= 0:
                         error(self.pos, "Cannot coerce non-positively multiplied list to '%s'" % dst_type)
                     else:
@@ -10230,7 +10239,7 @@ class DivNode(NumBinopNode):
         func = compile_time_binary_operators[self.operator]
         if self.operator == '/' and self.truedivision is None:
             # => true div for floats, floor div for integers
-            if isinstance(op1, (int,long)) and isinstance(op2, (int,long)):
+            if isinstance(op1, _py_int_types) and isinstance(op2, _py_int_types):
                 func = compile_time_binary_operators['//']
         return func
 
@@ -10515,7 +10524,7 @@ class PowNode(NumBinopNode):
     def py_operation_function(self, code):
         if (self.type.is_pyobject and
                 self.operand1.constant_result == 2 and
-                isinstance(self.operand1.constant_result, (int, long)) and
+                isinstance(self.operand1.constant_result, _py_int_types) and
                 self.operand2.type is py_object_type):
             code.globalstate.use_utility_code(UtilityCode.load_cached('PyNumberPow2', 'Optimize.c'))
             if self.inplace:

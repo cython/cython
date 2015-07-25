@@ -6,6 +6,7 @@
 
 from __future__ import absolute_import
 
+import sys
 import inspect
 
 from . import TypeSlots
@@ -17,6 +18,14 @@ from . import DebugFlags
 from . import Future
 
 import cython
+
+
+cython.declare(_PRINTABLE=tuple)
+
+if sys.version_info >= 3:
+    _PRINTABLE = (bytes, str, int, float)
+else:
+    _PRINTABLE = (str, unicode, long, int, float)
 
 
 class TreeVisitor(object):
@@ -94,7 +103,7 @@ class TreeVisitor(object):
                 continue
             elif isinstance(value, list):
                 value = u'[...]/%d' % len(value)
-            elif not isinstance(value, (str, unicode, long, int, float)):
+            elif not isinstance(value, _PRINTABLE):
                 continue
             else:
                 value = repr(value)

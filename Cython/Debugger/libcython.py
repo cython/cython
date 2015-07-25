@@ -405,7 +405,7 @@ class CythonBase(object):
             # Closed over free variable
             if cur_lineno > cython_func.lineno:
                 if cyvar.type == PythonObject:
-                    return long(gdb.parse_and_eval(cyvar.cname))
+                    return int(gdb.parse_and_eval(cyvar.cname))
                 return True
             return False
 

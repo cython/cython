@@ -10,10 +10,15 @@ cython.declare(sys=object, os=object, copy=object,
                py_object_type=object, ModuleScope=object, LocalScope=object, ClosureScope=object,
                StructOrUnionScope=object, PyClassScope=object,
                CppClassScope=object, UtilityCode=object, EncodedString=object,
-               absolute_path_length=cython.Py_ssize_t, error_type=object)
+               absolute_path_length=cython.Py_ssize_t, error_type=object, _py_int_types=object)
 
 import sys, os, copy
 from itertools import chain
+
+if sys.version_info[0] >= 3:
+    _py_int_types = int
+else:
+    _py_int_types = (int, long)
 
 from . import Builtin
 from .Errors import error, warning, InternalError, CompileError
@@ -4951,7 +4956,7 @@ class SingleAssignmentNode(AssignmentNode):
                     if node.type.is_array and node.type.size:
                         stop_node = ExprNodes.IntNode(
                             self.pos, value=str(node.type.size),
-                            constant_result=(node.type.size if isinstance(node.type.size, (int, long))
+                            constant_result=(node.type.size if isinstance(node.type.size, _py_int_types)
                                              else ExprNodes.constant_value_not_set))
                     else:
                         error(self.pos, "C array iteration requires known end index")
@@ -4977,7 +4982,7 @@ class SingleAssignmentNode(AssignmentNode):
 
             elif node.type.is_array:
                 slice_size = node.type.size
-                if not isinstance(slice_size, (int, long)):
+                if not isinstance(slice_size, _py_int_types):
                     return  # might still work when coercing to Python
             else:
                 return
