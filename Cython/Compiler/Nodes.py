@@ -4784,12 +4784,14 @@ class SingleAssignmentNode(AssignmentNode):
     #
     #    a = b
     #
-    #  lhs      ExprNode      Left hand side
-    #  rhs      ExprNode      Right hand side
-    #  first    bool          Is this guaranteed the first assignment to lhs?
+    #  lhs                      ExprNode      Left hand side
+    #  rhs                      ExprNode      Right hand side
+    #  first                    bool          Is this guaranteed the first assignment to lhs?
+    #  is_overloaded_assignment bool          Is this assignment done via an overloaded operator=
 
     child_attrs = ["lhs", "rhs"]
     first = False
+    is_overloaded_assignment = False
     declaration_only = False
 
     def analyse_declarations(self, env):
@@ -4906,7 +4908,15 @@ class SingleAssignmentNode(AssignmentNode):
         else:
             dtype = self.lhs.type
 
-        rhs = self.rhs.coerce_to(dtype, env)
+        if self.lhs.type.is_cpp_class:
+            op = env.lookup_operator_for_types(self.pos, '=', [self.lhs.type, self.rhs.type])
+            if op:
+                rhs = self.rhs
+                self.is_overloaded_assignment = 1
+            else:
+                rhs = self.rhs.coerce_to(dtype, env)
+        else:
+            rhs = self.rhs.coerce_to(dtype, env)
         if use_temp or rhs.is_attribute or (
                 not rhs.is_name and not rhs.is_literal and
                 rhs.type.is_pyobject):
@@ -5054,7 +5064,11 @@ class SingleAssignmentNode(AssignmentNode):
         self.rhs.generate_evaluation_code(code)
 
     def generate_assignment_code(self, code):
-        self.lhs.generate_assignment_code(self.rhs, code)
+        if self.is_overloaded_assignment:
+            self.lhs.generate_assignment_code(self.rhs, code, overloaded_assignment=True)
+        else:
+            self.lhs.generate_assignment_code(self.rhs, code)
+
 
     def generate_function_definitions(self, env, code):
         self.rhs.generate_function_definitions(env, code)
@@ -5074,12 +5088,14 @@ class CascadedAssignmentNode(AssignmentNode):
     #
     #  Used internally:
     #
-    #  coerced_values     [ExprNode]   RHS coerced to all distinct LHS types
-    #  cloned_values      [ExprNode]   cloned RHS value for each LHS
+    #  coerced_values       [ExprNode]   RHS coerced to all distinct LHS types
+    #  cloned_values        [ExprNode]   cloned RHS value for each LHS
+    #  assignment_overloads [Bool]       If each assignment uses a C++ operator=
 
     child_attrs = ["lhs_list", "rhs", "coerced_values", "cloned_values"]
     cloned_values = None
     coerced_values = None
+    assignment_overloads = None
 
     def analyse_declarations(self, env):
         for lhs in self.lhs_list:
@@ -5096,9 +5112,15 @@ class CascadedAssignmentNode(AssignmentNode):
             lhs_types.add(lhs.type)
 
         rhs = self.rhs.analyse_types(env)
+        # common special case: only one type needed on the LHS => coerce only once
         if len(lhs_types) == 1:
-            # common special case: only one type needed on the LHS => coerce only once
-            rhs = rhs.coerce_to(lhs_types.pop(), env)
+            # Avoid coercion for overloaded assignment operators.
+            if next(iter(lhs_types)).is_cpp_class:
+                op = env.lookup_operator('=', [lhs, self.rhs])
+                if not op:
+                    rhs = rhs.coerce_to(lhs_types.pop(), env)
+            else:
+                rhs = rhs.coerce_to(lhs_types.pop(), env)
 
         if not rhs.is_name and not rhs.is_literal and (
                 use_temp or rhs.is_attribute or rhs.type.is_pyobject):
@@ -5110,11 +5132,26 @@ class CascadedAssignmentNode(AssignmentNode):
         # clone RHS and coerce it to all distinct LHS types
         self.coerced_values = []
         coerced_values = {}
+        self.assignment_overloads = []
         for lhs in self.lhs_list:
+            overloaded = False
+            if lhs.type.is_cpp_class:
+                op = env.lookup_operator('=', [lhs, self.rhs])
+                if op:
+                    rhs = self.rhs
+                    self.assignment_overloads.append(True)
+                    overloaded = True
+                else:
+                    self.assignment_overloads.append(False)
+            else:
+                self.assignment_overloads.append(False)
             if lhs.type not in coerced_values and lhs.type != rhs.type:
-                rhs = CloneNode(self.rhs).coerce_to(lhs.type, env)
+                if not overloaded:
+                    rhs = CloneNode(self.rhs).coerce_to(lhs.type, env)
                 self.coerced_values.append(rhs)
                 coerced_values[lhs.type] = rhs
+            else:
+                self.assignment_overloads.append(False)
 
         # clone coerced values for all LHS assignments
         self.cloned_values = []
@@ -5131,9 +5168,9 @@ class CascadedAssignmentNode(AssignmentNode):
         for rhs in self.coerced_values:
             rhs.generate_evaluation_code(code)
         # assign clones to LHS
-        for lhs, rhs in zip(self.lhs_list, self.cloned_values):
+        for lhs, rhs, overload in zip(self.lhs_list, self.cloned_values, self.assignment_overloads):
             rhs.generate_evaluation_code(code)
-            lhs.generate_assignment_code(rhs, code)
+            lhs.generate_assignment_code(rhs, code, overloaded_assignment=overload)
         # dispose of coerced values and original RHS
         for rhs_value in self.coerced_values:
             rhs_value.generate_disposal_code(code)

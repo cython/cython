@@ -672,7 +672,7 @@ class ExprNode(Node):
         else:
             self.generate_subexpr_disposal_code(code)
 
-    def generate_assignment_code(self, rhs, code):
+    def generate_assignment_code(self, rhs, code, overloaded_assignment=False):
         #  Stub method for nodes which are not legal as
         #  the LHS of an assignment. An error will have
         #  been reported earlier.
@@ -1998,7 +1998,7 @@ class NameNode(AtomicExprNode):
             if null_code and raise_unbound and (entry.type.is_pyobject or memslice_check):
                 code.put_error_if_unbound(self.pos, entry, self.in_nogil_context)
 
-    def generate_assignment_code(self, rhs, code):
+    def generate_assignment_code(self, rhs, code, overloaded_assignment=False):
         #print "NameNode.generate_assignment_code:", self.name ###
         entry = self.entry
         if entry is None:
@@ -2088,8 +2088,11 @@ class NameNode(AtomicExprNode):
                         code.put_giveref(rhs.py_result())
             if not self.type.is_memoryviewslice:
                 if not assigned:
-                    code.putln('%s = %s;' % (
-                        self.result(), rhs.result_as(self.ctype())))
+                    if overloaded_assignment:
+                        code.putln('%s = %s;' % (self.result(), rhs.result()))
+                    else:
+                        code.putln('%s = %s;' % (
+                            self.result(), rhs.result_as(self.ctype())))
                 if debug_disposal_code:
                     print("NameNode.generate_assignment_code:")
                     print("...generating post-assignment code for %s" % rhs)
@@ -3767,7 +3770,7 @@ class IndexNode(ExprNode):
             # Simple case
             code.putln("*%s %s= %s;" % (ptrexpr, op, rhs.result()))
 
-    def generate_assignment_code(self, rhs, code):
+    def generate_assignment_code(self, rhs, code, overloaded_assignment=False):
         generate_evaluation_code = (self.is_memslice_scalar_assignment or
                                     self.memslice_slice)
         if generate_evaluation_code:
@@ -4227,7 +4230,7 @@ class SliceIndexNode(ExprNode):
                     code.error_goto_if_null(result, self.pos)))
         code.put_gotref(self.py_result())
 
-    def generate_assignment_code(self, rhs, code):
+    def generate_assignment_code(self, rhs, code, overloaded_assignment=False):
         self.generate_subexpr_evaluation_code(code)
         if self.type.is_pyobject:
             code.globalstate.use_utility_code(self.set_slice_utility_code)
@@ -6197,7 +6200,7 @@ class AttributeNode(ExprNode):
         else:
             ExprNode.generate_disposal_code(self, code)
 
-    def generate_assignment_code(self, rhs, code):
+    def generate_assignment_code(self, rhs, code, overloaded_assignment=False):
         self.obj.generate_evaluation_code(code)
         if self.is_py_attr:
             code.globalstate.use_utility_code(
@@ -6534,7 +6537,7 @@ class SequenceNode(ExprNode):
             if self.mult_factor:
                 self.mult_factor.generate_disposal_code(code)
 
-    def generate_assignment_code(self, rhs, code):
+    def generate_assignment_code(self, rhs, code, overloaded_assignment=False):
         if self.starred_assignment:
             self.generate_starred_assignment_code(rhs, code)
         else:
