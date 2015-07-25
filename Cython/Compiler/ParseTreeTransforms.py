@@ -420,11 +420,11 @@ def sort_common_subsequences(items):
     for pos, item in enumerate(items):
         key = item[1] # the ResultRefNode which has already been injected into the sequences
         new_pos = pos
-        for i in xrange(pos-1, -1, -1):
+        for i in range(pos-1, -1, -1):
             if lower_than(key, items[i][0]):
                 new_pos = i
         if new_pos != pos:
-            for i in xrange(pos, new_pos, -1):
+            for i in range(pos, new_pos, -1):
                 items[i] = items[i-1]
             items[new_pos] = item
 
@@ -460,7 +460,7 @@ def flatten_parallel_assignments(input, output):
         rhs_args = unpack_string_to_character_literals(rhs)
 
     rhs_size = len(rhs_args)
-    lhs_targets = [ [] for _ in xrange(rhs_size) ]
+    lhs_targets = [[] for _ in range(rhs_size)]
     starred_assignments = []
     for lhs in input[:-1]:
         if not lhs.is_sequence_constructor:

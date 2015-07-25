@@ -104,7 +104,7 @@ class REParser(object):
             if self.c == '-' and self.lookahead(1) != ']':
                 self.next()
                 c2 = self.get()
-                for a in xrange(ord(c1), ord(c2) + 1):
+                for a in range(ord(c1), ord(c2) + 1):
                     char_list.append(chr(a))
             else:
                 char_list.append(c1)

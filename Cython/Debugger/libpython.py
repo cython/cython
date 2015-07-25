@@ -118,7 +118,7 @@ def safety_limit(val):
 def safe_range(val):
     # As per range, but don't trust the value too much: cap it to a safety
     # threshold in case the data was corrupted
-    return xrange(safety_limit(val))
+    return range(safety_limit(val))
 
 
 def write_unicode(file, text):
