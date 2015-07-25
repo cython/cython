@@ -15,7 +15,11 @@ from .TypeSlots import \
     pyfunction_signature, pymethod_signature, \
     get_special_method_signature, get_property_accessor_signature
 from . import Code
-import __builtin__ as builtins
+
+try:
+    import builtins
+except:
+    import __builtin__ as builtins
 
 iso_c99_keywords = set(
 ['auto', 'break', 'case', 'char', 'const', 'continue', 'default', 'do',
@@ -338,7 +342,7 @@ class Scope(object):
     def merge_in(self, other, merge_unused=True, whitelist=None):
         # Use with care...
         entries = []
-        for name, entry in other.entries.iteritems():
+        for name, entry in other.entries.items():
             if not whitelist or name in whitelist:
                 if entry.used or merge_unused:
                     entries.append((name, entry))
@@ -490,7 +494,7 @@ class Scope(object):
         try:
             type = PyrexTypes.create_typedef_type(name, base_type, cname,
                                                   (visibility == 'extern'))
-        except ValueError, e:
+        except ValueError as e:
             error(pos, e.args[0])
             type = PyrexTypes.error_type
         entry = self.declare_type(name, type, pos, cname,
@@ -893,7 +897,7 @@ class BuiltinScope(Scope):
             Scope.__init__(self, "__builtin__", PreImportScope(), None)
         self.type_names = {}
 
-        for name, definition in self.builtin_entries.iteritems():
+        for name, definition in self.builtin_entries.items():
             cname, type = definition
             self.declare_var(name, type, None, cname)
 

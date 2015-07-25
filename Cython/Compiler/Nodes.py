@@ -162,7 +162,7 @@ class CheckAnalysers(type):
             def call(*args, **kwargs):
                 retval = func(*args, **kwargs)
                 if retval is None:
-                    print name, args, kwargs
+                    print(name, args, kwargs)
                 return retval
             return call
 
@@ -1037,7 +1037,7 @@ class MemoryViewSliceTypeNode(CBaseTypeNode):
 
         try:
             axes_specs = MemoryView.get_axes_specs(env, self.axes)
-        except CompileError, e:
+        except CompileError as e:
             error(e.position, e.message_only)
             self.type = PyrexTypes.ErrorType()
             return self.type
@@ -1940,7 +1940,7 @@ class FuncDefNode(StatNode, BlockNode):
             # Clean up buffers -- this calls a Python function
             # so need to save and restore error state
             buffers_present = len(lenv.buffer_entries) > 0
-            memslice_entries = [e for e in lenv.entries.itervalues()
+            memslice_entries = [e for e in lenv.entries.values()
                                       if e.type.is_memoryviewslice]
             if buffers_present:
                 code.globalstate.use_utility_code(restore_exception_utility_code)
@@ -6668,7 +6668,7 @@ class TryExceptStatNode(StatNode):
         try_end_label = code.new_label('try_end')
 
         exc_save_vars = [code.funcstate.allocate_temp(py_object_type, False)
-                         for _ in xrange(3)]
+                         for _ in range(3)]
         code.mark_pos(self.pos)
         code.putln("{")
         save_exc = code.insertion_point()
@@ -6853,7 +6853,7 @@ class ExceptClauseNode(Node):
 
         exc_vars = [code.funcstate.allocate_temp(py_object_type,
                                                  manage_ref=True)
-                    for _ in xrange(3)]
+                    for _ in range(3)]
         code.put_add_traceback(self.function_name)
         # We always have to fetch the exception value even if
         # there is no target, because this also normalises the
@@ -7644,13 +7644,13 @@ class ParallelStatNode(StatNode, ParallelNode):
 
             try:
                 self.kwargs = self.kwargs.compile_time_value(env)
-            except Exception, e:
+            except Exception as e:
                 error(self.kwargs.pos, "Only compile-time values may be "
                                        "supplied as keyword arguments")
         else:
             self.kwargs = {}
 
-        for kw, val in self.kwargs.iteritems():
+        for kw, val in self.kwargs.items():
             if kw not in self.valid_keyword_arguments:
                 error(self.pos, "Invalid keyword argument: %s" % kw)
             else:
@@ -7691,7 +7691,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         This should be called in a post-order fashion during the
         analyse_expressions phase
         """
-        for entry, (pos, op) in self.assignments.iteritems():
+        for entry, (pos, op) in self.assignments.items():
 
             if self.is_prange and not self.is_parallel:
                 # closely nested prange in a with parallel block, disallow
@@ -7808,7 +7808,7 @@ class ParallelStatNode(StatNode, ParallelNode):
     def initialize_privates_to_nan(self, code, exclude=None):
         first = True
 
-        for entry, (op, lastprivate) in self.privates.iteritems():
+        for entry, (op, lastprivate) in self.privates.items():
             if not op and (not exclude or entry != exclude):
                 invalid_value = entry.type.invalid_value()
 
@@ -8070,7 +8070,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         c = self.begin_of_parallel_control_block_point
 
         temp_count = 0
-        for entry, (op, lastprivate) in self.privates.iteritems():
+        for entry, (op, lastprivate) in self.privates.items():
             if not lastprivate or entry.type.is_pyobject:
                 continue
 
@@ -8599,7 +8599,7 @@ class ParallelRangeNode(ParallelStatNode):
                 code.putln("#ifdef _OPENMP")
             code.put("#pragma omp for")
 
-        for entry, (op, lastprivate) in self.privates.iteritems():
+        for entry, (op, lastprivate) in self.privates.items():
             # Don't declare the index variable as a reduction
             if op and op in "+*-&^|" and entry != self.target.entry:
                 if entry.type.is_pyobject:
@@ -8719,7 +8719,7 @@ class CnameDecoratorNode(StatNode):
 
             scope.scope_prefix = self.cname + "_"
 
-            for name, entry in scope.entries.iteritems():
+            for name, entry in scope.entries.items():
                 if entry.func_cname:
                     entry.func_cname = self.mangle(entry.cname)
                 if entry.pyfunc_cname:

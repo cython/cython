@@ -15,7 +15,7 @@ from . import Naming
 #
 def dumptree(t):
     # For quick debugging in pipelines
-    print t.dump()
+    print(t.dump())
     return t
 
 def abort_on_errors(node):
@@ -57,7 +57,7 @@ def generate_pyx_code_stage_factory(options, result):
 
 def inject_pxd_code_stage_factory(context):
     def inject_pxd_code_stage(module_node):
-        for name, (statlistnode, scope) in context.pxds.iteritems():
+        for name, (statlistnode, scope) in context.pxds.items():
             module_node.merge_in(statlistnode, scope)
         return module_node
     return inject_pxd_code_stage
@@ -66,7 +66,7 @@ def use_utility_code_definitions(scope, target, seen=None):
     if seen is None:
         seen = set()
 
-    for entry in scope.entries.itervalues():
+    for entry in scope.entries.values():
         if entry in seen:
             continue
 
@@ -321,21 +321,21 @@ def run_pipeline(pipeline, source, printtree=True):
                 if phase is not None:
                     if DebugFlags.debug_verbose_pipeline:
                         t = time()
-                        print "Entering pipeline phase %r" % phase
+                        print("Entering pipeline phase %r" % phase)
                     if not printtree and isinstance(phase, PrintTree):
                         continue
                     data = phase(data)
                     if DebugFlags.debug_verbose_pipeline:
-                        print "    %.3f seconds" % (time() - t)
-        except CompileError, err:
+                        print("    %.3f seconds" % (time() - t))
+        except CompileError as err:
             # err is set
             Errors.report_error(err)
             error = err
-    except InternalError, err:
+    except InternalError as err:
         # Only raise if there was not an earlier error
         if Errors.num_errors == 0:
             raise
         error = err
-    except AbortError, err:
+    except AbortError as err:
         error = err
     return (error, data)

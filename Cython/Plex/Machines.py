@@ -12,7 +12,12 @@ import sys
 
 from .Transitions import TransitionMap
 
-LOWEST_PRIORITY = -sys.maxint
+try:
+    from sys import maxsize as maxint
+except ImportError:
+    from sys import maxint
+
+LOWEST_PRIORITY = -maxint
 
 
 class Machine(object):
@@ -54,7 +59,7 @@ class Machine(object):
         file.write("Plex.Machine:\n")
         if self.initial_states is not None:
             file.write("   Initial states:\n")
-            for (name, state) in self.initial_states.iteritems():
+            for (name, state) in self.initial_states.items():
                 file.write("      '%s': %d\n" % (name, state.number))
         for s in self.states:
             s.dump(file)
@@ -145,11 +150,11 @@ class FastMachine(object):
             for old_state in old_machine.states:
                 new_state = self.new_state()
                 old_to_new[old_state] = new_state
-            for name, old_state in old_machine.initial_states.iteritems():
+            for name, old_state in old_machine.initial_states.items():
                 initial_states[name] = old_to_new[old_state]
             for old_state in old_machine.states:
                 new_state = old_to_new[old_state]
-                for event, old_state_set in old_state.transitions.iteritems():
+                for event, old_state_set in old_state.transitions.items():
                     if old_state_set:
                         new_state[event] = old_to_new[old_state_set.keys()[0]]
                     else:
@@ -172,7 +177,7 @@ class FastMachine(object):
     def make_initial_state(self, name, state):
         self.initial_states[name] = state
 
-    def add_transitions(self, state, event, new_state, maxint=sys.maxint):
+    def add_transitions(self, state, event, new_state, maxint=maxint):
         if type(event) is tuple:
             code0, code1 = event
             if code0 == -maxint:
@@ -190,7 +195,7 @@ class FastMachine(object):
     def dump(self, file):
         file.write("Plex.FastMachine:\n")
         file.write("   Initial states:\n")
-        for name, state in self.initial_states.iteritems():
+        for name, state in self.initial_states.items():
             file.write("      %s: %s\n" % (repr(name), state['number']))
         for state in self.states:
             self.dump_state(state, file)
@@ -208,7 +213,7 @@ class FastMachine(object):
     def dump_transitions(self, state, file):
         chars_leading_to_state = {}
         special_to_state = {}
-        for (c, s) in state.iteritems():
+        for (c, s) in state.items():
             if len(c) == 1:
                 chars = chars_leading_to_state.get(id(s), None)
                 if chars is None:

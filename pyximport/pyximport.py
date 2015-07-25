@@ -177,7 +177,7 @@ def build_module(name, pyxfilename, pyxbuild_dir=None, inplace=False, language_l
     sargs.update(setup_args)
     build_in_temp=sargs.pop('build_in_temp',build_in_temp)
 
-    import pyxbuild
+    from . import pyxbuild
     so_path = pyxbuild.pyx_to_dll(pyxfilename, extension_mod,
                                   build_in_temp=build_in_temp,
                                   pyxbuild_dir=pyxbuild_dir,

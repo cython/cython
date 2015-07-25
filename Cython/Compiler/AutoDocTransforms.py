@@ -70,7 +70,7 @@ class EmbedSignature(CythonTransform):
         except Exception:
             try:
                 return self._fmt_expr_node(default_val)
-            except AttributeError, e:
+            except AttributeError as e:
                 return '<???>'
 
     def _fmt_arg(self, arg):

@@ -36,7 +36,7 @@ def print_on_call_decorator(func):
 
         try:
             return func(self, *args, **kwargs)
-        except Exception, e:
+        except Exception as e:
             _debug("An exception occurred:", traceback.format_exc(e))
             raise
 
@@ -45,7 +45,7 @@ def print_on_call_decorator(func):
 class TraceMethodCallMeta(type):
 
     def __init__(self, name, bases, dict):
-        for func_name, func in dict.iteritems():
+        for func_name, func in dict.items():
             if inspect.isfunction(func):
                 setattr(self, func_name, print_on_call_decorator(func))
 

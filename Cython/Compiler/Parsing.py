@@ -3329,7 +3329,7 @@ def p_compiler_directive_comments(s):
             try:
                 result.update(Options.parse_directive_list(
                     directives, ignore_unknown=True))
-            except ValueError, e:
+            except ValueError as e:
                 s.error(e.args[0], fatal=False)
         s.next()
     return result
@@ -3447,7 +3447,7 @@ def print_parse_tree(f, node, level, key = None):
         t = type(node)
         if t is tuple:
             f.write("(%s @ %s\n" % (node[0], node[1]))
-            for i in xrange(2, len(node)):
+            for i in range(2, len(node)):
                 print_parse_tree(f, node[i], level+1)
             f.write("%s)\n" % ind)
             return
@@ -3463,7 +3463,7 @@ def print_parse_tree(f, node, level, key = None):
             return
         elif t is list:
             f.write("[\n")
-            for i in xrange(len(node)):
+            for i in range(len(node)):
                 print_parse_tree(f, node[i], level+1)
             f.write("%s]\n" % ind)
             return

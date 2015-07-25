@@ -12,6 +12,11 @@ from contextlib import contextmanager
 
 modification_time = os.path.getmtime
 
+try:
+    basestring
+except NameError:
+    basestring = str
+
 
 def cached_function(f):
     cache = {}

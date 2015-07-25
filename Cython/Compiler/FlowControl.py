@@ -259,7 +259,7 @@ class ControlFlow(object):
             for entry in block.bounded:
                 block.i_kill |= self.assmts[entry].bit
 
-        for assmts in self.assmts.itervalues():
+        for assmts in self.assmts.values():
             self.entry_point.i_gen |= assmts.bit
         self.entry_point.i_output = self.entry_point.i_gen
 
@@ -602,7 +602,7 @@ def check_definitions(flow, compiler_directives):
             node.cf_maybe_null = False
 
     # Find uninitialized references and cf-hints
-    for node, entry in references.iteritems():
+    for node, entry in references.items():
         if Uninitialized in node.cf_state:
             node.cf_maybe_null = True
             if not entry.from_closure and len(node.cf_state) == 1:

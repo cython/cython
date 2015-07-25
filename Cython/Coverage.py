@@ -202,7 +202,7 @@ class Plugin(CoveragePlugin):
         if self._c_files_map is None:
             self._c_files_map = {}
 
-        for filename, code in code_lines.iteritems():
+        for filename, code in code_lines.items():
             abs_path = _find_dep_file_path(c_file, filename)
             self._c_files_map[abs_path] = (c_file, filename, code)
 
@@ -264,7 +264,7 @@ class CythonModuleReporter(FileReporter):
 
     def _iter_source_tokens(self):
         current_line = 1
-        for line_no, code_line in sorted(self._code.iteritems()):
+        for line_no, code_line in sorted(self._code.items()):
             while line_no > current_line:
                 yield []
                 current_line += 1

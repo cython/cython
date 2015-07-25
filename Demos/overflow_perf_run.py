@@ -11,7 +11,7 @@ except ImportError:
 def run_tests(N):
     global f
     for func in most_orthogonal, fib, collatz, factorial:
-        print func.__name__
+        print(func.__name__)
         for type in ['int', 'unsigned int', 'long long', 'unsigned long long', 'object']:
             if func == most_orthogonal:
                 if type == 'object' or np == None:
@@ -23,15 +23,15 @@ def run_tests(N):
             else:
                 arg = N
             try:
-                print "%s[%s](%s)" % (func.__name__, type, N)
+                print("%s[%s](%s)" % (func.__name__, type, N))
                 with_overflow = my_timeit(globals()[func.__name__ + "_overflow"][type], arg)
                 no_overflow = my_timeit(func[type], arg)
-                print "\t%0.04e\t%0.04e\t%0.04f" % (no_overflow, with_overflow, with_overflow / no_overflow)
+                print("\t%0.04e\t%0.04e\t%0.04f" % (no_overflow, with_overflow, with_overflow / no_overflow))
                 if func.__name__ + "_overflow_fold" in globals():
                     with_overflow = my_timeit(globals()[func.__name__ + "_overflow_fold"][type], arg)
-                    print  "\t%0.04e\t%0.04e\t%0.04f" % (no_overflow, with_overflow, with_overflow / no_overflow), "(folded)"
+                    print("\t%0.04e\t%0.04e\t%0.04f" % (no_overflow, with_overflow, with_overflow / no_overflow), "(folded)")
             except OverflowError:
-                print "    ", "Overflow"
+                print("    ", "Overflow")
 
 def my_timeit(func, N):
     global f, arg
@@ -48,6 +48,6 @@ params = sys.argv[1:]
 if not params:
     params = [129, 9, 97]
 for arg in params:
-    print
-    print "N", arg
+    print()
+    print("N", arg)
     run_tests(int(arg))

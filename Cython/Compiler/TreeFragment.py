@@ -9,7 +9,10 @@ Support for parsing strings into code trees.
 from __future__ import absolute_import
 
 import re
-from StringIO import StringIO
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
 
 from .Scanning import PyrexScanner, StringSourceDescriptor
 from .Symtab import ModuleScope
@@ -219,7 +222,7 @@ class TreeFragment(object):
 
             fmt_code = fmt(code)
             fmt_pxds = {}
-            for key, value in pxds.iteritems():
+            for key, value in pxds.items():
                 fmt_pxds[key] = fmt(value)
             mod = t = parse_from_strings(name, fmt_code, fmt_pxds, level=level, initial_pos=initial_pos)
             if level is None:
