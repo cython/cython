@@ -6681,7 +6681,7 @@ class TryExceptStatNode(StatNode):
         try_end_label = code.new_label('try_end')
 
         exc_save_vars = [code.funcstate.allocate_temp(py_object_type, False)
-                         for _ in xrange(3)]
+                         for _ in range(3)]
         code.mark_pos(self.pos)
         code.putln("{")
         save_exc = code.insertion_point()
@@ -6866,7 +6866,7 @@ class ExceptClauseNode(Node):
 
         exc_vars = [code.funcstate.allocate_temp(py_object_type,
                                                  manage_ref=True)
-                    for _ in xrange(3)]
+                    for _ in range(3)]
         code.put_add_traceback(self.function_name)
         # We always have to fetch the exception value even if
         # there is no target, because this also normalises the

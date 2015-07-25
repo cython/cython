@@ -790,7 +790,7 @@ def validate_axes_specs(positions, specs, is_c_contig, is_f_contig):
         if access == 'ptr':
             last_indirect_dimension = idx
 
-    for idx, pos, (access, packing) in zip(xrange(len(specs)), positions, specs):
+    for (idx, (access, packing)), pos in zip(enumerate(specs), positions):
 
         if not (access in access_specs and
                 packing in packing_specs):

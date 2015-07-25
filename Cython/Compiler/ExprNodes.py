@@ -4761,7 +4761,7 @@ class SimpleCallNode(CallNode):
 
         # Coerce arguments
         some_args_in_temps = False
-        for i in xrange(min(max_nargs, actual_nargs)):
+        for i in range(min(max_nargs, actual_nargs)):
             formal_arg = func_type.args[i]
             formal_type = formal_arg.type
             arg = args[i].coerce_to(formal_type, env)
@@ -4791,7 +4791,7 @@ class SimpleCallNode(CallNode):
             args[i] = arg
 
         # handle additional varargs parameters
-        for i in xrange(max_nargs, actual_nargs):
+        for i in range(max_nargs, actual_nargs):
             arg = args[i]
             if arg.type.is_pyobject:
                 arg_ctype = arg.type.default_coerced_ctype()
@@ -4809,7 +4809,7 @@ class SimpleCallNode(CallNode):
             # sure they are either all temps or all not temps (except
             # for the last argument, which is evaluated last in any
             # case)
-            for i in xrange(actual_nargs-1):
+            for i in range(actual_nargs-1):
                 if i == 0 and self.self is not None:
                     continue # self is ok
                 arg = args[i]
@@ -5199,7 +5199,7 @@ class InlinedDefNodeCallNode(CallNode):
 
         # Coerce arguments
         some_args_in_temps = False
-        for i in xrange(actual_nargs):
+        for i in range(actual_nargs):
             formal_type = func_type.args[i].type
             arg = self.args[i].coerce_to(formal_type, env)
             if arg.is_temp:
@@ -5226,7 +5226,7 @@ class InlinedDefNodeCallNode(CallNode):
             # sure they are either all temps or all not temps (except
             # for the last argument, which is evaluated last in any
             # case)
-            for i in xrange(actual_nargs-1):
+            for i in range(actual_nargs-1):
                 arg = self.args[i]
                 if arg.nonlocally_immutable():
                     # locals, C functions, unassignable types are safe.
@@ -6495,7 +6495,7 @@ class SequenceNode(ExprNode):
             else:
                 offset = ''
 
-            for i in xrange(arg_count):
+            for i in range(arg_count):
                 arg = self.args[i]
                 if c_mult or not arg.result_in_temp():
                     code.put_incref(arg.result(), arg.ctype())
