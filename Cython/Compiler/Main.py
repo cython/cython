@@ -13,6 +13,11 @@ if sys.version_info[:2] < (2, 6) or (3, 0) <= sys.version_info[:2] < (3, 2):
     sys.stderr.write("Sorry, Cython requires Python 2.6+ or 3.2+, found %d.%d\n" % tuple(sys.version_info[:2]))
     sys.exit(1)
 
+try:
+    from __builtin__ import basestring
+except ImportError:
+    basestring = str
+
 from . import Errors
 # Do not import Parsing here, import it when needed, because Parsing imports
 # Nodes, which globally needs debug command line options initialized to set a

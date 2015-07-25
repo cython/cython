@@ -3,6 +3,13 @@
 #            anywhere else in particular
 #
 
+from __future__ import absolute_import
+
+try:
+    from __builtin__ import basestring
+except ImportError:
+    basestring = str
+
 import os
 import sys
 import re
