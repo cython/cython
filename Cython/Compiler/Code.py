@@ -128,7 +128,7 @@ class UtilityCodeBase(object):
             del tags['substitute']
             try:
                 code = Template(code).substitute(vars(Naming))
-            except (KeyError, ValueError), e:
+            except (KeyError, ValueError) as e:
                 raise RuntimeError("Error parsing templated utility code of type '%s' at line %d: %s" % (
                     type, begin_lineno, e))
 

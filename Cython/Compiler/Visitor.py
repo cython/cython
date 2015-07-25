@@ -176,7 +176,7 @@ class TreeVisitor(object):
             raise
         except Errors.AbortError:
             raise
-        except Exception, e:
+        except Exception as e:
             if DebugFlags.debug_no_exception_intercept:
                 raise
             self._raise_compiler_error(obj, e)

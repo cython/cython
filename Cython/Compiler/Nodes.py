@@ -1037,7 +1037,7 @@ class MemoryViewSliceTypeNode(CBaseTypeNode):
 
         try:
             axes_specs = MemoryView.get_axes_specs(env, self.axes)
-        except CompileError, e:
+        except CompileError as e:
             error(e.position, e.message_only)
             self.type = PyrexTypes.ErrorType()
             return self.type
@@ -7657,7 +7657,7 @@ class ParallelStatNode(StatNode, ParallelNode):
 
             try:
                 self.kwargs = self.kwargs.compile_time_value(env)
-            except Exception, e:
+            except Exception as e:
                 error(self.kwargs.pos, "Only compile-time values may be "
                                        "supplied as keyword arguments")
         else:

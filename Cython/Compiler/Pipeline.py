@@ -327,15 +327,15 @@ def run_pipeline(pipeline, source, printtree=True):
                     data = phase(data)
                     if DebugFlags.debug_verbose_pipeline:
                         print "    %.3f seconds" % (time() - t)
-        except CompileError, err:
+        except CompileError as err:
             # err is set
             Errors.report_error(err)
             error = err
-    except InternalError, err:
+    except InternalError as err:
         # Only raise if there was not an earlier error
         if Errors.num_errors == 0:
             raise
         error = err
-    except AbortError, err:
+    except AbortError as err:
         error = err
     return (error, data)

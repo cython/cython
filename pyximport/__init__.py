@@ -1,4 +1,4 @@
-from pyximport import *
+from .pyximport import *
 
 # replicate docstring
-from pyximport import __doc__
+from .pyximport import __doc__

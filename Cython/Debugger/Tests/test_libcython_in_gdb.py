@@ -36,7 +36,7 @@ def print_on_call_decorator(func):
 
         try:
             return func(self, *args, **kwargs)
-        except Exception, e:
+        except Exception as e:
             _debug("An exception occurred:", traceback.format_exc(e))
             raise
 
