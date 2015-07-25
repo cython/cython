@@ -22,6 +22,8 @@ from ..Compiler import Pipeline, Nodes
 from ..Utils import get_cython_cache_dir
 import cython as cython_module
 
+IS_PY3 = sys.version_info >= (3, 0)
+
 # A utility function to convert user-supplied ASCII strings to unicode.
 if sys.version_info[0] < 3:
     def to_unicode(s):
@@ -309,4 +311,7 @@ class RuntimeCompiledFunction(object):
 
     def __call__(self, *args, **kwds):
         all = getcallargs(self._f, *args, **kwds)
-        return cython_inline(self._body, locals=self._f.func_globals, globals=self._f.func_globals, **all)
+        if IS_PY3:
+            return cython_inline(self._body, locals=self._f.__globals__, globals=self._f.__globals__, **all)
+        else:
+            return cython_inline(self._body, locals=self._f.func_globals, globals=self._f.func_globals, **all)
