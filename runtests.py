@@ -1573,9 +1573,8 @@ def refactor_for_py3(distdir, cy3_dir):
     # need to convert Cython sources first
     import lib2to3.refactor
     from distutils.util import copydir_run_2to3
-    fixers = [ fix for fix in lib2to3.refactor.get_fixers_from_package("lib2to3.fixes")
-               if fix.split('fix_')[-1] not in ('next',)
-               ]
+    with open('2to3-fixers.txt') as f:
+        fixers = [line.strip() for line in f if line.strip()]
     if not os.path.exists(cy3_dir):
         os.makedirs(cy3_dir)
     import distutils.log as dlog

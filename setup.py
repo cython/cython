@@ -39,9 +39,8 @@ if sys.version_info[0] >= 3:
     from distutils.command.build_py \
          import build_py_2to3 as build_py
     # need to convert sources to Py3 on installation
-    fixers = [ fix for fix in lib2to3.refactor.get_fixers_from_package("lib2to3.fixes")
-               if fix.split('fix_')[-1] not in ('next',)
-               ]
+    with open('2to3-fixers.txt') as f:
+        fixers = [line.strip() for line in f if line.strip()]
     build_py.fixer_names = fixers
     add_command_class("build_py", build_py)
 
