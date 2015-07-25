@@ -2536,7 +2536,7 @@ class CFuncType(CType):
         self.is_strict_signature = is_strict_signature
 
     def __repr__(self):
-        arg_reprs = map(repr, self.args)
+        arg_reprs = list(map(repr, self.args))
         if self.has_varargs:
             arg_reprs.append("...")
         if self.exception_value:
