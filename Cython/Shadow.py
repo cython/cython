@@ -1,6 +1,10 @@
 # cython.* namespace for pure mode.
 __version__ = "0.23.beta1"
 
+try:
+    basestring
+except NameError:
+    basestring = str
 
 # BEGIN shameless copy from Cython/minivect/minitypes.py
 
