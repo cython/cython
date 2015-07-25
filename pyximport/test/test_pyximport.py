@@ -15,10 +15,10 @@ def remove_tempdir(tempdir):
     shutil.rmtree(tempdir, 0, on_remove_file_error)
 
 def on_remove_file_error(func, path, excinfo):
-    print "Sorry! Could not remove a temp file:", path
-    print "Extra information."
-    print func, excinfo
-    print "You may want to delete this yourself when you get a chance."
+    print("Sorry! Could not remove a temp file:", path)
+    print("Extra information.")
+    print(func, excinfo)
+    print("You may want to delete this yourself when you get a chance.")
 
 def test():
     pyximport._test_files = []
@@ -52,7 +52,7 @@ def make_ext(name, filename):
 
     time.sleep(1) # sleep a second to get safer mtimes
     open(os.path.join(tempdir, "abc.txt"), "w").write(" ")
-    print "Here goes the reolad"
+    print("Here goes the reolad")
     reload(dummy)
     assert len(pyximport._test_files) == 1, pyximport._test_files
 

@@ -497,7 +497,7 @@ class CodeWriter(DeclarationWriter):
 
 class PxdWriter(DeclarationWriter):
     def __call__(self, node):
-        print u'\n'.join(self.write(node).lines)
+        print(u'\n'.join(self.write(node).lines))
         return node
 
     def visit_CFuncDefNode(self, node):
