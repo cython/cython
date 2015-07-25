@@ -1,12 +1,2 @@
-lib2to3.fixes.fix_basestring
-lib2to3.fixes.fix_dict
-lib2to3.fixes.fix_future
-lib2to3.fixes.fix_imports
-lib2to3.fixes.fix_isinstance
-lib2to3.fixes.fix_itertools
-lib2to3.fixes.fix_itertools_imports
-lib2to3.fixes.fix_long
 lib2to3.fixes.fix_metaclass
-lib2to3.fixes.fix_raise
 lib2to3.fixes.fix_unicode
-lib2to3.fixes.fix_xrange
