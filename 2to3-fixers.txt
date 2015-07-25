@@ -1,7 +1,5 @@
 lib2to3.fixes.fix_basestring
 lib2to3.fixes.fix_dict
-lib2to3.fixes.fix_exec
-lib2to3.fixes.fix_execfile
 lib2to3.fixes.fix_funcattrs
 lib2to3.fixes.fix_future
 lib2to3.fixes.fix_has_key
