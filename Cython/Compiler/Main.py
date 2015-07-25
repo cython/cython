@@ -354,7 +354,7 @@ class Context(object):
                         raise RuntimeError(
                             "Formal grammer can only be used with compiled Cython with an available pgen.")
                     ConcreteSyntaxTree.p_module(source_filename)
-        except UnicodeDecodeError, e:
+        except UnicodeDecodeError as e:
             #import traceback
             #traceback.print_exc()
             raise self._report_decode_error(source_desc, e)
@@ -699,7 +699,7 @@ def main(command_line = 0):
         result = compile(sources, options)
         if result.num_errors > 0:
             any_failures = 1
-    except (EnvironmentError, PyrexError), e:
+    except (EnvironmentError, PyrexError) as e:
         sys.stderr.write(str(e) + '\n')
         any_failures = 1
     if any_failures:

@@ -2943,7 +2943,7 @@ class IndexNode(ExprNode):
         index = self.index.compile_time_value(denv)
         try:
             return base[index]
-        except Exception, e:
+        except Exception as e:
             self.compile_time_value_error(e)
 
     def is_ephemeral(self):
@@ -4023,7 +4023,7 @@ class SliceIndexNode(ExprNode):
             stop = self.stop.compile_time_value(denv)
         try:
             return base[start:stop]
-        except Exception, e:
+        except Exception as e:
             self.compile_time_value_error(e)
 
     def analyse_target_declaration(self, env):
@@ -4423,7 +4423,7 @@ class SliceNode(ExprNode):
         step = self.step.compile_time_value(denv)
         try:
             return slice(start, stop, step)
-        except Exception, e:
+        except Exception as e:
             self.compile_time_value_error(e)
 
     def may_be_none(self):
@@ -4585,7 +4585,7 @@ class SimpleCallNode(CallNode):
         args = [arg.compile_time_value(denv) for arg in self.args]
         try:
             return function(*args)
-        except Exception, e:
+        except Exception as e:
             self.compile_time_value_error(e)
 
     def analyse_as_type(self, env):
@@ -5324,7 +5324,7 @@ class GeneralCallNode(CallNode):
         keyword_args = self.keyword_args.compile_time_value(denv)
         try:
             return function(*positional_args, **keyword_args)
-        except Exception, e:
+        except Exception as e:
             self.compile_time_value_error(e)
 
     def explicit_args_kwds(self):
@@ -5545,7 +5545,7 @@ class AsTupleNode(ExprNode):
         arg = self.arg.compile_time_value(denv)
         try:
             return tuple(arg)
-        except Exception, e:
+        except Exception as e:
             self.compile_time_value_error(e)
 
     def analyse_types(self, env):
@@ -5615,7 +5615,7 @@ class MergedDictNode(ExprNode):
                     if reject_duplicates and key in result:
                         raise ValueError("duplicate keyword argument found: %s" % key)
                     result[key] = value
-            except Exception, e:
+            except Exception as e:
                 self.compile_time_value_error(e)
         return result
 
@@ -5797,7 +5797,7 @@ class AttributeNode(ExprNode):
         obj = self.obj.compile_time_value(denv)
         try:
             return getattr(obj, attr)
-        except Exception, e:
+        except Exception as e:
             self.compile_time_value_error(e)
 
     def type_dependencies(self, env):
@@ -6923,7 +6923,7 @@ class TupleNode(SequenceNode):
         values = self.compile_time_value_list(denv)
         try:
             return tuple(values)
-        except Exception, e:
+        except Exception as e:
             self.compile_time_value_error(e)
 
     def generate_operation_code(self, code):
@@ -7571,7 +7571,7 @@ class SetNode(ExprNode):
         values = [arg.compile_time_value(denv) for arg in self.args]
         try:
             return set(values)
-        except Exception, e:
+        except Exception as e:
             self.compile_time_value_error(e)
 
     def generate_evaluation_code(self, code):
@@ -7622,7 +7622,7 @@ class DictNode(ExprNode):
             for item in self.key_value_pairs]
         try:
             return dict(pairs)
-        except Exception, e:
+        except Exception as e:
             self.compile_time_value_error(e)
 
     def type_dependencies(self, env):
@@ -8960,7 +8960,7 @@ class UnopNode(ExprNode):
         operand = self.operand.compile_time_value(denv)
         try:
             return func(operand)
-        except Exception, e:
+        except Exception as e:
             self.compile_time_value_error(e)
 
     def infer_type(self, env):
@@ -9057,7 +9057,7 @@ class NotNode(UnopNode):
         operand = self.operand.compile_time_value(denv)
         try:
             return not operand
-        except Exception, e:
+        except Exception as e:
             self.compile_time_value_error(e)
 
     def infer_unop_type(self, env, operand_type):
@@ -9824,7 +9824,7 @@ class BinopNode(ExprNode):
         operand2 = self.operand2.compile_time_value(denv)
         try:
             return func(operand1, operand2)
-        except Exception, e:
+        except Exception as e:
             self.compile_time_value_error(e)
 
     def infer_type(self, env):
@@ -10249,7 +10249,7 @@ class DivNode(NumBinopNode):
             func = self.find_compile_time_binary_operator(
                 operand1, operand2)
             return func(operand1, operand2)
-        except Exception, e:
+        except Exception as e:
             self.compile_time_value_error(e)
 
     def _check_truedivision(self, env):
@@ -10924,7 +10924,7 @@ class CmpNode(object):
         operand2 = self.operand2.compile_time_value(denv)
         try:
             result = func(operand1, operand2)
-        except Exception, e:
+        except Exception as e:
             self.compile_time_value_error(e)
             result = None
         if result:

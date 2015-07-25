@@ -397,7 +397,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if target_file_dir != target_dir and not os.path.exists(target_file_dir):
                 try:
                     os.makedirs(target_file_dir)
-                except OSError, e:
+                except OSError as e:
                     import errno
                     if e.errno != errno.EEXIST:
                         raise

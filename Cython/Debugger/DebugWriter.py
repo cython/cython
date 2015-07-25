@@ -61,7 +61,7 @@ class CythonDebugWriter(object):
 
         try:
             os.makedirs(self.output_dir)
-        except OSError, e:
+        except OSError as e:
             if e.errno != errno.EEXIST:
                 raise
 

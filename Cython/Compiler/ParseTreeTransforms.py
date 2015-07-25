@@ -255,7 +255,7 @@ class PostParse(ScopeTrackingTransform):
                 newdecls.append(decl)
             node.declarators = newdecls
             return stats
-        except PostParseError, e:
+        except PostParseError as e:
             # An error in a cdef clause is ok, simply remove the declaration
             # and try to move on to report more errors
             self.context.nonfatal_error(e)

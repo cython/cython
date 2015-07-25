@@ -3329,7 +3329,7 @@ def p_compiler_directive_comments(s):
             try:
                 result.update(Options.parse_directive_list(
                     directives, ignore_unknown=True))
-            except ValueError, e:
+            except ValueError as e:
                 s.error(e.args[0], fatal=False)
         s.next()
     return result

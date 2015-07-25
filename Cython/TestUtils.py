@@ -101,7 +101,7 @@ class CythonTest(unittest.TestCase):
         try:
             func()
             self.fail("Expected an exception of type %r" % exc_type)
-        except exc_type, e:
+        except exc_type as e:
             self.assert_(isinstance(e, exc_type))
             return e
 

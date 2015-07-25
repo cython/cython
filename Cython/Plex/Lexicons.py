@@ -180,7 +180,7 @@ class Lexicon(object):
             re.build_machine(machine, initial_state, final_state,
                              match_bol=1, nocase=0)
             final_state.set_action(action, priority=-token_number)
-        except Errors.PlexError, e:
+        except Errors.PlexError as e:
             raise e.__class__("Token number %d: %s" % (token_number, e))
 
     def parse_token_definition(self, token_spec):
