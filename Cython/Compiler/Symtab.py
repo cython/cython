@@ -344,7 +344,7 @@ class Scope(object):
     def merge_in(self, other, merge_unused=True, whitelist=None):
         # Use with care...
         entries = []
-        for name, entry in other.entries.iteritems():
+        for name, entry in other.entries.items():
             if not whitelist or name in whitelist:
                 if entry.used or merge_unused:
                     entries.append((name, entry))
@@ -899,7 +899,7 @@ class BuiltinScope(Scope):
             Scope.__init__(self, "__builtin__", PreImportScope(), None)
         self.type_names = {}
 
-        for name, definition in self.builtin_entries.iteritems():
+        for name, definition in sorted(self.builtin_entries.items()):
             cname, type = definition
             self.declare_var(name, type, None, cname)
 

@@ -186,7 +186,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         entries.pop('__builtins__')
         entries.pop('__doc__')
 
-        for name, entry in entries.iteritems():
+        for name, entry in entries.items():
             entry.utility_code_definition = self
             entry.used = used
 

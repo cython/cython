@@ -774,9 +774,8 @@ class FunctionState(object):
         error case.
         """
         return [(cname, type)
-                    for (type, manage_ref), freelist in self.temps_free.items()
-                        if manage_ref
-                            for cname in freelist]
+                for (type, manage_ref), freelist in self.temps_free.items() if manage_ref
+                for cname in freelist]
 
     def start_collecting_temps(self):
         """
@@ -1303,8 +1302,7 @@ class GlobalState(object):
                 cleanup.putln("Py_CLEAR(%s.method);" % cname)
 
     def generate_string_constants(self):
-        c_consts = [ (len(c.cname), c.cname, c)
-                     for c in self.string_const_index.values() ]
+        c_consts = [(len(c.cname), c.cname, c) for c in self.string_const_index.values()]
         c_consts.sort()
         py_strings = []
 

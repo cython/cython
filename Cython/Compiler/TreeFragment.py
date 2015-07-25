@@ -219,7 +219,7 @@ class TreeFragment(object):
 
             fmt_code = fmt(code)
             fmt_pxds = {}
-            for key, value in pxds.iteritems():
+            for key, value in pxds.items():
                 fmt_pxds[key] = fmt(value)
             mod = t = parse_from_strings(name, fmt_code, fmt_pxds, level=level, initial_pos=initial_pos)
             if level is None:

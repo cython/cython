@@ -49,25 +49,22 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
         # For all buffers, insert extra variables in the scope.
         # The variables are also accessible from the buffer_info
         # on the buffer entry
-        bufvars = [entry for name, entry
-                   in scope.entries.iteritems()
-                   if entry.type.is_buffer]
+        scope_items = scope.entries.items()
+        bufvars = [entry for name, entry in scope_items if entry.type.is_buffer]
         if len(bufvars) > 0:
             bufvars.sort(key=lambda entry: entry.name)
             self.buffers_exists = True
 
-        memviewslicevars = [entry for name, entry
-                in scope.entries.iteritems()
-                if entry.type.is_memoryviewslice]
+        memviewslicevars = [entry for name, entry in scope_items if entry.type.is_memoryviewslice]
         if len(memviewslicevars) > 0:
             self.buffers_exists = True
 
 
-        for (name, entry) in scope.entries.iteritems():
+        for (name, entry) in scope_items:
             if name == 'memoryview' and isinstance(entry.utility_code_definition, CythonUtilityCode):
                 self.using_memoryview = True
                 break
-
+        del scope_items
 
         if isinstance(node, ModuleNode) and len(bufvars) > 0:
             # for now...note that pos is wrong
@@ -143,13 +140,14 @@ def analyse_buffer_options(globalpos, env, posargs, dictargs, defaults=None, nee
     if defaults is None:
         defaults = buffer_defaults
 
-    posargs, dictargs = Interpreter.interpret_compiletime_options(posargs, dictargs, type_env=env, type_args = (0,'dtype'))
+    posargs, dictargs = Interpreter.interpret_compiletime_options(
+        posargs, dictargs, type_env=env, type_args=(0, 'dtype'))
 
     if len(posargs) > buffer_positional_options_count:
         raise CompileError(posargs[-1][1], ERR_BUF_TOO_MANY)
 
     options = {}
-    for name, (value, pos) in dictargs.iteritems():
+    for name, (value, pos) in dictargs.items():
         if not name in buffer_options:
             raise CompileError(pos, ERR_BUF_OPTION_UNKNOWN % name)
         options[name] = value

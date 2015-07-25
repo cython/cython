@@ -32,7 +32,7 @@ def nfa_to_dfa(old_machine, debug=None):
     # Seed the process using the initial states of the old machine.
     # Make the corresponding new states into initial states of the new
     # machine with the same names.
-    for (key, old_state) in old_machine.initial_states.iteritems():
+    for (key, old_state) in old_machine.initial_states.items():
         new_state = state_map.old_to_new(epsilon_closure(old_state))
         new_machine.make_initial_state(key, new_state)
     # Tricky bit here: we add things to the end of this list while we're
@@ -40,10 +40,10 @@ def nfa_to_dfa(old_machine, debug=None):
     for new_state in new_machine.states:
         transitions = TransitionMap()
         for old_state in state_map.new_to_old(new_state):
-            for event, old_target_states in old_state.transitions.iteritems():
+            for event, old_target_states in old_state.transitions.items():
                 if event and old_target_states:
                     transitions.add_set(event, set_epsilon_closure(old_target_states))
-        for event, old_states in transitions.iteritems():
+        for event, old_states in transitions.items():
             new_machine.add_transitions(new_state, event, state_map.old_to_new(old_states))
     if debug:
         debug.write("\n===== State Mapping =====\n")

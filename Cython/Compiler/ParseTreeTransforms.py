@@ -647,7 +647,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
     special_methods = set(['declare', 'union', 'struct', 'typedef',
                            'sizeof', 'cast', 'pointer', 'compiled',
                            'NULL', 'fused_type', 'parallel'])
-    special_methods.update(unop_method_nodes.keys())
+    special_methods.update(unop_method_nodes)
 
     valid_parallel_directives = set([
         "parallel",
@@ -934,7 +934,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         directives = self._extract_directives(node, 'function')
         if not directives:
             return node
-        for name, value in directives.iteritems():
+        for name, value in directives.items():
             if name == 'locals':
                 node.directive_locals = value
             elif name not in ('final', 'staticmethod'):
@@ -2888,11 +2888,11 @@ class DebugTransform(CythonTransform):
         self.tb.start('Globals')
         entries = {}
 
-        for k, v in node.scope.entries.iteritems():
+        for k, v in node.scope.entries.items():
             if (v.qualified_name not in self.visited and not
-                v.name.startswith('__pyx_') and not
-                v.type.is_cfunction and not
-                v.type.is_extension_type):
+                    v.name.startswith('__pyx_') and not
+                    v.type.is_cfunction and not
+                    v.type.is_extension_type):
                 entries[k]= v
 
         self.serialize_local_variables(entries)

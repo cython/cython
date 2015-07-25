@@ -110,7 +110,7 @@ class TransitionMap(object):
                 result.append(((code0, code1), set))
             code0 = code1
             i += 2
-        for event, set in self.special.iteritems():
+        for event, set in self.special.items():
             if set:
                 result.append((event, set))
         return iter(result)
@@ -182,7 +182,7 @@ class TransitionMap(object):
                 map_strs.append(state_set_str(map[i]))
             i += 1
         special_strs = {}
-        for event, set in self.special.iteritems():
+        for event, set in self.special.items():
             special_strs[event] = state_set_str(set)
         return "[%s]+%s" % (
             ','.join(map_strs),
@@ -204,7 +204,7 @@ class TransitionMap(object):
         while i < n:
             self.dump_range(map[i], map[i + 2], map[i + 1], file)
             i += 2
-        for event, set in self.special.iteritems():
+        for event, set in self.special.items():
             if set:
                 if not event:
                     event = 'empty'
