@@ -17,6 +17,11 @@ try:
 except ImportError:
     from sys import maxint
 
+try:
+    unichr
+except NameError:
+    unichr = chr
+
 LOWEST_PRIORITY = -maxint
 
 

@@ -45,12 +45,12 @@ from .DebugFlags import debug_disposal_code, debug_temp_alloc, \
 try:
     from __builtin__ import basestring
 except ImportError:
-    basestring = str # Python 3
-
-try:
-    from builtins import bytes
-except ImportError:
-    bytes = str # Python 2
+    # Python 3
+    basestring = str
+    any_string_type = (bytes, str)
+else:
+    # Python 2
+    any_string_type = (bytes, unicode)
 
 
 if sys.version_info[0] >= 3:
@@ -1216,7 +1216,7 @@ class FloatNode(ConstNode):
 
     def get_constant_c_result_code(self):
         strval = self.value
-        assert isinstance(strval, (str, unicode))
+        assert isinstance(strval, basestring)
         cmpval = repr(float(strval))
         if cmpval == 'nan':
             return "(Py_HUGE_VAL * 0)"
@@ -10907,8 +10907,8 @@ class CmpNode(object):
     def calculate_cascaded_constant_result(self, operand1_result):
         func = compile_time_binary_operators[self.operator]
         operand2_result = self.operand2.constant_result
-        if (isinstance(operand1_result, (bytes, unicode)) and
-                isinstance(operand2_result, (bytes, unicode)) and
+        if (isinstance(operand1_result, any_string_type) and
+                isinstance(operand2_result, any_string_type) and
                 type(operand1_result) != type(operand2_result)):
             # string comparison of different types isn't portable
             return

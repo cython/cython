@@ -187,15 +187,14 @@ def path_exists(path):
 # file name encodings
 
 def decode_filename(filename):
-    if isinstance(filename, unicode):
-        return filename
-    try:
-        filename_encoding = sys.getfilesystemencoding()
-        if filename_encoding is None:
-            filename_encoding = sys.getdefaultencoding()
-        filename = filename.decode(filename_encoding)
-    except UnicodeDecodeError:
-        pass
+    if isinstance(filename, bytes):
+        try:
+            filename_encoding = sys.getfilesystemencoding()
+            if filename_encoding is None:
+                filename_encoding = sys.getdefaultencoding()
+            filename = filename.decode(filename_encoding)
+        except UnicodeDecodeError:
+            pass
     return filename
 
 # support for source file encoding detection

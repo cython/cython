@@ -131,8 +131,8 @@ cdef class array:
         if itemsize <= 0:
             raise ValueError("itemsize <= 0 for cython.array")
 
-        if isinstance(format, unicode):
-            format = (<unicode>format).encode('ASCII')
+        if not isinstance(format, bytes):
+            format = format.encode('ASCII')
         self._format = format  # keep a reference to the byte string
         self.format = self._format
 

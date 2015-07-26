@@ -43,7 +43,7 @@ import tokenize
 from io import StringIO
 
 from ._looper import looper
-from .compat3 import bytes, basestring_, next, is_unicode, coerce_text
+from .compat3 import bytes, unicode, basestring_, next, is_unicode, coerce_text
 
 __all__ = ['TemplateError', 'Template', 'sub', 'HTMLTemplate',
            'sub_html', 'html', 'bunch']

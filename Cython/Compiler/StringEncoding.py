@@ -8,10 +8,10 @@ import re
 import sys
 
 if sys.version_info[0] >= 3:
-    _unicode, _str, _bytes = str, str, bytes
+    _unicode, _str, _bytes, _unichr = str, str, bytes, chr
     IS_PYTHON3 = True
 else:
-    _unicode, _str, _bytes = unicode, str, str
+    _unicode, _str, _bytes, _unichr = unicode, str, str, unichr
     IS_PYTHON3 = False
 
 empty_bytes = _bytes()
@@ -39,13 +39,13 @@ class UnicodeLiteralBuilder(object):
                 # wide Unicode character on narrow platform => replace
                 # by surrogate pair
                 char_number -= 0x10000
-                self.chars.append( unichr((char_number // 1024) + 0xD800) )
-                self.chars.append( unichr((char_number  % 1024) + 0xDC00) )
+                self.chars.append( _unichr((char_number // 1024) + 0xD800) )
+                self.chars.append( _unichr((char_number  % 1024) + 0xDC00) )
             else:
-                self.chars.append( unichr(char_number) )
+                self.chars.append( _unichr(char_number) )
     else:
         def append_charval(self, char_number):
-            self.chars.append( unichr(char_number) )
+            self.chars.append( _unichr(char_number) )
 
     def append_uescape(self, char_number, escape_string):
         self.append_charval(char_number)
@@ -71,7 +71,7 @@ class BytesLiteralBuilder(object):
         self.chars.append(characters)
 
     def append_charval(self, char_number):
-        self.chars.append( unichr(char_number).encode('ISO-8859-1') )
+        self.chars.append( _unichr(char_number).encode('ISO-8859-1') )
 
     def append_uescape(self, char_number, escape_string):
         self.append(escape_string)
@@ -311,4 +311,4 @@ def encode_pyunicode_string(s):
 
     if utf16 == utf32:
         utf16 = []
-    return ",".join(map(unicode, utf16)), ",".join(map(unicode, utf32))
+    return ",".join(map(_unicode, utf16)), ",".join(map(_unicode, utf32))

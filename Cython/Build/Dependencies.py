@@ -56,7 +56,7 @@ if sys.version_info[0] < 3:
     if _fs_encoding is None:
         _fs_encoding = sys.getdefaultencoding()
     def encode_filename_in_py2(filename):
-        if isinstance(filename, unicode):
+        if not isinstance(filename, bytes):
             return filename.encode(_fs_encoding)
         return filename
 else:

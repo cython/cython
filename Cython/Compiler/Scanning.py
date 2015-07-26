@@ -7,7 +7,7 @@ from __future__ import absolute_import
 
 import cython
 cython.declare(make_lexicon=object, lexicon=object,
-               any_string_prefix=unicode, IDENT=unicode,
+               any_string_prefix=cython.unicode, IDENT=cython.unicode,
                print_function=object, error=object, warning=object,
                os=object, platform=object)
 

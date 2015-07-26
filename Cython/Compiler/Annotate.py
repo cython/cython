@@ -218,7 +218,7 @@ class AnnotationCCodeWriter(CCodeWriter):
         def annotate(match):
             group_name = match.lastgroup
             calls[group_name] += 1
-            return ur"<span class='%s'>%s</span>" % (
+            return u"<span class='%s'>%s</span>" % (
                 group_name, match.group(group_name))
 
         lines = self._htmlify_code(cython_code).splitlines()
@@ -275,22 +275,22 @@ class AnnotationCCodeWriter(CCodeWriter):
         return outlist
 
 
-_parse_code = re.compile(
-    ur'(?P<refnanny>__Pyx_X?(?:GOT|GIVE)REF|__Pyx_RefNanny[A-Za-z]+)|'
-    ur'(?P<trace>__Pyx_Trace[A-Za-z]+)|'
-    ur'(?:'
-    ur'(?P<pyx_macro_api>__Pyx_[A-Z][A-Z_]+)|'
-    ur'(?P<pyx_c_api>__Pyx_[A-Z][a-z_][A-Za-z_]*)|'
-    ur'(?P<py_macro_api>Py[A-Z][a-z]+_[A-Z][A-Z_]+)|'
-    ur'(?P<py_c_api>Py[A-Z][a-z]+_[A-Z][a-z][A-Za-z_]*)'
-    ur')(?=\()|'       # look-ahead to exclude subsequent '(' from replacement
-    ur'(?P<error_goto>(?:(?<=;) *if .* +)?\{__pyx_filename = .*goto __pyx_L\w+;\})'
-).sub
+_parse_code = re.compile((
+    br'(?P<refnanny>__Pyx_X?(?:GOT|GIVE)REF|__Pyx_RefNanny[A-Za-z]+)|'
+    br'(?P<trace>__Pyx_Trace[A-Za-z]+)|'
+    br'(?:'
+    br'(?P<pyx_macro_api>__Pyx_[A-Z][A-Z_]+)|'
+    br'(?P<pyx_c_api>__Pyx_[A-Z][a-z_][A-Za-z_]*)|'
+    br'(?P<py_macro_api>Py[A-Z][a-z]+_[A-Z][A-Z_]+)|'
+    br'(?P<py_c_api>Py[A-Z][a-z]+_[A-Z][a-z][A-Za-z_]*)'
+    br')(?=\()|'       # look-ahead to exclude subsequent '(' from replacement
+    br'(?P<error_goto>(?:(?<=;) *if .* +)?\{__pyx_filename = .*goto __pyx_L\w+;\})'
+).decode('ascii')).sub
 
 
 _replace_pos_comment = re.compile(
     # this matches what Cython generates as code line marker comment
-    ur'^\s*/\*(?:(?:[^*]|\*[^/])*\n)+\s*\*/\s*\n',
+    br'^\s*/\*(?:(?:[^*]|\*[^/])*\n)+\s*\*/\s*\n'.decode('ascii'),
     re.M
 ).sub
 

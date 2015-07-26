@@ -6,7 +6,7 @@ import cython
 cython.declare(PyrexTypes=object, Naming=object, ExprNodes=object, Nodes=object,
                Options=object, UtilNodes=object, LetNode=object,
                LetRefNode=object, TreeFragment=object, EncodedString=object,
-               error=object, warning=object, copy=object)
+               error=object, warning=object, copy=object, _unicode=object)
 
 from . import PyrexTypes
 from . import Naming
@@ -19,7 +19,7 @@ from .Visitor import VisitorTransform, TreeVisitor
 from .Visitor import CythonTransform, EnvTransform, ScopeTrackingTransform
 from .UtilNodes import LetNode, LetRefNode, ResultRefNode
 from .TreeFragment import TreeFragment
-from .StringEncoding import EncodedString
+from .StringEncoding import EncodedString, _unicode
 from .Errors import error, warning, CompileError, InternalError
 from .Code import UtilityCode
 
@@ -663,7 +663,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         self.parallel_directives = {}
         directives = copy.deepcopy(Options.directive_defaults)
         for key, value in compilation_directive_defaults.items():
-            directives[unicode(key)] = copy.deepcopy(value)
+            directives[_unicode(key)] = copy.deepcopy(value)
         self.directives = directives
 
     def check_directive_scope(self, pos, directive, scope):

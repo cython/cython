@@ -27,7 +27,7 @@ IS_PY3 = sys.version_info >= (3, 0)
 # A utility function to convert user-supplied ASCII strings to unicode.
 if sys.version_info[0] < 3:
     def to_unicode(s):
-        if not isinstance(s, unicode):
+        if isinstance(s, bytes):
             return s.decode('ascii')
         else:
             return s
