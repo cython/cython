@@ -5,7 +5,7 @@ test:   all
 	python run_mt_cheeses.py
 
 clean:
-	@echo Cleaning Demos/callback
+	@echo Cleaning Demos/mt_callback
 	@rm -f mt_cheeses.c mt_cheeses.h *.o *.so *~ core
 	@rm -rf build
 
