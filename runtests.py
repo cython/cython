@@ -1764,9 +1764,9 @@ def main():
 
     WORKDIR = os.path.abspath(options.work_dir)
 
-    if sys.version_info[0] >= 3:
-        if options.with_cython:
-            sys.path.insert(0, options.cython_dir)
+    if options.with_cython and sys.version_info[0] >= 3:
+        sys.path.insert(0, options.cython_dir)
+        if sys.version_info[:2] == (3, 2):
             try:
                 # try if Cython is installed in a Py3 version
                 import Cython.Compiler.Main

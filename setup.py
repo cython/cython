@@ -34,7 +34,7 @@ class sdist(sdist_orig):
         sdist_orig.run(self)
 add_command_class('sdist', sdist)
 
-if sys.version_info[0] >= 3:
+if sys.version_info[:2] == (3, 2):
     import lib2to3.refactor
     from distutils.command.build_py \
          import build_py_2to3 as build_py
