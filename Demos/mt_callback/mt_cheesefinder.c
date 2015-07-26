@@ -8,7 +8,6 @@
 void *steal_cheese_thr(void* user_data)
 {
    long tid = (long) user_data;
-   int i;
 
    while(1) {
 	   if ( cheeses_action_handler("all_cheeses", user_data) == 1 ){
@@ -37,7 +36,7 @@ void *steal_cheese_thr(void* user_data)
 void cheeses_init_pthreads(void)
 {
    pthread_t thr[10];
-   int i;
+   long i;
    for ( i = 0 ; i < 10 ; i++ )
    {
       //Create thread to periodically steal cheese from the python

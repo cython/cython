@@ -1,15 +1,17 @@
 #
 # Cython wrapper for multithreaded cheesefinder API
 #
-
-from threading import Thread
+import threading
 from multiprocessing.pool import ThreadPool
 
 cdef extern from "mt_cheesefinder.h" nogil:
      void cheeses_init_pthreads()   
 
+cdef extern from "pthread.h":
+     long pthread_self()
+
 actions = dict();
-pool = ThreadPool(processes=10)
+pool = ThreadPool(processes=1)
 
 #Function to initialize C side and start pthreads
 cpdef cheeses_init() :
@@ -30,16 +32,17 @@ def unreg(action):
        del(actions[action]);
 
 #python function calling the specified call-back
-def action_handler( action ):
+def action_handler( action , ctid ):
+    print("Action-Handler %s : %ld "% (threading.currentThread().getName() , ctid))
     if action in actions:
-       async_result = pool.apply_async( actions[action] )
-       return async_result.get()
+       return actions[action]()
     else:
        return 0
 
 #c-function wrapping python function
 cdef public int cheeses_action_handler(char *name, void *user_data) with gil:
     cdef int ret;
-    ret  =  action_handler( name );
+    cdef long cthreadid = pthread_self()
+    ret  =  action_handler( name , cthreadid );
     return ret;
 
