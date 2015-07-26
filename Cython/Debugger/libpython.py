@@ -183,6 +183,25 @@ class PrettyPrinterTrackerMeta(type):
         all_pretty_typenames.add(self._typename)
 
 
+# Class decorator that adds a metaclass and recreates the class with it.
+# Copied from 'six'.  See Cython/Utils.py.
+def _add_metaclass(metaclass):
+    """Class decorator for creating a class with a metaclass."""
+    def wrapper(cls):
+        orig_vars = cls.__dict__.copy()
+        slots = orig_vars.get('__slots__')
+        if slots is not None:
+            if isinstance(slots, str):
+                slots = [slots]
+            for slots_var in slots:
+                orig_vars.pop(slots_var)
+        orig_vars.pop('__dict__', None)
+        orig_vars.pop('__weakref__', None)
+        return metaclass(cls.__name__, cls.__bases__, orig_vars)
+    return wrapper
+
+
+@_add_metaclass(PrettyPrinterTrackerMeta)
 class PyObjectPtr(object):
     """
     Class wrapping a gdb.Value that's a either a (PyObject*) within the
@@ -194,8 +213,6 @@ class PyObjectPtr(object):
     Note that at every stage the underlying pointer could be NULL, point
     to corrupt data, etc; this is the debugger, after all.
     """
-
-    __metaclass__ = PrettyPrinterTrackerMeta
 
     _typename = 'PyObject'
 

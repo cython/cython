@@ -33,6 +33,7 @@ from .StringEncoding import EncodedString, escape_byte_string, split_string_lite
 from . import Future
 from . import Options
 from . import DebugFlags
+from ..Utils import add_metaclass
 
 absolute_path_length = 0
 
@@ -178,14 +179,18 @@ class CheckAnalysers(type):
         return super(CheckAnalysers, cls).__new__(cls, name, bases, attrs)
 
 
+def _with_metaclass(cls):
+    if DebugFlags.debug_trace_code_generation:
+        return add_metaclass(VerboseCodeWriter)(cls)
+    #return add_metaclass(CheckAnalysers)(cls)
+    return cls
+
+
+@_with_metaclass
 class Node(object):
     #  pos         (string, int, int)   Source file position
     #  is_name     boolean              Is a NameNode
     #  is_literal  boolean              Is a ConstNode
-
-    #__metaclass__ = CheckAnalysers
-    if DebugFlags.debug_trace_code_generation:
-        __metaclass__ = VerboseCodeWriter
 
     is_name = 0
     is_none = 0
