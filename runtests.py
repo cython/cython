@@ -23,7 +23,11 @@ except (ImportError, AttributeError):
     IS_CPYTHON = True
     IS_PYPY = False
 
-from io import StringIO, open as io_open
+from io import open as io_open
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO  # doesn't accept 'str' in Py2
 
 try:
     import cPickle as pickle
