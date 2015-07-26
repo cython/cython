@@ -1,7 +1,11 @@
-import pyximport; pyximport.install(reload_support=True)
+from __future__ import absolute_import, print_function
+
+from pyximport import pyximport; pyximport.install(reload_support=True)
+
 import os, sys
 import time, shutil
 import tempfile
+
 
 def make_tempdir():
     tempdir = os.path.join(tempfile.gettempdir(), "pyrex_temp")
@@ -11,14 +15,17 @@ def make_tempdir():
     os.mkdir(tempdir)
     return tempdir
 
+
 def remove_tempdir(tempdir):
     shutil.rmtree(tempdir, 0, on_remove_file_error)
 
+
 def on_remove_file_error(func, path, excinfo):
-    print "Sorry! Could not remove a temp file:", path
-    print "Extra information."
-    print func, excinfo
-    print "You may want to delete this yourself when you get a chance."
+    print("Sorry! Could not remove a temp file:", path)
+    print("Extra information.")
+    print(func, excinfo)
+    print("You may want to delete this yourself when you get a chance.")
+
 
 def test():
     pyximport._test_files = []
@@ -52,14 +59,14 @@ def make_ext(name, filename):
 
     time.sleep(1) # sleep a second to get safer mtimes
     open(os.path.join(tempdir, "abc.txt"), "w").write(" ")
-    print "Here goes the reolad"
+    print("Here goes the reolad")
     reload(dummy)
     assert len(pyximport._test_files) == 1, pyximport._test_files
 
     reload(dummy)
-    assert len(pyximport._test_files) ==0, pyximport._test_files
+    assert len(pyximport._test_files) == 0, pyximport._test_files
     remove_tempdir(tempdir)
+
 
 if __name__=="__main__":
     test()
-
