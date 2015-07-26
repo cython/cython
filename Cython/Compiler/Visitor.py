@@ -4,7 +4,7 @@
 #   Tree visitor and transform framework
 #
 
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 
 import sys
 import inspect
@@ -162,7 +162,7 @@ class TreeVisitor(object):
             handler_method = getattr(self, pattern % mro_cls.__name__, None)
             if handler_method is not None:
                 return handler_method
-        print('%s: %s' % (type(self), cls))
+        print(type(self), cls)
         if self.access_path:
             print(self.access_path)
             print(self.access_path[-1][0].pos)
