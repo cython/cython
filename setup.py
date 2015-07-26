@@ -34,14 +34,13 @@ class sdist(sdist_orig):
         sdist_orig.run(self)
 add_command_class('sdist', sdist)
 
-if sys.version_info[0] >= 3:
+if sys.version_info[:2] == (3, 2):
     import lib2to3.refactor
     from distutils.command.build_py \
          import build_py_2to3 as build_py
     # need to convert sources to Py3 on installation
-    fixers = [ fix for fix in lib2to3.refactor.get_fixers_from_package("lib2to3.fixes")
-               if fix.split('fix_')[-1] not in ('next',)
-               ]
+    with open('2to3-fixers.txt') as f:
+        fixers = [line.strip() for line in f if line.strip()]
     build_py.fixer_names = fixers
     add_command_class("build_py", build_py)
 
@@ -202,7 +201,7 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
                 def build_extension(self, ext, *args, **kargs):
                     try:
                         build_ext_orig.build_extension(self, ext, *args, **kargs)
-                    except StandardError:
+                    except Exception:
                         print("Compilation of '%s' failed" % ext.sources[0])
             from Cython.Compiler.Main import compile
             from Cython import Utils

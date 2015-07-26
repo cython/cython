@@ -45,6 +45,12 @@ the type names are known to the debugger
 
 The module also extends gdb with some python-specific commands.
 '''
+
+try:
+    input = raw_input
+except NameError:
+    pass
+
 import os
 import re
 import sys
@@ -112,7 +118,7 @@ def safety_limit(val):
 def safe_range(val):
     # As per range, but don't trust the value too much: cap it to a safety
     # threshold in case the data was corrupted
-    return xrange(safety_limit(val))
+    return range(safety_limit(val))
 
 
 def write_unicode(file, text):
@@ -177,6 +183,25 @@ class PrettyPrinterTrackerMeta(type):
         all_pretty_typenames.add(self._typename)
 
 
+# Class decorator that adds a metaclass and recreates the class with it.
+# Copied from 'six'.  See Cython/Utils.py.
+def _add_metaclass(metaclass):
+    """Class decorator for creating a class with a metaclass."""
+    def wrapper(cls):
+        orig_vars = cls.__dict__.copy()
+        slots = orig_vars.get('__slots__')
+        if slots is not None:
+            if isinstance(slots, str):
+                slots = [slots]
+            for slots_var in slots:
+                orig_vars.pop(slots_var)
+        orig_vars.pop('__dict__', None)
+        orig_vars.pop('__weakref__', None)
+        return metaclass(cls.__name__, cls.__bases__, orig_vars)
+    return wrapper
+
+
+@_add_metaclass(PrettyPrinterTrackerMeta)
 class PyObjectPtr(object):
     """
     Class wrapping a gdb.Value that's a either a (PyObject*) within the
@@ -188,8 +213,6 @@ class PyObjectPtr(object):
     Note that at every stage the underlying pointer could be NULL, point
     to corrupt data, etc; this is the debugger, after all.
     """
-
-    __metaclass__ = PrettyPrinterTrackerMeta
 
     _typename = 'PyObject'
 
@@ -263,7 +286,7 @@ class PyObjectPtr(object):
         return PyTypeObjectPtr(self.field('ob_type'))
 
     def is_null(self):
-        return 0 == long(self._gdbval)
+        return 0 == int(self._gdbval)
 
     def is_optimized_out(self):
         '''
@@ -324,7 +347,7 @@ class PyObjectPtr(object):
                 return '<%s at remote 0x%x>' % (self.tp_name, self.address)
 
         return FakeRepr(self.safe_tp_name(),
-                        long(self._gdbval))
+                        int(self._gdbval))
 
     def write_repr(self, out, visited):
         '''
@@ -426,7 +449,7 @@ class PyObjectPtr(object):
         return gdb.lookup_type(cls._typename).pointer()
 
     def as_address(self):
-        return long(self._gdbval)
+        return int(self._gdbval)
 
 
 class PyVarObjectPtr(PyObjectPtr):
@@ -457,7 +480,7 @@ def _write_instance_repr(out, visited, name, pyop_attrdict, address):
     if isinstance(pyop_attrdict, PyDictObjectPtr):
         out.write('(')
         first = True
-        for pyop_arg, pyop_val in pyop_attrdict.iteritems():
+        for pyop_arg, pyop_val in pyop_attrdict.items():
             if not first:
                 out.write(', ')
             first = False
@@ -477,8 +500,7 @@ class InstanceProxy(object):
 
     def __repr__(self):
         if isinstance(self.attrdict, dict):
-            kwargs = ', '.join("%s=%r" % (arg, val)
-                               for arg, val in self.attrdict.iteritems())
+            kwargs = ', '.join("%s=%r" % (arg, val) for arg, val in self.attrdict.items())
             return '<%s(%s) at remote 0x%x>' % (
                 self.cl_name, kwargs, self.address)
         else:
@@ -547,7 +569,7 @@ class PyTypeObjectPtr(PyObjectPtr):
         tp_name = self.safe_tp_name()
 
         # New-style class:
-        return InstanceProxy(tp_name, attr_dict, long(self._gdbval))
+        return InstanceProxy(tp_name, attr_dict, int(self._gdbval))
 
     def write_repr(self, out, visited):
         # Guard against infinite loops:
@@ -687,7 +709,7 @@ class PyDictObjectPtr(PyObjectPtr):
     def iteritems(self):
         '''
         Yields a sequence of (PyObjectPtr key, PyObjectPtr value) pairs,
-        analagous to dict.iteritems()
+        analagous to dict.items()
         '''
         for i in safe_range(self.field('ma_mask') + 1):
             ep = self.field('ma_table') + i
@@ -696,6 +718,8 @@ class PyDictObjectPtr(PyObjectPtr):
                 pyop_key = PyObjectPtr.from_pyobject_ptr(ep['me_key'])
                 yield (pyop_key, pyop_value)
 
+    items = iteritems
+
     def proxyval(self, visited):
         # Guard against infinite loops:
         if self.as_address() in visited:
@@ -703,7 +727,7 @@ class PyDictObjectPtr(PyObjectPtr):
         visited.add(self.as_address())
 
         result = {}
-        for pyop_key, pyop_value in self.iteritems():
+        for pyop_key, pyop_value in self.items():
             proxy_key = pyop_key.proxyval(visited)
             proxy_value = pyop_value.proxyval(visited)
             result[proxy_key] = proxy_value
@@ -718,7 +742,7 @@ class PyDictObjectPtr(PyObjectPtr):
 
         out.write('{')
         first = True
-        for pyop_key, pyop_value in self.iteritems():
+        for pyop_key, pyop_value in self.items():
             if not first:
                 out.write(', ')
             first = False
@@ -745,7 +769,7 @@ class PyInstanceObjectPtr(PyObjectPtr):
         in_dict = self.pyop_field('in_dict').proxyval(visited)
 
         # Old-style class:
-        return InstanceProxy(cl_name, in_dict, long(self._gdbval))
+        return InstanceProxy(cl_name, in_dict, int(self._gdbval))
 
     def write_repr(self, out, visited):
         # Guard against infinite loops:
@@ -830,9 +854,9 @@ class PyLongObjectPtr(PyObjectPtr):
             #define PyLong_SHIFT        30
             #define PyLong_SHIFT        15
         '''
-        ob_size = long(self.field('ob_size'))
+        ob_size = int(self.field('ob_size'))
         if ob_size == 0:
-            return long(0)
+            return int(0)
 
         ob_digit = self.field('ob_digit')
 
@@ -918,7 +942,7 @@ class PyFrameObjectPtr(PyObjectPtr):
             return
 
         pyop_globals = self.pyop_field('f_globals')
-        return pyop_globals.iteritems()
+        return iter(pyop_globals.items())
 
     def iter_builtins(self):
         '''
@@ -929,7 +953,7 @@ class PyFrameObjectPtr(PyObjectPtr):
             return
 
         pyop_builtins = self.pyop_field('f_builtins')
-        return pyop_builtins.iteritems()
+        return iter(pyop_builtins.items())
 
     def get_var_by_name(self, name):
         '''
@@ -965,7 +989,7 @@ class PyFrameObjectPtr(PyObjectPtr):
         if self.is_optimized_out():
             return None
         f_trace = self.field('f_trace')
-        if long(f_trace) != 0:
+        if int(f_trace) != 0:
             # we have a non-NULL f_trace:
             return self.f_lineno
         else:
@@ -1197,7 +1221,7 @@ class PyUnicodeObjectPtr(PyObjectPtr):
         # From unicodeobject.h:
         #     Py_ssize_t length;  /* Length of raw Unicode data in buffer */
         #     Py_UNICODE *str;    /* Raw Unicode buffer */
-        field_length = long(self.field('length'))
+        field_length = int(self.field('length'))
         field_str = self.field('str')
 
         # Gather a list of ints from the Py_UNICODE array; these are either
@@ -2315,11 +2339,11 @@ def _pointervalue(gdbval):
     """
     # don't convert with int() as it will raise a RuntimeError
     if gdbval.address is not None:
-        return long(gdbval.address)
+        return int(gdbval.address)
     else:
         # the address attribute is None sometimes, in which case we can
         # still convert the pointer to an int
-        return long(gdbval)
+        return int(gdbval)
 
 
 def pointervalue(gdbval):
@@ -2511,7 +2535,7 @@ class FixGdbCommand(gdb.Command):
         warnings.filterwarnings('ignore', r'.*', RuntimeWarning,
                                 re.escape(__name__))
         try:
-            long(gdb.parse_and_eval("(void *) 0")) == 0
+            int(gdb.parse_and_eval("(void *) 0")) == 0
         except RuntimeError:
             pass
         # warnings.resetwarnings()
@@ -2549,7 +2573,7 @@ class PyExec(gdb.Command):
             lines = []
             while True:
                 try:
-                    line = raw_input('>')
+                    line = input('>')
                 except EOFError:
                     break
                 else:

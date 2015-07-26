@@ -7,6 +7,11 @@ from __future__ import absolute_import
 import copy
 import re
 
+try:
+    reduce
+except NameError:
+    from functools import reduce
+
 from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
@@ -2531,7 +2536,7 @@ class CFuncType(CType):
         self.is_strict_signature = is_strict_signature
 
     def __repr__(self):
-        arg_reprs = map(repr, self.args)
+        arg_reprs = list(map(repr, self.args))
         if self.has_varargs:
             arg_reprs.append("...")
         if self.exception_value:
@@ -4118,7 +4123,7 @@ def merge_template_deductions(a, b):
     if a is None or b is None:
         return None
     all = a
-    for param, value in b.iteritems():
+    for param, value in b.items():
         if param in all:
             if a[param] != b[param]:
                 return None

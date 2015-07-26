@@ -169,7 +169,7 @@ def parse_command_line(args):
                     options.compiler_directives = Options.parse_directive_list(
                         x_args, relaxed_bool=True,
                         current_settings=options.compiler_directives)
-                except ValueError, e:
+                except ValueError as e:
                     sys.stderr.write("Error in compiler directive: %s\n" % e.args[0])
                     sys.exit(1)
             elif option.startswith('--debug'):

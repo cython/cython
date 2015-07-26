@@ -9,7 +9,10 @@
 from __future__ import absolute_import
 
 import types
-from sys import maxint as maxint
+try:
+    from sys import maxsize as maxint
+except ImportError:
+    from sys import maxint
 
 from . import Errors
 
@@ -84,9 +87,7 @@ def CodeRanges(code_list):
     Given a list of codes as returned by chars_to_ranges, return
     an RE which will match a character in any of the ranges.
     """
-    re_list = []
-    for i in xrange(0, len(code_list), 2):
-        re_list.append(CodeRange(code_list[i], code_list[i + 1]))
+    re_list = [CodeRange(code_list[i], code_list[i + 1]) for i in range(0, len(code_list), 2)]
     return Alt(*re_list)
 
 
@@ -304,8 +305,7 @@ class Seq(RE):
 
     def __init__(self, *re_list):
         nullable = 1
-        for i in xrange(len(re_list)):
-            re = re_list[i]
+        for i, re in enumerate(re_list):
             self.check_re(i, re)
             nullable = nullable and re.nullable
         self.re_list = re_list
@@ -329,12 +329,11 @@ class Seq(RE):
         else:
             s1 = initial_state
             n = len(re_list)
-            for i in xrange(n):
+            for i, re in enumerate(re_list):
                 if i < n - 1:
                     s2 = m.new_state()
                 else:
                     s2 = final_state
-                re = re_list[i]
                 re.build_machine(m, s1, s2, match_bol, nocase)
                 s1 = s2
                 match_bol = re.match_nl or (match_bol and re.nullable)

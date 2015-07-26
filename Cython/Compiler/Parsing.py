@@ -13,9 +13,10 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
                Future=object, Options=object, error=object, warning=object,
                Builtin=object, ModuleNode=object, Utils=object,
                re=object, _unicode=object, _bytes=object,
-               partial=object, reduce=object)
+               partial=object, reduce=object, _IS_PY3=cython.bint)
 
 import re
+import sys
 from unicodedata import lookup as lookup_unicodechar
 from functools import partial, reduce
 
@@ -30,6 +31,8 @@ from .Errors import error, warning
 from .. import Utils
 from . import Future
 from . import Options
+
+_IS_PY3 = sys.version_info[0] >= 3
 
 
 class Ctx(object):
@@ -759,8 +762,6 @@ def wrap_compile_time_constant(pos, value):
         return ExprNodes.BoolNode(pos, value=value)
     elif isinstance(value, int):
         return ExprNodes.IntNode(pos, value=rep)
-    elif isinstance(value, long):
-        return ExprNodes.IntNode(pos, value=rep, longness="L")
     elif isinstance(value, float):
         return ExprNodes.FloatNode(pos, value=rep)
     elif isinstance(value, _unicode):
@@ -775,6 +776,8 @@ def wrap_compile_time_constant(pos, value):
         else:
             # error already reported
             return None
+    elif not _IS_PY3 and isinstance(value, long):
+        return ExprNodes.IntNode(pos, value=rep, longness="L")
     error(pos, "Invalid type for compile-time constant: %r (type %s)"
                % (value, value.__class__.__name__))
     return None
@@ -3329,7 +3332,7 @@ def p_compiler_directive_comments(s):
             try:
                 result.update(Options.parse_directive_list(
                     directives, ignore_unknown=True))
-            except ValueError, e:
+            except ValueError as e:
                 s.error(e.args[0], fatal=False)
         s.next()
     return result
@@ -3447,7 +3450,7 @@ def print_parse_tree(f, node, level, key = None):
         t = type(node)
         if t is tuple:
             f.write("(%s @ %s\n" % (node[0], node[1]))
-            for i in xrange(2, len(node)):
+            for i in range(2, len(node)):
                 print_parse_tree(f, node[i], level+1)
             f.write("%s)\n" % ind)
             return
@@ -3463,7 +3466,7 @@ def print_parse_tree(f, node, level, key = None):
             return
         elif t is list:
             f.write("[\n")
-            for i in xrange(len(node)):
+            for i in range(len(node)):
                 print_parse_tree(f, node[i], level+1)
             f.write("%s]\n" % ind)
             return

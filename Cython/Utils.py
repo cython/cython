@@ -3,6 +3,13 @@
 #            anywhere else in particular
 #
 
+from __future__ import absolute_import
+
+try:
+    from __builtin__ import basestring
+except ImportError:
+    basestring = str
+
 import os
 import sys
 import re
@@ -180,15 +187,14 @@ def path_exists(path):
 # file name encodings
 
 def decode_filename(filename):
-    if isinstance(filename, unicode):
-        return filename
-    try:
-        filename_encoding = sys.getfilesystemencoding()
-        if filename_encoding is None:
-            filename_encoding = sys.getdefaultencoding()
-        filename = filename.decode(filename_encoding)
-    except UnicodeDecodeError:
-        pass
+    if isinstance(filename, bytes):
+        try:
+            filename_encoding = sys.getfilesystemencoding()
+            if filename_encoding is None:
+                filename_encoding = sys.getdefaultencoding()
+            filename = filename.decode(filename_encoding)
+        except UnicodeDecodeError:
+            pass
     return filename
 
 # support for source file encoding detection
@@ -408,3 +414,20 @@ class LazyStr:
     def __radd__(self, left):
         return left + self.callback()
 
+
+# Class decorator that adds a metaclass and recreates the class with it.
+# Copied from 'six'.
+def add_metaclass(metaclass):
+    """Class decorator for creating a class with a metaclass."""
+    def wrapper(cls):
+        orig_vars = cls.__dict__.copy()
+        slots = orig_vars.get('__slots__')
+        if slots is not None:
+            if isinstance(slots, str):
+                slots = [slots]
+            for slots_var in slots:
+                orig_vars.pop(slots_var)
+        orig_vars.pop('__dict__', None)
+        orig_vars.pop('__weakref__', None)
+        return metaclass(cls.__name__, cls.__bases__, orig_vars)
+    return wrapper

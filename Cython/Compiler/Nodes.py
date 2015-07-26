@@ -10,10 +10,15 @@ cython.declare(sys=object, os=object, copy=object,
                py_object_type=object, ModuleScope=object, LocalScope=object, ClosureScope=object,
                StructOrUnionScope=object, PyClassScope=object,
                CppClassScope=object, UtilityCode=object, EncodedString=object,
-               absolute_path_length=cython.Py_ssize_t, error_type=object)
+               absolute_path_length=cython.Py_ssize_t, error_type=object, _py_int_types=object)
 
 import sys, os, copy
 from itertools import chain
+
+if sys.version_info[0] >= 3:
+    _py_int_types = int
+else:
+    _py_int_types = (int, long)
 
 from . import Builtin
 from .Errors import error, warning, InternalError, CompileError
@@ -28,6 +33,7 @@ from .StringEncoding import EncodedString, escape_byte_string, split_string_lite
 from . import Future
 from . import Options
 from . import DebugFlags
+from ..Utils import add_metaclass
 
 absolute_path_length = 0
 
@@ -162,7 +168,7 @@ class CheckAnalysers(type):
             def call(*args, **kwargs):
                 retval = func(*args, **kwargs)
                 if retval is None:
-                    print name, args, kwargs
+                    print('%s %s %s' % (name, args, kwargs))
                 return retval
             return call
 
@@ -173,14 +179,18 @@ class CheckAnalysers(type):
         return super(CheckAnalysers, cls).__new__(cls, name, bases, attrs)
 
 
+def _with_metaclass(cls):
+    if DebugFlags.debug_trace_code_generation:
+        return add_metaclass(VerboseCodeWriter)(cls)
+    #return add_metaclass(CheckAnalysers)(cls)
+    return cls
+
+
+@_with_metaclass
 class Node(object):
     #  pos         (string, int, int)   Source file position
     #  is_name     boolean              Is a NameNode
     #  is_literal  boolean              Is a ConstNode
-
-    #__metaclass__ = CheckAnalysers
-    if DebugFlags.debug_trace_code_generation:
-        __metaclass__ = VerboseCodeWriter
 
     is_name = 0
     is_none = 0
@@ -314,7 +324,6 @@ class Node(object):
                 return "[%s]" % ", ".join([dump_child(item, level) for item in x])
             else:
                 return repr(x)
-
 
         attrs = [(key, value) for key, value in self.__dict__.items() if key not in filter_out]
         if len(attrs) == 0:
@@ -1037,7 +1046,7 @@ class MemoryViewSliceTypeNode(CBaseTypeNode):
 
         try:
             axes_specs = MemoryView.get_axes_specs(env, self.axes)
-        except CompileError, e:
+        except CompileError as e:
             error(e.position, e.message_only)
             self.type = PyrexTypes.ErrorType()
             return self.type
@@ -1940,8 +1949,7 @@ class FuncDefNode(StatNode, BlockNode):
             # Clean up buffers -- this calls a Python function
             # so need to save and restore error state
             buffers_present = len(lenv.buffer_entries) > 0
-            memslice_entries = [e for e in lenv.entries.itervalues()
-                                      if e.type.is_memoryviewslice]
+            #memslice_entries = [e for e in lenv.entries.values() if e.type.is_memoryviewslice]
             if buffers_present:
                 code.globalstate.use_utility_code(restore_exception_utility_code)
                 code.putln("{ PyObject *__pyx_type, *__pyx_value, *__pyx_tb;")
@@ -4951,7 +4959,7 @@ class SingleAssignmentNode(AssignmentNode):
                     if node.type.is_array and node.type.size:
                         stop_node = ExprNodes.IntNode(
                             self.pos, value=str(node.type.size),
-                            constant_result=(node.type.size if isinstance(node.type.size, (int, long))
+                            constant_result=(node.type.size if isinstance(node.type.size, _py_int_types)
                                              else ExprNodes.constant_value_not_set))
                     else:
                         error(self.pos, "C array iteration requires known end index")
@@ -4977,7 +4985,7 @@ class SingleAssignmentNode(AssignmentNode):
 
             elif node.type.is_array:
                 slice_size = node.type.size
-                if not isinstance(slice_size, (int, long)):
+                if not isinstance(slice_size, _py_int_types):
                     return  # might still work when coercing to Python
             else:
                 return
@@ -6668,7 +6676,7 @@ class TryExceptStatNode(StatNode):
         try_end_label = code.new_label('try_end')
 
         exc_save_vars = [code.funcstate.allocate_temp(py_object_type, False)
-                         for _ in xrange(3)]
+                         for _ in range(3)]
         code.mark_pos(self.pos)
         code.putln("{")
         save_exc = code.insertion_point()
@@ -6853,7 +6861,7 @@ class ExceptClauseNode(Node):
 
         exc_vars = [code.funcstate.allocate_temp(py_object_type,
                                                  manage_ref=True)
-                    for _ in xrange(3)]
+                    for _ in range(3)]
         code.put_add_traceback(self.function_name)
         # We always have to fetch the exception value even if
         # there is no target, because this also normalises the
@@ -7387,7 +7395,7 @@ class FromCImportStatNode(StatNode):
         env.add_imported_module(module_scope)
         for pos, name, as_name, kind in self.imported_names:
             if name == "*":
-                for local_name, entry in module_scope.entries.items():
+                for local_name, entry in list(module_scope.entries.items()):
                     env.add_imported_entry(local_name, entry, pos)
             else:
                 entry = module_scope.lookup(name)
@@ -7644,13 +7652,13 @@ class ParallelStatNode(StatNode, ParallelNode):
 
             try:
                 self.kwargs = self.kwargs.compile_time_value(env)
-            except Exception, e:
+            except Exception as e:
                 error(self.kwargs.pos, "Only compile-time values may be "
                                        "supplied as keyword arguments")
         else:
             self.kwargs = {}
 
-        for kw, val in self.kwargs.iteritems():
+        for kw, val in self.kwargs.items():
             if kw not in self.valid_keyword_arguments:
                 error(self.pos, "Invalid keyword argument: %s" % kw)
             else:
@@ -7691,7 +7699,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         This should be called in a post-order fashion during the
         analyse_expressions phase
         """
-        for entry, (pos, op) in self.assignments.iteritems():
+        for entry, (pos, op) in self.assignments.items():
 
             if self.is_prange and not self.is_parallel:
                 # closely nested prange in a with parallel block, disallow
@@ -7808,7 +7816,7 @@ class ParallelStatNode(StatNode, ParallelNode):
     def initialize_privates_to_nan(self, code, exclude=None):
         first = True
 
-        for entry, (op, lastprivate) in self.privates.iteritems():
+        for entry, (op, lastprivate) in self.privates.items():
             if not op and (not exclude or entry != exclude):
                 invalid_value = entry.type.invalid_value()
 
@@ -8070,7 +8078,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         c = self.begin_of_parallel_control_block_point
 
         temp_count = 0
-        for entry, (op, lastprivate) in self.privates.iteritems():
+        for entry, (op, lastprivate) in self.privates.items():
             if not lastprivate or entry.type.is_pyobject:
                 continue
 
@@ -8599,7 +8607,7 @@ class ParallelRangeNode(ParallelStatNode):
                 code.putln("#ifdef _OPENMP")
             code.put("#pragma omp for")
 
-        for entry, (op, lastprivate) in self.privates.iteritems():
+        for entry, (op, lastprivate) in self.privates.items():
             # Don't declare the index variable as a reduction
             if op and op in "+*-&^|" and entry != self.target.entry:
                 if entry.type.is_pyobject:
@@ -8719,7 +8727,7 @@ class CnameDecoratorNode(StatNode):
 
             scope.scope_prefix = self.cname + "_"
 
-            for name, entry in scope.entries.iteritems():
+            for name, entry in scope.entries.items():
                 if entry.func_cname:
                     entry.func_cname = self.mangle(entry.cname)
                 if entry.pyfunc_cname:

@@ -1,3 +1,5 @@
+# cython: language_level=3
+
 from cpython.ref cimport PyObject, Py_INCREF, Py_DECREF, Py_XDECREF, Py_XINCREF
 from cpython.exc cimport PyErr_Fetch, PyErr_Restore
 from cpython.pystate cimport PyThreadState_Get
@@ -72,7 +74,7 @@ cdef void report_unraisable(object e=None):
         if e is None:
             import sys
             e = sys.exc_info()[1]
-        print u"refnanny raised an exception: %s" % e
+        print(u"refnanny raised an exception: %s" % e)
     except:
         pass # We absolutely cannot exit with an exception
 
@@ -159,9 +161,10 @@ cdef void FinishContext(PyObject** ctx):
             context = <Context>ctx[0]
             errors = context.end()
             if errors:
-                print u"%s: %s()" % (context.filename.decode('latin1'),
-                                     context.name.decode('latin1'))
-                print errors
+                print(u"%s: %s()" % (
+                    context.filename.decode('latin1'),
+                    context.name.decode('latin1')))
+                print(errors)
             context = None
         except:
             report_unraisable()

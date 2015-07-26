@@ -6,8 +6,11 @@ The output is in a strict format, no whitespace or comments from the input
 is preserved (and it could not be as it is not present in the code tree).
 """
 
-from Cython.Compiler.Visitor import TreeVisitor
-from Cython.Compiler.ExprNodes import *
+from __future__ import absolute_import, print_function
+
+from .Compiler.Visitor import TreeVisitor
+from .Compiler.ExprNodes import *
+
 
 class LinesResult(object):
     def __init__(self):
@@ -497,7 +500,7 @@ class CodeWriter(DeclarationWriter):
 
 class PxdWriter(DeclarationWriter):
     def __call__(self, node):
-        print u'\n'.join(self.write(node).lines)
+        print(u'\n'.join(self.write(node).lines))
         return node
 
     def visit_CFuncDefNode(self, node):
@@ -516,5 +519,3 @@ class PxdWriter(DeclarationWriter):
     
     def visit_StatNode(self, node):
         pass
-
-    

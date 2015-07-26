@@ -71,7 +71,7 @@ class Signature(object):
     }
 
     type_to_format_map = dict(
-        (type_, format_) for format_, type_ in format_map.iteritems())
+        (type_, format_) for format_, type_ in format_map.items())
 
     error_value_map = {
         'O': "NULL",
@@ -127,7 +127,7 @@ class Signature(object):
     def function_type(self, self_arg_override=None):
         #  Construct a C function type descriptor for this signature
         args = []
-        for i in xrange(self.num_fixed_args()):
+        for i in range(self.num_fixed_args()):
             if self_arg_override is not None and self.is_self_arg(i):
                 assert isinstance(self_arg_override, PyrexTypes.CFuncTypeArg)
                 args.append(self_arg_override)

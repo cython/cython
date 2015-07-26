@@ -4,6 +4,11 @@
 
 from __future__ import absolute_import
 
+try:
+    from __builtin__ import basestring as any_string_type
+except ImportError:
+    any_string_type = (bytes, str)
+
 import sys
 
 from ..Utils import open_new_file
@@ -21,7 +26,7 @@ class PyrexWarning(Exception):
 
 def context(position):
     source = position[0]
-    assert not (isinstance(source, unicode) or isinstance(source, str)), (
+    assert not (isinstance(source, any_string_type)), (
         "Please replace filename strings with Scanning.FileSourceDescriptor instances %r" % source)
     try:
         F = source.get_lines()
@@ -167,7 +172,7 @@ def report_error(err):
 
 
 def error(position, message):
-    #print "Errors.error:", repr(position), repr(message) ###
+    #print("Errors.error:", repr(position), repr(message)) ###
     if position is None:
         raise InternalError(message)
     err = CompileError(position, message)

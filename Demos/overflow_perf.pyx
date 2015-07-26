@@ -1,6 +1,7 @@
+# cython: language_level=3
 # distutils: extra_compile_args = -O3
 
-import cython
+cimport cython
 
 ctypedef fused INT:
     int
@@ -14,6 +15,7 @@ ctypedef fused C_INT:
     long long
     unsigned int
     unsigned long long
+
 
 @cython.overflowcheck(False)
 def fib(INT n):
@@ -54,11 +56,12 @@ def collatz(INT n):
     cdef INT k = 0
     while n != 1:
         if n % 2 == 0:
-            n /= 2
+            n //= 2
         else:
             n = 3*n + 1
         k += 1
     return int(k)
+
 
 @cython.overflowcheck(True)
 @cython.overflowcheck.fold(False)
@@ -74,11 +77,12 @@ def collatz_overflow(INT n):
     cdef INT k = 0
     while n != 1:
         if n % 2 == 0:
-            n /= 2
+            n //= 2
         else:
             n = 3*n + 1
         k += 1
     return int(k)
+
 
 @cython.overflowcheck(True)
 @cython.overflowcheck.fold(True)
@@ -94,12 +98,11 @@ def collatz_overflow_fold(INT n):
     cdef INT k = 0
     while n != 1:
         if n % 2 == 0:
-            n /= 2
+            n //= 2
         else:
             n = 3*n + 1
         k += 1
     return int(k)
-
 
 
 @cython.overflowcheck(False)
@@ -129,7 +132,6 @@ def factorial_overflow(INT n):
     return int(res)
 
 
-
 @cython.overflowcheck(False)
 def most_orthogonal(C_INT[:,::1] vectors):
     cdef C_INT n = vectors.shape[0]
@@ -147,6 +149,7 @@ def most_orthogonal(C_INT[:,::1] vectors):
                 min_dot = normalized_dot
                 min_pair = i, j
     return vectors[i], vectors[j]
+
 
 @cython.overflowcheck(True)
 @cython.overflowcheck.fold(False)
@@ -166,6 +169,7 @@ def most_orthogonal_overflow(C_INT[:,::1] vectors):
                 min_dot = normalized_dot
                 min_pair = i, j
     return vectors[i], vectors[j]
+
 
 @cython.overflowcheck(True)
 @cython.overflowcheck.fold(True)

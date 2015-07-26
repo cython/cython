@@ -4,8 +4,9 @@
 #   Tree visitor and transform framework
 #
 
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 
+import sys
 import inspect
 
 from . import TypeSlots
@@ -17,6 +18,14 @@ from . import DebugFlags
 from . import Future
 
 import cython
+
+
+cython.declare(_PRINTABLE=tuple)
+
+if sys.version_info[0] >= 3:
+    _PRINTABLE = (bytes, str, int, float)
+else:
+    _PRINTABLE = (str, unicode, long, int, float)
 
 
 class TreeVisitor(object):
@@ -48,9 +57,9 @@ class TreeVisitor(object):
     >>> tree = SampleNode(0, SampleNode(1), [SampleNode(2), SampleNode(3)])
     >>> class MyVisitor(TreeVisitor):
     ...     def visit_SampleNode(self, node):
-    ...         print "in", node.value, self.access_path
+    ...         print("in %s %s" % (node.value, self.access_path))
     ...         self.visitchildren(node)
-    ...         print "out", node.value
+    ...         print("out %s" % node.value)
     ...
     >>> MyVisitor().visit(tree)
     in 0 []
@@ -94,7 +103,7 @@ class TreeVisitor(object):
                 continue
             elif isinstance(value, list):
                 value = u'[...]/%d' % len(value)
-            elif not isinstance(value, (str, unicode, long, int, float)):
+            elif not isinstance(value, _PRINTABLE):
                 continue
             else:
                 value = repr(value)
@@ -153,11 +162,11 @@ class TreeVisitor(object):
             handler_method = getattr(self, pattern % mro_cls.__name__, None)
             if handler_method is not None:
                 return handler_method
-        print type(self), cls
+        print(type(self), cls)
         if self.access_path:
-            print self.access_path
-            print self.access_path[-1][0].pos
-            print self.access_path[-1][0].__dict__
+            print(self.access_path)
+            print(self.access_path[-1][0].pos)
+            print(self.access_path[-1][0].__dict__)
         raise RuntimeError("Visitor %r does not accept object: %s" % (self, obj))
 
     def visit(self, obj):
@@ -176,7 +185,7 @@ class TreeVisitor(object):
             raise
         except Errors.AbortError:
             raise
-        except Exception, e:
+        except Exception as e:
             if DebugFlags.debug_no_exception_intercept:
                 raise
             self._raise_compiler_error(obj, e)
@@ -240,7 +249,7 @@ class VisitorTransform(TreeVisitor):
     """
     def visitchildren(self, parent, attrs=None):
         result = self._visitchildren(parent, attrs)
-        for attr, newnode in result.iteritems():
+        for attr, newnode in result.items():
             if type(newnode) is not list:
                 setattr(parent, attr, newnode)
             else:

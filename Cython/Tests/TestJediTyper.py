@@ -20,7 +20,7 @@ TOOLS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 
 @contextmanager
 def _tempfile(code):
     code = dedent(code)
-    if isinstance(code, unicode):
+    if not isinstance(code, bytes):
         code = code.encode('utf8')
 
     with NamedTemporaryFile(suffix='.py') as f:

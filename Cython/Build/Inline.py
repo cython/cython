@@ -22,10 +22,12 @@ from ..Compiler import Pipeline, Nodes
 from ..Utils import get_cython_cache_dir
 import cython as cython_module
 
+IS_PY3 = sys.version_info >= (3, 0)
+
 # A utility function to convert user-supplied ASCII strings to unicode.
 if sys.version_info[0] < 3:
     def to_unicode(s):
-        if not isinstance(s, unicode):
+        if isinstance(s, bytes):
             return s.decode('ascii')
         else:
             return s
@@ -147,8 +149,7 @@ def cython_inline(code,
         if arg is cython_module:
             cimports.append('\ncimport cython as %s' % name)
             del kwds[name]
-    arg_names = kwds.keys()
-    arg_names.sort()
+    arg_names = sorted(kwds)
     arg_sigs = tuple([(get_type(kwds[arg], ctx), arg) for arg in arg_names])
     key = orig_code, arg_sigs, sys.version_info, sys.executable, Cython.__version__
     module_name = "_cython_inline_" + hashlib.md5(str(key).encode('utf-8')).hexdigest()
@@ -280,7 +281,7 @@ except ImportError:
         if kwds is not None:
             all[kwds] = kwd_values
         elif kwd_values:
-            raise TypeError("Unexpected keyword arguments: %s" % kwd_values.keys())
+            raise TypeError("Unexpected keyword arguments: %s" % list(kwd_values))
         if defaults is None:
             defaults = ()
         first_default = len(args) - len(defaults)
@@ -309,4 +310,7 @@ class RuntimeCompiledFunction(object):
 
     def __call__(self, *args, **kwds):
         all = getcallargs(self._f, *args, **kwds)
-        return cython_inline(self._body, locals=self._f.func_globals, globals=self._f.func_globals, **all)
+        if IS_PY3:
+            return cython_inline(self._body, locals=self._f.__globals__, globals=self._f.__globals__, **all)
+        else:
+            return cython_inline(self._body, locals=self._f.func_globals, globals=self._f.func_globals, **all)

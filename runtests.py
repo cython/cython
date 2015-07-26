@@ -23,20 +23,12 @@ except (ImportError, AttributeError):
     IS_CPYTHON = True
     IS_PYPY = False
 
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
+from io import StringIO, open as io_open
 
 try:
     import cPickle as pickle
 except ImportError:
     import pickle
-
-try:
-    from io import open as io_open
-except ImportError:
-    from codecs import open as io_open
 
 try:
     import threading
@@ -645,12 +637,11 @@ class CythonCompileTestCase(unittest.TestCase):
 
     def setUp(self):
         from Cython.Compiler import Options
-        self._saved_options = [ (name, getattr(Options, name))
-                                for name in ('warning_errors',
-                                             'clear_to_none',
-                                             'error_on_unknown_names',
-                                             'error_on_uninitialized') ]
-        self._saved_default_directives = Options.directive_defaults.items()
+        self._saved_options = [
+            (name, getattr(Options, name))
+            for name in ('warning_errors', 'clear_to_none', 'error_on_unknown_names', 'error_on_uninitialized')
+        ]
+        self._saved_default_directives = list(Options.directive_defaults.items())
         Options.warning_errors = self.warning_errors
         if sys.version_info >= (3, 4):
             Options.directive_defaults['autotestdict'] = False
@@ -1311,7 +1302,7 @@ def collect_doctests(path, module_prefix, suite, selectors, exclude_selectors):
     def package_matches(dirname):
         if dirname == 'Debugger' and not include_debugger:
             return False
-        return dirname not in ("Mac", "Distutils", "Plex")
+        return dirname not in ("Mac", "Distutils", "Plex", "Tempita")
     def file_matches(filename):
         filename, ext = os.path.splitext(filename)
         blacklist = ['libcython', 'libpython', 'test_libcython_in_gdb',
@@ -1573,9 +1564,8 @@ def refactor_for_py3(distdir, cy3_dir):
     # need to convert Cython sources first
     import lib2to3.refactor
     from distutils.util import copydir_run_2to3
-    fixers = [ fix for fix in lib2to3.refactor.get_fixers_from_package("lib2to3.fixes")
-               if fix.split('fix_')[-1] not in ('next',)
-               ]
+    with open('2to3-fixers.txt') as f:
+        fixers = [line.strip() for line in f if line.strip()]
     if not os.path.exists(cy3_dir):
         os.makedirs(cy3_dir)
     import distutils.log as dlog
@@ -1774,10 +1764,9 @@ def main():
 
     WORKDIR = os.path.abspath(options.work_dir)
 
-    if sys.version_info[0] >= 3:
-        options.doctests = False
-        if options.with_cython:
-            sys.path.insert(0, options.cython_dir)
+    if options.with_cython and sys.version_info[0] >= 3:
+        sys.path.insert(0, options.cython_dir)
+        if sys.version_info[:2] == (3, 2):
             try:
                 # try if Cython is installed in a Py3 version
                 import Cython.Compiler.Main
@@ -1791,12 +1780,7 @@ def main():
                 # hasn't been refactored yet - do it now
                 global CY3_DIR
                 CY3_DIR = cy3_dir = os.path.join(WORKDIR, 'Cy3')
-                if sys.version_info >= (3,1):
-                    refactor_for_py3(DISTDIR, cy3_dir)
-                elif os.path.isdir(cy3_dir):
-                    sys.path.insert(0, cy3_dir)
-                else:
-                    options.with_cython = False
+                refactor_for_py3(DISTDIR, cy3_dir)
 
     if options.watermark:
         import Cython.Compiler.Version

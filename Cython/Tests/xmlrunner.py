@@ -38,11 +38,13 @@ if __name__ == '__main__':
     unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'))
 """
 
+from __future__ import absolute_import
+
 import os
 import sys
 import time
 from unittest import TestResult, _TextTestResult, TextTestRunner
-from cStringIO import StringIO
+from io import StringIO
 import xml.dom.minidom
 
 

@@ -13,10 +13,11 @@ cython.declare(error=object, warning=object, warn_once=object, InternalError=obj
                unicode_type=object, str_type=object, bytes_type=object, type_type=object,
                Builtin=object, Symtab=object, Utils=object, find_coercion_error=object,
                debug_disposal_code=object, debug_temp_alloc=object, debug_coercion=object,
-               bytearray_type=object, slice_type=object)
+               bytearray_type=object, slice_type=object, _py_int_types=object)
 
-import os.path
+import sys
 import copy
+import os.path
 import operator
 
 from .Errors import error, warning, warn_once, InternalError, CompileError
@@ -44,12 +45,18 @@ from .DebugFlags import debug_disposal_code, debug_temp_alloc, \
 try:
     from __builtin__ import basestring
 except ImportError:
-    basestring = str # Python 3
+    # Python 3
+    basestring = str
+    any_string_type = (bytes, str)
+else:
+    # Python 2
+    any_string_type = (bytes, unicode)
 
-try:
-    from builtins import bytes
-except ImportError:
-    bytes = str # Python 2
+
+if sys.version_info[0] >= 3:
+    _py_int_types = int
+else:
+    _py_int_types = (int, long)
 
 
 class NotConstant(object):
@@ -123,8 +130,9 @@ def check_negative_indices(*nodes):
     Used to find (potential) bugs inside of "wraparound=False" sections.
     """
     for node in nodes:
-        if (node is None
-                or not isinstance(node.constant_result, (int, float, long))):
+        if node is None or (
+                not isinstance(node.constant_result, _py_int_types) and
+                not isinstance(node.constant_result, float)):
             continue
         if node.constant_result < 0:
             warning(node.pos,
@@ -1208,7 +1216,7 @@ class FloatNode(ConstNode):
 
     def get_constant_c_result_code(self):
         strval = self.value
-        assert isinstance(strval, (str, unicode))
+        assert isinstance(strval, basestring)
         cmpval = repr(float(strval))
         if cmpval == 'nan':
             return "(Py_HUGE_VAL * 0)"
@@ -2466,7 +2474,7 @@ class IteratorNode(ExprNode):
             item_count = len(self.sequence.args)
             if self.sequence.mult_factor is None:
                 final_size = item_count
-            elif isinstance(self.sequence.mult_factor.constant_result, (int, long)):
+            elif isinstance(self.sequence.mult_factor.constant_result, _py_int_types):
                 final_size = item_count * self.sequence.mult_factor.constant_result
         code.putln("if (%s >= %s) break;" % (self.counter_cname, final_size))
         if self.reversed:
@@ -2943,7 +2951,7 @@ class IndexNode(ExprNode):
         index = self.index.compile_time_value(denv)
         try:
             return base[index]
-        except Exception, e:
+        except Exception as e:
             self.compile_time_value_error(e)
 
     def is_ephemeral(self):
@@ -3609,7 +3617,7 @@ class IndexNode(ExprNode):
             wraparound = (
                 bool(code.globalstate.directives['wraparound']) and
                 self.original_index_type.signed and
-                not (isinstance(self.index.constant_result, (int, long))
+                not (isinstance(self.index.constant_result, _py_int_types)
                      and self.index.constant_result >= 0))
             boundscheck = bool(code.globalstate.directives['boundscheck'])
             return ", %s, %d, %s, %d, %d, %d" % (
@@ -4023,7 +4031,7 @@ class SliceIndexNode(ExprNode):
             stop = self.stop.compile_time_value(denv)
         try:
             return base[start:stop]
-        except Exception, e:
+        except Exception as e:
             self.compile_time_value_error(e)
 
     def analyse_target_declaration(self, env):
@@ -4336,7 +4344,7 @@ class SliceIndexNode(ExprNode):
                         start = '%s + %d' % (self.base.type.size, start)
                     else:
                         start += total_length
-                if isinstance(slice_size, (int, long)):
+                if isinstance(slice_size, _py_int_types):
                     slice_size -= start
                 else:
                     slice_size = '%s - (%s)' % (slice_size, start)
@@ -4351,7 +4359,7 @@ class SliceIndexNode(ExprNode):
         except ValueError:
             int_target_size = None
         else:
-            compile_time_check = isinstance(slice_size, (int, long))
+            compile_time_check = isinstance(slice_size, _py_int_types)
 
         if compile_time_check and slice_size < 0:
             if int_target_size > 0:
@@ -4423,7 +4431,7 @@ class SliceNode(ExprNode):
         step = self.step.compile_time_value(denv)
         try:
             return slice(start, stop, step)
-        except Exception, e:
+        except Exception as e:
             self.compile_time_value_error(e)
 
     def may_be_none(self):
@@ -4585,7 +4593,7 @@ class SimpleCallNode(CallNode):
         args = [arg.compile_time_value(denv) for arg in self.args]
         try:
             return function(*args)
-        except Exception, e:
+        except Exception as e:
             self.compile_time_value_error(e)
 
     def analyse_as_type(self, env):
@@ -4761,7 +4769,7 @@ class SimpleCallNode(CallNode):
 
         # Coerce arguments
         some_args_in_temps = False
-        for i in xrange(min(max_nargs, actual_nargs)):
+        for i in range(min(max_nargs, actual_nargs)):
             formal_arg = func_type.args[i]
             formal_type = formal_arg.type
             arg = args[i].coerce_to(formal_type, env)
@@ -4791,7 +4799,7 @@ class SimpleCallNode(CallNode):
             args[i] = arg
 
         # handle additional varargs parameters
-        for i in xrange(max_nargs, actual_nargs):
+        for i in range(max_nargs, actual_nargs):
             arg = args[i]
             if arg.type.is_pyobject:
                 arg_ctype = arg.type.default_coerced_ctype()
@@ -4809,7 +4817,7 @@ class SimpleCallNode(CallNode):
             # sure they are either all temps or all not temps (except
             # for the last argument, which is evaluated last in any
             # case)
-            for i in xrange(actual_nargs-1):
+            for i in range(actual_nargs-1):
                 if i == 0 and self.self is not None:
                     continue # self is ok
                 arg = args[i]
@@ -5199,7 +5207,7 @@ class InlinedDefNodeCallNode(CallNode):
 
         # Coerce arguments
         some_args_in_temps = False
-        for i in xrange(actual_nargs):
+        for i in range(actual_nargs):
             formal_type = func_type.args[i].type
             arg = self.args[i].coerce_to(formal_type, env)
             if arg.is_temp:
@@ -5226,7 +5234,7 @@ class InlinedDefNodeCallNode(CallNode):
             # sure they are either all temps or all not temps (except
             # for the last argument, which is evaluated last in any
             # case)
-            for i in xrange(actual_nargs-1):
+            for i in range(actual_nargs-1):
                 arg = self.args[i]
                 if arg.nonlocally_immutable():
                     # locals, C functions, unassignable types are safe.
@@ -5324,7 +5332,7 @@ class GeneralCallNode(CallNode):
         keyword_args = self.keyword_args.compile_time_value(denv)
         try:
             return function(*positional_args, **keyword_args)
-        except Exception, e:
+        except Exception as e:
             self.compile_time_value_error(e)
 
     def explicit_args_kwds(self):
@@ -5545,7 +5553,7 @@ class AsTupleNode(ExprNode):
         arg = self.arg.compile_time_value(denv)
         try:
             return tuple(arg)
-        except Exception, e:
+        except Exception as e:
             self.compile_time_value_error(e)
 
     def analyse_types(self, env):
@@ -5615,7 +5623,7 @@ class MergedDictNode(ExprNode):
                     if reject_duplicates and key in result:
                         raise ValueError("duplicate keyword argument found: %s" % key)
                     result[key] = value
-            except Exception, e:
+            except Exception as e:
                 self.compile_time_value_error(e)
         return result
 
@@ -5797,7 +5805,7 @@ class AttributeNode(ExprNode):
         obj = self.obj.compile_time_value(denv)
         try:
             return getattr(obj, attr)
-        except Exception, e:
+        except Exception as e:
             self.compile_time_value_error(e)
 
     def type_dependencies(self, env):
@@ -6443,8 +6451,8 @@ class SequenceNode(ExprNode):
             mult_factor = self.mult_factor
             if mult_factor.type.is_int:
                 c_mult = mult_factor.result()
-                if isinstance(mult_factor.constant_result, (int,long)) \
-                       and mult_factor.constant_result > 0:
+                if (isinstance(mult_factor.constant_result, _py_int_types) and
+                        mult_factor.constant_result > 0):
                     size_factor = ' * %s' % mult_factor.constant_result
                 elif mult_factor.type.signed:
                     size_factor = ' * ((%s<0) ? 0:%s)' % (c_mult, c_mult)
@@ -6495,7 +6503,7 @@ class SequenceNode(ExprNode):
             else:
                 offset = ''
 
-            for i in xrange(arg_count):
+            for i in range(arg_count):
                 arg = self.args[i]
                 if c_mult or not arg.result_in_temp():
                     code.put_incref(arg.result(), arg.ctype())
@@ -6870,7 +6878,8 @@ class TupleNode(SequenceNode):
         if not all(child.is_literal for child in node.args):
             return node
         if not node.mult_factor or (
-                node.mult_factor.is_literal and isinstance(node.mult_factor.constant_result, (int, long))):
+                node.mult_factor.is_literal and
+                isinstance(node.mult_factor.constant_result, _py_int_types)):
             node.is_temp = False
             node.is_literal = True
         else:
@@ -6923,7 +6932,7 @@ class TupleNode(SequenceNode):
         values = self.compile_time_value_list(denv)
         try:
             return tuple(values)
-        except Exception, e:
+        except Exception as e:
             self.compile_time_value_error(e)
 
     def generate_operation_code(self, code):
@@ -7002,7 +7011,7 @@ class ListNode(SequenceNode):
         elif (dst_type.is_array or dst_type.is_ptr) and dst_type.base_type is not PyrexTypes.c_void_type:
             array_length = len(self.args)
             if self.mult_factor:
-                if isinstance(self.mult_factor.constant_result, (int, long)):
+                if isinstance(self.mult_factor.constant_result, _py_int_types):
                     if self.mult_factor.constant_result <= 0:
                         error(self.pos, "Cannot coerce non-positively multiplied list to '%s'" % dst_type)
                     else:
@@ -7571,7 +7580,7 @@ class SetNode(ExprNode):
         values = [arg.compile_time_value(denv) for arg in self.args]
         try:
             return set(values)
-        except Exception, e:
+        except Exception as e:
             self.compile_time_value_error(e)
 
     def generate_evaluation_code(self, code):
@@ -7622,7 +7631,7 @@ class DictNode(ExprNode):
             for item in self.key_value_pairs]
         try:
             return dict(pairs)
-        except Exception, e:
+        except Exception as e:
             self.compile_time_value_error(e)
 
     def type_dependencies(self, env):
@@ -8960,7 +8969,7 @@ class UnopNode(ExprNode):
         operand = self.operand.compile_time_value(denv)
         try:
             return func(operand)
-        except Exception, e:
+        except Exception as e:
             self.compile_time_value_error(e)
 
     def infer_type(self, env):
@@ -9057,7 +9066,7 @@ class NotNode(UnopNode):
         operand = self.operand.compile_time_value(denv)
         try:
             return not operand
-        except Exception, e:
+        except Exception as e:
             self.compile_time_value_error(e)
 
     def infer_unop_type(self, env, operand_type):
@@ -9824,7 +9833,7 @@ class BinopNode(ExprNode):
         operand2 = self.operand2.compile_time_value(denv)
         try:
             return func(operand1, operand2)
-        except Exception, e:
+        except Exception as e:
             self.compile_time_value_error(e)
 
     def infer_type(self, env):
@@ -10230,7 +10239,7 @@ class DivNode(NumBinopNode):
         func = compile_time_binary_operators[self.operator]
         if self.operator == '/' and self.truedivision is None:
             # => true div for floats, floor div for integers
-            if isinstance(op1, (int,long)) and isinstance(op2, (int,long)):
+            if isinstance(op1, _py_int_types) and isinstance(op2, _py_int_types):
                 func = compile_time_binary_operators['//']
         return func
 
@@ -10249,7 +10258,7 @@ class DivNode(NumBinopNode):
             func = self.find_compile_time_binary_operator(
                 operand1, operand2)
             return func(operand1, operand2)
-        except Exception, e:
+        except Exception as e:
             self.compile_time_value_error(e)
 
     def _check_truedivision(self, env):
@@ -10515,7 +10524,7 @@ class PowNode(NumBinopNode):
     def py_operation_function(self, code):
         if (self.type.is_pyobject and
                 self.operand1.constant_result == 2 and
-                isinstance(self.operand1.constant_result, (int, long)) and
+                isinstance(self.operand1.constant_result, _py_int_types) and
                 self.operand2.type is py_object_type):
             code.globalstate.use_utility_code(UtilityCode.load_cached('PyNumberPow2', 'Optimize.c'))
             if self.inplace:
@@ -10898,8 +10907,8 @@ class CmpNode(object):
     def calculate_cascaded_constant_result(self, operand1_result):
         func = compile_time_binary_operators[self.operator]
         operand2_result = self.operand2.constant_result
-        if (isinstance(operand1_result, (bytes, unicode)) and
-                isinstance(operand2_result, (bytes, unicode)) and
+        if (isinstance(operand1_result, any_string_type) and
+                isinstance(operand2_result, any_string_type) and
                 type(operand1_result) != type(operand2_result)):
             # string comparison of different types isn't portable
             return
@@ -10924,7 +10933,7 @@ class CmpNode(object):
         operand2 = self.operand2.compile_time_value(denv)
         try:
             result = func(operand1, operand2)
-        except Exception, e:
+        except Exception as e:
             self.compile_time_value_error(e)
             result = None
         if result:
