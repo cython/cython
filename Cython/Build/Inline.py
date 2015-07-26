@@ -17,6 +17,7 @@ from ..Compiler.Main import Context, CompilationOptions, default_options
 from ..Compiler.ParseTreeTransforms import (CythonTransform,
         SkipDeclarations, AnalyseDeclarationsTransform, EnvTransform)
 from ..Compiler.TreeFragment import parse_from_strings
+from ..Compiler.StringEncoding import _unicode
 from .Dependencies import strip_string_literals, cythonize, cached_function
 from ..Compiler import Pipeline, Nodes
 from ..Utils import get_cython_cache_dir
@@ -152,7 +153,7 @@ def cython_inline(code,
     arg_names = sorted(kwds)
     arg_sigs = tuple([(get_type(kwds[arg], ctx), arg) for arg in arg_names])
     key = orig_code, arg_sigs, sys.version_info, sys.executable, Cython.__version__
-    module_name = "_cython_inline_" + hashlib.md5(str(key).encode('utf-8')).hexdigest()
+    module_name = "_cython_inline_" + hashlib.md5(_unicode(key).encode('utf-8')).hexdigest()
 
     if module_name in sys.modules:
         module = sys.modules[module_name]
