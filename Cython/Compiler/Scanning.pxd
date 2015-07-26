@@ -4,6 +4,8 @@ import cython
 
 from ..Plex.Scanners cimport Scanner
 
+cdef unicode any_string_prefix, IDENT
+
 cdef get_lexicon()
 cdef initial_compile_time_env()
 
