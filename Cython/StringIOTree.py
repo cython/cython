@@ -1,5 +1,5 @@
 try:
-    from StringIO import StringIO
+    from cStringIO import StringIO
 except ImportError:
     from io import StringIO  # does not support writing 'str' in Py2
 
