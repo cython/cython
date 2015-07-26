@@ -1,11 +1,11 @@
 import sys
 
-__all__ = ['b', 'basestring_', 'bytes', 'unicode', 'next', 'is_unicode']
+__all__ = ['b', 'basestring_', 'bytes', 'unicode_', 'next', 'is_unicode']
 
 if sys.version < "3":
     b = bytes = str
     basestring_ = basestring
-    unicode = unicode
+    unicode_ = unicode
 else:
 
     def b(s):
@@ -14,7 +14,7 @@ else:
         return bytes(s)
     basestring_ = (bytes, str)
     bytes = bytes
-    unicode = str
+    unicode_ = str
 text = str
 
 if sys.version < "3":
