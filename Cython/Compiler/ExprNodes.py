@@ -2096,11 +2096,8 @@ class NameNode(AtomicExprNode):
                         code.put_giveref(rhs.py_result())
             if not self.type.is_memoryviewslice:
                 if not assigned:
-                    if overloaded_assignment:
-                        code.putln('%s = %s;' % (self.result(), rhs.result()))
-                    else:
-                        code.putln('%s = %s;' % (
-                            self.result(), rhs.result_as(self.ctype())))
+                    result = rhs.result() if overloaded_assignment else rhs.result_as(self.ctype())
+                    code.putln('%s = %s;' % (self.result(), result))
                 if debug_disposal_code:
                     print("NameNode.generate_assignment_code:")
                     print("...generating post-assignment code for %s" % rhs)

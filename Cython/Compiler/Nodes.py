@@ -901,7 +901,7 @@ class CArgDeclNode(Node):
         if self.default:
             self.default.annotate(code)
 
-    def generate_assignment_code(self, code, target=None):
+    def generate_assignment_code(self, code, target=None, overloaded_assignment=False):
         default = self.default
         if default is None or default.is_literal:
             return
@@ -909,7 +909,7 @@ class CArgDeclNode(Node):
             target = self.calculate_default_value_code(code)
         default.generate_evaluation_code(code)
         default.make_owned_reference(code)
-        result = default.result_as(self.type)
+        result = default.result() if overloaded_assignment else default.result_as(self.type)
         code.putln("%s = %s;" % (target, result))
         if self.type.is_pyobject:
             code.put_giveref(default.result())
@@ -5071,7 +5071,7 @@ class SingleAssignmentNode(AssignmentNode):
     def generate_rhs_evaluation_code(self, code):
         self.rhs.generate_evaluation_code(code)
 
-    def generate_assignment_code(self, code):
+    def generate_assignment_code(self, code, overloaded_assignment=False):
         self.lhs.generate_assignment_code(
             self.rhs, code, overloaded_assignment=self.is_overloaded_assignment)
 
@@ -5158,7 +5158,7 @@ class CascadedAssignmentNode(AssignmentNode):
     def generate_rhs_evaluation_code(self, code):
         self.rhs.generate_evaluation_code(code)
 
-    def generate_assignment_code(self, code):
+    def generate_assignment_code(self, code, overloaded_assignment=False):
         # prepare all coercions
         for rhs in self.coerced_values:
             rhs.generate_evaluation_code(code)

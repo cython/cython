@@ -53,12 +53,15 @@ class TempRefNode(AtomicExprNode):
     def generate_result_code(self, code):
         pass
 
-    def generate_assignment_code(self, rhs, code):
+    def generate_assignment_code(self, rhs, code, overloaded_assignment=False):
         if self.type.is_pyobject:
             rhs.make_owned_reference(code)
             # TODO: analyse control flow to see if this is necessary
             code.put_xdecref(self.result(), self.ctype())
-        code.putln('%s = %s;' % (self.result(), rhs.result_as(self.ctype())))
+        code.putln('%s = %s;' % (
+            self.result(),
+            rhs.result() if overloaded_assignment else rhs.result_as(self.ctype()),
+        ))
         rhs.generate_post_assignment_code(code)
         rhs.free_temps(code)
 
@@ -66,7 +69,7 @@ class CleanupTempRefNode(TempRefNode):
     # THIS IS DEPRECATED, USE LetRefNode instead
     # handle   TempHandle
 
-    def generate_assignment_code(self, rhs, code):
+    def generate_assignment_code(self, rhs, code, overloaded_assignment=False):
         pass
 
     def generate_execution_code(self, code):
@@ -200,12 +203,15 @@ class ResultRefNode(AtomicExprNode):
     def generate_disposal_code(self, code):
         pass
 
-    def generate_assignment_code(self, rhs, code):
+    def generate_assignment_code(self, rhs, code, overloaded_assignment=False):
         if self.type.is_pyobject:
             rhs.make_owned_reference(code)
             if not self.lhs_of_first_assignment:
                 code.put_decref(self.result(), self.ctype())
-        code.putln('%s = %s;' % (self.result(), rhs.result_as(self.ctype())))
+        code.putln('%s = %s;' % (
+            self.result(),
+            rhs.result() if overloaded_assignment else rhs.result_as(self.ctype()),
+        ))
         rhs.generate_post_assignment_code(code)
         rhs.free_temps(code)
 
