@@ -146,7 +146,7 @@ def cython_inline(code,
             # Parsing from strings not fully supported (e.g. cimports).
             print("Could not parse code as a string (to extract unbound symbols).")
     cimports = []
-    for name, arg in kwds.items():
+    for name, arg in list(kwds.items()):
         if arg is cython_module:
             cimports.append('\ncimport cython as %s' % name)
             del kwds[name]
@@ -274,7 +274,7 @@ except ImportError:
             all[varargs] = arg_values[len(args):]
         for name, value in zip(args, arg_values):
             all[name] = value
-        for name, value in kwd_values.items():
+        for name, value in list(kwd_values.items()):
             if name in args:
                 if name in all:
                     raise TypeError("Duplicate argument %s" % name)
