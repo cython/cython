@@ -4204,12 +4204,12 @@ class FinalOptimizePhase(Visitor.CythonTransform, Visitor.NodeRefCleanupMixin):
                 elif function.is_name:
                     if function.entry.is_builtin:
                         may_be_a_method = False
-                    elif function.cf_state:
+                    elif function.entry.cf_assignments:
                         # local functions/classes are definitely not methods
                         non_method_nodes = (ExprNodes.PyCFunctionNode, ExprNodes.ClassNode, ExprNodes.Py3ClassNode)
                         may_be_a_method = any(
                             assignment.rhs and not isinstance(assignment.rhs, non_method_nodes)
-                            for assignment in function.cf_state)
+                            for assignment in function.entry.cf_assignments)
                 if may_be_a_method:
                     node = self.replace(node, ExprNodes.PyMethodCallNode.from_node(
                         node, function=function, arg_tuple=node.arg_tuple, type=node.type))
