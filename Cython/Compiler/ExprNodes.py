@@ -3322,7 +3322,6 @@ class IndexNode(_IndexingBaseNode):
             if base_type in (list_type, tuple_type, dict_type):
                 # do the None check explicitly (not in a helper) to allow optimising it away
                 self.base = self.base.as_none_safe_node("'NoneType' object is not subscriptable")
-
         self.wrap_in_nonecheck_node(env, getting)
         return self
 
@@ -3366,7 +3365,7 @@ class IndexNode(_IndexingBaseNode):
         if base_type.is_fused:
             self.parse_indexed_fused_cdef(env)
         else:
-            self.type_indices = self.parse_index_as_types(env)
+            self.type_indices = self.parse_index_as_template_parameters(env)
             self.index = None  # FIXME: use a dedicated Node class instead of generic IndexNode
             if base_type.templates is None:
                 error(self.pos, "Can only parameterize template functions.")
@@ -3439,7 +3438,7 @@ class IndexNode(_IndexingBaseNode):
             return
         self.base = self.base.as_none_safe_node("'NoneType' object is not subscriptable")
 
-    def parse_index_as_types(self, env, required=True):
+    def parse_index_as_template_parameters(self, env, required=True):
         if isinstance(self.index, TupleNode):
             indices = self.index.args
         else:
@@ -3481,7 +3480,7 @@ class IndexNode(_IndexingBaseNode):
         elif isinstance(self.index, TupleNode):
             for arg in self.index.args:
                 positions.append(arg.pos)
-        specific_types = self.parse_index_as_types(env, required=False)
+        specific_types = self.parse_index_as_template_parameters(env, required=False)
 
         if specific_types is None:
             self.index = self.index.analyse_types(env)
