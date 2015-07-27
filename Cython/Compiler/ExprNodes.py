@@ -3567,9 +3567,9 @@ class IndexNode(_IndexingBaseNode):
             for param in self.type_indices:
                 if isinstance(param, PyrexTypes.CType):
                     template_indices.append(param.empty_declaration_code())
-                elif param.type.is_int:
+                elif param.type.is_int and not param.type.is_const:
                     template_indices.append(param.value_as_c_integer_string())
-                elif param.type.is_enum or param.type.is_ptr:
+                elif param.type.is_int or param.type.is_enum or param.type.is_ptr:
                     template_indices.append(param.result())
                 else:
                     error(self.pos, "Invalid or unsupported template parameter.")
