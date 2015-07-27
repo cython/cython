@@ -78,8 +78,11 @@ class Plugin(CoveragePlugin):
         return CythonModuleTracer(filename, py_file, c_file, self._c_files_map, self._file_path_map)
 
     def file_reporter(self, filename):
-        if os.path.splitext(filename)[1].lower() not in ('.pyx', '.pxi', '.pxd'):
-            return None  # let coverage.py handle it (e.g. .py files)
+        # TODO: let coverage.py handle .py files itself
+        #ext = os.path.splitext(filename)[1].lower()
+        #if ext == '.py':
+        #    from coverage.python import PythonFileReporter
+        #    return PythonFileReporter(filename)
 
         filename = os.path.abspath(filename)
         if self._c_files_map and filename in self._c_files_map:
