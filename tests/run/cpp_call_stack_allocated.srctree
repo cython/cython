@@ -19,6 +19,8 @@ public:
   wint() { val = 0; }
   wint(long long val) { this->val = val; }
   long long &operator()() { return this->val; }
+  long long operator()(long long i) { return this->val + i; }
+  long long operator()(long long i, long long j) { return this->val + i + j; }
 };
 
 ######## call.pxd ########
@@ -29,6 +31,8 @@ cdef extern from "call.cpp" nogil:
         wint()
         wint(long long val)
         long long& operator()()
+        long long operator()(long long i)
+        long long operator()(long long i, long long j)
 
 
 ######## call_stack_allocated.pyx ########
@@ -39,4 +43,8 @@ def test():
     cdef long long b = 3
     b = a()
     assert b == 4
+    b = a(1ll)
+    assert b == 5
+    b = a(1ll, 1ll)
+    assert b == 6
 
