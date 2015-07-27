@@ -56,7 +56,17 @@ except ImportError:
 # compiled exec()
 def exec(code_string, l, g):
     from Cython.Shadow import inline
-    ns = inline(code_string, locals=l, globals=g, lib_dir=os.path.dirname(__file__))
+    try:
+        from StringIO import StringIO
+    except ImportError:
+        from io import StringIO
+
+    old_stderr = sys.stderr
+    try:
+        sys.stderr = StringIO()
+        ns = inline(code_string, locals=l, globals=g, lib_dir=os.path.dirname(__file__))
+    finally:
+        sys.stderr = old_stderr
     g.update(ns)
 
 
