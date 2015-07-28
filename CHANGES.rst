@@ -52,6 +52,9 @@ Features added
 
 * The ``PyTypeObject`` declaration in ``cpython.object`` was extended.
 
+* The ``type`` type is now declared as PyTypeObject in source, allowing
+  for extern functions taking type parameters to have the correct C signatures.
+
 * ``wraparound()`` and ``boundscheck()`` are available as no-ops in pure
   Python mode.
 
