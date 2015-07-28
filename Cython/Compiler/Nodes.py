@@ -8691,7 +8691,7 @@ class CnameDecoratorNode(StatNode):
             e.type.typeptr_cname = self.cname + '_type'
             e.type.scope.namespace_cname = e.type.typeptr_cname
 
-            e.as_variable.cname = py_object_type.cast_code(e.type.typeptr_cname)
+            e.as_variable.cname = e.type.typeptr_cname
 
             scope.scope_prefix = self.cname + "_"
 

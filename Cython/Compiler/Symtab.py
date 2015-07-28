@@ -948,7 +948,7 @@ class BuiltinScope(Scope):
         var_entry = Entry(name = entry.name,
             type = self.lookup('type').type, # make sure "type" is the first type declared...
             pos = entry.pos,
-            cname = "((PyObject*)%s)" % entry.type.typeptr_cname)
+            cname = entry.type.typeptr_cname)
         var_entry.is_variable = 1
         var_entry.is_cglobal = 1
         var_entry.is_readonly = 1
@@ -1525,7 +1525,7 @@ class ModuleScope(Scope):
         var_entry = Entry(name = entry.name,
             type = Builtin.type_type,
             pos = entry.pos,
-            cname = "((PyObject*)%s)" % entry.type.typeptr_cname)
+            cname = entry.type.typeptr_cname)
         var_entry.is_variable = 1
         var_entry.is_cglobal = 1
         var_entry.is_readonly = 1

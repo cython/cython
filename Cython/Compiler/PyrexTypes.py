@@ -985,6 +985,7 @@ class BuiltinObjectType(PyObjectType):
     vtabptr_cname = None
     typedef_flag = True
     is_external = True
+    decl_type = 'PyObject'
 
     def __init__(self, name, cname, objstruct_cname=None):
         self.name = name
@@ -992,6 +993,10 @@ class BuiltinObjectType(PyObjectType):
         self.typeptr_cname = "(&%s)" % cname
         self.objstruct_cname = objstruct_cname
         self.is_gc_simple = name in builtin_types_that_cannot_create_refcycles
+        if name == 'type':
+            # Special case the type type, as many C API calls (and other
+            # libraries) actually expect a PyTypeObject* for type arguments.
+            self.decl_type = objstruct_cname
 
     def set_scope(self, scope):
         self.scope = scope
@@ -1079,13 +1084,19 @@ class BuiltinObjectType(PyObjectType):
         if pyrex or for_display:
             base_code = self.name
         else:
-            base_code = public_decl("PyObject", dll_linkage)
+            base_code = public_decl(self.decl_type, dll_linkage)
             entity_code = "*%s" % entity_code
         return self.base_declaration_code(base_code, entity_code)
 
+    def as_pyobject(self, cname):
+        if self.decl_type == 'PyObject':
+            return cname
+        else:
+            return "(PyObject *)" + cname
+
     def cast_code(self, expr_code, to_object_struct = False):
         return "((%s*)%s)" % (
-            to_object_struct and self.objstruct_cname or "PyObject", # self.objstruct_cname may be None
+            to_object_struct and self.objstruct_cname or self.decl_type, # self.objstruct_cname may be None
             expr_code)
 
     def py_type_name(self):
