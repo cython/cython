@@ -1,3 +1,5 @@
+from __future__ import absolute_import, print_function
+
 import os
 import sys
 
@@ -8,7 +10,7 @@ from Cython.Build import cythonize
 
 # For demo purposes, we build our own tiny library.
 try:
-    print "building libmymath.a"
+    print("building libmymath.a")
     assert os.system("gcc -shared -fPIC -c mymath.c -o mymath.o") == 0
     assert os.system("ar rcs libmymath.a mymath.o") == 0
 except:

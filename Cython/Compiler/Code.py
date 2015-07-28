@@ -128,7 +128,7 @@ class UtilityCodeBase(object):
             del tags['substitute']
             try:
                 code = Template(code).substitute(vars(Naming))
-            except (KeyError, ValueError), e:
+            except (KeyError, ValueError) as e:
                 raise RuntimeError("Error parsing templated utility code of type '%s' at line %d: %s" % (
                     type, begin_lineno, e))
 
@@ -163,7 +163,7 @@ class UtilityCodeBase(object):
         if ext in ('.pyx', '.py', '.pxd', '.pxi'):
             comment = '#'
             strip_comments = partial(re.compile(r'^\s*#.*').sub, '')
-            rstrip = unicode.rstrip
+            rstrip = StringEncoding._unicode.rstrip
         else:
             comment = '/'
             strip_comments = partial(re.compile(r'^\s*//.*|/\*[^*]*\*/').sub, '')
@@ -774,9 +774,8 @@ class FunctionState(object):
         error case.
         """
         return [(cname, type)
-                    for (type, manage_ref), freelist in self.temps_free.items()
-                        if manage_ref
-                            for cname in freelist]
+                for (type, manage_ref), freelist in self.temps_free.items() if manage_ref
+                for cname in freelist]
 
     def start_collecting_temps(self):
         """
@@ -820,7 +819,7 @@ class PyObjectConst(object):
 
 cython.declare(possible_unicode_identifier=object, possible_bytes_identifier=object,
                replace_identifier=object, find_alphanums=object)
-possible_unicode_identifier = re.compile(ur"(?![0-9])\w+$", re.U).match
+possible_unicode_identifier = re.compile(br"(?![0-9])\w+$".decode('ascii'), re.U).match
 possible_bytes_identifier = re.compile(r"(?![0-9])\w+$".encode('ASCII')).match
 replace_identifier = re.compile(r'[^a-zA-Z0-9_]+').sub
 find_alphanums = re.compile('([a-zA-Z0-9]+)').findall
@@ -877,10 +876,10 @@ class StringConst(object):
         if identifier:
             intern = True
         elif identifier is None:
-            if isinstance(text, unicode):
-                intern = bool(possible_unicode_identifier(text))
-            else:
+            if isinstance(text, bytes):
                 intern = bool(possible_bytes_identifier(text))
+            else:
+                intern = bool(possible_unicode_identifier(text))
         else:
             intern = False
         if intern:
@@ -1303,8 +1302,7 @@ class GlobalState(object):
                 cleanup.putln("Py_CLEAR(%s.method);" % cname)
 
     def generate_string_constants(self):
-        c_consts = [ (len(c.cname), c.cname, c)
-                     for c in self.string_const_index.values() ]
+        c_consts = [(len(c.cname), c.cname, c) for c in self.string_const_index.values()]
         c_consts.sort()
         py_strings = []
 
@@ -2300,9 +2298,8 @@ class PyxCodeWriter(object):
 
     def getvalue(self):
         result = self.buffer.getvalue()
-        if not isinstance(result, unicode):
+        if isinstance(result, bytes):
             result = result.decode(self.encoding)
-
         return result
 
     def putln(self, line, context=None):

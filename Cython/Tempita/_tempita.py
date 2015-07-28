@@ -29,6 +29,8 @@ can use ``__name='tmpl.html'`` to set the name of the template.
 If there are syntax errors ``TemplateError`` will be raised.
 """
 
+from __future__ import absolute_import
+
 import re
 import sys
 import cgi
@@ -38,12 +40,10 @@ except ImportError:  # Py3
     from urllib.parse import quote as url_quote
 import os
 import tokenize
-try:
-    from io import StringIO
-except ImportError:
-    from cStringIO import StringIO
-from Cython.Tempita._looper import looper
-from Cython.Tempita.compat3 import bytes, basestring_, next, is_unicode, coerce_text
+from io import StringIO
+
+from ._looper import looper
+from .compat3 import bytes, unicode_, basestring_, next, is_unicode, coerce_text
 
 __all__ = ['TemplateError', 'Template', 'sub', 'HTMLTemplate',
            'sub_html', 'html', 'bunch']
@@ -202,7 +202,7 @@ class Template(object):
                 position=None, name=self.name)
         templ = self.get_template(inherit_template, self)
         self_ = TemplateObject(self.name)
-        for name, value in defs.iteritems():
+        for name, value in defs.items():
             setattr(self_, name, value)
         self_.body = body
         ns = ns.copy()
@@ -298,32 +298,28 @@ class Template(object):
         try:
             try:
                 value = eval(code, self.default_namespace, ns)
-            except SyntaxError, e:
+            except SyntaxError as e:
                 raise SyntaxError(
                     'invalid syntax in expression: %s' % code)
             return value
-        except:
-            exc_info = sys.exc_info()
-            e = exc_info[1]
+        except Exception as e:
             if getattr(e, 'args', None):
                 arg0 = e.args[0]
             else:
                 arg0 = coerce_text(e)
             e.args = (self._add_line_info(arg0, pos),)
-            raise exc_info[0], e, exc_info[2]
+            raise
 
     def _exec(self, code, ns, pos):
         __traceback_hide__ = True
         try:
-            exec code in self.default_namespace, ns
-        except:
-            exc_info = sys.exc_info()
-            e = exc_info[1]
+            exec(code, self.default_namespace, ns)
+        except Exception as e:
             if e.args:
                 e.args = (self._add_line_info(e.args[0], pos),)
             else:
                 e.args = (self._add_line_info(None, pos),)
-            raise exc_info[0], e, exc_info[2]
+            raise
 
     def _repr(self, value, pos):
         __traceback_hide__ = True
@@ -332,7 +328,7 @@ class Template(object):
                 return ''
             if self._unicode:
                 try:
-                    value = unicode(value)
+                    value = unicode_(value)
                 except UnicodeDecodeError:
                     value = bytes(value)
             else:
@@ -341,11 +337,9 @@ class Template(object):
                 if (is_unicode(value)
                     and self.default_encoding):
                     value = value.encode(self.default_encoding)
-        except:
-            exc_info = sys.exc_info()
-            e = exc_info[1]
+        except Exception as e:
             e.args = (self._add_line_info(e.args[0], pos),)
-            raise exc_info[0], e, exc_info[2]
+            raise
         else:
             if self._unicode and isinstance(value, bytes):
                 if not self.default_encoding:
@@ -354,7 +348,7 @@ class Template(object):
                         '(no default_encoding provided)' % value)
                 try:
                     value = value.decode(self.default_encoding)
-                except UnicodeDecodeError, e:
+                except UnicodeDecodeError as e:
                     raise UnicodeDecodeError(
                         e.encoding,
                         e.object,
@@ -391,7 +385,7 @@ def paste_script_template_renderer(content, vars, filename=None):
 class bunch(dict):
 
     def __init__(self, **kw):
-        for name, value in kw.iteritems():
+        for name, value in kw.items():
             setattr(self, name, value)
 
     def __setattr__(self, name, value):
@@ -413,12 +407,9 @@ class bunch(dict):
             return dict.__getitem__(self, key)
 
     def __repr__(self):
-        items = [
-            (k, v) for k, v in self.iteritems()]
-        items.sort()
         return '<%s %s>' % (
             self.__class__.__name__,
-            ' '.join(['%s=%r' % (k, v) for k, v in items]))
+            ' '.join(['%s=%r' % (k, v) for k, v in sorted(self.items())]))
 
 ############################################################
 ## HTML Templating
@@ -467,10 +458,8 @@ def url(v):
 
 
 def attr(**kw):
-    kw = list(kw.iteritems())
-    kw.sort()
     parts = []
-    for name, value in kw:
+    for name, value in sorted(kw.items()):
         if value is None:
             continue
         if name.endswith('_'):
@@ -549,7 +538,7 @@ class TemplateDef(object):
         values = {}
         sig_args, var_args, var_kw, defaults = self._func_signature
         extra_kw = {}
-        for name, value in kw.iteritems():
+        for name, value in kw.items():
             if not var_kw and name not in sig_args:
                 raise TypeError(
                     'Unexpected argument %s' % name)
@@ -572,7 +561,7 @@ class TemplateDef(object):
                 raise TypeError(
                     'Extra position arguments: %s'
                     % ', '.join([repr(v) for v in args]))
-        for name, value_expr in defaults.iteritems():
+        for name, value_expr in defaults.items():
             if name not in values:
                 values[name] = self._template._eval(
                     value_expr, self._ns, self._pos)

@@ -1,5 +1,12 @@
 # cython.* namespace for pure mode.
+from __future__ import absolute_import
+
 __version__ = "0.23.beta1"
+
+try:
+    from __builtin__ import basestring
+except ImportError:
+    basestring = str
 
 
 # BEGIN shameless copy from Cython/minivect/minitypes.py
@@ -233,7 +240,7 @@ class StructType(CythonType):
             for key, value in cast_from.__dict__.items():
                 setattr(self, key, value)
         else:
-            for key, value in data.iteritems():
+            for key, value in data.items():
                 setattr(self, key, value)
 
     def __setattr__(self, key, value):
@@ -260,7 +267,7 @@ class UnionType(CythonType):
             datadict = data
         if len(datadict) > 1:
             raise AttributeError("Union can only store one field at a time.")
-        for key, value in datadict.iteritems():
+        for key, value in datadict.items():
             setattr(self, key, value)
 
     def __setattr__(self, key, value):
@@ -344,7 +351,7 @@ def _specialized_from_args(signatures, args, kwargs):
 py_int = typedef(int, "int")
 try:
     py_long = typedef(long, "long")
-except NameError: # Py3
+except NameError:  # Py3
     py_long = typedef(int, "long")
 py_float = typedef(float, "float")
 py_complex = typedef(complex, "double complex")

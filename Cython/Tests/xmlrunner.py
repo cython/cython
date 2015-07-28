@@ -38,12 +38,17 @@ if __name__ == '__main__':
     unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'))
 """
 
+from __future__ import absolute_import
+
 import os
 import sys
 import time
 from unittest import TestResult, _TextTestResult, TextTestRunner
-from cStringIO import StringIO
 import xml.dom.minidom
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO  # doesn't accept 'str' in Py2
 
 
 class XMLDocument(xml.dom.minidom.Document):
@@ -330,9 +335,10 @@ class _XMLTestResult(_TextTestResult):
 class XMLTestRunner(TextTestRunner):
     """A test runner class that outputs the results in JUnit like XML files.
     """
-    def __init__(self, output='.', stream=sys.stderr, descriptions=True, \
-        verbose=False, elapsed_times=True):
+    def __init__(self, output='.', stream=None, descriptions=True, verbose=False, elapsed_times=True):
         "Create a new instance of XMLTestRunner."
+        if stream is None:
+            stream = sys.stderr
         verbosity = (1, 2)[verbose]
         TextTestRunner.__init__(self, stream, descriptions, verbosity)
         self.output = output

@@ -1,8 +1,9 @@
-# reload seems to work for Python 2.3 but not 2.2. 
-import time, os, sys
-import test_pyximport
+from __future__ import absolute_import, print_function
 
-# debugging the 2.2 problem
+import time, os, sys
+from . import test_pyximport
+
+
 if 1:
     from distutils import sysconfig
     try:
@@ -10,7 +11,8 @@ if 1:
     except AttributeError:
         pass
     import pyxbuild
-    print pyxbuild.distutils.sysconfig == sysconfig
+    print(pyxbuild.distutils.sysconfig == sysconfig)
+
 
 def test():
     tempdir = test_pyximport.make_tempdir()
@@ -28,6 +30,6 @@ def test():
     assert hello.x == 2, "Reload should work on Python 2.3 but not 2.2"
     test_pyximport.remove_tempdir(tempdir)
 
+
 if __name__=="__main__":
     test()
-

@@ -15,6 +15,11 @@ from distutils import log
 from distutils.command import build_ext as _build_ext
 from distutils import sysconfig
 
+try:
+    from __builtin__ import basestring
+except ImportError:
+    basestring = str
+
 extension_name_re = _build_ext.extension_name_re
 
 show_compilers = _build_ext.show_compilers

@@ -4,6 +4,8 @@ import cython
 
 from ..Plex.Scanners cimport Scanner
 
+cdef unicode any_string_prefix, IDENT
+
 cdef get_lexicon()
 cdef initial_compile_time_env()
 
@@ -33,6 +35,7 @@ cdef class PyrexScanner(Scanner):
     cdef public list indentation_stack
     cdef public indentation_char
     cdef public int bracket_nesting_level
+    cdef bint async_enabled
     cdef public sy
     cdef public systring
 
@@ -57,5 +60,5 @@ cdef class PyrexScanner(Scanner):
     cdef expect_indent(self)
     cdef expect_dedent(self)
     cdef expect_newline(self, message=*, bint ignore_semicolon=*)
-    cdef bint enable_keyword(self, name) except -1
-    cdef bint disable_keyword(self, name) except -1
+    cdef int enter_async(self) except -1
+    cdef int exit_async(self) except -1

@@ -12,6 +12,8 @@ import unittest
 import warnings
 import contextlib
 
+from Cython.Compiler import Errors
+
 
 try:
     from types import coroutine as types_coroutine
@@ -54,7 +56,17 @@ except ImportError:
 # compiled exec()
 def exec(code_string, l, g):
     from Cython.Shadow import inline
-    ns = inline(code_string, locals=l, globals=g, lib_dir=os.path.dirname(__file__))
+    try:
+        from StringIO import StringIO
+    except ImportError:
+        from io import StringIO
+
+    old_stderr = sys.stderr
+    try:
+        sys.stderr = StringIO()
+        ns = inline(code_string, locals=l, globals=g, lib_dir=os.path.dirname(__file__))
+    finally:
+        sys.stderr = old_stderr
     g.update(ns)
 
 
@@ -116,6 +128,260 @@ def silence_coro_gc():
         gc.collect()
 
 
+class AsyncBadSyntaxTest(unittest.TestCase):
+
+    @contextlib.contextmanager
+    def assertRaisesRegex(self, exc_type, regex):
+        # the error messages usually don't match, so we just ignore them
+        try:
+            yield
+        except exc_type:
+            self.assertTrue(True)
+        else:
+            self.assertTrue(False)
+
+    def test_badsyntax_9(self):
+        ns = {}
+        for comp in {'(await a for a in b)',
+                     '[await a for a in b]',
+                     '{await a for a in b}',
+                     '{await a: a for a in b}'}:
+
+            with self.assertRaisesRegex(Errors.CompileError, 'await.*in comprehen'):
+                exec('async def f():\n\t{0}'.format(comp), ns, ns)
+
+    def test_badsyntax_10(self):
+        # Tests for issue 24619
+
+        samples = [
+            """async def foo():
+                   def bar(): pass
+                   await = 1
+            """,
+
+            """async def foo():
+
+                   def bar(): pass
+                   await = 1
+            """,
+
+            """async def foo():
+                   def bar(): pass
+                   if 1:
+                       await = 1
+            """,
+
+            """def foo():
+                   async def bar(): pass
+                   if 1:
+                       await a
+            """,
+
+            """def foo():
+                   async def bar(): pass
+                   await a
+            """,
+
+            """def foo():
+                   def baz(): pass
+                   async def bar(): pass
+                   await a
+            """,
+
+            """def foo():
+                   def baz(): pass
+                   # 456
+                   async def bar(): pass
+                   # 123
+                   await a
+            """,
+
+            """async def foo():
+                   def baz(): pass
+                   # 456
+                   async def bar(): pass
+                   # 123
+                   await = 2
+            """,
+
+            """def foo():
+
+                   def baz(): pass
+
+                   async def bar(): pass
+
+                   await a
+            """,
+
+            """async def foo():
+
+                   def baz(): pass
+
+                   async def bar(): pass
+
+                   await = 2
+            """,
+
+            """async def foo():
+                   def async(): pass
+            """,
+
+            """async def foo():
+                   def await(): pass
+            """,
+
+            """async def foo():
+                   def bar():
+                       await
+            """,
+
+            """async def foo():
+                   return lambda async: await
+            """,
+
+            """async def foo():
+                   return lambda a: await
+            """,
+
+            """await a()""",
+
+            """async def foo(a=await b):
+                   pass
+            """,
+
+            """async def foo(a:await b):
+                   pass
+            """,
+
+            """def baz():
+                   async def foo(a=await b):
+                       pass
+            """,
+
+            """async def foo(async):
+                   pass
+            """,
+
+            """async def foo():
+                   def bar():
+                        def baz():
+                            async = 1
+            """,
+
+            """async def foo():
+                   def bar():
+                        def baz():
+                            pass
+                        async = 1
+            """,
+
+            """def foo():
+                   async def bar():
+
+                        async def baz():
+                            pass
+
+                        def baz():
+                            42
+
+                        async = 1
+            """,
+
+            """async def foo():
+                   def bar():
+                        def baz():
+                            pass\nawait foo()
+            """,
+
+            """def foo():
+                   def bar():
+                        async def baz():
+                            pass\nawait foo()
+            """,
+
+            """async def foo(await):
+                   pass
+            """,
+
+            """def foo():
+
+                   async def bar(): pass
+
+                   await a
+            """,
+
+            """def foo():
+                   async def bar():
+                        pass\nawait a
+            """]
+
+        for code in samples:
+            # assertRaises() differs in Py2.6, so use our own assertRaisesRegex() instead
+            with self.subTest(code=code), self.assertRaisesRegex(Errors.CompileError, '.'):
+                exec(code, {}, {})
+
+    if not hasattr(unittest.TestCase, 'subTest'):
+        @contextlib.contextmanager
+        def subTest(self, code, **kwargs):
+            try:
+                yield
+            except Exception:
+                print(code)
+                raise
+
+    def test_goodsyntax_1(self):
+        # Tests for issue 24619
+
+        def foo(await):
+            async def foo(): pass
+            async def foo():
+                pass
+            return await + 1
+        self.assertEqual(foo(10), 11)
+
+        def foo(await):
+            async def foo(): pass
+            async def foo(): pass
+            return await + 2
+        self.assertEqual(foo(20), 22)
+
+        def foo(await):
+
+            async def foo(): pass
+
+            async def foo(): pass
+
+            return await + 2
+        self.assertEqual(foo(20), 22)
+
+        def foo(await):
+            """spam"""
+            async def foo(): \
+                pass
+            # 123
+            async def foo(): pass
+            # 456
+            return await + 2
+        self.assertEqual(foo(20), 22)
+
+        def foo(await):
+            def foo(): pass
+            def foo(): pass
+            async def bar(): return await_
+            await_ = await
+            try:
+                bar().send(None)
+            except StopIteration as ex:
+                return ex.args[0]
+        self.assertEqual(foo(42), 42)
+
+        async def f(z):
+            async def g(): pass
+            await z
+        await = 1
+        #self.assertTrue(inspect.iscoroutinefunction(f))
+
+
 class TokenizerRegrTest(unittest.TestCase):
 
     def test_oneline_defs(self):
@@ -137,17 +403,6 @@ class TokenizerRegrTest(unittest.TestCase):
         self.assertEqual(ns['i499'](), 499)
         self.assertEqual(type(ns['foo']()).__name__, 'coroutine')
         #self.assertTrue(inspect.iscoroutinefunction(ns['foo']))
-
-    def test_syntax_async_await_as_names(self):
-        async def enable():
-            await 123
-
-            def disable():
-                await = 123
-                async = 'abc'
-
-                async def reenable():
-                    await 432
 
 
 class CoroutineTest(unittest.TestCase):
@@ -511,8 +766,7 @@ class CoroutineTest(unittest.TestCase):
         class Awaitable:
             pass
 
-        async def foo():
-            return (await Awaitable())
+        async def foo(): return (await Awaitable())
 
         with self.assertRaisesRegex(
             TypeError, "object Awaitable can't be used in 'await' expression"):
@@ -598,6 +852,39 @@ class CoroutineTest(unittest.TestCase):
             TypeError, "__await__.*returned non-iterator of type"):
 
             run_async(foo())
+
+    def test_await_14(self):
+        class Wrapper:
+            # Forces the interpreter to use CoroutineType.__await__
+            def __init__(self, coro):
+                self.coro = coro
+            def __await__(self):
+                return self.coro.__await__()
+
+        class FutureLike:
+            def __await__(self):
+                return (yield)
+
+        class Marker(Exception):
+            pass
+
+        async def coro1():
+            try:
+                return await FutureLike()
+            except ZeroDivisionError:
+                raise Marker
+        async def coro2():
+            return await Wrapper(coro1())
+
+        c = coro2()
+        c.send(None)
+        with self.assertRaisesRegex(StopIteration, 'spam'):
+            c.send('spam')
+
+        c = coro2()
+        c.send(None)
+        with self.assertRaises(Marker):
+            c.throw(ZeroDivisionError)
 
     def test_await_iterator(self):
         async def foo():

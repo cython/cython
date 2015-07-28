@@ -13,6 +13,11 @@ if sys.version_info[:2] < (2, 6) or (3, 0) <= sys.version_info[:2] < (3, 2):
     sys.stderr.write("Sorry, Cython requires Python 2.6+ or 3.2+, found %d.%d\n" % tuple(sys.version_info[:2]))
     sys.exit(1)
 
+try:
+    from __builtin__ import basestring
+except ImportError:
+    basestring = str
+
 from . import Errors
 # Do not import Parsing here, import it when needed, because Parsing imports
 # Nodes, which globally needs debug command line options initialized to set a
@@ -354,7 +359,7 @@ class Context(object):
                         raise RuntimeError(
                             "Formal grammer can only be used with compiled Cython with an available pgen.")
                     ConcreteSyntaxTree.p_module(source_filename)
-        except UnicodeDecodeError, e:
+        except UnicodeDecodeError as e:
             #import traceback
             #traceback.print_exc()
             raise self._report_decode_error(source_desc, e)
@@ -699,7 +704,7 @@ def main(command_line = 0):
         result = compile(sources, options)
         if result.num_errors > 0:
             any_failures = 1
-    except (EnvironmentError, PyrexError), e:
+    except (EnvironmentError, PyrexError) as e:
         sys.stderr.write(str(e) + '\n')
         any_failures = 1
     if any_failures:

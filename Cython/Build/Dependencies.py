@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 
 import cython
 from .. import __version__
@@ -56,7 +56,7 @@ if sys.version_info[0] < 3:
     if _fs_encoding is None:
         _fs_encoding = sys.getdefaultencoding()
     def encode_filename_in_py2(filename):
-        if isinstance(filename, unicode):
+        if not isinstance(filename, bytes):
             return filename.encode(_fs_encoding)
         return filename
 else:
@@ -163,7 +163,7 @@ distutils_settings = {
     'language':             transitive_str,
 }
 
-@cython.locals(start=long, end=long)
+@cython.locals(start=cython.Py_ssize_t, end=cython.Py_ssize_t)
 def line_iter(source):
     if isinstance(source, basestring):
         start = 0
@@ -254,8 +254,10 @@ class DistutilsInfo(object):
                 value = getattr(extension, key) + list(value)
             setattr(extension, key, value)
 
-@cython.locals(start=long, q=long, single_q=long, double_q=long, hash_mark=long,
-               end=long, k=long, counter=long, quote_len=long)
+@cython.locals(start=cython.Py_ssize_t, q=cython.Py_ssize_t,
+               single_q=cython.Py_ssize_t, double_q=cython.Py_ssize_t,
+               hash_mark=cython.Py_ssize_t, end=cython.Py_ssize_t,
+               k=cython.Py_ssize_t, counter=cython.Py_ssize_t, quote_len=cython.Py_ssize_t)
 def strip_string_literals(code, prefix='__Pyx_L'):
     """
     Normalizes every string literal to be of the form '__Pyx_Lxxx',
@@ -876,7 +878,7 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
 
     if exclude_failures:
         failed_modules = set()
-        for c_file, modules in modules_by_cfile.iteritems():
+        for c_file, modules in modules_by_cfile.items():
             if not os.path.exists(c_file):
                 failed_modules.update(modules)
             elif os.path.getsize(c_file) < 200:
@@ -978,7 +980,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None, raise_on_f
         result = compile([pyx_file], options)
         if result.num_errors > 0:
             any_failures = 1
-    except (EnvironmentError, PyrexError), e:
+    except (EnvironmentError, PyrexError) as e:
         sys.stderr.write('%s\n' % e)
         any_failures = 1
         # XXX

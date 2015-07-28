@@ -177,7 +177,7 @@ def build_module(name, pyxfilename, pyxbuild_dir=None, inplace=False, language_l
     sargs.update(setup_args)
     build_in_temp=sargs.pop('build_in_temp',build_in_temp)
 
-    import pyxbuild
+    from . import pyxbuild
     so_path = pyxbuild.pyx_to_dll(pyxfilename, extension_mod,
                                   build_in_temp=build_in_temp,
                                   pyxbuild_dir=pyxbuild_dir,
@@ -217,10 +217,14 @@ def load_module(name, pyxfilename, pyxbuild_dir=None, is_package=False,
             mod = imp.load_source(name, pyxfilename)
             assert mod.__file__ in (pyxfilename, pyxfilename+'c', pyxfilename+'o'), (mod.__file__, pyxfilename)
         else:
+            tb = sys.exc_info()[2]
             import traceback
-            raise ImportError("Building module %s failed: %s" %
-                              (name,
-                               traceback.format_exception_only(*sys.exc_info()[:2]))), None, sys.exc_info()[2]
+            exc = ImportError("Building module %s failed: %s" % (
+                name, traceback.format_exception_only(*sys.exc_info()[:2])))
+            if sys.version_info[0] >= 3:
+                raise exc.with_traceback(tb)
+            else:
+                exec("raise exc, None, tb", {'exc': exc, 'tb': tb})
     return mod
 
 

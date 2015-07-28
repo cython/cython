@@ -1,3 +1,5 @@
+# cython: language_level=3
+
 #
 #  Example of an extension type.
 #
@@ -9,7 +11,7 @@ cdef class Spam:
     self.amount = 0
 
   def __dealloc__(self):
-    print self.amount, "tons of spam is history."
+    print(self.amount, "tons of spam is history.")
 
   def get_amount(self):
     return self.amount
@@ -18,4 +20,4 @@ cdef class Spam:
     self.amount = new_amount
 
   def describe(self):
-    print self.amount, "tons of spam!"
+    print(self.amount, "tons of spam!")

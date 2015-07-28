@@ -257,7 +257,7 @@ def parse_directive_value(name, value, relaxed_bool=False):
     Parses value as an option value for the given name and returns
     the interpreted value. None is returned if the option does not exist.
 
-    >>> print parse_directive_value('nonexisting', 'asdf asdfd')
+    >>> print(parse_directive_value('nonexisting', 'asdf asdfd'))
     None
     >>> parse_directive_value('boundscheck', 'True')
     True

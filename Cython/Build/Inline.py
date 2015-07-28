@@ -17,15 +17,18 @@ from ..Compiler.Main import Context, CompilationOptions, default_options
 from ..Compiler.ParseTreeTransforms import (CythonTransform,
         SkipDeclarations, AnalyseDeclarationsTransform, EnvTransform)
 from ..Compiler.TreeFragment import parse_from_strings
+from ..Compiler.StringEncoding import _unicode
 from .Dependencies import strip_string_literals, cythonize, cached_function
 from ..Compiler import Pipeline, Nodes
 from ..Utils import get_cython_cache_dir
 import cython as cython_module
 
+IS_PY3 = sys.version_info >= (3, 0)
+
 # A utility function to convert user-supplied ASCII strings to unicode.
 if sys.version_info[0] < 3:
     def to_unicode(s):
-        if not isinstance(s, unicode):
+        if isinstance(s, bytes):
             return s.decode('ascii')
         else:
             return s
@@ -143,15 +146,14 @@ def cython_inline(code,
             # Parsing from strings not fully supported (e.g. cimports).
             print("Could not parse code as a string (to extract unbound symbols).")
     cimports = []
-    for name, arg in kwds.items():
+    for name, arg in list(kwds.items()):
         if arg is cython_module:
             cimports.append('\ncimport cython as %s' % name)
             del kwds[name]
-    arg_names = kwds.keys()
-    arg_names.sort()
+    arg_names = sorted(kwds)
     arg_sigs = tuple([(get_type(kwds[arg], ctx), arg) for arg in arg_names])
     key = orig_code, arg_sigs, sys.version_info, sys.executable, Cython.__version__
-    module_name = "_cython_inline_" + hashlib.md5(str(key).encode('utf-8')).hexdigest()
+    module_name = "_cython_inline_" + hashlib.md5(_unicode(key).encode('utf-8')).hexdigest()
 
     if module_name in sys.modules:
         module = sys.modules[module_name]
@@ -221,26 +223,28 @@ def __invoke(%(params)s):
 # overridden with actual value upon the first cython_inline invocation
 cython_inline.so_ext = None
 
-non_space = re.compile('[^ ]')
+_find_non_space = re.compile('[^ ]').search
+
+
 def strip_common_indent(code):
     min_indent = None
-    lines = code.split('\n')
+    lines = code.splitlines()
     for line in lines:
-        match = non_space.search(line)
+        match = _find_non_space(line)
         if not match:
-            continue # blank
+            continue  # blank
         indent = match.start()
         if line[indent] == '#':
-            continue # comment
-        elif min_indent is None or min_indent > indent:
+            continue  # comment
+        if min_indent is None or min_indent > indent:
             min_indent = indent
     for ix, line in enumerate(lines):
-        match = non_space.search(line)
-        if not match or line[indent] == '#':
+        match = _find_non_space(line)
+        if not match or not line or line[indent:indent+1] == '#':
             continue
-        else:
-            lines[ix] = line[min_indent:]
+        lines[ix] = line[min_indent:]
     return '\n'.join(lines)
+
 
 module_statement = re.compile(r'^((cdef +(extern|class))|cimport|(from .+ cimport)|(from .+ import +[*]))')
 def extract_func_code(code):
@@ -270,7 +274,7 @@ except ImportError:
             all[varargs] = arg_values[len(args):]
         for name, value in zip(args, arg_values):
             all[name] = value
-        for name, value in kwd_values.items():
+        for name, value in list(kwd_values.items()):
             if name in args:
                 if name in all:
                     raise TypeError("Duplicate argument %s" % name)
@@ -278,7 +282,7 @@ except ImportError:
         if kwds is not None:
             all[kwds] = kwd_values
         elif kwd_values:
-            raise TypeError("Unexpected keyword arguments: %s" % kwd_values.keys())
+            raise TypeError("Unexpected keyword arguments: %s" % list(kwd_values))
         if defaults is None:
             defaults = ()
         first_default = len(args) - len(defaults)
@@ -307,4 +311,7 @@ class RuntimeCompiledFunction(object):
 
     def __call__(self, *args, **kwds):
         all = getcallargs(self._f, *args, **kwds)
-        return cython_inline(self._body, locals=self._f.func_globals, globals=self._f.func_globals, **all)
+        if IS_PY3:
+            return cython_inline(self._body, locals=self._f.__globals__, globals=self._f.__globals__, **all)
+        else:
+            return cython_inline(self._body, locals=self._f.func_globals, globals=self._f.func_globals, **all)

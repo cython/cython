@@ -164,7 +164,7 @@ def _set_configuration_nodistutils(env):
     env.AppendUnique(PYEXTLINKFLAGS = env['PYEXT_ALLOW_UNDEFINED'])
 
 def ifnotset(env, name, value):
-    if not env.has_key(name):
+    if name not in env:
         env[name] = value
 
 def set_configuration(env, use_distutils):
@@ -205,7 +205,7 @@ def generate(env):
     """Add Builders and construction variables for python extensions to an
     Environment."""
 
-    if not env.has_key('PYEXT_USE_DISTUTILS'):
+    if 'PYEXT_USE_DISTUTILS' not in env:
         env['PYEXT_USE_DISTUTILS'] = False
 
     # This sets all constructions variables used for pyext builders. 

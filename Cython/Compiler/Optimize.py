@@ -1,11 +1,20 @@
 from __future__ import absolute_import
 
+import sys
+import copy
+import codecs
+
 from . import TypeSlots
 from .ExprNodes import not_a_constant
 import cython
 cython.declare(UtilityCode=object, EncodedString=object, BytesLiteral=object,
                Nodes=object, ExprNodes=object, PyrexTypes=object, Builtin=object,
-               UtilNodes=object)
+               UtilNodes=object, _py_int_types=object)
+
+if sys.version_info[0] >= 3:
+    _py_int_types = int
+else:
+    _py_int_types = (int, long)
 
 from . import Nodes
 from . import ExprNodes
@@ -19,9 +28,6 @@ from .Code import UtilityCode, TempitaUtilityCode
 from .StringEncoding import EncodedString, BytesLiteral
 from .Errors import error
 from .ParseTreeTransforms import SkipDeclarations
-
-import copy
-import codecs
 
 try:
     from __builtin__ import reduce
@@ -444,7 +450,7 @@ class IterationTransform(Visitor.EnvTransform):
             stop = filter_none_node(index.stop)
             step = filter_none_node(index.step)
             if step:
-                if not isinstance(step.constant_result, (int,long)) \
+                if not isinstance(step.constant_result, _py_int_types) \
                        or step.constant_result == 0 \
                        or step.constant_result > 0 and not stop \
                        or step.constant_result < 0 and not start:
@@ -683,7 +689,7 @@ class IterationTransform(Visitor.EnvTransform):
         else:
             step = args[2]
             step_pos = step.pos
-            if not isinstance(step.constant_result, (int, long)):
+            if not isinstance(step.constant_result, _py_int_types):
                 # cannot determine step direction
                 return node
             step_value = step.constant_result
@@ -708,8 +714,8 @@ class IterationTransform(Visitor.EnvTransform):
             bound1, bound2 = bound2, bound1
             abs_step = abs(step_value)
             if abs_step != 1:
-                if (isinstance(bound1.constant_result, (int, long)) and
-                        isinstance(bound2.constant_result, (int, long))):
+                if (isinstance(bound1.constant_result, _py_int_types) and
+                        isinstance(bound2.constant_result, _py_int_types)):
                     # calculate final bounds now
                     if step_value < 0:
                         begin_value = bound2.constant_result
@@ -3852,12 +3858,12 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
     def _calculate_constant_seq(self, node, sequence_node, factor):
         if factor.constant_result != 1 and sequence_node.args:
-            if isinstance(factor.constant_result, (int, long)) and factor.constant_result <= 0:
+            if isinstance(factor.constant_result, _py_int_types) and factor.constant_result <= 0:
                 del sequence_node.args[:]
                 sequence_node.mult_factor = None
             elif sequence_node.mult_factor is not None:
-                if (isinstance(factor.constant_result, (int, long)) and
-                        isinstance(sequence_node.mult_factor.constant_result, (int, long))):
+                if (isinstance(factor.constant_result, _py_int_types) and
+                        isinstance(sequence_node.mult_factor.constant_result, _py_int_types)):
                     value = sequence_node.mult_factor.constant_result * factor.constant_result
                     sequence_node.mult_factor = ExprNodes.IntNode(
                         sequence_node.mult_factor.pos,
@@ -4198,12 +4204,12 @@ class FinalOptimizePhase(Visitor.CythonTransform, Visitor.NodeRefCleanupMixin):
                 elif function.is_name:
                     if function.entry.is_builtin:
                         may_be_a_method = False
-                    elif function.cf_state:
+                    elif function.entry.cf_assignments:
                         # local functions/classes are definitely not methods
                         non_method_nodes = (ExprNodes.PyCFunctionNode, ExprNodes.ClassNode, ExprNodes.Py3ClassNode)
                         may_be_a_method = any(
                             assignment.rhs and not isinstance(assignment.rhs, non_method_nodes)
-                            for assignment in function.cf_state)
+                            for assignment in function.entry.cf_assignments)
                 if may_be_a_method:
                     node = self.replace(node, ExprNodes.PyMethodCallNode.from_node(
                         node, function=function, arg_tuple=node.arg_tuple, type=node.type))

@@ -7,7 +7,6 @@ from __future__ import absolute_import
 
 import cython
 cython.declare(make_lexicon=object, lexicon=object,
-               any_string_prefix=unicode, IDENT=unicode,
                print_function=object, error=object, warning=object,
                os=object, platform=object)
 
@@ -317,6 +316,7 @@ class PyrexScanner(Scanner):
         self.indentation_stack = [0]
         self.indentation_char = None
         self.bracket_nesting_level = 0
+        self.async_enabled = 0
         self.begin('INDENT')
         self.sy = ''
         self.next()
@@ -493,14 +493,17 @@ class PyrexScanner(Scanner):
         if useless_trailing_semicolon is not None:
             warning(useless_trailing_semicolon, "useless trailing semicolon")
 
-    def enable_keyword(self, name):
-        if name in self.keywords:
-            return True  # was enabled before
-        self.keywords.add(name)
-        return False  # was not enabled before
+    def enter_async(self):
+        self.async_enabled += 1
+        if self.async_enabled == 1:
+            self.keywords.add('async')
+            self.keywords.add('await')
 
-    def disable_keyword(self, name):
-        if name not in self.keywords:
-            return False  # was not enabled before
-        self.keywords.remove(name)
-        return True  # was enabled before
+    def exit_async(self):
+        assert self.async_enabled > 0
+        self.async_enabled -= 1
+        if not self.async_enabled:
+            self.keywords.discard('await')
+            self.keywords.discard('async')
+            if self.sy in ('async', 'await'):
+                self.sy, self.systring = IDENT, self.context.intern_ustring(self.sy)

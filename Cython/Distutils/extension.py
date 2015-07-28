@@ -45,7 +45,7 @@ class Extension(_Extension.Extension):
 
         # Translate pyrex_X to cython_X for backwards compatibility.
         had_pyrex_options = False
-        for key in kw.keys():
+        for key in list(kw):
             if key.startswith('pyrex_'):
                 had_pyrex_options = True
                 kw['cython' + key[5:]] = kw.pop(key)

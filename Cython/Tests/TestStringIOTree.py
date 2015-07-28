@@ -52,7 +52,7 @@ class TestStringIOTree(unittest.TestCase):
         self.write_line(10, tree=line_10_insertion_point)
         self.write_line(12, tree=line_9_to_12_insertion_point)
 
-        self.assertEqual(self.tree.allmarkers(), range(1, 17))
+        self.assertEqual(self.tree.allmarkers(), list(range(1, 17)))
         self.assertEqual(code.strip(), self.tree.getvalue().strip())
 
 

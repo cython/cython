@@ -14,8 +14,8 @@ import gdb
 from Cython.Debugger import libcython
 from Cython.Debugger import libpython
 
-import test_libcython_in_gdb
-from test_libcython_in_gdb import _debug, inferior_python_version
+from . import test_libcython_in_gdb
+from .test_libcython_in_gdb import _debug, inferior_python_version
 
 
 class TestPrettyPrinters(test_libcython_in_gdb.DebugTestCase):
