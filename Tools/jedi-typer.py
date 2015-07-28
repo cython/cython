@@ -7,17 +7,11 @@ from __future__ import absolute_import
 from io import open
 from collections import defaultdict
 from itertools import chain
-import re
 
 import jedi
-if list(map(int, re.findall('[0-9]+', jedi.__version__ or '0'))) >= [0, 9, 0]:
-    __jedi_version__ = 9
-    from jedi.parser.tree import Module, Module as Import
-    from jedi.evaluate.representation import Function, Instance
-else:
-    __jedi_version__ = 8
-    from jedi import Script
-    from jedi.parser.representation import Function, Module, Import
+from jedi.parser.tree import Module, ImportName
+from jedi.evaluate.representation import Function, Instance, Class
+from jedi.evaluate.iterable import Array,Generator, GeneratorComprehension
 
 from Cython.Utils import open_source_file
 
@@ -36,53 +30,39 @@ def analyse(source_path=None, code=None):
     if not source_path and code is None:
         raise ValueError("Either 'source_path' or 'code' is required.")
     scoped_names = {}
-    if __jedi_version__ == 8:
-        script = Script(source=code, path=source_path)
-        evaluator = script._evaluator
-        statement_iter = chain.from_iterable(script._parser.module().used_names.values())
-    else:
-        statement_iter = jedi.names(source=code, path=source_path, all_scopes=True)
+    statement_iter = jedi.names(source=code, path=source_path, all_scopes=True)
+    
     for statement in statement_iter:
-        if __jedi_version__ == 8:
-            parent = scope = statement.parent
-            while not isinstance(scope, (Function, Module)):
-                parent = scope = scope.parent
-            # hack: work around current Jedi problem with global module variables
-            if not hasattr(scope, 'scope_names_generator'):
-                continue
-            statement_names = statement.get_defined_names()
-            if not statement_names:
-                continue
-        else:
-            parent = statement.parent()
-            scope = parent._definition
-            evaluator = statement._evaluator
-            # original jedi-typer does not handle function definitions, so skip here as well
-            if isinstance(statement._definition, Function):
-                continue
-            statement_names = [statement.name]
+        parent = statement.parent()
+        scope = parent._definition
+        evaluator = statement._evaluator
+
+        # skip function/generator definitions, class definitions, and module imports
+        if any(isinstance(statement._definition, t) for t in [Function, Class, ImportName]):
+            continue
         key = (None if isinstance(scope, Module) else str(parent.name), scope.start_pos)
         try:
             names = scoped_names[key]
         except KeyError:
-            names = scoped_names[key] = defaultdict(set)
-        for name in statement_names:
-            for name_type in evaluator.find_types(scope, name, search_global=True):
-                if isinstance(name_type, Import):
+            names = scoped_names[key] = defaultdict(set)        
+
+        for name_type in evaluator.find_types(scope, statement.name, search_global=True):
+            if isinstance(name_type, Instance):
+                if isinstance(name_type.base, Class):
                     type_name = 'object'
                 else:
-                    try:
-                        if __jedi_version__ == 8:
-                            type_name = name_type.name
-                        else:
-                            if isinstance(name_type, Instance):
-                                type_name = name_type.base.obj.__name__
-                            else:
-                                type_name = type(name_type.obj).__name__
-                    except AttributeError as error:
-                        print(error)
-                        type_name = 'object'
-                names[str(name)].add(type_name)
+                    type_name = name_type.base.obj.__name__
+            elif isinstance(name_type, Array):
+                type_name = name_type.type
+            elif isinstance(name_type, GeneratorComprehension):
+                type_name = None
+            else:
+                try:
+                    type_name = type(name_type.obj).__name__                
+                except AttributeError as error:                    
+                    type_name = None
+            if type_name is not None:
+                names[str(statement.name)].add(type_name)
     return scoped_names
 
 
