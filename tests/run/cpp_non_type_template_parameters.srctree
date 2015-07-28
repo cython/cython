@@ -43,4 +43,5 @@ def test():
     cdef int a = 0
     assert myfunc1[2](a) == 2
     assert myfunc1[c](a) == 2
-    assert myfunc4[&p](a) == 2
+    assert myfunc2[&p](a) == 2
+    assert myfunc2[p](a) == 2

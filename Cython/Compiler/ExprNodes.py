@@ -3451,7 +3451,7 @@ class IndexNode(_IndexingBaseNode):
                 # that uses a non-type value.
                 if index.type is None:
                     index.analyse_types(env)
-                if index.type.is_int or index.type.is_enum or index.type.is_ptr:
+                if index.type.is_int or index.type.is_enum or index.type.is_ptr or isinstance(index.type, PyrexTypes.CFuncType):
                     type_index = index
             if required and type_index is None:
                 error(index.pos, "not parsable as a type")
@@ -3569,7 +3569,7 @@ class IndexNode(_IndexingBaseNode):
                     template_indices.append(param.empty_declaration_code())
                 elif param.type.is_int and not param.type.is_const:
                     template_indices.append(param.value_as_c_integer_string())
-                elif param.type.is_int or param.type.is_enum or param.type.is_ptr:
+                elif param.type.is_int or param.type.is_enum or param.type.is_ptr or isinstance(param.type, PyrexTypes.CFuncType):
                     template_indices.append(param.result())
                 else:
                     error(self.pos, "Invalid or unsupported template parameter.")
