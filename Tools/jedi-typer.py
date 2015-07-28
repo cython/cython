@@ -44,9 +44,11 @@ def analyse(source_path=None, code=None):
         try:
             names = scoped_names[key]
         except KeyError:
-            names = scoped_names[key] = defaultdict(set)        
+            names = scoped_names[key] = defaultdict(set)
+                
+        position = statement.start_pos if statement.name in names else None
 
-        for name_type in evaluator.find_types(scope, statement.name, search_global=True):
+        for name_type in evaluator.find_types(scope, statement.name, position=position ,search_global=True):
             if isinstance(name_type, Instance):
                 if isinstance(name_type.base, Class):
                     type_name = 'object'

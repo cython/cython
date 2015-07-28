@@ -84,7 +84,7 @@ class TestJediTyper(TransformTest):
         self.assertFalse(types)
         self.assertEqual({'a': set(['int']), 'i': set(['int'])}, variables)
 
-    def _test_conflicting_types_in_function(self):
+    def test_conflicting_types_in_function(self):
         code = '''\
         def func(a, b):
             print(a)
@@ -99,7 +99,7 @@ class TestJediTyper(TransformTest):
         self.assertIn(('func', (1, 0)), types)
         variables = types.pop(('func', (1, 0)))
         self.assertFalse(types)
-        self.assertEqual({'a': set(['int', 'str']), 'i': set(['int'])}, variables)
+        self.assertEqual({'a': set(['float', 'int', 'str']), 'b': set(['int'])}, variables)
 
     def _test_typing_function_char_loop(self):
         code = '''\
