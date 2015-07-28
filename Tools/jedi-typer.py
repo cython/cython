@@ -11,7 +11,7 @@ from itertools import chain
 import jedi
 from jedi.parser.tree import Module, ImportName
 from jedi.evaluate.representation import Function, Instance, Class
-from jedi.evaluate.iterable import Array,Generator, GeneratorComprehension
+from jedi.evaluate.iterable import ArrayMixin, GeneratorComprehension
 
 from Cython.Utils import open_source_file
 
@@ -52,7 +52,7 @@ def analyse(source_path=None, code=None):
                     type_name = 'object'
                 else:
                     type_name = name_type.base.obj.__name__
-            elif isinstance(name_type, Array):
+            elif isinstance(name_type, ArrayMixin):
                 type_name = name_type.type
             elif isinstance(name_type, GeneratorComprehension):
                 type_name = None

@@ -66,9 +66,6 @@ class TestJediTyper(TransformTest):
             a = i + 1
         '''
         types = self._test(code)
-        if not types:
-            # old Jedi version
-            return
         self.assertIn((None, (1, 0)), types)
         variables = types.pop((None, (1, 0)))
         self.assertFalse(types)
@@ -119,6 +116,92 @@ class TestJediTyper(TransformTest):
         variables = types.pop(('func', (1, 0)))
         self.assertFalse(types)
         self.assertEqual({'a': set(['int']), 'i': set(['int'])}, variables)
+
+    def test_typing_global_list(self):
+        code = '''\
+        a = [x for x in range(10)]
+        b = list(range(10))
+        c = a + b
+        d = [0]*10
+        '''
+        types = self._test(code)
+        self.assertIn((None, (1, 0)), types)
+        variables = types.pop((None, (1, 0)))
+        self.assertFalse(types)
+        self.assertEqual({'a': set(['list']), 'b': set(['list']), 'c': set(['list']), 'd': set(['list'])}, variables)
+        
+    def test_typing_function_list(self):
+        code = '''\
+        def func(x):
+            a = [[], []]
+            b = [0]* 10 + a
+            c = a[0]
+
+        print(func([0]*100))
+        '''
+        types = self._test(code)
+        self.assertIn(('func', (1, 0)), types)
+        variables = types.pop(('func', (1, 0)))
+        self.assertFalse(types)
+        self.assertEqual({'a': set(['list']), 'b': set(['list']), 'c': set(['list']), 'x': set(['list'])}, variables)
+
+    def test_typing_global_dict(self):
+        code = '''\
+        a = dict()
+        b = {i: i**2 for i in range(10)}
+        c = a        
+        '''
+        types = self._test(code)
+        self.assertIn((None, (1, 0)), types)
+        variables = types.pop((None, (1, 0)))
+        self.assertFalse(types)
+        self.assertEqual({'a': set(['dict']), 'b': set(['dict']), 'c': set(['dict'])}, variables)
+        
+    def test_typing_function_dict(self):
+        code = '''\
+        def func(x):
+            a = dict()
+            b = {i: i**2 for i in range(10)}
+            c = x
+
+        print(func({1:2, 'x':7}))
+        '''
+        types = self._test(code)
+        self.assertIn(('func', (1, 0)), types)
+        variables = types.pop(('func', (1, 0)))
+        self.assertFalse(types)
+        self.assertEqual({'a': set(['dict']), 'b': set(['dict']), 'c': set(['dict']), 'x': set(['dict'])}, variables)
+
+
+    def test_typing_global_set(self):
+        code = '''\
+        a = set()
+        # b = {i for i in range(10)} # jedi does not support set comprehension yet
+        c = a
+        d = {1,2,3}
+        e = a | b
+        '''
+        types = self._test(code)
+        self.assertIn((None, (1, 0)), types)
+        variables = types.pop((None, (1, 0)))
+        self.assertFalse(types)
+        self.assertEqual({'a': set(['set']), 'c': set(['set']), 'd': set(['set']), 'e': set(['set'])}, variables)
+        
+    def test_typing_function_set(self):
+        code = '''\
+        def func(x):
+            a = set()
+            # b = {i for i in range(10)} # jedi does not support set comprehension yet
+            c = a
+            d = a | b
+
+        print(func({1,2,3}))
+        '''
+        types = self._test(code)
+        self.assertIn(('func', (1, 0)), types)
+        variables = types.pop(('func', (1, 0)))
+        self.assertFalse(types)
+        self.assertEqual({'a': set(['set']), 'c': set(['set']), 'd': set(['set']), 'x': set(['set'])}, variables)
 
 
 class TestTypeInjection(TestJediTyper):
