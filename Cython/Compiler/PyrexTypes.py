@@ -1088,6 +1088,12 @@ class BuiltinObjectType(PyObjectType):
             entity_code = "*%s" % entity_code
         return self.base_declaration_code(base_code, entity_code)
 
+    def as_pyobject(self, cname):
+        if self.decl_type == 'PyObject':
+            return cname
+        else:
+            return "(PyObject *)" + cname
+
     def cast_code(self, expr_code, to_object_struct = False):
         return "((%s*)%s)" % (
             to_object_struct and self.objstruct_cname or self.decl_type, # self.objstruct_cname may be None
