@@ -11399,12 +11399,15 @@ class CmpNode(object):
                 common_type = type1
             code1 = operand1.result_as(common_type)
             code2 = operand2.result_as(common_type)
-            code.putln("%s = %s(%s %s %s);" % (
+            statement = "%s = %s(%s %s %s);" % (
                 result_code,
                 coerce_result,
                 code1,
                 self.c_operator(op),
-                code2))
+                code2)
+            if self.is_cpp_comparison() and self.exception_check == '+':
+                translate_cpp_exception(code, self.pos, statement, self.exception_value, self.in_nogil_context)
+            code.putln(statement)
 
     def c_operator(self, op):
         if op == 'is':
@@ -11542,6 +11545,12 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         func_type = entry.type
         if func_type.is_ptr:
             func_type = func_type.base_type
+        self.exception_check = func_type.exception_check
+        self.exception_value = func_type.exception_value
+        if self.exception_check == '+':
+            self.is_temp = True
+            if self.exception_value is None:
+                env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
         if len(func_type.args) == 1:
             self.operand2 = self.operand2.coerce_to(func_type.args[0].type, env)
         else:
