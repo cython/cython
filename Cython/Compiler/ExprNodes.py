@@ -11709,6 +11709,10 @@ class CascadedCmpNode(Node, CmpNode):
     def has_python_operands(self):
         return self.operand2.type.is_pyobject
 
+    def is_cpp_comparison(self):
+        # cascaded comparisons aren't currently implemented for c++ classes.
+        return False
+
     def optimise_comparison(self, operand1, env, result_is_bool=False):
         if self.find_special_bool_compare_function(env, operand1, result_is_bool):
             self.is_pycmp = False
