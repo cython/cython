@@ -153,8 +153,8 @@ underlying array to exactly the requested amount.
 
     int resize_smart(array self, Py_ssize_t n) except -1
 
-Efficient for small increments (not available in Python 2.3 and lower); uses
-growth pattern that delivers amortized linear-time appends.
+Efficient for small increments; uses growth pattern that delivers
+amortized linear-time appends.
 
 ::
 
