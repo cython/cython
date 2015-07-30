@@ -4324,6 +4324,8 @@ def c_ptr_type(base_type):
     # Construct a C pointer type.
     if base_type is error_type:
         return error_type
+    elif base_type.is_reference:
+        return CPtrType(base_type.ref_base_type)
     else:
         return CPtrType(base_type)
 
