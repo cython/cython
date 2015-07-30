@@ -32,14 +32,14 @@ def _tempfile(code):
 def _test_typing(code, inject=False):
     sys.path.insert(0, TOOLS_DIR)
     try:
-        module = __import__('jedi-typer')
+        import jedityper
     finally:
         sys.path.remove(TOOLS_DIR)
     lines = []
     with _tempfile(code) as f:
-        types = module.analyse(f.name)
+        types = jedityper.analyse(f.name)
         if inject:
-            lines = module.inject_types(f.name, types)
+            lines = jedityper.inject_types(f.name, types)
     return types, lines
 
 
