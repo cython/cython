@@ -22,6 +22,11 @@ setup(
 
 ######## pkg/a.pyx ########
 
+from .sub.reimport cimport myint
+
+cdef myint i = 5
+assert i == 5
+
 cdef class test_pxd:
     pass
 
@@ -59,3 +64,13 @@ def test():
     obj.x = 1
     obj.y = 2
     return (obj.x, obj.y)
+
+
+######## pkg/sub/tdef.pxd ########
+
+ctypedef int myint
+
+
+######## pkg/sub/reimport.pxd ########
+
+from .tdef cimport myint

@@ -1161,16 +1161,28 @@ class ModuleScope(Scope):
     def find_submodule(self, name):
         # Find and return scope for a submodule of this module,
         # creating a new empty one if necessary. Doesn't parse .pxd.
+        if '.' in name:
+            name, submodule = name.split('.', 1)
+        else:
+            submodule = None
         scope = self.lookup_submodule(name)
         if not scope:
-            scope = ModuleScope(name,
-                parent_module = self, context = self.context)
+            scope = ModuleScope(name, parent_module=self, context=self.context)
             self.module_entries[name] = scope
+        if submodule:
+            scope = scope.find_submodule(submodule)
         return scope
 
     def lookup_submodule(self, name):
         # Return scope for submodule of this module, or None.
-        return self.module_entries.get(name, None)
+        if '.' in name:
+            name, submodule = name.split('.', 1)
+        else:
+            submodule = None
+        module = self.module_entries.get(name, None)
+        if submodule and module is not None:
+            module = module.lookup_submodule(submodule)
+        return module
 
     def add_include_file(self, filename):
         if filename not in self.python_include_files \
