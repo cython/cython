@@ -701,6 +701,8 @@ class FunctionState(object):
         """
         if type.is_const and not type.is_reference:
             type = type.const_base_type
+        if type.is_reference:
+            type = type.ref_base_type
         if not type.is_pyobject and not type.is_memoryviewslice:
             # Make manage_ref canonical, so that manage_ref will always mean
             # a decref is needed.
