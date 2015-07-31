@@ -131,9 +131,9 @@ Other changes
   3.3+ from a source checkout without installing it first.
   Patch by Petr Viktorin.
 
-* ``Tools/jedi-typer.py`` was renamed to ``Tools/jedityper.py`` (to
-  make it importable) and now works with and requires Jedi 0.9.
-  Patch by tjwei.
+* ``jedi-typer.py`` (in ``Tools/``) was extended and renamed to
+  ``jedityper.py`` (to make it importable) and now works with and
+  requires Jedi 0.9.  Patch by Tzer-jen Wei.
 
 
 0.22.1 (2015-06-20)
