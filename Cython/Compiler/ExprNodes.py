@@ -9271,9 +9271,6 @@ class NotNode(UnopNode):
     def calculate_result_code(self):
         return "(!%s)" % self.operand.result()
 
-    def generate_result_code(self, code):
-        pass
-
 
 class UnaryPlusNode(UnopNode):
     #  unary '+' operator
