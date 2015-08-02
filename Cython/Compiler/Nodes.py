@@ -4797,6 +4797,8 @@ class SingleAssignmentNode(AssignmentNode):
     #  rhs                      ExprNode      Right hand side
     #  first                    bool          Is this guaranteed the first assignment to lhs?
     #  is_overloaded_assignment bool          Is this assignment done via an overloaded operator=
+    #  exception_check
+    #  exception_value
 
     child_attrs = ["lhs", "rhs"]
     first = False
@@ -4910,6 +4912,10 @@ class SingleAssignmentNode(AssignmentNode):
             if op:
                 rhs = self.rhs
                 self.is_overloaded_assignment = True
+                self.exception_check = op.type.exception_check
+                self.exception_value = op.type.exception_value
+                if self.exception_check == '+' and self.exception_value is None:
+                    env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
             else:
                 rhs = self.rhs.coerce_to(self.lhs.type, env)
         else:
@@ -5062,8 +5068,15 @@ class SingleAssignmentNode(AssignmentNode):
         self.rhs.generate_evaluation_code(code)
 
     def generate_assignment_code(self, code, overloaded_assignment=False):
-        self.lhs.generate_assignment_code(
-            self.rhs, code, overloaded_assignment=self.is_overloaded_assignment)
+        if self.is_overloaded_assignment:
+            self.lhs.generate_assignment_code(
+                self.rhs,
+                code,
+                overloaded_assignment=self.is_overloaded_assignment,
+                exception_check=self.exception_check,
+                exception_value=self.exception_value)
+        else:
+            self.lhs.generate_assignment_code(self.rhs, code)
 
     def generate_function_definitions(self, env, code):
         self.rhs.generate_function_definitions(env, code)
