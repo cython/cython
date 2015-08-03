@@ -179,15 +179,18 @@ def infer_sequence_item_type(env, seq_node, index_node=None, seq_type=None):
             return item_types.pop()
     return None
 
-def translate_cpp_exception(code, pos, inside, exception_value, nogil):
+def get_exception_handler(exception_value):
     if exception_value is None:
-        raise_py_exception = "__Pyx_CppExn2PyErr();"
+        return "__Pyx_CppExn2PyErr();"
     elif exception_value.type.is_pyobject:
-        raise_py_exception = 'try { throw; } catch(const std::exception& exn) { PyErr_SetString(%s, exn.what()); } catch(...) { PyErr_SetNone(%s); }' % (
+        return 'try { throw; } catch(const std::exception& exn) { PyErr_SetString(%s, exn.what()); } catch(...) { PyErr_SetNone(%s); }' % (
             exception_value.entry.cname,
             exception_value.entry.cname)
     else:
-        raise_py_exception = '%s(); if (!PyErr_Occurred()) PyErr_SetString(PyExc_RuntimeError , "Error converting c++ exception.");' % exception_value.entry.cname
+        return '%s(); if (!PyErr_Occurred()) PyErr_SetString(PyExc_RuntimeError , "Error converting c++ exception.");' % exception_value.entry.cname
+
+def translate_cpp_exception(code, pos, inside, exception_value, nogil):
+    raise_py_exception = get_exception_handler(exception_value)
     code.putln("try {")
     code.putln("%s" % inside)
     code.putln("} catch(...) {")
@@ -198,6 +201,36 @@ def translate_cpp_exception(code, pos, inside, exception_value, nogil):
         code.put_release_ensured_gil()
     code.putln(code.error_goto(pos))
     code.putln("}")
+
+# Used to handle the case where an lvalue expression and an overloaded assignment
+# both have an exception declaration.
+def translate_double_cpp_exception(code, pos, lhs_type, lhs_code, rhs_code,
+    lhs_exc_val, assign_exc_val, nogil):
+    handle_lhs_exc = get_exception_handler(lhs_exc_val)
+    handle_assignment_exc = get_exception_handler(assign_exc_val)
+    code.putln("try {")
+    code.putln(lhs_type.declaration_code("__pyx_local_lvalue = %s;" % lhs_code))
+    code.putln("try {")
+    code.putln("__pyx_local_lvalue = %s;" % rhs_code)
+    # Catch any exception from the overloaded assignment.
+    code.putln("} catch(...) {")
+    if nogil:
+        code.put_ensure_gil(declare_gilstate=True)
+    code.putln(handle_assignment_exc)
+    if nogil:
+        code.put_release_ensured_gil()
+    code.putln(code.error_goto(pos))
+    code.putln("}")
+    # Catch any exception from evaluating lhs.
+    code.putln("} catch(...) {")
+    if nogil:
+        code.put_ensure_gil(declare_gilstate=True)
+    code.putln(handle_lhs_exc)
+    if nogil:
+        code.put_release_ensured_gil()
+    code.putln(code.error_goto(pos))
+    code.putln('}')
+
 
 class ExprNode(Node):
     #  subexprs     [string]     Class var holding names of subexpr node attrs
@@ -3618,10 +3651,21 @@ class IndexNode(_IndexingBaseNode):
         elif self.base.type is bytearray_type:
             value_code = self._check_byte_value(code, rhs)
             self.generate_setitem_code(value_code, code)
-        elif self.base.type.is_cpp_class and self.exception_check:
-            translate_cpp_exception(code, self.pos,
-                "%s = %s;" % (self.result(), rhs.result()),
-                self.exception_value, self.in_nogil_context)
+        elif self.base.type.is_cpp_class and self.exception_check and self.exception_check == '+':
+            if overloaded_assignment and exception_check and \
+                self.exception_value != exception_value:
+                # Handle the case that both the index operator and the assignment
+                # operator have a c++ exception handler and they are not the same.
+                translate_double_cpp_exception(code, self.pos, self.type,
+                    self.result(), rhs.result(), self.exception_value,
+                    exception_value, self.in_nogil_context)
+            else:
+                # Handle the case that only the index operator has a
+                # c++ exception handler, or that
+                # both exception handlers are the same.
+                translate_cpp_exception(code, self.pos,
+                    "%s = %s;" % (self.result(), rhs.result()),
+                    self.exception_value, self.in_nogil_context)
         else:
             code.putln(
                 "%s = %s;" % (self.result(), rhs.result()))
