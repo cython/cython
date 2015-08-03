@@ -419,6 +419,11 @@ def assign_different(long long a, long long b):
     wa = b
     return wa.val
 
+def cascaded_assign(long long a, long long b, long long c):
+    cdef wrapped_int wa = wrapped_int(a)
+    a = b = c
+    return a.val
+
 def test():
     a = 1
     b = 4
@@ -447,3 +452,5 @@ def test():
     assert_raised(assign_index, a, b, c)
     assert_raised(assign_same, a, b)
     assert_raised(assign_different, a, b)
+    assert_raised(cascaded_assign, a, b, c)
+    assert_raised(cascaded_assign, b, a, c)
