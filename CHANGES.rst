@@ -5,6 +5,11 @@ Cython Changelog
 Latest changes
 ==============
 
+
+
+0.23 (2015-08-yy)
+=================
+
 Features added
 --------------
 
@@ -121,6 +126,10 @@ Bugs fixed
   clauses.
 
 * Unprefixed 'str' literals were not supported as C varargs arguments.
+
+* Fixed type errors in conversion enum types to/from Python.  Note that
+  this imposes stricter correctness requirements on enum declarations.
+
 
 Other changes
 -------------
