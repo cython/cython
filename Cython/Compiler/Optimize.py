@@ -2316,17 +2316,17 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     Pyx_strlen_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_size_t_type, [
             PyrexTypes.CFuncTypeArg("bytes", PyrexTypes.c_char_ptr_type, None)
-            ])
+        ])
 
     Pyx_Py_UNICODE_strlen_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_size_t_type, [
             PyrexTypes.CFuncTypeArg("unicode", PyrexTypes.c_py_unicode_ptr_type, None)
-            ])
+        ])
 
     PyObject_Size_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_py_ssize_t_type, [
             PyrexTypes.CFuncTypeArg("obj", PyrexTypes.py_object_type, None)
-            ],
+        ],
         exception_value="-1")
 
     _map_to_capi_len_function = {
