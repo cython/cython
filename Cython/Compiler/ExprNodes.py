@@ -4799,7 +4799,10 @@ class SimpleCallNode(CallNode):
         for i in range(max_nargs, actual_nargs):
             arg = args[i]
             if arg.type.is_pyobject:
-                arg_ctype = arg.type.default_coerced_ctype()
+                if arg.type is str_type:
+                    arg_ctype = PyrexTypes.c_char_ptr_type
+                else:
+                    arg_ctype = arg.type.default_coerced_ctype()
                 if arg_ctype is None:
                     error(self.args[i].pos,
                           "Python object cannot be passed as a varargs parameter")

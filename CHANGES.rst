@@ -120,6 +120,8 @@ Bugs fixed
 * Some complex Python expressions could fail to compile inside of finally
   clauses.
 
+* Unprefixed 'str' literals were not supported as C varargs arguments.
+
 Other changes
 -------------
 
