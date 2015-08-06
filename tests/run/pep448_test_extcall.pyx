@@ -80,6 +80,7 @@ def call_f_positional():
     (1, 2, 3, 4, 5, 6, 7) {}
     (1, 2, 3, 4, 5, 6, 7) {}
     (1, 2, 3, 4, 5, 6, 7) {}
+    (1, 2) {}
     """
     f()
     f(1)
@@ -92,6 +93,7 @@ def call_f_positional():
     f(1, 2, 3, *[4, 5], *[6, 7])
     f(1, *[2, 3], 4, *[5, 6], 7)
     f(*UserList([1, 2]), *UserList([3, 4]), 5, *UserList([6, 7]))
+    f(1, *[] or () and {}, *() and [], *{} or [] and (), *{} and [] or (), 2)
 
 
 # Here we add keyword arguments
@@ -108,6 +110,7 @@ def call_f_kwargs():
     (1, 2, 3, 4, 5) {'a': 6, 'b': 7}
     (1, 2, 3, 6, 7) {'a': 8, 'b': 9, 'x': 4, 'y': 5}
     (1, 2, 3, 4, 5) {'a': 8, 'b': 9, 'x': 6, 'y': 7}
+    (1, 2) {'a': 3}
     """
 
     f(1, 2, 3, **{'a':4, 'b':5})
@@ -120,6 +123,9 @@ def call_f_kwargs():
     f(1, 2, 3, *(4, 5), **UserDict(a=6, b=7))
     f(1, 2, 3, x=4, y=5, *(6, 7), **UserDict(a=8, b=9))
     f(1, 2, 3, *(4, 5), x=6, y=7, **UserDict(a=8, b=9))
+
+    f(1, *[] or () and {}, *() and [], *{} or [] and (), *{} and [] or (), 2,
+      **{} and {} or {}, **{} or {} and {}, **{} and {}, a=3)
 
 
 # Examples with invalid arguments (TypeErrors). We're also testing the function
