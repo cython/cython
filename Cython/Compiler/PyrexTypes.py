@@ -4079,13 +4079,13 @@ def best_match(args, functions, pos=None, env=None):
                     assignable = dst_type.assignable_from(c_src_type)
                     if assignable:
                         src_type = c_src_type
-                        needed_coercions[func] = i, dst_type
+                        needed_coercions[func] = (i, dst_type)
 
             if assignable:
                 if src_type == dst_type or dst_type.same_as(src_type):
-                    pass # score 0
+                    pass  # score 0
                 elif func_type.is_strict_signature:
-                    break # exact match requested but not found
+                    break  # exact match requested but not found
                 elif is_promotion(src_type, dst_type):
                     score[2] += 1
                 elif ((src_type.is_int and dst_type.is_int) or
@@ -4097,12 +4097,11 @@ def best_match(args, functions, pos=None, env=None):
                 else:
                     score[0] += 1
             else:
-                error_mesg = "Invalid conversion from '%s' to '%s'"%(src_type,
-                                                                     dst_type)
+                error_mesg = "Invalid conversion from '%s' to '%s'" % (src_type, dst_type)
                 bad_types.append((func, error_mesg))
                 break
         else:
-            possibilities.append((score, index, func)) # so we can sort it
+            possibilities.append((score, index, func))  # so we can sort it
 
     if possibilities:
         possibilities.sort()
