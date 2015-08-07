@@ -81,21 +81,33 @@ coercion_error_dict = {
                                " This is not portable and requires explicit encoding."),
     (unicode_type, bytes_type): "Cannot convert Unicode string to 'bytes' implicitly, encoding required.",
     (unicode_type, PyrexTypes.c_char_ptr_type): "Unicode objects only support coercion to Py_UNICODE*.",
+    (unicode_type, PyrexTypes.c_const_char_ptr_type): "Unicode objects only support coercion to Py_UNICODE*.",
     (unicode_type, PyrexTypes.c_uchar_ptr_type): "Unicode objects only support coercion to Py_UNICODE*.",
+    (unicode_type, PyrexTypes.c_const_uchar_ptr_type): "Unicode objects only support coercion to Py_UNICODE*.",
     (bytes_type, unicode_type): "Cannot convert 'bytes' object to unicode implicitly, decoding required",
     (bytes_type, str_type): "Cannot convert 'bytes' object to str implicitly. This is not portable to Py3.",
     (bytes_type, basestring_type): ("Cannot convert 'bytes' object to basestring implicitly."
                                     " This is not portable to Py3."),
     (bytes_type, PyrexTypes.c_py_unicode_ptr_type): "Cannot convert 'bytes' object to Py_UNICODE*, use 'unicode'.",
+    (bytes_type, PyrexTypes.c_const_py_unicode_ptr_type): (
+        "Cannot convert 'bytes' object to Py_UNICODE*, use 'unicode'."),
     (basestring_type, bytes_type): "Cannot convert 'basestring' object to bytes implicitly. This is not portable.",
     (str_type, unicode_type): ("str objects do not support coercion to unicode,"
                                " use a unicode string literal instead (u'')"),
     (str_type, bytes_type): "Cannot convert 'str' to 'bytes' implicitly. This is not portable.",
     (str_type, PyrexTypes.c_char_ptr_type): "'str' objects do not support coercion to C types (use 'bytes'?).",
+    (str_type, PyrexTypes.c_const_char_ptr_type): "'str' objects do not support coercion to C types (use 'bytes'?).",
     (str_type, PyrexTypes.c_uchar_ptr_type): "'str' objects do not support coercion to C types (use 'bytes'?).",
+    (str_type, PyrexTypes.c_const_uchar_ptr_type): "'str' objects do not support coercion to C types (use 'bytes'?).",
     (str_type, PyrexTypes.c_py_unicode_ptr_type): "'str' objects do not support coercion to C types (use 'unicode'?).",
+    (str_type, PyrexTypes.c_const_py_unicode_ptr_type): (
+        "'str' objects do not support coercion to C types (use 'unicode'?)."),
     (PyrexTypes.c_char_ptr_type, unicode_type): "Cannot convert 'char*' to unicode implicitly, decoding required",
+    (PyrexTypes.c_const_char_ptr_type, unicode_type): (
+        "Cannot convert 'char*' to unicode implicitly, decoding required"),
     (PyrexTypes.c_uchar_ptr_type, unicode_type): "Cannot convert 'char*' to unicode implicitly, decoding required",
+    (PyrexTypes.c_const_uchar_ptr_type, unicode_type): (
+        "Cannot convert 'char*' to unicode implicitly, decoding required"),
 }
 
 
@@ -103,8 +115,9 @@ def find_coercion_error(type_tuple, default, env):
     err = coercion_error_dict.get(type_tuple)
     if err is None:
         return default
-    elif ((PyrexTypes.c_char_ptr_type in type_tuple or PyrexTypes.c_uchar_ptr_type in type_tuple)
-            and env.directives['c_string_encoding']):
+    elif (env.directives['c_string_encoding'] and
+              any(t in type_tuple for t in (PyrexTypes.c_char_ptr_type, PyrexTypes.c_uchar_ptr_type,
+                                            PyrexTypes.c_const_char_ptr_type, PyrexTypes.c_const_uchar_ptr_type))):
         if type_tuple[1].is_pyobject:
             return default
         elif env.directives['c_string_encoding'] in ('ascii', 'default'):
@@ -1301,20 +1314,20 @@ class BytesNode(ConstNode):
             return CharNode(self.pos, value=self.value,
                             constant_result=ord(self.value))
 
-        node = BytesNode(self.pos, value=self.value,
-                         constant_result=self.constant_result)
+        node = BytesNode(self.pos, value=self.value, constant_result=self.constant_result)
         if dst_type.is_pyobject:
             if dst_type in (py_object_type, Builtin.bytes_type):
                 node.type = Builtin.bytes_type
             else:
                 self.check_for_coercion_error(dst_type, env, fail=True)
                 return node
-        elif dst_type == PyrexTypes.c_char_ptr_type:
+        elif dst_type in (PyrexTypes.c_char_ptr_type, PyrexTypes.c_const_char_ptr_type):
             node.type = dst_type
             return node
-        elif dst_type == PyrexTypes.c_uchar_ptr_type:
-            node.type = PyrexTypes.c_char_ptr_type
-            return CastNode(node, PyrexTypes.c_uchar_ptr_type)
+        elif dst_type in (PyrexTypes.c_uchar_ptr_type, PyrexTypes.c_const_uchar_ptr_type):
+            node.type = (PyrexTypes.c_const_char_ptr_type if dst_type == PyrexTypes.c_const_uchar_ptr_type
+                         else PyrexTypes.c_char_ptr_type)
+            return CastNode(node, dst_type)
         elif dst_type.assignable_from(PyrexTypes.c_char_ptr_type):
             node.type = dst_type
             return node
@@ -1326,9 +1339,15 @@ class BytesNode(ConstNode):
 
     def generate_evaluation_code(self, code):
         if self.type.is_pyobject:
-            self.result_code = code.get_py_string_const(self.value)
+            result = code.get_py_string_const(self.value)
+        elif self.type.is_const:
+            result = code.get_string_const(self.value)
         else:
-            self.result_code = code.get_string_const(self.value)
+            # not const => use plain C string literal and cast to mutable type
+            literal = code.as_c_string_literal(self.value)
+            # C++ may require a cast
+            result = typecast(self.type, PyrexTypes.c_void_ptr_type, literal)
+        self.result_code = result
 
     def get_constant_c_result_code(self):
         return None # FIXME
@@ -4146,7 +4165,7 @@ class SliceIndexNode(ExprNode):
         stop_code = self.stop_code()
         if self.base.type.is_string:
             base_result = self.base.result()
-            if self.base.type != PyrexTypes.c_char_ptr_type:
+            if self.base.type not in (PyrexTypes.c_char_ptr_type, PyrexTypes.c_const_char_ptr_type):
                 base_result = '((const char*)%s)' % base_result
             if self.type is bytearray_type:
                 type_name = 'ByteArray'

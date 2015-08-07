@@ -2186,6 +2186,8 @@ class CPointerBaseType(CType):
 
     def __init__(self, base_type):
         self.base_type = base_type
+        if base_type.is_const:
+            base_type = base_type.const_base_type
         for char_type in (c_char_type, c_uchar_type, c_schar_type):
             if base_type.same_as(char_type):
                 self.is_string = 1
@@ -3860,10 +3862,13 @@ c_null_ptr_type =     CNullPtrType(c_void_type)
 c_void_ptr_type =     CPtrType(c_void_type)
 c_void_ptr_ptr_type = CPtrType(c_void_ptr_type)
 c_char_ptr_type =     CPtrType(c_char_type)
+c_const_char_ptr_type = CPtrType(CConstType(c_char_type))
 c_uchar_ptr_type =    CPtrType(c_uchar_type)
+c_const_uchar_ptr_type = CPtrType(CConstType(c_uchar_type))
 c_char_ptr_ptr_type = CPtrType(c_char_ptr_type)
 c_int_ptr_type =      CPtrType(c_int_type)
 c_py_unicode_ptr_type = CPtrType(c_py_unicode_type)
+c_const_py_unicode_ptr_type = CPtrType(CConstType(c_py_unicode_type))
 c_py_ssize_t_ptr_type =  CPtrType(c_py_ssize_t_type)
 c_ssize_t_ptr_type =  CPtrType(c_ssize_t_type)
 c_size_t_ptr_type =  CPtrType(c_size_t_type)
@@ -4064,14 +4069,13 @@ def best_match(args, functions, pos=None, env=None):
 
             assignable = dst_type.assignable_from(src_type)
 
-            # Now take care of normal string literals. So when you call a cdef
+            # Now take care of unprefixed string literals. So when you call a cdef
             # function that takes a char *, the coercion will mean that the
             # type will simply become bytes. We need to do this coercion
             # manually for overloaded and fused functions
             if not assignable and src_type.is_pyobject:
-                if (src_type.is_builtin_type and src_type.name == 'str' and
-                        dst_type.resolve() is c_char_ptr_type):
-                    c_src_type = c_char_ptr_type
+                if src_type.is_builtin_type and src_type.name == 'str' and dst_type.resolve().is_string:
+                    c_src_type = dst_type.resolve()
                 else:
                     c_src_type = src_type.default_coerced_ctype()
 

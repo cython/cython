@@ -1,7 +1,9 @@
 cimport cython
 
 cdef char* s = b"abcdefg"
+cdef const char* cs = b"abcdefg"
 cdef unsigned char* us = b"abcdefg"
+cdef const unsigned char* cus = b"abcdefg"
 cdef bytes pystr =  b"abcdefg"
 
 
@@ -14,6 +16,17 @@ def lentest_char():
     7
     """
     return len(s)
+
+
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode",
+    )
+def lentest_const_char():
+    """
+    >>> lentest_const_char()
+    7
+    """
+    return len(cs)
 
 
 @cython.test_assert_path_exists(
@@ -61,6 +74,17 @@ def lentest_uchar():
     7
     """
     return len(us)
+
+
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode",
+    )
+def lentest_const_uchar():
+    """
+    >>> lentest_const_uchar()
+    7
+    """
+    return len(cus)
 
 
 @cython.test_assert_path_exists(

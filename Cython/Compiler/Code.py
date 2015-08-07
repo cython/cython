@@ -1180,6 +1180,11 @@ class GlobalState(object):
     def get_interned_identifier(self, text):
         return self.get_py_string_const(text, identifier=True)
 
+    def as_c_string_literal(self, byte_string):
+        value = StringEncoding.split_string_literal(
+            StringEncoding.escape_byte_string(byte_string.byteencode()))
+        return '"%s"' % value
+
     def new_string_const(self, text, byte_string):
         cname = self.new_string_const_cname(byte_string)
         c = StringConst(cname, text, byte_string)
@@ -1313,7 +1318,7 @@ class GlobalState(object):
                 conditional = True
                 decls_writer.putln("#if PY_MAJOR_VERSION %s 3" % (
                     (2 in c.py_versions) and '<' or '>='))
-            decls_writer.putln('static char %s[] = "%s";' % (
+            decls_writer.putln('static const char %s[] = "%s";' % (
                 cname, StringEncoding.split_string_literal(c.escaped_value)))
             if conditional:
                 decls_writer.putln("#endif")
@@ -1638,6 +1643,9 @@ class CCodeWriter(object):
                             is_str=False, unicode_value=None):
         return self.globalstate.get_py_string_const(
             text, identifier, is_str, unicode_value).cname
+
+    def as_c_string_literal(self, text):
+        return self.globalstate.as_c_string_literal(text)
 
     def get_argument_default_const(self, type):
         return self.globalstate.get_py_const(type).cname
