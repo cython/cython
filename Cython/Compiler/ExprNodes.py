@@ -1324,7 +1324,7 @@ class BytesNode(ConstNode):
         elif dst_type in (PyrexTypes.c_char_ptr_type, PyrexTypes.c_const_char_ptr_type):
             node.type = dst_type
             return node
-        elif dst_type in (PyrexTypes.c_uchar_ptr_type, PyrexTypes.c_const_uchar_ptr_type):
+        elif dst_type in (PyrexTypes.c_uchar_ptr_type, PyrexTypes.c_const_uchar_ptr_type, PyrexTypes.c_void_ptr_type):
             node.type = (PyrexTypes.c_const_char_ptr_type if dst_type == PyrexTypes.c_const_uchar_ptr_type
                          else PyrexTypes.c_char_ptr_type)
             return CastNode(node, dst_type)
