@@ -165,7 +165,7 @@ The ``flags`` argument to ``__getbuffer__`` comes from ``np.asarray``
 that describe the kind of array that is requested.
 Strictly speaking, if the flags contain ``PyBUF_ND``, ``PyBUF_SIMPLE``,
 or ``PyBUF_F_CONTIGUOUS``, ``__getbuffer__`` must raise a ``BufferError``.
-These macros can be ``cimport``'d from ``cpython``.
+These macros can be ``cimport``'d from ``cpython.buffer``.
 
 (The matrix-in-vector structure actually conforms to ``PyBUF_ND``,
 but that would prohibit ``__getbuffer__`` from filling in the strides.
