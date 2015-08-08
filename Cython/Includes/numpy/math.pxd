@@ -25,8 +25,8 @@ cdef extern from "numpy/npy_math.h" nogil:
     long double NZERO "NPY_NZERO"        # negative zero
 
     # These four are actually macros and work on any floating-point type.
+    int isinf "npy_isinf"(long double)  # -1 / 0 / 1
     bint isfinite "npy_isfinite"(long double)
-    bint isinf "npy_isinf"(long double)
     bint isnan "npy_isnan"(long double)
     bint signbit "npy_signbit"(long double)
 

@@ -96,8 +96,8 @@ cdef extern from "math.h" nogil:
 
     double nan(const char*)
 
+    int isinf(long double)   # -1 / 0 / 1
     bint isfinite(long double)
-    bint isinf(long double)
     bint isnan(long double)
     bint isnormal(long double)
     bint signbit(long double)
