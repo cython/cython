@@ -4897,6 +4897,8 @@ class SimpleCallNode(CallNode):
         else:
             self.args = [ arg.analyse_types(env) for arg in self.args ]
             self.analyse_c_function_call(env)
+            if func_type.exception_check == '+':
+                self.is_temp = True
         return self
 
     def function_type(self):
