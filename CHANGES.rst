@@ -18,7 +18,7 @@ Other changes
 -------------
 
 
-0.23 (2015-08-yy)
+0.23 (2015-08-08)
 =================
 
 Features added
@@ -78,6 +78,9 @@ Features added
   Python mode.
 
 * Const iterators were added to the provided C++ STL declarations.
+
+* Smart pointers were added to the provided C++ STL declarations.
+  Patch by Daniel Filonik.
 
 * ``NULL`` is allowed as default argument when embedding signatures.
   This fixes ticket 843.
