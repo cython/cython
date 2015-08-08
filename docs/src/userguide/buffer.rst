@@ -37,7 +37,7 @@ We could implement custom ``__getitem__``, ``__setitem__``, etc. for this,
 but instead we'll use the buffer protocol to expose the matrix's data to Python
 so we can use NumPy to do useful work.
 
-Implementing the buffer protocol requires adding two members,
+Implementing the buffer protocol requires adding two methods,
 ``__getbuffer__`` and ``__releasebuffer__``,
 which Cython handles specially.
 
@@ -62,7 +62,7 @@ which Cython handles specially.
         def __getbuffer__(self, Py_buffer *buffer, int flags):
             cdef Py_ssize_t itemsize = sizeof(self.v[0])
 
-            self.shape[0] = self.v.size()
+            self.shape[0] = self.v.size() / self.ncols
             self.shape[1] = self.ncols
 
             # Stride 1 is the distance, in bytes, between two items in a row;
@@ -165,7 +165,7 @@ The ``flags`` argument to ``__getbuffer__`` comes from ``np.asarray``
 that describe the kind of array that is requested.
 Strictly speaking, if the flags contain ``PyBUF_ND``, ``PyBUF_SIMPLE``,
 or ``PyBUF_F_CONTIGUOUS``, ``__getbuffer__`` must raise a ``BufferError``.
-These macros can be ``cimport``'d from the pseudo-package ``cython``.
+These macros can be ``cimport``'d from ``cpython.buffer``.
 
 (The matrix-in-vector structure actually conforms to ``PyBUF_ND``,
 but that would prohibit ``__getbuffer__`` from filling in the strides.
