@@ -5,6 +5,17 @@ Cython Changelog
 Latest changes
 ==============
 
+Features added
+--------------
+
+Bugs fixed
+----------
+
+* ``isinf()`` declarations in ``libc/math.pxd`` and ``numpy/math.pxd`` now
+  reflect the actual tristate ``int`` return value instead of using ``bint``.
+
+Other changes
+-------------
 
 
 0.23 (2015-08-yy)
