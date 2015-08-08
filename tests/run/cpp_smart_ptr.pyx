@@ -1,6 +1,6 @@
-# distutils: extra_compile_args=-std=c++11
+# distutils: extra_compile_args=-std=c++0x
 # mode: run
-# tag: cpp
+# tag: cpp, werror
 
 from libcpp.memory cimport unique_ptr, shared_ptr
 
