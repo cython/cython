@@ -256,7 +256,7 @@ cdef extern from "wint.cpp" nogil:
         wrapped_int operator!() except +
         bool operator bool() except +
         wrapped_int &operator[](long long &index) except +IndexError
-        long long &operator()() except +
+        long long &operator()() except +AttributeError
         wrapped_int &operator=(const wrapped_int &other) except +ArithmeticError
         wrapped_int &operator=(const long long &vao) except +
 
@@ -441,6 +441,13 @@ def separate_exceptions(long long a, long long b, long long c, long long d, long
     wa[b] = (+wc) * wd + we
     return a.val
 
+def call_temp_separation(long long a, long long b, long long c):
+    cdef:
+        wrapped_int wa = wrapped_int(a)
+        wrapped_int wc = wrapped_int(c)
+    wa[b] = wc()
+    return wa.val
+
 def test():
     assert_raised(initialization, 1, 4)
     assert_raised(addition, 1, 4)
@@ -474,3 +481,5 @@ def test():
     assert_raised(separate_exceptions, 1, 1, 4, 1, 1, err=RuntimeError)
     assert_raised(separate_exceptions, 1, 4, 1, 1, 1, err=IndexError)
     assert_raised(separate_exceptions, 4, 1, 1, 1, 3, err=ArithmeticError)
+    assert_raised(call_temp_separation, 2, 1, 4, err=AttributeError)
+    assert_raised(call_temp_separation, 2, 4, 1, err=IndexError)
