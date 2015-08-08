@@ -29,7 +29,7 @@ from .PyrexTypes import py_object_type, error_type
 from .Symtab import (ModuleScope, LocalScope, ClosureScope,
     StructOrUnionScope, PyClassScope, CppClassScope, TemplateScope)
 from .Code import UtilityCode
-from .StringEncoding import EncodedString, escape_byte_string, split_string_literal
+from .StringEncoding import EncodedString
 from . import Future
 from . import Options
 from . import DebugFlags
@@ -3318,12 +3318,12 @@ class DefNodeWrapper(FuncDefNode):
             docstr = entry.doc
 
             if docstr.is_unicode:
-                docstr = docstr.utf8encode()
+                docstr = docstr.as_utf8_string()
 
             code.putln(
-                'static char %s[] = "%s";' % (
+                'static char %s[] = %s;' % (
                     entry.doc_cname,
-                    split_string_literal(escape_byte_string(docstr))))
+                    docstr.as_c_string_literal()))
 
             if entry.is_special:
                 code.putln('#if CYTHON_COMPILING_IN_CPYTHON')

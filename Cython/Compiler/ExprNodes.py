@@ -1344,7 +1344,7 @@ class BytesNode(ConstNode):
             result = code.get_string_const(self.value)
         else:
             # not const => use plain C string literal and cast to mutable type
-            literal = code.as_c_string_literal(self.value)
+            literal = self.value.as_c_string_literal()
             # C++ may require a cast
             result = typecast(self.type, PyrexTypes.c_void_ptr_type, literal)
         self.result_code = result

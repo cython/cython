@@ -136,6 +136,9 @@ class EncodedString(_unicode):
     def contains_surrogates(self):
         return string_contains_surrogates(self)
 
+    def as_utf8_string(self):
+        return BytesLiteral(self.utf8encode())
+
 
 def string_contains_surrogates(ustring):
     """
@@ -176,6 +179,10 @@ class BytesLiteral(_bytes):
         return self.decode('ISO-8859-1')
 
     is_unicode = False
+
+    def as_c_string_literal(self):
+        value = split_string_literal(escape_byte_string(self))
+        return '"%s"' % value
 
 
 char_from_escape_sequence = {
