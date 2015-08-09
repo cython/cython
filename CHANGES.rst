@@ -18,6 +18,16 @@ Other changes
 -------------
 
 
+0.23.1 (2015-08-xx)
+===================
+
+Bugs fixed
+----------
+
+* Misnamed coroutine property ``cr_yieldfrom`` changed to ``cr_await``
+  to match CPython.
+
+
 0.23 (2015-08-08)
 =================
 

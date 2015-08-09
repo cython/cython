@@ -463,6 +463,14 @@ class CoroutineTest(unittest.TestCase):
         def assertIn(self, member, container, msg=None):
             self.assertTrue(member in container, msg)
 
+    if not hasattr(unittest.TestCase, 'assertIsNone'):
+        def assertIsNone(self, value, msg=None):
+            self.assertTrue(value is None, msg)
+
+    if not hasattr(unittest.TestCase, 'assertIsNotNone'):
+        def assertIsNotNone(self, value, msg=None):
+            self.assertTrue(value is not None, msg)
+
     def test_gen_1(self):
         def gen(): yield
         self.assertFalse(hasattr(gen, '__await__'))
@@ -683,6 +691,39 @@ class CoroutineTest(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError,
                                     "coroutine ignored GeneratorExit"):
             c.close()
+
+    def test_cr_await(self):
+        @types_coroutine
+        def a():
+            #self.assertEqual(inspect.getcoroutinestate(coro_b), inspect.CORO_RUNNING)
+            self.assertIsNone(coro_b.cr_await)
+            yield
+            #self.assertEqual(inspect.getcoroutinestate(coro_b), inspect.CORO_RUNNING)
+            # FIXME: no idea why the following works in CPython:
+            #self.assertIsNone(coro_b.cr_await)
+
+        async def c():
+            await a()
+
+        async def b():
+            self.assertIsNone(coro_b.cr_await)
+            await c()
+            self.assertIsNone(coro_b.cr_await)
+
+        coro_b = b()
+        #self.assertEqual(inspect.getcoroutinestate(coro_b), inspect.CORO_CREATED)
+        self.assertIsNone(coro_b.cr_await)
+
+        coro_b.send(None)
+        #self.assertEqual(inspect.getcoroutinestate(coro_b), inspect.CORO_SUSPENDED)
+        #self.assertEqual(coro_b.cr_await.cr_await.gi_code.co_name, 'a')
+        self.assertIsNotNone(coro_b.cr_await.cr_await)
+        self.assertEqual(coro_b.cr_await.cr_await.__name__, 'a')
+
+        with self.assertRaises(StopIteration):
+            coro_b.send(None)  # complete coroutine
+        #self.assertEqual(inspect.getcoroutinestate(coro_b), inspect.CORO_CLOSED)
+        self.assertIsNone(coro_b.cr_await)
 
     def test_corotype_1(self):
         async def f(): pass
