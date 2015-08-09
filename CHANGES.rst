@@ -24,6 +24,10 @@ Other changes
 Bugs fixed
 ----------
 
+* Code that uses "from xyz import *" and global C struct/union/array
+  variables could fail to compile due to missing helper functions.
+  This fixes ticket 851.
+
 * Misnamed PEP 492 coroutine property ``cr_yieldfrom`` renamed to
   ``cr_await`` to match CPython.
 

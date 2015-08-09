@@ -102,6 +102,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         env.directives = self.directives
         self.body.analyse_declarations(env)
 
+    def prepare_utility_code(self):
+        # prepare any utility code that must be created before code generation
+        # specifically: CythonUtilityCode
+        env = self.scope
+        if env.has_import_star:
+            self.create_import_star_conversion_utility_code(env)
+
     def process_implementation(self, options, result):
         env = self.scope
         env.return_type = PyrexTypes.c_void_type
@@ -1964,6 +1971,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(
                 "};")
 
+    def create_import_star_conversion_utility_code(self, env):
+        # Create all conversion helpers that are needed for "import *" assignments.
+        # Must be done before code generation to support CythonUtilityCode.
+        for name, entry in env.entries.items():
+            if entry.is_cglobal and entry.used:
+                if not entry.type.is_pyobject:
+                    entry.type.create_from_py_utility_code(env)
+
     def generate_import_star(self, env, code):
         env.use_utility_code(UtilityCode.load_cached("CStringEquals", "StringTools.c"))
         code.putln()
@@ -2001,7 +2016,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     code.putln("%s = %s;" % (
                         entry.cname,
                         PyrexTypes.typecast(entry.type, py_object_type, "o")))
-                elif entry.type.from_py_function:
+                elif entry.type.create_from_py_utility_code(env):
+                    # if available, utility code was already created in self.prepare_utility_code()
                     rhs = "%s(o)" % entry.type.from_py_function
                     if entry.type.is_enum:
                         rhs = PyrexTypes.typecast(entry.type, PyrexTypes.c_long_type, rhs)
