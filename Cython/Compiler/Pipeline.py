@@ -55,12 +55,14 @@ def generate_pyx_code_stage_factory(options, result):
         return result
     return generate_pyx_code_stage
 
+
 def inject_pxd_code_stage_factory(context):
     def inject_pxd_code_stage(module_node):
         for name, (statlistnode, scope) in context.pxds.items():
             module_node.merge_in(statlistnode, scope)
         return module_node
     return inject_pxd_code_stage
+
 
 def use_utility_code_definitions(scope, target, seen=None):
     if seen is None:
@@ -78,6 +80,7 @@ def use_utility_code_definitions(scope, target, seen=None):
         elif entry.as_module:
             use_utility_code_definitions(entry.as_module, target, seen)
 
+
 def inject_utility_code_stage_factory(context):
     def inject_utility_code_stage(module_node):
         use_utility_code_definitions(context.cython_scope, module_node.scope)
@@ -85,17 +88,19 @@ def inject_utility_code_stage_factory(context):
         # Note: the list might be extended inside the loop (if some utility code
         # pulls in other utility code, explicitly or implicitly)
         for utilcode in module_node.scope.utility_code_list:
-            if utilcode in added: continue
+            if utilcode in added:
+                continue
             added.append(utilcode)
             if utilcode.requires:
                 for dep in utilcode.requires:
-                    if not dep in added and not dep in module_node.scope.utility_code_list:
+                    if dep not in added and dep not in module_node.scope.utility_code_list:
                         module_node.scope.utility_code_list.append(dep)
             tree = utilcode.get_tree()
             if tree:
                 module_node.merge_in(tree.body, tree.scope, merge_scope=True)
         return module_node
     return inject_utility_code_stage
+
 
 class UseUtilityCodeDefinitions(CythonTransform):
     # Temporary hack to use any utility code in nodes' "utility_code_definitions".
@@ -119,6 +124,7 @@ class UseUtilityCodeDefinitions(CythonTransform):
         self.process_entry(node.entry)
         self.process_entry(node.type_entry)
         return node
+
 
 #
 # Pipeline factories
