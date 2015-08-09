@@ -1160,14 +1160,14 @@ static PyObject *__Pyx_Coroutine_compare(PyObject *obj, PyObject *other, int op)
 
 static PyMethodDef __pyx_Coroutine_methods[] = {
     {"send", (PyCFunction) __Pyx_Coroutine_Send, METH_O,
-     (char*) PyDoc_STR("send(arg) -> send 'arg' into coroutine,\nreturn next yielded value or raise StopIteration.")},
+     (char*) PyDoc_STR("send(arg) -> send 'arg' into coroutine,\nreturn next iterated value or raise StopIteration.")},
     {"throw", (PyCFunction) __Pyx_Coroutine_Throw, METH_VARARGS,
-     (char*) PyDoc_STR("throw(typ[,val[,tb]]) -> raise exception in coroutine,\nreturn next yielded value or raise StopIteration.")},
+     (char*) PyDoc_STR("throw(typ[,val[,tb]]) -> raise exception in coroutine,\nreturn next iterated value or raise StopIteration.")},
     {"close", (PyCFunction) __Pyx_Coroutine_Close, METH_NOARGS,
      (char*) PyDoc_STR("close() -> raise GeneratorExit inside coroutine.")},
 #if PY_VERSION_HEX < 0x030500B1
     {"__await__", (PyCFunction) __Pyx_Coroutine_await, METH_NOARGS,
-     (char*) PyDoc_STR("")},
+     (char*) PyDoc_STR("__await__() -> return an iterator to be used in await expression.")},
 #endif
     {0, 0, 0, 0}
 };
