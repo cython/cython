@@ -8,8 +8,8 @@ Latest changes
 Bugs fixed
 ----------
 
-* Misnamed coroutine property ``cr_yieldfrom`` changed to ``cr_await``
-  to match CPython.
+* Misnamed PEP 492 coroutine property ``cr_yieldfrom`` renamed to
+  ``cr_await`` to match CPython.
 
 
 0.23 (2015-08-08)
