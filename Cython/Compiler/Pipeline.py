@@ -80,6 +80,7 @@ def use_utility_code_definitions(scope, target, seen=None):
 
 def inject_utility_code_stage_factory(context):
     def inject_utility_code_stage(module_node):
+        module_node.prepare_utility_code()
         use_utility_code_definitions(context.cython_scope, module_node.scope)
         added = []
         # Note: the list might be extended inside the loop (if some utility code
