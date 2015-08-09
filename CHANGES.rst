@@ -5,6 +5,11 @@ Cython Changelog
 Latest changes
 ==============
 
+Bugs fixed
+----------
+
+* Misnamed coroutine property ``cr_yieldfrom`` changed to ``cr_await``
+  to match CPython.
 
 
 0.23 (2015-08-08)
