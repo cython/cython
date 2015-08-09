@@ -316,7 +316,7 @@ class UtilityCodeBase(object):
         return code_string
 
     def __str__(self):
-        return "<%s(%s)" % (type(self).__name__, self.name)
+        return "<%s(%s)>" % (type(self).__name__, self.name)
 
     def get_tree(self):
         pass
