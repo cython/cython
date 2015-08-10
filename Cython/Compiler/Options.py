@@ -10,6 +10,11 @@ from __future__ import absolute_import
 cache_builtins = True
 
 embed_pos_in_docstring = False
+
+# Copy the original source code line by line into C code comments
+# in the generated code file to help with understanding the output.
+emit_code_comments = True
+
 gcc_branch_hints = True
 
 pre_import = None

@@ -1679,8 +1679,9 @@ class CCodeWriter(object):
         self.last_marked_pos = pos
         self.last_pos = None
         self.write("\n")
-        self.indent()
-        self.write("/* %s */\n" % self._build_marker(pos))
+        if Options.emit_code_comments:
+            self.indent()
+            self.write("/* %s */\n" % self._build_marker(pos))
         if trace and self.funcstate and self.funcstate.can_trace and self.globalstate.directives['linetrace']:
             self.indent()
             self.write('__Pyx_TraceLine(%d,%d,%s)\n' % (
