@@ -1313,7 +1313,7 @@ class GlobalState(object):
                 conditional = True
                 decls_writer.putln("#if PY_MAJOR_VERSION %s 3" % (
                     (2 in c.py_versions) and '<' or '>='))
-            decls_writer.putln('static char %s[] = "%s";' % (
+            decls_writer.putln('static const char %s[] = "%s";' % (
                 cname, StringEncoding.split_string_literal(c.escaped_value)))
             if conditional:
                 decls_writer.putln("#endif")

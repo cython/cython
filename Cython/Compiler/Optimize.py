@@ -351,8 +351,8 @@ class IterationTransform(Visitor.EnvTransform):
                     base=ExprNodes.BytesNode(
                         slice_node.pos, value=bytes_value,
                         constant_result=bytes_value,
-                        type=PyrexTypes.c_char_ptr_type).coerce_to(
-                            PyrexTypes.c_uchar_ptr_type, self.current_env()),
+                        type=PyrexTypes.c_const_char_ptr_type).coerce_to(
+                            PyrexTypes.c_const_uchar_ptr_type, self.current_env()),
                     start=None,
                     stop=ExprNodes.IntNode(
                         slice_node.pos, value=str(len(bytes_value)),
@@ -2315,12 +2315,12 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
 
     Pyx_strlen_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_size_t_type, [
-            PyrexTypes.CFuncTypeArg("bytes", PyrexTypes.c_char_ptr_type, None)
+            PyrexTypes.CFuncTypeArg("bytes", PyrexTypes.c_const_char_ptr_type, None)
         ])
 
     Pyx_Py_UNICODE_strlen_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_size_t_type, [
-            PyrexTypes.CFuncTypeArg("unicode", PyrexTypes.c_py_unicode_ptr_type, None)
+            PyrexTypes.CFuncTypeArg("unicode", PyrexTypes.c_const_py_unicode_ptr_type, None)
         ])
 
     PyObject_Size_func_type = PyrexTypes.CFuncType(
@@ -3253,8 +3253,8 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     PyUnicode_AsEncodedString_func_type = PyrexTypes.CFuncType(
         Builtin.bytes_type, [
             PyrexTypes.CFuncTypeArg("obj", Builtin.unicode_type, None),
-            PyrexTypes.CFuncTypeArg("encoding", PyrexTypes.c_char_ptr_type, None),
-            PyrexTypes.CFuncTypeArg("errors", PyrexTypes.c_char_ptr_type, None),
+            PyrexTypes.CFuncTypeArg("encoding", PyrexTypes.c_const_char_ptr_type, None),
+            PyrexTypes.CFuncTypeArg("errors", PyrexTypes.c_const_char_ptr_type, None),
             ])
 
     PyUnicode_AsXyzString_func_type = PyrexTypes.CFuncType(
@@ -3321,30 +3321,30 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
 
     PyUnicode_DecodeXyz_func_ptr_type = PyrexTypes.CPtrType(PyrexTypes.CFuncType(
         Builtin.unicode_type, [
-            PyrexTypes.CFuncTypeArg("string", PyrexTypes.c_char_ptr_type, None),
+            PyrexTypes.CFuncTypeArg("string", PyrexTypes.c_const_char_ptr_type, None),
             PyrexTypes.CFuncTypeArg("size", PyrexTypes.c_py_ssize_t_type, None),
-            PyrexTypes.CFuncTypeArg("errors", PyrexTypes.c_char_ptr_type, None),
-            ]))
+            PyrexTypes.CFuncTypeArg("errors", PyrexTypes.c_const_char_ptr_type, None),
+        ]))
 
     _decode_c_string_func_type = PyrexTypes.CFuncType(
         Builtin.unicode_type, [
-            PyrexTypes.CFuncTypeArg("string", PyrexTypes.c_char_ptr_type, None),
+            PyrexTypes.CFuncTypeArg("string", PyrexTypes.c_const_char_ptr_type, None),
             PyrexTypes.CFuncTypeArg("start", PyrexTypes.c_py_ssize_t_type, None),
             PyrexTypes.CFuncTypeArg("stop", PyrexTypes.c_py_ssize_t_type, None),
-            PyrexTypes.CFuncTypeArg("encoding", PyrexTypes.c_char_ptr_type, None),
-            PyrexTypes.CFuncTypeArg("errors", PyrexTypes.c_char_ptr_type, None),
+            PyrexTypes.CFuncTypeArg("encoding", PyrexTypes.c_const_char_ptr_type, None),
+            PyrexTypes.CFuncTypeArg("errors", PyrexTypes.c_const_char_ptr_type, None),
             PyrexTypes.CFuncTypeArg("decode_func", PyUnicode_DecodeXyz_func_ptr_type, None),
-            ])
+        ])
 
     _decode_bytes_func_type = PyrexTypes.CFuncType(
         Builtin.unicode_type, [
             PyrexTypes.CFuncTypeArg("string", PyrexTypes.py_object_type, None),
             PyrexTypes.CFuncTypeArg("start", PyrexTypes.c_py_ssize_t_type, None),
             PyrexTypes.CFuncTypeArg("stop", PyrexTypes.c_py_ssize_t_type, None),
-            PyrexTypes.CFuncTypeArg("encoding", PyrexTypes.c_char_ptr_type, None),
-            PyrexTypes.CFuncTypeArg("errors", PyrexTypes.c_char_ptr_type, None),
+            PyrexTypes.CFuncTypeArg("encoding", PyrexTypes.c_const_char_ptr_type, None),
+            PyrexTypes.CFuncTypeArg("errors", PyrexTypes.c_const_char_ptr_type, None),
             PyrexTypes.CFuncTypeArg("decode_func", PyUnicode_DecodeXyz_func_ptr_type, None),
-            ])
+        ])
 
     _decode_cpp_string_func_type = None  # lazy init
 
@@ -3436,8 +3436,8 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                         PyrexTypes.CFuncTypeArg("string", string_type, None),
                         PyrexTypes.CFuncTypeArg("start", PyrexTypes.c_py_ssize_t_type, None),
                         PyrexTypes.CFuncTypeArg("stop", PyrexTypes.c_py_ssize_t_type, None),
-                        PyrexTypes.CFuncTypeArg("encoding", PyrexTypes.c_char_ptr_type, None),
-                        PyrexTypes.CFuncTypeArg("errors", PyrexTypes.c_char_ptr_type, None),
+                        PyrexTypes.CFuncTypeArg("encoding", PyrexTypes.c_const_char_ptr_type, None),
+                        PyrexTypes.CFuncTypeArg("errors", PyrexTypes.c_const_char_ptr_type, None),
                         PyrexTypes.CFuncTypeArg("decode_func", self.PyUnicode_DecodeXyz_func_ptr_type, None),
                     ])
             helper_func_type = self._decode_cpp_string_func_type
@@ -3509,14 +3509,14 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             encoding = node.value
             node = ExprNodes.BytesNode(
                 node.pos, value=BytesLiteral(encoding.utf8encode()),
-                type=PyrexTypes.c_char_ptr_type)
+                type=PyrexTypes.c_const_char_ptr_type)
         elif isinstance(node, (ExprNodes.StringNode, ExprNodes.BytesNode)):
             encoding = node.value.decode('ISO-8859-1')
             node = ExprNodes.BytesNode(
-                node.pos, value=node.value, type=PyrexTypes.c_char_ptr_type)
+                node.pos, value=node.value, type=PyrexTypes.c_const_char_ptr_type)
         elif node.type is Builtin.bytes_type:
             encoding = None
-            node = node.coerce_to(PyrexTypes.c_char_ptr_type, self.current_env())
+            node = node.coerce_to(PyrexTypes.c_const_char_ptr_type, self.current_env())
         elif node.type.is_string:
             encoding = None
         else:

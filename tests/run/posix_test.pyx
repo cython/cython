@@ -3,18 +3,23 @@ from libc.stdio   cimport *
 from posix.unistd cimport *
 from posix.fcntl  cimport *
 
+
 cdef int noisy_function() except -1:
     cdef int ret = 0
-    ret = printf(b"0123456789\n", 0)
-    assert ret == 11
+    ret = printf(b"012%s6789\n", "345")
+    assert ret == 11  # printf()
+    ret = printf(b"012%d6789\n", 345)
+    assert ret == 11  # printf()
+    ret = printf(b"0123456789\n")
+    assert ret == 11  # printf()
     ret = fflush(stdout)
-    assert ret == 0
-    ret = fprintf(stdout, b"0123456789\n", 0)
-    assert ret == 11
+    assert ret == 0  # fflush()
+    ret = fprintf(stdout, b"012%d6789\n", 345)
+    assert ret == 11  # fprintf()
     ret = fflush(stdout)
-    assert ret == 0
+    assert ret == 0  # fflush()
     ret = write(STDOUT_FILENO, b"0123456789\n", 11)
-    assert ret == 11
+    assert ret == 11  # write()
     return  0
 
 
@@ -40,8 +45,8 @@ def test_silent_stdout():
         ret = close(stdout_save)
         assert ret == 0
 
-cdef class silent_fd:
 
+cdef class silent_fd:
     cdef int fd_save, fd
 
     def __cinit__(self, int fd=-1):
@@ -76,6 +81,7 @@ cdef class silent_fd:
             assert ret == 0
             self.fd_save = -1
         return None
+
 
 def test_silent_stdout_ctxmanager():
     """

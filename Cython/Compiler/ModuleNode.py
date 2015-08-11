@@ -1956,12 +1956,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "static struct PyGetSetDef %s[] = {" %
                 env.getset_table_cname)
             for entry in env.property_entries:
-                if entry.doc:
-                    doc_code = "%s" % code.get_string_const(entry.doc)
+                doc = entry.doc
+                if doc:
+                    if doc.is_unicode:
+                        doc = doc.as_utf8_string()
+                    doc_code = doc.as_c_string_literal()
                 else:
                     doc_code = "0"
                 code.putln(
-                    '{(char *)"%s", %s, %s, %s, 0},' % (
+                    '{(char *)"%s", %s, %s, (char *)%s, 0},' % (
                         entry.name,
                         entry.getter_cname or "0",
                         entry.setter_cname or "0",
