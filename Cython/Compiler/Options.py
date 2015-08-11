@@ -4,27 +4,26 @@
 
 from __future__ import absolute_import
 
-# Perform lookups on builtin names only once, at module initialisation
-# time.  This will prevent the module from getting imported if a
-# builtin name that it uses cannot be found during initialisation.
-cache_builtins = True
+# Include docstrings.
+docstrings = True
 
+# Embed the source code position in the docstrings of functions and classes.
 embed_pos_in_docstring = False
 
 # Copy the original source code line by line into C code comments
 # in the generated code file to help with understanding the output.
 emit_code_comments = True
 
-gcc_branch_hints = True
-
-pre_import = None
-docstrings = True
+pre_import = None  # undocumented
 
 # Decref global variables in this module on exit for garbage collection.
 # 0: None, 1+: interned objects, 2+: cdef globals, 3+: types objects
-# Mostly for reducing noise for Valgrind, only executes at process exit
+# Mostly for reducing noise in Valgrind, only executes at process exit
 # (when all memory will be reclaimed anyways).
 generate_cleanup_code = False
+
+# Should tp_clear() set object fields to None instead of clearing them to NULL?
+clear_to_none = True
 
 # Generate an annotated HTML version of the input source files.
 annotate = False
@@ -33,7 +32,7 @@ annotate = False
 # this file.
 annotate_coverage_xml = None
 
-# This will abort the compilation on the first error occured rather than trying
+# This will abort the compilation on the first error occurred rather than trying
 # to keep going and printing further error messages.
 fast_fail = False
 
@@ -57,19 +56,27 @@ error_on_uninitialized = True
 # (i.e. sign of step) can be determined.
 # WARNING: This may change the semantics if the range causes assignment to
 # i to overflow. Specifically, if this option is set, an error will be
-# raised before the loop is entered, wheras without this option the loop
+# raised before the loop is entered, whereas without this option the loop
 # will execute until an overflowing value is encountered.
 convert_range = True
+
+# Perform lookups on builtin names only once, at module initialisation
+# time.  This will prevent the module from getting imported if a
+# builtin name that it uses cannot be found during initialisation.
+cache_builtins = True
+
+# Generate branch prediction hints to speed up error handling etc.
+gcc_branch_hints = True
 
 # Enable this to allow one to write your_module.foo = ... to overwrite the
 # definition if the cpdef function foo, at the cost of an extra dictionary
 # lookup on every call.
-# If this is 0 it simply creates a wrapper.
+# If this is false it generates only the Python wrapper and no override check.
 lookup_module_cpdef = False
 
 # Whether or not to embed the Python interpreter, for use in making a
 # standalone executable or calling from external libraries.
-# This will provide a method which initalizes the interpreter and
+# This will provide a method which initialises the interpreter and
 # executes the body of this module.
 embed = None
 
@@ -86,9 +93,6 @@ buffer_max_dims = 8
 
 # Number of function closure instances to keep in a freelist (0: no freelists)
 closure_freelist_size = 8
-
-# Should tp_clear() set object fields to None instead of clearing them to NULL?
-clear_to_none = True
 
 
 # Declare compiler directives
