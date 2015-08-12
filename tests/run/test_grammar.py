@@ -1204,6 +1204,17 @@ class GrammarTests(unittest.TestCase):
 
 GrammarTests.assertRaisesRegex = lambda self, exc, msg: self.assertRaises(exc)
 
+if not hasattr(unittest.TestCase, 'subTest'):
+    @contextlib.contextmanager
+    def subTest(self, code, **kwargs):
+        try:
+            yield
+        except Exception:
+            print(code)
+            raise
+    GrammarTests.subTest = subTest
+
+
 # FIXME: disabling some tests for real Cython bugs here
 del GrammarTests.test_comprehension_specials  # iterable pre-calculation in generator expression
 del GrammarTests.test_funcdef  # annotation mangling
