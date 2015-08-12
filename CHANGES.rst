@@ -11,8 +11,18 @@ Features added
 * Parser was adapted to some minor syntax changes in Py3.6, e.g.
   https://bugs.python.org/issue9232
 
+* The embedded C code comments that show the original source code
+  can be discarded by setting ``Options.emit_code_comments = False``.
+
 Bugs fixed
 ----------
+
+* C string literals were previously always stored as non-const global
+  variables in the module.  They are now stored as global constants
+  when possible, and otherwise as non-const C string literals in the
+  generated code that uses them.  This improves compatibility with
+  strict C compiler options and prevents non-const strings literals
+  with the same content from being incorrectly merged.
 
 * ``isinf()`` declarations in ``libc/math.pxd`` and ``numpy/math.pxd`` now
   reflect the actual tristate ``int`` return value instead of using ``bint``.
