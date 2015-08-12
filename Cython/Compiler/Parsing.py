@@ -364,7 +364,8 @@ def p_yield_expression(s):
         is_yield_from = True
         s.next()
     if s.sy != ')' and s.sy not in statement_terminators:
-        arg = p_testlist(s)
+        # "yield from" does not support implicit tuples, but "yield" does ("yield 1,2")
+        arg = p_test(s) if is_yield_from else p_testlist(s)
     else:
         if is_yield_from:
             s.error("'yield from' requires a source argument",
@@ -2673,7 +2674,7 @@ def p_exception_value_clause(s):
             exc_val = p_test(s)
     return exc_val, exc_check
 
-c_arg_list_terminators = cython.declare(set, set(['*', '**', '.', ')']))
+c_arg_list_terminators = cython.declare(set, set(['*', '**', '.', ')', ':']))
 
 def p_c_arg_list(s, ctx = Ctx(), in_pyfunc = 0, cmethod_flag = 0,
                  nonempty_declarators = 0, kw_only = 0, annotated = 1):
@@ -3111,6 +3112,8 @@ def p_varargslist(s, terminator=')', annotated=1):
     if s.sy == '**':
         s.next()
         starstar_arg = p_py_arg_decl(s, annotated=annotated)
+    if s.sy == ',':
+        s.next()
     return (args, star_arg, starstar_arg)
 
 def p_py_arg_decl(s, annotated = 1):

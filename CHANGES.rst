@@ -8,6 +8,9 @@ Latest changes
 Features added
 --------------
 
+* Parser was adapted to some minor syntax changes in Py3.6, e.g.
+  https://bugs.python.org/issue9232
+
 Bugs fixed
 ----------
 
