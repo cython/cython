@@ -2232,6 +2232,11 @@ class YieldNodeCollector(TreeVisitor):
     def visit_GeneratorExpressionNode(self, node):
         pass
 
+    def visit_CArgDeclNode(self, node):
+        # do not look into annotations
+        # FIXME: support (yield) in default arguments (currently crashes)
+        pass
+
 
 class MarkClosureVisitor(CythonTransform):
 
