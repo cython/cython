@@ -1,5 +1,7 @@
 ### COPIED FROM CPython 3.5 - ADDED PART FOLLOWS ###
+# cython: language_level=3
 
+import contextlib
 from tempfile import NamedTemporaryFile
 from Cython.Compiler.Main import compile as cython_compile
 
@@ -35,7 +37,29 @@ def compile(code, name, what):
         raise SyntaxError('unexpected EOF')  # see usage of compile() below
 
 
-### END OF CYTHON ADDED PART ###
+def exec(code):
+    result = _compile(code)
+    if not result.c_file:
+        raise SyntaxError('unexpected EOF')  # see usage of compile() below
+
+
+import unittest
+
+if not hasattr(unittest, 'skipUnless'):
+    def skipUnless(condition, message):
+        def decorator(func):
+            if condition:
+                return func
+
+            def test_method(self):
+                print(message)
+            return test_method
+        return decorator
+
+    unittest.skipUnless = skipUnless
+
+
+### END OF CYTHON ADDED PART - COPIED PART FOLLOWS ###
 
 # Python test set -- part 1, grammar.
 # This just tests whether the parser accepts them all.
@@ -1204,21 +1228,49 @@ class GrammarTests(unittest.TestCase):
 
 GrammarTests.assertRaisesRegex = lambda self, exc, msg: self.assertRaises(exc)
 
+if sys.version_info < (2, 7):
+    def assertRaises(self, exc_type, func=None, *args, **kwargs):
+        if func is not None:
+            return unittest.TestCase.assertRaises(self, exc_type, func, *args, **kwargs)
+        @contextlib.contextmanager
+        def assertRaisesCM():
+            class Result(object):
+                exception = exc_type("unexpected EOF")  # see usage above
+            try:
+                yield Result()
+            except exc_type:
+                self.assertTrue(True)
+            else:
+                self.assertTrue(False)
+        return assertRaisesCM()
+    GrammarTests.assertRaises = assertRaises
+    TokenTests.assertRaises = assertRaises
+
+
 if not hasattr(unittest.TestCase, 'subTest'):
-    import contextlib
     @contextlib.contextmanager
-    def subTest(self, code, **kwargs):
+    def subTest(self, source, **kwargs):
         try:
             yield
         except Exception:
-            print(code)
+            print(source)
             raise
     GrammarTests.subTest = subTest
+
+
+if not hasattr(unittest.TestCase, 'assertIn'):
+    def assertIn(self, member, container, msg=None):
+        self.assertTrue(member in container, msg)
+    TokenTests.assertIn = assertIn
 
 
 # FIXME: disabling some tests for real Cython bugs here
 del GrammarTests.test_comprehension_specials  # iterable pre-calculation in generator expression
 del GrammarTests.test_funcdef  # annotation mangling
+
+# this test is difficult to enable in Py2.6
+if sys.version_info < (2,7):
+    del GrammarTests.test_former_statements_refer_to_builtins
 
 
 if __name__ == '__main__':
