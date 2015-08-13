@@ -1205,6 +1205,7 @@ class GrammarTests(unittest.TestCase):
 GrammarTests.assertRaisesRegex = lambda self, exc, msg: self.assertRaises(exc)
 
 if not hasattr(unittest.TestCase, 'subTest'):
+    import contextlib
     @contextlib.contextmanager
     def subTest(self, code, **kwargs):
         try:
