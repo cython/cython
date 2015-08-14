@@ -5,20 +5,30 @@
 Traceback (most recent call last):
 NameError: ...name 'THOUSAND' is not defined
 
->>> TWO, THREE, FIVE
-(2, 3, 5)
+>>> TWO == 2 or TWO
+True
+>>> THREE == 3 or THREE
+True
+>>> FIVE == 5 or FIVE
+True
 >>> SEVEN           # doctest: +ELLIPSIS
 Traceback (most recent call last):
 NameError: ...name 'SEVEN' is not defined
 
->>> FOUR, EIGHT
-(4, 8)
+>>> FOUR == 4 or FOUR
+True
+>>> EIGHT == 8 or EIGHT
+True
 >>> SIXTEEN        # doctest: +ELLIPSIS
 Traceback (most recent call last):
 NameError: ...name 'SIXTEEN' is not defined
 
->>> RANK_0, RANK_1, RANK_2
-(11, 37, 389)
+>>> RANK_0 == 11 or RANK_0
+True
+>>> RANK_1 == 37 or RANK_1
+True
+>>> RANK_2 == 389 or RANK_2
+True
 >>> RANK_3         # doctest: +ELLIPSIS
 Traceback (most recent call last):
 NameError: ...name 'RANK_3' is not defined
