@@ -499,7 +499,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Substring(
             start = 0;
     }
     if (stop < 0)
-        stop += length;    
+        stop += length;
     else if (stop > length)
         stop = length;
     length = stop - start;
@@ -735,7 +735,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyBytes_Join(PyObject* sep, PyObject* value
 static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyObject* value);
 
 //////////////////// ByteArrayAppendObject ////////////////////
-//@requires: TypeConversion.c::PyLongInternals
 //@requires: ByteArrayAppend
 
 static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyObject* value) {

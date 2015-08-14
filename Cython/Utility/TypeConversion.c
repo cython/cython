@@ -175,7 +175,6 @@ bad:
 #endif
 
 /////////////// TypeConversions ///////////////
-//@requires: PyLongInternals
 
 /* Type Conversion Functions */
 
@@ -589,20 +588,12 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
     }
 
 
-/////////////// PyLongInternals ///////////////
-
-#if CYTHON_USE_PYLONG_INTERNALS
-  #include "longintrepr.h"
-#endif
-
-
 /////////////// CIntFromPy.proto ///////////////
 
 static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *);
 
 /////////////// CIntFromPy ///////////////
 //@requires: CIntFromPyVerify
-//@requires: PyLongInternals
 
 {{py: from Cython.Utility import pylong_join }}
 

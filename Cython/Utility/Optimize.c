@@ -467,7 +467,6 @@ bad:
 static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject *none, int inplace); /*proto*/
 
 /////////////// PyNumberPow2 ///////////////
-//@requires: TypeConversion.c::PyLongInternals
 
 static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject *none, int inplace) {
 // in CPython, 1<<N is substantially faster than 2**N
@@ -531,7 +530,6 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, long 
 #endif
 
 /////////////// PyIntBinop ///////////////
-//@requires: TypeConversion.c::PyLongInternals
 
 #if CYTHON_COMPILING_IN_CPYTHON
 {{py: from Cython.Utility import pylong_join }}
@@ -745,7 +743,6 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
 #endif
 
 /////////////// PyFloatBinop ///////////////
-//@requires: TypeConversion.c::PyLongInternals
 
 #if CYTHON_COMPILING_IN_CPYTHON
 {{py: from Cython.Utility import pylong_join }}

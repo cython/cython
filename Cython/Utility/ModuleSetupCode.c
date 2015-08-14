@@ -2,7 +2,7 @@
 
 #include <stddef.h> /* For offsetof */
 #ifndef offsetof
-#define offsetof(type, member) ( (size_t) & ((type*)0) -> member )
+  #define offsetof(type, member) ( (size_t) & ((type*)0) -> member )
 #endif
 
 #if !defined(WIN32) && !defined(MS_WINDOWS)
@@ -33,19 +33,22 @@
 #endif
 
 #ifdef PYPY_VERSION
-#define CYTHON_COMPILING_IN_PYPY 1
-#define CYTHON_COMPILING_IN_CPYTHON 0
+  #define CYTHON_COMPILING_IN_PYPY 1
+  #define CYTHON_COMPILING_IN_CPYTHON 0
 #else
-#define CYTHON_COMPILING_IN_PYPY 0
-#define CYTHON_COMPILING_IN_CPYTHON 1
+  #define CYTHON_COMPILING_IN_PYPY 0
+  #define CYTHON_COMPILING_IN_CPYTHON 1
 #endif
 
 #if !defined(CYTHON_USE_PYLONG_INTERNALS) && CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x02070000
-#define CYTHON_USE_PYLONG_INTERNALS 1
+  #define CYTHON_USE_PYLONG_INTERNALS 1
+#endif
+#if CYTHON_USE_PYLONG_INTERNALS
+  #include "longintrepr.h"
 #endif
 
 #if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX < 0x02070600 && !defined(Py_OptimizeFlag)
-#define Py_OptimizeFlag 0
+  #define Py_OptimizeFlag 0
 #endif
 
 #define __PYX_BUILD_PY_SSIZE_T "n"
