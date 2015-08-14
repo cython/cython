@@ -15,6 +15,9 @@ Bugs fixed
 * Misnamed PEP 492 coroutine property ``cr_yieldfrom`` renamed to
   ``cr_await`` to match CPython.
 
+* Compiler crash on ``yield`` in signature annotations and default
+  argument values.  Both are forbidden now.
+
 
 0.23 (2015-08-08)
 =================
