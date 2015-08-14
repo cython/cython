@@ -211,7 +211,7 @@ class IterationTransform(Visitor.EnvTransform):
 
             if not is_safe_iter and method in ('keys', 'values', 'items'):
                 # try to reduce this to the corresponding .iter*() methods
-                if isinstance(base_obj, ExprNodes.SimpleCallNode):
+                if isinstance(base_obj, ExprNodes.CallNode):
                     inner_function = base_obj.function
                     if (inner_function.is_name and inner_function.name == 'dict'
                             and inner_function.entry

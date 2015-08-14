@@ -27,6 +27,9 @@ Bugs fixed
 * ``isinf()`` declarations in ``libc/math.pxd`` and ``numpy/math.pxd`` now
   reflect the actual tristate ``int`` return value instead of using ``bint``.
 
+* Iteration over ``dict(...).items()`` failed to get optimised when dict
+  arguments included keyword arguments.
+
 Other changes
 -------------
 

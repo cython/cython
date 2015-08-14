@@ -505,3 +505,25 @@ def values_of_expression(**kwargs):
     """
     # this can be optimised even in Py2
     return [ arg for arg in dict(kwargs.items()).values() ]
+
+
+def items_of_expression(*args, **kwargs):
+    """
+    >>> sorted(items_of_expression(a=3, b=4))
+    [('a', 3), ('b', 4)]
+
+    >>> sorted(items_of_expression([('a', 3)], b=4))
+    [('a', 3), ('b', 4)]
+    """
+    return [item for item in dict(*args, **kwargs).items()]
+
+
+def iteritems_of_expression(*args, **kwargs):
+    """
+    >>> sorted(iteritems_of_expression(a=3, b=4))
+    [('a', 3), ('b', 4)]
+
+    >>> sorted(iteritems_of_expression([('a', 3)], b=4))
+    [('a', 3), ('b', 4)]
+    """
+    return [item for item in dict(*args, **kwargs).iteritems()]
