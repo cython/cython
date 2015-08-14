@@ -3,9 +3,6 @@
 # tag: pep492, asyncfor, await
 
 
-import types
-
-
 def run_async(coro):
     #assert coro.__class__ is types.GeneratorType
     assert coro.__class__.__name__ in ('coroutine', 'GeneratorWrapper'), coro.__class__.__name__
