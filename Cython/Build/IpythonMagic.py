@@ -70,7 +70,11 @@ from IPython.core import display
 from IPython.core import magic_arguments
 from IPython.core.magic import Magics, magics_class, cell_magic
 from IPython.utils import py3compat
-from IPython.utils.path import get_ipython_cache_dir
+try:
+    from IPython.paths import get_ipython_cache_dir
+except ImportError:
+    # older IPython version
+    from IPython.utils.path import get_ipython_cache_dir
 from IPython.utils.text import dedent
 
 from ..Shadow import __version__ as cython_version
