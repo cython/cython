@@ -40,6 +40,12 @@ Other changes
 Bugs fixed
 ----------
 
+* Invalid C code for generators.  This fixes ticket 858.
+
+* Invalid C code for some builtin methods.  This fixes ticket 856.
+
+* Test failures on 32bit systems.  This fixes ticket 857.
+
 * Code that uses "from xyz import *" and global C struct/union/array
   variables could fail to compile due to missing helper functions.
   This fixes ticket 851.

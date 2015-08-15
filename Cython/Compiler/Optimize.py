@@ -4202,7 +4202,7 @@ class FinalOptimizePhase(Visitor.CythonTransform, Visitor.NodeRefCleanupMixin):
                 if function.type is Builtin.type_type:
                     may_be_a_method = False
                 elif function.is_attribute:
-                    if function.entry.type.is_cfunction:
+                    if function.entry and function.entry.type.is_cfunction:
                         # optimised builtin method
                         may_be_a_method = False
                 elif function.is_name:
