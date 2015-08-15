@@ -83,6 +83,16 @@ def dict_call_kwargs():
     return d
 
 
+def items_of_dict_call():
+    """
+    >>> items_of_dict_call()
+    [('answer1', 42), ('answer2', 42), ('parrot1', u'resting'), ('parrot2', u'resting')]
+    """
+    kwargs = dict(parrot1=u"resting", answer1=42)
+    items = dict(kwargs.items(), parrot2=u"resting", answer2=42, **kwargs).items()
+    return sorted(items)
+
+
 def item_creation_sideeffect(L, sideeffect, unhashable):
     """
     >>> def sideeffect(x):
