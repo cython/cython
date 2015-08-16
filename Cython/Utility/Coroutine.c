@@ -1094,6 +1094,8 @@ static void __Pyx_Coroutine_check_and_dealloc(PyObject *self) {
     __pyx_CoroutineObject *gen = (__pyx_CoroutineObject *) self;
 
     if (gen->resume_label == 0 && !PyErr_Occurred()) {
+        // untrack dead object as we are executing Python code (which might trigger GC)
+        PyObject_GC_UnTrack(self);
 #if PY_VERSION_HEX >= 0x03030000 || defined(PyErr_WarnFormat)
         PyErr_WarnFormat(PyExc_RuntimeWarning, 1, "coroutine '%.50S' was never awaited", gen->gi_qualname);
 #else
@@ -1140,6 +1142,7 @@ static void __Pyx_Coroutine_check_and_dealloc(PyObject *self) {
             PyErr_WriteUnraisable(self);
         Py_XDECREF(msg);
 #endif
+        PyObject_GC_Track(self);
     }
 
     __Pyx_Coroutine_dealloc(self);
