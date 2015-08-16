@@ -1581,11 +1581,11 @@ if hasattr(_module, 'iscoroutine'):
 """)
             );
 #endif
-// Py<3.5
+// Py < 0x03040200
         }
         Py_DECREF(package);
         if (unlikely(!patch_module)) goto ignore;
-#if PY_VERSION_HEX < 0x03050000
+#if PY_VERSION_HEX < 0x03040200
 asyncio_done:
         PyErr_Clear();
 #endif
