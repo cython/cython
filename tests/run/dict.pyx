@@ -86,10 +86,10 @@ def dict_call_kwargs():
 def items_of_dict_call():
     """
     >>> items_of_dict_call()
-    [('answer1', 42), ('answer2', 42), ('parrot1', u'resting'), ('parrot2', u'resting')]
+    [('answer1', 42), ('answer2', 42), ('parrot1', 'resting'), ('parrot2', 'resting')]
     """
-    kwargs = dict(parrot1=u"resting", answer1=42)
-    items = dict(kwargs.items(), parrot2=u"resting", answer2=42, **kwargs).items()
+    kwargs = dict(parrot1="resting", answer1=42)
+    items = dict(kwargs.items(), parrot2="resting", answer2=42, **kwargs).items()
     return sorted(items)
 
 
