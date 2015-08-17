@@ -532,8 +532,20 @@ def complex_finally_clause(x, obj):
             from contextlib import contextmanager
             with contextmanager(lambda: (yield 1))() as y:
                 assert y == 1
+                a = 1
+            with nogil:
+                if i > 0:
+                    with gil:
+                        assert obj.method
+                        a = 2
+            # FIXME: prevent deep-copying inner functions
+            #def closure(l):
+            #    assert l == lobj
+            #closure()
             assert name[0] in string.ascii_letters
             string.Template("-- huhu $name --").substitute(**{'name': '(%s)' % name})
+            if a:
+                a = 3
             del l[0], lobj[0]
             assert all(i == 3 for i in l), l
     return 99
