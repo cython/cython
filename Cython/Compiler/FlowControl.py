@@ -418,6 +418,7 @@ class NameReference(object):
         ref.node = deepcopy(self.node, memo)
         ref.entry = self.entry
         ref.pos = self.node.pos
+        return ref
 
 
 class ControlFlowState(list):
