@@ -3,11 +3,11 @@ from __future__ import absolute_import
 import cython
 cython.declare(PyrexTypes=object, ExprNodes=object, Nodes=object,
                Builtin=object, InternalError=object,
-               error=object, warning=object, deepcopy=object,
+               error=object, warning=object, deepcopy=object, copy=object,
                py_object_type=object, unspecified_type=object,
                object_expr=object, fake_rhs_expr=object, TypedExprNode=object)
 
-from copy import deepcopy
+from copy import deepcopy, copy
 
 from . import Builtin
 from . import ExprNodes
@@ -328,17 +328,6 @@ class NameAssignment(object):
         self.is_deletion = False
         self.inferred_type = None
 
-    def __deepcopy__(self, memo):
-        ass = NameAssignment.__new__(type(self))
-        ass.lhs = deepcopy(self.lhs, memo)
-        ass.rhs = deepcopy(self.rhs, memo)
-        ass.entry = self.entry
-        ass.refs = deepcopy(self.refs, memo)
-        ass.is_arg = self.is_arg
-        ass.is_deletion = self.is_deletion
-        ass.inferred_type = self.inferred_type
-        return ass
-
     def __repr__(self):
         return '%s(entry=%r)' % (self.__class__.__name__, self.entry)
 
@@ -412,13 +401,6 @@ class NameReference(object):
 
     def __repr__(self):
         return '%s(entry=%r)' % (self.__class__.__name__, self.entry)
-
-    def __deepcopy__(self, memo):
-        ref = NameReference.__new__(type(self))
-        ref.node = deepcopy(self.node, memo)
-        ref.entry = self.entry
-        ref.pos = self.node.pos
-        return ref
 
 
 class ControlFlowState(list):
