@@ -7,6 +7,7 @@ include setupegg.py
 include bin/*
 include cython.py cythonize.py cygdb.py
 recursive-include Cython *.pyx *.pxd
+include Cython/Parser/Grammar Cython/Parser/__init__.py
 include Doc/*
 
 include Demos/*.pyx
