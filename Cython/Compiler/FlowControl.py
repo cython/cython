@@ -2,12 +2,9 @@ from __future__ import absolute_import
 
 import cython
 cython.declare(PyrexTypes=object, ExprNodes=object, Nodes=object,
-               Builtin=object, InternalError=object,
-               error=object, warning=object, deepcopy=object, copy=object,
+               Builtin=object, InternalError=object, error=object, warning=object,
                py_object_type=object, unspecified_type=object,
                object_expr=object, fake_rhs_expr=object, TypedExprNode=object)
-
-from copy import deepcopy, copy
 
 from . import Builtin
 from . import ExprNodes
