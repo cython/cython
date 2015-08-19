@@ -19,7 +19,8 @@ cdef extern from "<memory>" namespace "std" nogil:
         T* get()
         T& operator*()
         #T* operator->() # Not Supported
-        bool operator bool() # Not Supported
+        bool operator bool()
+        bool operator!()
 
         bool operator==(const unique_ptr&)
         bool operator!=(const unique_ptr&)
@@ -54,7 +55,8 @@ cdef extern from "<memory>" namespace "std" nogil:
         #T* operator->() # Not Supported
         long use_count()
         bool unique()
-        bool operator bool() # Not Supported
+        bool operator bool()
+        bool operator!()
         #bool owner_before[Y](const weak_ptr[Y]&) # Not Supported
         bool owner_before[Y](const shared_ptr[Y]&)
 
