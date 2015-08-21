@@ -1856,6 +1856,7 @@ class CClassScope(ClassScope):
     #  getset_table_cname    string
     #  has_pyobject_attrs    boolean  Any PyObject attributes?
     #  has_memoryview_attrs  boolean  Any memory view attributes?
+    #  has_cpp_class_attrs   boolean  Any (non-pointer) C++ attributes?
     #  has_cyclic_pyobject_attrs    boolean  Any PyObject attributes that may need GC?
     #  property_entries      [Entry]
     #  defined               boolean  Defined in .pxd file
@@ -1866,6 +1867,7 @@ class CClassScope(ClassScope):
 
     has_pyobject_attrs = False
     has_memoryview_attrs = False
+    has_cpp_class_attrs = False
     has_cyclic_pyobject_attrs = False
     defined = False
     implemented = False
@@ -1941,6 +1943,8 @@ class CClassScope(ClassScope):
             self.var_entries.append(entry)
             if type.is_memoryviewslice:
                 self.has_memoryview_attrs = True
+            elif type.is_cpp_class:
+                self.has_cpp_class_attrs = True
             elif type.is_pyobject and name != '__weakref__':
                 self.has_pyobject_attrs = True
                 if (not type.is_builtin_type
