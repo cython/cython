@@ -129,6 +129,9 @@ def test_stack_allocation(int w, int h):
 cdef class EmptyHolder:
     cdef Empty empty
 
+cdef class AnotherEmptyHolder(EmptyHolder):
+    cdef Empty another_empty
+
 def test_class_member():
     """
     >>> test_class_member()
@@ -142,6 +145,19 @@ def test_class_member():
     assert constructor_count - start_constructor_count == 2, \
            constructor_count - start_constructor_count
     del e1, e2
+    assert destructor_count - start_destructor_count == 2, \
+           destructor_count - start_destructor_count
+
+def test_derived_class_member():
+    """
+    >>> test_derived_class_member()
+    """
+    start_constructor_count = constructor_count
+    start_destructor_count = destructor_count
+    e = AnotherEmptyHolder()
+    assert constructor_count - start_constructor_count == 2, \
+           constructor_count - start_constructor_count
+    del e
     assert destructor_count - start_destructor_count == 2, \
            destructor_count - start_destructor_count
 
