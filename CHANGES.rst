@@ -2,8 +2,8 @@
 Cython Changelog
 ================
 
-Latest changes
-==============
+0.23.1 (2015-08-22)
+===================
 
 Features added
 --------------
@@ -56,10 +56,17 @@ Bugs fixed
 * Misnamed PEP 492 coroutine property ``cr_yieldfrom`` renamed to
   ``cr_await`` to match CPython.
 
+* Missing deallocation code for C++ object attributes in certain
+  extension class hierarchies.
+
 * Crash when async coroutine was not awaited.
 
 * Compiler crash on ``yield`` in signature annotations and default
   argument values.  Both are forbidden now.
+
+* Compiler crash on certain constructs in ``finally`` clauses.
+
+* Cython failed to build when CPython's pgen is installed.
 
 
 0.23 (2015-08-08)
