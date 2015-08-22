@@ -985,14 +985,14 @@ class GlobalState(object):
     ]
 
 
-    def __init__(self, writer, module_node, emit_linenums=False, common_utility_include_dir=None):
+    def __init__(self, writer, module_node, code_config, common_utility_include_dir=None):
         self.filename_table = {}
         self.filename_list = []
         self.input_file_contents = {}
         self.utility_codes = set()
         self.declared_cnames = {}
         self.in_utility_code_generation = False
-        self.emit_linenums = emit_linenums
+        self.code_config = code_config
         self.common_utility_include_dir = common_utility_include_dir
         self.parts = {}
         self.module_node = module_node # because some utility code generation needs it
@@ -1005,8 +1005,7 @@ class GlobalState(object):
         self.py_constants = []
         self.cached_cmethods = {}
 
-        assert writer.globalstate is None
-        writer.globalstate = self
+        writer.set_global_state(self)
         self.rootwriter = writer
 
     def initialize_main_c_code(self):
@@ -1046,7 +1045,7 @@ class GlobalState(object):
         code.putln("/* --- Runtime support code (head) --- */")
 
         code = self.parts['utility_code_def']
-        if self.emit_linenums:
+        if self.code_config.emit_linenums:
             code.write('\n#line 1 "cython_utility"\n')
         code.putln("")
         code.putln("/* --- Runtime support code --- */")
@@ -1480,6 +1479,17 @@ def funccontext_property(name):
     return property(get, set)
 
 
+class CCodeConfig(object):
+    # emit_linenums       boolean         write #line pragmas?
+    # emit_code_comments  boolean         copy the original code into C comments?
+    # c_line_in_traceback boolean         append the c file and line number to the traceback for exceptions?
+
+    def __init__(self, emit_linenums=True, emit_code_comments=True, c_line_in_traceback=True):
+        self.emit_code_comments = emit_code_comments
+        self.emit_linenums = emit_linenums
+        self.c_line_in_traceback = c_line_in_traceback
+
+
 class CCodeWriter(object):
     """
     Utility class to output C code.
@@ -1507,16 +1517,13 @@ class CCodeWriter(object):
     #                                     generation (labels and temps state etc.)
     # globalstate         GlobalState     contains state global for a C file (input file info,
     #                                     utility code, declared constants etc.)
-    # emit_linenums       boolean         whether or not to write #line pragmas
-    #
-    # c_line_in_traceback boolean         append the c file and line number to the traceback for exceptions
-    #
     # pyclass_stack       list            used during recursive code generation to pass information
     #                                     about the current class one is in
+    # code_config         CCodeConfig     configuration options for the C code writer
 
-    globalstate = None
+    globalstate = code_config = None
 
-    def __init__(self, create_from=None, buffer=None, copy_formatting=False, emit_linenums=None, c_line_in_traceback=True):
+    def __init__(self, create_from=None, buffer=None, copy_formatting=False):
         if buffer is None: buffer = StringIOTree()
         self.buffer = buffer
         self.last_pos = None
@@ -1530,7 +1537,7 @@ class CCodeWriter(object):
 
         if create_from is not None:
             # Use same global state
-            self.globalstate = create_from.globalstate
+            self.set_global_state(create_from.globalstate)
             self.funcstate = create_from.funcstate
             # Clone formatting state
             if copy_formatting:
@@ -1540,18 +1547,16 @@ class CCodeWriter(object):
             self.last_pos = create_from.last_pos
             self.last_marked_pos = create_from.last_marked_pos
 
-        if emit_linenums is None and self.globalstate:
-            self.emit_linenums = self.globalstate.emit_linenums
-        else:
-            self.emit_linenums = emit_linenums
-        self.c_line_in_traceback = c_line_in_traceback
-
     def create_new(self, create_from, buffer, copy_formatting):
         # polymorphic constructor -- very slightly more versatile
         # than using __class__
-        result = CCodeWriter(create_from, buffer, copy_formatting,
-                             c_line_in_traceback=self.c_line_in_traceback)
+        result = CCodeWriter(create_from, buffer, copy_formatting)
         return result
+
+    def set_global_state(self, global_state):
+        assert self.globalstate is None  # prevent overwriting once it's set
+        self.globalstate = global_state
+        self.code_config = global_state.code_config
 
     def copyto(self, f):
         self.buffer.copyto(f)
@@ -1575,7 +1580,7 @@ class CCodeWriter(object):
         Creates a new CCodeWriter connected to the same global state, which
         can later be inserted using insert.
         """
-        return CCodeWriter(create_from=self, c_line_in_traceback=self.c_line_in_traceback)
+        return CCodeWriter(create_from=self)
 
     def insert(self, writer):
         """
@@ -1656,7 +1661,7 @@ class CCodeWriter(object):
     def putln(self, code="", safe=False):
         if self.last_pos and self.bol:
             self.emit_marker()
-        if self.emit_linenums and self.last_marked_pos:
+        if self.code_config.emit_linenums and self.last_marked_pos:
             source_desc, line, _ = self.last_marked_pos
             self.write('\n#line %s "%s"\n' % (line, source_desc.get_escaped_description()))
         if code:
@@ -1679,7 +1684,7 @@ class CCodeWriter(object):
         self.last_marked_pos = pos
         self.last_pos = None
         self.write("\n")
-        if Options.emit_code_comments:
+        if self.code_config.emit_code_comments:
             self.indent()
             self.write("/* %s */\n" % self._build_marker(pos))
         if trace and self.funcstate and self.funcstate.can_trace and self.globalstate.directives['linetrace']:
@@ -2120,7 +2125,7 @@ class CCodeWriter(object):
         self.funcstate.should_declare_error_indicator = True
         if used:
             self.funcstate.uses_error_indicator = True
-        if self.c_line_in_traceback:
+        if self.code_config.c_line_in_traceback:
             cinfo = " %s = %s;" % (Naming.clineno_cname, Naming.line_c_macro)
         else:
             cinfo = ""
