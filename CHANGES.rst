@@ -44,6 +44,9 @@ Bugs fixed
 
 * Invalid C code for some builtin methods.  This fixes ticket 856.
 
+* Invalid C code for unused local buffer variables.
+  This fixes ticket 154.
+
 * Test failures on 32bit systems.  This fixes ticket 857.
 
 * Code that uses "from xyz import *" and global C struct/union/array

@@ -1955,7 +1955,8 @@ class FuncDefNode(StatNode, BlockNode):
                 code.putln("{ PyObject *__pyx_type, *__pyx_value, *__pyx_tb;")
                 code.putln("__Pyx_ErrFetch(&__pyx_type, &__pyx_value, &__pyx_tb);")
                 for entry in lenv.buffer_entries:
-                    Buffer.put_release_buffer_code(code, entry)
+                    if entry.used:
+                        Buffer.put_release_buffer_code(code, entry)
                     #code.putln("%s = 0;" % entry.cname)
                 code.putln("__Pyx_ErrRestore(__pyx_type, __pyx_value, __pyx_tb);}")
 

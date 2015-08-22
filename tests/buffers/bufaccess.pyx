@@ -45,6 +45,7 @@ def nousage():
     cdef object[int, ndim=2] buf
 
 
+@testcase
 def disabled_usage(obj):
     """
     The challenge here is just compilation.
@@ -55,6 +56,19 @@ def disabled_usage(obj):
     if False:
         buf = obj
     return obj
+
+
+@testcase
+def nousage_cleanup(x):
+    """
+    >>> nousage_cleanup(False)
+    >>> nousage_cleanup(True)
+    Traceback (most recent call last):
+    RuntimeError
+    """
+    cdef object[int, ndim=2] buf
+    if x:
+        raise RuntimeError()
 
 
 @testcase
