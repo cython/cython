@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-0.23.1 (2015-08-22)
+Latest development
 ===================
 
 Features added
@@ -34,7 +34,7 @@ Other changes
 -------------
 
 
-0.23.1 (2015-08-xx)
+0.23.1 (2015-08-22)
 ===================
 
 Bugs fixed
