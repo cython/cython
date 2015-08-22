@@ -1789,9 +1789,11 @@ class FuncDefNode(StatNode, BlockNode):
                 have_object_args = True
                 break
 
+        used_buffer_entries = [entry for entry in lenv.buffer_entries if entry.used]
+
         acquire_gil_for_var_decls_only = (
                 lenv.nogil and lenv.has_with_gil_block and
-                (have_object_args or lenv.buffer_entries))
+                (have_object_args or used_buffer_entries))
 
         acquire_gil_for_refnanny_only = (
                 lenv.nogil and lenv.has_with_gil_block and not
@@ -1948,15 +1950,14 @@ class FuncDefNode(StatNode, BlockNode):
 
             # Clean up buffers -- this calls a Python function
             # so need to save and restore error state
-            buffers_present = len(lenv.buffer_entries) > 0
+            buffers_present = len(used_buffer_entries) > 0
             #memslice_entries = [e for e in lenv.entries.values() if e.type.is_memoryviewslice]
             if buffers_present:
                 code.globalstate.use_utility_code(restore_exception_utility_code)
                 code.putln("{ PyObject *__pyx_type, *__pyx_value, *__pyx_tb;")
                 code.putln("__Pyx_ErrFetch(&__pyx_type, &__pyx_value, &__pyx_tb);")
-                for entry in lenv.buffer_entries:
-                    if entry.used:
-                        Buffer.put_release_buffer_code(code, entry)
+                for entry in used_buffer_entries:
+                    Buffer.put_release_buffer_code(code, entry)
                     #code.putln("%s = 0;" % entry.cname)
                 code.putln("__Pyx_ErrRestore(__pyx_type, __pyx_value, __pyx_tb);}")
 
@@ -2003,9 +2004,8 @@ class FuncDefNode(StatNode, BlockNode):
 
         # ----- Non-error return cleanup
         code.put_label(code.return_label)
-        for entry in lenv.buffer_entries:
-            if entry.used:
-                Buffer.put_release_buffer_code(code, entry)
+        for entry in used_buffer_entries:
+            Buffer.put_release_buffer_code(code, entry)
         if is_getbuffer_slot:
             self.getbuffer_normal_cleanup(code)
 
