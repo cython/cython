@@ -12,7 +12,7 @@ Features added
   https://bugs.python.org/issue9232
 
 * The embedded C code comments that show the original source code
-  can be discarded by setting ``Options.emit_code_comments = False``.
+  can be discarded with the new directive ``emit_code_comments=False``.
 
 Bugs fixed
 ----------
