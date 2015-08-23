@@ -2,6 +2,16 @@
 Cython Changelog
 ================
 
+0.23.2 (2015-0x-yy)
+===================
+
+Bugs fixed
+----------
+
+* Invalid C code when caching known builtin methods.
+  This fixes ticket 860.
+
+
 0.23.1 (2015-08-22)
 ===================
 
