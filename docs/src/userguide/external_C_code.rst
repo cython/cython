@@ -471,8 +471,18 @@ Acquiring and Releasing the GIL
 
 Cython provides facilities for acquiring and releasing the
 `Global Interpreter Lock (GIL) <http://docs.python.org/dev/glossary.html#term-global-interpreter-lock>`_.
-This may be useful when calling into (external C) code that may block, or when wanting to use Python from a
-C callback.
+This may be useful when calling from multi-threaded code into
+(external C) code that may block, or when wanting to use Python
+from a (native) C thread callback.  Releasing the GIL should
+obviously only be done for thread-safe code or for code that
+uses other means of protection against race conditions and
+concurrency issues.
+
+Note that acquiring the GIL is a blocking thread-synchronising
+operation, and therefore potentially costly.  It might not be
+worth releasing the GIL for minor calculations.  Usually, I/O
+operations and substantial computations in parallel code will
+benefit from it.
 
 .. _nogil:
 
