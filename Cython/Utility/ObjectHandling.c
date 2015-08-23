@@ -1106,8 +1106,10 @@ static CYTHON_INLINE int __Pyx_PyObject_SetAttrStr(PyObject* obj, PyObject* attr
 typedef struct {
     PyObject *type;
     PyObject **method_name;
-    PyCFunction func;   // set on first access (direct C function pointer)
-    PyObject *method;   // set on first access (fallback)
+    // "func" is set on first access (direct C function pointer)
+    PyCFunction func;
+    // "method" is set on first access (fallback)
+    PyObject *method;
     int flag;
 } __Pyx_CachedCFunction;
 
