@@ -1345,7 +1345,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("if (p->__weakref__) PyObject_ClearWeakRefs(o);")
 
         for entry in cpp_class_attrs:
-            code.putln("__Pyx_call_destructor(&p->%s);" % entry.cname)
+            code.putln("__Pyx_call_destructor(p->%s);" % entry.cname)
 
         for entry in py_attrs:
             code.put_xdecref_clear("p->%s" % entry.cname, entry.type, nanny=False,

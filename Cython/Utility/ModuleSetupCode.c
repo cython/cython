@@ -248,8 +248,8 @@ typedef struct {
 
 // Work around clang bug http://stackoverflow.com/questions/21847816/c-invoke-nested-template-class-destructor
 template<typename T>
-void __Pyx_call_destructor(T* x) {
-    x->~T();
+void __Pyx_call_destructor(T& x) {
+    x.~T();
 }
 
 // Used for temporary variables of "reference" type.
