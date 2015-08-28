@@ -24,7 +24,7 @@ cdef extern from "sys/resource.h" nogil:
     enum: RLIMIT_STACK
     enum: RLIMIT_AS
 
-    ctypedef unsigned long rlim_t
+    ctypedef unsigned long long rlim_t
 
     cdef struct rlimit:
         rlim_t rlim_cur
