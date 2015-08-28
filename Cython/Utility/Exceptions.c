@@ -428,6 +428,10 @@ static void __Pyx_WriteUnraisable(const char *name, CYTHON_UNUSED int clineno,
     PyGILState_STATE state;
     if (nogil)
         state = PyGILState_Ensure();
+#ifdef _MSC_VER
+    /* arbitrary, to suppress warning */
+    else state = (PyGILState_STATE)-1;
+#endif
 #endif
     __Pyx_ErrFetch(&old_exc, &old_val, &old_tb);
     if (full_traceback) {
