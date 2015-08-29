@@ -369,7 +369,7 @@ Cython code.  Here is the list of currently supported directives:
 
 ``infer_types`` (True / False)
     Infer types of untyped variables in function bodies. Default is
-    None, indicating that on safe (semantically-unchanging) inferences
+    None, indicating that only safe (semantically-unchanging) inferences
     are allowed.
 
 ``language_level`` (2/3)
