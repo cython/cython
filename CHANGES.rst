@@ -8,6 +8,9 @@ Cython Changelog
 Bugs fixed
 ----------
 
+* Incorrect handling of large integers in compile-time evaluated DEF
+  expressions under Python 2.x.
+
 * Invalid C code when caching known builtin methods.
   This fixes ticket 860.
 
