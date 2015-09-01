@@ -11,6 +11,10 @@ if sys.version_info[0] < 3:
     __doc__ = __doc__.replace(u" b'", u" '")
 
 
+def print_large_number(n):
+    print(str(n).rstrip('L'))
+
+
 DEF TUPLE = (1, 2, u"buckle my shoe")
 DEF TRUE_FALSE = (True, False)
 DEF NONE = None
@@ -21,6 +25,8 @@ DEF INT1 = 42
 DEF INT2 = 0x42
 DEF INT3 = -0x42
 DEF LONG = 666L
+DEF LARGE_NUM32 = (1 << 32) - 1
+DEF LARGE_NUM64 = (1 << 64) - 1
 DEF FLOAT = 12.5
 DEF STR = b"spam"
 DEF TWO = TUPLE[1]
@@ -80,6 +86,18 @@ def l():
     """
     cdef long l = LONG
     return l
+
+def large_nums():
+    """
+    >>> l32, l64 = large_nums()
+    >>> print_large_number(l32)
+    4294967295
+    >>> print_large_number(l64)
+    18446744073709551615
+    """
+    cdef unsigned long l32 = LARGE_NUM32
+    cdef unsigned long long l64 = LARGE_NUM64
+    return l32, l64
 
 def f():
     """
