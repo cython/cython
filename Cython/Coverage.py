@@ -262,8 +262,11 @@ class CythonModuleReporter(FileReporter):
         self.c_file = c_file
         self._code = code
 
-    def statements(self):
-        return list(self._code)
+    def lines(self):
+        """
+        Return set of line numbers that are possibly executable.
+        """
+        return set(self._code)
 
     def _iter_source_tokens(self):
         current_line = 1
@@ -275,6 +278,9 @@ class CythonModuleReporter(FileReporter):
             current_line += 1
 
     def source(self):
+        """
+        Return the source code of the file as a string.
+        """
         if os.path.exists(self.filename):
             with open_source_file(self.filename) as f:
                 return f.read()
@@ -284,6 +290,9 @@ class CythonModuleReporter(FileReporter):
                 for tokens in self._iter_source_tokens())
 
     def source_token_lines(self):
+        """
+        Iterate over the source code tokens.
+        """
         if os.path.exists(self.filename):
             with open_source_file(self.filename) as f:
                 for line in f:

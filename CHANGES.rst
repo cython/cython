@@ -8,6 +8,8 @@ Cython Changelog
 Bugs fixed
 ----------
 
+* Coverage plugin was adapted to coverage.py 4.0 beta 2.
+
 * C++ destructor calls could fail when '&' operator is overwritten.
 
 * Incorrect handling of large integers in compile-time evaluated DEF
