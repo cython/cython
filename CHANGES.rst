@@ -47,6 +47,9 @@ Bugs fixed
 * Large integers in compile-time evaluated DEF expressions were
   incorrectly handled under Python 2.x.
 
+* Byte string constants could end up as Unicode strings when originating
+  from compile-time evaluated DEF expressions.
+
 * Invalid C code when caching known builtin methods.
   This fixes ticket 860.
 

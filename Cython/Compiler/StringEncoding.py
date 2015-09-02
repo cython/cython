@@ -78,9 +78,7 @@ class BytesLiteralBuilder(object):
 
     def getstring(self):
         # this *must* return a byte string!
-        s = BytesLiteral(join_bytes(self.chars))
-        s.encoding = self.target_encoding
-        return s
+        return bytes_literal(join_bytes(self.chars), self.target_encoding)
 
     def getchar(self):
         # this *must* return a byte string!
@@ -137,7 +135,7 @@ class EncodedString(_unicode):
         return string_contains_surrogates(self)
 
     def as_utf8_string(self):
-        return BytesLiteral(self.utf8encode())
+        return bytes_literal(self.utf8encode(), 'utf8')
 
 
 def string_contains_surrogates(ustring):
@@ -183,6 +181,13 @@ class BytesLiteral(_bytes):
     def as_c_string_literal(self):
         value = split_string_literal(escape_byte_string(self))
         return '"%s"' % value
+
+
+def bytes_literal(s, encoding):
+    assert isinstance(s, bytes)
+    s = BytesLiteral(s)
+    s.encoding = encoding
+    return s
 
 
 char_from_escape_sequence = {

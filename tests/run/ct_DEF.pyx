@@ -6,8 +6,12 @@ __doc__ = u"""
     b'spam'
 """
 
+_unicode = unicode
+
 import sys
-if sys.version_info[0] < 3:
+IS_PY3 = sys.version_info[0] >= 3
+
+if not IS_PY3:
     __doc__ = __doc__.replace(u" b'", u" '")
 
 
@@ -28,7 +32,8 @@ DEF LONG = 666L
 DEF LARGE_NUM32 = (1 << 32) - 1
 DEF LARGE_NUM64 = (1 << 64) - 1
 DEF FLOAT = 12.5
-DEF STR = b"spam"
+DEF BYTES = b"spam"
+DEF UNICODE = u"spam-u"
 DEF TWO = TUPLE[1]
 DEF FIVE = TWO + 3
 DEF TRUE  = TRUE_FALSE[0]
@@ -111,8 +116,28 @@ def s():
     """
     see module docstring above
     """
-    cdef char* s = STR
+    cdef char* s = BYTES
     return s
+
+def type_of_bytes():
+    """
+    >>> t, s = type_of_bytes()
+    >>> assert t is bytes, t
+    >>> assert type(s) is bytes, type(s)
+    """
+    t = type(BYTES)
+    s = BYTES
+    return t, s
+
+def type_of_unicode():
+    """
+    >>> t, s = type_of_unicode()
+    >>> assert t is _unicode, t
+    >>> assert type(s) is _unicode, type(s)
+    """
+    t = type(UNICODE)
+    s = UNICODE
+    return t, s
 
 @cython.test_assert_path_exists('//TupleNode')
 def constant_tuple():

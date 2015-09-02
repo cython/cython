@@ -1281,10 +1281,8 @@ class BytesNode(ConstNode):
         self.constant_result = self.value
 
     def as_sliced_node(self, start, stop, step=None):
-        value = StringEncoding.BytesLiteral(self.value[start:stop:step])
-        value.encoding = self.value.encoding
-        return BytesNode(
-            self.pos, value=value, constant_result=value)
+        value = StringEncoding.bytes_literal(self.value[start:stop:step], self.value.encoding)
+        return BytesNode(self.pos, value=value, constant_result=value)
 
     def compile_time_value(self, denv):
         return self.value
@@ -1381,9 +1379,8 @@ class UnicodeNode(ConstNode):
         value = StringEncoding.EncodedString(self.value[start:stop:step])
         value.encoding = self.value.encoding
         if self.bytes_value is not None:
-            bytes_value = StringEncoding.BytesLiteral(
-                self.bytes_value[start:stop:step])
-            bytes_value.encoding = self.bytes_value.encoding
+            bytes_value = StringEncoding.bytes_literal(
+                self.bytes_value[start:stop:step], self.bytes_value.encoding)
         else:
             bytes_value = None
         return UnicodeNode(
@@ -8522,7 +8519,7 @@ class CodeObjectNode(ExprNode):
         func_name = code.get_py_string_const(
             func.name, identifier=True, is_str=False, unicode_value=func.name)
         # FIXME: better way to get the module file path at module init time? Encoding to use?
-        file_path = StringEncoding.BytesLiteral(func.pos[0].get_filenametable_entry().encode('utf8'))
+        file_path = StringEncoding.bytes_literal(func.pos[0].get_filenametable_entry().encode('utf8'), 'utf8')
         file_path_const = code.get_py_string_const(file_path, identifier=False, is_str=True)
 
         flags = []
