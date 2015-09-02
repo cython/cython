@@ -223,7 +223,7 @@ of step) can be determined.
     This may change the semantics if the range causes
     assignment to ``i`` to overflow. Specifically, if this option is set, an error
     will be raised before the loop is entered, whereas without this option the loop
-    will execute until a overflowing value is encountered. If this effects you
+    will execute until a overflowing value is encountered. If this affects you,
     change ``Cython/Compiler/Options.py`` (eventually there will be a better
     way to set this).
 
