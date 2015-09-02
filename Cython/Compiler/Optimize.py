@@ -7,7 +7,7 @@ import codecs
 from . import TypeSlots
 from .ExprNodes import not_a_constant
 import cython
-cython.declare(UtilityCode=object, EncodedString=object, BytesLiteral=object,
+cython.declare(UtilityCode=object, EncodedString=object, bytes_literal=object,
                Nodes=object, ExprNodes=object, PyrexTypes=object, Builtin=object,
                UtilNodes=object, _py_int_types=object)
 
@@ -25,7 +25,7 @@ from . import UtilNodes
 from . import Options
 
 from .Code import UtilityCode, TempitaUtilityCode
-from .StringEncoding import EncodedString, BytesLiteral
+from .StringEncoding import EncodedString, bytes_literal
 from .Errors import error
 from .ParseTreeTransforms import SkipDeclarations
 
@@ -342,7 +342,7 @@ class IterationTransform(Visitor.EnvTransform):
         if slice_node.is_literal:
             # try to reduce to byte iteration for plain Latin-1 strings
             try:
-                bytes_value = BytesLiteral(slice_node.value.encode('latin1'))
+                bytes_value = bytes_literal(slice_node.value.encode('latin1'), 'iso8859-1')
             except UnicodeEncodeError:
                 pass
             else:
@@ -3298,10 +3298,8 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 # well, looks like we can't
                 pass
             else:
-                value = BytesLiteral(value)
-                value.encoding = encoding
-                return ExprNodes.BytesNode(
-                    string_node.pos, value=value, type=Builtin.bytes_type)
+                value = bytes_literal(value, encoding)
+                return ExprNodes.BytesNode(string_node.pos, value=value, type=Builtin.bytes_type)
 
         if encoding and error_handling == 'strict':
             # try to find a specific encoder function
@@ -3508,8 +3506,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         if isinstance(node, ExprNodes.UnicodeNode):
             encoding = node.value
             node = ExprNodes.BytesNode(
-                node.pos, value=BytesLiteral(encoding.utf8encode()),
-                type=PyrexTypes.c_char_ptr_type)
+                node.pos, value=encoding.as_utf8_string(), type=PyrexTypes.c_char_ptr_type)
         elif isinstance(node, (ExprNodes.StringNode, ExprNodes.BytesNode)):
             encoding = node.value.decode('ISO-8859-1')
             node = ExprNodes.BytesNode(
@@ -3833,15 +3830,15 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 bytes_value = None
                 if str1.bytes_value is not None and str2.bytes_value is not None:
                     if str1.bytes_value.encoding == str2.bytes_value.encoding:
-                        bytes_value = BytesLiteral(str1.bytes_value + str2.bytes_value)
-                        bytes_value.encoding = str1.bytes_value.encoding
+                        bytes_value = bytes_literal(
+                            str1.bytes_value + str2.bytes_value,
+                            str1.bytes_value.encoding)
                 string_value = EncodedString(node.constant_result)
                 return ExprNodes.UnicodeNode(
                     str1.pos, value=string_value, constant_result=node.constant_result, bytes_value=bytes_value)
             elif isinstance(str1, ExprNodes.BytesNode) and isinstance(str2, ExprNodes.BytesNode):
                 if str1.value.encoding == str2.value.encoding:
-                    bytes_value = BytesLiteral(node.constant_result)
-                    bytes_value.encoding = str1.value.encoding
+                    bytes_value = bytes_literal(node.constant_result, str1.value.encoding)
                     return ExprNodes.BytesNode(str1.pos, value=bytes_value, constant_result=node.constant_result)
             # all other combinations are rather complicated
             # to get right in Py2/3: encodings, unicode escapes, ...

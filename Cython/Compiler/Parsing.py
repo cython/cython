@@ -8,7 +8,7 @@ from __future__ import absolute_import
 # This should be done automatically
 import cython
 cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
-               BytesLiteral=object, StringEncoding=object,
+               bytes_literal=object, StringEncoding=object,
                FileSourceDescriptor=object, lookup_unicodechar=object,
                Future=object, Options=object, error=object, warning=object,
                Builtin=object, ModuleNode=object, Utils=object,
@@ -25,7 +25,7 @@ from . import Nodes
 from . import ExprNodes
 from . import Builtin
 from . import StringEncoding
-from .StringEncoding import EncodedString, BytesLiteral, _unicode, _bytes
+from .StringEncoding import EncodedString, bytes_literal, _unicode, _bytes
 from .ModuleNode import ModuleNode
 from .Errors import error, warning
 from .. import Utils
@@ -768,7 +768,8 @@ def wrap_compile_time_constant(pos, value):
     elif isinstance(value, _unicode):
         return ExprNodes.UnicodeNode(pos, value=EncodedString(value))
     elif isinstance(value, _bytes):
-        return ExprNodes.BytesNode(pos, value=BytesLiteral(value))
+        bvalue = bytes_literal(value, 'ascii')  # actually: unknown encoding, but BytesLiteral requires one
+        return ExprNodes.BytesNode(pos, value=bvalue, constant_result=value)
     elif isinstance(value, tuple):
         args = [wrap_compile_time_constant(pos, arg)
                 for arg in value]
@@ -809,8 +810,7 @@ def p_cat_string_literal(s):
     # join and rewrap the partial literals
     if kind in ('b', 'c', '') or kind == 'u' and None not in bstrings:
         # Py3 enforced unicode literals are parsed as bytes/unicode combination
-        bytes_value = BytesLiteral( StringEncoding.join_bytes(bstrings) )
-        bytes_value.encoding = s.source_encoding
+        bytes_value = bytes_literal(StringEncoding.join_bytes(bstrings), s.source_encoding)
     if kind in ('u', ''):
         unicode_value = EncodedString( u''.join([ u for u in ustrings if u is not None ]) )
     return kind, bytes_value, unicode_value
