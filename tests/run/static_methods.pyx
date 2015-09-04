@@ -50,3 +50,16 @@ def call_static_cdef(int x):
 #     ('cpdef', 2)
 #     """
 #     return A.static_cpdef(x)
+
+cdef class FromPxd:
+    @staticmethod
+    cdef static_cdef(int* x):
+        return 'pxd_cdef', x[0]
+
+def call_static_pxd_cdef(int x):
+    """
+    >>> call_static_pxd_cdef(2)
+    ('pxd_cdef', 2)
+    """
+    cdef int *x_ptr = &x
+    return FromPxd.static_cdef(x_ptr)

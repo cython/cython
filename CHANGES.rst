@@ -55,6 +55,8 @@ Bugs fixed
 
 * ``ino_t`` in ``posix.types`` was not declared as ``unsigned``.
 
+* Static cdef methods can now be declared in .pxd files.
+
 
 0.23.1 (2015-08-22)
 ===================

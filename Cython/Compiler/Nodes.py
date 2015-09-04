@@ -1327,13 +1327,13 @@ class CVarDefNode(StatNode):
                 error(declarator.pos, "Missing name in declaration.")
                 return
             if type.is_cfunction:
+                if 'staticmethod' in env.directives:
+                    type.is_static_method = True
                 self.entry = dest_scope.declare_cfunction(name, type, declarator.pos,
                     cname=cname, visibility=self.visibility, in_pxd=self.in_pxd,
                     api=self.api, modifiers=self.modifiers, overridable=self.overridable)
                 if self.entry is not None:
                     self.entry.directive_locals = copy.copy(self.directive_locals)
-                if 'staticmethod' in env.directives:
-                    type.is_static_method = True
                 if create_extern_wrapper:
                     self.entry.type.create_to_py_utility_code(env)
                     self.entry.create_wrapper = True
