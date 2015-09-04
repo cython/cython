@@ -147,7 +147,9 @@ class CythonUtilityCode(Code.UtilityCodeBase):
                                                      before=transform)
 
         for dep in self.requires:
-            if isinstance(dep, CythonUtilityCode):
+            if (isinstance(dep, CythonUtilityCode)
+                    and hasattr(dep, 'tree')
+                    and not cython_scope):
                 def scope_transform(module_node):
                     module_node.scope.merge_in(dep.tree.scope)
                     return module_node

@@ -87,8 +87,10 @@ def sort_utility_codes(utilcodes):
             ranks[utilcode] = 0
             ranks[utilcode] = 1 + min([get_rank(dep) for dep in utilcode.requires or ()] or [-1])
         return ranks[utilcode]
-    for utilcode in utilcodes:
+    for ix, utilcode in enumerate(utilcodes):
         get_rank(utilcode)
+        # Bias towards original order.
+        ranks[utilcode] -= ix * 1e-10
     return [utilcode for utilcode, _ in sorted(ranks.items(), key=lambda kv: kv[1])]
 
 def normalize_deps(utilcodes):
