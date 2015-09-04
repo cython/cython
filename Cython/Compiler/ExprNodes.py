@@ -2951,10 +2951,6 @@ class IndexNode(_IndexingBaseNode):
     #  index    ExprNode
     #  type_indices  [PyrexType]
     #
-    #  indices is used on buffer access, index on non-buffer access.
-    #  The former contains a clean list of index parameters, the
-    #  latter whatever Python object is needed for index access.
-    #
     #  is_fused_index boolean   Whether the index is used to specialize a
     #                           c(p)def function
 
