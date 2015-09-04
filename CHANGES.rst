@@ -14,6 +14,9 @@ Features added
 * The embedded C code comments that show the original source code
   can be discarded with the new directive ``emit_code_comments=False``.
 
+* Posix declarations for DLL loading and stdio extensions were added.
+  Patch by Lars Buitinck.
+
 Bugs fixed
 ----------
 
