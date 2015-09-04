@@ -163,6 +163,7 @@ def test_ellipsis_memoryview(array):
     ae(e.shape[0], e_obj.shape[0])
     ae(e.strides[0], e_obj.strides[0])
 
+
 @testcase
 def test_transpose():
     """
@@ -192,6 +193,20 @@ def test_transpose():
     assert (<object> a).strides == (<object> c).strides
 
     print a[3, 2], a.T[2, 3], a_obj[3, 2], a_obj.T[2, 3], numpy_obj[3, 2], numpy_obj.T[2, 3]
+
+
+@testcase
+def test_transpose_type(a):
+    """
+    >>> a = np.zeros((5, 10), dtype=np.float64)
+    >>> a[4, 6] = 9
+    >>> test_transpose_type(a)
+    9.0
+    """
+    cdef double[:, ::1] m = a
+    cdef double[::1, :] m_transpose = a.T
+    print m_transpose[6, 4]
+
 
 @testcase_numpy_1_5
 def test_numpy_like_attributes(cyarray):

@@ -79,7 +79,7 @@ cdef extern from *:
                                  size_t sizeof_dtype, int contig_flag,
                                  bint dtype_is_object) nogil except *
     bint slice_is_contig "__pyx_memviewslice_is_contig" (
-                            {{memviewslice_name}} *mvs, char order, int ndim) nogil
+                            {{memviewslice_name}} mvs, char order, int ndim) nogil
     bint slices_overlap "__pyx_slices_overlap" ({{memviewslice_name}} *slice1,
                                                 {{memviewslice_name}} *slice2,
                                                 int ndim, size_t itemsize) nogil
@@ -578,13 +578,13 @@ cdef class memoryview(object):
         cdef {{memviewslice_name}} *mslice
         cdef {{memviewslice_name}} tmp
         mslice = get_slice_from_memview(self, &tmp)
-        return slice_is_contig(mslice, 'C', self.view.ndim)
+        return slice_is_contig(mslice[0], 'C', self.view.ndim)
 
     def is_f_contig(self):
         cdef {{memviewslice_name}} *mslice
         cdef {{memviewslice_name}} tmp
         mslice = get_slice_from_memview(self, &tmp)
-        return slice_is_contig(mslice, 'F', self.view.ndim)
+        return slice_is_contig(mslice[0], 'F', self.view.ndim)
 
     def copy(self):
         cdef {{memviewslice_name}} mslice
@@ -1195,7 +1195,7 @@ cdef void *copy_data_to_temp({{memviewslice_name}} *src,
         if tmpslice.shape[i] == 1:
             tmpslice.strides[i] = 0
 
-    if slice_is_contig(src, order, ndim):
+    if slice_is_contig(src[0], order, ndim):
         memcpy(result, src.data, size)
     else:
         copy_strided_to_strided(src, tmpslice, ndim, itemsize)
@@ -1258,7 +1258,7 @@ cdef int memoryview_copy_contents({{memviewslice_name}} src,
 
     if slices_overlap(&src, &dst, ndim, itemsize):
         # slices overlap, copy to temp, copy temp to dst
-        if not slice_is_contig(&src, order, ndim):
+        if not slice_is_contig(src, order, ndim):
             order = get_best_order(&dst, ndim)
 
         tmpdata = copy_data_to_temp(&src, &tmp, order, ndim)
@@ -1267,10 +1267,10 @@ cdef int memoryview_copy_contents({{memviewslice_name}} src,
     if not broadcasting:
         # See if both slices have equal contiguity, in that case perform a
         # direct copy. This only works when we are not broadcasting.
-        if slice_is_contig(&src, 'C', ndim):
-            direct_copy = slice_is_contig(&dst, 'C', ndim)
-        elif slice_is_contig(&src, 'F', ndim):
-            direct_copy = slice_is_contig(&dst, 'F', ndim)
+        if slice_is_contig(src, 'C', ndim):
+            direct_copy = slice_is_contig(dst, 'C', ndim)
+        elif slice_is_contig(src, 'F', ndim):
+            direct_copy = slice_is_contig(dst, 'F', ndim)
 
         if direct_copy:
             # Contiguous slices with same order
