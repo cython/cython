@@ -3256,6 +3256,7 @@ class IndexNode(_IndexingBaseNode):
             self.parse_indexed_fused_cdef(env)
         else:
             self.type_indices = self.parse_index_as_types(env)
+            self.index = None  # FIXME: use a dedicated Node class instead of generic IndexNode
             if base_type.templates is None:
                 error(self.pos, "Can only parameterize template functions.")
                 self.type = error_type
@@ -3265,6 +3266,7 @@ class IndexNode(_IndexingBaseNode):
                 self.type = error_type
             else:
                 self.type = base_type.specialize(dict(zip(base_type.templates, self.type_indices)))
+        # FIXME: use a dedicated Node class instead of generic IndexNode
         return self
 
     def analyse_as_c_tuple(self, env, getting, setting):
