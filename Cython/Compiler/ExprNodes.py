@@ -3354,7 +3354,6 @@ class IndexNode(_IndexingBaseNode):
         self.is_fused_index = True
 
         base_type = self.base.type
-        specific_types = []
         positions = []
 
         if self.index.is_name or self.index.is_attribute:
