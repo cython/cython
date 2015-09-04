@@ -32,6 +32,13 @@ True
 >>> RANK_3         # doctest: +ELLIPSIS
 Traceback (most recent call last):
 NameError: ...name 'RANK_3' is not defined
+
+>>> list(PyxEnum)
+[TWO, THREE, FIVE]
+>>> PyxEnum.TWO + PyxEnum.THREE == PyxEnum.FIVE
+True
+>>> PyxEnum(2) is PyxEnum("TWO") is PyxEnum.TWO
+True
 """
 
 

@@ -146,6 +146,16 @@ class CythonUtilityCode(Code.UtilityCodeBase):
             pipeline = Pipeline.insert_into_pipeline(pipeline, scope_transform,
                                                      before=transform)
 
+        for dep in self.requires:
+            if isinstance(dep, CythonUtilityCode):
+                def scope_transform(module_node):
+                    module_node.scope.merge_in(dep.tree.scope)
+                    return module_node
+
+                transform = ParseTreeTransforms.AnalyseDeclarationsTransform
+                pipeline = Pipeline.insert_into_pipeline(pipeline, scope_transform,
+                                                         before=transform)
+
         if self.outer_module_scope:
             # inject outer module between utility code module and builtin module
             def scope_transform(module_node):
@@ -158,6 +168,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
 
         (err, tree) = Pipeline.run_pipeline(pipeline, tree, printtree=False)
         assert not err, err
+        self.tree = tree
         return tree
 
     def put_code(self, output):

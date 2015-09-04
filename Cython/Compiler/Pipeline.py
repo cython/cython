@@ -80,11 +80,36 @@ def use_utility_code_definitions(scope, target, seen=None):
         elif entry.as_module:
             use_utility_code_definitions(entry.as_module, target, seen)
 
+def sort_utility_codes(utilcodes):
+    ranks = {}
+    def get_rank(utilcode):
+        if utilcode not in ranks:
+            ranks[utilcode] = 0
+            ranks[utilcode] = 1 + min([get_rank(dep) for dep in utilcode.requires or ()] or [-1])
+        return ranks[utilcode]
+    for utilcode in utilcodes:
+        get_rank(utilcode)
+    return [utilcode for utilcode, _ in sorted(ranks.items(), key=lambda kv: kv[1])]
+
+def normalize_deps(utilcodes):
+    deps = {}
+    for utilcode in utilcodes:
+        deps[utilcode] = utilcode
+    def unify_dep(dep):
+        if dep in deps:
+            return deps[dep]
+        else:
+            deps[dep] = dep
+            return dep
+    for utilcode in utilcodes:
+        utilcode.requires = [unify_dep(dep) for dep in utilcode.requires or ()]
 
 def inject_utility_code_stage_factory(context):
     def inject_utility_code_stage(module_node):
         module_node.prepare_utility_code()
         use_utility_code_definitions(context.cython_scope, module_node.scope)
+        module_node.scope.utility_code_list = sort_utility_codes(module_node.scope.utility_code_list)
+        normalize_deps(module_node.scope.utility_code_list)
         added = []
         # Note: the list might be extended inside the loop (if some utility code
         # pulls in other utility code, explicitly or implicitly)
