@@ -1859,7 +1859,12 @@ class NameNode(AtomicExprNode):
         entry = self.entry
         if entry.is_type and entry.type.is_extension_type:
             self.type_entry = entry
-        if not (entry.is_const or entry.is_variable
+        if entry.is_type and entry.type.is_enum:
+            py_entry = Symtab.Entry(self.name, None, py_object_type)
+            py_entry.is_pyglobal = True
+            py_entry.scope = self.entry.scope
+            self.entry = py_entry
+        elif not (entry.is_const or entry.is_variable
             or entry.is_builtin or entry.is_cfunction
             or entry.is_cpp_class):
                 if self.entry.as_variable:
@@ -5832,7 +5837,7 @@ class AttributeNode(ExprNode):
         node = self.analyse_as_cimported_attribute_node(env, target=False)
         if node is not None:
             return node.entry.type
-        node = self.analyse_as_unbound_cmethod_node(env)
+        node = self.analyse_as_type_attribute(env)
         if node is not None:
             return node.entry.type
         obj_type = self.obj.infer_type(env)
@@ -5859,7 +5864,7 @@ class AttributeNode(ExprNode):
         self.initialized_check = env.directives['initializedcheck']
         node = self.analyse_as_cimported_attribute_node(env, target)
         if node is None and not target:
-            node = self.analyse_as_unbound_cmethod_node(env)
+            node = self.analyse_as_type_attribute(env)
         if node is None:
             node = self.analyse_as_ordinary_attribute_node(env, target)
             assert node is not None
@@ -5883,7 +5888,7 @@ class AttributeNode(ExprNode):
                 return self.as_name_node(env, entry, target)
         return None
 
-    def analyse_as_unbound_cmethod_node(self, env):
+    def analyse_as_type_attribute(self, env):
         # Try to interpret this as a reference to an unbound
         # C method of an extension type or builtin type.  If successful,
         # creates a corresponding NameNode and returns it, otherwise
@@ -5891,37 +5896,43 @@ class AttributeNode(ExprNode):
         if self.obj.is_string_literal:
             return
         type = self.obj.analyse_as_type(env)
-        if type and (type.is_extension_type or type.is_builtin_type or type.is_cpp_class):
-            entry = type.scope.lookup_here(self.attribute)
-            if entry and (entry.is_cmethod or type.is_cpp_class and entry.type.is_cfunction):
-                if type.is_builtin_type:
-                    if not self.is_called:
-                        # must handle this as Python object
-                        return None
-                    ubcm_entry = entry
-                else:
-                    # Create a temporary entry describing the C method
-                    # as an ordinary function.
-                    if entry.func_cname and not hasattr(entry.type, 'op_arg_struct'):
-                        cname = entry.func_cname
-                        if entry.type.is_static_method:
-                            ctype = entry.type
-                        elif type.is_cpp_class:
-                            error(self.pos, "%s not a static member of %s" % (entry.name, type))
-                            ctype = PyrexTypes.error_type
-                        else:
-                            # Fix self type.
-                            ctype = copy.copy(entry.type)
-                            ctype.args = ctype.args[:]
-                            ctype.args[0] = PyrexTypes.CFuncTypeArg('self', type, 'self', None)
+        if type:
+            if type.is_extension_type or type.is_builtin_type or type.is_cpp_class:
+                entry = type.scope.lookup_here(self.attribute)
+                if entry and (entry.is_cmethod or type.is_cpp_class and entry.type.is_cfunction):
+                    if type.is_builtin_type:
+                        if not self.is_called:
+                            # must handle this as Python object
+                            return None
+                        ubcm_entry = entry
                     else:
-                        cname = "%s->%s" % (type.vtabptr_cname, entry.cname)
-                        ctype = entry.type
-                    ubcm_entry = Symtab.Entry(entry.name, cname, ctype)
-                    ubcm_entry.is_cfunction = 1
-                    ubcm_entry.func_cname = entry.func_cname
-                    ubcm_entry.is_unbound_cmethod = 1
-                return self.as_name_node(env, ubcm_entry, target=False)
+                        # Create a temporary entry describing the C method
+                        # as an ordinary function.
+                        if entry.func_cname and not hasattr(entry.type, 'op_arg_struct'):
+                            cname = entry.func_cname
+                            if entry.type.is_static_method:
+                                ctype = entry.type
+                            elif type.is_cpp_class:
+                                error(self.pos, "%s not a static member of %s" % (entry.name, type))
+                                ctype = PyrexTypes.error_type
+                            else:
+                                # Fix self type.
+                                ctype = copy.copy(entry.type)
+                                ctype.args = ctype.args[:]
+                                ctype.args[0] = PyrexTypes.CFuncTypeArg('self', type, 'self', None)
+                        else:
+                            cname = "%s->%s" % (type.vtabptr_cname, entry.cname)
+                            ctype = entry.type
+                        ubcm_entry = Symtab.Entry(entry.name, cname, ctype)
+                        ubcm_entry.is_cfunction = 1
+                        ubcm_entry.func_cname = entry.func_cname
+                        ubcm_entry.is_unbound_cmethod = 1
+                    return self.as_name_node(env, ubcm_entry, target=False)
+            elif type.is_enum:
+                if self.attribute in type.values:
+                    return self.as_name_node(env, env.lookup(self.attribute), target=False)
+                else:
+                    error(self.pos, "%s not a known value of %s" % (self.attribute, type))
         return None
 
     def analyse_as_type(self, env):

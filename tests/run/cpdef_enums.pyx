@@ -58,3 +58,19 @@ cpdef enum PyxEnum:
 
 cdef enum SecretPyxEnum:
     SEVEN = 7
+
+def test_as_variable_from_cython():
+    """
+    >>> test_as_variable_from_cython()
+    """
+    assert list(PyxEnum) == [TWO, THREE, FIVE]
+    assert list(PxdEnum) == [RANK_0, RANK_1, RANK_2]
+
+cdef int verify_pure_c() nogil:
+    cdef int x = TWO
+    cdef int y = PyxEnum.THREE
+    cdef int z = SecretPyxEnum.SEVEN
+    return x + y + z
+
+# Use it to suppress warning.
+verify_pure_c()

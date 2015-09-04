@@ -1496,11 +1496,15 @@ class CEnumDefNode(StatNode):
                 self.entry.defined_in_pxd = 1
             for item in self.items:
                 item.analyse_declarations(env, self.entry)
+        if self.name is not None:
+            self.entry.type.values = set(
+                (item.name) for item in self.items)
         if self.create_wrapper and self.name is not None:
             from .UtilityCode import CythonUtilityCode
             env.use_utility_code(CythonUtilityCode.load(
               "EnumType", "CpdefEnums.pyx",
-              context={"name": self.name, "items": tuple(item.name for item in self.items)},
+              context={"name": self.name,
+                       "items": tuple(item.name for item in self.items)},
               outer_module_scope=env.global_scope()))
 
     def analyse_expressions(self, env):
