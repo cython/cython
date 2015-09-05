@@ -12,7 +12,7 @@ cdef extern from "signal.h" nogil:
         int    sigev_notify
         int    sigev_signo
         sigval sigev_value
-        void   *sigev_notify_function(sigval)
+        void   sigev_notify_function(sigval)
 
     ctypedef struct siginfo_t:
         int    si_signo
@@ -26,10 +26,10 @@ cdef extern from "signal.h" nogil:
         sigval si_value
 
     cdef struct sigaction_t "sigaction":
-        void     *sa_handler(int)
+        void     sa_handler(int)
+        void     sa_sigaction(int, siginfo_t *, void *)
         sigset_t sa_mask
         int      sa_flags
-        void     sa_sigaction(int, siginfo_t *, void *)
 
     enum: SA_NOCLDSTOP
     enum: SIG_BLOCK
