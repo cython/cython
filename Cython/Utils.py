@@ -319,6 +319,16 @@ def long_literal(value):
     return not -2**31 <= value < 2**31
 
 
+def longness_of(value):
+    if isinstance(value, basestring):
+        value = str_to_number(value)
+    if -2**15 <= value < 2**15:
+        return ''
+    if -2**31 <= value < 2**31:
+        return 'L'
+    return 'LL'
+
+
 @cached_function
 def get_cython_cache_dir():
     """get the cython cache dir
