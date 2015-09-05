@@ -43,6 +43,8 @@ Other changes
 Bugs fixed
 ----------
 
+* Compiler crash when analysing some optimised expressions.
+
 * Coverage plugin was adapted to coverage.py 4.0 beta 2.
 
 * C++ destructor calls could fail when '&' operator is overwritten.
