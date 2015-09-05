@@ -1022,3 +1022,14 @@ def test_cpython_offbyone_issue_23349():
     cdef unsigned char[:] v = bytearray(b"testing")
     # the following returns 'estingt' without the workaround
     return bytearray(v).decode('ascii')
+
+
+cdef int min_max_tree_restructuring():
+    """
+    >>> min_max_tree_restructuring()
+    """
+    cdef char a[5]
+    a = [1, 2, 3, 4, 5]
+    cdef char[:] aview = a
+
+    return max(<char>1, aview[0])
