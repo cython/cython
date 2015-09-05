@@ -155,6 +155,11 @@ class ResultRefNode(AtomicExprNode):
         else:
             return ()
 
+    def update_expression(self, expression):
+        self.expression = expression
+        if hasattr(expression, "type"):
+            self.type = expression.type
+
     def analyse_types(self, env):
         if self.expression is not None:
             self.type = self.expression.type
@@ -256,6 +261,7 @@ class LetNodeMixin:
                 code.put_decref_clear(self.temp, self.temp_type)
             code.funcstate.release_temp(self.temp)
 
+
 class EvalWithTempExprNode(ExprNodes.ExprNode, LetNodeMixin):
     # A wrapper around a subexpression that moves an expression into a
     # temp variable and provides it to the subexpression.
@@ -277,6 +283,7 @@ class EvalWithTempExprNode(ExprNodes.ExprNode, LetNodeMixin):
 
     def analyse_types(self, env):
         self.temp_expression = self.temp_expression.analyse_types(env)
+        self.lazy_temp.update_expression(self.temp_expression)  # overwrite in case it changed
         self.subexpression = self.subexpression.analyse_types(env)
         self.type = self.subexpression.type
         return self
@@ -292,7 +299,9 @@ class EvalWithTempExprNode(ExprNodes.ExprNode, LetNodeMixin):
         self.subexpression.generate_evaluation_code(code)
         self.teardown_temp_expr(code)
 
+
 LetRefNode = ResultRefNode
+
 
 class LetNode(Nodes.StatNode, LetNodeMixin):
     # Implements a local temporary variable scope. Imagine this
