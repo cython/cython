@@ -126,7 +126,7 @@ def main(path_to_debug_info=None, gdb_argv=None, no_import=False):
     logging_level = logging.WARN
     if options.verbosity == 1:
         logging_level = logging.INFO
-    if options.verbosity == 2:
+    if options.verbosity >= 2:
         logging_level = logging.DEBUG
     logging.basicConfig(level=logging_level)
 
