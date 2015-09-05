@@ -1148,9 +1148,15 @@ class IntNode(ConstNode):
                 return FloatNode(self.pos, value=self.value, type=dst_type,
                                  constant_result=not_a_constant)
         if dst_type.is_numeric and not dst_type.is_complex:
+            unsigned = self.unsigned
+            if not unsigned and dst_type.is_int and not dst_type.signed:
+                # mark positive literals as 'U' when coercing them to unsigned integer types
+                # to extend their potential value range in the C code
+                if self.has_constant_result() and self.constant_result > 0:
+                    unsigned = 'U'
             node = IntNode(self.pos, value=self.value, constant_result=self.constant_result,
-                           type = dst_type, is_c_literal = True,
-                           unsigned=self.unsigned, longness=self.longness)
+                           type=dst_type, is_c_literal=True,
+                           unsigned=unsigned, longness=self.longness)
             return node
         elif dst_type.is_pyobject:
             node = IntNode(self.pos, value=self.value, constant_result=self.constant_result,

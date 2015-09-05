@@ -94,15 +94,18 @@ def l():
 
 def large_nums():
     """
-    >>> l32, l64 = large_nums()
-    >>> print_large_number(l32)
+    >>> ul32, ul64, l64 = large_nums()
+    >>> print_large_number(ul32)
     4294967295
-    >>> print_large_number(l64)
+    >>> print_large_number(ul64)
     18446744073709551615
+    >>> print_large_number(l64)
+    4294967295
     """
-    cdef unsigned long l32 = LARGE_NUM32
-    cdef unsigned long long l64 = LARGE_NUM64
-    return l32, l64
+    cdef unsigned long ul32 = LARGE_NUM32
+    cdef unsigned long long ul64 = LARGE_NUM64
+    cdef long long l64 = LARGE_NUM32
+    return ul32, ul64, l64
 
 def f():
     """
