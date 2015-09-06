@@ -1133,19 +1133,13 @@ class IntNode(ConstNode):
                 return FloatNode(self.pos, value=self.value, type=dst_type,
                                  constant_result=not_a_constant)
         if dst_type.is_numeric and not dst_type.is_complex:
-            unsigned = self.unsigned
-            if not unsigned and dst_type.is_int and not dst_type.signed:
-                # mark positive literals as 'U' when coercing them to unsigned integer types
-                # to extend their potential value range in the C code
-                if self.has_constant_result() and self.constant_result > 0:
-                    unsigned = 'U'
             node = IntNode(self.pos, value=self.value, constant_result=self.constant_result,
                            type=dst_type, is_c_literal=True,
-                           unsigned=unsigned, longness=self.longness)
+                           unsigned=self.unsigned, longness=self.longness)
             return node
         elif dst_type.is_pyobject:
             node = IntNode(self.pos, value=self.value, constant_result=self.constant_result,
-                           type = PyrexTypes.py_object_type, is_c_literal = False,
+                           type=PyrexTypes.py_object_type, is_c_literal=False,
                            unsigned=self.unsigned, longness=self.longness)
         else:
             # FIXME: not setting the type here to keep it working with
@@ -1178,11 +1172,17 @@ class IntNode(ConstNode):
     def value_as_c_integer_string(self):
         value = self.value
         if len(value) > 2:
-            # convert C-incompatible Py3 oct/bin notations
-            if value[1] in 'oO':
-                value = value[0] + value[2:] # '0o123' => '0123'
-            elif value[1] in 'bB':
-                value = int(value[2:], 2)
+            if value[0] == '0':
+                literal_type = value[1]  # 0'o' - 0'b' - 0'x'
+                # 0x123 hex literals and 0123 octal literals work nicely in C
+                # but convert C-incompatible Py3 oct/bin notations
+                if literal_type in 'oO':
+                    value = '0' + value[2:]  # '0o123' => '0123'
+                elif literal_type in 'bB':
+                    value = int(value[2:], 2)
+            elif value.isdigit() and not self.unsigned and not self.longness:
+                # C compilers do not consider unsigned types for decimal literals, but they do for hex
+                value = '0x%X' % int(value)
         return str(value)
 
     def calculate_result_code(self):
