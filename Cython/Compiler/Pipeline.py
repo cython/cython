@@ -84,13 +84,12 @@ def sort_utility_codes(utilcodes):
     ranks = {}
     def get_rank(utilcode):
         if utilcode not in ranks:
-            ranks[utilcode] = 0
-            ranks[utilcode] = 1 + min([get_rank(dep) for dep in utilcode.requires or ()] or [-1])
+            ranks[utilcode] = 0  # prevent infinite recursion on circular dependencies
+            original_order = len(ranks)
+            ranks[utilcode] = 1 + min([get_rank(dep) for dep in utilcode.requires or ()] or [-1]) + original_order * 1e-8
         return ranks[utilcode]
-    for ix, utilcode in enumerate(utilcodes):
+    for utilcode in utilcodes:
         get_rank(utilcode)
-        # Bias towards original order.
-        ranks[utilcode] -= ix * 1e-10
     return [utilcode for utilcode, _ in sorted(ranks.items(), key=lambda kv: kv[1])]
 
 def normalize_deps(utilcodes):
