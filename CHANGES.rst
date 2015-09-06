@@ -14,8 +14,8 @@ Bugs fixed
 
 * C++ destructor calls could fail when '&' operator is overwritten.
 
-* Incorrect handling of large integers in compile-time evaluated DEF
-  expressions under Python 2.x.
+* Incorrect C literal generation for large integers in compile-time
+  evaluated DEF expressions and constant folded expressions.
 
 * Byte string constants could end up as Unicode strings when originating
   from compile-time evaluated DEF expressions.
