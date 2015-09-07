@@ -150,3 +150,10 @@ def infer_division_type():
     v = (10000**2 - 1) / 12
     print(cython.typeof(v))
     return v
+
+def int_int(int a, int b):
+    """
+    >>> int_int(1, 2)
+    (0.5, 2.0)
+    """
+    return a/b, b/a
