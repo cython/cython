@@ -153,7 +153,9 @@ the same effect as the C directive ``#pragma pack(1)``.
         cheddar, edam,
         camembert
 
-    cdef enum CheeseState:
+Declaring an enum as ```cpdef`` will create a PEP 435-style Python wrapper::
+
+    cpdef enum CheeseState:
         hard = 1
         soft = 2
         runny = 3
@@ -803,16 +805,3 @@ Conditional Statements
 
 
 .. [#] The conversion is to/from str for Python 2.x, and bytes for Python 3.x.
-
-
-
-
-
-
-
-
-
-
-
-
-
