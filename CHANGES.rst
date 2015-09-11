@@ -25,6 +25,9 @@ Bugs fixed
 
 * ``ino_t`` in ``posix.types`` was not declared as ``unsigned``.
 
+* Declarations in ``libcpp/memory.pxd`` were missing ``operator!()``.
+  Patch by Leo Razoumov.
+
 * Static cdef methods can now be declared in .pxd files.
 
 
