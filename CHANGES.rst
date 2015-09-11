@@ -37,7 +37,7 @@ Other changes
 -------------
 
 
-0.23.2 (2015-0x-yy)
+0.23.2 (2015-09-11)
 ===================
 
 Bugs fixed
@@ -59,6 +59,9 @@ Bugs fixed
   This fixes ticket 860.
 
 * ``ino_t`` in ``posix.types`` was not declared as ``unsigned``.
+
+* Declarations in ``libcpp/memory.pxd`` were missing ``operator!()``.
+  Patch by Leo Razoumov.
 
 * Static cdef methods can now be declared in .pxd files.
 
