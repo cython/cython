@@ -531,15 +531,18 @@ declare that it is safe to call without the GIL.::
     cdef void my_gil_free_func(int spam) nogil:
         ...
 
-If you are implementing such a function in Cython, it cannot have any Python
-arguments, Python local variables, or Python return type, and cannot
-manipulate Python objects in any way or call any function that does so without
-acquiring the GIL first. Some of these restrictions are currently checked by
-Cython, but not all. It is possible that more stringent checking will be
-performed in the future.
+When you implement such a function in Cython, it cannot have any Python
+arguments or Python object return type.  Furthermore, any operation
+that involves Python objects (including calling Python functions) must
+explicitly acquire the GIL first, e.g. by using a ``with gil`` block
+or by calling a function that has been defined ``with gil``.  These
+restrictions are checked by Cython and you will get a compile error
+if it finds any Python interaction inside of a ``nogil`` code section.
 
-.. NOTE:: This declaration declares that it is safe to call the function without the GIL,
-          it does not in itself release the GIL.
+.. NOTE:: The ``nogil`` function annotation declares that it is safe
+          to call the function without the GIL.  It is perfectly allowed
+          to execute it while holding the GIL.  The function does not in
+          itself release the GIL if it is held by the caller.
 
 Declaring a function ``with gil`` (i.e. as acquiring the GIL on entry) also
 implicitly makes its signature :keyword:`nogil`.
