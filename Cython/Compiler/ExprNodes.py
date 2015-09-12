@@ -2868,6 +2868,32 @@ class RawCNameExprNode(ExprNode):
 
 #-------------------------------------------------------------------
 #
+#  F-strings
+#
+#-------------------------------------------------------------------
+
+
+class JoinedStrNode(ExprNode):
+    # F-strings
+    #
+    # values [UnicodeNode|FormattedValueNode] Substrings of the f-string
+    #
+    subexprs = ['values']
+
+
+class FormattedValueNode(ExprNode):
+    # {}-delimited portions of an f-string
+    #
+    # value        ExprNode                The expression itself
+    # conversion   str or None             Type conversion (!s, !r, !a, or none)
+    # format_spec  JoinedStrNode or None   Format string passed to __format__
+    subexprs = ['value', 'format_spec']
+
+    conversion_chars = 'sra'
+
+
+#-------------------------------------------------------------------
+#
 #  Parallel nodes (cython.parallel.thread(savailable|id))
 #
 #-------------------------------------------------------------------
