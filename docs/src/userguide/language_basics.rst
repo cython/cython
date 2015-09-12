@@ -569,7 +569,7 @@ Compile-Time Definitions
 
 A compile-time constant can be defined using the DEF statement::
 
-    DEF FavouriteFood = "spam"
+    DEF FavouriteFood = u"spam"
     DEF ArraySize = 42
     DEF OtherArraySize = 2 * ArraySize + 17
 
@@ -586,16 +586,21 @@ returned by :func:`os.uname`.
 The following selection of builtin constants and functions are also available:
 
     None, True, False,
-    abs, bool, chr, cmp, complex, dict, divmod, enumerate,
-    float, hash, hex, int, len, list, long, map, max, min,
-    oct, ord, pow, range, reduce, repr, round, slice, str,
-    sum, tuple, xrange, zip
+    abs, all, any, ascii, bin, bool, bytearray, bytes, chr, cmp, complex, dict,
+    divmod, enumerate, filter, float, format, frozenset, hash, hex, int, len,
+    list, long, map, max, min, oct, ord, pow, range, reduce, repr, reversed,
+    round, set, slice, sorted, str, sum, tuple, xrange, zip
+
+Note that some of these builtins may not be available when compiling under
+Python 2.x or 3.x, or may behave differently in both.
 
 A name defined using ``DEF`` can be used anywhere an identifier can appear,
 and it is replaced with its compile-time value as though it were written into
 the source at that point as a literal. For this to work, the compile-time
 expression must evaluate to a Python value of type ``int``, ``long``,
-``float`` or ``str``.::
+``float``, ``bytes`` or ``unicode`` (``str`` in Py3).
+
+::
 
     cdef int a1[ArraySize]
     cdef int a2[OtherArraySize]
