@@ -3,7 +3,7 @@ Working with NumPy
 =======================
 
 You can use NumPy from Cython exactly the same as in regular Python, but by
-doing so you are loosing potentially high speedups because Cython has support
+doing so you are losing potentially high speedups because Cython has support
 for fast access to NumPy arrays. Let's see how this works with a simple
 example.
 

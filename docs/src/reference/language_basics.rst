@@ -297,7 +297,7 @@ Optional Arguments
 Keyword-only Arguments
 =======================
 
-* As in Python 3, ``def`` functions can have keyword-only argurments listed after a ``"*"`` parameter and before a ``"**"`` parameter if any::
+* As in Python 3, ``def`` functions can have keyword-only arguments listed after a ``"*"`` parameter and before a ``"**"`` parameter if any::
 
     def f(a, b, *args, c, d = 42, e, **kwds):
         ...
