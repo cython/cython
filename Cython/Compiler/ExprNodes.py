@@ -1532,6 +1532,8 @@ class StringNode(PyConstNode):
         return self.result_code
 
     def compile_time_value(self, env):
+        if self.value.is_unicode:
+            return self.value
         if not IS_PYTHON3:
             # use plain str/bytes object in Py2
             return self.value.byteencode()
