@@ -1307,6 +1307,7 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         node.decorator_indirection = reassignment
         return [node, reassignment]
 
+
 class CnameDirectivesTransform(CythonTransform, SkipDeclarations):
     """
     Only part of the CythonUtilityCode pipeline. Must be run before
@@ -1340,7 +1341,7 @@ class CnameDirectivesTransform(CythonTransform, SkipDeclarations):
                     raise AssertionError(
                             "argument to cname decorator must be a string literal")
 
-                cname = args[0].compile_time_value(None).decode('UTF-8')
+                cname = args[0].compile_time_value(None)
                 del node.decorators[i]
                 node = Nodes.CnameDecoratorNode(pos=node.pos, node=node,
                                                 cname=cname)
