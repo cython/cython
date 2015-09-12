@@ -26,7 +26,7 @@ platform for generating an extension module. For these options look at the
 official Python documentation.
 
 The other, and probably better, way is to use the :mod:`distutils` extension
-provided with Cython. The benifit of this method is that it will give the
+provided with Cython. The benefit of this method is that it will give the
 platform specific compilation options, acting like a stripped down autotools.
 
 
