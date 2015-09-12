@@ -42,6 +42,7 @@ DEF INT_TUPLE1 = TUPLE[:2]
 DEF INT_TUPLE2 = TUPLE[1:4:2]
 DEF ELLIPSIS = ...
 DEF EXPRESSION = int(float(2*2)) + int(str(2)) + int(max(1,2,3)) + sum([TWO, FIVE])
+DEF UNICODE_EXPRESSION = unicode(b'abc'.decode(u'utf8')).encode(u'ascii').decode(u'latin1')
 
 
 def c():
@@ -215,6 +216,16 @@ def expression():
     """
     cdef int i = EXPRESSION
     return i
+
+
+def unicode_expression():
+    """
+    >>> print(unicode_expression())
+    abc
+    """
+    s = UNICODE_EXPRESSION
+    return s
+
 
 def none():
     """
