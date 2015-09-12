@@ -395,14 +395,23 @@ static CYTHON_INLINE PyObject* __Pyx_decode_c_string(
 //@requires: IncludeStringH
 
 /* duplicate code to avoid calling strlen() if start >= 0 and stop >= 0 */
-
+/* Casting to Py_ssize_t and checking for negative values to determine
+ * if overflow occured should be safe in practice (it's undefined
+ * behavior by C99, but common behavior for systems with
+ * two-complement representation).
+ */
 static CYTHON_INLINE PyObject* __Pyx_decode_c_string(
          const char* cstring, Py_ssize_t start, Py_ssize_t stop,
          const char* encoding, const char* errors,
          PyObject* (*decode_func)(const char *s, Py_ssize_t size, const char *errors)) {
     Py_ssize_t length;
     if (unlikely((start < 0) | (stop < 0))) {
-        length = strlen(cstring);
+        length = <Py_ssize_t> strlen(cstring);
+        if(length < 0) {
+            PyErr_SetString(PyExc_OverflowError,
+                            "c-string too long to convert to Python");
+            return NULL;
+        }
         if (start < 0) {
             start += length;
             if (start < 0)
