@@ -1293,7 +1293,7 @@ class BytesNode(ConstNode):
         return BytesNode(self.pos, value=value, constant_result=value)
 
     def compile_time_value(self, denv):
-        return self.value
+        return self.value.byteencode()
 
     def analyse_as_type(self, env):
         return _analyse_name_as_type(self.value.decode('ISO8859-1'), self.pos, env)
@@ -1529,7 +1529,7 @@ class StringNode(PyConstNode):
         return self.result_code
 
     def compile_time_value(self, env):
-        return self.value
+        return self.value.byteencode()
 
 
 class IdentifierStringNode(StringNode):
