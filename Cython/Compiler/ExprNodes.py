@@ -13,7 +13,8 @@ cython.declare(error=object, warning=object, warn_once=object, InternalError=obj
                unicode_type=object, str_type=object, bytes_type=object, type_type=object,
                Builtin=object, Symtab=object, Utils=object, find_coercion_error=object,
                debug_disposal_code=object, debug_temp_alloc=object, debug_coercion=object,
-               bytearray_type=object, slice_type=object, _py_int_types=object)
+               bytearray_type=object, slice_type=object, _py_int_types=object,
+               IS_PYTHON3=cython.bint)
 
 import sys
 import copy
@@ -54,8 +55,10 @@ else:
 
 
 if sys.version_info[0] >= 3:
+    IS_PYTHON3 = True
     _py_int_types = int
 else:
+    IS_PYTHON3 = False
     _py_int_types = (int, long)
 
 
@@ -1529,7 +1532,13 @@ class StringNode(PyConstNode):
         return self.result_code
 
     def compile_time_value(self, env):
-        return self.value.byteencode()
+        if not IS_PYTHON3:
+            # use plain str/bytes object in Py2
+            return self.value.byteencode()
+        # in Py3, always return a Unicode string
+        if self.unicode_value is not None:
+            return self.unicode_value
+        return self.value.decode('iso8859-1')
 
 
 class IdentifierStringNode(StringNode):

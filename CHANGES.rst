@@ -27,6 +27,11 @@ Bugs fixed
   strict C compiler options and prevents non-const strings literals
   with the same content from being incorrectly merged.
 
+* Compile time evaluated ``str`` expressions (``DEF``) now behave in a
+  more useful way by turning into Unicode strings when compiling under
+  Python 3.  This allows using them as intermediate values in expressions.
+  Previously, they always evaluated to bytes objects.
+
 * ``isinf()`` declarations in ``libc/math.pxd`` and ``numpy/math.pxd`` now
   reflect the actual tristate ``int`` return value instead of using ``bint``.
 
