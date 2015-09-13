@@ -808,7 +808,7 @@ def p_cat_string_literal(s):
             continue
         elif next_kind != kind:
             # concatenating f strings and normal strings is allowed and leads to an f string
-            if {kind, next_kind} == {'f', 'u'}:
+            if {kind, next_kind} == {'f', 'u'} or {kind, next_kind} == {'f', ''}:
                 kind = 'f'
             else:
                 error(pos, "Cannot mix string literals of different types, expected %s'', got %s''" %
@@ -937,7 +937,7 @@ def p_string_literal(s, kind_override=None):
                     else:
                         s.error("Invalid hex escape '%s'" % systr,
                                 fatal=False)
-                elif c in u'NUu' and kind in ('u', ''):   # \uxxxx, \Uxxxxxxxx, \N{...}
+                elif c in u'NUu' and kind in ('u', 'f', ''):   # \uxxxx, \Uxxxxxxxx, \N{...}
                     chrval = -1
                     if c == u'N':
                         try:
@@ -999,7 +999,10 @@ def p_f_string(s, unicode_value, pos):
     while i < size:
         c = unicode_value[i]
         if c == '}':
-            s.error("single '}' encountered in format string")
+            if i + 1 >= size or unicode_value[i + 1] != '}':
+                s.error("single '}' encountered in format string")
+            else:
+                i += 2
         elif c == '{':
             # double { escapes it
             if i + 1 < size and unicode_value[i + 1] == '{':
@@ -1015,7 +1018,7 @@ def p_f_string(s, unicode_value, pos):
 
     encoded_str = EncodedString(unicode_value[current_literal_start:])
     values.append(ExprNodes.UnicodeNode(pos, value = encoded_str))
-    print "F-STRING VALUES", values
+    print("F-STRING VALUES", values)
     return values
 
 
@@ -1061,6 +1064,7 @@ def p_f_string_expr(s, unicode_value, pos, starting_index):
         elif nested_depth == 0 and c in '!:}':
             # allow != as a special case
             if c == '!' and i + 1 < size and unicode_value[i + 1] == '=':
+                i += 1
                 continue
 
             terminal_char = c
@@ -1105,7 +1109,7 @@ def p_f_string_expr(s, unicode_value, pos, starting_index):
     if terminal_char != '}':
         s.error("missing '}' in format string expression'")
 
-    print 'expr=%r, conversion_char=%r, format_spec=%r' % (expr_str, conversion_char, format_spec_str)
+    print('expr=%r, conversion_char=%r, format_spec=%r' % (expr_str, conversion_char, format_spec_str))
 
     # parse the expression
     name = 'format string expression'
