@@ -2886,19 +2886,24 @@ class JoinedStrNode(ExprNode):
         self.values = [v.analyse_types(env) for v in self.values]
         self.values = [v.coerce_to_pyobject(env) for v in self.values]
         self.is_temp = 1
+        # TODO make this actually work
+        return self.values[1] if len(self.values) > 1 else self.values[0]
         return self
 
     def generate_result_code(self, code):
-        # TODO this just returns the first value
-        code.putln('%s = %s;' % (self.result(), self.values[0].py_result()))
+        # TODO this just returns the first value and the refnanny doesn't like it
+        val = self.values[1] if len(self.values) > 1 else self.values[0]
+        code.putln('%s = %s;' % (self.result(), val.py_result()))
+        code.putln('__Pyx_INCREF(%s);' % self.result())
+        code.put_gotref(self.py_result())
 
 
 class FormattedValueNode(ExprNode):
     # {}-delimited portions of an f-string
     #
-    # value        ExprNode                The expression itself
-    # conversion   str or None             Type conversion (!s, !r, !a, or none)
-    # format_spec  JoinedStrNode or None   Format string passed to __format__
+    # value           ExprNode                The expression itself
+    # conversion_char str or None             Type conversion (!s, !r, !a, or none)
+    # format_spec     JoinedStrNode or None   Format string passed to __format__
     subexprs = ['value', 'format_spec']
 
     conversion_chars = 'sra'
@@ -2916,13 +2921,34 @@ class FormattedValueNode(ExprNode):
         value_result = self.value.py_result()
         format_spec_result = self.format_spec.py_result()
         # TODO conversion chars
+        if self.conversion_char == 's':
+            fn = 'PyObject_Str'
+        elif self.conversion_char == 'r':
+            fn = 'PyObject_Repr'
+        elif self.conversion_char == 'a':
+            fn = 'PyObject_ASCII'
+        else:
+            fn = None
 
-        code.putln("%s = PyObject_Format(%s, %s); %s" % (
+        if fn is not None:
+            code.putln('%s = %s(%s); %s' % (
+                value_result,
+                fn,
+                value_result,
+                code.error_goto_if_null(value_result, self.pos)
+            ))
+            code.put_gotref(value_result)
+            decref_line = '__Pyx_DECREF(%s);' % value_result
+        else:
+            decref_line = ''
+
+        code.putln("%s = PyObject_Format(%s, %s); %s %s" % (
             self.result(),
             value_result,
             format_spec_result,
+            decref_line,
             code.error_goto_if_null(self.result(), self.pos)))
-        code.put_gotref(self.result())
+        code.put_gotref(self.py_result())
 
 
 #-------------------------------------------------------------------
