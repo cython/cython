@@ -9,7 +9,8 @@ Bugs fixed
 ----------
 
 * Incorrect C code in helper functions for PyLong conversion and string
-  decoding.  Original patch by Nikolaus Rath.
+  decoding.  This fixes ticket 863, ticket 864 and ticket 865.
+  Original patch by Nikolaus Rath.
 
 
 0.23.2 (2015-09-11)
