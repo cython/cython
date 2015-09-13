@@ -2878,7 +2878,19 @@ class JoinedStrNode(ExprNode):
     #
     # values [UnicodeNode|FormattedValueNode] Substrings of the f-string
     #
+    type = py_object_type
+
     subexprs = ['values']
+
+    def analyse_types(self, env):
+        self.values = [v.analyse_types(env) for v in self.values]
+        self.values = [v.coerce_to_pyobject(env) for v in self.values]
+        self.is_temp = 1
+        return self
+
+    def generate_result_code(self, code):
+        # TODO this just returns the first value
+        code.putln('%s = %s;' % (self.result(), self.values[0].py_result()))
 
 
 class FormattedValueNode(ExprNode):
@@ -2890,6 +2902,27 @@ class FormattedValueNode(ExprNode):
     subexprs = ['value', 'format_spec']
 
     conversion_chars = 'sra'
+    type = py_object_type
+
+    def analyse_types(self, env):
+        value = self.value.analyse_types(env)
+        format_spec = self.format_spec.analyse_types(env)
+        self.value = value.coerce_to_pyobject(env)
+        self.format_spec = format_spec.coerce_to_pyobject(env)
+        self.is_temp = True
+        return self
+
+    def generate_result_code(self, code):
+        value_result = self.value.py_result()
+        format_spec_result = self.format_spec.py_result()
+        # TODO conversion chars
+
+        code.putln("%s = PyObject_Format(%s, %s); %s" % (
+            self.result(),
+            value_result,
+            format_spec_result,
+            code.error_goto_if_null(self.result(), self.pos)))
+        code.put_gotref(self.result())
 
 
 #-------------------------------------------------------------------
