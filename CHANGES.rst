@@ -20,6 +20,9 @@ Features added
 Bugs fixed
 ----------
 
+* C++ exceptions raised by overloaded C++ operators were not always
+  handled.  Patch by Ian Henriksen.
+
 * C string literals were previously always stored as non-const global
   variables in the module.  They are now stored as global constants
   when possible, and otherwise as non-const C string literals in the
