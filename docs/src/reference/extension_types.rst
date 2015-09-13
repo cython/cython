@@ -102,7 +102,7 @@ Properties
 
 * The ``__get__()``, ``__set__()``, and ``__del__()`` methods are all optional.
 
- * If they are omitted, An exception is raised when an access attempt is made.
+ * If they are omitted, an exception is raised on attribute access.
 
 * Below, is a full example that defines a property which can..
 
