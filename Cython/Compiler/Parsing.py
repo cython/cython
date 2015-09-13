@@ -898,7 +898,7 @@ def p_string_literal(s, kind_override=None):
     else:
         if kind_override is not None and kind_override in 'ub':
             kind = kind_override
-        if kind in 'uf':  # f-strings are scanned exactly like Unicode literals, but are parsed further later
+        if kind in {'u', 'f'}:  # f-strings are scanned exactly like Unicode literals, but are parsed further later
             chars = StringEncoding.UnicodeLiteralBuilder()
         elif kind == '':
             chars = StringEncoding.StrLiteralBuilder(s.source_encoding)
@@ -1122,7 +1122,7 @@ def p_f_string_expr(s, unicode_value, pos, starting_index):
 
     # the format spec is itself treated like an f-string
     if format_spec_str is not None:
-        format_spec = p_f_string(s, format_spec_str, pos)
+        format_spec = ExprNodes.JoinedStrNode(pos, values = p_f_string(s, format_spec_str, pos))
     else:
         format_spec = None
 
