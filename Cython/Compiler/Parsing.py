@@ -979,7 +979,7 @@ def p_string_literal(s, kind_override=None):
         bytes_value, unicode_value = chars.getstrings()
         if is_python3_source and has_non_ascii_literal_characters:
             # Python 3 forbids literal non-ASCII characters in byte strings
-            if kind not in 'uf':
+            if kind not in ('u', 'f'):
                 s.error("bytes can only contain ASCII literal characters.",
                         pos=pos, fatal=False)
             bytes_value = None
@@ -1111,9 +1111,7 @@ def p_f_string_expr(s, unicode_value, pos, starting_index):
     name = 'format string expression'
     code_source = StringSourceDescriptor(name, expr_str)
     buf = StringIO(expr_str)
-    # scanner = PyrexScanner(buf, code_source, source_encoding = encoding,
-    #                  scope = scope, context = context, initial_pos = initial_pos)
-    scanner = PyrexScanner(buf, code_source, parent_scanner=s, source_encoding=s.source_encoding)  # TODO other params
+    scanner = PyrexScanner(buf, code_source, parent_scanner=s, source_encoding=s.source_encoding)
     expr = p_testlist(scanner)  # TODO is testlist right here?
 
     # validate the conversion char
@@ -3451,7 +3449,6 @@ def p_ignorable_statement(s):
 def p_doc_string(s):
     if s.sy == 'BEGIN_STRING':
         pos = s.position()
-        # TODO: should this support f-strings?
         kind, bytes_result, unicode_result = p_cat_string_literal(s)
         s.expect_newline("Syntax error in doc string", ignore_semicolon=True)
         if kind in ('u', ''):
