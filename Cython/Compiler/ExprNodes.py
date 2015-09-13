@@ -182,6 +182,58 @@ def infer_sequence_item_type(env, seq_node, index_node=None, seq_type=None):
             return item_types.pop()
     return None
 
+def get_exception_handler(exception_value):
+    if exception_value is None:
+        return "__Pyx_CppExn2PyErr();"
+    elif exception_value.type.is_pyobject:
+        return 'try { throw; } catch(const std::exception& exn) { PyErr_SetString(%s, exn.what()); } catch(...) { PyErr_SetNone(%s); }' % (
+            exception_value.entry.cname,
+            exception_value.entry.cname)
+    else:
+        return '%s(); if (!PyErr_Occurred()) PyErr_SetString(PyExc_RuntimeError , "Error converting c++ exception.");' % exception_value.entry.cname
+
+def translate_cpp_exception(code, pos, inside, exception_value, nogil):
+    raise_py_exception = get_exception_handler(exception_value)
+    code.putln("try {")
+    code.putln("%s" % inside)
+    code.putln("} catch(...) {")
+    if nogil:
+        code.put_ensure_gil(declare_gilstate=True)
+    code.putln(raise_py_exception)
+    if nogil:
+        code.put_release_ensured_gil()
+    code.putln(code.error_goto(pos))
+    code.putln("}")
+
+# Used to handle the case where an lvalue expression and an overloaded assignment
+# both have an exception declaration.
+def translate_double_cpp_exception(code, pos, lhs_type, lhs_code, rhs_code,
+    lhs_exc_val, assign_exc_val, nogil):
+    handle_lhs_exc = get_exception_handler(lhs_exc_val)
+    handle_assignment_exc = get_exception_handler(assign_exc_val)
+    code.putln("try {")
+    code.putln(lhs_type.declaration_code("__pyx_local_lvalue = %s;" % lhs_code))
+    code.putln("try {")
+    code.putln("__pyx_local_lvalue = %s;" % rhs_code)
+    # Catch any exception from the overloaded assignment.
+    code.putln("} catch(...) {")
+    if nogil:
+        code.put_ensure_gil(declare_gilstate=True)
+    code.putln(handle_assignment_exc)
+    if nogil:
+        code.put_release_ensured_gil()
+    code.putln(code.error_goto(pos))
+    code.putln("}")
+    # Catch any exception from evaluating lhs.
+    code.putln("} catch(...) {")
+    if nogil:
+        code.put_ensure_gil(declare_gilstate=True)
+    code.putln(handle_lhs_exc)
+    if nogil:
+        code.put_release_ensured_gil()
+    code.putln(code.error_goto(pos))
+    code.putln('}')
+
 
 class ExprNode(Node):
     #  subexprs     [string]     Class var holding names of subexpr node attrs
@@ -700,7 +752,8 @@ class ExprNode(Node):
         else:
             self.generate_subexpr_disposal_code(code)
 
-    def generate_assignment_code(self, rhs, code, overloaded_assignment=False):
+    def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
+        exception_check=None, exception_value=None):
         #  Stub method for nodes which are not legal as
         #  the LHS of an assignment. An error will have
         #  been reported earlier.
@@ -2037,7 +2090,8 @@ class NameNode(AtomicExprNode):
             if null_code and raise_unbound and (entry.type.is_pyobject or memslice_check):
                 code.put_error_if_unbound(self.pos, entry, self.in_nogil_context)
 
-    def generate_assignment_code(self, rhs, code, overloaded_assignment=False):
+    def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
+        exception_check=None, exception_value=None):
         #print "NameNode.generate_assignment_code:", self.name ###
         entry = self.entry
         if entry is None:
@@ -2127,8 +2181,15 @@ class NameNode(AtomicExprNode):
                         code.put_giveref(rhs.py_result())
             if not self.type.is_memoryviewslice:
                 if not assigned:
-                    result = rhs.result() if overloaded_assignment else rhs.result_as(self.ctype())
-                    code.putln('%s = %s;' % (self.result(), result))
+                    if overloaded_assignment:
+                        result = rhs.result()
+                        if exception_check == '+':
+                            translate_cpp_exception(code, self.pos, '%s = %s;' % (self.result(), result), exception_value, self.in_nogil_context)
+                        else:
+                            code.putln('%s = %s;' % (self.result(), result))
+                    else:
+                        result = rhs.result_as(self.ctype())
+                        code.putln('%s = %s;' % (self.result(), result))
                 if debug_disposal_code:
                     print("NameNode.generate_assignment_code:")
                     print("...generating post-assignment code for %s" % rhs)
@@ -3261,6 +3322,13 @@ class IndexNode(_IndexingBaseNode):
         func_type = function.type
         if func_type.is_ptr:
             func_type = func_type.base_type
+        self.exception_check = func_type.exception_check
+        self.exception_value = func_type.exception_value
+        if self.exception_check:
+            if not setting:
+                self.is_temp = True
+            if self.exception_value is None:
+                env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
         self.index = self.index.coerce_to(func_type.args[0].type, env)
         self.type = func_type.return_type
         if setting and not func_type.return_type.is_reference:
@@ -3530,7 +3598,7 @@ class IndexNode(_IndexingBaseNode):
             error_value = '-1'
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("GetItemIntByteArray", "StringTools.c"))
-        else:
+        elif not (self.base.type.is_cpp_class and self.exception_check):
             assert False, "unexpected type %s and base type %s for indexing" % (
                 self.type, self.base.type)
 
@@ -3539,16 +3607,22 @@ class IndexNode(_IndexingBaseNode):
         else:
             index_code = self.index.py_result()
 
-        code.putln(
-            "%s = %s(%s, %s%s); if (unlikely(%s == %s)) %s;" % (
-                self.result(),
-                function,
-                self.base.py_result(),
-                index_code,
-                self.extra_index_params(code),
-                self.result(),
-                error_value,
-                code.error_goto(self.pos)))
+        if self.base.type.is_cpp_class and self.exception_check:
+            translate_cpp_exception(code, self.pos,
+                "%s = %s[%s];" % (self.result(), self.base.result(),
+                                  self.index.result()),
+                self.exception_value, self.in_nogil_context)
+        else:
+            code.putln(
+                "%s = %s(%s, %s%s); if (unlikely(%s == %s)) %s;" % (
+                    self.result(),
+                    function,
+                    self.base.py_result(),
+                    index_code,
+                    self.extra_index_params(code),
+                    self.result(),
+                    error_value,
+                    code.error_goto(self.pos)))
         if self.type.is_pyobject:
             code.put_gotref(self.py_result())
 
@@ -3585,7 +3659,8 @@ class IndexNode(_IndexingBaseNode):
                 self.extra_index_params(code),
                 code.error_goto(self.pos)))
 
-    def generate_assignment_code(self, rhs, code, overloaded_assignment=False):
+    def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
+        exception_check=None, exception_value=None):
         self.generate_subexpr_evaluation_code(code)
 
         if self.type.is_pyobject:
@@ -3593,6 +3668,21 @@ class IndexNode(_IndexingBaseNode):
         elif self.base.type is bytearray_type:
             value_code = self._check_byte_value(code, rhs)
             self.generate_setitem_code(value_code, code)
+        elif self.base.type.is_cpp_class and self.exception_check and self.exception_check == '+':
+            if overloaded_assignment and exception_check and \
+                self.exception_value != exception_value:
+                # Handle the case that both the index operator and the assignment
+                # operator have a c++ exception handler and they are not the same.
+                translate_double_cpp_exception(code, self.pos, self.type,
+                    self.result(), rhs.result(), self.exception_value,
+                    exception_value, self.in_nogil_context)
+            else:
+                # Handle the case that only the index operator has a
+                # c++ exception handler, or that
+                # both exception handlers are the same.
+                translate_cpp_exception(code, self.pos,
+                    "%s = %s;" % (self.result(), rhs.result()),
+                    self.exception_value, self.in_nogil_context)
         else:
             code.putln(
                 "%s = %s;" % (self.result(), rhs.result()))
@@ -4403,7 +4493,8 @@ class SliceIndexNode(ExprNode):
                     code.error_goto_if_null(result, self.pos)))
         code.put_gotref(self.py_result())
 
-    def generate_assignment_code(self, rhs, code, overloaded_assignment=False):
+    def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
+        exception_check=None, exception_value=None):
         self.generate_subexpr_evaluation_code(code)
         if self.type.is_pyobject:
             code.globalstate.use_utility_code(self.set_slice_utility_code)
@@ -4823,6 +4914,8 @@ class SimpleCallNode(CallNode):
         else:
             self.args = [ arg.analyse_types(env) for arg in self.args ]
             self.analyse_c_function_call(env)
+            if func_type.exception_check == '+':
+                self.is_temp = True
         return self
 
     def function_type(self):
@@ -5149,24 +5242,8 @@ class SimpleCallNode(CallNode):
                 else:
                     lhs = ""
                 if func_type.exception_check == '+':
-                    if func_type.exception_value is None:
-                        raise_py_exception = "__Pyx_CppExn2PyErr();"
-                    elif func_type.exception_value.type.is_pyobject:
-                        raise_py_exception = 'try { throw; } catch(const std::exception& exn) { PyErr_SetString(%s, exn.what()); } catch(...) { PyErr_SetNone(%s); }' % (
-                            func_type.exception_value.entry.cname,
-                            func_type.exception_value.entry.cname)
-                    else:
-                        raise_py_exception = '%s(); if (!PyErr_Occurred()) PyErr_SetString(PyExc_RuntimeError , "Error converting c++ exception.");' % func_type.exception_value.entry.cname
-                    code.putln("try {")
-                    code.putln("%s%s;" % (lhs, rhs))
-                    code.putln("} catch(...) {")
-                    if self.nogil:
-                        code.put_ensure_gil(declare_gilstate=True)
-                    code.putln(raise_py_exception)
-                    if self.nogil:
-                        code.put_release_ensured_gil()
-                    code.putln(code.error_goto(self.pos))
-                    code.putln("}")
+                    translate_cpp_exception(code, self.pos, '%s%s;' % (lhs, rhs),
+                                            func_type.exception_value, self.nogil)
                 else:
                     if exc_checks:
                         goto_error = code.error_goto_if(" && ".join(exc_checks), self.pos)
@@ -6371,7 +6448,8 @@ class AttributeNode(ExprNode):
         else:
             ExprNode.generate_disposal_code(self, code)
 
-    def generate_assignment_code(self, rhs, code, overloaded_assignment=False):
+    def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
+        exception_check=None, exception_value=None):
         self.obj.generate_evaluation_code(code)
         if self.is_py_attr:
             code.globalstate.use_utility_code(
@@ -6708,7 +6786,8 @@ class SequenceNode(ExprNode):
             if self.mult_factor:
                 self.mult_factor.generate_disposal_code(code)
 
-    def generate_assignment_code(self, rhs, code, overloaded_assignment=False):
+    def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
+        exception_check=None, exception_value=None):
         if self.starred_assignment:
             self.generate_starred_assignment_code(rhs, code)
         else:
@@ -9187,6 +9266,13 @@ class UnopNode(ExprNode):
     def generate_result_code(self, code):
         if self.operand.type.is_pyobject:
             self.generate_py_operation_code(code)
+        elif self.is_temp:
+            if self.is_cpp_operation() and self.exception_check == '+':
+                translate_cpp_exception(code, self.pos,
+                    "%s = %s %s;" % (self.result(), self.operator, self.operand.result()),
+                    self.exception_value, self.in_nogil_context)
+            else:
+                code.putln("%s = %s %s;" % (self.result(), self.operator, self.operand.result()))
 
     def generate_py_operation_code(self, code):
         function = self.py_operation_function(code)
@@ -9204,9 +9290,23 @@ class UnopNode(ExprNode):
                 (self.operator, self.operand.type))
         self.type = PyrexTypes.error_type
 
-    def analyse_cpp_operation(self, env):
+    def analyse_cpp_operation(self, env, overload_check=True):
+        entry = env.lookup_operator(self.operator, [self.operand])
+        if overload_check and not entry:
+            self.type_error()
+            return
+        if entry:
+            self.exception_check = entry.type.exception_check
+            self.exception_value = entry.type.exception_value
+            if self.exception_check == '+':
+                self.is_temp = True
+                if self.exception_value is None:
+                    env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
+        else:
+            self.exception_check = ''
+            self.exception_value = ''
         cpp_type = self.operand.type.find_cpp_operation_type(self.operator)
-        if cpp_type is None:
+        if overload_check and cpp_type is None:
             error(self.pos, "'%s' operator not defined for %s" % (
                 self.operator, type))
             self.type_error()
@@ -9239,21 +9339,13 @@ class NotNode(UnopNode):
         self.operand = self.operand.analyse_types(env)
         operand_type = self.operand.type
         if operand_type.is_cpp_class:
-            cpp_type = operand_type.find_cpp_operation_type(self.operator)
-            if not cpp_type:
-                error(self.pos, "'!' operator not defined for %s" % operand_type)
-                self.type = PyrexTypes.error_type
-                return
-            self.type = cpp_type
+            self.analyse_cpp_operation(env)
         else:
             self.operand = self.operand.coerce_to_boolean(env)
         return self
 
     def calculate_result_code(self):
         return "(!%s)" % self.operand.result()
-
-    def generate_result_code(self, code):
-        pass
 
 
 class UnaryPlusNode(UnopNode):
@@ -9385,10 +9477,7 @@ class AmpersandNode(CUnopNode):
         self.operand = self.operand.analyse_types(env)
         argtype = self.operand.type
         if argtype.is_cpp_class:
-            cpp_type = argtype.find_cpp_operation_type(self.operator)
-            if cpp_type is not None:
-                self.type = cpp_type
-                return self
+            self.analyse_cpp_operation(env, overload_check=False)
         if not (argtype.is_cfunction or argtype.is_reference or self.operand.is_addressable()):
             if argtype.is_memoryviewslice:
                 self.error("Cannot take address of memoryview slice")
@@ -9398,7 +9487,8 @@ class AmpersandNode(CUnopNode):
         if argtype.is_pyobject:
             self.error("Cannot take address of Python variable")
             return self
-        self.type = PyrexTypes.c_ptr_type(argtype)
+        if not argtype.is_cpp_class or not self.type:
+            self.type = PyrexTypes.c_ptr_type(argtype)
         return self
 
     def check_const(self):
@@ -9413,7 +9503,10 @@ class AmpersandNode(CUnopNode):
         return "(&%s)" % self.operand.result()
 
     def generate_result_code(self, code):
-        pass
+        if (self.operand.type.is_cpp_class and self.exception_check == '+'):
+            translate_cpp_exception(code, self.pos,
+                "%s = %s %s;" % (self.result(), self.operator, self.operand.result()),
+                self.exception_value, self.in_nogil_context)
 
 
 unop_node_classes = {
@@ -10037,6 +10130,14 @@ class BinopNode(ExprNode):
             self.type_error()
             return
         func_type = entry.type
+        self.exception_check = func_type.exception_check
+        self.exception_value = func_type.exception_value
+        if self.exception_check == '+':
+            # Used by NumBinopNodes to break up expressions involving multiple
+            # operators so that exceptions can be handled properly.
+            self.is_temp = 1
+            if self.exception_value is None:
+                env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
         if func_type.is_ptr:
             func_type = func_type.base_type
         if len(func_type.args) == 1:
@@ -10103,7 +10204,14 @@ class BinopNode(ExprNode):
                     code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
         elif self.is_temp:
-            code.putln("%s = %s;" % (self.result(), self.calculate_result_code()))
+            # C++ overloaded operators with exception values are currently all
+            # handled through temporaries.
+            if self.is_cpp_operation() and self.exception_check == '+':
+                translate_cpp_exception(code, self.pos,
+                                        "%s = %s;" % (self.result(), self.calculate_result_code()),
+                                        self.exception_value, self.in_nogil_context)
+            else:
+                code.putln("%s = %s;" % (self.result(), self.calculate_result_code()))
 
     def type_error(self):
         if not (self.operand1.type.is_error
@@ -10241,7 +10349,7 @@ class NumBinopNode(BinopNode):
                 self.operand1.result(),
                 self.operand2.result(),
                 self.overflow_bit_node.overflow_bit)
-        elif self.infix:
+        elif self.type.is_cpp_class or self.infix:
             return "(%s %s %s)" % (
                 self.operand1.result(),
                 self.operator,
@@ -11364,12 +11472,15 @@ class CmpNode(object):
                 common_type = type1
             code1 = operand1.result_as(common_type)
             code2 = operand2.result_as(common_type)
-            code.putln("%s = %s(%s %s %s);" % (
+            statement = "%s = %s(%s %s %s);" % (
                 result_code,
                 coerce_result,
                 code1,
                 self.c_operator(op),
-                code2))
+                code2)
+            if self.is_cpp_comparison() and self.exception_check == '+':
+                translate_cpp_exception(code, self.pos, statement, self.exception_value, self.in_nogil_context)
+            code.putln(statement)
 
     def c_operator(self, op):
         if op == 'is':
@@ -11507,6 +11618,12 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         func_type = entry.type
         if func_type.is_ptr:
             func_type = func_type.base_type
+        self.exception_check = func_type.exception_check
+        self.exception_value = func_type.exception_value
+        if self.exception_check == '+':
+            self.is_temp = True
+            if self.exception_value is None:
+                env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
         if len(func_type.args) == 1:
             self.operand2 = self.operand2.coerce_to(func_type.args[0].type, env)
         else:
@@ -11664,6 +11781,10 @@ class CascadedCmpNode(Node, CmpNode):
 
     def has_python_operands(self):
         return self.operand2.type.is_pyobject
+
+    def is_cpp_comparison(self):
+        # cascaded comparisons aren't currently implemented for c++ classes.
+        return False
 
     def optimise_comparison(self, operand1, env, result_is_bool=False):
         if self.find_special_bool_compare_function(env, operand1, result_is_bool):
