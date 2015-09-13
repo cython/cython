@@ -1025,18 +1025,34 @@ def p_f_string_expr(s, unicode_value, pos, starting_index):
     i = starting_index
     size = len(unicode_value)
     conversion_char = None
-    format_spec_str = None
+    format_spec_str = u''
 
     nested_depth = 0
+    quote_char = None
+    in_triple_quotes = False
 
     while True:
         if i >= size:
             s.error("missing '}' in format string expression")
         c = unicode_value[i]
 
-        # TODO strings
-
-        if c in '{[(':
+        if quote_char is not None:
+            if c == '\\':
+                i += 1
+            elif c == quote_char:
+                if in_triple_quotes:
+                    if i + 2 < size and unicode_value[i + 1] == c and unicode_value[i + 2] == c:
+                        in_triple_quotes = False
+                        quote_char = None
+                        i += 2
+                else:
+                    quote_char = None
+        elif c in '\'"':
+            quote_char = c
+            if i + 2 < size and unicode_value[i + 1] == c and unicode_value[i + 2] == c:
+                in_triple_quotes = True
+                i += 2
+        elif c in '{[(':
             nested_depth += 1
         elif nested_depth != 0 and c in '}])':
             nested_depth -= 1
@@ -1097,7 +1113,7 @@ def p_f_string_expr(s, unicode_value, pos, starting_index):
     buf = StringIO(expr_str)
     # scanner = PyrexScanner(buf, code_source, source_encoding = encoding,
     #                  scope = scope, context = context, initial_pos = initial_pos)
-    scanner = PyrexScanner(buf, code_source, parent_scanner=s)  # TODO other params
+    scanner = PyrexScanner(buf, code_source, parent_scanner=s, source_encoding=s.source_encoding)  # TODO other params
     expr = p_testlist(scanner)  # TODO is testlist right here?
 
     # validate the conversion char
