@@ -2886,16 +2886,34 @@ class JoinedStrNode(ExprNode):
         self.values = [v.analyse_types(env) for v in self.values]
         self.values = [v.coerce_to_pyobject(env) for v in self.values]
         self.is_temp = 1
-        # TODO make this actually work
-        return self.values[1] if len(self.values) > 1 else self.values[0]
-        return self
+        if len(self.values) == 1:
+            # this is not uncommon because f-string format specs are parsed into JoinedStrNodes
+            return self.values[0]
+        else:
+            return self
 
     def generate_result_code(self, code):
-        # TODO this just returns the first value and the refnanny doesn't like it
-        val = self.values[1] if len(self.values) > 1 else self.values[0]
-        code.putln('%s = %s;' % (self.result(), val.py_result()))
-        code.putln('__Pyx_INCREF(%s);' % self.result())
+        list_var = Naming.quick_temp_cname
+        num_items = len(self.values)
+
+        code.putln('{')
+        code.putln('PyObject *%s = PyList_New(%s); %s' % (
+            list_var,
+            num_items,
+            code.error_goto_if_null(list_var, self.pos)))
+        code.put_gotref(list_var)
+        for i, value in enumerate(self.values):
+            code.put_incref(value.result(), value.ctype())
+            code.put_giveref(value.py_result())
+            code.putln('PyList_SET_ITEM(%s, %s, %s);' % (list_var, i, value.py_result()))
+        code.putln('%s = PyUnicode_Join(%s, %s); __Pyx_DECREF(%s); %s' % (
+            self.result(), 
+            Naming.empty_unicode, 
+            list_var,
+            list_var,
+            code.error_goto_if_null(list_var, self.pos)))
         code.put_gotref(self.py_result())
+        code.putln('}')
 
 
 class FormattedValueNode(ExprNode):
