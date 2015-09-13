@@ -998,15 +998,14 @@ def p_f_string(s, unicode_value, pos):
     current_literal_start = 0
     while i < size:
         c = unicode_value[i]
-        if c == '}':
-            if i + 1 >= size or unicode_value[i + 1] != '}':
+        if c in ('{', '}'):
+            if i + 1 < size and unicode_value[i + 1] == c:
+                encoded_str = EncodedString(unicode_value[current_literal_start:i + 1])
+                values.append(ExprNodes.UnicodeNode(pos, value = encoded_str))
+                i += 2
+                current_literal_start = i
+            elif c == '}':
                 s.error("single '}' encountered in format string")
-            else:
-                i += 2
-        elif c == '{':
-            # double { escapes it
-            if i + 1 < size and unicode_value[i + 1] == '{':
-                i += 2
             else:
                 encoded_str = EncodedString(unicode_value[current_literal_start:i])
                 values.append(ExprNodes.UnicodeNode(pos, value = encoded_str))
@@ -1018,7 +1017,6 @@ def p_f_string(s, unicode_value, pos):
 
     encoded_str = EncodedString(unicode_value[current_literal_start:])
     values.append(ExprNodes.UnicodeNode(pos, value = encoded_str))
-    print("F-STRING VALUES", values)
     return values
 
 
@@ -1108,8 +1106,6 @@ def p_f_string_expr(s, unicode_value, pos, starting_index):
 
     if terminal_char != '}':
         s.error("missing '}' in format string expression'")
-
-    print('expr=%r, conversion_char=%r, format_spec=%r' % (expr_str, conversion_char, format_spec_str))
 
     # parse the expression
     name = 'format string expression'

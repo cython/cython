@@ -2907,8 +2907,8 @@ class JoinedStrNode(ExprNode):
             code.put_giveref(value.py_result())
             code.putln('PyList_SET_ITEM(%s, %s, %s);' % (list_var, i, value.py_result()))
         code.putln('%s = PyUnicode_Join(%s, %s); __Pyx_DECREF(%s); %s' % (
-            self.result(), 
-            Naming.empty_unicode, 
+            self.result(),
+            Naming.empty_unicode,
             list_var,
             list_var,
             code.error_goto_if_null(list_var, self.pos)))
@@ -2937,8 +2937,8 @@ class FormattedValueNode(ExprNode):
 
     def generate_result_code(self, code):
         value_result = self.value.py_result()
+        conversion_result = Naming.quick_temp_cname
         format_spec_result = self.format_spec.py_result()
-        # TODO conversion chars
         if self.conversion_char == 's':
             fn = 'PyObject_Str'
         elif self.conversion_char == 'r':
@@ -2948,25 +2948,31 @@ class FormattedValueNode(ExprNode):
         else:
             fn = None
 
+        code.putln('{')
+
         if fn is not None:
-            code.putln('%s = %s(%s); %s' % (
-                value_result,
+            code.putln('PyObject *%s = %s(%s); %s' % (
+                conversion_result,
                 fn,
                 value_result,
-                code.error_goto_if_null(value_result, self.pos)
+                code.error_goto_if_null(conversion_result, self.pos)
             ))
-            code.put_gotref(value_result)
-            decref_line = '__Pyx_DECREF(%s);' % value_result
         else:
-            decref_line = ''
+            code.putln('PyObject *%s = %s;' % (conversion_result, value_result))
+            #code.put_incref(conversion_result, py_object_type)
+        # TODO this should need more refcounting, figure out whether this is correct
+        #code.put_gotref(conversion_result)
+        #code.put_decref(value_result, self.value.ctype())
+        decref_line = '' # '__Pyx_DECREF(%s);' % conversion_result
 
         code.putln("%s = PyObject_Format(%s, %s); %s %s" % (
             self.result(),
-            value_result,
+            conversion_result,
             format_spec_result,
             decref_line,
             code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
+        code.putln('}')
 
 
 #-------------------------------------------------------------------
