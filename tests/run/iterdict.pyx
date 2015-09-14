@@ -527,3 +527,31 @@ def iteritems_of_expression(*args, **kwargs):
     [('a', 3), ('b', 4)]
     """
     return [item for item in dict(*args, **kwargs).iteritems()]
+
+
+def for_in_items_of_expression(*args, **kwargs):
+    """
+    >>> sorted(for_in_items_of_expression(a=3, b=4))
+    [('a', 3), ('b', 4)]
+
+    >>> sorted(for_in_items_of_expression([('a', 3)], b=4))
+    [('a', 3), ('b', 4)]
+    """
+    result = []
+    for k, v in dict(*args, **kwargs).items():
+        result.append((k, v))
+    return result
+
+
+def for_in_iteritems_of_expression(*args, **kwargs):
+    """
+    >>> sorted(for_in_iteritems_of_expression(a=3, b=4))
+    [('a', 3), ('b', 4)]
+
+    >>> sorted(for_in_iteritems_of_expression([('a', 3)], b=4))
+    [('a', 3), ('b', 4)]
+    """
+    result = []
+    for k, v in dict(*args, **kwargs).iteritems():
+        result.append((k, v))
+    return result
