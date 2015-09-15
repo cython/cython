@@ -51,6 +51,8 @@ Other changes
 Bugs fixed
 ----------
 
+* Invalid C code for some builtin methods.  This fixes ticket 856 again.
+
 * Incorrect C code in helper functions for PyLong conversion and string
   decoding.  This fixes ticket 863, ticket 864 and ticket 865.
   Original patch by Nikolaus Rath.

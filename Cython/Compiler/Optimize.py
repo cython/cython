@@ -4212,6 +4212,10 @@ class FinalOptimizePhase(Visitor.CythonTransform, Visitor.NodeRefCleanupMixin):
                             assignment.rhs and not isinstance(assignment.rhs, non_method_nodes)
                             for assignment in entry.cf_assignments)
                 if may_be_a_method:
+                    if (node.self and function.is_attribute and
+                            isinstance(function.obj, ExprNodes.CloneNode) and function.obj.arg is node.self):
+                        # function self object was moved into a CloneNode => undo
+                        function.obj = function.obj.arg
                     node = self.replace(node, ExprNodes.PyMethodCallNode.from_node(
                         node, function=function, arg_tuple=node.arg_tuple, type=node.type))
         return node
