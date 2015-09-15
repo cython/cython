@@ -45,6 +45,10 @@
 #endif
 #if CYTHON_USE_PYLONG_INTERNALS
   #include "longintrepr.h"
+  /* These short defines can easily conflict with other code */
+  #undef SHIFT
+  #undef BASE
+  #undef MASK
 #endif
 
 #if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX < 0x02070600 && !defined(Py_OptimizeFlag)

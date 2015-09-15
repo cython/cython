@@ -762,8 +762,7 @@ def wrap_compile_time_constant(pos, value):
     elif isinstance(value, bool):
         return ExprNodes.BoolNode(pos, value=value)
     elif isinstance(value, int):
-        return ExprNodes.IntNode(
-            pos, value=rep, constant_result=value, unsigned='U' if value > 0 else '')
+        return ExprNodes.IntNode(pos, value=rep, constant_result=value)
     elif isinstance(value, float):
         return ExprNodes.FloatNode(pos, value=rep, constant_result=value)
     elif isinstance(value, _unicode):
@@ -780,9 +779,7 @@ def wrap_compile_time_constant(pos, value):
             # error already reported
             return None
     elif not _IS_PY3 and isinstance(value, long):
-        return ExprNodes.IntNode(
-            pos, value=rep.rstrip('L'), longness="L", constant_result=value,
-            unsigned='U' if value > 0 else '')
+        return ExprNodes.IntNode(pos, value=rep.rstrip('L'), constant_result=value)
     error(pos, "Invalid type for compile-time constant: %r (type %s)"
                % (value, value.__class__.__name__))
     return None

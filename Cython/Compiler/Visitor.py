@@ -416,8 +416,7 @@ class NodeRefCleanupMixin(object):
     def visit_CloneNode(self, node):
         arg = node.arg
         if arg not in self._replacements:
-            self.visitchildren(node)
-            arg = node.arg
+            self.visitchildren(arg)
         node.arg = self._replacements.get(arg, arg)
         return node
 
@@ -679,6 +678,13 @@ class RecursiveNodeReplacer(VisitorTransform):
         super(RecursiveNodeReplacer, self).__init__()
         self.orig_node, self.new_node = orig_node, new_node
 
+    def visit_CloneNode(self, node):
+        if node is self.orig_node:
+            return self.new_node
+        if node.arg is self.orig_node:
+            node.arg = self.new_node
+        return node
+
     def visit_Node(self, node):
         self.visitchildren(node)
         if node is self.orig_node:
@@ -725,6 +731,7 @@ def replace_node(ptr, value):
     else:
         getattr(parent, attrname)[listidx] = value
 
+
 class PrintTree(TreeVisitor):
     """Prints a representation of the tree to standard output.
     Subclass and override repr_of to provide more information
@@ -753,6 +760,25 @@ class PrintTree(TreeVisitor):
     # under the parent-node, not displaying the list itself in
     # the hierarchy.
     def visit_Node(self, node):
+        self._print_node(node)
+        self.indent()
+        self.visitchildren(node)
+        self.unindent()
+        return node
+
+    def visit_CloneNode(self, node):
+        self._print_node(node)
+        self.indent()
+        line = node.pos[1]
+        if self._line_range is None or self._line_range[0] <= line <= self._line_range[1]:
+            print("%s- %s: %s" % (self._indent, 'arg', self.repr_of(node.arg)))
+        self.indent()
+        self.visitchildren(node.arg)
+        self.unindent()
+        self.unindent()
+        return node
+
+    def _print_node(self, node):
         line = node.pos[1]
         if self._line_range is None or self._line_range[0] <= line <= self._line_range[1]:
             if len(self.access_path) == 0:
@@ -764,10 +790,6 @@ class PrintTree(TreeVisitor):
                 else:
                     name = attr
             print("%s- %s: %s" % (self._indent, name, self.repr_of(node)))
-        self.indent()
-        self.visitchildren(node)
-        self.unindent()
-        return node
 
     def repr_of(self, node):
         if node is None:

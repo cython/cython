@@ -136,3 +136,10 @@ def float_mix_rev(float a):
     (0.25, 0.0, 1.25, 1.0, 1.25, 1.0)
     """
     return 1/a, 1//a, 5.0/a, 5.0//a, 5/a, 5//a
+
+def int_int(int a, int b):
+    """
+    >>> int_int(1, 2)
+    (0, 2)
+    """
+    return a/b, b/a

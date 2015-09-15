@@ -103,13 +103,17 @@ def initial_compile_time_env():
     except ImportError:
         import builtins
 
-    names = ('False', 'True',
-             'abs', 'all', 'any', 'ascii', 'bin', 'bool', 'bytearray', 'bytes',
-             'chr', 'cmp', 'complex', 'dict', 'divmod', 'enumerate', 'filter',
-             'float', 'format', 'frozenset', 'hash', 'hex', 'int', 'len',
-             'list', 'long', 'map', 'max', 'min', 'oct', 'ord', 'pow', 'range',
-             'repr', 'reversed', 'round', 'set', 'slice', 'sorted', 'str',
-             'sum', 'tuple', 'xrange', 'zip')
+    names = (
+        'False', 'True',
+        'abs', 'all', 'any', 'ascii', 'bin', 'bool', 'bytearray', 'bytes',
+        'chr', 'cmp', 'complex', 'dict', 'divmod', 'enumerate', 'filter',
+        'float', 'format', 'frozenset', 'hash', 'hex', 'int', 'len',
+        'list', 'map', 'max', 'min', 'oct', 'ord', 'pow', 'range',
+        'repr', 'reversed', 'round', 'set', 'slice', 'sorted', 'str',
+        'sum', 'tuple', 'zip',
+        ### defined below in a platform independent way
+        # 'long', 'unicode', 'reduce', 'xrange'
+    )
 
     for name in names:
         try:
@@ -117,6 +121,14 @@ def initial_compile_time_env():
         except AttributeError:
             # ignore, likely Py3
             pass
+
+    # Py2/3 adaptations
+    from functools import reduce
+    benv.declare('reduce', reduce)
+    benv.declare('unicode', getattr(builtins, 'unicode', getattr(builtins, 'str')))
+    benv.declare('long', getattr(builtins, 'long', getattr(builtins, 'int')))
+    benv.declare('xrange', getattr(builtins, 'xrange', getattr(builtins, 'range')))
+
     denv = CompileTimeScope(benv)
     return denv
 

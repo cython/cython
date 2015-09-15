@@ -102,7 +102,7 @@ Properties
 
 * The ``__get__()``, ``__set__()``, and ``__del__()`` methods are all optional.
 
- * If they are ommitted, An exception is raised when an access attempt is made.
+ * If they are omitted, an exception is raised on attribute access.
 
 * Below, is a full example that defines a property which can..
 
@@ -364,7 +364,7 @@ Extension Types and None
 
 * When accessing an extension type's C-attributes, **make sure** it is not ``None``.
 
- * Cython does not check this for reasons of efficency.
+ * Cython does not check this for reasons of efficiency.
 
 * Be very aware of exposing Python functions that take extension types as arguments::
 
@@ -418,7 +418,7 @@ External and Public Types
 Public
 ======
 
-* When an extention type is declared ``public``, Cython will generate a C-header (".h") file.
+* When an extension type is declared ``public``, Cython will generate a C-header (".h") file.
 * The header file will contain the declarations for it's **object-struct** and it's **type-object**.
 * External C-code can now access the attributes of the extension type.
 
@@ -459,7 +459,7 @@ External
     #. When declaring an external extension type...
 
      * Don't declare any methods, because they are Python method class the are not needed.
-     * Similiar to **structs** and **unions**, extension classes declared inside a ``cdef extern from`` block only need to declare the C members which you will actually need to access in your module.
+     * Similar to **structs** and **unions**, extension classes declared inside a ``cdef extern from`` block only need to declare the C members which you will actually need to access in your module.
 
 
 Name Specification Clause

@@ -16,8 +16,14 @@ Features added
 
 * Cpdef enums are now first-class iterable, callable types in Python.
 
+* Posix declarations for DLL loading and stdio extensions were added.
+  Patch by Lars Buitinck.
+
 Bugs fixed
 ----------
+
+* C++ exceptions raised by overloaded C++ operators were not always
+  handled.  Patch by Ian Henriksen.
 
 * C string literals were previously always stored as non-const global
   variables in the module.  They are now stored as global constants
@@ -25,6 +31,11 @@ Bugs fixed
   generated code that uses them.  This improves compatibility with
   strict C compiler options and prevents non-const strings literals
   with the same content from being incorrectly merged.
+
+* Compile time evaluated ``str`` expressions (``DEF``) now behave in a
+  more useful way by turning into Unicode strings when compiling under
+  Python 3.  This allows using them as intermediate values in expressions.
+  Previously, they always evaluated to bytes objects.
 
 * ``isinf()`` declarations in ``libc/math.pxd`` and ``numpy/math.pxd`` now
   reflect the actual tristate ``int`` return value instead of using ``bint``.
@@ -36,18 +47,33 @@ Other changes
 -------------
 
 
-0.23.2 (2015-0x-yy)
+0.23.3 (2015-??-??)
 ===================
 
 Bugs fixed
 ----------
 
+* Invalid C code for some builtin methods.  This fixes ticket 856 again.
+
+* Incorrect C code in helper functions for PyLong conversion and string
+  decoding.  This fixes ticket 863, ticket 864 and ticket 865.
+  Original patch by Nikolaus Rath.
+
+
+0.23.2 (2015-09-11)
+===================
+
+Bugs fixed
+----------
+
+* Compiler crash when analysing some optimised expressions.
+
 * Coverage plugin was adapted to coverage.py 4.0 beta 2.
 
 * C++ destructor calls could fail when '&' operator is overwritten.
 
-* Large integers in compile-time evaluated DEF expressions were
-  incorrectly handled under Python 2.x.
+* Incorrect C literal generation for large integers in compile-time
+  evaluated DEF expressions and constant folded expressions.
 
 * Byte string constants could end up as Unicode strings when originating
   from compile-time evaluated DEF expressions.
@@ -56,6 +82,11 @@ Bugs fixed
   This fixes ticket 860.
 
 * ``ino_t`` in ``posix.types`` was not declared as ``unsigned``.
+
+* Declarations in ``libcpp/memory.pxd`` were missing ``operator!()``.
+  Patch by Leo Razoumov.
+
+* Static cdef methods can now be declared in .pxd files.
 
 
 0.23.1 (2015-08-22)

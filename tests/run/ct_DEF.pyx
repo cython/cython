@@ -42,6 +42,7 @@ DEF INT_TUPLE1 = TUPLE[:2]
 DEF INT_TUPLE2 = TUPLE[1:4:2]
 DEF ELLIPSIS = ...
 DEF EXPRESSION = int(float(2*2)) + int(str(2)) + int(max(1,2,3)) + sum([TWO, FIVE])
+DEF UNICODE_EXPRESSION = unicode(BYTES.decode('utf8')).encode('ascii').decode('latin1')
 
 
 def c():
@@ -94,15 +95,21 @@ def l():
 
 def large_nums():
     """
-    >>> l32, l64 = large_nums()
-    >>> print_large_number(l32)
+    >>> ul32, ul64, l64, n64 = large_nums()
+    >>> print_large_number(ul32)
     4294967295
-    >>> print_large_number(l64)
+    >>> print_large_number(ul64)
     18446744073709551615
+    >>> print_large_number(l64)
+    4294967295
+    >>> print_large_number(n64)
+    -4294967295
     """
-    cdef unsigned long l32 = LARGE_NUM32
-    cdef unsigned long long l64 = LARGE_NUM64
-    return l32, l64
+    cdef unsigned long ul32 = LARGE_NUM32
+    cdef unsigned long long ul64 = LARGE_NUM64
+    cdef long long l64 = LARGE_NUM32
+    cdef long long n64 = -LARGE_NUM32
+    return ul32, ul64, l64, n64
 
 def f():
     """
@@ -209,6 +216,16 @@ def expression():
     """
     cdef int i = EXPRESSION
     return i
+
+
+def unicode_expression():
+    """
+    >>> print(unicode_expression())
+    spam
+    """
+    s = UNICODE_EXPRESSION
+    return s
+
 
 def none():
     """

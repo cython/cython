@@ -1054,8 +1054,8 @@ class MemoryViewSliceTypeNode(CBaseTypeNode):
         if not MemoryView.validate_axes(self.pos, axes_specs):
             self.type = error_type
         else:
-            MemoryView.validate_memslice_dtype(self.pos, base_type)
             self.type = PyrexTypes.MemoryViewSliceType(base_type, axes_specs)
+            self.type.validate_memslice_dtype(self.pos)
             self.use_memview_utilities(env)
 
         return self.type
@@ -1327,13 +1327,13 @@ class CVarDefNode(StatNode):
                 error(declarator.pos, "Missing name in declaration.")
                 return
             if type.is_cfunction:
+                if 'staticmethod' in env.directives:
+                    type.is_static_method = True
                 self.entry = dest_scope.declare_cfunction(name, type, declarator.pos,
                     cname=cname, visibility=self.visibility, in_pxd=self.in_pxd,
                     api=self.api, modifiers=self.modifiers, overridable=self.overridable)
                 if self.entry is not None:
                     self.entry.directive_locals = copy.copy(self.directive_locals)
-                if 'staticmethod' in env.directives:
-                    type.is_static_method = True
                 if create_extern_wrapper:
                     self.entry.type.create_to_py_utility_code(env)
                     self.entry.create_wrapper = True
@@ -4807,6 +4807,8 @@ class SingleAssignmentNode(AssignmentNode):
     #  rhs                      ExprNode      Right hand side
     #  first                    bool          Is this guaranteed the first assignment to lhs?
     #  is_overloaded_assignment bool          Is this assignment done via an overloaded operator=
+    #  exception_check
+    #  exception_value
 
     child_attrs = ["lhs", "rhs"]
     first = False
@@ -4906,36 +4908,29 @@ class SingleAssignmentNode(AssignmentNode):
         if unrolled_assignment:
             return unrolled_assignment
 
-        if self.lhs.memslice_broadcast or self.rhs.memslice_broadcast:
-            self.lhs.memslice_broadcast = True
-            self.rhs.memslice_broadcast = True
-
-        if (self.lhs.is_subscript and not self.rhs.type.is_memoryviewslice and
-                (self.lhs.memslice_slice or self.lhs.is_memslice_copy) and
-                (self.lhs.type.dtype.assignable_from(self.rhs.type) or
-                 self.rhs.type.is_pyobject)):
-            # scalar slice assignment
-            self.lhs.is_memslice_scalar_assignment = True
-            dtype = self.lhs.type.dtype
+        if isinstance(self.lhs, ExprNodes.MemoryViewIndexNode):
+            self.lhs.analyse_broadcast_operation(self.rhs)
+            self.lhs = self.lhs.analyse_as_memview_scalar_assignment(self.rhs)
         elif self.lhs.type.is_array:
             if not isinstance(self.lhs, ExprNodes.SliceIndexNode):
                 # cannot assign to C array, only to its full slice
-                self.lhs = ExprNodes.SliceIndexNode(
-                    self.lhs.pos, base=self.lhs, start=None, stop=None)
+                self.lhs = ExprNodes.SliceIndexNode(self.lhs.pos, base=self.lhs, start=None, stop=None)
                 self.lhs = self.lhs.analyse_target_types(env)
-            dtype = self.lhs.type
-        else:
-            dtype = self.lhs.type
 
         if self.lhs.type.is_cpp_class:
             op = env.lookup_operator_for_types(self.pos, '=', [self.lhs.type, self.rhs.type])
             if op:
                 rhs = self.rhs
                 self.is_overloaded_assignment = True
+                self.exception_check = op.type.exception_check
+                self.exception_value = op.type.exception_value
+                if self.exception_check == '+' and self.exception_value is None:
+                    env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
             else:
-                rhs = self.rhs.coerce_to(dtype, env)
+                rhs = self.rhs.coerce_to(self.lhs.type, env)
         else:
-            rhs = self.rhs.coerce_to(dtype, env)
+            rhs = self.rhs.coerce_to(self.lhs.type, env)
+
         if use_temp or rhs.is_attribute or (
                 not rhs.is_name and not rhs.is_literal and
                 rhs.type.is_pyobject):
@@ -5045,12 +5040,12 @@ class SingleAssignmentNode(AssignmentNode):
         assignments = []
         for lhs, rhs in zip(lhs_list, rhs_list):
             assignments.append(SingleAssignmentNode(self.pos, lhs=lhs, rhs=rhs, first=self.first))
-        all = ParallelAssignmentNode(pos=self.pos, stats=assignments).analyse_expressions(env)
+        node = ParallelAssignmentNode(pos=self.pos, stats=assignments).analyse_expressions(env)
         if check_node:
-            all = StatListNode(pos=self.pos, stats=[check_node, all])
+            node = StatListNode(pos=self.pos, stats=[check_node, node])
         for ref in refs[::-1]:
-            all = UtilNodes.LetNode(ref, all)
-        return all
+            node = UtilNodes.LetNode(ref, node)
+        return node
 
     def unroll_rhs(self, env):
         from . import ExprNodes
@@ -5069,7 +5064,7 @@ class SingleAssignmentNode(AssignmentNode):
         if self.lhs.type.is_ctuple:
             # Handled directly.
             return
-        from . import ExprNodes, UtilNodes
+        from . import ExprNodes
         if not isinstance(self.rhs, ExprNodes.TupleNode):
             return
 
@@ -5083,8 +5078,15 @@ class SingleAssignmentNode(AssignmentNode):
         self.rhs.generate_evaluation_code(code)
 
     def generate_assignment_code(self, code, overloaded_assignment=False):
-        self.lhs.generate_assignment_code(
-            self.rhs, code, overloaded_assignment=self.is_overloaded_assignment)
+        if self.is_overloaded_assignment:
+            self.lhs.generate_assignment_code(
+                self.rhs,
+                code,
+                overloaded_assignment=self.is_overloaded_assignment,
+                exception_check=self.exception_check,
+                exception_value=self.exception_value)
+        else:
+            self.lhs.generate_assignment_code(self.rhs, code)
 
     def generate_function_definitions(self, env, code):
         self.rhs.generate_function_definitions(env, code)
@@ -5271,8 +5273,7 @@ class InPlaceAssignmentNode(AssignmentNode):
         self.lhs = self.lhs.analyse_target_types(env)
 
         # When assigning to a fully indexed buffer or memoryview, coerce the rhs
-        if (self.lhs.is_subscript and
-                (self.lhs.memslice_index or self.lhs.is_buffer_access)):
+        if self.lhs.is_memview_index or self.lhs.is_buffer_access:
             self.rhs = self.rhs.coerce_to(self.lhs.type, env)
         elif self.lhs.type.is_string and self.operator in '+-':
             # use pointer arithmetic for char* LHS instead of string concat
@@ -5281,28 +5282,30 @@ class InPlaceAssignmentNode(AssignmentNode):
 
     def generate_execution_code(self, code):
         code.mark_pos(self.pos)
-        self.rhs.generate_evaluation_code(code)
-        self.lhs.generate_subexpr_evaluation_code(code)
+        lhs, rhs = self.lhs, self.rhs
+        rhs.generate_evaluation_code(code)
+        lhs.generate_subexpr_evaluation_code(code)
         c_op = self.operator
         if c_op == "//":
             c_op = "/"
         elif c_op == "**":
             error(self.pos, "No C inplace power operator")
-        if self.lhs.is_subscript and self.lhs.is_buffer_access:
-            if self.lhs.type.is_pyobject:
+        if lhs.is_buffer_access or lhs.is_memview_index:
+            if lhs.type.is_pyobject:
                 error(self.pos, "In-place operators not allowed on object buffers in this release.")
-            if (c_op in ('/', '%') and self.lhs.type.is_int
-                and not code.globalstate.directives['cdivision']):
+            if c_op in ('/', '%') and lhs.type.is_int and not code.globalstate.directives['cdivision']:
                 error(self.pos, "In-place non-c divide operators not allowed on int buffers.")
-            self.lhs.generate_buffer_setitem_code(self.rhs, code, c_op)
+            lhs.generate_buffer_setitem_code(rhs, code, c_op)
+        elif lhs.is_memview_slice:
+            error(self.pos, "Inplace operators not supported on memoryview slices")
         else:
             # C++
             # TODO: make sure overload is declared
-            code.putln("%s %s= %s;" % (self.lhs.result(), c_op, self.rhs.result()))
-        self.lhs.generate_subexpr_disposal_code(code)
-        self.lhs.free_subexpr_temps(code)
-        self.rhs.generate_disposal_code(code)
-        self.rhs.free_temps(code)
+            code.putln("%s %s= %s;" % (lhs.result(), c_op, rhs.result()))
+        lhs.generate_subexpr_disposal_code(code)
+        lhs.free_subexpr_temps(code)
+        rhs.generate_disposal_code(code)
+        rhs.free_temps(code)
 
     def annotate(self, code):
         self.lhs.annotate(code)
@@ -6354,8 +6357,8 @@ class ForFromStatNode(LoopNode, StatNode):
                 "for-from loop variable must be c numeric type or Python object")
         if target_type.is_numeric:
             self.is_py_target = False
-            if isinstance(self.target, ExprNodes.IndexNode) and self.target.is_buffer_access:
-                raise error(self.pos, "Buffer indexing not allowed as for loop target.")
+            if isinstance(self.target, ExprNodes.BufferIndexNode):
+                raise error(self.pos, "Buffer or memoryview slicing/indexing not allowed as for-loop target.")
             self.loopvar_node = self.target
             self.py_loopvar_node = None
         else:

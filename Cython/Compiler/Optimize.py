@@ -132,7 +132,7 @@ class IterationTransform(Visitor.EnvTransform):
 
             pos = node.pos
             result_ref = UtilNodes.ResultRefNode(node)
-            if isinstance(node.operand2, ExprNodes.IndexNode):
+            if node.operand2.is_subscript:
                 base_type = node.operand2.base.type.base_type
             else:
                 base_type = node.operand2.type.base_type
@@ -442,7 +442,7 @@ class IterationTransform(Visitor.EnvTransform):
                     error(slice_node.pos, "C array iteration requires known end index")
                 return node
 
-        elif isinstance(slice_node, ExprNodes.IndexNode):
+        elif slice_node.is_subscript:
             assert isinstance(slice_node.index, ExprNodes.SliceNode)
             slice_base = slice_node.base
             index = slice_node.index
@@ -564,7 +564,6 @@ class IterationTransform(Visitor.EnvTransform):
                                         constant_result=0,
                                         type=PyrexTypes.c_int_type),
                 base=counter_temp,
-                is_buffer_access=False,
                 type=ptr_type.base_type)
 
         if target_value.type != node.target.type:
@@ -1334,20 +1333,20 @@ class DropRefcountingTransform(Visitor.VisitorTransform):
             node = node.arg
         name_path = []
         obj_node = node
-        while isinstance(obj_node, ExprNodes.AttributeNode):
+        while obj_node.is_attribute:
             if obj_node.is_py_attr:
                 return False
             name_path.append(obj_node.member)
             obj_node = obj_node.obj
-        if isinstance(obj_node, ExprNodes.NameNode):
+        if obj_node.is_name:
             name_path.append(obj_node.name)
             names.append( ('.'.join(name_path[::-1]), node) )
-        elif isinstance(node, ExprNodes.IndexNode):
+        elif node.is_subscript:
             if node.base.type != Builtin.list_type:
                 return False
             if not node.index.type.is_int:
                 return False
-            if not isinstance(node.base, ExprNodes.NameNode):
+            if not node.base.is_name:
                 return False
             indices.append(node)
         else:
@@ -1979,7 +1978,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         elif isinstance(arg, ExprNodes.SimpleCallNode):
             if node.type.is_int or node.type.is_float:
                 return self._optimise_numeric_cast_call(node, arg)
-        elif isinstance(arg, ExprNodes.IndexNode) and not arg.is_buffer_access:
+        elif arg.is_subscript:
             index_node = arg.index
             if isinstance(index_node, ExprNodes.CoerceToPyTypeNode):
                 index_node = index_node.arg
@@ -4213,6 +4212,10 @@ class FinalOptimizePhase(Visitor.CythonTransform, Visitor.NodeRefCleanupMixin):
                             assignment.rhs and not isinstance(assignment.rhs, non_method_nodes)
                             for assignment in entry.cf_assignments)
                 if may_be_a_method:
+                    if (node.self and function.is_attribute and
+                            isinstance(function.obj, ExprNodes.CloneNode) and function.obj.arg is node.self):
+                        # function self object was moved into a CloneNode => undo
+                        function.obj = function.obj.arg
                     node = self.replace(node, ExprNodes.PyMethodCallNode.from_node(
                         node, function=function, arg_tuple=node.arg_tuple, type=node.type))
         return node

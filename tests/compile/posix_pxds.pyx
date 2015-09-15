@@ -23,6 +23,10 @@ cimport posix.stat
 from posix cimport stat
 from posix.stat cimport *
 
+cimport posix.stdio
+from posix cimport stdio
+from posix.stdio cimport *
+
 cimport posix.stdlib
 from posix cimport stdlib
 from posix.stdlib cimport *
@@ -42,3 +46,7 @@ from posix.wait cimport *
 cimport posix.mman
 from posix cimport mman
 from posix.mman cimport *
+
+cimport posix.dlfcn
+from posix cimport dlfcn
+from posix.dlfcn cimport *

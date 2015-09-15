@@ -17,7 +17,7 @@ from . import Builtin
 
 from .Visitor import VisitorTransform, TreeVisitor
 from .Visitor import CythonTransform, EnvTransform, ScopeTrackingTransform
-from .UtilNodes import LetNode, LetRefNode, ResultRefNode
+from .UtilNodes import LetNode, LetRefNode
 from .TreeFragment import TreeFragment
 from .StringEncoding import EncodedString, _unicode
 from .Errors import error, warning, CompileError, InternalError
@@ -1307,6 +1307,7 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         node.decorator_indirection = reassignment
         return [node, reassignment]
 
+
 class CnameDirectivesTransform(CythonTransform, SkipDeclarations):
     """
     Only part of the CythonUtilityCode pipeline. Must be run before
@@ -1340,7 +1341,7 @@ class CnameDirectivesTransform(CythonTransform, SkipDeclarations):
                     raise AssertionError(
                             "argument to cname decorator must be a string literal")
 
-                cname = args[0].compile_time_value(None).decode('UTF-8')
+                cname = args[0].compile_time_value(None)
                 del node.decorators[i]
                 node = Nodes.CnameDecoratorNode(pos=node.pos, node=node,
                                                 cname=cname)
@@ -1931,13 +1932,8 @@ class AnalyseExpressionsTransform(CythonTransform):
         re-analyse the types.
         """
         self.visit_Node(node)
-
         if node.is_fused_index and not node.type.is_error:
             node = node.base
-        elif node.memslice_ellipsis_noop:
-            # memoryviewslice[...] expression, drop the IndexNode
-            node = node.base
-
         return node
 
 
@@ -1971,26 +1967,26 @@ class ExpandInplaceOperators(EnvTransform):
         if lhs.type.is_cpp_class:
             # No getting around this exact operator here.
             return node
-        if isinstance(lhs, ExprNodes.IndexNode) and lhs.is_buffer_access:
-            # There is code to handle this case.
+        if isinstance(lhs, ExprNodes.BufferIndexNode):
+            # There is code to handle this case in InPlaceAssignmentNode
             return node
 
         env = self.current_env()
         def side_effect_free_reference(node, setting=False):
-            if isinstance(node, ExprNodes.NameNode):
+            if node.is_name:
                 return node, []
             elif node.type.is_pyobject and not setting:
                 node = LetRefNode(node)
                 return node, [node]
-            elif isinstance(node, ExprNodes.IndexNode):
-                if node.is_buffer_access:
-                    raise ValueError("Buffer access")
+            elif node.is_subscript:
                 base, temps = side_effect_free_reference(node.base)
                 index = LetRefNode(node.index)
                 return ExprNodes.IndexNode(node.pos, base=base, index=index), temps + [index]
-            elif isinstance(node, ExprNodes.AttributeNode):
+            elif node.is_attribute:
                 obj, temps = side_effect_free_reference(node.obj)
                 return ExprNodes.AttributeNode(node.pos, obj=obj, attribute=node.attribute), temps
+            elif isinstance(node, ExprNodes.BufferIndexNode):
+                raise ValueError("Don't allow things like attributes of buffer indexing operations")
             else:
                 node = LetRefNode(node)
                 return node, [node]
