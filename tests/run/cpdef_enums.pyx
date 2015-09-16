@@ -32,6 +32,15 @@ True
 >>> RANK_3         # doctest: +ELLIPSIS
 Traceback (most recent call last):
 NameError: ...name 'RANK_3' is not defined
+
+>>> set(PyxEnum) == set([TWO, THREE, FIVE])
+True
+>>> str(PyxEnum.TWO)
+'PyxEnum.TWO'
+>>> PyxEnum.TWO + PyxEnum.THREE == PyxEnum.FIVE
+True
+>>> PyxEnum(2) is PyxEnum["TWO"] is PyxEnum.TWO
+True
 """
 
 
@@ -51,3 +60,25 @@ cpdef enum PyxEnum:
 
 cdef enum SecretPyxEnum:
     SEVEN = 7
+
+def test_as_variable_from_cython():
+    """
+    >>> test_as_variable_from_cython()
+    """
+    import sys
+    if sys.version_info >= (2, 7):
+        assert list(PyxEnum) == [TWO, THREE, FIVE], list(PyxEnum)
+        assert list(PxdEnum) == [RANK_0, RANK_1, RANK_2], list(PxdEnum)
+    else:
+        # No OrderedDict.
+        assert set(PyxEnum) == {TWO, THREE, FIVE}, list(PyxEnum)
+        assert set(PxdEnum) == {RANK_0, RANK_1, RANK_2}, list(PxdEnum)
+
+cdef int verify_pure_c() nogil:
+    cdef int x = TWO
+    cdef int y = PyxEnum.THREE
+    cdef int z = SecretPyxEnum.SEVEN
+    return x + y + z
+
+# Use it to suppress warning.
+verify_pure_c()

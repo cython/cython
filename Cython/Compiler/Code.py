@@ -553,6 +553,7 @@ class LazyUtilityCode(UtilityCodeBase):
     Utility code that calls a callback with the root code writer when
     available. Useful when you only have 'env' but not 'code'.
     """
+    __name__ = '<lazy>'
 
     def __init__(self, callback):
         self.callback = callback

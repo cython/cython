@@ -2097,7 +2097,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 entry=type_entry,
                 type=type_entry.type),
             attribute=attr_name,
-            is_called=True).analyse_as_unbound_cmethod_node(self.current_env())
+            is_called=True).analyse_as_type_attribute(self.current_env())
         if method is None:
             return node
         args = node.args
