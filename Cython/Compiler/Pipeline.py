@@ -80,6 +80,7 @@ def use_utility_code_definitions(scope, target, seen=None):
         elif entry.as_module:
             use_utility_code_definitions(entry.as_module, target, seen)
 
+
 def sort_utility_codes(utilcodes):
     ranks = {}
     def get_rank(utilcode):
@@ -92,18 +93,22 @@ def sort_utility_codes(utilcodes):
         get_rank(utilcode)
     return [utilcode for utilcode, _ in sorted(ranks.items(), key=lambda kv: kv[1])]
 
+
 def normalize_deps(utilcodes):
     deps = {}
     for utilcode in utilcodes:
         deps[utilcode] = utilcode
+
     def unify_dep(dep):
         if dep in deps:
             return deps[dep]
         else:
             deps[dep] = dep
             return dep
+
     for utilcode in utilcodes:
         utilcode.requires = [unify_dep(dep) for dep in utilcode.requires or ()]
+
 
 def inject_utility_code_stage_factory(context):
     def inject_utility_code_stage(module_node):
