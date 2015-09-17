@@ -361,7 +361,8 @@ class UtilityCode(UtilityCodeBase):
     def __eq__(self, other):
         if self is other:
             return True
-        if not isinstance(other, type(self)):
+        self_type, other_type = type(self), type(other)
+        if self_type is not other_type and not (isinstance(other, self_type) or isinstance(self, other_type)):
             return False
 
         self_proto = getattr(self, 'proto', None)
