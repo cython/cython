@@ -4122,7 +4122,8 @@ class GeneratorBodyDefNode(DefNode):
             if Future.generator_stop in env.global_scope().context.future_directives:
                 # PEP 479: turn accidental StopIteration exceptions into a RuntimeError
                 code.globalstate.use_utility_code(UtilityCode.load_cached("pep479", "Coroutine.c"))
-                code.putln("if (unlikely(PyErr_ExceptionMatches(PyExc_StopIteration))) "
+                code.globalstate.use_utility_code(UtilityCode.load_cached("PyErrExceptionMatches", "Exceptions.c"))
+                code.putln("if (unlikely(__Pyx_PyErr_ExceptionMatches(PyExc_StopIteration))) "
                            "__Pyx_Generator_Replace_StopIteration();")
             for cname, type in code.funcstate.all_managed_temps():
                 code.put_xdecref(cname, type)

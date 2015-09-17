@@ -1725,8 +1725,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(
                 "PyObject *v = PyObject_GenericGetAttr(o, n);")
         if getattr_entry is not None:
+            code.globalstate.use_utility_code(UtilityCode.load_cached("PyErrExceptionMatches", "Exceptions.c"))
             code.putln(
-                "if (!v && PyErr_ExceptionMatches(PyExc_AttributeError)) {")
+                "if (!v && __Pyx_PyErr_ExceptionMatches(PyExc_AttributeError)) {")
             code.putln(
                 "PyErr_Clear();")
             code.putln(

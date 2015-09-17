@@ -2253,9 +2253,11 @@ class NameNode(AtomicExprNode):
                 key_error_code = (
                     '{ PyErr_Clear(); PyErr_Format(PyExc_NameError, "name \'%%s\' is not defined", "%s"); }' %
                     self.entry.name)
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("PyErrExceptionMatches", "Exceptions.c"))
             code.putln(
                 'if (unlikely(PyObject_DelItem(%s, %s) < 0)) {'
-                ' if (likely(PyErr_ExceptionMatches(PyExc_KeyError))) %s'
+                ' if (likely(__Pyx_PyErr_ExceptionMatches(PyExc_KeyError))) %s'
                 ' %s '
                 '}' % (namespace, interned_cname,
                        key_error_code,
@@ -2267,9 +2269,12 @@ class NameNode(AtomicExprNode):
             del_code = '__Pyx_PyObject_DelAttrStr(%s, %s)' % (
                 Naming.module_cname, interned_cname)
             if ignore_nonexisting:
-                code.putln('if (unlikely(%s < 0)) { if (likely(PyErr_ExceptionMatches(PyExc_AttributeError))) PyErr_Clear(); else %s }' % (
-                    del_code,
-                    code.error_goto(self.pos)))
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("PyErrExceptionMatches", "Exceptions.c"))
+                code.putln(
+                    'if (unlikely(%s < 0)) {'
+                    ' if (likely(__Pyx_PyErr_ExceptionMatches(PyExc_AttributeError))) PyErr_Clear(); else %s '
+                    '}' % (del_code, code.error_goto(self.pos)))
             else:
                 code.put_error_if_neg(self.pos, del_code)
         elif self.entry.type.is_pyobject or self.entry.type.is_memoryviewslice:

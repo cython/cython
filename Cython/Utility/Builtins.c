@@ -167,12 +167,13 @@ bad:
 static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *, PyObject *, PyObject *); /*proto*/
 
 //////////////////// GetAttr3 ////////////////////
+//@requires: Exceptions.c::PyErrExceptionMatches
 //@requires: ObjectHandling.c::GetAttr
 
 static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject *d) {
     PyObject *r = __Pyx_GetAttr(o, n);
     if (unlikely(!r)) {
-        if (!PyErr_ExceptionMatches(PyExc_AttributeError))
+        if (!__Pyx_PyErr_ExceptionMatches(PyExc_AttributeError))
             goto bad;
         PyErr_Clear();
         r = d;

@@ -5,6 +5,25 @@
 // 'except' statement, curexc_* is moved over to exc_* by
 // __Pyx_GetException()
 
+/////////////// PyErrExceptionMatches.proto ///////////////
+
+#if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE int __Pyx_PyErr_ExceptionMatches(PyObject* err);
+#else
+#define __Pyx_PyErr_ExceptionMatches(exc_type)  PyErr_ExceptionMatches(exc_type)
+#endif
+
+/////////////// PyErrExceptionMatches ///////////////
+
+#if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE int __Pyx_PyErr_ExceptionMatches(PyObject* err) {
+    PyObject *exc_type = PyThreadState_GET()->curexc_type;
+    if (exc_type == err) return 1;
+    if (unlikely(!exc_type)) return 0;
+    return PyErr_GivenExceptionMatches(exc_type, err);
+}
+#endif
+
 /////////////// PyErrFetchRestore.proto ///////////////
 
 static CYTHON_INLINE void __Pyx_ErrRestore(PyObject *type, PyObject *value, PyObject *tb); /*proto*/
