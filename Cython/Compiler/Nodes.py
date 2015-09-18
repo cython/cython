@@ -6846,10 +6846,11 @@ class ExceptClauseNode(Node):
     def generate_handling_code(self, code, end_label):
         code.mark_pos(self.pos)
         if self.pattern:
+            code.globalstate.use_utility_code(UtilityCode.load_cached("PyErrExceptionMatches", "Exceptions.c"))
             exc_tests = []
             for pattern in self.pattern:
                 pattern.generate_evaluation_code(code)
-                exc_tests.append("PyErr_ExceptionMatches(%s)" % pattern.py_result())
+                exc_tests.append("__Pyx_PyErr_ExceptionMatches(%s)" % pattern.py_result())
 
             match_flag = code.funcstate.allocate_temp(PyrexTypes.c_int_type, False)
             code.putln(
