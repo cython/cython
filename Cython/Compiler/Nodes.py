@@ -4122,8 +4122,7 @@ class GeneratorBodyDefNode(DefNode):
             if Future.generator_stop in env.global_scope().context.future_directives:
                 # PEP 479: turn accidental StopIteration exceptions into a RuntimeError
                 code.globalstate.use_utility_code(UtilityCode.load_cached("pep479", "Coroutine.c"))
-                code.globalstate.use_utility_code(UtilityCode.load_cached("PyErrExceptionMatches", "Exceptions.c"))
-                code.putln("if (unlikely(__Pyx_PyErr_ExceptionMatches(PyExc_StopIteration))) "
+                code.putln("if (unlikely(PyErr_ExceptionMatches(PyExc_StopIteration))) "
                            "__Pyx_Generator_Replace_StopIteration();")
             for cname, type in code.funcstate.all_managed_temps():
                 code.put_xdecref(cname, type)
@@ -6710,8 +6709,10 @@ class TryExceptStatNode(StatNode):
         if can_raise:
             # inject code before the try block to save away the exception state
             code.globalstate.use_utility_code(reset_exception_utility_code)
-            save_exc.putln("__Pyx_ExceptionSave(%s);" %
-                           ', '.join(['&%s' % var for var in exc_save_vars]))
+            save_exc.putln("__Pyx_PyThreadState_declare")
+            save_exc.putln("__Pyx_PyThreadState_assign")
+            save_exc.putln("__Pyx_ExceptionSave(%s);" % (
+                ', '.join(['&%s' % var for var in exc_save_vars])))
             for var in exc_save_vars:
                 save_exc.put_xgotref(var)
 
@@ -6747,6 +6748,7 @@ class TryExceptStatNode(StatNode):
                     code.put_xdecref_clear(var, py_object_type)
                 code.put_goto(try_end_label)
             code.put_label(our_error_label)
+            code.putln("__Pyx_PyThreadState_assign")  # re-assign in case a generator yielded
             for temp_name, temp_type in temps_to_clean_up:
                 code.put_xdecref_clear(temp_name, temp_type)
             for except_clause in self.except_clauses:
@@ -6764,14 +6766,18 @@ class TryExceptStatNode(StatNode):
                     code.put_goto(try_end_label)
                 code.put_label(exit_label)
                 code.mark_pos(self.pos, trace=False)
-                restore_saved_exception()
+                if can_raise:
+                    code.putln("__Pyx_PyThreadState_assign")  # re-assign in case a generator yielded
+                    restore_saved_exception()
                 code.put_goto(old_label)
 
         if code.label_used(except_end_label):
             if not normal_case_terminates and not code.label_used(try_end_label):
                 code.put_goto(try_end_label)
             code.put_label(except_end_label)
-            restore_saved_exception()
+            if can_raise:
+                code.putln("__Pyx_PyThreadState_assign")  # re-assign in case a generator yielded
+                restore_saved_exception()
         if code.label_used(try_end_label):
             code.put_label(try_end_label)
         code.putln("}")
@@ -7043,6 +7049,7 @@ class TryFinallyStatNode(StatNode):
 
         if preserve_error:
             code.putln('/*exception exit:*/{')
+            code.putln("__Pyx_PyThreadState_declare")
             if self.is_try_finally_in_nogil:
                 code.declare_gilstate()
             if needs_success_cleanup:
@@ -7139,6 +7146,7 @@ class TryFinallyStatNode(StatNode):
         code.putln(' '.join(["%s = 0;"]*len(exc_vars)) % exc_vars)
         if self.is_try_finally_in_nogil:
             code.put_ensure_gil(declare_gilstate=False)
+        code.putln("__Pyx_PyThreadState_assign")
 
         for temp_name, type in temps_to_clean_up:
             code.put_xdecref_clear(temp_name, type)
@@ -7169,6 +7177,7 @@ class TryFinallyStatNode(StatNode):
 
         if self.is_try_finally_in_nogil:
             code.put_ensure_gil(declare_gilstate=False)
+        code.putln("__Pyx_PyThreadState_assign")  # re-assign in case a generator yielded
 
         # not using preprocessor here to avoid warnings about
         # unused utility functions and/or temps
@@ -7195,6 +7204,8 @@ class TryFinallyStatNode(StatNode):
         code.globalstate.use_utility_code(reset_exception_utility_code)
         if self.is_try_finally_in_nogil:
             code.put_ensure_gil(declare_gilstate=False)
+        code.putln("__Pyx_PyThreadState_assign")  # re-assign in case a generator yielded
+
         # not using preprocessor here to avoid warnings about
         # unused utility functions and/or temps
         code.putln("if (PY_MAJOR_VERSION >= 3) {")
@@ -8836,13 +8847,14 @@ traceback_utility_code = UtilityCode.load_cached("AddTraceback", "Exceptions.c")
 #------------------------------------------------------------------------------------
 
 get_exception_tuple_utility_code = UtilityCode(proto="""
-static PyObject *__Pyx_GetExceptionTuple(void); /*proto*/
+static PyObject *__Pyx_GetExceptionTuple(PyThreadState *__pyx_tstate); /*proto*/
 """,
 # I doubt that calling __Pyx_GetException() here is correct as it moves
 # the exception from tstate->curexc_* to tstate->exc_*, which prevents
 # exception handlers later on from receiving it.
+# NOTE: "__pyx_tstate" may be used by __Pyx_GetException() macro
 impl = """
-static PyObject *__Pyx_GetExceptionTuple(void) {
+static PyObject *__Pyx_GetExceptionTuple(CYTHON_UNUSED PyThreadState *__pyx_tstate) {
     PyObject *type = NULL, *value = NULL, *tb = NULL;
     if (__Pyx_GetException(&type, &value, &tb) == 0) {
         PyObject* exc_info = PyTuple_New(3);

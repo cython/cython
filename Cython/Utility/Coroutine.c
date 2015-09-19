@@ -177,7 +177,6 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *o); /*pro
 
 //////////////////// AsyncIter ////////////////////
 //@requires: GetAwaitIter
-//@requires: Exceptions.c::PyErrExceptionMatches
 //@requires: ObjectHandling.c::PyObjectCallMethod0
 
 static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *obj) {
@@ -193,7 +192,7 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *obj) {
         if (likely(iter))
             return iter;
         // FIXME: for the sake of a nicely conforming exception message, assume any AttributeError meant '__aiter__'
-        if (!__Pyx_PyErr_ExceptionMatches(PyExc_AttributeError))
+        if (!PyErr_ExceptionMatches(PyExc_AttributeError))
             return NULL;
     }
 #else
@@ -220,7 +219,7 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *obj) {
             return value;
     }
     // FIXME: for the sake of a nicely conforming exception message, assume any AttributeError meant '__anext__'
-    if (__Pyx_PyErr_ExceptionMatches(PyExc_AttributeError))
+    if (PyErr_ExceptionMatches(PyExc_AttributeError))
 #endif
         PyErr_Format(PyExc_TypeError, "'async for' requires an object with __anext__ method, got %.100s",
                      Py_TYPE(obj)->tp_name);
@@ -307,10 +306,10 @@ static int __pyx_Generator_init(void); /*proto*/
 
 
 //////////////////// CoroutineBase ////////////////////
+//@substitute: naming
 //@requires: Exceptions.c::PyErrFetchRestore
 //@requires: Exceptions.c::SwapException
 //@requires: Exceptions.c::RaiseException
-//@requires: Exceptions.c::PyErrExceptionMatches
 //@requires: ObjectHandling.c::PyObjectCallMethod1
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@requires: CommonTypes.c::FetchCommonType
@@ -452,6 +451,7 @@ int __Pyx_Coroutine_CheckRunning(__pyx_CoroutineObject *gen) {
 static CYTHON_INLINE
 PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value) {
     PyObject *retval;
+    __Pyx_PyThreadState_declare
 
     assert(!self->is_running);
 
@@ -469,7 +469,7 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value) {
         return NULL;
     }
 
-
+    __Pyx_PyThreadState_assign
     if (value) {
 #if CYTHON_COMPILING_IN_PYPY
         // FIXME: what to do in PyPy?
@@ -477,13 +477,12 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value) {
         // Generators always return to their most recent caller, not
         // necessarily their creator.
         if (self->exc_traceback) {
-            PyThreadState *tstate = PyThreadState_GET();
             PyTracebackObject *tb = (PyTracebackObject *) self->exc_traceback;
             PyFrameObject *f = tb->tb_frame;
 
-            Py_XINCREF(tstate->frame);
+            Py_XINCREF($local_tstate_cname->frame);
             assert(f->f_back == NULL);
-            f->f_back = tstate->frame;
+            f->f_back = $local_tstate_cname->frame;
         }
 #endif
         __Pyx_ExceptionSwap(&self->exc_type, &self->exc_value,
@@ -604,7 +603,7 @@ static int __Pyx_Coroutine_CloseIter(__pyx_CoroutineObject *gen, PyObject *yf) {
         gen->is_running = 1;
         meth = __Pyx_PyObject_GetAttrStr(yf, PYIDENT("close"));
         if (unlikely(!meth)) {
-            if (!__Pyx_PyErr_ExceptionMatches(PyExc_AttributeError)) {
+            if (!PyErr_ExceptionMatches(PyExc_AttributeError)) {
                 PyErr_WriteUnraisable(yf);
             }
             PyErr_Clear();
@@ -720,7 +719,7 @@ static PyObject *__Pyx_Coroutine_Throw(PyObject *self, PyObject *args) {
             PyObject *meth = __Pyx_PyObject_GetAttrStr(yf, PYIDENT("throw"));
             if (unlikely(!meth)) {
                 Py_DECREF(yf);
-                if (!__Pyx_PyErr_ExceptionMatches(PyExc_AttributeError)) {
+                if (!PyErr_ExceptionMatches(PyExc_AttributeError)) {
                     gen->is_running = 0;
                     return NULL;
                 }

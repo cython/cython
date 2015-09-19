@@ -90,7 +90,7 @@
               (tstate->c_profilefunc || (CYTHON_TRACE && tstate->c_tracefunc))) {          \
           tstate->tracing++;                                                               \
           tstate->use_tracing = 0;                                                         \
-          PyObject *exc_info = __Pyx_GetExceptionTuple();                                  \
+          PyObject *exc_info = __Pyx_GetExceptionTuple(tstate);                            \
           if (exc_info) {                                                                  \
               if (CYTHON_TRACE && tstate->c_tracefunc)                                     \
                   tstate->c_tracefunc(                                                     \

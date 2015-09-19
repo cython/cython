@@ -268,7 +268,6 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i,
                                                      int is_list, int wraparound, int boundscheck);
 
 /////////////// GetItemInt ///////////////
-//@requires: Exceptions.c::PyErrExceptionMatches
 
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j) {
     PyObject *r;
@@ -325,7 +324,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, 
                     i += l;
                 } else {
                     // if length > max(Py_ssize_t), maybe the object can wrap around itself?
-                    if (!__Pyx_PyErr_ExceptionMatches(PyExc_OverflowError))
+                    if (!PyErr_ExceptionMatches(PyExc_OverflowError))
                         return NULL;
                     PyErr_Clear();
                 }
@@ -354,7 +353,6 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
                                                int is_list, int wraparound, int boundscheck);
 
 /////////////// SetItemInt ///////////////
-//@requires: Exceptions.c::PyErrExceptionMatches
 
 static CYTHON_INLINE int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyObject *v) {
     int r;
@@ -386,7 +384,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
                     i += l;
                 } else {
                     // if length > max(Py_ssize_t), maybe the object can wrap around itself?
-                    if (!__Pyx_PyErr_ExceptionMatches(PyExc_OverflowError))
+                    if (!PyErr_ExceptionMatches(PyExc_OverflowError))
                         return -1;
                     PyErr_Clear();
                 }
@@ -420,7 +418,6 @@ static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i,
                                                int is_list, int wraparound);
 
 /////////////// DelItemInt ///////////////
-//@requires: Exceptions.c::PyErrExceptionMatches
 
 static CYTHON_INLINE int __Pyx_DelItem_Generic(PyObject *o, PyObject *j) {
     int r;
@@ -446,7 +443,7 @@ static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i,
                 i += l;
             } else {
                 // if length > max(Py_ssize_t), maybe the object can wrap around itself?
-                if (!__Pyx_PyErr_ExceptionMatches(PyExc_OverflowError))
+                if (!PyErr_ExceptionMatches(PyExc_OverflowError))
                     return -1;
                 PyErr_Clear();
             }
@@ -478,7 +475,6 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(
 {{endif}}
 
 /////////////// SliceObject ///////////////
-//@requires: Exceptions.c::PyErrExceptionMatches
 
 {{if access == 'Get'}}
 static CYTHON_INLINE PyObject* __Pyx_PyObject_GetSlice(PyObject* obj,
@@ -520,7 +516,7 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(PyObject* obj, PyObject* value,
                 }
             } else {
                 // if length > max(Py_ssize_t), maybe the object can wrap around itself?
-                if (!__Pyx_PyErr_ExceptionMatches(PyExc_OverflowError))
+                if (!PyErr_ExceptionMatches(PyExc_OverflowError))
                     goto bad;
                 PyErr_Clear();
             }
@@ -833,7 +829,6 @@ static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObj
                                       PyObject *mkw, int calculate_metaclass, int allow_py2_metaclass); /*proto*/
 
 /////////////// Py3ClassCreate ///////////////
-//@requires: Exceptions.c::PyErrExceptionMatches
 //@requires: PyObjectGetAttrStr
 //@requires: CalculateMetaclass
 
@@ -852,7 +847,7 @@ static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases,
             Py_DECREF(prep);
             Py_DECREF(pargs);
         } else {
-            if (unlikely(!__Pyx_PyErr_ExceptionMatches(PyExc_AttributeError)))
+            if (unlikely(!PyErr_ExceptionMatches(PyExc_AttributeError)))
                 return NULL;
             PyErr_Clear();
             ns = PyDict_New();
@@ -884,7 +879,7 @@ static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObj
         owned_metaclass = PyObject_GetItem(dict, PYIDENT("__metaclass__"));
         if (owned_metaclass) {
             metaclass = owned_metaclass;
-        } else if (likely(__Pyx_PyErr_ExceptionMatches(PyExc_KeyError))) {
+        } else if (likely(PyErr_ExceptionMatches(PyExc_KeyError))) {
             PyErr_Clear();
         } else {
             return NULL;
@@ -1496,7 +1491,6 @@ static PyObject* __Pyx_PyNumber_InPlaceMatrixMultiply(PyObject* x, PyObject* y);
 #endif
 
 /////////////// MatrixMultiply ///////////////
-//@requires: Exceptions.c::PyErrExceptionMatches
 //@requires: PyObjectGetAttrStr
 //@requires: PyObjectCallOneArg
 
@@ -1539,7 +1533,7 @@ bad:
             return result;                                              \
         Py_DECREF(result);                                              \
     } else {                                                            \
-        if (!__Pyx_PyErr_ExceptionMatches(PyExc_AttributeError))        \
+        if (!PyErr_ExceptionMatches(PyExc_AttributeError))              \
             return NULL;                                                \
         PyErr_Clear();                                                  \
     }                                                                   \
