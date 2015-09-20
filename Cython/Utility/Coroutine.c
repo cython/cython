@@ -238,6 +238,8 @@ static void __Pyx_Generator_Replace_StopIteration(void) {
     PyObject *exc, *val, *tb;
     // Chain exceptions by moving StopIteration to exc_info before creating the RuntimeError.
     // In Py2.x, no chaining happens, but the exception still stays visible in exc_info.
+    __Pyx_PyThreadState_declare
+    __Pyx_PyThreadState_assign
     __Pyx_GetException(&exc, &val, &tb);
     Py_XDECREF(exc);
     Py_XDECREF(val);
