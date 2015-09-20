@@ -6955,11 +6955,8 @@ class TryFinallyStatNode(StatNode):
     #  finally_clause   StatNode
     #  finally_except_clause  deep-copy of finally_clause for exception case
     #
-    #  The plan is that we funnel all continue, break
-    #  return and error gotos into the beginning of the
-    #  finally block, setting a variable to remember which
-    #  one we're doing. At the end of the finally block, we
-    #  switch on the variable to figure out where to go.
+    #  Each of the continue, break, return and error gotos runs
+    #  into its own deep-copy of the finally block code.
     #  In addition, if we're doing an error, we save the
     #  exception on entry to the finally block and restore
     #  it on exit.
