@@ -310,6 +310,7 @@ static int __pyx_Generator_init(void); /*proto*/
 //////////////////// CoroutineBase ////////////////////
 //@substitute: naming
 //@requires: Exceptions.c::PyErrFetchRestore
+//@requires: Exceptions.c::PyThreadStateGet
 //@requires: Exceptions.c::SwapException
 //@requires: Exceptions.c::RaiseException
 //@requires: ObjectHandling.c::PyObjectCallMethod1
@@ -335,6 +336,8 @@ static PyObject *__Pyx_Coroutine_Throw(PyObject *gen, PyObject *args);
 static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
     PyObject *et, *ev, *tb;
     PyObject *value = NULL;
+    __Pyx_PyThreadState_declare
+    __Pyx_PyThreadState_assign
 
     __Pyx_ErrFetch(&et, &ev, &tb);
 
@@ -802,6 +805,7 @@ static void __Pyx_Coroutine_del(PyObject *self) {
     PyObject *res;
     PyObject *error_type, *error_value, *error_traceback;
     __pyx_CoroutineObject *gen = (__pyx_CoroutineObject *) self;
+    __Pyx_PyThreadState_declare
 
     if (gen->resume_label <= 0)
         return ;
@@ -813,6 +817,7 @@ static void __Pyx_Coroutine_del(PyObject *self) {
 #endif
 
     // Save the current exception, if any.
+    __Pyx_PyThreadState_assign
     __Pyx_ErrFetch(&error_type, &error_value, &error_traceback);
 
     res = __Pyx_Coroutine_Close(self);
@@ -1390,6 +1395,7 @@ static void __Pyx__ReturnWithStopIteration(PyObject* value); /*proto*/
 
 /////////////// ReturnWithStopIteration ///////////////
 //@requires: Exceptions.c::PyErrFetchRestore
+//@requires: Exceptions.c::PyThreadStateGet
 //@substitute: naming
 
 // 1) Instantiating an exception just to pass back a value is costly.
@@ -1400,6 +1406,7 @@ static void __Pyx__ReturnWithStopIteration(PyObject* value); /*proto*/
 static void __Pyx__ReturnWithStopIteration(PyObject* value) {
     PyObject *exc, *args;
 #if CYTHON_COMPILING_IN_CPYTHON
+    __Pyx_PyThreadState_declare
     if ((PY_VERSION_HEX >= 0x03030000 && PY_VERSION_HEX < 0x030500B1) || PyTuple_Check(value)) {
         args = PyTuple_New(1);
         if (unlikely(!args)) return;
@@ -1413,7 +1420,8 @@ static void __Pyx__ReturnWithStopIteration(PyObject* value) {
         Py_INCREF(value);
         exc = value;
     }
-    if (!PyThreadState_GET()->exc_type) {
+    __Pyx_PyThreadState_assign
+    if (!$local_tstate_cname->exc_type) {
         // no chaining needed => avoid the overhead in PyErr_SetObject()
         Py_INCREF(PyExc_StopIteration);
         __Pyx_ErrRestore(PyExc_StopIteration, exc, NULL);

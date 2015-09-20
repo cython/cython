@@ -1965,6 +1965,8 @@ class FuncDefNode(StatNode, BlockNode):
             if buffers_present:
                 code.globalstate.use_utility_code(restore_exception_utility_code)
                 code.putln("{ PyObject *__pyx_type, *__pyx_value, *__pyx_tb;")
+                code.putln("__Pyx_PyThreadState_declare")
+                code.putln("__Pyx_PyThreadState_assign")
                 code.putln("__Pyx_ErrFetch(&__pyx_type, &__pyx_value, &__pyx_tb);")
                 for entry in used_buffer_entries:
                     Buffer.put_release_buffer_code(code, entry)
@@ -5762,7 +5764,7 @@ class ReraiseStatNode(StatNode):
             code.put_giveref(vars[1])
             # fresh exceptions may not have a traceback yet (-> finally!)
             code.put_xgiveref(vars[2])
-            code.putln("__Pyx_ErrRestore(%s, %s, %s);" % tuple(vars))
+            code.putln("__Pyx_ErrRestoreWithState(%s, %s, %s);" % tuple(vars))
             for varname in vars:
                 code.put("%s = 0; " % varname)
             code.putln()
@@ -8164,7 +8166,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         code.putln(
             "if (!%s) {" % Naming.parallel_exc_type)
 
-        code.putln("__Pyx_ErrFetch(&%s, &%s, &%s);" % self.parallel_exc)
+        code.putln("__Pyx_ErrFetchWithState(&%s, &%s, &%s);" % self.parallel_exc)
         pos_info = chain(*zip(self.parallel_pos_info, self.pos_info))
         code.funcstate.uses_error_indicator = True
         code.putln("%s = %s; %s = %s; %s = %s;" % tuple(pos_info))
@@ -8182,7 +8184,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         code.put_ensure_gil(declare_gilstate=True)
 
         code.put_giveref(Naming.parallel_exc_type)
-        code.putln("__Pyx_ErrRestore(%s, %s, %s);" % self.parallel_exc)
+        code.putln("__Pyx_ErrRestoreWithState(%s, %s, %s);" % self.parallel_exc)
         pos_info = chain(*zip(self.pos_info, self.parallel_pos_info))
         code.putln("%s = %s; %s = %s; %s = %s;" % tuple(pos_info))
 
