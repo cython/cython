@@ -6878,7 +6878,8 @@ class ExceptClauseNode(Node):
                 and self.target is None):
             # most simple case: no exception variable, empty body (pass)
             # => reset the exception state, done
-            code.putln("PyErr_Restore(0,0,0);")
+            code.globalstate.use_utility_code(UtilityCode.load_cached("PyErrFetchRestore", "Exceptions.c"))
+            code.putln("__Pyx_ErrRestore(0,0,0);")
             code.put_goto(end_label)
             code.putln("}")
             return
