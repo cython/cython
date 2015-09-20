@@ -5528,13 +5528,11 @@ class ContinueStatNode(StatNode):
         return self
 
     def generate_execution_code(self, code):
-        code.mark_pos(self.pos)
-        if code.funcstate.in_try_finally:
-            error(self.pos, "continue statement inside try of try...finally")
-        elif not code.continue_label:
+        if not code.continue_label:
             error(self.pos, "continue statement not inside loop")
-        else:
-            code.put_goto(code.continue_label)
+            return
+        code.mark_pos(self.pos)
+        code.put_goto(code.continue_label)
 
 
 class ReturnStatNode(StatNode):
@@ -6970,11 +6968,6 @@ class TryFinallyStatNode(StatNode):
     func_return_type = None
     finally_except_clause = None
 
-    disallow_continue_in_try_finally = 0
-    # There doesn't seem to be any point in disallowing
-    # continue in the try block, since we have no problem
-    # handling it.
-
     is_try_finally_in_nogil = False
 
     @staticmethod
@@ -7010,16 +7003,12 @@ class TryFinallyStatNode(StatNode):
         catch_label = code.new_label()
 
         code.putln("/*try:*/ {")
-
-        if self.disallow_continue_in_try_finally:
-            was_in_try_finally = code.funcstate.in_try_finally
-            code.funcstate.in_try_finally = 1
+        was_in_try_finally = code.funcstate.in_try_finally
+        code.funcstate.in_try_finally = 1
 
         self.body.generate_execution_code(code)
 
-        if self.disallow_continue_in_try_finally:
-            code.funcstate.in_try_finally = was_in_try_finally
-
+        code.funcstate.in_try_finally = was_in_try_finally
         code.putln("}")
         code.set_all_labels(old_labels)
 
