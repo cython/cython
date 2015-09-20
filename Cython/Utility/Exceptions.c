@@ -275,6 +275,7 @@ bad:
 
 /////////////// GetException.proto ///////////////
 //@substitute: naming
+//@requires: PyThreadStateGet
 
 #if CYTHON_COMPILING_IN_CPYTHON
 #define __Pyx_GetException(type, value, tb)  __Pyx__GetException($local_tstate_cname, type, value, tb)
