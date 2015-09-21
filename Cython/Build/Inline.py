@@ -140,7 +140,7 @@ def cython_inline(code,
             elif symbol in globals:
                 kwds[symbol] = globals[symbol]
             else:
-                print("Couldn't find ", symbol)
+                print("Couldn't find %r" % symbol)
     except AssertionError:
         if not quiet:
             # Parsing from strings not fully supported (e.g. cimports).
