@@ -292,17 +292,22 @@ def open_source_from_loader(loader,
 
 def str_to_number(value):
     # note: this expects a string as input that was accepted by the
-    # parser already
+    # parser already, with an optional "-" sign in front
+    is_neg = False
+    if value[:1] == '-':
+        is_neg = True
+        value = value[1:]
     if len(value) < 2:
         value = int(value, 0)
     elif value[0] == '0':
-        if value[1] in 'xX':
+        literal_type = value[1]  # 0'o' - 0'b' - 0'x'
+        if literal_type in 'xX':
             # hex notation ('0x1AF')
             value = int(value[2:], 16)
-        elif value[1] in 'oO':
+        elif literal_type in 'oO':
             # Py3 octal notation ('0o136')
             value = int(value[2:], 8)
-        elif value[1] in 'bB':
+        elif literal_type in 'bB':
             # Py3 binary notation ('0b101')
             value = int(value[2:], 2)
         else:
@@ -310,7 +315,7 @@ def str_to_number(value):
             value = int(value, 8)
     else:
         value = int(value, 0)
-    return value
+    return -value if is_neg else value
 
 
 def long_literal(value):
