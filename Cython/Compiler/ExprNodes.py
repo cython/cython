@@ -1175,7 +1175,7 @@ class IntNode(ConstNode):
         # we ignore 'is_c_literal = True' and instead map signed 32bit
         # integers as C long values
         if self.is_c_literal or \
-               self.constant_result in (constant_value_not_set, not_a_constant) or \
+               not self.has_constant_result() or \
                self.unsigned or self.longness == 'LL':
             # clearly a C literal
             rank = (self.longness == 'LL') and 2 or 1
@@ -1242,19 +1242,31 @@ class IntNode(ConstNode):
 
     def value_as_c_integer_string(self):
         value = self.value
-        if len(value) > 2:
-            if value[0] == '0':
-                literal_type = value[1]  # 0'o' - 0'b' - 0'x'
-                # 0x123 hex literals and 0123 octal literals work nicely in C
-                # but convert C-incompatible Py3 oct/bin notations
-                if literal_type in 'oO':
-                    value = '0' + value[2:]  # '0o123' => '0123'
-                elif literal_type in 'bB':
-                    value = int(value[2:], 2)
-            elif value.isdigit() and not self.unsigned and not self.longness:
-                # C compilers do not consider unsigned types for decimal literals, but they do for hex
+        if len(value) <= 2:
+            # too short to go wrong (and simplifies code below)
+            return value
+        neg_sign = ''
+        if value[0] == '-':
+            neg_sign = '-'
+            value = value[1:]
+        if value[0] == '0':
+            literal_type = value[1]  # 0'o' - 0'b' - 0'x'
+            # 0x123 hex literals and 0123 octal literals work nicely in C
+            # but C-incompatible Py3 oct/bin notations need conversion
+            if neg_sign and literal_type in 'oOxX0123456789' and value[2:].isdigit():
+                # negative hex/octal literal => prevent C compiler from using
+                # unsigned integer types by converting to decimal (see C standard 6.4.4.1)
+                value = str(Utils.str_to_number(value))
+            elif literal_type in 'oO':
+                value = '0' + value[2:]  # '0o123' => '0123'
+            elif literal_type in 'bB':
+                value = str(int(value[2:], 2))
+        elif value.isdigit() and not self.unsigned and not self.longness:
+            if not neg_sign:
+                # C compilers do not consider unsigned types for decimal literals,
+                # but they do for hex (see C standard 6.4.4.1)
                 value = '0x%X' % int(value)
-        return str(value)
+        return neg_sign + value
 
     def calculate_result_code(self):
         return self.result_code
