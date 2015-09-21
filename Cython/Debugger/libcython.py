@@ -339,8 +339,12 @@ class CythonBase(object):
         except RuntimeError:
             func_address = 0
         else:
-            # Seriously? Why is the address not an int?
-            func_address = int(str(gdb_value.address).split()[0], 0)
+            func_address = gdb_value.address
+            if not isinstance(func_address, int):
+                # Seriously? Why is the address not an int?
+                if not isinstance(func_address, (str, bytes)):
+                    func_address = str(func_address)
+                func_address = int(func_address.split()[0], 0)
 
         a = ', '.join('%s=%s' % (name, val) for name, val in func_args)
         sys.stdout.write('#%-2d 0x%016x in %s(%s)' % (index, func_address, func_name, a))
