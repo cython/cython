@@ -3631,16 +3631,15 @@ class IndexNode(_IndexingBaseNode):
                                   self.index.result()),
                 self.exception_value, self.in_nogil_context)
         else:
+            error_check = '!%s' if error_value == 'NULL' else '%%s == %s' % error_value
             code.putln(
-                "%s = %s(%s, %s%s); if (unlikely(%s == %s)) %s;" % (
+                "%s = %s(%s, %s%s); %s" % (
                     self.result(),
                     function,
                     self.base.py_result(),
                     index_code,
                     self.extra_index_params(code),
-                    self.result(),
-                    error_value,
-                    code.error_goto(self.pos)))
+                    code.error_goto_if(error_check % self.result(), self.pos)))
         if self.type.is_pyobject:
             code.put_gotref(self.py_result())
 
@@ -3668,14 +3667,14 @@ class IndexNode(_IndexingBaseNode):
             # (PyTuple_SetItem() is for creating new tuples from scratch).
             else:
                 function = "PyObject_SetItem"
-        code.putln(
-            "if (unlikely(%s(%s, %s, %s%s) < 0)) %s" % (
+        code.putln(code.error_goto_if_neg(
+            "%s(%s, %s, %s%s)" % (
                 function,
                 self.base.py_result(),
                 index_code,
                 value_code,
-                self.extra_index_params(code),
-                code.error_goto(self.pos)))
+                self.extra_index_params(code)),
+            self.pos))
 
     def generate_assignment_code(self, rhs, code, overloaded_assignment=False,
         exception_check=None, exception_value=None):
@@ -3760,13 +3759,13 @@ class IndexNode(_IndexingBaseNode):
                 function = "PyDict_DelItem"
             else:
                 function = "PyObject_DelItem"
-        code.putln(
-            "if (%s(%s, %s%s) < 0) %s" % (
+        code.putln(code.error_goto_if_neg(
+            "%s(%s, %s%s)" % (
                 function,
                 self.base.py_result(),
                 index_code,
-                self.extra_index_params(code),
-                code.error_goto(self.pos)))
+                self.extra_index_params(code)),
+            self.pos))
         self.generate_subexpr_disposal_code(code)
         self.free_subexpr_temps(code)
 
