@@ -77,7 +77,7 @@ statement::
     from module cimport name [as name] [, name [as name] ...]
 
 Here is an example. :file:`dishes.pxd` is a definition file which exports a
-C data type. :file:`restaurant.pxd` an implementation file which imports and
+C data type. :file:`restaurant.pyx` is an implementation file which imports and
 uses it.
  
 :file:`dishes.pxd`::
