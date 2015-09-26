@@ -3212,12 +3212,12 @@ class ToPyStructUtilityCode(object):
         code.putln("%s {" % self.header)
         code.putln("PyObject* res;")
         code.putln("PyObject* member;")
-        code.putln("res = PyDict_New(); if (res == NULL) return NULL;")
+        code.putln("res = PyDict_New(); if (unlikely(!res)) return NULL;")
         for member in self.type.scope.var_entries:
             nameconst_cname = code.get_py_string_const(member.name, identifier=True)
-            code.putln("%s; if (member == NULL) goto bad;" % (
+            code.putln("%s; if (unlikely(!member)) goto bad;" % (
                 member.type.to_py_call_code('s.%s' % member.cname, 'member', member.type)))
-            code.putln("if (PyDict_SetItem(res, %s, member) < 0) goto bad;" % nameconst_cname)
+            code.putln("if (unlikely(PyDict_SetItem(res, %s, member) < 0)) goto bad;" % nameconst_cname)
             code.putln("Py_DECREF(member);")
         code.putln("return res;")
         code.putln("bad:")
