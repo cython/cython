@@ -6643,6 +6643,17 @@ class SequenceNode(ExprNode):
         # not setting self.type here, subtypes do this
         return self
 
+    def coerce_to(self, dst_type, env):
+        if dst_type.is_ctuple:
+            assert not self.type.is_ctuple, self  # should have been caught by TupleNode
+            if len(self.args) != dst_type.size:
+                error(self.pos, "trying to coerce sequence to ctuple of wrong length, expected %d, got %d" % (
+                    dst_type.size, len(self.args)))
+            coerced_args = [arg.coerce_to(type, env) for arg, type in zip(self.args, dst_type.components)]
+            return TupleNode(self.pos, args=coerced_args, type=dst_type, is_temp=True)
+        else:
+            return ExprNode.coerce_to(self, dst_type, env)
+
     def _create_merge_node_if_necessary(self, env):
         self._flatten_starred_args()
         if not any(arg.is_starred for arg in self.args):
@@ -7306,6 +7317,8 @@ class ListNode(SequenceNode):
                         arg = arg.arg
                     self.args[i] = arg.coerce_to(member.type, env)
             self.type = dst_type
+        elif dst_type.is_ctuple:
+            return SequenceNode.coerce_to(self, dst_type, env)
         else:
             self.type = error_type
             error(self.pos, "Cannot coerce list to type '%s'" % dst_type)

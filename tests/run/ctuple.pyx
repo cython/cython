@@ -57,6 +57,14 @@ def packing_tuple(int x, double y):
     cdef (int, double) xy = (x, y)
     return xy
 
+def packing_list(int x, double y):
+    """
+    >>> packing_list(1, 2)
+    (1, 2.0)
+    """
+    cdef (int, double) xy = [x, y]
+    return xy
+
 def coerce_packing_tuple(int x, int y):
     cdef (int, double) xy = (x, y)
     """
