@@ -19,6 +19,10 @@ Features added
 * Posix declarations for DLL loading and stdio extensions were added.
   Patch by Lars Buitinck.
 
+* The Py2-only builtins ``unicode()``, ``xrange()``, ``reduce()`` and
+  ``long`` are now also available in compile time ``DEF`` expressions
+  when compiling with Py3.
+
 * Exception type tests have slightly lower overhead.
 
 Bugs fixed
