@@ -64,6 +64,9 @@ Bugs fixed
   decoding.  This fixes ticket 863, ticket 864 and ticket 865.
   Original patch by Nikolaus Rath.
 
+* Large folded or inserted integer constants could use too small C
+  integer types and thus trigger a value wrap-around.
+
 
 0.23.2 (2015-09-11)
 ===================
