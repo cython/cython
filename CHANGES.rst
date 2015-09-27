@@ -19,6 +19,8 @@ Features added
 * Posix declarations for DLL loading and stdio extensions were added.
   Patch by Lars Buitinck.
 
+* Exception type tests have slightly lower overhead.
+
 Bugs fixed
 ----------
 
@@ -39,6 +41,9 @@ Bugs fixed
 
 * ``isinf()`` declarations in ``libc/math.pxd`` and ``numpy/math.pxd`` now
   reflect the actual tristate ``int`` return value instead of using ``bint``.
+
+* Literal assignments to ctuples avoid Python tuple round-trips in some
+  more corner cases.
 
 * Iteration over ``dict(...).items()`` failed to get optimised when dict
   arguments included keyword arguments.
