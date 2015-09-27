@@ -55,6 +55,10 @@ def packing_tuple(int x, double y):
     (1, 2.0)
     """
     cdef (int, double) xy = (x, y)
+    assert xy == (x, y), xy
+    xy = (x, y) * 1
+    assert xy == (x, y), xy
+    xy = 1 * (x, y)
     return xy
 
 def packing_list(int x, double y):
@@ -63,6 +67,10 @@ def packing_list(int x, double y):
     (1, 2.0)
     """
     cdef (int, double) xy = [x, y]
+    assert xy == (x, y), xy
+    xy = [x, y] * 1
+    assert xy == (x, y), xy
+    xy = 1 * [x, y]
     return xy
 
 def coerce_packing_tuple(int x, int y):

@@ -6643,16 +6643,15 @@ class SequenceNode(ExprNode):
         # not setting self.type here, subtypes do this
         return self
 
-    def coerce_to(self, dst_type, env):
-        if dst_type.is_ctuple:
-            assert not self.type.is_ctuple, self  # should have been caught by TupleNode
-            if len(self.args) != dst_type.size:
-                error(self.pos, "trying to coerce sequence to ctuple of wrong length, expected %d, got %d" % (
-                    dst_type.size, len(self.args)))
-            coerced_args = [arg.coerce_to(type, env) for arg, type in zip(self.args, dst_type.components)]
-            return TupleNode(self.pos, args=coerced_args, type=dst_type, is_temp=True)
-        else:
-            return ExprNode.coerce_to(self, dst_type, env)
+    def coerce_to_ctuple(self, dst_type, env):
+        if self.type == dst_type:
+            return self
+        assert not self.mult_factor
+        if len(self.args) != dst_type.size:
+            error(self.pos, "trying to coerce sequence to ctuple of wrong length, expected %d, got %d" % (
+                dst_type.size, len(self.args)))
+        coerced_args = [arg.coerce_to(type, env) for arg, type in zip(self.args, dst_type.components)]
+        return TupleNode(self.pos, args=coerced_args, type=dst_type, is_temp=True)
 
     def _create_merge_node_if_necessary(self, env):
         self._flatten_starred_args()
@@ -7168,15 +7167,14 @@ class TupleNode(SequenceNode):
     def coerce_to(self, dst_type, env):
         if self.type.is_ctuple:
             if dst_type.is_ctuple and self.type.size == dst_type.size:
-                if self.type == dst_type:
-                    return self
-                coerced_args = [arg.coerce_to(type, env) for arg, type in zip(self.args, dst_type.components)]
-                return TupleNode(self.pos, args=coerced_args, type=dst_type, is_temp=1)
+                return self.coerce_to_ctuple(dst_type, env)
             elif dst_type is tuple_type or dst_type is py_object_type:
                 coerced_args = [arg.coerce_to_pyobject(env) for arg in self.args]
                 return TupleNode(self.pos, args=coerced_args, type=tuple_type, is_temp=1).analyse_types(env, skip_children=True)
             else:
                 return self.coerce_to_pyobject(env).coerce_to(dst_type, env)
+        elif dst_type.is_ctuple and not self.mult_factor:
+            return self.coerce_to_ctuple(dst_type, env)
         else:
             return SequenceNode.coerce_to(self, dst_type, env)
 
@@ -7318,7 +7316,7 @@ class ListNode(SequenceNode):
                     self.args[i] = arg.coerce_to(member.type, env)
             self.type = dst_type
         elif dst_type.is_ctuple:
-            return SequenceNode.coerce_to(self, dst_type, env)
+            return self.coerce_to_ctuple(dst_type, env)
         else:
             self.type = error_type
             error(self.pos, "Cannot coerce list to type '%s'" % dst_type)
