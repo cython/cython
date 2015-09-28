@@ -1479,12 +1479,31 @@ ignore:
 
 //////////////////// PatchGeneratorABC.proto ////////////////////
 
-// patch 'collections.abc' if it lacks generator support
+// register with Generator/Coroutine ABCs in 'collections.abc'
 // see https://bugs.python.org/issue24018
 static int __Pyx_patch_abc(void); /*proto*/
 
 //////////////////// PatchGeneratorABC ////////////////////
 //@requires: PatchModuleWithCoroutine
+
+#if defined(__Pyx_Generator_USED) || defined(__Pyx_Coroutine_USED)
+static PyObject* __Pyx_patch_abc_module(PyObject *module); /*proto*/
+static PyObject* __Pyx_patch_abc_module(PyObject *module) {
+    module = __Pyx_Coroutine_patch_module(
+        module, CSTRING("""\
+if _cython_generator_type is not None:
+    try: Generator = _module.Generator
+    except AttributeError: pass
+    else: Generator.register(_cython_generator_type)
+if _cython_coroutine_type is not None:
+    try: Coroutine = _module.Coroutine
+    except AttributeError: pass
+    else: Coroutine.register(_cython_coroutine_type)
+""")
+    );
+    return module;
+}
+#endif
 
 static int __Pyx_patch_abc(void) {
 #if defined(__Pyx_Generator_USED) || defined(__Pyx_Coroutine_USED)
@@ -1501,22 +1520,20 @@ static int __Pyx_patch_abc(void) {
                 return -1;
             }
         } else {
-            module = __Pyx_Coroutine_patch_module(
-                module, CSTRING("""\
-if _cython_generator_type is not None:
-    try: Generator = _module.Generator
-    except AttributeError: pass
-    else: Generator.register(_cython_generator_type)
-if _cython_coroutine_type is not None:
-    try: Coroutine = _module.Coroutine
-    except AttributeError: pass
-    else: Coroutine.register(_cython_coroutine_type)
-""")
-            );
+            module = __Pyx_patch_abc_module(module);
             abc_patched = 1;
             if (unlikely(!module))
                 return -1;
             Py_DECREF(module);
+        }
+        // also register with "backports_abc" module if available, just in case
+        module = PyImport_ImportModule("backports_abc");
+        if (module) {
+            module = __Pyx_patch_abc_module(module);
+            Py_XDECREF(module);
+        }
+        if (!module) {
+            PyErr_Clear();
         }
     }
 #else

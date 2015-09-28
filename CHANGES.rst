@@ -17,6 +17,13 @@ Bugs fixed
 * Large folded or inserted integer constants could use too small C
   integer types and thus trigger a value wrap-around.
 
+Other changes
+-------------
+
+* The coroutine and generator types of Cython now also register directly
+  with the ``Coroutine`` and ``Generator`` ABCs in the ``backports_abc``
+  module if it can be imported.
+
 
 0.23.2 (2015-09-11)
 ===================
