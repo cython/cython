@@ -73,12 +73,17 @@ function InstallPip ($python_home) {
         Write-Host "Executing:" $python_path $GET_PIP_PATH
         Start-Process -FilePath "$python_path" -ArgumentList "$GET_PIP_PATH"
         Write-Host "pip installation complete"
-   }
-   Write-Host "Upgrading setuptools"
-   $args = "install --upgrade setuptools"
-   Write-Host "Executing:" $pip_path $args
-   Start-Process -FilePath $pip_path -ArgumentList $args -Wait
-   Write-Host "setuptools upgrade complete"
+    }
+    Write-Host "Upgrading setuptools"
+    $args = "install --upgrade setuptools"
+    Write-Host "Executing:" $pip_path $args
+    Try {
+        Start-Process -FilePath $pip_path -ArgumentList $args -Wait
+        Write-Host "setuptools upgrade complete"
+    }
+    Catch {
+        Write-Host "setuptools upgrade failed"
+    }
 }
 
 function InstallPipPackage ($python_home, $pkg) {

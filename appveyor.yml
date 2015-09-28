@@ -60,14 +60,14 @@ install:
 
 build: off
 build_script:
-  - "%WITH_COMPILER% %PYTHON%\\python.exe setupegg.py build"
-  - "%WITH_COMPILER% %PYTHON%\\python.exe setupegg.py --quiet bdist_wheel"
-  - "%WITH_COMPILER% %PYTHON%\\python.exe setupegg.py --quiet bdist_msi"
-  - "%WITH_COMPILER% %PYTHON%\\python.exe setupegg.py --quiet bdist_wininst"
+  - "%WITH_COMPILER% %PYTHON%\\python.exe setup.py build"
+  - "%WITH_COMPILER% %PYTHON%\\python.exe setup.py --quiet bdist_wheel"
+# - "%WITH_COMPILER% %PYTHON%\\python.exe setup.py --quiet bdist_msi"
+  - "%WITH_COMPILER% %PYTHON%\\python.exe setup.py --quiet bdist_wininst"
 
 test: off
 test_script:
-  - "%WITH_COMPILER% %PYTHON%\\python.exe setupegg.py test"
+  - "%WITH_COMPILER% %PYTHON%\\python.exe setup.py test"
 
 artifacts:
   - path: dist\*
