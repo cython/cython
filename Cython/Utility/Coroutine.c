@@ -1695,11 +1695,7 @@ static PyTypeObject __Pyx__PyExc_StopAsyncIteration_type = {
     0,                                  /*tp_print*/
     0,                                  /*tp_getattr*/
     0,                                  /*tp_setattr*/
-#if PY_MAJOR_VERSION < 3
-    0,                                  /*tp_compare*/
-#else
-    0,                                  /*reserved*/
-#endif
+    0,                                  /*tp_compare / reserved*/
     0,                                  /*tp_repr*/
     0,                                  /*tp_as_number*/
     0,                                  /*tp_as_sequence*/
