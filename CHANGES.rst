@@ -76,7 +76,7 @@ Other changes
 
 * The coroutine and generator types of Cython now also register directly
   with the ``Coroutine`` and ``Generator`` ABCs in the ``backports_abc``
-  module if it can be imported.
+  module if it can be imported.  This fixes ticket 870.
 
 
 0.23.2 (2015-09-11)
