@@ -24,6 +24,7 @@ Features added
   when compiling with Py3.
 
 * Exception type tests have slightly lower overhead.
+  This fixes ticket 868.
 
 Bugs fixed
 ----------
