@@ -1238,7 +1238,15 @@ class IntNode(ConstNode):
             self.result_code = self.get_constant_c_result_code()
 
     def get_constant_c_result_code(self):
-        return self.value_as_c_integer_string() + self.unsigned + self.longness
+        unsigned, longness = self.unsigned, self.longness
+        literal = self.value_as_c_integer_string()
+        if not (unsigned or longness) and self.type.is_int and literal[0] == '-' and literal[1] != '0':
+            # negative decimal literal => guess longness from type to prevent wrap-around
+            if self.type.rank >= PyrexTypes.c_longlong_type.rank:
+                longness = 'LL'
+            elif self.type.rank >= PyrexTypes.c_long_type.rank:
+                longness = 'L'
+        return literal + unsigned + longness
 
     def value_as_c_integer_string(self):
         value = self.value
