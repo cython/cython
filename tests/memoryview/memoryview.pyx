@@ -1024,12 +1024,18 @@ def test_cpython_offbyone_issue_23349():
     return bytearray(v).decode('ascii')
 
 
-cdef int min_max_tree_restructuring():
+@cython.test_fail_if_path_exists('//SimpleCallNode')
+@cython.test_assert_path_exists(
+    '//ReturnStatNode//TupleNode',
+    '//ReturnStatNode//TupleNode//CondExprNode',
+)
+def min_max_tree_restructuring():
     """
     >>> min_max_tree_restructuring()
+    (1, 3)
     """
     cdef char a[5]
     a = [1, 2, 3, 4, 5]
     cdef char[:] aview = a
 
-    return max(<char>1, aview[0])
+    return max(<char>1, aview[0]), min(<char>5, aview[2])
