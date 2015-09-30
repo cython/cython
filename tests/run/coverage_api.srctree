@@ -93,7 +93,7 @@ for module in [coverage_test_py, coverage_test_pyx, coverage_test_include_pyx]:
 def source_file_for(module):
     module_name = module.__name__
     path, ext = os.path.splitext(module.__file__)
-    platform_suffix = re.search(r'[.]cpython-[0-9]+[a-z]*$', path, re.I)
+    platform_suffix = re.search(r'[.](?:cpython|pypy)-[0-9]+[^.]*$', path, re.I)
     if platform_suffix:
         path = path[:platform_suffix.start()]
     return path + '.' + module_name.rsplit('_', 1)[-1]
