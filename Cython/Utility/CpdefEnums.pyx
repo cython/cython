@@ -22,7 +22,7 @@ cdef class __Pyx_EnumMeta(type):
         return cls.__members__[name]
 
 # @cython.internal
-cdef type __Pyx_EnumBase
+cdef object __Pyx_EnumBase
 class __Pyx_EnumBase(int):
     __metaclass__ = __Pyx_EnumMeta
     def __new__(cls, value, name=None):
@@ -41,13 +41,16 @@ class __Pyx_EnumBase(int):
     def __str__(self):
         return "%s.%s" % (self.__class__.__name__, self.name)
 
+if PY_VERSION_HEX >= 0x03040000:
+    from enum import IntEnum as __Pyx_EnumBase
+
 #################### EnumType ####################
 #@requires: EnumBase
 
 cdef dict __Pyx_globals = globals()
 if PY_VERSION_HEX >= 0x03040000:
-    from enum import IntEnum
-    {{name}} = IntEnum('{{name}}', __Pyx_OrderedDict([
+    # create new IntEnum()
+    {{name}} = __Pyx_EnumBase('{{name}}', __Pyx_OrderedDict([
         {{for item in items}}
         ('{{item}}', {{item}}),
         {{endfor}}
