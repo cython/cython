@@ -770,7 +770,7 @@ class IterationTransform(Visitor.EnvTransform):
                                 operand1=ExprNodes.IntNode(
                                     bound1.pos,
                                     value=str(abs_step),
-                                    constant_value=abs_step,
+                                    constant_result=abs_step,
                                     type=spanning_step_type),
                                 operator='*',
                                 operand2=ExprNodes.DivNode(
@@ -793,7 +793,7 @@ class IterationTransform(Visitor.EnvTransform):
                                     operand2=ExprNodes.IntNode(
                                         bound1.pos,
                                         value=str(abs_step),
-                                        constant_value=abs_step,
+                                        constant_result=abs_step,
                                         type=spanning_step_type),
                                     type=spanning_step_type),
                                 type=spanning_step_type),
