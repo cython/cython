@@ -41,6 +41,10 @@ True
 True
 >>> PyxEnum(2) is PyxEnum["TWO"] is PyxEnum.TWO
 True
+
+>>> IntEnum  # not leaking into module namespace
+Traceback (most recent call last):
+NameError: name 'IntEnum' is not defined
 """
 
 
