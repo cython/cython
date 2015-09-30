@@ -44,13 +44,6 @@ __doc__ = u"""
     ...    pass
 """
 
-import sys
-if sys.version_info < (2,5):
-    # disable in earlier versions
-    __doc__ = """
->>> # nothing to test here ...
-"""
-
 cimport cython
 
 def test_profile(long N):
