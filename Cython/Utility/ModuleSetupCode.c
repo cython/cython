@@ -220,7 +220,7 @@ typedef struct {
   #endif
 #endif
 
-#define __Pyx_void_to_None(void_result) (void_result, Py_INCREF(Py_None), Py_None)
+#define __Pyx_void_to_None(void_result) ((void)(void_result), Py_INCREF(Py_None), Py_None)
 
 
 /////////////// CInitCode ///////////////

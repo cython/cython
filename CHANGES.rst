@@ -57,6 +57,17 @@ Other changes
 -------------
 
 
+0.23.4 (2015-??-??)
+===================
+
+Bugs fixed
+----------
+
+* Compilation problem with MSVC in C99-ish mode.
+
+* Warning about unused values in a helper macro.
+
+
 0.23.3 (2015-09-29)
 ===================
 
