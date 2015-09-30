@@ -27,8 +27,6 @@ class TempHandle(object):
     def ref(self, pos):
         return TempRefNode(pos, handle=self, type=self.type)
 
-    def cleanup_ref(self, pos):
-        return CleanupTempRefNode(pos, handle=self, type=self.type)
 
 class TempRefNode(AtomicExprNode):
     # THIS IS DEPRECATED, USE LetRefNode instead
@@ -65,17 +63,6 @@ class TempRefNode(AtomicExprNode):
         rhs.generate_post_assignment_code(code)
         rhs.free_temps(code)
 
-class CleanupTempRefNode(TempRefNode):
-    # THIS IS DEPRECATED, USE LetRefNode instead
-    # handle   TempHandle
-
-    def generate_assignment_code(self, rhs, code, overloaded_assignment=False):
-        pass
-
-    def generate_execution_code(self, code):
-        if self.type.is_pyobject:
-            code.put_decref_clear(self.result(), self.type)
-            self.handle.needs_cleanup = False
 
 class TempsBlockNode(Node):
     # THIS IS DEPRECATED, USE LetNode instead
