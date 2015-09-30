@@ -5,7 +5,11 @@
 // but maybe some other profilers don't.
 
 #ifndef CYTHON_PROFILE
+#if CYTHON_COMPILING_IN_PYPY
+  #define CYTHON_PROFILE 0
+#else
   #define CYTHON_PROFILE 1
+#endif
 #endif
 
 #ifndef CYTHON_TRACE_NOGIL
