@@ -147,24 +147,9 @@ class FastMachine(object):
         '': None, 'bol': None, 'eol': None, 'eof': None, 'else': None
     }
 
-    def __init__(self, old_machine=None):
-        self.initial_states = initial_states = {}
+    def __init__(self):
+        self.initial_states = {}
         self.states = []
-        if old_machine:
-            self.old_to_new = old_to_new = {}
-            for old_state in old_machine.states:
-                new_state = self.new_state()
-                old_to_new[old_state] = new_state
-            for name, old_state in old_machine.initial_states.items():
-                initial_states[name] = old_to_new[old_state]
-            for old_state in old_machine.states:
-                new_state = old_to_new[old_state]
-                for event, old_state_set in old_state.transitions.items():
-                    if old_state_set:
-                        new_state[event] = old_to_new[old_state_set.keys()[0]]
-                    else:
-                        new_state[event] = None
-                new_state['action'] = old_state.action
 
     def __del__(self):
         for state in self.states:
