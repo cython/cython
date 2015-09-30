@@ -24,12 +24,12 @@
     #define __Pyx_sst_abs(value) abs(value)
 #elif SIZEOF_LONG >= SIZEOF_SIZE_T
     #define __Pyx_sst_abs(value) labs(value)
-#elif defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
-    #define __Pyx_sst_abs(value) llabs(value)
 #elif defined (_MSC_VER) && defined (_M_X64)
     // abs() is defined for long, but 64-bits type on MSVC is long long.
     // Use MS-specific _abs64 instead.
     #define __Pyx_sst_abs(value) _abs64(value)
+#elif defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+    #define __Pyx_sst_abs(value) llabs(value)
 #elif defined (__GNUC__)
     // gcc or clang on 64 bit windows.
     #define __Pyx_sst_abs(value) __builtin_llabs(value)
