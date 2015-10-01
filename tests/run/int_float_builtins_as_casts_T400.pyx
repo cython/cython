@@ -102,7 +102,7 @@ def float_to_float_float(float x):
     return r
 
 @cython.test_fail_if_path_exists("//SimpleCallNode",
-                                 "//SingleAssignmentNode/TypecastNode")
+                                 "//SingleAssignmentNode//TypecastNode")
 def double_to_double_float(double x):
     """
     >>> 4.05 < double_to_double_float(4.1) < 4.15
@@ -115,8 +115,8 @@ def double_to_double_float(double x):
 
 # tests that cannot be optimised
 
-@cython.test_fail_if_path_exists("//SingleAssignmentNode/TypecastNode")
-@cython.test_assert_path_exists("//SimpleCallNode")
+@cython.test_fail_if_path_exists("//TypecastNode")
+@cython.test_assert_path_exists("//PythonCapiCallNode")
 def double_to_py_int(double x):
     """
     >>> double_to_py_int(4.1)
@@ -126,8 +126,8 @@ def double_to_py_int(double x):
     """
     return int(x)
 
-@cython.test_fail_if_path_exists("//SingleAssignmentNode/TypecastNode")
-@cython.test_assert_path_exists("//SimpleCallNode")
+@cython.test_fail_if_path_exists("//SingleAssignmentNode//TypecastNode")
+@cython.test_assert_path_exists("//PythonCapiCallNode")
 def double_to_double_int(double x):
     """
     >>> double_to_double_int(4.1)
@@ -137,6 +137,73 @@ def double_to_double_int(double x):
     """
     cdef double r = int(x)
     return r
+
+
+@cython.test_fail_if_path_exists("//SingleAssignmentNode//TypecastNode")
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode",
+    "//PythonCapiCallNode/PythonCapiFunctionNode/@cname = 'truncf'",
+)
+def float_to_float_int(float x):
+    """
+    >>> float_to_float_int(4.1)
+    4.0
+    >>> float_to_float_int(4)
+    4.0
+    """
+    cdef float r = int(x)
+    return r
+
+
+@cython.test_fail_if_path_exists("//SingleAssignmentNode//TypecastNode")
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode",
+    "//PythonCapiCallNode/PythonCapiFunctionNode/@cname = 'truncf'",
+)
+def float_to_double_int(float x):
+    """
+    >>> float_to_double_int(4.1)
+    4.0
+    >>> float_to_double_int(4)
+    4.0
+    """
+    cdef double r = int(x)
+    return r
+
+
+@cython.test_fail_if_path_exists("//SingleAssignmentNode//TypecastNode")
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode",
+    "//PythonCapiCallNode/PythonCapiFunctionNode/@cname = 'trunc'",
+)
+def double_to_float_int(double x):
+    """
+    >>> double_to_float_int(4.1)
+    4.0
+    >>> double_to_float_int(4)
+    4.0
+    """
+    cdef float r = int(x)
+    return r
+
+
+@cython.test_fail_if_path_exists("//SingleAssignmentNode//TypecastNode")
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode",
+    "//PythonCapiCallNode/PythonCapiFunctionNode/@cname = 'truncl'",
+)
+def long_double_to_float_int(long double x):
+    """
+    >>> long_double_to_float_int(4.1)
+    4.0
+    >>> long_double_to_float_int(-4.1)
+    -4.0
+    >>> long_double_to_float_int(4)
+    4.0
+    """
+    cdef float r = int(x)
+    return r
+
 
 @cython.test_fail_if_path_exists("//SimpleCallNode")
 @cython.test_assert_path_exists("//PythonCapiCallNode")

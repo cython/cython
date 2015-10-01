@@ -2040,28 +2040,46 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 return node
         return coerce_node
 
+    float_float_func_types = dict(
+        (float_type, PyrexTypes.CFuncType(
+            float_type, [
+                PyrexTypes.CFuncTypeArg("arg", float_type, None)
+            ]))
+        for float_type in (PyrexTypes.c_float_type, PyrexTypes.c_double_type, PyrexTypes.c_longdouble_type))
+
     def _optimise_numeric_cast_call(self, node, arg):
         function = arg.function
-        if not isinstance(function, ExprNodes.NameNode) \
-               or not function.type.is_builtin_type \
-               or not isinstance(arg.arg_tuple, ExprNodes.TupleNode):
-            return node
-        args = arg.arg_tuple.args
-        if len(args) != 1:
+        args = None
+        if isinstance(arg, ExprNodes.PythonCapiCallNode):
+            args = arg.args
+        elif isinstance(function, ExprNodes.NameNode):
+            if function.type.is_builtin_type and isinstance(arg.arg_tuple, ExprNodes.TupleNode):
+                args = arg.arg_tuple.args
+
+        if args is None or len(args) != 1:
             return node
         func_arg = args[0]
         if isinstance(func_arg, ExprNodes.CoerceToPyTypeNode):
             func_arg = func_arg.arg
         elif func_arg.type.is_pyobject:
-            # play safe: Python conversion might work on all sorts of things
+            # play it safe: Python conversion might work on all sorts of things
             return node
+
         if function.name == 'int':
             if func_arg.type.is_int or node.type.is_int:
                 if func_arg.type == node.type:
                     return func_arg
                 elif node.type.assignable_from(func_arg.type) or func_arg.type.is_float:
-                    return ExprNodes.TypecastNode(
-                        node.pos, operand=func_arg, type=node.type)
+                    return ExprNodes.TypecastNode(node.pos, operand=func_arg, type=node.type)
+            elif func_arg.type.is_float and node.type.is_numeric:
+                return ExprNodes.PythonCapiCallNode(
+                    node.pos, 'trunc' + func_arg.type.math_h_modifier,
+                    func_type=self.float_float_func_types[func_arg.type],
+                    args=[func_arg],
+                    py_name='int',
+                    is_temp=node.is_temp,
+                    result_is_used=node.result_is_used,
+                ).coerce_to(node.type, self.current_env())
         elif function.name == 'float':
             if func_arg.type.is_float or node.type.is_float:
                 if func_arg.type == node.type:
@@ -2295,6 +2313,11 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             PyrexTypes.CFuncTypeArg("o", PyrexTypes.py_object_type, None)
             ])
 
+    PyInt_FromDouble_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("value", PyrexTypes.c_double_type, None)
+            ])
+
     def _handle_simple_function_int(self, node, function, pos_args):
         """Transform int() into a faster C function call.
         """
@@ -2305,11 +2328,17 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             return node  # int(x, base)
         func_arg = pos_args[0]
         if isinstance(func_arg, ExprNodes.CoerceToPyTypeNode):
-            return node  # handled in visit_CoerceFromPyTypeNode()
+            if func_arg.arg.type.is_float:
+                return ExprNodes.PythonCapiCallNode(
+                    node.pos, "__Pyx_PyInt_FromDouble", self.PyInt_FromDouble_func_type,
+                    args=[func_arg.arg], is_temp=True, py_name='int',
+                    utility_code=UtilityCode.load_cached("PyIntFromDouble", "TypeConversion.c"))
+            else:
+                return node  # handled in visit_CoerceFromPyTypeNode()
         if func_arg.type.is_pyobject and node.type.is_pyobject:
             return ExprNodes.PythonCapiCallNode(
                 node.pos, "PyNumber_Int", self.PyNumber_Int_func_type,
-                args=pos_args, is_temp=True)
+                args=pos_args, is_temp=True, py_name='int')
         return node
 
     def _handle_simple_function_bool(self, node, function, pos_args):
