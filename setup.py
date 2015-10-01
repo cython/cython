@@ -175,15 +175,18 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
             dead_modules = []
 
             def build_extensions(self):
-                # add path where 2to3 installed the transformed sources
-                # and make sure Python (re-)imports them from there
-                already_imported = [ module for module in sys.modules
-                                     if module == 'Cython' or module.startswith('Cython.') ]
-                keep_alive = self.dead_modules.append
-                for module in already_imported:
-                    keep_alive(sys.modules[module])
-                    del sys.modules[module]
-                sys.path.insert(0, os.path.join(source_root, self.build_lib))
+                if sys.version_info[:2] == (3, 2):
+                    # add path where 2to3 installed the transformed sources
+                    # and make sure Python (re-)imports them from there
+                    already_imported = [
+                        module for module in sys.modules
+                        if module == 'Cython' or module.startswith('Cython.')
+                    ]
+                    keep_alive = self.dead_modules.append
+                    for module in already_imported:
+                        keep_alive(sys.modules[module])
+                        del sys.modules[module]
+                    sys.path.insert(0, os.path.join(source_root, self.build_lib))
 
                 if profile:
                     from Cython.Compiler.Options import directive_defaults
