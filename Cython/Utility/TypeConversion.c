@@ -81,7 +81,7 @@ static CYTHON_INLINE size_t __Pyx_Py_UNICODE_strlen(const Py_UNICODE *u)
 #define __Pyx_Owned_Py_None(b) __Pyx_NewRef(Py_None)
 #define __Pyx_PyBool_FromLong(b) ((b) ? __Pyx_NewRef(Py_True) : __Pyx_NewRef(Py_False))
 static CYTHON_INLINE int __Pyx_PyObject_IsTrue(PyObject*);
-static CYTHON_INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x);
+static CYTHON_INLINE PyObject* __Pyx_PyNumber_IntOrLong(PyObject* x);
 
 static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject*);
 static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t);
@@ -92,6 +92,13 @@ static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t);
 #define __pyx_PyFloat_AsDouble(x) PyFloat_AsDouble(x)
 #endif
 #define __pyx_PyFloat_AsFloat(x) ((float) __pyx_PyFloat_AsDouble(x))
+
+#if PY_MAJOR_VERSION >= 3
+#define __Pyx_PyNumber_Int(x) (PyLong_CheckExact(x) ? __Pyx_NewRef(x) : PyNumber_Long(x))
+#else
+#define __Pyx_PyNumber_Int(x) (PyInt_CheckExact(x) ? __Pyx_NewRef(x) : PyNumber_Int(x))
+#endif
+#define __Pyx_PyNumber_Float(x) (PyFloat_CheckExact(x) ? __Pyx_NewRef(x) : PyNumber_Float(x))
 
 #if PY_MAJOR_VERSION < 3 && __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
 static int __Pyx_sys_getdefaultencoding_not_ascii;
@@ -258,7 +265,7 @@ static CYTHON_INLINE int __Pyx_PyObject_IsTrue(PyObject* x) {
    else return PyObject_IsTrue(x);
 }
 
-static CYTHON_INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x) {
+static CYTHON_INLINE PyObject* __Pyx_PyNumber_IntOrLong(PyObject* x) {
   PyNumberMethods *m;
   const char *name = NULL;
   PyObject *res = NULL;
@@ -707,7 +714,7 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
                             "_PyLong_AsByteArray() not available in PyPy, cannot convert large numbers");
 #else
             {{TYPE}} val;
-            PyObject *v = __Pyx_PyNumber_Int(x);
+            PyObject *v = __Pyx_PyNumber_IntOrLong(x);
  #if PY_MAJOR_VERSION < 3
             if (likely(v) && !PyLong_Check(v)) {
                 PyObject *tmp = v;
@@ -730,7 +737,7 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
         }
     } else {
         {{TYPE}} val;
-        PyObject *tmp = __Pyx_PyNumber_Int(x);
+        PyObject *tmp = __Pyx_PyNumber_IntOrLong(x);
         if (!tmp) return ({{TYPE}}) -1;
         val = {{FROM_PY_FUNCTION}}(tmp);
         Py_DECREF(tmp);

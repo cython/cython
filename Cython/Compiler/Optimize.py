@@ -1968,6 +1968,36 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 return arg.arg.coerce_to_boolean(self.current_env())
         return node
 
+    PyNumber_Float_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("o", PyrexTypes.py_object_type, None)
+            ])
+
+    def visit_CoerceToPyTypeNode(self, node):
+        """Drop redundant conversion nodes after tree changes."""
+        self.visitchildren(node)
+        arg = node.arg
+        if isinstance(arg, ExprNodes.CoerceFromPyTypeNode):
+            arg = arg.arg
+        if arg.type.is_pyobject:
+            if node.type in (arg.type, PyrexTypes.py_object_type):
+                return arg
+        if isinstance(arg, ExprNodes.PythonCapiCallNode):
+            if arg.function.name == 'float' and len(arg.args) == 1:
+                # undo redundant Py->C->Py coercion
+                func_arg = arg.args[0]
+                if func_arg.type is Builtin.float_type:
+                    return func_arg.as_none_safe_node("float() argument must be a string or a number, not 'NoneType'")
+                elif func_arg.type.is_pyobject:
+                    return ExprNodes.PythonCapiCallNode(
+                        node.pos, '__Pyx_PyNumber_Float', self.PyNumber_Float_func_type,
+                        args=[func_arg],
+                        py_name='float',
+                        is_temp=node.is_temp,
+                        result_is_used=node.result_is_used,
+                    ).coerce_to(node.type, self.current_env())
+        return node
+
     def visit_CoerceFromPyTypeNode(self, node):
         """Drop redundant conversion nodes after tree changes.
 
@@ -2337,7 +2367,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 return node  # handled in visit_CoerceFromPyTypeNode()
         if func_arg.type.is_pyobject and node.type.is_pyobject:
             return ExprNodes.PythonCapiCallNode(
-                node.pos, "PyNumber_Int", self.PyNumber_Int_func_type,
+                node.pos, "__Pyx_PyNumber_Int", self.PyNumber_Int_func_type,
                 args=pos_args, is_temp=True, py_name='int')
         return node
 
