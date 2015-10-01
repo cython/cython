@@ -1979,9 +1979,6 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         arg = node.arg
         if isinstance(arg, ExprNodes.CoerceFromPyTypeNode):
             arg = arg.arg
-        if arg.type.is_pyobject:
-            if node.type in (arg.type, PyrexTypes.py_object_type):
-                return arg
         if isinstance(arg, ExprNodes.PythonCapiCallNode):
             if arg.function.name == 'float' and len(arg.args) == 1:
                 # undo redundant Py->C->Py coercion
