@@ -1,7 +1,5 @@
 # https://ci.appveyor.com/project/cython/cython
 
-version: {branch}-{build}
-
 environment:
 
   global:
@@ -80,6 +78,9 @@ test_script:
 
 artifacts:
   - path: dist\*
+
+cache:
+  - C:\Downloads\Cython -> appveyor\install.ps1
 
 #on_success:
 #  - TODO: upload the content of dist/*.whl to a public wheelhouse

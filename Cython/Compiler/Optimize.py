@@ -1739,7 +1739,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         if len(args) <= 1:
             if len(args) == 1 and args[0].is_sequence_constructor:
                 args = args[0].args
-            else:
+            if len(args) < 1:
                 # leave this to Python
                 return node
 
