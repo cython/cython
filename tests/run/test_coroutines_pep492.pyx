@@ -96,7 +96,7 @@ def run_async(coro):
         try:
             buffer.append(coro.send(None))
         except StopIteration as ex:
-            result = ex.args[0] if ex.args else None
+            result = ex.value if sys.version_info >= (3, 5) else ex.args[0] if ex.args else None
             break
     return buffer, result
 
@@ -115,7 +115,7 @@ def run_async__await__(coro):
                 buffer.append(aw.send(None))
             i += 1
         except StopIteration as ex:
-            result = ex.args[0] if ex.args else None
+            result = ex.value if sys.version_info >= (3, 5) else ex.args[0] if ex.args else None
             break
     return buffer, result
 
