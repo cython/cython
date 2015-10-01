@@ -295,6 +295,18 @@ setup_args.update(setuptools_extra_args)
 
 from Cython import __version__ as version
 
+
+def dev_status():
+    if 'b' in version or 'c' in version:
+        # 1b1, 1beta1, 2rc1, ...
+        return 'Development Status :: 4 - Beta'
+    elif 'a' in version:
+        # 1a1, 1alpha1, ...
+        return 'Development Status :: 3 - Alpha'
+    else:
+        return 'Development Status :: 5 - Production/Stable'
+
+
 packages = [
     'Cython',
     'Cython.Build',
@@ -328,19 +340,20 @@ setup(
     easy as Python itself.  Cython is a source code translator based on Pyrex_,
     but supports more cutting edge functionality and optimizations.
 
-    The Cython language is very close to the Python language (and most Python
-    code is also valid Cython code), but Cython additionally supports calling C
-    functions and declaring C types on variables and class attributes. This
-    allows the compiler to generate very efficient C code from Cython code.
+    The Cython language is a superset of the Python language (almost all Python
+    code is also valid Cython code), but Cython additionally supports optional
+    static typing to natively call C functions, operate with C++ classes and
+    declare fast C types on variables and class attributes.  This allows the
+    compiler to generate very efficient C code from Cython code.
 
-    This makes Cython the ideal language for writing glue code for external C
-    libraries, and for fast C modules that speed up the execution of Python
-    code.
+    This makes Cython the ideal language for writing glue code for external
+    C/C++ libraries, and for fast C modules that speed up the execution of
+    Python code.
 
     .. _Pyrex: http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
     """),
     classifiers=[
-        "Development Status :: 5 - Production/Stable",
+        dev_status(),
         "Intended Audience :: Developers",
         "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
