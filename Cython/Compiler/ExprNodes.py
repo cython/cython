@@ -7172,6 +7172,16 @@ class TupleNode(SequenceNode):
             node.is_partly_literal = True
         return node
 
+    def analyse_as_type(self, env):
+        # ctuple type
+        if not self.args:
+            return None
+        item_types = [arg.analyse_as_type(env) for arg in self.args]
+        if any(t is None for t in item_types):
+            return None
+        entry = env.declare_tuple_type(self.pos, item_types)
+        return entry.type
+
     def coerce_to(self, dst_type, env):
         if self.type.is_ctuple:
             if dst_type.is_ctuple and self.type.size == dst_type.size:

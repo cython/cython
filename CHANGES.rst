@@ -16,6 +16,8 @@ Features added
 
 * Cpdef enums are now first-class iterable, callable types in Python.
 
+* Ctuples can now be declared in pure Python code.
+
 * Posix declarations for DLL loading and stdio extensions were added.
   Patch by Lars Buitinck.
 

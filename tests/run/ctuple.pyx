@@ -141,6 +141,7 @@ cpdef (int, double) cpdef_ctuple_return_type(int x, double y):
     """
     return x, y
 
+
 @cython.infer_types(True)
 def test_type_inference():
     """
@@ -153,6 +154,28 @@ def test_type_inference():
     assert cython.typeof(xy) == "(int, double)", cython.typeof(xy)
     xo = (x, o)
     assert cython.typeof(xo) == "tuple object", cython.typeof(xo)
+
+
+@cython.locals(a=(int,int), b=(cython.long,cython.float))
+def test_pure_python_declaration(x, y):
+    """
+    >>> test_pure_python_declaration(1, 2)
+    (int, int)
+    (long, float)
+    ((1, 2), (1, 2.0))
+    >>> test_pure_python_declaration(1.0, 2.0)
+    (int, int)
+    (long, float)
+    ((1, 2), (1, 2.0))
+    >>> test_pure_python_declaration('x', 'y')
+    Traceback (most recent call last):
+    TypeError: an integer is required
+    """
+    a = (x, y)
+    b = (x, y)
+    print(cython.typeof(a))
+    print(cython.typeof(b))
+    return (a, b)
 
 
 def test_equality((int, int) ab, (int, int) cd, (int, int) ef):

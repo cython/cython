@@ -222,6 +222,8 @@ The Python types int, long and bool are interpreted as C ``int``, ``long``
 and ``bint`` respectively. Also, the Python builtin types ``list``, ``dict``,
 ``tuple``, etc. may be used, as well as any user defined types.
 
+Typed C-tuples can be declared as a tuple of C types.
+
 
 Extension types and cdef functions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
