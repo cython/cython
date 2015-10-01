@@ -97,7 +97,8 @@ class Spline(object):
                 self.knots[len(self.knots) - self.degree])
 
     @cython.locals(ik=cython.long, ii=cython.long, I=cython.long,
-                   ua=cython.long, ub=cython.long, u=cython.double)
+                   ua=cython.long, ub=cython.long, u=cython.double,
+                   dom=(cython.long, cython.long))
     def __call__(self, u):
         """Calculates a point of the B-Spline using de Boors Algorithm"""
         dom = self.GetDomain()
@@ -121,7 +122,7 @@ class Spline(object):
                 d[index] = d[index].linear_combination(d[index + 1], co1, co2)
         return d[0]
 
-    @cython.locals(ii=cython.long, I=cython.long)
+    @cython.locals(ii=cython.long, I=cython.long, dom=(cython.long, cython.long))
     def GetIndex(self, u):
         dom = self.GetDomain()
         for ii in range(self.degree - 1, len(self.knots) - self.degree):
@@ -212,6 +213,7 @@ class Chaosgame(object):
         if point.y < self.miny:
             point.y = self.miny
 
+    @cython.locals(x=cython.long, y=cython.long)
     def create_image_chaos(self, timer, w, h, n):
         im = [[1] * h for i in range(w)]
         point = GVector((self.maxx + self.minx) / 2,
@@ -221,10 +223,8 @@ class Chaosgame(object):
             t1 = timer()
             for i in range(5000):
                 point = self.transform_point(point)
-                x = (point.x - self.minx) / self.width * w
-                y = (point.y - self.miny) / self.height * h
-                x = int(x)
-                y = int(y)
+                x = int((point.x - self.minx) / self.width * w)
+                y = int((point.y - self.miny) / self.height * h)
                 if x == w:
                     x -= 1
                 if y == h:
