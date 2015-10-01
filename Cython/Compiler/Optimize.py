@@ -2006,10 +2006,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         arg = node.arg
         if not arg.type.is_pyobject:
             # no Python conversion left at all, just do a C coercion instead
-            if node.type == arg.type:
-                return arg
-            else:
-                return arg.coerce_to(node.type, self.current_env())
+            if node.type != arg.type:
+                arg = arg.coerce_to(node.type, self.current_env())
+            return arg
         if isinstance(arg, ExprNodes.PyTypeTestNode):
             arg = arg.arg
         if arg.is_literal:
