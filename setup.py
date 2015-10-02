@@ -160,53 +160,59 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
             defines_for_module = []
         else:
             defines_for_module = defines
-        extensions.append(
-            Extension(module, sources = [pyx_source_file],
-                      define_macros = defines_for_module,
-                      depends = dep_files)
-            )
-        # XXX hack for '*.pyx ' sources
+        extensions.append(Extension(
+            module, sources=[pyx_source_file],
+            define_macros=defines_for_module,
+            depends=dep_files))
+        # XXX hack around setuptools quirk for '*.pyx' sources
         extensions[-1].sources[0] = pyx_source_file
 
-    if sys.version_info[:2] != (3, 2):
-        from Cython.Distutils import build_ext
-
+    if sys.version_info[:2] == (3, 2):
+        # Python 3.2: can only run Cython *after* running 2to3
+        _defer_cython_compilation_in_py32(source_root, profile)
+    else:
         if profile:
             from Cython.Compiler.Options import directive_defaults
             directive_defaults['profile'] = True
             print("Enabled profiling for the Cython binary modules")
 
-        setup_args['ext_modules'] = extensions
-        add_command_class("build_ext", build_ext)
+        from Cython.Build import cythonize
+        extensions = cythonize(extensions)
 
-    else: # Python 3.2
-        from Cython.Distutils import build_ext as build_ext_orig
+    setup_args['ext_modules'] = extensions
 
-        class build_ext(build_ext_orig):
-            # we must keep the original modules alive to make sure
-            # their code keeps working when we remove them from
-            # sys.modules
-            dead_modules = []
 
-            def build_extensions(self):
-                # add path where 2to3 installed the transformed sources
-                # and make sure Python (re-)imports them from there
-                already_imported = [ module for module in sys.modules
-                                     if module == 'Cython' or module.startswith('Cython.') ]
-                keep_alive = self.dead_modules.append
-                for module in already_imported:
-                    keep_alive(sys.modules[module])
-                    del sys.modules[module]
-                sys.path.insert(0, os.path.join(source_root, self.build_lib))
+def _defer_cython_compilation_in_py32(source_root, profile=False):
+    # Python 3.2: can only run Cython *after* running 2to3
+    # => hook into build_ext
+    from Cython.Distutils import build_ext as build_ext_orig
 
-                if profile:
-                    from Cython.Compiler.Options import directive_defaults
-                    directive_defaults['profile'] = True
-                    print("Enabled profiling for the Cython binary modules")
-                build_ext_orig.build_extensions(self)
+    class build_ext(build_ext_orig):
+        # we must keep the original modules alive to make sure
+        # their code keeps working when we remove them from
+        # sys.modules
+        dead_modules = []
 
-        setup_args['ext_modules'] = extensions
-        add_command_class("build_ext", build_ext)
+        def build_extensions(self):
+            # add path where 2to3 installed the transformed sources
+            # and make sure Python (re-)imports them from there
+            already_imported = [
+                module for module in sys.modules
+                if module == 'Cython' or module.startswith('Cython.')
+            ]
+            keep_alive = self.dead_modules.append
+            for module in already_imported:
+                keep_alive(sys.modules[module])
+                del sys.modules[module]
+            sys.path.insert(0, os.path.join(source_root, self.build_lib))
+
+            if profile:
+                from Cython.Compiler.Options import directive_defaults
+                directive_defaults['profile'] = True
+                print("Enabled profiling for the Cython binary modules")
+            build_ext_orig.build_extensions(self)
+
+    add_command_class("build_ext", build_ext)
 
 
 cython_profile = '--cython-profile' in sys.argv
