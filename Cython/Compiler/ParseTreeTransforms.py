@@ -1,12 +1,12 @@
 from __future__ import absolute_import
 
-import copy
-
 import cython
 cython.declare(PyrexTypes=object, Naming=object, ExprNodes=object, Nodes=object,
                Options=object, UtilNodes=object, LetNode=object,
                LetRefNode=object, TreeFragment=object, EncodedString=object,
                error=object, warning=object, copy=object, _unicode=object)
+
+import copy
 
 from . import PyrexTypes
 from . import Naming

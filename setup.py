@@ -147,124 +147,73 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
         defines.append(('CYTHON_REFNANNY', '1'))
 
     extensions = []
-    if sys.version_info[0] >= 3:
-        from Cython.Distutils import build_ext as build_ext_orig
-        for module in compiled_modules:
-            source_file = os.path.join(source_root, *module.split('.'))
-            if os.path.exists(source_file + ".py"):
-                pyx_source_file = source_file + ".py"
-            else:
-                pyx_source_file = source_file + ".pyx"
-            dep_files = []
-            if os.path.exists(source_file + '.pxd'):
-                dep_files.append(source_file + '.pxd')
-            if '.refnanny' in module:
-                defines_for_module = []
-            else:
-                defines_for_module = defines
-            extensions.append(
-                Extension(module, sources = [pyx_source_file],
-                          define_macros = defines_for_module,
-                          depends = dep_files)
-                )
+    for module in compiled_modules:
+        source_file = os.path.join(source_root, *module.split('.'))
+        if os.path.exists(source_file + ".py"):
+            pyx_source_file = source_file + ".py"
+        else:
+            pyx_source_file = source_file + ".pyx"
+        dep_files = []
+        if os.path.exists(source_file + '.pxd'):
+            dep_files.append(source_file + '.pxd')
+        if '.refnanny' in module:
+            defines_for_module = []
+        else:
+            defines_for_module = defines
+        extensions.append(Extension(
+            module, sources=[pyx_source_file],
+            define_macros=defines_for_module,
+            depends=dep_files))
+        # XXX hack around setuptools quirk for '*.pyx' sources
+        extensions[-1].sources[0] = pyx_source_file
 
-        class build_ext(build_ext_orig):
-            # we must keep the original modules alive to make sure
-            # their code keeps working when we remove them from
-            # sys.modules
-            dead_modules = []
+    if sys.version_info[:2] == (3, 2):
+        # Python 3.2: can only run Cython *after* running 2to3
+        _defer_cython_compilation_in_py32(source_root, profile)
+    else:
+        if profile:
+            from Cython.Compiler.Options import directive_defaults
+            directive_defaults['profile'] = True
+            print("Enabled profiling for the Cython binary modules")
 
-            def build_extensions(self):
-                if sys.version_info[:2] == (3, 2):
-                    # add path where 2to3 installed the transformed sources
-                    # and make sure Python (re-)imports them from there
-                    already_imported = [
-                        module for module in sys.modules
-                        if module == 'Cython' or module.startswith('Cython.')
-                    ]
-                    keep_alive = self.dead_modules.append
-                    for module in already_imported:
-                        keep_alive(sys.modules[module])
-                        del sys.modules[module]
-                    sys.path.insert(0, os.path.join(source_root, self.build_lib))
+        from Cython.Build import cythonize
+        extensions = cythonize(extensions)
 
-                if profile:
-                    from Cython.Compiler.Options import directive_defaults
-                    directive_defaults['profile'] = True
-                    print("Enabled profiling for the Cython binary modules")
-                build_ext_orig.build_extensions(self)
+    setup_args['ext_modules'] = extensions
 
-        setup_args['ext_modules'] = extensions
-        add_command_class("build_ext", build_ext)
 
-    else: # Python 2.x
-        from distutils.command.build_ext import build_ext as build_ext_orig
-        try:
-            class build_ext(build_ext_orig):
-                def build_extension(self, ext, *args, **kargs):
-                    try:
-                        build_ext_orig.build_extension(self, ext, *args, **kargs)
-                    except Exception:
-                        print("Compilation of '%s' failed" % ext.sources[0])
-            from Cython.Compiler.Main import compile
-            from Cython import Utils
+def _defer_cython_compilation_in_py32(source_root, profile=False):
+    # Python 3.2: can only run Cython *after* running 2to3
+    # => hook into build_ext
+    from Cython.Distutils import build_ext as build_ext_orig
+
+    class build_ext(build_ext_orig):
+        # we must keep the original modules alive to make sure
+        # their code keeps working when we remove them from
+        # sys.modules
+        dead_modules = []
+
+        def build_extensions(self):
+            # add path where 2to3 installed the transformed sources
+            # and make sure Python (re-)imports them from there
+            already_imported = [
+                module for module in sys.modules
+                if module == 'Cython' or module.startswith('Cython.')
+            ]
+            keep_alive = self.dead_modules.append
+            for module in already_imported:
+                keep_alive(sys.modules[module])
+                del sys.modules[module]
+            sys.path.insert(0, os.path.join(source_root, self.build_lib))
+
             if profile:
                 from Cython.Compiler.Options import directive_defaults
                 directive_defaults['profile'] = True
                 print("Enabled profiling for the Cython binary modules")
-            source_root = os.path.dirname(__file__)
-            for module in compiled_modules:
-                source_file = os.path.join(source_root, *module.split('.'))
-                if os.path.exists(source_file + ".py"):
-                    pyx_source_file = source_file + ".py"
-                else:
-                    pyx_source_file = source_file + ".pyx"
-                c_source_file = source_file + ".c"
-                source_is_newer = False
-                if not os.path.exists(c_source_file):
-                    source_is_newer = True
-                else:
-                    c_last_modified = Utils.modification_time(c_source_file)
-                    if Utils.file_newer_than(pyx_source_file, c_last_modified):
-                        source_is_newer = True
-                    else:
-                        pxd_source_file = source_file + ".pxd"
-                        if os.path.exists(pxd_source_file) and Utils.file_newer_than(pxd_source_file, c_last_modified):
-                            source_is_newer = True
-                if source_is_newer:
-                    print("Compiling module %s ..." % module)
-                    result = compile(pyx_source_file)
-                    c_source_file = result.c_file
-                if c_source_file:
-                    # Py2 distutils can't handle unicode file paths
-                    if isinstance(c_source_file, unicode):
-                        filename_encoding = sys.getfilesystemencoding()
-                        if filename_encoding is None:
-                            filename_encoding = sys.getdefaultencoding()
-                        c_source_file = c_source_file.encode(filename_encoding)
-                    if '.refnanny' in module:
-                        defines_for_module = []
-                    else:
-                        defines_for_module = defines
-                    extensions.append(
-                        Extension(module, sources = [c_source_file],
-                                  define_macros = defines_for_module)
-                        )
-                else:
-                    print("Compilation failed")
-            if extensions:
-                setup_args['ext_modules'] = extensions
-                add_command_class("build_ext", build_ext)
-        except Exception:
-            print('''
-ERROR: %s
+            build_ext_orig.build_extensions(self)
 
-Extension module compilation failed, looks like Cython cannot run
-properly on this system.  To work around this, pass the option
-"--no-cython-compile".  This will install a pure Python version of
-Cython without compiling its own sources.
-''' % sys.exc_info()[1])
-            raise
+    add_command_class("build_ext", build_ext)
+
 
 cython_profile = '--cython-profile' in sys.argv
 if cython_profile:
