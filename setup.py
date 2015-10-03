@@ -167,26 +167,23 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
         # XXX hack around setuptools quirk for '*.pyx' sources
         extensions[-1].sources[0] = pyx_source_file
 
+    from Cython.Distutils import build_ext
     if sys.version_info[:2] == (3, 2):
         # Python 3.2: can only run Cython *after* running 2to3
-        _defer_cython_compilation_in_py32(source_root, profile)
-    else:
-        if profile:
-            from Cython.Compiler.Options import directive_defaults
-            directive_defaults['profile'] = True
-            print("Enabled profiling for the Cython binary modules")
+        build_ext = _defer_cython_import_in_py32(build_ext, source_root, profile)
+    elif profile:
+        from Cython.Compiler.Options import directive_defaults
+        directive_defaults['profile'] = True
+        print("Enabled profiling for the Cython binary modules")
 
-        from Cython.Build import cythonize
-        extensions = cythonize(extensions)
-
+    # not using cythonize() here to let distutils decide whether building extensions was requested
+    add_command_class("build_ext", build_ext)
     setup_args['ext_modules'] = extensions
 
 
-def _defer_cython_compilation_in_py32(source_root, profile=False):
+def _defer_cython_import_in_py32(build_ext_orig, source_root, profile=False):
     # Python 3.2: can only run Cython *after* running 2to3
-    # => hook into build_ext
-    from Cython.Distutils import build_ext as build_ext_orig
-
+    # => re-import Cython inside of build_ext
     class build_ext(build_ext_orig):
         # we must keep the original modules alive to make sure
         # their code keeps working when we remove them from
@@ -212,7 +209,7 @@ def _defer_cython_compilation_in_py32(source_root, profile=False):
                 print("Enabled profiling for the Cython binary modules")
             build_ext_orig.build_extensions(self)
 
-    add_command_class("build_ext", build_ext)
+    return build_ext
 
 
 cython_profile = '--cython-profile' in sys.argv
