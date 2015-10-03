@@ -71,7 +71,7 @@ build_script:
 
 test: off
 test_script:
-  - "%WITH_ENV% %PYTHON%\\python.exe setup.py test"
+  - "%WITH_ENV% %PYTHON%\\python.exe runtests.py -vv"
 
 artifacts:
   - path: dist\*
