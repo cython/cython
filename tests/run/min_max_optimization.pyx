@@ -8,6 +8,16 @@ class loud_list(list):
 
 # max()
 
+def test_max1(x):
+    """
+    >>> test_max1([1, 2, 3])
+    3
+    >>> test_max1([2])
+    2
+    """
+    return max(x)
+
+
 @cython.test_assert_path_exists(
     '//PrintStatNode//CondExprNode')
 @cython.test_fail_if_path_exists(
