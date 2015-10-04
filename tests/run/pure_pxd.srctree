@@ -39,7 +39,9 @@ class ExtTypeAttributes(object):
 
 def test():
     import os.path
-    assert 'a.py' not in os.path.basename(__file__), __file__
+    assert not os.path.basename(__file__).endswith('.py'), __file__
+    assert not os.path.basename(__file__).endswith('.pyc'), __file__
+    assert not os.path.basename(__file__).endswith('.pyo'), __file__
 
     assert not ExtTypePass().__doc__, ExtTypePass().__doc__
     assert ExtTypeDocstring().__doc__ == "huhu!", ExtTypeDocstring().__doc__
