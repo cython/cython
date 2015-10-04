@@ -945,7 +945,8 @@ class CythonCompileTestCase(unittest.TestCase):
                     with captured_fd(2) as get_stderr:
                         so_path = self.run_distutils(test_directory, module, workdir, incdir)
             except Exception:
-                if 'cerror' in self.tags['tag'] and get_stderr and get_stderr():
+                if ('cerror' in self.tags['tag'] and
+                    ((get_stderr and get_stderr()) or sys.platform == 'win32')):
                     show_output = False  # expected C compiler failure
                 else:
                     raise
