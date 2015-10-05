@@ -71,7 +71,7 @@ build_script:
 
 test: off
 test_script:
-  - "%WITH_ENV% %PYTHON%\\python.exe runtests.py -vv --no-cpp -x common_include_dir -x cythonize_script_package"
+  - "%WITH_ENV% %PYTHON%\\python.exe runtests.py -vv --no-cpp -x common_include_dir -x cythonize_script -x test_grammar -x initial_file_path"
 
 artifacts:
   - path: dist\*
