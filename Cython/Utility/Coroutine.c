@@ -960,11 +960,7 @@ typedef struct {
 } __pyx_CoroutineAwaitObject;
 
 static void __Pyx_CoroutineAwait_dealloc(PyObject *self) {
-#if CYTHON_COMPILING_IN_CPYTHON
-    _PyObject_GC_UNTRACK(self);
-#else
     PyObject_GC_UnTrack(self);
-#endif
     Py_CLEAR(((__pyx_CoroutineAwaitObject*)self)->coroutine);
     PyObject_GC_Del(self);
 }
@@ -1085,7 +1081,7 @@ static CYTHON_INLINE PyObject *__Pyx__Coroutine_await(PyObject *coroutine) {
     Py_INCREF(coroutine);
     await->coroutine = coroutine;
 #if CYTHON_COMPILING_IN_CPYTHON
-    _PyObject_GC_TRACK(await);
+    PyObject_GC_Track(await);
 #endif
     return (PyObject*)await;
 }
