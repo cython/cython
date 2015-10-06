@@ -1961,7 +1961,8 @@ def runtests(options, cmd_args, coverage=None):
     if not test_bugs:
         exclude_selectors += [
             FileListExcluder(os.path.join(ROOTDIR, bugs_file_name), verbose=verbose_excludes)
-            for bugs_file_name in ['bugs.txt'] + (['pypy_bugs.txt'] if IS_PYPY else [])
+            for bugs_file_name in ['bugs.txt'] + (['pypy_bugs.txt'] if IS_PYPY else []) +
+            (['windows_bugs.txt'] if sys.platform == 'win32' else [])
         ]
 
     if sys.platform in ['win32', 'cygwin'] and sys.version_info < (2,6):
