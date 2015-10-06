@@ -1,0 +1,17 @@
+common_include_dir
+cythonize_script
+cythonize_script_excludes
+cythonize_script_package
+initial_file_path
+package_compilation
+
+carray_coercion
+ctuple
+int_float_builtins_as_casts_T400
+list_pop
+test_coroutines_pep492
+type_inference
+
+py_unicode_type
+
+test_grammar
