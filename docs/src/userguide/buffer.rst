@@ -32,7 +32,7 @@ but rows can be added dynamically.
             """Adds a row, initially zero-filled."""
             self.v.extend(self.ncols)
 
-There are no members to do anything productive with the matrices' contents.
+There are no methods to do anything productive with the matrices' contents.
 We could implement custom ``__getitem__``, ``__setitem__``, etc. for this,
 but instead we'll use the buffer protocol to expose the matrix's data to Python
 so we can use NumPy to do useful work.
@@ -57,7 +57,7 @@ which Cython handles specially.
 
         def add_row(self):
             """Adds a row, initially zero-filled."""
-            self.v.resize(self.v.size() + self.ncols)
+            self.v.extend(self.ncols)
 
         def __getbuffer__(self, Py_buffer *buffer, int flags):
             cdef Py_ssize_t itemsize = sizeof(self.v[0])
