@@ -12,6 +12,7 @@ list_pop
 test_coroutines_pep492
 type_inference
 
+parallel
 py_unicode_type
 
 test_grammar
