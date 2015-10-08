@@ -185,9 +185,9 @@ def py_div_long(long a, long b):
     5
     >>> import sys
     >>> maxint = getattr(sys, ((sys.version_info[0] >= 3) and 'maxsize' or 'maxint'))
-    >>> py_div_long(-maxint-1, -1)
+    >>> py_div_long(-maxint-1, -1) # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    OverflowError: value too large to perform division
+    OverflowError: ...
     """
     return a / b
