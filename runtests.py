@@ -948,7 +948,7 @@ class CythonCompileTestCase(unittest.TestCase):
             except Exception as exc:
                 if ('cerror' in self.tags['tag'] and
                     ((get_stderr and get_stderr()) or
-                     isinstance(exc, (CompileError, LinkError))):
+                     isinstance(exc, (CompileError, LinkError)))):
                     show_output = False  # expected C compiler failure
                 else:
                     raise
