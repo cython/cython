@@ -938,15 +938,17 @@ class CythonCompileTestCase(unittest.TestCase):
         so_path = None
         if not self.cython_only:
             from Cython.Utils import captured_fd, print_bytes
+            from distutils.errors import CompileError, LinkError
             show_output = True
             get_stderr = get_stdout = None
             try:
                 with captured_fd(1) as get_stdout:
                     with captured_fd(2) as get_stderr:
                         so_path = self.run_distutils(test_directory, module, workdir, incdir)
-            except Exception:
+            except Exception as exc:
                 if ('cerror' in self.tags['tag'] and
-                    ((get_stderr and get_stderr()) or sys.platform == 'win32')):
+                    ((get_stderr and get_stderr()) or
+                     isinstance(exc, (CompileError, LinkError))):
                     show_output = False  # expected C compiler failure
                 else:
                     raise
