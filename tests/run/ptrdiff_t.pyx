@@ -28,7 +28,7 @@ cdef class A:
     True
     >>> a.b == 2
     True
-    >>> a.foo(5)
+    >>> print(a.foo(5))
     5
     >>> try: a.foo(1<<200)
     ... except (OverflowError, TypeError): print("ERROR")
