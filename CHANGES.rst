@@ -59,11 +59,13 @@ Other changes
 -------------
 
 
-0.23.4 (2015-??-??)
+0.23.4 (2015-10-10)
 ===================
 
 Bugs fixed
 ----------
+
+* Memory leak when calling Python functions in PyPy.
 
 * Compilation problem with MSVC in C99-ish mode.
 
