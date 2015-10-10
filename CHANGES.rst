@@ -8,6 +8,8 @@ Cython Changelog
 Bugs fixed
 ----------
 
+* Memory leak when calling Python functions in PyPy.
+
 * Compilation problem with MSVC in C99-ish mode.
 
 * Warning about unused values in a helper macro.
