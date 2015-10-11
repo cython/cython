@@ -5126,8 +5126,8 @@ class CascadedAssignmentNode(AssignmentNode):
 
         # collect distinct types used on the LHS
         lhs_types = set()
-        for lhs in self.lhs_list:
-            lhs.analyse_target_types(env)
+        for i, lhs in enumerate(self.lhs_list):
+            lhs = self.lhs_list[i] = lhs.analyse_target_types(env)
             lhs.gil_assignment_check(env)
             lhs_types.add(lhs.type)
 
