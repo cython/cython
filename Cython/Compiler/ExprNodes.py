@@ -3421,11 +3421,8 @@ class IndexNode(_IndexingBaseNode):
         elif base_type.is_buffer and len(indices) == base_type.ndim:
             # Buffer indexing
             is_buffer_access = True
-            for index in indices:
-                index = index.analyse_types(env)
-                if not index.type.is_int:
-                    is_buffer_access = False
-            if is_buffer_access:
+            indices = [index.analyse_types(env) for index in indices]
+            if all(index.type.is_int for index in indices):
                 replacement_node = BufferIndexNode(self.pos, indices=indices, base=self.base)
                 # On cloning, indices is cloned. Otherwise, unpack index into indices.
                 assert not isinstance(self.index, CloneNode)

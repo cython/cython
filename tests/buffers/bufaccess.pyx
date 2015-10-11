@@ -1184,3 +1184,14 @@ def test_inplace_assignment():
 
     buf[0] = get_int()
     print buf[0]
+
+@testcase
+def test_nested_assignment():
+    """
+    >>> test_nested_assignment()
+    100
+    """
+    cdef object[int] inner = IntMockBuffer(None, [1, 2, 3])
+    cdef object[int] outer = IntMockBuffer(None, [1, 2, 3])
+    outer[inner[0]] = 100
+    return outer[inner[0]]
