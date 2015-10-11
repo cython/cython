@@ -432,14 +432,19 @@ def create_default_resultobj(compilation_source, options):
     result.main_source_file = compilation_source.source_desc.filename
     result.compilation_source = compilation_source
     source_desc = compilation_source.source_desc
-    if options.output_file:
-        result.c_file = os.path.join(compilation_source.cwd, options.output_file)
+    if options.cplus:
+        c_suffix = ".cpp"
     else:
-        if options.cplus:
-            c_suffix = ".cpp"
+        c_suffix = ".c"
+    suggested_file_name = Utils.replace_suffix(source_desc.filename, c_suffix)
+    if options.output_file:
+        out_path = os.path.join(compilation_source.cwd, options.output_file)
+        if os.path.isdir(out_path):
+            result.c_file = os.path.join(out_path, os.path.basename(suggested_file_name))
         else:
-            c_suffix = ".c"
-        result.c_file = Utils.replace_suffix(source_desc.filename, c_suffix)
+            result.c_file = out_path
+    else:
+        result.c_file = suggested_file_name
     result.embedded_metadata = options.embedded_metadata
     return result
 
