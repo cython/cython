@@ -2461,7 +2461,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     entry.type.global_init_code(entry, code)
 
     def generate_wrapped_entries_code(self, env, code):
-        for name, entry in env.entries.items():
+        for name, entry in sorted(env.entries.items()):
             if (entry.create_wrapper
                     and not entry.is_type
                     and entry.scope is env):
