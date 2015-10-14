@@ -1987,7 +1987,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def create_import_star_conversion_utility_code(self, env):
         # Create all conversion helpers that are needed for "import *" assignments.
         # Must be done before code generation to support CythonUtilityCode.
-        for name, entry in env.entries.items():
+        for name, entry in sorted(env.entries.items()):
             if entry.is_cglobal and entry.used:
                 if not entry.type.is_pyobject:
                     entry.type.create_from_py_utility_code(env)
@@ -2016,7 +2016,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         old_error_label = code.new_error_label()
         code.putln("if (0);")  # so the first one can be "else if"
-        for name, entry in env.entries.items():
+        for name, entry in sorted(env.entries.items()):
             if entry.is_cglobal and entry.used:
                 code.putln('else if (__Pyx_StrEq(name, "%s")) {' % name)
                 if entry.type.is_pyobject:

@@ -1324,7 +1324,7 @@ class GlobalState(object):
                 for py_string in c.py_strings.values():
                     py_strings.append((c.cname, len(py_string.cname), py_string))
 
-        for c, cname in self.pyunicode_ptr_const_index.items():
+        for c, cname in sorted(self.pyunicode_ptr_const_index.items()):
             utf16_array, utf32_array = StringEncoding.encode_pyunicode_string(c)
             if utf16_array:
                 # Narrow and wide representations differ
