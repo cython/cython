@@ -3,7 +3,7 @@
 # If any of the PyArray_* functions are called, import_array must be
 # called first.
 #
-# This also defines backwards-compatability buffer acquisition
+# This also defines backwards-compatibility buffer acquisition
 # code for use in Python 2.x (or Python <= 2.5 when NumPy starts
 # implementing PEP-3118 directly).
 #
