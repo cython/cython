@@ -5,7 +5,7 @@ cdef extern from "Python.h":
     cdef enum:
         PyBUF_SIMPLE,
         PyBUF_WRITABLE,
-        PyBUF_WRITEABLE, # backwards compatability
+        PyBUF_WRITEABLE, # backwards compatibility
         PyBUF_FORMAT,
         PyBUF_ND,
         PyBUF_STRIDES,
