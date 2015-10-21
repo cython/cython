@@ -223,6 +223,12 @@ class Entry(object):
     def all_entries(self):
         return [self] + self.inner_entries
 
+    def __lt__(left, right):
+        if isinstance(left, Entry) and isinstance(right, Entry):
+            return (left.name, left.cname) < (right.name, right.cname)
+        else:
+            return NotImplemented
+
 
 class InnerEntry(Entry):
     """

@@ -17,7 +17,8 @@ available_flags = (
 cdef class MockBuffer:
     cdef object format, offset
     cdef void* buffer
-    cdef int len, itemsize, ndim
+    cdef Py_ssize_t len, itemsize
+    cdef int ndim
     cdef Py_ssize_t* strides
     cdef Py_ssize_t* shape
     cdef Py_ssize_t* suboffsets
@@ -55,7 +56,7 @@ cdef class MockBuffer:
             else: break
         if len(datashape) > 1:
             # indirect access
-            self.ndim = len(datashape)
+            self.ndim = <int>len(datashape)
             shape = datashape
             self.buffer = self.create_indirect_buffer(data, shape)
             suboffsets = [0] * (self.ndim-1) + [-1]
@@ -64,7 +65,7 @@ cdef class MockBuffer:
         else:
             # strided and/or simple access
             self.buffer = self.create_buffer(data)
-            self.ndim = len(shape)
+            self.ndim = <int>len(shape)
             self.suboffsets = NULL
 
         try:

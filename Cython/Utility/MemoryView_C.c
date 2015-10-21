@@ -753,11 +753,11 @@ __pyx_memviewslice_index_full(const char *bufp, Py_ssize_t idx,
 /////////////// MemviewDtypeToObject.proto ///////////////
 
 {{if to_py_function}}
-static PyObject *{{get_function}}(const char *itemp); /* proto */
+static CYTHON_INLINE PyObject *{{get_function}}(const char *itemp); /* proto */
 {{endif}}
 
 {{if from_py_function}}
-static int {{set_function}}(const char *itemp, PyObject *obj); /* proto */
+static CYTHON_INLINE int {{set_function}}(const char *itemp, PyObject *obj); /* proto */
 {{endif}}
 
 /////////////// MemviewDtypeToObject ///////////////
@@ -767,13 +767,13 @@ static int {{set_function}}(const char *itemp, PyObject *obj); /* proto */
 /* Convert a dtype to or from a Python object */
 
 {{if to_py_function}}
-static PyObject *{{get_function}}(const char *itemp) {
+static CYTHON_INLINE PyObject *{{get_function}}(const char *itemp) {
     return (PyObject *) {{to_py_function}}(*({{dtype}} *) itemp);
 }
 {{endif}}
 
 {{if from_py_function}}
-static int {{set_function}}(const char *itemp, PyObject *obj) {
+static CYTHON_INLINE int {{set_function}}(const char *itemp, PyObject *obj) {
     {{dtype}} value = {{from_py_function}}(obj);
     if ({{error_condition}})
         return 0;

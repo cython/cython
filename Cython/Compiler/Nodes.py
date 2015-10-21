@@ -5126,8 +5126,8 @@ class CascadedAssignmentNode(AssignmentNode):
 
         # collect distinct types used on the LHS
         lhs_types = set()
-        for lhs in self.lhs_list:
-            lhs.analyse_target_types(env)
+        for i, lhs in enumerate(self.lhs_list):
+            lhs = self.lhs_list[i] = lhs.analyse_target_types(env)
             lhs.gil_assignment_check(env)
             lhs_types.add(lhs.type)
 
@@ -7832,7 +7832,7 @@ class ParallelStatNode(StatNode, ParallelNode):
     def initialize_privates_to_nan(self, code, exclude=None):
         first = True
 
-        for entry, (op, lastprivate) in self.privates.items():
+        for entry, (op, lastprivate) in sorted(self.privates.items()):
             if not op and (not exclude or entry != exclude):
                 invalid_value = entry.type.invalid_value()
 
@@ -7874,7 +7874,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         """
         self.modified_entries = []
 
-        for entry in self.assignments:
+        for entry in sorted(self.assignments):
             if entry.from_closure or entry.in_closure:
                 self._allocate_closure_temp(code, entry)
 
@@ -7899,7 +7899,7 @@ class ParallelStatNode(StatNode, ParallelNode):
 
             self.temps = temps = code.funcstate.stop_collecting_temps()
             privates, firstprivates = [], []
-            for temp, type in temps:
+            for temp, type in sorted(temps):
                 if type.is_pyobject or type.is_memoryviewslice:
                     firstprivates.append(temp)
                 else:
@@ -7922,7 +7922,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         # Now clean up any memoryview slice and object temporaries
         if self.is_parallel and not self.is_nested_prange:
             code.putln("/* Clean up any temporaries */")
-            for temp, type in self.temps:
+            for temp, type in sorted(self.temps):
                 if type.is_memoryviewslice:
                     code.put_xdecref_memoryviewslice(temp, have_gil=False)
                 elif type.is_pyobject:
@@ -8094,7 +8094,7 @@ class ParallelStatNode(StatNode, ParallelNode):
         c = self.begin_of_parallel_control_block_point
 
         temp_count = 0
-        for entry, (op, lastprivate) in self.privates.items():
+        for entry, (op, lastprivate) in sorted(self.privates.items()):
             if not lastprivate or entry.type.is_pyobject:
                 continue
 
@@ -8303,7 +8303,7 @@ class ParallelWithBlockNode(ParallelStatNode):
         if self.privates:
             privates = [e.cname for e in self.privates
                                     if not e.type.is_pyobject]
-            code.put('private(%s)' % ', '.join(privates))
+            code.put('private(%s)' % ', '.join(sorted(privates)))
 
         self.privatization_insertion_point = code.insertion_point()
         self.put_num_threads(code)
@@ -8623,7 +8623,7 @@ class ParallelRangeNode(ParallelStatNode):
                 code.putln("#ifdef _OPENMP")
             code.put("#pragma omp for")
 
-        for entry, (op, lastprivate) in self.privates.items():
+        for entry, (op, lastprivate) in sorted(self.privates.items()):
             # Don't declare the index variable as a reduction
             if op and op in "+*-&^|" and entry != self.target.entry:
                 if entry.type.is_pyobject:

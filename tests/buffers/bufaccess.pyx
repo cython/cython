@@ -484,6 +484,63 @@ def set_int_2d(object[int, ndim=2] buf, int i, int j, int value):
     buf[i, j] = value
 
 @testcase
+def set_int_2d_cascaded(object[int, ndim=2] buf, int i, int j, int value):
+    """
+    Uses get_int_2d to read back the value afterwards. For pure
+    unit test, one should support reading in MockBuffer instead.
+
+    >>> C = IntMockBuffer("C", range(6), (2,3))
+    >>> set_int_2d_cascaded(C, 1, 1, 10)
+    acquired C
+    released C
+    10
+    >>> get_int_2d(C, 1, 1)
+    acquired C
+    released C
+    10
+
+    Check negative indexing:
+    >>> set_int_2d_cascaded(C, -1, 0, 3)
+    acquired C
+    released C
+    3
+    >>> get_int_2d(C, -1, 0)
+    acquired C
+    released C
+    3
+
+    >>> set_int_2d_cascaded(C, -1, -2, 8)
+    acquired C
+    released C
+    8
+    >>> get_int_2d(C, -1, -2)
+    acquired C
+    released C
+    8
+
+    >>> set_int_2d_cascaded(C, -2, -3, 9)
+    acquired C
+    released C
+    9
+    >>> get_int_2d(C, -2, -3)
+    acquired C
+    released C
+    9
+
+    Out-of-bounds errors:
+    >>> set_int_2d_cascaded(C, 2, 0, 19)
+    Traceback (most recent call last):
+    IndexError: Out of bounds on buffer access (axis 0)
+    >>> set_int_2d_cascaded(C, 0, -4, 19)
+    Traceback (most recent call last):
+    IndexError: Out of bounds on buffer access (axis 1)
+
+    """
+    cdef int casc_value
+    buf[i, j] = casc_value = value
+    return casc_value
+
+@testcase
 def list_comprehension(object[int] buf, len):
     """
     >>> list_comprehension(IntMockBuffer(None, [1,2,3]), 3)
@@ -1184,3 +1241,14 @@ def test_inplace_assignment():
 
     buf[0] = get_int()
     print buf[0]
+
+@testcase
+def test_nested_assignment():
+    """
+    >>> test_nested_assignment()
+    100
+    """
+    cdef object[int] inner = IntMockBuffer(None, [1, 2, 3])
+    cdef object[int] outer = IntMockBuffer(None, [1, 2, 3])
+    outer[inner[0]] = 100
+    return outer[inner[0]]
