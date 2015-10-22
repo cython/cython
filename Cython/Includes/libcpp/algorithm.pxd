@@ -26,3 +26,7 @@ cdef extern from "<algorithm>" namespace "std" nogil:
 
     void sort_heap[Iter](Iter first, Iter last)
     void sort_heap[Iter, Compare](Iter first, Iter last, Compare comp)
+
+    # Copy
+    OutputIter copy[InputIter,OutputIter](InputIter,InputIter,OutputIter)
+
