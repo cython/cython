@@ -50,7 +50,7 @@ cdef extern from "Python.h":
     # return value to a specific exception; use
     # PyErr_ExceptionMatches() instead, shown below. (The comparison
     # could easily fail since the exception may be an instance instead
-    # of a class, in the case of a class exception, or it may the a
+    # of a class, in the case of a class exception, or it may be a
     # subclass of the expected exception.)
 
     bint PyErr_ExceptionMatches(object exc)
