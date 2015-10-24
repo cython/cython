@@ -136,7 +136,9 @@ def cmod(a, b):
 
 # Emulated language constructs
 
-def cast(type, *args):
+def cast(type, *args, **kwargs):
+    kwargs.pop('typecheck', None)
+    assert not kwargs
     if hasattr(type, '__call__'):
         return type(*args)
     else:

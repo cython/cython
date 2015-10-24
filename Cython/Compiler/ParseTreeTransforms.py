@@ -2703,7 +2703,8 @@ class TransformBuiltinMethods(EnvTransform):
                         node.function.pos, operand1=node.args[0], operand2=node.args[1])
             elif function == u'cast':
                 if len(node.args) != 2:
-                    error(node.function.pos, u"cast() takes exactly two arguments")
+                    error(node.function.pos,
+                          u"cast() takes exactly two arguments and an optional typecheck keyword")
                 else:
                     type = node.args[0].analyse_as_type(self.current_env())
                     if type:
@@ -2752,6 +2753,26 @@ class TransformBuiltinMethods(EnvTransform):
                 return self._inject_eval(node, func_name)
             if func_name == 'super':
                 return self._inject_super(node, func_name)
+        return node
+
+    def visit_GeneralCallNode(self, node):
+        function = node.function.as_cython_attribute()
+        if function:
+            args = node.positional_args.args
+            kwargs = node.keyword_args.compile_time_value(None)
+            if function == u'cast':
+                if (len(args) != 2 or len(kwargs) > 1 or
+                        (len(kwargs) == 1 and 'typecheck' not in kwargs)):
+                    error(node.function.pos,
+                          u"cast() takes exactly two arguments and an optional typecheck keyword")
+                else:
+                    type = args[0].analyse_as_type(self.current_env())
+                    if type:
+                        typecheck = kwargs.get('typecheck', False)
+                        node = ExprNodes.TypecastNode(
+                            node.function.pos, type=type, operand=args[1], typecheck=typecheck)
+                    else:
+                        error(args[0].pos, "Not a type")
         return node
 
 
