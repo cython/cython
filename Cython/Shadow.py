@@ -102,9 +102,21 @@ class _EmptyDecoratorAndManager(object):
     def __exit__(self, exc_type, exc_value, traceback):
         pass
 
+class _Optimization(object):
+    pass
+
 cclass = ccall = cfunc = _EmptyDecoratorAndManager()
 
-returns = wraparound = boundscheck = profile = freelist = lambda arg: _EmptyDecoratorAndManager()
+returns = wraparound = boundscheck = initializedcheck = nonecheck = \
+    overflowcheck = embedsignature = cdivision = cdivision_warnings = \
+    always_allows_keywords = profile = linetrace = infer_type = \
+    type_version_tag = unraisable_tracebacks = freelist = \
+    lambda arg: _EmptyDecoratorAndManager()
+
+optimization = _Optimization()
+
+overflowcheck.fold = optimization.use_switch = \
+    optimization.unpack_method_calls = lambda arg: _EmptyDecoratorAndManager()
 
 final = internal = type_version_tag = no_gc_clear = _empty_decorator
 
