@@ -4825,12 +4825,18 @@ class SingleAssignmentNode(AssignmentNode):
             func_name = self.rhs.function.as_cython_attribute()
             if func_name:
                 args, kwds = self.rhs.explicit_args_kwds()
-
                 if func_name in ['declare', 'typedef']:
-                    if len(args) > 2 or kwds is not None:
-                        error(self.rhs.pos, "Can only declare one type at a time.")
+                    if len(args) > 2:
+                        error(args[2].pos, "Invalid positional argument.")
                         return
-
+                    if kwds is not None:
+                        kwdict = kwds.compile_time_value(None)
+                        if func_name == 'typedef' or 'visibility' not in kwdict:
+                            error(kwds.pos, "Invalid keyword argument.")
+                            return
+                        visibility = kwdict['visibility']
+                    else:
+                        visibility = 'private'
                     type = args[0].analyse_as_type(env)
                     if type is None:
                         error(args[0].pos, "Unknown type")
@@ -4845,7 +4851,7 @@ class SingleAssignmentNode(AssignmentNode):
                             error(lhs.pos, "Invalid declaration")
                             return
                         for var, pos in vars:
-                            env.declare_var(var, type, pos, is_cdef = True)
+                            env.declare_var(var, type, pos, is_cdef=True, visibility=visibility)
                         if len(args) == 2:
                             # we have a value
                             self.rhs = args[1]
