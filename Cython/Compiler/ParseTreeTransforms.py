@@ -2051,6 +2051,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
                 overridable=True, returns=self.directives.get('returns'), modifiers=modifiers)
             return self.visit(node)
         if 'cfunc' in self.directives:
+            self.directives.pop('cfunc')
             if self.in_py_class:
                 error(node.pos, "cfunc directive is not allowed here")
             else:
