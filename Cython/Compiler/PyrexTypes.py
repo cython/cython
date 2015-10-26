@@ -3202,7 +3202,7 @@ class ToPyStructUtilityCode(object):
     def __hash__(self):
         return hash(self.header)
 
-    def get_tree(self):
+    def get_tree(self, **kwargs):
         pass
 
     def put_code(self, output):
