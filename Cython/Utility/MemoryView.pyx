@@ -330,7 +330,7 @@ cdef class memoryview(object):
             raise MemoryError
 
         if flags & PyBUF_FORMAT:
-            self.dtype_is_object = self.view.format == b'O'
+            self.dtype_is_object = (self.view.format[0] == b'O' and self.view.format[1] == b'\0')
         else:
             self.dtype_is_object = dtype_is_object
 
