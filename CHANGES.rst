@@ -59,6 +59,16 @@ Other changes
 -------------
 
 
+0.23.5 (2015-xx-yy)
+===================
+
+Bugs fixed
+----------
+
+* Fix prange() to behave identically to range().  The end condition was
+  miscalculated when the range was not exactly divisible by the step.
+
+
 0.23.4 (2015-10-10)
 ===================
 

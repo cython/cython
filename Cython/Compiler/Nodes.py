@@ -8560,7 +8560,7 @@ class ParallelRangeNode(ParallelStatNode):
         self.control_flow_var_code_point = code.insertion_point()
 
         # Note: nsteps is private in an outer scope if present
-        code.putln("%(nsteps)s = (%(stop)s - %(start)s) / %(step)s;" % fmt_dict)
+        code.putln("%(nsteps)s = (%(stop)s - %(start)s + %(step)s - %(step)s/abs(%(step)s)) / %(step)s;" % fmt_dict)
 
         # The target iteration variable might not be initialized, do it only if
         # we are executing at least 1 iteration, otherwise we should leave the
