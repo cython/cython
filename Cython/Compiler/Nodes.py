@@ -8531,6 +8531,7 @@ class ParallelRangeNode(ParallelStatNode):
         # the start, stop , step, temps and target cnames
         fmt_dict = {
             'target': target_index_cname,
+            'target_type': self.target.type.empty_declaration_code()
         }
 
         # Setup start, stop and step, allocating temps if needed
@@ -8673,7 +8674,7 @@ class ParallelRangeNode(ParallelStatNode):
         # at least it doesn't spoil indentation
         code.begin_block()
 
-        code.putln("%(target)s = %(start)s + %(step)s * %(i)s;" % fmt_dict)
+        code.putln("%(target)s = (%(target_type)s)(%(start)s + %(step)s * %(i)s);" % fmt_dict)
         self.initialize_privates_to_nan(code, exclude=self.target.entry)
 
         if self.is_parallel:
