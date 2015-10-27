@@ -8186,8 +8186,8 @@ class ParallelStatNode(StatNode, ParallelNode):
         code.set_all_labels(self.old_loop_labels + (self.old_return_label,
                                                     self.old_error_label))
 
-    def end_parallel_control_flow_block(self, code,
-                                        break_=False, continue_=False):
+    def end_parallel_control_flow_block(
+            self, code, break_=False, continue_=False, return_=False):
         """
         This ends the parallel control flow block and based on how the parallel
         section was exited, takes the corresponding action. The break_ and
@@ -8244,8 +8244,9 @@ class ParallelStatNode(StatNode, ParallelNode):
                 code.put("    case 2: ")
                 code.put_goto(code.break_label)
 
-            code.put("    case 3: ")
-            code.put_goto(code.return_label)
+            if return_:
+                code.put("    case 3: ")
+                code.put_goto(code.return_label)
 
             if self.error_label_used:
                 code.globalstate.use_utility_code(restore_exception_utility_code)
@@ -8323,10 +8324,12 @@ class ParallelWithBlockNode(ParallelStatNode):
 
         continue_ = code.label_used(code.continue_label)
         break_ = code.label_used(code.break_label)
+        return_ = code.label_used(code.return_label)
 
         self.restore_labels(code)
         self.end_parallel_control_flow_block(code, break_=break_,
-                                             continue_=continue_)
+                                             continue_=continue_,
+                                             return_=return_)
         self.release_closure_privates(code)
 
 
