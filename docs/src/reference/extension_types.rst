@@ -448,7 +448,7 @@ External
         print "Imag:", c.cval.imag
 
 .. note:: Some important things in the example:
-    #. ``ctypedef`` has been used because because Python's header file has the struct decalared with::
+    #. ``ctypedef`` has been used because Python's header file has the struct decalared with::
 
         ctypedef struct {
         ...
