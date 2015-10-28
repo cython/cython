@@ -49,6 +49,26 @@ def test_cast(x):
     n = cython.cast(cython.int, x)
     return n
 
+@cython.locals(as_list=list)
+def test_cast_object(x, typecheck):
+    """
+    >>> test_cast_object([1, 2, 3], True)
+    [1, 2, 3]
+    >>> test_cast_object([1, 2, 3], False)
+    [1, 2, 3]
+    >>> test_cast_object((1, 2, 3), True)
+    Traceback (most recent call last):
+    ...
+    TypeError: Expected list, got tuple
+    >>> test_cast_object((1, 2, 3), False)
+    (1, 2, 3)
+    """
+    if typecheck:
+        as_list = cython.cast(list, x, typecheck=True)
+    else:
+        as_list = cython.cast(list, x, typecheck=False)
+    return as_list
+
 @cython.locals(x=cython.int, y=cython.p_int)
 def test_address(x):
     """
