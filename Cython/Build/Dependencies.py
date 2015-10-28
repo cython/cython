@@ -398,7 +398,7 @@ def fully_qualified_name(filename):
 
 @cached_function
 def parse_dependencies(source_filename):
-    # Actual parsing is way to slow, so we use regular expressions.
+    # Actual parsing is way too slow, so we use regular expressions.
     # The only catch is that we must strip comments and string
     # literals ahead of time.
     fh = Utils.open_source_file(source_filename, error_handling='ignore')
@@ -435,6 +435,8 @@ class DependencyTree(object):
         self._transitive_cache = {}
 
     def parse_dependencies(self, source_filename):
+        if path_exists(source_filename):
+            source_filename = os.path.normpath(source_filename)
         return parse_dependencies(source_filename)
 
     @cached_method
