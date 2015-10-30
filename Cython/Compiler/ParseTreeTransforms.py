@@ -2773,6 +2773,8 @@ class TransformBuiltinMethods(EnvTransform):
                             node.function.pos, type=type, operand=args[1], typecheck=typecheck)
                     else:
                         error(args[0].pos, "Not a type")
+
+        self.visitchildren(node)
         return node
 
 
