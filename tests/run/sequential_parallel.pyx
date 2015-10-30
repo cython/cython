@@ -46,6 +46,34 @@ def test_descending_prange():
 
     return sum
 
+def test_prange_matches_range(int start, int stop, int step):
+    """
+    >>> test_prange_matches_range(0, 8, 3)
+    >>> test_prange_matches_range(0, 9, 3)
+    >>> test_prange_matches_range(0, 10, 3)
+
+    >>> test_prange_matches_range(0, 10, -3)
+
+    >>> test_prange_matches_range(0, -10, -3)
+    >>> test_prange_matches_range(1, -10, -3)
+    >>> test_prange_matches_range(2, -10, -3)
+    >>> test_prange_matches_range(3, -10, -3)
+    """
+    cdef int i, range_last, prange_last
+    prange_set = set()
+    for i in prange(start, stop, step, nogil=True, num_threads=3):
+        prange_last = i
+        with gil:
+            prange_set.add(i)
+    range_set = set(range(start, stop, step))
+    assert range_set == prange_set, "missing: %s extra %s" % (sorted(range_set-prange_set), sorted(prange_set - range_set))
+    for ii in range(start, stop, step):
+        range_last = ii
+    if range_set:
+        assert prange_last == i
+        assert range_last == prange_last
+
+
 def test_propagation():
     """
     >>> test_propagation()

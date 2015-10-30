@@ -8186,8 +8186,8 @@ class ParallelStatNode(StatNode, ParallelNode):
         code.set_all_labels(self.old_loop_labels + (self.old_return_label,
                                                     self.old_error_label))
 
-    def end_parallel_control_flow_block(self, code,
-                                        break_=False, continue_=False):
+    def end_parallel_control_flow_block(
+            self, code, break_=False, continue_=False, return_=False):
         """
         This ends the parallel control flow block and based on how the parallel
         section was exited, takes the corresponding action. The break_ and
@@ -8244,8 +8244,9 @@ class ParallelStatNode(StatNode, ParallelNode):
                 code.put("    case 2: ")
                 code.put_goto(code.break_label)
 
-            code.put("    case 3: ")
-            code.put_goto(code.return_label)
+            if return_:
+                code.put("    case 3: ")
+                code.put_goto(code.return_label)
 
             if self.error_label_used:
                 code.globalstate.use_utility_code(restore_exception_utility_code)
@@ -8323,10 +8324,12 @@ class ParallelWithBlockNode(ParallelStatNode):
 
         continue_ = code.label_used(code.continue_label)
         break_ = code.label_used(code.break_label)
+        return_ = code.label_used(code.return_label)
 
         self.restore_labels(code)
         self.end_parallel_control_flow_block(code, break_=break_,
-                                             continue_=continue_)
+                                             continue_=continue_,
+                                             return_=return_)
         self.release_closure_privates(code)
 
 
@@ -8528,6 +8531,7 @@ class ParallelRangeNode(ParallelStatNode):
         # the start, stop , step, temps and target cnames
         fmt_dict = {
             'target': target_index_cname,
+            'target_type': self.target.type.empty_declaration_code()
         }
 
         # Setup start, stop and step, allocating temps if needed
@@ -8556,7 +8560,7 @@ class ParallelRangeNode(ParallelStatNode):
         self.control_flow_var_code_point = code.insertion_point()
 
         # Note: nsteps is private in an outer scope if present
-        code.putln("%(nsteps)s = (%(stop)s - %(start)s) / %(step)s;" % fmt_dict)
+        code.putln("%(nsteps)s = (%(stop)s - %(start)s + %(step)s - %(step)s/abs(%(step)s)) / %(step)s;" % fmt_dict)
 
         # The target iteration variable might not be initialized, do it only if
         # we are executing at least 1 iteration, otherwise we should leave the
@@ -8670,7 +8674,7 @@ class ParallelRangeNode(ParallelStatNode):
         # at least it doesn't spoil indentation
         code.begin_block()
 
-        code.putln("%(target)s = %(start)s + %(step)s * %(i)s;" % fmt_dict)
+        code.putln("%(target)s = (%(target_type)s)(%(start)s + %(step)s * %(i)s);" % fmt_dict)
         self.initialize_privates_to_nan(code, exclude=self.target.entry)
 
         if self.is_parallel:
