@@ -1290,7 +1290,7 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         if self._properties is None:
             self._properties = []
         self._properties.append({})
-        self.visit_scope(node, 'cclass')
+        super(DecoratorTransform, self).visit_CClassDefNode(node)
         self._properties.pop()
         return node
 
