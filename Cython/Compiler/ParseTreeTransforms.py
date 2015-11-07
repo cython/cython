@@ -1278,52 +1278,52 @@ class PropertyTransform(ScopeTrackingTransform):
 
     The functional style isn't supported yet.
     """
+    _properties = None
+
+    _map_property_attribute = {
+        'getter': '__get__',
+        'setter': '__set__',
+        'deleter': '__del__',
+    }.get
 
     def visit_CClassDefNode(self, node):
-        node._properties = {}
+        if self._properties is None:
+            self._properties = []
+        self._properties.append({})
         self.visit_scope(node, 'cclass')
-        del node._properties
+        self._properties.pop()
         return node
 
     def visit_DefNode(self, node):
         self.visitchildren(node)
         if self.scope_type != 'cclass' or not node.decorators:
             return node
-        properties = self.scope_node._properties
-        for decorator_node in node.decorators[::-1]:
-            decorator = decorator_node.decorator
-            if (isinstance(decorator, ExprNodes.NameNode) and
-                    decorator.name == 'property'):
-                name = node.name
-                node.name = '__get__'
-                node.decorators.remove(decorator_node)
-                stat_list = [node]
-                if name in properties:
-                    prop = properties[name]
-                    prop.pos = node.pos
-                    prop.doc = node.doc
-                    prop.body.stats = stat_list
-                    return []
-                prop = Nodes.PropertyNode(node.pos, name=name)
+        properties = self._properties[-1]
+        # restrict transformation to outermost decorator as wrapped properties will probably not work
+        decorator_node = node.decorators[-1]
+        decorator = decorator_node.decorator
+        if decorator.is_name and decorator.name == 'property':
+            name = node.name
+            node.name = '__get__'
+            node.decorators.remove(decorator_node)
+            stat_list = [node]
+            if name in properties:
+                prop = properties[name]
+                prop.pos = node.pos
                 prop.doc = node.doc
-                prop.body = Nodes.StatListNode(node.pos, stats=stat_list)
-                properties[name] = prop
-                return [prop]
-            elif self._test_property_attribute(decorator, 'getter', properties):
+                prop.body.stats = stat_list
+                return []
+            prop = Nodes.PropertyNode(node.pos, name=name)
+            prop.doc = node.doc
+            prop.body = Nodes.StatListNode(node.pos, stats=stat_list)
+            properties[name] = prop
+            return [prop]
+        elif decorator.is_attribute and decorator.obj.name in properties:
+            handler_name = self._map_property_attribute(decorator.attribute)
+            if handler_name:
                 assert decorator.obj.name == node.name
-                return self._add_to_property(properties, node, '__get__', decorator_node)
-            elif self._test_property_attribute(decorator, 'setter', properties):
-                assert decorator.obj.name == node.name
-                return self._add_to_property(properties, node, '__set__', decorator_node)
-            elif self._test_property_attribute(decorator, 'deleter', properties):
-                assert decorator.obj.name == node.name
-                return self._add_to_property(properties, node, '__del__', decorator_node)
+                return self._add_to_property(properties, node, handler_name, decorator_node)
         return node
-
-    def _test_property_attribute(self, decorator, name, properties):
-        return (isinstance(decorator, ExprNodes.AttributeNode) and
-                decorator.attribute == name and
-                decorator.obj.name in properties)
 
     def _add_to_property(self, properties, node, name, decorator):
         prop = properties[node.name]
