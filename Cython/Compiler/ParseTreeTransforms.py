@@ -1331,7 +1331,7 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
                     return self._add_to_property(properties, node, handler_name, decorator_node)
 
         # transform normal decorators
-        return self._chain_decorators(node, node.decorators, node.name)
+        return self.chain_decorators(node, node.decorators, node.name)
 
     @staticmethod
     def _reject_decorated_property(node, decorator_node):
@@ -1356,7 +1356,7 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         return []
 
     @staticmethod
-    def _chain_decorators(node, decorators, name):
+    def chain_decorators(node, decorators, name):
         """
         Decorators are applied directly in DefNode and PyClassDefNode to avoid
         reassignments to the function/class name - except for cdef class methods.
@@ -1575,7 +1575,7 @@ if VALUE is not None:
         if decorators:
             transform = DecoratorTransform(self.context)
             def_node = node.node
-            _, reassignments = transform.handle_decorators(
+            _, reassignments = transform.chain_decorators(
                 def_node, decorators, def_node.name)
             reassignments.analyse_declarations(env)
             node = [node, reassignments]
