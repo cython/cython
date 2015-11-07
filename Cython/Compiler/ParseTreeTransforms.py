@@ -1299,30 +1299,40 @@ class PropertyTransform(ScopeTrackingTransform):
         if self.scope_type != 'cclass' or not node.decorators:
             return node
         properties = self._properties[-1]
-        # restrict transformation to outermost decorator as wrapped properties will probably not work
-        decorator_node = node.decorators[-1]
-        decorator = decorator_node.decorator
-        if decorator.is_name and decorator.name == 'property':
-            name = node.name
-            node.name = '__get__'
-            node.decorators.remove(decorator_node)
-            stat_list = [node]
-            if name in properties:
-                prop = properties[name]
-                prop.pos = node.pos
+        for decorator_node in node.decorators[::-1]:
+            decorator = decorator_node.decorator
+            if decorator.is_name and decorator.name == 'property':
+                if len(node.decorators) > 1:
+                    return self._reject_decorated_property(node, decorator_node)
+                name = node.name
+                node.name = '__get__'
+                node.decorators.remove(decorator_node)
+                stat_list = [node]
+                if name in properties:
+                    prop = properties[name]
+                    prop.pos = node.pos
+                    prop.doc = node.doc
+                    prop.body.stats = stat_list
+                    return []
+                prop = Nodes.PropertyNode(node.pos, name=name)
                 prop.doc = node.doc
-                prop.body.stats = stat_list
-                return []
-            prop = Nodes.PropertyNode(node.pos, name=name)
-            prop.doc = node.doc
-            prop.body = Nodes.StatListNode(node.pos, stats=stat_list)
-            properties[name] = prop
-            return [prop]
-        elif decorator.is_attribute and decorator.obj.name in properties:
-            handler_name = self._map_property_attribute(decorator.attribute)
-            if handler_name:
-                assert decorator.obj.name == node.name
-                return self._add_to_property(properties, node, handler_name, decorator_node)
+                prop.body = Nodes.StatListNode(node.pos, stats=stat_list)
+                properties[name] = prop
+                return [prop]
+            elif decorator.is_attribute and decorator.obj.name in properties:
+                handler_name = self._map_property_attribute(decorator.attribute)
+                if handler_name:
+                    assert decorator.obj.name == node.name
+                    if len(node.decorators) > 1:
+                        return self._reject_decorated_property(node, decorator_node)
+                    return self._add_to_property(properties, node, handler_name, decorator_node)
+        return node
+
+    def _reject_decorated_property(self, node, decorator_node):
+        # restrict transformation to outermost decorator as wrapped properties will probably not work
+        for deco in node.decorators:
+            if deco != decorator_node:
+                error(deco.pos, "Property methods with additional decorators are not supported")
         return node
 
     def _add_to_property(self, properties, node, name, decorator):
