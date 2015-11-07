@@ -1270,12 +1270,12 @@ class WithTransform(CythonTransform, SkipDeclarations):
         return node
 
 
-class PropertyTransform(ScopeTrackingTransform):
+class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
     """
-    This pass transforms Python-style decorator properties into a
-    PropertyNode with up to the three getter, setter and deleter
-    DefNode.
+    Transforms method decorators in cdef classes into nested calls or properties.
 
+    Python-style decorator properties are transformed into a PropertyNode
+    with up to the three getter, setter and deleter DefNodes.
     The functional style isn't supported yet.
     """
     _properties = None
@@ -1295,9 +1295,12 @@ class PropertyTransform(ScopeTrackingTransform):
         return node
 
     def visit_DefNode(self, node):
-        self.visitchildren(node)
-        if self.scope_type != 'cclass' or not node.decorators:
+        scope_type = self.scope_type
+        node = self.visit_FuncDefNode(node)
+        if scope_type != 'cclass' or not node.decorators:
             return node
+
+        # transform @property decorators
         properties = self._properties[-1]
         for decorator_node in node.decorators[::-1]:
             decorator = decorator_node.decorator
@@ -1326,16 +1329,20 @@ class PropertyTransform(ScopeTrackingTransform):
                     if len(node.decorators) > 1:
                         return self._reject_decorated_property(node, decorator_node)
                     return self._add_to_property(properties, node, handler_name, decorator_node)
-        return node
 
-    def _reject_decorated_property(self, node, decorator_node):
+        # transform normal decorators
+        return self._chain_decorators(node, node.decorators, node.name)
+
+    @staticmethod
+    def _reject_decorated_property(node, decorator_node):
         # restrict transformation to outermost decorator as wrapped properties will probably not work
         for deco in node.decorators:
             if deco != decorator_node:
                 error(deco.pos, "Property methods with additional decorators are not supported")
         return node
 
-    def _add_to_property(self, properties, node, name, decorator):
+    @staticmethod
+    def _add_to_property(properties, node, name, decorator):
         prop = properties[node.name]
         node.name = name
         node.decorators.remove(decorator)
@@ -1348,39 +1355,28 @@ class PropertyTransform(ScopeTrackingTransform):
             stats.append(node)
         return []
 
+    @staticmethod
+    def _chain_decorators(node, decorators, name):
+        """
+        Decorators are applied directly in DefNode and PyClassDefNode to avoid
+        reassignments to the function/class name - except for cdef class methods.
+        For those, the reassignment is required as methods are originally
+        defined in the PyMethodDef struct.
 
-class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
-    """Originally, this was the only place where decorators were
-    transformed into the corresponding calling code.  Now, this is
-    done directly in DefNode and PyClassDefNode to avoid reassignments
-    to the function/class name - except for cdef class methods.  For
-    those, the reassignment is required as methods are originally
-    defined in the PyMethodDef struct.
-
-    The IndirectionNode allows DefNode to override the decorator
-    """
-
-    def visit_DefNode(self, func_node):
-        scope_type = self.scope_type
-        func_node = self.visit_FuncDefNode(func_node)
-        if scope_type != 'cclass' or not func_node.decorators:
-            return func_node
-        return self.handle_decorators(func_node, func_node.decorators,
-                                      func_node.name)
-
-    def handle_decorators(self, node, decorators, name):
-        decorator_result = ExprNodes.NameNode(node.pos, name = name)
+        The IndirectionNode allows DefNode to override the decorator.
+        """
+        decorator_result = ExprNodes.NameNode(node.pos, name=name)
         for decorator in decorators[::-1]:
             decorator_result = ExprNodes.SimpleCallNode(
                 decorator.pos,
-                function = decorator.decorator,
-                args = [decorator_result])
+                function=decorator.decorator,
+                args=[decorator_result])
 
-        name_node = ExprNodes.NameNode(node.pos, name = name)
+        name_node = ExprNodes.NameNode(node.pos, name=name)
         reassignment = Nodes.SingleAssignmentNode(
             node.pos,
-            lhs = name_node,
-            rhs = decorator_result)
+            lhs=name_node,
+            rhs=decorator_result)
 
         reassignment = Nodes.IndirectionNode([reassignment])
         node.decorator_indirection = reassignment
