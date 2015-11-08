@@ -529,7 +529,9 @@ class TempitaUtilityCode(UtilityCode):
             proto, impl, init=init, name=name, file=file, **kwargs)
 
     @classmethod
-    def load_cached(cls, utility_code_name, from_file=None, context=None, __cache={}):
+    def load_cached(cls, utility_code_name, from_file=None, context=None, __cache=None):
+        if not __cache:
+            __cache = {}
         context_key = tuple(sorted(context.items())) if context else None
         assert hash(context_key) is not None  # raise TypeError if not hashable
         key = (cls, from_file, utility_code_name, context_key)

@@ -649,7 +649,9 @@ class CFuncDeclaratorNode(CDeclaratorNode):
         else:
             return None
 
-    def analyse(self, return_type, env, nonempty = 0, directive_locals = {}):
+    def analyse(self, return_type, env, nonempty=0, directive_locals=None):
+        if not directive_locals:
+            directive_locals = {}
         if nonempty:
             nonempty -= 1
         func_type_args = []
