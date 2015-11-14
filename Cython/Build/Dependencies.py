@@ -64,6 +64,7 @@ else:
         return filename
     basestring = str
 
+
 def extended_iglob(pattern):
     if '{' in pattern:
         m = re.match('(.*){([^}]+)}(.*)', pattern)
@@ -118,6 +119,7 @@ def file_hash(filename):
         f.close()
     return m.hexdigest()
 
+
 def parse_list(s):
     """
     >>> parse_list("a b c")
@@ -143,6 +145,7 @@ def parse_list(s):
             return literal
     return [unquote(item) for item in s.split(delimiter) if item.strip()]
 
+
 transitive_str = object()
 transitive_list = object()
 
@@ -163,6 +166,7 @@ distutils_settings = {
     'language':             transitive_str,
 }
 
+
 @cython.locals(start=cython.Py_ssize_t, end=cython.Py_ssize_t)
 def line_iter(source):
     if isinstance(source, basestring):
@@ -177,6 +181,7 @@ def line_iter(source):
     else:
         for line in source:
             yield line
+
 
 class DistutilsInfo(object):
 
@@ -253,6 +258,7 @@ class DistutilsInfo(object):
             if type in [list, transitive_list]:
                 value = getattr(extension, key) + list(value)
             setattr(extension, key, value)
+
 
 @cython.locals(start=cython.Py_ssize_t, q=cython.Py_ssize_t,
                single_q=cython.Py_ssize_t, double_q=cython.Py_ssize_t,
@@ -349,8 +355,10 @@ dependency_regex = re.compile(r"(?:^from +([0-9a-zA-Z_.]+) +cimport)|"
                               r"(?:^cdef +extern +from +['\"]([^'\"]+)['\"])|"
                               r"(?:^include +['\"]([^'\"]+)['\"])", re.M)
 
+
 def normalize_existing(base_path, rel_paths):
     return normalize_existing0(os.path.dirname(base_path), tuple(set(rel_paths)))
+
 
 @cached_function
 def normalize_existing0(base_dir, rel_paths):
@@ -363,6 +371,7 @@ def normalize_existing0(base_dir, rel_paths):
             normalized.append(rel)
     return normalized
 
+
 def resolve_depends(depends, include_dirs):
     include_dirs = tuple(include_dirs)
     resolved = []
@@ -371,6 +380,7 @@ def resolve_depends(depends, include_dirs):
         if path is not None:
             resolved.append(path)
     return resolved
+
 
 @cached_function
 def resolve_depend(depend, include_dirs):
@@ -382,6 +392,7 @@ def resolve_depend(depend, include_dirs):
             return os.path.normpath(path)
     return None
 
+
 @cached_function
 def package(filename):
     dir = os.path.dirname(os.path.abspath(str(filename)))
@@ -389,6 +400,7 @@ def package(filename):
         return package(dir) + (os.path.basename(dir),)
     else:
         return ()
+
 
 @cached_function
 def fully_qualified_name(filename):
@@ -600,7 +612,9 @@ class DependencyTree(object):
         finally:
             del stack[node]
 
+
 _dep_tree = None
+
 def create_dependency_tree(ctx=None, quiet=False):
     global _dep_tree
     if _dep_tree is None:
@@ -937,7 +951,9 @@ if os.environ.get('XML_RESULTS'):
                 output.close()
         return with_record
 else:
-    record_results = lambda x: x
+    def record_results(func):
+        return func
+
 
 # TODO: Share context? Issue: pyx processing leaks into pxd module
 @record_results
