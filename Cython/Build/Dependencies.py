@@ -611,8 +611,10 @@ def create_dependency_tree(ctx=None, quiet=False):
 
 
 # This may be useful for advanced users?
-def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=False, language=None,
+def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=False, language=None,
                           exclude_failures=False):
+    if exclude is None:
+        exclude = []
     if not isinstance(patterns, (list, tuple)):
         patterns = [patterns]
     explicit_modules = set([m.name for m in patterns if isinstance(m, Extension)])
@@ -711,7 +713,7 @@ def create_extension_list(patterns, exclude=[], ctx=None, aliases=None, quiet=Fa
 
 
 # This is the user-exposed entry point.
-def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, force=False, language=None,
+def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, force=False, language=None,
               exclude_failures=False, **options):
     """
     Compile a set of source modules into C/C++ files and return a list of distutils
@@ -739,6 +741,8 @@ def cythonize(module_list, exclude=[], nthreads=0, aliases=None, quiet=False, fo
 
     Additional compilation options can be passed as keyword arguments.
     """
+    if not exclude:
+        exclude = []
     if 'include_path' not in options:
         options['include_path'] = ['.']
     if 'common_utility_include_dir' in options:

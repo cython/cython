@@ -19,11 +19,12 @@ DEBUG = 0
 
 _reloads={}
 
-def pyx_to_dll(filename, ext = None, force_rebuild = 0,
-               build_in_temp=False, pyxbuild_dir=None, setup_args={},
+def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuild_dir=None, setup_args=None,
                reload_support=False, inplace=False):
     """Compile a PYX file to a DLL and return the name of the generated .so 
        or .dll ."""
+    if not setup_args:
+        setup_args = {}
     assert os.path.exists(filename), "Could not find %s" % os.path.abspath(filename)
 
     path, name = os.path.split(os.path.abspath(filename))

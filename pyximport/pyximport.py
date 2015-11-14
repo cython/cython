@@ -456,10 +456,8 @@ def _have_importers():
 
     return has_py_importer, has_pyx_importer
 
-def install(pyximport=True, pyimport=False, build_dir=None, build_in_temp=True,
-            setup_args={}, reload_support=False,
-            load_py_module_on_import_failure=False, inplace=False,
-            language_level=None):
+def install(pyximport=True, pyimport=False, build_dir=None, build_in_temp=True, setup_args=None, reload_support=False,
+            load_py_module_on_import_failure=False, inplace=False, language_level=None):
     """Main entry point. Call this to install the .pyx import hook in
     your meta-path for a single Python process.  If you want it to be
     installed whenever you use Python, add it to your sitecustomize
@@ -504,6 +502,8 @@ def install(pyximport=True, pyimport=False, build_dir=None, build_in_temp=True,
     The default is to use the language level of the current Python
     runtime for .py files and Py2 for .pyx files.
     """
+    if not setup_args:
+        setup_args = {}
     if not build_dir:
         build_dir = os.path.join(os.path.expanduser('~'), '.pyxbld')
         

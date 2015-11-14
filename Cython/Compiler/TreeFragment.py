@@ -39,8 +39,8 @@ class StringParseContext(Main.Context):
         return ModuleScope(module_name, parent_module=None, context=self)
 
 
-def parse_from_strings(name, code, pxds={}, level=None, initial_pos=None,
-                       context=None, allow_struct_enum_decorator=False):
+def parse_from_strings(name, code, pxds=None, level=None, initial_pos=None, context=None,
+                       allow_struct_enum_decorator=False):
     """
     Utility method to parse a (unicode) string of code. This is mostly
     used for internal Cython compiler purposes (creating code snippets
@@ -54,6 +54,8 @@ def parse_from_strings(name, code, pxds={}, level=None, initial_pos=None,
     The tree, i.e. a ModuleNode. The ModuleNode's scope attribute is
     set to the scope used when parsing.
     """
+    if not pxds:
+        pxds = {}
     if context is None:
         context = StringParseContext(name)
     # Since source files carry an encoding, it makes sense in this context
@@ -212,7 +214,13 @@ def strip_common_indent(lines):
 
 
 class TreeFragment(object):
-    def __init__(self, code, name=None, pxds={}, temps=[], pipeline=[], level=None, initial_pos=None):
+    def __init__(self, code, name=None, pxds=None, temps=None, pipeline=None, level=None, initial_pos=None):
+        if not pxds:
+            pxds = {}
+        if not temps:
+            temps = []
+        if not pipeline:
+            pipeline = []
         if not name:
             name = "(tree fragment)"
         if isinstance(code, _unicode):
@@ -242,7 +250,11 @@ class TreeFragment(object):
     def copy(self):
         return copy_code_tree(self.root)
 
-    def substitute(self, nodes={}, temps=[], pos = None):
+    def substitute(self, nodes=None, temps=None, pos=None):
+        if not nodes:
+            nodes = {}
+        if not temps:
+            temps = []
         return TemplateTransform()(self.root,
                                    substitutions = nodes,
                                    temps = self.temps + temps, pos = pos)
