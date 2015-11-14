@@ -122,9 +122,8 @@ def handle_special_build(modname, pyxfilename):
         make_ext = getattr(mod,'make_ext',None)
         if make_ext:
             ext = make_ext(modname, pyxfilename)
-            assert ext and ext.sources, ("make_ext in %s did not return Extension" 
-                                         % special_build)
-        make_setup_args = getattr(mod,'make_setup_args',None)
+            assert ext and ext.sources, "make_ext in %s did not return Extension" % special_build
+        make_setup_args = getattr(mod, 'make_setup_args',None)
         if make_setup_args:
             setup_args = make_setup_args()
             assert isinstance(setup_args,dict), ("make_setup_args in %s did not return a dict" 
@@ -175,15 +174,14 @@ def handle_dependencies(pyxfilename):
 
 
 def build_module(name, pyxfilename, pyxbuild_dir=None, inplace=False, language_level=None):
-    assert os.path.exists(pyxfilename), (
-        "Path does not exist: %s" % pyxfilename)
+    assert os.path.exists(pyxfilename), "Path does not exist: %s" % pyxfilename
     handle_dependencies(pyxfilename)
 
-    extension_mod,setup_args = get_distutils_extension(name, pyxfilename, language_level)
-    build_in_temp=pyxargs.build_in_temp
-    sargs=pyxargs.setup_args.copy()
+    extension_mod, setup_args = get_distutils_extension(name, pyxfilename, language_level)
+    build_in_temp = pyxargs.build_in_temp
+    sargs = pyxargs.setup_args.copy()
     sargs.update(setup_args)
-    build_in_temp=sargs.pop('build_in_temp',build_in_temp)
+    build_in_temp = sargs.pop('build_in_temp',build_in_temp)
 
     from . import pyxbuild
     so_path = pyxbuild.pyx_to_dll(pyxfilename, extension_mod,
@@ -197,7 +195,7 @@ def build_module(name, pyxfilename, pyxbuild_dir=None, inplace=False, language_l
     junkpath = os.path.join(os.path.dirname(so_path), name+"_*") #very dangerous with --inplace ? yes, indeed, trying to eat my files ;)
     junkstuff = glob.glob(junkpath)
     for path in junkstuff:
-        if path!=so_path:
+        if path != so_path:
             try:
                 os.remove(path)
             except IOError:
