@@ -86,6 +86,7 @@ def parse_from_strings(name, code, pxds={}, level=None, initial_pos=None,
     tree.scope = scope
     return tree
 
+
 class TreeCopier(VisitorTransform):
     def visit_Node(self, node):
         if node is None:
@@ -94,6 +95,7 @@ class TreeCopier(VisitorTransform):
             c = node.clone_node()
             self.visitchildren(c)
             return c
+
 
 class ApplyPositionAndCopy(TreeCopier):
     def __init__(self, pos):
@@ -104,6 +106,7 @@ class ApplyPositionAndCopy(TreeCopier):
         copy = super(ApplyPositionAndCopy, self).visit_Node(node)
         copy.pos = self.pos
         return copy
+
 
 class TemplateTransform(VisitorTransform):
     """
@@ -246,6 +249,7 @@ class TreeFragment(object):
         return TemplateTransform()(self.root,
                                    substitutions = nodes,
                                    temps = self.temps + temps, pos = pos)
+
 
 class SetPosTransform(VisitorTransform):
     def __init__(self, pos):
