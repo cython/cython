@@ -644,9 +644,9 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
     module_metadata = {}
 
     # workaround for setuptools
-    try:
-       from setuptools.extension import Extension as Extension_setuptools
-    except ImportError:
+    if 'setuptools' in sys.modules:
+       Extension_setuptools = sys.modules['setuptools'].Extension
+    else:
          # dummy class, in case we do not have setuptools
          class Extension_setuptools(Extension): pass
 
