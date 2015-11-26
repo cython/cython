@@ -415,7 +415,7 @@ Configurable optimisations
 ``optimize.unpack_method_calls`` (True / False)
     Cython can generate code that optimistically checks for Python method objects
     at call time and unpacks the underlying function to call it directly.  This
-    can substantially speed up method calls, especially for bultins, but may also
+    can substantially speed up method calls, especially for builtins, but may also
     have a slight negative performance impact in some cases where the guess goes
     completely wrong.
     Disabling this option can also reduce the code size.  Default is True.

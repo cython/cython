@@ -649,7 +649,7 @@ When you declare::
 
 the name Spam serves both these roles. There may be other names by which you
 can refer to the constructor, but only Spam can be used as a type name. For
-example, if you were to explicity import MyModule, you could use
+example, if you were to explicitly import MyModule, you could use
 ``MyModule.Spam()`` to create a Spam instance, but you wouldn't be able to use
 :class:`MyModule.Spam` as a type name.
 
