@@ -94,7 +94,7 @@ It currently supports OpenMP, but later on more backends might be supported.
 
     The ``chunksize`` argument indicates the chunksize to be used for dividing the iterations among threads.
     This is only valid for ``static``, ``dynamic`` and ``guided`` scheduling, and is optional. Different chunksizes
-    may give substatially different performance results, depending on the schedule, the load balance it provides,
+    may give substantially different performance results, depending on the schedule, the load balance it provides,
     the scheduling overhead and the amount of false sharing (if any).
 
     Example with a reduction::

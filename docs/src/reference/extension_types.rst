@@ -314,11 +314,11 @@ Subclassing
  * If the base type is a built-in type, it must have been previously declared as an ``extern`` extension type.
  * ``cimport`` can be used to import the base type, if the extern declared base type is in a ``.pxd`` definition file.
 
- * In Cython, multiple inheritance is not permitted.. singlular inheritance only
+ * In Cython, multiple inheritance is not permitted.. singular inheritance only
 
-* Cython extenstion types can also be sub-classed in Python.
+* Cython extension types can also be sub-classed in Python.
 
- * Here multiple inhertance is permissible as is normal for Python.
+ * Here multiple inheritance is permissible as is normal for Python.
  * Even multiple extension types may be inherited, but C-layout of all the base classes must be compatible.
 
 
@@ -448,7 +448,7 @@ External
         print "Imag:", c.cval.imag
 
 .. note:: Some important things in the example:
-    #. ``ctypedef`` has been used because Python's header file has the struct decalared with::
+    #. ``ctypedef`` has been used because Python's header file has the struct declared with::
 
         ctypedef struct {
         ...
