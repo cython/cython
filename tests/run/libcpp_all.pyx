@@ -13,6 +13,7 @@ cimport libcpp.set
 cimport libcpp.stack
 cimport libcpp.vector
 cimport libcpp.complex
+cimport libcpp.limits
 
 from libcpp.deque  cimport *
 from libcpp.list   cimport *
@@ -23,6 +24,7 @@ from libcpp.set    cimport *
 from libcpp.stack  cimport *
 from libcpp.vector cimport *
 from libcpp.complex cimport *
+from libcpp.limits cimport *
 
 cdef libcpp.deque.deque[int]   d1 = deque[int]()
 cdef libcpp.list.list[int]     l1 = list[int]()
@@ -91,3 +93,17 @@ cdef const_vector_to_list(const vector[double]& cv):
         lst.append(cython.operator.dereference(iter))
         cython.operator.preincrement(iter)
     return lst
+
+cdef double dmax = numeric_limits[double].max()
+cdef double dmin = numeric_limits[double].min()
+cdef double deps = numeric_limits[double].epsilon()
+cdef double dqnan = numeric_limits[double].quiet_NaN()
+cdef double dsnan = numeric_limits[double].signaling_NaN()
+cdef double dinf = numeric_limits[double].infinity()
+
+cdef int imax = numeric_limits[int].max()
+cdef int imin = numeric_limits[int].min()
+cdef int ieps = numeric_limits[int].epsilon()
+cdef int iqnan = numeric_limits[int].quiet_NaN()
+cdef int isnan = numeric_limits[int].signaling_NaN()
+cdef int iinf = numeric_limits[int].infinity()
