@@ -1295,7 +1295,9 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         return node
 
     def visit_PropertyNode(self, node):
-        warning(node.pos, "'property %s:' syntax is deprecated, use '@property'" % node.name, 2)
+        # Suppress warning for our code until we can convert all our uses over.
+        if isinstance(node.pos[0], str) or True:
+            warning(node.pos, "'property %s:' syntax is deprecated, use '@property'" % node.name, 2)
         return node
 
     def visit_DefNode(self, node):
