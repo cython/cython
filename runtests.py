@@ -2019,6 +2019,8 @@ def runtests(options, cmd_args, coverage=None):
 
     if options.system_pyregr and languages:
         sys_pyregr_dir = os.path.join(sys.prefix, 'lib', 'python'+sys.version[:3], 'test')
+        if not os.path.isdir(sys_pyregr_dir):
+            sys_pyregr_dir = os.path.join(os.path.dirname(sys.executable), 'Lib', 'test')  # source build
         if os.path.isdir(sys_pyregr_dir):
             filetests = TestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
                                     options.annotate_source, options.cleanup_workdir,

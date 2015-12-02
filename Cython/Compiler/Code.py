@@ -318,7 +318,7 @@ class UtilityCodeBase(object):
     def __str__(self):
         return "<%s(%s)>" % (type(self).__name__, self.name)
 
-    def get_tree(self):
+    def get_tree(self, **kwargs):
         pass
 
 

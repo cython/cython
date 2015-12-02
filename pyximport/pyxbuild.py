@@ -19,9 +19,9 @@ DEBUG = 0
 
 _reloads={}
 
-def pyx_to_dll(filename, ext = None, force_rebuild = 0,
-               build_in_temp=False, pyxbuild_dir=None, setup_args={},
-               reload_support=False, inplace=False):
+
+def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuild_dir=None,
+               setup_args=None, reload_support=False, inplace=False):
     """Compile a PYX file to a DLL and return the name of the generated .so 
        or .dll ."""
     assert os.path.exists(filename), "Could not find %s" % os.path.abspath(filename)
@@ -35,6 +35,8 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0,
             filename = filename[:-len(extension)] + '.c'
         ext = Extension(name=modname, sources=[filename])
 
+    if setup_args is None:
+        setup_args = {}
     if not pyxbuild_dir:
         pyxbuild_dir = os.path.join(path, "_pyxbld")
 
@@ -150,6 +152,7 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0,
         if DEBUG:
             sys.stderr.write(error + "\n")
         raise
+
 
 if __name__=="__main__":
     pyx_to_dll("dummy.pyx")

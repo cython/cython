@@ -25,57 +25,60 @@ cdef extern from *:
     char* PyUnicode_AS_DATA(object o)
 
     # Return 1 or 0 depending on whether ch is a whitespace character.
-    bint Py_UNICODE_ISSPACE(Py_UNICODE ch)
+    bint Py_UNICODE_ISSPACE(Py_UCS4 ch)
 
     # Return 1 or 0 depending on whether ch is a lowercase character.
-    bint Py_UNICODE_ISLOWER(Py_UNICODE ch)
+    bint Py_UNICODE_ISLOWER(Py_UCS4 ch)
 
     # Return 1 or 0 depending on whether ch is an uppercase character.
-    bint Py_UNICODE_ISUPPER(Py_UNICODE ch)
+    bint Py_UNICODE_ISUPPER(Py_UCS4 ch)
 
     # Return 1 or 0 depending on whether ch is a titlecase character.
-    bint Py_UNICODE_ISTITLE(Py_UNICODE ch)
+    bint Py_UNICODE_ISTITLE(Py_UCS4 ch)
 
     # Return 1 or 0 depending on whether ch is a linebreak character.
-    bint Py_UNICODE_ISLINEBREAK(Py_UNICODE ch)
+    bint Py_UNICODE_ISLINEBREAK(Py_UCS4 ch)
 
     # Return 1 or 0 depending on whether ch is a decimal character.
-    bint Py_UNICODE_ISDECIMAL(Py_UNICODE ch)
+    bint Py_UNICODE_ISDECIMAL(Py_UCS4 ch)
 
     # Return 1 or 0 depending on whether ch is a digit character.
-    bint Py_UNICODE_ISDIGIT(Py_UNICODE ch)
+    bint Py_UNICODE_ISDIGIT(Py_UCS4 ch)
 
     # Return 1 or 0 depending on whether ch is a numeric character.
-    bint Py_UNICODE_ISNUMERIC(Py_UNICODE ch)
+    bint Py_UNICODE_ISNUMERIC(Py_UCS4 ch)
 
     # Return 1 or 0 depending on whether ch is an alphabetic character.
-    bint Py_UNICODE_ISALPHA(Py_UNICODE ch)
+    bint Py_UNICODE_ISALPHA(Py_UCS4 ch)
 
     # Return 1 or 0 depending on whether ch is an alphanumeric character.
-    bint Py_UNICODE_ISALNUM(Py_UNICODE ch)
+    bint Py_UNICODE_ISALNUM(Py_UCS4 ch)
 
     # Return the character ch converted to lower case.
-    Py_UNICODE Py_UNICODE_TOLOWER(Py_UNICODE ch)
+    # Used to return a Py_UNICODE value before Py3.3.
+    Py_UCS4 Py_UNICODE_TOLOWER(Py_UCS4 ch)
 
     # Return the character ch converted to upper case.
-    Py_UNICODE Py_UNICODE_TOUPPER(Py_UNICODE ch)
+    # Used to return a Py_UNICODE value before Py3.3.
+    Py_UCS4 Py_UNICODE_TOUPPER(Py_UCS4 ch)
 
     # Return the character ch converted to title case.
-    Py_UNICODE Py_UNICODE_TOTITLE(Py_UNICODE ch)
+    # Used to return a Py_UNICODE value before Py3.3.
+    Py_UCS4 Py_UNICODE_TOTITLE(Py_UCS4 ch)
 
     # Return the character ch converted to a decimal positive
     # integer. Return -1 if this is not possible. This macro does not
     # raise exceptions.
-    int Py_UNICODE_TODECIMAL(Py_UNICODE ch)
+    int Py_UNICODE_TODECIMAL(Py_UCS4 ch)
 
     # Return the character ch converted to a single digit
     # integer. Return -1 if this is not possible. This macro does not
     # raise exceptions.
-    int Py_UNICODE_TODIGIT(Py_UNICODE ch)
+    int Py_UNICODE_TODIGIT(Py_UCS4 ch)
 
     # Return the character ch converted to a double. Return -1.0 if
     # this is not possible. This macro does not raise exceptions.
-    double Py_UNICODE_TONUMERIC(Py_UNICODE ch)
+    double Py_UNICODE_TONUMERIC(Py_UCS4 ch)
 
     # To create Unicode objects and access their basic sequence
     # properties, use these APIs:

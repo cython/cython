@@ -84,10 +84,15 @@ class CythonTest(unittest.TestCase):
         self.assertNotEqual(TreePath.find_first(result_tree, path), None,
                             "Path '%s' not found in result tree" % path)
 
-    def fragment(self, code, pxds={}, pipeline=[]):
+    def fragment(self, code, pxds=None, pipeline=None):
         "Simply create a tree fragment using the name of the test-case in parse errors."
+        if pxds is None:
+            pxds = {}
+        if pipeline is None:
+            pipeline = []
         name = self.id()
-        if name.startswith("__main__."): name = name[len("__main__."):]
+        if name.startswith("__main__."):
+            name = name[len("__main__."):]
         name = name.replace(".", "_")
         return TreeFragment(code, name, pxds, pipeline=pipeline)
 
@@ -139,7 +144,9 @@ class TransformTest(CythonTest):
     Plans: One could have a pxd dictionary parameter to run_pipeline.
     """
 
-    def run_pipeline(self, pipeline, pyx, pxds={}):
+    def run_pipeline(self, pipeline, pyx, pxds=None):
+        if pxds is None:
+            pxds = {}
         tree = self.fragment(pyx, pxds).root
         # Run pipeline
         for T in pipeline:

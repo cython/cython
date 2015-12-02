@@ -574,7 +574,7 @@ class GetAndReleaseBufferUtilityCode(object):
     def __hash__(self):
         return 24342342
 
-    def get_tree(self): pass
+    def get_tree(self, **kwargs): pass
 
     def put_code(self, output):
         code = output['utility_code_def']

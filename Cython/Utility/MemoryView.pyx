@@ -300,6 +300,24 @@ cdef void *align_pointer(void *memory, size_t alignment) nogil:
 
     return <void *> aligned_p
 
+
+# pre-allocate thread locks for reuse
+## note that this could be implemented in a more beautiful way in "normal" Cython,
+## but this code gets merged into the user module and not everything works there.
+DEF THREAD_LOCKS_PREALLOCATED = 8
+cdef int __pyx_memoryview_thread_locks_used = 0
+cdef PyThread_type_lock[THREAD_LOCKS_PREALLOCATED] __pyx_memoryview_thread_locks = [
+    PyThread_allocate_lock(),
+    PyThread_allocate_lock(),
+    PyThread_allocate_lock(),
+    PyThread_allocate_lock(),
+    PyThread_allocate_lock(),
+    PyThread_allocate_lock(),
+    PyThread_allocate_lock(),
+    PyThread_allocate_lock(),
+]
+
+
 @cname('__pyx_memoryview')
 cdef class memoryview(object):
 
@@ -325,12 +343,17 @@ cdef class memoryview(object):
                 (<__pyx_buffer *> &self.view).obj = Py_None
                 Py_INCREF(Py_None)
 
-        self.lock = PyThread_allocate_lock()
-        if self.lock == NULL:
-            raise MemoryError
+        global __pyx_memoryview_thread_locks_used
+        if __pyx_memoryview_thread_locks_used < THREAD_LOCKS_PREALLOCATED:
+            self.lock = __pyx_memoryview_thread_locks[__pyx_memoryview_thread_locks_used]
+            __pyx_memoryview_thread_locks_used += 1
+        if self.lock is NULL:
+            self.lock = PyThread_allocate_lock()
+            if self.lock is NULL:
+                raise MemoryError
 
         if flags & PyBUF_FORMAT:
-            self.dtype_is_object = self.view.format == b'O'
+            self.dtype_is_object = (self.view.format[0] == b'O' and self.view.format[1] == b'\0')
         else:
             self.dtype_is_object = dtype_is_object
 
@@ -342,8 +365,18 @@ cdef class memoryview(object):
         if self.obj is not None:
             __Pyx_ReleaseBuffer(&self.view)
 
+        cdef int i
+        global __pyx_memoryview_thread_locks_used
         if self.lock != NULL:
-            PyThread_free_lock(self.lock)
+            for i in range(__pyx_memoryview_thread_locks_used):
+                if __pyx_memoryview_thread_locks[i] is self.lock:
+                    __pyx_memoryview_thread_locks_used -= 1
+                    if i != __pyx_memoryview_thread_locks_used:
+                        __pyx_memoryview_thread_locks[i], __pyx_memoryview_thread_locks[__pyx_memoryview_thread_locks_used] = (
+                            __pyx_memoryview_thread_locks[__pyx_memoryview_thread_locks_used], __pyx_memoryview_thread_locks[i])
+                    break
+            else:
+                PyThread_free_lock(self.lock)
 
     cdef char *get_item_pointer(memoryview self, object index) except NULL:
         cdef Py_ssize_t dim

@@ -166,7 +166,7 @@ version 0.17, Cython also allows to pass external source files into the
 
 And in the .pyx source file, write this into the first comment block, before
 any source code, to compile it in C++ mode and link it statically against the
-:file:`Rectange.cpp` code file::
+:file:`Rectangle.cpp` code file::
 
    # distutils: language = c++
    # distutils: sources = Rectangle.cpp

@@ -73,7 +73,7 @@ run a Python session to test both the Python version (imported from
         [2, 2, 2],
         [1, 1, 1]])
     In [4]: import convolve1
-    In [4]: convolve1.naive_convolve(np.array([[1, 1, 1]], dtype=np.int), 
+    In [4]: convolve1.naive_convolve(np.array([[1, 1, 1]], dtype=np.int),
     ...     np.array([[1],[2],[1]], dtype=np.int))
     Out [4]:
     array([[1, 1, 1],
@@ -196,7 +196,7 @@ These are the needed changes::
     def naive_convolve(np.ndarray[DTYPE_t, ndim=2] f, np.ndarray[DTYPE_t, ndim=2] g):
     ...
     cdef np.ndarray[DTYPE_t, ndim=2] h = ...
-    
+
 Usage:
 
 .. sourcecode:: ipython
@@ -227,42 +227,20 @@ The array lookups are still slowed down by two factors:
 
         ...
         cimport cython
-        @cython.boundscheck(False) # turn of bounds-checking for entire function
+        @cython.boundscheck(False) # turn off bounds-checking for entire function
+        @cython.wraparound(False)  # turn off negative index wrapping for entire function
         def naive_convolve(np.ndarray[DTYPE_t, ndim=2] f, np.ndarray[DTYPE_t, ndim=2] g):
         ...
-        
+
 Now bounds checking is not performed (and, as a side-effect, if you ''do''
 happen to access out of bounds you will in the best case crash your program
 and in the worst case corrupt data). It is possible to switch bounds-checking
 mode in many ways, see :ref:`compiler-directives` for more
 information.
 
-Negative indices are dealt with by ensuring Cython that the indices will be
-positive, by casting the variables to unsigned integer types (if you do have
-negative values, then this casting will create a very large positive value
-instead and you will attempt to access out-of-bounds values). Casting is done
-with a special ``<>``-syntax. The code below is changed to use either
-unsigned ints or casting as appropriate::
-
-        ...
-        cdef int s, t                                                                            # changed
-        cdef unsigned int x, y, v, w                                                             # changed
-        cdef int s_from, s_to, t_from, t_to
-        cdef DTYPE_t value
-        for x in range(xmax):
-            for y in range(ymax):
-                s_from = max(smid - x, -smid)
-                s_to = min((xmax - x) - smid, smid + 1)
-                t_from = max(tmid - y, -tmid)
-                t_to = min((ymax - y) - tmid, tmid + 1)
-                value = 0
-                for s in range(s_from, s_to):
-                    for t in range(t_from, t_to):
-                        v = <unsigned int>(x - smid + s)                                         # changed
-                        w = <unsigned int>(y - tmid + t)                                         # changed
-                        value += g[<unsigned int>(smid - s), <unsigned int>(tmid - t)] * f[v, w] # changed
-                h[x, y] = value
-        ...
+Also, we've disabled the check to wrap negative indices (e.g. g[-1] giving
+the last value).  As with disabling bounds checking, bad things will happen
+if we try to actually use negative indices with this disabled.
 
 The function call overhead now starts to play a role, so we compare the latter
 two examples with larger N:
@@ -310,4 +288,3 @@ There is some speed penalty to this though (as one makes more assumptions
 compile-time if the type is set to :obj:`np.ndarray`, specifically it is
 assumed that the data is stored in pure strided mode and not in indirect
 mode).
-

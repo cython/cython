@@ -287,6 +287,15 @@ Further Cython functions and declarations
 
     T = cython.typedef(cython.p_int)   # ctypedef int* T
 
+* ``cast`` will (unsafely) reinterpret an expression type. ``cython.cast(T, t)``
+  is equivalent to ``<T>t``. The first attribute must be a type, the second is
+  the expression to cast. Specifying the optional keyword argument
+  ``typecheck=True`` has the semantics of ``<T?>t``.
+
+  ::
+
+    t1 = cython.cast(T, t)
+    t2 = cython.cast(T, t, typecheck=True)
 
 .. _magic_attributes_pxd:
 

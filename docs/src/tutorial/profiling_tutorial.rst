@@ -164,7 +164,7 @@ write a short script to profile our code::
 
 Running this on my box gives the following output::
 
-   TODO: how to display this not as code but verbatimly? 
+   TODO: how to display this not as code but verbatim?
 
    Sat Nov  7 17:40:54 2009    Profile.prof
 
