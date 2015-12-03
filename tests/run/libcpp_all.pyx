@@ -25,8 +25,9 @@ from libcpp.stack  cimport *
 from libcpp.vector cimport *
 from libcpp.complex cimport *
 from libcpp.limits cimport *
-from libcpp.vector_alloc cimport vector as vec_alloc
 from libcpp.memory cimport allocator
+from libcpp.vector_alloc cimport vector as vec_alloc
+from libcpp.list_alloc cimport list as list_alloc
 
 cdef libcpp.deque.deque[int]   d1 = deque[int]()
 cdef libcpp.list.list[int]     l1 = list[int]()
@@ -111,7 +112,15 @@ cdef int isnan = numeric_limits[int].signaling_NaN()
 cdef int iinf = numeric_limits[int].infinity()
 
 cdef vec_alloc[int,allocator[int]] va1 = vec_alloc[int,allocator[int]]()
-va1.push_back(1);
-assert(va1.size()==1)
-va1.pop_back()
-assert(va1.empty())
+va1.push_back(1)
+cdef vec_alloc[int,allocator[int]].iterator va1itr = va1.begin();
+va1itr = va1.end()
+cdef vec_alloc[int,allocator[int]].reverse_iterator va1ritr = va1.rbegin();
+va1ritr = va1.rend()
+
+cdef list_alloc[int,allocator[int]] la1 = list_alloc[int,allocator[int]]()
+va1.insert(va1.end(),1)
+cdef list_alloc[int,allocator[int]].iterator la1itr = la1.begin()
+la1itr = la1.end()
+cdef list_alloc[int,allocator[int]].reverse_iterator la1ritr = la1.rbegin()
+la1ritr = la1.rend()
