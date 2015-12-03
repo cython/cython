@@ -25,6 +25,8 @@ from libcpp.stack  cimport *
 from libcpp.vector cimport *
 from libcpp.complex cimport *
 from libcpp.limits cimport *
+from libcpp.vector_alloc cimport vector as vec_alloc
+from libcpp.memory cimport allocator
 
 cdef libcpp.deque.deque[int]   d1 = deque[int]()
 cdef libcpp.list.list[int]     l1 = list[int]()
@@ -107,3 +109,9 @@ cdef int ieps = numeric_limits[int].epsilon()
 cdef int iqnan = numeric_limits[int].quiet_NaN()
 cdef int isnan = numeric_limits[int].signaling_NaN()
 cdef int iinf = numeric_limits[int].infinity()
+
+cdef vec_alloc[int,allocator[int]] va1 = vec_alloc[int,allocator[int]]()
+va1.push_back(1);
+assert(va1.size()==1)
+va1.pop_back()
+assert(va1.empty())
