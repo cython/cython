@@ -658,7 +658,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
             base = None
             exn_type = Extension
             ext_language = language
-        elif isinstance(pattern, Extension) or isinstance(pattern, Extension_setuptools):
+        elif isinstance(pattern, (Extension, Extension_setuptools)):
             for filepattern in pattern.sources:
                 if os.path.splitext(filepattern)[1] in ('.py', '.pyx'):
                     break
