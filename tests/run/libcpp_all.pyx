@@ -4,6 +4,7 @@ import cython
 
 cimport libcpp
 
+cimport libcpp.array
 cimport libcpp.deque
 cimport libcpp.list
 cimport libcpp.map
@@ -15,6 +16,7 @@ cimport libcpp.vector
 cimport libcpp.complex
 cimport libcpp.limits
 
+from libcpp.array  cimport *
 from libcpp.deque  cimport *
 from libcpp.list   cimport *
 from libcpp.map    cimport *
@@ -26,6 +28,7 @@ from libcpp.vector cimport *
 from libcpp.complex cimport *
 from libcpp.limits cimport *
 
+cdef libcpp.array.array[int, 10]   a1 = array[int, 10]()
 cdef libcpp.deque.deque[int]       d1 = deque[int]()
 cdef libcpp.list.list[int]         l1 = list[int]()
 cdef libcpp.map.map[int,int]       m1 = map[int,int]()
@@ -34,6 +37,11 @@ cdef libcpp.queue.queue[int]       q1 = queue[int]()
 cdef libcpp.set.set[int]           s1 = set[int]()
 cdef libcpp.stack.stack[int]       t1 = stack[int]()
 cdef libcpp.vector.vector[int]     v1 = vector[int]()
+
+cdef array[int, 10].iterator ia1 = a1.begin()
+cdef array[int, 10].iterator ia2 = a1.end()
+cdef array[int, 10].reverse_iterator ria1 = a1.rbegin()
+cdef array[int, 10].reverse_iterator ria2 = a1.rend()
 
 cdef deque[int].iterator id1 = d1.begin()
 cdef deque[int].iterator id2 = d1.end()
