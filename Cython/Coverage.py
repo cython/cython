@@ -8,6 +8,7 @@ from __future__ import absolute_import
 
 import re
 import os.path
+import sys
 from collections import defaultdict
 
 from coverage.plugin import CoveragePlugin, FileTracer, FileReporter  # requires coverage.py 4.0+
@@ -35,6 +36,12 @@ def _find_dep_file_path(main_file, file_path):
         pxi_file_path = os.path.join(os.path.dirname(main_file), file_path)
         if os.path.exists(pxi_file_path):
             abs_path = os.path.abspath(pxi_file_path)
+    # search sys.path for external locations if a valid file hasn't been found
+    if not os.path.exists(abs_path):
+        for sys_path in sys.path:
+            test_path = os.path.realpath(os.path.join(sys_path, file_path))
+            if os.path.exists(test_path):
+                return test_path
     return abs_path
 
 
