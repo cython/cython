@@ -245,7 +245,7 @@ class CythonModuleTracer(FileTracer):
             return self._file_path_map[source_file]
         except KeyError:
             pass
-        abs_path = os.path.abspath(source_file)
+        abs_path = _find_dep_file_path(filename, source_file)
 
         if self.py_file and source_file[-3:].lower() == '.py':
             # always let coverage.py handle this case itself
