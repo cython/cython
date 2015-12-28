@@ -36,7 +36,7 @@ Attributes
 * Are fixed at compile time.
 
  * You can't add attributes to an extension type instance at run time like in normal Python.
- * You can sub-class the extenstion type in Python to add attributes at run-time.
+ * You can sub-class the extension type in Python to add attributes at run-time.
 
 * There are two ways to access extension type attributes:
 
