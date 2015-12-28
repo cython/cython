@@ -126,7 +126,7 @@ compatibility. Consider this code (*read the comments!*) ::
             raise ValueError("Only odd dimensions on filter supported")
         assert f.dtype == DTYPE and g.dtype == DTYPE
         # The "cdef" keyword is also used within functions to type variables. It
-        # can only be used at the top indendation level (there are non-trivial
+        # can only be used at the top indentation level (there are non-trivial
         # problems with allowing them in other places, though we'd love to see
         # good and thought out proposals for it).
         #
