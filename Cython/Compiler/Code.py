@@ -2145,8 +2145,9 @@ class CCodeWriter(object):
     def error_goto(self, pos):
         lbl = self.funcstate.error_label
         self.funcstate.use_label(lbl)
-        return "{%s goto %s;}" % (
-            self.set_error_info(pos),
+        return "__PYX_ERR(%s, %s, %s)" % (
+            self.lookup_filename(pos[0]),
+            pos[1],
             lbl)
 
     def error_goto_if(self, cond, pos):

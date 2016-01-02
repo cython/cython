@@ -327,7 +327,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         globalstate.initialize_main_c_code()
         h_code = globalstate['h_code']
 
-        self.generate_module_preamble(env, modules, result.embedded_metadata, h_code)
+        self.generate_module_preamble(env, options, modules, result.embedded_metadata, h_code)
 
         globalstate.module_pos = self.pos
         globalstate.directives = self.directives
@@ -582,7 +582,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def _put_setup_code(self, code, name):
         code.put(UtilityCode.load_as_string(name, "ModuleSetupCode.c")[1])
 
-    def generate_module_preamble(self, env, cimported_modules, metadata, code):
+    def generate_module_preamble(self, env, options, cimported_modules, metadata, code):
         code.put_generated_by()
         if metadata:
             code.putln("/* BEGIN: Cython Metadata")
@@ -609,6 +609,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             self._put_setup_code(code, "CInitCode")
         self._put_setup_code(code, "MathInitCode")
+
+        if options.c_line_in_traceback:
+            cinfo = "%s = %s; " % (Naming.clineno_cname, Naming.line_c_macro)
+        else:
+            cinfo = ""
+        code.put("""
+#define __PYX_ERR(f_index, lineno, Ln_error) \\
+{ \\
+  %s = %s[f_index]; %s = lineno; %sgoto Ln_error; \\
+}
+""" % (Naming.filename_cname, Naming.filetable_cname, Naming.lineno_cname,
+       cinfo))
 
         code.put("""
 #if PY_MAJOR_VERSION >= 3
