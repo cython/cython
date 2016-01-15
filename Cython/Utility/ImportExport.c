@@ -394,14 +394,14 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
 #endif
     if (!strict && (size_t)basicsize > size) {
         PyOS_snprintf(warning, sizeof(warning),
-            "%s.%s size changed, may indicate binary incompatibility",
-            module_name, class_name);
+            "%s.%s size changed, may indicate binary incompatibility. Expected %zd, got %zd",
+            module_name, class_name, basicsize, size);
         if (PyErr_WarnEx(NULL, warning, 0) < 0) goto bad;
     }
     else if ((size_t)basicsize != size) {
         PyErr_Format(PyExc_ValueError,
-            "%.200s.%.200s has the wrong size, try recompiling",
-            module_name, class_name);
+            "%.200s.%.200s has the wrong size, try recompiling. Expected %zd, got %zd",
+            module_name, class_name, basicsize, size);
         goto bad;
     }
     return (PyTypeObject *)result;
