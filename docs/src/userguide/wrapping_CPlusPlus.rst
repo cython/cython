@@ -3,7 +3,7 @@
 .. _wrapping-cplusplus:
 
 ********************************
-Using C++ in Cython
+Using C++ in Cythonp
 ********************************
 
 Overview
@@ -362,9 +362,13 @@ a special module ``cython.operator``. The functions provided are:
 
 * ``cython.operator.dereference`` for dereferencing. ``dereference(foo)``
   will produce the C++ code ``*(foo)``
+* ``cython.operator.address`` for taking an address. ``address(foo)``
+  will produce the C++ code ``&(foo)``
 * ``cython.operator.preincrement`` for pre-incrementation. ``preincrement(foo)``
-  will produce the C++ code ``++(foo)``
-* ...
+  will produce the C++ code ``++(foo)``.
+  Similarly for ``predecrement``, ``postincrement`` and ``postdecrement``.
+* ``cython.operator.comma`` for the comma operator. ``comma(a, b)``
+  will produce the C++ code ``((a), (b))``.
 
 These functions need to be cimported. Of course, one can use a
 ``from ... cimport ... as`` to have shorter and more readable functions.
