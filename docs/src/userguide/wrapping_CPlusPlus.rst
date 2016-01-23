@@ -362,8 +362,6 @@ a special module ``cython.operator``. The functions provided are:
 
 * ``cython.operator.dereference`` for dereferencing. ``dereference(foo)``
   will produce the C++ code ``*(foo)``
-* ``cython.operator.address`` for taking an address. ``address(foo)``
-  will produce the C++ code ``&(foo)``
 * ``cython.operator.preincrement`` for pre-incrementation. ``preincrement(foo)``
   will produce the C++ code ``++(foo)``.
   Similarly for ``predecrement``, ``postincrement`` and ``postdecrement``.
@@ -373,6 +371,9 @@ a special module ``cython.operator``. The functions provided are:
 These functions need to be cimported. Of course, one can use a
 ``from ... cimport ... as`` to have shorter and more readable functions.
 For example: ``from cython.operator cimport dereference as deref``.
+
+For completeness, it's also worth mentioning ``cython.operator.address``
+which can also be written ``&foo``.
 
 Templates
 ----------
