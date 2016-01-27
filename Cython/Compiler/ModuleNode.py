@@ -40,6 +40,17 @@ def check_c_declarations(module_node):
     module_node.scope.check_c_functions()
     return module_node
 
+def generate_c_code_config(env, options):
+    if Options.annotate or options.annotate:
+        emit_linenums = False
+    else:
+        emit_linenums = options.emit_linenums
+        rootwriter = Code.CCodeWriter()
+
+    return Code.CCodeConfig(emit_linenums=emit_linenums,
+        emit_code_comments=env.directives['emit_code_comments'],
+        c_line_in_traceback=options.c_line_in_traceback)
+
 class ModuleNode(Nodes.Node, Nodes.BlockNode):
     #  doc       string or None
     #  body      StatListNode
@@ -117,7 +128,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.sort_cdef_classes(env)
         self.generate_c_code(env, options, result)
         self.generate_h_code(env, options, result)
-        self.generate_api_code(env, result)
+        self.generate_api_code(env, options, result)
 
     def has_imported_c_functions(self):
         for module in self.referenced_modules:
@@ -139,7 +150,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if (h_types or  h_vars or h_funcs or h_extension_types):
             result.h_file = replace_suffix(result.c_file, ".h")
             h_code = Code.CCodeWriter()
-            Code.GlobalState(h_code, self, Code.CCodeConfig())  # FIXME: config?
+            c_code_config = generate_c_code_config(env, options)
+            Code.GlobalState(h_code, self, c_code_config)
             if options.generate_pxi:
                 result.i_file = replace_suffix(result.c_file, ".pxi")
                 i_code = Code.PyrexCodeWriter(result.i_file)
@@ -203,7 +215,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def api_name(self, env):
         return env.qualified_name.replace(".", "__")
 
-    def generate_api_code(self, env, result):
+    def generate_api_code(self, env, options, result):
         def api_entries(entries, pxd=0):
             return [entry for entry in entries
                     if entry.api or (pxd and entry.defined_in_pxd)]
@@ -213,7 +225,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if api_vars or api_funcs or api_extension_types:
             result.api_file = replace_suffix(result.c_file, "_api.h")
             h_code = Code.CCodeWriter()
-            Code.GlobalState(h_code, self, Code.CCodeConfig())  # FIXME: config?
+            c_code_config = generate_c_code_config(env, options)
+            Code.GlobalState(h_code, self, c_code_config)
             h_code.put_generated_by()
             api_guard = Naming.api_guard_prefix + self.api_name(env)
             h_code.put_h_guard(api_guard)
@@ -308,17 +321,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         modules = self.referenced_modules
 
         if Options.annotate or options.annotate:
-            emit_linenums = False
             rootwriter = Annotate.AnnotationCCodeWriter()
         else:
-            emit_linenums = options.emit_linenums
             rootwriter = Code.CCodeWriter()
 
-        c_code_config = Code.CCodeConfig(
-            emit_linenums=emit_linenums,
-            emit_code_comments=env.directives['emit_code_comments'],
-            c_line_in_traceback=options.c_line_in_traceback,
-        )
+        c_code_config = generate_c_code_config(env, options)
+
         globalstate = Code.GlobalState(
             rootwriter, self,
             code_config=c_code_config,
