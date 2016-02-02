@@ -2191,6 +2191,8 @@ class AlignFunctionDefinitions(CythonTransform):
         if pxd_def is None:
             pxd_def = self.scope.lookup(node.class_name)
         if pxd_def:
+            if not pxd_def.defined_in_pxd:
+                return node
             outer_scope = self.scope
             self.scope = pxd_def.type.scope
         self.visitchildren(node)
