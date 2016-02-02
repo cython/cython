@@ -3257,8 +3257,10 @@ class CStructOrUnionType(CType):
         self.scope = scope
         self.typedef_flag = typedef_flag
         self.is_struct = kind == 'struct'
-        self.to_py_function = "%s_to_py_%s" % (Naming.convert_func_prefix, self.cname)
-        self.from_py_function = "%s_from_py_%s" % (Naming.convert_func_prefix, self.cname)
+        self.to_py_function = "%s_to_py_%s" % (
+            Naming.convert_func_prefix, self.specialization_name())
+        self.from_py_function = "%s_from_py_%s" % (
+            Naming.convert_func_prefix, self.specialization_name())
         self.exception_check = True
         self._convert_to_py_code = None
         self._convert_from_py_code = None
