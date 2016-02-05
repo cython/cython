@@ -6,4 +6,4 @@ def cython_modules(dist, attr, value):
     if not dist.ext_modules:
         dist.ext_modules = []
 
-    dist.ext_modules += cythonize(value)
+    dist.ext_modules += cythonize(value, replace_extension=True)
