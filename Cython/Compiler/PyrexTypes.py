@@ -2061,7 +2061,8 @@ proto="""
     #define __Pyx_CIMAG(z) ((z).imag)
 #endif
 
-#if (defined(_WIN32) || defined(__clang__)) && defined(__cplusplus) && CYTHON_CCOMPLEX
+#if defined(__cplusplus) && !CYTHON_COMPLEX \
+        && (defined(_WIN32) || defined(__clang__) || (defined(__GNUC__) && GCC_VERSION >= 40400) || __cplusplus >= 201103)
     #define __Pyx_SET_CREAL(z,x) ((z).real(x))
     #define __Pyx_SET_CIMAG(z,y) ((z).imag(y))
 #else
