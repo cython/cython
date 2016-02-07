@@ -269,7 +269,7 @@ class Context(object):
         # Search list of include directories for filename.
         # Reports an error and returns None if not found.
         path = self.search_include_directories(filename, "", pos,
-                                               include=True)
+                                               include=True, sys_path=True)
         if not path:
             error(pos, "'%s' not found" % filename)
         return path
