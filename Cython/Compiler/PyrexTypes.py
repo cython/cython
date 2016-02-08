@@ -2062,7 +2062,7 @@ proto="""
 #endif
 
 #if defined(__cplusplus) && CYTHON_CCOMPLEX \
-        && (defined(_WIN32) || defined(__clang__) || (defined(__GNUC__) && GCC_VERSION >= 40400) || __cplusplus >= 201103)
+        && (defined(_WIN32) || defined(__clang__) || (defined(__GNUC__) && (__GNUC__ >= 5 || __GNUC__ == 4 && __GNUC_MINOR__ >= 4 )) || __cplusplus >= 201103)
     #define __Pyx_SET_CREAL(z,x) ((z).real(x))
     #define __Pyx_SET_CIMAG(z,y) ((z).imag(y))
 #else
