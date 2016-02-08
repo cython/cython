@@ -122,6 +122,10 @@ def file_hash(filename):
 
 def parse_list(s):
     """
+    >>> parse_list("")
+    []
+    >>> parse_list("a")
+    ['a']
     >>> parse_list("a b c")
     ['a', 'b', 'c']
     >>> parse_list("[a, b, c]")
@@ -131,7 +135,7 @@ def parse_list(s):
     >>> parse_list('[a, ",a", "a,", ",", ]')
     ['a', ',a', 'a,', ',']
     """
-    if s[0] == '[' and s[-1] == ']':
+    if len(s) >= 2 and s[0] == '[' and s[-1] == ']':
         s = s[1:-1]
         delimiter = ','
     else:
