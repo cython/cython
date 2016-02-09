@@ -46,8 +46,7 @@ from distutils.extension import Extension
 
 from .. import Utils
 from ..Utils import (cached_function, cached_method, path_exists,
-    safe_makedirs, copy_file_to_dir_if_changed, find_root_package_dir,
-    is_package_dir)
+    safe_makedirs, copy_file_to_dir_if_changed, is_package_dir)
 from ..Compiler.Main import Context, CompilationOptions, default_options
 
 join_path = cached_function(os.path.join)
@@ -711,7 +710,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                 else:
                     extra_sources = None
                 if 'depends' in kwds:
-                    depends = resolve_depends(kwds['depends'], (kwds.get('include_dirs') or []) + [find_root_package_dir(file)])
+                    depends = resolve_depends(kwds['depends'], (kwds.get('include_dirs') or []) + ["."])
                     if template is not None:
                         # Always include everything from the template.
                         depends = set(template.depends).union(depends)
@@ -790,7 +789,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     to_compile = []
     for m in module_list:
         if build_dir:
-            root = os.path.abspath(find_root_package_dir(m.sources[0]))
+            root = os.getcwd()
             def copy_to_build_dir(filepath, root=root):
                 filepath_abs = os.path.abspath(filepath)
                 if os.path.isabs(filepath):
