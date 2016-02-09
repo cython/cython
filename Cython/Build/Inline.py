@@ -48,6 +48,7 @@ class UnboundSymbols(EnvTransform, SkipDeclarations):
         super(UnboundSymbols, self).__call__(node)
         return self.unbound
 
+
 @cached_function
 def unbound_symbols(code, context=None):
     code = to_unicode(code)
@@ -67,12 +68,14 @@ def unbound_symbols(code, context=None):
         import __builtin__ as builtins
     return UnboundSymbols()(tree) - set(dir(builtins))
 
+
 def unsafe_type(arg, context=None):
     py_type = type(arg)
     if py_type is int:
         return 'long'
     else:
         return safe_type(arg, context)
+
 
 def safe_type(arg, context=None):
     py_type = type(arg)
@@ -97,6 +100,7 @@ def safe_type(arg, context=None):
                     return '%s.%s' % (base_type.__module__, base_type.__name__)
         return 'object'
 
+
 def _get_build_extension():
     dist = Distribution()
     # Ensure the build respects distutils configuration by parsing
@@ -107,19 +111,16 @@ def _get_build_extension():
     build_extension.finalize_options()
     return build_extension
 
+
 @cached_function
 def _create_context(cython_include_dirs):
     return Context(list(cython_include_dirs), default_options)
 
-def cython_inline(code,
-                  get_type=unsafe_type,
-                  lib_dir=os.path.join(get_cython_cache_dir(), 'inline'),
-                  cython_include_dirs=['.'],
-                  force=False,
-                  quiet=False,
-                  locals=None,
-                  globals=None,
-                  **kwds):
+
+def cython_inline(code, get_type=unsafe_type, lib_dir=os.path.join(get_cython_cache_dir(), 'inline'),
+                  cython_include_dirs=None, force=False, quiet=False, locals=None, globals=None, **kwds):
+    if cython_include_dirs is None:
+        cython_include_dirs = ['.']
     if get_type is None:
         get_type = lambda x: 'object'
     code = to_unicode(code)
@@ -263,7 +264,6 @@ def extract_func_code(code):
     return '\n'.join(module), '    ' + '\n    '.join(function)
 
 
-
 try:
     from inspect import getcallargs
 except ImportError:
@@ -294,12 +294,14 @@ except ImportError:
                     raise TypeError("Missing argument: %s" % name)
         return all
 
+
 def get_body(source):
     ix = source.index(':')
     if source[:5] == 'lambda':
         return "return %s" % source[ix+1:]
     else:
         return source[ix+1:]
+
 
 # Lots to be done here... It would be especially cool if compiled functions
 # could invoke each other quickly.

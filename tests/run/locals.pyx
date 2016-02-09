@@ -88,3 +88,18 @@ def locals_ctype_inferred():
     cdef int *p = NULL
     b = p
     return 'b' in locals()
+
+
+def pass_on_locals(f):
+    """
+    >>> def print_locals(l, **kwargs):
+    ...     print(sorted(l))
+
+    >>> pass_on_locals(print_locals)
+    ['f']
+    ['f']
+    ['f']
+    """
+    f(locals())
+    f(l=locals())
+    f(l=locals(), a=1)

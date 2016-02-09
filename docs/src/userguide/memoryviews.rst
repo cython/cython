@@ -649,7 +649,7 @@ None Slices
 ===========
 
 Although memoryview slices are not objects they can be set to None and they can
-be be checked for being None as well::
+be checked for being None as well::
 
     def func(double[:] myarray = None):
         print(myarray is None)

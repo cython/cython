@@ -3,7 +3,7 @@
 .. _wrapping-cplusplus:
 
 ********************************
-Using C++ in Cython
+Using C++ in Cythonp
 ********************************
 
 Overview
@@ -145,7 +145,7 @@ is then handled by ``cythonize()`` as follows::
    from Cython.Build import cythonize
 
    setup(ext_modules = cythonize(Extension(
-              "rect",                                # the extesion name
+              "rect",                                # the extension name
               sources=["rect.pyx", "Rectangle.cpp"], # the Cython source and
                                                      # additional C++ source files
               language="c++",                        # generate and compile C++ code
@@ -166,7 +166,7 @@ version 0.17, Cython also allows to pass external source files into the
 
 And in the .pyx source file, write this into the first comment block, before
 any source code, to compile it in C++ mode and link it statically against the
-:file:`Rectange.cpp` code file::
+:file:`Rectangle.cpp` code file::
 
    # distutils: language = c++
    # distutils: sources = Rectangle.cpp
@@ -363,12 +363,17 @@ a special module ``cython.operator``. The functions provided are:
 * ``cython.operator.dereference`` for dereferencing. ``dereference(foo)``
   will produce the C++ code ``*(foo)``
 * ``cython.operator.preincrement`` for pre-incrementation. ``preincrement(foo)``
-  will produce the C++ code ``++(foo)``
-* ...
+  will produce the C++ code ``++(foo)``.
+  Similarly for ``predecrement``, ``postincrement`` and ``postdecrement``.
+* ``cython.operator.comma`` for the comma operator. ``comma(a, b)``
+  will produce the C++ code ``((a), (b))``.
 
 These functions need to be cimported. Of course, one can use a
 ``from ... cimport ... as`` to have shorter and more readable functions.
 For example: ``from cython.operator cimport dereference as deref``.
+
+For completeness, it's also worth mentioning ``cython.operator.address``
+which can also be written ``&foo``.
 
 Templates
 ----------

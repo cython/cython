@@ -66,7 +66,7 @@ cimport
 
 * Use the **cimport** statement, as you would Python's import statement, to access these files
   from other definition or implementation files.
-* **cimport** does not need to be called in ``.pyx`` file for for ``.pxd`` file that has the
+* **cimport** does not need to be called in ``.pyx`` file for ``.pxd`` file that has the
   same name, as they are already in the same namespace.
 * For cimport to find the stated definition file, the path to the file must be appended to the
   ``-I`` option of the **Cython compile command**.
@@ -705,7 +705,7 @@ Error and Exception Handling
     .. note:: Python Objects
 
         * Declared exception values are **not** need.
-        * Remember that Cython assumes that a function function without a declared return value, returns a Python object.
+        * Remember that Cython assumes that a function without a declared return value, returns a Python object.
         * Exceptions on such functions are implicitly propagated by returning ``NULL``
 
     .. note:: C++

@@ -62,19 +62,23 @@ PYXBLD_EXT = ".pyxbld"
 
 DEBUG_IMPORT = False
 
+
 def _print(message, args):
     if args:
         message = message % args
     print(message)
 
+
 def _debug(message, *args):
     if DEBUG_IMPORT:
         _print(message, args)
 
+
 def _info(message, *args):
     _print(message, args)
 
-# Performance problem: for every PYX file that is imported, we will 
+
+# Performance problem: for every PYX file that is imported, we will
 # invoke the whole distutils infrastructure even if the module is 
 # already built. It might be more efficient to only do it when the 
 # mod time of the .pyx is newer than the mod time of the .so but
@@ -83,6 +87,7 @@ def _info(message, *args):
 # issue isn't real.
 def _load_pyrex(name, filename):
     "Load a pyrex file given a name and filename."
+
 
 def get_distutils_extension(modname, pyxfilename, language_level=None):
 #    try:
@@ -103,6 +108,7 @@ def get_distutils_extension(modname, pyxfilename, language_level=None):
             extension_mod.cython_directives = {'language_level': language_level}
     return extension_mod,setup_args
 
+
 def handle_special_build(modname, pyxfilename):
     special_build = os.path.splitext(pyxfilename)[0] + PYXBLD_EXT
     ext = None
@@ -116,9 +122,8 @@ def handle_special_build(modname, pyxfilename):
         make_ext = getattr(mod,'make_ext',None)
         if make_ext:
             ext = make_ext(modname, pyxfilename)
-            assert ext and ext.sources, ("make_ext in %s did not return Extension" 
-                                         % special_build)
-        make_setup_args = getattr(mod,'make_setup_args',None)
+            assert ext and ext.sources, "make_ext in %s did not return Extension" % special_build
+        make_setup_args = getattr(mod, 'make_setup_args',None)
         if make_setup_args:
             setup_args = make_setup_args()
             assert isinstance(setup_args,dict), ("make_setup_args in %s did not return a dict" 
@@ -128,6 +133,7 @@ def handle_special_build(modname, pyxfilename):
         ext.sources = [os.path.join(os.path.dirname(special_build), source) 
                        for source in ext.sources]
     return ext, setup_args
+
 
 def handle_dependencies(pyxfilename):
     testing = '_test_files' in globals()
@@ -166,16 +172,16 @@ def handle_dependencies(pyxfilename):
                 if testing:
                     _test_files.append(file)
 
+
 def build_module(name, pyxfilename, pyxbuild_dir=None, inplace=False, language_level=None):
-    assert os.path.exists(pyxfilename), (
-        "Path does not exist: %s" % pyxfilename)
+    assert os.path.exists(pyxfilename), "Path does not exist: %s" % pyxfilename
     handle_dependencies(pyxfilename)
 
-    extension_mod,setup_args = get_distutils_extension(name, pyxfilename, language_level)
-    build_in_temp=pyxargs.build_in_temp
-    sargs=pyxargs.setup_args.copy()
+    extension_mod, setup_args = get_distutils_extension(name, pyxfilename, language_level)
+    build_in_temp = pyxargs.build_in_temp
+    sargs = pyxargs.setup_args.copy()
     sargs.update(setup_args)
-    build_in_temp=sargs.pop('build_in_temp',build_in_temp)
+    build_in_temp = sargs.pop('build_in_temp',build_in_temp)
 
     from . import pyxbuild
     so_path = pyxbuild.pyx_to_dll(pyxfilename, extension_mod,
@@ -189,13 +195,14 @@ def build_module(name, pyxfilename, pyxbuild_dir=None, inplace=False, language_l
     junkpath = os.path.join(os.path.dirname(so_path), name+"_*") #very dangerous with --inplace ? yes, indeed, trying to eat my files ;)
     junkstuff = glob.glob(junkpath)
     for path in junkstuff:
-        if path!=so_path:
+        if path != so_path:
             try:
                 os.remove(path)
             except IOError:
                 _info("Couldn't remove %s", path)
 
     return so_path
+
 
 def load_module(name, pyxfilename, pyxbuild_dir=None, is_package=False,
                 build_inplace=False, language_level=None, so_path=None):
@@ -314,6 +321,7 @@ class PyxImporter(object):
         _debug("%s not found" % fullname)
         return None
 
+
 class PyImporter(PyxImporter):
     """A meta-path importer for normal .py files.
     """
@@ -384,6 +392,7 @@ class PyImporter(PyxImporter):
             self.blocked_modules.pop()
         return importer
 
+
 class LibLoader(object):
     def __init__(self):
         self._libs = {}
@@ -403,6 +412,7 @@ class LibLoader(object):
         return fullname in self._libs
 
 _lib_loader = LibLoader()
+
 
 class PyxLoader(object):
     def __init__(self, fullname, path, init_path=None, pyxbuild_dir=None,
@@ -442,7 +452,8 @@ class PyxArgs(object):
     build_in_temp=True
     setup_args={}   #None
 
-##pyxargs=None   
+##pyxargs=None
+
 
 def _have_importers():
     has_py_importer = False
@@ -456,8 +467,9 @@ def _have_importers():
 
     return has_py_importer, has_pyx_importer
 
+
 def install(pyximport=True, pyimport=False, build_dir=None, build_in_temp=True,
-            setup_args={}, reload_support=False,
+            setup_args=None, reload_support=False,
             load_py_module_on_import_failure=False, inplace=False,
             language_level=None):
     """Main entry point. Call this to install the .pyx import hook in
@@ -504,6 +516,8 @@ def install(pyximport=True, pyimport=False, build_dir=None, build_in_temp=True,
     The default is to use the language level of the current Python
     runtime for .py files and Py2 for .pyx files.
     """
+    if setup_args is None:
+        setup_args = {}
     if not build_dir:
         build_dir = os.path.join(os.path.expanduser('~'), '.pyxbld')
         
@@ -532,6 +546,7 @@ def install(pyximport=True, pyimport=False, build_dir=None, build_in_temp=True,
 
     return py_importer, pyx_importer
 
+
 def uninstall(py_importer, pyx_importer):
     """
     Uninstall an import hook.
@@ -546,6 +561,7 @@ def uninstall(py_importer, pyx_importer):
     except ValueError:
         pass
 
+
 # MAIN
 
 def show_docs():
@@ -558,6 +574,7 @@ def show_docs():
         except (AttributeError, TypeError):
             pass
     help(__main__)
+
 
 if __name__ == '__main__':
     show_docs()

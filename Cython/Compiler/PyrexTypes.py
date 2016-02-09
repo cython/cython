@@ -2061,7 +2061,8 @@ proto="""
     #define __Pyx_CIMAG(z) ((z).imag)
 #endif
 
-#if (defined(_WIN32) || defined(__clang__)) && defined(__cplusplus) && CYTHON_CCOMPLEX
+#if defined(__cplusplus) && CYTHON_CCOMPLEX \
+        && (defined(_WIN32) || defined(__clang__) || (defined(__GNUC__) && (__GNUC__ >= 5 || __GNUC__ == 4 && __GNUC_MINOR__ >= 4 )) || __cplusplus >= 201103)
     #define __Pyx_SET_CREAL(z,x) ((z).real(x))
     #define __Pyx_SET_CIMAG(z,y) ((z).imag(y))
 #else
@@ -3202,7 +3203,7 @@ class ToPyStructUtilityCode(object):
     def __hash__(self):
         return hash(self.header)
 
-    def get_tree(self):
+    def get_tree(self, **kwargs):
         pass
 
     def put_code(self, output):
@@ -3257,8 +3258,10 @@ class CStructOrUnionType(CType):
         self.scope = scope
         self.typedef_flag = typedef_flag
         self.is_struct = kind == 'struct'
-        self.to_py_function = "%s_to_py_%s" % (Naming.convert_func_prefix, self.cname)
-        self.from_py_function = "%s_from_py_%s" % (Naming.convert_func_prefix, self.cname)
+        self.to_py_function = "%s_to_py_%s" % (
+            Naming.convert_func_prefix, self.specialization_name())
+        self.from_py_function = "%s_from_py_%s" % (
+            Naming.convert_func_prefix, self.specialization_name())
         self.exception_check = True
         self._convert_to_py_code = None
         self._convert_from_py_code = None
@@ -4250,6 +4253,10 @@ def merge_template_deductions(a, b):
 def widest_numeric_type(type1, type2):
     """Given two numeric types, return the narrowest type encompassing both of them.
     """
+    if type1.is_reference:
+        type1 = type1.ref_base_type
+    if type2.is_reference:
+        type2 = type2.ref_base_type
     if type1 == type2:
         widest_type = type1
     elif type1.is_complex or type2.is_complex:

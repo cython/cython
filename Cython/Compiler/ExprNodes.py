@@ -11150,6 +11150,12 @@ class CondExprNode(ExprNode):
             self.type_error()
         return self
 
+    def coerce_to_integer(self, env):
+        self.true_val = self.true_val.coerce_to_integer(env)
+        self.false_val = self.false_val.coerce_to_integer(env)
+        self.result_ctype = None
+        return self.analyse_result_type(env)
+
     def coerce_to(self, dst_type, env):
         self.true_val = self.true_val.coerce_to(dst_type, env)
         self.false_val = self.false_val.coerce_to(dst_type, env)

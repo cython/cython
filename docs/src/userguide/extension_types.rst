@@ -132,7 +132,7 @@ you can use a cast to write::
 This may be dangerous if :meth:`quest()` is not actually a :class:`Shrubbery`, as it 
 will try to access width as a C struct member which may not exist. At the C level, 
 rather than raising an :class:`AttributeError`, either an nonsensical result will be 
-returned (interpreting whatever data is at at that address as an int) or a segfault 
+returned (interpreting whatever data is at that address as an int) or a segfault
 may result from trying to access invalid memory. Instead, one can write::
 
     print (<Shrubbery?>quest()).width
@@ -649,7 +649,7 @@ When you declare::
 
 the name Spam serves both these roles. There may be other names by which you
 can refer to the constructor, but only Spam can be used as a type name. For
-example, if you were to explicity import MyModule, you could use
+example, if you were to explicitly import MyModule, you could use
 ``MyModule.Spam()`` to create a Spam instance, but you wouldn't be able to use
 :class:`MyModule.Spam` as a type name.
 

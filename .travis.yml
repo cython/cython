@@ -7,6 +7,7 @@ python:
   - 3.3
   - 3.4
   - 3.5
+  - 3.5-dev
   - pypy
   - pypy3
 
@@ -36,6 +37,7 @@ matrix:
   allow_failures:
     - python: pypy
     - python: pypy3
+    - python: 3.5-dev
   exclude:
     - python: pypy
       env: BACKEND=cpp
