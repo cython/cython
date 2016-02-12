@@ -207,6 +207,7 @@ async def wait3():
 
 
 ######## async_def_future.pyx ########
+# cython: binding=True
 
 import asyncio
 
