@@ -70,8 +70,12 @@ if 'setuptools' in sys.modules:
             'cythonize = Cython.Build.Cythonize:main',
             'cygdb = Cython.Debugger.Cygdb:main',
         ],
+        'distutils.commands': [
+            'build_pyx = Cython.Setuptools:BuildPyx',
+        ],
         'distutils.setup_keywords': [
             "cython_modules = Cython.Setuptools:cython_modules",
+            "cython_manual_modules = Cython.Setuptools:cython_manual_modules",
         ]
     }
     scripts = []
