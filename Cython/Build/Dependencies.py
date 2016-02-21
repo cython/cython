@@ -46,11 +46,11 @@ from distutils.extension import Extension
 
 from .. import Utils
 from ..Utils import (cached_function, cached_method, path_exists,
-    safe_makedirs, copy_file_to_dir_if_changed, is_package_dir)
+    safe_makedirs, copy_file_to_dir_if_newer, is_package_dir)
 from ..Compiler.Main import Context, CompilationOptions, default_options
 
 join_path = cached_function(os.path.join)
-copy_once = cached_function(copy_file_to_dir_if_changed)
+copy_once_if_newer = cached_function(copy_file_to_dir_if_newer)
 safe_makedirs_once = cached_function(safe_makedirs)
 
 if sys.version_info[0] < 3:
@@ -789,7 +789,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     to_compile = []
     for m in module_list:
         if build_dir:
-            root = os.getcwd()
+            root = os.getcwd()  # distutil extension depends are relative to cwd
             def copy_to_build_dir(filepath, root=root):
                 filepath_abs = os.path.abspath(filepath)
                 if os.path.isabs(filepath):
@@ -797,7 +797,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                 if filepath_abs.startswith(root):
                     mod_dir = join_path(build_dir,
                             os.path.dirname(_relpath(filepath, root)))
-                    copy_once(filepath_abs, mod_dir)
+                    copy_once_if_newer(filepath_abs, mod_dir)
             for dep in m.depends:
                 copy_to_build_dir(dep)
 

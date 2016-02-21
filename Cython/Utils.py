@@ -94,7 +94,7 @@ def safe_makedirs(path):
             raise
 
 
-def copy_file_to_dir_if_changed(sourcefile, destdir):
+def copy_file_to_dir_if_newer(sourcefile, destdir):
     """
     Copy file sourcefile to directory destdir (creating it if needed),
     preserving metadata. If the destination file exists and is not
