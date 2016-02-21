@@ -3,11 +3,14 @@
 from cython.operator import dereference as deref
 
 cdef extern from "cpp_templates_helper.h":
-    cdef cppclass Wrap[T]:
+    cdef cppclass Wrap[T, S=*]:
         Wrap(T)
         void set(T)
         T get()
         bint operator==(Wrap[T])
+
+        S get_alt_type()
+        void set_alt_type(S)
 
     cdef cppclass Pair[T1,T2]:
         Pair(T1,T2)
@@ -56,6 +59,29 @@ def test_double(double x, double y):
         return a.get(), b.get(), deref(a) == deref(b)
     finally:
         del a, b
+
+
+def test_default_template_arguments(double x):
+    """
+    >>> test_default_template_arguments(3.5)
+    (3.5, 3.0)
+    """
+    try:
+        a = new Wrap[double](x)
+        b = new Wrap[double, int](x)
+
+#        ax = a.get_alt_type()
+#        a.set_alt_type(ax)
+        a.set_alt_type(a.get_alt_type())
+
+#        bx = b.get_alt_type()
+#        b.set_alt_type(bx)
+        b.set_alt_type(b.get_alt_type())
+
+        return a.get(), b.get()
+    finally:
+        del a
+
 
 def test_pair(int i, double x):
     """

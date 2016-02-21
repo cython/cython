@@ -888,7 +888,8 @@ class ExprNode(Node):
             # Added the string comparison, since for c types that
             # is enough, but Cython gets confused when the types are
             # in different pxi files.
-            if not (str(src.type) == str(dst_type) or dst_type.assignable_from(src_type)):
+            # TODO: Remove this hack and require shared declarations.
+            if not (src.type == dst_type or str(src.type) == str(dst_type) or dst_type.assignable_from(src_type)):
                 self.fail_assignment(dst_type)
         return src
 

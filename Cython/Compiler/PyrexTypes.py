@@ -3398,7 +3398,6 @@ builtin_cpp_conversions = ("std::pair",
                            "std::set", "std::unordered_set",
                            "std::map", "std::unordered_map")
 
-
 class CppClassType(CType):
     #  name          string
     #  cname         string
@@ -3425,6 +3424,7 @@ class CppClassType(CType):
         self.operators = []
         self.templates = templates
         self.template_type = template_type
+        self.num_optional_templates = sum(is_optional_template_param(T) for T in templates or ())
         self.specializations = {}
         self.is_cpp_string = cname in cpp_string_conversions
 
@@ -3554,6 +3554,13 @@ class CppClassType(CType):
         if not self.is_template_type():
             error(pos, "'%s' type is not a template" % self)
             return error_type
+        if len(self.templates) - self.num_optional_templates <= len(template_values) < len(self.templates):
+            partial_specialization = self.declaration_code('', template_params=template_values)
+            template_values = template_values + [
+                TemplatePlaceholderType("%s %s::%s" % (
+                    TemplatePlaceholderType.UNDECLARABLE_DEFAULT, partial_specialization, param.name),
+                    True)
+                for param in self.templates[-self.num_optional_templates:]]
         if len(self.templates) != len(template_values):
             error(pos, "%s templated type receives %d arguments, got %d" %
                   (self.name, len(self.templates), len(template_values)))
@@ -3601,10 +3608,14 @@ class CppClassType(CType):
             return None
 
     def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0):
+            for_display = 0, dll_linkage = None, pyrex = 0,
+            template_params = None):
+        if template_params is None:
+            template_params = self.templates
         if self.templates:
             template_strings = [param.declaration_code('', for_display, None, pyrex)
-                                for param in self.templates]
+                                for param in template_params
+                                if not is_optional_template_param(param)]
             if for_display:
                 brackets = "[%s]"
             else:
@@ -3673,11 +3684,17 @@ class CppClassType(CType):
 
 class TemplatePlaceholderType(CType):
 
-    def __init__(self, name):
+    UNDECLARABLE_DEFAULT = "undeclarable default "
+
+    def __init__(self, name, optional=False):
         self.name = name
+        self.optional = optional
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
+        if self.name.startswith(self.UNDECLARABLE_DEFAULT) and not for_display:
+            error(None, "Can't declare variable of type '%s'"
+                % self.name[len(self.UNDECLARABLE_DEFAULT) + 1:])
         if entity_code:
             return self.name + " " + entity_code
         else:
@@ -3712,6 +3729,9 @@ class TemplatePlaceholderType(CType):
             return self.name == other.name
         else:
             return False
+
+def is_optional_template_param(type):
+    return isinstance(type, TemplatePlaceholderType) and type.optional
 
 
 class CEnumType(CType):

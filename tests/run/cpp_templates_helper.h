@@ -1,4 +1,4 @@
-template <class T>
+template <typename T, typename S=T>
 class Wrap {
     T value;
 public:
@@ -6,6 +6,9 @@ public:
     void set(T v) { value = v; }
     T get(void) { return value; }
     bool operator==(Wrap<T> other) { return value == other.value; }
+
+    S get_alt_type(void) { return (S) value; }
+    void set_alt_type(S v) { value = (T) v; }
 };
 
 template <class T1, class T2>

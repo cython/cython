@@ -1403,7 +1403,7 @@ class CppClassNode(CStructOrUnionDefNode, BlockNode):
     #  attributes    [CVarDefNode] or None
     #  entry         Entry
     #  base_classes  [CBaseTypeNode]
-    #  templates     [string] or None
+    #  templates     [(string, bool)] or None
     #  decorators    [DecoratorNode] or None
 
     decorators = None
@@ -1412,25 +1412,31 @@ class CppClassNode(CStructOrUnionDefNode, BlockNode):
         if self.templates is None:
             template_types = None
         else:
-            template_types = [PyrexTypes.TemplatePlaceholderType(template_name) for template_name in self.templates]
+            template_types = [PyrexTypes.TemplatePlaceholderType(template_name, not required)
+                              for template_name, required in self.templates]
+            num_optional_templates = sum(not required for _, required in self.templates)
+            if num_optional_templates and not all(required for _, required in self.templates[:-num_optional_templates]):
+                error(self.pos, "Required template parameters must precede optional template parameters.")
         self.entry = env.declare_cpp_class(
             self.name, None, self.pos,
             self.cname, base_classes = [], visibility = self.visibility, templates = template_types)
 
     def analyse_declarations(self, env):
+        if self.templates is None:
+            template_types = template_names = None
+        else:
+            template_names = [template_name for template_name, _ in self.templates]
+            template_types = [PyrexTypes.TemplatePlaceholderType(template_name, not required)
+                              for template_name, required in self.templates]
         scope = None
         if self.attributes is not None:
-            scope = CppClassScope(self.name, env, templates = self.templates)
+            scope = CppClassScope(self.name, env, templates = template_names)
         def base_ok(base_class):
             if base_class.is_cpp_class or base_class.is_struct:
                 return True
             else:
                 error(self.pos, "Base class '%s' not a struct or class." % base_class)
         base_class_types = filter(base_ok, [b.analyse(scope or env) for b in self.base_classes])
-        if self.templates is None:
-            template_types = None
-        else:
-            template_types = [PyrexTypes.TemplatePlaceholderType(template_name) for template_name in self.templates]
         self.entry = env.declare_cpp_class(
             self.name, scope, self.pos,
             self.cname, base_class_types, visibility = self.visibility, templates = template_types)
@@ -1455,7 +1461,7 @@ class CppClassNode(CStructOrUnionDefNode, BlockNode):
             for func in func_attributes(self.attributes):
                 defined_funcs.append(func)
                 if self.templates is not None:
-                    func.template_declaration = "template <typename %s>" % ", typename ".join(self.templates)
+                    func.template_declaration = "template <typename %s>" % ", typename ".join(template_names)
         self.body = StatListNode(self.pos, stats=defined_funcs)
         self.scope = scope
 
