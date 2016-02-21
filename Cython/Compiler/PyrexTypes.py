@@ -16,7 +16,7 @@ from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
 
-from .Errors import error
+from .Errors import error, warning
 
 
 class BaseType(object):
@@ -3555,12 +3555,20 @@ class CppClassType(CType):
             error(pos, "'%s' type is not a template" % self)
             return error_type
         if len(self.templates) - self.num_optional_templates <= len(template_values) < len(self.templates):
+            num_defaults = len(self.templates) - len(template_values)
             partial_specialization = self.declaration_code('', template_params=template_values)
+            # Most of the time we don't need to declare anything typed to these
+            # default template arguments, but when we do there's no way in C++
+            # to reference this directly.  However, it is common convention to
+            # provide a typedef in the template class that resolves to each
+            # template type.  For now, allow the user to specify this name as
+            # the template parameter.
+            # TODO: Allow typedefs in cpp classes and search for it in this
+            # classes scope as a concrete name we could use.
             template_values = template_values + [
-                TemplatePlaceholderType("%s %s::%s" % (
-                    TemplatePlaceholderType.UNDECLARABLE_DEFAULT, partial_specialization, param.name),
-                    True)
-                for param in self.templates[-self.num_optional_templates:]]
+                TemplatePlaceholderType(
+                    "%s::%s" % (partial_specialization, param.name), True)
+                for param in self.templates[-num_defaults:]]
         if len(self.templates) != len(template_values):
             error(pos, "%s templated type receives %d arguments, got %d" %
                   (self.name, len(self.templates), len(template_values)))
@@ -3684,17 +3692,12 @@ class CppClassType(CType):
 
 class TemplatePlaceholderType(CType):
 
-    UNDECLARABLE_DEFAULT = "undeclarable default "
-
     def __init__(self, name, optional=False):
         self.name = name
         self.optional = optional
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
-        if self.name.startswith(self.UNDECLARABLE_DEFAULT) and not for_display:
-            error(None, "Can't declare variable of type '%s'"
-                % self.name[len(self.UNDECLARABLE_DEFAULT) + 1:])
         if entity_code:
             return self.name + " " + entity_code
         else:
