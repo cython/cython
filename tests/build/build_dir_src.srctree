@@ -1,0 +1,90 @@
+# Mostly the same test as build_dir.srctree but with everything inside
+# a common "src" directory. We don't use --inplace and don't actually
+# import the built modules.
+
+PYTHON shutil_copy.py src/subdir src/fake
+PYTHON setup.py build_ext
+PYTHON check_paths.py
+
+######## shutil_copy.py ########
+
+import shutil, sys
+shutil.copytree(sys.argv[1], sys.argv[2])
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from Cython.Distutils.extension import Extension
+
+from distutils.core import setup
+
+ext_modules = cythonize(
+        Extension("a", ["src/a.pyx"]), build_dir="scratchA")
+ext_modules += cythonize(
+        Extension("pkg.b", ["src/pkg/b.pyx"]), build_dir="scratchB")
+
+setup(ext_modules=ext_modules)
+
+######## src/a.pyx ########
+
+cdef extern from "helper.h":
+    int value1
+
+cdef extern from "subdir/helper.h":
+    int value2
+
+cdef extern from "pkg/pkg_helper.h":
+    int value3
+
+assert value1 == 100
+assert value2 == 200
+assert value3 == 300
+
+######## src/helper.h ########
+
+int value1 = 100;
+
+######## src/subdir/helper.h ########
+
+int value2 = 200;
+
+######## src/pkg/__init__.py ########
+
+######## src/pkg/b.pyx ########
+
+cdef extern from "../fake/helper.h":
+    int value2
+
+cdef extern from "pkg_helper.h":
+    int value3
+
+cdef extern from "subdir/pkg_helper.h":
+    int value4
+
+assert value2 == 200
+assert value3 == 300
+assert value4 == 400
+
+######## src/pkg/pkg_helper.h ########
+
+int value3 = 300;
+
+######## src/pkg/subdir/pkg_helper.h ########
+
+int value4 = 400;
+
+######## check_paths.py ########
+
+import os
+assert os.path.exists("scratchA/src/a.c")
+assert os.path.exists("scratchA/src/helper.h")
+assert os.path.exists("scratchA/src/subdir/helper.h")
+assert os.path.exists("scratchA/src/pkg/pkg_helper.h")
+assert not os.path.exists("src/a.c")
+
+assert os.path.exists("scratchB/src/pkg/b.c")
+assert os.path.exists("scratchB/src/pkg/pkg_helper.h")
+assert os.path.exists("scratchB/src/pkg/subdir/pkg_helper.h")
+assert os.path.exists("scratchB/src/fake/helper.h")
+assert not os.path.exists("src/b.c")
+assert not os.path.exists("src/pkg/b.c")
