@@ -1,5 +1,5 @@
 cdef extern from "<list>" namespace "std" nogil:
-    cdef cppclass list[T]:
+    cdef cppclass list[T,ALLOCATOR=*]:
         cppclass iterator:
             iterator()
             iterator(iterator &)

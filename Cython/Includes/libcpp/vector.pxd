@@ -1,5 +1,5 @@
 cdef extern from "<vector>" namespace "std" nogil:
-    cdef cppclass vector[T]:
+    cdef cppclass vector[T,ALLOCATOR=*]:
         cppclass iterator:
             T& operator*()
             iterator operator++()

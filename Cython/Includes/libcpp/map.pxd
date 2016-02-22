@@ -1,7 +1,7 @@
 from .utility cimport pair
 
 cdef extern from "<map>" namespace "std" nogil:
-    cdef cppclass map[T, U]:
+    cdef cppclass map[T, U,COMPARE=*,ALLOCATOR=*]:
         cppclass iterator:
             pair[T, U]& operator*()
             iterator operator++()

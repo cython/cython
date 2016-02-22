@@ -1,7 +1,7 @@
 from .utility cimport pair
 
 cdef extern from "<unordered_set>" namespace "std" nogil:
-    cdef cppclass unordered_set[T]:
+    cdef cppclass unordered_set[T,HASH=*,PRED=*,ALLOCATOR=*]:
         cppclass iterator:
             T& operator*()
             iterator operator++()
