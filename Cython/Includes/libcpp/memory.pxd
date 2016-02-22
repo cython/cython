@@ -1,8 +1,10 @@
 from libcpp cimport bool, nullptr_t, nullptr
 
 cdef extern from "<memory>" namespace "std" nogil:
+    cdef cppclass default_delete[T]:
+        default_delete()
 
-    cdef cppclass unique_ptr[T]:
+    cdef cppclass unique_ptr[T,DELETER=*]:
         unique_ptr()
         unique_ptr(nullptr_t)
         unique_ptr(T*)
