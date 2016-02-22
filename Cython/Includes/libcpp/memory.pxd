@@ -4,6 +4,20 @@ cdef extern from "<memory>" namespace "std" nogil:
     cdef cppclass default_delete[T]:
         default_delete()
 
+    cdef cppclass allocator[T]:
+        allocator()
+        allocator(const allocator &)
+        allocator[U](const allocator[U] &)
+        T * address(T &)
+        const T * address(const T &) const
+        T * allocate( size_t n ) # Not to standard.  should be a second default argument
+        void deallocate(T * , size_t)
+        size_t max_size() const
+        void construct( T *, const T &) #C++98.  The C++11 version is variadic AND perfect-forwarding
+        void destroy(T *) #C++98
+        void destroy[U](U *)
+        
+        
     cdef cppclass unique_ptr[T,DELETER=*]:
         unique_ptr()
         unique_ptr(nullptr_t)
