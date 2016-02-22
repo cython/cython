@@ -7,7 +7,7 @@ cdef extern from "<memory>" namespace "std" nogil:
     cdef cppclass allocator[T]:
         allocator()
         allocator(const allocator &)
-        #allocator[U](const allocator[U] &) #unique_ptr unit tests fail w/this
+        #allocator(const allocator[U] &) #unique_ptr unit tests fail w/this
         T * address(T &)
         const T * address(const T &) const
         T * allocate( size_t n ) # Not to standard.  should be a second default argument
@@ -15,7 +15,7 @@ cdef extern from "<memory>" namespace "std" nogil:
         size_t max_size() const
         void construct( T *, const T &) #C++98.  The C++11 version is variadic AND perfect-forwarding
         void destroy(T *) #C++98
-        #void destroy[U](U *) #unique_ptr unit tests fail w/this
+        void destroy[U](U *) #unique_ptr unit tests fail w/this
         
         
     cdef cppclass unique_ptr[T,DELETER=*]:
