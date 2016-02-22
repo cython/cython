@@ -145,6 +145,24 @@ def unicode_methods(Py_UCS4 uchar):
         uchar.title(),
         ]
 
+
+@cython.test_assert_path_exists('//PythonCapiCallNode')
+@cython.test_fail_if_path_exists(
+    '//SimpleCallNode',
+    '//CoerceFromPyTypeNode',
+)
+def unicode_method_return_type(Py_UCS4 uchar):
+    """
+    >>> unicode_method_return_type(ord('A'))
+    [True, False]
+    >>> unicode_method_return_type(ord('a'))
+    [False, True]
+    """
+    cdef Py_UCS4 uc, ul
+    uc, ul = uchar.upper(), uchar.lower()
+    return [uc == uchar, ul == uchar]
+
+
 @cython.test_assert_path_exists('//IntNode')
 @cython.test_fail_if_path_exists('//SimpleCallNode',
                                  '//PythonCapiCallNode')

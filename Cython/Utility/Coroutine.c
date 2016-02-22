@@ -566,8 +566,7 @@ static PyObject *__Pyx_Coroutine_Send(PyObject *self, PyObject *value) {
         #endif
         {
             if (value == Py_None)
-                // FIXME - is this the right thing to do?
-                ret = PyIter_Next(yf);
+                ret = Py_TYPE(yf)->tp_iternext(yf);
             else
                 ret = __Pyx_PyObject_CallMethod1(yf, PYIDENT("send"), value);
         }

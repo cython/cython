@@ -398,7 +398,7 @@ class SimpleAssignmentTypeInferer(object):
             else:
                 entry = node.entry
                 node_type = spanning_type(
-                    types, entry.might_overflow, entry.pos)
+                    types, entry.might_overflow, entry.pos, scope)
             node.inferred_type = node_type
 
         def infer_name_node_type_partial(node):
@@ -407,7 +407,7 @@ class SimpleAssignmentTypeInferer(object):
             if not types:
                 return
             entry = node.entry
-            return spanning_type(types, entry.might_overflow, entry.pos)
+            return spanning_type(types, entry.might_overflow, entry.pos, scope)
 
         def resolve_assignments(assignments):
             resolved = set()
@@ -464,7 +464,7 @@ class SimpleAssignmentTypeInferer(object):
                 types = [assmt.inferred_type for assmt in entry.cf_assignments]
                 if types and all(types):
                     entry_type = spanning_type(
-                        types, entry.might_overflow, entry.pos)
+                        types, entry.might_overflow, entry.pos, scope)
                     inferred.add(entry)
             self.set_entry_type(entry, entry_type)
 
@@ -473,7 +473,7 @@ class SimpleAssignmentTypeInferer(object):
             for entry in inferred:
                 types = [assmt.infer_type()
                          for assmt in entry.cf_assignments]
-                new_type = spanning_type(types, entry.might_overflow, entry.pos)
+                new_type = spanning_type(types, entry.might_overflow, entry.pos, scope)
                 if new_type != entry.type:
                     self.set_entry_type(entry, new_type)
                     dirty = True
@@ -516,10 +516,10 @@ def simply_type(result_type, pos):
         result_type = PyrexTypes.c_ptr_type(result_type.base_type)
     return result_type
 
-def aggressive_spanning_type(types, might_overflow, pos):
+def aggressive_spanning_type(types, might_overflow, pos, scope):
     return simply_type(reduce(find_spanning_type, types), pos)
 
-def safe_spanning_type(types, might_overflow, pos):
+def safe_spanning_type(types, might_overflow, pos, scope):
     result_type = simply_type(reduce(find_spanning_type, types), pos)
     if result_type.is_pyobject:
         # In theory, any specific Python type is always safe to
@@ -553,6 +553,8 @@ def safe_spanning_type(types, might_overflow, pos):
     # TODO: double complex should be OK as well, but we need
     # to make sure everything is supported.
     elif (result_type.is_int or result_type.is_enum) and not might_overflow:
+        return result_type
+    elif not result_type.can_coerce_to_pyobject(scope):
         return result_type
     return py_object_type
 

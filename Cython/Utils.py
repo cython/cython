@@ -15,6 +15,7 @@ import sys
 import re
 import io
 import codecs
+import shutil
 from contextlib import contextmanager
 
 modification_time = os.path.getmtime
@@ -83,6 +84,34 @@ def castrate_file(path, st):
 def file_newer_than(path, time):
     ftime = modification_time(path)
     return ftime > time
+
+
+def safe_makedirs(path):
+    try:
+        os.makedirs(path)
+    except OSError:
+        if not os.path.isdir(path):
+            raise
+
+
+def copy_file_to_dir_if_newer(sourcefile, destdir):
+    """
+    Copy file sourcefile to directory destdir (creating it if needed),
+    preserving metadata. If the destination file exists and is not
+    older than the source file, the copying is skipped.
+    """
+    destfile = os.path.join(destdir, os.path.basename(sourcefile))
+    try:
+        desttime = modification_time(destfile)
+    except OSError:
+        # New file does not exist, destdir may or may not exist
+        safe_makedirs(destdir)
+    else:
+        # New file already exists
+        if not file_newer_than(sourcefile, desttime):
+            return
+    shutil.copy2(sourcefile, destfile)
+
 
 @cached_function
 def search_include_directories(dirs, qualified_name, suffix, pos,

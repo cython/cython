@@ -3363,6 +3363,16 @@ def p_module(s, pxd, full_module_name, ctx=Ctx):
                       full_module_name = full_module_name,
                       directive_comments = directive_comments)
 
+def p_template_definition(s):
+    name = p_ident(s)
+    if s.sy == '=':
+        s.expect('=')
+        s.expect('*')
+        required = False
+    else:
+        required = True
+    return name, required
+
 def p_cpp_class_definition(s, pos,  ctx):
     # s.sy == 'cppclass'
     s.next()
@@ -3375,19 +3385,21 @@ def p_cpp_class_definition(s, pos,  ctx):
         error(pos, "Qualified class name not allowed C++ class")
     if s.sy == '[':
         s.next()
-        templates = [p_ident(s)]
+        templates = [p_template_definition(s)]
         while s.sy == ',':
             s.next()
-            templates.append(p_ident(s))
+            templates.append(p_template_definition(s))
         s.expect(']')
+        template_names = [name for name, required in templates]
     else:
         templates = None
+        template_names = None
     if s.sy == '(':
         s.next()
-        base_classes = [p_c_base_type(s, templates = templates)]
+        base_classes = [p_c_base_type(s, templates = template_names)]
         while s.sy == ',':
             s.next()
-            base_classes.append(p_c_base_type(s, templates = templates))
+            base_classes.append(p_c_base_type(s, templates = template_names))
         s.expect(')')
     else:
         base_classes = []
@@ -3400,7 +3412,7 @@ def p_cpp_class_definition(s, pos,  ctx):
         s.expect_indent()
         attributes = []
         body_ctx = Ctx(visibility = ctx.visibility, level='cpp_class', nogil=nogil or ctx.nogil)
-        body_ctx.templates = templates
+        body_ctx.templates = template_names
         while s.sy != 'DEDENT':
             if s.sy != 'pass':
                 attributes.append(p_cpp_class_attribute(s, body_ctx))

@@ -22,6 +22,7 @@ Contents:
    buffer
    parallelism
    debugging
+   numpy_tutorial
 
 Indices and tables
 ------------------

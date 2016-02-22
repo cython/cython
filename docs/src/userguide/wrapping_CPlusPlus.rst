@@ -3,7 +3,7 @@
 .. _wrapping-cplusplus:
 
 ********************************
-Using C++ in Cython
+Using C++ in Cythonp
 ********************************
 
 Overview
@@ -68,7 +68,7 @@ document. Let's assume it will be in a header file called
             void move(int dx, int dy);
         };
     }
-    
+
 and the implementation in the file called :file:`Rectangle.cpp`:
 
 .. sourcecode:: c++
@@ -104,7 +104,7 @@ and the implementation in the file called :file:`Rectangle.cpp`:
             x1 += dx;
             y1 += dy;
         }
-  
+
     }
 
 This is pretty dumb, but should suffice to demonstrate the steps involved.
@@ -145,7 +145,7 @@ is then handled by ``cythonize()`` as follows::
    from Cython.Build import cythonize
 
    setup(ext_modules = cythonize(Extension(
-              "rect",                                # the extesion name
+              "rect",                                # the extension name
               sources=["rect.pyx", "Rectangle.cpp"], # the Cython source and
                                                      # additional C++ source files
               language="c++",                        # generate and compile C++ code
@@ -196,7 +196,7 @@ class name from Rectangle.h and adjust for Cython syntax, so now it becomes::
 
     cdef extern from "Rectangle.h" namespace "shapes":
         cdef cppclass Rectangle:
-    
+
 Add public attributes
 ^^^^^^^^^^^^^^^^^^^^^^
 
@@ -346,9 +346,9 @@ nested in Cython::
             T& at(int)
             iterator begin()
             iterator end()
-            
+
     cdef vector[int].iterator iter  #iter is declared as being of type vector<int>::iterator
-            
+
 Note that the nested class is declared with a ``cppclass`` but without a ``cdef``.
 
 C++ operators not compatible with Python syntax
@@ -363,12 +363,17 @@ a special module ``cython.operator``. The functions provided are:
 * ``cython.operator.dereference`` for dereferencing. ``dereference(foo)``
   will produce the C++ code ``*(foo)``
 * ``cython.operator.preincrement`` for pre-incrementation. ``preincrement(foo)``
-  will produce the C++ code ``++(foo)``
-* ...
+  will produce the C++ code ``++(foo)``.
+  Similarly for ``predecrement``, ``postincrement`` and ``postdecrement``.
+* ``cython.operator.comma`` for the comma operator. ``comma(a, b)``
+  will produce the C++ code ``((a), (b))``.
 
 These functions need to be cimported. Of course, one can use a
 ``from ... cimport ... as`` to have shorter and more readable functions.
 For example: ``from cython.operator cimport dereference as deref``.
+
+For completeness, it's also worth mentioning ``cython.operator.address``
+which can also be written ``&foo``.
 
 Templates
 ----------
@@ -404,8 +409,15 @@ Cython uses a bracket syntax for templating. A simple example for wrapping C++ v
 
     del v
 
-Multiple template parameters can be defined as a list, such as [T, U, V]
-or [int, bool, char].  Template functions are defined similarly, with
+Multiple template parameters can be defined as a list, such as ``[T, U, V]``
+or ``[int, bool, char]``.  Optional template parameters can be indicated
+by writing ``[T, U, V=*]``.  In the event that Cython needs to explicitly
+reference a default template value for an incomplete template instantiation,
+it will write ``MyClass<T, U>::V``, so if the class provides a typedef
+for its template parameters it is preferable to use that name here.
+
+
+Template functions are defined similarly to class templates, with
 the template parameter list following the function name::
 
     cdef extern from "<algorithm>" namespace "std":
@@ -432,7 +444,7 @@ For example::
         vect.push_back(i)
     for i in range(10):
         print vect[i]
-        
+
 The pxd files in ``/Cython/Includes/libcpp`` also work as good examples on
 how to declare C++ classes.
 
@@ -596,7 +608,7 @@ module which:
 
 * includes the needed C headers in an extern "C" block
 * contains minimal forwarding functions in C++, each of which calls the
-  respective pure-C function 
+  respective pure-C function
 
 Declaring/Using References
 ---------------------------
@@ -609,5 +621,3 @@ C++ left-values
 C++ allows functions returning a reference to be left-values.  This is currently
 not supported in Cython. ``cython.operator.dereference(foo)`` is also not
 considered a left-value.
-
-

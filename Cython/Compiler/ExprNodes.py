@@ -888,7 +888,8 @@ class ExprNode(Node):
             # Added the string comparison, since for c types that
             # is enough, but Cython gets confused when the types are
             # in different pxi files.
-            if not (str(src.type) == str(dst_type) or dst_type.assignable_from(src_type)):
+            # TODO: Remove this hack and require shared declarations.
+            if not (src.type == dst_type or str(src.type) == str(dst_type) or dst_type.assignable_from(src_type)):
                 self.fail_assignment(dst_type)
         return src
 
@@ -11149,6 +11150,12 @@ class CondExprNode(ExprNode):
         if self.type.is_error:
             self.type_error()
         return self
+
+    def coerce_to_integer(self, env):
+        self.true_val = self.true_val.coerce_to_integer(env)
+        self.false_val = self.false_val.coerce_to_integer(env)
+        self.result_ctype = None
+        return self.analyse_result_type(env)
 
     def coerce_to(self, dst_type, env):
         self.true_val = self.true_val.coerce_to(dst_type, env)

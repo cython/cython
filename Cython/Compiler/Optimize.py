@@ -2021,6 +2021,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 if node.type.assignable_from(arg.arg.type):
                     # completely redundant C->Py->C coercion
                     return arg.arg.coerce_to(node.type, self.current_env())
+            elif arg.type is Builtin.unicode_type:
+                if arg.arg.type.is_unicode_char and node.type.is_unicode_char:
+                    return arg.arg.coerce_to(node.type, self.current_env())
         elif isinstance(arg, ExprNodes.SimpleCallNode):
             if node.type.is_int or node.type.is_float:
                 return self._optimise_numeric_cast_call(node, arg)

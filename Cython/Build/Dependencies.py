@@ -45,10 +45,13 @@ except ImportError:
 from distutils.extension import Extension
 
 from .. import Utils
-from ..Utils import cached_function, cached_method, path_exists, find_root_package_dir, is_package_dir
+from ..Utils import (cached_function, cached_method, path_exists,
+    safe_makedirs, copy_file_to_dir_if_newer, is_package_dir)
 from ..Compiler.Main import Context, CompilationOptions, default_options
 
 join_path = cached_function(os.path.join)
+copy_once_if_newer = cached_function(copy_file_to_dir_if_newer)
+safe_makedirs_once = cached_function(safe_makedirs)
 
 if sys.version_info[0] < 3:
     # stupid Py2 distutils enforces str type in list of sources
@@ -122,6 +125,10 @@ def file_hash(filename):
 
 def parse_list(s):
     """
+    >>> parse_list("")
+    []
+    >>> parse_list("a")
+    ['a']
     >>> parse_list("a b c")
     ['a', 'b', 'c']
     >>> parse_list("[a, b, c]")
@@ -131,7 +138,7 @@ def parse_list(s):
     >>> parse_list('[a, ",a", "a,", ",", ]')
     ['a', ',a', 'a,', ',']
     """
-    if s[0] == '[' and s[-1] == ']':
+    if len(s) >= 2 and s[0] == '[' and s[-1] == ']':
         s = s[1:-1]
         delimiter = ','
     else:
@@ -642,6 +649,14 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
 
     module_list = []
     module_metadata = {}
+
+    # workaround for setuptools
+    if 'setuptools' in sys.modules:
+       Extension_setuptools = sys.modules['setuptools'].Extension
+    else:
+         # dummy class, in case we do not have setuptools
+         class Extension_setuptools(Extension): pass
+
     for pattern in patterns:
         if isinstance(pattern, str):
             filepattern = pattern
@@ -650,7 +665,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
             base = None
             exn_type = Extension
             ext_language = language
-        elif isinstance(pattern, Extension):
+        elif isinstance(pattern, (Extension, Extension_setuptools)):
             for filepattern in pattern.sources:
                 if os.path.splitext(filepattern)[1] in ('.py', '.pyx'):
                     break
@@ -664,7 +679,11 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
             exn_type = template.__class__
             ext_language = None  # do not override whatever the Extension says
         else:
-            raise TypeError(pattern)
+            msg = str("pattern is not of type str nor subclass of Extension (%s)"
+                      " but of type %s and class %s" % (repr(Extension),
+                                                        type(pattern),
+                                                        pattern.__class__))
+            raise TypeError(msg)
 
         for file in nonempty(sorted(extended_iglob(filepattern)), "'%s' doesn't match any files" % filepattern):
             if os.path.abspath(file) in to_exclude:
@@ -703,7 +722,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                 else:
                     extra_sources = None
                 if 'depends' in kwds:
-                    depends = resolve_depends(kwds['depends'], (kwds.get('include_dirs') or []) + [find_root_package_dir(file)])
+                    depends = resolve_depends(kwds['depends'], (kwds.get('include_dirs') or []) + ["."])
                     if template is not None:
                         # Always include everything from the template.
                         depends = set(template.depends).union(depends)
@@ -762,8 +781,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     if 'common_utility_include_dir' in options:
         if options.get('cache'):
             raise NotImplementedError("common_utility_include_dir does not yet work with caching")
-        if not os.path.exists(options['common_utility_include_dir']):
-            os.makedirs(options['common_utility_include_dir'])
+        safe_makedirs(options['common_utility_include_dir'])
     c_options = CompilationOptions(**options)
     cpp_options = CompilationOptions(**options); cpp_options.cplus = True
     ctx = c_options.create_context()
@@ -783,17 +801,15 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     to_compile = []
     for m in module_list:
         if build_dir:
-            root = os.path.realpath(os.path.abspath(find_root_package_dir(m.sources[0])))
+            root = os.getcwd()  # distutil extension depends are relative to cwd
             def copy_to_build_dir(filepath, root=root):
-                filepath_abs = os.path.realpath(os.path.abspath(filepath))
+                filepath_abs = os.path.abspath(filepath)
                 if os.path.isabs(filepath):
                     filepath = filepath_abs
                 if filepath_abs.startswith(root):
-                    mod_dir = os.path.join(build_dir,
+                    mod_dir = join_path(build_dir,
                             os.path.dirname(_relpath(filepath, root)))
-                    if not os.path.isdir(mod_dir):
-                        os.makedirs(mod_dir)
-                    shutil.copy(filepath, mod_dir)
+                    copy_once_if_newer(filepath_abs, mod_dir)
             for dep in m.depends:
                 copy_to_build_dir(dep)
 
@@ -812,8 +828,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                 if build_dir:
                     c_file = os.path.join(build_dir, c_file)
                     dir = os.path.dirname(c_file)
-                    if not os.path.isdir(dir):
-                        os.makedirs(dir)
+                    safe_makedirs_once(dir)
 
                 if os.path.exists(c_file):
                     c_timestamp = os.path.getmtime(c_file)

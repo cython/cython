@@ -28,6 +28,8 @@ Features added
 * Exception type tests have slightly lower overhead.
   This fixes ticket 868.
 
+* C++ classes can now be declared with default template parameters.
+
 Bugs fixed
 ----------
 

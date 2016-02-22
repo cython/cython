@@ -52,7 +52,7 @@ from libc.string cimport strcat, strncat, \
 from cpython.object cimport Py_SIZE
 from cpython.ref cimport PyTypeObject, Py_TYPE
 from cpython.exc cimport PyErr_BadArgument
-from cpython.mem cimport PyMem_Malloc, PyMem_Free
+from cpython.mem cimport PyObject_Malloc, PyObject_Free
 
 cdef extern from *:  # Hard-coded utility code hack.
     ctypedef class array.array [object arrayobject]
@@ -102,7 +102,7 @@ cdef extern from *:  # Hard-coded utility code hack.
             info.itemsize = self.ob_descr.itemsize   # e.g. sizeof(float)
             info.len = info.itemsize * item_count
 
-            info.shape = <Py_ssize_t*> PyMem_Malloc(sizeof(Py_ssize_t) + 2)
+            info.shape = <Py_ssize_t*> PyObject_Malloc(sizeof(Py_ssize_t) + 2)
             if not info.shape:
                 raise MemoryError()
             info.shape[0] = item_count      # constant regardless of resizing
@@ -114,7 +114,7 @@ cdef extern from *:  # Hard-coded utility code hack.
             info.obj = self
 
         def __releasebuffer__(self, Py_buffer* info):
-            PyMem_Free(info.shape)
+            PyObject_Free(info.shape)
 
     array newarrayobject(PyTypeObject* type, Py_ssize_t size, arraydescr *descr)
 

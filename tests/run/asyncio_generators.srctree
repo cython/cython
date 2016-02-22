@@ -78,7 +78,7 @@ if ASYNCIO_SUPPORTS_COROUTINE:
         loop = asyncio.get_event_loop()
         task, events, expected = await_future(loop)
         result = loop.run_until_complete(task())
-        assert events == expected, events
+        assert events == expected, 'expected %s, got %s' % (expected, events)
 
     runloop()
 
@@ -207,6 +207,7 @@ async def wait3():
 
 
 ######## async_def_future.pyx ########
+# cython: binding=True
 
 import asyncio
 

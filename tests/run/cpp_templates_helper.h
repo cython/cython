@@ -1,11 +1,19 @@
-template <class T>
+template <typename T, typename S=T, typename U=T>
 class Wrap {
     T value;
 public:
+    typedef S AltType;
+
     Wrap(T v) : value(v) { }
     void set(T v) { value = v; }
     T get(void) { return value; }
     bool operator==(Wrap<T> other) { return value == other.value; }
+
+    S get_alt_type(void) { return (S) value; }
+    void set_alt_type(S v) { value = (T) v; }
+
+    U create(void) { return (U) value; }
+    bool accept(U v) { return v == (U) value; }
 };
 
 template <class T1, class T2>

@@ -16,7 +16,7 @@ from .Code import UtilityCode, LazyUtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
 
-from .Errors import error
+from .Errors import error, warning
 
 
 class BaseType(object):
@@ -2061,7 +2061,8 @@ proto="""
     #define __Pyx_CIMAG(z) ((z).imag)
 #endif
 
-#if (defined(_WIN32) || defined(__clang__)) && defined(__cplusplus) && CYTHON_CCOMPLEX
+#if defined(__cplusplus) && CYTHON_CCOMPLEX \
+        && (defined(_WIN32) || defined(__clang__) || (defined(__GNUC__) && (__GNUC__ >= 5 || __GNUC__ == 4 && __GNUC_MINOR__ >= 4 )) || __cplusplus >= 201103)
     #define __Pyx_SET_CREAL(z,x) ((z).real(x))
     #define __Pyx_SET_CIMAG(z,y) ((z).imag(y))
 #else
@@ -3257,8 +3258,10 @@ class CStructOrUnionType(CType):
         self.scope = scope
         self.typedef_flag = typedef_flag
         self.is_struct = kind == 'struct'
-        self.to_py_function = "%s_to_py_%s" % (Naming.convert_func_prefix, self.cname)
-        self.from_py_function = "%s_from_py_%s" % (Naming.convert_func_prefix, self.cname)
+        self.to_py_function = "%s_to_py_%s" % (
+            Naming.convert_func_prefix, self.specialization_name())
+        self.from_py_function = "%s_from_py_%s" % (
+            Naming.convert_func_prefix, self.specialization_name())
         self.exception_check = True
         self._convert_to_py_code = None
         self._convert_from_py_code = None
@@ -3395,7 +3398,6 @@ builtin_cpp_conversions = ("std::pair",
                            "std::set", "std::unordered_set",
                            "std::map", "std::unordered_map")
 
-
 class CppClassType(CType):
     #  name          string
     #  cname         string
@@ -3422,6 +3424,7 @@ class CppClassType(CType):
         self.operators = []
         self.templates = templates
         self.template_type = template_type
+        self.num_optional_templates = sum(is_optional_template_param(T) for T in templates or ())
         self.specializations = {}
         self.is_cpp_string = cname in cpp_string_conversions
 
@@ -3551,6 +3554,21 @@ class CppClassType(CType):
         if not self.is_template_type():
             error(pos, "'%s' type is not a template" % self)
             return error_type
+        if len(self.templates) - self.num_optional_templates <= len(template_values) < len(self.templates):
+            num_defaults = len(self.templates) - len(template_values)
+            partial_specialization = self.declaration_code('', template_params=template_values)
+            # Most of the time we don't need to declare anything typed to these
+            # default template arguments, but when we do there's no way in C++
+            # to reference this directly.  However, it is common convention to
+            # provide a typedef in the template class that resolves to each
+            # template type.  For now, allow the user to specify this name as
+            # the template parameter.
+            # TODO: Allow typedefs in cpp classes and search for it in this
+            # classes scope as a concrete name we could use.
+            template_values = template_values + [
+                TemplatePlaceholderType(
+                    "%s::%s" % (partial_specialization, param.name), True)
+                for param in self.templates[-num_defaults:]]
         if len(self.templates) != len(template_values):
             error(pos, "%s templated type receives %d arguments, got %d" %
                   (self.name, len(self.templates), len(template_values)))
@@ -3598,10 +3616,14 @@ class CppClassType(CType):
             return None
 
     def declaration_code(self, entity_code,
-            for_display = 0, dll_linkage = None, pyrex = 0):
+            for_display = 0, dll_linkage = None, pyrex = 0,
+            template_params = None):
+        if template_params is None:
+            template_params = self.templates
         if self.templates:
             template_strings = [param.declaration_code('', for_display, None, pyrex)
-                                for param in self.templates]
+                                for param in template_params
+                                if not is_optional_template_param(param)]
             if for_display:
                 brackets = "[%s]"
             else:
@@ -3670,8 +3692,9 @@ class CppClassType(CType):
 
 class TemplatePlaceholderType(CType):
 
-    def __init__(self, name):
+    def __init__(self, name, optional=False):
         self.name = name
+        self.optional = optional
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
@@ -3709,6 +3732,9 @@ class TemplatePlaceholderType(CType):
             return self.name == other.name
         else:
             return False
+
+def is_optional_template_param(type):
+    return isinstance(type, TemplatePlaceholderType) and type.optional
 
 
 class CEnumType(CType):
@@ -4250,6 +4276,10 @@ def merge_template_deductions(a, b):
 def widest_numeric_type(type1, type2):
     """Given two numeric types, return the narrowest type encompassing both of them.
     """
+    if type1.is_reference:
+        type1 = type1.ref_base_type
+    if type2.is_reference:
+        type2 = type2.ref_base_type
     if type1 == type2:
         widest_type = type1
     elif type1.is_complex or type2.is_complex:

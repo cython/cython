@@ -33,6 +33,8 @@ cdef extern from *:
 
     void* PyMem_Malloc(size_t n)
     void PyMem_Free(void *p)
+    void* PyObject_Malloc(size_t n)
+    void PyObject_Free(void *p)
 
     cdef struct __pyx_memoryview "__pyx_memoryview_obj":
         Py_buffer view
@@ -137,7 +139,7 @@ cdef class array:
         self.format = self._format
 
         # use single malloc() for both shape and strides
-        self._shape = <Py_ssize_t *> PyMem_Malloc(sizeof(Py_ssize_t)*self.ndim*2)
+        self._shape = <Py_ssize_t *> PyObject_Malloc(sizeof(Py_ssize_t)*self.ndim*2)
         self._strides = self._shape + self.ndim
 
         if not self._shape:
@@ -212,7 +214,7 @@ cdef class array:
                 refcount_objects_in_slice(self.data, self._shape,
                                           self._strides, self.ndim, False)
             free(self.data)
-        PyMem_Free(self._shape)
+        PyObject_Free(self._shape)
 
     property memview:
         @cname('get_memview')
