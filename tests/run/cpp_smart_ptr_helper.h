@@ -11,3 +11,14 @@ class CountAllocDealloc {
     int* _alloc_count;
     int* _dealloc_count;
 };
+
+template<typename T>
+struct FreePtr {
+  void operator()( T * t ) noexcept
+  {
+    if(t != nullptr) {
+      delete t;
+      t=nullptr;
+    }
+  }
+};
