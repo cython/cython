@@ -1,7 +1,9 @@
 from libcpp cimport bool, nullptr_t, nullptr
 
 cdef extern from "<memory>" namespace "std" nogil:
-
+    cdef cppclass allocator[T]:
+        pass
+    
     cdef cppclass unique_ptr[T]:
         unique_ptr()
         unique_ptr(nullptr_t)
