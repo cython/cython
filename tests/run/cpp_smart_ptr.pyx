@@ -1,4 +1,4 @@
-# distutils: extra_compile_args=-std=c++11
+# distutils: extra_compile_args=-std=c++0x
 # mode: run
 # tag: cpp, werror
 
