@@ -685,7 +685,7 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
             const digit* digits = ((PyLongObject*)x)->ob_digit;
             switch (Py_SIZE(x)) {
                 case  0: return ({{TYPE}}) 0;
-                case -1: __PYX_VERIFY_RETURN_INT({{TYPE}}, sdigit, -(sdigit) digits[0])
+                case -1: __PYX_VERIFY_RETURN_INT({{TYPE}}, sdigit, (sdigit) -digits[0])
                 case  1: __PYX_VERIFY_RETURN_INT({{TYPE}},  digit, +digits[0])
                 {{for _size in (2, 3, 4)}}
                 {{for _case in (-_size, _size)}}
