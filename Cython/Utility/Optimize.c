@@ -661,7 +661,8 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
                 x = a % b;
                 x += ((x != 0) & ((x ^ b) < 0)) * b;
             {{elif op == 'TrueDivide'}}
-                if (8 * sizeof(long) <= 53 || (__Pyx_sst_abs(size) <= 52 / PyLong_SHIFT) || likely(labs({{ival}}) <= (1L << 53))) {
+                if ((8 * sizeof(long) <= 53 || likely(labs({{ival}}) <= (1L << 53)))
+                    || __Pyx_sst_abs(size) <= 52 / PyLong_SHIFT) {
                     return PyFloat_FromDouble((double)a / (double)b);
                 }
                 return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
