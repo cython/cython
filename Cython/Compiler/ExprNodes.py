@@ -5052,6 +5052,8 @@ class SimpleCallNode(CallNode):
         for i in range(min(max_nargs, actual_nargs)):
             formal_arg = func_type.args[i]
             formal_type = formal_arg.type
+            if formal_type.is_const:
+                formal_type = formal_type.const_base_type
             arg = args[i].coerce_to(formal_type, env)
             if formal_arg.not_none:
                 # C methods must do the None checks at *call* time
