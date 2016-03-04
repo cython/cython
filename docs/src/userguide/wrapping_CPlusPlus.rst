@@ -3,7 +3,7 @@
 .. _wrapping-cplusplus:
 
 ********************************
-Using C++ in Cythonp
+Using C++ in Cython
 ********************************
 
 Overview
