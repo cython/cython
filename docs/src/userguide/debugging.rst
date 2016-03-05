@@ -18,7 +18,7 @@ The debugger will need debug information that the Cython compiler can export.
 This can be achieved from within the setup
 script by passing ``gdb_debug=True`` to ``cythonize()``::
 
-    from distutils.code import setup
+    from distutils.core import setup
     from distutils.extension import Extension
 
     extensions = [Extension('source', ['source.pyx'])]
