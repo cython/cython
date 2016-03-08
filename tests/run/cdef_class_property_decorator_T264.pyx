@@ -21,6 +21,8 @@ cdef class Prop:
     DELETING '2'
     >>> p.prop
     GETTING 'None'
+    >>> p.alias_prop
+    GETTING 'None'
     """
     cdef _value
     def __init__(self):
@@ -49,3 +51,5 @@ cdef class Prop:
     def prop(self):
         print("DELETING '%s'" % self._value)
         self._value = None
+
+    alias_prop = prop
