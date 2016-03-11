@@ -412,9 +412,9 @@ Cython uses a bracket syntax for templating. A simple example for wrapping C++ v
 Multiple template parameters can be defined as a list, such as ``[T, U, V]``
 or ``[int, bool, char]``.  Optional template parameters can be indicated
 by writing ``[T, U, V=*]``.  In the event that Cython needs to explicitly
-reference a default template value for an incomplete template instantiation,
-it will write ``MyClass<T, U>::V``, so if the class provides a typedef
-for its template parameters it is preferable to use that name here.
+reference the type of a default template parameter for an incomplete template
+instantiation, it will write ``MyClass<T, U>::V``, so if the class provides
+a typedef for its template parameters it is preferable to use that name here.
 
 
 Template functions are defined similarly to class templates, with
