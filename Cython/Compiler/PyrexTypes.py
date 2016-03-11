@@ -3393,10 +3393,16 @@ class CStructOrUnionType(CType):
 
 cpp_string_conversions = ("std::string",)
 
-builtin_cpp_conversions = ("std::pair",
-                           "std::vector", "std::list",
-                           "std::set", "std::unordered_set",
-                           "std::map", "std::unordered_map")
+builtin_cpp_conversions = {
+    # type                element template params
+    "std::pair":          2,
+    "std::vector":        1,
+    "std::list":          1,
+    "std::set":           1,
+    "std::unordered_set": 1,
+    "std::map":           2,
+    "std::unordered_map": 2,
+}
 
 class CppClassType(CType):
     #  name          string
@@ -3445,6 +3451,8 @@ class CppClassType(CType):
             tags = []
             declarations = ["cdef extern from *:"]
             for ix, T in enumerate(self.templates or []):
+                if ix >= builtin_cpp_conversions[self.cname]:
+                    break
                 if T.is_pyobject or not T.create_from_py_utility_code(env):
                     return False
                 tags.append(T.specialization_name())
@@ -3507,6 +3515,8 @@ class CppClassType(CType):
             tags = []
             declarations = ["cdef extern from *:"]
             for ix, T in enumerate(self.templates or []):
+                if ix >= builtin_cpp_conversions[self.cname]:
+                    break
                 if not T.create_to_py_utility_code(env):
                     return False
                 tags.append(T.specialization_name())

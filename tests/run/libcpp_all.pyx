@@ -107,3 +107,21 @@ cdef int ieps = numeric_limits[int].epsilon()
 cdef int iqnan = numeric_limits[int].quiet_NaN()
 cdef int isnan = numeric_limits[int].signaling_NaN()
 cdef int iinf = numeric_limits[int].infinity()
+
+#API checks for containers with std::allocator declared
+from libcpp.memory cimport allocator
+
+cdef libcpp.vector.vector[int,allocator[int]] vec_alloc_int = libcpp.vector.vector[int,allocator[int]](10,1)
+assert vec_alloc_int.size() == 10
+
+cdef libcpp.list.list[int,allocator[int]] list_alloc_int = libcpp.list.list[int,allocator[int]](10,1)
+assert list_alloc_int.size() == 10
+
+##Something about the default params breaks the auto-conversion...
+def convert_to_vector(I):
+    """
+    >>> convert_to_vector([1,2,3,4])
+    """
+    cdef vector[int] x = I
+
+    

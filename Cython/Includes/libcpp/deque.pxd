@@ -1,5 +1,5 @@
 cdef extern from "<deque>" namespace "std" nogil:
-    cdef cppclass deque[T]:
+    cdef cppclass deque[T,ALLOCATOR=*]:
         cppclass iterator:
             T& operator*()
             iterator operator++()
