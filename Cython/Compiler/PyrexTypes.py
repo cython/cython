@@ -3633,7 +3633,7 @@ class CppClassType(CType):
         if self.templates:
             template_strings = [param.declaration_code('', for_display, None, pyrex)
                                 for param in template_params
-                                if not is_optional_template_param(param)]
+                                if not is_optional_template_param(param) and not param.is_fused]
             if for_display:
                 brackets = "[%s]"
             else:
