@@ -176,6 +176,15 @@ Static typing
             self.a = 3
             self.b = b
 
+  And even to define extension type private, readonly and public attributes::
+
+    @cython.cclass
+    class A:
+        cython.declare(a=cython.int, b=cython.int)
+        c = cython.declare(cython.int, visibility='public')
+        d = cython.declare(cython.int, 5)  # private by default.
+        e = cython.declare(cython.int, 5, visibility='readonly')
+
 * ``@cython.locals`` is a decorator that is used to specify the types of local
   variables in the function body (including the arguments)::
 
