@@ -85,3 +85,9 @@ cdef extern from "<memory>" namespace "std" nogil:
         shared_ptr[T] lock()
         bool owner_before[Y](const weak_ptr[Y]&)
         bool owner_before[Y](const shared_ptr[Y]&)
+
+    # Smart pointer non-member operations
+    shared_ptr[T] make_shared[T](...) except +
+
+    # Temporaries used for exception handling break generated code
+    unique_ptr[T] make_unique[T](...) # except +
