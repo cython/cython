@@ -554,7 +554,8 @@ def safe_spanning_type(types, might_overflow, pos, scope):
     # to make sure everything is supported.
     elif (result_type.is_int or result_type.is_enum) and not might_overflow:
         return result_type
-    elif not result_type.can_coerce_to_pyobject(scope):
+    elif (not result_type.can_coerce_to_pyobject(scope)
+            and not result_type.is_error):
         return result_type
     return py_object_type
 
