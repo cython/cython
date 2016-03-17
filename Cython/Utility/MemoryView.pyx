@@ -216,12 +216,14 @@ cdef class array:
             free(self.data)
         PyObject_Free(self._shape)
 
-    property memview:
-        @cname('get_memview')
-        def __get__(self):
-            # Make this a property as 'self.data' may be set after instantiation
-            flags =  PyBUF_ANY_CONTIGUOUS|PyBUF_FORMAT|PyBUF_WRITABLE
-            return  memoryview(self, flags, self.dtype_is_object)
+    @property
+    def memview(self):
+        return self.get_memview()
+
+    @cname('get_memview')
+    cdef get_memview(self):
+        flags =  PyBUF_ANY_CONTIGUOUS|PyBUF_FORMAT|PyBUF_WRITABLE
+        return  memoryview(self, flags, self.dtype_is_object)
 
 
     def __getattr__(self, attr):
@@ -533,67 +535,58 @@ cdef class memoryview(object):
     __pyx_getbuffer = capsule(<void *> &__pyx_memoryview_getbuffer, "getbuffer(obj, view, flags)")
 
     # Some properties that have the same sematics as in NumPy
-    property T:
-        @cname('__pyx_memoryview_transpose')
-        def __get__(self):
-            cdef _memoryviewslice result = memoryview_copy(self)
-            transpose_memslice(&result.from_slice)
-            return result
+    @property
+    def T(self):
+        cdef _memoryviewslice result = memoryview_copy(self)
+        transpose_memslice(&result.from_slice)
+        return result
 
-    property base:
-        @cname('__pyx_memoryview__get__base')
-        def __get__(self):
-            return self.obj
+    @property
+    def base(self):
+        return self.obj
 
-    property shape:
-        @cname('__pyx_memoryview_get_shape')
-        def __get__(self):
-            return tuple([length for length in self.view.shape[:self.view.ndim]])
+    @property
+    def shape(self):
+        return tuple([length for length in self.view.shape[:self.view.ndim]])
 
-    property strides:
-        @cname('__pyx_memoryview_get_strides')
-        def __get__(self):
-            if self.view.strides == NULL:
-                # Note: we always ask for strides, so if this is not set it's a bug
-                raise ValueError("Buffer view does not expose strides")
+    @property
+    def strides(self):
+        if self.view.strides == NULL:
+            # Note: we always ask for strides, so if this is not set it's a bug
+            raise ValueError("Buffer view does not expose strides")
 
-            return tuple([stride for stride in self.view.strides[:self.view.ndim]])
+        return tuple([stride for stride in self.view.strides[:self.view.ndim]])
 
-    property suboffsets:
-        @cname('__pyx_memoryview_get_suboffsets')
-        def __get__(self):
-            if self.view.suboffsets == NULL:
-                return (-1,) * self.view.ndim
+    @property
+    def suboffsets(self):
+        if self.view.suboffsets == NULL:
+            return (-1,) * self.view.ndim
 
-            return tuple([suboffset for suboffset in self.view.suboffsets[:self.view.ndim]])
+        return tuple([suboffset for suboffset in self.view.suboffsets[:self.view.ndim]])
 
-    property ndim:
-        @cname('__pyx_memoryview_get_ndim')
-        def __get__(self):
-            return self.view.ndim
+    @property
+    def ndim(self):
+        return self.view.ndim
 
-    property itemsize:
-        @cname('__pyx_memoryview_get_itemsize')
-        def __get__(self):
-            return self.view.itemsize
+    @property
+    def itemsize(self):
+        return self.view.itemsize
 
-    property nbytes:
-        @cname('__pyx_memoryview_get_nbytes')
-        def __get__(self):
-            return self.size * self.view.itemsize
+    @property
+    def nbytes(self):
+        return self.size * self.view.itemsize
 
-    property size:
-        @cname('__pyx_memoryview_get_size')
-        def __get__(self):
-            if self._size is None:
-                result = 1
+    @property
+    def size(self):
+        if self._size is None:
+            result = 1
 
-                for length in self.view.shape[:self.view.ndim]:
-                    result *= length
+            for length in self.view.shape[:self.view.ndim]:
+                result *= length
 
-                self._size = result
+            self._size = result
 
-            return self._size
+        return self._size
 
     def __len__(self):
         if self.view.ndim >= 1:
@@ -981,10 +974,9 @@ cdef class _memoryviewslice(memoryview):
         else:
             memoryview.assign_item_from_object(self, itemp, value)
 
-    property base:
-        @cname('__pyx_memoryviewslice__get__base')
-        def __get__(self):
-            return self.from_object
+    @property
+    def base(self):
+        return self.from_object
 
     __pyx_getbuffer = capsule(<void *> &__pyx_memoryview_getbuffer, "getbuffer(obj, view, flags)")
 
