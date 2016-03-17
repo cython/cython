@@ -117,6 +117,12 @@
   #define PyUnicode_Contains(u, s)  PySequence_Contains(u, s)
 #endif
 
+#if CYTHON_COMPILING_IN_PYPY && !defined(PyObject_Malloc)
+  #define PyObject_Malloc(s)   PyMem_Malloc(s)
+  #define PyObject_Free(p)     PyMem_Free(p)
+  #define PyObject_Realloc(p)  PyMem_Realloc(p)
+#endif
+
 #define __Pyx_PyString_FormatSafe(a, b)   ((unlikely((a) == Py_None)) ? PyNumber_Remainder(a, b) : __Pyx_PyString_Format(a, b))
 #define __Pyx_PyUnicode_FormatSafe(a, b)  ((unlikely((a) == Py_None)) ? PyNumber_Remainder(a, b) : PyUnicode_Format(a, b))
 

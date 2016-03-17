@@ -498,11 +498,7 @@ __Pyx_CyFunction_clear(__pyx_CyFunctionObject *m)
         for (i = 0; i < m->defaults_pyobjects; i++)
             Py_XDECREF(pydefaults[i]);
 
-#if CYTHON_COMPILING_IN_CPYTHON
         PyObject_Free(m->defaults);
-#else
-        PyMem_Free(m->defaults);
-#endif
         m->defaults = NULL;
     }
 
@@ -712,11 +708,7 @@ static int __pyx_CyFunction_init(void) {
 static CYTHON_INLINE void *__Pyx_CyFunction_InitDefaults(PyObject *func, size_t size, int pyobjects) {
     __pyx_CyFunctionObject *m = (__pyx_CyFunctionObject *) func;
 
-#if CYTHON_COMPILING_IN_CPYTHON
     m->defaults = PyObject_Malloc(size);
-#else
-    m->defaults = PyMem_Malloc(size);
-#endif
     if (!m->defaults)
         return PyErr_NoMemory();
     memset(m->defaults, 0, size);
