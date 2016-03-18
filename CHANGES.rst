@@ -2,11 +2,15 @@
 Cython Changelog
 ================
 
-0.23.5 (2015-xx-yy)
+0.23.5 (2016-03-xx)
 ===================
 
 Bugs fixed
 ----------
+
+* Return values of async functions could be ignored and replaced by ``None``.
+
+* Compiler crash in CPython 3.6.
 
 * Fix prange() to behave identically to range().  The end condition was
   miscalculated when the range was not exactly divisible by the step.
