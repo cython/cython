@@ -77,6 +77,14 @@ INVALID_UNDERSCORE_LITERALS = [
     # Underscore right after e:
     '1e_1',
     '1.4e_1',
+    # Whitespace in literals
+    '1_ 2',
+    '1 _2',
+    '1_2.2_ 1',
+    '1_2.2 _1',
+    '1_2e _1',
+    '1_2e2 _1',
+    '1_2e 2_1',
 ]
 
 
