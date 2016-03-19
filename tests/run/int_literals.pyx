@@ -16,27 +16,13 @@ def valid_underscore_literals():
     # Copied from CPython's test_grammar.py
     assert 0_0_0 == 0
     assert 4_2 == 42
-    assert 4_______2 == 42
     assert 1_0000_0000 == 100000000
-    assert 0b_1001_0100 == 0b10010100
-    assert 0x_ffff_ffff == 0xffffffff
-    assert 0o_5_7_7 == 0o577
-    assert 1__.4 == 1.4
-    assert 42_j == 42j
-    assert 1.4_j == 1.4j
-    assert 1.4e5_j == 1.4e5j
-    assert 1_00_00_.5 == 10000.5
-    assert 1_e10 == 1e10
-    assert 1_E10 == 1E10
-    assert 1_e1_0 == 1e10
+    assert 0b1001_0100 == 0b10010100
+    assert 0xffff_ffff == 0xffffffff
+    assert 0o5_7_7 == 0o577
+    assert 1_00_00.5 == 10000.5
+    assert 1e1_0 == 1e10
     assert .1_4 == .14
-    assert 0_ == 0
-    assert 42_ == 42
-    assert 0b1_ == 0b1
-    assert 0xf_ == 0xf
-    assert 0o5_ == 0o5
-    assert (0 if 1_____else 1) == 0
-    assert (0 if 1.0_____else 1) == 0
 
 
 @cython.test_assert_path_exists(

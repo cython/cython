@@ -24,25 +24,24 @@ def make_lexicon():
     bindigit = Any("01")
     octdigit = Any("01234567")
     hexdigit = Any("0123456789ABCDEFabcdef")
-    allow_ = Rep(Str("_"))
     indentation = Bol + Rep(Any(" \t"))
 
     def underscore_digits(d):
-        return d + Rep(Str("_") | d)
+        return Rep1(d) + Rep(Str("_") + Rep1(d))
 
     decimal = underscore_digits(digit)
     dot = Str(".")
-    exponent = allow_ + Any("Ee") + Opt(Any("+-")) + decimal
+    exponent = Any("Ee") + Opt(Any("+-")) + decimal
     decimal_fract = (decimal + dot + Opt(decimal)) | (dot + decimal)
 
     name = letter + Rep(letter | digit)
-    intconst = decimal | (Str("0") + ((Any("Xx") + allow_ + underscore_digits(hexdigit)) |
-                                      (Any("Oo") + allow_ + underscore_digits(octdigit)) |
-                                      (Any("Bb") + allow_ + underscore_digits(bindigit)) ))
+    intconst = decimal | (Str("0") + ((Any("Xx") + underscore_digits(hexdigit)) |
+                                      (Any("Oo") + underscore_digits(octdigit)) |
+                                      (Any("Bb") + underscore_digits(bindigit)) ))
     intsuffix = (Opt(Any("Uu")) + Opt(Any("Ll")) + Opt(Any("Ll"))) | (Opt(Any("Ll")) + Opt(Any("Ll")) + Opt(Any("Uu")))
     intliteral = intconst + intsuffix
     fltconst = (decimal_fract + Opt(exponent)) | (decimal + exponent)
-    imagconst = (intconst | fltconst) + allow_ + Any("jJ")
+    imagconst = (intconst | fltconst) + Any("jJ")
 
     beginstring = Opt(Any(string_prefixes) + Opt(Any(raw_prefixes)) |
                       Any(raw_prefixes) + Opt(Any(bytes_prefixes)) |
