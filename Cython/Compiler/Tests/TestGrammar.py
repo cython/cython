@@ -57,6 +57,13 @@ INVALID_UNDERSCORE_LITERALS = [
     '._5',
 ]
 
+UNDERSCORE_EXPRESSIONS = [
+    ('0 if 1_____else 1', True),
+    ('0 if 1_____Else 1', False),
+    ('0 if 1.0_____else 1', True),
+    ('0 if 1.0_____Else 1', False),
+]
+
 
 class TestGrammar(CythonTest):
 
@@ -80,6 +87,22 @@ class TestGrammar(CythonTest):
                 assert self.fragment(u'''\
                     # cython: language_level=3
                     ''' + code) is not None
+
+    def test_underscore_number_expressions(self):
+        for expression, is_valid in UNDERSCORE_EXPRESSIONS:
+            code = 'x = ' + expression
+            fragment = u'''\
+                # cython: language_level=3
+                ''' + code
+            if is_valid:
+                assert self.fragment(fragment) is not None
+            else:
+                try:
+                    self.fragment(fragment)
+                except CompileError as exc:
+                    assert code in [s.strip() for s in str(exc).splitlines()], str(exc)
+                else:
+                    assert False, "Invalid Cython code '%s' failed to raise an exception" % code
 
 
 if __name__ == "__main__":

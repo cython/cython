@@ -35,6 +35,8 @@ def valid_underscore_literals():
     assert 0b1_ == 0b1
     assert 0xf_ == 0xf
     assert 0o5_ == 0o5
+    assert (0 if 1_____else 1) == 0
+    assert (0 if 1.0_____else 1) == 0
 
 
 @cython.test_assert_path_exists(
