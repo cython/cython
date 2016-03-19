@@ -9,6 +9,7 @@ from __future__ import absolute_import
 
 from ...TestUtils import CythonTest
 from ..Errors import CompileError
+from .. import ExprNodes
 
 # Copied from CPython's test_grammar.py
 VALID_UNDERSCORE_LITERALS = [
@@ -21,6 +22,8 @@ VALID_UNDERSCORE_LITERALS = [
     '1_00_00.5',
     '1e1_0',
     '.1_4',
+    '.1_4e1',
+    '.1_4j',
 ]
 
 # Copied from CPython's test_grammar.py
@@ -90,11 +93,23 @@ class TestGrammar(CythonTest):
 
     def test_valid_number_literals(self):
         for literal in VALID_UNDERSCORE_LITERALS:
-            for expression in ['%s', '1 + %s', '%s + 1', '2 * %s', '%s * 2']:
+            for i, expression in enumerate(['%s', '1 + %s', '%s + 1', '2 * %s', '%s * 2']):
                 code = 'x = ' + expression % literal
-                assert self.fragment(u'''\
+                node = self.fragment(u'''\
                     # cython: language_level=3
-                    ''' + code) is not None
+                    ''' + code).root
+                assert node is not None
+
+                literal_node = node.stats[0].rhs  # StatListNode([SingleAssignmentNode('x', expr)])
+                if i > 0:
+                    # Add/MulNode() -> literal is first or second operand
+                    literal_node = literal_node.operand2 if i % 2 else literal_node.operand1
+                if 'j' in literal or 'J' in literal:
+                    assert isinstance(literal_node, ExprNodes.ImagNode)
+                elif '.' in literal or 'e' in literal or 'E' in literal and not ('0x' in literal or '0X' in literal):
+                    assert isinstance(literal_node, ExprNodes.FloatNode)
+                else:
+                    assert isinstance(literal_node, ExprNodes.IntNode)
 
 
 if __name__ == "__main__":
