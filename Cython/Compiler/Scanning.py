@@ -53,12 +53,15 @@ pyx_reserved_words = py_reserved_words + [
 
 class Method(object):
 
-    def __init__(self, name):
+    def __init__(self, name, **kwargs):
         self.name = name
+        self.kwargs = kwargs or None
         self.__name__ = name  # for Plex tracing
 
     def __call__(self, stream, text):
-        return getattr(stream, self.name)(text)
+        method = getattr(stream, self.name)
+        # self.kwargs is almost always unused => avoid call overhead
+        return method(text, **self.kwargs) if self.kwargs is not None else method(text)
 
 
 #------------------------------------------------------------------
@@ -339,6 +342,9 @@ class PyrexScanner(Scanner):
     def commentline(self, text):
         if self.parse_comments:
             self.produce('commentline', text)
+
+    def strip_underscores(self, text, symbol):
+        self.produce(symbol, text.replace('_', ''))
 
     def current_level(self):
         return self.indentation_stack[-1]
