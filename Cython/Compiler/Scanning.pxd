@@ -11,6 +11,7 @@ cdef initial_compile_time_env()
 
 cdef class Method:
     cdef object name
+    cdef dict kwargs
     cdef readonly object __name__  # for tracing the scanner
 
 @cython.final
