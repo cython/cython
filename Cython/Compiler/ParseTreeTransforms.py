@@ -349,10 +349,23 @@ class PostParse(ScopeTrackingTransform):
         return node
 
     def visit_JoinedStrNode(self, node):
-        if len(node.values) == 1:
-            # this is not uncommon because f-string format specs are parsed into JoinedStrNodes
-            return node.values[0]
-        node.values = ExprNodes.ListNode(node.pos, args=node.values)
+        """
+        Clean up after the parser by wrapping the substrings in a ListNode and
+        discarding empty Unicode strings.  Empty or single-value join lists are not
+        uncommon because f-string format specs are always parsed into JoinedStrNodes.
+        """
+        values = []
+        for value in node.values:
+            if isinstance(value, ExprNodes.UnicodeNode) and not value.value:
+                continue  # ignore empty Unicode strings
+            values.append(value)
+
+        if not values:
+            node = ExprNodes.UnicodeNode(node.pos, value=EncodedString(''))
+        elif len(values) == 1:
+            node = values[0]
+        else:
+            node.values = ExprNodes.ListNode(node.pos, args=values)
         self.visitchildren(node)
         return node
 
