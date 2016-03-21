@@ -2964,7 +2964,7 @@ class RawCNameExprNode(ExprNode):
 class JoinedStrNode(ExprNode):
     # F-strings
     #
-    # values [UnicodeNode|FormattedValueNode] Substrings of the f-string
+    # values    ListNode([UnicodeNode|FormattedValueNode])    Substrings of the f-string
     #
     type = py_object_type
     is_temp = True
@@ -2972,35 +2972,16 @@ class JoinedStrNode(ExprNode):
     subexprs = ['values']
 
     def analyse_types(self, env):
-        values = [v.analyse_types(env).coerce_to_pyobject(env) for v in self.values]
-        if len(values) == 1:
-            # this is not uncommon because f-string format specs are parsed into JoinedStrNodes
-            return values[0]
-        self.values = values
+        self.values = self.values.analyse_expressions(env)
         return self
 
     def generate_result_code(self, code):
-        list_var = Naming.quick_temp_cname
-        num_items = len(self.values)
-
-        code.putln('{')
-        code.putln('PyObject *%s = PyList_New(%s); %s' % (
-            list_var,
-            num_items,
-            code.error_goto_if_null(list_var, self.pos)))
-        code.put_gotref(list_var)
-        for i, value in enumerate(self.values):
-            code.put_incref(value.result(), value.ctype())
-            code.put_giveref(value.py_result())
-            code.putln('PyList_SET_ITEM(%s, %s, %s);' % (list_var, i, value.py_result()))
-        code.putln('%s = PyUnicode_Join(%s, %s); __Pyx_DECREF(%s); %s' % (
+        code.putln('%s = PyUnicode_Join(%s, %s); %s' % (
             self.result(),
             Naming.empty_unicode,
-            list_var,
-            list_var,
-            code.error_goto_if_null(list_var, self.pos)))
+            self.values.py_result(),
+            code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
-        code.putln('}')
 
 
 class FormattedValueNode(ExprNode):

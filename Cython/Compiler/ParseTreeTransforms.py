@@ -348,6 +348,14 @@ class PostParse(ScopeTrackingTransform):
         self.visitchildren(node)
         return node
 
+    def visit_JoinedStrNode(self, node):
+        if len(node.values) == 1:
+            # this is not uncommon because f-string format specs are parsed into JoinedStrNodes
+            return node.values[0]
+        node.values = ExprNodes.ListNode(node.pos, args=node.values)
+        self.visitchildren(node)
+        return node
+
 
 def eliminate_rhs_duplicates(expr_list_list, ref_node_sequence):
     """Replace rhs items by LetRefNodes if they appear more than once.
