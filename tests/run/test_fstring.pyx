@@ -183,12 +183,9 @@ f'{a * x()}'"""
         # Inside of strings, don't interpret doubled brackets.
         self.assertEqual(f'{"{{}}"}', '{{}}')
 
-        try:
-            f'{ {{}} }'  # dict in a set
-        except TypeError as exc:
-            assert 'unhashable type' in str(exc)
-        else:
-            assert False, "TypeError not raised"
+        self.assertAllRaise(TypeError, 'unhashable type',
+                            ["f'{ {{}} }'", # dict in a set
+                             ])
 
     def test_compile_time_concat(self):
         x = 'def'
