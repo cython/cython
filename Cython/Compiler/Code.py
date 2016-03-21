@@ -711,13 +711,14 @@ class FunctionState(object):
             manage_ref = False
 
         freelist = self.temps_free.get((type, manage_ref))
-        if freelist is not None and len(freelist) > 0:
-            result = freelist.pop()
+        if freelist is not None and freelist[0]:
+            result = freelist[0].pop()
+            freelist[1].remove(result)
         else:
             while True:
                 self.temp_counter += 1
                 result = "%s%d" % (Naming.codewriter_temp_prefix, self.temp_counter)
-                if not result in self.names_taken: break
+                if result not in self.names_taken: break
             self.temps_allocated.append((result, type, manage_ref, static))
         self.temps_used_type[result] = (type, manage_ref)
         if DebugFlags.debug_temp_code_comments:
@@ -736,11 +737,12 @@ class FunctionState(object):
         type, manage_ref = self.temps_used_type[name]
         freelist = self.temps_free.get((type, manage_ref))
         if freelist is None:
-            freelist = []
+            freelist = ([], set())  # keep order in list and make lookups in set fast
             self.temps_free[(type, manage_ref)] = freelist
-        if name in freelist:
+        if name in freelist[1]:
             raise RuntimeError("Temp %s freed twice!" % name)
-        freelist.append(name)
+        freelist[0].append(name)
+        freelist[1].add(name)
         if DebugFlags.debug_temp_code_comments:
             self.owner.putln("/* %s released */" % name)
 
@@ -751,7 +753,7 @@ class FunctionState(object):
         used = []
         for name, type, manage_ref, static in self.temps_allocated:
             freelist = self.temps_free.get((type, manage_ref))
-            if freelist is None or name not in freelist:
+            if freelist is None or name not in freelist[1]:
                 used.append((name, type, manage_ref and type.is_pyobject))
         return used
 
@@ -779,7 +781,7 @@ class FunctionState(object):
         """
         return [(cname, type)
                 for (type, manage_ref), freelist in self.temps_free.items() if manage_ref
-                for cname in freelist]
+                for cname in freelist[0]]
 
     def start_collecting_temps(self):
         """
@@ -2351,7 +2353,7 @@ class ClosureTempAllocator(object):
             self.temps_free[type] = list(cnames)
 
     def allocate_temp(self, type):
-        if not type in self.temps_allocated:
+        if type not in self.temps_allocated:
             self.temps_allocated[type] = []
             self.temps_free[type] = []
         elif self.temps_free[type]:
