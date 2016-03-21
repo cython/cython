@@ -738,7 +738,7 @@ f'{a * x()}'"""
 
     def test_errors(self):
         # see issue 26287
-        self.assertAllRaise((TypeError, ValueError), 'non-empty',  # TypeError in Py3
+        self.assertAllRaise((TypeError, ValueError), 'non-empty',  # TypeError in Py3.4+
                             [r"f'{(lambda: 0):x}'",
                              r"f'{(0,):x}'",
                              ])
