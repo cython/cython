@@ -2967,18 +2967,17 @@ class JoinedStrNode(ExprNode):
     # values [UnicodeNode|FormattedValueNode] Substrings of the f-string
     #
     type = py_object_type
+    is_temp = True
 
     subexprs = ['values']
 
     def analyse_types(self, env):
-        self.values = [v.analyse_types(env) for v in self.values]
-        self.values = [v.coerce_to_pyobject(env) for v in self.values]
-        self.is_temp = 1
-        if len(self.values) == 1:
+        values = [v.analyse_types(env).coerce_to_pyobject(env) for v in self.values]
+        if len(values) == 1:
             # this is not uncommon because f-string format specs are parsed into JoinedStrNodes
-            return self.values[0]
-        else:
-            return self
+            return values[0]
+        self.values = values
+        return self
 
     def generate_result_code(self, code):
         list_var = Naming.quick_temp_cname
