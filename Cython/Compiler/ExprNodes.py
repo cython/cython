@@ -3024,8 +3024,15 @@ class FormattedValueNode(ExprNode):
             ))
             code.put_gotref(conversion_result)
 
-        code.put("%s = PyObject_Format(%s, %s); " % (
+        if isinstance(self.format_spec, UnicodeNode) and not self.format_spec.value:
+            # common case: no format spec => expect Unicode pass-through
+            format_func = '__Pyx_PyObject_FormatSimple'
+        else:
+            format_func = 'PyObject_Format'
+
+        code.put("%s = %s(%s, %s); " % (
             self.result(),
+            format_func,
             conversion_result,
             self.format_spec.py_result()))
 
