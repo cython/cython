@@ -12,7 +12,7 @@ from Cython.TestUtils import CythonTest
 from Cython.Compiler.Errors import CompileError, hold_errors, release_errors, error_stack
 
 def cy_eval(s, **kwargs):
-    return cython_inline('return ' + s, **kwargs)
+    return cython_inline('return ' + s, force=True, **kwargs)
 
 a_global = 'global variable'
 
