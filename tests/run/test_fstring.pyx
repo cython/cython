@@ -7,6 +7,9 @@ import types
 import decimal
 import unittest
 
+import sys
+IS_PY2 = sys.version_info[0] < 3
+
 from Cython.Build.Inline import cython_inline
 from Cython.TestUtils import CythonTest
 from Cython.Compiler.Errors import CompileError, hold_errors, release_errors, error_stack
@@ -45,7 +48,21 @@ class TestCase(CythonTest):
                     if error_stack:
                         release_errors(ignore=True)
 
+    if IS_PY2:
+        def assertEqual(self, first, second, msg=None):
+            # strip u'' string prefixes in Py2
+            if first != second and isinstance(first, unicode):
+                stripped_first = first.replace("u'", "'").replace('u"', '"')
+                if stripped_first == second:
+                    first = stripped_first
+                elif stripped_first.decode('unicode_escape') == second:
+                    first = stripped_first.decode('unicode_escape')
+            super(TestCase, self).assertEqual(first, second, msg)
+
     def test__format__lookup(self):
+        if IS_PY2:
+            raise unittest.SkipTest("Py3-only")
+
         # Make sure __format__ is looked up on the type, not the instance.
         class X:
             def __format__(self, spec):
@@ -376,7 +393,8 @@ f'{a * x()}'"""
     def test_lambda(self):
         x = 5
         self.assertEqual(f'{(lambda y:x*y)("8")!r}', "'88888'")
-        self.assertEqual(f'{(lambda y:x*y)("8")!r:10}', "'88888'   ")
+        if not IS_PY2:
+            self.assertEqual(f'{(lambda y:x*y)("8")!r:10}', "'88888'   ")
         self.assertEqual(f'{(lambda y:x*y)("8"):10}', "88888     ")
 
         # lambda doesn't work without parens, because the colon
@@ -720,7 +738,7 @@ f'{a * x()}'"""
 
     def test_errors(self):
         # see issue 26287
-        self.assertAllRaise(TypeError, 'non-empty',
+        self.assertAllRaise((TypeError, ValueError), 'non-empty',  # TypeError in Py3
                             [r"f'{(lambda: 0):x}'",
                              r"f'{(0,):x}'",
                              ])
