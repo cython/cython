@@ -6,9 +6,11 @@ import ast
 import types
 import decimal
 import unittest
+import contextlib
 
 import sys
 IS_PY2 = sys.version_info[0] < 3
+IS_PY26 = sys.version_info[:2] < (2, 7)
 
 from Cython.Build.Inline import cython_inline
 from Cython.TestUtils import CythonTest
@@ -59,8 +61,23 @@ class TestCase(CythonTest):
                     first = stripped_first.decode('unicode_escape')
             super(TestCase, self).assertEqual(first, second, msg)
 
+        if IS_PY26:
+            @contextlib.contextmanager
+            def assertRaises(self, exc):
+                try:
+                    yield
+                except exc:
+                    pass
+                else:
+                    assert False, "exception '%s' not raised" % exc
+
+            def assertIn(self, value, collection):
+                self.assertTrue(value in collection)
+
     def test__format__lookup(self):
-        if IS_PY2:
+        if IS_PY26:
+            return
+        elif IS_PY2:
             raise unittest.SkipTest("Py3-only")
 
         # Make sure __format__ is looked up on the type, not the instance.
@@ -275,11 +292,12 @@ f'{a * x()}'"""
         width = 10
         precision = 4
         value = decimal.Decimal('12.34567')
-        self.assertEqual(f'result: {value:{width}.{precision}}', 'result:      12.35')
-        self.assertEqual(f'result: {value:{width!r}.{precision}}', 'result:      12.35')
-        self.assertEqual(f'result: {value:{width:0}.{precision:1}}', 'result:      12.35')
-        self.assertEqual(f'result: {value:{1}{0:0}.{precision:1}}', 'result:      12.35')
-        self.assertEqual(f'result: {value:{ 1}{ 0:0}.{ precision:1}}', 'result:      12.35')
+        if not IS_PY26:
+            self.assertEqual(f'result: {value:{width}.{precision}}', 'result:      12.35')
+            self.assertEqual(f'result: {value:{width!r}.{precision}}', 'result:      12.35')
+            self.assertEqual(f'result: {value:{width:0}.{precision:1}}', 'result:      12.35')
+            self.assertEqual(f'result: {value:{1}{0:0}.{precision:1}}', 'result:      12.35')
+            self.assertEqual(f'result: {value:{ 1}{ 0:0}.{ precision:1}}', 'result:      12.35')
         self.assertEqual(f'{10:#{1}0x}', '       0xa')
         self.assertEqual(f'{10:{"#"}1{0}{"x"}}', '       0xa')
         self.assertEqual(f'{-10:-{"#"}1{0}x}', '      -0xa')
@@ -584,9 +602,10 @@ f'{a * x()}'"""
 
     def test_conversions(self):
         self.assertEqual(f'{3.14:10.10}', '      3.14')
-        self.assertEqual(f'{3.14!s:10.10}', '3.14      ')
-        self.assertEqual(f'{3.14!r:10.10}', '3.14      ')
-        self.assertEqual(f'{3.14!a:10.10}', '3.14      ')
+        if not IS_PY26:
+            self.assertEqual(f'{3.14!s:10.10}', '3.14      ')
+            self.assertEqual(f'{3.14!r:10.10}', '3.14      ')
+            self.assertEqual(f'{3.14!a:10.10}', '3.14      ')
 
         self.assertEqual(f'{"a"}', 'a')
         self.assertEqual(f'{"a"!r}', "'a'")
