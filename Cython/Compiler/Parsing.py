@@ -808,7 +808,7 @@ def p_cat_string_literal(s):
             continue
         elif next_kind != kind:
             # concatenating f strings and normal strings is allowed and leads to an f string
-            if {kind, next_kind} == {'f', 'u'} or {kind, next_kind} == {'f', ''}:
+            if set([kind, next_kind]) in (set(['f', 'u']), set(['f', ''])):
                 kind = 'f'
             else:
                 error(pos, "Cannot mix string literals of different types, expected %s'', got %s''" %
