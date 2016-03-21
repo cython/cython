@@ -2994,53 +2994,48 @@ class FormattedValueNode(ExprNode):
 
     conversion_chars = 'sra'
     type = py_object_type
+    is_temp = True
+
+    find_conversion_func = {
+        's': 'PyObject_Str',
+        'r': 'PyObject_Repr',
+        'a': 'PyObject_ASCII',  # NOTE: Py3-only!
+    }.get
 
     def analyse_types(self, env):
-        value = self.value.analyse_types(env)
-        format_spec = self.format_spec.analyse_types(env)
-        self.value = value.coerce_to_pyobject(env)
-        self.format_spec = format_spec.coerce_to_pyobject(env)
-        self.is_temp = True
+        self.value = self.value.analyse_types(env).coerce_to_pyobject(env)
+        self.format_spec = self.format_spec.analyse_types(env).coerce_to_pyobject(env)
         return self
 
     def generate_result_code(self, code):
-        value_result = self.value.py_result()
-        conversion_result = Naming.quick_temp_cname
-        format_spec_result = self.format_spec.py_result()
-        if self.conversion_char == 's':
-            fn = 'PyObject_Str'
-        elif self.conversion_char == 'r':
-            fn = 'PyObject_Repr'
-        elif self.conversion_char == 'a':
-            fn = 'PyObject_ASCII'
-        else:
-            fn = None
+        conversion_result = value_result = self.value.py_result()
 
-        code.putln('{')
+        if self.conversion_char:
+            fn = self.find_conversion_func(self.conversion_char)
+            if fn is None:
+                assert False, "invalid conversion character found: '%s'" % self.conversion_char
 
-        if fn is not None:
+            code.putln('{')
+            conversion_result = Naming.quick_temp_cname
             code.putln('PyObject *%s = %s(%s); %s' % (
                 conversion_result,
                 fn,
                 value_result,
                 code.error_goto_if_null(conversion_result, self.pos)
             ))
-        else:
-            code.putln('PyObject *%s = %s;' % (conversion_result, value_result))
-            #code.put_incref(conversion_result, py_object_type)
-        # TODO this should need more refcounting, figure out whether this is correct
-        #code.put_gotref(conversion_result)
-        #code.put_decref(value_result, self.value.ctype())
-        decref_line = '' # '__Pyx_DECREF(%s);' % conversion_result
+            code.put_gotref(conversion_result)
 
-        code.putln("%s = PyObject_Format(%s, %s); %s %s" % (
+        code.put("%s = PyObject_Format(%s, %s); " % (
             self.result(),
             conversion_result,
-            format_spec_result,
-            decref_line,
-            code.error_goto_if_null(self.result(), self.pos)))
+            self.format_spec.py_result()))
+
+        if self.conversion_char:
+            code.put_decref(conversion_result, py_object_type)
+            code.putln('}')
+
+        code.putln(code.error_goto_if_null(self.result(), self.pos))
         code.put_gotref(self.py_result())
-        code.putln('}')
 
 
 #-------------------------------------------------------------------
