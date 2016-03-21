@@ -2992,7 +2992,6 @@ class FormattedValueNode(ExprNode):
     # format_spec     JoinedStrNode or None   Format string passed to __format__
     subexprs = ['value', 'format_spec']
 
-    conversion_chars = 'sra'
     type = py_object_type
     is_temp = True
 

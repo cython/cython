@@ -1126,7 +1126,7 @@ def p_f_string_expr(s, unicode_value, pos, starting_index):
     expr = p_testlist(scanner)  # TODO is testlist right here?
 
     # validate the conversion char
-    if conversion_char is not None and conversion_char not in ExprNodes.FormattedValueNode.conversion_chars:
+    if conversion_char is not None and not ExprNodes.FormattedValueNode.find_conversion_func(conversion_char):
         s.error("invalid conversion character '%s'" % conversion_char)
 
     # the format spec is itself treated like an f-string
