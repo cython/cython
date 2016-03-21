@@ -2956,6 +2956,115 @@ class RawCNameExprNode(ExprNode):
 
 #-------------------------------------------------------------------
 #
+#  F-strings
+#
+#-------------------------------------------------------------------
+
+
+class JoinedStrNode(ExprNode):
+    # F-strings
+    #
+    # values [UnicodeNode|FormattedValueNode] Substrings of the f-string
+    #
+    type = py_object_type
+
+    subexprs = ['values']
+
+    def analyse_types(self, env):
+        self.values = [v.analyse_types(env) for v in self.values]
+        self.values = [v.coerce_to_pyobject(env) for v in self.values]
+        self.is_temp = 1
+        if len(self.values) == 1:
+            # this is not uncommon because f-string format specs are parsed into JoinedStrNodes
+            return self.values[0]
+        else:
+            return self
+
+    def generate_result_code(self, code):
+        list_var = Naming.quick_temp_cname
+        num_items = len(self.values)
+
+        code.putln('{')
+        code.putln('PyObject *%s = PyList_New(%s); %s' % (
+            list_var,
+            num_items,
+            code.error_goto_if_null(list_var, self.pos)))
+        code.put_gotref(list_var)
+        for i, value in enumerate(self.values):
+            code.put_incref(value.result(), value.ctype())
+            code.put_giveref(value.py_result())
+            code.putln('PyList_SET_ITEM(%s, %s, %s);' % (list_var, i, value.py_result()))
+        code.putln('%s = PyUnicode_Join(%s, %s); __Pyx_DECREF(%s); %s' % (
+            self.result(),
+            Naming.empty_unicode,
+            list_var,
+            list_var,
+            code.error_goto_if_null(list_var, self.pos)))
+        code.put_gotref(self.py_result())
+        code.putln('}')
+
+
+class FormattedValueNode(ExprNode):
+    # {}-delimited portions of an f-string
+    #
+    # value           ExprNode                The expression itself
+    # conversion_char str or None             Type conversion (!s, !r, !a, or none)
+    # format_spec     JoinedStrNode or None   Format string passed to __format__
+    subexprs = ['value', 'format_spec']
+
+    conversion_chars = 'sra'
+    type = py_object_type
+
+    def analyse_types(self, env):
+        value = self.value.analyse_types(env)
+        format_spec = self.format_spec.analyse_types(env)
+        self.value = value.coerce_to_pyobject(env)
+        self.format_spec = format_spec.coerce_to_pyobject(env)
+        self.is_temp = True
+        return self
+
+    def generate_result_code(self, code):
+        value_result = self.value.py_result()
+        conversion_result = Naming.quick_temp_cname
+        format_spec_result = self.format_spec.py_result()
+        if self.conversion_char == 's':
+            fn = 'PyObject_Str'
+        elif self.conversion_char == 'r':
+            fn = 'PyObject_Repr'
+        elif self.conversion_char == 'a':
+            fn = 'PyObject_ASCII'
+        else:
+            fn = None
+
+        code.putln('{')
+
+        if fn is not None:
+            code.putln('PyObject *%s = %s(%s); %s' % (
+                conversion_result,
+                fn,
+                value_result,
+                code.error_goto_if_null(conversion_result, self.pos)
+            ))
+        else:
+            code.putln('PyObject *%s = %s;' % (conversion_result, value_result))
+            #code.put_incref(conversion_result, py_object_type)
+        # TODO this should need more refcounting, figure out whether this is correct
+        #code.put_gotref(conversion_result)
+        #code.put_decref(value_result, self.value.ctype())
+        decref_line = '' # '__Pyx_DECREF(%s);' % conversion_result
+
+        code.putln("%s = PyObject_Format(%s, %s); %s %s" % (
+            self.result(),
+            conversion_result,
+            format_spec_result,
+            decref_line,
+            code.error_goto_if_null(self.result(), self.pos)))
+        code.put_gotref(self.py_result())
+        code.putln('}')
+
+
+#-------------------------------------------------------------------
+#
 #  Parallel nodes (cython.parallel.thread(savailable|id))
 #
 #-------------------------------------------------------------------
