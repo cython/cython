@@ -898,7 +898,7 @@ def p_string_literal(s, kind_override=None):
     else:
         if kind_override is not None and kind_override in 'ub':
             kind = kind_override
-        if kind in {'u', 'f'}:  # f-strings are scanned exactly like Unicode literals, but are parsed further later
+        if kind in ('u', 'f'):  # f-strings are scanned exactly like Unicode literals, but are parsed further later
             chars = StringEncoding.UnicodeLiteralBuilder()
         elif kind == '':
             chars = StringEncoding.StrLiteralBuilder(s.source_encoding)
@@ -998,17 +998,17 @@ def p_f_string(s, unicode_value, pos):
     current_literal_start = 0
     while i < size:
         c = unicode_value[i]
-        if c in ('{', '}'):
+        if c in '{}':
             if i + 1 < size and unicode_value[i + 1] == c:
                 encoded_str = EncodedString(unicode_value[current_literal_start:i + 1])
-                values.append(ExprNodes.UnicodeNode(pos, value = encoded_str))
+                values.append(ExprNodes.UnicodeNode(pos, value=encoded_str))
                 i += 2
                 current_literal_start = i
             elif c == '}':
                 s.error("single '}' encountered in format string")
             else:
                 encoded_str = EncodedString(unicode_value[current_literal_start:i])
-                values.append(ExprNodes.UnicodeNode(pos, value = encoded_str))
+                values.append(ExprNodes.UnicodeNode(pos, value=encoded_str))
                 i, expr_node = p_f_string_expr(s, unicode_value, pos, i + 1)
                 current_literal_start = i
                 values.append(expr_node)
@@ -1016,7 +1016,7 @@ def p_f_string(s, unicode_value, pos):
             i += 1
 
     encoded_str = EncodedString(unicode_value[current_literal_start:])
-    values.append(ExprNodes.UnicodeNode(pos, value = encoded_str))
+    values.append(ExprNodes.UnicodeNode(pos, value=encoded_str))
     return values
 
 
@@ -1069,8 +1069,12 @@ def p_f_string_expr(s, unicode_value, pos, starting_index):
             break
         i += 1
 
-    # the expression is parsed as if it is surrounded by parentheses
-    expr_str = u'(%s)' % unicode_value[starting_index:i]
+    # normalise line endings as the parser expects that
+    expr_str = unicode_value[starting_index:i].replace('\r\n', '\n').replace('\r', '\n')
+    expr_pos = (pos[0], pos[1], pos[2] + starting_index + 2)  # TODO: find exact code position (concat, multi-line, ...)
+
+    if not expr_str.strip():
+        s.error("empty expression not allowed in f-string")
 
     if terminal_char == '!':
         i += 1
@@ -1085,21 +1089,30 @@ def p_f_string_expr(s, unicode_value, pos, starting_index):
         terminal_char = unicode_value[i]
 
     if terminal_char == ':':
+        in_triple_quotes = False
+        in_string = False
         nested_depth = 0
         start_format_spec = i + 1
         while True:
             if i >= size:
                 s.error("missing '}' in format specifier")
             c = unicode_value[i]
-            if c == '{':
-                if nested_depth >= 1:
-                    s.error("nesting of '{' in format specifier is not allowed")
-                nested_depth += 1
-            elif c == '}' and nested_depth == 0:
-                terminal_char = c
-                break
-            elif c == '}':
-                nested_depth -= 1
+            if not in_triple_quotes and not in_string:
+                if c == '{':
+                    if nested_depth >= 1:
+                        s.error("nesting of '{' in format specifier is not allowed")
+                    nested_depth += 1
+                elif c == '}' and nested_depth == 0:
+                    terminal_char = c
+                    break
+                elif c == '}':
+                    nested_depth -= 1
+            if c in '\'"':
+                if not in_string and i + 2 < size and unicode_value[i + 1] == c and unicode_value[i + 2] == c:
+                    in_triple_quotes = not in_triple_quotes
+                    i += 2
+                elif not in_triple_quotes:
+                    in_string = not in_string
             i += 1
 
         format_spec_str = unicode_value[start_format_spec:i]
@@ -1107,11 +1120,9 @@ def p_f_string_expr(s, unicode_value, pos, starting_index):
     if terminal_char != '}':
         s.error("missing '}' in format string expression'")
 
-    # parse the expression
-    name = 'format string expression'
-    code_source = StringSourceDescriptor(name, expr_str)
-    buf = StringIO(expr_str)
-    scanner = PyrexScanner(buf, code_source, parent_scanner=s, source_encoding=s.source_encoding)
+    # parse the expression as if it was surrounded by parentheses
+    buf = StringIO('(%s)' % expr_str)
+    scanner = PyrexScanner(buf, expr_pos[0], parent_scanner=s, source_encoding=s.source_encoding, initial_pos=expr_pos)
     expr = p_testlist(scanner)  # TODO is testlist right here?
 
     # validate the conversion char
@@ -1120,13 +1131,13 @@ def p_f_string_expr(s, unicode_value, pos, starting_index):
 
     # the format spec is itself treated like an f-string
     if format_spec_str is not None:
-        format_spec = ExprNodes.JoinedStrNode(pos, values = p_f_string(s, format_spec_str, pos))
+        format_spec = ExprNodes.JoinedStrNode(pos, values=p_f_string(s, format_spec_str, pos))
     else:
         format_spec = None
 
     return i + 1, ExprNodes.FormattedValueNode(
-        s.position(), value = expr, conversion_char = conversion_char,
-        format_spec = format_spec)
+        s.position(), value=expr, conversion_char=conversion_char,
+        format_spec=format_spec)
 
 
 # since PEP 448:
