@@ -835,16 +835,18 @@ def p_cat_string_literal(s):
 
 
 def p_opt_string_literal(s, required_type='u'):
-    if s.sy == 'BEGIN_STRING':
-        kind, bytes_value, unicode_value = p_string_literal(s, required_type)
-        if required_type == 'u':
-            return unicode_value
-        elif required_type == 'b':
-            return bytes_value
-        else:
-            s.error("internal parser configuration error")
-    else:
+    if s.sy != 'BEGIN_STRING':
         return None
+    pos = s.position()
+    kind, bytes_value, unicode_value = p_string_literal(s, required_type)
+    if required_type == 'u':
+        if kind == 'f':
+            s.error("f-string not allowed here", pos)
+        return unicode_value
+    elif required_type == 'b':
+        return bytes_value
+    else:
+        s.error("internal parser configuration error")
 
 
 def check_for_non_ascii_characters(string):
