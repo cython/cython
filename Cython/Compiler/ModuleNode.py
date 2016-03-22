@@ -2051,14 +2051,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         PyrexTypes.typecast(entry.type, py_object_type, "o")))
                 elif entry.type.create_from_py_utility_code(env):
                     # if available, utility code was already created in self.prepare_utility_code()
-                    rhs = "%s(o)" % entry.type.from_py_function
-                    if entry.type.is_enum:
-                        rhs = PyrexTypes.typecast(entry.type, PyrexTypes.c_long_type, rhs)
-                    code.putln("%s = %s; if (%s) %s;" % (
-                        entry.cname,
-                        rhs,
-                        entry.type.error_condition(entry.cname),
-                        code.error_goto(entry.pos)))
+                    code.putln(entry.type.from_py_call_code(
+                        'o', entry.cname, entry.pos, code))
                 else:
                     code.putln('PyErr_Format(PyExc_TypeError, "Cannot convert Python object %s to %s");' % (
                         name, entry.type))
