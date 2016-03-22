@@ -3,6 +3,7 @@ from __future__ import absolute_import
 import sys
 import copy
 import codecs
+import itertools
 
 from . import TypeSlots
 from .ExprNodes import not_a_constant
@@ -3950,6 +3951,35 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             else:
                 sequence_node.mult_factor = factor
         return sequence_node
+
+    def visit_JoinedStrNode(self, node):
+        """
+        Clean up after the parser by discarding empty Unicode strings and merging
+        substring sequences.  Empty or single-value join lists are not uncommon
+        because f-string format specs are always parsed into JoinedStrNodes.
+        """
+        self.visitchildren(node)
+        unicode_node = ExprNodes.UnicodeNode
+        values = []
+        for is_unode_group, substrings in itertools.groupby(node.values, lambda v: isinstance(v, unicode_node)):
+            if is_unode_group:
+                substrings = list(substrings)
+                unode = substrings[0]
+                if len(substrings) > 1:
+                    unode.value = EncodedString(u''.join(node.value for node in substrings))
+                # ignore empty Unicode strings
+                if unode.value:
+                    values.append(unode)
+            else:
+                values.extend(substrings)
+
+        if not values:
+            node = ExprNodes.UnicodeNode(node.pos, value=EncodedString(''))
+        elif len(values) == 1:
+            node = values[0]
+        else:
+            node.values = values
+        return node
 
     def visit_MergedDictNode(self, node):
         """Unpack **args in place if we can."""

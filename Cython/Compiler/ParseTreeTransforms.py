@@ -7,7 +7,6 @@ cython.declare(PyrexTypes=object, Naming=object, ExprNodes=object, Nodes=object,
                error=object, warning=object, copy=object, _unicode=object)
 
 import copy
-import itertools
 
 from . import PyrexTypes
 from . import Naming
@@ -347,35 +346,6 @@ class PostParse(ScopeTrackingTransform):
                         node.pos,
                         stats=[del_target]))])
         self.visitchildren(node)
-        return node
-
-    def visit_JoinedStrNode(self, node):
-        """
-        Clean up after the parser by discarding empty Unicode strings and merging
-        substring sequences.  Empty or single-value join lists are not uncommon
-        because f-string format specs are always parsed into JoinedStrNodes.
-        """
-        self.visitchildren(node)
-        unicode_node = ExprNodes.UnicodeNode
-        values = []
-        for is_unode_group, substrings in itertools.groupby(node.values, lambda v: isinstance(v, unicode_node)):
-            if is_unode_group:
-                substrings = list(substrings)
-                unode = substrings[0]
-                if len(substrings) > 1:
-                    unode.value = EncodedString(u''.join(node.value for node in substrings))
-                # ignore empty Unicode strings
-                if unode.value:
-                    values.append(unode)
-            else:
-                values.extend(substrings)
-
-        if not values:
-            node = ExprNodes.UnicodeNode(node.pos, value=EncodedString(''))
-        elif len(values) == 1:
-            node = values[0]
-        else:
-            node.values = values
         return node
 
 
