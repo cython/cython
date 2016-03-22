@@ -279,7 +279,7 @@ f'{a * x()}'"""
             self.assertEqual(cy_eval(build_fstr(i), x=x, width=width), (x+' ')*i)
 
         # Test concatenating 2 largs fstrings.
-        self.assertEqual(cy_eval(build_fstr(255)*2, x=x, width=width), (x+' ')*(255*2))  # CPython uses 255*256
+        self.assertEqual(cy_eval(build_fstr(255)*3, x=x, width=width), (x+' ')*(255*3))  # CPython uses 255*256
 
         s = build_fstr(253, '{x:{width}} ')
         self.assertEqual(cy_eval(s, x=x, width=width), (x+' ')*254)
