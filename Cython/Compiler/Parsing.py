@@ -822,7 +822,7 @@ def p_cat_string_literal(s):
         # Py3 enforced unicode literals are parsed as bytes/unicode combination
         bytes_value = bytes_literal(StringEncoding.join_bytes(bstrings), s.source_encoding)
     if kind in ('u', ''):
-        unicode_value = EncodedString( u''.join([ u for u in ustrings if u is not None ]) )
+        unicode_value = EncodedString(u''.join([u for u in ustrings if u is not None]))
     if kind == 'f':
         unicode_value = []
         for u, pos in zip(ustrings, positions):
@@ -830,8 +830,9 @@ def p_cat_string_literal(s):
                 unicode_value += u
             else:
                 # non-f-string concatenated into the f-string
-                unicode_value.append(ExprNodes.UnicodeNode(pos, value = EncodedString(u)))
+                unicode_value.append(ExprNodes.UnicodeNode(pos, value=EncodedString(u)))
     return kind, bytes_value, unicode_value
+
 
 def p_opt_string_literal(s, required_type='u'):
     if s.sy == 'BEGIN_STRING':
@@ -845,11 +846,13 @@ def p_opt_string_literal(s, required_type='u'):
     else:
         return None
 
+
 def check_for_non_ascii_characters(string):
     for c in string:
         if c >= u'\x80':
             return True
     return False
+
 
 def p_string_literal(s, kind_override=None):
     # A single string or char literal.  Returns (kind, bvalue, uvalue)
