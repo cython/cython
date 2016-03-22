@@ -811,3 +811,23 @@ static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value
     Py_DECREF(retval);
     return 0;
 }
+
+
+//////////////////// PyObjectFormatSimple.proto ////////////////////
+
+#define __Pyx_PyObject_FormatSimple(s, f) (likely(PyUnicode_CheckExact(s)) ? (Py_INCREF(s), s) : PyObject_Format(s, f))
+
+
+//////////////////// PyObjectFormatAndDecref.proto ////////////////////
+
+#define __Pyx_PyObject_FormatSimpleAndDecref(s, f) \
+    ((unlikely(!s) || likely(PyUnicode_CheckExact(s))) ? s : __Pyx_PyObject_FormatAndDecref(s, f))
+static CYTHON_INLINE PyObject* __Pyx_PyObject_FormatAndDecref(PyObject* s, PyObject* f);
+
+//////////////////// PyObjectFormatAndDecref ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyObject_FormatAndDecref(PyObject* s, PyObject* f) {
+    PyObject *result = PyObject_Format(s, f);
+    Py_DECREF(s);
+    return result;
+}

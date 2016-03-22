@@ -3029,40 +3029,28 @@ class FormattedValueNode(ExprNode):
         return self
 
     def generate_result_code(self, code):
-        conversion_result = value_result = self.value.py_result()
+        value_result = self.value.py_result()
+        # common case: expect Unicode pass-through if no format spec
+        no_format_spec = isinstance(self.format_spec, UnicodeNode) and not self.format_spec.value.strip()
 
         if self.conversion_char:
             fn = self.find_conversion_func(self.conversion_char)
-            if fn is None:
-                assert False, "invalid conversion character found: '%s'" % self.conversion_char
-
-            code.putln('{')
-            conversion_result = Naming.quick_temp_cname
-            code.putln('PyObject *%s = %s(%s); %s' % (
-                conversion_result,
-                fn,
-                value_result,
-                code.error_goto_if_null(conversion_result, self.pos)
-            ))
-            code.put_gotref(conversion_result)
-
-        if isinstance(self.format_spec, UnicodeNode) and not self.format_spec.value:
-            # common case: no format spec => expect Unicode pass-through
+            assert fn is not None, "invalid conversion character found: '%s'" % self.conversion_char
+            value_result = '%s(%s)' % (fn, value_result)
+            code.globalstate.use_utility_code(UtilityCode.load_cached("PyObjectFormatAndDecref", "StringTools.c"))
+            format_func = '__Pyx_PyObject_FormatSimpleAndDecref' if no_format_spec else '__Pyx_PyObject_FormatAndDecref'
+        elif no_format_spec:
+            code.globalstate.use_utility_code(UtilityCode.load_cached("PyObjectFormatSimple", "StringTools.c"))
             format_func = '__Pyx_PyObject_FormatSimple'
         else:
             format_func = 'PyObject_Format'
 
-        code.put("%s = %s(%s, %s); " % (
+        code.putln("%s = %s(%s, %s); %s" % (
             self.result(),
             format_func,
-            conversion_result,
-            self.format_spec.py_result()))
-
-        if self.conversion_char:
-            code.put_decref(conversion_result, py_object_type)
-            code.putln('}')
-
-        code.putln(code.error_goto_if_null(self.result(), self.pos))
+            value_result,
+            self.format_spec.py_result(),
+            code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
 
 
