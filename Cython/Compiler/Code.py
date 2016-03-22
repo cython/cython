@@ -472,19 +472,21 @@ class UtilityCode(UtilityCodeBase):
             for dependency in self.requires:
                 output.use_utility_code(dependency)
         if self.proto:
-            output[self.proto_block].put_or_include(
-                self.format_code(self.proto),
-                '%s_proto' % self.name)
+            writer = output[self.proto_block]
+            writer.putln("/* %s.proto */" % self.name)
+            writer.put_or_include(
+                self.format_code(self.proto), '%s_proto' % self.name)
         if self.impl:
             impl = self.format_code(self.wrap_c_strings(self.impl))
             is_specialised1, impl = self.inject_string_constants(impl, output)
             is_specialised2, impl = self.inject_unbound_methods(impl, output)
+            writer = output['utility_code_def']
+            writer.putln("/* %s */" % self.name);
             if not (is_specialised1 or is_specialised2):
                 # no module specific adaptations => can be reused
-                output['utility_code_def'].put_or_include(
-                    impl, '%s_impl' % self.name)
+                writer.put_or_include(impl, '%s_impl' % self.name)
             else:
-                output['utility_code_def'].put(impl)
+                writer.put(impl)
         if self.init:
             writer = output['init_globals']
             writer.putln("/* %s.init */" % self.name)
@@ -496,6 +498,7 @@ class UtilityCode(UtilityCodeBase):
             writer.putln()
         if self.cleanup and Options.generate_cleanup_code:
             writer = output['cleanup_globals']
+            writer.putln("/* %s.cleanup */" % self.name)
             if isinstance(self.cleanup, basestring):
                 writer.put_or_include(
                     self.format_code(self.cleanup),
