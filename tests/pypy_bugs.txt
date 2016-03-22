@@ -4,6 +4,7 @@
 
 broken_exception
 bufaccess
+buffmt
 exarkun
 memoryview
 memslice
