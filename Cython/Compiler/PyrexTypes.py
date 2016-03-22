@@ -830,6 +830,14 @@ class MemoryViewSliceType(PyrexType):
         self.from_py_function = funcname
         return True
 
+    def from_py_call_code(self, source_code, result_code, error_pos, code,
+                          from_py_function=None, error_condition=None):
+        return '%s = %s(%s); %s' % (
+            result_code,
+            from_py_function or self.from_py_function,
+            source_code,
+            code.error_goto_if(error_condition or self.error_condition(result_code), error_pos))
+
     def create_to_py_utility_code(self, env):
         self._dtype_to_py_func, self._dtype_from_py_func = self.dtype_object_conversion_funcs(env)
         return True
