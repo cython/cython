@@ -1030,7 +1030,7 @@ def p_f_string_expr(s, unicode_value, pos, starting_index):
     # and the index in the string that follows the expression.
     i = starting_index
     size = len(unicode_value)
-    conversion_char = None
+    conversion_char = terminal_char = format_spec = None
     format_spec_str = u''
 
     nested_depth = 0
@@ -1083,14 +1083,10 @@ def p_f_string_expr(s, unicode_value, pos, starting_index):
 
     if terminal_char == '!':
         i += 1
-        if i >= size:
+        if i + 2 > size:
             s.error("invalid conversion char at end of string")
-
         conversion_char = unicode_value[i]
-
         i += 1
-        if i >= size:
-            s.error("invalid conversion char at end of string")
         terminal_char = unicode_value[i]
 
     if terminal_char == ':':
@@ -1123,7 +1119,7 @@ def p_f_string_expr(s, unicode_value, pos, starting_index):
         format_spec_str = unicode_value[start_format_spec:i]
 
     if terminal_char != '}':
-        s.error("missing '}' in format string expression'")
+        s.error("missing '}' in format string expression', found '%s'" % terminal_char)
 
     # parse the expression as if it was surrounded by parentheses
     buf = StringIO('(%s)' % expr_str)
@@ -1137,12 +1133,9 @@ def p_f_string_expr(s, unicode_value, pos, starting_index):
     # the format spec is itself treated like an f-string
     if format_spec_str is not None:
         format_spec = ExprNodes.JoinedStrNode(pos, values=p_f_string(s, format_spec_str, pos))
-    else:
-        format_spec = None
 
     return i + 1, ExprNodes.FormattedValueNode(
-        s.position(), value=expr, conversion_char=conversion_char,
-        format_spec=format_spec)
+        s.position(), value=expr, conversion_char=conversion_char, format_spec=format_spec)
 
 
 # since PEP 448:
