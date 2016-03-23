@@ -1032,9 +1032,10 @@ def p_f_string_expr(s, unicode_value, pos, starting_index):
     size = len(unicode_value)
     conversion_char = terminal_char = format_spec = None
     format_spec_str = u''
+    NO_CHAR = 2**30
 
     nested_depth = 0
-    quote_char = None
+    quote_char = NO_CHAR
     in_triple_quotes = False
 
     while True:
@@ -1042,17 +1043,17 @@ def p_f_string_expr(s, unicode_value, pos, starting_index):
             s.error("missing '}' in format string expression")
         c = unicode_value[i]
 
-        if quote_char is not None:
+        if quote_char != NO_CHAR:
             if c == '\\':
                 i += 1
             elif c == quote_char:
                 if in_triple_quotes:
                     if i + 2 < size and unicode_value[i + 1] == c and unicode_value[i + 2] == c:
                         in_triple_quotes = False
-                        quote_char = None
+                        quote_char = NO_CHAR
                         i += 2
                 else:
-                    quote_char = None
+                    quote_char = NO_CHAR
         elif c in '\'"':
             quote_char = c
             if i + 2 < size and unicode_value[i + 1] == c and unicode_value[i + 2] == c:
@@ -1103,11 +1104,12 @@ def p_f_string_expr(s, unicode_value, pos, starting_index):
                     if nested_depth >= 1:
                         s.error("nesting of '{' in format specifier is not allowed")
                     nested_depth += 1
-                elif c == '}' and nested_depth == 0:
-                    terminal_char = c
-                    break
                 elif c == '}':
-                    nested_depth -= 1
+                    if nested_depth > 0:
+                        nested_depth -= 1
+                    else:
+                        terminal_char = c
+                        break
             if c in '\'"':
                 if not in_string and i + 2 < size and unicode_value[i + 1] == c and unicode_value[i + 2] == c:
                     in_triple_quotes = not in_triple_quotes
