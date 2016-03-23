@@ -3956,6 +3956,8 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         self.visitchildren(node)
         if isinstance(node.format_spec, ExprNodes.UnicodeNode) and not node.format_spec.value:
             node.format_spec = None
+        if node.format_spec is None and node.conversion_char is None and isinstance(node.value, ExprNodes.UnicodeNode):
+            return node.value
         return node
 
     def visit_JoinedStrNode(self, node):
