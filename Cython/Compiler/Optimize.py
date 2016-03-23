@@ -3952,6 +3952,12 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 sequence_node.mult_factor = factor
         return sequence_node
 
+    def visit_FormattedValueNode(self, node):
+        self.visitchildren(node)
+        if isinstance(node.format_spec, ExprNodes.UnicodeNode) and not node.format_spec.value:
+            node.format_spec = None
+        return node
+
     def visit_JoinedStrNode(self, node):
         """
         Clean up after the parser by discarding empty Unicode strings and merging
@@ -3960,7 +3966,6 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         """
         self.visitchildren(node)
         unicode_node = ExprNodes.UnicodeNode
-        format_node = ExprNodes.FormattedValueNode
 
         values = []
         for is_unode_group, substrings in itertools.groupby(node.values, lambda v: isinstance(v, unicode_node)):
@@ -3973,11 +3978,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 if unode.value:
                     values.append(unode)
             else:
-                for value in substrings:
-                    if isinstance(value, format_node):
-                        if isinstance(value.format_spec, unicode_node) and not value.format_spec.value:
-                            value.format_spec = None
-                    values.append(value)
+                values.extend(substrings)
 
         if not values:
             node = ExprNodes.UnicodeNode(node.pos, value=EncodedString(''))
