@@ -3960,18 +3960,24 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         """
         self.visitchildren(node)
         unicode_node = ExprNodes.UnicodeNode
+        format_node = ExprNodes.FormattedValueNode
+
         values = []
         for is_unode_group, substrings in itertools.groupby(node.values, lambda v: isinstance(v, unicode_node)):
             if is_unode_group:
                 substrings = list(substrings)
                 unode = substrings[0]
                 if len(substrings) > 1:
-                    unode.value = EncodedString(u''.join(node.value for node in substrings))
+                    unode.value = EncodedString(u''.join(value.value for value in substrings))
                 # ignore empty Unicode strings
                 if unode.value:
                     values.append(unode)
             else:
-                values.extend(substrings)
+                for value in substrings:
+                    if isinstance(value, format_node):
+                        if isinstance(value.format_spec, unicode_node) and not value.format_spec.value:
+                            value.format_spec = None
+                    values.append(value)
 
         if not values:
             node = ExprNodes.UnicodeNode(node.pos, value=EncodedString(''))

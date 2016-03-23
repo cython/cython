@@ -3025,23 +3025,28 @@ class FormattedValueNode(ExprNode):
 
     def analyse_types(self, env):
         self.value = self.value.analyse_types(env).coerce_to_pyobject(env)
-        self.format_spec = self.format_spec.analyse_types(env).coerce_to_pyobject(env)
+        if self.format_spec:
+            self.format_spec = self.format_spec.analyse_types(env).coerce_to_pyobject(env)
         return self
 
     def generate_result_code(self, code):
         value_result = self.value.py_result()
-        # common case: expect Unicode pass-through if no format spec
-        no_format_spec = isinstance(self.format_spec, UnicodeNode) and not self.format_spec.value.strip()
+        if self.format_spec:
+            format_func = '__Pyx_PyObject_Format'
+            format_spec = self.format_spec.py_result()
+        else:
+            # common case: expect simple Unicode pass-through if no format spec
+            format_func = '__Pyx_PyObject_FormatSimple'
+            format_spec = Naming.empty_unicode
 
         if self.conversion_char:
             fn = self.find_conversion_func(self.conversion_char)
             assert fn is not None, "invalid conversion character found: '%s'" % self.conversion_char
             value_result = '%s(%s)' % (fn, value_result)
             code.globalstate.use_utility_code(UtilityCode.load_cached("PyObjectFormatAndDecref", "StringTools.c"))
-            format_func = '__Pyx_PyObject_FormatSimpleAndDecref' if no_format_spec else '__Pyx_PyObject_FormatAndDecref'
-        elif no_format_spec:
+            format_func += 'AndDecref'
+        elif not self.format_spec:
             code.globalstate.use_utility_code(UtilityCode.load_cached("PyObjectFormatSimple", "StringTools.c"))
-            format_func = '__Pyx_PyObject_FormatSimple'
         else:
             format_func = 'PyObject_Format'
 
@@ -3049,7 +3054,7 @@ class FormattedValueNode(ExprNode):
             self.result(),
             format_func,
             value_result,
-            self.format_spec.py_result(),
+            format_spec,
             code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
 

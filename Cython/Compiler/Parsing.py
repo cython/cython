@@ -1031,7 +1031,7 @@ def p_f_string_expr(s, unicode_value, pos, starting_index):
     i = starting_index
     size = len(unicode_value)
     conversion_char = terminal_char = format_spec = None
-    format_spec_str = u''
+    format_spec_str = None
     NO_CHAR = 2**30
 
     nested_depth = 0
@@ -1133,7 +1133,7 @@ def p_f_string_expr(s, unicode_value, pos, starting_index):
         s.error("invalid conversion character '%s'" % conversion_char)
 
     # the format spec is itself treated like an f-string
-    if format_spec_str is not None:
+    if format_spec_str:
         format_spec = ExprNodes.JoinedStrNode(pos, values=p_f_string(s, format_spec_str, pos))
 
     return i + 1, ExprNodes.FormattedValueNode(
