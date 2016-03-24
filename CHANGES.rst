@@ -59,9 +59,6 @@ Bugs fixed
 * Iteration over ``dict(...).items()`` failed to get optimised when dict
   arguments included keyword arguments.
 
-* Optimised `all(genexpr)`/`any(genexpr)` calls could warn about unused code.
-  This fixes ticket 876.
-
 
 0.23.5 (2016-03-26)
 ===================
@@ -79,6 +76,9 @@ Bugs fixed
 
 * Fix prange() to behave identically to range().  The end condition was
   miscalculated when the range was not exactly divisible by the step.
+
+* Optimised `all(genexpr)`/`any(genexpr)` calls could warn about unused code.
+  This fixes ticket 876.
 
 
 0.23.4 (2015-10-10)
