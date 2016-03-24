@@ -59,9 +59,18 @@ Bugs fixed
 * Iteration over ``dict(...).items()`` failed to get optimised when dict
   arguments included keyword arguments.
 
+
+0.23.5 (2016-03-26)
+===================
+
+* Truth-testing Unicode strings could waste time and memory in Py3.3+.
+
+* Return values of async functions could be ignored and replaced by ``None``.
+
+* Compiler crash in CPython 3.6.
+
 * Fix prange() to behave identically to range().  The end condition was
   miscalculated when the range was not exactly divisible by the step.
-
 
 
 0.23.4 (2015-10-10)
