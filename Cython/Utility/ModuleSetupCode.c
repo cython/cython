@@ -341,8 +341,8 @@ PyEval_InitThreads();
 /////////////// CodeObjectCache.proto ///////////////
 
 typedef struct {
-    int code_line;
     PyCodeObject* code_object;
+    int code_line;
 } __Pyx_CodeObjectCacheEntry;
 
 struct __Pyx_CodeObjectCache {
