@@ -59,6 +59,9 @@ Bugs fixed
 * Iteration over ``dict(...).items()`` failed to get optimised when dict
   arguments included keyword arguments.
 
+* Optimised `all(genexpr)`/`any(genexpr)` calls could warn about unused code.
+  This fixes ticket 876.
+
 
 0.23.5 (2016-03-26)
 ===================

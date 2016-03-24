@@ -1526,13 +1526,9 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         for L in LL:
             for x in L:
                 if not p(x):
-                    _result = False
-                    break
-            else:
-                continue
-            break
+                    return False
         else:
-            _result = True
+            return True
         """
         return self._transform_any_all(node, pos_args, False)
 
@@ -1546,13 +1542,9 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         for L in LL:
             for x in L:
                 if p(x):
-                    _result = True
-                    break
-            else:
-                continue
-            break
+                    return True
         else:
-            _result = False
+            return False
         """
         return self._transform_any_all(node, pos_args, True)
 
@@ -1583,15 +1575,6 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
                         value=ExprNodes.BoolNode(yield_expression.pos, value=is_any, constant_result=is_any))
                 )]
         )
-        loop = loop_node
-        while isinstance(loop.body, Nodes.LoopNode):
-            next_loop = loop.body
-            loop.body = Nodes.StatListNode(loop.body.pos, stats=[
-                loop.body,
-                Nodes.BreakStatNode(yield_expression.pos)
-            ])
-            next_loop.else_clause = Nodes.ContinueStatNode(yield_expression.pos)
-            loop = next_loop
         loop_node.else_clause = Nodes.ReturnStatNode(
             node.pos,
             value=ExprNodes.BoolNode(yield_expression.pos, value=not is_any, constant_result=not is_any))
