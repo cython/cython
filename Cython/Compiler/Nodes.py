@@ -1895,7 +1895,7 @@ class FuncDefNode(StatNode, BlockNode):
             elif is_cdef and entry.type.is_memoryviewslice and len(entry.cf_assignments) > 1:
                 code.put_incref_memoryviewslice(entry.cname, have_gil=code.funcstate.gil_owned)
         for entry in lenv.var_entries:
-            if entry.is_arg and len(entry.cf_assignments) > 1:
+            if entry.is_arg and len(entry.cf_assignments) > 1 and not entry.in_closure:
                 if entry.xdecref_cleanup:
                     code.put_var_xincref(entry)
                 else:
