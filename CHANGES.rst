@@ -2,11 +2,13 @@
 Cython Changelog
 ================
 
-0.23.5 (2016-03-xx)
+0.23.5 (2016-03-26)
 ===================
 
 Bugs fixed
 ----------
+
+* Truth-testing Unicode strings could waste time and memory in Py3.3+.
 
 * Return values of async functions could be ignored and replaced by ``None``.
 
