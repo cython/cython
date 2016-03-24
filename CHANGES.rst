@@ -8,6 +8,11 @@ Cython Changelog
 Bugs fixed
 ----------
 
+* Compile errors and warnings in integer type conversion code.
+  Patches by Christian Neukirchen, Nikolaus Rath, Ian Henriksen.
+
+* Reference leak when "*args" argument was reassigned in closures.
+
 * Truth-testing Unicode strings could waste time and memory in Py3.3+.
 
 * Return values of async functions could be ignored and replaced by ``None``.
