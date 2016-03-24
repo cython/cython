@@ -1503,13 +1503,13 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
     def _handle_simple_function_all(self, node, pos_args):
         """Transform
 
-        _result = all(x for L in LL for x in L)
+        _result = all(p(x) for L in LL for x in L)
 
         into
 
         for L in LL:
             for x in L:
-                if not x:
+                if not p(x):
                     _result = False
                     break
             else:
@@ -1523,13 +1523,13 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
     def _handle_simple_function_any(self, node, pos_args):
         """Transform
 
-        _result = any(x for L in LL for x in L)
+        _result = any(p(x) for L in LL for x in L)
 
         into
 
         for L in LL:
             for x in L:
-                if x:
+                if p(x):
                     _result = True
                     break
             else:
