@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-0.24 (2016-3-xx)
+0.24 (2016-03-xx)
 ===================
 
 Features added
@@ -62,6 +62,11 @@ Bugs fixed
 
 0.23.5 (2016-03-26)
 ===================
+
+* Compile errors and warnings in integer type conversion code.
+  Patches by Christian Neukirchen, Nikolaus Rath, Ian Henriksen.
+
+* Reference leak when "*args" argument was reassigned in closures.
 
 * Truth-testing Unicode strings could waste time and memory in Py3.3+.
 
