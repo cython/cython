@@ -1,3 +1,5 @@
+# mode: run
+# tag: all, builtins, werror
 
 cdef class VerboseGetItem(object):
     cdef object sequence
@@ -53,6 +55,7 @@ def all_item(x):
     """
     return all(x)
 
+
 @cython.test_assert_path_exists(
     "//ForInStatNode",
     "//InlinedGeneratorExpressionNode"
@@ -85,6 +88,7 @@ def all_in_simple_gen(seq):
     False
     """
     return all(x for x in seq)
+
 
 @cython.test_assert_path_exists(
     "//ForInStatNode",
@@ -122,6 +126,7 @@ def all_in_simple_gen_scope(seq):
     assert x == 'abc'
     return result
 
+
 @cython.test_assert_path_exists(
     "//ForInStatNode",
     "//InlinedGeneratorExpressionNode"
@@ -158,9 +163,11 @@ def all_in_conditional_gen(seq):
     """
     return all(x%3 for x in seq if x%2 == 1)
 
+
 mixed_ustring = u'AbcDefGhIjKlmnoP'
 lower_ustring = mixed_ustring.lower()
 upper_ustring = mixed_ustring.upper()
+
 
 @cython.test_assert_path_exists(
     '//PythonCapiCallNode',
@@ -180,6 +187,7 @@ def all_lower_case_characters(unicode ustring):
     True
     """
     return all(uchar.islower() for uchar in ustring)
+
 
 @cython.test_assert_path_exists(
     "//ForInStatNode",
@@ -216,6 +224,7 @@ def all_in_typed_gen(seq):
     """
     cdef int x
     return all(x for x in seq)
+
 
 @cython.test_assert_path_exists(
     "//ForInStatNode",
@@ -267,6 +276,14 @@ def all_in_double_gen(seq):
     0
     1
     2
+    False
+    >>> all_in_double_gen([VerboseGetItem([1,1,1]),VerboseGetItem([1,0,1]),VerboseGetItem([1,1])])
+    0
+    1
+    2
+    3
+    0
+    1
     False
     """
     cdef int x
