@@ -11997,7 +11997,7 @@ class CoerceToBooleanNode(CoercionNode):
         Builtin.set_type:        'PySet_GET_SIZE',
         Builtin.frozenset_type:  'PySet_GET_SIZE',
         Builtin.bytes_type:      'PyBytes_GET_SIZE',
-        Builtin.unicode_type:    'PyUnicode_GET_SIZE',
+        Builtin.unicode_type:    'PyUnicode_GET_LENGTH',
     }
 
     def __init__(self, arg, env):
