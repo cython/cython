@@ -63,8 +63,8 @@ Bugs fixed
 0.23.5 (2016-03-26)
 ===================
 
-* Compile errors and warnings in integer type conversion code.
-  Patches by Christian Neukirchen, Nikolaus Rath, Ian Henriksen.
+* Compile errors and warnings in integer type conversion code.  This fixes
+  ticket 877.  Patches by Christian Neukirchen, Nikolaus Rath, Ian Henriksen.
 
 * Reference leak when "*args" argument was reassigned in closures.
 
