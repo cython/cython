@@ -42,6 +42,18 @@ __doc__ = u"""
     ...
     KeyError: 'nogil_noprof'
 
+    >>> short_stats['f_raise']
+    100
+
+    >>> short_stats['m_def']
+    200
+    >>> short_stats['m_cdef']
+    100
+    >>> short_stats['m_cpdef']
+    200
+    >>> short_stats['m_cpdef (wrapper)']
+    100
+
     >>> try:
     ...    os.unlink(statsfile)
     ... except:
@@ -52,6 +64,7 @@ cimport cython
 
 def test_profile(long N):
     cdef long i, n = 0
+    cdef A a = A()
     for i from 0 <= i < N:
         n += f_def(i)
         n += f_cdef(i)
@@ -64,6 +77,11 @@ def test_profile(long N):
         n += nogil_prof(i)
         n += withgil_noprof(i)
         n += withgil_prof(i)
+        n += a.m_def(i)
+        n += (<object>a).m_def(i)
+        n += a.m_cpdef(i)
+        n += (<object>a).m_cpdef(i)
+        n += a.m_cdef(i)
         try:
             n += f_raise(i+2)
         except RuntimeError:
@@ -107,3 +125,10 @@ cdef int nogil_noprof(long a) nogil:
 cdef int nogil_prof(long a) nogil:
     return a
 
+cdef class A(object):
+    def m_def(self, long a):
+        return a
+    cpdef m_cpdef(self, long a):
+        return a
+    cdef m_cdef(self, long a):
+        return a
