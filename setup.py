@@ -298,6 +298,7 @@ setup(
 
     .. _Pyrex: http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
     """),
+    license='Apache',
     classifiers=[
         dev_status(),
         "Intended Audience :: Developers",
