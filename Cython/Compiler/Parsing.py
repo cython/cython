@@ -15,12 +15,13 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
                re=object, _unicode=object, _bytes=object,
                partial=object, reduce=object, _IS_PY3=cython.bint)
 
+from io import StringIO
 import re
 import sys
 from unicodedata import lookup as lookup_unicodechar
 from functools import partial, reduce
 
-from .Scanning import PyrexScanner, FileSourceDescriptor
+from .Scanning import PyrexScanner, FileSourceDescriptor, StringSourceDescriptor
 from . import Nodes
 from . import ExprNodes
 from . import Builtin
@@ -693,8 +694,12 @@ def p_atom(s):
             return ExprNodes.UnicodeNode(pos, value = unicode_value, bytes_value = bytes_value)
         elif kind == 'b':
             return ExprNodes.BytesNode(pos, value = bytes_value)
-        else:
+        elif kind == 'f':
+            return ExprNodes.JoinedStrNode(pos, values = unicode_value)
+        elif kind == '':
             return ExprNodes.StringNode(pos, value = bytes_value, unicode_value = unicode_value)
+        else:
+            s.error("invalid string kind '%s'" % kind)
     elif sy == 'IDENT':
         name = s.systring
         s.next()
@@ -788,42 +793,61 @@ def wrap_compile_time_constant(pos, value):
 def p_cat_string_literal(s):
     # A sequence of one or more adjacent string literals.
     # Returns (kind, bytes_value, unicode_value)
-    # where kind in ('b', 'c', 'u', '')
+    # where kind in ('b', 'c', 'u', 'f', '')
+    pos = s.position()
     kind, bytes_value, unicode_value = p_string_literal(s)
     if kind == 'c' or s.sy != 'BEGIN_STRING':
         return kind, bytes_value, unicode_value
-    bstrings, ustrings = [bytes_value], [unicode_value]
+    bstrings, ustrings, positions = [bytes_value], [unicode_value], [pos]
     bytes_value = unicode_value = None
     while s.sy == 'BEGIN_STRING':
         pos = s.position()
         next_kind, next_bytes_value, next_unicode_value = p_string_literal(s)
         if next_kind == 'c':
             error(pos, "Cannot concatenate char literal with another string or char literal")
+            continue
         elif next_kind != kind:
-            error(pos, "Cannot mix string literals of different types, expected %s'', got %s''" %
-                  (kind, next_kind))
-        else:
-            bstrings.append(next_bytes_value)
-            ustrings.append(next_unicode_value)
+            # concatenating f strings and normal strings is allowed and leads to an f string
+            if set([kind, next_kind]) in (set(['f', 'u']), set(['f', ''])):
+                kind = 'f'
+            else:
+                error(pos, "Cannot mix string literals of different types, expected %s'', got %s''" %
+                      (kind, next_kind))
+                continue
+        bstrings.append(next_bytes_value)
+        ustrings.append(next_unicode_value)
+        positions.append(pos)
     # join and rewrap the partial literals
     if kind in ('b', 'c', '') or kind == 'u' and None not in bstrings:
         # Py3 enforced unicode literals are parsed as bytes/unicode combination
         bytes_value = bytes_literal(StringEncoding.join_bytes(bstrings), s.source_encoding)
     if kind in ('u', ''):
-        unicode_value = EncodedString( u''.join([ u for u in ustrings if u is not None ]) )
+        unicode_value = EncodedString(u''.join([u for u in ustrings if u is not None]))
+    if kind == 'f':
+        unicode_value = []
+        for u, pos in zip(ustrings, positions):
+            if isinstance(u, list):
+                unicode_value += u
+            else:
+                # non-f-string concatenated into the f-string
+                unicode_value.append(ExprNodes.UnicodeNode(pos, value=EncodedString(u)))
     return kind, bytes_value, unicode_value
 
+
 def p_opt_string_literal(s, required_type='u'):
-    if s.sy == 'BEGIN_STRING':
-        kind, bytes_value, unicode_value = p_string_literal(s, required_type)
-        if required_type == 'u':
-            return unicode_value
-        elif required_type == 'b':
-            return bytes_value
-        else:
-            s.error("internal parser configuration error")
-    else:
+    if s.sy != 'BEGIN_STRING':
         return None
+    pos = s.position()
+    kind, bytes_value, unicode_value = p_string_literal(s, required_type)
+    if required_type == 'u':
+        if kind == 'f':
+            s.error("f-string not allowed here", pos)
+        return unicode_value
+    elif required_type == 'b':
+        return bytes_value
+    else:
+        s.error("internal parser configuration error")
+
 
 def check_for_non_ascii_characters(string):
     for c in string:
@@ -831,38 +855,55 @@ def check_for_non_ascii_characters(string):
             return True
     return False
 
+
 def p_string_literal(s, kind_override=None):
     # A single string or char literal.  Returns (kind, bvalue, uvalue)
-    # where kind in ('b', 'c', 'u', '').  The 'bvalue' is the source
+    # where kind in ('b', 'c', 'u', 'f', '').  The 'bvalue' is the source
     # code byte sequence of the string literal, 'uvalue' is the
     # decoded Unicode string.  Either of the two may be None depending
     # on the 'kind' of string, only unprefixed strings have both
-    # representations.
+    # representations. In f-strings, the uvalue is a list of the Unicode
+    # strings and f-string expressions that make up the f-string.
 
     # s.sy == 'BEGIN_STRING'
     pos = s.position()
     is_raw = False
     is_python3_source = s.context.language_level >= 3
     has_non_ascii_literal_characters = False
-    kind = s.systring[:1].lower()
-    if kind == 'r':
-        # Py3 allows both 'br' and 'rb' as prefix
-        if s.systring[1:2].lower() == 'b':
-            kind = 'b'
-        else:
-            kind = ''
-        is_raw = True
-    elif kind in 'ub':
-        is_raw = s.systring[1:2].lower() == 'r'
-    elif kind != 'c':
+    kind_string = s.systring.rstrip('"\'').lower()
+    if len(set(kind_string)) != len(kind_string):
+        s.error('Duplicate string prefix character')
+    if 'b' in kind_string and 'u' in kind_string:
+        s.error('String prefixes b and u cannot be combined')
+    if 'b' in kind_string and 'f' in kind_string:
+        s.error('String prefixes b and f cannot be combined')
+    if 'u' in kind_string and 'f' in kind_string:
+        s.error('String prefixes u and f cannot be combined')
+
+    is_raw = 'r' in kind_string
+
+    if 'c' in kind_string:
+        # this should never happen, since the lexer does not allow combining c
+        # with other prefix characters
+        if len(kind_string) != 1:
+            s.error('Invalid string prefix for character literal')
+        kind = 'c'
+    elif 'f' in kind_string:
+        kind = 'f'  # u is ignored
+    elif 'b' in kind_string:
+        kind = 'b'
+    elif 'u' in kind_string:
+        kind = 'u'
+    else:
         kind = ''
+
     if kind == '' and kind_override is None and Future.unicode_literals in s.context.future_directives:
         chars = StringEncoding.StrLiteralBuilder(s.source_encoding)
         kind = 'u'
     else:
         if kind_override is not None and kind_override in 'ub':
             kind = kind_override
-        if kind == 'u':
+        if kind in ('u', 'f'):  # f-strings are scanned exactly like Unicode literals, but are parsed further later
             chars = StringEncoding.UnicodeLiteralBuilder()
         elif kind == '':
             chars = StringEncoding.StrLiteralBuilder(s.source_encoding)
@@ -873,7 +914,7 @@ def p_string_literal(s, kind_override=None):
         s.next()
         sy = s.sy
         systr = s.systring
-        #print "p_string_literal: sy =", sy, repr(s.systring) ###
+        # print "p_string_literal: sy =", sy, repr(s.systring) ###
         if sy == 'CHARS':
             chars.append(systr)
             if is_python3_source and not has_non_ascii_literal_characters and check_for_non_ascii_characters(systr):
@@ -901,7 +942,7 @@ def p_string_literal(s, kind_override=None):
                     else:
                         s.error("Invalid hex escape '%s'" % systr,
                                 fatal=False)
-                elif c in u'NUu' and kind in ('u', ''):   # \uxxxx, \Uxxxxxxxx, \N{...}
+                elif c in u'NUu' and kind in ('u', 'f', ''):   # \uxxxx, \Uxxxxxxxx, \N{...}
                     chrval = -1
                     if c == u'N':
                         try:
@@ -943,12 +984,160 @@ def p_string_literal(s, kind_override=None):
         bytes_value, unicode_value = chars.getstrings()
         if is_python3_source and has_non_ascii_literal_characters:
             # Python 3 forbids literal non-ASCII characters in byte strings
-            if kind != 'u':
+            if kind not in ('u', 'f'):
                 s.error("bytes can only contain ASCII literal characters.",
                         pos=pos, fatal=False)
             bytes_value = None
+    if kind == 'f':
+        unicode_value = p_f_string(s, unicode_value, pos)
     s.next()
     return (kind, bytes_value, unicode_value)
+
+
+def p_f_string(s, unicode_value, pos):
+    # Parses a PEP 498 f-string literal into a list of nodes. Nodes are either UnicodeNodes
+    # or FormattedValueNodes.
+    values = []
+    i = 0
+    size = len(unicode_value)
+    current_literal_start = 0
+    while i < size:
+        c = unicode_value[i]
+        if c in '{}':
+            if i + 1 < size and unicode_value[i + 1] == c:
+                encoded_str = EncodedString(unicode_value[current_literal_start:i + 1])
+                values.append(ExprNodes.UnicodeNode(pos, value=encoded_str))
+                i += 2
+                current_literal_start = i
+            elif c == '}':
+                s.error("single '}' encountered in format string")
+            else:
+                encoded_str = EncodedString(unicode_value[current_literal_start:i])
+                values.append(ExprNodes.UnicodeNode(pos, value=encoded_str))
+                i, expr_node = p_f_string_expr(s, unicode_value, pos, i + 1)
+                current_literal_start = i
+                values.append(expr_node)
+        else:
+            i += 1
+
+    encoded_str = EncodedString(unicode_value[current_literal_start:])
+    values.append(ExprNodes.UnicodeNode(pos, value=encoded_str))
+    return values
+
+
+def p_f_string_expr(s, unicode_value, pos, starting_index):
+    # Parses a {}-delimited expression inside an f-string. Returns a FormattedValueNode
+    # and the index in the string that follows the expression.
+    i = starting_index
+    size = len(unicode_value)
+    conversion_char = terminal_char = format_spec = None
+    format_spec_str = None
+    NO_CHAR = 2**30
+
+    nested_depth = 0
+    quote_char = NO_CHAR
+    in_triple_quotes = False
+
+    while True:
+        if i >= size:
+            s.error("missing '}' in format string expression")
+        c = unicode_value[i]
+
+        if quote_char != NO_CHAR:
+            if c == '\\':
+                i += 1
+            elif c == quote_char:
+                if in_triple_quotes:
+                    if i + 2 < size and unicode_value[i + 1] == c and unicode_value[i + 2] == c:
+                        in_triple_quotes = False
+                        quote_char = NO_CHAR
+                        i += 2
+                else:
+                    quote_char = NO_CHAR
+        elif c in '\'"':
+            quote_char = c
+            if i + 2 < size and unicode_value[i + 1] == c and unicode_value[i + 2] == c:
+                in_triple_quotes = True
+                i += 2
+        elif c in '{[(':
+            nested_depth += 1
+        elif nested_depth != 0 and c in '}])':
+            nested_depth -= 1
+        elif c == '#':
+            s.error("format string cannot include #")
+        elif nested_depth == 0 and c in '!:}':
+            # allow != as a special case
+            if c == '!' and i + 1 < size and unicode_value[i + 1] == '=':
+                i += 1
+                continue
+
+            terminal_char = c
+            break
+        i += 1
+
+    # normalise line endings as the parser expects that
+    expr_str = unicode_value[starting_index:i].replace('\r\n', '\n').replace('\r', '\n')
+    expr_pos = (pos[0], pos[1], pos[2] + starting_index + 2)  # TODO: find exact code position (concat, multi-line, ...)
+
+    if not expr_str.strip():
+        s.error("empty expression not allowed in f-string")
+
+    if terminal_char == '!':
+        i += 1
+        if i + 2 > size:
+            s.error("invalid conversion char at end of string")
+        conversion_char = unicode_value[i]
+        i += 1
+        terminal_char = unicode_value[i]
+
+    if terminal_char == ':':
+        in_triple_quotes = False
+        in_string = False
+        nested_depth = 0
+        start_format_spec = i + 1
+        while True:
+            if i >= size:
+                s.error("missing '}' in format specifier")
+            c = unicode_value[i]
+            if not in_triple_quotes and not in_string:
+                if c == '{':
+                    if nested_depth >= 1:
+                        s.error("nesting of '{' in format specifier is not allowed")
+                    nested_depth += 1
+                elif c == '}':
+                    if nested_depth > 0:
+                        nested_depth -= 1
+                    else:
+                        terminal_char = c
+                        break
+            if c in '\'"':
+                if not in_string and i + 2 < size and unicode_value[i + 1] == c and unicode_value[i + 2] == c:
+                    in_triple_quotes = not in_triple_quotes
+                    i += 2
+                elif not in_triple_quotes:
+                    in_string = not in_string
+            i += 1
+
+        format_spec_str = unicode_value[start_format_spec:i]
+
+    if terminal_char != '}':
+        s.error("missing '}' in format string expression', found '%s'" % terminal_char)
+
+    # parse the expression as if it was surrounded by parentheses
+    buf = StringIO('(%s)' % expr_str)
+    scanner = PyrexScanner(buf, expr_pos[0], parent_scanner=s, source_encoding=s.source_encoding, initial_pos=expr_pos)
+    expr = p_testlist(scanner)  # TODO is testlist right here?
+
+    # validate the conversion char
+    if conversion_char is not None and not ExprNodes.FormattedValueNode.find_conversion_func(conversion_char):
+        s.error("invalid conversion character '%s'" % conversion_char)
+
+    # the format spec is itself treated like an f-string
+    if format_spec_str:
+        format_spec = ExprNodes.JoinedStrNode(pos, values=p_f_string(s, format_spec_str, pos))
+
+    return i + 1, ExprNodes.FormattedValueNode(
+        s.position(), value=expr, conversion_char=conversion_char, format_spec=format_spec)
 
 
 # since PEP 448:

@@ -7,7 +7,7 @@ from __future__ import absolute_import
 
 raw_prefixes = "rR"
 bytes_prefixes = "bB"
-string_prefixes = "uU" + bytes_prefixes
+string_prefixes = "fFuU" + bytes_prefixes
 char_prefixes = "cC"
 any_string_prefix = raw_prefixes + string_prefixes + char_prefixes
 IDENT = 'IDENT'
@@ -40,8 +40,8 @@ def make_lexicon():
     fltconst = (decimal_fract + Opt(exponent)) | (decimal + exponent)
     imagconst = (intconst | fltconst) + Any("jJ")
 
-    beginstring = Opt(Any(string_prefixes) + Opt(Any(raw_prefixes)) |
-                      Any(raw_prefixes) + Opt(Any(bytes_prefixes)) |
+    # invalid combinations of prefixes are caught in p_string_literal
+    beginstring = Opt(Rep(Any(string_prefixes + raw_prefixes)) |
                       Any(char_prefixes)
                       ) + (Str("'") | Str('"') | Str("'''") | Str('"""'))
     two_oct = octdigit + octdigit

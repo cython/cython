@@ -2956,6 +2956,111 @@ class RawCNameExprNode(ExprNode):
 
 #-------------------------------------------------------------------
 #
+#  F-strings
+#
+#-------------------------------------------------------------------
+
+
+class JoinedStrNode(ExprNode):
+    # F-strings
+    #
+    # values   [UnicodeNode|FormattedValueNode]   Substrings of the f-string
+    #
+    type = unicode_type
+    is_temp = True
+
+    subexprs = ['values']
+
+    def analyse_types(self, env):
+        self.values = [v.analyse_types(env).coerce_to_pyobject(env) for v in self.values]
+        return self
+
+    def generate_evaluation_code(self, code):
+        code.mark_pos(self.pos)
+        num_items = len(self.values)
+        list_var = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+
+        code.putln('%s = PyList_New(%s); %s' % (
+            list_var,
+            num_items,
+            code.error_goto_if_null(list_var, self.pos)))
+        code.put_gotref(list_var)
+
+        for i, node in enumerate(self.values):
+            node.generate_evaluation_code(code)
+            node.make_owned_reference(code)
+            code.put_giveref(node.py_result())
+            code.putln('PyList_SET_ITEM(%s, %s, %s);' % (list_var, i, node.py_result()))
+            node.generate_post_assignment_code(code)
+            node.free_temps(code)
+
+        code.mark_pos(self.pos)
+        self.allocate_temp_result(code)
+        code.putln('%s = PyUnicode_Join(%s, %s); %s' % (
+            self.result(),
+            Naming.empty_unicode,
+            list_var,
+            code.error_goto_if_null(self.py_result(), self.pos)))
+        code.put_gotref(self.py_result())
+        code.put_decref_clear(list_var, py_object_type)
+        code.funcstate.release_temp(list_var)
+
+
+class FormattedValueNode(ExprNode):
+    # {}-delimited portions of an f-string
+    #
+    # value           ExprNode                The expression itself
+    # conversion_char str or None             Type conversion (!s, !r, !a, or none)
+    # format_spec     JoinedStrNode or None   Format string passed to __format__
+    subexprs = ['value', 'format_spec']
+
+    type = py_object_type
+    is_temp = True
+
+    find_conversion_func = {
+        's': 'PyObject_Str',
+        'r': 'PyObject_Repr',
+        'a': 'PyObject_ASCII',  # NOTE: Py3-only!
+    }.get
+
+    def analyse_types(self, env):
+        self.value = self.value.analyse_types(env).coerce_to_pyobject(env)
+        if self.format_spec:
+            self.format_spec = self.format_spec.analyse_types(env).coerce_to_pyobject(env)
+        return self
+
+    def generate_result_code(self, code):
+        value_result = self.value.py_result()
+        if self.format_spec:
+            format_func = '__Pyx_PyObject_Format'
+            format_spec = self.format_spec.py_result()
+        else:
+            # common case: expect simple Unicode pass-through if no format spec
+            format_func = '__Pyx_PyObject_FormatSimple'
+            format_spec = Naming.empty_unicode
+
+        if self.conversion_char:
+            fn = self.find_conversion_func(self.conversion_char)
+            assert fn is not None, "invalid conversion character found: '%s'" % self.conversion_char
+            value_result = '%s(%s)' % (fn, value_result)
+            code.globalstate.use_utility_code(UtilityCode.load_cached("PyObjectFormatAndDecref", "StringTools.c"))
+            format_func += 'AndDecref'
+        elif not self.format_spec:
+            code.globalstate.use_utility_code(UtilityCode.load_cached("PyObjectFormatSimple", "StringTools.c"))
+        else:
+            format_func = 'PyObject_Format'
+
+        code.putln("%s = %s(%s, %s); %s" % (
+            self.result(),
+            format_func,
+            value_result,
+            format_spec,
+            code.error_goto_if_null(self.result(), self.pos)))
+        code.put_gotref(self.py_result())
+
+
+#-------------------------------------------------------------------
+#
 #  Parallel nodes (cython.parallel.thread(savailable|id))
 #
 #-------------------------------------------------------------------
