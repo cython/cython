@@ -66,6 +66,8 @@ Bugs fixed
 * Iteration over ``dict(...).items()`` failed to get optimised when dict
   arguments included keyword arguments.
 
+* cProfile now correctly profiles cpdef functions and methods.
+
 
 0.23.5 (2016-03-26)
 ===================
