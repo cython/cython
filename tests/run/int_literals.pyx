@@ -1,7 +1,28 @@
+# mode: run
+# tag: syntax
+
+from __future__ import absolute_import
+
 cimport cython
 from cython cimport typeof
 
 import sys
+
+
+def valid_underscore_literals():
+    """
+    >>> valid_underscore_literals()
+    """
+    # Copied from CPython's test_grammar.py
+    assert 0_0_0 == 0
+    assert 4_2 == 42
+    assert 1_0000_0000 == 100000000
+    assert 0b1001_0100 == 0b10010100
+    assert 0xffff_ffff == 0xffffffff
+    assert 0o5_7_7 == 0o577
+    assert 1_00_00.5 == 10000.5
+    assert 1e1_0 == 1e10
+    assert .1_4 == .14
 
 
 @cython.test_assert_path_exists(

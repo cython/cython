@@ -26,15 +26,18 @@ def make_lexicon():
     hexdigit = Any("0123456789ABCDEFabcdef")
     indentation = Bol + Rep(Any(" \t"))
 
-    decimal = Rep1(digit)
+    def underscore_digits(d):
+        return Rep1(d) + Rep(Str("_") + Rep1(d))
+
+    decimal = underscore_digits(digit)
     dot = Str(".")
     exponent = Any("Ee") + Opt(Any("+-")) + decimal
     decimal_fract = (decimal + dot + Opt(decimal)) | (dot + decimal)
 
     name = letter + Rep(letter | digit)
-    intconst = decimal | (Str("0") + ((Any("Xx") + Rep1(hexdigit)) |
-                                      (Any("Oo") + Rep1(octdigit)) |
-                                      (Any("Bb") + Rep1(bindigit)) ))
+    intconst = decimal | (Str("0") + ((Any("Xx") + underscore_digits(hexdigit)) |
+                                      (Any("Oo") + underscore_digits(octdigit)) |
+                                      (Any("Bb") + underscore_digits(bindigit)) ))
     intsuffix = (Opt(Any("Uu")) + Opt(Any("Ll")) + Opt(Any("Ll"))) | (Opt(Any("Ll")) + Opt(Any("Ll")) + Opt(Any("Uu")))
     intliteral = intconst + intsuffix
     fltconst = (decimal_fract + Opt(exponent)) | (decimal + exponent)
@@ -67,9 +70,9 @@ def make_lexicon():
 
     return Lexicon([
         (name, IDENT),
-        (intliteral, 'INT'),
-        (fltconst, 'FLOAT'),
-        (imagconst, 'IMAG'),
+        (intliteral, Method('strip_underscores', symbol='INT')),
+        (fltconst, Method('strip_underscores', symbol='FLOAT')),
+        (imagconst, Method('strip_underscores', symbol='IMAG')),
         (punct | diphthong, TEXT),
 
         (bra, Method('open_bracket_action')),

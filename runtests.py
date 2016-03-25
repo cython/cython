@@ -2100,3 +2100,4 @@ if __name__ == '__main__':
         except PendingThreadsError:
             # normal program exit won't kill the threads, do it the hard way here
             flush_and_terminate(1)
+        sys.exit(1)
