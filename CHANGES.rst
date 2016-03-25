@@ -3,10 +3,17 @@ Cython Changelog
 ================
 
 0.24 (2016-03-xx)
-===================
+=================
 
 Features added
 --------------
+
+* PEP 498: Literal String Formatting (f-strings).
+  Original patch by Jelle Zijlstra.
+  https://www.python.org/dev/peps/pep-0498/
+
+* PEP 515: Underscores as visual separators in number literals.
+  https://www.python.org/dev/peps/pep-0515/
 
 * Parser was adapted to some minor syntax changes in Py3.6, e.g.
   https://bugs.python.org/issue9232
@@ -28,7 +35,7 @@ Features added
 * Exception type tests have slightly lower overhead.
   This fixes ticket 868.
 
-* @property syntax fully supported, old syntax deprecated.
+* @property syntax fully supported in cdef classes, old syntax deprecated.
 
 * C++ classes can now be declared with default template parameters.
 
