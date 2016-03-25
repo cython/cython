@@ -9,19 +9,7 @@ Using C++ in Cython
 Overview
 =========
 
-Cython v0.13 introduces native support for most of the C++ language.
-This means that the previous tricks that were used to wrap C++ classes
-(as described in http://wiki.cython.org/WrappingCPlusPlus_ForCython012AndLower)
-are no longer needed.
-
-Wrapping C++ classes with Cython is now much more straightforward.
-This document describe in details the new way of wrapping C++ code.
-
-What's new in Cython v0.13 about C++
----------------------------------------------------
-
-For users of previous Cython versions, here is a brief overview of the
-main new features of Cython v0.13 regarding C++ support:
+Cython has native support for most of the C++ language.  Specifically:
 
 * C++ objects can now be dynamically allocated with ``new`` and ``del`` keywords.
 * C++ objects can be stack-allocated.
