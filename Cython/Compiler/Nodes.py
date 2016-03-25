@@ -1896,7 +1896,12 @@ class FuncDefNode(StatNode, BlockNode):
         if profile or linetrace:
             # this looks a bit late, but if we don't get here due to a
             # fatal error before hand, it's not really worth tracing
-            code.put_trace_call(self.entry.name, self.pos, nogil=not code.funcstate.gil_owned)
+            if isinstance(self, DefNode) and self.is_wrapper:
+                trace_name = self.entry.name + " (wrapper)"
+            else:
+                trace_name = self.entry.name
+            code.put_trace_call(
+                trace_name, self.pos, nogil=not code.funcstate.gil_owned)
             code.funcstate.can_trace = True
         # ----- Fetch arguments
         self.generate_argument_parsing_code(env, code)
@@ -2099,9 +2104,11 @@ class FuncDefNode(StatNode, BlockNode):
         if profile or linetrace:
             code.funcstate.can_trace = False
             if self.return_type.is_pyobject:
-                code.put_trace_return(Naming.retval_cname, nogil=not code.funcstate.gil_owned)
+                code.put_trace_return(
+                    Naming.retval_cname, nogil=not code.funcstate.gil_owned)
             else:
-                code.put_trace_return("Py_None", nogil=not code.funcstate.gil_owned)
+                code.put_trace_return(
+                    "Py_None", nogil=not code.funcstate.gil_owned)
 
         if not lenv.nogil:
             # GIL holding function

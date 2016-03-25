@@ -11,6 +11,10 @@ __doc__ = u"""
     100
     >>> short_stats['f_cdef']
     100
+    >>> short_stats['f_cpdef']
+    200
+    >>> short_stats['f_cpdef (wrapper)']
+    100
     >>> short_stats['f_inline']
     100
     >>> short_stats['f_inline_prof']
@@ -51,6 +55,8 @@ def test_profile(long N):
     for i from 0 <= i < N:
         n += f_def(i)
         n += f_cdef(i)
+        n += f_cpdef(i)
+        n += (<object>f_cpdef)(i)
         n += f_inline(i)
         n += f_inline_prof(i)
         n += f_noprof(i)
@@ -68,6 +74,9 @@ def f_def(long a):
     return a
 
 cdef long f_cdef(long a):
+    return a
+
+cpdef long f_cpdef(long a):
     return a
 
 cdef inline long f_inline(long a):
