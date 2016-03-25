@@ -48,11 +48,11 @@ document. Let's assume it will be in a header file called
         class Rectangle {
         public:
             int x0, y0, x1, y1;
+            Rectangle();
             Rectangle(int x0, int y0, int x1, int y1);
             ~Rectangle();
-            int getLength();
-            int getHeight();
             int getArea();
+            void getSize(int* width, int* height)
             void move(int dx, int dy);
         };
     }
@@ -65,6 +65,8 @@ and the implementation in the file called :file:`Rectangle.cpp`:
 
     namespace shapes {
 
+      Rectangle::Rectangle() { }
+
         Rectangle::Rectangle(int X0, int Y0, int X1, int Y1) {
             x0 = X0;
             y0 = Y0;
@@ -74,16 +76,13 @@ and the implementation in the file called :file:`Rectangle.cpp`:
 
         Rectangle::~Rectangle() { }
 
-        int Rectangle::getLength() {
-            return (x1 - x0);
-        }
-
-        int Rectangle::getHeight() {
-            return (y1 - y0);
-        }
-
         int Rectangle::getArea() {
             return (x1 - x0) * (y1 - y0);
+        }
+
+        void Rectangle::getSize(int *width, int *height) {
+            width = x1 - x0;
+            height = y1 - y0;
         }
 
         void Rectangle::move(int dx, int dy) {
@@ -192,11 +191,11 @@ We now need to declare the attributes and methods for use on Cython::
 
     cdef extern from "Rectangle.h" namespace "shapes":
         cdef cppclass Rectangle:
+            Rectangle() except +
             Rectangle(int, int, int, int) except +
             int x0, y0, x1, y1
-            int getLength()
-            int getHeight()
             int getArea()
+            void getSize(int* width, int* height)
             void move(int, int)
 
 Note that the constructor is declared as "except +".  If the C++ code or
@@ -229,7 +228,7 @@ a "default" constructor::
         ...
 
 Note that, like C++, if the class has only one constructor and it
-is a default one, it's not necessary to declare it.
+is a nullary one, it's not necessary to declare it.
 
 Create Cython wrapper class
 ----------------------------
@@ -239,32 +238,52 @@ of the C++ Rectangle type.  Now, we need to make this accessible from
 external Python code (which is our whole point).
 
 Common programming practice is to create a Cython extension type which
-holds a C++ instance pointer as an attribute ``thisptr``, and create a bunch of
+holds a C++ instance as an attribute and create a bunch of
 forwarding methods. So we can implement the Python extension type as::
 
     cdef class PyRectangle:
-        cdef Rectangle *thisptr      # hold a C++ instance which we're wrapping
+        cdef Rectangle c_rect      # hold a C++ instance which we're wrapping
         def __cinit__(self, int x0, int y0, int x1, int y1):
-            self.thisptr = new Rectangle(x0, y0, x1, y1)
-        def __dealloc__(self):
-            del self.thisptr
-        def getLength(self):
-            return self.thisptr.getLength()
-        def getHeight(self):
-            return self.thisptr.getHeight()
-        def getArea(self):
-            return self.thisptr.getArea()
+            self.c_rect = Rectangle(x0, y0, x1, y1)
+        def get_area(self):
+            return self.c_rect.getArea()
+        def get_size(self)
+            int width, int height
+            self.c_rect.getSize(&width, &height)
+            return width, height
         def move(self, dx, dy):
-            self.thisptr.move(dx, dy)
+            self.c_rect.move(dx, dy)
 
 And there we have it. From a Python perspective, this extension type will look
-and feel just like a natively defined Rectangle class. If you want to give
+and feel just like a natively defined Rectangle class.
+It should be noted that
+
+If you want to give
 attribute access, you could just implement some properties::
 
-    property x0:
-        def __get__(self): return self.thisptr.x0
-        def __set__(self, x0): self.thisptr.x0 = x0
+    @property
+    def x0(self):
+        return self.c_rect.x0
+
+    @x0.setter
+    def x0(self):
+        def __set__(self, x0): self.c_rect.x0 = x0
     ...
+
+Cython initializes C++ class attributes of a cdef class using the nullary constructor.
+If the class you're wrapping does not have a nullary constructor, you must store a pointer
+to the wrapped class and manually allocate and deallocate it.
+A convienient and safe place to do so is in the `__cinit__` and `__dealloc__` methods
+which are guaranteed to be called exactly once upon creation and deletion of the Python
+instance.
+
+    cdef class PyRectangle:
+        cdef Rectangle* c_rect      # hold a pointer to the C++ instance which we're wrapping
+        def __cinit__(self, int x0, int y0, int x1, int y1):
+            self.c_rect = new Rectangle(x0, y0, x1, y1)
+        def __dealloc__(self):
+            del self.c_rect
+        ...
 
 If you prefer giving the same name to the wrapper as the C++ class, see the
 section on :ref:`resolving naming conflicts <resolve-conflicts>`.
