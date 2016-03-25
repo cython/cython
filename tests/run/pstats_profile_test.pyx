@@ -58,9 +58,24 @@ __doc__ = u"""
     ...    os.unlink(statsfile)
     ... except:
     ...    pass
+
+    >>> sorted(callees(s, 'test_profile'))  #doctest: +NORMALIZE_WHITESPACE
+    ['f_cdef', 'f_cpdef', 'f_cpdef (wrapper)', 'f_def',
+     'f_inline', 'f_inline_prof',
+     'f_raise',
+     'm_cdef', 'm_cpdef', 'm_cpdef (wrapper)', 'm_def',
+     'withgil_prof']
 """
 
 cimport cython
+
+def callees(pstats, target_caller):
+    pstats.calc_callees()
+    for (_, _, caller), callees in pstats.all_callees.items():
+      if caller == target_caller:
+        for (file, line, callee) in callees.keys():
+            if 'pyx' in file:
+                yield callee
 
 def test_profile(long N):
     cdef long i, n = 0
