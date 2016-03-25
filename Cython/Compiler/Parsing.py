@@ -1101,8 +1101,6 @@ def p_f_string_expr(s, unicode_value, pos, starting_index):
             c = unicode_value[i]
             if not in_triple_quotes and not in_string:
                 if c == '{':
-                    if nested_depth >= 1:
-                        s.error("nesting of '{' in format specifier is not allowed")
                     nested_depth += 1
                 elif c == '}':
                     if nested_depth > 0:
