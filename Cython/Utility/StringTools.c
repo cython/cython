@@ -820,9 +820,10 @@ static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value
         likely(PyUnicode_CheckExact(s) ? (Py_INCREF(s), s) : \
         PyObject_Format(s, f))
 #elif PY_MAJOR_VERSION < 3
-    // Py2 can handle both unicode and str in PyUnicode_Join() which we (normally) call afterwards
+    // str is common in Py2, but formatting must return a Unicode string
     #define __Pyx_PyObject_FormatSimple(s, f) ( \
-        likely(PyUnicode_CheckExact(s) | PyString_CheckExact(s)) ? (Py_INCREF(s), s) : \
+        likely(PyUnicode_CheckExact(s)) ? (Py_INCREF(s), s) : \
+        likely(PyString_CheckExact(s)) ? PyUnicode_FromEncodedObject(s, NULL, "strict") : \
         PyObject_Format(s, f))
 #else
     // Py3 nicely returns unicode strings from str() which makes this quite efficient for builtin types
@@ -844,7 +845,12 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FormatSimpleAndDecref(PyObject* s,
     if (unlikely(!s)) return NULL;
     if (likely(PyUnicode_CheckExact(s))) return s;
     #if PY_MAJOR_VERSION < 3
-    if (likely(PyString_CheckExact(s))) return s;
+    // str is common in Py2, but formatting must return a Unicode string
+    if (likely(PyString_CheckExact(s))) {
+        PyObject *result = PyUnicode_FromEncodedObject(s, NULL, "strict");
+        Py_DECREF(s);
+        return result;
+    }
     #endif
     return __Pyx_PyObject_FormatAndDecref(s, f);
 }
