@@ -32,7 +32,7 @@ cdef class Context(object):
     cdef regref(self, obj, lineno, bint is_null):
         log(LOG_ALL, u'regref', u"<NULL>" if is_null else obj, lineno)
         if is_null:
-            self.errors.append(u"NULL argument on line %d" % lineno)
+            self.errors.append(f"NULL argument on line {lineno}")
             return
         id_ = id(obj)
         count, linenumbers = self.refs.get(id_, (0, []))
@@ -43,13 +43,12 @@ cdef class Context(object):
         # returns whether it is ok to do the decref operation
         log(LOG_ALL, u'delref', u"<NULL>" if is_null else obj, lineno)
         if is_null:
-            self.errors.append(u"NULL argument on line %d" % lineno)
+            self.errors.append(f"NULL argument on line {lineno}")
             return False
         id_ = id(obj)
         count, linenumbers = self.refs.get(id_, (0, []))
         if count == 0:
-            self.errors.append(u"Too many decrefs on line %d, reference acquired on lines %r" %
-                (lineno, linenumbers))
+            self.errors.append(f"Too many decrefs on line {lineno}, reference acquired on lines {linenumbers!r}")
             return False
         elif count == 1:
             del self.refs[id_]
@@ -62,7 +61,7 @@ cdef class Context(object):
         if self.refs:
             msg = u"References leaked:"
             for count, linenos in self.refs.itervalues():
-                msg += u"\n  (%d) acquired on lines: %s" % (count, u", ".join([u"%d" % x for x in linenos]))
+                msg += f"\n  ({count}) acquired on lines: {u', '.join([f'{x}' for x in linenos])}"
             self.errors.append(msg)
         if self.errors:
             return u"\n".join([u'REFNANNY: '+error for error in self.errors])
@@ -74,7 +73,7 @@ cdef void report_unraisable(object e=None):
         if e is None:
             import sys
             e = sys.exc_info()[1]
-        print(u"refnanny raised an exception: %s" % e)
+        print(f"refnanny raised an exception: {e}")
     except:
         pass # We absolutely cannot exit with an exception
 
@@ -161,9 +160,7 @@ cdef void FinishContext(PyObject** ctx):
             context = <Context>ctx[0]
             errors = context.end()
             if errors:
-                print(u"%s: %s()" % (
-                    context.filename.decode('latin1'),
-                    context.name.decode('latin1')))
+                print(f"{context.filename.decode('latin1')}: {context.name.decode('latin1')}()")
                 print(errors)
             context = None
         except:
