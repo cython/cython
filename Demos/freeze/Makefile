@@ -1,6 +1,6 @@
 CC = gcc
 CYTHON = cython
-CYTHON_FREEZE = ./cython_freeze
+CYTHON_FREEZE = ../../bin/cython_freeze
 PYTHON = python
 RST2HTML = rst2html
 
