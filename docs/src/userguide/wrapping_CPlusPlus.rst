@@ -277,6 +277,8 @@ A convienient and safe place to do so is in the `__cinit__` and `__dealloc__` me
 which are guaranteed to be called exactly once upon creation and deletion of the Python
 instance.
 
+::
+
     cdef class PyRectangle:
         cdef Rectangle* c_rect      # hold a pointer to the C++ instance which we're wrapping
         def __cinit__(self, int x0, int y0, int x1, int y1):
