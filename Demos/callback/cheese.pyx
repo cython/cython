@@ -10,4 +10,6 @@ def find(f):
     find_cheeses(callback, <void*>f)
     
 cdef void callback(char *name, void *f):
-    (<object>f)(name)
+    the_name = <bytes> name
+    (<object>f)(the_name.decode('utf-8'))
+    
