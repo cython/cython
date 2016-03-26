@@ -15,6 +15,10 @@ test:	all
 	#  benchmarks to build benchmarks
 	# python setup.py build_ext --inplace in libraries then
 	# python -c 'import call_mymath;print(call_mymath.call_sinc(1))'
+	#
+	# embed and freeze are working for python2 but not python3
+	#
+	#
 clean:
 	@echo Cleaning Demos
 	@rm -f *.c *.o *.so *~ core
