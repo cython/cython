@@ -6,7 +6,15 @@ test:	all
 	python run_numeric_demo.py
 	python run_spam.py
 	cd callback; $(MAKE) test
-
+	cd embed; $(MAKE) test
+	#
+	# longer running
+	#python integrate_timing.py
+	# also  run
+	# python setup.py build_ext --inplace in
+	#  benchmarks to build benchmarks
+	# python setup.py build_ext --inplace in libraries then
+	# python -c 'import call_mymath;print(call_mymath.call_sinc(1))'
 clean:
 	@echo Cleaning Demos
 	@rm -f *.c *.o *.so *~ core
