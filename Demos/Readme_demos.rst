@@ -12,15 +12,22 @@
     python setup.py build_ext --inplace
     python -c 'import call_mymath;print(call_mymath.call_sinc(1))'
 
-  To run one of the benchmarks for 10 iterations to compare cython and python::
+  To run one of the benchmarks for 10 iterations to compare cython and python timings::
 
     cd benchmarks
+    python setup.py build_ext --inplace
     python nqueens.py -n 10
     python -c 'import nqueens;print(nqueens.test_n_queens(10))'
+
+  To demo cython/bin/cython_freeze::
+
+    make
+    ./nCr 10 5
+    ./python
     
 * Known failures
 
-  * benchmarks/chaos.py failing for both python2 and python3
+  * benchmarks/chaos.py failing for both python2 and python3, excluded in setup.py
 
   * embed and freeze work for python2, compile but fail for python3
 
