@@ -815,7 +815,17 @@ static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value
 
 //////////////////// PyObjectFormatSimple.proto ////////////////////
 
-#define __Pyx_PyObject_FormatSimple(s, f) (likely(PyUnicode_CheckExact(s)) ? (Py_INCREF(s), s) : PyObject_Format(s, f))
+#if PY_MAJOR_VERSION < 3 || !CYTHON_COMPILING_IN_CPYTHON
+    #define __Pyx_PyObject_FormatSimple(s, f) ( \
+        likely(PyUnicode_CheckExact(s)) ? (Py_INCREF(s), s) : \
+        PyObject_Format(s, f))
+#else
+    // Py3 nicely returns unicode strings from str() which makes this quite efficient for builtin types
+    #define __Pyx_PyObject_FormatSimple(s, f) ( \
+        likely(PyUnicode_CheckExact(s)) ? (Py_INCREF(s), s) : \
+        likely(PyLong_CheckExact(s)) ? PyLong_Type.tp_str(s) : \
+        PyObject_Format(s, f))
+#endif
 
 
 //////////////////// PyObjectFormatAndDecref.proto ////////////////////
