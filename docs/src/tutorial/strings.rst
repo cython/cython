@@ -20,8 +20,8 @@ Cython supports four Python string types: :obj:`bytes`, :obj:`str`,
 :obj:`unicode` and :obj:`basestring`.  The :obj:`bytes` and :obj:`unicode` types
 are the specific types known from normal Python 2.x (named :obj:`bytes`
 and :obj:`str` in Python 3).  Additionally, Cython also supports the
-:obj:`bytearray` type starting with Python 2.6.  It behaves like the
-:obj:`bytes` type, except that it is mutable.
+:obj:`bytearray` type which behaves like the :obj:`bytes` type, except
+that it is mutable.
 
 The :obj:`str` type is special in that it is the byte string in Python 2
 and the Unicode string in Python 3 (for Cython code compiled with
