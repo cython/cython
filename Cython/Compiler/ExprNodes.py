@@ -3023,6 +3023,10 @@ class FormattedValueNode(ExprNode):
         'a': 'PyObject_ASCII',  # NOTE: Py3-only!
     }.get
 
+    def may_be_none(self):
+        # PyObject_Format() always returns a string (str in Py3, str/unicode in Py2) or raises an exception
+        return False
+
     def analyse_types(self, env):
         self.value = self.value.analyse_types(env).coerce_to_pyobject(env)
         if self.format_spec:
@@ -10592,13 +10596,19 @@ class AddNode(NumBinopNode):
                 self, type1, type2)
 
     def py_operation_function(self, code):
-        type1, type2 = self.operand1.type, self.operand2.type
-        if type1 is unicode_type or type2 is unicode_type:
-            if type1.is_builtin_type and type2.is_builtin_type:
-                if self.operand1.may_be_none() or self.operand2.may_be_none():
-                    return '__Pyx_PyUnicode_ConcatSafe'
-                else:
-                    return '__Pyx_PyUnicode_Concat'
+        is_unicode_concat = False
+        if isinstance(self.operand1, FormattedValueNode) or isinstance(self.operand2, FormattedValueNode):
+            is_unicode_concat = True
+        else:
+            type1, type2 = self.operand1.type, self.operand2.type
+            if type1 is unicode_type or type2 is unicode_type:
+                is_unicode_concat = type1.is_builtin_type and type2.is_builtin_type
+
+        if is_unicode_concat:
+            if self.operand1.may_be_none() or self.operand2.may_be_none():
+                return '__Pyx_PyUnicode_ConcatSafe'
+            else:
+                return '__Pyx_PyUnicode_Concat'
         return super(AddNode, self).py_operation_function(code)
 
 
