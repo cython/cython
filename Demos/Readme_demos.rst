@@ -27,7 +27,7 @@
     
 * Known failures
 
-  * benchmarks/chaos.py failing for both python2 and python3, excluded in setup.py
+  * benchmarks/chaos.py requires cython 0.24 or newer
 
   * embed and freeze work for python2, compile but fail for python3
 

@@ -1,5 +1,5 @@
 CC = gcc
-CYTHON = cython
+CYTHON = ../../bin/cython
 CYTHON_FREEZE = ../../bin/cython_freeze
 PYTHON = python
 RST2HTML = rst2html
@@ -15,6 +15,7 @@ CFLAGS = -fPIC -fno-strict-aliasing -g -O2 -Wall -Wextra
 CPPFLAGS = $(PY_CPPFLAGS)
 LDFLAGS = $(PY_LDFLAGS)
 LDLIBS = -L$(LIBDIR1) -L$(LIBDIR2) -l$(PYLIB)
+
 
 
 # Name of executable
