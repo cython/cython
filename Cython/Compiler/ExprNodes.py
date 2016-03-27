@@ -3014,17 +3014,17 @@ class FormattedValueNode(ExprNode):
     # format_spec     JoinedStrNode or None   Format string passed to __format__
     subexprs = ['value', 'format_spec']
 
-    type = py_object_type
+    type = unicode_type
     is_temp = True
 
     find_conversion_func = {
         's': 'PyObject_Str',
         'r': 'PyObject_Repr',
-        'a': 'PyObject_ASCII',  # NOTE: Py3-only!
+        'a': 'PyObject_ASCII',  # NOTE: mapped to PyObject_Repr() in Py2
     }.get
 
     def may_be_none(self):
-        # PyObject_Format() always returns a string (str in Py3, str/unicode in Py2) or raises an exception
+        # PyObject_Format() always returns a Unicode string or raises an exception
         return False
 
     def analyse_types(self, env):
@@ -3041,6 +3041,7 @@ class FormattedValueNode(ExprNode):
         else:
             # common case: expect simple Unicode pass-through if no format spec
             format_func = '__Pyx_PyObject_FormatSimple'
+            # passing a Unicode format string in Py2 forces PyObject_Format() to also return a Unicode string
             format_spec = Naming.empty_unicode
 
         if self.conversion_char:
