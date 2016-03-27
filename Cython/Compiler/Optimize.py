@@ -3969,6 +3969,9 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             node = ExprNodes.UnicodeNode(node.pos, value=EncodedString(''))
         elif len(values) == 1:
             node = values[0]
+        elif len(values) == 2:
+            # reduce to string concatenation
+            node = ExprNodes.binop_node(node.pos, '+', *values)
         else:
             node.values = values
         return node
