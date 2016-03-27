@@ -25,9 +25,11 @@
     ./nCr 10 5
     ./python
     
-* Known failures
+* Build notes
 
   * benchmarks/chaos.py requires cython 0.24 or newer
 
-  * embed and freeze work for python2, compile but fail for python3
+  * embed and freeze work for python2, require cython 0.24 or higher
+    for python 3.5
+    
 
