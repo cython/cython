@@ -817,7 +817,7 @@ static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value
 
 #if !CYTHON_COMPILING_IN_CPYTHON
     #define __Pyx_PyObject_FormatSimple(s, f) ( \
-        likely(PyUnicode_CheckExact(s) ? (Py_INCREF(s), s) : \
+        likely(PyUnicode_CheckExact(s)) ? (Py_INCREF(s), s) : \
         PyObject_Format(s, f))
 #elif PY_MAJOR_VERSION < 3
     // str is common in Py2, but formatting must return a Unicode string
