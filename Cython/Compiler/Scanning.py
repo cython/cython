@@ -5,13 +5,13 @@
 
 from __future__ import absolute_import
 
-import os
-import platform
-
 import cython
 cython.declare(make_lexicon=object, lexicon=object,
                print_function=object, error=object, warning=object,
                os=object, platform=object)
+
+import os
+import platform
 
 from .. import Utils
 from ..Plex.Scanners import Scanner
