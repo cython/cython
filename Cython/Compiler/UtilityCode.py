@@ -17,8 +17,7 @@ class NonManglingModuleScope(Symtab.ModuleScope):
 
     def add_imported_entry(self, name, entry, pos):
         entry.used = True
-        return super(NonManglingModuleScope, self).add_imported_entry(
-                                                        name, entry, pos)
+        return super(NonManglingModuleScope, self).add_imported_entry(name, entry, pos)
 
     def mangle(self, prefix, name=None):
         if name:
