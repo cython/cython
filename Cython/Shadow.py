@@ -110,8 +110,8 @@ cclass = ccall = cfunc = _EmptyDecoratorAndManager()
 returns = wraparound = boundscheck = initializedcheck = nonecheck = \
     overflowcheck = embedsignature = cdivision = cdivision_warnings = \
     always_allows_keywords = profile = linetrace = infer_type = \
-    type_version_tag = unraisable_tracebacks = freelist = \
-    lambda arg: _EmptyDecoratorAndManager()
+    unraisable_tracebacks = freelist = \
+        lambda arg: _EmptyDecoratorAndManager()
 
 optimization = _Optimization()
 
@@ -120,17 +120,20 @@ overflowcheck.fold = optimization.use_switch = \
 
 final = internal = type_version_tag = no_gc_clear = _empty_decorator
 
+
 def inline(f, *args, **kwds):
-  if isinstance(f, basestring):
-    from Cython.Build.Inline import cython_inline
-    return cython_inline(f, *args, **kwds)
-  else:
-    assert len(args) == len(kwds) == 0
-    return f
+    if isinstance(f, basestring):
+        from Cython.Build.Inline import cython_inline
+        return cython_inline(f, *args, **kwds)
+    else:
+        assert len(args) == len(kwds) == 0
+        return f
+
 
 def compile(f):
     from Cython.Build.Inline import RuntimeCompiledFunction
     return RuntimeCompiledFunction(f)
+
 
 # Special functions
 

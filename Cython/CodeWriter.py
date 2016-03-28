@@ -32,7 +32,7 @@ class DeclarationWriter(TreeVisitor):
 
     indent_string = u"    "
 
-    def __init__(self, result = None):
+    def __init__(self, result=None):
         super(DeclarationWriter, self).__init__()
         if result is None:
             result = LinesResult()
@@ -51,7 +51,7 @@ class DeclarationWriter(TreeVisitor):
     def dedent(self):
         self.numindents -= 1
 
-    def startline(self, s = u""):
+    def startline(self, s=u""):
         self.result.put(self.indent_string * self.numindents + s)
 
     def put(self, s):
@@ -60,7 +60,7 @@ class DeclarationWriter(TreeVisitor):
     def putline(self, s):
         self.result.putline(self.indent_string * self.numindents + s)
 
-    def endline(self, s = u""):
+    def endline(self, s=u""):
         self.result.putline(s)
 
     def line(self, s):

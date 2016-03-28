@@ -263,6 +263,7 @@ directive_scopes = { # defaults to available everywhere
     'language_level': ('module',),
 }
 
+
 def parse_directive_value(name, value, relaxed_bool=False):
     """
     Parses value as an option value for the given name and returns
@@ -292,16 +293,21 @@ def parse_directive_value(name, value, relaxed_bool=False):
     ValueError: c_string_type directive must be one of ('bytes', 'bytearray', 'str', 'unicode'), got 'unnicode'
     """
     type = directive_types.get(name)
-    if not type: return None
+    if not type:
+        return None
     orig_value = value
     if type is bool:
         value = str(value)
-        if value == 'True': return True
-        if value == 'False': return False
+        if value == 'True':
+            return True
+        if value == 'False':
+            return False
         if relaxed_bool:
             value = value.lower()
-            if value in ("true", "yes"): return True
-            elif value in ("false", "no"): return False
+            if value in ("true", "yes"):
+                return True
+            elif value in ("false", "no"):
+                return False
         raise ValueError("%s directive must be set to True or False, got '%s'" % (
             name, orig_value))
     elif type is int:
@@ -316,6 +322,7 @@ def parse_directive_value(name, value, relaxed_bool=False):
         return type(name, value)
     else:
         assert False
+
 
 def parse_directive_list(s, relaxed_bool=False, ignore_unknown=False,
                          current_settings=None):
@@ -352,9 +359,11 @@ def parse_directive_list(s, relaxed_bool=False, ignore_unknown=False,
         result = current_settings
     for item in s.split(','):
         item = item.strip()
-        if not item: continue
-        if not '=' in item: raise ValueError('Expected "=" in option "%s"' % item)
-        name, value = [ s.strip() for s in item.strip().split('=', 1) ]
+        if not item:
+            continue
+        if not '=' in item:
+            raise ValueError('Expected "=" in option "%s"' % item)
+        name, value = [s.strip() for s in item.strip().split('=', 1)]
         if name not in directive_defaults:
             found = False
             if name.endswith('.all'):

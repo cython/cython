@@ -40,7 +40,7 @@ try:
 except ImportError:
     from builtins import str as basestring
 
-KEYWORDS_MUST_BE_BYTES = sys.version_info < (2,7)
+KEYWORDS_MUST_BE_BYTES = sys.version_info < (2, 7)
 
 
 non_portable_builtins_map = {
@@ -392,12 +392,12 @@ class UtilityCode(UtilityCodeBase):
                 requires = [r.specialize(data) for r in self.requires]
 
             s = self._cache[key] = UtilityCode(
-                    self.none_or_sub(self.proto, data),
-                    self.none_or_sub(self.impl, data),
-                    self.none_or_sub(self.init, data),
-                    self.none_or_sub(self.cleanup, data),
-                    requires,
-                    self.proto_block)
+                self.none_or_sub(self.proto, data),
+                self.none_or_sub(self.impl, data),
+                self.none_or_sub(self.init, data),
+                self.none_or_sub(self.cleanup, data),
+                requires,
+                self.proto_block)
 
             self.specialize_list.append(s)
             return s
@@ -481,7 +481,7 @@ class UtilityCode(UtilityCodeBase):
             is_specialised1, impl = self.inject_string_constants(impl, output)
             is_specialised2, impl = self.inject_unbound_methods(impl, output)
             writer = output['utility_code_def']
-            writer.putln("/* %s */" % self.name);
+            writer.putln("/* %s */" % self.name)
             if not (is_specialised1 or is_specialised2):
                 # no module specific adaptations => can be reused
                 writer.put_or_include(impl, '%s_impl' % self.name)
@@ -773,8 +773,8 @@ class FunctionState(object):
         """Return a list of (cname, type) tuples of refcount-managed Python objects.
         """
         return [(cname, type)
-                    for cname, type, manage_ref, static in self.temps_allocated
-                        if manage_ref]
+                for cname, type, manage_ref, static in self.temps_allocated
+                if manage_ref]
 
     def all_free_managed_temps(self):
         """Return a list of (cname, type) tuples of refcount-managed Python
@@ -849,7 +849,7 @@ class StringConst(object):
 
     def add_py_version(self, version):
         if not version:
-            self.py_versions = [2,3]
+            self.py_versions = [2, 3]
         elif version not in self.py_versions:
             self.py_versions.append(version)
 
@@ -1280,8 +1280,8 @@ class GlobalState(object):
         self.generate_object_constant_decls()
 
     def generate_object_constant_decls(self):
-        consts = [ (len(c.cname), c.cname, c)
-                   for c in self.py_constants ]
+        consts = [(len(c.cname), c.cname, c)
+                  for c in self.py_constants]
         consts.sort()
         decls_writer = self.parts['decls']
         for _, cname, c in consts:
@@ -1345,12 +1345,11 @@ class GlobalState(object):
             py_strings.sort()
             w = self.parts['pystring_table']
             w.putln("")
-            w.putln("static __Pyx_StringTabEntry %s[] = {" %
-                                      Naming.stringtab_cname)
+            w.putln("static __Pyx_StringTabEntry %s[] = {" % Naming.stringtab_cname)
             for c_cname, _, py_string in py_strings:
                 if not py_string.is_str or not py_string.encoding or \
-                       py_string.encoding in ('ASCII', 'USASCII', 'US-ASCII',
-                                              'UTF8', 'UTF-8'):
+                        py_string.encoding in ('ASCII', 'USASCII', 'US-ASCII',
+                                               'UTF8', 'UTF-8'):
                     encoding = '0'
                 else:
                     encoding = '"%s"' % py_string.encoding.lower()
@@ -1359,8 +1358,7 @@ class GlobalState(object):
                     "static PyObject *%s;" % py_string.cname)
                 if py_string.py3str_cstring:
                     w.putln("#if PY_MAJOR_VERSION >= 3")
-                    w.putln(
-                        "{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                    w.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
                         py_string.cname,
                         py_string.py3str_cstring.cname,
                         py_string.py3str_cstring.cname,
@@ -1368,8 +1366,7 @@ class GlobalState(object):
                         py_string.intern
                         ))
                     w.putln("#else")
-                w.putln(
-                    "{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
+                w.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
                     py_string.cname,
                     c_cname,
                     c_cname,

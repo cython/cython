@@ -17,8 +17,7 @@ class NonManglingModuleScope(Symtab.ModuleScope):
 
     def add_imported_entry(self, name, entry, pos):
         entry.used = True
-        return super(NonManglingModuleScope, self).add_imported_entry(
-                                                        name, entry, pos)
+        return super(NonManglingModuleScope, self).add_imported_entry(name, entry, pos)
 
     def mangle(self, prefix, name=None):
         if name:
@@ -137,26 +136,22 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         pipeline = Pipeline.insert_into_pipeline(pipeline, transform,
                                                  before=before)
 
-        if self.from_scope:
-            def scope_transform(module_node):
-                module_node.scope.merge_in(self.from_scope)
+        def merge_scope(scope):
+            def merge_scope_transform(module_node):
+                module_node.scope.merge_in(scope)
                 return module_node
+            return merge_scope_transform
 
-            transform = ParseTreeTransforms.AnalyseDeclarationsTransform
-            pipeline = Pipeline.insert_into_pipeline(pipeline, scope_transform,
-                                                     before=transform)
+        if self.from_scope:
+            pipeline = Pipeline.insert_into_pipeline(
+                pipeline, merge_scope(self.from_scope),
+                before=ParseTreeTransforms.AnalyseDeclarationsTransform)
 
         for dep in self.requires:
-            if (isinstance(dep, CythonUtilityCode)
-                    and hasattr(dep, 'tree')
-                    and not cython_scope):
-                def scope_transform(module_node):
-                    module_node.scope.merge_in(dep.tree.scope)
-                    return module_node
-
-                transform = ParseTreeTransforms.AnalyseDeclarationsTransform
-                pipeline = Pipeline.insert_into_pipeline(pipeline, scope_transform,
-                                                         before=transform)
+            if isinstance(dep, CythonUtilityCode) and hasattr(dep, 'tree') and not cython_scope:
+                pipeline = Pipeline.insert_into_pipeline(
+                    pipeline, merge_scope(dep.tree.scope),
+                    before=ParseTreeTransforms.AnalyseDeclarationsTransform)
 
         if self.outer_module_scope:
             # inject outer module between utility code module and builtin module
@@ -164,9 +159,9 @@ class CythonUtilityCode(Code.UtilityCodeBase):
                 module_node.scope.outer_scope = self.outer_module_scope
                 return module_node
 
-            transform = ParseTreeTransforms.AnalyseDeclarationsTransform
-            pipeline = Pipeline.insert_into_pipeline(pipeline, scope_transform,
-                                                     before=transform)
+            pipeline = Pipeline.insert_into_pipeline(
+                pipeline, scope_transform,
+                before=ParseTreeTransforms.AnalyseDeclarationsTransform)
 
         (err, tree) = Pipeline.run_pipeline(pipeline, tree, printtree=False)
         assert not err, err
@@ -199,13 +194,12 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         entries.pop('__builtins__')
         entries.pop('__doc__')
 
-        for name, entry in entries.items():
+        for entry in entries.values():
             entry.utility_code_definition = self
             entry.used = used
 
         original_scope = tree.scope
-        dest_scope.merge_in(original_scope, merge_unused=True,
-                            whitelist=whitelist)
+        dest_scope.merge_in(original_scope, merge_unused=True, whitelist=whitelist)
         tree.scope = dest_scope
 
         for dep in self.requires:
@@ -213,6 +207,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
                 dep.declare_in_scope(dest_scope)
 
         return original_scope
+
 
 def declare_declarations_in_scope(declaration_string, env, private_type=True,
                                   *args, **kwargs):

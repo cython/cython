@@ -103,7 +103,7 @@ function-rgx=[a-z_][a-z0-9_]{2,30}$
 method-rgx=[a-z_][a-z0-9_]{2,30}|visit_[A-Za-z]+$
 
 # Regular expression which should only match correct instance attribute names
-attr-rgx=[a-z_][a-z0-9_]{2,30}$
+attr-rgx=[a-z_][a-z0-9_]{2,30}|sy$
 
 # Regular expression which should only match correct argument names
 argument-rgx=[a-z_][a-z0-9_]{0,30}$
