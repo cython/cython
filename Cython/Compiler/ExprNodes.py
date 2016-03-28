@@ -2980,7 +2980,7 @@ class JoinedStrNode(ExprNode):
         num_items = len(self.values)
         list_var = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
 
-        code.putln('%s = PyList_New(%s); %s' % (
+        code.putln('%s = PyTuple_New(%s); %s' % (
             list_var,
             num_items,
             code.error_goto_if_null(list_var, self.pos)))
@@ -2990,7 +2990,7 @@ class JoinedStrNode(ExprNode):
             node.generate_evaluation_code(code)
             node.make_owned_reference(code)
             code.put_giveref(node.py_result())
-            code.putln('PyList_SET_ITEM(%s, %s, %s);' % (list_var, i, node.py_result()))
+            code.putln('PyTuple_SET_ITEM(%s, %s, %s);' % (list_var, i, node.py_result()))
             node.generate_post_assignment_code(code)
             node.free_temps(code)
 
