@@ -120,17 +120,20 @@ overflowcheck.fold = optimization.use_switch = \
 
 final = internal = type_version_tag = no_gc_clear = _empty_decorator
 
+
 def inline(f, *args, **kwds):
-  if isinstance(f, basestring):
-    from Cython.Build.Inline import cython_inline
-    return cython_inline(f, *args, **kwds)
-  else:
-    assert len(args) == len(kwds) == 0
-    return f
+    if isinstance(f, basestring):
+        from Cython.Build.Inline import cython_inline
+        return cython_inline(f, *args, **kwds)
+    else:
+        assert len(args) == len(kwds) == 0
+        return f
+
 
 def compile(f):
     from Cython.Build.Inline import RuntimeCompiledFunction
     return RuntimeCompiledFunction(f)
+
 
 # Special functions
 
