@@ -195,13 +195,12 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         entries.pop('__builtins__')
         entries.pop('__doc__')
 
-        for name, entry in entries.items():
+        for entry in entries.values():
             entry.utility_code_definition = self
             entry.used = used
 
         original_scope = tree.scope
-        dest_scope.merge_in(original_scope, merge_unused=True,
-                            whitelist=whitelist)
+        dest_scope.merge_in(original_scope, merge_unused=True, whitelist=whitelist)
         tree.scope = dest_scope
 
         for dep in self.requires:
@@ -209,6 +208,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
                 dep.declare_in_scope(dest_scope)
 
         return original_scope
+
 
 def declare_declarations_in_scope(declaration_string, env, private_type=True,
                                   *args, **kwargs):
