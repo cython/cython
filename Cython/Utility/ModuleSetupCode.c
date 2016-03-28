@@ -119,6 +119,10 @@
   #define PyUnicode_Contains(u, s)  PySequence_Contains(u, s)
 #endif
 
+#if CYTHON_COMPILING_IN_PYPY && !defined(PyObject_Format)
+  #define PyObject_Format(obj, fmt)  PyObject_CallMethod(obj, "__format__", "O", fmt)
+#endif
+
 #if CYTHON_COMPILING_IN_PYPY && !defined(PyObject_Malloc)
   #define PyObject_Malloc(s)   PyMem_Malloc(s)
   #define PyObject_Free(p)     PyMem_Free(p)
