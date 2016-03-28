@@ -5,13 +5,13 @@
 
 from __future__ import absolute_import
 
+import os
+import platform
+
 import cython
 cython.declare(make_lexicon=object, lexicon=object,
                print_function=object, error=object, warning=object,
                os=object, platform=object)
-
-import os
-import platform
 
 from .. import Utils
 from ..Plex.Scanners import Scanner
@@ -68,7 +68,7 @@ class Method(object):
 
 class CompileTimeScope(object):
 
-    def __init__(self, outer = None):
+    def __init__(self, outer=None):
         self.entries = {}
         self.outer = outer
 
@@ -97,8 +97,7 @@ class CompileTimeScope(object):
 
 def initial_compile_time_env():
     benv = CompileTimeScope()
-    names = ('UNAME_SYSNAME', 'UNAME_NODENAME', 'UNAME_RELEASE',
-        'UNAME_VERSION', 'UNAME_MACHINE')
+    names = ('UNAME_SYSNAME', 'UNAME_NODENAME', 'UNAME_RELEASE', 'UNAME_VERSION', 'UNAME_MACHINE')
     for name, value in zip(names, platform.uname()):
         benv.declare(name, value)
     try:
@@ -272,8 +271,8 @@ class StringSourceDescriptor(SourceDescriptor):
         if not encoding:
             return self.codelines
         else:
-            return [ line.encode(encoding, error_handling).decode(encoding)
-                     for line in self.codelines ]
+            return [line.encode(encoding, error_handling).decode(encoding)
+                    for line in self.codelines]
 
     def get_description(self):
         return self.name
@@ -487,7 +486,7 @@ class PyrexScanner(Scanner):
         else:
             self.expected(what, message)
 
-    def expected(self, what, message = None):
+    def expected(self, what, message=None):
         if message:
             self.error(message)
         else:
