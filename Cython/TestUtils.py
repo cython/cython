@@ -1,12 +1,14 @@
-import Cython.Compiler.Errors as Errors
-from Cython.CodeWriter import CodeWriter
-from Cython.Compiler.TreeFragment import TreeFragment, strip_common_indent
-from Cython.Compiler.Visitor import TreeVisitor, VisitorTransform
-from Cython.Compiler import TreePath
+from __future__ import absolute_import
 
+import os
 import unittest
-import os, sys
 import tempfile
+
+from .Compiler import Errors
+from .CodeWriter import CodeWriter
+from .Compiler.TreeFragment import TreeFragment, strip_common_indent
+from .Compiler.Visitor import TreeVisitor, VisitorTransform
+from .Compiler import TreePath
 
 
 class NodeTypeWriter(TreeVisitor):
@@ -55,12 +57,15 @@ class CythonTest(unittest.TestCase):
 
     def assertLines(self, expected, result):
         "Checks that the given strings or lists of strings are equal line by line"
-        if not isinstance(expected, list): expected = expected.split(u"\n")
-        if not isinstance(result, list): result = result.split(u"\n")
+        if not isinstance(expected, list):
+            expected = expected.split(u"\n")
+        if not isinstance(result, list):
+            result = result.split(u"\n")
         for idx, (expected_line, result_line) in enumerate(zip(expected, result)):
-            self.assertEqual(expected_line, result_line, "Line %d:\nExp: %s\nGot: %s" % (idx, expected_line, result_line))
+            self.assertEqual(expected_line, result_line,
+                             "Line %d:\nExp: %s\nGot: %s" % (idx, expected_line, result_line))
         self.assertEqual(len(expected), len(result),
-            "Unmatched lines. Got:\n%s\nExpected:\n%s" % ("\n".join(expected), u"\n".join(result)))
+                         "Unmatched lines. Got:\n%s\nExpected:\n%s" % ("\n".join(expected), u"\n".join(result)))
 
     def codeToLines(self, tree):
         writer = CodeWriter()
@@ -76,9 +81,10 @@ class CythonTest(unittest.TestCase):
         expected_lines = strip_common_indent(expected.split("\n"))
 
         for idx, (line, expected_line) in enumerate(zip(result_lines, expected_lines)):
-            self.assertEqual(expected_line, line, "Line %d:\nGot: %s\nExp: %s" % (idx, line, expected_line))
+            self.assertEqual(expected_line, line,
+                             "Line %d:\nGot: %s\nExp: %s" % (idx, line, expected_line))
         self.assertEqual(len(result_lines), len(expected_lines),
-            "Unmatched lines. Got:\n%s\nExpected:\n%s" % ("\n".join(result_lines), expected))
+                         "Unmatched lines. Got:\n%s\nExpected:\n%s" % ("\n".join(result_lines), expected))
 
     def assertNodeExists(self, path, result_tree):
         self.assertNotEqual(TreePath.find_first(result_tree, path), None,
@@ -107,7 +113,7 @@ class CythonTest(unittest.TestCase):
             func()
             self.fail("Expected an exception of type %r" % exc_type)
         except exc_type as e:
-            self.assert_(isinstance(e, exc_type))
+            self.assertTrue(isinstance(e, exc_type))
             return e
 
     def should_not_fail(self, func):
@@ -116,8 +122,8 @@ class CythonTest(unittest.TestCase):
         the return value of func."""
         try:
             return func()
-        except:
-            self.fail(str(sys.exc_info()[1]))
+        except Exception as exc:
+            self.fail(str(exc))
 
 
 class TransformTest(CythonTest):
