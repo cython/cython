@@ -30,26 +30,28 @@ from .Code import UtilityCode
 from .StringEncoding import EncodedString
 
 
-
 def check_c_declarations_pxd(module_node):
     module_node.scope.check_c_classes_pxd()
     return module_node
+
 
 def check_c_declarations(module_node):
     module_node.scope.check_c_classes()
     module_node.scope.check_c_functions()
     return module_node
 
+
 def generate_c_code_config(env, options):
     if Options.annotate or options.annotate:
         emit_linenums = False
     else:
         emit_linenums = options.emit_linenums
-        rootwriter = Code.CCodeWriter()
 
-    return Code.CCodeConfig(emit_linenums=emit_linenums,
+    return Code.CCodeConfig(
+        emit_linenums=emit_linenums,
         emit_code_comments=env.directives['emit_code_comments'],
         c_line_in_traceback=options.c_line_in_traceback)
+
 
 class ModuleNode(Nodes.Node, Nodes.BlockNode):
     #  doc       string or None
@@ -147,7 +149,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         h_vars = h_entries(env.var_entries)
         h_funcs = h_entries(env.cfunc_entries)
         h_extension_types = h_entries(env.c_class_entries)
-        if (h_types or  h_vars or h_funcs or h_extension_types):
+        if h_types or  h_vars or h_funcs or h_extension_types:
             result.h_file = replace_suffix(result.c_file, ".h")
             h_code = Code.CCodeWriter()
             c_code_config = generate_c_code_config(env, options)
@@ -207,10 +209,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         h_code.putln("%s %s;" % (
             Naming.extern_c_macro,
             entry.type.declaration_code(
-                entry.cname, dll_linkage = "DL_IMPORT")))
+                entry.cname, dll_linkage="DL_IMPORT")))
         if i_code:
-            i_code.putln("cdef extern %s" %
-                entry.type.declaration_code(entry.cname, pyrex = 1))
+            i_code.putln("cdef extern %s" % (
+                entry.type.declaration_code(entry.cname, pyrex=1)))
 
     def api_name(self, env):
         return env.qualified_name.replace(".", "__")
@@ -311,8 +313,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         var_entries = type.scope.var_entries
         if var_entries:
             for entry in var_entries:
-                i_code.putln("cdef %s" %
-                    entry.type.declaration_code(entry.cname, pyrex = 1))
+                i_code.putln("cdef %s" % (
+                    entry.type.declaration_code(entry.cname, pyrex=1)))
         else:
             i_code.putln("pass")
         i_code.dedent()
@@ -439,12 +441,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         tb.start('LineNumberMapping')
         for cython_lineno, c_linenos in sorted(d.items()):
-                attrs = {
-                    'c_linenos': ' '.join(map(str, c_linenos)),
-                    'cython_lineno': str(cython_lineno),
-                }
-                tb.start('LineNumber', attrs)
-                tb.end('LineNumber')
+            attrs = {
+                'c_linenos': ' '.join(map(str, c_linenos)),
+                'cython_lineno': str(cython_lineno),
+            }
+            tb.start('LineNumber', attrs)
+            tb.end('LineNumber')
         tb.end('LineNumberMapping')
         tb.serialize()
 
@@ -602,8 +604,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for filename in env.python_include_files:
             code.putln('#include "%s"' % filename)
         code.putln("#ifndef Py_PYTHON_H")
-        code.putln("    #error Python headers needed to compile C extensions, please install development version of Python.")
-        code.putln("#elif PY_VERSION_HEX < 0x02060000 || (0x03000000 <= PY_VERSION_HEX && PY_VERSION_HEX < 0x03020000)")
+        code.putln("    #error Python headers needed to compile C extensions, "
+                   "please install development version of Python.")
+        code.putln("#elif PY_VERSION_HEX < 0x02060000 || "
+                   "(0x03000000 <= PY_VERSION_HEX && PY_VERSION_HEX < 0x03020000)")
         code.putln("    #error Cython requires Python 2.6+ or Python 3.2+.")
         code.putln("#else")
         code.globalstate["end"].putln("#endif /* Py_PYTHON_H */")
@@ -627,8 +631,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 { \\
   %s = %s[f_index]; %s = lineno; %sgoto Ln_error; \\
 }
-""" % (Naming.filename_cname, Naming.filetable_cname, Naming.lineno_cname,
-       cinfo))
+""" % (Naming.filename_cname, Naming.filetable_cname, Naming.lineno_cname, cinfo))
 
         code.put("""
 #if PY_MAJOR_VERSION >= 3
@@ -734,7 +737,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         full_module_path = path.join(*self.full_module_name.split('.'))
         module_abspath = path.splitext(path.abspath(
-            self.compilation_source.source_desc.get_filenametable_entry() ))[0]
+            self.compilation_source.source_desc.get_filenametable_entry()))[0]
         root_path = module_abspath[:-len(full_module_path)]
         workdir = path.abspath(os.getcwd()) + os.sep
         if root_path.startswith(workdir):
@@ -831,7 +834,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_struct_union_predeclaration(self, entry, code):
         type = entry.type
         if type.is_cpp_class and type.templates:
-            code.putln("template <typename %s>" % ", typename ".join([T.empty_declaration_code() for T in type.templates]))
+            code.putln("template <typename %s>" % ", typename ".join(
+                [T.empty_declaration_code() for T in type.templates]))
         code.putln(self.sue_predeclaration(type, type.kind, type.cname))
 
     def sue_header_footer(self, type, kind, name):
@@ -860,13 +864,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(header)
             var_entries = scope.var_entries
             if not var_entries:
-                error(entry.pos,
-                    "Empty struct or union definition not allowed outside a"
-                    " 'cdef extern from' block")
+                error(entry.pos, "Empty struct or union definition not allowed outside a 'cdef extern from' block")
             for attr in var_entries:
                 code.putln(
-                    "%s;" %
-                        attr.type.declaration_code(attr.cname))
+                    "%s;" % attr.type.declaration_code(attr.cname))
             code.putln(footer)
             if packed:
                 code.putln("#if defined(__SUNPRO_C)")
@@ -881,7 +882,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         scope = type.scope
         if scope:
             if type.templates:
-                code.putln("template <class %s>" % ", class ".join([T.empty_declaration_code() for T in type.templates]))
+                code.putln("template <class %s>" % ", class ".join(
+                    [T.empty_declaration_code() for T in type.templates]))
             # Just let everything be public.
             code.put("struct %s" % type.cname)
             if type.base_classes:
@@ -899,9 +901,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     has_virtual_methods = True
                 if attr.cname[0] == '~':
                     has_destructor = True
-                code.putln(
-                    "%s;" %
-                        attr.type.declaration_code(attr.cname))
+                code.putln("%s;" % attr.type.declaration_code(attr.cname))
             if has_virtual_methods and not has_destructor:
                 code.put("virtual ~%s() { }" % type.cname)
             code.putln("};")
@@ -910,14 +910,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.mark_pos(entry.pos)
         type = entry.type
         name = entry.cname or entry.name or ""
-        header, footer = \
-            self.sue_header_footer(type, "enum", name)
+        header, footer = self.sue_header_footer(type, "enum", name)
         code.putln(header)
         enum_values = entry.enum_values
         if not enum_values:
-            error(entry.pos,
-                "Empty enum definition not allowed outside a"
-                " 'cdef extern from' block")
+            error(entry.pos, "Empty enum definition not allowed outside a 'cdef extern from' block")
         else:
             last_entry = enum_values[-1]
             # this does not really generate code, just builds the result value
@@ -971,19 +968,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if type.vtabstruct_cname:
             code.putln("")
-            code.putln(
-                "struct %s {" %
-                    type.vtabstruct_cname)
+            code.putln("struct %s {" % type.vtabstruct_cname)
             if type.base_type and type.base_type.vtabstruct_cname:
                 code.putln("struct %s %s;" % (
                     type.base_type.vtabstruct_cname,
                     Naming.obj_base_cname))
             for method_entry in scope.cfunc_entries:
                 if not method_entry.is_inherited:
-                    code.putln(
-                        "%s;" % method_entry.type.declaration_code("(*%s)" % method_entry.cname))
-            code.putln(
-                "};")
+                    code.putln("%s;" % method_entry.type.declaration_code("(*%s)" % method_entry.cname))
+            code.putln("};")
 
     def generate_exttype_vtabptr_declaration(self, entry, code):
         if not entry.used:
@@ -1050,8 +1043,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             else:
                 attr_type = attr.type
             code.putln(
-                "%s;" %
-                    attr_type.declaration_code(attr.cname))
+                "%s;" % attr_type.declaration_code(attr.cname))
         code.putln(footer)
         if type.objtypedef_cname is not None:
             # Only for exposing public typedef name.
@@ -1060,21 +1052,19 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_c_class_declarations(self, env, code, definition):
         for entry in env.c_class_entries:
             if definition or entry.defined_in_pxd:
-                code.putln("static PyTypeObject *%s = 0;" %
-                    entry.type.typeptr_cname)
+                code.putln("static PyTypeObject *%s = 0;" % (
+                    entry.type.typeptr_cname))
 
     def generate_cvariable_declarations(self, env, code, definition):
         if env.is_cython_builtin:
             return
         for entry in env.var_entries:
             if (entry.in_cinclude or entry.in_closure or
-                (entry.visibility == 'private' and
-                 not (entry.defined_in_pxd or entry.used))):
+                    (entry.visibility == 'private' and not (entry.defined_in_pxd or entry.used))):
                 continue
 
             storage_class = None
             dll_linkage = None
-            cname = None
             init = None
 
             if entry.visibility == 'extern':
@@ -1090,7 +1080,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 storage_class = "static"
                 dll_linkage = None
                 if entry.init is not None:
-                    init =  entry.type.literal_code(entry.init)
+                    init = entry.type.literal_code(entry.init)
             type = entry.type
             cname = entry.cname
 
@@ -1104,7 +1094,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if storage_class:
                 code.put("%s " % storage_class)
             code.put(type.declaration_code(
-                cname, dll_linkage = dll_linkage))
+                cname, dll_linkage=dll_linkage))
             if init is not None:
                 code.put_safe(" = %s" % init)
             code.putln(";")
@@ -1118,11 +1108,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_variable_definitions(self, env, code):
         for entry in env.var_entries:
-            if (not entry.in_cinclude and
-                entry.visibility == "public"):
+            if not entry.in_cinclude and entry.visibility == "public":
                 code.put(entry.type.declaration_code(entry.cname))
                 if entry.init is not None:
-                    init =  entry.type.literal_code(entry.init)
+                    init = entry.type.literal_code(entry.init)
                     code.put_safe(" = %s" % init)
                 code.putln(";")
 
@@ -1147,13 +1136,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     if scope.defines_any(["__setitem__", "__delitem__"]):
                         self.generate_ass_subscript_function(scope, code)
                     if scope.defines_any(["__getslice__", "__setslice__", "__delslice__"]):
-                        warning(self.pos, "__getslice__, __setslice__, and __delslice__ are not supported by Python 3, use __getitem__, __setitem__, and __delitem__ instead", 1)
+                        warning(self.pos,
+                                "__getslice__, __setslice__, and __delslice__ are not supported by Python 3, "
+                                "use __getitem__, __setitem__, and __delitem__ instead", 1)
                         code.putln("#if PY_MAJOR_VERSION >= 3")
                         code.putln("#error __getslice__, __setslice__, and __delslice__ not supported in Python 3.")
                         code.putln("#endif")
                     if scope.defines_any(["__setslice__", "__delslice__"]):
                         self.generate_ass_slice_function(scope, code)
-                    if scope.defines_any(["__getattr__","__getattribute__"]):
+                    if scope.defines_any(["__getattr__", "__getattribute__"]):
                         self.generate_getattro_function(scope, code)
                     if scope.defines_any(["__setattr__", "__delattr__"]):
                         self.generate_setattro_function(scope, code)
@@ -1221,8 +1212,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("static int %s = 0;" % freecount_name)
             code.putln("")
         code.putln(
-            "static PyObject *%s(PyTypeObject *t, %sPyObject *a, %sPyObject *k) {"
-                % (slot_func, unused_marker, unused_marker))
+            "static PyObject *%s(PyTypeObject *t, %sPyObject *a, %sPyObject *k) {" % (
+                slot_func, unused_marker, unused_marker))
 
         need_self_cast = (type.vtabslot_cname or
                           (py_buffers or memoryview_slices or py_attrs) or
@@ -1244,8 +1235,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 else:
                     type_safety_check = ' & ((t->tp_flags & (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)) == 0)'
                 obj_struct = type.declaration_code("", deref=True)
-                code.putln("if (CYTHON_COMPILING_IN_CPYTHON && likely((%s > 0) & (t->tp_basicsize == sizeof(%s))%s)) {" % (
-                    freecount_name, obj_struct, type_safety_check))
+                code.putln(
+                    "if (CYTHON_COMPILING_IN_CPYTHON && likely((%s > 0) & (t->tp_basicsize == sizeof(%s))%s)) {" % (
+                        freecount_name, obj_struct, type_safety_check))
                 code.putln("o = (PyObject*)%s[--%s];" % (
                     freelist_name, freecount_name))
                 code.putln("memset(o, 0, sizeof(%s));" % obj_struct)
@@ -1302,8 +1294,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             else:
                 cinit_args = "o, a, k"
             code.putln(
-                "if (unlikely(%s(%s) < 0)) {" %
-                    (new_func_entry.func_cname, cinit_args))
+                "if (unlikely(%s(%s) < 0)) {" % (
+                    new_func_entry.func_cname, cinit_args))
             code.put_decref_clear("o", py_object_type, nanny=False)
             code.putln(
                 "}")
@@ -1417,9 +1409,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         ' & ((Py_TYPE(o)->tp_flags & (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)) == 0)')
 
                 type = scope.parent_type
-                code.putln("if (CYTHON_COMPILING_IN_CPYTHON && ((%s < %d) & (Py_TYPE(o)->tp_basicsize == sizeof(%s))%s)) {" % (
-                    freecount_name, freelist_size, type.declaration_code("", deref=True),
-                    type_safety_check))
+                code.putln(
+                    "if (CYTHON_COMPILING_IN_CPYTHON && ((%s < %d) & (Py_TYPE(o)->tp_basicsize == sizeof(%s))%s)) {" % (
+                        freecount_name,
+                        freelist_size,
+                        type.declaration_code("", deref=True),
+                        type_safety_check))
                 code.putln("%s[%s++] = %s;" % (
                     freelist_name, freecount_name, type.cast_code("o")))
                 code.putln("} else {")
@@ -1448,11 +1443,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         slot_func = scope.mangle_internal("tp_traverse")
         base_type = scope.parent_type.base_type
         if tp_slot.slot_code(scope) != slot_func:
-            return # never used
+            return  # never used
         code.putln("")
         code.putln(
-            "static int %s(PyObject *o, visitproc v, void *a) {"
-                % slot_func)
+            "static int %s(PyObject *o, visitproc v, void *a) {" % slot_func)
 
         have_entries, (py_attrs, py_buffers, memoryview_slices) = (
             scope.get_refcounted_entries(include_gc_simple=False))
@@ -1478,23 +1472,20 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # the module cleanup, which may already have cleared it.
                 # In that case, fall back to traversing the type hierarchy.
                 base_cname = base_type.typeptr_cname
-                code.putln("e = ((likely(%s)) ? ((%s->tp_traverse) ? %s->tp_traverse(o, v, a) : 0) : __Pyx_call_next_tp_traverse(o, v, a, %s)); if (e) return e;" % (
-                    base_cname, base_cname, base_cname, slot_func))
+                code.putln(
+                    "e = ((likely(%s)) ? ((%s->tp_traverse) ? %s->tp_traverse(o, v, a) : 0) : "
+                    "__Pyx_call_next_tp_traverse(o, v, a, %s)); if (e) return e;" % (
+                        base_cname, base_cname, base_cname, slot_func))
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("CallNextTpTraverse", "ExtensionTypes.c"))
 
         for entry in py_attrs:
             var_code = "p->%s" % entry.cname
-            code.putln(
-                    "if (%s) {"
-                        % var_code)
+            code.putln("if (%s) {" % var_code)
             if entry.type.is_extension_type:
                 var_code = "((PyObject*)%s)" % var_code
-            code.putln(
-                        "e = (*v)(%s, a); if (e) return e;"
-                            % var_code)
-            code.putln(
-                    "}")
+            code.putln("e = (*v)(%s, a); if (e) return e;" % var_code)
+            code.putln("}")
 
         # Traverse buffer exporting objects.
         # Note: not traversing memoryview attributes of memoryview slices!
@@ -1503,13 +1494,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for entry in py_buffers:
             cname = entry.cname + ".obj"
             code.putln("if (p->%s) {" % cname)
-            code.putln(    "e = (*v)(p->%s, a); if (e) return e;" % cname)
+            code.putln("e = (*v)(p->%s, a); if (e) return e;" % cname)
             code.putln("}")
 
-        code.putln(
-                "return 0;")
-        code.putln(
-            "}")
+        code.putln("return 0;")
+        code.putln("}")
 
     def generate_clear_function(self, scope, code, cclass_entry):
         tp_slot = TypeSlots.GCDependentSlot("tp_clear")
@@ -1550,8 +1539,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # the module cleanup, which may already have cleared it.
                 # In that case, fall back to traversing the type hierarchy.
                 base_cname = base_type.typeptr_cname
-                code.putln("if (likely(%s)) { if (%s->tp_clear) %s->tp_clear(o); } else __Pyx_call_next_tp_clear(o, %s);" % (
-                    base_cname, base_cname, base_cname, slot_func))
+                code.putln(
+                    "if (likely(%s)) { if (%s->tp_clear) %s->tp_clear(o); } else __Pyx_call_next_tp_clear(o, %s);" % (
+                        base_cname, base_cname, base_cname, slot_func))
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("CallNextTpClear", "ExtensionTypes.c"))
 
@@ -1575,28 +1565,26 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if cclass_entry.cname == '__pyx_memoryviewslice':
             code.putln("__PYX_XDEC_MEMVIEW(&p->from_slice, 1);")
 
-        code.putln(
-            "return 0;")
-        code.putln(
-            "}")
+        code.putln("return 0;")
+        code.putln("}")
 
     def generate_getitem_int_function(self, scope, code):
         # This function is put into the sq_item slot when
         # a __getitem__ method is present. It converts its
         # argument to a Python integer and calls mp_subscript.
         code.putln(
-            "static PyObject *%s(PyObject *o, Py_ssize_t i) {" %
-                scope.mangle_internal("sq_item"))
+            "static PyObject *%s(PyObject *o, Py_ssize_t i) {" % (
+                scope.mangle_internal("sq_item")))
         code.putln(
-                "PyObject *r;")
+            "PyObject *r;")
         code.putln(
-                "PyObject *x = PyInt_FromSsize_t(i); if(!x) return 0;")
+            "PyObject *x = PyInt_FromSsize_t(i); if(!x) return 0;")
         code.putln(
-                "r = Py_TYPE(o)->tp_as_mapping->mp_subscript(o, x);")
+            "r = Py_TYPE(o)->tp_as_mapping->mp_subscript(o, x);")
         code.putln(
-                "Py_DECREF(x);")
+            "Py_DECREF(x);")
         code.putln(
-                "return r;")
+            "return r;")
         code.putln(
             "}")
 
@@ -1609,42 +1597,40 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         del_entry = scope.lookup_here("__delitem__")
         code.putln("")
         code.putln(
-            "static int %s(PyObject *o, PyObject *i, PyObject *v) {" %
-                scope.mangle_internal("mp_ass_subscript"))
+            "static int %s(PyObject *o, PyObject *i, PyObject *v) {" % (
+                scope.mangle_internal("mp_ass_subscript")))
         code.putln(
-                "if (v) {")
+            "if (v) {")
         if set_entry:
-            code.putln(
-                    "return %s(o, i, v);" %
-                        set_entry.func_cname)
+            code.putln("return %s(o, i, v);" % set_entry.func_cname)
         else:
             self.generate_guarded_basetype_call(
                 base_type, "tp_as_mapping", "mp_ass_subscript", "o, i, v", code)
             code.putln(
-                    "PyErr_Format(PyExc_NotImplementedError,")
+                "PyErr_Format(PyExc_NotImplementedError,")
             code.putln(
-                    '  "Subscript assignment not supported by %.200s", Py_TYPE(o)->tp_name);')
+                '  "Subscript assignment not supported by %.200s", Py_TYPE(o)->tp_name);')
             code.putln(
-                    "return -1;")
+                "return -1;")
         code.putln(
-                "}")
+            "}")
         code.putln(
-                "else {")
+            "else {")
         if del_entry:
             code.putln(
-                    "return %s(o, i);" %
-                        del_entry.func_cname)
+                "return %s(o, i);" % (
+                    del_entry.func_cname))
         else:
             self.generate_guarded_basetype_call(
                 base_type, "tp_as_mapping", "mp_ass_subscript", "o, i, v", code)
             code.putln(
-                    "PyErr_Format(PyExc_NotImplementedError,")
+                "PyErr_Format(PyExc_NotImplementedError,")
             code.putln(
-                    '  "Subscript deletion not supported by %.200s", Py_TYPE(o)->tp_name);')
+                '  "Subscript deletion not supported by %.200s", Py_TYPE(o)->tp_name);')
             code.putln(
-                    "return -1;")
+                "return -1;")
         code.putln(
-                "}")
+            "}")
         code.putln(
             "}")
 
@@ -1676,42 +1662,42 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         del_entry = scope.lookup_here("__delslice__")
         code.putln("")
         code.putln(
-            "static int %s(PyObject *o, Py_ssize_t i, Py_ssize_t j, PyObject *v) {" %
-                scope.mangle_internal("sq_ass_slice"))
+            "static int %s(PyObject *o, Py_ssize_t i, Py_ssize_t j, PyObject *v) {" % (
+                scope.mangle_internal("sq_ass_slice")))
         code.putln(
-                "if (v) {")
+            "if (v) {")
         if set_entry:
             code.putln(
-                    "return %s(o, i, j, v);" %
-                        set_entry.func_cname)
+                "return %s(o, i, j, v);" % (
+                    set_entry.func_cname))
         else:
             self.generate_guarded_basetype_call(
                 base_type, "tp_as_sequence", "sq_ass_slice", "o, i, j, v", code)
             code.putln(
-                    "PyErr_Format(PyExc_NotImplementedError,")
+                "PyErr_Format(PyExc_NotImplementedError,")
             code.putln(
-                    '  "2-element slice assignment not supported by %.200s", Py_TYPE(o)->tp_name);')
+                '  "2-element slice assignment not supported by %.200s", Py_TYPE(o)->tp_name);')
             code.putln(
-                    "return -1;")
+                "return -1;")
         code.putln(
-                "}")
+            "}")
         code.putln(
-                "else {")
+            "else {")
         if del_entry:
             code.putln(
-                    "return %s(o, i, j);" %
-                        del_entry.func_cname)
+                "return %s(o, i, j);" % (
+                    del_entry.func_cname))
         else:
             self.generate_guarded_basetype_call(
                 base_type, "tp_as_sequence", "sq_ass_slice", "o, i, j, v", code)
             code.putln(
-                    "PyErr_Format(PyExc_NotImplementedError,")
+                "PyErr_Format(PyExc_NotImplementedError,")
             code.putln(
-                    '  "2-element slice deletion not supported by %.200s", Py_TYPE(o)->tp_name);')
+                '  "2-element slice deletion not supported by %.200s", Py_TYPE(o)->tp_name);')
             code.putln(
-                    "return -1;")
+                "return -1;")
         code.putln(
-                "}")
+            "}")
         code.putln(
             "}")
 
@@ -1722,26 +1708,26 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # If that raises an AttributeError, call the __getattr__ if defined.
         #
         # In both cases, defined can be in this class, or any base class.
-        def lookup_here_or_base(n,type=None):
+        def lookup_here_or_base(n, type=None):
             # Recursive lookup
             if type is None:
                 type = scope.parent_type
             r = type.scope.lookup_here(n)
             if r is None and \
                type.base_type is not None:
-                return lookup_here_or_base(n,type.base_type)
+                return lookup_here_or_base(n, type.base_type)
             else:
                 return r
         getattr_entry = lookup_here_or_base("__getattr__")
         getattribute_entry = lookup_here_or_base("__getattribute__")
         code.putln("")
         code.putln(
-            "static PyObject *%s(PyObject *o, PyObject *n) {"
-                % scope.mangle_internal("tp_getattro"))
+            "static PyObject *%s(PyObject *o, PyObject *n) {" % (
+                scope.mangle_internal("tp_getattro")))
         if getattribute_entry is not None:
             code.putln(
-                "PyObject *v = %s(o, n);" %
-                    getattribute_entry.func_cname)
+                "PyObject *v = %s(o, n);" % (
+                    getattribute_entry.func_cname))
         else:
             code.putln(
                 "PyObject *v = PyObject_GenericGetAttr(o, n);")
@@ -1751,8 +1737,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(
                 "PyErr_Clear();")
             code.putln(
-                "v = %s(o, n);" %
-                    getattr_entry.func_cname)
+                "v = %s(o, n);" % (
+                    getattr_entry.func_cname))
             code.putln(
                 "}")
         code.putln(
@@ -1769,34 +1755,34 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         del_entry = scope.lookup_here("__delattr__")
         code.putln("")
         code.putln(
-            "static int %s(PyObject *o, PyObject *n, PyObject *v) {" %
-                scope.mangle_internal("tp_setattro"))
+            "static int %s(PyObject *o, PyObject *n, PyObject *v) {" % (
+                scope.mangle_internal("tp_setattro")))
         code.putln(
-                "if (v) {")
+            "if (v) {")
         if set_entry:
             code.putln(
-                    "return %s(o, n, v);" %
-                        set_entry.func_cname)
+                "return %s(o, n, v);" % (
+                    set_entry.func_cname))
         else:
             self.generate_guarded_basetype_call(
                 base_type, None, "tp_setattro", "o, n, v", code)
             code.putln(
-                    "return PyObject_GenericSetAttr(o, n, v);")
+                "return PyObject_GenericSetAttr(o, n, v);")
         code.putln(
-                "}")
+            "}")
         code.putln(
-                "else {")
+            "else {")
         if del_entry:
             code.putln(
-                    "return %s(o, n);" %
-                        del_entry.func_cname)
+                "return %s(o, n);" % (
+                    del_entry.func_cname))
         else:
             self.generate_guarded_basetype_call(
                 base_type, None, "tp_setattro", "o, n, v", code)
             code.putln(
-                    "return PyObject_GenericSetAttr(o, n, 0);")
+                "return PyObject_GenericSetAttr(o, n, 0);")
         code.putln(
-                "}")
+            "}")
         code.putln(
             "}")
 
@@ -1808,8 +1794,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         user_get_entry = scope.lookup_here("__get__")
         code.putln("")
         code.putln(
-            "static PyObject *%s(PyObject *o, PyObject *i, PyObject *c) {" %
-                scope.mangle_internal("tp_descr_get"))
+            "static PyObject *%s(PyObject *o, PyObject *i, PyObject *c) {" % (
+                scope.mangle_internal("tp_descr_get")))
         code.putln(
             "PyObject *r = 0;")
         code.putln(
@@ -1819,8 +1805,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         #code.put_incref("i", py_object_type)
         #code.put_incref("c", py_object_type)
         code.putln(
-            "r = %s(o, i, c);" %
-                user_get_entry.func_cname)
+            "r = %s(o, i, c);" % (
+                user_get_entry.func_cname))
         #code.put_decref("i", py_object_type)
         #code.put_decref("c", py_object_type)
         code.putln(
@@ -1837,38 +1823,38 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         user_del_entry = scope.lookup_here("__delete__")
         code.putln("")
         code.putln(
-            "static int %s(PyObject *o, PyObject *i, PyObject *v) {" %
-                scope.mangle_internal("tp_descr_set"))
+            "static int %s(PyObject *o, PyObject *i, PyObject *v) {" % (
+                scope.mangle_internal("tp_descr_set")))
         code.putln(
-                "if (v) {")
+            "if (v) {")
         if user_set_entry:
             code.putln(
-                    "return %s(o, i, v);" %
-                        user_set_entry.func_cname)
+                "return %s(o, i, v);" % (
+                    user_set_entry.func_cname))
         else:
             self.generate_guarded_basetype_call(
                 base_type, None, "tp_descr_set", "o, i, v", code)
             code.putln(
-                    'PyErr_SetString(PyExc_NotImplementedError, "__set__");')
+                'PyErr_SetString(PyExc_NotImplementedError, "__set__");')
             code.putln(
-                    "return -1;")
+                "return -1;")
         code.putln(
-                "}")
+            "}")
         code.putln(
-                "else {")
+            "else {")
         if user_del_entry:
             code.putln(
-                    "return %s(o, i);" %
-                        user_del_entry.func_cname)
+                "return %s(o, i);" % (
+                    user_del_entry.func_cname))
         else:
             self.generate_guarded_basetype_call(
                 base_type, None, "tp_descr_set", "o, i, v", code)
             code.putln(
-                    'PyErr_SetString(PyExc_NotImplementedError, "__delete__");')
+                'PyErr_SetString(PyExc_NotImplementedError, "__delete__");')
             code.putln(
-                    "return -1;")
+                "return -1;")
         code.putln(
-                "}")
+            "}")
         code.putln(
             "}")
 
@@ -1887,11 +1873,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         get_entry = property_scope.lookup_here("__get__")
         code.putln("")
         code.putln(
-            "static PyObject *%s(PyObject *o, CYTHON_UNUSED void *x) {" %
-                property_entry.getter_cname)
+            "static PyObject *%s(PyObject *o, CYTHON_UNUSED void *x) {" % (
+                property_entry.getter_cname))
         code.putln(
-                "return %s(o);" %
-                    get_entry.func_cname)
+            "return %s(o);" % (
+                get_entry.func_cname))
         code.putln(
             "}")
 
@@ -1903,34 +1889,34 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         del_entry = property_scope.lookup_here("__del__")
         code.putln("")
         code.putln(
-            "static int %s(PyObject *o, PyObject *v, CYTHON_UNUSED void *x) {" %
-                property_entry.setter_cname)
+            "static int %s(PyObject *o, PyObject *v, CYTHON_UNUSED void *x) {" % (
+                property_entry.setter_cname))
         code.putln(
-                "if (v) {")
+            "if (v) {")
         if set_entry:
             code.putln(
-                    "return %s(o, v);" %
-                        set_entry.func_cname)
+                "return %s(o, v);" % (
+                    set_entry.func_cname))
         else:
             code.putln(
-                    'PyErr_SetString(PyExc_NotImplementedError, "__set__");')
+                'PyErr_SetString(PyExc_NotImplementedError, "__set__");')
             code.putln(
-                    "return -1;")
+                "return -1;")
         code.putln(
-                "}")
+            "}")
         code.putln(
-                "else {")
+            "else {")
         if del_entry:
             code.putln(
-                    "return %s(o);" %
-                        del_entry.func_cname)
+                "return %s(o);" % (
+                    del_entry.func_cname))
         else:
             code.putln(
-                    'PyErr_SetString(PyExc_NotImplementedError, "__del__");')
+                'PyErr_SetString(PyExc_NotImplementedError, "__del__");')
             code.putln(
-                    "return -1;")
+                "return -1;")
         code.putln(
-                "}")
+            "}")
         code.putln(
             "}")
 
@@ -1956,8 +1942,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             objstruct = "struct %s" % type.objstruct_cname
         code.putln(
-            "sizeof(%s), /*tp_basicsize*/" %
-                objstruct)
+            "sizeof(%s), /*tp_basicsize*/" % objstruct)
         code.putln(
             "0, /*tp_itemsize*/")
         for slot in TypeSlots.slot_table:
@@ -1970,13 +1955,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             return
         code.putln("")
         code.putln(
-            "static PyMethodDef %s[] = {" %
-                env.method_table_cname)
+            "static PyMethodDef %s[] = {" % (
+                env.method_table_cname))
         for entry in env.pyfunc_entries:
             if not entry.fused_cfunction:
                 code.put_pymethoddef(entry, ",")
         code.putln(
-                "{0, 0, 0, 0}")
+            "{0, 0, 0, 0}")
         code.putln(
             "};")
 
@@ -2142,7 +2127,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("/*--- Initialize various global constants etc. ---*/")
         code.put_error_if_neg(self.pos, "__Pyx_InitGlobals()")
 
-        code.putln("#if PY_MAJOR_VERSION < 3 && (__PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT)")
+        code.putln("#if PY_MAJOR_VERSION < 3 && (__PYX_DEFAULT_STRING_ENCODING_IS_ASCII || "
+                   "__PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT)")
         code.put_error_if_neg(self.pos, "__Pyx_init_sys_getdefaultencoding_params()")
         code.putln("#endif")
 
@@ -2501,8 +2487,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         entries = []
         for entry in env.var_entries:
             if (entry.api
-                or entry.defined_in_pxd
-                or (Options.cimport_from_pyx and not entry.visibility == 'extern')):
+                    or entry.defined_in_pxd
+                    or (Options.cimport_from_pyx and not entry.visibility == 'extern')):
                 entries.append(entry)
         if entries:
             env.use_utility_code(UtilityCode.load_cached("VoidPtrExport", "ImportExport.c"))
@@ -2518,8 +2504,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         entries = []
         for entry in env.cfunc_entries:
             if (entry.api
-                or entry.defined_in_pxd
-                or (Options.cimport_from_pyx and not entry.visibility == 'extern')):
+                    or entry.defined_in_pxd
+                    or (Options.cimport_from_pyx and not entry.visibility == 'extern')):
                 entries.append(entry)
         if entries:
             env.use_utility_code(
@@ -2625,7 +2611,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_base_type_import_code(self, env, entry, code):
         base_type = entry.type.base_type
         if (base_type and base_type.module_name != env.qualified_name and not
-               base_type.is_builtin_type and not entry.utility_code_definition):
+                base_type.is_builtin_type and not entry.utility_code_definition):
             self.generate_type_import_code(env, base_type, self.pos, code)
 
     def generate_type_import_code(self, env, type, pos, code):
@@ -2717,8 +2703,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # unless we let PyType_Ready create the slot wrappers we have
                 # a significant performance hit. (See trac #561.)
                 for func in entry.type.scope.pyfunc_entries:
-                    is_buffer = func.name in ('__getbuffer__',
-                                               '__releasebuffer__')
+                    is_buffer = func.name in ('__getbuffer__', '__releasebuffer__')
                     if (func.is_special and Options.docstrings and
                             func.wrapperbase_cname and not is_buffer):
                         slot = TypeSlots.method_name_to_slot[func.name]
@@ -2799,7 +2784,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
             c_method_entries = [
                 entry for entry in type.scope.cfunc_entries
-                if entry.func_cname ]
+                if entry.func_cname]
             if c_method_entries:
                 for meth_entry in c_method_entries:
                     cast = meth_entry.type.signature_cast_string()
@@ -2821,8 +2806,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
 def generate_cfunction_declaration(entry, env, code, definition):
     from_cy_utility = entry.used and entry.utility_code_definition
-    if entry.used and entry.inline_func_in_pxd or (not entry.in_cinclude and (definition
-            or entry.defined_in_pxd or entry.visibility == 'extern' or from_cy_utility)):
+    if entry.used and entry.inline_func_in_pxd or (not entry.in_cinclude and (
+            definition or entry.defined_in_pxd or entry.visibility == 'extern' or from_cy_utility)):
         if entry.visibility == 'extern':
             storage_class = Naming.extern_c_macro
             dll_linkage = "DL_IMPORT"
@@ -2843,7 +2828,7 @@ def generate_cfunction_declaration(entry, env, code, definition):
             type = CPtrType(type)
 
         header = type.declaration_code(
-            entry.cname, dll_linkage = dll_linkage)
+            entry.cname, dll_linkage=dll_linkage)
         modifiers = code.build_function_modifiers(entry.func_modifiers)
         code.putln("%s %s%s; /*proto*/" % (
             storage_class,
