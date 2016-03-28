@@ -137,26 +137,22 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         pipeline = Pipeline.insert_into_pipeline(pipeline, transform,
                                                  before=before)
 
-        if self.from_scope:
-            def scope_transform(module_node):
-                module_node.scope.merge_in(self.from_scope)
+        def merge_scope(scope):
+            def merge_scope_transform(module_node):
+                module_node.scope.merge_in(scope)
                 return module_node
+            return merge_scope_transform
 
-            transform = ParseTreeTransforms.AnalyseDeclarationsTransform
-            pipeline = Pipeline.insert_into_pipeline(pipeline, scope_transform,
-                                                     before=transform)
+        if self.from_scope:
+            pipeline = Pipeline.insert_into_pipeline(
+                pipeline, merge_scope(self.from_scope),
+                before=ParseTreeTransforms.AnalyseDeclarationsTransform)
 
         for dep in self.requires:
-            if (isinstance(dep, CythonUtilityCode)
-                    and hasattr(dep, 'tree')
-                    and not cython_scope):
-                def scope_transform(module_node):
-                    module_node.scope.merge_in(dep.tree.scope)
-                    return module_node
-
-                transform = ParseTreeTransforms.AnalyseDeclarationsTransform
-                pipeline = Pipeline.insert_into_pipeline(pipeline, scope_transform,
-                                                         before=transform)
+            if isinstance(dep, CythonUtilityCode) and hasattr(dep, 'tree') and not cython_scope:
+                pipeline = Pipeline.insert_into_pipeline(
+                    pipeline, merge_scope(dep.tree.scope),
+                    before=ParseTreeTransforms.AnalyseDeclarationsTransform)
 
         if self.outer_module_scope:
             # inject outer module between utility code module and builtin module
@@ -164,9 +160,9 @@ class CythonUtilityCode(Code.UtilityCodeBase):
                 module_node.scope.outer_scope = self.outer_module_scope
                 return module_node
 
-            transform = ParseTreeTransforms.AnalyseDeclarationsTransform
-            pipeline = Pipeline.insert_into_pipeline(pipeline, scope_transform,
-                                                     before=transform)
+            pipeline = Pipeline.insert_into_pipeline(
+                pipeline, scope_transform,
+                before=ParseTreeTransforms.AnalyseDeclarationsTransform)
 
         (err, tree) = Pipeline.run_pipeline(pipeline, tree, printtree=False)
         assert not err, err
