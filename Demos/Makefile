@@ -7,8 +7,8 @@ test:	all
 	python run_spam.py
 	python integrate_timing.py
 	cd callback; $(MAKE) test
-
 	cd embed; $(MAKE) test
+
 clean:
 	@echo Cleaning Demos
 	@rm -f *.c *.o *.so *~ core
