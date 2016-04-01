@@ -43,6 +43,7 @@ matrix:
       env: BACKEND=cpp      
 addons:
   apt:
-    - gdb
-    - python-dbg
-    - python3-dbg
+    packages:
+      - gdb
+      - python-dbg
+      - python3-dbg
