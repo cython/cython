@@ -39,8 +39,9 @@ directory, and then run::
 
   python setup.py install
 
-If you have Python setuptools set up on your system, you should be
-able to fetch Cython from PyPI and install it using
+If you have ``pip`` set up on your system (e.g. in a virtualenv or a
+recent Python version), you should be able to fetch Cython from PyPI
+and install it using
 
 ::
 
