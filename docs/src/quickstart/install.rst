@@ -50,8 +50,15 @@ or
 
   pip install cython
 
-For Windows there is also an executable installer available for
-download.
+For Windows there is also a wheel package available for download.
+
+For one-time builds, e.g. on CI and test servers, it is substantially
+faster to install an uncompiled (slower) version of Cython with
+
+::
+
+    pip install Cython --install-option="--no-cython-compile"
+
 
 .. [Anaconda] http://docs.continuum.io/anaconda/
 .. [Canopy] https://enthought.com/products/canopy/
