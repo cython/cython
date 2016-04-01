@@ -296,6 +296,11 @@ setup(
     C/C++ libraries, and for fast C modules that speed up the execution of
     Python code.
 
+    Note that for CI and test builds that use Cython for one-time compilation,
+    you can speed up the Cython installation with::
+
+        pip install Cython --install-option="--no-cython-compile"
+
     .. _Pyrex: http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
     """),
     license='Apache',
