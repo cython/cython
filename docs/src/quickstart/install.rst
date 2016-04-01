@@ -40,21 +40,16 @@ directory, and then run::
   python setup.py install
 
 If you have Python setuptools set up on your system, you should be
-able to fetch Cython from PyPI and install it using::
-
-  easy_install Cython
-
-or
+able to fetch Cython from PyPI and install it using
 
 ::
 
   pip install Cython
 
-For Windows there is also a wheel package available for download.
-
 For one-time builds, e.g. for CI/testing, on platforms that are not covered
 by one of the wheel packages provided on PyPI, it is substantially faster
-than a full source build to install an uncompiled (slower) version of Cython with
+than a full source build to install an uncompiled (slower) version of Cython
+with
 
 ::
 
