@@ -1,8 +1,9 @@
 language: python
 sudo: false
 cache:
-  - pip
-  - ccache
+  pip: true
+  directories:
+    - $HOME/.ccache
 python:
   - 2.6
   - 2.7
@@ -20,7 +21,8 @@ env:
       - CCACHE_SLOPPINESS=pch_defines,time_macros
       - CCACHE_COMPRESS=1
       - CCACHE_MAXSIZE=100M
-  matrix:      
+      - PATH="/usr/lib/ccache:$PATH"
+  matrix:
     - BACKEND=c
     - BACKEND=cpp
 
@@ -37,6 +39,8 @@ script:
   - CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" python setup.py build_ext -i
   - CFLAGS="-O0 -ggdb -Wall -Wextra" python runtests.py -vv -x Debugger --backends=$BACKEND -j 2
 
+after_script: ccache -s
+
 matrix:
   allow_failures:
     - python: pypy
@@ -46,7 +50,7 @@ matrix:
     - python: pypy
       env: BACKEND=cpp
     - python: pypy3
-      env: BACKEND=cpp      
+      env: BACKEND=cpp
 addons:
   apt:
     packages:

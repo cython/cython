@@ -30,6 +30,7 @@ def parallelCCompile(self, sources, output_dir=None, macros=None, include_dirs=N
     # Travis doesn't report the number of available cpus correctly
     # so we default to 2 jobs because each Travis worker has two cores
     N = cpu_count() if os.environ.get('TRAVIS', None) != 'true' else 2
+    print("Compiling with %s jobs." % N)
     import multiprocessing.pool
 
     def _single_compile(obj):
