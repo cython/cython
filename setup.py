@@ -42,8 +42,11 @@ def parallelCCompile(self, sources, output_dir=None, macros=None, include_dirs=N
     # convert to list, imap is evaluated on-demand
     list(multiprocessing.pool.ThreadPool(N).imap(_single_compile, objects))
     return objects
-import distutils.ccompiler
-distutils.ccompiler.CCompiler.compile = parallelCCompile
+# Only allow parallel compilation on Python 2.7 and above.
+# Parallel compilation freezes on Python 2.6.
+if sys.version_info[:2] >= (2, 7):
+    import distutils.ccompiler
+    distutils.ccompiler.CCompiler.compile = parallelCCompile
 
 def add_command_class(name, cls):
     cmdclasses = setup_args.get('cmdclass', {})
