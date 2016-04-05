@@ -296,6 +296,12 @@ setup(
     C/C++ libraries, and for fast C modules that speed up the execution of
     Python code.
 
+    Note that for one-time builds, e.g. for CI/testing, on platforms that are not
+    covered by one of the wheel packages provided on PyPI, it is substantially faster
+    than a full source build to install an uncompiled (slower) version of Cython with::
+
+        pip install Cython --install-option="--no-cython-compile"
+
     .. _Pyrex: http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
     """),
     license='Apache',
