@@ -728,6 +728,8 @@ class ExprNode(Node):
                 elif self.type.is_memoryviewslice:
                     code.put_xdecref_memoryviewslice(
                             self.result(), have_gil=not self.in_nogil_context)
+                    code.putln("%s.memview = NULL;" % self.result())
+                    code.putln("%s.data = NULL;" % self.result())
         else:
             # Already done if self.is_temp
             self.generate_subexpr_disposal_code(code)
@@ -6557,9 +6559,7 @@ class AttributeNode(ExprNode):
                         return
 
                 code.putln("%s = %s;" % (self.result(), self.obj.result()))
-                if self.obj.is_name or (self.obj.is_attribute and
-                                        self.obj.is_memslice_transpose):
-                    code.put_incref_memoryviewslice(self.result(), have_gil=True)
+                code.put_incref_memoryviewslice(self.result(), have_gil=True)
 
                 T = "__pyx_memslice_transpose(&%s) == 0"
                 code.putln(code.error_goto_if(T % self.result(), self.pos))
@@ -6582,10 +6582,10 @@ class AttributeNode(ExprNode):
     def generate_disposal_code(self, code):
         if self.is_temp and self.type.is_memoryviewslice and self.is_memslice_transpose:
             # mirror condition for putting the memview incref here:
-            if self.obj.is_name or (self.obj.is_attribute and
-                                    self.obj.is_memslice_transpose):
-                code.put_xdecref_memoryviewslice(
-                        self.result(), have_gil=True)
+            code.put_xdecref_memoryviewslice(
+                    self.result(), have_gil=True)
+            code.putln("%s.memview = NULL;" % self.result())
+            code.putln("%s.data = NULL;" % self.result())
         else:
             ExprNode.generate_disposal_code(self, code)
 
