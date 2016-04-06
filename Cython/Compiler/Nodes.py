@@ -1896,6 +1896,7 @@ class FuncDefNode(StatNode, BlockNode):
                 trace_name = self.entry.name + " (wrapper)"
             else:
                 trace_name = self.entry.name
+            code.putln("%s = %s;\n" % (Naming.frame_code_cname, code.get_py_const(py_object_type, 'codeobj', name_suffix='_%s' % (trace_name,))))
             code.put_trace_call(
                 trace_name, self.pos, nogil=not code.funcstate.gil_owned)
             code.funcstate.can_trace = True

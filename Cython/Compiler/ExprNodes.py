@@ -8894,12 +8894,12 @@ class CodeObjectNode(ExprNode):
 
     def calculate_result_code(self, code=None):
         if self.result_code is None:
-            self.result_code = code.get_py_const(py_object_type, 'codeobj', cleanup_level=2)
+            self.result_code = code.get_py_const(py_object_type, 'codeobj', cleanup_level=2, name_suffix=('_%s' % (self.def_node.name,)))
         return self.result_code
 
     def generate_result_code(self, code):
         if self.result_code is None:
-            self.result_code = code.get_py_const(py_object_type, 'codeobj', cleanup_level=2)
+            self.result_code = code.get_py_const(py_object_type, 'codeobj', cleanup_level=2, name_suffix=('_%s' % (self.def_node.name,)))
 
         code = code.get_cached_constants_writer()
         code.mark_pos(self.pos)
