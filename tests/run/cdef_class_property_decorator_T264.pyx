@@ -2,6 +2,8 @@
 # ticket: 264
 # tag: property, decorator
 
+my_property = property
+
 cdef class Prop:
     """
     >>> p = Prop()
@@ -16,6 +18,9 @@ cdef class Prop:
     SETTING '2' (previously: '1')
     >>> p.prop
     GETTING '2'
+    2
+    >>> p.my_prop
+    GETTING '2' via my_prop
     2
     >>> del p.prop
     DELETING '2'
@@ -49,3 +54,8 @@ cdef class Prop:
     def prop(self):
         print("DELETING '%s'" % self._value)
         self._value = None
+
+    @my_property
+    def my_prop(self):
+        print("GETTING '%s' via my_prop" % self._value)
+        return self._value
