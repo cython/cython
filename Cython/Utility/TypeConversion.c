@@ -582,7 +582,6 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, char format_ch
     // dpos points to end of digits array + 1 at the beginning to allow for pre-decrement looping
     char *dpos = digits + sizeof({{TYPE}})*3+2;
     int length;
-    PyObject *uval;
     {{TYPE}} remaining;
     const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = ({{TYPE}}) 0;
     const int is_unsigned = neg_one > const_zero;
@@ -629,6 +628,7 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, char format_ch
 #if CYTHON_COMPILING_IN_CPYTHON
     {
         int i;
+        PyObject *uval;
 #if PY_MAJOR_VERSION > 3 || PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION >= 3
         void *udata;
         uval = PyUnicode_New(length, 127);
@@ -640,7 +640,7 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, char format_ch
 #else
         Py_UNICODE *udata;
         uval = PyUnicode_FromUnicode(NULL, length);
-        if (unlikely(!uval)) return uval;
+        if (unlikely(!uval)) return NULL;
         udata = PyUnicode_AS_UNICODE(uval);
         for (i=0; i<length; i++) {
             udata[i] = dpos[i];
