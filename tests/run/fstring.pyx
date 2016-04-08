@@ -32,7 +32,7 @@ def format2(ab, cd):
     return a, b, c
 
 
-def format_c_numbers(char c, short s, int n, long l, float f, double d):
+def format_c_numbers(signed char c, short s, int n, long l, float f, double d):
     """
     >>> s1, s2, s3, s4 = format_c_numbers(123, 135, 12, 12312312, 2.3456, 3.1415926)
     >>> print(s1)
@@ -43,6 +43,16 @@ def format_c_numbers(char c, short s, int n, long l, float f, double d):
       12f
     >>> print(s4)
     C 3.14
+
+    >>> s1, s2, s3, s4 = format_c_numbers(-123, -135, -12, -12312312, -2.3456, -3.1415926)
+    >>> print(s1)
+    -123-135-12312312-12-2.35
+    >>> print(s2)
+    -3.14-2.3
+    >>> print(s3)
+     -12f
+    >>> print(s4)
+    -C-3.14
 
     """
     s1 = f"{c}{s:4}{l}{n}{f:.3}"

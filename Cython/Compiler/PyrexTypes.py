@@ -30,7 +30,7 @@ class BaseType(object):
     def can_coerce_to_pyobject(self, env):
         return False
 
-    def can_coerce_to_pyunicode(self, env):
+    def can_coerce_to_pystring(self, env, format_spec=None):
         return False
 
     def cast_code(self, expr_code):
@@ -1629,10 +1629,12 @@ class CIntType(CNumericType):
     def can_coerce_to_pyobject(self, env):
         return True
 
-    def can_coerce_to_pyunicode(self, env):
+    def can_coerce_to_pystring(self, env, format_spec=None):
+        if format_spec and format_spec not in ('o', 'd', 'x', 'X'):
+            return False
         return True
 
-    def to_pyunicode_utility_code(self, code):
+    def to_pystring_function(self, code):
         if self.to_pyunicode_utility is None:
             utility_code_name = "__Pyx_PyUnicode_From_" + self.specialization_name()
             to_pyunicode_utility = TempitaUtilityCode.load_cached(
@@ -1752,7 +1754,7 @@ class CReturnCodeType(CIntType):
     is_returncode = True
     exception_check = False
 
-    def can_coerce_to_pyunicode(self, env):
+    def can_coerce_to_pystring(self, env, format_spec=None):
         return False
 
 
@@ -1762,7 +1764,7 @@ class CBIntType(CIntType):
     from_py_function = "__Pyx_PyObject_IsTrue"
     exception_check = 1 # for C++ bool
 
-    def can_coerce_to_pyunicode(self, env):
+    def can_coerce_to_pystring(self, env, format_spec=None):
         return False
 
     def declaration_code(self, entity_code,
@@ -1799,7 +1801,7 @@ class CPyUCS4IntType(CIntType):
     to_py_function = "PyUnicode_FromOrdinal"
     from_py_function = "__Pyx_PyObject_AsPy_UCS4"
 
-    def can_coerce_to_pyunicode(self, env):
+    def can_coerce_to_pystring(self, env, format_spec=None):
         return False
 
     def create_from_py_utility_code(self, env):
@@ -1823,7 +1825,7 @@ class CPyUnicodeIntType(CIntType):
     to_py_function = "PyUnicode_FromOrdinal"
     from_py_function = "__Pyx_PyObject_AsPy_UNICODE"
 
-    def can_coerce_to_pyunicode(self, env):
+    def can_coerce_to_pystring(self, env, format_spec=None):
         return False
 
     def create_from_py_utility_code(self, env):

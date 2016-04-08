@@ -570,51 +570,87 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
 
 /////////////// CIntToPyUnicode.proto ///////////////
 
-static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value);
+static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, char format_char);
 
 /////////////// CIntToPyUnicode ///////////////
 
-static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
-    // simple and conservative string allocation on the stack
+// NOTE: inlining because "format_char" is always a constant, which collapses lots of code below
+
+static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, char format_char) {
+    // simple and conservative C string allocation on the stack: each byte gives at most 3 digits, plus sign
     char digits[sizeof({{TYPE}})*3+2];
-    int length = -1;
+    // dpos points to end of digits array + 1 at the beginning to allow for pre-decrement looping
+    char *dpos = digits + sizeof({{TYPE}})*3+2;
+    int length;
+    PyObject *uval;
+    {{TYPE}} remaining;
     const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = ({{TYPE}}) 0;
     const int is_unsigned = neg_one > const_zero;
 
-    if (is_unsigned) {
-        if (sizeof({{TYPE}}) <= sizeof(unsigned int)) {
-            length = sprintf(digits, "%u", (unsigned int) value);
-        } else if (sizeof({{TYPE}}) <= sizeof(unsigned long)) {
-            length = sprintf(digits, "%lu", (unsigned long) value);
-        } else if (sizeof({{TYPE}}) <= sizeof(unsigned PY_LONG_LONG)) {
-            length = sprintf(digits, "%llu", (unsigned PY_LONG_LONG) value);
-        }
-    } else {
-        if (sizeof({{TYPE}}) <= sizeof(int)) {
-            length = sprintf(digits, "%d", (int) value);
-        } else if (sizeof({{TYPE}}) <= sizeof(long)) {
-            length = sprintf(digits, "%ld", (long) value);
-        } else if (sizeof({{TYPE}}) <= sizeof(PY_LONG_LONG)) {
-            length = sprintf(digits, "%lld", (PY_LONG_LONG) value);
-        }
+    // single character unicode strings are cached in CPython => use PyUnicode_FromOrdinal() for them
+    if (unlikely((is_unsigned || value >= const_zero) && (
+            (format_char == 'o') ? value <= 7 : (format_char == 'd') ? value <= 9 : value <= 15))) {
+        return PyUnicode_FromOrdinal(
+            ((int) value) + (((int) value) <= 9 ? '0' : (format_char == 'x' ? 'a' : 'A') - 10));
     }
-    if (unlikely(length < 0)) {
-        // huge integer type or (unlikely) error in sprintf() => use slow conversion
-        PyObject *pylong, *uval = NULL;
-        int one = 1; int little = (int)*(unsigned char *)&one;
-        unsigned char *bytes = (unsigned char *)&value;
-        pylong = _PyLong_FromByteArray(bytes, sizeof({{TYPE}}), little, !is_unsigned);
-        if (likely(pylong)) {
-#if PY_MAJOR_VERSION >= 3
-            uval = PyObject_Str(pylong);
-#else
-            uval = PyObject_Unicode(pylong);
-#endif
-            Py_DECREF(pylong);
+
+    // surprise: even trivial sprintf() calls don't get optimised in gcc (4.8)
+    remaining = value;
+    length = 0;
+    while (remaining != 0) {
+        char digit;
+        switch (format_char) {
+        case 'o':
+            digit = '0' + abs(remaining % 8);
+            remaining = remaining / 8;
+            break;
+        case 'd':
+            digit = '0' + abs(remaining % 10);
+            remaining = remaining / 10;
+            break;
+        case 'x':
+        case 'X':
+            digit = '0' + abs(remaining % 16);
+            remaining = remaining / 16;
+            if (digit > '9')
+                digit = digit - '9' - 1 + (format_char == 'x' ? 'a' : 'A');
+            break;
+        default:
+            assert(0);
         }
+        *(--dpos) = digit;
+        ++length;
+    }
+    if (!is_unsigned && value <= neg_one) {
+        *(--dpos) = '-';
+        ++length;
+    }
+
+#if CYTHON_COMPILING_IN_CPYTHON
+    {
+        int i;
+#if PY_MAJOR_VERSION > 3 || PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION >= 3
+        void *udata;
+        uval = PyUnicode_New(length, 127);
+        if (unlikely(!uval)) return NULL;
+        udata = PyUnicode_DATA(uval);
+        for (i=0; i<length; i++) {
+            PyUnicode_WRITE(PyUnicode_1BYTE_KIND, udata, i, dpos[i]);
+        }
+#else
+        Py_UNICODE *udata;
+        uval = PyUnicode_FromUnicode(NULL, length);
+        if (unlikely(!uval)) return uval;
+        udata = PyUnicode_AS_UNICODE(uval);
+        for (i=0; i<length; i++) {
+            udata[i] = dpos[i];
+        }
+#endif
         return uval;
     }
-    return PyUnicode_DecodeASCII(digits, length, NULL);
+#else
+    return PyUnicode_DecodeASCII(dpos, length, NULL);
+#endif
 }
 
 

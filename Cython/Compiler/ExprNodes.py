@@ -3012,10 +3012,13 @@ class FormattedValueNode(ExprNode):
     # value           ExprNode                The expression itself
     # conversion_char str or None             Type conversion (!s, !r, !a, or none)
     # format_spec     JoinedStrNode or None   Format string passed to __format__
+    # c_format_spec   str or None             Formatting that can be done at the C level
+
     subexprs = ['value', 'format_spec']
 
     type = unicode_type
     is_temp = True
+    c_format_spec = None
 
     find_conversion_func = {
         's': 'PyObject_Str',
@@ -3029,14 +3032,31 @@ class FormattedValueNode(ExprNode):
 
     def analyse_types(self, env):
         self.value = self.value.analyse_types(env)
+        if not self.format_spec or self.format_spec.is_string_literal:
+            c_format_spec = self.format_spec.value if self.format_spec else None
+            if self.value.type.can_coerce_to_pystring(env, format_spec=c_format_spec):
+                if c_format_spec is None and self.value.type.is_int:
+                    c_format_spec = 'd'
+                self.c_format_spec = c_format_spec
+
         if self.format_spec:
             self.format_spec = self.format_spec.analyse_types(env).coerce_to_pyobject(env)
-        elif not self.conversion_char and self.value.type.can_coerce_to_pyunicode(env):
-            return FormattedCValueNode(self.pos, value=self.value)
-        self.value = self.value.coerce_to_pyobject(env)
+        if not self.c_format_spec:
+            self.value = self.value.coerce_to_pyobject(env)
         return self
 
     def generate_result_code(self, code):
+        if self.c_format_spec and not self.value.type.is_pyobject:
+            convert_func = self.value.type.to_pystring_function(code)
+            code.putln("%s = %s(%s, '%s'); %s" % (
+                self.result(),
+                convert_func,
+                self.value.result(),
+                self.c_format_spec,
+                code.error_goto_if_null(self.result(), self.pos)))
+            code.put_gotref(self.py_result())
+            return
+
         value_result = self.value.py_result()
         if self.format_spec:
             format_func = '__Pyx_PyObject_Format'
@@ -3063,20 +3083,6 @@ class FormattedValueNode(ExprNode):
             format_func,
             value_result,
             format_spec,
-            code.error_goto_if_null(self.result(), self.pos)))
-        code.put_gotref(self.py_result())
-
-
-class FormattedCValueNode(FormattedValueNode):
-    conversion_char = None
-    format_spec = None
-
-    def generate_result_code(self, code):
-        convert_func = self.value.type.to_pyunicode_utility_code(code)
-        code.putln("%s = %s(%s); %s" % (
-            self.result(),
-            convert_func,
-            self.value.result(),
             code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
 
