@@ -568,6 +568,68 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
 }
 
 
+/////////////// CIntToPyUnicode.proto ///////////////
+
+static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value);
+
+/////////////// CIntToPyUnicode ///////////////
+
+static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
+    // simple and conservative string allocation on the stack
+    char digits[sizeof({{TYPE}})*3+2];
+    int length = -1;
+    const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = ({{TYPE}}) 0;
+    const int is_unsigned = neg_one > const_zero;
+
+    if (is_unsigned) {
+        if (sizeof({{TYPE}}) <= sizeof(unsigned int)) {
+            length = sprintf(digits, "%u", (unsigned int) value);
+        } else if (sizeof({{TYPE}}) <= sizeof(unsigned long)) {
+            length = sprintf(digits, "%lu", (unsigned long) value);
+        } else if (sizeof({{TYPE}}) <= sizeof(unsigned PY_LONG_LONG)) {
+            length = sprintf(digits, "%llu", (unsigned PY_LONG_LONG) value);
+        }
+    } else {
+        if (sizeof({{TYPE}}) <= sizeof(int)) {
+            length = sprintf(digits, "%d", (int) value);
+        } else if (sizeof({{TYPE}}) <= sizeof(long)) {
+            length = sprintf(digits, "%ld", (long) value);
+        } else if (sizeof({{TYPE}}) <= sizeof(PY_LONG_LONG)) {
+            length = sprintf(digits, "%lld", (PY_LONG_LONG) value);
+        }
+    }
+    if (unlikely(length < 0)) {
+        // huge integer type or (unlikely) error in sprintf() => use slow conversion
+        PyObject *pylong, *uval = NULL;
+        int one = 1; int little = (int)*(unsigned char *)&one;
+        unsigned char *bytes = (unsigned char *)&value;
+        pylong = _PyLong_FromByteArray(bytes, sizeof({{TYPE}}), little, !is_unsigned);
+        if (likely(pylong)) {
+#if PY_MAJOR_VERSION >= 3
+            uval = PyObject_Str(pylong);
+#else
+            uval = PyObject_Unicode(pylong);
+#endif
+            Py_DECREF(pylong);
+        }
+        return uval;
+    }
+    return PyUnicode_DecodeASCII(digits, length, NULL);
+}
+
+
+/////////////// NewOwnedRef.proto ///////////////
+
+static CYTHON_INLINE PyObject* __Pyx_NewOwnedRef(PyObject* value);
+
+/////////////// NewOwnedRef ///////////////
+
+static CYTHON_INLINE PyObject* __Pyx_NewOwnedRef(PyObject* value) {
+    Py_INCREF(value);
+    return value;
+}
+
+
 /////////////// PyIntFromDouble.proto ///////////////
 
 #if PY_MAJOR_VERSION < 3

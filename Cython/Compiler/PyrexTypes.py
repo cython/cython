@@ -30,6 +30,9 @@ class BaseType(object):
     def can_coerce_to_pyobject(self, env):
         return False
 
+    def can_coerce_to_pyunicode(self, env):
+        return False
+
     def cast_code(self, expr_code):
         return "((%s)%s)" % (self.empty_declaration_code(), expr_code)
 
@@ -1620,10 +1623,27 @@ class CIntType(CNumericType):
     typedef_flag = 0
     to_py_function = None
     from_py_function = None
+    to_pyunicode_utility = None
     exception_value = -1
 
     def can_coerce_to_pyobject(self, env):
         return True
+
+    def can_coerce_to_pyunicode(self, env):
+        return True
+
+    def to_pyunicode_utility_code(self, code):
+        if self.to_pyunicode_utility is None:
+            utility_code_name = "__Pyx_PyUnicode_From_" + self.specialization_name()
+            to_pyunicode_utility = TempitaUtilityCode.load_cached(
+                "CIntToPyUnicode", "TypeConversion.c",
+                context={"TYPE": self.empty_declaration_code(),
+                         "TO_PY_FUNCTION": utility_code_name})
+            self.to_pyunicode_utility = (utility_code_name, to_pyunicode_utility)
+        else:
+            utility_code_name, to_pyunicode_utility = self.to_pyunicode_utility
+        code.globalstate.use_utility_code(to_pyunicode_utility)
+        return utility_code_name
 
     def create_to_py_utility_code(self, env):
         if type(self).to_py_function is None:
@@ -1732,12 +1752,18 @@ class CReturnCodeType(CIntType):
     is_returncode = True
     exception_check = False
 
+    def can_coerce_to_pyunicode(self, env):
+        return False
+
 
 class CBIntType(CIntType):
 
     to_py_function = "__Pyx_PyBool_FromLong"
     from_py_function = "__Pyx_PyObject_IsTrue"
     exception_check = 1 # for C++ bool
+
+    def can_coerce_to_pyunicode(self, env):
+        return False
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
@@ -1773,6 +1799,9 @@ class CPyUCS4IntType(CIntType):
     to_py_function = "PyUnicode_FromOrdinal"
     from_py_function = "__Pyx_PyObject_AsPy_UCS4"
 
+    def can_coerce_to_pyunicode(self, env):
+        return False
+
     def create_from_py_utility_code(self, env):
         env.use_utility_code(UtilityCode.load_cached("ObjectAsUCS4", "TypeConversion.c"))
         return True
@@ -1793,6 +1822,9 @@ class CPyUnicodeIntType(CIntType):
 
     to_py_function = "PyUnicode_FromOrdinal"
     from_py_function = "__Pyx_PyObject_AsPy_UNICODE"
+
+    def can_coerce_to_pyunicode(self, env):
+        return False
 
     def create_from_py_utility_code(self, env):
         env.use_utility_code(UtilityCode.load_cached("ObjectAsPyUnicode", "TypeConversion.c"))

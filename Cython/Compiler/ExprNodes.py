@@ -3028,9 +3028,12 @@ class FormattedValueNode(ExprNode):
         return False
 
     def analyse_types(self, env):
-        self.value = self.value.analyse_types(env).coerce_to_pyobject(env)
+        self.value = self.value.analyse_types(env)
         if self.format_spec:
             self.format_spec = self.format_spec.analyse_types(env).coerce_to_pyobject(env)
+        elif not self.conversion_char and self.value.type.can_coerce_to_pyunicode(env):
+            return FormattedCValueNode(self.pos, value=self.value)
+        self.value = self.value.coerce_to_pyobject(env)
         return self
 
     def generate_result_code(self, code):
@@ -3060,6 +3063,20 @@ class FormattedValueNode(ExprNode):
             format_func,
             value_result,
             format_spec,
+            code.error_goto_if_null(self.result(), self.pos)))
+        code.put_gotref(self.py_result())
+
+
+class FormattedCValueNode(FormattedValueNode):
+    conversion_char = None
+    format_spec = None
+
+    def generate_result_code(self, code):
+        convert_func = self.value.type.to_pyunicode_utility_code(code)
+        code.putln("%s = %s(%s); %s" % (
+            self.result(),
+            convert_func,
+            self.value.result(),
             code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
 
