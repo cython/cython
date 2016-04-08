@@ -66,6 +66,41 @@ def format_c_numbers(signed char c, short s, int n, long l, float f, double d):
     return s1, s2, s3, s4
 
 
+def format_bool(bint x):
+    """
+    >>> a, b, c, d = format_bool(1)
+    >>> print(a)  # 1
+    True
+    >>> print(b)  # 1
+    True
+    >>> print(c)  # 1
+    False
+    >>> print(d)  # 1
+    False
+
+    >>> a, b, c, d = format_bool(2)
+    >>> print(a)  # 2
+    True
+    >>> print(b)  # 2
+    True
+    >>> print(c)  # 2
+    False
+    >>> print(d)  # 2
+    False
+
+    >>> a, b, c, d = format_bool(0)
+    >>> print(a)  # 3
+    False
+    >>> print(b)  # 3
+    True
+    >>> print(c)  # 3
+    False
+    >>> print(d)  # 3
+    False
+    """
+    return f'{x}', f'{True}', f'{x == 2}', f'{2 > 3}'
+
+
 def format_c_values(Py_UCS4 uchar, Py_UNICODE pyunicode):
     """
     >>> s, s1, s2 = format_c_values(b'A'.decode('ascii'), b'X'.decode('ascii'))

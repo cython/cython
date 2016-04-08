@@ -654,16 +654,10 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, char format_ch
 }
 
 
-/////////////// NewOwnedRef.proto ///////////////
+/////////////// CBIntToPyUnicode.proto ///////////////
 
-static CYTHON_INLINE PyObject* __Pyx_NewOwnedRef(PyObject* value);
-
-/////////////// NewOwnedRef ///////////////
-
-static CYTHON_INLINE PyObject* __Pyx_NewOwnedRef(PyObject* value) {
-    Py_INCREF(value);
-    return value;
-}
+#define {{TO_PY_FUNCTION}}(value, format_char)  \
+    ((value) ? (Py_INCREF({{TRUE_CONST}}), {{TRUE_CONST}}) :  (Py_INCREF({{FALSE_CONST}}), {{FALSE_CONST}}))
 
 
 /////////////// PyIntFromDouble.proto ///////////////
