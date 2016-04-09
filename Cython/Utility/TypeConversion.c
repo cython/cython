@@ -656,7 +656,7 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, char format_ch
 
 /////////////// CBIntToPyUnicode.proto ///////////////
 
-#define {{TO_PY_FUNCTION}}(value, format_char)  \
+#define {{TO_PY_FUNCTION}}(value)  \
     ((value) ? __Pyx_NewRef({{TRUE_CONST}}) : __Pyx_NewRef({{FALSE_CONST}}))
 
 

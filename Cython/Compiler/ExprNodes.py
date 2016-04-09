@@ -3012,7 +3012,7 @@ class FormattedValueNode(ExprNode):
     # value           ExprNode                The expression itself
     # conversion_char str or None             Type conversion (!s, !r, !a, or none)
     # format_spec     JoinedStrNode or None   Format string passed to __format__
-    # c_format_spec   str or None             Formatting that can be done at the C level
+    # c_format_spec   str or None             If not None, formatting can be done at the C level
 
     subexprs = ['value', 'format_spec']
 
@@ -3033,26 +3033,23 @@ class FormattedValueNode(ExprNode):
     def analyse_types(self, env):
         self.value = self.value.analyse_types(env)
         if not self.format_spec or self.format_spec.is_string_literal:
-            c_format_spec = self.format_spec.value if self.format_spec else None
+            c_format_spec = self.format_spec.value if self.format_spec else self.value.type.default_format_spec
             if self.value.type.can_coerce_to_pystring(env, format_spec=c_format_spec):
-                if c_format_spec is None and self.value.type.is_int:
-                    c_format_spec = 'd'
                 self.c_format_spec = c_format_spec
 
         if self.format_spec:
             self.format_spec = self.format_spec.analyse_types(env).coerce_to_pyobject(env)
-        if not self.c_format_spec:
+        if self.c_format_spec is None:
             self.value = self.value.coerce_to_pyobject(env)
         return self
 
     def generate_result_code(self, code):
-        if self.c_format_spec and not self.value.type.is_pyobject:
-            convert_func = self.value.type.to_pystring_function(code)
-            code.putln("%s = %s(%s, '%s'); %s" % (
+        if self.c_format_spec is not None and not self.value.type.is_pyobject:
+            convert_func_call = self.value.type.convert_to_pystring(
+                self.value.result(), code, self.c_format_spec)
+            code.putln("%s = %s; %s" % (
                 self.result(),
-                convert_func,
-                self.value.result(),
-                self.c_format_spec,
+                convert_func_call,
                 code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
             return

@@ -26,12 +26,16 @@ class BaseType(object):
     # List of attribute names of any subtypes
     subtypes = []
     _empty_declaration = None
+    default_format_spec = None
 
     def can_coerce_to_pyobject(self, env):
         return False
 
     def can_coerce_to_pystring(self, env, format_spec=None):
         return False
+
+    def convert_to_pystring(self, cvalue, code, format_spec=None):
+        raise NotImplementedError("C types that support string formatting must override this method")
 
     def cast_code(self, expr_code):
         return "((%s)%s)" % (self.empty_declaration_code(), expr_code)
@@ -1624,6 +1628,7 @@ class CIntType(CNumericType):
     to_py_function = None
     from_py_function = None
     to_pyunicode_utility = None
+    default_format_spec = 'd'
     exception_value = -1
 
     def can_coerce_to_pyobject(self, env):
@@ -1634,7 +1639,7 @@ class CIntType(CNumericType):
             return False
         return True
 
-    def to_pystring_function(self, code):
+    def convert_to_pystring(self, cvalue, code, format_spec=None):
         if self.to_pyunicode_utility is None:
             utility_code_name = "__Pyx_PyUnicode_From_" + self.specialization_name()
             to_pyunicode_utility = TempitaUtilityCode.load_cached(
@@ -1645,7 +1650,7 @@ class CIntType(CNumericType):
         else:
             utility_code_name, to_pyunicode_utility = self.to_pyunicode_utility
         code.globalstate.use_utility_code(to_pyunicode_utility)
-        return utility_code_name
+        return "%s(%s, '%s')" % (utility_code_name, cvalue, format_spec or 'd')
 
     def create_to_py_utility_code(self, env):
         if type(self).to_py_function is None:
@@ -1762,12 +1767,15 @@ class CBIntType(CIntType):
 
     to_py_function = "__Pyx_PyBool_FromLong"
     from_py_function = "__Pyx_PyObject_IsTrue"
-    exception_check = 1 # for C++ bool
+    exception_check = 1  # for C++ bool
+    default_format_spec = ''
 
     def can_coerce_to_pystring(self, env, format_spec=None):
-        return not format_spec
+        return not format_spec or super(CBIntType, self).can_coerce_to_pystring(env, format_spec)
 
-    def to_pystring_function(self, code):
+    def convert_to_pystring(self, cvalue, code, format_spec=None):
+        if format_spec:
+            return super(CBIntType, self).convert_to_pystring(cvalue, code, format_spec)
         # NOTE: no caching here as the string constant cnames depend on the current module
         utility_code_name = "__Pyx_PyUnicode_FromBInt_" + self.specialization_name()
         to_pyunicode_utility = TempitaUtilityCode.load_cached(
@@ -1777,7 +1785,7 @@ class CBIntType(CIntType):
                 "TO_PY_FUNCTION": utility_code_name,
             })
         code.globalstate.use_utility_code(to_pyunicode_utility)
-        return utility_code_name
+        return "%s(%s)" % (utility_code_name, cvalue)
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
