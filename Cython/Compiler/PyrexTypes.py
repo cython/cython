@@ -1758,9 +1758,13 @@ class CReturnCodeType(CIntType):
 
     is_returncode = True
     exception_check = False
+    default_format_spec = ''
 
     def can_coerce_to_pystring(self, env, format_spec=None):
-        return False
+        return not format_spec
+
+    def convert_to_pystring(self, cvalue, code, format_spec=None):
+        return "__Pyx_NewRef(%s)" % code.globalstate.get_py_string_const(StringEncoding.EncodedString("None")).cname
 
 
 class CBIntType(CIntType):

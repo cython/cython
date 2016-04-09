@@ -103,13 +103,15 @@ def format_bool(bint x):
 
 def format_c_values(Py_UCS4 uchar, Py_UNICODE pyunicode):
     """
-    >>> s, s1, s2 = format_c_values(b'A'.decode('ascii'), b'X'.decode('ascii'))
+    >>> s, s1, s2, s3 = format_c_values(b'A'.decode('ascii'), b'X'.decode('ascii'))
     >>> print(s)
     AXAX
     >>> print(s1)
     A
     >>> print(s2)
     X
+    >>> print(s3)
+    None
 
     """
     s = f"{uchar}{pyunicode}{uchar!s}{pyunicode!s}"
@@ -118,7 +120,11 @@ def format_c_values(Py_UCS4 uchar, Py_UNICODE pyunicode):
     assert isinstance(s1, unicode), type(s1)
     s2 = f"{pyunicode}"
     assert isinstance(s2, unicode), type(s2)
-    return s, s1, s2
+    l = [1, 2, 3]
+    s3 = f"{l.reverse()}"  # C int return value => None
+    assert isinstance(s3, unicode), type(s3)
+    assert l == [3, 2, 1]
+    return s, s1, s2, s3
 
 
 def format_strings(str s, unicode u):
