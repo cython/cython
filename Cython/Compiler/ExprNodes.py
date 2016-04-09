@@ -3064,9 +3064,14 @@ class FormattedValueNode(ExprNode):
             # passing a Unicode format string in Py2 forces PyObject_Format() to also return a Unicode string
             format_spec = Naming.empty_unicode
 
-        if self.conversion_char:
-            fn = self.find_conversion_func(self.conversion_char)
-            assert fn is not None, "invalid conversion character found: '%s'" % self.conversion_char
+        conversion_char = self.conversion_char
+        if conversion_char == 's' and self.value.type is unicode_type and not self.value.may_be_none():
+            # no need to pipe unicode strings through str()
+            conversion_char = None
+
+        if conversion_char:
+            fn = self.find_conversion_func(conversion_char)
+            assert fn is not None, "invalid conversion character found: '%s'" % conversion_char
             value_result = '%s(%s)' % (fn, value_result)
             code.globalstate.use_utility_code(UtilityCode.load_cached("PyObjectFormatAndDecref", "StringTools.c"))
             format_func += 'AndDecref'
