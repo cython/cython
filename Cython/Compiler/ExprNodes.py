@@ -2975,6 +2975,10 @@ class JoinedStrNode(ExprNode):
         self.values = [v.analyse_types(env).coerce_to_pyobject(env) for v in self.values]
         return self
 
+    def may_be_none(self):
+        # PyUnicode_Join() always returns a Unicode string or raises an exception
+        return False
+
     def generate_evaluation_code(self, code):
         code.mark_pos(self.pos)
         num_items = len(self.values)
