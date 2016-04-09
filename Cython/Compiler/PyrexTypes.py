@@ -1768,17 +1768,14 @@ class CBIntType(CIntType):
         return not format_spec
 
     def to_pystring_function(self, code):
-        if self.to_pyunicode_utility is None:
-            utility_code_name = "__Pyx_PyUnicode_FromBInt_" + self.specialization_name()
-            to_pyunicode_utility = TempitaUtilityCode.load_cached(
-                "CBIntToPyUnicode", "TypeConversion.c", context={
-                    "TRUE_CONST":  code.globalstate.get_py_string_const(StringEncoding.EncodedString("True")).cname,
-                    "FALSE_CONST": code.globalstate.get_py_string_const(StringEncoding.EncodedString("False")).cname,
-                    "TO_PY_FUNCTION": utility_code_name,
-                })
-            self.to_pyunicode_utility = (utility_code_name, to_pyunicode_utility)
-        else:
-            utility_code_name, to_pyunicode_utility = self.to_pyunicode_utility
+        # NOTE: no caching here as the string constant cnames depend on the current module
+        utility_code_name = "__Pyx_PyUnicode_FromBInt_" + self.specialization_name()
+        to_pyunicode_utility = TempitaUtilityCode.load_cached(
+            "CBIntToPyUnicode", "TypeConversion.c", context={
+                "TRUE_CONST":  code.globalstate.get_py_string_const(StringEncoding.EncodedString("True")).cname,
+                "FALSE_CONST": code.globalstate.get_py_string_const(StringEncoding.EncodedString("False")).cname,
+                "TO_PY_FUNCTION": utility_code_name,
+            })
         code.globalstate.use_utility_code(to_pyunicode_utility)
         return utility_code_name
 

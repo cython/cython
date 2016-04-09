@@ -657,7 +657,7 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, char format_ch
 /////////////// CBIntToPyUnicode.proto ///////////////
 
 #define {{TO_PY_FUNCTION}}(value, format_char)  \
-    ((value) ? (Py_INCREF({{TRUE_CONST}}), {{TRUE_CONST}}) :  (Py_INCREF({{FALSE_CONST}}), {{FALSE_CONST}}))
+    ((value) ? __Pyx_NewRef({{TRUE_CONST}}) : __Pyx_NewRef({{FALSE_CONST}}))
 
 
 /////////////// PyIntFromDouble.proto ///////////////
