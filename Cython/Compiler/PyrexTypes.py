@@ -1634,10 +1634,33 @@ class CIntType(CNumericType):
     def can_coerce_to_pyobject(self, env):
         return True
 
+    @staticmethod
+    def _parse_format(format_spec):
+        padding = ' '
+        if not format_spec:
+            return ('d', 0, padding)
+        format_type = format_spec[-1]
+        if format_type in ('o', 'd', 'x', 'X'):
+            prefix = format_spec[:-1]
+        elif format_type.isdigit():
+            format_type = 'd'
+            prefix = format_spec
+        else:
+            return (None, 0, padding)
+        if not prefix:
+            return (format_type, 0, padding)
+        if prefix[0] == '-':
+            prefix = prefix[1:]
+        if prefix and prefix[0] == '0':
+            padding = '0'
+            prefix = prefix.lstrip('0')
+        if prefix.isdigit():
+            return (format_type, int(prefix), padding)
+        return (None, 0, padding)
+
     def can_coerce_to_pystring(self, env, format_spec=None):
-        if format_spec and format_spec not in ('o', 'd', 'x', 'X'):
-            return False
-        return True
+        format_type, width, padding = self._parse_format(format_spec)
+        return format_type is not None and width <= 2**30
 
     def convert_to_pystring(self, cvalue, code, format_spec=None):
         if self.to_pyunicode_utility is None:
@@ -1650,7 +1673,8 @@ class CIntType(CNumericType):
         else:
             utility_code_name, to_pyunicode_utility = self.to_pyunicode_utility
         code.globalstate.use_utility_code(to_pyunicode_utility)
-        return "%s(%s, '%s')" % (utility_code_name, cvalue, format_spec or 'd')
+        format_type, width, padding_char = self._parse_format(format_spec)
+        return "%s(%s, %d, '%s', '%s')" % (utility_code_name, cvalue, width, padding_char, format_type)
 
     def create_to_py_utility_code(self, env):
         if type(self).to_py_function is None:
@@ -1826,7 +1850,7 @@ class CPyUCS4IntType(CIntType):
     from_py_function = "__Pyx_PyObject_AsPy_UCS4"
 
     def can_coerce_to_pystring(self, env, format_spec=None):
-        return False
+        return False  # does the right thing anyway
 
     def create_from_py_utility_code(self, env):
         env.use_utility_code(UtilityCode.load_cached("ObjectAsUCS4", "TypeConversion.c"))
@@ -1850,7 +1874,7 @@ class CPyUnicodeIntType(CIntType):
     from_py_function = "__Pyx_PyObject_AsPy_UNICODE"
 
     def can_coerce_to_pystring(self, env, format_spec=None):
-        return False
+        return False  # does the right thing anyway
 
     def create_from_py_utility_code(self, env):
         env.use_utility_code(UtilityCode.load_cached("ObjectAsPyUnicode", "TypeConversion.c"))

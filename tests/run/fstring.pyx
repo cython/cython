@@ -5,6 +5,10 @@
 # Cython specific PEP 498 tests in addition to test_fstring.pyx from CPython
 ####
 
+import sys
+IS_PYPY = hasattr(sys, 'pypy_version_info')
+
+
 def format2(ab, cd):
     """
     >>> a, b, c = format2(1, 2)
@@ -28,7 +32,7 @@ def format2(ab, cd):
     b = f"{ab}cd"
     assert isinstance(b, unicode), type(b)
     c = f"{ab}{cd}"
-    assert isinstance(c, unicode), type(c)
+    assert isinstance(c, unicode) or (IS_PYPY and isinstance(c, str)), type(c)
     return a, b, c
 
 
@@ -42,7 +46,7 @@ def format_c_numbers(signed char c, short s, int n, long l, float f, double d):
     >>> print(s3)
       12f
     >>> print(s4)
-    C 3.14
+    0C00C 3.14
 
     >>> s1, s2, s3, s4 = format_c_numbers(-123, -135, -12, -12312312, -2.3456, -3.1415926)
     >>> print(s1)
@@ -52,7 +56,7 @@ def format_c_numbers(signed char c, short s, int n, long l, float f, double d):
     >>> print(s3)
      -12f
     >>> print(s4)
-    -C-3.14
+    -C-0C-3.14
 
     """
     s1 = f"{c}{s:4}{l}{n}{f:.3}"
@@ -61,7 +65,7 @@ def format_c_numbers(signed char c, short s, int n, long l, float f, double d):
     assert isinstance(s2, unicode), type(s2)
     s3 = f"{n:-4}f"
     assert isinstance(s3, unicode), type(s3)
-    s4 = f"{n:X}{d:5.3}"
+    s4 = f"{n:02X}{n:03X}{d:5.3}"
     assert isinstance(s4, unicode), type(s4)
     return s1, s2, s3, s4
 
@@ -163,9 +167,9 @@ def format_str(str s1, str s2):
     sabcuxyz
     """
     a = f"{s1}{s2}"
-    assert isinstance(a, unicode), type(a)
+    assert isinstance(a, unicode) or (IS_PYPY and isinstance(a, str)), type(a)
     b = f"{s2}{s1}"
-    assert isinstance(b, unicode), type(b)
+    assert isinstance(b, unicode) or (IS_PYPY and isinstance(a, str)), type(b)
     c = f"u{s2}s{s1}"
     assert isinstance(c, unicode), type(c)
     d = f"s{s1}u{s2}"

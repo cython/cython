@@ -570,24 +570,26 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
 
 /////////////// CIntToPyUnicode.proto ///////////////
 
-static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, char format_char);
+static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, int width, char padding_char, char format_char);
 
 /////////////// CIntToPyUnicode ///////////////
+//@requires: BuildPyUnicode
 
-// NOTE: inlining because "format_char" is always a constant, which collapses lots of code below
+// NOTE: inlining because most arguments are constant, which collapses lots of code below
 
-static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, char format_char) {
+static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, int width, char padding_char, char format_char) {
     // simple and conservative C string allocation on the stack: each byte gives at most 3 digits, plus sign
     char digits[sizeof({{TYPE}})*3+2];
     // dpos points to end of digits array + 1 at the beginning to allow for pre-decrement looping
     char *dpos = digits + sizeof({{TYPE}})*3+2;
-    int length;
+    Py_ssize_t ulength;
+    int length, prepend_sign;
     {{TYPE}} remaining;
     const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = ({{TYPE}}) 0;
     const int is_unsigned = neg_one > const_zero;
 
     // single character unicode strings are cached in CPython => use PyUnicode_FromOrdinal() for them
-    if (unlikely((is_unsigned || value >= const_zero) && (
+    if (unlikely((is_unsigned || value >= const_zero) && (width <= 1) && (
             (format_char == 'o') ? value <= 7 : (format_char == 'd') ? value <= 9 : value <= 15))) {
         return PyUnicode_FromOrdinal(
             ((int) value) + (((int) value) <= 9 ? '0' : (format_char == 'x' ? 'a' : 'A') - 10));
@@ -620,37 +622,121 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, char format_ch
         *(--dpos) = digit;
         ++length;
     }
+    ulength = length;
+    prepend_sign = 0;
     if (!is_unsigned && value <= neg_one) {
-        *(--dpos) = '-';
-        ++length;
+        if (padding_char == ' ' || width <= length + 1) {
+            *(--dpos) = '-';
+            ++length;
+        } else {
+            prepend_sign = 1;
+        }
+        ++ulength;
     }
+    if (width > ulength) {
+        ulength = width;
+    }
+    return __Pyx_PyUnicode_Build(ulength, dpos, length, prepend_sign, padding_char);
+}
 
+
+/////////////// BuildPyUnicode.proto ///////////////
+
+static PyObject* __Pyx_PyUnicode_Build(Py_ssize_t ulength, char* chars, int clength,
+                                       int prepend_sign, char padding_char);
+
+/////////////// BuildPyUnicode ///////////////
+
+static PyObject* __Pyx_PyUnicode_Build(Py_ssize_t ulength, char* chars, int clength,
+                                       int prepend_sign, char padding_char) {
+    PyObject *uval;
+    Py_ssize_t uoffset = ulength - clength;
 #if CYTHON_COMPILING_IN_CPYTHON
-    {
-        int i;
-        PyObject *uval;
+    int i;
 #if PY_MAJOR_VERSION > 3 || PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION >= 3
-        void *udata;
-        uval = PyUnicode_New(length, 127);
-        if (unlikely(!uval)) return NULL;
-        udata = PyUnicode_DATA(uval);
-        for (i=0; i<length; i++) {
-            PyUnicode_WRITE(PyUnicode_1BYTE_KIND, udata, i, dpos[i]);
+    // Py 3.3+  (post PEP-393)
+    void *udata;
+    uval = PyUnicode_New(ulength, 127);
+    if (unlikely(!uval)) return NULL;
+    udata = PyUnicode_DATA(uval);
+    if (uoffset > 0) {
+        i = 0;
+        if (prepend_sign) {
+            PyUnicode_WRITE(PyUnicode_1BYTE_KIND, udata, 0, '-');
+            i++;
         }
-#else
-        Py_UNICODE *udata;
-        uval = PyUnicode_FromUnicode(NULL, length);
-        if (unlikely(!uval)) return NULL;
-        udata = PyUnicode_AS_UNICODE(uval);
-        for (i=0; i<length; i++) {
-            udata[i] = dpos[i];
+        for (; i < uoffset; i++) {
+            PyUnicode_WRITE(PyUnicode_1BYTE_KIND, udata, i, padding_char);
         }
-#endif
-        return uval;
+    }
+    for (i=0; i < clength; i++) {
+        PyUnicode_WRITE(PyUnicode_1BYTE_KIND, udata, uoffset+i, chars[i]);
     }
 #else
-    return PyUnicode_DecodeASCII(dpos, length, NULL);
+    // Py 2.x/3.2  (pre PEP-393)
+    Py_UNICODE *udata;
+    uval = PyUnicode_FromUnicode(NULL, ulength);
+    if (unlikely(!uval)) return NULL;
+    udata = PyUnicode_AS_UNICODE(uval);
+    if (uoffset > 0) {
+        i = 0;
+        if (prepend_sign) {
+            udata[0] = '-';
+            i++;
+        }
+        for (; i < uoffset; i++) {
+            udata[i] = padding_char;
+        }
+    }
+    for (i=0; i < clength; i++) {
+        udata[uoffset+i] = chars[i];
+    }
 #endif
+
+#else
+    // non-CPython
+    {
+        uval = NULL;
+        PyObject *sign = NULL, *padding = NULL;
+        if (uoffset > 0) {
+            prepend_sign = !!prepend_sign;
+            if (uoffset > prepend_sign) {
+                padding = PyUnicode_FromOrdinal(padding_char);
+                if (likely(padding) && uoffset > prepend_sign + 1) {
+                    PyObject *tmp;
+                    PyObject *repeat = PyInt_FromSize_t(uoffset - prepend_sign);
+                    if (unlikely(!repeat)) goto done_or_error;
+                    tmp = PyNumber_Multiply(padding, repeat);
+                    Py_DECREF(repeat);
+                    Py_DECREF(padding);
+                    padding = tmp;
+                }
+                if (unlikely(!padding)) goto done_or_error;
+            }
+            if (prepend_sign) {
+                sign = PyUnicode_FromOrdinal('-');
+                if (unlikely(!sign)) goto done_or_error;
+            }
+        }
+
+        uval = PyUnicode_DecodeASCII(chars, clength, NULL);
+        if (likely(uval) && padding) {
+            PyObject *tmp = PyNumber_Add(padding, uval);
+            Py_DECREF(uval);
+            uval = tmp;
+        }
+        if (likely(uval) && sign) {
+            PyObject *tmp = PyNumber_Add(sign, uval);
+            Py_DECREF(uval);
+            uval = tmp;
+        }
+done_or_error:
+        Py_XDECREF(padding);
+        Py_XDECREF(sign);
+    }
+#endif
+
+    return uval;
 }
 
 
