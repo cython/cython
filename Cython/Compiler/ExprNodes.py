@@ -3041,6 +3041,10 @@ class FormattedValueNode(ExprNode):
             self.format_spec = self.format_spec.analyse_types(env).coerce_to_pyobject(env)
         if self.c_format_spec is None:
             self.value = self.value.coerce_to_pyobject(env)
+            if not self.format_spec and self.value.type is unicode_type and not self.value.may_be_none():
+                if self.conversion_char in (None, 's'):
+                    # value is definitely a unicode string and we don't format it any special
+                    return self.value
         return self
 
     def generate_result_code(self, code):
@@ -3055,6 +3059,7 @@ class FormattedValueNode(ExprNode):
             return
 
         value_result = self.value.py_result()
+        value_is_unicode = self.value.type is unicode_type and not self.value.may_be_none()
         if self.format_spec:
             format_func = '__Pyx_PyObject_Format'
             format_spec = self.format_spec.py_result()
@@ -3065,7 +3070,7 @@ class FormattedValueNode(ExprNode):
             format_spec = Naming.empty_unicode
 
         conversion_char = self.conversion_char
-        if conversion_char == 's' and self.value.type is unicode_type and not self.value.may_be_none():
+        if conversion_char == 's' and value_is_unicode:
             # no need to pipe unicode strings through str()
             conversion_char = None
 
