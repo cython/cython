@@ -207,7 +207,7 @@ class AnnotationCCodeWriter(CCodeWriter):
 
     def _save_annotation_body(self, cython_code, generated_code, covered_lines=None):
         outlist = [u'<div class="cython">']
-        pos_comment_marker = u'/* \N{HORIZONTAL ELLIPSIS} */\n'
+        pos_comment_marker = u'/* \n{HORIZONTAL ELLIPSIS} */\n'
         new_calls_map = dict(
             (name, 0) for name in
             'refnanny trace py_macro_api py_c_api pyx_macro_api pyx_c_api error_goto'.split()
