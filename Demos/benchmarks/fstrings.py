@@ -13,25 +13,213 @@ def run():
     f = 1.0
     x = 2
     n = 5
+    i = 12345678
     s = 'abc'
     u = u'üöä'
 
-    for i in range(100):
-        f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
-        f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
-        f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
-        f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
-        f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    # repeat without fast looping ...
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
 
-        f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
-        f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
-        f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
-        f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
-        f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
 
-        f"{n}oo{n*10}{f:3.2}--{n:2}{n:5}oo{i}{s}"
-        f"{n}oo{n*10}{f:5.2}--{n:2}{n:5}oo{i}{u}"
-        f"{n}oo{n*10}{f:2.2}--{n:2}{n:5}oo{i}{s}xx{u}"
+    f"{n}oo{n*10}{f:3.2}--{n:2}{n:5}oo{i}{s}"
+    f"{n}oo{n*10}{f:5.2}--{n:2}{n:5}oo{i}{u}"
+    f"{n}oo{n*10}{f:2.2}--{n:2}{n:5}oo{i}{s}xx{u}"
+
+    # repeat without fast looping ...
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+
+    f"{n}oo{n*10}{f:3.2}--{n:2}{n:5}oo{i}{s}"
+    f"{n}oo{n*10}{f:5.2}--{n:2}{n:5}oo{i}{u}"
+    f"{n}oo{n*10}{f:2.2}--{n:2}{n:5}oo{i}{s}xx{u}"
+
+    # repeat without fast looping ...
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+
+    f"{n}oo{n*10}{f:3.2}--{n:2}{n:5}oo{i}{s}"
+    f"{n}oo{n*10}{f:5.2}--{n:2}{n:5}oo{i}{u}"
+    f"{n}oo{n*10}{f:2.2}--{n:2}{n:5}oo{i}{s}xx{u}"
+
+    # repeat without fast looping ...
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+
+    f"{n}oo{n*10}{f:3.2}--{n:2}{n:5}oo{i}{s}"
+    f"{n}oo{n*10}{f:5.2}--{n:2}{n:5}oo{i}{u}"
+    f"{n}oo{n*10}{f:2.2}--{n:2}{n:5}oo{i}{s}xx{u}"
+
+    # repeat without fast looping ...
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+
+    f"{n}oo{n*10}{f:3.2}--{n:2}{n:5}oo{i}{s}"
+    f"{n}oo{n*10}{f:5.2}--{n:2}{n:5}oo{i}{u}"
+    f"{n}oo{n*10}{f:2.2}--{n:2}{n:5}oo{i}{s}xx{u}"
+
+    # repeat without fast looping ...
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+
+    f"{n}oo{n*10}{f:3.2}--{n:2}{n:5}oo{i}{s}"
+    f"{n}oo{n*10}{f:5.2}--{n:2}{n:5}oo{i}{u}"
+    f"{n}oo{n*10}{f:2.2}--{n:2}{n:5}oo{i}{s}xx{u}"
+
+    # repeat without fast looping ...
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+
+    f"{n}oo{n*10}{f:3.2}--{n:2}{n:5}oo{i}{s}"
+    f"{n}oo{n*10}{f:5.2}--{n:2}{n:5}oo{i}{u}"
+    f"{n}oo{n*10}{f:2.2}--{n:2}{n:5}oo{i}{s}xx{u}"
+
+    # repeat without fast looping ...
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+
+    f"{n}oo{n*10}{f:3.2}--{n:2}{n:5}oo{i}{s}"
+    f"{n}oo{n*10}{f:5.2}--{n:2}{n:5}oo{i}{u}"
+    f"{n}oo{n*10}{f:2.2}--{n:2}{n:5}oo{i}{s}xx{u}"
+
+    # repeat without fast looping ...
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+
+    f"{n}oo{n*10}{f:3.2}--{n:2}{n:5}oo{i}{s}"
+    f"{n}oo{n*10}{f:5.2}--{n:2}{n:5}oo{i}{u}"
+    f"{n}oo{n*10}{f:2.2}--{n:2}{n:5}oo{i}{s}xx{u}"
+
+    # repeat without fast looping ...
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+
+    f"{n}oo{n*10}{f:3.2}--{n:2}{n:5}oo{i}{s}"
+    f"{n}oo{n*10}{f:5.2}--{n:2}{n:5}oo{i}{u}"
+    f"{n}oo{n*10}{f:2.2}--{n:2}{n:5}oo{i}{s}xx{u}"
+
+    # repeat without fast looping ...
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+
+    f"{n}oo{n*10}{f:3.2}--{n:2}{n:5}oo{i}{s}"
+    f"{n}oo{n*10}{f:5.2}--{n:2}{n:5}oo{i}{u}"
+    f"{n}oo{n*10}{f:2.2}--{n:2}{n:5}oo{i}{s}xx{u}"
+
+    # repeat without fast looping ...
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+    f"{n}oo{n*10}{f:.2}--{n:2}{n:5}oo{i}"
+
+    f"{n}oo{n*10}{f:3.2}--{n:2}{n:5}oo{i}{s}"
+    f"{n}oo{n*10}{f:5.2}--{n:2}{n:5}oo{i}{u}"
+    f"{n}oo{n*10}{f:2.2}--{n:2}{n:5}oo{i}{s}xx{u}"
 
     tk = time()
     return tk - t0
