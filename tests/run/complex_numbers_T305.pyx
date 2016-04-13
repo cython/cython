@@ -25,6 +25,16 @@ def test_arithmetic(double complex z, double complex w):
     """
     return +z, -z+0, z+w, z-w, z*w, z/w
 
+def test_div(double complex a, double complex b, expected):
+    """
+    >>> big = 2.0**1023
+    >>> test_div(1 + 1j, 1 + big*1j, 1/big - 1j/big)
+    >>> test_div(1 + 1j, 1/big + 1j/big, big)
+    """
+    # Can't count on good c99 complex division :(
+    if '_c99_' not in __name__:
+        assert a / b == expected, (a / b, expected)
+
 def test_pow(double complex z, double complex w, tol=None):
     """
     Various implementations produce slightly different results...
