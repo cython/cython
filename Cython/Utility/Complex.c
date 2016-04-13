@@ -176,13 +176,40 @@ static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject* o) {
         z.imag = a.real * b.imag + a.imag * b.real;
         return z;
     }
+
+    #if {{is_float}}
     static CYTHON_INLINE {{type}} __Pyx_c_quot{{m}}({{type}} a, {{type}} b) {
-        {{type}} z;
-        {{real_type}} denom = b.real * b.real + b.imag * b.imag;
-        z.real = (a.real * b.real + a.imag * b.imag) / denom;
-        z.imag = (a.imag * b.real - a.real * b.imag) / denom;
-        return z;
+        if (b.imag == 0) {
+            return {{type_name}}_from_parts(a.real / b.real, a.imag / b.real);
+        } else if (fabs{{m}}(b.real) >= fabs{{m}}(b.imag)) {
+            if (b.real == 0 && b.imag == 0) {
+                return {{type_name}}_from_parts(a.real / b.real, a.imag / b.imag);
+            } else {
+                {{real_type}} r = b.imag / b.real;
+                {{real_type}} s = 1.0 / (b.real + b.imag * r);
+                return {{type_name}}_from_parts(
+                    (a.real + a.imag * r) * s, (a.imag - a.real * r) * s);
+            }
+        } else {
+            {{real_type}} r = b.real / b.imag;
+            {{real_type}} s = 1.0 / (b.imag + b.real * r);
+            return {{type_name}}_from_parts(
+                (a.real * r + a.imag) * s, (a.imag * r - a.real) * s);
+        }
     }
+    #else
+    static CYTHON_INLINE {{type}} __Pyx_c_quot{{m}}({{type}} a, {{type}} b) {
+        if (b.imag == 0) {
+            return {{type_name}}_from_parts(a.real / b.real, a.imag / b.real);
+        } else {
+            {{real_type}} denom = b.real * b.real + b.imag * b.imag;
+            return {{type_name}}_from_parts(
+                (a.real * b.real + a.imag * b.imag) / denom,
+                (a.imag * b.real - a.real * b.imag) / denom);
+        }
+    }
+    #endif
+
     static CYTHON_INLINE {{type}} __Pyx_c_neg{{m}}({{type}} a) {
         {{type}} z;
         z.real = -a.real;
