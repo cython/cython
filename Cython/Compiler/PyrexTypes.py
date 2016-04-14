@@ -3675,6 +3675,8 @@ class CppClassType(CType):
                 if self.templates == other_type.templates:
                     return 1
                 for t1, t2 in zip(self.templates, other_type.templates):
+                    if is_optional_template_param(t1) and is_optional_template_param(t2):
+                      break
                     if not t1.same_as_resolved_type(t2):
                         return 0
                 return 1

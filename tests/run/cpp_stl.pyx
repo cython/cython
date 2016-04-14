@@ -37,6 +37,16 @@ def test_vector(L):
         print v.at(i)
     del v
 
+ctypedef int my_int
+def test_vector_typedef(L):
+    """
+    >>> test_vector_typedef([1, 2, 3])
+    [1, 2, 3]
+    """
+    cdef vector[my_int] v = L
+    cdef vector[int] vv = v
+    return vv
+
 def test_vector_iterator(L):
     """
     >>> test_vector([11, 37, 389, 5077])
