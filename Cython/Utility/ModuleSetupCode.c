@@ -119,6 +119,10 @@
   #define PyUnicode_Contains(u, s)  PySequence_Contains(u, s)
 #endif
 
+#if CYTHON_COMPILING_IN_PYPY && !defined(PyByteArray_Check)
+  #define PyByteArray_Check(obj)  PyObject_TypeCheck(obj, &PyByteArray_Type)
+#endif
+
 #if CYTHON_COMPILING_IN_PYPY && !defined(PyObject_Format)
   #define PyObject_Format(obj, fmt)  PyObject_CallMethod(obj, "__format__", "O", fmt)
 #endif
