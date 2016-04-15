@@ -652,11 +652,11 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
 
     # workaround for setuptools
     if 'setuptools' in sys.modules:
-        Extension_dustutils = sys.modules['setuptools.extension']._Extension
+        Extension_distutils = sys.modules['setuptools.extension']._Extension
         Extension_setuptools = sys.modules['setuptools'].Extension
     else:
         # dummy class, in case we do not have setuptools
-        Extension_dustutils = Extension
+        Extension_distutils = Extension
         class Extension_setuptools(Extension): pass
 
     for pattern in patterns:
@@ -667,7 +667,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
             base = None
             exn_type = Extension
             ext_language = language
-        elif isinstance(pattern, (Extension_dustutils, Extension_setuptools)):
+        elif isinstance(pattern, (Extension_distutils, Extension_setuptools)):
             for filepattern in pattern.sources:
                 if os.path.splitext(filepattern)[1] in ('.py', '.pyx'):
                     break
