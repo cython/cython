@@ -741,7 +741,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                         **kwds))
                 if extra_sources:
                     kwds['sources'] = extra_sources
-                module_metadata[module_name] = {'distutils': kwds}
+                module_metadata[module_name] = {'distutils': kwds, 'module_name': module_name}
                 m = module_list[-1]
                 seen.add(name)
     return module_list, module_metadata
