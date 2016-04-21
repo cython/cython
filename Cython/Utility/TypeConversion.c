@@ -570,14 +570,14 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
 
 /////////////// CIntToPyUnicode.proto ///////////////
 
-static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, int width, char padding_char, char format_char);
+static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t width, char padding_char, char format_char);
 
 /////////////// CIntToPyUnicode ///////////////
 //@requires: BuildPyUnicode
 
 // NOTE: inlining because most arguments are constant, which collapses lots of code below
 
-static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, int width, char padding_char, char format_char) {
+static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t width, char padding_char, char format_char) {
     // simple and conservative C string allocation on the stack: each byte gives at most 3 digits, plus sign
     char digits[sizeof({{TYPE}})*3+2];
     // dpos points to end of digits array + 1 at the beginning to allow for pre-decrement looping
@@ -652,7 +652,7 @@ static PyObject* __Pyx_PyUnicode_Build(Py_ssize_t ulength, char* chars, int clen
     PyObject *uval;
     Py_ssize_t uoffset = ulength - clength;
 #if CYTHON_COMPILING_IN_CPYTHON
-    int i;
+    Py_ssize_t i;
 #if PY_MAJOR_VERSION > 3 || PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION >= 3
     // Py 3.3+  (post PEP-393)
     void *udata;
