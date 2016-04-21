@@ -24,8 +24,8 @@ def is_tp_traverse_null(obj):
 @cython.no_gc
 cdef class DisableGC:
     """
-    An extension type that has a tp_clear method generated to test that it
-    actually clears the references to NULL.
+    An extension type that has tp_clear and tp_traverse methods generated 
+    to test that it actually clears the references to NULL.
 
     >>> uut = DisableGC()
     >>> is_tp_clear_null(uut)
