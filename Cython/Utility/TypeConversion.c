@@ -653,45 +653,32 @@ static PyObject* __Pyx_PyUnicode_Build(Py_ssize_t ulength, char* chars, int clen
     Py_ssize_t uoffset = ulength - clength;
 #if CYTHON_COMPILING_IN_CPYTHON
     Py_ssize_t i;
-#if PY_MAJOR_VERSION > 3 || PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION >= 3
+#if CYTHON_PEP393_ENABLED
     // Py 3.3+  (post PEP-393)
     void *udata;
     uval = PyUnicode_New(ulength, 127);
     if (unlikely(!uval)) return NULL;
     udata = PyUnicode_DATA(uval);
-    if (uoffset > 0) {
-        i = 0;
-        if (prepend_sign) {
-            PyUnicode_WRITE(PyUnicode_1BYTE_KIND, udata, 0, '-');
-            i++;
-        }
-        for (; i < uoffset; i++) {
-            PyUnicode_WRITE(PyUnicode_1BYTE_KIND, udata, i, padding_char);
-        }
-    }
-    for (i=0; i < clength; i++) {
-        PyUnicode_WRITE(PyUnicode_1BYTE_KIND, udata, uoffset+i, chars[i]);
-    }
 #else
     // Py 2.x/3.2  (pre PEP-393)
     Py_UNICODE *udata;
     uval = PyUnicode_FromUnicode(NULL, ulength);
     if (unlikely(!uval)) return NULL;
     udata = PyUnicode_AS_UNICODE(uval);
+#endif
     if (uoffset > 0) {
         i = 0;
         if (prepend_sign) {
-            udata[0] = '-';
+            __Pyx_PyUnicode_WRITE(PyUnicode_1BYTE_KIND, udata, 0, '-');
             i++;
         }
         for (; i < uoffset; i++) {
-            udata[i] = padding_char;
+            __Pyx_PyUnicode_WRITE(PyUnicode_1BYTE_KIND, udata, i, padding_char);
         }
     }
     for (i=0; i < clength; i++) {
-        udata[uoffset+i] = chars[i];
+        __Pyx_PyUnicode_WRITE(PyUnicode_1BYTE_KIND, udata, uoffset+i, chars[i]);
     }
-#endif
 
 #else
     // non-CPython
