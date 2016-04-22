@@ -635,7 +635,7 @@ def create_dependency_tree(ctx=None, quiet=False):
 def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=False, language=None,
                           exclude_failures=False):
     if language is not None:
-        print('Please put "# distutils: langauge=%s" in your .pyx or .pxd file(s)' % language)
+        print('Please put "# distutils: language=%s" in your .pyx or .pxd file(s)' % language)
     if exclude is None:
         exclude = []
     if not isinstance(patterns, (list, tuple)):
