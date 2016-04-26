@@ -1,7 +1,7 @@
 cdef extern from "stdio.h":
     int puts(char *s)
 
-cdef extern:
+cdef extern from "cfuncs.h":
     void some_c_function()
 
 import os
