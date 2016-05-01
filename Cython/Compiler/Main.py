@@ -285,11 +285,10 @@ class Context(object):
     def check_package_dir(self, dir, package_names):
         return Utils.check_package_dir(dir, tuple(package_names))
 
-    def c_file_out_of_date(self, source_path):
-        c_path = Utils.replace_suffix(source_path, ".c")
-        if not os.path.exists(c_path):
+    def c_file_out_of_date(self, source_path, output_path):
+        if not os.path.exists(output_path):
             return 1
-        c_time = Utils.modification_time(c_path)
+        c_time = Utils.modification_time(output_path)
         if Utils.file_newer_than(source_path, c_time):
             return 1
         pos = [source_path]
@@ -427,24 +426,28 @@ class Context(object):
                 pass
             result.c_file = None
 
+def get_output_filename(source_filename, cwd, options):
+    if options.cplus:
+        c_suffix = ".cpp"
+    else:
+        c_suffix = ".c"
+    suggested_file_name = Utils.replace_suffix(source_filename, c_suffix)
+    if options.output_file:
+        out_path = os.path.join(cwd, options.output_file)
+        if os.path.isdir(out_path):
+            return os.path.join(out_path, os.path.basename(suggested_file_name))
+        else:
+            return out_path
+    else:
+        return suggested_file_name
+
 def create_default_resultobj(compilation_source, options):
     result = CompilationResult()
     result.main_source_file = compilation_source.source_desc.filename
     result.compilation_source = compilation_source
     source_desc = compilation_source.source_desc
-    if options.cplus:
-        c_suffix = ".cpp"
-    else:
-        c_suffix = ".c"
-    suggested_file_name = Utils.replace_suffix(source_desc.filename, c_suffix)
-    if options.output_file:
-        out_path = os.path.join(compilation_source.cwd, options.output_file)
-        if os.path.isdir(out_path):
-            result.c_file = os.path.join(out_path, os.path.basename(suggested_file_name))
-        else:
-            result.c_file = out_path
-    else:
-        result.c_file = suggested_file_name
+    result.c_file = get_output_filename(source_desc.filename,
+                        compilation_source.cwd, options)
     result.embedded_metadata = options.embedded_metadata
     return result
 
@@ -651,11 +654,14 @@ def compile_multiple(sources, options):
     timestamps = options.timestamps
     verbose = options.verbose
     context = None
+    cwd = os.getcwd()
     for source in sources:
         if source not in processed:
             if context is None:
                 context = options.create_context()
-            if not timestamps or context.c_file_out_of_date(source):
+            output_filename = get_output_filename(source, cwd, options)
+            out_of_date = context.c_file_out_of_date(source, output_filename)
+            if (not timestamps) or out_of_date:
                 if verbose:
                     sys.stderr.write("Compiling %s\n" % source)
 
