@@ -5,14 +5,13 @@ cimport cython
 def test_object_conversion(o):
     """
     >>> test_object_conversion(2)
-    ((2+0j), (2+0j), (2+0j))
+    ((2+0j), (2+0j))
     >>> test_object_conversion(2j - 0.5)
-    ((-0.5+2j), (-0.5+2j), (-0.5+2j))
+    ((-0.5+2j), (-0.5+2j))
     """
     cdef float complex a = o
     cdef double complex b = o
-    cdef long double complex c = o
-    return (a, b, c)
+    return (a, b)
 
 def test_arithmetic(double complex z, double complex w):
     """
