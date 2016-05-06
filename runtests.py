@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import atexit
 import os
 import sys
 import re
@@ -69,6 +70,24 @@ CY3_DIR = None
 
 from distutils.command.build_ext import build_ext as _build_ext
 from distutils import sysconfig
+
+_to_clean = []
+
+@atexit.register
+def _cleanup_files():
+    """
+    This is only used on Cygwin to clean up shared libraries that are unsafe
+    to delete while the test suite is running.
+    """
+
+    for filename in _to_clean:
+        if os.path.isdir(filename):
+            shutil.rmtree(filename, ignore_errors=True)
+        else:
+            try:
+                os.remove(filename)
+            except OSError:
+                pass
 
 
 def get_distutils_distro(_cache=[]):
@@ -673,8 +692,10 @@ class CythonCompileTestCase(unittest.TestCase):
         cleanup = self.cleanup_failures or self.success
         cleanup_c_files = WITH_CYTHON and self.cleanup_workdir and cleanup
         cleanup_lib_files = self.cleanup_sharedlibs and cleanup
+        is_cygwin = sys.platform == 'cygwin'
+
         if os.path.exists(self.workdir):
-            if cleanup_c_files and cleanup_lib_files:
+            if cleanup_c_files and cleanup_lib_files and not is_cygwin:
                 shutil.rmtree(self.workdir, ignore_errors=True)
             else:
                 for rmfile in os.listdir(self.workdir):
@@ -683,16 +704,27 @@ class CythonCompileTestCase(unittest.TestCase):
                                 rmfile[-4:] == ".cpp" or
                                 rmfile.endswith(".html") and rmfile.startswith(self.module)):
                             continue
-                    if not cleanup_lib_files and (rmfile.endswith(".so") or rmfile.endswith(".dll")):
+
+                    is_shared_obj = rmfile.endswith(".so") or rmfile.endswith(".dll")
+
+                    if not cleanup_lib_files and is_shared_obj:
                         continue
+
                     try:
                         rmfile = os.path.join(self.workdir, rmfile)
                         if os.path.isdir(rmfile):
                             shutil.rmtree(rmfile, ignore_errors=True)
+                        elif is_cygwin and is_shared_obj:
+                            # Delete later
+                            _to_clean.append(rmfile)
                         else:
                             os.remove(rmfile)
                     except IOError:
                         pass
+
+                if cleanup_c_files and cleanup_lib_files and is_cygwin:
+                    # Finally, remove the work dir itself
+                    _to_clean.append(self.workdir)
 
     def runTest(self):
         self.success = False
