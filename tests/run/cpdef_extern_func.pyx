@@ -1,5 +1,6 @@
 # cython: c_string_type=str
 # cython: c_string_encoding=ascii
+# distutils: extra_compile_args=-fpermissive
 
 __doc__ = """
 >>> sqrt(1)
