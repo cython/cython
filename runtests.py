@@ -1993,10 +1993,17 @@ def runtests(options, cmd_args, coverage=None):
         exclude_selectors.append(ShardExcludeSelector(options.shard_num, options.shard_count))
 
     if not test_bugs:
+        bug_files = [
+            ('bugs.txt', True),
+            ('pypy_bugs.txt', IS_PYPY),
+            ('windows_bugs.txt', sys.platform == 'win32'),
+            ('cygwin_bugs.txt', sys.platform == 'cygwin')
+        ]
+
         exclude_selectors += [
-            FileListExcluder(os.path.join(ROOTDIR, bugs_file_name), verbose=verbose_excludes)
-            for bugs_file_name in ['bugs.txt'] + (['pypy_bugs.txt'] if IS_PYPY else []) +
-            (['windows_bugs.txt'] if sys.platform == 'win32' else [])
+            FileListExcluder(os.path.join(ROOTDIR, bugs_file_name),
+                             verbose=verbose_excludes)
+            for bugs_file_name, condition in bug_files if condition
         ]
 
     if sys.platform in ['win32', 'cygwin'] and sys.version_info < (2,6):
