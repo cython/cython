@@ -1480,7 +1480,6 @@ class EmbedTest(unittest.TestCase):
         os.chdir(self.old_dir)
 
     def test_embed(self):
-        from distutils import sysconfig
         libname = sysconfig.get_config_var('LIBRARY')
         libdir = sysconfig.get_config_var('LIBDIR')
         if not os.path.isdir(libdir) or libname not in os.listdir(libdir):
