@@ -856,10 +856,7 @@ class CythonCompileTestCase(unittest.TestCase):
                 build_extension.compiler = COMPILER
 
             ext_compile_flags = CFLAGS[:]
-            compiler = COMPILER or sysconfig.get_config_var('CC')
 
-            if self.language == 'c' and 'gcc' in compiler:
-                ext_compile_flags.append('-pedantic')
             if  build_extension.compiler == 'mingw32':
                 ext_compile_flags.append('-Wno-format')
             if extra_extension_args is None:
