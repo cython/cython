@@ -3969,12 +3969,13 @@ class GeneratorDefNode(DefNode):
         body_cname = self.gbody.entry.func_cname
         name = code.intern_identifier(self.name)
         qualname = code.intern_identifier(self.qualname)
+        module_name = code.intern_identifier(self.module_name)
 
         code.putln('{')
         code.putln('__pyx_CoroutineObject *gen = __Pyx_%s_New('
-                   '(__pyx_coroutine_body_t) %s, (PyObject *) %s, %s, %s); %s' % (
+                   '(__pyx_coroutine_body_t) %s, (PyObject *) %s, %s, %s, %s); %s' % (
                        'Coroutine' if self.is_coroutine else 'Generator',
-                       body_cname, Naming.cur_scope_cname, name, qualname,
+                       body_cname, Naming.cur_scope_cname, name, qualname, module_name,
                        code.error_goto_if_null('gen', self.pos)))
         code.put_decref(Naming.cur_scope_cname, py_object_type)
         if self.requires_classobj:

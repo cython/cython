@@ -488,6 +488,15 @@ class CoroutineTest(unittest.TestCase):
         def gen(): yield
         self.assertFalse(hasattr(gen, '__await__'))
 
+    def test_func_attributes(self):
+        async def foo():
+            return 10
+
+        f = foo()
+        self.assertEqual(f.__name__, 'foo')
+        self.assertEqual(f.__qualname__, 'CoroutineTest.test_func_attributes.<locals>.foo')
+        self.assertEqual(f.__module__, 'test_coroutines_pep492')
+
     def test_func_1(self):
         async def foo():
             return 10

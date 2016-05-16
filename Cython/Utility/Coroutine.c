@@ -341,13 +341,15 @@ typedef struct {
     PyObject *yieldfrom;
     PyObject *gi_name;
     PyObject *gi_qualname;
+    PyObject *gi_modulename;
     int resume_label;
     // using T_BOOL for property below requires char value
     char is_running;
 } __pyx_CoroutineObject;
 
-static __pyx_CoroutineObject *__Pyx__Coroutine_New(PyTypeObject *type, __pyx_coroutine_body_t body,
-                                                   PyObject *closure, PyObject *name, PyObject *qualname); /*proto*/
+static __pyx_CoroutineObject *__Pyx__Coroutine_New(
+    PyTypeObject *type, __pyx_coroutine_body_t body, PyObject *closure,
+    PyObject *name, PyObject *qualname, PyObject *module_name); /*proto*/
 static int __Pyx_Coroutine_clear(PyObject *self); /*proto*/
 
 #if 1 || PY_VERSION_HEX < 0x030300B0
@@ -364,8 +366,8 @@ static PyTypeObject *__pyx_CoroutineType = 0;
 static PyTypeObject *__pyx_CoroutineAwaitType = 0;
 #define __Pyx_Coroutine_CheckExact(obj) (Py_TYPE(obj) == __pyx_CoroutineType)
 
-#define __Pyx_Coroutine_New(body, closure, name, qualname)  \
-    __Pyx__Coroutine_New(__pyx_CoroutineType, body, closure, name, qualname)
+#define __Pyx_Coroutine_New(body, closure, name, qualname, module_name)  \
+    __Pyx__Coroutine_New(__pyx_CoroutineType, body, closure, name, qualname, module_name)
 
 static int __pyx_Coroutine_init(void); /*proto*/
 static PyObject *__Pyx__Coroutine_await(PyObject *coroutine); /*proto*/
@@ -377,8 +379,8 @@ static PyObject *__Pyx__Coroutine_await(PyObject *coroutine); /*proto*/
 static PyTypeObject *__pyx_GeneratorType = 0;
 #define __Pyx_Generator_CheckExact(obj) (Py_TYPE(obj) == __pyx_GeneratorType)
 
-#define __Pyx_Generator_New(body, closure, name, qualname)  \
-    __Pyx__Coroutine_New(__pyx_GeneratorType, body, closure, name, qualname)
+#define __Pyx_Generator_New(body, closure, name, qualname, module_name)  \
+    __Pyx__Coroutine_New(__pyx_GeneratorType, body, closure, name, qualname, module_name)
 
 static PyObject *__Pyx_Generator_Next(PyObject *self);
 static int __pyx_Generator_init(void); /*proto*/
@@ -998,8 +1000,9 @@ __Pyx_Coroutine_set_qualname(__pyx_CoroutineObject *self, PyObject *value)
     return 0;
 }
 
-static __pyx_CoroutineObject *__Pyx__Coroutine_New(PyTypeObject* type, __pyx_coroutine_body_t body,
-                                                   PyObject *closure, PyObject *name, PyObject *qualname) {
+static __pyx_CoroutineObject *__Pyx__Coroutine_New(
+            PyTypeObject* type, __pyx_coroutine_body_t body, PyObject *closure,
+            PyObject *name, PyObject *qualname, PyObject *module_name) {
     __pyx_CoroutineObject *gen = PyObject_GC_New(__pyx_CoroutineObject, type);
 
     if (gen == NULL)
@@ -1020,6 +1023,8 @@ static __pyx_CoroutineObject *__Pyx__Coroutine_New(PyTypeObject* type, __pyx_cor
     gen->gi_qualname = qualname;
     Py_XINCREF(name);
     gen->gi_name = name;
+    Py_XINCREF(module_name);
+    gen->gi_modulename = module_name;
 
     PyObject_GC_Track(gen);
     return gen;
@@ -1260,6 +1265,7 @@ static PyMemberDef __pyx_Coroutine_memberlist[] = {
     {(char *) "cr_running", T_BOOL, offsetof(__pyx_CoroutineObject, is_running), READONLY, NULL},
     {(char*) "cr_await", T_OBJECT, offsetof(__pyx_CoroutineObject, yieldfrom), READONLY,
      (char*) PyDoc_STR("object being awaited, or None")},
+    {(char *) "__module__", T_OBJECT, offsetof(__pyx_CoroutineObject, gi_modulename), PY_WRITE_RESTRICTED, 0},
     {0, 0, 0, 0, 0}
 };
 
