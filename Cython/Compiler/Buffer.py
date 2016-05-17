@@ -581,7 +581,7 @@ class GetAndReleaseBufferUtilityCode(object):
         proto_code = output['utility_code_proto']
         env = output.module_node.scope
         cython_scope = env.context.cython_scope
-        
+
         # Search all types for __getbuffer__ overloads
         types = []
         visited_scopes = set()
@@ -631,10 +631,7 @@ def mangle_dtype_name(dtype):
             prefix = "nn_"
         else:
             prefix = ""
-        type_decl = dtype.empty_declaration_code()
-        type_decl = type_decl.replace(" ", "_")
-        type_decl = type_decl.replace("::", "_pyxns_")
-        return prefix + type_decl.replace("[", "_").replace("]", "_")
+        return prefix + dtype.specialization_name()
 
 def get_type_information_cname(code, dtype, maxdepth=None):
     """
