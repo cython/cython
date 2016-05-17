@@ -2085,8 +2085,13 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 elif node.type.assignable_from(func_arg.type) or func_arg.type.is_float:
                     return ExprNodes.TypecastNode(node.pos, operand=func_arg, type=node.type)
             elif func_arg.type.is_float and node.type.is_numeric:
+                if func_arg.type.math_h_modifier == 'l':
+                    # Work around missing Cygwin definition.
+                    truncl = '__Pyx_truncl'
+                else:
+                    truncl = 'trunc' + func_arg.type.math_h_modifier
                 return ExprNodes.PythonCapiCallNode(
-                    node.pos, 'trunc' + func_arg.type.math_h_modifier,
+                    node.pos, truncl,
                     func_type=self.float_float_func_types[func_arg.type],
                     args=[func_arg],
                     py_name='int',

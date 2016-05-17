@@ -311,6 +311,12 @@ static CYTHON_INLINE float __PYX_NAN() {
 }
 #endif
 
+#if defined(__CYGWIN__) && defined(_LDBL_EQ_DBL)
+#define __Pyx_truncl trunc
+#else
+#define __Pyx_truncl truncl
+#endif
+
 
 /////////////// UtilityFunctionPredeclarations.proto ///////////////
 
