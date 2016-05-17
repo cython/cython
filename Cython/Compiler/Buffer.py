@@ -633,6 +633,7 @@ def mangle_dtype_name(dtype):
             prefix = ""
         type_decl = dtype.empty_declaration_code()
         type_decl = type_decl.replace(" ", "_")
+        type_decl = type_decl.replace("::", "_pyxns_")
         return prefix + type_decl.replace("[", "_").replace("]", "_")
 
 def get_type_information_cname(code, dtype, maxdepth=None):
