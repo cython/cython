@@ -190,7 +190,7 @@ def double_to_float_int(double x):
 @cython.test_fail_if_path_exists("//SingleAssignmentNode//TypecastNode")
 @cython.test_assert_path_exists(
     "//PythonCapiCallNode",
-    "//PythonCapiCallNode/PythonCapiFunctionNode/@cname = 'truncl'",
+    "//PythonCapiCallNode/PythonCapiFunctionNode/@cname = '__Pyx_truncl'",
 )
 def long_double_to_float_int(long double x):
     """
