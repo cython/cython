@@ -125,6 +125,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def process_implementation(self, options, result):
         env = self.scope
         env.return_type = PyrexTypes.c_void_type
+        if self.directives["use_fqdn_entrypoint"]:
+            env.module_name = env.qualified_name.replace(".", "_")
         self.referenced_modules = []
         self.find_referenced_modules(env, self.referenced_modules, {})
         self.sort_cdef_classes(env)
@@ -216,6 +218,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def api_name(self, env):
         return env.qualified_name.replace(".", "__")
+
+    def entrypoint_name(self, env):
+        if self.directives["use_fqdn_entrypoint"]:
+            return env.qualified_name
+        return env.module_name
 
     def generate_api_code(self, env, options, result):
         def api_entries(entries, pxd=0):
@@ -2397,7 +2404,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#else")
         code.putln("  PyModuleDef_HEAD_INIT,")
         code.putln("#endif")
-        code.putln('  "%s",' % env.module_name)
+        code.putln('  "%s",' % self.entrypoint_name(env))
         code.putln("  %s, /* m_doc */" % doc)
         code.putln("  -1, /* m_size */")
         code.putln("  %s /* m_methods */," % env.method_table_cname)
@@ -2419,7 +2426,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
             '%s = Py_InitModule4("%s", %s, %s, 0, PYTHON_API_VERSION); Py_XINCREF(%s);' % (
                 env.module_cname,
-                env.module_name,
+                self.entrypoint_name(env),
                 env.method_table_cname,
                 doc,
                 env.module_cname))
