@@ -170,3 +170,11 @@ class Foo3(metaclass=Base3, a=0, b=0, **kwargs):
     >>> sorted(Foo3.kwargs.items())
     [('a', 0), ('b', 0), ('c', 0)]
     """
+
+class PyClassWithNew(object):
+    """
+    >>> PyClassWithNew(389)
+    389
+    """
+    def __new__(self, arg):
+        return arg
