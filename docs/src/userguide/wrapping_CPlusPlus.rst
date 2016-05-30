@@ -52,7 +52,7 @@ document. Let's assume it will be in a header file called
             Rectangle(int x0, int y0, int x1, int y1);
             ~Rectangle();
             int getArea();
-            void getSize(int* width, int* height)
+            void getSize(int* width, int* height);
             void move(int dx, int dy);
         };
     }
@@ -247,8 +247,8 @@ forwarding methods. So we can implement the Python extension type as::
             self.c_rect = Rectangle(x0, y0, x1, y1)
         def get_area(self):
             return self.c_rect.getArea()
-        def get_size(self)
-            int width, int height
+        def get_size(self):
+            cdef int width, height
             self.c_rect.getSize(&width, &height)
             return width, height
         def move(self, dx, dy):
