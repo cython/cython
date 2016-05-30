@@ -81,8 +81,8 @@ and the implementation in the file called :file:`Rectangle.cpp`:
         }
 
         void Rectangle::getSize(int *width, int *height) {
-            width = x1 - x0;
-            height = y1 - y0;
+            (*width) = x1 - x0;
+            (*height) = y1 - y0;
         }
 
         void Rectangle::move(int dx, int dy) {
