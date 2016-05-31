@@ -378,7 +378,7 @@ The array lookups are still slowed down by two factors:
 
         ...
         cimport cython
-        @cython.boundscheck(False) # turn of bounds-checking for entire function
+        @cython.boundscheck(False) # turn off bounds-checking for entire function
         def naive_convolve(np.ndarray[DTYPE_t, ndim=2] f, np.ndarray[DTYPE_t, ndim=2] g):
         ...
         
