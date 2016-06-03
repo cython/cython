@@ -703,6 +703,20 @@ class IterationTransform(Visitor.EnvTransform):
             step_pos = step.pos
             if not isinstance(step.constant_result, _py_int_types):
                 # cannot determine step direction
+                if len(args) == 3:
+                    try:
+                        _fix_range_3_args = []
+                        for arg_node in args:
+                            arg_int = arg_node.coerce_to_integer(self.current_env())
+                            if arg_int is not None:
+                                arg_int.analyse_types(self.current_env())
+                                if arg_int.type.is_numeric and (not arg_int.is_literal):
+                                    arg_temp = arg_int.coerce_to_temp(self.current_env())
+                                    _fix_range_3_args.append(arg_temp)
+                        if len(_fix_range_3_args) == 3:
+                            node._fix_range_3_args = _fix_range_3_args
+                    except:
+                        pass
                 return node
             step_value = step.constant_result
             if step_value == 0:

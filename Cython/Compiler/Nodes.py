@@ -6181,20 +6181,67 @@ class _ForInStatNode(LoopNode, StatNode):
         if self.else_clause:
             self.else_clause = self.else_clause.analyse_expressions(env)
         return self
-
-    def generate_execution_code(self, code):
+    
+    def generate_execution_code_fix_range_3_args(self, code):
+        """
+        use the same way as prange 3 args to generate efficient code for range with 3 args
+        """
         code.mark_pos(self.pos)
         old_loop_labels = code.new_loop_labels()
-        self.iterator.generate_evaluation_code(code)
-        code.putln("for (;;) {")
-        self.item.generate_evaluation_code(code)
-        self.target.generate_assignment_code(self.item, code)
+
+        target_index_cname = self.target.entry.cname
+        
+        fmt_dict = {
+            'target': target_index_cname,
+            'target_type': self.target.type.empty_declaration_code()
+        }
+        
+        start_stop_step = self._fix_range_3_args[0], self._fix_range_3_args[1], self._fix_range_3_args[2]
+        for node, name in zip(start_stop_step, ('start', 'stop', 'step')):
+            node.generate_evaluation_code(code)
+            result = node.result()
+            fmt_dict[name] = result
+        
+        fmt_dict['i'] = code.funcstate.allocate_temp(self.target.type, False)
+        fmt_dict['nsteps'] = code.funcstate.allocate_temp(self.target.type, False)
+        
+        code.putln("if (%(step)s == 0) abort();" % fmt_dict)
+        
+        code.putln("%(nsteps)s = (%(stop)s - %(start)s + %(step)s - %(step)s/abs(%(step)s)) / %(step)s;" % fmt_dict)
+        code.putln("if (%(nsteps)s > 0)" %fmt_dict)
+        code.begin_block()
+        code.put("for (%(i)s = 0; %(i)s < %(nsteps)s; %(i)s++)" % fmt_dict)
+        code.begin_block()
+        
+        code.putln("%(target)s = (%(target_type)s)(%(start)s + %(step)s * %(i)s);" % fmt_dict)
+        
         self.body.generate_execution_code(code)
+        
         code.mark_pos(self.pos)
         code.put_label(code.continue_label)
-        code.putln("}")
-        break_label = code.break_label
+        
+        code.end_block()
+        code.end_block()
+        
         code.set_loop_labels(old_loop_labels)
+        
+    def generate_execution_code(self, code):
+        if hasattr(self, '_fix_range_3_args'):
+            self.generate_execution_code_fix_range_3_args(code)
+            break_label = code.break_label
+        else:
+            code.mark_pos(self.pos)
+            old_loop_labels = code.new_loop_labels()
+            self.iterator.generate_evaluation_code(code)
+            code.putln("for (;;) {")
+            self.item.generate_evaluation_code(code)
+            self.target.generate_assignment_code(self.item, code)
+            self.body.generate_execution_code(code)
+            code.mark_pos(self.pos)
+            code.put_label(code.continue_label)
+            code.putln("}")
+            break_label = code.break_label
+            code.set_loop_labels(old_loop_labels)
 
         if self.else_clause:
             # in nested loops, the 'else' block can contain a
@@ -6219,8 +6266,9 @@ class _ForInStatNode(LoopNode, StatNode):
         code.mark_pos(self.pos)
         if code.label_used(break_label):
             code.put_label(break_label)
-        self.iterator.generate_disposal_code(code)
-        self.iterator.free_temps(code)
+        if not hasattr(self, '_fix_range_3_args'):
+            self.iterator.generate_disposal_code(code)
+            self.iterator.free_temps(code)
 
     def generate_function_definitions(self, env, code):
         self.target.generate_function_definitions(env, code)
