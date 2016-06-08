@@ -535,7 +535,7 @@ class DependencyTree(object):
             if pxd_file is not None:
                 pxd_list.append(pxd_file)
             elif not self.quiet:
-                print("missing cimport in module '%s': %s" % (module, filename))
+                print("%s: cannot find cimported module '%s'" % (filename, module))
         return tuple(pxd_list)
 
     @cached_method
