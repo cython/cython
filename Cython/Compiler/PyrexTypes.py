@@ -975,6 +975,9 @@ class BufferType(BaseType):
         self.negative_indices = negative_indices
         self.cast = cast
 
+    def can_coerce_to_pyobject(self,env):
+        return True
+
     def as_argument_type(self):
         return self
 

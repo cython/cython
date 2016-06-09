@@ -103,3 +103,13 @@ def pass_on_locals(f):
     f(locals())
     f(l=locals())
     f(l=locals(), a=1)
+    
+def locals_arrays(object[double, ndim=1] a):
+    """
+    >>> import numpy as np
+    >>> sorted(locals_arrays(np.arange(5,dtype='double')))
+    ['a', 'b']
+    """
+    cdef object[double, ndim=1] b = a.copy()
+    
+    return locals()
