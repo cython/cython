@@ -6145,7 +6145,7 @@ class _ForInStatNode(LoopNode, StatNode):
     #  Base class of 'for-in' statements.
     #
     #  target        ExprNode
-    #  iterator      IteratorNode | AwaitExprNode(AsyncIteratorNode)
+    #  iterator      IteratorNode | AIterAwaitExprNode(AsyncIteratorNode)
     #  body          StatNode
     #  else_clause   StatNode
     #  item          NextNode | AwaitExprNode(AsyncNextNode)
@@ -6251,7 +6251,7 @@ class ForInStatNode(_ForInStatNode):
 class AsyncForStatNode(_ForInStatNode):
     #  'async for' statement
     #
-    #  iterator      AwaitExprNode(AsyncIteratorNode)
+    #  iterator      AIterAwaitExprNode(AsyncIteratorNode)
     #  item          AwaitIterNextExprNode(AsyncIteratorNode)
 
     is_async = True
@@ -6260,7 +6260,7 @@ class AsyncForStatNode(_ForInStatNode):
         assert 'item' not in kw
         from . import ExprNodes
         # AwaitExprNodes must appear before running MarkClosureVisitor
-        kw['iterator'] = ExprNodes.AwaitExprNode(iterator.pos, arg=iterator)
+        kw['iterator'] = ExprNodes.AIterAwaitExprNode(iterator.pos, arg=iterator)
         kw['item'] = ExprNodes.AwaitIterNextExprNode(iterator.pos, arg=None)
         _ForInStatNode.__init__(self, pos, **kw)
 
