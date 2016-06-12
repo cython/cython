@@ -1889,7 +1889,7 @@ class CClassScope(ClassScope):
     def needs_gc(self):
         # If the type or any of its base types have Python-valued
         # C attributes, then it needs to participate in GC.
-        if self.has_cyclic_pyobject_attrs:
+        if self.has_cyclic_pyobject_attrs and not self.directives.get('no_gc', False):
             return True
         base_type = self.parent_type.base_type
         if base_type and base_type.scope is not None:

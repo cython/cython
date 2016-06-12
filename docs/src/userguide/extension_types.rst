@@ -514,6 +514,21 @@ which makes it impossible to clean up the cursor.
 Using the ``no_gc_clear`` decorator this can not happen anymore because the
 references of a cursor object will not be cleared anymore.
 
+In rare cases, extension types can be guaranteed not to participate in cycles,
+but the compiler won't be able to prove this. This would be the case if
+the class can never reference itself, even indirectly.
+In that case, you can manually disable cycle collection by using the
+``no_gc`` decorator, but beware that doing so when in fact the extension type
+can participate in cycles could cause memory leaks ::
+
+    @cython.no_gc
+    cdef class UserInfo:
+        cdef str name
+        cdef tuple addresses
+
+If you can be sure addresses will contain only references to strings, 
+the above would be safe, and it may yield a significant speedup, depending on
+your usage pattern.
 
 Public and external extension types
 ====================================
