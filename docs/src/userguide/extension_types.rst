@@ -223,7 +223,26 @@ extension types.
 Properties
 ============
 
-There is a special syntax for defining properties in an extension class::
+You can declare properties in an extension class using the same syntax as in ordinary Python code::
+
+    cdef class Spam:
+
+        @property
+        def cheese(self):
+            # This is called when the property is read.
+            ...
+
+        @cheese.setter
+        def cheese(self, value):
+                # This is called when the property is written.
+                ...
+
+        @cheese.deleter
+        def cheese(self):
+            # This is called when the property is deleted.
+
+
+There is also a special (deprecated) legacy syntax for defining properties in an extension class::
 
     cdef class Spam:
 
@@ -259,16 +278,17 @@ when it is deleted.::
         def __cinit__(self):
             self.cheeses = []
 
-        property cheese:
+        @property
+        def cheese(self):
+            return "We don't have: %s" % self.cheeses
 
-            def __get__(self):
-                return "We don't have: %s" % self.cheeses
+        @cheese.setter
+        def cheese(self):
+            self.cheeses.append(value)
 
-            def __set__(self, value):
-                self.cheeses.append(value)
-
-            def __del__(self):
-                del self.cheeses[:]
+        @cheese.deleter
+        def cheese(self):
+            del self.cheeses[:]
 
     # Test input
     from cheesy import CheeseShop
