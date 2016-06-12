@@ -209,7 +209,7 @@ class DistutilsInfo(object):
                     if type in (list, transitive_list):
                         value = parse_list(value)
                         if key == 'define_macros':
-                            value = [tuple(macro.split('='))
+                            value = [tuple(macro.split('=', 1))
                                      if '=' in macro else (macro, None)
                                      for macro in value]
                     self.values[key] = value
