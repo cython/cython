@@ -196,15 +196,14 @@ class DistutilsInfo(object):
         self.values = {}
         if source is not None:
             for line in line_iter(source):
-                line = line.strip()
-                if line != '' and line[0] != '#':
+                line = line.lstrip()
+                if not line:
+                    continue
+                if line[0] != '#':
                     break
-                line = line[1:].strip()
+                line = line[1:].lstrip()
                 if line[:10] == 'distutils:':
-                    line = line[10:]
-                    ix = line.index('=')
-                    key = str(line[:ix].strip())
-                    value = line[ix+1:].strip()
+                    key, _, value = [s.strip() for s in line[10:].partition('=')]
                     type = distutils_settings[key]
                     if type in (list, transitive_list):
                         value = parse_list(value)
