@@ -1,7 +1,7 @@
 import sys
 from .Dependencies import cythonize
 
-if 'setuptools' is sys.modules:
+if 'setuptools' in sys.modules:
     from setuptools.command import build_ext as _build_ext
 else:
     from distutils.command import build_ext as _build_ext
