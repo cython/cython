@@ -15,6 +15,40 @@ cdef extern from "<string>" namespace "std" nogil:
         # as a string formed by a repetition of character c, n times.
         string(size_t, char) except +
 
+        cppclass iterator:
+            iterator()
+            char& operator*()
+            iterator(iterator &)
+            iterator operator++()
+            iterator operator--()
+            bint operator==(iterator)
+            bint operator!=(iterator)
+        cppclass reverse_iterator:
+            char& operator*()
+            iterator operator++()
+            iterator operator--()
+            iterator operator+(size_t)
+            iterator operator-(size_t)
+            bint operator==(reverse_iterator)
+            bint operator!=(reverse_iterator)
+            bint operator<(reverse_iterator)
+            bint operator>(reverse_iterator)
+            bint operator<=(reverse_iterator)
+            bint operator>=(reverse_iterator)
+        cppclass const_iterator(iterator):
+            pass
+        cppclass const_reverse_iterator(reverse_iterator):
+            pass
+
+        iterator begin()
+        const_iterator const_begin "begin"()
+        iterator end()
+        const_iterator const_end "end"()
+        reverse_iterator rbegin()
+        const_reverse_iterator const_rbegin "rbegin"()
+        reverse_iterator rend()
+        const_reverse_iterator const_rend "rend"()
+
         const char* c_str()
         const char* data()
         size_t size()
