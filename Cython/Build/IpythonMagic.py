@@ -172,7 +172,7 @@ class CythonMagics(Magics):
     )
     @magic_arguments.argument(
         '-L', dest='library_dirs', metavar='dir', action='append', default=[],
-        help="Add a path to the list of libary directories (can be specified "
+        help="Add a path to the list of library directories (can be specified "
              "multiple times)."
     )
     @magic_arguments.argument(
