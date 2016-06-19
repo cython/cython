@@ -3231,6 +3231,7 @@ builtin_cpp_conversions = {
     "std::unordered_set": 1,
     "std::map":           2,
     "std::unordered_map": 2,
+    "std::complex":       1,
 }
 
 class CppClassType(CType):
