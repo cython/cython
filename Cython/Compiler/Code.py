@@ -1202,8 +1202,11 @@ class GlobalState(object):
 
     def new_py_const(self, type, prefix='', name_suffix=None):
         cname = self.new_const_cname(prefix, name_suffix=name_suffix)
-        c = PyObjectConst(cname, type)
-        self.py_constants.append(c)
+        try:
+            c = [x for x in self.py_constants if x.cname == cname][0]
+        except IndexError:
+            c = PyObjectConst(cname, type)
+            self.py_constants.append(c)
         return c
 
     def new_string_const_cname(self, bytes_value):
