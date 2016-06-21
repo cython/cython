@@ -310,9 +310,7 @@ Synonyms
 Source code encoding
 ======================
 
-.. TODO: add the links to the relevant PEPs
-
-Cython supports PEP 3120 and PEP 263, i.e. you can start your Cython source
+Cython supports :PEP:`3120` and :PEP:`263`, i.e. you can start your Cython source
 file with an encoding comment and generally write your source code in UTF-8.
 This impacts the encoding of byte strings and the conversion of unicode string
 literals like ``u'abcd'`` to unicode objects.
