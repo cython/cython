@@ -5,6 +5,7 @@
 cdef double pi
 from math import pi
 from libc.math cimport sin, cos
+from libcpp cimport bool
 
 cdef extern from "shapes.h" namespace "shapes":
     cdef cppclass Shape:
@@ -42,6 +43,35 @@ def test_Poly(int n, float radius=1):
     finally:
         del poly
 
+cdef cppclass BaseClass:
+    int n
+    int method():
+        return this.n
+
+cdef cppclass SubClass(BaseClass):
+    bool override
+    __init__(bool override):
+        this.n = 1
+        this.override = override
+    int method():
+        if override:
+            return 0
+        else:
+            return BaseClass.method()
+
+def test_BaseMethods(x):
+    """
+    >>> test_BaseMethods(True)
+    0
+    >>> test_BaseMethods(False)
+    1
+    """
+    cdef SubClass* subClass
+    try:
+        subClass = new SubClass(x)
+        return subClass.method()
+    finally:
+        del subClass
 
 cdef cppclass WithStatic:
     @staticmethod
