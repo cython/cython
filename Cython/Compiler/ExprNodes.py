@@ -6302,7 +6302,7 @@ class AttributeNode(ExprNode):
                         # as an ordinary function.
                         if entry.func_cname and not hasattr(entry.type, 'op_arg_struct'):
                             cname = entry.func_cname
-                            if entry.type.is_static_method:
+                            if entry.type.is_static_method or env.parent_scope.is_cpp_class_scope:
                                 ctype = entry.type
                             elif type.is_cpp_class:
                                 error(self.pos, "%s not a static member of %s" % (entry.name, type))
