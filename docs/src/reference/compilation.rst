@@ -2,9 +2,9 @@
 
 .. _compilation-reference:
 
-=============
+===========
 Compilation
-=============
+===========
 
 Cython code, unlike Python, must be compiled.  This happens in two stages:
 
@@ -70,7 +70,7 @@ is up to date with its main source file and dependencies.
 
 
 Configuring the C-Build
-------------------------
+-----------------------
 
 If you have include files in non-standard places you can pass an
 ``include_path`` parameter to ``cythonize``::
@@ -158,7 +158,7 @@ to find the ``.h`` and library files when linking to external libraries.
 
 
 Distributing Cython modules
-----------------------------
+---------------------------
 
 It is strongly recommended that you distribute the generated ``.c`` files as well
 as your Cython sources, so that users can install your module without needing
@@ -222,9 +222,33 @@ list in the Extensions when not using Cython::
             extension.sources[:] = sources
         return extensions
 
+Compiling with setuptools and Cython‘s ``Extension``
+----------------------------------------------------
+
+Both setuptools and Cython contains ``Extension`` module, When we want to use setuptools and Cython
+to compile yours' Cython packages, and be careful with the python import module's ordered list.
+We need to after the setuptools import the Cython ``Extension``, in order to avoid the setuptools's
+``Extension`` maybe override the Cython's ``Extension``, otherwise an error will occur.
+::
+
+    from setuptools import setup, find_packages
+    from Cython.Distutils import build_ext, Extension
+
+    ext_modules=[
+                Extension(name="example",
+                          sources=["example.pyx"],
+                          cython_include_dirs=["..."])
+    ]
+
+    setup(
+            name = "Demos",
+            cmdclass = {"build_ext": build_ext},
+            ext_modules = cythonize(ext_modules),
+            packages=find_packages(),
+    )
 
 Compiling with ``pyximport``
-=============================
+============================
 
 For generating Cython code right in your pure python module just type::
 
@@ -247,7 +271,7 @@ using this feature, just tell that to ``pyximport``::
     >>> pyximport.install(pyimport = True)
 
 Compiling with ``cython.inline``
-=================================
+================================
 
 One can also compile Cython in a fashion similar to SciPy's ``weave.inline``.
 For example::
@@ -276,7 +300,7 @@ directives below.
 .. _compiler-directives:
 
 Compiler directives
-====================
+===================
 
 Compiler directives are instructions which affect the behavior of
 Cython code.  Here is the list of currently supported directives:
@@ -425,7 +449,7 @@ How to set directives
 ---------------------
 
 Globally
-:::::::::
+::::::::
 
 One can set compiler directives through a special header comment at the top of the file, like this::
 
@@ -443,7 +467,7 @@ Directives passed on the command line will override directives set in
 header comments.
 
 Locally
-::::::::
+:::::::
 
 For local blocks, you need to cimport the special builtin ``cython``
 module::
