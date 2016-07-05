@@ -1,0 +1,24 @@
+PYTHON setup.py build_ext --inplace
+
+######## setup.py ########
+
+from Cython.Build import cythonize
+from Cython.Distutils.extension import Extension
+
+ext_modules = [
+    Extension("foo", ["foo.pyx"], libraries=["d", "b"]),
+]
+
+ext_modules = cythonize(ext_modules, libraries_sort_key=lambda x:x)
+
+assert ext_modules[0].libraries == ["a", "b", "c", "d", "e"]
+
+######## a.pxd ########
+# distutils: libraries = e d a
+
+######## b.pxd ########
+# distutils: libraries = d c
+
+######## foo.pyx ########
+cimport a
+cimport b

@@ -738,6 +738,10 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                 if ext_language and 'language' not in kwds:
                     kwds['language'] = ext_language
 
+                if 'libraries' in kwds:
+                    kwds['libraries'] = sorted(kwds['libraries'],
+                            key=ctx.options.libraries_sort_key)
+
                 module_list.append(exn_type(
                         name=module_name,
                         sources=sources,

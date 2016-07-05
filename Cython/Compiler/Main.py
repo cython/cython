@@ -729,6 +729,14 @@ def main(command_line = 0):
 #
 #------------------------------------------------------------------------
 
+def default_sort_key(x):
+    """
+    Sort key which doesn't change the order when sorting (recall that
+    Python's sort is stable). This cannot be a lambda function, since
+    those cannot be pickled.
+    """
+    return 0
+
 default_options = dict(
     show_version = 0,
     use_listing_file = 0,
@@ -756,4 +764,5 @@ default_options = dict(
     common_utility_include_dir = None,
     output_dir=None,
     build_dir=None,
+    libraries_sort_key=default_sort_key,
 )
