@@ -128,6 +128,9 @@ It searches for this file along the path for include files
 (as specified by ``-I`` command line options or the ``include_path``
 option to ``cythonize()``), as well as ``sys.path``.
 
+Using ``package_data`` to install ``.pxd`` files in your ``setup.py`` script
+allows other packages to cimport items from your module as a dependency.
+
 Also, whenever you compile a file :file:`modulename.pyx`, the corresponding
 definition file :file:`modulename.pxd` is first searched for along the
 include path (but not ``sys.path``), and if found, it is processed before
