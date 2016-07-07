@@ -222,6 +222,20 @@ list in the Extensions when not using Cython::
             extension.sources[:] = sources
         return extensions
 
+If you want to expose the C-level interface of your library for other
+libraries to cimport from, use package_data to install the ``.pxd`` files,
+e.g.::
+
+    setup(
+        package_data = {
+            'my_package': ['*.pxd'],
+            'my_package/sub_package': ['*.pxd'],
+        },
+        ...
+    )
+
+These ``.pxd`` files need not correspond have corresponding ``.pyx``
+modules if they contain purely declarations of external libraries.
 
 Compiling with ``pyximport``
 =============================
