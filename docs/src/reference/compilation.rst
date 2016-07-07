@@ -222,6 +222,18 @@ list in the Extensions when not using Cython::
             extension.sources[:] = sources
         return extensions
 
+Another option is to make Cython a setup dependency of your system and use
+Cython's build_ext module which runs ``cythonize`` as part of the build process::
+
+    setup(
+        setup_requires=[
+            'cython>=0.x',
+        ],
+        extensions = [Extension("*", ["*.pyx"])],
+        cmdclass={'build_ext': Cython.Build.build_ext},
+        ...
+    )
+
 If you want to expose the C-level interface of your library for other
 libraries to cimport from, use package_data to install the ``.pxd`` files,
 e.g.::
