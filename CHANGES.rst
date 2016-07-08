@@ -2,6 +2,17 @@
 Cython Changelog
 ================
 
+0.25 (2016-??-??)
+=================
+
+Features added
+--------------
+
+* IPython cell magic supports "-3" argument as in "%%cython -3".
+
+* for-loop iteration over "std::string".
+
+
 0.24 (2016-04-04)
 =================
 
