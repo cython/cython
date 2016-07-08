@@ -22,8 +22,17 @@ except ImportError:
 from Cython.TestUtils import CythonTest
 
 ip = get_ipython()
-code = py3compat.str_to_unicode("""def f(x):
+code = py3compat.str_to_unicode("""\
+def f(x):
     return 2*x
+""")
+
+cython3_code = py3compat.str_to_unicode("""\
+def f(x):
+    return 2 / x
+
+def call(x):
+    return f(*(x,))
 """)
 
 
@@ -76,6 +85,14 @@ class TestIPythonMagic(CythonTest):
         # This module can now be imported in the interactive namespace.
         ip.ex('import mymodule; g = mymodule.f(10)')
         self.assertEqual(ip.user_ns['g'], 20.0)
+
+    def test_cython3(self):
+        # The Cython module named 'mymodule' defines the function f.
+        ip.run_cell_magic('cython', '-3', cython3_code)
+        # This module can now be imported in the interactive namespace.
+        ip.ex('g = f(10); h = call(10)')
+        self.assertEqual(ip.user_ns['g'], 2.0 / 10.0)
+        self.assertEqual(ip.user_ns['h'], 2.0 / 10.0)
 
     @skip_win32
     def test_extlibs(self):
