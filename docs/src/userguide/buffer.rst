@@ -176,8 +176,7 @@ References
 ----------
 
 The buffer interface used here is set out in
-`PEP 3118, Revising the buffer protocol
-<http://legacy.python.org/dev/peps/pep-3118/>`_
+:PEP:`3118`, Revising the buffer protocol.
 
 A tutorial for using this API from C is on Jake Vanderplas's blog,
 `An Introduction to the Python Buffer Protocol
@@ -188,5 +187,5 @@ Reference documentation is available for
 and `Python 2 <https://docs.python.org/2.7/c-api/buffer.html>`_.
 The Py2 documentation also describes an older buffer protocol
 that is no longer in use;
-since Python 2.6, the PEP 3118 protocol has been implemented,
+since Python 2.6, the :PEP:`3118` protocol has been implemented,
 and the older protocol is only relevant for legacy code.
