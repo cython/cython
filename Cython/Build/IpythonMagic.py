@@ -152,6 +152,10 @@ class CythonMagics(Magics):
 
     @magic_arguments.magic_arguments()
     @magic_arguments.argument(
+        '-3', dest='cython3', action='store_true', default=False,
+        help="Switch to Python 3 syntax."
+    )
+    @magic_arguments.argument(
         '-c', '--compile-args', action='append', default=[],
         help="Extra flags to pass to compiler via the `extra_compile_args` "
              "Extension flag (can be specified  multiple times)."
@@ -265,9 +269,11 @@ class CythonMagics(Magics):
             try:
                 opts = dict(
                     quiet=quiet,
-                    annotate = args.annotate,
-                    force = True,
-                    )
+                    annotate=args.annotate,
+                    force=True,
+                )
+                if args.cython3:
+                    opts['language_level'] = 3
                 build_extension.extensions = cythonize([extension], **opts)
             except CompileError:
                 return
