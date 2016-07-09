@@ -488,7 +488,7 @@ class GetSetSlot(SlotDescriptor):
     #  Slot descriptor for the table of attribute get & set methods.
 
     def slot_code(self, scope):
-        if scope.property_entries:
+        if scope.property_entries or scope.directives.get("dynamic_attributes"):
             return scope.getset_table_cname
         else:
             return "0"
@@ -507,6 +507,29 @@ class BaseClassSlot(SlotDescriptor):
                 scope.parent_type.typeobj_cname,
                 self.slot_name,
                 base_type.typeptr_cname))
+
+
+class DictOffsetSlot(SlotDescriptor):
+    #  Slot descriptor for a class' dict offset, for dynamic attributes.
+
+    def slot_code(self, scope):
+        if scope.directives.get("dynamic_attributes"):
+            type = scope.parent_type
+            if type.typedef_flag:
+                objstruct = type.objstruct_cname
+            else:
+                objstruct = "struct %s" % type.objstruct_cname
+
+            if type.entry.visibility == "public":
+                dict_name = "ob_dict"
+            else :
+                dict_name = scope.mangle_internal("ob_dict")
+
+            return ("offsetof(%s, %s)" % (
+                        objstruct,
+                        dict_name))
+        else:
+            return "0"
 
 
 # The following dictionary maps __xxx__ method names to slot descriptors.
@@ -814,7 +837,7 @@ slot_table = (
     SyntheticSlot("tp_descr_get", ["__get__"], "0"),
     SyntheticSlot("tp_descr_set", ["__set__", "__delete__"], "0"),
 
-    EmptySlot("tp_dictoffset"),
+    DictOffsetSlot("tp_dictoffset"),
 
     MethodSlot(initproc, "tp_init", "__init__"),
     EmptySlot("tp_alloc"), #FixedSlot("tp_alloc", "PyType_GenericAlloc"),

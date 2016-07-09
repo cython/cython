@@ -1037,6 +1037,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "struct %s *%s;" % (
                     type.vtabstruct_cname,
                     type.vtabslot_cname))
+        if type.scope.directives.get("dynamic_attributes"):
+            if type.entry.visibility == "public":
+                dict_name = "ob_dict"
+            else:
+                dict_name = type.scope.mangle_internal("ob_dict")
+            code.putln("PyObject *%s;" % dict_name)
         for attr in type.scope.var_entries:
             if attr.is_declared_generic:
                 attr_type = py_object_type
@@ -1152,6 +1158,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         self.generate_descr_get_function(scope, code)
                     if scope.defines_any(["__set__", "__delete__"]):
                         self.generate_descr_set_function(scope, code)
+                    if scope.directives.get("dynamic_attributes"):
+                        self.generate_dict_getter(scope, code)
                     self.generate_property_accessors(scope, code)
                     self.generate_method_table(scope, code)
                     self.generate_getset_table(scope, code)
@@ -1965,26 +1973,53 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
             "};")
 
+    def generate_dict_getter(self, scope, code):
+        func_name = scope.mangle_internal("dict_get")
+        if scope.parent_type.entry.visibility == "public":
+            dict_name = "ob_dict"
+        else:
+            dict_name = scope.mangle_internal("ob_dict")
+        code.putln("")
+        code.putln("static PyObject *%s(PyObject *o, CYTHON_UNUSED void *x) {" % func_name)
+        self.generate_self_cast(scope, code)
+        code.putln("if (p->%s == 0){" % dict_name)
+        code.putln("p->%s = PyDict_New();" % dict_name)
+        code.putln("}")
+        code.putln("Py_INCREF(p->%s);" % dict_name)
+        code.putln("return p->%s;" % dict_name)
+        code.putln("}")
+
     def generate_getset_table(self, env, code):
-        if env.property_entries:
+        dynamic_attributes = env.directives.get("dynamic_attributes")
+        if env.property_entries or dynamic_attributes:
             code.putln("")
             code.putln(
                 "static struct PyGetSetDef %s[] = {" %
                 env.getset_table_cname)
-            for entry in env.property_entries:
-                doc = entry.doc
-                if doc:
-                    if doc.is_unicode:
-                        doc = doc.as_utf8_string()
-                    doc_code = doc.as_c_string_literal()
-                else:
-                    doc_code = "0"
+            if dynamic_attributes:
+                dict_getter_cname = env.mangle_internal("dict_get")
                 code.putln(
-                    '{(char *)"%s", %s, %s, (char *)%s, 0},' % (
-                        entry.name,
-                        entry.getter_cname or "0",
-                        entry.setter_cname or "0",
-                        doc_code))
+                    '{(char *)"__dict__", %s, 0, 0, 0},' % (
+                        dict_getter_cname))
+            for entry in env.property_entries:
+                if dynamic_attributes and entry.name == "__dict__":
+                    error(entry.pos,
+                        "A class can not have a public __dict__ attribute and the "
+                        "dynamic_attributes directive at the same time")
+                else:
+                    doc = entry.doc
+                    if doc:
+                        if doc.is_unicode:
+                            doc = doc.as_utf8_string()
+                        doc_code = doc.as_c_string_literal()
+                    else:
+                        doc_code = "0"
+                    code.putln(
+                        '{(char *)"%s", %s, %s, (char *)%s, 0},' % (
+                            entry.name,
+                            entry.getter_cname or "0",
+                            entry.setter_cname or "0",
+                            doc_code))
             code.putln(
                 "{0, 0, 0, 0, 0}")
             code.putln(
