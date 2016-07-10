@@ -6432,8 +6432,8 @@ class AttributeNode(ExprNode):
                 return
             self.entry = entry
             if entry:
-                if obj_type.is_extension_type and entry.name == "__weakref__":
-                    error(self.pos, "Illegal use of special attribute __weakref__")
+                if obj_type.is_extension_type and entry.name in ("__weakref__", "__dict__"):
+                    error(self.pos, "Illegal use of special attribute %s" % entry.name)
 
                 # def methods need the normal attribute lookup
                 # because they do not have struct entries

@@ -488,7 +488,7 @@ class GetSetSlot(SlotDescriptor):
     #  Slot descriptor for the table of attribute get & set methods.
 
     def slot_code(self, scope):
-        if scope.property_entries:
+        if scope.property_entries or scope.lookup_here("__dict__"):
             return scope.getset_table_cname
         else:
             return "0"

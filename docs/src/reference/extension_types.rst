@@ -35,7 +35,7 @@ Attributes
 * Are stored directly in the object's C struct.
 * Are fixed at compile time.
 
- * You can't add attributes to an extension type instance at run time like in normal Python.
+ * You can't add attributes to an extension type instance at run time like in normal Python, unless you define a ``__dict__`` attribute.
  * You can sub-class the extension type in Python to add attributes at run-time.
 
 * There are two ways to access extension type attributes:
@@ -409,6 +409,22 @@ Weak Referencing
         no longer strongly referenced."""
 
         cdef object __weakref__
+
+==================
+Dynamic Attributes
+==================
+
+* By default, you cannot dynamically add attributes to a ``cdef class`` instance at runtime.
+* It can be enabled by declaring a C attribute of the ``dict`` type called ``__dict__``::
+
+    cdef class ExtendableAnimal:
+        """This animal can be extended with new
+        attributes at runtime."""
+
+        cdef dict __dict__
+
+.. note::
+    #. This can have a performance penalty, especially when using ``cpdef`` methods in a class.
 
 =========================
 External and Public Types
