@@ -223,7 +223,26 @@ extension types.
 Properties
 ============
 
-There is a special syntax for defining properties in an extension class::
+You can declare properties in an extension class using the same syntax as in ordinary Python code::
+
+    cdef class Spam:
+
+        @property
+        def cheese(self):
+            # This is called when the property is read.
+            ...
+
+        @cheese.setter
+        def cheese(self, value):
+                # This is called when the property is written.
+                ...
+
+        @cheese.deleter
+        def cheese(self):
+            # This is called when the property is deleted.
+
+
+There is also a special (deprecated) legacy syntax for defining properties in an extension class::
 
     cdef class Spam:
 
@@ -259,16 +278,17 @@ when it is deleted.::
         def __cinit__(self):
             self.cheeses = []
 
-        property cheese:
+        @property
+        def cheese(self):
+            return "We don't have: %s" % self.cheeses
 
-            def __get__(self):
-                return "We don't have: %s" % self.cheeses
+        @cheese.setter
+        def cheese(self):
+            self.cheeses.append(value)
 
-            def __set__(self, value):
-                self.cheeses.append(value)
-
-            def __del__(self):
-                del self.cheeses[:]
+        @cheese.deleter
+        def cheese(self):
+            del self.cheeses[:]
 
     # Test input
     from cheesy import CheeseShop
@@ -514,6 +534,21 @@ which makes it impossible to clean up the cursor.
 Using the ``no_gc_clear`` decorator this can not happen anymore because the
 references of a cursor object will not be cleared anymore.
 
+In rare cases, extension types can be guaranteed not to participate in cycles,
+but the compiler won't be able to prove this. This would be the case if
+the class can never reference itself, even indirectly.
+In that case, you can manually disable cycle collection by using the
+``no_gc`` decorator, but beware that doing so when in fact the extension type
+can participate in cycles could cause memory leaks ::
+
+    @cython.no_gc
+    cdef class UserInfo:
+        cdef str name
+        cdef tuple addresses
+
+If you can be sure addresses will contain only references to strings, 
+the above would be safe, and it may yield a significant speedup, depending on
+your usage pattern.
 
 Public and external extension types
 ====================================

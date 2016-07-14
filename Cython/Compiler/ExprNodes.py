@@ -6302,7 +6302,7 @@ class AttributeNode(ExprNode):
                         # as an ordinary function.
                         if entry.func_cname and not hasattr(entry.type, 'op_arg_struct'):
                             cname = entry.func_cname
-                            if entry.type.is_static_method:
+                            if entry.type.is_static_method or env.parent_scope.is_cpp_class_scope:
                                 ctype = entry.type
                             elif type.is_cpp_class:
                                 error(self.pos, "%s not a static member of %s" % (entry.name, type))
@@ -9269,6 +9269,13 @@ class AwaitExprNode(YieldFromExprNode):
     def yield_from_func(self, code):
         code.globalstate.use_utility_code(UtilityCode.load_cached("CoroutineYieldFrom", "Coroutine.c"))
         return "__Pyx_Coroutine_Yield_From"
+
+
+class AIterAwaitExprNode(AwaitExprNode):
+    # 'await' expression node used in async-for loops to support the pre-Py3.5.2 'aiter' protocol
+    def yield_from_func(self, code):
+        code.globalstate.use_utility_code(UtilityCode.load_cached("CoroutineAIterYieldFrom", "Coroutine.c"))
+        return "__Pyx_Coroutine_AIter_Yield_From"
 
 
 class AwaitIterNextExprNode(AwaitExprNode):

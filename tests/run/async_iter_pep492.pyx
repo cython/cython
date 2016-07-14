@@ -6,14 +6,14 @@ import sys
 if sys.version_info >= (3, 5, 0, 'beta'):
     # pass Cython implemented AsyncIter() into a Python async-for loop
     __doc__ = u"""
->>> def test_py35():
+>>> def test_py35(AsyncIterClass):
 ...     buffer = []
 ...     async def coro():
-...         async for i1, i2 in AsyncIter(1):
+...         async for i1, i2 in AsyncIterClass(1):
 ...             buffer.append(i1 + i2)
 ...     return coro, buffer
 
->>> testfunc, buffer = test_py35()
+>>> testfunc, buffer = test_py35(AsyncIterOld if sys.version_info < (3, 5, 2) else AsyncIter)
 >>> buffer
 []
 
@@ -69,7 +69,7 @@ cdef class AsyncIter:
         self.aiter_calls = 0
         self.max_iter_calls = max_iter_calls
 
-    async def __aiter__(self):
+    def __aiter__(self):
         self.aiter_calls += 1
         return self
 
@@ -84,6 +84,15 @@ cdef class AsyncIter:
             raise StopAsyncIteration
 
         return self.i, self.i
+
+
+cdef class AsyncIterOld(AsyncIter):
+    """
+    Same as AsyncIter, but with the old async-def interface for __aiter__().
+    """
+    async def __aiter__(self):
+        self.aiter_calls += 1
+        return self
 
 
 def test_for_1():
@@ -154,7 +163,7 @@ def test_for_3():
 
 
 cdef class NonAwaitableFromAnext:
-    async def __aiter__(self):
+    def __aiter__(self):
         return self
 
     def __anext__(self):
@@ -193,7 +202,7 @@ cdef class Iterable:
     def __init__(self):
         self.i = 0
 
-    async def __aiter__(self):
+    def __aiter__(self):
         return self
 
     async def __anext__(self):
@@ -270,14 +279,22 @@ def test_with_for():
     print(I[0])
 
 
-cdef class AI:
+cdef class AI_old:
     async def __aiter__(self):
         1/0
 
 
-def test_aiter_raises():
+cdef class AI_new:
+    def __aiter__(self):
+        1/0
+
+
+def test_aiter_raises(AI):
     """
-    >>> test_aiter_raises()
+    >>> test_aiter_raises(AI_old)
+    RAISED
+    0
+    >>> test_aiter_raises(AI_new)
     RAISED
     0
     """

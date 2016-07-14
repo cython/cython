@@ -201,7 +201,7 @@ Descriptor objects
 .. note::
     Descriptor objects are part of the support mechanism for new-style
     Python classes. See the discussion of descriptors in the Python documentation.
-    See also PEP 252, "Making Types Look More Like Classes", and PEP 253,
+    See also :PEP:`252`, "Making Types Look More Like Classes", and :PEP:`253`,
     "Subtyping Built-In Types".
 
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+

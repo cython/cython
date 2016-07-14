@@ -116,6 +116,7 @@ directive_defaults = {
     'internal' : False,
     'profile': False,
     'no_gc_clear': False,
+    'no_gc': False,
     'linetrace': False,
     'emit_code_comments': True,  # copy original source code into C code comments
     'annotation_typing': False,  # read type declarations from Python function annotations
@@ -246,6 +247,7 @@ directive_scopes = { # defaults to available everywhere
     'inline' : ('function',),
     'staticmethod' : ('function',),  # FIXME: analysis currently lacks more specific function scope
     'no_gc_clear' : ('cclass',),
+    'no_gc' : ('cclass',),
     'internal' : ('cclass',),
     'autotestdict' : ('module',),
     'autotestdict.all' : ('module',),

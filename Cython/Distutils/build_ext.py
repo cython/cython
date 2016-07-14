@@ -14,6 +14,11 @@ from distutils.dep_util import newer, newer_group
 from distutils import log
 from distutils.command import build_ext as _build_ext
 from distutils import sysconfig
+import warnings
+
+warnings.warn(
+    "Cython.Distutils.build_ext does not properly handle dependencies "
+    "and is deprectated. Use Cython.Build.build_ext instead.")
 
 try:
     from __builtin__ import basestring

@@ -81,7 +81,7 @@ Methods
 Properties
 ==========
 
-* Cython provides a special syntax::
+* Cython provides a special (deprecated) syntax::
 
     cdef class Spam:
 
@@ -120,7 +120,7 @@ Properties
             def __cinit__(self):
                 self.cheeses = []
 
-            property cheese:
+            property cheese:   # note that this syntax is deprecated
 
                 def __get__(self):
                     return "We don't have: %s" % self.cheeses
