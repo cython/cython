@@ -8,6 +8,9 @@ Cython Changelog
 Features added
 --------------
 
+* Dynamic Python attributes are allowed on cdef classes if an attribute
+  ``cdef dict __dict__`` is declared in the class.
+
 * IPython cell magic supports "-3" argument as in "%%cython -3".
 
 * for-loop iteration over "std::string".
