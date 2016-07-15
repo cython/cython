@@ -1152,8 +1152,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         self.generate_descr_get_function(scope, code)
                     if scope.defines_any(["__set__", "__delete__"]):
                         self.generate_descr_set_function(scope, code)
-                    if scope.lookup_here("__dict__"):
-                        self.generate_dict_getter(scope, code)
+                    if scope.defines_any(["__dict__"]):
+                        self.generate_dict_getter_function(scope, code)
                     self.generate_property_accessors(scope, code)
                     self.generate_method_table(scope, code)
                     self.generate_getset_table(scope, code)
@@ -1278,7 +1278,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                        (entry.cname, entry.type.empty_declaration_code()))
 
         for entry in py_attrs:
-            code.put_init_var_to_py_none(entry, "p->%s", nanny=False)
+            if entry.name == "__dict__":
+                code.putln("p->%s = PyDict_New(); Py_INCREF(p->%s);" % (entry.cname, entry.cname))
+            else:
+                code.put_init_var_to_py_none(entry, "p->%s", nanny=False)
 
         for entry in memoryview_slices:
             code.putln("p->%s.data = NULL;" % entry.cname)
@@ -1974,9 +1977,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
             "};")
 
-    def generate_dict_getter(self, scope, code):
-        #if scope.name == 'QApplication':
-        #    import ipdb;ipdb.set_trace()
+    def generate_dict_getter_function(self, scope, code):
         func_name = scope.mangle_internal("__dict__getter")
         dict_attr = scope.lookup_here("__dict__")
         dict_name = dict_attr.cname
@@ -1991,34 +1992,25 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("}")
 
     def generate_getset_table(self, env, code):
-        dynamic_attributes = env.lookup_here("__dict__")
-        if env.property_entries or dynamic_attributes:
+        if env.property_entries:
             code.putln("")
             code.putln(
                 "static struct PyGetSetDef %s[] = {" %
                 env.getset_table_cname)
-            if dynamic_attributes:
-                dict_getter_cname = env.mangle_internal("__dict__getter")
-                code.putln(
-                    '{(char *)"__dict__", %s, 0, 0, 0},' % (
-                        dict_getter_cname))
             for entry in env.property_entries:
-                if entry.name == "__dict__":
-                    continue
+                doc = entry.doc
+                if doc:
+                    if doc.is_unicode:
+                        doc = doc.as_utf8_string()
+                    doc_code = doc.as_c_string_literal()
                 else:
-                    doc = entry.doc
-                    if doc:
-                        if doc.is_unicode:
-                            doc = doc.as_utf8_string()
-                        doc_code = doc.as_c_string_literal()
-                    else:
-                        doc_code = "0"
-                    code.putln(
-                        '{(char *)"%s", %s, %s, (char *)%s, 0},' % (
-                            entry.name,
-                            entry.getter_cname or "0",
-                            entry.setter_cname or "0",
-                            doc_code))
+                    doc_code = "0"
+                code.putln(
+                    '{(char *)"%s", %s, %s, (char *)%s, 0},' % (
+                        entry.name,
+                        entry.getter_cname or "0",
+                        entry.setter_cname or "0",
+                        doc_code))
             code.putln(
                 "{0, 0, 0, 0, 0}")
             code.putln(
@@ -2799,21 +2791,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                             weakref_entry.cname))
                     else:
                         error(weakref_entry.pos, "__weakref__ slot must be of type 'object'")
-                dict_entry = scope.lookup_here("__dict__")
-                if dict_entry:
-                    if dict_entry.type.cname == 'PyDict_Type':
-                        tp_dictoffset = "%s.tp_dictoffset" % typeobj_cname
-                        if type.typedef_flag:
-                            objstruct = type.objstruct_cname
-                        else:
-                            objstruct = "struct %s" % type.objstruct_cname
-                        code.putln("if (%s == 0) %s = offsetof(%s, %s);" % (
-                            tp_dictoffset,
-                            tp_dictoffset,
-                            objstruct,
-                            dict_entry.cname))
-                    else:
-                        error(dict_entry.pos, "__dict__ slot must be of type 'dict'")
 
     def generate_exttype_vtable_init_code(self, entry, code):
         # Generate code to initialise the C method table of an

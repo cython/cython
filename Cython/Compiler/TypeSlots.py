@@ -488,7 +488,7 @@ class GetSetSlot(SlotDescriptor):
     #  Slot descriptor for the table of attribute get & set methods.
 
     def slot_code(self, scope):
-        if scope.property_entries or scope.lookup_here("__dict__"):
+        if scope.property_entries:
             return scope.getset_table_cname
         else:
             return "0"
@@ -507,6 +507,27 @@ class BaseClassSlot(SlotDescriptor):
                 scope.parent_type.typeobj_cname,
                 self.slot_name,
                 base_type.typeptr_cname))
+
+
+class DictOffsetSlot(SlotDescriptor):
+    #  Slot descriptor for a class' dict offset, for dynamic attributes.
+
+    def slot_code(self, scope):
+        dict_entry = scope.lookup_here("__dict__")
+        if dict_entry:
+            if dict_entry.type.cname != 'PyDict_Type':
+                error(dict_entry.pos, "__dict__ slot must be of type 'dict'")
+                return "0"
+            type = scope.parent_type
+            if type.typedef_flag:
+                objstruct = type.objstruct_cname
+            else:
+                objstruct = "struct %s" % type.objstruct_cname
+            return ("offsetof(%s, %s)" % (
+                        objstruct,
+                        dict_entry.cname))
+        else:
+            return "0"
 
 
 # The following dictionary maps __xxx__ method names to slot descriptors.
@@ -814,7 +835,7 @@ slot_table = (
     SyntheticSlot("tp_descr_get", ["__get__"], "0"),
     SyntheticSlot("tp_descr_set", ["__set__", "__delete__"], "0"),
 
-    EmptySlot("tp_dictoffset"),
+    DictOffsetSlot("tp_dictoffset"),
 
     MethodSlot(initproc, "tp_init", "__init__"),
     EmptySlot("tp_alloc"), #FixedSlot("tp_alloc", "PyType_GenericAlloc"),
