@@ -50,6 +50,9 @@ Bugs fixed
 
 * Coroutines and generators were lacking the ``__module__`` special attribute.
 
+* C++ ``std::complex`` values failed to auto-convert from and to Python complex
+  objects.
+
 * Namespaced C++ types could not be used as memory view types due to lack of
   name mangling.  Patch by Ivan Smirnov.
 
