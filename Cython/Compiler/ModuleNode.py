@@ -1152,6 +1152,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         self.generate_descr_get_function(scope, code)
                     if scope.defines_any(["__set__", "__delete__"]):
                         self.generate_descr_set_function(scope, code)
+                    if scope.defines_any(["__dict__"]):
+                        self.generate_dict_getter_function(scope, code)
                     self.generate_property_accessors(scope, code)
                     self.generate_method_table(scope, code)
                     self.generate_getset_table(scope, code)
@@ -1276,7 +1278,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                        (entry.cname, entry.type.empty_declaration_code()))
 
         for entry in py_attrs:
-            code.put_init_var_to_py_none(entry, "p->%s", nanny=False)
+            if entry.name == "__dict__":
+                code.putln("p->%s = PyDict_New(); Py_INCREF(p->%s);" % (entry.cname, entry.cname))
+            else:
+                code.put_init_var_to_py_none(entry, "p->%s", nanny=False)
 
         for entry in memoryview_slices:
             code.putln("p->%s.data = NULL;" % entry.cname)
@@ -1323,11 +1328,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if weakref_slot not in scope.var_entries:
             weakref_slot = None
 
+        dict_slot = scope.lookup_here("__dict__")
+        if dict_slot not in scope.var_entries:
+            dict_slot = None
+
         _, (py_attrs, _, memoryview_slices) = scope.get_refcounted_entries()
         cpp_class_attrs = [entry for entry in scope.var_entries
                            if entry.type.is_cpp_class]
 
-        if py_attrs or cpp_class_attrs or memoryview_slices or weakref_slot:
+        if py_attrs or cpp_class_attrs or memoryview_slices or weakref_slot or dict_slot:
             self.generate_self_cast(scope, code)
 
         if not is_final_type:
@@ -1356,6 +1365,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if weakref_slot:
             code.putln("if (p->__weakref__) PyObject_ClearWeakRefs(o);")
+
+        if dict_slot:
+            code.putln("if (p->__dict__) PyDict_Clear(p->__dict__);")
 
         for entry in cpp_class_attrs:
             code.putln("__Pyx_call_destructor(p->%s);" % entry.cname)
@@ -1964,6 +1976,20 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "{0, 0, 0, 0}")
         code.putln(
             "};")
+
+    def generate_dict_getter_function(self, scope, code):
+        func_name = scope.mangle_internal("__dict__getter")
+        dict_attr = scope.lookup_here("__dict__")
+        dict_name = dict_attr.cname
+        code.putln("")
+        code.putln("static PyObject *%s(PyObject *o, CYTHON_UNUSED void *x) {" % func_name)
+        self.generate_self_cast(scope, code)
+        code.putln("if (p->%s == 0){" % dict_name)
+        code.putln("p->%s = PyDict_New();" % dict_name)
+        code.putln("}")
+        code.putln("Py_INCREF(p->%s);" % dict_name)
+        code.putln("return p->%s;" % dict_name)
+        code.putln("}")
 
     def generate_getset_table(self, env, code):
         if env.property_entries:
