@@ -12,7 +12,7 @@ Bugs fixed
   It can now be used as "%%cython -3".
 
 * Follow a recent change in `PEP 492 <https://www.python.org/dev/peps/pep-0498/>`_
-  and CPython 3.5.1 that now requires the ``__aiter__()`` method of asynchronous
+  and CPython 3.5.2 that now requires the ``__aiter__()`` method of asynchronous
   iterators to be a simple ``def`` method instead of an ``async def`` method.
 
 * Coroutines and generators were lacking the ``__module__`` special attribute.
