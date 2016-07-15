@@ -1278,8 +1278,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 struct_type_cast, type.vtabptr_cname))
 
         for entry in cpp_class_attrs:
-            code.putln("new((void*)&(p->%s)) %s();" %
-                       (entry.cname, entry.type.empty_declaration_code()))
+            code.putln("new((void*)&(p->%s)) %s();" % (
+                entry.cname, entry.type.empty_declaration_code()))
 
         for entry in py_attrs:
             if entry.name == "__dict__":
