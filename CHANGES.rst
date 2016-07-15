@@ -56,14 +56,14 @@ Bugs fixed
 * Namespaced C++ types could not be used as memory view types due to lack of
   name mangling.  Patch by Ivan Smirnov.
 
-* Assignments between the identical C++ types that were declared with differently
+* Assignments between identical C++ types that were declared with differently
   typedefed template types could fail.
 
 * Rebuilds could fail to evaluate dependency timestamps in C++ mode.
-  Path by Ian Henriksen.
+  Patch by Ian Henriksen.
 
 * Macros defined in the ``distutils`` compiler option do not require values
-  anymore. Patch by Ian Henriksen.
+  anymore.  Patch by Ian Henriksen.
 
 * Minor fixes for MSVC, Cygwin and PyPy.
 
