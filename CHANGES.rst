@@ -11,15 +11,18 @@ Features added
 * Dynamic Python attributes are allowed on cdef classes if an attribute
   ``cdef dict __dict__`` is declared in the class.  Patch by empyrical.
 
-* for-loop iteration over "std::string".
-
 * Cython implemented C++ classes can make direct calls to base class methods.
+  Patch by empyrical.
 
 * New directive ``cython.no_gc`` to fully disable GC for a cdef class.
+  Patch by Claudio Freire.
 
 * Buffer variables are no longer excluded from ``locals()``.
+  Patch by da-woods.
 
 * Formatting C integers in f-strings is faster.
+
+* for-loop iteration over "std::string".
 
 Bugs fixed
 ----------
