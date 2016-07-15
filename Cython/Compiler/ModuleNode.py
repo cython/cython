@@ -1261,6 +1261,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("p = %s;" % type.cast_code("o"))
         #if need_self_cast:
         #    self.generate_self_cast(scope, code)
+
+        # from this point on, ensure DECREF(o) on failure
+        needs_error_cleanup = False
+
         if type.vtabslot_cname:
             vtab_base_type = type
             while vtab_base_type.base_type and vtab_base_type.base_type.vtabstruct_cname:
@@ -1279,7 +1283,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         for entry in py_attrs:
             if entry.name == "__dict__":
-                code.putln("p->%s = PyDict_New(); Py_INCREF(p->%s);" % (entry.cname, entry.cname))
+                needs_error_cleanup = True
+                code.put("p->%s = PyDict_New(); if (unlikely(!p->%s)) goto bad;" % (
+                    entry.cname, entry.cname))
             else:
                 code.put_init_var_to_py_none(entry, "p->%s", nanny=False)
 
@@ -1298,14 +1304,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 cinit_args = "o, %s, NULL" % Naming.empty_tuple
             else:
                 cinit_args = "o, a, k"
-            code.putln(
-                "if (unlikely(%s(%s) < 0)) {" % (
-                    new_func_entry.func_cname, cinit_args))
-            code.put_decref_clear("o", py_object_type, nanny=False)
-            code.putln(
-                "}")
+            needs_error_cleanup = True
+            code.putln("if (unlikely(%s(%s) < 0)) goto bad;" % (
+                new_func_entry.func_cname, cinit_args))
+
         code.putln(
             "return o;")
+        if needs_error_cleanup:
+            code.putln("bad:")
+            code.put_decref_clear("o", py_object_type, nanny=False)
+            code.putln("return NULL;")
         code.putln(
             "}")
 
@@ -1984,10 +1992,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("")
         code.putln("static PyObject *%s(PyObject *o, CYTHON_UNUSED void *x) {" % func_name)
         self.generate_self_cast(scope, code)
-        code.putln("if (p->%s == 0){" % dict_name)
+        code.putln("if (unlikely(!p->%s)){" % dict_name)
         code.putln("p->%s = PyDict_New();" % dict_name)
         code.putln("}")
-        code.putln("Py_INCREF(p->%s);" % dict_name)
+        code.putln("Py_XINCREF(p->%s);" % dict_name)
         code.putln("return p->%s;" % dict_name)
         code.putln("}")
 
