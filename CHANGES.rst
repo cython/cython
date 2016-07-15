@@ -35,6 +35,9 @@ Other changes
 0.24.1 (2016-07-15)
 ===================
 
+Bugs fixed
+----------
+
 * IPython cell magic was lacking a good way to enable Python 3 code semantics.
   It can now be used as "%%cython -3".
 
