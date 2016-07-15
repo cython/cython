@@ -2056,8 +2056,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         old_error_label = code.new_error_label()
         code.putln("if (0);")  # so the first one can be "else if"
+        msvc_count = 0
         for name, entry in sorted(env.entries.items()):
             if entry.is_cglobal and entry.used:
+                msvc_count += 1
+                if msvc_count % 100 == 0:
+                    code.putln("#ifdef _MSC_VER")
+                    code.putln("if (0);  /* Workaround for MSVC C1061. */")
+                    code.putln("#endif")
                 code.putln('else if (__Pyx_StrEq(name, "%s")) {' % name)
                 if entry.type.is_pyobject:
                     if entry.type.is_extension_type or entry.type.is_builtin_type:

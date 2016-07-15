@@ -11,14 +11,9 @@ Features added
 * Dynamic Python attributes are allowed on cdef classes if an attribute
   ``cdef dict __dict__`` is declared in the class.  Patch by empyrical.
 
-* IPython cell magic supports "-3" argument as in "%%cython -3".
-
 * for-loop iteration over "std::string".
 
 * Cython implemented C++ classes can make direct calls to base class methods.
-
-* Macros defined in the ``distutils`` compiler option do not require values
-  anymore. Patch by Ian Henriksen.
 
 * New directive ``cython.no_gc`` to fully disable GC for a cdef class.
 
@@ -31,17 +26,37 @@ Bugs fixed
 
 * Division of complex numbers avoids overflow by using Smith's method.
 
-* Namespaced C++ types could not be used as memory view types due to lack of
-  name mangling.  Patch by Ivan Smirnov.
+Other changes
+-------------
+
+* Usage of ``Cython.Distutils.build_ext`` is now discouraged.
+
+
+0.24.1 (2016-07-15)
+===================
+
+* IPython cell magic was lacking a good way to enable Python 3 code semantics.
+  It can now be used as "%%cython -3".
 
 * Follow a recent change in `PEP 492 <https://www.python.org/dev/peps/pep-0498/>`_
   and CPython 3.5.1 that now requires the ``__aiter__()`` method of asynchronous
   iterators to be a simple ``def`` method instead of an ``async def`` method.
 
-Other changes
--------------
+* Coroutines and generators were lacking the ``__module__`` special attribute.
 
-* Usage of ``Cython.Distutils.build_ext`` is now discouraged.
+* Namespaced C++ types could not be used as memory view types due to lack of
+  name mangling.  Patch by Ivan Smirnov.
+
+* Assignments between the identical C++ types that were declared with differently
+  typedefed template types could fail.
+
+* Rebuilds could fail to evaluate dependency timestamps in C++ mode.
+  Path by Ian Henriksen.
+
+* Macros defined in the ``distutils`` compiler option do not require values
+  anymore. Patch by Ian Henriksen.
+
+* Minor fixes for MSVC, Cygwin and PyPy.
 
 
 0.24 (2016-04-04)
