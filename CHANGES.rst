@@ -9,11 +9,39 @@ Features added
 --------------
 
 * Dynamic Python attributes are allowed on cdef classes if an attribute
-  ``cdef dict __dict__`` is declared in the class.
+  ``cdef dict __dict__`` is declared in the class.  Patch by empyrical.
 
 * IPython cell magic supports "-3" argument as in "%%cython -3".
 
 * for-loop iteration over "std::string".
+
+* Cython implemented C++ classes can make direct calls to base class methods.
+
+* Macros defined in the ``distutils`` compiler option do not require values
+  anymore. Patch by Ian Henriksen.
+
+* New directive ``cython.no_gc`` to fully disable GC for a cdef class.
+
+* Buffer variables are no longer excluded from ``locals()``.
+
+* Formatting C integers in f-strings is faster.
+
+Bugs fixed
+----------
+
+* Division of complex numbers avoids overflow by using Smith's method.
+
+* Namespaced C++ types could not be used as memory view types due to lack of
+  name mangling.  Patch by Ivan Smirnov.
+
+* Follow a recent change in `PEP 492 <https://www.python.org/dev/peps/pep-0498/>`_
+  and CPython 3.5.1 that now requires the ``__aiter__()`` method of asynchronous
+  iterators to be a simple ``def`` method instead of an ``async def`` method.
+
+Other changes
+-------------
+
+* Usage of ``Cython.Distutils.build_ext`` is now discouraged.
 
 
 0.24 (2016-04-04)
