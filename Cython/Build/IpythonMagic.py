@@ -152,8 +152,12 @@ class CythonMagics(Magics):
 
     @magic_arguments.magic_arguments()
     @magic_arguments.argument(
-        '-3', dest='cython3', action='store_true', default=False,
-        help="Switch to Python 3 syntax."
+        '-3', dest='language_level', action='store_const', const=3, default=None,
+        help="Select Python 3 syntax."
+    )
+    @magic_arguments.argument(
+        '-2', dest='language_level', action='store_const', const=2, default=None,
+        help="Select Python 2 syntax."
     )
     @magic_arguments.argument(
         '-c', '--compile-args', action='append', default=[],
@@ -272,7 +276,10 @@ class CythonMagics(Magics):
                     annotate=args.annotate,
                     force=True,
                 )
-                if args.cython3:
+                if args.language_level is not None:
+                    assert args.language_level in (2, 3)
+                    opts['language_level'] = args.language_level
+                elif sys.version_info[0] > 2:
                     opts['language_level'] = 3
                 build_extension.extensions = cythonize([extension], **opts)
             except CompileError:

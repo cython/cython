@@ -28,7 +28,7 @@ def f(x):
 """)
 
 cython3_code = py3compat.str_to_unicode("""\
-def f(x):
+def f(int x):
     return 2 / x
 
 def call(x):
@@ -87,12 +87,18 @@ class TestIPythonMagic(CythonTest):
         self.assertEqual(ip.user_ns['g'], 20.0)
 
     def test_cython3(self):
-        # The Cython module named 'mymodule' defines the function f.
+        # The Cython cell defines the functions f() and call().
         ip.run_cell_magic('cython', '-3', cython3_code)
-        # This module can now be imported in the interactive namespace.
         ip.ex('g = f(10); h = call(10)')
         self.assertEqual(ip.user_ns['g'], 2.0 / 10.0)
         self.assertEqual(ip.user_ns['h'], 2.0 / 10.0)
+
+    def test_cython2(self):
+        # The Cython cell defines the functions f() and call().
+        ip.run_cell_magic('cython', '-2', cython3_code)
+        ip.ex('g = f(10); h = call(10)')
+        self.assertEqual(ip.user_ns['g'], 2 // 10)
+        self.assertEqual(ip.user_ns['h'], 2 // 10)
 
     @skip_win32
     def test_extlibs(self):

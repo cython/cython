@@ -53,6 +53,10 @@ Bugs fixed
 Other changes
 -------------
 
+* The "%%cython" IPython/jupyter magic now defaults to the language level of
+  the current jupyter kernel.  The language level can be set explicitly with
+  "%%cython -2" or "%%cython -3".
+
 * Usage of ``Cython.Distutils.build_ext`` is now discouraged.
 
 
