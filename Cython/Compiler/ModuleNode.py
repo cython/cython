@@ -703,7 +703,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln('static PyObject *%s;' % Naming.preimport_cname)
         code.putln('static int %s;' % Naming.lineno_cname)
         code.putln('static int %s = 0;' % Naming.clineno_cname)
-        code.putln('static const char * %s= %s;' % (Naming.cfilenm_cname, Naming.file_c_macro))
+        if Options.short_cfilenm is not None:
+            cfilenm_expr = Options.short_cfilenm
+        else:
+            cfilenm_expr = Naming.file_c_macro
+        code.putln('static const char *%s= %s;' % (Naming.cfilenm_cname, cfilenm_expr))
         code.putln('static const char *%s;' % Naming.filename_cname)
 
     def generate_extern_c_macro_definition(self, code):

@@ -16,6 +16,10 @@ emit_code_comments = True
 
 pre_import = None  # undocumented
 
+# This expression will be used as cfilenm in Exception traceback messages
+# instead of __FILE__. Must be None, or str.
+short_cfilenm = None
+
 # Decref global variables in this module on exit for garbage collection.
 # 0: None, 1+: interned objects, 2+: cdef globals, 3+: types objects
 # Mostly for reducing noise in Valgrind, only executes at process exit
