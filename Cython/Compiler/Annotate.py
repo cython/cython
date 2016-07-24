@@ -175,10 +175,11 @@ class AnnotationCCodeWriter(CCodeWriter):
         else:
             coverage_timestamp = covered_lines = None
         annotation_items = dict(self.annotations[source_filename])
+        scopes = dict(self.scopes[source_filename])
 
         outlist = []
         outlist.extend(self._save_annotation_header(c_file, source_filename, coverage_timestamp))
-        outlist.extend(self._save_annotation_body(code, generated_code, annotation_items, covered_lines))
+        outlist.extend(self._save_annotation_body(code, generated_code, annotation_items, scopes, covered_lines))
         outlist.extend(self._save_annotation_footer())
         return ''.join(outlist)
 
@@ -214,7 +215,7 @@ class AnnotationCCodeWriter(CCodeWriter):
             HtmlFormatter(nowrap=True))
         return html_code
 
-    def _save_annotation_body(self, cython_code, generated_code, annotation_items, covered_lines=None):
+    def _save_annotation_body(self, cython_code, generated_code, annotation_items, scopes, covered_lines=None):
         outlist = [u'<div class="cython">']
         pos_comment_marker = u'/* \N{HORIZONTAL ELLIPSIS} */\n'
         new_calls_map = dict(
