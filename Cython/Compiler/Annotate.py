@@ -27,10 +27,13 @@ class AnnotationCCodeWriter(CCodeWriter):
         CCodeWriter.__init__(self, create_from, buffer, copy_formatting=copy_formatting)
         if create_from is None:
             self.annotation_buffer = StringIO()
-            self.annotations = []
             self.last_annotated_pos = None
-            self.code = defaultdict(partial(defaultdict, str))    # code[filename][line] -> str
-            self.scopes = defaultdict(partial(defaultdict, set))  # scopes[filename][line] -> set(scopes)
+            # annotations[filename][line] -> [(column, AnnotationItem)*]
+            self.annotations = defaultdict(partial(defaultdict, list))
+            # code[filename][line] -> str
+            self.code = defaultdict(partial(defaultdict, str))
+            # scopes[filename][line] -> set(scopes)
+            self.scopes = defaultdict(partial(defaultdict, set))
         else:
             # When creating an insertion point, keep references to the same database
             self.annotation_buffer = create_from.annotation_buffer
@@ -60,7 +63,7 @@ class AnnotationCCodeWriter(CCodeWriter):
         self.last_annotated_pos = pos
 
     def annotate(self, pos, item):
-        self.annotations.append((pos, item))
+        self.annotations[pos[0].filename][pos[1]].append((pos[2], item))
 
     def _css(self):
         """css template will later allow to choose a colormap"""
@@ -171,10 +174,11 @@ class AnnotationCCodeWriter(CCodeWriter):
             covered_lines = self._get_line_coverage(coverage_xml, source_filename)
         else:
             coverage_timestamp = covered_lines = None
+        annotation_items = dict(self.annotations[source_filename])
 
         outlist = []
         outlist.extend(self._save_annotation_header(c_file, source_filename, coverage_timestamp))
-        outlist.extend(self._save_annotation_body(code, generated_code, covered_lines))
+        outlist.extend(self._save_annotation_body(code, generated_code, annotation_items, covered_lines))
         outlist.extend(self._save_annotation_footer())
         return ''.join(outlist)
 
@@ -210,7 +214,7 @@ class AnnotationCCodeWriter(CCodeWriter):
             HtmlFormatter(nowrap=True))
         return html_code
 
-    def _save_annotation_body(self, cython_code, generated_code, covered_lines=None):
+    def _save_annotation_body(self, cython_code, generated_code, annotation_items, covered_lines=None):
         outlist = [u'<div class="cython">']
         pos_comment_marker = u'/* \N{HORIZONTAL ELLIPSIS} */\n'
         new_calls_map = dict(
