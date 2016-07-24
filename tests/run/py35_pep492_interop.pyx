@@ -70,6 +70,14 @@ def await_cyobject():
     >>> buffer, result = run_async(run_await(awaiting(simple())))
     >>> result
     10
+
+    >>> buffer, result = run_async(run_await(awaiting(awaiting(simple()))))
+    >>> result
+    10
+
+    >>> buffer, result = run_async(run_await(awaiting(run_await(awaiting(simple())))))
+    >>> result
+    10
     """
 
     async def simple():
