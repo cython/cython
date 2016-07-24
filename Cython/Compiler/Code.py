@@ -582,11 +582,13 @@ class FunctionState(object):
     # in_try_finally   boolean         inside try of try...finally
     # exc_vars         (string * 3)    exception variables for reraise, or None
     # can_trace        boolean         line tracing is supported in the current context
+    # scope            Scope           the scope object of the current function
 
     # Not used for now, perhaps later
-    def __init__(self, owner, names_taken=set()):
+    def __init__(self, owner, names_taken=set(), scope=None):
         self.names_taken = names_taken
         self.owner = owner
+        self.scope = scope
 
         self.error_label = None
         self.label_counter = 0
@@ -1627,8 +1629,8 @@ class CCodeWriter(object):
     def label_used(self, lbl):         return self.funcstate.label_used(lbl)
 
 
-    def enter_cfunc_scope(self):
-        self.funcstate = FunctionState(self)
+    def enter_cfunc_scope(self, scope=None):
+        self.funcstate = FunctionState(self, scope=scope)
 
     def exit_cfunc_scope(self):
         self.funcstate = None

@@ -2101,7 +2101,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.exit_cfunc_scope()  # done with labels
 
     def generate_module_init_func(self, imported_modules, env, code):
-        code.enter_cfunc_scope()
+        code.enter_cfunc_scope(self.scope)
         code.putln("")
         header2 = "PyMODINIT_FUNC init%s(void)" % env.module_name
         header3 = "PyMODINIT_FUNC PyInit_%s(void)" % env.module_name

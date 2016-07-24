@@ -20,6 +20,7 @@ cimport cython
 cdef class FunctionState:
     cdef public set names_taken
     cdef public object owner
+    cdef public object scope
 
     cdef public object error_label
     cdef public size_t label_counter

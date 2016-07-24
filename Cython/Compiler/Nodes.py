@@ -1732,7 +1732,7 @@ class FuncDefNode(StatNode, BlockNode):
                 UtilityCode.load_cached("Profile", "Profile.c"))
 
         # Generate C code for header and body of function
-        code.enter_cfunc_scope()
+        code.enter_cfunc_scope(lenv)
         code.return_from_error_cleanup_label = code.new_label()
         code.funcstate.gil_owned = not lenv.nogil
 
@@ -3219,7 +3219,7 @@ class DefNodeWrapper(FuncDefNode):
         if preprocessor_guard:
             code.putln(preprocessor_guard)
 
-        code.enter_cfunc_scope()
+        code.enter_cfunc_scope(lenv)
         code.return_from_error_cleanup_label = code.new_label()
 
         with_pymethdef = (self.target.needs_assignment_synthesis(env, code) or
@@ -4045,7 +4045,7 @@ class GeneratorBodyDefNode(DefNode):
         self.body.generate_function_definitions(lenv, code)
 
         # Generate C code for header and body of function
-        code.enter_cfunc_scope()
+        code.enter_cfunc_scope(lenv)
         code.return_from_error_cleanup_label = code.new_label()
 
         # ----- Top-level constants used by this function

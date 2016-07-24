@@ -29,12 +29,14 @@ class AnnotationCCodeWriter(CCodeWriter):
             self.annotation_buffer = StringIO()
             self.annotations = []
             self.last_annotated_pos = None
-            self.code = defaultdict(partial(defaultdict, str))
+            self.code = defaultdict(partial(defaultdict, str))    # code[filename][line] -> str
+            self.scopes = defaultdict(partial(defaultdict, set))  # scopes[filename][line] -> set(scopes)
         else:
             # When creating an insertion point, keep references to the same database
             self.annotation_buffer = create_from.annotation_buffer
             self.annotations = create_from.annotations
             self.code = create_from.code
+            self.scopes = create_from.scopes
             self.last_annotated_pos = create_from.last_annotated_pos
 
     def create_new(self, create_from, buffer, copy_formatting):
@@ -47,6 +49,9 @@ class AnnotationCCodeWriter(CCodeWriter):
     def mark_pos(self, pos, trace=True):
         if pos is not None:
             CCodeWriter.mark_pos(self, pos, trace)
+            if self.funcstate and self.funcstate.scope:
+                # lambdas and genexprs can result in multiple scopes per line => keep them in a set
+                self.scopes[pos[0].filename][pos[1]].add(self.funcstate.scope)
         if self.last_annotated_pos:
             source_desc, line, _ = self.last_annotated_pos
             pos_code = self.code[source_desc.filename]
