@@ -713,7 +713,12 @@ static PyObject *__Pyx_Generator_Next(PyObject *self) {
         //Py_INCREF(yf);
         // YieldFrom code ensures that yf is an iterator
         gen->is_running = 1;
-        ret = Py_TYPE(yf)->tp_iternext(yf);
+        #ifdef __Pyx_Generator_USED
+        if (__Pyx_Generator_CheckExact(yf)) {
+            ret = __Pyx_Generator_Next(yf);
+        } else
+        #endif
+            ret = Py_TYPE(yf)->tp_iternext(yf);
         gen->is_running = 0;
         //Py_DECREF(yf);
         if (likely(ret)) {
