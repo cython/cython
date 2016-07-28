@@ -106,7 +106,7 @@ embed = None
 
 # In previous iterations of Cython, globals() gave the first non-Cython module
 # globals in the call stack.  Sage relies on this behavior for variable injection.
-old_style_globals = False
+old_style_globals = ShouldBeFromDirective('old_style_globals')
 
 # Allows cimporting from a pyx file without a pxd file.
 cimport_from_pyx = False
@@ -173,6 +173,7 @@ _directive_defaults = {
     'c_string_encoding': '',
     'type_version_tag': True,   # enables Py_TPFLAGS_HAVE_VERSION_TAG on extension types
     'unraisable_tracebacks': False,
+    'old_style_globals': False,
 
     # set __file__ and/or __path__ to known source/target path at import time (instead of not having them available)
     'set_initial_path' : None,  # SOURCEFILE or "/full/path/to/module"
@@ -304,6 +305,9 @@ directive_scopes = { # defaults to available everywhere
     'c_string_encoding': ('module',),
     'type_version_tag': ('module', 'cclass'),
     'language_level': ('module',),
+    # globals() could conceivably be controlled at a finer granularity,
+    # but that would complicate the implementation
+    'old_style_globals': ('module',),
 }
 
 

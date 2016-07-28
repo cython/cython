@@ -208,12 +208,12 @@ builtin_function_table = [
 
     # Put in namespace append optimization.
     BuiltinFunction('__Pyx_PyObject_Append', "OO",  "O",     "__Pyx_PyObject_Append"),
+
+    # This is conditionally looked up based on a compiler directive.
+    BuiltinFunction('__Pyx_globals',    "",     "O",     "__Pyx_Globals",
+                    utility_code=globals_utility_code),
 ]
 
-if not Options.old_style_globals:
-    builtin_function_table.append(
-        BuiltinFunction('globals',    "",     "O",     "__Pyx_Globals",
-                        utility_code=globals_utility_code))
 
 # Builtin types
 #  bool

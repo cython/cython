@@ -1034,6 +1034,7 @@ class ModuleScope(Scope):
     is_module_scope = 1
     has_import_star = 0
     is_cython_builtin = 0
+    old_style_globals = 0
 
     def __init__(self, name, parent_module, context):
         from . import Builtin
@@ -1128,7 +1129,10 @@ class ModuleScope(Scope):
             for entry in self.cached_builtins:
                 if entry.name == name:
                     return entry
-        entry = self.declare(None, None, py_object_type, pos, 'private')
+        if name == 'globals' and not self.old_style_globals:
+            return self.outer_scope.lookup('__Pyx_globals')
+        else:
+            entry = self.declare(None, None, py_object_type, pos, 'private')
         if Options.cache_builtins and name not in Code.uncachable_builtins:
             entry.is_builtin = 1
             entry.is_const = 1 # cached
