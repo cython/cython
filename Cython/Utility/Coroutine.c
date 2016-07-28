@@ -430,43 +430,41 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
 
     // most common case: plain StopIteration without or with separate argument
     if (likely(et == PyExc_StopIteration)) {
+        if (!ev) {
+            Py_INCREF(Py_None);
+            value = Py_None;
+        }
 #if PY_VERSION_HEX >= 0x030300A0
-        if (ev && Py_TYPE(ev) == (PyTypeObject*)PyExc_StopIteration) {
+        else if (Py_TYPE(ev) == (PyTypeObject*)PyExc_StopIteration) {
             value = ((PyStopIterationObject *)ev)->value;
             Py_INCREF(value);
             Py_DECREF(ev);
+        }
+#endif
+        // PyErr_SetObject() and friends put the value directly into ev
+        else if (unlikely(PyTuple_Check(ev))) {
+            // if it's a tuple, it is interpreted as separate constructor arguments (surprise!)
+            if (PyTuple_GET_SIZE(ev) >= 1) {
+#if !CYTHON_COMPILING_IN_CPYTHON
+                value = PySequence_ITEM(ev, 0);
+#else
+                value = PyTuple_GET_ITEM(ev, 0);
+                Py_INCREF(value);
+#endif
+            } else {
+                Py_INCREF(Py_None);
+                value = Py_None;
+            }
+            Py_DECREF(ev);
+        }
+        else if (!PyObject_TypeCheck(ev, (PyTypeObject*)PyExc_StopIteration)) {
+            // 'steal' reference to ev
+            value = ev;
+        }
+        if (likely(value)) {
             Py_XDECREF(tb);
             Py_DECREF(et);
             *pvalue = value;
-            return 0;
-        }
-#endif
-        if (!ev || !PyObject_TypeCheck(ev, (PyTypeObject*)PyExc_StopIteration)) {
-            // PyErr_SetObject() and friends put the value directly into ev
-            if (!ev) {
-                Py_INCREF(Py_None);
-                ev = Py_None;
-            } else if (unlikely(PyTuple_Check(ev))) {
-                // however, if it's a tuple, it is interpreted as separate constructor arguments (surprise!)
-                if (PyTuple_GET_SIZE(ev) >= 1) {
-                    PyObject *value;
-#if !CYTHON_COMPILING_IN_CPYTHON
-                    value = PySequence_ITEM(ev, 0);
-#else
-                    value = PyTuple_GET_ITEM(ev, 0);
-                    Py_INCREF(value);
-#endif
-                    Py_DECREF(ev);
-                    ev = value;
-                } else {
-                    Py_INCREF(Py_None);
-                    Py_DECREF(ev);
-                    ev = Py_None;
-                }
-            }
-            Py_XDECREF(tb);
-            Py_DECREF(et);
-            *pvalue = ev;
             return 0;
         }
     } else if (!PyErr_GivenExceptionMatches(et, PyExc_StopIteration)) {
