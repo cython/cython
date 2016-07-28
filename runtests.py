@@ -648,7 +648,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self._saved_default_directives = list(Options.get_directive_defaults().items())
         Options.warning_errors = self.warning_errors
         if sys.version_info >= (3, 4):
-            Options.directive_defaults['autotestdict'] = False
+            Options._directive_defaults['autotestdict'] = False
 
         if not os.path.exists(self.workdir):
             os.makedirs(self.workdir)
@@ -659,7 +659,7 @@ class CythonCompileTestCase(unittest.TestCase):
         from Cython.Compiler import Options
         for name, value in self._saved_options:
             setattr(Options, name, value)
-        Options.directive_defaults = dict(self._saved_default_directives)
+        Options._directive_defaults = dict(self._saved_default_directives)
         unpatch_inspect_isfunction()
 
         try:
@@ -1197,7 +1197,7 @@ class CythonPyregrTestCase(CythonRunTestCase):
         from Cython.Compiler import Options
         Options.error_on_unknown_names = False
         Options.error_on_uninitialized = False
-        Options.directive_defaults.update(dict(
+        Options._directive_defaults.update(dict(
             binding=True, always_allow_keywords=True,
             set_initial_path="SOURCEFILE"))
         patch_inspect_isfunction()
