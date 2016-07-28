@@ -450,7 +450,7 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
                 // however, if it's a tuple, it is interpreted as separate constructor arguments (surprise!)
                 if (PyTuple_GET_SIZE(ev) >= 1) {
                     PyObject *value;
-#if CYTHON_COMPILING_IN_CPYTHON
+#if !CYTHON_COMPILING_IN_CPYTHON
                     value = PySequence_ITEM(ev, 0);
 #else
                     value = PyTuple_GET_ITEM(ev, 0);
