@@ -446,7 +446,7 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
             if (!ev) {
                 Py_INCREF(Py_None);
                 ev = Py_None;
-            } else if (PyTuple_Check(ev)) {
+            } else if (unlikely(PyTuple_Check(ev))) {
                 // however, if it's a tuple, it is interpreted as separate constructor arguments (surprise!)
                 if (PyTuple_GET_SIZE(ev) >= 1) {
                     PyObject *value;
