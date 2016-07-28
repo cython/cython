@@ -4,6 +4,30 @@
 
 from __future__ import absolute_import
 
+class ShouldBeFromDirective(object):
+
+    known_directives = []
+
+    def __init__(self, options_name, directive_name=None, dissallow=False):
+        self.options_name = options_name
+        self.directive_name = directive_name or options_name
+        self.dissallow = dissallow
+        self.known_directives.append(self)
+
+    def __nonzero__(self):
+        self._bad_access()
+
+    def __int__(self):
+        self._bad_access()
+
+    def _bad_access(self):
+        raise RuntimeError(repr(self))
+
+    def __repr__(self):
+        return (
+        "Illegal access of '%s' from Options module rather than directive '%s'"
+        % (self.options_name, self.directive_name))
+
 # Include docstrings.
 docstrings = True
 
@@ -95,8 +119,25 @@ buffer_max_dims = 8
 closure_freelist_size = 8
 
 
+def get_directive_defaults():
+  # To add an item to this list, all accesses should be changed to use the new
+  # directive, and the global option itself should be set to an instance of
+  # ShouldBeFromDirective.
+  for old_option in ShouldBeFromDirective.known_directives:
+    value = globals().get(old_option.options_name)
+    assert old_option.directive_name in _directive_defaults
+    if not isinstance(value, ShouldBeFromDirective):
+        if old_option.disallow:
+            raise RuntimeError(
+                "Option '%s' must be set from directive '%s'" % (
+                old_option.option_name, old_option.directive_name))
+        else:
+            # Warn?
+            _directive_defaults[old_option.directive_name] = value
+  return _directive_defaults
+
 # Declare compiler directives
-directive_defaults = {
+_directive_defaults = {
     'boundscheck' : True,
     'nonecheck' : False,
     'initializedcheck' : True,
@@ -237,7 +278,7 @@ directive_types = {
     'c_string_encoding': normalise_encoding_name,
 }
 
-for key, val in directive_defaults.items():
+for key, val in _directive_defaults.items():
     if key not in directive_types:
         directive_types[key] = type(val)
 
@@ -366,7 +407,7 @@ def parse_directive_list(s, relaxed_bool=False, ignore_unknown=False,
         if not '=' in item:
             raise ValueError('Expected "=" in option "%s"' % item)
         name, value = [s.strip() for s in item.strip().split('=', 1)]
-        if name not in directive_defaults:
+        if name not in _directive_defaults:
             found = False
             if name.endswith('.all'):
                 prefix = name[:-3]

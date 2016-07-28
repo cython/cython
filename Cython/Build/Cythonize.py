@@ -33,7 +33,7 @@ class _FakePool(object):
 def parse_directives(option, name, value, parser):
     dest = option.dest
     old_directives = dict(getattr(parser.values, dest,
-                                  Options.directive_defaults))
+                                  Options.get_directive_defaults()))
     directives = Options.parse_directive_list(
         value, relaxed_bool=True, current_settings=old_directives)
     setattr(parser.values, dest, directives)

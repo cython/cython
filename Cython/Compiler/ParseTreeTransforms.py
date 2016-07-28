@@ -661,7 +661,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         self.cython_module_names = set()
         self.directive_names = {'staticmethod': 'staticmethod'}
         self.parallel_directives = {}
-        directives = copy.deepcopy(Options.directive_defaults)
+        directives = copy.deepcopy(Options.get_directive_defaults())
         for key, value in compilation_directive_defaults.items():
             directives[_unicode(key)] = copy.deepcopy(value)
         self.directives = directives
@@ -673,8 +673,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                                         'is not allowed in %s scope' % (directive, scope)))
             return False
         else:
-            if (directive not in Options.directive_defaults
-                    and directive not in Options.directive_types):
+            if directive not in Options.directive_types:
                 error(pos, "Invalid directive: '%s'." % (directive,))
             return True
 
@@ -869,7 +868,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
     def try_to_parse_directive(self, optname, args, kwds, pos):
         directivetype = Options.directive_types.get(optname)
         if len(args) == 1 and isinstance(args[0], ExprNodes.NoneNode):
-            return optname, Options.directive_defaults[optname]
+            return optname, Options.get_directive_defaults()[optname]
         elif directivetype is bool:
             if kwds is not None or len(args) != 1 or not isinstance(args[0], ExprNodes.BoolNode):
                 raise PostParseError(pos,
