@@ -1490,7 +1490,7 @@ static void __Pyx__ReturnWithStopIteration(PyObject* value) {
     PyObject *exc, *args;
 #if CYTHON_COMPILING_IN_CPYTHON
     __Pyx_PyThreadState_declare
-    if ((PY_VERSION_HEX >= 0x03030000 && PY_VERSION_HEX < 0x030500B1) || PyTuple_Check(value)) {
+    if ((PY_VERSION_HEX >= 0x03030000 && PY_VERSION_HEX < 0x030500B1) || unlikely(PyTuple_Check(value))) {
         args = PyTuple_New(1);
         if (unlikely(!args)) return;
         Py_INCREF(value);
