@@ -1130,7 +1130,7 @@ class ModuleScope(Scope):
                 if entry.name == name:
                     return entry
         if name == 'globals' and not self.old_style_globals:
-            return self.outer_scope.lookup('__Pyx_globals')
+            return self.outer_scope.lookup('__Pyx_Globals')
         else:
             entry = self.declare(None, None, py_object_type, pos, 'private')
         if Options.cache_builtins and name not in Code.uncachable_builtins:

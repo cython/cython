@@ -415,7 +415,7 @@ def parse_directive_list(s, relaxed_bool=False, ignore_unknown=False,
             found = False
             if name.endswith('.all'):
                 prefix = name[:-3]
-                for directive in directive_defaults:
+                for directive in _directive_defaults:
                     if directive.startswith(prefix):
                         found = True
                         parsed_value = parse_directive_value(directive, value, relaxed_bool=relaxed_bool)

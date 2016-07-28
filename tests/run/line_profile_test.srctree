@@ -7,9 +7,9 @@ from distutils.extension import Extension
 from distutils.core import setup
 from Cython.Build import cythonize
 
-from Cython.Compiler.Options import directive_defaults
-directive_defaults['linetrace'] = True
-directive_defaults['binding'] = True
+from Cython.Compiler.Options import _directive_defaults
+_directive_defaults['linetrace'] = True
+_directive_defaults['binding'] = True
 
 extensions = [
     Extension("collatz", ["collatz.pyx"], define_macros=[('CYTHON_TRACE', '1')])

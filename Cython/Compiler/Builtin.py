@@ -210,7 +210,7 @@ builtin_function_table = [
     BuiltinFunction('__Pyx_PyObject_Append', "OO",  "O",     "__Pyx_PyObject_Append"),
 
     # This is conditionally looked up based on a compiler directive.
-    BuiltinFunction('__Pyx_globals',    "",     "O",     "__Pyx_Globals",
+    BuiltinFunction('__Pyx_Globals',    "",     "O",     "__Pyx_Globals",
                     utility_code=globals_utility_code),
 ]
 
