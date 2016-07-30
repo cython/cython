@@ -552,7 +552,7 @@ static int __Pyx_PyUnicode_Tailmatch(PyObject* s, PyObject* substr,
         Py_ssize_t i, count = PyTuple_GET_SIZE(substr);
         for (i = 0; i < count; i++) {
             Py_ssize_t result;
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
             result = PyUnicode_Tailmatch(s, PyTuple_GET_ITEM(substr, i),
                                          start, end, direction);
 #else
@@ -642,7 +642,7 @@ static int __Pyx_PyBytes_Tailmatch(PyObject* self, PyObject* substr,
         Py_ssize_t i, count = PyTuple_GET_SIZE(substr);
         for (i = 0; i < count; i++) {
             int result;
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
             result = __Pyx_PyBytes_SingleTailmatch(self, PyTuple_GET_ITEM(substr, i),
                                                    start, end, direction);
 #else
@@ -815,7 +815,7 @@ static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value
 
 //////////////////// PyObjectFormatSimple.proto ////////////////////
 
-#if !CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_PYPY
     #define __Pyx_PyObject_FormatSimple(s, f) ( \
         likely(PyUnicode_CheckExact(s)) ? (Py_INCREF(s), s) : \
         PyObject_Format(s, f))

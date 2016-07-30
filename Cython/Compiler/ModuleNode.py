@@ -1397,7 +1397,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if base_type.scope and base_type.scope.needs_gc():
                     code.putln("PyObject_GC_Track(o);")
                 else:
-                    code.putln("#if CYTHON_COMPILING_IN_CPYTHON")
+                    code.putln("#if CYTHON_USE_TYPE_SLOTS")
                     code.putln("if (PyType_IS_GC(Py_TYPE(o)->tp_base))")
                     code.putln("#endif")
                     code.putln("PyObject_GC_Track(o);")

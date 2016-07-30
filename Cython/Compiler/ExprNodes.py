@@ -2597,7 +2597,7 @@ class IteratorNode(ExprNode):
             inc_dec = '--'
         else:
             inc_dec = '++'
-        code.putln("#if CYTHON_COMPILING_IN_CPYTHON")
+        code.putln("#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS")
         code.putln(
             "%s = Py%s_GET_ITEM(%s, %s); __Pyx_INCREF(%s); %s%s; %s" % (
                 result_name,
@@ -5484,7 +5484,7 @@ class PyMethodCallNode(SimpleCallNode):
         else:
             likely_method = 'unlikely'
 
-        code.putln("if (CYTHON_COMPILING_IN_CPYTHON && %s(PyMethod_Check(%s))) {" % (likely_method, function))
+        code.putln("if (CYTHON_UNPACK_METHODS && %s(PyMethod_Check(%s))) {" % (likely_method, function))
         code.putln("%s = PyMethod_GET_SELF(%s);" % (self_arg, function))
         # the following is always true in Py3 (kept only for safety),
         # but is false for unbound methods in Py2
@@ -7034,7 +7034,7 @@ class SequenceNode(ExprNode):
         code.putln("PyObject* sequence = %s;" % rhs.py_result())
 
         # list/tuple => check size
-        code.putln("#if CYTHON_COMPILING_IN_CPYTHON")
+        code.putln("#if !CYTHON_COMPILING_IN_PYPY")
         code.putln("Py_ssize_t size = Py_SIZE(sequence);")
         code.putln("#else")
         code.putln("Py_ssize_t size = PySequence_Size(sequence);")  # < 0 => exception
@@ -7048,7 +7048,7 @@ class SequenceNode(ExprNode):
         code.putln(code.error_goto(self.pos))
         code.putln("}")
 
-        code.putln("#if CYTHON_COMPILING_IN_CPYTHON")
+        code.putln("#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS")
         # unpack items from list/tuple in unrolled loop (can't fail)
         if len(sequence_types) == 2:
             code.putln("if (likely(Py%s_CheckExact(sequence))) {" % sequence_types[0])

@@ -251,7 +251,7 @@ __Pyx_CyFunction_init_defaults(__pyx_CyFunctionObject *op) {
         return -1;
 
     // Cache result
-    #if CYTHON_COMPILING_IN_CPYTHON
+    #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
     op->defaults_tuple = PyTuple_GET_ITEM(res, 0);
     Py_INCREF(op->defaults_tuple);
     op->defaults_kwdict = PyTuple_GET_ITEM(res, 1);
@@ -745,7 +745,7 @@ static CYTHON_INLINE int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, P
 
     for (i = 0; i < count; i++) {
         __pyx_CyFunctionObject *m = (__pyx_CyFunctionObject *)
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
             PyList_GET_ITEM(cyfunctions, i);
 #else
             PySequence_ITEM(cyfunctions, i);
@@ -754,7 +754,7 @@ static CYTHON_INLINE int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, P
 #endif
         Py_INCREF(classobj);
         m->func_classobj = classobj;
-#if !CYTHON_COMPILING_IN_CPYTHON
+#if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
         Py_DECREF((PyObject*)m);
 #endif
     }
@@ -910,13 +910,13 @@ __pyx_FusedFunction_getitem(__pyx_FusedFunctionObject *self, PyObject *idx)
             return NULL;
 
         for (i = 0; i < n; i++) {
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
             PyObject *item = PyTuple_GET_ITEM(idx, i);
 #else
             PyObject *item = PySequence_ITEM(idx, i);
 #endif
             string = _obj_to_str(item);
-#if !CYTHON_COMPILING_IN_CPYTHON
+#if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
             Py_DECREF(item);
 #endif
             if (!string || PyList_Append(list, string) < 0)
@@ -1028,14 +1028,14 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
             return NULL;
 
         self = binding_func->self;
-#if !CYTHON_COMPILING_IN_CPYTHON
+#if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
         Py_INCREF(self);
 #endif
         Py_INCREF(self);
         PyTuple_SET_ITEM(new_args, 0, self);
 
         for (i = 0; i < argc; i++) {
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
             PyObject *item = PyTuple_GET_ITEM(args, i);
             Py_INCREF(item);
 #else
@@ -1051,7 +1051,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
             PyErr_SetString(PyExc_TypeError, "Need at least one argument, 0 given.");
             return NULL;
         }
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
         self = PyTuple_GET_ITEM(args, 0);
 #else
         self = PySequence_ITEM(args, 0);  if (unlikely(!self)) return NULL;
@@ -1070,7 +1070,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
             goto bad;
         }
     }
-#if !CYTHON_COMPILING_IN_CPYTHON
+#if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
     Py_XDECREF(self);
     self = NULL;
 #endif
@@ -1097,7 +1097,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
 
     result = __pyx_FusedFunction_callfunction(func, args, kw);
 bad:
-#if !CYTHON_COMPILING_IN_CPYTHON
+#if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
     Py_XDECREF(self);
 #endif
     Py_XDECREF(new_args);

@@ -86,7 +86,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyNumber_IntOrLong(PyObject* x);
 static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject*);
 static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t);
 
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_ASSUME_SAFE_MACROS
 #define __pyx_PyFloat_AsDouble(x) (PyFloat_CheckExact(x) ? PyFloat_AS_DOUBLE(x) : PyFloat_AsDouble(x))
 #else
 #define __pyx_PyFloat_AsDouble(x) PyFloat_AsDouble(x)
@@ -397,7 +397,7 @@ static {{struct_type_decl}} {{funcname}}(PyObject * o) {
         goto bad;
     }
 
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
     {{for ix, component in enumerate(components):}}
         {{py:attr = "result.f%s" % ix}}
         {{attr}} = {{component.from_py_function}}(PyTuple_GET_ITEM(o, {{ix}}));
@@ -651,7 +651,7 @@ static PyObject* __Pyx_PyUnicode_Build(Py_ssize_t ulength, char* chars, int clen
                                        int prepend_sign, char padding_char) {
     PyObject *uval;
     Py_ssize_t uoffset = ulength - clength;
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_USE_UNICODE_INTERNALS
     Py_ssize_t i;
 #if CYTHON_PEP393_ENABLED
     // Py 3.3+  (post PEP-393)

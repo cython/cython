@@ -16,7 +16,7 @@ static CYTHON_INLINE PyObject* __Pyx_Generator_Yield_From(__pyx_CoroutineObject 
     } else
 #endif
     {
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_USE_TYPE_SLOTS
         if (likely(Py_TYPE(source)->tp_iter)) {
             source_gen = Py_TYPE(source)->tp_iter(source);
             if (unlikely(!source_gen))
@@ -180,13 +180,13 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAwaitableIter(PyObject *o) {
 // adapted from genobject.c in Py3.5
 static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
     PyObject *res;
-#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
+#if CYTHON_USE_TYPE_SLOTS && PY_MAJOR_VERSION >= 3
     __Pyx_PyAsyncMethodsStruct* am = __Pyx_PyType_AsAsync(obj);
     if (likely(am && am->am_await)) {
         res = (*am->am_await)(obj);
     } else
 #endif
-#if (CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500B2) || defined(PyCoro_CheckExact)
+#if PY_VERSION_HEX >= 0x030500B2 || defined(PyCoro_CheckExact)
     if (PyCoro_CheckExact(obj)) {
         Py_INCREF(obj);
         return obj;
@@ -202,7 +202,7 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
     {
         PyObject *method = __Pyx_PyObject_GetAttrStr(obj, PYIDENT("__await__"));
         if (unlikely(!method)) goto slot_error;
-        #if CYTHON_COMPILING_IN_CPYTHON
+        #if CYTHON_UNPACK_METHODS
         if (likely(PyMethod_Check(method))) {
             PyObject *self = PyMethod_GET_SELF(method);
             if (likely(self)) {
@@ -226,7 +226,7 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
         #ifdef __Pyx_Coroutine_USED
         is_coroutine |= __Pyx_Coroutine_CheckExact(res);
         #endif
-        #if (CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500B2) || defined(PyCoro_CheckExact)
+        #if PY_VERSION_HEX >= 0x030500B2 || defined(PyCoro_CheckExact)
         is_coroutine |= PyCoro_CheckExact(res);
         #endif
         if (unlikely(is_coroutine)) {
@@ -445,11 +445,11 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
         else if (unlikely(PyTuple_Check(ev))) {
             // if it's a tuple, it is interpreted as separate constructor arguments (surprise!)
             if (PyTuple_GET_SIZE(ev) >= 1) {
-#if !CYTHON_COMPILING_IN_CPYTHON
-                value = PySequence_ITEM(ev, 0);
-#else
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
                 value = PyTuple_GET_ITEM(ev, 0);
                 Py_INCREF(value);
+#else
+                value = PySequence_ITEM(ev, 0);
 #endif
             } else {
                 Py_INCREF(Py_None);
@@ -1080,7 +1080,7 @@ static PyObject *__Pyx_CoroutineAwait_self(PyObject *self) {
     return self;
 }
 
-#if CYTHON_COMPILING_IN_CPYTHON
+#if !CYTHON_COMPILING_IN_PYPY
 static PyObject *__Pyx_CoroutineAwait_no_new(CYTHON_UNUSED PyTypeObject *type, CYTHON_UNUSED PyObject *args, CYTHON_UNUSED PyObject *kwargs) {
     PyErr_SetString(PyExc_TypeError, "cannot instantiate type, use 'await coroutine' instead");
     return NULL;
@@ -1135,7 +1135,7 @@ static PyTypeObject __pyx_CoroutineAwaitType_type = {
     0,                                  /*tp_dictoffset*/
     0,                                  /*tp_init*/
     0,                                  /*tp_alloc*/
-#if CYTHON_COMPILING_IN_CPYTHON
+#if !CYTHON_COMPILING_IN_PYPY
     __Pyx_CoroutineAwait_no_new,        /*tp_new*/
 #else
     0,                                  /*tp_new*/
@@ -1280,7 +1280,7 @@ static PyGetSetDef __pyx_Coroutine_getsets[] = {
     {0, 0, 0, 0, 0}
 };
 
-#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
+#if PY_MAJOR_VERSION >= 3 && !CYTHON_COMPILING_IN_PYPY
 static __Pyx_PyAsyncMethodsStruct __pyx_Coroutine_as_async = {
     __Pyx_Coroutine_await, /*am_await*/
     0, /*am_aiter*/
@@ -1297,7 +1297,7 @@ static PyTypeObject __pyx_CoroutineType_type = {
     0,                                  /*tp_print*/
     0,                                  /*tp_getattr*/
     0,                                  /*tp_setattr*/
-#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
+#if PY_MAJOR_VERSION >= 3 && !CYTHON_COMPILING_IN_PYPY
     &__pyx_Coroutine_as_async,          /*tp_as_async (tp_reserved)*/
 #else
     0,                                  /*tp_reserved*/

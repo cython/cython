@@ -145,7 +145,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject *, PyObject *); /*pro
 static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* defval) {
     PyObject* next;
     iternextfunc iternext = Py_TYPE(iterator)->tp_iternext;
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_USE_TYPE_SLOTS
     if (unlikely(!iternext)) {
 #else
     if (unlikely(!iternext) || unlikely(!PyIter_Check(iterator))) {
@@ -157,7 +157,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* 
     next = iternext(iterator);
     if (likely(next))
         return next;
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_USE_TYPE_SLOTS
 #if PY_VERSION_HEX >= 0x02070000
     if (unlikely(iternext == &_PyObject_NextNotImplemented))
         return NULL;
@@ -190,7 +190,7 @@ static CYTHON_INLINE int __Pyx_IterFinish(void); /*proto*/
 // detects an error that occurred in the iterator, it returns -1.
 
 static CYTHON_INLINE int __Pyx_IterFinish(void) {
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_FAST_THREAD_STATE
     PyThreadState *tstate = PyThreadState_GET();
     PyObject* exc_type = tstate->curexc_type;
     if (unlikely(exc_type)) {
@@ -281,7 +281,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ssize_t i,
                                                               CYTHON_NCP_UNUSED int wraparound,
                                                               CYTHON_NCP_UNUSED int boundscheck) {
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
     if (wraparound & unlikely(i < 0)) i += Py{{type}}_GET_SIZE(o);
     if ((!boundscheck) || likely((0 <= i) & (i < Py{{type}}_GET_SIZE(o)))) {
         PyObject *r = Py{{type}}_GET_ITEM(o, i);
@@ -298,7 +298,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ss
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, int is_list,
                                                      CYTHON_NCP_UNUSED int wraparound,
                                                      CYTHON_NCP_UNUSED int boundscheck) {
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS && CYTHON_USE_TYPE_SLOTS
     if (is_list || PyList_CheckExact(o)) {
         Py_ssize_t n = ((!wraparound) | likely(i >= 0)) ? i : i + PyList_GET_SIZE(o);
         if ((!boundscheck) || (likely((n >= 0) & (n < PyList_GET_SIZE(o))))) {
@@ -364,7 +364,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyOb
 
 static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v, int is_list,
                                                CYTHON_NCP_UNUSED int wraparound, CYTHON_NCP_UNUSED int boundscheck) {
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS && CYTHON_USE_TYPE_SLOTS
     if (is_list || PyList_CheckExact(o)) {
         Py_ssize_t n = (!wraparound) ? i : ((likely(i >= 0)) ? i : i + PyList_GET_SIZE(o));
         if ((!boundscheck) || likely((n >= 0) & (n < PyList_GET_SIZE(o)))) {
@@ -429,7 +429,7 @@ static CYTHON_INLINE int __Pyx_DelItem_Generic(PyObject *o, PyObject *j) {
 
 static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i,
                                                CYTHON_UNUSED int is_list, CYTHON_NCP_UNUSED int wraparound) {
-#if CYTHON_COMPILING_IN_PYPY
+#if !CYTHON_USE_TYPE_SLOTS
     if (is_list || PySequence_Check(o)) {
         return PySequence_DelItem(o, i);
     }
@@ -484,7 +484,7 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(PyObject* obj, PyObject* value,
         Py_ssize_t cstart, Py_ssize_t cstop,
         PyObject** _py_start, PyObject** _py_stop, PyObject** _py_slice,
         int has_cstart, int has_cstop, CYTHON_UNUSED int wraparound) {
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_USE_TYPE_SLOTS
     PyMappingMethods* mp;
 #if PY_MAJOR_VERSION < 3
     PySequenceMethods* ms = Py_TYPE(obj)->tp_as_sequence;
@@ -570,7 +570,7 @@ static CYTHON_INLINE int __Pyx_PyObject_SetSlice(PyObject* obj, PyObject* value,
             Py_XDECREF(owned_stop);
             if (unlikely(!py_slice)) goto bad;
         }
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_USE_TYPE_SLOTS
 {{if access == 'Get'}}
         result = mp->mp_subscript(obj, py_slice);
 #else
@@ -720,7 +720,7 @@ static PyObject *__Pyx_FindInheritedMetaclass(PyObject *bases) {
     PyObject *metaclass;
     if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
         PyTypeObject *metatype;
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
         PyObject *base = PyTuple_GET_ITEM(bases, 0);
 #else
         PyObject *base = PySequence_ITEM(bases, 0);
@@ -739,7 +739,7 @@ static PyObject *__Pyx_FindInheritedMetaclass(PyObject *bases) {
         metatype = Py_TYPE(base);
 #endif
         metaclass = __Pyx_CalculateMetaclass(metatype, bases);
-#if !CYTHON_COMPILING_IN_CPYTHON
+#if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
         Py_DECREF(base);
 #endif
 #if PY_MAJOR_VERSION < 3
@@ -923,7 +923,7 @@ static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
 
 /////////////// CallableCheck.proto ///////////////
 
-#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
+#if CYTHON_USE_TYPE_SLOTS && PY_MAJOR_VERSION >= 3
 #define __Pyx_PyCallable_Check(obj)   ((obj)->ob_type->tp_call != NULL)
 #else
 #define __Pyx_PyCallable_Check(obj)   PyCallable_Check(obj)
@@ -996,7 +996,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetModuleGlobalName(PyObject *name); /*prot
 
 static CYTHON_INLINE PyObject *__Pyx_GetModuleGlobalName(PyObject *name) {
     PyObject *result;
-#if CYTHON_COMPILING_IN_CPYTHON
+#if !CYTHON_AVOID_BORROWED_REFS
     result = PyDict_GetItem($moddict_cname, name);
     if (likely(result)) {
         Py_INCREF(result);
@@ -1062,7 +1062,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_LookupSpecial(PyObject* obj, PyObj
 
 /////////////// PyObjectGetAttrStr.proto ///////////////
 
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_USE_TYPE_SLOTS
 static CYTHON_INLINE PyObject* __Pyx_PyObject_GetAttrStr(PyObject* obj, PyObject* attr_name) {
     PyTypeObject* tp = Py_TYPE(obj);
     if (likely(tp->tp_getattro))
@@ -1079,7 +1079,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_GetAttrStr(PyObject* obj, PyObject
 
 /////////////// PyObjectSetAttrStr.proto ///////////////
 
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_USE_TYPE_SLOTS
 #define __Pyx_PyObject_DelAttrStr(o,n) __Pyx_PyObject_SetAttrStr(o,n,NULL)
 static CYTHON_INLINE int __Pyx_PyObject_SetAttrStr(PyObject* obj, PyObject* attr_name, PyObject* value) {
     PyTypeObject* tp = Py_TYPE(obj);
@@ -1155,7 +1155,7 @@ static PyObject* __Pyx__CallUnboundCMethod0(__Pyx_CachedCFunction* cfunc, PyObje
 static PyObject* __Pyx__CallUnboundCMethod0(__Pyx_CachedCFunction* cfunc, PyObject* self) {
     PyObject *args, *result = NULL;
     if (unlikely(!cfunc->method) && unlikely(__Pyx_TryUnpackUnboundCMethod(cfunc) < 0)) return NULL;
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_ASSUME_SAFE_MACROS
     args = PyTuple_New(1);
     if (unlikely(!args)) goto bad;
     Py_INCREF(self);
@@ -1233,7 +1233,7 @@ static PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name
     PyObject *method, *result = NULL;
     method = __Pyx_PyObject_GetAttrStr(obj, method_name);
     if (unlikely(!method)) goto bad;
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_UNPACK_METHODS
     if (likely(PyMethod_Check(method))) {
         PyObject *self = PyMethod_GET_SELF(method);
         if (likely(self)) {
@@ -1263,7 +1263,7 @@ static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name
     PyObject *method, *result = NULL;
     method = __Pyx_PyObject_GetAttrStr(obj, method_name);
     if (unlikely(!method)) goto bad;
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_UNPACK_METHODS
     if (likely(PyMethod_Check(method))) {
         PyObject *self = PyMethod_GET_SELF(method);
         if (likely(self)) {
@@ -1302,7 +1302,7 @@ static PyObject* __Pyx_PyObject_CallMethod2(PyObject* obj, PyObject* method_name
 static PyObject* __Pyx_PyObject_CallMethod2(PyObject* obj, PyObject* method_name, PyObject* arg1, PyObject* arg2) {
     PyObject *args, *method, *result = NULL;
     method = __Pyx_PyObject_GetAttrStr(obj, method_name);
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_UNPACK_METHODS
     if (likely(PyMethod_Check(method)) && likely(PyMethod_GET_SELF(method))) {
         PyObject *self, *function;
         self = PyMethod_GET_SELF(method);
@@ -1502,7 +1502,7 @@ static PyObject* __Pyx_PyNumber_InPlaceMatrixMultiply(PyObject* x, PyObject* y);
 static PyObject* __Pyx_PyObject_CallMatrixMethod(PyObject* method, PyObject* arg) {
     // NOTE: eats the method reference
     PyObject *result = NULL;
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_UNPACK_METHODS
     if (likely(PyMethod_Check(method))) {
         PyObject *self = PyMethod_GET_SELF(method);
         if (likely(self)) {
