@@ -739,14 +739,11 @@ class FusedCFuncDefNode(StatListNode):
             self.defaults_tuple = TupleNode(self.pos, args=args)
             self.defaults_tuple = self.defaults_tuple.analyse_types(env, skip_children=True).coerce_to_pyobject(env)
             self.defaults_tuple = ProxyNode(self.defaults_tuple)
-            self.code_object = ProxyNode(self.specialized_pycfuncs[0].code_object)
 
             fused_func = self.resulting_fused_function.arg
             fused_func.defaults_tuple = CloneNode(self.defaults_tuple)
-            fused_func.code_object = CloneNode(self.code_object)
 
             for i, pycfunc in enumerate(self.specialized_pycfuncs):
-                pycfunc.code_object = CloneNode(self.code_object)
                 pycfunc = self.specialized_pycfuncs[i] = pycfunc.analyse_types(env)
                 pycfunc.defaults_tuple = CloneNode(self.defaults_tuple)
         return self
@@ -792,7 +789,6 @@ class FusedCFuncDefNode(StatListNode):
 
         if self.py_func:
             self.defaults_tuple.generate_evaluation_code(code)
-            self.code_object.generate_evaluation_code(code)
 
         for stat in self.stats:
             code.mark_pos(stat.pos)
@@ -815,7 +811,6 @@ class FusedCFuncDefNode(StatListNode):
             # Dispose of results
             self.resulting_fused_function.generate_disposal_code(code)
             self.defaults_tuple.generate_disposal_code(code)
-            self.code_object.generate_disposal_code(code)
 
         for default in self.defaults:
             if default is not None:

@@ -1020,6 +1020,7 @@ class GlobalState(object):
         self.num_const_index = {}
         self.py_constants = []
         self.cached_cmethods = {}
+        self.code_objects = {}
 
         writer.set_global_state(self)
         self.rootwriter = writer
@@ -1131,6 +1132,69 @@ class GlobalState(object):
 
     def get_cached_constants_writer(self):
         return self.parts['cached_constants']
+
+    def get_pycode_object_cname(self, func_name, func_node, obj_type):
+        if func_node in self.code_objects:
+            return self.code_objects[func_node]
+
+        code_object_cname = self.code_objects[func_node] = self.get_py_const(
+            obj_type, 'codeobj', cleanup_level=2).cname
+
+        code = self.get_cached_constants_writer()
+        code.mark_pos(func_node.pos)
+
+        func_name = code.intern_identifier(func_name)
+        # FIXME: better way to get the module file path at module init time? Encoding to use?
+        file_path = StringEncoding.bytes_literal(func_node.pos[0].get_filenametable_entry().encode('utf8'), 'utf8')
+        file_path_const = code.get_py_string_const(file_path, identifier=False, is_str=True)
+
+        flags = []
+        if func_node.star_arg:
+            flags.append('CO_VARARGS')
+        if func_node.starstar_arg:
+            flags.append('CO_VARKEYWORDS')
+
+        args = list(func_node.args)
+        num_kwonly_args = func_node.num_kwonly_args if func_node.entry.type.is_pyobject else 0
+        local_vars = [arg for arg in func_node.local_scope.var_entries if arg.name]
+        varnames = [
+            code.intern_identifier(arg.name)
+            for arg in args + local_vars]
+
+        varnames_cname = Naming.quick_temp_cname
+        code.putln("{")
+        code.putln("PyObject* %s = PyTuple_New(%d); %s" % (
+            varnames_cname,
+            len(varnames),
+            code.error_goto_if_null(varnames_cname, func_node.pos)))
+        code.put_gotref(varnames_cname)
+
+        for i, varname in enumerate(varnames):
+            code.putln("Py_INCREF(%s); PyTuple_SET_ITEM(%s, %d, %s);" % (varname, varnames_cname, i, varname))
+
+        code.putln("%s = (PyObject*)__Pyx_PyCode_New(%d, %d, %d, 0, %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, %s);" % (
+            code_object_cname,
+            len(func_node.args) - num_kwonly_args,  # argcount
+            num_kwonly_args,         # kwonlyargcount (Py3 only)
+            len(varnames),           # nlocals
+            '|'.join(flags) or '0',  # flags
+            Naming.empty_bytes,  # code
+            Naming.empty_tuple,  # consts
+            Naming.empty_tuple,  # names (FIXME)
+            varnames_cname,      # varnames
+            Naming.empty_tuple,  # freevars (FIXME)
+            Naming.empty_tuple,  # cellvars (FIXME)
+            file_path_const,     # filename
+            func_name,           # name
+            func_node.pos[1],    # firstlineno
+            Naming.empty_bytes,  # lnotab
+        ))
+
+        code.put_decref_clear(varnames_cname, obj_type)
+        code.putln(code.error_goto_if_null(code_object_cname, func_node.pos))
+        code.putln("}")
+
+        return code_object_cname
 
     def get_int_const(self, str_value, longness=False):
         py_type = longness and 'long' or 'int'
@@ -1645,6 +1709,9 @@ class CCodeWriter(object):
 
     def get_py_const(self, type, prefix='', cleanup_level=None):
         return self.globalstate.get_py_const(type, prefix, cleanup_level).cname
+
+    def get_pycode_object_const(self, func_name, def_node, obj_type):
+        return self.globalstate.get_pycode_object_cname(func_name, def_node, obj_type)
 
     def get_string_const(self, text):
         return self.globalstate.get_string_const(text).cname

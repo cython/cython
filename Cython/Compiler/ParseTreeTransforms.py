@@ -1715,12 +1715,10 @@ if VALUE is not None:
         if genv.is_closure_scope:
             rhs = node.py_cfunc_node = ExprNodes.InnerFunctionNode(
                 node.pos, def_node=node,
-                pymethdef_cname=node.entry.pymethdef_cname,
-                code_object=ExprNodes.CodeObjectNode(node))
+                pymethdef_cname=node.entry.pymethdef_cname)
         else:
             binding = self.current_directives.get('binding')
             rhs = ExprNodes.PyCFunctionNode.from_defnode(node, binding)
-            node.code_object = rhs.code_object
 
         if env.is_py_class_scope:
             rhs.binding = True

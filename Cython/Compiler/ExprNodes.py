@@ -8624,13 +8624,10 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
     #  binding           bool
     #  def_node          DefNode            the Python function node
     #  module_name       EncodedString      Name of defining module
-    #  code_object       CodeObjectNode     the PyCodeObject creator node
 
-    subexprs = ['code_object', 'defaults_tuple', 'defaults_kwdict',
-                'annotations_dict']
+    subexprs = ['defaults_tuple', 'defaults_kwdict', 'annotations_dict']
 
     self_object = None
-    code_object = None
     binding = False
     def_node = None
     defaults = None
@@ -8652,8 +8649,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                    def_node=node,
                    pymethdef_cname=node.entry.pymethdef_cname,
                    binding=binding or node.specialized_cpdefs,
-                   specialized_cpdefs=node.specialized_cpdefs,
-                   code_object=CodeObjectNode(node))
+                   specialized_cpdefs=node.specialized_cpdefs)
 
     def analyse_types(self, env):
         if self.binding:
@@ -8819,11 +8815,6 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 UtilityCode.load_cached("CythonFunction", "CythonFunction.c"))
             constructor = "__Pyx_CyFunction_NewEx"
 
-        if self.code_object:
-            code_object_result = self.code_object.py_result()
-        else:
-            code_object_result = 'NULL'
-
         flags = []
         if def_node.is_staticmethod:
             flags.append('__Pyx_CYFUNCTION_STATICMETHOD')
@@ -8848,7 +8839,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 self.self_result_code(),
                 self.get_py_mod_name(code),
                 Naming.moddict_cname,
-                code_object_result,
+                code.get_pycode_object_const(def_node.name, def_node, py_object_type),
                 code.error_goto_if_null(self.result(), self.pos)))
 
         code.put_gotref(self.py_result())
@@ -8899,75 +8890,6 @@ class InnerFunctionNode(PyCFunctionNode):
         if self.needs_self_code:
             return "((PyObject*)%s)" % Naming.cur_scope_cname
         return "NULL"
-
-
-class CodeObjectNode(ExprNode):
-    # Create a PyCodeObject for a CyFunction instance.
-    #
-    # def_node   DefNode    the Python function node
-    # varnames   TupleNode  a tuple with all local variable names
-
-    subexprs = ['varnames']
-    is_temp = False
-    result_code = None
-
-    def __init__(self, def_node):
-        ExprNode.__init__(self, def_node.pos, def_node=def_node)
-        args = list(def_node.args)
-        # if we have args/kwargs, then the first two in var_entries are those
-        local_vars = [arg for arg in def_node.local_scope.var_entries if arg.name]
-        self.varnames = TupleNode(
-            def_node.pos,
-            args=[IdentifierStringNode(arg.pos, value=arg.name)
-                  for arg in args + local_vars],
-            is_temp=0,
-            is_literal=1)
-
-    def may_be_none(self):
-        return False
-
-    def calculate_result_code(self, code=None):
-        if self.result_code is None:
-            self.result_code = code.get_py_const(py_object_type, 'codeobj', cleanup_level=2)
-        return self.result_code
-
-    def generate_result_code(self, code):
-        if self.result_code is None:
-            self.result_code = code.get_py_const(py_object_type, 'codeobj', cleanup_level=2)
-
-        code = code.get_cached_constants_writer()
-        code.mark_pos(self.pos)
-        func = self.def_node
-        func_name = code.get_py_string_const(
-            func.name, identifier=True, is_str=False, unicode_value=func.name)
-        # FIXME: better way to get the module file path at module init time? Encoding to use?
-        file_path = StringEncoding.bytes_literal(func.pos[0].get_filenametable_entry().encode('utf8'), 'utf8')
-        file_path_const = code.get_py_string_const(file_path, identifier=False, is_str=True)
-
-        flags = []
-        if self.def_node.star_arg:
-            flags.append('CO_VARARGS')
-        if self.def_node.starstar_arg:
-            flags.append('CO_VARKEYWORDS')
-
-        code.putln("%s = (PyObject*)__Pyx_PyCode_New(%d, %d, %d, 0, %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, %s); %s" % (
-            self.result_code,
-            len(func.args) - func.num_kwonly_args,  # argcount
-            func.num_kwonly_args,      # kwonlyargcount (Py3 only)
-            len(self.varnames.args),   # nlocals
-            '|'.join(flags) or '0',    # flags
-            Naming.empty_bytes,        # code
-            Naming.empty_tuple,        # consts
-            Naming.empty_tuple,        # names (FIXME)
-            self.varnames.result(),    # varnames
-            Naming.empty_tuple,        # freevars (FIXME)
-            Naming.empty_tuple,        # cellvars (FIXME)
-            file_path_const,           # filename
-            func_name,                 # name
-            self.pos[1],               # firstlineno
-            Naming.empty_bytes,        # lnotab
-            code.error_goto_if_null(self.result_code, self.pos),
-            ))
 
 
 class DefaultLiteralArgNode(ExprNode):
@@ -9071,7 +8993,7 @@ class LambdaNode(InnerFunctionNode):
     name = StringEncoding.EncodedString('<lambda>')
 
     def analyse_declarations(self, env):
-        self.lambda_name = self.def_node.lambda_name = env.next_id('lambda')
+        self.lambda_name = self.def_node.lambda_name = StringEncoding.EncodedString(env.next_id('lambda'))
         self.def_node.no_assignment_synthesis = True
         self.def_node.pymethdef_required = True
         self.def_node.analyse_declarations(env)

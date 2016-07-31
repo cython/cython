@@ -1624,7 +1624,6 @@ class FuncDefNode(StatNode, BlockNode):
     star_arg = None
     starstar_arg = None
     is_cyfunction = False
-    code_object = None
 
     def analyse_default_values(self, env):
         default_seen = 0
@@ -1821,10 +1820,16 @@ class FuncDefNode(StatNode, BlockNode):
         elif lenv.nogil and lenv.has_with_gil_block:
             code.declare_gilstate()
 
+        if isinstance(self, DefNode) and self.is_wrapper:
+            trace_name = self.entry.name + " (wrapper)"
+        else:
+            trace_name = self.entry.name
+
         if profile or linetrace:
             tempvardecl_code.put_trace_declarations()
-            code_object = self.code_object.calculate_result_code(code) if self.code_object else None
-            code.put_trace_frame_init(code_object)
+            code_object_cname = code.get_pycode_object_const(
+                EncodedString(trace_name), self, py_object_type)
+            code.put_trace_frame_init(code_object_cname)
 
         # ----- set up refnanny
         if use_refnanny:
@@ -1892,12 +1897,7 @@ class FuncDefNode(StatNode, BlockNode):
         if profile or linetrace:
             # this looks a bit late, but if we don't get here due to a
             # fatal error before hand, it's not really worth tracing
-            if isinstance(self, DefNode) and self.is_wrapper:
-                trace_name = self.entry.name + " (wrapper)"
-            else:
-                trace_name = self.entry.name
-            code.put_trace_call(
-                trace_name, self.pos, nogil=not code.funcstate.gil_owned)
+            code.put_trace_call(trace_name, self.pos, nogil=not code.funcstate.gil_owned)
             code.funcstate.can_trace = True
         # ----- Fetch arguments
         self.generate_argument_parsing_code(env, code)
