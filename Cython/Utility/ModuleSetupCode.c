@@ -181,6 +181,9 @@
   #define PyObject_Realloc(p)  PyMem_Realloc(p)
 #endif
 
+#define __Pyx_PyCode_HasFreeVars(co)  (PyCode_GetNumFree(co) > 0)
+#define __Pyx_PyFrame_SetLineNumber(frame, lineno)  (frame)->f_lineno = (lineno)
+
 #define __Pyx_PyString_FormatSafe(a, b)   ((unlikely((a) == Py_None)) ? PyNumber_Remainder(a, b) : __Pyx_PyString_Format(a, b))
 #define __Pyx_PyUnicode_FormatSafe(a, b)  ((unlikely((a) == Py_None)) ? PyNumber_Remainder(a, b) : PyUnicode_Format(a, b))
 

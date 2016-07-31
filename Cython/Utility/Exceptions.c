@@ -615,7 +615,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
         0                    /*PyObject *locals*/
     );
     if (!py_frame) goto bad;
-    py_frame->f_lineno = py_line;
+    __Pyx_PyFrame_SetLineNumber(py_frame, py_line);
     PyTraceBack_Here(py_frame);
 bad:
     Py_XDECREF(py_code);
