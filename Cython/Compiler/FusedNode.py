@@ -760,15 +760,14 @@ class FusedCFuncDefNode(StatListNode):
         else:
             nodes = self.nodes
 
-        signatures = [
-            StringEncoding.EncodedString(node.specialized_signature_string)
-                for node in nodes]
+        signatures = [StringEncoding.EncodedString(node.specialized_signature_string)
+                      for node in nodes]
         keys = [ExprNodes.StringNode(node.pos, value=sig)
-                    for node, sig in zip(nodes, signatures)]
-        values = [ExprNodes.PyCFunctionNode.from_defnode(node, True)
-                              for node in nodes]
-        self.__signatures__ = ExprNodes.DictNode.from_pairs(self.pos,
-                                                            zip(keys, values))
+                for node, sig in zip(nodes, signatures)]
+        values = [ExprNodes.PyCFunctionNode.from_defnode(node, binding=True)
+                  for node in nodes]
+
+        self.__signatures__ = ExprNodes.DictNode.from_pairs(self.pos, zip(keys, values))
 
         self.specialized_pycfuncs = values
         for pycfuncnode in values:
