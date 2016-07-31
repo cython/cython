@@ -118,7 +118,7 @@ static CYTHON_INLINE PyObject* __Pyx_Coroutine_AIter_Yield_From(__pyx_CoroutineO
 //@requires: CoroutineYieldFrom
 
 static CYTHON_INLINE PyObject* __Pyx_Coroutine_AIter_Yield_From(__pyx_CoroutineObject *gen, PyObject *source) {
-#if PY_MAJOR_VERSION >= 3
+#if CYTHON_USE_ASYNC_SLOTS
     __Pyx_PyAsyncMethodsStruct* am = __Pyx_PyType_AsAsync(source);
     if (likely(am && am->am_anext)) {
         // Starting with CPython 3.5.2, __aiter__ should return
@@ -180,7 +180,7 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAwaitableIter(PyObject *o) {
 // adapted from genobject.c in Py3.5
 static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
     PyObject *res;
-#if CYTHON_USE_TYPE_SLOTS && PY_MAJOR_VERSION >= 3
+#if CYTHON_USE_ASYNC_SLOTS
     __Pyx_PyAsyncMethodsStruct* am = __Pyx_PyType_AsAsync(obj);
     if (likely(am && am->am_await)) {
         res = (*am->am_await)(obj);
@@ -257,7 +257,7 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *o); /*pro
 //@requires: ObjectHandling.c::PyObjectCallMethod0
 
 static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *obj) {
-#if PY_MAJOR_VERSION >= 3
+#if CYTHON_USE_ASYNC_SLOTS
     __Pyx_PyAsyncMethodsStruct* am = __Pyx_PyType_AsAsync(obj);
     if (likely(am && am->am_aiter)) {
         return (*am->am_aiter)(obj);
@@ -283,7 +283,7 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *obj) {
 }
 
 static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *obj) {
-#if PY_MAJOR_VERSION >= 3
+#if CYTHON_USE_ASYNC_SLOTS
     __Pyx_PyAsyncMethodsStruct* am = __Pyx_PyType_AsAsync(obj);
     if (likely(am && am->am_anext)) {
         return (*am->am_anext)(obj);
@@ -1280,7 +1280,7 @@ static PyGetSetDef __pyx_Coroutine_getsets[] = {
     {0, 0, 0, 0, 0}
 };
 
-#if PY_MAJOR_VERSION >= 3 && !CYTHON_COMPILING_IN_PYPY
+#if CYTHON_USE_ASYNC_SLOTS
 static __Pyx_PyAsyncMethodsStruct __pyx_Coroutine_as_async = {
     __Pyx_Coroutine_await, /*am_await*/
     0, /*am_aiter*/
@@ -1297,8 +1297,8 @@ static PyTypeObject __pyx_CoroutineType_type = {
     0,                                  /*tp_print*/
     0,                                  /*tp_getattr*/
     0,                                  /*tp_setattr*/
-#if PY_MAJOR_VERSION >= 3 && !CYTHON_COMPILING_IN_PYPY
-    &__pyx_Coroutine_as_async,          /*tp_as_async (tp_reserved)*/
+#if CYTHON_USE_ASYNC_SLOTS
+    &__pyx_Coroutine_as_async,          /*tp_as_async (tp_reserved) - Py3 only! */
 #else
     0,                                  /*tp_reserved*/
 #endif

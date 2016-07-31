@@ -37,6 +37,8 @@
   #define CYTHON_COMPILING_IN_CPYTHON 0
   #undef CYTHON_USE_TYPE_SLOTS
   #define CYTHON_USE_TYPE_SLOTS 0
+  #undef CYTHON_USE_ASYNC_SLOTS
+  #define CYTHON_USE_ASYNC_SLOTS 0
   #undef CYTHON_USE_PYLIST_INTERNALS
   #define CYTHON_USE_PYLIST_INTERNALS 0
   #undef CYTHON_USE_UNICODE_INTERNALS
@@ -54,6 +56,12 @@
   #define CYTHON_COMPILING_IN_CPYTHON 1
   #ifndef CYTHON_USE_TYPE_SLOTS
     #define CYTHON_USE_TYPE_SLOTS 1
+  #endif
+  #if PY_MAJOR_VERSION < 3
+    #undef CYTHON_USE_ASYNC_SLOTS
+    #define CYTHON_USE_ASYNC_SLOTS 0
+  #elif !defined(CYTHON_USE_ASYNC_SLOTS)
+    #define CYTHON_USE_ASYNC_SLOTS 1
   #endif
   #ifndef CYTHON_USE_PYLIST_INTERNALS
     #define CYTHON_USE_PYLIST_INTERNALS 1
@@ -253,18 +261,20 @@
 
 // backport of PyAsyncMethods from Py3.5 to older Py3.x versions
 // (mis-)using the "tp_reserved" type slot which is re-activated as "tp_as_async" in Py3.5
-#if PY_VERSION_HEX >= 0x030500B1
-#define __Pyx_PyAsyncMethodsStruct PyAsyncMethods
-#define __Pyx_PyType_AsAsync(obj) (Py_TYPE(obj)->tp_as_async)
-#elif PY_MAJOR_VERSION >= 3 && !CYTHON_COMPILING_IN_PYPY
-typedef struct {
-    unaryfunc am_await;
-    unaryfunc am_aiter;
-    unaryfunc am_anext;
-} __Pyx_PyAsyncMethodsStruct;
-#define __Pyx_PyType_AsAsync(obj) ((__Pyx_PyAsyncMethodsStruct*) (Py_TYPE(obj)->tp_reserved))
+#if CYTHON_USE_ASYNC_SLOTS
+  #if PY_VERSION_HEX >= 0x030500B1
+    #define __Pyx_PyAsyncMethodsStruct PyAsyncMethods
+    #define __Pyx_PyType_AsAsync(obj) (Py_TYPE(obj)->tp_as_async)
+  #else
+    typedef struct {
+        unaryfunc am_await;
+        unaryfunc am_aiter;
+        unaryfunc am_anext;
+    } __Pyx_PyAsyncMethodsStruct;
+    #define __Pyx_PyType_AsAsync(obj) ((__Pyx_PyAsyncMethodsStruct*) (Py_TYPE(obj)->tp_reserved))
+  #endif
 #else
-#define __Pyx_PyType_AsAsync(obj) NULL
+  #define __Pyx_PyType_AsAsync(obj) NULL
 #endif
 
 // restrict
