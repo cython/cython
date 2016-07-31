@@ -173,7 +173,7 @@
       int ret;
       PyObject *type, *value, *traceback;
       PyErr_Fetch(&type, &value, &traceback);
-      frame->f_lineno = lineno;
+      __Pyx_PyFrame_SetLineNumber(frame, lineno);
       tstate->tracing++;
       tstate->use_tracing = 0;
       ret = tstate->c_tracefunc(tstate->c_traceobj, frame, PyTrace_LINE, NULL);
@@ -262,7 +262,7 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
         (*frame)->f_tstate = tstate;
 #endif
     }
-    (*frame)->f_lineno = firstlineno;
+      __Pyx_PyFrame_SetLineNumber(*frame, firstlineno);
     retval = 1;
     tstate->tracing++;
     tstate->use_tracing = 0;
