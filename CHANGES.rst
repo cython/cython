@@ -24,6 +24,9 @@ Features added
 
 * for-loop iteration over "std::string".
 
+* ``libc/math.pxd`` provides ``e`` and ``pi`` as alias constants to simplify
+  usage as a drop-in replacement for Python's math module.
+
 Bugs fixed
 ----------
 
