@@ -5,7 +5,7 @@
 // but maybe some other profilers don't.
 
 #ifndef CYTHON_PROFILE
-#if CYTHON_COMPILING_IN_PYPY
+#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_PYSTON
   #define CYTHON_PROFILE 0
 #else
   #define CYTHON_PROFILE 1
