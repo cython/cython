@@ -4,10 +4,11 @@
 from cython cimport typeof
 
 cimport cython.operator
-from cython.operator cimport dereference as deref
+from cython.operator cimport typeid, dereference as deref
 
 from libc.string cimport const_char
 from libcpp cimport bool
+cimport libcpp.typeinfo
 
 cdef out(s, result_type=None):
     print '%s [%s]' % (s.decode('ascii'), result_type)
@@ -50,11 +51,14 @@ cdef extern from "cpp_operators_helper.h":
         const_char* operator[](int)
         const_char* operator()(int)
 
-    cppclass TruthClass:
+    cdef cppclass TruthClass:
         TruthClass()
         TruthClass(bool)
         bool operator bool()
         bool value
+
+cdef cppclass TruthSubClass(TruthClass):
+    pass
 
 def test_unops():
     """
@@ -182,3 +186,29 @@ def test_bool_cond():
     assert (TruthClass(False) and TruthClass(True)).value == False
     assert (TruthClass(True) and TruthClass(False)).value == False
     assert (TruthClass(True) and TruthClass(True)).value == True
+
+def test_typeid_op():
+    """
+    >>> test_typeid_op()
+    """
+    cdef TruthClass* test_1 = new TruthClass()
+    cdef TruthSubClass* test_2 = new TruthSubClass()
+    cdef TruthClass* test_3 = <TruthClass*> test_2
+    cdef TruthClass* test_4 = <TruthClass*> 0
+
+    assert typeid(TruthClass).name()
+    assert typeid(test_1).name()
+    assert typeid(TruthSubClass).name()
+    assert typeid(test_2).name()
+    assert typeid(TruthClass).name()
+    assert typeid(test_3).name()
+    assert typeid(TruthSubClass).name()
+    assert typeid(deref(test_2)).name()
+
+    try:
+        typeid(deref(test_4))
+        assert False
+    except TypeError:
+        assert True
+
+    del test_1, test_2

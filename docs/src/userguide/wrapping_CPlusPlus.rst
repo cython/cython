@@ -545,6 +545,8 @@ The translation is performed according to the following table
 +-----------------------+---------------------+
 | ``bad_cast``          | ``TypeError``       |
 +-----------------------+---------------------+
+| ``bad_typeid``        | ``TypeError``       |
++-----------------------+---------------------+
 | ``domain_error``      | ``ValueError``      |
 +-----------------------+---------------------+
 | ``invalid_argument``  | ``ValueError``      |
@@ -600,6 +602,28 @@ you can declare it using the Python @staticmethod decorator, i.e.::
     cdef extern from "Rectangle.h" namespace "shapes":
         @staticmethod
         void do_something()
+
+RTTI and typeid()
+=================
+
+Cython has support for the ``typeid(...)`` operator. To use it, you need to import
+it and the ``libcpp.typeinfo`` module first:
+
+    from cython.operator cimport typeid
+    from libcpp.typeinfo cimport type_info
+
+The ``typeid(...)`` operator returns an object of the type ``const type_info &``.
+
+If you want to store a type_info value in a C variable, you will need to store it
+as a pointer rather than a reference:
+
+    cdef const type_info* info = &typeid(MyClass)
+
+If an invalid type is passed to ``typeid``, it will throw an ``std::bad_typeid``
+exception which is converted into a ``TypeError`` exception in Python.
+
+An additional C++11-only RTTI-related class, ``std::type_index``, is available
+in ``libcpp.typeindex``.
 
 
 Caveats and Limitations

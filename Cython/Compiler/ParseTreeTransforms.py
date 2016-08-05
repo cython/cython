@@ -635,6 +635,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         'operator.predecrement' : ExprNodes.inc_dec_constructor(True, '--'),
         'operator.postincrement': ExprNodes.inc_dec_constructor(False, '++'),
         'operator.postdecrement': ExprNodes.inc_dec_constructor(False, '--'),
+        'operator.typeid'       : ExprNodes.TypeidNode,
 
         # For backwards compatibility.
         'address': ExprNodes.AmpersandNode,

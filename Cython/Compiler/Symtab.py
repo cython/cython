@@ -1030,6 +1030,7 @@ class ModuleScope(Scope):
     # cpp                  boolean            Compiling a C++ file
     # is_cython_builtin    boolean            Is this the Cython builtin scope (or a child scope)
     # is_package           boolean            Is this a package module? (__init__)
+    # typeid_variables     int                Used by the typeid() exception handler
 
     is_module_scope = 1
     has_import_star = 0
@@ -1069,6 +1070,7 @@ class ModuleScope(Scope):
         self.cached_builtins = []
         self.undeclared_cached_builtins = []
         self.namespace_cname = self.module_cname
+        self.typeid_variables = 0
         self._cached_tuple_types = {}
         for var_name in ['__builtins__', '__name__', '__file__', '__doc__', '__path__']:
             self.declare_var(EncodedString(var_name), py_object_type, None)

@@ -6178,6 +6178,7 @@ class AttributeNode(ExprNode):
     needs_none_check = True
     is_memslice_transpose = False
     is_special_lookup = False
+    is_py_attr = 0
 
     def as_cython_attribute(self):
         if (isinstance(self.obj, NameNode) and
@@ -6607,7 +6608,7 @@ class AttributeNode(ExprNode):
         else:
             # result_code contains what is needed, but we may need to insert
             # a check and raise an exception
-            if self.obj.type.is_extension_type:
+            if self.obj.type and self.obj.type.is_extension_type:
                 pass
             elif self.entry and self.entry.is_cmethod and self.entry.utility_code:
                 # C method implemented as function call with utility code
@@ -10140,6 +10141,8 @@ class SizeofTypeNode(SizeofNode):
 
     def check_type(self):
         arg_type = self.arg_type
+        if not arg_type:
+            return
         if arg_type.is_pyobject and not arg_type.is_extension_type:
             error(self.pos, "Cannot take sizeof Python object")
         elif arg_type.is_void:
@@ -10183,6 +10186,93 @@ class SizeofVarNode(SizeofNode):
 
     def generate_result_code(self, code):
         pass
+
+
+class TypeidNode(ExprNode):
+    #  C++ typeid operator applied to a type or variable
+    #
+    #  operand       ExprNode
+    #  arg_type      ExprNode
+    #  is_variable   boolean
+    #  mangle_cname  string
+
+    type = PyrexTypes.error_type
+
+    subexprs = ['operand']
+
+    arg_type = None
+    is_variable = None
+    mangle_cname = None
+
+    def get_type_info_type(self, env):
+        if env.is_module_scope:
+            env_module = env
+        else:
+            env_module = env.outer_scope
+        for module in env_module.cimported_modules:
+            if module.qualified_name == 'libcpp.typeinfo':
+                type_info = module.lookup('type_info')
+                type_info = PyrexTypes.c_ref_type(PyrexTypes.c_const_type(type_info.type))
+                return type_info
+        return None
+
+    def analyse_types(self, env):
+        type_info = self.get_type_info_type(env)
+        if not type_info:
+            self.error("The 'libcpp.typeinfo' module must be cimported to use the typeid() operator")
+            return self
+        self.type = type_info
+        as_type = self.operand.analyse_as_type(env)
+        if as_type:
+            self.arg_type = as_type
+            self.is_type = True
+        else:
+            self.arg_type = self.operand.analyse_types(env)
+            self.is_type = False
+            if self.arg_type.type.is_pyobject:
+                self.error("Cannot use typeid on a Python object")
+                return self
+            elif self.arg_type.type.is_void:
+                self.error("Cannot use typeid on void")
+                return self
+            elif not self.arg_type.type.is_complete():
+                self.error("Cannot use typeid on incomplete type '%s'" % self.arg_type.type)
+                return self
+        if env.is_module_scope:
+            env_module = env
+        else:
+            env_module = env.outer_scope
+        env_module.typeid_variables += 1
+        self.mangle_cname = "%s_typeid_%s" % (
+            env_module.module_cname, env_module.typeid_variables)
+        env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
+        return self
+
+    def error(self, mess):
+        error(self.pos, mess)
+        self.type = PyrexTypes.error_type
+        self.result_code = "<error>"
+
+    def check_const(self):
+        return True
+
+    def calculate_result_code(self):
+        return "(*%s)" % self.mangle_cname
+
+    def generate_result_code(self, code):
+        if self.is_type:
+            if self.arg_type.is_extension_type:
+                # the size of the pointer is boring
+                # we want the size of the actual struct
+                arg_code = self.arg_type.declaration_code("", deref=1)
+            else:
+                arg_code = self.arg_type.empty_declaration_code()
+        else:
+            arg_code = self.arg_type.result()
+        code.putln("const std::type_info *%s;" % self.mangle_cname)
+        translate_cpp_exception(code, self.pos,
+            "%s = &typeid(%s);" % (self.mangle_cname, arg_code),
+            None, self.in_nogil_context)
 
 class TypeofNode(ExprNode):
     #  Compile-time type of an expression, as a string.
