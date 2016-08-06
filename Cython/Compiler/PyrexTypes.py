@@ -3415,7 +3415,7 @@ class CppClassType(CType):
             return error_type
         has_object_template_param = False
         for value in template_values:
-            if value.is_pyobject:
+            if value.is_pyobject and not value.is_extension_type:
                 has_object_template_param = True
                 error(pos,
                       "Python object type '%s' cannot be used as a template argument" % value)
