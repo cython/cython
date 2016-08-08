@@ -10194,7 +10194,6 @@ class TypeidNode(ExprNode):
     #  operand       ExprNode
     #  arg_type      ExprNode
     #  is_variable   boolean
-    #  mangle_cname  string
 
     type = PyrexTypes.error_type
 
@@ -10202,7 +10201,7 @@ class TypeidNode(ExprNode):
 
     arg_type = None
     is_variable = None
-    mangle_cname = None
+    is_temp = 1
 
     def get_type_info_type(self, env):
         if env.is_module_scope:
@@ -10212,7 +10211,7 @@ class TypeidNode(ExprNode):
         for module in env_module.cimported_modules:
             if module.qualified_name == 'libcpp.typeinfo':
                 type_info = module.lookup('type_info')
-                type_info = PyrexTypes.c_ref_type(PyrexTypes.c_const_type(type_info.type))
+                type_info = PyrexTypes.CFakeReferenceType(PyrexTypes.c_const_type(type_info.type))
                 return type_info
         return None
 
@@ -10238,13 +10237,6 @@ class TypeidNode(ExprNode):
             elif not self.arg_type.type.is_complete():
                 self.error("Cannot use typeid on incomplete type '%s'" % self.arg_type.type)
                 return self
-        if env.is_module_scope:
-            env_module = env
-        else:
-            env_module = env.outer_scope
-        env_module.typeid_variables += 1
-        self.mangle_cname = "%s_typeid_%s" % (
-            env_module.module_cname, env_module.typeid_variables)
         env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
         return self
 
@@ -10257,7 +10249,7 @@ class TypeidNode(ExprNode):
         return True
 
     def calculate_result_code(self):
-        return "(*%s)" % self.mangle_cname
+        return self.temp_code
 
     def generate_result_code(self, code):
         if self.is_type:
@@ -10269,9 +10261,8 @@ class TypeidNode(ExprNode):
                 arg_code = self.arg_type.empty_declaration_code()
         else:
             arg_code = self.arg_type.result()
-        code.putln("const std::type_info *%s;" % self.mangle_cname)
         translate_cpp_exception(code, self.pos,
-            "%s = &typeid(%s);" % (self.mangle_cname, arg_code),
+            "%s = typeid(%s);" % (self.temp_code, arg_code),
             None, self.in_nogil_context)
 
 class TypeofNode(ExprNode):
