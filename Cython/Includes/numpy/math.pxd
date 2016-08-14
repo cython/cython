@@ -79,11 +79,11 @@ cdef extern from "numpy/npy_math.h" nogil:
     float log1pf "npy_log1pf"(float x)
     float exp2f "npy_exp2f"(float x)
     float log2f "npy_log2f"(float x)
-    float atan2f "npy_atan2f"(float x)
-    float hypotf "npy_hypotf"(float x)
-    float powf "npy_powf"(float x)
-    float fmodf "npy_fmodf"(float x)
-    float modff "npy_modff"(float x)
+    float atan2f "npy_atan2f"(float x, float y)
+    float hypotf "npy_hypotf"(float x, float y)
+    float powf "npy_powf"(float x, float y)
+    float fmodf "npy_fmodf"(float x, float y)
+    float modff "npy_modff"(float x, float* y)
 
     # Long double C99 functions
     long double sinl "npy_sinl"(long double x)
@@ -110,11 +110,11 @@ cdef extern from "numpy/npy_math.h" nogil:
     long double log1pl "npy_log1pl"(long double x)
     long double exp2l "npy_exp2l"(long double x)
     long double log2l "npy_log2l"(long double x)
-    long double atan2l "npy_atan2l"(long double x)
-    long double hypotl "npy_hypotl"(long double x)
-    long double powl "npy_powl"(long double x)
-    long double fmodl "npy_fmodl"(long double x)
-    long double modfl "npy_modfl"(long double x)
+    long double atan2l "npy_atan2l"(long double x, long double y)
+    long double hypotl "npy_hypotl"(long double x, long double y)
+    long double powl "npy_powl"(long double x, long double y)
+    long double fmodl "npy_fmodl"(long double x, long double y)
+    long double modfl "npy_modfl"(long double x, long double* y)
 
     # NumPy extensions
     float deg2radf "npy_deg2radf"(float x)

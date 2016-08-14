@@ -91,7 +91,7 @@ cdef extern from "math.h" nogil:
     long double erfcl(long double)
 
     double fdim(double x, double y)
-    double fma(double x, double y)
+    double fma(double x, double y, double z)
     double fmax(double x, double y)
     double fmin(double x, double y)
     double scalbln(double x, long n)
