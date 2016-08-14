@@ -5277,8 +5277,9 @@ class SimpleCallNode(CallNode):
             self.type = func_type.return_type
 
         if self.function.is_name or self.function.is_attribute:
-            if self.function.entry and self.function.entry.utility_code:
-                self.is_temp = 1 # currently doesn't work for self.calculate_result_code()
+            func_entry = self.function.entry
+            if func_entry and (func_entry.utility_code or func_entry.utility_code_definition):
+                self.is_temp = 1  # currently doesn't work for self.calculate_result_code()
 
         if self.type.is_pyobject:
             self.result_ctype = py_object_type
@@ -5345,8 +5346,7 @@ class SimpleCallNode(CallNode):
     def generate_result_code(self, code):
         func_type = self.function_type()
         if self.function.is_name or self.function.is_attribute:
-            if self.function.entry and self.function.entry.utility_code:
-                code.globalstate.use_utility_code(self.function.entry.utility_code)
+            code.globalstate.use_entry_utility_code(self.function.entry)
         if func_type.is_pyobject:
             if func_type is not type_type and not self.arg_tuple.args and self.arg_tuple.is_literal:
                 code.globalstate.use_utility_code(UtilityCode.load_cached(
@@ -6609,9 +6609,9 @@ class AttributeNode(ExprNode):
             # a check and raise an exception
             if self.obj.type.is_extension_type:
                 pass
-            elif self.entry and self.entry.is_cmethod and self.entry.utility_code:
+            elif self.entry and self.entry.is_cmethod:
                 # C method implemented as function call with utility code
-                code.globalstate.use_utility_code(self.entry.utility_code)
+                code.globalstate.use_entry_utility_code(self.entry)
 
     def generate_disposal_code(self, code):
         if self.is_temp and self.type.is_memoryviewslice and self.is_memslice_transpose:

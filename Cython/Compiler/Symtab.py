@@ -852,6 +852,9 @@ class Scope(object):
     def use_utility_code(self, new_code):
         self.global_scope().use_utility_code(new_code)
 
+    def use_entry_utility_code(self, entry):
+        self.global_scope().use_entry_utility_code(entry)
+
     def generate_library_function_declarations(self, code):
         # Generate extern decls for C library funcs used.
         pass
@@ -1327,6 +1330,14 @@ class ModuleScope(Scope):
     def use_utility_code(self, new_code):
         if new_code is not None:
             self.utility_code_list.append(new_code)
+
+    def use_entry_utility_code(self, entry):
+        if entry is None:
+            return
+        if entry.utility_code:
+            self.utility_code_list.append(entry.utility_code)
+        if entry.utility_code_definition:
+            self.utility_code_list.append(entry.utility_code_definition)
 
     def declare_c_class(self, name, pos, defining = 0, implementing = 0,
         module_name = None, base_type = None, objstruct_cname = None,
