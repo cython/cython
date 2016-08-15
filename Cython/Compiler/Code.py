@@ -1482,6 +1482,14 @@ class GlobalState(object):
             self.utility_codes.add(utility_code)
             utility_code.put_code(self)
 
+    def use_entry_utility_code(self, entry):
+        if entry is None:
+            return
+        if entry.utility_code:
+            self.use_utility_code(entry.utility_code)
+        if entry.utility_code_definition:
+            self.use_utility_code(entry.utility_code_definition)
+
 
 def funccontext_property(name):
     attribute_of = operator.attrgetter(name)
