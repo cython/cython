@@ -34,7 +34,9 @@
 
 #ifdef PYPY_VERSION
   #define CYTHON_COMPILING_IN_PYPY 1
+  #define CYTHON_COMPILING_IN_PYSTON 0
   #define CYTHON_COMPILING_IN_CPYTHON 0
+
   #undef CYTHON_USE_TYPE_SLOTS
   #define CYTHON_USE_TYPE_SLOTS 0
   #undef CYTHON_USE_ASYNC_SLOTS
@@ -53,10 +55,12 @@
   #define CYTHON_UNPACK_METHODS 0
   #undef CYTHON_FAST_THREAD_STATE
   #define CYTHON_FAST_THREAD_STATE 0
+
 #elif defined(PYSTON_VERSION)
-  #define CYTHON_COMPILING_IN_PYSTON 1
   #define CYTHON_COMPILING_IN_PYPY 0
+  #define CYTHON_COMPILING_IN_PYSTON 1
   #define CYTHON_COMPILING_IN_CPYTHON 0
+
   #ifndef CYTHON_USE_TYPE_SLOTS
     #define CYTHON_USE_TYPE_SLOTS 1
   #endif
@@ -80,9 +84,12 @@
   #endif
   #undef CYTHON_FAST_THREAD_STATE
   #define CYTHON_FAST_THREAD_STATE 0
+
 #else
   #define CYTHON_COMPILING_IN_PYPY 0
+  #define CYTHON_COMPILING_IN_PYSTON 0
   #define CYTHON_COMPILING_IN_CPYTHON 1
+
   #ifndef CYTHON_USE_TYPE_SLOTS
     #define CYTHON_USE_TYPE_SLOTS 1
   #endif
@@ -213,13 +220,12 @@
   #define PyObject_Realloc(p)  PyMem_Realloc(p)
 #endif
 
-/* Pyston provided out off box */
-#if !CYTHON_COMPILING_IN_PYSTON
+#if CYTHON_COMPILING_IN_PYSTON
+  #define __Pyx_PyCode_HasFreeVars(co)  PyCode_HasFreeVars(co)
+  #define __Pyx_PyFrame_SetLineNumber(frame, lineno) PyFrame_SetLineNumber(frame, lineno)
+#else
   #define __Pyx_PyCode_HasFreeVars(co)  (PyCode_GetNumFree(co) > 0)
   #define __Pyx_PyFrame_SetLineNumber(frame, lineno)  (frame)->f_lineno = (lineno)
-#else
-  #define __Pyx_PyCode_HasFreeVars  PyCode_HasFreeVars
-  #define __Pyx_PyFrame_SetLineNumber PyFrame_SetLineNumber
 #endif
 
 #define __Pyx_PyString_FormatSafe(a, b)   ((unlikely((a) == Py_None)) ? PyNumber_Remainder(a, b) : __Pyx_PyString_Format(a, b))
