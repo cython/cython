@@ -266,7 +266,9 @@ static CYTHON_INLINE int __Pyx_PyObject_IsTrue(PyObject* x) {
 }
 
 static CYTHON_INLINE PyObject* __Pyx_PyNumber_IntOrLong(PyObject* x) {
+#if CYTHON_USE_TYPE_SLOTS
   PyNumberMethods *m;
+#endif
   const char *name = NULL;
   PyObject *res = NULL;
 #if PY_MAJOR_VERSION < 3
@@ -275,8 +277,9 @@ static CYTHON_INLINE PyObject* __Pyx_PyNumber_IntOrLong(PyObject* x) {
   if (PyLong_Check(x))
 #endif
     return __Pyx_NewRef(x);
+#if CYTHON_USE_TYPE_SLOTS
   m = Py_TYPE(x)->tp_as_number;
-#if PY_MAJOR_VERSION < 3
+  #if PY_MAJOR_VERSION < 3
   if (m && m->nb_int) {
     name = "int";
     res = PyNumber_Int(x);
@@ -285,11 +288,14 @@ static CYTHON_INLINE PyObject* __Pyx_PyNumber_IntOrLong(PyObject* x) {
     name = "long";
     res = PyNumber_Long(x);
   }
-#else
+  #else
   if (m && m->nb_int) {
     name = "int";
     res = PyNumber_Long(x);
   }
+  #endif
+#else
+  res = PyNumber_Int(x);
 #endif
   if (res) {
 #if PY_MAJOR_VERSION < 3
