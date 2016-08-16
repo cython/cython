@@ -221,6 +221,7 @@
 #endif
 
 #if CYTHON_COMPILING_IN_PYSTON
+  // special C-API functions only in Pyston
   #define __Pyx_PyCode_HasFreeVars(co)  PyCode_HasFreeVars(co)
   #define __Pyx_PyFrame_SetLineNumber(frame, lineno) PyFrame_SetLineNumber(frame, lineno)
 #else
