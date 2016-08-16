@@ -36,6 +36,9 @@ Bugs fixed
 
 * Division of complex numbers avoids overflow by using Smith's method.
 
+* Some function signatures in ``libc.math`` and ``numpy.pxd`` were incorrect.
+  Patch by Michael Seifert.
+
 Other changes
 -------------
 
