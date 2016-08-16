@@ -1202,10 +1202,10 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
     }
 #else
 #if CYTHON_COMPILING_IN_PYSTON
-    // Pyston add this API for convinience.
+    // special C-API function only in Pyston
     if (PyMethodDescr_Check(method)) {
 #else
-    // It appears that PyMethodDescr_Type is not anywhere exposed in the Python/C API
+    // It appears that PyMethodDescr_Type is not exposed anywhere in the CPython C-API
     static PyTypeObject *methoddescr_type = NULL;
     if (methoddescr_type == NULL) {
        PyObject *meth = PyObject_GetAttrString((PyObject*)&PyList_Type, "append");
