@@ -8,6 +8,8 @@ Cython Changelog
 Features added
 --------------
 
+* Initial support for using Cython modules in Pyston.  Patch by Daetalus.
+
 * Dynamic Python attributes are allowed on cdef classes if an attribute
   ``cdef dict __dict__`` is declared in the class.  Patch by empyrical.
 
