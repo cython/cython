@@ -19,7 +19,7 @@ cdef extern from "pythread.h":
     int PyThread_acquire_lock(PyThread_type_lock, int mode) nogil
     void PyThread_release_lock(PyThread_type_lock) nogil
 
-cdef extern from "string.h":
+cdef extern from "<string.h>":
     void *memset(void *b, int c, size_t len)
 
 cdef extern from *:
@@ -87,7 +87,7 @@ cdef extern from *:
                                                 int ndim, size_t itemsize) nogil
 
 
-cdef extern from "stdlib.h":
+cdef extern from "<stdlib.h>":
     void *malloc(size_t) nogil
     void free(void *) nogil
     void *memcpy(void *dest, void *src, size_t n) nogil
@@ -773,11 +773,11 @@ cdef memoryview memview_slice(memoryview memview, object indices):
 ### Slicing in a single dimension of a memoryviewslice
 #
 
-cdef extern from "stdlib.h":
+cdef extern from "<stdlib.h>":
     void abort() nogil
     void printf(char *s, ...) nogil
 
-cdef extern from "stdio.h":
+cdef extern from "<stdio.h>":
     ctypedef struct FILE
     FILE *stderr
     int fputs(char *s, FILE *stream)
