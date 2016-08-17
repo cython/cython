@@ -1,6 +1,6 @@
 # http://www.opengroup.org/onlinepubs/009695399/basedefs/fcntl.h.html
 
-cdef extern from "fcntl.h" nogil:
+cdef extern from "<fcntl.h>" nogil:
 
     enum: F_DUPFD
     enum: F_GETFD

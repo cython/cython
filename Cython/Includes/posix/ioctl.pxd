@@ -1,4 +1,4 @@
-cdef extern from "sys/ioctl.h" nogil:
+cdef extern from "<sys/ioctl.h>" nogil:
     enum: FIONBIO
 
     int ioctl(int fd, int request, ...)

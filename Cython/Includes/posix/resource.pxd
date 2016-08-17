@@ -3,7 +3,7 @@
 from posix.time  cimport timeval
 from posix.types cimport id_t
 
-cdef extern from "sys/resource.h" nogil:
+cdef extern from "<sys/resource.h>" nogil:
 
     enum: PRIO_PROCESS
     enum: PRIO_PGRP

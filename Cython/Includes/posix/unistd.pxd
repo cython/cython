@@ -2,7 +2,7 @@
 
 from posix.types cimport gid_t, pid_t, off_t, uid_t
 
-cdef extern from "unistd.h" nogil:
+cdef extern from "<unistd.h>" nogil:
 
     #:NULL
 
