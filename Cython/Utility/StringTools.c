@@ -48,15 +48,12 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
 static CYTHON_INLINE int __Pyx_BytesContains(PyObject* bytes, char character); /*proto*/
 
 //////////////////// BytesContains ////////////////////
+//@requires: IncludeStringH
 
 static CYTHON_INLINE int __Pyx_BytesContains(PyObject* bytes, char character) {
     const Py_ssize_t length = PyBytes_GET_SIZE(bytes);
     char* char_start = PyBytes_AS_STRING(bytes);
-    char* pos;
-    for (pos=char_start; pos < char_start+length; pos++) {
-        if (character == pos[0]) return 1;
-    }
-    return 0;
+    return memchr(char_start, (unsigned char)character, (size_t)length) != NULL;
 }
 
 
