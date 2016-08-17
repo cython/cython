@@ -1,4 +1,4 @@
-cdef extern from "omp.h":
+cdef extern from "<omp.h>":
     ctypedef struct omp_lock_t:
         pass
     ctypedef struct omp_nest_lock_t:

@@ -2,7 +2,7 @@
 # Actual compile time size used for conversions.
 
 # 7.18 Integer types <stdint.h>
-cdef extern from "stdint.h" nogil:
+cdef extern from "<stdint.h>" nogil:
 
     # 7.18.1 Integer types
     # 7.18.1.1 Exact-width integer types

@@ -2,7 +2,7 @@
 
 ctypedef void (*sighandler_t)(int SIGNUM) nogil
 
-cdef extern from "signal.h" nogil:
+cdef extern from "<signal.h>" nogil:
 
     ctypedef int sig_atomic_t
 
@@ -21,7 +21,7 @@ cdef extern from "signal.h" nogil:
     int          raise_"raise" (int signum)
 
 
-cdef extern from "signal.h" nogil:
+cdef extern from "<signal.h>" nogil:
 
     # Program Error
     enum: SIGFPE

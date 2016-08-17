@@ -1,4 +1,4 @@
-cdef extern from "setjmp.h" nogil:
+cdef extern from "<setjmp.h>" nogil:
     ctypedef struct jmp_buf:
         pass
     int setjmp(jmp_buf state)
