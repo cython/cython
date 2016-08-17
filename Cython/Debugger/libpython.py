@@ -286,7 +286,7 @@ class PyObjectPtr(object):
         return PyTypeObjectPtr(self.field('ob_type'))
 
     def is_null(self):
-        return 0 == int(self._gdbval)
+        return not self._gdbval
 
     def is_optimized_out(self):
         '''
@@ -989,7 +989,7 @@ class PyFrameObjectPtr(PyObjectPtr):
         if self.is_optimized_out():
             return None
         f_trace = self.field('f_trace')
-        if int(f_trace) != 0:
+        if f_trace:
             # we have a non-NULL f_trace:
             return self.f_lineno
         else:
