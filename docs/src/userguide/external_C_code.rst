@@ -117,6 +117,11 @@ A few more tricks and tips:
       cdef extern from "spam.h":
           pass
 
+* If you want to include a system header, put angle brackets inside the quotes::
+ 
+      cdef extern from "<sysheader.h>":
+          ...
+
 * If you want to include some external declarations, but don't want to specify
   a header file (because it's included by some other header that you've
   already included) you can put ``*`` in place of the header file name::
