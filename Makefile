@@ -1,4 +1,5 @@
 PYTHON?=python
+TESTOPTS?=
 REPO = git://github.com/cython/cython.git
 
 all:    local 
@@ -36,7 +37,7 @@ testclean:
 	rm -fr BUILD
 
 test:	testclean
-	${PYTHON} runtests.py -vv
+	${PYTHON} runtests.py -vv ${TESTOPTS}
 
 s5:
 	$(MAKE) -C Doc/s5 slides
