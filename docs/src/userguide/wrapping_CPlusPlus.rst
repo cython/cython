@@ -211,7 +211,7 @@ Now, we use cdef to declare a var of the class with the C++ ``new`` statement::
 
     cdef Rectangle *rec = new Rectangle(1, 2, 3, 4)
     try:
-        recLength = rec.getLength()
+        recArea = rec.getArea()
         ...
     finally:
         del rec     # delete heap allocated object
