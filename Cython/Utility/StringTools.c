@@ -986,11 +986,16 @@ static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value
         likely(PyUnicode_CheckExact(s)) ? (Py_INCREF(s), s) : \
         likely(PyString_CheckExact(s)) ? PyUnicode_FromEncodedObject(s, NULL, "strict") : \
         PyObject_Format(s, f))
-#else
+#elif CYTHON_USE_TYPE_SLOTS
     // Py3 nicely returns unicode strings from str() which makes this quite efficient for builtin types
     #define __Pyx_PyObject_FormatSimple(s, f) ( \
         likely(PyUnicode_CheckExact(s)) ? (Py_INCREF(s), s) : \
         likely(PyLong_CheckExact(s)) ? PyLong_Type.tp_str(s) : \
+        likely(PyFloat_CheckExact(s)) ? PyFloat_Type.tp_str(s) : \
+        PyObject_Format(s, f))
+#else
+    #define __Pyx_PyObject_FormatSimple(s, f) ( \
+        likely(PyUnicode_CheckExact(s)) ? (Py_INCREF(s), s) : \
         PyObject_Format(s, f))
 #endif
 
