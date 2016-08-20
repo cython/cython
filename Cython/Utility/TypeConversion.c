@@ -574,60 +574,107 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
 }
 
 
+/////////////// CIntToDigits ///////////////
+
+static const char DIGIT_PAIRS_10[2*10*10+1] = {
+    "00010203040506070809"
+    "10111213141516171819"
+    "20212223242526272829"
+    "30313233343536373839"
+    "40414243444546474849"
+    "50515253545556575859"
+    "60616263646566676869"
+    "70717273747576777879"
+    "80818283848586878889"
+    "90919293949596979899"
+};
+
+static const char DIGIT_PAIRS_8[2*8*8+1] = {
+    "0001020304050607"
+    "1011121314151617"
+    "2021222324252627"
+    "3031323334353637"
+    "4041424344454647"
+    "5051525354555657"
+    "6061626364656667"
+    "7071727374757677"
+};
+
+static const char DIGITS_HEX[2*16+1] = {
+    "0123456789abcdef0123456789ABCDEF"
+};
+
+
 /////////////// CIntToPyUnicode.proto ///////////////
 
 static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t width, char padding_char, char format_char);
 
 /////////////// CIntToPyUnicode ///////////////
 //@requires: StringTools.c::BuildPyUnicode
+//@requires: CIntToDigits
+
+#include <stdint.h>
 
 // NOTE: inlining because most arguments are constant, which collapses lots of code below
 
 static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t width, char padding_char, char format_char) {
     // simple and conservative C string allocation on the stack: each byte gives at most 3 digits, plus sign
     char digits[sizeof({{TYPE}})*3+2];
-    // dpos points to end of digits array + 1 initially to allow for pre-decrement looping
-    char *dpos = digits + sizeof({{TYPE}})*3+2;
+    // 'dpos' points to end of digits array + 1 initially to allow for pre-decrement looping
+    char *dpos, *end = digits + sizeof({{TYPE}})*3+2;
+    const char *hex_digits = DIGITS_HEX;
     Py_ssize_t ulength;
-    int length, prepend_sign;
+    int length, prepend_sign, last_one_off;
     {{TYPE}} remaining;
     const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = ({{TYPE}}) 0;
     const int is_unsigned = neg_one > const_zero;
 
+    if (format_char == 'X') {
+        hex_digits += 16;
+        format_char = 'x';
+    };
+
     // single character unicode strings are cached in CPython => use PyUnicode_FromOrdinal() for them
     if (unlikely((is_unsigned || value >= const_zero) && (width <= 1) && (
             (format_char == 'o') ? value <= 7 : (format_char == 'd') ? value <= 9 : value <= 15))) {
-        return PyUnicode_FromOrdinal(
-            ((int) value) + (((int) value) <= 9 ? '0' : (format_char == 'x' ? 'a' : 'A') - 10));
+        return PyUnicode_FromOrdinal(hex_digits[((int) value)]);
     }
 
     // surprise: even trivial sprintf() calls don't get optimised in gcc (4.8)
-    remaining = value;
-    length = 0;
+    remaining = value; /* not using abs(value) to avoid overflow problems */
+    last_one_off = 0;
+    dpos = end;
     while (remaining != 0) {
-        char digit;
+        int digit_pos;
         switch (format_char) {
         case 'o':
-            digit = '0' + abs(remaining % 8);
-            remaining = remaining / 8;
+            digit_pos = abs(remaining % (8*8));
+            remaining = remaining / (8*8);
+            dpos -= 2;
+            *(uint16_t*)dpos = ((uint16_t*)DIGIT_PAIRS_8)[digit_pos]; /* copy 2 digits at a time */
+            last_one_off = (digit_pos < 8);
             break;
         case 'd':
-            digit = '0' + abs(remaining % 10);
-            remaining = remaining / 10;
+            digit_pos = abs(remaining % (10*10));
+            remaining = remaining / (10*10);
+            dpos -= 2;
+            *(uint16_t*)dpos = ((uint16_t*)DIGIT_PAIRS_10)[digit_pos]; /* copy 2 digits at a time */
+            last_one_off = (digit_pos < 10);
             break;
         case 'x':
-        case 'X':
-            digit = '0' + abs(remaining % 16);
+            *(--dpos) = hex_digits[abs(remaining % 16)];
             remaining = remaining / 16;
-            if (digit > '9')
-                digit = digit - '9' - 1 + (format_char == 'x' ? 'a' : 'A');
             break;
         default:
             assert(0);
+            break;
         }
-        *(--dpos) = digit;
-        ++length;
     }
+    if (last_one_off) {
+        assert(*dpos == '0');
+        dpos++;
+    }
+    length = end - dpos;
     ulength = length;
     prepend_sign = 0;
     if (!is_unsigned && value <= neg_one) {
