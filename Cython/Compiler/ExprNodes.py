@@ -2983,16 +2983,42 @@ class JoinedStrNode(ExprNode):
         code.mark_pos(self.pos)
         num_items = len(self.values)
         list_var = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+        ulength_var = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
+        max_char_var = code.funcstate.allocate_temp(PyrexTypes.c_py_ucs4_type, manage_ref=False)
 
         code.putln('%s = PyTuple_New(%s); %s' % (
             list_var,
             num_items,
             code.error_goto_if_null(list_var, self.pos)))
         code.put_gotref(list_var)
+        code.putln("%s = 0;" % ulength_var)
+        code.putln("%s = 127;" % max_char_var)  # at least ASCII character range
 
         for i, node in enumerate(self.values):
             node.generate_evaluation_code(code)
             node.make_owned_reference(code)
+
+            ulength = "__Pyx_PyUnicode_GET_LENGTH(%s)" % node.py_result()
+            max_char_value = "__Pyx_PyUnicode_MAX_CHAR_VALUE(%s)" % node.py_result()
+            is_ascii = False
+            if isinstance(node, UnicodeNode):
+                try:
+                    node.value.encode('iso8859-1')
+                    max_char_value = '255'
+                    node.value.encode('us-ascii')
+                    is_ascii = True
+                except UnicodeEncodeError:
+                    pass
+                else:
+                    ulength = str(len(node.value))
+            elif isinstance(node, FormattedValueNode) and node.value.type.is_numeric:
+                is_ascii = True  # formatted C numbers are always ASCII
+
+            if not is_ascii:
+                code.putln("%s = (%s > %s) ? %s : %s;" % (
+                    max_char_var, max_char_value, max_char_var, max_char_value, max_char_var))
+            code.putln("%s += %s;" % (ulength_var, ulength))
+
             code.put_giveref(node.py_result())
             code.putln('PyTuple_SET_ITEM(%s, %s, %s);' % (list_var, i, node.py_result()))
             node.generate_post_assignment_code(code)
@@ -3000,14 +3026,20 @@ class JoinedStrNode(ExprNode):
 
         code.mark_pos(self.pos)
         self.allocate_temp_result(code)
-        code.putln('%s = PyUnicode_Join(%s, %s); %s' % (
+        code.globalstate.use_utility_code(UtilityCode.load_cached("JoinPyUnicode", "StringTools.c"))
+        code.putln('%s = __Pyx_PyUnicode_Join(%s, %d, %s, %s); %s' % (
             self.result(),
-            Naming.empty_unicode,
             list_var,
+            num_items,
+            ulength_var,
+            max_char_var,
             code.error_goto_if_null(self.py_result(), self.pos)))
         code.put_gotref(self.py_result())
+
         code.put_decref_clear(list_var, py_object_type)
         code.funcstate.release_temp(list_var)
+        code.funcstate.release_temp(ulength_var)
+        code.funcstate.release_temp(max_char_var)
 
 
 class FormattedValueNode(ExprNode):

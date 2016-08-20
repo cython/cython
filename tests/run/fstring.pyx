@@ -8,6 +8,15 @@
 import sys
 IS_PYPY = hasattr(sys, 'pypy_version_info')
 
+cdef extern from *:
+    int INT_MAX
+    long LONG_MAX
+    long LONG_MIN
+
+max_int = INT_MAX
+max_long = LONG_MAX
+min_long = LONG_MIN
+
 
 def format2(ab, cd):
     """
@@ -70,6 +79,29 @@ def format_c_numbers(signed char c, short s, int n, long l, float f, double d):
     return s1, s2, s3, s4
 
 
+def format_c_numbers_max(int n, long l):
+    """
+    >>> n, l = max_int, max_long
+    >>> s1, s2 = format_c_numbers_max(n, l)
+    >>> s1 == '{n}:{l}'.format(n=n, l=l) or s1
+    True
+    >>> s2 == '{n:012X}:{l:020X}'.format(n=n, l=l) or s2
+    True
+
+    >>> n, l = -max_int-1, -max_long-1
+    >>> s1, s2 = format_c_numbers_max(n, l)
+    >>> s1 == '{n}:{l}'.format(n=n, l=l) or s1
+    True
+    >>> s2 == '{n:012X}:{l:020X}'.format(n=n, l=l) or s2
+    True
+    """
+    s1 = f"{n}:{l}"
+    assert isinstance(s1, unicode), type(s1)
+    s2 = f"{n:012X}:{l:020X}"
+    assert isinstance(s2, unicode), type(s2)
+    return s1, s2
+
+
 def format_bool(bint x):
     """
     >>> a, b, c, d = format_bool(1)
@@ -125,15 +157,17 @@ def format_c_values(Py_UCS4 uchar, Py_UNICODE pyunicode):
     s2 = f"{pyunicode}"
     assert isinstance(s2, unicode), type(s2)
     l = [1, 2, 3]
-    s3 = f"{l.reverse()}"  # C int return value => None
+    s3 = f"{l.reverse()}"  # C int return value => 'None'
     assert isinstance(s3, unicode), type(s3)
     assert l == [3, 2, 1]
     return s, s1, s2, s3
 
 
+xyz_ustring = u'xÄyÖz'
+
 def format_strings(str s, unicode u):
-    """
-    >>> a, b, c, d = format_strings('abc', b'xyz'.decode('ascii'))
+    u"""
+    >>> a, b, c, d, e, f, g = format_strings('abc', b'xyz'.decode('ascii'))
     >>> print(a)
     abcxyz
     >>> print(b)
@@ -142,6 +176,28 @@ def format_strings(str s, unicode u):
     uxyzsabc
     >>> print(d)
     sabcuxyz
+    >>> print(e)
+    sabcuÄÄuxyz
+    >>> print(f)
+    sabcu\N{SNOWMAN}uxyz
+    >>> print(g)
+    sabcu\N{OLD PERSIAN SIGN A}uxyz\N{SNOWMAN}
+
+    >>> a, b, c, d, e, f, g = format_strings('abc', xyz_ustring)
+    >>> print(a)
+    abcxÄyÖz
+    >>> print(b)
+    xÄyÖzabc
+    >>> print(c)
+    uxÄyÖzsabc
+    >>> print(d)
+    sabcuxÄyÖz
+    >>> print(e)
+    sabcuÄÄuxÄyÖz
+    >>> print(f)
+    sabcu\N{SNOWMAN}uxÄyÖz
+    >>> print(g)
+    sabcu\N{OLD PERSIAN SIGN A}uxÄyÖz\N{SNOWMAN}
     """
     a = f"{s}{u}"
     assert isinstance(a, unicode), type(a)
@@ -151,7 +207,13 @@ def format_strings(str s, unicode u):
     assert isinstance(c, unicode), type(c)
     d = f"s{s}u{u}"
     assert isinstance(d, unicode), type(d)
-    return a, b, c, d
+    e = f"s{s}uÄÄu{u}"
+    assert isinstance(e, unicode), type(e)
+    f = f"s{s}u\N{SNOWMAN}u{u}"
+    assert isinstance(f, unicode), type(f)
+    g = f"s{s}u\N{OLD PERSIAN SIGN A}u{u}\N{SNOWMAN}"
+    assert isinstance(g, unicode), type(g)
+    return a, b, c, d, e, f, g
 
 
 def format_str(str s1, str s2):

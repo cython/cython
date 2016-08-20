@@ -22,7 +22,7 @@ Features added
 * Buffer variables are no longer excluded from ``locals()``.
   Patch by da-woods.
 
-* Formatting C integers in f-strings is faster.
+* Building f-strings is faster, especially when formatting C integers.
 
 * for-loop iteration over "std::string".
 
