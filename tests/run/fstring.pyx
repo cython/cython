@@ -254,9 +254,9 @@ def format_strings(str s, unicode u):
     return a, b, c, d, e, f, g
 
 
-def format_str(str s1, str s2):
+def format_pystr(str s1, str s2):
     """
-    >>> a, b, c, d = format_str('abc', 'xyz')
+    >>> a, b, c, d = format_pystr('abc', 'xyz')
     >>> print(a)
     abcxyz
     >>> print(b)
@@ -275,3 +275,49 @@ def format_str(str s1, str s2):
     d = f"s{s1}u{s2}"
     assert isinstance(d, unicode), type(d)
     return a, b, c, d
+
+
+def raw_fstring(value):
+    """
+    >>> print(raw_fstring('abc'))
+    abc\\x61
+    """
+    return fr'{value}\x61'
+
+
+def format_repr(value):
+    """
+    >>> a, b = format_repr('abc')
+    >>> print('x{value!r}x'.format(value='abc'))
+    x'abc'x
+    >>> print('x{value!r:6}x'.format(value='abc'))
+    x'abc' x
+    >>> print(a)
+    x'abc'x
+    >>> print(b)
+    x'abc' x
+    """
+    a = f'x{value!r}x'
+    assert isinstance(a, unicode), type(a)
+    b = f'x{value!r:6}x'
+    assert isinstance(b, unicode), type(b)
+    return a, b
+
+
+def format_str(value):
+    """
+    >>> a, b = format_str('abc')
+    >>> print('x{value!s}x'.format(value='abc'))
+    xabcx
+    >>> print('x{value!s:6}x'.format(value='abc'))
+    xabc   x
+    >>> print(a)
+    xabcx
+    >>> print(b)
+    xabc   x
+    """
+    a = f'x{value!s}x'
+    assert isinstance(a, unicode), type(a)
+    b = f'x{value!s:6}x'
+    assert isinstance(b, unicode), type(b)
+    return a, b

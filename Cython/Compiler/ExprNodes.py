@@ -3114,12 +3114,15 @@ class FormattedValueNode(ExprNode):
             fn = self.find_conversion_func(conversion_char)
             assert fn is not None, "invalid conversion character found: '%s'" % conversion_char
             value_result = '%s(%s)' % (fn, value_result)
-            code.globalstate.use_utility_code(UtilityCode.load_cached("PyObjectFormatAndDecref", "StringTools.c"))
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("PyObjectFormatAndDecref", "StringTools.c"))
             format_func += 'AndDecref'
-        elif not self.format_spec:
-            code.globalstate.use_utility_code(UtilityCode.load_cached("PyObjectFormatSimple", "StringTools.c"))
+        elif self.format_spec:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("PyObjectFormat", "StringTools.c"))
         else:
-            format_func = 'PyObject_Format'
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("PyObjectFormatSimple", "StringTools.c"))
 
         code.putln("%s = %s(%s, %s); %s" % (
             self.result(),

@@ -974,6 +974,48 @@ static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value
 }
 
 
+//////////////////// PyObjectFormat.proto ////////////////////
+
+#if CYTHON_USE_UNICODE_WRITER
+static PyObject* __Pyx_PyObject_Format(PyObject* s, PyObject* f);
+#else
+#define __Pyx_PyObject_Format(s, f) PyObject_Format(s, f)
+#endif
+
+//////////////////// PyObjectFormat ////////////////////
+
+#if CYTHON_USE_UNICODE_WRITER
+static PyObject* __Pyx_PyObject_Format(PyObject* obj, PyObject* format_spec) {
+    int ret;
+    _PyUnicodeWriter writer;
+
+    if (likely(PyFloat_CheckExact(obj))) {
+        // copied from CPython 3.5 "float__format__()" in floatobject.c
+        _PyUnicodeWriter_Init(&writer);
+        ret = _PyFloat_FormatAdvancedWriter(
+            &writer,
+            obj,
+            format_spec, 0, PyUnicode_GET_LENGTH(format_spec));
+    } else if (likely(PyLong_CheckExact(obj))) {
+        // copied from CPython 3.5 "long__format__()" in longobject.c
+        _PyUnicodeWriter_Init(&writer);
+        ret = _PyLong_FormatAdvancedWriter(
+            &writer,
+            obj,
+            format_spec, 0, PyUnicode_GET_LENGTH(format_spec));
+    } else {
+        return PyObject_Format(obj, format_spec);
+    }
+
+    if (unlikely(ret == -1)) {
+        _PyUnicodeWriter_Dealloc(&writer);
+        return NULL;
+    }
+    return _PyUnicodeWriter_Finish(&writer);
+}
+#endif
+
+
 //////////////////// PyObjectFormatSimple.proto ////////////////////
 
 #if CYTHON_COMPILING_IN_PYPY
