@@ -1406,6 +1406,125 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallMethO(PyObject *func, PyObject
 #endif
 
 
+/////////////// PyFunctionFastCall.proto ///////////////
+
+#if CYTHON_FAST_PYCALL
+// let's assume that the non-public C-API function might still change during the 3.6 beta phase
+#if 1 || PY_VERSION_HEX < 0x030600B1
+static PyObject *__Pyx_PyFunction_FastCall(PyObject *func, PyObject **args, int nargs, PyObject *kwargs);
+#else
+#define __Pyx_PyFunction_FastCall(func, args, nargs, kwargs) _PyFunction_FastCall(func, args, nargs, kwargs)
+#endif
+#endif
+
+/////////////// PyFunctionFastCall ///////////////
+// copied from CPython 3.6 ceval.c
+
+#if CYTHON_FAST_PYCALL
+#include "frameobject.h"
+
+static PyObject* __Pyx_PyFunction_FastCallNoKw(PyObject **args, Py_ssize_t na,
+                         PyCodeObject *co, PyObject *globals) {
+    PyFrameObject *f;
+    PyThreadState *tstate = PyThreadState_GET();
+    PyObject **fastlocals;
+    Py_ssize_t i;
+    PyObject *result;
+
+    assert(globals != NULL);
+    /* XXX Perhaps we should create a specialized
+       PyFrame_New() that doesn't take locals, but does
+       take builtins without sanity checking them.
+       */
+    assert(tstate != NULL);
+    f = PyFrame_New(tstate, co, globals, NULL);
+    if (f == NULL) {
+        return NULL;
+    }
+
+    fastlocals = f->f_localsplus;
+
+    for (i = 0; i < na; i++) {
+        Py_INCREF(*args);
+        fastlocals[i] = *args++;
+    }
+    result = PyEval_EvalFrameEx(f,0);
+
+    ++tstate->recursion_depth;
+    Py_DECREF(f);
+    --tstate->recursion_depth;
+
+    return result;
+}
+
+
+#if 1 || PY_VERSION_HEX < 0x030600B1
+static PyObject *__Pyx_PyFunction_FastCall(PyObject *func, PyObject **args, int nargs, CYTHON_UNUSED PyObject *kwargs) {
+    PyCodeObject *co = (PyCodeObject *)PyFunction_GET_CODE(func);
+    PyObject *globals = PyFunction_GET_GLOBALS(func);
+    PyObject *argdefs = PyFunction_GET_DEFAULTS(func);
+    PyObject *closure;
+#if PY_MAJOR_VERSION >= 3
+    PyObject *kwdefs;
+    //#if PY_VERSION_HEX >= 0x03050000
+    //PyObject *name, *qualname;
+    //#endif
+#endif
+    PyObject **d;
+    int nd;
+
+    /* CPython issue #27128: support for keywords will come later */
+    assert(kwargs == NULL);
+
+    if (argdefs == NULL && co->co_argcount == nargs &&
+#if PY_MAJOR_VERSION >= 3
+            co->co_kwonlyargcount == 0 &&
+#endif
+            co->co_flags == (CO_OPTIMIZED | CO_NEWLOCALS | CO_NOFREE)) {
+        return __Pyx_PyFunction_FastCallNoKw(args, nargs, co, globals);
+    }
+
+    closure = PyFunction_GET_CLOSURE(func);
+#if PY_MAJOR_VERSION >= 3
+    kwdefs = PyFunction_GET_KW_DEFAULTS(func);
+    //#if PY_VERSION_HEX >= 0x03050000
+    //name = ((PyFunctionObject *)func) -> func_name;
+    //qualname = ((PyFunctionObject *)func) -> func_qualname;
+    //#endif
+#endif
+
+    if (argdefs != NULL) {
+        d = &PyTuple_GET_ITEM(argdefs, 0);
+        nd = Py_SIZE(argdefs);
+    }
+    else {
+        d = NULL;
+        nd = 0;
+    }
+
+    //#if PY_VERSION_HEX >= 0x03050000
+    //return _PyEval_EvalCodeWithName((PyObject*)co, globals, (PyObject *)NULL,
+    //                                args, nargs,
+    //                                NULL, 0,
+    //                                d, nd, kwdefs,
+    //                                closure, name, qualname);
+    //#elif PY_MAJOR_VERSION >= 3
+#if PY_MAJOR_VERSION >= 3
+    return PyEval_EvalCodeEx((PyObject*)co, globals, (PyObject *)NULL,
+                             args, nargs,
+                             NULL, 0,
+                             d, nd, kwdefs, closure);
+#else
+    return PyEval_EvalCodeEx(co, globals, (PyObject *)NULL,
+                             args, nargs,
+                             NULL, 0,
+                             d, nd, closure);
+#endif
+}
+#endif  // CPython < 3.6
+#endif  // CYTHON_FAST_PYCALL
+
+
 /////////////// PyObjectCallOneArg.proto ///////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObject *arg); /*proto*/
@@ -1413,6 +1532,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObjec
 /////////////// PyObjectCallOneArg ///////////////
 //@requires: PyObjectCallMethO
 //@requires: PyObjectCall
+//@requires: PyFunctionFastCall
 
 #if CYTHON_COMPILING_IN_CPYTHON
 static PyObject* __Pyx__PyObject_CallOneArg(PyObject *func, PyObject *arg) {
@@ -1427,6 +1547,11 @@ static PyObject* __Pyx__PyObject_CallOneArg(PyObject *func, PyObject *arg) {
 }
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObject *arg) {
+#if CYTHON_FAST_PYCALL
+    if (PyFunction_Check(func)) {
+        return __Pyx_PyFunction_FastCall(func, &arg, 1, NULL);
+    }
+#endif
 #ifdef __Pyx_CyFunction_USED
     if (likely(PyCFunction_Check(func) || PyObject_TypeCheck(func, __pyx_CyFunctionType))) {
 #else
@@ -1464,10 +1589,16 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func); /*proto
 /////////////// PyObjectCallNoArg ///////////////
 //@requires: PyObjectCallMethO
 //@requires: PyObjectCall
+//@requires: PyFunctionFastCall
 //@substitute: naming
 
 #if CYTHON_COMPILING_IN_CPYTHON
 static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func) {
+#if CYTHON_FAST_PYCALL
+    if (PyFunction_Check(func)) {
+        return __Pyx_PyFunction_FastCall(func, NULL, 0, NULL);
+    }
+#endif
 #ifdef __Pyx_CyFunction_USED
     if (likely(PyCFunction_Check(func) || PyObject_TypeCheck(func, __pyx_CyFunctionType))) {
 #else

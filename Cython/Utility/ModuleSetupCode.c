@@ -57,6 +57,8 @@
   #define CYTHON_UNPACK_METHODS 0
   #undef CYTHON_FAST_THREAD_STATE
   #define CYTHON_FAST_THREAD_STATE 0
+  #undef CYTHON_FAST_PYCALL
+  #define CYTHON_FAST_PYCALL 0
 
 #elif defined(PYSTON_VERSION)
   #define CYTHON_COMPILING_IN_PYPY 0
@@ -88,6 +90,8 @@
   #endif
   #undef CYTHON_FAST_THREAD_STATE
   #define CYTHON_FAST_THREAD_STATE 0
+  #undef CYTHON_FAST_PYCALL
+  #define CYTHON_FAST_PYCALL 0
 
 #else
   #define CYTHON_COMPILING_IN_PYPY 0
@@ -132,6 +136,9 @@
   #endif
   #ifndef CYTHON_FAST_THREAD_STATE
     #define CYTHON_FAST_THREAD_STATE 1
+  #endif
+  #ifndef CYTHON_FAST_PYCALL
+    #define CYTHON_FAST_PYCALL 1
   #endif
 #endif
 
