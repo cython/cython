@@ -67,6 +67,16 @@ def format_c_numbers(signed char c, short s, int n, long l, float f, double d):
     >>> print(s4)
     -C-14-3.14
 
+    >>> s1, s2, s3, s4 = format_c_numbers(0, 0, 0, 0, -2.3456, -0.1415926)
+    >>> print(s1)
+    0   000-2.35
+    >>> print(s2)
+    -0.142-2.3
+    >>> print(s3)
+       0f
+    >>> print(s4)
+    00000-0.142
+
     """
     s1 = f"{c}{s:4}{l}{n}{f:.3}"
     assert isinstance(s1, unicode), type(s1)
@@ -100,6 +110,34 @@ def format_c_numbers_max(int n, long l):
     s2 = f"{n:012X}:{l:020X}"
     assert isinstance(s2, unicode), type(s2)
     return s1, s2
+
+
+def format_c_number_range(int n):
+    """
+    >>> for i in range(-1000, 1000):
+    ...     assert format_c_number_range(i) == str(i)
+    """
+    return f'{n}'
+
+
+def format_c_number_range_width(int n):
+    """
+    >>> for i in range(-1000, 1000):
+    ...     assert format_c_number_range_width(i) == '%04d' % i, format_c_number_range_width(i)
+    """
+    return f'{n:04}'
+
+
+def format_c_number_range_dyn_width(int n, int width):
+    """
+    >>> for i in range(-1000, 1000):
+    ...     assert format_c_number_range_dyn_width(i, 0) == str(i), format_c_number_range_dyn_width(i, 0)
+    ...     assert format_c_number_range_dyn_width(i, 1) == '%01d' % i, format_c_number_range_dyn_width(i, 1)
+    ...     assert format_c_number_range_dyn_width(i, 4) == '%04d' % i, format_c_number_range_dyn_width(i, 4)
+    ...     assert format_c_number_range_dyn_width(i, 5) == '%05d' % i, format_c_number_range_dyn_width(i, 5)
+    ...     assert format_c_number_range_dyn_width(i, 6) == '%06d' % i, format_c_number_range_dyn_width(i, 6)
+    """
+    return f'{n:0{width}}'
 
 
 def format_bool(bint x):

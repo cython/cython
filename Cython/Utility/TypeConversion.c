@@ -634,12 +634,6 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
         format_char = 'x';
     };
 
-    // single character unicode strings are cached in CPython => use PyUnicode_FromOrdinal() for them
-    if (unlikely((is_unsigned || value >= const_zero) && (width <= 1) && (
-            (format_char == 'o') ? value <= 7 : (format_char == 'd') ? value <= 9 : value <= 15))) {
-        return PyUnicode_FromOrdinal(hex_digits[((int) value)]);
-    }
-
     // surprise: even trivial sprintf() calls don't get optimised in gcc (4.8)
     remaining = value; /* not using abs(value) to avoid overflow problems */
     last_one_off = 0;
@@ -673,6 +667,8 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
     if (last_one_off) {
         assert(*dpos == '0');
         dpos++;
+    } else if (unlikely(dpos == end)) {
+        *(--dpos) = '0';
     }
     length = end - dpos;
     ulength = length;
@@ -688,6 +684,10 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
     }
     if (width > ulength) {
         ulength = width;
+    }
+    // single character unicode strings are cached in CPython => use PyUnicode_FromOrdinal() for them
+    if (ulength == 1) {
+        return PyUnicode_FromOrdinal(*dpos);
     }
     return __Pyx_PyUnicode_BuildFromAscii(ulength, dpos, length, prepend_sign, padding_char);
 }
