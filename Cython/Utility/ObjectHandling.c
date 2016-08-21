@@ -1258,6 +1258,7 @@ static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name
 /////////////// PyObjectCallMethod1 ///////////////
 //@requires: PyObjectGetAttrStr
 //@requires: PyObjectCallOneArg
+//@requires: PyFunctionFastCall
 
 static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name, PyObject* arg) {
     PyObject *method, *result = NULL;
@@ -1269,6 +1270,13 @@ static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name
         if (likely(self)) {
             PyObject *args;
             PyObject *function = PyMethod_GET_FUNCTION(method);
+            #if CYTHON_FAST_PYCALL
+            if (PyFunction_Check(function)) {
+                PyObject *args[2] = {self, arg};
+                result = __Pyx_PyFunction_FastCall(function, args, 2, NULL);
+                goto done;
+            }
+            #endif
             args = PyTuple_New(2);
             if (unlikely(!args)) goto bad;
             Py_INCREF(self);
@@ -1285,6 +1293,7 @@ static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name
     }
 #endif
     result = __Pyx_PyObject_CallOneArg(method, arg);
+done:
 bad:
     Py_XDECREF(method);
     return result;
@@ -1298,15 +1307,24 @@ static PyObject* __Pyx_PyObject_CallMethod2(PyObject* obj, PyObject* method_name
 /////////////// PyObjectCallMethod2 ///////////////
 //@requires: PyObjectGetAttrStr
 //@requires: PyObjectCall
+//@requires: PyFunctionFastCall
 
 static PyObject* __Pyx_PyObject_CallMethod2(PyObject* obj, PyObject* method_name, PyObject* arg1, PyObject* arg2) {
     PyObject *args, *method, *result = NULL;
     method = __Pyx_PyObject_GetAttrStr(obj, method_name);
+    if (unlikely(!method)) return NULL;
 #if CYTHON_UNPACK_METHODS
     if (likely(PyMethod_Check(method)) && likely(PyMethod_GET_SELF(method))) {
         PyObject *self, *function;
         self = PyMethod_GET_SELF(method);
         function = PyMethod_GET_FUNCTION(method);
+        #if CYTHON_FAST_PYCALL
+        if (PyFunction_Check(function)) {
+            PyObject *args[3] = {self, arg1, arg2};
+            result = __Pyx_PyFunction_FastCall(function, args, 3, NULL);
+            goto done;
+        }
+        #endif
         args = PyTuple_New(3);
         if (unlikely(!args)) goto bad;
         Py_INCREF(self);
@@ -1320,6 +1338,13 @@ static PyObject* __Pyx_PyObject_CallMethod2(PyObject* obj, PyObject* method_name
         method = function;
     } else
 #endif
+#if CYTHON_FAST_PYCALL
+    if (PyFunction_Check(method)) {
+        PyObject *args[2] = {arg1, arg2};
+        result = __Pyx_PyFunction_FastCall(method, args, 2, NULL);
+        goto done;
+    } else
+#endif
     {
         args = PyTuple_New(2);
         if (unlikely(!args)) goto bad;
@@ -1330,10 +1355,9 @@ static PyObject* __Pyx_PyObject_CallMethod2(PyObject* obj, PyObject* method_name
     }
     result = __Pyx_PyObject_Call(method, args, NULL);
     Py_DECREF(args);
-    Py_DECREF(method);
-    return result;
+done:
 bad:
-    Py_XDECREF(method);
+    Py_DECREF(method);
     return result;
 }
 
@@ -1628,6 +1652,7 @@ static PyObject* __Pyx_PyNumber_InPlaceMatrixMultiply(PyObject* x, PyObject* y);
 /////////////// MatrixMultiply ///////////////
 //@requires: PyObjectGetAttrStr
 //@requires: PyObjectCallOneArg
+//@requires: PyFunctionFastCall
 
 #if PY_VERSION_HEX < 0x03050000
 static PyObject* __Pyx_PyObject_CallMatrixMethod(PyObject* method, PyObject* arg) {
@@ -1639,6 +1664,13 @@ static PyObject* __Pyx_PyObject_CallMatrixMethod(PyObject* method, PyObject* arg
         if (likely(self)) {
             PyObject *args;
             PyObject *function = PyMethod_GET_FUNCTION(method);
+            #if CYTHON_FAST_PYCALL
+            if (PyFunction_Check(function)) {
+                PyObject *args[2] = {self, arg};
+                result = __Pyx_PyFunction_FastCall(function, args, 2, NULL);
+                goto done;
+            }
+            #endif
             args = PyTuple_New(2);
             if (unlikely(!args)) goto bad;
             Py_INCREF(self);
@@ -1655,6 +1687,7 @@ static PyObject* __Pyx_PyObject_CallMatrixMethod(PyObject* method, PyObject* arg
     }
 #endif
     result = __Pyx_PyObject_CallOneArg(method, arg);
+done:
 bad:
     Py_DECREF(method);
     return result;
