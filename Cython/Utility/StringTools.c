@@ -991,14 +991,22 @@ static PyObject* __Pyx_PyObject_Format(PyObject* obj, PyObject* format_spec) {
 
     if (likely(PyFloat_CheckExact(obj))) {
         // copied from CPython 3.5 "float__format__()" in floatobject.c
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x03040000
+        _PyUnicodeWriter_Init(&writer, 0);
+#else
         _PyUnicodeWriter_Init(&writer);
+#endif
         ret = _PyFloat_FormatAdvancedWriter(
             &writer,
             obj,
             format_spec, 0, PyUnicode_GET_LENGTH(format_spec));
     } else if (likely(PyLong_CheckExact(obj))) {
         // copied from CPython 3.5 "long__format__()" in longobject.c
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x03040000
+        _PyUnicodeWriter_Init(&writer, 0);
+#else
         _PyUnicodeWriter_Init(&writer);
+#endif
         ret = _PyLong_FormatAdvancedWriter(
             &writer,
             obj,
