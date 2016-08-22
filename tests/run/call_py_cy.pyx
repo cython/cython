@@ -12,6 +12,7 @@ py_call_twoargs = eval("lambda arg, arg2: (arg, arg2)")
 py_call_starargs = eval("lambda *args: args")
 py_call_pos_and_starargs = eval("lambda arg, *args: (arg, args)")
 py_call_starstarargs = eval("lambda **kw: sorted(kw.items())")
+py_call_args_and_starstarargs = eval("lambda *args, **kw: (args, sorted(kw.items()))")
 
 
 def cy_call_noargs():
@@ -32,6 +33,12 @@ def cy_call_onearg(f):
     >>> try: cy_call_onearg(py_call_twoargs)
     ... except TypeError: pass
     ... else: print("FAILED!")
+
+    >>> class Class(object):
+    ...     def method(self, arg): return arg
+
+    >>> cy_call_onearg(Class().method)
+    'onearg'
     """
     return f('onearg')
 
@@ -40,20 +47,36 @@ def cy_call_twoargs(f, arg):
     """
     >>> cy_call_twoargs(py_call_twoargs, 132)
     (132, 'twoargs')
+
+    >>> class Class2(object):
+    ...     def method(self, arg, arg2): return arg, arg2
+    >>> cy_call_twoargs(Class2().method, 123)
+    (123, 'twoargs')
+
+    >>> class Class1(object):
+    ...     def method(self, arg): return arg
+    >>> cy_call_twoargs(Class1.method, Class1())
+    'twoargs'
     """
     return f(arg, 'twoargs')
 
 
 def cy_call_two_kwargs(f, arg):
     """
-    >>> cy_call_twoargs(py_call_twoargs, arg=132)
-    (132, 'twoargs')
-    >>> cy_call_twoargs(f=py_call_twoargs, arg=132)
-    (132, 'twoargs')
-    >>> cy_call_twoargs(arg=132, f=py_call_twoargs)
-    (132, 'twoargs')
+    >>> cy_call_two_kwargs(py_call_twoargs, arg=132)
+    (132, 'two-kwargs')
+    >>> cy_call_two_kwargs(f=py_call_twoargs, arg=132)
+    (132, 'two-kwargs')
+    >>> cy_call_two_kwargs(arg=132, f=py_call_twoargs)
+    (132, 'two-kwargs')
+
+    >>> class Class(object):
+    ...     def method(self, arg, arg2): return arg, arg2
+
+    >>> cy_call_two_kwargs(Class().method, 123)
+    (123, 'two-kwargs')
     """
-    return f(arg2='twoargs', arg1=arg)
+    return f(arg2='two-kwargs', arg=arg)
 
 
 def cy_call_starargs(*args):
@@ -92,6 +115,14 @@ def cy_call_pos_and_starargs(f, *args):
     (123, (321,))
     >>> cy_call_pos_and_starargs(py_call_pos_and_starargs, 123, 321, 234)
     (123, (321, 234))
+
+    >>> class Class(object):
+    ...     def method(self, arg, arg2): return arg, arg2
+
+    >>> cy_call_pos_and_starargs(Class().method, 123, 321)
+    (123, 321)
+    >>> cy_call_pos_and_starargs(Class.method, Class(), 123, 321)
+    (123, 321)
     """
     return f(args[0] if args else 'no-arg', *args[1:])
 
@@ -161,5 +192,41 @@ def cy_call_kw_and_starstarargs(f=None, arg1=None, **kw):
     [('a', 123), ('arg', None), ('b', 321)]
     >>> cy_call_kw_and_starstarargs(arg1=234, **kw)
     [('a', 123), ('arg', 234), ('b', 321)]
+
+    >>> class Class2(object):
+    ...     def method(self, arg, arg2): return arg, arg2
+
+    >>> cy_call_kw_and_starstarargs(Class2().method, arg1=123, arg2=321)
+    (123, 321)
     """
     return (f or py_call_starstarargs)(arg=arg1, **kw)
+
+
+def cy_call_pos_and_starstarargs(f=None, arg1=None, **kw):
+    """
+    >>> cy_call_pos_and_starstarargs(arg=123)
+    ((None,), [('arg', 123)])
+    >>> cy_call_pos_and_starstarargs(arg1=123)
+    ((123,), [])
+    >>> cy_call_pos_and_starstarargs(arg=123, arg2=321)
+    ((None,), [('arg', 123), ('arg2', 321)])
+    >>> cy_call_pos_and_starstarargs(arg1=123, arg2=321)
+    ((123,), [('arg2', 321)])
+
+    >>> class Class2(object):
+    ...     def method(self, arg, arg2=None): return arg, arg2
+
+    >>> cy_call_pos_and_starstarargs(Class2().method, 123)
+    (123, None)
+    >>> cy_call_pos_and_starstarargs(Class2().method, 123, arg2=321)
+    (123, 321)
+    >>> cy_call_pos_and_starstarargs(Class2().method, arg1=123, arg2=321)
+    (123, 321)
+    >>> cy_call_pos_and_starstarargs(Class2.method, Class2(), arg=123)
+    (123, None)
+    >>> cy_call_pos_and_starstarargs(Class2.method, Class2(), arg=123, arg2=321)
+    (123, 321)
+    >>> cy_call_pos_and_starstarargs(Class2.method, arg1=Class2(), arg=123, arg2=321)
+    (123, 321)
+    """
+    return (f or py_call_args_and_starstarargs)(arg1, **kw)
