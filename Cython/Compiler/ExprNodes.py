@@ -5574,6 +5574,8 @@ class PyMethodCallNode(SimpleCallNode):
             else:
                 arg_offset = arg_offset_cname
 
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("PyFunctionFastCall", "ObjectHandling.c"))
             code.putln("#if CYTHON_FAST_PYCALL")
             code.putln("if (PyFunction_Check(%s)) {" % function)
             code.putln("PyObject *%s[%d] = {%s, %s};" % (
