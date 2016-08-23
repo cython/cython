@@ -24,7 +24,7 @@ where value overflows on conversion to a C type will raise a Python
 when doing arithmetic.) The generated C code will handle the
 platform dependent sizes of C types correctly and safely in this case.
 
-Types are declared via the cdef keyword. 
+Types are declared via the cdef keyword.
 
 
 Typing Variables
@@ -114,12 +114,12 @@ Because static typing is often the key to large speed gains, beginners
 often have a tendency to type everything in sight. This cuts down on both
 readability and flexibility, and can even slow things down (e.g. by adding
 unnecessary type checks, conversions, or slow buffer unpacking).
-On the other hand, it is easy to kill 
-performance by forgetting to type a critical loop variable. Two essential 
-tools to help with this task are profiling and annotation. 
-Profiling should be the first step of any optimization effort, and can 
+On the other hand, it is easy to kill
+performance by forgetting to type a critical loop variable. Two essential
+tools to help with this task are profiling and annotation.
+Profiling should be the first step of any optimization effort, and can
 tell you where you are spending your time. Cython's annotation can then
-tell you why your code is taking time. 
+tell you why your code is taking time.
 
 Using the ``-a`` switch to the ``cython`` command line program (or
 following a link from the Sage notebook) results in an HTML report
@@ -136,3 +136,13 @@ and for determining when to :ref:`release the GIL <nogil>`:
 in general, a ``nogil`` block may contain only "white" code.
 
 .. figure:: htmlreport.png
+
+Note that Cython deduces the type of local variables based on their assignments,
+which can also cut down on the need to explicitly specify types everywhere.
+For example, declaring ``dx`` to be of type double above is unnecessary,
+as is declaring the type of ``s`` in the last version (where the return type
+of ``f`` is known to be a C double.)  A notable exception, however, is
+*integer types used in arithmetic expressions*, as Cython is unable to ensure
+that an overflow would not occur (and so falls back to ``object`` in case
+Python's bignums are needed).  To allow inference of C integer types, set the
+``infer_types`` :ref:`directive <compiler-directives>` to ``True``.
