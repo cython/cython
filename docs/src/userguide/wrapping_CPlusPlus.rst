@@ -312,30 +312,34 @@ and use any of them::
 Overloading operators
 ----------------------
 
-Cython uses C++ for overloading operators::
+Cython uses C++ naming for overloading operators::
 
     cdef extern from "foo.h":
         cdef cppclass Foo:
             Foo()
-            Foo* operator+(Foo*)
-            Foo* operator-(Foo)
-            int operator*(Foo*)
+            Foo operator+(Foo)
+            Foo operator-(Foo)
+            int operator*(Foo)
             int operator/(int)
 
-    cdef Foo* foo = new Foo()
-    cdef int x
+    cdef Foo foo = new Foo()
 
-    cdef Foo* foo2 = foo[0] + foo
-    foo2 = foo[0] - foo[0]
+    foo2 = foo + foo
+    foo2 = foo - foo
 
-    x = foo[0] * foo2
-    x = foo[0] / 1
+    x = foo * foo2
+    x = foo / 1
 
-    cdef Foo f
-    foo = f + &f
-    foo2 = f - f
+Note that if one has *pointers* to C++ objects, dereferencing must be done
+to avoid doing pointer arithmetic rather than arithmetic on the objects
+themselves::
 
-    del foo, foo2
+    cdef Foo* foo_ptr = new Foo()
+    foo = foo_ptr[0] + foo_ptr[0]
+    x = foo_ptr[0] / 2
+
+    del foo_ptr
+
 
 Nested class declarations
 --------------------------
