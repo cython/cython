@@ -6154,6 +6154,7 @@ class _ForInStatNode(LoopNode, StatNode):
     child_attrs = ["target", "item", "iterator", "body", "else_clause"]
     item = None
     is_async = False
+    _fix_range_3_args = None
 
     def _create_item_node(self):
         raise NotImplementedError("must be implemented by subclasses")
@@ -6190,28 +6191,33 @@ class _ForInStatNode(LoopNode, StatNode):
         old_loop_labels = code.new_loop_labels()
 
         target_index_cname = self.target.entry.cname
+        has_long = self._fix_range_3_args[3]
+        if has_long == -1:
+            target_index_type = self.target.type
+        else:
+            target_index_type = self._fix_range_3_args[has_long].type
         
         fmt_dict = {
             'target': target_index_cname,
             'target_type': self.target.type.empty_declaration_code()
         }
         
-        start_stop_step = self._fix_range_3_args[0], self._fix_range_3_args[1], self._fix_range_3_args[2]
-        for node, name in zip(start_stop_step, ('start', 'stop', 'step')):
+        names = ('start', 'stop', 'step')
+        for i in range(3):
+            node = self._fix_range_3_args[i]
+            name = names[i]
             node.generate_evaluation_code(code)
             result = node.result()
             fmt_dict[name] = result
         
-        fmt_dict['i'] = code.funcstate.allocate_temp(self.target.type, False)
-        fmt_dict['nsteps'] = code.funcstate.allocate_temp(self.target.type, False)
+        fmt_dict['i'] = code.funcstate.allocate_temp(target_index_type, False)
+        fmt_dict['nsteps'] = code.funcstate.allocate_temp(target_index_type, False)
         
         code.putln("if (%(step)s == 0) abort();" % fmt_dict)
         
         code.putln("%(nsteps)s = (%(stop)s - %(start)s + %(step)s - %(step)s/abs(%(step)s)) / %(step)s;" % fmt_dict)
-        code.putln("if (%(nsteps)s > 0)" %fmt_dict)
-        code.begin_block()
-        code.put("for (%(i)s = 0; %(i)s < %(nsteps)s; %(i)s++)" % fmt_dict)
-        code.begin_block()
+        code.putln("if (%(nsteps)s > 0) {" %fmt_dict)
+        code.putln("for (%(i)s = 0; %(i)s < %(nsteps)s; %(i)s++) {" % fmt_dict)
         
         code.putln("%(target)s = (%(target_type)s)(%(start)s + %(step)s * %(i)s);" % fmt_dict)
         
@@ -6220,13 +6226,13 @@ class _ForInStatNode(LoopNode, StatNode):
         code.mark_pos(self.pos)
         code.put_label(code.continue_label)
         
-        code.end_block()
-        code.end_block()
+        code.putln("}")
+        code.putln("}")
         
         code.set_loop_labels(old_loop_labels)
         
     def generate_execution_code(self, code):
-        if hasattr(self, '_fix_range_3_args'):
+        if self._fix_range_3_args is not None:
             self.generate_execution_code_fix_range_3_args(code)
             break_label = code.break_label
         else:
