@@ -5583,7 +5583,7 @@ class PyMethodCallNode(SimpleCallNode):
                 len(args)+1,
                 self_arg,
                 ', '.join(arg.py_result() for arg in args)))
-            code.putln("%s = __Pyx_PyFunction_FastCall(%s, %s+1-%s, %d+%s, NULL); %s" % (
+            code.putln("%s = __Pyx_PyFunction_FastCall(%s, %s+1-%s, %d+%s); %s" % (
                 self.result(),
                 function,
                 Naming.quick_temp_cname,
