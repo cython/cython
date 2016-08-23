@@ -209,12 +209,12 @@ Declare a var with the wrapped C++ class
 
 Now, we use cdef to declare a var of the class with the C++ ``new`` statement::
 
-    cdef Rectangle *rec = new Rectangle(1, 2, 3, 4)
+    rec_ptr = new Rectangle(1, 2, 3, 4)
     try:
-        recArea = rec.getArea()
+        recArea = rec_ptr.getArea()
         ...
     finally:
-        del rec     # delete heap allocated object
+        del rec_ptr     # delete heap allocated object
 
 It's also possible to declare a stack allocated object, as long as it has
 a "default" constructor::
@@ -508,7 +508,7 @@ comprehensions).  For example, one can write::
     cdef vector[int] v = ...
     for value in v:
         f(value)
-    return [x in v if x % 2 == 0]
+    return [x*x for x in v if x % 2 == 0]
 
 
 Simplified wrapping with default constructor
@@ -624,6 +624,22 @@ Note, however, that it is unnecessary to declare the arguments of extern
 functions as references (const or otherwise) as it has no impact on the
 caller's syntax.
 
+
+``auto`` Keyword
+----------------
+
+Though Cython does not have an ``auto`` keyword, Cython local variables
+not explicitly typed with ``cdef`` are deduced from the types of the right hand
+side of *all* their assignments (see the ``infer_types``
+:ref:`compiler directive <compiler-directives>`).  This is particularly handy
+when dealing with functions that return complicated, nested, templated types,
+e.g.::
+
+    cdef vector[int] v = ...
+    it = v.begin()
+
+(Though of course the ``for .. in`` syntax is prefered for objects supporting
+the iteration protocol.)
 
 
 Caveats and Limitations
