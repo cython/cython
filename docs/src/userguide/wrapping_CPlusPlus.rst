@@ -500,6 +500,16 @@ The items in the containers are converted to a corresponding type
 automatically, which includes recursively converting containers
 inside of containers, e.g. a C++ vector of maps of strings.
 
+Iteration over stl containers (or indeed any class with ``begin()`` and
+``end()`` methods returning an object supporting incrementing, dereferencing,
+and comparison) is supported via the ``for .. in`` syntax (including in list
+comprehensions).  For example, one can write::
+
+    cdef vector[int] v = ...
+    for value in v:
+        f(value)
+    return [x in v if x % 2 == 0]
+
 
 Simplified wrapping with default constructor
 --------------------------------------------
@@ -606,6 +616,16 @@ you can declare it using the Python @staticmethod decorator, i.e.::
         void do_something()
 
 
+Declaring/Using References
+---------------------------
+
+Cython supports declaring lvalue references using the standard ``Type&`` syntax.
+Note, however, that it is unnecessary to declare the arguments of extern
+functions as references (const or otherwise) as it has no impact on the
+caller's syntax.
+
+
+
 Caveats and Limitations
 ========================
 
@@ -622,11 +642,6 @@ module which:
 * includes the needed C headers in an extern "C" block
 * contains minimal forwarding functions in C++, each of which calls the
   respective pure-C function
-
-Declaring/Using References
----------------------------
-
-Question: How do you declare and call a function that takes a reference as an argument?
 
 C++ left-values
 ----------------
