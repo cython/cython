@@ -16,6 +16,9 @@ Features added
 * Cython implemented C++ classes can make direct calls to base class methods.
   Patch by empyrical.
 
+* C++ classes can now have typedef members. STL containers updated with
+  value_type.
+
 * New directive ``cython.no_gc`` to fully disable GC for a cdef class.
   Patch by Claudio Freire.
 
