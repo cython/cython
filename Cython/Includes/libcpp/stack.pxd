@@ -1,4 +1,5 @@
 cdef extern from "<stack>" namespace "std" nogil:
+    ctypedef T value_type
     cdef cppclass stack[T]:
         stack() except +
         stack(stack&) except +

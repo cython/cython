@@ -136,3 +136,13 @@ def item_ptr_test(L, int i, int x):
     cdef int* vi_ptr = &v[i]
     vi_ptr[0] = x
     return v
+
+def test_value_type(x):
+    """
+    >>> test_value_type(2)
+    2.0
+    >>> test_value_type(2.5)
+    2.5
+    """
+    cdef vector[double].value_type val = x
+    return val

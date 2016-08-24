@@ -389,6 +389,15 @@ class CTypedefType(BaseType):
         else:
             return BaseType.cast_code(self, expr_code)
 
+    def specialize(self, values):
+        base_type = self.typedef_base_type.specialize(values)
+        namespace = self.typedef_namespace.specialize(values) if self.typedef_namespace else None
+        if base_type is self.typedef_base_type and namespace is self.typedef_namespace:
+            return self
+        else:
+            return CTypedefType(self.typedef_name, base_type, self.typedef_cname,
+                                self.typedef_is_external, namespace)
+
     def __repr__(self):
         return "<CTypedefType %s>" % self.typedef_cname
 
