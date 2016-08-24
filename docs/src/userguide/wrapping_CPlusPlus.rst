@@ -612,8 +612,10 @@ If the Rectangle class has a static member:
 you can declare it using the Python @staticmethod decorator, i.e.::
 
     cdef extern from "Rectangle.h" namespace "shapes":
-        @staticmethod
-        void do_something()
+        cdef cppclass Rectangle:
+            ...
+            @staticmethod
+            void do_something()
 
 
 Declaring/Using References
