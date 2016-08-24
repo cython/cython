@@ -11,4 +11,8 @@ public:
   B* createB() {
     return new B();
   }
+  typedef int my_int;
+  static my_int negate(my_int x) {
+    return -x;
+  }
 };

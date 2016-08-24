@@ -3625,6 +3625,8 @@ def p_cpp_class_attribute(s, ctx):
         decorators = p_decorators(s)
     if s.systring == 'cppclass':
         return p_cpp_class_definition(s, s.position(), ctx)
+    if s.systring == 'ctypedef':
+        return p_ctypedef_statement(s, ctx)
     else:
         node = p_c_func_or_var_declaration(s, s.position(), ctx)
         if decorators is not None:

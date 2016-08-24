@@ -316,7 +316,7 @@ def public_decl(base_code, dll_linkage):
     else:
         return base_code
 
-def create_typedef_type(name, base_type, cname, is_external=0):
+def create_typedef_type(name, base_type, cname, is_external=0, namespace=None):
     is_fused = base_type.is_fused
     if base_type.is_complex or is_fused:
         if is_external:
@@ -329,7 +329,7 @@ def create_typedef_type(name, base_type, cname, is_external=0):
 
         return base_type
     else:
-        return CTypedefType(name, base_type, cname, is_external)
+        return CTypedefType(name, base_type, cname, is_external, namespace)
 
 
 class CTypedefType(BaseType):
@@ -353,12 +353,13 @@ class CTypedefType(BaseType):
 
     subtypes = ['typedef_base_type']
 
-    def __init__(self, name, base_type, cname, is_external=0):
+    def __init__(self, name, base_type, cname, is_external=0, namespace=None):
         assert not base_type.is_complex
         self.typedef_name = name
         self.typedef_cname = cname
         self.typedef_base_type = base_type
         self.typedef_is_external = is_external
+        self.typedef_namespace = namespace
 
     def invalid_value(self):
         return self.typedef_base_type.invalid_value()
@@ -372,6 +373,8 @@ class CTypedefType(BaseType):
             base_code = self.typedef_name
         else:
             base_code = public_decl(self.typedef_cname, dll_linkage)
+        if self.typedef_namespace is not None and not pyrex:
+            base_code = "%s::%s" % (self.typedef_namespace.empty_declaration_code(), base_code)
         return self.base_declaration_code(base_code, entity_code)
 
     def as_argument_type(self):
@@ -482,8 +485,8 @@ class CTypedefType(BaseType):
     def error_condition(self, result_code):
         if self.typedef_is_external:
             if self.exception_value:
-                condition = "(%s == (%s)%s)" % (
-                    result_code, self.typedef_cname, self.exception_value)
+                condition = "(%s == %s)" % (
+                    result_code, self.cast_code(self.exception_value))
                 if self.exception_check:
                     condition += " && PyErr_Occurred()"
                 return condition

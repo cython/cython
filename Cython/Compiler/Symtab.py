@@ -495,13 +495,18 @@ class Scope(object):
     def declare_typedef(self, name, base_type, pos, cname = None,
                         visibility = 'private', api = 0):
         if not cname:
-            if self.in_cinclude or (visibility == 'public' or api):
+            if self.in_cinclude or (visibility != 'private' or api):
                 cname = name
             else:
                 cname = self.mangle(Naming.type_prefix, name)
         try:
+            if self.is_cpp_class_scope:
+                namespace = self.outer_scope.lookup(self.name).type
+            else:
+                namespace = None
             type = PyrexTypes.create_typedef_type(name, base_type, cname,
-                                                  (visibility == 'extern'))
+                                                  (visibility == 'extern'),
+                                                  namespace)
         except ValueError as e:
             error(pos, e.args[0])
             type = PyrexTypes.error_type
