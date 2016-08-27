@@ -99,6 +99,12 @@ class Signature(object):
         self.exception_check = ret_format != 'r' and self.error_value is not None
         self.is_staticmethod = False
 
+    def __repr__(self):
+        return '<Signature[%s(%s%s)]>' % (
+            self.ret_format,
+            ', '.join(self.fixed_arg_format),
+            '*' if self.has_generic_args else '')
+
     def num_fixed_args(self):
         return len(self.fixed_arg_format)
 
