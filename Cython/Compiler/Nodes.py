@@ -3039,10 +3039,12 @@ class DefNode(FuncDefNode):
             return False
         if self.no_assignment_synthesis:
             return False
+        if self.entry.is_special:
+            return False
         # Should enable for module level as well, that will require more testing...
         if self.entry.is_anonymous:
             return True
-        if env.is_module_scope:
+        if env.is_module_scope or env.is_c_class_scope:
             if code is None:
                 return env.directives['binding']
             else:

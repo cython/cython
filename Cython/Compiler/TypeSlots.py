@@ -471,7 +471,7 @@ class MethodTableSlot(SlotDescriptor):
     #  Slot descriptor for the method table.
 
     def slot_code(self, scope):
-        if scope.pyfunc_entries:
+        if scope.pyfunc_entries and not scope.directives['binding']:
             return scope.method_table_cname
         else:
             return "0"

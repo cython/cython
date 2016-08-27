@@ -571,13 +571,10 @@ __Pyx_CyFunction_repr(__pyx_CyFunctionObject *op)
 #endif
 }
 
-#if CYTHON_COMPILING_IN_PYPY
-// originally copied from PyCFunction_Call() in CPython's Objects/methodobject.c
-// PyPy does not have this function
-static PyObject * __Pyx_CyFunction_Call(PyObject *func, PyObject *arg, PyObject *kw) {
+static PyObject * __Pyx_CyFunction_CallMethod(PyObject *func, PyObject *self, PyObject *arg, PyObject *kw) {
+    // originally copied from PyCFunction_Call() in CPython's Objects/methodobject.c
     PyCFunctionObject* f = (PyCFunctionObject*)func;
     PyCFunction meth = f->m_ml->ml_meth;
-    PyObject *self = f->m_self;
     Py_ssize_t size;
 
     switch (f->m_ml->ml_flags & (METH_VARARGS | METH_KEYWORDS | METH_NOARGS | METH_O)) {
@@ -625,11 +622,38 @@ static PyObject * __Pyx_CyFunction_Call(PyObject *func, PyObject *arg, PyObject 
                  f->m_ml->ml_name);
     return NULL;
 }
-#else
-static PyObject * __Pyx_CyFunction_Call(PyObject *func, PyObject *arg, PyObject *kw) {
-	return PyCFunction_Call(func, arg, kw);
+
+static CYTHON_INLINE PyObject *__Pyx_CyFunction_Call(PyObject *func, PyObject *arg, PyObject *kw) {
+    return __Pyx_CyFunction_CallMethod(func, ((PyCFunctionObject*)func)->m_self, arg, kw);
 }
-#endif
+
+static PyObject *__Pyx_CyFunction_CallAsMethod(PyObject *func, PyObject *args, PyObject *kw) {
+    PyObject *result;
+    __pyx_CyFunctionObject *cyfunc = (__pyx_CyFunctionObject *) func;
+    if (cyfunc->flags & __Pyx_CYFUNCTION_CCLASS) {
+        Py_ssize_t argc;
+        PyObject *new_args;
+        PyObject *self;
+
+        argc = PyTuple_GET_SIZE(args);
+        new_args = PyTuple_GetSlice(args, 1, argc);
+
+        if (unlikely(!new_args))
+            return NULL;
+
+        self = PyTuple_GetItem(args, 0);
+        if (unlikely(!self)) {
+            Py_DECREF(new_args);
+            return NULL;
+        }
+
+        result = __Pyx_CyFunction_CallMethod(func, self, new_args, kw);
+        Py_DECREF(new_args);
+    } else {
+        result = __Pyx_CyFunction_Call(func, args, kw);
+    }
+    return result;
+}
 
 static PyTypeObject __pyx_CyFunctionType_type = {
     PyVarObject_HEAD_INIT(0, 0)
@@ -650,7 +674,7 @@ static PyTypeObject __pyx_CyFunctionType_type = {
     0,                                  /*tp_as_sequence*/
     0,                                  /*tp_as_mapping*/
     0,                                  /*tp_hash*/
-    __Pyx_CyFunction_Call,              /*tp_call*/
+    __Pyx_CyFunction_CallAsMethod,      /*tp_call*/
     0,                                  /*tp_str*/
     0,                                  /*tp_getattro*/
     0,                                  /*tp_setattro*/
@@ -694,10 +718,6 @@ static PyTypeObject __pyx_CyFunctionType_type = {
 
 
 static int __pyx_CyFunction_init(void) {
-#if !CYTHON_COMPILING_IN_PYPY
-    // avoid a useless level of call indirection
-    __pyx_CyFunctionType_type.tp_call = PyCFunction_Call;
-#endif
     __pyx_CyFunctionType = __Pyx_FetchCommonType(&__pyx_CyFunctionType_type);
     if (__pyx_CyFunctionType == NULL) {
         return -1;
@@ -968,38 +988,14 @@ static PyObject *
 __pyx_FusedFunction_callfunction(PyObject *func, PyObject *args, PyObject *kw)
 {
      __pyx_CyFunctionObject *cyfunc = (__pyx_CyFunctionObject *) func;
-    PyObject *result;
     int static_specialized = (cyfunc->flags & __Pyx_CYFUNCTION_STATICMETHOD &&
                               !((__pyx_FusedFunctionObject *) func)->__signatures__);
 
     if (cyfunc->flags & __Pyx_CYFUNCTION_CCLASS && !static_specialized) {
-        Py_ssize_t argc;
-        PyObject *new_args;
-        PyObject *self;
-        PyObject *m_self;
-
-        argc = PyTuple_GET_SIZE(args);
-        new_args = PyTuple_GetSlice(args, 1, argc);
-
-        if (!new_args)
-            return NULL;
-
-        self = PyTuple_GetItem(args, 0);
-
-        if (!self)
-            return NULL;
-
-        m_self = cyfunc->func.m_self;
-        cyfunc->func.m_self = self;
-        result = __Pyx_CyFunction_Call(func, new_args, kw);
-        cyfunc->func.m_self = m_self;
-
-        Py_DECREF(new_args);
+        return __Pyx_CyFunction_CallAsMethod(func, args, kw);
     } else {
-        result = __Pyx_CyFunction_Call(func, args, kw);
+        return __Pyx_CyFunction_Call(func, args, kw);
     }
-
-    return result;
 }
 
 // Note: the 'self' from method binding is passed in in the args tuple,
