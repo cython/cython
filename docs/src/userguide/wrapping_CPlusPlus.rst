@@ -510,6 +510,9 @@ comprehensions).  For example, one can write::
         f(value)
     return [x*x for x in v if x % 2 == 0]
 
+If the loop target variable is unspecified, an assignment from type
+``*container.begin()`` is used for :ref:`type inference <compiler-directives>`.
+
 
 Simplified wrapping with default constructor
 --------------------------------------------

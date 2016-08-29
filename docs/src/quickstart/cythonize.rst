@@ -137,8 +137,9 @@ in general, a ``nogil`` block may contain only "white" code.
 
 .. figure:: htmlreport.png
 
-Note that Cython deduces the type of local variables based on their assignments,
-which can also cut down on the need to explicitly specify types everywhere.
+Note that Cython deduces the type of local variables based on their assignments
+(including as loop variable targets) which can also cut down on the need to
+explicitly specify types everywhere.
 For example, declaring ``dx`` to be of type double above is unnecessary,
 as is declaring the type of ``s`` in the last version (where the return type
 of ``f`` is known to be a C double.)  A notable exception, however, is

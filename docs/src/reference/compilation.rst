@@ -397,6 +397,9 @@ Cython code.  Here is the list of currently supported directives:
     Infer types of untyped variables in function bodies. Default is
     None, indicating that only safe (semantically-unchanging) inferences
     are allowed.
+    In particular, inferring *integral* types for variables *used in arithmetic
+    expressions* is considered unsafe (due to possible overflow) and must be
+    explicitly requested.
 
 ``language_level`` (2/3)
     Globally set the Python language level to be used for module
