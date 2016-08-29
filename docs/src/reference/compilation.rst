@@ -255,7 +255,7 @@ Compiling with ``pyximport``
 For generating Cython code right in your pure python module just type::
 
     >>> import pyximport; pyximport.install()
-    >>> import helloworld  
+    >>> import helloworld
     Hello World
 
 This allows you to automatically run Cython on every ``.pyx`` that
@@ -281,7 +281,7 @@ For example::
     >>> import cython
     >>> def f(a):
     ...     ret = cython.inline("return a+b", b=3)
-    ... 
+    ...
 
 Unbound variables are automatically pulled from the surrounding local
 and global scopes, and the result of the compilation is cached for
@@ -311,7 +311,7 @@ Cython code.  Here is the list of currently supported directives:
     If set to False, Cython is free to assume that indexing operations
     ([]-operator) in the code will not cause any IndexErrors to be
     raised. Lists, tuples, and strings are affected only if the index
-    can be determined to be non-negative (or if ``wraparound`` is False). 
+    can be determined to be non-negative (or if ``wraparound`` is False).
     Conditions
     which would normally trigger an IndexError may instead cause
     segfaults or data corruption if this is set to False.
@@ -338,12 +338,12 @@ Cython code.  Here is the list of currently supported directives:
     set to ``None``. Otherwise a check is inserted and the
     appropriate exception is raised. This is off by default for
     performance reasons.  Default is False.
-    
+
 ``overflowcheck`` (True / False)
     If set to True, raise errors on overflowing C integer arithmetic
     operations.  Incurs a modest runtime penalty, but is much faster than
     using Python ints.  Default is False.
-    
+
 ``overflowcheck.fold`` (True / False)
     If set to True, and overflowcheck is True, check the overflow bit for
     nested, side-effect-free arithmetic expressions once rather than at every
