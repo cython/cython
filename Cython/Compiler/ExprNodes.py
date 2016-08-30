@@ -1879,7 +1879,8 @@ class NameNode(AtomicExprNode):
 
         entry = self.entry
         if entry.is_cfunction and entry.as_variable:
-            if entry.type.is_overridable or not self.is_lvalue() and entry.fused_cfunction:
+            # FIXME: unify "is_overridable" flags below
+            if (entry.is_overridable or entry.type.is_overridable) or not self.is_lvalue() and entry.fused_cfunction:
                 # We need this for assigning to cpdef names and for the fused 'def' TreeFragment
                 entry = self.entry = entry.as_variable
                 self.type = entry.type
