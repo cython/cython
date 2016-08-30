@@ -604,7 +604,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
     }
     #endif
 
-    #if CYTHON_USE_PYLONG_INTERNALS && PY_MAJOR_VERSION >= 3
+    #if CYTHON_USE_PYLONG_INTERNALS
     if (likely(PyLong_CheckExact({{pyval}}))) {
         const long {{'a' if order == 'CObj' else 'b'}} = intval;
         long {{ival}}{{if op not in ('Eq', 'Ne')}}, x{{endif}};
@@ -787,7 +787,7 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
     #endif
 
     if (likely(PyLong_CheckExact({{pyval}}))) {
-        #if CYTHON_USE_PYLONG_INTERNALS && PY_MAJOR_VERSION >= 3
+        #if CYTHON_USE_PYLONG_INTERNALS
         const digit* digits = ((PyLongObject*){{pyval}})->ob_digit;
         const Py_ssize_t size = Py_SIZE({{pyval}});
         switch (size) {

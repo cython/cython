@@ -36,6 +36,8 @@ Features added
 
 * Binary lshift operations with small constant Python integers are faster.
 
+* Some integer operations on Python long objects are faster in Python 2.7.
+
 Bugs fixed
 ----------
 
