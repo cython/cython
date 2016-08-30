@@ -2373,6 +2373,7 @@ class CFuncDefNode(FuncDefNode):
                                    is_wrapper=1)
             self.py_func.is_module_scope = env.is_module_scope
             self.py_func.analyse_declarations(env)
+            self.py_func.entry.is_overridable = True
             self.py_func_stat = StatListNode(self.pos, stats=[self.py_func])
             self.py_func.type = PyrexTypes.py_object_type
             self.entry.as_variable = self.py_func.entry
@@ -2449,7 +2450,10 @@ class CFuncDefNode(FuncDefNode):
 
     def analyse_expressions(self, env):
         self.local_scope.directives = env.directives
-        if self.py_func is not None:
+        if self.py_func_stat is not None:
+            # this will also analyse the default values and the function name assignment
+            self.py_func_stat = self.py_func_stat.analyse_expressions(env)
+        elif self.py_func is not None:
             # this will also analyse the default values
             self.py_func = self.py_func.analyse_expressions(env)
         else:
@@ -3035,7 +3039,7 @@ class DefNode(FuncDefNode):
     def needs_assignment_synthesis(self, env, code=None):
         if self.is_staticmethod:
             return True
-        if self.is_wrapper or self.specialized_cpdefs or self.entry.is_fused_specialized:
+        if self.specialized_cpdefs or self.entry.is_fused_specialized:
             return False
         if self.no_assignment_synthesis:
             return False

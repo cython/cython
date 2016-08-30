@@ -1877,11 +1877,12 @@ class NameNode(AtomicExprNode):
     def analyse_target_types(self, env):
         self.analyse_entry(env, is_target=True)
 
-        if self.entry.is_cfunction and self.entry.as_variable:
-            if self.entry.is_overridable or not self.is_lvalue() and self.entry.fused_cfunction:
+        entry = self.entry
+        if entry.is_cfunction and entry.as_variable:
+            if entry.type.is_overridable or not self.is_lvalue() and entry.fused_cfunction:
                 # We need this for assigning to cpdef names and for the fused 'def' TreeFragment
-                self.entry = self.entry.as_variable
-                self.type = self.entry.type
+                entry = self.entry = entry.as_variable
+                self.type = entry.type
 
         if self.type.is_const:
             error(self.pos, "Assignment to const '%s'" % self.name)
@@ -1890,10 +1891,10 @@ class NameNode(AtomicExprNode):
         if not self.is_lvalue():
             error(self.pos, "Assignment to non-lvalue '%s'" % self.name)
             self.type = PyrexTypes.error_type
-        self.entry.used = 1
-        if self.entry.type.is_buffer:
+        entry.used = 1
+        if entry.type.is_buffer:
             from . import Buffer
-            Buffer.used_buffer_aux_vars(self.entry)
+            Buffer.used_buffer_aux_vars(entry)
         return self
 
     def analyse_rvalue_entry(self, env):
