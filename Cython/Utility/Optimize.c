@@ -536,7 +536,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, long 
 {{py:
 c_op = {
     'Add': '+', 'Subtract': '-', 'Remainder': '%', 'TrueDivide': '/', 'FloorDivide': '/',
-    'Or': '|', 'Xor': '^', 'And': '&', 'Rshift': '>>',
+    'Or': '|', 'Xor': '^', 'And': '&', 'Rshift': '>>', 'Lshift': '<<',
     'Eq': '==', 'Ne': '!=',
     }[op]
 }}
@@ -593,6 +593,10 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
                 x = q;
             }
             return PyInt_FromLong(x);
+        {{elif op == 'Lshift'}}
+            if (likely(a == (a << b) >> b)) {
+                return PyInt_FromLong(a {{c_op}} b);
+            }
         {{else}}
             // other operations are safe, no overflow
             return PyInt_FromLong(a {{c_op}} b);
@@ -673,6 +677,12 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
                 }
             {{else}}
                 x = a {{c_op}} b;
+                {{if op == 'Lshift'}}
+                if (unlikely(a != x >> b)) {
+                    ll{{ival}} = {{ival}};
+                    goto long_long;
+                }
+                {{endif}}
             {{endif}}
             return PyLong_FromLong(x);
 
@@ -693,6 +703,9 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
                 }
             {{else}}
                 llx = lla {{c_op}} llb;
+                {{if op == 'Lshift'}}
+                if (likely(lla == llx >> llb)) /* then execute 'return' below */
+                {{endif}}
             {{endif}}
             return PyLong_FromLongLong(llx);
         {{endif}}

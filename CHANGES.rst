@@ -34,6 +34,8 @@ Features added
 
 * Speed up cython.inline().
 
+* Binary lshift operations with small constant Python integers are faster.
+
 Bugs fixed
 ----------
 
