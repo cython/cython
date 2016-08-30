@@ -1616,6 +1616,7 @@ class FuncDefNode(StatNode, BlockNode):
     needs_closure = False
     needs_outer_scope = False
     pymethdef_required = False
+    is_wrapper = False
     is_generator = False
     is_generator_body = False
     is_async_def = False
@@ -1892,7 +1893,7 @@ class FuncDefNode(StatNode, BlockNode):
         if profile or linetrace:
             # this looks a bit late, but if we don't get here due to a
             # fatal error before hand, it's not really worth tracing
-            if isinstance(self, DefNode) and self.is_wrapper:
+            if self.is_wrapper:
                 trace_name = self.entry.name + " (wrapper)"
             else:
                 trace_name = self.entry.name
@@ -2255,6 +2256,11 @@ class CFuncDefNode(FuncDefNode):
 
     def unqualified_name(self):
         return self.entry.name
+
+    @property
+    def code_object(self):
+        # share the CodeObject with the cpdef wrapper (if available)
+        return self.py_func.code_object if self.py_func else None
 
     def analyse_declarations(self, env):
         self.is_c_class_method = env.is_c_class_scope
