@@ -47,6 +47,12 @@ profile = line_profiler.LineProfiler(func)
 profile.runcall(func, 19)
 assert_stats(profile, func.__name__)
 
+from collatz import cp_collatz
+func = cp_collatz
+profile = line_profiler.LineProfiler(func)
+profile.runcall(func, 19)
+assert_stats(profile, func.__name__)
+
 from collatz import PyClass
 obj = PyClass()
 func = obj.py_pymethod
@@ -57,11 +63,13 @@ assert_stats(profile, func.__name__)
 from collatz import CClass
 obj = CClass()
 func = obj.c_pymethod
-print(func)
-print(type(func))
-print(func.__func__)
 profile = line_profiler.LineProfiler(func)
 profile.runcall(func)
+assert_stats(profile, func.__name__)
+
+func = obj.cp_pymethod
+profile = line_profiler.LineProfiler(func)
+profile.runcall(func, 19)
 assert_stats(profile, func.__name__)
 
 
@@ -69,6 +77,14 @@ assert_stats(profile, func.__name__)
 # cython: binding=True
 
 def collatz(n):
+    while n > 1:
+        if n % 2 == 0:
+            n //= 2
+        else:
+            n = 3*n+1
+
+
+cpdef cp_collatz(n):
     while n > 1:
         if n % 2 == 0:
             n //= 2
@@ -90,6 +106,12 @@ cdef class CClass:
             a = c + 1
         y = self.cmethod(c + a)
         return y * 4
+
+    cpdef cp_pymethod(self, r):
+        for i in range(10):
+            a = r + 1
+        z = self.c_pymethod(a) + self.cmethod(r)
+        return z * 2
 
     cdef cmethod(self, s):
         for i in range(10):
