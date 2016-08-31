@@ -1848,28 +1848,15 @@ class FuncDefNode(StatNode, BlockNode):
                 lenv.scope_class.type.typeptr_cname,
                 Naming.empty_tuple))
             code.putln("if (unlikely(!%s)) {" % Naming.cur_scope_cname)
-            if is_getbuffer_slot:
-                self.getbuffer_error_cleanup(code)
-
-            if use_refnanny:
-                code.put_finish_refcount_context()
-                if acquire_gil or acquire_gil_for_var_decls_only:
-                    code.put_release_ensured_gil()
-
-            # FIXME: what if the error return value is a Python value?
-            err_val = self.error_value()
-            if err_val is None:
-                if not self.caller_will_check_exceptions():
-                    warning(self.entry.pos,
-                            "Unraisable exception in function '%s'." %
-                            self.entry.qualified_name, 0)
-                    code.put_unraisable(self.entry.qualified_name, lenv.nogil)
-                #if self.return_type.is_void:
-                code.putln("return;")
-            else:
-                code.putln("return %s;" % err_val)
-            code.putln("}")
+            # Scope unconditionally DECREFed on return.
+            code.putln("%s = %s;" % (
+                Naming.cur_scope_cname,
+                lenv.scope_class.type.cast_code("Py_None")));
+            code.put_incref("Py_None", py_object_type);
+            code.putln(code.error_goto(self.pos))
+            code.putln("} else {")
             code.put_gotref(Naming.cur_scope_cname)
+            code.putln("}")
             # Note that it is unsafe to decref the scope at this point.
         if self.needs_outer_scope:
             if self.is_cyfunction:
