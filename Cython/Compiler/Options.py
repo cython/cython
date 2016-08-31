@@ -305,6 +305,8 @@ directive_scopes = { # defaults to available everywhere
     'c_string_encoding': ('module',),
     'type_version_tag': ('module', 'cclass'),
     'language_level': ('module',),
+    'linetrace': ('module',),
+    'profile': ('module',),
     # globals() could conceivably be controlled at a finer granularity,
     # but that would complicate the implementation
     'old_style_globals': ('module',),
