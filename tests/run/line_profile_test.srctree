@@ -7,10 +7,6 @@ from distutils.extension import Extension
 from distutils.core import setup
 from Cython.Build import cythonize
 
-from Cython.Compiler.Options import _directive_defaults
-_directive_defaults['linetrace'] = True
-_directive_defaults['binding'] = True
-
 extensions = [
     Extension("collatz", ["collatz.pyx"], define_macros=[('CYTHON_TRACE', '1')])
 ]
@@ -74,8 +70,11 @@ assert_stats(profile, func.__name__)
 
 
 ######## collatz.pyx ###########
-# cython: binding=True
+# cython: linetrace=True
 
+cimport cython
+
+@cython.binding(True)
 def collatz(n):
     while n > 1:
         if n % 2 == 0:
@@ -84,6 +83,7 @@ def collatz(n):
             n = 3*n+1
 
 
+@cython.binding(True)
 cpdef cp_collatz(n):
     while n > 1:
         if n % 2 == 0:
@@ -92,6 +92,7 @@ cpdef cp_collatz(n):
             n = 3*n+1
 
 
+@cython.binding(True)
 class PyClass(object):
     def py_pymethod(self):
         x = 1
@@ -100,6 +101,7 @@ class PyClass(object):
         return a * 3
 
 
+@cython.binding(True)
 cdef class CClass:
     def c_pymethod(self, c=2):
         for i in range(10):

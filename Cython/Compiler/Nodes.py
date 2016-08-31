@@ -3055,7 +3055,7 @@ class DefNode(FuncDefNode):
             return True
         if env.is_module_scope or env.is_c_class_scope:
             if code is None:
-                return env.directives['binding']
+                return self.local_scope.directives['binding']
             else:
                 return code.globalstate.directives['binding']
         return env.is_py_class_scope or env.is_closure_scope
