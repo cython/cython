@@ -1697,7 +1697,7 @@ if VALUE is not None:
     def visit_DefNode(self, node):
         node = self.visit_FuncDefNode(node)
         env = self.current_env()
-        if node.is_wrapper:
+        if isinstance(node, Nodes.DefNode) and node.is_wrapper:
             env = env.parent_scope
         if (not isinstance(node, Nodes.DefNode) or
                 node.fused_py_func or node.is_generator_body or

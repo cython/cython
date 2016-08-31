@@ -197,6 +197,7 @@ class Node(object):
     is_nonecheck = 0
     is_literal = 0
     is_terminator = 0
+    is_wrapper = False  # is a DefNode wrapper for a C function
     temps = None
 
     # All descendants should set child_attrs to a list of the attributes
@@ -1616,7 +1617,6 @@ class FuncDefNode(StatNode, BlockNode):
     needs_closure = False
     needs_outer_scope = False
     pymethdef_required = False
-    is_wrapper = False
     is_generator = False
     is_generator_body = False
     is_async_def = False
