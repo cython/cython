@@ -1952,8 +1952,7 @@ class CalculateQualifiedNamesTransform(EnvTransform):
 
     def visit_PyCFunctionNode(self, node):
         orig_qualified_name = self.qualified_name[:]
-        if node.def_node.is_wrapper and self.qualified_name:
-            assert self.qualified_name[-1] == '<locals>', self.qualified_name
+        if node.def_node.is_wrapper and self.qualified_name and self.qualified_name[-1] == '<locals>':
             self.qualified_name.pop()
             self._set_qualname(node)
         else:
