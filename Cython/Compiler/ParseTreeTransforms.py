@@ -1697,6 +1697,8 @@ if VALUE is not None:
     def visit_DefNode(self, node):
         node = self.visit_FuncDefNode(node)
         env = self.current_env()
+        if isinstance(node, Nodes.DefNode) and node.is_wrapper:
+            env = env.parent_scope
         if (not isinstance(node, Nodes.DefNode) or
                 node.fused_py_func or node.is_generator_body or
                 not node.needs_assignment_synthesis(env)):
@@ -1949,13 +1951,28 @@ class CalculateQualifiedNamesTransform(EnvTransform):
         return node
 
     def visit_PyCFunctionNode(self, node):
-        self._set_qualname(node, node.def_node.name)
+        orig_qualified_name = self.qualified_name[:]
+        if node.def_node.is_wrapper and self.qualified_name and self.qualified_name[-1] == '<locals>':
+            self.qualified_name.pop()
+            self._set_qualname(node)
+        else:
+            self._set_qualname(node, node.def_node.name)
         self.visitchildren(node)
+        self.qualified_name = orig_qualified_name
         return node
 
     def visit_DefNode(self, node):
-        self._set_qualname(node, node.name)
-        return self.visit_FuncDefNode(node)
+        if node.is_wrapper and self.qualified_name:
+            assert self.qualified_name[-1] == '<locals>', self.qualified_name
+            orig_qualified_name = self.qualified_name[:]
+            self.qualified_name.pop()
+            self._set_qualname(node)
+            self._super_visit_FuncDefNode(node)
+            self.qualified_name = orig_qualified_name
+        else:
+            self._set_qualname(node, node.name)
+            self.visit_FuncDefNode(node)
+        return node
 
     def visit_FuncDefNode(self, node):
         orig_qualified_name = self.qualified_name[:]

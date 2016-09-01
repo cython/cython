@@ -1975,12 +1975,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_method_table(self, env, code):
         if env.is_c_class_scope and not env.pyfunc_entries:
             return
+        binding = env.directives['binding']
         code.putln("")
         code.putln(
             "static PyMethodDef %s[] = {" % (
                 env.method_table_cname))
         for entry in env.pyfunc_entries:
-            if not entry.fused_cfunction:
+            if not entry.fused_cfunction and not (binding and entry.is_overridable):
                 code.put_pymethoddef(entry, ",")
         code.putln(
             "{0, 0, 0, 0}")

@@ -1877,11 +1877,13 @@ class NameNode(AtomicExprNode):
     def analyse_target_types(self, env):
         self.analyse_entry(env, is_target=True)
 
-        if self.entry.is_cfunction and self.entry.as_variable:
-            if self.entry.is_overridable or not self.is_lvalue() and self.entry.fused_cfunction:
+        entry = self.entry
+        if entry.is_cfunction and entry.as_variable:
+            # FIXME: unify "is_overridable" flags below
+            if (entry.is_overridable or entry.type.is_overridable) or not self.is_lvalue() and entry.fused_cfunction:
                 # We need this for assigning to cpdef names and for the fused 'def' TreeFragment
-                self.entry = self.entry.as_variable
-                self.type = self.entry.type
+                entry = self.entry = entry.as_variable
+                self.type = entry.type
 
         if self.type.is_const:
             error(self.pos, "Assignment to const '%s'" % self.name)
@@ -1890,10 +1892,10 @@ class NameNode(AtomicExprNode):
         if not self.is_lvalue():
             error(self.pos, "Assignment to non-lvalue '%s'" % self.name)
             self.type = PyrexTypes.error_type
-        self.entry.used = 1
-        if self.entry.type.is_buffer:
+        entry.used = 1
+        if entry.type.is_buffer:
             from . import Buffer
-            Buffer.used_buffer_aux_vars(self.entry)
+            Buffer.used_buffer_aux_vars(entry)
         return self
 
     def analyse_rvalue_entry(self, env):
@@ -5583,7 +5585,7 @@ class PyMethodCallNode(SimpleCallNode):
                 len(args)+1,
                 self_arg,
                 ', '.join(arg.py_result() for arg in args)))
-            code.putln("%s = __Pyx_PyFunction_FastCall(%s, %s+1-%s, %d+%s, NULL); %s" % (
+            code.putln("%s = __Pyx_PyFunction_FastCall(%s, %s+1-%s, %d+%s); %s" % (
                 self.result(),
                 function,
                 Naming.quick_temp_cname,
@@ -8730,8 +8732,16 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         default_args = []
         default_kwargs = []
         annotations = []
+
+        # For global cpdef functions and def/cpdef methods in cdef classes, we must use global constants
+        # for default arguments to avoid the dependency on the CyFunction object as 'self' argument
+        # in the underlying C function.  Basically, cpdef functions/methods are static C functions,
+        # so their optional arguments must be static, too.
+        # TODO: change CyFunction implementation to pass both function object and owning object for method calls
+        must_use_constants = env.is_c_class_scope or (self.def_node.is_wrapper and env.is_module_scope)
+
         for arg in self.def_node.args:
-            if arg.default:
+            if arg.default and not must_use_constants:
                 if not arg.default.is_literal:
                     arg.is_dynamic = True
                     if arg.type.is_pyobject:
@@ -8820,8 +8830,10 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                             self.pos, args=[defaults_tuple, defaults_kwdict])),
                     decorators=None,
                     name=StringEncoding.EncodedString("__defaults__"))
-                defaults_getter.analyse_declarations(env)
-                defaults_getter = defaults_getter.analyse_expressions(env)
+                # defaults getter must never live in class scopes, it's always a module function
+                module_scope = env.global_scope()
+                defaults_getter.analyse_declarations(module_scope)
+                defaults_getter = defaults_getter.analyse_expressions(module_scope)
                 defaults_getter.body = defaults_getter.body.analyse_expressions(
                     defaults_getter.local_scope)
                 defaults_getter.py_wrapper_required = False
@@ -8891,7 +8903,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         elif def_node.is_classmethod:
             flags.append('__Pyx_CYFUNCTION_CLASSMETHOD')
 
-        if def_node.local_scope.parent_scope.is_c_class_scope:
+        if def_node.local_scope.parent_scope.is_c_class_scope and not def_node.entry.is_anonymous:
             flags.append('__Pyx_CYFUNCTION_CCLASS')
 
         if flags:

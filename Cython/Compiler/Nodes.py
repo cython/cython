@@ -197,6 +197,7 @@ class Node(object):
     is_nonecheck = 0
     is_literal = 0
     is_terminator = 0
+    is_wrapper = False  # is a DefNode wrapper for a C function
     temps = None
 
     # All descendants should set child_attrs to a list of the attributes
@@ -1879,7 +1880,7 @@ class FuncDefNode(StatNode, BlockNode):
         if profile or linetrace:
             # this looks a bit late, but if we don't get here due to a
             # fatal error before hand, it's not really worth tracing
-            if isinstance(self, DefNode) and self.is_wrapper:
+            if self.is_wrapper:
                 trace_name = self.entry.name + " (wrapper)"
             else:
                 trace_name = self.entry.name
@@ -2243,6 +2244,11 @@ class CFuncDefNode(FuncDefNode):
     def unqualified_name(self):
         return self.entry.name
 
+    @property
+    def code_object(self):
+        # share the CodeObject with the cpdef wrapper (if available)
+        return self.py_func.code_object if self.py_func else None
+
     def analyse_declarations(self, env):
         self.is_c_class_method = env.is_c_class_scope
         if self.directive_locals is None:
@@ -2360,6 +2366,7 @@ class CFuncDefNode(FuncDefNode):
                                    is_wrapper=1)
             self.py_func.is_module_scope = env.is_module_scope
             self.py_func.analyse_declarations(env)
+            self.py_func.entry.is_overridable = True
             self.py_func_stat = StatListNode(self.pos, stats=[self.py_func])
             self.py_func.type = PyrexTypes.py_object_type
             self.entry.as_variable = self.py_func.entry
@@ -2436,7 +2443,10 @@ class CFuncDefNode(FuncDefNode):
 
     def analyse_expressions(self, env):
         self.local_scope.directives = env.directives
-        if self.py_func is not None:
+        if self.py_func_stat is not None:
+            # this will also analyse the default values and the function name assignment
+            self.py_func_stat = self.py_func_stat.analyse_expressions(env)
+        elif self.py_func is not None:
             # this will also analyse the default values
             self.py_func = self.py_func.analyse_expressions(env)
         else:
@@ -3022,16 +3032,17 @@ class DefNode(FuncDefNode):
     def needs_assignment_synthesis(self, env, code=None):
         if self.is_staticmethod:
             return True
-        if self.is_wrapper or self.specialized_cpdefs or self.entry.is_fused_specialized:
+        if self.specialized_cpdefs or self.entry.is_fused_specialized:
             return False
         if self.no_assignment_synthesis:
             return False
-        # Should enable for module level as well, that will require more testing...
+        if self.entry.is_special:
+            return False
         if self.entry.is_anonymous:
             return True
-        if env.is_module_scope:
+        if env.is_module_scope or env.is_c_class_scope:
             if code is None:
-                return env.directives['binding']
+                return self.local_scope.directives['binding']
             else:
                 return code.globalstate.directives['binding']
         return env.is_py_class_scope or env.is_closure_scope
@@ -3044,7 +3055,8 @@ class DefNode(FuncDefNode):
 
     def generate_function_definitions(self, env, code):
         if self.defaults_getter:
-            self.defaults_getter.generate_function_definitions(env, code)
+            # defaults getter must never live in class scopes, it's always a module function
+            self.defaults_getter.generate_function_definitions(env.global_scope(), code)
 
         # Before closure cnames are mangled
         if self.py_wrapper_required:

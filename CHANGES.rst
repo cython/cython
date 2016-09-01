@@ -46,6 +46,9 @@ Bugs fixed
 * Some function signatures in ``libc.math`` and ``numpy.pxd`` were incorrect.
   Patch by Michael Seifert.
 
+* Misplaced usages of the module-level ``linetrace`` and ``profile`` directives
+  were silently ignored.
+
 Other changes
 -------------
 

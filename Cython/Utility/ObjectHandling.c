@@ -1273,7 +1273,7 @@ static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name
             #if CYTHON_FAST_PYCALL
             if (PyFunction_Check(function)) {
                 PyObject *args[2] = {self, arg};
-                result = __Pyx_PyFunction_FastCall(function, args, 2, NULL);
+                result = __Pyx_PyFunction_FastCall(function, args, 2);
                 goto done;
             }
             #endif
@@ -1321,7 +1321,7 @@ static PyObject* __Pyx_PyObject_CallMethod2(PyObject* obj, PyObject* method_name
         #if CYTHON_FAST_PYCALL
         if (PyFunction_Check(function)) {
             PyObject *args[3] = {self, arg1, arg2};
-            result = __Pyx_PyFunction_FastCall(function, args, 3, NULL);
+            result = __Pyx_PyFunction_FastCall(function, args, 3);
             goto done;
         }
         #endif
@@ -1341,7 +1341,7 @@ static PyObject* __Pyx_PyObject_CallMethod2(PyObject* obj, PyObject* method_name
 #if CYTHON_FAST_PYCALL
     if (PyFunction_Check(method)) {
         PyObject *args[2] = {arg1, arg2};
-        result = __Pyx_PyFunction_FastCall(method, args, 2, NULL);
+        result = __Pyx_PyFunction_FastCall(method, args, 2);
         goto done;
     } else
 #endif
@@ -1433,11 +1433,14 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallMethO(PyObject *func, PyObject
 /////////////// PyFunctionFastCall.proto ///////////////
 
 #if CYTHON_FAST_PYCALL
+#define __Pyx_PyFunction_FastCall(func, args, nargs) \
+    __Pyx_PyFunction_FastCallDict((func), (args), (nargs), NULL)
+
 // let's assume that the non-public C-API function might still change during the 3.6 beta phase
 #if 1 || PY_VERSION_HEX < 0x030600B1
-static PyObject *__Pyx_PyFunction_FastCall(PyObject *func, PyObject **args, int nargs, PyObject *kwargs);
+static PyObject *__Pyx_PyFunction_FastCallDict(PyObject *func, PyObject **args, int nargs, PyObject *kwargs);
 #else
-#define __Pyx_PyFunction_FastCall(func, args, nargs, kwargs) _PyFunction_FastCall(func, args, nargs, kwargs)
+#define __Pyx_PyFunction_FastCallDict(func, args, nargs, kwargs) _PyFunction_FastCallDict(func, args, nargs, kwargs)
 #endif
 #endif
 
@@ -1447,8 +1450,8 @@ static PyObject *__Pyx_PyFunction_FastCall(PyObject *func, PyObject **args, int 
 #if CYTHON_FAST_PYCALL
 #include "frameobject.h"
 
-static PyObject* __Pyx_PyFunction_FastCallNoKw(PyObject **args, Py_ssize_t na,
-                         PyCodeObject *co, PyObject *globals) {
+static PyObject* __Pyx_PyFunction_FastCallNoKw(PyCodeObject *co, PyObject **args, Py_ssize_t na,
+                                               PyObject *globals) {
     PyFrameObject *f;
     PyThreadState *tstate = PyThreadState_GET();
     PyObject **fastlocals;
@@ -1483,7 +1486,7 @@ static PyObject* __Pyx_PyFunction_FastCallNoKw(PyObject **args, Py_ssize_t na,
 
 
 #if 1 || PY_VERSION_HEX < 0x030600B1
-static PyObject *__Pyx_PyFunction_FastCall(PyObject *func, PyObject **args, int nargs, CYTHON_UNUSED PyObject *kwargs) {
+static PyObject *__Pyx_PyFunction_FastCallDict(PyObject *func, PyObject **args, int nargs, PyObject *kwargs) {
     PyCodeObject *co = (PyCodeObject *)PyFunction_GET_CODE(func);
     PyObject *globals = PyFunction_GET_GLOBALS(func);
     PyObject *argdefs = PyFunction_GET_DEFAULTS(func);
@@ -1494,18 +1497,60 @@ static PyObject *__Pyx_PyFunction_FastCall(PyObject *func, PyObject **args, int 
     //PyObject *name, *qualname;
     //#endif
 #endif
+    PyObject *kwtuple, **k;
     PyObject **d;
     int nd;
+    Py_ssize_t nk;
+    PyObject *result;
 
-    /* CPython issue #27128: support for keywords will come later */
-    assert(kwargs == NULL);
+    assert(kwargs == NULL || PyDict_Check(kwargs));
+    nk = kwargs ? PyDict_Size(kwargs) : 0;
 
-    if (argdefs == NULL && co->co_argcount == nargs &&
+    if (Py_EnterRecursiveCall(" while calling a Python object")) {
+        return NULL;
+    }
+
+    if (
 #if PY_MAJOR_VERSION >= 3
             co->co_kwonlyargcount == 0 &&
 #endif
+            likely(kwargs == NULL || nk == 0) &&
             co->co_flags == (CO_OPTIMIZED | CO_NEWLOCALS | CO_NOFREE)) {
-        return __Pyx_PyFunction_FastCallNoKw(args, nargs, co, globals);
+        /* Fast paths */
+        if (argdefs == NULL && co->co_argcount == nargs) {
+            result = __Pyx_PyFunction_FastCallNoKw(co, args, nargs, globals);
+            goto done;
+        }
+        else if (nargs == 0 && argdefs != NULL
+                 && co->co_argcount == Py_SIZE(argdefs)) {
+            /* function called with no arguments, but all parameters have
+               a default value: use default values as arguments .*/
+            args = &PyTuple_GET_ITEM(argdefs, 0);
+            result =__Pyx_PyFunction_FastCallNoKw(co, args, Py_SIZE(argdefs), globals);
+            goto done;
+        }
+    }
+
+    if (kwargs != NULL) {
+        Py_ssize_t pos, i;
+        kwtuple = PyTuple_New(2 * nk);
+        if (kwtuple == NULL) {
+            result = NULL;
+            goto done;
+        }
+
+        k = &PyTuple_GET_ITEM(kwtuple, 0);
+        pos = i = 0;
+        while (PyDict_Next(kwargs, &pos, &k[i], &k[i+1])) {
+            Py_INCREF(k[i]);
+            Py_INCREF(k[i+1]);
+            i += 2;
+        }
+        nk = i / 2;
+    }
+    else {
+        kwtuple = NULL;
+        k = NULL;
     }
 
     closure = PyFunction_GET_CLOSURE(func);
@@ -1534,16 +1579,21 @@ static PyObject *__Pyx_PyFunction_FastCall(PyObject *func, PyObject **args, int 
     //                                closure, name, qualname);
     //#elif PY_MAJOR_VERSION >= 3
 #if PY_MAJOR_VERSION >= 3
-    return PyEval_EvalCodeEx((PyObject*)co, globals, (PyObject *)NULL,
-                             args, nargs,
-                             NULL, 0,
-                             d, nd, kwdefs, closure);
+    result = PyEval_EvalCodeEx((PyObject*)co, globals, (PyObject *)NULL,
+                               args, nargs,
+                               k, (int)nk,
+                               d, nd, kwdefs, closure);
 #else
-    return PyEval_EvalCodeEx(co, globals, (PyObject *)NULL,
-                             args, nargs,
-                             NULL, 0,
-                             d, nd, closure);
+    result = PyEval_EvalCodeEx(co, globals, (PyObject *)NULL,
+                               args, nargs,
+                               k, (int)nk,
+                               d, nd, closure);
 #endif
+    Py_XDECREF(kwtuple);
+
+done:
+    Py_LeaveRecursiveCall();
+    return result;
 }
 #endif  // CPython < 3.6
 #endif  // CYTHON_FAST_PYCALL
@@ -1573,7 +1623,7 @@ static PyObject* __Pyx__PyObject_CallOneArg(PyObject *func, PyObject *arg) {
 static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObject *arg) {
 #if CYTHON_FAST_PYCALL
     if (PyFunction_Check(func)) {
-        return __Pyx_PyFunction_FastCall(func, &arg, 1, NULL);
+        return __Pyx_PyFunction_FastCall(func, &arg, 1);
     }
 #endif
 #ifdef __Pyx_CyFunction_USED
@@ -1620,7 +1670,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func); /*proto
 static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func) {
 #if CYTHON_FAST_PYCALL
     if (PyFunction_Check(func)) {
-        return __Pyx_PyFunction_FastCall(func, NULL, 0, NULL);
+        return __Pyx_PyFunction_FastCall(func, NULL, 0);
     }
 #endif
 #ifdef __Pyx_CyFunction_USED
@@ -1667,7 +1717,7 @@ static PyObject* __Pyx_PyObject_CallMatrixMethod(PyObject* method, PyObject* arg
             #if CYTHON_FAST_PYCALL
             if (PyFunction_Check(function)) {
                 PyObject *args[2] = {self, arg};
-                result = __Pyx_PyFunction_FastCall(function, args, 2, NULL);
+                result = __Pyx_PyFunction_FastCall(function, args, 2);
                 goto done;
             }
             #endif
