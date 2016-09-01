@@ -3,10 +3,14 @@
 # mode: run
 # tag: trace
 
+cdef extern from "frameobject.h":
+    ctypedef struct PyFrameObject:
+        pass
+
 from cpython.ref cimport PyObject
 
 from cpython.pystate cimport (
-    Py_tracefunc, PyFrameObject,
+    Py_tracefunc,
     PyTrace_CALL, PyTrace_EXCEPTION, PyTrace_LINE, PyTrace_RETURN,
     PyTrace_C_CALL, PyTrace_C_EXCEPTION, PyTrace_C_RETURN)
 
