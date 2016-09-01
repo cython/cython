@@ -8822,8 +8822,10 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                             self.pos, args=[defaults_tuple, defaults_kwdict])),
                     decorators=None,
                     name=StringEncoding.EncodedString("__defaults__"))
-                defaults_getter.analyse_declarations(env)
-                defaults_getter = defaults_getter.analyse_expressions(env)
+                # defaults getter must never live in class scopes, it's always a module function
+                module_scope = env.global_scope()
+                defaults_getter.analyse_declarations(module_scope)
+                defaults_getter = defaults_getter.analyse_expressions(module_scope)
                 defaults_getter.body = defaults_getter.body.analyse_expressions(
                     defaults_getter.local_scope)
                 defaults_getter.py_wrapper_required = False

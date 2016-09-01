@@ -3068,7 +3068,8 @@ class DefNode(FuncDefNode):
 
     def generate_function_definitions(self, env, code):
         if self.defaults_getter:
-            self.defaults_getter.generate_function_definitions(env, code)
+            # defaults getter must never live in class scopes, it's always a module function
+            self.defaults_getter.generate_function_definitions(env.global_scope(), code)
 
         # Before closure cnames are mangled
         if self.py_wrapper_required:
