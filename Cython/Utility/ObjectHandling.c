@@ -1263,7 +1263,7 @@ static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name
 static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name, PyObject* arg) {
     PyObject *method, *result = NULL;
     method = __Pyx_PyObject_GetAttrStr(obj, method_name);
-    if (unlikely(!method)) goto bad;
+    if (unlikely(!method)) goto done;
 #if CYTHON_UNPACK_METHODS
     if (likely(PyMethod_Check(method))) {
         PyObject *self = PyMethod_GET_SELF(method);
@@ -1278,7 +1278,7 @@ static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name
             }
             #endif
             args = PyTuple_New(2);
-            if (unlikely(!args)) goto bad;
+            if (unlikely(!args)) goto done;
             Py_INCREF(self);
             PyTuple_SET_ITEM(args, 0, self);
             Py_INCREF(arg);
@@ -1294,7 +1294,6 @@ static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name
 #endif
     result = __Pyx_PyObject_CallOneArg(method, arg);
 done:
-bad:
     Py_XDECREF(method);
     return result;
 }
@@ -1326,7 +1325,7 @@ static PyObject* __Pyx_PyObject_CallMethod2(PyObject* obj, PyObject* method_name
         }
         #endif
         args = PyTuple_New(3);
-        if (unlikely(!args)) goto bad;
+        if (unlikely(!args)) goto done;
         Py_INCREF(self);
         PyTuple_SET_ITEM(args, 0, self);
         Py_INCREF(arg1);
@@ -1347,7 +1346,7 @@ static PyObject* __Pyx_PyObject_CallMethod2(PyObject* obj, PyObject* method_name
 #endif
     {
         args = PyTuple_New(2);
-        if (unlikely(!args)) goto bad;
+        if (unlikely(!args)) goto done;
         Py_INCREF(arg1);
         PyTuple_SET_ITEM(args, 0, arg1);
         Py_INCREF(arg2);
@@ -1356,7 +1355,6 @@ static PyObject* __Pyx_PyObject_CallMethod2(PyObject* obj, PyObject* method_name
     result = __Pyx_PyObject_Call(method, args, NULL);
     Py_DECREF(args);
 done:
-bad:
     Py_DECREF(method);
     return result;
 }
@@ -1722,7 +1720,7 @@ static PyObject* __Pyx_PyObject_CallMatrixMethod(PyObject* method, PyObject* arg
             }
             #endif
             args = PyTuple_New(2);
-            if (unlikely(!args)) goto bad;
+            if (unlikely(!args)) goto done;
             Py_INCREF(self);
             PyTuple_SET_ITEM(args, 0, self);
             Py_INCREF(arg);
@@ -1738,7 +1736,6 @@ static PyObject* __Pyx_PyObject_CallMatrixMethod(PyObject* method, PyObject* arg
 #endif
     result = __Pyx_PyObject_CallOneArg(method, arg);
 done:
-bad:
     Py_DECREF(method);
     return result;
 }
