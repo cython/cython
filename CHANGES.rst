@@ -10,6 +10,7 @@ Features added
 
 * def/cpdef methods of cdef classes benefit from Cython's internal function
   implementation, which enables introspection and line profiling for them.
+  Implementation sponsored by Turbostream (www.turbostream-cfd.com).
 
 * Initial support for using Cython modules in Pyston.  Patch by Daetalus.
 
