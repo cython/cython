@@ -8732,8 +8732,15 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         default_args = []
         default_kwargs = []
         annotations = []
+
+        # For global cpdef functions and cpdef methods in cdef classes, we must use global constants
+        # for default arguments to avoid the dependency on the CyFunction object as 'self' argument
+        # in the underlying C function.  Basically, cpdef functions/methods are static C functions,
+        # so their optional arguments must be static, too.
+        must_use_constants = self.def_node.is_wrapper and (env.is_c_class_scope or env.is_module_scope)
+
         for arg in self.def_node.args:
-            if arg.default:
+            if arg.default and not must_use_constants:
                 if not arg.default.is_literal:
                     arg.is_dynamic = True
                     if arg.type.is_pyobject:
