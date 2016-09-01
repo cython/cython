@@ -8,6 +8,9 @@ Cython Changelog
 Features added
 --------------
 
+* def/cpdef methods of cdef classes benefit from Cython's internal function
+  implementation, which enables introspection and line profiling for them.
+
 * Initial support for using Cython modules in Pyston.  Patch by Daetalus.
 
 * Dynamic Python attributes are allowed on cdef classes if an attribute
