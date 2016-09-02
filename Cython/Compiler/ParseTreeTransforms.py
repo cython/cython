@@ -1313,7 +1313,7 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
                 if len(node.decorators) > 1:
                     return self._reject_decorated_property(node, decorator_node)
                 name = node.name
-                node.name = '__get__'
+                node.name = EncodedString('__get__')
                 node.decorators.remove(decorator_node)
                 stat_list = [node]
                 if name in properties:

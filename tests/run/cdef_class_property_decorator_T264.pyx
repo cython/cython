@@ -26,6 +26,8 @@ cdef class Prop:
     DELETING '2'
     >>> p.prop
     GETTING 'None'
+    >>> list(p.generator_prop)
+    [42]
     """
     cdef _value
     def __init__(self):
@@ -59,3 +61,7 @@ cdef class Prop:
     def my_prop(self):
         print("GETTING '%s' via my_prop" % self._value)
         return self._value
+
+    @property
+    def generator_prop(self):
+        yield 42
