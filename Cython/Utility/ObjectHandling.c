@@ -1497,14 +1497,14 @@ static PyObject *__Pyx_PyFunction_FastCallDict(PyObject *func, PyObject **args, 
 #endif
     PyObject *kwtuple, **k;
     PyObject **d;
-    int nd;
+    Py_ssize_t nd;
     Py_ssize_t nk;
     PyObject *result;
 
     assert(kwargs == NULL || PyDict_Check(kwargs));
     nk = kwargs ? PyDict_Size(kwargs) : 0;
 
-    if (Py_EnterRecursiveCall(" while calling a Python object")) {
+    if (Py_EnterRecursiveCall((char*)" while calling a Python object")) {
         return NULL;
     }
 
@@ -1580,12 +1580,12 @@ static PyObject *__Pyx_PyFunction_FastCallDict(PyObject *func, PyObject **args, 
     result = PyEval_EvalCodeEx((PyObject*)co, globals, (PyObject *)NULL,
                                args, nargs,
                                k, (int)nk,
-                               d, nd, kwdefs, closure);
+                               d, (int)nd, kwdefs, closure);
 #else
     result = PyEval_EvalCodeEx(co, globals, (PyObject *)NULL,
                                args, nargs,
                                k, (int)nk,
-                               d, nd, closure);
+                               d, (int)nd, closure);
 #endif
     Py_XDECREF(kwtuple);
 
