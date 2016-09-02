@@ -6474,8 +6474,8 @@ class AttributeNode(ExprNode):
             self.op = "."
         if obj_type.has_attributes:
             if obj_type.attributes_known():
-                if (obj_type.is_memoryviewslice and not
-                        obj_type.scope.lookup_here(self.attribute)):
+                entry = obj_type.scope.lookup_here(self.attribute)
+                if obj_type.is_memoryviewslice and not entry:
                     if self.attribute == 'T':
                         self.is_memslice_transpose = True
                         self.is_temp = True
@@ -6484,7 +6484,7 @@ class AttributeNode(ExprNode):
                         return
                     else:
                         obj_type.declare_attribute(self.attribute, env, self.pos)
-                entry = obj_type.scope.lookup_here(self.attribute)
+                        entry = obj_type.scope.lookup_here(self.attribute)
                 if entry and entry.is_member:
                     entry = None
             else:
