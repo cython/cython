@@ -123,6 +123,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         env = self.scope
         if env.has_import_star:
             self.create_import_star_conversion_utility_code(env)
+        for name, entry in sorted(env.entries.items()):
+            if (entry.create_wrapper and entry.scope is env
+                and entry.is_type and entry.type.is_enum):
+                    entry.type.create_type_wrapper(env)
 
     def process_implementation(self, options, result):
         env = self.scope

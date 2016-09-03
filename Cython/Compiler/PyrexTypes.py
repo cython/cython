@@ -3597,6 +3597,7 @@ class CEnumType(CType):
     #  name           string
     #  cname          string or None
     #  typedef_flag   boolean
+    #  values         [string], populated during declaration analysis
 
     is_enum = 1
     signed = 1
@@ -3653,6 +3654,14 @@ class CEnumType(CType):
             result_code,
             typecast(self, c_long_type, rhs),
             ' %s' % code.error_goto_if(error_condition or self.error_condition(result_code), error_pos))
+
+    def create_type_wrapper(self, env):
+        from .UtilityCode import CythonUtilityCode
+        env.use_utility_code(CythonUtilityCode.load(
+            "EnumType", "CpdefEnums.pyx",
+            context={"name": self.name,
+                     "items": tuple(self.values)},
+            outer_module_scope=env.global_scope()))
 
 
 class CTupleType(CType):

@@ -1497,7 +1497,7 @@ class CEnumDefNode(StatNode):
              self.name, self.pos,
              cname=self.cname, typedef_flag=self.typedef_flag,
              visibility=self.visibility, api=self.api,
-             create_wrapper=self.create_wrapper and self.name is None)
+             create_wrapper=self.create_wrapper)
 
     def analyse_declarations(self, env):
         if self.items is not None:
@@ -1505,15 +1505,6 @@ class CEnumDefNode(StatNode):
                 self.entry.defined_in_pxd = 1
             for item in self.items:
                 item.analyse_declarations(env, self.entry)
-        if self.name is not None:
-            self.entry.type.values = set(item.name for item in self.items)
-        if self.create_wrapper and self.name is not None:
-            from .UtilityCode import CythonUtilityCode
-            env.use_utility_code(CythonUtilityCode.load(
-                "EnumType", "CpdefEnums.pyx",
-                context={"name": self.name,
-                         "items": tuple(item.name for item in self.items)},
-                outer_module_scope=env.global_scope()))
 
     def analyse_expressions(self, env):
         return self
@@ -1557,7 +1548,7 @@ class CEnumDefItemNode(StatNode):
             create_wrapper=enum_entry.create_wrapper and enum_entry.name is None)
         enum_entry.enum_values.append(entry)
         if enum_entry.name:
-            enum_entry.type.values.append(entry.cname)
+            enum_entry.type.values.append(entry.name)
 
 
 class CTypeDefNode(StatNode):
