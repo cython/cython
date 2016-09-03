@@ -83,11 +83,13 @@ static CYTHON_INLINE {{UINT}} __Pyx_mul_{{NAME}}_checking_overflow({{UINT}} a, {
         {{UINT}} r = ({{UINT}}) big_r;
         *overflow |= big_r != r;
         return r;
+#ifdef HAVE_LONG_LONG
     } else if (sizeof({{UINT}}) < sizeof(unsigned PY_LONG_LONG)) {
         unsigned PY_LONG_LONG big_r = ((unsigned PY_LONG_LONG) a) * ((unsigned PY_LONG_LONG) b);
         {{UINT}} r = ({{UINT}}) big_r;
         *overflow |= big_r != r;
         return r;
+#endif
     } else {
         {{UINT}} prod = a * b;
         double dprod = ((double) a) * ((double) b);
@@ -137,11 +139,13 @@ static CYTHON_INLINE {{INT}} __Pyx_add_{{NAME}}_checking_overflow({{INT}} a, {{I
         {{INT}} r = ({{INT}}) big_r;
         *overflow |= big_r != r;
         return r;
+#ifdef HAVE_LONG_LONG
     } else if (sizeof({{INT}}) < sizeof(PY_LONG_LONG)) {
         PY_LONG_LONG big_r = ((PY_LONG_LONG) a) + ((PY_LONG_LONG) b);
         {{INT}} r = ({{INT}}) big_r;
         *overflow |= big_r != r;
         return r;
+#endif
     } else {
         // Signed overflow undefined, but unsigned overflow is well defined.
         {{INT}} r = ({{INT}}) ((unsigned {{INT}}) a + (unsigned {{INT}}) b);
@@ -181,11 +185,13 @@ static CYTHON_INLINE {{INT}} __Pyx_mul_{{NAME}}_checking_overflow({{INT}} a, {{I
         {{INT}} r = ({{INT}}) big_r;
         *overflow |= big_r != r;
         return ({{INT}}) r;
+#ifdef HAVE_LONG_LONG
     } else if (sizeof({{INT}}) < sizeof(PY_LONG_LONG)) {
         PY_LONG_LONG big_r = ((PY_LONG_LONG) a) * ((PY_LONG_LONG) b);
         {{INT}} r = ({{INT}}) big_r;
         *overflow |= big_r != r;
         return ({{INT}}) r;
+#endif
     } else {
         {{INT}} prod = a * b;
         double dprod = ((double) a) * ((double) b);
@@ -227,8 +233,10 @@ __Pyx_check_sane_{{NAME}}();
 
 static int __Pyx_check_sane_{{NAME}}(void) {
     if (sizeof({{TYPE}}) <= sizeof(int) ||
-        sizeof({{TYPE}}) == sizeof(long) ||
-        sizeof({{TYPE}}) == sizeof(PY_LONG_LONG)) {
+#ifdef HAVE_LONG_LONG
+            sizeof({{TYPE}}) == sizeof(PY_LONG_LONG) ||
+#endif
+            sizeof({{TYPE}}) == sizeof(long)) {
         return 0;
     } else {
         PyErr_Format(PyExc_RuntimeError, \
@@ -252,8 +260,10 @@ static CYTHON_INLINE {{TYPE}} __Pyx_{{BINOP}}_{{NAME}}_checking_overflow({{TYPE}
             return __Pyx_{{BINOP}}_unsigned_int_checking_overflow(a, b, overflow);
         } else if (sizeof({{TYPE}}) == sizeof(unsigned long)) {
             return __Pyx_{{BINOP}}_unsigned_long_checking_overflow(a, b, overflow);
+#ifdef HAVE_LONG_LONG
         } else if (sizeof({{TYPE}}) == sizeof(unsigned PY_LONG_LONG)) {
             return __Pyx_{{BINOP}}_unsigned_long_long_checking_overflow(a, b, overflow);
+#endif
         } else {
             abort(); return 0; // handled elsewhere
         }
@@ -262,8 +272,10 @@ static CYTHON_INLINE {{TYPE}} __Pyx_{{BINOP}}_{{NAME}}_checking_overflow({{TYPE}
             return __Pyx_{{BINOP}}_int_checking_overflow(a, b, overflow);
         } else if (sizeof({{TYPE}}) == sizeof(long)) {
             return __Pyx_{{BINOP}}_long_checking_overflow(a, b, overflow);
+#ifdef HAVE_LONG_LONG
         } else if (sizeof({{TYPE}}) == sizeof(PY_LONG_LONG)) {
             return __Pyx_{{BINOP}}_long_long_checking_overflow(a, b, overflow);
+#endif
         } else {
             abort(); return 0; // handled elsewhere
         }

@@ -499,9 +499,11 @@ static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject
         if ((size_t)shiftby <= sizeof(long) * 8 - 2) {
             long value = 1L << shiftby;
             return PyInt_FromLong(value);
+#ifdef HAVE_LONG_LONG
         } else if ((size_t)shiftby <= sizeof(unsigned PY_LONG_LONG) * 8 - 1) {
             unsigned PY_LONG_LONG value = ((unsigned PY_LONG_LONG)1) << shiftby;
             return PyLong_FromUnsignedLongLong(value);
+#endif
         } else {
             PyObject *one = PyInt_FromLong(1L);
             if (unlikely(!one)) return NULL;
@@ -609,8 +611,10 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
         const long {{'a' if order == 'CObj' else 'b'}} = intval;
         long {{ival}}{{if op not in ('Eq', 'Ne')}}, x{{endif}};
         {{if op not in ('Eq', 'Ne', 'TrueDivide')}}
+#ifdef HAVE_LONG_LONG
         const PY_LONG_LONG ll{{'a' if order == 'CObj' else 'b'}} = intval;
         PY_LONG_LONG ll{{ival}}, llx;
+#endif
         {{endif}}
         const digit* digits = ((PyLongObject*){{pyval}})->ob_digit;
         const Py_ssize_t size = Py_SIZE({{pyval}});
@@ -627,9 +631,11 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
                         {{ival}} = {{'-' if _case < 0 else ''}}(long) {{pylong_join(_size, 'digits')}};
                         break;
                     {{if op not in ('Eq', 'Ne', 'TrueDivide')}}
+#ifdef HAVE_LONG_LONG
                     } else if (8 * sizeof(PY_LONG_LONG) - 1 > {{_size}} * PyLong_SHIFT) {
                         ll{{ival}} = {{'-' if _case < 0 else ''}}(PY_LONG_LONG) {{pylong_join(_size, 'digits', 'unsigned PY_LONG_LONG')}};
                         goto long_long;
+#endif
                     {{endif}}
                     }
                     // if size doesn't fit into a long or PY_LONG_LONG anymore, fall through to default
@@ -678,15 +684,20 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
             {{else}}
                 x = a {{c_op}} b;
                 {{if op == 'Lshift'}}
+#ifdef HAVE_LONG_LONG
                 if (unlikely(a != x >> b)) {
                     ll{{ival}} = {{ival}};
                     goto long_long;
                 }
+#else
+                if (likely(a == x >> b)) /* execute return statement below */
+#endif
                 {{endif}}
             {{endif}}
             return PyLong_FromLong(x);
 
         {{if op != 'TrueDivide'}}
+#ifdef HAVE_LONG_LONG
         long_long:
             {{if c_op == '%'}}
                 // see ExprNodes.py :: mod_int_utility_code
@@ -708,8 +719,9 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
                 {{endif}}
             {{endif}}
             return PyLong_FromLongLong(llx);
-        {{endif}}
-        {{endif}}
+#endif
+        {{endif}}{# if op != 'TrueDivide' #}
+        {{endif}}{# if op in ('Eq', 'Ne') #}
     }
     #endif
 
