@@ -720,8 +720,8 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
             {{endif}}
             return PyLong_FromLongLong(llx);
 #endif
-        {{endif}}{# if op != 'TrueDivide' #}
-        {{endif}}{# if op in ('Eq', 'Ne') #}
+        {{endif}}{{# if op != 'TrueDivide' #}}
+        {{endif}}{{# if op in ('Eq', 'Ne') #}}
     }
     #endif
 
