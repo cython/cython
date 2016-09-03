@@ -86,6 +86,17 @@ class TestIPythonMagic(CythonTest):
         ip.ex('import mymodule; g = mymodule.f(10)')
         self.assertEqual(ip.user_ns['g'], 20.0)
 
+    def test_cython_language_level(self):
+        # The Cython cell defines the functions f() and call().
+        ip.run_cell_magic('cython', '', cython3_code)
+        ip.ex('g = f(10); h = call(10)')
+        if sys.version_info[0] < 3:
+            self.assertEqual(ip.user_ns['g'], 2 // 10)
+            self.assertEqual(ip.user_ns['h'], 2 // 10)
+        else:
+            self.assertEqual(ip.user_ns['g'], 2.0 / 10.0)
+            self.assertEqual(ip.user_ns['h'], 2.0 / 10.0)
+
     def test_cython3(self):
         # The Cython cell defines the functions f() and call().
         ip.run_cell_magic('cython', '-3', cython3_code)
