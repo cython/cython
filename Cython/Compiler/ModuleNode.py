@@ -1993,8 +1993,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "};")
 
     def generate_dict_getter_function(self, scope, code):
-        func_name = scope.mangle_internal("__dict__getter")
         dict_attr = scope.lookup_here("__dict__")
+        if not dict_attr or not dict_attr.is_variable:
+            return
+        func_name = scope.mangle_internal("__dict__getter")
         dict_name = dict_attr.cname
         code.putln("")
         code.putln("static PyObject *%s(PyObject *o, CYTHON_UNUSED void *x) {" % func_name)

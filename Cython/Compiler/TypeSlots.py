@@ -7,7 +7,7 @@ from __future__ import absolute_import
 
 from . import Naming
 from . import PyrexTypes
-from . import StringEncoding
+from .Errors import error
 
 invisible = ['__cinit__', '__dealloc__', '__richcmp__',
              '__nonzero__', '__bool__']
@@ -520,8 +520,8 @@ class DictOffsetSlot(SlotDescriptor):
 
     def slot_code(self, scope):
         dict_entry = scope.lookup_here("__dict__")
-        if dict_entry:
-            if dict_entry.type.cname != 'PyDict_Type':
+        if dict_entry and dict_entry.is_variable:
+            if getattr(dict_entry.type, 'cname', None) != 'PyDict_Type':
                 error(dict_entry.pos, "__dict__ slot must be of type 'dict'")
                 return "0"
             type = scope.parent_type

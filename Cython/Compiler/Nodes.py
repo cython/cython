@@ -4609,7 +4609,7 @@ class CClassDefNode(ClassDefNode):
         if has_body:
             self.body.analyse_declarations(scope)
             dict_entry = self.scope.lookup_here("__dict__")
-            if dict_entry and (not scope.defined and not scope.implemented):
+            if dict_entry and dict_entry.is_variable and (not scope.defined and not scope.implemented):
                 dict_entry.getter_cname = self.scope.mangle_internal("__dict__getter")
                 self.scope.declare_property("__dict__", dict_entry.doc, dict_entry.pos)
             if self.in_pxd:
