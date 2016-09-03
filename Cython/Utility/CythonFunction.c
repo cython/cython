@@ -630,7 +630,7 @@ static CYTHON_INLINE PyObject *__Pyx_CyFunction_Call(PyObject *func, PyObject *a
 static PyObject *__Pyx_CyFunction_CallAsMethod(PyObject *func, PyObject *args, PyObject *kw) {
     PyObject *result;
     __pyx_CyFunctionObject *cyfunc = (__pyx_CyFunctionObject *) func;
-    if (cyfunc->flags & __Pyx_CYFUNCTION_CCLASS) {
+    if ((cyfunc->flags & __Pyx_CYFUNCTION_CCLASS) && !(cyfunc->flags & __Pyx_CYFUNCTION_STATICMETHOD)) {
         Py_ssize_t argc;
         PyObject *new_args;
         PyObject *self;
