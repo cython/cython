@@ -5497,7 +5497,7 @@ class PyMethodCallNode(SimpleCallNode):
         code.putln("%s = NULL;" % self_arg)
         arg_offset_cname = None
         if len(args) > 1:
-            arg_offset_cname = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
+            arg_offset_cname = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
             code.putln("%s = 0;" % arg_offset_cname)
 
         def attribute_is_likely_method(attr):
