@@ -9411,6 +9411,7 @@ class YieldExprNode(ExprNode):
     label_num = 0
     is_yield_from = False
     is_await = False
+    in_async_gen = False
     expr_keyword = 'yield'
 
     def analyse_types(self, env):
@@ -9469,7 +9470,10 @@ class YieldExprNode(ExprNode):
         code.putln("/* return from generator, yielding value */")
         code.putln("%s->resume_label = %d;" % (
             Naming.generator_cname, label_num))
-        code.putln("return %s;" % Naming.retval_cname)
+        if self.in_async_gen and not self.is_await:
+            code.putln("return __pyx__PyAsyncGenWrapValue(%s);" % Naming.retval_cname)
+        else:
+            code.putln("return %s;" % Naming.retval_cname)
 
         code.put_label(label_name)
         for cname, save_cname, type in saved:

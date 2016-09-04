@@ -52,6 +52,8 @@ cdef class YieldNodeCollector(TreeVisitor):
     cdef public list yields
     cdef public list returns
     cdef public bint has_return_value
+    cdef public bint has_yield
+    cdef public bint has_await
 
 cdef class MarkClosureVisitor(CythonTransform):
     cdef bint needs_closure

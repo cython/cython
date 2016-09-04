@@ -21,6 +21,9 @@ static PyTypeObject *__pyx_AsyncGenType = 0;
 
 static PyObject *__Pyx_AsyncGen_ANext(PyObject *o);
 
+static PyObject *__pyx__PyAsyncGenWrapValue(PyObject *val);
+
+
 static __pyx_CoroutineObject *__Pyx_AsyncGen_New(
             __pyx_coroutine_body_t body, PyObject *closure,
             PyObject *name, PyObject *qualname, PyObject *module_name) {
@@ -679,7 +682,8 @@ static PyObject *
 __pyx__PyAsyncGenWrapValue(PyObject *val)
 {
     __pyx__PyAsyncGenWrappedValue *o;
-    assert(val);
+    if (unlikely(!val))
+        return NULL;
 
     if (__Pyx_ag_value_fl_free) {
         __Pyx_ag_value_fl_free--;
@@ -689,11 +693,12 @@ __pyx__PyAsyncGenWrapValue(PyObject *val)
     } else {
         o = PyObject_New(__pyx__PyAsyncGenWrappedValue, __pyx__PyAsyncGenWrappedValueType);
         if (o == NULL) {
+            Py_DECREF(val);
             return NULL;
         }
     }
     o->val = val;
-    Py_INCREF(val);
+    // no Py_INCREF(val) - steals reference!
     return (PyObject*)o;
 }
 

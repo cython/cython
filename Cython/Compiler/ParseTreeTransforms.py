@@ -192,7 +192,7 @@ class PostParse(ScopeTrackingTransform):
         # unpack a lambda expression into the corresponding DefNode
         collector = YieldNodeCollector()
         collector.visitchildren(node.result_expr)
-        if collector.yields or collector.awaits or isinstance(node.result_expr, ExprNodes.YieldExprNode):
+        if collector.has_yield or collector.has_await or isinstance(node.result_expr, ExprNodes.YieldExprNode):
             body = Nodes.ExprStatNode(
                 node.result_expr.pos, expr=node.result_expr)
         else:
@@ -2457,19 +2457,22 @@ class YieldNodeCollector(TreeVisitor):
     def __init__(self):
         super(YieldNodeCollector, self).__init__()
         self.yields = []
-        self.awaits = []
         self.returns = []
         self.has_return_value = False
+        self.has_yield = False
+        self.has_await = False
 
     def visit_Node(self, node):
         self.visitchildren(node)
 
     def visit_YieldExprNode(self, node):
         self.yields.append(node)
+        self.has_yield = True
         self.visitchildren(node)
 
     def visit_AwaitExprNode(self, node):
-        self.awaits.append(node)
+        self.yields.append(node)
+        self.has_await = True
         self.visitchildren(node)
 
     def visit_ReturnStatNode(self, node):
@@ -2513,24 +2516,27 @@ class MarkClosureVisitor(CythonTransform):
         collector.visitchildren(node)
 
         if node.is_async_def:
-            if collector.yields:
-                error(collector.yields[0].pos, "'yield' not allowed in async coroutines (use 'await')")
-            yields = collector.awaits
-        elif collector.yields:
-            if collector.awaits:
-                error(collector.yields[0].pos, "'await' not allowed in generators (use 'yield')")
-            yields = collector.yields
+            coroutine_type = Nodes.AsyncGenNode if collector.has_yield else Nodes.AsyncDefNode
+            if collector.has_yield:
+                for yield_expr in collector.yields:
+                    yield_expr.in_async_gen = True
+        elif collector.has_await:
+            found = next(y for y in collector.yields if y.is_await)
+            error(found.pos, "'await' not allowed in generators (use 'yield')")
+            return node
+        elif collector.has_yield:
+            coroutine_type = Nodes.GeneratorDefNode
         else:
             return node
 
-        for i, yield_expr in enumerate(yields, 1):
+        for i, yield_expr in enumerate(collector.yields, 1):
             yield_expr.label_num = i
         for retnode in collector.returns:
             retnode.in_generator = True
 
         gbody = Nodes.GeneratorBodyDefNode(
             pos=node.pos, name=node.name, body=node.body)
-        coroutine = (Nodes.AsyncDefNode if node.is_async_def else Nodes.GeneratorDefNode)(
+        coroutine = coroutine_type(
             pos=node.pos, name=node.name, args=node.args,
             star_arg=node.star_arg, starstar_arg=node.starstar_arg,
             doc=node.doc, decorators=node.decorators,

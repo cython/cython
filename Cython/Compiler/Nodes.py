@@ -3969,6 +3969,8 @@ class GeneratorDefNode(DefNode):
 
     is_generator = True
     is_coroutine = False
+    is_asyncgen = False
+    gen_type_name = 'Generator'
     needs_closure = True
 
     child_attrs = DefNode.child_attrs + ["gbody"]
@@ -3992,7 +3994,7 @@ class GeneratorDefNode(DefNode):
         code.putln('{')
         code.putln('__pyx_CoroutineObject *gen = __Pyx_%s_New('
                    '(__pyx_coroutine_body_t) %s, (PyObject *) %s, %s, %s, %s); %s' % (
-                       'Coroutine' if self.is_coroutine else 'Generator',
+                       self.gen_type_name,
                        body_cname, Naming.cur_scope_cname, name, qualname, module_name,
                        code.error_goto_if_null('gen', self.pos)))
         code.put_decref(Naming.cur_scope_cname, py_object_type)
@@ -4007,16 +4009,21 @@ class GeneratorDefNode(DefNode):
         code.putln('}')
 
     def generate_function_definitions(self, env, code):
-        env.use_utility_code(UtilityCode.load_cached(
-            'Coroutine' if self.is_coroutine else 'Generator', "Coroutine.c"))
-
+        env.use_utility_code(UtilityCode.load_cached(self.gen_type_name, "Coroutine.c"))
         self.gbody.generate_function_header(code, proto=True)
         super(GeneratorDefNode, self).generate_function_definitions(env, code)
         self.gbody.generate_function_definitions(env, code)
 
 
 class AsyncDefNode(GeneratorDefNode):
+    gen_type_name = 'Coroutine'
     is_coroutine = True
+
+
+class AsyncGenNode(AsyncDefNode):
+    gen_type_name = 'AsyncGen'
+    is_asyncgen = True
+
 
 
 class GeneratorBodyDefNode(DefNode):
