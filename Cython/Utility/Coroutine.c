@@ -170,8 +170,7 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *o); /*proto*/
 static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAwaitableIter(PyObject *o) {
 #ifdef __Pyx_Coroutine_USED
     if (__Pyx_Coroutine_CheckExact(o)) {
-        Py_INCREF(o);
-        return o;
+        return __Pyx_NewRef(o);
     }
 #endif
     return __Pyx__Coroutine_GetAwaitableIter(o);
@@ -257,10 +256,17 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *o); /*pro
 //@requires: ObjectHandling.c::PyObjectCallMethod0
 
 static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *obj) {
+#ifdef __Pyx_AsyncGen_USED
+    if (__Pyx_AsyncGen_CheckExact(obj)) {
+        return __Pyx_NewRef(obj);
+    }
+#endif
 #if CYTHON_USE_ASYNC_SLOTS
-    __Pyx_PyAsyncMethodsStruct* am = __Pyx_PyType_AsAsync(obj);
-    if (likely(am && am->am_aiter)) {
-        return (*am->am_aiter)(obj);
+    {
+        __Pyx_PyAsyncMethodsStruct* am = __Pyx_PyType_AsAsync(obj);
+        if (likely(am && am->am_aiter)) {
+            return (*am->am_aiter)(obj);
+        }
     }
 #endif
 #if PY_VERSION_HEX < 0x030500B1
@@ -282,11 +288,19 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *obj) {
     return NULL;
 }
 
+
 static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *obj) {
+#ifdef __Pyx_AsyncGen_USED
+    if (__Pyx_AsyncGen_CheckExact(obj)) {
+        return __Pyx_AsyncGen_ANext(obj);
+    }
+#endif
 #if CYTHON_USE_ASYNC_SLOTS
-    __Pyx_PyAsyncMethodsStruct* am = __Pyx_PyType_AsAsync(obj);
-    if (likely(am && am->am_anext)) {
-        return (*am->am_anext)(obj);
+    {
+        __Pyx_PyAsyncMethodsStruct* am = __Pyx_PyType_AsAsync(obj);
+        if (likely(am && am->am_anext)) {
+            return (*am->am_anext)(obj);
+        }
     }
 #endif
 #if PY_VERSION_HEX < 0x030500B1

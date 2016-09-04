@@ -19,6 +19,7 @@ static PyTypeObject *__pyx__PyAsyncGenAThrowType = 0;
 static PyTypeObject *__pyx_AsyncGenType = 0;
 #define __Pyx_AsyncGen_CheckExact(obj) (Py_TYPE(obj) == __pyx_AsyncGenType)
 
+static PyObject *__Pyx_AsyncGen_ANext(PyObject *o);
 
 static __pyx_CoroutineObject *__Pyx_AsyncGen_New(
             __pyx_coroutine_body_t body, PyObject *closure,
@@ -208,8 +209,9 @@ __Pyx_async_gen_init_finalizer(__pyx_AsyncGenObject *o)
 
 
 static PyObject *
-__Pyx_async_gen_anext(__pyx_AsyncGenObject *o)
+__Pyx_AsyncGen_ANext(PyObject *self)
 {
+    __pyx_AsyncGenObject *o = (__pyx_AsyncGenObject *)self;
     if (__Pyx_async_gen_init_finalizer(o)) {
         return NULL;
     }
@@ -286,7 +288,7 @@ static PyMethodDef __Pyx_async_gen_methods[] = {
 static PyAsyncMethods __Pyx_async_gen_as_async = {
     0,                                          /* am_await */
     PyObject_SelfIter,                          /* am_aiter */
-    (unaryfunc)__Pyx_async_gen_anext            /* am_anext */
+    (unaryfunc)__Pyx_AsyncGen_ANext             /* am_anext */
 };
 
 
