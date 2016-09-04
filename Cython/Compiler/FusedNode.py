@@ -92,6 +92,8 @@ class FusedCFuncDefNode(StatListNode):
 
         for cname, fused_to_specific in permutations:
             copied_node = copy.deepcopy(self.node)
+            # keep signature object identity for special casing in DefNode.analyse_declarations()
+            copied_node.entry.signature = self.node.entry.signature
 
             self._specialize_function_args(copied_node.args, fused_to_specific)
             copied_node.return_type = self.node.return_type.specialize(
