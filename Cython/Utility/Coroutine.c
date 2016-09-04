@@ -856,7 +856,12 @@ static PyObject *__Pyx__Coroutine_Throw(PyObject *self, PyObject *typ, PyObject 
                 gen->is_running = 0;
                 goto throw_here;
             }
-            ret = PyObject_CallObject(meth, args);
+            if (likely(args)) {
+                ret = PyObject_CallObject(meth, args);
+            } else {
+                // "tb" or even "val" might be NULL, but that also correctly terminates the argument list
+                ret = PyObject_CallFunctionObjArgs(meth, typ, val, tb, NULL);
+            }
             Py_DECREF(meth);
         }
         gen->is_running = 0;
