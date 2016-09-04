@@ -632,8 +632,8 @@ class FunctionState(object):
             label += '_' + name
         return label
 
-    def new_yield_label(self):
-        label = self.new_label('resume_from_yield')
+    def new_yield_label(self, expr_type='yield'):
+        label = self.new_label('resume_from_%s' % expr_type)
         num_and_label = (len(self.yield_labels) + 1, label)
         self.yield_labels.append(num_and_label)
         return num_and_label
@@ -1628,7 +1628,7 @@ class CCodeWriter(object):
     # Functions delegated to function scope
     def new_label(self, name=None):    return self.funcstate.new_label(name)
     def new_error_label(self):         return self.funcstate.new_error_label()
-    def new_yield_label(self):         return self.funcstate.new_yield_label()
+    def new_yield_label(self, *args):  return self.funcstate.new_yield_label(*args)
     def get_loop_labels(self):         return self.funcstate.get_loop_labels()
     def set_loop_labels(self, labels): return self.funcstate.set_loop_labels(labels)
     def new_loop_labels(self):         return self.funcstate.new_loop_labels()

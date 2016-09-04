@@ -9445,7 +9445,8 @@ class YieldExprNode(ExprNode):
         Generate the code to return the argument in 'Naming.retval_cname'
         and to continue at the yield label.
         """
-        label_num, label_name = code.new_yield_label()
+        label_num, label_name = code.new_yield_label(
+            self.expr_keyword.replace(' ', '_'))
         code.use_label(label_name)
 
         saved = []
