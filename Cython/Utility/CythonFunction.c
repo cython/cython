@@ -1072,16 +1072,25 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
 #endif
 
     if (binding_func->__signatures__) {
-        PyObject *tup = PyTuple_Pack(4, binding_func->__signatures__, args,
-                                        kw == NULL ? Py_None : kw,
-                                        binding_func->func.defaults_tuple);
-        if (!tup)
-            goto bad;
-
-        new_func = (__pyx_FusedFunctionObject *) __pyx_FusedFunction_callfunction(func, tup, NULL);
+        PyObject *tup;
+        if (is_staticmethod && binding_func->func.flags & __Pyx_CYFUNCTION_CCLASS) {
+            // FIXME: this seems wrong, but we must currently pass the signatures dict as 'self' argument
+            tup = PyTuple_Pack(3, args,
+                               kw == NULL ? Py_None : kw,
+                               binding_func->func.defaults_tuple);
+            if (unlikely(!tup)) goto bad;
+            new_func = (__pyx_FusedFunctionObject *) __Pyx_CyFunction_CallMethod(
+                func, binding_func->__signatures__, tup, NULL);
+        } else {
+            tup = PyTuple_Pack(4, binding_func->__signatures__, args,
+                               kw == NULL ? Py_None : kw,
+                               binding_func->func.defaults_tuple);
+            if (unlikely(!tup)) goto bad;
+            new_func = (__pyx_FusedFunctionObject *) __pyx_FusedFunction_callfunction(func, tup, NULL);
+        }
         Py_DECREF(tup);
 
-        if (!new_func)
+        if (unlikely(!new_func))
             goto bad;
 
         Py_XINCREF(binding_func->func.func_classobj);

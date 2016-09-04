@@ -655,6 +655,7 @@ class FusedCFuncDefNode(StatListNode):
         UtilityCode.declare_declarations_in_scope(
             decl_code.getvalue(), env.global_scope())
         ast.scope = env
+        # FIXME: for static methods of cdef classes, we build the wrong signature here: first arg becomes 'self'
         ast.analyse_declarations(env)
         py_func = ast.stats[-1]  # the DefNode
         self.fragment_scope = ast.scope
