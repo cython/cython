@@ -25,19 +25,20 @@ static PyTypeObject *__pyx_AsyncGenType = 0;
 static int __pyx_AsyncGen_init(void);
 
 
-//////////////////// AsyncGeneratorSpecial ////////////////////
+//////////////////// AsyncGeneratorInitFinalizer ////////////////////
 
 // this is separated out because it needs more adaptation
 
 #if PY_VERSION_HEX < 0x030600B0
 static int __Pyx_async_gen_init_finalizer(__pyx_AsyncGenObject *o) {
 #if 0
+    // TODO: implement finalizer support in older Python versions
     PyThreadState *tstate;
-#endif
     PyObject *finalizer;
     PyObject *firstiter;
+#endif
 
-    if (o->ag_hooks_inited) {
+    if (likely(o->ag_hooks_inited)) {
         return 0;
     }
 
@@ -53,7 +54,6 @@ static int __Pyx_async_gen_init_finalizer(__pyx_AsyncGenObject *o) {
     }
 
     firstiter = tstate->async_gen_firstiter;
-#endif
     if (firstiter) {
         PyObject *res;
 
@@ -65,6 +65,7 @@ static int __Pyx_async_gen_init_finalizer(__pyx_AsyncGenObject *o) {
         }
         Py_DECREF(res);
     }
+#endif
 
     return 0;
 }
@@ -72,7 +73,7 @@ static int __Pyx_async_gen_init_finalizer(__pyx_AsyncGenObject *o) {
 
 
 //////////////////// AsyncGenerator ////////////////////
-//@requires: AsyncGeneratorSpecial
+//@requires: AsyncGeneratorInitFinalizer
 //@requires: Coroutine.c::Coroutine
 
 
