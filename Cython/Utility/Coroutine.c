@@ -350,6 +350,11 @@ typedef struct {
 static __pyx_CoroutineObject *__Pyx__Coroutine_New(
     PyTypeObject *type, __pyx_coroutine_body_t body, PyObject *closure,
     PyObject *name, PyObject *qualname, PyObject *module_name); /*proto*/
+
+static __pyx_CoroutineObject *__Pyx__Coroutine_NewInit(
+            __pyx_CoroutineObject *gen, __pyx_coroutine_body_t body, PyObject *closure,
+            PyObject *name, PyObject *qualname, PyObject *module_name); /*proto*/
+
 static int __Pyx_Coroutine_clear(PyObject *self); /*proto*/
 
 #if 1 || PY_VERSION_HEX < 0x030300B0
@@ -1074,10 +1079,14 @@ static __pyx_CoroutineObject *__Pyx__Coroutine_New(
             PyTypeObject* type, __pyx_coroutine_body_t body, PyObject *closure,
             PyObject *name, PyObject *qualname, PyObject *module_name) {
     __pyx_CoroutineObject *gen = PyObject_GC_New(__pyx_CoroutineObject, type);
-
-    if (gen == NULL)
+    if (unlikely(!gen))
         return NULL;
+    return __Pyx__Coroutine_NewInit(gen, body, closure, name, qualname, module_name);
+}
 
+static __pyx_CoroutineObject *__Pyx__Coroutine_NewInit(
+            __pyx_CoroutineObject *gen, __pyx_coroutine_body_t body, PyObject *closure,
+            PyObject *name, PyObject *qualname, PyObject *module_name) {
     gen->body = body;
     gen->closure = closure;
     Py_XINCREF(closure);

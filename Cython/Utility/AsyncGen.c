@@ -19,8 +19,18 @@ static PyTypeObject *__pyx__PyAsyncGenAThrowType = 0;
 static PyTypeObject *__pyx_AsyncGenType = 0;
 #define __Pyx_AsyncGen_CheckExact(obj) (Py_TYPE(obj) == __pyx_AsyncGenType)
 
-#define __Pyx_AsyncGen_New(body, closure, name, qualname, module_name)  \
-    __Pyx__Coroutine_New(__pyx_AsyncGenType, body, closure, name, qualname, module_name)
+
+static __pyx_CoroutineObject *__Pyx_AsyncGen_New(
+            __pyx_coroutine_body_t body, PyObject *closure,
+            PyObject *name, PyObject *qualname, PyObject *module_name) {
+    __pyx_AsyncGenObject *gen = PyObject_GC_New(__pyx_AsyncGenObject, __pyx_AsyncGenType);
+    if (unlikely(!gen))
+        return NULL;
+    gen->ag_finalizer = NULL;
+    gen->ag_hooks_inited = 0;
+    gen->ag_closed = 0;
+    return __Pyx__Coroutine_NewInit((__pyx_CoroutineObject*)gen, body, closure, name, qualname, module_name);
+}
 
 static int __pyx_AsyncGen_init(void);
 
@@ -239,7 +249,7 @@ __Pyx_async_gen_athrow(__pyx_AsyncGenObject *o, PyObject *args)
 static PyGetSetDef __Pyx_async_gen_getsetlist[] = {
     {"__name__", (getter)__Pyx_Coroutine_get_name, (setter)__Pyx_Coroutine_set_name,
      PyDoc_STR("name of the async generator"), 0},
-    {"__qualname__", (getter)__Pyx_Coroutine_get_qualname, (setter)__Pyx_Coroutine_get_qualname,
+    {"__qualname__", (getter)__Pyx_Coroutine_get_qualname, (setter)__Pyx_Coroutine_set_qualname,
      PyDoc_STR("qualified name of the async generator"), 0},
     //REMOVED: {"ag_await", (getter)coro_get_cr_await, NULL,
     //REMOVED:  PyDoc_STR("object being awaited on, or None")},
@@ -527,7 +537,7 @@ PyTypeObject __pyx__PyAsyncGenASendType_type = {
     0,                                          /* tp_hash */
     0,                                          /* tp_call */
     0,                                          /* tp_str */
-    PyObject_GenericGetAttr,                    /* tp_getattro */
+    0,                                          /* tp_getattro */
     0,                                          /* tp_setattro */
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT,                         /* tp_flags */
@@ -626,7 +636,7 @@ PyTypeObject __pyx__PyAsyncGenWrappedValueType_type = {
     0,                                          /* tp_hash */
     0,                                          /* tp_call */
     0,                                          /* tp_str */
-    PyObject_GenericGetAttr,                    /* tp_getattro */
+    0,                                          /* tp_getattro */
     0,                                          /* tp_setattro */
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT,                         /* tp_flags */
@@ -874,7 +884,7 @@ PyTypeObject __pyx__PyAsyncGenAThrowType_type = {
     0,                                          /* tp_hash */
     0,                                          /* tp_call */
     0,                                          /* tp_str */
-    PyObject_GenericGetAttr,                    /* tp_getattro */
+    0,                                          /* tp_getattro */
     0,                                          /* tp_setattro */
     0,                                          /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT,                         /* tp_flags */
@@ -938,6 +948,9 @@ __Pyx_async_gen_athrow_new(__pyx_AsyncGenObject *gen, PyObject *args)
 static int __pyx_AsyncGen_init(void) {
     // on Windows, C-API functions can't be used in slots statically
     __pyx_AsyncGenType_type.tp_getattro = PyObject_GenericGetAttr;
+    __pyx__PyAsyncGenWrappedValueType_type.tp_getattro = PyObject_GenericGetAttr;
+    __pyx__PyAsyncGenAThrowType_type.tp_getattro = PyObject_GenericGetAttr;
+    __pyx__PyAsyncGenASendType_type.tp_getattro = PyObject_GenericGetAttr;
 
     __pyx_AsyncGenType = __Pyx_FetchCommonType(&__pyx_AsyncGenType_type);
     if (unlikely(!__pyx_AsyncGenType))
