@@ -450,7 +450,7 @@ __Pyx_async_gen_asend_send(__pyx_PyAsyncGenASend *o, PyObject *arg)
 
     if (o->aw_state == 0) {
         if (arg == NULL || arg == Py_None) {
-            arg = o->aw_sendval;
+            arg = o->aw_sendval ? o->aw_sendval : Py_None;
         }
         o->aw_state = 1;
     }
