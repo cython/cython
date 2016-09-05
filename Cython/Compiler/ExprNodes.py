@@ -9467,7 +9467,9 @@ class YieldExprNode(ExprNode):
                                   nogil=not code.funcstate.gil_owned)
         code.put_finish_refcount_context()
 
-        code.putln("/* return from generator, yielding value */")
+        code.putln("/* return from %sgenerator, %sing value */" % (
+            'async ' if self.in_async_gen else '',
+            'await' if self.is_await else 'yield'))
         code.putln("%s->resume_label = %d;" % (
             Naming.generator_cname, label_num))
         if self.in_async_gen and not self.is_await:
