@@ -396,13 +396,14 @@ static PyObject *
 __Pyx_async_gen_unwrap_value(__pyx_AsyncGenObject *gen, PyObject *result)
 {
     if (result == NULL) {
-        if (!PyErr_Occurred()) {
+        PyObject *exc_type = PyErr_Occurred();
+        if (!exc_type) {
             PyErr_SetNone(__Pyx_PyExc_StopAsyncIteration);
-        }
-
-        if (PyErr_ExceptionMatches(__Pyx_PyExc_StopAsyncIteration)
-            || PyErr_ExceptionMatches(PyExc_GeneratorExit)
-        ) {
+            gen->ag_closed = 1;
+        } else if (exc_type == __Pyx_PyExc_StopAsyncIteration
+                   || exc_type == PyExc_GeneratorExit
+                   || PyErr_GivenExceptionMatches(exc_type, __Pyx_PyExc_StopAsyncIteration)
+                   || PyErr_GivenExceptionMatches(exc_type, PyExc_GeneratorExit)) {
             gen->ag_closed = 1;
         }
 
@@ -411,12 +412,8 @@ __Pyx_async_gen_unwrap_value(__pyx_AsyncGenObject *gen, PyObject *result)
 
     if (__pyx__PyAsyncGenWrappedValue_CheckExact(result)) {
         /* async yield */
-        PyObject *e = __Pyx_PyObject_CallOneArg(
-            PyExc_StopIteration,
-            ((__pyx__PyAsyncGenWrappedValue*)result)->val);
+        __Pyx_ReturnWithStopIteration(((__pyx__PyAsyncGenWrappedValue*)result)->val);
         Py_DECREF(result);
-        PyErr_SetObject(PyExc_StopIteration, e);
-        Py_DECREF(e);
         return NULL;
     }
 
@@ -692,7 +689,7 @@ __pyx__PyAsyncGenWrapValue(PyObject *val)
         _Py_NewReference((PyObject*)o);
     } else {
         o = PyObject_New(__pyx__PyAsyncGenWrappedValue, __pyx__PyAsyncGenWrappedValueType);
-        if (o == NULL) {
+        if (unlikely(!o)) {
             Py_DECREF(val);
             return NULL;
         }
