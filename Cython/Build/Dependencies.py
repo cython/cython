@@ -694,11 +694,13 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
             if os.path.abspath(file) in to_exclude:
                 continue
             pkg = deps.package(file)
+            module_name = deps.fully_qualified_name(file)
             if '*' in name:
-                module_name = deps.fully_qualified_name(file)
                 if module_name in explicit_modules:
                     continue
-            else:
+            elif name != module_name:
+                print("Warning: Extension name '%s' does not match fully qualified name '%s' of '%s'" % (
+                    name, module_name, file))
                 module_name = name
 
             if module_name not in seen:
