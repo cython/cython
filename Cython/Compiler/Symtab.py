@@ -2071,7 +2071,6 @@ class CClassScope(ClassScope):
                     pass
                 elif type.compatible_signature_with(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
                     entry = self.add_cfunction(name, type, pos, cname, visibility='ignore', modifiers=modifiers)
-                    defining = 1
                 else:
                     error(pos, "Signature not compatible with previous declaration")
                     error(entry.pos, "Previous declaration is here")
