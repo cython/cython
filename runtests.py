@@ -1667,6 +1667,14 @@ def main():
     global DISTDIR, WITH_CYTHON
     DISTDIR = os.path.join(os.getcwd(), os.path.dirname(sys.argv[0]))
 
+    from Cython.Compiler import DebugFlags
+    args = []
+    for arg in sys.argv[1:]:
+        if arg.startswith('--debug') and arg[2:].replace('-', '_') in dir(DebugFlags):
+            setattr(DebugFlags, arg[2:].replace('-', '_'), True)
+        else:
+            args.append(arg)
+
     from optparse import OptionParser
     parser = OptionParser()
     parser.add_option("--no-cleanup", dest="cleanup_workdir",
@@ -1769,7 +1777,7 @@ def main():
     parser.add_option("--use_common_utility_dir", default=False, action="store_true")
     parser.add_option("--use_formal_grammar", default=False, action="store_true")
 
-    options, cmd_args = parser.parse_args()
+    options, cmd_args = parser.parse_args(args)
 
     WORKDIR = os.path.abspath(options.work_dir)
 
