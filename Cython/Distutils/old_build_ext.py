@@ -1,4 +1,4 @@
-"""Cython.Distutils.build_ext
+"""Cython.Distutils.old_build_ext
 
 Implements a version of the Distutils 'build_ext' command, for
 building Cython extension modules."""
@@ -23,8 +23,8 @@ except Exception:
     from_setuptools = False
 if not from_setuptools:
     warnings.warn(
-        "Cython.Distutils.build_ext does not properly handle dependencies "
-        "and is deprectated. Use Cython.Build.build_ext instead.")
+        "Cython.Distutils.old_build_ext does not properly handle dependencies "
+        "and is deprectated.")
 
 try:
     from __builtin__ import basestring
@@ -68,7 +68,7 @@ class Optimization(object):
 optimization = Optimization()
 
 
-class build_ext(_build_ext.build_ext):
+class old_build_ext(_build_ext.build_ext):
 
     description = "build C/C++ and Cython extensions (compile/link to build directory)"
 
