@@ -1,13 +1,18 @@
 import sys
-from .Dependencies import cythonize
 
 if 'setuptools' in sys.modules:
-    from setuptools.command import build_ext as _build_ext
+    try:
+        from setuptools.command import build_ext as _build_ext
+    except ImportError:
+        # We may be in the process of importing setuptools, which tries
+        # to import this.
+        from distutils.command import build_ext as _build_ext
 else:
     from distutils.command import build_ext as _build_ext
 
 class build_ext(_build_ext.build_ext, object):
     def finalize_options(self):
+        from Cython.Build.Dependencies import cythonize
         self.distribution.ext_modules[:] = cythonize(
             self.distribution.ext_modules)
         super(build_ext, self).finalize_options()
