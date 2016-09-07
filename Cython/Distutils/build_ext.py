@@ -12,7 +12,8 @@ else:
 
 class build_ext(_build_ext.build_ext, object):
     def finalize_options(self):
-        from Cython.Build.Dependencies import cythonize
-        self.distribution.ext_modules[:] = cythonize(
-            self.distribution.ext_modules)
+        if self.distribution.ext_modules:
+            from Cython.Build.Dependencies import cythonize
+            self.distribution.ext_modules[:] = cythonize(
+                self.distribution.ext_modules)
         super(build_ext, self).finalize_options()
