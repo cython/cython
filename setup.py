@@ -124,7 +124,7 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
     pgen = find_executable(
         'pgen', os.pathsep.join([os.environ['PATH'], os.path.join(get_python_inc(), '..', 'Parser')]))
     if not pgen:
-        print ("Unable to find pgen, not compiling formal grammar.")
+        sys.stderr.write("Unable to find pgen, not compiling formal grammar.\n")
     else:
         parser_dir = os.path.join(os.path.dirname(__file__), 'Cython', 'Parser')
         grammar = os.path.join(parser_dir, 'Grammar')
@@ -174,7 +174,7 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
     elif profile:
         from Cython.Compiler.Options import directive_defaults
         directive_defaults['profile'] = True
-        print("Enabled profiling for the Cython binary modules")
+        sys.stderr.write("Enabled profiling for the Cython binary modules\n")
 
     # not using cythonize() here to let distutils decide whether building extensions was requested
     add_command_class("build_ext", build_ext)
