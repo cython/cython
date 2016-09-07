@@ -7,6 +7,7 @@ building Cython extension modules."""
 
 __revision__ = "$Id:$"
 
+import inspect
 import sys
 import os
 from distutils.errors import DistutilsPlatformError
@@ -16,9 +17,14 @@ from distutils.command import build_ext as _build_ext
 from distutils import sysconfig
 import warnings
 
-warnings.warn(
-    "Cython.Distutils.build_ext does not properly handle dependencies "
-    "and is deprectated. Use Cython.Build.build_ext instead.")
+try:
+    from_setuptools = 'setuptools/extension.py' in inspect.getouterframes(inspect.currentframe(), 2)[2][1]
+except Exception:
+    from_setuptools = False
+if not from_setuptools:
+    warnings.warn(
+        "Cython.Distutils.build_ext does not properly handle dependencies "
+        "and is deprectated. Use Cython.Build.build_ext instead.")
 
 try:
     from __builtin__ import basestring

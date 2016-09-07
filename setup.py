@@ -12,9 +12,6 @@ import sys
 import platform
 is_cpython = platform.python_implementation() == 'CPython'
 
-# Suppress warning.
-sys.modules[Extension.__module__].have_pyrex = lambda : True
-
 if sys.platform == "darwin":
     # Don't create resource files on OS X tar.
     os.environ['COPY_EXTENDED_ATTRIBUTES_DISABLE'] = 'true'
