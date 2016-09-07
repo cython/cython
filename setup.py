@@ -12,6 +12,9 @@ import sys
 import platform
 is_cpython = platform.python_implementation() == 'CPython'
 
+# Suppress warning.
+sys.modules[Extension.__module__].have_pyrex = lambda : True
+
 if sys.platform == "darwin":
     # Don't create resource files on OS X tar.
     os.environ['COPY_EXTENDED_ATTRIBUTES_DISABLE'] = 'true'
@@ -167,7 +170,7 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
         # XXX hack around setuptools quirk for '*.pyx' sources
         extensions[-1].sources[0] = pyx_source_file
 
-    from Cython.Distutils import build_ext
+    from Cython.Build import build_ext
     if sys.version_info[:2] == (3, 2):
         # Python 3.2: can only run Cython *after* running 2to3
         build_ext = _defer_cython_import_in_py32(build_ext, source_root, profile)
