@@ -167,7 +167,7 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
         # XXX hack around setuptools quirk for '*.pyx' sources
         extensions[-1].sources[0] = pyx_source_file
 
-    from Cython.Build import build_ext
+    from Cython.Distutils import build_ext
     if sys.version_info[:2] == (3, 2):
         # Python 3.2: can only run Cython *after* running 2to3
         build_ext = _defer_cython_import_in_py32(build_ext, source_root, profile)
