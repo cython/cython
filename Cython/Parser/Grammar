@@ -167,6 +167,7 @@ memory_view_index: ':' [':'] [NUMBER]
 address: '&' factor
 cast: '<' type ['?'] '>' factor
 size_of: 'sizeof' '(' (type) ')'
+type_id: 'typeid' '(' (type) ')'
 new_expr: 'new' type '(' [arglist] ')'
 
 # TODO: Restrict cdef_stmt to "top-level" statements.

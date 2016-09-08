@@ -42,6 +42,8 @@ Features added
 
 * Some integer operations on Python long objects are faster in Python 2.7.
 
+* Support for the C++ ``typeid`` operator.
+
 Bugs fixed
 ----------
 

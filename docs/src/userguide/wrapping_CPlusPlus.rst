@@ -562,6 +562,8 @@ The translation is performed according to the following table
 +-----------------------+---------------------+
 | ``bad_cast``          | ``TypeError``       |
 +-----------------------+---------------------+
+| ``bad_typeid``        | ``TypeError``       |
++-----------------------+---------------------+
 | ``domain_error``      | ``ValueError``      |
 +-----------------------+---------------------+
 | ``invalid_argument``  | ``ValueError``      |
@@ -645,6 +647,27 @@ e.g.::
 
 (Though of course the ``for .. in`` syntax is prefered for objects supporting
 the iteration protocol.)
+
+RTTI and typeid()
+=================
+
+Cython has support for the ``typeid(...)`` operator.
+
+    from cython.operator cimport typeid
+
+The ``typeid(...)`` operator returns an object of the type ``const type_info &``.
+
+If you want to store a type_info value in a C variable, you will need to store it
+as a pointer rather than a reference:
+
+    from libcpp.typeinfo cimport type_info
+    cdef const type_info* info = &typeid(MyClass)
+
+If an invalid type is passed to ``typeid``, it will throw an ``std::bad_typeid``
+exception which is converted into a ``TypeError`` exception in Python.
+
+An additional C++11-only RTTI-related class, ``std::type_index``, is available
+in ``libcpp.typeindex``.
 
 
 Caveats and Limitations

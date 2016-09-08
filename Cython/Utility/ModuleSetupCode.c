@@ -403,6 +403,9 @@ class __Pyx_FakeReference {
     __Pyx_FakeReference(const T& ref) : ptr(const_cast<T*>(&ref)) { }
     T *operator->() { return ptr; }
     operator T&() { return *ptr; }
+    // TODO(robertwb): Delegate all operators (or auto-generate unwrapping code where needed).
+    template<typename U> bool operator ==(U other) { return *ptr == other; };
+    template<typename U> bool operator !=(U other) { return *ptr != other; };
   private:
     T *ptr;
 };

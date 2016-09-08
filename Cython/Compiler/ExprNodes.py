@@ -6241,6 +6241,7 @@ class AttributeNode(ExprNode):
     needs_none_check = True
     is_memslice_transpose = False
     is_special_lookup = False
+    is_py_attr = 0
 
     def as_cython_attribute(self):
         if (isinstance(self.obj, NameNode) and
@@ -6670,7 +6671,7 @@ class AttributeNode(ExprNode):
         else:
             # result_code contains what is needed, but we may need to insert
             # a check and raise an exception
-            if self.obj.type.is_extension_type:
+            if self.obj.type and self.obj.type.is_extension_type:
                 pass
             elif self.entry and self.entry.is_cmethod:
                 # C method implemented as function call with utility code
@@ -10213,6 +10214,8 @@ class SizeofTypeNode(SizeofNode):
 
     def check_type(self):
         arg_type = self.arg_type
+        if not arg_type:
+            return
         if arg_type.is_pyobject and not arg_type.is_extension_type:
             error(self.pos, "Cannot take sizeof Python object")
         elif arg_type.is_void:
@@ -10256,6 +10259,75 @@ class SizeofVarNode(SizeofNode):
 
     def generate_result_code(self, code):
         pass
+
+
+class TypeidNode(ExprNode):
+    #  C++ typeid operator applied to a type or variable
+    #
+    #  operand       ExprNode
+    #  arg_type      ExprNode
+    #  is_variable   boolean
+
+    type = PyrexTypes.error_type
+
+    subexprs = ['operand']
+
+    arg_type = None
+    is_variable = None
+    is_temp = 1
+
+    def get_type_info_type(self, env):
+        env_module = env
+        while not env_module.is_module_scope:
+            env_module = env_module.outer_scope
+        typeinfo_module = env_module.find_module('libcpp.typeinfo', self.pos)
+        typeinfo_entry = typeinfo_module.lookup('type_info')
+        return PyrexTypes.CFakeReferenceType(PyrexTypes.c_const_type(typeinfo_entry.type))
+
+    def analyse_types(self, env):
+        type_info = self.get_type_info_type(env)
+        if not type_info:
+            self.error("The 'libcpp.typeinfo' module must be cimported to use the typeid() operator")
+            return self
+        self.type = type_info
+        as_type = self.operand.analyse_as_type(env)
+        if as_type:
+            self.arg_type = as_type
+            self.is_type = True
+        else:
+            self.arg_type = self.operand.analyse_types(env)
+            self.is_type = False
+            if self.arg_type.type.is_pyobject:
+                self.error("Cannot use typeid on a Python object")
+                return self
+            elif self.arg_type.type.is_void:
+                self.error("Cannot use typeid on void")
+                return self
+            elif not self.arg_type.type.is_complete():
+                self.error("Cannot use typeid on incomplete type '%s'" % self.arg_type.type)
+                return self
+        env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
+        return self
+
+    def error(self, mess):
+        error(self.pos, mess)
+        self.type = PyrexTypes.error_type
+        self.result_code = "<error>"
+
+    def check_const(self):
+        return True
+
+    def calculate_result_code(self):
+        return self.temp_code
+
+    def generate_result_code(self, code):
+        if self.is_type:
+            arg_code = self.arg_type.empty_declaration_code()
+        else:
+            arg_code = self.arg_type.result()
+        translate_cpp_exception(code, self.pos,
+            "%s = typeid(%s);" % (self.temp_code, arg_code),
+            None, self.in_nogil_context)
 
 class TypeofNode(ExprNode):
     #  Compile-time type of an expression, as a string.

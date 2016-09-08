@@ -67,7 +67,9 @@ class CythonScope(ModuleScope):
         name_path = qname.split(u'.')
         scope = self
         while len(name_path) > 1:
-            scope = scope.lookup_here(name_path[0]).as_module
+            scope = scope.lookup_here(name_path[0])
+            if scope:
+                scope = scope.as_module
             del name_path[0]
             if scope is None:
                 return None
