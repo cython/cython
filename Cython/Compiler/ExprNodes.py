@@ -10204,16 +10204,12 @@ class TypeidNode(ExprNode):
     is_temp = 1
 
     def get_type_info_type(self, env):
-        if env.is_module_scope:
-            env_module = env
-        else:
-            env_module = env.outer_scope
-        for module in env_module.cimported_modules:
-            if module.qualified_name == 'libcpp.typeinfo':
-                type_info = module.lookup('type_info')
-                type_info = PyrexTypes.CFakeReferenceType(PyrexTypes.c_const_type(type_info.type))
-                return type_info
-        return None
+        env_module = env
+        while not env_module.is_module_scope:
+            env_module = env_module.outer_scope
+        typeinfo_module = env_module.find_module('libcpp.typeinfo', self.pos)
+        typeinfo_entry = typeinfo_module.lookup('type_info')
+        return PyrexTypes.CFakeReferenceType(PyrexTypes.c_const_type(typeinfo_entry.type))
 
     def analyse_types(self, env):
         type_info = self.get_type_info_type(env)
@@ -10253,12 +10249,7 @@ class TypeidNode(ExprNode):
 
     def generate_result_code(self, code):
         if self.is_type:
-            if self.arg_type.is_extension_type:
-                # the size of the pointer is boring
-                # we want the size of the actual struct
-                arg_code = self.arg_type.declaration_code("", deref=1)
-            else:
-                arg_code = self.arg_type.empty_declaration_code()
+            arg_code = self.arg_type.empty_declaration_code()
         else:
             arg_code = self.arg_type.result()
         translate_cpp_exception(code, self.pos,

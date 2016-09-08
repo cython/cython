@@ -606,17 +606,16 @@ you can declare it using the Python @staticmethod decorator, i.e.::
 RTTI and typeid()
 =================
 
-Cython has support for the ``typeid(...)`` operator. To use it, you need to import
-it and the ``libcpp.typeinfo`` module first:
+Cython has support for the ``typeid(...)`` operator.
 
     from cython.operator cimport typeid
-    from libcpp.typeinfo cimport type_info
 
 The ``typeid(...)`` operator returns an object of the type ``const type_info &``.
 
 If you want to store a type_info value in a C variable, you will need to store it
 as a pointer rather than a reference:
 
+    from libcpp.typeinfo cimport type_info
     cdef const type_info* info = &typeid(MyClass)
 
 If an invalid type is passed to ``typeid``, it will throw an ``std::bad_typeid``

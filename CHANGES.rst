@@ -27,6 +27,8 @@ Features added
 * ``libc/math.pxd`` provides ``e`` and ``pi`` as alias constants to simplify
   usage as a drop-in replacement for Python's math module.
 
+* Support for the C++ ``typeid`` operator.
+
 Bugs fixed
 ----------
 

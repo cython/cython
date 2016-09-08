@@ -8,7 +8,6 @@ from cython.operator cimport typeid, dereference as deref
 
 from libc.string cimport const_char
 from libcpp cimport bool
-cimport libcpp.typeinfo
 
 cdef out(s, result_type=None):
     print '%s [%s]' % (s.decode('ascii'), result_type)
