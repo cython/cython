@@ -187,6 +187,9 @@ def test_bool_cond():
     assert (TruthClass(True) and TruthClass(False)).value == False
     assert (TruthClass(True) and TruthClass(True)).value == True
 
+
+ctypedef int* int_ptr
+
 def test_typeid_op():
     """
     >>> test_typeid_op()
@@ -198,12 +201,19 @@ def test_typeid_op():
 
     assert typeid(TruthClass).name()
     assert typeid(test_1).name()
+    assert typeid(TruthClass) == typeid(deref(test_1))
+
     assert typeid(TruthSubClass).name()
     assert typeid(test_2).name()
+    assert typeid(TruthSubClass) == typeid(deref(test_2))
+    assert typeid(TruthSubClass) == typeid(deref(test_3))
+    assert typeid(TruthClass) != typeid(deref(test_3))
+
     assert typeid(TruthClass).name()
     assert typeid(test_3).name()
     assert typeid(TruthSubClass).name()
     assert typeid(deref(test_2)).name()
+    assert typeid(int_ptr).name()
 
     try:
         typeid(deref(test_4))
