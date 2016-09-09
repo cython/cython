@@ -358,10 +358,13 @@ def strip_string_literals(code, prefix='__Pyx_L'):
     return "".join(new_code), literals
 
 
-dependency_regex = re.compile(r"(?:^from +([0-9a-zA-Z_.]+) +cimport)|"
-                              r"(?:^cimport +([0-9a-zA-Z_.]+(?: *, *[0-9a-zA-Z_.]+)*))|"
-                              r"(?:^cdef +extern +from +['\"]([^'\"]+)['\"])|"
-                              r"(?:^include +['\"]([^'\"]+)['\"])", re.M)
+# We need to allow spaces to allow for conditional compilation like
+# IF ...:
+#     cimport ...
+dependency_regex = re.compile(r"(?:^\s*from +([0-9a-zA-Z_.]+) +cimport)|"
+                              r"(?:^\s*cimport +([0-9a-zA-Z_.]+(?: *, *[0-9a-zA-Z_.]+)*))|"
+                              r"(?:^\s*cdef +extern +from +['\"]([^'\"]+)['\"])|"
+                              r"(?:^\s*include +['\"]([^'\"]+)['\"])", re.M)
 
 
 def normalize_existing(base_path, rel_paths):
