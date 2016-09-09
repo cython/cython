@@ -3275,7 +3275,10 @@ class CppClassType(CType):
         self.templates = templates
         self.template_type = template_type
         self.num_optional_templates = sum(is_optional_template_param(T) for T in templates or ())
-        self.specializations = {tuple(zip(templates, templates)): self}
+        if templates:
+            self.specializations = {tuple(zip(templates, templates)): self}
+        else:
+            self.specializations = {}
         self.is_cpp_string = cname in cpp_string_conversions
 
     def use_conversion_utility(self, from_or_to):
