@@ -1968,14 +1968,11 @@ class CComplexType(CNumericType):
     def __init__(self, real_type):
         while real_type.is_typedef and not real_type.typedef_is_external:
             real_type = real_type.typedef_base_type
-        if real_type.is_typedef and real_type.typedef_is_external:
-            # The below is not actually used: Coercions are currently disabled
-            # so that complex types of external types can not be created
-            self.funcsuffix = "_%s" % real_type.specialization_name()
-        elif hasattr(real_type, 'math_h_modifier'):
-            self.funcsuffix = real_type.math_h_modifier
+        self.funcsuffix = "_%s" % real_type.specialization_name()
+        if real_type.is_float:
+            self.math_h_modifier = real_type.math_h_modifier
         else:
-            self.funcsuffix = "_%s" % real_type.specialization_name()
+            self.math_h_modifier = "_UNUSED"
 
         self.real_type = real_type
         CNumericType.__init__(self, real_type.rank + 0.5, real_type.signed)
@@ -2059,7 +2056,8 @@ class CComplexType(CNumericType):
             'type': self.empty_declaration_code(),
             'type_name': self.specialization_name(),
             'real_type': self.real_type.empty_declaration_code(),
-            'm': self.funcsuffix,
+            'func_suffix': self.funcsuffix,
+            'm': self.math_h_modifier,
             'is_float': int(self.real_type.is_float)
         }
 
@@ -2118,6 +2116,7 @@ complex_ops = {
     (2, '-'): 'diff',
     (2, '*'): 'prod',
     (2, '/'): 'quot',
+    (2, '**'): 'pow',
     (2, '=='): 'eq',
 }
 

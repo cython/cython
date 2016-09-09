@@ -11116,7 +11116,7 @@ class PowNode(NumBinopNode):
             if self.type.real_type.is_float:
                 self.operand1 = self.operand1.coerce_to(self.type, env)
                 self.operand2 = self.operand2.coerce_to(self.type, env)
-                self.pow_func = "__Pyx_c_pow" + self.type.real_type.math_h_modifier
+                self.pow_func = self.type.binary_op('**')
             else:
                 error(self.pos, "complex int powers not supported")
                 self.pow_func = "<error>"
