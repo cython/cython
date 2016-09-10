@@ -190,7 +190,9 @@ def _defer_cython_import_in_py32(build_ext_orig, source_root, profile=False):
         # sys.modules
         dead_modules = []
 
-        def build_extensions(self):
+        def __reimport(self):
+            if self.dead_modules:
+                return
             # add path where 2to3 installed the transformed sources
             # and make sure Python (re-)imports them from there
             already_imported = [
@@ -203,6 +205,12 @@ def _defer_cython_import_in_py32(build_ext_orig, source_root, profile=False):
                 del sys.modules[module]
             sys.path.insert(0, os.path.join(source_root, self.build_lib))
 
+        def finalize_options(self):
+            self.__reimport()
+            super(build_ext, self).finalize_options()
+
+        def build_extensions(self):
+            self.__reimport()
             if profile:
                 from Cython.Compiler.Options import directive_defaults
                 directive_defaults['profile'] = True
