@@ -1186,6 +1186,7 @@ static void __Pyx_Coroutine_check_and_dealloc(PyObject *self) {
         PyObject_GC_UnTrack(self);
 #if PY_VERSION_HEX >= 0x03030000 || defined(PyErr_WarnFormat)
         PyErr_WarnFormat(PyExc_RuntimeWarning, 1, "coroutine '%.50S' was never awaited", gen->gi_qualname);
+        PyErr_Clear();  /* just in case, must not keep a live exception during GC */
 #else
         {PyObject *msg;
         char *cmsg;
