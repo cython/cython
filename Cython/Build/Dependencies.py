@@ -3,6 +3,7 @@ from __future__ import absolute_import, print_function
 import cython
 from .. import __version__
 
+import collections
 import re, os, sys, time
 from glob import iglob
 
@@ -642,7 +643,9 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
         print('Please put "# distutils: language=%s" in your .pyx or .pxd file(s)' % language)
     if exclude is None:
         exclude = []
-    if not isinstance(patterns, (list, tuple)):
+    if patterns is None:
+        return [], {}
+    elif isinstance(patterns, basestring) or not isinstance(patterns, collections.Iterable):
         patterns = [patterns]
     explicit_modules = set([m.name for m in patterns if isinstance(m, Extension)])
     seen = set()

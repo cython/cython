@@ -10,7 +10,7 @@ from distutils.errors import DistutilsArgError, DistutilsError, CCompilerError
 from distutils.extension import Extension
 from distutils.util import grok_environment_error
 try:
-    from Cython.Distutils import build_ext
+    from Cython.Distutils.old_build_ext import old_build_ext as build_ext
     HAS_CYTHON = True
 except ImportError:
     HAS_CYTHON = False
@@ -22,7 +22,7 @@ _reloads={}
 
 def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuild_dir=None,
                setup_args=None, reload_support=False, inplace=False):
-    """Compile a PYX file to a DLL and return the name of the generated .so 
+    """Compile a PYX file to a DLL and return the name of the generated .so
        or .dll ."""
     assert os.path.exists(filename), "Could not find %s" % os.path.abspath(filename)
 
@@ -102,7 +102,7 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
         dist.run_commands()
         so_path = obj_build_ext.get_outputs()[0]
         if obj_build_ext.inplace:
-            # Python distutils get_outputs()[ returns a wrong so_path 
+            # Python distutils get_outputs()[ returns a wrong so_path
             # when --inplace ; see http://bugs.python.org/issue5977
             # workaround:
             so_path = os.path.join(os.path.dirname(filename),
@@ -139,7 +139,7 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
                         continue
                     break
                 else:
-                    # used up all 100 slots 
+                    # used up all 100 slots
                     raise ImportError("reload count for %s reached maximum"%org_path)
                 _reloads[org_path]=(timestamp, so_path, count)
         return so_path

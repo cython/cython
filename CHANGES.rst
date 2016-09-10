@@ -59,7 +59,9 @@ Other changes
   the current jupyter kernel.  The language level can be set explicitly with
   "%%cython -2" or "%%cython -3".
 
-* Usage of ``Cython.Distutils.build_ext`` is now discouraged.
+* The distutils extension ``Cython.Distutils.build_ext`` has now been updated
+  to use cythonize which properly handles dependencies.  The old extension can
+  still be found in ``Cython.Distutils.old_build_ext`` and is now deprecated.
 
 
 0.24.1 (2016-07-15)
