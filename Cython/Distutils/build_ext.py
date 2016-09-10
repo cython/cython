@@ -10,6 +10,7 @@ if 'setuptools' in sys.modules:
 else:
     from distutils.command import build_ext as _build_ext
 
+
 class build_ext(_build_ext.build_ext, object):
     def finalize_options(self):
         if self.distribution.ext_modules:
