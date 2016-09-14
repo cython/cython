@@ -12,11 +12,18 @@ higher, built with Python support (linked to Python 2.6 or higher).
 The debugger supports debuggees with versions 2.6 and higher. For Python 3,
 code should be built with Python 3 and the debugger should be run with
 Python 2 (or at least it should be able to find the Python 2 Cython
-installation).
+installation). Note that in recent versions of Ubuntu, for instance, ``gdb``
+installed with ``apt-get`` is configured with Python 3. On such systems, the
+proper configuration of ``gdb`` can be obtained by downloading the ``gdb``
+source, and then running::
+
+    ./configure --with-python=python2
+    make
+    sudo make install
 
 The debugger will need debug information that the Cython compiler can export.
-This can be achieved from within the setup
-script by passing ``gdb_debug=True`` to ``cythonize()``::
+This can be achieved from within the setup script by passing ``gdb_debug=True``
+to ``cythonize()``::
 
     from distutils.core import setup
     from distutils.extension import Extension
@@ -56,7 +63,10 @@ support separately, e.g. for ubuntu::
     $ sudo apt-get install python-dbg
     $ python-dbg setup.py build_ext --inplace
 
-Then you need to run your script with ``python-dbg`` also.
+Then you need to run your script with ``python-dbg`` also. Ensure that when
+building your package with debug symbols that cython extensions are re-compiled
+if they had been previously compiled. If your package is version controlled, you
+might want to perform ``git clean -fxd`` or ``hg purge --all`` before building.
 
 You can also pass additional arguments to gdb::
 
@@ -64,7 +74,7 @@ You can also pass additional arguments to gdb::
 
 i.e.::
 
-    $ cygdb . --args python-dbg mainscript.py
+    $ cygdb . -- --args python-dbg mainscript.py
 
 To tell cygdb not to import any debug information, supply ``--`` as the first
 argument::
