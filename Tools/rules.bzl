@@ -5,14 +5,18 @@ Uses Cython to compile a .pyx files (and .py files with corresponding .pxd
 files) to Python extension modules.
 
 Example:
+
+# Assuming Cython is mapped to "cython" in your workspace.
+load("@cython//Tools:rules.bzl", "pyx_library")
+
 pyx_library(name = 'mylib',
-            srcs = ['a.pyx', 'a.pxd', 'b.py', 'pkg/c.pyx'],
+            srcs = ['a.pyx', 'a.pxd', 'b.py', 'pkg/__init__.py', 'pkg/c.pyx'],
             py_deps = ['//py_library/dep'],
             data = ['//other/data'],
 )
 
-Make sure to include the __init__.py files in your srcs list so that Cython
-can resolve cimports using the package layout.
+The __init__.py file must be in your srcs list so that Cython can resolve
+cimports using the package layout.
 """
 
 def pyx_library(
@@ -34,6 +38,7 @@ def pyx_library(
         else:
             pxd_srcs.append(src)
         if src.endswith('__init__.py'):
+            # TODO(robertwb): Infer __init__.py files/package root?
             pxd_srcs.append(src)
 
     # Invoke cythonize to produce the shared object libraries.
