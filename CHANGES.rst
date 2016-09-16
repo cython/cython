@@ -44,6 +44,8 @@ Features added
 
 * Support for the C++ ``typeid`` operator.
 
+* Support for bazel using a the pyx_library rule in //Tools:rules.bzl.
+
 Bugs fixed
 ----------
 

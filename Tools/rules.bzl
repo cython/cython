@@ -40,6 +40,9 @@ def pyx_library(
     outs = [src.split('.')[0] + '.so' for src in pyx_srcs]
     extra_flags = " ".join(["-X '%s=%s'" % x for x in cython_directives] +
                            ["-s '%s=%s'" % x for x in cython_options])
+    # TODO(robertwb): It might be better to only generate the C files,
+    # letting cc_library (or similar) handle the rest, but there isn't yet
+    # suport compiling Python C extensions from bazel.
     native.genrule(
         name = name + "_cythonize",
         srcs = pyx_srcs,
