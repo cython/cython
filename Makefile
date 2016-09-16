@@ -34,7 +34,7 @@ clean:
 	@(cd Demos; $(MAKE) clean)
 
 testclean:
-	rm -fr BUILD
+	rm -fr BUILD TEST_TMP
 
 test:	testclean
 	${PYTHON} runtests.py -vv ${TESTOPTS}

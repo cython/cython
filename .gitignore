@@ -14,7 +14,7 @@ Cython/Tempita/*.c
 
 Tools/*.elc
 
-BUILD/
+TEST_TMP/
 build/
 !tests/build/
 dist/

@@ -7,7 +7,7 @@ import os.path
 from contextlib import contextmanager
 import pyximport
 
-pyximport.install(build_dir=os.path.join(os.path.dirname(__file__), "BUILD"))
+pyximport.install(build_dir=os.path.join(os.path.dirname(__file__), "TEST_TMP"))
 
 @contextmanager
 def fails(exc=ImportError):

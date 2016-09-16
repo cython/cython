@@ -6,7 +6,7 @@ PYTHON -c "import basic_test; basic_test.test()"
 import os.path
 import pyximport
 
-pyximport.install(build_dir=os.path.join(os.path.dirname(__file__), "BUILD"))
+pyximport.install(build_dir=os.path.join(os.path.dirname(__file__), "TEST_TMP"))
 
 def test():
     import mymodule
