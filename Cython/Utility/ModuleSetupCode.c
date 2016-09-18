@@ -24,6 +24,13 @@
   #define DL_EXPORT(t) t
 #endif
 
+#ifndef HAVE_LONG_LONG
+  // CPython has required PY_LONG_LONG support for years, even if HAVE_LONG_LONG is not defined for us
+  #if PY_VERSION_HEX >= 0x03030000 || (PY_MAJOR_VERSION == 2 && PY_VERSION_HEX >= 0x02070000)
+    #define HAVE_LONG_LONG
+  #endif
+#endif
+
 #ifndef PY_LONG_LONG
   #define PY_LONG_LONG LONG_LONG
 #endif
