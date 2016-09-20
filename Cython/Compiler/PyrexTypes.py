@@ -429,6 +429,17 @@ class CTypedefType(BaseType):
                 elif base_type.is_complex:
                     pass # XXX implement!
                     pass
+                elif base_type.is_cpp_string:
+                    cname = "__pyx_convert_PyObject_string_to_py_%s" % type_identifier(self)
+                    context = {
+                        'cname': cname,
+                        'type': self.typedef_cname,
+                    }
+                    from .UtilityCode import CythonUtilityCode
+                    env.use_utility_code(CythonUtilityCode.load(
+                        "string.to_py", "CppConvert.pyx", context=context))
+                    self.to_py_function = cname
+                    return True
             if self.to_py_utility_code:
                 env.use_utility_code(self.to_py_utility_code)
                 return True
@@ -450,6 +461,17 @@ class CTypedefType(BaseType):
                     pass # XXX implement!
                 elif base_type.is_complex:
                     pass # XXX implement!
+                elif base_type.is_cpp_string:
+                    cname = '__pyx_convert_string_from_py_%s' % type_identifier(self)
+                    context = {
+                        'cname': cname,
+                        'type': self.typedef_cname,
+                    }
+                    from .UtilityCode import CythonUtilityCode
+                    env.use_utility_code(CythonUtilityCode.load(
+                        "string.from_py", "CppConvert.pyx", context=context))
+                    self.from_py_function = cname
+                    return True
             if self.from_py_utility_code:
                 env.use_utility_code(self.from_py_utility_code)
                 return True
