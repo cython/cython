@@ -1,7 +1,7 @@
 """
 Defines a pyx_library() macros corresponding to py_library.
 
-Uses Cython to compile a .pyx files (and .py files with corresponding .pxd
+Uses Cython to compile .pyx files (and .py files with corresponding .pxd
 files) to Python extension modules.
 
 Example:
