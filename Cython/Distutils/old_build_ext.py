@@ -18,10 +18,13 @@ from distutils import sysconfig
 import warnings
 
 try:
-    from_setuptools = 'setuptools/extension.py' in inspect.getouterframes(inspect.currentframe(), 2)[2][1]
+    frames = inspect.getouterframes(inspect.currentframe(), 2)
+    from_setuptools = 'setuptools/extension.py' in frames[2][1]
+    from_pyximport = 'pyximport/pyxbuild.py' in frames[1][1]
 except Exception:
-    from_setuptools = False
-if not from_setuptools:
+    from_setuptools = from_pyximport = False
+
+if not from_setuptools and not from_pyximport:
     warnings.warn(
         "Cython.Distutils.old_build_ext does not properly handle dependencies "
         "and is deprectated.")
