@@ -146,3 +146,11 @@ def test_value_type(x):
     """
     cdef vector[double].value_type val = x
     return val
+
+def test_value_type_complex(x):
+    """
+    >>> test_value_type(2)
+    (2+0j)
+    """
+    cdef vector[double complex].value_type val = x
+    return val
