@@ -149,7 +149,7 @@ def test_value_type(x):
 
 def test_value_type_complex(x):
     """
-    >>> test_value_type(2)
+    >>> test_value_type_complex(2)
     (2+0j)
     """
     cdef vector[double complex].value_type val = x
