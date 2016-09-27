@@ -11,6 +11,10 @@ cdef extern from "cpp_nested_classes_support.h":
         @staticmethod
         my_int negate(my_int)
 
+    cdef cppclass TypedClass[T]:
+        enum MyEnum:
+            value
+
 def test_nested_classes():
     """
     >>> test_nested_classes()
@@ -28,3 +32,8 @@ def test_nested_classes():
 def test_nested_typedef(py_x):
     cdef A.my_int x = py_x
     assert A.negate(x) == -py_x
+
+def test_nested_enum(TypedClass[double].MyEnum x):
+    return x == 3
+
+def test_

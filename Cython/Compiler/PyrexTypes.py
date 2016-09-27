@@ -3627,11 +3627,12 @@ class CEnumType(CType):
     signed = 1
     rank = -1 # Ranks below any integer type
 
-    def __init__(self, name, cname, typedef_flag):
+    def __init__(self, name, cname, typedef_flag, namespace=None):
         self.name = name
         self.cname = cname
         self.values = []
         self.typedef_flag = typedef_flag
+        self.namespace = namespace
         self.default_value = "(%s) 0" % self.empty_declaration_code()
 
     def __str__(self):
@@ -3646,12 +3647,23 @@ class CEnumType(CType):
         if pyrex or for_display:
             base_code = self.name
         else:
-            if self.typedef_flag:
+            if self.namespace:
+                base_code = "%s::%s" % (
+                    self.namespace.empty_declaration_code(), self.cname)
+            elif self.typedef_flag:
                 base_code = self.cname
             else:
                 base_code = "enum %s" % self.cname
             base_code = public_decl(base_code, dll_linkage)
         return self.base_declaration_code(base_code, entity_code)
+
+    def specialize(self, values):
+        if self.namespace:
+            namespace = self.namespace.specialize(values)
+            if namespace != self.namespace:
+                return CEnumType(
+                    self.name, self.cname, self.typedef_flag, namespace)
+        return self
 
     def create_to_py_utility_code(self, env):
         self.to_py_function = "__Pyx_PyInt_From_" + self.specialization_name()

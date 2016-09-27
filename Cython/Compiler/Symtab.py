@@ -546,6 +546,8 @@ class Scope(object):
                 if scope:
                     entry.type.scope = scope
                     self.type_entries.append(entry)
+        if self.is_cpp_class_scope:
+            entry.type.namespace = self.outer_scope.lookup(self.name).type
         return entry
 
     def declare_cpp_class(self, name, scope,
@@ -613,11 +615,16 @@ class Scope(object):
             visibility = 'private', api = 0, create_wrapper = 0):
         if name:
             if not cname:
-                if self.in_cinclude or (visibility == 'public' or api):
+                if (self.in_cinclude or visibility == 'public'
+                    or visibility == 'extern' or api):
                     cname = name
                 else:
                     cname = self.mangle(Naming.type_prefix, name)
-            type = PyrexTypes.CEnumType(name, cname, typedef_flag)
+            if self.is_cpp_class_scope:
+                namespace = self.outer_scope.lookup(self.name).type
+            else:
+                namespace = None
+            type = PyrexTypes.CEnumType(name, cname, typedef_flag, namespace)
         else:
             type = PyrexTypes.c_anon_enum_type
         entry = self.declare_type(name, type, pos, cname = cname,

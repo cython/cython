@@ -1457,6 +1457,9 @@ class CppClassNode(CStructOrUnionDefNode, BlockNode):
             if self.in_pxd and not env.in_cinclude:
                 self.entry.defined_in_pxd = 1
             for attr in self.attributes:
+                declare = getattr(attr, 'declare', None)
+                if declare:
+                    attr.declare(scope)
                 attr.analyse_declarations(scope)
             for func in func_attributes(self.attributes):
                 defined_funcs.append(func)

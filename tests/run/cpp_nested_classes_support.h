@@ -16,3 +16,16 @@ public:
     return -x;
   }
 };
+
+template <typename T>
+class TypedClass {
+public:
+  enum MyEnum {
+    value = 39
+  };
+  union MyUnion {
+    T typed_value;
+    int int_value;
+  }
+  typedef T MyType;
+};
