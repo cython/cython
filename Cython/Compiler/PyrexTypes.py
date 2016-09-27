@@ -395,8 +395,8 @@ class CTypedefType(BaseType):
         if base_type is self.typedef_base_type and namespace is self.typedef_namespace:
             return self
         else:
-            return CTypedefType(self.typedef_name, base_type, self.typedef_cname,
-                                self.typedef_is_external, namespace)
+            return create_typedef_type(self.typedef_name, base_type, self.typedef_cname,
+                                0, namespace)
 
     def __repr__(self):
         return "<CTypedefType %s>" % self.typedef_cname
