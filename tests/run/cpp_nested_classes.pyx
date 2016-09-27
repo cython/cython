@@ -12,6 +12,10 @@ cdef extern from "cpp_nested_classes_support.h":
         my_int negate(my_int)
 
     cdef cppclass TypedClass[T]:
+        ctypedef T MyType
+        union MyUnion:
+            T typed_value
+            int int_value
         enum MyEnum:
             value
 
@@ -30,10 +34,35 @@ def test_nested_classes():
     del b_ptr
 
 def test_nested_typedef(py_x):
+    """
+    >>> test_nested_typedef(5)
+    """
     cdef A.my_int x = py_x
     assert A.negate(x) == -py_x
 
-def test_nested_enum(TypedClass[double].MyEnum x):
-    return x == 3
+def test_typed_nested_typedef(x):
+    """
+    >>> test_typed_nested_typedef(4)
+    (4, 4.0)
+    """
+    cdef TypedClass[int].MyType ix = x
+    cdef TypedClass[double].MyType dx = x
+    return ix, dx
 
-def test_
+def test_nested_enum(TypedClass[double].MyEnum x):
+    """
+    >>> test_nested_enum(4)
+    False
+    """
+    return x == 0
+
+def test_nested_union(x):
+    """
+    >>> test_nested_union(2)
+    2.0
+    """
+    cdef TypedClass[double].MyUnion u
+    u.int_value = x
+    assert u.int_value == x
+    u.typed_value = x
+    return u.typed_value

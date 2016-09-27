@@ -3628,7 +3628,10 @@ def p_cpp_class_attribute(s, ctx):
     elif s.systring == 'ctypedef':
         return p_ctypedef_statement(s, ctx)
     elif s.sy == 'IDENT' and s.systring in struct_enum_union:
-        return p_struct_enum(s, s.position(), ctx)
+        if s.systring != 'enum':
+            return p_cpp_class_definition(s, s.position(), ctx)
+        else:
+            return p_struct_enum(s, s.position(), ctx)
     else:
         node = p_c_func_or_var_declaration(s, s.position(), ctx)
         if decorators is not None:

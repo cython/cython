@@ -26,6 +26,6 @@ public:
   union MyUnion {
     T typed_value;
     int int_value;
-  }
+  };
   typedef T MyType;
 };
