@@ -756,4 +756,5 @@ default_options = dict(
     common_utility_include_dir = None,
     output_dir=None,
     build_dir=None,
+    cache=None,
 )
