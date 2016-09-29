@@ -567,11 +567,8 @@ class CompilationOptions(object):
             options['language_level'] = int(directives['language_level'])
         if 'formal_grammar' in directives and 'formal_grammar' not in kw:
             options['formal_grammar'] = directives['formal_grammar']
-        if 'cache' in options:
-            if options['cache'] is True:
-                options['cache'] = os.path.expanduser("~/.cycache")
-            elif options['cache'] in (False, None):
-                del options['cache']
+        if options['cache'] is True:
+            options['cache'] = os.path.expanduser("~/.cycache")
 
         self.__dict__.update(options)
 

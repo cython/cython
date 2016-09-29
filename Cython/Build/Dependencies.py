@@ -862,7 +862,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                             print("Compiling %s because it changed." % source)
                         else:
                             print("Compiling %s because it depends on %s." % (source, dep))
-                    if not force and hasattr(options, 'cache'):
+                    if not force and options.cache:
                         extra = m.language
                         fingerprint = deps.transitive_fingerprint(source, extra)
                     else:
@@ -880,7 +880,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                     copy_to_build_dir(source)
         m.sources = new_sources
 
-    if hasattr(options, 'cache'):
+    if options.cache:
         if not os.path.exists(options.cache):
             os.makedirs(options.cache)
     to_compile.sort()
@@ -943,7 +943,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
             print("Failed compilations: %s" % ', '.join(sorted([
                 module.name for module in failed_modules])))
 
-    if hasattr(options, 'cache'):
+    if options.cache:
         cleanup_cache(options.cache, getattr(options, 'cache_size', 1024 * 1024 * 100))
     # cythonize() is often followed by the (non-Python-buffered)
     # compiler output, flush now to avoid interleaving output.
