@@ -114,3 +114,14 @@ cdef class MyDict(dict):
     True
     """
     cdef readonly object attr
+
+cdef class MyException(Exception):
+    """
+    >>> raise MyException(3)
+    Traceback (most recent call last):
+    ...
+    MyException: 3
+    """
+    cdef readonly int value
+    def __cinit__(self, value):
+        self.value = value
