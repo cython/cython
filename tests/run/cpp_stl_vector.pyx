@@ -5,6 +5,7 @@ from cython.operator cimport dereference as d
 from cython.operator cimport preincrement as incr
 
 from libcpp.vector cimport vector
+from libcpp cimport bool as cbool
 
 def simple_test(double x):
     """
@@ -154,3 +155,24 @@ def test_value_type_complex(x):
     """
     cdef vector[double complex].value_type val = x
     return val
+
+def test_bool_vector_convert(o):
+    """
+    >>> test_bool_vector_convert([True, False, None, 3])
+    [True, False, False, True]
+    """
+    cdef vector[cbool] v = o
+    return v
+
+def test_bool_vector_get_set():
+    """
+    >>> test_bool_vector_get_set()
+    """
+    cdef vector[cbool] v = range(5)
+    # Test access.
+    assert not v[0], v
+    assert v[1], v
+#    assert v.at(0)
+    v[0] = True
+    v[1] = False
+    assert <object>v == [True, False, True, True, True]
