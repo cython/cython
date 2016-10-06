@@ -3478,6 +3478,19 @@ class CppClassType(CType):
         if self.namespace is not None:
             specialized.namespace = self.namespace.specialize(values)
         specialized.scope = self.scope.specialize(values, specialized)
+        if self.cname == 'std::vector':
+          # vector<bool> is special cased in the C++ standard, and its
+          # accessors do not necessarily return references to the underlying
+          # elements (which may be bit-packed).
+          # http://www.cplusplus.com/reference/vector/vector-bool/
+          # Here we pretend that the various methods return bool values
+          # (as the actual returned values are coercable to such, and
+          # we don't support call expressions as lvalues).
+          T = values[self.templates[0]]
+          if T.empty_declaration_code() == 'bool':
+            for bit_ref_returner in ('at', 'back', 'front'):
+              if bit_ref_returner in specialized.scope.entries:
+                specialized.scope.entries[bit_ref_returner].type.return_type = T
         return specialized
 
     def deduce_template_params(self, actual):
