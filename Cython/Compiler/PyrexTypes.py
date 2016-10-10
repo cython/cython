@@ -3487,7 +3487,7 @@ class CppClassType(CType):
           # (as the actual returned values are coercable to such, and
           # we don't support call expressions as lvalues).
           T = values[self.templates[0]]
-          if T.empty_declaration_code() == 'bool':
+          if not T.is_fused and T.empty_declaration_code() == 'bool':
             for bit_ref_returner in ('at', 'back', 'front'):
               if bit_ref_returner in specialized.scope.entries:
                 specialized.scope.entries[bit_ref_returner].type.return_type = T
