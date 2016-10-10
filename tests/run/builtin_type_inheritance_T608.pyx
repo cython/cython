@@ -117,7 +117,7 @@ cdef class MyDict(dict):
 
 cdef class MyException(Exception):
     """
-    >>> raise MyException(3)
+    >>> raise MyException(3) # doctest: +IGNORE_EXCEPTION_DETAIL
     Traceback (most recent call last):
     ...
     MyException: 3
