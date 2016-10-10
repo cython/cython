@@ -27,7 +27,7 @@ except Exception:
 if not from_setuptools and not from_pyximport:
     warnings.warn(
         "Cython.Distutils.old_build_ext does not properly handle dependencies "
-        "and is deprectated.")
+        "and is deprecated.")
 
 try:
     from __builtin__ import basestring
