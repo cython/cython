@@ -778,7 +778,7 @@ static PyObject* __Pyx_PyUnicode_Join(PyObject* value_tuple, Py_ssize_t value_co
         ukind = __Pyx_PyUnicode_KIND(uval);
         udata = __Pyx_PyUnicode_DATA(uval);
         if (!CYTHON_PEP393_ENABLED || ukind == result_ukind) {
-            memcpy(result_udata + char_pos * result_ukind, udata, ulength * result_ukind);
+            memcpy((char *)result_udata + char_pos * result_ukind, udata, ulength * result_ukind);
         } else {
             #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030300F0
             _PyUnicode_FastCopyCharacters(result_uval, char_pos, uval, 0, ulength);
