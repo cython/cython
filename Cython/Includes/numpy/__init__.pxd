@@ -369,7 +369,7 @@ cdef extern from "numpy/arrayobject.h":
         npy_intp *ptr
         int len
 
-    void import_array()
+    int _import_array() except -1
 
     #
     # Macros from ndarrayobject.h
@@ -960,7 +960,7 @@ cdef extern from "numpy/ufuncobject.h":
              (PyUFuncGenericFunction *, void **, char *, int, int, int,
               int, char *, char *, int, char *)
 
-    void import_ufunc()
+    int _import_umath() except -1
 
 
 cdef inline void set_array_base(ndarray arr, object base):
@@ -978,3 +978,24 @@ cdef inline object get_array_base(ndarray arr):
         return None
     else:
         return <object>arr.base
+
+
+# Versions of the import_* functions which are more suitable for
+# Cython code.
+cdef inline int import_array() except -1:
+    try:
+        _import_array()
+    except Exception:
+        raise ImportError("numpy.core.multiarray failed to import")
+
+cdef inline int import_umath() except -1:
+    try:
+        _import_umath()
+    except Exception:
+        raise ImportError("numpy.core.umath failed to import")
+
+cdef inline int import_ufunc() except -1:
+    try:
+        _import_umath()
+    except Exception:
+        raise ImportError("numpy.core.umath failed to import")
