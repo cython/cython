@@ -14,6 +14,10 @@ Features added
 
 * Calls to Python functions are faster, following the recent "FastCall"
   optimisations that Victor Stinner implemented for CPython 3.6.
+  See https://bugs.python.org/issue27128 and related issues.
+
+* The new METH_FASTCALL calling convention for PyCFunctions is supported
+  in CPython 3.6.  See https://bugs.python.org/issue27810
 
 * Initial support for using Cython modules in Pyston.  Patch by Daetalus.
 
