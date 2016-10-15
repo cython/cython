@@ -1180,7 +1180,7 @@ static PyObject* __Pyx__CallUnboundCMethod1(__Pyx_CachedCFunction* cfunc, PyObje
 #if CYTHON_COMPILING_IN_CPYTHON
 #define __Pyx_CallUnboundCMethod1(cfunc, self, arg)  \
     ((likely((cfunc)->func && (cfunc)->flag == METH_O)) ? (*((cfunc)->func))(self, arg) : \
-        ((PY_VERSION_HEX >= 0x030600B1 && (cfunc)->func && (cfunc)->flag == METH_FASTCALL) ?
+        ((PY_VERSION_HEX >= 0x030600B1 && (cfunc)->func && (cfunc)->flag == METH_FASTCALL) ? \
             (*(_PyCFunctionFast)(cfunc)->func)(self, &arg, 1, NULL) : \
         __Pyx__CallUnboundCMethod1(cfunc, self, arg)))
 #else
