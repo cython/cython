@@ -196,8 +196,10 @@
 #ifndef METH_FASTCALL
   // new in CPython 3.6
   #define METH_FASTCALL 0x80
-  typedef PyObject *(*_PyCFunctionFast) (PyObject *self, PyObject **args,
-                                         Py_ssize_t nargs, PyObject *kwnames);
+  typedef PyObject *(*__Pyx_PyCFunctionFast) (PyObject *self, PyObject **args,
+                                              Py_ssize_t nargs, PyObject *kwnames);
+#else
+  #define __Pyx_PyCFunctionFast _PyCFunctionFast
 #endif
 #if CYTHON_FAST_PYCCALL
 #define __Pyx_PyFastCFunction_Check(func) \

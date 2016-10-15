@@ -1143,7 +1143,7 @@ static PyObject* __Pyx__CallUnboundCMethod0(__Pyx_CachedCFunction* cfunc, PyObje
         (likely((cfunc)->flag == METH_NOARGS) ?  (*((cfunc)->func))(self, NULL) : \
          (likely((cfunc)->flag == (METH_VARARGS | METH_KEYWORDS)) ?  ((*(PyCFunctionWithKeywords)(cfunc)->func)(self, $empty_tuple, NULL)) : \
              ((cfunc)->flag == METH_VARARGS ?  (*((cfunc)->func))(self, $empty_tuple) : \
-              (PY_VERSION_HEX >= 0x030600B1 && (cfunc)->flag == METH_FASTCALL ?  (*(_PyCFunctionFast)(cfunc)->func)(self, &PyTuple_GET_ITEM($empty_tuple, 0), 0, NULL) : \
+              (PY_VERSION_HEX >= 0x030600B1 && (cfunc)->flag == METH_FASTCALL ?  (*(__Pyx_PyCFunctionFast)(cfunc)->func)(self, &PyTuple_GET_ITEM($empty_tuple, 0), 0, NULL) : \
                 __Pyx__CallUnboundCMethod0(cfunc, self))))) : \
         __Pyx__CallUnboundCMethod0(cfunc, self))
 #else
@@ -1181,7 +1181,7 @@ static PyObject* __Pyx__CallUnboundCMethod1(__Pyx_CachedCFunction* cfunc, PyObje
 #define __Pyx_CallUnboundCMethod1(cfunc, self, arg)  \
     ((likely((cfunc)->func && (cfunc)->flag == METH_O)) ? (*((cfunc)->func))(self, arg) : \
         ((PY_VERSION_HEX >= 0x030600B1 && (cfunc)->func && (cfunc)->flag == METH_FASTCALL) ? \
-            (*(_PyCFunctionFast)(cfunc)->func)(self, &arg, 1, NULL) : \
+            (*(__Pyx_PyCFunctionFast)(cfunc)->func)(self, &arg, 1, NULL) : \
         __Pyx__CallUnboundCMethod1(cfunc, self, arg)))
 #else
 #define __Pyx_CallUnboundCMethod1(cfunc, self, arg)  __Pyx__CallUnboundCMethod1(cfunc, self, arg)
@@ -1652,7 +1652,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyCFunction_FastCall(PyObject *func_obj, P
        caller loses its exception */
     assert(!PyErr_Occurred());
 
-    return (*((_PyCFunctionFast)meth)) (self, args, nargs, NULL);
+    return (*((__Pyx_PyCFunctionFast)meth)) (self, args, nargs, NULL);
 }
 #endif  // CYTHON_FAST_PYCCALL
 
