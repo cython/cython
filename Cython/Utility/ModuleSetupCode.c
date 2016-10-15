@@ -149,6 +149,10 @@
   #endif
 #endif
 
+#if !defined(CYTHON_FAST_PYCCALL)
+#define CYTHON_FAST_PYCCALL  (CYTHON_FAST_PYCALL && PY_VERSION_HEX >= 0x030600B1)
+#endif
+
 #if CYTHON_USE_PYLONG_INTERNALS
   #include "longintrepr.h"
   /* These short defines can easily conflict with other code */
@@ -188,11 +192,18 @@
 #ifndef Py_TPFLAGS_HAVE_FINALIZE
   #define Py_TPFLAGS_HAVE_FINALIZE 0
 #endif
+
 #ifndef METH_FASTCALL
   // new in CPython 3.6
   #define METH_FASTCALL 0x80
   typedef PyObject *(*_PyCFunctionFast) (PyObject *self, PyObject **args,
                                          Py_ssize_t nargs, PyObject *kwnames);
+#endif
+#if CYTHON_FAST_PYCCALL
+#define __Pyx_PyFastCFunction_Check(func) \
+    ((PyCFunction_Check(func) && METH_FASTCALL == PyCFunction_GET_FLAGS(func) & ~(METH_CLASS | METH_STATIC | METH_COEXIST)))
+#else
+#define __Pyx_PyFastCFunction_Check(func) 0
 #endif
 
 /* new Py3.3 unicode type (PEP 393) */

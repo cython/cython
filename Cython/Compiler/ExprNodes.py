@@ -5580,27 +5580,31 @@ class PyMethodCallNode(SimpleCallNode):
 
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("PyFunctionFastCall", "ObjectHandling.c"))
-            code.putln("#if CYTHON_FAST_PYCALL")
-            code.putln("if (PyFunction_Check(%s)) {" % function)
-            code.putln("PyObject *%s[%d] = {%s, %s};" % (
-                Naming.quick_temp_cname,
-                len(args)+1,
-                self_arg,
-                ', '.join(arg.py_result() for arg in args)))
-            code.putln("%s = __Pyx_PyFunction_FastCall(%s, %s+1-%s, %d+%s); %s" % (
-                self.result(),
-                function,
-                Naming.quick_temp_cname,
-                arg_offset,
-                len(args),
-                arg_offset,
-                code.error_goto_if_null(self.result(), self.pos)))
-            code.put_xdecref_clear(self_arg, py_object_type)
-            code.put_gotref(self.py_result())
-            for arg in args:
-                arg.generate_disposal_code(code)
-            code.putln("} else")
-            code.putln("#endif")
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("PyCFunctionFastCall", "ObjectHandling.c"))
+            for test_func, call_prefix in [('PyFunction_Check', 'Py'), ('__Pyx_PyFastCFunction_Check', 'PyC')]:
+                code.putln("#if CYTHON_FAST_%sCALL" % call_prefix.upper())
+                code.putln("if (%s(%s)) {" % (test_func, function))
+                code.putln("PyObject *%s[%d] = {%s, %s};" % (
+                    Naming.quick_temp_cname,
+                    len(args)+1,
+                    self_arg,
+                    ', '.join(arg.py_result() for arg in args)))
+                code.putln("%s = __Pyx_%sFunction_FastCall(%s, %s+1-%s, %d+%s); %s" % (
+                    self.result(),
+                    call_prefix,
+                    function,
+                    Naming.quick_temp_cname,
+                    arg_offset,
+                    len(args),
+                    arg_offset,
+                    code.error_goto_if_null(self.result(), self.pos)))
+                code.put_xdecref_clear(self_arg, py_object_type)
+                code.put_gotref(self.py_result())
+                for arg in args:
+                    arg.generate_disposal_code(code)
+                code.putln("} else")
+                code.putln("#endif")
 
             code.putln("{")
             args_tuple = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
