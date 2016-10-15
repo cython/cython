@@ -188,6 +188,12 @@
 #ifndef Py_TPFLAGS_HAVE_FINALIZE
   #define Py_TPFLAGS_HAVE_FINALIZE 0
 #endif
+#ifndef METH_FASTCALL
+  // new in CPython 3.6
+  #define METH_FASTCALL 0x80
+  typedef PyObject *(*_PyCFunctionFast) (PyObject *self, PyObject **args,
+                                         Py_ssize_t nargs, PyObject *kwnames);
+#endif
 
 /* new Py3.3 unicode type (PEP 393) */
 #if PY_VERSION_HEX > 0x03030000 && defined(PyUnicode_KIND)
