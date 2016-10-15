@@ -12,6 +12,9 @@ Features added
   implementation, which enables introspection and line profiling for them.
   Implementation sponsored by Turbostream (www.turbostream-cfd.com).
 
+* Calls to Python functions are faster, following the recent "FastCall"
+  optimisations that Victor Stinner implemented for CPython 3.6.
+
 * Initial support for using Cython modules in Pyston.  Patch by Daetalus.
 
 * Dynamic Python attributes are allowed on cdef classes if an attribute
