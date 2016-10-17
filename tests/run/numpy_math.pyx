@@ -37,6 +37,7 @@ def test_fp_classif():
     assert not npmath.isnan(d_zero)
     assert not npmath.isnan(f_zero)
 
+    assert npmath.isinf(-npmath.INFINITY)
     assert npmath.isinf(npmath.INFINITY)
     assert npmath.isnan(npmath.NAN)
 
