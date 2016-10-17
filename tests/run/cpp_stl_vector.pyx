@@ -177,3 +177,21 @@ def test_bool_vector_get_set():
     v[0] = True
     v[1] = False
     assert <object>v == [True, False, True, True, True]
+
+ctypedef vector[cbool] vector_bool
+ctypedef vector[int] vector_int
+
+def test_typedef_vector(L):
+    """
+    >>> test_typedef_vector([0, 1, True])
+    ([0, 1, 1, 0, 1, 1], 0, [False, True, True, False, True, True], False)
+    """
+    cdef vector_int vi = L
+    cdef vector_int vi2 = vi
+    vi.insert(vi.begin(), vi2.begin(), vi2.end())
+
+    cdef vector_bool vb = L
+    cdef vector_bool vb2 = vb
+    vb.insert(vb.begin(), vb2.begin(), vb2.end())
+
+    return vi, vi.at(0), vb, vb.at(0)
