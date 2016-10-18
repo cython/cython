@@ -126,7 +126,7 @@ static CYTHON_INLINE int resize_smart(arrayobject *self, Py_ssize_t n) {
         return 0;
     }
     newsize = n + (n / 2) + 1;
-    if (newsize <= self->allocated) {   /* overflow */
+    if (newsize <= n) {   /* overflow */
         PyErr_NoMemory();
         return -1;
     }
