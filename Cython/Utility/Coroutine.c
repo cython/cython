@@ -950,8 +950,11 @@ static void __Pyx_Coroutine_del(PyObject *self) {
 static PyObject *
 __Pyx_Coroutine_get_name(__pyx_CoroutineObject *self)
 {
-    Py_INCREF(self->gi_name);
-    return self->gi_name;
+    PyObject *name = self->gi_name;
+    // avoid NULL pointer dereference during garbage collection
+    if (unlikely(!name)) name = Py_None;
+    Py_INCREF(name);
+    return name;
 }
 
 static int
@@ -978,8 +981,11 @@ __Pyx_Coroutine_set_name(__pyx_CoroutineObject *self, PyObject *value)
 static PyObject *
 __Pyx_Coroutine_get_qualname(__pyx_CoroutineObject *self)
 {
-    Py_INCREF(self->gi_qualname);
-    return self->gi_qualname;
+    PyObject *name = self->gi_qualname;
+    // avoid NULL pointer dereference during garbage collection
+    if (unlikely(!name)) name = Py_None;
+    Py_INCREF(name);
+    return name;
 }
 
 static int
