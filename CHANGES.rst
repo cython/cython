@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-0.25 (2016-??-??)
+0.25 (2016-10-25)
 =================
 
 Features added
@@ -53,8 +53,8 @@ Features added
 
 * Support for bazel using a the pyx_library rule in //Tools:rules.bzl.
 
-Bugs fixed
-----------
+Significant Bugs fixed
+----------------------
 
 * Division of complex numbers avoids overflow by using Smith's method.
 
