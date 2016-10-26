@@ -384,6 +384,29 @@
   #endif
 #endif
 
+// unused attribute
+#ifndef CYTHON_UNUSED
+# if defined(__GNUC__)
+#   if !(defined(__cplusplus)) || (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4))
+#     define CYTHON_UNUSED __attribute__ ((__unused__))
+#   else
+#     define CYTHON_UNUSED
+#   endif
+# elif defined(__ICC) || (defined(__INTEL_COMPILER) && !defined(_MSC_VER))
+#   define CYTHON_UNUSED __attribute__ ((__unused__))
+# else
+#   define CYTHON_UNUSED
+# endif
+#endif
+
+#ifndef CYTHON_NCP_UNUSED
+# if CYTHON_COMPILING_IN_CPYTHON
+#  define CYTHON_NCP_UNUSED
+# else
+#  define CYTHON_NCP_UNUSED CYTHON_UNUSED
+# endif
+#endif
+
 #define __Pyx_void_to_None(void_result) ((void)(void_result), Py_INCREF(Py_None), Py_None)
 
 
@@ -466,29 +489,6 @@ static CYTHON_INLINE float __PYX_NAN() {
 
 
 /////////////// UtilityFunctionPredeclarations.proto ///////////////
-
-/* unused attribute */
-#ifndef CYTHON_UNUSED
-# if defined(__GNUC__)
-#   if !(defined(__cplusplus)) || (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4))
-#     define CYTHON_UNUSED __attribute__ ((__unused__))
-#   else
-#     define CYTHON_UNUSED
-#   endif
-# elif defined(__ICC) || (defined(__INTEL_COMPILER) && !defined(_MSC_VER))
-#   define CYTHON_UNUSED __attribute__ ((__unused__))
-# else
-#   define CYTHON_UNUSED
-# endif
-#endif
-
-#ifndef CYTHON_NCP_UNUSED
-# if CYTHON_COMPILING_IN_CPYTHON
-#  define CYTHON_NCP_UNUSED
-# else
-#  define CYTHON_NCP_UNUSED CYTHON_UNUSED
-# endif
-#endif
 
 typedef struct {PyObject **p; const char *s; const Py_ssize_t n; const char* encoding;
                 const char is_unicode; const char is_str; const char intern; } __Pyx_StringTabEntry; /*proto*/
