@@ -308,6 +308,7 @@
 #endif
 
 #define __Pyx_TypeCheck(obj, type) PyObject_TypeCheck(obj, (PyTypeObject *)type)
+#define __Pyx_PyException_Check(obj) __Pyx_TypeCheck(obj, PyExc_Exception)
 
 #if PY_MAJOR_VERSION >= 3
   #define PyIntObject                  PyLongObject

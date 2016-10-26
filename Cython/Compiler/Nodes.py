@@ -2129,7 +2129,7 @@ class FuncDefNode(StatNode, BlockNode):
                     typeptr_cname,
                     arg.accept_none,
                     arg.name,
-                    arg.type.is_builtin_type,
+                    arg.type.is_builtin_type and arg.type.require_exact,
                     code.error_goto(arg.pos)))
         else:
             error(arg.pos, "Cannot test type of extern C class without type object name specification")
