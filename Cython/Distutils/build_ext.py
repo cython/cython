@@ -20,4 +20,4 @@ class new_build_ext(_build_ext, object):
         super(build_ext, self).finalize_options()
 
 # This will become new_build_ext in the future.
-from Cython.Distutils.old_build_ext as build_ext
+from .old_build_ext import old_build_ext as build_ext
