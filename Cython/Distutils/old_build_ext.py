@@ -21,10 +21,11 @@ try:
     frames = inspect.getouterframes(inspect.currentframe(), 2)
     from_setuptools = 'setuptools/extension.py' in frames[2][1]
     from_pyximport = 'pyximport/pyxbuild.py' in frames[1][1]
+    from_cy_buildext = 'Cython/Distutils/build_ext.py' in frames[1][1]
 except Exception:
-    from_setuptools = from_pyximport = False
+    from_setuptools = from_pyximport = from_cy_buildext = False
 
-if not from_setuptools and not from_pyximport:
+if not from_setuptools and not from_pyximport and not from_cy_buildext:
     warnings.warn(
         "Cython.Distutils.old_build_ext does not properly handle dependencies "
         "and is deprecated.")
