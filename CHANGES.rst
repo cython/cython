@@ -72,6 +72,9 @@ Other changes
   to use cythonize which properly handles dependencies.  The old extension can
   still be found in ``Cython.Distutils.old_build_ext`` and is now deprecated.
 
+* ``directive_defaults`` is no longer available in ``Cython.Compiler.Options``,
+  use ``get_directive_defaults()`` instead.
+
 
 0.24.1 (2016-07-15)
 ===================
