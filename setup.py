@@ -173,8 +173,8 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
     else:
         from Cython.Distutils import build_ext
         if profile:
-            from Cython.Compiler.Options import directive_defaults
-            directive_defaults['profile'] = True
+            from Cython.Compiler.Options import get_directive_defaults
+            get_directive_defaults()['profile'] = True
             sys.stderr.write("Enabled profiling for the Cython binary modules\n")
 
     # not using cythonize() here to let distutils decide whether building extensions was requested
