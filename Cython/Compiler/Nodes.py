@@ -7312,13 +7312,18 @@ class EnsureGILNode(GILExitNode):
         code.put_ensure_gil(declare_gilstate=False)
 
 
+def cython_view_utility_code():
+    from . import MemoryView
+    return MemoryView.view_utility_code
+
+
 utility_code_for_cimports = {
     # utility code (or inlining c) in a pxd (or pyx) file.
     # TODO: Consider a generic user-level mechanism for importing
-    'cpython.array'         : ("ArrayAPI", "arrayarray.h"),
-    'cpython.array.array'   : ("ArrayAPI", "arrayarray.h"),
+    'cpython.array'         : lambda : UtilityCode.load_cached("ArrayAPI", "arrayarray.h"),
+    'cpython.array.array'   : lambda : UtilityCode.load_cached("ArrayAPI", "arrayarray.h"),
+    'cython.view'           : cython_view_utility_code,
 }
-
 
 utility_code_for_imports = {
     # utility code used when special modules are imported.
@@ -7362,8 +7367,7 @@ class CImportStatNode(StatNode):
             name = self.as_name or self.module_name
             env.declare_module(name, module_scope, self.pos)
         if self.module_name in utility_code_for_cimports:
-            env.use_utility_code(UtilityCode.load_cached(
-                *utility_code_for_cimports[self.module_name]))
+            env.use_utility_code(utility_code_for_cimports[self.module_name]())
 
     def analyse_expressions(self, env):
         return self
@@ -7422,15 +7426,13 @@ class FromCImportStatNode(StatNode):
                     local_name = as_name or name
                     env.add_imported_entry(local_name, entry, pos)
 
-        if module_name.startswith('cpython'): # enough for now
+        if module_name.startswith('cpython') or module_name.startswith('cython'): # enough for now
             if module_name in utility_code_for_cimports:
-                env.use_utility_code(UtilityCode.load_cached(
-                    *utility_code_for_cimports[module_name]))
+                env.use_utility_code(utility_code_for_cimports[module_name]())
             for _, name, _, _ in self.imported_names:
                 fqname = '%s.%s' % (module_name, name)
                 if fqname in utility_code_for_cimports:
-                    env.use_utility_code(UtilityCode.load_cached(
-                        *utility_code_for_cimports[fqname]))
+                    env.use_utility_code(utility_code_for_cimports[fqname]())
 
     def declaration_matches(self, entry, kind):
         if not entry.is_type:

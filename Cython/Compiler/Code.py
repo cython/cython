@@ -1478,7 +1478,7 @@ class GlobalState(object):
 
         See UtilityCode.
         """
-        if utility_code not in self.utility_codes:
+        if utility_code and utility_code not in self.utility_codes:
             self.utility_codes.add(utility_code)
             utility_code.put_code(self)
 
