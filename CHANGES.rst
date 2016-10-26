@@ -2,6 +2,25 @@
 Cython Changelog
 ================
 
+0.25.1 (2016-10-26?)
+===================
+
+Bugs fixed
+----------
+
+* Fixes a bug with ``isinstance(o, Exception)`` (Github issue #1496).
+
+* Fixes bug with ``cython.view.array`` missing utility code in some cases
+  (Github issue #1502).
+
+Other changes
+-------------
+
+* The distutils extension ``Cython.Distutils.build_ext`` has been reverted,
+  temporarily, to be ``old_build_ext`` to give projects time to migrate.
+  The new build_ext is available as ``new_build_ext``.
+
+
 0.25 (2016-10-25)
 =================
 
