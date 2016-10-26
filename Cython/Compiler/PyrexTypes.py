@@ -1138,6 +1138,7 @@ class BuiltinObjectType(PyObjectType):
     has_attributes = 1
     base_type = None
     module_name = '__builtin__'
+    require_exact = 1
 
     # fields that let it look like an extension type
     vtabslot_cname = None
@@ -1157,6 +1158,8 @@ class BuiltinObjectType(PyObjectType):
             # Special case the type type, as many C API calls (and other
             # libraries) actually expect a PyTypeObject* for type arguments.
             self.decl_type = objstruct_cname
+        if name == 'Exception':
+            self.require_exact = 0
 
     def set_scope(self, scope):
         self.scope = scope
@@ -1210,13 +1213,15 @@ class BuiltinObjectType(PyObjectType):
             type_check = 'PyString_Check'
         elif type_name == 'basestring':
             type_check = '__Pyx_PyBaseString_Check'
+        elif type_name == 'Exception':
+            type_check = '__Pyx_PyException_Check'
         elif type_name == 'bytearray':
             type_check = 'PyByteArray_Check'
         elif type_name == 'frozenset':
             type_check = 'PyFrozenSet_Check'
         else:
             type_check = 'Py%s_Check' % type_name.capitalize()
-        if exact and type_name not in ('bool', 'slice'):
+        if exact and type_name not in ('bool', 'slice', 'Exception'):
             type_check += 'Exact'
         return type_check
 
