@@ -754,6 +754,10 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                     kwds['sources'] = extra_sources
                 module_metadata[module_name] = {'distutils': kwds, 'module_name': module_name}
                 m = module_list[-1]
+                if file not in m.sources:
+                    # Old setuptools unconditionally replaces .pyx with .c
+                    m.sources.remove(file.rsplit('.')[0] + '.c')
+                    m.sources.insert(0, file)
                 seen.add(name)
     return module_list, module_metadata
 
