@@ -638,7 +638,7 @@ def create_dependency_tree(ctx=None, quiet=False):
 
 # This may be useful for advanced users?
 def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=False, language=None,
-                          exclude_failures=False):
+                          exclude_failures=False, ext_opts={}):
     if language is not None:
         print('Please put "# distutils: language=%s" in your .pyx or .pxd file(s)' % language)
     if exclude is None:
@@ -720,6 +720,11 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                     for key, value in base.values.items():
                         if key not in kwds:
                             kwds[key] = value
+                for key, value in ext_opts.items():
+                    if key not in kwds:
+                        kwds[key] = value
+                    elif isinstance(kwds[key], list):
+                        kwds[key] += value if isinstance(value, list) else [value]
 
                 sources = [file]
                 if template is not None:
@@ -764,7 +769,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
 
 # This is the user-exposed entry point.
 def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, force=False, language=None,
-              exclude_failures=False, **options):
+              exclude_failures=False, ext_opts={}, **options):
     """
     Compile a set of source modules into C/C++ files and return a list of distutils
     Extension objects for them.
@@ -790,6 +795,11 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     be used without compilation.
 
     Additional compilation options can be passed as keyword arguments.
+
+    To add C/C++ compilation options to all generated Extension objects, pass
+    a dictionary object as 'ext_opts'. For example:
+    'ext_opts={"include_dirs":numpy.get_include()}'
+
     """
     if exclude is None:
         exclude = []
@@ -810,7 +820,8 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
         quiet=quiet,
         exclude_failures=exclude_failures,
         language=language,
-        aliases=aliases)
+        aliases=aliases,
+        ext_opts=ext_opts)
     deps = create_dependency_tree(ctx, quiet=quiet)
     build_dir = getattr(options, 'build_dir', None)
 

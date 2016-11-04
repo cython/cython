@@ -72,7 +72,7 @@ is up to date with its main source file and dependencies.
 Configuring the C-Build
 ------------------------
 
-If you have include files in non-standard places you can pass an
+If you have Cython include files in non-standard places you can pass an
 ``include_path`` parameter to ``cythonize``::
 
     from distutils.core import setup
@@ -83,10 +83,18 @@ If you have include files in non-standard places you can pass an
         ext_modules = cythonize("src/*.pyx", include_path = [...]),
     )
 
+To add C/C++ compiler options, e.g. the search path for C header files,
+pass a dictionary object as ``add_opts`` parameter. The dictionary
+values will be appended to the options of the generated Extension
+objects. Check the `distutils documentation`_ for a description of
+possible options.  Some useful options to know about
+are ``include_dirs``, ``libraries``, and ``library_dirs`` which specify where
+to find the ``.h`` and library files when linking to external libraries.
+
 Often, Python packages that offer a C-level API provide a way to find
 the necessary include files, e.g. for NumPy::
 
-    include_path = [numpy.get_include()]
+    add_opts={'include_path' = numpy.get_include()}
 
 Note for Numpy users.  Despite this, you will still get warnings like the
 following from the compiler, because Cython is using a deprecated Numpy API::
@@ -95,7 +103,8 @@ following from the compiler, because Cython is using a deprecated Numpy API::
 
 For the time being, it is just a warning that you can ignore.
 
-If you need to specify compiler options, libraries to link with or other
+If you need to specify individual compiler options per Cython module,
+libraries to link with or other
 linker options you will need to create ``Extension`` instances manually
 (note that glob syntax can still be used to specify multiple extensions
 in one line)::
@@ -150,9 +159,7 @@ as follows::
     )
 
 The :class:`Extension` class takes many options, and a fuller explanation can
-be found in the `distutils documentation`_. Some useful options to know about
-are ``include_dirs``, ``libraries``, and ``library_dirs`` which specify where
-to find the ``.h`` and library files when linking to external libraries.
+be found in the `distutils documentation`_.
 
 .. _distutils documentation: http://docs.python.org/extending/building.html
 
