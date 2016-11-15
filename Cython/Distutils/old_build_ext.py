@@ -17,23 +17,29 @@ from distutils.command import build_ext as _build_ext
 from distutils import sysconfig
 import warnings
 
-try:
-    frames = inspect.getouterframes(inspect.currentframe(), 2)
-    from_setuptools = 'setuptools/extension.py' in frames[2][1]
-    from_pyximport = 'pyximport/pyxbuild.py' in frames[1][1]
-    from_cy_buildext = 'Cython/Distutils/build_ext.py' in frames[1][1]
-except Exception:
-    from_setuptools = from_pyximport = from_cy_buildext = False
-
-if not from_setuptools and not from_pyximport and not from_cy_buildext:
-    warnings.warn(
-        "Cython.Distutils.old_build_ext does not properly handle dependencies "
-        "and is deprecated.")
 
 try:
     from __builtin__ import basestring
 except ImportError:
     basestring = str
+
+
+def _check_stack(path):
+  try:
+    for frame in inspect.getouterframes(inspect.currentframe(), 0):
+      if path in frame[1].replace(os.sep, '/'):
+        return True
+  except Exception:
+    pass
+  return False
+
+if (not _check_stack('setuptools/extensions.py')
+    and not _check_stack('pyximport/pyxbuild.py')
+    and not _check_stack('Cython/Distutils/build_ext.py')):
+    warnings.warn(
+        "Cython.Distutils.old_build_ext does not properly handle dependencies "
+        "and is deprecated.")
+
 
 extension_name_re = _build_ext.extension_name_re
 
