@@ -6541,7 +6541,7 @@ class AttributeNode(ExprNode):
             # Expose python methods for immutable objects.
             if (obj_type.is_string or obj_type.is_cpp_string
                 or obj_type.is_buffer or obj_type.is_numeric
-                or obj_type.is_struct):
+                or (obj_type.is_struct and obj_type.can_coerce_to_pyobject(env))):
                 if not immutable_obj:
                     self.obj = self.obj.coerce_to_pyobject(env)
             elif (obj_type.is_cfunction and (self.obj.is_name or self.obj.is_attribute)
