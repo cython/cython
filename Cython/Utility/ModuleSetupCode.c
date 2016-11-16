@@ -422,7 +422,9 @@
 
 // inline attribute
 #ifndef CYTHON_INLINE
-  #if defined(__GNUC__)
+  #if defined(__clang__)
+    #define CYTHON_INLINE __inline__ __attribute__ ((__unused__))
+  #elif defined(__GNUC__)
     #define CYTHON_INLINE __inline__
   #elif defined(_MSC_VER)
     #define CYTHON_INLINE __inline
@@ -442,7 +444,11 @@
 
 // inline attribute
 #ifndef CYTHON_INLINE
-  #define CYTHON_INLINE inline
+  #if defined(__clang__)
+    #define CYTHON_INLINE __inline__ __attribute__ ((__unused__))
+  #else
+    #define CYTHON_INLINE inline
+  #endif
 #endif
 
 // Work around clang bug http://stackoverflow.com/questions/21847816/c-invoke-nested-template-class-destructor
