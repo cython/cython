@@ -677,9 +677,14 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
             exn_type = Extension
             ext_language = language
         elif isinstance(pattern, (Extension_distutils, Extension_setuptools)):
-            for filepattern in pattern.sources:
-                if os.path.splitext(filepattern)[1] in ('.py', '.pyx'):
-                    break
+            cython_sources = [s for s in pattern.sources
+                              if os.path.splitext(s)[1] in ('.py', '.pyx')]
+            if cython_sources:
+              filepattern = cython_sources[0]
+              if len(cython_sources) > 1:
+                print("Warning: Multiple cython sources found for extension '%s': %s\n"
+                "See http://cython.readthedocs.io/en/latest/src/userguide/sharing_declarations.html "
+                "for sharing declarations among Cython files." % (pattern.name, cython_sources))
             else:
                 # ignore non-cython modules
                 module_list.append(pattern)
