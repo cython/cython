@@ -6309,6 +6309,10 @@ class AttributeNode(ExprNode):
             # builtin types cannot be inferred as C functions as
             # that would prevent their use as bound methods
             return py_object_type
+        elif self.entry and self.entry.is_cmethod:
+            # special case: bound methods should not be inferred
+            # as their unbound method types
+            return py_object_type
         return self.type
 
     def analyse_target_declaration(self, env):
