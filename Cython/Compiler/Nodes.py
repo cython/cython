@@ -4089,8 +4089,7 @@ class GeneratorBodyDefNode(DefNode):
                 lenv.scope_class.type.cast_code('%s->closure' %
                                                 Naming.generator_cname)))
             # FIXME: this silences a potential "unused" warning => try to avoid unused closures in more cases
-            code.putln("if (1); else %s = %s;" % (
-                Naming.cur_scope_cname, Naming.cur_scope_cname))
+            code.putln("CYTHON_MAYBE_UNUSED_VAR(%s);" % Naming.cur_scope_cname)
 
         code.mark_pos(self.pos)
         code.putln("")

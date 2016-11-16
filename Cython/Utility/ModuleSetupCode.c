@@ -399,6 +399,14 @@
 # endif
 #endif
 
+#ifndef CYTHON_MAYBE_UNUSED_VAR
+#  if defined(__cplusplus)
+     template<class T> void CYTHON_MAYBE_UNUSED_VAR( const T& ) { }
+#  else
+#    define CYTHON_MAYBE_UNUSED_VAR(x) (void)(x)
+#  endif
+#endif
+
 #ifndef CYTHON_NCP_UNUSED
 # if CYTHON_COMPILING_IN_CPYTHON
 #  define CYTHON_NCP_UNUSED
