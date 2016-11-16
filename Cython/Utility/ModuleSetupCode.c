@@ -466,6 +466,7 @@ class __Pyx_FakeReference {
     // Const version needed as Cython doesn't know about const overloads (e.g. for stl containers).
     __Pyx_FakeReference(const T& ref) : ptr(const_cast<T*>(&ref)) { }
     T *operator->() { return ptr; }
+    T *operator&() { return ptr; }
     operator T&() { return *ptr; }
     // TODO(robertwb): Delegate all operators (or auto-generate unwrapping code where needed).
     template<typename U> bool operator ==(U other) { return *ptr == other; }
