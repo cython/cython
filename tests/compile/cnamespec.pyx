@@ -14,7 +14,8 @@ cdef double spam "c_spam" (int i, float f):
     cdef double d "c_d"
     cdef foo *p
     global b
-    d = spam(a, f)
+    if i:
+      d = spam(a, f)
     cdef foo q
     q.i = 7
     p = &q

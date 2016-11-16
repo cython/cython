@@ -132,18 +132,18 @@ def test_math():
     assertIs(0!=1, True)
     assertIs(0!=0, False)
 
-    x = [1]
-    assertIs(x is x, True)
-    assertIs(x is not x, False)
+    y = x = [1]
+    assertIs(x is y, True)
+    assertIs(x is not y, False)
 
     assertIs(1 in x, True)
     assertIs(0 in x, False)
     assertIs(1 not in x, False)
     assertIs(0 not in x, True)
 
-    x = {1: 2}
-    assertIs(x is x, True)
-    assertIs(x is not x, False)
+    y = x = {1: 2}
+    assertIs(x is y, True)
+    assertIs(x is not y, False)
 
     assertIs(1 in x, True)
     assertIs(0 in x, False)
