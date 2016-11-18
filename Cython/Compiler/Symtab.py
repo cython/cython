@@ -1816,6 +1816,7 @@ class ClassScope(Scope):
                     py_object_type,
                     [PyrexTypes.CFuncTypeArg("", py_object_type, None)], 0, 0))
             entry.utility_code_definition = Code.UtilityCode.load_cached("ClassMethod", "CythonFunction.c")
+            self.use_entry_utility_code(entry)
             entry.is_cfunction = 1
         return entry
 
