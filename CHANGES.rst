@@ -2,6 +2,19 @@
 Cython Changelog
 ================
 
+0.25.2 (2016-11-xx)
+===================
+
+Bugs fixed
+----------
+
+* Fixes a issue with bound method type inference (Github issue #551).
+
+* Fixes a bug with cascaded tuple assignment (Github issue #1523).
+
+* Fixed or silenced many Clang warnings.
+
+
 0.25.1 (2016-10-26)
 ===================
 
