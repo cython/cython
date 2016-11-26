@@ -606,6 +606,13 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
     }
     #endif
 
+    {{if op == 'Lshift'}}
+    // Work around Github #1530.
+    if (sizeof(long) < 8) {
+        return PyNumber_Lshift(op1, op2);
+    }
+    {{endif}}
+
     #if CYTHON_USE_PYLONG_INTERNALS
     if (likely(PyLong_CheckExact({{pyval}}))) {
         const long {{'a' if order == 'CObj' else 'b'}} = intval;
