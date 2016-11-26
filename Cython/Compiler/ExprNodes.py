@@ -6396,7 +6396,11 @@ class AttributeNode(ExprNode):
                     return self.as_name_node(env, ubcm_entry, target=False)
             elif type.is_enum:
                 if self.attribute in type.values:
-                    return self.as_name_node(env, env.lookup(self.attribute), target=False)
+                    for entry in type.entry.enum_values:
+                        if entry.name == self.attribute:
+                            return self.as_name_node(env, entry, target=False)
+                    else:
+                        error(self.pos, "%s not a known value of %s" % (self.attribute, type))
                 else:
                     error(self.pos, "%s not a known value of %s" % (self.attribute, type))
         return None
