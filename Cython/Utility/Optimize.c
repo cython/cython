@@ -596,7 +596,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
             }
             return PyInt_FromLong(x);
         {{elif op == 'Lshift'}}
-            if (likely(a == (a << b) >> b)) {
+            if (likely(b < sizeof(long)*8 && a == (a << b) >> b) || !a) {
                 return PyInt_FromLong(a {{c_op}} b);
             }
         {{else}}
@@ -685,12 +685,12 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
                 x = a {{c_op}} b;
                 {{if op == 'Lshift'}}
 #ifdef HAVE_LONG_LONG
-                if (unlikely(a != x >> b)) {
+                if (unlikely(!(b < sizeof(long)*8 && a == x >> b)) && a) {
                     ll{{ival}} = {{ival}};
                     goto long_long;
                 }
 #else
-                if (likely(a == x >> b)) /* execute return statement below */
+                if (likely(b < sizeof(long)*8 && a == x >> b) || !a) /* execute return statement below */
 #endif
                 {{endif}}
             {{endif}}
