@@ -1,11 +1,12 @@
 """
+>>> from codecs import open
 >>> import os.path as os_path
 >>> module_path = os_path.join(os_path.dirname(__file__), os_path.basename(__file__).split('.', 1)[0])
 >>> assert module_path.endswith('annotate_html')
 >>> assert os_path.exists(module_path + '.c') or os_path.exists(module_path + '.cpp'), module_path
 >>> assert os_path.exists(module_path + '.html'), module_path
 
->>> with open(module_path + '.html') as html_file:
+>>> with open(module_path + '.html', 'r', 'utf8') as html_file:
 ...     html = html_file.read()
 
 >>> import re
