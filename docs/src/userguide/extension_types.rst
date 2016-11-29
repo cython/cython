@@ -283,7 +283,7 @@ when it is deleted.::
             return "We don't have: %s" % self.cheeses
 
         @cheese.setter
-        def cheese(self):
+        def cheese(self, value):
             self.cheeses.append(value)
 
         @cheese.deleter
