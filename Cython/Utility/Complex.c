@@ -264,9 +264,13 @@ static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject* o) {
             if (a.imag == 0) {
                 if (a.real == 0) {
                     return a;
+                } else if (a.real > 0) {
+                    r = a.real;
+                    theta = 0;
+                } else {
+                    r = -a.real;
+                    theta = atan2{{m}}(0, -1);
                 }
-                r = a.real;
-                theta = 0;
             } else {
                 r = __Pyx_c_abs{{func_suffix}}(a);
                 theta = atan2{{m}}(a.imag, a.real);
