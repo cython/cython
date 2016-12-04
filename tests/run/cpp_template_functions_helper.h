@@ -31,3 +31,8 @@ template <typename T, typename U>
 std::pair<T, U> pair_arg(std::pair<T, U> a) {
     return a;
 }
+
+template <typename T>
+T* pointer_param(T* param) {
+    return param;
+}

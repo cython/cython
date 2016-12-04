@@ -545,6 +545,9 @@ class CPtrDeclaratorNode(CDeclaratorNode):
 
     child_attrs = ["base"]
 
+    def analyse_templates(self):
+        return self.base.analyse_templates()
+
     def analyse(self, base_type, env, nonempty=0):
         if base_type.is_pyobject:
             error(self.pos, "Pointer base type cannot be a Python object")
@@ -556,6 +559,9 @@ class CReferenceDeclaratorNode(CDeclaratorNode):
     # base     CDeclaratorNode
 
     child_attrs = ["base"]
+
+    def analyse_templates(self):
+        return self.base.analyse_templates()
 
     def analyse(self, base_type, env, nonempty=0):
         if base_type.is_pyobject:

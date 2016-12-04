@@ -10,6 +10,7 @@ cdef extern from "cpp_template_functions_helper.h":
         pair[T, U] method[U](T, U)
     cdef T nested_deduction[T](const T*)
     pair[T, U] pair_arg[T, U](pair[T, U] a)
+    cdef T* pointer_param[T](T*)
 
 def test_no_arg():
     """
@@ -63,3 +64,10 @@ def test_class_deductions(pair[long, double] x):
     """
     return pair_arg(x)
 
+def test_deduce_through_pointers(int k):
+    """
+    >>> test_deduce_through_pointers(5)
+    (5, 5.0)
+    """
+    cdef double x = k
+    return pointer_param(&k)[0], pointer_param(&x)[0]
