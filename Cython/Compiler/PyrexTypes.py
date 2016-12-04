@@ -3505,7 +3505,7 @@ class CppClassType(CType):
             # Untemplated type?
             return None
         # TODO(robertwb): Actual type equality.
-        elif self.empty_declaration_code() == actual.template_type.empty_declaration_code():
+        elif (self.template_type or self).empty_declaration_code() == actual.template_type.empty_declaration_code():
             return reduce(
                 merge_template_deductions,
                 [formal_param.deduce_template_params(actual_param)
