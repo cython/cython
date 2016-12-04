@@ -3501,6 +3501,9 @@ class CppClassType(CType):
     def deduce_template_params(self, actual):
         if self == actual:
             return {}
+        elif not hasattr(actual, 'template_type'):
+            # Untemplated type?
+            return None
         # TODO(robertwb): Actual type equality.
         elif self.empty_declaration_code() == actual.template_type.empty_declaration_code():
             return reduce(
