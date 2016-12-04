@@ -20,6 +20,10 @@ class A {
         std::pair<T, U> method(T a, U b) {
             return std::pair<T, U>(a, b);
         }
+        template <typename U>
+        U part_method(std::pair<T, U> p) {
+            return p.second;
+        }
 };
 
 template <typename T>
