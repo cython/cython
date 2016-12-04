@@ -37,11 +37,12 @@ def test_two_params(int x, int y):
 def test_method(int x, int y):
     """
     >>> test_method(5, 10)
-    ((5, 10.0), (5.0, 10))
+    ((5, 10.0), (5.0, 10), (5, 10), (5.0, 10))
     """
     cdef A[int] a_int
     cdef A[double] a_double
-    return a_int.method[float](x, y), a_double.method[int](x, y)
+    return (a_int.method[float](x, y), a_double.method[int](x, y),
+        a_int.method(x, y), a_double.method(x, y))
 #    return a_int.method[double](x, y), a_double.method[int](x, y)
 
 def test_part_method(int x, int y):

@@ -113,10 +113,7 @@ class BaseType(object):
 
         http://en.cppreference.com/w/cpp/language/function_template#Template_argument_deduction
         """
-        if self == actual:
-            return {}
-        else:
-            return None
+        return {}
 
     def __lt__(self, other):
         """
