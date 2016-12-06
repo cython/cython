@@ -2,11 +2,13 @@
 Cython Changelog
 ================
 
-0.25.2 (2016-11-xx)
+0.25.2 (2016-12-xx)
 ===================
 
 Bugs fixed
 ----------
+
+* Fixes several issues with C++ template deduction.
 
 * Fixes a issue with bound method type inference (Github issue #551).
 
