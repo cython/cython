@@ -981,6 +981,7 @@ class BuiltinScope(Scope):
         var_entry.is_readonly = 1
         var_entry.is_builtin = 1
         var_entry.utility_code = utility_code
+        var_entry.scope = self
         if Options.cache_builtins:
             var_entry.is_const = True
         entry.as_variable = var_entry
@@ -1580,6 +1581,7 @@ class ModuleScope(Scope):
         var_entry.is_variable = 1
         var_entry.is_cglobal = 1
         var_entry.is_readonly = 1
+        var_entry.scope = entry.scope
         entry.as_variable = var_entry
 
     def is_cpp(self):
@@ -2122,6 +2124,7 @@ class CClassScope(ClassScope):
         var_entry.is_variable = 1
         var_entry.is_builtin = 1
         var_entry.utility_code = utility_code
+        var_entry.scope = entry.scope
         entry.as_variable = var_entry
         return entry
 
