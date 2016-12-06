@@ -24,6 +24,10 @@ class A {
         U part_method(std::pair<T, U> p) {
             return p.second;
         }
+        template <typename U>
+        U part_method_ref(const std::pair<T, U>& p) {
+            return p.second;
+        }
 };
 
 template <typename T>
@@ -40,3 +44,8 @@ template <typename T>
 T* pointer_param(T* param) {
     return param;
 }
+
+class double_pair : public std::pair<double, double> {
+  public:
+    double_pair(double x, double y) : std::pair<double, double>(x, y) { };
+};

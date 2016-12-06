@@ -9,9 +9,12 @@ cdef extern from "cpp_template_functions_helper.h":
     cdef cppclass A[T]:
         pair[T, U] method[U](T, U)
         U part_method[U](pair[T, U])
+        U part_method_ref[U](pair[T, U]&)
     cdef T nested_deduction[T](const T*)
     pair[T, U] pair_arg[T, U](pair[T, U] a)
     cdef T* pointer_param[T](T*)
+    cdef cppclass double_pair(pair[double, double]):
+        double_pair(double, double)
 
 def test_no_arg():
     """
@@ -48,13 +51,15 @@ def test_method(int x, int y):
 def test_part_method(int x, int y):
     """
     >>> test_part_method(5, 10)
-    (10.0, 10)
+    (10.0, 10, 10.0)
     """
     cdef A[int] a_int
     cdef pair[int, double] p_int = (x, y)
     cdef A[double] a_double
     cdef pair[double, int] p_double = (x, y)
-    return a_int.part_method(p_int), a_double.part_method(p_double)
+    return (a_int.part_method(p_int),
+        a_double.part_method(p_double),
+        a_double.part_method_ref(double_pair(x, y)))
 
 def test_simple_deduction(int x, double y):
     """

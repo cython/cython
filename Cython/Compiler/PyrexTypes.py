@@ -3498,18 +3498,24 @@ class CppClassType(CType):
     def deduce_template_params(self, actual):
         if self == actual:
             return {}
-        elif not hasattr(actual, 'template_type'):
-            # Untemplated type?
-            return None
-        # TODO(robertwb): Actual type equality.
-        elif (self.template_type or self).empty_declaration_code() == actual.template_type.empty_declaration_code():
-            return reduce(
-                merge_template_deductions,
-                [formal_param.deduce_template_params(actual_param)
-                 for (formal_param, actual_param) in zip(self.templates, actual.templates)],
-                {})
+        elif actual.is_cpp_class:
+            self_template_type = self.template_type or self
+            def all_bases(cls):
+                yield cls
+                for parent in cls.base_classes:
+                    for base in all_bases(parent):
+                        yield base
+            for actual_base in all_bases(actual):
+                if (actual_base.template_type
+                    and self_template_type.empty_declaration_code()
+                        == actual_base.template_type.empty_declaration_code()):
+                    return reduce(
+                        merge_template_deductions,
+                        [formal_param.deduce_template_params(actual_param)
+                         for (formal_param, actual_param) in zip(self.templates, actual_base.templates)],
+                        {})
         else:
-            return None
+            return {}
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0,
