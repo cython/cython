@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-0.25.2 (2016-12-xx)
+0.25.2 (2016-12-08)
 ===================
 
 Bugs fixed
@@ -15,6 +15,8 @@ Bugs fixed
 * Fixes a bug with cascaded tuple assignment (Github issue #1523).
 
 * Fixed or silenced many Clang warnings.
+
+* Fixes bug with powers of pure real complex numbers (Github issue #1538).
 
 
 0.25.1 (2016-10-26)
