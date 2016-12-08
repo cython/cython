@@ -4958,13 +4958,12 @@ class CallNode(ExprNode):
                 alternatives = self.function.entry.all_alternatives()
                 arg_types = [arg.infer_type(env) for arg in self.args]
                 func_entry = PyrexTypes.best_match(
-                    arg_types, alternatives, self.pos, env)
+                    arg_types, alternatives, None, env)
                 if func_entry:
                     func_type = func_entry.type
                     if func_type.is_ptr:
                         func_type = func_type.base_type
                     return func_type.return_type
-
             return func_type.return_type
         elif func_type is type_type:
             if function.is_name and function.entry and function.entry.type:
