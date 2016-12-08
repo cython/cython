@@ -4954,11 +4954,10 @@ class CallNode(ExprNode):
         if func_type.is_ptr:
             func_type = func_type.base_type
         if func_type.is_cfunction:
-            if hasattr(self.function, 'entry'):
+            if getattr(self.function, 'entry', None) and hasattr(self, 'args'):
                 alternatives = self.function.entry.all_alternatives()
                 arg_types = [arg.infer_type(env) for arg in self.args]
-                func_entry = PyrexTypes.best_match(
-                    arg_types, alternatives, None, env)
+                func_entry = PyrexTypes.best_match(arg_types, alternatives)
                 if func_entry:
                     func_type = func_entry.type
                     if func_type.is_ptr:
@@ -5185,7 +5184,7 @@ class SimpleCallNode(CallNode):
                 alternatives = overloaded_entry.all_alternatives()
 
             entry = PyrexTypes.best_match(
-                [arg.type for arg in args], alternatives, self.pos, env)
+                [arg.type for arg in args], alternatives, self.pos, env, args)
 
             if not entry:
                 self.type = PyrexTypes.error_type

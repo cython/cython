@@ -4021,7 +4021,7 @@ def is_promotion(src_type, dst_type):
             return src_type.is_float and src_type.rank <= dst_type.rank
     return False
 
-def best_match(arg_types, functions, pos=None, env=None):
+def best_match(arg_types, functions, pos=None, env=None, args=None):
     """
     Given a list args of arguments and a list of functions, choose one
     to call which seems to be the "best" fit for this list of arguments.
@@ -4114,8 +4114,8 @@ def best_match(arg_types, functions, pos=None, env=None):
 
     for index, (func, func_type) in enumerate(candidates):
         score = [0,0,0,0]
-        for i in range(min(len(args), len(func_type.args))):
-            src_type = args[i].type
+        for i in range(min(actual_nargs, len(func_type.args))):
+            src_type = arg_types[i]
             dst_type = func_type.args[i].type
 
             assignable = dst_type.assignable_from(src_type)
