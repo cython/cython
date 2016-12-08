@@ -1,5 +1,6 @@
 # tag: cpp
 
+cimport cython
 from libcpp.pair cimport pair
 
 cdef extern from "cpp_template_functions_helper.h":
@@ -89,3 +90,12 @@ def test_deduce_through_pointers(int k):
     """
     cdef double x = k
     return pointer_param(&k)[0], pointer_param(&x)[0]
+
+def test_inference(int k):
+    """
+    >>> test_inference(27)
+    27
+    """
+    res = one_param(&k)
+    assert cython.typeof(res) == 'int *', cython.typeof(res)
+    return res[0]

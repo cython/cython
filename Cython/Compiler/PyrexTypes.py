@@ -4021,7 +4021,7 @@ def is_promotion(src_type, dst_type):
             return src_type.is_float and src_type.rank <= dst_type.rank
     return False
 
-def best_match(args, functions, pos=None, env=None):
+def best_match(arg_types, functions, pos=None, env=None):
     """
     Given a list args of arguments and a list of functions, choose one
     to call which seems to be the "best" fit for this list of arguments.
@@ -4044,7 +4044,7 @@ def best_match(args, functions, pos=None, env=None):
     is not None, we also generate an error.
     """
     # TODO: args should be a list of types, not a list of Nodes.
-    actual_nargs = len(args)
+    actual_nargs = len(arg_types)
 
     candidates = []
     errors = []
@@ -4075,7 +4075,6 @@ def best_match(args, functions, pos=None, env=None):
             errors.append((func, error_mesg))
             continue
         if func_type.templates:
-            arg_types = [arg.type for arg in args]
             deductions = reduce(
                 merge_template_deductions,
                 [pattern.type.deduce_template_params(actual) for (pattern, actual) in zip(func_type.args, arg_types)],

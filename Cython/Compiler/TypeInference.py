@@ -475,6 +475,7 @@ class SimpleAssignmentTypeInferer(object):
                          for assmt in entry.cf_assignments]
                 new_type = spanning_type(types, entry.might_overflow, entry.pos, scope)
                 if new_type != entry.type:
+                    print "FOUND", entry, entry.type, new_type, type(new_type)
                     self.set_entry_type(entry, new_type)
                     dirty = True
             return dirty

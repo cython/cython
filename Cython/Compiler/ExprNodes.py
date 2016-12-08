@@ -4940,6 +4940,7 @@ class CallNode(ExprNode):
     may_return_none = None
 
     def infer_type(self, env):
+        # TODO(robertwb): Reduce redundancy with analyse_types.
         function = self.function
         func_type = function.infer_type(env)
         if isinstance(function, NewExprNode):
@@ -4953,6 +4954,17 @@ class CallNode(ExprNode):
         if func_type.is_ptr:
             func_type = func_type.base_type
         if func_type.is_cfunction:
+            if hasattr(self.function, 'entry'):
+                alternatives = self.function.entry.all_alternatives()
+                arg_types = [arg.infer_type(env) for arg in self.args]
+                func_entry = PyrexTypes.best_match(
+                    arg_types, alternatives, self.pos, env)
+                if func_entry:
+                    func_type = func_entry.type
+                    if func_type.is_ptr:
+                        func_type = func_type.base_type
+                    return func_type.return_type
+
             return func_type.return_type
         elif func_type is type_type:
             if function.is_name and function.entry and function.entry.type:
@@ -5173,7 +5185,8 @@ class SimpleCallNode(CallNode):
             else:
                 alternatives = overloaded_entry.all_alternatives()
 
-            entry = PyrexTypes.best_match(args, alternatives, self.pos, env)
+            entry = PyrexTypes.best_match(
+                [arg.type for arg in args], alternatives, self.pos, env)
 
             if not entry:
                 self.type = PyrexTypes.error_type
