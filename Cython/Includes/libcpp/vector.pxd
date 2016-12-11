@@ -8,6 +8,7 @@ cdef extern from "<vector>" namespace "std" nogil:
             iterator operator--()
             iterator operator+(size_t)
             iterator operator-(size_t)
+            size_t operator-(iterator)
             bint operator==(iterator)
             bint operator!=(iterator)
             bint operator<(iterator)
