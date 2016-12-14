@@ -111,7 +111,8 @@ def nonempty(it, error_msg="expected non-empty iterator"):
 @cached_function
 def file_hash(filename):
     path = os.path.normpath(filename.encode("UTF-8"))
-    m = hashlib.md5(str(len(path)) + ":")
+    prefix = (str(len(path)) + ":").encode("UTF-8")
+    m = hashlib.md5(prefix)
     m.update(path)
     f = open(filename, 'rb')
     try:
@@ -565,13 +566,13 @@ class DependencyTree(object):
 
     def transitive_fingerprint(self, filename, extra=None):
         try:
-            m = hashlib.md5(__version__)
-            m.update(file_hash(filename))
+            m = hashlib.md5(__version__.encode('UTF-8'))
+            m.update(file_hash(filename).encode('UTF-8'))
             for x in sorted(self.all_dependencies(filename)):
                 if os.path.splitext(x)[1] not in ('.c', '.cpp', '.h'):
-                    m.update(file_hash(x))
+                    m.update(file_hash(x).encode('UTF-8'))
             if extra is not None:
-                m.update(str(extra))
+                m.update(str(extra).encode('UTF-8'))
             return m.hexdigest()
         except IOError:
             return None
