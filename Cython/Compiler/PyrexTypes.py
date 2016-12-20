@@ -26,9 +26,16 @@ class BaseType(object):
     # List of attribute names of any subtypes
     subtypes = []
     _empty_declaration = None
+    default_format_spec = None
 
     def can_coerce_to_pyobject(self, env):
         return False
+
+    def can_coerce_to_pystring(self, env, format_spec=None):
+        return False
+
+    def convert_to_pystring(self, cvalue, code, format_spec=None):
+        raise NotImplementedError("C types that support string formatting must override this method")
 
     def cast_code(self, expr_code):
         return "((%s)%s)" % (self.empty_declaration_code(), expr_code)
@@ -1620,10 +1627,54 @@ class CIntType(CNumericType):
     typedef_flag = 0
     to_py_function = None
     from_py_function = None
+    to_pyunicode_utility = None
+    default_format_spec = 'd'
     exception_value = -1
 
     def can_coerce_to_pyobject(self, env):
         return True
+
+    @staticmethod
+    def _parse_format(format_spec):
+        padding = ' '
+        if not format_spec:
+            return ('d', 0, padding)
+        format_type = format_spec[-1]
+        if format_type in ('o', 'd', 'x', 'X'):
+            prefix = format_spec[:-1]
+        elif format_type.isdigit():
+            format_type = 'd'
+            prefix = format_spec
+        else:
+            return (None, 0, padding)
+        if not prefix:
+            return (format_type, 0, padding)
+        if prefix[0] == '-':
+            prefix = prefix[1:]
+        if prefix and prefix[0] == '0':
+            padding = '0'
+            prefix = prefix.lstrip('0')
+        if prefix.isdigit():
+            return (format_type, int(prefix), padding)
+        return (None, 0, padding)
+
+    def can_coerce_to_pystring(self, env, format_spec=None):
+        format_type, width, padding = self._parse_format(format_spec)
+        return format_type is not None and width <= 2**30
+
+    def convert_to_pystring(self, cvalue, code, format_spec=None):
+        if self.to_pyunicode_utility is None:
+            utility_code_name = "__Pyx_PyUnicode_From_" + self.specialization_name()
+            to_pyunicode_utility = TempitaUtilityCode.load_cached(
+                "CIntToPyUnicode", "TypeConversion.c",
+                context={"TYPE": self.empty_declaration_code(),
+                         "TO_PY_FUNCTION": utility_code_name})
+            self.to_pyunicode_utility = (utility_code_name, to_pyunicode_utility)
+        else:
+            utility_code_name, to_pyunicode_utility = self.to_pyunicode_utility
+        code.globalstate.use_utility_code(to_pyunicode_utility)
+        format_type, width, padding_char = self._parse_format(format_spec)
+        return "%s(%s, %d, '%s', '%s')" % (utility_code_name, cvalue, width, padding_char, format_type)
 
     def create_to_py_utility_code(self, env):
         if type(self).to_py_function is None:
@@ -1731,13 +1782,38 @@ class CReturnCodeType(CIntType):
 
     is_returncode = True
     exception_check = False
+    default_format_spec = ''
+
+    def can_coerce_to_pystring(self, env, format_spec=None):
+        return not format_spec
+
+    def convert_to_pystring(self, cvalue, code, format_spec=None):
+        return "__Pyx_NewRef(%s)" % code.globalstate.get_py_string_const(StringEncoding.EncodedString("None")).cname
 
 
 class CBIntType(CIntType):
 
     to_py_function = "__Pyx_PyBool_FromLong"
     from_py_function = "__Pyx_PyObject_IsTrue"
-    exception_check = 1 # for C++ bool
+    exception_check = 1  # for C++ bool
+    default_format_spec = ''
+
+    def can_coerce_to_pystring(self, env, format_spec=None):
+        return not format_spec or super(CBIntType, self).can_coerce_to_pystring(env, format_spec)
+
+    def convert_to_pystring(self, cvalue, code, format_spec=None):
+        if format_spec:
+            return super(CBIntType, self).convert_to_pystring(cvalue, code, format_spec)
+        # NOTE: no caching here as the string constant cnames depend on the current module
+        utility_code_name = "__Pyx_PyUnicode_FromBInt_" + self.specialization_name()
+        to_pyunicode_utility = TempitaUtilityCode.load_cached(
+            "CBIntToPyUnicode", "TypeConversion.c", context={
+                "TRUE_CONST":  code.globalstate.get_py_string_const(StringEncoding.EncodedString("True")).cname,
+                "FALSE_CONST": code.globalstate.get_py_string_const(StringEncoding.EncodedString("False")).cname,
+                "TO_PY_FUNCTION": utility_code_name,
+            })
+        code.globalstate.use_utility_code(to_pyunicode_utility)
+        return "%s(%s)" % (utility_code_name, cvalue)
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
@@ -1773,6 +1849,9 @@ class CPyUCS4IntType(CIntType):
     to_py_function = "PyUnicode_FromOrdinal"
     from_py_function = "__Pyx_PyObject_AsPy_UCS4"
 
+    def can_coerce_to_pystring(self, env, format_spec=None):
+        return False  # does the right thing anyway
+
     def create_from_py_utility_code(self, env):
         env.use_utility_code(UtilityCode.load_cached("ObjectAsUCS4", "TypeConversion.c"))
         return True
@@ -1793,6 +1872,9 @@ class CPyUnicodeIntType(CIntType):
 
     to_py_function = "PyUnicode_FromOrdinal"
     from_py_function = "__Pyx_PyObject_AsPy_UNICODE"
+
+    def can_coerce_to_pystring(self, env, format_spec=None):
+        return False  # does the right thing anyway
 
     def create_from_py_utility_code(self, env):
         env.use_utility_code(UtilityCode.load_cached("ObjectAsPyUnicode", "TypeConversion.c"))
@@ -1955,41 +2037,36 @@ class CComplexType(CNumericType):
 
         return True
 
+    def _utility_code_context(self):
+        return {
+            'type': self.empty_declaration_code(),
+            'type_name': self.specialization_name(),
+            'real_type': self.real_type.empty_declaration_code(),
+            'm': self.funcsuffix,
+            'is_float': int(self.real_type.is_float)
+        }
+
     def create_declaration_utility_code(self, env):
         # This must always be run, because a single CComplexType instance can be shared
         # across multiple compilations (the one created in the module scope)
-        env.use_utility_code(complex_header_utility_code)
-        env.use_utility_code(complex_real_imag_utility_code)
-        for utility_code in (complex_type_utility_code,
-                             complex_from_parts_utility_code,
-                             complex_arithmetic_utility_code):
-            env.use_utility_code(
-                utility_code.specialize(
-                    self,
-                    real_type = self.real_type.empty_declaration_code(),
-                    m = self.funcsuffix,
-                    is_float = self.real_type.is_float))
+        env.use_utility_code(UtilityCode.load_cached('Header', 'Complex.c'))
+        env.use_utility_code(UtilityCode.load_cached('RealImag', 'Complex.c'))
+        env.use_utility_code(TempitaUtilityCode.load_cached(
+            'Declarations', 'Complex.c', self._utility_code_context()))
+        env.use_utility_code(TempitaUtilityCode.load_cached(
+            'Arithmetic', 'Complex.c', self._utility_code_context()))
         return True
 
     def can_coerce_to_pyobject(self, env):
         return True
 
     def create_to_py_utility_code(self, env):
-        env.use_utility_code(complex_real_imag_utility_code)
-        env.use_utility_code(complex_to_py_utility_code)
+        env.use_utility_code(UtilityCode.load_cached('ToPy', 'Complex.c'))
         return True
 
     def create_from_py_utility_code(self, env):
-        self.real_type.create_from_py_utility_code(env)
-
-        for utility_code in (complex_from_parts_utility_code,
-                             complex_from_py_utility_code):
-            env.use_utility_code(
-                utility_code.specialize(
-                    self,
-                    real_type = self.real_type.empty_declaration_code(),
-                    m = self.funcsuffix,
-                    is_float = self.real_type.is_float))
+        env.use_utility_code(TempitaUtilityCode.load_cached(
+            'FromPy', 'Complex.c', self._utility_code_context()))
         self.from_py_function = "__Pyx_PyComplex_As_" + self.specialization_name()
         return True
 
@@ -2027,265 +2104,6 @@ complex_ops = {
     (2, '=='): 'eq',
 }
 
-complex_header_utility_code = UtilityCode(
-proto_block='h_code',
-proto="""
-#if !defined(CYTHON_CCOMPLEX)
-  #if defined(__cplusplus)
-    #define CYTHON_CCOMPLEX 1
-  #elif defined(_Complex_I)
-    #define CYTHON_CCOMPLEX 1
-  #else
-    #define CYTHON_CCOMPLEX 0
-  #endif
-#endif
-
-#if CYTHON_CCOMPLEX
-  #ifdef __cplusplus
-    #include <complex>
-  #else
-    #include <complex.h>
-  #endif
-#endif
-
-#if CYTHON_CCOMPLEX && !defined(__cplusplus) && defined(__sun__) && defined(__GNUC__)
-  #undef _Complex_I
-  #define _Complex_I 1.0fj
-#endif
-""")
-
-complex_real_imag_utility_code = UtilityCode(
-proto="""
-#if CYTHON_CCOMPLEX
-  #ifdef __cplusplus
-    #define __Pyx_CREAL(z) ((z).real())
-    #define __Pyx_CIMAG(z) ((z).imag())
-  #else
-    #define __Pyx_CREAL(z) (__real__(z))
-    #define __Pyx_CIMAG(z) (__imag__(z))
-  #endif
-#else
-    #define __Pyx_CREAL(z) ((z).real)
-    #define __Pyx_CIMAG(z) ((z).imag)
-#endif
-
-#if defined(__cplusplus) && CYTHON_CCOMPLEX \
-        && (defined(_WIN32) || defined(__clang__) || (defined(__GNUC__) && (__GNUC__ >= 5 || __GNUC__ == 4 && __GNUC_MINOR__ >= 4 )) || __cplusplus >= 201103)
-    #define __Pyx_SET_CREAL(z,x) ((z).real(x))
-    #define __Pyx_SET_CIMAG(z,y) ((z).imag(y))
-#else
-    #define __Pyx_SET_CREAL(z,x) __Pyx_CREAL(z) = (x)
-    #define __Pyx_SET_CIMAG(z,y) __Pyx_CIMAG(z) = (y)
-#endif
-""")
-
-complex_type_utility_code = UtilityCode(
-proto_block='complex_type_declarations',
-proto="""
-#if CYTHON_CCOMPLEX
-  #ifdef __cplusplus
-    typedef ::std::complex< %(real_type)s > %(type_name)s;
-  #else
-    typedef %(real_type)s _Complex %(type_name)s;
-  #endif
-#else
-    typedef struct { %(real_type)s real, imag; } %(type_name)s;
-#endif
-""")
-
-complex_from_parts_utility_code = UtilityCode(
-proto_block='utility_code_proto',
-proto="""
-static CYTHON_INLINE %(type)s %(type_name)s_from_parts(%(real_type)s, %(real_type)s);
-""",
-impl="""
-#if CYTHON_CCOMPLEX
-  #ifdef __cplusplus
-    static CYTHON_INLINE %(type)s %(type_name)s_from_parts(%(real_type)s x, %(real_type)s y) {
-      return ::std::complex< %(real_type)s >(x, y);
-    }
-  #else
-    static CYTHON_INLINE %(type)s %(type_name)s_from_parts(%(real_type)s x, %(real_type)s y) {
-      return x + y*(%(type)s)_Complex_I;
-    }
-  #endif
-#else
-    static CYTHON_INLINE %(type)s %(type_name)s_from_parts(%(real_type)s x, %(real_type)s y) {
-      %(type)s z;
-      z.real = x;
-      z.imag = y;
-      return z;
-    }
-#endif
-""")
-
-complex_to_py_utility_code = UtilityCode(
-proto="""
-#define __pyx_PyComplex_FromComplex(z) \\
-        PyComplex_FromDoubles((double)__Pyx_CREAL(z), \\
-                              (double)__Pyx_CIMAG(z))
-""")
-
-complex_from_py_utility_code = UtilityCode(
-proto="""
-static %(type)s __Pyx_PyComplex_As_%(type_name)s(PyObject*);
-""",
-impl="""
-static %(type)s __Pyx_PyComplex_As_%(type_name)s(PyObject* o) {
-    Py_complex cval;
-#if CYTHON_COMPILING_IN_CPYTHON
-    if (PyComplex_CheckExact(o))
-        cval = ((PyComplexObject *)o)->cval;
-    else
-#endif
-        cval = PyComplex_AsCComplex(o);
-    return %(type_name)s_from_parts(
-               (%(real_type)s)cval.real,
-               (%(real_type)s)cval.imag);
-}
-""")
-
-complex_arithmetic_utility_code = UtilityCode(
-proto="""
-#if CYTHON_CCOMPLEX
-    #define __Pyx_c_eq%(m)s(a, b)   ((a)==(b))
-    #define __Pyx_c_sum%(m)s(a, b)  ((a)+(b))
-    #define __Pyx_c_diff%(m)s(a, b) ((a)-(b))
-    #define __Pyx_c_prod%(m)s(a, b) ((a)*(b))
-    #define __Pyx_c_quot%(m)s(a, b) ((a)/(b))
-    #define __Pyx_c_neg%(m)s(a)     (-(a))
-  #ifdef __cplusplus
-    #define __Pyx_c_is_zero%(m)s(z) ((z)==(%(real_type)s)0)
-    #define __Pyx_c_conj%(m)s(z)    (::std::conj(z))
-    #if %(is_float)s
-        #define __Pyx_c_abs%(m)s(z)     (::std::abs(z))
-        #define __Pyx_c_pow%(m)s(a, b)  (::std::pow(a, b))
-    #endif
-  #else
-    #define __Pyx_c_is_zero%(m)s(z) ((z)==0)
-    #define __Pyx_c_conj%(m)s(z)    (conj%(m)s(z))
-    #if %(is_float)s
-        #define __Pyx_c_abs%(m)s(z)     (cabs%(m)s(z))
-        #define __Pyx_c_pow%(m)s(a, b)  (cpow%(m)s(a, b))
-    #endif
- #endif
-#else
-    static CYTHON_INLINE int __Pyx_c_eq%(m)s(%(type)s, %(type)s);
-    static CYTHON_INLINE %(type)s __Pyx_c_sum%(m)s(%(type)s, %(type)s);
-    static CYTHON_INLINE %(type)s __Pyx_c_diff%(m)s(%(type)s, %(type)s);
-    static CYTHON_INLINE %(type)s __Pyx_c_prod%(m)s(%(type)s, %(type)s);
-    static CYTHON_INLINE %(type)s __Pyx_c_quot%(m)s(%(type)s, %(type)s);
-    static CYTHON_INLINE %(type)s __Pyx_c_neg%(m)s(%(type)s);
-    static CYTHON_INLINE int __Pyx_c_is_zero%(m)s(%(type)s);
-    static CYTHON_INLINE %(type)s __Pyx_c_conj%(m)s(%(type)s);
-    #if %(is_float)s
-        static CYTHON_INLINE %(real_type)s __Pyx_c_abs%(m)s(%(type)s);
-        static CYTHON_INLINE %(type)s __Pyx_c_pow%(m)s(%(type)s, %(type)s);
-    #endif
-#endif
-""",
-impl="""
-#if CYTHON_CCOMPLEX
-#else
-    static CYTHON_INLINE int __Pyx_c_eq%(m)s(%(type)s a, %(type)s b) {
-       return (a.real == b.real) && (a.imag == b.imag);
-    }
-    static CYTHON_INLINE %(type)s __Pyx_c_sum%(m)s(%(type)s a, %(type)s b) {
-        %(type)s z;
-        z.real = a.real + b.real;
-        z.imag = a.imag + b.imag;
-        return z;
-    }
-    static CYTHON_INLINE %(type)s __Pyx_c_diff%(m)s(%(type)s a, %(type)s b) {
-        %(type)s z;
-        z.real = a.real - b.real;
-        z.imag = a.imag - b.imag;
-        return z;
-    }
-    static CYTHON_INLINE %(type)s __Pyx_c_prod%(m)s(%(type)s a, %(type)s b) {
-        %(type)s z;
-        z.real = a.real * b.real - a.imag * b.imag;
-        z.imag = a.real * b.imag + a.imag * b.real;
-        return z;
-    }
-    static CYTHON_INLINE %(type)s __Pyx_c_quot%(m)s(%(type)s a, %(type)s b) {
-        %(type)s z;
-        %(real_type)s denom = b.real * b.real + b.imag * b.imag;
-        z.real = (a.real * b.real + a.imag * b.imag) / denom;
-        z.imag = (a.imag * b.real - a.real * b.imag) / denom;
-        return z;
-    }
-    static CYTHON_INLINE %(type)s __Pyx_c_neg%(m)s(%(type)s a) {
-        %(type)s z;
-        z.real = -a.real;
-        z.imag = -a.imag;
-        return z;
-    }
-    static CYTHON_INLINE int __Pyx_c_is_zero%(m)s(%(type)s a) {
-       return (a.real == 0) && (a.imag == 0);
-    }
-    static CYTHON_INLINE %(type)s __Pyx_c_conj%(m)s(%(type)s a) {
-        %(type)s z;
-        z.real =  a.real;
-        z.imag = -a.imag;
-        return z;
-    }
-    #if %(is_float)s
-        static CYTHON_INLINE %(real_type)s __Pyx_c_abs%(m)s(%(type)s z) {
-          #if !defined(HAVE_HYPOT) || defined(_MSC_VER)
-            return sqrt%(m)s(z.real*z.real + z.imag*z.imag);
-          #else
-            return hypot%(m)s(z.real, z.imag);
-          #endif
-        }
-        static CYTHON_INLINE %(type)s __Pyx_c_pow%(m)s(%(type)s a, %(type)s b) {
-            %(type)s z;
-            %(real_type)s r, lnr, theta, z_r, z_theta;
-            if (b.imag == 0 && b.real == (int)b.real) {
-                if (b.real < 0) {
-                    %(real_type)s denom = a.real * a.real + a.imag * a.imag;
-                    a.real = a.real / denom;
-                    a.imag = -a.imag / denom;
-                    b.real = -b.real;
-                }
-                switch ((int)b.real) {
-                    case 0:
-                        z.real = 1;
-                        z.imag = 0;
-                        return z;
-                    case 1:
-                        return a;
-                    case 2:
-                        z = __Pyx_c_prod%(m)s(a, a);
-                        return __Pyx_c_prod%(m)s(a, a);
-                    case 3:
-                        z = __Pyx_c_prod%(m)s(a, a);
-                        return __Pyx_c_prod%(m)s(z, a);
-                    case 4:
-                        z = __Pyx_c_prod%(m)s(a, a);
-                        return __Pyx_c_prod%(m)s(z, z);
-                }
-            }
-            if (a.imag == 0) {
-                if (a.real == 0) {
-                    return a;
-                }
-                r = a.real;
-                theta = 0;
-            } else {
-                r = __Pyx_c_abs%(m)s(a);
-                theta = atan2%(m)s(a.imag, a.real);
-            }
-            lnr = log%(m)s(r);
-            z_r = exp%(m)s(lnr * b.real - theta * b.imag);
-            z_theta = theta * b.real + lnr * b.imag;
-            z.real = z_r * cos%(m)s(z_theta);
-            z.imag = z_r * sin%(m)s(z_theta);
-            return z;
-        }
-    #endif
-#endif
-""")
 
 class CPointerBaseType(CType):
     # common base type for pointer/array types

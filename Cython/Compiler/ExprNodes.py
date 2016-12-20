@@ -2975,6 +2975,10 @@ class JoinedStrNode(ExprNode):
         self.values = [v.analyse_types(env).coerce_to_pyobject(env) for v in self.values]
         return self
 
+    def may_be_none(self):
+        # PyUnicode_Join() always returns a Unicode string or raises an exception
+        return False
+
     def generate_evaluation_code(self, code):
         code.mark_pos(self.pos)
         num_items = len(self.values)
@@ -3012,10 +3016,13 @@ class FormattedValueNode(ExprNode):
     # value           ExprNode                The expression itself
     # conversion_char str or None             Type conversion (!s, !r, !a, or none)
     # format_spec     JoinedStrNode or None   Format string passed to __format__
+    # c_format_spec   str or None             If not None, formatting can be done at the C level
+
     subexprs = ['value', 'format_spec']
 
     type = unicode_type
     is_temp = True
+    c_format_spec = None
 
     find_conversion_func = {
         's': 'PyObject_Str',
@@ -3028,13 +3035,35 @@ class FormattedValueNode(ExprNode):
         return False
 
     def analyse_types(self, env):
-        self.value = self.value.analyse_types(env).coerce_to_pyobject(env)
+        self.value = self.value.analyse_types(env)
+        if not self.format_spec or self.format_spec.is_string_literal:
+            c_format_spec = self.format_spec.value if self.format_spec else self.value.type.default_format_spec
+            if self.value.type.can_coerce_to_pystring(env, format_spec=c_format_spec):
+                self.c_format_spec = c_format_spec
+
         if self.format_spec:
             self.format_spec = self.format_spec.analyse_types(env).coerce_to_pyobject(env)
+        if self.c_format_spec is None:
+            self.value = self.value.coerce_to_pyobject(env)
+            if not self.format_spec and not self.conversion_char:
+                if self.value.type is unicode_type and not self.value.may_be_none():
+                    # value is definitely a unicode string and we don't format it any special
+                    return self.value
         return self
 
     def generate_result_code(self, code):
+        if self.c_format_spec is not None and not self.value.type.is_pyobject:
+            convert_func_call = self.value.type.convert_to_pystring(
+                self.value.result(), code, self.c_format_spec)
+            code.putln("%s = %s; %s" % (
+                self.result(),
+                convert_func_call,
+                code.error_goto_if_null(self.result(), self.pos)))
+            code.put_gotref(self.py_result())
+            return
+
         value_result = self.value.py_result()
+        value_is_unicode = self.value.type is unicode_type and not self.value.may_be_none()
         if self.format_spec:
             format_func = '__Pyx_PyObject_Format'
             format_spec = self.format_spec.py_result()
@@ -3044,9 +3073,14 @@ class FormattedValueNode(ExprNode):
             # passing a Unicode format string in Py2 forces PyObject_Format() to also return a Unicode string
             format_spec = Naming.empty_unicode
 
-        if self.conversion_char:
-            fn = self.find_conversion_func(self.conversion_char)
-            assert fn is not None, "invalid conversion character found: '%s'" % self.conversion_char
+        conversion_char = self.conversion_char
+        if conversion_char == 's' and value_is_unicode:
+            # no need to pipe unicode strings through str()
+            conversion_char = None
+
+        if conversion_char:
+            fn = self.find_conversion_func(conversion_char)
+            assert fn is not None, "invalid conversion character found: '%s'" % conversion_char
             value_result = '%s(%s)' % (fn, value_result)
             code.globalstate.use_utility_code(UtilityCode.load_cached("PyObjectFormatAndDecref", "StringTools.c"))
             format_func += 'AndDecref'

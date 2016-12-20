@@ -2,6 +2,8 @@
 # ticket: 593
 # tag: property, decorator
 
+my_property = property
+
 class Prop(object):
     """
     >>> p = Prop()
@@ -17,6 +19,12 @@ class Prop(object):
     >>> p.prop
     GETTING '2'
     2
+    >>> del p.prop
+    DELETING (previously: '2')
+
+    >>> p.my_prop
+    GETTING 'my_prop'
+    389
     """
     _value = None
 
@@ -29,3 +37,13 @@ class Prop(object):
     def prop(self, value):
         print("SETTING '%s' (previously: '%s')" % (value, self._value))
         self._value = value
+
+    @prop.deleter
+    def prop(self):
+        print("DELETING (previously: '%s')" % self._value)
+        self._value = None
+
+    @my_property
+    def my_prop(self):
+        print("GETTING 'my_prop'")
+        return 389

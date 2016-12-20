@@ -6,12 +6,16 @@ RST2HTML = rst2html
 
 PY_LDFLAGS = $(shell $(PYTHON) -c 'from distutils.sysconfig import get_config_var as g; import sys; sys.stdout.write(" ".join([g("LINKFORSHARED"), "-L"+g("LIBPL")]) + "\n")')
 PY_CPPFLAGS = $(shell $(PYTHON) -c 'from distutils.sysconfig import *; import sys; sys.stdout.write("-I"+get_python_inc() + "\n")')
-PY_LDLIBS = $(shell $(PYTHON) -c 'from distutils.sysconfig import get_config_var as g; import sys; sys.stdout.write(" ".join(["-lpython"+g("VERSION"), g("SYSLIBS"), g("LIBS"), g("LOCALMODLIBS")]) + "\n")')
+LIBDIR1 := $(shell $(PYTHON) -c "from distutils import sysconfig; print(sysconfig.get_config_var('LIBDIR'))")
+LIBDIR2 := $(shell $(PYTHON) -c "from distutils import sysconfig; print(sysconfig.get_config_var('LIBPL'))")
+PYLIB := $(shell $(PYTHON) -c "from distutils import sysconfig; print(sysconfig.get_config_var('LIBRARY')[3:-2])")
+LIBS := $(shell $(PYTHON) -c "import distutils.sysconfig; print(distutils.sysconfig.get_config_var('LIBS'))")
 
 CFLAGS = -fPIC -fno-strict-aliasing -g -O2 -Wall -Wextra
 CPPFLAGS = $(PY_CPPFLAGS)
 LDFLAGS = $(PY_LDFLAGS)
-LDLIBS = $(PY_LDLIBS)
+LDLIBS = -L$(LIBDIR1) -L$(LIBDIR2) -l$(PYLIB)
+
 
 
 # Name of executable

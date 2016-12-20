@@ -137,16 +137,19 @@ class UtilityCodeBase(object):
 
         if type == 'proto':
             utility[0] = code
+        elif type.startswith('proto.'):
+            utility[0] = code
+            utility[1] = type[6:]
         elif type == 'impl':
-            utility[1] = code
+            utility[2] = code
         else:
-            all_tags = utility[2]
+            all_tags = utility[3]
             if KEYWORDS_MUST_BE_BYTES:
                 type = type.encode('ASCII')
             all_tags[type] = code
 
         if tags:
-            all_tags = utility[2]
+            all_tags = utility[3]
             for name, values in tags.items():
                 if KEYWORDS_MUST_BE_BYTES:
                     name = name.encode('ASCII')
@@ -172,12 +175,12 @@ class UtilityCodeBase(object):
             (r'^%(C)s{5,30}\s*(?P<name>(?:\w|\.)+)\s*%(C)s{5,30}|'
              r'^%(C)s+@(?P<tag>\w+)\s*:\s*(?P<value>(?:\w|[.:])+)') %
             {'C': comment}).match
-        match_type = re.compile('(.+)[.](proto|impl|init|cleanup)$').match
+        match_type = re.compile('(.+)[.](proto(?:[.]\S+)?|impl|init|cleanup)$').match
 
         with closing(Utils.open_source_file(filename, encoding='UTF-8')) as f:
             all_lines = f.readlines()
 
-        utilities = defaultdict(lambda: [None, None, {}])
+        utilities = defaultdict(lambda: [None, None, None, {}])
         lines = []
         tags = defaultdict(set)
         utility = type = None
@@ -251,7 +254,7 @@ class UtilityCodeBase(object):
             from_file = files[0]
 
         utilities = cls.load_utilities_from_file(from_file)
-        proto, impl, tags = utilities[util_code_name]
+        proto, proto_block, impl, tags = utilities[util_code_name]
 
         if tags:
             orig_kwargs = kwargs.copy()
@@ -275,6 +278,8 @@ class UtilityCodeBase(object):
 
         if proto is not None:
             kwargs['proto'] = proto
+        if proto_block is not None:
+            kwargs['proto_block'] = proto_block
         if impl is not None:
             kwargs['impl'] = impl
 
