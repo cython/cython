@@ -3496,6 +3496,10 @@ class CppClassType(CType):
         return specialized
 
     def deduce_template_params(self, actual):
+        if actual.is_const:
+            actual = actual.const_base_type
+        if actual.is_reference:
+            actual = actual.ref_base_type
         if self == actual:
             return {}
         elif actual.is_cpp_class:
