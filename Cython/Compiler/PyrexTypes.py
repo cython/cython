@@ -3510,14 +3510,17 @@ class CppClassType(CType):
                     for base in all_bases(parent):
                         yield base
             for actual_base in all_bases(actual):
-                if (actual_base.template_type
-                    and self_template_type.empty_declaration_code()
-                        == actual_base.template_type.empty_declaration_code()):
-                    return reduce(
-                        merge_template_deductions,
-                        [formal_param.deduce_template_params(actual_param)
-                         for (formal_param, actual_param) in zip(self.templates, actual_base.templates)],
-                        {})
+                template_type = actual_base
+                while getattr(template_type, 'template_type', None):
+                    template_type = template_type.template_type
+                    if (self_template_type.empty_declaration_code()
+                            == template_type.empty_declaration_code()):
+                        return reduce(
+                            merge_template_deductions,
+                            [formal_param.deduce_template_params(actual_param)
+                             for (formal_param, actual_param)
+                             in zip(self.templates, actual_base.templates)],
+                            {})
         else:
             return {}
 
