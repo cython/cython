@@ -8,10 +8,10 @@ class ShouldBeFromDirective(object):
 
     known_directives = []
 
-    def __init__(self, options_name, directive_name=None, dissallow=False):
+    def __init__(self, options_name, directive_name=None, disallow=False):
         self.options_name = options_name
         self.directive_name = directive_name or options_name
-        self.dissallow = dissallow
+        self.disallow = disallow
         self.known_directives.append(self)
 
     def __nonzero__(self):
