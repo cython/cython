@@ -1459,6 +1459,12 @@ class ModuleScope(Scope):
         if self.directives.get('final'):
             entry.type.is_final_type = True
 
+        #if entry and entry.name == "Class": import ipdb;ipdb.set_trace()
+        
+        if base_type and not type.metaclass:
+            type.metaclass = base_type.metaclass
+            type.metaclass_dict = base_type.metaclass_dict
+
         # cdef classes are always exported, but we need to set it to
         # distinguish between unused Cython utility code extension classes
         entry.used = True
@@ -1964,6 +1970,11 @@ class CClassScope(ClassScope):
                     cname = None, visibility = 'private',
                     api = 0, in_pxd = 0, is_cdef = 0):
         if is_cdef:
+            type_type = None
+            # Slight hack: Sometimes declare_var is called before builtin_scope() is done being declared.
+            # However, this is only needed for extension types so it will only get defined then.
+            if self.parent_type.is_extension_type:
+                type_type = self.builtin_scope().lookup_here('type').type
             # Add an entry for an attribute.
             if self.defined:
                 error(pos,
@@ -2000,6 +2011,8 @@ class CClassScope(ClassScope):
                 # so do conversion ourself rather than rely on the CPython mechanism (through
                 # a property; made in AnalyseDeclarationsTransform).
                 entry.needs_property = True
+                if visibility == 'public' and type_type and self.parent_type.subtype_of(type_type):
+                    error(pos, "metaclasses don't currently support public attributes")
                 if name == "__weakref__":
                     error(pos, "Special attribute __weakref__ cannot be exposed to Python")
                 if not (type.is_pyobject or type.can_coerce_to_pyobject(self)):

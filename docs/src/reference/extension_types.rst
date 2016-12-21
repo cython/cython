@@ -426,6 +426,28 @@ Dynamic Attributes
 .. note::
     #. This can have a performance penalty, especially when using ``cpdef`` methods in a class.
 
+===========
+Metaclasses
+===========
+
+ * Cython has very basic support for extension type metaclasses, you can define and use them like this ::
+
+    cdef class MyType(type):
+        pass
+    cdef class MyClass:
+        cdef MyType __metaclass__
+
+ * Metaclasses must derive from ``type``
+ * The ``__cinit__`` and ``__init__`` methods of an extension type's metaclass get called, but ``__prepare__`` is not. In normal Python classes, however, it will.
+ * No arguments are passed to ``__cinit__`` or ``__init__`` except for ``self`` when a metaclass is initializing for an extension type, but they will recieve the usual arguments when being used on a normal class.
+ * Unlike other class attributes, subclasses can declare a different type for ``__metaclass__`` if their base class has one already. However, like in pure Python, a derived class' metaclass must also derive from the base class' metaclass.
+ * ``cdef public`` attributes on metaclasses are currently not supported.
+ * You can use the dynamic attributes syntax to make an extension type "monkeypatch-able" ::
+
+     cdef class MyType(type):
+        cdef dict __dict__
+
+
 =========================
 External and Public Types
 =========================

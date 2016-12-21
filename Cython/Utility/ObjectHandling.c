@@ -1853,3 +1853,16 @@ static PyObject* __Pyx_PyNumber_InPlaceMatrixMultiply(PyObject* x, PyObject* y) 
 
 #undef __Pyx_TryMatrixMethod
 #endif
+
+/////////////// MetaclassInit.proto ///////////////
+static int __Pyx_MetaclassInit(PyTypeObject *t, PyTypeObject *o);
+
+/////////////// MetaclassInit ///////////////
+//@substitute: naming
+static int __Pyx_MetaclassInit(PyTypeObject *t, PyTypeObject *o) {
+    PyObject *a = PyTuple_Pack(1, (PyObject *)o);
+    if (unlikely(!a)) return -1;
+    if (unlikely(!t->tp_new(t, a, NULL))) return -1;
+    if (t->tp_init((PyObject *)o, a, NULL) < 0) return -1;
+    return 0;
+}
