@@ -735,9 +735,8 @@ class Scope(object):
                 warning(pos, "Function '%s' previously declared as '%s'" % (
                     name, 'cpdef' if overridable else 'cdef'), 1)
             if entry.type.same_as(type):
-                # Compatible signatures may have still be different types
-                # (e.g. nogil vs with gil).
-                entry.type = type
+                # Fix with_gil vs nogil.
+                entry.type = entry.type.with_with_gil(type.with_gil)
             else:
                 if visibility == 'extern' and entry.visibility == 'extern':
                     can_override = False
@@ -2085,9 +2084,8 @@ class CClassScope(ClassScope):
                 if entry.is_final_cmethod and entry.is_inherited:
                     error(pos, "Overriding final methods is not allowed")
                 elif type.same_c_signature_as(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
-                    # Compatible signatures may have still be different types
-                    # (e.g. nogil vs with gil).
-                    entry.type = type
+                    # Fix with_gil vs nogil.
+                    entry.type = entry.type.with_with_gil(type.with_gil)
                 elif type.compatible_signature_with(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
                     entry = self.add_cfunction(name, type, pos, cname, visibility='ignore', modifiers=modifiers)
                 else:
@@ -2222,9 +2220,8 @@ class CppClassScope(Scope):
         entry = self.lookup_here(name)
         if defining and entry is not None:
             if entry.type.same_as(type):
-                # Compatible signatures may have still be different types
-                # (e.g. nogil vs with gil).
-                entry.type = type
+                # Fix with_gil vs nogil.
+                entry.type = entry.type.with_with_gil(type.with_gil)
             else:
                 error(pos, "Function signature does not match previous declaration")
         else:
