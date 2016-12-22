@@ -1463,7 +1463,8 @@ class ModuleScope(Scope):
         
         if base_type and not type.metaclass:
             type.metaclass = base_type.metaclass
-            type.metaclass_dict = base_type.metaclass_dict
+            if not type.metaclass_dict:
+                type.metaclass_dict = base_type.metaclass_dict
 
         # cdef classes are always exported, but we need to set it to
         # distinguish between unused Cython utility code extension classes
