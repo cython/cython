@@ -734,7 +734,11 @@ class Scope(object):
             if overridable != entry.is_overridable:
                 warning(pos, "Function '%s' previously declared as '%s'" % (
                     name, 'cpdef' if overridable else 'cdef'), 1)
-            if not entry.type.same_as(type):
+            if entry.type.same_as(type):
+                # Compatible signatures may have still be different types
+                # (e.g. nogil vs with gil).
+                entry.type = type
+            else:
                 if visibility == 'extern' and entry.visibility == 'extern':
                     can_override = False
                     if self.is_cpp():
@@ -2081,7 +2085,9 @@ class CClassScope(ClassScope):
                 if entry.is_final_cmethod and entry.is_inherited:
                     error(pos, "Overriding final methods is not allowed")
                 elif type.same_c_signature_as(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
-                    pass
+                    # Compatible signatures may have still be different types
+                    # (e.g. nogil vs with gil).
+                    entry.type = type
                 elif type.compatible_signature_with(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
                     entry = self.add_cfunction(name, type, pos, cname, visibility='ignore', modifiers=modifiers)
                 else:
@@ -2215,7 +2221,11 @@ class CppClassScope(Scope):
             cname = name
         entry = self.lookup_here(name)
         if defining and entry is not None:
-            if not entry.type.same_as(type):
+            if entry.type.same_as(type):
+                # Compatible signatures may have still be different types
+                # (e.g. nogil vs with gil).
+                entry.type = type
+            else:
                 error(pos, "Function signature does not match previous declaration")
         else:
             entry = self.declare(name, cname, type, pos, visibility)
