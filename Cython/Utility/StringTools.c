@@ -188,6 +188,13 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
         if (length != __Pyx_PyUnicode_GET_LENGTH(s2)) {
             goto return_ne;
         }
+#if CYTHON_COMPILING_IN_CPYTHON
+        if (((PyUnicodeObject*)s1)->hash != ((PyUnicodeObject*)s2)->hash
+            && ((PyUnicodeObject*)s1)->hash != -1 && ((PyUnicodeObject*)s2)->hash != -1)
+        {
+            goto return_ne;
+        }
+#endif
         // len(s1) == len(s2) >= 1  (empty string is interned, and "s1 is not s2")
         kind = __Pyx_PyUnicode_KIND(s1);
         if (kind != __Pyx_PyUnicode_KIND(s2)) {
@@ -252,6 +259,13 @@ static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int eq
         Py_ssize_t length = PyBytes_GET_SIZE(s1);
         if (length != PyBytes_GET_SIZE(s2))
             return (equals == Py_NE);
+#if CYTHON_COMPILING_IN_CPYTHON
+        if (((PyBytesObject*)s1)->ob_shash != ((PyBytesObject*)s2)->ob_shash
+            && ((PyBytesObject*)s1)->ob_shash != -1 && ((PyBytesObject*)s2)->ob_shash != -1)
+        {
+            return (equals == Py_NE);
+        }
+#endif
         // len(s1) == len(s2) >= 1  (empty string is interned, and "s1 is not s2")
         ps1 = PyBytes_AS_STRING(s1);
         ps2 = PyBytes_AS_STRING(s2);
