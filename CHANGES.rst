@@ -2,6 +2,17 @@
 Cython Changelog
 ================
 
+
+latest
+===================
+
+Features added
+--------------
+
+* Speed up comparisons of strings if their hash value is available.
+  Patch by Claudio Freire (Github issue #1571).
+
+
 0.25.2 (2016-12-08)
 ===================
 
