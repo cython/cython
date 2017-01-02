@@ -192,14 +192,12 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
 #if CYTHON_COMPILING_IN_CPYTHON
 #if CYTHON_PEP393_ENABLED
         if (((PyASCIIObject*)s1)->hash != ((PyASCIIObject*)s2)->hash
-            && ((PyASCIIObject*)s1)->hash != -1 && ((PyASCIIObject*)s2)->hash != -1)
-        {
+            && ((PyASCIIObject*)s1)->hash != -1 && ((PyASCIIObject*)s2)->hash != -1) {
             goto return_ne;
         }
 #else
         if (((PyUnicodeObject*)s1)->hash != ((PyUnicodeObject*)s2)->hash
-            && ((PyUnicodeObject*)s1)->hash != -1 && ((PyUnicodeObject*)s2)->hash != -1)
-        {
+            && ((PyUnicodeObject*)s1)->hash != -1 && ((PyUnicodeObject*)s2)->hash != -1) {
             goto return_ne;
         }
 #endif
@@ -278,8 +276,7 @@ static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int eq
         } else {
 #if CYTHON_COMPILING_IN_CPYTHON
             if (((PyBytesObject*)s1)->ob_shash != ((PyBytesObject*)s2)->ob_shash
-                && ((PyBytesObject*)s1)->ob_shash != -1 && ((PyBytesObject*)s2)->ob_shash != -1)
-            {
+                && ((PyBytesObject*)s1)->ob_shash != -1 && ((PyBytesObject*)s2)->ob_shash != -1) {
                 return (equals == Py_NE);
             }
 #endif
