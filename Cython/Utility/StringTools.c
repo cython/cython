@@ -14,6 +14,7 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t); /*proto*/
 //////////////////// InitStrings ////////////////////
 
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
+    long hash;
     while (t->p) {
         #if PY_MAJOR_VERSION < 3
         if (t->is_unicode) {
@@ -38,6 +39,9 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
         #endif
         if (!*t->p)
             return -1;
+        hash = PyObject_Hash(*t->p);
+        if (hash == -1)
+            PyErr_Clear();
         ++t;
     }
     return 0;
@@ -185,6 +189,21 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
         if (length != __Pyx_PyUnicode_GET_LENGTH(s2)) {
             goto return_ne;
         }
+#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_PEP393_ENABLED
+        if (((PyASCIIObject*)s1)->hash != ((PyASCIIObject*)s2)->hash
+            && ((PyASCIIObject*)s1)->hash != -1 && ((PyASCIIObject*)s2)->hash != -1)
+        {
+            goto return_ne;
+        }
+#else
+        if (((PyUnicodeObject*)s1)->hash != ((PyUnicodeObject*)s2)->hash
+            && ((PyUnicodeObject*)s1)->hash != -1 && ((PyUnicodeObject*)s2)->hash != -1)
+        {
+            goto return_ne;
+        }
+#endif
+#endif
         // len(s1) == len(s2) >= 1  (empty string is interned, and "s1 is not s2")
         kind = __Pyx_PyUnicode_KIND(s1);
         if (kind != __Pyx_PyUnicode_KIND(s2)) {
@@ -257,6 +276,13 @@ static CYTHON_INLINE int __Pyx_PyBytes_Equals(PyObject* s1, PyObject* s2, int eq
         } else if (length == 1) {
             return (equals == Py_EQ);
         } else {
+#if CYTHON_COMPILING_IN_CPYTHON
+            if (((PyBytesObject*)s1)->ob_shash != ((PyBytesObject*)s2)->ob_shash
+                && ((PyBytesObject*)s1)->ob_shash != -1 && ((PyBytesObject*)s2)->ob_shash != -1)
+            {
+                return (equals == Py_NE);
+            }
+#endif
             int result = memcmp(ps1, ps2, (size_t)length);
             return (equals == Py_EQ) ? (result == 0) : (result != 0);
         }
