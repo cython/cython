@@ -193,15 +193,15 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
             goto return_ne;
         }
 #if CYTHON_COMPILING_IN_CPYTHON
-#if PY_MAJOR_VAERSION < 3
-        if (((PyUnicodeObject*)s1)->hash != ((PyUnicodeObject*)s2)->hash
-            && ((PyUnicodeObject*)s1)->hash != -1 && ((PyUnicodeObject*)s2)->hash != -1)
+#if CYTHON_PEP393_ENABLED
+        if (((PyASCIIObject*)s1)->hash != ((PyASCIIObject*)s2)->hash
+            && ((PyASCIIObject*)s1)->hash != -1 && ((PyASCIIObject*)s2)->hash != -1)
         {
             goto return_ne;
         }
 #else
-        if (((PyASCIIObject*)s1)->hash != ((PyASCIIObject*)s2)->hash
-            && ((PyASCIIObject*)s1)->hash != -1 && ((PyASCIIObject*)s2)->hash != -1)
+        if (((PyUnicodeObject*)s1)->hash != ((PyUnicodeObject*)s2)->hash
+            && ((PyUnicodeObject*)s1)->hash != -1 && ((PyUnicodeObject*)s2)->hash != -1)
         {
             goto return_ne;
         }
