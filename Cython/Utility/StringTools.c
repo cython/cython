@@ -193,11 +193,19 @@ static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int 
             goto return_ne;
         }
 #if CYTHON_COMPILING_IN_CPYTHON
+#if PY_MAJOR_VAERSION < 3
         if (((PyUnicodeObject*)s1)->hash != ((PyUnicodeObject*)s2)->hash
             && ((PyUnicodeObject*)s1)->hash != -1 && ((PyUnicodeObject*)s2)->hash != -1)
         {
             goto return_ne;
         }
+#else
+        if (((PyASCIIObject*)s1)->hash != ((PyASCIIObject*)s2)->hash
+            && ((PyASCIIObject*)s1)->hash != -1 && ((PyASCIIObject*)s2)->hash != -1)
+        {
+            goto return_ne;
+        }
+#endif
 #endif
         // len(s1) == len(s2) >= 1  (empty string is interned, and "s1 is not s2")
         kind = __Pyx_PyUnicode_KIND(s1);
