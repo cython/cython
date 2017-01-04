@@ -14,7 +14,6 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t); /*proto*/
 //////////////////// InitStrings ////////////////////
 
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
-    long hash;
     while (t->p) {
         #if PY_MAJOR_VERSION < 3
         if (t->is_unicode) {
