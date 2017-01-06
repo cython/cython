@@ -45,9 +45,11 @@ if sys.version_info[:2] == (3, 2):
     add_command_class("build_py", build_py)
 
 pxd_include_dirs = [
-    directory for directory, dirs, files in os.walk('Cython/Includes')
+    directory for directory, dirs, files
+    in os.walk(os.path.join('Cython', 'Includes'))
     if '__init__.pyx' in files or '__init__.pxd' in files
-    or directory == 'Cython/Includes' or directory == 'Cython/Includes/Deprecated']
+    or directory == os.path.join('Cython', 'Includes')
+    or directory == os.path.join('Cython', 'Includes', 'Deprecated')]
 
 pxd_include_patterns = [
     p+'/*.pxd' for p in pxd_include_dirs ] + [
