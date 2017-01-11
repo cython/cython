@@ -2,7 +2,7 @@ PYTHON?=python
 TESTOPTS?=
 REPO = git://github.com/cython/cython.git
 
-all:    local 
+all:    local
 
 local:
 	${PYTHON} setup.py build_ext --inplace
@@ -23,8 +23,8 @@ clean:
 	@echo Cleaning Source
 	@rm -fr build
 	@rm -f *.py[co] */*.py[co] */*/*.py[co] */*/*/*.py[co]
-	@rm -f *.so */*.so */*/*.so 
-	@rm -f *.pyd */*.pyd */*/*.pyd 
+	@rm -f *.so */*.so */*/*.so
+	@rm -f *.pyd */*.pyd */*/*.pyd
 	@rm -f *~ */*~ */*/*~
 	@rm -f core */core
 	@rm -f Cython/Compiler/*.c

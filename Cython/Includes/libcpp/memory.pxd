@@ -16,8 +16,8 @@ cdef extern from "<memory>" namespace "std" nogil:
         void construct( T *, const T &) #C++98.  The C++11 version is variadic AND perfect-forwarding
         void destroy(T *) #C++98
         void destroy[U](U *) #unique_ptr unit tests fail w/this
-        
-        
+
+
     cdef cppclass unique_ptr[T,DELETER=*]:
         unique_ptr()
         unique_ptr(nullptr_t)

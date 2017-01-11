@@ -45,6 +45,6 @@ Python modules.
    http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
 .. [ShedSkin] M. Dufour, J. Coughlan, ShedSkin,
    http://code.google.com/p/shedskin/
-.. [SWIG] David M. Beazley et al., 
-   SWIG: An Easy to Use Tool for Integrating Scripting Languages with C and C++, 
+.. [SWIG] David M. Beazley et al.,
+   SWIG: An Easy to Use Tool for Integrating Scripting Languages with C and C++,
    http://www.swig.org.

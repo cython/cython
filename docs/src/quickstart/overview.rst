@@ -25,7 +25,7 @@ Originally based on the well-known Pyrex [Pyrex]_, the Cython project
 has approached this problem by means of a source code compiler that
 translates Python code to equivalent C code.  This code is executed
 within the CPython runtime environment, but at the speed of compiled C
-and with the ability to call directly into C libraries. 
+and with the ability to call directly into C libraries.
 At the same time, it keeps the original interface of the Python
 source code, which makes it directly usable from Python code.  These
 two-fold characteristics enable Cython's two major use cases:
@@ -48,7 +48,7 @@ language.
 .. [IronPython] Jim Hugunin et al., http://www.codeplex.com/IronPython.
 .. [Jython] J. Huginin, B. Warsaw, F. Bock, et al.,
    Jython: Python for the Java platform, http://www.jython.org.
-.. [PyPy] The PyPy Group, PyPy: a Python implementation written in Python, 
+.. [PyPy] The PyPy Group, PyPy: a Python implementation written in Python,
    http://pypy.org.
 .. [Pyrex] G. Ewing, Pyrex: C-Extensions for Python,
    http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/

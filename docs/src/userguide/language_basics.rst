@@ -169,7 +169,7 @@ passed in directly using a normal C function call.
 
 Functions declared using :keyword:`cdef`, like Python functions, will return a :keyword:`False`
 value when execution leaves the function body without an explicit return value. This is in
-contrast to C/C++, which leaves the return value undefined. 
+contrast to C/C++, which leaves the return value undefined.
 
 A more complete comparison of the pros and cons of these different method
 types can be found at :ref:`early-binding-for-speed`.

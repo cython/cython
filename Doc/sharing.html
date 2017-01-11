@@ -4,13 +4,13 @@
          <meta name="GENERATOR" content="Mozilla/4.61 (Macintosh; I; PPC) [Netscape]"><title>Sharing Declarations Between Cython Modules</title></head>
 
 <body>
-   <h1>  <hr width="100%">Sharing Declarations Between Cython Modules  
+   <h1>  <hr width="100%">Sharing Declarations Between Cython Modules
 <hr width="100%"></h1>
   This section describes a new set of facilities introduced in Cython 0.8
 for making C declarations and extension types in one Cython module available
 for use in another Cython module. These facilities are closely modelled on
-the Python import mechanism, and can be thought of as a compile-time version 
-of it.  
+the Python import mechanism, and can be thought of as a compile-time version
+of it.
 <h2> Contents</h2>
    <ul>
   <li> <a href="#DefAndImpFiles">Definition and Implementation files</a></li>
@@ -21,7 +21,7 @@ of it.
    <li> <a href="#CImportStatement">The <tt>cimport</tt> statement</a></li>
        <ul>
   <li> <a href="#SearchPaths">Search paths for definition files</a></li>
-   <li> <a href="#ResolvingNamingConflicts">Using <tt>cimport</tt> to resolve 
+   <li> <a href="#ResolvingNamingConflicts">Using <tt>cimport</tt> to resolve
 naming conflicts</a></li>
       </ul>
    <li> <a href="#SharingExtensionTypes">Sharing extension types</a></li>
@@ -31,31 +31,31 @@ naming conflicts</a></li>
  a <tt>.pxd</tt> suffix, containing C declarations that are to be available
  to other Cython modules, and an <i>implementation file</i> with a <tt>.pyx</tt>
 suffix, containing everything else. When a module wants to use something
-declared in another module's definition file, it imports it using the <a href="#CImportStatement"><b>cimport</b> statement</a>.  
+declared in another module's definition file, it imports it using the <a href="#CImportStatement"><b>cimport</b> statement</a>.
 <h3> <a name="WhatDefFileContains"></a>What a Definition File contains</h3>
-  A definition file can contain:  
+  A definition file can contain:
 <ul>
   <li> Any kind of C type declaration.</li>
    <li> <b>extern</b> C function or variable declarations.</li>
    <li> The definition part of an extension type (<a href="#SharingExtensionTypes">see below</a>).</li>
   </ul>
   It cannot currently contain any non-extern C function or variable declarations
- (although this may be possible in a future version).  
-<p>It cannot contain the implementations of any C or Python functions, or 
+ (although this may be possible in a future version).
+<p>It cannot contain the implementations of any C or Python functions, or
 any Python class definitions, or any executable statements. </p>
- <blockquote>NOTE: You don't need to (and shouldn't) declare anything in a 
-declaration file <b>public</b> in order to make it available to other Cython 
+ <blockquote>NOTE: You don't need to (and shouldn't) declare anything in a
+declaration file <b>public</b> in order to make it available to other Cython
 modules; its mere presence in a definition file does that. You only need a
 public declaration if you want to make something available to external C code.</blockquote>
    <h3> <a name="WhatImpFileContains"></a>What an Implementation File contains</h3>
   An implementation file can contain any kind of Cython statement, although
- there are some restrictions on the implementation part of an extension type 
+ there are some restrictions on the implementation part of an extension type
 if the corresponding definition file also defines that type (see below).
- 
+
 <h2> <a name="CImportStatement"></a>The <tt>cimport</tt> statement</h2>
   The <b>cimport</b> statement is used in a definition or implementation
 file to gain access to names declared in another definition file. Its syntax
-exactly parallels that of the normal Python import statement:  
+exactly parallels that of the normal Python import statement:
 <blockquote><tt>cimport </tt><i>module</i><tt> [, </tt><i>module</i><tt>...]</tt></blockquote>
    <blockquote><tt>from </tt><i>module</i><tt> cimport </tt><i>name</i><tt>
 [as   </tt><i>name</i><tt>] [, </tt><i>name</i><tt> [as </tt><i>name</i><tt>]
@@ -90,10 +90,10 @@ exactly parallels that of the normal Python import statement:
   </tr>
       </tbody> </table>
    <p>It is important to understand that the <b>cimport</b> statement can <i>only</i>
-be used to import C data types, external C functions and variables, and extension 
-types. It cannot be used to import any Python objects, and (with one exception) 
-it doesn't imply any Python import at run time. If you want to refer to any 
-Python names from a module that you have cimported, you will have to include 
+be used to import C data types, external C functions and variables, and extension
+types. It cannot be used to import any Python objects, and (with one exception)
+it doesn't imply any Python import at run time. If you want to refer to any
+Python names from a module that you have cimported, you will have to include
 a regular <b>import</b> statement for it as well. </p>
  <p>The exception is that when you use <b>cimport</b> to import an extension
  type, its type object is imported at run time and made available by the
@@ -103,7 +103,7 @@ types is covered in more detail <a href="#SharingExtensionTypes">below</a>.
  <h3> <a name="SearchPaths"></a>Search paths for definition files</h3>
   When you <b>cimport</b> a module called <tt>modulename</tt>, the Cython
 compiler searches for a file called <tt>modulename.pxd</tt> along the search
-path for include files, as specified by <b>-I</b> command line options.  
+path for include files, as specified by <b>-I</b> command line options.
 <p>Also, whenever you compile a file <tt>modulename.pyx</tt>, the corresponding
  definition file <tt>modulename.pxd</tt> is first searched for along the
 same path, and if found, it is processed before processing the <tt>.pyx</tt>
@@ -146,7 +146,7 @@ type's C attributes and C methods.<br>
  <br>
  The implementation part must implement all of the C methods declared in
 the definition part, and may not add any further C attributes. It may also
-define Python methods.  
+define Python methods.
 <p>Here is an example of a module which defines and exports an extension
 type, and another module which uses it. <br>
  &nbsp; <table cellpadding="5" cols="2" width="100%">
@@ -188,9 +188,9 @@ type, and another module which uses it. <br>
   <li> There is a <tt>cdef class Shrubbery</tt> declaration in both Shrubbing.pxd
  and Shrubbing.pyx. When the Shrubbing module is compiled, these two declarations
  are combined into one.</li>
-   
- &nbsp; <li> In Landscaping.pyx, the <tt>cimport Shrubbing</tt> declaration 
-allows us to refer to the Shrubbery type as <tt>Shrubbing.Shrubbery</tt>. 
+
+ &nbsp; <li> In Landscaping.pyx, the <tt>cimport Shrubbing</tt> declaration
+allows us to refer to the Shrubbery type as <tt>Shrubbing.Shrubbery</tt>.
 But it doesn't bind the name <tt>Shrubbery</tt> in Landscaping's module namespace
  at run time, so to access <tt>Shrubbery.standard_shrubbery</tt> we also
 need to <tt>import Shrubbing</tt>.</li>

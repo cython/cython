@@ -1,4 +1,4 @@
- == Pyximport == 
+ == Pyximport ==
 
 Download: pyx-import-1.0.tar.gz
 <http://www.prescod.net/pyximport/pyximport-1.0.tar.gz>
@@ -31,7 +31,7 @@ python -c "import foo"
 See help(pyximport.install) to learn its options for controlling the
 default behavior of "import" and "reload".
 
- == Dependency Handling == 
+ == Dependency Handling ==
 
 In Pyximport 1.1 it is possible to declare that your module depends on
 multiple files, (likely ".h" and ".pxd" files). If your Pyrex module is
@@ -46,7 +46,7 @@ modification time of your ".pyx" source file. Future versions may do
 something more sophisticated like informing distutils of the
 dependencies directly.
 
- == Limitations == 
+ == Limitations ==
 
 Pyximport does not give you any control over how your Pyrex file is
 compiled. Usually the defaults are fine. You might run into problems if
@@ -59,7 +59,7 @@ something went wrong and why. And if nothing went wrong it will give you
 the warm fuzzy that pyximport really did rebuild your module as it was
 supposed to.
 
- == For further thought and discussion == 
+ == For further thought and discussion ==
 
 "setup.py install" does not modify sitecustomize.py for you. Should it?
 Modifying Python's "standard interpreter" behaviour may be more than

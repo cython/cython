@@ -5,7 +5,7 @@ cdef extern from "Python.h":
         pass
 
 cdef extern from "datetime.h":
-    
+
     ctypedef extern class datetime.date[object PyDateTime_Date]:
         pass
 
@@ -23,11 +23,11 @@ cdef extern from "datetime.h":
 
     ctypedef struct PyDateTime_Date:
         pass
-    
+
     ctypedef struct PyDateTime_Time:
         char hastzinfo
         PyObject *tzinfo
-        
+
     ctypedef struct PyDateTime_DateTime:
         char hastzinfo
         PyObject *tzinfo
@@ -36,22 +36,22 @@ cdef extern from "datetime.h":
         int days
         int seconds
         int microseconds
-        
+
     # Define structure for C API.
     ctypedef struct PyDateTime_CAPI:
-        # type objects 
+        # type objects
         PyTypeObject *DateType
         PyTypeObject *DateTimeType
         PyTypeObject *TimeType
         PyTypeObject *DeltaType
         PyTypeObject *TZInfoType
-    
+
         # constructors
         object (*Date_FromDate)(int, int, int, PyTypeObject*)
         object (*DateTime_FromDateAndTime)(int, int, int, int, int, int, int, object, PyTypeObject*)
         object (*Time_FromTime)(int, int, int, int, object, PyTypeObject*)
         object (*Delta_FromDelta)(int, int, int, int, PyTypeObject*)
-    
+
         # constructors for the DB API
         object (*DateTime_FromTimestamp)(object, object, object)
         object (*Date_FromTimestamp)(object, object)
@@ -96,7 +96,7 @@ cdef extern from "datetime.h":
 
     # PyDateTime CAPI object.
     PyDateTime_CAPI *PyDateTimeAPI
-    
+
     void PyDateTime_IMPORT()
 
 # Datetime C API initialization function.
@@ -108,7 +108,7 @@ cdef inline void import_datetime():
 # Note, there are no range checks for any of the arguments.
 cdef inline object date_new(int year, int month, int day):
     return PyDateTimeAPI.Date_FromDate(year, month, day, PyDateTimeAPI.DateType)
-    
+
 # Create time object using DateTime CAPI factory function
 # Note, there are no range checks for any of the arguments.
 cdef inline object time_new(int hour, int minute, int second, int microsecond, object tz):
@@ -127,7 +127,7 @@ cdef inline object timedelta_new(int days, int seconds, int useconds):
 # More recognizable getters for date/time/datetime/timedelta.
 # There are no setters because datetime.h hasn't them.
 # This is because of immutable nature of these objects by design.
-# If you would change time/date/datetime/timedelta object you need to recreate. 
+# If you would change time/date/datetime/timedelta object you need to recreate.
 
 # Get tzinfo of time
 cdef inline object time_tzinfo(object o):
@@ -136,7 +136,7 @@ cdef inline object time_tzinfo(object o):
     else:
         return None
 
-# Get tzinfo of datetime 
+# Get tzinfo of datetime
 cdef inline object datetime_tzinfo(object o):
     if (<PyDateTime_DateTime*>o).hastzinfo:
         return <object>(<PyDateTime_DateTime*>o).tzinfo
@@ -146,7 +146,7 @@ cdef inline object datetime_tzinfo(object o):
 # Get year of date
 cdef inline int date_year(object o):
     return PyDateTime_GET_YEAR(o)
-    
+
 # Get month of date
 cdef inline int date_month(object o):
     return PyDateTime_GET_MONTH(o)
@@ -158,7 +158,7 @@ cdef inline int date_day(object o):
 # Get year of datetime
 cdef inline int datetime_year(object o):
     return PyDateTime_GET_YEAR(o)
-    
+
 # Get month of datetime
 cdef inline int datetime_month(object o):
     return PyDateTime_GET_MONTH(o)

@@ -46,7 +46,7 @@ def test():
     build_file.write("""
 from distutils.extension import Extension
 def make_ext(name, filename):
-    return Extension(name=name, sources=[filename]) 
+    return Extension(name=name, sources=[filename])
 """)
     build_file.close()
 
