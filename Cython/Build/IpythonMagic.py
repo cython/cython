@@ -189,6 +189,11 @@ class CythonMagics(Magics):
              "multiple times)."
     )
     @magic_arguments.argument(
+        '-S', '--src', action='append', default=[],
+        help="Add a path to the list of src files (can be specified "
+             "multiple times)."
+    )
+    @magic_arguments.argument(
         '-+', '--cplus', action='store_true', default=False,
         help="Output a C++ rather than C file."
     )
@@ -252,6 +257,7 @@ class CythonMagics(Magics):
 
         if need_cythonize:
             c_include_dirs = args.include
+            c_src_files = map(str, args.src)
             if 'numpy' in code:
                 import numpy
                 c_include_dirs.append(numpy.get_include())
@@ -261,7 +267,7 @@ class CythonMagics(Magics):
                 f.write(code)
             extension = Extension(
                 name = module_name,
-                sources = [pyx_file],
+                sources = [pyx_file] + c_src_files,
                 include_dirs = c_include_dirs,
                 library_dirs = args.library_dirs,
                 extra_compile_args = args.compile_args,
