@@ -1620,8 +1620,8 @@ done:
     Py_LeaveRecursiveCall();
     return result;
 }
-#endif  // CPython < 3.6
-#endif  // CYTHON_FAST_PYCALL
+#endif  /* CPython < 3.6 */
+#endif  /* CYTHON_FAST_PYCALL */
 
 
 /////////////// PyCFunctionFastCall.proto ///////////////
@@ -1652,7 +1652,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyCFunction_FastCall(PyObject *func_obj, P
 
     return (*((__Pyx_PyCFunctionFast)meth)) (self, args, nargs, NULL);
 }
-#endif  // CYTHON_FAST_PYCCALL
+#endif  /* CYTHON_FAST_PYCCALL */
 
 
 /////////////// PyObjectCallOneArg.proto ///////////////
