@@ -12,7 +12,6 @@ from . import PyrexTypes
 from . import Naming
 from . import Symtab
 
-
 def dedent(text, reindent=0):
     from textwrap import dedent
     text = dedent(text)

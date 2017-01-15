@@ -16,6 +16,7 @@ except ImportError:
     gzip_ext = ''
 import shutil
 import subprocess
+import os
 
 try:
     import hashlib
@@ -42,6 +43,11 @@ except ImportError:
             return os.path.curdir
         return os.path.join(*rel_list)
 
+try:
+    import pythran
+    PythranAvailable = True
+except:
+    PythranAvailable = False
 
 from distutils.extension import Extension
 
@@ -775,7 +781,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
 
 # This is the user-exposed entry point.
 def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, force=False, language=None,
-              exclude_failures=False, **options):
+              exclude_failures=False, np_pythran=False, **options):
     """
     Compile a set of source modules into C/C++ files and return a list of distutils
     Extension objects for them.
@@ -800,6 +806,8 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     that this only really makes sense for compiling .py files which can also
     be used without compilation.
 
+    To use the Pythran backend for numpy operations, set np_pythran to True.
+
     Additional compilation options can be passed as keyword arguments.
     """
     if exclude is None:
@@ -810,6 +818,13 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
         if options.get('cache'):
             raise NotImplementedError("common_utility_include_dir does not yet work with caching")
         safe_makedirs(options['common_utility_include_dir'])
+    if np_pythran:
+        if not PythranAvailable:
+            raise RuntimeError("You first need to install Pythran to use the np_pythran flag.")
+        pythran_options = CompilationOptions(**options);
+        pythran_options.cplus = True
+        pythran_options.np_pythran = True
+        pythran_include_dir = os.path.dirname(pythran.__file__)
     c_options = CompilationOptions(**options)
     cpp_options = CompilationOptions(**options); cpp_options.cplus = True
     ctx = c_options.create_context()
@@ -845,7 +860,13 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
         for source in m.sources:
             base, ext = os.path.splitext(source)
             if ext in ('.pyx', '.py'):
-                if m.language == 'c++':
+                if np_pythran:
+                    c_file = base + '.cpp'
+                    options = pythran_options
+                    m.include_dirs.append(pythran_include_dir)
+                    m.extra_compile_args.extend(('-std=c++11','-DENABLE_PYTHON_MODULE','-D__PYTHRAN__'))
+                    m.language = 'c++'
+                elif m.language == 'c++':
                     c_file = base + '.cpp'
                     options = cpp_options
                 else:

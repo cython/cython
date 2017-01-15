@@ -24,7 +24,6 @@ from .StringEncoding import EncodedString, _unicode
 from .Errors import error, warning, CompileError, InternalError
 from .Code import UtilityCode
 
-
 class NameNodeCollector(TreeVisitor):
     """Collect all NameNodes of a (sub-)tree in the ``name_nodes``
     attribute.
@@ -601,6 +600,22 @@ class PxdPostParse(CythonTransform, SkipDeclarations):
         else:
             return node
 
+class TrackNumpyAttributes(CythonTransform, SkipDeclarations):
+    def __init__(self, context):
+        super(TrackNumpyAttributes, self).__init__(context)
+        self.numpy_module_names = set()
+
+    def visit_CImportStatNode(self, node):
+        if node.module_name == u"numpy":
+            self.numpy_module_names.add(node.as_name or u"numpy")
+        return node
+
+    def visit_AttributeNode(self, node):
+        self.visitchildren(node)
+        if node.obj.is_name and node.obj.name in self.numpy_module_names:
+            node.is_numpy_attribute = True
+        return node
+
 class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
     """
     After parsing, directives can be stored in a number of places:
@@ -859,7 +874,8 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
             if optname:
                 directivetype = Options.directive_types.get(optname)
                 if directivetype is bool:
-                    return [(optname, True)]
+                    arg = ExprNodes.BoolNode(node.pos, value=True)
+                    return [self.try_to_parse_directive(optname, [arg], None, node.pos)]
                 elif directivetype is None:
                     return [(optname, None)]
                 else:
@@ -869,6 +885,8 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
 
     def try_to_parse_directive(self, optname, args, kwds, pos):
         directivetype = Options.directive_types.get(optname)
+        if optname == 'np_pythran' and not self.context.cpp:
+            raise PostParseError(pos, 'The %s directive can only be used in C++ mode.' % optname)
         if len(args) == 1 and isinstance(args[0], ExprNodes.NoneNode):
             return optname, Options.get_directive_defaults()[optname]
         elif directivetype is bool:

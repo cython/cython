@@ -28,6 +28,7 @@ from .StringEncoding import EncodedString
 from . import Future
 from . import Options
 from . import DebugFlags
+from .Pythran import has_np_pythran, pythran_type, is_pythran_buffer
 from ..Utils import add_metaclass
 
 
@@ -1127,6 +1128,8 @@ class TemplatedTypeNode(CBaseTypeNode):
                                 for name, value in options.items()])
 
             self.type = PyrexTypes.BufferType(base_type, **options)
+            if has_np_pythran(env) and is_pythran_buffer(self.type):
+                self.type = PyrexTypes.PythranExpr(pythran_type(self.type), self.type)
 
         else:
             # Array
@@ -2298,7 +2301,7 @@ class CFuncDefNode(FuncDefNode):
             if type_arg.type.is_buffer and 'inline' in self.modifiers:
                 warning(formal_arg.pos, "Buffer unpacking not optimized away.", 1)
 
-            if type_arg.type.is_buffer:
+            if type_arg.type.is_buffer or type_arg.type.is_pythran_expr:
                 if self.type.nogil:
                     error(formal_arg.pos,
                           "Buffer may not be acquired without the GIL. Consider using memoryview slices instead.")
@@ -2815,6 +2818,13 @@ class DefNode(FuncDefNode):
                 name_declarator = None
             else:
                 base_type = arg.base_type.analyse(env)
+                # If we hare in pythran mode and we got a buffer supported by
+                # Pythran, we change this node to a fused type
+                if has_np_pythran(env) and base_type.is_pythran_expr:
+                    base_type = PyrexTypes.FusedType([
+                        base_type,
+                        #PyrexTypes.PythranExpr(pythran_type(self.type, "numpy_texpr")),
+                        base_type.org_buffer])
                 name_declarator, type = \
                     arg.declarator.analyse(base_type, env)
                 arg.name = name_declarator.name
@@ -2854,6 +2864,11 @@ class DefNode(FuncDefNode):
                 if arg.or_none:
                     error(arg.pos, "Only Python type arguments can have 'or None'")
         env.fused_to_specific = f2s
+
+        if has_np_pythran(env):
+            self.np_args_idx = [i for i,a in enumerate(self.args) if a.type.is_numpy_buffer]
+        else:
+            self.np_args_idx = []
 
     def analyse_signature(self, env):
         if self.entry.is_special:
@@ -3143,6 +3158,8 @@ class DefNodeWrapper(FuncDefNode):
         target_entry.pymethdef_cname = Naming.pymethdef_prefix + prefix + name
 
         self.signature = target_entry.signature
+
+        self.np_args_idx = self.target.np_args_idx
 
     def prepare_argument_coercion(self, env):
         # This is only really required for Cython utility code at this time,
