@@ -138,7 +138,8 @@ def main(path_to_debug_info=None, gdb_argv=None, no_import=False):
     tempfilename = make_command_file(path_to_debug_info, no_import=no_import)
     logger.info("Launching %s with command file: %s and gdb_argv: %s",
         options.gdb, tempfilename, gdb_argv)
-    logger.debug('Command file (%s) contains: """\n%s"""', tempfilename, open(tempfilename).read())
+    tempfile_fd = open(tempfilename)
+    logger.debug('Command file (%s) contains: """\n%s"""', tempfilename, tempfile_fd.read())
     logger.info("Spawning %s...", options.gdb)
     p = subprocess.Popen([options.gdb, '-command', tempfilename] + gdb_argv)
     logger.info("Spawned %s (pid %d)", options.gdb, p.pid)
@@ -151,6 +152,8 @@ def main(path_to_debug_info=None, gdb_argv=None, no_import=False):
             pass
         else:
             break
+    logger.debug("Closing temp command file with fd: %s", tempfile_fd)
+    tempfile_fd.close()
     logger.debug("Removing temp command file: %s", tempfilename)
     os.remove(tempfilename)
     logger.debug("Removed temp command file: %s", tempfilename)

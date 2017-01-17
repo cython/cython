@@ -18,6 +18,13 @@ import collections
 
 import gdb
 
+try:  # py3k
+    UNICODE = unicode
+    BYTES = str
+except NameError:  # py2k
+    UNICODE = str
+    BYTES = bytes
+
 try:
     from lxml import etree
     have_lxml = True
@@ -689,7 +696,8 @@ class CyImport(CythonCommand):
     completer_class = gdb.COMPLETE_FILENAME
 
     def invoke(self, args, from_tty):
-        args = args.encode(_filesystemencoding)
+        if isinstance(args, BYTES):
+            args = args.decode(_filesystemencoding)
         for arg in string_to_argv(args):
             try:
                 f = open(arg)
