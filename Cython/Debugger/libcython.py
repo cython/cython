@@ -842,7 +842,9 @@ class CyBreak(CythonCommand):
                 gdb.execute('break %s' % func.pf_cname)
 
     def invoke(self, function_names, from_tty):
-        argv = string_to_argv(function_names.encode('UTF-8'))
+        if isinstance(function_names, BYTES):
+            function_names = function_names.decode(_filesystemencoding)
+        argv = string_to_argv(function_names)
         if function_names.startswith('-p'):
             argv = argv[1:]
             python_breakpoints = True
