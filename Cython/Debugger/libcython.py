@@ -18,10 +18,10 @@ import collections
 
 import gdb
 
-try:  # py3k
+try:  # python 2
     UNICODE = unicode
     BYTES = str
-except NameError:  # py2k
+except NameError:  # python 3
     UNICODE = str
     BYTES = bytes
 
