@@ -2,6 +2,7 @@
 
 cimport cython
 from libcpp.pair cimport pair
+from libcpp.vector cimport vector
 
 cdef extern from "cpp_template_functions_helper.h":
     cdef T no_arg[T]()
@@ -11,6 +12,9 @@ cdef extern from "cpp_template_functions_helper.h":
         pair[T, U] method[U](T, U)
         U part_method[U](pair[T, U])
         U part_method_ref[U](pair[T, U]&)
+        int overloaded(double x)
+        T overloaded(pair[T, T])
+        U overloaded[U](vector[U])
     cdef T nested_deduction[T](const T*)
     pair[T, U] pair_arg[T, U](pair[T, U] a)
     cdef T* pointer_param[T](T*)
@@ -99,3 +103,16 @@ def test_inference(int k):
     res = one_param(&k)
     assert cython.typeof(res) == 'int *', cython.typeof(res)
     return res[0]
+
+def test_overload_GH1583():
+    """
+    >>> test_overload_GH1583()
+    """
+    cdef A[int] a
+    assert a.overloaded(1.5) == 1
+    cdef pair[int, int] p = (2, 3)
+    assert a.overloaded(p) == 2
+    cdef vector[double] v = [0.25, 0.125]
+    assert a.overloaded(v) == 0.25
+    # GH Issue #1584
+    # assert a.overloaded[double](v) == 0.25

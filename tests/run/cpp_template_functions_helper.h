@@ -28,6 +28,17 @@ class A {
         U part_method_ref(const std::pair<T, U>& p) {
             return p.second;
         }
+
+        int overloaded(double d) {
+            return (int) d;
+        }
+        T overloaded(std::pair<T, T> p) {
+            return p.first;
+        }
+        template <typename U>
+        U overloaded(std::vector<U> v) {
+            return v[0];
+        }
 };
 
 template <typename T>

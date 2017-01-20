@@ -3517,6 +3517,8 @@ class CppClassType(CType):
             return {}
         elif actual.is_cpp_class:
             self_template_type = self.template_type or self
+            while getattr(self_template_type, 'template_type', None):
+                self_template_type = self_template_type.template_type
             def all_bases(cls):
                 yield cls
                 for parent in cls.base_classes:
