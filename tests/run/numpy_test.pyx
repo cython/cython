@@ -520,7 +520,8 @@ def test_point_record():
         test[i].x = i
         test[i].y = -i
     print re.sub(
-        r'\.0+\b', '.', repr(test).replace('<', '!').replace('>', '!'))
+        r'\.0+\b', '.', repr(test).replace('<', '!').replace('>', '!')
+                                  .replace('( ', '(').replace(',  ', ', '))
 
 # Test fused np.ndarray dtypes and runtime dispatch
 @testcase
