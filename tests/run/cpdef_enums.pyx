@@ -93,4 +93,4 @@ def verify_resolution_GH1533():
     3
     """
     THREE = 100
-    return PyxEnum.THREE
+    return int(PyxEnum.THREE)
