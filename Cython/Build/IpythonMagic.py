@@ -257,7 +257,7 @@ class CythonMagics(Magics):
 
         if need_cythonize:
             c_include_dirs = args.include
-            c_src_files = map(str, args.src)
+            c_src_files = list(map(str, args.src))
             if 'numpy' in code:
                 import numpy
                 c_include_dirs.append(numpy.get_include())
