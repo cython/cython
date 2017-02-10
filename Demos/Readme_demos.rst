@@ -24,12 +24,12 @@
     make
     ./nCr 10 5
     ./python
-    
+
 * Build notes
 
   * benchmarks/chaos.py requires cython 0.24 or newer
 
   * embed and freeze work for python2, require cython 0.24 or higher
     for python 3.5
-    
+
 

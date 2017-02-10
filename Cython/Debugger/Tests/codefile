@@ -12,9 +12,9 @@ python_var = 13
 def spam(a=0):
     cdef:
         int b, c
-    
+
     b = c = d = 0
-    
+
     b = 1
     c = 2
     int(10)
@@ -23,11 +23,11 @@ def spam(a=0):
     some_c_function()
 
 cpdef eggs():
-    pass    
-    
+    pass
+
 cdef ham():
     pass
-    
+
 cdef class SomeClass(object):
     def spam(self):
         pass

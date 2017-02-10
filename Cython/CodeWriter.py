@@ -85,7 +85,7 @@ class DeclarationWriter(TreeVisitor):
 
     def visit_StatListNode(self, node):
         self.visitchildren(node)
-    
+
     def visit_CDefExternNode(self, node):
         if node.include_file is None:
             file = u'*'
@@ -516,6 +516,6 @@ class PxdWriter(DeclarationWriter):
         if node.api:
             self.put(u'api ')
         self.visit(node.declarator)
-    
+
     def visit_StatNode(self, node):
         pass

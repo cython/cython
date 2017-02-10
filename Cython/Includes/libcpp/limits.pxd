@@ -5,7 +5,7 @@ cdef extern from "<limits>" namespace "std" nogil:
         round_to_nearest          = 1
         round_toward_infinity     = 2
         round_toward_neg_infinity = 3
-        
+
    enum float_denorm_style:
         denorm_indeterminate  = -1
         denorm_absent         = 0
@@ -37,7 +37,7 @@ cdef extern from "<limits>" namespace "std" nogil:
     const int  min_exponent10
     const int  max_exponent
     const int  max_exponent10
-  
+
     const bint has_infinity
     const bint has_quiet_NaN
     const bint has_signaling_NaN

@@ -3,12 +3,12 @@
          <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
          <meta name="GENERATOR" content="Mozilla/4.61 (Macintosh; I; PPC) [Netscape]"><title>Special Methods of Extenstion Types</title></head>
 <body>
-   <h1>  <hr width="100%">Special Methods of Extension Types  
+   <h1>  <hr width="100%">Special Methods of Extension Types
 <hr width="100%"></h1>
   This page describes the special methods currently supported by Cython extension
- types. A complete list of all the special methods appears in the table at 
-the bottom. Some of these methods behave differently from their Python counterparts 
-or have no direct Python counterparts, and require special mention.  
+ types. A complete list of all the special methods appears in the table at
+the bottom. Some of these methods behave differently from their Python counterparts
+or have no direct Python counterparts, and require special mention.
 <p><span style="font-weight: bold;">Note:</span><i> Everything said on this page applies only to </i><span style="font-weight: bold;">extension</span><i style="font-weight: bold;">
 </i><span style="font-weight: bold;">types</span><i>, defined with the </i><span style="font-weight: bold; font-family: monospace;">cdef class</span><i> statement. It doesn't apply&nbsp;
 to classes defined with the Python </i><span style="font-family: monospace;">class</span><i><span style="font-family: monospace;"> </span>statement, where the normal
@@ -20,19 +20,19 @@ to classes defined with the Python </i><span style="font-family: monospace;">cla
  types. You can place a docstring in the source to serve as a comment, but
  it won't show up in the corresponding <span style="font-family: monospace;">__doc__</span> attribute at run time. (This
  is a Python limitation -- there's nowhere in the PyTypeObject data structure
- to put such docstrings.)  
+ to put such docstrings.)
 <h2> <font size="+1">Initialisation methods: <tt>__new__</tt> and <tt>__init__</tt></font></h2>
   There are two methods concerned with initialising the object<tt>.</tt>
-<p>The <b><tt>__new__</tt></b> method is where you should perform basic C-level 
-initialisation of the object, including allocation of any C data structures 
-that your object will own. You need to be careful what you do in the __new__ 
-method, because the object may not yet be a valid Python object when it is 
+<p>The <b><tt>__new__</tt></b> method is where you should perform basic C-level
+initialisation of the object, including allocation of any C data structures
+that your object will own. You need to be careful what you do in the __new__
+method, because the object may not yet be a valid Python object when it is
 called. Therefore, you must not invoke any Python operations which might touch
 the object; in particular, do not try to call any of its methods. </p>
  <p>Unlike the corresponding method in Python, your <tt>__new__</tt> method
  is <i>not</i> responsible for <i>creating</i> the object. By the time your
- <tt>__new__</tt> method is called, memory has been allocated for the object 
-and any C attributes it has have been initialised to 0 or null. (Any Python 
+ <tt>__new__</tt> method is called, memory has been allocated for the object
+and any C attributes it has have been initialised to 0 or null. (Any Python
 attributes have also been initialised to <tt>None</tt>, but you probably shouldn't
 rely on that.) Your <tt>__new__</tt> method is guaranteed to be called exactly
 once.<br>
@@ -44,11 +44,11 @@ If you need to pass a modified argument list to the base type, you will have
 to do the relevant part of the initialisation in the <tt>__init__</tt> method
 instead (where the normal rules for calling inherited methods apply).<br>
  </p>
- <p>Note that the first parameter of the <tt>__new__</tt> method is the object 
+ <p>Note that the first parameter of the <tt>__new__</tt> method is the object
 to be initialised, not the class of the object as it is in Python. </p>
  <p>Any initialisation which cannot safely be done in the <tt>__new__</tt>
 method should be done in the <b><tt>__init__</tt></b> method. By the time
- <tt>__init__</tt> is called, the object is a fully valid Python object and 
+ <tt>__init__</tt> is called, the object is a fully valid Python object and
 all operations are safe. Under some circumstances it is possible for <tt>__init__</tt>
 to be called more than once or not to be called at all, so your other methods
  should be designed to be robust in such situations. </p>
@@ -57,27 +57,27 @@ to be called more than once or not to be called at all, so your other methods
 If you anticipate subclassing your extension type in Python, you may find
 it useful to give the <tt>__new__</tt> method * and ** arguments so that
 it can accept and ignore extra arguments. Otherwise, any Python subclass
-which has an <tt>__init__</tt> with a different signature will have to override 
-<tt>__new__</tt> as well as <tt>__init__</tt>, which the writer of a Python 
+which has an <tt>__init__</tt> with a different signature will have to override
+<tt>__new__</tt> as well as <tt>__init__</tt>, which the writer of a Python
 class wouldn't expect to have to do. </p>
  <h2> <font size="+1">Finalization method: <tt>__dealloc__</tt><tt></tt></font></h2>
   The counterpart to the <tt>__new__</tt> method is the <b><tt>__dealloc__</tt></b>
 method, which should perform the inverse of the <tt>__new__</tt> method.
 Any C data structures that you allocated in your <tt>__new__</tt> method
-should be freed in your <tt>__dealloc__</tt> method.  
-<p>You need to be careful what you do in a <tt>__dealloc__</tt> method. By 
-the time your <tt>__dealloc__</tt> method is called, the object may already 
-have been partially destroyed and may not be in a valid state as far as Python 
-is concerned, so you should avoid invoking any Python operations which might 
-touch the object. In particular, don't call any other methods of the object 
+should be freed in your <tt>__dealloc__</tt> method.
+<p>You need to be careful what you do in a <tt>__dealloc__</tt> method. By
+the time your <tt>__dealloc__</tt> method is called, the object may already
+have been partially destroyed and may not be in a valid state as far as Python
+is concerned, so you should avoid invoking any Python operations which might
+touch the object. In particular, don't call any other methods of the object
 or do anything which might cause the object to be resurrected. It's best if
 you stick to just deallocating C data. </p>
- <p>You don't need to worry about deallocating Python attributes of your object, 
+ <p>You don't need to worry about deallocating Python attributes of your object,
 because that will be done for you by Cython after your <tt>__dealloc__</tt>
 method returns.<br>
  <br>
- <b>Note:</b> There is no <tt>__del__</tt> method for extension types. (Earlier 
-versions of the Cython documentation stated that there was, but this turned 
+ <b>Note:</b> There is no <tt>__del__</tt> method for extension types. (Earlier
+versions of the Cython documentation stated that there was, but this turned
 out to be incorrect.)<br>
   </p>
  <h2><font size="+1">Arithmetic methods</font></h2>
@@ -85,7 +85,7 @@ out to be incorrect.)<br>
  from their Python counterparts. There are no separate "reversed" versions
  of these methods (<tt>__radd__</tt>, etc.) Instead, if the first operand
 cannot perform the operation, the <i>same</i> method of the second operand
-is called, with the operands in the <i>same order</i>.  
+is called, with the operands in the <i>same order</i>.
 <p>This means that you can't rely on the first parameter of these methods
  being "self", and you should test the types of both operands before deciding
  what to do. If you can't handle the combination of types you've been given,
@@ -96,8 +96,8 @@ is called, with the operands in the <i>same order</i>.
  <h2> <font size="+1">Rich comparisons</font></h2>
   There are no separate methods for the individual rich comparison operations
  (<tt>__eq__</tt>, <tt>__le__</tt>, etc.) Instead there is a single method
- <tt>__richcmp__</tt> which takes an integer indicating which operation is 
-to be performed, as follows:  
+ <tt>__richcmp__</tt> which takes an integer indicating which operation is
+to be performed, as follows:
 <ul>
       <ul>
  &nbsp;         <table nosave="" border="0" cellpadding="5" cellspacing="0">
@@ -140,11 +140,11 @@ to be performed, as follows:
  a method called <b><tt>__next__</tt></b>, <i>not</i> <tt>next</tt>. The Python
  system will automatically supply a <tt>next</tt> method which calls your
 <span style="font-family: monospace;">__next__</span>.  <b>Do NOT explicitly give your type a <tt>next</tt> method</b>,
-or bad things could happen (see note 3).  
+or bad things could happen (see note 3).
 <h2> <font size="+1">Special Method Table</font></h2>
   This table lists all of the special methods together with their parameter
  and return types. A parameter named <b>self</b> is of the type the method
- belongs to. Other untyped parameters are generic Python objects.  
+ belongs to. Other untyped parameters are generic Python objects.
 <p>You don't have to declare your method as taking these parameter types.
  If you declare different types, conversions will be performed as necessary.
  <br>
@@ -586,14 +586,14 @@ or bad things could happen (see note 3).
       </tbody> </table>
    </p>
  <p>Note 1: The buffer interface is intended for use by C code and is not
-directly accessible from Python. It is described in the <a href="http://www.python.org/doc/current/api/api.html">Python/C API Reference 
+directly accessible from Python. It is described in the <a href="http://www.python.org/doc/current/api/api.html">Python/C API Reference
 Manual</a> under sections <a href="http://www.python.org/doc/current/api/abstract-buffer.html">6.6</a>
 and <a href="http://www.python.org/doc/current/api/buffer-structs.html">10.6</a>.
  </p>
  <p>Note 2: Descriptor objects are part of the support mechanism for new-style
  Python classes. See the <a href="http://www.python.org/doc/2.2.1/whatsnew/sect-rellinks.html#SECTION000320000000000000000">discussion
- of descriptors in the Python documentation</a>. See also <a href="http://www.python.org/peps/pep-0252.html">PEP 252, "Making Types Look 
-More Like Classes"</a>, and <a href="http://www.python.org/peps/pep-0253.html">PEP 253, "Subtyping Built-In 
+ of descriptors in the Python documentation</a>. See also <a href="http://www.python.org/peps/pep-0252.html">PEP 252, "Making Types Look
+More Like Classes"</a>, and <a href="http://www.python.org/peps/pep-0253.html">PEP 253, "Subtyping Built-In
 Types"</a>. </p>
  <p>Note 3: If your type defines a <tt>__new__</tt> method, any method called
  <tt>new</tt> that you define will be overwritten with the system-supplied

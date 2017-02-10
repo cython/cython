@@ -15,5 +15,5 @@ for Python users, so this list may change in the future.
    print(range(-n, n))`` will print an empty list, since ``-n`` wraps
    around to a large positive integer prior to being passed to the
    ``range`` function.
- - Python's ``float`` type actually wraps C ``double`` values, and 
+ - Python's ``float`` type actually wraps C ``double`` values, and
    the ``int`` type in Python 2.x wraps C ``long`` values.

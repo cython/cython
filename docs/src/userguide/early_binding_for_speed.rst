@@ -99,7 +99,7 @@ overheads. Consider this code:
         rect = Rectangle(x0, y0, x1, y1)
         return rect.area()
 
-.. note:: 
+.. note::
 
     in earlier versions of Cython, the :keyword:`cpdef` keyword is
     ``rdef`` - but has the same effect).
@@ -116,13 +116,13 @@ storing a Rectangle object, then invoking the area method will require:
 
 * an attribute lookup for the area method
 * packing a tuple for arguments and a dict for keywords (both empty in this case)
-* using the Python API to call the method 
+* using the Python API to call the method
 
 and within the area method itself:
 
 * parsing the tuple and keywords
 * executing the calculation code
-* converting the result to a python object and returning it 
+* converting the result to a python object and returning it
 
 So within Cython, it is possible to achieve massive optimisations by
 using strong typing in declaration and casting of variables. For tight loops

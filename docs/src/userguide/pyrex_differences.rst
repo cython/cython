@@ -6,14 +6,14 @@
 Differences between Cython and Pyrex
 **************************************
 
-.. warning:: 
-    Both Cython and Pyrex are moving targets. It has come to the point 
-    that an explicit list of all the differences between the two 
-    projects would be laborious to list and track, but hopefully 
-    this high-level list gives an idea of the differences that 
+.. warning::
+    Both Cython and Pyrex are moving targets. It has come to the point
+    that an explicit list of all the differences between the two
+    projects would be laborious to list and track, but hopefully
+    this high-level list gives an idea of the differences that
     are present. It should be noted that both projects make an effort
-    at mutual compatibility, but Cython's goal is to be as close to 
-    and complete as Python as reasonable. 
+    at mutual compatibility, but Cython's goal is to be as close to
+    and complete as Python as reasonable.
 
 
 Python 3 Support
@@ -75,7 +75,7 @@ Conditional expressions as described in
 http://www.python.org/dev/peps/pep-0308/::
 
     X if C else Y
-       
+
 Only one of ``X`` and ``Y`` is evaluated (depending on the value of C).
 
 
@@ -89,10 +89,10 @@ keyword passed on to the C compiler. These can be as fast as macros.::
 
     cdef inline int something_fast(int a, int b):
         return a*a + b
-       
+
 Note that class-level :keyword:`cdef` functions are handled via a virtual
 function table, so the compiler won't be able to inline them in almost all
-cases. 
+cases.
 
 Assignment on declaration (e.g. "cdef int spam = 5")
 ======================================================
@@ -103,24 +103,24 @@ In Pyrex, one must write::
     i = 2
     j = 5
     k = 7
-    
+
 Now, with cython, one can write::
 
     cdef int i = 2, j = 5, k = 7
-    
+
 The expression on the right hand side can be arbitrarily complicated, e.g.::
 
     cdef int n = python_call(foo(x,y), a + b + c) - 32
-       
+
 
 'by' expression in for loop (e.g. "for i from 0 <= i < 10 by 2")
 ==================================================================
-    
+
 ::
 
     for i from 0 <= i < 10 by 2:
         print i
-       
+
 
 yields::
 
@@ -207,7 +207,7 @@ method on the class directly, e.g.::
     x.foo()  # will check to see if overridden
     A.foo(x) # will call A's implementation whether overridden or not
 
-See :ref:`early-binding-for-speed` for explanation and usage tips. 
+See :ref:`early-binding-for-speed` for explanation and usage tips.
 
 .. _automatic-range-conversion:
 
@@ -216,9 +216,9 @@ Automatic range conversion
 
 This will convert statements of the form ``for i in range(...)`` to ``for i
 from ...`` when ``i`` is any cdef'd integer type, and the direction (i.e. sign
-of step) can be determined. 
+of step) can be determined.
 
-.. warning:: 
+.. warning::
 
     This may change the semantics if the range causes
     assignment to ``i`` to overflow. Specifically, if this option is set, an error
@@ -256,7 +256,7 @@ functions in the ``.pxd`` file by writing ``cdef foo(x=*)``. The number of
 arguments may increase on subclassing, but the argument types and order must
 remain the same. There is a slight performance penalty in some cases when a
 cdef/cpdef function without any optional is overridden with one that does have
-default argument values. 
+default argument values.
 
 For example, one can have the ``.pxd`` file::
 
@@ -279,7 +279,7 @@ with corresponding ``.pyx`` file::
         cpdef foo(self, x=True, int k=3)
             print "C", x, k
 
-.. note:: 
+.. note::
 
     this also demonstrates how :keyword:`cpdef` functions can override
     :keyword:`cdef` functions.
@@ -330,13 +330,13 @@ From __future__ directives
 Cython supports several ``from __future__ import ...`` directives, namely
 ``absolute_import``, ``unicode_literals``, ``print_function`` and ``division``.
 
-With statements are always enabled. 
+With statements are always enabled.
 
 Pure Python mode
 ================
 
-Cython has support for compiling ``.py`` files, and 
+Cython has support for compiling ``.py`` files, and
 accepting type annotations using decorators and other
-valid Python syntax. This allows the same source to 
-be interpreted as straight Python, or compiled for 
+valid Python syntax. This allows the same source to
+be interpreted as straight Python, or compiled for
 optimized results. See :ref:`pure-mode` for more details.

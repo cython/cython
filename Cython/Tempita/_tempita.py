@@ -113,7 +113,7 @@ class Template(object):
             self.default_namespace['start_braces'] = delimeters[0]
             self.default_namespace['end_braces'] = delimeters[1]
         self.delimeters = delimeters
-        
+
         self._unicode = is_unicode(content)
         if name is None and stacklevel is not None:
             try:
