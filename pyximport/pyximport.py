@@ -308,27 +308,31 @@ class PyxImporter(object):
             elif not os.path.isabs(path):
                 path = os.path.abspath(path)
 
-            try:
-                zi = zipimporter(path)
-                data = zi.get_data(pyx_module_name)
-            except (ZipImportError, IOError):
-                pyx_module_path = os.path.join(path, pyx_module_name)
+            if os.path.isfile(path):
+                try:
+                    zi = zipimporter(path)
+                    data = zi.get_data(pyx_module_name)
+                except (ZipImportError, IOError):
+                    continue  # Module not found.
+                else:
+                    # XXX unzip the imported file into the build dir. A bit
+                    #     hacky, but it works!
+                    if not os.path.exists(self.pyxbuild_dir):
+                        os.makedirs(self.pyxbuild_dir)
+
+                    pyx_module_path = os.path.join(self.pyxbuild_dir,
+                                                   pyx_module_name)
+                    with open(pyx_module_path, "wb") as f:
+                        f.write(data)
             else:
-                # XXX unzip the imported file into the build dir. A bit
-                #     hacky, but it works!
-                if not os.path.exists(self.pyxbuild_dir):
-                    os.makedirs(self.pyxbuild_dir)
+                pyx_module_path = os.path.join(path, pyx_module_name)
+                if not os.path.isfile(pyx_module_path):
+                    continue  # Module not found.
 
-                pyx_module_path = os.path.join(self.pyxbuild_dir,
-                                               pyx_module_name)
-                with open(pyx_module_path, "wb") as handle:
-                    handle.write(data)
-
-            if os.path.isfile(pyx_module_path):
-                return PyxLoader(fullname, pyx_module_path,
-                                 pyxbuild_dir=self.pyxbuild_dir,
-                                 inplace=self.inplace,
-                                 language_level=self.language_level)
+            return PyxLoader(fullname, pyx_module_path,
+                             pyxbuild_dir=self.pyxbuild_dir,
+                             inplace=self.inplace,
+                             language_level=self.language_level)
 
         # not found, normal package, not a .pyx file, none of our business
         _debug("%s not found" % fullname)
