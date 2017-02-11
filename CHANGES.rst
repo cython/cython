@@ -24,6 +24,8 @@ Bugs fixed
   the previous behaviour now triggers a warning that can be disabled by
   applying an explicit cast. (Github issue #1602)
 
+* f-string processing was adapted to match recent changes in PEP 498 and
+  CPython 3.6.
 
 0.25.2 (2016-12-08)
 ===================
