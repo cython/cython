@@ -939,10 +939,10 @@ def p_string_literal(s, kind_override=None):
             error(pos, u"invalid character literal: %r" % bytes_value)
     else:
         bytes_value, unicode_value = chars.getstrings()
-        if is_python3_source and check_for_non_ascii_characters(unicode_value):
+        if is_python3_source and unicode_value and check_for_non_ascii_characters(unicode_value):
             # Python 3 forbids literal non-ASCII characters in byte strings
             if kind not in ('u', 'f'):
-                error(pos, "bytes can only contain ASCII literal characters.")
+                s.error("bytes can only contain ASCII literal characters.", pos=pos)
             bytes_value = None
     if kind == 'f':
         unicode_value = p_f_string(s, unicode_value, pos, is_raw='r' in kind_string)
