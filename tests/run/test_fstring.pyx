@@ -134,11 +134,11 @@ f'{a * x()}'"""
     def test_docstring(self):
         def f():
             f'''Not a docstring'''
-        self.assertIsNone(f.__doc__)
+        self.assertTrue(f.__doc__ is None)
         def g():
             '''Not a docstring''' \
             f''
-        self.assertIsNone(g.__doc__)
+        self.assertTrue(g.__doc__ is None)
 
     def __test_literal_eval(self):
         # With no expressions, an f-string is okay.
