@@ -431,33 +431,37 @@ class build_ext(_build_ext):
             pass
         _build_ext.build_extension(self, ext)
 
+
 class ErrorWriter(object):
     match_error = re.compile('(warning:)?(?:.*:)?\s*([-0-9]+)\s*:\s*([-0-9]+)\s*:\s*(.*)').match
+
     def __init__(self):
         self.output = []
         self.write = self.output.append
 
-    def _collect(self, collect_errors, collect_warnings):
+    def _collect(self):
         s = ''.join(self.output)
-        result = []
-        for line in s.split('\n'):
+        results = {'errors': [], 'warnings': []}
+        for line in s.splitlines():
             match = self.match_error(line)
             if match:
                 is_warning, line, column, message = match.groups()
-                if (is_warning and collect_warnings) or \
-                        (not is_warning and collect_errors):
-                    result.append( (int(line), int(column), message.strip()) )
-        result.sort()
-        return [ "%d:%d: %s" % values for values in result ]
+                results['warnings' if is_warning else 'errors'].append((int(line), int(column), message.strip()))
+
+        return [["%d:%d: %s" % values for values in sorted(results[key])] for key in ('errors', 'warnings')]
 
     def geterrors(self):
-        return self._collect(True, False)
+        return self._collect()[0]
 
     def getwarnings(self):
-        return self._collect(False, True)
+        return self._collect()[1]
 
     def getall(self):
-        return self._collect(True, True)
+        return self._collect()
+
+    def close(self):
+        pass  # ignore, only to match file-like interface
+
 
 class TestBuilder(object):
     def __init__(self, rootdir, workdir, selectors, exclude_selectors, annotate,
@@ -562,10 +566,8 @@ class TestBuilder(object):
         return suite
 
     def build_tests(self, test_class, path, workdir, module, expect_errors, tags):
-        if 'werror' in tags['tag']:
-            warning_errors = True
-        else:
-            warning_errors = False
+        warning_errors = 'werror' in tags['tag']
+        expect_warnings = 'warnings' in tags['tag']
 
         if expect_errors:
             if 'cpp' in tags['tag'] and 'cpp' in self.languages:
@@ -583,14 +585,14 @@ class TestBuilder(object):
             languages.remove('cpp')
 
         preparse_list = tags.get('preparse', ['id'])
-        tests = [ self.build_test(test_class, path, workdir, module, tags,
-                                  language, expect_errors, warning_errors, preparse)
+        tests = [ self.build_test(test_class, path, workdir, module, tags, language,
+                                  expect_errors, expect_warnings, warning_errors, preparse)
                   for language in languages
                   for preparse in preparse_list ]
         return tests
 
-    def build_test(self, test_class, path, workdir, module, tags,
-                   language, expect_errors, warning_errors, preparse):
+    def build_test(self, test_class, path, workdir, module, tags, language,
+                   expect_errors, expect_warnings, warning_errors, preparse):
         language_workdir = os.path.join(workdir, language)
         if not os.path.exists(language_workdir):
             os.makedirs(language_workdir)
@@ -601,6 +603,7 @@ class TestBuilder(object):
                           language=language,
                           preparse=preparse,
                           expect_errors=expect_errors,
+                          expect_warnings=expect_warnings,
                           annotate=self.annotate,
                           cleanup_workdir=self.cleanup_workdir,
                           cleanup_sharedlibs=self.cleanup_sharedlibs,
@@ -611,9 +614,10 @@ class TestBuilder(object):
                           warning_errors=warning_errors,
                           common_utility_dir=self.common_utility_dir)
 
+
 class CythonCompileTestCase(unittest.TestCase):
     def __init__(self, test_directory, workdir, module, tags, language='c', preparse='id',
-                 expect_errors=False, annotate=False, cleanup_workdir=True,
+                 expect_errors=False, expect_warnings=False, annotate=False, cleanup_workdir=True,
                  cleanup_sharedlibs=True, cleanup_failures=True, cython_only=False,
                  fork=True, language_level=2, warning_errors=False,
                  common_utility_dir=None):
@@ -625,6 +629,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self.preparse = preparse
         self.name = module if self.preparse == "id" else "%s_%s" % (module, preparse)
         self.expect_errors = expect_errors
+        self.expect_warnings = expect_warnings
         self.annotate = annotate
         self.cleanup_workdir = cleanup_workdir
         self.cleanup_sharedlibs = cleanup_sharedlibs
@@ -702,7 +707,7 @@ class CythonCompileTestCase(unittest.TestCase):
     def runCompileTest(self):
         return self.compile(
             self.test_directory, self.module, self.workdir,
-            self.test_directory, self.expect_errors, self.annotate)
+            self.test_directory, self.expect_errors, self.expect_warnings, self.annotate)
 
     def find_module_source_file(self, source_file):
         if not os.path.exists(source_file):
@@ -744,25 +749,24 @@ class CythonCompileTestCase(unittest.TestCase):
     def split_source_and_output(self, test_directory, module, workdir):
         source_file = self.find_module_source_file(os.path.join(test_directory, module) + '.pyx')
         source_and_output = io_open(source_file, 'rU', encoding='ISO-8859-1')
+        error_writer = warnings_writer = None
         try:
             out = io_open(os.path.join(workdir, module + os.path.splitext(source_file)[1]),
-                              'w', encoding='ISO-8859-1')
+                          'w', encoding='ISO-8859-1')
             for line in source_and_output:
                 if line.startswith("_ERRORS"):
                     out.close()
-                    out = ErrorWriter()
+                    out = error_writer = ErrorWriter()
+                elif line.startswith("_WARNINGS"):
+                    out.close()
+                    out = warnings_writer = ErrorWriter()
                 else:
                     out.write(line)
         finally:
             source_and_output.close()
 
-        try:
-            geterrors = out.geterrors
-        except AttributeError:
-            out.close()
-            return []
-        else:
-            return geterrors()
+        return (error_writer.geterrors() if error_writer else [],
+                warnings_writer.geterrors() if warnings_writer else [])
 
     def run_cython(self, test_directory, module, targetdir, incdir, annotate,
                    extra_compile_options=None):
@@ -894,10 +898,10 @@ class CythonCompileTestCase(unittest.TestCase):
         return get_ext_fullpath(module)
 
     def compile(self, test_directory, module, workdir, incdir,
-                expect_errors, annotate):
-        expected_errors = errors = ()
-        if expect_errors:
-            expected_errors = self.split_source_and_output(
+                expect_errors, expect_warnings, annotate):
+        expected_errors = expected_warnings = errors = warnings = ()
+        if expect_errors or expect_warnings:
+            expected_errors, expected_warnings = self.split_source_and_output(
                 test_directory, module, workdir)
             test_directory = workdir
 
@@ -906,7 +910,7 @@ class CythonCompileTestCase(unittest.TestCase):
             try:
                 sys.stderr = ErrorWriter()
                 self.run_cython(test_directory, module, workdir, incdir, annotate)
-                errors = sys.stderr.geterrors()
+                errors, warnings = sys.stderr.getall()
             finally:
                 sys.stderr = old_stderr
 
@@ -919,23 +923,10 @@ class CythonCompileTestCase(unittest.TestCase):
                 tostderr('\n\n')
                 raise RuntimeError('should have generated extension code')
         elif errors or expected_errors:
-            try:
-                for expected, error in zip(expected_errors, errors):
-                    self.assertEquals(expected, error)
-                if len(errors) < len(expected_errors):
-                    expected_error = expected_errors[len(errors)]
-                    self.assertEquals(expected_error, None)
-                elif len(errors) > len(expected_errors):
-                    unexpected_error = errors[len(expected_errors)]
-                    self.assertEquals(None, unexpected_error)
-            except AssertionError:
-                tostderr("\n=== Expected errors: ===\n")
-                tostderr('\n'.join(expected_errors))
-                tostderr("\n\n=== Got errors: ===\n")
-                tostderr('\n'.join(errors))
-                tostderr('\n\n')
-                raise
+            self._match_output(expected_errors, errors, tostderr)
             return None
+        if expected_warnings or (expect_warnings and warnings):
+            self._match_output(expected_warnings, warnings, tostderr)
 
         so_path = None
         if not self.cython_only:
@@ -970,6 +961,24 @@ class CythonCompileTestCase(unittest.TestCase):
                     if stdout or stderr:
                         tostderr("\n==============================\n")
         return so_path
+
+    def _match_output(self, expected_output, actual_output, write):
+        try:
+            for expected, actual in zip(expected_output, actual_output):
+                self.assertEquals(expected, actual)
+            if len(actual_output) < len(expected_output):
+                expected = expected_output[len(actual_output)]
+                self.assertEquals(expected, None)
+            elif len(actual_output) > len(expected_output):
+                unexpected = actual_output[len(expected_output)]
+                self.assertEquals(None, unexpected)
+        except AssertionError:
+            write("\n=== Expected: ===\n")
+            write('\n'.join(expected_output))
+            write("\n\n=== Got: ===\n")
+            write('\n'.join(actual_output))
+            write('\n\n')
+            raise
 
 
 class CythonRunTestCase(CythonCompileTestCase):

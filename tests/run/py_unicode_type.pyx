@@ -1,4 +1,6 @@
 # -*- coding: iso-8859-1 -*-
+# mode: run
+# tag: warnings
 
 cimport cython
 
@@ -247,3 +249,8 @@ def uchar_lookup_in_dict(obj, Py_UNICODE uchar):
     dval = d[uchar]
     objval = obj[uchar]
     return dval, objval
+
+
+_WARNINGS = """
+250:16: Item lookup of unicode character codes now always converts to a Unicode string. Use an explicit C integer cast to get back the previous integer lookup behaviour.
+"""
