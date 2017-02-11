@@ -349,9 +349,9 @@ def uchar_in(Py_UCS4 uchar, unicode ustring):
 
 def uchar_lookup_in_dict(obj, Py_UCS4 uchar):
     """
-    >>> d = {high_uchar: 12345, u0: 0, u1: 1, u_A: 2}
-    >>> uchar_lookup_in_dict(d, high_uchar)
-    (12345, 12345)
+    >>> d = {u_KLINGON: 1234, u0: 0, u1: 1, u_A: 2}
+    >>> uchar_lookup_in_dict(d, u_KLINGON)
+    (1234, 1234)
     >>> uchar_lookup_in_dict(d, u_A)
     (2, 2)
     >>> uchar_lookup_in_dict(d, u0)
