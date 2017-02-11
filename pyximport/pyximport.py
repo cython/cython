@@ -47,10 +47,11 @@ the documentation.
 This code is based on the Py2.3+ import protocol as described in PEP 302.
 """
 
-import sys
-import os
 import glob
 import imp
+import os
+import sys
+from zipimport import zipimporter, ZipImportError
 
 mod_name = "pyximport"
 
@@ -300,22 +301,38 @@ class PyxImporter(object):
             paths = package_path
         else:
             paths = sys.path
-        join_path = os.path.join
-        is_file = os.path.isfile
-        is_abs = os.path.isabs
-        abspath = os.path.abspath
-        #is_dir = os.path.isdir
-        sep = os.path.sep
+
         for path in paths:
             if not path:
                 path = os.getcwd()
-            elif not is_abs(path):
-                path = abspath(path)
-            if is_file(path+sep+pyx_module_name):
-                return PyxLoader(fullname, join_path(path, pyx_module_name),
-                                 pyxbuild_dir=self.pyxbuild_dir,
-                                 inplace=self.inplace,
-                                 language_level=self.language_level)
+            elif not os.path.isabs(path):
+                path = os.path.abspath(path)
+
+            if os.path.isfile(path):
+                try:
+                    zi = zipimporter(path)
+                    data = zi.get_data(pyx_module_name)
+                except (ZipImportError, IOError):
+                    continue  # Module not found.
+                else:
+                    # XXX unzip the imported file into the build dir. A bit
+                    #     hacky, but it works!
+                    if not os.path.exists(self.pyxbuild_dir):
+                        os.makedirs(self.pyxbuild_dir)
+
+                    pyx_module_path = os.path.join(self.pyxbuild_dir,
+                                                   pyx_module_name)
+                    with open(pyx_module_path, "wb") as f:
+                        f.write(data)
+            else:
+                pyx_module_path = os.path.join(path, pyx_module_name)
+                if not os.path.isfile(pyx_module_path):
+                    continue  # Module not found.
+
+            return PyxLoader(fullname, pyx_module_path,
+                             pyxbuild_dir=self.pyxbuild_dir,
+                             inplace=self.inplace,
+                             language_level=self.language_level)
 
         # not found, normal package, not a .pyx file, none of our business
         _debug("%s not found" % fullname)
