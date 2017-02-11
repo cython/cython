@@ -921,7 +921,7 @@ def p_string_literal(s, kind_override=None):
             if is_python3_source and not has_non_ascii_literal_characters and check_for_non_ascii_characters(systr):
                 has_non_ascii_literal_characters = True
         elif sy == 'ESCAPE':
-            if is_raw:
+            if is_raw and (is_python3_source or systr[1] not in u'Uu'):
                 chars.append(systr)
                 if is_python3_source and not has_non_ascii_literal_characters and check_for_non_ascii_characters(systr):
                     has_non_ascii_literal_characters = True
