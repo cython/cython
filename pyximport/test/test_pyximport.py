@@ -95,8 +95,9 @@ def test_zip():
         import test_zip_module
         assert test_zip_module.x == 42
     finally:
+        if zip_path in sys.path:
+            sys.path.remove(zip_path)
         os.remove(zip_path)
-        sys.path.remove(zip_path)
 
 
 def test_zip_nonexisting():
@@ -105,6 +106,8 @@ def test_zip_nonexisting():
         import nonexisting_zip_module
     except ImportError:
         pass
+    finally:
+        sys.path.remove("nonexisting_zip_module.zip")
 
 
 if __name__== "__main__":
