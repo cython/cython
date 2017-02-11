@@ -287,47 +287,45 @@ class PyxImporter(object):
         # searching sys.path ...
 
         #if DEBUG_IMPORT:  print "SEARCHING", fullname, package_path
-        if '.' in fullname: # only when package_path anyway?
-            mod_parts = fullname.split('.')
-            module_name = mod_parts[-1]
-        else:
-            module_name = fullname
+
+        mod_parts = fullname.split('.')
+        module_name = mod_parts[-1]
         pyx_module_name = module_name + self.extension
+
         # this may work, but it returns the file content, not its path
         #import pkgutil
         #pyx_source = pkgutil.get_data(package, pyx_module_name)
 
-        if package_path:
-            paths = package_path
-        else:
-            paths = sys.path
-
+        paths = package_path or sys.path
         for path in paths:
+            pyx_data = None
             if not path:
                 path = os.getcwd()
+            elif os.path.isfile(path):
+                try:
+                    zi = zipimporter(path)
+                    pyx_data = zi.get_data(pyx_module_name)
+                except (ZipImportError, IOError, OSError):
+                    continue  # Module not found.
+                # unzip the imported file into the build dir
+                # FIXME: can interfere with later imports if build dir is in sys.path and comes before zip file
+                path = self.pyxbuild_dir
             elif not os.path.isabs(path):
                 path = os.path.abspath(path)
 
-            if os.path.isfile(path):
-                try:
-                    zi = zipimporter(path)
-                    data = zi.get_data(pyx_module_name)
-                except (ZipImportError, IOError):
-                    continue  # Module not found.
-                else:
-                    # XXX unzip the imported file into the build dir. A bit
-                    #     hacky, but it works!
-                    if not os.path.exists(self.pyxbuild_dir):
-                        os.makedirs(self.pyxbuild_dir)
-
-                    pyx_module_path = os.path.join(self.pyxbuild_dir,
-                                                   pyx_module_name)
-                    with open(pyx_module_path, "wb") as f:
-                        f.write(data)
-            else:
-                pyx_module_path = os.path.join(path, pyx_module_name)
-                if not os.path.isfile(pyx_module_path):
-                    continue  # Module not found.
+            pyx_module_path = os.path.join(path, pyx_module_name)
+            if pyx_data is not None:
+                if not os.path.exists(path):
+                    try:
+                        os.makedirs(path)
+                    except OSError:
+                        # concurrency issue?
+                        if not os.path.exists(path):
+                            raise
+                with open(pyx_module_path, "wb") as f:
+                    f.write(pyx_data)
+            elif not os.path.isfile(pyx_module_path):
+                continue  # Module not found.
 
             return PyxLoader(fullname, pyx_module_path,
                              pyxbuild_dir=self.pyxbuild_dir,
