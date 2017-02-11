@@ -113,3 +113,4 @@ def test_zip_nonexisting():
 if __name__== "__main__":
     test_with_reload()
     test_zip()
+    test_zip_nonexisting()
