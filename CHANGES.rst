@@ -12,6 +12,9 @@ Features added
 * Speed up comparisons of strings if their hash value is available.
   Patch by Claudio Freire (Github issue #1571).
 
+* Support pyximport from zip files.
+  Patch by Sergei Lebedev (Github issue #1485).
+
 Bugs fixed
 ----------
 
