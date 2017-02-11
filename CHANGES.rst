@@ -12,6 +12,15 @@ Features added
 * Speed up comparisons of strings if their hash value is available.
   Patch by Claudio Freire (Github issue #1571).
 
+Bugs fixed
+----------
+
+* Item lookup/assignment with a unicode character as index that is typed
+  (explicitly or implicitly) as ``Py_UCS4`` or ``Py_UNICODE`` used the
+  integer value instead of the Unicode string value. Code that relied on
+  the previous behaviour now triggers a warning that can be disabled by
+  applying an explicit cast. (Github issue #1602)
+
 
 0.25.2 (2016-12-08)
 ===================
