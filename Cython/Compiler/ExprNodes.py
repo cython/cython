@@ -3466,7 +3466,13 @@ class IndexNode(_IndexingBaseNode):
 
     def analyse_as_pyobject(self, env, is_slice, getting, setting):
         base_type = self.base.type
-        if self.index.type.is_int and base_type is not dict_type:
+        if self.index.type.is_unicode_char:
+            warning(self.pos,
+                    "Item lookup of unicode character codes now always converts to a Unicode string. "
+                    "Use an explicit C integer cast to get back the previous integer lookup behaviour.", level=1)
+            self.index = self.index.coerce_to_pyobject(env)
+            self.is_temp = 1
+        elif self.index.type.is_int and base_type is not dict_type:
             if (getting
                     and (base_type in (list_type, tuple_type, bytearray_type))
                     and (not self.index.type.signed

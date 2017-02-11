@@ -342,3 +342,21 @@ def uchar_in(Py_UCS4 uchar, unicode ustring):
     """
     assert uchar == 0x12345, ('%X' % uchar)
     return uchar in ustring
+
+
+def uchar_lookup_in_dict(obj, Py_UCS4 uchar):
+    """
+    >>> d = {high_uchar: 12345, u0: 0, u1: 1, u_A: 2}
+    >>> uchar_lookup_in_dict(d, high_uchar)
+    (12345, 12345)
+    >>> uchar_lookup_in_dict(d, u_A)
+    (2, 2)
+    >>> uchar_lookup_in_dict(d, u0)
+    (0, 0)
+    >>> uchar_lookup_in_dict(d, u1)
+    (1, 1)
+    """
+    cdef dict d = obj
+    dval = d[uchar]
+    objval = obj[uchar]
+    return dval, objval

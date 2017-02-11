@@ -229,3 +229,21 @@ def index_and_in():
     for i in range(1,9):
         if u'abcdefgh'[-i] in u'abCDefGh':
             print i
+
+
+def uchar_lookup_in_dict(obj, Py_UNICODE uchar):
+    """
+    >>> d = {u_KLINGON: 1234, u0: 0, u1: 1, u_A: 2}
+    >>> uchar_lookup_in_dict(d, u_KLINGON)
+    (1234, 1234)
+    >>> uchar_lookup_in_dict(d, u_A)
+    (2, 2)
+    >>> uchar_lookup_in_dict(d, u0)
+    (0, 0)
+    >>> uchar_lookup_in_dict(d, u1)
+    (1, 1)
+    """
+    cdef dict d = obj
+    dval = d[uchar]
+    objval = obj[uchar]
+    return dval, objval
