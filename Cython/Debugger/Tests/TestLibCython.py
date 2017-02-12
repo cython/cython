@@ -90,6 +90,8 @@ class DebuggerTestCase(unittest.TestCase):
 
             shutil.copy(codefile, self.destfile)
             shutil.copy(cfuncs_file, self.cfuncs_destfile + '.c')
+            shutil.copy(cfuncs_file.replace('.c', '.h'),
+                        self.cfuncs_destfile + '.h')
 
             compiler = ccompiler.new_compiler()
             compiler.compile(['cfuncs.c'], debug=True, extra_postargs=['-fPIC'])

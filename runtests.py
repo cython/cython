@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import atexit
 import os
 import sys
 import re
@@ -69,6 +70,24 @@ CY3_DIR = None
 
 from distutils.command.build_ext import build_ext as _build_ext
 from distutils import sysconfig
+
+_to_clean = []
+
+@atexit.register
+def _cleanup_files():
+    """
+    This is only used on Cygwin to clean up shared libraries that are unsafe
+    to delete while the test suite is running.
+    """
+
+    for filename in _to_clean:
+        if os.path.isdir(filename):
+            shutil.rmtree(filename, ignore_errors=True)
+        else:
+            try:
+                os.remove(filename)
+            except OSError:
+                pass
 
 
 def get_distutils_distro(_cache=[]):
@@ -678,8 +697,10 @@ class CythonCompileTestCase(unittest.TestCase):
         cleanup = self.cleanup_failures or self.success
         cleanup_c_files = WITH_CYTHON and self.cleanup_workdir and cleanup
         cleanup_lib_files = self.cleanup_sharedlibs and cleanup
+        is_cygwin = sys.platform == 'cygwin'
+
         if os.path.exists(self.workdir):
-            if cleanup_c_files and cleanup_lib_files:
+            if cleanup_c_files and cleanup_lib_files and not is_cygwin:
                 shutil.rmtree(self.workdir, ignore_errors=True)
             else:
                 for rmfile in os.listdir(self.workdir):
@@ -688,16 +709,27 @@ class CythonCompileTestCase(unittest.TestCase):
                                 rmfile[-4:] == ".cpp" or
                                 rmfile.endswith(".html") and rmfile.startswith(self.module)):
                             continue
-                    if not cleanup_lib_files and (rmfile.endswith(".so") or rmfile.endswith(".dll")):
+
+                    is_shared_obj = rmfile.endswith(".so") or rmfile.endswith(".dll")
+
+                    if not cleanup_lib_files and is_shared_obj:
                         continue
+
                     try:
                         rmfile = os.path.join(self.workdir, rmfile)
                         if os.path.isdir(rmfile):
                             shutil.rmtree(rmfile, ignore_errors=True)
+                        elif is_cygwin and is_shared_obj:
+                            # Delete later
+                            _to_clean.append(rmfile)
                         else:
                             os.remove(rmfile)
                     except IOError:
                         pass
+
+                if cleanup_c_files and cleanup_lib_files and is_cygwin:
+                    # Finally, remove the work dir itself
+                    _to_clean.append(self.workdir)
 
     def runTest(self):
         self.success = False
@@ -828,10 +860,7 @@ class CythonCompileTestCase(unittest.TestCase):
                 build_extension.compiler = COMPILER
 
             ext_compile_flags = CFLAGS[:]
-            compiler = COMPILER or sysconfig.get_config_var('CC')
 
-            if self.language == 'c' and compiler == 'gcc':
-                ext_compile_flags.extend(['-std=c89', '-pedantic'])
             if  build_extension.compiler == 'mingw32':
                 ext_compile_flags.append('-Wno-format')
             if extra_extension_args is None:
@@ -1459,7 +1488,6 @@ class EmbedTest(unittest.TestCase):
         os.chdir(self.old_dir)
 
     def test_embed(self):
-        from distutils import sysconfig
         libname = sysconfig.get_config_var('LIBRARY')
         libdir = sysconfig.get_config_var('LIBDIR')
         if not os.path.isdir(libdir) or libname not in os.listdir(libdir):
@@ -1980,10 +2008,17 @@ def runtests(options, cmd_args, coverage=None):
         exclude_selectors.append(ShardExcludeSelector(options.shard_num, options.shard_count))
 
     if not test_bugs:
+        bug_files = [
+            ('bugs.txt', True),
+            ('pypy_bugs.txt', IS_PYPY),
+            ('windows_bugs.txt', sys.platform == 'win32'),
+            ('cygwin_bugs.txt', sys.platform == 'cygwin')
+        ]
+
         exclude_selectors += [
-            FileListExcluder(os.path.join(ROOTDIR, bugs_file_name), verbose=verbose_excludes)
-            for bugs_file_name in ['bugs.txt'] + (['pypy_bugs.txt'] if IS_PYPY else []) +
-            (['windows_bugs.txt'] if sys.platform == 'win32' else [])
+            FileListExcluder(os.path.join(ROOTDIR, bugs_file_name),
+                             verbose=verbose_excludes)
+            for bugs_file_name, condition in bug_files if condition
         ]
 
     if sys.platform in ['win32', 'cygwin'] and sys.version_info < (2,6):
