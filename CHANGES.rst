@@ -30,6 +30,9 @@ Bugs fixed
 * Unicode escapes in 'ur' raw-unicode strings were not resolved in Py2 code.
   Original patch by Aaron Gallagher (Github issue #1594).
 
+* File paths of code objects are now relative.
+  Original patch by Jelmer Vernooij (Github issue #1565).
+
 
 0.25.2 (2016-12-08)
 ===================
