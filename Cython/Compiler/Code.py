@@ -13,6 +13,7 @@ cython.declare(os=object, re=object, operator=object,
 
 import os
 import re
+import shutil
 import sys
 import operator
 import textwrap
@@ -1737,7 +1738,7 @@ class CCodeWriter(object):
                 tmp_path = '%s.tmp%s' % (path, os.getpid())
                 with closing(Utils.open_new_file(tmp_path)) as f:
                     f.write(code)
-                os.rename(tmp_path, path)
+                shutil.move(tmp_path, path)
             code = '#include "%s"\n' % path
         self.put(code)
 
