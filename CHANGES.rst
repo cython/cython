@@ -27,6 +27,10 @@ Bugs fixed
 * f-string processing was adapted to match recent changes in PEP 498 and
   CPython 3.6.
 
+* Unicode escapes in 'ur' raw-unicode strings were not resolved in Py2 code.
+  Original patch by Aaron Gallagher (Github issue #1594).
+
+
 0.25.2 (2016-12-08)
 ===================
 
