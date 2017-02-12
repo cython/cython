@@ -1437,12 +1437,13 @@ class GlobalState(object):
     #
 
     def lookup_filename(self, source_desc):
+        entry = source_desc.get_filenametable_entry()
         try:
-            index = self.filename_table[source_desc.get_filenametable_entry()]
+            index = self.filename_table[entry]
         except KeyError:
             index = len(self.filename_list)
             self.filename_list.append(source_desc)
-            self.filename_table[source_desc.get_filenametable_entry()] = index
+            self.filename_table[entry] = index
         return index
 
     def commented_file_contents(self, source_desc):

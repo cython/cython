@@ -10,7 +10,7 @@ cython.declare(sys=object, os=object, copy=object,
                py_object_type=object, ModuleScope=object, LocalScope=object, ClosureScope=object,
                StructOrUnionScope=object, PyClassScope=object,
                CppClassScope=object, UtilityCode=object, EncodedString=object,
-               absolute_path_length=cython.Py_ssize_t, error_type=object, _py_int_types=object)
+               error_type=object, _py_int_types=object)
 
 import sys, os, copy
 from itertools import chain
@@ -30,7 +30,6 @@ from . import Options
 from . import DebugFlags
 from ..Utils import add_metaclass
 
-absolute_path_length = 0
 
 if sys.version_info[0] >= 3:
     _py_int_types = int
@@ -39,25 +38,8 @@ else:
 
 
 def relative_position(pos):
-    """
-    We embed the relative filename in the generated C file, since we
-    don't want to have to regenerate and compile all the source code
-    whenever the Python install directory moves (which could happen,
-    e.g,. when distributing binaries.)
+    return (pos[0].get_filenametable_entry(), pos[1])
 
-    INPUT:
-        a position tuple -- (absolute filename, line number column position)
-
-    OUTPUT:
-        relative filename
-        line number
-
-    AUTHOR: William Stein
-    """
-    global absolute_path_length
-    if absolute_path_length == 0:
-        absolute_path_length = len(os.path.abspath(os.getcwd()))
-    return (pos[0].get_filenametable_entry()[absolute_path_length+1:], pos[1])
 
 def embed_position(pos, docstring):
     if not Options.embed_pos_in_docstring:

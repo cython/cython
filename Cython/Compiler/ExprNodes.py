@@ -9047,15 +9047,7 @@ class CodeObjectNode(ExprNode):
         func_name = code.get_py_string_const(
             func.name, identifier=True, is_str=False, unicode_value=func.name)
         # FIXME: better way to get the module file path at module init time? Encoding to use?
-        file_abspath = func.pos[0].get_filenametable_entry()
-        # Prefer relative paths to current directory (which is most likely the project root)
-        # over absolute paths.
-        workdir = os.getcwd() + os.sep
-        if file_abspath.startswith(workdir):
-            file_path = file_abspath[len(workdir):]
-        else:
-            file_path = file_abspath
-        file_path = StringEncoding.bytes_literal(file_path.encode('utf8'), 'utf8')
+        file_path = StringEncoding.bytes_literal(func.pos[0].get_filenametable_entry().encode('utf8'), 'utf8')
         file_path_const = code.get_py_string_const(file_path, identifier=False, is_str=True)
 
         flags = []
