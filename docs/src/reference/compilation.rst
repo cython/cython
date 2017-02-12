@@ -120,6 +120,10 @@ in one line)::
         ext_modules = cythonize(extensions),
     )
 
+Note that when using setuptools, you should import it before Cython as
+setuptools may replace the ``Extension`` class in distutils.  Otherwise,
+both might disagree about the class to use here.
+
 If your options are static (for example you do not need to call a tool like
 ``pkg-config`` to determine them) you can also provide them directly in your
 .pyx source file using a special comment block at the start of the file::
