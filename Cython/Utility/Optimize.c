@@ -577,7 +577,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
             x += ((x != 0) & ((x ^ b) < 0)) * b;
             return PyInt_FromLong(x);
         {{elif op == 'TrueDivide'}}
-            if (8 * sizeof(long) <= 53 || likely(labs({{ival}}) <= (1L << 53))) {
+            if (8 * sizeof(long) <= 53 || likely(labs({{ival}}) <= ((PY_LONG_LONG)1 << 53))) {
                 return PyFloat_FromDouble((double)a / (double)b);
             }
             // let Python do the rounding
@@ -667,7 +667,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
                 x = a % b;
                 x += ((x != 0) & ((x ^ b) < 0)) * b;
             {{elif op == 'TrueDivide'}}
-                if ((8 * sizeof(long) <= 53 || likely(labs({{ival}}) <= (1L << 53)))
+                if ((8 * sizeof(long) <= 53 || likely(labs({{ival}}) <= ((PY_LONG_LONG)1 << 53)))
                     || __Pyx_sst_abs(size) <= 52 / PyLong_SHIFT) {
                     return PyFloat_FromDouble((double)a / (double)b);
                 }
@@ -812,7 +812,7 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
                 if (8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT && ((8 * sizeof(unsigned long) < 53) || ({{_size-1}} * PyLong_SHIFT < 53))) {
                     {{fval}} = (double) {{pylong_join(_size, 'digits')}};
                     // let CPython do its own float rounding from 2**53 on (max. consecutive integer in double float)
-                    if ((8 * sizeof(unsigned long) < 53) || ({{_size}} * PyLong_SHIFT < 53) || ({{fval}} < (double) (1L<<53))) {
+                    if ((8 * sizeof(unsigned long) < 53) || ({{_size}} * PyLong_SHIFT < 53) || ({{fval}} < (double) ((PY_LONG_LONG)1 << 53))) {
                         if (size == {{-_size}})
                             {{fval}} = -{{fval}};
                         break;
