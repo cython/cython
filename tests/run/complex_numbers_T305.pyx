@@ -5,14 +5,13 @@ cimport cython
 def test_object_conversion(o):
     """
     >>> test_object_conversion(2)
-    ((2+0j), (2+0j), (2+0j))
+    ((2+0j), (2+0j))
     >>> test_object_conversion(2j - 0.5)
-    ((-0.5+2j), (-0.5+2j), (-0.5+2j))
+    ((-0.5+2j), (-0.5+2j))
     """
     cdef float complex a = o
     cdef double complex b = o
-    cdef long double complex c = o
-    return (a, b, c)
+    return (a, b)
 
 def test_arithmetic(double complex z, double complex w):
     """
@@ -48,6 +47,8 @@ def test_pow(double complex z, double complex w, tol=None):
     True
     >>> test_pow(complex(0.5, -.25), complex(3, 4), 1e-15)
     True
+    >>> test_pow(-0.5, 1j, tol=1e-15)
+    True
     """
     if tol is None:
         return z**w
@@ -62,6 +63,8 @@ def test_int_pow(double complex z, int n, tol=None):
     [True, True, True, True, True, True, True, True, True]
     >>> [test_int_pow(complex(2, 0.5), k, 1e-14) for k in range(0, 10)]
     [True, True, True, True, True, True, True, True, True, True]
+    >>> test_int_pow(-0.5, 5, tol=1e-15)
+    True
     """
     if tol is None:
         return z**n + <object>0 # add zero to normalize zero sign

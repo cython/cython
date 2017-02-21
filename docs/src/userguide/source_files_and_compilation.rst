@@ -44,7 +44,7 @@ would be::
 
     setup(
         ext_modules = cythonize("example.pyx")
-    ) 
+    )
 
 To understand the :file:`setup.py` more fully look at the official
 :mod:`distutils` documentation. To compile the extension for use in the

@@ -1,0 +1,106 @@
+#!/usr/bin/env python
+
+"""
+Script to run Cython with a Python command line.
+
+Executes Python code by compiling it in Cython and running the compiled code.
+"""
+
+
+import sys
+import subprocess
+
+
+def parse_args(args=None):
+    import optparse  # tried argparse, but it doesn't stop at the first (interspersed) positional argument
+    parser = optparse.OptionParser(description='Run a Python command line with Cython')
+    parser.disable_interspersed_args()
+    parser.add_option('-c', metavar='CODE', dest='command',
+                      help='program passed in as string')
+    parser.add_option('--python', metavar='PYTHON', dest='python', default=sys.executable,
+                      help='Python interpreter to use')
+    parser.add_option('-X', metavar='NAME=VALUE', dest='directives', action='append',
+                      help='Compiler directives to set during compilation')
+    parser.add_option('-V', '--version', action='store_true',
+                      help='print the Python and Cython version numbers and exit')
+
+    return parser.parse_args(args)
+
+
+def run_python(python, command):
+    subprocess.check_call([python, '-c', command])
+
+
+def print_versions(python):
+    """Print version numbers of Python and Cython.
+    """
+    command = (
+        "import sys, Cython; "
+        "print('Python {}'.format('.'.join(map(str, sys.version_info[:3])))); "
+        "print('[Cython {}]'.format(Cython.__version__))"
+    )
+    run_python(python, command)
+
+
+def run_cython_command(python, command, args=None):
+    """Compile and run a Python command string.
+    """
+    command = (
+        "import sys; "
+        "from Cython.Build.Inline import cython_inline; "
+        "sys.argv[1:] = {args!r}; "
+        "(lambda: cython_inline({code!r}, quiet=True))()"
+    ).format(code=command, args=list(args) if args else [])
+    run_python(python, command)
+
+
+def run_python_stdin(python, file_args=None, directives=None):
+    """Compile and run a Python program from stdin.
+    """
+    import shutil
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(suffix='.py') as f:
+        shutil.copyfileobj(sys.stdin, f)
+        f.flush()
+
+        file_args = [f.name] + list(file_args or ())
+        run_python_file(python, file_args, directives)
+
+
+def run_python_file(python, file_args, directives=None):
+    """Compile and run a Python program from a file.
+    """
+    args = []
+    if directives:
+        for directive in directives:
+            args.extend(('-X', directive))
+    args.extend(file_args)
+    command = (
+        "import Cython.Build.BuildExecutable as bex; "
+        "bex.DEBUG = False; "
+        "bex.build_and_run({args!r})"
+    ).format(args=args)
+    run_python(python, command)
+
+
+def main():
+    options, args = parse_args()
+    python = options.python
+
+    if options.version:
+        print_versions(python)
+        return
+
+    if options.command:
+        run_cython_command(python, options.command, args)
+
+    if args:
+        if args[0] == '-':
+            run_python_stdin(python, args[1:], options.directives)
+        else:
+            run_python_file(python, args, options.directives)
+
+
+if __name__ == '__main__':
+    main()

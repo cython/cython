@@ -17,8 +17,8 @@ class TestInline(CythonTest):
     def setUp(self):
         CythonTest.setUp(self)
         self.test_kwds = dict(test_kwds)
-        if os.path.isdir('BUILD'):
-            lib_dir = os.path.join('BUILD','inline')
+        if os.path.isdir('TEST_TMP'):
+            lib_dir = os.path.join('TEST_TMP','inline')
         else:
             lib_dir = tempfile.mkdtemp(prefix='cython_inline_')
         self.test_kwds['lib_dir'] = lib_dir

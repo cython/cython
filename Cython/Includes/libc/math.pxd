@@ -1,10 +1,12 @@
-cdef extern from "math.h" nogil:
+cdef extern from "<math.h>" nogil:
     double M_E
+    double e "M_E"  # as in Python's math module
     double M_LOG2E
     double M_LOG10E
     double M_LN2
     double M_LN10
     double M_PI
+    double pi "M_PI"  # as in Python's math module
     double M_PI_2
     double M_PI_4
     double M_1_PI
@@ -16,6 +18,7 @@ cdef extern from "math.h" nogil:
     # C99 constants
     float INFINITY
     float NAN
+    # note: not providing "nan" and "inf" aliases here as nan() is a function in C
     double HUGE_VAL
     float HUGE_VALF
     long double HUGE_VALL
@@ -88,7 +91,7 @@ cdef extern from "math.h" nogil:
     long double erfcl(long double)
 
     double fdim(double x, double y)
-    double fma(double x, double y)
+    double fma(double x, double y, double z)
     double fmax(double x, double y)
     double fmin(double x, double y)
     double scalbln(double x, long n)

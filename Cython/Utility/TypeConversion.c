@@ -86,7 +86,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyNumber_IntOrLong(PyObject* x);
 static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject*);
 static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t);
 
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_ASSUME_SAFE_MACROS
 #define __pyx_PyFloat_AsDouble(x) (PyFloat_CheckExact(x) ? PyFloat_AS_DOUBLE(x) : PyFloat_AsDouble(x))
 #else
 #define __pyx_PyFloat_AsDouble(x) PyFloat_AsDouble(x)
@@ -266,7 +266,9 @@ static CYTHON_INLINE int __Pyx_PyObject_IsTrue(PyObject* x) {
 }
 
 static CYTHON_INLINE PyObject* __Pyx_PyNumber_IntOrLong(PyObject* x) {
+#if CYTHON_USE_TYPE_SLOTS
   PyNumberMethods *m;
+#endif
   const char *name = NULL;
   PyObject *res = NULL;
 #if PY_MAJOR_VERSION < 3
@@ -275,8 +277,9 @@ static CYTHON_INLINE PyObject* __Pyx_PyNumber_IntOrLong(PyObject* x) {
   if (PyLong_Check(x))
 #endif
     return __Pyx_NewRef(x);
+#if CYTHON_USE_TYPE_SLOTS
   m = Py_TYPE(x)->tp_as_number;
-#if PY_MAJOR_VERSION < 3
+  #if PY_MAJOR_VERSION < 3
   if (m && m->nb_int) {
     name = "int";
     res = PyNumber_Int(x);
@@ -285,11 +288,14 @@ static CYTHON_INLINE PyObject* __Pyx_PyNumber_IntOrLong(PyObject* x) {
     name = "long";
     res = PyNumber_Long(x);
   }
-#else
+  #else
   if (m && m->nb_int) {
     name = "int";
     res = PyNumber_Long(x);
   }
+  #endif
+#else
+  res = PyNumber_Int(x);
 #endif
   if (res) {
 #if PY_MAJOR_VERSION < 3
@@ -397,7 +403,7 @@ static {{struct_type_decl}} {{funcname}}(PyObject * o) {
         goto bad;
     }
 
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
     {{for ix, component in enumerate(components):}}
         {{py:attr = "result.f%s" % ix}}
         {{attr}} = {{component.from_py_function}}(PyTuple_GET_ITEM(o, {{ix}}));
@@ -549,14 +555,18 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
             return PyInt_FromLong((long) value);
         } else if (sizeof({{TYPE}}) <= sizeof(unsigned long)) {
             return PyLong_FromUnsignedLong((unsigned long) value);
+#ifdef HAVE_LONG_LONG
         } else if (sizeof({{TYPE}}) <= sizeof(unsigned PY_LONG_LONG)) {
             return PyLong_FromUnsignedLongLong((unsigned PY_LONG_LONG) value);
+#endif
         }
     } else {
         if (sizeof({{TYPE}}) <= sizeof(long)) {
             return PyInt_FromLong((long) value);
+#ifdef HAVE_LONG_LONG
         } else if (sizeof({{TYPE}}) <= sizeof(PY_LONG_LONG)) {
             return PyLong_FromLongLong((PY_LONG_LONG) value);
+#endif
         }
     }
     {
@@ -568,60 +578,113 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
 }
 
 
+/////////////// CIntToDigits ///////////////
+
+static const char DIGIT_PAIRS_10[2*10*10+1] = {
+    "00010203040506070809"
+    "10111213141516171819"
+    "20212223242526272829"
+    "30313233343536373839"
+    "40414243444546474849"
+    "50515253545556575859"
+    "60616263646566676869"
+    "70717273747576777879"
+    "80818283848586878889"
+    "90919293949596979899"
+};
+
+static const char DIGIT_PAIRS_8[2*8*8+1] = {
+    "0001020304050607"
+    "1011121314151617"
+    "2021222324252627"
+    "3031323334353637"
+    "4041424344454647"
+    "5051525354555657"
+    "6061626364656667"
+    "7071727374757677"
+};
+
+static const char DIGITS_HEX[2*16+1] = {
+    "0123456789abcdef0123456789ABCDEF"
+};
+
+
 /////////////// CIntToPyUnicode.proto ///////////////
 
 static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t width, char padding_char, char format_char);
 
 /////////////// CIntToPyUnicode ///////////////
-//@requires: BuildPyUnicode
+//@requires: StringTools.c::BuildPyUnicode
+//@requires: CIntToDigits
+
+#ifdef _MSC_VER
+    #ifndef _MSC_STDINT_H_
+        #if _MSC_VER < 1300
+           typedef unsigned short    uint16_t;
+        #else
+           typedef unsigned __int16  uint16_t;
+        #endif
+    #endif
+#else
+   #include <stdint.h>
+#endif
 
 // NOTE: inlining because most arguments are constant, which collapses lots of code below
 
 static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t width, char padding_char, char format_char) {
     // simple and conservative C string allocation on the stack: each byte gives at most 3 digits, plus sign
     char digits[sizeof({{TYPE}})*3+2];
-    // dpos points to end of digits array + 1 initially to allow for pre-decrement looping
-    char *dpos = digits + sizeof({{TYPE}})*3+2;
+    // 'dpos' points to end of digits array + 1 initially to allow for pre-decrement looping
+    char *dpos, *end = digits + sizeof({{TYPE}})*3+2;
+    const char *hex_digits = DIGITS_HEX;
     Py_ssize_t ulength;
-    int length, prepend_sign;
+    int length, prepend_sign, last_one_off;
     {{TYPE}} remaining;
     const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = ({{TYPE}}) 0;
     const int is_unsigned = neg_one > const_zero;
 
-    // single character unicode strings are cached in CPython => use PyUnicode_FromOrdinal() for them
-    if (unlikely((is_unsigned || value >= const_zero) && (width <= 1) && (
-            (format_char == 'o') ? value <= 7 : (format_char == 'd') ? value <= 9 : value <= 15))) {
-        return PyUnicode_FromOrdinal(
-            ((int) value) + (((int) value) <= 9 ? '0' : (format_char == 'x' ? 'a' : 'A') - 10));
-    }
+    if (format_char == 'X') {
+        hex_digits += 16;
+        format_char = 'x';
+    };
 
     // surprise: even trivial sprintf() calls don't get optimised in gcc (4.8)
-    remaining = value;
-    length = 0;
+    remaining = value; /* not using abs(value) to avoid overflow problems */
+    last_one_off = 0;
+    dpos = end;
     while (remaining != 0) {
-        char digit;
+        int digit_pos;
         switch (format_char) {
         case 'o':
-            digit = '0' + abs(remaining % 8);
-            remaining = remaining / 8;
+            digit_pos = abs(remaining % (8*8));
+            remaining = remaining / (8*8);
+            dpos -= 2;
+            *(uint16_t*)dpos = ((uint16_t*)DIGIT_PAIRS_8)[digit_pos]; /* copy 2 digits at a time */
+            last_one_off = (digit_pos < 8);
             break;
         case 'd':
-            digit = '0' + abs(remaining % 10);
-            remaining = remaining / 10;
+            digit_pos = abs(remaining % (10*10));
+            remaining = remaining / (10*10);
+            dpos -= 2;
+            *(uint16_t*)dpos = ((uint16_t*)DIGIT_PAIRS_10)[digit_pos]; /* copy 2 digits at a time */
+            last_one_off = (digit_pos < 10);
             break;
         case 'x':
-        case 'X':
-            digit = '0' + abs(remaining % 16);
+            *(--dpos) = hex_digits[abs(remaining % 16)];
             remaining = remaining / 16;
-            if (digit > '9')
-                digit = digit - '9' - 1 + (format_char == 'x' ? 'a' : 'A');
             break;
         default:
             assert(0);
+            break;
         }
-        *(--dpos) = digit;
-        ++length;
     }
+    if (last_one_off) {
+        assert(*dpos == '0');
+        dpos++;
+    } else if (unlikely(dpos == end)) {
+        *(--dpos) = '0';
+    }
+    length = end - dpos;
     ulength = length;
     prepend_sign = 0;
     if (!is_unsigned && value <= neg_one) {
@@ -636,94 +699,11 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
     if (width > ulength) {
         ulength = width;
     }
-    return __Pyx_PyUnicode_Build(ulength, dpos, length, prepend_sign, padding_char);
-}
-
-
-/////////////// BuildPyUnicode.proto ///////////////
-
-static PyObject* __Pyx_PyUnicode_Build(Py_ssize_t ulength, char* chars, int clength,
-                                       int prepend_sign, char padding_char);
-
-/////////////// BuildPyUnicode ///////////////
-
-static PyObject* __Pyx_PyUnicode_Build(Py_ssize_t ulength, char* chars, int clength,
-                                       int prepend_sign, char padding_char) {
-    PyObject *uval;
-    Py_ssize_t uoffset = ulength - clength;
-#if CYTHON_COMPILING_IN_CPYTHON
-    Py_ssize_t i;
-#if CYTHON_PEP393_ENABLED
-    // Py 3.3+  (post PEP-393)
-    void *udata;
-    uval = PyUnicode_New(ulength, 127);
-    if (unlikely(!uval)) return NULL;
-    udata = PyUnicode_DATA(uval);
-#else
-    // Py 2.x/3.2  (pre PEP-393)
-    Py_UNICODE *udata;
-    uval = PyUnicode_FromUnicode(NULL, ulength);
-    if (unlikely(!uval)) return NULL;
-    udata = PyUnicode_AS_UNICODE(uval);
-#endif
-    if (uoffset > 0) {
-        i = 0;
-        if (prepend_sign) {
-            __Pyx_PyUnicode_WRITE(PyUnicode_1BYTE_KIND, udata, 0, '-');
-            i++;
-        }
-        for (; i < uoffset; i++) {
-            __Pyx_PyUnicode_WRITE(PyUnicode_1BYTE_KIND, udata, i, padding_char);
-        }
+    // single character unicode strings are cached in CPython => use PyUnicode_FromOrdinal() for them
+    if (ulength == 1) {
+        return PyUnicode_FromOrdinal(*dpos);
     }
-    for (i=0; i < clength; i++) {
-        __Pyx_PyUnicode_WRITE(PyUnicode_1BYTE_KIND, udata, uoffset+i, chars[i]);
-    }
-
-#else
-    // non-CPython
-    {
-        uval = NULL;
-        PyObject *sign = NULL, *padding = NULL;
-        if (uoffset > 0) {
-            prepend_sign = !!prepend_sign;
-            if (uoffset > prepend_sign) {
-                padding = PyUnicode_FromOrdinal(padding_char);
-                if (likely(padding) && uoffset > prepend_sign + 1) {
-                    PyObject *tmp;
-                    PyObject *repeat = PyInt_FromSize_t(uoffset - prepend_sign);
-                    if (unlikely(!repeat)) goto done_or_error;
-                    tmp = PyNumber_Multiply(padding, repeat);
-                    Py_DECREF(repeat);
-                    Py_DECREF(padding);
-                    padding = tmp;
-                }
-                if (unlikely(!padding)) goto done_or_error;
-            }
-            if (prepend_sign) {
-                sign = PyUnicode_FromOrdinal('-');
-                if (unlikely(!sign)) goto done_or_error;
-            }
-        }
-
-        uval = PyUnicode_DecodeASCII(chars, clength, NULL);
-        if (likely(uval) && padding) {
-            PyObject *tmp = PyNumber_Add(padding, uval);
-            Py_DECREF(uval);
-            uval = tmp;
-        }
-        if (likely(uval) && sign) {
-            PyObject *tmp = PyNumber_Add(sign, uval);
-            Py_DECREF(uval);
-            uval = tmp;
-        }
-done_or_error:
-        Py_XDECREF(padding);
-        Py_XDECREF(sign);
-    }
-#endif
-
-    return uval;
+    return __Pyx_PyUnicode_BuildFromAscii(ulength, dpos, length, prepend_sign, padding_char);
 }
 
 
@@ -841,8 +821,10 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
 #endif
             if (sizeof({{TYPE}}) <= sizeof(unsigned long)) {
                 __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned long, PyLong_AsUnsignedLong(x))
+#ifdef HAVE_LONG_LONG
             } else if (sizeof({{TYPE}}) <= sizeof(unsigned PY_LONG_LONG)) {
                 __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, unsigned PY_LONG_LONG, PyLong_AsUnsignedLongLong(x))
+#endif
             }
         } else {
             // signed
@@ -869,8 +851,10 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
 #endif
             if (sizeof({{TYPE}}) <= sizeof(long)) {
                 __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, long, PyLong_AsLong(x))
+#ifdef HAVE_LONG_LONG
             } else if (sizeof({{TYPE}}) <= sizeof(PY_LONG_LONG)) {
                 __PYX_VERIFY_RETURN_INT_EXC({{TYPE}}, PY_LONG_LONG, PyLong_AsLongLong(x))
+#endif
             }
         }
         {

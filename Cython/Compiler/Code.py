@@ -13,6 +13,7 @@ cython.declare(os=object, re=object, operator=object,
 
 import os
 import re
+import shutil
 import sys
 import operator
 import textwrap
@@ -582,11 +583,13 @@ class FunctionState(object):
     # in_try_finally   boolean         inside try of try...finally
     # exc_vars         (string * 3)    exception variables for reraise, or None
     # can_trace        boolean         line tracing is supported in the current context
+    # scope            Scope           the scope object of the current function
 
     # Not used for now, perhaps later
-    def __init__(self, owner, names_taken=set()):
+    def __init__(self, owner, names_taken=set(), scope=None):
         self.names_taken = names_taken
         self.owner = owner
+        self.scope = scope
 
         self.error_label = None
         self.label_counter = 0
@@ -1434,12 +1437,13 @@ class GlobalState(object):
     #
 
     def lookup_filename(self, source_desc):
+        entry = source_desc.get_filenametable_entry()
         try:
-            index = self.filename_table[source_desc.get_filenametable_entry()]
+            index = self.filename_table[entry]
         except KeyError:
             index = len(self.filename_list)
             self.filename_list.append(source_desc)
-            self.filename_table[source_desc.get_filenametable_entry()] = index
+            self.filename_table[entry] = index
         return index
 
     def commented_file_contents(self, source_desc):
@@ -1476,9 +1480,17 @@ class GlobalState(object):
 
         See UtilityCode.
         """
-        if utility_code not in self.utility_codes:
+        if utility_code and utility_code not in self.utility_codes:
             self.utility_codes.add(utility_code)
             utility_code.put_code(self)
+
+    def use_entry_utility_code(self, entry):
+        if entry is None:
+            return
+        if entry.utility_code:
+            self.use_utility_code(entry.utility_code)
+        if entry.utility_code_definition:
+            self.use_utility_code(entry.utility_code_definition)
 
 
 def funccontext_property(name):
@@ -1627,8 +1639,8 @@ class CCodeWriter(object):
     def label_used(self, lbl):         return self.funcstate.label_used(lbl)
 
 
-    def enter_cfunc_scope(self):
-        self.funcstate = FunctionState(self)
+    def enter_cfunc_scope(self, scope=None):
+        self.funcstate = FunctionState(self, scope=scope)
 
     def exit_cfunc_scope(self):
         self.funcstate = None
@@ -1727,7 +1739,7 @@ class CCodeWriter(object):
                 tmp_path = '%s.tmp%s' % (path, os.getpid())
                 with closing(Utils.open_new_file(tmp_path)) as f:
                     f.write(code)
-                os.rename(tmp_path, path)
+                shutil.move(tmp_path, path)
             code = '#include "%s"\n' % path
         self.put(code)
 

@@ -103,6 +103,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.scope.merge_in(scope)
 
     def analyse_declarations(self, env):
+        if self.directives:
+            env.old_style_globals = self.directives['old_style_globals']
         if not Options.docstrings:
             env.doc = self.doc = None
         elif Options.embed_pos_in_docstring:
@@ -121,6 +123,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         env = self.scope
         if env.has_import_star:
             self.create_import_star_conversion_utility_code(env)
+        for name, entry in sorted(env.entries.items()):
+            if (entry.create_wrapper and entry.scope is env
+                and entry.is_type and entry.type.is_enum):
+                    entry.type.create_type_wrapper(env)
 
     def process_implementation(self, options, result):
         env = self.scope
@@ -740,27 +746,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln_openmp("#include <omp.h>")
 
     def generate_filename_table(self, code):
-        import os.path as path
-
-        full_module_path = path.join(*self.full_module_name.split('.'))
-        module_abspath = path.splitext(path.abspath(
-            self.compilation_source.source_desc.get_filenametable_entry()))[0]
-        root_path = module_abspath[:-len(full_module_path)]
-        workdir = path.abspath(os.getcwd()) + os.sep
-        if root_path.startswith(workdir):
-            # prefer relative paths to current directory (which is most likely the project root)
-            root_path = workdir
-
+        from os.path import isabs, basename
         code.putln("")
         code.putln("static const char *%s[] = {" % Naming.filetable_cname)
         if code.globalstate.filename_list:
             for source_desc in code.globalstate.filename_list:
-                file_abspath = path.abspath(source_desc.get_filenametable_entry())
-                if file_abspath.startswith(root_path):
-                    filename = file_abspath[len(root_path):]
-                else:
-                    filename = path.basename(file_abspath)
-                escaped_filename = filename.replace("\\", "\\\\").replace('"', r'\"')
+                file_path = source_desc.get_filenametable_entry()
+                if isabs(file_path):
+                    file_path = basename(file_path)  # never include absolute paths
+                escaped_filename = file_path.replace("\\", "\\\\").replace('"', r'\"')
                 code.putln('"%s",' % escaped_filename)
         else:
             # Some C compilers don't like an empty array
@@ -1159,6 +1153,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         self.generate_descr_get_function(scope, code)
                     if scope.defines_any(["__set__", "__delete__"]):
                         self.generate_descr_set_function(scope, code)
+                    if scope.defines_any(["__dict__"]):
+                        self.generate_dict_getter_function(scope, code)
                     self.generate_property_accessors(scope, code)
                     self.generate_method_table(scope, code)
                     self.generate_getset_table(scope, code)
@@ -1266,6 +1262,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("p = %s;" % type.cast_code("o"))
         #if need_self_cast:
         #    self.generate_self_cast(scope, code)
+
+        # from this point on, ensure DECREF(o) on failure
+        needs_error_cleanup = False
+
         if type.vtabslot_cname:
             vtab_base_type = type
             while vtab_base_type.base_type and vtab_base_type.base_type.vtabstruct_cname:
@@ -1279,11 +1279,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 struct_type_cast, type.vtabptr_cname))
 
         for entry in cpp_class_attrs:
-            code.putln("new((void*)&(p->%s)) %s();" %
-                       (entry.cname, entry.type.empty_declaration_code()))
+            code.putln("new((void*)&(p->%s)) %s();" % (
+                entry.cname, entry.type.empty_declaration_code()))
 
         for entry in py_attrs:
-            code.put_init_var_to_py_none(entry, "p->%s", nanny=False)
+            if entry.name == "__dict__":
+                needs_error_cleanup = True
+                code.put("p->%s = PyDict_New(); if (unlikely(!p->%s)) goto bad;" % (
+                    entry.cname, entry.cname))
+            else:
+                code.put_init_var_to_py_none(entry, "p->%s", nanny=False)
 
         for entry in memoryview_slices:
             code.putln("p->%s.data = NULL;" % entry.cname)
@@ -1300,14 +1305,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 cinit_args = "o, %s, NULL" % Naming.empty_tuple
             else:
                 cinit_args = "o, a, k"
-            code.putln(
-                "if (unlikely(%s(%s) < 0)) {" % (
-                    new_func_entry.func_cname, cinit_args))
-            code.put_decref_clear("o", py_object_type, nanny=False)
-            code.putln(
-                "}")
+            needs_error_cleanup = True
+            code.putln("if (unlikely(%s(%s) < 0)) goto bad;" % (
+                new_func_entry.func_cname, cinit_args))
+
         code.putln(
             "return o;")
+        if needs_error_cleanup:
+            code.putln("bad:")
+            code.put_decref_clear("o", py_object_type, nanny=False)
+            code.putln("return NULL;")
         code.putln(
             "}")
 
@@ -1330,11 +1337,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if weakref_slot not in scope.var_entries:
             weakref_slot = None
 
+        dict_slot = scope.lookup_here("__dict__")
+        if dict_slot not in scope.var_entries:
+            dict_slot = None
+
         _, (py_attrs, _, memoryview_slices) = scope.get_refcounted_entries()
         cpp_class_attrs = [entry for entry in scope.var_entries
                            if entry.type.is_cpp_class]
 
-        if py_attrs or cpp_class_attrs or memoryview_slices or weakref_slot:
+        if py_attrs or cpp_class_attrs or memoryview_slices or weakref_slot or dict_slot:
             self.generate_self_cast(scope, code)
 
         if not is_final_type:
@@ -1364,6 +1375,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if weakref_slot:
             code.putln("if (p->__weakref__) PyObject_ClearWeakRefs(o);")
 
+        if dict_slot:
+            code.putln("if (p->__dict__) PyDict_Clear(p->__dict__);")
+
         for entry in cpp_class_attrs:
             code.putln("__Pyx_call_destructor(p->%s);" % entry.cname)
 
@@ -1382,7 +1396,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if base_type.scope and base_type.scope.needs_gc():
                     code.putln("PyObject_GC_Track(o);")
                 else:
-                    code.putln("#if CYTHON_COMPILING_IN_CPYTHON")
+                    code.putln("#if CYTHON_USE_TYPE_SLOTS")
                     code.putln("if (PyType_IS_GC(Py_TYPE(o)->tp_base))")
                     code.putln("#endif")
                     code.putln("PyObject_GC_Track(o);")
@@ -1960,17 +1974,34 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_method_table(self, env, code):
         if env.is_c_class_scope and not env.pyfunc_entries:
             return
+        binding = env.directives['binding']
         code.putln("")
         code.putln(
             "static PyMethodDef %s[] = {" % (
                 env.method_table_cname))
         for entry in env.pyfunc_entries:
-            if not entry.fused_cfunction:
+            if not entry.fused_cfunction and not (binding and entry.is_overridable):
                 code.put_pymethoddef(entry, ",")
         code.putln(
             "{0, 0, 0, 0}")
         code.putln(
             "};")
+
+    def generate_dict_getter_function(self, scope, code):
+        dict_attr = scope.lookup_here("__dict__")
+        if not dict_attr or not dict_attr.is_variable:
+            return
+        func_name = scope.mangle_internal("__dict__getter")
+        dict_name = dict_attr.cname
+        code.putln("")
+        code.putln("static PyObject *%s(PyObject *o, CYTHON_UNUSED void *x) {" % func_name)
+        self.generate_self_cast(scope, code)
+        code.putln("if (unlikely(!p->%s)){" % dict_name)
+        code.putln("p->%s = PyDict_New();" % dict_name)
+        code.putln("}")
+        code.putln("Py_XINCREF(p->%s);" % dict_name)
+        code.putln("return p->%s;" % dict_name)
+        code.putln("}")
 
     def generate_getset_table(self, env, code):
         if env.property_entries:
@@ -2029,8 +2060,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         old_error_label = code.new_error_label()
         code.putln("if (0);")  # so the first one can be "else if"
+        msvc_count = 0
         for name, entry in sorted(env.entries.items()):
             if entry.is_cglobal and entry.used:
+                msvc_count += 1
+                if msvc_count % 100 == 0:
+                    code.putln("#ifdef _MSC_VER")
+                    code.putln("if (0);  /* Workaround for MSVC C1061. */")
+                    code.putln("#endif")
                 code.putln('else if (__Pyx_StrEq(name, "%s")) {' % name)
                 if entry.type.is_pyobject:
                     if entry.type.is_extension_type or entry.type.is_builtin_type:
@@ -2068,7 +2105,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.exit_cfunc_scope()  # done with labels
 
     def generate_module_init_func(self, imported_modules, env, code):
-        code.enter_cfunc_scope()
+        code.enter_cfunc_scope(self.scope)
         code.putln("")
         header2 = "PyMODINIT_FUNC init%s(void)" % env.module_name
         header3 = "PyMODINIT_FUNC PyInit_%s(void)" % env.module_name

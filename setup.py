@@ -45,9 +45,11 @@ if sys.version_info[:2] == (3, 2):
     add_command_class("build_py", build_py)
 
 pxd_include_dirs = [
-    directory for directory, dirs, files in os.walk('Cython/Includes')
+    directory for directory, dirs, files
+    in os.walk(os.path.join('Cython', 'Includes'))
     if '__init__.pyx' in files or '__init__.pxd' in files
-    or directory == 'Cython/Includes' or directory == 'Cython/Includes/Deprecated']
+    or directory == os.path.join('Cython', 'Includes')
+    or directory == os.path.join('Cython', 'Includes', 'Deprecated')]
 
 pxd_include_patterns = [
     p+'/*.pxd' for p in pxd_include_dirs ] + [
@@ -124,7 +126,7 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
     pgen = find_executable(
         'pgen', os.pathsep.join([os.environ['PATH'], os.path.join(get_python_inc(), '..', 'Parser')]))
     if not pgen:
-        print ("Unable to find pgen, not compiling formal grammar.")
+        sys.stderr.write("Unable to find pgen, not compiling formal grammar.\n")
     else:
         parser_dir = os.path.join(os.path.dirname(__file__), 'Cython', 'Parser')
         grammar = os.path.join(parser_dir, 'Grammar')
@@ -167,30 +169,35 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
         # XXX hack around setuptools quirk for '*.pyx' sources
         extensions[-1].sources[0] = pyx_source_file
 
-    from Cython.Distutils import build_ext
     if sys.version_info[:2] == (3, 2):
         # Python 3.2: can only run Cython *after* running 2to3
-        build_ext = _defer_cython_import_in_py32(build_ext, source_root, profile)
-    elif profile:
-        from Cython.Compiler.Options import directive_defaults
-        directive_defaults['profile'] = True
-        print("Enabled profiling for the Cython binary modules")
+        build_ext = _defer_cython_import_in_py32(source_root, profile)
+    else:
+        from Cython.Distutils import build_ext
+        if profile:
+            from Cython.Compiler.Options import get_directive_defaults
+            get_directive_defaults()['profile'] = True
+            sys.stderr.write("Enabled profiling for the Cython binary modules\n")
 
     # not using cythonize() here to let distutils decide whether building extensions was requested
     add_command_class("build_ext", build_ext)
     setup_args['ext_modules'] = extensions
 
 
-def _defer_cython_import_in_py32(build_ext_orig, source_root, profile=False):
+def _defer_cython_import_in_py32(source_root, profile=False):
     # Python 3.2: can only run Cython *after* running 2to3
     # => re-import Cython inside of build_ext
+    from distutils.command.build_ext import build_ext as build_ext_orig
+
     class build_ext(build_ext_orig):
         # we must keep the original modules alive to make sure
         # their code keeps working when we remove them from
         # sys.modules
         dead_modules = []
 
-        def build_extensions(self):
+        def __reimport(self):
+            if self.dead_modules:
+                return
             # add path where 2to3 installed the transformed sources
             # and make sure Python (re-)imports them from there
             already_imported = [
@@ -203,10 +210,15 @@ def _defer_cython_import_in_py32(build_ext_orig, source_root, profile=False):
                 del sys.modules[module]
             sys.path.insert(0, os.path.join(source_root, self.build_lib))
 
+        def build_extensions(self):
+            self.__reimport()
             if profile:
                 from Cython.Compiler.Options import directive_defaults
                 directive_defaults['profile'] = True
                 print("Enabled profiling for the Cython binary modules")
+            from Cython.Build.Dependencies import cythonize
+            self.distribution.ext_modules[:] = cythonize(
+                self.distribution.ext_modules)
             build_ext_orig.build_extensions(self)
 
     return build_ext

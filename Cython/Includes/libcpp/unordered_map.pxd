@@ -2,6 +2,9 @@ from .utility cimport pair
 
 cdef extern from "<unordered_map>" namespace "std" nogil:
     cdef cppclass unordered_map[T, U]:
+        ctypedef T key_type
+        ctypedef U mapped_type
+        ctypedef pair[const T, U] value_type
         cppclass iterator:
             pair[T, U]& operator*()
             iterator operator++()

@@ -5,10 +5,10 @@ PYTHON -c "import a; import sys; sys.exit(a.compile_env_test())"
 
 from distutils.core import setup
 from Cython.Distutils.extension import Extension
-from Cython.Distutils import build_ext
+from Cython.Distutils.old_build_ext import old_build_ext
 
 setup(
-  cmdclass = {'build_ext': build_ext},
+  cmdclass = {'build_ext': old_build_ext},
   ext_modules = [Extension(
     "a", ["a.pyx"],
     pyrex_compile_time_env = {'TEST': True},

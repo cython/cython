@@ -115,7 +115,7 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
     }
 
     if (PyCode_Check(o)) {
-        if (PyCode_GetNumFree((PyCodeObject *)o) > 0) {
+        if (__Pyx_PyCode_HasFreeVars((PyCodeObject *)o)) {
             PyErr_SetString(PyExc_TypeError,
                 "code object passed to exec() may not contain free variables");
             goto bad;
@@ -447,7 +447,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
         Py_DECREF(result);
 #endif
     }
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_USE_TYPE_SLOTS
     return PyFrozenSet_Type.tp_new(&PyFrozenSet_Type, $empty_tuple, NULL);
 #else
     return PyObject_Call((PyObject*)&PyFrozenSet_Type, $empty_tuple, NULL);
@@ -463,7 +463,7 @@ static CYTHON_INLINE int __Pyx_PySet_Update(PyObject* set, PyObject* it); /*prot
 
 static CYTHON_INLINE int __Pyx_PySet_Update(PyObject* set, PyObject* it) {
     PyObject *retval;
-    #if CYTHON_COMPILING_IN_CPYTHON
+    #if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
     if (PyAnySet_Check(it)) {
         if (PySet_GET_SIZE(it) == 0)
             return 0;

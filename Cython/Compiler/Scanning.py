@@ -201,6 +201,9 @@ class FileSourceDescriptor(SourceDescriptor):
         filename = Utils.decode_filename(filename)
         self.path_description = path_description or filename
         self.filename = filename
+        # Prefer relative paths to current directory (which is most likely the project root) over absolute paths.
+        workdir = os.path.abspath('.') + os.sep
+        self.file_path = filename[len(workdir):] if filename.startswith(workdir) else filename
         self.set_file_type_from_name(filename)
         self._cmp_name = filename
         self._lines = {}
@@ -242,7 +245,7 @@ class FileSourceDescriptor(SourceDescriptor):
         return path
 
     def get_filenametable_entry(self):
-        return self.filename
+        return self.file_path
 
     def __eq__(self, other):
         return isinstance(other, FileSourceDescriptor) and self.filename == other.filename

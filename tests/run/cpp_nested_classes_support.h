@@ -11,4 +11,21 @@ public:
   B* createB() {
     return new B();
   }
+  typedef int my_int;
+  static my_int negate(my_int x) {
+    return -x;
+  }
+};
+
+template <typename T>
+class TypedClass {
+public:
+  enum MyEnum {
+    value = 39
+  };
+  union MyUnion {
+    T typed_value;
+    int int_value;
+  };
+  typedef T MyType;
 };

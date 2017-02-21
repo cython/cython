@@ -635,6 +635,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         'operator.predecrement' : ExprNodes.inc_dec_constructor(True, '--'),
         'operator.postincrement': ExprNodes.inc_dec_constructor(False, '++'),
         'operator.postdecrement': ExprNodes.inc_dec_constructor(False, '--'),
+        'operator.typeid'       : ExprNodes.TypeidNode,
 
         # For backwards compatibility.
         'address': ExprNodes.AmpersandNode,
@@ -661,7 +662,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         self.cython_module_names = set()
         self.directive_names = {'staticmethod': 'staticmethod'}
         self.parallel_directives = {}
-        directives = copy.deepcopy(Options.directive_defaults)
+        directives = copy.deepcopy(Options.get_directive_defaults())
         for key, value in compilation_directive_defaults.items():
             directives[_unicode(key)] = copy.deepcopy(value)
         self.directives = directives
@@ -673,8 +674,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                                         'is not allowed in %s scope' % (directive, scope)))
             return False
         else:
-            if (directive not in Options.directive_defaults
-                    and directive not in Options.directive_types):
+            if directive not in Options.directive_types:
                 error(pos, "Invalid directive: '%s'." % (directive,))
             return True
 
@@ -869,7 +869,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
     def try_to_parse_directive(self, optname, args, kwds, pos):
         directivetype = Options.directive_types.get(optname)
         if len(args) == 1 and isinstance(args[0], ExprNodes.NoneNode):
-            return optname, Options.directive_defaults[optname]
+            return optname, Options.get_directive_defaults()[optname]
         elif directivetype is bool:
             if kwds is not None or len(args) != 1 or not isinstance(args[0], ExprNodes.BoolNode):
                 raise PostParseError(pos,
@@ -1314,7 +1314,7 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
                 if len(node.decorators) > 1:
                     return self._reject_decorated_property(node, decorator_node)
                 name = node.name
-                node.name = '__get__'
+                node.name = EncodedString('__get__')
                 node.decorators.remove(decorator_node)
                 stat_list = [node]
                 if name in properties:
@@ -1594,8 +1594,7 @@ if VALUE is not None:
         node.stats.insert(0, node.py_func)
         node.py_func = self.visit(node.py_func)
         node.update_fused_defnode_entry(env)
-        pycfunc = ExprNodes.PyCFunctionNode.from_defnode(node.py_func,
-                                                         True)
+        pycfunc = ExprNodes.PyCFunctionNode.from_defnode(node.py_func, binding=True)
         pycfunc = ExprNodes.ProxyNode(pycfunc.coerce_to_temp(env))
         node.resulting_fused_function = pycfunc
         # Create assignment node for our def function
@@ -1699,6 +1698,8 @@ if VALUE is not None:
     def visit_DefNode(self, node):
         node = self.visit_FuncDefNode(node)
         env = self.current_env()
+        if isinstance(node, Nodes.DefNode) and node.is_wrapper:
+            env = env.parent_scope
         if (not isinstance(node, Nodes.DefNode) or
                 node.fused_py_func or node.is_generator_body or
                 not node.needs_assignment_synthesis(env)):
@@ -1951,13 +1952,28 @@ class CalculateQualifiedNamesTransform(EnvTransform):
         return node
 
     def visit_PyCFunctionNode(self, node):
-        self._set_qualname(node, node.def_node.name)
+        orig_qualified_name = self.qualified_name[:]
+        if node.def_node.is_wrapper and self.qualified_name and self.qualified_name[-1] == '<locals>':
+            self.qualified_name.pop()
+            self._set_qualname(node)
+        else:
+            self._set_qualname(node, node.def_node.name)
         self.visitchildren(node)
+        self.qualified_name = orig_qualified_name
         return node
 
     def visit_DefNode(self, node):
-        self._set_qualname(node, node.name)
-        return self.visit_FuncDefNode(node)
+        if node.is_wrapper and self.qualified_name:
+            assert self.qualified_name[-1] == '<locals>', self.qualified_name
+            orig_qualified_name = self.qualified_name[:]
+            self.qualified_name.pop()
+            self._set_qualname(node)
+            self._super_visit_FuncDefNode(node)
+            self.qualified_name = orig_qualified_name
+        else:
+            self._set_qualname(node, node.name)
+            self.visit_FuncDefNode(node)
+        return node
 
     def visit_FuncDefNode(self, node):
         orig_qualified_name = self.qualified_name[:]

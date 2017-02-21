@@ -25,6 +25,9 @@ class Prop(object):
     >>> p.my_prop
     GETTING 'my_prop'
     389
+
+    >>> list(p.generator_prop)
+    [42]
     """
     _value = None
 
@@ -47,3 +50,7 @@ class Prop(object):
     def my_prop(self):
         print("GETTING 'my_prop'")
         return 389
+
+    @property
+    def generator_prop(self):
+        yield 42

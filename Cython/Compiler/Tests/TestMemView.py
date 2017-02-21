@@ -13,7 +13,7 @@ class TestMemviewParsing(CythonTest):
     def not_parseable(self, expected_error, s):
         e = self.should_fail(lambda: self.fragment(s),  Errors.CompileError)
         self.assertEqual(expected_error, e.message_only)
-    
+
     def test_default_1dim(self):
         self.parse(u"cdef int[:] x")
         self.parse(u"cdef short int[:] x")

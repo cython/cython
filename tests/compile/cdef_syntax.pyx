@@ -9,3 +9,6 @@ cdef no_semi():
 
 cdef with_semi():
     cdef int i;
+
+def use_cdef():
+  &no_semi, &with_semi

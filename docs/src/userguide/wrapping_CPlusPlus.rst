@@ -52,7 +52,7 @@ document. Let's assume it will be in a header file called
             Rectangle(int x0, int y0, int x1, int y1);
             ~Rectangle();
             int getArea();
-            void getSize(int* width, int* height)
+            void getSize(int* width, int* height);
             void move(int dx, int dy);
         };
     }
@@ -81,8 +81,8 @@ and the implementation in the file called :file:`Rectangle.cpp`:
         }
 
         void Rectangle::getSize(int *width, int *height) {
-            width = x1 - x0;
-            height = y1 - y0;
+            (*width) = x1 - x0;
+            (*height) = y1 - y0;
         }
 
         void Rectangle::move(int dx, int dy) {
@@ -209,12 +209,12 @@ Declare a var with the wrapped C++ class
 
 Now, we use cdef to declare a var of the class with the C++ ``new`` statement::
 
-    cdef Rectangle *rec = new Rectangle(1, 2, 3, 4)
+    rec_ptr = new Rectangle(1, 2, 3, 4)
     try:
-        recLength = rec.getLength()
+        recArea = rec_ptr.getArea()
         ...
     finally:
-        del rec     # delete heap allocated object
+        del rec_ptr     # delete heap allocated object
 
 It's also possible to declare a stack allocated object, as long as it has
 a "default" constructor::
@@ -247,8 +247,8 @@ forwarding methods. So we can implement the Python extension type as::
             self.c_rect = Rectangle(x0, y0, x1, y1)
         def get_area(self):
             return self.c_rect.getArea()
-        def get_size(self)
-            int width, int height
+        def get_size(self):
+            cdef int width, height
             self.c_rect.getSize(&width, &height)
             return width, height
         def move(self, dx, dy):
@@ -312,30 +312,34 @@ and use any of them::
 Overloading operators
 ----------------------
 
-Cython uses C++ for overloading operators::
+Cython uses C++ naming for overloading operators::
 
     cdef extern from "foo.h":
         cdef cppclass Foo:
             Foo()
-            Foo* operator+(Foo*)
-            Foo* operator-(Foo)
-            int operator*(Foo*)
+            Foo operator+(Foo)
+            Foo operator-(Foo)
+            int operator*(Foo)
             int operator/(int)
 
-    cdef Foo* foo = new Foo()
-    cdef int x
+    cdef Foo foo = new Foo()
 
-    cdef Foo* foo2 = foo[0] + foo
-    foo2 = foo[0] - foo[0]
+    foo2 = foo + foo
+    foo2 = foo - foo
 
-    x = foo[0] * foo2
-    x = foo[0] / 1
+    x = foo * foo2
+    x = foo / 1
 
-    cdef Foo f
-    foo = f + &f
-    foo2 = f - f
+Note that if one has *pointers* to C++ objects, dereferencing must be done
+to avoid doing pointer arithmetic rather than arithmetic on the objects
+themselves::
 
-    del foo, foo2
+    cdef Foo* foo_ptr = new Foo()
+    foo = foo_ptr[0] + foo_ptr[0]
+    x = foo_ptr[0] / 2
+
+    del foo_ptr
+
 
 Nested class declarations
 --------------------------
@@ -496,6 +500,19 @@ The items in the containers are converted to a corresponding type
 automatically, which includes recursively converting containers
 inside of containers, e.g. a C++ vector of maps of strings.
 
+Iteration over stl containers (or indeed any class with ``begin()`` and
+``end()`` methods returning an object supporting incrementing, dereferencing,
+and comparison) is supported via the ``for .. in`` syntax (including in list
+comprehensions).  For example, one can write::
+
+    cdef vector[int] v = ...
+    for value in v:
+        f(value)
+    return [x*x for x in v if x % 2 == 0]
+
+If the loop target variable is unspecified, an assignment from type
+``*container.begin()`` is used for :ref:`type inference <compiler-directives>`.
+
 
 Simplified wrapping with default constructor
 --------------------------------------------
@@ -544,6 +561,8 @@ The translation is performed according to the following table
 | ``bad_alloc``         | ``MemoryError``     |
 +-----------------------+---------------------+
 | ``bad_cast``          | ``TypeError``       |
++-----------------------+---------------------+
+| ``bad_typeid``        | ``TypeError``       |
 +-----------------------+---------------------+
 | ``domain_error``      | ``ValueError``      |
 +-----------------------+---------------------+
@@ -598,8 +617,57 @@ If the Rectangle class has a static member:
 you can declare it using the Python @staticmethod decorator, i.e.::
 
     cdef extern from "Rectangle.h" namespace "shapes":
-        @staticmethod
-        void do_something()
+        cdef cppclass Rectangle:
+            ...
+            @staticmethod
+            void do_something()
+
+
+Declaring/Using References
+---------------------------
+
+Cython supports declaring lvalue references using the standard ``Type&`` syntax.
+Note, however, that it is unnecessary to declare the arguments of extern
+functions as references (const or otherwise) as it has no impact on the
+caller's syntax.
+
+
+``auto`` Keyword
+----------------
+
+Though Cython does not have an ``auto`` keyword, Cython local variables
+not explicitly typed with ``cdef`` are deduced from the types of the right hand
+side of *all* their assignments (see the ``infer_types``
+:ref:`compiler directive <compiler-directives>`).  This is particularly handy
+when dealing with functions that return complicated, nested, templated types,
+e.g.::
+
+    cdef vector[int] v = ...
+    it = v.begin()
+
+(Though of course the ``for .. in`` syntax is prefered for objects supporting
+the iteration protocol.)
+
+RTTI and typeid()
+=================
+
+Cython has support for the ``typeid(...)`` operator.
+
+    from cython.operator cimport typeid
+
+The ``typeid(...)`` operator returns an object of the type ``const type_info &``.
+
+If you want to store a type_info value in a C variable, you will need to store it
+as a pointer rather than a reference:
+
+    from libcpp.typeinfo cimport type_info
+    cdef const type_info* info = &typeid(MyClass)
+
+If an invalid type is passed to ``typeid``, it will throw an ``std::bad_typeid``
+exception which is converted into a ``TypeError`` exception in Python.
+
+An additional C++11-only RTTI-related class, ``std::type_index``, is available
+in ``libcpp.typeindex``.
 
 
 Caveats and Limitations
@@ -618,11 +686,6 @@ module which:
 * includes the needed C headers in an extern "C" block
 * contains minimal forwarding functions in C++, each of which calls the
   respective pure-C function
-
-Declaring/Using References
----------------------------
-
-Question: How do you declare and call a function that takes a reference as an argument?
 
 C++ left-values
 ----------------

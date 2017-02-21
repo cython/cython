@@ -67,7 +67,7 @@ Cython understands all Python string type prefixes:
 * ``b'bytes'`` for byte strings
 * ``u'text'`` for Unicode strings
 * ``f'formatted {value}'`` for formatted Unicode string literals as defined by
-  `PEP 498 <https://www.python.org/dev/peps/pep-0498/>`_ (added in Cython 0.24)
+  :PEP:`498` (added in Cython 0.24)
 
 Unprefixed string literals become :obj:`str` objects when compiling
 with language level 2 and :obj:`unicode` objects (i.e. Python 3
@@ -558,7 +558,7 @@ When string literals appear in the code, the source code encoding is
 important.  It determines the byte sequence that Cython will store in
 the C code for bytes literals, and the Unicode code points that Cython
 builds for unicode literals when parsing the byte encoded source file.
-Following `PEP 263`_, Cython supports the explicit declaration of
+Following :PEP:`263`, Cython supports the explicit declaration of
 source file encodings.  For example, putting the following comment at
 the top of an ``ISO-8859-15`` (Latin-9) encoded source file (into the
 first or second line) is required to enable ``ISO-8859-15`` decoding
@@ -567,14 +567,12 @@ in the parser::
     # -*- coding: ISO-8859-15 -*-
 
 When no explicit encoding declaration is provided, the source code is
-parsed as UTF-8 encoded text, as specified by `PEP 3120`_.  `UTF-8`_
+parsed as UTF-8 encoded text, as specified by :PEP:`3120`.  `UTF-8`_
 is a very common encoding that can represent the entire Unicode set of
 characters and is compatible with plain ASCII encoded text that it
 encodes efficiently.  This makes it a very good choice for source code
 files which usually consist mostly of ASCII characters.
 
-.. _`PEP 263`: http://www.python.org/dev/peps/pep-0263/
-.. _`PEP 3120`: http://www.python.org/dev/peps/pep-3120/
 .. _`UTF-8`: http://en.wikipedia.org/wiki/UTF-8
 
 As an example, putting the following line into a UTF-8 encoded source
@@ -731,15 +729,14 @@ to the internal representation of the Unicode string.  Instead, any
 Unicode character can be represented on all platforms without
 resorting to surrogate pairs.  This implies that narrow builds no
 longer exist from that version on, regardless of the size of
-:c:type:`Py_UNICODE`.  See
-`PEP 393 <http://www.python.org/dev/peps/pep-0393/>`_  for details.
+:c:type:`Py_UNICODE`.  See :PEP:`393` for details.
 
 Cython 0.16 and later handles this change internally and does the right
 thing also for single character values as long as either type inference
 is applied to untyped variables or the portable :c:type:`Py_UCS4` type
 is explicitly used in the source code instead of the platform specific
 :c:type:`Py_UNICODE` type.  Optimisations that Cython applies to the
-Python unicode type will automatically adapt to PEP 393 at C compile
+Python unicode type will automatically adapt to :PEP:`393` at C compile
 time, as usual.
 
 Iteration

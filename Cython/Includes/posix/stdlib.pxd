@@ -1,7 +1,7 @@
 # POSIX additions to <stdlib.h>
 # http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/stdlib.h.html
 
-cdef extern from "stdlib.h" nogil:
+cdef extern from "<stdlib.h>" nogil:
     void   _Exit(int)
     double drand48()
     double erand48(unsigned short *)

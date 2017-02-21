@@ -87,6 +87,7 @@ class BytesLiteralBuilder(object):
     def getstrings(self):
         return (self.getstring(), None)
 
+
 class StrLiteralBuilder(object):
     """Assemble both a bytes and a unicode representation of a string.
     """

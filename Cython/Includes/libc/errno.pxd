@@ -1,6 +1,6 @@
 # 7.5 Errors <errno.h>
 
-cdef extern from "errno.h" nogil:
+cdef extern from "<errno.h>" nogil:
     enum:
         EPERM
         ENOENT
@@ -61,6 +61,7 @@ cdef extern from "errno.h" nogil:
         EBFONT
         ENOSTR
         ENODATA
+        ENOATTR
         ETIME
         ENOSR
         ENONET

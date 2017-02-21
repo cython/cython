@@ -14,7 +14,7 @@ cdef extern from "<iterator>" namespace "std" nogil:
         pass
     cdef cppclass random_access_iterator_tag(bidirectional_iterator_tag):
         pass
-    
+
     cdef cppclass back_insert_iterator[T](iterator[output_iterator_tag,void,void,void,void]):
         pass
     cdef cppclass front_insert_iterator[T](iterator[output_iterator_tag,void,void,void,void]):
@@ -29,4 +29,4 @@ cdef extern from "<iterator>" namespace "std" nogil:
     ##insert_iterator<Container> inserter (Container& x, typename Container::iterator it)
     insert_iterator[CONTAINER] inserter[CONTAINER,ITERATOR](CONTAINER &, ITERATOR)
 
-    
+

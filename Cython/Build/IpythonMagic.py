@@ -152,6 +152,14 @@ class CythonMagics(Magics):
 
     @magic_arguments.magic_arguments()
     @magic_arguments.argument(
+        '-3', dest='language_level', action='store_const', const=3, default=None,
+        help="Select Python 3 syntax."
+    )
+    @magic_arguments.argument(
+        '-2', dest='language_level', action='store_const', const=2, default=None,
+        help="Select Python 2 syntax."
+    )
+    @magic_arguments.argument(
         '-c', '--compile-args', action='append', default=[],
         help="Extra flags to pass to compiler via the `extra_compile_args` "
              "Extension flag (can be specified  multiple times)."
@@ -172,12 +180,17 @@ class CythonMagics(Magics):
     )
     @magic_arguments.argument(
         '-L', dest='library_dirs', metavar='dir', action='append', default=[],
-        help="Add a path to the list of libary directories (can be specified "
+        help="Add a path to the list of library directories (can be specified "
              "multiple times)."
     )
     @magic_arguments.argument(
         '-I', '--include', action='append', default=[],
         help="Add a path to the list of include directories (can be specified "
+             "multiple times)."
+    )
+    @magic_arguments.argument(
+        '-S', '--src', action='append', default=[],
+        help="Add a path to the list of src files (can be specified "
              "multiple times)."
     )
     @magic_arguments.argument(
@@ -244,6 +257,7 @@ class CythonMagics(Magics):
 
         if need_cythonize:
             c_include_dirs = args.include
+            c_src_files = list(map(str, args.src))
             if 'numpy' in code:
                 import numpy
                 c_include_dirs.append(numpy.get_include())
@@ -253,7 +267,7 @@ class CythonMagics(Magics):
                 f.write(code)
             extension = Extension(
                 name = module_name,
-                sources = [pyx_file],
+                sources = [pyx_file] + c_src_files,
                 include_dirs = c_include_dirs,
                 library_dirs = args.library_dirs,
                 extra_compile_args = args.compile_args,
@@ -265,9 +279,14 @@ class CythonMagics(Magics):
             try:
                 opts = dict(
                     quiet=quiet,
-                    annotate = args.annotate,
-                    force = True,
-                    )
+                    annotate=args.annotate,
+                    force=True,
+                )
+                if args.language_level is not None:
+                    assert args.language_level in (2, 3)
+                    opts['language_level'] = args.language_level
+                elif sys.version_info[0] > 2:
+                    opts['language_level'] = 3
                 build_extension.extensions = cythonize([extension], **opts)
             except CompileError:
                 return

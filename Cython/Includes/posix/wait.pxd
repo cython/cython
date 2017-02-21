@@ -4,7 +4,7 @@ from posix.types cimport pid_t, id_t
 from posix.signal cimport siginfo_t
 from posix.resource cimport rusage
 
-cdef extern from "sys/wait.h" nogil:
+cdef extern from "<sys/wait.h>" nogil:
     enum: WNOHANG
     enum: WUNTRACED
     enum: WCONTINUED

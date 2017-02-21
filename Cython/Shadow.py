@@ -1,7 +1,7 @@
 # cython.* namespace for pure mode.
 from __future__ import absolute_import
 
-__version__ = "0.24"
+__version__ = "0.25.2"
 
 try:
     from __builtin__ import basestring
@@ -118,13 +118,16 @@ optimization = _Optimization()
 overflowcheck.fold = optimization.use_switch = \
     optimization.unpack_method_calls = lambda arg: _EmptyDecoratorAndManager()
 
-final = internal = type_version_tag = no_gc_clear = _empty_decorator
+final = internal = type_version_tag = no_gc_clear = no_gc = _empty_decorator
 
 
+_cython_inline = None
 def inline(f, *args, **kwds):
     if isinstance(f, basestring):
-        from Cython.Build.Inline import cython_inline
-        return cython_inline(f, *args, **kwds)
+        global _cython_inline
+        if _cython_inline is None:
+            from Cython.Build.Inline import cython_inline as _cython_inline
+        return _cython_inline(f, *args, **kwds)
     else:
         assert len(args) == len(kwds) == 0
         return f

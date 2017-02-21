@@ -722,3 +722,26 @@ cdef class InferInProperties:
             d = enum_y
             c = d
             return typeof(a), typeof(b), typeof(c), typeof(d)
+
+cdef class WithMethods:
+    cdef int offset
+    def __init__(self, offset):
+        self.offset = offset
+    cpdef int one_arg(self, int x):
+        return x + self.offset
+    cpdef int default_arg(self, int x, int y=0):
+        return x + y + self.offset
+
+def test_bound_methods():
+  """
+  >>> test_bound_methods()
+  """
+  o = WithMethods(10)
+  assert typeof(o) == 'WithMethods', typeof(o)
+
+  one_arg = o.one_arg
+  assert one_arg(2) == 12, one_arg(2)
+
+  default_arg = o.default_arg
+  assert default_arg(2) == 12, default_arg(2)
+  assert default_arg(2, 3) == 15, default_arg(2, 2)

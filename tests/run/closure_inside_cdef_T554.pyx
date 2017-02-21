@@ -29,3 +29,19 @@ def closure_in_void():
 cdef void add_gen(l):
     x = "abc"
     l.append((c for c in x))
+
+
+def closure_in_int():
+    """
+    >>> genex = closure_in_int()
+    >>> list(genex)
+    ['a', 'b', 'c']
+    """
+    l = []
+    add_gen_int(l)
+    return l[0]
+
+
+cdef int add_gen_int(l):
+    x = "abc"
+    l.append((c for c in x))

@@ -134,30 +134,6 @@ def inject_utility_code_stage_factory(context):
     return inject_utility_code_stage
 
 
-class UseUtilityCodeDefinitions(CythonTransform):
-    # Temporary hack to use any utility code in nodes' "utility_code_definitions".
-    # This should be moved to the code generation phase of the relevant nodes once
-    # it is safe to generate CythonUtilityCode at code generation time.
-    def __call__(self, node):
-        self.scope = node.scope
-        return super(UseUtilityCodeDefinitions, self).__call__(node)
-
-    def process_entry(self, entry):
-        if entry:
-            for utility_code in (entry.utility_code, entry.utility_code_definition):
-                if utility_code:
-                    self.scope.use_utility_code(utility_code)
-
-    def visit_AttributeNode(self, node):
-        self.process_entry(node.entry)
-        return node
-
-    def visit_NameNode(self, node):
-        self.process_entry(node.entry)
-        self.process_entry(node.type_entry)
-        return node
-
-
 #
 # Pipeline factories
 #
@@ -243,7 +219,6 @@ def create_pipeline(context, mode, exclude_classes=()):
         DropRefcountingTransform(),
         FinalOptimizePhase(context),
         GilCheck(),
-        UseUtilityCodeDefinitions(context),
         ]
     filtered_stages = []
     for s in stages:

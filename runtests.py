@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import atexit
 import os
 import sys
 import re
@@ -69,6 +70,24 @@ CY3_DIR = None
 
 from distutils.command.build_ext import build_ext as _build_ext
 from distutils import sysconfig
+
+_to_clean = []
+
+@atexit.register
+def _cleanup_files():
+    """
+    This is only used on Cygwin to clean up shared libraries that are unsafe
+    to delete while the test suite is running.
+    """
+
+    for filename in _to_clean:
+        if os.path.isdir(filename):
+            shutil.rmtree(filename, ignore_errors=True)
+        else:
+            try:
+                os.remove(filename)
+            except OSError:
+                pass
 
 
 def get_distutils_distro(_cache=[]):
@@ -431,33 +450,37 @@ class build_ext(_build_ext):
             pass
         _build_ext.build_extension(self, ext)
 
+
 class ErrorWriter(object):
     match_error = re.compile('(warning:)?(?:.*:)?\s*([-0-9]+)\s*:\s*([-0-9]+)\s*:\s*(.*)').match
+
     def __init__(self):
         self.output = []
         self.write = self.output.append
 
-    def _collect(self, collect_errors, collect_warnings):
+    def _collect(self):
         s = ''.join(self.output)
-        result = []
-        for line in s.split('\n'):
+        results = {'errors': [], 'warnings': []}
+        for line in s.splitlines():
             match = self.match_error(line)
             if match:
                 is_warning, line, column, message = match.groups()
-                if (is_warning and collect_warnings) or \
-                        (not is_warning and collect_errors):
-                    result.append( (int(line), int(column), message.strip()) )
-        result.sort()
-        return [ "%d:%d: %s" % values for values in result ]
+                results['warnings' if is_warning else 'errors'].append((int(line), int(column), message.strip()))
+
+        return [["%d:%d: %s" % values for values in sorted(results[key])] for key in ('errors', 'warnings')]
 
     def geterrors(self):
-        return self._collect(True, False)
+        return self._collect()[0]
 
     def getwarnings(self):
-        return self._collect(False, True)
+        return self._collect()[1]
 
     def getall(self):
-        return self._collect(True, True)
+        return self._collect()
+
+    def close(self):
+        pass  # ignore, only to match file-like interface
+
 
 class TestBuilder(object):
     def __init__(self, rootdir, workdir, selectors, exclude_selectors, annotate,
@@ -562,10 +585,8 @@ class TestBuilder(object):
         return suite
 
     def build_tests(self, test_class, path, workdir, module, expect_errors, tags):
-        if 'werror' in tags['tag']:
-            warning_errors = True
-        else:
-            warning_errors = False
+        warning_errors = 'werror' in tags['tag']
+        expect_warnings = 'warnings' in tags['tag']
 
         if expect_errors:
             if 'cpp' in tags['tag'] and 'cpp' in self.languages:
@@ -583,14 +604,14 @@ class TestBuilder(object):
             languages.remove('cpp')
 
         preparse_list = tags.get('preparse', ['id'])
-        tests = [ self.build_test(test_class, path, workdir, module, tags,
-                                  language, expect_errors, warning_errors, preparse)
+        tests = [ self.build_test(test_class, path, workdir, module, tags, language,
+                                  expect_errors, expect_warnings, warning_errors, preparse)
                   for language in languages
                   for preparse in preparse_list ]
         return tests
 
-    def build_test(self, test_class, path, workdir, module, tags,
-                   language, expect_errors, warning_errors, preparse):
+    def build_test(self, test_class, path, workdir, module, tags, language,
+                   expect_errors, expect_warnings, warning_errors, preparse):
         language_workdir = os.path.join(workdir, language)
         if not os.path.exists(language_workdir):
             os.makedirs(language_workdir)
@@ -601,6 +622,7 @@ class TestBuilder(object):
                           language=language,
                           preparse=preparse,
                           expect_errors=expect_errors,
+                          expect_warnings=expect_warnings,
                           annotate=self.annotate,
                           cleanup_workdir=self.cleanup_workdir,
                           cleanup_sharedlibs=self.cleanup_sharedlibs,
@@ -611,9 +633,10 @@ class TestBuilder(object):
                           warning_errors=warning_errors,
                           common_utility_dir=self.common_utility_dir)
 
+
 class CythonCompileTestCase(unittest.TestCase):
     def __init__(self, test_directory, workdir, module, tags, language='c', preparse='id',
-                 expect_errors=False, annotate=False, cleanup_workdir=True,
+                 expect_errors=False, expect_warnings=False, annotate=False, cleanup_workdir=True,
                  cleanup_sharedlibs=True, cleanup_failures=True, cython_only=False,
                  fork=True, language_level=2, warning_errors=False,
                  common_utility_dir=None):
@@ -625,6 +648,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self.preparse = preparse
         self.name = module if self.preparse == "id" else "%s_%s" % (module, preparse)
         self.expect_errors = expect_errors
+        self.expect_warnings = expect_warnings
         self.annotate = annotate
         self.cleanup_workdir = cleanup_workdir
         self.cleanup_sharedlibs = cleanup_sharedlibs
@@ -645,10 +669,10 @@ class CythonCompileTestCase(unittest.TestCase):
             (name, getattr(Options, name))
             for name in ('warning_errors', 'clear_to_none', 'error_on_unknown_names', 'error_on_uninitialized')
         ]
-        self._saved_default_directives = list(Options.directive_defaults.items())
+        self._saved_default_directives = list(Options.get_directive_defaults().items())
         Options.warning_errors = self.warning_errors
         if sys.version_info >= (3, 4):
-            Options.directive_defaults['autotestdict'] = False
+            Options._directive_defaults['autotestdict'] = False
 
         if not os.path.exists(self.workdir):
             os.makedirs(self.workdir)
@@ -659,7 +683,7 @@ class CythonCompileTestCase(unittest.TestCase):
         from Cython.Compiler import Options
         for name, value in self._saved_options:
             setattr(Options, name, value)
-        Options.directive_defaults = dict(self._saved_default_directives)
+        Options._directive_defaults = dict(self._saved_default_directives)
         unpatch_inspect_isfunction()
 
         try:
@@ -673,8 +697,10 @@ class CythonCompileTestCase(unittest.TestCase):
         cleanup = self.cleanup_failures or self.success
         cleanup_c_files = WITH_CYTHON and self.cleanup_workdir and cleanup
         cleanup_lib_files = self.cleanup_sharedlibs and cleanup
+        is_cygwin = sys.platform == 'cygwin'
+
         if os.path.exists(self.workdir):
-            if cleanup_c_files and cleanup_lib_files:
+            if cleanup_c_files and cleanup_lib_files and not is_cygwin:
                 shutil.rmtree(self.workdir, ignore_errors=True)
             else:
                 for rmfile in os.listdir(self.workdir):
@@ -683,16 +709,27 @@ class CythonCompileTestCase(unittest.TestCase):
                                 rmfile[-4:] == ".cpp" or
                                 rmfile.endswith(".html") and rmfile.startswith(self.module)):
                             continue
-                    if not cleanup_lib_files and (rmfile.endswith(".so") or rmfile.endswith(".dll")):
+
+                    is_shared_obj = rmfile.endswith(".so") or rmfile.endswith(".dll")
+
+                    if not cleanup_lib_files and is_shared_obj:
                         continue
+
                     try:
                         rmfile = os.path.join(self.workdir, rmfile)
                         if os.path.isdir(rmfile):
                             shutil.rmtree(rmfile, ignore_errors=True)
+                        elif is_cygwin and is_shared_obj:
+                            # Delete later
+                            _to_clean.append(rmfile)
                         else:
                             os.remove(rmfile)
                     except IOError:
                         pass
+
+                if cleanup_c_files and cleanup_lib_files and is_cygwin:
+                    # Finally, remove the work dir itself
+                    _to_clean.append(self.workdir)
 
     def runTest(self):
         self.success = False
@@ -702,7 +739,7 @@ class CythonCompileTestCase(unittest.TestCase):
     def runCompileTest(self):
         return self.compile(
             self.test_directory, self.module, self.workdir,
-            self.test_directory, self.expect_errors, self.annotate)
+            self.test_directory, self.expect_errors, self.expect_warnings, self.annotate)
 
     def find_module_source_file(self, source_file):
         if not os.path.exists(source_file):
@@ -744,25 +781,24 @@ class CythonCompileTestCase(unittest.TestCase):
     def split_source_and_output(self, test_directory, module, workdir):
         source_file = self.find_module_source_file(os.path.join(test_directory, module) + '.pyx')
         source_and_output = io_open(source_file, 'rU', encoding='ISO-8859-1')
+        error_writer = warnings_writer = None
         try:
             out = io_open(os.path.join(workdir, module + os.path.splitext(source_file)[1]),
-                              'w', encoding='ISO-8859-1')
+                          'w', encoding='ISO-8859-1')
             for line in source_and_output:
                 if line.startswith("_ERRORS"):
                     out.close()
-                    out = ErrorWriter()
+                    out = error_writer = ErrorWriter()
+                elif line.startswith("_WARNINGS"):
+                    out.close()
+                    out = warnings_writer = ErrorWriter()
                 else:
                     out.write(line)
         finally:
             source_and_output.close()
 
-        try:
-            geterrors = out.geterrors
-        except AttributeError:
-            out.close()
-            return []
-        else:
-            return geterrors()
+        return (error_writer.geterrors() if error_writer else [],
+                warnings_writer.geterrors() if warnings_writer else [])
 
     def run_cython(self, test_directory, module, targetdir, incdir, annotate,
                    extra_compile_options=None):
@@ -824,10 +860,7 @@ class CythonCompileTestCase(unittest.TestCase):
                 build_extension.compiler = COMPILER
 
             ext_compile_flags = CFLAGS[:]
-            compiler = COMPILER or sysconfig.get_config_var('CC')
 
-            if self.language == 'c' and compiler == 'gcc':
-                ext_compile_flags.extend(['-std=c89', '-pedantic'])
             if  build_extension.compiler == 'mingw32':
                 ext_compile_flags.append('-Wno-format')
             if extra_extension_args is None:
@@ -850,8 +883,10 @@ class CythonCompileTestCase(unittest.TestCase):
 
             if 'distutils' in self.tags:
                 from Cython.Build.Dependencies import DistutilsInfo
+                from Cython.Utils import open_source_file
                 pyx_path = os.path.join(self.test_directory, self.module + ".pyx")
-                DistutilsInfo(open(pyx_path)).apply(extension)
+                with open_source_file(pyx_path) as f:
+                    DistutilsInfo(f).apply(extension)
 
             for matcher, fixer in list(EXT_EXTRAS.items()):
                 if isinstance(matcher, str):
@@ -892,10 +927,10 @@ class CythonCompileTestCase(unittest.TestCase):
         return get_ext_fullpath(module)
 
     def compile(self, test_directory, module, workdir, incdir,
-                expect_errors, annotate):
-        expected_errors = errors = ()
-        if expect_errors:
-            expected_errors = self.split_source_and_output(
+                expect_errors, expect_warnings, annotate):
+        expected_errors = expected_warnings = errors = warnings = ()
+        if expect_errors or expect_warnings:
+            expected_errors, expected_warnings = self.split_source_and_output(
                 test_directory, module, workdir)
             test_directory = workdir
 
@@ -904,7 +939,7 @@ class CythonCompileTestCase(unittest.TestCase):
             try:
                 sys.stderr = ErrorWriter()
                 self.run_cython(test_directory, module, workdir, incdir, annotate)
-                errors = sys.stderr.geterrors()
+                errors, warnings = sys.stderr.getall()
             finally:
                 sys.stderr = old_stderr
 
@@ -917,23 +952,10 @@ class CythonCompileTestCase(unittest.TestCase):
                 tostderr('\n\n')
                 raise RuntimeError('should have generated extension code')
         elif errors or expected_errors:
-            try:
-                for expected, error in zip(expected_errors, errors):
-                    self.assertEquals(expected, error)
-                if len(errors) < len(expected_errors):
-                    expected_error = expected_errors[len(errors)]
-                    self.assertEquals(expected_error, None)
-                elif len(errors) > len(expected_errors):
-                    unexpected_error = errors[len(expected_errors)]
-                    self.assertEquals(None, unexpected_error)
-            except AssertionError:
-                tostderr("\n=== Expected errors: ===\n")
-                tostderr('\n'.join(expected_errors))
-                tostderr("\n\n=== Got errors: ===\n")
-                tostderr('\n'.join(errors))
-                tostderr('\n\n')
-                raise
+            self._match_output(expected_errors, errors, tostderr)
             return None
+        if expected_warnings or (expect_warnings and warnings):
+            self._match_output(expected_warnings, warnings, tostderr)
 
         so_path = None
         if not self.cython_only:
@@ -968,6 +990,24 @@ class CythonCompileTestCase(unittest.TestCase):
                     if stdout or stderr:
                         tostderr("\n==============================\n")
         return so_path
+
+    def _match_output(self, expected_output, actual_output, write):
+        try:
+            for expected, actual in zip(expected_output, actual_output):
+                self.assertEquals(expected, actual)
+            if len(actual_output) < len(expected_output):
+                expected = expected_output[len(actual_output)]
+                self.assertEquals(expected, None)
+            elif len(actual_output) > len(expected_output):
+                unexpected = actual_output[len(expected_output)]
+                self.assertEquals(None, unexpected)
+        except AssertionError:
+            write("\n=== Expected: ===\n")
+            write('\n'.join(expected_output))
+            write("\n\n=== Got: ===\n")
+            write('\n'.join(actual_output))
+            write('\n\n')
+            raise
 
 
 class CythonRunTestCase(CythonCompileTestCase):
@@ -1195,7 +1235,7 @@ class CythonPyregrTestCase(CythonRunTestCase):
         from Cython.Compiler import Options
         Options.error_on_unknown_names = False
         Options.error_on_uninitialized = False
-        Options.directive_defaults.update(dict(
+        Options._directive_defaults.update(dict(
             binding=True, always_allow_keywords=True,
             set_initial_path="SOURCEFILE"))
         patch_inspect_isfunction()
@@ -1448,7 +1488,6 @@ class EmbedTest(unittest.TestCase):
         os.chdir(self.old_dir)
 
     def test_embed(self):
-        from distutils import sysconfig
         libname = sysconfig.get_config_var('LIBRARY')
         libdir = sysconfig.get_config_var('LIBDIR')
         if not os.path.isdir(libdir) or libname not in os.listdir(libdir):
@@ -1665,6 +1704,14 @@ def main():
     global DISTDIR, WITH_CYTHON
     DISTDIR = os.path.join(os.getcwd(), os.path.dirname(sys.argv[0]))
 
+    from Cython.Compiler import DebugFlags
+    args = []
+    for arg in sys.argv[1:]:
+        if arg.startswith('--debug') and arg[2:].replace('-', '_') in dir(DebugFlags):
+            setattr(DebugFlags, arg[2:].replace('-', '_'), True)
+        else:
+            args.append(arg)
+
     from optparse import OptionParser
     parser = OptionParser()
     parser.add_option("--no-cleanup", dest="cleanup_workdir",
@@ -1754,7 +1801,7 @@ def main():
                       help="exit without error code even on test failures")
     parser.add_option("--root-dir", dest="root_dir", default=os.path.join(DISTDIR, 'tests'),
                       help="working directory")
-    parser.add_option("--work-dir", dest="work_dir", default=os.path.join(os.getcwd(), 'BUILD'),
+    parser.add_option("--work-dir", dest="work_dir", default=os.path.join(os.getcwd(), 'TEST_TMP'),
                       help="working directory")
     parser.add_option("--cython-dir", dest="cython_dir", default=os.getcwd(),
                       help="Cython installation directory (default: use local source version)")
@@ -1767,7 +1814,7 @@ def main():
     parser.add_option("--use_common_utility_dir", default=False, action="store_true")
     parser.add_option("--use_formal_grammar", default=False, action="store_true")
 
-    options, cmd_args = parser.parse_args()
+    options, cmd_args = parser.parse_args(args)
 
     WORKDIR = os.path.abspath(options.work_dir)
 
@@ -1961,10 +2008,17 @@ def runtests(options, cmd_args, coverage=None):
         exclude_selectors.append(ShardExcludeSelector(options.shard_num, options.shard_count))
 
     if not test_bugs:
+        bug_files = [
+            ('bugs.txt', True),
+            ('pypy_bugs.txt', IS_PYPY),
+            ('windows_bugs.txt', sys.platform == 'win32'),
+            ('cygwin_bugs.txt', sys.platform == 'cygwin')
+        ]
+
         exclude_selectors += [
-            FileListExcluder(os.path.join(ROOTDIR, bugs_file_name), verbose=verbose_excludes)
-            for bugs_file_name in ['bugs.txt'] + (['pypy_bugs.txt'] if IS_PYPY else []) +
-            (['windows_bugs.txt'] if sys.platform == 'win32' else [])
+            FileListExcluder(os.path.join(ROOTDIR, bugs_file_name),
+                             verbose=verbose_excludes)
+            for bugs_file_name, condition in bug_files if condition
         ]
 
     if sys.platform in ['win32', 'cygwin'] and sys.version_info < (2,6):

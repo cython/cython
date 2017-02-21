@@ -251,7 +251,7 @@ __Pyx_CyFunction_init_defaults(__pyx_CyFunctionObject *op) {
         return -1;
 
     // Cache result
-    #if CYTHON_COMPILING_IN_CPYTHON
+    #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
     op->defaults_tuple = PyTuple_GET_ITEM(res, 0);
     Py_INCREF(op->defaults_tuple);
     op->defaults_kwdict = PyTuple_GET_ITEM(res, 1);
@@ -571,13 +571,10 @@ __Pyx_CyFunction_repr(__pyx_CyFunctionObject *op)
 #endif
 }
 
-#if CYTHON_COMPILING_IN_PYPY
-// originally copied from PyCFunction_Call() in CPython's Objects/methodobject.c
-// PyPy does not have this function
-static PyObject * __Pyx_CyFunction_Call(PyObject *func, PyObject *arg, PyObject *kw) {
+static PyObject * __Pyx_CyFunction_CallMethod(PyObject *func, PyObject *self, PyObject *arg, PyObject *kw) {
+    // originally copied from PyCFunction_Call() in CPython's Objects/methodobject.c
     PyCFunctionObject* f = (PyCFunctionObject*)func;
     PyCFunction meth = f->m_ml->ml_meth;
-    PyObject *self = f->m_self;
     Py_ssize_t size;
 
     switch (f->m_ml->ml_flags & (METH_VARARGS | METH_KEYWORDS | METH_NOARGS | METH_O)) {
@@ -625,11 +622,38 @@ static PyObject * __Pyx_CyFunction_Call(PyObject *func, PyObject *arg, PyObject 
                  f->m_ml->ml_name);
     return NULL;
 }
-#else
-static PyObject * __Pyx_CyFunction_Call(PyObject *func, PyObject *arg, PyObject *kw) {
-	return PyCFunction_Call(func, arg, kw);
+
+static CYTHON_INLINE PyObject *__Pyx_CyFunction_Call(PyObject *func, PyObject *arg, PyObject *kw) {
+    return __Pyx_CyFunction_CallMethod(func, ((PyCFunctionObject*)func)->m_self, arg, kw);
 }
-#endif
+
+static PyObject *__Pyx_CyFunction_CallAsMethod(PyObject *func, PyObject *args, PyObject *kw) {
+    PyObject *result;
+    __pyx_CyFunctionObject *cyfunc = (__pyx_CyFunctionObject *) func;
+    if ((cyfunc->flags & __Pyx_CYFUNCTION_CCLASS) && !(cyfunc->flags & __Pyx_CYFUNCTION_STATICMETHOD)) {
+        Py_ssize_t argc;
+        PyObject *new_args;
+        PyObject *self;
+
+        argc = PyTuple_GET_SIZE(args);
+        new_args = PyTuple_GetSlice(args, 1, argc);
+
+        if (unlikely(!new_args))
+            return NULL;
+
+        self = PyTuple_GetItem(args, 0);
+        if (unlikely(!self)) {
+            Py_DECREF(new_args);
+            return NULL;
+        }
+
+        result = __Pyx_CyFunction_CallMethod(func, self, new_args, kw);
+        Py_DECREF(new_args);
+    } else {
+        result = __Pyx_CyFunction_Call(func, args, kw);
+    }
+    return result;
+}
 
 static PyTypeObject __pyx_CyFunctionType_type = {
     PyVarObject_HEAD_INIT(0, 0)
@@ -650,7 +674,7 @@ static PyTypeObject __pyx_CyFunctionType_type = {
     0,                                  /*tp_as_sequence*/
     0,                                  /*tp_as_mapping*/
     0,                                  /*tp_hash*/
-    __Pyx_CyFunction_Call,              /*tp_call*/
+    __Pyx_CyFunction_CallAsMethod,      /*tp_call*/
     0,                                  /*tp_str*/
     0,                                  /*tp_getattro*/
     0,                                  /*tp_setattro*/
@@ -694,10 +718,6 @@ static PyTypeObject __pyx_CyFunctionType_type = {
 
 
 static int __pyx_CyFunction_init(void) {
-#if !CYTHON_COMPILING_IN_PYPY
-    // avoid a useless level of call indirection
-    __pyx_CyFunctionType_type.tp_call = PyCFunction_Call;
-#endif
     __pyx_CyFunctionType = __Pyx_FetchCommonType(&__pyx_CyFunctionType_type);
     if (__pyx_CyFunctionType == NULL) {
         return -1;
@@ -745,7 +765,7 @@ static CYTHON_INLINE int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, P
 
     for (i = 0; i < count; i++) {
         __pyx_CyFunctionObject *m = (__pyx_CyFunctionObject *)
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
             PyList_GET_ITEM(cyfunctions, i);
 #else
             PySequence_ITEM(cyfunctions, i);
@@ -754,7 +774,7 @@ static CYTHON_INLINE int __Pyx_CyFunction_InitClassCell(PyObject *cyfunctions, P
 #endif
         Py_INCREF(classobj);
         m->func_classobj = classobj;
-#if !CYTHON_COMPILING_IN_CPYTHON
+#if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
         Py_DECREF((PyObject*)m);
 #endif
     }
@@ -910,13 +930,13 @@ __pyx_FusedFunction_getitem(__pyx_FusedFunctionObject *self, PyObject *idx)
             return NULL;
 
         for (i = 0; i < n; i++) {
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
             PyObject *item = PyTuple_GET_ITEM(idx, i);
 #else
             PyObject *item = PySequence_ITEM(idx, i);
 #endif
             string = _obj_to_str(item);
-#if !CYTHON_COMPILING_IN_CPYTHON
+#if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
             Py_DECREF(item);
 #endif
             if (!string || PyList_Append(list, string) < 0)
@@ -968,38 +988,14 @@ static PyObject *
 __pyx_FusedFunction_callfunction(PyObject *func, PyObject *args, PyObject *kw)
 {
      __pyx_CyFunctionObject *cyfunc = (__pyx_CyFunctionObject *) func;
-    PyObject *result;
     int static_specialized = (cyfunc->flags & __Pyx_CYFUNCTION_STATICMETHOD &&
                               !((__pyx_FusedFunctionObject *) func)->__signatures__);
 
     if (cyfunc->flags & __Pyx_CYFUNCTION_CCLASS && !static_specialized) {
-        Py_ssize_t argc;
-        PyObject *new_args;
-        PyObject *self;
-        PyObject *m_self;
-
-        argc = PyTuple_GET_SIZE(args);
-        new_args = PyTuple_GetSlice(args, 1, argc);
-
-        if (!new_args)
-            return NULL;
-
-        self = PyTuple_GetItem(args, 0);
-
-        if (!self)
-            return NULL;
-
-        m_self = cyfunc->func.m_self;
-        cyfunc->func.m_self = self;
-        result = __Pyx_CyFunction_Call(func, new_args, kw);
-        cyfunc->func.m_self = m_self;
-
-        Py_DECREF(new_args);
+        return __Pyx_CyFunction_CallAsMethod(func, args, kw);
     } else {
-        result = __Pyx_CyFunction_Call(func, args, kw);
+        return __Pyx_CyFunction_Call(func, args, kw);
     }
-
-    return result;
 }
 
 // Note: the 'self' from method binding is passed in in the args tuple,
@@ -1028,14 +1024,14 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
             return NULL;
 
         self = binding_func->self;
-#if !CYTHON_COMPILING_IN_CPYTHON
+#if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
         Py_INCREF(self);
 #endif
         Py_INCREF(self);
         PyTuple_SET_ITEM(new_args, 0, self);
 
         for (i = 0; i < argc; i++) {
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
             PyObject *item = PyTuple_GET_ITEM(args, i);
             Py_INCREF(item);
 #else
@@ -1051,7 +1047,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
             PyErr_SetString(PyExc_TypeError, "Need at least one argument, 0 given.");
             return NULL;
         }
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
         self = PyTuple_GET_ITEM(args, 0);
 #else
         self = PySequence_ITEM(args, 0);  if (unlikely(!self)) return NULL;
@@ -1070,22 +1066,31 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
             goto bad;
         }
     }
-#if !CYTHON_COMPILING_IN_CPYTHON
+#if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
     Py_XDECREF(self);
     self = NULL;
 #endif
 
     if (binding_func->__signatures__) {
-        PyObject *tup = PyTuple_Pack(4, binding_func->__signatures__, args,
-                                        kw == NULL ? Py_None : kw,
-                                        binding_func->func.defaults_tuple);
-        if (!tup)
-            goto bad;
-
-        new_func = (__pyx_FusedFunctionObject *) __pyx_FusedFunction_callfunction(func, tup, NULL);
+        PyObject *tup;
+        if (is_staticmethod && binding_func->func.flags & __Pyx_CYFUNCTION_CCLASS) {
+            // FIXME: this seems wrong, but we must currently pass the signatures dict as 'self' argument
+            tup = PyTuple_Pack(3, args,
+                               kw == NULL ? Py_None : kw,
+                               binding_func->func.defaults_tuple);
+            if (unlikely(!tup)) goto bad;
+            new_func = (__pyx_FusedFunctionObject *) __Pyx_CyFunction_CallMethod(
+                func, binding_func->__signatures__, tup, NULL);
+        } else {
+            tup = PyTuple_Pack(4, binding_func->__signatures__, args,
+                               kw == NULL ? Py_None : kw,
+                               binding_func->func.defaults_tuple);
+            if (unlikely(!tup)) goto bad;
+            new_func = (__pyx_FusedFunctionObject *) __pyx_FusedFunction_callfunction(func, tup, NULL);
+        }
         Py_DECREF(tup);
 
-        if (!new_func)
+        if (unlikely(!new_func))
             goto bad;
 
         Py_XINCREF(binding_func->func.func_classobj);
@@ -1097,7 +1102,7 @@ __pyx_FusedFunction_call(PyObject *func, PyObject *args, PyObject *kw)
 
     result = __pyx_FusedFunction_callfunction(func, args, kw);
 bad:
-#if !CYTHON_COMPILING_IN_CPYTHON
+#if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
     Py_XDECREF(self);
 #endif
     Py_XDECREF(new_args);
@@ -1201,7 +1206,11 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
         return PyClassMethod_New(method);
     }
 #else
-    // It appears that PyMethodDescr_Type is not anywhere exposed in the Python/C API
+#if CYTHON_COMPILING_IN_PYSTON
+    // special C-API function only in Pyston
+    if (PyMethodDescr_Check(method)) {
+#else
+    // It appears that PyMethodDescr_Type is not exposed anywhere in the CPython C-API
     static PyTypeObject *methoddescr_type = NULL;
     if (methoddescr_type == NULL) {
        PyObject *meth = PyObject_GetAttrString((PyObject*)&PyList_Type, "append");
@@ -1210,6 +1219,7 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
        Py_DECREF(meth);
     }
     if (PyObject_TypeCheck(method, methoddescr_type)) {
+#endif
         // cdef classes
         PyMethodDescrObject *descr = (PyMethodDescrObject *)method;
         #if PY_VERSION_HEX < 0x03020000

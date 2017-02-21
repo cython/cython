@@ -77,5 +77,5 @@ def integrate_f2(double a, double b, int N):
     for i in range(N):
         s += f2(a+i*dx)
     return s * dx
-    
+
 timeit(integrate_f2, "Typed func")

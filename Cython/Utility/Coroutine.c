@@ -16,7 +16,7 @@ static CYTHON_INLINE PyObject* __Pyx_Generator_Yield_From(__pyx_CoroutineObject 
     } else
 #endif
     {
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_USE_TYPE_SLOTS
         if (likely(Py_TYPE(source)->tp_iter)) {
             source_gen = Py_TYPE(source)->tp_iter(source);
             if (unlikely(!source_gen))
@@ -45,15 +45,40 @@ static CYTHON_INLINE PyObject* __Pyx_Generator_Yield_From(__pyx_CoroutineObject 
 
 //////////////////// CoroutineYieldFrom.proto ////////////////////
 
-static CYTHON_INLINE PyObject* __Pyx_Coroutine_Yield_From(__pyx_CoroutineObject *gen, PyObject *source);
+#define __Pyx_Coroutine_Yield_From(gen, source) __Pyx__Coroutine_Yield_From(gen, source, 0)
+static CYTHON_INLINE PyObject* __Pyx__Coroutine_Yield_From(__pyx_CoroutineObject *gen, PyObject *source, int warn);
 
 //////////////////// CoroutineYieldFrom ////////////////////
 //@requires: Coroutine
 //@requires: GetAwaitIter
 
-static CYTHON_INLINE PyObject* __Pyx_Coroutine_Yield_From(__pyx_CoroutineObject *gen, PyObject *source) {
+static int __Pyx_WarnAIterDeprecation(PyObject *aiter) {
+    int result;
+#if PY_MAJOR_VERSION >= 3
+    result = PyErr_WarnFormat(
+        PyExc_PendingDeprecationWarning, 1,
+        "'%.100s' implements legacy __aiter__ protocol; "
+        "__aiter__ should return an asynchronous "
+        "iterator, not awaitable",
+        Py_TYPE(aiter)->tp_name);
+#else
+    result = PyErr_WarnEx(
+        PyExc_PendingDeprecationWarning,
+        "object implements legacy __aiter__ protocol; "
+        "__aiter__ should return an asynchronous "
+        "iterator, not awaitable",
+        1);
+#endif
+    return result != 0;
+}
+
+static CYTHON_INLINE PyObject* __Pyx__Coroutine_Yield_From(__pyx_CoroutineObject *gen, PyObject *source, int warn) {
     PyObject *retval;
     if (__Pyx_Coroutine_CheckExact(source)) {
+        if (warn && unlikely(__Pyx_WarnAIterDeprecation(source))) {
+            /* Warning was converted to an error. */
+            return NULL;
+        }
         retval = __Pyx_Generator_Next(source);
         if (retval) {
             Py_INCREF(source);
@@ -64,6 +89,11 @@ static CYTHON_INLINE PyObject* __Pyx_Coroutine_Yield_From(__pyx_CoroutineObject 
         PyObject *source_gen = __Pyx__Coroutine_GetAwaitableIter(source);
         if (unlikely(!source_gen))
             return NULL;
+        if (warn && unlikely(__Pyx_WarnAIterDeprecation(source))) {
+            /* Warning was converted to an error. */
+            Py_DECREF(source_gen);
+            return NULL;
+        }
         // source_gen is now the iterator, make the first next() call
         if (__Pyx_Coroutine_CheckExact(source_gen)) {
             retval = __Pyx_Generator_Next(source_gen);
@@ -77,6 +107,53 @@ static CYTHON_INLINE PyObject* __Pyx_Coroutine_Yield_From(__pyx_CoroutineObject 
         Py_DECREF(source_gen);
     }
     return NULL;
+}
+
+
+//////////////////// CoroutineAIterYieldFrom.proto ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_Coroutine_AIter_Yield_From(__pyx_CoroutineObject *gen, PyObject *source);
+
+//////////////////// CoroutineAIterYieldFrom ////////////////////
+//@requires: CoroutineYieldFrom
+
+static CYTHON_INLINE PyObject* __Pyx_Coroutine_AIter_Yield_From(__pyx_CoroutineObject *gen, PyObject *source) {
+#if CYTHON_USE_ASYNC_SLOTS
+    __Pyx_PyAsyncMethodsStruct* am = __Pyx_PyType_AsAsync(source);
+    if (likely(am && am->am_anext)) {
+        // Starting with CPython 3.5.2, __aiter__ should return
+        // asynchronous iterators directly (not awaitables that
+        // resolve to asynchronous iterators.)
+        //
+        // Therefore, we check if the object that was returned
+        // from __aiter__ has an __anext__ method.  If it does,
+        // we return it directly as StopIteration result,
+        // which avoids yielding.
+        //
+        // See http://bugs.python.org/issue27243 for more
+        // details.
+        PyErr_SetObject(PyExc_StopIteration, source);
+        return NULL;
+    }
+#endif
+#if PY_VERSION_HEX < 0x030500B2
+    if (!__Pyx_PyType_AsAsync(source)) {
+        #ifdef __Pyx_Coroutine_USED
+        if (!__Pyx_Coroutine_CheckExact(source))  /* quickly rule out a likely case */
+        #endif
+        {
+            // same as above in slow
+            PyObject *method = __Pyx_PyObject_GetAttrStr(source, PYIDENT("__anext__"));
+            if (method) {
+                Py_DECREF(method);
+                PyErr_SetObject(PyExc_StopIteration, source);
+                return NULL;
+            }
+            PyErr_Clear();
+        }
+    }
+#endif
+    return __Pyx__Coroutine_Yield_From(gen, source, 1);
 }
 
 
@@ -103,13 +180,13 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAwaitableIter(PyObject *o) {
 // adapted from genobject.c in Py3.5
 static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
     PyObject *res;
-#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
+#if CYTHON_USE_ASYNC_SLOTS
     __Pyx_PyAsyncMethodsStruct* am = __Pyx_PyType_AsAsync(obj);
     if (likely(am && am->am_await)) {
         res = (*am->am_await)(obj);
     } else
 #endif
-#if (CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500B2) || defined(PyCoro_CheckExact)
+#if PY_VERSION_HEX >= 0x030500B2 || defined(PyCoro_CheckExact)
     if (PyCoro_CheckExact(obj)) {
         Py_INCREF(obj);
         return obj;
@@ -125,7 +202,7 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
     {
         PyObject *method = __Pyx_PyObject_GetAttrStr(obj, PYIDENT("__await__"));
         if (unlikely(!method)) goto slot_error;
-        #if CYTHON_COMPILING_IN_CPYTHON
+        #if CYTHON_UNPACK_METHODS
         if (likely(PyMethod_Check(method))) {
             PyObject *self = PyMethod_GET_SELF(method);
             if (likely(self)) {
@@ -149,7 +226,7 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
         #ifdef __Pyx_Coroutine_USED
         is_coroutine |= __Pyx_Coroutine_CheckExact(res);
         #endif
-        #if (CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500B2) || defined(PyCoro_CheckExact)
+        #if PY_VERSION_HEX >= 0x030500B2 || defined(PyCoro_CheckExact)
         is_coroutine |= PyCoro_CheckExact(res);
         #endif
         if (unlikely(is_coroutine)) {
@@ -180,7 +257,7 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *o); /*pro
 //@requires: ObjectHandling.c::PyObjectCallMethod0
 
 static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *obj) {
-#if PY_MAJOR_VERSION >= 3
+#if CYTHON_USE_ASYNC_SLOTS
     __Pyx_PyAsyncMethodsStruct* am = __Pyx_PyType_AsAsync(obj);
     if (likely(am && am->am_aiter)) {
         return (*am->am_aiter)(obj);
@@ -196,7 +273,7 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *obj) {
             return NULL;
     }
 #else
-    // avoid 'unused function' warning
+    // avoid C warning about 'unused function'
     if (0) (void) __Pyx_PyObject_CallMethod0(obj, PYIDENT("__aiter__"));
 #endif
 
@@ -206,7 +283,7 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *obj) {
 }
 
 static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *obj) {
-#if PY_MAJOR_VERSION >= 3
+#if CYTHON_USE_ASYNC_SLOTS
     __Pyx_PyAsyncMethodsStruct* am = __Pyx_PyType_AsAsync(obj);
     if (likely(am && am->am_anext)) {
         return (*am->am_anext)(obj);
@@ -353,43 +430,41 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
 
     // most common case: plain StopIteration without or with separate argument
     if (likely(et == PyExc_StopIteration)) {
+        if (!ev) {
+            Py_INCREF(Py_None);
+            value = Py_None;
+        }
 #if PY_VERSION_HEX >= 0x030300A0
-        if (ev && Py_TYPE(ev) == (PyTypeObject*)PyExc_StopIteration) {
+        else if (Py_TYPE(ev) == (PyTypeObject*)PyExc_StopIteration) {
             value = ((PyStopIterationObject *)ev)->value;
             Py_INCREF(value);
             Py_DECREF(ev);
+        }
+#endif
+        // PyErr_SetObject() and friends put the value directly into ev
+        else if (unlikely(PyTuple_Check(ev))) {
+            // if it's a tuple, it is interpreted as separate constructor arguments (surprise!)
+            if (PyTuple_GET_SIZE(ev) >= 1) {
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
+                value = PyTuple_GET_ITEM(ev, 0);
+                Py_INCREF(value);
+#else
+                value = PySequence_ITEM(ev, 0);
+#endif
+            } else {
+                Py_INCREF(Py_None);
+                value = Py_None;
+            }
+            Py_DECREF(ev);
+        }
+        else if (!PyObject_TypeCheck(ev, (PyTypeObject*)PyExc_StopIteration)) {
+            // 'steal' reference to ev
+            value = ev;
+        }
+        if (likely(value)) {
             Py_XDECREF(tb);
             Py_DECREF(et);
             *pvalue = value;
-            return 0;
-        }
-#endif
-        if (!ev || !PyObject_TypeCheck(ev, (PyTypeObject*)PyExc_StopIteration)) {
-            // PyErr_SetObject() and friends put the value directly into ev
-            if (!ev) {
-                Py_INCREF(Py_None);
-                ev = Py_None;
-            } else if (PyTuple_Check(ev)) {
-                // however, if it's a tuple, it is interpreted as separate constructor arguments (surprise!)
-                if (PyTuple_GET_SIZE(ev) >= 1) {
-                    PyObject *value;
-#if CYTHON_COMPILING_IN_CPYTHON
-                    value = PySequence_ITEM(ev, 0);
-#else
-                    value = PyTuple_GET_ITEM(ev, 0);
-                    Py_INCREF(value);
-#endif
-                    Py_DECREF(ev);
-                    ev = value;
-                } else {
-                    Py_INCREF(Py_None);
-                    Py_DECREF(ev);
-                    ev = Py_None;
-                }
-            }
-            Py_XDECREF(tb);
-            Py_DECREF(et);
-            *pvalue = ev;
             return 0;
         }
     } else if (!PyErr_GivenExceptionMatches(et, PyExc_StopIteration)) {
@@ -478,7 +553,7 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value) {
 
     __Pyx_PyThreadState_assign
     if (value) {
-#if CYTHON_COMPILING_IN_PYPY
+#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_PYSTON
         // FIXME: what to do in PyPy?
 #else
         // Generators always return to their most recent caller, not
@@ -505,7 +580,7 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value) {
     if (retval) {
         __Pyx_ExceptionSwap(&self->exc_type, &self->exc_value,
                             &self->exc_traceback);
-#if CYTHON_COMPILING_IN_PYPY
+#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_PYSTON
         // FIXME: what to do in PyPy?
 #else
         // Don't keep the reference to f_back any longer than necessary.  It
@@ -636,7 +711,12 @@ static PyObject *__Pyx_Generator_Next(PyObject *self) {
         //Py_INCREF(yf);
         // YieldFrom code ensures that yf is an iterator
         gen->is_running = 1;
-        ret = Py_TYPE(yf)->tp_iternext(yf);
+        #ifdef __Pyx_Generator_USED
+        if (__Pyx_Generator_CheckExact(yf)) {
+            ret = __Pyx_Generator_Next(yf);
+        } else
+        #endif
+            ret = Py_TYPE(yf)->tp_iternext(yf);
         gen->is_running = 0;
         //Py_DECREF(yf);
         if (likely(ret)) {
@@ -870,8 +950,11 @@ static void __Pyx_Coroutine_del(PyObject *self) {
 static PyObject *
 __Pyx_Coroutine_get_name(__pyx_CoroutineObject *self)
 {
-    Py_INCREF(self->gi_name);
-    return self->gi_name;
+    PyObject *name = self->gi_name;
+    // avoid NULL pointer dereference during garbage collection
+    if (unlikely(!name)) name = Py_None;
+    Py_INCREF(name);
+    return name;
 }
 
 static int
@@ -898,8 +981,11 @@ __Pyx_Coroutine_set_name(__pyx_CoroutineObject *self, PyObject *value)
 static PyObject *
 __Pyx_Coroutine_get_qualname(__pyx_CoroutineObject *self)
 {
-    Py_INCREF(self->gi_qualname);
-    return self->gi_qualname;
+    PyObject *name = self->gi_qualname;
+    // avoid NULL pointer dereference during garbage collection
+    if (unlikely(!name)) name = Py_None;
+    Py_INCREF(name);
+    return name;
 }
 
 static int
@@ -1000,7 +1086,7 @@ static PyObject *__Pyx_CoroutineAwait_self(PyObject *self) {
     return self;
 }
 
-#if CYTHON_COMPILING_IN_CPYTHON
+#if !CYTHON_COMPILING_IN_PYPY
 static PyObject *__Pyx_CoroutineAwait_no_new(CYTHON_UNUSED PyTypeObject *type, CYTHON_UNUSED PyObject *args, CYTHON_UNUSED PyObject *kwargs) {
     PyErr_SetString(PyExc_TypeError, "cannot instantiate type, use 'await coroutine' instead");
     return NULL;
@@ -1055,7 +1141,7 @@ static PyTypeObject __pyx_CoroutineAwaitType_type = {
     0,                                  /*tp_dictoffset*/
     0,                                  /*tp_init*/
     0,                                  /*tp_alloc*/
-#if CYTHON_COMPILING_IN_CPYTHON
+#if !CYTHON_COMPILING_IN_PYPY
     __Pyx_CoroutineAwait_no_new,        /*tp_new*/
 #else
     0,                                  /*tp_new*/
@@ -1106,6 +1192,7 @@ static void __Pyx_Coroutine_check_and_dealloc(PyObject *self) {
         PyObject_GC_UnTrack(self);
 #if PY_VERSION_HEX >= 0x03030000 || defined(PyErr_WarnFormat)
         PyErr_WarnFormat(PyExc_RuntimeWarning, 1, "coroutine '%.50S' was never awaited", gen->gi_qualname);
+        PyErr_Clear();  /* just in case, must not keep a live exception during GC */
 #else
         {PyObject *msg;
         char *cmsg;
@@ -1200,7 +1287,7 @@ static PyGetSetDef __pyx_Coroutine_getsets[] = {
     {0, 0, 0, 0, 0}
 };
 
-#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
+#if CYTHON_USE_ASYNC_SLOTS
 static __Pyx_PyAsyncMethodsStruct __pyx_Coroutine_as_async = {
     __Pyx_Coroutine_await, /*am_await*/
     0, /*am_aiter*/
@@ -1217,8 +1304,8 @@ static PyTypeObject __pyx_CoroutineType_type = {
     0,                                  /*tp_print*/
     0,                                  /*tp_getattr*/
     0,                                  /*tp_setattr*/
-#if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3
-    &__pyx_Coroutine_as_async,          /*tp_as_async (tp_reserved)*/
+#if CYTHON_USE_ASYNC_SLOTS
+    &__pyx_Coroutine_as_async,          /*tp_as_async (tp_reserved) - Py3 only! */
 #else
     0,                                  /*tp_reserved*/
 #endif
@@ -1406,9 +1493,9 @@ static void __Pyx__ReturnWithStopIteration(PyObject* value); /*proto*/
 
 static void __Pyx__ReturnWithStopIteration(PyObject* value) {
     PyObject *exc, *args;
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_PYSTON
     __Pyx_PyThreadState_declare
-    if ((PY_VERSION_HEX >= 0x03030000 && PY_VERSION_HEX < 0x030500B1) || PyTuple_Check(value)) {
+    if ((PY_VERSION_HEX >= 0x03030000 && PY_VERSION_HEX < 0x030500B1) || unlikely(PyTuple_Check(value))) {
         args = PyTuple_New(1);
         if (unlikely(!args)) return;
         Py_INCREF(value);

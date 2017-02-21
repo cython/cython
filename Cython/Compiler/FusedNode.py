@@ -92,6 +92,8 @@ class FusedCFuncDefNode(StatListNode):
 
         for cname, fused_to_specific in permutations:
             copied_node = copy.deepcopy(self.node)
+            # keep signature object identity for special casing in DefNode.analyse_declarations()
+            copied_node.entry.signature = self.node.entry.signature
 
             self._specialize_function_args(copied_node.args, fused_to_specific)
             copied_node.return_type = self.node.return_type.specialize(
@@ -655,6 +657,7 @@ class FusedCFuncDefNode(StatListNode):
         UtilityCode.declare_declarations_in_scope(
             decl_code.getvalue(), env.global_scope())
         ast.scope = env
+        # FIXME: for static methods of cdef classes, we build the wrong signature here: first arg becomes 'self'
         ast.analyse_declarations(env)
         py_func = ast.stats[-1]  # the DefNode
         self.fragment_scope = ast.scope
@@ -760,15 +763,14 @@ class FusedCFuncDefNode(StatListNode):
         else:
             nodes = self.nodes
 
-        signatures = [
-            StringEncoding.EncodedString(node.specialized_signature_string)
-                for node in nodes]
+        signatures = [StringEncoding.EncodedString(node.specialized_signature_string)
+                      for node in nodes]
         keys = [ExprNodes.StringNode(node.pos, value=sig)
-                    for node, sig in zip(nodes, signatures)]
-        values = [ExprNodes.PyCFunctionNode.from_defnode(node, True)
-                              for node in nodes]
-        self.__signatures__ = ExprNodes.DictNode.from_pairs(self.pos,
-                                                            zip(keys, values))
+                for node, sig in zip(nodes, signatures)]
+        values = [ExprNodes.PyCFunctionNode.from_defnode(node, binding=True)
+                  for node in nodes]
+
+        self.__signatures__ = ExprNodes.DictNode.from_pairs(self.pos, zip(keys, values))
 
         self.specialized_pycfuncs = values
         for pycfuncnode in values:

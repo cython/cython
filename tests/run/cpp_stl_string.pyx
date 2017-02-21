@@ -300,3 +300,13 @@ def test_greater_than(char *a, char *b):
     cdef string s = string(a)
     cdef string t = string(b)
     return (s > t, s > b, s >= b)
+
+
+def test_iteration(string s):
+    """
+    >>> test_iteration(b'xyz')
+    [120, 121, 122]
+    >>> test_iteration(b'')
+    []
+    """
+    return [c for c in s]

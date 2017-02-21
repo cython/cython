@@ -36,6 +36,8 @@ class MyString2 : public MyString {
     MyString2(const char* data, size_t size) : MyString(data, size) { }
 };
 
+typedef MyString MyTypedefString;
+
 ######## a.pyx ########
 
 # distutils: language = c++
@@ -44,14 +46,18 @@ cdef extern from "my_string.cpp":
   cdef cppclass MyString:
     pass
 
-cdef extern from "my_string.cpp":
   cdef cppclass MyString2:
     pass
+
+  ctypedef MyString2 MyTypedefString  # really a MyString
 
 def do_convert(MyString value):
     return value
 
 def do_convert2(MyString2 value):
+    return value
+
+def do_convert_typedef(MyTypedefString value):
     return value
 
 def test_convert():
@@ -60,3 +66,6 @@ def test_convert():
 
     assert do_convert2(b"abc") == b"abc"
     assert do_convert2(b"ab\0c") == b"ab\0c"
+
+    assert do_convert_typedef(b"abc") == b"abc"
+    assert do_convert_typedef(b"ab\0c") == b"ab\0c"

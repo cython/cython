@@ -86,3 +86,11 @@ cdef int verify_pure_c() nogil:
 
 # Use it to suppress warning.
 verify_pure_c()
+
+def verify_resolution_GH1533():
+    """
+    >>> verify_resolution_GH1533()
+    3
+    """
+    THREE = 100
+    return int(PyxEnum.THREE)

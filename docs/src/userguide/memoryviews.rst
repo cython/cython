@@ -114,9 +114,9 @@ starting at the second (index 1) and then skips every second (odd) row::
 
     cdef int[1:102:2,:] partial_view = exporting_object
 
-This also works conveniently as function arguments::
+This also works conveniently as function arguments:
 
-..  code-block:: cython
+.. code-block:: cython
 
     def process_3d_buffer(int[1:102:2,:] view not None):
         ...
@@ -398,10 +398,10 @@ If you pass a non-contiguous buffer, for example
 you will get a ``ValueError`` at runtime::
 
     /Users/mb312/dev_trees/minimal-cython/mincy.pyx in init mincy (mincy.c:17267)()
-        69 
+        69
         70 # But this isn't
     ---> 71 c_contiguous = np.array(c_contig, order='F')
-        72 
+        72
         73 # Show the sum of all the arrays before altering it
 
     /Users/mb312/dev_trees/minimal-cython/stringsource in View.MemoryView.memoryview_cwrapper (mincy.c:9995)()

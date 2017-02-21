@@ -3,6 +3,7 @@ from __future__ import absolute_import, print_function
 import cython
 from .. import __version__
 
+import collections
 import re, os, sys, time
 from glob import iglob
 
@@ -110,7 +111,8 @@ def nonempty(it, error_msg="expected non-empty iterator"):
 @cached_function
 def file_hash(filename):
     path = os.path.normpath(filename.encode("UTF-8"))
-    m = hashlib.md5(str(len(path)) + ":")
+    prefix = (str(len(path)) + ":").encode("UTF-8")
+    m = hashlib.md5(prefix)
     m.update(path)
     f = open(filename, 'rb')
     try:
@@ -196,20 +198,21 @@ class DistutilsInfo(object):
         self.values = {}
         if source is not None:
             for line in line_iter(source):
-                line = line.strip()
-                if line != '' and line[0] != '#':
+                line = line.lstrip()
+                if not line:
+                    continue
+                if line[0] != '#':
                     break
-                line = line[1:].strip()
+                line = line[1:].lstrip()
                 if line[:10] == 'distutils:':
-                    line = line[10:]
-                    ix = line.index('=')
-                    key = str(line[:ix].strip())
-                    value = line[ix+1:].strip()
+                    key, _, value = [s.strip() for s in line[10:].partition('=')]
                     type = distutils_settings[key]
                     if type in (list, transitive_list):
                         value = parse_list(value)
                         if key == 'define_macros':
-                            value = [tuple(macro.split('=')) for macro in value]
+                            value = [tuple(macro.split('=', 1))
+                                     if '=' in macro else (macro, None)
+                                     for macro in value]
                     self.values[key] = value
         elif exn is not None:
             for key in distutils_settings:
@@ -357,10 +360,13 @@ def strip_string_literals(code, prefix='__Pyx_L'):
     return "".join(new_code), literals
 
 
-dependency_regex = re.compile(r"(?:^from +([0-9a-zA-Z_.]+) +cimport)|"
-                              r"(?:^cimport +([0-9a-zA-Z_.]+(?: *, *[0-9a-zA-Z_.]+)*))|"
-                              r"(?:^cdef +extern +from +['\"]([^'\"]+)['\"])|"
-                              r"(?:^include +['\"]([^'\"]+)['\"])", re.M)
+# We need to allow spaces to allow for conditional compilation like
+# IF ...:
+#     cimport ...
+dependency_regex = re.compile(r"(?:^\s*from +([0-9a-zA-Z_.]+) +cimport)|"
+                              r"(?:^\s*cimport +([0-9a-zA-Z_.]+(?: *, *[0-9a-zA-Z_.]+)*))|"
+                              r"(?:^\s*cdef +extern +from +['\"]([^'\"]+)['\"])|"
+                              r"(?:^\s*include +['\"]([^'\"]+)['\"])", re.M)
 
 
 def normalize_existing(base_path, rel_paths):
@@ -535,7 +541,7 @@ class DependencyTree(object):
             if pxd_file is not None:
                 pxd_list.append(pxd_file)
             elif not self.quiet:
-                print("missing cimport in module '%s': %s" % (module, filename))
+                print("%s: cannot find cimported module '%s'" % (filename, module))
         return tuple(pxd_list)
 
     @cached_method
@@ -560,13 +566,13 @@ class DependencyTree(object):
 
     def transitive_fingerprint(self, filename, extra=None):
         try:
-            m = hashlib.md5(__version__)
-            m.update(file_hash(filename))
+            m = hashlib.md5(__version__.encode('UTF-8'))
+            m.update(file_hash(filename).encode('UTF-8'))
             for x in sorted(self.all_dependencies(filename)):
                 if os.path.splitext(x)[1] not in ('.c', '.cpp', '.h'):
-                    m.update(file_hash(x))
+                    m.update(file_hash(x).encode('UTF-8'))
             if extra is not None:
-                m.update(str(extra))
+                m.update(str(extra).encode('UTF-8'))
             return m.hexdigest()
         except IOError:
             return None
@@ -638,7 +644,9 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
         print('Please put "# distutils: language=%s" in your .pyx or .pxd file(s)' % language)
     if exclude is None:
         exclude = []
-    if not isinstance(patterns, (list, tuple)):
+    if patterns is None:
+        return [], {}
+    elif isinstance(patterns, basestring) or not isinstance(patterns, collections.Iterable):
         patterns = [patterns]
     explicit_modules = set([m.name for m in patterns if isinstance(m, Extension)])
     seen = set()
@@ -670,9 +678,14 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
             exn_type = Extension
             ext_language = language
         elif isinstance(pattern, (Extension_distutils, Extension_setuptools)):
-            for filepattern in pattern.sources:
-                if os.path.splitext(filepattern)[1] in ('.py', '.pyx'):
-                    break
+            cython_sources = [s for s in pattern.sources
+                              if os.path.splitext(s)[1] in ('.py', '.pyx')]
+            if cython_sources:
+              filepattern = cython_sources[0]
+              if len(cython_sources) > 1:
+                print("Warning: Multiple cython sources found for extension '%s': %s\n"
+                "See http://cython.readthedocs.io/en/latest/src/userguide/sharing_declarations.html "
+                "for sharing declarations among Cython files." % (pattern.name, cython_sources))
             else:
                 # ignore non-cython modules
                 module_list.append(pattern)
@@ -693,11 +706,13 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
             if os.path.abspath(file) in to_exclude:
                 continue
             pkg = deps.package(file)
+            module_name = deps.fully_qualified_name(file)
             if '*' in name:
-                module_name = deps.fully_qualified_name(file)
                 if module_name in explicit_modules:
                     continue
-            else:
+            elif name != module_name:
+                print("Warning: Extension name '%s' does not match fully qualified name '%s' of '%s'" % (
+                    name, module_name, file))
                 module_name = name
 
             if module_name not in seen:
@@ -745,6 +760,10 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                     kwds['sources'] = extra_sources
                 module_metadata[module_name] = {'distutils': kwds, 'module_name': module_name}
                 m = module_list[-1]
+                if file not in m.sources:
+                    # Old setuptools unconditionally replaces .pyx with .c
+                    m.sources.remove(file.rsplit('.')[0] + '.c')
+                    m.sources.insert(0, file)
                 seen.add(name)
     return module_list, module_metadata
 
@@ -853,7 +872,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                             print("Compiling %s because it changed." % source)
                         else:
                             print("Compiling %s because it depends on %s." % (source, dep))
-                    if not force and hasattr(options, 'cache'):
+                    if not force and options.cache:
                         extra = m.language
                         fingerprint = deps.transitive_fingerprint(source, extra)
                     else:
@@ -871,7 +890,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                     copy_to_build_dir(source)
         m.sources = new_sources
 
-    if hasattr(options, 'cache'):
+    if options.cache:
         if not os.path.exists(options.cache):
             os.makedirs(options.cache)
     to_compile.sort()
@@ -934,7 +953,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
             print("Failed compilations: %s" % ', '.join(sorted([
                 module.name for module in failed_modules])))
 
-    if hasattr(options, 'cache'):
+    if options.cache:
         cleanup_cache(options.cache, getattr(options, 'cache_size', 1024 * 1024 * 100))
     # cythonize() is often followed by the (non-Python-buffered)
     # compiler output, flush now to avoid interleaving output.

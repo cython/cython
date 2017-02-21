@@ -7,7 +7,15 @@ __doc__ = u"""
 2
 >>> class4.plus1(1)
 2
+>>> class4().plus1(1)
+2
+>>> class4.bplus1(1)
+2
+>>> class4().bplus1(1)
+2
 """
+
+cimport cython
 
 def f_plus(a):
     return a + 1
@@ -26,6 +34,12 @@ class class4:
     def plus1(a):
         return a + 1
 
+    @staticmethod
+    @cython.binding(True)
+    def bplus1(a):
+        return a + 1
+
+
 def nested_class():
     """
     >>> cls = nested_class()
@@ -43,6 +57,7 @@ def nested_class():
         def plus1(a):
             return a + 1
     return class5
+
 
 cdef class BaseClass(object):
     """
@@ -64,8 +79,10 @@ cdef class BaseClass(object):
         print arg1
 
     @staticmethod
+    @cython.binding(True)
     def mystaticmethod2(a, b, c):
         print a, b, c
+
 
 cdef class SubClass(BaseClass):
     """
@@ -82,6 +99,7 @@ cdef class SubClass(BaseClass):
     def mystaticmethod(self, arg1):
         print arg1
         super().mystaticmethod(self, arg1 + 1)
+
 
 class SubSubClass(SubClass):
     """
@@ -120,6 +138,7 @@ cdef class ArgsKwargs(object):
         (1, 2, ('a', 3))
         """
         return args + tuple(sorted(kwargs.items()))
+
 
 class StaticmethodSubclass(staticmethod):
     """

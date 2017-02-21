@@ -10,7 +10,7 @@ cython.declare(sys=object, os=object, copy=object,
                py_object_type=object, ModuleScope=object, LocalScope=object, ClosureScope=object,
                StructOrUnionScope=object, PyClassScope=object,
                CppClassScope=object, UtilityCode=object, EncodedString=object,
-               absolute_path_length=cython.Py_ssize_t, error_type=object, _py_int_types=object)
+               error_type=object, _py_int_types=object)
 
 import sys, os, copy
 from itertools import chain
@@ -30,7 +30,6 @@ from . import Options
 from . import DebugFlags
 from ..Utils import add_metaclass
 
-absolute_path_length = 0
 
 if sys.version_info[0] >= 3:
     _py_int_types = int
@@ -39,25 +38,8 @@ else:
 
 
 def relative_position(pos):
-    """
-    We embed the relative filename in the generated C file, since we
-    don't want to have to regenerate and compile all the source code
-    whenever the Python install directory moves (which could happen,
-    e.g,. when distributing binaries.)
+    return (pos[0].get_filenametable_entry(), pos[1])
 
-    INPUT:
-        a position tuple -- (absolute filename, line number column position)
-
-    OUTPUT:
-        relative filename
-        line number
-
-    AUTHOR: William Stein
-    """
-    global absolute_path_length
-    if absolute_path_length == 0:
-        absolute_path_length = len(os.path.abspath(os.getcwd()))
-    return (pos[0].get_filenametable_entry()[absolute_path_length+1:], pos[1])
 
 def embed_position(pos, docstring):
     if not Options.embed_pos_in_docstring:
@@ -197,6 +179,7 @@ class Node(object):
     is_nonecheck = 0
     is_literal = 0
     is_terminator = 0
+    is_wrapper = False  # is a DefNode wrapper for a C function
     temps = None
 
     # All descendants should set child_attrs to a list of the attributes
@@ -544,6 +527,9 @@ class CPtrDeclaratorNode(CDeclaratorNode):
 
     child_attrs = ["base"]
 
+    def analyse_templates(self):
+        return self.base.analyse_templates()
+
     def analyse(self, base_type, env, nonempty=0):
         if base_type.is_pyobject:
             error(self.pos, "Pointer base type cannot be a Python object")
@@ -555,6 +541,9 @@ class CReferenceDeclaratorNode(CDeclaratorNode):
     # base     CDeclaratorNode
 
     child_attrs = ["base"]
+
+    def analyse_templates(self):
+        return self.base.analyse_templates()
 
     def analyse(self, base_type, env, nonempty=0):
         if base_type.is_pyobject:
@@ -1456,6 +1445,9 @@ class CppClassNode(CStructOrUnionDefNode, BlockNode):
             if self.in_pxd and not env.in_cinclude:
                 self.entry.defined_in_pxd = 1
             for attr in self.attributes:
+                declare = getattr(attr, 'declare', None)
+                if declare:
+                    attr.declare(scope)
                 attr.analyse_declarations(scope)
             for func in func_attributes(self.attributes):
                 defined_funcs.append(func)
@@ -1496,7 +1488,7 @@ class CEnumDefNode(StatNode):
              self.name, self.pos,
              cname=self.cname, typedef_flag=self.typedef_flag,
              visibility=self.visibility, api=self.api,
-             create_wrapper=self.create_wrapper and self.name is None)
+             create_wrapper=self.create_wrapper)
 
     def analyse_declarations(self, env):
         if self.items is not None:
@@ -1504,15 +1496,6 @@ class CEnumDefNode(StatNode):
                 self.entry.defined_in_pxd = 1
             for item in self.items:
                 item.analyse_declarations(env, self.entry)
-        if self.name is not None:
-            self.entry.type.values = set(item.name for item in self.items)
-        if self.create_wrapper and self.name is not None:
-            from .UtilityCode import CythonUtilityCode
-            env.use_utility_code(CythonUtilityCode.load(
-                "EnumType", "CpdefEnums.pyx",
-                context={"name": self.name,
-                         "items": tuple(item.name for item in self.items)},
-                outer_module_scope=env.global_scope()))
 
     def analyse_expressions(self, env):
         return self
@@ -1556,7 +1539,7 @@ class CEnumDefItemNode(StatNode):
             create_wrapper=enum_entry.create_wrapper and enum_entry.name is None)
         enum_entry.enum_values.append(entry)
         if enum_entry.name:
-            enum_entry.type.values.append(entry.cname)
+            enum_entry.type.values.append(entry.name)
 
 
 class CTypeDefNode(StatNode):
@@ -1732,7 +1715,7 @@ class FuncDefNode(StatNode, BlockNode):
                 UtilityCode.load_cached("Profile", "Profile.c"))
 
         # Generate C code for header and body of function
-        code.enter_cfunc_scope()
+        code.enter_cfunc_scope(lenv)
         code.return_from_error_cleanup_label = code.new_label()
         code.funcstate.gil_owned = not lenv.nogil
 
@@ -1848,28 +1831,15 @@ class FuncDefNode(StatNode, BlockNode):
                 lenv.scope_class.type.typeptr_cname,
                 Naming.empty_tuple))
             code.putln("if (unlikely(!%s)) {" % Naming.cur_scope_cname)
-            if is_getbuffer_slot:
-                self.getbuffer_error_cleanup(code)
-
-            if use_refnanny:
-                code.put_finish_refcount_context()
-                if acquire_gil or acquire_gil_for_var_decls_only:
-                    code.put_release_ensured_gil()
-
-            # FIXME: what if the error return value is a Python value?
-            err_val = self.error_value()
-            if err_val is None:
-                if not self.caller_will_check_exceptions():
-                    warning(self.entry.pos,
-                            "Unraisable exception in function '%s'." %
-                            self.entry.qualified_name, 0)
-                    code.put_unraisable(self.entry.qualified_name, lenv.nogil)
-                #if self.return_type.is_void:
-                code.putln("return;")
-            else:
-                code.putln("return %s;" % err_val)
-            code.putln("}")
+            # Scope unconditionally DECREFed on return.
+            code.putln("%s = %s;" % (
+                Naming.cur_scope_cname,
+                lenv.scope_class.type.cast_code("Py_None")));
+            code.put_incref("Py_None", py_object_type);
+            code.putln(code.error_goto(self.pos))
+            code.putln("} else {")
             code.put_gotref(Naming.cur_scope_cname)
+            code.putln("}")
             # Note that it is unsafe to decref the scope at this point.
         if self.needs_outer_scope:
             if self.is_cyfunction:
@@ -1892,7 +1862,7 @@ class FuncDefNode(StatNode, BlockNode):
         if profile or linetrace:
             # this looks a bit late, but if we don't get here due to a
             # fatal error before hand, it's not really worth tracing
-            if isinstance(self, DefNode) and self.is_wrapper:
+            if self.is_wrapper:
                 trace_name = self.entry.name + " (wrapper)"
             else:
                 trace_name = self.entry.name
@@ -2147,7 +2117,7 @@ class FuncDefNode(StatNode, BlockNode):
                     typeptr_cname,
                     arg.accept_none,
                     arg.name,
-                    arg.type.is_builtin_type,
+                    arg.type.is_builtin_type and arg.type.require_exact,
                     code.error_goto(arg.pos)))
         else:
             error(arg.pos, "Cannot test type of extern C class without type object name specification")
@@ -2255,6 +2225,11 @@ class CFuncDefNode(FuncDefNode):
 
     def unqualified_name(self):
         return self.entry.name
+
+    @property
+    def code_object(self):
+        # share the CodeObject with the cpdef wrapper (if available)
+        return self.py_func.code_object if self.py_func else None
 
     def analyse_declarations(self, env):
         self.is_c_class_method = env.is_c_class_scope
@@ -2373,6 +2348,7 @@ class CFuncDefNode(FuncDefNode):
                                    is_wrapper=1)
             self.py_func.is_module_scope = env.is_module_scope
             self.py_func.analyse_declarations(env)
+            self.py_func.entry.is_overridable = True
             self.py_func_stat = StatListNode(self.pos, stats=[self.py_func])
             self.py_func.type = PyrexTypes.py_object_type
             self.entry.as_variable = self.py_func.entry
@@ -2449,7 +2425,10 @@ class CFuncDefNode(FuncDefNode):
 
     def analyse_expressions(self, env):
         self.local_scope.directives = env.directives
-        if self.py_func is not None:
+        if self.py_func_stat is not None:
+            # this will also analyse the default values and the function name assignment
+            self.py_func_stat = self.py_func_stat.analyse_expressions(env)
+        elif self.py_func is not None:
             # this will also analyse the default values
             self.py_func = self.py_func.analyse_expressions(env)
         else:
@@ -3035,16 +3014,17 @@ class DefNode(FuncDefNode):
     def needs_assignment_synthesis(self, env, code=None):
         if self.is_staticmethod:
             return True
-        if self.is_wrapper or self.specialized_cpdefs or self.entry.is_fused_specialized:
+        if self.specialized_cpdefs or self.entry.is_fused_specialized:
             return False
         if self.no_assignment_synthesis:
             return False
-        # Should enable for module level as well, that will require more testing...
+        if self.entry.is_special:
+            return False
         if self.entry.is_anonymous:
             return True
-        if env.is_module_scope:
+        if env.is_module_scope or env.is_c_class_scope:
             if code is None:
-                return env.directives['binding']
+                return self.local_scope.directives['binding']
             else:
                 return code.globalstate.directives['binding']
         return env.is_py_class_scope or env.is_closure_scope
@@ -3057,7 +3037,8 @@ class DefNode(FuncDefNode):
 
     def generate_function_definitions(self, env, code):
         if self.defaults_getter:
-            self.defaults_getter.generate_function_definitions(env, code)
+            # defaults getter must never live in class scopes, it's always a module function
+            self.defaults_getter.generate_function_definitions(env.global_scope(), code)
 
         # Before closure cnames are mangled
         if self.py_wrapper_required:
@@ -3219,7 +3200,7 @@ class DefNodeWrapper(FuncDefNode):
         if preprocessor_guard:
             code.putln(preprocessor_guard)
 
-        code.enter_cfunc_scope()
+        code.enter_cfunc_scope(lenv)
         code.return_from_error_cleanup_label = code.new_label()
 
         with_pymethdef = (self.target.needs_assignment_synthesis(env, code) or
@@ -4045,7 +4026,7 @@ class GeneratorBodyDefNode(DefNode):
         self.body.generate_function_definitions(lenv, code)
 
         # Generate C code for header and body of function
-        code.enter_cfunc_scope()
+        code.enter_cfunc_scope(lenv)
         code.return_from_error_cleanup_label = code.new_label()
 
         # ----- Top-level constants used by this function
@@ -4095,6 +4076,8 @@ class GeneratorBodyDefNode(DefNode):
                 lenv.scope_class.type.declaration_code(Naming.cur_scope_cname),
                 lenv.scope_class.type.cast_code('%s->closure' %
                                                 Naming.generator_cname)))
+            # FIXME: this silences a potential "unused" warning => try to avoid unused closures in more cases
+            code.putln("CYTHON_MAYBE_UNUSED_VAR(%s);" % Naming.cur_scope_cname)
 
         code.mark_pos(self.pos)
         code.putln("")
@@ -4615,10 +4598,15 @@ class CClassDefNode(ClassDefNode):
 
         if has_body:
             self.body.analyse_declarations(scope)
+            dict_entry = self.scope.lookup_here("__dict__")
+            if dict_entry and dict_entry.is_variable and (not scope.defined and not scope.implemented):
+                dict_entry.getter_cname = self.scope.mangle_internal("__dict__getter")
+                self.scope.declare_property("__dict__", dict_entry.doc, dict_entry.pos)
             if self.in_pxd:
                 scope.defined = 1
             else:
                 scope.implemented = 1
+
         env.allocate_vtable_names(self.entry)
 
         for thunk in self.entry.type.defered_declarations:
@@ -6145,7 +6133,7 @@ class _ForInStatNode(LoopNode, StatNode):
     #  Base class of 'for-in' statements.
     #
     #  target        ExprNode
-    #  iterator      IteratorNode | AwaitExprNode(AsyncIteratorNode)
+    #  iterator      IteratorNode | AIterAwaitExprNode(AsyncIteratorNode)
     #  body          StatNode
     #  else_clause   StatNode
     #  item          NextNode | AwaitExprNode(AsyncNextNode)
@@ -6251,7 +6239,7 @@ class ForInStatNode(_ForInStatNode):
 class AsyncForStatNode(_ForInStatNode):
     #  'async for' statement
     #
-    #  iterator      AwaitExprNode(AsyncIteratorNode)
+    #  iterator      AIterAwaitExprNode(AsyncIteratorNode)
     #  item          AwaitIterNextExprNode(AsyncIteratorNode)
 
     is_async = True
@@ -6260,7 +6248,7 @@ class AsyncForStatNode(_ForInStatNode):
         assert 'item' not in kw
         from . import ExprNodes
         # AwaitExprNodes must appear before running MarkClosureVisitor
-        kw['iterator'] = ExprNodes.AwaitExprNode(iterator.pos, arg=iterator)
+        kw['iterator'] = ExprNodes.AIterAwaitExprNode(iterator.pos, arg=iterator)
         kw['item'] = ExprNodes.AwaitIterNextExprNode(iterator.pos, arg=None)
         _ForInStatNode.__init__(self, pos, **kw)
 
@@ -7311,13 +7299,18 @@ class EnsureGILNode(GILExitNode):
         code.put_ensure_gil(declare_gilstate=False)
 
 
+def cython_view_utility_code():
+    from . import MemoryView
+    return MemoryView.view_utility_code
+
+
 utility_code_for_cimports = {
     # utility code (or inlining c) in a pxd (or pyx) file.
     # TODO: Consider a generic user-level mechanism for importing
-    'cpython.array'         : ("ArrayAPI", "arrayarray.h"),
-    'cpython.array.array'   : ("ArrayAPI", "arrayarray.h"),
+    'cpython.array'         : lambda : UtilityCode.load_cached("ArrayAPI", "arrayarray.h"),
+    'cpython.array.array'   : lambda : UtilityCode.load_cached("ArrayAPI", "arrayarray.h"),
+    'cython.view'           : cython_view_utility_code,
 }
-
 
 utility_code_for_imports = {
     # utility code used when special modules are imported.
@@ -7361,8 +7354,7 @@ class CImportStatNode(StatNode):
             name = self.as_name or self.module_name
             env.declare_module(name, module_scope, self.pos)
         if self.module_name in utility_code_for_cimports:
-            env.use_utility_code(UtilityCode.load_cached(
-                *utility_code_for_cimports[self.module_name]))
+            env.use_utility_code(utility_code_for_cimports[self.module_name]())
 
     def analyse_expressions(self, env):
         return self
@@ -7421,15 +7413,13 @@ class FromCImportStatNode(StatNode):
                     local_name = as_name or name
                     env.add_imported_entry(local_name, entry, pos)
 
-        if module_name.startswith('cpython'): # enough for now
+        if module_name.startswith('cpython') or module_name.startswith('cython'): # enough for now
             if module_name in utility_code_for_cimports:
-                env.use_utility_code(UtilityCode.load_cached(
-                    *utility_code_for_cimports[module_name]))
+                env.use_utility_code(utility_code_for_cimports[module_name]())
             for _, name, _, _ in self.imported_names:
                 fqname = '%s.%s' % (module_name, name)
                 if fqname in utility_code_for_cimports:
-                    env.use_utility_code(UtilityCode.load_cached(
-                        *utility_code_for_cimports[fqname]))
+                    env.use_utility_code(utility_code_for_cimports[fqname]())
 
     def declaration_matches(self, entry, kind):
         if not entry.is_type:

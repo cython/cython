@@ -192,8 +192,11 @@ def test_map(o):
 
 def test_unordered_map(o):
    """
-   >>> test_map({1: 1.0, 2: 0.5, 3: 0.25})
-   {1: 1.0, 2: 0.5, 3: 0.25}
+   >>> d = test_map({1: 1.0, 2: 0.5, 3: 0.25})
+   >>> sorted(d)
+   [1, 2, 3]
+   >>> (d[1], d[2], d[3])
+   (1.0, 0.5, 0.25)
    """
    cdef unordered_map[int, double] m = o
    return m
@@ -202,8 +205,15 @@ def test_nested(o):
     """
     >>> test_nested({})
     {}
-    >>> test_nested({(1.0, 2.0): [1, 2, 3], (1.0, 0.5): [1, 10, 100]})
-    {(1.0, 2.0): [1, 2, 3], (1.0, 0.5): [1, 10, 100]}
+    >>> d = test_nested({(1.0, 2.0): [1, 2, 3], (1.0, 0.5): [1, 10, 100]})
+    >>> type(d) is dict or type(d)
+    True
+    >>> sorted(d)
+    [(1.0, 0.5), (1.0, 2.0)]
+    >>> d[(1.0, 0.5)]
+    [1, 10, 100]
+    >>> d[(1.0, 2.0)]
+    [1, 2, 3]
     """
     cdef map[pair[double, double], vector[int]] m = o
     return m

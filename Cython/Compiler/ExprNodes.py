@@ -728,6 +728,8 @@ class ExprNode(Node):
                 elif self.type.is_memoryviewslice:
                     code.put_xdecref_memoryviewslice(
                             self.result(), have_gil=not self.in_nogil_context)
+                    code.putln("%s.memview = NULL;" % self.result())
+                    code.putln("%s.data = NULL;" % self.result())
         else:
             # Already done if self.is_temp
             self.generate_subexpr_disposal_code(code)
@@ -1877,11 +1879,13 @@ class NameNode(AtomicExprNode):
     def analyse_target_types(self, env):
         self.analyse_entry(env, is_target=True)
 
-        if self.entry.is_cfunction and self.entry.as_variable:
-            if self.entry.is_overridable or not self.is_lvalue() and self.entry.fused_cfunction:
+        entry = self.entry
+        if entry.is_cfunction and entry.as_variable:
+            # FIXME: unify "is_overridable" flags below
+            if (entry.is_overridable or entry.type.is_overridable) or not self.is_lvalue() and entry.fused_cfunction:
                 # We need this for assigning to cpdef names and for the fused 'def' TreeFragment
-                self.entry = self.entry.as_variable
-                self.type = self.entry.type
+                entry = self.entry = entry.as_variable
+                self.type = entry.type
 
         if self.type.is_const:
             error(self.pos, "Assignment to const '%s'" % self.name)
@@ -1890,10 +1894,10 @@ class NameNode(AtomicExprNode):
         if not self.is_lvalue():
             error(self.pos, "Assignment to non-lvalue '%s'" % self.name)
             self.type = PyrexTypes.error_type
-        self.entry.used = 1
-        if self.entry.type.is_buffer:
+        entry.used = 1
+        if entry.type.is_buffer:
             from . import Buffer
-            Buffer.used_buffer_aux_vars(self.entry)
+            Buffer.used_buffer_aux_vars(entry)
         return self
 
     def analyse_rvalue_entry(self, env):
@@ -2597,7 +2601,7 @@ class IteratorNode(ExprNode):
             inc_dec = '--'
         else:
             inc_dec = '++'
-        code.putln("#if CYTHON_COMPILING_IN_CPYTHON")
+        code.putln("#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS")
         code.putln(
             "%s = Py%s_GET_ITEM(%s, %s); __Pyx_INCREF(%s); %s%s; %s" % (
                 result_name,
@@ -2983,16 +2987,42 @@ class JoinedStrNode(ExprNode):
         code.mark_pos(self.pos)
         num_items = len(self.values)
         list_var = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+        ulength_var = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
+        max_char_var = code.funcstate.allocate_temp(PyrexTypes.c_py_ucs4_type, manage_ref=False)
 
         code.putln('%s = PyTuple_New(%s); %s' % (
             list_var,
             num_items,
             code.error_goto_if_null(list_var, self.pos)))
         code.put_gotref(list_var)
+        code.putln("%s = 0;" % ulength_var)
+        code.putln("%s = 127;" % max_char_var)  # at least ASCII character range
 
         for i, node in enumerate(self.values):
             node.generate_evaluation_code(code)
             node.make_owned_reference(code)
+
+            ulength = "__Pyx_PyUnicode_GET_LENGTH(%s)" % node.py_result()
+            max_char_value = "__Pyx_PyUnicode_MAX_CHAR_VALUE(%s)" % node.py_result()
+            is_ascii = False
+            if isinstance(node, UnicodeNode):
+                try:
+                    node.value.encode('iso8859-1')
+                    max_char_value = '255'
+                    node.value.encode('us-ascii')
+                    is_ascii = True
+                except UnicodeEncodeError:
+                    pass
+                else:
+                    ulength = str(len(node.value))
+            elif isinstance(node, FormattedValueNode) and node.value.type.is_numeric:
+                is_ascii = True  # formatted C numbers are always ASCII
+
+            if not is_ascii:
+                code.putln("%s = (%s > %s) ? %s : %s;" % (
+                    max_char_var, max_char_value, max_char_var, max_char_value, max_char_var))
+            code.putln("%s += %s;" % (ulength_var, ulength))
+
             code.put_giveref(node.py_result())
             code.putln('PyTuple_SET_ITEM(%s, %s, %s);' % (list_var, i, node.py_result()))
             node.generate_post_assignment_code(code)
@@ -3000,14 +3030,20 @@ class JoinedStrNode(ExprNode):
 
         code.mark_pos(self.pos)
         self.allocate_temp_result(code)
-        code.putln('%s = PyUnicode_Join(%s, %s); %s' % (
+        code.globalstate.use_utility_code(UtilityCode.load_cached("JoinPyUnicode", "StringTools.c"))
+        code.putln('%s = __Pyx_PyUnicode_Join(%s, %d, %s, %s); %s' % (
             self.result(),
-            Naming.empty_unicode,
             list_var,
+            num_items,
+            ulength_var,
+            max_char_var,
             code.error_goto_if_null(self.py_result(), self.pos)))
         code.put_gotref(self.py_result())
+
         code.put_decref_clear(list_var, py_object_type)
         code.funcstate.release_temp(list_var)
+        code.funcstate.release_temp(ulength_var)
+        code.funcstate.release_temp(max_char_var)
 
 
 class FormattedValueNode(ExprNode):
@@ -3082,12 +3118,15 @@ class FormattedValueNode(ExprNode):
             fn = self.find_conversion_func(conversion_char)
             assert fn is not None, "invalid conversion character found: '%s'" % conversion_char
             value_result = '%s(%s)' % (fn, value_result)
-            code.globalstate.use_utility_code(UtilityCode.load_cached("PyObjectFormatAndDecref", "StringTools.c"))
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("PyObjectFormatAndDecref", "StringTools.c"))
             format_func += 'AndDecref'
-        elif not self.format_spec:
-            code.globalstate.use_utility_code(UtilityCode.load_cached("PyObjectFormatSimple", "StringTools.c"))
+        elif self.format_spec:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("PyObjectFormat", "StringTools.c"))
         else:
-            format_func = 'PyObject_Format'
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("PyObjectFormatSimple", "StringTools.c"))
 
         code.putln("%s = %s(%s, %s); %s" % (
             self.result(),
@@ -3427,7 +3466,14 @@ class IndexNode(_IndexingBaseNode):
 
     def analyse_as_pyobject(self, env, is_slice, getting, setting):
         base_type = self.base.type
-        if self.index.type.is_int and base_type is not dict_type:
+        if self.index.type.is_unicode_char and base_type is not dict_type:
+            # TODO: eventually fold into case below and remove warning, once people have adapted their code
+            warning(self.pos,
+                    "Item lookup of unicode character codes now always converts to a Unicode string. "
+                    "Use an explicit C integer cast to get back the previous integer lookup behaviour.", level=1)
+            self.index = self.index.coerce_to_pyobject(env)
+            self.is_temp = 1
+        elif self.index.type.is_int and base_type is not dict_type:
             if (getting
                     and (base_type in (list_type, tuple_type, bytearray_type))
                     and (not self.index.type.signed
@@ -4901,6 +4947,7 @@ class CallNode(ExprNode):
     may_return_none = None
 
     def infer_type(self, env):
+        # TODO(robertwb): Reduce redundancy with analyse_types.
         function = self.function
         func_type = function.infer_type(env)
         if isinstance(function, NewExprNode):
@@ -4914,6 +4961,15 @@ class CallNode(ExprNode):
         if func_type.is_ptr:
             func_type = func_type.base_type
         if func_type.is_cfunction:
+            if getattr(self.function, 'entry', None) and hasattr(self, 'args'):
+                alternatives = self.function.entry.all_alternatives()
+                arg_types = [arg.infer_type(env) for arg in self.args]
+                func_entry = PyrexTypes.best_match(arg_types, alternatives)
+                if func_entry:
+                    func_type = func_entry.type
+                    if func_type.is_ptr:
+                        func_type = func_type.base_type
+                    return func_type.return_type
             return func_type.return_type
         elif func_type is type_type:
             if function.is_name and function.entry and function.entry.type:
@@ -5134,7 +5190,8 @@ class SimpleCallNode(CallNode):
             else:
                 alternatives = overloaded_entry.all_alternatives()
 
-            entry = PyrexTypes.best_match(args, alternatives, self.pos, env)
+            entry = PyrexTypes.best_match(
+                [arg.type for arg in args], alternatives, self.pos, env, args)
 
             if not entry:
                 self.type = PyrexTypes.error_type
@@ -5277,8 +5334,9 @@ class SimpleCallNode(CallNode):
             self.type = func_type.return_type
 
         if self.function.is_name or self.function.is_attribute:
-            if self.function.entry and self.function.entry.utility_code:
-                self.is_temp = 1 # currently doesn't work for self.calculate_result_code()
+            func_entry = self.function.entry
+            if func_entry and (func_entry.utility_code or func_entry.utility_code_definition):
+                self.is_temp = 1  # currently doesn't work for self.calculate_result_code()
 
         if self.type.is_pyobject:
             self.result_ctype = py_object_type
@@ -5345,8 +5403,7 @@ class SimpleCallNode(CallNode):
     def generate_result_code(self, code):
         func_type = self.function_type()
         if self.function.is_name or self.function.is_attribute:
-            if self.function.entry and self.function.entry.utility_code:
-                code.globalstate.use_utility_code(self.function.entry.utility_code)
+            code.globalstate.use_entry_utility_code(self.function.entry)
         if func_type.is_pyobject:
             if func_type is not type_type and not self.arg_tuple.args and self.arg_tuple.is_literal:
                 code.globalstate.use_utility_code(UtilityCode.load_cached(
@@ -5460,7 +5517,7 @@ class PyMethodCallNode(SimpleCallNode):
         code.putln("%s = NULL;" % self_arg)
         arg_offset_cname = None
         if len(args) > 1:
-            arg_offset_cname = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
+            arg_offset_cname = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
             code.putln("%s = 0;" % arg_offset_cname)
 
         def attribute_is_likely_method(attr):
@@ -5484,7 +5541,7 @@ class PyMethodCallNode(SimpleCallNode):
         else:
             likely_method = 'unlikely'
 
-        code.putln("if (CYTHON_COMPILING_IN_CPYTHON && %s(PyMethod_Check(%s))) {" % (likely_method, function))
+        code.putln("if (CYTHON_UNPACK_METHODS && %s(PyMethod_Check(%s))) {" % (likely_method, function))
         code.putln("%s = PyMethod_GET_SELF(%s);" % (self_arg, function))
         # the following is always true in Py3 (kept only for safety),
         # but is false for unbound methods in Py2
@@ -5539,6 +5596,35 @@ class PyMethodCallNode(SimpleCallNode):
             else:
                 arg_offset = arg_offset_cname
 
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("PyFunctionFastCall", "ObjectHandling.c"))
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("PyCFunctionFastCall", "ObjectHandling.c"))
+            for test_func, call_prefix in [('PyFunction_Check', 'Py'), ('__Pyx_PyFastCFunction_Check', 'PyC')]:
+                code.putln("#if CYTHON_FAST_%sCALL" % call_prefix.upper())
+                code.putln("if (%s(%s)) {" % (test_func, function))
+                code.putln("PyObject *%s[%d] = {%s, %s};" % (
+                    Naming.quick_temp_cname,
+                    len(args)+1,
+                    self_arg,
+                    ', '.join(arg.py_result() for arg in args)))
+                code.putln("%s = __Pyx_%sFunction_FastCall(%s, %s+1-%s, %d+%s); %s" % (
+                    self.result(),
+                    call_prefix,
+                    function,
+                    Naming.quick_temp_cname,
+                    arg_offset,
+                    len(args),
+                    arg_offset,
+                    code.error_goto_if_null(self.result(), self.pos)))
+                code.put_xdecref_clear(self_arg, py_object_type)
+                code.put_gotref(self.py_result())
+                for arg in args:
+                    arg.generate_disposal_code(code)
+                code.putln("} else")
+                code.putln("#endif")
+
+            code.putln("{")
             args_tuple = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
             code.putln("%s = PyTuple_New(%d+%s); %s" % (
                 args_tuple, len(args), arg_offset,
@@ -5579,6 +5665,7 @@ class PyMethodCallNode(SimpleCallNode):
 
             if len(args) == 1:
                 code.putln("}")
+            code.putln("}")  # !CYTHON_FAST_PYCALL
 
         if reuse_function_temp:
             self.function.generate_disposal_code(code)
@@ -6178,6 +6265,7 @@ class AttributeNode(ExprNode):
     needs_none_check = True
     is_memslice_transpose = False
     is_special_lookup = False
+    is_py_attr = 0
 
     def as_cython_attribute(self):
         if (isinstance(self.obj, NameNode) and
@@ -6238,6 +6326,10 @@ class AttributeNode(ExprNode):
             # special case: C-API replacements for C methods of
             # builtin types cannot be inferred as C functions as
             # that would prevent their use as bound methods
+            return py_object_type
+        elif self.entry and self.entry.is_cmethod:
+            # special case: bound methods should not be inferred
+            # as their unbound method types
             return py_object_type
         return self.type
 
@@ -6302,7 +6394,8 @@ class AttributeNode(ExprNode):
                         # as an ordinary function.
                         if entry.func_cname and not hasattr(entry.type, 'op_arg_struct'):
                             cname = entry.func_cname
-                            if entry.type.is_static_method:
+                            if entry.type.is_static_method or (
+                                    env.parent_scope and env.parent_scope.is_cpp_class_scope):
                                 ctype = entry.type
                             elif type.is_cpp_class:
                                 error(self.pos, "%s not a static member of %s" % (entry.name, type))
@@ -6319,10 +6412,15 @@ class AttributeNode(ExprNode):
                         ubcm_entry.is_cfunction = 1
                         ubcm_entry.func_cname = entry.func_cname
                         ubcm_entry.is_unbound_cmethod = 1
+                        ubcm_entry.scope = entry.scope
                     return self.as_name_node(env, ubcm_entry, target=False)
             elif type.is_enum:
                 if self.attribute in type.values:
-                    return self.as_name_node(env, env.lookup(self.attribute), target=False)
+                    for entry in type.entry.enum_values:
+                        if entry.name == self.attribute:
+                            return self.as_name_node(env, entry, target=False)
+                    else:
+                        error(self.pos, "%s not a known value of %s" % (self.attribute, type))
                 else:
                     error(self.pos, "%s not a known value of %s" % (self.attribute, type))
         return None
@@ -6411,8 +6509,8 @@ class AttributeNode(ExprNode):
             self.op = "."
         if obj_type.has_attributes:
             if obj_type.attributes_known():
-                if (obj_type.is_memoryviewslice and not
-                        obj_type.scope.lookup_here(self.attribute)):
+                entry = obj_type.scope.lookup_here(self.attribute)
+                if obj_type.is_memoryviewslice and not entry:
                     if self.attribute == 'T':
                         self.is_memslice_transpose = True
                         self.is_temp = True
@@ -6421,7 +6519,7 @@ class AttributeNode(ExprNode):
                         return
                     else:
                         obj_type.declare_attribute(self.attribute, env, self.pos)
-                entry = obj_type.scope.lookup_here(self.attribute)
+                        entry = obj_type.scope.lookup_here(self.attribute)
                 if entry and entry.is_member:
                     entry = None
             else:
@@ -6591,9 +6689,7 @@ class AttributeNode(ExprNode):
                         return
 
                 code.putln("%s = %s;" % (self.result(), self.obj.result()))
-                if self.obj.is_name or (self.obj.is_attribute and
-                                        self.obj.is_memslice_transpose):
-                    code.put_incref_memoryviewslice(self.result(), have_gil=True)
+                code.put_incref_memoryviewslice(self.result(), have_gil=True)
 
                 T = "__pyx_memslice_transpose(&%s) == 0"
                 code.putln(code.error_goto_if(T % self.result(), self.pos))
@@ -6607,19 +6703,19 @@ class AttributeNode(ExprNode):
         else:
             # result_code contains what is needed, but we may need to insert
             # a check and raise an exception
-            if self.obj.type.is_extension_type:
+            if self.obj.type and self.obj.type.is_extension_type:
                 pass
-            elif self.entry and self.entry.is_cmethod and self.entry.utility_code:
+            elif self.entry and self.entry.is_cmethod:
                 # C method implemented as function call with utility code
-                code.globalstate.use_utility_code(self.entry.utility_code)
+                code.globalstate.use_entry_utility_code(self.entry)
 
     def generate_disposal_code(self, code):
         if self.is_temp and self.type.is_memoryviewslice and self.is_memslice_transpose:
             # mirror condition for putting the memview incref here:
-            if self.obj.is_name or (self.obj.is_attribute and
-                                    self.obj.is_memslice_transpose):
-                code.put_xdecref_memoryviewslice(
-                        self.result(), have_gil=True)
+            code.put_xdecref_memoryviewslice(
+                    self.result(), have_gil=True)
+            code.putln("%s.memview = NULL;" % self.result())
+            code.putln("%s.data = NULL;" % self.result())
         else:
             ExprNode.generate_disposal_code(self, code)
 
@@ -7034,7 +7130,7 @@ class SequenceNode(ExprNode):
         code.putln("PyObject* sequence = %s;" % rhs.py_result())
 
         # list/tuple => check size
-        code.putln("#if CYTHON_COMPILING_IN_CPYTHON")
+        code.putln("#if !CYTHON_COMPILING_IN_PYPY")
         code.putln("Py_ssize_t size = Py_SIZE(sequence);")
         code.putln("#else")
         code.putln("Py_ssize_t size = PySequence_Size(sequence);")  # < 0 => exception
@@ -7048,7 +7144,7 @@ class SequenceNode(ExprNode):
         code.putln(code.error_goto(self.pos))
         code.putln("}")
 
-        code.putln("#if CYTHON_COMPILING_IN_CPYTHON")
+        code.putln("#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS")
         # unpack items from list/tuple in unrolled loop (can't fail)
         if len(sequence_types) == 2:
             code.putln("if (likely(Py%s_CheckExact(sequence))) {" % sequence_types[0])
@@ -8669,8 +8765,16 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         default_args = []
         default_kwargs = []
         annotations = []
+
+        # For global cpdef functions and def/cpdef methods in cdef classes, we must use global constants
+        # for default arguments to avoid the dependency on the CyFunction object as 'self' argument
+        # in the underlying C function.  Basically, cpdef functions/methods are static C functions,
+        # so their optional arguments must be static, too.
+        # TODO: change CyFunction implementation to pass both function object and owning object for method calls
+        must_use_constants = env.is_c_class_scope or (self.def_node.is_wrapper and env.is_module_scope)
+
         for arg in self.def_node.args:
-            if arg.default:
+            if arg.default and not must_use_constants:
                 if not arg.default.is_literal:
                     arg.is_dynamic = True
                     if arg.type.is_pyobject:
@@ -8759,8 +8863,10 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                             self.pos, args=[defaults_tuple, defaults_kwdict])),
                     decorators=None,
                     name=StringEncoding.EncodedString("__defaults__"))
-                defaults_getter.analyse_declarations(env)
-                defaults_getter = defaults_getter.analyse_expressions(env)
+                # defaults getter must never live in class scopes, it's always a module function
+                module_scope = env.global_scope()
+                defaults_getter.analyse_declarations(module_scope)
+                defaults_getter = defaults_getter.analyse_expressions(module_scope)
                 defaults_getter.body = defaults_getter.body.analyse_expressions(
                     defaults_getter.local_scope)
                 defaults_getter.py_wrapper_required = False
@@ -8830,7 +8936,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
         elif def_node.is_classmethod:
             flags.append('__Pyx_CYFUNCTION_CLASSMETHOD')
 
-        if def_node.local_scope.parent_scope.is_c_class_scope:
+        if def_node.local_scope.parent_scope.is_c_class_scope and not def_node.entry.is_anonymous:
             flags.append('__Pyx_CYFUNCTION_CCLASS')
 
         if flags:
@@ -9269,6 +9375,13 @@ class AwaitExprNode(YieldFromExprNode):
     def yield_from_func(self, code):
         code.globalstate.use_utility_code(UtilityCode.load_cached("CoroutineYieldFrom", "Coroutine.c"))
         return "__Pyx_Coroutine_Yield_From"
+
+
+class AIterAwaitExprNode(AwaitExprNode):
+    # 'await' expression node used in async-for loops to support the pre-Py3.5.2 'aiter' protocol
+    def yield_from_func(self, code):
+        code.globalstate.use_utility_code(UtilityCode.load_cached("CoroutineAIterYieldFrom", "Coroutine.c"))
+        return "__Pyx_Coroutine_AIter_Yield_From"
 
 
 class AwaitIterNextExprNode(AwaitExprNode):
@@ -10133,6 +10246,8 @@ class SizeofTypeNode(SizeofNode):
 
     def check_type(self):
         arg_type = self.arg_type
+        if not arg_type:
+            return
         if arg_type.is_pyobject and not arg_type.is_extension_type:
             error(self.pos, "Cannot take sizeof Python object")
         elif arg_type.is_void:
@@ -10176,6 +10291,75 @@ class SizeofVarNode(SizeofNode):
 
     def generate_result_code(self, code):
         pass
+
+
+class TypeidNode(ExprNode):
+    #  C++ typeid operator applied to a type or variable
+    #
+    #  operand       ExprNode
+    #  arg_type      ExprNode
+    #  is_variable   boolean
+
+    type = PyrexTypes.error_type
+
+    subexprs = ['operand']
+
+    arg_type = None
+    is_variable = None
+    is_temp = 1
+
+    def get_type_info_type(self, env):
+        env_module = env
+        while not env_module.is_module_scope:
+            env_module = env_module.outer_scope
+        typeinfo_module = env_module.find_module('libcpp.typeinfo', self.pos)
+        typeinfo_entry = typeinfo_module.lookup('type_info')
+        return PyrexTypes.CFakeReferenceType(PyrexTypes.c_const_type(typeinfo_entry.type))
+
+    def analyse_types(self, env):
+        type_info = self.get_type_info_type(env)
+        if not type_info:
+            self.error("The 'libcpp.typeinfo' module must be cimported to use the typeid() operator")
+            return self
+        self.type = type_info
+        as_type = self.operand.analyse_as_type(env)
+        if as_type:
+            self.arg_type = as_type
+            self.is_type = True
+        else:
+            self.arg_type = self.operand.analyse_types(env)
+            self.is_type = False
+            if self.arg_type.type.is_pyobject:
+                self.error("Cannot use typeid on a Python object")
+                return self
+            elif self.arg_type.type.is_void:
+                self.error("Cannot use typeid on void")
+                return self
+            elif not self.arg_type.type.is_complete():
+                self.error("Cannot use typeid on incomplete type '%s'" % self.arg_type.type)
+                return self
+        env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
+        return self
+
+    def error(self, mess):
+        error(self.pos, mess)
+        self.type = PyrexTypes.error_type
+        self.result_code = "<error>"
+
+    def check_const(self):
+        return True
+
+    def calculate_result_code(self):
+        return self.temp_code
+
+    def generate_result_code(self, code):
+        if self.is_type:
+            arg_code = self.arg_type.empty_declaration_code()
+        else:
+            arg_code = self.arg_type.result()
+        translate_cpp_exception(code, self.pos,
+            "%s = typeid(%s);" % (self.temp_code, arg_code),
+            None, self.in_nogil_context)
 
 class TypeofNode(ExprNode):
     #  Compile-time type of an expression, as a string.
@@ -10964,7 +11148,7 @@ class PowNode(NumBinopNode):
             if self.type.real_type.is_float:
                 self.operand1 = self.operand1.coerce_to(self.type, env)
                 self.operand2 = self.operand2.coerce_to(self.type, env)
-                self.pow_func = "__Pyx_c_pow" + self.type.real_type.math_h_modifier
+                self.pow_func = self.type.binary_op('**')
             else:
                 error(self.pos, "complex int powers not supported")
                 self.pow_func = "<error>"

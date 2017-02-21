@@ -208,12 +208,12 @@ builtin_function_table = [
 
     # Put in namespace append optimization.
     BuiltinFunction('__Pyx_PyObject_Append', "OO",  "O",     "__Pyx_PyObject_Append"),
+
+    # This is conditionally looked up based on a compiler directive.
+    BuiltinFunction('__Pyx_Globals',    "",     "O",     "__Pyx_Globals",
+                    utility_code=globals_utility_code),
 ]
 
-if not Options.old_style_globals:
-    builtin_function_table.append(
-        BuiltinFunction('globals',    "",     "O",     "__Pyx_Globals",
-                        utility_code=globals_utility_code))
 
 # Builtin types
 #  bool
@@ -324,6 +324,7 @@ builtin_types_table = [
                                     BuiltinMethod("add",     "TO", "r", "PySet_Add"),
                                     BuiltinMethod("pop",     "T",  "O", "PySet_Pop")]),
     ("frozenset", "PyFrozenSet_Type", []),
+    ("Exception", "((PyTypeObject*)PyExc_Exception)[0]", []),
 ]
 
 
@@ -377,6 +378,8 @@ def init_builtin_types():
             objstruct_cname = 'PySetObject'
         elif name == 'bool':
             objstruct_cname = None
+        elif name == 'Exception':
+            objstruct_cname = "PyBaseExceptionObject"
         else:
             objstruct_cname = 'Py%sObject' % name.capitalize()
         the_type = builtin_scope.declare_builtin_type(name, cname, utility, objstruct_cname)

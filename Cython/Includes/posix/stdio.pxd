@@ -5,7 +5,7 @@ from libc.stdio cimport FILE
 from libc.stddef cimport wchar_t
 from posix.types cimport off_t
 
-cdef extern from "stdio.h" nogil:
+cdef extern from "<stdio.h>" nogil:
     # File descriptors
     FILE *fdopen(int, const char *)
     int fileno(FILE *)

@@ -153,7 +153,7 @@ the same effect as the C directive ``#pragma pack(1)``.
         cheddar, edam,
         camembert
 
-Declaring an enum as ```cpdef`` will create a PEP 435-style Python wrapper::
+Declaring an enum as ``cpdef`` will create a :pep:`435`-style Python wrapper::
 
     cpdef enum CheeseState:
         hard = 1
@@ -267,7 +267,7 @@ Optional Arguments
 ------------------
 
 * Are supported for ``cdef`` and ``cpdef`` functions
-* There differences though whether you declare them in a ``.pyx`` file or a ``.pxd`` file
+* There are differences though whether you declare them in a ``.pyx`` file or a ``.pxd`` file:
 
  * When in a ``.pyx`` file, the signature is the same as it is in Python itself::
 
@@ -538,8 +538,8 @@ Functions and Methods
 * Only "Python" functions can be called outside a Cython module from *Python interpreted code*.
 
 
-Callable from Python
-=====================
+Callable from Python (def)
+==========================
 
 * Are declared with the ``def`` statement
 * Are called with Python objects
@@ -548,8 +548,8 @@ Callable from Python
 
 .. _cdef:
 
-Callable from C
-================
+Callable from C (cdef)
+======================
 
 * Are declared with the ``cdef`` statement.
 * Are called with either Python objects or C values.
@@ -557,8 +557,8 @@ Callable from C
 
 .. _cpdef:
 
-Callable from both Python and C
-================================
+Callable from both Python and C (cpdef)
+=======================================
 
 * Are declared with the ``cpdef`` statement.
 * Can be called from anywhere, because it uses a little Cython magic.
@@ -567,17 +567,39 @@ Callable from both Python and C
 Overriding
 ==========
 
-``cpdef`` functions can override ``cdef`` functions::
+``cpdef`` methods can override ``cdef`` methods::
 
     cdef class A:
         cdef foo(self):
             print "A"
+
     cdef class B(A)
         cdef foo(self, x=None)
             print "B", x
+
     cdef class C(B):
         cpdef foo(self, x=True, int k=3)
             print "C", x, k
+
+When subclassing an extension type with a Python class,
+``def`` methods can override ``cpdef`` methods but not ``cdef``
+methods::
+
+    cdef class A:
+        cdef foo(self):
+            print("A")
+
+    cdef class B(A):
+        cpdef foo(self):
+            print("B")
+
+    class C(B):         # NOTE: not cdef class
+        def foo(self):
+            print("C")
+
+If ``C`` above would be an extension type (``cdef class``),
+this would not work correctly.
+The Cython compiler will give a warning in that case.
 
 
 Function Pointers

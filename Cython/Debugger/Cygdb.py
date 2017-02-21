@@ -138,19 +138,21 @@ def main(path_to_debug_info=None, gdb_argv=None, no_import=False):
     tempfilename = make_command_file(path_to_debug_info, no_import=no_import)
     logger.info("Launching %s with command file: %s and gdb_argv: %s",
         options.gdb, tempfilename, gdb_argv)
-    logger.debug('Command file (%s) contains: """\n%s"""', tempfilename, open(tempfilename).read())
-    logger.info("Spawning %s...", options.gdb)
-    p = subprocess.Popen([options.gdb, '-command', tempfilename] + gdb_argv)
-    logger.info("Spawned %s (pid %d)", options.gdb, p.pid)
-    while True:
-        try:
-            logger.debug("Waiting for gdb (pid %d) to exit...", p.pid)
-            ret = p.wait()
-            logger.debug("Wait for gdb (pid %d) to exit is done. Returned: %r", p.pid, ret)
-        except KeyboardInterrupt:
-            pass
-        else:
-            break
+    with open(tempfilename) as tempfile:
+        logger.debug('Command file (%s) contains: """\n%s"""', tempfilename, tempfile.read())
+        logger.info("Spawning %s...", options.gdb)
+        p = subprocess.Popen([options.gdb, '-command', tempfilename] + gdb_argv)
+        logger.info("Spawned %s (pid %d)", options.gdb, p.pid)
+        while True:
+            try:
+                logger.debug("Waiting for gdb (pid %d) to exit...", p.pid)
+                ret = p.wait()
+                logger.debug("Wait for gdb (pid %d) to exit is done. Returned: %r", p.pid, ret)
+            except KeyboardInterrupt:
+                pass
+            else:
+                break
+        logger.debug("Closing temp command file with fd: %s", tempfile.fileno())
     logger.debug("Removing temp command file: %s", tempfilename)
     os.remove(tempfilename)
     logger.debug("Removed temp command file: %s", tempfilename)

@@ -50,6 +50,7 @@ class TruthClass {
 public:
   TruthClass() : value(false) {}
   TruthClass(bool value) : value(value) {}
+  virtual ~TruthClass() {};
   operator bool() { return value; }
   bool value;
 };

@@ -31,6 +31,9 @@ cdef extern from "Python.h":
     ctypedef int (*visitproc)(PyObject*, void *)
     ctypedef int (*traverseproc)(PyObject*, visitproc, void*)
 
+    ctypedef object (*descrgetfunc)(object, object, object)
+    ctypedef int (*descrsetfunc)(object, object, object) except -1
+
     ctypedef struct PyTypeObject:
         const char* tp_name
         const char* tp_doc
@@ -53,6 +56,10 @@ cdef extern from "Python.h":
         richcmpfunc tp_richcompare
 
         PyTypeObject* tp_base
+        PyObject* tp_dict
+
+        descrgetfunc tp_descr_get
+        descrsetfunc tp_descr_set
 
     ctypedef struct PyObject:
         Py_ssize_t ob_refcnt

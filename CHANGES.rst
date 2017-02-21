@@ -2,6 +2,181 @@
 Cython Changelog
 ================
 
+
+latest
+===================
+
+Features added
+--------------
+
+* Speed up comparisons of strings if their hash value is available.
+  Patch by Claudio Freire (Github issue #1571).
+
+* Support pyximport from zip files.
+  Patch by Sergei Lebedev (Github issue #1485).
+
+Bugs fixed
+----------
+
+* Item lookup/assignment with a unicode character as index that is typed
+  (explicitly or implicitly) as ``Py_UCS4`` or ``Py_UNICODE`` used the
+  integer value instead of the Unicode string value. Code that relied on
+  the previous behaviour now triggers a warning that can be disabled by
+  applying an explicit cast. (Github issue #1602)
+
+* f-string processing was adapted to match recent changes in PEP 498 and
+  CPython 3.6.
+
+* Unicode escapes in 'ur' raw-unicode strings were not resolved in Py2 code.
+  Original patch by Aaron Gallagher (Github issue #1594).
+
+* File paths of code objects are now relative.
+  Original patch by Jelmer Vernooij (Github issue #1565).
+
+
+0.25.2 (2016-12-08)
+===================
+
+Bugs fixed
+----------
+
+* Fixes several issues with C++ template deduction.
+
+* Fixes a issue with bound method type inference (Github issue #551).
+
+* Fixes a bug with cascaded tuple assignment (Github issue #1523).
+
+* Fixed or silenced many Clang warnings.
+
+* Fixes bug with powers of pure real complex numbers (Github issue #1538).
+
+
+0.25.1 (2016-10-26)
+===================
+
+Bugs fixed
+----------
+
+* Fixes a bug with ``isinstance(o, Exception)`` (Github issue #1496).
+
+* Fixes bug with ``cython.view.array`` missing utility code in some cases
+  (Github issue #1502).
+
+Other changes
+-------------
+
+* The distutils extension ``Cython.Distutils.build_ext`` has been reverted,
+  temporarily, to be ``old_build_ext`` to give projects time to migrate.
+  The new build_ext is available as ``new_build_ext``.
+
+
+0.25 (2016-10-25)
+=================
+
+Features added
+--------------
+
+* def/cpdef methods of cdef classes benefit from Cython's internal function
+  implementation, which enables introspection and line profiling for them.
+  Implementation sponsored by Turbostream (www.turbostream-cfd.com).
+
+* Calls to Python functions are faster, following the recent "FastCall"
+  optimisations that Victor Stinner implemented for CPython 3.6.
+  See https://bugs.python.org/issue27128 and related issues.
+
+* The new METH_FASTCALL calling convention for PyCFunctions is supported
+  in CPython 3.6.  See https://bugs.python.org/issue27810
+
+* Initial support for using Cython modules in Pyston.  Patch by Daetalus.
+
+* Dynamic Python attributes are allowed on cdef classes if an attribute
+  ``cdef dict __dict__`` is declared in the class.  Patch by empyrical.
+
+* Cython implemented C++ classes can make direct calls to base class methods.
+  Patch by empyrical.
+
+* C++ classes can now have typedef members. STL containers updated with
+  value_type.
+
+* New directive ``cython.no_gc`` to fully disable GC for a cdef class.
+  Patch by Claudio Freire.
+
+* Buffer variables are no longer excluded from ``locals()``.
+  Patch by da-woods.
+
+* Building f-strings is faster, especially when formatting C integers.
+
+* for-loop iteration over "std::string".
+
+* ``libc/math.pxd`` provides ``e`` and ``pi`` as alias constants to simplify
+  usage as a drop-in replacement for Python's math module.
+
+* Speed up cython.inline().
+
+* Binary lshift operations with small constant Python integers are faster.
+
+* Some integer operations on Python long objects are faster in Python 2.7.
+
+* Support for the C++ ``typeid`` operator.
+
+* Support for bazel using a the pyx_library rule in //Tools:rules.bzl.
+
+Significant Bugs fixed
+----------------------
+
+* Division of complex numbers avoids overflow by using Smith's method.
+
+* Some function signatures in ``libc.math`` and ``numpy.pxd`` were incorrect.
+  Patch by Michael Seifert.
+
+Other changes
+-------------
+
+* The "%%cython" IPython/jupyter magic now defaults to the language level of
+  the current jupyter kernel.  The language level can be set explicitly with
+  "%%cython -2" or "%%cython -3".
+
+* The distutils extension ``Cython.Distutils.build_ext`` has now been updated
+  to use cythonize which properly handles dependencies.  The old extension can
+  still be found in ``Cython.Distutils.old_build_ext`` and is now deprecated.
+
+* ``directive_defaults`` is no longer available in ``Cython.Compiler.Options``,
+  use ``get_directive_defaults()`` instead.
+
+
+0.24.1 (2016-07-15)
+===================
+
+Bugs fixed
+----------
+
+* IPython cell magic was lacking a good way to enable Python 3 code semantics.
+  It can now be used as "%%cython -3".
+
+* Follow a recent change in `PEP 492 <https://www.python.org/dev/peps/pep-0498/>`_
+  and CPython 3.5.2 that now requires the ``__aiter__()`` method of asynchronous
+  iterators to be a simple ``def`` method instead of an ``async def`` method.
+
+* Coroutines and generators were lacking the ``__module__`` special attribute.
+
+* C++ ``std::complex`` values failed to auto-convert from and to Python complex
+  objects.
+
+* Namespaced C++ types could not be used as memory view types due to lack of
+  name mangling.  Patch by Ivan Smirnov.
+
+* Assignments between identical C++ types that were declared with differently
+  typedefed template types could fail.
+
+* Rebuilds could fail to evaluate dependency timestamps in C++ mode.
+  Patch by Ian Henriksen.
+
+* Macros defined in the ``distutils`` compiler option do not require values
+  anymore.  Patch by Ian Henriksen.
+
+* Minor fixes for MSVC, Cygwin and PyPy.
+
+
 0.24 (2016-04-04)
 =================
 

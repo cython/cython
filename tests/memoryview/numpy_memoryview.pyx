@@ -683,3 +683,11 @@ def test_null_strides_error(buffer_obj):
         fortran_buf2 = buffer_obj
     except ValueError, e:
         print e
+
+def test_refcount_GH507():
+    """
+    >>> test_refcount_GH507()
+    """
+    a = np.arange(12).reshape([3, 4])
+    cdef np.int_t[:,:] a_view = a
+    cdef np.int_t[:,:] b = a_view[1:2,:].T

@@ -7,7 +7,7 @@ from __future__ import absolute_import
 
 from . import Naming
 from . import PyrexTypes
-from . import StringEncoding
+from .Errors import error
 
 invisible = ['__cinit__', '__dealloc__', '__richcmp__',
              '__nonzero__', '__bool__']
@@ -98,6 +98,12 @@ class Signature(object):
         self.error_value = self.error_value_map.get(ret_format, None)
         self.exception_check = ret_format != 'r' and self.error_value is not None
         self.is_staticmethod = False
+
+    def __repr__(self):
+        return '<Signature[%s(%s%s)]>' % (
+            self.ret_format,
+            ', '.join(self.fixed_arg_format),
+            '*' if self.has_generic_args else '')
 
     def num_fixed_args(self):
         return len(self.fixed_arg_format)
@@ -509,6 +515,27 @@ class BaseClassSlot(SlotDescriptor):
                 base_type.typeptr_cname))
 
 
+class DictOffsetSlot(SlotDescriptor):
+    #  Slot descriptor for a class' dict offset, for dynamic attributes.
+
+    def slot_code(self, scope):
+        dict_entry = scope.lookup_here("__dict__")
+        if dict_entry and dict_entry.is_variable:
+            if getattr(dict_entry.type, 'cname', None) != 'PyDict_Type':
+                error(dict_entry.pos, "__dict__ slot must be of type 'dict'")
+                return "0"
+            type = scope.parent_type
+            if type.typedef_flag:
+                objstruct = type.objstruct_cname
+            else:
+                objstruct = "struct %s" % type.objstruct_cname
+            return ("offsetof(%s, %s)" % (
+                        objstruct,
+                        dict_entry.cname))
+        else:
+            return "0"
+
+
 # The following dictionary maps __xxx__ method names to slot descriptors.
 
 method_name_to_slot = {}
@@ -814,7 +841,7 @@ slot_table = (
     SyntheticSlot("tp_descr_get", ["__get__"], "0"),
     SyntheticSlot("tp_descr_set", ["__set__", "__delete__"], "0"),
 
-    EmptySlot("tp_dictoffset"),
+    DictOffsetSlot("tp_dictoffset"),
 
     MethodSlot(initproc, "tp_init", "__init__"),
     EmptySlot("tp_alloc"), #FixedSlot("tp_alloc", "PyType_GenericAlloc"),

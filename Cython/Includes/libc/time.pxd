@@ -2,7 +2,7 @@
 
 from libc.stddef cimport wchar_t
 
-cdef extern from "time.h" nogil:
+cdef extern from "<time.h>" nogil:
     ctypedef long clock_t
     ctypedef long time_t
 

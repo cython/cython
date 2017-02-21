@@ -120,6 +120,10 @@ in one line)::
         ext_modules = cythonize(extensions),
     )
 
+Note that when using setuptools, you should import it before Cython as
+setuptools may replace the ``Extension`` class in distutils.  Otherwise,
+both might disagree about the class to use here.
+
 If your options are static (for example you do not need to call a tool like
 ``pkg-config`` to determine them) you can also provide them directly in your
 .pyx source file using a special comment block at the start of the file::
@@ -222,6 +226,32 @@ list in the Extensions when not using Cython::
             extension.sources[:] = sources
         return extensions
 
+Another option is to make Cython a setup dependency of your system and use
+Cython's build_ext module which runs ``cythonize`` as part of the build process::
+
+    setup(
+        setup_requires=[
+            'cython>=0.x',
+        ],
+        extensions = [Extension("*", ["*.pyx"])],
+        cmdclass={'build_ext': Cython.Build.build_ext},
+        ...
+    )
+
+If you want to expose the C-level interface of your library for other
+libraries to cimport from, use package_data to install the ``.pxd`` files,
+e.g.::
+
+    setup(
+        package_data = {
+            'my_package': ['*.pxd'],
+            'my_package/sub_package': ['*.pxd'],
+        },
+        ...
+    )
+
+These ``.pxd`` files need not correspond have corresponding ``.pyx``
+modules if they contain purely declarations of external libraries.
 
 Compiling with ``pyximport``
 =============================
@@ -229,7 +259,7 @@ Compiling with ``pyximport``
 For generating Cython code right in your pure python module just type::
 
     >>> import pyximport; pyximport.install()
-    >>> import helloworld  
+    >>> import helloworld
     Hello World
 
 This allows you to automatically run Cython on every ``.pyx`` that
@@ -255,7 +285,7 @@ For example::
     >>> import cython
     >>> def f(a):
     ...     ret = cython.inline("return a+b", b=3)
-    ... 
+    ...
 
 Unbound variables are automatically pulled from the surrounding local
 and global scopes, and the result of the compilation is cached for
@@ -285,7 +315,7 @@ Cython code.  Here is the list of currently supported directives:
     If set to False, Cython is free to assume that indexing operations
     ([]-operator) in the code will not cause any IndexErrors to be
     raised. Lists, tuples, and strings are affected only if the index
-    can be determined to be non-negative (or if ``wraparound`` is False). 
+    can be determined to be non-negative (or if ``wraparound`` is False).
     Conditions
     which would normally trigger an IndexError may instead cause
     segfaults or data corruption if this is set to False.
@@ -312,12 +342,12 @@ Cython code.  Here is the list of currently supported directives:
     set to ``None``. Otherwise a check is inserted and the
     appropriate exception is raised. This is off by default for
     performance reasons.  Default is False.
-    
+
 ``overflowcheck`` (True / False)
     If set to True, raise errors on overflowing C integer arithmetic
     operations.  Incurs a modest runtime penalty, but is much faster than
     using Python ints.  Default is False.
-    
+
 ``overflowcheck.fold`` (True / False)
     If set to True, and overflowcheck is True, check the overflow bit for
     nested, side-effect-free arithmetic expressions once rather than at every
@@ -371,6 +401,9 @@ Cython code.  Here is the list of currently supported directives:
     Infer types of untyped variables in function bodies. Default is
     None, indicating that only safe (semantically-unchanging) inferences
     are allowed.
+    In particular, inferring *integral* types for variables *used in arithmetic
+    expressions* is considered unsafe (due to possible overflow) and must be
+    explicitly requested.
 
 ``language_level`` (2/3)
     Globally set the Python language level to be used for module

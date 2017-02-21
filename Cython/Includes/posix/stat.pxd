@@ -2,7 +2,7 @@ from posix.types cimport (blkcnt_t, blksize_t, dev_t, gid_t, ino_t, mode_t,
                           nlink_t, off_t, time_t, uid_t)
 
 
-cdef extern from "sys/stat.h" nogil:
+cdef extern from "<sys/stat.h>" nogil:
     cdef struct struct_stat "stat":
         dev_t   st_dev
         ino_t   st_ino
@@ -19,7 +19,7 @@ cdef extern from "sys/stat.h" nogil:
         time_t  st_ctime
 
 # POSIX prescribes including both <sys/stat.h> and <unistd.h> for these
-cdef extern from "unistd.h" nogil:
+cdef extern from "<unistd.h>" nogil:
     int fchmod(int, mode_t)
     int chmod(const char *, mode_t)
 

@@ -1,45 +1,65 @@
 language: python
 
+sudo: false
+cache:
+  pip: true
+  directories:
+    - $HOME/.ccache
+
 python:
-  - 2.6
   - 2.7
+  - 3.6
+  - 2.6
   - 3.2
   - 3.3
   - 3.4
   - 3.5
-  - 3.5-dev
+  - 3.6-dev
+  - 3.7-dev
   - pypy
   - pypy3
 
 env:
-  - BACKEND=c
-  - BACKEND=cpp
+  global:
+    - USE_CCACHE=1
+    - CCACHE_SLOPPINESS=pch_defines,time_macros
+    - CCACHE_COMPRESS=1
+    - CCACHE_MAXSIZE=100M
+    - PATH="/usr/lib/ccache:$PATH"
+  matrix:
+    - BACKEND=c
+    - BACKEND=cpp
 
 branches:
   only:
     - master
 
-before_install:
-  - sudo apt-get update
-  - sudo apt-get install gdb python$( python -c 'import sys; print("%d.%d" % sys.version_info[:2])' )-dbg || true
-  - dpkg -l gdb || true
-
 install:
   - CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" python setup.py build
+
+before_script: ccache -s
 
 script:
   - PYTHON_DBG="python$( python -c 'import sys; print("%d.%d" % sys.version_info[:2])' )-dbg"
   - if $PYTHON_DBG -V >&2; then CFLAGS="-O0 -ggdb" $PYTHON_DBG runtests.py -vv Debugger --backends=$BACKEND; fi
   - CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" python setup.py build_ext -i
-  - CFLAGS="-O0 -ggdb -Wall -Wextra" python runtests.py -vv -x Debugger --backends=$BACKEND
+  - CFLAGS="-O0 -ggdb -Wall -Wextra" python runtests.py -vv -x Debugger --backends=$BACKEND -j4
 
 matrix:
   allow_failures:
     - python: pypy
     - python: pypy3
-    - python: 3.5-dev
+    - python: 3.6-dev
+    - python: 3.7-dev
   exclude:
     - python: pypy
       env: BACKEND=cpp
     - python: pypy3
-      env: BACKEND=cpp      
+      env: BACKEND=cpp
+
+addons:
+  apt:
+    packages:
+      - gdb
+      - python-dbg
+      - python3-dbg
