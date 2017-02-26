@@ -24,6 +24,9 @@
   #define DL_EXPORT(t) t
 #endif
 
+// For use in DL_IMPORT/DL_EXPORT macros.
+#define __PYX_COMMA ,
+
 #ifndef HAVE_LONG_LONG
   // CPython has required PY_LONG_LONG support for years, even if HAVE_LONG_LONG is not defined for us
   #if PY_VERSION_HEX >= 0x03030000 || (PY_MAJOR_VERSION == 2 && PY_VERSION_HEX >= 0x02070000)

@@ -309,7 +309,7 @@ class PyrexType(BaseType):
 
 def public_decl(base_code, dll_linkage):
     if dll_linkage:
-        return "%s(%s)" % (dll_linkage, base_code)
+        return "%s(%s)" % (dll_linkage, base_code.replace(',', ' __PYX_COMMA '))
     else:
         return base_code
 
