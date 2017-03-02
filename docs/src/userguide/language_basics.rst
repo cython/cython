@@ -106,7 +106,7 @@ can group them into a :keyword:`cdef` block like this::
             int tons
 
         int i
-        float f
+        float a
         Spam *p
 
         void f(Spam *s):
