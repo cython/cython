@@ -73,7 +73,7 @@ Python-callable :meth:`area` method which serves as a thin wrapper around
 by declaring the local variable ``rect`` which is explicitly given the type
 Rectangle. By using this declaration, instead of just dynamically assigning to
 ``rect``, we gain the ability to access the much more efficient C-callable
-:meth:`_rect` method.
+:meth:`_area` method.
 
 But Cython offers us more simplicity again, by allowing us to declare
 dual-access methods - methods that can be efficiently called at C level, but
