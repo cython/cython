@@ -1143,6 +1143,8 @@ class BuiltinObjectType(PyObjectType):
     vtabptr_cname = None
     typedef_flag = True
     is_external = True
+    metaclass = None
+    metaclass_dict = False
     decl_type = 'PyObject'
 
     def __init__(self, name, cname, objstruct_cname=None):
@@ -1284,6 +1286,8 @@ class PyExtensionType(PyObjectType):
     #  vtabstruct_cname string           Name of C method table struct
     #  vtabptr_cname    string           Name of pointer to C method table
     #  vtable_cname     string           Name of C method table definition
+    #  metaclass        PyExtensionType or None
+    #  metaclass_dict   boolean          Whether an extension metaclass has a modifiable dictionary
     #  defered_declarations [thunk]      Used to declare class hierarchies in order
 
     is_extension_type = 1
@@ -1306,6 +1310,12 @@ class PyExtensionType(PyObjectType):
         self.vtabstruct_cname = None
         self.vtabptr_cname = None
         self.vtable_cname = None
+        if base_type is not None:
+            self.metaclass = base_type.metaclass
+            self.metaclass_dict = base_type.metaclass_dict
+        else:
+            self.metaclass = None
+            self.metaclass_dict = False
         self.is_external = is_external
         self.defered_declarations = []
 

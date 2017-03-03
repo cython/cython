@@ -16,6 +16,7 @@ from .PyrexTypes import CPtrType
 from . import Future
 
 from . import Annotate
+from . import Builtin
 from . import Code
 from . import Naming
 from . import Nodes
@@ -1173,6 +1174,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         slot_func = scope.mangle_internal("tp_new")
         type = scope.parent_type
         base_type = type.base_type
+        is_metaclass = type.subtype_of(Builtin.builtin_types['type'])
 
         have_entries, (py_attrs, py_buffers, memoryview_slices) = \
                         scope.get_refcounted_entries()
@@ -1211,6 +1213,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "static PyObject *%s(PyTypeObject *t, %sPyObject *a, %sPyObject *k) {" % (
                 slot_func, unused_marker, unused_marker))
 
+        needs_error_cleanup = False
         need_self_cast = (type.vtabslot_cname or
                           (py_buffers or memoryview_slices or py_attrs) or
                           cpp_class_attrs)
@@ -1251,13 +1254,20 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("if (unlikely(!o)) return 0;")
         if freelist_size and not base_type:
             code.putln('}')
+        if is_metaclass and new_func_entry and new_func_entry.is_special:
+            needs_error_cleanup = True
+            code.putln("Py_ssize_t al = PyTuple_GET_SIZE(a);")
+            code.putln("if (al == 1 && o == ((PyObject*)t)) {")
+            code.putln("o = PyTuple_GET_ITEM(a, 0);")
+            code.putln("if(unlikely(!o) < 0) goto bad;")
+            code.putln("}")
         if need_self_cast:
             code.putln("p = %s;" % type.cast_code("o"))
         #if need_self_cast:
         #    self.generate_self_cast(scope, code)
 
         # from this point on, ensure DECREF(o) on failure
-        needs_error_cleanup = False
+        #needs_error_cleanup = False
 
         if type.vtabslot_cname:
             vtab_base_type = type
@@ -1276,7 +1286,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 entry.cname, entry.type.empty_declaration_code()))
 
         for entry in py_attrs:
-            if entry.name == "__dict__":
+            if entry.name == "__dict__" and not type.subtype_of(Builtin.builtin_types['type']):
                 needs_error_cleanup = True
                 code.put("p->%s = PyDict_New(); if (unlikely(!p->%s)) goto bad;" % (
                     entry.cname, entry.cname))
@@ -1299,6 +1309,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             else:
                 cinit_args = "o, a, k"
             needs_error_cleanup = True
+            if is_metaclass and new_func_entry and new_func_entry.is_special:
+                code.putln("if (al == 1) {")
+                code.putln("a = %s;" % Naming.empty_tuple)
+                code.putln("}")
             code.putln("if (unlikely(%s(%s) < 0)) goto bad;" % (
                 new_func_entry.func_cname, cinit_args))
 
@@ -2729,6 +2743,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if entry.visibility != 'extern':
                 for slot in TypeSlots.slot_table:
                     slot.generate_dynamic_init_code(scope, code)
+                if type.metaclass:
+                    code.putln("((PyObject*)&%s)->ob_type = %s;" % (
+                        typeobj_cname,
+                        type.metaclass.typeptr_cname))
                 code.putln(
                     "if (PyType_Ready(&%s) < 0) %s" % (
                         typeobj_cname,

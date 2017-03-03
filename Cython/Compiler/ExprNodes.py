@@ -1845,6 +1845,8 @@ class NameNode(AtomicExprNode):
         return None
 
     def analyse_target_declaration(self, env):
+        if self.name in ['__metaclass__', '__dict__'] and env.is_c_class_scope:
+            error(self.pos, "'%s' must be declared with 'cdef'" % self.name)
         if not self.entry:
             self.entry = env.lookup_here(self.name)
         if not self.entry:
@@ -8493,7 +8495,7 @@ class Py3ClassNode(ExprNode):
         else:
             mkw = 'NULL'
         if self.metaclass:
-            metaclass = self.metaclass.result()
+            metaclass = "((PyObject *) %s)" % self.metaclass.result()
         else:
             metaclass = "((PyObject*)&__Pyx_DefaultClassType)"
         code.putln(
@@ -8579,7 +8581,7 @@ class PyClassNamespaceNode(ExprNode, ModuleNameMixin):
         else:
             mkw = '(PyObject *) NULL'
         if self.metaclass:
-            metaclass = self.metaclass.result()
+            metaclass = "((PyObject *) %s)" % self.metaclass.result()
         else:
             metaclass = "(PyObject *) NULL"
         code.putln(

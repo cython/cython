@@ -1260,6 +1260,7 @@ class CVarDefNode(StatNode):
         if not dest_scope:
             dest_scope = env
         self.dest_scope = dest_scope
+        type_type = Builtin.builtin_types['type']
 
         if self.declarators:
             templates = self.declarators[0].analyse_templates()
@@ -1314,6 +1315,31 @@ class CVarDefNode(StatNode):
             if name == '':
                 error(declarator.pos, "Missing name in declaration.")
                 return
+            if name == '__dict__' and dest_scope.is_c_class_scope:
+                dest_type = dest_scope.parent_type
+                # If you replace the dict of a type with a custom dict, strange behavior will occur.
+                # Since types already have a dict, "PyObject_GenericSetAttr" just needs to be set
+                # in the type declaration.
+                if dest_type.subtype_of(type_type):
+                    dest_type.metaclass_dict = True
+                    continue
+            if name == '__metaclass__' and dest_scope.is_c_class_scope:
+                dest_type = dest_scope.parent_type
+                base_metaclass = dest_type.base_type.metaclass if dest_type.base_type else None
+                if type.subtype_of(type_type):
+                    if base_metaclass and not type.subtype_of(base_metaclass):
+                        error(declarator.pos, "metaclass conflict: the metaclass of a derived class must be a "
+                                              "(non-strict) subclass of the metaclasses of all its bases")
+                        continue
+                    if type == type_type:
+                        # Python silently ignores attempts to set "type" as a metaclass if the base class has a
+                        # metaclass
+                        continue
+                    dest_type.metaclass = type
+                else:
+                    error(declarator.pos, "__metaclass__ must inherit from 'type'")
+                #if dest_scope.name == 'Class': import ipdb;ipdb.set_trace()
+                continue
             if type.is_cfunction:
                 if 'staticmethod' in env.directives:
                     type.is_static_method = True
@@ -4629,6 +4655,17 @@ class CClassDefNode(ClassDefNode):
         code.mark_pos(self.pos)
         if self.body:
             self.body.generate_execution_code(code)
+        # If a metaclass is set, call its __cinit__ and __init__ methods
+        if self.entry.type.metaclass:
+            type = self.entry.type
+            typeobj_cname = type.typeobj_cname
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("MetaclassInit", "ObjectHandling.c"))
+            code.putln(
+                "if (__Pyx_MetaclassInit(%s, &%s) < 0) %s" % (
+                type.metaclass.typeptr_cname,
+                typeobj_cname,
+                code.error_goto(self.entry.pos)))
 
     def annotate(self, code):
         if self.body:

@@ -396,6 +396,8 @@ class SyntheticSlot(InternalMethodSlot):
     def slot_code(self, scope):
         if scope.defines_any(self.user_methods):
             return InternalMethodSlot.slot_code(self, scope)
+        elif self.slot_name == 'tp_setattro' and scope.parent_type.is_extension_type and scope.parent_type.metaclass_dict:
+            return 'PyObject_GenericSetAttr'
         else:
             return self.default_value
 
@@ -534,6 +536,15 @@ class DictOffsetSlot(SlotDescriptor):
                         dict_entry.cname))
         else:
             return "0"
+
+
+class AllocSlot(SlotDescriptor):
+    # Extension types with metaclasses need "PyType_GenericAlloc", otherwise provide 0
+
+    def slot_code(self, scope):
+        if scope.parent_type.is_extension_type and scope.parent_type.metaclass:
+            return "PyType_GenericAlloc"
+        return "0"
 
 
 # The following dictionary maps __xxx__ method names to slot descriptors.
@@ -844,7 +855,7 @@ slot_table = (
     DictOffsetSlot("tp_dictoffset"),
 
     MethodSlot(initproc, "tp_init", "__init__"),
-    EmptySlot("tp_alloc"), #FixedSlot("tp_alloc", "PyType_GenericAlloc"),
+    AllocSlot("tp_alloc"),
     InternalMethodSlot("tp_new"),
     EmptySlot("tp_free"),
 
