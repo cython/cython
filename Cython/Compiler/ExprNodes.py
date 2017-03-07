@@ -8493,7 +8493,7 @@ class Py3ClassNode(ExprNode):
         else:
             mkw = 'NULL'
         if self.metaclass:
-            metaclass = self.metaclass.result()
+            metaclass = self.metaclass.py_result()
         else:
             metaclass = "((PyObject*)&__Pyx_DefaultClassType)"
         code.putln(
@@ -8579,7 +8579,7 @@ class PyClassNamespaceNode(ExprNode, ModuleNameMixin):
         else:
             mkw = '(PyObject *) NULL'
         if self.metaclass:
-            metaclass = self.metaclass.result()
+            metaclass = self.metaclass.py_result()
         else:
             metaclass = "(PyObject *) NULL"
         code.putln(
