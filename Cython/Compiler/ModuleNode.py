@@ -1495,10 +1495,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         for entry in py_attrs:
             var_code = "p->%s" % entry.cname
+            var_as_pyobject = PyrexTypes.typecast(py_object_type, entry.type, var_code)
             code.putln("if (%s) {" % var_code)
-            if entry.type.is_extension_type:
-                var_code = "((PyObject*)%s)" % var_code
-            code.putln("e = (*v)(%s, a); if (e) return e;" % var_code)
+            code.putln("e = (*v)(%s, a); if (e) return e;" % var_as_pyobject)
             code.putln("}")
 
         # Traverse buffer exporting objects.
