@@ -162,9 +162,9 @@ write a short script to profile our code::
    s = pstats.Stats("Profile.prof")
    s.strip_dirs().sort_stats("time").print_stats()
 
-Running this on my box gives the following output::
+Running this on my box gives the following output:
 
-   TODO: how to display this not as code but verbatim?
+.. code-block:: none
 
    Sat Nov  7 17:40:54 2009    Profile.prof
 
@@ -236,7 +236,9 @@ Here is the complete version adding the import of the pyximport module::
 
 We only added two lines, the rest stays completely the same. Alternatively, we could also
 manually compile our code into an extension; we wouldn't need to change the
-profile script then at all. The script now outputs the following::
+profile script then at all. The script now outputs the following:
+
+.. code-block:: none
 
    Sat Nov  7 18:02:33 2009    Profile.prof
 
@@ -275,7 +277,9 @@ necessary changes for these ideas::
            val += recip_square(k)
        return (6 * val)**.5
 
-Now running the profile script yields::
+Now running the profile script yields:
+
+.. code-block:: none
 
    Sat Nov  7 18:10:11 2009    Profile.prof
 
@@ -313,7 +317,9 @@ profile recip_square any more; we couldn't get the function to be much faster an
            val += recip_square(k)
        return (6 * val)**.5
 
-Running this shows an interesting result::
+Running this shows an interesting result:
+
+.. code-block:: none
 
    Sat Nov  7 18:15:02 2009    Profile.prof
 
