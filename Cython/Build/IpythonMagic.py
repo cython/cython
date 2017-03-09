@@ -93,9 +93,17 @@ class CythonMagics(Magics):
         self._pyximport_installed = False
 
     def _import_all(self, module):
-        for k,v in module.__dict__.items():
-            if not k.startswith('__'):
-                self.shell.push({k:v})
+        mdict = module.__dict__
+        if '__all__' in mdict:
+            for k in mdict['__all__']:
+                if k in mdict:
+                    self.shell.push({k:mdict[k]})
+                else:
+                    raise AttributeError("'module' object has no attribute '%s'" % k)
+        else:
+            for k, v in mdict.items():
+                if not k.startswith('__'):
+                    self.shell.push({k:v})
 
     @cell_magic
     def cython_inline(self, line, cell):
