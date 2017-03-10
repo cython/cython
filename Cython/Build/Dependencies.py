@@ -745,8 +745,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
 
                 kwds['name'] = module_name
 
-                sources = [file]
-                sources += [m for m in template.sources if m != filepattern]
+                sources = [file] + [m for m in template.sources if m != filepattern]
                 if 'sources' in kwds:
                     # allow users to add .c files etc.
                     for source in kwds['sources']:
