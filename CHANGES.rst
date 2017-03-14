@@ -14,6 +14,10 @@ Features added
 
 * Support pyximport from zip files.
   Patch by Sergei Lebedev (Github issue #1485).
+  
+* IPython magic now respects `__all__` variable.  Also skips
+  leading-underscore values (like `import *`).
+  Patch by Syrtis Major (Github issue #1625).
 
 Bugs fixed
 ----------
