@@ -285,13 +285,31 @@ static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_di
                                                    Py_ssize_t* p_orig_length, int* p_source_is_dict) {
     is_dict = is_dict || likely(PyDict_CheckExact(iterable));
     *p_source_is_dict = is_dict;
-#if !CYTHON_COMPILING_IN_PYPY
     if (is_dict) {
+#if !CYTHON_COMPILING_IN_PYPY
         *p_orig_length = PyDict_Size(iterable);
         Py_INCREF(iterable);
         return iterable;
-    }
+#elif PY_MAJOR_VERSION >= 3
+        /* On Python 3.x, we need to translate manually a few method
+           names.  This logic is not needed on CPython thanks to the
+           fast case above. */
+        static PyObject *py_items = NULL, *py_keys = NULL, *py_values = NULL;
+        const char *name = PyUnicode_AsUTF8(method_name);
+        PyObject **pp = NULL;
+        if (strcmp(name, "iteritems") == 0) pp = &py_items;
+        else if (strcmp(name, "iterkeys") == 0) pp = &py_keys;
+        else if (strcmp(name, "itervalues") == 0) pp = &py_values;
+        if (pp) {
+            if (!*pp) {
+                *pp = PyUnicode_FromString(name + 4);
+                if (!*pp)
+                    return NULL;
+            }
+            method_name = *pp;
+        }
 #endif
+    }
     *p_orig_length = 0;
     if (method_name) {
         PyObject* iter;
