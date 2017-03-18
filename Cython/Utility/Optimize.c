@@ -291,9 +291,8 @@ static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_di
         Py_INCREF(iterable);
         return iterable;
 #elif PY_MAJOR_VERSION >= 3
-        /* On Python 3.x, we need to translate manually a few method
-           names.  This logic is not needed on CPython thanks to the
-           fast case above. */
+        // On PyPy3, we need to translate manually a few method names.
+        // This logic is not needed on CPython thanks to the fast case above.
         static PyObject *py_items = NULL, *py_keys = NULL, *py_values = NULL;
         const char *name = PyUnicode_AsUTF8(method_name);
         PyObject **pp = NULL;
