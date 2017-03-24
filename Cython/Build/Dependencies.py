@@ -637,6 +637,20 @@ def create_dependency_tree(ctx=None, quiet=False):
     return _dep_tree
 
 
+# If this changes, change also docs/src/reference/compilation.rst
+# which mentions this function
+def default_create_extension(template, kwds):
+    if 'depends' in kwds:
+        include_dirs = kwds.get('include_dirs', []) + ["."]
+        depends = resolve_depends(kwds['depends'], include_dirs)
+        kwds['depends'] = sorted(set(depends + template.depends))
+
+    t = template.__class__
+    ext = t(**kwds)
+    metadata = dict(distutils=kwds, module_name=kwds['name'])
+    return (ext, metadata)
+
+
 # This may be useful for advanced users?
 def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=False, language=None,
                           exclude_failures=False):
@@ -669,13 +683,16 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
         Extension_distutils = Extension
         class Extension_setuptools(Extension): pass
 
+    # if no create_extension() function is defined, use a simple
+    # default function.
+    create_extension = ctx.options.create_extension or default_create_extension
+
     for pattern in patterns:
         if isinstance(pattern, str):
             filepattern = pattern
-            template = None
+            template = Extension(pattern, [])  # Fake Extension without sources
             name = '*'
             base = None
-            exn_type = Extension
             ext_language = language
         elif isinstance(pattern, (Extension_distutils, Extension_setuptools)):
             cython_sources = [s for s in pattern.sources
@@ -693,7 +710,6 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
             template = pattern
             name = template.name
             base = DistutilsInfo(exn=template)
-            exn_type = template.__class__
             ext_language = None  # do not override whatever the Extension says
         else:
             msg = str("pattern is not of type str nor subclass of Extension (%s)"
@@ -727,39 +743,28 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                         if key not in kwds:
                             kwds[key] = value
 
-                sources = [file]
-                if template is not None:
-                    sources += [m for m in template.sources if m != filepattern]
+                kwds['name'] = module_name
+
+                sources = [file] + [m for m in template.sources if m != filepattern]
                 if 'sources' in kwds:
                     # allow users to add .c files etc.
                     for source in kwds['sources']:
                         source = encode_filename_in_py2(source)
                         if source not in sources:
                             sources.append(source)
-                    extra_sources = kwds['sources']
-                    del kwds['sources']
-                else:
-                    extra_sources = None
-                if 'depends' in kwds:
-                    depends = resolve_depends(kwds['depends'], (kwds.get('include_dirs') or []) + ["."])
-                    if template is not None:
-                        # Always include everything from the template.
-                        depends = set(template.depends).union(depends)
-                    # Sort depends to make the metadata dump in the
-                    # Cython-generated C code predictable.
-                    kwds['depends'] = sorted(depends)
+                kwds['sources'] = sources
 
                 if ext_language and 'language' not in kwds:
                     kwds['language'] = ext_language
 
-                module_list.append(exn_type(
-                        name=module_name,
-                        sources=sources,
-                        **kwds))
-                if extra_sources:
-                    kwds['sources'] = extra_sources
-                module_metadata[module_name] = {'distutils': kwds, 'module_name': module_name}
-                m = module_list[-1]
+                # Create the new extension
+                m, metadata = create_extension(template, kwds)
+                module_list.append(m)
+
+                # Store metadata (this will be written as JSON in the
+                # generated C file but otherwise has no purpose)
+                module_metadata[module_name] = metadata
+
                 if file not in m.sources:
                     # Old setuptools unconditionally replaces .pyx with .c
                     m.sources.remove(file.rsplit('.')[0] + '.c')
