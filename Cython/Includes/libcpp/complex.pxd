@@ -8,28 +8,6 @@ cdef extern from "<complex>" namespace "std" nogil:
         # How to make the converting constructor, i.e. convert complex[double]
         # to complex[float]?
 
-        complex[T] operator+(complex[T]&)
-        complex[T] operator-(complex[T]&)
-        complex[T] operator+(complex[T]&, complex[T]&)
-        complex[T] operator+(complex[T]&, T&)
-        complex[T] operator+(T&, complex[T]&)
-        complex[T] operator-(complex[T]&, complex[T]&)
-        complex[T] operator-(complex[T]&, T&)
-        complex[T] operator-(T&, complex[T]&)
-        complex[T] operator*(complex[T]&, complex[T]&)
-        complex[T] operator*(complex[T]&, T&)
-        complex[T] operator*(T&, complex[T]&)
-        complex[T] operator/(complex[T]&, complex[T]&)
-        complex[T] operator/(complex[T]&, T&)
-        complex[T] operator/(T&, complex[T]&)
-
-        bint operator==(complex[T]&, complex[T]&)
-        bint operator==(complex[T]&, T&)
-        bint operator==(T&, complex[T]&)
-        bint operator!=(complex[T]&, complex[T]&)
-        bint operator!=(complex[T]&, T&)
-        bint operator!=(T&, complex[T]&)
-
         # Access real part
         T real()
         void real(T)
@@ -37,6 +15,30 @@ cdef extern from "<complex>" namespace "std" nogil:
         # Access imaginary part
         T imag()
         void imag(T)
+
+    complex[T] operator+[T](complex[T]&, complex[T]&)
+    complex[T] operator+[T](T&, complex[T]&)
+    complex[T] operator+[T](complex[T]&, T&)
+    
+    complex[T] operator-[T](complex[T]&, complex[T]&)
+    complex[T] operator-[T](complex[T]&, T&)
+    complex[T] operator-[T](T&, complex[T]&)
+    
+    complex[T] operator*[T](complex[T]&, complex[T]&)
+    complex[T] operator*[T](complex[T]&, T&)
+    complex[T] operator*[T](T&, complex[T]&)
+    
+    complex[T] operator/[T](complex[T]&, complex[T]&)
+    complex[T] operator/[T](complex[T]&, T&)
+    complex[T] operator/[T](T&, complex[T]&)
+
+    bint operator==[T](complex[T]&, complex[T]&)
+    bint operator==[T](complex[T]&, T&)
+    bint operator==[T](T&, complex[T]&)
+    
+    bint operator!=[T](complex[T]&, complex[T]&)
+    bint operator!=[T](complex[T]&, T&)
+    bint operator!=[T](T&, complex[T]&)
 
     # Return real part
     T real[T](complex[T]&)
