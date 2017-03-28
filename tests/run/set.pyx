@@ -88,6 +88,18 @@ def test_set_update(v=None):
     return s1
 
 
+def test_set_multi_update(a, b, c):
+    """
+    >>> type(test_set_multi_update()) is set
+    True
+    >>> sorted(test_set_multi_update())
+    """
+    ['a', 'b', 'c', 1, 2, (1, 2)]
+    cdef set s1 = set()
+    s1.update('abc', set([1]), frozenset((1,2)))
+    return s1
+
+
 def test_object_update(v=None):
     """
     >>> type(test_object_update()) is set

@@ -319,8 +319,9 @@ builtin_types_table = [
                                     BuiltinMethod("clear",   "T",  "r", "PySet_Clear"),
                                     # discard() and remove() have a special treatment for unhashable values
 #                                    BuiltinMethod("discard", "TO", "r", "PySet_Discard"),
-                                    BuiltinMethod("update",     "TO", "r", "__Pyx_PySet_Update",
-                                                  utility_code=UtilityCode.load_cached("PySet_Update", "Builtins.c")),
+                                    # update is actually variadic (see Github issue #1645)
+#                                    BuiltinMethod("update",     "TO", "r", "__Pyx_PySet_Update",
+#                                                  utility_code=UtilityCode.load_cached("PySet_Update", "Builtins.c")),
                                     BuiltinMethod("add",     "TO", "r", "PySet_Add"),
                                     BuiltinMethod("pop",     "T",  "O", "PySet_Pop")]),
     ("frozenset", "PyFrozenSet_Type", []),
