@@ -39,6 +39,10 @@ class A {
         U overloaded(std::vector<U> v) {
             return v[0];
         }
+        template <typename U>
+        U overloaded(char* c, std::vector<U> v) {
+            return v[0];
+        }
 };
 
 template <typename T>

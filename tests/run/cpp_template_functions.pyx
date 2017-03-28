@@ -15,6 +15,7 @@ cdef extern from "cpp_template_functions_helper.h":
         int overloaded(double x)
         T overloaded(pair[T, T])
         U overloaded[U](vector[U])
+        X overloaded[X](char* s, vector[X])
     cdef T nested_deduction[T](const T*)
     pair[T, U] pair_arg[T, U](pair[T, U] a)
     cdef T* pointer_param[T](T*)
@@ -114,5 +115,6 @@ def test_overload_GH1583():
     assert a.overloaded(p) == 2
     cdef vector[double] v = [0.25, 0.125]
     assert a.overloaded(v) == 0.25
+    assert a.overloaded("s", v) == 0.25
     # GH Issue #1584
     # assert a.overloaded[double](v) == 0.25

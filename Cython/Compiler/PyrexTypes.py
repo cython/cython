@@ -2265,7 +2265,7 @@ class CArrayType(CPointerBaseType):
         if isinstance(actual, CArrayType):
             return self.base_type.deduce_template_params(actual.base_type)
         else:
-            return None
+            return {}
 
     def can_coerce_to_pyobject(self, env):
         return self.base_type.can_coerce_to_pyobject(env)
@@ -2403,7 +2403,7 @@ class CPtrType(CPointerBaseType):
         if isinstance(actual, CPtrType):
             return self.base_type.deduce_template_params(actual.base_type)
         else:
-            return None
+            return {}
 
     def invalid_value(self):
         return "1"
@@ -3516,7 +3516,7 @@ class CppClassType(CType):
         if self == actual:
             return {}
         elif actual.is_cpp_class:
-            self_template_type = self.template_type or self
+            self_template_type = self
             while getattr(self_template_type, 'template_type', None):
                 self_template_type = self_template_type.template_type
             def all_bases(cls):
