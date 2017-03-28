@@ -449,6 +449,22 @@ class LazyStr:
         return left + self.callback()
 
 
+class OrderedSet(object):
+  def __init__(self, elements=()):
+    self._list = []
+    self._set = set()
+    self.update(elements)
+  def __iter__(self):
+    return iter(self._list)
+  def update(self, elements):
+    for e in elements:
+      self.add(e)
+  def add(self, e):
+    if e not in self._set:
+      self._list.append(e)
+      self._set.add(e)
+
+
 # Class decorator that adds a metaclass and recreates the class with it.
 # Copied from 'six'.
 def add_metaclass(metaclass):
