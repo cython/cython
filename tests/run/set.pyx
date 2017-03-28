@@ -88,15 +88,15 @@ def test_set_update(v=None):
     return s1
 
 
-def test_set_multi_update(a, b, c):
+def test_set_multi_update():
     """
     >>> type(test_set_multi_update()) is set
     True
     >>> sorted(test_set_multi_update())
+    ['a', 'b', 'c', 1, 2, 3]
     """
-    ['a', 'b', 'c', 1, 2, (1, 2)]
     cdef set s1 = set()
-    s1.update('abc', set([1]), frozenset((1,2)))
+    s1.update('abc', set([1, 3]), frozenset([1, 2]))
     return s1
 
 
