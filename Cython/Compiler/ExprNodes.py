@@ -3562,6 +3562,9 @@ class IndexNode(_IndexingBaseNode):
             if base_type.templates is None:
                 error(self.pos, "Can only parameterize template functions.")
                 self.type = error_type
+            elif self.type_indices is None:
+                # Error recorded earlier.
+                self.type = error_type
             elif len(base_type.templates) != len(self.type_indices):
                 error(self.pos, "Wrong number of template arguments: expected %s, got %s" % (
                         (len(base_type.templates), len(self.type_indices))))
