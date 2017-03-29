@@ -129,6 +129,14 @@ A few more tricks and tips:
     cdef extern from *:
         ...
 
+* If the header file needs to reference any variable declared by Cython
+  itself, add a pipe symbol (``|``) in front of the name.
+  This way, Cython will generate the ``#include "spam.h"`` statement
+  after all declarations of Cython variables::
+
+    cdef extern from "|spam.h":
+        ...
+
 Implementing functions in C
 ---------------------------
 

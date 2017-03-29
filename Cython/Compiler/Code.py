@@ -988,6 +988,7 @@ class GlobalState(object):
         'global_var',
         'string_decls',
         'decls',
+        'late_includes',
         'all_the_rest',
         'pystring_table',
         'cached_builtins',

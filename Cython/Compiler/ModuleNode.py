@@ -356,6 +356,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("")
         code.putln("/* Implementation of '%s' */" % env.qualified_name)
 
+        code = globalstate['late_includes']
+        self.generate_includes(env, modules, code, late=True)
+
         code = globalstate['all_the_rest']
 
         self.generate_cached_builtins_decls(env, code)
@@ -659,7 +662,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("#define %s" % Naming.h_guard_prefix + self.api_name(env))
         code.putln("#define %s" % Naming.api_guard_prefix + self.api_name(env))
-        self.generate_includes(env, cimported_modules, code)
+        self.generate_includes(env, cimported_modules, code, early=True)
         code.putln("")
         code.putln("#ifdef PYREX_WITHOUT_ASSERTIONS")
         code.putln("#define CYTHON_WITHOUT_ASSERTIONS")
@@ -727,16 +730,27 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  #define DL_IMPORT(_T) _T")
         code.putln("#endif")
 
-    def generate_includes(self, env, cimported_modules, code):
-        includes = []
+    def generate_includes(self, env, cimported_modules, code, early=False, late=False):
+        # If early is True, generate only "early" includes.
+        # If late is True, generate only "late" includes, denoted with
+        # leading pipe (|).
         for filename in env.include_files:
             byte_decoded_filenname = str(filename)
+            if byte_decoded_filenname[0] == "|":  # late include
+                byte_decoded_filenname = byte_decoded_filenname[1:]
+                if early:
+                    continue
+            else:  # early include
+                if late:
+                    continue
+
             if byte_decoded_filenname[0] == '<' and byte_decoded_filenname[-1] == '>':
                 code.putln('#include %s' % byte_decoded_filenname)
             else:
                 code.putln('#include "%s"' % byte_decoded_filenname)
 
-        code.putln_openmp("#include <omp.h>")
+        if not late:
+            code.putln_openmp("#include <omp.h>")
 
     def generate_filename_table(self, code):
         from os.path import isabs, basename
