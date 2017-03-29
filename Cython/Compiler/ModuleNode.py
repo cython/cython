@@ -90,7 +90,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if x not in L1:
                     L1.append(x)
 
-        extend_if_not_in(self.scope.include_files, scope.include_files)
+        extend_if_not_in(self.scope.include_files_early, scope.include_files_early)
+        extend_if_not_in(self.scope.include_files_late, scope.include_files_late)
         extend_if_not_in(self.scope.included_files, scope.included_files)
         extend_if_not_in(self.scope.python_include_files,
                          scope.python_include_files)
@@ -137,6 +138,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         env.return_type = PyrexTypes.c_void_type
         self.referenced_modules = []
         self.find_referenced_modules(env, self.referenced_modules, {})
+        env.fixup_includes()
         self.sort_cdef_classes(env)
         self.generate_c_code(env, options, result)
         self.generate_h_code(env, options, result)
@@ -361,6 +363,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("int %s%s = 0;" % (Naming.module_is_main, self.full_module_name.replace('.', '__')))
         code.putln("")
         code.putln("/* Implementation of '%s' */" % env.qualified_name)
+
+        code = globalstate['late_includes']
+        code.putln("/* Late includes */")
+        self.generate_includes(env, modules, code, early=False)
 
         code = globalstate['all_the_rest']
 
@@ -653,7 +659,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("#define %s" % Naming.h_guard_prefix + self.api_name(env))
         code.putln("#define %s" % Naming.api_guard_prefix + self.api_name(env))
-        self.generate_includes(env, cimported_modules, code)
+        code.putln("/* Early includes */")
+        self.generate_includes(env, cimported_modules, code, late=False)
         code.putln("")
         code.putln("#if defined(PYREX_WITHOUT_ASSERTIONS) && !defined(CYTHON_WITHOUT_ASSERTIONS)")
         code.putln("#define CYTHON_WITHOUT_ASSERTIONS")
@@ -727,16 +734,22 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  #define DL_IMPORT(_T) _T")
         code.putln("#endif")
 
-    def generate_includes(self, env, cimported_modules, code):
+    def generate_includes(self, env, cimported_modules, code, early=True, late=True):
         includes = []
-        for filename in env.include_files:
+        if early:
+            includes += env.include_files_early
+        if late:
+            includes += env.include_files_late
+        for filename in includes:
             byte_decoded_filenname = str(filename)
+
             if byte_decoded_filenname[0] == '<' and byte_decoded_filenname[-1] == '>':
                 code.putln('#include %s' % byte_decoded_filenname)
             else:
                 code.putln('#include "%s"' % byte_decoded_filenname)
 
-        code.putln_openmp("#include <omp.h>")
+        if early:
+            code.putln_openmp("#include <omp.h>")
 
     def generate_filename_table(self, code):
         from os.path import isabs, basename

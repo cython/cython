@@ -1067,7 +1067,8 @@ class ModuleScope(Scope):
     # doc_cname            string             C name of module doc string
     # utility_code_list    [UtilityCode]      Queuing utility codes for forwarding to Code.py
     # python_include_files [string]           Standard  Python headers to be included
-    # include_files        [string]           Other C headers to be included
+    # include_files_early  [string]           C headers to be included before Cython decls
+    # include_files_late   [string]           C headers to be included after Cython decls
     # string_to_entry      {string : Entry}   Map string const to entry
     # identifier_to_entry  {string : Entry}   Map identifier string const to entry
     # context              Context
@@ -1111,7 +1112,8 @@ class ModuleScope(Scope):
         self.utility_code_list = []
         self.module_entries = {}
         self.python_include_files = ["Python.h"]
-        self.include_files = []
+        self.include_files_early = []
+        self.include_files_late = []
         self.type_names = dict(outer_scope.type_names)
         self.pxd_file_loaded = 0
         self.cimported_modules = []
@@ -1247,15 +1249,31 @@ class ModuleScope(Scope):
             module = module.lookup_submodule(submodule)
         return module
 
-    def add_include_file(self, filename):
-        if filename not in self.python_include_files \
-            and filename not in self.include_files:
-                self.include_files.append(filename)
+    def add_include_file(self, filename, late=False):
+        if filename in self.python_include_files:
+            return
+        # Possibly, the same include appears both as early and as late
+        # include. We'll deal with this in fixup_includes().
+        if late:
+            incs = self.include_files_late
+        else:
+            incs = self.include_files_early
+        if filename not in incs:
+            incs.append(filename)
+
+    def fixup_includes(self):
+        for filename in self.include_files_early:
+            try:
+                self.include_files_late.remove(filename)
+            except ValueError:
+                pass
 
     def add_imported_module(self, scope):
         if scope not in self.cimported_modules:
-            for filename in scope.include_files:
-                self.add_include_file(filename)
+            for filename in scope.include_files_early:
+                self.add_include_file(filename, late=False)
+            for filename in scope.include_files_late:
+                self.add_include_file(filename, late=True)
             self.cimported_modules.append(scope)
             for m in scope.cimported_modules:
                 self.add_imported_module(m)
