@@ -167,7 +167,7 @@ with string attributes if they are to be used after the function returns.
 C functions, on the other hand, can have parameters of any type, since they're
 passed in directly using a normal C function call.
 
-Functions declared using :keyword:`cdef`, like Python functions, will return a :keyword:`False`
+Functions declared using :keyword:`cdef`, like Python functions, will return a :keyword:`None`
 value when execution leaves the function body without an explicit return value. This is in
 contrast to C/C++, which leaves the return value undefined.
 
