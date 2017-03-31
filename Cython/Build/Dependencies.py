@@ -375,14 +375,30 @@ def normalize_existing(base_path, rel_paths):
 
 @cached_function
 def normalize_existing0(base_dir, rel_paths):
+    """
+    Given some base directory ``base_dir`` and a list of path names
+    ``rel_paths``, normalize each relative path name ``rel`` by
+    replacing it by ``os.path.join(base, rel)`` if that file exists.
+
+    Return a couple ``(normalized, needed_base)`` where ``normalized``
+    if the list of normalized file names and ``needed_base`` is
+    ``base_dir`` if we actually needed ``base_dir``. If no paths were
+    changed (for example, if all paths were already absolute), then
+    ``needed_base`` is ``None``.
+    """
     normalized = []
+    needed_base = None
     for rel in rel_paths:
+        if os.path.isabs(rel):
+            normalized.append(rel)
+            continue
         path = join_path(base_dir, rel)
         if path_exists(path):
             normalized.append(os.path.normpath(path))
+            needed_base = base_dir
         else:
             normalized.append(rel)
-    return normalized
+    return (normalized, needed_base)
 
 
 def resolve_depends(depends, include_dirs):
@@ -483,20 +499,25 @@ class DependencyTree(object):
         return all
 
     @cached_method
-    def cimports_and_externs(self, filename):
+    def cimports_externs_incdirs(self, filename):
         # This is really ugly. Nested cimports are resolved with respect to the
         # includer, but includes are resolved with respect to the includee.
         cimports, includes, externs = self.parse_dependencies(filename)[:3]
         cimports = set(cimports)
         externs = set(externs)
+        incdirs = set()
         for include in self.included_files(filename):
-            included_cimports, included_externs = self.cimports_and_externs(include)
+            included_cimports, included_externs, included_incdirs = self.cimports_externs_incdirs(include)
             cimports.update(included_cimports)
             externs.update(included_externs)
-        return tuple(cimports), normalize_existing(filename, externs)
+            incdirs.update(included_incdirs)
+        externs, incdir = normalize_existing(filename, externs)
+        if incdir:
+            incdirs.add(incdir)
+        return tuple(cimports), externs, incdirs
 
     def cimports(self, filename):
-        return self.cimports_and_externs(filename)[0]
+        return self.cimports_externs_incdirs(filename)[0]
 
     def package(self, filename):
         return package(filename)
@@ -579,12 +600,22 @@ class DependencyTree(object):
 
     def distutils_info0(self, filename):
         info = self.parse_dependencies(filename)[3]
-        externs = self.cimports_and_externs(filename)[1]
+        kwds = info.values
+        cimports, externs, incdirs = self.cimports_externs_incdirs(filename)
+        # Add dependencies on "cdef extern from ..." files
         if externs:
-            if 'depends' in info.values:
-                info.values['depends'] = list(set(info.values['depends']).union(externs))
+            if 'depends' in kwds:
+                kwds['depends'] = list(set(kwds['depends']).union(externs))
             else:
-                info.values['depends'] = list(externs)
+                kwds['depends'] = list(externs)
+        # Add include_dirs to ensure that the C compiler will find the
+        # "cdef extern from ..." files
+        if incdirs:
+            include_dirs = kwds.get('include_dirs', [])
+            for inc in incdirs:
+                if inc not in include_dirs:
+                    include_dirs = include_dirs + [inc]
+            kwds['include_dirs'] = include_dirs
         return info
 
     def distutils_info(self, filename, aliases=None, base=None):

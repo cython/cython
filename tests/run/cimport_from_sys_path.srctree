@@ -19,8 +19,15 @@ setup(
 
 ######## site-packages/b/other.pxd ########
 
-cdef inline foo(int a):
-     return a**2
+cdef extern from "foo.c":
+    int foo(int)
+
+######## site-packages/b/foo.c ########
+
+static int foo(int a)
+{
+    return a * a;
+}
 
 ######## a.pyx ########
 
