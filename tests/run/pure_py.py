@@ -244,6 +244,26 @@ def ccall_except(x):
         raise ValueError
     return x+1
 
+
+@cython.cfunc
+@cython.returns(cython.long)
+@cython.except_(-1)
+def cdef_except(x):
+    """
+    >>> call_cdef_except(41)
+    42
+    >>> call_cdef_except(0) #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    ValueError
+    """
+    if x == 0:
+        raise ValueError
+    return x+1
+
+def call_cdef_except(x):
+    return cdef_except(x)
+
 @cython.cfunc
 @cython.inline
 @cython.returns(cython.double)
