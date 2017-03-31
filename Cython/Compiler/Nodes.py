@@ -2674,7 +2674,8 @@ class DefNode(FuncDefNode):
         self.num_required_kw_args = rk
         self.num_required_args = r
 
-    def as_cfunction(self, cfunc=None, scope=None, overridable=True, returns=None, modifiers=None):
+    def as_cfunction(self, cfunc=None, scope=None, overridable=True, returns=None,
+                     except_directive=None, modifiers=None):
         if self.star_arg:
             error(self.star_arg.pos, "cdef function cannot have star argument")
         if self.starstar_arg:
@@ -2710,7 +2711,9 @@ class DefNode(FuncDefNode):
                     formal_arg.type = type_arg.type
                     formal_arg.name_declarator = name_declarator
         from . import ExprNodes
-        if cfunc_type.exception_value is None:
+        if except_directive:
+            exception_value = except_directive
+        elif cfunc_type.exception_value is None:
             exception_value = None
         else:
             exception_value = ExprNodes.ConstNode(

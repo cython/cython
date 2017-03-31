@@ -273,6 +273,7 @@ directive_types = {
     'staticmethod' : None,
     'cclass' : None,
     'returns' : type,
+    'except_' : type,
     'set_initial_path': str,
     'freelist': int,
     'c_string_type': one_of('bytes', 'bytearray', 'str', 'unicode'),

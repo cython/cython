@@ -5,7 +5,6 @@ is_compiled = cython.compiled
 NULL = 5
 _NULL = NULL
 
-
 def test_sizeof():
     """
     >>> test_sizeof()
@@ -228,6 +227,22 @@ def call_ccall(x):
     ret = c_call(x)
     return ret, cython.typeof(ret)
 
+
+@cython.ccall
+@cython.returns(cython.long)
+@cython.except_(-1)
+def ccall_except(x):
+    """
+    >>> ccall_except(41)
+    42
+    >>> ccall_except(0) #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    ValueError
+    """
+    if x == 0:
+        raise ValueError
+    return x+1
 
 @cython.cfunc
 @cython.inline
