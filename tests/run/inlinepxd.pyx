@@ -5,6 +5,10 @@ __doc__ = u"""
 6
 >>> h()
 6
+>>> i()
+6
+>>> j()
+6
 """
 
 cimport inlinepxd_support
@@ -18,3 +22,9 @@ def g():
 
 def h():
     return my_add3(1, 2, 3)
+
+def i():
+    return my_add3(5)
+
+def j():
+    return my_add3(2, 4)
