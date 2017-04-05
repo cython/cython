@@ -35,6 +35,19 @@ cdef extern from "Python.h":
     # unless a non-empty fromlist was given. Changed in version 2.4:
     # failing imports remove incomplete module objects.
 
+    object PyImport_ImportModuleLevel(char *name, object globals, object locals, object fromlist, int level)
+    # Return value: New reference.
+
+    # Import a module. This is best described by referring to the
+    # built-in Python function __import__(), as the standard
+    # __import__() function calls this function directly.
+
+    # The return value is a new reference to the imported module or
+    # top-level package, or NULL with an exception set on failure. Like
+    # for __import__(), the return value when a submodule of a package
+    # was requested is normally the top-level package, unless a
+    # non-empty fromlist was given.
+
     object PyImport_Import(object name)
     # Return value: New reference.
     # This is a higher-level interface that calls the current ``import
