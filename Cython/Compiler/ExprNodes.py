@@ -4583,7 +4583,10 @@ class SliceIndexNode(ExprNode):
         self.is_temp = 1
         return self
 
-    nogil_check = Node.gil_error
+    def nogil_check(self, env):
+        if not self.base.type.is_array:
+            self.gil_error()
+
     gil_message = "Slicing Python object"
 
     get_slice_utility_code = TempitaUtilityCode.load(
