@@ -2952,7 +2952,7 @@ def p_c_arg_decl(s, ctx, in_pyfunc, cmethod_flag = 0, nonempty = 0,
         annotation = p_test(s)
     if s.sy == '=':
         s.next()
-        if 'pxd' in ctx.level:
+        if 'pxd' in ctx.level and 'inline' not in ctx.modifiers:
             if s.sy not in ['*', '?']:
                 error(pos, "default values cannot be specified in pxd files, use ? or *")
             default = ExprNodes.BoolNode(1)
@@ -3192,7 +3192,7 @@ def p_c_func_or_var_declaration(s, pos, ctx):
     cmethod_flag = ctx.level in ('c_class', 'c_class_pxd')
     modifiers = p_c_modifiers(s)
     base_type = p_c_base_type(s, nonempty = 1, templates = ctx.templates)
-    declarator = p_c_declarator(s, ctx, cmethod_flag = cmethod_flag,
+    declarator = p_c_declarator(s, ctx(modifiers=modifiers), cmethod_flag = cmethod_flag,
                                 assignable = 1, nonempty = 1)
     declarator.overridable = ctx.overridable
     if s.sy == 'IDENT' and s.systring == 'const' and ctx.level == 'cpp_class':
