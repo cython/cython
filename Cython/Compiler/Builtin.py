@@ -115,24 +115,17 @@ builtin_function_table = [
                             PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_longlong_type, None)
                         ],
                         is_strict_signature = True, nogil=True)),
-    BuiltinFunction('abs',        None,    None,   "__Pyx_c_abs{0}".format(PyrexTypes.c_double_complex_type.funcsuffix),
+    ] + list(
+    BuiltinFunction('abs',        None,    None,   "__Pyx_c_abs{0}".format(t.funcsuffix),
                     func_type = PyrexTypes.CFuncType(
-                        PyrexTypes.c_double_type, [
-                            PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_double_complex_type, None)
+                        t.real_type, [
+                            PyrexTypes.CFuncTypeArg("arg", t, None)
                             ],
-                            is_strict_signature = True, nogil=True)),
-    BuiltinFunction('abs',        None,    None,   "__Pyx_c_abs{0}".format(PyrexTypes.c_float_complex_type.funcsuffix),
-                    func_type = PyrexTypes.CFuncType(
-                        PyrexTypes.c_float_type, [
-                            PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_float_complex_type, None)
-                            ],
-                            is_strict_signature = True, nogil=True)),
-    BuiltinFunction('abs',        None,    None,   "__Pyx_c_abs{0}".format(PyrexTypes.c_longdouble_complex_type.funcsuffix),
-                    func_type = PyrexTypes.CFuncType(
-                        PyrexTypes.c_longdouble_type, [
-                            PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_longdouble_complex_type, None)
-                            ],
-                            is_strict_signature = True, nogil=True)),
+                            is_strict_signature = True, nogil=True)) 
+                        for t in (PyrexTypes.c_float_complex_type,
+                                  PyrexTypes.c_double_complex_type,
+                                  PyrexTypes.c_longdouble_complex_type)
+                        ) + [
     BuiltinFunction('abs',        "O",    "O",     "PyNumber_Absolute"),
     #('all',       "",     "",      ""),
     #('any',       "",     "",      ""),
