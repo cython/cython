@@ -2523,22 +2523,26 @@ class PropertyScope(Scope):
             return None
 
 
-class CConstScope(Scope):
+class CConstOrVolatileScope(Scope):
 
-    def __init__(self, const_base_type_scope):
+    def __init__(self, base_type_scope, is_const=0, is_volatile=0):
         Scope.__init__(
             self,
-            'const_' + const_base_type_scope.name,
-            const_base_type_scope.outer_scope,
-            const_base_type_scope.parent_scope)
-        self.const_base_type_scope = const_base_type_scope
+            'cv_' + base_type_scope.name,
+            base_type_scope.outer_scope,
+            base_type_scope.parent_scope)
+        self.base_type_scope = base_type_scope
+        self.is_const = is_const
+        self.is_volatile = is_volatile
 
     def lookup_here(self, name):
-        entry = self.const_base_type_scope.lookup_here(name)
+        entry = self.base_type_scope.lookup_here(name)
         if entry is not None:
             entry = copy.copy(entry)
-            entry.type = PyrexTypes.c_const_type(entry.type)
+            entry.type = PyrexTypes.c_const_or_volatile_type(
+                    entry.type, self.is_const, self.is_volatile)
             return entry
+
 
 class TemplateScope(Scope):
     def __init__(self, name, outer_scope):

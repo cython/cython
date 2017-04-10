@@ -317,8 +317,8 @@ def p_typecast(s):
     base_type = p_c_base_type(s)
     is_memslice = isinstance(base_type, Nodes.MemoryViewSliceTypeNode)
     is_template = isinstance(base_type, Nodes.TemplatedTypeNode)
-    is_const = isinstance(base_type, Nodes.CConstTypeNode)
-    if (not is_memslice and not is_template and not is_const
+    is_const_volatile = isinstance(base_type, Nodes.CConstOrVolatileTypeNode)
+    if (not is_memslice and not is_template and not is_const_volatile
         and base_type.name is None):
         s.error("Unknown type")
     declarator = p_c_declarator(s, empty = 1)
@@ -2479,16 +2479,31 @@ def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
     complex = 0
     module_path = []
     pos = s.position()
-    if not s.sy == 'IDENT':
-        error(pos, "Expected an identifier, found '%s'" % s.sy)
-    if s.systring == 'const':
+
+    # Handle const/volatile
+    is_const = is_volatile = 0
+    while True:
+        if s.systring == 'const':
+            if is_const: error(pos, "Duplicate 'const'")
+            is_const = 1
+        elif s.systring == 'volatile':
+            if is_volatile: error(pos, "Duplicate 'volatile'")
+            is_volatile = 1
+        else:
+            break
         s.next()
+    if is_const or is_volatile:
         base_type = p_c_base_type(s, self_flag=self_flag, nonempty=nonempty, templates=templates)
         if isinstance(base_type, Nodes.MemoryViewSliceTypeNode):
             # reverse order to avoid having to write "(const int)[:]"
-            base_type.base_type_node = Nodes.CConstTypeNode(pos, base_type=base_type.base_type_node)
+            base_type.base_type_node = Nodes.CConstOrVolatileTypeNode(pos,
+                base_type=base_type.base_type_node, is_const=is_const, is_volatile=is_volatile)
             return base_type
-        return Nodes.CConstTypeNode(pos, base_type=base_type)
+        return Nodes.CConstOrVolatileTypeNode(pos,
+            base_type=base_type, is_const=is_const, is_volatile=is_volatile)
+
+    if s.sy != 'IDENT':
+        error(pos, "Expected an identifier, found '%s'" % s.sy)
     if looking_at_base_type(s):
         #print "p_c_simple_base_type: looking_at_base_type at", s.position()
         is_basic = 1
