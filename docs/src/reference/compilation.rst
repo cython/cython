@@ -253,7 +253,7 @@ of the extension module sources::
 
     if USE_CYTHON:
         from Cython.Build import cythonize
-        extensions = cythonize(extensions)
+        ext_modules = cythonize(extensions)
 
     setup(
         ext_modules = extensions
