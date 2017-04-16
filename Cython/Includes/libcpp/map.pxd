@@ -1,4 +1,4 @@
-from .utility cimport pair
+from libcpp.utility cimport pair
 
 cdef extern from "<map>" namespace "std" nogil:
     cdef cppclass map[T, U, COMPARE=*, ALLOCATOR=*]:
