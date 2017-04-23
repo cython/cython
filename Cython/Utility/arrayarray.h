@@ -47,6 +47,10 @@ struct arrayobject {
         char *as_chars;
         unsigned long *as_ulongs;
         long *as_longs;
+#if PY_MAJOR_VERSION >= 3
+        unsigned long long *as_ulonglongs;
+        long long *as_longlongs;
+#endif
         short *as_shorts;
         unsigned short *as_ushorts;
         Py_UNICODE *as_pyunicodes;
