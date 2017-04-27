@@ -214,8 +214,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_public_declaration(self, entry, h_code, i_code):
         h_code.putln("%s %s;" % (
             Naming.extern_c_macro,
-            entry.type.declaration_code(
-                entry.cname, dll_linkage="DL_IMPORT")))
+            entry.type.declaration_code(entry.cname)))
         if i_code:
             i_code.putln("cdef extern %s" % (
                 entry.type.declaration_code(entry.cname, pyrex=1)))
@@ -2849,7 +2848,7 @@ def generate_cfunction_declaration(entry, env, code, definition):
             dll_linkage = "DL_IMPORT"
         elif entry.visibility == 'public':
             storage_class = Naming.extern_c_macro
-            dll_linkage = "DL_EXPORT"
+            dll_linkage = None
         elif entry.visibility == 'private':
             storage_class = "static"
             dll_linkage = None
