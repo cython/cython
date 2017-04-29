@@ -500,9 +500,13 @@ You can release the GIL around a section of code using the
     with nogil:
         <code to be executed with the GIL released>
 
-Code in the body of the statement must not manipulate Python objects in any
-way, and must not call anything that manipulates Python objects without first
-re-acquiring the GIL. Cython currently does not check this.
+Code in the body of the with-statement must not raise exceptions or
+manipulate Python objects in any way, and must not call anything that
+manipulates Python objects without first re-acquiring the GIL.  Cython
+validates these operations at compile time, but cannot look into
+external C functions, for example.  They must be correctly declared
+as requiring or not requiring the GIL (see below) in order to make
+Cython's checks effective.
 
 .. _gil:
 
