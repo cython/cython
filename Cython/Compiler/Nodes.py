@@ -5452,8 +5452,9 @@ class DelStatNode(StatNode):
                 arg.generate_deletion_code(
                     code, ignore_nonexisting=self.ignore_nonexisting)
             elif arg.type.is_ptr and arg.type.base_type.is_cpp_class:
-                arg.generate_result_code(code)
+                arg.generate_evaluation_code(code)
                 code.putln("delete %s;" % arg.result())
+                arg.generate_disposal_code(code)
             # else error reported earlier
 
     def annotate(self, code):
