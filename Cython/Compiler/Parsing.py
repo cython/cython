@@ -19,6 +19,7 @@ from io import StringIO
 import re
 import sys
 from unicodedata import lookup as lookup_unicodechar
+from unicodedata import category as unicat
 from functools import partial, reduce
 
 from .Scanning import PyrexScanner, FileSourceDescriptor, StringSourceDescriptor
@@ -956,6 +957,20 @@ def p_string_literal(s, kind_override=None):
     return (kind, bytes_value, unicode_value)
 
 
+def _uniord(c):
+    """
+    Wrapper around ``ord()`` with better support for wide characters (unicode
+    characters outside the BMP) on narrow Python builds.
+    """
+
+    if (sys.maxunicode <= 0xffff and len(c) == 2 and
+            all(unicat(u) == 'Cs' for u in c)):
+        # 'Cs' is the unicode category for surrogates
+        return 0x10000 + (ord(c[0]) - 0xd800) * 0x400 + (ord(c[1]) - 0xdc00)
+
+    return ord(c)
+
+
 def _append_escape_sequence(kind, builder, escape_sequence, s):
     c = escape_sequence[1]
     if c in u"01234567":
@@ -975,7 +990,7 @@ def _append_escape_sequence(kind, builder, escape_sequence, s):
         chrval = -1
         if c == u'N':
             try:
-                chrval = ord(lookup_unicodechar(escape_sequence[3:-1]))
+                chrval = _uniord(lookup_unicodechar(escape_sequence[3:-1]))
             except KeyError:
                 s.error("Unknown Unicode character name %s" %
                         repr(escape_sequence[3:-1]).lstrip('u'), fatal=False)
