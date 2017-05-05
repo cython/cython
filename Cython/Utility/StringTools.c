@@ -396,6 +396,21 @@ static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Fast(PyObject* ustring, Py
 }
 
 
+/////////////// decode_c_string_utf16.proto ///////////////
+
+static CYTHON_INLINE PyObject *__Pyx_PyUnicode_DecodeUTF16(const char *s, Py_ssize_t size, const char *errors) {
+    int byteorder = 0;
+    return PyUnicode_DecodeUTF16(s, size, errors, &byteorder);
+}
+static CYTHON_INLINE PyObject *__Pyx_PyUnicode_DecodeUTF16LE(const char *s, Py_ssize_t size, const char *errors) {
+    int byteorder = -1;
+    return PyUnicode_DecodeUTF16(s, size, errors, &byteorder);
+}
+static CYTHON_INLINE PyObject *__Pyx_PyUnicode_DecodeUTF16BE(const char *s, Py_ssize_t size, const char *errors) {
+    int byteorder = 1;
+    return PyUnicode_DecodeUTF16(s, size, errors, &byteorder);
+}
+
 /////////////// decode_cpp_string.proto ///////////////
 //@requires: IncludeCppStringH
 //@requires: decode_c_bytes
@@ -417,6 +432,7 @@ static CYTHON_INLINE PyObject* __Pyx_decode_c_string(
 
 /////////////// decode_c_string ///////////////
 //@requires: IncludeStringH
+//@requires: decode_c_string_utf16
 
 /* duplicate code to avoid calling strlen() if start >= 0 and stop >= 0 */
 static CYTHON_INLINE PyObject* __Pyx_decode_c_string(
@@ -459,6 +475,7 @@ static CYTHON_INLINE PyObject* __Pyx_decode_c_bytes(
          PyObject* (*decode_func)(const char *s, Py_ssize_t size, const char *errors));
 
 /////////////// decode_c_bytes ///////////////
+//@requires: decode_c_string_utf16
 
 static CYTHON_INLINE PyObject* __Pyx_decode_c_bytes(
          const char* cstring, Py_ssize_t length, Py_ssize_t start, Py_ssize_t stop,
