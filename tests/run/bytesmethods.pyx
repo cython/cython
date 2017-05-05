@@ -162,7 +162,7 @@ def bytes_decode_utf16(bytes s):
     >>> print(bytes_decode_utf16(s))
     abc
     """
-    return s.decode('UTF-16')
+    return s.decode('utf16')
 
 
 @cython.test_assert_path_exists(
@@ -176,7 +176,7 @@ def bytes_decode_utf16_le(bytes s):
     >>> print(bytes_decode_utf16_le(s))
     abc
     """
-    return s.decode('UTF-16LE')
+    return s.decode('utf_16_le')
 
 
 @cython.test_assert_path_exists(
@@ -190,7 +190,7 @@ def bytes_decode_utf16_be(bytes s):
     >>> print(bytes_decode_utf16_be(s))
     abc
     """
-    return s.decode('UTF-16BE')
+    return s.decode('utf_16_be')
 
 
 @cython.test_assert_path_exists(
