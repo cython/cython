@@ -8076,7 +8076,7 @@ class ParallelStatNode(StatNode, ParallelNode):
 
             invalid_value = entry.type.invalid_value()
             if invalid_value:
-                init = ' = ' + invalid_value
+                init = ' = ' + entry.type.cast_code(invalid_value)
             else:
                 init = ''
             # Declare the parallel private in the outer block
