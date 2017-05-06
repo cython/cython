@@ -872,7 +872,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                     dep_timestamp, dep = deps.newest_dependency(source)
                     priority = 2 - (dep in deps.immediate_dependencies(source))
                 if force or c_timestamp < dep_timestamp:
-                    if not quiet:
+                    if not quiet and not force:
                         if source == dep:
                             print("Compiling %s because it changed." % source)
                         else:
