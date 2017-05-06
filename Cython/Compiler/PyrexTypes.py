@@ -2406,7 +2406,7 @@ class CPtrType(CPointerBaseType):
             return {}
 
     def invalid_value(self):
-        return "1"
+        return "NULL"
 
     def find_cpp_operation_type(self, operator, operand_type=None):
         if self.base_type.is_cpp_class:
