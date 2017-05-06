@@ -5667,6 +5667,8 @@ class RaiseStatNode(StatNode):
         if self.exc_type:
             self.exc_type.generate_evaluation_code(code)
             type_code = self.exc_type.py_result()
+            if self.exc_type.is_name:
+                code.globalstate.use_entry_utility_code(self.exc_type.entry)
         else:
             type_code = "0"
         if self.exc_value:

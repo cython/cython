@@ -21,6 +21,7 @@ pyexec_globals_utility_code = UtilityCode.load("PyExecGlobals", "Builtins.c")
 globals_utility_code = UtilityCode.load("Globals", "Builtins.c")
 
 builtin_utility_code = {
+    'StopAsyncIteration': UtilityCode.load_cached("StopAsyncIteration", "Coroutine.c"),
 }
 
 
@@ -326,6 +327,7 @@ builtin_types_table = [
                                     BuiltinMethod("pop",     "T",  "O", "PySet_Pop")]),
     ("frozenset", "PyFrozenSet_Type", []),
     ("Exception", "((PyTypeObject*)PyExc_Exception)[0]", []),
+    ("StopAsyncIteration", "((PyTypeObject*)__Pyx_PyExc_StopAsyncIteration)[0]", []),
 ]
 
 
@@ -381,6 +383,8 @@ def init_builtin_types():
             objstruct_cname = None
         elif name == 'Exception':
             objstruct_cname = "PyBaseExceptionObject"
+        elif name == 'StopAsyncIteration':
+            objstruct_cname = "PyBaseExceptionObject"
         else:
             objstruct_cname = 'Py%sObject' % name.capitalize()
         the_type = builtin_scope.declare_builtin_type(name, cname, utility, objstruct_cname)
@@ -406,11 +410,6 @@ def init_builtins():
     builtin_scope.declare_var(
         '__debug__', PyrexTypes.c_const_type(PyrexTypes.c_bint_type),
         pos=None, cname='(!Py_OptimizeFlag)', is_cdef=True)
-
-    entry = builtin_scope.declare_var(
-        'StopAsyncIteration', PyrexTypes.py_object_type,
-        pos=None, cname='__Pyx_PyExc_StopAsyncIteration')
-    entry.utility_code = UtilityCode.load_cached("StopAsyncIteration", "Coroutine.c")
 
     global list_type, tuple_type, dict_type, set_type, frozenset_type
     global bytes_type, str_type, unicode_type, basestring_type, slice_type
