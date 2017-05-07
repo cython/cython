@@ -19,6 +19,9 @@ Features added
   leading-underscore values (like `import *`).
   Patch by Syrtis Major (Github issue #1625).
 
+* ``abs()`` is optimised for C complex numbers.
+  Patch by da-woods (Github issue #1648).
+
 Bugs fixed
 ----------
 
