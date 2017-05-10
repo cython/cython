@@ -1805,9 +1805,11 @@ class FuncDefNode(StatNode, BlockNode):
             code.declare_gilstate()
 
         if profile or linetrace:
-            tempvardecl_code.put_trace_declarations()
-            code_object = self.code_object.calculate_result_code(code) if self.code_object else None
-            code.put_trace_frame_init(code_object)
+            if not self.is_generator:
+                # generators are traced when iterated, not at creation
+                tempvardecl_code.put_trace_declarations()
+                code_object = self.code_object.calculate_result_code(code) if self.code_object else None
+                code.put_trace_frame_init(code_object)
 
         # ----- set up refnanny
         if use_refnanny:
@@ -1862,12 +1864,14 @@ class FuncDefNode(StatNode, BlockNode):
         if profile or linetrace:
             # this looks a bit late, but if we don't get here due to a
             # fatal error before hand, it's not really worth tracing
-            if self.is_wrapper:
-                trace_name = self.entry.name + " (wrapper)"
-            else:
-                trace_name = self.entry.name
-            code.put_trace_call(
-                trace_name, self.pos, nogil=not code.funcstate.gil_owned)
+            if not self.is_generator:
+                # generators are traced when iterated, not at creation
+                if self.is_wrapper:
+                    trace_name = self.entry.name + " (wrapper)"
+                else:
+                    trace_name = self.entry.name
+                code.put_trace_call(
+                    trace_name, self.pos, nogil=not code.funcstate.gil_owned)
             code.funcstate.can_trace = True
         # ----- Fetch arguments
         self.generate_argument_parsing_code(env, code)
@@ -2064,12 +2068,14 @@ class FuncDefNode(StatNode, BlockNode):
 
         if profile or linetrace:
             code.funcstate.can_trace = False
-            if self.return_type.is_pyobject:
-                code.put_trace_return(
-                    Naming.retval_cname, nogil=not code.funcstate.gil_owned)
-            else:
-                code.put_trace_return(
-                    "Py_None", nogil=not code.funcstate.gil_owned)
+            if not self.is_generator:
+                # generators are traced when iterated, not at creation
+                if self.return_type.is_pyobject:
+                    code.put_trace_return(
+                        Naming.retval_cname, nogil=not code.funcstate.gil_owned)
+                else:
+                    code.put_trace_return(
+                        "Py_None", nogil=not code.funcstate.gil_owned)
 
         if not lenv.nogil:
             # GIL holding function
@@ -4041,6 +4047,10 @@ class GeneratorBodyDefNode(DefNode):
         tempvardecl_code = code.insertion_point()
         code.put_declare_refcount_context()
         code.put_setup_refcount_context(self.entry.name)
+        profile = code.globalstate.directives['profile']
+        linetrace = code.globalstate.directives['linetrace']
+        if profile or linetrace:
+            code.put_trace_declarations()
 
         # ----- Resume switch point.
         code.funcstate.init_closure_temps(lenv.scope_class.type.scope)
@@ -4112,6 +4122,9 @@ class GeneratorBodyDefNode(DefNode):
         code.putln('%s->resume_label = -1;' % Naming.generator_cname)
         # clean up as early as possible to help breaking any reference cycles
         code.putln('__Pyx_Coroutine_clear((PyObject*)%s);' % Naming.generator_cname)
+        if profile or linetrace:
+            code.put_trace_return(Naming.retval_cname,
+                                  nogil=not code.funcstate.gil_owned)
         code.put_finish_refcount_context()
         code.putln("return %s;" % Naming.retval_cname)
         code.putln("}")
@@ -4119,13 +4132,20 @@ class GeneratorBodyDefNode(DefNode):
         # ----- Go back and insert temp variable declarations
         tempvardecl_code.put_temp_declarations(code.funcstate)
         # ----- Generator resume code
+        if profile or linetrace:
+            resume_code.put_trace_call(self.entry.qualified_name, self.pos,
+                                       nogil=not code.funcstate.gil_owned)
         resume_code.putln("switch (%s->resume_label) {" % (
                        Naming.generator_cname))
+
         resume_code.putln("case 0: goto %s;" % first_run_label)
 
         for i, label in code.yield_labels:
             resume_code.putln("case %d: goto %s;" % (i, label))
         resume_code.putln("default: /* CPython raises the right error here */")
+        if profile or linetrace:
+            resume_code.put_trace_return("Py_None",
+                                         nogil=not code.funcstate.gil_owned)
         resume_code.put_finish_refcount_context()
         resume_code.putln("return NULL;")
         resume_code.putln("}")
