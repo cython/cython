@@ -4535,7 +4535,10 @@ class CClassDefNode(ClassDefNode):
 
         if self.base_class_name:
             if self.base_class_module:
-                base_class_scope = env.find_module(self.base_class_module, self.pos)
+                base_class_scope = env.find_imported_module(self.base_class_module.split('.'), self.pos)
+                if not base_class_scope:
+                    error(self.pos, "'%s' is not a cimported module" % self.base_class_module)
+                    return
             else:
                 base_class_scope = env
             if self.base_class_name == 'object':
