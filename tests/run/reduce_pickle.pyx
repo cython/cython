@@ -96,3 +96,14 @@ cdef class DefaultReduceSubclass(DefaultReduce):
 
     def __repr__(self):
         return "DefaultReduceSubclass(i=%s, s=%r, x=%s)" % (self.i, self.s, self.x)
+
+
+cdef class NoReduceDueToIntPtr(object):
+    """
+    >>> import pickle
+    >>> pickle.dumps(NoReduceDueToIntPtr())
+    Traceback (most recent call last):
+    ...
+    TypeError: self.int_ptr cannot be converted to a Python object
+    """
+    cdef int* int_ptr
