@@ -107,3 +107,14 @@ cdef class NoReduceDueToIntPtr(object):
     TypeError: self.int_ptr cannot be converted to a Python object
     """
     cdef int* int_ptr
+
+cdef class NoReduceDueToNontrivialCInit(object):
+    """
+    >>> import pickle
+    >>> pickle.dumps(NoReduceDueToNontrivialCInit(None))
+    Traceback (most recent call last):
+    ...
+    TypeError: no default __reduce__ due to non-trivial __cinit__
+    """
+    def __cinit__(self, arg):
+        pass

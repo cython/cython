@@ -1571,8 +1571,10 @@ if VALUE is not None:
         env = self.current_env()
         all_members = []
         cls = node.entry.type
+        cinit = None
         while cls is not None:
             all_members.extend(cls.scope.var_entries)
+            cinit = cinit or cls.scope.lookup('__cinit__')
             cls = cls.base_type
             all_members.sort(key=lambda e: e.name)
 
@@ -1581,8 +1583,12 @@ if VALUE is not None:
             if not e.type.is_pyobject and (not e.type.create_from_py_utility_code(env)
                                            or not e.type.create_to_py_utility_code(env))]
 
-        if non_py:
-            msg = "%s cannot be converted to a Python object" % ','.join("self.%s" % e.name for e in non_py)
+        if cinit or non_py:
+            if cinit:
+                # TODO(robertwb): We could allow this if __cinit__ has no require arguments.
+                msg = 'no default __reduce__ due to non-trivial __cinit__'
+            else:
+                msg = "%s cannot be converted to a Python object" % ','.join("self.%s" % e.name for e in non_py)
             pickle_func = TreeFragment(u"""
                 def __reduce__(self):
                     raise TypeError("%s")
