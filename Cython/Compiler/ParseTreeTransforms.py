@@ -1535,10 +1535,13 @@ if VALUE is not None:
         return node
 
     def visit_ModuleNode(self, node):
+        # Pickling support requires injecting module-level nodes.
+        self.extra_module_declarations = []
         self.seen_vars_stack.append(set())
         node.analyse_declarations(self.current_env())
         self.visitchildren(node)
         self.seen_vars_stack.pop()
+        node.body.stats.extend(self.extra_module_declarations)
         return node
 
     def visit_LambdaNode(self, node):
@@ -1560,7 +1563,44 @@ if VALUE is not None:
                     stats.append(property)
             if stats:
                 node.body.stats += stats
+            if not node.scope.lookup('__reduce__') and not node.scope.lookup('__reduce_ex__'):
+                self._inject_pickle_methods(node)
         return node
+
+    def _inject_pickle_methods(self, node):
+        all_members = []
+        cls = node.entry.type
+        while cls is not None:
+            all_members.extend(cls.scope.var_entries)
+            cls = cls.base_type
+        all_members.sort(key=lambda e: e.name)
+        all_members_names = [e.name for e in all_members]
+        unpickle_func_name = '__pyx_unpickle_%s' % node.class_name
+
+        unpickle_func = TreeFragment(u"""
+            def %(unpickle_func_name)s(%(args)s):
+                cdef %(class_name)s result
+                result = %(class_name)s.__new__(%(class_name)s)
+                %(assignments)s
+                return result
+            """ % {
+                'unpickle_func_name': unpickle_func_name,
+                'class_name': node.class_name,
+                'assignments': '; '.join('result.%s = %s' % (v, v) for v in all_members_names),
+                'args': ','.join(all_members_names),
+            }, level='module', pipeline=[NormalizeTree(None)]).substitute({})
+        unpickle_func.analyse_declarations(node.entry.scope)
+        self.visit(unpickle_func)
+        self.extra_module_declarations.append(unpickle_func)
+
+        pickle_func = TreeFragment(u"""
+            def __reduce__(self):
+                return %s, (%s)
+            """ % (unpickle_func_name, ', '.join('self.%s' % v for v in all_members_names)),
+            level='c_class', pipeline=[NormalizeTree(None)]).substitute({})
+        pickle_func.analyse_declarations(node.scope)
+        self.visit(pickle_func)
+        node.body.stats.append(pickle_func)
 
     def _handle_fused_def_decorators(self, old_decorators, env, node):
         """
