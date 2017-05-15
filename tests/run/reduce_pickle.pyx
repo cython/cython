@@ -68,8 +68,8 @@ cdef class DefaultReduce(object):
     DefaultReduce(i=11, s='abc')
     """
 
-    cdef int i
-    cdef str s
+    cdef readonly int i
+    cdef readonly str s
 
     def __init__(self, i=0, s=None):
         self.i = i
@@ -96,6 +96,22 @@ cdef class DefaultReduceSubclass(DefaultReduce):
 
     def __repr__(self):
         return "DefaultReduceSubclass(i=%s, s=%r, x=%s)" % (self.i, self.s, self.x)
+
+
+class DefaultReducePySubclass(DefaultReduce):
+    """
+    >>> a = DefaultReducePySubclass(i=11, s='abc', x=1.5); a
+    DefaultReducePySubclass(i=11, s='abc', x=1.5)
+    >>> import pickle
+    >>> pickle.loads(pickle.dumps(a))
+    DefaultReducePySubclass(i=11, s='abc', x=1.5)
+    """
+    def __init__(self, **kwargs):
+        self.x = kwargs.pop('x', 0)
+        super(DefaultReducePySubclass, self).__init__(**kwargs)
+
+    def __repr__(self):
+        return "DefaultReducePySubclass(i=%s, s=%r, x=%s)" % (self.i, self.s, self.x)
 
 
 cdef class NoReduceDueToIntPtr(object):

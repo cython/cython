@@ -1603,10 +1603,17 @@ if VALUE is not None:
             unpickle_func_name = '__pyx_unpickle_%s' % node.class_name
 
             unpickle_func = TreeFragment(u"""
-                def %(unpickle_func_name)s(%(args)s):
+                def %(unpickle_func_name)s(__pyx_type, __pyx_state, %(args)s):
                     cdef %(class_name)s result
-                    result = %(class_name)s.__new__(%(class_name)s)
+                    result = %(class_name)s.__new__(__pyx_type)
                     %(assignments)s
+                    if hasattr(result, '__setstate__'):
+                        result.__setstate__(__pyx_state)
+                    elif hasattr(result, '__dict__'):
+                        result.__dict__.update(__pyx_state)
+                    elif __pyx_state is not None:
+                        from pickle import PickleError
+                        raise PickleError("Unexpected state: %%s" %% __pyx_state)
                     return result
                 """ % {
                     'unpickle_func_name': unpickle_func_name,
@@ -1620,7 +1627,13 @@ if VALUE is not None:
 
             pickle_func = TreeFragment(u"""
                 def __reduce__(self):
-                    return %s, (%s)
+                    if hasattr(self, '__getstate__'):
+                        state = self.__getstate__()
+                    elif hasattr(self, '__dict__'):
+                        state = self.__dict__
+                    else:
+                        state = None
+                    return %s, (type(self), state, %s)
                 """ % (unpickle_func_name, ', '.join('self.%s' % v for v in all_members_names)),
                 level='c_class', pipeline=[NormalizeTree(None)]).substitute({})
             pickle_func.analyse_declarations(node.scope)
