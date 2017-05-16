@@ -550,6 +550,23 @@ If you can be sure addresses will contain only references to strings,
 the above would be safe, and it may yield a significant speedup, depending on
 your usage pattern.
 
+
+Controlling pickling
+====================
+
+By default, Python will generate a ``__reduce__`` to allow pickling an extension
+type if and only if each of its members are convertible to Python and it has
+no ``__cinit__`` method.
+To require this behavior (i.e. throw an error at compile time if a class
+cannot be pickled) decorate the class with ``@cython.auto_pickle(True)``.
+One can also annotate with ``@cython.auto_pickle(False)`` to get the old
+behavior of not generating a ``__reduce__`` method in any case.
+
+Manually implementing a ``__reduce__`` or `__reduce_ex__`` method will also
+disable this auto-generation and can be used to support pickling of more
+complicated types.
+
+
 Public and external extension types
 ====================================
 
