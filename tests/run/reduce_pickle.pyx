@@ -1,3 +1,4 @@
+import cython
 import sys
 
 if sys.version_info[0] < 3:
@@ -59,6 +60,7 @@ def makeB(kwds):
     return B(**kwds)
 
 
+@cython.auto_pickle(True)  # Not needed, just to test the directive.
 cdef class DefaultReduce(object):
     """
     >>> a = DefaultReduce(11, 'abc'); a

@@ -1571,6 +1571,10 @@ if VALUE is not None:
 
     def _inject_pickle_methods(self, node):
         env = self.current_env()
+        if node.scope.directives['auto_pickle'] is False:   # None means attempt it.
+            # Old behavior of not doing anything.
+            return
+
         all_members = []
         cls = node.entry.type
         cinit = None
@@ -1590,7 +1594,11 @@ if VALUE is not None:
                 # TODO(robertwb): We could allow this if __cinit__ has no require arguments.
                 msg = 'no default __reduce__ due to non-trivial __cinit__'
             else:
-                msg = "%s cannot be converted to a Python object" % ','.join("self.%s" % e.name for e in non_py)
+                msg = "%s cannot be converted to a Python object for pickling" % ','.join("self.%s" % e.name for e in non_py)
+
+            if node.scope.directives['auto_pickle'] is True:
+                error(node.pos, msg)
+
             pickle_func = TreeFragment(u"""
                 def __reduce__(self):
                     raise TypeError("%s")
