@@ -22,6 +22,8 @@ Features added
 * ``abs()`` is optimised for C complex numbers.
   Patch by da-woods (Github issue #1648).
 
+* cdef classes now support pickling by default when possible.
+
 Bugs fixed
 ----------
 

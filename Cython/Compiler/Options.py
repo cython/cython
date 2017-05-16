@@ -144,6 +144,7 @@ _directive_defaults = {
     'embedsignature' : False,
     'locals' : {},
     'auto_cpdef': False,
+    'auto_pickle': None,
     'cdivision': False, # was True before 0.12
     'cdivision_warnings': False,
     'overflowcheck': False,
@@ -263,6 +264,7 @@ def normalise_encoding_name(option_name, encoding):
 
 # Override types possibilities above, if needed
 directive_types = {
+    'auto_pickle': bool,
     'final' : bool,  # final cdef classes and methods
     'internal' : bool,  # cdef class visibility in the module dict
     'infer_types' : bool, # values can be True/None/False
@@ -285,6 +287,7 @@ for key, val in _directive_defaults.items():
 
 directive_scopes = { # defaults to available everywhere
     # 'module', 'function', 'class', 'with statement'
+    'auto_pickle': ('module', 'cclass'),
     'final' : ('cclass', 'function'),
     'inline' : ('function',),
     'staticmethod' : ('function',),  # FIXME: analysis currently lacks more specific function scope

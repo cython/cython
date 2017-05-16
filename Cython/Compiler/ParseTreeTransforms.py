@@ -1535,10 +1535,13 @@ if VALUE is not None:
         return node
 
     def visit_ModuleNode(self, node):
+        # Pickling support requires injecting module-level nodes.
+        self.extra_module_declarations = []
         self.seen_vars_stack.append(set())
         node.analyse_declarations(self.current_env())
         self.visitchildren(node)
         self.seen_vars_stack.pop()
+        node.body.stats.extend(self.extra_module_declarations)
         return node
 
     def visit_LambdaNode(self, node):
@@ -1560,7 +1563,92 @@ if VALUE is not None:
                     stats.append(property)
             if stats:
                 node.body.stats += stats
+            if (node.visibility != 'extern'
+                and not node.scope.lookup('__reduce__')
+                and not node.scope.lookup('__reduce_ex__')):
+                self._inject_pickle_methods(node)
         return node
+
+    def _inject_pickle_methods(self, node):
+        env = self.current_env()
+        if node.scope.directives['auto_pickle'] is False:   # None means attempt it.
+            # Old behavior of not doing anything.
+            return
+
+        all_members = []
+        cls = node.entry.type
+        cinit = None
+        while cls is not None:
+            all_members.extend(e for e in cls.scope.var_entries if e.name not in ('__weakref__', '__dict__'))
+            cinit = cinit or cls.scope.lookup('__cinit__')
+            cls = cls.base_type
+        all_members.sort(key=lambda e: e.name)
+
+        non_py = [
+            e for e in all_members
+            if not e.type.is_pyobject and (not e.type.create_from_py_utility_code(env)
+                                           or not e.type.create_to_py_utility_code(env))]
+
+        if cinit or non_py:
+            if cinit:
+                # TODO(robertwb): We could allow this if __cinit__ has no require arguments.
+                msg = 'no default __reduce__ due to non-trivial __cinit__'
+            else:
+                msg = "%s cannot be converted to a Python object for pickling" % ','.join("self.%s" % e.name for e in non_py)
+
+            if node.scope.directives['auto_pickle'] is True:
+                error(node.pos, msg)
+
+            pickle_func = TreeFragment(u"""
+                def __reduce__(self):
+                    raise TypeError("%s")
+                """ % msg,
+                level='c_class', pipeline=[NormalizeTree(None)]).substitute({})
+            pickle_func.analyse_declarations(node.scope)
+            self.visit(pickle_func)
+            node.body.stats.append(pickle_func)
+
+        else:
+            all_members_names = [e.name for e in all_members]
+            unpickle_func_name = '__pyx_unpickle_%s' % node.class_name
+
+            unpickle_func = TreeFragment(u"""
+                def %(unpickle_func_name)s(__pyx_type, __pyx_state, %(args)s):
+                    cdef %(class_name)s result
+                    result = %(class_name)s.__new__(__pyx_type)
+                    %(assignments)s
+                    if hasattr(result, '__setstate__'):
+                        result.__setstate__(__pyx_state)
+                    elif hasattr(result, '__dict__'):
+                        result.__dict__.update(__pyx_state)
+                    elif __pyx_state is not None:
+                        from pickle import PickleError
+                        raise PickleError("Unexpected state: %%s" %% __pyx_state)
+                    return result
+                """ % {
+                    'unpickle_func_name': unpickle_func_name,
+                    'class_name': node.class_name,
+                    'assignments': '; '.join('result.%s = __pyx_%s' % (v, v) for v in all_members_names),
+                    'args': ','.join('__pyx_%s' % v for v in all_members_names),
+                }, level='module', pipeline=[NormalizeTree(None)]).substitute({})
+            unpickle_func.analyse_declarations(node.entry.scope)
+            self.visit(unpickle_func)
+            self.extra_module_declarations.append(unpickle_func)
+
+            pickle_func = TreeFragment(u"""
+                def __reduce__(self):
+                    if hasattr(self, '__getstate__'):
+                        state = self.__getstate__()
+                    elif hasattr(self, '__dict__'):
+                        state = self.__dict__
+                    else:
+                        state = None
+                    return %s, (type(self), state, %s)
+                """ % (unpickle_func_name, ', '.join('self.%s' % v for v in all_members_names)),
+                level='c_class', pipeline=[NormalizeTree(None)]).substitute({})
+            pickle_func.analyse_declarations(node.scope)
+            self.visit(pickle_func)
+            node.body.stats.append(pickle_func)
 
     def _handle_fused_def_decorators(self, old_decorators, env, node):
         """
