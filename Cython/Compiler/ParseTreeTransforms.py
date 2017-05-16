@@ -1563,7 +1563,9 @@ if VALUE is not None:
                     stats.append(property)
             if stats:
                 node.body.stats += stats
-            if not node.scope.lookup('__reduce__') and not node.scope.lookup('__reduce_ex__'):
+            if (node.visibility != 'extern'
+                and not node.scope.lookup('__reduce__')
+                and not node.scope.lookup('__reduce_ex__')):
                 self._inject_pickle_methods(node)
         return node
 
@@ -1618,8 +1620,8 @@ if VALUE is not None:
                 """ % {
                     'unpickle_func_name': unpickle_func_name,
                     'class_name': node.class_name,
-                    'assignments': '; '.join('result.%s = %s' % (v, v) for v in all_members_names),
-                    'args': ','.join(all_members_names),
+                    'assignments': '; '.join('result.%s = __pyx_%s' % (v, v) for v in all_members_names),
+                    'args': ','.join('__pyx_%s' % v for v in all_members_names),
                 }, level='module', pipeline=[NormalizeTree(None)]).substitute({})
             unpickle_func.analyse_declarations(node.entry.scope)
             self.visit(unpickle_func)
