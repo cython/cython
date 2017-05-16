@@ -1573,10 +1573,10 @@ if VALUE is not None:
         cls = node.entry.type
         cinit = None
         while cls is not None:
-            all_members.extend(cls.scope.var_entries)
+            all_members.extend(e for e in cls.scope.var_entries if e.name not in ('__weakref__', '__dict__'))
             cinit = cinit or cls.scope.lookup('__cinit__')
             cls = cls.base_type
-            all_members.sort(key=lambda e: e.name)
+        all_members.sort(key=lambda e: e.name)
 
         non_py = [
             e for e in all_members
