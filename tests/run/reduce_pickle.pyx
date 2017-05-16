@@ -122,7 +122,7 @@ cdef class NoReduceDueToIntPtr(object):
     >>> pickle.dumps(NoReduceDueToIntPtr())
     Traceback (most recent call last):
     ...
-    TypeError: self.int_ptr cannot be converted to a Python object
+    TypeError: self.int_ptr cannot be converted to a Python object for pickling
     """
     cdef int* int_ptr
 
