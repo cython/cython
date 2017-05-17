@@ -1148,9 +1148,9 @@ class GlobalState(object):
             c = self.new_num_const(str_value, 'float', value_code)
         return c
 
-    def get_py_const(self, type, prefix='', cleanup_level=None):
+    def get_py_const(self, type, prefix='', cleanup_level=None, name_suffix=None):
         # create a new Python object constant
-        const = self.new_py_const(type, prefix)
+        const = self.new_py_const(type, prefix, name_suffix=name_suffix)
         if cleanup_level is not None \
                 and cleanup_level <= Options.generate_cleanup_code:
             cleanup_writer = self.parts['cleanup_globals']
@@ -1208,10 +1208,13 @@ class GlobalState(object):
         self.num_const_index[(value, py_type)] = c
         return c
 
-    def new_py_const(self, type, prefix=''):
-        cname = self.new_const_cname(prefix)
-        c = PyObjectConst(cname, type)
-        self.py_constants.append(c)
+    def new_py_const(self, type, prefix='', name_suffix=None):
+        cname = self.new_const_cname(prefix, name_suffix=name_suffix)
+        try:
+            c = [x for x in self.py_constants if x.cname == cname][0]
+        except IndexError:
+            c = PyObjectConst(cname, type)
+            self.py_constants.append(c)
         return c
 
     def new_string_const_cname(self, bytes_value):
@@ -1228,14 +1231,15 @@ class GlobalState(object):
         cname = cname.replace('+', '_').replace('-', 'neg_').replace('.', '_')
         return cname
 
-    def new_const_cname(self, prefix='', value=''):
-        value = replace_identifier('_', value)[:32].strip('_')
-        used = self.const_cnames_used
-        name_suffix = value
-        while name_suffix in used:
-            counter = used[value] = used[value] + 1
-            name_suffix = '%s_%d' % (value, counter)
-        used[name_suffix] = 1
+    def new_const_cname(self, prefix='', value='', name_suffix=None):
+        if name_suffix is None:
+            value = replace_identifier('_', value)[:32].strip('_')
+            used = self.const_cnames_used
+            name_suffix = value
+            while name_suffix in used:
+                counter = used[value] = used[value] + 1
+                name_suffix = '%s_%d' % (value, counter)
+            used[name_suffix] = 1
         if prefix:
             prefix = Naming.interned_prefixes[prefix]
         else:
@@ -1653,8 +1657,8 @@ class CCodeWriter(object):
     def get_py_float(self, str_value, value_code):
         return self.globalstate.get_float_const(str_value, value_code).cname
 
-    def get_py_const(self, type, prefix='', cleanup_level=None):
-        return self.globalstate.get_py_const(type, prefix, cleanup_level).cname
+    def get_py_const(self, type, prefix='', cleanup_level=None, name_suffix=None):
+        return self.globalstate.get_py_const(type, prefix, cleanup_level, name_suffix=name_suffix).cname
 
     def get_string_const(self, text):
         return self.globalstate.get_string_const(text).cname
