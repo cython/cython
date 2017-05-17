@@ -2232,7 +2232,7 @@ class CppClassScope(Scope):
                 entry.func_cname = "%s::%s" % (self.type.empty_declaration_code(), cname)
         if name != "this" and (defining or name != "<init>"):
             self.var_entries.append(entry)
-        if type.is_pyobject and not allow_pyobject:
+        if type.is_pyobject and not allow_pyobject and not type.is_extension_type:
             error(pos,
                 "C++ class member cannot be a Python object")
         return entry
