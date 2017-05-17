@@ -1,0 +1,38 @@
+#
+# This tests a Cython file calling some function implemented in
+# C or C++, which in turn calls a function implemented in Cython.
+# All this is compiled together in one source files using #includes.
+#
+# We use C++ for this test because C++ is more strict about declarations.
+# So, if it works with C++, it most likely also works with C.
+#
+
+PYTHON setup.py build_ext --inplace
+PYTHON -c "from a import call_cython"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+
+from distutils.core import setup
+
+setup(
+    ext_modules = cythonize("*.pyx", language='c++'),
+)
+
+######## a.pyx ########
+
+cdef extern from "helper.cpp":
+    cpdef void call_cython(int x)
+
+cdef public void implemented_in_cython():
+    pass
+
+######## helper.cpp ########
+
+#include "a.h"
+
+template <class T>
+static void call_cython(T x) {
+    implemented_in_cython();
+}
