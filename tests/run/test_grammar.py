@@ -884,11 +884,7 @@ class GrammarTests(unittest.TestCase):
         # A rough test of SF bug 1333982.  http://python.org/sf/1333982
         # The testing here is fairly incomplete.
         # Test cases should include: commas with 1 and 2 colons
-        d = {}
-        d[1] = 1
-        d[1,] = 2
-        d[1,2] = 3
-        d[1,2,3] = 4
+        d = {1: 1, (1,): 2, (1, 2): 3, (1, 2, 3): 4}
         L = list(d)
         L.sort(key=lambda x: x if isinstance(x, tuple) else ())
         self.assertEqual(str(L), '[1, (1,), (1, 2), (1, 2, 3)]')
