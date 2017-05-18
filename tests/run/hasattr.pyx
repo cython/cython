@@ -17,6 +17,8 @@ def wrap_hasattr(obj, name):
     True
     >>> wrap_hasattr(Foo(), "foo")
     True
+    >>> wrap_hasattr(Foo(), u"foo")
+    True
     >>> wrap_hasattr(Foo(), "spam")
     False
     >>> wrap_hasattr(Foo(), "bar")
@@ -27,5 +29,9 @@ def wrap_hasattr(obj, name):
     ZeroDivisionError: ...
     >>> wrap_hasattr(Foo(), "baz")
     False
+    >>> hasattr(Foo(), None)   #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+       ...
+    TypeError: hasattr(): attribute name must be string
     """
     return hasattr(obj, name)

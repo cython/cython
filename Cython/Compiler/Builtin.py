@@ -111,7 +111,7 @@ builtin_function_table = [
                         t.real_type, [
                             PyrexTypes.CFuncTypeArg("arg", t, None)
                             ],
-                            is_strict_signature = True, nogil=True)) 
+                            is_strict_signature = True, nogil=True))
                         for t in (PyrexTypes.c_float_complex_type,
                                   PyrexTypes.c_double_complex_type,
                                   PyrexTypes.c_longdouble_complex_type)
@@ -144,7 +144,8 @@ builtin_function_table = [
                     utility_code=getattr3_utility_code),
     BuiltinFunction('getattr',    "OO",   "O",     "__Pyx_GetAttr",
                     utility_code=getattr_utility_code),
-    BuiltinFunction('hasattr',    "OO",   "b",     "PyObject_HasAttr"),
+    BuiltinFunction('hasattr',    "OO",   "b",     "__Pyx_HasAttr",
+                    utility_code = UtilityCode.load("HasAttr", "Builtins.c")),
     BuiltinFunction('hash',       "O",    "h",     "PyObject_Hash"),
     #('hex',       "",     "",      ""),
     #('id',        "",     "",      ""),
