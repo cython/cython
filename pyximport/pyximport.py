@@ -55,8 +55,6 @@ from zipimport import zipimporter, ZipImportError
 
 mod_name = "pyximport"
 
-assert sys.hexversion >= 0x2030000, "need Python 2.3 or later"
-
 PYX_EXT = ".pyx"
 PYXDEP_EXT = ".pyxdep"
 PYXBLD_EXT = ".pyxbld"
