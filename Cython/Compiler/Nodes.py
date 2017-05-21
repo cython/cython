@@ -1314,6 +1314,8 @@ class CVarDefNode(StatNode):
             if name == '':
                 error(declarator.pos, "Missing name in declaration.")
                 return
+            if type.is_reference and self.visibility != 'extern':
+                error(declarator.pos, "C++ references cannot be declared; use a pointer instead")
             if type.is_cfunction:
                 if 'staticmethod' in env.directives:
                     type.is_static_method = True
