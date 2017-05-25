@@ -305,7 +305,7 @@ e.g.::
         ...
     )
 
-These ``.pxd`` files need not correspond have corresponding ``.pyx``
+These ``.pxd`` files need not have corresponding ``.pyx``
 modules if they contain purely declarations of external libraries.
 
 Compiling with ``pyximport``
