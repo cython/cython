@@ -441,6 +441,7 @@ class build_ext(_build_ext):
             except AttributeError:
                 compiler_obj = self.compiler
             if ext.language == 'c++':
+                # Work in progress: just checking that it is stable, to later add C++11 compiler support
                 compiler_obj.compiler_so.remove('-Wstrict-prototypes')
             if CCACHE:
                 compiler_obj.compiler_so = CCACHE + compiler_obj.compiler_so
