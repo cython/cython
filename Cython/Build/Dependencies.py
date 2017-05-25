@@ -893,7 +893,8 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                 new_sources.append(source)
                 if build_dir:
                     copy_to_build_dir(source)
-        m.sources = new_sources
+        if not hasattr(options, 'keep_sources') or not options.keep_sources:
+            m.sources = new_sources
 
     if options.cache:
         if not os.path.exists(options.cache):
