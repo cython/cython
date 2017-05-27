@@ -173,7 +173,7 @@ _directive_defaults = {
     'c_string_type': 'bytes',
     'c_string_encoding': '',
     'type_version_tag': True,   # enables Py_TPFLAGS_HAVE_VERSION_TAG on extension types
-    'unraisable_tracebacks': False,
+    'unraisable_tracebacks': True,
     'old_style_globals': False,
 
     # set __file__ and/or __path__ to known source/target path at import time (instead of not having them available)
