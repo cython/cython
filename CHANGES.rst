@@ -24,6 +24,10 @@ Features added
 
 * cdef classes now support pickling by default when possible.
 
+* The display of C lines in Cython tracebacks is now settable at runtime
+  via `import cython_runtime; cython_runtime.cline_in_traceback=True`.
+  The default has been changed to False.
+
 Bugs fixed
 ----------
 
