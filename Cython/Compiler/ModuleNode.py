@@ -1009,6 +1009,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # extension type.
         if not type.scope:
             return # Forward declared but never defined
+        api_name = Naming.h_guard_prefix + self.api_name(type.entry)
+        if type.entry.visibility == 'public':
+            code.putln("#ifndef %s" % api_name)
+            code.putln("#define %s" % api_name)
         header, footer = \
             self.sue_header_footer(type, "struct", type.objstruct_cname)
         code.putln(header)
@@ -1042,6 +1046,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if type.objtypedef_cname is not None:
             # Only for exposing public typedef name.
             code.putln("typedef struct %s %s;" % (type.objstruct_cname, type.objtypedef_cname))
+        if type.entry.visibility == 'public':
+            code.putln("#endif /* !%s */" % api_name)
 
     def generate_c_class_declarations(self, env, code, definition):
         for entry in env.c_class_entries:
