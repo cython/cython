@@ -3572,6 +3572,14 @@ class CppClassType(CType):
                 return 1
         return 0
 
+    def subclass_dist(self, super_type):
+        if self.same_as_resolved_type(super_type):
+            return 0
+        elif not self.base_classes:
+            return float('inf')
+        else:
+            return 1 + min(b.subclass_dist(super_type) for b in self.base_classes)
+
     def same_as_resolved_type(self, other_type):
         if other_type.is_cpp_class:
             if self == other_type:
@@ -4135,7 +4143,7 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
     needed_coercions = {}
 
     for index, (func, func_type) in enumerate(candidates):
-        score = [0,0,0,0]
+        score = [0,0,0,0,0,0,0]
         for i in range(min(actual_nargs, len(func_type.args))):
             src_type = arg_types[i]
             dst_type = func_type.args[i].type
@@ -4169,6 +4177,13 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
                       (src_type.is_float and dst_type.is_float)):
                     score[2] += abs(dst_type.rank + (not dst_type.signed) -
                                     (src_type.rank + (not src_type.signed))) + 1
+                elif dst_type.is_ptr and src_type.is_ptr:
+                    if dst_type.base_type == c_void_type:
+                        score[4] += 1
+                    elif src_type.base_type.is_cpp_class and src_type.base_type.is_subclass(dst_type.base_type):
+                        score[6] += src_type.base_type.subclass_dist(dst_type.base_type)
+                    else:
+                        score[5] += 1
                 elif not src_type.is_pyobject:
                     score[1] += 1
                 else:
