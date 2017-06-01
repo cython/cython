@@ -54,6 +54,9 @@ Other changes
 
 * The `unraisable_tracebacks` now defaults to `True`.
 
+* Coercion of C++ containers to Python is no longer automatic on attribute
+  access (Github issue #1521).
+
 
 0.25.2 (2016-12-08)
 ===================
