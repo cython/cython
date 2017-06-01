@@ -1255,6 +1255,7 @@ class ModuleScope(Scope):
                 return entry
         else:
             entry = self.declare_var(name, py_object_type, pos)
+            entry.is_variable = 0
         entry.as_module = scope
         self.add_imported_module(scope)
         return entry
