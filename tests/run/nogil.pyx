@@ -53,6 +53,7 @@ cdef int write_unraisable() nogil:
 def test_unraisable():
     """
     >>> print(test_unraisable())  # doctest: +ELLIPSIS
+    ValueError
     Exception...ignored...
     """
     import sys

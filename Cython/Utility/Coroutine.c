@@ -139,7 +139,7 @@ static CYTHON_INLINE PyObject* __Pyx_Coroutine_AIter_Yield_From(__pyx_CoroutineO
 #if PY_VERSION_HEX < 0x030500B2
     if (!__Pyx_PyType_AsAsync(source)) {
         #ifdef __Pyx_Coroutine_USED
-        if (!__Pyx_Coroutine_CheckExact(source))  // quickly rule out a likely case
+        if (!__Pyx_Coroutine_CheckExact(source))  /* quickly rule out a likely case */
         #endif
         {
             // same as above in slow

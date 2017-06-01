@@ -156,6 +156,47 @@ def bytes_decode(bytes s, start=None, stop=None):
     "//PythonCapiCallNode")
 @cython.test_fail_if_path_exists(
     "//SimpleCallNode")
+def bytes_decode_utf16(bytes s):
+    """
+    >>> s = 'abc'.encode('UTF-16')
+    >>> print(bytes_decode_utf16(s))
+    abc
+    """
+    return s.decode('utf16')
+
+
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode")
+@cython.test_fail_if_path_exists(
+    "//SimpleCallNode")
+def bytes_decode_utf16_le(bytes s):
+    """
+    >>> s = 'abc'.encode('UTF-16LE')
+    >>> assert s != 'abc'.encode('UTF-16BE')
+    >>> print(bytes_decode_utf16_le(s))
+    abc
+    """
+    return s.decode('utf_16_le')
+
+
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode")
+@cython.test_fail_if_path_exists(
+    "//SimpleCallNode")
+def bytes_decode_utf16_be(bytes s):
+    """
+    >>> s = 'abc'.encode('UTF-16BE')
+    >>> assert s != 'abc'.encode('UTF-16LE')
+    >>> print(bytes_decode_utf16_be(s))
+    abc
+    """
+    return s.decode('utf_16_be')
+
+
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode")
+@cython.test_fail_if_path_exists(
+    "//SimpleCallNode")
 def bytes_decode_unbound_method(bytes s, start=None, stop=None):
     """
     >>> s = b_a+b_b+b_a+b_a+b_b

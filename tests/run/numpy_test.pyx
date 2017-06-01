@@ -4,6 +4,7 @@
 cimport numpy as np
 cimport cython
 
+import re
 import sys
 
 from libc.stdlib cimport malloc
@@ -133,7 +134,7 @@ try:
     Traceback (most recent call last):
        ...
     ValueError: ndarray is not C...contiguous
-    
+
     >>> test_dtype('b', inc1_byte)
     >>> test_dtype('B', inc1_ubyte)
     >>> test_dtype('h', inc1_short)
@@ -142,7 +143,7 @@ try:
     >>> test_dtype('I', inc1_uint)
     >>> test_dtype('l', inc1_long)
     >>> test_dtype('L', inc1_ulong)
-    
+
     >>> test_dtype('f', inc1_float)
     >>> test_dtype('d', inc1_double)
     >>> test_dtype('g', inc1_longdouble)
@@ -172,11 +173,11 @@ try:
     Traceback (most recent call last):
        ...
     ValueError: ...
-    
+
 
 
     >>> test_recordarray()
-    
+
     >>> print(test_nested_dtypes(np.zeros((3,), dtype=np.dtype([\
             ('a', np.dtype('i,i')),\
             ('b', np.dtype('i,i'))\
@@ -198,12 +199,12 @@ try:
 
     The output changed in Python 3:
     >> print(test_unpacked_align(np.zeros((1,), dtype=np.dtype('b,i', align=True))))
-    array([(22, 23)], 
+    array([(22, 23)],
           dtype=[('f0', '|i1'), ('', '|V3'), ('f1', '!i4')])
 
     ->
 
-    array([(22, 23)], 
+    array([(22, 23)],
           dtype={'names':['f0','f1'], 'formats':['i1','!i4'], 'offsets':[0,4], 'itemsize':8, 'aligned':True})
 
 
@@ -234,7 +235,7 @@ try:
     8,16
 
     >>> test_point_record()
-    array([(0.0, 0.0), (1.0, -1.0), (2.0, -2.0)], 
+    array([(0., 0.), (1., -1.), (2., -2.)], 
           dtype=[('x', '!f8'), ('y', '!f8')])
 
 """
@@ -352,7 +353,7 @@ def inc1_clongdouble(np.ndarray[long double complex] arr): arr[1] = arr[1] + (1 
 def inc1_cfloat_struct(np.ndarray[np.cfloat_t] arr):
     arr[1].real += 1
     arr[1].imag += 1
-    
+
 def inc1_cdouble_struct(np.ndarray[np.cdouble_t] arr):
     arr[1].real += 1
     arr[1].imag += 1
@@ -382,7 +383,7 @@ def inc1_uintp_t(np.ndarray[np.uintp_t] arr):           arr[1] += 1
 def inc1_int32_t(np.ndarray[np.int32_t] arr):           arr[1] += 1
 def inc1_float64_t(np.ndarray[np.float64_t] arr):       arr[1] += 1
 
-    
+
 def test_dtype(dtype, inc1):
     if dtype in ("g", np.longdouble,
                  "G", np.clongdouble):
@@ -518,7 +519,9 @@ def test_point_record():
     for i in range(3):
         test[i].x = i
         test[i].y = -i
-    print repr(test).replace('<', '!').replace('>', '!')
+    print re.sub(
+        r'\.0+\b', '.', repr(test).replace('<', '!').replace('>', '!')
+                                  .replace('( ', '(').replace(',  ', ', '))
 
 # Test fused np.ndarray dtypes and runtime dispatch
 @testcase

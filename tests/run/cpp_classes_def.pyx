@@ -143,3 +143,11 @@ def test_templates(long value):
     assert base.get_value() == base.value == 2 * value, base.value
 
     del base
+
+cdef cppclass Simple:
+  pass
+
+def test_default_init_no_gil():
+  with nogil:
+    s = new Simple()
+    del s

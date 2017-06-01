@@ -2,6 +2,76 @@
 Cython Changelog
 ================
 
+
+latest
+===================
+
+Features added
+--------------
+
+* Speed up comparisons of strings if their hash value is available.
+  Patch by Claudio Freire (Github issue #1571).
+
+* Support pyximport from zip files.
+  Patch by Sergei Lebedev (Github issue #1485).
+
+* IPython magic now respects `__all__` variable.  Also skips
+  leading-underscore values (like `import *`).
+  Patch by Syrtis Major (Github issue #1625).
+
+* ``abs()`` is optimised for C complex numbers.
+  Patch by da-woods (Github issue #1648).
+
+* cdef classes now support pickling by default when possible.
+
+* The display of C lines in Cython tracebacks is now settable at runtime
+  via `import cython_runtime; cython_runtime.cline_in_traceback=True`.
+  The default has been changed to False.
+
+Bugs fixed
+----------
+
+* Item lookup/assignment with a unicode character as index that is typed
+  (explicitly or implicitly) as ``Py_UCS4`` or ``Py_UNICODE`` used the
+  integer value instead of the Unicode string value. Code that relied on
+  the previous behaviour now triggers a warning that can be disabled by
+  applying an explicit cast. (Github issue #1602)
+
+* f-string processing was adapted to match recent changes in PEP 498 and
+  CPython 3.6.
+
+* Invalid C code when decoding from UTF-16(LE/BE) byte strings.
+  (Github issue #1696)
+
+* Unicode escapes in 'ur' raw-unicode strings were not resolved in Py2 code.
+  Original patch by Aaron Gallagher (Github issue #1594).
+
+* File paths of code objects are now relative.
+  Original patch by Jelmer Vernooij (Github issue #1565).
+
+Other changes
+-------------
+
+* The `unraisable_tracebacks` now defaults to `True`.
+
+
+0.25.2 (2016-12-08)
+===================
+
+Bugs fixed
+----------
+
+* Fixes several issues with C++ template deduction.
+
+* Fixes a issue with bound method type inference (Github issue #551).
+
+* Fixes a bug with cascaded tuple assignment (Github issue #1523).
+
+* Fixed or silenced many Clang warnings.
+
+* Fixes bug with powers of pure real complex numbers (Github issue #1538).
+
+
 0.25.1 (2016-10-26)
 ===================
 

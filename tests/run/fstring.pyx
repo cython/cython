@@ -18,6 +18,15 @@ max_long = LONG_MAX
 min_long = LONG_MIN
 
 
+def escaping():
+    """
+    >>> escaping()
+    """
+    assert f'{{{{{"abc"}}}}}{{}}{{' == '{{abc}}{}{'
+    assert f'\x7b}}' == '{}'
+    assert f'{"{{}}"}' == '{{}}'
+
+
 def format2(ab, cd):
     """
     >>> a, b, c = format2(1, 2)

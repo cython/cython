@@ -18,7 +18,7 @@ There are several ways to build Cython code:
    from the ``.pyx`` file, then manually compiling the ``.c`` file into a shared
    object library or DLL suitable for import from Python.
    (These manual steps are mostly for debugging and experimentation.)
- - Use the [IPython]_ notebook or the [Sage]_ notebook,
+ - Use the [Jupyter]_ notebook or the [Sage]_ notebook,
    both of which allow Cython code inline.
 
 Currently, distutils is the most common way Cython files are built and distributed. The other methods are described in more detail in the :ref:`compilation` section of the reference manual.
@@ -47,20 +47,20 @@ start a Python session and do ``from hello import say_hello_to`` and
 use the imported function as you see fit.
 
 
-Using the IPython notebook
+Using the Jupyter notebook
 --------------------------
 
 Cython can be used conveniently and interactively from a web browser
-through the IPython notebook.  To install IPython, e.g. into a virtualenv,
+through the Jupyter notebook.  To install Jupyter notebook, e.g. into a virtualenv,
 use pip:
 
 .. sourcecode:: bash
 
-    (venv)$ pip install "ipython[notebook]"
-    (venv)$ ipython notebook
+    (venv)$ pip install jupyter
+    (venv)$ jupyter notebook
 
 To enable support for Cython compilation, install Cython and load the
-``Cython`` extension from within IPython::
+``Cython`` extension from within the Jupyter notebook::
 
     %load_ext Cython
 
@@ -71,14 +71,14 @@ Then, prefix a cell with the ``%%cython`` marker to compile it::
     cdef int a = 0
     for i in range(10):
         a += i
-    print a
+    print(a)
 
 You can show Cython's code analysis by passing the ``--annotate`` option::
 
     %%cython --annotate
     ...
 
-.. figure:: ipython.png
+.. figure:: jupyter.png
 
 
 Using the Sage notebook
@@ -92,5 +92,5 @@ Using the Sage notebook
   functions defined in a Cython cell imported into the running session.
 
 
-.. [IPython] http://ipython.org
+.. [Jupyter] http://jupyter.org/
 .. [Sage] W. Stein et al., Sage Mathematics Software, http://sagemath.org

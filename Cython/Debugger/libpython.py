@@ -2517,8 +2517,8 @@ class FixGdbCommand(gdb.Command):
 
     def fix_gdb(self):
         """
-        It seems that invoking either 'cy exec' and 'py-exec' work perfectly 
-        fine, but after this gdb's python API is entirely broken. 
+        It seems that invoking either 'cy exec' and 'py-exec' work perfectly
+        fine, but after this gdb's python API is entirely broken.
         Maybe some uncleared exception value is still set?
         sys.exc_clear() didn't help. A demonstration:
 

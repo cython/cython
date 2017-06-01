@@ -14,7 +14,7 @@ IS_PY26 = sys.version_info[:2] < (2, 7)
 
 from Cython.Build.Inline import cython_inline
 from Cython.TestUtils import CythonTest
-from Cython.Compiler.Errors import CompileError, hold_errors, release_errors, error_stack
+from Cython.Compiler.Errors import CompileError, hold_errors, release_errors, error_stack, held_errors
 
 def cy_eval(s, **kwargs):
     return cython_inline('return ' + s, force=True, **kwargs)
@@ -31,15 +31,16 @@ a_global = 'global variable'
 class TestCase(CythonTest):
     def assertAllRaise(self, exception_type, regex, error_strings):
         for str in error_strings:
+            hold_errors()
             if exception_type is SyntaxError:
                 try:
                     self.fragment(str)
+                    assert held_errors(), "Invalid Cython code failed to raise SyntaxError: %s" % str
                 except CompileError:
                     assert True
-                else:
-                    assert False, "Invalid Cython code failed to raise SyntaxError: %s" % str
+                finally:
+                    release_errors(ignore=True)
             else:
-                hold_errors()
                 try:
                     cython_inline(str, quiet=True)
                 except exception_type:
@@ -130,6 +131,15 @@ f'{a * x()}'"""
         # Make sure x was called.
         self.assertTrue(x.called)
 
+    def test_docstring(self):
+        def f():
+            f'''Not a docstring'''
+        self.assertTrue(f.__doc__ is None)
+        def g():
+            '''Not a docstring''' \
+            f''
+        self.assertTrue(g.__doc__ is None)
+
     def __test_literal_eval(self):
         # With no expressions, an f-string is okay.
         self.assertEqual(ast.literal_eval("f'x'"), 'x')
@@ -137,7 +147,7 @@ f'{a * x()}'"""
 
         # But this should raise an error.
         with self.assertRaisesRegex(ValueError, 'malformed node or string'):
-            ast.literal_eval("f'x{3}'")
+            ast.literal_eval("f'x'")
 
         # As should this, which uses a different ast node
         with self.assertRaisesRegex(ValueError, 'malformed node or string'):
@@ -152,34 +162,17 @@ f'{a * x()}'"""
         exec(c)
         self.assertEqual(x[0], 'foo3')
 
+    def test_compile_time_concat_errors(self):
+        self.assertAllRaise(SyntaxError,
+                            'cannot mix bytes and nonbytes literals',
+                            [r"""f'' b''""",
+                             r"""b'' f''""",
+                             ])
+
     def test_literal(self):
         self.assertEqual(f'', '')
         self.assertEqual(f'a', 'a')
         self.assertEqual(f' ', ' ')
-        self.assertEqual(f'\N{GREEK CAPITAL LETTER DELTA}',
-                         '\N{GREEK CAPITAL LETTER DELTA}')
-        self.assertEqual(f'\N{GREEK CAPITAL LETTER DELTA}',
-                         '\u0394')
-        self.assertEqual(f'\N{True}', '\u22a8')
-        self.assertEqual(rf'\N{True}', r'\NTrue')
-
-    def test_escape_order(self):
-        # note that hex(ord('{')) == 0x7b, so this
-        #  string becomes f'a{4*10}b'
-        self.assertEqual(f'a\u007b4*10}b', 'a40b')
-        self.assertEqual(f'a\x7b4*10}b', 'a40b')
-        self.assertEqual(f'a\x7b4*10\N{RIGHT CURLY BRACKET}b', 'a40b')
-        self.assertEqual(f'{"a"!\N{LATIN SMALL LETTER R}}', "'a'")
-        self.assertEqual(f'{10\x3a02X}', '0A')
-        self.assertEqual(f'{10:02\N{LATIN CAPITAL LETTER X}}', '0A')
-
-        self.assertAllRaise(SyntaxError, "f-string: single '}' is not allowed",
-                            [r"""f'a{\u007b4*10}b'""",    # mis-matched brackets
-                             ])
-        self.assertAllRaise(SyntaxError, 'unexpected character after line continuation character',
-                            [r"""f'{"a"\!r}'""",
-                             r"""f'{a\!r}'""",
-                             ])
 
     def test_unterminated_string(self):
         self.assertAllRaise(SyntaxError, 'f-string: unterminated string',
@@ -203,6 +196,14 @@ f'{a * x()}'"""
         self.assertEqual(f'a}}', 'a}')
         self.assertEqual(f'}}b', '}b')
         self.assertEqual(f'a}}b', 'a}b')
+        self.assertEqual(f'{{}}', '{}')
+        self.assertEqual(f'a{{}}', 'a{}')
+        self.assertEqual(f'{{b}}', '{b}')
+        self.assertEqual(f'{{}}c', '{}c')
+        self.assertEqual(f'a{{b}}', 'a{b}')
+        self.assertEqual(f'a{{}}c', 'a{}c')
+        self.assertEqual(f'{{b}}c', '{b}c')
+        self.assertEqual(f'a{{b}}c', 'a{b}c')
 
         self.assertEqual(f'{{{10}', '{10')
         self.assertEqual(f'}}{10}', '}10')
@@ -258,9 +259,12 @@ f'{a * x()}'"""
         self.assertEqual(f'{"#"}', '#')
         self.assertEqual(f'{d["#"]}', 'hash')
 
-        self.assertAllRaise(SyntaxError, "f-string cannot include '#'",
+        self.assertAllRaise(SyntaxError, "f-string expression part cannot include '#'",
                             ["f'{1#}'",   # error because the expression becomes "(1#)"
                              "f'{3(#)}'",
+                             "f'{#}'",
+                             "f'{)#}'",   # When wrapped in parens, this becomes
+                                          #  '()#)'.  Make sure that doesn't compile.
                              ])
 
     def test_many_expressions(self):
@@ -311,7 +315,7 @@ f'{a * x()}'"""
                              ])
 
         self.assertAllRaise(SyntaxError, "invalid syntax",
-                            [# Invalid sytax inside a nested spec.
+                            [# Invalid syntax inside a nested spec.
                              "f'{4:{/5}}'",
                              ])
 
@@ -349,8 +353,6 @@ f'{a * x()}'"""
                              "f'{ !r}'",
                              "f'{10:{ }}'",
                              "f' { } '",
-                             r"f'{\n}'",
-                             r"f'{\n \n}'",
 
                              # Catch the empty expression before the
                              #  invalid conversion.
@@ -392,24 +394,88 @@ f'{a * x()}'"""
                             ["f'{\n}'",
                              ])
 
+    def test_backslashes_in_string_part(self):
+        self.assertEqual(f'\t', '\t')
+        self.assertEqual(r'\t', '\\t')
+        self.assertEqual(rf'\t', '\\t')
+        self.assertEqual(f'{2}\t', '2\t')
+        self.assertEqual(f'{2}\t{3}', '2\t3')
+        self.assertEqual(f'\t{3}', '\t3')
+
+        self.assertEqual(f'\u0394', '\u0394')
+        self.assertEqual(r'\u0394', '\\u0394')
+        self.assertEqual(rf'\u0394', '\\u0394')
+        self.assertEqual(f'{2}\u0394', '2\u0394')
+        self.assertEqual(f'{2}\u0394{3}', '2\u03943')
+        self.assertEqual(f'\u0394{3}', '\u03943')
+
+        self.assertEqual(f'\U00000394', '\u0394')
+        self.assertEqual(r'\U00000394', '\\U00000394')
+        self.assertEqual(rf'\U00000394', '\\U00000394')
+        self.assertEqual(f'{2}\U00000394', '2\u0394')
+        self.assertEqual(f'{2}\U00000394{3}', '2\u03943')
+        self.assertEqual(f'\U00000394{3}', '\u03943')
+
+        self.assertEqual(f'\N{GREEK CAPITAL LETTER DELTA}', '\u0394')
+        self.assertEqual(f'{2}\N{GREEK CAPITAL LETTER DELTA}', '2\u0394')
+        self.assertEqual(f'{2}\N{GREEK CAPITAL LETTER DELTA}{3}', '2\u03943')
+        self.assertEqual(f'\N{GREEK CAPITAL LETTER DELTA}{3}', '\u03943')
+        self.assertEqual(f'2\N{GREEK CAPITAL LETTER DELTA}', '2\u0394')
+        self.assertEqual(f'2\N{GREEK CAPITAL LETTER DELTA}3', '2\u03943')
+        self.assertEqual(f'\N{GREEK CAPITAL LETTER DELTA}3', '\u03943')
+
+        self.assertEqual(f'\x20', ' ')
+        self.assertEqual(r'\x20', '\\x20')
+        self.assertEqual(rf'\x20', '\\x20')
+        self.assertEqual(f'{2}\x20', '2 ')
+        self.assertEqual(f'{2}\x20{3}', '2 3')
+        self.assertEqual(f'\x20{3}', ' 3')
+
+        self.assertEqual(f'2\x20', '2 ')
+        self.assertEqual(f'2\x203', '2 3')
+        self.assertEqual(f'\x203', ' 3')
+
+    def test_misformed_unicode_character_name(self):
+        # These test are needed because unicode names are parsed
+        # differently inside f-strings.
+        self.assertAllRaise(SyntaxError, r"\(unicode error\) 'unicodeescape' codec can't decode bytes in position .*: malformed \\N character escape",
+                            [r"f'\N'",
+                             r"f'\N{'",
+                             r"f'\N{GREEK CAPITAL LETTER DELTA'",
+
+                             # Here are the non-f-string versions,
+                             #  which should give the same errors.
+                             r"'\N'",
+                             r"'\N{'",
+                             r"'\N{GREEK CAPITAL LETTER DELTA'",
+                             ])
+
+    def test_no_backslashes_in_expression_part(self):
+        self.assertAllRaise(SyntaxError, 'f-string expression part cannot include a backslash',
+                            [r"f'{\'a\'}'",
+                             r"f'{\t3}'",
+                             r"f'{\}'",
+                             r"rf'{\'a\'}'",
+                             r"rf'{\t3}'",
+                             r"rf'{\}'",
+                             r"""rf'{"\N{LEFT CURLY BRACKET}"}'""",
+                             r"f'{\n}'",
+                             ])
+
+    def test_no_escapes_for_braces(self):
+        """
+        Only literal curly braces begin an expression.
+        """
+        # \x7b is '{'.
+        self.assertEqual(f'\x7b1+1}}', '{1+1}')
+        self.assertEqual(f'\x7b1+1', '{1+1')
+        self.assertEqual(f'\u007b1+1', '{1+1')
+        self.assertEqual(f'\N{LEFT CURLY BRACKET}1+1\N{RIGHT CURLY BRACKET}', '{1+1}')
+
     def test_newlines_in_expressions(self):
         self.assertEqual(f'{0}', '0')
-        self.assertEqual(f'{0\n}', '0')
-        self.assertEqual(f'{0\r}', '0')
-        self.assertEqual(f'{\n0\n}', '0')
-        self.assertEqual(f'{\r0\r}', '0')
-        self.assertEqual(f'{\n0\r}', '0')
-        self.assertEqual(f'{\n0}', '0')
-        self.assertEqual(f'{3+\n4}', '7')
-        self.assertEqual(f'{3+\\\n4}', '7')
         self.assertEqual(rf'''{3+
 4}''', '7')
-        self.assertEqual(f'''{3+\
-4}''', '7')
-
-        self.assertAllRaise(SyntaxError, 'f-string: empty expression not allowed',
-                            [r"f'{\n}'",
-                             ])
 
     def test_lambda(self):
         x = 5
@@ -445,9 +511,6 @@ f'{a * x()}'"""
     def test_expressions_with_triple_quoted_strings(self):
         self.assertEqual(f"{'''x'''}", 'x')
         self.assertEqual(f"{'''eric's'''}", "eric's")
-        self.assertEqual(f'{"""eric\'s"""}', "eric's")
-        self.assertEqual(f"{'''eric\"s'''}", 'eric"s')
-        self.assertEqual(f'{"""eric"s"""}', 'eric"s')
 
         # Test concatenation within an expression
         self.assertEqual(f'{"x" """eric"s""" "y"}', 'xeric"sy')
@@ -549,10 +612,6 @@ f'{a * x()}'"""
         y = 5
         self.assertEqual(f'{f"{0}"*3}', '000')
         self.assertEqual(f'{f"{y}"*3}', '555')
-        self.assertEqual(f'{f"{\'x\'}"*3}', 'xxx')
-
-        self.assertEqual(f"{r'x' f'{\"s\"}'}", 'xs')
-        self.assertEqual(f"{r'x'rf'{\"s\"}'}", 'xs')
 
     def test_invalid_string_prefixes(self):
         self.assertAllRaise(SyntaxError, 'unexpected EOF while parsing',
@@ -570,28 +629,26 @@ f'{a * x()}'"""
                              "ruf''",
                              "FUR''",
                              "Fur''",
+                             "fb''",
+                             "fB''",
+                             "Fb''",
+                             "FB''",
+                             "bf''",
+                             "bF''",
+                             "Bf''",
+                             "BF''",
                              ])
 
     def test_leading_trailing_spaces(self):
         self.assertEqual(f'{ 3}', '3')
         self.assertEqual(f'{  3}', '3')
-        self.assertEqual(f'{\t3}', '3')
-        self.assertEqual(f'{\t\t3}', '3')
         self.assertEqual(f'{3 }', '3')
         self.assertEqual(f'{3  }', '3')
-        self.assertEqual(f'{3\t}', '3')
-        self.assertEqual(f'{3\t\t}', '3')
 
         self.assertEqual(f'expr={ {x: y for x, y in [(1, 2), ]}}',
                          'expr={1: 2}')
         self.assertEqual(f'expr={ {x: y for x, y in [(1, 2), ]} }',
                          'expr={1: 2}')
-
-    def test_character_name(self):
-        self.assertEqual(f'{4}\N{GREEK CAPITAL LETTER DELTA}{3}',
-                         '4\N{GREEK CAPITAL LETTER DELTA}3')
-        self.assertEqual(f'{{}}\N{GREEK CAPITAL LETTER DELTA}{3}',
-                         '{}\N{GREEK CAPITAL LETTER DELTA}3')
 
     def test_not_equal(self):
         # There's a special test for this because there's a special
@@ -620,20 +677,14 @@ f'{a * x()}'"""
         # Not a conversion, but show that ! is allowed in a format spec.
         self.assertEqual(f'{3.14:!<10.10}', '3.14!!!!!!')
 
-        self.assertEqual(f'{"\N{GREEK CAPITAL LETTER DELTA}"}', '\u0394')
-        self.assertEqual(f'{"\N{GREEK CAPITAL LETTER DELTA}"!r}', "'\u0394'")
-        self.assertEqual(f'{"\N{GREEK CAPITAL LETTER DELTA}"!a}', "'\\u0394'")
-
         self.assertAllRaise(SyntaxError, 'f-string: invalid conversion character',
                             ["f'{3!g}'",
                              "f'{3!A}'",
-                             "f'{3!A}'",
-                             "f'{3!A}'",
+                             "f'{3!3}'",
+                             "f'{3!G}'",
                              "f'{3!!}'",
                              "f'{3!:}'",
-                             "f'{3!\N{GREEK CAPITAL LETTER DELTA}}'",
                              "f'{3! s}'",  # no space before conversion char
-                             "f'{x!\\x00:.<10}'",
                              ])
 
         self.assertAllRaise(SyntaxError, "f-string: expecting '}'",
@@ -663,10 +714,10 @@ f'{a * x()}'"""
                              "f'}'",
                              "f'x}'",
                              "f'x}x'",
+                             r"f'\u007b}'",
 
                              # Can't have { or } in a format spec.
                              "f'{3:}>10}'",
-                             r"f'{3:\\}>10}'",
                              "f'{3:}}>10}'",
                              ])
 
@@ -680,14 +731,11 @@ f'{a * x()}'"""
                              "f'{3!s:3'",
                              "f'x{'",
                              "f'x{x'",
+                             "f'{x'",
                              "f'{3:s'",
                              "f'{{{'",
                              "f'{{}}{'",
                              "f'{'",
-                             ])
-
-        self.assertAllRaise(SyntaxError, 'invalid syntax',
-                            [r"f'{3:\\{>10}'",
                              ])
 
         # But these are just normal strings.
@@ -778,33 +826,11 @@ f'{a * x()}'"""
              "'": 'squote',
              'foo': 'bar',
              }
-        self.assertEqual(f'{d["\'"]}', 'squote')
-        self.assertEqual(f"{d['\"']}", 'dquote')
-
         self.assertEqual(f'''{d["'"]}''', 'squote')
         self.assertEqual(f"""{d['"']}""", 'dquote')
 
         self.assertEqual(f'{d["foo"]}', 'bar')
         self.assertEqual(f"{d['foo']}", 'bar')
-        self.assertEqual(f'{d[\'foo\']}', 'bar')
-        self.assertEqual(f"{d[\"foo\"]}", 'bar')
-
-    def test_escaped_quotes(self):
-        d = {'"': 'a',
-             "'": 'b'}
-
-        self.assertEqual(fr"{d['\"']}", 'a')
-        self.assertEqual(fr'{d["\'"]}', 'b')
-        self.assertEqual(fr"{'\"'}", '"')
-        self.assertEqual(fr'{"\'"}', "'")
-        self.assertEqual(f'{"\\"3"}', '"3')
-
-        self.assertAllRaise(SyntaxError, 'f-string: unterminated string',
-                            [r'''f'{"""\\}' ''',  # Backslash at end of expression
-                             ])
-        self.assertAllRaise(SyntaxError, 'unexpected character after line continuation',
-                            [r"rf'{3\}'",
-                             ])
 
 
 if __name__ == '__main__':

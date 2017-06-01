@@ -1,4 +1,7 @@
 # -*- coding: iso-8859-1 -*-
+# mode: run
+# tag: warnings
+
 
 cimport cython
 
@@ -342,3 +345,26 @@ def uchar_in(Py_UCS4 uchar, unicode ustring):
     """
     assert uchar == 0x12345, ('%X' % uchar)
     return uchar in ustring
+
+
+def uchar_lookup_in_dict(obj, Py_UCS4 uchar):
+    """
+    >>> d = {u_KLINGON: 1234, u0: 0, u1: 1, u_A: 2}
+    >>> uchar_lookup_in_dict(d, u_KLINGON)
+    (1234, 1234)
+    >>> uchar_lookup_in_dict(d, u_A)
+    (2, 2)
+    >>> uchar_lookup_in_dict(d, u0)
+    (0, 0)
+    >>> uchar_lookup_in_dict(d, u1)
+    (1, 1)
+    """
+    cdef dict d = obj
+    dval = d[uchar]
+    objval = obj[uchar]
+    return dval, objval
+
+
+_WARNINGS = """
+364:16: Item lookup of unicode character codes now always converts to a Unicode string. Use an explicit C integer cast to get back the previous integer lookup behaviour.
+"""

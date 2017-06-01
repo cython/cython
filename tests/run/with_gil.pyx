@@ -276,9 +276,11 @@ cdef void void_nogil_nested_gil() nogil:
 def test_nogil_void_funcs_with_gil():
     """
     >>> redirect_stderr(test_nogil_void_funcs_with_gil)  # doctest: +ELLIPSIS
+    with_gil.ExceptionWithMsg: This is swallowed
     Exception... ignored...
     Inner gil section
     nogil section
+    ...
     Exception... ignored...
     """
     void_nogil_ignore_exception()
@@ -287,9 +289,11 @@ def test_nogil_void_funcs_with_gil():
 def test_nogil_void_funcs_with_nogil():
     """
     >>> redirect_stderr(test_nogil_void_funcs_with_nogil)  # doctest: +ELLIPSIS
+    with_gil.ExceptionWithMsg: This is swallowed
     Exception... ignored...
     Inner gil section
     nogil section
+    with_gil.ExceptionWithMsg: Swallow this
     Exception... ignored...
     """
     with nogil:

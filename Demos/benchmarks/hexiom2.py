@@ -17,7 +17,7 @@ class Dir(object):
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        
+
 DIRS = [ Dir(1, 0),
          Dir(-1, 0),
          Dir(0, 1),
@@ -35,7 +35,7 @@ class Done(object):
     FIRST_STRATEGY = 3
     MAX_NEIGHBORS_STRATEGY = 4
     MIN_NEIGHBORS_STRATEGY = 5
-    
+
     def __init__(self, count, empty=False):
         self.count = count
         self.cells = None if empty else [[0, 1, 2, 3, 4, 5, 6, EMPTY] for i in range(count)]
@@ -60,11 +60,11 @@ class Done(object):
             return True
         else:
             return False
-        
+
     def remove_all(self, v):
         for i in range(self.count):
             self.remove(i, v)
-        
+
     def remove_unfixed(self, v):
         changed = False
         for i in range(self.count):
@@ -72,7 +72,7 @@ class Done(object):
                 if self.remove(i, v):
                     changed = True
         return changed
-        
+
     def filter_tiles(self, tiles):
         for v in range(8):
             if tiles[v] == 0:
@@ -206,14 +206,14 @@ class Hex(object):
 
     def contains_pos(self, pos):
         return pos in self.nodes_by_pos
-                    
+
     def get_by_pos(self, pos):
         return self.nodes_by_pos[pos]
 
     def get_by_id(self, id):
         return self.nodes_by_id[id]
 
-        
+
 ##################################
 class Pos(object):
     def __init__(self, hex, tiles, done = None):
@@ -223,7 +223,7 @@ class Pos(object):
 
     def clone(self):
         return Pos(self.hex, self.tiles, self.done.clone())
-    
+
 ##################################
 
 @cython.locals(pos=Pos, i=cython.long, v=cython.int,
@@ -260,7 +260,7 @@ def constraint_pass(pos, last_move=None):
     for cell in done.cells:
         if len(cell) == 1:
             left[cell[0]] -= 1
-            
+
     for v in range(8):
         # If there is none, remove the possibility from all tiles
         if (pos.tiles[v] > 0) and (left[v] == 0):
@@ -276,7 +276,7 @@ def constraint_pass(pos, last_move=None):
                     if (not done.already_done(i)) and (v in cell):
                         done.set_done(i, v)
                         changed = True
-                       
+
     # Force empty or non-empty around filled cells
     filled_cells = (range(done.count) if last_move is None
                     else [last_move])
@@ -307,7 +307,7 @@ def constraint_pass(pos, last_move=None):
                     for u in unknown:
                         if done.remove(u, EMPTY):
                             changed = True
-            
+
     return changed
 
 ASCENDING = 1
@@ -402,7 +402,7 @@ def solved(pos, output, verbose=False):
 
     if (not all_done) or (not exact):
         return OPEN
-    
+
     print_pos(pos, output)
     return SOLVED
 
@@ -414,7 +414,7 @@ def solve_step(prev, strategy, order, output, first=False):
             pass
     else:
         pos = prev
-    
+
     moves = find_moves(pos, strategy, order)
     if len(moves) == 0:
         return solved(pos, output)
@@ -481,12 +481,12 @@ def read_file(file):
             else:
                 inctile = int(tile)
             tiles[inctile] += 1
-            # Look for locked tiles    
+            # Look for locked tiles
             if tile[0] == "+":
                 print("Adding locked tile: %d at pos %d, %d, id=%d" %
                       (inctile, x, y, hex.get_by_pos((x, y)).id))
                 done.set_done(hex.get_by_pos((x, y)).id, inctile)
-            
+
         linei += 1
     for y in range(1, size):
         ry = size - 1 + y
@@ -500,7 +500,7 @@ def read_file(file):
             else:
                 inctile = int(tile)
             tiles[inctile] += 1
-            # Look for locked tiles    
+            # Look for locked tiles
             if tile[0] == "+":
                 print("Adding locked tile: %d at pos %d, %d, id=%d" %
                       (inctile, x, ry, hex.get_by_pos((x, ry)).id))
@@ -530,13 +530,13 @@ def run_level36():
     output = StringIO()
     solve_file(f, strategy, order, output)
     expected = """\
-   3 4 3 2 
-  3 4 4 . 3 
- 2 . . 3 4 3 
-2 . 1 . 3 . 2 
- 3 3 . 2 . 2 
-  3 . 2 . 2 
-   2 2 . 1 
+   3 4 3 2
+  3 4 4 . 3
+ 2 . . 3 4 3
+2 . 1 . 3 . 2
+ 3 3 . 2 . 2
+  3 . 2 . 2
+   2 2 . 1
 """
     if output.getvalue() != expected:
         raise AssertionError("got a wrong answer:\n%s" % output.getvalue())

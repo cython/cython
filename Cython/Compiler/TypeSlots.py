@@ -694,7 +694,7 @@ property_accessor_signatures = {
 #
 #------------------------------------------------------------------------------------------
 
-PyNumberMethods_Py3_GUARD = "PY_MAJOR_VERSION < 3 || CYTHON_COMPILING_IN_PYPY"
+PyNumberMethods_Py3_GUARD = "PY_MAJOR_VERSION < 3 || (CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX < 0x03050000)"
 
 PyNumberMethods = (
     MethodSlot(binaryfunc, "nb_add", "__add__"),

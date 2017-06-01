@@ -59,6 +59,13 @@ def call_static_cdef2(int x, int y):
     """
     return A.static_cdef2(&x, &y)
 
+def call_static_list_comprehension_GH1540(int x):
+    """
+    >>> call_static_list_comprehension_GH1540(5)
+    [('cdef', 5), ('cdef', 5), ('cdef', 5)]
+    """
+    return [A.static_cdef(&x) for _ in range(3)]
+
 # BROKEN
 #def call_static_cdef_untyped(a, b):
 #    """
@@ -67,6 +74,7 @@ def call_static_cdef2(int x, int y):
 #    """
 #    return A.static_cdef_untyped(a, b)
 
+# UNIMPLEMENTED
 # def call_static_cpdef(int x):
 #     """
 #     >>> call_static_cpdef(2)

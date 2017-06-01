@@ -179,3 +179,18 @@ def test_template_class_member():
     del o
     assert destructor_count - start_destructor_count == 2, \
            destructor_count - start_destructor_count
+
+
+ctypedef vector[int]* vector_int_ptr
+cdef vector[vector_int_ptr] create_to_delete() except *:
+    cdef vector[vector_int_ptr] v
+    v.push_back(new vector[int]())
+    return v
+cdef int f(int x):
+    return x
+
+def test_nested_del():
+    cdef vector[vector_int_ptr] v
+    v.push_back(new vector[int]())
+    del v[0]
+    del create_to_delete()[f(f(0))]

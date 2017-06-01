@@ -753,4 +753,5 @@ default_options = dict(
     output_dir=None,
     build_dir=None,
     cache=None,
+    create_extension=None,
 )

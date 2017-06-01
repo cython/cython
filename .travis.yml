@@ -8,13 +8,14 @@ cache:
 
 python:
   - 2.7
-  - 3.5
+  - 3.6
+  - 2.6
   - 3.2
   - 3.3
   - 3.4
-  - 2.6
-  - 3.5-dev
+  - 3.5
   - 3.6-dev
+  - 3.7-dev
   - pypy
   - pypy3
 
@@ -48,8 +49,9 @@ matrix:
   allow_failures:
     - python: pypy
     - python: pypy3
-    - python: 3.5-dev
+    - python: 3.2
     - python: 3.6-dev
+    - python: 3.7-dev
   exclude:
     - python: pypy
       env: BACKEND=cpp

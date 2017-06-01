@@ -87,15 +87,24 @@ from .Dependencies import cythonize
 class CythonMagics(Magics):
 
     def __init__(self, shell):
-        super(CythonMagics,self).__init__(shell)
+        super(CythonMagics, self).__init__(shell)
         self._reloads = {}
         self._code_cache = {}
         self._pyximport_installed = False
 
     def _import_all(self, module):
-        for k,v in module.__dict__.items():
-            if not k.startswith('__'):
-                self.shell.push({k:v})
+        mdict = module.__dict__
+        if '__all__' in mdict:
+            keys = mdict['__all__']
+        else:
+            keys = [k for k in mdict if not k.startswith('_')]
+
+        for k in keys:
+            try:
+                self.shell.push({k: mdict[k]})
+            except KeyError:
+                msg = "'module' object has no attribute '%s'" % k
+                raise AttributeError(msg)
 
     @cell_magic
     def cython_inline(self, line, cell):
@@ -189,6 +198,11 @@ class CythonMagics(Magics):
              "multiple times)."
     )
     @magic_arguments.argument(
+        '-S', '--src', action='append', default=[],
+        help="Add a path to the list of src files (can be specified "
+             "multiple times)."
+    )
+    @magic_arguments.argument(
         '-+', '--cplus', action='store_true', default=False,
         help="Output a C++ rather than C file."
     )
@@ -223,7 +237,7 @@ class CythonMagics(Magics):
             ...
         """
         args = magic_arguments.parse_argstring(self.cython, line)
-        code = cell if cell.endswith('\n') else cell+'\n'
+        code = cell if cell.endswith('\n') else cell + '\n'
         lib_dir = os.path.join(get_ipython_cache_dir(), 'cython')
         quiet = True
         key = code, line, sys.version_info, sys.executable, cython_version
@@ -252,6 +266,7 @@ class CythonMagics(Magics):
 
         if need_cythonize:
             c_include_dirs = args.include
+            c_src_files = list(map(str, args.src))
             if 'numpy' in code:
                 import numpy
                 c_include_dirs.append(numpy.get_include())
@@ -260,14 +275,14 @@ class CythonMagics(Magics):
             with io.open(pyx_file, 'w', encoding='utf-8') as f:
                 f.write(code)
             extension = Extension(
-                name = module_name,
-                sources = [pyx_file],
-                include_dirs = c_include_dirs,
-                library_dirs = args.library_dirs,
-                extra_compile_args = args.compile_args,
-                extra_link_args = args.link_args,
-                libraries = args.lib,
-                language = 'c++' if args.cplus else 'c',
+                name=module_name,
+                sources=[pyx_file] + c_src_files,
+                include_dirs=c_include_dirs,
+                library_dirs=args.library_dirs,
+                extra_compile_args=args.compile_args,
+                extra_link_args=args.link_args,
+                libraries=args.lib,
+                language='c++' if args.cplus else 'c',
             )
             build_extension = self._get_build_extension()
             try:
@@ -287,7 +302,7 @@ class CythonMagics(Magics):
 
         if not have_module:
             build_extension.build_temp = os.path.dirname(pyx_file)
-            build_extension.build_lib  = lib_dir
+            build_extension.build_lib = lib_dir
             build_extension.run()
             self._code_cache[key] = module_name
 
@@ -355,10 +370,10 @@ class CythonMagics(Magics):
         return html
 
 __doc__ = __doc__.format(
-                # rST doesn't see the -+ flag as part of an option list, so we
-                # hide it from the module-level docstring.
-                CYTHON_DOC = dedent(CythonMagics.cython.__doc__\
-                            .replace('-+, --cplus','--cplus    ')),
-                CYTHON_INLINE_DOC = dedent(CythonMagics.cython_inline.__doc__),
-                CYTHON_PYXIMPORT_DOC = dedent(CythonMagics.cython_pyximport.__doc__),
+    # rST doesn't see the -+ flag as part of an option list, so we
+    # hide it from the module-level docstring.
+    CYTHON_DOC=dedent(CythonMagics.cython.__doc__\
+                                  .replace('-+, --cplus', '--cplus    ')),
+    CYTHON_INLINE_DOC=dedent(CythonMagics.cython_inline.__doc__),
+    CYTHON_PYXIMPORT_DOC=dedent(CythonMagics.cython_pyximport.__doc__),
 )

@@ -6,6 +6,7 @@ from . import (ExprNodes, PyrexTypes, MemoryView,
                ParseTreeTransforms, StringEncoding, Errors)
 from .ExprNodes import CloneNode, ProxyNode, TupleNode
 from .Nodes import FuncDefNode, CFuncDefNode, StatListNode, DefNode
+from ..Utils import OrderedSet
 
 
 class FusedCFuncDefNode(StatListNode):
@@ -576,7 +577,7 @@ class FusedCFuncDefNode(StatListNode):
 
         fused_index = 0
         default_idx = 0
-        all_buffer_types = set()
+        all_buffer_types = OrderedSet()
         seen_fused_types = set()
         for i, arg in enumerate(self.node.args):
             if arg.type.is_fused:

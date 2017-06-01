@@ -2,7 +2,7 @@
 # mode: run
 # tag: cpp, werror
 
-from libcpp.memory cimport unique_ptr, shared_ptr, default_delete 
+from libcpp.memory cimport unique_ptr, shared_ptr, default_delete
 from libcpp cimport nullptr
 
 cdef extern from "cpp_smart_ptr_helper.h":
@@ -33,7 +33,7 @@ def test_unique_ptr():
     x_ptr2.reset()
     assert alloc_count == 1
     assert dealloc_count == 1
-    
+
     alloc_count = 0
     dealloc_count = 0
     cdef unique_ptr[CountAllocDealloc,FreePtr[CountAllocDealloc]] x_ptr3
@@ -41,3 +41,37 @@ def test_unique_ptr():
     assert x_ptr3.get() != nullptr;
     x_ptr3.reset()
     assert x_ptr3.get() == nullptr;
+
+def test_shared_ptr():
+    """
+    >>> test_shared_ptr()
+    """
+    cdef int alloc_count = 0, dealloc_count = 0
+    cdef shared_ptr[CountAllocDealloc] ptr = shared_ptr[CountAllocDealloc](
+        new CountAllocDealloc(&alloc_count, &dealloc_count))
+    assert alloc_count == 1
+    assert dealloc_count == 0
+
+    cdef shared_ptr[CountAllocDealloc] ptr2 = ptr
+    assert alloc_count == 1
+    assert dealloc_count == 0
+
+    ptr.reset()
+    assert alloc_count == 1
+    assert dealloc_count == 0
+
+    ptr2.reset()
+    assert alloc_count == 1
+    assert dealloc_count == 1
+
+
+cdef cppclass A:
+    pass
+
+cdef cppclass B(A):
+    pass
+
+cdef cppclass C(B):
+    pass
+
+cdef shared_ptr[A] holding_subclass = shared_ptr[A](new C())

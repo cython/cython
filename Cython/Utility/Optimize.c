@@ -285,13 +285,30 @@ static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_di
                                                    Py_ssize_t* p_orig_length, int* p_source_is_dict) {
     is_dict = is_dict || likely(PyDict_CheckExact(iterable));
     *p_source_is_dict = is_dict;
-#if !CYTHON_COMPILING_IN_PYPY
     if (is_dict) {
+#if !CYTHON_COMPILING_IN_PYPY
         *p_orig_length = PyDict_Size(iterable);
         Py_INCREF(iterable);
         return iterable;
-    }
+#elif PY_MAJOR_VERSION >= 3
+        // On PyPy3, we need to translate manually a few method names.
+        // This logic is not needed on CPython thanks to the fast case above.
+        static PyObject *py_items = NULL, *py_keys = NULL, *py_values = NULL;
+        const char *name = PyUnicode_AsUTF8(method_name);
+        PyObject **pp = NULL;
+        if (strcmp(name, "iteritems") == 0) pp = &py_items;
+        else if (strcmp(name, "iterkeys") == 0) pp = &py_keys;
+        else if (strcmp(name, "itervalues") == 0) pp = &py_values;
+        if (pp) {
+            if (!*pp) {
+                *pp = PyUnicode_FromString(name + 4);
+                if (!*pp)
+                    return NULL;
+            }
+            method_name = *pp;
+        }
 #endif
+    }
     *p_orig_length = 0;
     if (method_name) {
         PyObject* iter;
@@ -577,7 +594,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
             x += ((x != 0) & ((x ^ b) < 0)) * b;
             return PyInt_FromLong(x);
         {{elif op == 'TrueDivide'}}
-            if (8 * sizeof(long) <= 53 || likely(labs({{ival}}) <= (1L << 53))) {
+            if (8 * sizeof(long) <= 53 || likely(labs({{ival}}) <= ((PY_LONG_LONG)1 << 53))) {
                 return PyFloat_FromDouble((double)a / (double)b);
             }
             // let Python do the rounding
@@ -596,7 +613,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
             }
             return PyInt_FromLong(x);
         {{elif op == 'Lshift'}}
-            if (likely(a == (a << b) >> b)) {
+            if (likely(b < sizeof(long)*8 && a == (a << b) >> b) || !a) {
                 return PyInt_FromLong(a {{c_op}} b);
             }
         {{else}}
@@ -667,7 +684,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
                 x = a % b;
                 x += ((x != 0) & ((x ^ b) < 0)) * b;
             {{elif op == 'TrueDivide'}}
-                if ((8 * sizeof(long) <= 53 || likely(labs({{ival}}) <= (1L << 53)))
+                if ((8 * sizeof(long) <= 53 || likely(labs({{ival}}) <= ((PY_LONG_LONG)1 << 53)))
                     || __Pyx_sst_abs(size) <= 52 / PyLong_SHIFT) {
                     return PyFloat_FromDouble((double)a / (double)b);
                 }
@@ -685,12 +702,12 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
                 x = a {{c_op}} b;
                 {{if op == 'Lshift'}}
 #ifdef HAVE_LONG_LONG
-                if (unlikely(a != x >> b)) {
+                if (unlikely(!(b < sizeof(long)*8 && a == x >> b)) && a) {
                     ll{{ival}} = {{ival}};
                     goto long_long;
                 }
 #else
-                if (likely(a == x >> b)) /* execute return statement below */
+                if (likely(b < sizeof(long)*8 && a == x >> b) || !a) /* execute return statement below */
 #endif
                 {{endif}}
             {{endif}}
@@ -812,7 +829,7 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
                 if (8 * sizeof(unsigned long) > {{_size}} * PyLong_SHIFT && ((8 * sizeof(unsigned long) < 53) || ({{_size-1}} * PyLong_SHIFT < 53))) {
                     {{fval}} = (double) {{pylong_join(_size, 'digits')}};
                     // let CPython do its own float rounding from 2**53 on (max. consecutive integer in double float)
-                    if ((8 * sizeof(unsigned long) < 53) || ({{_size}} * PyLong_SHIFT < 53) || ({{fval}} < (double) (1L<<53))) {
+                    if ((8 * sizeof(unsigned long) < 53) || ({{_size}} * PyLong_SHIFT < 53) || ({{fval}} < (double) ((PY_LONG_LONG)1 << 53))) {
                         if (size == {{-_size}})
                             {{fval}} = -{{fval}};
                         break;

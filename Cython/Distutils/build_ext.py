@@ -17,7 +17,7 @@ class new_build_ext(_build_ext, object):
             from Cython.Build.Dependencies import cythonize
             self.distribution.ext_modules[:] = cythonize(
                 self.distribution.ext_modules)
-        super(build_ext, self).finalize_options()
+        super(new_build_ext, self).finalize_options()
 
 # This will become new_build_ext in the future.
 from .old_build_ext import old_build_ext as build_ext

@@ -12,7 +12,7 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
                FileSourceDescriptor=object, lookup_unicodechar=object,
                Future=object, Options=object, error=object, warning=object,
                Builtin=object, ModuleNode=object, Utils=object,
-               re=object, _unicode=object, _bytes=object,
+               re=object, _parse_escape_sequences=object, _unicode=object, _bytes=object,
                partial=object, reduce=object, _IS_PY3=cython.bint)
 
 from io import StringIO
@@ -811,8 +811,8 @@ def p_cat_string_literal(s):
             if set([kind, next_kind]) in (set(['f', 'u']), set(['f', ''])):
                 kind = 'f'
             else:
-                error(pos, "Cannot mix string literals of different types, expected %s'', got %s''" %
-                      (kind, next_kind))
+                error(pos, "Cannot mix string literals of different types, expected %s'', got %s''" % (
+                    kind, next_kind))
                 continue
         bstrings.append(next_bytes_value)
         ustrings.append(next_unicode_value)
@@ -867,18 +867,18 @@ def p_string_literal(s, kind_override=None):
 
     # s.sy == 'BEGIN_STRING'
     pos = s.position()
-    is_raw = False
     is_python3_source = s.context.language_level >= 3
     has_non_ascii_literal_characters = False
     kind_string = s.systring.rstrip('"\'').lower()
-    if len(set(kind_string)) != len(kind_string):
-        s.error('Duplicate string prefix character')
-    if 'b' in kind_string and 'u' in kind_string:
-        s.error('String prefixes b and u cannot be combined')
-    if 'b' in kind_string and 'f' in kind_string:
-        s.error('String prefixes b and f cannot be combined')
-    if 'u' in kind_string and 'f' in kind_string:
-        s.error('String prefixes u and f cannot be combined')
+    if len(kind_string) > 1:
+        if len(set(kind_string)) != len(kind_string):
+            error(pos, 'Duplicate string prefix character')
+        if 'b' in kind_string and 'u' in kind_string:
+            error(pos, 'String prefixes b and u cannot be combined')
+        if 'b' in kind_string and 'f' in kind_string:
+            error(pos, 'String prefixes b and f cannot be combined')
+        if 'u' in kind_string and 'f' in kind_string:
+            error(pos, 'String prefixes u and f cannot be combined')
 
     is_raw = 'r' in kind_string
 
@@ -886,10 +886,11 @@ def p_string_literal(s, kind_override=None):
         # this should never happen, since the lexer does not allow combining c
         # with other prefix characters
         if len(kind_string) != 1:
-            s.error('Invalid string prefix for character literal')
+            error(pos, 'Invalid string prefix for character literal')
         kind = 'c'
     elif 'f' in kind_string:
-        kind = 'f'  # u is ignored
+        kind = 'f'     # u is ignored
+        is_raw = True  # postpone the escape resolution
     elif 'b' in kind_string:
         kind = 'b'
     elif 'u' in kind_string:
@@ -920,51 +921,13 @@ def p_string_literal(s, kind_override=None):
             if is_python3_source and not has_non_ascii_literal_characters and check_for_non_ascii_characters(systr):
                 has_non_ascii_literal_characters = True
         elif sy == 'ESCAPE':
-            if is_raw:
+            # in Py2, 'ur' raw unicode strings resolve unicode escapes but nothing else
+            if is_raw and (is_python3_source or kind != 'u' or systr[1] not in u'Uu'):
                 chars.append(systr)
-                if is_python3_source and not has_non_ascii_literal_characters \
-                       and check_for_non_ascii_characters(systr):
+                if is_python3_source and not has_non_ascii_literal_characters and check_for_non_ascii_characters(systr):
                     has_non_ascii_literal_characters = True
             else:
-                c = systr[1]
-                if c in u"01234567":
-                    chars.append_charval( int(systr[1:], 8) )
-                elif c in u"'\"\\":
-                    chars.append(c)
-                elif c in u"abfnrtv":
-                    chars.append(
-                        StringEncoding.char_from_escape_sequence(systr))
-                elif c == u'\n':
-                    pass
-                elif c == u'x':   # \xXX
-                    if len(systr) == 4:
-                        chars.append_charval( int(systr[2:], 16) )
-                    else:
-                        s.error("Invalid hex escape '%s'" % systr,
-                                fatal=False)
-                elif c in u'NUu' and kind in ('u', 'f', ''):   # \uxxxx, \Uxxxxxxxx, \N{...}
-                    chrval = -1
-                    if c == u'N':
-                        try:
-                            chrval = ord(lookup_unicodechar(systr[3:-1]))
-                        except KeyError:
-                            s.error("Unknown Unicode character name %s" %
-                                    repr(systr[3:-1]).lstrip('u'))
-                    elif len(systr) in (6,10):
-                        chrval = int(systr[2:], 16)
-                        if chrval > 1114111: # sys.maxunicode:
-                            s.error("Invalid unicode escape '%s'" % systr)
-                            chrval = -1
-                    else:
-                        s.error("Invalid unicode escape '%s'" % systr,
-                                fatal=False)
-                    if chrval >= 0:
-                        chars.append_uescape(chrval, systr)
-                else:
-                    chars.append(u'\\' + systr[1:])
-                    if is_python3_source and not has_non_ascii_literal_characters \
-                           and check_for_non_ascii_characters(systr):
-                        has_non_ascii_literal_characters = True
+                _append_escape_sequence(kind, chars, systr, s)
         elif sy == 'NEWLINE':
             chars.append(u'\n')
         elif sy == 'END_STRING':
@@ -972,8 +935,8 @@ def p_string_literal(s, kind_override=None):
         elif sy == 'EOF':
             s.error("Unclosed string literal", pos=pos)
         else:
-            s.error("Unexpected token %r:%r in string literal" %
-                    (sy, s.systring))
+            s.error("Unexpected token %r:%r in string literal" % (
+                sy, s.systring))
 
     if kind == 'c':
         unicode_value = None
@@ -985,47 +948,116 @@ def p_string_literal(s, kind_override=None):
         if is_python3_source and has_non_ascii_literal_characters:
             # Python 3 forbids literal non-ASCII characters in byte strings
             if kind not in ('u', 'f'):
-                s.error("bytes can only contain ASCII literal characters.",
-                        pos=pos, fatal=False)
+                s.error("bytes can only contain ASCII literal characters.", pos=pos)
             bytes_value = None
     if kind == 'f':
-        unicode_value = p_f_string(s, unicode_value, pos)
+        unicode_value = p_f_string(s, unicode_value, pos, is_raw='r' in kind_string)
     s.next()
     return (kind, bytes_value, unicode_value)
 
 
-def p_f_string(s, unicode_value, pos):
+def _append_escape_sequence(kind, builder, escape_sequence, s):
+    c = escape_sequence[1]
+    if c in u"01234567":
+        builder.append_charval(int(escape_sequence[1:], 8))
+    elif c in u"'\"\\":
+        builder.append(c)
+    elif c in u"abfnrtv":
+        builder.append(StringEncoding.char_from_escape_sequence(escape_sequence))
+    elif c == u'\n':
+        pass  # line continuation
+    elif c == u'x':  # \xXX
+        if len(escape_sequence) == 4:
+            builder.append_charval(int(escape_sequence[2:], 16))
+        else:
+            s.error("Invalid hex escape '%s'" % escape_sequence, fatal=False)
+    elif c in u'NUu' and kind in ('u', 'f', ''):  # \uxxxx, \Uxxxxxxxx, \N{...}
+        chrval = -1
+        if c == u'N':
+            try:
+                chrval = ord(lookup_unicodechar(escape_sequence[3:-1]))
+            except KeyError:
+                s.error("Unknown Unicode character name %s" %
+                        repr(escape_sequence[3:-1]).lstrip('u'), fatal=False)
+        elif len(escape_sequence) in (6, 10):
+            chrval = int(escape_sequence[2:], 16)
+            if chrval > 1114111:  # sys.maxunicode:
+                s.error("Invalid unicode escape '%s'" % escape_sequence)
+                chrval = -1
+        else:
+            s.error("Invalid unicode escape '%s'" % escape_sequence, fatal=False)
+        if chrval >= 0:
+            builder.append_uescape(chrval, escape_sequence)
+    else:
+        builder.append(escape_sequence)
+
+
+_parse_escape_sequences = re.compile(
+    # escape sequences:
+    br'(\\(?:'
+    br'[\\abfnrtv"\'{]|'
+    br'[0-7]{2,3}|'
+    br'N\{[^}]*\}|'
+    br'x[0-9a-fA-F]{2}|'
+    br'u[0-9a-fA-F]{4}|'
+    br'U[0-9a-fA-F]{8}|'
+    br'[NuU]|'  # detect invalid escape sequences that do not match above
+    br')?|'
+    # non-escape sequences:
+    br'\{\{?|'
+    br'\}\}?|'
+    br'[^\\{}]+)'.decode('us-ascii')
+).match
+
+
+def p_f_string(s, unicode_value, pos, is_raw):
     # Parses a PEP 498 f-string literal into a list of nodes. Nodes are either UnicodeNodes
     # or FormattedValueNodes.
     values = []
-    i = 0
+    next_start = 0
     size = len(unicode_value)
-    current_literal_start = 0
-    while i < size:
-        c = unicode_value[i]
-        if c in '{}':
-            if i + 1 < size and unicode_value[i + 1] == c:
-                encoded_str = EncodedString(unicode_value[current_literal_start:i + 1])
-                values.append(ExprNodes.UnicodeNode(pos, value=encoded_str))
-                i += 2
-                current_literal_start = i
-            elif c == '}':
-                s.error("single '}' encountered in format string")
-            else:
-                encoded_str = EncodedString(unicode_value[current_literal_start:i])
-                values.append(ExprNodes.UnicodeNode(pos, value=encoded_str))
-                i, expr_node = p_f_string_expr(s, unicode_value, pos, i + 1)
-                current_literal_start = i
-                values.append(expr_node)
-        else:
-            i += 1
+    builder = StringEncoding.UnicodeLiteralBuilder()
 
-    encoded_str = EncodedString(unicode_value[current_literal_start:])
-    values.append(ExprNodes.UnicodeNode(pos, value=encoded_str))
+    while next_start < size:
+        end = next_start
+        match = _parse_escape_sequences(unicode_value, next_start)
+        if match is None:
+            error_pos = (pos[0], pos[1] + end, pos[2])  # FIXME: handle newlines in string
+            error(error_pos, "Invalid escape sequence")
+
+        next_start = match.end()
+        part = match.group()
+        c = part[0]
+        if c == '\\':
+            if not is_raw and len(part) > 1:
+                _append_escape_sequence('f', builder, part, s)
+            else:
+                builder.append(part)
+        elif c == '{':
+            if part == '{{':
+                builder.append('{')
+            else:
+                # start of an expression
+                if builder.chars:
+                    values.append(ExprNodes.UnicodeNode(pos, value=builder.getstring()))
+                    builder = StringEncoding.UnicodeLiteralBuilder()
+                next_start, expr_node = p_f_string_expr(s, unicode_value, pos, next_start, is_raw)
+                values.append(expr_node)
+        elif c == '}':
+            if part == '}}':
+                builder.append('}')
+            else:
+                error_pos = (pos[0], pos[1] + end, pos[2])  # FIXME: handle newlines in string
+                s.error("f-string: single '}' is not allowed", pos=error_pos)
+        else:
+            builder.append(part)
+
+    if builder.chars:
+        values.append(ExprNodes.UnicodeNode(pos, value=builder.getstring()))
     return values
 
 
-def p_f_string_expr(s, unicode_value, pos, starting_index):
+def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
     # Parses a {}-delimited expression inside an f-string. Returns a FormattedValueNode
     # and the index in the string that follows the expression.
     i = starting_index
@@ -1045,7 +1077,8 @@ def p_f_string_expr(s, unicode_value, pos, starting_index):
 
         if quote_char != NO_CHAR:
             if c == '\\':
-                i += 1
+                error_pos = (pos[0], pos[1] + i, pos[2])  # FIXME: handle newlines in string
+                error(error_pos, "backslashes not allowed in f-strings")
             elif c == quote_char:
                 if in_triple_quotes:
                     if i + 2 < size and unicode_value[i + 1] == c and unicode_value[i + 2] == c:
@@ -1080,15 +1113,16 @@ def p_f_string_expr(s, unicode_value, pos, starting_index):
     expr_pos = (pos[0], pos[1], pos[2] + starting_index + 2)  # TODO: find exact code position (concat, multi-line, ...)
 
     if not expr_str.strip():
-        s.error("empty expression not allowed in f-string")
+        error(pos, "empty expression not allowed in f-string")
 
     if terminal_char == '!':
         i += 1
         if i + 2 > size:
-            s.error("invalid conversion char at end of string")
-        conversion_char = unicode_value[i]
-        i += 1
-        terminal_char = unicode_value[i]
+            error(pos, "invalid conversion char at end of string")
+        else:
+            conversion_char = unicode_value[i]
+            i += 1
+            terminal_char = unicode_value[i]
 
     if terminal_char == ':':
         in_triple_quotes = False
@@ -1128,14 +1162,14 @@ def p_f_string_expr(s, unicode_value, pos, starting_index):
 
     # validate the conversion char
     if conversion_char is not None and not ExprNodes.FormattedValueNode.find_conversion_func(conversion_char):
-        s.error("invalid conversion character '%s'" % conversion_char)
+        error(pos, "invalid conversion character '%s'" % conversion_char)
 
     # the format spec is itself treated like an f-string
     if format_spec_str:
-        format_spec = ExprNodes.JoinedStrNode(pos, values=p_f_string(s, format_spec_str, pos))
+        format_spec = ExprNodes.JoinedStrNode(pos, values=p_f_string(s, format_spec_str, pos, is_raw))
 
     return i + 1, ExprNodes.FormattedValueNode(
-        s.position(), value=expr, conversion_char=conversion_char, format_spec=format_spec)
+        pos, value=expr, conversion_char=conversion_char, format_spec=format_spec)
 
 
 # since PEP 448:
@@ -2918,7 +2952,7 @@ def p_c_arg_decl(s, ctx, in_pyfunc, cmethod_flag = 0, nonempty = 0,
         annotation = p_test(s)
     if s.sy == '=':
         s.next()
-        if 'pxd' in ctx.level:
+        if 'pxd' in ctx.level and 'inline' not in ctx.modifiers:
             if s.sy not in ['*', '?']:
                 error(pos, "default values cannot be specified in pxd files, use ? or *")
             default = ExprNodes.BoolNode(1)
@@ -3158,7 +3192,7 @@ def p_c_func_or_var_declaration(s, pos, ctx):
     cmethod_flag = ctx.level in ('c_class', 'c_class_pxd')
     modifiers = p_c_modifiers(s)
     base_type = p_c_base_type(s, nonempty = 1, templates = ctx.templates)
-    declarator = p_c_declarator(s, ctx, cmethod_flag = cmethod_flag,
+    declarator = p_c_declarator(s, ctx(modifiers=modifiers), cmethod_flag = cmethod_flag,
                                 assignable = 1, nonempty = 1)
     declarator.overridable = ctx.overridable
     if s.sy == 'IDENT' and s.systring == 'const' and ctx.level == 'cpp_class':

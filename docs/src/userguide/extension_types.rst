@@ -35,7 +35,7 @@ The main difference is that you can use the :keyword:`cdef` statement to define
 attributes. The attributes may be Python objects (either generic or of a
 particular extension type), or they may be of any C data type. So you can use
 extension types to wrap arbitrary C data structures and provide a Python-like
-interface to them.  
+interface to them.
 
 .. _readonly:
 
@@ -117,35 +117,35 @@ The same consideration applies to local variables, for example,::
 Type Testing and Casting
 ------------------------
 
-Suppose I have a method :meth:`quest` which returns an object of type :class:`Shrubbery`. 
+Suppose I have a method :meth:`quest` which returns an object of type :class:`Shrubbery`.
 To access it's width I could write::
 
     cdef Shrubbery sh = quest()
     print sh.width
 
-which requires the use of a local variable and performs a type test on assignment. 
+which requires the use of a local variable and performs a type test on assignment.
 If you *know* the return value of :meth:`quest` will be of type :class:`Shrubbery`
 you can use a cast to write::
 
     print (<Shrubbery>quest()).width
 
-This may be dangerous if :meth:`quest()` is not actually a :class:`Shrubbery`, as it 
-will try to access width as a C struct member which may not exist. At the C level, 
-rather than raising an :class:`AttributeError`, either an nonsensical result will be 
+This may be dangerous if :meth:`quest()` is not actually a :class:`Shrubbery`, as it
+will try to access width as a C struct member which may not exist. At the C level,
+rather than raising an :class:`AttributeError`, either an nonsensical result will be
 returned (interpreting whatever data is at that address as an int) or a segfault
 may result from trying to access invalid memory. Instead, one can write::
 
     print (<Shrubbery?>quest()).width
 
-which performs a type check (possibly raising a :class:`TypeError`) before making the 
-cast and allowing the code to proceed. 
+which performs a type check (possibly raising a :class:`TypeError`) before making the
+cast and allowing the code to proceed.
 
-To explicitly test the type of an object, use the :meth:`isinstance` method. By default, 
-in Python, the :meth:`isinstance` method checks the :class:`__class__` attribute of the 
-first argument to determine if it is of the required type. However, this is potentially 
-unsafe as the :class:`__class__` attribute can be spoofed or changed, but the C structure 
-of an extension type must be correct to access its :keyword:`cdef` attributes and call its :keyword:`cdef` methods. Cython detects if the second argument is a known extension 
-type and does a type check instead, analogous to Pyrex's :meth:`typecheck`.  
+To explicitly test the type of an object, use the :meth:`isinstance` method. By default,
+in Python, the :meth:`isinstance` method checks the :class:`__class__` attribute of the
+first argument to determine if it is of the required type. However, this is potentially
+unsafe as the :class:`__class__` attribute can be spoofed or changed, but the C structure
+of an extension type must be correct to access its :keyword:`cdef` attributes and call its :keyword:`cdef` methods. Cython detects if the second argument is a known extension
+type and does a type check instead, analogous to Pyrex's :meth:`typecheck`.
 The old behavior is always available by passing a tuple as the second parameter::
 
     print isinstance(sh, Shrubbery)     # Check the type of sh
@@ -207,7 +207,7 @@ with checking that it has the right type.
       be ``None``.
     * When comparing a value with ``None``, keep in mind that, if ``x`` is a Python
       object, ``x is None`` and ``x is not None`` are very efficient because they
-      translate directly to C pointer comparisons, whereas ``x == None`` and 
+      translate directly to C pointer comparisons, whereas ``x == None`` and
       ``x != None``, or simply using ``x`` as a boolean value (as in ``if x: ...``)
       will invoke Python operations and therefore be much slower.
 
@@ -260,7 +260,7 @@ There is also a special (deprecated) legacy syntax for defining properties in an
 
             def __del__(self):
                 # This is called when the property is deleted.
-     
+
 
 The :meth:`__get__`, :meth:`__set__` and :meth:`__del__` methods are all
 optional; if they are omitted, an exception will be raised when the
@@ -269,7 +269,7 @@ corresponding operation is attempted.
 Here's a complete example. It defines a property which adds to a list each
 time it is written to, returns the list when it is read, and empties the list
 when it is deleted.::
- 
+
     # cheesy.pyx
     cdef class CheeseShop:
 
@@ -283,7 +283,7 @@ when it is deleted.::
             return "We don't have: %s" % self.cheeses
 
         @cheese.setter
-        def cheese(self):
+        def cheese(self, value):
             self.cheeses.append(value)
 
         @cheese.deleter
@@ -494,7 +494,7 @@ object called :attr:`__weakref__`. For example,::
     cdef class ExplodingAnimal:
         """This animal will self-destruct when it is
         no longer strongly referenced."""
-    
+
         cdef object __weakref__
 
 
@@ -546,9 +546,26 @@ can participate in cycles could cause memory leaks ::
         cdef str name
         cdef tuple addresses
 
-If you can be sure addresses will contain only references to strings, 
+If you can be sure addresses will contain only references to strings,
 the above would be safe, and it may yield a significant speedup, depending on
 your usage pattern.
+
+
+Controlling pickling
+====================
+
+By default, Cython will generate a ``__reduce__()`` method to allow pickling
+an extension type if and only if each of its members are convertible to Python
+and it has no ``__cinit__`` method.
+To require this behavior (i.e. throw an error at compile time if a class
+cannot be pickled) decorate the class with ``@cython.auto_pickle(True)``.
+One can also annotate with ``@cython.auto_pickle(False)`` to get the old
+behavior of not generating a ``__reduce__`` method in any case.
+
+Manually implementing a ``__reduce__`` or `__reduce_ex__`` method will also
+disable this auto-generation and can be used to support pickling of more
+complicated types.
+
 
 Public and external extension types
 ====================================
@@ -604,7 +621,7 @@ built-in complex object.::
 
     2. As well as the name of the extension type, the module in which its type
        object can be found is also specified. See the implicit importing section
-       below. 
+       below.
 
     3. When declaring an external extension type, you don't declare any
        methods.  Declaration of methods is not required in order to call them,
@@ -662,7 +679,7 @@ You can also specify an alternative name under which to import the type using
 an as clause, for example,::
 
       cdef extern class My.Nested.Package.Spam as Yummy:
-         ... 
+         ...
 
 which corresponds to the implicit import statement::
 

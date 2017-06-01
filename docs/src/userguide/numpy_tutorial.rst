@@ -20,13 +20,13 @@ information on this.
 
 The style of this tutorial will not fit everybody, so you can also consider:
 
-* Robert Bradshaw's `slides on cython for SciPy2008 
-  <http://wiki.sagemath.org/scipy08?action=AttachFile&do=get&target=scipy-cython.tgz>`_ 
+* Robert Bradshaw's `slides on cython for SciPy2008
+  <http://wiki.sagemath.org/scipy08?action=AttachFile&do=get&target=scipy-cython.tgz>`_
   (a higher-level and quicker introduction)
 * Basic Cython documentation (see `Cython front page <http://cython.org>`_).
 * ``[:enhancements/buffer:Spec for the efficient indexing]``
 
-.. Note:: 
+.. Note::
     The fast array access documented below is a completely new feature, and
     there may be bugs waiting to be discovered. It might be a good idea to do
     a manual sanity check on the C code Cython generates before using this for
@@ -71,7 +71,7 @@ However there are several options to automate these steps:
    excellent support for using Cython and NumPy from an interactive command
    line (like IPython) or through a notebook interface (like
    Maple/Mathematica). See `this documentation
-   <http://www.sagemath.org/doc/prog/node40.html>`_.  
+   <http://www.sagemath.org/doc/prog/node40.html>`_.
 2. A version of `pyximport <http://www.prescod.net/pyximport/>`_ is shipped
    with Cython, so that you can import pyx-files dynamically into Python and
    have them compiled automatically (See :ref:`pyximport`).
@@ -79,7 +79,7 @@ However there are several options to automate these steps:
    which automate the process, this is the preferred method for full programs.
 4. Manual compilation (see below)
 
-.. Note:: 
+.. Note::
     If using another interactive command line environment than SAGE, like
     IPython or Python itself, it is important that you restart the process
     when you recompile the module. It is not enough to issue an "import"
@@ -200,7 +200,7 @@ run a Python session to test both the Python version (imported from
         [2, 2, 2],
         [1, 1, 1]])
     In [4]: import convolve1
-    In [4]: convolve1.naive_convolve(np.array([[1, 1, 1]], dtype=np.int), 
+    In [4]: convolve1.naive_convolve(np.array([[1, 1, 1]], dtype=np.int),
     ...     np.array([[1],[2],[1]], dtype=np.int))
     Out [4]:
     array([[1, 1, 1],
@@ -347,7 +347,7 @@ Showing the changes needed to produce :file:`convolve3.pyx` only::
     def naive_convolve(np.ndarray[DTYPE_t, ndim=2] f, np.ndarray[DTYPE_t, ndim=2] g):
     ...
     cdef np.ndarray[DTYPE_t, ndim=2] h = ...
-    
+
 Usage:
 
 .. sourcecode:: ipython
@@ -381,7 +381,7 @@ The array lookups are still slowed down by two factors:
         @cython.boundscheck(False) # turn off bounds-checking for entire function
         def naive_convolve(np.ndarray[DTYPE_t, ndim=2] f, np.ndarray[DTYPE_t, ndim=2] g):
         ...
-        
+
 Now bounds checking is not performed (and, as a side-effect, if you ''do''
 happen to access out of bounds you will in the best case crash your program
 and in the worst case corrupt data). It is possible to switch bounds-checking
@@ -477,14 +477,14 @@ or may not happen depending on available developer time and resources for
 Cython.
 
 1. Support for efficient access to structs/records stored in arrays; currently
-   only primitive types are allowed.  
+   only primitive types are allowed.
 2. Support for efficient access to complex floating point types in arrays. The
    main obstacle here is getting support for efficient complex datatypes in
    Cython.
 3. Calling NumPy/SciPy functions currently has a Python call overhead; it
    would be possible to take a short-cut from Cython directly to C. (This does
    however require some isolated and incremental changes to those libraries;
-   mail the Cython mailing list for details).  
+   mail the Cython mailing list for details).
 4. Efficient code that is generic with respect to the number of dimensions.
    This can probably be done today by calling the NumPy C multi-dimensional
    iterator API directly; however it would be nice to have for-loops over

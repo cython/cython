@@ -1692,7 +1692,8 @@ class NewExprNode(AtomicExprNode):
         self.cpp_check(env)
         constructor = type.scope.lookup(u'<init>')
         if constructor is None:
-            func_type = PyrexTypes.CFuncType(type, [], exception_check='+')
+            func_type = PyrexTypes.CFuncType(
+                type, [], exception_check='+', nogil=True)
             type.scope.declare_cfunction(u'<init>', func_type, self.pos)
             constructor = type.scope.lookup(u'<init>')
         self.class_type = type
@@ -3466,7 +3467,14 @@ class IndexNode(_IndexingBaseNode):
 
     def analyse_as_pyobject(self, env, is_slice, getting, setting):
         base_type = self.base.type
-        if self.index.type.is_int and base_type is not dict_type:
+        if self.index.type.is_unicode_char and base_type is not dict_type:
+            # TODO: eventually fold into case below and remove warning, once people have adapted their code
+            warning(self.pos,
+                    "Item lookup of unicode character codes now always converts to a Unicode string. "
+                    "Use an explicit C integer cast to get back the previous integer lookup behaviour.", level=1)
+            self.index = self.index.coerce_to_pyobject(env)
+            self.is_temp = 1
+        elif self.index.type.is_int and base_type is not dict_type:
             if (getting
                     and (base_type in (list_type, tuple_type, bytearray_type))
                     and (not self.index.type.signed
@@ -3554,6 +3562,9 @@ class IndexNode(_IndexingBaseNode):
             self.index = None  # FIXME: use a dedicated Node class instead of generic IndexNode
             if base_type.templates is None:
                 error(self.pos, "Can only parameterize template functions.")
+                self.type = error_type
+            elif self.type_indices is None:
+                # Error recorded earlier.
                 self.type = error_type
             elif len(base_type.templates) != len(self.type_indices):
                 error(self.pos, "Wrong number of template arguments: expected %s, got %s" % (
@@ -4940,6 +4951,7 @@ class CallNode(ExprNode):
     may_return_none = None
 
     def infer_type(self, env):
+        # TODO(robertwb): Reduce redundancy with analyse_types.
         function = self.function
         func_type = function.infer_type(env)
         if isinstance(function, NewExprNode):
@@ -4953,6 +4965,15 @@ class CallNode(ExprNode):
         if func_type.is_ptr:
             func_type = func_type.base_type
         if func_type.is_cfunction:
+            if getattr(self.function, 'entry', None) and hasattr(self, 'args'):
+                alternatives = self.function.entry.all_alternatives()
+                arg_types = [arg.infer_type(env) for arg in self.args]
+                func_entry = PyrexTypes.best_match(arg_types, alternatives)
+                if func_entry:
+                    func_type = func_entry.type
+                    if func_type.is_ptr:
+                        func_type = func_type.base_type
+                    return func_type.return_type
             return func_type.return_type
         elif func_type is type_type:
             if function.is_name and function.entry and function.entry.type:
@@ -5173,7 +5194,8 @@ class SimpleCallNode(CallNode):
             else:
                 alternatives = overloaded_entry.all_alternatives()
 
-            entry = PyrexTypes.best_match(args, alternatives, self.pos, env)
+            entry = PyrexTypes.best_match(
+                [arg.type for arg in args], alternatives, self.pos, env, args)
 
             if not entry:
                 self.type = PyrexTypes.error_type
@@ -6376,7 +6398,8 @@ class AttributeNode(ExprNode):
                         # as an ordinary function.
                         if entry.func_cname and not hasattr(entry.type, 'op_arg_struct'):
                             cname = entry.func_cname
-                            if entry.type.is_static_method or env.parent_scope.is_cpp_class_scope:
+                            if entry.type.is_static_method or (
+                                    env.parent_scope and env.parent_scope.is_cpp_class_scope):
                                 ctype = entry.type
                             elif type.is_cpp_class:
                                 error(self.pos, "%s not a static member of %s" % (entry.name, type))
@@ -6393,10 +6416,15 @@ class AttributeNode(ExprNode):
                         ubcm_entry.is_cfunction = 1
                         ubcm_entry.func_cname = entry.func_cname
                         ubcm_entry.is_unbound_cmethod = 1
+                        ubcm_entry.scope = entry.scope
                     return self.as_name_node(env, ubcm_entry, target=False)
             elif type.is_enum:
                 if self.attribute in type.values:
-                    return self.as_name_node(env, env.lookup(self.attribute), target=False)
+                    for entry in type.entry.enum_values:
+                        if entry.name == self.attribute:
+                            return self.as_name_node(env, entry, target=False)
+                    else:
+                        error(self.pos, "%s not a known value of %s" % (self.attribute, type))
                 else:
                     error(self.pos, "%s not a known value of %s" % (self.attribute, type))
         return None
@@ -8472,7 +8500,7 @@ class Py3ClassNode(ExprNode):
         else:
             mkw = 'NULL'
         if self.metaclass:
-            metaclass = self.metaclass.result()
+            metaclass = self.metaclass.py_result()
         else:
             metaclass = "((PyObject*)&__Pyx_DefaultClassType)"
         code.putln(
@@ -8558,7 +8586,7 @@ class PyClassNamespaceNode(ExprNode, ModuleNameMixin):
         else:
             mkw = '(PyObject *) NULL'
         if self.metaclass:
-            metaclass = self.metaclass.result()
+            metaclass = self.metaclass.py_result()
         else:
             metaclass = "(PyObject *) NULL"
         code.putln(
@@ -9263,7 +9291,13 @@ class YieldExprNode(ExprNode):
             code.putln('%s->%s = %s;' % (Naming.cur_scope_cname, save_cname, cname))
 
         code.put_xgiveref(Naming.retval_cname)
+        profile = code.globalstate.directives['profile']
+        linetrace = code.globalstate.directives['linetrace']
+        if profile or linetrace:
+            code.put_trace_return(Naming.retval_cname,
+                                  nogil=not code.funcstate.gil_owned)
         code.put_finish_refcount_context()
+
         code.putln("/* return from generator, yielding value */")
         code.putln("%s->resume_label = %d;" % (
             Naming.generator_cname, label_num))

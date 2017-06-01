@@ -3337,7 +3337,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             PyrexTypes.CFuncTypeArg("obj", Builtin.unicode_type, None),
             ])
 
-    _special_encodings = ['UTF8', 'UTF16', 'Latin1', 'ASCII',
+    _special_encodings = ['UTF8', 'UTF16', 'UTF-16LE', 'UTF-16BE', 'Latin1', 'ASCII',
                           'unicode_escape', 'raw_unicode_escape']
 
     _special_codecs = [ (name, codecs.getencoder(name))
@@ -3379,7 +3379,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         if encoding and error_handling == 'strict':
             # try to find a specific encoder function
             codec_name = self._find_special_codec_name(encoding)
-            if codec_name is not None:
+            if codec_name is not None and '-' not in codec_name:
                 encode_function = "PyUnicode_As%sString" % codec_name
                 return self._substitute_method_call(
                     node, function, encode_function,
@@ -3473,9 +3473,12 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         if encoding is not None:
             codec_name = self._find_special_codec_name(encoding)
         if codec_name is not None:
+            if codec_name in ('UTF16', 'UTF-16LE', 'UTF-16BE'):
+                codec_cname = "__Pyx_PyUnicode_Decode%s" % codec_name.replace('-', '')
+            else:
+                codec_cname = "PyUnicode_Decode%s" % codec_name
             decode_function = ExprNodes.RawCNameExprNode(
-                node.pos, type=self.PyUnicode_DecodeXyz_func_ptr_type,
-                cname="PyUnicode_Decode%s" % codec_name)
+                node.pos, type=self.PyUnicode_DecodeXyz_func_ptr_type, cname=codec_cname)
             encoding_node = ExprNodes.NullNode(node.pos)
         else:
             decode_function = ExprNodes.NullNode(node.pos)

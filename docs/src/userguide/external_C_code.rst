@@ -52,7 +52,7 @@ C header file, like this::
 The ``cdef extern`` from clause does three things:
 
 1. It directs Cython to place a ``#include`` statement for the named header file in
-   the generated C code.  
+   the generated C code.
 2. It prevents Cython from generating any C code
    for the declarations found in the associated block.
 3. It treats all declarations within the block as though they started with
@@ -92,8 +92,8 @@ match the C ones, and in some cases they shouldn't or can't. In particular:
        ctypedef int word
 
    will work okay whatever the actual size of a :c:type:`word` is (provided the header
-   file defines it correctly). Conversion to and from Python types, if any, will also 
-   be used for this new type. 
+   file defines it correctly). Conversion to and from Python types, if any, will also
+   be used for this new type.
 
 #. If the header file uses macros to define constants, translate them into a
    normal external variable declaration.  You can also declare them as an
@@ -118,7 +118,7 @@ A few more tricks and tips:
           pass
 
 * If you want to include a system header, put angle brackets inside the quotes::
- 
+
       cdef extern from "<sysheader.h>":
           ...
 
@@ -390,8 +390,8 @@ C code wanting to use these functions or extension types needs to include the
 header and call the :func:`import_modulename` function. The other functions
 can then be called and the extension types used as usual.
 
-If the C code wanting to use these functions is part of more than one shared 
-library or executable, then :func:`import_modulename` function needs to be 
+If the C code wanting to use these functions is part of more than one shared
+library or executable, then :func:`import_modulename` function needs to be
 called in each of the shared libraries which use these functions. If you
 crash with a segmentation fault (SIGSEGV on linux) when calling into one of
 these api calls, this is likely an indication that the shared library which
@@ -411,7 +411,7 @@ made available when you include :file:`modulename_api.h`.::
             print "Time travel achieved"
 
 .. sourcecode:: c
-            
+
     # marty.c
     #include "delorean_api.h"
 
@@ -420,7 +420,7 @@ made available when you include :file:`modulename_api.h`.::
     int main(int argc, char *argv[]) {
         import_delorean();
         car.speed = atoi(argv[1]);
-        car.power = atof(argv[2]); 
+        car.power = atof(argv[2]);
         activate(&car);
     }
 
@@ -500,9 +500,13 @@ You can release the GIL around a section of code using the
     with nogil:
         <code to be executed with the GIL released>
 
-Code in the body of the statement must not manipulate Python objects in any
-way, and must not call anything that manipulates Python objects without first
-re-acquiring the GIL. Cython currently does not check this.
+Code in the body of the with-statement must not raise exceptions or
+manipulate Python objects in any way, and must not call anything that
+manipulates Python objects without first re-acquiring the GIL.  Cython
+validates these operations at compile time, but cannot look into
+external C functions, for example.  They must be correctly declared
+as requiring or not requiring the GIL (see below) in order to make
+Cython's checks effective.
 
 .. _gil:
 

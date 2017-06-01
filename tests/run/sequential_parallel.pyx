@@ -2,6 +2,7 @@
 
 cimport cython.parallel
 from cython.parallel import prange, threadid
+from cython.view cimport array
 from libc.stdlib cimport malloc, calloc, free, abort
 from libc.stdio cimport puts
 
@@ -737,3 +738,19 @@ def test_clean_temps():
     except Exception, e:
         print e.args[0]
 
+
+def test_pointer_temps(double x):
+    """
+    >>> test_pointer_temps(1.0)
+    4.0
+    """
+    cdef Py_ssize_t i
+    cdef double* f
+    cdef double[:] arr = array(format="d", shape=(10,), itemsize=sizeof(double))
+    arr[0] = 4.0
+    arr[1] = 3.0
+
+    for i in prange(10, nogil=True, num_threads=1):
+        f = &arr[0]
+
+    return f[0]

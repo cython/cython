@@ -120,3 +120,14 @@ def float_abs(float a):
     5.5
     """
     return abs(a)
+
+@cython.test_assert_path_exists("//ReturnStatNode//NameNode[@entry.name = 'abs']",
+                                "//ReturnStatNode//NameNode[@entry.cname = '__Pyx_c_abs_double']")
+def complex_abs(complex a):
+    """
+    >>> complex_abs(-5j)
+    5.0
+    >>> complex_abs(-5.5j)
+    5.5
+    """
+    return abs(a)

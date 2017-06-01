@@ -11,22 +11,22 @@ mention.
 
 .. Note: Everything said on this page applies only to extension types, defined
     with the :keyword:`cdef class` statement. It doesn't apply to classes defined with the
-    Python :keyword:`class` statement, where the normal Python rules apply.  
-    
+    Python :keyword:`class` statement, where the normal Python rules apply.
+
 Declaration
 ------------
 Special methods of extension types must be declared with :keyword:`def`, not
 :keyword:`cdef`. This does not impact their performance--Python uses different
-calling conventions to invoke these special methods. 
+calling conventions to invoke these special methods.
 
 Docstrings
 -----------
 
 Currently, docstrings are not fully supported in some special methods of extension
 types. You can place a docstring in the source to serve as a comment, but it
-won't show up in the corresponding :attr:`__doc__` attribute at run time. (This 
-seems to be is a Python limitation -- there's nowhere in the `PyTypeObject` 
-data structure to put such docstrings.) 
+won't show up in the corresponding :attr:`__doc__` attribute at run time. (This
+seems to be is a Python limitation -- there's nowhere in the `PyTypeObject`
+data structure to put such docstrings.)
 
 Initialisation methods: :meth:`__cinit__` and :meth:`__init__`
 ---------------------------------------------------------------
@@ -36,7 +36,7 @@ The :meth:`__cinit__` method is where you should perform basic C-level
 initialisation of the object, including allocation of any C data structures
 that your object will own. You need to be careful what you do in the
 :meth:`__cinit__` method, because the object may not yet be fully valid Python
-object when it is called. Therefore, you should be careful invoking any Python 
+object when it is called. Therefore, you should be careful invoking any Python
 operations which might touch the object; in particular, its methods.
 
 By the time your :meth:`__cinit__` method is called, memory has been allocated for the
@@ -67,15 +67,15 @@ ignore extra arguments. Otherwise, any Python subclass which has an
 :meth:`__init__` with a different signature will have to override
 :meth:`__new__` [#]_ as well as :meth:`__init__`, which the writer of a Python
 class wouldn't expect to have to do.  Alternatively, as a convenience, if you declare
-your :meth:`__cinit__`` method to take no arguments (other than self) it 
+your :meth:`__cinit__`` method to take no arguments (other than self) it
 will simply ignore any extra arguments passed to the constructor without
-complaining about the signature mismatch. 
+complaining about the signature mismatch.
 
-.. Note: Older Cython files may use :meth:`__new__` rather than :meth:`__cinit__`. The two are synonyms. 
-  The name change from :meth:`__new__` to :meth:`__cinit__` was to avoid 
-  confusion with Python :meth:`__new__` (which is an entirely different 
-  concept) and eventually the use of :meth:`__new__` in Cython will be 
-  disallowed to pave the way for supporting Python-style :meth:`__new__`  
+.. Note: Older Cython files may use :meth:`__new__` rather than :meth:`__cinit__`. The two are synonyms.
+  The name change from :meth:`__new__` to :meth:`__cinit__` was to avoid
+  confusion with Python :meth:`__new__` (which is an entirely different
+  concept) and eventually the use of :meth:`__new__` in Cython will be
+  disallowed to pave the way for supporting Python-style :meth:`__new__`
 
 .. [#] http://docs.python.org/reference/datamodel.html#object.__new__
 
@@ -84,8 +84,8 @@ Finalization method: :meth:`__dealloc__`
 
 The counterpart to the :meth:`__cinit__` method is the :meth:`__dealloc__`
 method, which should perform the inverse of the :meth:`__cinit__` method. Any
-C data that you explicitly allocated (e.g. via malloc) in your 
-:meth:`__cinit__` method should be freed in your :meth:`__dealloc__` method. 
+C data that you explicitly allocated (e.g. via malloc) in your
+:meth:`__cinit__` method should be freed in your :meth:`__dealloc__` method.
 
 You need to be careful what you do in a :meth:`__dealloc__` method. By the time your
 :meth:`__dealloc__` method is called, the object may already have been partially
@@ -97,7 +97,7 @@ deallocating C data.
 
 You don't need to worry about deallocating Python attributes of your object,
 because that will be done for you by Cython after your :meth:`__dealloc__` method
-returns. 
+returns.
 
 When subclassing extension types, be aware that the :meth:`__dealloc__` method
 of the superclass will always be called, even if it is overridden.  This is in
@@ -116,8 +116,8 @@ operation, the same method of the second operand is called, with the operands
 in the same order.
 
 This means that you can't rely on the first parameter of these methods being
-"self" or being the right type, and you should test the types of both operands 
-before deciding what to do. If you can't handle the combination of types you've 
+"self" or being the right type, and you should test the types of both operands
+before deciding what to do. If you can't handle the combination of types you've
 been given, you should return `NotImplemented`.
 
 This also applies to the in-place arithmetic method :meth:`__ipow__`. It doesn't apply
@@ -131,17 +131,17 @@ There are no separate methods for the individual rich comparison operations
 (:meth:`__eq__`, :meth:`__le__`, etc.) Instead there is a single method
 :meth:`__richcmp__` which takes an integer indicating which operation is to be
 performed, as follows:
-             
+
 +-----+-----+
-|  <  |  0  |	
+|  <  |  0  |
 +-----+-----+
 | ==  |  2  |
 +-----+-----+
 |  >  |  4  |
 +-----+-----+
-| <=  |  1  |	
+| <=  |  1  |
 +-----+-----+
-| !=  |  3  |	
+| !=  |  3  |
 +-----+-----+
 | >=  |  5  |
 +-----+-----+
@@ -164,7 +164,7 @@ with no type specified in the table are generic Python objects.
 
 You don't have to declare your method as taking these parameter types. If you
 declare different types, conversions will be performed as necessary.
- 
+
 General
 ^^^^^^^
 
@@ -335,7 +335,7 @@ Buffer interface [:PEP:`3118`] (no Python equivalents - see note 1)
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | Name                  | Parameters                            | Return type |         Description                                 |
 +=======================+=======================================+=============+=====================================================+
-| __getbuffer__         | self, Py_buffer `*view`, int flags    |             |                                                     | 
+| __getbuffer__         | self, Py_buffer `*view`, int flags    |             |                                                     |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | __releasebuffer__     | self, Py_buffer `*view`               |             |                                                     |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
@@ -346,7 +346,7 @@ Buffer interface [legacy] (no Python equivalents - see note 1)
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | Name                  | Parameters                            | Return type |         Description                                 |
 +=======================+=======================================+=============+=====================================================+
-| __getreadbuffer__     | self, Py_ssize_t i, void `**p`        |             |                                                     | 
+| __getreadbuffer__     | self, Py_ssize_t i, void `**p`        |             |                                                     |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | __getwritebuffer__    | self, Py_ssize_t i, void `**p`        |             |                                                     |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+

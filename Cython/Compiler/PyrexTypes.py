@@ -113,10 +113,7 @@ class BaseType(object):
 
         http://en.cppreference.com/w/cpp/language/function_template#Template_argument_deduction
         """
-        if self == actual:
-            return {}
-        else:
-            return None
+        return {}
 
     def __lt__(self, other):
         """
@@ -312,7 +309,7 @@ class PyrexType(BaseType):
 
 def public_decl(base_code, dll_linkage):
     if dll_linkage:
-        return "%s(%s)" % (dll_linkage, base_code)
+        return "%s(%s)" % (dll_linkage, base_code.replace(',', ' __PYX_COMMA '))
     else:
         return base_code
 
@@ -2268,7 +2265,7 @@ class CArrayType(CPointerBaseType):
         if isinstance(actual, CArrayType):
             return self.base_type.deduce_template_params(actual.base_type)
         else:
-            return None
+            return {}
 
     def can_coerce_to_pyobject(self, env):
         return self.base_type.can_coerce_to_pyobject(env)
@@ -2406,7 +2403,7 @@ class CPtrType(CPointerBaseType):
         if isinstance(actual, CPtrType):
             return self.base_type.deduce_template_params(actual.base_type)
         else:
-            return None
+            return {}
 
     def invalid_value(self):
         return "1"
@@ -2534,6 +2531,19 @@ class CFuncType(CType):
             self.calling_convention_prefix(),
             ",".join(arg_reprs),
             except_clause)
+
+    def with_with_gil(self, with_gil):
+        if with_gil == self.with_gil:
+            return self
+        else:
+            return CFuncType(
+                self.return_type, self.args, self.has_varargs,
+                self.exception_value, self.exception_check,
+                self.calling_convention, self.nogil,
+                with_gil,
+                self.is_overridable, self.optional_arg_count,
+                self.is_const_method, self.is_static_method,
+                self.templates, self.is_strict_signature)
 
     def calling_convention_prefix(self):
         cc = self.calling_convention
@@ -3499,17 +3509,35 @@ class CppClassType(CType):
         return specialized
 
     def deduce_template_params(self, actual):
+        if actual.is_const:
+            actual = actual.const_base_type
+        if actual.is_reference:
+            actual = actual.ref_base_type
         if self == actual:
             return {}
-        # TODO(robertwb): Actual type equality.
-        elif self.empty_declaration_code() == actual.template_type.empty_declaration_code():
-            return reduce(
-                merge_template_deductions,
-                [formal_param.deduce_template_params(actual_param)
-                 for (formal_param, actual_param) in zip(self.templates, actual.templates)],
-                {})
+        elif actual.is_cpp_class:
+            self_template_type = self
+            while getattr(self_template_type, 'template_type', None):
+                self_template_type = self_template_type.template_type
+            def all_bases(cls):
+                yield cls
+                for parent in cls.base_classes:
+                    for base in all_bases(parent):
+                        yield base
+            for actual_base in all_bases(actual):
+                template_type = actual_base
+                while getattr(template_type, 'template_type', None):
+                    template_type = template_type.template_type
+                    if (self_template_type.empty_declaration_code()
+                            == template_type.empty_declaration_code()):
+                        return reduce(
+                            merge_template_deductions,
+                            [formal_param.deduce_template_params(actual_param)
+                             for (formal_param, actual_param)
+                             in zip(self.templates, actual_base.templates)],
+                            {})
         else:
-            return None
+            return {}
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0,
@@ -3543,6 +3571,14 @@ class CppClassType(CType):
             if base_class.is_subclass(other_type):
                 return 1
         return 0
+
+    def subclass_dist(self, super_type):
+        if self.same_as_resolved_type(super_type):
+            return 0
+        elif not self.base_classes:
+            return float('inf')
+        else:
+            return 1 + min(b.subclass_dist(super_type) for b in self.base_classes)
 
     def same_as_resolved_type(self, other_type):
         if other_type.is_cpp_class:
@@ -4015,7 +4051,7 @@ def is_promotion(src_type, dst_type):
             return src_type.is_float and src_type.rank <= dst_type.rank
     return False
 
-def best_match(args, functions, pos=None, env=None):
+def best_match(arg_types, functions, pos=None, env=None, args=None):
     """
     Given a list args of arguments and a list of functions, choose one
     to call which seems to be the "best" fit for this list of arguments.
@@ -4038,7 +4074,7 @@ def best_match(args, functions, pos=None, env=None):
     is not None, we also generate an error.
     """
     # TODO: args should be a list of types, not a list of Nodes.
-    actual_nargs = len(args)
+    actual_nargs = len(arg_types)
 
     candidates = []
     errors = []
@@ -4069,13 +4105,12 @@ def best_match(args, functions, pos=None, env=None):
             errors.append((func, error_mesg))
             continue
         if func_type.templates:
-            arg_types = [arg.type for arg in args]
             deductions = reduce(
                 merge_template_deductions,
                 [pattern.type.deduce_template_params(actual) for (pattern, actual) in zip(func_type.args, arg_types)],
                 {})
             if deductions is None:
-                errors.append((func, "Unable to deduce type parameters"))
+                errors.append((func, "Unable to deduce type parameters for %s given (%s)" % (func_type, ', '.join(map(str, arg_types)))))
             elif len(deductions) < len(func_type.templates):
                 errors.append((func, "Unable to deduce type parameter %s" % (
                     ", ".join([param.name for param in set(func_type.templates) - set(deductions.keys())]))))
@@ -4108,9 +4143,9 @@ def best_match(args, functions, pos=None, env=None):
     needed_coercions = {}
 
     for index, (func, func_type) in enumerate(candidates):
-        score = [0,0,0,0]
-        for i in range(min(len(args), len(func_type.args))):
-            src_type = args[i].type
+        score = [0,0,0,0,0,0,0]
+        for i in range(min(actual_nargs, len(func_type.args))):
+            src_type = arg_types[i]
             dst_type = func_type.args[i].type
 
             assignable = dst_type.assignable_from(src_type)
@@ -4142,6 +4177,13 @@ def best_match(args, functions, pos=None, env=None):
                       (src_type.is_float and dst_type.is_float)):
                     score[2] += abs(dst_type.rank + (not dst_type.signed) -
                                     (src_type.rank + (not src_type.signed))) + 1
+                elif dst_type.is_ptr and src_type.is_ptr:
+                    if dst_type.base_type == c_void_type:
+                        score[4] += 1
+                    elif src_type.base_type.is_cpp_class and src_type.base_type.is_subclass(dst_type.base_type):
+                        score[6] += src_type.base_type.subclass_dist(dst_type.base_type)
+                    else:
+                        score[5] += 1
                 elif not src_type.is_pyobject:
                     score[1] += 1
                 else:

@@ -734,7 +734,10 @@ class Scope(object):
             if overridable != entry.is_overridable:
                 warning(pos, "Function '%s' previously declared as '%s'" % (
                     name, 'cpdef' if overridable else 'cdef'), 1)
-            if not entry.type.same_as(type):
+            if entry.type.same_as(type):
+                # Fix with_gil vs nogil.
+                entry.type = entry.type.with_with_gil(type.with_gil)
+            else:
                 if visibility == 'extern' and entry.visibility == 'extern':
                     can_override = False
                     if self.is_cpp():
@@ -846,13 +849,16 @@ class Scope(object):
             obj_type = operands[0].type
             method = obj_type.scope.lookup("operator%s" % operator)
             if method is not None:
-                res = PyrexTypes.best_match(operands[1:], method.all_alternatives())
+                arg_types = [arg.type for arg in operands[1:]]
+                res = PyrexTypes.best_match([arg.type for arg in operands[1:]],
+                                            method.all_alternatives())
                 if res is not None:
                     return res
         function = self.lookup("operator%s" % operator)
         if function is None:
             return None
-        return PyrexTypes.best_match(operands, function.all_alternatives())
+        return PyrexTypes.best_match([arg.type for arg in operands],
+                                     function.all_alternatives())
 
     def lookup_operator_for_types(self, pos, operator, types):
         from .Nodes import Node
@@ -981,6 +987,7 @@ class BuiltinScope(Scope):
         var_entry.is_readonly = 1
         var_entry.is_builtin = 1
         var_entry.utility_code = utility_code
+        var_entry.scope = self
         if Options.cache_builtins:
             var_entry.is_const = True
         entry.as_variable = var_entry
@@ -1580,6 +1587,7 @@ class ModuleScope(Scope):
         var_entry.is_variable = 1
         var_entry.is_cglobal = 1
         var_entry.is_readonly = 1
+        var_entry.scope = entry.scope
         entry.as_variable = var_entry
 
     def is_cpp(self):
@@ -1816,6 +1824,7 @@ class ClassScope(Scope):
                     py_object_type,
                     [PyrexTypes.CFuncTypeArg("", py_object_type, None)], 0, 0))
             entry.utility_code_definition = Code.UtilityCode.load_cached("ClassMethod", "CythonFunction.c")
+            self.use_entry_utility_code(entry)
             entry.is_cfunction = 1
         return entry
 
@@ -2075,7 +2084,8 @@ class CClassScope(ClassScope):
                 if entry.is_final_cmethod and entry.is_inherited:
                     error(pos, "Overriding final methods is not allowed")
                 elif type.same_c_signature_as(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
-                    pass
+                    # Fix with_gil vs nogil.
+                    entry.type = entry.type.with_with_gil(type.with_gil)
                 elif type.compatible_signature_with(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
                     entry = self.add_cfunction(name, type, pos, cname, visibility='ignore', modifiers=modifiers)
                 else:
@@ -2121,6 +2131,7 @@ class CClassScope(ClassScope):
         var_entry.is_variable = 1
         var_entry.is_builtin = 1
         var_entry.utility_code = utility_code
+        var_entry.scope = entry.scope
         entry.as_variable = var_entry
         return entry
 
@@ -2208,7 +2219,10 @@ class CppClassScope(Scope):
             cname = name
         entry = self.lookup_here(name)
         if defining and entry is not None:
-            if not entry.type.same_as(type):
+            if entry.type.same_as(type):
+                # Fix with_gil vs nogil.
+                entry.type = entry.type.with_with_gil(type.with_gil)
+            else:
                 error(pos, "Function signature does not match previous declaration")
         else:
             entry = self.declare(name, cname, type, pos, visibility)

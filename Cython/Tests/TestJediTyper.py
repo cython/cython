@@ -129,7 +129,7 @@ class TestJediTyper(TransformTest):
         variables = types.pop((None, (1, 0)))
         self.assertFalse(types)
         self.assertEqual({'a': set(['list']), 'b': set(['list']), 'c': set(['list']), 'd': set(['list'])}, variables)
-        
+
     def test_typing_function_list(self):
         code = '''\
         def func(x):
@@ -149,14 +149,14 @@ class TestJediTyper(TransformTest):
         code = '''\
         a = dict()
         b = {i: i**2 for i in range(10)}
-        c = a        
+        c = a
         '''
         types = self._test(code)
         self.assertIn((None, (1, 0)), types)
         variables = types.pop((None, (1, 0)))
         self.assertFalse(types)
         self.assertEqual({'a': set(['dict']), 'b': set(['dict']), 'c': set(['dict'])}, variables)
-        
+
     def test_typing_function_dict(self):
         code = '''\
         def func(x):
@@ -186,7 +186,7 @@ class TestJediTyper(TransformTest):
         variables = types.pop((None, (1, 0)))
         self.assertFalse(types)
         self.assertEqual({'a': set(['set']), 'c': set(['set']), 'd': set(['set']), 'e': set(['set'])}, variables)
-        
+
     def test_typing_function_set(self):
         code = '''\
         def func(x):

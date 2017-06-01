@@ -65,6 +65,58 @@ __doc__ = u"""
      'f_raise',
      'm_cdef', 'm_cpdef', 'm_cpdef (wrapper)', 'm_def',
      'withgil_prof']
+
+    >>> profile.runctx("test_generators()", locals(), globals(), statsfile)
+    >>> s = pstats.Stats(statsfile)
+    >>> short_stats = dict([(k[2], v[1]) for k,v in s.stats.items()])
+    >>> short_stats['generator']
+    3
+
+    >>> short_stats['generator_exception']
+    2
+
+    >>> short_stats['genexpr']
+    11
+
+    >>> sorted(callees(s, 'test_generators'))
+    ['call_generator', 'call_generator_exception', 'generator_expr']
+
+    >>> list(callees(s, 'call_generator'))
+    ['generator']
+
+    >>> list(callees(s, 'generator'))
+    []
+
+    >>> list(callees(s, 'generator_exception'))
+    []
+
+    >>> list(callees(s, 'generator_expr'))
+    ['genexpr']
+
+    >>> list(callees(s, 'genexpr'))
+    []
+
+    >>> def python_generator():
+    ...   yield 1
+    ...   yield 2
+    >>> def call_python_generator():
+    ...   list(python_generator())
+
+    >>> profile.runctx("call_python_generator()", locals(), globals(), statsfile)
+    >>> python_stats = pstats.Stats(statsfile)
+    >>> python_stats_dict = dict([(k[2], v[1]) for k,v in python_stats.stats.items()])
+
+    >>> profile.runctx("call_generator()", locals(), globals(), statsfile)
+    >>> cython_stats = pstats.Stats(statsfile)
+    >>> cython_stats_dict = dict([(k[2], v[1]) for k,v in cython_stats.stats.items()])
+
+    >>> python_stats_dict['python_generator'] == cython_stats_dict['generator']
+    True
+
+    >>> try:
+    ...    os.unlink(statsfile)
+    ... except:
+    ...    pass
 """
 
 cimport cython
@@ -147,3 +199,29 @@ cdef class A(object):
         return a
     cdef m_cdef(self, long a):
         return a
+
+def test_generators():
+    call_generator()
+    call_generator_exception()
+    generator_expr()
+
+def call_generator():
+    list(generator())
+
+def generator():
+    yield 1
+    yield 2
+
+def call_generator_exception():
+    try:
+        list(generator_exception())
+    except ValueError:
+        pass
+
+def generator_exception():
+    yield 1
+    raise ValueError(2)
+
+def generator_expr():
+    e = (x for x in range(10))
+    return sum(e)

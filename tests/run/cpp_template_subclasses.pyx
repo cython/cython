@@ -115,3 +115,13 @@ def testE(x, y):
     finally:
         del e
 
+
+cdef public pair[int, double] public_return_pair(a, b) except *:
+  return pair[int, double](a, b)
+
+def test_GH1599(a, b):
+  """
+  >>> test_GH1599(1, 2)
+  (1, 2.0)
+  """
+  return public_return_pair(a, b)

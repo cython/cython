@@ -6,7 +6,7 @@
 Profiling
 *********
 
-This part describes the profiling abilities of Cython. If you are familiar 
+This part describes the profiling abilities of Cython. If you are familiar
 with profiling pure Python code, you can only read the first section
 (:ref:`profiling_basics`). If you are not familiar with Python profiling you
 should also read the tutorial (:ref:`profiling_tutorial`) which takes you
@@ -17,7 +17,7 @@ through a complete example step by step.
 Cython Profiling Basics
 =======================
 
-Profiling in Cython is controlled by a compiler directive. 
+Profiling in Cython is controlled by a compiler directive.
 It can be set either for an entire file or on a per function basis
 via a Cython decorator.
 
@@ -26,7 +26,7 @@ Enabling profiling for a complete source file
 
 Profiling is enabled for a complete source file via a global directive to the
 Cython compiler at the top of a file::
-   
+
    # cython: profile=True
 
 Note that profiling gives a slight overhead to each function call therefore making
@@ -35,7 +35,7 @@ often).
 
 Once enabled, your Cython code will behave just like Python code when called
 from the cProfile module. This means you can just profile your Cython code
-together with your Python code using the same tools as for Python code alone. 
+together with your Python code using the same tools as for Python code alone.
 
 Disabling profiling function wise
 ---------------------------------
@@ -111,7 +111,7 @@ Profiling Tutorial
 ==================
 
 This will be a complete tutorial, start to finish, of profiling Python code,
-turning it into Cython code and keep profiling until it is fast enough. 
+turning it into Cython code and keep profiling until it is fast enough.
 
 As a toy example, we would like to evaluate the summation of the reciprocals of
 squares up to a certain integer :math:`n` for evaluating :math:`\pi`. The
@@ -120,8 +120,8 @@ relation we want to use has been proven by Euler in 1735 and is known as the
 
 
 .. math::
-   \pi^2 = 6 \sum_{k=1}^{\infty} \frac{1}{k^2} = 
-   6 \lim_{k \to \infty} \big( \frac{1}{1^2} + 
+   \pi^2 = 6 \sum_{k=1}^{\infty} \frac{1}{k^2} =
+   6 \lim_{k \to \infty} \big( \frac{1}{1^2} +
          \frac{1}{2^2} + \dots + \frac{1}{k^2}  \big) \approx
    6 \big( \frac{1}{1^2} + \frac{1}{2^2} + \dots + \frac{1}{n^2}  \big)
 
@@ -139,7 +139,7 @@ A simple Python code for evaluating the truncated sum looks like this::
        for k in range(1,n+1):
            val += recip_square(k)
        return (6 * val)**.5
-      
+
 On my box, this needs approximately 4 seconds to run the function with the
 default n. The higher we choose n, the better will be the approximation for
 :math:`\pi`. An experienced Python programmer will already see plenty of
@@ -162,9 +162,9 @@ write a short script to profile our code::
    s = pstats.Stats("Profile.prof")
    s.strip_dirs().sort_stats("time").print_stats()
 
-Running this on my box gives the following output::
+Running this on my box gives the following output:
 
-   TODO: how to display this not as code but verbatim?
+.. code-block:: none
 
    Sat Nov  7 17:40:54 2009    Profile.prof
 
@@ -186,7 +186,7 @@ Python `profiling documentation <http://docs.python.org/library/profile.html>`_
 for the nitty gritty details. The most important columns here are totime (total
 time spent in this function **not** counting functions that were called by this
 function) and cumtime (total time spent in this function **also** counting the
-functions called by this function). Looking at the tottime column, we see that 
+functions called by this function). Looking at the tottime column, we see that
 approximately half the time is spent in approx_pi and the other half is spent
 in recip_square. Also half a second is spent in range ... of course we should
 have used xrange for such a big iteration. And in fact, just changing range to
@@ -213,7 +213,7 @@ anyway at some time to get the loop run faster. Here is our first Cython version
 Note the second line: We have to tell Cython that profiling should be enabled.
 This makes the Cython code slightly slower, but without this we would not get
 meaningful output from the cProfile module. The rest of the code is mostly
-unchanged, I only typed some variables which will likely speed things up a bit. 
+unchanged, I only typed some variables which will likely speed things up a bit.
 
 We also need to modify our profiling script to import the Cython module directly.
 Here is the complete version adding the import of the pyximport module::
@@ -236,7 +236,9 @@ Here is the complete version adding the import of the pyximport module::
 
 We only added two lines, the rest stays completely the same. Alternatively, we could also
 manually compile our code into an extension; we wouldn't need to change the
-profile script then at all. The script now outputs the following::
+profile script then at all. The script now outputs the following:
+
+.. code-block:: none
 
    Sat Nov  7 18:02:33 2009    Profile.prof
 
@@ -275,7 +277,9 @@ necessary changes for these ideas::
            val += recip_square(k)
        return (6 * val)**.5
 
-Now running the profile script yields::
+Now running the profile script yields:
+
+.. code-block:: none
 
    Sat Nov  7 18:10:11 2009    Profile.prof
 
@@ -313,7 +317,9 @@ profile recip_square any more; we couldn't get the function to be much faster an
            val += recip_square(k)
        return (6 * val)**.5
 
-Running this shows an interesting result::
+Running this shows an interesting result:
+
+.. code-block:: none
 
    Sat Nov  7 18:15:02 2009    Profile.prof
 

@@ -617,7 +617,17 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
 //@requires: StringTools.c::BuildPyUnicode
 //@requires: CIntToDigits
 
-#include <stdint.h>
+#ifdef _MSC_VER
+    #ifndef _MSC_STDINT_H_
+        #if _MSC_VER < 1300
+           typedef unsigned short    uint16_t;
+        #else
+           typedef unsigned __int16  uint16_t;
+        #endif
+    #endif
+#else
+   #include <stdint.h>
+#endif
 
 // NOTE: inlining because most arguments are constant, which collapses lots of code below
 

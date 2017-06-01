@@ -24,9 +24,9 @@ statement.
 
 A ``.pxd`` file that consists solely of extern declarations does not need
 to correspond to an actual ``.pyx`` file or Python module. This can make it a
-convenient place to put common declarations, for example declarations of 
+convenient place to put common declarations, for example declarations of
 functions from  an :ref:`external library <external-C-code>` that one
-wants to use in several modules. 
+wants to use in several modules.
 
 
 What a Definition File contains
@@ -40,9 +40,9 @@ A definition file can contain:
 * The definition part of an extension type (see below).
 
 It cannot contain the implementations of any C or Python functions, or any
-Python class definitions, or any executable statements. It is needed when one 
-wants to  access :keyword:`cdef` attributes and methods, or to inherit from 
-:keyword:`cdef` classes defined in this module. 
+Python class definitions, or any executable statements. It is needed when one
+wants to  access :keyword:`cdef` attributes and methods, or to inherit from
+:keyword:`cdef` classes defined in this module.
 
 .. note::
 
@@ -57,9 +57,9 @@ What an Implementation File contains
 
 An implementation file can contain any kind of Cython statement, although there
 are some restrictions on the implementation part of an extension type if the
-corresponding definition file also defines that type (see below). 
+corresponding definition file also defines that type (see below).
 If one doesn't need to :keyword:`cimport` anything from this module, then this
-is the only file one needs. 
+is the only file one needs.
 
 
 .. _cimport:
@@ -79,16 +79,16 @@ statement::
 Here is an example. :file:`dishes.pxd` is a definition file which exports a
 C data type. :file:`restaurant.pyx` is an implementation file which imports and
 uses it.
- 
+
 :file:`dishes.pxd`::
 
-   cdef enum otherstuff:       
-       sausage, eggs, lettuce  
-                               
-   cdef struct spamdish:       
-       int oz_of_spam          
-       otherstuff filler       
-                               
+   cdef enum otherstuff:
+       sausage, eggs, lettuce
+
+   cdef struct spamdish:
+       int oz_of_spam
+       otherstuff filler
+
 :file:`restaurant.pyx`::
 
     cimport dishes
@@ -102,7 +102,7 @@ uses it.
         cdef spamdish d
         prepare(&d)
         print "%d oz spam, filler no. %d" % (d.oz_of_spam, d.filler)
-                               
+
 It is important to understand that the :keyword:`cimport` statement can only
 be used to import C data types, C functions and variables, and extension
 types. It cannot be used to import any Python objects, and (with one
@@ -113,9 +113,9 @@ to include a regular import statement for it as well.
 The exception is that when you use :keyword:`cimport` to import an extension type, its
 type object is imported at run time and made available by the name under which
 you imported it. Using :keyword:`cimport` to import extension types is covered in more
-detail below.  
+detail below.
 
-If a ``.pxd`` file changes, any modules that :keyword:`cimport` from it may need to be 
+If a ``.pxd`` file changes, any modules that :keyword:`cimport` from it may need to be
 recompiled.  The ``Cython.Build.cythonize`` utility can take care of this for you.
 
 
@@ -137,7 +137,7 @@ include path (but not ``sys.path``), and if found, it is processed before
 processing the ``.pyx`` file.
 
 
-Using cimport to resolve naming conflicts 
+Using cimport to resolve naming conflicts
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The :keyword:`cimport` mechanism provides a clean and simple way to solve the
@@ -146,11 +146,11 @@ name. All you need to do is put the extern C declarations into a ``.pxd`` file
 for an imaginary module, and :keyword:`cimport` that module. You can then
 refer to the C functions by qualifying them with the name of the module.
 Here's an example:
- 
+
 :file:`c_lunch.pxd`::
 
     cdef extern from "lunch.h":
-        void eject_tomato(float) 	
+        void eject_tomato(float)
 
 :file:`lunch.pyx`::
 
@@ -163,7 +163,7 @@ You don't need any :file:`c_lunch.pyx` file, because the only things defined
 in :file:`c_lunch.pxd` are extern C entities. There won't be any actual
 ``c_lunch`` module at run time, but that doesn't matter; the
 :file:`c_lunch.pxd` file has done its job of providing an additional namespace
-at compile time.  
+at compile time.
 
 
 Sharing C Functions
@@ -199,7 +199,7 @@ example:
     When a module exports a C function in this way, an object appears in the
     module dictionary under the function's name. However, you can't make use of
     this object from Python, nor can you use it from Cython using a normal import
-    statement; you have to use :keyword:`cimport`.  
+    statement; you have to use :keyword:`cimport`.
 
 
 Sharing Extension Types

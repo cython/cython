@@ -71,7 +71,7 @@ def runcmd(cmd, shell=True):
         returncode = os.system(cmd)
     else:
         returncode = subprocess.call(cmd, shell=shell)
-    
+
     if returncode:
         sys.exit(returncode)
 

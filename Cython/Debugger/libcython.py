@@ -18,6 +18,13 @@ import collections
 
 import gdb
 
+try:  # python 2
+    UNICODE = unicode
+    BYTES = str
+except NameError:  # python 3
+    UNICODE = str
+    BYTES = bytes
+
 try:
     from lxml import etree
     have_lxml = True
@@ -689,7 +696,8 @@ class CyImport(CythonCommand):
     completer_class = gdb.COMPLETE_FILENAME
 
     def invoke(self, args, from_tty):
-        args = args.encode(_filesystemencoding)
+        if isinstance(args, BYTES):
+            args = args.decode(_filesystemencoding)
         for arg in string_to_argv(args):
             try:
                 f = open(arg)
@@ -834,7 +842,9 @@ class CyBreak(CythonCommand):
                 gdb.execute('break %s' % func.pf_cname)
 
     def invoke(self, function_names, from_tty):
-        argv = string_to_argv(function_names.encode('UTF-8'))
+        if isinstance(function_names, BYTES):
+            function_names = function_names.decode(_filesystemencoding)
+        argv = string_to_argv(function_names)
         if function_names.startswith('-p'):
             argv = argv[1:]
             python_breakpoints = True

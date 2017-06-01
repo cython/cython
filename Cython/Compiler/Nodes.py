@@ -10,7 +10,7 @@ cython.declare(sys=object, os=object, copy=object,
                py_object_type=object, ModuleScope=object, LocalScope=object, ClosureScope=object,
                StructOrUnionScope=object, PyClassScope=object,
                CppClassScope=object, UtilityCode=object, EncodedString=object,
-               absolute_path_length=cython.Py_ssize_t, error_type=object, _py_int_types=object)
+               error_type=object, _py_int_types=object)
 
 import sys, os, copy
 from itertools import chain
@@ -30,7 +30,6 @@ from . import Options
 from . import DebugFlags
 from ..Utils import add_metaclass
 
-absolute_path_length = 0
 
 if sys.version_info[0] >= 3:
     _py_int_types = int
@@ -39,25 +38,8 @@ else:
 
 
 def relative_position(pos):
-    """
-    We embed the relative filename in the generated C file, since we
-    don't want to have to regenerate and compile all the source code
-    whenever the Python install directory moves (which could happen,
-    e.g,. when distributing binaries.)
+    return (pos[0].get_filenametable_entry(), pos[1])
 
-    INPUT:
-        a position tuple -- (absolute filename, line number column position)
-
-    OUTPUT:
-        relative filename
-        line number
-
-    AUTHOR: William Stein
-    """
-    global absolute_path_length
-    if absolute_path_length == 0:
-        absolute_path_length = len(os.path.abspath(os.getcwd()))
-    return (pos[0].get_filenametable_entry()[absolute_path_length+1:], pos[1])
 
 def embed_position(pos, docstring):
     if not Options.embed_pos_in_docstring:
@@ -545,6 +527,9 @@ class CPtrDeclaratorNode(CDeclaratorNode):
 
     child_attrs = ["base"]
 
+    def analyse_templates(self):
+        return self.base.analyse_templates()
+
     def analyse(self, base_type, env, nonempty=0):
         if base_type.is_pyobject:
             error(self.pos, "Pointer base type cannot be a Python object")
@@ -556,6 +541,9 @@ class CReferenceDeclaratorNode(CDeclaratorNode):
     # base     CDeclaratorNode
 
     child_attrs = ["base"]
+
+    def analyse_templates(self):
+        return self.base.analyse_templates()
 
     def analyse(self, base_type, env, nonempty=0):
         if base_type.is_pyobject:
@@ -1326,6 +1314,8 @@ class CVarDefNode(StatNode):
             if name == '':
                 error(declarator.pos, "Missing name in declaration.")
                 return
+            if type.is_reference and self.visibility != 'extern':
+                error(declarator.pos, "C++ references cannot be declared; use a pointer instead")
             if type.is_cfunction:
                 if 'staticmethod' in env.directives:
                     type.is_static_method = True
@@ -1817,9 +1807,11 @@ class FuncDefNode(StatNode, BlockNode):
             code.declare_gilstate()
 
         if profile or linetrace:
-            tempvardecl_code.put_trace_declarations()
-            code_object = self.code_object.calculate_result_code(code) if self.code_object else None
-            code.put_trace_frame_init(code_object)
+            if not self.is_generator:
+                # generators are traced when iterated, not at creation
+                tempvardecl_code.put_trace_declarations()
+                code_object = self.code_object.calculate_result_code(code) if self.code_object else None
+                code.put_trace_frame_init(code_object)
 
         # ----- set up refnanny
         if use_refnanny:
@@ -1874,12 +1866,14 @@ class FuncDefNode(StatNode, BlockNode):
         if profile or linetrace:
             # this looks a bit late, but if we don't get here due to a
             # fatal error before hand, it's not really worth tracing
-            if self.is_wrapper:
-                trace_name = self.entry.name + " (wrapper)"
-            else:
-                trace_name = self.entry.name
-            code.put_trace_call(
-                trace_name, self.pos, nogil=not code.funcstate.gil_owned)
+            if not self.is_generator:
+                # generators are traced when iterated, not at creation
+                if self.is_wrapper:
+                    trace_name = self.entry.name + " (wrapper)"
+                else:
+                    trace_name = self.entry.name
+                code.put_trace_call(
+                    trace_name, self.pos, nogil=not code.funcstate.gil_owned)
             code.funcstate.can_trace = True
         # ----- Fetch arguments
         self.generate_argument_parsing_code(env, code)
@@ -2076,12 +2070,14 @@ class FuncDefNode(StatNode, BlockNode):
 
         if profile or linetrace:
             code.funcstate.can_trace = False
-            if self.return_type.is_pyobject:
-                code.put_trace_return(
-                    Naming.retval_cname, nogil=not code.funcstate.gil_owned)
-            else:
-                code.put_trace_return(
-                    "Py_None", nogil=not code.funcstate.gil_owned)
+            if not self.is_generator:
+                # generators are traced when iterated, not at creation
+                if self.return_type.is_pyobject:
+                    code.put_trace_return(
+                        Naming.retval_cname, nogil=not code.funcstate.gil_owned)
+                else:
+                    code.put_trace_return(
+                        "Py_None", nogil=not code.funcstate.gil_owned)
 
         if not lenv.nogil:
             # GIL holding function
@@ -4053,6 +4049,10 @@ class GeneratorBodyDefNode(DefNode):
         tempvardecl_code = code.insertion_point()
         code.put_declare_refcount_context()
         code.put_setup_refcount_context(self.entry.name)
+        profile = code.globalstate.directives['profile']
+        linetrace = code.globalstate.directives['linetrace']
+        if profile or linetrace:
+            code.put_trace_declarations()
 
         # ----- Resume switch point.
         code.funcstate.init_closure_temps(lenv.scope_class.type.scope)
@@ -4124,6 +4124,9 @@ class GeneratorBodyDefNode(DefNode):
         code.putln('%s->resume_label = -1;' % Naming.generator_cname)
         # clean up as early as possible to help breaking any reference cycles
         code.putln('__Pyx_Coroutine_clear((PyObject*)%s);' % Naming.generator_cname)
+        if profile or linetrace:
+            code.put_trace_return(Naming.retval_cname,
+                                  nogil=not code.funcstate.gil_owned)
         code.put_finish_refcount_context()
         code.putln("return %s;" % Naming.retval_cname)
         code.putln("}")
@@ -4131,13 +4134,20 @@ class GeneratorBodyDefNode(DefNode):
         # ----- Go back and insert temp variable declarations
         tempvardecl_code.put_temp_declarations(code.funcstate)
         # ----- Generator resume code
+        if profile or linetrace:
+            resume_code.put_trace_call(self.entry.qualified_name, self.pos,
+                                       nogil=not code.funcstate.gil_owned)
         resume_code.putln("switch (%s->resume_label) {" % (
                        Naming.generator_cname))
+
         resume_code.putln("case 0: goto %s;" % first_run_label)
 
         for i, label in code.yield_labels:
             resume_code.putln("case %d: goto %s;" % (i, label))
         resume_code.putln("default: /* CPython raises the right error here */")
+        if profile or linetrace:
+            resume_code.put_trace_return("Py_None",
+                                         nogil=not code.funcstate.gil_owned)
         resume_code.put_finish_refcount_context()
         resume_code.putln("return NULL;")
         resume_code.putln("}")
@@ -4527,7 +4537,10 @@ class CClassDefNode(ClassDefNode):
 
         if self.base_class_name:
             if self.base_class_module:
-                base_class_scope = env.find_module(self.base_class_module, self.pos)
+                base_class_scope = env.find_imported_module(self.base_class_module.split('.'), self.pos)
+                if not base_class_scope:
+                    error(self.pos, "'%s' is not a cimported module" % self.base_class_module)
+                    return
             else:
                 base_class_scope = env
             if self.base_class_name == 'object':
@@ -5464,8 +5477,9 @@ class DelStatNode(StatNode):
                 arg.generate_deletion_code(
                     code, ignore_nonexisting=self.ignore_nonexisting)
             elif arg.type.is_ptr and arg.type.base_type.is_cpp_class:
-                arg.generate_result_code(code)
+                arg.generate_evaluation_code(code)
                 code.putln("delete %s;" % arg.result())
+                arg.generate_disposal_code(code)
             # else error reported earlier
 
     def annotate(self, code):
@@ -5678,6 +5692,8 @@ class RaiseStatNode(StatNode):
         if self.exc_type:
             self.exc_type.generate_evaluation_code(code)
             type_code = self.exc_type.py_result()
+            if self.exc_type.is_name:
+                code.globalstate.use_entry_utility_code(self.exc_type.entry)
         else:
             type_code = "0"
         if self.exc_value:
@@ -8085,7 +8101,7 @@ class ParallelStatNode(StatNode, ParallelNode):
 
             invalid_value = entry.type.invalid_value()
             if invalid_value:
-                init = ' = ' + invalid_value
+                init = ' = ' + entry.type.cast_code(invalid_value)
             else:
                 init = ''
             # Declare the parallel private in the outer block
