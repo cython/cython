@@ -1336,8 +1336,18 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
                         return self._reject_decorated_property(node, decorator_node)
                     return self._add_to_property(properties, node, handler_name, decorator_node)
 
+        # we clear node.decorators, so we need to set the
+        # is_staticmethod/is_classmethod attributes now
+        for decorator in node.decorators:
+            func = decorator.decorator
+            if func.is_name:
+                node.is_classmethod |= func.name == 'classmethod'
+                node.is_staticmethod |= func.name == 'staticmethod'
+
         # transform normal decorators
-        return self.chain_decorators(node, node.decorators, node.name)
+        decs = node.decorators
+        node.decorators = None
+        return self.chain_decorators(node, decs, node.name)
 
     @staticmethod
     def _reject_decorated_property(node, decorator_node):
