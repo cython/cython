@@ -310,10 +310,10 @@ static CYTHON_INLINE PyObject* __Pyx_PyNumber_IntOrLong(PyObject* x) {
       return NULL;
     }
   }
-  else if (!PyErr_Occurred()) {
-    PyErr_SetString(PyExc_TypeError,
+  PyErr_Clear();
+  if (!res)
+  PyErr_SetString(PyExc_TypeError,
                     "an integer is required");
-  }
   return res;
 }
 
