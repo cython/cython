@@ -132,6 +132,8 @@ Data fields
     data.as_uints
     data.as_longs
     data.as_ulongs
+    data.as_longlongs  # requires Python >=3
+    data.as_ulonglongs  # requires Python >=3
     data.as_floats
     data.as_doubles
     data.as_pyunicodes

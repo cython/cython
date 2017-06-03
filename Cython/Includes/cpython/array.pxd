@@ -75,6 +75,8 @@ cdef extern from *:  # Hard-coded utility code hack.
         char *as_chars
         unsigned long *as_ulongs
         long *as_longs
+        unsigned long long *as_ulonglongs
+        long long *as_longlongs
         short *as_shorts
         unsigned short *as_ushorts
         Py_UNICODE *as_pyunicodes
