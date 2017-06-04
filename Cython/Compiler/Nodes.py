@@ -5508,6 +5508,7 @@ class IndirectionNode(StatListNode):
     def __init__(self, stats):
         super(IndirectionNode, self).__init__(stats[0].pos, stats=stats)
 
+
 class BreakStatNode(StatNode):
 
     child_attrs = []
@@ -6684,8 +6685,8 @@ class TryExceptStatNode(StatNode):
         except_error_label = code.new_label('except_error')
         except_return_label = code.new_label('except_return')
         try_return_label = code.new_label('try_return')
-        try_break_label = code.new_label('try_break')
-        try_continue_label = code.new_label('try_continue')
+        try_break_label = code.new_label('try_break') if old_break_label else None
+        try_continue_label = code.new_label('try_continue') if old_continue_label else None
         try_end_label = code.new_label('try_end')
 
         exc_save_vars = [code.funcstate.allocate_temp(py_object_type, False)
