@@ -292,7 +292,7 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *obj) {
 static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *obj) {
 #ifdef __Pyx_AsyncGen_USED
     if (__Pyx_AsyncGen_CheckExact(obj)) {
-        return __Pyx_AsyncGen_ANext(obj);
+        return __Pyx_async_gen_anext(obj);
     }
 #endif
 #if CYTHON_USE_ASYNC_SLOTS
@@ -927,7 +927,7 @@ static int __Pyx_Coroutine_clear(PyObject *self) {
     Py_CLEAR(gen->exc_traceback);
 #ifdef __Pyx_AsyncGen_USED
     if (__Pyx_AsyncGen_CheckExact(self)) {
-        Py_CLEAR(((__pyx_AsyncGenObject*)gen)->ag_finalizer);
+        Py_CLEAR(((__pyx_PyAsyncGenObject*)gen)->ag_finalizer);
     }
 #endif
     Py_CLEAR(gen->gi_name);
@@ -1324,7 +1324,7 @@ static void __Pyx_Coroutine_check_and_dealloc(PyObject *self) {
         PyObject_GC_Track(self);
 #ifdef __Pyx_AsyncGen_USED
     } else if (__Pyx_AsyncGen_CheckExact(self)) {
-        __pyx_AsyncGenObject *agen = (__pyx_AsyncGenObject*)self;
+        __pyx_PyAsyncGenObject *agen = (__pyx_PyAsyncGenObject*)self;
         PyObject *finalizer = agen->ag_finalizer;
         if (finalizer && !agen->ag_closed) {
             /* Save the current exception, if any. */

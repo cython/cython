@@ -9473,7 +9473,8 @@ class YieldExprNode(ExprNode):
         code.putln("%s->resume_label = %d;" % (
             Naming.generator_cname, label_num))
         if self.in_async_gen and not self.is_await:
-            code.putln("return __pyx__PyAsyncGenWrapValue(%s);" % Naming.retval_cname)
+            # __Pyx__PyAsyncGenValueWrapperNew() steals a reference to the return value
+            code.putln("return __Pyx__PyAsyncGenValueWrapperNew(%s);" % Naming.retval_cname)
         else:
             code.putln("return %s;" % Naming.retval_cname)
 
