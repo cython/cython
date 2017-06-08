@@ -1216,6 +1216,8 @@ class BuiltinObjectType(PyObjectType):
             type_check = 'PyByteArray_Check'
         elif type_name == 'frozenset':
             type_check = 'PyFrozenSet_Check'
+        elif type_name == 'Exception':
+            type_check = 'PyExceptionClass_Check'
         else:
             type_check = 'Py%s_Check' % type_name.capitalize()
         if exact and type_name not in ('bool', 'slice', 'Exception'):
