@@ -863,8 +863,21 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                 if np_pythran:
                     c_file = base + '.cpp'
                     options = pythran_options
-                    m.include_dirs.append(pythran_include_dir)
-                    m.extra_compile_args.extend(('-std=c++11','-DENABLE_PYTHON_MODULE','-D__PYTHRAN__'))
+                    pythran_ext = pythran.config.make_extension()
+                    m.include_dirs.extend(pythran_ext['include_dirs'])
+                    m.extra_compile_args.extend(pythran_ext['extra_compile_args'])
+                    m.extra_link_args.extend(pythran_ext['extra_link_args'])
+                    m.define_macros.extend(pythran_ext['define_macros'])
+                    m.undef_macros.extend(pythran_ext['undef_macros'])
+                    m.library_dirs.extend(pythran_ext['library_dirs'])
+                    m.libraries.extend(pythran_ext['libraries'])
+                    # These options are not compatible with the way normal Cython plugins work
+                    try:
+                        m.extra_compile_args.remove("-fwhole-program")
+                    except ValueError: pass
+                    try:
+                        m.extra_compile_args.remove("-fvisibility=hidden")
+                    except ValueError: pass
                     m.language = 'c++'
                 elif m.language == 'c++':
                     c_file = base + '.cpp'
