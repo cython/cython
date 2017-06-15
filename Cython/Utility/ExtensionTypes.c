@@ -51,3 +51,57 @@ static void __Pyx_call_next_tp_clear(PyObject* obj, inquiry current_tp_clear) {
     if (type && type->tp_clear)
         type->tp_clear(obj);
 }
+
+/////////////// SetupReduce.proto ///////////////
+
+static int __Pyx_setup_reduce(PyObject* type_obj);
+
+/////////////// SetupReduce ///////////////
+
+#define __Pyx_setup_reduce_GET_ATTR_OR_BAD(res, obj, name) res = PyObject_GetAttrString(obj, name); if (res == NULL) goto BAD;
+
+static int __Pyx_setup_reduce(PyObject* type_obj) {
+    int ret = 0;
+    PyObject* builtin_object = NULL;
+    static PyObject *object_reduce = NULL;
+    static PyObject *object_reduce_ex = NULL;
+    PyObject *reduce = NULL;
+    PyObject *reduce_ex = NULL;
+    PyObject *reduce_cython = NULL;
+    PyObject *reduce_name = NULL;
+    PyObject *reduce_cython_name = NULL;
+    PyObject *same_name = NULL;
+
+    if (object_reduce_ex == NULL) {
+        __Pyx_setup_reduce_GET_ATTR_OR_BAD(builtin_object, __pyx_b, "object");
+        __Pyx_setup_reduce_GET_ATTR_OR_BAD(object_reduce, builtin_object, "__reduce__");
+        __Pyx_setup_reduce_GET_ATTR_OR_BAD(object_reduce_ex, builtin_object, "__reduce_ex__");
+    }
+
+    __Pyx_setup_reduce_GET_ATTR_OR_BAD(reduce_ex, type_obj, "__reduce_ex__");
+    if (reduce_ex == object_reduce_ex) {
+        __Pyx_setup_reduce_GET_ATTR_OR_BAD(reduce, type_obj, "__reduce__");
+        __Pyx_setup_reduce_GET_ATTR_OR_BAD(reduce_cython, type_obj, "__reduce_cython__");
+        __Pyx_setup_reduce_GET_ATTR_OR_BAD(reduce_name, reduce, "__name__");
+        __Pyx_setup_reduce_GET_ATTR_OR_BAD(reduce_cython_name, reduce_cython, "__name__");
+        same_name = PyObject_RichCompare(reduce_name, reduce_cython_name, Py_EQ); if (same_name == NULL) goto BAD;
+        if (object_reduce == reduce || PyObject_IsTrue(same_name)) {
+            ret = PyDict_SetItemString(((PyTypeObject*)type_obj)->tp_dict, "__reduce__", reduce_cython); if (ret < 0) goto BAD;
+            ret = PyDict_DelItemString(((PyTypeObject*)type_obj)->tp_dict, "__reduce_cython__");
+            PyType_Modified((PyTypeObject*)type_obj);
+        }
+    }
+    goto GOOD;
+
+BAD:
+    ret = -1;
+GOOD:
+    Py_XDECREF(builtin_object);
+    Py_XDECREF(reduce);
+    Py_XDECREF(reduce_ex);
+    Py_XDECREF(reduce_cython);
+    Py_XDECREF(reduce_name);
+    Py_XDECREF(reduce_cython_name);
+    Py_XDECREF(same_name);
+    return ret;
+}

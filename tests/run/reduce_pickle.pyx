@@ -46,18 +46,30 @@ cdef class B:
 
     cdef int x, y
 
+    def __cinit__(self):
+        self.x = self.y = -1
+
     def __init__(self, x=0, y=0):
         self.x = x
         self.y = y
 
     def __repr__(self):
-        return "B(x=%s, y=%s)" % (self.x, self.y)
+        return "%s(x=%s, y=%s)" % (self.__class__.__name__, self.x, self.y)
 
     def __reduce__(self):
-        return makeB, ({'x': self.x, 'y': self.y},)
+        return makeObj, (type(self), {'x': self.x, 'y': self.y})
 
-def makeB(kwds):
-    return B(**kwds)
+def makeObj(obj_type, kwds):
+    return obj_type(**kwds)
+
+
+cdef class C(B):
+    """
+    >>> import pickle
+    >>> pickle.loads(pickle.dumps(C(x=37, y=389)))
+    C(x=37, y=389)
+    """
+    pass
 
 
 @cython.auto_pickle(True)  # Not needed, just to test the directive.

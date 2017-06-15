@@ -1579,11 +1579,17 @@ if VALUE is not None:
         all_members = []
         cls = node.entry.type
         cinit = None
+        inherited_reduce = None
         while cls is not None:
             all_members.extend(e for e in cls.scope.var_entries if e.name not in ('__weakref__', '__dict__'))
             cinit = cinit or cls.scope.lookup('__cinit__')
+            inherited_reduce = inherited_reduce or cls.scope.lookup('__reduce__') or cls.scope.lookup('__reduce_ex__')
             cls = cls.base_type
         all_members.sort(key=lambda e: e.name)
+
+        if inherited_reduce:
+            # This is not failsafe, as we may not know whether a cimported class defines a __reduce__.
+            return
 
         non_py = [
             e for e in all_members
@@ -1601,7 +1607,7 @@ if VALUE is not None:
                 error(node.pos, msg)
 
             pickle_func = TreeFragment(u"""
-                def __reduce__(self):
+                def __reduce_cython__(self):
                     raise TypeError("%s")
                 """ % msg,
                 level='c_class', pipeline=[NormalizeTree(None)]).substitute({})
@@ -1643,7 +1649,7 @@ if VALUE is not None:
             self.extra_module_declarations.append(unpickle_func)
 
             pickle_func = TreeFragment(u"""
-                def __reduce__(self):
+                def __reduce_cython__(self):
                     if hasattr(self, '__getstate__'):
                         state = self.__getstate__()
                     elif hasattr(self, '__dict__'):

@@ -2807,6 +2807,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                             weakref_entry.cname))
                     else:
                         error(weakref_entry.pos, "__weakref__ slot must be of type 'object'")
+                if scope.lookup_here("__reduce_cython__"):
+                    # Unfortunately, we cannot reliably detect whether a
+                    # superclass defined __reduce__ at compile time, so we must
+                    # do so at runtime.
+                    code.globalstate.use_utility_code(
+                        UtilityCode.load_cached('SetupReduce', 'ExtensionTypes.c'))
+                    code.putln('if (__Pyx_setup_reduce((PyObject*)&%s) < 0) %s' % (
+                                  typeobj_cname,
+                                  code.error_goto(entry.pos)))
 
     def generate_exttype_vtable_init_code(self, entry, code):
         # Generate code to initialise the C method table of an
