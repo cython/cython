@@ -7,6 +7,7 @@ cython.declare(PyrexTypes=object, Naming=object, ExprNodes=object, Nodes=object,
                error=object, warning=object, copy=object, _unicode=object)
 
 import copy
+import hashlib
 
 from . import PyrexTypes
 from . import Naming
@@ -1610,10 +1611,14 @@ if VALUE is not None:
 
         else:
             all_members_names = sorted([e.name for e in all_members])
+            checksum = '0x%s' % hashlib.md5(' '.join(all_members_names).encode('utf-8')).hexdigest()[:7]
             unpickle_func_name = '__pyx_unpickle_%s' % node.class_name
 
             unpickle_func = TreeFragment(u"""
-                def %(unpickle_func_name)s(__pyx_type, __pyx_state, %(args)s):
+                def %(unpickle_func_name)s(__pyx_type, long __pyx_checksum, __pyx_state, %(args)s):
+                    if __pyx_checksum != %(checksum)s:
+                        from pickle import PickleError
+                        raise PickleError("Incompatible checksums (%%s vs %(checksum)s = (%(members)s))" %% __pyx_checksum)
                     cdef %(class_name)s result
                     result = %(class_name)s.__new__(__pyx_type)
                     %(assignments)s
@@ -1627,6 +1632,8 @@ if VALUE is not None:
                     return result
                 """ % {
                     'unpickle_func_name': unpickle_func_name,
+                    'checksum': checksum,
+                    'members': ', '.join(all_members_names),
                     'class_name': node.class_name,
                     'assignments': '; '.join('result.%s = __pyx_arg_%s' % (v, v) for v in all_members_names),
                     'args': ','.join('__pyx_arg_%s' % v for v in all_members_names),
@@ -1643,8 +1650,8 @@ if VALUE is not None:
                         state = self.__dict__
                     else:
                         state = None
-                    return %s, (type(self), state, %s)
-                """ % (unpickle_func_name, ', '.join('self.%s' % v for v in all_members_names)),
+                    return %s, (type(self), %s, state, %s)
+                """ % (unpickle_func_name, checksum, ', '.join('self.%s' % v for v in all_members_names)),
                 level='c_class', pipeline=[NormalizeTree(None)]).substitute({})
             pickle_func.analyse_declarations(node.scope)
             self.visit(pickle_func)
