@@ -68,9 +68,6 @@ static int __Pyx_setup_reduce(PyObject* type_obj) {
     PyObject *reduce = NULL;
     PyObject *reduce_ex = NULL;
     PyObject *reduce_cython = NULL;
-    PyObject *reduce_name = NULL;
-    PyObject *reduce_cython_name = NULL;
-    PyObject *same_name = NULL;
 
     if (object_reduce_ex == NULL) {
         __Pyx_setup_reduce_GET_ATTR_OR_BAD(builtin_object, __pyx_b, "object");
@@ -82,10 +79,9 @@ static int __Pyx_setup_reduce(PyObject* type_obj) {
     if (reduce_ex == object_reduce_ex) {
         __Pyx_setup_reduce_GET_ATTR_OR_BAD(reduce, type_obj, "__reduce__");
         __Pyx_setup_reduce_GET_ATTR_OR_BAD(reduce_cython, type_obj, "__reduce_cython__");
-        __Pyx_setup_reduce_GET_ATTR_OR_BAD(reduce_name, reduce, "__name__");
-        __Pyx_setup_reduce_GET_ATTR_OR_BAD(reduce_cython_name, reduce_cython, "__name__");
-        same_name = PyObject_RichCompare(reduce_name, reduce_cython_name, Py_EQ); if (same_name == NULL) goto BAD;
-        if (object_reduce == reduce || PyObject_IsTrue(same_name)) {
+        if (object_reduce == reduce
+            || (strcmp(reduce->ob_type->tp_name, "method_descriptor") == 0
+                && strcmp(((PyMethodDescrObject*)reduce)->d_method->ml_name, "__reduce_cython__") == 0)) {
             ret = PyDict_SetItemString(((PyTypeObject*)type_obj)->tp_dict, "__reduce__", reduce_cython); if (ret < 0) goto BAD;
             ret = PyDict_DelItemString(((PyTypeObject*)type_obj)->tp_dict, "__reduce_cython__");
             PyType_Modified((PyTypeObject*)type_obj);
@@ -100,8 +96,5 @@ GOOD:
     Py_XDECREF(reduce);
     Py_XDECREF(reduce_ex);
     Py_XDECREF(reduce_cython);
-    Py_XDECREF(reduce_name);
-    Py_XDECREF(reduce_cython_name);
-    Py_XDECREF(same_name);
     return ret;
 }

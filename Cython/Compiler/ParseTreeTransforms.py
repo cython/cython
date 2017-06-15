@@ -1589,6 +1589,8 @@ if VALUE is not None:
 
         if inherited_reduce:
             # This is not failsafe, as we may not know whether a cimported class defines a __reduce__.
+            # This is why we define __reduce_cython__ and only replace __reduce__
+            # (via ExtensionTypes.SetupReduce utility code) at runtime on class creation.
             return
 
         non_py = [
