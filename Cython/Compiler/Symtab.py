@@ -2088,6 +2088,11 @@ class CClassScope(ClassScope):
                     # Fix with_gil vs nogil.
                     entry.type = entry.type.with_with_gil(type.with_gil)
                 elif type.compatible_signature_with(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
+                    if self.defined and not in_pxd:
+                        error(pos,
+                            "Compatible but non-identical C method '%s' not redeclared "
+                            "in definition part of extension type" % name)
+                        error(entry.pos, "Previous declaration is here")
                     entry = self.add_cfunction(name, type, pos, cname, visibility='ignore', modifiers=modifiers)
                 else:
                     error(pos, "Signature not compatible with previous declaration")
