@@ -32,8 +32,8 @@ cdef class UnneededRedeclaration(Base):
 _ERRORS = u"""
 8: 9: Signature not compatible with previous declaration
 4: 9: Previous declaration is here
-18:8: Compatible but non-identical C method 'f' not redeclared in definition part of extension type
+18:8: Compatible but non-identical C method 'f' not redeclared in definition part of extension type 'MissingRedeclaration'
 2:9: Previous declaration is here
-23:8: Compatible but non-identical C method 'f' not redeclared in definition part of extension type
+23:8: Compatible but non-identical C method 'f' not redeclared in definition part of extension type 'BadRedeclaration'
 2:9: Previous declaration is here
 """
