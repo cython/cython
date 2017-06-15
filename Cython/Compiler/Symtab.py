@@ -1319,6 +1319,9 @@ class ModuleScope(Scope):
     def declare_cfunction(self, name, type, pos,
                           cname=None, visibility='private', api=0, in_pxd=0,
                           defining=0, modifiers=(), utility_code=None, overridable=False):
+        if not defining and 'inline' in modifiers:
+            # TODO(github/1736): Make this an error.
+            warning(pos, "Declarations should not be declared inline.", 1)
         # Add an entry for a C function.
         if not cname:
             if visibility == 'extern' or (visibility == 'public' and defining):

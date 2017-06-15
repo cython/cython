@@ -2963,11 +2963,15 @@ def p_c_arg_decl(s, ctx, in_pyfunc, cmethod_flag = 0, nonempty = 0,
         annotation = p_test(s)
     if s.sy == '=':
         s.next()
-        if 'pxd' in ctx.level and 'inline' not in ctx.modifiers:
-            if s.sy not in ['*', '?']:
+        if 'pxd' in ctx.level:
+            if s.sy in ['*', '?']:
+                # TODO(github/1736): Make this an error for inline declarations.
+                default = ExprNodes.NoneNode(pos)
+                s.next()
+            elif 'inline' in ctx.modifiers:
+                default = p_test(s)
+            else:
                 error(pos, "default values cannot be specified in pxd files, use ? or *")
-            default = ExprNodes.BoolNode(1)
-            s.next()
         else:
             default = p_test(s)
     return Nodes.CArgDeclNode(pos,
