@@ -2091,7 +2091,7 @@ class CClassScope(ClassScope):
                     if self.defined and not in_pxd:
                         error(pos,
                             "Compatible but non-identical C method '%s' not redeclared "
-                            "in definition part of extension type" % name)
+                            "in definition part of extension type '%s'" % (name, self.class_name))
                         error(entry.pos, "Previous declaration is here")
                     entry = self.add_cfunction(name, type, pos, cname, visibility='ignore', modifiers=modifiers)
                 else:
@@ -2101,7 +2101,7 @@ class CClassScope(ClassScope):
             if self.defined:
                 error(pos,
                     "C method '%s' not previously declared in definition part of"
-                    " extension type" % name)
+                    " extension type '%s'" % (name, self.class_name))
             entry = self.add_cfunction(name, type, pos, cname, visibility, modifiers)
         if defining:
             entry.func_cname = self.mangle(Naming.func_prefix, name)
