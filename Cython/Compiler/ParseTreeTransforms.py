@@ -1609,7 +1609,7 @@ if VALUE is not None:
             node.body.stats.append(pickle_func)
 
         else:
-            all_members_names = [e.name for e in all_members]
+            all_members_names = sorted([e.name for e in all_members])
             unpickle_func_name = '__pyx_unpickle_%s' % node.class_name
 
             unpickle_func = TreeFragment(u"""
@@ -1628,8 +1628,8 @@ if VALUE is not None:
                 """ % {
                     'unpickle_func_name': unpickle_func_name,
                     'class_name': node.class_name,
-                    'assignments': '; '.join('result.%s = __pyx_%s' % (v, v) for v in all_members_names),
-                    'args': ','.join('__pyx_%s' % v for v in all_members_names),
+                    'assignments': '; '.join('result.%s = __pyx_arg_%s' % (v, v) for v in all_members_names),
+                    'args': ','.join('__pyx_arg_%s' % v for v in all_members_names),
                 }, level='module', pipeline=[NormalizeTree(None)]).substitute({})
             unpickle_func.analyse_declarations(node.entry.scope)
             self.visit(unpickle_func)
