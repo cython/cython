@@ -661,3 +661,39 @@ bad:
     Py_XDECREF(ob);
     return NULL;
 }
+
+
+/////////////// ImportNumPyArray.proto ///////////////
+static PyObject* __Pyx_ImportNumPyArrayTypeIfAvailable(void); /*proto*/
+
+/////////////// ImportNumPyArray.cleanup ///////////////
+Py_CLEAR(__pyx_numpy_ndarray);
+
+/////////////// ImportNumPyArray ///////////////
+//@requires: ImportExport.c::Import
+
+static PyObject *__pyx_numpy_ndarray = NULL;
+
+static PyObject* __Pyx__ImportNumPyArray(void) {
+    PyObject *numpy_module, *ndarray_object = NULL;
+    numpy_module = __Pyx_Import(PYIDENT("numpy"), NULL, 0);
+    if (likely(numpy_module)) {
+        ndarray_object = PyObject_GetAttrString(numpy_module, "ndarray");
+        if (unlikely(!ndarray_object)) {
+            PyErr_Clear();
+        }
+    }
+    if (unlikely(!ndarray_object || !PyObject_TypeCheck(ndarray_object, &PyType_Type))) {
+        Py_XDECREF(ndarray_object);
+        Py_INCREF(Py_None);
+        ndarray_object = Py_None;
+    }
+    return ndarray_object;
+}
+
+static CYTHON_INLINE PyObject* __Pyx_ImportNumPyArrayTypeIfAvailable(void) {
+    if (unlikely(!__pyx_numpy_ndarray)) {
+        __pyx_numpy_ndarray = __Pyx__ImportNumPyArray();
+    }
+    return __pyx_numpy_ndarray;
+}

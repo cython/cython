@@ -453,11 +453,7 @@ class FusedCFuncDefNode(StatListNode):
         pyx_code.imports.put_chunk(
             u"""
                 cdef type ndarray
-                try:
-                    import numpy
-                    ndarray = numpy.ndarray
-                except (ImportError, AttributeError, TypeError):
-                    ndarray = None
+                ndarray = __Pyx_ImportNumPyArrayTypeIfAvailable()
             """)
 
         seen_int_dtypes = set()
@@ -514,7 +510,7 @@ class FusedCFuncDefNode(StatListNode):
                 # PROCESSING ARGUMENT {{arg_tuple_idx}}
                 if {{arg_tuple_idx}} < len(<tuple>args):
                     arg = (<tuple>args)[{{arg_tuple_idx}}]
-                elif '{{arg.name}}' in <dict>kwargs:
+                elif kwargs is not None and '{{arg.name}}' in <dict>kwargs:
                     arg = (<dict>kwargs)['{{arg.name}}']
                 else:
                 {{if arg.default}}
@@ -549,6 +545,7 @@ class FusedCFuncDefNode(StatListNode):
             u"""
                 cdef extern from *:
                     void __pyx_PyErr_Clear "PyErr_Clear" ()
+                    type __Pyx_ImportNumPyArrayTypeIfAvailable()
             """)
         decl_code.indent()
 
@@ -564,8 +561,8 @@ class FusedCFuncDefNode(StatListNode):
 
                     dest_sig = [None] * {{n_fused}}
 
-                    if kwargs is None:
-                        kwargs = {}
+                    if kwargs is not None and not kwargs:
+                        kwargs = None
 
                     cdef Py_ssize_t i
 
@@ -623,13 +620,16 @@ class FusedCFuncDefNode(StatListNode):
         if all_buffer_types:
             self._buffer_declarations(pyx_code, decl_code, all_buffer_types)
             env.use_utility_code(Code.UtilityCode.load_cached("Import", "ImportExport.c"))
+            env.use_utility_code(Code.UtilityCode.load_cached("ImportNumPyArray", "ImportExport.c"))
 
         pyx_code.put_chunk(
             u"""
                 candidates = []
                 for sig in <dict>signatures:
                     match_found = False
-                    for src_type, dst_type in zip(sig.strip('()').split('|'), dest_sig):
+                    src_sig = sig.strip('()').split('|')
+                    for i in range(len(dest_sig)):
+                        src_type, dst_type = src_sig[i], dest_sig[i]
                         if dst_type is not None:
                             if src_type == dst_type:
                                 match_found = True
