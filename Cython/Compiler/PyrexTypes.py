@@ -3330,58 +3330,26 @@ class CppClassType(CType):
         if self.cname in builtin_cpp_conversions or self.cname in cpp_string_conversions:
             X = "XYZABC"
             tags = []
-            declarations = ["cdef extern from *:"]
+            context = {}
             for ix, T in enumerate(self.templates or []):
                 if ix >= builtin_cpp_conversions[self.cname]:
                     break
                 if T.is_pyobject or not T.create_from_py_utility_code(env):
                     return False
                 tags.append(T.specialization_name())
-                if T.exception_value is not None:
-                    # This is a hack due to the except value clause
-                    # requiring a const (literal) value of the right
-                    # (visible) type.
-                    def guess_type(value):
-                        if not T.is_typedef and (T.is_numeric or T.is_ptr):
-                            return T
-                        try:
-                            int(value)
-                            return c_longlong_type
-                        except ValueError:
-                            pass
-                        try:
-                            float(value)
-                            return c_double_type
-                        except ValueError:
-                            pass
-                        return T
-                    except_type = guess_type(T.exception_value)
-                    except_clause = "%s " % T.exception_value
-                    if T.exception_check:
-                        except_clause = "? %s" % except_clause
-                    declarations.append(
-                        "    ctypedef %s %s '%s'" % (
-                             except_type.declaration_code("", for_display=True), X[ix], T.empty_declaration_code()))
-                else:
-                    except_clause = "*"
-                    declarations.append(
-                        "    ctypedef struct %s '%s':\n        pass" % (
-                             X[ix], T.empty_declaration_code()))
-                declarations.append(
-                    "    cdef %s %s_from_py '%s' (object) except %s" % (
-                         X[ix], X[ix], T.from_py_function, except_clause))
+                context[X[ix]] = T
+
             if self.cname in cpp_string_conversions:
                 cls = 'string'
                 tags = type_identifier(self),
             else:
                 cls = self.cname[5:]
             cname = '__pyx_convert_%s_from_py_%s' % (cls, '__and_'.join(tags))
-            context = {
-                'template_type_declarations': '\n'.join(declarations),
+            context.update({
                 'cname': cname,
                 'maybe_unordered': self.maybe_unordered(),
                 'type': self.cname,
-            }
+            })
             from .UtilityCode import CythonUtilityCode
             env.use_utility_code(CythonUtilityCode.load(
                 cls.replace('unordered_', '') + ".from_py", "CppConvert.pyx", context=context))
@@ -3394,19 +3362,15 @@ class CppClassType(CType):
         if self.cname in builtin_cpp_conversions or self.cname in cpp_string_conversions:
             X = "XYZABC"
             tags = []
-            declarations = ["cdef extern from *:"]
+            context = {}
             for ix, T in enumerate(self.templates or []):
                 if ix >= builtin_cpp_conversions[self.cname]:
                     break
                 if not T.create_to_py_utility_code(env):
                     return False
                 tags.append(T.specialization_name())
-                declarations.append(
-                    "    ctypedef struct %s '%s':\n        pass" % (
-                         X[ix], T.empty_declaration_code()))
-                declarations.append(
-                    "    cdef object %s_to_py '%s' (%s)" % (
-                         X[ix], T.to_py_function, X[ix]))
+                context[X[ix]] = T
+
             if self.cname in cpp_string_conversions:
                 cls = 'string'
                 prefix = 'PyObject_'  # gets specialised by explicit type casts in CoerceToPyTypeNode
@@ -3415,12 +3379,11 @@ class CppClassType(CType):
                 cls = self.cname[5:]
                 prefix = ''
             cname = "__pyx_convert_%s%s_to_py_%s" % (prefix, cls, "____".join(tags))
-            context = {
-                'template_type_declarations': '\n'.join(declarations),
+            context.update({
                 'cname': cname,
                 'maybe_unordered': self.maybe_unordered(),
                 'type': self.cname,
-            }
+            })
             from .UtilityCode import CythonUtilityCode
             env.use_utility_code(CythonUtilityCode.load(
                 cls.replace('unordered_', '') + ".to_py", "CppConvert.pyx", context=context))
