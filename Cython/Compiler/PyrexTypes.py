@@ -2276,8 +2276,7 @@ class CArrayType(CPointerBaseType):
         if not self.base_type.create_to_py_utility_code(env):
             return False
 
-        base_type = self.base_type.declaration_code("", pyrex=1)
-        safe_typename = re.sub('[^a-zA-Z0-9]', '__', base_type)
+        safe_typename = self.base_type.specialization_name()
         to_py_function = "__Pyx_carray_to_py_%s" % safe_typename
         to_tuple_function = "__Pyx_carray_to_tuple_%s" % safe_typename
 
@@ -2285,7 +2284,7 @@ class CArrayType(CPointerBaseType):
         context = {
             'cname': to_py_function,
             'to_tuple_cname': to_tuple_function,
-            'base_type': base_type,
+            'base_type': self.base_type,
         }
         env.use_utility_code(CythonUtilityCode.load(
             "carray.to_py", "CConvert.pyx",
@@ -2315,14 +2314,12 @@ class CArrayType(CPointerBaseType):
         if not self.base_type.create_from_py_utility_code(env):
             return False
 
-        base_type = self.base_type.declaration_code("", pyrex=1)
-        safe_typename = re.sub('[^a-zA-Z0-9]', '__', base_type)
-        from_py_function = "__Pyx_carray_from_py_%s" % safe_typename
+        from_py_function = "__Pyx_carray_from_py_%s" % self.base_type.specialization_name()
 
         from .UtilityCode import CythonUtilityCode
         context = {
             'cname': from_py_function,
-            'base_type': base_type,
+            'base_type': self.base_type,
         }
         env.use_utility_code(CythonUtilityCode.load(
             "carray.from_py", "CConvert.pyx",
