@@ -57,6 +57,9 @@ Other changes
 * Coercion of C++ containers to Python is no longer automatic on attribute
   access (Github issue #1521).
 
+* Access to Python attributes of comported modules without the corresponding
+  import is now a compile-time (rather than runtime) error.
+
 
 0.25.2 (2016-12-08)
 ===================
