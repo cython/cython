@@ -3187,6 +3187,11 @@ class CStructOrUnionType(CType):
             return None  # tri-state-ish
 
         if self._convert_from_py_code is None:
+            if not self.scope.var_entries:
+                # There are obviously missing fields; don't allow instantiation
+                # where absolutely no content is provided.
+                return False
+
             for member in self.scope.var_entries:
                 if not member.type.create_from_py_utility_code(env):
                     self.from_py_function = None
