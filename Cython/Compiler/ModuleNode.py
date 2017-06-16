@@ -898,7 +898,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     has_destructor = True
                 code.putln("%s;" % attr.type.declaration_code(attr.cname))
             if has_virtual_methods and not has_destructor:
-                code.put("virtual ~%s() { }" % type.cname)
+                code.putln("virtual ~%s() { }" % type.cname)
             code.putln("};")
 
     def generate_enum_definition(self, entry, code):
