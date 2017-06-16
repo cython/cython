@@ -1230,6 +1230,9 @@ class ModuleScope(Scope):
                 self.add_imported_module(m)
 
     def add_imported_entry(self, name, entry, pos):
+        if entry.is_pyglobal:
+            # Allow cimports to follow imports.
+            entry.is_variable = True
         if entry not in self.entries:
             self.entries[name] = entry
         else:

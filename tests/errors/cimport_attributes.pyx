@@ -15,7 +15,13 @@ print my_vector.no_such_attribute
 
 from libcpp cimport vector as my_vector_with_shadow
 from libcpp import vector as my_vector_with_shadow
-print my_vector_with_shadow.no_such_attribute   # OK (if such a module existed at runtime)
+print my_vector_with_shadow.python_attribute   # OK (if such a module existed at runtime)
+
+# Other ordering
+from libcpp import map as my_map_with_shadow
+from libcpp cimport map as my_map_with_shadow
+print my_map_with_shadow.python_attribute   # OK (if such a module existed at runtime)
+
 
 _ERRORS = u"""
 5:12: cimported module has no attribute 'no_such_attribute'
