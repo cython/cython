@@ -174,7 +174,8 @@ class CythonUtilityCode(Code.UtilityCodeBase):
             # inject types into module scope
             def scope_transform(module_node):
                 for name, type in self.context_types.items():
-                    module_node.scope.declare_type(name, type, None, visibility='extern')
+                    entry = module_node.scope.declare_type(name, type, None, visibility='extern')
+                    entry.in_cinclude = True
                 return module_node
 
             pipeline = Pipeline.insert_into_pipeline(
