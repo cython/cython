@@ -77,7 +77,13 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         #    while the generated node trees can be altered in the compilation of a
         #    single file.
         # Hence, delay any processing until later.
+        context_types = {}
         if context is not None:
+            from .PyrexTypes import BaseType
+            for key, value in context.items():
+                if isinstance(value, BaseType):
+                    context[key] = key
+                    context_types[key] = value
             impl = Code.sub_tempita(impl, context, file, name)
         self.impl = impl
         self.name = name
@@ -87,6 +93,7 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         self.from_scope = from_scope
         self.outer_module_scope = outer_module_scope
         self.compiler_directives = compiler_directives
+        self.context_types = context_types
 
     def __eq__(self, other):
         if isinstance(other, CythonUtilityCode):
@@ -157,6 +164,17 @@ class CythonUtilityCode(Code.UtilityCodeBase):
             # inject outer module between utility code module and builtin module
             def scope_transform(module_node):
                 module_node.scope.outer_scope = self.outer_module_scope
+                return module_node
+
+            pipeline = Pipeline.insert_into_pipeline(
+                pipeline, scope_transform,
+                before=ParseTreeTransforms.AnalyseDeclarationsTransform)
+
+        if self.context_types:
+            # inject types into module scope
+            def scope_transform(module_node):
+                for name, type in self.context_types.items():
+                    module_node.scope.declare_type(name, type, None, visibility='extern')
                 return module_node
 
             pipeline = Pipeline.insert_into_pipeline(
