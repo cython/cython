@@ -28,6 +28,7 @@ class BaseType(object):
     # List of attribute names of any subtypes
     subtypes = []
     _empty_declaration = None
+    _specialization_name = None
     default_format_spec = None
 
     def can_coerce_to_pyobject(self, env):
@@ -48,15 +49,15 @@ class BaseType(object):
         return self._empty_declaration
 
     def specialization_name(self):
-        # This is not entirely robust.
-        safe = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_0123456789'
-        all = []
-        for c in self.empty_declaration_code().replace("unsigned ", "unsigned_").replace("long long", "long_long").replace(" ", "__"):
-            if c in safe:
-                all.append(c)
-            else:
-                all.append('_%x_' % ord(c))
-        return ''.join(all)
+        if self._specialization_name is None:
+            # This is not entirely robust.
+            common_subs = (self.empty_declaration_code()
+                           .replace("unsigned ", "unsigned_")
+                           .replace("long long", "long_long")
+                           .replace(" ", "__"))
+            self._specialization_name = re.sub(
+                '[^a-zA-Z0-9_]', lambda x: '_%x_' % ord(x.group(0)), common_subs)
+        return self._specialization_name
 
     def base_declaration_code(self, base_code, entity_code):
         if entity_code:
