@@ -22,10 +22,10 @@ Usage example with distutils
 You first need to install Pythran. See its `documentation
 <https://pythonhosted.org/pythran/MANUAL.html>`_ for more information.
 
-Then, simply add ``np_pythran=True`` to the ``cythonize`` call in the related
-setup.py.
+Then, simply add a ``cython: np_pythran=True`` directive at the top of the
+Python files that needs to be compiled using Pythran numpy support.
 
-Here is an example:
+Here is an example of a simple ``setup.py`` file using distutils:
 
 .. code::
 
@@ -34,8 +34,22 @@ Here is an example:
   
   setup(
       name = "My hello app",
-      ext_modules = cythonize('hello_pythran.pyx', np_pythran=True)
+      ext_modules = cythonize('hello_pythran.pyx')
   )
 
+Then, with the following header in ``hello_pythran.pyx``:
+
+.. code::
+
+  # cython: np_pythran=True
+
+``hello_pythran.pyx`` will be compiled using Pythran numpy support.
+
+Please note that Pythran can further be tweaked by adding settings in the
+``$HOME/.pythranrc`` file. For instance, this can be used to enable `Boost.SIMD`_ support.
+See the `Pythran user manual
+<https://pythonhosted.org/pythran/MANUAL.html#customizing-your-pythranrc>`_ for
+more information.
 
 .. _Pythran: https://github.com/serge-sans-paille/pythran
+.. _Boost.SIMD: https://github.com/NumScale/boost.simd

@@ -50,6 +50,7 @@ except:
     PythranAvailable = False
 
 from distutils.extension import Extension
+from distutils.util import strtobool
 
 from .. import Utils
 from ..Utils import (cached_function, cached_method, path_exists,
@@ -163,6 +164,7 @@ def parse_list(s):
 
 transitive_str = object()
 transitive_list = object()
+bool_or = object()
 
 distutils_settings = {
     'name':                 str,
@@ -179,6 +181,7 @@ distutils_settings = {
     'export_symbols':       list,
     'depends':              transitive_list,
     'language':             transitive_str,
+    'np_pythran':           bool_or
 }
 
 
@@ -210,19 +213,23 @@ class DistutilsInfo(object):
                 if line[0] != '#':
                     break
                 line = line[1:].lstrip()
-                if line[:10] == 'distutils:':
-                    key, _, value = [s.strip() for s in line[10:].partition('=')]
-                    type = distutils_settings[key]
+                kind = next((k for k in ("distutils:","cython:") if line.startswith(k)), None)
+                if not kind is None:
+                    key, _, value = [s.strip() for s in line[len(kind):].partition('=')]
+                    type = distutils_settings.get(key, None)
+                    if line.startswith("cython:") and type is None: continue
                     if type in (list, transitive_list):
                         value = parse_list(value)
                         if key == 'define_macros':
                             value = [tuple(macro.split('=', 1))
                                      if '=' in macro else (macro, None)
                                      for macro in value]
+                    if type is bool_or:
+                        value = strtobool(value)
                     self.values[key] = value
         elif exn is not None:
             for key in distutils_settings:
-                if key in ('name', 'sources'):
+                if key in ('name', 'sources','np_pythran'):
                     continue
                 value = getattr(exn, key, None)
                 if value:
@@ -244,6 +251,8 @@ class DistutilsInfo(object):
                             all.append(v)
                     value = all
                 self.values[key] = value
+            elif type is bool_or:
+                self.values[key] = self.values.get(key, False) | value
         return self
 
     def subs(self, aliases):
@@ -763,8 +772,30 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                 if ext_language and 'language' not in kwds:
                     kwds['language'] = ext_language
 
+                np_pythran = kwds.pop('np_pythran', False)
+
                 # Create the new extension
                 m, metadata = create_extension(template, kwds)
+                if np_pythran:
+                    if not PythranAvailable:
+                        raise RuntimeError("You first need to install Pythran to use the np_pythran directive.")
+                    pythran_ext = pythran.config.make_extension()
+                    m.include_dirs.extend(pythran_ext['include_dirs'])
+                    m.extra_compile_args.extend(pythran_ext['extra_compile_args'])
+                    m.extra_link_args.extend(pythran_ext['extra_link_args'])
+                    m.define_macros.extend(pythran_ext['define_macros'])
+                    m.undef_macros.extend(pythran_ext['undef_macros'])
+                    m.library_dirs.extend(pythran_ext['library_dirs'])
+                    m.libraries.extend(pythran_ext['libraries'])
+                    # These options are not compatible with the way normal Cython extensions work
+                    try:
+                        m.extra_compile_args.remove("-fwhole-program")
+                    except ValueError: pass
+                    try:
+                        m.extra_compile_args.remove("-fvisibility=hidden")
+                    except ValueError: pass
+                    m.language = 'c++'
+                m.np_pythran = np_pythran
                 module_list.append(m)
 
                 # Store metadata (this will be written as JSON in the
@@ -781,7 +812,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
 
 # This is the user-exposed entry point.
 def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, force=False, language=None,
-              exclude_failures=False, np_pythran=False, **options):
+              exclude_failures=False, **options):
     """
     Compile a set of source modules into C/C++ files and return a list of distutils
     Extension objects for them.
@@ -806,8 +837,6 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     that this only really makes sense for compiling .py files which can also
     be used without compilation.
 
-    To use the Pythran backend for numpy operations, set np_pythran to True.
-
     Additional compilation options can be passed as keyword arguments.
     """
     if exclude is None:
@@ -818,9 +847,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
         if options.get('cache'):
             raise NotImplementedError("common_utility_include_dir does not yet work with caching")
         safe_makedirs(options['common_utility_include_dir'])
-    if np_pythran:
-        if not PythranAvailable:
-            raise RuntimeError("You first need to install Pythran to use the np_pythran flag.")
+    if PythranAvailable:
         pythran_options = CompilationOptions(**options);
         pythran_options.cplus = True
         pythran_options.np_pythran = True
@@ -860,25 +887,9 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
         for source in m.sources:
             base, ext = os.path.splitext(source)
             if ext in ('.pyx', '.py'):
-                if np_pythran:
+                if m.np_pythran:
                     c_file = base + '.cpp'
                     options = pythran_options
-                    pythran_ext = pythran.config.make_extension()
-                    m.include_dirs.extend(pythran_ext['include_dirs'])
-                    m.extra_compile_args.extend(pythran_ext['extra_compile_args'])
-                    m.extra_link_args.extend(pythran_ext['extra_link_args'])
-                    m.define_macros.extend(pythran_ext['define_macros'])
-                    m.undef_macros.extend(pythran_ext['undef_macros'])
-                    m.library_dirs.extend(pythran_ext['library_dirs'])
-                    m.libraries.extend(pythran_ext['libraries'])
-                    # These options are not compatible with the way normal Cython plugins work
-                    try:
-                        m.extra_compile_args.remove("-fwhole-program")
-                    except ValueError: pass
-                    try:
-                        m.extra_compile_args.remove("-fvisibility=hidden")
-                    except ValueError: pass
-                    m.language = 'c++'
                 elif m.language == 'c++':
                     c_file = base + '.cpp'
                     options = cpp_options
