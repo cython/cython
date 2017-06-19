@@ -28,6 +28,11 @@ cdef class UnneededRedeclaration(Base):
   cpdef f(self):
     pass
 
+cdef class NarrowerReturn(Base):
+  # This does not require a new vtable entry.
+  cdef Base f(self):
+    pass
+
 
 _ERRORS = u"""
 8: 9: Signature not compatible with previous declaration

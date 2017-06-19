@@ -6,3 +6,6 @@ cdef class MissingRedeclaration(Base):
 
 cdef class BadRedeclaration(Base):
   cdef f(self)
+
+cdef class NarrowerReturn(Base):
+  pass

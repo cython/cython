@@ -2094,7 +2094,8 @@ class CClassScope(ClassScope):
                     # Fix with_gil vs nogil.
                     entry.type = entry.type.with_with_gil(type.with_gil)
                 elif type.compatible_signature_with(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
-                    if self.defined and not in_pxd:
+                    if (self.defined and not in_pxd
+                        and not type.same_c_signature_as_resolved_type(entry.type, as_cmethod = 1, as_pxd_definition = 1)):
                         error(pos,
                             "Compatible but non-identical C method '%s' not redeclared "
                             "in definition part of extension type '%s'" % (name, self.class_name))

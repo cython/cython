@@ -2553,11 +2553,11 @@ class CFuncType(CType):
     def as_argument_type(self):
         return c_ptr_type(self)
 
-    def same_c_signature_as(self, other_type, as_cmethod = 0):
+    def same_c_signature_as(self, other_type, as_cmethod = 0, as_pxd_definition = 0):
         return self.same_c_signature_as_resolved_type(
             other_type.resolve(), as_cmethod)
 
-    def same_c_signature_as_resolved_type(self, other_type, as_cmethod = 0):
+    def same_c_signature_as_resolved_type(self, other_type, as_cmethod = 0, as_pxd_definition = 0):
         #print "CFuncType.same_c_signature_as_resolved_type:", \
         #    self, other_type, "as_cmethod =", as_cmethod ###
         if other_type is error_type:
@@ -2579,8 +2579,13 @@ class CFuncType(CType):
             return 0
         if self.optional_arg_count != other_type.optional_arg_count:
             return 0
-        if not self.return_type.same_as(other_type.return_type):
-            return 0
+        if as_pxd_definition:
+            # A narrowing of the return type declared in the pxd is allowed.
+            if not self.return_type.subtype_of_resolved_type(other_type.return_type):
+                return 0
+        else:
+            if not self.return_type.same_as(other_type.return_type):
+                return 0
         if not self.same_calling_convention_as(other_type):
             return 0
         if self.exception_check != other_type.exception_check:
