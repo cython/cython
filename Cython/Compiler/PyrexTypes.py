@@ -2553,7 +2553,7 @@ class CFuncType(CType):
     def as_argument_type(self):
         return c_ptr_type(self)
 
-    def same_c_signature_as(self, other_type, as_cmethod = 0, as_pxd_definition = 0):
+    def same_c_signature_as(self, other_type, as_cmethod = 0):
         return self.same_c_signature_as_resolved_type(
             other_type.resolve(), as_cmethod)
 
