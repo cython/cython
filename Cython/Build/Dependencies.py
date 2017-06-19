@@ -611,10 +611,10 @@ class DependencyTree(object):
         # Add include_dirs to ensure that the C compiler will find the
         # "cdef extern from ..." files
         if incdirs:
-            include_dirs = kwds.get('include_dirs', [])
+            include_dirs = list(kwds.get('include_dirs', []))
             for inc in incdirs:
                 if inc not in include_dirs:
-                    include_dirs = include_dirs + [inc]
+                    include_dirs.append(inc)
             kwds['include_dirs'] = include_dirs
         return info
 
