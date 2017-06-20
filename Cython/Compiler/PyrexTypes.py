@@ -3204,7 +3204,7 @@ class CStructOrUnionType(CType):
                     return False
 
             context = dict(
-                struct_name=self.name,
+                struct_type=self,
                 var_entries=self.scope.var_entries,
                 funcname=self.from_py_function,
             )
