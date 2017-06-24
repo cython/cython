@@ -228,14 +228,18 @@ static CYTHON_INLINE char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_ssize_
         if (PyUnicode_IS_ASCII(o)) {
             // cached for the lifetime of the object
             *length = PyUnicode_GET_LENGTH(o);
-            return PyUnicode_AsUTF8(o);
+            // Py3.7 returns a "const char*", need to cast to "char*" for backwards compatibility
+            // see https://bugs.python.org/issue28769
+            return (char*) PyUnicode_AsUTF8(o);
         } else {
             // raise the error
             PyUnicode_AsASCIIString(o);
             return NULL;
         }
 #else /* __PYX_DEFAULT_STRING_ENCODING_IS_ASCII */
-        return PyUnicode_AsUTF8AndSize(o, length);
+        // Py3.7 returns a "const char*", need to cast to "char*" for backwards compatibility
+        // see https://bugs.python.org/issue28769
+        return (char*) PyUnicode_AsUTF8AndSize(o, length);
 #endif /* __PYX_DEFAULT_STRING_ENCODING_IS_ASCII */
 #endif /* PY_VERSION_HEX < 0x03030000 */
     } else
