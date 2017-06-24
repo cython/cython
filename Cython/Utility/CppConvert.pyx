@@ -7,12 +7,12 @@ cdef extern from *:
     cdef cppclass string "{{type}}":
         string()
         string(char* c_str, size_t size)
-    cdef char* __Pyx_PyObject_AsStringAndSize(object, Py_ssize_t*) except NULL
+    cdef const char* __Pyx_PyObject_AsStringAndSize(object, Py_ssize_t*) except NULL
 
 @cname("{{cname}}")
 cdef string {{cname}}(object o) except *:
     cdef Py_ssize_t length
-    cdef char* data = __Pyx_PyObject_AsStringAndSize(o, &length)
+    cdef const char* data = __Pyx_PyObject_AsStringAndSize(o, &length)
     return string(data, length)
 
 
@@ -27,7 +27,7 @@ cdef extern from *:
 
 {{for py_type in ['PyObject', 'PyUnicode', 'PyStr', 'PyBytes', 'PyByteArray']}}
 cdef extern from *:
-    cdef object __Pyx_{{py_type}}_FromStringAndSize(char*, size_t)
+    cdef object __Pyx_{{py_type}}_FromStringAndSize(const char*, size_t)
 
 @cname("{{cname.replace("PyObject", py_type, 1)}}")
 cdef inline object {{cname.replace("PyObject", py_type, 1)}}(const string& s):
