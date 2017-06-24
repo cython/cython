@@ -418,10 +418,12 @@ made available when you include :file:`modulename_api.h`.::
     Vehicle car;
 
     int main(int argc, char *argv[]) {
+        Py_Initialize();
         import_delorean();
         car.speed = atoi(argv[1]);
         car.power = atof(argv[2]);
         activate(&car);
+        Py_Finalize();
     }
 
 .. note::
@@ -434,7 +436,10 @@ made available when you include :file:`modulename_api.h`.::
 Using the :keyword:`api` method does not require the C code using the
 declarations to be linked with the extension module in any way, as the Python
 import machinery is used to make the connection dynamically. However, only
-functions can be accessed this way, not variables.
+functions can be accessed this way, not variables. Note also that for the
+module import mechanism to be set up correctly, the user must call
+Py_Initialize() and Py_Finalize(); if you experience a segmentation fault in
+the call to :func:`import_modulename`, it is likely that this wasn't done.
 
 You can use both :keyword:`public` and :keyword:`api` on the same function to
 make it available by both methods, e.g.::
