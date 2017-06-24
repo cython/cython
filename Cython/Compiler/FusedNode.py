@@ -516,7 +516,12 @@ class FusedCFuncDefNode(StatListNode):
                 {{if arg.default}}
                     arg = (<tuple>defaults)[{{default_idx}}]
                 {{else}}
-                    raise TypeError("Expected at least %d arguments" % len(<tuple>args))
+                    {{if arg_tuple_idx < min_positional_args}}
+                        raise TypeError("Expected at least %d argument%s, got %d" % (
+                            {{min_positional_args}}, {{'"s"' if min_positional_args != 1 else '""'}}, len(<tuple>args)))
+                    {{else}}
+                        raise TypeError("Missing keyword-only argument: '%s'" % "{{arg.default}}")
+                    {{endif}}
                 {{endif}}
             """)
 
@@ -536,6 +541,10 @@ class FusedCFuncDefNode(StatListNode):
             'memviewslice_cname': MemoryView.memviewslice_cname,
             'func_args': self.node.args,
             'n_fused': len(fused_types),
+            'min_positional_args':
+                self.node.num_required_args - self.node.num_required_kw_args
+                if is_def else
+                sum(1 for arg in self.node.args if arg.default is None),
             'name': orig_py_func.entry.name,
         }
 
@@ -629,9 +638,9 @@ class FusedCFuncDefNode(StatListNode):
                     match_found = False
                     src_sig = sig.strip('()').split('|')
                     for i in range(len(dest_sig)):
-                        src_type, dst_type = src_sig[i], dest_sig[i]
+                        dst_type = dest_sig[i]
                         if dst_type is not None:
-                            if src_type == dst_type:
+                            if src_sig[i] == dst_type:
                                 match_found = True
                             else:
                                 match_found = False

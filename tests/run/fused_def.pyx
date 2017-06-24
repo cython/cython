@@ -105,11 +105,15 @@ def opt_func(fused_t obj, cython.floating myf = 1.2, cython.integral myi = 7):
 
     >>> opt_func(object(), f)
     Traceback (most recent call last):
-      ...
     TypeError: Function call with ambiguous argument types
+    >>> opt_func()
+    Traceback (most recent call last):
+    TypeError: Expected at least 1 argument, got 0
+    >>> opt_func("abc", f, i, 5)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...at most 3...
     >>> opt_func[ExtClassA, cy.float, cy.long](object(), f)
     Traceback (most recent call last):
-      ...
     TypeError: Argument 'obj' has incorrect type (expected fused_def.ExtClassA, got object)
     """
     print cython.typeof(obj), cython.typeof(myf), cython.typeof(myi)

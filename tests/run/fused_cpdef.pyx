@@ -94,6 +94,12 @@ def test_multiarg():
     x is an int, y is a float: 1 2.0
     x is an int, y is a float: 1 2.0
     x is a long, y is a double: 4 5.0
+    >>> multiarg()
+    Traceback (most recent call last):
+    TypeError: Expected at least 2 arguments, got 0
+    >>> multiarg(1, 2.0, 3)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...2...arg...3...
     """
     multiarg[int, float](1, 2.0)
     multiarg[cy.int, cy.float](1, 2.0)
