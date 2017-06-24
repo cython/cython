@@ -664,6 +664,9 @@ bad:
 
 
 /////////////// ImportNumPyArray.proto ///////////////
+
+static PyObject *__pyx_numpy_ndarray = NULL;
+
 static PyObject* __Pyx_ImportNumPyArrayTypeIfAvailable(void); /*proto*/
 
 /////////////// ImportNumPyArray.cleanup ///////////////
@@ -671,8 +674,6 @@ Py_CLEAR(__pyx_numpy_ndarray);
 
 /////////////// ImportNumPyArray ///////////////
 //@requires: ImportExport.c::Import
-
-static PyObject *__pyx_numpy_ndarray = NULL;
 
 static PyObject* __Pyx__ImportNumPyArray(void) {
     PyObject *numpy_module, *ndarray_object = NULL;
