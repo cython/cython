@@ -304,3 +304,47 @@ def test_annotations(a: "test", b: "other" = 2, c: 123 = 4) -> "ret":
     def inner(x: "banana", y: b()) -> c():
         return x,y
     return inner
+
+
+def add_one(func):
+    "Decorator to add 1 to the last argument of the function call"
+    def inner(*args):
+        args = args[:-1] + (args[-1] + 1,)
+        return func(*args)
+    return inner
+
+@add_one
+def test_decorated(x):
+    """
+    >>> test_decorated(0)
+    1
+    """
+    return x
+
+@add_one
+@add_one
+def test_decorated2(x):
+    """
+    >>> test_decorated2(0)
+    2
+    """
+    return x
+
+
+cdef class TestDecoratedMethods:
+    @add_one
+    def test(self, x):
+        """
+        >>> TestDecoratedMethods().test(0)
+        1
+        """
+        return x
+
+    @add_one
+    @add_one
+    def test2(self, x):
+        """
+        >>> TestDecoratedMethods().test2(0)
+        2
+        """
+        return x

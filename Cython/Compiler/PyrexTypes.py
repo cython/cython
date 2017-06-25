@@ -2208,15 +2208,17 @@ class CPointerBaseType(CType):
             if base_type.signed == 2:
                 self.to_py_function = "__Pyx_PyObject_FromCString"
                 if self.is_ptr:
-                    self.from_py_function = "__Pyx_PyObject_AsSString"
+                    self.from_py_function = "__Pyx_PyObject_As%sSString"
             elif base_type.signed:
                 self.to_py_function = "__Pyx_PyObject_FromString"
                 if self.is_ptr:
-                    self.from_py_function = "__Pyx_PyObject_AsString"
+                    self.from_py_function = "__Pyx_PyObject_As%sString"
             else:
                 self.to_py_function = "__Pyx_PyObject_FromCString"
                 if self.is_ptr:
-                    self.from_py_function = "__Pyx_PyObject_AsUString"
+                    self.from_py_function = "__Pyx_PyObject_As%sUString"
+            if self.is_ptr:
+                self.from_py_function %= '' if self.base_type.is_const else 'Writable'
             self.exception_value = "NULL"
         elif self.is_pyunicode_ptr and not base_type.is_error:
             self.to_py_function = "__Pyx_PyUnicode_FromUnicode"
@@ -2596,7 +2598,7 @@ class CFuncType(CType):
         return self.same_c_signature_as_resolved_type(
             other_type.resolve(), as_cmethod)
 
-    def same_c_signature_as_resolved_type(self, other_type, as_cmethod = 0):
+    def same_c_signature_as_resolved_type(self, other_type, as_cmethod = 0, as_pxd_definition = 0):
         #print "CFuncType.same_c_signature_as_resolved_type:", \
         #    self, other_type, "as_cmethod =", as_cmethod ###
         if other_type is error_type:
@@ -2618,8 +2620,13 @@ class CFuncType(CType):
             return 0
         if self.optional_arg_count != other_type.optional_arg_count:
             return 0
-        if not self.return_type.same_as(other_type.return_type):
-            return 0
+        if as_pxd_definition:
+            # A narrowing of the return type declared in the pxd is allowed.
+            if not self.return_type.subtype_of_resolved_type(other_type.return_type):
+                return 0
+        else:
+            if not self.return_type.same_as(other_type.return_type):
+                return 0
         if not self.same_calling_convention_as(other_type):
             return 0
         if self.exception_check != other_type.exception_check:
@@ -3238,7 +3245,7 @@ class CStructOrUnionType(CType):
                     return False
 
             context = dict(
-                struct_name=self.name,
+                struct_type=self,
                 var_entries=self.scope.var_entries,
                 funcname=self.from_py_function,
             )

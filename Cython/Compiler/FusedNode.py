@@ -477,11 +477,7 @@ class FusedCFuncDefNode(StatListNode):
         pyx_code.imports.put_chunk(
             u"""
                 cdef type ndarray
-                try:
-                    import numpy
-                    ndarray = numpy.ndarray
-                except (ImportError, AttributeError, TypeError):
-                    ndarray = None
+                ndarray = __Pyx_ImportNumPyArrayTypeIfAvailable()
             """)
 
         seen_int_dtypes = set()
@@ -540,13 +536,18 @@ class FusedCFuncDefNode(StatListNode):
                 # PROCESSING ARGUMENT {{arg_tuple_idx}}
                 if {{arg_tuple_idx}} < len(<tuple>args):
                     arg = (<tuple>args)[{{arg_tuple_idx}}]
-                elif '{{arg.name}}' in <dict>kwargs:
+                elif kwargs is not None and '{{arg.name}}' in <dict>kwargs:
                     arg = (<dict>kwargs)['{{arg.name}}']
                 else:
                 {{if arg.default}}
                     arg = (<tuple>defaults)[{{default_idx}}]
                 {{else}}
-                    raise TypeError("Expected at least %d arguments" % len(<tuple>args))
+                    {{if arg_tuple_idx < min_positional_args}}
+                        raise TypeError("Expected at least %d argument%s, got %d" % (
+                            {{min_positional_args}}, {{'"s"' if min_positional_args != 1 else '""'}}, len(<tuple>args)))
+                    {{else}}
+                        raise TypeError("Missing keyword-only argument: '%s'" % "{{arg.default}}")
+                    {{endif}}
                 {{endif}}
             """)
 
@@ -568,6 +569,10 @@ class FusedCFuncDefNode(StatListNode):
             'memviewslice_cname': MemoryView.memviewslice_cname,
             'func_args': self.node.args,
             'n_fused': len(fused_types),
+            'min_positional_args':
+                self.node.num_required_args - self.node.num_required_kw_args
+                if is_def else
+                sum(1 for arg in self.node.args if arg.default is None),
             'name': orig_py_func.entry.name,
         }
 
@@ -577,14 +582,11 @@ class FusedCFuncDefNode(StatListNode):
             u"""
                 cdef extern from *:
                     void __pyx_PyErr_Clear "PyErr_Clear" ()
+                    type __Pyx_ImportNumPyArrayTypeIfAvailable()
                     int __Pyx_Is_Little_Endian()
             """)
         decl_code.indent()
 
-        pyx_code.put_chunk(
-            u"""
-                from __future__ import absolute_import  # for later numpy import
-            """)
         pyx_code.put_chunk(
             u"""
                 def __pyx_fused_cpdef(signatures, args, kwargs, defaults):
@@ -593,8 +595,8 @@ class FusedCFuncDefNode(StatListNode):
 
                     dest_sig = [None] * {{n_fused}}
 
-                    if kwargs is None:
-                        kwargs = {}
+                    if kwargs is not None and not kwargs:
+                        kwargs = None
 
                     cdef Py_ssize_t i
 
@@ -655,15 +657,18 @@ class FusedCFuncDefNode(StatListNode):
         if all_buffer_types:
             self._buffer_declarations(pyx_code, decl_code, all_buffer_types)
             env.use_utility_code(Code.UtilityCode.load_cached("Import", "ImportExport.c"))
+            env.use_utility_code(Code.UtilityCode.load_cached("ImportNumPyArray", "ImportExport.c"))
 
         pyx_code.put_chunk(
             u"""
                 candidates = []
                 for sig in <dict>signatures:
                     match_found = False
-                    for src_type, dst_type in zip(sig.strip('()').split('|'), dest_sig):
+                    src_sig = sig.strip('()').split('|')
+                    for i in range(len(dest_sig)):
+                        dst_type = dest_sig[i]
                         if dst_type is not None:
-                            if src_type == dst_type:
+                            if src_sig[i] == dst_type:
                                 match_found = True
                             else:
                                 match_found = False

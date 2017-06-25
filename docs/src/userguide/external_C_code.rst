@@ -339,41 +339,56 @@ Public Declarations
 ---------------------
 
 You can make C types, variables and functions defined in a Cython module
-accessible to C code that is linked with the module, by declaring them with
-the public keyword::
+accessible to C code that is linked together with the Cython-generated C file,
+by declaring them with the public keyword::
 
     cdef public struct Bunny: # public type declaration
         int vorpalness
 
     cdef public int spam # public variable declaration
 
-    cdef public void grail(Bunny *): # public function declaration
-        print "Ready the holy hand grenade"
+    cdef public void grail(Bunny *) # public function declaration
 
 If there are any public declarations in a Cython module, a header file called
 :file:`modulename.h` file is generated containing equivalent C declarations for
 inclusion in other C code.
 
-Users who are embedding Python in C with Cython need to make sure to call Py_Initialize()
-and Py_Finalize(). For example, in the following snippet that includes :file:`modulename.h`::
+A typical use case for this is building an extension module from multiple
+C sources, one of them being Cython generated (i.e. with something like
+``Extension("grail", sources=["grail.pyx", "grail_helper.c"])`` in ``setup.py``.
+In this case, the file ``grail_helper.c`` just needs to add
+``#include "grail.h"`` in order to access the public Cython variables.
+
+A more advanced use case is embedding Python in C using Cython.
+In this case, make sure to call Py_Initialize() and Py_Finalize().
+For example, in the following snippet that includes :file:`grail.h`:
+
+.. code-block:: c
 
     #include <Python.h>
-    #include "modulename.h"
+    #include "grail.h"
 
-    void grail() {
+    int main() {
         Py_Initialize();
-        initmodulename();
+        initgrail();
         Bunny b;
         grail(b);
         Py_Finalize();
     }
 
-Any C code wanting to make use of these declarations will need to be linked,
-either statically or dynamically, with the extension module.
+This C code can then be built together with the Cython-generated C code
+in a single program (or library).
 
 If the Cython module resides within a package, then the name of the ``.h``
 file consists of the full dotted name of the module, e.g. a module called
 :mod:`foo.spam` would have a header file called :file:`foo.spam.h`.
+
+.. NOTE::
+
+    On some operating systems like Linux, it is also possible to first
+    build the Cython extension in the usual way and then link against
+    the resulting ``.so`` file like a dynamic library.
+    Beware that this is not portable, so it should be avoided.
 
 .. _api:
 
@@ -418,10 +433,12 @@ made available when you include :file:`modulename_api.h`.::
     Vehicle car;
 
     int main(int argc, char *argv[]) {
+        Py_Initialize();
         import_delorean();
         car.speed = atoi(argv[1]);
         car.power = atof(argv[2]);
         activate(&car);
+        Py_Finalize();
     }
 
 .. note::
@@ -434,7 +451,10 @@ made available when you include :file:`modulename_api.h`.::
 Using the :keyword:`api` method does not require the C code using the
 declarations to be linked with the extension module in any way, as the Python
 import machinery is used to make the connection dynamically. However, only
-functions can be accessed this way, not variables.
+functions can be accessed this way, not variables. Note also that for the
+module import mechanism to be set up correctly, the user must call
+Py_Initialize() and Py_Finalize(); if you experience a segmentation fault in
+the call to :func:`import_modulename`, it is likely that this wasn't done.
 
 You can use both :keyword:`public` and :keyword:`api` on the same function to
 make it available by both methods, e.g.::

@@ -181,8 +181,8 @@ try:
     >>> print(test_nested_dtypes(np.zeros((3,), dtype=np.dtype([\
             ('a', np.dtype('i,i')),\
             ('b', np.dtype('i,i'))\
-        ]))))
-    array([((0, 0), (0, 0)), ((1, 2), (1, 4)), ((1, 2), (1, 4))],
+        ]))))                              # doctest: +NORMALIZE_WHITESPACE
+    array([((0, 0), (0, 0)), ((1, 2), (1, 4)), ((1, 2), (1, 4))], 
           dtype=[('a', [('f0', '!i4'), ('f1', '!i4')]), ('b', [('f0', '!i4'), ('f1', '!i4')])])
 
     >>> print(test_nested_dtypes(np.zeros((3,), dtype=np.dtype([\
@@ -234,8 +234,8 @@ try:
     1,1
     8,16
 
-    >>> test_point_record()
-    array([(0., 0.), (1., -1.), (2., -2.)],
+    >>> test_point_record()         # doctest: +NORMALIZE_WHITESPACE
+    array([(0., 0.), (1., -1.), (2., -2.)], 
           dtype=[('x', '!f8'), ('y', '!f8')])
 
 """

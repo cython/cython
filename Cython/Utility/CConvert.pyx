@@ -8,8 +8,8 @@ cdef extern from *:
     object PyErr_Format(exc, const char *format, ...)
 
 @cname("{{funcname}}")
-cdef {{struct_name}} {{funcname}}(obj) except *:
-    cdef {{struct_name}} result
+cdef {{struct_type}} {{funcname}}(obj) except *:
+    cdef {{struct_type}} result
     if not PyMapping_Check(obj):
         PyErr_Format(TypeError, b"Expected %.16s, got %.200s", b"a mapping", Py_TYPE(obj).tp_name)
 
@@ -33,8 +33,8 @@ cdef extern from *:
     object PyErr_Format(exc, const char *format, ...)
 
 @cname("{{funcname}}")
-cdef {{struct_name}} {{funcname}}(obj) except *:
-    cdef {{struct_name}} result
+cdef {{struct_type}} {{funcname}}(obj) except *:
+    cdef {{struct_type}} result
     cdef Py_ssize_t length
     if not PyMapping_Check(obj):
         PyErr_Format(TypeError, b"Expected %.16s, got %.200s", b"a mapping", Py_TYPE(obj).tp_name)
