@@ -2646,6 +2646,9 @@ class DefNode(FuncDefNode):
 
     child_attrs = ["args", "star_arg", "starstar_arg", "body", "decorators", "return_type_annotation"]
 
+    is_staticmethod = False
+    is_classmethod = False
+
     lambda_name = None
     reqd_kw_flags_cname = "0"
     is_wrapper = 0
@@ -2758,7 +2761,6 @@ class DefNode(FuncDefNode):
         return True
 
     def analyse_declarations(self, env):
-        self.is_classmethod = self.is_staticmethod = False
         if self.decorators:
             for decorator in self.decorators:
                 func = decorator.decorator
