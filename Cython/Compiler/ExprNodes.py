@@ -10576,6 +10576,8 @@ class BinopNode(ExprNode):
                 if result_type is not None:
                     return result_type
             return py_object_type
+        elif type1.is_error or type2.is_error:
+            return PyrexTypes.error_type
         else:
             return self.compute_c_result_type(type1, type2)
 
