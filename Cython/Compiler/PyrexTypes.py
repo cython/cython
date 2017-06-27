@@ -186,6 +186,8 @@ class PyrexType(BaseType):
     #  is_returncode         boolean     Is used only to signal exceptions
     #  is_error              boolean     Is the dummy error type
     #  is_buffer             boolean     Is buffer access type
+    #  is_pythran_expr       boolean     Is Pythran expr
+    #  is_numpy_buffer       boolean     Is Numpy array buffer
     #  has_attributes        boolean     Has C dot-selectable attributes
     #  default_value         string      Initial value
     #  entry                 Entry       The Entry for this type
@@ -245,6 +247,8 @@ class PyrexType(BaseType):
     is_buffer = 0
     is_ctuple = 0
     is_memoryviewslice = 0
+    is_pythran_expr = 0
+    is_numpy_buffer = 0
     has_attributes = 0
     default_value = ""
 
@@ -1008,6 +1012,7 @@ class BufferType(BaseType):
         self.mode = mode
         self.negative_indices = negative_indices
         self.cast = cast
+        self.is_numpy_buffer = self.base.name == "ndarray"
 
     def can_coerce_to_pyobject(self,env):
         return True
@@ -1451,6 +1456,40 @@ class CType(PyrexType):
             source_code,
             code.error_goto_if(error_condition or self.error_condition(result_code), error_pos))
 
+class PythranExpr(CType):
+    # Pythran object of a given type
+
+    to_py_function = "to_python_from_expr"
+    is_pythran_expr = True
+    writable = True
+    has_attributes = 1
+
+    def __init__(self, pythran_type, org_buffer=None):
+        self.org_buffer = org_buffer
+        self.pythran_type = pythran_type
+        self.name = self.pythran_type
+        self.cname = self.pythran_type
+        self.from_py_function = "from_python<%s>" % (self.pythran_type)
+        self.scope = None
+
+    def declaration_code(self, entity_code, for_display = 0, dll_linkage = None, pyrex = 0):
+        assert pyrex == 0
+        return "%s %s" % (self.name, entity_code)
+
+    def attributes_known(self):
+        if self.scope is None:
+            from . import Symtab
+            self.scope = scope = Symtab.CClassScope(
+                    '',
+                    None,
+                    visibility="extern")
+            scope.parent_type = self
+            scope.directives = {}
+            # rank 3 == long
+            scope.declare_var("shape", CPtrType(CIntType(3)), None, cname="_shape", is_cdef=True)
+            scope.declare_var("ndim", CIntType(3), None, cname="value", is_cdef=True)
+
+        return True
 
 class CConstType(BaseType):
 
@@ -4127,13 +4166,17 @@ def best_match(arg_types, functions, pos=None, env=None, args=None):
             # function that takes a char *, the coercion will mean that the
             # type will simply become bytes. We need to do this coercion
             # manually for overloaded and fused functions
-            if not assignable and src_type.is_pyobject:
-                if src_type.is_builtin_type and src_type.name == 'str' and dst_type.resolve().is_string:
-                    c_src_type = dst_type.resolve()
-                else:
-                    c_src_type = src_type.default_coerced_ctype()
+            if not assignable:
+                c_src_type = None
+                if src_type.is_pyobject:
+                    if src_type.is_builtin_type and src_type.name == 'str' and dst_type.resolve().is_string:
+                        c_src_type = dst_type.resolve()
+                    else:
+                        c_src_type = src_type.default_coerced_ctype()
+                elif src_type.is_pythran_expr:
+                        c_src_type = src_type.org_buffer
 
-                if c_src_type:
+                if c_src_type is not None:
                     assignable = dst_type.assignable_from(c_src_type)
                     if assignable:
                         src_type = c_src_type

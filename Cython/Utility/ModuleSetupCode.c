@@ -420,6 +420,19 @@
 
 #define __Pyx_void_to_None(void_result) ((void)(void_result), Py_INCREF(Py_None), Py_None)
 
+#ifdef _MSC_VER
+    #ifndef _MSC_STDINT_H_
+        #if _MSC_VER < 1300
+           typedef unsigned char     uint8_t;
+           typedef unsigned int      uint32_t;
+        #else
+           typedef unsigned __int8   uint8_t;
+           typedef unsigned __int32  uint32_t;
+        #endif
+    #endif
+#else
+   #include <stdint.h>
+#endif
 
 /////////////// CInitCode ///////////////
 
@@ -660,6 +673,22 @@ static int __Pyx_check_binary_version(void) {
         return PyErr_WarnEx(NULL, message, 1);
     }
     return 0;
+}
+
+/////////////// IsLittleEndian.proto ///////////////
+
+static int __Pyx_Is_Little_Endian(void);
+
+/////////////// IsLittleEndian ///////////////
+
+static int __Pyx_Is_Little_Endian(void)
+{
+  union {
+    uint32_t u32;
+    uint8_t u8[4];
+  } S;
+  S.u32 = 0x01020304;
+  return S.u8[0] == 4;
 }
 
 /////////////// Refnanny.proto ///////////////

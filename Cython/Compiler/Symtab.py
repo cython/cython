@@ -1205,6 +1205,10 @@ class ModuleScope(Scope):
             scope = scope.find_submodule(submodule)
         return scope
 
+    def generate_library_function_declarations(self, code):
+        if self.directives['np_pythran']:
+            code.putln("import_array();")
+
     def lookup_submodule(self, name):
         # Return scope for submodule of this module, or None.
         if '.' in name:

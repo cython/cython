@@ -487,7 +487,7 @@ class TestBuilder(object):
                  cleanup_workdir, cleanup_sharedlibs, cleanup_failures,
                  with_pyregr, cython_only, languages, test_bugs, fork, language_level,
                  test_determinism,
-                 common_utility_dir):
+                 common_utility_dir, pythran_dir=None):
         self.rootdir = rootdir
         self.workdir = workdir
         self.selectors = selectors
@@ -504,6 +504,7 @@ class TestBuilder(object):
         self.language_level = language_level
         self.test_determinism = test_determinism
         self.common_utility_dir = common_utility_dir
+        self.pythran_dir = pythran_dir
 
     def build_suite(self):
         suite = unittest.TestSuite()
@@ -607,13 +608,14 @@ class TestBuilder(object):
 
         preparse_list = tags.get('preparse', ['id'])
         tests = [ self.build_test(test_class, path, workdir, module, tags, language,
-                                  expect_errors, expect_warnings, warning_errors, preparse)
+                                  expect_errors, expect_warnings, warning_errors, preparse,
+                                  self.pythran_dir if language == "cpp" else None)
                   for language in languages
                   for preparse in preparse_list ]
         return tests
 
     def build_test(self, test_class, path, workdir, module, tags, language,
-                   expect_errors, expect_warnings, warning_errors, preparse):
+                   expect_errors, expect_warnings, warning_errors, preparse, pythran_dir):
         language_workdir = os.path.join(workdir, language)
         if not os.path.exists(language_workdir):
             os.makedirs(language_workdir)
@@ -634,7 +636,8 @@ class TestBuilder(object):
                           language_level=self.language_level,
                           warning_errors=warning_errors,
                           test_determinism=self.test_determinism,
-                          common_utility_dir=self.common_utility_dir)
+                          common_utility_dir=self.common_utility_dir,
+                          pythran_dir=pythran_dir)
 
 
 class CythonCompileTestCase(unittest.TestCase):
@@ -643,7 +646,7 @@ class CythonCompileTestCase(unittest.TestCase):
                  cleanup_sharedlibs=True, cleanup_failures=True, cython_only=False,
                  fork=True, language_level=2, warning_errors=False,
                  test_determinism=False,
-                 common_utility_dir=None):
+                 common_utility_dir=None, pythran_dir=None):
         self.test_directory = test_directory
         self.tags = tags
         self.workdir = workdir
@@ -663,10 +666,11 @@ class CythonCompileTestCase(unittest.TestCase):
         self.warning_errors = warning_errors
         self.test_determinism = test_determinism
         self.common_utility_dir = common_utility_dir
+        self.pythran_dir = pythran_dir
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
-        return "compiling (%s) %s" % (self.language, self.name)
+        return "compiling (%s%s) %s" % (self.language, "/pythran" if self.pythran_dir is not None else "", self.name)
 
     def setUp(self):
         from Cython.Compiler import Options
@@ -846,6 +850,7 @@ class CythonCompileTestCase(unittest.TestCase):
             annotate = annotate,
             use_listing_file = False,
             cplus = self.language == 'cpp',
+            np_pythran = self.pythran_dir is not None,
             language_level = self.language_level,
             generate_pxi = False,
             evaluate_tree_assertions = True,
@@ -874,6 +879,9 @@ class CythonCompileTestCase(unittest.TestCase):
                 ext_compile_flags.append('-Wno-format')
             if extra_extension_args is None:
                 extra_extension_args = {}
+
+            if self.pythran_dir is not None:
+                ext_compile_flags.extend(['-I',self.pythran_dir,'-DENABLE_PYTHON_MODULE','-std=c++11','-D__PYTHRAN__=%d' % sys.version_info.major,'-Wno-cpp'])
 
             related_files = self.related_files(test_directory, module)
             self.copy_files(test_directory, workdir, related_files)
@@ -1044,7 +1052,7 @@ class CythonRunTestCase(CythonCompileTestCase):
         if self.cython_only:
             return CythonCompileTestCase.shortDescription(self)
         else:
-            return "compiling (%s) and running %s" % (self.language, self.name)
+            return "compiling (%s%s) and running %s" % (self.language, "/pythran" if self.pythran_dir is not None else "", self.name)
 
     def run(self, result=None):
         if result is None:
@@ -1839,6 +1847,8 @@ def main():
     parser.add_option("--use_formal_grammar", default=False, action="store_true")
     parser.add_option("--test_determinism", default=False, action="store_true",
                       help="test whether Cython's output is deterministic")
+    parser.add_option("--pythran-dir", dest="pythran_dir", default=None,
+                      help="specify Pythran include directory. This will run the C++ tests using Pythran backend for Numpy")
 
     options, cmd_args = parser.parse_args(args)
 
@@ -2095,7 +2105,7 @@ def runtests(options, cmd_args, coverage=None):
                                 options.cython_only, languages, test_bugs,
                                 options.fork, options.language_level,
                                 options.test_determinism,
-                                common_utility_dir)
+                                common_utility_dir, options.pythran_dir)
         test_suite.addTest(filetests.build_suite())
 
     if options.system_pyregr and languages:
@@ -2110,7 +2120,7 @@ def runtests(options, cmd_args, coverage=None):
                                     options.cython_only, languages, test_bugs,
                                     options.fork, sys.version_info[0],
                                     options.test_determinism,
-                                    common_utility_dir)
+                                    common_utility_dir, options.pythran_dir)
             sys.stderr.write("Including CPython regression tests in %s\n" % sys_pyregr_dir)
             test_suite.addTest(filetests.handle_directory(sys_pyregr_dir, 'pyregr'))
 

@@ -342,28 +342,28 @@ cdef extern from "numpy/arrayobject.h":
         double imag
 
     ctypedef struct npy_clongdouble:
-        double real
-        double imag
+        long double real
+        long double imag
 
     ctypedef struct npy_complex64:
-        double real
-        double imag
+        float real
+        float imag
 
     ctypedef struct npy_complex128:
         double real
         double imag
 
     ctypedef struct npy_complex160:
-        double real
-        double imag
+        long double real
+        long double imag
 
     ctypedef struct npy_complex192:
-        double real
-        double imag
+        long double real
+        long double imag
 
     ctypedef struct npy_complex256:
-        double real
-        double imag
+        long double real
+        long double imag
 
     ctypedef struct PyArray_Dims:
         npy_intp *ptr

@@ -42,6 +42,10 @@ from . import Future
 from ..Debugging import print_call_chain
 from .DebugFlags import debug_disposal_code, debug_temp_alloc, \
     debug_coercion
+from .Pythran import to_pythran, is_pythran_supported_type, is_pythran_supported_operation_type, \
+     is_pythran_expr, pythran_func_type, pythran_binop_type, pythran_unaryop_type, has_np_pythran, \
+     pythran_indexing_code, pythran_indexing_type, is_pythran_supported_node_or_none, pythran_type
+from .PyrexTypes import PythranExpr
 
 try:
     from __builtin__ import basestring
@@ -112,7 +116,6 @@ coercion_error_dict = {
     (PyrexTypes.c_const_uchar_ptr_type, unicode_type): (
         "Cannot convert 'char*' to unicode implicitly, decoding required"),
 }
-
 
 def find_coercion_error(type_tuple, default, env):
     err = coercion_error_dict.get(type_tuple)
@@ -249,6 +252,7 @@ class ExprNode(Node):
     #                            Cached result of subexpr_nodes()
     #  use_managed_ref boolean   use ref-counted temps/assignments/etc.
     #  result_is_used  boolean   indicates that the result will be dropped and the
+    #  is_numpy_attribute   boolean   Is a Numpy module attribute
     #                            result_code/temp_result can safely be set to None
 
     result_ctype = None
@@ -257,6 +261,7 @@ class ExprNode(Node):
     old_temp = None # error checker for multiple frees etc.
     use_managed_ref = True # can be set by optimisation transforms
     result_is_used = True
+    is_numpy_attribute = False
 
     #  The Analyse Expressions phase for expressions is split
     #  into two sub-phases:
@@ -436,6 +441,13 @@ class ExprNode(Node):
             return self.temp_code
         else:
             return self.calculate_result_code()
+
+    def pythran_result(self, type_=None):
+        if is_pythran_supported_node_or_none(self):
+            return to_pythran(self)
+
+        assert(type_ is not None)
+        return to_pythran(self, type_)
 
     def is_c_result_required(self):
         """
@@ -876,6 +888,16 @@ class ExprNode(Node):
             if not src.type.subtype_of(dst_type):
                 if src.constant_result is not None:
                     src = PyTypeTestNode(src, dst_type, env)
+        elif is_pythran_expr(dst_type) and is_pythran_supported_type(src.type):
+            # We let the compiler decide whether this is valid
+            return src
+        elif is_pythran_expr(src.type):
+            if is_pythran_supported_type(dst_type):
+                # Match the case were a pythran expr is assigned to a value, or vice versa.
+                # We let the C++ compiler decide whether this is valid or not!
+                return src
+            # Else, we need to convert the Pythran expression to a Python object
+            src = CoerceToPyTypeNode(src, env, type=dst_type)
         elif src.type.is_pyobject:
             if used_as_reference and dst_type.is_cpp_class:
                 warning(
@@ -1287,7 +1309,6 @@ class IntNode(ConstNode):
 
     def compile_time_value(self, denv):
         return Utils.str_to_number(self.value)
-
 
 class FloatNode(ConstNode):
     type = PyrexTypes.c_double_type
@@ -3621,15 +3642,25 @@ class IndexNode(_IndexingBaseNode):
                 replacement_node = MemoryViewSliceNode(self.pos, indices=indices, base=self.base)
             else:
                 replacement_node = MemoryViewIndexNode(self.pos, indices=indices, base=self.base)
-
-        elif base_type.is_buffer and len(indices) == base_type.ndim:
-            # Buffer indexing
-            is_buffer_access = True
-            indices = [index.analyse_types(env) for index in indices]
-            if all(index.type.is_int for index in indices):
-                replacement_node = BufferIndexNode(self.pos, indices=indices, base=self.base)
-                # On cloning, indices is cloned. Otherwise, unpack index into indices.
-                assert not isinstance(self.index, CloneNode)
+        elif base_type.is_buffer or base_type.is_pythran_expr:
+            if base_type.is_pythran_expr or len(indices) == base_type.ndim:
+                # Buffer indexing
+                is_buffer_access = True
+                indices = [index.analyse_types(env) for index in indices]
+                if base_type.is_pythran_expr:
+                    do_replacement = all(index.type.is_int or index.is_slice or index.type.is_pythran_expr for index in indices)
+                    if do_replacement:
+                        for i,index in enumerate(indices):
+                            if index.is_slice:
+                                index = SliceIntNode(index.pos, start=index.start, stop=index.stop, step=index.step)
+                                index = index.analyse_types(env)
+                                indices[i] = index
+                else:
+                    do_replacement = all(index.type.is_int for index in indices)
+                if do_replacement:
+                    replacement_node = BufferIndexNode(self.pos, indices=indices, base=self.base)
+                    # On cloning, indices is cloned. Otherwise, unpack index into indices.
+                    assert not isinstance(self.index, CloneNode)
 
         if replacement_node is not None:
             replacement_node = replacement_node.analyse_types(env, getting)
@@ -4005,7 +4036,7 @@ class BufferIndexNode(_IndexingBaseNode):
         indexing and slicing subclasses
         """
         # self.indices are already analyzed
-        if not self.base.is_name:
+        if not self.base.is_name and not is_pythran_expr(self.base.type):
             error(self.pos, "Can only index buffer variables")
             self.type = error_type
             return self
@@ -4024,11 +4055,14 @@ class BufferIndexNode(_IndexingBaseNode):
         return self
 
     def analyse_buffer_index(self, env, getting):
-        self.base = self.base.coerce_to_simple(env)
-        self.type = self.base.type.dtype
+        if is_pythran_expr(self.base.type):
+            self.type = PythranExpr(pythran_indexing_type(self.base.type, self.indices))
+        else:
+            self.base = self.base.coerce_to_simple(env)
+            self.type = self.base.type.dtype
         self.buffer_type = self.base.type
 
-        if getting and self.type.is_pyobject:
+        if getting and (self.type.is_pyobject or self.type.is_pythran_expr):
             self.is_temp = True
 
     def analyse_assignment(self, rhs):
@@ -4061,20 +4095,21 @@ class BufferIndexNode(_IndexingBaseNode):
             base = base.arg
         return base.type.get_entry(base)
 
+    def get_index_in_temp(self, code, ivar):
+        ret = code.funcstate.allocate_temp(
+            PyrexTypes.widest_numeric_type(
+                ivar.type,
+                PyrexTypes.c_ssize_t_type if ivar.type.signed else PyrexTypes.c_size_t_type),
+            manage_ref=False)
+        code.putln("%s = %s;" % (ret, ivar.result()))
+        return ret
+
     def buffer_lookup_code(self, code):
         """
         ndarray[1, 2, 3] and memslice[1, 2, 3]
         """
         # Assign indices to temps of at least (s)size_t to allow further index calculations.
-        index_temps = [
-            code.funcstate.allocate_temp(
-                PyrexTypes.widest_numeric_type(
-                    ivar.type, PyrexTypes.c_ssize_t_type if ivar.type.signed else PyrexTypes.c_size_t_type),
-                manage_ref=False)
-            for ivar in self.indices]
-
-        for temp, index in zip(index_temps, self.indices):
-            code.putln("%s = %s;" % (temp, index.result()))
+        index_temps = [self.get_index_in_temp(code,ivar) for ivar in self.indices]
 
         # Generate buffer access code using these temps
         from . import Buffer
@@ -4102,6 +4137,26 @@ class BufferIndexNode(_IndexingBaseNode):
         rhs.free_temps(code)
 
     def generate_buffer_setitem_code(self, rhs, code, op=""):
+        base_type = self.base.type
+        if is_pythran_expr(base_type) and is_pythran_supported_type(rhs.type):
+            obj = code.funcstate.allocate_temp(PythranExpr(pythran_type(self.base.type)), manage_ref=False)
+            # We have got to do this because we have to declare pythran objects
+            # at the beggining of the functions.
+            # Indeed, Cython uses "goto" statement for error management, and
+            # RAII doesn't work with that kind of construction.
+            # Moreover, the way Pythran expressions are made is that they don't
+            # support move-assignation easily.
+            # This, we explicitly destroy then in-place new objects in this
+            # case.
+            code.putln("__Pyx_call_destructor(%s);" % obj)
+            code.putln("new (&%s) decltype(%s){%s};" % (obj, obj, self.base.pythran_result()))
+            code.putln("%s(%s) %s= %s;" % (
+                obj,
+                pythran_indexing_code(self.indices),
+                op,
+                rhs.pythran_result()))
+            return
+
         # Used from generate_assignment_code and InPlaceAssignmentNode
         buffer_entry, ptrexpr = self.buffer_lookup_code(code)
 
@@ -4123,6 +4178,15 @@ class BufferIndexNode(_IndexingBaseNode):
             code.putln("*%s %s= %s;" % (ptrexpr, op, rhs.result()))
 
     def generate_result_code(self, code):
+        if is_pythran_expr(self.base.type):
+            res = self.result()
+            code.putln("__Pyx_call_destructor(%s);" % res)
+            code.putln("new (&%s) decltype(%s){%s(%s)};" % (
+                res,
+                res,
+                self.base.pythran_result(),
+                pythran_indexing_code(self.indices)))
+            return
         buffer_entry, self.buffer_ptr_code = self.buffer_lookup_code(code)
         if self.type.is_pyobject:
             # is_temp is True, so must pull out value and incref it.
@@ -4142,6 +4206,7 @@ class MemoryViewIndexNode(BufferIndexNode):
         # memoryviewslice indexing or slicing
         from . import MemoryView
 
+        self.is_pythran_mode = has_np_pythran(env)
         indices = self.indices
         have_slices, indices, newaxes = MemoryView.unellipsify(indices, self.base.type.ndim)
 
@@ -4528,7 +4593,7 @@ class SliceIndexNode(ExprNode):
     def analyse_types(self, env, getting=True):
         self.base = self.base.analyse_types(env)
 
-        if self.base.type.is_memoryviewslice:
+        if self.base.type.is_buffer or self.base.type.is_pythran_expr or self.base.type.is_memoryviewslice:
             none_node = NoneNode(self.pos)
             index = SliceNode(self.pos,
                               start=self.start or none_node,
@@ -4953,6 +5018,60 @@ class SliceNode(ExprNode):
         if self.is_literal:
             code.put_giveref(self.py_result())
 
+class SliceIntNode(SliceNode):
+    #  start:stop:step in subscript list
+    # This is just a node to hold start,stop and step nodes that can be
+    # converted to integers. This does not generate a slice python object.
+    #
+    #  start     ExprNode
+    #  stop      ExprNode
+    #  step      ExprNode
+
+    is_temp = 0
+
+    def calculate_constant_result(self):
+        self.constant_result = slice(
+            self.start.constant_result,
+            self.stop.constant_result,
+            self.step.constant_result)
+
+    def compile_time_value(self, denv):
+        start = self.start.compile_time_value(denv)
+        stop = self.stop.compile_time_value(denv)
+        step = self.step.compile_time_value(denv)
+        try:
+            return slice(start, stop, step)
+        except Exception as e:
+            self.compile_time_value_error(e)
+
+    def may_be_none(self):
+        return False
+
+    def analyse_types(self, env):
+        self.start = self.start.analyse_types(env)
+        self.stop = self.stop.analyse_types(env)
+        self.step = self.step.analyse_types(env)
+
+        if not self.start.is_none:
+            self.start = self.start.coerce_to_integer(env)
+        if not self.stop.is_none:
+            self.stop = self.stop.coerce_to_integer(env)
+        if not self.step.is_none:
+            self.step = self.step.coerce_to_integer(env)
+
+        if self.start.is_literal and self.stop.is_literal and self.step.is_literal:
+            self.is_literal = True
+            self.is_temp = False
+        return self
+
+    def calculate_result_code(self):
+        pass
+
+    def generate_result_code(self, code):
+        for a in self.start,self.stop,self.step:
+            if isinstance(a, CloneNode):
+                a.arg.result()
+
 
 class CallNode(ExprNode):
 
@@ -5120,7 +5239,21 @@ class SimpleCallNode(CallNode):
             function.obj = CloneNode(self.self)
 
         func_type = self.function_type()
-        if func_type.is_pyobject:
+        self.is_numpy_call_with_exprs = False
+        if has_np_pythran(env) and self.function.is_numpy_attribute:
+            has_pythran_args = True
+            self.arg_tuple = TupleNode(self.pos, args = self.args)
+            self.arg_tuple = self.arg_tuple.analyse_types(env)
+            for arg in self.arg_tuple.args:
+                has_pythran_args &= is_pythran_supported_node_or_none(arg)
+            self.is_numpy_call_with_exprs = bool(has_pythran_args)
+        if self.is_numpy_call_with_exprs:
+            self.args = None
+            env.add_include_file("pythonic/numpy/%s.hpp" % self.function.attribute)
+            self.type = PythranExpr(pythran_func_type(self.function.attribute, self.arg_tuple.args))
+            self.may_return_none = True
+            self.is_temp = 1
+        elif func_type.is_pyobject:
             self.arg_tuple = TupleNode(self.pos, args = self.args)
             self.arg_tuple = self.arg_tuple.analyse_types(env).coerce_to_pyobject(env)
             self.args = None
@@ -5494,6 +5627,12 @@ class SimpleCallNode(CallNode):
             if self.has_optional_args:
                 code.funcstate.release_temp(self.opt_arg_struct)
 
+    @classmethod
+    def from_node(cls, node, **kwargs):
+        ret = super(SimpleCallNode, cls).from_node(node, **kwargs)
+        ret.is_numpy_call_with_exprs = node.is_numpy_call_with_exprs
+        return ret
+
 
 class PyMethodCallNode(SimpleCallNode):
     # Specialised call to a (potential) PyMethodObject with non-constant argument tuple.
@@ -5514,6 +5653,16 @@ class PyMethodCallNode(SimpleCallNode):
         args = self.arg_tuple.args
         for arg in args:
             arg.generate_evaluation_code(code)
+
+        if self.is_numpy_call_with_exprs:
+            code.putln("// function evaluation code for numpy function")
+            code.putln("__Pyx_call_destructor(%s);" % self.result())
+            code.putln("new (&%s) decltype(%s){pythonic::numpy::functor::%s{}(%s)};" % (
+                self.result(),
+                self.result(),
+                self.function.attribute,
+                ", ".join(a.pythran_result() for a in self.arg_tuple.args)))
+            return
 
         # make sure function is in temp so that we can replace the reference below if it's a method
         reuse_function_temp = self.function.is_temp
@@ -6577,6 +6726,7 @@ class AttributeNode(ExprNode):
         self.member = self.attribute
         self.type = py_object_type
         self.is_py_attr = 1
+
         if not obj_type.is_pyobject and not obj_type.is_error:
             # Expose python methods for immutable objects.
             if (obj_type.is_string or obj_type.is_cpp_string
@@ -9575,7 +9725,10 @@ class UnopNode(ExprNode):
 
     def analyse_types(self, env):
         self.operand = self.operand.analyse_types(env)
-        if self.is_py_operation():
+        if self.is_pythran_operation(env):
+            self.type = PythranExpr(pythran_unaryop_type(self.operator, self.operand.type))
+            self.is_temp = 1
+        elif self.is_py_operation():
             self.coerce_operand_to_pyobject(env)
             self.type = py_object_type
             self.is_temp = 1
@@ -9591,6 +9744,11 @@ class UnopNode(ExprNode):
     def is_py_operation(self):
         return self.operand.type.is_pyobject or self.operand.type.is_ctuple
 
+    def is_pythran_operation(self, env):
+        np_pythran = has_np_pythran(env)
+        op_type = self.operand.type
+        return np_pythran and (op_type.is_buffer or op_type.is_pythran_expr)
+
     def nogil_check(self, env):
         if self.is_py_operation():
             self.gil_error()
@@ -9603,7 +9761,15 @@ class UnopNode(ExprNode):
         self.operand = self.operand.coerce_to_pyobject(env)
 
     def generate_result_code(self, code):
-        if self.operand.type.is_pyobject:
+        if self.type.is_pythran_expr:
+            code.putln("// Pythran unaryop")
+            code.putln("__Pyx_call_destructor(%s);" % self.result())
+            code.putln("new (&%s) decltype(%s){%s%s};" % (
+                self.result(),
+                self.result(),
+                self.operator,
+                self.operand.pythran_result()))
+        elif self.operand.type.is_pyobject:
             self.generate_py_operation_code(code)
         elif self.is_temp:
             if self.is_cpp_operation() and self.exception_check == '+':
@@ -10505,7 +10671,7 @@ class BinopNode(ExprNode):
 
     def infer_type(self, env):
         return self.result_type(self.operand1.infer_type(env),
-                                self.operand2.infer_type(env))
+                                self.operand2.infer_type(env), env)
 
     def analyse_types(self, env):
         self.operand1 = self.operand1.analyse_types(env)
@@ -10514,10 +10680,15 @@ class BinopNode(ExprNode):
         return self
 
     def analyse_operation(self, env):
-        if self.is_py_operation():
+        if self.is_pythran_operation(env):
+            self.type = self.result_type(self.operand1.type,
+                                         self.operand2.type, env)
+            assert self.type.is_pythran_expr
+            self.is_temp = 1
+        elif self.is_py_operation():
             self.coerce_operands_to_pyobjects(env)
             self.type = self.result_type(self.operand1.type,
-                                         self.operand2.type)
+                                         self.operand2.type, env)
             assert self.type.is_pyobject
             self.is_temp = 1
         elif self.is_cpp_operation():
@@ -10530,6 +10701,15 @@ class BinopNode(ExprNode):
 
     def is_py_operation_types(self, type1, type2):
         return type1.is_pyobject or type2.is_pyobject or type1.is_ctuple or type2.is_ctuple
+
+    def is_pythran_operation(self, env):
+        return self.is_pythran_operation_types(self.operand1.type, self.operand2.type, env)
+
+    def is_pythran_operation_types(self, type1, type2, env):
+        # Support only expr op supported_type, or supported_type op expr
+        return has_np_pythran(env) and \
+               (is_pythran_supported_operation_type(type1) and is_pythran_supported_operation_type(type2)) and \
+               (is_pythran_expr(type1) or is_pythran_expr(type2))
 
     def is_cpp_operation(self):
         return (self.operand1.type.is_cpp_class
@@ -10558,7 +10738,9 @@ class BinopNode(ExprNode):
             self.operand2 = self.operand2.coerce_to(func_type.args[1].type, env)
         self.type = func_type.return_type
 
-    def result_type(self, type1, type2):
+    def result_type(self, type1, type2, env):
+        if self.is_pythran_operation_types(type1, type2, env):
+            return PythranExpr(pythran_binop_type(self.operator, type1, type2))
         if self.is_py_operation_types(type1, type2):
             if type2.is_string:
                 type2 = Builtin.bytes_type
@@ -10600,8 +10782,16 @@ class BinopNode(ExprNode):
                 self.operand1.is_ephemeral() or self.operand2.is_ephemeral())
 
     def generate_result_code(self, code):
-        #print "BinopNode.generate_result_code:", self.operand1, self.operand2 ###
-        if self.operand1.type.is_pyobject:
+        if self.type.is_pythran_expr:
+            code.putln("// Pythran binop")
+            code.putln("__Pyx_call_destructor(%s);" % self.result())
+            code.putln("new (&%s) decltype(%s){%s %s %s};" % (
+                self.result(),
+                self.result(),
+                self.operand1.pythran_result(),
+                self.operator,
+                self.operand2.pythran_result()))
+        elif self.operand1.type.is_pyobject:
             function = self.py_operation_function(code)
             if self.operator == '**':
                 extra_args = ", Py_None"
@@ -10961,7 +11151,7 @@ class DivNode(NumBinopNode):
         self._check_truedivision(env)
         return self.result_type(
             self.operand1.infer_type(env),
-            self.operand2.infer_type(env))
+            self.operand2.infer_type(env), env)
 
     def analyse_operation(self, env):
         self._check_truedivision(env)
@@ -11958,6 +12148,14 @@ class PrimaryCmpNode(ExprNode, CmpNode):
             if self.cascade:
                 error(self.pos, "Cascading comparison not yet supported for cpp types.")
             return self
+
+        type1 = self.operand1.type
+        type2 = self.operand2.type
+        if is_pythran_expr(type1) or is_pythran_expr(type2):
+            if is_pythran_supported_type(type1) and is_pythran_supported_type(type2):
+                self.type = PythranExpr(pythran_binop_type(self.operator, type1, type2))
+                self.is_pycmp = False
+                return self
 
         if self.analyse_memoryviewslice_comparison(env):
             return self

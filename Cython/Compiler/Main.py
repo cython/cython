@@ -561,6 +561,10 @@ class CompilationOptions(object):
             warnings.warn(message)
 
         directives = dict(options['compiler_directives'])  # copy mutable field
+        if directives.get('np_pythran', False) and not options['cplus']:
+            import warnings
+            warnings.warn("C++ mode forced when in Pythran mode!")
+            options['cplus'] = True
         options['compiler_directives'] = directives
         if 'language_level' in directives and 'language_level' not in kw:
             options['language_level'] = int(directives['language_level'])
@@ -754,4 +758,5 @@ default_options = dict(
     build_dir=None,
     cache=None,
     create_extension=None,
+    np_pythran=False
 )
