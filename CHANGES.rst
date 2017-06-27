@@ -9,24 +9,32 @@ latest
 Features added
 --------------
 
+* Pythran can be used as a backend for evaluating NumPy array expressions.
+  Patch by Adrien Guinet (Github issue #1607).
+
+* cdef classes now support pickling by default when possible.
+
 * Speed up comparisons of strings if their hash value is available.
   Patch by Claudio Freire (Github issue #1571).
 
 * Support pyximport from zip files.
   Patch by Sergei Lebedev (Github issue #1485).
 
-* IPython magic now respects `__all__` variable.  Also skips
-  leading-underscore values (like `import *`).
+* IPython magic now respects the ``__all__`` variable and ignores
+  names with leading-underscore (like ``import *`` does).
   Patch by Syrtis Major (Github issue #1625).
 
 * ``abs()`` is optimised for C complex numbers.
   Patch by da-woods (Github issue #1648).
 
-* cdef classes now support pickling by default when possible.
-
-* The display of C lines in Cython tracebacks is now settable at runtime
-  via `import cython_runtime; cython_runtime.cline_in_traceback=True`.
+* The display of C lines in Cython tracebacks can now be enabled at runtime
+  via ``import cython_runtime; cython_runtime.cline_in_traceback=True``.
   The default has been changed to False.
+
+* The overhead of calling fused types generic functions was reduced.
+
+* "cdef extern" include files are now also searched relative to the current file.
+  Patch by jdemeyer (Github issue #1654).
 
 Bugs fixed
 ----------
@@ -37,8 +45,7 @@ Bugs fixed
   the previous behaviour now triggers a warning that can be disabled by
   applying an explicit cast. (Github issue #1602)
 
-* f-string processing was adapted to match recent changes in PEP 498 and
-  CPython 3.6.
+* f-string processing was adapted to changes in PEP 498 and CPython 3.6.
 
 * Invalid C code when decoding from UTF-16(LE/BE) byte strings.
   (Github issue #1696)
@@ -49,15 +56,18 @@ Bugs fixed
 * File paths of code objects are now relative.
   Original patch by Jelmer Vernooij (Github issue #1565).
 
+* Decorators of cdef class methods could be executed twice.
+  Patch by jdemeyer (Github issue #1724).
+
 Other changes
 -------------
 
-* The `unraisable_tracebacks` now defaults to `True`.
+* The ``unraisable_tracebacks`` option now defaults to ``True``.
 
 * Coercion of C++ containers to Python is no longer automatic on attribute
   access (Github issue #1521).
 
-* Access to Python attributes of comported modules without the corresponding
+* Access to Python attributes of cimported modules without the corresponding
   import is now a compile-time (rather than runtime) error.
 
 
