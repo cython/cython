@@ -956,8 +956,9 @@ void __Pyx_FastGil_PyGILState_Release(PyGILState_STATE oldstate) {
 
 static void __Pyx_FastGilFuncInit0(void) {
   /* Try to detect autoTLSkey. */
+  int key;
   void* this_thread_state = (void*) PyGILState_GetThisThreadState();
-  for (int key = 0; key < 100; key++) {
+  for (key = 0; key < 100; key++) {
     if (PyThread_get_key_value(key) == this_thread_state) {
       __Pyx_FastGil_autoTLSkey = key;
       break;
