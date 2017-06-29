@@ -458,3 +458,19 @@ def test_nogil_try_finally_error_label():
                 with gil: print "print me first"
     except Exception, e:
         print e.args[0]
+
+
+cdef void test_timing_callback() with gil:
+  pass
+
+def test_timing(long N):
+  """
+  >>> sorted([test_timing(10000) for _ in range(10)])  # doctest: +ELLIPSIS
+  [...]
+  """
+  import time
+  t = time.time()
+  with nogil:
+    for _ in range(N):
+      test_timing_callback()
+  return time.time() - t
