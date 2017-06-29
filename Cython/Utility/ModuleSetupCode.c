@@ -905,6 +905,18 @@ static void __Pyx_FastGilFuncInit(void);
 // To make optimal use of this thread local, we attempt to share it between
 // modules.
 
+
+#if PY_VERSION_HEX >= 0x03050000
+  #define __Pyx_PyThreadState_Current _PyThreadState_FastGet()
+#elif PY_VERSION_HEX >= 0x03000000
+  #define __Pyx_PyThreadState_Current (PyThreadState*)_Py_atomic_load_relaxed(_PyThreadState_Current)
+#elif PY_VERSION_HEX < 0x02070000
+  #undef CYTHON_THREAD_LOCAL
+#else
+  #define __Pyx_PyThreadState_Current _PyThreadState_Current
+#endif
+
+
 #ifdef CYTHON_THREAD_LOCAL
 
 #include "pythread.h"
@@ -933,7 +945,7 @@ PyGILState_STATE __Pyx_FastGil_PyGILState_Ensure(void) {
     // Uninitialized, need to initialize now.
     return PyGILState_Ensure();
   }
-  current = tcur == _PyThreadState_Current;
+  current = tcur == __Pyx_PyThreadState_Current;
   if (current == 0) {
     PyEval_RestoreThread(tcur);
   }
