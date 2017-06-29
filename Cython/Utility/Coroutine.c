@@ -394,7 +394,7 @@ static int __pyx_Generator_init(void); /*proto*/
 //@requires: Exceptions.c::RaiseException
 //@requires: ObjectHandling.c::PyObjectCallMethod1
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
-//@requires: CommonTypes.c::FetchCommonType
+//@requires: CommonStructures.c::FetchCommonType
 
 #include <structmember.h>
 #include <frameobject.h>

@@ -72,7 +72,7 @@ static int __pyx_CyFunction_init(void);
 
 //////////////////// CythonFunction ////////////////////
 //@substitute: naming
-//@requires: CommonTypes.c::FetchCommonType
+//@requires: CommonStructures.c::FetchCommonType
 ////@requires: ObjectHandling.c::PyObjectGetAttrStr
 
 static PyObject *
