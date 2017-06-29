@@ -956,7 +956,7 @@ static CYTHON_INLINE PyThreadState *__Pyx_FastGil_get_tcur() {
   return tcur;
 }
 
-PyGILState_STATE __Pyx_FastGil_PyGILState_Ensure(void) {
+static PyGILState_STATE __Pyx_FastGil_PyGILState_Ensure(void) {
   int current;
   __Pyx_FastGIL_Remember0();
   PyThreadState *tcur = __Pyx_FastGil_get_tcur();
@@ -972,7 +972,7 @@ PyGILState_STATE __Pyx_FastGil_PyGILState_Ensure(void) {
   return current ? PyGILState_LOCKED : PyGILState_UNLOCKED;
 }
 
-void __Pyx_FastGil_PyGILState_Release(PyGILState_STATE oldstate) {
+static void __Pyx_FastGil_PyGILState_Release(PyGILState_STATE oldstate) {
   PyThreadState *tcur = __Pyx_FastGil_get_tcur();
   __Pyx_FastGIL_Forget0();
   if (tcur->gilstate_counter == 1) {
