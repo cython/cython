@@ -868,6 +868,8 @@ static int __Pyx_RegisterCleanup(void) {
 
 #define __Pyx_PyGILState_Ensure PyGILState_Ensure
 #define __Pyx_PyGILState_Release PyGILState_Release
+#define __Pyx_FastGIL_Remember()
+#define __Pyx_FastGIL_Forget()
 #define __Pyx_FastGilFuncInit()
 
 /////////////// FastGil.proto ///////////////
@@ -875,14 +877,24 @@ static int __Pyx_RegisterCleanup(void) {
 struct __Pyx_FastGilVtab {
   PyGILState_STATE (*Fast_PyGILState_Ensure)(void);
   void (*Fast_PyGILState_Release)(PyGILState_STATE oldstate);
+  void (*FastGIL_Remember)(void);
+  void (*FastGIL_Forget)(void);
 };
-static struct __Pyx_FastGilVtab __Pyx_FastGilFuncs;
+
+static void __Pyx_FastGIL_Noop(void) {}
+static struct __Pyx_FastGilVtab __Pyx_FastGilFuncs = {
+  PyGILState_Ensure,
+  PyGILState_Release,
+  __Pyx_FastGIL_Noop,
+  __Pyx_FastGIL_Noop
+};
 
 static void __Pyx_FastGilFuncInit(void);
 
 #define __Pyx_PyGILState_Ensure __Pyx_FastGilFuncs.Fast_PyGILState_Ensure
 #define __Pyx_PyGILState_Release __Pyx_FastGilFuncs.Fast_PyGILState_Release
-
+#define __Pyx_FastGIL_Remember __Pyx_FastGilFuncs.FastGIL_Remember
+#define __Pyx_FastGIL_Forget __Pyx_FastGilFuncs.FastGIL_Forget
 
 #ifdef WITH_THREAD
   #ifndef CYTHON_THREAD_LOCAL
@@ -926,21 +938,28 @@ static CYTHON_THREAD_LOCAL PyThreadState *__Pyx_FastGil_tcur = NULL;
 static CYTHON_THREAD_LOCAL int __Pyx_FastGil_tcur_depth = 0;
 static int __Pyx_FastGil_autoTLSkey = -1;
 
-static CYTHON_INLINE PyThreadState *__Pyx_FastGil_get_tcur(int inc) {
+static CYTHON_INLINE void __Pyx_FastGIL_Remember0(void) {
+  ++__Pyx_FastGil_tcur_depth;
+}
+
+static CYTHON_INLINE void __Pyx_FastGIL_Forget0(void) {
+  if (--__Pyx_FastGil_tcur_depth == 0) {
+    __Pyx_FastGil_tcur = NULL;
+  }
+}
+
+static CYTHON_INLINE PyThreadState *__Pyx_FastGil_get_tcur() {
   PyThreadState *tcur = __Pyx_FastGil_tcur;
   if (tcur == NULL) {
     tcur = __Pyx_FastGil_tcur = (PyThreadState*)PyThread_get_key_value(__Pyx_FastGil_autoTLSkey);
-  }
-  __Pyx_FastGil_tcur_depth += inc;
-  if (__Pyx_FastGil_tcur_depth == 0) {
-    __Pyx_FastGil_tcur = NULL;
   }
   return tcur;
 }
 
 PyGILState_STATE __Pyx_FastGil_PyGILState_Ensure(void) {
   int current;
-  PyThreadState *tcur = __Pyx_FastGil_get_tcur(1);
+  __Pyx_FastGIL_Remember0();
+  PyThreadState *tcur = __Pyx_FastGil_get_tcur();
   if (tcur == NULL) {
     // Uninitialized, need to initialize now.
     return PyGILState_Ensure();
@@ -954,7 +973,8 @@ PyGILState_STATE __Pyx_FastGil_PyGILState_Ensure(void) {
 }
 
 void __Pyx_FastGil_PyGILState_Release(PyGILState_STATE oldstate) {
-  PyThreadState *tcur = __Pyx_FastGil_get_tcur(-1);
+  PyThreadState *tcur = __Pyx_FastGil_get_tcur();
+  __Pyx_FastGIL_Forget0();
   if (tcur->gilstate_counter == 1) {
     // This is the last lock, do all the cleanup as well.
     PyGILState_Release(oldstate);
@@ -979,11 +999,10 @@ static void __Pyx_FastGilFuncInit0(void) {
   if (__Pyx_FastGil_autoTLSkey != -1) {
     __Pyx_PyGILState_Ensure = __Pyx_FastGil_PyGILState_Ensure;
     __Pyx_PyGILState_Release = __Pyx_FastGil_PyGILState_Release;
+    __Pyx_FastGIL_Remember = __Pyx_FastGIL_Remember0;
+    __Pyx_FastGIL_Forget = __Pyx_FastGIL_Forget0;
     // Already fetched earlier, now we're just posting.
     __Pyx_FetchCommonPointer(&__Pyx_FastGilFuncs, "FastGilFuncs");
-  } else {
-    __Pyx_PyGILState_Ensure = PyGILState_Ensure;
-    __Pyx_PyGILState_Release = PyGILState_Release;
   }
 }
 
@@ -991,8 +1010,6 @@ static void __Pyx_FastGilFuncInit0(void) {
 
 static void __Pyx_FastGilFuncInit0(void) {
   CYTHON_UNUSED void* force_use = (void*)&__Pyx_FetchCommonPointer;
-  __Pyx_PyGILState_Ensure = PyGILState_Ensure;
-  __Pyx_PyGILState_Release = PyGILState_Release;
 }
 
 #endif

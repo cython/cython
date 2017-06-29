@@ -2098,6 +2098,7 @@ class CCodeWriter(object):
         by a previous `put_release_gil`
         """
         self.putln("#ifdef WITH_THREAD")
+        self.putln("__Pyx_FastGIL_Forget();")
         if variable:
             self.putln('_save = %s;' % variable)
         self.putln("Py_BLOCK_THREADS")
@@ -2110,6 +2111,7 @@ class CCodeWriter(object):
         self.putln("Py_UNBLOCK_THREADS")
         if variable:
             self.putln('%s = _save;' % variable)
+        self.putln("__Pyx_FastGIL_Remember();")
         self.putln("#endif")
 
     def declare_gilstate(self):
