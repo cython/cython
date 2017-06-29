@@ -176,6 +176,7 @@ _directive_defaults = {
     'unraisable_tracebacks': True,
     'old_style_globals': False,
     'np_pythran': False,
+    'fast_gil': True,  # TODO(robertwb): Consider changing the default to False before releasing.
 
     # set __file__ and/or __path__ to known source/target path at import time (instead of not having them available)
     'set_initial_path' : None,  # SOURCEFILE or "/full/path/to/module"
@@ -312,7 +313,8 @@ directive_scopes = { # defaults to available everywhere
     # globals() could conceivably be controlled at a finer granularity,
     # but that would complicate the implementation
     'old_style_globals': ('module',),
-    'np_pythran': ('module',)
+    'np_pythran': ('module',),
+    'fast_gil': ('module',),
 }
 
 

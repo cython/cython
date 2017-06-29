@@ -719,6 +719,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if has_np_pythran(env):
             env.use_utility_code(UtilityCode.load_cached("PythranConversion", "CppSupport.cpp"))
+        if env.directives['fast_gil']:
+          env.use_utility_code(UtilityCode.load_cached("FastGil", "ModuleSetupCode.c"))
+        else:
+          env.use_utility_code(UtilityCode.load_cached("NoFastGil", "ModuleSetupCode.c"))
 
     def generate_extern_c_macro_definition(self, code):
         name = Naming.extern_c_macro
@@ -2151,6 +2155,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("%s = PyUnicode_FromStringAndSize(\"\", 0); %s" % (
             Naming.empty_unicode, code.error_goto_if_null(Naming.empty_unicode, self.pos)))
 
+        code.putln("__Pyx_FastGilFuncInit();");
         for ext_type in ('CyFunction', 'FusedFunction', 'Coroutine', 'Generator', 'StopAsyncIteration'):
             code.putln("#ifdef __Pyx_%s_USED" % ext_type)
             code.put_error_if_neg(self.pos, "__pyx_%s_init()" % ext_type)

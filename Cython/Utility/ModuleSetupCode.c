@@ -863,3 +863,133 @@ static int __Pyx_RegisterCleanup(void) {
     return 0;
 }
 #endif
+
+/////////////// NoFastGil.proto ///////////////
+
+#define __Pyx_PyGILState_Ensure PyGILState_Ensure
+#define __Pyx_PyGILState_Release PyGILState_Release
+#define __Pyx_FastGilFuncInit()
+
+/////////////// FastGil.proto ///////////////
+
+struct __Pyx_FastGilVtab {
+  PyGILState_STATE (*Fast_PyGILState_Ensure)(void);
+  void (*Fast_PyGILState_Release)(PyGILState_STATE oldstate);
+};
+static struct __Pyx_FastGilVtab __Pyx_FastGilFuncs;
+
+static void __Pyx_FastGilFuncInit(void);
+
+#define __Pyx_PyGILState_Ensure __Pyx_FastGilFuncs.Fast_PyGILState_Ensure
+#define __Pyx_PyGILState_Release __Pyx_FastGilFuncs.Fast_PyGILState_Release
+
+
+#ifdef WITH_THREAD
+  #ifndef CYTHON_THREAD_LOCAL
+    #if __STDC_VERSION__ >= 201112
+      #define CYTHON_THREAD_LOCAL _Thread_local
+    #elif defined(__GNUC__)
+      #define CYTHON_THREAD_LOCAL __thread
+    #elif defined(_MSC_VER)
+      #define CYTHON_THREAD_LOCAL __declspec(thread)
+    #endif
+  #endif
+#endif
+
+/////////////// FastGil ///////////////
+//@requires: CommonStructures.c::FetchCommonPointer
+// The implementations of PyGILState_Ensure/Release calls PyThread_get_key_value
+// several times which is turns out to be quite slow (slower in fact than
+// acquiring the GIL itself).  Simply storing it in a thread local for the
+// common case is much faster.
+// To make optimal use of this thread local, we attempt to share it between
+// modules.
+
+#ifdef CYTHON_THREAD_LOCAL
+
+#include "pythread.h"
+#include "pystate.h"
+
+static CYTHON_THREAD_LOCAL PyThreadState *__Pyx_FastGil_tcur = NULL;
+static CYTHON_THREAD_LOCAL int __Pyx_FastGil_tcur_depth = 0;
+static int __Pyx_FastGil_autoTLSkey = -1;
+
+static CYTHON_INLINE PyThreadState *__Pyx_FastGil_get_tcur(int inc) {
+  PyThreadState *tcur = __Pyx_FastGil_tcur;
+  if (tcur == NULL) {
+    tcur = __Pyx_FastGil_tcur = (PyThreadState*)PyThread_get_key_value(__Pyx_FastGil_autoTLSkey);
+  }
+  __Pyx_FastGil_tcur_depth += inc;
+  if (__Pyx_FastGil_tcur_depth == 0) {
+    __Pyx_FastGil_tcur = NULL;
+  }
+  return tcur;
+}
+
+PyGILState_STATE __Pyx_FastGil_PyGILState_Ensure(void) {
+  int current;
+  PyThreadState *tcur = __Pyx_FastGil_get_tcur(1);
+  if (tcur == NULL) {
+    // Uninitialized, need to initialize now.
+    return PyGILState_Ensure();
+  }
+  current = tcur == _PyThreadState_Current;
+  if (current == 0) {
+    PyEval_RestoreThread(tcur);
+  }
+  ++tcur->gilstate_counter;
+  return current ? PyGILState_LOCKED : PyGILState_UNLOCKED;
+}
+
+void __Pyx_FastGil_PyGILState_Release(PyGILState_STATE oldstate) {
+  PyThreadState *tcur = __Pyx_FastGil_get_tcur(-1);
+  if (tcur->gilstate_counter == 1) {
+    // This is the last lock, do all the cleanup as well.
+    PyGILState_Release(oldstate);
+  } else {
+    --tcur->gilstate_counter;
+    if (oldstate == PyGILState_UNLOCKED) {
+      PyEval_SaveThread();
+    }
+  }
+}
+
+static void __Pyx_FastGilFuncInit0(void) {
+  /* Try to detect autoTLSkey. */
+  void* this_thread_state = (void*) PyGILState_GetThisThreadState();
+  for (int key = 0; key < 100; key++) {
+    if (PyThread_get_key_value(key) == this_thread_state) {
+      __Pyx_FastGil_autoTLSkey = key;
+      break;
+    }
+  }
+  if (__Pyx_FastGil_autoTLSkey != -1) {
+    __Pyx_PyGILState_Ensure = __Pyx_FastGil_PyGILState_Ensure;
+    __Pyx_PyGILState_Release = __Pyx_FastGil_PyGILState_Release;
+    // Already fetched earlier, now we're just posting.
+    __Pyx_FetchCommonPointer(&__Pyx_FastGilFuncs, "FastGilFuncs");
+  } else {
+    __Pyx_PyGILState_Ensure = PyGILState_Ensure;
+    __Pyx_PyGILState_Release = PyGILState_Release;
+  }
+}
+
+#else
+
+static void __Pyx_FastGilFuncInit0(void) {
+  CYTHON_UNUSED void* force_use = (void*)&__Pyx_FetchCommonPointer;
+  __Pyx_PyGILState_Ensure = PyGILState_Ensure;
+  __Pyx_PyGILState_Release = PyGILState_Release;
+}
+
+#endif
+
+static void __Pyx_FastGilFuncInit(void) {
+  struct __Pyx_FastGilVtab* shared = (struct __Pyx_FastGilVtab*)PyCapsule_Import("_cython_" CYTHON_ABI ".FastGilFuncs", 1);
+  if (shared) {
+    __Pyx_FastGilFuncs = *shared;
+  } else {
+   PyErr_Clear();
+    __Pyx_FastGilFuncInit0();
+  }
+}

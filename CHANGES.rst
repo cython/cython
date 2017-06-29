@@ -36,6 +36,9 @@ Features added
 * "cdef extern" include files are now also searched relative to the current file.
   Patch by jdemeyer (Github issue #1654).
 
+* Optional optimization for re-aquiring the GIL, controlled by the
+  `fast_gil` directive.
+
 Bugs fixed
 ----------
 

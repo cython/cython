@@ -2079,7 +2079,7 @@ class CCodeWriter(object):
             variable = '__pyx_gilstate_save'
             if declare_gilstate:
                 self.put("PyGILState_STATE ")
-        self.putln("%s = PyGILState_Ensure();" % variable)
+        self.putln("%s = __Pyx_PyGILState_Ensure();" % variable)
         self.putln("#endif")
 
     def put_release_ensured_gil(self, variable=None):
@@ -2089,7 +2089,7 @@ class CCodeWriter(object):
         if not variable:
             variable = '__pyx_gilstate_save'
         self.putln("#ifdef WITH_THREAD")
-        self.putln("PyGILState_Release(%s);" % variable)
+        self.putln("__Pyx_PyGILState_Release(%s);" % variable)
         self.putln("#endif")
 
     def put_acquire_gil(self, variable=None):
