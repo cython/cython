@@ -998,7 +998,11 @@ static void __Pyx_FastGilFuncInit0(void) {
 #endif
 
 static void __Pyx_FastGilFuncInit(void) {
+#if PY_VERSION_HEX >= 0x02070000
   struct __Pyx_FastGilVtab* shared = (struct __Pyx_FastGilVtab*)PyCapsule_Import("_cython_" CYTHON_ABI ".FastGilFuncs", 1);
+#else
+  struct __Pyx_FastGilVtab* shared = NULL;
+#endif
   if (shared) {
     __Pyx_FastGilFuncs = *shared;
   } else {
