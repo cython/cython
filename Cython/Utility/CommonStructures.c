@@ -46,3 +46,36 @@ bad:
     cached_type = NULL;
     goto done;
 }
+
+
+/////////////// FetchCommonPointer.proto ///////////////
+
+static void* __Pyx_FetchCommonPointer(void* pointer, const char* name);
+
+/////////////// FetchCommonPointer ///////////////
+
+static void* __Pyx_FetchCommonPointer(void* pointer, const char* name) {
+    PyObject* fake_module = NULL;
+    PyObject* capsule = NULL;
+    void* value = NULL;
+
+    fake_module = PyImport_AddModule((char*) "_cython_" CYTHON_ABI);
+    if (!fake_module) return NULL;
+    Py_INCREF(fake_module);
+
+    capsule = PyObject_GetAttrString(fake_module, name);
+    if (!capsule) {
+        if (!PyErr_ExceptionMatches(PyExc_AttributeError)) goto bad;
+        PyErr_Clear();
+        capsule = PyCapsule_New(pointer, name, NULL);
+        if (!capsule) goto bad;
+        if (PyObject_SetAttrString(fake_module, name, capsule) < 0)
+            goto bad;
+    }
+    value = PyCapsule_GetPointer(capsule, name);
+
+bad:
+    Py_XDECREF(capsule);
+    Py_DECREF(fake_module);
+    return value;
+}
