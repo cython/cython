@@ -921,7 +921,7 @@ static void __Pyx_FastGilFuncInit(void);
 #if PY_VERSION_HEX >= 0x03050000
   #define __Pyx_PyThreadState_Current _PyThreadState_UncheckedGet()
 #elif PY_VERSION_HEX >= 0x03000000
-  #define __Pyx_PyThreadState_Current (PyThreadState*)_Py_atomic_load_relaxed(_PyThreadState_Current)
+  #define __Pyx_PyThreadState_Current PyThreadState_Get()
 #elif PY_VERSION_HEX < 0x02070000
   #undef CYTHON_THREAD_LOCAL
 #else
