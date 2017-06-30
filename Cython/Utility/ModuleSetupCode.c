@@ -948,7 +948,7 @@ static CYTHON_INLINE void __Pyx_FastGIL_Forget0(void) {
   }
 }
 
-static CYTHON_INLINE PyThreadState *__Pyx_FastGil_get_tcur() {
+static CYTHON_INLINE PyThreadState *__Pyx_FastGil_get_tcur(void) {
   PyThreadState *tcur = __Pyx_FastGil_tcur;
   if (tcur == NULL) {
     tcur = __Pyx_FastGil_tcur = (PyThreadState*)PyThread_get_key_value(__Pyx_FastGil_autoTLSkey);
