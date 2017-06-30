@@ -54,7 +54,9 @@ static void* __Pyx_FetchCommonPointer(void* pointer, const char* name);
 
 /////////////// FetchCommonPointer ///////////////
 
+
 static void* __Pyx_FetchCommonPointer(void* pointer, const char* name) {
+#if PY_VERSION_HEX >= 0x02070000
     PyObject* fake_module = NULL;
     PyObject* capsule = NULL;
     void* value = NULL;
@@ -78,4 +80,7 @@ bad:
     Py_XDECREF(capsule);
     Py_DECREF(fake_module);
     return value;
+#else
+    return pointer;
+#endif
 }
