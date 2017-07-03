@@ -2100,10 +2100,11 @@ class CClassScope(ClassScope):
                 elif type.compatible_signature_with(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
                     if (self.defined and not in_pxd
                         and not type.same_c_signature_as_resolved_type(entry.type, as_cmethod = 1, as_pxd_definition = 1)):
-                        error(pos,
+                        # TODO(robertwb): Make this an error.
+                        warning(pos,
                             "Compatible but non-identical C method '%s' not redeclared "
-                            "in definition part of extension type '%s'" % (name, self.class_name))
-                        error(entry.pos, "Previous declaration is here")
+                            "in definition part of extension type '%s'.  This may cause incorrect vtables to be generated." % (name, self.class_name), 2)
+                        warning(entry.pos, "Previous declaration is here", 2)
                     entry = self.add_cfunction(name, type, pos, cname, visibility='ignore', modifiers=modifiers)
                 else:
                     error(pos, "Signature not compatible with previous declaration")
