@@ -864,6 +864,11 @@ static int __Pyx_RegisterCleanup(void) {
 }
 #endif
 
+/////////////// FastGil.init ///////////////
+#ifdef WITH_THREAD
+__Pyx_FastGilFuncInit();
+#endif
+
 /////////////// NoFastGil.proto ///////////////
 
 #define __Pyx_PyGILState_Ensure PyGILState_Ensure
