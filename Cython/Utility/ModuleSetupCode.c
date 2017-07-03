@@ -859,7 +859,7 @@ bad:
 #else
 // fake call purely to work around "unused function" warning for __Pyx_ImportModule()
 static int __Pyx_RegisterCleanup(void) {
-    if (0) __Pyx_ImportModule(NULL);
+    if ((0)) __Pyx_ImportModule(NULL);
     return 0;
 }
 #endif
