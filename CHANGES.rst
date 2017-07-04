@@ -13,6 +13,7 @@ Features added
   Patch by Adrien Guinet (Github issue #1607).
 
 * cdef classes now support pickling by default when possible.
+  This can be disabled with the `auto_pickle` directive.
 
 * Speed up comparisons of strings if their hash value is available.
   Patch by Claudio Freire (Github issue #1571).
