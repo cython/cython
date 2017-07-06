@@ -1938,6 +1938,8 @@ class FuncDefNode(StatNode, BlockNode):
                 val = self.return_type.default_value
                 if val:
                     code.putln("%s = %s;" % (Naming.retval_cname, val))
+                elif not self.return_type.is_void:
+                    code.putln("__Pyx_pretend_to_initialize(&%s);" % Naming.retval_cname)
         # ----- Error cleanup
         if code.error_label in code.labels_used:
             if not self.body.is_terminator:
@@ -1992,6 +1994,8 @@ class FuncDefNode(StatNode, BlockNode):
                 err_val = default_retval
             if err_val is not None:
                 code.putln("%s = %s;" % (Naming.retval_cname, err_val))
+            elif not self.return_type.is_void:
+                code.putln("__Pyx_pretend_to_initialize(&%s);" % Naming.retval_cname)
 
             if is_getbuffer_slot:
                 self.getbuffer_error_cleanup(code)
