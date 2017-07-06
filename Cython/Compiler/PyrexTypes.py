@@ -3266,11 +3266,11 @@ class CStructOrUnionType(CType):
         env.use_utility_code(self._convert_to_py_code)
         return True
 
-    def can_coerce_from_pyobject(self):
+    def can_coerce_from_pyobject(self, env):
         if env.outer_scope is None or self._convert_from_py_code is False:
             return False
         for member in self.scope.var_entries:
-            if not member.type.assignable_from_resolved_type(PyrexTypes.py_object_type):
+            if not member.type.can_coerce_from_pyobject(env):
                 return False
         return True
 
