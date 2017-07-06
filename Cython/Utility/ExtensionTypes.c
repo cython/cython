@@ -69,6 +69,8 @@ static int __Pyx_setup_reduce(PyObject* type_obj) {
     PyObject *reduce_ex = NULL;
     PyObject *reduce_cython = NULL;
 
+    if (PyObject_HasAttrString(type_obj, "__getstate__")) goto GOOD;
+
     if (object_reduce_ex == NULL) {
         __Pyx_setup_reduce_GET_ATTR_OR_BAD(builtin_object, __pyx_b, "object");
         __Pyx_setup_reduce_GET_ATTR_OR_BAD(object_reduce, builtin_object, "__reduce__");
