@@ -34,6 +34,9 @@ class BaseType(object):
     def can_coerce_to_pyobject(self, env):
         return False
 
+    def can_coerce_from_pyobject(self, env):
+        return False
+
     def can_coerce_to_pystring(self, env, format_spec=None):
         return False
 
@@ -535,6 +538,9 @@ class CTypedefType(BaseType):
     def can_coerce_to_pyobject(self, env):
         return self.typedef_base_type.can_coerce_to_pyobject(env)
 
+    def can_coerce_from_pyobject(self, env):
+        return self.typedef_base_type.can_coerce_from_pyobject(env)
+
 
 class MemoryViewSliceType(PyrexType):
 
@@ -835,6 +841,9 @@ class MemoryViewSliceType(PyrexType):
     def can_coerce_to_pyobject(self, env):
         return True
 
+    def can_coerce_from_pyobject(self, env):
+        return True
+
     def check_for_null_code(self, cname):
         return cname + '.memview'
 
@@ -1017,6 +1026,9 @@ class BufferType(BaseType):
     def can_coerce_to_pyobject(self,env):
         return True
 
+    def can_coerce_from_pyobject(self,env):
+        return True
+
     def as_argument_type(self):
         return self
 
@@ -1086,6 +1098,9 @@ class PyObjectType(PyrexType):
         return "<PyObjectType>"
 
     def can_coerce_to_pyobject(self, env):
+        return True
+
+    def can_coerce_from_pyobject(self, env):
         return True
 
     def default_coerced_ctype(self):
@@ -1420,6 +1435,9 @@ class CType(PyrexType):
     def can_coerce_to_pyobject(self, env):
         return self.create_to_py_utility_code(env)
 
+    def can_coerce_from_pyobject(self, env):
+        return self.create_from_py_utility_code(env)
+
     def error_condition(self, result_code):
         conds = []
         if self.is_string or self.is_pyunicode_ptr:
@@ -1526,6 +1544,9 @@ class CConstType(BaseType):
 
     def can_coerce_to_pyobject(self, env):
         return self.const_base_type.can_coerce_to_pyobject(env)
+
+    def can_coerce_from_pyobject(self, env):
+        return self.const_base_type.can_coerce_from_pyobject(env)
 
     def create_to_py_utility_code(self, env):
         if self.const_base_type.create_to_py_utility_code(env):
@@ -1713,6 +1734,9 @@ class CIntType(CNumericType):
     exception_value = -1
 
     def can_coerce_to_pyobject(self, env):
+        return True
+
+    def can_coerce_from_pyobject(self, env):
         return True
 
     @staticmethod
@@ -2087,6 +2111,8 @@ class CComplexType(CNumericType):
         if (not src_type.is_complex and src_type.is_numeric and src_type.is_typedef
             and src_type.typedef_is_external):
              return False
+        elif src_type.is_pyobject:
+            return True
         else:
             return super(CComplexType, self).assignable_from(src_type)
 
@@ -2137,6 +2163,9 @@ class CComplexType(CNumericType):
         return True
 
     def can_coerce_to_pyobject(self, env):
+        return True
+
+    def can_coerce_from_pyobject(self, env):
         return True
 
     def create_to_py_utility_code(self, env):
@@ -2311,6 +2340,9 @@ class CArrayType(CPointerBaseType):
 
     def can_coerce_to_pyobject(self, env):
         return self.base_type.can_coerce_to_pyobject(env)
+
+    def can_coerce_from_pyobject(self, env):
+        return self.base_type.can_coerce_from_pyobject(env)
 
     def create_to_py_utility_code(self, env):
         if self.to_py_function is not None:
@@ -3190,12 +3222,12 @@ class CStructOrUnionType(CType):
         self._convert_from_py_code = None
         self.packed = packed
 
-    def create_to_py_utility_code(self, env):
-        if env.outer_scope is None:
-            return False
-
+    def can_coerce_to_pyobject(self, env):
         if self._convert_to_py_code is False:
             return None  # tri-state-ish
+
+        if env.outer_scope is None:
+            return False
 
         if self._convert_to_py_code is None:
             is_union = not self.is_struct
@@ -3203,7 +3235,7 @@ class CStructOrUnionType(CType):
             safe_union_types = set()
             for member in self.scope.var_entries:
                 member_type = member.type
-                if not member_type.create_to_py_utility_code(env):
+                if not member_type.can_coerce_to_pyobject(env):
                     self.to_py_function = None
                     self._convert_to_py_code = False
                     return False
@@ -3219,10 +3251,27 @@ class CStructOrUnionType(CType):
                 self._convert_from_py_code = False
                 return False
 
+        return True
+
+    def create_to_py_utility_code(self, env):
+        if not self.can_coerce_to_pyobject(env):
+            return False
+
+        if self._convert_to_py_code is None:
+            for member in self.scope.var_entries:
+                member.type.create_to_py_utility_code(env)
             forward_decl = self.entry.visibility != 'extern' and not self.typedef_flag
             self._convert_to_py_code = ToPyStructUtilityCode(self, forward_decl, env)
 
         env.use_utility_code(self._convert_to_py_code)
+        return True
+
+    def can_coerce_from_pyobject(self):
+        if env.outer_scope is None or self._convert_from_py_code is False:
+            return False
+        for member in self.scope.var_entries:
+            if not member.type.assignable_from_resolved_type(PyrexTypes.py_object_type):
+                return False
         return True
 
     def create_from_py_utility_code(self, env):
@@ -3375,6 +3424,9 @@ class CppClassType(CType):
         else:
             return ''
 
+    def can_coerce_from_pyobject(self, env):
+        return self.cname in builtin_cpp_conversions or self.cname in cpp_string_conversions
+
     def create_from_py_utility_code(self, env):
         if self.from_py_function is not None:
             return True
@@ -3406,6 +3458,9 @@ class CppClassType(CType):
                 cls.replace('unordered_', '') + ".from_py", "CppConvert.pyx", context=context))
             self.from_py_function = cname
             return True
+
+    def can_coerce_to_pyobject(self, env):
+        return self.cname in builtin_cpp_conversions or self.cname in cpp_string_conversions
 
     def create_to_py_utility_code(self, env):
         if self.to_py_function is not None:
@@ -3612,7 +3667,8 @@ class CppClassType(CType):
         # TODO: handle operator=(...) here?
         if other_type is error_type:
             return True
-        return other_type.is_cpp_class and other_type.is_subclass(self)
+        elif other_type.is_cpp_class:
+            return other_type.is_subclass(self)
 
     def attributes_known(self):
         return self.scope is not None
@@ -3731,6 +3787,12 @@ class CEnumType(CType):
                     self.name, self.cname, self.typedef_flag, namespace)
         return self
 
+    def can_coerce_to_pyobject(self, env):
+        return True
+
+    def can_coerce_from_pyobject(self, env):
+        return True
+
     def create_to_py_utility_code(self, env):
         self.to_py_function = "__Pyx_PyInt_From_" + self.specialization_name()
         env.use_utility_code(TempitaUtilityCode.load_cached(
@@ -3794,6 +3856,12 @@ class CTupleType(CType):
     def can_coerce_to_pyobject(self, env):
         for component in self.components:
             if not component.can_coerce_to_pyobject(env):
+                return False
+        return True
+
+    def can_coerce_from_pyobject(self, env):
+        for component in self.components:
+            if not component.can_coerce_from_pyobject(env):
                 return False
         return True
 

@@ -1623,8 +1623,9 @@ if VALUE is not None:
 
         non_py = [
             e for e in all_members
-            if not e.type.is_pyobject and (not e.type.create_from_py_utility_code(env)
-                                           or not e.type.create_to_py_utility_code(env))]
+            if not e.type.is_pyobject and (not e.type.can_coerce_to_pyobject(env)
+                                           or not e.type.can_coerce_from_pyobject(env))
+        ]
 
         if cinit or non_py:
             if cinit:
@@ -1646,6 +1647,10 @@ if VALUE is not None:
             node.body.stats.append(pickle_func)
 
         else:
+            for e in all_members:
+                if not e.type.is_pyobject:
+                    e.type.create_to_py_utility_code(env)
+                    e.type.create_from_py_utility_code(env)
             all_members_names = sorted([e.name for e in all_members])
             checksum = '0x%s' % hashlib.md5(' '.join(all_members_names).encode('utf-8')).hexdigest()[:7]
             unpickle_func_name = '__pyx_unpickle_%s' % node.class_name
