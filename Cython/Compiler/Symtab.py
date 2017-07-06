@@ -345,6 +345,7 @@ class Scope(object):
         self.id_counters = {}
 
     def __deepcopy__(self, memo):
+        memo[id(self)] = self
         return self
 
     def merge_in(self, other, merge_unused=True, whitelist=None):
