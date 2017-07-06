@@ -6,7 +6,7 @@ IS_32BIT_PY2 = not IS_PY3 and sys.maxint < 2**32
 
 
 from libc cimport stdint
-from libc.stdint cimport int64_t as my_int64_t
+from libc.stdint cimport int16_t as my_int16_t
 
 
 def unlongify(v):
@@ -88,7 +88,7 @@ def from_cimported_as_int_array():
     >>> from_cimported_as_int_array()
     [1, 2, 3]
     """
-    cdef my_int64_t[3] v
+    cdef my_int16_t[3] v
     v[0] = 1
     v[1] = 2
     v[2] = 3
