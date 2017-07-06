@@ -1622,6 +1622,8 @@ if VALUE is not None:
             checksum = '0x%s' % hashlib.md5(' '.join(all_members_names).encode('utf-8')).hexdigest()[:7]
             unpickle_func_name = '__pyx_unpickle_%s' % node.class_name
 
+            # TODO(robertwb): Move the state into the third argument
+            # so it can be pickled *after* self is memoized.
             unpickle_func = TreeFragment(u"""
                 def %(unpickle_func_name)s(__pyx_type, long __pyx_checksum, __pyx_state, %(args)s):
                     if __pyx_checksum != %(checksum)s:
