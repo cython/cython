@@ -109,3 +109,5 @@ cdef cython_bug(int u):
         g(u, u)
     finally:
         g(u, u)
+
+cython_bug(1)
