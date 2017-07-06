@@ -3425,7 +3425,13 @@ class CppClassType(CType):
             return ''
 
     def can_coerce_from_pyobject(self, env):
-        return self.cname in builtin_cpp_conversions or self.cname in cpp_string_conversions
+        if self.cname in builtin_cpp_conversions or self.cname in cpp_string_conversions:
+            for ix, T in enumerate(self.templates or []):
+                if ix >= builtin_cpp_conversions[self.cname]:
+                    break
+                if T.is_pyobject or not T.can_coerce_from_pyobject(env):
+                    return False
+            return True
 
     def create_from_py_utility_code(self, env):
         if self.from_py_function is not None:
@@ -3460,7 +3466,14 @@ class CppClassType(CType):
             return True
 
     def can_coerce_to_pyobject(self, env):
-        return self.cname in builtin_cpp_conversions or self.cname in cpp_string_conversions
+        if self.cname in builtin_cpp_conversions or self.cname in cpp_string_conversions:
+            for ix, T in enumerate(self.templates or []):
+                if ix >= builtin_cpp_conversions[self.cname]:
+                    break
+                if T.is_pyobject or not T.can_coerce_to_pyobject(env):
+                    return False
+            return True
+
 
     def create_to_py_utility_code(self, env):
         if self.to_py_function is not None:
