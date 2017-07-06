@@ -73,6 +73,7 @@ class BaseType(object):
         Types never need to be copied, if we do copy, Unfortunate Things
         Will Happen!
         """
+        memo[id(self)] = self
         return self
 
     def get_fused_types(self, result=None, seen=None, subtypes=None):
