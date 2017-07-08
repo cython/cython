@@ -33,3 +33,5 @@ public:
   };
   typedef T MyType;
 };
+
+class SpecializedTypedClass : public TypedClass<double> {};

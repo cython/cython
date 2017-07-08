@@ -2299,6 +2299,11 @@ class CppClassScope(Scope):
                                            modifiers=base_entry.func_modifiers,
                                            utility_code=base_entry.utility_code)
             entry.is_inherited = 1
+        for base_entry in base_scope.type_entries:
+            entry = self.declare_type(base_entry.name, base_entry.type,
+                                      base_entry.pos, base_entry.cname,
+                                      base_entry.visibility)
+            entry.is_inherited = 1
 
     def specialize(self, values, type_entry):
         scope = CppClassScope(self.name, self.outer_scope)
