@@ -684,6 +684,8 @@ static PyObject* __Pyx__ImportNumPyArray(void) {
     if (unlikely(!ndarray_object)) {
         // ImportError, AttributeError, ...
         PyErr_Clear();
+        Py_INCREF(Py_None);
+        ndarray_object = Py_None;
     }
     if (unlikely(!ndarray_object || !PyObject_TypeCheck(ndarray_object, &PyType_Type))) {
         Py_XDECREF(ndarray_object);
@@ -697,5 +699,6 @@ static CYTHON_INLINE PyObject* __Pyx_ImportNumPyArrayTypeIfAvailable(void) {
     if (unlikely(!__pyx_numpy_ndarray)) {
         __pyx_numpy_ndarray = __Pyx__ImportNumPyArray();
     }
+    Py_INCREF(__pyx_numpy_ndarray);
     return __pyx_numpy_ndarray;
 }
