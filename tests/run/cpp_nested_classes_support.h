@@ -27,5 +27,9 @@ public:
     T typed_value;
     int int_value;
   };
+  struct MyStruct {
+    T typed_value;
+    int int_value;
+  };
   typedef T MyType;
 };

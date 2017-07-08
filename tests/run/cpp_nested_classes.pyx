@@ -13,6 +13,9 @@ cdef extern from "cpp_nested_classes_support.h":
 
     cdef cppclass TypedClass[T]:
         ctypedef T MyType
+        struct MyStruct:
+            T typed_value
+            int int_value
         union MyUnion:
             T typed_value
             int int_value
@@ -66,3 +69,14 @@ def test_nested_union(x):
     assert u.int_value == x
     u.typed_value = x
     return u.typed_value
+
+def test_nested_struct(x):
+    """
+    >>> test_nested_struct(2)
+    2.0
+    """
+    cdef TypedClass[double].MyStruct s
+    s.int_value = x
+    assert s.int_value == x
+    s.typed_value = x
+    return s.typed_value
