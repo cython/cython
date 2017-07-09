@@ -593,7 +593,7 @@ class Scope(object):
                     error(pos, "Cannot inherit from incomplete type")
                 else:
                     declare_inherited_attributes(entry, base_class.base_classes)
-                    entry.type.scope.declare_inherited_cpp_attributes(base_class.scope)
+                    entry.type.scope.declare_inherited_cpp_attributes(base_class)
         if scope:
             declare_inherited_attributes(entry, base_classes)
             scope.declare_var(name="this", cname="this", type=PyrexTypes.CPtrType(entry.type), pos=entry.pos)
@@ -2276,7 +2276,15 @@ class CppClassScope(Scope):
         type.entry = entry
         return entry
 
-    def declare_inherited_cpp_attributes(self, base_scope):
+    def declare_inherited_cpp_attributes(self, base_class):
+        base_scope = base_class.scope
+        template_type = base_class
+        while getattr(template_type, 'template_type', None):
+            template_type = template_type.template_type
+        if getattr(template_type, 'templates', None):
+            base_templates = [T.name for T in template_type.templates]
+        else:
+            base_templates = ()
         # Declare entries for all the C++ attributes of an
         # inherited type, with cnames modified appropriately
         # to work with this type.
@@ -2300,10 +2308,11 @@ class CppClassScope(Scope):
                                            utility_code=base_entry.utility_code)
             entry.is_inherited = 1
         for base_entry in base_scope.type_entries:
-            entry = self.declare_type(base_entry.name, base_entry.type,
-                                      base_entry.pos, base_entry.cname,
-                                      base_entry.visibility)
-            entry.is_inherited = 1
+            if base_entry.name not in base_templates:
+                entry = self.declare_type(base_entry.name, base_entry.type,
+                                          base_entry.pos, base_entry.cname,
+                                          base_entry.visibility)
+                entry.is_inherited = 1
 
     def specialize(self, values, type_entry):
         scope = CppClassScope(self.name, self.outer_scope)
