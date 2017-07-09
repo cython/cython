@@ -80,6 +80,8 @@ cdef class DefaultReduce(object):
     >>> import pickle
     >>> pickle.loads(pickle.dumps(a))
     DefaultReduce(i=11, s='abc')
+    >>> pickle.loads(pickle.dumps(DefaultReduce(i=11, s=None)))
+    DefaultReduce(i=11, s=None)
     """
 
     cdef readonly int i
@@ -119,6 +121,11 @@ class DefaultReducePySubclass(DefaultReduce):
     >>> import pickle
     >>> pickle.loads(pickle.dumps(a))
     DefaultReducePySubclass(i=11, s='abc', x=1.5)
+
+    >>> a.self_reference = a
+    >>> a2 = pickle.loads(pickle.dumps(a))
+    >>> a2.self_reference is a2
+    True
     """
     def __init__(self, **kwargs):
         self.x = kwargs.pop('x', 0)
@@ -148,3 +155,91 @@ cdef class NoReduceDueToNontrivialCInit(object):
     """
     def __cinit__(self, arg):
         pass
+
+
+cdef class NoMembers(object):
+    """
+    >>> import pickle
+    >>> pickle.loads(pickle.dumps(NoMembers()))
+    NoMembers()
+    """
+    def __repr__(self):
+        return "NoMembers()"
+
+
+cdef struct MyStruct:
+    int i
+    double x
+
+cdef class NoPyMembers(object):
+    """
+    >>> import pickle
+    >>> pickle.loads(pickle.dumps(NoPyMembers(2, 1.75)))
+    NoPyMembers(ii=[2, 4, 8], x=1.75, my_struct=(3, 2.75))
+    """
+    cdef int[3] ii
+    cdef double x
+    cdef MyStruct my_struct
+
+    def __init__(self, i, x):
+        self.ii[0] = i
+        self.ii[1] = i * i
+        self.ii[2] = i * i * i
+        self.x = x
+        self.my_struct = MyStruct(i+1, x+1)
+
+    def __repr__(self):
+        return "NoPyMembers(ii=%s, x=%s, my_struct=(%s, %s))" % (
+            self.ii, self.x, self.my_struct.i, self.my_struct.x)
+
+class NoPyMembersPySubclass(NoPyMembers):
+    """
+    >>> import pickle
+    >>> pickle.loads(pickle.dumps(NoPyMembersPySubclass(2, 1.75, 'xyz')))
+    NoPyMembersPySubclass(ii=[2, 4, 8], x=1.75, my_struct=(3, 2.75), s='xyz')
+    """
+    def __init__(self, i, x, s):
+        super(NoPyMembersPySubclass, self).__init__(i, x)
+        self.s = s
+    def __repr__(self):
+        return super(NoPyMembersPySubclass, self).__repr__().replace(
+            'NoPyMembers', 'NoPyMembersPySubclass')[:-1] + ', s=%r)' % self.s
+
+
+cdef _unset = object()
+
+# Test cyclic references.
+cdef class Wrapper(object):
+  """
+  >>> import pickle
+  >>> w = Wrapper(); w
+  Wrapper(...)
+  >>> w2 = pickle.loads(pickle.dumps(w)); w2
+  Wrapper(...)
+  >>> w2.ref is w2
+  True
+
+  >>> pickle.loads(pickle.dumps(Wrapper(DefaultReduce(1, 'xyz'))))
+  Wrapper(DefaultReduce(i=1, s='xyz'))
+  >>> L = [None]
+  >>> L[0] = L
+  >>> w = Wrapper(L)
+  >>> pickle.loads(pickle.dumps(Wrapper(L)))
+  Wrapper([[...]])
+
+  >>> L[0] = w   # Don't print this one out...
+  >>> w2 = pickle.loads(pickle.dumps(w))
+  >>> w2.ref[0] is w2
+  True
+  """
+  cdef public object ref
+  def __init__(self, ref=_unset):
+      if ref is _unset:
+          self.ref = self
+      else:
+          self.ref = ref
+  def __repr__(self):
+      if self.ref is self:
+          return "Wrapper(...)"
+      else:
+          return "Wrapper(%r)" % self.ref

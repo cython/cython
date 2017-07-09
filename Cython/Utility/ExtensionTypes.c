@@ -68,6 +68,8 @@ static int __Pyx_setup_reduce(PyObject* type_obj) {
     PyObject *reduce = NULL;
     PyObject *reduce_ex = NULL;
     PyObject *reduce_cython = NULL;
+    PyObject *setstate = NULL;
+    PyObject *setstate_cython = NULL;
 
     if (PyObject_HasAttrString(type_obj, "__getstate__")) goto GOOD;
 
@@ -80,23 +82,36 @@ static int __Pyx_setup_reduce(PyObject* type_obj) {
     __Pyx_setup_reduce_GET_ATTR_OR_BAD(reduce_ex, type_obj, "__reduce_ex__");
     if (reduce_ex == object_reduce_ex) {
         __Pyx_setup_reduce_GET_ATTR_OR_BAD(reduce, type_obj, "__reduce__");
-        __Pyx_setup_reduce_GET_ATTR_OR_BAD(reduce_cython, type_obj, "__reduce_cython__");
         if (object_reduce == reduce
             || (strcmp(reduce->ob_type->tp_name, "method_descriptor") == 0
                 && strcmp(((PyMethodDescrObject*)reduce)->d_method->ml_name, "__reduce_cython__") == 0)) {
+            __Pyx_setup_reduce_GET_ATTR_OR_BAD(reduce_cython, type_obj, "__reduce_cython__");
             ret = PyDict_SetItemString(((PyTypeObject*)type_obj)->tp_dict, "__reduce__", reduce_cython); if (ret < 0) goto BAD;
-            ret = PyDict_DelItemString(((PyTypeObject*)type_obj)->tp_dict, "__reduce_cython__");
+            ret = PyDict_DelItemString(((PyTypeObject*)type_obj)->tp_dict, "__reduce_cython__"); if (ret < 0) goto BAD;
+
+            setstate = PyObject_GetAttrString(type_obj, "__setstate__");
+            if (!setstate) PyErr_Clear();
+            if (!setstate
+                || (strcmp(setstate->ob_type->tp_name, "method_descriptor") == 0
+                    && strcmp(((PyMethodDescrObject*)setstate)->d_method->ml_name, "__setstate_cython__") == 0)) {
+            __Pyx_setup_reduce_GET_ATTR_OR_BAD(setstate_cython, type_obj, "__setstate_cython__");
+                ret = PyDict_SetItemString(((PyTypeObject*)type_obj)->tp_dict, "__setstate__", setstate_cython); if (ret < 0) goto BAD;
+                ret = PyDict_DelItemString(((PyTypeObject*)type_obj)->tp_dict, "__setstate_cython__"); if (ret < 0) goto BAD;
+            }
             PyType_Modified((PyTypeObject*)type_obj);
         }
     }
     goto GOOD;
 
 BAD:
+    if (!PyErr_Occurred()) PyErr_Format(PyExc_RuntimeError, "Unable to initialize pickling for %s", ((PyTypeObject*)type_obj)->tp_name);
     ret = -1;
 GOOD:
     Py_XDECREF(builtin_object);
     Py_XDECREF(reduce);
     Py_XDECREF(reduce_ex);
     Py_XDECREF(reduce_cython);
+    Py_XDECREF(setstate);
+    Py_XDECREF(setstate_cython);
     return ret;
 }

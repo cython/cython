@@ -1639,8 +1639,10 @@ if VALUE is not None:
 
             pickle_func = TreeFragment(u"""
                 def __reduce_cython__(self):
-                    raise TypeError("%s")
-                """ % msg,
+                    raise TypeError("%(msg)s")
+                def __setstate_cython__(self, __pyx_state):
+                    raise TypeError("%(msg)s")
+                """ % {'msg': msg},
                 level='c_class', pipeline=[NormalizeTree(None)]).substitute({})
             pickle_func.analyse_declarations(node.scope)
             self.visit(pickle_func)
@@ -1658,28 +1660,28 @@ if VALUE is not None:
             # TODO(robertwb): Move the state into the third argument
             # so it can be pickled *after* self is memoized.
             unpickle_func = TreeFragment(u"""
-                def %(unpickle_func_name)s(__pyx_type, long __pyx_checksum, __pyx_state, %(args)s):
+                def %(unpickle_func_name)s(__pyx_type, long __pyx_checksum, __pyx_state):
                     if __pyx_checksum != %(checksum)s:
                         from pickle import PickleError
                         raise PickleError("Incompatible checksums (%%s vs %(checksum)s = (%(members)s))" %% __pyx_checksum)
-                    cdef %(class_name)s result
                     result = %(class_name)s.__new__(__pyx_type)
-                    %(assignments)s
-                    if hasattr(result, '__setstate__'):
-                        result.__setstate__(__pyx_state)
-                    elif hasattr(result, '__dict__'):
-                        result.__dict__.update(__pyx_state)
-                    elif __pyx_state is not None:
-                        from pickle import PickleError
-                        raise PickleError("Unexpected state: %%s" %% __pyx_state)
+                    if __pyx_state is not None:
+                        %(unpickle_func_name)s__set_state(<%(class_name)s> result, __pyx_state)
                     return result
+
+                cdef %(unpickle_func_name)s__set_state(%(class_name)s result, tuple __pyx_state):
+                    %(assignments)s
+                    if hasattr(result, '__dict__'):
+                        result.__dict__.update(__pyx_state[%(num_members)s])
                 """ % {
                     'unpickle_func_name': unpickle_func_name,
                     'checksum': checksum,
                     'members': ', '.join(all_members_names),
                     'class_name': node.class_name,
-                    'assignments': '; '.join('result.%s = __pyx_arg_%s' % (v, v) for v in all_members_names),
-                    'args': ','.join('__pyx_arg_%s' % v for v in all_members_names),
+                    'assignments': '; '.join(
+                        'result.%s = __pyx_state[%s]' % (v, ix)
+                        for ix, v in enumerate(all_members_names)),
+                    'num_members': len(all_members_names),
                 }, level='module', pipeline=[NormalizeTree(None)]).substitute({})
             unpickle_func.analyse_declarations(node.entry.scope)
             self.visit(unpickle_func)
@@ -1687,14 +1689,28 @@ if VALUE is not None:
 
             pickle_func = TreeFragment(u"""
                 def __reduce_cython__(self):
-                    if hasattr(self, '__getstate__'):
-                        state = self.__getstate__()
-                    elif hasattr(self, '__dict__'):
-                        state = self.__dict__
+                    cdef bint use_setstate
+                    state = (%(members)s)
+                    _dict = getattr(self, '__dict__', None)
+                    if _dict is not None:
+                        state += _dict,
+                        use_setstate = True
                     else:
-                        state = None
-                    return %s, (type(self), %s, state, %s)
-                """ % (unpickle_func_name, checksum, ', '.join('self.%s' % v for v in all_members_names)),
+                        use_setstate = %(any_notnone_members)s
+                    if use_setstate:
+                        return %(unpickle_func_name)s, (type(self), %(checksum)s, None), state
+                    else:
+                        return %(unpickle_func_name)s, (type(self), %(checksum)s, state)
+
+                def __setstate_cython__(self, __pyx_state):
+                    %(unpickle_func_name)s__set_state(self, __pyx_state)
+                """ % {
+                    'unpickle_func_name': unpickle_func_name,
+                    'checksum': checksum,
+                    'members': ', '.join('self.%s' % v for v in all_members_names) + (',' if len(all_members_names) == 1 else ''),
+                    # Even better, we could check PyType_IS_GC.
+                    'any_notnone_members' : ' or '.join(['self.%s is not None' % e.name for e in all_members if e.type.is_pyobject] or ['False']),
+                },
                 level='c_class', pipeline=[NormalizeTree(None)]).substitute({})
             pickle_func.analyse_declarations(node.scope)
             self.visit(pickle_func)
