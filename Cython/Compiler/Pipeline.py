@@ -343,7 +343,7 @@ def run_pipeline(pipeline, source, printtree=True):
                         print("    %.3f seconds" % (time() - t))
         except CompileError as err:
             # err is set
-            Errors.report_error(err)
+            Errors.report_error(err, use_stack=False)
             error = err
     except InternalError as err:
         # Only raise if there was not an earlier error

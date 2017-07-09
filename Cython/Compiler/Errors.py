@@ -145,8 +145,8 @@ def close_listing_file():
         listing_file.close()
         listing_file = None
 
-def report_error(err):
-    if error_stack:
+def report_error(err, use_stack=True):
+    if error_stack and use_stack:
         error_stack[-1].append(err)
     else:
         global num_errors
