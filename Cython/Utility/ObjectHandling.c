@@ -1686,11 +1686,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObjec
         return __Pyx_PyFunction_FastCall(func, &arg, 1);
     }
 #endif
-#ifdef __Pyx_CyFunction_USED
-    if (likely(PyCFunction_Check(func) || PyObject_TypeCheck(func, __pyx_CyFunctionType))) {
-#else
     if (likely(PyCFunction_Check(func))) {
-#endif
         if (likely(PyCFunction_GET_FLAGS(func) & METH_O)) {
             // fast and simple case that we are optimising for
             return __Pyx_PyObject_CallMethO(func, arg);
