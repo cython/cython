@@ -680,12 +680,11 @@ static PyObject* __Pyx__ImportNumPyArray(void) {
     numpy_module = __Pyx_Import(PYIDENT("numpy"), NULL, 0);
     if (likely(numpy_module)) {
         ndarray_object = PyObject_GetAttrString(numpy_module, "ndarray");
+        Py_DECREF(numpy_module);
     }
     if (unlikely(!ndarray_object)) {
         // ImportError, AttributeError, ...
         PyErr_Clear();
-        Py_INCREF(Py_None);
-        ndarray_object = Py_None;
     }
     if (unlikely(!ndarray_object || !PyObject_TypeCheck(ndarray_object, &PyType_Type))) {
         Py_XDECREF(ndarray_object);
