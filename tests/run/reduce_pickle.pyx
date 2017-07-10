@@ -167,43 +167,71 @@ cdef class NoMembers(object):
         return "NoMembers()"
 
 
-cdef struct MyStruct:
-    int i
-    double x
-
 cdef class NoPyMembers(object):
     """
     >>> import pickle
     >>> pickle.loads(pickle.dumps(NoPyMembers(2, 1.75)))
-    NoPyMembers(ii=[2, 4, 8], x=1.75, my_struct=(3, 2.75))
+    NoPyMembers(ii=[2, 4, 8], x=1.75)
     """
     cdef int[3] ii
     cdef double x
-    cdef MyStruct my_struct
 
     def __init__(self, i, x):
         self.ii[0] = i
         self.ii[1] = i * i
         self.ii[2] = i * i * i
         self.x = x
-        self.my_struct = MyStruct(i+1, x+1)
 
     def __repr__(self):
-        return "NoPyMembers(ii=%s, x=%s, my_struct=(%s, %s))" % (
-            self.ii, self.x, self.my_struct.i, self.my_struct.x)
+        return "%s(ii=%s, x=%s)" % (type(self).__name__, self.ii, self.x)
 
 class NoPyMembersPySubclass(NoPyMembers):
     """
     >>> import pickle
     >>> pickle.loads(pickle.dumps(NoPyMembersPySubclass(2, 1.75, 'xyz')))
-    NoPyMembersPySubclass(ii=[2, 4, 8], x=1.75, my_struct=(3, 2.75), s='xyz')
+    NoPyMembersPySubclass(ii=[2, 4, 8], x=1.75, s='xyz')
     """
     def __init__(self, i, x, s):
         super(NoPyMembersPySubclass, self).__init__(i, x)
         self.s = s
     def __repr__(self):
-        return super(NoPyMembersPySubclass, self).__repr__().replace(
-            'NoPyMembers', 'NoPyMembersPySubclass')[:-1] + ', s=%r)' % self.s
+        return (super(NoPyMembersPySubclass, self).__repr__()
+                [:-1] + ', s=%r)' % self.s)
+
+
+cdef struct MyStruct:
+    int i
+    double x
+
+cdef class StructMemberDefault(object):
+    """
+    >>> import pickle
+    >>> s = StructMemberDefault(1, 1.5); s
+    StructMemberDefault(i=1, x=1.5)
+    >>> pickle.dumps(s)   # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...my_struct...
+    """
+
+    cdef MyStruct my_struct
+
+    def __init__(self, i, x):
+        self.my_struct.i = i
+        self.my_struct.x = x
+
+    def __repr__(self):
+        return "%s(i=%s, x=%s)" % (
+            type(self).__name__, self.my_struct.i, self.my_struct.x)
+
+@cython.auto_pickle(True)  # Forced due to the (inherited) struct attribute.
+cdef class StructMemberForcedPickle(StructMemberDefault):
+    """
+    >>> import pickle
+    >>> s = StructMemberForcedPickle(1, 1.5); s
+    StructMemberForcedPickle(i=1, x=1.5)
+    >>> pickle.loads(pickle.dumps(s))
+    StructMemberForcedPickle(i=1, x=1.5)
+    """
 
 
 cdef _unset = object()

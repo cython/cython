@@ -1603,6 +1603,7 @@ if VALUE is not None:
         if node.scope.directives['auto_pickle'] is False:   # None means attempt it.
             # Old behavior of not doing anything.
             return
+        auto_pickle_forced = node.scope.directives['auto_pickle'] is True
 
         all_members = []
         cls = node.entry.type
@@ -1627,14 +1628,22 @@ if VALUE is not None:
                                            or not e.type.can_coerce_from_pyobject(env))
         ]
 
-        if cinit or non_py:
+        structs = [e for e in all_members if e.type.is_struct_or_union]
+
+        if cinit or non_py or (structs and not auto_pickle_forced):
             if cinit:
                 # TODO(robertwb): We could allow this if __cinit__ has no require arguments.
                 msg = 'no default __reduce__ due to non-trivial __cinit__'
-            else:
+            elif non_py:
                 msg = "%s cannot be converted to a Python object for pickling" % ','.join("self.%s" % e.name for e in non_py)
+            else:
+                # Extern structs may be only partially defined.
+                # TODO(robertwb): Limit the restriction to extern
+                # (and recursively extern-containing) structs.
+                msg = ("Pickling of struct members such as %s must be explicitly requested "
+                       "with @auto_pickle(True)" % ','.join("self.%s" % e.name for e in structs))
 
-            if node.scope.directives['auto_pickle'] is True:
+            if auto_pickle_forced:
                 error(node.pos, msg)
 
             pickle_func = TreeFragment(u"""
