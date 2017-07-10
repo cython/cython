@@ -560,11 +560,11 @@ class CompilationOptions(object):
 
         directives = dict(options['compiler_directives'])  # copy mutable field
         # check for invalid directives
-        unknown_options = set(directives) - set(Options.get_directive_defaults())
-        if unknown_options:
+        unknown_directives = set(directives) - set(Options.get_directive_defaults())
+        if unknown_directives:
             message = "got unknown compiler directive%s: %s" % (
-                's' if len(unknown_options) > 1 else '',
-                ', '.join(unknown_options))
+                's' if len(unknown_directives) > 1 else '',
+                ', '.join(unknown_directives))
             raise ValueError(message)
         options['compiler_directives'] = directives
         if directives.get('np_pythran', False) and not options['cplus']:
