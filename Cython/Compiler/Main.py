@@ -553,19 +553,24 @@ class CompilationOptions(object):
         # ignore valid options that are not in the defaults
         unknown_options.difference_update(['include_path'])
         if unknown_options:
-            # TODO: make this a hard error in 0.22
             message = "got unknown compilation option%s, please remove: %s" % (
                 's' if len(unknown_options) > 1 else '',
                 ', '.join(unknown_options))
-            import warnings
-            warnings.warn(message)
+            raise ValueError(message)
 
         directives = dict(options['compiler_directives'])  # copy mutable field
+        # check for invalid directives
+        unknown_options = set(directives) - set(Options.get_directive_defaults())
+        if unknown_options:
+            message = "got unknown compiler directive%s: %s" % (
+                's' if len(unknown_options) > 1 else '',
+                ', '.join(unknown_options))
+            raise ValueError(message)
+        options['compiler_directives'] = directives
         if directives.get('np_pythran', False) and not options['cplus']:
             import warnings
             warnings.warn("C++ mode forced when in Pythran mode!")
             options['cplus'] = True
-        options['compiler_directives'] = directives
         if 'language_level' in directives and 'language_level' not in kw:
             options['language_level'] = int(directives['language_level'])
         if 'formal_grammar' in directives and 'formal_grammar' not in kw:
