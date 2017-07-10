@@ -444,14 +444,20 @@
 
 
 #ifndef CYTHON_FALLTHROUGH
-  #if __has_cpp_attribute(fallthrough)
-    #define CYTHON_FALLTHROUGH [[fallthrough]]
-  #elif __has_cpp_attribute(clang::fallthrough)
-    #define CYTHON_FALLTHROUGH [[clang::fallthrough]]
-  #elif __has_attribute(fallthrough) || (defined(__GNUC__) && defined(__attribute__))
-    #define CYTHON_FALLTHROUGH __attribute__((fallthrough))
-  #else
-    #define CYTHON_FALLTHROUGH
+  #ifdef __cplusplus
+    #if __has_cpp_attribute(fallthrough)
+      #define CYTHON_FALLTHROUGH [[fallthrough]]
+    #elif __has_cpp_attribute(clang::fallthrough)
+      #define CYTHON_FALLTHROUGH [[clang::fallthrough]]
+    #endif
+  #endif
+
+  #ifndef CYTHON_FALLTHROUGH
+    #if __has_attribute(fallthrough) || (defined(__GNUC__) && defined(__attribute__))
+      #define CYTHON_FALLTHROUGH __attribute__((fallthrough))
+    #else
+      #define CYTHON_FALLTHROUGH
+    #endif
   #endif
 #endif
 
