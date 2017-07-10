@@ -3623,6 +3623,7 @@ class DefNodeWrapper(FuncDefNode):
                     if i >= min_positional_args-1:
                         code.put('case %2d: ' % (i+1))
                     code.putln("values[%d] = PyTuple_GET_ITEM(%s, %d);" % (i, Naming.args_cname, i))
+                    code.putln('CYTHON_FALLTHROUGH')
                 if min_positional_args == 0:
                     code.put('case  0: ')
                 code.putln('break;')
@@ -3749,6 +3750,7 @@ class DefNodeWrapper(FuncDefNode):
             code.put('case %2d: ' % (i+1))
             code.putln("values[%d] = PyTuple_GET_ITEM(%s, %d);" % (
                 i, Naming.args_cname, i))
+            code.putln('CYTHON_FALLTHROUGH')
         code.putln('case  0: break;')
         if not self.star_arg:
             code.put('default: ') # more arguments than allowed
@@ -3817,6 +3819,8 @@ class DefNodeWrapper(FuncDefNode):
                             self.name, pystring_cname))
                         code.putln(code.error_goto(self.pos))
                         code.putln('}')
+                if max_positional_args > 0 and i < last_required_arg:
+                    code.putln('CYTHON_FALLTHROUGH')
             if max_positional_args > 0:
                 code.putln('}')
 

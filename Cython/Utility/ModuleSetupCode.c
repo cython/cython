@@ -356,6 +356,14 @@
   #define __Pyx_PyMethod_New(func, self, klass) PyMethod_New(func, self, klass)
 #endif
 
+#ifndef __has_attribute
+  #define __has_attribute(x) 0
+#endif
+
+#ifndef __has_cpp_attribute
+  #define __has_cpp_attribute(x) 0
+#endif
+
 // backport of PyAsyncMethods from Py3.5 to older Py3.x versions
 // (mis-)using the "tp_reserved" type slot which is re-activated as "tp_as_async" in Py3.5
 #if CYTHON_USE_ASYNC_SLOTS
@@ -432,6 +440,19 @@
     #endif
 #else
    #include <stdint.h>
+#endif
+
+
+#ifndef CYTHON_FALLTHROUGH
+  #if __has_cpp_attribute(fallthrough)
+    #define CYTHON_FALLTHROUGH [[fallthrough]]
+  #elif __has_cpp_attribute(clang::fallthrough)
+    #define CYTHON_FALLTHROUGH [[clang::fallthrough]]
+  #elif __has_attribute(fallthrough) || (defined(__GNUC__) && defined(__attribute__))
+    #define CYTHON_FALLTHROUGH __attribute__((fallthrough))
+  #else
+    #define CYTHON_FALLTHROUGH
+  #endif
 #endif
 
 /////////////// CInitCode ///////////////
