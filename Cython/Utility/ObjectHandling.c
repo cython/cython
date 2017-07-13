@@ -1189,8 +1189,12 @@ static PyObject* __Pyx__CallUnboundCMethod1(__Pyx_CachedCFunction* cfunc, PyObje
 #define __Pyx_CallUnboundCMethod1(cfunc, self, arg)  \
     ((likely((cfunc)->func && (cfunc)->flag == METH_O)) ? (*((cfunc)->func))(self, arg) : \
         ((PY_VERSION_HEX >= 0x030600B1 && (cfunc)->func && (cfunc)->flag == METH_FASTCALL) ? \
-            (*(__Pyx_PyCFunctionFast)(cfunc)->func)(self, &arg, 1, NULL) : \
-        __Pyx__CallUnboundCMethod1(cfunc, self, arg)))
+                (PY_VERSION_HEX >= 0x030700A0 ? \
+                    (*(__Pyx_PyCFunctionFast)(cfunc)->func)(self, &arg, 1) : \
+                    (*(__Pyx_PyCFunctionFastWithKeywords)(cfunc)->func)(self, &arg, 1, NULL)) : \
+              (PY_VERSION_HEX >= 0x030700A0 && (cfunc)->func && (cfunc)->flag == (METH_FASTCALL | METH_KEYWORDS) ? \
+                    (*(__Pyx_PyCFunctionFastWithKeywords)(cfunc)->func)(self, &arg, 1, NULL) : \
+        __Pyx__CallUnboundCMethod1(cfunc, self, arg))))
 #else
 #define __Pyx_CallUnboundCMethod1(cfunc, self, arg)  __Pyx__CallUnboundCMethod1(cfunc, self, arg)
 #endif
