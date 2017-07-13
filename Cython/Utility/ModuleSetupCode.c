@@ -197,7 +197,7 @@
 #endif
 
 #if PY_VERSION_HEX < 0x030700A0 || !defined(METH_FASTCALL)
-  // new in CPython 3.6, but changed in 3.7
+  // new in CPython 3.6, but changed in 3.7 - see https://bugs.python.org/issue29464
   #ifndef METH_FASTCALL
      #define METH_FASTCALL 0x80
   #endif
