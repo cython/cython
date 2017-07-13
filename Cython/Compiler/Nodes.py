@@ -1841,8 +1841,8 @@ class FuncDefNode(StatNode, BlockNode):
             # Scope unconditionally DECREFed on return.
             code.putln("%s = %s;" % (
                 Naming.cur_scope_cname,
-                lenv.scope_class.type.cast_code("Py_None")));
-            code.put_incref("Py_None", py_object_type);
+                lenv.scope_class.type.cast_code("Py_None")))
+            code.put_incref("Py_None", py_object_type)
             code.putln(code.error_goto(self.pos))
             code.putln("} else {")
             code.put_gotref(Naming.cur_scope_cname)
