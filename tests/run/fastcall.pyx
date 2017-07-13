@@ -1,6 +1,7 @@
 # mode: run
 # tag: METH_FASTCALL
 
+import sys
 import struct
 from collections import deque
 
@@ -12,7 +13,12 @@ def deque_methods(v):
     """
     d = deque([1, 3, 4])
     assert list(d) == [1,3,4]
-    d.insert(1, v)
+    if sys.version_info >= (3, 5):
+        d.insert(1, v)
+    else:
+        d.rotate(-1)
+        d.appendleft(2)
+        d.rotate(1)
     assert list(d) == [1,2,3,4]
     d.rotate(len(d) // 2)
     assert list(d) == [3,4,1,2]
