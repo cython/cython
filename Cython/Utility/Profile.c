@@ -161,7 +161,7 @@
   #define __Pyx_TraceDeclarations
   #define __Pyx_TraceFrameInit(codeobj)
   // mark error label as used to avoid compiler warnings
-  #define __Pyx_TraceCall(funcname, srcfile, firstlineno, nogil, goto_error)   if (1); else goto_error;
+  #define __Pyx_TraceCall(funcname, srcfile, firstlineno, nogil, goto_error)   if ((1)); else goto_error;
   #define __Pyx_TraceException()
   #define __Pyx_TraceReturn(result, nogil)
 
@@ -224,7 +224,7 @@
   #endif
 #else
   // mark error label as used to avoid compiler warnings
-  #define __Pyx_TraceLine(lineno, nogil, goto_error)   if (1); else goto_error;
+  #define __Pyx_TraceLine(lineno, nogil, goto_error)   if ((1)); else goto_error;
 #endif
 
 /////////////// Profile ///////////////
