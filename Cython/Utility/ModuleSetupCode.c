@@ -196,17 +196,22 @@
   #define Py_TPFLAGS_HAVE_FINALIZE 0
 #endif
 
-#ifndef METH_FASTCALL
-  // new in CPython 3.6
-  #define METH_FASTCALL 0x80
-  typedef PyObject *(*__Pyx_PyCFunctionFast) (PyObject *self, PyObject **args,
-                                              Py_ssize_t nargs, PyObject *kwnames);
+#if PY_VERSION_HEX < 0x030700A0 || !defined(METH_FASTCALL)
+  // new in CPython 3.6, but changed in 3.7
+  #ifndef METH_FASTCALL
+     #define METH_FASTCALL 0x80
+  #endif
+  typedef PyObject *(*__Pyx_PyCFunctionFast) (PyObject *self, PyObject **args, Py_ssize_t nargs);
+  // new in CPython 3.7, used to be old signature of _PyCFunctionFast() in 3.6
+  typedef PyObject *(*__Pyx_PyCFunctionFastWithKeywords) (PyObject *self, PyObject **args,
+                                                          Py_ssize_t nargs, PyObject *kwnames);
 #else
   #define __Pyx_PyCFunctionFast _PyCFunctionFast
+  #define __Pyx_PyCFunctionFastWithKeywords _PyCFunctionFastWithKeywords
 #endif
 #if CYTHON_FAST_PYCCALL
 #define __Pyx_PyFastCFunction_Check(func) \
-    ((PyCFunction_Check(func) && (METH_FASTCALL == (PyCFunction_GET_FLAGS(func) & ~(METH_CLASS | METH_STATIC | METH_COEXIST)))))
+    ((PyCFunction_Check(func) && (METH_FASTCALL == (PyCFunction_GET_FLAGS(func) & ~(METH_CLASS | METH_STATIC | METH_COEXIST | METH_KEYWORDS)))))
 #else
 #define __Pyx_PyFastCFunction_Check(func) 0
 #endif
