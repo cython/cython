@@ -37,6 +37,11 @@ Bugs fixed
 * File paths of code objects are now relative.
   Original patch by Jelmer Vernooij (Github issue #1565).
 
+Other changes
+-------------
+
+* Do not use special dll linkage for "cdef public" functions.
+
 
 0.25.2 (2016-12-08)
 ===================
