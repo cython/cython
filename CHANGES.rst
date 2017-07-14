@@ -74,6 +74,8 @@ Other changes
 * Access to Python attributes of cimported modules without the corresponding
   import is now a compile-time (rather than runtime) error.
 
+* Do not use special dll linkage for "cdef public" functions.
+
 
 0.25.2 (2016-12-08)
 ===================
