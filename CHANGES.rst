@@ -9,6 +9,16 @@ latest
 Features added
 --------------
 
+Bugs fixed
+----------
+
+
+0.26 (2017-07-xx)
+=================
+
+Features added
+--------------
+
 * Pythran can be used as a backend for evaluating NumPy array expressions.
   Patch by Adrien Guinet (Github issue #1607).
 
@@ -63,6 +73,8 @@ Bugs fixed
 * Decorators of cdef class methods could be executed twice.
   Patch by jdemeyer (Github issue #1724).
 
+* Several warnings in the generated coder are now suppressed.
+
 Other changes
 -------------
 
@@ -73,6 +85,11 @@ Other changes
 
 * Access to Python attributes of cimported modules without the corresponding
   import is now a compile-time (rather than runtime) error.
+
+* Do not use special dll linkage for "cdef public" functions.
+
+* cdef/cpdef methods must match their declarations.  See Github Issue #1732.
+  This is now a warning and will be an error in future releases.
 
 
 0.25.2 (2016-12-08)
