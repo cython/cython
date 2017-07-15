@@ -949,6 +949,10 @@ static void __Pyx_FastGilFuncInit(void);
 // To make optimal use of this thread local, we attempt to share it between
 // modules.
 
+#define __Pyx_FastGIL_ABI_module "_cython_" CYTHON_ABI
+#define __Pyx_FastGIL_PyCapsuleName "FastGilFuncs"
+#define __Pyx_FastGIL_PyCapsule \
+    __Pyx_FastGIL_ABI_module "." __Pyx_FastGIL_PyCapsuleName
 
 #if PY_VERSION_HEX >= 0x03050000
   #define __Pyx_PyThreadState_Current _PyThreadState_UncheckedGet()
@@ -1029,12 +1033,18 @@ static void __Pyx_FastGilFuncInit0(void) {
     }
   }
   if (__Pyx_FastGil_autoTLSkey != -1) {
+    PyObject* capsule = NULL;
+    PyObject* abi_module = NULL;
     __Pyx_PyGILState_Ensure = __Pyx_FastGil_PyGILState_Ensure;
     __Pyx_PyGILState_Release = __Pyx_FastGil_PyGILState_Release;
     __Pyx_FastGIL_Remember = __Pyx_FastGIL_Remember0;
     __Pyx_FastGIL_Forget = __Pyx_FastGIL_Forget0;
-    // Already fetched earlier, now we're just posting.
-    __Pyx_FetchCommonPointer(&__Pyx_FastGilFuncs, "FastGilFuncs");
+    capsule = PyCapsule_New(&__Pyx_FastGilFuncs, __Pyx_FastGIL_PyCapsule, NULL);
+    abi_module = PyImport_AddModule(__Pyx_FastGIL_ABI_module);
+    if (capsule && abi_module) {
+      PyObject_SetAttrString(abi_module, __Pyx_FastGIL_PyCapsuleName, capsule);
+    }
+    Py_XDECREF(capsule);
   }
 }
 
@@ -1048,7 +1058,7 @@ static void __Pyx_FastGilFuncInit0(void) {
 
 static void __Pyx_FastGilFuncInit(void) {
 #if PY_VERSION_HEX >= 0x02070000
-  struct __Pyx_FastGilVtab* shared = (struct __Pyx_FastGilVtab*)PyCapsule_Import("_cython_" CYTHON_ABI ".FastGilFuncs", 1);
+  struct __Pyx_FastGilVtab* shared = (struct __Pyx_FastGilVtab*)PyCapsule_Import(__Pyx_FastGIL_PyCapsule, 1);
 #else
   struct __Pyx_FastGilVtab* shared = NULL;
 #endif
