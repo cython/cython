@@ -229,7 +229,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *ke
     PyObject* value;
 #if PY_VERSION_HEX >= 0x030400A0
     // we keep the method call at the end to avoid "unused" C compiler warnings
-    if (1) {
+    if ((1)) {
         value = PyDict_SetDefault(d, key, default_value);
         if (unlikely(!value)) return NULL;
         Py_INCREF(value);
