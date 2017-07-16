@@ -198,7 +198,7 @@
               PyThreadState *tstate;                                                       \
               PyGILState_STATE state = PyGILState_Ensure();                                \
               tstate = PyThreadState_GET();                                                \
-              if (unlikely(tstate->use_tracing && tstate->c_tracefunc)) {                  \
+              if (unlikely(tstate->use_tracing && __pyx_frame->f_trace != Py_None)) {      \
                   ret = __Pyx_call_line_trace_func(tstate, $frame_cname, lineno);          \
               }                                                                            \
               PyGILState_Release(state);                                                   \
@@ -206,7 +206,7 @@
           }                                                                                \
       } else {                                                                             \
           PyThreadState* tstate = PyThreadState_GET();                                     \
-          if (unlikely(tstate->use_tracing && tstate->c_tracefunc)) {                      \
+          if (unlikely(tstate->use_tracing && __pyx_frame->f_trace != Py_None)) {          \
               int ret = __Pyx_call_line_trace_func(tstate, $frame_cname, lineno);          \
               if (unlikely(ret)) goto_error;                                               \
           }                                                                                \
@@ -216,7 +216,7 @@
   #define __Pyx_TraceLine(lineno, nogil, goto_error)                                       \
   if (likely(!__Pyx_use_tracing)); else {                                                  \
       PyThreadState* tstate = PyThreadState_GET();                                         \
-      if (unlikely(tstate->use_tracing && tstate->c_tracefunc)) {                          \
+      if (unlikely(tstate->use_tracing && __pyx_frame->f_trace != Py_None)) {              \
           int ret = __Pyx_call_line_trace_func(tstate, $frame_cname, lineno);              \
           if (unlikely(ret)) goto_error;                                                   \
       }                                                                                    \
