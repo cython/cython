@@ -2214,7 +2214,7 @@ class CCodeWriter(object):
     def put_finish_refcount_context(self):
         self.putln("__Pyx_RefNannyFinishContext();")
 
-    def put_add_traceback(self, qualified_name):
+    def put_add_traceback(self, qualified_name, include_cline=True):
         """
         Build a Python traceback for propagating exceptions.
 
@@ -2222,7 +2222,7 @@ class CCodeWriter(object):
         """
         format_tuple = (
             qualified_name,
-            Naming.clineno_cname,
+            Naming.clineno_cname if include_cline else 0,
             Naming.lineno_cname,
             Naming.filename_cname,
         )

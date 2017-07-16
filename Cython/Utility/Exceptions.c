@@ -536,6 +536,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
 
 /////////////// AddTraceback ///////////////
 //@requires: ModuleSetupCode.c::CodeObjectCache
+//@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@substitute: naming
 
 #include "compile.h"
@@ -603,21 +604,12 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
     PyObject *use_cline = 0;
     PyObject *ptype, *pvalue, *ptraceback;
 
-    static PyObject* cline_in_traceback = NULL;
-    if (cline_in_traceback == NULL) {
-      #if PY_MAJOR_VERSION < 3
-      cline_in_traceback = PyString_FromString("cline_in_traceback");
-      #else
-      cline_in_traceback = PyUnicode_FromString("cline_in_traceback");
-      #endif
-    }
-
     if (c_line) {
       PyErr_Fetch(&ptype, &pvalue, &ptraceback);
-      use_cline = PyObject_GetAttr(${cython_runtime_cname}, cline_in_traceback);
+      use_cline = __Pyx_PyObject_GetAttrStr(${cython_runtime_cname}, PYIDENT("cline_in_traceback"));
       if (use_cline == NULL) {
         c_line = 0;
-        PyObject_SetAttr(${cython_runtime_cname}, cline_in_traceback, Py_False);
+        PyObject_SetAttr(${cython_runtime_cname}, PYIDENT("cline_in_traceback"), Py_False);
       }
       else if (PyObject_Not(use_cline) != 0) {
         c_line = 0;
