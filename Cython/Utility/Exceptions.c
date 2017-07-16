@@ -605,7 +605,11 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
 
     static PyObject* cline_in_traceback = NULL;
     if (cline_in_traceback == NULL) {
-      cline_in_traceback = PyString_InternFromString("cline_in_traceback");
+      #if PY_MAJOR_VERSION < 3
+      cline_in_traceback = PyString_FromString("cline_in_traceback");
+      #else
+      cline_in_traceback = PyUnicode_FromString("cline_in_traceback");
+      #endif
     }
 
     if (c_line) {
