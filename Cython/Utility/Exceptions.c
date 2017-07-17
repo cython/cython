@@ -538,6 +538,9 @@ static int __Pyx_CLineForTraceback(int c_line);
 //@substitute: naming
 
 static int __Pyx_CLineForTraceback(int c_line) {
+#ifdef CYTHON_CLINE_IN_TRACEBACK  /* 0 or 1 to disable/enable C line display in tracebacks at C compile time */
+    return ((CYTHON_CLINE_IN_TRACEBACK)) ? c_line : 0;
+#else
     PyObject *ptype, *pvalue, *ptraceback;
     PyObject *use_cline;
 
@@ -553,6 +556,7 @@ static int __Pyx_CLineForTraceback(int c_line) {
     Py_XDECREF(use_cline);
     PyErr_Restore(ptype, pvalue, ptraceback);
     return c_line;
+#endif
 }
 
 /////////////// AddTraceback.proto ///////////////
