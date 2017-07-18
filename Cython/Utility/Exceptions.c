@@ -529,6 +529,36 @@ static void __Pyx_WriteUnraisable(const char *name, CYTHON_UNUSED int clineno,
 #endif
 }
 
+/////////////// CLineInTraceback.proto ///////////////
+
+static int __Pyx_CLineForTraceback(int c_line);
+
+/////////////// CLineInTraceback ///////////////
+//@requires: ObjectHandling.c::PyObjectGetAttrStr
+//@substitute: naming
+
+static int __Pyx_CLineForTraceback(int c_line) {
+#ifdef CYTHON_CLINE_IN_TRACEBACK  /* 0 or 1 to disable/enable C line display in tracebacks at C compile time */
+    return ((CYTHON_CLINE_IN_TRACEBACK)) ? c_line : 0;
+#else
+    PyObject *ptype, *pvalue, *ptraceback;
+    PyObject *use_cline;
+
+    PyErr_Fetch(&ptype, &pvalue, &ptraceback);
+    use_cline = __Pyx_PyObject_GetAttrStr(${cython_runtime_cname}, PYIDENT("cline_in_traceback"));
+    if (!use_cline) {
+        c_line = 0;
+        PyObject_SetAttr(${cython_runtime_cname}, PYIDENT("cline_in_traceback"), Py_False);
+    }
+    else if (PyObject_Not(use_cline) != 0) {
+        c_line = 0;
+    }
+    Py_XDECREF(use_cline);
+    PyErr_Restore(ptype, pvalue, ptraceback);
+    return c_line;
+#endif
+}
+
 /////////////// AddTraceback.proto ///////////////
 
 static void __Pyx_AddTraceback(const char *funcname, int c_line,
@@ -536,6 +566,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
 
 /////////////// AddTraceback ///////////////
 //@requires: ModuleSetupCode.c::CodeObjectCache
+//@requires: CLineInTraceback
 //@substitute: naming
 
 #include "compile.h"
@@ -600,29 +631,9 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
                                int py_line, const char *filename) {
     PyCodeObject *py_code = 0;
     PyFrameObject *py_frame = 0;
-    PyObject *use_cline = 0;
-    PyObject *ptype, *pvalue, *ptraceback;
-
-    static PyObject* cline_in_traceback = NULL;
-    if (cline_in_traceback == NULL) {
-      #if PY_MAJOR_VERSION < 3
-      cline_in_traceback = PyString_FromString("cline_in_traceback");
-      #else
-      cline_in_traceback = PyUnicode_FromString("cline_in_traceback");
-      #endif
-    }
 
     if (c_line) {
-      PyErr_Fetch(&ptype, &pvalue, &ptraceback);
-      use_cline = PyObject_GetAttr(${cython_runtime_cname}, cline_in_traceback);
-      if (use_cline == NULL) {
-        c_line = 0;
-        PyObject_SetAttr(${cython_runtime_cname}, cline_in_traceback, Py_False);
-      }
-      else if (PyObject_Not(use_cline) != 0) {
-        c_line = 0;
-      }
-      PyErr_Restore(ptype, pvalue, ptraceback);
+        c_line = __Pyx_CLineForTraceback(c_line);
     }
 
     // Negate to avoid collisions between py and c lines.
@@ -645,5 +656,4 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
 bad:
     Py_XDECREF(py_code);
     Py_XDECREF(py_frame);
-    Py_XDECREF(use_cline);
 }
