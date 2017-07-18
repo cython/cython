@@ -1672,7 +1672,7 @@ class ImagNode(AtomicExprNode):
         node = ImagNode(self.pos, value=self.value)
         if dst_type.is_pyobject:
             node.is_temp = 1
-            node.type = PyrexTypes.py_object_type
+            node.type = Builtin.complex_type
         # We still need to perform normal coerce_to processing on the
         # result, because we might be coercing to an extension type,
         # in which case a type test node will be needed.
@@ -11866,22 +11866,22 @@ class CmpNode(object):
         new_common_type = None
 
         # catch general errors
-        if type1 == str_type and (type2.is_string or type2 in (bytes_type, unicode_type)) or \
-               type2 == str_type and (type1.is_string or type1 in (bytes_type, unicode_type)):
+        if (type1 == str_type and (type2.is_string or type2 in (bytes_type, unicode_type)) or
+                type2 == str_type and (type1.is_string or type1 in (bytes_type, unicode_type))):
             error(self.pos, "Comparisons between bytes/unicode and str are not portable to Python 3")
             new_common_type = error_type
 
         # try to use numeric comparisons where possible
         elif type1.is_complex or type2.is_complex:
-            if op not in ('==', '!=') \
-               and (type1.is_complex or type1.is_numeric) \
-               and (type2.is_complex or type2.is_numeric):
+            if (op not in ('==', '!=')
+                    and (type1.is_complex or type1.is_numeric)
+                    and (type2.is_complex or type2.is_numeric)):
                 error(self.pos, "complex types are unordered")
                 new_common_type = error_type
             elif type1.is_pyobject:
-                new_common_type = type1
+                new_common_type = Builtin.complex_type if type1.subtype_of(Builtin.complex_type) else py_object_type
             elif type2.is_pyobject:
-                new_common_type = type2
+                new_common_type = Builtin.complex_type if type2.subtype_of(Builtin.complex_type) else py_object_type
             else:
                 new_common_type = PyrexTypes.widest_numeric_type(type1, type2)
         elif type1.is_numeric and type2.is_numeric:
