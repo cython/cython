@@ -541,11 +541,25 @@ static int __Pyx_CLineForTraceback(int c_line) {
 #ifdef CYTHON_CLINE_IN_TRACEBACK  /* 0 or 1 to disable/enable C line display in tracebacks at C compile time */
     return ((CYTHON_CLINE_IN_TRACEBACK)) ? c_line : 0;
 #else
-    PyObject *ptype, *pvalue, *ptraceback;
+    PyObject **cython_runtime_dict;
     PyObject *use_cline;
 
-    PyErr_Fetch(&ptype, &pvalue, &ptraceback);
-    use_cline = __Pyx_PyObject_GetAttrStr(${cython_runtime_cname}, PYIDENT("cline_in_traceback"));
+    cython_runtime_dict = _PyObject_GetDictPtr(${cython_runtime_cname});
+    if (unlikely(!cython_runtime_dict)) {
+      PyObject *ptype, *pvalue, *ptraceback;
+      PyObject *use_cline_obj;
+      PyErr_Fetch(&ptype, &pvalue, &ptraceback);
+      use_cline_obj = __Pyx_PyObject_GetAttrStr(${cython_runtime_cname}, PYIDENT("cline_in_traceback"));
+      if (use_cline_obj) {
+        use_cline = PyObject_Not(use_cline_obj) ? Py_False : Py_True;
+        Py_DECREF(use_cline_obj);
+      } else {
+        use_cline = NULL;
+      }
+      PyErr_Restore(ptype, pvalue, ptraceback);
+    } else {
+      use_cline = PyDict_GetItem(*_PyObject_GetDictPtr(${cython_runtime_cname}), PYIDENT("cline_in_traceback"));
+    }
     if (!use_cline) {
         c_line = 0;
         PyObject_SetAttr(${cython_runtime_cname}, PYIDENT("cline_in_traceback"), Py_False);
@@ -553,8 +567,6 @@ static int __Pyx_CLineForTraceback(int c_line) {
     else if (PyObject_Not(use_cline) != 0) {
         c_line = 0;
     }
-    Py_XDECREF(use_cline);
-    PyErr_Restore(ptype, pvalue, ptraceback);
     return c_line;
 #endif
 }
