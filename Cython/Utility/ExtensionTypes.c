@@ -60,6 +60,26 @@ static int __Pyx_setup_reduce(PyObject* type_obj);
 
 #define __Pyx_setup_reduce_GET_ATTR_OR_BAD(res, obj, name) res = PyObject_GetAttrString(obj, name); if (res == NULL) goto BAD;
 
+static int __Pyx_setup_reduce_is_named(PyObject* meth, PyObject* name) {
+  int ret;
+  PyObject *name_attr;
+
+  name_attr = PyObject_GetAttrString(meth, "__name__");
+  if (name_attr) {
+      ret = PyObject_RichCompareBool(name_attr, name, Py_EQ);
+  } else {
+      ret = -1;
+  }
+
+  if (ret < 0) {
+      PyErr_Clear();
+      ret = 0;
+  }
+
+  Py_XDECREF(name_attr);
+  return ret;
+}
+
 static int __Pyx_setup_reduce(PyObject* type_obj) {
     int ret = 0;
     PyObject* builtin_object = NULL;
@@ -82,18 +102,14 @@ static int __Pyx_setup_reduce(PyObject* type_obj) {
     __Pyx_setup_reduce_GET_ATTR_OR_BAD(reduce_ex, type_obj, "__reduce_ex__");
     if (reduce_ex == object_reduce_ex) {
         __Pyx_setup_reduce_GET_ATTR_OR_BAD(reduce, type_obj, "__reduce__");
-        if (object_reduce == reduce
-            || (strcmp(reduce->ob_type->tp_name, "method_descriptor") == 0
-                && strcmp(((PyMethodDescrObject*)reduce)->d_method->ml_name, "__reduce_cython__") == 0)) {
+        if (object_reduce == reduce || __Pyx_setup_reduce_is_named(reduce, PYIDENT("__reduce_cython__"))) {
             __Pyx_setup_reduce_GET_ATTR_OR_BAD(reduce_cython, type_obj, "__reduce_cython__");
             ret = PyDict_SetItemString(((PyTypeObject*)type_obj)->tp_dict, "__reduce__", reduce_cython); if (ret < 0) goto BAD;
             ret = PyDict_DelItemString(((PyTypeObject*)type_obj)->tp_dict, "__reduce_cython__"); if (ret < 0) goto BAD;
 
             setstate = PyObject_GetAttrString(type_obj, "__setstate__");
             if (!setstate) PyErr_Clear();
-            if (!setstate
-                || (strcmp(setstate->ob_type->tp_name, "method_descriptor") == 0
-                    && strcmp(((PyMethodDescrObject*)setstate)->d_method->ml_name, "__setstate_cython__") == 0)) {
+            if (!setstate || __Pyx_setup_reduce_is_named(setstate, PYIDENT("__setstate_cython__"))) {
             __Pyx_setup_reduce_GET_ATTR_OR_BAD(setstate_cython, type_obj, "__setstate_cython__");
                 ret = PyDict_SetItemString(((PyTypeObject*)type_obj)->tp_dict, "__setstate__", setstate_cython); if (ret < 0) goto BAD;
                 ret = PyDict_DelItemString(((PyTypeObject*)type_obj)->tp_dict, "__setstate_cython__"); if (ret < 0) goto BAD;
