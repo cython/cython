@@ -1649,15 +1649,15 @@ class IdentifierStringNode(StringNode):
 class ImagNode(AtomicExprNode):
     #  Imaginary number literal
     #
-    #  value   float    imaginary part
+    #  value   string    imaginary part (float value)
 
     type = PyrexTypes.c_double_complex_type
 
     def calculate_constant_result(self):
-        self.constant_result = complex(0.0, self.value)
+        self.constant_result = complex(0.0, float(self.value))
 
     def compile_time_value(self, denv):
-        return complex(0.0, self.value)
+        return complex(0.0, float(self.value))
 
     def analyse_types(self, env):
         self.type.create_declaration_utility_code(env)

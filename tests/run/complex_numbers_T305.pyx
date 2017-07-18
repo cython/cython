@@ -4,6 +4,8 @@ from cpython.object cimport Py_EQ, Py_NE
 
 cimport cython
 
+DEF C21 = 2-1j
+
 
 cdef class Complex3j:
     """
@@ -137,15 +139,17 @@ def test_coercion(int a, float b, double c, float complex d, double complex e):
 def test_compare(double complex a, double complex b):
     """
     >>> test_compare(3, 3)
-    (True, False, False, False, False, True)
+    (True, False, False, False, False, True, False)
     >>> test_compare(3j, 3j)
-    (True, False, True, True, True, False)
+    (True, False, True, True, True, False, False)
     >>> test_compare(3j, 4j)
-    (False, True, True, False, True, True)
+    (False, True, True, False, True, True, False)
     >>> test_compare(3, 4)
-    (False, True, False, False, False, True)
+    (False, True, False, False, False, True, False)
+    >>> test_compare(2-1j, 4)
+    (False, True, False, False, False, True, True)
     """
-    return a == b, a != b, a == 3j, 3j == b, a == Complex3j(), Complex3j() != b
+    return a == b, a != b, a == 3j, 3j == b, a == Complex3j(), Complex3j() != b, a == C21
 
 
 def test_compare_coerce(double complex a, int b):
@@ -165,9 +169,10 @@ def test_compare_coerce(double complex a, int b):
 def test_literal():
     """
     >>> test_literal()
-    (5j, (1-2.5j))
+    (5j, (1-2.5j), (2-1j))
     """
-    return 5j, 1-2.5j
+    return 5j, 1-2.5j, C21
+
 
 def test_real_imag(double complex z):
     """

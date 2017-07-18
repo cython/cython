@@ -771,6 +771,15 @@ def wrap_compile_time_constant(pos, value):
         return ExprNodes.IntNode(pos, value=rep, constant_result=value)
     elif isinstance(value, float):
         return ExprNodes.FloatNode(pos, value=rep, constant_result=value)
+    elif isinstance(value, complex):
+        node = ExprNodes.ImagNode(pos, value=repr(value.imag), constant_result=complex(0.0, value.imag))
+        if value.real:
+            # FIXME: should we care about -0.0 ?
+            # probably not worth using the '-' operator for negative imag values
+            node = ExprNodes.binop_node(
+                pos, '+', ExprNodes.FloatNode(pos, value=repr(value.real), constant_result=value.real), node,
+                constant_result=value)
+        return node
     elif isinstance(value, _unicode):
         return ExprNodes.UnicodeNode(pos, value=EncodedString(value))
     elif isinstance(value, _bytes):
