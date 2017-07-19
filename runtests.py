@@ -881,7 +881,13 @@ class CythonCompileTestCase(unittest.TestCase):
                 extra_extension_args = {}
 
             if self.pythran_dir is not None:
-                ext_compile_flags.extend(['-I',self.pythran_dir,'-DENABLE_PYTHON_MODULE','-std=c++11','-D__PYTHRAN__=%d' % sys.version_info.major,'-Wno-cpp'])
+                ext_compile_flags.extend([
+                    '-I', self.pythran_dir,
+                    '-DENABLE_PYTHON_MODULE',
+                    '-std=c++11',
+                    '-D__PYTHRAN__=%d' % sys.version_info.major,
+                    '-Wno-cpp',
+                ])
 
             related_files = self.related_files(test_directory, module)
             self.copy_files(test_directory, workdir, related_files)
