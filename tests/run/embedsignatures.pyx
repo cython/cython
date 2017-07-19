@@ -80,6 +80,9 @@ __doc__ = ur"""
     >>> print (Ext.m.__doc__)
     Ext.m(self, a=u'spam')
 
+    >>> print (Ext.n.__doc__)
+    Ext.n(self, a: int, b: float = 1.0, *args: tuple, **kwargs: dict) -> (None, True)
+
     >>> print (Ext.get_int.__doc__)
     Ext.get_int(self) -> int
 
@@ -185,7 +188,7 @@ __doc__ = ur"""
     f_defexpr4(int x=(Ext.CONST1 + FLAG1) * Ext.CONST2)
 
     >>> print(funcdoc(f_defexpr5))
-    f_defexpr5(int x=4)
+    f_defexpr5(int x=2 + 2)
 
     >>> print(funcdoc(f_charptr_null))
     f_charptr_null(char *s=NULL) -> char *
@@ -257,6 +260,9 @@ cdef class Ext:
         pass
 
     def m(self, a=u'spam'):
+        pass
+
+    def n(self, a: int, b: float = 1.0, *args: tuple, **kwargs: dict) -> (None, True):
         pass
 
     cpdef int get_int(self):
