@@ -45,7 +45,7 @@ Features added
 * The overhead of calling fused types generic functions was reduced.
 
 * "cdef extern" include files are now also searched relative to the current file.
-  Patch by jdemeyer (Github issue #1654).
+  Patch by Jeroen Demeyer (Github issue #1654).
 
 * Optional optimization for re-aquiring the GIL, controlled by the
   `fast_gil` directive.
@@ -71,9 +71,9 @@ Bugs fixed
   Original patch by Jelmer Vernooij (Github issue #1565).
 
 * Decorators of cdef class methods could be executed twice.
-  Patch by jdemeyer (Github issue #1724).
+  Patch by Jeroen Demeyer (Github issue #1724).
 
-* Several warnings in the generated coder are now suppressed.
+* Several warnings in the generated code are now suppressed.
 
 Other changes
 -------------
@@ -87,6 +87,7 @@ Other changes
   import is now a compile-time (rather than runtime) error.
 
 * Do not use special dll linkage for "cdef public" functions.
+  Patch by Jeroen Demeyer (Github issue #1687).
 
 * cdef/cpdef methods must match their declarations.  See Github Issue #1732.
   This is now a warning and will be an error in future releases.
