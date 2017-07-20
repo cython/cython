@@ -528,6 +528,7 @@ class ExpressionWriter(TreeVisitor):
         if result is None:
             result = u""
         self.result = result
+        self.precedence = [0]
 
     def write(self, tree):
         self.visit(tree)
@@ -556,6 +557,9 @@ class ExpressionWriter(TreeVisitor):
     def visit_NoneNode(self, node):
         self.put(u"None")
 
+    def visit_EllipsisNode(self, node):
+        self.put(u"...")
+
     def visit_BoolNode(self, node):
         self.put(str(node.value))
 
@@ -566,25 +570,22 @@ class ExpressionWriter(TreeVisitor):
         self.put(node.value)
         self.put(u"j")
 
-    def visit_BytesNode(self, node):
-        repr_val = repr(node.value)
-        if repr_val[0] == 'b':
-            repr_val = repr_val[1:]
-        self.put(u"b%s" % repr_val)
-
-    def visit_StringNode(self, node):
+    def emit_string(self, node, prefix=u""):
         repr_val = repr(node.value)
         if repr_val[0] in 'ub':
             repr_val = repr_val[1:]
-        self.put(u"%s" % repr_val)
+        self.put(u"%s%s" % (prefix, repr_val))
+
+    def visit_BytesNode(self, node):
+        self.emit_string(node, u"b")
+
+    def visit_StringNode(self, node):
+        self.emit_string(node)
 
     def visit_UnicodeNode(self, node):
-        repr_val = repr(node.value)
-        if repr_val[0] == 'u':
-            repr_val = repr_val[1:]
-        self.put(u"u%s" % repr_val)
+        self.emit_string(node, u"u")
 
-    def emit_sequence(self, node, parens):
+    def emit_sequence(self, node, parens=(u"", u"")):
         open_paren, close_paren = parens
         items = node.subexpr_nodes()
         self.put(open_paren)
@@ -598,7 +599,10 @@ class ExpressionWriter(TreeVisitor):
         self.emit_sequence(node, u"()")
 
     def visit_SetNode(self, node):
-        self.emit_sequence(node, u"{}")
+        if len(node.subexpr_nodes()) > 0:
+            self.emit_sequence(node, u"{}")
+        else:
+            self.put(u"set()")
 
     def visit_DictNode(self, node):
         self.emit_sequence(node, u"{}")
@@ -622,14 +626,12 @@ class ExpressionWriter(TreeVisitor):
         '&': 7,
         '<<': 8, '>>': 8,
         '+': 9, '-': 9,
-        '*': 10, '/': 10, '//': 10, '%': 10,
+        '*': 10, '@': 10, '/': 10, '//': 10, '%': 10,
         # unary: '+': 11, '-': 11, '~': 11
         '**': 12,
     }
 
     def operator_enter(self, new_prec):
-        if not hasattr(self, 'precedence'):
-            self.precedence = [0]
         old_prec = self.precedence[-1]
         if old_prec > new_prec:
             self.put(u"(")
@@ -675,7 +677,10 @@ class ExpressionWriter(TreeVisitor):
     def visit_IndexNode(self, node):
         self.visit(node.base)
         self.put(u"[")
-        self.visit(node.index)
+        if isinstance(node.index, TupleNode):
+            self.emit_sequence(node.index)
+        else:
+            self.visit(node.index)
         self.put(u"]")
 
     def visit_SliceIndexNode(self, node):
@@ -760,20 +765,10 @@ class ExpressionWriter(TreeVisitor):
         self.remove(u", ")
         self.put(")")
 
-    def visit_ComprehensionNode(self, node):
-        tpmap = {'list': u"[]", 'dict': u"{}", 'set': u"{}"}
-        parens = tpmap[node.type.py_type_name()]
+    def emit_comprehension(self, body, target,
+                           sequence, condition,
+                           parens=(u"", u"")):
         open_paren, close_paren = parens
-
-        body = node.loop.body
-        target = node.loop.target
-        sequence = node.loop.iterator.sequence
-        if isinstance(body, ComprehensionAppendNode):
-            condition = None
-        else:
-            condition = body.if_clauses[0].condition
-            body = body.if_clauses[0].body
-
         self.put(open_paren)
         self.visit(body)
         self.put(u" for ")
@@ -792,3 +787,30 @@ class ExpressionWriter(TreeVisitor):
         self.visit(node.key_expr)
         self.put(u": ")
         self.visit(node.value_expr)
+
+    def visit_ComprehensionNode(self, node):
+        tpmap = {'list': u"[]", 'dict': u"{}", 'set': u"{}"}
+        parens = tpmap[node.type.py_type_name()]
+        body = node.loop.body
+        target = node.loop.target
+        sequence = node.loop.iterator.sequence
+        condition = None
+        if hasattr(body, 'if_clauses'):
+            # type(body) is Nodes.IfStatNode
+            condition = body.if_clauses[0].condition
+            body = body.if_clauses[0].body
+        self.emit_comprehension(body, target, sequence, condition, parens)
+
+    def visit_GeneratorExpressionNode(self, node):
+        body = node.loop.body
+        target = node.loop.target
+        sequence = node.loop.iterator.sequence
+        condition = None
+        if hasattr(body, 'if_clauses'):
+            # type(body) is Nodes.IfStatNode
+            condition = body.if_clauses[0].condition
+            body = body.if_clauses[0].body.expr.arg
+        elif hasattr(body, 'expr'):
+            # type(body) is Nodes.ExprStatNode
+            body = body.expr.arg
+        self.emit_comprehension(body, target, sequence, condition, u"()")
