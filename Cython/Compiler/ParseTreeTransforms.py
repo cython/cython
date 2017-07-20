@@ -1673,22 +1673,22 @@ if VALUE is not None:
                     if __pyx_checksum != %(checksum)s:
                         from pickle import PickleError
                         raise PickleError("Incompatible checksums (%%s vs %(checksum)s = (%(members)s))" %% __pyx_checksum)
-                    result = %(class_name)s.__new__(__pyx_type)
+                    __pyx_result = %(class_name)s.__new__(__pyx_type)
                     if __pyx_state is not None:
-                        %(unpickle_func_name)s__set_state(<%(class_name)s> result, __pyx_state)
-                    return result
+                        %(unpickle_func_name)s__set_state(<%(class_name)s> __pyx_result, __pyx_state)
+                    return __pyx_result
 
-                cdef %(unpickle_func_name)s__set_state(%(class_name)s result, tuple __pyx_state):
+                cdef %(unpickle_func_name)s__set_state(%(class_name)s __pyx_result, tuple __pyx_state):
                     %(assignments)s
-                    if hasattr(result, '__dict__'):
-                        result.__dict__.update(__pyx_state[%(num_members)s])
+                    if hasattr(__pyx_result, '__dict__'):
+                        __pyx_result.__dict__.update(__pyx_state[%(num_members)s])
                 """ % {
                     'unpickle_func_name': unpickle_func_name,
                     'checksum': checksum,
                     'members': ', '.join(all_members_names),
                     'class_name': node.class_name,
                     'assignments': '; '.join(
-                        'result.%s = __pyx_state[%s]' % (v, ix)
+                        '__pyx_result.%s = __pyx_state[%s]' % (v, ix)
                         for ix, v in enumerate(all_members_names)),
                     'num_members': len(all_members_names),
                 }, level='module', pipeline=[NormalizeTree(None)]).substitute({})
