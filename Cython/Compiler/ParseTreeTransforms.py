@@ -1680,8 +1680,8 @@ if VALUE is not None:
 
                 cdef %(unpickle_func_name)s__set_state(%(class_name)s __pyx_result, tuple __pyx_state):
                     %(assignments)s
-                    if hasattr(__pyx_result, '__dict__'):
-                        __pyx_result.__dict__.update(__pyx_state[%(num_members)s])
+                    if len(__pyx_state) > %(num_members)d and hasattr(__pyx_result, '__dict__'):
+                        __pyx_result.__dict__.update(__pyx_state[%(num_members)d])
                 """ % {
                     'unpickle_func_name': unpickle_func_name,
                     'checksum': checksum,
