@@ -3,7 +3,7 @@ Cython Changelog
 ================
 
 
-latest
+0.26.1 (2017-??-??)
 ===================
 
 Features added
@@ -11,6 +11,12 @@ Features added
 
 Bugs fixed
 ----------
+
+* Extension types named ``result`` or ``PickleError`` generated invalid unpickling code.
+  Patch by Jason Madden (Github issue #1786).
+
+* Bazel integration failed to compile ``.py`` files.
+  Patch by Guro Bokum (Github issue #1784).
 
 
 0.26 (2017-07-19)
