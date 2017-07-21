@@ -271,3 +271,16 @@ cdef class Wrapper(object):
           return "Wrapper(...)"
       else:
           return "Wrapper(%r)" % self.ref
+
+
+cdef class result:
+    """
+    This used to create a naming conflict.
+    >>> import pickle
+    >>> r = result()
+    >>> r.attr = 5
+    >>> r2 = pickle.loads(pickle.dumps(r))
+    >>> r2.attr
+    5
+    """
+    cdef public attr
