@@ -1671,8 +1671,8 @@ if VALUE is not None:
             unpickle_func = TreeFragment(u"""
                 def %(unpickle_func_name)s(__pyx_type, long __pyx_checksum, __pyx_state):
                     if __pyx_checksum != %(checksum)s:
-                        from pickle import PickleError
-                        raise PickleError("Incompatible checksums (%%s vs %(checksum)s = (%(members)s))" %% __pyx_checksum)
+                        from pickle import PickleError as __pyx_PickleError
+                        raise __pyx_PickleError("Incompatible checksums (%%s vs %(checksum)s = (%(members)s))" %% __pyx_checksum)
                     __pyx_result = %(class_name)s.__new__(__pyx_type)
                     if __pyx_state is not None:
                         %(unpickle_func_name)s__set_state(<%(class_name)s> __pyx_result, __pyx_state)
