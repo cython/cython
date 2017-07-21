@@ -42,11 +42,17 @@ if sys.platform == 'win32':
         from unittest import skip as skip_win32
     except ImportError:
         # poor dev's silent @unittest.skip()
-        def skip_win32(f):
-            return lambda self: None
+        def skip_win32(dummy):
+            def _skip_win32(func):
+                return None
+            return _skip_win32
 else:
-    def skip_win32(f):
-        return f
+    def skip_win32(dummy):
+        def _skip_win32(func):
+            def wrapper(*args, **kwargs):
+                func(*args, **kwargs)
+            return wrapper
+        return _skip_win32
 
 
 class TestIPythonMagic(CythonTest):
@@ -60,7 +66,7 @@ class TestIPythonMagic(CythonTest):
         result = ip.run_cell_magic('cython_inline', '', 'return a+b')
         self.assertEqual(result, 30)
 
-    @skip_win32
+    @skip_win32('Skip on Windows')
     def test_cython_pyximport(self):
         module_name = '_test_cython_pyximport'
         ip.run_cell_magic('cython_pyximport', module_name, code)
@@ -111,7 +117,7 @@ class TestIPythonMagic(CythonTest):
         self.assertEqual(ip.user_ns['g'], 2 // 10)
         self.assertEqual(ip.user_ns['h'], 2 // 10)
 
-    @skip_win32
+    @skip_win32('Skip on Windows')
     def test_extlibs(self):
         code = py3compat.str_to_unicode("""
 from libc.math cimport sin
