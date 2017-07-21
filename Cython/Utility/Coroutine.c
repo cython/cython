@@ -1585,6 +1585,10 @@ static int __Pyx_patch_abc(void); /*proto*/
 //////////////////// PatchGeneratorABC ////////////////////
 //@requires: PatchModuleWithCoroutine
 
+#ifndef CYTHON_REGISTER_ABCS
+#define CYTHON_REGISTER_ABCS 1
+#endif
+
 #if defined(__Pyx_Generator_USED) || defined(__Pyx_Coroutine_USED)
 static PyObject* __Pyx_patch_abc_module(PyObject *module); /*proto*/
 static PyObject* __Pyx_patch_abc_module(PyObject *module) {
@@ -1607,7 +1611,7 @@ if _cython_coroutine_type is not None:
 static int __Pyx_patch_abc(void) {
 #if defined(__Pyx_Generator_USED) || defined(__Pyx_Coroutine_USED)
     static int abc_patched = 0;
-    if (!abc_patched) {
+    if (CYTHON_REGISTER_ABCS && !abc_patched) {
         PyObject *module;
         module = PyImport_ImportModule((PY_VERSION_HEX >= 0x03030000) ? "collections.abc" : "collections");
         if (!module) {
