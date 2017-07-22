@@ -1702,7 +1702,7 @@ if VALUE is not None:
                     state = (%(members)s)
                     _dict = getattr(self, '__dict__', None)
                     if _dict is not None:
-                        state += _dict,
+                        state += (_dict,)
                         use_setstate = True
                     else:
                         use_setstate = %(any_notnone_members)s
