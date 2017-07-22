@@ -2309,14 +2309,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             module_path = self.pos[0].filename
 
         if module_path:
+            code.putln('if (!CYTHON_PEP489_MULTI_PHASE_INIT) {')
             code.putln('if (PyObject_SetAttrString(%s, "__file__", %s) < 0) %s;' % (
                 env.module_cname,
                 code.globalstate.get_py_string_const(
                     EncodedString(decode_filename(module_path))).cname,
                 code.error_goto(self.pos)))
+            code.putln("}")
 
             if env.is_package:
                 # set __path__ to mark the module as package
+                code.putln('if (!CYTHON_PEP489_MULTI_PHASE_INIT) {')
                 temp = code.funcstate.allocate_temp(py_object_type, True)
                 code.putln('%s = Py_BuildValue("[O]", %s); %s' % (
                     temp,
@@ -2330,10 +2333,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         env.module_cname, temp, code.error_goto(self.pos)))
                 code.put_decref_clear(temp, py_object_type)
                 code.funcstate.release_temp(temp)
+                code.putln("}")
 
         elif env.is_package:
             # packages require __path__, so all we can do is try to figure
             # out the module path at runtime by rerunning the import lookup
+            code.putln("if (!CYTHON_PEP489_MULTI_PHASE_INIT) {")
             package_name, _ = self.full_module_name.rsplit('.', 1)
             if '.' in package_name:
                 parent_name = '"%s"' % (package_name.rsplit('.', 1)[0],)
@@ -2347,6 +2352,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     code.globalstate.get_py_string_const(
                         EncodedString(env.module_name)).cname),
                 self.pos))
+            code.putln("}")
 
         # CPython may not have put us into sys.modules yet, but relative imports and reimports require it
         fq_module_name = self.full_module_name
