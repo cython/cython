@@ -579,7 +579,7 @@ PyEval_InitThreads();
 /////////////// ModuleCreationPEP489 ///////////////
 //@substitute: naming
 
-#if CYTHON_PEP489_MULTI_PHASE_INIT
+//#if CYTHON_PEP489_MULTI_PHASE_INIT
 static int __Pyx_copy_spec_to_module(PyObject *spec, PyObject *moddict, const char* from_name, const char* to_name) {
     PyObject *value = PyObject_GetAttrString(spec, from_name);
     int result = 0;
@@ -618,7 +618,7 @@ bad:
     Py_XDECREF(module);
     return NULL;
 }
-#endif
+//#endif
 
 
 /////////////// CodeObjectCache.proto ///////////////
