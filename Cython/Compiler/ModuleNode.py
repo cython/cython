@@ -204,7 +204,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code.putln("#if PY_MAJOR_VERSION < 3")
             h_code.putln("PyMODINIT_FUNC init%s(void);" % env.module_name)
             h_code.putln("#else")
-            h_code.putln("PyMODINIT_FUNC PyInit_%s(void);" % env.module_name)
+            h_code.putln("PyMODINIT_FUNC %s(void);" % self.mod_init_func_cname('PyInit', env))
             h_code.putln("#endif")
             h_code.putln("")
             h_code.putln("#endif /* !%s */" % h_guard)
@@ -2109,7 +2109,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.enter_cfunc_scope(self.scope)
         code.putln("")
         header2 = "PyMODINIT_FUNC init%s(void)" % env.module_name
-        header3 = "PyMODINIT_FUNC PyInit_%s(void)" % env.module_name
+        header3 = "PyMODINIT_FUNC %s(void)" % self.mod_init_func_cname('PyInit', env)
         code.putln("#if PY_MAJOR_VERSION < 3")
         code.putln("%s; /*proto*/" % header2)
         code.putln(header2)
@@ -2129,7 +2129,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("")
         # main module init code lives in Py_mod_exec function, not in PyInit function
         code.putln("static int %s(PyObject *%s)" % (
-            Naming.pymodule_exec_func_cname,
+            self.mod_init_func_cname(Naming.pymodule_exec_func_cname, env),
             Naming.pymodinit_module_arg))
         code.putln("#endif")  # PEP489
 
@@ -2446,6 +2446,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 main_method=Options.embed,
                 wmain_method=wmain))
 
+    def mod_init_func_cname(self, prefix, env):
+        return '%s_%s' % (prefix, env.module_name)
+
     def generate_pymoduledef_struct(self, env, code):
         if env.doc:
             doc = "%s" % code.get_string_const(env.doc)
@@ -2459,14 +2462,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("")
         code.putln("#if PY_MAJOR_VERSION >= 3")
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
+        exec_func_cname = self.mod_init_func_cname(Naming.pymodule_exec_func_cname, env)
         code.putln("static PyObject* %s(PyObject *spec, PyModuleDef *def); /*proto*/" %
                    Naming.pymodule_create_func_cname)
-        code.putln("static int %s(PyObject* module); /*proto*/" %
-                   Naming.pymodule_exec_func_cname)
+        code.putln("static int %s(PyObject* module); /*proto*/" % exec_func_cname)
 
         code.putln("static PyModuleDef_Slot %s[] = {" % Naming.pymoduledef_slots_cname)
         code.putln("{Py_mod_create, %s}," % Naming.pymodule_create_func_cname)
-        code.putln("{Py_mod_exec, %s}," % Naming.pymodule_exec_func_cname)
+        code.putln("{Py_mod_exec, %s}," % exec_func_cname)
         code.putln("{0, NULL}")
         code.putln("};")
         code.putln("#endif")
