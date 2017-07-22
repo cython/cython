@@ -32,6 +32,17 @@ static int __Pyx_main(int argc, wchar_t **argv) {
       %(module_is_main)s = 1;
       #if PY_MAJOR_VERSION < 3
           init%(module_name)s();
+      #elif CYTHON_PEP489_MULTI_PHASE_INIT
+          {
+              PyObject *modname = PyUnicode_FromString("__main__");
+              if (modname) {
+                  // FIXME: not currently calling create() here because we do not have a module spec!
+                  // FIXME: not currently setting __file__, __path__, __spec__, ...
+                  m = PyModule_NewObject(modname);
+                  Py_DECREF(modname);
+                  if (m) __pyx_pymod_exec_%(module_name)s(m);
+              }
+          }
       #else
           m = PyInit_%(module_name)s();
       #endif
