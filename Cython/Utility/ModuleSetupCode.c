@@ -594,7 +594,7 @@ static int __Pyx_copy_spec_to_module(PyObject *spec, PyObject *moddict, const ch
     return result;
 }
 
-static PyObject* ${pymodule_create_func_cname}(PyObject *spec, PyModuleDef *def) {
+static PyObject* ${pymodule_create_func_cname}(PyObject *spec, CYTHON_UNUSED PyModuleDef *def) {
     PyObject *module = NULL, *moddict, *modname;
 
     modname = PyObject_GetAttrString(spec, "name");
