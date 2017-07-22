@@ -2116,8 +2116,28 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#else")
         code.putln("%s; /*proto*/" % header3)
         code.putln(header3)
-        code.putln("#endif")
+
+        # CPython 3.5+ supports multi-phase module initialisation (gives access to __spec__, __file__, etc.)
+        code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         code.putln("{")
+        code.putln("return PyModuleDef_Init(&%s);" % Naming.pymoduledef_cname)
+        code.putln("}")
+
+        mod_create_func = UtilityCode.load_cached("ModuleCreationPEP489", "ModuleSetupCode.c")
+        code.put(mod_create_func.impl.strip())
+
+        code.putln("")
+        # main module init code lives in Py_mod_exec function, not in PyInit function
+        code.putln("static int %s(PyObject *%s)" % (
+            Naming.pymodule_exec_func_cname,
+            Naming.pymodinit_module_arg))
+        code.putln("#endif")  # PEP489
+
+        code.putln("#endif")  # Py3
+
+        # start of module init/exec function (pre/post PEP 489)
+        code.putln("{")
+
         tempdecl_code = code.insertion_point()
 
         profile = code.globalstate.directives['profile']
@@ -2270,10 +2290,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.put_finish_refcount_context()
 
-        code.putln("#if PY_MAJOR_VERSION < 3")
-        code.putln("return;")
-        code.putln("#else")
+        code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
+        code.putln("return (%s != NULL) ? 0 : -1;" % env.module_cname)
+        code.putln("#elif PY_MAJOR_VERSION >= 3")
         code.putln("return %s;" % env.module_cname)
+        code.putln("#else")
+        code.putln("return;")
         code.putln("#endif")
         code.putln('}')
 
@@ -2436,18 +2458,35 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("")
         code.putln("#if PY_MAJOR_VERSION >= 3")
-        code.putln("static struct PyModuleDef %s = {" % Naming.pymoduledef_cname)
-        code.putln("#if PY_VERSION_HEX < 0x03020000")
-        # fix C compiler warnings due to missing initialisers
-        code.putln("  { PyObject_HEAD_INIT(NULL) NULL, 0, NULL },")
-        code.putln("#else")
-        code.putln("  PyModuleDef_HEAD_INIT,")
+        code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
+        code.putln("static PyObject* %s(PyObject *spec, PyModuleDef *def); /*proto*/" %
+                   Naming.pymodule_create_func_cname)
+        code.putln("static int %s(PyObject* module); /*proto*/" %
+                   Naming.pymodule_exec_func_cname)
+
+        code.putln("static PyModuleDef_Slot %s[] = {" % Naming.pymoduledef_slots_cname)
+        code.putln("{Py_mod_create, %s}," % Naming.pymodule_create_func_cname)
+        code.putln("{Py_mod_exec, %s}," % Naming.pymodule_exec_func_cname)
+        code.putln("{0, NULL}")
+        code.putln("};")
         code.putln("#endif")
+
+        code.putln("")
+        code.putln("static struct PyModuleDef %s = {" % Naming.pymoduledef_cname)
+        code.putln("  PyModuleDef_HEAD_INIT,")
         code.putln('  "%s",' % env.module_name)
         code.putln("  %s, /* m_doc */" % doc)
+        code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
+        code.putln("  0, /* m_size */")
+        code.putln("#else")
         code.putln("  -1, /* m_size */")
+        code.putln("#endif")
         code.putln("  %s /* m_methods */," % env.method_table_cname)
+        code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
+        code.putln("  %s, /* m_slots */" % Naming.pymoduledef_slots_cname)
+        code.putln("#else")
         code.putln("  NULL, /* m_reload */")
+        code.putln("#endif")
         code.putln("  NULL, /* m_traverse */")
         code.putln("  NULL, /* m_clear */")
         code.putln("  %s /* m_free */" % cleanup_func)
@@ -2461,6 +2500,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             doc = "%s" % code.get_string_const(env.doc)
         else:
             doc = "0"
+
+        code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
+        code.putln("%s = %s;" % (
+            env.module_cname,
+            Naming.pymodinit_module_arg))
+        code.put_incref(env.module_cname, py_object_type, nanny=False)
+        code.putln("#else")
         code.putln("#if PY_MAJOR_VERSION < 3")
         code.putln(
             '%s = Py_InitModule4("%s", %s, %s, 0, PYTHON_API_VERSION); Py_XINCREF(%s);' % (
@@ -2476,6 +2522,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 Naming.pymoduledef_cname))
         code.putln("#endif")
         code.putln(code.error_goto_if_null(env.module_cname, self.pos))
+        code.putln("#endif")  # CYTHON_PEP489_MULTI_PHASE_INIT
+
         code.putln(
             "%s = PyModule_GetDict(%s); %s" % (
                 env.module_dict_cname, env.module_cname,

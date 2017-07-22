@@ -69,6 +69,8 @@
   #define CYTHON_FAST_THREAD_STATE 0
   #undef CYTHON_FAST_PYCALL
   #define CYTHON_FAST_PYCALL 0
+  #undef CYTHON_PEP489_MULTI_PHASE_INIT
+  #define CYTHON_PEP489_MULTI_PHASE_INIT 0
 
 #elif defined(PYSTON_VERSION)
   #define CYTHON_COMPILING_IN_PYPY 0
@@ -102,6 +104,8 @@
   #define CYTHON_FAST_THREAD_STATE 0
   #undef CYTHON_FAST_PYCALL
   #define CYTHON_FAST_PYCALL 0
+  #undef CYTHON_PEP489_MULTI_PHASE_INIT
+  #define CYTHON_PEP489_MULTI_PHASE_INIT 0
 
 #else
   #define CYTHON_COMPILING_IN_PYPY 0
@@ -149,6 +153,9 @@
   #endif
   #ifndef CYTHON_FAST_PYCALL
     #define CYTHON_FAST_PYCALL 1
+  #endif
+  #ifndef CYTHON_PEP489_MULTI_PHASE_INIT
+    #define CYTHON_PEP489_MULTI_PHASE_INIT (PY_VERSION_HEX >= 0x03050000)
   #endif
 #endif
 
@@ -567,6 +574,52 @@ typedef struct {PyObject **p; const char *s; const Py_ssize_t n; const char* enc
 #ifdef WITH_THREAD
 PyEval_InitThreads();
 #endif
+
+
+/////////////// ModuleCreationPEP489 ///////////////
+//@substitute: naming
+
+#if CYTHON_PEP489_MULTI_PHASE_INIT
+static int __Pyx_copy_spec_to_module(PyObject *spec, PyObject *moddict, const char* from_name, const char* to_name) {
+    PyObject *value = PyObject_GetAttrString(spec, from_name);
+    int result = 0;
+    if (likely(value)) {
+        result = PyDict_SetItemString(moddict, to_name, value);
+        Py_DECREF(value);
+    } else if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
+        PyErr_Clear();
+    } else {
+        result = -1;
+    }
+    return result;
+}
+
+static PyObject* ${pymodule_create_func_cname}(PyObject *spec, PyModuleDef *def) {
+    PyObject *module = NULL, *moddict, *modname;
+
+    modname = PyObject_GetAttrString(spec, "name");
+    if (unlikely(!modname)) goto bad;
+
+    module = PyModule_NewObject(modname);
+    Py_DECREF(modname);
+    if (unlikely(!module)) goto bad;
+
+    moddict = PyModule_GetDict(module);
+    if (unlikely(!moddict)) goto bad;
+    // moddict is a borrowed reference
+
+    if (unlikely(__Pyx_copy_spec_to_module(spec, moddict, "loader", "__loader__") < 0)) goto bad;
+    if (unlikely(__Pyx_copy_spec_to_module(spec, moddict, "origin", "__file__") < 0)) goto bad;
+    if (unlikely(__Pyx_copy_spec_to_module(spec, moddict, "parent", "__package__") < 0)) goto bad;
+    if (unlikely(__Pyx_copy_spec_to_module(spec, moddict, "submodule_search_locations", "__path__") < 0)) goto bad;
+
+    return module;
+bad:
+    Py_XDECREF(module);
+    return NULL;
+}
+#endif
+
 
 /////////////// CodeObjectCache.proto ///////////////
 

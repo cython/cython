@@ -349,6 +349,7 @@ VER_DEP_MODULES = {
     (3,4): (operator.lt, lambda x: x in ['run.py34_signature',
                                          ]),
     (3,5): (operator.lt, lambda x: x in ['run.py35_pep492_interop',
+                                         'run.mod__spec__',
                                          ]),
 }
 
