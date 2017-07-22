@@ -2474,8 +2474,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("static int %s(PyObject* module); /*proto*/" % exec_func_cname)
 
         code.putln("static PyModuleDef_Slot %s[] = {" % Naming.pymoduledef_slots_cname)
-        code.putln("{Py_mod_create, %s}," % Naming.pymodule_create_func_cname)
-        code.putln("{Py_mod_exec, %s}," % exec_func_cname)
+        code.putln("{Py_mod_create, (void*)%s}," % Naming.pymodule_create_func_cname)
+        code.putln("{Py_mod_exec, (void*)%s}," % exec_func_cname)
         code.putln("{0, NULL}")
         code.putln("};")
         code.putln("#endif")
