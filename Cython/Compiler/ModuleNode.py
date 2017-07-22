@@ -2123,8 +2123,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("return PyModuleDef_Init(&%s);" % Naming.pymoduledef_cname)
         code.putln("}")
 
-        mod_create_func = UtilityCode.load_cached("ModuleCreationPEP489", "ModuleSetupCode.c")
-        code.put(mod_create_func.impl.strip())
+        mod_create_func = UtilityCode.load_as_string("ModuleCreationPEP489", "ModuleSetupCode.c")[1]
+        code.put(mod_create_func)
 
         code.putln("")
         # main module init code lives in Py_mod_exec function, not in PyInit function
