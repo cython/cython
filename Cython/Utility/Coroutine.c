@@ -274,7 +274,7 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *obj) {
     }
 #else
     // avoid C warning about 'unused function'
-    if (0) (void) __Pyx_PyObject_CallMethod0(obj, PYIDENT("__aiter__"));
+    if ((0)) (void) __Pyx_PyObject_CallMethod0(obj, PYIDENT("__aiter__"));
 #endif
 
     PyErr_Format(PyExc_TypeError, "'async for' requires an object with __aiter__ method, got %.100s",
@@ -1641,7 +1641,7 @@ static int __Pyx_patch_abc(void) {
     }
 #else
     // avoid "unused" warning for __Pyx_Coroutine_patch_module()
-    if (0) __Pyx_Coroutine_patch_module(NULL, NULL);
+    if ((0)) __Pyx_Coroutine_patch_module(NULL, NULL);
 #endif
     return 0;
 }
@@ -1733,7 +1733,7 @@ asyncio_done:
         }
 #else
         // avoid "unused" warning for __Pyx_patch_inspect()
-        if (0) return __Pyx_patch_inspect(module);
+        if ((0)) return __Pyx_patch_inspect(module);
 #endif
     }
     return module;
@@ -1745,7 +1745,7 @@ ignore:
     }
 #else
     // avoid "unused" warning for __Pyx_Coroutine_patch_module()
-    if (0) return __Pyx_patch_inspect(__Pyx_Coroutine_patch_module(module, NULL));
+    if ((0)) return __Pyx_patch_inspect(__Pyx_Coroutine_patch_module(module, NULL));
 #endif
     return module;
 }
@@ -1780,7 +1780,7 @@ old_types.add(_cython_generator_type)
     }
 #else
     // avoid "unused" warning for __Pyx_Coroutine_patch_module()
-    if (0) return __Pyx_Coroutine_patch_module(module, NULL);
+    if ((0)) return __Pyx_Coroutine_patch_module(module, NULL);
 #endif
     return module;
 }
