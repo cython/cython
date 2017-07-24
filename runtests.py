@@ -114,6 +114,7 @@ def get_distutils_distro(_cache=[]):
 
 EXT_DEP_MODULES = {
     'tag:numpy':    'numpy',
+    'tag:pythran':  'pythran',
     'tag:asyncio':  'asyncio',
     'tag:pstats':   'pstats',
     'tag:posix':    'posix',
@@ -611,10 +612,16 @@ class TestBuilder(object):
             languages = list(languages)
             languages.remove('cpp')
 
+        pythran_dir = self.pythran_dir
+        if 'pythran' in tags['tag'] and not pythran_dir and 'cpp' in languages:
+            import pythran.config
+            pythran_ext = pythran.config.make_extension()
+            pythran_dir = pythran_ext['include_dirs'][0]
+
         preparse_list = tags.get('preparse', ['id'])
         tests = [ self.build_test(test_class, path, workdir, module, tags, language,
                                   expect_errors, expect_warnings, warning_errors, preparse,
-                                  self.pythran_dir if language == "cpp" else None)
+                                  pythran_dir if language == "cpp" else None)
                   for language in languages
                   for preparse in preparse_list ]
         return tests
@@ -885,15 +892,6 @@ class CythonCompileTestCase(unittest.TestCase):
             if extra_extension_args is None:
                 extra_extension_args = {}
 
-            if self.pythran_dir is not None:
-                ext_compile_flags.extend([
-                    '-I', self.pythran_dir,
-                    '-DENABLE_PYTHON_MODULE',
-                    '-std=c++11',
-                    '-D__PYTHRAN__=%d' % sys.version_info.major,
-                    '-Wno-cpp',
-                ])
-
             related_files = self.related_files(test_directory, module)
             self.copy_files(test_directory, workdir, related_files)
 
@@ -915,6 +913,10 @@ class CythonCompileTestCase(unittest.TestCase):
                 pyx_path = os.path.join(self.test_directory, self.module + ".pyx")
                 with open_source_file(pyx_path) as f:
                     DistutilsInfo(f).apply(extension)
+
+            if self.pythran_dir:
+                from Cython.Build.Dependencies import update_pythran_extension
+                update_pythran_extension(extension)
 
             for matcher, fixer in list(EXT_EXTRAS.items()):
                 if isinstance(matcher, str):
@@ -2122,7 +2124,7 @@ def runtests(options, cmd_args, coverage=None):
                                     options.cython_only, languages, test_bugs,
                                     options.fork, sys.version_info[0],
                                     options.test_determinism,
-                                    common_utility_dir, options.pythran_dir)
+                                    common_utility_dir)
             sys.stderr.write("Including CPython regression tests in %s\n" % sys_pyregr_dir)
             test_suite.addTest(filetests.handle_directory(sys_pyregr_dir, 'pyregr'))
 

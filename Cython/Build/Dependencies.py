@@ -195,7 +195,7 @@ distutils_settings = {
 }
 
 
-def _configure_pythran_extension(ext):
+def update_pythran_extension(ext):
     if not PythranAvailable:
         raise RuntimeError("You first need to install Pythran to use the np_pythran directive.")
     pythran_ext = pythran.config.make_extension()
@@ -842,7 +842,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                 m, metadata = create_extension(template, kwds)
                 m.np_pythran = np_pythran or getattr(m, 'np_pythran', False)
                 if m.np_pythran:
-                    _configure_pythran_extension(m)
+                    update_pythran_extension(m)
                 module_list.append(m)
 
                 # Store metadata (this will be written as JSON in the
@@ -894,11 +894,13 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
         if options.get('cache'):
             raise NotImplementedError("common_utility_include_dir does not yet work with caching")
         safe_makedirs(options['common_utility_include_dir'])
+
+    pythran_options = None
     if PythranAvailable:
-        pythran_options = CompilationOptions(**options);
+        pythran_options = CompilationOptions(**options)
         pythran_options.cplus = True
         pythran_options.np_pythran = True
-        pythran_include_dir = os.path.dirname(pythran.__file__)
+
     c_options = CompilationOptions(**options)
     cpp_options = CompilationOptions(**options); cpp_options.cplus = True
     ctx = c_options.create_context()
