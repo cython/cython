@@ -4338,6 +4338,10 @@ def widest_numeric_type(type1, type2):
         type1 = type1.ref_base_type
     if type2.is_reference:
         type2 = type2.ref_base_type
+    if type1.is_const:
+        type1 = type1.const_base_type
+    if type2.is_const:
+        type2 = type2.const_base_type
     if type1 == type2:
         widest_type = type1
     elif type1.is_complex or type2.is_complex:
