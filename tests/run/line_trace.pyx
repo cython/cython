@@ -30,25 +30,62 @@ map_trace_types = {
 }.get
 
 
-cdef int _trace_func(PyObject* _traceobj, PyFrameObject* _frame, int what, PyObject* arg) except -1:
-    frame, traceobj = <object>_frame, <object>_traceobj
-    traceobj.append((map_trace_types(what), frame.f_lineno - frame.f_code.co_firstlineno))
-    return 0
+cdef int trace_trampoline(PyObject* _traceobj, PyFrameObject* _frame, int what, PyObject* _arg) except -1:
+    frame = <object>_frame
+    traceobj = <object>_traceobj if _traceobj else None
+    arg = <object>_arg if _arg else None
 
-
-cdef int _failing_call_trace_func(PyObject* _traceobj, PyFrameObject* _frame, int what, PyObject* arg) except -1:
     if what == PyTrace_CALL:
-        raise ValueError("failing call trace!")
-    return _trace_func(_traceobj, _frame, what, arg)
+        callback = traceobj
+    else:
+        callback = frame.f_trace
+
+    if callback is None:
+        return 0
+
+    result = callback(frame, what, arg)
+
+    frame.f_trace = result
+
+    if result is None:
+        PyEval_SetTrace(NULL, None)
+        return -1
+    else:
+        return 0
 
 
-cdef int _failing_line_trace_func(PyObject* _traceobj, PyFrameObject* _frame, int what, PyObject* arg) except -1:
-    if what == PyTrace_LINE and _traceobj:
-        frame, traceobj = <object>_frame, <object>_traceobj
-        if traceobj and traceobj[0] == frame.f_code.co_name:
-            # first line in the right function => fail!
-            raise ValueError("failing line trace!")
-    return _trace_func(_traceobj, _frame, what, arg)
+def _create_trace_func(trace):
+    def _trace_func(frame, event, arg):
+        trace.append((map_trace_types(event), frame.f_lineno -
+                                      frame.f_code.co_firstlineno))
+
+        return _trace_func
+    return _trace_func
+
+
+def _create_failing_call_trace_func(trace):
+    func = _create_trace_func(trace)
+    def _trace_func(frame, event, arg):
+        if event == PyTrace_CALL:
+            raise ValueError("failing call trace!")
+
+        func(frame, event, arg)
+        return _trace_func
+
+    return _trace_func
+
+
+def _create__failing_line_trace_func(trace):
+    func = _create_trace_func(trace)
+    def _trace_func(frame, event, arg):
+        if event == PyTrace_LINE and trace:
+            if trace and trace[0] == frame.f_code.co_name:
+                # first line in the right function => fail!
+                raise ValueError("failing line trace!")
+
+        func(frame, event, arg)
+        return _trace_func
+    return _trace_func
 
 
 def cy_add(a,b):
@@ -87,7 +124,7 @@ def run_trace(func, *args):
     [('line', 2), ('line', 5), ('return', 5)]
     """
     trace = []
-    PyEval_SetTrace(<Py_tracefunc>_trace_func, trace)
+    PyEval_SetTrace(<Py_tracefunc>trace_trampoline, _create_trace_func(trace))
     try:
         func(*args)
     finally:
@@ -105,7 +142,7 @@ def fail_on_call_trace(func, *args):
     ValueError: failing call trace!
     """
     trace = []
-    PyEval_SetTrace(<Py_tracefunc>_failing_call_trace_func, trace)
+    PyEval_SetTrace(<Py_tracefunc>trace_trampoline, _create_failing_call_trace_func(trace))
     try:
         func(*args)
     finally:
@@ -142,7 +179,7 @@ def fail_on_line_trace(fail_func):
     cdef int x = 1
     trace = ['NO ERROR']
     exception = None
-    PyEval_SetTrace(<Py_tracefunc>_failing_line_trace_func, trace)
+    PyEval_SetTrace(<Py_tracefunc>trace_trampoline, _create__failing_line_trace_func(trace))
     try:
         x += 1
         cy_add(1, 2)
