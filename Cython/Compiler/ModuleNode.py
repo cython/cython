@@ -1334,11 +1334,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         is_final_type = scope.parent_type.is_final_type
         needs_gc = scope.needs_gc()
 
-        weakref_slot = scope.lookup_here("__weakref__")
+        weakref_slot = scope.lookup_here("__weakref__") if not scope.is_closure_class_scope else None
         if weakref_slot not in scope.var_entries:
             weakref_slot = None
 
-        dict_slot = scope.lookup_here("__dict__")
+        dict_slot = scope.lookup_here("__dict__") if not scope.is_closure_class_scope else None
         if dict_slot not in scope.var_entries:
             dict_slot = None
 
@@ -2800,7 +2800,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                             scope.class_name,
                             typeobj_cname,
                             code.error_goto(entry.pos)))
-                weakref_entry = scope.lookup_here("__weakref__")
+                weakref_entry = scope.lookup_here("__weakref__") if not scope.is_closure_class_scope else None
                 if weakref_entry:
                     if weakref_entry.type is py_object_type:
                         tp_weaklistoffset = "%s.tp_weaklistoffset" % typeobj_cname
@@ -2815,7 +2815,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                             weakref_entry.cname))
                     else:
                         error(weakref_entry.pos, "__weakref__ slot must be of type 'object'")
-                if scope.lookup_here("__reduce_cython__"):
+                if scope.lookup_here("__reduce_cython__") if not scope.is_closure_class_scope else None:
                     # Unfortunately, we cannot reliably detect whether a
                     # superclass defined __reduce__ at compile time, so we must
                     # do so at runtime.

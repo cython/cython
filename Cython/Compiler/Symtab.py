@@ -1917,6 +1917,7 @@ class CClassScope(ClassScope):
     #  inherited_var_entries [Entry]  Adapted var entries from base class
 
     is_c_class_scope = 1
+    is_closure_class_scope = False
 
     has_pyobject_attrs = False
     has_memoryview_attrs = False
@@ -1960,7 +1961,7 @@ class CClassScope(ClassScope):
 
         for entry in self.var_entries:
             if entry.type.is_pyobject:
-                if include_weakref or entry.name != "__weakref__":
+                if include_weakref or (self.is_closure_class_scope or entry.name != "__weakref__"):
                     if include_gc_simple or not entry.type.is_gc_simple:
                         py_attrs.append(entry)
             elif entry.type == PyrexTypes.c_py_buffer_type:
@@ -1980,7 +1981,7 @@ class CClassScope(ClassScope):
                 error(pos,
                     "C attributes cannot be added in implementation part of"
                     " extension type defined in a pxd")
-            if get_special_method_signature(name):
+            if not self.is_closure_class_scope and get_special_method_signature(name):
                 error(pos,
                     "The name '%s' is reserved for a special method."
                         % name)
@@ -1998,7 +1999,7 @@ class CClassScope(ClassScope):
                 self.has_memoryview_attrs = True
             elif type.is_cpp_class:
                 self.has_cpp_class_attrs = True
-            elif type.is_pyobject and name != '__weakref__':
+            elif type.is_pyobject and (self.is_closure_class_scope or name != '__weakref__'):
                 self.has_pyobject_attrs = True
                 if (not type.is_builtin_type
                         or not type.scope or type.scope.needs_gc()):
@@ -2011,7 +2012,7 @@ class CClassScope(ClassScope):
                 # so do conversion ourself rather than rely on the CPython mechanism (through
                 # a property; made in AnalyseDeclarationsTransform).
                 entry.needs_property = True
-                if name == "__weakref__":
+                if not self.is_closure_class_scope and name == "__weakref__":
                     error(pos, "Special attribute __weakref__ cannot be exposed to Python")
                 if not (type.is_pyobject or type.can_coerce_to_pyobject(self)):
                     # we're not testing for coercion *from* Python here - that would fail later
@@ -2056,7 +2057,7 @@ class CClassScope(ClassScope):
         return entry
 
     def lookup_here(self, name):
-        if name == "__new__":
+        if not self.is_closure_class_scope and name == "__new__":
             name = EncodedString("__cinit__")
         entry = ClassScope.lookup_here(self, name)
         if entry and entry.is_builtin_cmethod:

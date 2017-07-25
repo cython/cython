@@ -519,7 +519,7 @@ class DictOffsetSlot(SlotDescriptor):
     #  Slot descriptor for a class' dict offset, for dynamic attributes.
 
     def slot_code(self, scope):
-        dict_entry = scope.lookup_here("__dict__")
+        dict_entry = scope.lookup_here("__dict__") if not scope.is_closure_class_scope else None
         if dict_entry and dict_entry.is_variable:
             if getattr(dict_entry.type, 'cname', None) != 'PyDict_Type':
                 error(dict_entry.pos, "__dict__ slot must be of type 'dict'")
