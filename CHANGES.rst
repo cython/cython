@@ -12,6 +12,15 @@ Features added
 Bugs fixed
 ----------
 
+* Arithmetic operations on ``const`` integer variables could generate invalid code.
+  (Github issue #1798).
+
+* Local variables with names of special Python methods failed to compile inside of
+  closures (Github issue #1797).
+
+* Problem with indirect Emacs buffers in cython-mode.
+  Patch by Martin Albrecht (Github issue #1743).
+
 * Extension types named ``result`` or ``PickleError`` generated invalid unpickling code.
   Patch by Jason Madden (Github issue #1786).
 
