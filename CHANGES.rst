@@ -88,6 +88,9 @@ Bugs fixed
 * Decorators of cdef class methods could be executed twice.
   Patch by Jeroen Demeyer (Github issue #1724).
 
+* Dict iteration using the Py2 ``iter*`` methods failed in PyPy3.
+  Patch by Armin Rigo (Github issue #1631).
+
 * Several warnings in the generated code are now suppressed.
 
 Other changes
