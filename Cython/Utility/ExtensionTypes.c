@@ -60,9 +60,6 @@ static int __Pyx_setup_reduce(PyObject* type_obj);
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@substitute: naming
 
-#define __Pyx_setup_reduce_GET_ATTR_OR_BAD(res, obj, name) \
-    res = __Pyx_PyObject_GetAttrStr(obj, name); if (unlikely(!res)) goto BAD;
-
 static int __Pyx_setup_reduce_is_named(PyObject* meth, PyObject* name) {
   int ret;
   PyObject *name_attr;
@@ -98,25 +95,25 @@ static int __Pyx_setup_reduce(PyObject* type_obj) {
 
     if (unlikely(!object_reduce_ex)) {
         Py_CLEAR(object_reduce);
-        __Pyx_setup_reduce_GET_ATTR_OR_BAD(builtin_object, $builtins_cname, PYIDENT("object"));
-        __Pyx_setup_reduce_GET_ATTR_OR_BAD(object_reduce, builtin_object, PYIDENT("__reduce__"));
-        __Pyx_setup_reduce_GET_ATTR_OR_BAD(object_reduce_ex, builtin_object, PYIDENT("__reduce_ex__"));
+        builtin_object   = __Pyx_PyObject_GetAttrStr($builtins_cname, PYIDENT("object")); if (!builtin_object) goto BAD;
+        object_reduce    = __Pyx_PyObject_GetAttrStr(builtin_object, PYIDENT("__reduce__")); if (!object_reduce) goto BAD;
+        object_reduce_ex = __Pyx_PyObject_GetAttrStr(builtin_object, PYIDENT("__reduce_ex__")); if (!object_reduce_ex) goto BAD;
     }
 
-    __Pyx_setup_reduce_GET_ATTR_OR_BAD(reduce_ex, type_obj, PYIDENT("__reduce_ex__"));
+    reduce_ex = __Pyx_PyObject_GetAttrStr(type_obj, PYIDENT("__reduce_ex__")); if (unlikely(!reduce_ex)) goto BAD;
     if (reduce_ex == object_reduce_ex) {
-        __Pyx_setup_reduce_GET_ATTR_OR_BAD(reduce, type_obj, PYIDENT("__reduce__"));
+        reduce = __Pyx_PyObject_GetAttrStr(type_obj, PYIDENT("__reduce__")); if (unlikely(!reduce)) goto BAD;
         if (reduce == object_reduce || __Pyx_setup_reduce_is_named(reduce, PYIDENT("__reduce_cython__"))) {
-            __Pyx_setup_reduce_GET_ATTR_OR_BAD(reduce_cython, type_obj, PYIDENT("__reduce_cython__"));
-            ret = PyDict_SetItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__reduce__"), reduce_cython); if (ret < 0) goto BAD;
-            ret = PyDict_DelItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__reduce_cython__")); if (ret < 0) goto BAD;
+            reduce_cython = __Pyx_PyObject_GetAttrStr(type_obj, PYIDENT("__reduce_cython__")); if (unlikely(!reduce_cython)) goto BAD;
+            ret = PyDict_SetItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__reduce__"), reduce_cython); if (unlikely(ret < 0)) goto BAD;
+            ret = PyDict_DelItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__reduce_cython__")); if (unlikely(ret < 0)) goto BAD;
 
             setstate = __Pyx_PyObject_GetAttrStr(type_obj, PYIDENT("__setstate__"));
             if (!setstate) PyErr_Clear();
             if (!setstate || __Pyx_setup_reduce_is_named(setstate, PYIDENT("__setstate_cython__"))) {
-                __Pyx_setup_reduce_GET_ATTR_OR_BAD(setstate_cython, type_obj, PYIDENT("__setstate_cython__"));
-                ret = PyDict_SetItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__setstate__"), setstate_cython); if (ret < 0) goto BAD;
-                ret = PyDict_DelItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__setstate_cython__")); if (ret < 0) goto BAD;
+                setstate_cython = __Pyx_PyObject_GetAttrStr(type_obj, PYIDENT("__setstate_cython__")); if (unlikely(!setstate_cython)) goto BAD;
+                ret = PyDict_SetItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__setstate__"), setstate_cython); if (unlikely(ret < 0)) goto BAD;
+                ret = PyDict_DelItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__setstate_cython__")); if (unlikely(ret < 0)) goto BAD;
             }
             PyType_Modified((PyTypeObject*)type_obj);
         }
