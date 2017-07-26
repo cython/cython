@@ -82,27 +82,36 @@ static int __Pyx_setup_reduce_is_named(PyObject* meth, PyObject* name) {
 
 static int __Pyx_setup_reduce(PyObject* type_obj) {
     int ret = 0;
-    PyObject* builtin_object = NULL;
-    static PyObject *object_reduce = NULL;
-    static PyObject *object_reduce_ex = NULL;
+    PyObject *object_reduce = NULL;
+    PyObject *object_reduce_ex = NULL;
     PyObject *reduce = NULL;
     PyObject *reduce_ex = NULL;
     PyObject *reduce_cython = NULL;
     PyObject *setstate = NULL;
     PyObject *setstate_cython = NULL;
 
+#if CYTHON_COMPILING_IN_CPYTHON
+    if (_PyType_Lookup((PyTypeObject*)type_obj, PYIDENT("__getstate__"))) goto GOOD;
+#else
     if (PyObject_HasAttr(type_obj, PYIDENT("__getstate__"))) goto GOOD;
+#endif
 
-    if (unlikely(!object_reduce_ex)) {
-        Py_CLEAR(object_reduce);
-        builtin_object   = __Pyx_PyObject_GetAttrStr($builtins_cname, PYIDENT("object")); if (!builtin_object) goto BAD;
-        object_reduce    = __Pyx_PyObject_GetAttrStr(builtin_object, PYIDENT("__reduce__")); if (!object_reduce) goto BAD;
-        object_reduce_ex = __Pyx_PyObject_GetAttrStr(builtin_object, PYIDENT("__reduce_ex__")); if (!object_reduce_ex) goto BAD;
-    }
+#if CYTHON_COMPILING_IN_CPYTHON
+    object_reduce_ex = _PyType_Lookup(&PyBaseObject_Type, PYIDENT("__reduce_ex__")); if (!object_reduce_ex) goto BAD;
+#else
+    object_reduce_ex = __Pyx_PyObject_GetAttrStr((PyObject*)&PyBaseObject_Type, PYIDENT("__reduce_ex__")); if (!object_reduce_ex) goto BAD;
+#endif
 
     reduce_ex = __Pyx_PyObject_GetAttrStr(type_obj, PYIDENT("__reduce_ex__")); if (unlikely(!reduce_ex)) goto BAD;
     if (reduce_ex == object_reduce_ex) {
+
+#if CYTHON_COMPILING_IN_CPYTHON
+        object_reduce = _PyType_Lookup(&PyBaseObject_Type, PYIDENT("__reduce__")); if (!object_reduce) goto BAD;
+#else
+        object_reduce = __Pyx_PyObject_GetAttrStr((PyObject*)&PyBaseObject_Type, PYIDENT("__reduce__")); if (!object_reduce) goto BAD;
+#endif
         reduce = __Pyx_PyObject_GetAttrStr(type_obj, PYIDENT("__reduce__")); if (unlikely(!reduce)) goto BAD;
+
         if (reduce == object_reduce || __Pyx_setup_reduce_is_named(reduce, PYIDENT("__reduce_cython__"))) {
             reduce_cython = __Pyx_PyObject_GetAttrStr(type_obj, PYIDENT("__reduce_cython__")); if (unlikely(!reduce_cython)) goto BAD;
             ret = PyDict_SetItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__reduce__"), reduce_cython); if (unlikely(ret < 0)) goto BAD;
@@ -125,7 +134,10 @@ BAD:
         PyErr_Format(PyExc_RuntimeError, "Unable to initialize pickling for %s", ((PyTypeObject*)type_obj)->tp_name);
     ret = -1;
 GOOD:
-    Py_XDECREF(builtin_object);
+#if !CYTHON_COMPILING_IN_CPYTHON
+    Py_XDECREF(object_reduce);
+    Py_XDECREF(object_reduce_ex);
+#endif
     Py_XDECREF(reduce);
     Py_XDECREF(reduce_ex);
     Py_XDECREF(reduce_cython);
