@@ -546,7 +546,7 @@ static int __Pyx_CLineForTraceback(int c_line) {
 #if CYTHON_COMPILING_IN_CPYTHON
     PyObject **cython_runtime_dict = _PyObject_GetDictPtr(${cython_runtime_cname});
     if (likely(cython_runtime_dict)) {
-      use_cline = PyDict_GetItem(*_PyObject_GetDictPtr(${cython_runtime_cname}), PYIDENT("cline_in_traceback"));
+      use_cline = PyDict_GetItem(*cython_runtime_dict, PYIDENT("cline_in_traceback"));
     } else
 #endif
     {
