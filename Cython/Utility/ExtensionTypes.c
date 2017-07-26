@@ -90,13 +90,13 @@ static int __Pyx_setup_reduce(PyObject* type_obj) {
     PyObject *setstate = NULL;
     PyObject *setstate_cython = NULL;
 
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_USE_PYTYPE_LOOKUP
     if (_PyType_Lookup((PyTypeObject*)type_obj, PYIDENT("__getstate__"))) goto GOOD;
 #else
     if (PyObject_HasAttr(type_obj, PYIDENT("__getstate__"))) goto GOOD;
 #endif
 
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_USE_PYTYPE_LOOKUP
     object_reduce_ex = _PyType_Lookup(&PyBaseObject_Type, PYIDENT("__reduce_ex__")); if (!object_reduce_ex) goto BAD;
 #else
     object_reduce_ex = __Pyx_PyObject_GetAttrStr((PyObject*)&PyBaseObject_Type, PYIDENT("__reduce_ex__")); if (!object_reduce_ex) goto BAD;
@@ -105,7 +105,7 @@ static int __Pyx_setup_reduce(PyObject* type_obj) {
     reduce_ex = __Pyx_PyObject_GetAttrStr(type_obj, PYIDENT("__reduce_ex__")); if (unlikely(!reduce_ex)) goto BAD;
     if (reduce_ex == object_reduce_ex) {
 
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_USE_PYTYPE_LOOKUP
         object_reduce = _PyType_Lookup(&PyBaseObject_Type, PYIDENT("__reduce__")); if (!object_reduce) goto BAD;
 #else
         object_reduce = __Pyx_PyObject_GetAttrStr((PyObject*)&PyBaseObject_Type, PYIDENT("__reduce__")); if (!object_reduce) goto BAD;
