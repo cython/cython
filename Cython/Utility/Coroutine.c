@@ -596,7 +596,7 @@ int __Pyx_Coroutine_CheckRunning(__pyx_CoroutineObject *gen) {
 }
 
 static CYTHON_INLINE
-PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, int closing) {
+PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, CYTHON_UNUSED int closing) {
     PyObject *retval;
     __Pyx_PyThreadState_declare
 
@@ -693,7 +693,7 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, i
 }
 
 static CYTHON_INLINE
-PyObject *__Pyx_Coroutine_MethodReturn(PyObject* gen, PyObject *retval) {
+PyObject *__Pyx_Coroutine_MethodReturn(CYTHON_UNUSED PyObject* gen, PyObject *retval) {
     if (unlikely(!retval && !PyErr_Occurred())) {
         // method call must not terminate with NULL without setting an exception
         #ifdef __Pyx_AsyncGen_USED
