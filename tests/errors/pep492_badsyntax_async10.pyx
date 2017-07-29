@@ -23,4 +23,6 @@ async def dictcomp(it):
 _ERRORS = """
 5:12: 'await' not allowed in generators (use 'yield')
 5:12: 'await' not supported here
+# FIXME: remove when implementing async comprehensions
+5:12: 'yield' not supported here
 """
