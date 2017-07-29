@@ -7284,7 +7284,7 @@ class GILStatNode(NogilTryFinallyStatNode):
         from .ParseTreeTransforms import YieldNodeCollector
         collector = YieldNodeCollector()
         collector.visitchildren(body)
-        if not collector.yields and not collector.awaits:
+        if not collector.yields:
             return
 
         if state == 'gil':
