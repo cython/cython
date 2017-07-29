@@ -224,7 +224,7 @@ class AsyncGenTest(unittest.TestCase):
 
     if sys.version_info < (3, 3):
         @contextlib.contextmanager
-        def assertRaisesRegex(self, exc_type, regex):
+        def assertRaisesRegex(self, exc_type, regex=None):
             # the error messages usually don't match, so we just ignore them
             try:
                 yield
@@ -232,6 +232,16 @@ class AsyncGenTest(unittest.TestCase):
                 self.assertTrue(True)
             else:
                 self.assertTrue(False)
+
+    if sys.version_info < (2, 7):
+        def assertIn(self, x, container):
+            self.assertTrue(x in container)
+
+        def assertIs(self, x, y):
+            self.assertTrue(x is y)
+
+        assertRaises = assertRaisesRegex
+
 
     def compare_generators(self, sync_gen, async_gen):
         def sync_iterate(g):
