@@ -302,10 +302,18 @@ PyDoc_STRVAR(__Pyx_async_asend_doc,
 PyDoc_STRVAR(__Pyx_async_athrow_doc,
 "athrow(typ[,val[,tb]]) -> raise exception in generator.");
 
+PyDoc_STRVAR(__Pyx_async_aiter_doc,
+"__aiter__(v) -> return an asynchronous iterator.");
+
+PyDoc_STRVAR(__Pyx_async_anext_doc,
+"__anext__(v) -> continue asynchronous iteration and return the next element.");
+
 static PyMethodDef __Pyx_async_gen_methods[] = {
     {"asend", (PyCFunction)__Pyx_async_gen_asend, METH_O, __Pyx_async_asend_doc},
     {"athrow",(PyCFunction)__Pyx_async_gen_athrow, METH_VARARGS, __Pyx_async_athrow_doc},
     {"aclose", (PyCFunction)__Pyx_async_gen_aclose, METH_NOARGS, __Pyx_async_aclose_doc},
+    {"__aiter__", (PyCFunction)PyObject_SelfIter, METH_NOARGS, __Pyx_async_aiter_doc},
+    {"__anext__", (PyCFunction)__Pyx_async_gen_anext, METH_NOARGS, __Pyx_async_anext_doc},
     {0, 0, 0, 0}        /* Sentinel */
 };
 
