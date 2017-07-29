@@ -113,6 +113,9 @@ PyDoc_STRVAR(__Pyx_async_gen_throw_doc,
 "throw(typ[,val[,tb]]) -> raise exception in generator,\n\
 return next yielded value or raise StopIteration.");
 
+PyDoc_STRVAR(__Pyx_async_gen_await_doc,
+"__await__() -> return a representation that can be passed into the 'await' expression.");
+
 // COPY STARTS HERE:
 
 static PyObject *__Pyx_async_gen_asend_new(__pyx_PyAsyncGenObject *, PyObject *);
@@ -535,6 +538,7 @@ static PyMethodDef __Pyx_async_gen_asend_methods[] = {
     {"send", (PyCFunction)__Pyx_async_gen_asend_send, METH_O, __Pyx_async_gen_send_doc},
     {"throw", (PyCFunction)__Pyx_async_gen_asend_throw, METH_VARARGS, __Pyx_async_gen_throw_doc},
     {"close", (PyCFunction)__Pyx_async_gen_asend_close, METH_NOARGS, __Pyx_async_gen_close_doc},
+    {"__await__", (PyCFunction)PyObject_SelfIter, METH_NOARGS, __Pyx_async_gen_await_doc},
     {0, 0, 0, 0}        /* Sentinel */
 };
 
@@ -921,6 +925,7 @@ static PyMethodDef __Pyx_async_gen_athrow_methods[] = {
     {"send", (PyCFunction)__Pyx_async_gen_athrow_send, METH_O, __Pyx_async_gen_send_doc},
     {"throw", (PyCFunction)__Pyx_async_gen_athrow_throw, METH_VARARGS, __Pyx_async_gen_throw_doc},
     {"close", (PyCFunction)__Pyx_async_gen_athrow_close, METH_NOARGS, __Pyx_async_gen_close_doc},
+    {"__await__", (PyCFunction)PyObject_SelfIter, METH_NOARGS, __Pyx_async_gen_await_doc},
     {0, 0, 0, 0}        /* Sentinel */
 };
 

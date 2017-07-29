@@ -33,6 +33,19 @@ else:
         return c
 
 
+try:
+    from types import coroutine as types_coroutine
+except ImportError:
+    def types_coroutine(f):
+        return f
+
+try:
+    from inspect import isawaitable as inspect_isawaitable
+except ImportError:
+    def inspect_isawaitable(o):
+        return hasattr(o, '__await__')
+
+
 # compiled exec()
 def exec(code_string, l, g):
     from Cython.Compiler.Errors import CompileError
@@ -57,7 +70,7 @@ class AwaitException(Exception):
     pass
 
 
-@types.coroutine
+@types_coroutine
 def awaitable(*, throw=False):
     if throw:
         yield ('throw',)
@@ -373,7 +386,7 @@ class AsyncGenTest(unittest.TestCase):
         self.assertFalse(g.ag_running)
         #self.assertIsInstance(g.ag_code, types.CodeType)
 
-        self.assertTrue(inspect.isawaitable(g.aclose()))
+        self.assertTrue(inspect_isawaitable(g.aclose()))
 
 
 @requires_asyncio
