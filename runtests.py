@@ -2141,11 +2141,11 @@ def runtests(options, cmd_args, coverage=None):
         test_runner = XMLTestRunner(output=xml_output_dir,
                                     verbose=options.verbosity > 0)
         if options.failfast:
-            sys.stderr.write("--failfast not supported with XML runner")
+            sys.stderr.write("--failfast not supported with XML runner\n")
     else:
         text_runner_options = {}
         if options.failfast and sys.version_info < (2, 7):
-            sys.stderr.write("--failfast not supported with Python < 2.7")
+            sys.stderr.write("--failfast not supported with Python < 2.7\n")
         else:
             text_runner_options['failfast'] = True
         test_runner = unittest.TextTestRunner(verbosity=options.verbosity, **text_runner_options)
