@@ -85,6 +85,16 @@ static CYTHON_INLINE PyObject* __Pyx__Coroutine_Yield_From(__pyx_CoroutineObject
             gen->yieldfrom = source;
             return retval;
         }
+#ifdef __Pyx_AsyncGen_USED
+    // inlined "__pyx_PyAsyncGenASend" handling to avoid the series of generic calls below
+    } else if (__pyx_PyAsyncGenASend_CheckExact(source)) {
+        retval = __Pyx_async_gen_asend_iternext((__pyx_PyAsyncGenASend *)source);
+        if (retval) {
+            Py_INCREF(source);
+            gen->yieldfrom = source;
+            return retval;
+        }
+#endif
     } else {
         PyObject *source_gen = __Pyx__Coroutine_GetAwaitableIter(source);
         if (unlikely(!source_gen))
@@ -292,7 +302,7 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *obj) {
 static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *obj) {
 #ifdef __Pyx_AsyncGen_USED
     if (__Pyx_AsyncGen_CheckExact(obj)) {
-        return __Pyx_async_gen_anext(obj);
+        return __Pyx_async_gen_anext((__pyx_PyAsyncGenObject*) obj);
     }
 #endif
 #if CYTHON_USE_ASYNC_SLOTS
@@ -320,22 +330,41 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *obj) {
 
 //////////////////// pep479.proto ////////////////////
 
-static void __Pyx_Generator_Replace_StopIteration(void); /*proto*/
+static void __Pyx_Generator_Replace_StopIteration(int in_async_gen); /*proto*/
 
 //////////////////// pep479 ////////////////////
 //@requires: Exceptions.c::GetException
 
-static void __Pyx_Generator_Replace_StopIteration(void) {
-    PyObject *exc, *val, *tb;
-    // Chain exceptions by moving StopIteration to exc_info before creating the RuntimeError.
-    // In Py2.x, no chaining happens, but the exception still stays visible in exc_info.
+static void __Pyx_Generator_Replace_StopIteration(CYTHON_UNUSED int in_async_gen) {
+    PyObject *exc, *val, *tb, *cur_exc;
     __Pyx_PyThreadState_declare
+    #ifdef __Pyx_StopAsyncIteration_USED
+    int is_async_stopiteration = 0;
+    #endif
+
+    cur_exc = PyErr_Occurred();
+    if (likely(!PyErr_GivenExceptionMatches(cur_exc, PyExc_StopIteration))) {
+        #ifdef __Pyx_StopAsyncIteration_USED
+        if (in_async_gen && unlikely(PyErr_GivenExceptionMatches(cur_exc, __Pyx_PyExc_StopAsyncIteration))) {
+            is_async_stopiteration = 1;
+        } else
+        #endif
+            return;
+    }
+
     __Pyx_PyThreadState_assign
+    // Chain exceptions by moving Stop(Async)Iteration to exc_info before creating the RuntimeError.
+    // In Py2.x, no chaining happens, but the exception still stays visible in exc_info.
     __Pyx_GetException(&exc, &val, &tb);
     Py_XDECREF(exc);
     Py_XDECREF(val);
     Py_XDECREF(tb);
-    PyErr_SetString(PyExc_RuntimeError, "generator raised StopIteration");
+    PyErr_SetString(PyExc_RuntimeError,
+        #ifdef __Pyx_StopAsyncIteration_USED
+        is_async_stopiteration ? "async generator raised StopAsyncIteration" :
+        in_async_gen ? "async generator raised StopIteration" :
+        #endif
+        "generator raised StopIteration");
 }
 
 
@@ -567,7 +596,7 @@ int __Pyx_Coroutine_CheckRunning(__pyx_CoroutineObject *gen) {
 }
 
 static CYTHON_INLINE
-PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value) {
+PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, int closing) {
     PyObject *retval;
     __Pyx_PyThreadState_declare
 
@@ -594,12 +623,22 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value) {
     }
 
     if (unlikely(self->resume_label == -1)) {
-        #ifdef __Pyx_AsyncGen_USED
-        if (__Pyx_AsyncGen_CheckExact((PyObject*)self))
-            PyErr_SetNone(__Pyx_PyExc_StopAsyncIteration);
-        else
-        #endif
-        PyErr_SetNone(PyExc_StopIteration);
+        if (!closing && __Pyx_Coroutine_CheckExact((PyObject*)self)) {
+            // `self` is an exhausted coroutine: raise an error,
+            // except when called from gen_close(), which should
+            // always be a silent method.
+            PyErr_SetString(PyExc_RuntimeError, "cannot reuse already awaited coroutine");
+        }
+        else if (value) {
+            // `gen` is an exhausted generator:
+            // only set exception if called from send().
+            #ifdef __Pyx_AsyncGen_USED
+            if (__Pyx_AsyncGen_CheckExact((PyObject*)self))
+                PyErr_SetNone(__Pyx_PyExc_StopAsyncIteration);
+            else
+            #endif
+            PyErr_SetNone(PyExc_StopIteration);
+        }
         return NULL;
     }
 
@@ -652,9 +691,14 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value) {
 }
 
 static CYTHON_INLINE
-PyObject *__Pyx_Coroutine_MethodReturn(PyObject *retval) {
+PyObject *__Pyx_Coroutine_MethodReturn(PyObject* gen, PyObject *retval) {
     if (unlikely(!retval && !PyErr_Occurred())) {
         // method call must not terminate with NULL without setting an exception
+        #ifdef __Pyx_AsyncGen_USED
+        if (__Pyx_AsyncGen_CheckExact(gen)) {
+            PyErr_SetNone(__Pyx_PyExc_StopAsyncIteration);
+        } else
+        #endif
         PyErr_SetNone(PyExc_StopIteration);
     }
     return retval;
@@ -667,7 +711,7 @@ PyObject *__Pyx_Coroutine_FinishDelegation(__pyx_CoroutineObject *gen) {
     __Pyx_Coroutine_Undelegate(gen);
     __Pyx_PyGen_FetchStopIterationValue(&val);
     // val == NULL on failure => pass on exception
-    ret = __Pyx_Coroutine_SendEx(gen, val);
+    ret = __Pyx_Coroutine_SendEx(gen, val, 0);
     Py_XDECREF(val);
     return ret;
 }
@@ -693,6 +737,11 @@ static PyObject *__Pyx_Coroutine_Send(PyObject *self, PyObject *value) {
             ret = __Pyx_Coroutine_Send(yf, value);
         } else
         #endif
+        #ifdef __Pyx_AsyncGen_USED
+        if (__pyx_PyAsyncGenASend_CheckExact(yf)) {
+            ret = __Pyx_async_gen_asend_send((__pyx_PyAsyncGenASend *)yf, value);
+        } else
+        #endif
         {
             if (value == Py_None)
                 ret = Py_TYPE(yf)->tp_iternext(yf);
@@ -706,9 +755,9 @@ static PyObject *__Pyx_Coroutine_Send(PyObject *self, PyObject *value) {
         }
         retval = __Pyx_Coroutine_FinishDelegation(gen);
     } else {
-        retval = __Pyx_Coroutine_SendEx(gen, value);
+        retval = __Pyx_Coroutine_SendEx(gen, value, 0);
     }
-    return __Pyx_Coroutine_MethodReturn(retval);
+    return __Pyx_Coroutine_MethodReturn(self, retval);
 }
 
 //   This helper function is used by gen_close and gen_throw to
@@ -776,7 +825,7 @@ static PyObject *__Pyx_Generator_Next(PyObject *self) {
         }
         return __Pyx_Coroutine_FinishDelegation(gen);
     }
-    return __Pyx_Coroutine_SendEx(gen, Py_None);
+    return __Pyx_Coroutine_SendEx(gen, Py_None, 0);
 }
 
 static PyObject *__Pyx_Coroutine_Close(PyObject *self) {
@@ -796,7 +845,7 @@ static PyObject *__Pyx_Coroutine_Close(PyObject *self) {
     }
     if (err == 0)
         PyErr_SetNone(PyExc_GeneratorExit);
-    retval = __Pyx_Coroutine_SendEx(gen, NULL);
+    retval = __Pyx_Coroutine_SendEx(gen, NULL, 1);
     if (retval) {
         const char *msg;
         Py_DECREF(retval);
@@ -841,12 +890,15 @@ static PyObject *__Pyx__Coroutine_Throw(PyObject *self, PyObject *typ, PyObject 
     if (yf) {
         PyObject *ret;
         Py_INCREF(yf);
-        if (PyErr_GivenExceptionMatches(typ, PyExc_GeneratorExit)) {
+        if (PyErr_GivenExceptionMatches(typ, PyExc_GeneratorExit) && close_on_genexit) {
+            // Asynchronous generators *should not* be closed right away.
+            // We have to allow some awaits to work it through, hence the
+            // `close_on_genexit` parameter here.
             int err = __Pyx_Coroutine_CloseIter(gen, yf);
             Py_DECREF(yf);
             __Pyx_Coroutine_Undelegate(gen);
             if (err < 0)
-                return __Pyx_Coroutine_MethodReturn(__Pyx_Coroutine_SendEx(gen, NULL));
+                return __Pyx_Coroutine_MethodReturn(self, __Pyx_Coroutine_SendEx(gen, NULL, 0));
             goto throw_here;
         }
         gen->is_running = 1;
@@ -888,11 +940,11 @@ static PyObject *__Pyx__Coroutine_Throw(PyObject *self, PyObject *typ, PyObject 
         if (!ret) {
             ret = __Pyx_Coroutine_FinishDelegation(gen);
         }
-        return __Pyx_Coroutine_MethodReturn(ret);
+        return __Pyx_Coroutine_MethodReturn(self, ret);
     }
 throw_here:
     __Pyx_Raise(typ, val, tb, NULL);
-    return __Pyx_Coroutine_MethodReturn(__Pyx_Coroutine_SendEx(gen, NULL));
+    return __Pyx_Coroutine_MethodReturn(self, __Pyx_Coroutine_SendEx(gen, NULL, 0));
 }
 
 static PyObject *__Pyx_Coroutine_Throw(PyObject *self, PyObject *args) {
@@ -958,6 +1010,14 @@ static void __Pyx_Coroutine_dealloc(PyObject *self) {
         PyObject_GC_UnTrack(self);
     }
 
+#ifdef __Pyx_AsyncGen_USED
+    if (__Pyx_AsyncGen_CheckExact(self)) {
+        /* We have to handle this case for asynchronous generators
+           right here, because this code has to be between UNTRACK
+           and GC_Del. */
+        Py_CLEAR(((__pyx_PyAsyncGenObject*)self)->ag_finalizer);
+    }
+#endif
     __Pyx_Coroutine_clear(self);
     PyObject_GC_Del(gen);
 }
@@ -977,8 +1037,31 @@ static void __Pyx_Coroutine_del(PyObject *self) {
     self->ob_refcnt = 1;
 #endif
 
-    // Save the current exception, if any.
     __Pyx_PyThreadState_assign
+
+#ifdef __Pyx_AsyncGen_USED
+    if (__Pyx_AsyncGen_CheckExact(self)) {
+        __pyx_PyAsyncGenObject *agen = (__pyx_PyAsyncGenObject*)self;
+        PyObject *finalizer = agen->ag_finalizer;
+        if (finalizer && !agen->ag_closed) {
+            /* Save the current exception, if any. */
+            __Pyx_ErrFetch(&error_type, &error_value, &error_traceback);
+
+            res = __Pyx_PyObject_CallOneArg(finalizer, self);
+
+            if (res == NULL) {
+                PyErr_WriteUnraisable(self);
+            } else {
+                Py_DECREF(res);
+            }
+            /* Restore the saved exception. */
+            __Pyx_ErrRestore(error_type, error_value, error_traceback);
+            return;
+        }
+    }
+#endif
+
+    // Save the current exception, if any.
     __Pyx_ErrFetch(&error_type, &error_value, &error_traceback);
 
     res = __Pyx_Coroutine_Close(self);

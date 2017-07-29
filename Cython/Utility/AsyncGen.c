@@ -1,5 +1,6 @@
 // This is copied from genobject.c in CPython 3.6.
-// Try to keep it in sync.
+// Try to keep it in sync by doing this from time to time:
+//    sed -e 's|__pyx_||ig'  Cython/Utility/AsyncGen.c | diff -udw - cpython/Objects/genobject.c | less
 
 //////////////////// AsyncGenerator.proto ////////////////////
 //@requires: Coroutine.c::Coroutine
@@ -12,14 +13,20 @@ typedef struct {
     int ag_closed;
 } __pyx_PyAsyncGenObject;
 
+typedef struct __pyx_PyAsyncGenASend_struct __pyx_PyAsyncGenASend;
 
 static PyTypeObject *__pyx__PyAsyncGenWrappedValueType = 0;
 static PyTypeObject *__pyx__PyAsyncGenASendType = 0;
 static PyTypeObject *__pyx__PyAsyncGenAThrowType = 0;
 static PyTypeObject *__pyx_AsyncGenType = 0;
-#define __Pyx_AsyncGen_CheckExact(obj) (Py_TYPE(obj) == __pyx_AsyncGenType)
 
-static PyObject *__Pyx_async_gen_anext(PyObject *o);
+#define __Pyx_AsyncGen_CheckExact(obj) (Py_TYPE(obj) == __pyx_AsyncGenType)
+#define __pyx_PyAsyncGenASend_CheckExact(o) \
+                    (Py_TYPE(o) == __pyx__PyAsyncGenASendType)
+
+static PyObject *__Pyx_async_gen_anext(__pyx_PyAsyncGenObject *o);
+static PyObject *__Pyx_async_gen_asend_iternext(__pyx_PyAsyncGenASend *o);
+static PyObject *__Pyx_async_gen_asend_send(__pyx_PyAsyncGenASend *o, PyObject *arg);
 
 static PyObject *__Pyx__PyAsyncGenValueWrapperNew(PyObject *val);
 
@@ -120,7 +127,7 @@ typedef enum {
     __PYX_AWAITABLE_STATE_CLOSED, /* closed */
 } __pyx_AwaitableState;
 
-typedef struct {
+struct __pyx_PyAsyncGenASend_struct {
     PyObject_HEAD
     __pyx_PyAsyncGenObject *ags_gen;
 
@@ -128,7 +135,7 @@ typedef struct {
     PyObject *ags_sendval;
 
     __pyx_AwaitableState ags_state;
-} __pyx_PyAsyncGenASend;
+};
 
 
 typedef struct {
@@ -166,9 +173,6 @@ static int __Pyx_ag_asend_freelist_free = 0;
 
 #define __pyx__PyAsyncGenWrappedValue_CheckExact(o) \
                     (Py_TYPE(o) == __pyx__PyAsyncGenWrappedValueType)
-
-#define __pyx_PyAsyncGenASend_CheckExact(o) \
-                    (Py_TYPE(o) == __pyx__PyAsyncGenASendType)
 
 
 static int
@@ -303,7 +307,7 @@ static PyMethodDef __Pyx_async_gen_methods[] = {
 };
 
 
-static PyAsyncMethods __Pyx_async_gen_as_async = {
+static __Pyx_PyAsyncMethodsStruct __Pyx_async_gen_as_async = {
     0,                                          /* am_await */
     PyObject_SelfIter,                          /* am_aiter */
     (unaryfunc)__Pyx_async_gen_anext             /* am_anext */
@@ -475,12 +479,12 @@ __Pyx_async_gen_asend_send(__pyx_PyAsyncGenASend *o, PyObject *arg)
 
     if (o->ags_state == __PYX_AWAITABLE_STATE_INIT) {
         if (arg == NULL || arg == Py_None) {
-            arg = o->ags_sendval;
+            arg = o->ags_sendval ? o->ags_sendval : Py_None;
         }
         o->ags_state = __PYX_AWAITABLE_STATE_ITER;
     }
 
-    result = __Pyx_Coroutine_SendEx((__pyx_CoroutineObject*)o->ags_gen, arg);
+    result = __Pyx_Coroutine_SendEx((__pyx_CoroutineObject*)o->ags_gen, arg, 0);
     result = __Pyx_async_gen_unwrap_value(o->ags_gen, result);
 
     if (result == NULL) {
@@ -494,7 +498,7 @@ __Pyx_async_gen_asend_send(__pyx_PyAsyncGenASend *o, PyObject *arg)
 static PyObject *
 __Pyx_async_gen_asend_iternext(__pyx_PyAsyncGenASend *o)
 {
-    return __Pyx_async_gen_asend_send(o, NULL);
+    return __Pyx_async_gen_asend_send(o, Py_None);
 }
 
 
@@ -535,7 +539,7 @@ static PyMethodDef __Pyx_async_gen_asend_methods[] = {
 };
 
 
-static PyAsyncMethods __Pyx_async_gen_asend_as_async = {
+static __Pyx_PyAsyncMethodsStruct __Pyx_async_gen_asend_as_async = {
     PyObject_SelfIter,                          /* am_await */
     0,                                          /* am_aiter */
     0                                           /* am_anext */
@@ -824,7 +828,7 @@ __Pyx_async_gen_athrow_send(__pyx_PyAsyncGenAThrow *o, PyObject *arg)
 
     assert (o->agt_state == __PYX_AWAITABLE_STATE_ITER);
 
-    retval = __Pyx_Coroutine_SendEx((__pyx_CoroutineObject *)gen, arg);
+    retval = __Pyx_Coroutine_SendEx((__pyx_CoroutineObject *)gen, arg, 0);
     if (o->agt_args) {
         return __Pyx_async_gen_unwrap_value(o->agt_gen, retval);
     } else {
@@ -921,7 +925,7 @@ static PyMethodDef __Pyx_async_gen_athrow_methods[] = {
 };
 
 
-static PyAsyncMethods __Pyx_async_gen_athrow_as_async = {
+static __Pyx_PyAsyncMethodsStruct __Pyx_async_gen_athrow_as_async = {
     PyObject_SelfIter,                          /* am_await */
     0,                                          /* am_aiter */
     0                                           /* am_anext */

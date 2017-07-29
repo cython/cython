@@ -4025,19 +4025,19 @@ class AsyncGenNode(AsyncDefNode):
     is_asyncgen = True
 
 
-
 class GeneratorBodyDefNode(DefNode):
     # Main code body of a generator implemented as a DefNode.
     #
 
     is_generator_body = True
     is_inlined = False
+    is_async_gen = False
     inlined_comprehension_type = None  # container type for inlined comprehensions
 
-    def __init__(self, pos=None, name=None, body=None):
+    def __init__(self, pos=None, name=None, body=None, is_async_gen=False):
         super(GeneratorBodyDefNode, self).__init__(
-            pos=pos, body=body, name=name, doc=None,
-            args=[], star_arg=None, starstar_arg=None)
+            pos=pos, body=body, name=name, is_async_gen=is_async_gen,
+            doc=None, args=[], star_arg=None, starstar_arg=None)
 
     def declare_generator_body(self, env):
         prefix = env.next_id(env.scope_prefix)
@@ -4134,9 +4134,10 @@ class GeneratorBodyDefNode(DefNode):
         # on normal generator termination, we do not take the exception propagation
         # path: no traceback info is required and not creating it is much faster
         if not self.is_inlined and not self.body.is_terminator:
-            code.putln('PyErr_SetNone(PyExc_StopIteration);')
+            code.putln('PyErr_SetNone(%s);' % (
+                '__Pyx_PyExc_StopAsyncIteration' if self.is_async_gen else 'PyExc_StopIteration'))
         # ----- Error cleanup
-        if code.error_label in code.labels_used:
+        if code.label_used(code.error_label):
             if not self.body.is_terminator:
                 code.put_goto(code.return_label)
             code.put_label(code.error_label)
@@ -4145,8 +4146,7 @@ class GeneratorBodyDefNode(DefNode):
             if Future.generator_stop in env.global_scope().context.future_directives:
                 # PEP 479: turn accidental StopIteration exceptions into a RuntimeError
                 code.globalstate.use_utility_code(UtilityCode.load_cached("pep479", "Coroutine.c"))
-                code.putln("if (unlikely(PyErr_ExceptionMatches(PyExc_StopIteration))) "
-                           "__Pyx_Generator_Replace_StopIteration();")
+                code.putln("__Pyx_Generator_Replace_StopIteration(%d);" % bool(self.is_async_gen))
             for cname, type in code.funcstate.all_managed_temps():
                 code.put_xdecref(cname, type)
             code.put_add_traceback(self.entry.qualified_name)
@@ -5583,10 +5583,12 @@ class ReturnStatNode(StatNode):
     #  value         ExprNode or None
     #  return_type   PyrexType
     #  in_generator  return inside of generator => raise StopIteration
+    #  in_async_gen  return inside of async generator
 
     child_attrs = ["value"]
     is_terminator = True
     in_generator = False
+    in_async_gen = False
 
     # Whether we are in a parallel section
     in_parallel = False
@@ -5598,6 +5600,8 @@ class ReturnStatNode(StatNode):
             error(self.pos, "Return not inside a function body")
             return self
         if self.value:
+            if self.in_async_gen:
+                error(self.pos, "Return with value in async generator")
             self.value = self.value.analyse_types(env)
             if return_type.is_void or return_type.is_returncode:
                 error(self.value.pos, "Return with value in void function")
@@ -5654,6 +5658,8 @@ class ReturnStatNode(StatNode):
         else:
             if self.return_type.is_pyobject:
                 if self.in_generator:
+                    if self.in_async_gen:
+                        code.put("PyErr_SetNone(__Pyx_PyExc_StopAsyncIteration); ")
                     code.putln("%s = NULL;" % Naming.retval_cname)
                 else:
                     code.put_init_to_py_none(Naming.retval_cname, self.return_type)

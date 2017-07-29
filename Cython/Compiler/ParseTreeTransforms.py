@@ -2518,7 +2518,7 @@ class MarkClosureVisitor(CythonTransform):
         if node.is_async_def:
             coroutine_type = Nodes.AsyncGenNode if collector.has_yield else Nodes.AsyncDefNode
             if collector.has_yield:
-                for yield_expr in collector.yields:
+                for yield_expr in collector.yields + collector.returns:
                     yield_expr.in_async_gen = True
         elif collector.has_await:
             found = next(y for y in collector.yields if y.is_await)
@@ -2535,7 +2535,8 @@ class MarkClosureVisitor(CythonTransform):
             retnode.in_generator = True
 
         gbody = Nodes.GeneratorBodyDefNode(
-            pos=node.pos, name=node.name, body=node.body)
+            pos=node.pos, name=node.name, body=node.body,
+            is_async_gen=node.is_async_def and collector.has_yield)
         coroutine = coroutine_type(
             pos=node.pos, name=node.name, args=node.args,
             star_arg=node.star_arg, starstar_arg=node.starstar_arg,

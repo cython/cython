@@ -9484,11 +9484,14 @@ class YieldExprNode(ExprNode):
             if type.is_pyobject:
                 code.putln('%s->%s = 0;' % (Naming.cur_scope_cname, save_cname))
                 code.put_xgotref(cname)
-        code.putln(code.error_goto_if_null(Naming.sent_value_cname, self.pos))
+        self.generate_sent_value_handling_code(code, Naming.sent_value_cname)
         if self.result_is_used:
             self.allocate_temp_result(code)
             code.put('%s = %s; ' % (self.result(), Naming.sent_value_cname))
             code.put_incref(self.result(), py_object_type)
+
+    def generate_sent_value_handling_code(self, code, value_cname):
+        code.putln(code.error_goto_if_null(value_cname, self.pos))
 
 
 class _YieldDelegationExprNode(YieldExprNode):
@@ -9582,8 +9585,7 @@ class AwaitIterNextExprNode(AwaitExprNode):
     #
     # Breaks out of loop on StopAsyncIteration exception.
 
-    def fetch_iteration_result(self, code):
-        assert code.break_label, "AwaitIterNextExprNode outside of 'async for' loop"
+    def _generate_break(self, code):
         code.globalstate.use_utility_code(UtilityCode.load_cached("StopAsyncIteration", "Coroutine.c"))
         code.putln("PyObject* exc_type = PyErr_Occurred();")
         code.putln("if (exc_type && likely(exc_type == __Pyx_PyExc_StopAsyncIteration ||"
@@ -9591,7 +9593,19 @@ class AwaitIterNextExprNode(AwaitExprNode):
         code.putln("PyErr_Clear();")
         code.putln("break;")
         code.putln("}")
+
+    def fetch_iteration_result(self, code):
+        assert code.break_label, "AwaitIterNextExprNode outside of 'async for' loop"
+        self._generate_break(code)
         super(AwaitIterNextExprNode, self).fetch_iteration_result(code)
+
+    def generate_sent_value_handling_code(self, code, value_cname):
+        assert code.break_label, "AwaitIterNextExprNode outside of 'async for' loop"
+        code.putln("if (unlikely(!%s)) {" % value_cname)
+        self._generate_break(code)
+        # all non-break exceptions are errors, as in parent class
+        code.putln(code.error_goto(self.pos))
+        code.putln("}")
 
 
 class GlobalsExprNode(AtomicExprNode):
