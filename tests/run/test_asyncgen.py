@@ -81,6 +81,7 @@ except ImportError:
 
             def __next__(self):
                 return next(self.__wrapped)
+            next = __next__
 
             def __iter__(self):
                 if self.__isgen:
@@ -221,12 +222,23 @@ class AsyncGenSyntaxTest(unittest.TestCase):
 
 class AsyncGenTest(unittest.TestCase):
 
+    if sys.version_info < (3, 3):
+        @contextlib.contextmanager
+        def assertRaisesRegex(self, exc_type, regex):
+            # the error messages usually don't match, so we just ignore them
+            try:
+                yield
+            except exc_type:
+                self.assertTrue(True)
+            else:
+                self.assertTrue(False)
+
     def compare_generators(self, sync_gen, async_gen):
         def sync_iterate(g):
             res = []
             while True:
                 try:
-                    res.append(g.__next__())
+                    res.append(next(g))
                 except StopIteration:
                     res.append('STOP')
                     break
@@ -238,7 +250,7 @@ class AsyncGenTest(unittest.TestCase):
             res = []
             while True:
                 try:
-                    g.__anext__().__next__()
+                    next(g.__anext__())
                 except StopAsyncIteration:
                     res.append('STOP')
                     break
@@ -277,19 +289,19 @@ class AsyncGenTest(unittest.TestCase):
 
         g = gen()
         ai = g.__aiter__()
-        self.assertEqual(ai.__anext__().__next__(), ('result',))
+        self.assertEqual(next(ai.__anext__()), ('result',))
 
         try:
-            ai.__anext__().__next__()
+            next(ai.__anext__())
         except StopIteration as ex:
             self.assertEqual(ex.args[0], 123)
         else:
             self.fail('StopIteration was not raised')
 
-        self.assertEqual(ai.__anext__().__next__(), ('result',))
+        self.assertEqual(next(ai.__anext__()), ('result',))
 
         try:
-            ai.__anext__().__next__()
+            next(ai.__anext__())
         except StopAsyncIteration as ex:
             self.assertFalse(ex.args)
         else:
@@ -313,17 +325,17 @@ class AsyncGenTest(unittest.TestCase):
 
         g = gen()
         ai = g.__aiter__()
-        self.assertEqual(ai.__anext__().__next__(), ('result',))
+        self.assertEqual(next(ai.__anext__()), ('result',))
 
         try:
-            ai.__anext__().__next__()
+            next(ai.__anext__())
         except StopIteration as ex:
             self.assertEqual(ex.args[0], 123)
         else:
             self.fail('StopIteration was not raised')
 
         with self.assertRaises(ZeroDivisionError):
-            ai.__anext__().__next__()
+            next(ai.__anext__())
 
     def test_async_gen_exception_05(self):
         async def gen():
@@ -430,11 +442,11 @@ class AsyncGenTest(unittest.TestCase):
         g = gen()
 
         self.assertEqual(g.__name__, 'gen')
-        g.__name__ = '123'
+        g.__name__ = '123' if sys.version_info[0] >= 3 else b'123'
         self.assertEqual(g.__name__, '123')
 
         self.assertIn('.gen', g.__qualname__)
-        g.__qualname__ = '123'
+        g.__qualname__ = '123' if sys.version_info[0] >= 3 else b'123'
         self.assertEqual(g.__qualname__, '123')
 
         #self.assertIsNone(g.ag_await)
