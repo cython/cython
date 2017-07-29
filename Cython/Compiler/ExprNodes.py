@@ -9415,7 +9415,7 @@ class YieldExprNode(ExprNode):
     expr_keyword = 'yield'
 
     def analyse_types(self, env):
-        if not self.label_num:
+        if not self.label_num or (self.is_yield_from and self.in_async_gen):
             error(self.pos, "'%s' not supported here" % self.expr_keyword)
         self.is_temp = 1
         if self.arg is not None:
@@ -9552,6 +9552,7 @@ class AwaitExprNode(YieldFromExprNode):
     # arg         ExprNode   the Awaitable value to await
     # label_num   integer    yield label number
 
+    is_yield_from = False
     is_await = True
     expr_keyword = 'await'
 
