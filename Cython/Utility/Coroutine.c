@@ -623,13 +623,15 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, i
     }
 
     if (unlikely(self->resume_label == -1)) {
+        #ifdef __Pyx_Coroutine_USED
         if (!closing && __Pyx_Coroutine_CheckExact((PyObject*)self)) {
             // `self` is an exhausted coroutine: raise an error,
             // except when called from gen_close(), which should
             // always be a silent method.
             PyErr_SetString(PyExc_RuntimeError, "cannot reuse already awaited coroutine");
-        }
-        else if (value) {
+        } else
+        #endif
+        if (value) {
             // `gen` is an exhausted generator:
             // only set exception if called from send().
             #ifdef __Pyx_AsyncGen_USED
