@@ -18,6 +18,9 @@ import contextlib
 #asyncio = import_module("asyncio")
 
 try:
+    if sys.version_info[:2] == (3, 4):
+        # asnycio in Py3.4 does not support awaitable coroutines (requires iterators instead)
+        raise ImportError
     import asyncio
 except ImportError:
     try:
