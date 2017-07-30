@@ -1407,26 +1407,6 @@ static void __Pyx_Coroutine_check_and_dealloc(PyObject *self) {
         Py_XDECREF(msg);}
 #endif
         PyObject_GC_Track(self);
-#ifdef __Pyx_AsyncGen_USED
-    } else if (__Pyx_AsyncGen_CheckExact(self)) {
-        __pyx_PyAsyncGenObject *agen = (__pyx_PyAsyncGenObject*)self;
-        PyObject *finalizer = agen->ag_finalizer;
-        if (finalizer && !agen->ag_closed) {
-            /* Save the current exception, if any. */
-            PyObject *error_type, *error_value, *error_traceback, *res;
-            PyErr_Fetch(&error_type, &error_value, &error_traceback);
-
-            res = __Pyx_PyObject_CallOneArg(finalizer, self);
-            if (res == NULL) {
-                PyErr_WriteUnraisable(self);
-            } else {
-                Py_DECREF(res);
-            }
-            /* Restore the saved exception. */
-            PyErr_Restore(error_type, error_value, error_traceback);
-            return;
-        }
-#endif
     }
 
     __Pyx_Coroutine_dealloc(self);
