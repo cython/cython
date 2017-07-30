@@ -419,6 +419,9 @@ static PyTypeObject *__pyx_CoroutineAwaitType = 0;
 
 static int __pyx_Coroutine_init(void); /*proto*/
 static PyObject *__Pyx__Coroutine_await(PyObject *coroutine); /*proto*/
+static PyObject *__Pyx_Coroutine_Send(PyObject *self, PyObject *value); /*proto*/
+static PyObject *__Pyx_Coroutine_Close(PyObject *self); /*proto*/
+static PyObject *__Pyx_Coroutine_Throw(PyObject *gen, PyObject *args); /*proto*/
 
 
 //////////////////// Generator.proto ////////////////////
@@ -451,10 +454,6 @@ static int __pyx_Generator_init(void); /*proto*/
 
 #include <structmember.h>
 #include <frameobject.h>
-
-static PyObject *__Pyx_Coroutine_Send(PyObject *self, PyObject *value);
-static PyObject *__Pyx_Coroutine_Close(PyObject *self);
-static PyObject *__Pyx_Coroutine_Throw(PyObject *gen, PyObject *args);
 
 #define __Pyx_Coroutine_Undelegate(gen) Py_CLEAR((gen)->yieldfrom)
 

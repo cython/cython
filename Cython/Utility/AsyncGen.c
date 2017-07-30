@@ -495,7 +495,7 @@ __Pyx_async_gen_asend_send(__pyx_PyAsyncGenASend *o, PyObject *arg)
         o->ags_state = __PYX_AWAITABLE_STATE_ITER;
     }
 
-    result = __Pyx_Coroutine_SendEx((__pyx_CoroutineObject*)o->ags_gen, arg, 0);
+    result = __Pyx_Coroutine_Send((PyObject*)o->ags_gen, arg);
     result = __Pyx_async_gen_unwrap_value(o->ags_gen, result);
 
     if (result == NULL) {
@@ -839,7 +839,7 @@ __Pyx_async_gen_athrow_send(__pyx_PyAsyncGenAThrow *o, PyObject *arg)
 
     assert (o->agt_state == __PYX_AWAITABLE_STATE_ITER);
 
-    retval = __Pyx_Coroutine_SendEx((__pyx_CoroutineObject *)gen, arg, 0);
+    retval = __Pyx_Coroutine_Send((PyObject *)gen, arg);
     if (o->agt_args) {
         return __Pyx_async_gen_unwrap_value(o->agt_gen, retval);
     } else {
