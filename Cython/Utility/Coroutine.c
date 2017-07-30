@@ -1658,13 +1658,15 @@ static void __Pyx__ReturnWithStopIteration(PyObject* value); /*proto*/
 // 1) Instantiating an exception just to pass back a value is costly.
 // 2) CPython 3.3 <= x < 3.5b1 crash in yield-from when the StopIteration is not instantiated.
 // 3) Passing a tuple as value into PyErr_SetObject() passes its items on as arguments.
-// 4) If there is currently an exception being handled, we need to chain it.
+// 4) Passing an exception as value will interpret it as an exception on unpacking and raise it (or unpack its value).
+// 5) If there is currently an exception being handled, we need to chain it.
 
 static void __Pyx__ReturnWithStopIteration(PyObject* value) {
     PyObject *exc, *args;
 #if CYTHON_COMPILING_IN_CPYTHON || CYTHON_COMPILING_IN_PYSTON
     __Pyx_PyThreadState_declare
-    if ((PY_VERSION_HEX >= 0x03030000 && PY_VERSION_HEX < 0x030500B1) || unlikely(PyTuple_Check(value))) {
+    if ((PY_VERSION_HEX >= 0x03030000 && PY_VERSION_HEX < 0x030500B1)
+            || unlikely(PyTuple_Check(value) || PyExceptionInstance_Check(value))) {
         args = PyTuple_New(1);
         if (unlikely(!args)) return;
         Py_INCREF(value);
