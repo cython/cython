@@ -6994,6 +6994,7 @@ class TryFinallyStatNode(StatNode):
     #  body             StatNode
     #  finally_clause   StatNode
     #  finally_except_clause  deep-copy of finally_clause for exception case
+    #  in_generator     inside of generator => must store away current exception also in return case
     #
     #  Each of the continue, break, return and error gotos runs
     #  into its own deep-copy of the finally block code.
@@ -7011,6 +7012,7 @@ class TryFinallyStatNode(StatNode):
     finally_except_clause = None
 
     is_try_finally_in_nogil = False
+    in_generator = False
 
     @staticmethod
     def create_analysed(pos, env, body, finally_clause):
@@ -7129,32 +7131,47 @@ class TryFinallyStatNode(StatNode):
 
         code.set_all_labels(old_labels)
         return_label = code.return_label
+        exc_vars = ()
+
         for i, (new_label, old_label) in enumerate(zip(new_labels, old_labels)):
             if not code.label_used(new_label):
                 continue
             if new_label == new_error_label and preserve_error:
                 continue  # handled above
 
-            code.put('%s: ' % new_label)
-            code.putln('{')
+            code.putln('%s: {' % new_label)
             ret_temp = None
-            if old_label == return_label and not self.finally_clause.is_terminator:
-                # store away return value for later reuse
-                if (self.func_return_type and
-                        not self.is_try_finally_in_nogil and
-                        not isinstance(self.finally_clause, GILExitNode)):
-                    ret_temp = code.funcstate.allocate_temp(
-                        self.func_return_type, manage_ref=False)
-                    code.putln("%s = %s;" % (ret_temp, Naming.retval_cname))
-                    if self.func_return_type.is_pyobject:
-                        code.putln("%s = 0;" % Naming.retval_cname)
+            if old_label == return_label:
+                # return actually raises an (uncatchable) exception in generators that we must preserve
+                if self.in_generator:
+                    code.putln("__Pyx_PyThreadState_declare")
+                    exc_vars = tuple([
+                        code.funcstate.allocate_temp(py_object_type, manage_ref=False)
+                        for _ in range(6)])
+                    self.put_error_catcher(code, [], exc_vars)
+                if not self.finally_clause.is_terminator:
+                    # store away return value for later reuse
+                    if (self.func_return_type and
+                            not self.is_try_finally_in_nogil and
+                            not isinstance(self.finally_clause, GILExitNode)):
+                        ret_temp = code.funcstate.allocate_temp(
+                            self.func_return_type, manage_ref=False)
+                        code.putln("%s = %s;" % (ret_temp, Naming.retval_cname))
+                        if self.func_return_type.is_pyobject:
+                            code.putln("%s = 0;" % Naming.retval_cname)
+
             fresh_finally_clause().generate_execution_code(code)
-            if ret_temp:
-                code.putln("%s = %s;" % (Naming.retval_cname, ret_temp))
-                if self.func_return_type.is_pyobject:
-                    code.putln("%s = 0;" % ret_temp)
-                code.funcstate.release_temp(ret_temp)
-                ret_temp = None
+
+            if old_label == return_label:
+                if ret_temp:
+                    code.putln("%s = %s;" % (Naming.retval_cname, ret_temp))
+                    if self.func_return_type.is_pyobject:
+                        code.putln("%s = 0;" % ret_temp)
+                    code.funcstate.release_temp(ret_temp)
+                    ret_temp = None
+                if self.in_generator:
+                    self.put_error_uncatcher(code, exc_vars)
+
             if not self.finally_clause.is_terminator:
                 code.put_goto(old_label)
             code.putln('}')
@@ -7169,7 +7186,7 @@ class TryFinallyStatNode(StatNode):
         self.finally_clause.generate_function_definitions(env, code)
 
     def put_error_catcher(self, code, temps_to_clean_up, exc_vars,
-                          exc_lineno_cnames, exc_filename_cname):
+                          exc_lineno_cnames=None, exc_filename_cname=None):
         code.globalstate.use_utility_code(restore_exception_utility_code)
         code.globalstate.use_utility_code(get_exception_utility_code)
         code.globalstate.use_utility_code(swap_exception_utility_code)
@@ -7202,13 +7219,14 @@ class TryFinallyStatNode(StatNode):
         if self.is_try_finally_in_nogil:
             code.put_release_ensured_gil()
 
-    def put_error_uncatcher(self, code, exc_vars, exc_lineno_cnames, exc_filename_cname):
+    def put_error_uncatcher(self, code, exc_vars, exc_lineno_cnames=None, exc_filename_cname=None):
         code.globalstate.use_utility_code(restore_exception_utility_code)
         code.globalstate.use_utility_code(reset_exception_utility_code)
 
         if self.is_try_finally_in_nogil:
             code.put_ensure_gil(declare_gilstate=False)
-        code.putln("__Pyx_PyThreadState_assign")  # re-assign in case a generator yielded
+        if self.in_generator:
+            code.putln("__Pyx_PyThreadState_assign")  # re-assign in case a generator yielded
 
         # not using preprocessor here to avoid warnings about
         # unused utility functions and/or temps
@@ -7235,7 +7253,8 @@ class TryFinallyStatNode(StatNode):
         code.globalstate.use_utility_code(reset_exception_utility_code)
         if self.is_try_finally_in_nogil:
             code.put_ensure_gil(declare_gilstate=False)
-        code.putln("__Pyx_PyThreadState_assign")  # re-assign in case a generator yielded
+        if self.in_generator:
+            code.putln("__Pyx_PyThreadState_assign")  # re-assign in case a generator yielded
 
         # not using preprocessor here to avoid warnings about
         # unused utility functions and/or temps

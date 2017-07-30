@@ -2458,6 +2458,7 @@ class YieldNodeCollector(TreeVisitor):
         super(YieldNodeCollector, self).__init__()
         self.yields = []
         self.returns = []
+        self.finallys = []
         self.has_return_value = False
         self.has_yield = False
         self.has_await = False
@@ -2480,6 +2481,10 @@ class YieldNodeCollector(TreeVisitor):
         if node.value:
             self.has_return_value = True
         self.returns.append(node)
+
+    def visit_TryFinallyStatNode(self, node):
+        self.visitchildren(node)
+        self.finallys.append(node)
 
     def visit_ClassDefNode(self, node):
         pass
@@ -2531,7 +2536,7 @@ class MarkClosureVisitor(CythonTransform):
 
         for i, yield_expr in enumerate(collector.yields, 1):
             yield_expr.label_num = i
-        for retnode in collector.returns:
+        for retnode in collector.returns + collector.finallys:
             retnode.in_generator = True
 
         gbody = Nodes.GeneratorBodyDefNode(
