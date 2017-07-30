@@ -743,6 +743,11 @@ static PyObject *__Pyx_Coroutine_Send(PyObject *self, PyObject *value) {
             ret = __Pyx_async_gen_asend_send((__pyx_PyAsyncGenASend *)yf, value);
         } else
         #endif
+        #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x03030000
+        if (PyGen_CheckExact(yf)) {
+            ret = _PyGen_Send((PyGenObject*)yf, value == Py_None ? NULL : value);
+        } else
+        #endif
         {
             if (value == Py_None)
                 ret = Py_TYPE(yf)->tp_iternext(yf);
@@ -816,6 +821,11 @@ static PyObject *__Pyx_Generator_Next(PyObject *self) {
         #ifdef __Pyx_Generator_USED
         if (__Pyx_Generator_CheckExact(yf)) {
             ret = __Pyx_Generator_Next(yf);
+        } else
+        #endif
+        #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x03030000
+        if (PyGen_CheckExact(yf)) {
+            ret = _PyGen_Send((PyGenObject*)yf, NULL);
         } else
         #endif
             ret = Py_TYPE(yf)->tp_iternext(yf);
