@@ -189,8 +189,9 @@ __Pyx_async_gen_traverse(__pyx_PyAsyncGenObject *gen, visitproc visit, void *arg
 static PyObject *
 __Pyx_async_gen_repr(__pyx_CoroutineObject *o)
 {
+    // avoid NULL pointer dereference for qualname during garbage collection
     return PyUnicode_FromFormat("<async_generator object %S at %p>",
-                                o->gi_qualname, o);
+                                o->gi_qualname ? o->gi_qualname : Py_None, o);
 }
 
 
