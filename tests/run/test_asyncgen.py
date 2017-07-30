@@ -903,9 +903,10 @@ class AsyncGenAsyncioTest(unittest.TestCase):
                 DONE += 1000
                 yield v * 2
             finally:
+                assert sys.exc_info()[0] == ZeroDivisionError
                 await asyncio.sleep(0.01, loop=self.loop)
                 await asyncio.sleep(0.01, loop=self.loop)
-                DONE = 1
+                DONE += 1
 
         async def run():
             g = gen()
