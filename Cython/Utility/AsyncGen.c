@@ -827,8 +827,7 @@ __Pyx_async_gen_athrow_send(__pyx_PyAsyncGenAThrow *o, PyObject *arg)
             }
 
             retval = __Pyx__Coroutine_Throw((PyObject*)gen,
-                                /* Do not close generator when
-                                   PyExc_GeneratorExit is passed */
+                                /* Do not close generator when PyExc_GeneratorExit is passed */
                                 typ, val, tb, o->agt_args, 0);
             retval = __Pyx_async_gen_unwrap_value(o->agt_gen, retval);
         }
