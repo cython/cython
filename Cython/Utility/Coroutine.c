@@ -1508,7 +1508,7 @@ static PyTypeObject __pyx_CoroutineType_type = {
     0,                                  /*tp_richcompare*/
 #endif
     offsetof(__pyx_CoroutineObject, gi_weakreflist), /*tp_weaklistoffset*/
-// no tp_iter() as iterator is only available through __await__()
+    // no tp_iter() as iterator is only available through __await__()
     0,                                  /*tp_iter*/
     0,                                  /*tp_iternext*/
     __pyx_Coroutine_methods,            /*tp_methods*/
