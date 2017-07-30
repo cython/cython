@@ -483,7 +483,7 @@ __Pyx_async_gen_asend_send(__pyx_PyAsyncGenASend *o, PyObject *arg)
 {
     PyObject *result;
 
-    if (o->ags_state == __PYX_AWAITABLE_STATE_CLOSED) {
+    if (unlikely(o->ags_state == __PYX_AWAITABLE_STATE_CLOSED)) {
         PyErr_SetNone(PyExc_StopIteration);
         return NULL;
     }
@@ -518,7 +518,7 @@ __Pyx_async_gen_asend_throw(__pyx_PyAsyncGenASend *o, PyObject *args)
 {
     PyObject *result;
 
-    if (o->ags_state == __PYX_AWAITABLE_STATE_CLOSED) {
+    if (unlikely(o->ags_state == __PYX_AWAITABLE_STATE_CLOSED)) {
         PyErr_SetNone(PyExc_StopIteration);
         return NULL;
     }
