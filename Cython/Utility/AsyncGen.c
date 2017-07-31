@@ -100,6 +100,7 @@ static int __Pyx_async_gen_init_hooks(__pyx_PyAsyncGenObject *o) {
 //////////////////// AsyncGenerator ////////////////////
 //@requires: AsyncGeneratorInitFinalizer
 //@requires: Coroutine.c::Coroutine
+//@requires: ObjectHandling.c::PyObjectCallMethod1
 
 
 PyDoc_STRVAR(__Pyx_async_gen_send_doc,
@@ -222,7 +223,8 @@ __Pyx_async_gen_init_hooks(__pyx_PyAsyncGenObject *o)
         PyObject *res;
 
         Py_INCREF(firstiter);
-        res = __Pyx_PyObject_CallOneArg(firstiter, (PyObject*)o);
+        // at least asyncio stores methods here => optimise the call
+        res = __Pyx__PyObject_CallMethod1(firstiter, (PyObject*)o);
         Py_DECREF(firstiter);
         if (unlikely(res == NULL)) {
             return 1;
