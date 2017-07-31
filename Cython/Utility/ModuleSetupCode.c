@@ -591,15 +591,14 @@ static int __Pyx_inner_PyErr_GivenExceptionMatches2(PyObject *err, PyObject* exc
     __Pyx_ErrFetch(&exception, &value, &tb);
 
     res = exc_type1 ? PyObject_IsSubclass(err, exc_type1) : 0;
-    // This function must not fail, so print the error here
+    // This function must not fail, so print the error here (which also clears it)
     if (unlikely(res == -1)) {
         PyErr_WriteUnraisable(err);
         res = 0;
     }
     if (!res) {
-        __Pyx_ErrRestore(exception, value, tb);
         res = PyObject_IsSubclass(err, exc_type2);
-        // This function must not fail, so print the error here
+        // This function must not fail, so print the error here (which also clears it)
         if (unlikely(res == -1)) {
             PyErr_WriteUnraisable(err);
             res = 0;
