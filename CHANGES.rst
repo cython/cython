@@ -12,6 +12,9 @@ Features added
 Bugs fixed
 ----------
 
+* Invalid C code in generators (declaration after code).
+  (Github issue #1801)
+
 * Arithmetic operations on ``const`` integer variables could generate invalid code.
   (Github issue #1798).
 

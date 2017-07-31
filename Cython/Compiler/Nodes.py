@@ -4081,7 +4081,7 @@ class GeneratorBodyDefNode(DefNode):
         profile = code.globalstate.directives['profile']
         linetrace = code.globalstate.directives['linetrace']
         if profile or linetrace:
-            code.put_trace_declarations()
+            tempvardecl_code.put_trace_declarations()
 
         # ----- Resume switch point.
         code.funcstate.init_closure_temps(lenv.scope_class.type.scope)
