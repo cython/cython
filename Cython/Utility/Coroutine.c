@@ -52,7 +52,7 @@ static CYTHON_INLINE PyObject* __Pyx__Coroutine_Yield_From(__pyx_CoroutineObject
 //@requires: Coroutine
 //@requires: GetAwaitIter
 
-static int __Pyx_WarnAIterDeprecation(PyObject *aiter) {
+static int __Pyx_WarnAIterDeprecation(CYTHON_UNUSED PyObject *aiter) {
     int result;
 #if PY_MAJOR_VERSION >= 3
     result = PyErr_WarnFormat(
