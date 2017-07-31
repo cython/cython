@@ -31,21 +31,24 @@ static CYTHON_INLINE int __Pyx_PyErr_ExceptionMatchesInState(PyThreadState* tsta
 /////////////// PyErrExceptionMatches ///////////////
 
 #if CYTHON_FAST_THREAD_STATE
+static int __Pyx_PyErr_ExceptionMatchesTuple(PyObject *exc_type, PyObject *tuple) {
+    Py_ssize_t i, n;
+    n = PyTuple_GET_SIZE(tuple);
+    for (i=0; i<n; i++) {
+        if (exc_type == PyTuple_GET_ITEM(tuple, i)) return 1;
+    }
+    for (i=0; i<n; i++) {
+        if (__Pyx_PyErr_GivenExceptionMatches(exc_type, PyTuple_GET_ITEM(tuple, i))) return 1;
+    }
+    return 0;
+}
+
 static CYTHON_INLINE int __Pyx_PyErr_ExceptionMatchesInState(PyThreadState* tstate, PyObject* err) {
     PyObject *exc_type = tstate->curexc_type;
     if (exc_type == err) return 1;
     if (unlikely(!exc_type)) return 0;
-    if (unlikely(PyTuple_Check(err))) {
-        Py_ssize_t i, n;
-        n = PyTuple_GET_SIZE(err);
-        for (i=0; i<n; i++) {
-            if (exc_type == PyTuple_GET_ITEM(err, i)) return 1;
-        }
-        for (i=0; i<n; i++) {
-            if (__Pyx_PyErr_GivenExceptionMatches(exc_type, PyTuple_GET_ITEM(err, i))) return 1;
-        }
-        return 0;
-    }
+    if (unlikely(PyTuple_Check(err)))
+        return __Pyx_PyErr_ExceptionMatchesTuple(exc_type, err);
     return __Pyx_PyErr_GivenExceptionMatches(exc_type, err);
 }
 #endif
