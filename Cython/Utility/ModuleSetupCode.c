@@ -590,7 +590,7 @@ static int __Pyx_inner_PyErr_GivenExceptionMatches2(PyTypeObject *err, PyTypeObj
     __Pyx_PyThreadState_assign
     __Pyx_ErrFetch(&exception, &value, &tb);
 
-    res = exc_type1 ? PyObject_IsSubclass(err, exc_type1) : 0;
+    res = exc_type1 ? PyObject_IsSubclass((PyObject*)err, (PyObject*)exc_type1) : 0;
     // This function must not fail, so print the error here
     if (unlikely(res == -1)) {
         PyErr_WriteUnraisable(err);
@@ -598,7 +598,7 @@ static int __Pyx_inner_PyErr_GivenExceptionMatches2(PyTypeObject *err, PyTypeObj
     }
     if (!res) {
         __Pyx_ErrRestore(exception, value, tb);
-        res = PyObject_IsSubclass(err, exc_type2);
+        res = PyObject_IsSubclass((PyObject*)err, (PyObject*)exc_type2);
         // This function must not fail, so print the error here
         if (unlikely(res == -1)) {
             PyErr_WriteUnraisable(err);
