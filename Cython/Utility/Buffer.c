@@ -166,11 +166,6 @@ static void __Pyx_BufFmt_Init(__Pyx_BufFmt_Context* ctx,
 
 
 /////////////// BufferFormatCheck ///////////////
-static CYTHON_INLINE int __Pyx_IsLittleEndian(void) {
-  unsigned int n = 1;
-  return *(unsigned char*)(&n) != 0;
-}
-
 
 static void __Pyx_BufFmt_Init(__Pyx_BufFmt_Context* ctx,
                               __Pyx_BufFmt_StackElem* stack,
@@ -611,7 +606,7 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
         ++ts;
         break;
       case '<':
-        if (!__Pyx_IsLittleEndian()) {
+        if (!__Pyx_Is_Little_Endian()) {
           PyErr_SetString(PyExc_ValueError, "Little-endian buffer not supported on big-endian compiler");
           return NULL;
         }
@@ -620,7 +615,7 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
         break;
       case '>':
       case '!':
-        if (__Pyx_IsLittleEndian()) {
+        if (__Pyx_Is_Little_Endian()) {
           PyErr_SetString(PyExc_ValueError, "Big-endian buffer not supported on little-endian compiler");
           return NULL;
         }

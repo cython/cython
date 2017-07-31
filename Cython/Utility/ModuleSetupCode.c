@@ -720,11 +720,11 @@ static int __Pyx_check_binary_version(void) {
 
 /////////////// IsLittleEndian.proto ///////////////
 
-static int __Pyx_Is_Little_Endian(void);
+static CYTHON_INLINE int __Pyx_Is_Little_Endian(void);
 
 /////////////// IsLittleEndian ///////////////
 
-static int __Pyx_Is_Little_Endian(void)
+static CYTHON_INLINE int __Pyx_Is_Little_Endian(void)
 {
   union {
     uint32_t u32;
