@@ -582,7 +582,7 @@ static CYTHON_INLINE int __Pyx_IsSubtype(PyTypeObject *a, PyTypeObject *b) {
 
 
 #if PY_MAJOR_VERSION == 2
-static int __Pyx_inner_PyErr_GivenExceptionMatches2(PyTypeObject *err, PyTypeObject* exc_type1, PyTypeObject* exc_type2) {
+static int __Pyx_inner_PyErr_GivenExceptionMatches2(PyObject *err, PyObject* exc_type1, PyObject* exc_type2) {
     // PyObject_IsSubclass() can recurse and therefore is not safe
     PyObject *exception, *value, *tb;
     int res;
@@ -590,18 +590,18 @@ static int __Pyx_inner_PyErr_GivenExceptionMatches2(PyTypeObject *err, PyTypeObj
     __Pyx_PyThreadState_assign
     __Pyx_ErrFetch(&exception, &value, &tb);
 
-    res = exc_type1 ? PyObject_IsSubclass((PyObject*)err, (PyObject*)exc_type1) : 0;
+    res = exc_type1 ? PyObject_IsSubclass(err, exc_type1) : 0;
     // This function must not fail, so print the error here
     if (unlikely(res == -1)) {
-        PyErr_WriteUnraisable((PyObject*)err);
+        PyErr_WriteUnraisable(err);
         res = 0;
     }
     if (!res) {
         __Pyx_ErrRestore(exception, value, tb);
-        res = PyObject_IsSubclass((PyObject*)err, (PyObject*)exc_type2);
+        res = PyObject_IsSubclass(err, exc_type2);
         // This function must not fail, so print the error here
         if (unlikely(res == -1)) {
-            PyErr_WriteUnraisable((PyObject*)err);
+            PyErr_WriteUnraisable(err);
             res = 0;
         }
     }
@@ -610,10 +610,10 @@ static int __Pyx_inner_PyErr_GivenExceptionMatches2(PyTypeObject *err, PyTypeObj
     return res;
 }
 #else
-static CYTHON_INLINE int __Pyx_inner_PyErr_GivenExceptionMatches2(PyTypeObject *err, PyTypeObject* exc_type1, PyTypeObject* exc_type2) {
-    int res = exc_type1 ? __Pyx_IsSubtype(err, exc_type1) : 0;
+static CYTHON_INLINE int __Pyx_inner_PyErr_GivenExceptionMatches2(PyObject *err, PyObject* exc_type1, PyObject *exc_type2) {
+    int res = exc_type1 ? __Pyx_IsSubtype((PyTypeObject*)err, (PyTypeObject*)exc_type1) : 0;
     if (!res) {
-        res = __Pyx_IsSubtype(err, exc_type2);
+        res = __Pyx_IsSubtype((PyTypeObject*)err, (PyTypeObject*)exc_type2);
     }
     return res;
 }
@@ -625,7 +625,7 @@ static CYTHON_INLINE int __Pyx_inner_PyErr_GivenExceptionMatches2(PyTypeObject *
 static CYTHON_INLINE int __Pyx_PyErr_GivenExceptionMatches(PyObject *err, PyObject* exc_type) {
     if (likely(err == exc_type)) return 1;
     if (likely(PyExceptionClass_Check(err))) {
-        return __Pyx_inner_PyErr_GivenExceptionMatches2((PyTypeObject *)err, NULL, (PyTypeObject *)exc_type);
+        return __Pyx_inner_PyErr_GivenExceptionMatches2(err, NULL, exc_type);
     }
     return PyErr_GivenExceptionMatches(err, exc_type);
 }
@@ -633,7 +633,7 @@ static CYTHON_INLINE int __Pyx_PyErr_GivenExceptionMatches(PyObject *err, PyObje
 static CYTHON_INLINE int __Pyx_PyErr_GivenExceptionMatches2(PyObject *err, PyObject *exc_type1, PyObject *exc_type2) {
     if (likely(err == exc_type1 || err == exc_type2)) return 1;
     if (likely(PyExceptionClass_Check(err))) {
-        return __Pyx_inner_PyErr_GivenExceptionMatches2((PyTypeObject *)err, (PyTypeObject *)exc_type1, (PyTypeObject *)exc_type2);
+        return __Pyx_inner_PyErr_GivenExceptionMatches2(err, exc_type1, exc_type2);
     }
     return (PyErr_GivenExceptionMatches(err, exc_type1) || PyErr_GivenExceptionMatches(err, exc_type2));
 }
