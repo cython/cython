@@ -224,7 +224,7 @@ __Pyx_async_gen_init_hooks(__pyx_PyAsyncGenObject *o)
         Py_INCREF(firstiter);
         res = __Pyx_PyObject_CallOneArg(firstiter, (PyObject*)o);
         Py_DECREF(firstiter);
-        if (res == NULL) {
+        if (unlikely(res == NULL)) {
             return 1;
         }
         Py_DECREF(res);
