@@ -2,6 +2,7 @@
 
 from __future__ import unicode_literals
 
+# these imports allow testing different ways to access [[cython.]view.]array()
 from cython.view cimport array
 from cython cimport view as v
 cimport cython as cy
@@ -20,7 +21,7 @@ def contiguity():
     2 3
     2
     '''
-    cdef v.array cvarray = v.array(shape=(2,3), itemsize=sizeof(int), format="i", mode='c')
+    cdef v.array cvarray = cy.view.array(shape=(2,3), itemsize=sizeof(int), format="i", mode='c')
     assert cvarray.len == 2*3*sizeof(int), (cvarray.len, 2*3*sizeof(int))
     assert cvarray.itemsize == sizeof(int)
     print cvarray.strides[0], cvarray.strides[1]

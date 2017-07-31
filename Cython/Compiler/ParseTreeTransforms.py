@@ -3020,22 +3020,22 @@ class TransformBuiltinMethods(EnvTransform):
 
     def visit_GeneralCallNode(self, node):
         function = node.function.as_cython_attribute()
-        if function:
+        if function == u'cast':
+            # NOTE: assuming simple tuple/dict nodes for positional_args and keyword_args
             args = node.positional_args.args
             kwargs = node.keyword_args.compile_time_value(None)
-            if function == u'cast':
-                if (len(args) != 2 or len(kwargs) > 1 or
-                        (len(kwargs) == 1 and 'typecheck' not in kwargs)):
-                    error(node.function.pos,
-                          u"cast() takes exactly two arguments and an optional typecheck keyword")
+            if (len(args) != 2 or len(kwargs) > 1 or
+                    (len(kwargs) == 1 and 'typecheck' not in kwargs)):
+                error(node.function.pos,
+                      u"cast() takes exactly two arguments and an optional typecheck keyword")
+            else:
+                type = args[0].analyse_as_type(self.current_env())
+                if type:
+                    typecheck = kwargs.get('typecheck', False)
+                    node = ExprNodes.TypecastNode(
+                        node.function.pos, type=type, operand=args[1], typecheck=typecheck)
                 else:
-                    type = args[0].analyse_as_type(self.current_env())
-                    if type:
-                        typecheck = kwargs.get('typecheck', False)
-                        node = ExprNodes.TypecastNode(
-                            node.function.pos, type=type, operand=args[1], typecheck=typecheck)
-                    else:
-                        error(args[0].pos, "Not a type")
+                    error(args[0].pos, "Not a type")
 
         self.visitchildren(node)
         return node
