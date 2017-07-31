@@ -1218,7 +1218,7 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
        methoddescr_type = Py_TYPE(meth);
        Py_DECREF(meth);
     }
-    if (PyObject_TypeCheck(method, methoddescr_type)) {
+    if (__Pyx_TypeCheck(method, methoddescr_type)) {
 #endif
         // cdef classes
         PyMethodDescrObject *descr = (PyMethodDescrObject *)method;
@@ -1238,7 +1238,7 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
         return PyClassMethod_New(method);
     }
 #ifdef __Pyx_CyFunction_USED
-    else if (PyObject_TypeCheck(method, __pyx_CyFunctionType)) {
+    else if (__Pyx_TypeCheck(method, __pyx_CyFunctionType)) {
         return PyClassMethod_New(method);
     }
 #endif

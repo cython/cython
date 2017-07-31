@@ -717,6 +717,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('static const char * %s= %s;' % (Naming.cfilenm_cname, Naming.file_c_macro))
         code.putln('static const char *%s;' % Naming.filename_cname)
 
+        env.use_utility_code(UtilityCode.load_cached("FastTypeChecks", "ModuleSetupCode.c"))
         if has_np_pythran(env):
             env.use_utility_code(UtilityCode.load_cached("PythranConversion", "CppSupport.cpp"))
 

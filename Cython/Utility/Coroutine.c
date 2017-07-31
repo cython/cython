@@ -343,9 +343,9 @@ static void __Pyx_Generator_Replace_StopIteration(CYTHON_UNUSED int in_async_gen
     #endif
 
     cur_exc = PyErr_Occurred();
-    if (likely(!PyErr_GivenExceptionMatches(cur_exc, PyExc_StopIteration))) {
+    if (likely(!__Pyx_PyErr_GivenExceptionMatches(cur_exc, PyExc_StopIteration))) {
         #ifdef __Pyx_StopAsyncIteration_USED
-        if (in_async_gen && unlikely(PyErr_GivenExceptionMatches(cur_exc, __Pyx_PyExc_StopAsyncIteration))) {
+        if (in_async_gen && unlikely(__Pyx_PyErr_GivenExceptionMatches(cur_exc, __Pyx_PyExc_StopAsyncIteration))) {
             is_async_stopiteration = 1;
         } else
         #endif
@@ -509,7 +509,7 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
             }
             Py_DECREF(ev);
         }
-        else if (!PyObject_TypeCheck(ev, (PyTypeObject*)PyExc_StopIteration)) {
+        else if (!__Pyx_TypeCheck(ev, (PyTypeObject*)PyExc_StopIteration)) {
             // 'steal' reference to ev
             value = ev;
         }
@@ -519,7 +519,7 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
             *pvalue = value;
             return 0;
         }
-    } else if (!PyErr_GivenExceptionMatches(et, PyExc_StopIteration)) {
+    } else if (!__Pyx_PyErr_GivenExceptionMatches(et, PyExc_StopIteration)) {
         __Pyx_ErrRestore(et, ev, tb);
         return -1;
     }
@@ -876,12 +876,7 @@ static PyObject *__Pyx_Coroutine_Close(PyObject *self) {
         return NULL;
     }
     raised_exception = PyErr_Occurred();
-    if (!raised_exception
-        || raised_exception == PyExc_StopIteration
-        || raised_exception == PyExc_GeneratorExit
-        || PyErr_GivenExceptionMatches(raised_exception, PyExc_GeneratorExit)
-        || PyErr_GivenExceptionMatches(raised_exception, PyExc_StopIteration))
-    {
+    if (!raised_exception || __Pyx_PyErr_GivenExceptionMatches2(raised_exception, PyExc_GeneratorExit, PyExc_StopIteration)) {
         // ignore these errors
         if (raised_exception) PyErr_Clear();
         Py_INCREF(Py_None);
@@ -901,7 +896,7 @@ static PyObject *__Pyx__Coroutine_Throw(PyObject *self, PyObject *typ, PyObject 
     if (yf) {
         PyObject *ret;
         Py_INCREF(yf);
-        if (PyErr_GivenExceptionMatches(typ, PyExc_GeneratorExit) && close_on_genexit) {
+        if (__Pyx_PyErr_GivenExceptionMatches(typ, PyExc_GeneratorExit) && close_on_genexit) {
             // Asynchronous generators *should not* be closed right away.
             // We have to allow some awaits to work it through, hence the
             // `close_on_genexit` parameter here.

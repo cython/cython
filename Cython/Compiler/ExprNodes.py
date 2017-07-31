@@ -2700,8 +2700,7 @@ class IteratorNode(ExprNode):
         code.putln("if (unlikely(!%s)) {" % result_name)
         code.putln("PyObject* exc_type = PyErr_Occurred();")
         code.putln("if (exc_type) {")
-        code.putln("if (likely(exc_type == PyExc_StopIteration ||"
-                   " PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))) PyErr_Clear();")
+        code.putln("if (likely(__Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))) PyErr_Clear();")
         code.putln("else %s" % code.error_goto(self.pos))
         code.putln("}")
         code.putln("break;")
@@ -9532,8 +9531,8 @@ class _YieldDelegationExprNode(YieldExprNode):
     def handle_iteration_exception(self, code):
         code.putln("PyObject* exc_type = PyErr_Occurred();")
         code.putln("if (exc_type) {")
-        code.putln("if (likely(exc_type == PyExc_StopIteration ||"
-                   " PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))) PyErr_Clear();")
+        code.putln("if (likely(exc_type == PyExc_StopIteration || exc_type != PyExc_GeneratorExit &&"
+                   " __Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))) PyErr_Clear();")
         code.putln("else %s" % code.error_goto(self.pos))
         code.putln("}")
 
@@ -9588,8 +9587,9 @@ class AwaitIterNextExprNode(AwaitExprNode):
     def _generate_break(self, code):
         code.globalstate.use_utility_code(UtilityCode.load_cached("StopAsyncIteration", "Coroutine.c"))
         code.putln("PyObject* exc_type = PyErr_Occurred();")
-        code.putln("if (exc_type && likely(exc_type == __Pyx_PyExc_StopAsyncIteration ||"
-                   " PyErr_GivenExceptionMatches(exc_type, __Pyx_PyExc_StopAsyncIteration))) {")
+        code.putln("if (unlikely(exc_type && (exc_type == __Pyx_PyExc_StopAsyncIteration || ("
+                   " exc_type != PyExc_StopIteration && exc_type != PyExc_GeneratorExit &&"
+                   " __Pyx_PyErr_GivenExceptionMatches(exc_type, __Pyx_PyExc_StopAsyncIteration))))) {")
         code.putln("PyErr_Clear();")
         code.putln("break;")
         code.putln("}")

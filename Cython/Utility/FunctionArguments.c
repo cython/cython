@@ -26,7 +26,7 @@ static CYTHON_INLINE int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, in
         #endif
     }
     else {
-        if (likely(PyObject_TypeCheck(obj, type))) return 1;
+        if (likely(__Pyx_TypeCheck(obj, type))) return 1;
     }
     __Pyx_RaiseArgumentTypeInvalid(name, obj, type);
     return 0;

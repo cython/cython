@@ -432,10 +432,7 @@ __Pyx_async_gen_unwrap_value(__pyx_PyAsyncGenObject *gen, PyObject *result)
         if (!exc_type) {
             PyErr_SetNone(__Pyx_PyExc_StopAsyncIteration);
             gen->ag_closed = 1;
-        } else if (exc_type == __Pyx_PyExc_StopAsyncIteration
-                   || exc_type == PyExc_GeneratorExit
-                   || PyErr_GivenExceptionMatches(exc_type, __Pyx_PyExc_StopAsyncIteration)
-                   || PyErr_GivenExceptionMatches(exc_type, PyExc_GeneratorExit)) {
+        } else if (__Pyx_PyErr_GivenExceptionMatches2(exc_type, __Pyx_PyExc_StopAsyncIteration, PyExc_GeneratorExit)) {
             gen->ag_closed = 1;
         }
 
