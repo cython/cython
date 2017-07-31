@@ -234,6 +234,16 @@
 #define __Pyx_PyFastCFunction_Check(func) 0
 #endif
 
+#if !CYTHON_FAST_THREAD_STATE || PY_VERSION_HEX < 0x02070000
+  #define __Pyx_PyThreadState_Current PyThreadState_GET()
+#elif PY_VERSION_HEX >= 0x03050000
+  #define __Pyx_PyThreadState_Current _PyThreadState_UncheckedGet()
+#elif PY_VERSION_HEX >= 0x03000000
+  #define __Pyx_PyThreadState_Current PyThreadState_Get()
+#else
+  #define __Pyx_PyThreadState_Current _PyThreadState_Current
+#endif
+
 /* new Py3.3 unicode type (PEP 393) */
 #if PY_VERSION_HEX > 0x03030000 && defined(PyUnicode_KIND)
   #define CYTHON_PEP393_ENABLED 1
@@ -1128,16 +1138,9 @@ static void __Pyx_FastGilFuncInit(void);
 #define __Pyx_FastGIL_PyCapsule \
     __Pyx_FastGIL_ABI_module "." __Pyx_FastGIL_PyCapsuleName
 
-#if PY_VERSION_HEX >= 0x03050000
-  #define __Pyx_PyThreadState_Current _PyThreadState_UncheckedGet()
-#elif PY_VERSION_HEX >= 0x03000000
-  #define __Pyx_PyThreadState_Current PyThreadState_Get()
-#elif PY_VERSION_HEX < 0x02070000
+#if PY_VERSION_HEX < 0x02070000
   #undef CYTHON_THREAD_LOCAL
-#else
-  #define __Pyx_PyThreadState_Current _PyThreadState_Current
 #endif
-
 
 #ifdef CYTHON_THREAD_LOCAL
 

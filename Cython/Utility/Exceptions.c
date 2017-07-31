@@ -290,7 +290,7 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
         PyErr_Restore(tmp_type, tmp_value, tb);
         Py_XDECREF(tmp_tb);
 #else
-        PyThreadState *tstate = PyThreadState_GET();
+        PyThreadState *tstate = __Pyx_PyThreadState_Current;
         PyObject* tmp_tb = tstate->curexc_traceback;
         if (tb != tmp_tb) {
             Py_INCREF(tb);
@@ -684,10 +684,10 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
         $global_code_object_cache_insert(c_line ? -c_line : py_line, py_code);
     }
     py_frame = PyFrame_New(
-        PyThreadState_GET(), /*PyThreadState *tstate,*/
-        py_code,             /*PyCodeObject *code,*/
-        $moddict_cname,      /*PyObject *globals,*/
-        0                    /*PyObject *locals*/
+        __Pyx_PyThreadState_Current, /*PyThreadState *tstate,*/
+        py_code,                     /*PyCodeObject *code,*/
+        $moddict_cname,              /*PyObject *globals,*/
+        0                            /*PyObject *locals*/
     );
     if (!py_frame) goto bad;
     __Pyx_PyFrame_SetLineNumber(py_frame, py_line);

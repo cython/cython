@@ -70,7 +70,7 @@ static int __Pyx_async_gen_init_hooks(__pyx_PyAsyncGenObject *o) {
     o->ag_hooks_inited = 1;
 
 #if 0
-    tstate = PyThreadState_GET();
+    tstate = __Pyx_PyThreadState_Current;
 
     finalizer = tstate->async_gen_finalizer;
     if (finalizer) {
@@ -209,7 +209,7 @@ __Pyx_async_gen_init_hooks(__pyx_PyAsyncGenObject *o)
 
     o->ag_hooks_inited = 1;
 
-    tstate = PyThreadState_GET();
+    tstate = __Pyx_PyThreadState_Current;
 
     finalizer = tstate->async_gen_finalizer;
     if (finalizer) {
