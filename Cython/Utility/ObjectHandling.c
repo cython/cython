@@ -1305,7 +1305,6 @@ static PyObject* __Pyx__PyObject_CallMethod1(PyObject* method, PyObject* arg) {
             Py_INCREF(arg);
             PyTuple_SET_ITEM(args, 1, arg);
             Py_INCREF(function);
-            Py_DECREF(method); method = NULL;
             result = __Pyx_PyObject_Call(function, args, NULL);
             Py_DECREF(args);
             Py_DECREF(function);
@@ -1319,7 +1318,7 @@ done:
 }
 
 static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name, PyObject* arg) {
-    PyObject *method, *result;
+    PyObject *method, *result = NULL;
     method = __Pyx_PyObject_GetAttrStr(obj, method_name);
     if (unlikely(!method)) goto done;
     result = __Pyx__PyObject_CallMethod1(method, arg);
