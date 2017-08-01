@@ -25,7 +25,7 @@ static PyTypeObject *__pyx_AsyncGenType = 0;
                     (Py_TYPE(o) == __pyx__PyAsyncGenASendType)
 
 static PyObject *__Pyx_async_gen_anext(__pyx_PyAsyncGenObject *o);
-static PyObject *__Pyx_async_gen_asend_iternext(__pyx_PyAsyncGenASend *o);
+static CYTHON_INLINE PyObject *__Pyx_async_gen_asend_iternext(__pyx_PyAsyncGenASend *o);
 static PyObject *__Pyx_async_gen_asend_send(__pyx_PyAsyncGenASend *o, PyObject *arg);
 
 static PyObject *__Pyx__PyAsyncGenValueWrapperNew(PyObject *val);
@@ -506,7 +506,7 @@ __Pyx_async_gen_asend_send(__pyx_PyAsyncGenASend *o, PyObject *arg)
 }
 
 
-static PyObject *
+static CYTHON_INLINE PyObject *
 __Pyx_async_gen_asend_iternext(__pyx_PyAsyncGenASend *o)
 {
     return __Pyx_async_gen_asend_send(o, Py_None);
