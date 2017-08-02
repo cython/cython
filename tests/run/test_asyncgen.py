@@ -763,6 +763,7 @@ class AsyncGenAsyncioTest(unittest.TestCase):
         t.cancel()
         self.loop.run_until_complete(asyncio.sleep(0.01, loop=self.loop))
 
+    @needs_py36_asyncio
     def test_async_gen_asyncio_gc_aclose_09(self):
         DONE = 0
 
