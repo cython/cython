@@ -10,6 +10,20 @@ cimport cython as cy
 include "cythonarrayutil.pxi"
 
 
+def length(shape):
+    """
+    >>> len(length((2,)))
+    2
+    >>> len(length((2,3)))
+    2
+    >>> len(length((5,3,2)))
+    5
+    """
+    cdef array cvarray = array(shape=shape, itemsize=sizeof(int), format="i", mode='c')
+    assert len(cvarray) == shape[0]
+    return cvarray
+
+
 def contiguity():
     '''
     >>> contiguity()
