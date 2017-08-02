@@ -12,6 +12,8 @@ Features added
 Bugs fixed
 ----------
 
+* ``cython.view.array`` was missing ``.__len__()``.
+
 * Invalid C code in generators (declaration after code).
   (Github issue #1801)
 
