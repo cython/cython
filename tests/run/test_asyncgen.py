@@ -36,6 +36,15 @@ else:
         return c
 
 
+def needs_py36_asyncio(f):
+    if sys.version_info >= (3, 6) or asyncio is None:
+        # Py<3.4 doesn't have asyncio at all => avoid having to special case 2.6's unittest below
+        return f
+
+    from unittest import skip
+    return skip("needs Python 3.6 or later")(f)
+
+
 try:
     from types import coroutine as types_coroutine
 except ImportError:
@@ -1128,6 +1137,7 @@ class AsyncGenAsyncioTest(unittest.TestCase):
 
         self.loop.run_until_complete(run())
 
+    @needs_py36_asyncio
     def test_async_gen_asyncio_shutdown_01(self):
         finalized = 0
 
@@ -1157,6 +1167,7 @@ class AsyncGenAsyncioTest(unittest.TestCase):
         t2.cancel()
         self.loop.run_until_complete(asyncio.sleep(0.1, loop=self.loop))
 
+    @needs_py36_asyncio
     def test_async_gen_asyncio_shutdown_02(self):
         logged = 0
 
