@@ -867,7 +867,11 @@ static PyObject *__Pyx_Coroutine_Close(PyObject *self) {
         #endif
         #ifdef __Pyx_AsyncGen_USED
         } else if (__Pyx_AsyncGen_CheckExact(self)) {
+#if PY_VERSION_HEX < 0x03060000
+            msg = "async generator ignored GeneratorExit - might require Python 3.6+ finalisation (PEP 525)";
+#else
             msg = "async generator ignored GeneratorExit";
+#endif
         #endif
         } else {
             msg = "generator ignored GeneratorExit";
