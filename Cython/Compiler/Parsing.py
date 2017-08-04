@@ -501,7 +501,7 @@ def p_call_parse_args(s, allow_genexp=True):
             break
         s.next()
 
-    if s.sy == 'for':
+    if s.sy in ('for', 'async'):
         if not keyword_args and not last_was_tuple_unpack:
             if len(positional_args) == 1 and len(positional_args[0]) == 1:
                 positional_args = [[p_genexp(s, positional_args[0][0])]]
@@ -1196,7 +1196,7 @@ def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
 # list_display  ::=     "[" [listmaker] "]"
 # listmaker     ::=     (test|star_expr) ( comp_for | (',' (test|star_expr))* [','] )
 # comp_iter     ::=     comp_for | comp_if
-# comp_for      ::=     "for" expression_list "in" testlist [comp_iter]
+# comp_for      ::=     ["async"] "for" expression_list "in" testlist [comp_iter]
 # comp_if       ::=     "if" test [comp_iter]
 
 def p_list_maker(s):
@@ -1208,7 +1208,7 @@ def p_list_maker(s):
         return ExprNodes.ListNode(pos, args=[])
 
     expr = p_test_or_starred_expr(s)
-    if s.sy == 'for':
+    if s.sy in ('for', 'async'):
         if expr.is_starred:
             s.error("iterable unpacking cannot be used in comprehension")
         append = ExprNodes.ComprehensionAppendNode(pos, expr=expr)
@@ -1230,7 +1230,7 @@ def p_list_maker(s):
 
 
 def p_comp_iter(s, body):
-    if s.sy == 'for':
+    if s.sy in ('for', 'async'):
         return p_comp_for(s, body)
     elif s.sy == 'if':
         return p_comp_if(s, body)
@@ -1239,11 +1239,17 @@ def p_comp_iter(s, body):
         return body
 
 def p_comp_for(s, body):
-    # s.sy == 'for'
     pos = s.position()
-    s.next()
-    kw = p_for_bounds(s, allow_testlist=False)
-    kw.update(else_clause = None, body = p_comp_iter(s, body))
+    # [async] for ...
+    is_async = False
+    if s.sy == 'async':
+        is_async = True
+        s.next()
+
+    # s.sy == 'for'
+    s.expect('for')
+    kw = p_for_bounds(s, allow_testlist=False, is_async=is_async)
+    kw.update(else_clause=None, body=p_comp_iter(s, body), is_async=is_async)
     return Nodes.ForStatNode(pos, **kw)
 
 def p_comp_if(s, body):
@@ -1311,7 +1317,7 @@ def p_dict_or_set_maker(s):
         else:
             break
 
-    if s.sy == 'for':
+    if s.sy in ('for', 'async'):
         # dict/set comprehension
         if len(parts) == 1 and isinstance(parts[0], list) and len(parts[0]) == 1:
             item = parts[0][0]
@@ -1441,13 +1447,13 @@ def p_testlist_comp(s):
         s.next()
         exprs = p_test_or_starred_expr_list(s, expr)
         return ExprNodes.TupleNode(pos, args = exprs)
-    elif s.sy == 'for':
+    elif s.sy in ('for', 'async'):
         return p_genexp(s, expr)
     else:
         return expr
 
 def p_genexp(s, expr):
-    # s.sy == 'for'
+    # s.sy == 'async' | 'for'
     loop = p_comp_for(s, Nodes.ExprStatNode(
         expr.pos, expr = ExprNodes.YieldExprNode(expr.pos, arg=expr)))
     return ExprNodes.GeneratorExpressionNode(expr.pos, loop=loop)
