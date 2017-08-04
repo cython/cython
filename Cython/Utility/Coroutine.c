@@ -56,20 +56,83 @@ static int __Pyx_WarnAIterDeprecation(CYTHON_UNUSED PyObject *aiter) {
     int result;
 #if PY_MAJOR_VERSION >= 3
     result = PyErr_WarnFormat(
-        PyExc_PendingDeprecationWarning, 1,
+        PyExc_DeprecationWarning, 1,
         "'%.100s' implements legacy __aiter__ protocol; "
         "__aiter__ should return an asynchronous "
         "iterator, not awaitable",
         Py_TYPE(aiter)->tp_name);
 #else
     result = PyErr_WarnEx(
-        PyExc_PendingDeprecationWarning,
+        PyExc_DeprecationWarning,
         "object implements legacy __aiter__ protocol; "
         "__aiter__ should return an asynchronous "
         "iterator, not awaitable",
         1);
 #endif
     return result != 0;
+}
+
+static void __Pyx__Coroutine_Yield_From_Error(PyObject *source) {
+#if PY_VERSION_HEX >= 0x03060000 || defined(_PyErr_FormatFromCause)
+    _PyErr_FormatFromCause(
+        PyExc_TypeError,
+        "'async for' received an invalid object "
+        "from __anext__: %.100s",
+        Py_TYPE(source)->tp_name);
+#elif PY_MAJOR_VERSION >= 3
+    PyObject *exc, *val, *val2, *tb;
+    assert(PyErr_Occurred());
+    PyErr_Fetch(&exc, &val, &tb);
+    PyErr_NormalizeException(&exc, &val, &tb);
+    if (tb != NULL) {
+        PyException_SetTraceback(val, tb);
+        Py_DECREF(tb);
+    }
+    Py_DECREF(exc);
+    assert(!PyErr_Occurred());
+    PyErr_Format(
+        PyExc_TypeError,
+        "'async for' received an invalid object "
+        "from __anext__: %.100s",
+        Py_TYPE(source)->tp_name);
+
+    PyErr_Fetch(&exc, &val2, &tb);
+    PyErr_NormalizeException(&exc, &val2, &tb);
+    Py_INCREF(val);
+    PyException_SetCause(val2, val);
+    PyException_SetContext(val2, val);
+    PyErr_Restore(exc, val2, tb);
+#else
+    // since Py2 does not have exception chaining, it's better to avoid shadowing exceptions there
+    source++;
+#endif
+}
+
+static PyObject* __Pyx__Coroutine_Yield_From_Generic(__pyx_CoroutineObject *gen, PyObject *source, int warn) {
+    PyObject *retval;
+    PyObject *source_gen = __Pyx__Coroutine_GetAwaitableIter(source);
+    if (unlikely(!source_gen)) {
+        // surprisingly, CPython replaces the exception here...
+        __Pyx__Coroutine_Yield_From_Error(source);
+        return NULL;
+    }
+    if (warn && unlikely(__Pyx_WarnAIterDeprecation(source))) {
+        /* Warning was converted to an error. */
+        Py_DECREF(source_gen);
+        return NULL;
+    }
+    // source_gen is now the iterator, make the first next() call
+    if (__Pyx_Coroutine_CheckExact(source_gen)) {
+        retval = __Pyx_Generator_Next(source_gen);
+    } else {
+        retval = Py_TYPE(source_gen)->tp_iternext(source_gen);
+    }
+    if (retval) {
+        gen->yieldfrom = source_gen;
+        return retval;
+    }
+    Py_DECREF(source_gen);
+    return NULL;
 }
 
 static CYTHON_INLINE PyObject* __Pyx__Coroutine_Yield_From(__pyx_CoroutineObject *gen, PyObject *source, int warn) {
@@ -96,25 +159,7 @@ static CYTHON_INLINE PyObject* __Pyx__Coroutine_Yield_From(__pyx_CoroutineObject
         }
 #endif
     } else {
-        PyObject *source_gen = __Pyx__Coroutine_GetAwaitableIter(source);
-        if (unlikely(!source_gen))
-            return NULL;
-        if (warn && unlikely(__Pyx_WarnAIterDeprecation(source))) {
-            /* Warning was converted to an error. */
-            Py_DECREF(source_gen);
-            return NULL;
-        }
-        // source_gen is now the iterator, make the first next() call
-        if (__Pyx_Coroutine_CheckExact(source_gen)) {
-            retval = __Pyx_Generator_Next(source_gen);
-        } else {
-            retval = Py_TYPE(source_gen)->tp_iternext(source_gen);
-        }
-        if (retval) {
-            gen->yieldfrom = source_gen;
-            return retval;
-        }
-        Py_DECREF(source_gen);
+        return __Pyx__Coroutine_Yield_From_Generic(gen, source, warn);
     }
     return NULL;
 }
@@ -142,8 +187,7 @@ static CYTHON_INLINE PyObject* __Pyx_Coroutine_AIter_Yield_From(__pyx_CoroutineO
         //
         // See http://bugs.python.org/issue27243 for more
         // details.
-        PyErr_SetObject(PyExc_StopIteration, source);
-        return NULL;
+        goto store_result;
     }
 #endif
 #if PY_VERSION_HEX < 0x030500B2
@@ -156,14 +200,24 @@ static CYTHON_INLINE PyObject* __Pyx_Coroutine_AIter_Yield_From(__pyx_CoroutineO
             PyObject *method = __Pyx_PyObject_GetAttrStr(source, PYIDENT("__anext__"));
             if (method) {
                 Py_DECREF(method);
-                PyErr_SetObject(PyExc_StopIteration, source);
-                return NULL;
+                goto store_result;
             }
             PyErr_Clear();
         }
     }
 #endif
     return __Pyx__Coroutine_Yield_From(gen, source, 1);
+
+store_result:
+    if (unlikely(PyTuple_Check(source) || __Pyx_TypeCheck(source, (PyTypeObject*)PyExc_StopIteration))) {
+        PyObject *t = PyTuple_Pack(1, source);
+        if (unlikely(!t)) return NULL;
+        PyErr_SetObject(PyExc_StopIteration, t);
+        Py_DECREF(t);
+    } else {
+        PyErr_SetObject(PyExc_StopIteration, source);
+    }
+    return NULL;
 }
 
 
