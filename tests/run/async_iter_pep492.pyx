@@ -175,7 +175,7 @@ def test_broken_anext():
     >>> testfunc = test_broken_anext()
     >>> try: run_async(testfunc())
     ... except TypeError as exc:
-    ...     assert ' int ' in str(exc)
+    ...     assert ' int' in str(exc)
     ... else:
     ...     print("NOT RAISED!")
     """
