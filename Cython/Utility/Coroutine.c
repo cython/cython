@@ -142,7 +142,14 @@ static CYTHON_INLINE PyObject* __Pyx__Coroutine_Yield_From(__pyx_CoroutineObject
             /* Warning was converted to an error. */
             return NULL;
         }
-        retval = __Pyx_Generator_Next(source);
+        if (unlikely(((__pyx_CoroutineObject*)source)->yieldfrom)) {
+            PyErr_SetString(
+                PyExc_RuntimeError,
+                "coroutine is being awaited already");
+            retval = NULL;
+        } else {
+            retval = __Pyx_Generator_Next(source);
+        }
         if (retval) {
             Py_INCREF(source);
             gen->yieldfrom = source;
