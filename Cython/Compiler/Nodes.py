@@ -4084,7 +4084,7 @@ class GeneratorBodyDefNode(DefNode):
         code.putln("PyObject *%s = NULL;" % Naming.retval_cname)
         tempvardecl_code = code.insertion_point()
         code.put_declare_refcount_context()
-        code.put_setup_refcount_context(self.entry.name)
+        code.put_setup_refcount_context(self.entry.name or self.entry.qualified_name)
         profile = code.globalstate.directives['profile']
         linetrace = code.globalstate.directives['linetrace']
         if profile or linetrace:
@@ -4119,7 +4119,7 @@ class GeneratorBodyDefNode(DefNode):
         # ----- Function body
         self.generate_function_body(env, code)
         # ----- Closure initialization
-        if lenv.scope_class.type.scope.entries:
+        if lenv.scope_class.type.scope.var_entries:
             closure_init_code.putln('%s = %s;' % (
                 lenv.scope_class.type.declaration_code(Naming.cur_scope_cname),
                 lenv.scope_class.type.cast_code('%s->closure' %

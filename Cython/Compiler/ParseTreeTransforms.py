@@ -2599,24 +2599,28 @@ class CreateClosureClasses(CythonTransform):
     def find_entries_used_in_closures(self, node):
         from_closure = []
         in_closure = []
-        for name, entry in node.local_scope.entries.items():
-            if entry.from_closure:
-                from_closure.append((name, entry))
-            elif entry.in_closure:
-                in_closure.append((name, entry))
+        for scope in node.local_scope.iter_local_scopes():
+            for name, entry in scope.entries.items():
+                if not name:
+                    continue
+                if entry.from_closure:
+                    from_closure.append((name, entry))
+                elif entry.in_closure:
+                    in_closure.append((name, entry))
         return from_closure, in_closure
 
     def create_class_from_scope(self, node, target_module_scope, inner_node=None):
         # move local variables into closure
         if node.is_generator:
-            for entry in node.local_scope.entries.values():
-                if not entry.from_closure:
-                    entry.in_closure = True
+            for scope in node.local_scope.iter_local_scopes():
+                for entry in scope.entries.values():
+                    if not entry.from_closure:
+                        entry.in_closure = True
 
         from_closure, in_closure = self.find_entries_used_in_closures(node)
         in_closure.sort()
 
-        # Now from the begining
+        # Now from the beginning
         node.needs_closure = False
         node.needs_outer_scope = False
 
@@ -2668,11 +2672,12 @@ class CreateClosureClasses(CythonTransform):
                                     is_cdef=True)
             node.needs_outer_scope = True
         for name, entry in in_closure:
-            closure_entry = class_scope.declare_var(pos=entry.pos,
-                                    name=entry.name,
-                                    cname=entry.cname,
-                                    type=entry.type,
-                                    is_cdef=True)
+            closure_entry = class_scope.declare_var(
+                pos=entry.pos,
+                name=entry.name if not entry.in_subscope else None,
+                cname=entry.cname,
+                type=entry.type,
+                is_cdef=True)
             if entry.is_declared_generic:
                 closure_entry.is_declared_generic = 1
         node.needs_closure = True

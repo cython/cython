@@ -4,8 +4,9 @@
 
 from __future__ import absolute_import
 
-import copy
 import re
+import copy
+import operator
 
 try:
     import __builtin__ as builtins
@@ -88,6 +89,7 @@ class Entry(object):
     # is_arg           boolean    Is the arg of a method
     # is_local         boolean    Is a local variable
     # in_closure       boolean    Is referenced in an inner scope
+    # in_subscope      boolean    Belongs to a generator expression scope
     # is_readonly      boolean    Can't be assigned to
     # func_cname       string     C func implementing Python func
     # func_modifiers   [string]   C function modifiers ('inline')
@@ -163,6 +165,7 @@ class Entry(object):
     is_local = 0
     in_closure = 0
     from_closure = 0
+    in_subscope = 0
     is_declared_generic = 0
     is_readonly = 0
     pyfunc_cname = None
@@ -299,6 +302,7 @@ class Scope(object):
     is_py_class_scope = 0
     is_c_class_scope = 0
     is_closure_scope = 0
+    is_genexpr_scope = 0
     is_passthrough = 0
     is_cpp_class_scope = 0
     is_property_scope = 0
@@ -308,6 +312,7 @@ class Scope(object):
     in_cinclude = 0
     nogil = 0
     fused_to_specific = None
+    return_type = None
 
     def __init__(self, name, outer_scope, parent_scope):
         # The outer_scope is the next scope in the lookup chain.
@@ -324,6 +329,7 @@ class Scope(object):
             self.qualified_name = EncodedString(name)
             self.scope_prefix = mangled_name
         self.entries = {}
+        self.subscopes = set()
         self.const_entries = []
         self.type_entries = []
         self.sue_entries = []
@@ -341,7 +347,6 @@ class Scope(object):
         self.obj_to_entry = {}
         self.buffer_entries = []
         self.lambda_defs = []
-        self.return_type = None
         self.id_counters = {}
 
     def __deepcopy__(self, memo):
@@ -418,6 +423,12 @@ class Scope(object):
     def builtin_scope(self):
         """ Return the module-level scope containing this scope. """
         return self.outer_scope.builtin_scope()
+
+    def iter_local_scopes(self):
+        yield self
+        if self.subscopes:
+            for scope in sorted(self.subscopes, key=operator.attrgetter('scope_prefix')):
+                yield scope
 
     def declare(self, name, cname, type, pos, visibility, shadow = 0, is_type = 0, create_wrapper = 0):
         # Create new entry, and add to dictionary if
@@ -1690,18 +1701,19 @@ class LocalScope(Scope):
         return entry
 
     def mangle_closure_cnames(self, outer_scope_cname):
-        for entry in self.entries.values():
-            if entry.from_closure:
-                cname = entry.outer_entry.cname
-                if self.is_passthrough:
-                    entry.cname = cname
-                else:
-                    if cname.startswith(Naming.cur_scope_cname):
-                        cname = cname[len(Naming.cur_scope_cname)+2:]
-                    entry.cname = "%s->%s" % (outer_scope_cname, cname)
-            elif entry.in_closure:
-                entry.original_cname = entry.cname
-                entry.cname = "%s->%s" % (Naming.cur_scope_cname, entry.cname)
+        for scope in self.iter_local_scopes():
+            for entry in scope.entries.values():
+                if entry.from_closure:
+                    cname = entry.outer_entry.cname
+                    if self.is_passthrough:
+                        entry.cname = cname
+                    else:
+                        if cname.startswith(Naming.cur_scope_cname):
+                            cname = cname[len(Naming.cur_scope_cname)+2:]
+                        entry.cname = "%s->%s" % (outer_scope_cname, cname)
+                elif entry.in_closure:
+                    entry.original_cname = entry.cname
+                    entry.cname = "%s->%s" % (Naming.cur_scope_cname, entry.cname)
 
 
 class GeneratorExpressionScope(Scope):
@@ -1709,11 +1721,18 @@ class GeneratorExpressionScope(Scope):
     to generators, these can be easily inlined in some cases, so all
     we really need is a scope that holds the loop variable(s).
     """
+    is_genexpr_scope = True
+
     def __init__(self, outer_scope):
         name = outer_scope.global_scope().next_id(Naming.genexpr_id_ref)
         Scope.__init__(self, name, outer_scope, outer_scope)
+        self.var_entries = outer_scope.var_entries  # keep declarations outside
         self.directives = outer_scope.directives
         self.genexp_prefix = "%s%d%s" % (Naming.pyrex_prefix, len(name), name)
+
+        while outer_scope.is_genexpr_scope:
+            outer_scope = outer_scope.outer_scope
+        outer_scope.subscopes.add(self)
 
     def mangle(self, prefix, name):
         return '%s%s' % (self.genexp_prefix, self.parent_scope.mangle(prefix, name))
@@ -1730,8 +1749,9 @@ class GeneratorExpressionScope(Scope):
         # this scope must hold its name exclusively
         cname = '%s%s' % (self.genexp_prefix, self.parent_scope.mangle(Naming.var_prefix, name or self.next_id()))
         entry = self.declare(name, cname, type, pos, visibility)
-        entry.is_variable = 1
-        entry.is_local = 1
+        entry.is_variable = True
+        entry.is_local = True
+        entry.in_subscope = True
         self.var_entries.append(entry)
         self.entries[name] = entry
         return entry

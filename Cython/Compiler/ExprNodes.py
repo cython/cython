@@ -7878,9 +7878,8 @@ class ScopedExprNode(ExprNode):
 
         code.putln('{ /* enter inner scope */')
         py_entries = []
-        for entry in self.expr_scope.var_entries:
+        for _, entry in sorted(item for item in self.expr_scope.entries.items() if item[0]):
             if not entry.in_closure:
-                code.put_var_declaration(entry)
                 if entry.type.is_pyobject and entry.used:
                     py_entries.append(entry)
         if not py_entries:
@@ -7890,14 +7889,14 @@ class ScopedExprNode(ExprNode):
             return
 
         # must free all local Python references at each exit point
-        old_loop_labels = tuple(code.new_loop_labels())
+        old_loop_labels = code.new_loop_labels()
         old_error_label = code.new_error_label()
 
         generate_inner_evaluation_code(code)
 
         # normal (non-error) exit
         for entry in py_entries:
-            code.put_var_decref(entry)
+            code.put_var_decref_clear(entry)
 
         # error/loop body exit points
         exit_scope = code.new_label('exit_scope')
@@ -7907,7 +7906,7 @@ class ScopedExprNode(ExprNode):
             if code.label_used(label):
                 code.put_label(label)
                 for entry in py_entries:
-                    code.put_var_decref(entry)
+                    code.put_var_decref_clear(entry)
                 code.put_goto(old_label)
         code.put_label(exit_scope)
         code.putln('} /* exit inner scope */')
