@@ -210,7 +210,7 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAwaitableIter(PyObject *o) {
 }
 
 
-static void __Pyx__Coroutine_AwaitableIterError(PyObject *source) {
+static void __Pyx_Coroutine_AwaitableIterError(PyObject *source) {
 #if PY_VERSION_HEX >= 0x03060000 || defined(_PyErr_FormatFromCause)
     _PyErr_FormatFromCause(
         PyExc_TypeError,
@@ -257,15 +257,13 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
 #endif
 #if PY_VERSION_HEX >= 0x030500B2 || defined(PyCoro_CheckExact)
     if (PyCoro_CheckExact(obj)) {
-        Py_INCREF(obj);
-        return obj;
+        return __Pyx_NewRef(obj);
     } else
 #endif
 #if CYTHON_COMPILING_IN_CPYTHON && defined(CO_ITERABLE_COROUTINE)
     if (PyGen_CheckExact(obj) && ((PyGenObject*)obj)->gi_code && ((PyCodeObject *)((PyGenObject*)obj)->gi_code)->co_flags & CO_ITERABLE_COROUTINE) {
         // Python generator marked with "@types.coroutine" decorator
-        Py_INCREF(obj);
-        return obj;
+        return __Pyx_NewRef(obj);
     } else
 #endif
     {
@@ -286,10 +284,10 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
     }
     if (unlikely(!res)) {
         // surprisingly, CPython replaces the exception here...
-        __Pyx__Coroutine_AwaitableIterError(obj);
+        __Pyx_Coroutine_AwaitableIterError(obj);
         goto bad;
     }
-    if (!PyIter_Check(res)) {
+    if (unlikely(!PyIter_Check(res))) {
         PyErr_Format(PyExc_TypeError,
                      "__await__() returned non-iterator of type '%.100s'",
                      Py_TYPE(res)->tp_name);
