@@ -1066,8 +1066,8 @@ static void __Pyx_Coroutine_dealloc(PyObject *self) {
     if (gen->gi_weakreflist != NULL)
         PyObject_ClearWeakRefs(self);
 
-    if (gen->resume_label > 0) {
-        // Generator is paused, so we need to close
+    if (gen->resume_label >= 0) {
+        // Generator is paused or unstarted, so we need to close
         PyObject_GC_Track(self);
 #if PY_VERSION_HEX >= 0x030400a1
         if (PyObject_CallFinalizerFromDealloc(self))

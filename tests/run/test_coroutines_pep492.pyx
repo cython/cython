@@ -977,6 +977,7 @@ class CoroutineTest(unittest.TestCase):
     def test_func_9(self):
         async def foo(): pass
 
+        gc.collect()
         with self.assertWarnsRegex(
             RuntimeWarning, "coroutine '.*test_func_9.*foo' was never awaited"):
 
@@ -2386,6 +2387,8 @@ class CoroutineTest(unittest.TestCase):
     def test_fatal_coro_warning(self):
         # Issue 27811
         async def func(): pass
+
+        gc.collect()
         with warnings.catch_warnings(), captured_stderr() as stderr:
             warnings.filterwarnings("error")
             func()
