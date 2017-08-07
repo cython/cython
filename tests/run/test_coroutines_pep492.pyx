@@ -840,6 +840,10 @@ class CoroutineTest(unittest.TestCase):
         def assertIsNotNone(self, value, msg=None):
             self.assertTrue(value is not None, msg)
 
+    if not hasattr(unittest.TestCase, 'assertIsInstance'):
+        def assertIsInstance(self, obj, cls, msg=None):
+            self.assertTrue(isinstance(obj, cls), msg)
+
     def test_gen_1(self):
         def gen(): yield
         self.assertFalse(hasattr(gen, '__await__'))
@@ -1225,7 +1229,10 @@ class CoroutineTest(unittest.TestCase):
 
         result = run_async__await__(foo())
         self.assertIsInstance(result[1], StopIteration)
-        self.assertEqual(result[1].value, 10)
+        if sys.version_info[0] >= 3:
+            self.assertEqual(result[1].value, 10)
+        else:
+            self.assertEqual(result[1].args[0], 10)
 
     def test_cr_await(self):
         @types_coroutine
@@ -1493,7 +1500,8 @@ class CoroutineTest(unittest.TestCase):
                 return await f()
 
         _, result = run_async(g())
-        self.assertIsNone(result.__context__)
+        if sys.version_info[0] >= 3:
+            self.assertIsNone(result.__context__)
 
     # removed from CPython ?
     def __test_await_iterator(self):
@@ -2168,7 +2176,10 @@ class CoroutineTest(unittest.TestCase):
                 if self.i:
                     raise StopAsyncIteration
                 self.i += 1
-                return self.value
+                if sys.version_info[0] >= 3:
+                    return self.value
+                else:
+                    return self.args[0]
 
         result = []
         async def foo():
