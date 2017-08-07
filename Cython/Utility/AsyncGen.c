@@ -331,10 +331,9 @@ static __Pyx_PyAsyncMethodsStruct __Pyx_async_gen_as_async = {
 PyTypeObject __pyx_AsyncGenType_type = {
     PyVarObject_HEAD_INIT(&PyType_Type, 0)
     "async_generator",                          /* tp_name */
-    sizeof(__pyx_PyAsyncGenObject),                   /* tp_basicsize */
+    sizeof(__pyx_PyAsyncGenObject),             /* tp_basicsize */
     0,                                          /* tp_itemsize */
-    /* methods */
-    (destructor)__Pyx_Coroutine_check_and_dealloc,                    /* tp_dealloc */
+    (destructor)__Pyx_Coroutine_dealloc,        /* tp_dealloc */
     0,                                          /* tp_print */
     0,                                          /* tp_getattr */
     0,                                          /* tp_setattr */

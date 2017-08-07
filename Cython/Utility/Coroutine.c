@@ -1095,13 +1095,14 @@ static void __Pyx_Coroutine_dealloc(PyObject *self) {
 }
 
 static void __Pyx_Coroutine_del(PyObject *self) {
-    PyObject *res;
     PyObject *error_type, *error_value, *error_traceback;
     __pyx_CoroutineObject *gen = (__pyx_CoroutineObject *) self;
     __Pyx_PyThreadState_declare
 
-    if (gen->resume_label <= 0)
-        return ;
+    if (gen->resume_label < 0) {
+        // never started => nothing to clean up
+        return;
+    }
 
 #if PY_VERSION_HEX < 0x030400a1
     // Temporarily resurrect the object.
@@ -1111,37 +1112,87 @@ static void __Pyx_Coroutine_del(PyObject *self) {
 
     __Pyx_PyThreadState_assign
 
+    // Save the current exception, if any.
+    __Pyx_ErrFetch(&error_type, &error_value, &error_traceback);
+
 #ifdef __Pyx_AsyncGen_USED
     if (__Pyx_AsyncGen_CheckExact(self)) {
         __pyx_PyAsyncGenObject *agen = (__pyx_PyAsyncGenObject*)self;
         PyObject *finalizer = agen->ag_finalizer;
         if (finalizer && !agen->ag_closed) {
-            /* Save the current exception, if any. */
-            __Pyx_ErrFetch(&error_type, &error_value, &error_traceback);
-
-            res = __Pyx_PyObject_CallOneArg(finalizer, self);
-
-            if (res == NULL) {
+            PyObject *res = __Pyx_PyObject_CallOneArg(finalizer, self);
+            if (unlikely(!res)) {
                 PyErr_WriteUnraisable(self);
             } else {
                 Py_DECREF(res);
             }
-            /* Restore the saved exception. */
+            // Restore the saved exception.
             __Pyx_ErrRestore(error_type, error_value, error_traceback);
             return;
         }
     }
 #endif
 
-    // Save the current exception, if any.
-    __Pyx_ErrFetch(&error_type, &error_value, &error_traceback);
+    if (unlikely(gen->resume_label == 0 && !error_value)) {
+        // untrack dead object as we are executing Python code (which might trigger GC)
+        PyObject_GC_UnTrack(self);
+#if PY_VERSION_HEX >= 0x03030000 || defined(PyErr_WarnFormat)
+        if (unlikely(PyErr_WarnFormat(PyExc_RuntimeWarning, 1, "coroutine '%.50S' was never awaited", gen->gi_qualname) < 0))
+            PyErr_WriteUnraisable(self);
+#else
+        {PyObject *msg;
+        char *cmsg;
+        #if CYTHON_COMPILING_IN_PYPY
+        msg = NULL;
+        cmsg = (char*) "coroutine was never awaited";
+        #else
+        char *cname;
+        PyObject *qualname;
+        #if PY_MAJOR_VERSION >= 3
+        qualname = PyUnicode_AsUTF8String(gen->gi_qualname);
+        if (likely(qualname)) {
+            cname = PyBytes_AS_STRING(qualname);
+        } else {
+            PyErr_Clear();
+            cname = (char*) "?";
+        }
+        msg = PyBytes_FromFormat(
+        #else
+        qualname = gen->gi_qualname;
+        cname = PyString_AS_STRING(qualname);
+        msg = PyString_FromFormat(
+        #endif
+            "coroutine '%.50s' was never awaited", cname);
 
-    res = __Pyx_Coroutine_Close(self);
+        #if PY_MAJOR_VERSION >= 3
+        Py_XDECREF(qualname);
+        #endif
 
-    if (res == NULL)
-        PyErr_WriteUnraisable(self);
-    else
-        Py_DECREF(res);
+        if (unlikely(!msg)) {
+            PyErr_Clear();
+            cmsg = (char*) "coroutine was never awaited";
+        } else {
+            #if PY_MAJOR_VERSION >= 3
+            cmsg = PyBytes_AS_STRING(msg);
+            #else
+            cmsg = PyString_AS_STRING(msg);
+            #endif
+        }
+        #endif
+        if (unlikely(PyErr_WarnEx(PyExc_RuntimeWarning, cmsg, 1) < 0))
+            PyErr_WriteUnraisable(self);
+        Py_XDECREF(msg);}
+#endif
+        PyObject_GC_Track(self);
+    } else {
+        PyObject *res = __Pyx_Coroutine_Close(self);
+        if (unlikely(!res)) {
+            if (PyErr_Occurred())
+                PyErr_WriteUnraisable(self);
+        } else {
+            Py_DECREF(res);
+        }
+    }
 
     // Restore the saved exception.
     __Pyx_ErrRestore(error_type, error_value, error_traceback);
@@ -1423,65 +1474,6 @@ static PyObject *__Pyx_Coroutine_await(PyObject *coroutine) {
     return __Pyx__Coroutine_await(coroutine);
 }
 
-static void __Pyx_Coroutine_check_and_dealloc(PyObject *self) {
-    __pyx_CoroutineObject *gen = (__pyx_CoroutineObject *) self;
-
-    if (gen->resume_label == 0 && !PyErr_Occurred()) {
-        // untrack dead object as we are executing Python code (which might trigger GC)
-        PyObject_GC_UnTrack(self);
-#if PY_VERSION_HEX >= 0x03030000 || defined(PyErr_WarnFormat)
-        PyErr_WarnFormat(PyExc_RuntimeWarning, 1, "coroutine '%.50S' was never awaited", gen->gi_qualname);
-        PyErr_Clear();  /* just in case, must not keep a live exception during GC */
-#else
-        {PyObject *msg;
-        char *cmsg;
-        #if CYTHON_COMPILING_IN_PYPY
-        msg = NULL;
-        cmsg = (char*) "coroutine was never awaited";
-        #else
-        char *cname;
-        PyObject *qualname;
-        #if PY_MAJOR_VERSION >= 3
-        qualname = PyUnicode_AsUTF8String(gen->gi_qualname);
-        if (likely(qualname)) {
-            cname = PyBytes_AS_STRING(qualname);
-        } else {
-            PyErr_Clear();
-            cname = (char*) "?";
-        }
-        msg = PyBytes_FromFormat(
-        #else
-        qualname = gen->gi_qualname;
-        cname = PyString_AS_STRING(qualname);
-        msg = PyString_FromFormat(
-        #endif
-            "coroutine '%.50s' was never awaited", cname);
-
-        #if PY_MAJOR_VERSION >= 3
-        Py_XDECREF(qualname);
-        #endif
-
-        if (unlikely(!msg)) {
-            PyErr_Clear();
-            cmsg = (char*) "coroutine was never awaited";
-        } else {
-            #if PY_MAJOR_VERSION >= 3
-            cmsg = PyBytes_AS_STRING(msg);
-            #else
-            cmsg = PyString_AS_STRING(msg);
-            #endif
-        }
-        #endif
-        if (unlikely(PyErr_WarnEx(PyExc_RuntimeWarning, cmsg, 1) < 0))
-            PyErr_WriteUnraisable(self);
-        Py_XDECREF(msg);}
-#endif
-        PyObject_GC_Track(self);
-    }
-
-    __Pyx_Coroutine_dealloc(self);
-}
-
 #if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3 && PY_VERSION_HEX < 0x030500B1
 static PyObject *__Pyx_Coroutine_compare(PyObject *obj, PyObject *other, int op) {
     PyObject* result;
@@ -1539,7 +1531,7 @@ static PyTypeObject __pyx_CoroutineType_type = {
     "coroutine",                        /*tp_name*/
     sizeof(__pyx_CoroutineObject),      /*tp_basicsize*/
     0,                                  /*tp_itemsize*/
-    (destructor) __Pyx_Coroutine_check_and_dealloc,/*tp_dealloc*/
+    (destructor) __Pyx_Coroutine_dealloc,/*tp_dealloc*/
     0,                                  /*tp_print*/
     0,                                  /*tp_getattr*/
     0,                                  /*tp_setattr*/
