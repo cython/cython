@@ -321,12 +321,13 @@ static PyMethodDef __Pyx_async_gen_methods[] = {
 };
 
 
+#if CYTHON_USE_ASYNC_SLOTS
 static __Pyx_PyAsyncMethodsStruct __Pyx_async_gen_as_async = {
     0,                                          /* am_await */
     PyObject_SelfIter,                          /* am_aiter */
     (unaryfunc)__Pyx_async_gen_anext             /* am_anext */
 };
-
+#endif
 
 PyTypeObject __pyx_AsyncGenType_type = {
     PyVarObject_HEAD_INIT(&PyType_Type, 0)
