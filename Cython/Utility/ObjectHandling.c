@@ -1277,7 +1277,7 @@ static PyObject* __Pyx__PyObject_CallMethod1(PyObject* method, PyObject* arg); /
 //@requires: PyCFunctionFastCall
 
 static PyObject* __Pyx__PyObject_CallMethod1(PyObject* method, PyObject* arg) {
-    PyObject *result;
+    PyObject *result = NULL;
 #if CYTHON_UNPACK_METHODS
     if (likely(PyMethod_Check(method))) {
         PyObject *self = PyMethod_GET_SELF(method);
