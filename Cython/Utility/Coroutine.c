@@ -72,48 +72,10 @@ static int __Pyx_WarnAIterDeprecation(CYTHON_UNUSED PyObject *aiter) {
     return result != 0;
 }
 
-static void __Pyx__Coroutine_Yield_From_Error(PyObject *source) {
-#if PY_VERSION_HEX >= 0x03060000 || defined(_PyErr_FormatFromCause)
-    _PyErr_FormatFromCause(
-        PyExc_TypeError,
-        "'async for' received an invalid object "
-        "from __anext__: %.100s",
-        Py_TYPE(source)->tp_name);
-#elif PY_MAJOR_VERSION >= 3
-    PyObject *exc, *val, *val2, *tb;
-    assert(PyErr_Occurred());
-    PyErr_Fetch(&exc, &val, &tb);
-    PyErr_NormalizeException(&exc, &val, &tb);
-    if (tb != NULL) {
-        PyException_SetTraceback(val, tb);
-        Py_DECREF(tb);
-    }
-    Py_DECREF(exc);
-    assert(!PyErr_Occurred());
-    PyErr_Format(
-        PyExc_TypeError,
-        "'async for' received an invalid object "
-        "from __anext__: %.100s",
-        Py_TYPE(source)->tp_name);
-
-    PyErr_Fetch(&exc, &val2, &tb);
-    PyErr_NormalizeException(&exc, &val2, &tb);
-    Py_INCREF(val);
-    PyException_SetCause(val2, val);
-    PyException_SetContext(val2, val);
-    PyErr_Restore(exc, val2, tb);
-#else
-    // since Py2 does not have exception chaining, it's better to avoid shadowing exceptions there
-    source++;
-#endif
-}
-
 static PyObject* __Pyx__Coroutine_Yield_From_Generic(__pyx_CoroutineObject *gen, PyObject *source, int warn) {
     PyObject *retval;
     PyObject *source_gen = __Pyx__Coroutine_GetAwaitableIter(source);
     if (unlikely(!source_gen)) {
-        // surprisingly, CPython replaces the exception here...
-        __Pyx__Coroutine_Yield_From_Error(source);
         return NULL;
     }
     if (warn && unlikely(__Pyx_WarnAIterDeprecation(source))) {
@@ -247,6 +209,43 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAwaitableIter(PyObject *o) {
     return __Pyx__Coroutine_GetAwaitableIter(o);
 }
 
+
+static void __Pyx__Coroutine_AwaitableIterError(PyObject *source) {
+#if PY_VERSION_HEX >= 0x03060000 || defined(_PyErr_FormatFromCause)
+    _PyErr_FormatFromCause(
+        PyExc_TypeError,
+        "'async for' received an invalid object "
+        "from __anext__: %.100s",
+        Py_TYPE(source)->tp_name);
+#elif PY_MAJOR_VERSION >= 3
+    PyObject *exc, *val, *val2, *tb;
+    assert(PyErr_Occurred());
+    PyErr_Fetch(&exc, &val, &tb);
+    PyErr_NormalizeException(&exc, &val, &tb);
+    if (tb != NULL) {
+        PyException_SetTraceback(val, tb);
+        Py_DECREF(tb);
+    }
+    Py_DECREF(exc);
+    assert(!PyErr_Occurred());
+    PyErr_Format(
+        PyExc_TypeError,
+        "'async for' received an invalid object "
+        "from __anext__: %.100s",
+        Py_TYPE(source)->tp_name);
+
+    PyErr_Fetch(&exc, &val2, &tb);
+    PyErr_NormalizeException(&exc, &val2, &tb);
+    Py_INCREF(val);
+    PyException_SetCause(val2, val);
+    PyException_SetContext(val2, val);
+    PyErr_Restore(exc, val2, tb);
+#else
+    // since Py2 does not have exception chaining, it's better to avoid shadowing exceptions there
+    source++;
+#endif
+}
+
 // adapted from genobject.c in Py3.5
 static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
     PyObject *res;
@@ -285,7 +284,11 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
             res = __Pyx_PyObject_CallNoArg(method);
         Py_DECREF(method);
     }
-    if (unlikely(!res)) goto bad;
+    if (unlikely(!res)) {
+        // surprisingly, CPython replaces the exception here...
+        __Pyx__Coroutine_AwaitableIterError(obj);
+        goto bad;
+    }
     if (!PyIter_Check(res)) {
         PyErr_Format(PyExc_TypeError,
                      "__await__() returned non-iterator of type '%.100s'",
