@@ -7896,7 +7896,7 @@ class ScopedExprNode(ExprNode):
 
         # normal (non-error) exit
         for entry in py_entries:
-            code.put_var_decref_clear(entry)
+            code.put_var_xdecref_clear(entry)
 
         # error/loop body exit points
         exit_scope = code.new_label('exit_scope')
@@ -7906,7 +7906,7 @@ class ScopedExprNode(ExprNode):
             if code.label_used(label):
                 code.put_label(label)
                 for entry in py_entries:
-                    code.put_var_decref_clear(entry)
+                    code.put_var_xdecref_clear(entry)
                 code.put_goto(old_label)
         code.put_label(exit_scope)
         code.putln('} /* exit inner scope */')

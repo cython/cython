@@ -329,6 +329,7 @@ def loop_over_unicode_literal():
         assert uchar in 'abcdefg'
     return cython.typeof(uchar)
 
+
 def list_comp():
     """
     >>> list_comp()
@@ -338,6 +339,28 @@ def list_comp():
     result = [x*2 for x in range(5) if x % 2 == 0]
     assert x == 'abc' # don't leak in Py3 code
     return result
+
+
+def list_comp_iterable(it):
+    """
+    >>> list_comp_iterable([])
+    []
+    >>> list_comp_iterable([0])
+    [0]
+    >>> list_comp_iterable([1])
+    []
+    >>> list_comp_iterable([0, 1])
+    [0]
+    >>> list_comp_iterable([2])
+    [4]
+    >>> list_comp_iterable(range(5))
+    [0, 4, 8]
+    """
+    x = 'abc'
+    result = [x*2 for x in it if x % 2 == 0]
+    assert x == 'abc' # don't leak in Py3 code
+    return result
+
 
 def list_comp_with_lambda():
     """
