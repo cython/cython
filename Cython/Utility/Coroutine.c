@@ -559,7 +559,7 @@ void __Pyx_Coroutine_ExceptionClear(__pyx_CoroutineObject *self) {
 }
 
 #define __Pyx_Coroutine_AlreadyRunningError(gen)  (__Pyx__Coroutine_AlreadyRunningError(gen), (PyObject*)NULL)
-static void __Pyx__Coroutine_AlreadyRunningError(__pyx_CoroutineObject *gen) {
+static void __Pyx__Coroutine_AlreadyRunningError(CYTHON_UNUSED __pyx_CoroutineObject *gen) {
     const char *msg;
     if (0) {
     #ifdef __Pyx_Coroutine_USED
