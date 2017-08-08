@@ -738,6 +738,11 @@ static PyObject *__Pyx_Coroutine_Send(PyObject *self, PyObject *value) {
             ret = _PyGen_Send((PyGenObject*)yf, value == Py_None ? NULL : value);
         } else
         #endif
+        #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x03050000 && defined(PyCoro_CheckExact)
+        if (PyCoro_CheckExact(yf)) {
+            ret = _PyGen_Send((PyGenObject*)yf, value == Py_None ? NULL : value);
+        } else
+        #endif
         {
             if (value == Py_None)
                 ret = Py_TYPE(yf)->tp_iternext(yf);
