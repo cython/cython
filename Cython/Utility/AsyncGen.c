@@ -163,11 +163,10 @@ typedef struct {
 #define _PyAsyncGen_MAXFREELIST 80
 #endif
 
-/* Freelists boost performance 6-10%; they also reduce memory
-   fragmentation, as _PyAsyncGenWrappedValue and PyAsyncGenASend
-   are short-living objects that are instantiated for every
-   __anext__ call.
-*/
+// Freelists boost performance 6-10%; they also reduce memory
+// fragmentation, as _PyAsyncGenWrappedValue and PyAsyncGenASend
+// are short-living objects that are instantiated for every
+// __anext__ call.
 
 static __pyx__PyAsyncGenWrappedValue *__Pyx_ag_value_freelist[_PyAsyncGen_MAXFREELIST];
 static int __Pyx_ag_value_freelist_free = 0;
