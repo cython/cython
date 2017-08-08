@@ -144,6 +144,7 @@ def cdiv(a, b):
     q = a / b
     if q < 0:
         q += 1
+    return q
 
 def cmod(a, b):
     r = a % b
