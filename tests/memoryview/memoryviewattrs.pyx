@@ -279,6 +279,13 @@ def two_dee():
 
     assert len(arr) == 2
 
+    try:
+        _ = len(mv1)
+    except UnboundLocalError:
+        pass
+    else:
+        assert False, "UnboundLocalError not raised for uninitialised memory view"
+
     cdef long *arr_data
     arr_data = <long*>arr.data
 

@@ -11,6 +11,9 @@ typedef struct {
   Py_ssize_t suboffsets[{{max_dims}}];
 } {{memviewslice_name}};
 
+// used for "len(memviewslice)"
+#define __Pyx_MemoryView_Len(m)  (m.shape[0])
+
 
 /////////// Atomics.proto /////////////
 
