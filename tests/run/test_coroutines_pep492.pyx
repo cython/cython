@@ -1789,7 +1789,8 @@ class CoroutineTest(unittest.TestCase):
             run_async(foo())
         self.assertEqual(CNT, 1)
 
-    def test_for_1(self):
+    # old-style pre-Py3.5.2 protocol - no longer supported
+    def __test_for_1(self):
         aiter_calls = 0
 
         class AsyncIter(object):
@@ -2029,7 +2030,8 @@ class CoroutineTest(unittest.TestCase):
         run_async(main())
         self.assertEqual(I, 20555255)
 
-    def test_for_7(self):
+    # old-style pre-Py3.5.2 protocol - no longer supported
+    def __test_for_7(self):
         CNT = 0
         class AI(object):
             async def __aiter__(self):
@@ -2063,8 +2065,9 @@ class CoroutineTest(unittest.TestCase):
                 run_async(foo())
         self.assertEqual(CNT, 0)
 
+    # old-style pre-Py3.5.2 protocol - no longer supported
     @min_py27
-    def test_for_9(self):
+    def __test_for_9(self):
         # Test that DeprecationWarning can safely be converted into
         # an exception (__aiter__ should not have a chance to raise
         # a ZeroDivisionError.)
@@ -2080,8 +2083,9 @@ class CoroutineTest(unittest.TestCase):
                 warnings.simplefilter("error")
                 run_async(foo())
 
+    # old-style pre-Py3.5.2 protocol - no longer supported
     @min_py27
-    def test_for_10(self):
+    def __test_for_10(self):
         # Test that DeprecationWarning can safely be converted into
         # an exception.
         class AI(object):
@@ -2120,7 +2124,8 @@ class CoroutineTest(unittest.TestCase):
             err = c.exception
             self.assertIsInstance(err.__cause__, ZeroDivisionError)
 
-    def test_for_12(self):
+    # old-style pre-Py3.5.2 protocol - no longer supported
+    def __test_for_12(self):
         class F(object):
             def __aiter__(self):
                 return self

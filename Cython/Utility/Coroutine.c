@@ -45,42 +45,16 @@ static CYTHON_INLINE PyObject* __Pyx_Generator_Yield_From(__pyx_CoroutineObject 
 
 //////////////////// CoroutineYieldFrom.proto ////////////////////
 
-#define __Pyx_Coroutine_Yield_From(gen, source) __Pyx__Coroutine_Yield_From(gen, source, 0)
-static CYTHON_INLINE PyObject* __Pyx__Coroutine_Yield_From(__pyx_CoroutineObject *gen, PyObject *source, int warn);
+static CYTHON_INLINE PyObject* __Pyx_Coroutine_Yield_From(__pyx_CoroutineObject *gen, PyObject *source);
 
 //////////////////// CoroutineYieldFrom ////////////////////
 //@requires: Coroutine
 //@requires: GetAwaitIter
 
-static int __Pyx_WarnAIterDeprecation(CYTHON_UNUSED PyObject *aiter) {
-    int result;
-#if PY_MAJOR_VERSION >= 3
-    result = PyErr_WarnFormat(
-        PyExc_DeprecationWarning, 1,
-        "'%.100s' implements legacy __aiter__ protocol; "
-        "__aiter__ should return an asynchronous "
-        "iterator, not awaitable",
-        Py_TYPE(aiter)->tp_name);
-#else
-    result = PyErr_WarnEx(
-        PyExc_DeprecationWarning,
-        "object implements legacy __aiter__ protocol; "
-        "__aiter__ should return an asynchronous "
-        "iterator, not awaitable",
-        1);
-#endif
-    return result != 0;
-}
-
-static PyObject* __Pyx__Coroutine_Yield_From_Generic(__pyx_CoroutineObject *gen, PyObject *source, int warn) {
+static PyObject* __Pyx__Coroutine_Yield_From_Generic(__pyx_CoroutineObject *gen, PyObject *source) {
     PyObject *retval;
     PyObject *source_gen = __Pyx__Coroutine_GetAwaitableIter(source);
     if (unlikely(!source_gen)) {
-        return NULL;
-    }
-    if (warn && unlikely(__Pyx_WarnAIterDeprecation(source))) {
-        /* Warning was converted to an error. */
-        Py_DECREF(source_gen);
         return NULL;
     }
     // source_gen is now the iterator, make the first next() call
@@ -97,13 +71,9 @@ static PyObject* __Pyx__Coroutine_Yield_From_Generic(__pyx_CoroutineObject *gen,
     return NULL;
 }
 
-static CYTHON_INLINE PyObject* __Pyx__Coroutine_Yield_From(__pyx_CoroutineObject *gen, PyObject *source, int warn) {
+static CYTHON_INLINE PyObject* __Pyx_Coroutine_Yield_From(__pyx_CoroutineObject *gen, PyObject *source) {
     PyObject *retval;
     if (__Pyx_Coroutine_CheckExact(source)) {
-        if (warn && unlikely(__Pyx_WarnAIterDeprecation(source))) {
-            /* Warning was converted to an error. */
-            return NULL;
-        }
         if (unlikely(((__pyx_CoroutineObject*)source)->yieldfrom)) {
             PyErr_SetString(
                 PyExc_RuntimeError,
@@ -128,63 +98,7 @@ static CYTHON_INLINE PyObject* __Pyx__Coroutine_Yield_From(__pyx_CoroutineObject
         }
 #endif
     } else {
-        return __Pyx__Coroutine_Yield_From_Generic(gen, source, warn);
-    }
-    return NULL;
-}
-
-
-//////////////////// CoroutineAIterYieldFrom.proto ////////////////////
-
-static CYTHON_INLINE PyObject* __Pyx_Coroutine_AIter_Yield_From(__pyx_CoroutineObject *gen, PyObject *source);
-
-//////////////////// CoroutineAIterYieldFrom ////////////////////
-//@requires: CoroutineYieldFrom
-
-static CYTHON_INLINE PyObject* __Pyx_Coroutine_AIter_Yield_From(__pyx_CoroutineObject *gen, PyObject *source) {
-#if CYTHON_USE_ASYNC_SLOTS
-    __Pyx_PyAsyncMethodsStruct* am = __Pyx_PyType_AsAsync(source);
-    if (likely(am && am->am_anext)) {
-        // Starting with CPython 3.5.2, __aiter__ should return
-        // asynchronous iterators directly (not awaitables that
-        // resolve to asynchronous iterators.)
-        //
-        // Therefore, we check if the object that was returned
-        // from __aiter__ has an __anext__ method.  If it does,
-        // we return it directly as StopIteration result,
-        // which avoids yielding.
-        //
-        // See http://bugs.python.org/issue27243 for more
-        // details.
-        goto store_result;
-    }
-#endif
-#if PY_VERSION_HEX < 0x030500B2
-    if (!__Pyx_PyType_AsAsync(source)) {
-        #ifdef __Pyx_Coroutine_USED
-        if (!__Pyx_Coroutine_CheckExact(source))  /* quickly rule out a likely case */
-        #endif
-        {
-            // same as above in slow
-            PyObject *method = __Pyx_PyObject_GetAttrStr(source, PYIDENT("__anext__"));
-            if (method) {
-                Py_DECREF(method);
-                goto store_result;
-            }
-            PyErr_Clear();
-        }
-    }
-#endif
-    return __Pyx__Coroutine_Yield_From(gen, source, 1);
-
-store_result:
-    if (unlikely(PyTuple_Check(source) || __Pyx_TypeCheck(source, (PyTypeObject*)PyExc_StopIteration))) {
-        PyObject *t = PyTuple_Pack(1, source);
-        if (unlikely(!t)) return NULL;
-        PyErr_SetObject(PyExc_StopIteration, t);
-        Py_DECREF(t);
-    } else {
-        PyErr_SetObject(PyExc_StopIteration, source);
+        return __Pyx__Coroutine_Yield_From_Generic(gen, source);
     }
     return NULL;
 }

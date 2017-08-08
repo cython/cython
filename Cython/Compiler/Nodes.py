@@ -6315,12 +6315,11 @@ class AsyncForStatNode(_ForInStatNode):
 
     is_async = True
 
-    def __init__(self, pos, iterator, **kw):
+    def __init__(self, pos, **kw):
         assert 'item' not in kw
         from . import ExprNodes
         # AwaitExprNodes must appear before running MarkClosureVisitor
-        kw['iterator'] = ExprNodes.AIterAwaitExprNode(iterator.pos, arg=iterator)
-        kw['item'] = ExprNodes.AwaitIterNextExprNode(iterator.pos, arg=None)
+        kw['item'] = ExprNodes.AwaitIterNextExprNode(kw['iterator'].pos, arg=None)
         _ForInStatNode.__init__(self, pos, **kw)
 
     def _create_item_node(self):

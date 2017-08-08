@@ -9571,13 +9571,6 @@ class AwaitExprNode(_YieldDelegationExprNode):
         return "__Pyx_Coroutine_Yield_From"
 
 
-class AIterAwaitExprNode(AwaitExprNode):
-    # 'await' expression node used in async-for loops to support the pre-Py3.5.2 'aiter' protocol
-    def yield_from_func(self, code):
-        code.globalstate.use_utility_code(UtilityCode.load_cached("CoroutineAIterYieldFrom", "Coroutine.c"))
-        return "__Pyx_Coroutine_AIter_Yield_From"
-
-
 class AwaitIterNextExprNode(AwaitExprNode):
     # 'await' expression node as part of 'async for' iteration
     #
