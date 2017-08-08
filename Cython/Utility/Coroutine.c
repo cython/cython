@@ -1033,7 +1033,7 @@ static void __Pyx_Coroutine_del(PyObject *self) {
     __Pyx_PyThreadState_declare
 
     if (gen->resume_label < 0) {
-        // never started => nothing to clean up
+        // already terminated => nothing to clean up
         return;
     }
 
