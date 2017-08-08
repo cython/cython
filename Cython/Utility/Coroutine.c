@@ -241,20 +241,7 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *o); /*pro
 //@requires: GetAwaitIter
 //@requires: ObjectHandling.c::PyObjectCallMethod0
 
-static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *obj) {
-#ifdef __Pyx_AsyncGen_USED
-    if (__Pyx_AsyncGen_CheckExact(obj)) {
-        return __Pyx_NewRef(obj);
-    }
-#endif
-#if CYTHON_USE_ASYNC_SLOTS
-    {
-        __Pyx_PyAsyncMethodsStruct* am = __Pyx_PyType_AsAsync(obj);
-        if (likely(am && am->am_aiter)) {
-            return (*am->am_aiter)(obj);
-        }
-    }
-#endif
+static PyObject *__Pyx_Coroutine_GetAsyncIter_Generic(PyObject *obj) {
 #if PY_VERSION_HEX < 0x030500B1
     {
         PyObject *iter = __Pyx_PyObject_CallMethod0(obj, PYIDENT("__aiter__"));
@@ -275,6 +262,40 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *obj) {
 }
 
 
+static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAsyncIter(PyObject *obj) {
+#ifdef __Pyx_AsyncGen_USED
+    if (__Pyx_AsyncGen_CheckExact(obj)) {
+        return __Pyx_NewRef(obj);
+    }
+#endif
+#if CYTHON_USE_ASYNC_SLOTS
+    {
+        __Pyx_PyAsyncMethodsStruct* am = __Pyx_PyType_AsAsync(obj);
+        if (likely(am && am->am_aiter)) {
+            return (*am->am_aiter)(obj);
+        }
+    }
+#endif
+    return __Pyx_Coroutine_GetAsyncIter_Generic(obj);
+}
+
+
+static PyObject *__Pyx__Coroutine_AsyncIterNext(PyObject *obj) {
+#if PY_VERSION_HEX < 0x030500B1
+    {
+        PyObject *value = __Pyx_PyObject_CallMethod0(obj, PYIDENT("__anext__"));
+        if (likely(value))
+            return value;
+    }
+    // FIXME: for the sake of a nicely conforming exception message, assume any AttributeError meant '__anext__'
+    if (PyErr_ExceptionMatches(PyExc_AttributeError))
+#endif
+        PyErr_Format(PyExc_TypeError, "'async for' requires an object with __anext__ method, got %.100s",
+                     Py_TYPE(obj)->tp_name);
+    return NULL;
+}
+
+
 static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *obj) {
 #ifdef __Pyx_AsyncGen_USED
     if (__Pyx_AsyncGen_CheckExact(obj)) {
@@ -289,18 +310,7 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *obj) {
         }
     }
 #endif
-#if PY_VERSION_HEX < 0x030500B1
-    {
-        PyObject *value = __Pyx_PyObject_CallMethod0(obj, PYIDENT("__anext__"));
-        if (likely(value))
-            return value;
-    }
-    // FIXME: for the sake of a nicely conforming exception message, assume any AttributeError meant '__anext__'
-    if (PyErr_ExceptionMatches(PyExc_AttributeError))
-#endif
-        PyErr_Format(PyExc_TypeError, "'async for' requires an object with __anext__ method, got %.100s",
-                     Py_TYPE(obj)->tp_name);
-    return NULL;
+    return __Pyx__Coroutine_AsyncIterNext(obj);
 }
 
 
@@ -548,30 +558,66 @@ void __Pyx_Coroutine_ExceptionClear(__pyx_CoroutineObject *self) {
     Py_XDECREF(exc_traceback);
 }
 
-static CYTHON_INLINE
-int __Pyx_Coroutine_CheckRunning(__pyx_CoroutineObject *gen) {
-    if (unlikely(gen->is_running)) {
-        const char *msg;
-        if (0) {
-        #ifdef __Pyx_Coroutine_USED
-        } else if (__Pyx_Coroutine_CheckExact((PyObject*)gen)) {
-            msg = "coroutine already executing";
-        #endif
-        #ifdef __Pyx_AsyncGen_USED
-        } else if (__Pyx_AsyncGen_CheckExact((PyObject*)gen)) {
-            msg = "async generator already executing";
-        #endif
-        } else {
-            msg = "generator already executing";
-        }
-        PyErr_SetString(PyExc_ValueError, msg);
-        return 1;
+#define __Pyx_Coroutine_AlreadyRunningError(gen)  (__Pyx__Coroutine_AlreadyRunningError(gen), (PyObject*)NULL)
+static void __Pyx__Coroutine_AlreadyRunningError(__pyx_CoroutineObject *gen) {
+    const char *msg;
+    if (0) {
+    #ifdef __Pyx_Coroutine_USED
+    } else if (__Pyx_Coroutine_CheckExact((PyObject*)gen)) {
+        msg = "coroutine already executing";
+    #endif
+    #ifdef __Pyx_AsyncGen_USED
+    } else if (__Pyx_AsyncGen_CheckExact((PyObject*)gen)) {
+        msg = "async generator already executing";
+    #endif
+    } else {
+        msg = "generator already executing";
     }
-    return 0;
+    PyErr_SetString(PyExc_ValueError, msg);
 }
 
-static CYTHON_INLINE
-PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, CYTHON_UNUSED int closing) {
+#define __Pyx_Coroutine_NotStartedError(gen)  (__Pyx__Coroutine_NotStartedError(gen), (PyObject*)NULL)
+static void __Pyx__Coroutine_NotStartedError(PyObject *gen) {
+    const char *msg;
+    if (0) {
+    #ifdef __Pyx_Coroutine_USED
+    } else if (__Pyx_Coroutine_CheckExact(gen)) {
+        msg = "can't send non-None value to a just-started coroutine";
+    #endif
+    #ifdef __Pyx_AsyncGen_USED
+    } else if (__Pyx_AsyncGen_CheckExact(gen)) {
+        msg = "can't send non-None value to a just-started async generator";
+    #endif
+    } else {
+        msg = "can't send non-None value to a just-started generator";
+    }
+    PyErr_SetString(PyExc_TypeError, msg);
+}
+
+#define __Pyx_Coroutine_AlreadyTerminatedError(gen, value, closing)  (__Pyx__Coroutine_AlreadyTerminatedError(gen, value, closing), (PyObject*)NULL)
+static void __Pyx__Coroutine_AlreadyTerminatedError(PyObject *gen, PyObject *value, CYTHON_UNUSED int closing) {
+    #ifdef __Pyx_Coroutine_USED
+    if (!closing && __Pyx_Coroutine_CheckExact(gen)) {
+        // `self` is an exhausted coroutine: raise an error,
+        // except when called from gen_close(), which should
+        // always be a silent method.
+        PyErr_SetString(PyExc_RuntimeError, "cannot reuse already awaited coroutine");
+    } else
+    #endif
+    if (value) {
+        // `gen` is an exhausted generator:
+        // only set exception if called from send().
+        #ifdef __Pyx_AsyncGen_USED
+        if (__Pyx_AsyncGen_CheckExact(gen))
+            PyErr_SetNone(__Pyx_PyExc_StopAsyncIteration);
+        else
+        #endif
+        PyErr_SetNone(PyExc_StopIteration);
+    }
+}
+
+static
+PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, int closing) {
     PyObject *retval;
     __Pyx_PyThreadState_declare
 
@@ -579,44 +625,12 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, C
 
     if (unlikely(self->resume_label == 0)) {
         if (unlikely(value && value != Py_None)) {
-            const char *msg;
-            if (0) {
-            #ifdef __Pyx_Coroutine_USED
-            } else if (__Pyx_Coroutine_CheckExact((PyObject*)self)) {
-                msg = "can't send non-None value to a just-started coroutine";
-            #endif
-            #ifdef __Pyx_AsyncGen_USED
-            } else if (__Pyx_AsyncGen_CheckExact((PyObject*)self)) {
-                msg = "can't send non-None value to a just-started async generator";
-            #endif
-            } else {
-                msg = "can't send non-None value to a just-started generator";
-            }
-            PyErr_SetString(PyExc_TypeError, msg);
-            return NULL;
+            return __Pyx_Coroutine_NotStartedError((PyObject*)self);
         }
     }
 
     if (unlikely(self->resume_label == -1)) {
-        #ifdef __Pyx_Coroutine_USED
-        if (!closing && __Pyx_Coroutine_CheckExact((PyObject*)self)) {
-            // `self` is an exhausted coroutine: raise an error,
-            // except when called from gen_close(), which should
-            // always be a silent method.
-            PyErr_SetString(PyExc_RuntimeError, "cannot reuse already awaited coroutine");
-        } else
-        #endif
-        if (value) {
-            // `gen` is an exhausted generator:
-            // only set exception if called from send().
-            #ifdef __Pyx_AsyncGen_USED
-            if (__Pyx_AsyncGen_CheckExact((PyObject*)self))
-                PyErr_SetNone(__Pyx_PyExc_StopAsyncIteration);
-            else
-            #endif
-            PyErr_SetNone(PyExc_StopIteration);
-        }
-        return NULL;
+        return __Pyx_Coroutine_AlreadyTerminatedError((PyObject*)self, value, closing);
     }
 
     __Pyx_PyThreadState_assign
@@ -697,8 +711,8 @@ static PyObject *__Pyx_Coroutine_Send(PyObject *self, PyObject *value) {
     PyObject *retval;
     __pyx_CoroutineObject *gen = (__pyx_CoroutineObject*) self;
     PyObject *yf = gen->yieldfrom;
-    if (unlikely(__Pyx_Coroutine_CheckRunning(gen)))
-        return NULL;
+    if (unlikely(gen->is_running))
+        return __Pyx_Coroutine_AlreadyRunningError(gen);
     if (yf) {
         PyObject *ret;
         // FIXME: does this really need an INCREF() ?
@@ -786,8 +800,8 @@ static int __Pyx_Coroutine_CloseIter(__pyx_CoroutineObject *gen, PyObject *yf) {
 static PyObject *__Pyx_Generator_Next(PyObject *self) {
     __pyx_CoroutineObject *gen = (__pyx_CoroutineObject*) self;
     PyObject *yf = gen->yieldfrom;
-    if (unlikely(__Pyx_Coroutine_CheckRunning(gen)))
-        return NULL;
+    if (unlikely(gen->is_running))
+        return __Pyx_Coroutine_AlreadyRunningError(gen);
     if (yf) {
         PyObject *ret;
         // FIXME: does this really need an INCREF() ?
@@ -821,8 +835,8 @@ static PyObject *__Pyx_Coroutine_Close(PyObject *self) {
     PyObject *yf = gen->yieldfrom;
     int err = 0;
 
-    if (unlikely(__Pyx_Coroutine_CheckRunning(gen)))
-        return NULL;
+    if (unlikely(gen->is_running))
+        return __Pyx_Coroutine_AlreadyRunningError(gen);
 
     if (yf) {
         Py_INCREF(yf);
@@ -870,8 +884,8 @@ static PyObject *__Pyx__Coroutine_Throw(PyObject *self, PyObject *typ, PyObject 
     __pyx_CoroutineObject *gen = (__pyx_CoroutineObject *) self;
     PyObject *yf = gen->yieldfrom;
 
-    if (unlikely(__Pyx_Coroutine_CheckRunning(gen)))
-        return NULL;
+    if (unlikely(gen->is_running))
+        return __Pyx_Coroutine_AlreadyRunningError(gen);
 
     if (yf) {
         PyObject *ret;
