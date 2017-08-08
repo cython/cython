@@ -1229,7 +1229,7 @@ class CoroutineTest(unittest.TestCase):
 
         result = run_async__await__(foo())
         self.assertIsInstance(result[1], StopIteration)
-        if sys.version_info[0] >= 3:
+        if sys.version_info >= (3, 3):
             self.assertEqual(result[1].value, 10)
         else:
             self.assertEqual(result[1].args[0], 10)
@@ -2176,7 +2176,7 @@ class CoroutineTest(unittest.TestCase):
                 if self.i:
                     raise StopAsyncIteration
                 self.i += 1
-                if sys.version_info[0] >= 3:
+                if sys.version_info >= (3, 3):
                     return self.value
                 else:
                     return self.args[0]
