@@ -11,7 +11,15 @@
 
 #if CYTHON_FAST_THREAD_STATE
 #define __Pyx_PyThreadState_declare  PyThreadState *$local_tstate_cname;
-#define __Pyx_PyThreadState_assign  $local_tstate_cname = PyThreadState_GET();
+#if PY_VERSION_HEX >= 0x03050000
+  #define __Pyx_PyThreadState_assign  $local_tstate_cname = _PyThreadState_UncheckedGet();
+#elif PY_VERSION_HEX >= 0x03000000
+  #define __Pyx_PyThreadState_assign  $local_tstate_cname = PyThreadState_Get();
+#elif PY_VERSION_HEX >= 0x02070000
+  #define __Pyx_PyThreadState_assign  $local_tstate_cname = _PyThreadState_Current;
+#else
+  #define __Pyx_PyThreadState_assign  $local_tstate_cname = PyThreadState_Get();
+#endif
 #else
 #define __Pyx_PyThreadState_declare
 #define __Pyx_PyThreadState_assign
