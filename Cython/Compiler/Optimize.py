@@ -2429,6 +2429,14 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 node.pos, "__Pyx_Py_UNICODE_strlen", self.Pyx_Py_UNICODE_strlen_func_type,
                 args = [arg],
                 is_temp = node.is_temp)
+        elif arg.type.is_memoryviewslice:
+            func_type = PyrexTypes.CFuncType(
+                PyrexTypes.c_size_t_type, [
+                    PyrexTypes.CFuncTypeArg("memoryviewslice", arg.type, None)
+                ], nogil=True)
+            new_node = ExprNodes.PythonCapiCallNode(
+                node.pos, "__Pyx_MemoryView_Len", func_type,
+                args=[arg], is_temp=node.is_temp)
         elif arg.type.is_pyobject:
             cfunc_name = self._map_to_capi_len_function(arg.type)
             if cfunc_name is None:
@@ -2442,8 +2450,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 "object of type 'NoneType' has no len()")
             new_node = ExprNodes.PythonCapiCallNode(
                 node.pos, cfunc_name, self.PyObject_Size_func_type,
-                args = [arg],
-                is_temp = node.is_temp)
+                args=[arg], is_temp=node.is_temp)
         elif arg.type.is_unicode_char:
             return ExprNodes.IntNode(node.pos, value='1', constant_result=1,
                                      type=node.type)
