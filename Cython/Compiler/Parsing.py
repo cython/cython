@@ -2160,9 +2160,10 @@ def p_DEF_statement(s):
     name = p_ident(s)
     s.expect('=')
     expr = p_compile_time_expr(s)
-    value = expr.compile_time_value(denv)
-    #print "p_DEF_statement: %s = %r" % (name, value) ###
-    denv.declare(name, value)
+    if s.compile_time_eval:
+        value = expr.compile_time_value(denv)
+        #print "p_DEF_statement: %s = %r" % (name, value) ###
+        denv.declare(name, value)
     s.expect_newline("Expected a newline", ignore_semicolon=True)
     return Nodes.PassStatNode(pos)
 
