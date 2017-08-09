@@ -1103,7 +1103,8 @@ class ModuleScope(Scope):
         self.undeclared_cached_builtins = []
         self.namespace_cname = self.module_cname
         self._cached_tuple_types = {}
-        for var_name in ['__builtins__', '__name__', '__file__', '__doc__', '__path__']:
+        for var_name in ['__builtins__', '__name__', '__file__', '__doc__', '__path__',
+                         '__spec__', '__loader__', '__package__', '__cached__']:
             self.declare_var(EncodedString(var_name), py_object_type, None)
 
     def qualifying_scope(self):
