@@ -97,6 +97,10 @@ def listcomp_as_condition(sequence):
 @cython.test_assert_path_exists("//ComprehensionNode")
 def sorted_listcomp(sequence):
     """
+    >>> sorted_listcomp([])
+    []
+    >>> sorted_listcomp([1])
+    [2]
     >>> sorted_listcomp([3,2,4])
     [3, 4, 5]
     """

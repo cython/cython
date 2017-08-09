@@ -35,6 +35,7 @@ branches:
     - master
 
 install:
+  - python -c 'import sys; print("Python %s" % (sys.version,))'
   - CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" python setup.py build
 
 before_script: ccache -s

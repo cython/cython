@@ -168,8 +168,8 @@ e_cython_parallel.pyx:55:9: local variable 'y' referenced before assignment
 e_cython_parallel.pyx:60:6: Reduction operator '*' is inconsistent with previous reduction operator '+'
 e_cython_parallel.pyx:62:36: cython.parallel.parallel() does not take positional arguments
 e_cython_parallel.pyx:65:36: Invalid keyword argument: invalid
-e_cython_parallel.pyx:73:12: Yield not allowed in parallel sections
-e_cython_parallel.pyx:77:16: Yield not allowed in parallel sections
+e_cython_parallel.pyx:73:12: 'yield' not allowed in parallel sections
+e_cython_parallel.pyx:77:16: 'yield' not allowed in parallel sections
 e_cython_parallel.pyx:97:19: Cannot assign to private of outer parallel block
 e_cython_parallel.pyx:98:19: Cannot assign to private of outer parallel block
 e_cython_parallel.pyx:104:6: Reductions not allowed for parallel blocks

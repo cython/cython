@@ -166,8 +166,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* 
     if (defval) {
         PyObject* exc_type = PyErr_Occurred();
         if (exc_type) {
-            if (unlikely(exc_type != PyExc_StopIteration) &&
-                    !PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))
+            if (unlikely(!__Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration)))
                 return NULL;
             PyErr_Clear();
         }
@@ -194,7 +193,7 @@ static CYTHON_INLINE int __Pyx_IterFinish(void) {
     PyThreadState *tstate = PyThreadState_GET();
     PyObject* exc_type = tstate->curexc_type;
     if (unlikely(exc_type)) {
-        if (likely(exc_type == PyExc_StopIteration) || PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration)) {
+        if (likely(__Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))) {
             PyObject *exc_value, *exc_tb;
             exc_value = tstate->curexc_value;
             exc_tb = tstate->curexc_traceback;
@@ -917,7 +916,7 @@ static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
         PyErr_SetString(PyExc_SystemError, "Missing type object");
         return 0;
     }
-    if (likely(PyObject_TypeCheck(obj, type)))
+    if (likely(__Pyx_TypeCheck(obj, type)))
         return 1;
     PyErr_Format(PyExc_TypeError, "Cannot convert %.200s to %.200s",
                  Py_TYPE(obj)->tp_name, type->tp_name);
@@ -1123,7 +1122,7 @@ static int __Pyx_TryUnpackUnboundCMethod(__Pyx_CachedCFunction* target) {
 #if CYTHON_COMPILING_IN_CPYTHON
     #if PY_MAJOR_VERSION >= 3
     // method dscriptor type isn't exported in Py2.x, cannot easily check the type there
-    if (likely(PyObject_TypeCheck(method, &PyMethodDescr_Type)))
+    if (likely(__Pyx_TypeCheck(method, &PyMethodDescr_Type)))
     #endif
     {
         PyMethodDescrObject *descr = (PyMethodDescrObject*) method;
@@ -1269,6 +1268,7 @@ bad:
 /////////////// PyObjectCallMethod1.proto ///////////////
 
 static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name, PyObject* arg); /*proto*/
+static PyObject* __Pyx__PyObject_CallMethod1(PyObject* method, PyObject* arg); /*proto*/
 
 /////////////// PyObjectCallMethod1 ///////////////
 //@requires: PyObjectGetAttrStr
@@ -1276,10 +1276,8 @@ static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name
 //@requires: PyFunctionFastCall
 //@requires: PyCFunctionFastCall
 
-static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name, PyObject* arg) {
-    PyObject *method, *result = NULL;
-    method = __Pyx_PyObject_GetAttrStr(obj, method_name);
-    if (unlikely(!method)) goto done;
+static PyObject* __Pyx__PyObject_CallMethod1(PyObject* method, PyObject* arg) {
+    PyObject *result = NULL;
 #if CYTHON_UNPACK_METHODS
     if (likely(PyMethod_Check(method))) {
         PyObject *self = PyMethod_GET_SELF(method);
@@ -1307,7 +1305,6 @@ static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name
             Py_INCREF(arg);
             PyTuple_SET_ITEM(args, 1, arg);
             Py_INCREF(function);
-            Py_DECREF(method); method = NULL;
             result = __Pyx_PyObject_Call(function, args, NULL);
             Py_DECREF(args);
             Py_DECREF(function);
@@ -1316,6 +1313,15 @@ static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name
     }
 #endif
     result = __Pyx_PyObject_CallOneArg(method, arg);
+done:
+    return result;
+}
+
+static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name, PyObject* arg) {
+    PyObject *method, *result = NULL;
+    method = __Pyx_PyObject_GetAttrStr(obj, method_name);
+    if (unlikely(!method)) goto done;
+    result = __Pyx__PyObject_CallMethod1(method, arg);
 done:
     Py_XDECREF(method);
     return result;
@@ -1747,7 +1753,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func) {
     }
 #endif
 #ifdef __Pyx_CyFunction_USED
-    if (likely(PyCFunction_Check(func) || PyObject_TypeCheck(func, __pyx_CyFunctionType))) {
+    if (likely(PyCFunction_Check(func) || __Pyx_TypeCheck(func, __pyx_CyFunctionType))) {
 #else
     if (likely(PyCFunction_Check(func))) {
 #endif

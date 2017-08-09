@@ -111,7 +111,7 @@ static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
 
     {{for type_ptr, getbuffer, releasebuffer in types}}
       {{if getbuffer}}
-        if (PyObject_TypeCheck(obj, {{type_ptr}})) return {{getbuffer}}(obj, view, flags);
+        if (__Pyx_TypeCheck(obj, {{type_ptr}})) return {{getbuffer}}(obj, view, flags);
       {{endif}}
     {{endfor}}
 
@@ -130,7 +130,7 @@ static void __Pyx_ReleaseBuffer(Py_buffer *view) {
 
     {{for type_ptr, getbuffer, releasebuffer in types}}
       {{if releasebuffer}}
-        if (PyObject_TypeCheck(obj, {{type_ptr}})) { {{releasebuffer}}(obj, view); return; }
+        if (__Pyx_TypeCheck(obj, {{type_ptr}})) { {{releasebuffer}}(obj, view); return; }
       {{endif}}
     {{endfor}}
 

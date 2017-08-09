@@ -192,7 +192,7 @@ class PostParse(ScopeTrackingTransform):
         # unpack a lambda expression into the corresponding DefNode
         collector = YieldNodeCollector()
         collector.visitchildren(node.result_expr)
-        if collector.yields or collector.awaits or isinstance(node.result_expr, ExprNodes.YieldExprNode):
+        if collector.has_yield or collector.has_await or isinstance(node.result_expr, ExprNodes.YieldExprNode):
             body = Nodes.ExprStatNode(
                 node.result_expr.pos, expr=node.result_expr)
         else:
@@ -208,11 +208,22 @@ class PostParse(ScopeTrackingTransform):
 
     def visit_GeneratorExpressionNode(self, node):
         # unpack a generator expression into the corresponding DefNode
-        node.def_node = Nodes.DefNode(node.pos, name=node.name,
-                                      doc=None,
-                                      args=[], star_arg=None,
-                                      starstar_arg=None,
-                                      body=node.loop)
+        collector = YieldNodeCollector()
+        collector.visitchildren(node.loop)
+        node.def_node = Nodes.DefNode(
+            node.pos, name=node.name, doc=None,
+            args=[], star_arg=None, starstar_arg=None,
+            body=node.loop, is_async_def=collector.has_await)
+        self.visitchildren(node)
+        return node
+
+    def visit_ComprehensionNode(self, node):
+        # enforce local scope also in Py2 for async generators (seriously, that's a Py3.6 feature...)
+        if not node.has_local_scope:
+            collector = YieldNodeCollector()
+            collector.visitchildren(node.loop)
+            if collector.has_await:
+                node.has_local_scope = True
         self.visitchildren(node)
         return node
 
@@ -2457,19 +2468,23 @@ class YieldNodeCollector(TreeVisitor):
     def __init__(self):
         super(YieldNodeCollector, self).__init__()
         self.yields = []
-        self.awaits = []
         self.returns = []
+        self.finallys = []
         self.has_return_value = False
+        self.has_yield = False
+        self.has_await = False
 
     def visit_Node(self, node):
         self.visitchildren(node)
 
     def visit_YieldExprNode(self, node):
         self.yields.append(node)
+        self.has_yield = True
         self.visitchildren(node)
 
     def visit_AwaitExprNode(self, node):
-        self.awaits.append(node)
+        self.yields.append(node)
+        self.has_await = True
         self.visitchildren(node)
 
     def visit_ReturnStatNode(self, node):
@@ -2477,6 +2492,10 @@ class YieldNodeCollector(TreeVisitor):
         if node.value:
             self.has_return_value = True
         self.returns.append(node)
+
+    def visit_TryFinallyStatNode(self, node):
+        self.visitchildren(node)
+        self.finallys.append(node)
 
     def visit_ClassDefNode(self, node):
         pass
@@ -2513,24 +2532,28 @@ class MarkClosureVisitor(CythonTransform):
         collector.visitchildren(node)
 
         if node.is_async_def:
-            if collector.yields:
-                error(collector.yields[0].pos, "'yield' not allowed in async coroutines (use 'await')")
-            yields = collector.awaits
-        elif collector.yields:
-            if collector.awaits:
-                error(collector.yields[0].pos, "'await' not allowed in generators (use 'yield')")
-            yields = collector.yields
+            coroutine_type = Nodes.AsyncGenNode if collector.has_yield else Nodes.AsyncDefNode
+            if collector.has_yield:
+                for yield_expr in collector.yields + collector.returns:
+                    yield_expr.in_async_gen = True
+        elif collector.has_await:
+            found = next(y for y in collector.yields if y.is_await)
+            error(found.pos, "'await' not allowed in generators (use 'yield')")
+            return node
+        elif collector.has_yield:
+            coroutine_type = Nodes.GeneratorDefNode
         else:
             return node
 
-        for i, yield_expr in enumerate(yields, 1):
+        for i, yield_expr in enumerate(collector.yields, 1):
             yield_expr.label_num = i
-        for retnode in collector.returns:
+        for retnode in collector.returns + collector.finallys:
             retnode.in_generator = True
 
         gbody = Nodes.GeneratorBodyDefNode(
-            pos=node.pos, name=node.name, body=node.body)
-        coroutine = (Nodes.AsyncDefNode if node.is_async_def else Nodes.GeneratorDefNode)(
+            pos=node.pos, name=node.name, body=node.body,
+            is_async_gen_body=node.is_async_def and collector.has_yield)
+        coroutine = coroutine_type(
             pos=node.pos, name=node.name, args=node.args,
             star_arg=node.star_arg, starstar_arg=node.starstar_arg,
             doc=node.doc, decorators=node.decorators,
@@ -2576,24 +2599,28 @@ class CreateClosureClasses(CythonTransform):
     def find_entries_used_in_closures(self, node):
         from_closure = []
         in_closure = []
-        for name, entry in node.local_scope.entries.items():
-            if entry.from_closure:
-                from_closure.append((name, entry))
-            elif entry.in_closure:
-                in_closure.append((name, entry))
+        for scope in node.local_scope.iter_local_scopes():
+            for name, entry in scope.entries.items():
+                if not name:
+                    continue
+                if entry.from_closure:
+                    from_closure.append((name, entry))
+                elif entry.in_closure:
+                    in_closure.append((name, entry))
         return from_closure, in_closure
 
     def create_class_from_scope(self, node, target_module_scope, inner_node=None):
         # move local variables into closure
         if node.is_generator:
-            for entry in node.local_scope.entries.values():
-                if not entry.from_closure:
-                    entry.in_closure = True
+            for scope in node.local_scope.iter_local_scopes():
+                for entry in scope.entries.values():
+                    if not entry.from_closure:
+                        entry.in_closure = True
 
         from_closure, in_closure = self.find_entries_used_in_closures(node)
         in_closure.sort()
 
-        # Now from the begining
+        # Now from the beginning
         node.needs_closure = False
         node.needs_outer_scope = False
 
@@ -2645,11 +2672,12 @@ class CreateClosureClasses(CythonTransform):
                                     is_cdef=True)
             node.needs_outer_scope = True
         for name, entry in in_closure:
-            closure_entry = class_scope.declare_var(pos=entry.pos,
-                                    name=entry.name,
-                                    cname=entry.cname,
-                                    type=entry.type,
-                                    is_cdef=True)
+            closure_entry = class_scope.declare_var(
+                pos=entry.pos,
+                name=entry.name if not entry.in_subscope else None,
+                cname=entry.cname,
+                type=entry.type,
+                is_cdef=True)
             if entry.is_declared_generic:
                 closure_entry.is_declared_generic = 1
         node.needs_closure = True

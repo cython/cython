@@ -2700,8 +2700,7 @@ class IteratorNode(ExprNode):
         code.putln("if (unlikely(!%s)) {" % result_name)
         code.putln("PyObject* exc_type = PyErr_Occurred();")
         code.putln("if (exc_type) {")
-        code.putln("if (likely(exc_type == PyExc_StopIteration ||"
-                   " PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))) PyErr_Clear();")
+        code.putln("if (likely(__Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))) PyErr_Clear();")
         code.putln("else %s" % code.error_goto(self.pos))
         code.putln("}")
         code.putln("break;")
@@ -7883,9 +7882,8 @@ class ScopedExprNode(ExprNode):
 
         code.putln('{ /* enter inner scope */')
         py_entries = []
-        for entry in self.expr_scope.var_entries:
+        for _, entry in sorted(item for item in self.expr_scope.entries.items() if item[0]):
             if not entry.in_closure:
-                code.put_var_declaration(entry)
                 if entry.type.is_pyobject and entry.used:
                     py_entries.append(entry)
         if not py_entries:
@@ -7895,14 +7893,14 @@ class ScopedExprNode(ExprNode):
             return
 
         # must free all local Python references at each exit point
-        old_loop_labels = tuple(code.new_loop_labels())
+        old_loop_labels = code.new_loop_labels()
         old_error_label = code.new_error_label()
 
         generate_inner_evaluation_code(code)
 
         # normal (non-error) exit
         for entry in py_entries:
-            code.put_var_decref(entry)
+            code.put_var_xdecref_clear(entry)
 
         # error/loop body exit points
         exit_scope = code.new_label('exit_scope')
@@ -7912,7 +7910,7 @@ class ScopedExprNode(ExprNode):
             if code.label_used(label):
                 code.put_label(label)
                 for entry in py_entries:
-                    code.put_var_decref(entry)
+                    code.put_var_xdecref_clear(entry)
                 code.put_goto(old_label)
         code.put_label(exit_scope)
         code.putln('} /* exit inner scope */')
@@ -9415,10 +9413,11 @@ class YieldExprNode(ExprNode):
     label_num = 0
     is_yield_from = False
     is_await = False
+    in_async_gen = False
     expr_keyword = 'yield'
 
     def analyse_types(self, env):
-        if not self.label_num:
+        if not self.label_num or (self.is_yield_from and self.in_async_gen):
             error(self.pos, "'%s' not supported here" % self.expr_keyword)
         self.is_temp = 1
         if self.arg is not None:
@@ -9449,7 +9448,8 @@ class YieldExprNode(ExprNode):
         Generate the code to return the argument in 'Naming.retval_cname'
         and to continue at the yield label.
         """
-        label_num, label_name = code.new_yield_label()
+        label_num, label_name = code.new_yield_label(
+            self.expr_keyword.replace(' ', '_'))
         code.use_label(label_name)
 
         saved = []
@@ -9469,10 +9469,16 @@ class YieldExprNode(ExprNode):
                                   nogil=not code.funcstate.gil_owned)
         code.put_finish_refcount_context()
 
-        code.putln("/* return from generator, yielding value */")
+        code.putln("/* return from %sgenerator, %sing value */" % (
+            'async ' if self.in_async_gen else '',
+            'await' if self.is_await else 'yield'))
         code.putln("%s->resume_label = %d;" % (
             Naming.generator_cname, label_num))
-        code.putln("return %s;" % Naming.retval_cname)
+        if self.in_async_gen and not self.is_await:
+            # __Pyx__PyAsyncGenValueWrapperNew() steals a reference to the return value
+            code.putln("return __Pyx__PyAsyncGenValueWrapperNew(%s);" % Naming.retval_cname)
+        else:
+            code.putln("return %s;" % Naming.retval_cname)
 
         code.put_label(label_name)
         for cname, save_cname, type in saved:
@@ -9480,27 +9486,19 @@ class YieldExprNode(ExprNode):
             if type.is_pyobject:
                 code.putln('%s->%s = 0;' % (Naming.cur_scope_cname, save_cname))
                 code.put_xgotref(cname)
-        code.putln(code.error_goto_if_null(Naming.sent_value_cname, self.pos))
+        self.generate_sent_value_handling_code(code, Naming.sent_value_cname)
         if self.result_is_used:
             self.allocate_temp_result(code)
             code.put('%s = %s; ' % (self.result(), Naming.sent_value_cname))
             code.put_incref(self.result(), py_object_type)
 
+    def generate_sent_value_handling_code(self, code, value_cname):
+        code.putln(code.error_goto_if_null(value_cname, self.pos))
 
-class YieldFromExprNode(YieldExprNode):
-    # "yield from GEN" expression
-    is_yield_from = True
-    expr_keyword = 'yield from'
 
-    def coerce_yield_argument(self, env):
-        if not self.arg.type.is_string:
-            # FIXME: support C arrays and C++ iterators?
-            error(self.pos, "yielding from non-Python object not supported")
-        self.arg = self.arg.coerce_to_pyobject(env)
-
+class _YieldDelegationExprNode(YieldExprNode):
     def yield_from_func(self, code):
-        code.globalstate.use_utility_code(UtilityCode.load_cached("GeneratorYieldFrom", "Coroutine.c"))
-        return "__Pyx_Generator_Yield_From"
+        raise NotImplementedError()
 
     def generate_evaluation_code(self, code, source_cname=None, decref_source=False):
         if source_cname is None:
@@ -9536,13 +9534,29 @@ class YieldFromExprNode(YieldExprNode):
     def handle_iteration_exception(self, code):
         code.putln("PyObject* exc_type = PyErr_Occurred();")
         code.putln("if (exc_type) {")
-        code.putln("if (likely(exc_type == PyExc_StopIteration ||"
-                   " PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))) PyErr_Clear();")
+        code.putln("if (likely(exc_type == PyExc_StopIteration || (exc_type != PyExc_GeneratorExit &&"
+                   " __Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration)))) PyErr_Clear();")
         code.putln("else %s" % code.error_goto(self.pos))
         code.putln("}")
 
 
-class AwaitExprNode(YieldFromExprNode):
+class YieldFromExprNode(_YieldDelegationExprNode):
+    # "yield from GEN" expression
+    is_yield_from = True
+    expr_keyword = 'yield from'
+
+    def coerce_yield_argument(self, env):
+        if not self.arg.type.is_string:
+            # FIXME: support C arrays and C++ iterators?
+            error(self.pos, "yielding from non-Python object not supported")
+        self.arg = self.arg.coerce_to_pyobject(env)
+
+    def yield_from_func(self, code):
+        code.globalstate.use_utility_code(UtilityCode.load_cached("GeneratorYieldFrom", "Coroutine.c"))
+        return "__Pyx_Generator_Yield_From"
+
+
+class AwaitExprNode(_YieldDelegationExprNode):
     # 'await' expression node
     #
     # arg         ExprNode   the Awaitable value to await
@@ -9561,28 +9575,33 @@ class AwaitExprNode(YieldFromExprNode):
         return "__Pyx_Coroutine_Yield_From"
 
 
-class AIterAwaitExprNode(AwaitExprNode):
-    # 'await' expression node used in async-for loops to support the pre-Py3.5.2 'aiter' protocol
-    def yield_from_func(self, code):
-        code.globalstate.use_utility_code(UtilityCode.load_cached("CoroutineAIterYieldFrom", "Coroutine.c"))
-        return "__Pyx_Coroutine_AIter_Yield_From"
-
-
 class AwaitIterNextExprNode(AwaitExprNode):
     # 'await' expression node as part of 'async for' iteration
     #
     # Breaks out of loop on StopAsyncIteration exception.
 
-    def fetch_iteration_result(self, code):
-        assert code.break_label, "AwaitIterNextExprNode outside of 'async for' loop"
+    def _generate_break(self, code):
         code.globalstate.use_utility_code(UtilityCode.load_cached("StopAsyncIteration", "Coroutine.c"))
         code.putln("PyObject* exc_type = PyErr_Occurred();")
-        code.putln("if (exc_type && likely(exc_type == __Pyx_PyExc_StopAsyncIteration ||"
-                   " PyErr_GivenExceptionMatches(exc_type, __Pyx_PyExc_StopAsyncIteration))) {")
+        code.putln("if (unlikely(exc_type && (exc_type == __Pyx_PyExc_StopAsyncIteration || ("
+                   " exc_type != PyExc_StopIteration && exc_type != PyExc_GeneratorExit &&"
+                   " __Pyx_PyErr_GivenExceptionMatches(exc_type, __Pyx_PyExc_StopAsyncIteration))))) {")
         code.putln("PyErr_Clear();")
         code.putln("break;")
         code.putln("}")
+
+    def fetch_iteration_result(self, code):
+        assert code.break_label, "AwaitIterNextExprNode outside of 'async for' loop"
+        self._generate_break(code)
         super(AwaitIterNextExprNode, self).fetch_iteration_result(code)
+
+    def generate_sent_value_handling_code(self, code, value_cname):
+        assert code.break_label, "AwaitIterNextExprNode outside of 'async for' loop"
+        code.putln("if (unlikely(!%s)) {" % value_cname)
+        self._generate_break(code)
+        # all non-break exceptions are errors, as in parent class
+        code.putln(code.error_goto(self.pos))
+        code.putln("}")
 
 
 class GlobalsExprNode(AtomicExprNode):
