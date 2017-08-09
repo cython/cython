@@ -577,7 +577,7 @@ static void __Pyx__Coroutine_AlreadyRunningError(CYTHON_UNUSED __pyx_CoroutineOb
 }
 
 #define __Pyx_Coroutine_NotStartedError(gen)  (__Pyx__Coroutine_NotStartedError(gen), (PyObject*)NULL)
-static void __Pyx__Coroutine_NotStartedError(PyObject *gen) {
+static void __Pyx__Coroutine_NotStartedError(CYTHON_UNUSED PyObject *gen) {
     const char *msg;
     if (0) {
     #ifdef __Pyx_Coroutine_USED
@@ -595,7 +595,7 @@ static void __Pyx__Coroutine_NotStartedError(PyObject *gen) {
 }
 
 #define __Pyx_Coroutine_AlreadyTerminatedError(gen, value, closing)  (__Pyx__Coroutine_AlreadyTerminatedError(gen, value, closing), (PyObject*)NULL)
-static void __Pyx__Coroutine_AlreadyTerminatedError(PyObject *gen, PyObject *value, CYTHON_UNUSED int closing) {
+static void __Pyx__Coroutine_AlreadyTerminatedError(CYTHON_UNUSED PyObject *gen, PyObject *value, CYTHON_UNUSED int closing) {
     #ifdef __Pyx_Coroutine_USED
     if (!closing && __Pyx_Coroutine_CheckExact(gen)) {
         // `self` is an exhausted coroutine: raise an error,
