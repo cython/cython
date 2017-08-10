@@ -15,7 +15,7 @@ static void __PyxPyIter_CheckErrorAndDecref(PyObject *source) {
 static CYTHON_INLINE PyObject* __Pyx_Generator_Yield_From(__pyx_CoroutineObject *gen, PyObject *source) {
     PyObject *source_gen, *retval;
 #ifdef __Pyx_Coroutine_USED
-    if (__Pyx_Coroutine_CheckExact(source)) {
+    if (__Pyx_Coroutine_Check(source)) {
         // TODO: this should only happen for types.coroutine()ed generators, but we can't determine that here
         Py_INCREF(source);
         source_gen = source;
@@ -71,7 +71,7 @@ static PyObject* __Pyx__Coroutine_Yield_From_Generic(__pyx_CoroutineObject *gen,
         return NULL;
     }
     // source_gen is now the iterator, make the first next() call
-    if (__Pyx_Coroutine_CheckExact(source_gen)) {
+    if (__Pyx_Coroutine_Check(source_gen)) {
         retval = __Pyx_Generator_Next(source_gen);
     } else {
 #if CYTHON_USE_TYPE_SLOTS
@@ -90,7 +90,7 @@ static PyObject* __Pyx__Coroutine_Yield_From_Generic(__pyx_CoroutineObject *gen,
 
 static CYTHON_INLINE PyObject* __Pyx_Coroutine_Yield_From(__pyx_CoroutineObject *gen, PyObject *source) {
     PyObject *retval;
-    if (__Pyx_Coroutine_CheckExact(source)) {
+    if (__Pyx_Coroutine_Check(source)) {
         if (unlikely(((__pyx_CoroutineObject*)source)->yieldfrom)) {
             PyErr_SetString(
                 PyExc_RuntimeError,
@@ -126,7 +126,7 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *o); /*proto*/
 
 static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAwaitableIter(PyObject *o) {
 #ifdef __Pyx_Coroutine_USED
-    if (__Pyx_Coroutine_CheckExact(o)) {
+    if (__Pyx_Coroutine_Check(o)) {
         return __Pyx_NewRef(o);
     }
 #endif
@@ -219,7 +219,7 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
     } else {
         int is_coroutine = 0;
         #ifdef __Pyx_Coroutine_USED
-        is_coroutine |= __Pyx_Coroutine_CheckExact(res);
+        is_coroutine |= __Pyx_Coroutine_Check(res);
         #endif
         #if PY_VERSION_HEX >= 0x030500B2 || defined(PyCoro_CheckExact)
         is_coroutine |= PyCoro_CheckExact(res);
@@ -428,6 +428,8 @@ static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__pyx_CoroutineO
 static PyTypeObject *__pyx_CoroutineType = 0;
 static PyTypeObject *__pyx_CoroutineAwaitType = 0;
 #define __Pyx_Coroutine_CheckExact(obj) (Py_TYPE(obj) == __pyx_CoroutineType)
+// __Pyx_Coroutine_Check(obj): see override for IterableCoroutine below
+#define __Pyx_Coroutine_Check(obj) __Pyx_Coroutine_CheckExact(obj)
 #define __Pyx_CoroutineAwait_CheckExact(obj) (Py_TYPE(obj) == __pyx_CoroutineAwaitType)
 
 #define __Pyx_Coroutine_New(body, code, closure, name, qualname, module_name)  \
@@ -595,7 +597,7 @@ static void __Pyx__Coroutine_AlreadyRunningError(CYTHON_UNUSED __pyx_CoroutineOb
     const char *msg;
     if (0) {
     #ifdef __Pyx_Coroutine_USED
-    } else if (__Pyx_Coroutine_CheckExact((PyObject*)gen)) {
+    } else if (__Pyx_Coroutine_Check((PyObject*)gen)) {
         msg = "coroutine already executing";
     #endif
     #ifdef __Pyx_AsyncGen_USED
@@ -613,7 +615,7 @@ static void __Pyx__Coroutine_NotStartedError(CYTHON_UNUSED PyObject *gen) {
     const char *msg;
     if (0) {
     #ifdef __Pyx_Coroutine_USED
-    } else if (__Pyx_Coroutine_CheckExact(gen)) {
+    } else if (__Pyx_Coroutine_Check(gen)) {
         msg = "can't send non-None value to a just-started coroutine";
     #endif
     #ifdef __Pyx_AsyncGen_USED
@@ -629,7 +631,7 @@ static void __Pyx__Coroutine_NotStartedError(CYTHON_UNUSED PyObject *gen) {
 #define __Pyx_Coroutine_AlreadyTerminatedError(gen, value, closing)  (__Pyx__Coroutine_AlreadyTerminatedError(gen, value, closing), (PyObject*)NULL)
 static void __Pyx__Coroutine_AlreadyTerminatedError(CYTHON_UNUSED PyObject *gen, PyObject *value, CYTHON_UNUSED int closing) {
     #ifdef __Pyx_Coroutine_USED
-    if (!closing && __Pyx_Coroutine_CheckExact(gen)) {
+    if (!closing && __Pyx_Coroutine_Check(gen)) {
         // `self` is an exhausted coroutine: raise an error,
         // except when called from gen_close(), which should
         // always be a silent method.
@@ -775,7 +777,7 @@ static PyObject *__Pyx_Coroutine_Send(PyObject *self, PyObject *value) {
         } else
         #endif
         #ifdef __Pyx_Coroutine_USED
-        if (__Pyx_Coroutine_CheckExact(yf)) {
+        if (__Pyx_Coroutine_Check(yf)) {
             ret = __Pyx_Coroutine_Send(yf, value);
         } else
         #endif
@@ -828,7 +830,7 @@ static int __Pyx_Coroutine_CloseIter(__pyx_CoroutineObject *gen, PyObject *yf) {
     } else
     #endif
     #ifdef __Pyx_Coroutine_USED
-    if (__Pyx_Coroutine_CheckExact(yf)) {
+    if (__Pyx_Coroutine_Check(yf)) {
         retval = __Pyx_Coroutine_Close(yf);
         if (!retval)
             return -1;
@@ -926,7 +928,7 @@ static PyObject *__Pyx_Coroutine_Close(PyObject *self) {
         Py_DECREF(retval);
         if ((0)) {
         #ifdef __Pyx_Coroutine_USED
-        } else if (__Pyx_Coroutine_CheckExact(self)) {
+        } else if (__Pyx_Coroutine_Check(self)) {
             msg = "coroutine ignored GeneratorExit";
         #endif
         #ifdef __Pyx_AsyncGen_USED
@@ -981,7 +983,7 @@ static PyObject *__Pyx__Coroutine_Throw(PyObject *self, PyObject *typ, PyObject 
             || __Pyx_Generator_CheckExact(yf)
         #endif
         #ifdef __Pyx_Coroutine_USED
-            || __Pyx_Coroutine_CheckExact(yf)
+            || __Pyx_Coroutine_Check(yf)
         #endif
             ) {
             ret = __Pyx__Coroutine_Throw(yf, typ, val, tb, args, close_on_genexit);
@@ -1457,7 +1459,7 @@ static CYTHON_INLINE PyObject *__Pyx__Coroutine_await(PyObject *coroutine) {
 }
 
 static PyObject *__Pyx_Coroutine_await(PyObject *coroutine) {
-    if (unlikely(!coroutine || !__Pyx_Coroutine_CheckExact(coroutine))) {
+    if (unlikely(!coroutine || !__Pyx_Coroutine_Check(coroutine))) {
         PyErr_SetString(PyExc_TypeError, "invalid input, expected coroutine");
         return NULL;
     }
@@ -1592,6 +1594,13 @@ static int __pyx_Coroutine_init(void) {
     // on Windows, C-API functions can't be used in slots statically
     __pyx_CoroutineType_type.tp_getattro = PyObject_GenericGetAttr;
 
+#ifdef __Pyx_IterableCoroutine_USED
+    __pyx_IterableCoroutineType_type.tp_getattro = PyObject_GenericGetAttr;
+    __pyx_IterableCoroutineType = __Pyx_FetchCommonType(&__pyx_IterableCoroutineType_type);
+    if (unlikely(!__pyx_IterableCoroutineType))
+        return -1;
+#endif
+
     __pyx_CoroutineType = __Pyx_FetchCommonType(&__pyx_CoroutineType_type);
     if (unlikely(!__pyx_CoroutineType))
         return -1;
@@ -1601,6 +1610,91 @@ static int __pyx_Coroutine_init(void) {
         return -1;
     return 0;
 }
+
+
+//////////////////// IterableCoroutine.proto ////////////////////
+
+#define __Pyx_IterableCoroutine_USED
+
+static PyTypeObject *__pyx_IterableCoroutineType = 0;
+
+#undef __Pyx_Coroutine_Check
+#define __Pyx_Coroutine_Check(obj) (__Pyx_Coroutine_CheckExact(obj) || (Py_TYPE(obj) == __pyx_IterableCoroutineType))
+
+#define __Pyx_IterableCoroutine_New(body, closure, name, qualname, module_name)  \
+    __Pyx__Coroutine_New(__pyx_IterableCoroutineType, body, closure, name, qualname, module_name)
+
+
+//////////////////// IterableCoroutine ////////////////////
+//@requires: Coroutine
+
+static PyTypeObject __pyx_IterableCoroutineType_type = {
+    PyVarObject_HEAD_INIT(0, 0)
+    "legacy_coroutine",                 /*tp_name*/
+    sizeof(__pyx_CoroutineObject),      /*tp_basicsize*/
+    0,                                  /*tp_itemsize*/
+    (destructor) __Pyx_Coroutine_dealloc,/*tp_dealloc*/
+    0,                                  /*tp_print*/
+    0,                                  /*tp_getattr*/
+    0,                                  /*tp_setattr*/
+#if CYTHON_USE_ASYNC_SLOTS
+    &__pyx_Coroutine_as_async,          /*tp_as_async (tp_reserved) - Py3 only! */
+#else
+    0,                                  /*tp_reserved*/
+#endif
+    0,                                  /*tp_repr*/
+    0,                                  /*tp_as_number*/
+    0,                                  /*tp_as_sequence*/
+    0,                                  /*tp_as_mapping*/
+    0,                                  /*tp_hash*/
+    0,                                  /*tp_call*/
+    0,                                  /*tp_str*/
+    0,                                  /*tp_getattro*/
+    0,                                  /*tp_setattro*/
+    0,                                  /*tp_as_buffer*/
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_HAVE_FINALIZE, /*tp_flags*/
+    0,                                  /*tp_doc*/
+    (traverseproc) __Pyx_Coroutine_traverse,   /*tp_traverse*/
+    0,                                  /*tp_clear*/
+#if CYTHON_USE_ASYNC_SLOTS && CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3 && PY_VERSION_HEX < 0x030500B1
+    // in order to (mis-)use tp_reserved above, we must also implement tp_richcompare
+    __Pyx_Coroutine_compare,            /*tp_richcompare*/
+#else
+    0,                                  /*tp_richcompare*/
+#endif
+    offsetof(__pyx_CoroutineObject, gi_weakreflist), /*tp_weaklistoffset*/
+    // enable iteration for legacy support of asyncio yield-from protocol
+    __Pyx_Coroutine_await,              /*tp_iter*/
+    (iternextfunc) __Pyx_Generator_Next, /*tp_iternext*/
+    __pyx_Coroutine_methods,            /*tp_methods*/
+    __pyx_Coroutine_memberlist,         /*tp_members*/
+    __pyx_Coroutine_getsets,            /*tp_getset*/
+    0,                                  /*tp_base*/
+    0,                                  /*tp_dict*/
+    0,                                  /*tp_descr_get*/
+    0,                                  /*tp_descr_set*/
+    0,                                  /*tp_dictoffset*/
+    0,                                  /*tp_init*/
+    0,                                  /*tp_alloc*/
+    0,                                  /*tp_new*/
+    0,                                  /*tp_free*/
+    0,                                  /*tp_is_gc*/
+    0,                                  /*tp_bases*/
+    0,                                  /*tp_mro*/
+    0,                                  /*tp_cache*/
+    0,                                  /*tp_subclasses*/
+    0,                                  /*tp_weaklist*/
+#if PY_VERSION_HEX >= 0x030400a1
+    0,                                  /*tp_del*/
+#else
+    __Pyx_Coroutine_del,                /*tp_del*/
+#endif
+    0,                                  /*tp_version_tag*/
+#if PY_VERSION_HEX >= 0x030400a1
+    __Pyx_Coroutine_del,                /*tp_finalize*/
+#endif
+};
+
 
 //////////////////// Generator ////////////////////
 //@requires: CoroutineBase

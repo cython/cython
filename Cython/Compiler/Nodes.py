@@ -4054,6 +4054,7 @@ class GeneratorDefNode(DefNode):
 
     is_generator = True
     is_coroutine = False
+    is_iterable_coroutine = False
     is_asyncgen = False
     gen_type_name = 'Generator'
     needs_closure = True
@@ -4104,6 +4105,11 @@ class GeneratorDefNode(DefNode):
 class AsyncDefNode(GeneratorDefNode):
     gen_type_name = 'Coroutine'
     is_coroutine = True
+
+
+class IterableAsyncDefNode(AsyncDefNode):
+    gen_type_name = 'IterableCoroutine'
+    is_iterable_coroutine = True
 
 
 class AsyncGenNode(AsyncDefNode):
