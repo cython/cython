@@ -368,9 +368,12 @@ Cython code.  Here is the list of currently supported directives:
 
 ``binding`` (True / False)
     Controls whether free functions behave more like Python's CFunctions
-    (e.g. :func:`len`) or, when set to True, more like Python's functions
-    (which, among other things, bind to an instance when looked up as a
-    class attribute).
+    (e.g. :func:`len`) or, when set to True, more like Python's functions.
+    When enabled, functions will bind to an instance when looked up as a
+    class attribute (hence the name) and will emulate the attributes
+    of Python functions, including introspections like argument names and
+    annotations.
+    Default is False.
 
 ``boundscheck``  (True / False)
     If set to False, Cython is free to assume that indexing operations
