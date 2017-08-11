@@ -18,6 +18,11 @@ cdef extern from "<sys/stat.h>" nogil:
         time_t  st_mtime
         time_t  st_ctime
 
+        # st_birthtime exists on *BSD and OS X.
+        # Under Linux, defining it here does not hurt. Compilation under Linux
+        # will only (and rightfully) fail when attempting to use the field.
+        time_t  st_birthtime
+
 # POSIX prescribes including both <sys/stat.h> and <unistd.h> for these
 cdef extern from "<unistd.h>" nogil:
     int fchmod(int, mode_t)
