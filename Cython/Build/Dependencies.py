@@ -76,6 +76,15 @@ else:
     basestring = str
 
 
+def _make_relative(file_paths, base=None):
+    if not base:
+        base = os.getcwd()
+    if base[-1] != os.path.sep:
+        base += os.path.sep
+    return [_relpath(path, base) if path.startswith(base) else path
+            for path in file_paths]
+
+
 def extended_iglob(pattern):
     if '{' in pattern:
         m = re.match('(.*){([^}]+)}(.*)', pattern)
@@ -617,8 +626,10 @@ class DependencyTree(object):
         info = self.parse_dependencies(filename)[3]
         kwds = info.values
         cimports, externs, incdirs = self.cimports_externs_incdirs(filename)
+        basedir = os.getcwd()
         # Add dependencies on "cdef extern from ..." files
         if externs:
+            externs = _make_relative(externs, basedir)
             if 'depends' in kwds:
                 kwds['depends'] = list(set(kwds['depends']).union(externs))
             else:
@@ -627,7 +638,7 @@ class DependencyTree(object):
         # "cdef extern from ..." files
         if incdirs:
             include_dirs = list(kwds.get('include_dirs', []))
-            for inc in incdirs:
+            for inc in _make_relative(incdirs, basedir):
                 if inc not in include_dirs:
                     include_dirs.append(inc)
             kwds['include_dirs'] = include_dirs
