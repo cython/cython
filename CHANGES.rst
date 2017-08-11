@@ -65,6 +65,9 @@ Bugs fixed
 * Bazel integration failed to compile ``.py`` files.
   Patch by Guro Bokum (Github issue #1784).
 
+* Some include directories and dependencies were referenced with their absolute paths
+  in the generated files despite lying within the project directory.
+
 
 0.26 (2017-07-19)
 =================
