@@ -12,6 +12,9 @@ import sys
 from collections import defaultdict
 
 from coverage.plugin import CoveragePlugin, FileTracer, FileReporter  # requires coverage.py 4.0+
+from coverage.config import HandyConfigParser, DEFAULT_EXCLUDE
+from coverage.misc import join_regex
+from coverage import env
 
 from .Utils import find_root_package_dir, is_package_dir, open_source_file
 
@@ -52,6 +55,10 @@ class Plugin(CoveragePlugin):
     _c_files_map = None
     # map from parsed C files to their content
     _parsed_c_files = None
+
+    def __init__(self):
+        CoveragePlugin.__init__(self)
+        self.exclude_list = DEFAULT_EXCLUDE[:]
 
     def sys_info(self):
         return [('Cython version', __version__)]
@@ -99,7 +106,8 @@ class Plugin(CoveragePlugin):
             if not c_file:
                 return None  # unknown file
             rel_file_path, code = self._parse_lines(c_file, filename)
-        return CythonModuleReporter(c_file, filename, rel_file_path, code)
+        return CythonModuleReporter(c_file, filename, rel_file_path, code,
+                                    self.exclude_list)
 
     def _find_source_files(self, filename):
         basename, ext = os.path.splitext(filename)
@@ -220,6 +228,27 @@ class Plugin(CoveragePlugin):
             return (None,) * 2  # e.g. shared library file
         return self._c_files_map[sourcefile][1:]
 
+    CONFIG_SECTION = "Cython.Coverage"
+
+    CONFIG_FILE_OPTIONS = [
+        ('exclude_list', 'exclude_lines', 'regexlist'),
+    ]
+
+    def parse_config_options(self, raw_options):
+        """
+        Parse config options for the Cython.Coverage plugin.
+        """
+        section = self.CONFIG_SECTION
+        cp = HandyConfigParser("")
+        cp.add_section(section)
+        for k, v in raw_options.items():
+            cp.set(section, k, v)
+        for attr, option, type_ in self.CONFIG_FILE_OPTIONS:
+            if not cp.has_option(section, option):
+                continue
+            method = getattr(cp, 'get' + type_)
+            setattr(self, attr, method(section, option))
+
 
 class CythonModuleTracer(FileTracer):
     """
@@ -263,17 +292,42 @@ class CythonModuleReporter(FileReporter):
     """
     Provide detailed trace information for one source file to coverage.py.
     """
-    def __init__(self, c_file, source_file, rel_file_path, code):
+    def __init__(self, c_file, source_file, rel_file_path, code, exclude_re):
         super(CythonModuleReporter, self).__init__(source_file)
         self.name = rel_file_path
         self.c_file = c_file
         self._code = code
+        self._exclude_re = exclude_re
+        self._excluded = None
 
-    def lines(self):
+    def all_lines(self):
         """
         Return set of line numbers that are possibly executable.
         """
         return set(self._code)
+
+    def lines(self):
+        """
+        Return set of line numbers that are possibly executable and not
+        excluded.
+        """
+        return self.all_lines() - self.excluded_lines()
+
+    def excluded_lines(self):
+        """
+        Return set of line numbers that have been excluded.
+        """
+        if self._excluded is None:
+            combined = join_regex(self._exclude_re)
+            if env.PY2:
+                combined = combined.decode("utf8")
+            regex_c = re.compile(combined)
+            self._excluded = set()
+            for i in self.all_lines():
+                if regex_c.search(self._code[i]):
+                    self._excluded.add(i)
+            print self.filename, self._excluded
+        return self._excluded
 
     def _iter_source_tokens(self):
         current_line = 1
@@ -310,4 +364,6 @@ class CythonModuleReporter(FileReporter):
 
 
 def coverage_init(reg, options):
-    reg.add_file_tracer(Plugin())
+    out = Plugin()
+    out.parse_config_options(options)
+    reg.add_file_tracer(out)
