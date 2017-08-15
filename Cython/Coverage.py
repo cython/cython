@@ -326,7 +326,6 @@ class CythonModuleReporter(FileReporter):
             for i in self.all_lines():
                 if regex_c.search(self._code[i]):
                     self._excluded.add(i)
-            print self.filename, self._excluded
         return self._excluded
 
     def _iter_source_tokens(self):
