@@ -10,11 +10,15 @@ import re
 import os.path
 import sys
 from collections import defaultdict
+import token
+import tokenize
 
 from coverage.plugin import CoveragePlugin, FileTracer, FileReporter  # requires coverage.py 4.0+
 from coverage.config import HandyConfigParser, DEFAULT_EXCLUDE
-from coverage.misc import join_regex
+from coverage.misc import join_regex, contract, nice_pair
 from coverage import env
+from coverage.parser import PythonParser
+from coverage.phystokens import generate_tokens
 
 from .Utils import find_root_package_dir, is_package_dir, open_source_file
 
@@ -48,6 +52,183 @@ def _find_dep_file_path(main_file, file_path):
     return abs_path
 
 
+class CythonParser(PythonParser):
+    """Parse code to find executable lines, excluded lines, etc. 
+
+    This information is all based on static analysis: no code execution is
+    involved.
+
+    """
+    @contract(text='unicode|None')
+    def __init__(self, text=None, filename=None, exclude=None,
+                 c_lines=None, ignore_defs=False, ignore_cdefs=False):
+        """
+        Source can be provided as `text`, the text itself, or `filename`, from
+        which the text will be read.  Excluded lines are those that match
+        `exclude`, a regex.
+
+        """
+        PythonParser.__init__(self, text=text, filename=filename,
+                              exclude=exclude)
+
+        # Set of lines included in the cythonized c/cpp file
+        self.c_lines = c_lines
+
+        # Option to ignore python function definition
+        self.ignore_defs = ignore_defs
+
+        # Option to ignore cython function definitions
+        self.ignore_cdefs = ignore_cdefs
+
+        # The line numbers of python function definitions.
+        self.raw_defs = set()
+
+        # The line numbers of cython class and function definitions.
+        self.raw_cdefs = set()
+
+    def _raw_parse(self):
+        """Parse the source to find the interesting facts about its lines.
+
+        A handful of attributes are updated.
+
+        """
+        # Find lines which match an exclusion pattern.
+        if self.exclude:
+            self.raw_excluded = self.lines_matching(self.exclude)
+
+        # Tokenize, to find excluded suites, to find docstrings, and to find
+        # multi-line statements.
+        indent = 0
+        exclude_indent = 0
+        excluding = False
+        excluding_decorators = False
+        prev_toktype = token.INDENT
+        first_line = None
+        empty = True
+        first_on_line = True
+        def_type = None
+        def_line = None
+        def_closed = False
+
+        tokgen = generate_tokens(self.text)
+        for toktype, ttext, (slineno, _), (elineno, _), ltext in tokgen:
+            if self.show_tokens:                # pragma: debugging
+                print("%10s %5s %-20r %r" % (
+                    tokenize.tok_name.get(toktype, toktype),
+                    nice_pair((slineno, elineno)), ttext, ltext
+                ))
+            if toktype == token.INDENT:
+                indent += 1
+            elif toktype == token.DEDENT:
+                indent -= 1
+            elif toktype == token.NAME:
+                if ttext == 'class':
+                    # Class definitions look like branches in the bytecode, so
+                    # we need to exclude them.  The simplest way is to note the
+                    # lines with the 'class' keyword.
+                    self.raw_classdefs.add(slineno)
+                elif ttext in ['def', 'cdef']:
+                    def_line = slineno
+                    def_closed = False
+                    def_type = ttext
+            elif toktype == token.OP:
+                if ttext == ':':
+                    should_exclude = (elineno in self.raw_excluded) or excluding_decorators
+                    if not excluding and should_exclude:
+                        # Start excluding a suite.  We trigger off of the colon
+                        # token so that the #pragma comment will be recognized on
+                        # the same line as the colon.
+                        self.raw_excluded.add(elineno)
+                        exclude_indent = indent
+                        excluding = True
+                        excluding_decorators = False
+                    if def_line is not None:
+                        def_closed = True
+                elif ttext == '@' and first_on_line:
+                    # A decorator.
+                    if elineno in self.raw_excluded:
+                        excluding_decorators = True
+                    if excluding_decorators:
+                        self.raw_excluded.add(elineno)
+            elif toktype == token.STRING and prev_toktype == token.INDENT:
+                # Strings that are first on an indented line are docstrings.
+                # (a trick from trace.py in the stdlib.) This works for
+                # 99.9999% of cases.  For the rest (!) see:
+                # http://stackoverflow.com/questions/1769332/x/1769794#1769794
+                self.raw_docstrings.update(range(slineno, elineno+1))
+            elif toktype == token.NEWLINE:
+                if first_line is not None and elineno != first_line:
+                    # We're at the end of a line, and we've ended on a
+                    # different line than the first line of the statement,
+                    # so record a multi-line range.
+                    for l in range(first_line, elineno+1):
+                        self._multiline[l] = first_line
+                first_line = None
+                first_on_line = True
+                if def_line is not None:
+                    if def_closed:
+                        if def_type == 'def':
+                            self.raw_defs.update(range(def_line, elineno+1))
+                        elif def_type == 'cdef':
+                            self.raw_cdefs.update(range(def_line, elineno+1))
+                    def_line = None
+                    def_closed = False
+                    def_type = None
+
+            if ttext.strip() and toktype != tokenize.COMMENT:
+                # A non-whitespace token.
+                empty = False
+                if first_line is None:
+                    # The token is not whitespace, and is the first in a
+                    # statement.
+                    self.raw_statements.add(slineno)
+                    first_line = slineno
+                    # Check whether to end an excluded suite.
+                    if excluding and indent <= exclude_indent:
+                        excluding = False
+                    if excluding:
+                        self.raw_excluded.add(elineno)
+                    first_on_line = False
+                if def_line is not None and def_closed and ttext != ':':
+                    # The : was not at the end of the statement
+                    def_closed = False
+
+            prev_toktype = toktype
+
+    def parse_source(self):
+        """Parse source text to find executable lines, excluded lines, etc.
+
+        Sets the .excluded and .statements attributes, normalized to the first
+        line of multi-line statements.
+
+        """
+        try:
+            self._raw_parse()
+        except (tokenize.TokenError, IndentationError) as err:
+            if hasattr(err, "lineno"):
+                lineno = err.lineno         # IndentationError
+            else:
+                lineno = err.args[1][0]     # TokenError
+            raise NotPython(
+                u"Couldn't parse '%s' as Cython source: '%s' at line %d" % (
+                    self.filename, err.args[0], lineno
+                )
+            )
+        
+        self.excluded = self.first_lines(self.raw_excluded)
+
+        ignore = self.excluded | self.raw_docstrings
+        if self.ignore_defs:
+            ignore |= self.raw_defs
+        if self.ignore_cdefs:
+            ignore |= self.raw_cdefs
+        if self.c_lines:
+            starts = self.c_lines - ignore
+        else:
+            starts = self.raw_statements - ignore
+        self.statements = self.first_lines(starts) - ignore
+
+
 class Plugin(CoveragePlugin):
     # map from traced file paths to absolute file paths
     _file_path_map = None
@@ -59,6 +240,8 @@ class Plugin(CoveragePlugin):
     def __init__(self):
         CoveragePlugin.__init__(self)
         self.exclude_list = DEFAULT_EXCLUDE[:]
+        self.ignore_defs = False
+        self.ignore_cdefs = False
 
     def sys_info(self):
         return [('Cython version', __version__)]
@@ -107,7 +290,8 @@ class Plugin(CoveragePlugin):
                 return None  # unknown file
             rel_file_path, code = self._parse_lines(c_file, filename)
         return CythonModuleReporter(c_file, filename, rel_file_path, code,
-                                    self.exclude_list)
+                                    self.exclude_list, self.ignore_defs,
+                                    self.ignore_cdefs)
 
     def _find_source_files(self, filename):
         basename, ext = os.path.splitext(filename)
@@ -232,6 +416,8 @@ class Plugin(CoveragePlugin):
 
     CONFIG_FILE_OPTIONS = [
         ('exclude_list', 'exclude_lines', 'regexlist'),
+        ('ignore_defs', 'ignore_defs', 'boolean'),
+        ('ignore_cdefs', 'ignore_cdefs', 'boolean'),
     ]
 
     def parse_config_options(self, raw_options):
@@ -292,13 +478,35 @@ class CythonModuleReporter(FileReporter):
     """
     Provide detailed trace information for one source file to coverage.py.
     """
-    def __init__(self, c_file, source_file, rel_file_path, code, exclude_re):
+    def __init__(self, c_file, source_file, rel_file_path, code, 
+                 exclude_re, ignore_defs, ignore_cdefs):
         super(CythonModuleReporter, self).__init__(source_file)
         self.name = rel_file_path
         self.c_file = c_file
         self._code = code
         self._exclude_re = exclude_re
-        self._excluded = None
+        self._ignore_defs = ignore_defs
+        self._ignore_cdefs = ignore_cdefs
+        self._parser = None
+
+    @property
+    def exclude_regex(self):
+        r"""Join raw regex."""
+        return join_regex(self._exclude_re)
+
+    @property
+    def parser(self):
+        """Lazily create a :class:`PythonParser`."""
+        if self._parser is None:
+            self._parser = CythonParser(
+                filename=self.filename,
+                exclude=self.exclude_regex,
+                ignore_defs=self._ignore_defs,
+                ignore_cdefs=self._ignore_cdefs,
+                c_lines=set(self._code),
+            )
+            self._parser.parse_source()
+        return self._parser
 
     def all_lines(self):
         """
@@ -311,22 +519,13 @@ class CythonModuleReporter(FileReporter):
         Return set of line numbers that are possibly executable and not
         excluded.
         """
-        return self.all_lines() - self.excluded_lines()
+        return self.parser.statements
 
     def excluded_lines(self):
         """
         Return set of line numbers that have been excluded.
         """
-        if self._excluded is None:
-            combined = join_regex(self._exclude_re)
-            if env.PY2:
-                combined = combined.decode("utf8")
-            regex_c = re.compile(combined)
-            self._excluded = set()
-            for i in self.all_lines():
-                if regex_c.search(self._code[i]):
-                    self._excluded.add(i)
-        return self._excluded
+        return self.parser.excluded
 
     def _iter_source_tokens(self):
         current_line = 1
