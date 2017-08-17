@@ -6431,11 +6431,14 @@ class ForFromStatNode(LoopNode, StatNode):
             self.loopvar_node.allocate(code)
         if isinstance(self.py_loopvar_node, ExprNodes.TempNode):
             self.py_loopvar_node.allocate(code)
+
+        loopvar_type = PyrexTypes.c_long_type if self.target.type.is_enum else self.target.type
+
         if from_range:
-            loopvar_name = code.funcstate.allocate_temp(self.target.type, False)
+            loopvar_name = code.funcstate.allocate_temp(loopvar_type, False)
         else:
             loopvar_name = self.loopvar_node.result()
-        if self.target.type.is_int and not self.target.type.signed and self.relation2[0] == '>':
+        if loopvar_type.is_int and not loopvar_type.signed and self.relation2[0] == '>':
             # Handle the case where the endpoint of an unsigned int iteration
             # is within step of 0.
             if not self.step:
@@ -6455,8 +6458,10 @@ class ForFromStatNode(LoopNode, StatNode):
             self.py_loopvar_node.generate_evaluation_code(code)
             self.target.generate_assignment_code(self.py_loopvar_node, code)
         elif from_range:
-            code.putln("%s = %s;" % (
-                self.target.result(), loopvar_name))
+            code.putln("%s = %s%s;" % (
+                self.target.result(),
+                '(%s)' % self.target.type.declaration_code('') if self.target.type.is_enum else '',
+                loopvar_name))
         self.body.generate_execution_code(code)
         code.put_label(code.continue_label)
         if self.py_loopvar_node:
