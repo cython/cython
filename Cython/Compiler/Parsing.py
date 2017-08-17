@@ -2149,7 +2149,14 @@ def p_simple_statement_list(s, ctx, first_statement = 0):
         stat = stats[0]
     else:
         stat = Nodes.StatListNode(pos, stats = stats)
+
+    if s.sy not in ('NEWLINE', 'EOF'):
+        # provide a better error message for users who accidentally write Cython code in .py files
+        if isinstance(stat, Nodes.ExprStatNode):
+            if stat.expr.is_name and stat.expr.name == 'cdef':
+                s.error("The 'cdef' keyword is only allowed in Cython files (pyx/pxi/pxd)", pos)
     s.expect_newline("Syntax error in simple statement list")
+
     return stat
 
 def p_compile_time_expr(s):
