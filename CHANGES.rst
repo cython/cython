@@ -31,6 +31,8 @@ Features added
 Bugs fixed
 ----------
 
+* Loops over ``range(enum)`` were not converted into C for-loops.
+
 * Compile time ``DEF`` assignments were evaluated even when they occur inside of
   falsy ``IF`` blocks. (Github issue #1796)
 

@@ -259,7 +259,7 @@ class IterationTransform(Visitor.EnvTransform):
                 return self._transform_reversed_iteration(node, iterator)
 
         # range() iteration?
-        if Options.convert_range and node.target.type.is_int:
+        if Options.convert_range and (node.target.type.is_int or node.target.type.is_enum):
             if iterator.self is None and function.is_name and \
                    function.entry and function.entry.is_builtin and \
                    function.name in ('range', 'xrange'):
