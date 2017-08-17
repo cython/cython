@@ -3461,7 +3461,8 @@ class CppClassType(CType):
             })
             from .UtilityCode import CythonUtilityCode
             env.use_utility_code(CythonUtilityCode.load(
-                cls.replace('unordered_', '') + ".from_py", "CppConvert.pyx", context=context))
+                cls.replace('unordered_', '') + ".from_py", "CppConvert.pyx",
+                context=context, compiler_directives=env.directives))
             self.from_py_function = cname
             return True
 
@@ -3505,7 +3506,8 @@ class CppClassType(CType):
             })
             from .UtilityCode import CythonUtilityCode
             env.use_utility_code(CythonUtilityCode.load(
-                cls.replace('unordered_', '') + ".to_py", "CppConvert.pyx", context=context))
+                cls.replace('unordered_', '') + ".to_py", "CppConvert.pyx",
+                context=context, compiler_directives=env.directives))
             self.to_py_function = cname
             return True
 

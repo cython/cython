@@ -445,6 +445,9 @@ class Scope(object):
             if self.is_cpp_class_scope and type.is_cfunction and old_type.is_cfunction and type != old_type:
                 # C++ method overrides are ok
                 pass
+            elif self.is_cpp_class_scope and entries[name].is_inherited:
+                # Likewise ignore inherited classes.
+                pass
             elif visibility == 'extern':
                 warning(pos, "'%s' redeclared " % name, 0)
             elif visibility != 'ignore':
