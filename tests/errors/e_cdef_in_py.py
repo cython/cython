@@ -5,5 +5,5 @@ def func():
 
 
 _ERRORS = """
-4:9: The 'cdef' keyword is only allowed in Cython files (pyx/pxi/pxd)
+4:4: The 'cdef' keyword is only allowed in Cython files (pyx/pxi/pxd)
 """

@@ -8,7 +8,9 @@ cdef spamfunc spam
 
 grail = spam # type mismatch
 spam = grail # type mismatch
+
+
 _ERRORS = u"""
-9:28: Cannot assign type 'spamfunc' to 'grailfunc'
-10:28: Cannot assign type 'grailfunc' to 'spamfunc'
+9:8: Cannot assign type 'spamfunc' to 'grailfunc'
+10:7: Cannot assign type 'grailfunc' to 'spamfunc'
 """

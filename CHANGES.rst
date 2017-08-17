@@ -33,6 +33,9 @@ Bugs fixed
 
 * Loops over ``range(enum)`` were not converted into C for-loops.
 
+* Error positions of names (e.g. variables) were incorrectly reported after the
+  name and not at the beginning of the name.
+
 * Compile time ``DEF`` assignments were evaluated even when they occur inside of
   falsy ``IF`` blocks. (Github issue #1796)
 

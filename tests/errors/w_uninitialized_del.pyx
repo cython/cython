@@ -9,6 +9,6 @@ def foo(x):
     return a, b
 
 _ERRORS = """
-7:12: local variable 'b' referenced before assignment
-9:12: local variable 'a' referenced before assignment
+7:11: local variable 'b' referenced before assignment
+9:11: local variable 'a' referenced before assignment
 """

@@ -703,17 +703,18 @@ def p_atom(s):
             s.error("invalid string kind '%s'" % kind)
     elif sy == 'IDENT':
         name = s.systring
-        s.next()
         if name == "None":
-            return ExprNodes.NoneNode(pos)
+            result = ExprNodes.NoneNode(pos)
         elif name == "True":
-            return ExprNodes.BoolNode(pos, value=True)
+            result = ExprNodes.BoolNode(pos, value=True)
         elif name == "False":
-            return ExprNodes.BoolNode(pos, value=False)
+            result = ExprNodes.BoolNode(pos, value=False)
         elif name == "NULL" and not s.in_python_file:
-            return ExprNodes.NullNode(pos)
+            result = ExprNodes.NullNode(pos)
         else:
-            return p_name(s, name)
+            result = p_name(s, name)
+        s.next()
+        return result
     else:
         s.error("Expected an identifier or literal")
 
