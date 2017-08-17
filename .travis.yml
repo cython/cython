@@ -18,8 +18,8 @@ python:
   - 3.7-dev
   - pypy
   - pypy3
-  - pypy-dev
-  - pypy3-dev
+  - pypy-5.8.0
+  - pypy3-5.8.0
 
 env:
   global:
@@ -52,8 +52,8 @@ matrix:
   allow_failures:
     - python: pypy
     - python: pypy3
-    - python: pypy-dev
-    - python: pypy3-dev
+    - python: pypy-5.8.0
+    - python: pypy3-5.8.0
     - python: 3.2
     - python: 3.6-dev
     - python: 3.7-dev
@@ -62,9 +62,9 @@ matrix:
       env: BACKEND=cpp
     - python: pypy3
       env: BACKEND=cpp
-    - python: pypy-dev
+    - python: pypy-5.8.0
       env: BACKEND=cpp
-    - python: pypy3-dev
+    - python: pypy3-5.8.0
       env: BACKEND=cpp
 
 addons:
