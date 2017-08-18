@@ -1313,6 +1313,8 @@ static PyObject* __Pyx__PyObject_CallMethod1(PyObject* method, PyObject* arg) {
     }
 #endif
     result = __Pyx_PyObject_CallOneArg(method, arg);
+    // avoid "unused label" warning
+    goto done;
 done:
     return result;
 }
