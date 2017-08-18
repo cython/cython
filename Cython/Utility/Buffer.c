@@ -128,14 +128,15 @@ static void __Pyx_ReleaseBuffer(Py_buffer *view) {
         return;
     }
 
+    if ((0));
     {{for type_ptr, getbuffer, releasebuffer in types}}
       {{if releasebuffer}}
-        if (__Pyx_TypeCheck(obj, {{type_ptr}})) { {{releasebuffer}}(obj, view); return; }
+        else if (__Pyx_TypeCheck(obj, {{type_ptr}})) {{releasebuffer}}(obj, view);
       {{endif}}
     {{endfor}}
 
-    Py_DECREF(obj);
     view->obj = NULL;
+    Py_DECREF(obj);
 }
 
 #endif /*  PY_MAJOR_VERSION < 3 */
