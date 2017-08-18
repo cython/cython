@@ -370,6 +370,7 @@ cdef class memoryview(object):
     def __dealloc__(memoryview self):
         if self.obj is not None:
             __Pyx_ReleaseBuffer(&self.view)
+            self.obj = None
 
         cdef int i
         global __pyx_memoryview_thread_locks_used
