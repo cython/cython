@@ -14,6 +14,11 @@ Bugs fixed
 
 * ``cython.view.array`` was missing ``.__len__()``.
 
+* Extension types with a ``.pxd`` override for their ``__releasebuffer__`` slot
+  (e.g. as provided by Cython for the Python ``array.array`` type) could leak
+  a reference to the buffer owner on release, thus not freeing the memory.
+  (Github issue #1638)
+
 * Invalid C code in generators (declaration after code).
   (Github issue #1801)
 
