@@ -125,7 +125,7 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAwaitableIter(PyObject *o) {
 
 
 static void __Pyx_Coroutine_AwaitableIterError(PyObject *source) {
-#if PY_VERSION_HEX >= 0x03060000 || defined(_PyErr_FormatFromCause)
+#if PY_VERSION_HEX >= 0x030600B3 || defined(_PyErr_FormatFromCause)
     _PyErr_FormatFromCause(
         PyExc_TypeError,
         "'async for' received an invalid object "
