@@ -1067,6 +1067,12 @@ static void __Pyx_Coroutine_del(PyObject *self) {
 #endif
 
     if (unlikely(gen->resume_label == 0 && !error_value)) {
+#ifdef __Pyx_Coroutine_USED
+#ifdef __Pyx_Generator_USED
+    // only warn about (async) coroutines
+    if (!__Pyx_Generator_CheckExact(self))
+#endif
+        {
         // untrack dead object as we are executing Python code (which might trigger GC)
         PyObject_GC_UnTrack(self);
 #if PY_VERSION_HEX >= 0x03030000 || defined(PyErr_WarnFormat)
@@ -1117,6 +1123,8 @@ static void __Pyx_Coroutine_del(PyObject *self) {
         Py_XDECREF(msg);}
 #endif
         PyObject_GC_Track(self);
+        }
+#endif /*__Pyx_Coroutine_USED*/
     } else {
         PyObject *res = __Pyx_Coroutine_Close(self);
         if (unlikely(!res)) {
