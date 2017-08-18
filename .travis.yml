@@ -17,7 +17,6 @@ python:
   - 3.6-dev
   - 3.7-dev
   - pypy-5.7.1
-  - pypy3-5.7.1
   - pypy
   - pypy3
 
@@ -53,7 +52,6 @@ matrix:
     - python: pypy
     - python: pypy3
     - python: pypy-5.7.1
-    - python: pypy3-5.7.1
     - python: 3.2
     - python: 3.6-dev
     - python: 3.7-dev
@@ -63,8 +61,6 @@ matrix:
     - python: pypy3
       env: BACKEND=cpp
     - python: pypy-5.7.1
-      env: BACKEND=cpp
-    - python: pypy3-5.7.1
       env: BACKEND=cpp
 
 addons:
