@@ -117,6 +117,7 @@ cdef extern from *:  # Hard-coded utility code hack.
 
         def __releasebuffer__(self, Py_buffer* info):
             PyObject_Free(info.shape)
+            info.obj = None
 
     array newarrayobject(PyTypeObject* type, Py_ssize_t size, arraydescr *descr)
 
