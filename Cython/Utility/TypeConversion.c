@@ -293,9 +293,9 @@ static CYTHON_INLINE PyObject* __Pyx_PyNumber_IntOrLong(PyObject* x) {
   const char *name = NULL;
   PyObject *res = NULL;
 #if PY_MAJOR_VERSION < 3
-  if (PyInt_Check(x) || PyLong_Check(x))
+  if (likely(PyInt_Check(x) || PyLong_Check(x)))
 #else
-  if (PyLong_Check(x))
+  if (likely(PyLong_Check(x)))
 #endif
     return __Pyx_NewRef(x);
 #if CYTHON_USE_TYPE_SLOTS
@@ -303,26 +303,26 @@ static CYTHON_INLINE PyObject* __Pyx_PyNumber_IntOrLong(PyObject* x) {
   #if PY_MAJOR_VERSION < 3
   if (m && m->nb_int) {
     name = "int";
-    res = PyNumber_Int(x);
+    res = m->nb_int(x);
   }
   else if (m && m->nb_long) {
     name = "long";
-    res = PyNumber_Long(x);
+    res = m->nb_long(x);
   }
   #else
-  if (m && m->nb_int) {
+  if (likely(m && m->nb_int)) {
     name = "int";
-    res = PyNumber_Long(x);
+    res = m->nb_int(x);
   }
   #endif
 #else
   res = PyNumber_Int(x);
 #endif
-  if (res) {
+  if (likely(res)) {
 #if PY_MAJOR_VERSION < 3
-    if (!PyInt_Check(res) && !PyLong_Check(res)) {
+    if (unlikely(!PyInt_Check(res) && !PyLong_Check(res))) {
 #else
-    if (!PyLong_Check(res)) {
+    if (unlikely(!PyLong_Check(res))) {
 #endif
       PyErr_Format(PyExc_TypeError,
                    "__%.4s__ returned non-%.4s (type %.200s)",
