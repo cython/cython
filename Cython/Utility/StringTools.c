@@ -737,7 +737,7 @@ static CYTHON_INLINE char __Pyx_PyBytes_GetItemInt(PyObject* bytes, Py_ssize_t i
         Py_ssize_t size = PyBytes_GET_SIZE(bytes);
         if (unlikely(index >= size) | ((index < 0) & unlikely(index < -size))) {
             PyErr_SetString(PyExc_IndexError, "string index out of range");
-            return -1;
+            return (char) -1;
         }
     }
     if (index < 0)
