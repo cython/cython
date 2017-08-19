@@ -1161,18 +1161,11 @@ static PyTypeObject __pyx_CoroutineAwaitType_type = {
 };
 
 static CYTHON_INLINE PyObject *__Pyx__Coroutine_await(PyObject *coroutine) {
-#if CYTHON_COMPILING_IN_CPYTHON
     __pyx_CoroutineAwaitObject *await = PyObject_GC_New(__pyx_CoroutineAwaitObject, __pyx_CoroutineAwaitType);
-#else
-    __pyx_CoroutineAwaitObject *await = (__pyx_CoroutineAwaitObject*)
-        __pyx_CoroutineAwaitType->tp_new(__pyx_CoroutineAwaitType, __pyx_empty_tuple, NULL);
-#endif
     if (unlikely(!await)) return NULL;
     Py_INCREF(coroutine);
     await->coroutine = coroutine;
-#if CYTHON_COMPILING_IN_CPYTHON
     PyObject_GC_Track(await);
-#endif
     return (PyObject*)await;
 }
 
