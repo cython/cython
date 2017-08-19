@@ -12678,7 +12678,7 @@ class NoneCheckNode(CoercionNode):
     is_nonecheck = True
 
     def __init__(self, arg, exception_type_cname, exception_message,
-                 exception_format_args):
+                 exception_format_args=()):
         CoercionNode.__init__(self, arg)
         self.type = arg.type
         self.result_ctype = arg.ctype()
@@ -12713,6 +12713,19 @@ class NoneCheckNode(CoercionNode):
             return "((PyObject *) %s.memview)" % self.arg.result()
         else:
             raise Exception("unsupported type")
+
+    @classmethod
+    def generate(cls, arg, code, exception_message,
+                 exception_type_cname="PyExc_TypeError", exception_format_args=(), in_nogil_context=False):
+        node = cls(arg, exception_type_cname, exception_message, exception_format_args)
+        node.in_nogil_context = in_nogil_context
+        node.put_nonecheck(code)
+
+    @classmethod
+    def generate_if_needed(cls, arg, code, exception_message,
+                           exception_type_cname="PyExc_TypeError", exception_format_args=(), in_nogil_context=False):
+        if arg.may_be_none():
+            cls.generate(arg, code, exception_message, exception_type_cname, exception_format_args, in_nogil_context)
 
     def put_nonecheck(self, code):
         code.putln(
@@ -12888,8 +12901,15 @@ class CoerceFromPyTypeNode(CoercionNode):
         return (self.type.is_ptr and not self.type.is_array) and self.arg.is_ephemeral()
 
     def generate_result_code(self, code):
+        from_py_function = None
+        # for certain source types, we can do better than the generic coercion
+        if self.type.is_string and self.arg.type is bytes_type:
+            if self.type.from_py_function.startswith('__Pyx_PyObject_As'):
+                from_py_function = '__Pyx_PyBytes' + self.type.from_py_function[len('__Pyx_PyObject'):]
+                NoneCheckNode.generate_if_needed(self.arg, code, "expected bytes, NoneType found")
+
         code.putln(self.type.from_py_call_code(
-            self.arg.py_result(), self.result(), self.pos, code))
+            self.arg.py_result(), self.result(), self.pos, code, from_py_function=from_py_function))
         if self.type.is_pyobject:
             code.put_gotref(self.py_result())
 
