@@ -3,11 +3,6 @@
 
 import sys
 
-def _next(it):
-    if sys.version_info[0] >= 3:
-        return next(it)
-    else:
-        return it.next()
 
 def test_generator_frame_cycle():
     """
@@ -23,8 +18,39 @@ def test_generator_frame_cycle():
         finally:
             testit.append("I'm done")
     g = whoo()
-    _next(g)
+    next(g)
+
     # Frame object cycle
     eval('g.throw(ValueError)', {'g': g})
     del g
+
+    return tuple(testit)
+
+
+def test_generator_frame_cycle_with_outer_exc():
+    """
+    >>> test_generator_frame_cycle_with_outer_exc()
+    ("I'm done",)
+    """
+    testit = []
+    def whoo():
+        try:
+            yield
+        except:
+            yield
+        finally:
+            testit.append("I'm done")
+    g = whoo()
+    next(g)
+
+    try:
+        raise ValueError()
+    except ValueError as exc:
+        assert sys.exc_info()[1] is exc, sys.exc_info()
+        # Frame object cycle
+        eval('g.throw(ValueError)', {'g': g})
+        assert sys.exc_info()[1] is exc, sys.exc_info()
+        del g
+        assert sys.exc_info()[1] is exc, sys.exc_info()
+
     return tuple(testit)
