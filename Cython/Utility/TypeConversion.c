@@ -286,6 +286,28 @@ static CYTHON_INLINE int __Pyx_PyObject_IsTrue(PyObject* x) {
    else return PyObject_IsTrue(x);
 }
 
+static PyObject* __Pyx_PyNumber_IntOrLongWrongResultType(PyObject* result, const char* type_name) {
+#if PY_MAJOR_VERSION >= 3
+    if (PyLong_Check(result)) {
+        // CPython issue #17576: warn if 'result' not of exact type int.
+        if (PyErr_WarnFormat(PyExc_DeprecationWarning, 1,
+                "__int__ returned non-int (type %.200s).  "
+                "The ability to return an instance of a strict subclass of int "
+                "is deprecated, and may be removed in a future version of Python.",
+                Py_TYPE(result)->tp_name)) {
+            Py_DECREF(result);
+            return NULL;
+        }
+        return result;
+    }
+#endif
+    PyErr_Format(PyExc_TypeError,
+                 "__%.4s__ returned non-%.4s (type %.200s)",
+                 type_name, type_name, Py_TYPE(result)->tp_name);
+    Py_DECREF(result);
+    return NULL;
+}
+
 static CYTHON_INLINE PyObject* __Pyx_PyNumber_IntOrLong(PyObject* x) {
 #if CYTHON_USE_TYPE_SLOTS
   PyNumberMethods *m;
@@ -322,13 +344,9 @@ static CYTHON_INLINE PyObject* __Pyx_PyNumber_IntOrLong(PyObject* x) {
 #if PY_MAJOR_VERSION < 3
     if (unlikely(!PyInt_Check(res) && !PyLong_Check(res))) {
 #else
-    if (unlikely(!PyLong_Check(res))) {
+    if (unlikely(!PyLong_CheckExact(res))) {
 #endif
-      PyErr_Format(PyExc_TypeError,
-                   "__%.4s__ returned non-%.4s (type %.200s)",
-                   name, name, Py_TYPE(res)->tp_name);
-      Py_DECREF(res);
-      return NULL;
+        return __Pyx_PyNumber_IntOrLongWrongResultType(res, name);
     }
   }
   else if (!PyErr_Occurred()) {
