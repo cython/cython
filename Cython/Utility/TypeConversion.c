@@ -204,6 +204,52 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsString(PyObject* o) {
     return __Pyx_PyObject_AsStringAndSize(o, &ignore);
 }
 
+#if CYTHON_COMPILING_IN_CPYTHON && (__PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT)
+#if PY_VERSION_HEX < 0x03030000
+static const char* __Pyx_PyUnicode_AsStringAndSize(PyObject* o, Py_ssize_t *length) {
+    char* defenc_c;
+    // borrowed reference, cached internally in 'o' by CPython
+    PyObject* defenc = _PyUnicode_AsDefaultEncodedString(o, NULL);
+    if (!defenc) return NULL;
+    defenc_c = PyBytes_AS_STRING(defenc);
+#if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
+    {
+        char* end = defenc_c + PyBytes_GET_SIZE(defenc);
+        char* c;
+        for (c = defenc_c; c < end; c++) {
+            if ((unsigned char) (*c) >= 128) {
+                // raise the error
+                PyUnicode_AsASCIIString(o);
+                return NULL;
+            }
+        }
+    }
+#endif /*__PYX_DEFAULT_STRING_ENCODING_IS_ASCII*/
+    *length = PyBytes_GET_SIZE(defenc);
+    return defenc_c;
+}
+
+#else /* PY_VERSION_HEX < 0x03030000 */
+
+static CYTHON_INLINE const char* __Pyx_PyUnicode_AsStringAndSize(PyObject* o, Py_ssize_t *length) {
+    if (unlikely(__Pyx_PyUnicode_READY(o) == -1)) return NULL;
+#if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
+    if (likely(PyUnicode_IS_ASCII(o))) {
+        // cached for the lifetime of the object
+        *length = PyUnicode_GET_LENGTH(o);
+        return PyUnicode_AsUTF8(o);
+    } else {
+        // raise the error
+        PyUnicode_AsASCIIString(o);
+        return NULL;
+    }
+#else /* __PYX_DEFAULT_STRING_ENCODING_IS_ASCII */
+    return PyUnicode_AsUTF8AndSize(o, length);
+#endif /* __PYX_DEFAULT_STRING_ENCODING_IS_ASCII */
+}
+#endif /* PY_VERSION_HEX < 0x03030000 */
+#endif
+
 // Py3.7 returns a "const char*" for unicode strings
 static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_ssize_t *length) {
 #if CYTHON_COMPILING_IN_CPYTHON && (__PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT)
@@ -212,43 +258,7 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsStringAndSize(PyObject* o, Py_
             __Pyx_sys_getdefaultencoding_not_ascii &&
 #endif
             PyUnicode_Check(o)) {
-#if PY_VERSION_HEX < 0x03030000
-        char* defenc_c;
-        // borrowed reference, cached internally in 'o' by CPython
-        PyObject* defenc = _PyUnicode_AsDefaultEncodedString(o, NULL);
-        if (!defenc) return NULL;
-        defenc_c = PyBytes_AS_STRING(defenc);
-#if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
-        {
-            char* end = defenc_c + PyBytes_GET_SIZE(defenc);
-            char* c;
-            for (c = defenc_c; c < end; c++) {
-                if ((unsigned char) (*c) >= 128) {
-                    // raise the error
-                    PyUnicode_AsASCIIString(o);
-                    return NULL;
-                }
-            }
-        }
-#endif /*__PYX_DEFAULT_STRING_ENCODING_IS_ASCII*/
-        *length = PyBytes_GET_SIZE(defenc);
-        return defenc_c;
-#else /* PY_VERSION_HEX < 0x03030000 */
-        if (__Pyx_PyUnicode_READY(o) == -1) return NULL;
-#if __PYX_DEFAULT_STRING_ENCODING_IS_ASCII
-        if (PyUnicode_IS_ASCII(o)) {
-            // cached for the lifetime of the object
-            *length = PyUnicode_GET_LENGTH(o);
-            return PyUnicode_AsUTF8(o);
-        } else {
-            // raise the error
-            PyUnicode_AsASCIIString(o);
-            return NULL;
-        }
-#else /* __PYX_DEFAULT_STRING_ENCODING_IS_ASCII */
-        return PyUnicode_AsUTF8AndSize(o, length);
-#endif /* __PYX_DEFAULT_STRING_ENCODING_IS_ASCII */
-#endif /* PY_VERSION_HEX < 0x03030000 */
+        return __Pyx_PyUnicode_AsStringAndSize(o, length);
     } else
 #endif /* __PYX_DEFAULT_STRING_ENCODING_IS_ASCII  || __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT */
 
