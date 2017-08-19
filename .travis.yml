@@ -1,6 +1,7 @@
 language: python
-
+dist: trusty
 sudo: false
+
 cache:
   pip: true
   directories:
@@ -16,7 +17,6 @@ python:
   - 3.5
   - 3.6-dev
   - 3.7-dev
-  - pypy-5.7.1
   - pypy
   - pypy3
 
@@ -34,6 +34,7 @@ env:
 branches:
   only:
     - master
+    - release
 
 install:
   - python -c 'import sys; print("Python %s" % (sys.version,))'
@@ -51,7 +52,6 @@ matrix:
   allow_failures:
     - python: pypy
     - python: pypy3
-    - python: pypy-5.7.1
     - python: 3.2
     - python: 3.6-dev
     - python: 3.7-dev
@@ -59,8 +59,6 @@ matrix:
     - python: pypy
       env: BACKEND=cpp
     - python: pypy3
-      env: BACKEND=cpp
-    - python: pypy-5.7.1
       env: BACKEND=cpp
 
 addons:
