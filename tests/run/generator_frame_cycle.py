@@ -1,6 +1,7 @@
 # mode: run
 # tag: generator
 
+import cython
 import sys
 
 
@@ -24,6 +25,9 @@ def test_generator_frame_cycle():
     eval('g.throw(ValueError)', {'g': g})
     del g
 
+    if cython.compiled:
+        # FIXME: this should not be necessary, but I can't see how to do it...
+        import gc; gc.collect()
     return tuple(testit)
 
 
@@ -53,4 +57,7 @@ def test_generator_frame_cycle_with_outer_exc():
         del g
         assert sys.exc_info()[1] is exc, sys.exc_info()
 
+    if cython.compiled:
+        # FIXME: this should not be necessary, but I can't see how to do it...
+        import gc; gc.collect()
     return tuple(testit)
