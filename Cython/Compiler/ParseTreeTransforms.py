@@ -611,9 +611,11 @@ class PxdPostParse(CythonTransform, SkipDeclarations):
         else:
             return node
 
-class TrackNumpyAttributes(CythonTransform, SkipDeclarations):
-    def __init__(self, context):
-        super(TrackNumpyAttributes, self).__init__(context)
+
+class TrackNumpyAttributes(VisitorTransform, SkipDeclarations):
+    # TODO: Make name handling as good as in InterpretCompilerDirectives() below - probably best to merge the two.
+    def __init__(self):
+        super(TrackNumpyAttributes, self).__init__()
         self.numpy_module_names = set()
 
     def visit_CImportStatNode(self, node):
@@ -626,6 +628,9 @@ class TrackNumpyAttributes(CythonTransform, SkipDeclarations):
         if node.obj.is_name and node.obj.name in self.numpy_module_names:
             node.is_numpy_attribute = True
         return node
+
+    visit_Node = VisitorTransform.recurse_to_children
+
 
 class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
     """

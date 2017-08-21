@@ -6,7 +6,6 @@ from time import time
 from . import Errors
 from . import DebugFlags
 from . import Options
-from .Visitor import CythonTransform
 from .Errors import CompileError, InternalError, AbortError
 from . import Naming
 
@@ -183,7 +182,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         NormalizeTree(context),
         PostParse(context),
         _specific_post_parse,
-        TrackNumpyAttributes(context),
+        TrackNumpyAttributes(),
         InterpretCompilerDirectives(context, context.compiler_directives),
         ParallelRangeTransform(context),
         AdjustDefByDirectives(context),
