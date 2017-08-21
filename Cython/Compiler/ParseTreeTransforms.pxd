@@ -48,6 +48,7 @@ cdef class AlignFunctionDefinitions(CythonTransform):
     cdef dict directives
     cdef scope
 
+@cython.final
 cdef class YieldNodeCollector(TreeVisitor):
     cdef public list yields
     cdef public list returns
@@ -56,14 +57,19 @@ cdef class YieldNodeCollector(TreeVisitor):
     cdef public bint has_yield
     cdef public bint has_await
 
+@cython.final
 cdef class MarkClosureVisitor(CythonTransform):
     cdef bint needs_closure
 
+@cython.final
 cdef class CreateClosureClasses(CythonTransform):
     cdef list path
     cdef bint in_lambda
     cdef module_scope
     cdef generator_class
+
+    cdef create_class_from_scope(self, node, target_module_scope, inner_node=*)
+    cdef find_entries_used_in_closures(self, node)
 
 cdef class GilCheck(VisitorTransform):
     cdef list env_stack
