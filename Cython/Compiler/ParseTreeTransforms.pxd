@@ -46,7 +46,8 @@ cdef class ExpandInplaceOperators(EnvTransform):
 
 cdef class AlignFunctionDefinitions(CythonTransform):
     cdef dict directives
-    cdef scope
+    cdef set imported_names
+    cdef object scope
 
 cdef class YieldNodeCollector(TreeVisitor):
     cdef public list yields
