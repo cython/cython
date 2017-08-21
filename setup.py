@@ -101,6 +101,7 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
     compiled_modules = [
         "Cython.Plex.Scanners",
         "Cython.Plex.Actions",
+        "Cython.Compiler.Lexicon",
         "Cython.Compiler.Scanning",
         "Cython.Compiler.Parsing",
         "Cython.Compiler.Visitor",
@@ -113,7 +114,6 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
     if compile_more:
         compiled_modules.extend([
             "Cython.Build.Dependencies",
-            "Cython.Compiler.Lexicon",
             "Cython.Compiler.ParseTreeTransforms",
             "Cython.Compiler.Nodes",
             "Cython.Compiler.ExprNodes",
