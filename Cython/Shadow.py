@@ -422,10 +422,12 @@ void = typedef(int, "void")
 
 for t in int_types + float_types + complex_types + other_types:
     for i in range(1, 4):
-        gs["%s_%s" % ('p'*i, t)] = globals()[t]._pointer(i)
+        gs["%s_%s" % ('p'*i, t)] = gs[t]._pointer(i)
 
 void = typedef(None, "void")
-NULL = p_void(0)
+NULL = gs['p_void'](0)
+
+del gs
 
 integral = floating = numeric = _FusedType()
 
