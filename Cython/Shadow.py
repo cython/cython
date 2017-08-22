@@ -427,7 +427,8 @@ for t in int_types + float_types + complex_types + other_types:
 void = typedef(None, "void")
 NULL = gs['p_void'](0)
 
-del gs
+# looks like 'gs' has some users out there by now...
+#del gs
 
 integral = floating = numeric = _FusedType()
 
