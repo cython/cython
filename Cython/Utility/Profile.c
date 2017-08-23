@@ -249,7 +249,7 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
             tstate,                          /*PyThreadState *tstate*/
             *code,                           /*PyCodeObject *code*/
             $moddict_cname,                  /*PyObject *globals*/
-            0                                /*PyObject *locals*/
+            PyDict_New()                     /*PyObject *locals*/
         );
         if (*frame == NULL) return 0;
         if (CYTHON_TRACE && (*frame)->f_trace == NULL) {
