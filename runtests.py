@@ -1988,6 +1988,11 @@ def runtests(options, cmd_args, coverage=None):
             compiler_default_options['gdb_debug'] = True
             compiler_default_options['output_dir'] = os.getcwd()
 
+    if IS_PYPY:
+        if options.with_refnanny:
+            sys.stderr.write("Disabling refnanny in PyPy\n")
+            options.with_refnanny = False
+
     if options.with_refnanny:
         from pyximport.pyxbuild import pyx_to_dll
         libpath = pyx_to_dll(os.path.join("Cython", "Runtime", "refnanny.pyx"),
