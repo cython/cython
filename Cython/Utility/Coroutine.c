@@ -400,16 +400,21 @@ static PyObject *__Pyx_Coroutine_Throw(PyObject *gen, PyObject *args); /*proto*/
     __Pyx_Coroutine_ResetFrameBackpointer(self); \
     (self)->exc_type = (self)->exc_value = (self)->exc_traceback = NULL; \
     }
-static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__pyx_CoroutineObject *self);
 
 #if CYTHON_FAST_THREAD_STATE
 #define __Pyx_PyGen_FetchStopIterationValue(pvalue) \
     __Pyx_PyGen__FetchStopIterationValue($local_tstate_cname, pvalue)
+#define __Pyx_Coroutine_ResetFrameBackpointer(self) \
+    __Pyx__Coroutine_ResetFrameBackpointer($local_tstate_cname, self)
 #else
 #define __Pyx_PyGen_FetchStopIterationValue(pvalue) \
     __Pyx_PyGen__FetchStopIterationValue(__Pyx_PyThreadState_Current, pvalue)
+#define __Pyx_Coroutine_ResetFrameBackpointer(self) \
+    __Pyx__Coroutine_ResetFrameBackpointer(__Pyx_PyThreadState_Current, self)
 #endif
 static int __Pyx_PyGen__FetchStopIterationValue(PyThreadState *tstate, PyObject **pvalue); /*proto*/
+static CYTHON_INLINE void __Pyx__Coroutine_ResetFrameBackpointer(PyThreadState *tstate, __pyx_CoroutineObject *self);
+
 
 //////////////////// Coroutine.proto ////////////////////
 
@@ -679,7 +684,7 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, i
     return retval;
 }
 
-static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__pyx_CoroutineObject *self) {
+static CYTHON_INLINE void __Pyx__Coroutine_ResetFrameBackpointer(PyThreadState *tstate, __pyx_CoroutineObject *self) {
     // Don't keep the reference to f_back any longer than necessary.  It
     // may keep a chain of frames alive or it could create a reference
     // cycle.
@@ -689,7 +694,10 @@ static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__pyx_CoroutineO
 #else
         PyTracebackObject *tb = (PyTracebackObject *) self->exc_traceback;
         PyFrameObject *f = tb->tb_frame;
-        Py_CLEAR(f->f_back);
+        // do not accidentally break any other frame links
+        // FIXME: any other cases? e.g. do we need to follow up the back link chain?
+        if (f->f_back == tstate->frame)
+            Py_CLEAR(f->f_back);
 #endif
     }
 }
