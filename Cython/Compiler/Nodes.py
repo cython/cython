@@ -6946,8 +6946,8 @@ class ExceptClauseNode(Node):
         exc_args = "&%s, &%s, &%s" % tuple(exc_vars)
         code.putln("if (__Pyx_GetException(%s) < 0) %s" % (
             exc_args, code.error_goto(self.pos)))
-        for x in exc_vars:
-            code.put_gotref(x)
+        for var in exc_vars:
+            code.put_gotref(var)
         if self.target:
             self.exc_value.set_var(exc_vars[1])
             self.exc_value.generate_evaluation_code(code)
@@ -6964,6 +6964,7 @@ class ExceptClauseNode(Node):
         code.funcstate.exc_vars = exc_vars
         self.body.generate_execution_code(code)
         code.funcstate.exc_vars = old_exc_vars
+
         if not self.body.is_terminator:
             for var in exc_vars:
                 code.put_decref_clear(var, py_object_type)

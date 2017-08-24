@@ -6,10 +6,11 @@
 from __future__ import absolute_import
 
 import cython
-cython.declare(os=object, re=object, operator=object,
-               Naming=object, Options=object, StringEncoding=object,
+cython.declare(os=object, re=object, operator=object, textwrap=object,
+               Template=object, Naming=object, Options=object, StringEncoding=object,
                Utils=object, SourceDescriptor=object, StringIOTree=object,
-               DebugFlags=object, basestring=object)
+               DebugFlags=object, basestring=object, defaultdict=object,
+               closing=object, partial=object)
 
 import os
 import re
