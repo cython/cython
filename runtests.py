@@ -2159,6 +2159,9 @@ def runtests(options, cmd_args, coverage=None):
         pyximport.install(pyimport=True, build_dir=os.path.join(WORKDIR, '_pyximport'),
                           load_py_module_on_import_failure=True, inplace=True)
 
+    import gc
+    gc.set_debug(gc.DEBUG_UNCOLLECTABLE)
+
     result = test_runner.run(test_suite)
 
     if common_utility_dir and options.shard_num < 0 and options.cleanup_workdir:
