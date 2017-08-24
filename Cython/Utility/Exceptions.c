@@ -11,6 +11,7 @@
 
 #if CYTHON_FAST_THREAD_STATE
 #define __Pyx_PyThreadState_declare  PyThreadState *$local_tstate_cname;
+#define __Pyx_PyErr_Occurred()  $local_tstate_cname->curexc_type
 #if PY_VERSION_HEX >= 0x03050000
   #define __Pyx_PyThreadState_assign  $local_tstate_cname = _PyThreadState_UncheckedGet();
 #elif PY_VERSION_HEX >= 0x03000000
@@ -23,6 +24,7 @@
 #else
 #define __Pyx_PyThreadState_declare
 #define __Pyx_PyThreadState_assign
+#define __Pyx_PyErr_Occurred()  PyErr_Occurred()
 #endif
 
 

@@ -9539,7 +9539,7 @@ class _YieldDelegationExprNode(YieldExprNode):
         code.put_gotref(self.result())
 
     def handle_iteration_exception(self, code):
-        code.putln("PyObject* exc_type = PyErr_Occurred();")
+        code.putln("PyObject* exc_type = __Pyx_PyErr_Occurred();")
         code.putln("if (exc_type) {")
         code.putln("if (likely(exc_type == PyExc_StopIteration || (exc_type != PyExc_GeneratorExit &&"
                    " __Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration)))) PyErr_Clear();")
@@ -9589,7 +9589,7 @@ class AwaitIterNextExprNode(AwaitExprNode):
 
     def _generate_break(self, code):
         code.globalstate.use_utility_code(UtilityCode.load_cached("StopAsyncIteration", "Coroutine.c"))
-        code.putln("PyObject* exc_type = PyErr_Occurred();")
+        code.putln("PyObject* exc_type = __Pyx_PyErr_Occurred();")
         code.putln("if (unlikely(exc_type && (exc_type == __Pyx_PyExc_StopAsyncIteration || ("
                    " exc_type != PyExc_StopIteration && exc_type != PyExc_GeneratorExit &&"
                    " __Pyx_PyErr_GivenExceptionMatches(exc_type, __Pyx_PyExc_StopAsyncIteration))))) {")

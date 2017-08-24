@@ -355,6 +355,7 @@ static void __Pyx_Generator_Replace_StopIteration(CYTHON_UNUSED int in_async_gen
 
 
 //////////////////// CoroutineBase.proto ////////////////////
+//@substitute: naming
 
 typedef PyObject *(*__pyx_coroutine_body_t)(PyObject *, PyObject *);
 
@@ -401,12 +402,14 @@ static PyObject *__Pyx_Coroutine_Throw(PyObject *gen, PyObject *args); /*proto*/
     }
 static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__pyx_CoroutineObject *self);
 
-#if 1 || PY_VERSION_HEX < 0x030300B0
-static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue); /*proto*/
+#if CYTHON_FAST_THREAD_STATE
+#define __Pyx_PyGen_FetchStopIterationValue(pvalue) \
+    __Pyx_PyGen__FetchStopIterationValue($local_tstate_cname, pvalue)
 #else
-#define __Pyx_PyGen_FetchStopIterationValue(pvalue) PyGen_FetchStopIterationValue(pvalue)
+#define __Pyx_PyGen_FetchStopIterationValue(pvalue) \
+    __Pyx_PyGen__FetchStopIterationValue(__Pyx_PyThreadState_Current, pvalue)
 #endif
-
+static int __Pyx_PyGen__FetchStopIterationValue(PyThreadState *tstate, PyObject **pvalue); /*proto*/
 
 //////////////////// Coroutine.proto ////////////////////
 
@@ -462,12 +465,9 @@ static int __pyx_Generator_init(void); /*proto*/
 //   Returns 0 if no exception or StopIteration is set.
 //   If any other exception is set, returns -1 and leaves
 //   pvalue unchanged.
-#if 1 || PY_VERSION_HEX < 0x030300B0
-static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
+static int __Pyx_PyGen__FetchStopIterationValue(CYTHON_UNUSED PyThreadState *$local_tstate_cname, PyObject **pvalue) {
     PyObject *et, *ev, *tb;
     PyObject *value = NULL;
-    __Pyx_PyThreadState_declare
-    __Pyx_PyThreadState_assign
 
     __Pyx_ErrFetch(&et, &ev, &tb);
 
@@ -554,7 +554,6 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
     *pvalue = value;
     return 0;
 }
-#endif
 
 static CYTHON_INLINE
 void __Pyx_Coroutine_ExceptionClear(__pyx_CoroutineObject *self) {
@@ -714,7 +713,7 @@ PyObject *__Pyx_Coroutine_FinishDelegation(__pyx_CoroutineObject *gen) {
     PyObject *ret;
     PyObject *val = NULL;
     __Pyx_Coroutine_Undelegate(gen);
-    __Pyx_PyGen_FetchStopIterationValue(&val);
+    __Pyx_PyGen__FetchStopIterationValue(__Pyx_PyThreadState_Current, &val);
     // val == NULL on failure => pass on exception
     ret = __Pyx_Coroutine_SendEx(gen, val, 0);
     Py_XDECREF(val);
