@@ -4081,10 +4081,12 @@ class GeneratorBodyDefNode(DefNode):
         self.generate_function_header(code)
         closure_init_code = code.insertion_point()
         # ----- Local variables
+        code.putln("__Pyx_PyThreadState_declare")
         code.putln("PyObject *%s = NULL;" % Naming.retval_cname)
         tempvardecl_code = code.insertion_point()
         code.put_declare_refcount_context()
         code.put_setup_refcount_context(self.entry.name or self.entry.qualified_name)
+        code.putln("__Pyx_PyThreadState_assign")
         profile = code.globalstate.directives['profile']
         linetrace = code.globalstate.directives['linetrace']
         if profile or linetrace:
@@ -4157,6 +4159,7 @@ class GeneratorBodyDefNode(DefNode):
             code.put_xgiveref(Naming.retval_cname)
         else:
             code.put_xdecref_clear(Naming.retval_cname, py_object_type)
+        code.putln("__Pyx_Coroutine_ResetAndClearException(%s);" % Naming.generator_cname)
         code.putln('%s->resume_label = -1;' % Naming.generator_cname)
         # clean up as early as possible to help breaking any reference cycles
         code.putln('__Pyx_Coroutine_clear((PyObject*)%s);' % Naming.generator_cname)
@@ -6696,6 +6699,7 @@ class TryExceptStatNode(StatNode):
     #  else_clause      StatNode or None
 
     child_attrs = ["body", "except_clauses", "else_clause"]
+    in_generator = False
 
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)
@@ -6755,8 +6759,9 @@ class TryExceptStatNode(StatNode):
         if can_raise:
             # inject code before the try block to save away the exception state
             code.globalstate.use_utility_code(reset_exception_utility_code)
-            save_exc.putln("__Pyx_PyThreadState_declare")
-            save_exc.putln("__Pyx_PyThreadState_assign")
+            if not self.in_generator:
+                save_exc.putln("__Pyx_PyThreadState_declare")
+                save_exc.putln("__Pyx_PyThreadState_assign")
             save_exc.putln("__Pyx_ExceptionSave(%s);" % (
                 ', '.join(['&%s' % var for var in exc_save_vars])))
             for var in exc_save_vars:
@@ -6794,11 +6799,16 @@ class TryExceptStatNode(StatNode):
                     code.put_xdecref_clear(var, py_object_type)
                 code.put_goto(try_end_label)
             code.put_label(our_error_label)
-            code.putln("__Pyx_PyThreadState_assign")  # re-assign in case a generator yielded
             for temp_name, temp_type in temps_to_clean_up:
                 code.put_xdecref_clear(temp_name, temp_type)
+
+            outer_except = code.funcstate.current_except
+            # Currently points to self, but the ExceptClauseNode would also be ok. Change if needed.
+            code.funcstate.current_except = self
             for except_clause in self.except_clauses:
                 except_clause.generate_handling_code(code, except_end_label)
+            code.funcstate.current_except = outer_except
+
             if not self.has_default_clause:
                 code.put_goto(except_error_label)
 
@@ -6813,7 +6823,6 @@ class TryExceptStatNode(StatNode):
                 code.put_label(exit_label)
                 code.mark_pos(self.pos, trace=False)
                 if can_raise:
-                    code.putln("__Pyx_PyThreadState_assign")  # re-assign in case a generator yielded
                     restore_saved_exception()
                 code.put_goto(old_label)
 
@@ -6822,7 +6831,6 @@ class TryExceptStatNode(StatNode):
                 code.put_goto(try_end_label)
             code.put_label(except_end_label)
             if can_raise:
-                code.putln("__Pyx_PyThreadState_assign")  # re-assign in case a generator yielded
                 restore_saved_exception()
         if code.label_used(try_end_label):
             code.put_label(try_end_label)
@@ -7086,7 +7094,8 @@ class TryFinallyStatNode(StatNode):
 
         if preserve_error:
             code.putln('/*exception exit:*/{')
-            code.putln("__Pyx_PyThreadState_declare")
+            if not self.in_generator:
+                code.putln("__Pyx_PyThreadState_declare")
             if self.is_try_finally_in_nogil:
                 code.declare_gilstate()
             if needs_success_cleanup:
@@ -7148,7 +7157,6 @@ class TryFinallyStatNode(StatNode):
             if old_label == return_label:
                 # return actually raises an (uncatchable) exception in generators that we must preserve
                 if self.in_generator:
-                    code.putln("__Pyx_PyThreadState_declare")
                     exc_vars = tuple([
                         code.funcstate.allocate_temp(py_object_type, manage_ref=False)
                         for _ in range(6)])
@@ -7229,8 +7237,6 @@ class TryFinallyStatNode(StatNode):
 
         if self.is_try_finally_in_nogil:
             code.put_ensure_gil(declare_gilstate=False)
-        if self.in_generator:
-            code.putln("__Pyx_PyThreadState_assign")  # re-assign in case a generator yielded
 
         # not using preprocessor here to avoid warnings about
         # unused utility functions and/or temps
@@ -7257,8 +7263,6 @@ class TryFinallyStatNode(StatNode):
         code.globalstate.use_utility_code(reset_exception_utility_code)
         if self.is_try_finally_in_nogil:
             code.put_ensure_gil(declare_gilstate=False)
-        if self.in_generator:
-            code.putln("__Pyx_PyThreadState_assign")  # re-assign in case a generator yielded
 
         # not using preprocessor here to avoid warnings about
         # unused utility functions and/or temps

@@ -9469,6 +9469,13 @@ class YieldExprNode(ExprNode):
                                   nogil=not code.funcstate.gil_owned)
         code.put_finish_refcount_context()
 
+        if code.funcstate.current_except is not None:
+            # inside of an except block => save away currently handled exception
+            code.putln("__Pyx_Coroutine_SwapException(%s);" % Naming.generator_cname)
+        else:
+            # no exceptions being handled => restore exception state of caller
+            code.putln("__Pyx_Coroutine_ResetAndClearException(%s);" % Naming.generator_cname)
+
         code.putln("/* return from %sgenerator, %sing value */" % (
             'async ' if self.in_async_gen else '',
             'await' if self.is_await else 'yield'))

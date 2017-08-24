@@ -602,6 +602,7 @@ class FunctionState(object):
 
         self.in_try_finally = 0
         self.exc_vars = None
+        self.current_except = None
         self.can_trace = False
         self.gil_owned = True
 
