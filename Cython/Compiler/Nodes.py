@@ -4054,9 +4054,10 @@ class GeneratorBodyDefNode(DefNode):
         self.declare_generator_body(env)
 
     def generate_function_header(self, code, proto=False):
-        header = "static PyObject *%s(__pyx_CoroutineObject *%s, PyObject *%s)" % (
+        header = "static PyObject *%s(__pyx_CoroutineObject *%s, CYTHON_UNUSED PyThreadState *%s, PyObject *%s)" % (
             self.entry.func_cname,
             Naming.generator_cname,
+            Naming.local_tstate_cname,
             Naming.sent_value_cname)
         if proto:
             code.putln('%s; /* proto */' % header)
@@ -4081,12 +4082,10 @@ class GeneratorBodyDefNode(DefNode):
         self.generate_function_header(code)
         closure_init_code = code.insertion_point()
         # ----- Local variables
-        code.putln("__Pyx_PyThreadState_declare")
         code.putln("PyObject *%s = NULL;" % Naming.retval_cname)
         tempvardecl_code = code.insertion_point()
         code.put_declare_refcount_context()
         code.put_setup_refcount_context(self.entry.name or self.entry.qualified_name)
-        code.putln("__Pyx_PyThreadState_assign")
         profile = code.globalstate.directives['profile']
         linetrace = code.globalstate.directives['linetrace']
         if profile or linetrace:

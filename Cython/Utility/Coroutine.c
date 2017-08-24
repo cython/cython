@@ -357,7 +357,7 @@ static void __Pyx_Generator_Replace_StopIteration(CYTHON_UNUSED int in_async_gen
 //////////////////// CoroutineBase.proto ////////////////////
 //@substitute: naming
 
-typedef PyObject *(*__pyx_coroutine_body_t)(PyObject *, PyObject *);
+typedef PyObject *(*__pyx_coroutine_body_t)(PyObject *, PyThreadState *, PyObject *);
 
 typedef struct {
     PyObject_HEAD
@@ -636,6 +636,7 @@ static void __Pyx__Coroutine_AlreadyTerminatedError(CYTHON_UNUSED PyObject *gen,
 static
 PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, int closing) {
     __Pyx_PyThreadState_declare
+    PyThreadState *tstate;
     PyObject *retval;
 
     assert(!self->is_running);
@@ -650,7 +651,13 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, i
         return __Pyx_Coroutine_AlreadyTerminatedError((PyObject*)self, value, closing);
     }
 
+#if CYTHON_FAST_THREAD_STATE
     __Pyx_PyThreadState_assign
+    tstate = $local_tstate_cname;
+#else
+    tstate = __Pyx_PyThreadState_Current;
+#endif
+
     if (self->exc_type && self->exc_type != Py_None) {
 #if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_PYSTON
         // FIXME: what to do in PyPy?
@@ -661,9 +668,9 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, i
             PyTracebackObject *tb = (PyTracebackObject *) self->exc_traceback;
             PyFrameObject *f = tb->tb_frame;
 
-            Py_XINCREF($local_tstate_cname->frame);
+            Py_XINCREF(tstate->frame);
             assert(f->f_back == NULL);
-            f->f_back = $local_tstate_cname->frame;
+            f->f_back = tstate->frame;
         }
 #endif
         // We were in an except handler when we left,
@@ -678,7 +685,7 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, i
     }
 
     self->is_running = 1;
-    retval = self->body((PyObject *) self, value);
+    retval = self->body((PyObject *) self, tstate, value);
     self->is_running = 0;
 
     return retval;
