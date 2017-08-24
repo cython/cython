@@ -680,18 +680,18 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, i
 }
 
 static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__pyx_CoroutineObject *self) {
-#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_PYSTON
-    // FIXME: what to do in PyPy?
-#else
     // Don't keep the reference to f_back any longer than necessary.  It
     // may keep a chain of frames alive or it could create a reference
     // cycle.
     if (self->exc_traceback) {
+#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_PYSTON
+    // FIXME: what to do in PyPy?
+#else
         PyTracebackObject *tb = (PyTracebackObject *) self->exc_traceback;
         PyFrameObject *f = tb->tb_frame;
         Py_CLEAR(f->f_back);
-    }
 #endif
+    }
 }
 
 static CYTHON_INLINE
