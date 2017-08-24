@@ -164,6 +164,9 @@ def check_yield_in_except():
     True
     True
     True
+    >>> next(g)
+    Traceback (most recent call last):
+    StopIteration
     """
     try:
         yield
