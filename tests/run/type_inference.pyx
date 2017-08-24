@@ -486,6 +486,11 @@ def safe_only():
     for j in range(10):
         res = -j
     assert typeof(j) == "Python object", typeof(j)
+    h = 1
+    res = abs(h)
+    assert typeof(h) == "Python object", typeof(h)
+    cdef int c_int = 1
+    assert typeof(abs(c_int)) == "int", typeof(abs(c_int))
 
 @infer_types(None)
 def safe_c_functions():
