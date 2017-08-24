@@ -5510,6 +5510,8 @@ class SimpleCallNode(CallNode):
             if func_type.exception_value is None:
                 env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
 
+        self.overflowcheck = env.directives['overflowcheck']
+
     def calculate_result_code(self):
         return self.c_call_code()
 
@@ -5620,7 +5622,12 @@ class SimpleCallNode(CallNode):
                     translate_cpp_exception(code, self.pos, '%s%s;' % (lhs, rhs),
                                             func_type.exception_value, self.nogil)
                 else:
-                    if exc_checks:
+                    if (self.overflowcheck
+                        and self.type.is_int
+                        and self.type.signed
+                        and self.function.result() in ('abs', 'labs', '__Pyx_abs_longlong')):
+                        goto_error = 'if (%s < 0) { PyErr_SetString(PyExc_OverflowError, "value too large"); %s; }' % (self.result(), code.error_goto(self.pos))
+                    elif exc_checks:
                         goto_error = code.error_goto_if(" && ".join(exc_checks), self.pos)
                     else:
                         goto_error = ""

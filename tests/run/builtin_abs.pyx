@@ -41,6 +41,7 @@ def sub_abs(int a):
     """
     return -abs(a), 100 - abs(a)
 
+@cython.overflowcheck(True)
 @cython.test_assert_path_exists("//ReturnStatNode//NameNode[@entry.name = 'abs']",
                                 "//ReturnStatNode//NameNode[@entry.cname = 'abs']")
 def int_abs(int a):
@@ -49,12 +50,10 @@ def int_abs(int a):
     True
     >>> int_abs(-5.1) == 5
     True
-    """
-#     >>> int_abs(-max_int-1) > 0
-#     True
-#     >>> int_abs(-max_int-1) == abs(-max_int-1)   or (max_int, int_abs(-max_int-1), abs(-max_int-1))
-#     True
-    """
+    >>> int_abs(-max_int-1)     #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    OverflowError: ...
     >>> int_abs(max_int) == abs(max_int)         or (max_int, int_abs(max_int), abs(max_int))
     True
     """
@@ -70,6 +69,7 @@ def uint_abs(unsigned int a):
     """
     return abs(a)
 
+@cython.overflowcheck(True)
 @cython.test_assert_path_exists("//ReturnStatNode//NameNode[@entry.name = 'abs']",
                                 "//ReturnStatNode//NameNode[@entry.cname = 'labs']")
 def long_abs(long a):
@@ -78,12 +78,10 @@ def long_abs(long a):
     True
     >>> long_abs(-5.1) == 5
     True
-    """
-#     >>> long_abs(-max_long-1) > 0
-#     True
-#     >>> long_abs(-max_long-1) == abs(-max_long-1)   or (max_long, long_abs(-max_long-1), abs(-max_long-1))
-#     True
-    """
+    >>> long_abs(-max_long-1)     #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    OverflowError: ...
     >>> long_abs(max_long) == abs(max_long)         or (max_long, long_abs(max_long), abs(max_long))
     True
     """
@@ -101,18 +99,17 @@ def ulong_abs(unsigned long a):
     """
     return abs(a)
 
+@cython.overflowcheck(True)
 @cython.test_assert_path_exists("//ReturnStatNode//NameNode[@entry.name = 'abs']",
                                 "//ReturnStatNode//NameNode[@entry.cname = '__Pyx_abs_longlong']")
 def long_long_abs(long long a):
     """
     >>> long_long_abs(-(2**33)) == 2**33
     True
-    """
-#     >>> long_long_abs(-max_long_long-1) > 0
-#     True
-#     >>> long_long_abs(-max_long_long-1) == abs(-max_long_long-1)  or (max_long_long, long_long_abs(-max_long_long-1), abs(-max_long_long-1))
-#     True
-    """
+    >>> long_long_abs(-max_long_long-1)     #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+        ...
+    OverflowError: ...
     >>> long_long_abs(max_long_long) == abs(max_long_long)        or (max_long_long, long_long_abs(max_long_long), abs(max_long_long))
     True
     """
