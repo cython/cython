@@ -274,7 +274,7 @@ class UtilityCodeBase(object):
                 elif not values:
                     values = None
                 elif len(values) == 1:
-                    values = values[0]
+                    values = list(values)[0]
                 kwargs[name] = values
 
         if proto is not None:
@@ -1967,9 +1967,12 @@ class CCodeWriter(object):
         if entry.type.is_pyobject:
             self.putln("__Pyx_XDECREF(%s);" % self.entry_as_pyobject(entry))
 
-    def put_var_xdecref(self, entry):
+    def put_var_xdecref(self, entry, nanny=True):
         if entry.type.is_pyobject:
-            self.putln("__Pyx_XDECREF(%s);" % self.entry_as_pyobject(entry))
+            if nanny:
+                self.putln("__Pyx_XDECREF(%s);" % self.entry_as_pyobject(entry))
+            else:
+                self.putln("Py_XDECREF(%s);" % self.entry_as_pyobject(entry))
 
     def put_var_decref_clear(self, entry):
         self._put_var_decref_clear(entry, null_check=False)

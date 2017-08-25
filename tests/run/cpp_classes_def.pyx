@@ -151,3 +151,40 @@ def test_default_init_no_gil():
   with nogil:
     s = new Simple()
     del s
+
+
+cdef class NoisyAlloc(object):
+    cdef public name
+    def __init__(self, name):
+        print "NoisyAlloc.__init__", name
+        self.name = name
+    def __dealloc__(self):
+        try:
+            print "NoisyAlloc.__dealloc__", self.name
+        except:
+            pass  # Suppress unraisable exception warning.
+
+cdef cppclass CppClassWithObjectMember:
+    NoisyAlloc o
+    __init__(name):
+        try:
+            print "CppClassWithObjectMember.__init__", name
+            this.o = NoisyAlloc(name)
+        except:
+            pass  # Suppress unraisable exception warning.
+    __dealloc__():
+        try:
+            print "CppClassWithObjectMember.__dealloc__", this.o.name
+        except:
+            pass  # Suppress unraisable exception warning.
+
+def test_CppClassWithObjectMember(name):
+    """
+    >>> test_CppClassWithObjectMember("gertrude")
+    CppClassWithObjectMember.__init__ gertrude
+    NoisyAlloc.__init__ gertrude
+    CppClassWithObjectMember.__dealloc__ gertrude
+    NoisyAlloc.__dealloc__ gertrude
+    """
+    x = new CppClassWithObjectMember(name)
+    del x

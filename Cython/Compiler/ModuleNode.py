@@ -897,19 +897,60 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     [base_class.empty_declaration_code() for base_class in type.base_classes])
                 code.put(" : public %s" % base_class_decl)
             code.putln(" {")
+            py_attrs = [e for e in scope.entries.values()
+                        if e.type.is_pyobject and not e.is_inherited]
             has_virtual_methods = False
-            has_destructor = False
+            constructor = None
+            destructor = None
             for attr in scope.var_entries:
                 if attr.type.is_cfunction and attr.type.is_static_method:
                     code.put("static ")
-                elif attr.type.is_cfunction and attr.name != "<init>":
+                elif attr.name == "<init>":
+                    constructor = attr
+                elif attr.name == "<del>":
+                    destructor = attr
+                elif attr.type.is_cfunction:
                     code.put("virtual ")
                     has_virtual_methods = True
-                if attr.cname[0] == '~':
-                    has_destructor = True
                 code.putln("%s;" % attr.type.declaration_code(attr.cname))
-            if has_virtual_methods and not has_destructor:
-                code.putln("virtual ~%s() { }" % type.cname)
+            if constructor or py_attrs:
+                if constructor:
+                    arg_decls = []
+                    arg_names = []
+                    for arg in constructor.type.args[:len(constructor.type.args)-constructor.type.optional_arg_count]:
+                        arg_decls.append(arg.declaration_code())
+                        arg_names.append(arg.cname)
+                    if constructor.type.optional_arg_count:
+                        arg_decls.append(constructor.type.op_arg_struct.declaration_code(Naming.optional_args_cname))
+                        arg_names.append(Naming.optional_args_cname)
+                    if not arg_decls:
+                        arg_decls = ["void"]
+                else:
+                    arg_decls = ["void"]
+                    arg_names = []
+                code.putln("%s(%s) {" % (type.cname, ", ".join(arg_decls)))
+                if py_attrs:
+                    code.put_ensure_gil()
+                    for attr in py_attrs:
+                        code.put_init_var_to_py_none(attr, nanny=False);
+                if constructor:
+                    code.putln("%s(%s);" % (constructor.cname, ", ".join(arg_names)))
+                if py_attrs:
+                    code.put_release_ensured_gil()
+                code.putln("}")
+            if destructor or py_attrs or has_virtual_methods:
+                if has_virtual_methods:
+                    code.put("virtual ")
+                code.putln("~%s() {" % type.cname)
+                if py_attrs:
+                    code.put_ensure_gil()
+                if destructor:
+                    code.putln("%s();" % destructor.cname)
+                if py_attrs:
+                    for attr in py_attrs:
+                        code.put_var_xdecref(attr, nanny=False);
+                    code.put_release_ensured_gil()
+                code.putln("}")
             code.putln("};")
 
     def generate_enum_definition(self, entry, code):

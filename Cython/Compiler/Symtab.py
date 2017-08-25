@@ -2274,22 +2274,20 @@ class CppClassScope(Scope):
                 entry.func_cname = "%s::%s" % (self.type.empty_declaration_code(), cname)
         if name != "this" and (defining or name != "<init>"):
             self.var_entries.append(entry)
-        if type.is_pyobject:
-            error(pos,
-                "C++ class member cannot be a Python object")
         return entry
 
     def declare_cfunction(self, name, type, pos,
                           cname=None, visibility='extern', api=0, in_pxd=0,
                           defining=0, modifiers=(), utility_code=None, overridable=False):
-        if name in (self.name.split('::')[-1], '__init__') and cname is None:
-            cname = self.type.cname
+        class_name = self.name.split('::')[-1]
+        if name in (class_name, '__init__') and cname is None:
+            cname = "%s__init__%s" % (Naming.func_prefix, class_name)
             name = '<init>'
-            type.return_type = PyrexTypes.InvisibleVoidType()
+            type.return_type = PyrexTypes.CVoidType()
         elif name == '__dealloc__' and cname is None:
-            cname = "~%s" % self.type.cname
+            cname = "%s__dealloc__%s" % (Naming.func_prefix, class_name)
             name = '<del>'
-            type.return_type = PyrexTypes.InvisibleVoidType()
+            type.return_type = PyrexTypes.CVoidType()
         prev_entry = self.lookup_here(name)
         entry = self.declare_var(name, type, pos,
                                  defining=defining,
@@ -2314,8 +2312,8 @@ class CppClassScope(Scope):
         # to work with this type.
         for base_entry in \
             base_scope.inherited_var_entries + base_scope.var_entries:
-                #contructor is not inherited
-                if base_entry.name == "<init>":
+                #contructor/destructor is not inherited
+                if base_entry.name in ("<init>", "<del>"):
                     continue
                 #print base_entry.name, self.entries
                 if base_entry.name in self.entries:
@@ -2323,6 +2321,7 @@ class CppClassScope(Scope):
                 entry = self.declare(base_entry.name, base_entry.cname,
                     base_entry.type, None, 'extern')
                 entry.is_variable = 1
+                entry.is_inherited = 1
                 self.inherited_var_entries.append(entry)
         for base_entry in base_scope.cfunc_entries:
             entry = self.declare_cfunction(base_entry.name, base_entry.type,

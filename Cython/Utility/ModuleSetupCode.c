@@ -690,6 +690,7 @@ typedef struct {PyObject **p; const char *s; const Py_ssize_t n; const char* enc
                 const char is_unicode; const char is_str; const char intern; } __Pyx_StringTabEntry; /*proto*/
 
 /////////////// ForceInitThreads.proto ///////////////
+//@proto_block: utility_code_proto_before_types
 
 #ifndef __PYX_FORCE_INIT_THREADS
   #define __PYX_FORCE_INIT_THREADS 0
@@ -1081,6 +1082,7 @@ __Pyx_FastGilFuncInit();
 #endif
 
 /////////////// NoFastGil.proto ///////////////
+//@proto_block: utility_code_proto_before_types
 
 #define __Pyx_PyGILState_Ensure PyGILState_Ensure
 #define __Pyx_PyGILState_Release PyGILState_Release
@@ -1089,6 +1091,7 @@ __Pyx_FastGilFuncInit();
 #define __Pyx_FastGilFuncInit()
 
 /////////////// FastGil.proto ///////////////
+//@proto_block: utility_code_proto_before_types
 
 struct __Pyx_FastGilVtab {
   PyGILState_STATE (*Fast_PyGILState_Ensure)(void);
