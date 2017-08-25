@@ -892,7 +892,7 @@ class IterationTransform(Visitor.EnvTransform):
             method_node = ExprNodes.StringNode(
                 dict_obj.pos, is_identifier=True, value=method)
             dict_obj = dict_obj.as_none_safe_node(
-                "'NoneType' object has no attribute '%s'",
+                "'NoneType' object has no attribute '%{0}s'".format('.30' if len(method) <= 30 else ''),
                 error = "PyExc_AttributeError",
                 format_args = [method])
         else:
@@ -2766,7 +2766,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         if is_list:
             type_name = 'List'
             obj = obj.as_none_safe_node(
-                "'NoneType' object has no attribute '%s'",
+                "'NoneType' object has no attribute '%.30s'",
                 error="PyExc_AttributeError",
                 format_args=['pop'])
         else:
@@ -3456,7 +3456,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                     format_args=['decode', string_type.name])
             else:
                 string_node = string_node.as_none_safe_node(
-                    "'NoneType' object has no attribute '%s'",
+                    "'NoneType' object has no attribute '%.30s'",
                     error="PyExc_AttributeError",
                     format_args=['decode'])
         elif not string_type.is_string and not string_type.is_cpp_string:
@@ -3653,7 +3653,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                     format_args=[attr_name, function.obj.name])
             else:
                 self_arg = self_arg.as_none_safe_node(
-                    "'NoneType' object has no attribute '%s'",
+                    "'NoneType' object has no attribute '%{0}s'".format('.30' if len(attr_name) <= 30 else ''),
                     error = "PyExc_AttributeError",
                     format_args = [attr_name])
             args[0] = self_arg

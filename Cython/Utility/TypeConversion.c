@@ -338,7 +338,9 @@ static CYTHON_INLINE PyObject* __Pyx_PyNumber_IntOrLong(PyObject* x) {
   }
   #endif
 #else
-  res = PyNumber_Int(x);
+  if (!PyBytes_CheckExact(x) && !PyUnicode_CheckExact(x)) {
+    res = PyNumber_Int(x);
+  }
 #endif
   if (likely(res)) {
 #if PY_MAJOR_VERSION < 3
