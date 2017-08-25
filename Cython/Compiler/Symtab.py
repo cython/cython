@@ -2255,8 +2255,7 @@ class CppClassScope(Scope):
 
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'extern',
-                    api = 0, in_pxd = 0, is_cdef = 0,
-                    allow_pyobject = 0, defining = 0):
+                    api = 0, in_pxd = 0, is_cdef = 0, defining = 0):
         # Add an entry for an attribute.
         if not cname:
             cname = name
@@ -2275,7 +2274,7 @@ class CppClassScope(Scope):
                 entry.func_cname = "%s::%s" % (self.type.empty_declaration_code(), cname)
         if name != "this" and (defining or name != "<init>"):
             self.var_entries.append(entry)
-        if type.is_pyobject and not allow_pyobject:
+        if type.is_pyobject:
             error(pos,
                 "C++ class member cannot be a Python object")
         return entry
