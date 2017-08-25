@@ -1916,9 +1916,12 @@ class CCodeWriter(object):
         if entry.type.is_pyobject:
             self.putln("__Pyx_XGIVEREF(%s);" % self.entry_as_pyobject(entry))
 
-    def put_var_incref(self, entry):
+    def put_var_incref(self, entry, nanny=True):
         if entry.type.is_pyobject:
-            self.putln("__Pyx_INCREF(%s);" % self.entry_as_pyobject(entry))
+            if nanny:
+                self.putln("__Pyx_INCREF(%s);" % self.entry_as_pyobject(entry))
+            else:
+                self.putln("Py_INCREF(%s);" % self.entry_as_pyobject(entry))
 
     def put_var_xincref(self, entry):
         if entry.type.is_pyobject:

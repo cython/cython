@@ -951,6 +951,28 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         code.put_var_xdecref(attr, nanny=False);
                     code.put_release_ensured_gil()
                 code.putln("}")
+            if py_attrs:
+                # Also need copy constructor and assignment operators.
+                code.putln("%s(const %s& __Pyx_other) {" % (type.cname, type.cname))
+                code.put_ensure_gil()
+                for attr in scope.var_entries:
+                    if not attr.type.is_cfunction:
+                        code.putln("%s = __Pyx_other.%s;" % (attr.cname, attr.cname))
+                        code.put_var_incref(attr, nanny=False)
+                code.put_release_ensured_gil()
+                code.putln("}")
+                code.putln("%s& operator=(const %s& __Pyx_other) {" % (type.cname, type.cname))
+                code.putln("if (this != &__Pyx_other) {")
+                code.put_ensure_gil()
+                for attr in scope.var_entries:
+                    if not attr.type.is_cfunction:
+                        code.put_var_xdecref(attr, nanny=False);
+                        code.putln("%s = __Pyx_other.%s;" % (attr.cname, attr.cname))
+                        code.put_var_incref(attr, nanny=False)
+                code.put_release_ensured_gil()
+                code.putln("}")
+                code.putln("return *this;")
+                code.putln("}")
             code.putln("};")
 
     def generate_enum_definition(self, entry, code):
