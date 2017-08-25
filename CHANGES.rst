@@ -28,6 +28,9 @@ Features added
 * ``len(memoryview)`` can be used in nogil sections to get the size of the
   first dimension of a memory view (``shape[0]``). (Github issue #1733)
 
+* C++ classes can now contain (properly refcounted) Python objects.
+
+
 Bugs fixed
 ----------
 
@@ -38,6 +41,9 @@ Bugs fixed
 
 * Compile time ``DEF`` assignments were evaluated even when they occur inside of
   falsy ``IF`` blocks. (Github issue #1796)
+
+* abs(signed int) now returns a signed rather than unsigned int.
+  (Github issue #1837)
 
 
 
