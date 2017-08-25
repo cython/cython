@@ -34,7 +34,12 @@ Features added
 Bugs fixed
 ----------
 
-* Loops over ``range(enum)`` were not converted into C for-loops.
+* The exception state handling in generators and coroutines could lead to
+  exceptions in the caller being lost if an exception was raised and handled
+  inside of the coroutine when yielding. (Github issue #1731)
+
+* Loops over ``range(enum)`` were not converted into C for-loops.  Note that it
+  is still recommended to use an explicit cast to a C integer type in this case.
 
 * Error positions of names (e.g. variables) were incorrectly reported after the
   name and not at the beginning of the name.
@@ -44,7 +49,6 @@ Bugs fixed
 
 * abs(signed int) now returns a signed rather than unsigned int.
   (Github issue #1837)
-
 
 
 0.26.1 (2017-??-??)
