@@ -904,7 +904,7 @@ static PyObject *__Pyx_Coroutine_Close(PyObject *self) {
     if (err == 0)
         PyErr_SetNone(PyExc_GeneratorExit);
     retval = __Pyx_Coroutine_SendEx(gen, NULL, 1);
-    if (retval) {
+    if (unlikely(retval)) {
         const char *msg;
         Py_DECREF(retval);
         if (0) {
@@ -927,7 +927,7 @@ static PyObject *__Pyx_Coroutine_Close(PyObject *self) {
         return NULL;
     }
     raised_exception = PyErr_Occurred();
-    if (!raised_exception || __Pyx_PyErr_GivenExceptionMatches2(raised_exception, PyExc_GeneratorExit, PyExc_StopIteration)) {
+    if (likely(!raised_exception || __Pyx_PyErr_GivenExceptionMatches2(raised_exception, PyExc_GeneratorExit, PyExc_StopIteration))) {
         // ignore these errors
         if (raised_exception) PyErr_Clear();
         Py_INCREF(Py_None);
