@@ -50,6 +50,11 @@ Bugs fixed
 * abs(signed int) now returns a signed rather than unsigned int.
   (Github issue #1837)
 
+Other changes
+-------------
+
+* This release no longer supports Python 3.2.
+
 
 0.26.1 (2017-??-??)
 ===================

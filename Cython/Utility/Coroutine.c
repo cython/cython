@@ -1127,7 +1127,7 @@ static void __Pyx_Coroutine_del(PyObject *self) {
         {
         // untrack dead object as we are executing Python code (which might trigger GC)
         PyObject_GC_UnTrack(self);
-#if PY_VERSION_HEX >= 0x03030000 || defined(PyErr_WarnFormat)
+#if PY_MAJOR_VERSION >= 3 /* PY_VERSION_HEX >= 0x03030000*/ || defined(PyErr_WarnFormat)
         if (unlikely(PyErr_WarnFormat(PyExc_RuntimeWarning, 1, "coroutine '%.50S' was never awaited", gen->gi_qualname) < 0))
             PyErr_WriteUnraisable(self);
 #else
@@ -1139,35 +1139,15 @@ static void __Pyx_Coroutine_del(PyObject *self) {
         #else
         char *cname;
         PyObject *qualname;
-        #if PY_MAJOR_VERSION >= 3
-        qualname = PyUnicode_AsUTF8String(gen->gi_qualname);
-        if (likely(qualname)) {
-            cname = PyBytes_AS_STRING(qualname);
-        } else {
-            PyErr_Clear();
-            cname = (char*) "?";
-        }
-        msg = PyBytes_FromFormat(
-        #else
         qualname = gen->gi_qualname;
         cname = PyString_AS_STRING(qualname);
-        msg = PyString_FromFormat(
-        #endif
-            "coroutine '%.50s' was never awaited", cname);
-
-        #if PY_MAJOR_VERSION >= 3
-        Py_XDECREF(qualname);
-        #endif
+        msg = PyString_FromFormat("coroutine '%.50s' was never awaited", cname);
 
         if (unlikely(!msg)) {
             PyErr_Clear();
             cmsg = (char*) "coroutine was never awaited";
         } else {
-            #if PY_MAJOR_VERSION >= 3
-            cmsg = PyBytes_AS_STRING(msg);
-            #else
             cmsg = PyString_AS_STRING(msg);
-            #endif
         }
         #endif
         if (unlikely(PyErr_WarnEx(PyExc_RuntimeWarning, cmsg, 1) < 0))
@@ -1827,11 +1807,11 @@ static int __Pyx_patch_abc(void) {
     static int abc_patched = 0;
     if (CYTHON_REGISTER_ABCS && !abc_patched) {
         PyObject *module;
-        module = PyImport_ImportModule((PY_VERSION_HEX >= 0x03030000) ? "collections.abc" : "collections");
+        module = PyImport_ImportModule((PY_MAJOR_VERSION >= 3) ? "collections.abc" : "collections");
         if (!module) {
             PyErr_WriteUnraisable(NULL);
             if (unlikely(PyErr_WarnEx(PyExc_RuntimeWarning,
-                    ((PY_VERSION_HEX >= 0x03030000) ?
+                    ((PY_MAJOR_VERSION >= 3) ?
                         "Cython module failed to register with collections.abc module" :
                         "Cython module failed to register with collections module"), 1) < 0)) {
                 return -1;
