@@ -90,7 +90,7 @@ static CYTHON_INLINE PyObject* __Pyx_Coroutine_Yield_From(__pyx_CoroutineObject 
 #ifdef __Pyx_AsyncGen_USED
     // inlined "__pyx_PyAsyncGenASend" handling to avoid the series of generic calls below
     } else if (__pyx_PyAsyncGenASend_CheckExact(source)) {
-        retval = __Pyx_async_gen_asend_iternext((__pyx_PyAsyncGenASend *)source);
+        retval = __Pyx_async_gen_asend_iternext(source);
         if (retval) {
             Py_INCREF(source);
             gen->yieldfrom = source;
@@ -299,7 +299,7 @@ static PyObject *__Pyx__Coroutine_AsyncIterNext(PyObject *obj) {
 static CYTHON_INLINE PyObject *__Pyx_Coroutine_AsyncIterNext(PyObject *obj) {
 #ifdef __Pyx_AsyncGen_USED
     if (__Pyx_AsyncGen_CheckExact(obj)) {
-        return __Pyx_async_gen_anext((__pyx_PyAsyncGenObject*) obj);
+        return __Pyx_async_gen_anext(obj);
     }
 #endif
 #if CYTHON_USE_ASYNC_SLOTS
@@ -402,12 +402,21 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue); /*proto*/
 static PyTypeObject *__pyx_CoroutineType = 0;
 static PyTypeObject *__pyx_CoroutineAwaitType = 0;
 #define __Pyx_Coroutine_CheckExact(obj) (Py_TYPE(obj) == __pyx_CoroutineType)
+#define __Pyx_CoroutineAwait_CheckExact(obj) (Py_TYPE(obj) == __pyx_CoroutineAwaitType)
 
 #define __Pyx_Coroutine_New(body, closure, name, qualname, module_name)  \
     __Pyx__Coroutine_New(__pyx_CoroutineType, body, closure, name, qualname, module_name)
 
 static int __pyx_Coroutine_init(void); /*proto*/
 static PyObject *__Pyx__Coroutine_await(PyObject *coroutine); /*proto*/
+
+typedef struct {
+    PyObject_HEAD
+    PyObject *coroutine;
+} __pyx_CoroutineAwaitObject;
+
+static PyObject *__Pyx_CoroutineAwait_Close(__pyx_CoroutineAwaitObject *self); /*proto*/
+static PyObject *__Pyx_CoroutineAwait_Throw(__pyx_CoroutineAwaitObject *self, PyObject *args); /*proto*/
 
 
 //////////////////// Generator.proto ////////////////////
@@ -730,7 +739,7 @@ static PyObject *__Pyx_Coroutine_Send(PyObject *self, PyObject *value) {
         #endif
         #ifdef __Pyx_AsyncGen_USED
         if (__pyx_PyAsyncGenASend_CheckExact(yf)) {
-            ret = __Pyx_async_gen_asend_send((__pyx_PyAsyncGenASend *)yf, value);
+            ret = __Pyx_async_gen_asend_send(yf, value);
         } else
         #endif
         #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x03030000
@@ -779,6 +788,21 @@ static int __Pyx_Coroutine_CloseIter(__pyx_CoroutineObject *gen, PyObject *yf) {
         retval = __Pyx_Coroutine_Close(yf);
         if (!retval)
             return -1;
+    } else
+    if (__Pyx_CoroutineAwait_CheckExact(yf)) {
+        retval = __Pyx_CoroutineAwait_Close((__pyx_CoroutineAwaitObject*)yf);
+        if (!retval)
+            return -1;
+    } else
+    #endif
+    #ifdef __Pyx_AsyncGen_USED
+    if (__pyx_PyAsyncGenASend_CheckExact(yf)) {
+        retval = __Pyx_async_gen_asend_close(yf, NULL);
+        // cannot fail
+    } else
+    if (__pyx_PyAsyncGenAThrow_CheckExact(yf)) {
+        retval = __Pyx_async_gen_athrow_close(yf, NULL);
+        // cannot fail
     } else
     #endif
     {
@@ -914,11 +938,12 @@ static PyObject *__Pyx__Coroutine_Throw(PyObject *self, PyObject *typ, PyObject 
         #ifdef __Pyx_Coroutine_USED
             || __Pyx_Coroutine_CheckExact(yf)
         #endif
-        #ifdef __Pyx_AsyncGen_USED
-            || __Pyx_AsyncGen_CheckExact(yf)
-        #endif
             ) {
             ret = __Pyx__Coroutine_Throw(yf, typ, val, tb, args, close_on_genexit);
+        #ifdef __Pyx_Coroutine_USED
+        } else if (__Pyx_CoroutineAwait_CheckExact(yf)) {
+            ret = __Pyx__Coroutine_Throw(((__pyx_CoroutineAwaitObject*)yf)->coroutine, typ, val, tb, args, close_on_genexit);
+        #endif
         } else {
             PyObject *meth = __Pyx_PyObject_GetAttrStr(yf, PYIDENT("throw"));
             if (unlikely(!meth)) {
@@ -1274,11 +1299,6 @@ static __pyx_CoroutineObject *__Pyx__Coroutine_NewInit(
 //////////////////// Coroutine ////////////////////
 //@requires: CoroutineBase
 //@requires: PatchGeneratorABC
-
-typedef struct {
-    PyObject_HEAD
-    PyObject *coroutine;
-} __pyx_CoroutineAwaitObject;
 
 static void __Pyx_CoroutineAwait_dealloc(PyObject *self) {
     PyObject_GC_UnTrack(self);
