@@ -151,6 +151,7 @@ def check_throw():
 
 def check_yield_in_except():
     """
+    >>> if sys.version_info[0] == 2: sys.exc_clear()
     >>> try:
     ...     raise TypeError("RAISED !")
     ... except TypeError as orig_exc:
@@ -174,7 +175,8 @@ def check_yield_in_except():
     except ValueError as exc:
         assert sys.exc_info()[1] is exc, sys.exc_info()
         yield
-        assert sys.exc_info()[1] is exc, sys.exc_info()
+        if cython.compiled or sys.version_info[0] > 2:
+            assert sys.exc_info()[1] is exc, sys.exc_info()
 
 
 def yield_in_except_throw_exc_type():
