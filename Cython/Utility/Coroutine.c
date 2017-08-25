@@ -907,7 +907,7 @@ static PyObject *__Pyx_Coroutine_Close(PyObject *self) {
     if (unlikely(retval)) {
         const char *msg;
         Py_DECREF(retval);
-        if (0) {
+        if ((0)) {
         #ifdef __Pyx_Coroutine_USED
         } else if (__Pyx_Coroutine_CheckExact(self)) {
             msg = "coroutine ignored GeneratorExit";
