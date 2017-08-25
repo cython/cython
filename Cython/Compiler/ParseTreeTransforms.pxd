@@ -54,6 +54,7 @@ cdef class YieldNodeCollector(TreeVisitor):
     cdef public list yields
     cdef public list returns
     cdef public list finallys
+    cdef public list excepts
     cdef public bint has_return_value
     cdef public bint has_yield
     cdef public bint has_await

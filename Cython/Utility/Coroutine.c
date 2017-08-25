@@ -355,8 +355,9 @@ static void __Pyx_Generator_Replace_StopIteration(CYTHON_UNUSED int in_async_gen
 
 
 //////////////////// CoroutineBase.proto ////////////////////
+//@substitute: naming
 
-typedef PyObject *(*__pyx_coroutine_body_t)(PyObject *, PyObject *);
+typedef PyObject *(*__pyx_coroutine_body_t)(PyObject *, PyThreadState *, PyObject *);
 
 typedef struct {
     PyObject_HEAD
@@ -389,11 +390,25 @@ static PyObject *__Pyx_Coroutine_Send(PyObject *self, PyObject *value); /*proto*
 static PyObject *__Pyx_Coroutine_Close(PyObject *self); /*proto*/
 static PyObject *__Pyx_Coroutine_Throw(PyObject *gen, PyObject *args); /*proto*/
 
-#if 1 || PY_VERSION_HEX < 0x030300B0
-static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue); /*proto*/
+// macros for exception state swapping instead of inline functions to make use of the local thread state context
+#define __Pyx_Coroutine_SwapException(self) { \
+    __Pyx_ExceptionSwap(&(self)->exc_type, &(self)->exc_value, &(self)->exc_traceback); \
+    __Pyx_Coroutine_ResetFrameBackpointer(self); \
+    }
+#define __Pyx_Coroutine_ResetAndClearException(self) { \
+    __Pyx_ExceptionReset((self)->exc_type, (self)->exc_value, (self)->exc_traceback); \
+    (self)->exc_type = (self)->exc_value = (self)->exc_traceback = NULL; \
+    }
+
+#if CYTHON_FAST_THREAD_STATE
+#define __Pyx_PyGen_FetchStopIterationValue(pvalue) \
+    __Pyx_PyGen__FetchStopIterationValue($local_tstate_cname, pvalue)
 #else
-#define __Pyx_PyGen_FetchStopIterationValue(pvalue) PyGen_FetchStopIterationValue(pvalue)
+#define __Pyx_PyGen_FetchStopIterationValue(pvalue) \
+    __Pyx_PyGen__FetchStopIterationValue(__Pyx_PyThreadState_Current, pvalue)
 #endif
+static int __Pyx_PyGen__FetchStopIterationValue(PyThreadState *tstate, PyObject **pvalue); /*proto*/
+static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__pyx_CoroutineObject *self); /*proto*/
 
 
 //////////////////// Coroutine.proto ////////////////////
@@ -443,6 +458,7 @@ static int __pyx_Generator_init(void); /*proto*/
 //@requires: Exceptions.c::PyThreadStateGet
 //@requires: Exceptions.c::SwapException
 //@requires: Exceptions.c::RaiseException
+//@requires: Exceptions.c::SaveResetException
 //@requires: ObjectHandling.c::PyObjectCallMethod1
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@requires: CommonStructures.c::FetchCommonType
@@ -458,12 +474,9 @@ static int __pyx_Generator_init(void); /*proto*/
 //   Returns 0 if no exception or StopIteration is set.
 //   If any other exception is set, returns -1 and leaves
 //   pvalue unchanged.
-#if 1 || PY_VERSION_HEX < 0x030300B0
-static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
+static int __Pyx_PyGen__FetchStopIterationValue(CYTHON_UNUSED PyThreadState *$local_tstate_cname, PyObject **pvalue) {
     PyObject *et, *ev, *tb;
     PyObject *value = NULL;
-    __Pyx_PyThreadState_declare
-    __Pyx_PyThreadState_assign
 
     __Pyx_ErrFetch(&et, &ev, &tb);
 
@@ -550,7 +563,6 @@ static int __Pyx_PyGen_FetchStopIterationValue(PyObject **pvalue) {
     *pvalue = value;
     return 0;
 }
-#endif
 
 static CYTHON_INLINE
 void __Pyx_Coroutine_ExceptionClear(__pyx_CoroutineObject *self) {
@@ -627,8 +639,9 @@ static void __Pyx__Coroutine_AlreadyTerminatedError(CYTHON_UNUSED PyObject *gen,
 
 static
 PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, int closing) {
-    PyObject *retval;
     __Pyx_PyThreadState_declare
+    PyThreadState *tstate;
+    PyObject *retval;
 
     assert(!self->is_running);
 
@@ -642,8 +655,21 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, i
         return __Pyx_Coroutine_AlreadyTerminatedError((PyObject*)self, value, closing);
     }
 
+#if CYTHON_FAST_THREAD_STATE
     __Pyx_PyThreadState_assign
-    if (value) {
+    tstate = $local_tstate_cname;
+#else
+    tstate = __Pyx_PyThreadState_Current;
+#endif
+
+    // Traceback/Frame rules:
+    // - on entry, save external exception state in self->exc_*, restore it on exit
+    // - on exit, keep internally generated exceptions in self->exc_*, clear everything else
+    // - on entry, set "f_back" pointer of internal exception traceback to (current) outer call frame
+    // - on exit, clear "f_back" of internal exception traceback
+    // - do not touch external frames and tracebacks
+
+    if (self->exc_type) {
 #if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_PYSTON
         // FIXME: what to do in PyPy?
 #else
@@ -653,41 +679,42 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, i
             PyTracebackObject *tb = (PyTracebackObject *) self->exc_traceback;
             PyFrameObject *f = tb->tb_frame;
 
-            Py_XINCREF($local_tstate_cname->frame);
+            Py_XINCREF(tstate->frame);
             assert(f->f_back == NULL);
-            f->f_back = $local_tstate_cname->frame;
+            f->f_back = tstate->frame;
         }
 #endif
+        // We were in an except handler when we left,
+        // restore the exception state which was put aside.
         __Pyx_ExceptionSwap(&self->exc_type, &self->exc_value,
                             &self->exc_traceback);
+        // self->exc_* now holds the exception state of the caller
     } else {
+        // save away the exception state of the caller
         __Pyx_Coroutine_ExceptionClear(self);
+        __Pyx_ExceptionSave(&self->exc_type, &self->exc_value, &self->exc_traceback);
     }
 
     self->is_running = 1;
-    retval = self->body((PyObject *) self, value);
+    retval = self->body((PyObject *) self, tstate, value);
     self->is_running = 0;
 
-    if (retval) {
-        __Pyx_ExceptionSwap(&self->exc_type, &self->exc_value,
-                            &self->exc_traceback);
-#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_PYSTON
-        // FIXME: what to do in PyPy?
-#else
-        // Don't keep the reference to f_back any longer than necessary.  It
-        // may keep a chain of frames alive or it could create a reference
-        // cycle.
-        if (self->exc_traceback) {
-            PyTracebackObject *tb = (PyTracebackObject *) self->exc_traceback;
-            PyFrameObject *f = tb->tb_frame;
-            Py_CLEAR(f->f_back);
-        }
-#endif
-    } else {
-        __Pyx_Coroutine_ExceptionClear(self);
-    }
-
     return retval;
+}
+
+static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__pyx_CoroutineObject *self) {
+    // Don't keep the reference to f_back any longer than necessary.  It
+    // may keep a chain of frames alive or it could create a reference
+    // cycle.
+    if (likely(self->exc_traceback)) {
+#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_PYSTON
+    // FIXME: what to do in PyPy?
+#else
+        PyTracebackObject *tb = (PyTracebackObject *) self->exc_traceback;
+        PyFrameObject *f = tb->tb_frame;
+        Py_CLEAR(f->f_back);
+#endif
+    }
 }
 
 static CYTHON_INLINE
@@ -709,7 +736,7 @@ PyObject *__Pyx_Coroutine_FinishDelegation(__pyx_CoroutineObject *gen) {
     PyObject *ret;
     PyObject *val = NULL;
     __Pyx_Coroutine_Undelegate(gen);
-    __Pyx_PyGen_FetchStopIterationValue(&val);
+    __Pyx_PyGen__FetchStopIterationValue(__Pyx_PyThreadState_Current, &val);
     // val == NULL on failure => pass on exception
     ret = __Pyx_Coroutine_SendEx(gen, val, 0);
     Py_XDECREF(val);
@@ -876,10 +903,10 @@ static PyObject *__Pyx_Coroutine_Close(PyObject *self) {
     if (err == 0)
         PyErr_SetNone(PyExc_GeneratorExit);
     retval = __Pyx_Coroutine_SendEx(gen, NULL, 1);
-    if (retval) {
+    if (unlikely(retval)) {
         const char *msg;
         Py_DECREF(retval);
-        if (0) {
+        if ((0)) {
         #ifdef __Pyx_Coroutine_USED
         } else if (__Pyx_Coroutine_CheckExact(self)) {
             msg = "coroutine ignored GeneratorExit";
@@ -899,7 +926,7 @@ static PyObject *__Pyx_Coroutine_Close(PyObject *self) {
         return NULL;
     }
     raised_exception = PyErr_Occurred();
-    if (!raised_exception || __Pyx_PyErr_GivenExceptionMatches2(raised_exception, PyExc_GeneratorExit, PyExc_StopIteration)) {
+    if (likely(!raised_exception || __Pyx_PyErr_GivenExceptionMatches2(raised_exception, PyExc_GeneratorExit, PyExc_StopIteration))) {
         // ignore these errors
         if (raised_exception) PyErr_Clear();
         Py_INCREF(Py_None);

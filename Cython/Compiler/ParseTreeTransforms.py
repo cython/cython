@@ -2475,6 +2475,7 @@ class YieldNodeCollector(TreeVisitor):
         self.yields = []
         self.returns = []
         self.finallys = []
+        self.excepts = []
         self.has_return_value = False
         self.has_yield = False
         self.has_await = False
@@ -2501,6 +2502,10 @@ class YieldNodeCollector(TreeVisitor):
     def visit_TryFinallyStatNode(self, node):
         self.visitchildren(node)
         self.finallys.append(node)
+
+    def visit_TryExceptStatNode(self, node):
+        self.visitchildren(node)
+        self.excepts.append(node)
 
     def visit_ClassDefNode(self, node):
         pass
@@ -2552,7 +2557,7 @@ class MarkClosureVisitor(CythonTransform):
 
         for i, yield_expr in enumerate(collector.yields, 1):
             yield_expr.label_num = i
-        for retnode in collector.returns + collector.finallys:
+        for retnode in collector.returns + collector.finallys + collector.excepts:
             retnode.in_generator = True
 
         gbody = Nodes.GeneratorBodyDefNode(
@@ -2665,6 +2670,9 @@ class CreateClosureClasses(CythonTransform):
         class_scope = entry.type.scope
         class_scope.is_internal = True
         class_scope.is_closure_class_scope = True
+        if node.is_async_def or node.is_generator:
+            # Generators need their closure intact during cleanup as they resume to handle GeneratorExit
+            class_scope.directives['no_gc_clear'] = True
         if Options.closure_freelist_size:
             class_scope.directives['freelist'] = Options.closure_freelist_size
 
