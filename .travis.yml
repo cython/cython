@@ -1,6 +1,7 @@
 language: python
-
+dist: trusty
 sudo: false
+
 cache:
   pip: true
   directories:
@@ -33,6 +34,7 @@ env:
 branches:
   only:
     - master
+    - release
 
 install:
   - CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" python setup.py build
