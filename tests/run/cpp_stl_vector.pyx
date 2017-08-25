@@ -210,3 +210,11 @@ def test_insert():
     assert v.size() == count
     for element in v:
         assert element == value, '%s != %s' % (element, count)
+
+
+#  Tests GitHub issue #1788.
+cdef cppclass MyVector[T](vector):
+    pass
+
+cdef cppclass Ints(MyVector[int]):
+    pass

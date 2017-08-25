@@ -245,9 +245,7 @@ static CYTHON_INLINE unsigned long __Pyx_abs_long(long x) {
 
 //////////////////// abs_longlong.proto ////////////////////
 
-static CYTHON_INLINE unsigned PY_LONG_LONG __Pyx_abs_longlong(PY_LONG_LONG x) {
-    if (unlikely(x == -PY_LLONG_MAX-1))
-        return ((unsigned PY_LONG_LONG)PY_LLONG_MAX) + 1U;
+static CYTHON_INLINE PY_LONG_LONG __Pyx_abs_longlong(PY_LONG_LONG x) {
 #if defined (__cplusplus) && __cplusplus >= 201103L
     return (unsigned PY_LONG_LONG) std::abs(x);
 #elif defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L

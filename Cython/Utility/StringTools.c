@@ -577,9 +577,8 @@ static CYTHON_INLINE int __Pyx_Py_UNICODE_ISTITLE(Py_UCS4 uchar)
 
 /////////////// unicode_tailmatch.proto ///////////////
 
-static int __Pyx_PyUnicode_Tailmatch(PyObject* s, PyObject* substr,
-                                     Py_ssize_t start, Py_ssize_t end, int direction); /*proto*/
-
+static int __Pyx_PyUnicode_Tailmatch(
+    PyObject* s, PyObject* substr, Py_ssize_t start, Py_ssize_t end, int direction); /*proto*/
 
 /////////////// unicode_tailmatch ///////////////
 
@@ -587,26 +586,31 @@ static int __Pyx_PyUnicode_Tailmatch(PyObject* s, PyObject* substr,
 // tuple of prefixes/suffixes, whereas it's much more common to
 // test for a single unicode string.
 
+static int __Pyx_PyUnicode_TailmatchTuple(PyObject* s, PyObject* substrings,
+                                          Py_ssize_t start, Py_ssize_t end, int direction) {
+    Py_ssize_t i, count = PyTuple_GET_SIZE(substrings);
+    for (i = 0; i < count; i++) {
+        Py_ssize_t result;
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
+        result = PyUnicode_Tailmatch(s, PyTuple_GET_ITEM(substrings, i),
+                                     start, end, direction);
+#else
+        PyObject* sub = PySequence_ITEM(substrings, i);
+        if (unlikely(!sub)) return -1;
+        result = PyUnicode_Tailmatch(s, sub, start, end, direction);
+        Py_DECREF(sub);
+#endif
+        if (result) {
+            return (int) result;
+        }
+    }
+    return 0;
+}
+
 static int __Pyx_PyUnicode_Tailmatch(PyObject* s, PyObject* substr,
                                      Py_ssize_t start, Py_ssize_t end, int direction) {
     if (unlikely(PyTuple_Check(substr))) {
-        Py_ssize_t i, count = PyTuple_GET_SIZE(substr);
-        for (i = 0; i < count; i++) {
-            Py_ssize_t result;
-#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-            result = PyUnicode_Tailmatch(s, PyTuple_GET_ITEM(substr, i),
-                                         start, end, direction);
-#else
-            PyObject* sub = PySequence_ITEM(substr, i);
-            if (unlikely(!sub)) return -1;
-            result = PyUnicode_Tailmatch(s, sub, start, end, direction);
-            Py_DECREF(sub);
-#endif
-            if (result) {
-                return (int) result;
-            }
-        }
-        return 0;
+        return __Pyx_PyUnicode_TailmatchTuple(s, substr, start, end, direction);
     }
     return (int) PyUnicode_Tailmatch(s, substr, start, end, direction);
 }
@@ -677,26 +681,31 @@ static int __Pyx_PyBytes_SingleTailmatch(PyObject* self, PyObject* arg,
     return retval;
 }
 
+static int __Pyx_PyBytes_TailmatchTuple(PyObject* self, PyObject* substrings,
+                                        Py_ssize_t start, Py_ssize_t end, int direction) {
+    Py_ssize_t i, count = PyTuple_GET_SIZE(substrings);
+    for (i = 0; i < count; i++) {
+        int result;
+#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
+        result = __Pyx_PyBytes_SingleTailmatch(self, PyTuple_GET_ITEM(substrings, i),
+                                               start, end, direction);
+#else
+        PyObject* sub = PySequence_ITEM(substrings, i);
+        if (unlikely(!sub)) return -1;
+        result = __Pyx_PyBytes_SingleTailmatch(self, sub, start, end, direction);
+        Py_DECREF(sub);
+#endif
+        if (result) {
+            return result;
+        }
+    }
+    return 0;
+}
+
 static int __Pyx_PyBytes_Tailmatch(PyObject* self, PyObject* substr,
                                    Py_ssize_t start, Py_ssize_t end, int direction) {
     if (unlikely(PyTuple_Check(substr))) {
-        Py_ssize_t i, count = PyTuple_GET_SIZE(substr);
-        for (i = 0; i < count; i++) {
-            int result;
-#if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-            result = __Pyx_PyBytes_SingleTailmatch(self, PyTuple_GET_ITEM(substr, i),
-                                                   start, end, direction);
-#else
-            PyObject* sub = PySequence_ITEM(substr, i);
-            if (unlikely(!sub)) return -1;
-            result = __Pyx_PyBytes_SingleTailmatch(self, sub, start, end, direction);
-            Py_DECREF(sub);
-#endif
-            if (result) {
-                return result;
-            }
-        }
-        return 0;
+        return __Pyx_PyBytes_TailmatchTuple(self, substr, start, end, direction);
     }
 
     return __Pyx_PyBytes_SingleTailmatch(self, substr, start, end, direction);
@@ -737,7 +746,7 @@ static CYTHON_INLINE char __Pyx_PyBytes_GetItemInt(PyObject* bytes, Py_ssize_t i
         Py_ssize_t size = PyBytes_GET_SIZE(bytes);
         if (unlikely(index >= size) | ((index < 0) & unlikely(index < -size))) {
             PyErr_SetString(PyExc_IndexError, "string index out of range");
-            return -1;
+            return (char) -1;
         }
     }
     if (index < 0)

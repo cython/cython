@@ -738,7 +738,8 @@ buffer_structs_code = load_buffer_utility(
         "BufferFormatStructs", proto_block='utility_code_proto_before_types')
 acquire_utility_code = load_buffer_utility("BufferFormatCheck",
                                            context=context,
-                                           requires=[buffer_structs_code])
+                                           requires=[buffer_structs_code,
+                                                     UtilityCode.load_cached("IsLittleEndian", "ModuleSetupCode.c")])
 
 # See utility code BufferFormatFromTypeInfo
 _typeinfo_to_format_code = load_buffer_utility("TypeInfoToFormat", context={},

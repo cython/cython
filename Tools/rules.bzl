@@ -30,7 +30,7 @@ def pyx_library(
     pyx_srcs = []
     pxd_srcs = []
     for src in srcs:
-        if src.endswith('.pyx') or (src.endwith('.py')
+        if src.endswith('.pyx') or (src.endswith('.py')
                                     and src[:-3] + '.pxd' in srcs):
             pyx_srcs.append(src)
         elif src.endswith('.py'):

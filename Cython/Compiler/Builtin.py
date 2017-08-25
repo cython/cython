@@ -95,16 +95,25 @@ builtin_function_table = [
                     is_strict_signature = True),
     BuiltinFunction('abs',        "f",    "f",     "fabsf",
                     is_strict_signature = True),
+    BuiltinFunction('abs',        "i",    "i",     "abs",
+                    is_strict_signature = True),
+    BuiltinFunction('abs',        "l",    "l",     "labs",
+                    is_strict_signature = True),
+    BuiltinFunction('abs',        None,    None,   "__Pyx_abs_longlong",
+                utility_code = UtilityCode.load("abs_longlong", "Builtins.c"),
+                func_type = PyrexTypes.CFuncType(
+                    PyrexTypes.c_longlong_type, [
+                        PyrexTypes.CFuncTypeArg("arg", PyrexTypes.c_longlong_type, None)
+                        ],
+                    is_strict_signature = True, nogil=True)),
     ] + list(
         # uses getattr to get PyrexTypes.c_uint_type etc to allow easy iteration over a list
-        BuiltinFunction('abs',        None,    None,   "__Pyx_abs_{0}".format(t),
-                    utility_code = UtilityCode.load("abs_{0}".format(t), "Builtins.c"),
+        BuiltinFunction('abs',        None,    None,   "/*abs_{0}*/".format(t.specialization_name()),
                     func_type = PyrexTypes.CFuncType(
-                        getattr(PyrexTypes,"c_u{0}_type".format(t)), [
-                            PyrexTypes.CFuncTypeArg("arg", getattr(PyrexTypes,"c_{0}_type".format(t)), None)
-                            ],
+                        t,
+                        [PyrexTypes.CFuncTypeArg("arg", t, None)],
                         is_strict_signature = True, nogil=True))
-                            for t in ("int", "long", "longlong")
+                            for t in (PyrexTypes.c_uint_type, PyrexTypes.c_ulong_type, PyrexTypes.c_ulonglong_type)
              ) + list(
         BuiltinFunction('abs',        None,    None,   "__Pyx_c_abs{0}".format(t.funcsuffix),
                     func_type = PyrexTypes.CFuncType(

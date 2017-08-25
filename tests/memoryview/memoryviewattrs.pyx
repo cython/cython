@@ -260,6 +260,11 @@ def call():
 
     print (<int*>mv3._data)[0] , (<int*>mv2._data)[0] , (<int*>mv1._data)[0]
 
+    assert len(mv1) == 3
+    assert len(mv2) == 3
+    assert len(mv3) == 3
+
+
 @testcase
 def two_dee():
     u'''
@@ -271,6 +276,15 @@ def two_dee():
     '''
     cdef long[:,::1] mv1, mv2, mv3
     cdef array arr = array((2,2), sizeof(long), 'l')
+
+    assert len(arr) == 2
+
+    try:
+        _ = len(mv1)
+    except UnboundLocalError:
+        pass
+    else:
+        assert False, "UnboundLocalError not raised for uninitialised memory view"
 
     cdef long *arr_data
     arr_data = <long*>arr.data

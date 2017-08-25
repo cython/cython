@@ -225,6 +225,8 @@ cdef class array:
         flags =  PyBUF_ANY_CONTIGUOUS|PyBUF_FORMAT|PyBUF_WRITABLE
         return  memoryview(self, flags, self.dtype_is_object)
 
+    def __len__(self):
+        return self._shape[0]
 
     def __getattr__(self, attr):
         return getattr(self.memview, attr)

@@ -191,3 +191,14 @@ def py_div_long(long a, long b):
     OverflowError: ...
     """
     return a / b
+
+def c_div_const_test(a, b):
+    """
+    >>> c_div_const_test(5, 3)
+    1
+    """
+    return c_div_const(a, b)
+
+cdef long c_div_const(const long a, int b):
+    cdef long c = a / b
+    return c

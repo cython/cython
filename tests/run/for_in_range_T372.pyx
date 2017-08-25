@@ -117,3 +117,23 @@ def test_return():
             return i,n
     print
     return "FAILED!"
+
+
+ctypedef enum RangeEnum:
+    EnumValue1
+    EnumValue2
+    EnumValue3
+
+
+@cython.test_assert_path_exists("//ForFromStatNode")
+@cython.test_fail_if_path_exists("//ForInStatNode")
+def test_enum_range():
+    """
+    # NOTE: it's not entirely clear that this is the expected behaviour, but that's how it currently is.
+    >>> test_enum_range()
+    'RangeEnum'
+    """
+    cdef RangeEnum n = EnumValue3
+    for i in range(n):
+        assert cython.typeof(i) == "RangeEnum", cython.typeof(i)
+    return cython.typeof(i)

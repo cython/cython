@@ -501,7 +501,7 @@ def p_call_parse_args(s, allow_genexp=True):
             break
         s.next()
 
-    if s.sy == 'for':
+    if s.sy in ('for', 'async'):
         if not keyword_args and not last_was_tuple_unpack:
             if len(positional_args) == 1 and len(positional_args[0]) == 1:
                 positional_args = [[p_genexp(s, positional_args[0][0])]]
@@ -703,17 +703,18 @@ def p_atom(s):
             s.error("invalid string kind '%s'" % kind)
     elif sy == 'IDENT':
         name = s.systring
-        s.next()
         if name == "None":
-            return ExprNodes.NoneNode(pos)
+            result = ExprNodes.NoneNode(pos)
         elif name == "True":
-            return ExprNodes.BoolNode(pos, value=True)
+            result = ExprNodes.BoolNode(pos, value=True)
         elif name == "False":
-            return ExprNodes.BoolNode(pos, value=False)
+            result = ExprNodes.BoolNode(pos, value=False)
         elif name == "NULL" and not s.in_python_file:
-            return ExprNodes.NullNode(pos)
+            result = ExprNodes.NullNode(pos)
         else:
-            return p_name(s, name)
+            result = p_name(s, name)
+        s.next()
+        return result
     else:
         s.error("Expected an identifier or literal")
 
@@ -771,6 +772,15 @@ def wrap_compile_time_constant(pos, value):
         return ExprNodes.IntNode(pos, value=rep, constant_result=value)
     elif isinstance(value, float):
         return ExprNodes.FloatNode(pos, value=rep, constant_result=value)
+    elif isinstance(value, complex):
+        node = ExprNodes.ImagNode(pos, value=repr(value.imag), constant_result=complex(0.0, value.imag))
+        if value.real:
+            # FIXME: should we care about -0.0 ?
+            # probably not worth using the '-' operator for negative imag values
+            node = ExprNodes.binop_node(
+                pos, '+', ExprNodes.FloatNode(pos, value=repr(value.real), constant_result=value.real), node,
+                constant_result=value)
+        return node
     elif isinstance(value, _unicode):
         return ExprNodes.UnicodeNode(pos, value=EncodedString(value))
     elif isinstance(value, _bytes):
@@ -1187,7 +1197,7 @@ def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
 # list_display  ::=     "[" [listmaker] "]"
 # listmaker     ::=     (test|star_expr) ( comp_for | (',' (test|star_expr))* [','] )
 # comp_iter     ::=     comp_for | comp_if
-# comp_for      ::=     "for" expression_list "in" testlist [comp_iter]
+# comp_for      ::=     ["async"] "for" expression_list "in" testlist [comp_iter]
 # comp_if       ::=     "if" test [comp_iter]
 
 def p_list_maker(s):
@@ -1199,7 +1209,7 @@ def p_list_maker(s):
         return ExprNodes.ListNode(pos, args=[])
 
     expr = p_test_or_starred_expr(s)
-    if s.sy == 'for':
+    if s.sy in ('for', 'async'):
         if expr.is_starred:
             s.error("iterable unpacking cannot be used in comprehension")
         append = ExprNodes.ComprehensionAppendNode(pos, expr=expr)
@@ -1221,7 +1231,7 @@ def p_list_maker(s):
 
 
 def p_comp_iter(s, body):
-    if s.sy == 'for':
+    if s.sy in ('for', 'async'):
         return p_comp_for(s, body)
     elif s.sy == 'if':
         return p_comp_if(s, body)
@@ -1230,11 +1240,17 @@ def p_comp_iter(s, body):
         return body
 
 def p_comp_for(s, body):
-    # s.sy == 'for'
     pos = s.position()
-    s.next()
-    kw = p_for_bounds(s, allow_testlist=False)
-    kw.update(else_clause = None, body = p_comp_iter(s, body))
+    # [async] for ...
+    is_async = False
+    if s.sy == 'async':
+        is_async = True
+        s.next()
+
+    # s.sy == 'for'
+    s.expect('for')
+    kw = p_for_bounds(s, allow_testlist=False, is_async=is_async)
+    kw.update(else_clause=None, body=p_comp_iter(s, body), is_async=is_async)
     return Nodes.ForStatNode(pos, **kw)
 
 def p_comp_if(s, body):
@@ -1302,7 +1318,7 @@ def p_dict_or_set_maker(s):
         else:
             break
 
-    if s.sy == 'for':
+    if s.sy in ('for', 'async'):
         # dict/set comprehension
         if len(parts) == 1 and isinstance(parts[0], list) and len(parts[0]) == 1:
             item = parts[0][0]
@@ -1432,13 +1448,13 @@ def p_testlist_comp(s):
         s.next()
         exprs = p_test_or_starred_expr_list(s, expr)
         return ExprNodes.TupleNode(pos, args = exprs)
-    elif s.sy == 'for':
+    elif s.sy in ('for', 'async'):
         return p_genexp(s, expr)
     else:
         return expr
 
 def p_genexp(s, expr):
-    # s.sy == 'for'
+    # s.sy == 'async' | 'for'
     loop = p_comp_for(s, Nodes.ExprStatNode(
         expr.pos, expr = ExprNodes.YieldExprNode(expr.pos, arg=expr)))
     return ExprNodes.GeneratorExpressionNode(expr.pos, loop=loop)
@@ -2134,7 +2150,14 @@ def p_simple_statement_list(s, ctx, first_statement = 0):
         stat = stats[0]
     else:
         stat = Nodes.StatListNode(pos, stats = stats)
+
+    if s.sy not in ('NEWLINE', 'EOF'):
+        # provide a better error message for users who accidentally write Cython code in .py files
+        if isinstance(stat, Nodes.ExprStatNode):
+            if stat.expr.is_name and stat.expr.name == 'cdef':
+                s.error("The 'cdef' keyword is only allowed in Cython files (pyx/pxi/pxd)", pos)
     s.expect_newline("Syntax error in simple statement list")
+
     return stat
 
 def p_compile_time_expr(s):
@@ -2151,9 +2174,10 @@ def p_DEF_statement(s):
     name = p_ident(s)
     s.expect('=')
     expr = p_compile_time_expr(s)
-    value = expr.compile_time_value(denv)
-    #print "p_DEF_statement: %s = %r" % (name, value) ###
-    denv.declare(name, value)
+    if s.compile_time_eval:
+        value = expr.compile_time_value(denv)
+        #print "p_DEF_statement: %s = %r" % (name, value) ###
+        denv.declare(name, value)
     s.expect_newline("Expected a newline", ignore_semicolon=True)
     return Nodes.PassStatNode(pos)
 

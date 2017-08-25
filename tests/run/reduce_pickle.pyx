@@ -114,6 +114,19 @@ cdef class DefaultReduceSubclass(DefaultReduce):
         return "DefaultReduceSubclass(i=%s, s=%r, x=%s)" % (self.i, self.s, self.x)
 
 
+cdef class result(DefaultReduceSubclass):
+    """
+    >>> a = result(i=11, s='abc', x=1.5); a
+    result(i=11, s='abc', x=1.5)
+    >>> import pickle
+    >>> pickle.loads(pickle.dumps(a))
+    result(i=11, s='abc', x=1.5)
+    """
+
+    def __repr__(self):
+        return "result(i=%s, s=%r, x=%s)" % (self.i, self.s, self.x)
+
+
 class DefaultReducePySubclass(DefaultReduce):
     """
     >>> a = DefaultReducePySubclass(i=11, s='abc', x=1.5); a

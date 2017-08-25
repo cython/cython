@@ -6,10 +6,11 @@
 from __future__ import absolute_import
 
 import cython
-cython.declare(os=object, re=object, operator=object,
-               Naming=object, Options=object, StringEncoding=object,
+cython.declare(os=object, re=object, operator=object, textwrap=object,
+               Template=object, Naming=object, Options=object, StringEncoding=object,
                Utils=object, SourceDescriptor=object, StringIOTree=object,
-               DebugFlags=object, basestring=object)
+               DebugFlags=object, basestring=object, defaultdict=object,
+               closing=object, partial=object)
 
 import os
 import re
@@ -274,7 +275,7 @@ class UtilityCodeBase(object):
                 elif not values:
                     values = None
                 elif len(values) == 1:
-                    values = values[0]
+                    values = list(values)[0]
                 kwargs[name] = values
 
         if proto is not None:
@@ -602,6 +603,7 @@ class FunctionState(object):
 
         self.in_try_finally = 0
         self.exc_vars = None
+        self.current_except = None
         self.can_trace = False
         self.gil_owned = True
 
@@ -632,8 +634,8 @@ class FunctionState(object):
             label += '_' + name
         return label
 
-    def new_yield_label(self):
-        label = self.new_label('resume_from_yield')
+    def new_yield_label(self, expr_type='yield'):
+        label = self.new_label('resume_from_%s' % expr_type)
         num_and_label = (len(self.yield_labels) + 1, label)
         self.yield_labels.append(num_and_label)
         return num_and_label
@@ -1628,7 +1630,7 @@ class CCodeWriter(object):
     # Functions delegated to function scope
     def new_label(self, name=None):    return self.funcstate.new_label(name)
     def new_error_label(self):         return self.funcstate.new_error_label()
-    def new_yield_label(self):         return self.funcstate.new_yield_label()
+    def new_yield_label(self, *args):  return self.funcstate.new_yield_label(*args)
     def get_loop_labels(self):         return self.funcstate.get_loop_labels()
     def set_loop_labels(self, labels): return self.funcstate.set_loop_labels(labels)
     def new_loop_labels(self):         return self.funcstate.new_loop_labels()
@@ -1916,9 +1918,12 @@ class CCodeWriter(object):
         if entry.type.is_pyobject:
             self.putln("__Pyx_XGIVEREF(%s);" % self.entry_as_pyobject(entry))
 
-    def put_var_incref(self, entry):
+    def put_var_incref(self, entry, nanny=True):
         if entry.type.is_pyobject:
-            self.putln("__Pyx_INCREF(%s);" % self.entry_as_pyobject(entry))
+            if nanny:
+                self.putln("__Pyx_INCREF(%s);" % self.entry_as_pyobject(entry))
+            else:
+                self.putln("Py_INCREF(%s);" % self.entry_as_pyobject(entry))
 
     def put_var_xincref(self, entry):
         if entry.type.is_pyobject:
@@ -1967,9 +1972,12 @@ class CCodeWriter(object):
         if entry.type.is_pyobject:
             self.putln("__Pyx_XDECREF(%s);" % self.entry_as_pyobject(entry))
 
-    def put_var_xdecref(self, entry):
+    def put_var_xdecref(self, entry, nanny=True):
         if entry.type.is_pyobject:
-            self.putln("__Pyx_XDECREF(%s);" % self.entry_as_pyobject(entry))
+            if nanny:
+                self.putln("__Pyx_XDECREF(%s);" % self.entry_as_pyobject(entry))
+            else:
+                self.putln("Py_XDECREF(%s);" % self.entry_as_pyobject(entry))
 
     def put_var_decref_clear(self, entry):
         self._put_var_decref_clear(entry, null_check=False)
@@ -2214,7 +2222,7 @@ class CCodeWriter(object):
     def put_finish_refcount_context(self):
         self.putln("__Pyx_RefNannyFinishContext();")
 
-    def put_add_traceback(self, qualified_name):
+    def put_add_traceback(self, qualified_name, include_cline=True):
         """
         Build a Python traceback for propagating exceptions.
 
@@ -2222,7 +2230,7 @@ class CCodeWriter(object):
         """
         format_tuple = (
             qualified_name,
-            Naming.clineno_cname,
+            Naming.clineno_cname if include_cline else 0,
             Naming.lineno_cname,
             Naming.filename_cname,
         )

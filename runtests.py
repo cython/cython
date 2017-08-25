@@ -348,7 +348,10 @@ VER_DEP_MODULES = {
                                           ]),
     (3,4): (operator.lt, lambda x: x in ['run.py34_signature',
                                          ]),
+    (3,4,999): (operator.gt, lambda x: x in ['run.initial_file_path',
+                                             ]),
     (3,5): (operator.lt, lambda x: x in ['run.py35_pep492_interop',
+                                         'run.mod__spec__',
                                          ]),
 }
 
@@ -881,7 +884,13 @@ class CythonCompileTestCase(unittest.TestCase):
                 extra_extension_args = {}
 
             if self.pythran_dir is not None:
-                ext_compile_flags.extend(['-I',self.pythran_dir,'-DENABLE_PYTHON_MODULE','-std=c++11','-D__PYTHRAN__=%d' % sys.version_info.major,'-Wno-cpp'])
+                ext_compile_flags.extend([
+                    '-I', self.pythran_dir,
+                    '-DENABLE_PYTHON_MODULE',
+                    '-std=c++11',
+                    '-D__PYTHRAN__=%d' % sys.version_info.major,
+                    '-Wno-cpp',
+                ])
 
             related_files = self.related_files(test_directory, module)
             self.copy_files(test_directory, workdir, related_files)
@@ -1831,6 +1840,9 @@ def main():
     parser.add_option("--exit-ok", dest="exit_ok", default=False,
                       action="store_true",
                       help="exit without error code even on test failures")
+    parser.add_option("--failfast", dest="failfast", default=False,
+                      action="store_true",
+                      help="stop on first failure or error")
     parser.add_option("--root-dir", dest="root_dir", default=os.path.join(DISTDIR, 'tests'),
                       help="working directory")
     parser.add_option("--work-dir", dest="work_dir", default=os.path.join(os.getcwd(), 'TEST_TMP'),
@@ -1982,6 +1994,11 @@ def runtests(options, cmd_args, coverage=None):
             compiler_default_options['gdb_debug'] = True
             compiler_default_options['output_dir'] = os.getcwd()
 
+    if IS_PYPY:
+        if options.with_refnanny:
+            sys.stderr.write("Disabling refnanny in PyPy\n")
+            options.with_refnanny = False
+
     if options.with_refnanny:
         from pyximport.pyxbuild import pyx_to_dll
         libpath = pyx_to_dll(os.path.join("Cython", "Runtime", "refnanny.pyx"),
@@ -2131,13 +2148,24 @@ def runtests(options, cmd_args, coverage=None):
             except OSError: pass  # concurrency issue?
         test_runner = XMLTestRunner(output=xml_output_dir,
                                     verbose=options.verbosity > 0)
+        if options.failfast:
+            sys.stderr.write("--failfast not supported with XML runner\n")
     else:
-        test_runner = unittest.TextTestRunner(verbosity=options.verbosity)
+        text_runner_options = {}
+        if options.failfast:
+            if sys.version_info < (2, 7):
+                sys.stderr.write("--failfast not supported with Python < 2.7\n")
+            else:
+                text_runner_options['failfast'] = True
+        test_runner = unittest.TextTestRunner(verbosity=options.verbosity, **text_runner_options)
 
     if options.pyximport_py:
         from pyximport import pyximport
         pyximport.install(pyimport=True, build_dir=os.path.join(WORKDIR, '_pyximport'),
                           load_py_module_on_import_failure=True, inplace=True)
+
+    import gc
+    gc.set_debug(gc.DEBUG_UNCOLLECTABLE)
 
     result = test_runner.run(test_suite)
 

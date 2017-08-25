@@ -66,10 +66,10 @@ func(x, y)
 
 _ERRORS = u"""
 10:15: fused_type does not take keyword arguments
-15:38: Type specified multiple times
-26:4: Invalid use of fused types, type cannot be specialized
+15:33: Type specified multiple times
+26:0: Invalid use of fused types, type cannot be specialized
 26:4: Not enough types specified to specialize the function, int2_t is still fused
-27:4: Invalid use of fused types, type cannot be specialized
+27:0: Invalid use of fused types, type cannot be specialized
 27:4: Not enough types specified to specialize the function, int2_t is still fused
 28:16: Call with wrong number of arguments (expected 2, got 1)
 29:16: Call with wrong number of arguments (expected 2, got 3)

@@ -11,10 +11,20 @@
 
 #if CYTHON_FAST_THREAD_STATE
 #define __Pyx_PyThreadState_declare  PyThreadState *$local_tstate_cname;
-#define __Pyx_PyThreadState_assign  $local_tstate_cname = PyThreadState_GET();
+#define __Pyx_PyErr_Occurred()  $local_tstate_cname->curexc_type
+#if PY_VERSION_HEX >= 0x03050000
+  #define __Pyx_PyThreadState_assign  $local_tstate_cname = _PyThreadState_UncheckedGet();
+#elif PY_VERSION_HEX >= 0x03000000
+  #define __Pyx_PyThreadState_assign  $local_tstate_cname = PyThreadState_Get();
+#elif PY_VERSION_HEX >= 0x02070000
+  #define __Pyx_PyThreadState_assign  $local_tstate_cname = _PyThreadState_Current;
+#else
+  #define __Pyx_PyThreadState_assign  $local_tstate_cname = PyThreadState_Get();
+#endif
 #else
 #define __Pyx_PyThreadState_declare
 #define __Pyx_PyThreadState_assign
+#define __Pyx_PyErr_Occurred()  PyErr_Occurred()
 #endif
 
 
@@ -31,11 +41,28 @@ static CYTHON_INLINE int __Pyx_PyErr_ExceptionMatchesInState(PyThreadState* tsta
 /////////////// PyErrExceptionMatches ///////////////
 
 #if CYTHON_FAST_THREAD_STATE
+static int __Pyx_PyErr_ExceptionMatchesTuple(PyObject *exc_type, PyObject *tuple) {
+    Py_ssize_t i, n;
+    n = PyTuple_GET_SIZE(tuple);
+#if PY_MAJOR_VERSION >= 3
+    // the tighter subtype checking in Py3 allows faster out-of-order comparison
+    for (i=0; i<n; i++) {
+        if (exc_type == PyTuple_GET_ITEM(tuple, i)) return 1;
+    }
+#endif
+    for (i=0; i<n; i++) {
+        if (__Pyx_PyErr_GivenExceptionMatches(exc_type, PyTuple_GET_ITEM(tuple, i))) return 1;
+    }
+    return 0;
+}
+
 static CYTHON_INLINE int __Pyx_PyErr_ExceptionMatchesInState(PyThreadState* tstate, PyObject* err) {
     PyObject *exc_type = tstate->curexc_type;
     if (exc_type == err) return 1;
     if (unlikely(!exc_type)) return 0;
-    return PyErr_GivenExceptionMatches(exc_type, err);
+    if (unlikely(PyTuple_Check(err)))
+        return __Pyx_PyErr_ExceptionMatchesTuple(exc_type, err);
+    return __Pyx_PyErr_GivenExceptionMatches(exc_type, err);
 }
 #endif
 
@@ -265,7 +292,7 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb, PyObject 
         PyErr_Restore(tmp_type, tmp_value, tb);
         Py_XDECREF(tmp_tb);
 #else
-        PyThreadState *tstate = PyThreadState_GET();
+        PyThreadState *tstate = __Pyx_PyThreadState_Current;
         PyObject* tmp_tb = tstate->curexc_traceback;
         if (tb != tmp_tb) {
             Py_INCREF(tb);
@@ -529,6 +556,50 @@ static void __Pyx_WriteUnraisable(const char *name, CYTHON_UNUSED int clineno,
 #endif
 }
 
+/////////////// CLineInTraceback.proto ///////////////
+
+static int __Pyx_CLineForTraceback(int c_line);
+
+/////////////// CLineInTraceback ///////////////
+//@requires: ObjectHandling.c::PyObjectGetAttrStr
+//@substitute: naming
+
+static int __Pyx_CLineForTraceback(int c_line) {
+#ifdef CYTHON_CLINE_IN_TRACEBACK  /* 0 or 1 to disable/enable C line display in tracebacks at C compile time */
+    return ((CYTHON_CLINE_IN_TRACEBACK)) ? c_line : 0;
+#else
+    PyObject *use_cline;
+
+#if CYTHON_COMPILING_IN_CPYTHON
+    PyObject **cython_runtime_dict = _PyObject_GetDictPtr(${cython_runtime_cname});
+    if (likely(cython_runtime_dict)) {
+      use_cline = PyDict_GetItem(*cython_runtime_dict, PYIDENT("cline_in_traceback"));
+    } else
+#endif
+    {
+      PyObject *ptype, *pvalue, *ptraceback;
+      PyObject *use_cline_obj;
+      PyErr_Fetch(&ptype, &pvalue, &ptraceback);
+      use_cline_obj = __Pyx_PyObject_GetAttrStr(${cython_runtime_cname}, PYIDENT("cline_in_traceback"));
+      if (use_cline_obj) {
+        use_cline = PyObject_Not(use_cline_obj) ? Py_False : Py_True;
+        Py_DECREF(use_cline_obj);
+      } else {
+        use_cline = NULL;
+      }
+      PyErr_Restore(ptype, pvalue, ptraceback);
+    }
+    if (!use_cline) {
+        c_line = 0;
+        PyObject_SetAttr(${cython_runtime_cname}, PYIDENT("cline_in_traceback"), Py_False);
+    }
+    else if (PyObject_Not(use_cline) != 0) {
+        c_line = 0;
+    }
+    return c_line;
+#endif
+}
+
 /////////////// AddTraceback.proto ///////////////
 
 static void __Pyx_AddTraceback(const char *funcname, int c_line,
@@ -536,6 +607,7 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
 
 /////////////// AddTraceback ///////////////
 //@requires: ModuleSetupCode.c::CodeObjectCache
+//@requires: CLineInTraceback
 //@substitute: naming
 
 #include "compile.h"
@@ -600,29 +672,9 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
                                int py_line, const char *filename) {
     PyCodeObject *py_code = 0;
     PyFrameObject *py_frame = 0;
-    PyObject *use_cline = 0;
-    PyObject *ptype, *pvalue, *ptraceback;
-
-    static PyObject* cline_in_traceback = NULL;
-    if (cline_in_traceback == NULL) {
-      #if PY_MAJOR_VERSION < 3
-      cline_in_traceback = PyString_FromString("cline_in_traceback");
-      #else
-      cline_in_traceback = PyUnicode_FromString("cline_in_traceback");
-      #endif
-    }
 
     if (c_line) {
-      PyErr_Fetch(&ptype, &pvalue, &ptraceback);
-      use_cline = PyObject_GetAttr(${cython_runtime_cname}, cline_in_traceback);
-      if (use_cline == NULL) {
-        c_line = 0;
-        PyObject_SetAttr(${cython_runtime_cname}, cline_in_traceback, Py_False);
-      }
-      else if (PyObject_Not(use_cline) != 0) {
-        c_line = 0;
-      }
-      PyErr_Restore(ptype, pvalue, ptraceback);
+        c_line = __Pyx_CLineForTraceback(c_line);
     }
 
     // Negate to avoid collisions between py and c lines.
@@ -634,10 +686,10 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
         $global_code_object_cache_insert(c_line ? -c_line : py_line, py_code);
     }
     py_frame = PyFrame_New(
-        PyThreadState_GET(), /*PyThreadState *tstate,*/
-        py_code,             /*PyCodeObject *code,*/
-        $moddict_cname,      /*PyObject *globals,*/
-        0                    /*PyObject *locals*/
+        __Pyx_PyThreadState_Current, /*PyThreadState *tstate,*/
+        py_code,                     /*PyCodeObject *code,*/
+        $moddict_cname,              /*PyObject *globals,*/
+        0                            /*PyObject *locals*/
     );
     if (!py_frame) goto bad;
     __Pyx_PyFrame_SetLineNumber(py_frame, py_line);
@@ -645,5 +697,4 @@ static void __Pyx_AddTraceback(const char *funcname, int c_line,
 bad:
     Py_XDECREF(py_code);
     Py_XDECREF(py_frame);
-    Py_XDECREF(use_cline);
 }

@@ -192,7 +192,7 @@ class PostParse(ScopeTrackingTransform):
         # unpack a lambda expression into the corresponding DefNode
         collector = YieldNodeCollector()
         collector.visitchildren(node.result_expr)
-        if collector.yields or collector.awaits or isinstance(node.result_expr, ExprNodes.YieldExprNode):
+        if collector.has_yield or collector.has_await or isinstance(node.result_expr, ExprNodes.YieldExprNode):
             body = Nodes.ExprStatNode(
                 node.result_expr.pos, expr=node.result_expr)
         else:
@@ -208,11 +208,22 @@ class PostParse(ScopeTrackingTransform):
 
     def visit_GeneratorExpressionNode(self, node):
         # unpack a generator expression into the corresponding DefNode
-        node.def_node = Nodes.DefNode(node.pos, name=node.name,
-                                      doc=None,
-                                      args=[], star_arg=None,
-                                      starstar_arg=None,
-                                      body=node.loop)
+        collector = YieldNodeCollector()
+        collector.visitchildren(node.loop)
+        node.def_node = Nodes.DefNode(
+            node.pos, name=node.name, doc=None,
+            args=[], star_arg=None, starstar_arg=None,
+            body=node.loop, is_async_def=collector.has_await)
+        self.visitchildren(node)
+        return node
+
+    def visit_ComprehensionNode(self, node):
+        # enforce local scope also in Py2 for async generators (seriously, that's a Py3.6 feature...)
+        if not node.has_local_scope:
+            collector = YieldNodeCollector()
+            collector.visitchildren(node.loop)
+            if collector.has_await:
+                node.has_local_scope = True
         self.visitchildren(node)
         return node
 
@@ -600,9 +611,11 @@ class PxdPostParse(CythonTransform, SkipDeclarations):
         else:
             return node
 
-class TrackNumpyAttributes(CythonTransform, SkipDeclarations):
-    def __init__(self, context):
-        super(TrackNumpyAttributes, self).__init__(context)
+
+class TrackNumpyAttributes(VisitorTransform, SkipDeclarations):
+    # TODO: Make name handling as good as in InterpretCompilerDirectives() below - probably best to merge the two.
+    def __init__(self):
+        super(TrackNumpyAttributes, self).__init__()
         self.numpy_module_names = set()
 
     def visit_CImportStatNode(self, node):
@@ -615,6 +628,9 @@ class TrackNumpyAttributes(CythonTransform, SkipDeclarations):
         if node.obj.is_name and node.obj.name in self.numpy_module_names:
             node.is_numpy_attribute = True
         return node
+
+    visit_Node = VisitorTransform.recurse_to_children
+
 
 class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
     """
@@ -1671,24 +1687,24 @@ if VALUE is not None:
             unpickle_func = TreeFragment(u"""
                 def %(unpickle_func_name)s(__pyx_type, long __pyx_checksum, __pyx_state):
                     if __pyx_checksum != %(checksum)s:
-                        from pickle import PickleError
-                        raise PickleError("Incompatible checksums (%%s vs %(checksum)s = (%(members)s))" %% __pyx_checksum)
-                    result = %(class_name)s.__new__(__pyx_type)
+                        from pickle import PickleError as __pyx_PickleError
+                        raise __pyx_PickleError("Incompatible checksums (%%s vs %(checksum)s = (%(members)s))" %% __pyx_checksum)
+                    __pyx_result = %(class_name)s.__new__(__pyx_type)
                     if __pyx_state is not None:
-                        %(unpickle_func_name)s__set_state(<%(class_name)s> result, __pyx_state)
-                    return result
+                        %(unpickle_func_name)s__set_state(<%(class_name)s> __pyx_result, __pyx_state)
+                    return __pyx_result
 
-                cdef %(unpickle_func_name)s__set_state(%(class_name)s result, tuple __pyx_state):
+                cdef %(unpickle_func_name)s__set_state(%(class_name)s __pyx_result, tuple __pyx_state):
                     %(assignments)s
-                    if hasattr(result, '__dict__'):
-                        result.__dict__.update(__pyx_state[%(num_members)s])
+                    if len(__pyx_state) > %(num_members)d and hasattr(__pyx_result, '__dict__'):
+                        __pyx_result.__dict__.update(__pyx_state[%(num_members)d])
                 """ % {
                     'unpickle_func_name': unpickle_func_name,
                     'checksum': checksum,
                     'members': ', '.join(all_members_names),
                     'class_name': node.class_name,
                     'assignments': '; '.join(
-                        'result.%s = __pyx_state[%s]' % (v, ix)
+                        '__pyx_result.%s = __pyx_state[%s]' % (v, ix)
                         for ix, v in enumerate(all_members_names)),
                     'num_members': len(all_members_names),
                 }, level='module', pipeline=[NormalizeTree(None)]).substitute({})
@@ -1702,7 +1718,7 @@ if VALUE is not None:
                     state = (%(members)s)
                     _dict = getattr(self, '__dict__', None)
                     if _dict is not None:
-                        state += _dict,
+                        state += (_dict,)
                         use_setstate = True
                     else:
                         use_setstate = %(any_notnone_members)s
@@ -2457,19 +2473,24 @@ class YieldNodeCollector(TreeVisitor):
     def __init__(self):
         super(YieldNodeCollector, self).__init__()
         self.yields = []
-        self.awaits = []
         self.returns = []
+        self.finallys = []
+        self.excepts = []
         self.has_return_value = False
+        self.has_yield = False
+        self.has_await = False
 
     def visit_Node(self, node):
         self.visitchildren(node)
 
     def visit_YieldExprNode(self, node):
         self.yields.append(node)
+        self.has_yield = True
         self.visitchildren(node)
 
     def visit_AwaitExprNode(self, node):
-        self.awaits.append(node)
+        self.yields.append(node)
+        self.has_await = True
         self.visitchildren(node)
 
     def visit_ReturnStatNode(self, node):
@@ -2477,6 +2498,14 @@ class YieldNodeCollector(TreeVisitor):
         if node.value:
             self.has_return_value = True
         self.returns.append(node)
+
+    def visit_TryFinallyStatNode(self, node):
+        self.visitchildren(node)
+        self.finallys.append(node)
+
+    def visit_TryExceptStatNode(self, node):
+        self.visitchildren(node)
+        self.excepts.append(node)
 
     def visit_ClassDefNode(self, node):
         pass
@@ -2513,24 +2542,28 @@ class MarkClosureVisitor(CythonTransform):
         collector.visitchildren(node)
 
         if node.is_async_def:
-            if collector.yields:
-                error(collector.yields[0].pos, "'yield' not allowed in async coroutines (use 'await')")
-            yields = collector.awaits
-        elif collector.yields:
-            if collector.awaits:
-                error(collector.yields[0].pos, "'await' not allowed in generators (use 'yield')")
-            yields = collector.yields
+            coroutine_type = Nodes.AsyncGenNode if collector.has_yield else Nodes.AsyncDefNode
+            if collector.has_yield:
+                for yield_expr in collector.yields + collector.returns:
+                    yield_expr.in_async_gen = True
+        elif collector.has_await:
+            found = next(y for y in collector.yields if y.is_await)
+            error(found.pos, "'await' not allowed in generators (use 'yield')")
+            return node
+        elif collector.has_yield:
+            coroutine_type = Nodes.GeneratorDefNode
         else:
             return node
 
-        for i, yield_expr in enumerate(yields, 1):
+        for i, yield_expr in enumerate(collector.yields, 1):
             yield_expr.label_num = i
-        for retnode in collector.returns:
+        for retnode in collector.returns + collector.finallys + collector.excepts:
             retnode.in_generator = True
 
         gbody = Nodes.GeneratorBodyDefNode(
-            pos=node.pos, name=node.name, body=node.body)
-        coroutine = (Nodes.AsyncDefNode if node.is_async_def else Nodes.GeneratorDefNode)(
+            pos=node.pos, name=node.name, body=node.body,
+            is_async_gen_body=node.is_async_def and collector.has_yield)
+        coroutine = coroutine_type(
             pos=node.pos, name=node.name, args=node.args,
             star_arg=node.star_arg, starstar_arg=node.starstar_arg,
             doc=node.doc, decorators=node.decorators,
@@ -2576,24 +2609,28 @@ class CreateClosureClasses(CythonTransform):
     def find_entries_used_in_closures(self, node):
         from_closure = []
         in_closure = []
-        for name, entry in node.local_scope.entries.items():
-            if entry.from_closure:
-                from_closure.append((name, entry))
-            elif entry.in_closure:
-                in_closure.append((name, entry))
+        for scope in node.local_scope.iter_local_scopes():
+            for name, entry in scope.entries.items():
+                if not name:
+                    continue
+                if entry.from_closure:
+                    from_closure.append((name, entry))
+                elif entry.in_closure:
+                    in_closure.append((name, entry))
         return from_closure, in_closure
 
     def create_class_from_scope(self, node, target_module_scope, inner_node=None):
         # move local variables into closure
         if node.is_generator:
-            for entry in node.local_scope.entries.values():
-                if not entry.from_closure:
-                    entry.in_closure = True
+            for scope in node.local_scope.iter_local_scopes():
+                for entry in scope.entries.values():
+                    if not entry.from_closure:
+                        entry.in_closure = True
 
         from_closure, in_closure = self.find_entries_used_in_closures(node)
         in_closure.sort()
 
-        # Now from the begining
+        # Now from the beginning
         node.needs_closure = False
         node.needs_outer_scope = False
 
@@ -2632,6 +2669,10 @@ class CreateClosureClasses(CythonTransform):
         func_scope.scope_class = entry
         class_scope = entry.type.scope
         class_scope.is_internal = True
+        class_scope.is_closure_class_scope = True
+        if node.is_async_def or node.is_generator:
+            # Generators need their closure intact during cleanup as they resume to handle GeneratorExit
+            class_scope.directives['no_gc_clear'] = True
         if Options.closure_freelist_size:
             class_scope.directives['freelist'] = Options.closure_freelist_size
 
@@ -2644,11 +2685,12 @@ class CreateClosureClasses(CythonTransform):
                                     is_cdef=True)
             node.needs_outer_scope = True
         for name, entry in in_closure:
-            closure_entry = class_scope.declare_var(pos=entry.pos,
-                                    name=entry.name,
-                                    cname=entry.cname,
-                                    type=entry.type,
-                                    is_cdef=True)
+            closure_entry = class_scope.declare_var(
+                pos=entry.pos,
+                name=entry.name if not entry.in_subscope else None,
+                cname=entry.cname,
+                type=entry.type,
+                is_cdef=True)
             if entry.is_declared_generic:
                 closure_entry.is_declared_generic = 1
         node.needs_closure = True
@@ -3019,22 +3061,22 @@ class TransformBuiltinMethods(EnvTransform):
 
     def visit_GeneralCallNode(self, node):
         function = node.function.as_cython_attribute()
-        if function:
+        if function == u'cast':
+            # NOTE: assuming simple tuple/dict nodes for positional_args and keyword_args
             args = node.positional_args.args
             kwargs = node.keyword_args.compile_time_value(None)
-            if function == u'cast':
-                if (len(args) != 2 or len(kwargs) > 1 or
-                        (len(kwargs) == 1 and 'typecheck' not in kwargs)):
-                    error(node.function.pos,
-                          u"cast() takes exactly two arguments and an optional typecheck keyword")
+            if (len(args) != 2 or len(kwargs) > 1 or
+                    (len(kwargs) == 1 and 'typecheck' not in kwargs)):
+                error(node.function.pos,
+                      u"cast() takes exactly two arguments and an optional typecheck keyword")
+            else:
+                type = args[0].analyse_as_type(self.current_env())
+                if type:
+                    typecheck = kwargs.get('typecheck', False)
+                    node = ExprNodes.TypecastNode(
+                        node.function.pos, type=type, operand=args[1], typecheck=typecheck)
                 else:
-                    type = args[0].analyse_as_type(self.current_env())
-                    if type:
-                        typecheck = kwargs.get('typecheck', False)
-                        node = ExprNodes.TypecastNode(
-                            node.function.pos, type=type, operand=args[1], typecheck=typecheck)
-                    else:
-                        error(args[0].pos, "Not a type")
+                    error(args[0].pos, "Not a type")
 
         self.visitchildren(node)
         return node

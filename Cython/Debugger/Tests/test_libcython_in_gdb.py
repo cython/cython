@@ -19,7 +19,7 @@ import tempfile
 import functools
 import traceback
 import itertools
-from test import test_support
+#from test import test_support
 
 import gdb
 

@@ -3969,6 +3969,8 @@ class GeneratorDefNode(DefNode):
 
     is_generator = True
     is_coroutine = False
+    is_asyncgen = False
+    gen_type_name = 'Generator'
     needs_closure = True
 
     child_attrs = DefNode.child_attrs + ["gbody"]
@@ -3992,7 +3994,7 @@ class GeneratorDefNode(DefNode):
         code.putln('{')
         code.putln('__pyx_CoroutineObject *gen = __Pyx_%s_New('
                    '(__pyx_coroutine_body_t) %s, (PyObject *) %s, %s, %s, %s); %s' % (
-                       'Coroutine' if self.is_coroutine else 'Generator',
+                       self.gen_type_name,
                        body_cname, Naming.cur_scope_cname, name, qualname, module_name,
                        code.error_goto_if_null('gen', self.pos)))
         code.put_decref(Naming.cur_scope_cname, py_object_type)
@@ -4007,16 +4009,20 @@ class GeneratorDefNode(DefNode):
         code.putln('}')
 
     def generate_function_definitions(self, env, code):
-        env.use_utility_code(UtilityCode.load_cached(
-            'Coroutine' if self.is_coroutine else 'Generator', "Coroutine.c"))
-
+        env.use_utility_code(UtilityCode.load_cached(self.gen_type_name, "Coroutine.c"))
         self.gbody.generate_function_header(code, proto=True)
         super(GeneratorDefNode, self).generate_function_definitions(env, code)
         self.gbody.generate_function_definitions(env, code)
 
 
 class AsyncDefNode(GeneratorDefNode):
+    gen_type_name = 'Coroutine'
     is_coroutine = True
+
+
+class AsyncGenNode(AsyncDefNode):
+    gen_type_name = 'AsyncGen'
+    is_asyncgen = True
 
 
 class GeneratorBodyDefNode(DefNode):
@@ -4025,12 +4031,13 @@ class GeneratorBodyDefNode(DefNode):
 
     is_generator_body = True
     is_inlined = False
+    is_async_gen_body = False
     inlined_comprehension_type = None  # container type for inlined comprehensions
 
-    def __init__(self, pos=None, name=None, body=None):
+    def __init__(self, pos=None, name=None, body=None, is_async_gen_body=False):
         super(GeneratorBodyDefNode, self).__init__(
-            pos=pos, body=body, name=name, doc=None,
-            args=[], star_arg=None, starstar_arg=None)
+            pos=pos, body=body, name=name, is_async_gen_body=is_async_gen_body,
+            doc=None, args=[], star_arg=None, starstar_arg=None)
 
     def declare_generator_body(self, env):
         prefix = env.next_id(env.scope_prefix)
@@ -4047,9 +4054,10 @@ class GeneratorBodyDefNode(DefNode):
         self.declare_generator_body(env)
 
     def generate_function_header(self, code, proto=False):
-        header = "static PyObject *%s(__pyx_CoroutineObject *%s, PyObject *%s)" % (
+        header = "static PyObject *%s(__pyx_CoroutineObject *%s, CYTHON_UNUSED PyThreadState *%s, PyObject *%s)" % (
             self.entry.func_cname,
             Naming.generator_cname,
+            Naming.local_tstate_cname,
             Naming.sent_value_cname)
         if proto:
             code.putln('%s; /* proto */' % header)
@@ -4077,11 +4085,11 @@ class GeneratorBodyDefNode(DefNode):
         code.putln("PyObject *%s = NULL;" % Naming.retval_cname)
         tempvardecl_code = code.insertion_point()
         code.put_declare_refcount_context()
-        code.put_setup_refcount_context(self.entry.name)
+        code.put_setup_refcount_context(self.entry.name or self.entry.qualified_name)
         profile = code.globalstate.directives['profile']
         linetrace = code.globalstate.directives['linetrace']
         if profile or linetrace:
-            code.put_trace_declarations()
+            tempvardecl_code.put_trace_declarations()
 
         # ----- Resume switch point.
         code.funcstate.init_closure_temps(lenv.scope_class.type.scope)
@@ -4112,7 +4120,7 @@ class GeneratorBodyDefNode(DefNode):
         # ----- Function body
         self.generate_function_body(env, code)
         # ----- Closure initialization
-        if lenv.scope_class.type.scope.entries:
+        if lenv.scope_class.type.scope.var_entries:
             closure_init_code.putln('%s = %s;' % (
                 lenv.scope_class.type.declaration_code(Naming.cur_scope_cname),
                 lenv.scope_class.type.cast_code('%s->closure' %
@@ -4127,9 +4135,10 @@ class GeneratorBodyDefNode(DefNode):
         # on normal generator termination, we do not take the exception propagation
         # path: no traceback info is required and not creating it is much faster
         if not self.is_inlined and not self.body.is_terminator:
-            code.putln('PyErr_SetNone(PyExc_StopIteration);')
+            code.putln('PyErr_SetNone(%s);' % (
+                '__Pyx_PyExc_StopAsyncIteration' if self.is_async_gen_body else 'PyExc_StopIteration'))
         # ----- Error cleanup
-        if code.error_label in code.labels_used:
+        if code.label_used(code.error_label):
             if not self.body.is_terminator:
                 code.put_goto(code.return_label)
             code.put_label(code.error_label)
@@ -4138,8 +4147,7 @@ class GeneratorBodyDefNode(DefNode):
             if Future.generator_stop in env.global_scope().context.future_directives:
                 # PEP 479: turn accidental StopIteration exceptions into a RuntimeError
                 code.globalstate.use_utility_code(UtilityCode.load_cached("pep479", "Coroutine.c"))
-                code.putln("if (unlikely(PyErr_ExceptionMatches(PyExc_StopIteration))) "
-                           "__Pyx_Generator_Replace_StopIteration();")
+                code.putln("__Pyx_Generator_Replace_StopIteration(%d);" % bool(self.is_async_gen_body))
             for cname, type in code.funcstate.all_managed_temps():
                 code.put_xdecref(cname, type)
             code.put_add_traceback(self.entry.qualified_name)
@@ -4150,6 +4158,7 @@ class GeneratorBodyDefNode(DefNode):
             code.put_xgiveref(Naming.retval_cname)
         else:
             code.put_xdecref_clear(Naming.retval_cname, py_object_type)
+        code.putln("__Pyx_Coroutine_ResetAndClearException(%s);" % Naming.generator_cname)
         code.putln('%s->resume_label = -1;' % Naming.generator_cname)
         # clean up as early as possible to help breaking any reference cycles
         code.putln('__Pyx_Coroutine_clear((PyObject*)%s);' % Naming.generator_cname)
@@ -5576,10 +5585,12 @@ class ReturnStatNode(StatNode):
     #  value         ExprNode or None
     #  return_type   PyrexType
     #  in_generator  return inside of generator => raise StopIteration
+    #  in_async_gen  return inside of async generator
 
     child_attrs = ["value"]
     is_terminator = True
     in_generator = False
+    in_async_gen = False
 
     # Whether we are in a parallel section
     in_parallel = False
@@ -5591,6 +5602,8 @@ class ReturnStatNode(StatNode):
             error(self.pos, "Return not inside a function body")
             return self
         if self.value:
+            if self.in_async_gen:
+                error(self.pos, "Return with value in async generator")
             self.value = self.value.analyse_types(env)
             if return_type.is_void or return_type.is_returncode:
                 error(self.value.pos, "Return with value in void function")
@@ -5647,6 +5660,8 @@ class ReturnStatNode(StatNode):
         else:
             if self.return_type.is_pyobject:
                 if self.in_generator:
+                    if self.in_async_gen:
+                        code.put("PyErr_SetNone(__Pyx_PyExc_StopAsyncIteration); ")
                     code.putln("%s = NULL;" % Naming.retval_cname)
                 else:
                     code.put_init_to_py_none(Naming.retval_cname, self.return_type)
@@ -6302,12 +6317,11 @@ class AsyncForStatNode(_ForInStatNode):
 
     is_async = True
 
-    def __init__(self, pos, iterator, **kw):
+    def __init__(self, pos, **kw):
         assert 'item' not in kw
         from . import ExprNodes
         # AwaitExprNodes must appear before running MarkClosureVisitor
-        kw['iterator'] = ExprNodes.AIterAwaitExprNode(iterator.pos, arg=iterator)
-        kw['item'] = ExprNodes.AwaitIterNextExprNode(iterator.pos, arg=None)
+        kw['item'] = ExprNodes.AwaitIterNextExprNode(kw['iterator'].pos, arg=None)
         _ForInStatNode.__init__(self, pos, **kw)
 
     def _create_item_node(self):
@@ -6419,11 +6433,14 @@ class ForFromStatNode(LoopNode, StatNode):
             self.loopvar_node.allocate(code)
         if isinstance(self.py_loopvar_node, ExprNodes.TempNode):
             self.py_loopvar_node.allocate(code)
+
+        loopvar_type = PyrexTypes.c_long_type if self.target.type.is_enum else self.target.type
+
         if from_range:
-            loopvar_name = code.funcstate.allocate_temp(self.target.type, False)
+            loopvar_name = code.funcstate.allocate_temp(loopvar_type, False)
         else:
             loopvar_name = self.loopvar_node.result()
-        if self.target.type.is_int and not self.target.type.signed and self.relation2[0] == '>':
+        if loopvar_type.is_int and not loopvar_type.signed and self.relation2[0] == '>':
             # Handle the case where the endpoint of an unsigned int iteration
             # is within step of 0.
             if not self.step:
@@ -6443,8 +6460,10 @@ class ForFromStatNode(LoopNode, StatNode):
             self.py_loopvar_node.generate_evaluation_code(code)
             self.target.generate_assignment_code(self.py_loopvar_node, code)
         elif from_range:
-            code.putln("%s = %s;" % (
-                self.target.result(), loopvar_name))
+            code.putln("%s = %s%s;" % (
+                self.target.result(),
+                '(%s)' % self.target.type.declaration_code('') if self.target.type.is_enum else '',
+                loopvar_name))
         self.body.generate_execution_code(code)
         code.put_label(code.continue_label)
         if self.py_loopvar_node:
@@ -6679,6 +6698,7 @@ class TryExceptStatNode(StatNode):
     #  else_clause      StatNode or None
 
     child_attrs = ["body", "except_clauses", "else_clause"]
+    in_generator = False
 
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)
@@ -6738,8 +6758,9 @@ class TryExceptStatNode(StatNode):
         if can_raise:
             # inject code before the try block to save away the exception state
             code.globalstate.use_utility_code(reset_exception_utility_code)
-            save_exc.putln("__Pyx_PyThreadState_declare")
-            save_exc.putln("__Pyx_PyThreadState_assign")
+            if not self.in_generator:
+                save_exc.putln("__Pyx_PyThreadState_declare")
+                save_exc.putln("__Pyx_PyThreadState_assign")
             save_exc.putln("__Pyx_ExceptionSave(%s);" % (
                 ', '.join(['&%s' % var for var in exc_save_vars])))
             for var in exc_save_vars:
@@ -6777,11 +6798,16 @@ class TryExceptStatNode(StatNode):
                     code.put_xdecref_clear(var, py_object_type)
                 code.put_goto(try_end_label)
             code.put_label(our_error_label)
-            code.putln("__Pyx_PyThreadState_assign")  # re-assign in case a generator yielded
             for temp_name, temp_type in temps_to_clean_up:
                 code.put_xdecref_clear(temp_name, temp_type)
+
+            outer_except = code.funcstate.current_except
+            # Currently points to self, but the ExceptClauseNode would also be ok. Change if needed.
+            code.funcstate.current_except = self
             for except_clause in self.except_clauses:
                 except_clause.generate_handling_code(code, except_end_label)
+            code.funcstate.current_except = outer_except
+
             if not self.has_default_clause:
                 code.put_goto(except_error_label)
 
@@ -6796,7 +6822,6 @@ class TryExceptStatNode(StatNode):
                 code.put_label(exit_label)
                 code.mark_pos(self.pos, trace=False)
                 if can_raise:
-                    code.putln("__Pyx_PyThreadState_assign")  # re-assign in case a generator yielded
                     restore_saved_exception()
                 code.put_goto(old_label)
 
@@ -6805,7 +6830,6 @@ class TryExceptStatNode(StatNode):
                 code.put_goto(try_end_label)
             code.put_label(except_end_label)
             if can_raise:
-                code.putln("__Pyx_PyThreadState_assign")  # re-assign in case a generator yielded
                 restore_saved_exception()
         if code.label_used(try_end_label):
             code.put_label(try_end_label)
@@ -6922,8 +6946,8 @@ class ExceptClauseNode(Node):
         exc_args = "&%s, &%s, &%s" % tuple(exc_vars)
         code.putln("if (__Pyx_GetException(%s) < 0) %s" % (
             exc_args, code.error_goto(self.pos)))
-        for x in exc_vars:
-            code.put_gotref(x)
+        for var in exc_vars:
+            code.put_gotref(var)
         if self.target:
             self.exc_value.set_var(exc_vars[1])
             self.exc_value.generate_evaluation_code(code)
@@ -6940,6 +6964,7 @@ class ExceptClauseNode(Node):
         code.funcstate.exc_vars = exc_vars
         self.body.generate_execution_code(code)
         code.funcstate.exc_vars = old_exc_vars
+
         if not self.body.is_terminator:
             for var in exc_vars:
                 code.put_decref_clear(var, py_object_type)
@@ -6981,6 +7006,7 @@ class TryFinallyStatNode(StatNode):
     #  body             StatNode
     #  finally_clause   StatNode
     #  finally_except_clause  deep-copy of finally_clause for exception case
+    #  in_generator     inside of generator => must store away current exception also in return case
     #
     #  Each of the continue, break, return and error gotos runs
     #  into its own deep-copy of the finally block code.
@@ -6998,6 +7024,7 @@ class TryFinallyStatNode(StatNode):
     finally_except_clause = None
 
     is_try_finally_in_nogil = False
+    in_generator = False
 
     @staticmethod
     def create_analysed(pos, env, body, finally_clause):
@@ -7067,7 +7094,8 @@ class TryFinallyStatNode(StatNode):
 
         if preserve_error:
             code.putln('/*exception exit:*/{')
-            code.putln("__Pyx_PyThreadState_declare")
+            if not self.in_generator:
+                code.putln("__Pyx_PyThreadState_declare")
             if self.is_try_finally_in_nogil:
                 code.declare_gilstate()
             if needs_success_cleanup:
@@ -7116,32 +7144,46 @@ class TryFinallyStatNode(StatNode):
 
         code.set_all_labels(old_labels)
         return_label = code.return_label
+        exc_vars = ()
+
         for i, (new_label, old_label) in enumerate(zip(new_labels, old_labels)):
             if not code.label_used(new_label):
                 continue
             if new_label == new_error_label and preserve_error:
                 continue  # handled above
 
-            code.put('%s: ' % new_label)
-            code.putln('{')
+            code.putln('%s: {' % new_label)
             ret_temp = None
-            if old_label == return_label and not self.finally_clause.is_terminator:
-                # store away return value for later reuse
-                if (self.func_return_type and
-                        not self.is_try_finally_in_nogil and
-                        not isinstance(self.finally_clause, GILExitNode)):
-                    ret_temp = code.funcstate.allocate_temp(
-                        self.func_return_type, manage_ref=False)
-                    code.putln("%s = %s;" % (ret_temp, Naming.retval_cname))
-                    if self.func_return_type.is_pyobject:
-                        code.putln("%s = 0;" % Naming.retval_cname)
+            if old_label == return_label:
+                # return actually raises an (uncatchable) exception in generators that we must preserve
+                if self.in_generator:
+                    exc_vars = tuple([
+                        code.funcstate.allocate_temp(py_object_type, manage_ref=False)
+                        for _ in range(6)])
+                    self.put_error_catcher(code, [], exc_vars)
+                if not self.finally_clause.is_terminator:
+                    # store away return value for later reuse
+                    if (self.func_return_type and
+                            not self.is_try_finally_in_nogil and
+                            not isinstance(self.finally_clause, GILExitNode)):
+                        ret_temp = code.funcstate.allocate_temp(
+                            self.func_return_type, manage_ref=False)
+                        code.putln("%s = %s;" % (ret_temp, Naming.retval_cname))
+                        if self.func_return_type.is_pyobject:
+                            code.putln("%s = 0;" % Naming.retval_cname)
+
             fresh_finally_clause().generate_execution_code(code)
-            if ret_temp:
-                code.putln("%s = %s;" % (Naming.retval_cname, ret_temp))
-                if self.func_return_type.is_pyobject:
-                    code.putln("%s = 0;" % ret_temp)
-                code.funcstate.release_temp(ret_temp)
-                ret_temp = None
+
+            if old_label == return_label:
+                if ret_temp:
+                    code.putln("%s = %s;" % (Naming.retval_cname, ret_temp))
+                    if self.func_return_type.is_pyobject:
+                        code.putln("%s = 0;" % ret_temp)
+                    code.funcstate.release_temp(ret_temp)
+                    ret_temp = None
+                if self.in_generator:
+                    self.put_error_uncatcher(code, exc_vars)
+
             if not self.finally_clause.is_terminator:
                 code.put_goto(old_label)
             code.putln('}')
@@ -7156,7 +7198,7 @@ class TryFinallyStatNode(StatNode):
         self.finally_clause.generate_function_definitions(env, code)
 
     def put_error_catcher(self, code, temps_to_clean_up, exc_vars,
-                          exc_lineno_cnames, exc_filename_cname):
+                          exc_lineno_cnames=None, exc_filename_cname=None):
         code.globalstate.use_utility_code(restore_exception_utility_code)
         code.globalstate.use_utility_code(get_exception_utility_code)
         code.globalstate.use_utility_code(swap_exception_utility_code)
@@ -7189,13 +7231,12 @@ class TryFinallyStatNode(StatNode):
         if self.is_try_finally_in_nogil:
             code.put_release_ensured_gil()
 
-    def put_error_uncatcher(self, code, exc_vars, exc_lineno_cnames, exc_filename_cname):
+    def put_error_uncatcher(self, code, exc_vars, exc_lineno_cnames=None, exc_filename_cname=None):
         code.globalstate.use_utility_code(restore_exception_utility_code)
         code.globalstate.use_utility_code(reset_exception_utility_code)
 
         if self.is_try_finally_in_nogil:
             code.put_ensure_gil(declare_gilstate=False)
-        code.putln("__Pyx_PyThreadState_assign")  # re-assign in case a generator yielded
 
         # not using preprocessor here to avoid warnings about
         # unused utility functions and/or temps
@@ -7222,7 +7263,6 @@ class TryFinallyStatNode(StatNode):
         code.globalstate.use_utility_code(reset_exception_utility_code)
         if self.is_try_finally_in_nogil:
             code.put_ensure_gil(declare_gilstate=False)
-        code.putln("__Pyx_PyThreadState_assign")  # re-assign in case a generator yielded
 
         # not using preprocessor here to avoid warnings about
         # unused utility functions and/or temps
@@ -7271,7 +7311,7 @@ class GILStatNode(NogilTryFinallyStatNode):
         from .ParseTreeTransforms import YieldNodeCollector
         collector = YieldNodeCollector()
         collector.visitchildren(body)
-        if not collector.yields and not collector.awaits:
+        if not collector.yields:
             return
 
         if state == 'gil':

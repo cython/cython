@@ -15,5 +15,5 @@ def pass_py_obj_as_cpp_cont_ref():
 
 
 _ERRORS = """
-14:33: Cannot pass Python object as C++ data structure reference (set[int] &), will pass by copy.
+14:22: Cannot pass Python object as C++ data structure reference (set[int] &), will pass by copy.
 """

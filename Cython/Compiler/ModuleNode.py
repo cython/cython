@@ -201,10 +201,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code.putln("")
             h_code.putln("#endif /* !%s */" % api_guard)
             h_code.putln("")
+            h_code.putln("/* WARNING: the interface of the module init function changed in CPython 3.5. */")
+            h_code.putln("/* It now returns a PyModuleDef instance instead of a PyModule instance. */")
+            h_code.putln("")
             h_code.putln("#if PY_MAJOR_VERSION < 3")
             h_code.putln("PyMODINIT_FUNC init%s(void);" % env.module_name)
             h_code.putln("#else")
-            h_code.putln("PyMODINIT_FUNC PyInit_%s(void);" % env.module_name)
+            h_code.putln("PyMODINIT_FUNC %s(void);" % self.mod_init_func_cname('PyInit', env))
             h_code.putln("#endif")
             h_code.putln("")
             h_code.putln("#endif /* !%s */" % h_guard)
@@ -717,6 +720,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('static const char * %s= %s;' % (Naming.cfilenm_cname, Naming.file_c_macro))
         code.putln('static const char *%s;' % Naming.filename_cname)
 
+        env.use_utility_code(UtilityCode.load_cached("FastTypeChecks", "ModuleSetupCode.c"))
         if has_np_pythran(env):
             env.use_utility_code(UtilityCode.load_cached("PythranConversion", "CppSupport.cpp"))
 
@@ -893,19 +897,82 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     [base_class.empty_declaration_code() for base_class in type.base_classes])
                 code.put(" : public %s" % base_class_decl)
             code.putln(" {")
+            py_attrs = [e for e in scope.entries.values()
+                        if e.type.is_pyobject and not e.is_inherited]
             has_virtual_methods = False
-            has_destructor = False
+            constructor = None
+            destructor = None
             for attr in scope.var_entries:
                 if attr.type.is_cfunction and attr.type.is_static_method:
                     code.put("static ")
-                elif attr.type.is_cfunction and attr.name != "<init>":
+                elif attr.name == "<init>":
+                    constructor = attr
+                elif attr.name == "<del>":
+                    destructor = attr
+                elif attr.type.is_cfunction:
                     code.put("virtual ")
                     has_virtual_methods = True
-                if attr.cname[0] == '~':
-                    has_destructor = True
                 code.putln("%s;" % attr.type.declaration_code(attr.cname))
-            if has_virtual_methods and not has_destructor:
-                code.putln("virtual ~%s() { }" % type.cname)
+            if constructor or py_attrs:
+                if constructor:
+                    arg_decls = []
+                    arg_names = []
+                    for arg in constructor.type.args[:len(constructor.type.args)-constructor.type.optional_arg_count]:
+                        arg_decls.append(arg.declaration_code())
+                        arg_names.append(arg.cname)
+                    if constructor.type.optional_arg_count:
+                        arg_decls.append(constructor.type.op_arg_struct.declaration_code(Naming.optional_args_cname))
+                        arg_names.append(Naming.optional_args_cname)
+                    if not arg_decls:
+                        arg_decls = ["void"]
+                else:
+                    arg_decls = ["void"]
+                    arg_names = []
+                code.putln("%s(%s) {" % (type.cname, ", ".join(arg_decls)))
+                if py_attrs:
+                    code.put_ensure_gil()
+                    for attr in py_attrs:
+                        code.put_init_var_to_py_none(attr, nanny=False);
+                if constructor:
+                    code.putln("%s(%s);" % (constructor.cname, ", ".join(arg_names)))
+                if py_attrs:
+                    code.put_release_ensured_gil()
+                code.putln("}")
+            if destructor or py_attrs or has_virtual_methods:
+                if has_virtual_methods:
+                    code.put("virtual ")
+                code.putln("~%s() {" % type.cname)
+                if py_attrs:
+                    code.put_ensure_gil()
+                if destructor:
+                    code.putln("%s();" % destructor.cname)
+                if py_attrs:
+                    for attr in py_attrs:
+                        code.put_var_xdecref(attr, nanny=False);
+                    code.put_release_ensured_gil()
+                code.putln("}")
+            if py_attrs:
+                # Also need copy constructor and assignment operators.
+                code.putln("%s(const %s& __Pyx_other) {" % (type.cname, type.cname))
+                code.put_ensure_gil()
+                for attr in scope.var_entries:
+                    if not attr.type.is_cfunction:
+                        code.putln("%s = __Pyx_other.%s;" % (attr.cname, attr.cname))
+                        code.put_var_incref(attr, nanny=False)
+                code.put_release_ensured_gil()
+                code.putln("}")
+                code.putln("%s& operator=(const %s& __Pyx_other) {" % (type.cname, type.cname))
+                code.putln("if (this != &__Pyx_other) {")
+                code.put_ensure_gil()
+                for attr in scope.var_entries:
+                    if not attr.type.is_cfunction:
+                        code.put_var_xdecref(attr, nanny=False);
+                        code.putln("%s = __Pyx_other.%s;" % (attr.cname, attr.cname))
+                        code.put_var_incref(attr, nanny=False)
+                code.put_release_ensured_gil()
+                code.putln("}")
+                code.putln("return *this;")
+                code.putln("}")
             code.putln("};")
 
     def generate_enum_definition(self, entry, code):
@@ -1334,11 +1401,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         is_final_type = scope.parent_type.is_final_type
         needs_gc = scope.needs_gc()
 
-        weakref_slot = scope.lookup_here("__weakref__")
+        weakref_slot = scope.lookup_here("__weakref__") if not scope.is_closure_class_scope else None
         if weakref_slot not in scope.var_entries:
             weakref_slot = None
 
-        dict_slot = scope.lookup_here("__dict__")
+        dict_slot = scope.lookup_here("__dict__") if not scope.is_closure_class_scope else None
         if dict_slot not in scope.var_entries:
             dict_slot = None
 
@@ -2109,15 +2176,35 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.enter_cfunc_scope(self.scope)
         code.putln("")
         header2 = "PyMODINIT_FUNC init%s(void)" % env.module_name
-        header3 = "PyMODINIT_FUNC PyInit_%s(void)" % env.module_name
+        header3 = "PyMODINIT_FUNC %s(void)" % self.mod_init_func_cname('PyInit', env)
         code.putln("#if PY_MAJOR_VERSION < 3")
         code.putln("%s; /*proto*/" % header2)
         code.putln(header2)
         code.putln("#else")
         code.putln("%s; /*proto*/" % header3)
         code.putln(header3)
-        code.putln("#endif")
+
+        # CPython 3.5+ supports multi-phase module initialisation (gives access to __spec__, __file__, etc.)
+        code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         code.putln("{")
+        code.putln("return PyModuleDef_Init(&%s);" % Naming.pymoduledef_cname)
+        code.putln("}")
+
+        mod_create_func = UtilityCode.load_as_string("ModuleCreationPEP489", "ModuleSetupCode.c")[1]
+        code.put(mod_create_func)
+
+        code.putln("")
+        # main module init code lives in Py_mod_exec function, not in PyInit function
+        code.putln("static int %s(PyObject *%s)" % (
+            self.mod_init_func_cname(Naming.pymodule_exec_func_cname, env),
+            Naming.pymodinit_module_arg))
+        code.putln("#endif")  # PEP489
+
+        code.putln("#endif")  # Py3
+
+        # start of module init/exec function (pre/post PEP 489)
+        code.putln("{")
+
         tempdecl_code = code.insertion_point()
 
         profile = code.globalstate.directives['profile']
@@ -2151,7 +2238,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("%s = PyUnicode_FromStringAndSize(\"\", 0); %s" % (
             Naming.empty_unicode, code.error_goto_if_null(Naming.empty_unicode, self.pos)))
 
-        for ext_type in ('CyFunction', 'FusedFunction', 'Coroutine', 'Generator', 'StopAsyncIteration'):
+        for ext_type in ('CyFunction', 'FusedFunction', 'Coroutine', 'Generator', 'AsyncGen', 'StopAsyncIteration'):
             code.putln("#ifdef __Pyx_%s_USED" % ext_type)
             code.put_error_if_neg(self.pos, "__pyx_%s_init()" % ext_type)
             code.putln("#endif")
@@ -2251,9 +2338,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put_label(code.error_label)
         for cname, type in code.funcstate.all_managed_temps():
             code.put_xdecref(cname, type)
+        # module state might not be ready for traceback generation with C-line handling yet
         code.putln('if (%s) {' % env.module_cname)
         code.putln('if (%s) {' % env.module_dict_cname)
-        code.put_add_traceback("init %s" % env.qualified_name)
+        code.put_add_traceback("init %s" % env.qualified_name, include_cline=False)
         code.globalstate.use_utility_code(Nodes.traceback_utility_code)
         # Module reference and module dict are in global variables which might still be needed
         # for cleanup, atexit code, etc., so leaking is better than crashing.
@@ -2269,10 +2357,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.put_finish_refcount_context()
 
-        code.putln("#if PY_MAJOR_VERSION < 3")
-        code.putln("return;")
-        code.putln("#else")
+        code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
+        code.putln("return (%s != NULL) ? 0 : -1;" % env.module_cname)
+        code.putln("#elif PY_MAJOR_VERSION >= 3")
         code.putln("return %s;" % env.module_cname)
+        code.putln("#else")
+        code.putln("return;")
         code.putln("#endif")
         code.putln('}')
 
@@ -2286,14 +2376,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             module_path = self.pos[0].filename
 
         if module_path:
+            code.putln('if (!CYTHON_PEP489_MULTI_PHASE_INIT) {')
             code.putln('if (PyObject_SetAttrString(%s, "__file__", %s) < 0) %s;' % (
                 env.module_cname,
                 code.globalstate.get_py_string_const(
                     EncodedString(decode_filename(module_path))).cname,
                 code.error_goto(self.pos)))
+            code.putln("}")
 
             if env.is_package:
                 # set __path__ to mark the module as package
+                code.putln('if (!CYTHON_PEP489_MULTI_PHASE_INIT) {')
                 temp = code.funcstate.allocate_temp(py_object_type, True)
                 code.putln('%s = Py_BuildValue("[O]", %s); %s' % (
                     temp,
@@ -2307,10 +2400,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         env.module_cname, temp, code.error_goto(self.pos)))
                 code.put_decref_clear(temp, py_object_type)
                 code.funcstate.release_temp(temp)
+                code.putln("}")
 
         elif env.is_package:
             # packages require __path__, so all we can do is try to figure
             # out the module path at runtime by rerunning the import lookup
+            code.putln("if (!CYTHON_PEP489_MULTI_PHASE_INIT) {")
             package_name, _ = self.full_module_name.rsplit('.', 1)
             if '.' in package_name:
                 parent_name = '"%s"' % (package_name.rsplit('.', 1)[0],)
@@ -2324,6 +2419,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     code.globalstate.get_py_string_const(
                         EncodedString(env.module_name)).cname),
                 self.pos))
+            code.putln("}")
 
         # CPython may not have put us into sys.modules yet, but relative imports and reimports require it
         fq_module_name = self.full_module_name
@@ -2423,6 +2519,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 main_method=Options.embed,
                 wmain_method=wmain))
 
+    def mod_init_func_cname(self, prefix, env):
+        return '%s_%s' % (prefix, env.module_name)
+
     def generate_pymoduledef_struct(self, env, code):
         if env.doc:
             doc = "%s" % code.get_string_const(env.doc)
@@ -2435,18 +2534,35 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("")
         code.putln("#if PY_MAJOR_VERSION >= 3")
-        code.putln("static struct PyModuleDef %s = {" % Naming.pymoduledef_cname)
-        code.putln("#if PY_VERSION_HEX < 0x03020000")
-        # fix C compiler warnings due to missing initialisers
-        code.putln("  { PyObject_HEAD_INIT(NULL) NULL, 0, NULL },")
-        code.putln("#else")
-        code.putln("  PyModuleDef_HEAD_INIT,")
+        code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
+        exec_func_cname = self.mod_init_func_cname(Naming.pymodule_exec_func_cname, env)
+        code.putln("static PyObject* %s(PyObject *spec, PyModuleDef *def); /*proto*/" %
+                   Naming.pymodule_create_func_cname)
+        code.putln("static int %s(PyObject* module); /*proto*/" % exec_func_cname)
+
+        code.putln("static PyModuleDef_Slot %s[] = {" % Naming.pymoduledef_slots_cname)
+        code.putln("{Py_mod_create, (void*)%s}," % Naming.pymodule_create_func_cname)
+        code.putln("{Py_mod_exec, (void*)%s}," % exec_func_cname)
+        code.putln("{0, NULL}")
+        code.putln("};")
         code.putln("#endif")
+
+        code.putln("")
+        code.putln("static struct PyModuleDef %s = {" % Naming.pymoduledef_cname)
+        code.putln("  PyModuleDef_HEAD_INIT,")
         code.putln('  "%s",' % env.module_name)
         code.putln("  %s, /* m_doc */" % doc)
+        code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
+        code.putln("  0, /* m_size */")
+        code.putln("#else")
         code.putln("  -1, /* m_size */")
+        code.putln("#endif")
         code.putln("  %s /* m_methods */," % env.method_table_cname)
+        code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
+        code.putln("  %s, /* m_slots */" % Naming.pymoduledef_slots_cname)
+        code.putln("#else")
         code.putln("  NULL, /* m_reload */")
+        code.putln("#endif")
         code.putln("  NULL, /* m_traverse */")
         code.putln("  NULL, /* m_clear */")
         code.putln("  %s /* m_free */" % cleanup_func)
@@ -2460,6 +2576,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             doc = "%s" % code.get_string_const(env.doc)
         else:
             doc = "0"
+
+        code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
+        code.putln("%s = %s;" % (
+            env.module_cname,
+            Naming.pymodinit_module_arg))
+        code.put_incref(env.module_cname, py_object_type, nanny=False)
+        code.putln("#else")
         code.putln("#if PY_MAJOR_VERSION < 3")
         code.putln(
             '%s = Py_InitModule4("%s", %s, %s, 0, PYTHON_API_VERSION); Py_XINCREF(%s);' % (
@@ -2475,6 +2598,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 Naming.pymoduledef_cname))
         code.putln("#endif")
         code.putln(code.error_goto_if_null(env.module_cname, self.pos))
+        code.putln("#endif")  # CYTHON_PEP489_MULTI_PHASE_INIT
+
         code.putln(
             "%s = PyModule_GetDict(%s); %s" % (
                 env.module_dict_cname, env.module_cname,
@@ -2799,7 +2924,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                             scope.class_name,
                             typeobj_cname,
                             code.error_goto(entry.pos)))
-                weakref_entry = scope.lookup_here("__weakref__")
+                weakref_entry = scope.lookup_here("__weakref__") if not scope.is_closure_class_scope else None
                 if weakref_entry:
                     if weakref_entry.type is py_object_type:
                         tp_weaklistoffset = "%s.tp_weaklistoffset" % typeobj_cname
@@ -2814,7 +2939,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                             weakref_entry.cname))
                     else:
                         error(weakref_entry.pos, "__weakref__ slot must be of type 'object'")
-                if scope.lookup_here("__reduce_cython__"):
+                if scope.lookup_here("__reduce_cython__") if not scope.is_closure_class_scope else None:
                     # Unfortunately, we cannot reliably detect whether a
                     # superclass defined __reduce__ at compile time, so we must
                     # do so at runtime.

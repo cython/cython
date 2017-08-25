@@ -1,6 +1,34 @@
 # ticket: 305
 
+from cpython.object cimport Py_EQ, Py_NE
+
 cimport cython
+
+DEF C21 = 2-1j
+
+
+cdef class Complex3j:
+    """
+    >>> Complex3j() == 3j
+    True
+    >>> Complex3j() == Complex3j()
+    True
+    >>> Complex3j() != 3j
+    False
+    >>> Complex3j() != 3
+    True
+    >>> Complex3j() != Complex3j()
+    False
+    """
+    def __richcmp__(a, b, int op):
+        if op == Py_EQ or op == Py_NE:
+            if isinstance(a, Complex3j):
+                eq = isinstance(b, Complex3j) or b == 3j
+            else:
+                eq = isinstance(b, Complex3j) and a == 3j
+            return eq if op == Py_EQ else not eq
+        return NotImplemented
+
 
 def test_object_conversion(o):
     """
@@ -13,6 +41,7 @@ def test_object_conversion(o):
     cdef double complex b = o
     return (a, b)
 
+
 def test_arithmetic(double complex z, double complex w):
     """
     >>> test_arithmetic(2j, 4j)
@@ -24,6 +53,7 @@ def test_arithmetic(double complex z, double complex w):
     """
     return +z, -z+0, z+w, z-w, z*w, z/w
 
+
 def test_div(double complex a, double complex b, expected):
     """
     >>> big = 2.0**1023
@@ -33,6 +63,7 @@ def test_div(double complex a, double complex b, expected):
     # Can't count on good c99 complex division :(
     if '_c99_' not in __name__:
         assert a / b == expected, (a / b, expected)
+
 
 def test_pow(double complex z, double complex w, tol=None):
     """
@@ -55,6 +86,7 @@ def test_pow(double complex z, double complex w, tol=None):
     else:
         return abs(z**w / <object>z ** <object>w - 1) < tol
 
+
 def test_int_pow(double complex z, int n, tol=None):
     """
     >>> [test_int_pow(complex(0, 1), k, 1e-15) for k in range(-4, 5)]
@@ -71,6 +103,7 @@ def test_int_pow(double complex z, int n, tol=None):
     else:
         return abs(z**n / <object>z ** <object>n - 1) < tol
 
+
 @cython.cdivision(False)
 def test_div_by_zero(double complex z):
     """
@@ -82,6 +115,7 @@ def test_div_by_zero(double complex z):
     ZeroDivisionError: float division
     """
     return 1/z
+
 
 def test_coercion(int a, float b, double c, float complex d, double complex e):
     """
@@ -101,36 +135,44 @@ def test_coercion(int a, float b, double c, float complex d, double complex e):
     z = e; print z
     return z + a + b + c + d + e
 
+
 def test_compare(double complex a, double complex b):
     """
     >>> test_compare(3, 3)
-    (True, False)
+    (True, False, False, False, False, True, False)
     >>> test_compare(3j, 3j)
-    (True, False)
+    (True, False, True, True, True, False, False)
     >>> test_compare(3j, 4j)
-    (False, True)
+    (False, True, True, False, True, True, False)
     >>> test_compare(3, 4)
-    (False, True)
+    (False, True, False, False, False, True, False)
+    >>> test_compare(2-1j, 4)
+    (False, True, False, False, False, True, True)
     """
-    return a == b, a != b
+    return a == b, a != b, a == 3j, 3j == b, a == Complex3j(), Complex3j() != b, a == C21
+
 
 def test_compare_coerce(double complex a, int b):
     """
     >>> test_compare_coerce(3, 4)
-    (False, True)
+    (False, True, False, False, False, True)
     >>> test_compare_coerce(4+1j, 4)
-    (False, True)
+    (False, True, False, True, False, True)
     >>> test_compare_coerce(4, 4)
-    (True, False)
+    (True, False, False, False, False, True)
+    >>> test_compare_coerce(3j, 4)
+    (False, True, True, False, True, False)
     """
-    return a == b, a != b
+    return a == b, a != b, a == 3j, 4+1j == a, a == Complex3j(), Complex3j() != a
+
 
 def test_literal():
     """
     >>> test_literal()
-    (5j, (1-2.5j))
+    (5j, (1-2.5j), (2-1j))
     """
-    return 5j, 1-2.5j
+    return 5j, 1-2.5j, C21
+
 
 def test_real_imag(double complex z):
     """

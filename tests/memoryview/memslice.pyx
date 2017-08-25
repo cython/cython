@@ -1677,7 +1677,7 @@ cdef int cdef_nogil(int[:, :] a) nogil except 0:
         for j in range(b.shape[1]):
             b[i, j] = -b[i, j]
 
-    return 1
+    return len(a)
 
 @testcase
 def test_nogil():
@@ -1690,9 +1690,14 @@ def test_nogil():
     released A
     """
     _a = IntMockBuffer("A", range(4 * 9), shape=(4, 9))
-    cdef_nogil(_a)
+    assert cdef_nogil(_a) == 4
     cdef int[:, :] a = _a
     print a[2, 7]
+
+    cdef int length
+    with nogil:
+        length = cdef_nogil(a)
+    assert length == 4
 
 @testcase
 def test_convert_slicenode_to_indexnode():

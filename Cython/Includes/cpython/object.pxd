@@ -102,6 +102,8 @@ cdef extern from "Python.h":
     # or NULL on failure. This is the equivalent of the Python
     # expression "o.attr_name".
 
+    object PyObject_GenericGetAttr(object o, object attr_name)
+
     int PyObject_SetAttrString(object o, char *attr_name, object v) except -1
     # Set the value of the attribute named attr_name, for object o, to
     # the value v. Returns -1 on failure. This is the equivalent of
@@ -111,6 +113,8 @@ cdef extern from "Python.h":
     # Set the value of the attribute named attr_name, for object o, to
     # the value v. Returns -1 on failure. This is the equivalent of
     # the Python statement "o.attr_name = v".
+
+    int PyObject_GenericSetAttr(object o, object attr_name, object v) except -1
 
     int PyObject_DelAttrString(object o, char *attr_name) except -1
     # Delete attribute named attr_name, for object o. Returns -1 on

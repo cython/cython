@@ -250,8 +250,7 @@ class MarkParallelAssignments(EnvTransform):
 
     def visit_YieldExprNode(self, node):
         if self.parallel_block_stack:
-            error(node.pos, "Yield not allowed in parallel sections")
-
+            error(node.pos, "'%s' not allowed in parallel sections" % node.expr_keyword)
         return node
 
     def visit_ReturnStatNode(self, node):
@@ -306,6 +305,13 @@ class MarkOverflowingArithmetic(CythonTransform):
             return self.visit_neutral_node(node)
         else:
             return self.visit_dangerous_node(node)
+
+    def visit_SimpleCallNode(self, node):
+        if node.function.is_name and node.function.name == 'abs':
+          # Overflows for minimum value of fixed size ints.
+          return self.visit_dangerous_node(node)
+        else:
+          return self.visit_neutral_node(node)
 
     visit_UnopNode = visit_neutral_node
 

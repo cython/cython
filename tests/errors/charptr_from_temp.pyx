@@ -53,13 +53,13 @@ cptr = s + b'x' if boolval else s + b'y'
 
 
 _ERRORS = """
-16:8: Obtaining 'char *' from externally modifiable global Python value
+16:7: Obtaining 'char *' from externally modifiable global Python value
 19:9: Storing unsafe C derivative of temporary Python reference
 #22:8: Storing unsafe C derivative of temporary Python reference
 #23:5: Storing unsafe C derivative of temporary Python reference
 #23:15: Casting temporary Python object to non-numeric non-Python type
 26:8: Storing unsafe C derivative of temporary Python reference
-41:9: Obtaining 'Py_UNICODE *' from externally modifiable global Python value
+41:8: Obtaining 'Py_UNICODE *' from externally modifiable global Python value
 44:10: Storing unsafe C derivative of temporary Python reference
 52:7: Storing unsafe C derivative of temporary Python reference
 52:7: Unsafe C derivative of temporary Python reference used in conditional expression

@@ -30,6 +30,6 @@ d = z  # not an error
 
 
 _ERRORS = u"""
-20:2: Assignment to slice of wrong length, expected 2, got 1
-21:2: Assignment to slice of wrong length, expected 1, got 2
+20:0: Assignment to slice of wrong length, expected 2, got 1
+21:0: Assignment to slice of wrong length, expected 1, got 2
 """

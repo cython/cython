@@ -1649,15 +1649,15 @@ class IdentifierStringNode(StringNode):
 class ImagNode(AtomicExprNode):
     #  Imaginary number literal
     #
-    #  value   float    imaginary part
+    #  value   string    imaginary part (float value)
 
     type = PyrexTypes.c_double_complex_type
 
     def calculate_constant_result(self):
-        self.constant_result = complex(0.0, self.value)
+        self.constant_result = complex(0.0, float(self.value))
 
     def compile_time_value(self, denv):
-        return complex(0.0, self.value)
+        return complex(0.0, float(self.value))
 
     def analyse_types(self, env):
         self.type.create_declaration_utility_code(env)
@@ -1672,7 +1672,7 @@ class ImagNode(AtomicExprNode):
         node = ImagNode(self.pos, value=self.value)
         if dst_type.is_pyobject:
             node.is_temp = 1
-            node.type = PyrexTypes.py_object_type
+            node.type = Builtin.complex_type
         # We still need to perform normal coerce_to processing on the
         # result, because we might be coercing to an extension type,
         # in which case a type test node will be needed.
@@ -2700,8 +2700,7 @@ class IteratorNode(ExprNode):
         code.putln("if (unlikely(!%s)) {" % result_name)
         code.putln("PyObject* exc_type = PyErr_Occurred();")
         code.putln("if (exc_type) {")
-        code.putln("if (likely(exc_type == PyExc_StopIteration ||"
-                   " PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))) PyErr_Clear();")
+        code.putln("if (likely(__Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))) PyErr_Clear();")
         code.putln("else %s" % code.error_goto(self.pos))
         code.putln("}")
         code.putln("break;")
@@ -5157,6 +5156,10 @@ class CallNode(ExprNode):
         elif type and type.is_cpp_class:
             self.args = [ arg.analyse_types(env) for arg in self.args ]
             constructor = type.scope.lookup("<init>")
+            if not constructor:
+                error(self.function.pos, "no constructor found for C++  type '%s'" % self.function.name)
+                self.type = error_type
+                return self
             self.function = RawCNameExprNode(self.function.pos, constructor.type)
             self.function.entry = constructor
             self.function.set_cname(type.empty_declaration_code())
@@ -5198,6 +5201,7 @@ class SimpleCallNode(CallNode):
     has_optional_args = False
     nogil = False
     analysed = False
+    overflowcheck = False
 
     def compile_time_value(self, denv):
         function = self.function.compile_time_value(denv)
@@ -5373,7 +5377,7 @@ class SimpleCallNode(CallNode):
             if formal_arg.not_none:
                 if self.self:
                     self.self = self.self.as_none_safe_node(
-                        "'NoneType' object has no attribute '%s'",
+                        "'NoneType' object has no attribute '%{0}s'".format('.30' if len(entry.name) <= 30 else ''),
                         error='PyExc_AttributeError',
                         format_args=[entry.name])
                 else:
@@ -5507,6 +5511,8 @@ class SimpleCallNode(CallNode):
             if func_type.exception_value is None:
                 env.use_utility_code(UtilityCode.load_cached("CppExceptionConversion", "CppSupport.cpp"))
 
+        self.overflowcheck = env.directives['overflowcheck']
+
     def calculate_result_code(self):
         return self.c_call_code()
 
@@ -5617,7 +5623,12 @@ class SimpleCallNode(CallNode):
                     translate_cpp_exception(code, self.pos, '%s%s;' % (lhs, rhs),
                                             func_type.exception_value, self.nogil)
                 else:
-                    if exc_checks:
+                    if (self.overflowcheck
+                        and self.type.is_int
+                        and self.type.signed
+                        and self.function.result() in ('abs', 'labs', '__Pyx_abs_longlong')):
+                        goto_error = 'if (%s < 0) { PyErr_SetString(PyExc_OverflowError, "value too large"); %s; }' % (self.result(), code.error_goto(self.pos))
+                    elif exc_checks:
                         goto_error = code.error_goto_if(" && ".join(exc_checks), self.pos)
                     else:
                         goto_error = ""
@@ -6755,7 +6766,7 @@ class AttributeNode(ExprNode):
         format_args = ()
         if (self.obj.type.is_extension_type and self.needs_none_check and not
                 self.is_py_attr):
-            msg = "'NoneType' object has no attribute '%s'"
+            msg = "'NoneType' object has no attribute '%{0}s'".format('.30' if len(self.attribute) <= 30 else '')
             format_args = (self.attribute,)
         elif self.obj.type.is_memoryviewslice:
             if self.is_memslice_transpose:
@@ -7879,9 +7890,8 @@ class ScopedExprNode(ExprNode):
 
         code.putln('{ /* enter inner scope */')
         py_entries = []
-        for entry in self.expr_scope.var_entries:
+        for _, entry in sorted(item for item in self.expr_scope.entries.items() if item[0]):
             if not entry.in_closure:
-                code.put_var_declaration(entry)
                 if entry.type.is_pyobject and entry.used:
                     py_entries.append(entry)
         if not py_entries:
@@ -7891,14 +7901,14 @@ class ScopedExprNode(ExprNode):
             return
 
         # must free all local Python references at each exit point
-        old_loop_labels = tuple(code.new_loop_labels())
+        old_loop_labels = code.new_loop_labels()
         old_error_label = code.new_error_label()
 
         generate_inner_evaluation_code(code)
 
         # normal (non-error) exit
         for entry in py_entries:
-            code.put_var_decref(entry)
+            code.put_var_xdecref_clear(entry)
 
         # error/loop body exit points
         exit_scope = code.new_label('exit_scope')
@@ -7908,7 +7918,7 @@ class ScopedExprNode(ExprNode):
             if code.label_used(label):
                 code.put_label(label)
                 for entry in py_entries:
-                    code.put_var_decref(entry)
+                    code.put_var_xdecref_clear(entry)
                 code.put_goto(old_label)
         code.put_label(exit_scope)
         code.putln('} /* exit inner scope */')
@@ -9411,10 +9421,11 @@ class YieldExprNode(ExprNode):
     label_num = 0
     is_yield_from = False
     is_await = False
+    in_async_gen = False
     expr_keyword = 'yield'
 
     def analyse_types(self, env):
-        if not self.label_num:
+        if not self.label_num or (self.is_yield_from and self.in_async_gen):
             error(self.pos, "'%s' not supported here" % self.expr_keyword)
         self.is_temp = 1
         if self.arg is not None:
@@ -9445,7 +9456,8 @@ class YieldExprNode(ExprNode):
         Generate the code to return the argument in 'Naming.retval_cname'
         and to continue at the yield label.
         """
-        label_num, label_name = code.new_yield_label()
+        label_num, label_name = code.new_yield_label(
+            self.expr_keyword.replace(' ', '_'))
         code.use_label(label_name)
 
         saved = []
@@ -9465,10 +9477,23 @@ class YieldExprNode(ExprNode):
                                   nogil=not code.funcstate.gil_owned)
         code.put_finish_refcount_context()
 
-        code.putln("/* return from generator, yielding value */")
+        if code.funcstate.current_except is not None:
+            # inside of an except block => save away currently handled exception
+            code.putln("__Pyx_Coroutine_SwapException(%s);" % Naming.generator_cname)
+        else:
+            # no exceptions being handled => restore exception state of caller
+            code.putln("__Pyx_Coroutine_ResetAndClearException(%s);" % Naming.generator_cname)
+
+        code.putln("/* return from %sgenerator, %sing value */" % (
+            'async ' if self.in_async_gen else '',
+            'await' if self.is_await else 'yield'))
         code.putln("%s->resume_label = %d;" % (
             Naming.generator_cname, label_num))
-        code.putln("return %s;" % Naming.retval_cname)
+        if self.in_async_gen and not self.is_await:
+            # __Pyx__PyAsyncGenValueWrapperNew() steals a reference to the return value
+            code.putln("return __Pyx__PyAsyncGenValueWrapperNew(%s);" % Naming.retval_cname)
+        else:
+            code.putln("return %s;" % Naming.retval_cname)
 
         code.put_label(label_name)
         for cname, save_cname, type in saved:
@@ -9476,27 +9501,19 @@ class YieldExprNode(ExprNode):
             if type.is_pyobject:
                 code.putln('%s->%s = 0;' % (Naming.cur_scope_cname, save_cname))
                 code.put_xgotref(cname)
-        code.putln(code.error_goto_if_null(Naming.sent_value_cname, self.pos))
+        self.generate_sent_value_handling_code(code, Naming.sent_value_cname)
         if self.result_is_used:
             self.allocate_temp_result(code)
             code.put('%s = %s; ' % (self.result(), Naming.sent_value_cname))
             code.put_incref(self.result(), py_object_type)
 
+    def generate_sent_value_handling_code(self, code, value_cname):
+        code.putln(code.error_goto_if_null(value_cname, self.pos))
 
-class YieldFromExprNode(YieldExprNode):
-    # "yield from GEN" expression
-    is_yield_from = True
-    expr_keyword = 'yield from'
 
-    def coerce_yield_argument(self, env):
-        if not self.arg.type.is_string:
-            # FIXME: support C arrays and C++ iterators?
-            error(self.pos, "yielding from non-Python object not supported")
-        self.arg = self.arg.coerce_to_pyobject(env)
-
+class _YieldDelegationExprNode(YieldExprNode):
     def yield_from_func(self, code):
-        code.globalstate.use_utility_code(UtilityCode.load_cached("GeneratorYieldFrom", "Coroutine.c"))
-        return "__Pyx_Generator_Yield_From"
+        raise NotImplementedError()
 
     def generate_evaluation_code(self, code, source_cname=None, decref_source=False):
         if source_cname is None:
@@ -9530,15 +9547,31 @@ class YieldFromExprNode(YieldExprNode):
         code.put_gotref(self.result())
 
     def handle_iteration_exception(self, code):
-        code.putln("PyObject* exc_type = PyErr_Occurred();")
+        code.putln("PyObject* exc_type = __Pyx_PyErr_Occurred();")
         code.putln("if (exc_type) {")
-        code.putln("if (likely(exc_type == PyExc_StopIteration ||"
-                   " PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))) PyErr_Clear();")
+        code.putln("if (likely(exc_type == PyExc_StopIteration || (exc_type != PyExc_GeneratorExit &&"
+                   " __Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration)))) PyErr_Clear();")
         code.putln("else %s" % code.error_goto(self.pos))
         code.putln("}")
 
 
-class AwaitExprNode(YieldFromExprNode):
+class YieldFromExprNode(_YieldDelegationExprNode):
+    # "yield from GEN" expression
+    is_yield_from = True
+    expr_keyword = 'yield from'
+
+    def coerce_yield_argument(self, env):
+        if not self.arg.type.is_string:
+            # FIXME: support C arrays and C++ iterators?
+            error(self.pos, "yielding from non-Python object not supported")
+        self.arg = self.arg.coerce_to_pyobject(env)
+
+    def yield_from_func(self, code):
+        code.globalstate.use_utility_code(UtilityCode.load_cached("GeneratorYieldFrom", "Coroutine.c"))
+        return "__Pyx_Generator_Yield_From"
+
+
+class AwaitExprNode(_YieldDelegationExprNode):
     # 'await' expression node
     #
     # arg         ExprNode   the Awaitable value to await
@@ -9557,28 +9590,33 @@ class AwaitExprNode(YieldFromExprNode):
         return "__Pyx_Coroutine_Yield_From"
 
 
-class AIterAwaitExprNode(AwaitExprNode):
-    # 'await' expression node used in async-for loops to support the pre-Py3.5.2 'aiter' protocol
-    def yield_from_func(self, code):
-        code.globalstate.use_utility_code(UtilityCode.load_cached("CoroutineAIterYieldFrom", "Coroutine.c"))
-        return "__Pyx_Coroutine_AIter_Yield_From"
-
-
 class AwaitIterNextExprNode(AwaitExprNode):
     # 'await' expression node as part of 'async for' iteration
     #
     # Breaks out of loop on StopAsyncIteration exception.
 
-    def fetch_iteration_result(self, code):
-        assert code.break_label, "AwaitIterNextExprNode outside of 'async for' loop"
+    def _generate_break(self, code):
         code.globalstate.use_utility_code(UtilityCode.load_cached("StopAsyncIteration", "Coroutine.c"))
-        code.putln("PyObject* exc_type = PyErr_Occurred();")
-        code.putln("if (exc_type && likely(exc_type == __Pyx_PyExc_StopAsyncIteration ||"
-                   " PyErr_GivenExceptionMatches(exc_type, __Pyx_PyExc_StopAsyncIteration))) {")
+        code.putln("PyObject* exc_type = __Pyx_PyErr_Occurred();")
+        code.putln("if (unlikely(exc_type && (exc_type == __Pyx_PyExc_StopAsyncIteration || ("
+                   " exc_type != PyExc_StopIteration && exc_type != PyExc_GeneratorExit &&"
+                   " __Pyx_PyErr_GivenExceptionMatches(exc_type, __Pyx_PyExc_StopAsyncIteration))))) {")
         code.putln("PyErr_Clear();")
         code.putln("break;")
         code.putln("}")
+
+    def fetch_iteration_result(self, code):
+        assert code.break_label, "AwaitIterNextExprNode outside of 'async for' loop"
+        self._generate_break(code)
         super(AwaitIterNextExprNode, self).fetch_iteration_result(code)
+
+    def generate_sent_value_handling_code(self, code, value_cname):
+        assert code.break_label, "AwaitIterNextExprNode outside of 'async for' loop"
+        code.putln("if (unlikely(!%s)) {" % value_cname)
+        self._generate_break(code)
+        # all non-break exceptions are errors, as in parent class
+        code.putln(code.error_goto(self.pos))
+        code.putln("}")
 
 
 class GlobalsExprNode(AtomicExprNode):
@@ -9990,7 +10028,10 @@ class AmpersandNode(CUnopNode):
                 self.error("Taking address of non-lvalue (type %s)" % argtype)
             return self
         if argtype.is_pyobject:
-            self.error("Cannot take address of Python variable")
+            self.error("Cannot take address of Python %s" % (
+                "variable '%s'" % self.operand.name if self.operand.is_name else
+                "object attribute '%s'" % self.operand.attribute if self.operand.is_attribute else
+                "object"))
             return self
         if not argtype.is_cpp_class or not self.type:
             self.type = PyrexTypes.c_ptr_type(argtype)
@@ -11866,22 +11907,22 @@ class CmpNode(object):
         new_common_type = None
 
         # catch general errors
-        if type1 == str_type and (type2.is_string or type2 in (bytes_type, unicode_type)) or \
-               type2 == str_type and (type1.is_string or type1 in (bytes_type, unicode_type)):
+        if (type1 == str_type and (type2.is_string or type2 in (bytes_type, unicode_type)) or
+                type2 == str_type and (type1.is_string or type1 in (bytes_type, unicode_type))):
             error(self.pos, "Comparisons between bytes/unicode and str are not portable to Python 3")
             new_common_type = error_type
 
         # try to use numeric comparisons where possible
         elif type1.is_complex or type2.is_complex:
-            if op not in ('==', '!=') \
-               and (type1.is_complex or type1.is_numeric) \
-               and (type2.is_complex or type2.is_numeric):
+            if (op not in ('==', '!=')
+                    and (type1.is_complex or type1.is_numeric)
+                    and (type2.is_complex or type2.is_numeric)):
                 error(self.pos, "complex types are unordered")
                 new_common_type = error_type
             elif type1.is_pyobject:
-                new_common_type = type1
+                new_common_type = Builtin.complex_type if type1.subtype_of(Builtin.complex_type) else py_object_type
             elif type2.is_pyobject:
-                new_common_type = type2
+                new_common_type = Builtin.complex_type if type2.subtype_of(Builtin.complex_type) else py_object_type
             else:
                 new_common_type = PyrexTypes.widest_numeric_type(type1, type2)
         elif type1.is_numeric and type2.is_numeric:
@@ -12652,7 +12693,7 @@ class NoneCheckNode(CoercionNode):
     is_nonecheck = True
 
     def __init__(self, arg, exception_type_cname, exception_message,
-                 exception_format_args):
+                 exception_format_args=()):
         CoercionNode.__init__(self, arg)
         self.type = arg.type
         self.result_ctype = arg.ctype()
@@ -12687,6 +12728,19 @@ class NoneCheckNode(CoercionNode):
             return "((PyObject *) %s.memview)" % self.arg.result()
         else:
             raise Exception("unsupported type")
+
+    @classmethod
+    def generate(cls, arg, code, exception_message,
+                 exception_type_cname="PyExc_TypeError", exception_format_args=(), in_nogil_context=False):
+        node = cls(arg, exception_type_cname, exception_message, exception_format_args)
+        node.in_nogil_context = in_nogil_context
+        node.put_nonecheck(code)
+
+    @classmethod
+    def generate_if_needed(cls, arg, code, exception_message,
+                           exception_type_cname="PyExc_TypeError", exception_format_args=(), in_nogil_context=False):
+        if arg.may_be_none():
+            cls.generate(arg, code, exception_message, exception_type_cname, exception_format_args, in_nogil_context)
 
     def put_nonecheck(self, code):
         code.putln(
@@ -12862,8 +12916,15 @@ class CoerceFromPyTypeNode(CoercionNode):
         return (self.type.is_ptr and not self.type.is_array) and self.arg.is_ephemeral()
 
     def generate_result_code(self, code):
+        from_py_function = None
+        # for certain source types, we can do better than the generic coercion
+        if self.type.is_string and self.arg.type is bytes_type:
+            if self.type.from_py_function.startswith('__Pyx_PyObject_As'):
+                from_py_function = '__Pyx_PyBytes' + self.type.from_py_function[len('__Pyx_PyObject'):]
+                NoneCheckNode.generate_if_needed(self.arg, code, "expected bytes, NoneType found")
+
         code.putln(self.type.from_py_call_code(
-            self.arg.py_result(), self.result(), self.pos, code))
+            self.arg.py_result(), self.result(), self.pos, code, from_py_function=from_py_function))
         if self.type.is_pyobject:
             code.put_gotref(self.py_result())
 

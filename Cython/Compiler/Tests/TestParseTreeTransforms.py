@@ -223,7 +223,6 @@ class TestDebugTransform(DebuggerTestCase):
             # the xpath of the standard ElementTree is primitive, don't use
             # anything fancy
             L = list(t.find('/Module/Globals'))
-            # assertTrue is retarded, use the normal assert statement
             assert L
             xml_globals = dict((e.attrib['name'], e.attrib['type']) for e in L)
             self.assertEqual(len(L), len(xml_globals))
