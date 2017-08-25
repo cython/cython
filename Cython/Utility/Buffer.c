@@ -128,7 +128,7 @@ static void __Pyx_ReleaseBuffer(Py_buffer *view) {
         return;
     }
 
-    if ((0));
+    if ((0)) {}
     {{for type_ptr, getbuffer, releasebuffer in types}}
       {{if releasebuffer}}
         else if (PyObject_TypeCheck(obj, {{type_ptr}})) {{releasebuffer}}(obj, view);
