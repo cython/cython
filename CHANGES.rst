@@ -51,7 +51,7 @@ Bugs fixed
   (Github issue #1837)
 
 
-0.26.1 (2017-??-??)
+0.26.1 (2017-08-28)
 ===================
 
 Features added
@@ -67,14 +67,20 @@ Bugs fixed
   a reference to the buffer owner on release, thus not freeing the memory.
   (Github issue #1638)
 
+* Auto-decoding failed in 0.26 for strings inside of C++ containers.
+  (Github issue #1790)
+
+* Compile error when inheriting from C++ container types.
+  (Github issue #1788)
+
 * Invalid C code in generators (declaration after code).
   (Github issue #1801)
 
 * Arithmetic operations on ``const`` integer variables could generate invalid code.
-  (Github issue #1798).
+  (Github issue #1798)
 
 * Local variables with names of special Python methods failed to compile inside of
-  closures (Github issue #1797).
+  closures. (Github issue #1797)
 
 * Problem with indirect Emacs buffers in cython-mode.
   Patch by Martin Albrecht (Github issue #1743).
