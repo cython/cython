@@ -44,8 +44,14 @@ cdef extern from "Python.h":
     # Return true if p is a set object or a frozenset object but not
     # an instance of a subtype.
 
+    bint PyFrozenSet_Check(object p)
+    # Return true if p is a frozenset object or an instance of a subtype.
+
     bint PyFrozenSet_CheckExact(object p)
     # Return true if p is a frozenset object but not an instance of a subtype.
+
+    bint PySet_Check(object p)
+    # Return true if p is a set object or an instance of a subtype.
 
     object PySet_New(object iterable)
     # Return value: New reference.
