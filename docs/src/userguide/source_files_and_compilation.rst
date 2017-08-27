@@ -143,22 +143,7 @@ Note that this will generate a new module filename for each build and thus
 end up loading multiple shared libraries into memory over time.  CPython does
 not support reloading shared libraries as such.
 
-Pyximport puts your ``.c`` file beside your ``.pyx`` file (analogous to
-``.pyc`` beside ``.py``), but, by default, puts the platform-specific
-binary in a build directory as per normal for Distutils.  To copy it back
+Pyximport puts both your ``.c`` file and the platform-specific binary into
+a separate build directory, usually ``$HOME/.pyxblx/``.  To copy it back
 into the package hierarchy (usually next to the source file) for manual
 reuse, you can pass the option ``inplace=True``.
-
-For further thought and discussion
-------------------------------------
-
-``setup.py install`` does not modify :file:`sitecustomize.py` for you and
-probably should never do that.  Modifying Python's "standard interpreter"
-behaviour may be more than most people expect of a package they install.
-
-Pyximport puts your ``.c`` file beside your ``.pyx`` file (analogous to
-``.pyc`` beside ``.py``).  But it puts the platform-specific binary in a
-build directory as per normal for Distutils.  If I could wave a magic
-wand and get Cython or distutils or whoever to put the build directory I
-might do it but not necessarily: having it at the top level is *VERY*
-*HELPFUL* for debugging Cython problems.
