@@ -64,14 +64,14 @@ Congratulations! You now know how to build a Cython extension. But so far
 this example doesn't really give a feeling why one would ever want to use Cython, so
 lets create a more realistic example.
 
-:mod:`pyximport`: Cython Compilation the Easy Way
-==================================================
+:mod:`pyximport`: Cython Compilation for Developers
+---------------------------------------------------
 
 If your module doesn't require any extra C libraries or a special
-build setup, then you can use the pyximport module by Paul Prescod and
-Stefan Behnel to load .pyx files directly on import, without having to
-write a :file:`setup.py` file.  It is shipped and installed with
-Cython and can be used like this::
+build setup, then you can use the pyximport module, originally developed
+by Paul Prescod, to load .pyx files directly on import, without having
+to run your :file:`setup.py` file each time you change your code.
+It is shipped and installed with Cython and can be used like this::
 
     >>> import pyximport; pyximport.install()
     >>> import helloworld
@@ -86,6 +86,11 @@ case the import mechanism will fall back to loading the Python source
 modules instead.  The .py import mechanism is installed like this::
 
     >>> pyximport.install(pyimport = True)
+
+Note that it is not recommended to let :mod:`pyximport` build code
+on end user side as it hooks into their import system.  The best way
+to cater for end users is to provide pre-built binary packages in the
+`wheel <https://wheel.readthedocs.io/>`_ packaging format.
 
 Fibonacci Fun
 ==============

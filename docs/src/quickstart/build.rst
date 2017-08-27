@@ -11,7 +11,7 @@ Cython code must, unlike Python, be compiled. This happens in two stages:
 
 There are several ways to build Cython code:
 
- - Write a distutils ``setup.py``.
+ - Write a distutils ``setup.py``. This is the normal and recommended way.
  - Use ``pyximport``, importing Cython ``.pyx`` files as if they
    were ``.py`` files (using distutils to compile and build in the background).
  - Run the ``cython`` command-line utility manually to produce the ``.c`` file

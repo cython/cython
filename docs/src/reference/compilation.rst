@@ -308,10 +308,11 @@ e.g.::
 These ``.pxd`` files need not have corresponding ``.pyx``
 modules if they contain purely declarations of external libraries.
 
-Compiling with ``pyximport``
-=============================
+Compiling with :mod:`pyximport`
+===============================
 
-For generating Cython code right in your pure python module just type::
+For building Cython modules during development without explicitly
+running ``setup.py`` after each change, you can use :mod:`pyximport`::
 
     >>> import pyximport; pyximport.install()
     >>> import helloworld
@@ -322,14 +323,19 @@ Python is trying to import.  You should use this for simple Cython
 builds only where no extra C libraries and no special building setup
 is needed.
 
-In the case that Cython fails to compile a Python module, *pyximport*
-will fall back to loading the source modules instead.
-
 It is also possible to compile new ``.py`` modules that are being
 imported (including the standard library and installed packages).  For
-using this feature, just tell that to ``pyximport``::
+using this feature, just tell that to :mod:`pyximport`::
 
     >>> pyximport.install(pyimport = True)
+
+In the case that Cython fails to compile a Python module, :mod:`pyximport`
+will fall back to loading the source modules instead.
+
+Note that it is not recommended to let :mod:`pyximport` build code
+on end user side as it hooks into their import system.  The best way
+to cater for end users is to provide pre-built binary packages in the
+`wheel <https://wheel.readthedocs.io/>`_ packaging format.
 
 Compiling with ``cython.inline``
 =================================
