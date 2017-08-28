@@ -121,7 +121,7 @@ EXT_DEP_MODULES = {
     'tag:coverage': 'Cython.Coverage',
     'Coverage':     'Cython.Coverage',
     'tag:ipython':  'IPython',
-    'tag:jedi':     'jedi',
+    'tag:jedi':     'jedi_BROKEN_AND_DISABLED',
 }
 
 def patch_inspect_isfunction():
