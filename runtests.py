@@ -315,10 +315,6 @@ EXT_EXTRAS = {
 }
 
 
-def _is_py3_before_32(excluded, version):
-    return version[0] >= 3 and version < (3,2)
-
-
 # TODO: use tags
 VER_DEP_MODULES = {
     # tests are excluded if 'CurrentPythonVersion OP VersionTuple', i.e.
@@ -341,8 +337,6 @@ VER_DEP_MODULES = {
                                         'compile.extdelslice',
                                         'run.special_methods_T561_py2'
                                         ]),
-    (3,1): (_is_py3_before_32, lambda x: x in ['run.pyclass_special_methods',
-                                               ]),
     (3,3) : (operator.lt, lambda x: x in ['build.package_compilation',
                                           'run.yield_from_py33',
                                           ]),
@@ -1343,7 +1337,7 @@ class CythonPyregrTestCase(CythonRunTestCase):
         run_forked_test(result, run_test, self.shortDescription(), self.fork)
 
 
-include_debugger = IS_CPYTHON and sys.version_info[:2] > (2, 5)
+include_debugger = IS_CPYTHON
 
 
 def collect_unittests(path, module_prefix, suite, selectors, exclude_selectors):
@@ -1868,21 +1862,6 @@ def main():
 
     if options.with_cython and sys.version_info[0] >= 3:
         sys.path.insert(0, options.cython_dir)
-        if sys.version_info[:2] == (3, 2):
-            try:
-                # try if Cython is installed in a Py3 version
-                import Cython.Compiler.Main
-            except Exception:
-                # back out anything the import process loaded, then
-                # 2to3 the Cython sources to make them re-importable
-                cy_modules = [ name for name in sys.modules
-                               if name == 'Cython' or name.startswith('Cython.') ]
-                for name in cy_modules:
-                    del sys.modules[name]
-                # hasn't been refactored yet - do it now
-                global CY3_DIR
-                CY3_DIR = cy3_dir = os.path.join(WORKDIR, 'Cy3')
-                refactor_for_py3(DISTDIR, cy3_dir)
 
     if options.watermark:
         import Cython.Compiler.Version
@@ -2073,9 +2052,6 @@ def runtests(options, cmd_args, coverage=None):
                              verbose=verbose_excludes)
             for bugs_file_name, condition in bug_files if condition
         ]
-
-    if sys.platform in ['win32', 'cygwin'] and sys.version_info < (2,6):
-        exclude_selectors += [ lambda x: x == "run.specialfloat" ]
 
     global COMPILER
     if options.compiler:

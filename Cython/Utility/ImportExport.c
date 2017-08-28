@@ -23,7 +23,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
     PyObject *global_dict = 0;
     PyObject *empty_dict = 0;
     PyObject *list;
-    #if PY_VERSION_HEX < 0x03030000
+    #if PY_MAJOR_VERSION < 3
     PyObject *py_import;
     py_import = __Pyx_PyObject_GetAttrStr($builtins_cname, PYIDENT("__import__"));
     if (!py_import)
@@ -48,17 +48,8 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
         if (level == -1) {
             if (strchr(__Pyx_MODULE_NAME, '.')) {
                 /* try package relative import first */
-                #if PY_VERSION_HEX < 0x03030000
-                PyObject *py_level = PyInt_FromLong(1);
-                if (!py_level)
-                    goto bad;
-                module = PyObject_CallFunctionObjArgs(py_import,
-                    name, global_dict, empty_dict, list, py_level, NULL);
-                Py_DECREF(py_level);
-                #else
                 module = PyImport_ImportModuleLevelObject(
                     name, global_dict, empty_dict, list, 1);
-                #endif
                 if (!module) {
                     if (!PyErr_ExceptionMatches(PyExc_ImportError))
                         goto bad;
@@ -69,7 +60,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
         }
         #endif
         if (!module) {
-            #if PY_VERSION_HEX < 0x03030000
+            #if PY_MAJOR_VERSION < 3
             PyObject *py_level = PyInt_FromLong(level);
             if (!py_level)
                 goto bad;
@@ -83,7 +74,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
         }
     }
 bad:
-    #if PY_VERSION_HEX < 0x03030000
+    #if PY_MAJOR_VERSION < 3
     Py_XDECREF(py_import);
     #endif
     Py_XDECREF(empty_list);
@@ -259,7 +250,8 @@ bad:
 
 /////////////// SetPackagePathFromImportLib.proto ///////////////
 
-#if PY_VERSION_HEX >= 0x03030000
+// PY_VERSION_HEX >= 0x03030000
+#if PY_MAJOR_VERSION >= 3 && !CYTHON_PEP489_MULTI_PHASE_INIT
 static int __Pyx_SetPackagePathFromImportLib(const char* parent_package_name, PyObject *module_name);
 #else
 #define __Pyx_SetPackagePathFromImportLib(a, b) 0
@@ -269,7 +261,8 @@ static int __Pyx_SetPackagePathFromImportLib(const char* parent_package_name, Py
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@substitute: naming
 
-#if PY_VERSION_HEX >= 0x03030000
+// PY_VERSION_HEX >= 0x03030000
+#if PY_MAJOR_VERSION >= 3 && !CYTHON_PEP489_MULTI_PHASE_INIT
 static int __Pyx_SetPackagePathFromImportLib(const char* parent_package_name, PyObject *module_name) {
     PyObject *importlib, *loader, *osmod, *ossep, *parts, *package_path;
     PyObject *path = NULL, *file_path = NULL;

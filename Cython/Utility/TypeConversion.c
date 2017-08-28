@@ -205,7 +205,7 @@ static CYTHON_INLINE const char* __Pyx_PyObject_AsString(PyObject* o) {
 }
 
 #if CYTHON_COMPILING_IN_CPYTHON && (__PYX_DEFAULT_STRING_ENCODING_IS_ASCII || __PYX_DEFAULT_STRING_ENCODING_IS_DEFAULT)
-#if PY_VERSION_HEX < 0x03030000
+#if !CYTHON_PEP393_ENABLED
 static const char* __Pyx_PyUnicode_AsStringAndSize(PyObject* o, Py_ssize_t *length) {
     char* defenc_c;
     // borrowed reference, cached internally in 'o' by CPython
@@ -229,7 +229,7 @@ static const char* __Pyx_PyUnicode_AsStringAndSize(PyObject* o, Py_ssize_t *leng
     return defenc_c;
 }
 
-#else /* PY_VERSION_HEX < 0x03030000 */
+#else /* CYTHON_PEP393_ENABLED: */
 
 static CYTHON_INLINE const char* __Pyx_PyUnicode_AsStringAndSize(PyObject* o, Py_ssize_t *length) {
     if (unlikely(__Pyx_PyUnicode_READY(o) == -1)) return NULL;
@@ -247,7 +247,7 @@ static CYTHON_INLINE const char* __Pyx_PyUnicode_AsStringAndSize(PyObject* o, Py
     return PyUnicode_AsUTF8AndSize(o, length);
 #endif /* __PYX_DEFAULT_STRING_ENCODING_IS_ASCII */
 }
-#endif /* PY_VERSION_HEX < 0x03030000 */
+#endif /* CYTHON_PEP393_ENABLED */
 #endif
 
 // Py3.7 returns a "const char*" for unicode strings
