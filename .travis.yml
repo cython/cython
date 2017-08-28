@@ -38,6 +38,7 @@ branches:
 
 install:
   - python -c 'import sys; print("Python %s" % (sys.version,))'
+  - python -c 'import sys; sys.exit("exclude Py2.6" and sys.version_info >= (2, 7))' || pip install -r test-requirements.txt
   - CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" python setup.py build
 
 before_script: ccache -s
