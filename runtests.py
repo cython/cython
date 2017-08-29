@@ -2024,6 +2024,7 @@ def runtests(options, cmd_args, coverage=None):
         exclude_selectors.append(RegExSelector('IPython'))
 
     try:
+        raise ImportError("Jedi typer is currently broken, see GH#1845")
         import jedi
         if not ([0, 9] <= list(map(int, re.findall('[0-9]+', jedi.__version__ or '0')))):
             raise ImportError
