@@ -8,6 +8,7 @@ package_compilation
 carray_coercion
 ctuple
 int_float_builtins_as_casts_T400
+int_float_builtins_as_casts_T400_long_double
 list_pop
 test_coroutines_pep492
 type_inference
