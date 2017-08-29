@@ -1,6 +1,10 @@
 PYTHON?=python
 TESTOPTS?=
 REPO = git://github.com/cython/cython.git
+VERSION?=$(shell sed -ne 's|^__version__\s*=\s*"\([^"]*\)".*|\1|p' Cython/Shadow.py)
+
+MANYLINUX_IMAGE_X86_64=quay.io/pypa/manylinux1_x86_64
+MANYLINUX_IMAGE_686=quay.io/pypa/manylinux1_i686
 
 all:    local
 
@@ -41,3 +45,15 @@ test:	testclean
 
 s5:
 	$(MAKE) -C Doc/s5 slides
+
+wheel_manylinux: wheel_manylinux64 wheel_manylinux32
+
+wheel_manylinux32 wheel_manylinux64: dist/Cython-$(VERSION).tar.gz
+	echo "Building wheels for Cython $VERSION"
+	mkdir -p wheelhouse
+	time docker run --rm -t \
+		-v $(shell pwd):/io \
+		-e CFLAGS="-O3 -g0 -mtune=generic -pipe -fPIC" \
+		-e LDFLAGS="$(LDFLAGS) -fPIC" \
+		$(if $(patsubst %32,,$@),$(MANYLINUX_IMAGE_X86_64),$(MANYLINUX_IMAGE_686)) \
+		bash -c 'for PYBIN in /opt/python/*/bin; do $$PYBIN/python -V; { $$PYBIN/pip wheel -w /io/wheelhouse /io/$< & } ; done; wait'
