@@ -16,6 +16,7 @@ Tools/*.elc
 
 TEST_TMP/
 build/
+wheelhouse*/
 !tests/build/
 dist/
 .gitrev

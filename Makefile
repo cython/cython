@@ -50,10 +50,15 @@ wheel_manylinux: wheel_manylinux64 wheel_manylinux32
 
 wheel_manylinux32 wheel_manylinux64: dist/Cython-$(VERSION).tar.gz
 	echo "Building wheels for Cython $VERSION"
-	mkdir -p wheelhouse
+	mkdir -p wheelhouse_$(subst wheel_,,$@)
 	time docker run --rm -t \
 		-v $(shell pwd):/io \
 		-e CFLAGS="-O3 -g0 -mtune=generic -pipe -fPIC" \
 		-e LDFLAGS="$(LDFLAGS) -fPIC" \
+		-e WHEELHOUSE=wheelhouse_$(subst wheel_,,$@) \
 		$(if $(patsubst %32,,$@),$(MANYLINUX_IMAGE_X86_64),$(MANYLINUX_IMAGE_686)) \
-		bash -c 'for PYBIN in /opt/python/*/bin; do $$PYBIN/python -V; { $$PYBIN/pip wheel -w /io/wheelhouse /io/$< & } ; done; wait'
+		bash -c 'for PYBIN in /opt/python/*/bin; do \
+		    $$PYBIN/python -V; \
+		    { $$PYBIN/pip wheel -w /io/$$WHEELHOUSE /io/$< & } ; \
+		    done; wait; \
+		    for whl in /io/$$WHEELHOUSE/Cython-$(VERSION)-*-linux_*.whl; do auditwheel repair $$whl -w /io/$$WHEELHOUSE; done'
