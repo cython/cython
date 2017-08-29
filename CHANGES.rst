@@ -56,7 +56,7 @@ Other changes
 * This release no longer supports Python 3.2.
 
 
-0.26.1 (2017-08-28)
+0.26.1 (2017-08-29)
 ===================
 
 Features added
