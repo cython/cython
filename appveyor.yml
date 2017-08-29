@@ -62,7 +62,7 @@ clone_depth: 5
 branches:
   only:
     - master
-    - 0.25.x
+    - release
 
 init:
   - "ECHO Python %PYTHON_VERSION% (%PYTHON_ARCH%bit) from %PYTHON%"
