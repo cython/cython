@@ -3037,12 +3037,27 @@ class JoinedStrNode(ExprNode):
             is_ascii = False
             if isinstance(node, UnicodeNode):
                 try:
+                    # most strings will be ASCII or at least Latin-1
                     node.value.encode('iso8859-1')
                     max_char_value = '255'
                     node.value.encode('us-ascii')
                     is_ascii = True
                 except UnicodeEncodeError:
-                    pass
+                    if max_char_value != '255':
+                        # not ISO8859-1 => check BMP limit
+                        max_char = max(map(ord, node.value))
+                        if max_char < 0xD800:
+                            # BMP-only, no surrogate pairs used
+                            max_char_value = '65535'
+                            ulength = str(len(node.value))
+                        elif max_char >= 65536:
+                            # cleary outside of BMP, and not on a 16-bit Unicode system
+                            max_char_value = '1114111'
+                            ulength = str(len(node.value))
+                        else:
+                            # not really worth implementing a check for surrogate pairs here
+                            # drawback: C code can differ when generating on Py2 with 2-byte Unicode
+                            pass
                 else:
                     ulength = str(len(node.value))
             elif isinstance(node, FormattedValueNode) and node.value.type.is_numeric:
