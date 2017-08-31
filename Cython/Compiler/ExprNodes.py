@@ -3126,7 +3126,7 @@ class FormattedValueNode(ExprNode):
             self.format_spec = self.format_spec.analyse_types(env).coerce_to_pyobject(env)
         if self.c_format_spec is None:
             self.value = self.value.coerce_to_pyobject(env)
-            if not self.format_spec and not self.conversion_char:
+            if not self.format_spec and (not self.conversion_char or self.conversion_char == 's'):
                 if self.value.type is unicode_type and not self.value.may_be_none():
                     # value is definitely a unicode string and we don't format it any special
                     return self.value

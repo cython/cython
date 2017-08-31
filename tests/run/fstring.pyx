@@ -5,6 +5,8 @@
 # Cython specific PEP 498 tests in addition to test_fstring.pyx from CPython
 ####
 
+cimport cython
+
 import sys
 IS_PYPY = hasattr(sys, 'pypy_version_info')
 
@@ -18,13 +20,39 @@ max_long = LONG_MAX
 min_long = LONG_MIN
 
 
+@cython.test_fail_if_path_exists(
+    "//FormattedValueNode",
+    "//JoinedStrNode",
+    "//AddNode",
+)
 def escaping():
     """
     >>> escaping()
     """
     assert f'{{{{{"abc"}}}}}{{}}{{' == '{{abc}}{}{'
+    s = f'{{{{{"abc"}}}}}{{}}{{'
+    assert s == '{{abc}}{}{', s
+
     assert f'\x7b}}' == '{}'
+    s = f'\x7b}}'
+    assert s == '{}', s
+
     assert f'{"{{}}"}' == '{{}}'
+    s = f'{"{{}}"}'
+    assert s == '{{}}', s
+
+
+@cython.test_fail_if_path_exists(
+    "//FormattedValueNode",
+    "//JoinedStrNode",
+    "//AddNode",
+)
+def nested_constant():
+    """
+    >>> print(nested_constant())
+    xyabc123321
+    """
+    return f"""{f'''xy{f"abc{123}{'321'}"!s}'''}"""
 
 
 def format2(ab, cd):
