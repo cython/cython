@@ -4772,18 +4772,27 @@ class ExprStatNode(StatNode):
 
     def analyse_declarations(self, env):
         from . import ExprNodes
-        if isinstance(self.expr, ExprNodes.GeneralCallNode):
-            func = self.expr.function.as_cython_attribute()
+        expr = self.expr
+        if isinstance(expr, ExprNodes.GeneralCallNode):
+            func = expr.function.as_cython_attribute()
             if func == u'declare':
-                args, kwds = self.expr.explicit_args_kwds()
+                args, kwds = expr.explicit_args_kwds()
                 if len(args):
-                    error(self.expr.pos, "Variable names must be specified.")
+                    error(expr.pos, "Variable names must be specified.")
                 for var, type_node in kwds.key_value_pairs:
                     type = type_node.analyse_as_type(env)
                     if type is None:
                         error(type_node.pos, "Unknown type")
                     else:
                         env.declare_var(var.value, type, var.pos, is_cdef=True)
+                self.__class__ = PassStatNode
+        elif expr.annotation is not None:
+            if expr.is_name:
+                # non-code variable annotation, e.g. "name: type"
+                expr.declare_from_annotation(env)
+                self.__class__ = PassStatNode
+            elif expr.is_attribute or expr.is_subscript:
+                # unused expression with annotation, e.g. "a[0]: type" or "a.xyz : type"
                 self.__class__ = PassStatNode
 
     def analyse_expressions(self, env):

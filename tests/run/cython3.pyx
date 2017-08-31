@@ -513,4 +513,6 @@ def annotation_syntax(a: "test new test", b : "other" = 2, *args: "ARGS", **kwar
     >>> print(annotation_syntax.__annotations__['return'])
     ret
     """
-    return a+b
+    result : int = a + b
+
+    return result

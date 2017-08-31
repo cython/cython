@@ -346,6 +346,7 @@ VER_DEP_MODULES = {
                                              ]),
     (3,5): (operator.lt, lambda x: x in ['run.py35_pep492_interop',
                                          'run.mod__spec__',
+                                         'run.pep526_variable_annotations',  # typing module
                                          ]),
 }
 
@@ -578,9 +579,16 @@ class TestBuilder(object):
             for test in self.build_tests(test_class, path, workdir,
                                          module, mode == 'error', tags):
                 suite.addTest(test)
+
             if mode == 'run' and ext == '.py' and not self.cython_only and not filename.startswith('test_'):
                 # additionally test file in real Python
-                suite.addTest(PureDoctestTestCase(module, os.path.join(path, filename)))
+                min_py_ver = [
+                    (int(pyver.group(1)), int(pyver.group(2)))
+                    for pyver in map(re.compile(r'pure([0-9]+)[.]([0-9]+)').match, tags['tag'])
+                    if pyver
+                ]
+                if not min_py_ver or any(sys.version_info >= min_ver for min_ver in min_py_ver):
+                    suite.addTest(PureDoctestTestCase(module, os.path.join(path, filename)))
 
         return suite
 

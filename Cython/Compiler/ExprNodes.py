@@ -254,9 +254,11 @@ class ExprNode(Node):
     #  result_is_used  boolean   indicates that the result will be dropped and the
     #  is_numpy_attribute   boolean   Is a Numpy module attribute
     #                            result_code/temp_result can safely be set to None
+    #  annotation   ExprNode or None    PEP526 annotation for names or expressions
 
     result_ctype = None
     type = None
+    annotation = None
     temp_code = None
     old_temp = None # error checker for multiple frees etc.
     use_managed_ref = True # can be set by optimisation transforms
@@ -1830,6 +1832,38 @@ class NameNode(AtomicExprNode):
 
         return super(NameNode, self).coerce_to(dst_type, env)
 
+    def declare_from_annotation(self, env, as_target=False):
+        """Implements PEP 526 annotation typing in a fairly relaxed way.
+
+        Annotations are ignored for global variables, Python class attributes and already declared variables.
+        String literals are allowed and ignored.
+        The ambiguous Python types 'int' and 'long' are ignored and the 'cython.int' form must be used instead.
+        """
+        if env.is_module_scope or env.is_py_class_scope:
+            # annotations never create global cdef names and Python classes don't support them anyway
+            return
+        name = self.name
+        if self.entry or env.lookup_here(name) is not None:
+            # already declared => ignore annotation
+            return
+
+        annotation = self.annotation
+        atype = annotation.analyse_as_type(env)
+        if annotation.is_name and not annotation.cython_attribute and annotation.name in ('int', 'long', 'float'):
+            # ignore 'int' and require 'cython.int' to avoid unsafe integer declarations
+            if atype in (PyrexTypes.c_long_type, PyrexTypes.c_int_type, PyrexTypes.c_float_type):
+                atype = PyrexTypes.c_double_type if annotation.name == 'float' else py_object_type
+        elif annotation.is_string_literal:
+            # name: "description" => not a type, but still a declared variable or attribute
+            atype = None
+        elif atype is None:
+            # annotations always make variables local => ignore and leave to type inference
+            warning(annotation.pos, "Unknown type declaration in annotation, ignoring")
+
+        if atype is None:
+            atype = unspecified_type if as_target and env.directives['infer_types'] != False else py_object_type
+        self.entry = env.declare_var(name, atype, self.pos, is_cdef=not as_target)
+
     def analyse_as_module(self, env):
         # Try to interpret this as a reference to a cimported module.
         # Returns the module scope, or None.
@@ -1869,6 +1903,9 @@ class NameNode(AtomicExprNode):
     def analyse_target_declaration(self, env):
         if not self.entry:
             self.entry = env.lookup_here(self.name)
+        if not self.entry and self.annotation is not None:
+            # name : type = ...
+            self.declare_from_annotation(env, as_target=True)
         if not self.entry:
             if env.directives['warn.undeclared']:
                 warning(self.pos, "implicit declaration of '%s'" % self.name, 1)
