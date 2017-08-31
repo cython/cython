@@ -125,3 +125,16 @@ def test_GH1599(a, b):
   (1, 2.0)
   """
   return public_return_pair(a, b)
+
+
+# Related to GH Issue #1852.
+
+cdef cppclass Callback[T]:#(UntypedCallback):
+    pass
+
+cdef cppclass MyClass[O]:
+    void Invoke(Callback[O]*)
+
+cdef cppclass MySubclass[T](MyClass[T]):
+    void Invoke(Callback[T]* callback):
+      pass

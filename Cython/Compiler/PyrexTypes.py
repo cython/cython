@@ -3666,8 +3666,11 @@ class CppClassType(CType):
         if other_type.is_cpp_class:
             if self == other_type:
                 return 1
-            elif (self.cname == other_type.cname
-                  and (self.templates or other_type.templates)):
+            # This messy logic is needed due to GH Issue #1852.
+            elif (self.cname == other_type.cname and
+                  (self.template_type and other_type.template_type
+                   or self.templates
+                   or other_type.templates)):
                 if self.templates == other_type.templates:
                     return 1
                 for t1, t2 in zip(self.templates, other_type.templates):
