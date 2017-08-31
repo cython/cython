@@ -49,8 +49,8 @@ def escaping():
 )
 def nested_constant():
     """
-    >>> nested_constant()
-    'xyabc123321'
+    >>> print(nested_constant())
+    xyabc123321
     """
     return f"""{f'''xy{f"abc{123}{'321'}"!s}'''}"""
 
