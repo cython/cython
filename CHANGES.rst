@@ -50,6 +50,9 @@ Bugs fixed
 * abs(signed int) now returns a signed rather than unsigned int.
   (Github issue #1837)
 
+* Compile time evaluations of (partially) constant f-strings could show incorrect
+  results.
+
 Other changes
 -------------
 

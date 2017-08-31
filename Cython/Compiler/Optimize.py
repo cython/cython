@@ -3959,10 +3959,21 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
     def visit_FormattedValueNode(self, node):
         self.visitchildren(node)
+        conversion_char = node.conversion_char or 's'
         if isinstance(node.format_spec, ExprNodes.UnicodeNode) and not node.format_spec.value:
             node.format_spec = None
-        if node.format_spec is None and node.conversion_char is None and isinstance(node.value, ExprNodes.UnicodeNode):
-            return node.value
+        if node.format_spec is None and isinstance(node.value, ExprNodes.IntNode):
+            value = EncodedString(node.value.value)
+            if value.isdigit():
+                return ExprNodes.UnicodeNode(node.value.pos, value=value, constant_result=value)
+        if node.format_spec is None and conversion_char == 's':
+            value = None
+            if isinstance(node.value, ExprNodes.UnicodeNode):
+                value = node.value.value
+            elif isinstance(node.value, ExprNodes.StringNode):
+                value = node.value.unicode_value
+            if value is not None:
+                return ExprNodes.UnicodeNode(node.value.pos, value=value, constant_result=value)
         return node
 
     def visit_JoinedStrNode(self, node):
@@ -3980,7 +3991,8 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 substrings = list(substrings)
                 unode = substrings[0]
                 if len(substrings) > 1:
-                    unode.value = EncodedString(u''.join(value.value for value in substrings))
+                    value = EncodedString(u''.join(value.value for value in substrings))
+                    unode = ExprNodes.UnicodeNode(unode.pos, value=value, constant_result=value)
                 # ignore empty Unicode strings
                 if unode.value:
                     values.append(unode)
@@ -3988,7 +4000,8 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 values.extend(substrings)
 
         if not values:
-            node = ExprNodes.UnicodeNode(node.pos, value=EncodedString(''))
+            value = EncodedString('')
+            node = ExprNodes.UnicodeNode(node.pos, value=value, constant_result=value)
         elif len(values) == 1:
             node = values[0]
         elif len(values) == 2:
