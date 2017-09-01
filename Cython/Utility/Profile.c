@@ -252,7 +252,7 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
             tstate,                          /*PyThreadState *tstate*/
             *code,                           /*PyCodeObject *code*/
             $moddict_cname,                  /*PyObject *globals*/
-            PyDict_New()                     /*PyObject *locals*/
+            0                                /*PyObject *locals*/
         );
         if (*frame == NULL) return 0;
         if (CYTHON_TRACE && (*frame)->f_trace == NULL) {
@@ -311,7 +311,8 @@ static PyCodeObject *__Pyx_createFrameCodeObject(const char *funcname, const cha
         #endif
         0,                /*int nlocals,*/
         0,                /*int stacksize,*/
-        0,                /*int flags,*/
+        // make CPython use a fresh dict for "f_locals" at need (see GH #1836)
+        CO_OPTIMIZED | CO_NEWLOCALS,  /*int flags,*/
         $empty_bytes,     /*PyObject *code,*/
         $empty_tuple,     /*PyObject *consts,*/
         $empty_tuple,     /*PyObject *names,*/

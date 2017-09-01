@@ -58,9 +58,23 @@ cdef int trace_trampoline(PyObject* _traceobj, PyFrameObject* _frame, int what, 
 
 
 def _create_trace_func(trace):
+    local_names = {}
+
     def _trace_func(frame, event, arg):
-        trace.append((map_trace_types(event), frame.f_lineno -
-                                      frame.f_code.co_firstlineno))
+        trace.append((map_trace_types(event), frame.f_lineno - frame.f_code.co_firstlineno))
+
+        lnames = frame.f_code.co_varnames
+        if frame.f_code.co_name in local_names:
+            assert lnames == local_names[frame.f_code.co_name]
+        else:
+            local_names[frame.f_code.co_name] = lnames
+
+        # Currently, the locals dict is empty for Cython code, but not for Python code.
+        if frame.f_code.co_name.startswith('py_'):
+            # Change this when we start providing proper access to locals.
+            assert frame.f_locals
+        else:
+            assert not frame.f_locals
 
         return _trace_func
     return _trace_func
@@ -232,3 +246,14 @@ def disable_trace(func, *args):
     finally:
         PyEval_SetTrace(NULL, None)
     return trace
+
+
+def global_name(global_name):
+    """
+    >>> global_name(123)
+    444
+    >>> global_name(111)
+    432
+    """
+    # See GH #1836: accessing "frame.f_locals" deletes locals from globals dict.
+    return global_name + 321

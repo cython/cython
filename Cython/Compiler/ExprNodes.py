@@ -9249,7 +9249,9 @@ class CodeObjectNode(ExprNode):
         file_path = StringEncoding.bytes_literal(func.pos[0].get_filenametable_entry().encode('utf8'), 'utf8')
         file_path_const = code.get_py_string_const(file_path, identifier=False, is_str=True)
 
-        flags = []
+        # This combination makes CPython create a new dict for "frame.f_locals" (see GH #1836).
+        flags = ['CO_OPTIMIZED', 'CO_NEWLOCALS']
+
         if self.def_node.star_arg:
             flags.append('CO_VARARGS')
         if self.def_node.starstar_arg:
