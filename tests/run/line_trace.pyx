@@ -3,6 +3,8 @@
 # mode: run
 # tag: trace
 
+import sys
+
 from cpython.ref cimport PyObject, Py_INCREF, Py_XINCREF, Py_XDECREF
 
 cdef extern from "frameobject.h":
@@ -15,8 +17,8 @@ from cpython.pystate cimport (
     PyTrace_C_CALL, PyTrace_C_EXCEPTION, PyTrace_C_RETURN)
 
 cdef extern from *:
-    void PyEval_SetProfile(Py_tracefunc cfunc, object obj)
-    void PyEval_SetTrace(Py_tracefunc cfunc, object obj)
+    void PyEval_SetProfile(Py_tracefunc cfunc, PyObject *obj)
+    void PyEval_SetTrace(Py_tracefunc cfunc, PyObject *obj)
 
 
 map_trace_types = {
@@ -31,29 +33,40 @@ map_trace_types = {
 
 
 cdef int trace_trampoline(PyObject* _traceobj, PyFrameObject* _frame, int what, PyObject* _arg) except -1:
-    frame = <object>_frame
-    traceobj = <object>_traceobj if _traceobj else None
-    arg = <object>_arg if _arg else None
+    """
+    This is (more or less) what CPython does in sysmodule.c, function trace_trampoline().
+    """
+    cdef PyObject *tmp
 
     if what == PyTrace_CALL:
-        callback = traceobj
-    else:
+        if _traceobj is NULL:
+            return 0
+        callback = <object>_traceobj
+    elif _frame.f_trace:
         callback = <object>_frame.f_trace
-
-    if callback is None:
+    else:
         return 0
 
-    result = callback(frame, what, arg)
+    frame = <object>_frame
+    arg = <object>_arg if _arg else None
 
-    # A bug in Py2.6 prevents us from calling the Python-level setter here,
-    # or otherwise we would get miscalculated line numbers. Was fixed in Py2.7.
-    cdef PyObject *tmp = _frame.f_trace
-    Py_INCREF(result)
-    _frame.f_trace = <PyObject*>result
-    Py_XDECREF(tmp)
+    try:
+        result = callback(frame, what, arg)
+    except:
+        PyEval_SetTrace(NULL, NULL)
+        tmp = _frame.f_trace
+        _frame.f_trace = NULL
+        Py_XDECREF(tmp)
+        raise
 
-    if result is None:
-        PyEval_SetTrace(NULL, None)
+    if result is not None:
+        # A bug in Py2.6 prevents us from calling the Python-level setter here,
+        # or otherwise we would get miscalculated line numbers. Was fixed in Py2.7.
+        tmp = _frame.f_trace
+        Py_INCREF(result)
+        _frame.f_trace = <PyObject*>result
+        Py_XDECREF(tmp)
+
     return 0
 
 
@@ -61,7 +74,7 @@ def _create_trace_func(trace):
     local_names = {}
 
     def _trace_func(frame, event, arg):
-        trace.append((map_trace_types(event), frame.f_lineno - frame.f_code.co_firstlineno))
+        trace.append((map_trace_types(event, event), frame.f_lineno - frame.f_code.co_firstlineno))
 
         lnames = frame.f_code.co_varnames
         if frame.f_code.co_name in local_names:
@@ -104,16 +117,19 @@ def _create__failing_line_trace_func(trace):
         return _trace_func
     return _trace_func
 
+
 def _create_disable_tracing(trace):
     func = _create_trace_func(trace)
     def _trace_func(frame, event, arg):
         if frame.f_lineno - frame.f_code.co_firstlineno == 2:
+            PyEval_SetTrace(NULL, NULL)
             return None
 
         func(frame, event, arg)
         return _trace_func
 
     return _trace_func
+
 
 def cy_add(a,b):
     x = a + b     # 1
@@ -128,20 +144,39 @@ def cy_add_with_nogil(a,b):
     return z                     # 5
 
 
+def global_name(global_name):
+    # See GH #1836: accessing "frame.f_locals" deletes locals from globals dict.
+    return global_name + 321
+
+
 cdef int cy_add_nogil(int a, int b) nogil except -1:
     x = a + b   # 1
     return x    # 2
 
 
-def run_trace(func, *args):
+def run_trace(func, *args, bint with_sys=False):
     """
     >>> def py_add(a,b):
     ...     x = a+b
     ...     return x
+
+    >>> def py_add_with_nogil(a,b):
+    ...     x=a; y=b                     # 1
+    ...     for _ in range(1):           # 2
+    ...         z = 0                    # 3
+    ...         z += py_add(x, y)        # 4
+    ...     return z                     # 5
+
     >>> run_trace(py_add, 1, 2)
     [('call', 0), ('line', 1), ('line', 2), ('return', 2)]
     >>> run_trace(cy_add, 1, 2)
     [('call', 0), ('line', 1), ('line', 2), ('return', 2)]
+
+    >>> run_trace(py_add, 1, 2, with_sys=True)
+    [('call', 0), ('line', 1), ('line', 2), ('return', 2)]
+    >>> run_trace(cy_add, 1, 2, with_sys=True)
+    [('call', 0), ('line', 1), ('line', 2), ('return', 2)]
+
     >>> result = run_trace(cy_add_with_nogil, 1, 2)
     >>> result[:5]
     [('call', 0), ('line', 1), ('line', 2), ('line', 3), ('line', 4)]
@@ -149,13 +184,45 @@ def run_trace(func, *args):
     [('call', 0), ('line', 1), ('line', 2), ('return', 2)]
     >>> result[9:]
     [('line', 2), ('line', 5), ('return', 5)]
+
+    >>> result = run_trace(cy_add_with_nogil, 1, 2, with_sys=True)
+    >>> result[:5]  # sys
+    [('call', 0), ('line', 1), ('line', 2), ('line', 3), ('line', 4)]
+    >>> result[5:9]  # sys
+    [('call', 0), ('line', 1), ('line', 2), ('return', 2)]
+    >>> result[9:]  # sys
+    [('line', 2), ('line', 5), ('return', 5)]
+
+    >>> result = run_trace(py_add_with_nogil, 1, 2)
+    >>> result[:5]  # py
+    [('call', 0), ('line', 1), ('line', 2), ('line', 3), ('line', 4)]
+    >>> result[5:9]  # py
+    [('call', 0), ('line', 1), ('line', 2), ('return', 2)]
+    >>> result[9:]  # py
+    [('line', 2), ('line', 5), ('return', 5)]
+
+    >>> run_trace(global_name, 123)
+    [('call', 0), ('line', 2), ('return', 2)]
+    >>> run_trace(global_name, 111)
+    [('call', 0), ('line', 2), ('return', 2)]
+    >>> run_trace(global_name, 111, with_sys=True)
+    [('call', 0), ('line', 2), ('return', 2)]
+    >>> run_trace(global_name, 111, with_sys=True)
+    [('call', 0), ('line', 2), ('return', 2)]
     """
     trace = []
-    PyEval_SetTrace(<Py_tracefunc>trace_trampoline, _create_trace_func(trace))
+    trace_func = _create_trace_func(trace)
+    if with_sys:
+        sys.settrace(trace_func)
+    else:
+        PyEval_SetTrace(<Py_tracefunc>trace_trampoline, <PyObject*>trace_func)
     try:
         func(*args)
     finally:
-        PyEval_SetTrace(NULL, None)
+        if with_sys:
+            sys.settrace(None)
+        else:
+            PyEval_SetTrace(NULL, NULL)
     return trace
 
 
@@ -164,22 +231,39 @@ def fail_on_call_trace(func, *args):
     >>> def py_add(a,b):
     ...     x = a+b
     ...     return x
+
     >>> fail_on_call_trace(py_add, 1, 2)
+    Traceback (most recent call last):
+    ValueError: failing call trace!
+
+    >>> fail_on_call_trace(cy_add, 1, 2)
     Traceback (most recent call last):
     ValueError: failing call trace!
     """
     trace = []
-    PyEval_SetTrace(<Py_tracefunc>trace_trampoline, _create_failing_call_trace_func(trace))
+    trace_func = _create_failing_call_trace_func(trace)
+    PyEval_SetTrace(<Py_tracefunc>trace_trampoline, <PyObject*>trace_func)
     try:
         func(*args)
     finally:
-        PyEval_SetTrace(NULL, None)
+        PyEval_SetTrace(NULL, NULL)
     assert not trace
 
 
-def fail_on_line_trace(fail_func):
+def fail_on_line_trace(fail_func, add_func, nogil_add_func):
     """
-    >>> result = fail_on_line_trace(None)
+    >>> def py_add(a,b):
+    ...     x = a+b       # 1
+    ...     return x      # 2
+
+    >>> def py_add_with_nogil(a,b):
+    ...     x=a; y=b                     # 1
+    ...     for _ in range(1):           # 2
+    ...         z = 0                    # 3
+    ...         z += py_add(x, y)        # 4
+    ...     return z                     # 5
+
+    >>> result = fail_on_line_trace(None, cy_add, cy_add_with_nogil)
     >>> len(result)
     17
     >>> result[:5]
@@ -191,35 +275,60 @@ def fail_on_line_trace(fail_func):
     >>> result[14:]
     [('line', 2), ('line', 5), ('return', 5)]
 
-    >>> result = fail_on_line_trace('cy_add_with_nogil')
+    >>> result = fail_on_line_trace(None, py_add, py_add_with_nogil)
+    >>> len(result)
+    17
+    >>> result[:5]  # py
+    ['NO ERROR', ('call', 0), ('line', 1), ('line', 2), ('return', 2)]
+    >>> result[5:10]  # py
+    [('call', 0), ('line', 1), ('line', 2), ('line', 3), ('line', 4)]
+    >>> result[10:14]  # py
+    [('call', 0), ('line', 1), ('line', 2), ('return', 2)]
+    >>> result[14:]  # py
+    [('line', 2), ('line', 5), ('return', 5)]
+
+    >>> result = fail_on_line_trace('cy_add_with_nogil', cy_add, cy_add_with_nogil)
     failing line trace!
     >>> result
-    ['cy_add_with_nogil', ('call', 0), ('line', 1), ('line', 2), ('return', 2), ('call', 0), ('return', 1)]
+    ['cy_add_with_nogil', ('call', 0), ('line', 1), ('line', 2), ('return', 2), ('call', 0)]
 
-    >>> result = fail_on_line_trace('cy_add_nogil')
+    >>> result = fail_on_line_trace('py_add_with_nogil', py_add, py_add_with_nogil)  # py
+    failing line trace!
+    >>> result  # py
+    ['py_add_with_nogil', ('call', 0), ('line', 1), ('line', 2), ('return', 2), ('call', 0)]
+
+    >>> result = fail_on_line_trace('cy_add_nogil', cy_add, cy_add_with_nogil)
     failing line trace!
     >>> result[:5]
     ['cy_add_nogil', ('call', 0), ('line', 1), ('line', 2), ('return', 2)]
     >>> result[5:]
-    [('call', 0), ('line', 1), ('line', 2), ('line', 3), ('line', 4), ('call', 0), ('return', 1), ('return', 4)]
+    [('call', 0), ('line', 1), ('line', 2), ('line', 3), ('line', 4), ('call', 0)]
+
+    >>> result = fail_on_line_trace('py_add', py_add, py_add_with_nogil)  # py
+    failing line trace!
+    >>> result[:5]  # py
+    ['py_add', ('call', 0), ('line', 1), ('line', 2), ('return', 2)]
+    >>> result[5:]  # py
+    [('call', 0), ('line', 1), ('line', 2), ('line', 3), ('line', 4), ('call', 0)]
     """
     cdef int x = 1
     trace = ['NO ERROR']
     exception = None
-    PyEval_SetTrace(<Py_tracefunc>trace_trampoline, _create__failing_line_trace_func(trace))
+    trace_func = _create__failing_line_trace_func(trace)
+    PyEval_SetTrace(<Py_tracefunc>trace_trampoline, <PyObject*>trace_func)
     try:
         x += 1
-        cy_add(1, 2)
+        add_func(1, 2)
         x += 1
         if fail_func:
             trace[0] = fail_func  # trigger error on first line
         x += 1
-        cy_add_with_nogil(3, 4)
+        nogil_add_func(3, 4)
         x += 1
     except Exception as exc:
         exception = str(exc)
     finally:
-        PyEval_SetTrace(NULL, None)
+        PyEval_SetTrace(NULL, NULL)
     if exception:
         print(exception)
     else:
@@ -227,33 +336,37 @@ def fail_on_line_trace(fail_func):
     return trace
 
 
-def disable_trace(func, *args):
+def disable_trace(func, *args, bint with_sys=False):
     """
     >>> def py_add(a,b):
     ...     x = a+b
     ...     return x
     >>> disable_trace(py_add, 1, 2)
     [('call', 0), ('line', 1)]
+    >>> disable_trace(py_add, 1, 2, with_sys=True)
+    [('call', 0), ('line', 1)]
+
     >>> disable_trace(cy_add, 1, 2)
     [('call', 0), ('line', 1)]
+    >>> disable_trace(cy_add, 1, 2, with_sys=True)
+    [('call', 0), ('line', 1)]
+
     >>> disable_trace(cy_add_with_nogil, 1, 2)
+    [('call', 0), ('line', 1)]
+    >>> disable_trace(cy_add_with_nogil, 1, 2, with_sys=True)
     [('call', 0), ('line', 1)]
     """
     trace = []
-    PyEval_SetTrace(<Py_tracefunc>trace_trampoline, _create_disable_tracing(trace))
+    trace_func = _create_disable_tracing(trace)
+    if with_sys:
+        sys.settrace(trace_func)
+    else:
+        PyEval_SetTrace(<Py_tracefunc>trace_trampoline, <PyObject*>trace_func)
     try:
         func(*args)
     finally:
-        PyEval_SetTrace(NULL, None)
+        if with_sys:
+            sys.settrace(None)
+        else:
+            PyEval_SetTrace(NULL, NULL)
     return trace
-
-
-def global_name(global_name):
-    """
-    >>> global_name(123)
-    444
-    >>> global_name(111)
-    432
-    """
-    # See GH #1836: accessing "frame.f_locals" deletes locals from globals dict.
-    return global_name + 321
