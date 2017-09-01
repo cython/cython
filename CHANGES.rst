@@ -30,6 +30,9 @@ Features added
 
 * C++ classes can now contain (properly refcounted) Python objects.
 
+* NumPy dtype subarrays are now accessible through the C-API.
+  Patch by Gerald Dalley (Github issue #245).
+
 
 Bugs fixed
 ----------
