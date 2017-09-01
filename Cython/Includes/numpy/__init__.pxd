@@ -18,9 +18,9 @@ DEF _buffer_format_string_len = 255
 
 cimport cpython.buffer as pybuf
 from cpython.ref cimport Py_INCREF, Py_XDECREF
+from cpython.mem cimport PyObject_Malloc, PyObject_Free
 from cpython.object cimport PyObject
 from cpython.type cimport type
-cimport libc.stdlib as stdlib
 cimport libc.stdio as stdio
 
 cdef extern from "Python.h":
@@ -243,7 +243,7 @@ cdef extern from "numpy/arrayobject.h":
             if copy_shape:
                 # Allocate new buffer for strides and shape info.
                 # This is allocated as one block, strides first.
-                info.strides = <Py_ssize_t*>stdlib.malloc(sizeof(Py_ssize_t) * <size_t>ndim * 2)
+                info.strides = <Py_ssize_t*>PyObject_Malloc(sizeof(Py_ssize_t) * 2 * <size_t>ndim)
                 info.shape = info.strides + ndim
                 for i in range(ndim):
                     info.strides[i] = PyArray_STRIDES(self)[i]
@@ -296,7 +296,7 @@ cdef extern from "numpy/arrayobject.h":
                 info.format = f
                 return
             else:
-                info.format = <char*>stdlib.malloc(_buffer_format_string_len)
+                info.format = <char*>PyObject_Malloc(_buffer_format_string_len)
                 info.format[0] = c'^' # Native data types, manual alignment
                 offset = 0
                 f = _util_dtypestring(descr, info.format + 1,
@@ -306,9 +306,9 @@ cdef extern from "numpy/arrayobject.h":
 
         def __releasebuffer__(ndarray self, Py_buffer* info):
             if PyArray_HASFIELDS(self):
-                stdlib.free(info.format)
+                PyObject_Free(info.format)
             if sizeof(npy_intp) != sizeof(Py_ssize_t):
-                stdlib.free(info.strides)
+                PyObject_Free(info.strides)
                 # info.shape was stored after info.strides in the same block
 
 
