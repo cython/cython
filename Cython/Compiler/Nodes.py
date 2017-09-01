@@ -1924,7 +1924,7 @@ class FuncDefNode(StatNode, BlockNode):
 
         code.mark_pos(self.pos, trace=False)
         code.putln("")
-        code.putln("/* function exit codeX */")
+        code.putln("/* function exit code */")
 
         # ----- Default return value
         if not self.body.is_terminator:
