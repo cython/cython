@@ -3,11 +3,11 @@
 # mode: run
 # tag: trace
 
+from cpython.ref cimport PyObject, Py_INCREF, Py_XINCREF, Py_XDECREF
+
 cdef extern from "frameobject.h":
     ctypedef struct PyFrameObject:
-        pass
-
-from cpython.ref cimport PyObject
+        PyObject *f_trace
 
 from cpython.pystate cimport (
     Py_tracefunc,
@@ -38,20 +38,23 @@ cdef int trace_trampoline(PyObject* _traceobj, PyFrameObject* _frame, int what, 
     if what == PyTrace_CALL:
         callback = traceobj
     else:
-        callback = frame.f_trace
+        callback = <object>_frame.f_trace
 
     if callback is None:
         return 0
 
     result = callback(frame, what, arg)
 
-    frame.f_trace = result
+    # A bug in Py2.6 prevents us from calling the Python-level setter here,
+    # or otherwise we would get miscalculated line numbers. Was fixed in Py2.7.
+    cdef PyObject *tmp = _frame.f_trace
+    Py_INCREF(result)
+    _frame.f_trace = <PyObject*>result
+    Py_XDECREF(tmp)
 
     if result is None:
         PyEval_SetTrace(NULL, None)
-        return 0
-    else:
-        return 0
+    return 0
 
 
 def _create_trace_func(trace):
