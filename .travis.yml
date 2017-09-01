@@ -37,7 +37,7 @@ branches:
 
 install:
   - python -c 'import sys; print("Python %s" % (sys.version,))'
-  - [ -z "${TRAVIS_PYTHON_VERSION##*-dev}" ] || python -c 'import sys; sys.exit("exclude Py2.6" and sys.version_info >= (2, 7))' || pip install -r test-requirements.txt
+  - if [ -n "${TRAVIS_PYTHON_VERSION##*-dev}" -a -n "${TRAVIS_PYTHON_VERSION##2.6*}" ]; then pip install -r test-requirements.txt ; fi
   - CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" python setup.py build
 
 before_script: ccache -s
