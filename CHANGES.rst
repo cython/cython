@@ -46,6 +46,8 @@ Bugs fixed
 * Some include directories and dependencies were referenced with their absolute paths
   in the generated files despite lying within the project directory.
 
+* Failure to compile in Py3.7 due to a modified signature of ``_PyCFunctionFast()``
+
 
 0.26 (2017-07-19)
 =================
