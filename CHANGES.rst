@@ -8,21 +8,21 @@ Cython Changelog
 Features added
 --------------
 
-* Extension module initialisation follows PEP 489 in CPython 3.5+, which resolves
-  several differences with regard to normal Python modules.  This makes the global
-  names ``__file__`` and ``__path__`` correctly available to module level code and
-  improves the support for module-level relative imports.
-  https://www.python.org/dev/peps/pep-0489/
+* Extension module initialisation follows
+  `PEP 489 <https://www.python.org/dev/peps/pep-0489/>`_ in CPython 3.5+, which
+  resolves several differences with regard to normal Python modules.  This makes
+  the global names ``__file__`` and ``__path__`` correctly available to module
+  level code and improves the support for module-level relative imports.
   (Github issues #1715, #1753)
 
-* Asynchronous generators (PEP 525) and asynchronous comprehensions (PEP 530)
+* Asynchronous generators (`PEP 525 <https://www.python.org/dev/peps/pep-0525/>`_)
+  and asynchronous comprehensions (`PEP 530 <https://www.python.org/dev/peps/pep-0530/>`_)
   have been implemented.  Note that async generators require finalisation support
   in order to allow for asynchronous operations during cleanup, which is only
   available in CPython 3.6+.  All other functionality has been backported as usual.
-  https://www.python.org/dev/peps/pep-0525/
-  https://www.python.org/dev/peps/pep-0530/
 
-* Variable annotations are now parsed according to PEP 526.  Cython types (e.g.
+* Variable annotations are now parsed according to
+  `PEP 526 <https://www.python.org/dev/peps/pep-0526/>`_.  Cython types (e.g.
   ``cython.int``) are evaluated as C type declarations and everything else as Python
   types.  This can be disabled with the directive ``annotation_typing=False``.
   (Github issue #1850)
@@ -67,10 +67,12 @@ Bugs fixed
 Other changes
 -------------
 
-* Type declarations in signature annotations are now parsed according to PEP 484
+* Type declarations in signature annotations are now parsed according to
+  `PEP 484 <https://www.python.org/dev/peps/pep-0484/>`_
   typing.  Only Cython types (e.g. ``cython.int``) and Python builtin types are
   currently considered as type declarations.  Everything else is ignored, but this
-  will probably change in a future Cython release.  (Github issue #1672)
+  will probably change in a future Cython release.
+  (Github issue #1672)
 
 * The directive ``annotation_typing`` is now ``True`` by default, which enables
   parsing type declarations from annotations.
@@ -326,7 +328,7 @@ Bugs fixed
 * IPython cell magic was lacking a good way to enable Python 3 code semantics.
   It can now be used as "%%cython -3".
 
-* Follow a recent change in `PEP 492 <https://www.python.org/dev/peps/pep-0498/>`_
+* Follow a recent change in `PEP 492 <https://www.python.org/dev/peps/pep-0492/>`_
   and CPython 3.5.2 that now requires the ``__aiter__()`` method of asynchronous
   iterators to be a simple ``def`` method instead of an ``async def`` method.
 
@@ -356,12 +358,12 @@ Bugs fixed
 Features added
 --------------
 
-* PEP 498: Literal String Formatting (f-strings).
+* `PEP 498 <https://www.python.org/dev/peps/pep-0498/>`_:
+  Literal String Formatting (f-strings).
   Original patch by Jelle Zijlstra.
-  https://www.python.org/dev/peps/pep-0498/
 
-* PEP 515: Underscores as visual separators in number literals.
-  https://www.python.org/dev/peps/pep-0515/
+* `PEP 515 <https://www.python.org/dev/peps/pep-0515/>`_:
+  Underscores as visual separators in number literals.
 
 * Parser was adapted to some minor syntax changes in Py3.6, e.g.
   https://bugs.python.org/issue9232
@@ -544,11 +546,11 @@ Bugs fixed
 Features added
 --------------
 
-* PEP 492 (async/await) was implemented.
-  See https://www.python.org/dev/peps/pep-0492/
+* `PEP 492 <https://www.python.org/dev/peps/pep-0492/>`_
+  (async/await) was implemented.
 
-* PEP 448 (Additional Unpacking Generalizations) was implemented.
-  See https://www.python.org/dev/peps/pep-0448/
+* `PEP 448 <https://www.python.org/dev/peps/pep-0448/>`_
+  (Additional Unpacking Generalizations) was implemented.
 
 * Support for coverage.py 4.0+ can be enabled by adding the plugin
   "Cython.Coverage" to the ".coveragerc" config file.
@@ -739,9 +741,9 @@ Features added
 
 * Anonymous C tuple types can be declared as (ctype1, ctype2, ...).
 
-* PEP 479: turn accidental StopIteration exceptions that exit generators
+* `PEP 479 <https://www.python.org/dev/peps/pep-0479/>`_:
+  turn accidental StopIteration exceptions that exit generators
   into a RuntimeError, activated with future import "generator_stop".
-  See https://www.python.org/dev/peps/pep-0479/
 
 * Looping over ``reversed(range())`` is optimised in the same way as
   ``range()``.  Patch by Favian Contreras.
