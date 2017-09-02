@@ -161,7 +161,7 @@ _directive_defaults = {
     'no_gc': False,
     'linetrace': False,
     'emit_code_comments': True,  # copy original source code into C code comments
-    'annotation_typing': False,  # read type declarations from Python function annotations
+    'annotation_typing': True,   # read type declarations from Python function annotations
     'infer_types': None,
     'infer_types.verbose': False,
     'autotestdict': True,

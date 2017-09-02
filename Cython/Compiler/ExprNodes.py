@@ -27,7 +27,7 @@ from .Code import UtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
 from . import Nodes
-from .Nodes import Node, utility_code_for_imports
+from .Nodes import Node, utility_code_for_imports, analyse_type_annotation
 from . import PyrexTypes
 from .PyrexTypes import py_object_type, c_long_type, typecast, error_type, \
     unspecified_type
@@ -1839,6 +1839,8 @@ class NameNode(AtomicExprNode):
         String literals are allowed and ignored.
         The ambiguous Python types 'int' and 'long' are ignored and the 'cython.int' form must be used instead.
         """
+        if not env.directives['annotation_typing']:
+            return
         if env.is_module_scope or env.is_py_class_scope:
             # annotations never create global cdef names and Python classes don't support them anyway
             return
@@ -1848,18 +1850,11 @@ class NameNode(AtomicExprNode):
             return
 
         annotation = self.annotation
-        atype = annotation.analyse_as_type(env)
-        if annotation.is_name and not annotation.cython_attribute and annotation.name in ('int', 'long', 'float'):
-            # ignore 'int' and require 'cython.int' to avoid unsafe integer declarations
-            if atype in (PyrexTypes.c_long_type, PyrexTypes.c_int_type, PyrexTypes.c_float_type):
-                atype = PyrexTypes.c_double_type if annotation.name == 'float' else py_object_type
-        elif annotation.is_string_literal:
+        if annotation.is_string_literal:
             # name: "description" => not a type, but still a declared variable or attribute
             atype = None
-        elif atype is None:
-            # annotations always make variables local => ignore and leave to type inference
-            warning(annotation.pos, "Unknown type declaration in annotation, ignoring")
-
+        else:
+            _, atype = analyse_type_annotation(annotation, env)
         if atype is None:
             atype = unspecified_type if as_target and env.directives['infer_types'] != False else py_object_type
         self.entry = env.declare_var(name, atype, self.pos, is_cdef=not as_target)

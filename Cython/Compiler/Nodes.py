@@ -68,10 +68,12 @@ def embed_position(pos, docstring):
     return doc
 
 
-def _analyse_signature_annotation(annotation, env):
+def analyse_type_annotation(annotation, env):
     base_type = None
     explicit_pytype = explicit_ctype = False
     if annotation.is_dict_literal:
+        warning(annotation.pos,
+                "Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.")
         for name, value in annotation.key_value_pairs:
             if not name.is_string_literal:
                 continue
@@ -85,6 +87,13 @@ def _analyse_signature_annotation(annotation, env):
         if explicit_pytype and explicit_ctype:
             warning(annotation.pos, "Duplicate type declarations found in signature annotation")
     arg_type = annotation.analyse_as_type(env)
+    if annotation.is_name and not annotation.cython_attribute and annotation.name in ('int', 'long', 'float'):
+        # ignore 'int' and require 'cython.int' to avoid unsafe integer declarations
+        if arg_type in (PyrexTypes.c_long_type, PyrexTypes.c_int_type, PyrexTypes.c_float_type):
+            arg_type = PyrexTypes.c_double_type if annotation.name == 'float' else py_object_type
+    elif arg_type is not None and annotation.is_string_literal:
+        warning(annotation.pos,
+                "Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.")
     if arg_type is not None:
         if explicit_pytype and not explicit_ctype and not arg_type.is_pyobject:
             warning(annotation.pos,
@@ -92,7 +101,7 @@ def _analyse_signature_annotation(annotation, env):
         base_type = CAnalysedBaseTypeNode(
             annotation.pos, type=arg_type, is_arg=True)
     else:
-        warning(annotation.pos, "Unknown type declaration found in signature annotation")
+        warning(annotation.pos, "Unknown type declaration in annotation, ignoring")
     return base_type, arg_type
 
 
@@ -870,7 +879,7 @@ class CArgDeclNode(Node):
         annotation = self.annotation
         if not annotation:
             return None
-        base_type, arg_type = _analyse_signature_annotation(annotation, env)
+        base_type, arg_type = analyse_type_annotation(annotation, env)
         if base_type is not None:
             self.base_type = base_type
         return arg_type
@@ -2796,7 +2805,7 @@ class DefNode(FuncDefNode):
         # if a signature annotation provides a more specific return object type, use it
         if self.return_type is py_object_type and self.return_type_annotation:
             if env.directives['annotation_typing'] and not self.entry.is_special:
-                _, return_type = _analyse_signature_annotation(self.return_type_annotation, env)
+                _, return_type = analyse_type_annotation(self.return_type_annotation, env)
                 if return_type and return_type.is_pyobject:
                     self.return_type = return_type
 

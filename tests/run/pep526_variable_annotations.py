@@ -1,6 +1,6 @@
-# mode: run
-# tag: pure3.6, warnings
 # cython: language_level=3
+# mode: run
+# tag: pure3.6, pep526, pep484, warnings
 
 import cython
 
