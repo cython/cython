@@ -6456,16 +6456,20 @@ class ForFromStatNode(LoopNode, StatNode):
                 self.bound1.result(), offset,
                 loopvar_name, self.relation2, self.bound2.result(),
                 loopvar_name, incop))
-        if self.py_loopvar_node:
-            self.py_loopvar_node.generate_evaluation_code(code)
-            self.target.generate_assignment_code(self.py_loopvar_node, code)
-        elif from_range:
-            code.putln("%s = %s%s;" % (
-                self.target.result(),
-                '(%s)' % self.target.type.declaration_code('') if self.target.type.is_enum else '',
-                loopvar_name))
+
+        coerced_loopvar_node = self.py_loopvar_node
+        if coerced_loopvar_node is None and from_range:
+            loopvar_cvalue = loopvar_name
+            if self.target.type.is_enum:
+                loopvar_cvalue = '(%s)%s' % (self.target.type.declaration_code(''), loopvar_cvalue)
+            coerced_loopvar_node = ExprNodes.RawCNameExprNode(self.target.pos, loopvar_type, loopvar_cvalue)
+        if coerced_loopvar_node is not None:
+            coerced_loopvar_node.generate_evaluation_code(code)
+            self.target.generate_assignment_code(coerced_loopvar_node, code)
+
         self.body.generate_execution_code(code)
         code.put_label(code.continue_label)
+
         if self.py_loopvar_node:
             # This mess is to make for..from loops with python targets behave
             # exactly like those with C targets with regards to re-assignment
@@ -6498,7 +6502,9 @@ class ForFromStatNode(LoopNode, StatNode):
             if self.target.entry.is_pyglobal:
                 code.put_decref(target_node.result(), target_node.type)
                 target_node.release(code)
+
         code.putln("}")
+
         if self.py_loopvar_node:
             # This is potentially wasteful, but we don't want the semantics to
             # depend on whether or not the loop is a python type.
@@ -6506,6 +6512,7 @@ class ForFromStatNode(LoopNode, StatNode):
             self.target.generate_assignment_code(self.py_loopvar_node, code)
         if from_range:
             code.funcstate.release_temp(loopvar_name)
+
         break_label = code.break_label
         code.set_loop_labels(old_loop_labels)
         if self.else_clause:

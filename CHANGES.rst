@@ -53,6 +53,9 @@ Bugs fixed
 * abs(signed int) now returns a signed rather than unsigned int.
   (Github issue #1837)
 
+* Compilation failed if the for-in-range loop target was not a variable but a more
+  complex expression, e.g. an item assignment. (Github issue #1831)
+
 * Compile time evaluations of (partially) constant f-strings could show incorrect
   results.
 
