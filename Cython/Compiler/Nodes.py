@@ -1640,6 +1640,7 @@ class FuncDefNode(StatNode, BlockNode):
                 error(arg.pos, "Non-default argument following default argument")
 
     def analyse_annotation(self, env, annotation):
+        # Annotations can not only contain valid Python expressions but arbitrary type references.
         if annotation is None:
             return None
         if annotation.analyse_as_type(env) is None:
