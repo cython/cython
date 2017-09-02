@@ -117,6 +117,7 @@ def return_tuple_for_carray() -> tuple:
 MyStruct = cython.struct(x=cython.int, y=cython.int, data=cython.double)
 
 
+@cython.ccall
 def struct_io(s : MyStruct) -> MyStruct:
     """
     >>> d = struct_io(dict(x=1, y=2, data=3))
@@ -128,6 +129,22 @@ def struct_io(s : MyStruct) -> MyStruct:
     return t
 
 
+@cython.test_fail_if_path_exists(
+    "//CoerceFromPyTypeNode",
+    "//SimpleCallNode//CoerceToPyTypeNode",
+)
+@cython.test_assert_path_exists(
+    "//CoerceToPyTypeNode",
+    "//CoerceToPyTypeNode//SimpleCallNode",
+)
+def call_struct_io(s : MyStruct) -> MyStruct:
+    """
+    >>> d = call_struct_io(dict(x=1, y=2, data=3))
+    >>> sorted(d.items())
+    [('data', 3.0), ('x', 2), ('y', 1)]
+    """
+    return struct_io(s)
+
 
 _WARNINGS = """
 8:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
@@ -138,4 +155,5 @@ _WARNINGS = """
 8:85: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
 # BUG:
 46:6: 'pytypes_cpdef' redeclared
+121:0: 'struct_io' redeclared
 """
