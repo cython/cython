@@ -852,7 +852,9 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         if node.name in self.cython_module_names:
             node.is_cython_module = True
         else:
-            node.cython_attribute = self.directive_names.get(node.name)
+            directive = self.directive_names.get(node.name)
+            if directive is not None:
+                node.cython_attribute = directive
         return node
 
     def try_to_parse_directives(self, node):
