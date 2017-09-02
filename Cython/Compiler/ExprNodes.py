@@ -3293,10 +3293,6 @@ class IndexNode(_IndexingBaseNode):
     is_subscript = True
     is_fused_index = False
 
-    def __init__(self, pos, index, **kw):
-        ExprNode.__init__(self, pos, index=index, **kw)
-        self._index = index
-
     def calculate_constant_result(self):
         self.constant_result = self.base.constant_result[self.index.constant_result]
 
@@ -4613,7 +4609,7 @@ class SliceIndexNode(ExprNode):
                               start=self.start or none_node,
                               stop=self.stop or none_node,
                               step=none_node)
-            index_node = IndexNode(self.pos, index, base=self.base)
+            index_node = IndexNode(self.pos, index=index, base=self.base)
             return index_node.analyse_base_and_index_types(
                 env, getting=getting, setting=not getting,
                 analyse_base=False)
