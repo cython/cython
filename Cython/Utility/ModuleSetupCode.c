@@ -236,7 +236,7 @@
 
 #if !CYTHON_FAST_THREAD_STATE || PY_VERSION_HEX < 0x02070000
   #define __Pyx_PyThreadState_Current PyThreadState_GET()
-#elif PY_VERSION_HEX >= 0x03050000
+#elif PY_VERSION_HEX >= 0x03050200
   #define __Pyx_PyThreadState_Current _PyThreadState_UncheckedGet()
 #elif PY_VERSION_HEX >= 0x03000000
   #define __Pyx_PyThreadState_Current PyThreadState_Get()
