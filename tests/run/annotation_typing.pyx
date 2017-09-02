@@ -114,6 +114,21 @@ def return_tuple_for_carray() -> tuple:
     return x
 
 
+MyStruct = cython.struct(x=cython.int, y=cython.int, data=cython.double)
+
+
+def struct_io(s : MyStruct) -> MyStruct:
+    """
+    >>> d = struct_io(dict(x=1, y=2, data=3))
+    >>> sorted(d.items())
+    [('data', 3.0), ('x', 2), ('y', 1)]
+    """
+    t = s
+    t.x, t.y = s.y, s.x
+    return t
+
+
+
 _WARNINGS = """
 8:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
 8:47: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.

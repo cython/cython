@@ -1639,10 +1639,17 @@ class FuncDefNode(StatNode, BlockNode):
             elif default_seen:
                 error(arg.pos, "Non-default argument following default argument")
 
+    def analyse_annotation(self, env, annotation):
+        if annotation is None:
+            return None
+        if annotation.analyse_as_type(env) is None:
+            annotation = annotation.analyse_types(env)
+        return annotation
+
     def analyse_annotations(self, env):
         for arg in self.args:
             if arg.annotation:
-                arg.annotation = arg.annotation.analyse_types(env)
+                arg.annotation = self.analyse_annotation(env, arg.annotation)
 
     def align_argument_type(self, env, arg):
         # @cython.locals()
@@ -3040,7 +3047,7 @@ class DefNode(FuncDefNode):
         self.analyse_default_values(env)
         self.analyse_annotations(env)
         if self.return_type_annotation:
-            self.return_type_annotation = self.return_type_annotation.analyse_types(env)
+            self.return_type_annotation = self.analyse_annotation(env, self.return_type_annotation)
 
         if not self.needs_assignment_synthesis(env) and self.decorators:
             for decorator in self.decorators[::-1]:
