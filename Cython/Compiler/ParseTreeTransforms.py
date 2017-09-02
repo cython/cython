@@ -2326,14 +2326,18 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             modifiers.append('inline')
         if 'ccall' in self.directives:
             node = node.as_cfunction(
-                overridable=True, returns=self.directives.get('returns'), modifiers=modifiers)
+                overridable=True, returns=self.directives.get('returns'),
+                except_directive=self.directives.get('except_'),
+                modifiers=modifiers)
             return self.visit(node)
         if 'cfunc' in self.directives:
             if self.in_py_class:
                 error(node.pos, "cfunc directive is not allowed here")
             else:
                 node = node.as_cfunction(
-                    overridable=False, returns=self.directives.get('returns'), modifiers=modifiers)
+                    overridable=False, returns=self.directives.get('returns'),
+                    except_directive=self.directives.get('except_'),
+                    modifiers=modifiers)
                 return self.visit(node)
         if 'inline' in modifiers:
             error(node.pos, "Python functions cannot be declared 'inline'")
