@@ -4786,7 +4786,7 @@ class ExprStatNode(StatNode):
                     else:
                         env.declare_var(var.value, type, var.pos, is_cdef=True)
                 self.__class__ = PassStatNode
-        elif expr.annotation is not None:
+        elif getattr(expr, 'annotation', None) is not None:
             if expr.is_name:
                 # non-code variable annotation, e.g. "name: type"
                 expr.declare_from_annotation(env)
