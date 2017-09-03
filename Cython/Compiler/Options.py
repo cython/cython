@@ -143,6 +143,7 @@ _directive_defaults = {
     'initializedcheck' : True,
     'embedsignature' : False,
     'locals' : {},
+    'exceptval' : (None, False),  # (except value, check=False)
     'auto_cpdef': False,
     'auto_pickle': None,
     'cdivision': False, # was True before 0.12
@@ -292,6 +293,9 @@ directive_scopes = { # defaults to available everywhere
     'auto_pickle': ('module', 'cclass'),
     'final' : ('cclass', 'function'),
     'inline' : ('function',),
+    'returns' : ('function',),
+    'exceptval' : ('function',),
+    'locals' : ('function',),
     'staticmethod' : ('function',),  # FIXME: analysis currently lacks more specific function scope
     'no_gc_clear' : ('cclass',),
     'no_gc' : ('cclass',),

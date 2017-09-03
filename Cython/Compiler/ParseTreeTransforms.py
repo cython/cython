@@ -902,9 +902,25 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         return None
 
     def try_to_parse_directive(self, optname, args, kwds, pos):
-        directivetype = Options.directive_types.get(optname)
         if optname == 'np_pythran' and not self.context.cpp:
             raise PostParseError(pos, 'The %s directive can only be used in C++ mode.' % optname)
+        elif optname == 'exceptval':
+            arg_error = len(args) > 1
+            check = False
+            if kwds and kwds.key_value_pairs:
+                kw = kwds.key_value_pairs[0]
+                if (len(kwds.key_value_pairs) == 1 and
+                        kw.key.is_string_literal and kw.key.value == 'check' and
+                        isinstance(kw.value, ExprNodes.BoolNode)):
+                    check = kw.value.value
+                else:
+                    arg_error = True
+            if arg_error:
+                raise PostParseError(
+                    pos, 'The exceptval directive takes 0 or 1 positional arguments and the boolean keyword "check"')
+            return ('exceptval', (args[0] if args else None, check))
+
+        directivetype = Options.directive_types.get(optname)
         if len(args) == 1 and isinstance(args[0], ExprNodes.NoneNode):
             return optname, Options.get_directive_defaults()[optname]
         elif directivetype is bool:
@@ -934,7 +950,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                     'The %s directive takes no prepositional arguments' % optname)
             return optname, dict([(key.value, value) for key, value in kwds.key_value_pairs])
         elif directivetype is list:
-            if kwds and len(kwds) != 0:
+            if kwds and len(kwds.key_value_pairs) != 0:
                 raise PostParseError(pos,
                     'The %s directive takes no keyword arguments' % optname)
             return optname, [ str(arg.value) for arg in args ]
@@ -2324,19 +2340,22 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         modifiers = []
         if 'inline' in self.directives:
             modifiers.append('inline')
+        except_val = self.directives.get('exceptval')
         return_type_node = self.directives.get('returns')
         if return_type_node is None and self.directives['annotation_typing']:
             return_type_node = node.return_type_annotation
         if 'ccall' in self.directives:
             node = node.as_cfunction(
-                overridable=True, returns=return_type_node, modifiers=modifiers)
+                overridable=True, modifiers=modifiers,
+                returns=return_type_node, except_val=except_val)
             return self.visit(node)
         if 'cfunc' in self.directives:
             if self.in_py_class:
                 error(node.pos, "cfunc directive is not allowed here")
             else:
                 node = node.as_cfunction(
-                    overridable=False, returns=return_type_node, modifiers=modifiers)
+                    overridable=False, modifiers=modifiers,
+                    returns=return_type_node, except_val=except_val)
                 return self.visit(node)
         if 'inline' in modifiers:
             error(node.pos, "Python functions cannot be declared 'inline'")

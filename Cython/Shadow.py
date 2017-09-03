@@ -111,7 +111,9 @@ returns = wraparound = boundscheck = initializedcheck = nonecheck = \
     overflowcheck = embedsignature = cdivision = cdivision_warnings = \
     always_allows_keywords = profile = linetrace = infer_type = \
     unraisable_tracebacks = freelist = \
-        lambda arg: _EmptyDecoratorAndManager()
+        lambda _: _EmptyDecoratorAndManager()
+
+exceptval = lambda _=None, check=False: _EmptyDecoratorAndManager()
 
 optimization = _Optimization()
 

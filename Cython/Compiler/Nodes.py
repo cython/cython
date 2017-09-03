@@ -2710,11 +2710,13 @@ class DefNode(FuncDefNode):
         self.num_required_kw_args = rk
         self.num_required_args = r
 
-    def as_cfunction(self, cfunc=None, scope=None, overridable=True, returns=None, modifiers=None):
+    def as_cfunction(self, cfunc=None, scope=None, overridable=True, returns=None, except_val=None, modifiers=None):
         if self.star_arg:
             error(self.star_arg.pos, "cdef function cannot have star argument")
         if self.starstar_arg:
             error(self.starstar_arg.pos, "cdef function cannot have starstar argument")
+        exception_value, exception_check = except_val or (None, False)
+
         if cfunc is None:
             cfunc_args = []
             for formal_arg in self.args:
@@ -2727,7 +2729,7 @@ class DefNode(FuncDefNode):
                                               args=cfunc_args,
                                               has_varargs=False,
                                               exception_value=None,
-                                              exception_check=False,
+                                              exception_check=exception_check,
                                               nogil=False,
                                               with_gil=False,
                                               is_overridable=overridable)
@@ -2745,11 +2747,10 @@ class DefNode(FuncDefNode):
                 if type is None or type is PyrexTypes.py_object_type:
                     formal_arg.type = type_arg.type
                     formal_arg.name_declarator = name_declarator
-        from . import ExprNodes
-        if cfunc_type.exception_value is None:
-            exception_value = None
-        else:
-            exception_value = ExprNodes.ConstNode(
+
+        if exception_value is None and cfunc_type.exception_value is not None:
+            from .ExprNodes import ConstNode
+            exception_value = ConstNode(
                 self.pos, value=cfunc_type.exception_value, type=cfunc_type.return_type)
         declarator = CFuncDeclaratorNode(self.pos,
                                          base=CNameDeclaratorNode(self.pos, name=self.name, cname=None),

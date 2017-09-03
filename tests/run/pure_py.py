@@ -266,3 +266,78 @@ def count_digits_in_carray(digits):
         assert 0 <= digit <= 9
         counts[digit] += 1
     return counts
+
+
+@cython.test_assert_path_exists("//CFuncDeclaratorNode//IntNode[@value = '-1']")
+@cython.ccall
+@cython.returns(cython.long)
+@cython.exceptval(-1)
+def ccall_except(x):
+    """
+    >>> ccall_except(41)
+    42
+    >>> ccall_except(0)
+    Traceback (most recent call last):
+    ValueError
+    """
+    if x == 0:
+        raise ValueError
+    return x+1
+
+
+@cython.test_assert_path_exists("//CFuncDeclaratorNode//IntNode[@value = '-1']")
+@cython.cfunc
+@cython.returns(cython.long)
+@cython.exceptval(-1)
+def cdef_except(x):
+    """
+    >>> call_cdef_except(41)
+    42
+    >>> call_cdef_except(0)
+    Traceback (most recent call last):
+    ValueError
+    """
+    if x == 0:
+        raise ValueError
+    return x+1
+
+
+def call_cdef_except(x):
+    return cdef_except(x)
+
+
+@cython.test_assert_path_exists("//CFuncDeclaratorNode//IntNode[@value = '-1']")
+@cython.ccall
+@cython.returns(cython.long)
+@cython.exceptval(-1, check=True)
+def ccall_except_check(x):
+    """
+    >>> ccall_except_check(41)
+    42
+    >>> ccall_except_check(-2)
+    -1
+    >>> ccall_except_check(0)
+    Traceback (most recent call last):
+    ValueError
+    """
+    if x == 0:
+        raise ValueError
+    return x+1
+
+
+@cython.test_fail_if_path_exists("//CFuncDeclaratorNode//IntNode[@value = '-1']")
+@cython.test_assert_path_exists("//CFuncDeclaratorNode")
+@cython.ccall
+@cython.returns(cython.long)
+@cython.exceptval(check=True)
+def ccall_except_check_always(x):
+    """
+    >>> ccall_except_check_always(41)
+    42
+    >>> ccall_except_check_always(0)
+    Traceback (most recent call last):
+    ValueError
+    """
+    if x == 0:
+        raise ValueError
+    return x+1

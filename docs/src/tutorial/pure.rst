@@ -195,6 +195,14 @@ Static typing
 
 * ``@cython.returns(<type>)`` specifies the function's return type.
 
+* ``@cython.exceptval(value=None, *, check=False)`` specifies the function's exception
+  return value and exception check semantics as follows::
+
+    @exceptval(-1)               # cdef int func() except -1:
+    @exceptval(-1, check=False)  # cdef int func() except -1:
+    @exceptval(check=True)       # cdef int func() except *:
+    @exceptval(-1, check=True)   # cdef int func() except? -1:
+
 * Python annotations can be used to declare argument types, as shown in the
   following example.  To avoid conflicts with other kinds of annotation
   usages, this can be disabled with the directive ``annotation_typing=False``.
@@ -203,6 +211,15 @@ Static typing
 
     def func(a_pydict: dict, a_cint: cython.int) -> tuple:
         ...
+
+  This can be combined with the ``@cython.exceptval()`` decorator for non-Python
+  return types::
+
+    @cython.exceptval(-1):
+    def func(x : cython.int) -> cython.int:
+        if x < 0:
+            raise ValueError("need integer >= 0")
+        return x+1
 
   Since version 0.27, Cython also supports the variable annotations defined
   in `PEP 526 <https://www.python.org/dev/peps/pep-0526/>`_. This allows to
