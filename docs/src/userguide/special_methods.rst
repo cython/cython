@@ -132,19 +132,22 @@ There are no separate methods for the individual rich comparison operations
 :meth:`__richcmp__` which takes an integer indicating which operation is to be
 performed, as follows:
 
-+-----+-----+
-|  <  |  0  |
-+-----+-----+
-| ==  |  2  |
-+-----+-----+
-|  >  |  4  |
-+-----+-----+
-| <=  |  1  |
-+-----+-----+
-| !=  |  3  |
-+-----+-----+
-| >=  |  5  |
-+-----+-----+
++-----+-----+-------+
+|  <  |  0  | Py_LT |
++-----+-----+-------+
+| ==  |  2  | Py_EQ |
++-----+-----+-------+
+|  >  |  4  | Py_GT |
++-----+-----+-------+
+| <=  |  1  | Py_LE |
++-----+-----+-------+
+| !=  |  3  | Py_NE |
++-----+-----+-------+
+| >=  |  5  | Py_GE |
++-----+-----+-------+
+
+The named constants can be cimported from the ``cpython.object`` module.
+They should generally be preferred over plain integers to improve readabilty.
 
 The :meth:`__next__` method
 ----------------------------
