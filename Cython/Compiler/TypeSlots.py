@@ -402,9 +402,9 @@ class SyntheticSlot(InternalMethodSlot):
             return self.default_value
 
 
-class RichcmpSlot(SlotDescriptor):
+class RichcmpSlot(MethodSlot):
     def slot_code(self, scope):
-        entry = scope.lookup_here("__richcmp__")
+        entry = scope.lookup_here(self.method_name)
         if entry and entry.func_cname:
             return entry.func_cname
         elif scope.defines_any(richcmp_special_methods):
@@ -836,7 +836,7 @@ slot_table = (
     GCDependentSlot("tp_traverse"),
     GCClearReferencesSlot("tp_clear"),
 
-    RichcmpSlot("tp_richcompare", inherited=False),  # Py3 checks for __hash__
+    RichcmpSlot(richcmpfunc, "tp_richcompare", "__richcmp__", inherited=False),  # Py3 checks for __hash__
 
     EmptySlot("tp_weaklistoffset"),
 

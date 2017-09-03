@@ -217,6 +217,31 @@ class ClassEqNeGe(ClassEqNe):
 
 
 @cython.cclass
+class ClassRichcmpOverride(ClassEqNeGe):
+    """
+    >>> a = ClassRichcmpOverride(1)
+    >>> b = ClassRichcmpOverride(1)
+
+    >>> a == a
+    True
+    >>> a != a
+    False
+
+    >>> a != b if compiled else a == b  # Python ignores __richcmp__()
+    True
+    >>> a == b if compiled else a != b  # Python ignores __richcmp__()
+    False
+
+    >>> if IS_PY2 or not compiled: raise TypeError  # doctest: +ELLIPSIS
+    ... else: a >= b  # should no longer work when __richcmp__ is overwritten
+    Traceback (most recent call last):
+    TypeError...
+    """
+    def __richcmp__(self, other, op):
+        return NotImplemented
+
+
+@cython.cclass
 class ClassLe(X):
     """
     >>> a = ClassLe(1)
