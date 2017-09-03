@@ -18,9 +18,9 @@ from .StringEncoding import EncodedString
 from . import Options, Naming
 from . import PyrexTypes
 from .PyrexTypes import py_object_type, unspecified_type
-from .TypeSlots import \
-    pyfunction_signature, pymethod_signature, \
-    get_special_method_signature, get_property_accessor_signature
+from .TypeSlots import (
+    pyfunction_signature, pymethod_signature, richcmp_special_methods,
+    get_special_method_signature, get_property_accessor_signature)
 
 from . import Code
 
@@ -2060,8 +2060,13 @@ class CClassScope(ClassScope):
 
     def declare_pyfunction(self, name, pos, allow_redefine=False):
         # Add an entry for a method.
-        if name in ('__eq__', '__ne__', '__lt__', '__gt__', '__le__', '__ge__'):
-            error(pos, "Special method %s must be implemented via __richcmp__" % name)
+        if name in richcmp_special_methods:
+            if self.lookup_here('__richcmp__'):
+                error(pos, "Cannot define both % and __richcmp__" % name)
+        elif name == '__richcmp__':
+            for n in richcmp_special_methods:
+                if self.lookup_here(n):
+                    error(pos, "Cannot define both % and __richcmp__" % n)
         if name == "__new__":
             error(pos, "__new__ method of extension type will change semantics "
                 "in a future version of Pyrex and Cython. Use __cinit__ instead.")

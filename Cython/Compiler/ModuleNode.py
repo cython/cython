@@ -1223,6 +1223,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         self.generate_descr_set_function(scope, code)
                     if scope.defines_any(["__dict__"]):
                         self.generate_dict_getter_function(scope, code)
+                    if scope.defines_any(TypeSlots.richcmp_special_methods):
+                        self.generate_richcmp_function(scope, code)
                     self.generate_property_accessors(scope, code)
                     self.generate_method_table(scope, code)
                     self.generate_getset_table(scope, code)
@@ -1789,6 +1791,73 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "}")
         code.putln(
             "}")
+
+    def generate_richcmp_function(self, scope, code):
+        if scope.lookup_here("__richcmp__"):
+            # user implemented, nothing to do
+            return
+        # otherwise, we have to generate it from the Python special methods
+        richcmp_cfunc = scope.mangle_internal("tp_richcompare")
+        code.putln("")
+        code.putln("static PyObject *%s(PyObject *o1, PyObject *o2, int op) {" % richcmp_cfunc)
+        code.putln("switch (op) {")
+
+        class_scopes = []
+        cls = scope.parent_type
+        while cls is not None and not cls.entry.visibility == 'extern':
+            class_scopes.append(cls.scope)
+            cls = cls.scope.parent_type.base_type
+        assert scope in class_scopes
+
+        extern_parent = None
+        if cls and cls.entry.visibility == 'extern':
+            # need to call up into base classes as we may not know all implemented comparison methods
+            extern_parent = cls if cls.typeptr_cname else scope.parent_type.base_type
+
+        eq_entry = None
+        has_ne = False
+        for cmp_method in TypeSlots.richcmp_special_methods:
+            for class_scope in class_scopes:
+                entry = class_scope.lookup_here(cmp_method)
+                if entry is not None:
+                    break
+            else:
+                continue
+
+            cmp_type = cmp_method.strip('_').upper()  # e.g. "__eq__" -> EQ
+            code.putln("case Py_%s: {" % cmp_type)
+            if cmp_method == '__eq__':
+                eq_entry = entry
+                code.putln("if (o1 == o2) return __Pyx_NewRef(Py_True);")
+            elif cmp_method == '__ne__':
+                has_ne = True
+                code.putln("if (o1 == o2) return __Pyx_NewRef(Py_False);")
+            code.putln("return %s(o1, o2);" % entry.func_cname)
+            code.putln("}")
+
+        if eq_entry and not has_ne and not extern_parent:
+            code.putln("case Py_NE: {")
+            code.putln("PyObject *ret;")
+            code.putln("if (o1 == o2) return __Pyx_NewRef(Py_False);")
+            code.putln("ret = %s(o1, o2);" % eq_entry.func_cname)
+            code.putln("if (likely(ret && ret != Py_NotImplemented)) {")
+            code.putln("int b = __Pyx_PyObject_IsTrue(ret); Py_DECREF(ret);")
+            code.putln("if (unlikely(b < 0)) return NULL;")
+            code.putln("ret = (b) ? Py_False : Py_True;")
+            code.putln("Py_INCREF(ret);")
+            code.putln("}")
+            code.putln("return ret;")
+            code.putln("}")
+
+        code.putln("default: {")
+        if extern_parent and extern_parent.typeptr_cname:
+            code.putln("if (likely(%s->tp_richcompare)) return %s->tp_richcompare(o1, o2, op);" % (
+                extern_parent.typeptr_cname, extern_parent.typeptr_cname))
+        code.putln("return __Pyx_NewRef(Py_NotImplemented);")
+        code.putln("}")
+
+        code.putln("}")  # switch
+        code.putln("}")
 
     def generate_getattro_function(self, scope, code):
         # First try to get the attribute using __getattribute__, if defined, or

@@ -27,6 +27,10 @@ Features added
   types.  This can be disabled with the directive ``annotation_typing=False``.
   (Github issue #1850)
 
+* Extension types (also in pure Python mode) can implement the normal special methods
+  ``__eq__``, ``__lt__`` etc. for comparisons instead of the low-level ``__richcmp__``
+  method.  (Github issue #690)
+
 * New decorator ``@cython.exceptval(x=None, check=False)`` that makes the signature
   declarations ``except x``, ``except? x`` and ``except *`` available to pure Python
   code.  Original patch by Antonio Cuni.  (Github issue #1653)

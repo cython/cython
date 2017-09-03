@@ -268,26 +268,29 @@ Arithmetic Methods
 Rich Comparisons
 ================
 
-.. note:: There are no separate methods for individual rich comparison operations.
+* Starting with Cython 0.27, the Python special methods ``__eq__``, ``__lt__``, etc. can be implemented.
+  In previous versions, ``__richcmp__`` was the only way to implement rich comparisons.
+* A single special method called ``__richcmp__()`` can be used to implement all the individual
+  rich compare, special method types.
+* ``__richcmp__()`` takes an integer argument, indicating which operation is to be performed
+  as shown in the table below.
 
-* A single special method called ``__richcmp__()`` replaces all the individual rich compare, special method types.
-* ``__richcmp__()`` takes an integer argument, indicating which operation is to be performed as shown in the table below.
+  +-----+-----+-------+
+  |  <  |  0  | Py_LT |
+  +-----+-----+-------+
+  | ==  |  2  | Py_EQ |
+  +-----+-----+-------+
+  |  >  |  4  | Py_GT |
+  +-----+-----+-------+
+  | <=  |  1  | Py_LE |
+  +-----+-----+-------+
+  | !=  |  3  | Py_NE |
+  +-----+-----+-------+
+  | >=  |  5  | Py_GE |
+  +-----+-----+-------+
 
-    +-----+-----+
-    |  <  |  0  |
-    +-----+-----+
-    | ==  |  2  |
-    +-----+-----+
-    |  >  |  4  |
-    +-----+-----+
-    | <=  |  1  |
-    +-----+-----+
-    | !=  |  3  |
-    +-----+-----+
-    | >=  |  5  |
-    +-----+-----+
-
-
+  The named constants can be cimported from the ``cpython.object`` module.
+  They should generally be preferred over plain integers to improve readabilty.
 
 
 The ``__next__()`` Method

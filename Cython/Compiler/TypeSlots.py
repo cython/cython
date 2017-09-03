@@ -12,6 +12,8 @@ from .Errors import error
 invisible = ['__cinit__', '__dealloc__', '__richcmp__',
              '__nonzero__', '__bool__']
 
+richcmp_special_methods = ['__eq__', '__ne__', '__lt__', '__gt__', '__le__', '__ge__']
+
 
 class Signature(object):
     #  Method slot signature descriptor.
@@ -398,6 +400,17 @@ class SyntheticSlot(InternalMethodSlot):
             return InternalMethodSlot.slot_code(self, scope)
         else:
             return self.default_value
+
+
+class RichcmpSlot(SlotDescriptor):
+    def slot_code(self, scope):
+        entry = scope.lookup_here("__richcmp__")
+        if entry and entry.func_cname:
+            return entry.func_cname
+        elif scope.defines_any(richcmp_special_methods):
+            return scope.mangle_internal(self.slot_name)
+        else:
+            return "0"
 
 
 class TypeFlagsSlot(SlotDescriptor):
@@ -823,8 +836,7 @@ slot_table = (
     GCDependentSlot("tp_traverse"),
     GCClearReferencesSlot("tp_clear"),
 
-    # Later -- synthesize a method to split into separate ops?
-    MethodSlot(richcmpfunc, "tp_richcompare", "__richcmp__", inherited=False),  # Py3 checks for __hash__
+    RichcmpSlot("tp_richcompare", inherited=False),  # Py3 checks for __hash__
 
     EmptySlot("tp_weaklistoffset"),
 
