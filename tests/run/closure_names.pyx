@@ -24,8 +24,16 @@ def func():
     def __dict__(a):
         return 'dict'
 
+    def __setitem__(x):
+        return '__setitem__'
+
+    def __getslice__(x):
+        return '__getslice__'
+
     def list_from_gen(g):
         return list(g)
 
     # move into closure by using inside of generator expression
-    return list_from_gen([__eq__, __str__, __weakref__, __new__, __dict__][i] for i in range(5))
+    return list_from_gen(
+        [__eq__, __str__, __weakref__, __new__, __dict__, __setitem__, __getslice__][i]
+        for i in range(5))

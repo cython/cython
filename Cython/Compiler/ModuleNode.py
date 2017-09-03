@@ -1200,31 +1200,33 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         self.generate_traverse_function(scope, code, entry)
                         if scope.needs_tp_clear():
                             self.generate_clear_function(scope, code, entry)
-                    if scope.defines_any(["__getitem__"]):
-                        self.generate_getitem_int_function(scope, code)
-                    if scope.defines_any(["__setitem__", "__delitem__"]):
-                        self.generate_ass_subscript_function(scope, code)
-                    if scope.defines_any(["__getslice__", "__setslice__", "__delslice__"]):
-                        warning(self.pos,
-                                "__getslice__, __setslice__, and __delslice__ are not supported by Python 3, "
-                                "use __getitem__, __setitem__, and __delitem__ instead", 1)
-                        code.putln("#if PY_MAJOR_VERSION >= 3")
-                        code.putln("#error __getslice__, __setslice__, and __delslice__ not supported in Python 3.")
-                        code.putln("#endif")
-                    if scope.defines_any(["__setslice__", "__delslice__"]):
-                        self.generate_ass_slice_function(scope, code)
-                    if scope.defines_any(["__getattr__", "__getattribute__"]):
-                        self.generate_getattro_function(scope, code)
-                    if scope.defines_any(["__setattr__", "__delattr__"]):
-                        self.generate_setattro_function(scope, code)
-                    if scope.defines_any(["__get__"]):
-                        self.generate_descr_get_function(scope, code)
-                    if scope.defines_any(["__set__", "__delete__"]):
-                        self.generate_descr_set_function(scope, code)
-                    if scope.defines_any(["__dict__"]):
-                        self.generate_dict_getter_function(scope, code)
-                    if scope.defines_any(TypeSlots.richcmp_special_methods):
-                        self.generate_richcmp_function(scope, code)
+                    if not scope.is_closure_class_scope:
+                        # in closure classes, these are user defined variable names
+                        if scope.defines_any(["__getitem__"]):
+                            self.generate_getitem_int_function(scope, code)
+                        if scope.defines_any(["__setitem__", "__delitem__"]):
+                            self.generate_ass_subscript_function(scope, code)
+                        if scope.defines_any(["__getslice__", "__setslice__", "__delslice__"]):
+                            warning(self.pos,
+                                    "__getslice__, __setslice__, and __delslice__ are not supported by Python 3, "
+                                    "use __getitem__, __setitem__, and __delitem__ instead", 1)
+                            code.putln("#if PY_MAJOR_VERSION >= 3")
+                            code.putln("#error __getslice__, __setslice__, and __delslice__ not supported in Python 3.")
+                            code.putln("#endif")
+                        if scope.defines_any(["__setslice__", "__delslice__"]):
+                            self.generate_ass_slice_function(scope, code)
+                        if scope.defines_any(["__getattr__", "__getattribute__"]):
+                            self.generate_getattro_function(scope, code)
+                        if scope.defines_any(["__setattr__", "__delattr__"]):
+                            self.generate_setattro_function(scope, code)
+                        if scope.defines_any(["__get__"]):
+                            self.generate_descr_get_function(scope, code)
+                        if scope.defines_any(["__set__", "__delete__"]):
+                            self.generate_descr_set_function(scope, code)
+                        if scope.defines_any(["__dict__"]):
+                            self.generate_dict_getter_function(scope, code)
+                        if scope.defines_any(TypeSlots.richcmp_special_methods):
+                            self.generate_richcmp_function(scope, code)
                     self.generate_property_accessors(scope, code)
                     self.generate_method_table(scope, code)
                     self.generate_getset_table(scope, code)

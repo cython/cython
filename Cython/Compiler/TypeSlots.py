@@ -304,6 +304,8 @@ class MethodSlot(SlotDescriptor):
                 method_name_to_slot[method_name] = self
 
     def slot_code(self, scope):
+        if scope.is_closure_class_scope:
+            return "0"
         entry = scope.lookup_here(self.method_name)
         if entry and entry.func_cname:
             return entry.func_cname
@@ -404,6 +406,8 @@ class SyntheticSlot(InternalMethodSlot):
 
 class RichcmpSlot(MethodSlot):
     def slot_code(self, scope):
+        if scope.is_closure_class_scope:
+            return "0"
         entry = scope.lookup_here(self.method_name)
         if entry and entry.func_cname:
             return entry.func_cname
@@ -456,6 +460,8 @@ class SuiteSlot(SlotDescriptor):
         substructures.append(self)
 
     def is_empty(self, scope):
+        if scope.is_closure_class_scope:
+            return True
         for slot in self.sub_slots:
             if slot.slot_code(scope) != "0":
                 return False
