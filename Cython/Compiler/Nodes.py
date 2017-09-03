@@ -867,8 +867,8 @@ class CArgDeclNode(Node):
                 base_type = base_type.base_type
 
             # inject type declaration from annotations
-            # FIXME: this is called without 'env' by AdjustDefByDirectives transform before declaration analysis
-            if self.annotation and (not env or env.directives['annotation_typing']) and self.base_type.name is None:
+            # this is called without 'env' by AdjustDefByDirectives transform before declaration analysis
+            if self.annotation and env and env.directives['annotation_typing'] and self.base_type.name is None:
                 arg_type = self.inject_type_from_annotations(env)
                 if arg_type is not None:
                     base_type = arg_type
