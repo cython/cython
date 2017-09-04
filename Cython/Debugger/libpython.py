@@ -1940,6 +1940,7 @@ PyLocals()
 ## added, not in CPython
 ##################################################################
 
+import re
 import atexit
 import warnings
 import tempfile
