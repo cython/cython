@@ -1922,7 +1922,7 @@ class NameNode(AtomicExprNode):
             self.entry = env.lookup(self.name)
         if not self.entry:
             self.entry = env.declare_builtin(self.name, self.pos)
-            if Options.cache_builtins:
+            if self.entry and self.entry.is_builtin and Options.cache_builtins:
                 self.is_literal = True
         if not self.entry:
             self.type = PyrexTypes.error_type
