@@ -367,6 +367,8 @@ class ConstructorSlot(InternalMethodSlot):
         self.method = method
 
     def slot_code(self, scope):
+        if scope.is_closure_class_scope:
+            return "0"
         if (self.slot_name != 'tp_new'
                 and scope.parent_type.base_type
                 and not scope.has_pyobject_attrs
@@ -398,6 +400,8 @@ class SyntheticSlot(InternalMethodSlot):
         self.default_value = default_value
 
     def slot_code(self, scope):
+        if scope.is_closure_class_scope:
+            return "0"
         if scope.defines_any(self.user_methods):
             return InternalMethodSlot.slot_code(self, scope)
         else:
