@@ -1918,21 +1918,21 @@ class NameNode(AtomicExprNode):
 
     def analyse_types(self, env):
         self.initialized_check = env.directives['initializedcheck']
-        if self.entry is None:
-            self.entry = env.lookup(self.name)
-        if not self.entry:
-            self.entry = env.declare_builtin(self.name, self.pos)
-            if self.entry and self.entry.is_builtin and self.entry.is_const:
-                self.is_literal = True
-        if not self.entry:
-            self.type = PyrexTypes.error_type
-            return self
         entry = self.entry
-        if entry:
-            entry.used = 1
-            if entry.type.is_buffer:
-                from . import Buffer
-                Buffer.used_buffer_aux_vars(entry)
+        if entry is None:
+            entry = env.lookup(self.name)
+            if not entry:
+                entry = env.declare_builtin(self.name, self.pos)
+                if entry and entry.is_builtin and entry.is_const:
+                    self.is_literal = True
+            if not entry:
+                self.type = PyrexTypes.error_type
+                return self
+            self.entry = entry
+        entry.used = 1
+        if entry.type.is_buffer:
+            from . import Buffer
+            Buffer.used_buffer_aux_vars(entry)
         self.analyse_rvalue_entry(env)
         return self
 
