@@ -7,7 +7,7 @@ from __future__ import absolute_import
 import cython
 cython.declare(error=object, warning=object, warn_once=object, InternalError=object,
                CompileError=object, UtilityCode=object, TempitaUtilityCode=object,
-               StringEncoding=object, operator=object,
+               StringEncoding=object, operator=object, Options=object,
                Naming=object, Nodes=object, PyrexTypes=object, py_object_type=object,
                list_type=object, tuple_type=object, set_type=object, dict_type=object,
                unicode_type=object, str_type=object, bytes_type=object, type_type=object,
@@ -27,6 +27,7 @@ from .Code import UtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
 from . import Nodes
+from . import Options
 from .Nodes import Node, utility_code_for_imports, analyse_type_annotation
 from . import PyrexTypes
 from .PyrexTypes import py_object_type, c_long_type, typecast, error_type, \
@@ -1921,6 +1922,8 @@ class NameNode(AtomicExprNode):
             self.entry = env.lookup(self.name)
         if not self.entry:
             self.entry = env.declare_builtin(self.name, self.pos)
+            if Options.cache_builtins:
+                self.is_literal = True
         if not self.entry:
             self.type = PyrexTypes.error_type
             return self
