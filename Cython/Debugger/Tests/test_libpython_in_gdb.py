@@ -56,7 +56,7 @@ class TestPrettyPrinters(test_libcython_in_gdb.DebugTestCase):
         else:
             funcname = 'PyBytes_FromStringAndSize'
 
-        assert '"' not in string
+        assert b'"' not in string
 
         # ensure double quotes
         code = '(PyObject *) %s("%s", %d)' % (funcname, string, len(string))
