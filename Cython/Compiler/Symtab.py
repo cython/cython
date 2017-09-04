@@ -892,10 +892,16 @@ class Scope(object):
         pass
 
     def defines_any(self, names):
-        # Test whether any of the given names are
-        # defined in this scope.
+        # Test whether any of the given names are defined in this scope.
         for name in names:
             if name in self.entries:
+                return 1
+        return 0
+
+    def defines_any_special(self, names):
+        # Test whether any of the given names are defined as special methods in this scope.
+        for name in names:
+            if name in self.entries and self.entries[name].is_special:
                 return 1
         return 0
 

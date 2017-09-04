@@ -304,14 +304,12 @@ class MethodSlot(SlotDescriptor):
                 method_name_to_slot[method_name] = self
 
     def slot_code(self, scope):
-        if scope.is_closure_class_scope:
-            return "0"
         entry = scope.lookup_here(self.method_name)
-        if entry and entry.func_cname:
+        if entry and entry.is_special and entry.func_cname:
             return entry.func_cname
         for method_name in self.alternatives:
             entry = scope.lookup_here(method_name)
-            if entry and entry.func_cname:
+            if entry and entry.is_special and entry.func_cname:
                 return entry.func_cname
         return "0"
 
@@ -367,14 +365,13 @@ class ConstructorSlot(InternalMethodSlot):
         self.method = method
 
     def slot_code(self, scope):
-        if scope.is_closure_class_scope:
-            return "0"
+        entry = scope.lookup_here(self.method)
         if (self.slot_name != 'tp_new'
                 and scope.parent_type.base_type
                 and not scope.has_pyobject_attrs
                 and not scope.has_memoryview_attrs
                 and not scope.has_cpp_class_attrs
-                and not scope.lookup_here(self.method)):
+                and not (entry and entry.is_special)):
             # if the type does not have object attributes, it can
             # delegate GC methods to its parent - iff the parent
             # functions are defined in the same module
@@ -383,6 +380,8 @@ class ConstructorSlot(InternalMethodSlot):
                 entry = scope.parent_scope.lookup_here(scope.parent_type.base_type.name)
                 if entry.visibility != 'extern':
                     return self.slot_code(parent_type_scope)
+        if entry and not entry.is_special:
+            return "0"
         return InternalMethodSlot.slot_code(self, scope)
 
 
@@ -400,9 +399,7 @@ class SyntheticSlot(InternalMethodSlot):
         self.default_value = default_value
 
     def slot_code(self, scope):
-        if scope.is_closure_class_scope:
-            return "0"
-        if scope.defines_any(self.user_methods):
+        if scope.defines_any_special(self.user_methods):
             return InternalMethodSlot.slot_code(self, scope)
         else:
             return self.default_value
@@ -410,12 +407,10 @@ class SyntheticSlot(InternalMethodSlot):
 
 class RichcmpSlot(MethodSlot):
     def slot_code(self, scope):
-        if scope.is_closure_class_scope:
-            return "0"
         entry = scope.lookup_here(self.method_name)
-        if entry and entry.func_cname:
+        if entry and entry.is_special and entry.func_cname:
             return entry.func_cname
-        elif scope.defines_any(richcmp_special_methods):
+        elif scope.defines_any_special(richcmp_special_methods):
             return scope.mangle_internal(self.slot_name)
         else:
             return "0"
@@ -464,8 +459,6 @@ class SuiteSlot(SlotDescriptor):
         substructures.append(self)
 
     def is_empty(self, scope):
-        if scope.is_closure_class_scope:
-            return True
         for slot in self.sub_slots:
             if slot.slot_code(scope) != "0":
                 return False
@@ -582,6 +575,8 @@ def get_special_method_signature(name):
     slot = method_name_to_slot.get(name)
     if slot:
         return slot.signature
+    elif name in richcmp_special_methods:
+        return binaryfunc
     else:
         return None
 
