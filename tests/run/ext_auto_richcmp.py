@@ -424,3 +424,21 @@ class ClassLtGt(X):
             if isinstance(other, X):
                 return self.x > other.x
         return NotImplemented
+
+
+@cython.cclass
+class List(list):
+    """
+    >>> l = [1, 2, 3, 4]
+    >>> notl = List(l)
+    >>> notl == l
+    False
+    >>> notl != l     # implemented by base type
+    False
+    >>> notl == notl
+    True
+    >>> notl != notl  # implemented by base type
+    False
+    """
+    def __eq__(self, other):
+        return self is other or list(self) != list(other)

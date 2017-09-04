@@ -1830,17 +1830,20 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("case Py_%s: {" % cmp_type)
             if cmp_method == '__eq__':
                 eq_entry = entry
-                code.putln("if (o1 == o2) return __Pyx_NewRef(Py_True);")
+                # Python itself does not do this optimisation, it seems...
+                #code.putln("if (o1 == o2) return __Pyx_NewRef(Py_True);")
             elif cmp_method == '__ne__':
                 has_ne = True
-                code.putln("if (o1 == o2) return __Pyx_NewRef(Py_False);")
+                # Python itself does not do this optimisation, it seems...
+                #code.putln("if (o1 == o2) return __Pyx_NewRef(Py_False);")
             code.putln("return %s(o1, o2);" % entry.func_cname)
             code.putln("}")
 
         if eq_entry and not has_ne and not extern_parent:
             code.putln("case Py_NE: {")
             code.putln("PyObject *ret;")
-            code.putln("if (o1 == o2) return __Pyx_NewRef(Py_False);")
+            # Python itself does not do this optimisation, it seems...
+            #code.putln("if (o1 == o2) return __Pyx_NewRef(Py_False);")
             code.putln("ret = %s(o1, o2);" % eq_entry.func_cname)
             code.putln("if (likely(ret && ret != Py_NotImplemented)) {")
             code.putln("int b = __Pyx_PyObject_IsTrue(ret); Py_DECREF(ret);")
