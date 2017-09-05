@@ -13,7 +13,7 @@ Features added
   resolves several differences with regard to normal Python modules.  This makes
   the global names ``__file__`` and ``__path__`` correctly available to module
   level code and improves the support for module-level relative imports.
-  (Github issues #1715, #1753)
+  (Github issues #1715, #1753, #1035)
 
 * Asynchronous generators (`PEP 525 <https://www.python.org/dev/peps/pep-0525/>`_)
   and asynchronous comprehensions (`PEP 530 <https://www.python.org/dev/peps/pep-0530/>`_)
