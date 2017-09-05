@@ -57,7 +57,7 @@ def pythran_indexing_type(type_, indices):
                 n = 3
             return "pythonic::types::%s(%s)" % (func,",".join(["0"]*n))
         elif idx.type.is_int:
-            return "std::declval<long>()"
+            return "std::declval<%s>()" % idx.type.sign_and_name()
         elif idx.type.is_pythran_expr:
             return "std::declval<%s>()" % idx.type.pythran_type
         raise ValueError("unsupported indice type %s!" % idx.type)
