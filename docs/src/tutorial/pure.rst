@@ -285,6 +285,10 @@ Extension types and cdef functions
 
 * ``@cython.inline`` is the equivalent of the C ``inline`` modifier.
 
+* ``@cython.final`` terminates the inheritance chain by preventing a type from
+  being used as a base class, or a method from being overridden in subtypes.
+  This enables certain optimisations such as inlined method calls.
+
 Here is an example of a :keyword:`cdef` function::
 
     @cython.cfunc
