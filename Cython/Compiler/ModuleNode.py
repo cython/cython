@@ -667,7 +667,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#define %s" % Naming.api_guard_prefix + self.api_name(env))
         self.generate_includes(env, cimported_modules, code)
         code.putln("")
-        code.putln("#ifdef PYREX_WITHOUT_ASSERTIONS")
+        code.putln("#if defined(PYREX_WITHOUT_ASSERTIONS) && !defined(CYTHON_WITHOUT_ASSERTIONS)")
         code.putln("#define CYTHON_WITHOUT_ASSERTIONS")
         code.putln("#endif")
         code.putln("")
