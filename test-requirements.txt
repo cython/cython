@@ -1,4 +1,3 @@
 numpy
 jupyter
-line_profiler
 coverage
