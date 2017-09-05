@@ -626,6 +626,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         from .. import __version__
         code.putln('#define CYTHON_ABI "%s"' % __version__.replace('.', '_'))
+        code.putln("#define CYTHON_FUTURE_DIVISION %d" % (
+            Future.division in env.context.future_directives))
 
         self._put_setup_code(code, "CModulePreamble")
         if env.context.options.cplus:
@@ -644,20 +646,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
   %s = %s[f_index]; %s = lineno; %sgoto Ln_error; \\
 }
 """ % (Naming.filename_cname, Naming.filetable_cname, Naming.lineno_cname, cinfo))
-
-        code.put("""
-#if PY_MAJOR_VERSION >= 3
-  #define __Pyx_PyNumber_Divide(x,y)         PyNumber_TrueDivide(x,y)
-  #define __Pyx_PyNumber_InPlaceDivide(x,y)  PyNumber_InPlaceTrueDivide(x,y)
-#else
-""")
-        if Future.division in env.context.future_directives:
-            code.putln("  #define __Pyx_PyNumber_Divide(x,y)         PyNumber_TrueDivide(x,y)")
-            code.putln("  #define __Pyx_PyNumber_InPlaceDivide(x,y)  PyNumber_InPlaceTrueDivide(x,y)")
-        else:
-            code.putln("  #define __Pyx_PyNumber_Divide(x,y)         PyNumber_Divide(x,y)")
-            code.putln("  #define __Pyx_PyNumber_InPlaceDivide(x,y)  PyNumber_InPlaceDivide(x,y)")
-        code.putln("#endif")
 
         code.putln("")
         self.generate_extern_c_macro_definition(code)
