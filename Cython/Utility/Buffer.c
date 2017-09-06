@@ -742,7 +742,11 @@ static CYTHON_INLINE int __Pyx_GetBufferAndValidate(
     return 0;
   }
   buf->buf = NULL;
-  if (__Pyx_GetBuffer(obj, buf, flags) == -1) goto fail;
+  if (__Pyx_GetBuffer(obj, buf, flags) == -1) {
+    __Pyx_ZeroBuffer(buf);
+    return -1;
+  }
+  // From this point on, we have acquired the buffer and must release it on errors.
   if (buf->ndim != nd) {
     PyErr_Format(PyExc_ValueError,
                  "Buffer has wrong number of dimensions (expected %d, got %d)",
@@ -764,7 +768,7 @@ static CYTHON_INLINE int __Pyx_GetBufferAndValidate(
   if (buf->suboffsets == NULL) buf->suboffsets = __Pyx_minusones;
   return 0;
 fail:;
-  __Pyx_ZeroBuffer(buf);
+  __Pyx_SafeReleaseBuffer(buf);
   return -1;
 }
 
