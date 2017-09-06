@@ -314,6 +314,21 @@ class PyrexType(BaseType):
     def needs_nonecheck(self):
         return 0
 
+    def _assign_from_py_code(self, source_code, result_code, error_pos, code,
+                             from_py_function=None, error_condition=None, extra_args=None):
+        args = ', ' + ', '.join('%s' % arg for arg in extra_args) if extra_args else ''
+        convert_call = "%s(%s%s)" % (
+            from_py_function or self.from_py_function,
+            source_code,
+            args,
+        )
+        if self.is_enum:
+            convert_call = typecast(self, c_long_type, convert_call)
+        return '%s = %s; %s' % (
+            result_code,
+            convert_call,
+            code.error_goto_if(error_condition or self.error_condition(result_code), error_pos))
+
 
 def public_decl(base_code, dll_linkage):
     if dll_linkage:
@@ -491,12 +506,11 @@ class CTypedefType(BaseType):
 
     def from_py_call_code(self, source_code, result_code, error_pos, code,
                           from_py_function=None, error_condition=None):
-        if from_py_function is None:
-            from_py_function = self.from_py_function
-        if error_condition is None:
-            error_condition = self.error_condition(result_code)
         return self.typedef_base_type.from_py_call_code(
-            source_code, result_code, error_pos, code, from_py_function, error_condition)
+            source_code, result_code, error_pos, code,
+            from_py_function or self.from_py_function,
+            error_condition or self.error_condition(result_code)
+        )
 
     def overflow_check_binop(self, binop, env, const_rhs=False):
         env.use_utility_code(UtilityCode.load("Common", "Overflow.c"))
@@ -619,6 +633,7 @@ class MemoryViewSliceType(PyrexType):
 
     def same_as_resolved_type(self, other_type):
         return ((other_type.is_memoryviewslice and
+            self.writable_needed == other_type.writable_needed and
             self.dtype.same_as(other_type.dtype) and
             self.axes == other_type.axes) or
             other_type is error_type)
@@ -767,7 +782,14 @@ class MemoryViewSliceType(PyrexType):
 
         src = self
 
-        if src.dtype != dst.dtype:
+        if self.writable_needed and not dst.writable_needed:
+            return False
+
+        src_dtype, dst_dtype = src.dtype, dst.dtype
+        if dst_dtype.is_const and not src_dtype.is_const:
+            dst_dtype = dst_dtype.const_base_type
+
+        if src_dtype != dst_dtype:
             return False
 
         if src.ndim != dst.ndim:
@@ -885,11 +907,9 @@ class MemoryViewSliceType(PyrexType):
 
     def from_py_call_code(self, source_code, result_code, error_pos, code,
                           from_py_function=None, error_condition=None):
-        return '%s = %s(%s); %s' % (
-            result_code,
-            from_py_function or self.from_py_function,
-            source_code,
-            code.error_goto_if(error_condition or self.error_condition(result_code), error_pos))
+        return self._assign_from_py_code(
+            source_code, result_code, error_pos, code, from_py_function, error_condition,
+            extra_args=['PyBUF_WRITABLE' if self.writable_needed else '0'])
 
     def create_to_py_utility_code(self, env):
         self._dtype_to_py_func, self._dtype_from_py_func = self.dtype_object_conversion_funcs(env)
@@ -1467,11 +1487,9 @@ class CType(PyrexType):
 
     def from_py_call_code(self, source_code, result_code, error_pos, code,
                           from_py_function=None, error_condition=None):
-        return '%s = %s(%s); %s' % (
-            result_code,
-            from_py_function or self.from_py_function,
-            source_code,
-            code.error_goto_if(error_condition or self.error_condition(result_code), error_pos))
+        return self._assign_from_py_code(
+            source_code, result_code, error_pos, code, from_py_function, error_condition)
+
 
 class PythranExpr(CType):
     # Pythran object of a given type
@@ -2403,6 +2421,7 @@ class CArrayType(CPointerBaseType):
 
     def from_py_call_code(self, source_code, result_code, error_pos, code,
                           from_py_function=None, error_condition=None):
+        assert not error_condition
         call_code = "%s(%s, %s, %s)" % (
             from_py_function or self.from_py_function,
             source_code, result_code, self.size)
@@ -3825,16 +3844,6 @@ class CEnumType(CType):
             context={"TYPE": self.empty_declaration_code(),
                      "FROM_PY_FUNCTION": self.from_py_function}))
         return True
-
-    def from_py_call_code(self, source_code, result_code, error_pos, code,
-                          from_py_function=None, error_condition=None):
-        rhs = "%s(%s)" % (
-            from_py_function or self.from_py_function,
-            source_code)
-        return '%s = %s;%s' % (
-            result_code,
-            typecast(self, c_long_type, rhs),
-            ' %s' % code.error_goto_if(error_condition or self.error_condition(result_code), error_pos))
 
     def create_type_wrapper(self, env):
         from .UtilityCode import CythonUtilityCode

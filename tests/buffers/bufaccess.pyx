@@ -599,7 +599,7 @@ def readonly(obj):
     acquired R
     25
     released R
-    >>> [str(x) for x in R.recieved_flags]  # Works in both py2 and py3
+    >>> [str(x) for x in R.received_flags]  # Works in both py2 and py3
     ['FORMAT', 'INDIRECT', 'ND', 'STRIDES']
     """
     cdef object[unsigned short int, ndim=3] buf = obj
@@ -612,7 +612,7 @@ def writable(obj):
     >>> writable(R)
     acquired R
     released R
-    >>> [str(x) for x in R.recieved_flags] # Py2/3
+    >>> [str(x) for x in R.received_flags] # Py2/3
     ['FORMAT', 'INDIRECT', 'ND', 'STRIDES', 'WRITABLE']
     """
     cdef object[unsigned short int, ndim=3] buf = obj
@@ -626,7 +626,7 @@ def strided(object[int, ndim=1, mode='strided'] buf):
     acquired A
     released A
     2
-    >>> [str(x) for x in A.recieved_flags] # Py2/3
+    >>> [str(x) for x in A.received_flags] # Py2/3
     ['FORMAT', 'ND', 'STRIDES']
 
     Check that the suboffsets were patched back prior to release.
@@ -641,7 +641,7 @@ def c_contig(object[int, ndim=1, mode='c'] buf):
     >>> A = IntMockBuffer(None, range(4))
     >>> c_contig(A)
     2
-    >>> [str(x) for x in A.recieved_flags]
+    >>> [str(x) for x in A.received_flags]
     ['FORMAT', 'ND', 'STRIDES', 'C_CONTIGUOUS']
     """
     return buf[2]
@@ -654,7 +654,7 @@ def c_contig_2d(object[int, ndim=2, mode='c'] buf):
     >>> A = IntMockBuffer(None, range(12), shape=(3,4))
     >>> c_contig_2d(A)
     7
-    >>> [str(x) for x in A.recieved_flags]
+    >>> [str(x) for x in A.received_flags]
     ['FORMAT', 'ND', 'STRIDES', 'C_CONTIGUOUS']
     """
     return buf[1, 3]
@@ -665,7 +665,7 @@ def f_contig(object[int, ndim=1, mode='fortran'] buf):
     >>> A = IntMockBuffer(None, range(4))
     >>> f_contig(A)
     2
-    >>> [str(x) for x in A.recieved_flags]
+    >>> [str(x) for x in A.received_flags]
     ['FORMAT', 'ND', 'STRIDES', 'F_CONTIGUOUS']
     """
     return buf[2]
@@ -678,7 +678,7 @@ def f_contig_2d(object[int, ndim=2, mode='fortran'] buf):
     >>> A = IntMockBuffer(None, range(12), shape=(4,3), strides=(1, 4))
     >>> f_contig_2d(A)
     7
-    >>> [str(x) for x in A.recieved_flags]
+    >>> [str(x) for x in A.received_flags]
     ['FORMAT', 'ND', 'STRIDES', 'F_CONTIGUOUS']
     """
     return buf[3, 1]
@@ -1103,7 +1103,7 @@ def bufdefaults1(IntStridedMockBuffer[int, ndim=1] buf):
     >>> bufdefaults1(A)
     acquired A
     released A
-    >>> [str(x) for x in A.recieved_flags]
+    >>> [str(x) for x in A.received_flags]
     ['FORMAT', 'ND', 'STRIDES']
     """
     pass

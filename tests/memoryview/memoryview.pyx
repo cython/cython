@@ -420,7 +420,7 @@ def writable(unsigned short int[:, :, :] mslice):
     >>> writable(R)
     acquired R
     released R
-    >>> [str(x) for x in R.recieved_flags] # Py2/3
+    >>> [str(x) for x in R.received_flags] # Py2/3
     ['FORMAT', 'ND', 'STRIDES', 'WRITABLE']
     """
     buf = mslice

@@ -28,12 +28,12 @@ def concat_flags(*flags):
 
 format_flag = "PyBUF_FORMAT"
 
-memview_c_contiguous = "(PyBUF_C_CONTIGUOUS | PyBUF_FORMAT | PyBUF_WRITABLE)"
-memview_f_contiguous = "(PyBUF_F_CONTIGUOUS | PyBUF_FORMAT | PyBUF_WRITABLE)"
-memview_any_contiguous = "(PyBUF_ANY_CONTIGUOUS | PyBUF_FORMAT | PyBUF_WRITABLE)"
-memview_full_access = "PyBUF_FULL"
-#memview_strided_access = "PyBUF_STRIDED"
-memview_strided_access = "PyBUF_RECORDS"
+memview_c_contiguous = "(PyBUF_C_CONTIGUOUS | PyBUF_FORMAT)"
+memview_f_contiguous = "(PyBUF_F_CONTIGUOUS | PyBUF_FORMAT)"
+memview_any_contiguous = "(PyBUF_ANY_CONTIGUOUS | PyBUF_FORMAT)"
+memview_full_access = "PyBUF_FULL_RO"
+#memview_strided_access = "PyBUF_STRIDED_RO"
+memview_strided_access = "PyBUF_RECORDS_RO"
 
 MEMVIEW_DIRECT = '__Pyx_MEMVIEW_DIRECT'
 MEMVIEW_PTR    = '__Pyx_MEMVIEW_PTR'
