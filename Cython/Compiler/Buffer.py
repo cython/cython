@@ -384,18 +384,19 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buf_entry,
         # before raising the exception. A failure of reacquisition
         # will cause the reacquisition exception to be reported, one
         # can consider working around this later.
-        type, value, tb = [code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=False)
-                           for i in range(3)]
-        code.putln('PyErr_Fetch(&%s, &%s, &%s);' % (type, value, tb))
+        exc_temps = tuple(code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=False)
+                          for _ in range(3))
+        code.putln('PyErr_Fetch(&%s, &%s, &%s);' % exc_temps)
         code.putln('if (%s) {' % code.unlikely("%s == -1" % (getbuffer % lhs_cname)))
-        code.putln('Py_XDECREF(%s); Py_XDECREF(%s); Py_XDECREF(%s);' % (type, value, tb)) # Do not refnanny these!
+        code.putln('Py_XDECREF(%s); Py_XDECREF(%s); Py_XDECREF(%s);' % exc_temps)  # Do not refnanny these!
         code.globalstate.use_utility_code(raise_buffer_fallback_code)
         code.putln('__Pyx_RaiseBufferFallbackError();')
         code.putln('} else {')
-        code.putln('PyErr_Restore(%s, %s, %s);' % (type, value, tb))
-        for t in (type, value, tb):
-            code.funcstate.release_temp(t)
+        code.putln('PyErr_Restore(%s, %s, %s);' % exc_temps)
         code.putln('}')
+        code.putln('%s = %s = %s = 0;' % exc_temps)
+        for t in exc_temps:
+            code.funcstate.release_temp(t)
         code.putln('}')
         # Unpack indices
         put_unpack_buffer_aux_into_scope(buf_entry, code)
