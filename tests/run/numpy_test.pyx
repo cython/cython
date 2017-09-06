@@ -878,4 +878,24 @@ def test_dispatch_ndim(ndim_t array):
     """
     print cython.typeof(array), np.asarray(array).ndim
 
+
+@testcase
+def test_copy_buffer(np.ndarray[double, ndim=1] a):
+    """
+    >>> a = test_copy_buffer(np.ones(10, dtype=np.double))
+    >>> len(a)
+    10
+    >>> print(a.dtype)
+    float64
+    >>> a[0]
+    1.0
+    """
+    a = a.copy()
+    a = a.copy()
+    a = a.copy()
+    a = a.copy()
+    a = a.copy()
+    return a
+
+
 include "numpy_common.pxi"
