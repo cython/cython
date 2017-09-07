@@ -180,6 +180,8 @@ def parse_path_value(next):
             return int(value)
         except ValueError:
             pass
+    elif token[1].isdigit():
+        return int(token[1])
     else:
         name = token[1].lower()
         if name == 'true':
