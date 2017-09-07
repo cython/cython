@@ -75,6 +75,8 @@ Bugs fixed
 * Compile time evaluations of (partially) constant f-strings could show incorrect
   results.
 
+* Some ref-counting issues in buffer error handling have been resolved.
+
 Other changes
 -------------
 
