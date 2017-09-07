@@ -20,7 +20,7 @@ Doing so will result in the compilation of foo.pyx (with appropriate
 exceptions if it has an error in it).
 
 If you would always like to import pyrex files without building them
-specially, you can also the first line above to your sitecustomize.py.
+specially, you can also add the first line above to your sitecustomize.py.
 That will install the hook every time you run Python. Then you can use
 Pyrex modules just with simple import statements. I like to test my
 Pyrex modules like this:
