@@ -417,7 +417,7 @@ compatible types.::
         cdef create(void* ptr):
             p = OwnedPointer()
             p.ptr = ptr
-            return ptr
+            return p
 
 
 Forward-declaring extension types
