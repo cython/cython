@@ -186,6 +186,12 @@ Docstrings
 Initialization: ``__cinit__()`` and ``__init__()``
 ==================================================
 
+* The object initialisation follows (mainly) three steps:
+
+ * (Internal) allocation, recursively going from subclass to base class.
+ * Low-level initialisation along the way back, calling ``__cinit__()`` at each level.
+ * Python initialisation, explicitly calling ``__init__()`` recursively from subclass to base class.
+
 * Any arguments passed to the extension type's constructor
   will be passed to both initialization methods.
 
@@ -194,20 +200,22 @@ Initialization: ``__cinit__()`` and ``__init__()``
  * This includes any allocation of C data structures.
  * **Caution** is warranted as to what you do in this method.
 
-  * The object may not be fully valid Python object when it is called.
+  * The object may not be a fully valid Python object when it is called.
   * Calling Python objects, including the extensions own methods, may be hazardous.
 
  * By the time ``__cinit__()`` is called...
 
   * Memory has been allocated for the object.
   * All C-level attributes have been initialized to 0 or null.
-  * Python have been initialized to ``None``, but you can not rely on that for each occasion.
+  * The ``__cinit__()`` methods of all base types have been called, starting with the top-most one.
+  * Subtypes are not fully initialised yet.
+  * Python object attributes of the type itself have been initialized to ``None``.
   * This initialization method is guaranteed to be called exactly once.
 
  * For Extensions types that inherit a base type:
 
   * The ``__cinit__()`` method of the base type is automatically called before this one.
-  * The inherited ``__cinit__()`` method can not be called explicitly.
+  * The inherited ``__cinit__()`` method cannot be called explicitly.
   * Passing modified argument lists to the base type must be done through ``__init__()``.
   * It may be wise to give the ``__cinit__()`` method both ``"*"`` and ``"**"`` arguments.
 
