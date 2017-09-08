@@ -514,7 +514,7 @@ class CNameDeclaratorNode(CDeclaratorNode):
 
     default = None
 
-    def analyse(self, base_type, env, nonempty=0):
+    def analyse(self, base_type, env, nonempty=0, visibility=None, in_pxd=False):
         if nonempty and self.name == '':
             # May have mistaken the name for the type.
             if base_type.is_ptr or base_type.is_array or base_type.is_buffer:
@@ -540,11 +540,11 @@ class CPtrDeclaratorNode(CDeclaratorNode):
     def analyse_templates(self):
         return self.base.analyse_templates()
 
-    def analyse(self, base_type, env, nonempty=0):
+    def analyse(self, base_type, env, nonempty=0, visibility=None, in_pxd=False):
         if base_type.is_pyobject:
             error(self.pos, "Pointer base type cannot be a Python object")
         ptr_type = PyrexTypes.c_ptr_type(base_type)
-        return self.base.analyse(ptr_type, env, nonempty=nonempty)
+        return self.base.analyse(ptr_type, env, nonempty=nonempty, visibility=visibility, in_pxd=in_pxd)
 
 
 class CReferenceDeclaratorNode(CDeclaratorNode):
@@ -555,11 +555,11 @@ class CReferenceDeclaratorNode(CDeclaratorNode):
     def analyse_templates(self):
         return self.base.analyse_templates()
 
-    def analyse(self, base_type, env, nonempty=0):
+    def analyse(self, base_type, env, nonempty=0, visibility=None, in_pxd=False):
         if base_type.is_pyobject:
             error(self.pos, "Reference base type cannot be a Python object")
         ref_type = PyrexTypes.c_ref_type(base_type)
-        return self.base.analyse(ref_type, env, nonempty=nonempty)
+        return self.base.analyse(ref_type, env, nonempty=nonempty, visibility=visibility, in_pxd=in_pxd)
 
 
 class CArrayDeclaratorNode(CDeclaratorNode):
@@ -568,7 +568,7 @@ class CArrayDeclaratorNode(CDeclaratorNode):
 
     child_attrs = ["base", "dimension"]
 
-    def analyse(self, base_type, env, nonempty=0):
+    def analyse(self, base_type, env, nonempty=0, visibility=None, in_pxd=False):
         if (base_type.is_cpp_class and base_type.is_template_type()) or base_type.is_cfunction:
             from .ExprNodes import TupleNode
             if isinstance(self.dimension, TupleNode):
@@ -582,7 +582,7 @@ class CArrayDeclaratorNode(CDeclaratorNode):
                 base_type = error_type
             else:
                 base_type = base_type.specialize_here(self.pos, values)
-            return self.base.analyse(base_type, env, nonempty=nonempty)
+            return self.base.analyse(base_type, env, nonempty=nonempty, visibility=visibility, in_pxd=in_pxd)
         if self.dimension:
             self.dimension = self.dimension.analyse_const_expression(env)
             if not self.dimension.type.is_int:
@@ -603,7 +603,7 @@ class CArrayDeclaratorNode(CDeclaratorNode):
         if base_type.is_cfunction:
             error(self.pos, "Array element cannot be a function")
         array_type = PyrexTypes.c_array_type(base_type, size)
-        return self.base.analyse(array_type, env, nonempty=nonempty)
+        return self.base.analyse(array_type, env, nonempty=nonempty, visibility=visibility, in_pxd=in_pxd)
 
 
 class CFuncDeclaratorNode(CDeclaratorNode):
@@ -646,7 +646,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
         else:
             return None
 
-    def analyse(self, return_type, env, nonempty=0, directive_locals=None):
+    def analyse(self, return_type, env, nonempty=0, directive_locals=None, visibility=None, in_pxd=False):
         if directive_locals is None:
             directive_locals = {}
         if nonempty:
@@ -698,6 +698,16 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 and self.exception_check != '+'):
             error(self.pos, "Exception clause not allowed for function returning Python object")
         else:
+            if self.exception_value is None and self.exception_check and self.exception_check != '+':
+                # Use an explicit exception return value to speed up exception checks.
+                # Even if it is not declared, we can use the default exception value of the return type,
+                # unless the function is some kind of external function that we do not control.
+                if return_type.exception_value is not None and (visibility != 'extern' and not in_pxd):
+                    # Extension types are more difficult because the signature must match the base type signature.
+                    if not env.is_c_class_scope:
+                        from .ExprNodes import ConstNode
+                        self.exception_value = ConstNode(
+                            self.pos, value=return_type.exception_value, type=return_type)
             if self.exception_value:
                 self.exception_value = self.exception_value.analyse_const_expression(env)
                 if self.exception_check == '+':
@@ -752,7 +762,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 error(self.pos, "cannot have both '%s' and '%s' "
                       "calling conventions" % (current, callspec))
             func_type.calling_convention = callspec
-        return self.base.analyse(func_type, env)
+        return self.base.analyse(func_type, env, visibility=visibility, in_pxd=in_pxd)
 
     def declare_optional_arg_struct(self, func_type, env, fused_cname=None):
         """
@@ -792,12 +802,12 @@ class CConstDeclaratorNode(CDeclaratorNode):
 
     child_attrs = ["base"]
 
-    def analyse(self, base_type, env, nonempty=0):
+    def analyse(self, base_type, env, nonempty=0, visibility=None, in_pxd=False):
         if base_type.is_pyobject:
             error(self.pos,
                   "Const base type cannot be a Python object")
         const = PyrexTypes.c_const_type(base_type)
-        return self.base.analyse(const, env, nonempty=nonempty)
+        return self.base.analyse(const, env, nonempty=nonempty, visibility=visibility, in_pxd=in_pxd)
 
 
 class CArgDeclNode(Node):
@@ -1314,9 +1324,11 @@ class CVarDefNode(StatNode):
             if create_extern_wrapper:
                 declarator.overridable = False
             if isinstance(declarator, CFuncDeclaratorNode):
-                name_declarator, type = declarator.analyse(base_type, env, directive_locals=self.directive_locals)
+                name_declarator, type = declarator.analyse(
+                    base_type, env, directive_locals=self.directive_locals, visibility=visibility, in_pxd=self.in_pxd)
             else:
-                name_declarator, type = declarator.analyse(base_type, env)
+                name_declarator, type = declarator.analyse(
+                    base_type, env, visibility=visibility, in_pxd=self.in_pxd)
             if not type.is_complete():
                 if not (self.visibility == 'extern' and type.is_array or type.is_memoryviewslice):
                     error(declarator.pos, "Variable type '%s' is incomplete" % type)
@@ -1568,7 +1580,8 @@ class CTypeDefNode(StatNode):
 
     def analyse_declarations(self, env):
         base = self.base_type.analyse(env)
-        name_declarator, type = self.declarator.analyse(base, env)
+        name_declarator, type = self.declarator.analyse(
+            base, env, visibility=self.visibility, in_pxd=self.in_pxd)
         name = name_declarator.name
         cname = name_declarator.cname
 
@@ -2281,10 +2294,10 @@ class CFuncDefNode(FuncDefNode):
         if isinstance(self.declarator, CFuncDeclaratorNode):
             name_declarator, type = self.declarator.analyse(
                 base_type, env, nonempty=2 * (self.body is not None),
-                directive_locals=self.directive_locals)
+                directive_locals=self.directive_locals, visibility=self.visibility)
         else:
             name_declarator, type = self.declarator.analyse(
-                base_type, env, nonempty=2 * (self.body is not None))
+                base_type, env, nonempty=2 * (self.body is not None), visibility=self.visibility)
         if not type.is_cfunction:
             error(self.pos, "Suite attached to non-function declaration")
         # Remember the actual type according to the function header

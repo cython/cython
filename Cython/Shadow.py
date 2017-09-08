@@ -113,7 +113,7 @@ returns = wraparound = boundscheck = initializedcheck = nonecheck = \
     unraisable_tracebacks = freelist = \
         lambda _: _EmptyDecoratorAndManager()
 
-exceptval = lambda _=None, check=False: _EmptyDecoratorAndManager()
+exceptval = lambda _=None, check=True: _EmptyDecoratorAndManager()
 
 optimization = _Optimization()
 

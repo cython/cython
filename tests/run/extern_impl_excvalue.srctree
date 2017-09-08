@@ -13,17 +13,20 @@ setup(
 
 ######## foo.pxd ########
 
-cdef void bar() except *
+cdef int bar() except *
 
 ######## foo.pyx ########
 
 cdef extern from "bar_impl.c":
-    void bar() except *
+    int bar() except *
 
 ######## bar_impl.c ########
 
-static void bar() {}
+static int bar() { return -1; }
 
 ######## a.pyx ########
 
+cimport cython
 from foo cimport bar
+
+assert bar() == -1
