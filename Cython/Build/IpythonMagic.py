@@ -52,6 +52,8 @@ import os
 import re
 import sys
 import time
+import copy
+import textwrap
 
 try:
     reload
@@ -81,6 +83,20 @@ from ..Shadow import __version__ as cython_version
 from ..Compiler.Errors import CompileError
 from .Inline import cython_inline
 from .Dependencies import cythonize
+
+
+PGO_CONFIG = {
+    'gcc': {
+        'gen': ['-fprofile-generate', '-fprofile-dir={TEMPDIR}'],
+        'use': ['-fprofile-use', '-fprofile-correction', '-fprofile-dir={TEMPDIR}'],
+    },
+    # blind copy from 'configure' script in CPython 3.7
+    'icc': {
+        'gen': ['-prof-gen'],
+        'use': ['-prof-use'],
+    }
+}
+PGO_CONFIG['mingw32'] = PGO_CONFIG['gcc']
 
 
 @magics_class
@@ -161,6 +177,11 @@ class CythonMagics(Magics):
 
     @magic_arguments.magic_arguments()
     @magic_arguments.argument(
+        '--pgo', dest='pgo', action='store_true', default=False,
+        help=("Enable profile guided optimisation in the C compiler. "
+              "Compiles the cell twice and executes it in between to generate a runtime profile.")
+    )
+    @magic_arguments.argument(
         '-3', dest='language_level', action='store_const', const=3, default=None,
         help="Select Python 3 syntax."
     )
@@ -235,76 +256,62 @@ class CythonMagics(Magics):
 
             %%cython --compile-args=-fopenmp --link-args=-fopenmp
             ...
+
+        To enable profile guided optimisation, pass the ``--pgo`` option.
+        Note that the cell itself needs to take care of establishing a suitable
+        profile when executed. This can be done by implementing the functions to
+        optimise, and then calling them directly in the same cell on some realistic
+        training data like this::
+
+            %%cython --pgo
+            def critical_function(data):
+                for item in data:
+                    ...
+
+            from somewhere import typical_data
+            critical_function(typical_data)  # execute function to build profile
         """
         args = magic_arguments.parse_argstring(self.cython, line)
         code = cell if cell.endswith('\n') else cell + '\n'
         lib_dir = os.path.join(get_ipython_cache_dir(), 'cython')
         quiet = True
-        key = code, line, sys.version_info, sys.executable, cython_version
+        key = (code, line, sys.version_info, sys.executable, cython_version)
 
         if not os.path.exists(lib_dir):
             os.makedirs(lib_dir)
 
+        if args.pgo:
+            key += ('pgo',)
         if args.force:
             # Force a new module name by adding the current time to the
             # key which is hashed to determine the module name.
-            key += time.time(),
+            key += (time.time(),)
 
         if args.name:
             module_name = py3compat.unicode_to_str(args.name)
         else:
             module_name = "_cython_magic_" + hashlib.md5(str(key).encode('utf-8')).hexdigest()
+        html_file = os.path.join(lib_dir, module_name + '.html')
         module_path = os.path.join(lib_dir, module_name + self.so_ext)
 
         have_module = os.path.isfile(module_path)
-        need_cythonize = not have_module
+        need_cythonize = args.pgo or not have_module
 
         if args.annotate:
-            html_file = os.path.join(lib_dir, module_name + '.html')
             if not os.path.isfile(html_file):
                 need_cythonize = True
 
+        extension = None
         if need_cythonize:
-            c_include_dirs = args.include
-            c_src_files = list(map(str, args.src))
-            if 'numpy' in code:
-                import numpy
-                c_include_dirs.append(numpy.get_include())
-            pyx_file = os.path.join(lib_dir, module_name + '.pyx')
-            pyx_file = py3compat.cast_bytes_py2(pyx_file, encoding=sys.getfilesystemencoding())
-            with io.open(pyx_file, 'w', encoding='utf-8') as f:
-                f.write(code)
-            extension = Extension(
-                name=module_name,
-                sources=[pyx_file] + c_src_files,
-                include_dirs=c_include_dirs,
-                library_dirs=args.library_dirs,
-                extra_compile_args=args.compile_args,
-                extra_link_args=args.link_args,
-                libraries=args.lib,
-                language='c++' if args.cplus else 'c',
-            )
-            build_extension = self._get_build_extension()
-            try:
-                opts = dict(
-                    quiet=quiet,
-                    annotate=args.annotate,
-                    force=True,
-                )
-                if args.language_level is not None:
-                    assert args.language_level in (2, 3)
-                    opts['language_level'] = args.language_level
-                elif sys.version_info[0] > 2:
-                    opts['language_level'] = 3
-                build_extension.extensions = cythonize([extension], **opts)
-            except CompileError:
-                return
-
-        if not have_module:
-            build_extension.build_temp = os.path.dirname(pyx_file)
-            build_extension.build_lib = lib_dir
-            build_extension.run()
+            extensions = self._cythonize(module_name, code, lib_dir, args, quiet=quiet)
+            assert len(extensions) == 1
+            extension = extensions[0]
             self._code_cache[key] = module_name
+
+            if args.pgo:
+                self._profile_pgo_wrapper(extension, lib_dir)
+
+        self._build_extension(extension, lib_dir, pgo_step_name='use' if args.pgo else None)
 
         module = imp.load_dynamic(module_name, module_path)
         self._import_all(module)
@@ -323,6 +330,115 @@ class CythonMagics(Magics):
                 print(e, file=sys.stderr)
             else:
                 return display.HTML(self.clean_annotated_html(annotated_html))
+
+    def _profile_pgo_wrapper(self, extension, lib_dir):
+        """
+        Generate a .c file for a separate extension module that calls the
+        module init function of the original module.  This makes sure that the
+        PGO profiler sees the correct .o file of the final module, but it still
+        allows us to import the module under a different name for profiling,
+        before recompiling it into the PGO optimised module.  Overwriting and
+        reimporting the same shared library is not portable.
+        """
+        extension = copy.copy(extension)  # shallow copy, do not modify sources in place!
+        module_name = extension.name
+        pgo_module_name = '_pgo_' + module_name
+        pgo_wrapper_c_file = os.path.join(lib_dir, pgo_module_name + '.c')
+        with io.open(pgo_wrapper_c_file, 'w', encoding='utf-8') as f:
+            f.write(textwrap.dedent("""
+            #include "Python.h"
+            #if PY_MAJOR_VERSION < 3
+            extern PyMODINIT_FUNC init%(module_name)s(void);
+            PyMODINIT_FUNC init%(pgo_module_name)s(void); /*proto*/
+            PyMODINIT_FUNC init%(pgo_module_name)s(void) {
+                init%(module_name)s();
+            }
+            #else
+            extern PyMODINIT_FUNC PyInit_%(module_name)s(void);
+            PyMODINIT_FUNC PyInit_%(pgo_module_name)s(void); /*proto*/
+            PyMODINIT_FUNC PyInit_%(pgo_module_name)s(void) {
+                return PyInit_%(module_name)s();
+            }
+            #endif
+            """ % {'module_name': module_name, 'pgo_module_name': pgo_module_name}))
+
+        extension.sources = extension.sources + [pgo_wrapper_c_file]  # do not modify in place!
+        extension.name = pgo_module_name
+
+        self._build_extension(extension, lib_dir, pgo_step_name='gen')
+
+        # import and execute module code to generate profile
+        so_module_path = os.path.join(lib_dir, pgo_module_name + self.so_ext)
+        imp.load_dynamic(pgo_module_name, so_module_path)
+
+    def _cythonize(self, module_name, code, lib_dir, args, quiet=False):
+        pyx_file = os.path.join(lib_dir, module_name + '.pyx')
+        pyx_file = py3compat.cast_bytes_py2(pyx_file, encoding=sys.getfilesystemencoding())
+
+        c_include_dirs = args.include
+        c_src_files = list(map(str, args.src))
+        if 'numpy' in code:
+            import numpy
+            c_include_dirs.append(numpy.get_include())
+        with io.open(pyx_file, 'w', encoding='utf-8') as f:
+            f.write(code)
+        extension = Extension(
+            name=module_name,
+            sources=[pyx_file] + c_src_files,
+            include_dirs=c_include_dirs,
+            library_dirs=args.library_dirs,
+            extra_compile_args=args.compile_args,
+            extra_link_args=args.link_args,
+            libraries=args.lib,
+            language='c++' if args.cplus else 'c',
+        )
+        try:
+            opts = dict(
+                quiet=quiet,
+                annotate=args.annotate,
+                force=True,
+            )
+            if args.language_level is not None:
+                assert args.language_level in (2, 3)
+                opts['language_level'] = args.language_level
+            elif sys.version_info[0] >= 3:
+                opts['language_level'] = 3
+            return cythonize([extension], **opts)
+        except CompileError:
+            return None
+
+    def _build_extension(self, extension, lib_dir, temp_dir=None, pgo_step_name=None):
+        build_extension = self._get_build_extension(
+            extension, lib_dir=lib_dir, temp_dir=temp_dir, pgo_step_name=pgo_step_name)
+        build_extension.run()
+
+    def _add_pgo_flags(self, build_extension, step_name, temp_dir):
+        compiler_type = build_extension.compiler.compiler_type
+        if compiler_type == 'unix':
+            compiler_cmd = build_extension.compiler.compiler_so
+            # TODO: we could try to call "[cmd] --version" for better insights
+            if not compiler_cmd:
+                pass
+            elif 'clang' in compiler_cmd or 'clang' in compiler_cmd[0]:
+                compiler_type = 'clang'
+            elif 'icc' in compiler_cmd or 'icc' in compiler_cmd[0]:
+                compiler_type = 'icc'
+            elif 'gcc' in compiler_cmd or 'gcc' in compiler_cmd[0]:
+                compiler_type = 'gcc'
+            elif 'g++' in compiler_cmd or 'g++' in compiler_cmd[0]:
+                compiler_type = 'gcc'
+        config = PGO_CONFIG.get(compiler_type)
+        orig_flags = []
+        if config and step_name in config:
+            flags = [f.format(TEMPDIR=temp_dir) for f in config[step_name]]
+            for extension in build_extension.extensions:
+                orig_flags.append((extension.extra_compile_args, extension.extra_link_args))
+                extension.extra_compile_args = extension.extra_compile_args + flags
+                extension.extra_link_args = extension.extra_link_args + flags
+        else:
+            print("No PGO %s configuration known for C compiler type '%s'" % (step_name, compiler_type),
+                  file=sys.stderr)
+        return orig_flags
 
     @property
     def so_ext(self):
@@ -345,7 +461,8 @@ class CythonMagics(Magics):
         else:
             _path_created.clear()
 
-    def _get_build_extension(self):
+    def _get_build_extension(self, extension=None, lib_dir=None, temp_dir=None,
+                             pgo_step_name=None, _build_ext=build_ext):
         self._clear_distutils_mkpath_cache()
         dist = Distribution()
         config_files = dist.find_config_files()
@@ -354,8 +471,25 @@ class CythonMagics(Magics):
         except ValueError:
             pass
         dist.parse_config_files(config_files)
-        build_extension = build_ext(dist)
+
+        if not temp_dir:
+            temp_dir = lib_dir
+        add_pgo_flags = self._add_pgo_flags
+
+        if pgo_step_name:
+            class _build_ext(_build_ext):
+                def build_extensions(self):
+                    add_pgo_flags(self, pgo_step_name, temp_dir)
+                    super(_build_ext, self).build_extensions()
+
+        build_extension = _build_ext(dist)
         build_extension.finalize_options()
+        if temp_dir:
+            build_extension.build_temp = temp_dir
+        if lib_dir:
+            build_extension.build_lib = lib_dir
+        if extension is not None:
+            build_extension.extensions = [extension]
         return build_extension
 
     @staticmethod

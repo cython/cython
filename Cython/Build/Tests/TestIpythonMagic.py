@@ -35,6 +35,12 @@ def call(x):
     return f(*(x,))
 """)
 
+pgo_cython3_code = cython3_code + py3compat.str_to_unicode("""\
+def main():
+    for _ in range(100): call(5)
+main()
+""")
+
 
 if sys.platform == 'win32':
     # not using IPython's decorators here because they depend on "nose"
@@ -116,6 +122,13 @@ class TestIPythonMagic(CythonTest):
         ip.ex('g = f(10); h = call(10)')
         self.assertEqual(ip.user_ns['g'], 2 // 10)
         self.assertEqual(ip.user_ns['h'], 2 // 10)
+
+    def test_cython3_pgo(self):
+        # The Cython cell defines the functions f() and call().
+        ip.run_cell_magic('cython', '-3 --pgo', pgo_cython3_code)
+        ip.ex('g = f(10); h = call(10); main()')
+        self.assertEqual(ip.user_ns['g'], 2.0 / 10.0)
+        self.assertEqual(ip.user_ns['h'], 2.0 / 10.0)
 
     @skip_win32('Skip on Windows')
     def test_extlibs(self):

@@ -41,6 +41,11 @@ Features added
 * The gdb support for Python code (``libpython.py``) was updated to the latest
   version in CPython 3.7 (git rev 5fe59f8).
 
+* The IPython/Jupyter magic integration has a new option ``%%cython --pgo`` for profile
+  guided optimisation. It compiles the cell with PGO settings for the C compiler,
+  executes it to generate a runtime profile, and then compiles it again using that
+  profile for C compiler optimisation.  Currently only tested with gcc.
+
 * ``len(memoryview)`` can be used in nogil sections to get the size of the
   first dimension of a memory view (``shape[0]``). (Github issue #1733)
 
