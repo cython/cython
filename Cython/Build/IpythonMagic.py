@@ -270,6 +270,12 @@ class CythonMagics(Magics):
 
             from somewhere import typical_data
             critical_function(typical_data)  # execute function to build profile
+
+        In Python 3.5 and later, you can distinguish between the profile and
+        non-profile runs as follows::
+
+            if "_pgo_" in __name__:
+                critical_function(profile_data)  # generate execution profile
         """
         args = magic_arguments.parse_argstring(self.cython, line)
         code = cell if cell.endswith('\n') else cell + '\n'
