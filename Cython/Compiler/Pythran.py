@@ -75,7 +75,7 @@ def pythran_indexing_code(indices):
                 func = "slice"
             return "pythonic::types::%s(%s)" % (func,",".join((v.pythran_result() for v in values)))
         elif idx.type.is_int:
-            return idx.result()
+            return to_pythran(idx)
         elif idx.type.is_pythran_expr:
             return idx.pythran_result()
         raise ValueError("unsupported indice type %s!" % str(idx.type))
@@ -85,10 +85,12 @@ def pythran_func_type(func, args):
     args = ",".join(("std::declval<%s>()" % pythran_type(a.type) for a in args))
     return "decltype(pythonic::numpy::functor::%s{}(%s))" % (func, args)
 
-def to_pythran(op,ptype=None):
+def to_pythran(op, ptype=None):
     op_type = op.type
-    if is_type(op_type,["is_pythran_expr", "is_int", "is_numeric", "is_float",
-        "is_complex"]):
+    if op_type.is_int:
+        # Make sure that integer literals always have exactly the type that the templates expect.
+        return op_type.cast_code(op.result())
+    if is_type(op_type, ["is_pythran_expr", "is_numeric", "is_float", "is_complex"]):
         return op.result()
     if op.is_none:
         return "pythonic::__builtin__::None"
@@ -111,8 +113,7 @@ def is_pythran_supported_node_or_none(node):
 
 def is_pythran_supported_type(type_):
     pythran_supported = (
-        "is_pythran_expr", "is_int", "is_numeric", "is_float", "is_none",
-        "is_complex")
+        "is_pythran_expr", "is_int", "is_numeric", "is_float", "is_none", "is_complex")
     return is_type(type_, pythran_supported) or is_pythran_expr(type_)
 
 def is_pythran_supported_operation_type(type_):
