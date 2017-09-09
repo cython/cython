@@ -345,13 +345,20 @@ class CythonMagics(Magics):
         pgo_module_name = '_pgo_' + module_name
         pgo_wrapper_c_file = os.path.join(lib_dir, pgo_module_name + '.c')
         with io.open(pgo_wrapper_c_file, 'w', encoding='utf-8') as f:
-            f.write(textwrap.dedent("""
+            f.write(textwrap.dedent(u"""
             #include "Python.h"
             #if PY_MAJOR_VERSION < 3
             extern PyMODINIT_FUNC init%(module_name)s(void);
             PyMODINIT_FUNC init%(pgo_module_name)s(void); /*proto*/
             PyMODINIT_FUNC init%(pgo_module_name)s(void) {
-                init%(module_name)s();
+                PyObject *sys_modules;
+                init%(module_name)s();  if (PyErr_Occurred()) return;
+                sys_modules = PyImport_GetModuleDict();  /* borrowed, no exception, "never" fails */
+                if (sys_modules) {
+                    PyObject *module = PyDict_GetItemString(sys_modules, "%(module_name)s");  if (!module) return;
+                    PyDict_SetItemString(sys_modules, "%(pgo_module_name)s", module);
+                    Py_DECREF(module);
+                }
             }
             #else
             extern PyMODINIT_FUNC PyInit_%(module_name)s(void);
@@ -477,16 +484,19 @@ class CythonMagics(Magics):
         add_pgo_flags = self._add_pgo_flags
 
         if pgo_step_name:
+            base_build_ext = _build_ext
             class _build_ext(_build_ext):
                 def build_extensions(self):
                     add_pgo_flags(self, pgo_step_name, temp_dir)
-                    super(_build_ext, self).build_extensions()
+                    base_build_ext.build_extensions(self)
 
         build_extension = _build_ext(dist)
         build_extension.finalize_options()
         if temp_dir:
+            temp_dir = py3compat.cast_bytes_py2(temp_dir, encoding=sys.getfilesystemencoding())
             build_extension.build_temp = temp_dir
         if lib_dir:
+            lib_dir = py3compat.cast_bytes_py2(lib_dir, encoding=sys.getfilesystemencoding())
             build_extension.build_lib = lib_dir
         if extension is not None:
             build_extension.extensions = [extension]
