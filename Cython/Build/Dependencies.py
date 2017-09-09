@@ -45,6 +45,7 @@ except ImportError:
 
 try:
     import pythran
+    import pythran.config
     PythranAvailable = True
 except:
     PythranAvailable = False
@@ -192,6 +193,27 @@ distutils_settings = {
     'language':             transitive_str,
     'np_pythran':           bool_or
 }
+
+
+def _configure_pythran_extension(ext):
+    if not PythranAvailable:
+        raise RuntimeError("You first need to install Pythran to use the np_pythran directive.")
+    pythran_ext = pythran.config.make_extension()
+    ext.include_dirs.extend(pythran_ext['include_dirs'])
+    ext.extra_compile_args.extend(pythran_ext['extra_compile_args'])
+    ext.extra_link_args.extend(pythran_ext['extra_link_args'])
+    ext.define_macros.extend(pythran_ext['define_macros'])
+    ext.undef_macros.extend(pythran_ext['undef_macros'])
+    ext.library_dirs.extend(pythran_ext['library_dirs'])
+    ext.libraries.extend(pythran_ext['libraries'])
+    ext.language = 'c++'
+
+    # These options are not compatible with the way normal Cython extensions work
+    for bad_option in ["-fwhole-program", "-fvisibility=hidden"]:
+        try:
+            ext.extra_compile_args.remove(bad_option)
+        except ValueError:
+            pass
 
 
 @cython.locals(start=cython.Py_ssize_t, end=cython.Py_ssize_t)
@@ -818,26 +840,9 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
 
                 # Create the new extension
                 m, metadata = create_extension(template, kwds)
-                if np_pythran:
-                    if not PythranAvailable:
-                        raise RuntimeError("You first need to install Pythran to use the np_pythran directive.")
-                    pythran_ext = pythran.config.make_extension()
-                    m.include_dirs.extend(pythran_ext['include_dirs'])
-                    m.extra_compile_args.extend(pythran_ext['extra_compile_args'])
-                    m.extra_link_args.extend(pythran_ext['extra_link_args'])
-                    m.define_macros.extend(pythran_ext['define_macros'])
-                    m.undef_macros.extend(pythran_ext['undef_macros'])
-                    m.library_dirs.extend(pythran_ext['library_dirs'])
-                    m.libraries.extend(pythran_ext['libraries'])
-                    # These options are not compatible with the way normal Cython extensions work
-                    try:
-                        m.extra_compile_args.remove("-fwhole-program")
-                    except ValueError: pass
-                    try:
-                        m.extra_compile_args.remove("-fvisibility=hidden")
-                    except ValueError: pass
-                    m.language = 'c++'
-                m.np_pythran = np_pythran
+                m.np_pythran = np_pythran or getattr(m, 'np_pythran', False)
+                if m.np_pythran:
+                    _configure_pythran_extension(m)
                 module_list.append(m)
 
                 # Store metadata (this will be written as JSON in the
