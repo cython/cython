@@ -177,9 +177,12 @@ class CythonMagics(Magics):
 
     @magic_arguments.magic_arguments()
     @magic_arguments.argument(
-        '--pgo', dest='pgo', action='store_true', default=False,
-        help=("Enable profile guided optimisation in the C compiler. "
-              "Compiles the cell twice and executes it in between to generate a runtime profile.")
+        '-a', '--annotate', action='store_true', default=False,
+        help="Produce a colorized HTML version of the source."
+    )
+    @magic_arguments.argument(
+        '-+', '--cplus', action='store_true', default=False,
+        help="Output a C++ rather than C file."
     )
     @magic_arguments.argument(
         '-3', dest='language_level', action='store_const', const=3, default=None,
@@ -188,6 +191,11 @@ class CythonMagics(Magics):
     @magic_arguments.argument(
         '-2', dest='language_level', action='store_const', const=2, default=None,
         help="Select Python 2 syntax."
+    )
+    @magic_arguments.argument(
+        '-f', '--force', action='store_true', default=False,
+        help="Force the compilation of a new module, even if the source has been "
+             "previously compiled."
     )
     @magic_arguments.argument(
         '-c', '--compile-args', action='append', default=[],
@@ -224,17 +232,9 @@ class CythonMagics(Magics):
              "multiple times)."
     )
     @magic_arguments.argument(
-        '-+', '--cplus', action='store_true', default=False,
-        help="Output a C++ rather than C file."
-    )
-    @magic_arguments.argument(
-        '-f', '--force', action='store_true', default=False,
-        help="Force the compilation of a new module, even if the source has been "
-             "previously compiled."
-    )
-    @magic_arguments.argument(
-        '-a', '--annotate', action='store_true', default=False,
-        help="Produce a colorized HTML version of the source."
+        '--pgo', dest='pgo', action='store_true', default=False,
+        help=("Enable profile guided optimisation in the C compiler. "
+              "Compiles the cell twice and executes it in between to generate a runtime profile.")
     )
     @cell_magic
     def cython(self, line, cell):
