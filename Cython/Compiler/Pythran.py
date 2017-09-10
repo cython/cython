@@ -2,6 +2,8 @@ from __future__ import absolute_import
 
 from .PyrexTypes import CType, CTypedefType, CStructOrUnionType
 
+import cython
+
 
 # Pythran/Numpy specific operations
 
@@ -13,6 +15,7 @@ def has_np_pythran(env):
         env = env.outer_scope
 
 
+@cython.ccall
 def is_pythran_supported_dtype(type_):
     if isinstance(type_, CTypedefType):
         return is_pythran_supported_type(type_.typedef_base_type)
@@ -40,6 +43,7 @@ def pythran_type(Ty, ptype="ndarray"):
     raise ValueError("unsupported pythran type %s (%s)" % (Ty, type(Ty)))
 
 
+@cython.ccall
 def type_remove_ref(ty):
     return "typename std::remove_reference<%s>::type" % ty
 
@@ -100,6 +104,7 @@ def pythran_func_type(func, args):
     return "decltype(pythonic::numpy::functor::%s{}(%s))" % (func, args)
 
 
+@cython.ccall
 def to_pythran(op, ptype=None):
     op_type = op.type
     if op_type.is_int:
@@ -116,6 +121,7 @@ def to_pythran(op, ptype=None):
     return "from_python<%s>(%s)" % (ptype, op.py_result())
 
 
+@cython.ccall
 def is_type(type_, types):
     for attr in types:
         if getattr(type_, attr, False):
@@ -127,6 +133,7 @@ def is_pythran_supported_node_or_none(node):
     return node.is_none or is_pythran_supported_type(node.type)
 
 
+@cython.ccall
 def is_pythran_supported_type(type_):
     pythran_supported = (
         "is_pythran_expr", "is_int", "is_numeric", "is_float", "is_none", "is_complex")
@@ -139,6 +146,7 @@ def is_pythran_supported_operation_type(type_):
     return is_type(type_,pythran_supported) or is_pythran_expr(type_)
 
 
+@cython.ccall
 def is_pythran_expr(type_):
     return type_.is_pythran_expr
 
