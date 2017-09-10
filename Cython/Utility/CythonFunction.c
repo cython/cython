@@ -599,10 +599,16 @@ static PyObject * __Pyx_CyFunction_CallMethod(PyObject *func, PyObject *self, Py
         if (likely(kw == NULL || PyDict_Size(kw) == 0)) {
             size = PyTuple_GET_SIZE(arg);
             if (likely(size == 1)) {
-                PyObject *result, *arg0 = PySequence_ITEM(arg, 0);
-                if (unlikely(!arg0)) return NULL;
+                PyObject *result, *arg0;
+                #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
+                arg0 = PyTuple_GET_ITEM(arg, 0);
+                #else
+                arg0 = PySequence_ITEM(arg, 0); if (unlikely(!arg0)) return NULL;
+                #endif
                 result = (*meth)(self, arg0);
+                #if !(CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS)
                 Py_DECREF(arg0);
+                #endif
                 return result;
             }
             PyErr_Format(PyExc_TypeError,
