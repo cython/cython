@@ -6264,6 +6264,7 @@ class AsTupleNode(ExprNode):
     #  arg    ExprNode
 
     subexprs = ['arg']
+    is_temp = 1
 
     def calculate_constant_result(self):
         self.constant_result = tuple(self.arg.constant_result)
@@ -6280,7 +6281,6 @@ class AsTupleNode(ExprNode):
         if self.arg.type is tuple_type:
             return self.arg.as_none_safe_node("'NoneType' object is not iterable")
         self.type = tuple_type
-        self.is_temp = 1
         return self
 
     def may_be_none(self):
@@ -6290,10 +6290,11 @@ class AsTupleNode(ExprNode):
     gil_message = "Constructing Python tuple"
 
     def generate_result_code(self, code):
+        cfunc = "__Pyx_PySequence_Tuple" if self.arg.type in (py_object_type, tuple_type) else "PySequence_Tuple"
         code.putln(
-            "%s = PySequence_Tuple(%s); %s" % (
+            "%s = %s(%s); %s" % (
                 self.result(),
-                self.arg.py_result(),
+                cfunc, self.arg.py_result(),
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
 

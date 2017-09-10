@@ -2210,14 +2210,10 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             PyrexTypes.CFuncTypeArg("list", Builtin.list_type, None)
             ])
 
-    PySequence_Tuple_func_type = PyrexTypes.CFuncType(
-        Builtin.tuple_type,
-        [PyrexTypes.CFuncTypeArg("it", PyrexTypes.py_object_type, None)])
-
     def _handle_simple_function_tuple(self, node, function, pos_args):
         """Replace tuple([...]) by PyList_AsTuple or PySequence_Tuple.
         """
-        if len(pos_args) != 1:
+        if len(pos_args) != 1 or not node.is_temp:
             return node
         arg = pos_args[0]
         if arg.type is Builtin.tuple_type and not arg.may_be_none():
@@ -2230,9 +2226,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 node.pos, "PyList_AsTuple", self.PyList_AsTuple_func_type,
                 args=pos_args, is_temp=node.is_temp)
         else:
-            return ExprNodes.PythonCapiCallNode(
-                node.pos, "PySequence_Tuple", self.PySequence_Tuple_func_type,
-                args=pos_args, is_temp=node.is_temp)
+            return ExprNodes.AsTupleNode(node.pos, arg=arg, type=Builtin.tuple_type)
 
     PySet_New_func_type = PyrexTypes.CFuncType(
         Builtin.set_type, [
