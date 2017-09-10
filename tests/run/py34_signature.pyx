@@ -4,7 +4,10 @@
 
 import inspect
 
-sig = inspect.Signature.from_function
+try:
+    sig = inspect.Signature.from_callable
+except AttributeError:
+    sig = inspect.Signature.from_function
 
 
 def signatures_match(f1, f2):
