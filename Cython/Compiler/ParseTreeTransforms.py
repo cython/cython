@@ -905,8 +905,9 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         if optname == 'np_pythran' and not self.context.cpp:
             raise PostParseError(pos, 'The %s directive can only be used in C++ mode.' % optname)
         elif optname == 'exceptval':
+            # default: exceptval(None, check=True)
             arg_error = len(args) > 1
-            check = False
+            check = True
             if kwds and kwds.key_value_pairs:
                 kw = kwds.key_value_pairs[0]
                 if (len(kwds.key_value_pairs) == 1 and
@@ -2344,6 +2345,12 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         return_type_node = self.directives.get('returns')
         if return_type_node is None and self.directives['annotation_typing']:
             return_type_node = node.return_type_annotation
+            # for Python anntations, prefer safe exception handling by default
+            if return_type_node is not None and except_val is None:
+                except_val = (None, True)  # except *
+        elif except_val is None:
+            # backward compatible default: no exception check
+            except_val = (None, False)
         if 'ccall' in self.directives:
             node = node.as_cfunction(
                 overridable=True, modifiers=modifiers,

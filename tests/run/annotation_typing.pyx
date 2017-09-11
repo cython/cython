@@ -146,6 +146,56 @@ def call_struct_io(s : MyStruct) -> MyStruct:
     return struct_io(s)
 
 
+@cython.test_assert_path_exists(
+    "//CFuncDefNode",
+    "//CFuncDefNode//DefNode",
+    "//CFuncDefNode[@return_type]",
+    "//CFuncDefNode[@return_type.is_struct_or_union = True]",
+)
+@cython.ccall
+def struct_convert(d) -> MyStruct:
+    """
+    >>> d = struct_convert(dict(x=1, y=2, data=3))
+    >>> sorted(d.items())
+    [('data', 3.0), ('x', 1), ('y', 2)]
+    >>> struct_convert({})  # make sure we can raise exceptions through struct return values
+    Traceback (most recent call last):
+    ValueError: No value specified for struct attribute 'x'
+    """
+    return d
+
+
+@cython.test_assert_path_exists(
+    "//CFuncDefNode",
+    "//CFuncDefNode//DefNode",
+    "//CFuncDefNode[@return_type]",
+    "//CFuncDefNode[@return_type.is_int = True]",
+)
+@cython.ccall
+def exception_default(raise_exc : cython.bint = False) -> cython.int:
+    """
+    >>> exception_default(raise_exc=False)
+    10
+    >>> exception_default(raise_exc=True)
+    Traceback (most recent call last):
+    ValueError: huhu!
+    """
+    if raise_exc:
+        raise ValueError("huhu!")
+    return 10
+
+
+def call_exception_default(raise_exc=False):
+    """
+    >>> call_exception_default(raise_exc=False)
+    10
+    >>> call_exception_default(raise_exc=True)
+    Traceback (most recent call last):
+    ValueError: huhu!
+    """
+    return exception_default(raise_exc)
+
+
 _WARNINGS = """
 8:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
 8:47: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
@@ -156,4 +206,6 @@ _WARNINGS = """
 # BUG:
 46:6: 'pytypes_cpdef' redeclared
 121:0: 'struct_io' redeclared
+156:0: 'struct_convert' redeclared
+175:0: 'exception_default' redeclared
 """

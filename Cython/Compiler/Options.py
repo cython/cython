@@ -143,7 +143,7 @@ _directive_defaults = {
     'initializedcheck' : True,
     'embedsignature' : False,
     'locals' : {},
-    'exceptval' : (None, False),  # (except value, check=False)
+    'exceptval' : None,  # (except value=None, check=True)
     'auto_cpdef': False,
     'auto_pickle': None,
     'cdivision': False, # was True before 0.12
