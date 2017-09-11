@@ -10,6 +10,7 @@ except ImportError:
     any_string_type = (bytes, str)
 
 import sys
+from contextlib import contextmanager
 
 from ..Utils import open_new_file
 from . import DebugFlags
@@ -228,8 +229,10 @@ def warn_once(position, message, level=0):
 
 error_stack = []
 
+
 def hold_errors():
     error_stack.append([])
+
 
 def release_errors(ignore=False):
     held_errors = error_stack.pop()
@@ -237,8 +240,21 @@ def release_errors(ignore=False):
         for err in held_errors:
             report_error(err)
 
+
 def held_errors():
     return error_stack[-1]
+
+
+# same as context manager:
+
+@contextmanager
+def local_errors(ignore=False):
+    errors = []
+    error_stack.append(errors)
+    try:
+        yield errors
+    finally:
+        release_errors(ignore=ignore)
 
 
 # this module needs a redesign to support parallel cythonisation, but

@@ -7,7 +7,7 @@ from __future__ import absolute_import
 import cython
 cython.declare(error=object, warning=object, warn_once=object, InternalError=object,
                CompileError=object, UtilityCode=object, TempitaUtilityCode=object,
-               StringEncoding=object, operator=object, Options=object,
+               StringEncoding=object, operator=object, local_errors=object, report_error=object,
                Naming=object, Nodes=object, PyrexTypes=object, py_object_type=object,
                list_type=object, tuple_type=object, set_type=object, dict_type=object,
                unicode_type=object, str_type=object, bytes_type=object, type_type=object,
@@ -21,13 +21,12 @@ import copy
 import os.path
 import operator
 
-from .Errors import error, warning, warn_once, InternalError, CompileError
-from .Errors import hold_errors, release_errors, held_errors, report_error
+from .Errors import (
+    error, warning, InternalError, CompileError, report_error, local_errors)
 from .Code import UtilityCode, TempitaUtilityCode
 from . import StringEncoding
 from . import Naming
 from . import Nodes
-from . import Options
 from .Nodes import Node, utility_code_for_imports, analyse_type_annotation
 from . import PyrexTypes
 from .PyrexTypes import py_object_type, c_long_type, typecast, error_type, \
@@ -1363,17 +1362,16 @@ def _analyse_name_as_type(name, pos, env):
     type = PyrexTypes.parse_basic_type(name)
     if type is not None:
         return type
-    hold_errors()
-    from .TreeFragment import TreeFragment
-    pos = (pos[0], pos[1], pos[2]-7)
-    try:
-        declaration = TreeFragment(u"sizeof(%s)" % name, name=pos[0].filename, initial_pos=pos)
-    except CompileError:
-        sizeof_node = None
-    else:
-        sizeof_node = declaration.root.stats[0].expr
-        sizeof_node = sizeof_node.analyse_types(env)
-    release_errors(ignore=True)
+    with local_errors(ignore=True):
+        from .TreeFragment import TreeFragment
+        pos = (pos[0], pos[1], pos[2]-7)
+        try:
+            declaration = TreeFragment(u"sizeof(%s)" % name, name=pos[0].filename, initial_pos=pos)
+        except CompileError:
+            sizeof_node = None
+        else:
+            sizeof_node = declaration.root.stats[0].expr
+            sizeof_node = sizeof_node.analyse_types(env)
     if isinstance(sizeof_node, SizeofTypeNode):
         return sizeof_node.arg_type
     return None
@@ -7755,11 +7753,10 @@ class ListNode(SequenceNode):
         return node.coerce_to_pyobject(env)
 
     def analyse_types(self, env):
-        hold_errors()
-        self.original_args = list(self.args)
-        node = SequenceNode.analyse_types(self, env)
-        node.obj_conversion_errors = held_errors()
-        release_errors(ignore=True)
+        with local_errors(ignore=True) as errors:
+            self.original_args = list(self.args)
+            node = SequenceNode.analyse_types(self, env)
+        node.obj_conversion_errors = errors
         if env.is_module_scope:
             self.in_module_scope = True
         node = node._create_merge_node_if_necessary(env)
@@ -8407,11 +8404,12 @@ class DictNode(ExprNode):
         return dict_type
 
     def analyse_types(self, env):
-        hold_errors()
-        self.key_value_pairs = [ item.analyse_types(env)
-                                 for item in self.key_value_pairs ]
-        self.obj_conversion_errors = held_errors()
-        release_errors(ignore=True)
+        with local_errors(ignore=True) as errors:
+            self.key_value_pairs = [
+                item.analyse_types(env)
+                for item in self.key_value_pairs
+            ]
+        self.obj_conversion_errors = errors
         return self
 
     def may_be_none(self):
