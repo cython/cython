@@ -76,7 +76,7 @@ def pythran_indexing_type(type_, indices):
         raise ValueError("unsupported indexing type %s!" % idx.type)
 
     indexing = ",".join(index_code(idx) for idx in indices)
-    return type_remove_ref("decltype(std::declval<%s>()(%s))" % (pythran_type(type_), indexing))
+    return type_remove_ref("decltype(std::declval<%s>()[%s])" % (pythran_type(type_), indexing))
 
 
 def pythran_indexing_code(indices):

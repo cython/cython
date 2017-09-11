@@ -4226,7 +4226,7 @@ class BufferIndexNode(_IndexingBaseNode):
         if is_pythran_expr(self.base.type):
             res = self.result()
             code.putln("__Pyx_call_destructor(%s);" % res)
-            code.putln("new (&%s) decltype(%s){%s(%s)};" % (
+            code.putln("new (&%s) decltype(%s){%s[%s]};" % (
                 res,
                 res,
                 self.base.pythran_result(),
