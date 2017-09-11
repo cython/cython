@@ -157,14 +157,14 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
         # XXX hack around setuptools quirk for '*.pyx' sources
         extensions[-1].sources[0] = pyx_source_file
 
-    from Cython.Distutils import build_ext
+    from Cython.Distutils.build_ext import new_build_ext
     if profile:
         from Cython.Compiler.Options import get_directive_defaults
         get_directive_defaults()['profile'] = True
         sys.stderr.write("Enabled profiling for the Cython binary modules\n")
 
-    # not using cythonize() here to let distutils decide whether building extensions was requested
-    add_command_class("build_ext", build_ext)
+    # not using cythonize() directly to let distutils decide whether building extensions was requested
+    add_command_class("build_ext", new_build_ext)
     setup_args['ext_modules'] = extensions
 
 
