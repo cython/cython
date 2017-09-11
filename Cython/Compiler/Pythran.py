@@ -43,7 +43,7 @@ def pythran_type(Ty, ptype="ndarray"):
     raise ValueError("unsupported pythran type %s (%s)" % (Ty, type(Ty)))
 
 
-@cython.ccall
+@cython.cfunc
 def type_remove_ref(ty):
     return "typename std::remove_reference<%s>::type" % ty
 
@@ -121,7 +121,7 @@ def to_pythran(op, ptype=None):
     return "from_python<%s>(%s)" % (ptype, op.py_result())
 
 
-@cython.ccall
+@cython.cfunc
 def is_type(type_, types):
     for attr in types:
         if getattr(type_, attr, False):
