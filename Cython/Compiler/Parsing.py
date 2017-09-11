@@ -11,8 +11,8 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
                bytes_literal=object, StringEncoding=object,
                FileSourceDescriptor=object, lookup_unicodechar=object, unicode_category=object,
                Future=object, Options=object, error=object, warning=object,
-               Builtin=object, ModuleNode=object, Utils=object,
-               re=object, sys=object, _parse_escape_sequences=object, _unicode=object, _bytes=object,
+               Builtin=object, ModuleNode=object, Utils=object, _unicode=object, _bytes=object,
+               re=object, sys=object, _parse_escape_sequences=object, _parse_escape_sequences_raw=object,
                partial=object, reduce=object, _IS_PY3=cython.bint, _IS_2BYTE_UNICODE=cython.bint)
 
 from io import StringIO
@@ -1013,22 +1013,25 @@ def _append_escape_sequence(kind, builder, escape_sequence, s):
         builder.append(escape_sequence)
 
 
-_parse_escape_sequences = re.compile(
+_parse_escape_sequences_raw, _parse_escape_sequences = [re.compile((
     # escape sequences:
-    br'(\\(?:'
-    br'[\\abfnrtv"\'{]|'
-    br'[0-7]{2,3}|'
-    br'N\{[^}]*\}|'
-    br'x[0-9a-fA-F]{2}|'
-    br'u[0-9a-fA-F]{4}|'
-    br'U[0-9a-fA-F]{8}|'
-    br'[NuU]|'  # detect invalid escape sequences that do not match above
+    br'(\\(?:' +
+    (br'\\?' if is_raw else (
+        br'[\\abfnrtv"\'{]|'
+        br'[0-7]{2,3}|'
+        br'N\{[^}]*\}|'
+        br'x[0-9a-fA-F]{2}|'
+        br'u[0-9a-fA-F]{4}|'
+        br'U[0-9a-fA-F]{8}|'
+        br'[NxuU]|'  # detect invalid escape sequences that do not match above
+    )) +
     br')?|'
     # non-escape sequences:
     br'\{\{?|'
     br'\}\}?|'
-    br'[^\\{}]+)'.decode('us-ascii')
-).match
+    br'[^\\{}]+)'
+    ).decode('us-ascii')).match
+    for is_raw in (True, False)]
 
 
 def p_f_string(s, unicode_value, pos, is_raw):
@@ -1038,13 +1041,15 @@ def p_f_string(s, unicode_value, pos, is_raw):
     next_start = 0
     size = len(unicode_value)
     builder = StringEncoding.UnicodeLiteralBuilder()
+    error_pos = list(pos)  # [src, line, column]
+    _parse_seq = _parse_escape_sequences_raw if is_raw else _parse_escape_sequences
 
     while next_start < size:
         end = next_start
-        match = _parse_escape_sequences(unicode_value, next_start)
+        error_pos[2] = pos[2] + end  # FIXME: handle newlines in string
+        match = _parse_seq(unicode_value, next_start)
         if match is None:
-            error_pos = (pos[0], pos[1] + end, pos[2])  # FIXME: handle newlines in string
-            error(error_pos, "Invalid escape sequence")
+            error(tuple(error_pos), "Invalid escape sequence")
 
         next_start = match.end()
         part = match.group()
@@ -1068,8 +1073,7 @@ def p_f_string(s, unicode_value, pos, is_raw):
             if part == '}}':
                 builder.append('}')
             else:
-                error_pos = (pos[0], pos[1] + end, pos[2])  # FIXME: handle newlines in string
-                s.error("f-string: single '}' is not allowed", pos=error_pos)
+                s.error("f-string: single '}' is not allowed", pos=tuple(error_pos))
         else:
             builder.append(part)
 
@@ -1134,12 +1138,12 @@ def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
     expr_pos = (pos[0], pos[1], pos[2] + starting_index + 2)  # TODO: find exact code position (concat, multi-line, ...)
 
     if not expr_str.strip():
-        error(pos, "empty expression not allowed in f-string")
+        error(expr_pos, "empty expression not allowed in f-string")
 
     if terminal_char == '!':
         i += 1
         if i + 2 > size:
-            error(pos, "invalid conversion char at end of string")
+            error(expr_pos, "invalid conversion char at end of string")
         else:
             conversion_char = unicode_value[i]
             i += 1
@@ -1152,7 +1156,7 @@ def p_f_string_expr(s, unicode_value, pos, starting_index, is_raw):
         start_format_spec = i + 1
         while True:
             if i >= size:
-                s.error("missing '}' in format specifier")
+                s.error("missing '}' in format specifier", pos=expr_pos)
             c = unicode_value[i]
             if not in_triple_quotes and not in_string:
                 if c == '{':
