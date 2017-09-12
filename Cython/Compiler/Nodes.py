@@ -3574,10 +3574,6 @@ class DefNodeWrapper(FuncDefNode):
             min_positional_args == max_positional_args
         has_kw_only_args = bool(kw_only_args)
 
-        if self.num_required_kw_args:
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("RaiseKeywordRequired", "FunctionArguments.c"))
-
         if self.starstar_arg or self.star_arg:
             self.generate_stararg_init_code(max_positional_args, code)
 
@@ -3630,6 +3626,8 @@ class DefNodeWrapper(FuncDefNode):
                 if not arg.default:
                     pystring_cname = code.intern_identifier(arg.name)
                     # required keyword-only argument missing
+                    code.globalstate.use_utility_code(
+                        UtilityCode.load_cached("RaiseKeywordRequired", "FunctionArguments.c"))
                     code.put('__Pyx_RaiseKeywordRequired("%s", %s); ' % (
                         self.name,
                         pystring_cname))
@@ -3851,6 +3849,8 @@ class DefNodeWrapper(FuncDefNode):
                             code.putln('}')
                     elif arg.kw_only:
                         code.putln('else {')
+                        code.globalstate.use_utility_code(
+                            UtilityCode.load_cached("RaiseKeywordRequired", "FunctionArguments.c"))
                         code.put('__Pyx_RaiseKeywordRequired("%s", %s); ' % (
                             self.name, pystring_cname))
                         code.putln(code.error_goto(self.pos))

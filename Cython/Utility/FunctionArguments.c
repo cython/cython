@@ -69,14 +69,11 @@ static void __Pyx_RaiseArgtupleInvalid(
 
 //////////////////// RaiseKeywordRequired.proto ////////////////////
 
-static CYTHON_INLINE void __Pyx_RaiseKeywordRequired(const char* func_name, PyObject* kw_name); /*proto*/
+static void __Pyx_RaiseKeywordRequired(const char* func_name, PyObject* kw_name); /*proto*/
 
 //////////////////// RaiseKeywordRequired ////////////////////
 
-static CYTHON_INLINE void __Pyx_RaiseKeywordRequired(
-    const char* func_name,
-    PyObject* kw_name)
-{
+static void __Pyx_RaiseKeywordRequired(const char* func_name, PyObject* kw_name) {
     PyErr_Format(PyExc_TypeError,
         #if PY_MAJOR_VERSION >= 3
         "%s() needs keyword-only argument %U", func_name, kw_name);
