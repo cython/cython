@@ -305,13 +305,13 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_{{type}}_Fast(PyObject *o, Py_ss
                                                               int wraparound, int boundscheck);
 {{endfor}}
 
-static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j);
+static PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j);
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i,
                                                      int is_list, int wraparound, int boundscheck);
 
 /////////////// GetItemInt ///////////////
 
-static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j) {
+static PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j) {
     PyObject *r;
     if (!j) return NULL;
     r = PyObject_GetItem(o, j);
@@ -393,13 +393,13 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, 
     (is_list ? (PyErr_SetString(PyExc_IndexError, "list assignment index out of range"), -1) : \
                __Pyx_SetItemInt_Generic(o, to_py_func(i), v)))
 
-static CYTHON_INLINE int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyObject *v);
+static int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyObject *v);
 static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v,
                                                int is_list, int wraparound, int boundscheck);
 
 /////////////// SetItemInt ///////////////
 
-static CYTHON_INLINE int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyObject *v) {
+static int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyObject *v) {
     int r;
     if (!j) return -1;
     r = PyObject_SetItem(o, j, v);
@@ -458,13 +458,13 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
     (is_list ? (PyErr_SetString(PyExc_IndexError, "list assignment index out of range"), -1) : \
                __Pyx_DelItem_Generic(o, to_py_func(i))))
 
-static CYTHON_INLINE int __Pyx_DelItem_Generic(PyObject *o, PyObject *j);
+static int __Pyx_DelItem_Generic(PyObject *o, PyObject *j);
 static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i,
                                                int is_list, int wraparound);
 
 /////////////// DelItemInt ///////////////
 
-static CYTHON_INLINE int __Pyx_DelItem_Generic(PyObject *o, PyObject *j) {
+static int __Pyx_DelItem_Generic(PyObject *o, PyObject *j) {
     int r;
     if (!j) return -1;
     r = PyObject_DelItem(o, j);
