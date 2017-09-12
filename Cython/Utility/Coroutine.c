@@ -5,6 +5,13 @@ static CYTHON_INLINE PyObject* __Pyx_Generator_Yield_From(__pyx_CoroutineObject 
 //////////////////// GeneratorYieldFrom ////////////////////
 //@requires: Generator
 
+static void __PyxPyIter_CheckErrorAndDecref(PyObject *source) {
+    PyErr_Format(PyExc_TypeError,
+                 "iter() returned non-iterator of type '%.100s'",
+                 Py_TYPE(source)->tp_name);
+    Py_DECREF(source);
+}
+
 static CYTHON_INLINE PyObject* __Pyx_Generator_Yield_From(__pyx_CoroutineObject *gen, PyObject *source) {
     PyObject *source_gen, *retval;
 #ifdef __Pyx_Coroutine_USED
@@ -22,13 +29,11 @@ static CYTHON_INLINE PyObject* __Pyx_Generator_Yield_From(__pyx_CoroutineObject 
             if (unlikely(!source_gen))
                 return NULL;
             if (unlikely(!PyIter_Check(source_gen))) {
-                PyErr_Format(PyExc_TypeError,
-                             "iter() returned non-iterator of type '%.100s'",
-                             Py_TYPE(source_gen)->tp_name);
-                Py_DECREF(source_gen);
+                __PyxPyIter_CheckErrorAndDecref(source_gen);
                 return NULL;
             }
         } else
+        // CPython also allows non-iterable sequences to be iterated over
 #endif
         {
             source_gen = PyObject_GetIter(source);
