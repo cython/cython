@@ -4258,7 +4258,8 @@ class MemoryViewIndexNode(BufferIndexNode):
 
         if not getting:
             self.writable_needed = True
-            self.base.entry.type.writable_needed = True
+            if self.base.is_name or self.base.is_attribute:
+                self.base.entry.type.writable_needed = True
 
         self.memslice_index = (not newaxes and len(indices) == self.base.type.ndim)
         axes = []
