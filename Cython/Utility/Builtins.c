@@ -231,22 +231,6 @@ static PyObject* __Pyx_Intern(PyObject* s) {
     return s;
 }
 
-//////////////////// abs_int.proto ////////////////////
-
-static CYTHON_INLINE unsigned int __Pyx_abs_int(int x) {
-    if (unlikely(x == -INT_MAX-1))
-        return ((unsigned int)INT_MAX) + 1U;
-    return (unsigned int) abs(x);
-}
-
-//////////////////// abs_long.proto ////////////////////
-
-static CYTHON_INLINE unsigned long __Pyx_abs_long(long x) {
-    if (unlikely(x == -LONG_MAX-1))
-        return ((unsigned long)LONG_MAX) + 1U;
-    return (unsigned long) labs(x);
-}
-
 //////////////////// abs_longlong.proto ////////////////////
 
 static CYTHON_INLINE PY_LONG_LONG __Pyx_abs_longlong(PY_LONG_LONG x) {
