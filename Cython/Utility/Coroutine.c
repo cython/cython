@@ -30,9 +30,17 @@ static CYTHON_INLINE PyObject* __Pyx_Generator_Yield_From(__pyx_CoroutineObject 
             }
         } else
 #endif
+        {
             source_gen = PyObject_GetIter(source);
+            if (unlikely(!source_gen))
+                return NULL;
+        }
         // source_gen is now the iterator, make the first next() call
+#if CYTHON_USE_TYPE_SLOTS
         retval = Py_TYPE(source_gen)->tp_iternext(source_gen);
+#else
+        retval = PyIter_Next(source_gen);
+#endif
     }
     if (likely(retval)) {
         gen->yieldfrom = source_gen;
