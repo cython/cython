@@ -107,7 +107,6 @@ builtin_function_table = [
                         ],
                     is_strict_signature = True, nogil=True)),
     ] + list(
-        # uses getattr to get PyrexTypes.c_uint_type etc to allow easy iteration over a list
         BuiltinFunction('abs',        None,    None,   "/*abs_{0}*/".format(t.specialization_name()),
                     func_type = PyrexTypes.CFuncType(
                         t,
