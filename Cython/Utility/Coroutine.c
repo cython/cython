@@ -91,29 +91,22 @@ static CYTHON_INLINE PyObject* __Pyx_Coroutine_Yield_From(__pyx_CoroutineObject 
             PyErr_SetString(
                 PyExc_RuntimeError,
                 "coroutine is being awaited already");
-            retval = NULL;
-        } else {
-            retval = __Pyx_Generator_Next(source);
+            return NULL;
         }
-        if (retval) {
-            Py_INCREF(source);
-            gen->yieldfrom = source;
-            return retval;
-        }
+        retval = __Pyx_Generator_Next(source);
 #ifdef __Pyx_AsyncGen_USED
-    // inlined "__pyx_PyAsyncGenASend" handling to avoid the series of generic calls below
+    // inlined "__pyx_PyAsyncGenASend" handling to avoid the series of generic calls
     } else if (__pyx_PyAsyncGenASend_CheckExact(source)) {
         retval = __Pyx_async_gen_asend_iternext(source);
-        if (retval) {
-            Py_INCREF(source);
-            gen->yieldfrom = source;
-            return retval;
-        }
 #endif
     } else {
         return __Pyx__Coroutine_Yield_From_Generic(gen, source);
     }
-    return NULL;
+    if (retval) {
+        Py_INCREF(source);
+        gen->yieldfrom = source;
+    }
+    return retval;
 }
 
 
