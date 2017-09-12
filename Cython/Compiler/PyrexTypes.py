@@ -856,7 +856,6 @@ class MemoryViewSliceType(PyrexType):
             return TempitaUtilityCode.load(
                 "ObjectToMemviewSlice", "MemoryView_C.c", context=context)
 
-        env.use_utility_code(Buffer.acquire_utility_code)
         env.use_utility_code(MemoryView.memviewslice_init_code)
         env.use_utility_code(LazyUtilityCode(lazy_utility_callback))
 

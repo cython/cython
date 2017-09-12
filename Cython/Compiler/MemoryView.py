@@ -809,18 +809,15 @@ context = {
 }
 memviewslice_declare_code = load_memview_c_utility(
         "MemviewSliceStruct",
-        proto_block='utility_code_proto_before_types',
         context=context,
         requires=[])
 
-atomic_utility = load_memview_c_utility("Atomics", context,
-              proto_block='utility_code_proto_before_types')
+atomic_utility = load_memview_c_utility("Atomics", context)
 
 memviewslice_init_code = load_memview_c_utility(
     "MemviewSliceInit",
     context=dict(context, BUF_MAX_NDIMS=Options.buffer_max_dims),
     requires=[memviewslice_declare_code,
-              Buffer.acquire_utility_code,
               atomic_utility],
 )
 
@@ -842,7 +839,7 @@ view_utility_code = load_memview_cy_utility(
         context=context,
         requires=[Buffer.GetAndReleaseBufferUtilityCode(),
                   Buffer.buffer_struct_declare_code,
-                  Buffer.empty_bufstruct_utility,
+                  Buffer.buffer_formats_declare_code,
                   memviewslice_init_code,
                   is_contig_utility,
                   overlapping_utility,

@@ -1,4 +1,5 @@
 ////////// MemviewSliceStruct.proto //////////
+//@proto_block: utility_code_proto_before_types
 
 /* memoryview slice struct */
 struct {{memview_struct_name}};
@@ -16,6 +17,7 @@ typedef struct {
 
 
 /////////// Atomics.proto /////////////
+//@proto_block: utility_code_proto_before_types
 
 #include <pythread.h>
 
@@ -167,6 +169,8 @@ static int __Pyx_ValidateAndInit_memviewslice(
 
 /////////////// MemviewSliceValidateAndInit ///////////////
 //@requires: Buffer.c::TypeInfoCompare
+//@requires: Buffer.c::BufferFormatStructs
+//@requires: Buffer.c::BufferFormatCheck
 
 static int
 __pyx_check_strides(Py_buffer *buf, int dim, int ndim, int spec)
