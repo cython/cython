@@ -161,12 +161,7 @@ static PyObject *__Pyx_PyIter_Next2Default(PyObject* defval) {
         Py_INCREF(defval);
         return defval;
     }
-#if CYTHON_COMPILING_IN_CPYTHON
-    Py_INCREF(PyExc_StopIteration);
-    __Pyx_ErrRestore(PyExc_StopIteration, NULL, NULL);
-#else
-    PyErr_SetNone(PyExc_StopIteration);
-#endif
+    __Pyx_PyErr_SetNone(PyExc_StopIteration);
     return NULL;
 }
 
