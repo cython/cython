@@ -140,42 +140,68 @@ bad:
 static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject *, PyObject *); /*proto*/
 
 /////////////// IterNext ///////////////
+//@requires: Exceptions.c::PyThreadStateGet
+//@requires: Exceptions.c::PyErrFetchRestore
+
+static PyObject *__Pyx_PyIter_Next2Default(PyObject* defval) {
+    PyObject* exc_type;
+    __Pyx_PyThreadState_declare
+    __Pyx_PyThreadState_assign
+    exc_type = __Pyx_PyErr_Occurred();
+    if (unlikely(exc_type)) {
+        if (unlikely(!__Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration)))
+            return NULL;
+        if (defval) {
+            __Pyx_PyErr_Clear();
+            Py_INCREF(defval);
+        }
+        return defval;
+    }
+    if (defval) {
+        Py_INCREF(defval);
+        return defval;
+    }
+#if CYTHON_COMPILING_IN_CPYTHON
+    Py_INCREF(PyExc_StopIteration);
+    __Pyx_ErrRestore(PyExc_StopIteration, NULL, NULL);
+#else
+    PyErr_SetNone(PyExc_StopIteration);
+#endif
+    return NULL;
+}
+
+#if CYTHON_USE_TYPE_SLOTS
+static void __Pyx_PyIter_Next_ErrorNoIterator(PyObject *iterator) {
+    PyErr_Format(PyExc_TypeError,
+        "%.200s object is not an iterator", Py_TYPE(iterator)->tp_name);
+}
+#endif
 
 // originally copied from Py3's builtin_next()
 static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* defval) {
     PyObject* next;
+    // we always do a quick slot check because always PyIter_Check() is so wasteful
     iternextfunc iternext = Py_TYPE(iterator)->tp_iternext;
+    if (likely(iternext)) {
 #if CYTHON_USE_TYPE_SLOTS
-    if (unlikely(!iternext)) {
+        next = iternext(iterator);
+        if (likely(next))
+            return next;
+        #if PY_VERSION_HEX >= 0x02070000
+        if (unlikely(iternext == &_PyObject_NextNotImplemented))
+            return NULL;
+        #endif
 #else
-    if (unlikely(!iternext) || unlikely(!PyIter_Check(iterator))) {
+        // note: PyIter_Next() crashes if the slot is NULL in CPython
+        next = PyIter_Next(iterator);
+        if (likely(next))
+            return next;
 #endif
-        PyErr_Format(PyExc_TypeError,
-            "%.200s object is not an iterator", Py_TYPE(iterator)->tp_name);
+    } else if (CYTHON_USE_TYPE_SLOTS || !PyIter_Check(iterator)) {
+        __Pyx_PyIter_Next_ErrorNoIterator(iterator);
         return NULL;
     }
-    next = iternext(iterator);
-    if (likely(next))
-        return next;
-#if CYTHON_USE_TYPE_SLOTS
-#if PY_VERSION_HEX >= 0x02070000
-    if (unlikely(iternext == &_PyObject_NextNotImplemented))
-        return NULL;
-#endif
-#endif
-    if (defval) {
-        PyObject* exc_type = PyErr_Occurred();
-        if (exc_type) {
-            if (unlikely(!__Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration)))
-                return NULL;
-            PyErr_Clear();
-        }
-        Py_INCREF(defval);
-        return defval;
-    }
-    if (!PyErr_Occurred())
-        PyErr_SetNone(PyExc_StopIteration);
-    return NULL;
+    return __Pyx_PyIter_Next2Default(defval);
 }
 
 /////////////// IterFinish.proto ///////////////
