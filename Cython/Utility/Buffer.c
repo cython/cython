@@ -157,8 +157,14 @@ static void __Pyx_ReleaseBuffer(Py_buffer *view) {
     The alignment code is copied from _struct.c in Python.
 }}
 
-static CYTHON_INLINE int  __Pyx_GetBufferAndValidate(Py_buffer* buf, PyObject* obj,
+#define __Pyx_GetBufferAndValidate(buf, obj, dtype, flags, nd, cast, stack) \
+    ((obj == Py_None || obj == NULL) ? \
+    (__Pyx_ZeroBuffer(buf), 0) : \
+    __Pyx__GetBufferAndValidate(buf, obj, dtype, flags, nd, cast, stack))
+
+static int  __Pyx__GetBufferAndValidate(Py_buffer* buf, PyObject* obj,
     __Pyx_TypeInfo* dtype, int flags, int nd, int cast, __Pyx_BufFmt_StackElem* stack);
+static CYTHON_INLINE void __Pyx_ZeroBuffer(Py_buffer* buf);
 static CYTHON_INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info);
 static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const char* ts);
 static void __Pyx_BufFmt_Init(__Pyx_BufFmt_Context* ctx,
@@ -733,21 +739,17 @@ static CYTHON_INLINE void __Pyx_ZeroBuffer(Py_buffer* buf) {
   buf->suboffsets = __Pyx_minusones;
 }
 
-static CYTHON_INLINE int __Pyx_GetBufferAndValidate(
+static int __Pyx__GetBufferAndValidate(
         Py_buffer* buf, PyObject* obj,  __Pyx_TypeInfo* dtype, int flags,
         int nd, int cast, __Pyx_BufFmt_StackElem* stack)
 {
-  if (obj == Py_None || obj == NULL) {
-    __Pyx_ZeroBuffer(buf);
-    return 0;
-  }
   buf->buf = NULL;
-  if (__Pyx_GetBuffer(obj, buf, flags) == -1) {
+  if (unlikely(__Pyx_GetBuffer(obj, buf, flags) == -1)) {
     __Pyx_ZeroBuffer(buf);
     return -1;
   }
   // From this point on, we have acquired the buffer and must release it on errors.
-  if (buf->ndim != nd) {
+  if (unlikely(buf->ndim != nd)) {
     PyErr_Format(PyExc_ValueError,
                  "Buffer has wrong number of dimensions (expected %d, got %d)",
                  nd, buf->ndim);
@@ -758,7 +760,7 @@ static CYTHON_INLINE int __Pyx_GetBufferAndValidate(
     __Pyx_BufFmt_Init(&ctx, stack, dtype);
     if (!__Pyx_BufFmt_CheckString(&ctx, buf->format)) goto fail;
   }
-  if ((unsigned)buf->itemsize != dtype->size) {
+  if (unlikely((unsigned)buf->itemsize != dtype->size)) {
     PyErr_Format(PyExc_ValueError,
       "Item size of buffer (%" CYTHON_FORMAT_SSIZE_T "d byte%s) does not match size of '%s' (%" CYTHON_FORMAT_SSIZE_T "d byte%s)",
       buf->itemsize, (buf->itemsize > 1) ? "s" : "",
@@ -773,7 +775,7 @@ fail:;
 }
 
 static CYTHON_INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info) {
-  if (info->buf == NULL) return;
+  if (unlikely(info->buf == NULL)) return;
   if (info->suboffsets == __Pyx_minusones) info->suboffsets = NULL;
   __Pyx_ReleaseBuffer(info);
 }
