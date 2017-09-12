@@ -117,7 +117,6 @@ class UtilityCodeBase(object):
     """
 
     is_cython_utility = False
-    requires = None
     _utility_cache = {}
 
     @classmethod
@@ -565,6 +564,7 @@ class LazyUtilityCode(UtilityCodeBase):
     available. Useful when you only have 'env' but not 'code'.
     """
     __name__ = '<lazy>'
+    requires = None
 
     def __init__(self, callback):
         self.callback = callback
