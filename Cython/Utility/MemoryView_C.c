@@ -440,8 +440,12 @@ no_fail:
     return retval;
 }
 
+#ifndef Py_NO_RETURN
+// available since Py3.3
+#define Py_NO_RETURN
+#endif
 
-static CYTHON_INLINE void __pyx_fatalerror(const char *fmt, ...) {
+static void __pyx_fatalerror(const char *fmt, ...) Py_NO_RETURN {
     va_list vargs;
     char msg[200];
 
@@ -450,11 +454,10 @@ static CYTHON_INLINE void __pyx_fatalerror(const char *fmt, ...) {
 #else
     va_start(vargs);
 #endif
-
     vsnprintf(msg, 200, fmt, vargs);
-    Py_FatalError(msg);
-
     va_end(vargs);
+
+    Py_FatalError(msg);
 }
 
 static CYTHON_INLINE int
