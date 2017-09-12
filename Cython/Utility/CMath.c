@@ -73,8 +73,10 @@ static CYTHON_INLINE %(type)s %(func_name)s(%(type)s b, %(type)s e) {
     switch (e) {
         case 3:
             t *= b;
+        CYTHON_FALLTHROUGH;
         case 2:
             t *= b;
+        CYTHON_FALLTHROUGH;
         case 1:
             return t;
         case 0:
