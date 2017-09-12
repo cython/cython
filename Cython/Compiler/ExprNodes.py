@@ -8833,9 +8833,6 @@ class ClassCellInjectorNode(ExprNode):
     is_active = False
 
     def analyse_expressions(self, env):
-        if self.is_active:
-            env.use_utility_code(
-                UtilityCode.load_cached("CyFunctionClassCell", "CythonFunction.c"))
         return self
 
     def generate_evaluation_code(self, code):
@@ -8849,6 +8846,8 @@ class ClassCellInjectorNode(ExprNode):
 
     def generate_injection_code(self, code, classobj_cname):
         if self.is_active:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("CyFunctionClassCell", "CythonFunction.c"))
             code.put_error_if_neg(self.pos, '__Pyx_CyFunction_InitClassCell(%s, %s)' % (
                 self.result(), classobj_cname))
 
