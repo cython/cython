@@ -116,7 +116,6 @@ static CYTHON_INLINE int __Pyx_unpack_tuple2_exact(
     return 0;
 #if CYTHON_COMPILING_IN_PYPY
 bad:
-    Py_XDECREF(iter);
     Py_XDECREF(value1);
     Py_XDECREF(value2);
     if (decref_tuple) { Py_XDECREF(tuple); }
