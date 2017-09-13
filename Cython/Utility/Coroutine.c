@@ -1553,13 +1553,13 @@ static PyTypeObject __pyx_CoroutineType_type = {
     0,                                  /*tp_cache*/
     0,                                  /*tp_subclasses*/
     0,                                  /*tp_weaklist*/
-#if PY_VERSION_HEX >= 0x030400a1
+#if CYTHON_USE_TP_FINALIZE
     0,                                  /*tp_del*/
 #else
     __Pyx_Coroutine_del,                /*tp_del*/
 #endif
     0,                                  /*tp_version_tag*/
-#if PY_VERSION_HEX >= 0x030400a1
+#if CYTHON_USE_TP_FINALIZE
     __Pyx_Coroutine_del,                /*tp_finalize*/
 #endif
 };
@@ -1653,13 +1653,13 @@ static PyTypeObject __pyx_GeneratorType_type = {
     0,                                  /*tp_cache*/
     0,                                  /*tp_subclasses*/
     0,                                  /*tp_weaklist*/
-#if PY_VERSION_HEX >= 0x030400a1
+#if CYTHON_USE_TP_FINALIZE
     0,                                  /*tp_del*/
 #else
     __Pyx_Coroutine_del,                /*tp_del*/
 #endif
     0,                                  /*tp_version_tag*/
-#if PY_VERSION_HEX >= 0x030400a1
+#if CYTHON_USE_TP_FINALIZE
     __Pyx_Coroutine_del,                /*tp_finalize*/
 #endif
 };

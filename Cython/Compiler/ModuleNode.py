@@ -1408,7 +1408,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if not is_final_type:
             # in Py3.4+, call tp_finalize() as early as possible
-            code.putln("#if PY_VERSION_HEX >= 0x030400a1")
+            code.putln("#if CYTHON_USE_TP_FINALIZE")
             if needs_gc:
                 finalised_check = '!_PyGC_FINALIZED(o)'
             else:
