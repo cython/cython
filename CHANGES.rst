@@ -76,6 +76,9 @@ Bugs fixed
 * Compile time ``DEF`` assignments were evaluated even when they occur inside of
   falsy ``IF`` blocks. (Github issue #1796)
 
+* Disabling the line tracing from a trace function could fail.
+  Original patch by Dmitry Trofimov. (Github issue #1769)
+
 * Several issues with the Pythran integration were resolved.
 
 * abs(signed int) now returns a signed rather than unsigned int.
