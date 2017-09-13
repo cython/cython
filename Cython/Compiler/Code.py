@@ -138,19 +138,16 @@ class UtilityCodeBase(object):
 
         if type == 'proto':
             utility[0] = code
-        elif type.startswith('proto.'):
-            utility[0] = code
-            utility[1] = type[6:]
         elif type == 'impl':
-            utility[2] = code
+            utility[1] = code
         else:
-            all_tags = utility[3]
+            all_tags = utility[2]
             if KEYWORDS_MUST_BE_BYTES:
                 type = type.encode('ASCII')
             all_tags[type] = code
 
         if tags:
-            all_tags = utility[3]
+            all_tags = utility[2]
             for name, values in tags.items():
                 if KEYWORDS_MUST_BE_BYTES:
                     name = name.encode('ASCII')
@@ -181,7 +178,7 @@ class UtilityCodeBase(object):
         with closing(Utils.open_source_file(filename, encoding='UTF-8')) as f:
             all_lines = f.readlines()
 
-        utilities = defaultdict(lambda: [None, None, None, {}])
+        utilities = defaultdict(lambda: [None, None, {}])
         lines = []
         tags = defaultdict(set)
         utility = type = None
@@ -255,7 +252,7 @@ class UtilityCodeBase(object):
             from_file = files[0]
 
         utilities = cls.load_utilities_from_file(from_file)
-        proto, proto_block, impl, tags = utilities[util_code_name]
+        proto, impl, tags = utilities[util_code_name]
 
         if tags:
             orig_kwargs = kwargs.copy()
@@ -279,8 +276,6 @@ class UtilityCodeBase(object):
 
         if proto is not None:
             kwargs['proto'] = proto
-        if proto_block is not None:
-            kwargs['proto_block'] = proto_block
         if impl is not None:
             kwargs['impl'] = impl
 
