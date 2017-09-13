@@ -25,7 +25,8 @@ Features added
   `PEP 526 <https://www.python.org/dev/peps/pep-0526/>`_.  Cython types (e.g.
   ``cython.int``) are evaluated as C type declarations and everything else as Python
   types.  This can be disabled with the directive ``annotation_typing=False``.
-  (Github issue #1850)
+  Note that most complex PEP-484 style annotations are currently ignored.  This will
+  change in future releases. (Github issue #1850)
 
 * Extension types (also in pure Python mode) can implement the normal special methods
   ``__eq__``, ``__lt__`` etc. for comparisons instead of the low-level ``__richcmp__``
@@ -40,6 +41,10 @@ Features added
 
 * The gdb support for Python code (``libpython.py``) was updated to the latest
   version in CPython 3.7 (git rev 5fe59f8).
+
+* The compiler tries to find a usable exception return value for cdef functions
+  with ``except *`` if the returned type allows it.  Note that this feature is subject
+  to safety limitations, so it is still better to provide an explicit declaration.
 
 * The IPython/Jupyter magic integration has a new option ``%%cython --pgo`` for profile
   guided optimisation. It compiles the cell with PGO settings for the C compiler,
@@ -71,8 +76,13 @@ Bugs fixed
 * Compile time ``DEF`` assignments were evaluated even when they occur inside of
   falsy ``IF`` blocks. (Github issue #1796)
 
+* Several issues with the Pythran integration were resolved.
+
 * abs(signed int) now returns a signed rather than unsigned int.
   (Github issue #1837)
+
+* Buffer type mismatches in the NumPy buffer support could leak a reference to the
+  buffer owner.
 
 * Compilation failed if the for-in-range loop target was not a variable but a more
   complex expression, e.g. an item assignment. (Github issue #1831)
@@ -92,7 +102,7 @@ Other changes
   `PEP 484 <https://www.python.org/dev/peps/pep-0484/>`_
   typing.  Only Cython types (e.g. ``cython.int``) and Python builtin types are
   currently considered as type declarations.  Everything else is ignored, but this
-  will probably change in a future Cython release.
+  will change in a future Cython release.
   (Github issue #1672)
 
 * The directive ``annotation_typing`` is now ``True`` by default, which enables
