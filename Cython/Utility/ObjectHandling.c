@@ -186,12 +186,10 @@ static PyObject *__Pyx_PyIter_Next2Default(PyObject* defval) {
     return NULL;
 }
 
-#if CYTHON_USE_TYPE_SLOTS
 static void __Pyx_PyIter_Next_ErrorNoIterator(PyObject *iterator) {
     PyErr_Format(PyExc_TypeError,
         "%.200s object is not an iterator", Py_TYPE(iterator)->tp_name);
 }
-#endif
 
 // originally copied from Py3's builtin_next()
 static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* defval) {
