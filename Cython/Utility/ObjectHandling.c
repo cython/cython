@@ -116,7 +116,6 @@ static CYTHON_INLINE int __Pyx_unpack_tuple2_exact(
     return 0;
 #if CYTHON_COMPILING_IN_PYPY
 bad:
-    Py_XDECREF(iter);
     Py_XDECREF(value1);
     Py_XDECREF(value2);
     if (decref_tuple) { Py_XDECREF(tuple); }
@@ -187,12 +186,10 @@ static PyObject *__Pyx_PyIter_Next2Default(PyObject* defval) {
     return NULL;
 }
 
-#if CYTHON_USE_TYPE_SLOTS
 static void __Pyx_PyIter_Next_ErrorNoIterator(PyObject *iterator) {
     PyErr_Format(PyExc_TypeError,
         "%.200s object is not an iterator", Py_TYPE(iterator)->tp_name);
 }
-#endif
 
 // originally copied from Py3's builtin_next()
 static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* defval) {

@@ -294,18 +294,20 @@ static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* iterable, int is_di
         // On PyPy3, we need to translate manually a few method names.
         // This logic is not needed on CPython thanks to the fast case above.
         static PyObject *py_items = NULL, *py_keys = NULL, *py_values = NULL;
-        const char *name = PyUnicode_AsUTF8(method_name);
         PyObject **pp = NULL;
-        if (strcmp(name, "iteritems") == 0) pp = &py_items;
-        else if (strcmp(name, "iterkeys") == 0) pp = &py_keys;
-        else if (strcmp(name, "itervalues") == 0) pp = &py_values;
-        if (pp) {
-            if (!*pp) {
-                *pp = PyUnicode_FromString(name + 4);
-                if (!*pp)
-                    return NULL;
+        if (method_name) {
+            const char *name = PyUnicode_AsUTF8(method_name);
+            if (strcmp(name, "iteritems") == 0) pp = &py_items;
+            else if (strcmp(name, "iterkeys") == 0) pp = &py_keys;
+            else if (strcmp(name, "itervalues") == 0) pp = &py_values;
+            if (pp) {
+                if (!*pp) {
+                    *pp = PyUnicode_FromString(name + 4);
+                    if (!*pp)
+                        return NULL;
+                }
+                method_name = *pp;
             }
-            method_name = *pp;
         }
 #endif
     }
