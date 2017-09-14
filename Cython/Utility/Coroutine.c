@@ -74,7 +74,11 @@ static PyObject* __Pyx__Coroutine_Yield_From_Generic(__pyx_CoroutineObject *gen,
     if (__Pyx_Coroutine_CheckExact(source_gen)) {
         retval = __Pyx_Generator_Next(source_gen);
     } else {
+#if CYTHON_USE_TYPE_SLOTS
         retval = Py_TYPE(source_gen)->tp_iternext(source_gen);
+#else
+        retval = PyIter_Next(source_gen);
+#endif
     }
     if (retval) {
         gen->yieldfrom = source_gen;
