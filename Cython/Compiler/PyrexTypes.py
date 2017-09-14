@@ -3167,7 +3167,8 @@ class ToPyStructUtilityCode(object):
         code.putln("%s {" % self.header)
         code.putln("PyObject* res;")
         code.putln("PyObject* member;")
-        code.putln("res = PyDict_New(); if (unlikely(!res)) return NULL;")
+        code.putln("res = __Pyx_PyDict_NewPresized(%d); if (unlikely(!res)) return NULL;" %
+                   len(self.type.scope.var_entries))
         for member in self.type.scope.var_entries:
             nameconst_cname = code.get_py_string_const(member.name, identifier=True)
             code.putln("%s; if (unlikely(!member)) goto bad;" % (

@@ -255,6 +255,12 @@
   #define __Pyx_PyThreadState_Current _PyThreadState_Current
 #endif
 
+#if CYTHON_COMPILING_IN_CPYTHON || defined(_PyDict_NewPresized)
+#define __Pyx_PyDict_NewPresized(n)  _PyDict_NewPresized(n)
+#else
+#define __Pyx_PyDict_NewPresized(n)  PyDict_New()
+#endif
+
 #if PY_MAJOR_VERSION >= 3 || CYTHON_FUTURE_DIVISION
   #define __Pyx_PyNumber_Divide(x,y)         PyNumber_TrueDivide(x,y)
   #define __Pyx_PyNumber_InPlaceDivide(x,y)  PyNumber_InPlaceTrueDivide(x,y)

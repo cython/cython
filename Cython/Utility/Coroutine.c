@@ -1742,7 +1742,7 @@ static PyObject* __Pyx_Coroutine_patch_module(PyObject* module, const char* py_c
 #if defined(__Pyx_Generator_USED) || defined(__Pyx_Coroutine_USED)
     int result;
     PyObject *globals, *result_obj;
-    globals = PyDict_New();  if (unlikely(!globals)) goto ignore;
+    globals = __Pyx_PyDict_NewPresized(4);  if (unlikely(!globals)) goto ignore;
     result = PyDict_SetItemString(globals, "_cython_coroutine_type",
     #ifdef __Pyx_Coroutine_USED
         (PyObject*)__pyx_CoroutineType);

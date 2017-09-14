@@ -83,7 +83,7 @@ static int __Pyx_Print(PyObject* stream, PyObject *arg_tuple, int newline) {
             return -1;
     }
     if (stream) {
-        kwargs = PyDict_New();
+        kwargs = __Pyx_PyDict_NewPresized(2);
         if (unlikely(!kwargs))
             return -1;
         if (unlikely(PyDict_SetItem(kwargs, PYIDENT("file"), stream) < 0))
@@ -100,7 +100,7 @@ static int __Pyx_Print(PyObject* stream, PyObject *arg_tuple, int newline) {
         }
     } else if (!newline) {
         if (unlikely(!$print_function_kwargs)) {
-            $print_function_kwargs = PyDict_New();
+            $print_function_kwargs = __Pyx_PyDict_NewPresized(1);
             if (unlikely(!$print_function_kwargs))
                 return -1;
             end_string = PyUnicode_FromStringAndSize(" ", 1);

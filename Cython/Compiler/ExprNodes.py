@@ -8471,8 +8471,9 @@ class DictNode(ExprNode):
         if is_dict:
             self.release_errors()
             code.putln(
-                "%s = PyDict_New(); %s" % (
+                "%s = __Pyx_PyDict_NewPresized(%d); %s" % (
                     self.result(),
+                    len(self.key_value_pairs),
                     code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
 
