@@ -1030,7 +1030,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("struct %s %s;" % (
                     type.base_type.vtabstruct_cname,
                     Naming.obj_base_cname))
-            for method_entry in scope.cfunc_entries:
+            for method_entry in sorted(scope.cfunc_entries):
                 if not method_entry.is_inherited:
                     code.putln("%s;" % method_entry.type.declaration_code("(*%s)" % method_entry.cname))
             code.putln("};")
