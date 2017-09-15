@@ -7,7 +7,6 @@ cimport cython
 import re
 import sys
 
-from libc.stdlib cimport malloc
 
 def little_endian():
     cdef int endian_detector = 1
@@ -657,9 +656,11 @@ cdef fused fused_ndarray:
     np.ndarray[Foo, ndim=1]
 
 def get_Foo_array():
-    cdef Foo[:] result = <Foo[:10]> malloc(sizeof(Foo) * 10)
-    result[5].b = 9.0
-    return np.asarray(result)
+    cdef Foo data[10]
+    for i in range(10):
+        data[i] = [0, 0]
+    data[5].b = 9.0
+    return np.asarray(<Foo[:]>data).copy()
 
 @testcase_have_buffer_interface
 def test_fused_ndarray(fused_ndarray a):
