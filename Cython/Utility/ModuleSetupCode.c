@@ -256,7 +256,7 @@
 #endif
 
 #if CYTHON_COMPILING_IN_CPYTHON || defined(_PyDict_NewPresized)
-#define __Pyx_PyDict_NewPresized(n)  _PyDict_NewPresized(n)
+#define __Pyx_PyDict_NewPresized(n)  ((n <= 8) ? PyDict_New() : _PyDict_NewPresized(n))
 #else
 #define __Pyx_PyDict_NewPresized(n)  PyDict_New()
 #endif
