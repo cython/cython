@@ -84,6 +84,9 @@ Bugs fixed
 * abs(signed int) now returns a signed rather than unsigned int.
   (Github issue #1837)
 
+* Reading ``frame.f_locals`` of a Cython function (e.g. from a debugger or profiler
+  could modify the module globals. (Github issue #1836)
+
 * Buffer type mismatches in the NumPy buffer support could leak a reference to the
   buffer owner.
 
