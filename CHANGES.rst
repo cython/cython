@@ -63,6 +63,14 @@ Features added
 Bugs fixed
 ----------
 
+* Extension types that were cimported from other Cython modules could disagree
+  about the order of fused cdef methods in their call table.  This could lead
+  to wrong methods being called and potentially also crashes.  The fix required
+  changes to the ordering of fused methods in the call table, which may break
+  existing compiled modules that call fused cdef methods across module boundaries,
+  if these methods were implemented in a different order than they were declared
+  in the corresponding .pxd file. (Github issue #1873)
+
 * The exception state handling in generators and coroutines could lead to
   exceptions in the caller being lost if an exception was raised and handled
   inside of the coroutine when yielding. (Github issue #1731)

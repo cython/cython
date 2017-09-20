@@ -1535,6 +1535,13 @@ class ForwardDeclareTypes(CythonTransform):
     def visit_CClassDefNode(self, node):
         if node.class_name not in self.module_scope.entries:
             node.declare(self.module_scope)
+        # Expand fused methods of .pxd declared types to construct the final vtable order.
+        type = self.module_scope.entries[node.class_name].type
+        if type is not None and type.is_extension_type and not type.is_builtin_type and type.scope:
+            scope = type.scope
+            for entry in scope.cfunc_entries:
+                if entry.type and entry.type.is_fused:
+                    entry.type.get_all_specialized_function_types()
         return node
 
 

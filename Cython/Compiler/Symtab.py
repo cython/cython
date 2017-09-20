@@ -800,13 +800,23 @@ class Scope(object):
         type.entry = entry
         return entry
 
-    def add_cfunction(self, name, type, pos, cname, visibility, modifiers):
+    def add_cfunction(self, name, type, pos, cname, visibility, modifiers, inherited=False):
         # Add a C function entry without giving it a func_cname.
         entry = self.declare(name, cname, type, pos, visibility)
         entry.is_cfunction = 1
         if modifiers:
             entry.func_modifiers = modifiers
-        self.cfunc_entries.append(entry)
+        if inherited or type.is_fused:
+            self.cfunc_entries.append(entry)
+        else:
+            # For backwards compatibility reasons, we must keep all non-fused methods
+            # before all fused methods, but separately for each type.
+            i = len(self.cfunc_entries)
+            for cfunc_entry in reversed(self.cfunc_entries):
+                if cfunc_entry.is_inherited or not cfunc_entry.type.is_fused:
+                    break
+                i -= 1
+            self.cfunc_entries.insert(i, entry)
         return entry
 
     def find(self, name, pos):
@@ -2166,11 +2176,11 @@ class CClassScope(ClassScope):
 
         return entry
 
-    def add_cfunction(self, name, type, pos, cname, visibility, modifiers):
+    def add_cfunction(self, name, type, pos, cname, visibility, modifiers, inherited=False):
         # Add a cfunction entry without giving it a func_cname.
         prev_entry = self.lookup_here(name)
         entry = ClassScope.add_cfunction(self, name, type, pos, cname,
-                                         visibility, modifiers)
+                                         visibility, modifiers, inherited=inherited)
         entry.is_cmethod = 1
         entry.prev_entry = prev_entry
         return entry
@@ -2231,7 +2241,7 @@ class CClassScope(ClassScope):
                 cname = adapt(cname)
             entry = self.add_cfunction(base_entry.name, base_entry.type,
                                        base_entry.pos, cname,
-                                       base_entry.visibility, base_entry.func_modifiers)
+                                       base_entry.visibility, base_entry.func_modifiers, inherited=True)
             entry.is_inherited = 1
             if base_entry.is_final_cmethod:
                 entry.is_final_cmethod = True

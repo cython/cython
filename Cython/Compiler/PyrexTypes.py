@@ -2884,12 +2884,10 @@ class CFuncType(CType):
         elif self.cached_specialized_types is not None:
             return self.cached_specialized_types
 
-        cfunc_entries = self.entry.scope.cfunc_entries
-        cfunc_entries.remove(self.entry)
-
         result = []
         permutations = self.get_all_specialized_permutations()
 
+        new_cfunc_entries = []
         for cname, fused_to_specific in permutations:
             new_func_type = self.entry.type.specialize(fused_to_specific)
 
@@ -2904,7 +2902,15 @@ class CFuncType(CType):
             new_func_type.entry = new_entry
             result.append(new_func_type)
 
-            cfunc_entries.append(new_entry)
+            new_cfunc_entries.append(new_entry)
+
+        cfunc_entries = self.entry.scope.cfunc_entries
+        try:
+            cindex = cfunc_entries.index(self.entry)
+        except ValueError:
+            cfunc_entries.extend(new_cfunc_entries)
+        else:
+            cfunc_entries[cindex:cindex+1] = new_cfunc_entries
 
         self.cached_specialized_types = result
 

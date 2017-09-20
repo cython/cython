@@ -127,9 +127,6 @@ class FusedCFuncDefNode(StatListNode):
         #                                            len(permutations))
         # import pprint; pprint.pprint([d for cname, d in permutations])
 
-        if self.node.entry in env.cfunc_entries:
-            env.cfunc_entries.remove(self.node.entry)
-
         # Prevent copying of the python function
         self.orig_py_func = orig_py_func = self.node.py_func
         self.node.py_func = None
@@ -139,12 +136,26 @@ class FusedCFuncDefNode(StatListNode):
         fused_types = self.node.type.get_fused_types()
         self.fused_compound_types = fused_types
 
+        new_cfunc_entries = []
         for cname, fused_to_specific in permutations:
             copied_node = copy.deepcopy(self.node)
 
-            # Make the types in our CFuncType specific
+            # Make the types in our CFuncType specific.
             type = copied_node.type.specialize(fused_to_specific)
             entry = copied_node.entry
+            type.specialize_entry(entry, cname)
+
+            # Reuse existing Entries (e.g. from .pxd files).
+            for i, orig_entry in enumerate(env.cfunc_entries):
+                if entry.cname == orig_entry.cname and type.same_as_resolved_type(orig_entry.type):
+                    copied_node.entry = env.cfunc_entries[i]
+                    if not copied_node.entry.func_cname:
+                        copied_node.entry.func_cname = entry.func_cname
+                    entry = copied_node.entry
+                    type = entry.type
+                    break
+            else:
+                new_cfunc_entries.append(entry)
 
             copied_node.type = type
             entry.type, type.entry = type, entry
@@ -165,9 +176,6 @@ class FusedCFuncDefNode(StatListNode):
             self._specialize_function_args(copied_node.cfunc_declarator.args,
                                            fused_to_specific)
 
-            type.specialize_entry(entry, cname)
-            env.cfunc_entries.append(entry)
-
             # If a cpdef, declare all specialized cpdefs (this
             # also calls analyse_declarations)
             copied_node.declare_cpdef_wrapper(env)
@@ -180,6 +188,14 @@ class FusedCFuncDefNode(StatListNode):
 
             if not self.replace_fused_typechecks(copied_node):
                 break
+
+        # replace old entry with new entries
+        try:
+            cindex = env.cfunc_entries.index(self.node.entry)
+        except ValueError:
+            env.cfunc_entries.extend(new_cfunc_entries)
+        else:
+            env.cfunc_entries[cindex:cindex+1] = new_cfunc_entries
 
         if orig_py_func:
             self.py_func = self.make_fused_cpdef(orig_py_func, env,
