@@ -390,19 +390,15 @@ def get_memoryview_flag(access, packing):
         return 'contiguous'
 
 
-def get_is_contig_func_name(c_or_f, ndim):
-    return "__pyx_memviewslice_is_%s_contig%d" % (c_or_f, ndim)
+def get_is_contig_func_name(contig_type, ndim):
+    assert contig_type in ('C', 'F')
+    return "__pyx_memviewslice_is_contig_%s%d" % (contig_type, ndim)
 
 
-def get_is_contig_utility(c_contig, ndim):
-    C = dict(context, ndim=ndim)
-    if c_contig:
-        utility = load_memview_c_utility("MemviewSliceIsCContig", C,
-                                         requires=[is_contig_utility])
-    else:
-        utility = load_memview_c_utility("MemviewSliceIsFContig", C,
-                                         requires=[is_contig_utility])
-
+def get_is_contig_utility(contig_type, ndim):
+    assert contig_type in ('C', 'F')
+    C = dict(context, ndim=ndim, contig_type=contig_type)
+    utility = load_memview_c_utility("MemviewSliceCheckContig", C, requires=[is_contig_utility])
     return utility
 
 

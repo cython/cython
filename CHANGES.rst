@@ -99,6 +99,9 @@ Bugs fixed
 * Buffer type mismatches in the NumPy buffer support could leak a reference to the
   buffer owner.
 
+* Using the "is_f_contig" and "is_c_contig" memoryview methods together could leave
+  one of them undeclared. (Github issue #1872)
+
 * Compilation failed if the for-in-range loop target was not a variable but a more
   complex expression, e.g. an item assignment. (Github issue #1831)
 

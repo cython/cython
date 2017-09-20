@@ -716,10 +716,9 @@ class MemoryViewSliceType(PyrexType):
 
         elif attribute in ("is_c_contig", "is_f_contig"):
             # is_c_contig and is_f_contig functions
-            for (c_or_f, cython_name) in (('c', 'is_c_contig'), ('f', 'is_f_contig')):
+            for (c_or_f, cython_name) in (('C', 'is_c_contig'), ('F', 'is_f_contig')):
 
-                is_contig_name = \
-                        MemoryView.get_is_contig_func_name(c_or_f, self.ndim)
+                is_contig_name = MemoryView.get_is_contig_func_name(c_or_f, self.ndim)
 
                 cfunctype = CFuncType(
                         return_type=c_bint_type,
@@ -733,8 +732,7 @@ class MemoryViewSliceType(PyrexType):
                             defining=1,
                             cname=is_contig_name)
 
-                entry.utility_code_definition = MemoryView.get_is_contig_utility(
-                                            attribute == 'is_c_contig', self.ndim)
+                entry.utility_code_definition = MemoryView.get_is_contig_utility(c_or_f, self.ndim)
 
         return True
 
