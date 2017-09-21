@@ -2629,8 +2629,8 @@ class CFuncType(CType):
 
     def same_c_signature_as_resolved_type(self, other_type, as_cmethod=False, as_pxd_definition=False,
                                           exact_semantics=True):
-        # If 'exact_semantics' is false, allow any C compatible signatures
-        # if the Cython semantics are compatible.
+        # If 'exact_semantics' is false, allow any equivalent C signatures
+        # if the Cython semantics are compatible, i.e. the same or wider for 'other_type'.
 
         #print "CFuncType.same_c_signature_as_resolved_type:", \
         #    self, other_type, "as_cmethod =", as_cmethod ###
@@ -2660,15 +2660,15 @@ class CFuncType(CType):
         else:
             if not self.return_type.same_as(other_type.return_type):
                 return 0
+        if not self.same_calling_convention_as(other_type):
+            return 0
         if exact_semantics:
-            if not self.same_calling_convention_as(other_type):
-                return 0
             if self.exception_check != other_type.exception_check:
                 return 0
             if not self._same_exception_value(other_type.exception_value):
                 return 0
-        else:
-            return self.compatible_signature_with_resolved_type(other_type, as_cmethod=as_cmethod)
+        elif not self._is_exception_compatible_with(other_type):
+            return 0
         return 1
 
     def _same_exception_value(self, other_exc_value):
@@ -2719,6 +2719,12 @@ class CFuncType(CType):
             return 0
         if self.nogil != other_type.nogil:
             return 0
+        if not self._is_exception_compatible_with(other_type):
+            return 0
+        self.original_sig = other_type.original_sig or other_type
+        return 1
+
+    def _is_exception_compatible_with(self, other_type):
         # narrower exception checks are ok, but prevent mismatches
         if self.exception_check == '+' and other_type.exception_check != '+':
             # must catch C++ exceptions if we raise them
@@ -2730,7 +2736,6 @@ class CFuncType(CType):
             if self.exception_check and self.exception_check != other_type.exception_check:
                 # a redundant exception check doesn't make functions incompatible, but a missing one does
                 return 0
-        self.original_sig = other_type.original_sig or other_type
         return 1
 
     def narrower_c_signature_than(self, other_type, as_cmethod = 0):
@@ -2782,7 +2787,11 @@ class CFuncType(CType):
             and self.nogil == other_type.nogil
 
     def pointer_assignable_from_resolved_type(self, rhs_type):
-        # Accept compatible exception declarations for the RHS.
+        # Accept compatible exception/nogil declarations for the RHS.
+        if rhs_type is error_type:
+            return 1
+        if not rhs_type.is_cfunction:
+            return 0
         return rhs_type.same_c_signature_as_resolved_type(self, exact_semantics=False) \
             and not (self.nogil and not rhs_type.nogil)
 
