@@ -54,6 +54,16 @@ except ImportError:
         def __call__(self, *args, **kwargs):
             return self._GeneratorWrapper(self._gen(*args, **kwargs))
 
+try:
+    from sys import getrefcount
+except ImportError:
+    from cpython.ref cimport PyObject
+    def getrefcount(obj):
+        gc.collect()
+        # PyPy needs to execute a bytecode to run the finalizers
+        exec('', {}, {})
+        return (<PyObject*>obj).ob_refcnt
+
 
 # compiled exec()
 def exec(code_string, l, g):
@@ -1867,7 +1877,7 @@ class CoroutineTest(unittest.TestCase):
 
     def test_for_2(self):
         tup = (1, 2, 3)
-        refs_before = sys.getrefcount(tup)
+        refs_before = getrefcount(tup)
 
         async def foo():
             async for i in tup:
@@ -1878,7 +1888,7 @@ class CoroutineTest(unittest.TestCase):
 
             run_async(foo())
 
-        self.assertEqual(sys.getrefcount(tup), refs_before)
+        self.assertEqual(getrefcount(tup), refs_before)
 
     def test_for_3(self):
         class I(object):
@@ -1886,7 +1896,7 @@ class CoroutineTest(unittest.TestCase):
                 return self
 
         aiter = I()
-        refs_before = sys.getrefcount(aiter)
+        refs_before = getrefcount(aiter)
 
         async def foo():
             async for i in aiter:
@@ -1898,7 +1908,7 @@ class CoroutineTest(unittest.TestCase):
 
             run_async(foo())
 
-        self.assertEqual(sys.getrefcount(aiter), refs_before)
+        self.assertEqual(getrefcount(aiter), refs_before)
 
     def test_for_4(self):
         class I(object):
@@ -1909,7 +1919,7 @@ class CoroutineTest(unittest.TestCase):
                 return ()
 
         aiter = I()
-        refs_before = sys.getrefcount(aiter)
+        refs_before = getrefcount(aiter)
 
         async def foo():
             async for i in aiter:
@@ -1921,7 +1931,7 @@ class CoroutineTest(unittest.TestCase):
 
             run_async(foo())
 
-        self.assertEqual(sys.getrefcount(aiter), refs_before)
+        self.assertEqual(getrefcount(aiter), refs_before)
 
     def test_for_5(self):
         class I(object):
@@ -1971,8 +1981,8 @@ class CoroutineTest(unittest.TestCase):
 
         manager = Manager()
         iterable = Iterable()
-        mrefs_before = sys.getrefcount(manager)
-        irefs_before = sys.getrefcount(iterable)
+        mrefs_before = getrefcount(manager)
+        irefs_before = getrefcount(iterable)
 
         async def main():
             nonlocal I
@@ -1985,8 +1995,8 @@ class CoroutineTest(unittest.TestCase):
         run_async(main())
         self.assertEqual(I, 111011)
 
-        self.assertEqual(sys.getrefcount(manager), mrefs_before)
-        self.assertEqual(sys.getrefcount(iterable), irefs_before)
+        self.assertEqual(getrefcount(manager), mrefs_before)
+        self.assertEqual(getrefcount(iterable), irefs_before)
 
         ##############
 
