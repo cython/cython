@@ -2712,11 +2712,17 @@ class CFuncType(CType):
             return 0
         if self.nogil != other_type.nogil:
             return 0
-        if not self.exception_check and other_type.exception_check:
-            # a redundant exception check doesn't make functions incompatible, but a missing one does
+        # narrower exception checks are ok, but prevent mismatches
+        if self.exception_check == '+' and other_type.exception_check != '+':
+            # must catch C++ exceptions if we raise them
             return 0
-        if not self._same_exception_value(other_type.exception_value):
-            return 0
+        if not other_type.exception_check or other_type.exception_value is not None:
+            # if other does not *always* check exceptions, self must comply
+            if not self._same_exception_value(other_type.exception_value):
+                return 0
+            if self.exception_check and self.exception_check != other_type.exception_check:
+                # a redundant exception check doesn't make functions incompatible, but a missing one does
+                return 0
         self.original_sig = other_type.original_sig or other_type
         return 1
 

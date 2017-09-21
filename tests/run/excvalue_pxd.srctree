@@ -1,0 +1,37 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import foo"
+PYTHON -c "import a"
+
+######## setup.py ########
+
+from Cython.Build import cythonize
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("*.pyx"),
+)
+
+######## foo.pxd ########
+
+cdef int bar(int i) except *
+
+######## foo.pyx ########
+
+cdef int bar(int i) except *:
+    if i == 10:
+        raise ValueError()
+    return i + 1
+
+######## a.pyx ########
+
+cimport cython
+from foo cimport bar
+
+def test():
+    assert bar(-2) == -1
+    try:
+        bar(10)
+    except ValueError:
+        pass
+    else:
+        assert False, "exception not raised"

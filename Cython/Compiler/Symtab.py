@@ -771,6 +771,10 @@ class Scope(object):
                     else:
                         warning(pos, "Function signature does not match previous declaration", 1)
                         entry.type = type
+                elif not in_pxd and entry.defined_in_pxd and type.compatible_signature_with(entry.type):
+                    # TODO: check that this was done by a signature optimisation and not a user error.
+                    #warning(pos, "Function signature does not match previous declaration", 1)
+                    entry.type = type
                 else:
                     error(pos, "Function signature does not match previous declaration")
         else:
