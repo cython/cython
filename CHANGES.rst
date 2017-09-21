@@ -64,7 +64,8 @@ Features added
 * NumPy dtype subarrays are now accessible through the C-API.
   Patch by Gerald Dalley (Github issue #245).
 
-* Uses faster async slots in PyPy3.  Patch by Ronan Lamy (Github issue #1871).
+* Resolves several issues with PyPy and uses faster async slots in PyPy3.
+  Patch by Ronan Lamy (Github issues #1871, #1878).
 
 Bugs fixed
 ----------
