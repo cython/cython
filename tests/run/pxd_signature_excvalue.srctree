@@ -1,6 +1,6 @@
 PYTHON setup.py build_ext --inplace
 PYTHON -c "import foo"
-PYTHON -c "import a"
+PYTHON -c "import a; a.test()"
 
 ######## setup.py ########
 
@@ -15,6 +15,9 @@ setup(
 
 cdef int bar(int i) except *
 
+cdef int (*var_opt)(int) except? -1
+cdef int (*var_orig)(int) except *
+
 ######## foo.pyx ########
 
 cdef int bar(int i) except *:
@@ -22,10 +25,13 @@ cdef int bar(int i) except *:
         raise ValueError()
     return i + 1
 
+var_opt = bar   # by 'accident' of optimisation
+var_orig = bar  # by declaration
+
 ######## a.pyx ########
 
 cimport cython
-from foo cimport bar
+from foo cimport bar, var_orig, var_opt
 
 def test():
     assert bar(-2) == -1
@@ -34,4 +40,20 @@ def test():
     except ValueError:
         pass
     else:
-        assert False, "exception not raised"
+        assert False, "exception not raised in bar()"
+
+    assert var_orig(-2) == -1
+    try:
+        var_orig(10)
+    except ValueError:
+        pass
+    else:
+        assert False, "exception not raised in var_orig()"
+
+    assert var_opt(-2) == -1
+    try:
+        var_opt(10)
+    except ValueError:
+        pass
+    else:
+        assert False, "exception not raised in var_opt()"

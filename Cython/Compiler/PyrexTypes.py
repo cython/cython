@@ -2627,7 +2627,11 @@ class CFuncType(CType):
         return self.same_c_signature_as_resolved_type(
             other_type.resolve(), as_cmethod)
 
-    def same_c_signature_as_resolved_type(self, other_type, as_cmethod = 0, as_pxd_definition = 0):
+    def same_c_signature_as_resolved_type(self, other_type, as_cmethod=False, as_pxd_definition=False,
+                                          exact_semantics=True):
+        # If 'exact_semantics' is false, allow any C compatible signatures
+        # if the Cython semantics are compatible.
+
         #print "CFuncType.same_c_signature_as_resolved_type:", \
         #    self, other_type, "as_cmethod =", as_cmethod ###
         if other_type is error_type:
@@ -2656,12 +2660,15 @@ class CFuncType(CType):
         else:
             if not self.return_type.same_as(other_type.return_type):
                 return 0
-        if not self.same_calling_convention_as(other_type):
-            return 0
-        if self.exception_check != other_type.exception_check:
-            return 0
-        if not self._same_exception_value(other_type.exception_value):
-            return 0
+        if exact_semantics:
+            if not self.same_calling_convention_as(other_type):
+                return 0
+            if self.exception_check != other_type.exception_check:
+                return 0
+            if not self._same_exception_value(other_type.exception_value):
+                return 0
+        else:
+            return self.compatible_signature_with_resolved_type(other_type, as_cmethod=as_cmethod)
         return 1
 
     def _same_exception_value(self, other_exc_value):
@@ -2770,13 +2777,14 @@ class CFuncType(CType):
         sc2 = other.calling_convention == '__stdcall'
         return sc1 == sc2
 
-    def same_as_resolved_type(self, other_type, as_cmethod = 0):
-        return self.same_c_signature_as_resolved_type(other_type, as_cmethod) \
+    def same_as_resolved_type(self, other_type, as_cmethod=False):
+        return self.same_c_signature_as_resolved_type(other_type, as_cmethod=as_cmethod) \
             and self.nogil == other_type.nogil
 
-    def pointer_assignable_from_resolved_type(self, other_type):
-        return self.same_c_signature_as_resolved_type(other_type) \
-            and not (self.nogil and not other_type.nogil)
+    def pointer_assignable_from_resolved_type(self, rhs_type):
+        # Accept compatible exception declarations for the RHS.
+        return rhs_type.same_c_signature_as_resolved_type(self, exact_semantics=False) \
+            and not (self.nogil and not rhs_type.nogil)
 
     def declaration_code(self, entity_code,
                          for_display = 0, dll_linkage = None, pyrex = 0,
