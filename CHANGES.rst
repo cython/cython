@@ -46,6 +46,11 @@ Features added
   with ``except *`` if the returned type allows it.  Note that this feature is subject
   to safety limitations, so it is still better to provide an explicit declaration.
 
+* C functions can be assigned to function pointers with a compatible exception
+  declaration, not only with exact matches.  A side-effect is that certain compatible
+  signature overrides are now allowed and some more mismatches of exception signatures
+  are now detected and rejected as errors that were not detected before.
+
 * The IPython/Jupyter magic integration has a new option ``%%cython --pgo`` for profile
   guided optimisation. It compiles the cell with PGO settings for the C compiler,
   executes it to generate a runtime profile, and then compiles it again using that
