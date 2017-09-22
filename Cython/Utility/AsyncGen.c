@@ -332,7 +332,7 @@ static __Pyx_PyAsyncMethodsStruct __Pyx_async_gen_as_async = {
 #endif
 
 static PyTypeObject __pyx_AsyncGenType_type = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT(0, 0)
     "async_generator",                          /* tp_name */
     sizeof(__pyx_PyAsyncGenObject),             /* tp_basicsize */
     0,                                          /* tp_itemsize */
@@ -563,7 +563,7 @@ static __Pyx_PyAsyncMethodsStruct __Pyx_async_gen_asend_as_async = {
 
 
 static PyTypeObject __pyx__PyAsyncGenASendType_type = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT(0, 0)
     "async_generator_asend",                    /* tp_name */
     sizeof(__pyx_PyAsyncGenASend),                    /* tp_basicsize */
     0,                                          /* tp_itemsize */
@@ -681,7 +681,7 @@ __Pyx_async_gen_wrapped_val_traverse(__pyx__PyAsyncGenWrappedValue *o,
 
 
 static PyTypeObject __pyx__PyAsyncGenWrappedValueType_type = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT(0, 0)
     "async_generator_wrapped_value",            /* tp_name */
     sizeof(__pyx__PyAsyncGenWrappedValue),            /* tp_basicsize */
     0,                                          /* tp_itemsize */
@@ -950,7 +950,7 @@ static __Pyx_PyAsyncMethodsStruct __Pyx_async_gen_athrow_as_async = {
 
 
 static PyTypeObject __pyx__PyAsyncGenAThrowType_type = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+    PyVarObject_HEAD_INIT(0, 0)
     "async_generator_athrow",                   /* tp_name */
     sizeof(__pyx_PyAsyncGenAThrow),                   /* tp_basicsize */
     0,                                          /* tp_itemsize */
