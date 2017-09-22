@@ -238,7 +238,7 @@ static CYTHON_INLINE PY_LONG_LONG __Pyx_abs_longlong(PY_LONG_LONG x) {
     return (unsigned PY_LONG_LONG) std::abs(x);
 #elif defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
     return (unsigned PY_LONG_LONG) llabs(x);
-#elif defined (_MSC_VER) && defined (_M_X64)
+#elif defined (_MSC_VER)
     // abs() is defined for long, but 64-bits type on MSVC is long long.
     // Use MS-specific _abs64 instead.
     return (unsigned PY_LONG_LONG) _abs64(x);
