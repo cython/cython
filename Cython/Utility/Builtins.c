@@ -248,7 +248,7 @@ static CYTHON_INLINE PY_LONG_LONG __Pyx_abs_longlong(PY_LONG_LONG x) {
 #else
     if (sizeof(PY_LONG_LONG) <= sizeof(Py_ssize_t))
         return __Pyx_sst_abs(x);
-    return (x<0) ? x*(PY_LONG_LONG)-1 : x;
+    return (x<0) ? -x : x;
 #endif
 }
 
