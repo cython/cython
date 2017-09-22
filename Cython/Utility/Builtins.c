@@ -247,7 +247,7 @@ static CYTHON_INLINE PY_LONG_LONG __Pyx_abs_longlong(PY_LONG_LONG x) {
     return (unsigned PY_LONG_LONG) __builtin_llabs(x);
 #else
     if (sizeof(PY_LONG_LONG) <= sizeof(Py_ssize_t))
-        return __Pyx_sst_abs(x);
+        return (unsigned PY_LONG_LONG) __Pyx_sst_abs(x);
     return (x<0) ? (unsigned PY_LONG_LONG)-x : (unsigned PY_LONG_LONG)x;
 #endif
 }
