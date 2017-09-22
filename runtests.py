@@ -1873,10 +1873,6 @@ def main():
     if options.with_cython and sys.version_info[0] >= 3:
         sys.path.insert(0, options.cython_dir)
 
-    if options.watermark:
-        import Cython.Compiler.Version
-        Cython.Compiler.Version.watermark = options.watermark
-
     WITH_CYTHON = options.with_cython
 
     coverage = None
@@ -1937,6 +1933,9 @@ def configure_cython(options):
     from Cython.Compiler import DebugFlags
     DebugFlags.debug_temp_code_comments = 1
     pyrex_default_options['formal_grammar'] = options.use_formal_grammar
+    if options.watermark:
+        import Cython.Compiler.Version
+        Cython.Compiler.Version.watermark = options.watermark
 
 
 def runtests_callback(args):
