@@ -9,14 +9,6 @@ environment:
     WITH_ENV: "cmd /E:ON /V:ON /C .\\appveyor\\run_with_env.cmd"
 
   matrix:
-    - PYTHON: "C:\\Python26"
-      PYTHON_VERSION: "2.6"
-      PYTHON_ARCH: "32"
-
-    - PYTHON: "C:\\Python26-x64"
-      PYTHON_VERSION: "2.6"
-      PYTHON_ARCH: "64"
-
     - PYTHON: "C:\\Python27"
       PYTHON_VERSION: "2.7"
       PYTHON_ARCH: "32"
