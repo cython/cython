@@ -649,7 +649,7 @@ __Pyx_async_gen_asend_new(__pyx_PyAsyncGenObject *gen, PyObject *sendval)
 
     o->ags_state = __PYX_AWAITABLE_STATE_INIT;
 
-    _PyObject_GC_TRACK((PyObject*)o);
+    PyObject_GC_TRACK((PyObject*)o);
     return (PyObject*)o;
 }
 
@@ -756,7 +756,7 @@ __Pyx__PyAsyncGenValueWrapperNew(PyObject *val)
     }
     o->agw_val = val;
     // no Py_INCREF(val) - steals reference!
-    _PyObject_GC_TRACK((PyObject*)o);
+    PyObject_GC_TRACK((PyObject*)o);
     return (PyObject*)o;
 }
 
@@ -1025,7 +1025,7 @@ __Pyx_async_gen_athrow_new(__pyx_PyAsyncGenObject *gen, PyObject *args)
     o->agt_state = __PYX_AWAITABLE_STATE_INIT;
     Py_INCREF(gen);
     Py_XINCREF(args);
-    _PyObject_GC_TRACK((PyObject*)o);
+    PyObject_GC_TRACK((PyObject*)o);
     return (PyObject*)o;
 }
 
