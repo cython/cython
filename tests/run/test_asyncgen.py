@@ -17,6 +17,8 @@ import contextlib
 
 #asyncio = import_module("asyncio")
 
+ZERO = 0
+
 try:
     if sys.version_info[:2] == (3, 4):
         # asnycio in Py3.4 does not support awaitable coroutines (requires iterators instead)
@@ -343,7 +345,7 @@ class AsyncGenTest(unittest.TestCase):
         async def gen():
             await awaitable()
             yield 123
-            1 / 0
+            1 / ZERO
 
         g = gen()
         ai = g.__aiter__()
@@ -381,7 +383,7 @@ class AsyncGenTest(unittest.TestCase):
         def sync_gen():
             try:
                 yield 1
-                1 / 0
+                1 / ZERO
             finally:
                 yield 2
                 yield 3
@@ -391,7 +393,7 @@ class AsyncGenTest(unittest.TestCase):
         async def async_gen():
             try:
                 yield 1
-                1 / 0
+                1 / ZERO
             finally:
                 yield 2
                 yield 3
@@ -406,7 +408,7 @@ class AsyncGenTest(unittest.TestCase):
                 yield 1
             finally:
                 yield 2
-                1 / 0
+                1 / ZERO
                 yield 3
 
             yield 100
@@ -418,7 +420,7 @@ class AsyncGenTest(unittest.TestCase):
             finally:
                 await awaitable()
                 yield 2
-                1 / 0
+                1 / ZERO
                 yield 3
 
             yield 100
@@ -429,7 +431,7 @@ class AsyncGenTest(unittest.TestCase):
         def sync_gen():
             try:
                 yield 1
-                1 / 0
+                1 / ZERO
             finally:
                 yield 2
                 yield 3
@@ -440,7 +442,7 @@ class AsyncGenTest(unittest.TestCase):
             try:
                 await awaitable()
                 yield 1
-                1 / 0
+                1 / ZERO
             finally:
                 yield 2
                 await awaitable()
@@ -513,7 +515,7 @@ class AsyncGenAsyncioTest(unittest.TestCase):
             yield 1
             await asyncio.sleep(0.01, loop=self.loop)
             yield 2
-            1 / 0
+            1 / ZERO
             yield 3
 
         with self.assertRaises(ZeroDivisionError):
@@ -689,7 +691,7 @@ class AsyncGenAsyncioTest(unittest.TestCase):
         async def foo():
             try:
                 yield 1
-                1 / 0
+                1 / ZERO
             finally:
                 await asyncio.sleep(0.01, loop=self.loop)
                 yield 12
@@ -712,7 +714,7 @@ class AsyncGenAsyncioTest(unittest.TestCase):
             nonlocal DONE
             try:
                 yield 1
-                1 / 0
+                1 / ZERO
             finally:
                 await asyncio.sleep(0.01, loop=self.loop)
                 await asyncio.sleep(0.01, loop=self.loop)
@@ -905,7 +907,7 @@ class AsyncGenAsyncioTest(unittest.TestCase):
 
         async def sleep_n_crash(delay):
             await asyncio.sleep(delay, loop=self.loop)
-            1 / 0
+            1 / ZERO
 
         async def gen():
             nonlocal DONE
@@ -1184,7 +1186,7 @@ class AsyncGenAsyncioTest(unittest.TestCase):
                 await asyncio.sleep(timeout, loop=self.loop)
                 yield 1
             finally:
-                1 / 0
+                1 / ZERO
 
         async def wait():
             async for _ in waiter(1):
