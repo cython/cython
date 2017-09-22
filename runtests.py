@@ -1894,20 +1894,6 @@ def main():
     if options.xml_output_dir:
         shutil.rmtree(options.xml_output_dir, ignore_errors=True)
 
-    if WITH_CYTHON:
-        global CompilationOptions, pyrex_default_options, cython_compile
-        from Cython.Compiler.Main import \
-            CompilationOptions, \
-            default_options as pyrex_default_options, \
-            compile as cython_compile
-        from Cython.Compiler import Errors
-        Errors.LEVEL = 0 # show all warnings
-        from Cython.Compiler import Options
-        Options.generate_cleanup_code = 3   # complete cleanup code
-        from Cython.Compiler import DebugFlags
-        DebugFlags.debug_temp_code_comments = 1
-        pyrex_default_options['formal_grammar'] = options.use_formal_grammar
-
     if options.shard_count > 1 and options.shard_num == -1:
         import multiprocessing
         pool = multiprocessing.Pool(options.shard_count)
@@ -1938,16 +1924,35 @@ def main():
         sys.exit(return_code)
 
 
+def configure_cython(options):
+    global CompilationOptions, pyrex_default_options, cython_compile
+    from Cython.Compiler.Main import \
+        CompilationOptions, \
+        default_options as pyrex_default_options, \
+        compile as cython_compile
+    from Cython.Compiler import Errors
+    Errors.LEVEL = 0  # show all warnings
+    from Cython.Compiler import Options
+    Options.generate_cleanup_code = 3  # complete cleanup code
+    from Cython.Compiler import DebugFlags
+    DebugFlags.debug_temp_code_comments = 1
+    pyrex_default_options['formal_grammar'] = options.use_formal_grammar
+
+
 def runtests_callback(args):
     options, cmd_args, shard_num = args
     options.shard_num = shard_num
     return runtests(options, cmd_args)
+
 
 def runtests(options, cmd_args, coverage=None):
 
     WITH_CYTHON = options.with_cython
     ROOTDIR = os.path.abspath(options.root_dir)
     WORKDIR = os.path.abspath(options.work_dir)
+
+    if WITH_CYTHON:
+        configure_cython(options)
 
     xml_output_dir = options.xml_output_dir
     if options.shard_num > -1:
