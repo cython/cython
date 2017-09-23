@@ -42,3 +42,18 @@ def test_except_big_result(bint fire):
     RuntimeError
     """
     except_big_result(fire)
+
+
+cdef unsigned short except_promotion_compare(bint fire) except *:
+    if fire:
+        raise RuntimeError
+
+def test_except_promotion_compare(bint fire):
+    """
+    >>> test_except_promotion_compare(False)
+    >>> test_except_promotion_compare(True)
+    Traceback (most recent call last):
+    ...
+    RuntimeError
+    """
+    except_promotion_compare(fire)
