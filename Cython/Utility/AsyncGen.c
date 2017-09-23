@@ -460,7 +460,7 @@ __Pyx_async_gen_unwrap_value(__pyx_PyAsyncGenObject *gen, PyObject *result)
 static void
 __Pyx_async_gen_asend_dealloc(__pyx_PyAsyncGenASend *o)
 {
-    _PyObject_GC_UNTRACK((PyObject *)o);
+    PyObject_GC_UnTrack((PyObject *)o);
     Py_CLEAR(o->ags_gen);
     Py_CLEAR(o->ags_sendval);
     if (__Pyx_ag_asend_freelist_free < _PyAsyncGen_MAXFREELIST) {
@@ -649,7 +649,7 @@ __Pyx_async_gen_asend_new(__pyx_PyAsyncGenObject *gen, PyObject *sendval)
 
     o->ags_state = __PYX_AWAITABLE_STATE_INIT;
 
-    PyObject_GC_TRACK((PyObject*)o);
+    PyObject_GC_Track((PyObject*)o);
     return (PyObject*)o;
 }
 
@@ -660,7 +660,7 @@ __Pyx_async_gen_asend_new(__pyx_PyAsyncGenObject *gen, PyObject *sendval)
 static void
 __Pyx_async_gen_wrapped_val_dealloc(__pyx__PyAsyncGenWrappedValue *o)
 {
-    _PyObject_GC_UNTRACK((PyObject *)o);
+    PyObject_GC_UnTrack((PyObject *)o);
     Py_CLEAR(o->agw_val);
     if (__Pyx_ag_value_freelist_free < _PyAsyncGen_MAXFREELIST) {
         assert(__pyx__PyAsyncGenWrappedValue_CheckExact(o));
@@ -756,7 +756,7 @@ __Pyx__PyAsyncGenValueWrapperNew(PyObject *val)
     }
     o->agw_val = val;
     // no Py_INCREF(val) - steals reference!
-    PyObject_GC_TRACK((PyObject*)o);
+    PyObject_GC_Track((PyObject*)o);
     return (PyObject*)o;
 }
 
@@ -767,7 +767,7 @@ __Pyx__PyAsyncGenValueWrapperNew(PyObject *val)
 static void
 __Pyx_async_gen_athrow_dealloc(__pyx_PyAsyncGenAThrow *o)
 {
-    _PyObject_GC_UNTRACK((PyObject *)o);
+    PyObject_GC_UnTrack((PyObject *)o);
     Py_CLEAR(o->agt_gen);
     Py_CLEAR(o->agt_args);
     PyObject_GC_Del(o);
@@ -1025,7 +1025,7 @@ __Pyx_async_gen_athrow_new(__pyx_PyAsyncGenObject *gen, PyObject *args)
     o->agt_state = __PYX_AWAITABLE_STATE_INIT;
     Py_INCREF(gen);
     Py_XINCREF(args);
-    PyObject_GC_TRACK((PyObject*)o);
+    PyObject_GC_Track((PyObject*)o);
     return (PyObject*)o;
 }
 
