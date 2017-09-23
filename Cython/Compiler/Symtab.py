@@ -2289,6 +2289,8 @@ class CppClassScope(Scope):
             if entry.type.same_as(type):
                 # Fix with_gil vs nogil.
                 entry.type = entry.type.with_with_gil(type.with_gil)
+            elif type.is_cfunction and type.compatible_signature_with(entry.type):
+                entry.type = type
             else:
                 error(pos, "Function signature does not match previous declaration")
         else:
