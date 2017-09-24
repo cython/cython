@@ -850,8 +850,8 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                 module_metadata[module_name] = metadata
 
                 if file not in m.sources:
-                    # Old setuptools unconditionally replaces .pyx with .c
-                    m.sources.remove(file.rsplit('.')[0] + '.c')
+                    # Old setuptools unconditionally replaces .pyx with .c/.cpp
+                    m.sources.remove(file.rsplit('.')[0] + ('.cpp' if m.language == 'c++' else '.c'))
                     m.sources.insert(0, file)
                 seen.add(name)
     return module_list, module_metadata
