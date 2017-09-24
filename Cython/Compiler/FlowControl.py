@@ -341,14 +341,6 @@ class NameAssignment(object):
             return self.entry.type
         return self.inferred_type
 
-    def __getstate__(self):
-        return (self.lhs, self.rhs, self.entry, self.pos,
-                self.refs, self.is_arg, self.is_deletion, self.inferred_type)
-
-    def __setstate__(self, state):
-        (self.lhs, self.rhs, self.entry, self.pos,
-         self.refs, self.is_arg, self.is_deletion, self.inferred_type) = state
-
 
 class StaticAssignment(NameAssignment):
     """Initialised at declaration time, e.g. stack allocation."""
