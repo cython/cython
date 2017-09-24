@@ -2311,6 +2311,16 @@ class CppClassScope(Scope):
             cname = "%s__init__%s" % (Naming.func_prefix, class_name)
             name = '<init>'
             type.return_type = PyrexTypes.CVoidType()
+            # This is called by the actual constructor, but need to support
+            # arguments that cannot by called by value.
+            type.original_args = type.args
+            def maybe_ref(arg):
+                if arg.type.is_cpp_class and not arg.type.is_reference:
+                    return PyrexTypes.CFuncTypeArg(
+                        arg.name, PyrexTypes.c_ref_type(arg.type), arg.pos)
+                else:
+                    return arg
+            type.args = [maybe_ref(arg) for arg in type.args]
         elif name == '__dealloc__' and cname is None:
             cname = "%s__dealloc__%s" % (Naming.func_prefix, class_name)
             name = '<del>'

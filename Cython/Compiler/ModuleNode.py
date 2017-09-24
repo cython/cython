@@ -905,7 +905,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if constructor:
                     arg_decls = []
                     arg_names = []
-                    for arg in constructor.type.args[:len(constructor.type.args)-constructor.type.optional_arg_count]:
+                    for arg in constructor.type.original_args[:len(constructor.type.args)-constructor.type.optional_arg_count]:
                         arg_decls.append(arg.declaration_code())
                         arg_names.append(arg.cname)
                     if constructor.type.optional_arg_count:
