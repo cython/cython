@@ -2,6 +2,25 @@
 Cython Changelog
 ================
 
+0.27.1 (2017-??-??)
+===================
+
+Features added
+--------------
+
+* The Jupyter magic has a new debug option ``--verbose`` that prints the C
+  compiler output.  Patch by Boris Filippov (Github issue #1881).
+
+Bugs fixed
+----------
+
+* Modules built for later CPython 3.5.x versions failed to import in 3.5.1.
+  (Github issue #1880)
+
+* Crash when compiling in C++ mode with old setuptools versions.
+  (Github issue #1879)
+
+
 0.27 (2017-09-23)
 =================
 
