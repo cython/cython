@@ -134,7 +134,7 @@ BAD:
         PyErr_Format(PyExc_RuntimeError, "Unable to initialize pickling for %s", ((PyTypeObject*)type_obj)->tp_name);
     ret = -1;
 GOOD:
-#if !CYTHON_COMPILING_IN_CPYTHON
+#if !CYTHON_USE_PYTYPE_LOOKUP
     Py_XDECREF(object_reduce);
     Py_XDECREF(object_reduce_ex);
 #endif
