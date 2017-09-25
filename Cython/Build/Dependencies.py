@@ -851,7 +851,12 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
 
                 if file not in m.sources:
                     # Old setuptools unconditionally replaces .pyx with .c/.cpp
-                    m.sources.remove(file.rsplit('.')[0] + ('.cpp' if m.language == 'c++' else '.c'))
+                    target_file = file.rsplit('.')[0] + ('.cpp' if m.language == 'c++' else '.c')
+                    try:
+                        m.sources.remove(target_file)
+                    except ValueError:
+                        # never seen this in the wild, but probably better to warn about this unexpected case
+                        print("Warning: Cython source file not found in sources list, adding %s" % file)
                     m.sources.insert(0, file)
                 seen.add(name)
     return module_list, module_metadata
