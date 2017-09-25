@@ -1893,7 +1893,8 @@ _module._COROUTINE_TYPES = coro_types
             );
         } else {
             PyErr_Clear();
-#if PY_VERSION_HEX < 0x03040200
+// Always enable fallback: even if we compile against 3.4.2, we might be running on 3.4.1 at some point.
+//#if PY_VERSION_HEX < 0x03040200
             // Py3.4.1 used to have asyncio.tasks instead of asyncio.coroutines
             package = __Pyx_Import(PYIDENT("asyncio.tasks"), NULL, 0);
             if (unlikely(!package)) goto asyncio_done;
@@ -1914,15 +1915,15 @@ if hasattr(_module, 'iscoroutine'):
         old_types.add(_cython_generator_type)
 """)
             );
-#endif
+//#endif
 // Py < 0x03040200
         }
         Py_DECREF(package);
         if (unlikely(!patch_module)) goto ignore;
-#if PY_VERSION_HEX < 0x03040200
+//#if PY_VERSION_HEX < 0x03040200
 asyncio_done:
         PyErr_Clear();
-#endif
+//#endif
         asyncio_patched = 1;
 #ifdef __Pyx_Generator_USED
         // now patch inspect.isgenerator() by looking up the imported module in the patched asyncio module

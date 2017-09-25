@@ -12,14 +12,15 @@
 #if CYTHON_FAST_THREAD_STATE
 #define __Pyx_PyThreadState_declare  PyThreadState *$local_tstate_cname;
 #define __Pyx_PyErr_Occurred()  $local_tstate_cname->curexc_type
-#if PY_VERSION_HEX >= 0x03050000
+#if PY_VERSION_HEX >= 0x03060000
+  // Actually added in 3.5.2, but compiling against that does not guarantee that we get imported there.
   #define __Pyx_PyThreadState_assign  $local_tstate_cname = _PyThreadState_UncheckedGet();
 #elif PY_VERSION_HEX >= 0x03000000
-  #define __Pyx_PyThreadState_assign  $local_tstate_cname = PyThreadState_Get();
+  #define __Pyx_PyThreadState_assign  $local_tstate_cname = PyThreadState_GET();
 #elif PY_VERSION_HEX >= 0x02070000
   #define __Pyx_PyThreadState_assign  $local_tstate_cname = _PyThreadState_Current;
 #else
-  #define __Pyx_PyThreadState_assign  $local_tstate_cname = PyThreadState_Get();
+  #define __Pyx_PyThreadState_assign  $local_tstate_cname = PyThreadState_GET();
 #endif
 #else
 #define __Pyx_PyThreadState_declare
