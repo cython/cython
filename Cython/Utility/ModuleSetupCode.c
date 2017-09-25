@@ -248,7 +248,8 @@
 #if !CYTHON_FAST_THREAD_STATE || PY_VERSION_HEX < 0x02070000
   #define __Pyx_PyThreadState_Current PyThreadState_GET()
 #if PY_VERSION_HEX >= 0x03060000
-//#elif PY_VERSION_HEX >= 0x03050200
+  //#elif PY_VERSION_HEX >= 0x03050200
+  // Actually added in 3.5.2, but compiling against that does not guarantee that we get imported there.
   #define __Pyx_PyThreadState_Current _PyThreadState_UncheckedGet()
 #elif PY_VERSION_HEX >= 0x03000000
   #define __Pyx_PyThreadState_Current PyThreadState_GET()
