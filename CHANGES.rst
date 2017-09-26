@@ -8,8 +8,8 @@ Cython Changelog
 Features added
 --------------
 
-* The Jupyter magic has a new debug option ``--verbose`` that prints the C
-  compiler output.  Patch by Boris Filippov (Github issue #1881).
+* The Jupyter magic has a new debug option ``--verbose`` that shows details about
+  the distutils invocation.  Patch by Boris Filippov (Github issue #1881).
 
 Bugs fixed
 ----------
@@ -19,6 +19,12 @@ Bugs fixed
 
 * Crash when compiling in C++ mode with old setuptools versions.
   (Github issue #1879)
+
+* C++ object arguments for the constructor of Cython implemented C++ are now
+  passed by reference and not by value to allow for non-copyable arguments, such
+  as ``unique_ptr``.
+
+* Some issues with the relaxed exception value handling were resolved.
 
 
 0.27 (2017-09-23)
