@@ -10519,9 +10519,7 @@ class SizeofTypeNode(SizeofNode):
                 for attr in path[1:]:
                     operand = AttributeNode(pos=self.pos, obj=operand, attribute=attr)
                 operand = AttributeNode(pos=self.pos, obj=operand, attribute=self.base_type.name)
-                self.operand = operand
-                self.__class__ = SizeofVarNode
-                node = self.analyse_types(env)
+                node = SizeofVarNode(self.pos, operand=operand).analyse_types(env)
                 return node
         if self.arg_type is None:
             base_type = self.base_type.analyse(env)
