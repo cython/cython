@@ -1,5 +1,5 @@
 # mode: run
-# tag: annotation_typing
+# tag: annotation_typing, pure3.0
 
 import cython
 
