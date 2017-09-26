@@ -1,4 +1,4 @@
-# node: run
+# mode: run
 # ticket: gh1888
 
 PYTHON setup.py build_ext --inplace
