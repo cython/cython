@@ -26,6 +26,12 @@ Bugs fixed
 
 * Some issues with the relaxed exception value handling were resolved.
 
+* Python classes as annotation types could prevent compilation.
+  (Github issue #1887)
+
+* Cython annotation types in Python files could lead to import failures
+  with a "cython undefined" error.  Recognised types are now turned into strings.
+
 
 0.27 (2017-09-23)
 =================

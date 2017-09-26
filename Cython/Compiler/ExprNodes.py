@@ -9015,22 +9015,19 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 else:
                     default_args.append(arg)
             if arg.annotation:
-                arg.annotation = arg.annotation.analyse_types(env)
-                if not arg.annotation.type.is_pyobject:
-                    arg.annotation = arg.annotation.coerce_to_pyobject(env)
+                arg.annotation = self.analyse_annotation(env, arg.annotation)
                 annotations.append((arg.pos, arg.name, arg.annotation))
 
         for arg in (self.def_node.star_arg, self.def_node.starstar_arg):
             if arg and arg.annotation:
-                arg.annotation = arg.annotation.analyse_types(env)
-                if not arg.annotation.type.is_pyobject:
-                    arg.annotation = arg.annotation.coerce_to_pyobject(env)
+                arg.annotation = self.analyse_annotation(env, arg.annotation)
                 annotations.append((arg.pos, arg.name, arg.annotation))
 
-        if self.def_node.return_type_annotation:
-            annotations.append((self.def_node.return_type_annotation.pos,
-                                StringEncoding.EncodedString("return"),
-                                self.def_node.return_type_annotation))
+        annotation = self.def_node.return_type_annotation
+        if annotation:
+            annotation = self.analyse_annotation(env, annotation)
+            self.def_node.return_type_annotation = annotation
+            annotations.append((annotation.pos, StringEncoding.EncodedString("return"), annotation))
 
         if nonliteral_objects or nonliteral_other:
             module_scope = env.global_scope()
@@ -9106,6 +9103,20 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                     value=value)
                 for pos, name, value in annotations])
             self.annotations_dict = annotations_dict.analyse_types(env)
+
+    def analyse_annotation(self, env, annotation):
+        if annotation is None:
+            return None
+        atype = annotation.analyse_as_type(env)
+        if atype is not None:
+            # Keep parsed types as strings as they might not be Python representable.
+            annotation = UnicodeNode(
+                annotation.pos,
+                value=StringEncoding.EncodedString(atype.declaration_code('', for_display=True)))
+        annotation = annotation.analyse_types(env)
+        if not annotation.type.is_pyobject:
+            annotation = annotation.coerce_to_pyobject(env)
+        return annotation
 
     def may_be_none(self):
         return False
