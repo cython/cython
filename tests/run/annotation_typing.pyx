@@ -196,6 +196,25 @@ def call_exception_default(raise_exc=False):
     return exception_default(raise_exc)
 
 
+class EarlyClass(object):
+    """
+    >>> a = EarlyClass(1)
+    >>> a.string_forward_declaration()  # should probably raise an error at some point
+    1
+    >>> x = LateClass()
+    >>> a = EarlyClass(x)
+    >>> x2 = a.string_forward_declaration()
+    >>> assert x is x2, x2
+    """
+    def __init__(self, x):
+        self.x = x
+    def string_forward_declaration(self) -> 'LateClass':
+        return self.x
+
+class LateClass(object):
+    pass
+
+
 _WARNINGS = """
 8:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
 8:47: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
@@ -203,6 +222,7 @@ _WARNINGS = """
 8:77: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
 8:85: Python type declaration in signature annotation does not refer to a Python type
 8:85: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
+211:44: Unknown type declaration in annotation, ignoring
 # BUG:
 46:6: 'pytypes_cpdef' redeclared
 121:0: 'struct_io' redeclared
