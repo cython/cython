@@ -2014,14 +2014,13 @@ class NameNode(AtomicExprNode):
             py_entry.is_pyglobal = True
             py_entry.scope = self.entry.scope
             self.entry = py_entry
-        elif not (entry.is_const or entry.is_variable
-            or entry.is_builtin or entry.is_cfunction
-            or entry.is_cpp_class):
-                if self.entry.as_variable:
-                    self.entry = self.entry.as_variable
-                elif not self.is_cython_module:
-                    error(self.pos,
-                          "'%s' is not a constant, variable or function identifier" % self.name)
+        elif not (entry.is_const or entry.is_variable or
+                  entry.is_builtin or entry.is_cfunction or
+                  entry.is_cpp_class):
+            if self.entry.as_variable:
+                self.entry = self.entry.as_variable
+            elif not self.is_cython_module:
+                error(self.pos, "'%s' is not a constant, variable or function identifier" % self.name)
 
     def is_cimported_module_without_shadow(self, env):
         if self.is_cython_module or self.cython_attribute:
