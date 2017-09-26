@@ -1,4 +1,4 @@
-# cython: infer_types=True, language_level=3, py2_import=True
+# cython: infer_types=True, language_level=3, py2_import=True, auto_pickle=False
 #
 #   Cython Scanner
 #
@@ -62,6 +62,12 @@ class Method(object):
         method = getattr(stream, self.name)
         # self.kwargs is almost always unused => avoid call overhead
         return method(text, **self.kwargs) if self.kwargs is not None else method(text)
+
+    def __copy__(self):
+        return self  # immutable, no need to copy
+
+    def __deepcopy__(self, memo):
+        return self  # immutable, no need to copy
 
 
 #------------------------------------------------------------------
@@ -187,6 +193,12 @@ class SourceDescriptor(object):
             return self._cmp_name <= other._cmp_name
         except AttributeError:
             return False
+
+    def __copy__(self):
+        return self  # immutable, no need to copy
+
+    def __deepcopy__(self, memo):
+        return self  # immutable, no need to copy
 
 
 class FileSourceDescriptor(SourceDescriptor):
