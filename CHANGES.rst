@@ -41,6 +41,12 @@ Bugs fixed
 * Annotations could be parsed (and rejected) as types even with
   ``annotation_typing=False``.
 
+Other changes
+-------------
+
+* PEP 489 support has been disabled by default to counter incompatibilities with
+  import setups that try to reload or reinitialise modules.
+
 
 0.27 (2017-09-23)
 =================
