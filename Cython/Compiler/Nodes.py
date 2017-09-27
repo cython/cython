@@ -1657,7 +1657,7 @@ class FuncDefNode(StatNode, BlockNode):
         # Annotations can not only contain valid Python expressions but arbitrary type references.
         if annotation is None:
             return None
-        if annotation.analyse_as_type(env) is None:
+        if not env.directives['annotation_typing'] or annotation.analyse_as_type(env) is None:
             annotation = annotation.analyse_types(env)
         return annotation
 
