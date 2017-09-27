@@ -15,6 +15,7 @@ import subprocess
 import tempfile
 import traceback
 import warnings
+import zlib
 
 try:
     import platform
@@ -1649,8 +1650,11 @@ class ShardExcludeSelector(object):
         self.shard_num = shard_num
         self.shard_count = shard_count
 
-    def __call__(self, testname, tags=None):
-        return abs(hash(testname)) % self.shard_count != self.shard_num
+    def __call__(self, testname, tags=None, _hash=zlib.crc32, _is_py2=sys.version_info[0] < 3):
+        # Cannot use simple hash() here as shard processes might use different hash seeds.
+        # CRC32 is fast and simple.
+        hashval = _hash(testname if _is_py2 else testname.encode())
+        return hashval % self.shard_count != self.shard_num
 
 
 class PendingThreadsError(RuntimeError):
