@@ -1632,6 +1632,7 @@ class RegExSelector:
     def __call__(self, testname, tags=None):
         return self.pattern.search(testname)
 
+
 def string_selector(s):
     ix = s.find(':')
     if ix == -1:
@@ -1639,7 +1640,8 @@ def string_selector(s):
     else:
         return TagsSelector(s[:ix], s[ix+1:])
 
-class ShardExcludeSelector:
+
+class ShardExcludeSelector(object):
     # This is an exclude selector so it can override the (include) selectors.
     # It may not provide uniform distribution (in time or count), but is a
     # determanistic partition of the tests which is important.
