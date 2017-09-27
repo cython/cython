@@ -47,7 +47,7 @@ script:
   - if $PYTHON_DBG -V >&2; then CFLAGS="-O0 -ggdb" $PYTHON_DBG runtests.py -vv Debugger --backends=$BACKEND; fi
   - if [ false && "$BACKEND" = "cpp" ]; then pip install pythran; fi  # disabled: needs Pythran > 0.8.1
   - CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" python setup.py build_ext -i
-  - CFLAGS="-O0 -ggdb -Wall -Wextra" python runtests.py -vv -x Debugger --backends=$BACKEND -j4
+  - CFLAGS="-O0 -ggdb -Wall -Wextra" python runtests.py -vv -x Debugger --backends=$BACKEND -j7
 
 matrix:
   allow_failures:
