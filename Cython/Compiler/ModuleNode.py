@@ -694,7 +694,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put(Nodes.branch_prediction_macros)
         code.putln('static CYTHON_INLINE void __Pyx_pretend_to_initialize(void* ptr) { (void)ptr; }')
         code.putln('')
-        code.putln('static PyObject *%s;' % env.module_cname)
+        code.putln('static PyObject *%s = NULL;' % env.module_cname)
         code.putln('static PyObject *%s;' % env.module_dict_cname)
         code.putln('static PyObject *%s;' % Naming.builtins_cname)
         code.putln('static PyObject *%s;' % Naming.cython_runtime_cname)
@@ -2274,6 +2274,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.globalstate.use_utility_code(UtilityCode.load_cached("Profile", "Profile.c"))
 
         code.put_declare_refcount_context()
+        code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
+        # Hack: enforce single initialisation.
+        code.putln("if (%s && %s == %s) return 0;" % (
+            Naming.module_cname,
+            Naming.module_cname,
+            Naming.pymodinit_module_arg,
+        ))
+        code.putln("#endif")
+
         if profile or linetrace:
             tempdecl_code.put_trace_declarations()
             code.put_trace_frame_init()

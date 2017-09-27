@@ -350,8 +350,6 @@ VER_DEP_MODULES = {
                                          'run.mod__spec__',
                                          'run.pep526_variable_annotations',  # typing module
                                          ]),
-    (99,): (operator.lt, lambda x: x in ['run.mod__spec__',  # actually Py3.5, but currently disabled
-                                         ]),
 }
 
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
