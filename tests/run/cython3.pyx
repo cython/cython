@@ -275,6 +275,7 @@ def exec3_function(cmd):
     exec(cmd, g, l)
     return l
 
+
 def exec2_function(cmd):
     """
     >>> exec2_function('a = 1+1')['a']
@@ -283,6 +284,7 @@ def exec2_function(cmd):
     g = {}
     exec(cmd, g)
     return g
+
 
 EXEC_GLOBAL = [5]
 
@@ -295,6 +297,7 @@ def exec1_function(cmd):
     exec(cmd)
     return EXEC_GLOBAL[old:]
 
+
 ustring = "abcdefg"
 
 def unicode_literals():
@@ -305,6 +308,7 @@ def unicode_literals():
     """
     print(isinstance(ustring, unicode) or type(ustring))
     return ustring
+
 
 def str_type_is_unicode():
     """
@@ -318,6 +322,7 @@ def str_type_is_unicode():
     """
     cdef str s = 'abc'
     return str, s
+
 
 def loop_over_unicode_literal():
     """
@@ -372,6 +377,7 @@ def list_comp_with_lambda():
     assert x == 'abc' # don't leak in Py3 code
     return result
 
+
 module_level_lc = [ module_level_loopvar*2 for module_level_loopvar in range(4) ]
 def list_comp_module_level():
     """
@@ -381,6 +387,7 @@ def list_comp_module_level():
     Traceback (most recent call last):
     NameError: ...name 'module_level_loopvar' is not defined
     """
+
 
 module_level_list_genexp = list(module_level_genexp_loopvar*2 for module_level_genexp_loopvar in range(4))
 def genexpr_module_level():
@@ -392,12 +399,14 @@ def genexpr_module_level():
     NameError: ...name 'module_level_genexp_loopvar' is not defined
     """
 
+
 def list_comp_unknown_type(l):
     """
     >>> list_comp_unknown_type(range(5))
     [0, 4, 8]
     """
     return [x*2 for x in l if x % 2 == 0]
+
 
 def listcomp_as_condition(sequence):
     """
@@ -412,6 +421,7 @@ def listcomp_as_condition(sequence):
         return True
     return False
 
+
 def set_comp():
     """
     >>> sorted(set_comp())
@@ -422,6 +432,7 @@ def set_comp():
     assert x == 'abc' # don't leak
     return result
 
+
 def dict_comp():
     """
     >>> sorted(dict_comp().items())
@@ -431,6 +442,7 @@ def dict_comp():
     result = {x:x*2 for x in range(5) if x % 2 == 0}
     assert x == 'abc' # don't leak
     return result
+
 
 # in Python 3, d.keys/values/items() are the iteration methods
 @cython.test_assert_path_exists(
@@ -457,6 +469,7 @@ def dict_iter(dict d):
     items = [ item for item in d.items() ]
     return keys, values, items
 
+
 @cython.test_assert_path_exists(
     "//WhileStatNode",
     "//WhileStatNode//DictIterationNextNode")
@@ -480,6 +493,7 @@ def dict_iter_new_dict():
     items = [ item for item in {11 : 1, 22 : 2, 33 : 3}.items() ]
     return dict_keys, keys, values, items
 
+
 def int_literals():
     """
     >>> int_literals()
@@ -492,6 +506,7 @@ def int_literals():
     print(cython.typeof(10000000000000L))
     print(cython.typeof(1UL))
     print(cython.typeof(10000000000000UL))
+
 
 def annotation_syntax(a: "test new test", b : "other" = 2, *args: "ARGS", **kwargs: "KWARGS") -> "ret":
     """
