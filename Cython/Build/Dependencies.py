@@ -851,7 +851,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
 
                 if file not in m.sources:
                     # Old setuptools unconditionally replaces .pyx with .c/.cpp
-                    target_file = file.rsplit('.')[0] + ('.cpp' if m.language == 'c++' else '.c')
+                    target_file = os.path.splitext(file)[0] + ('.cpp' if m.language == 'c++' else '.c')
                     try:
                         m.sources.remove(target_file)
                     except ValueError:
