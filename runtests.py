@@ -1653,34 +1653,6 @@ class ShardExcludeSelector(object):
         return abs(hash(testname)) % self.shard_count != self.shard_num
 
 
-def refactor_for_py3(distdir, cy3_dir):
-    # need to convert Cython sources first
-    import lib2to3.refactor
-    from distutils.util import copydir_run_2to3
-    with open('2to3-fixers.txt') as f:
-        fixers = [line.strip() for line in f if line.strip()]
-    if not os.path.exists(cy3_dir):
-        os.makedirs(cy3_dir)
-    import distutils.log as dlog
-    dlog.set_threshold(dlog.INFO)
-    copydir_run_2to3(distdir, cy3_dir, fixer_names=fixers,
-                     template = '''
-                     global-exclude *
-                     graft Cython
-                     recursive-exclude Cython *
-                     recursive-include Cython *.py *.pyx *.pxd
-                     recursive-include Cython/Debugger/Tests *
-                     recursive-include Cython/Utility *
-                     recursive-exclude pyximport test
-                     include Tools/*.py
-                     include pyximport/*.py
-                     include runtests.py
-                     include cython.py
-                     include cythonize.py
-                     ''')
-    sys.path.insert(0, cy3_dir)
-
-
 class PendingThreadsError(RuntimeError):
     pass
 
