@@ -38,6 +38,9 @@ Bugs fixed
 * Annotations could be parsed (and rejected) as types even with
   ``annotation_typing=False``.
 
+* Deallocating fused types functions and methods kept their GC tracking enabled,
+  which could lead to crashes.
+
 
 0.27 (2017-09-23)
 =================
