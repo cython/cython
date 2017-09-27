@@ -20,6 +20,9 @@ Bugs fixed
 * Modules built for later CPython 3.5.x versions failed to import in 3.5.1.
   (Github issue #1880)
 
+* Deallocating fused types functions and methods kept their GC tracking enabled,
+  which could potentially lead to recursive deallocation attempts.
+
 * Crash when compiling in C++ mode with old setuptools versions.
   (Github issue #1879)
 
@@ -37,9 +40,6 @@ Bugs fixed
 
 * Annotations could be parsed (and rejected) as types even with
   ``annotation_typing=False``.
-
-* Deallocating fused types functions and methods kept their GC tracking enabled,
-  which could lead to crashes.
 
 
 0.27 (2017-09-23)
