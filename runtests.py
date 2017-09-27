@@ -1652,8 +1652,8 @@ class ShardExcludeSelector(object):
 
     def __call__(self, testname, tags=None, _hash=zlib.crc32, _is_py2=sys.version_info[0] < 3):
         # Cannot use simple hash() here as shard processes might use different hash seeds.
-        # CRC32 is fast and simple.
-        hashval = _hash(testname if _is_py2 else testname.encode())
+        # CRC32 is fast and simple, but might return negative values in Py2.
+        hashval = _hash(testname) & 0x7fffffff if _is_py2 else _hash(testname.encode())
         return hashval % self.shard_count != self.shard_num
 
 
