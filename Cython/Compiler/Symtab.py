@@ -1750,12 +1750,14 @@ class GeneratorExpressionScope(Scope):
     def __init__(self, outer_scope):
         name = outer_scope.global_scope().next_id(Naming.genexpr_id_ref)
         Scope.__init__(self, name, outer_scope, outer_scope)
-        self.var_entries = outer_scope.var_entries  # keep declarations outside
         self.directives = outer_scope.directives
         self.genexp_prefix = "%s%d%s" % (Naming.pyrex_prefix, len(name), name)
 
-        while outer_scope.is_genexpr_scope:
+        # Class/ExtType scopes are filled at class creation time, i.e. from the
+        # module init function or surrounding function.
+        while outer_scope.is_genexpr_scope or outer_scope.is_c_class_scope or outer_scope.is_py_class_scope:
             outer_scope = outer_scope.outer_scope
+        self.var_entries = outer_scope.var_entries  # keep declarations outside
         outer_scope.subscopes.add(self)
 
     def mangle(self, prefix, name):

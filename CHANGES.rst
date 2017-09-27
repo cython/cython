@@ -14,6 +14,9 @@ Features added
 Bugs fixed
 ----------
 
+* Py3 list comprehensions in class bodies resulted in invalid C code.
+  (Github issue #1889)
+
 * Modules built for later CPython 3.5.x versions failed to import in 3.5.1.
   (Github issue #1880)
 

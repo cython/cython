@@ -378,6 +378,24 @@ def list_comp_with_lambda():
     return result
 
 
+class ListCompInClass(object):
+    """
+    >>> x = ListCompInClass()
+    >>> x.listcomp
+    [1, 2, 3]
+    """
+    listcomp = [i+1 for i in range(3)]
+
+
+cdef class ListCompInCClass:
+    """
+    >>> x = ListCompInCClass()
+    >>> x.listcomp
+    [1, 2, 3]
+    """
+    listcomp = [i+1 for i in range(3)]
+
+
 module_level_lc = [ module_level_loopvar*2 for module_level_loopvar in range(4) ]
 def list_comp_module_level():
     """

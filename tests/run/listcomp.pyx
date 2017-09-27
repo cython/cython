@@ -84,6 +84,24 @@ def global_listcomp():
     """
 
 
+class ListCompInClass(object):
+    """
+    >>> x = ListCompInClass()
+    >>> x.listcomp
+    [1, 2, 3]
+    """
+    listcomp = [i+1 for i in range(3)]
+
+
+cdef class ListCompInCClass:
+    """
+    >>> x = ListCompInCClass()
+    >>> x.listcomp
+    [1, 2, 3]
+    """
+    listcomp = [i+1 for i in range(3)]
+
+
 def nested_result():
     """
     >>> nested_result()
