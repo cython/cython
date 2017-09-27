@@ -370,7 +370,7 @@ For example, in the following snippet that includes :file:`grail.h`:
 
     int main() {
         Py_Initialize();
-        initgrail();
+        initgrail();  /* Python 2.x only ! */
         Bunny b;
         grail(b);
         Py_Finalize();
@@ -378,6 +378,16 @@ For example, in the following snippet that includes :file:`grail.h`:
 
 This C code can then be built together with the Cython-generated C code
 in a single program (or library).
+
+In Python 3.x, calling the module init function directly should be avoided.  Instead,
+use the `inittab mechanism <https://docs.python.org/3/c-api/import.html#c._inittab>`_
+to link Cython modules into a single shared library or program.
+
+.. code-block:: c
+
+    err = PyImport_AppendInittab("grail", PyInit_grail);
+    Py_Initialize();
+    grail_module = PyImport_ImportModule("grail");
 
 If the Cython module resides within a package, then the name of the ``.h``
 file consists of the full dotted name of the module, e.g. a module called
