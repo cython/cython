@@ -2946,6 +2946,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if not scope or entry.visibility == 'extern':
             return
 
+        # FIXME: copy types to heap and re-initialise to make methods pick up the right globals
         code.putln("if (!CYTHON_PEP489_MULTI_PHASE_INIT || !(%s.tp_flags & Py_TPFLAGS_READY)) {" % typeobj_cname)
         # Start of one-time type setup.
         for slot in TypeSlots.slot_table:
