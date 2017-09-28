@@ -486,7 +486,7 @@ class TestBuilder(object):
     def __init__(self, rootdir, workdir, selectors, exclude_selectors, annotate,
                  cleanup_workdir, cleanup_sharedlibs, cleanup_failures,
                  with_pyregr, cython_only, languages, test_bugs, fork, language_level,
-                 test_determinism,
+                 test_determinism, test_reload,
                  common_utility_dir, pythran_dir=None):
         self.rootdir = rootdir
         self.workdir = workdir
@@ -503,6 +503,7 @@ class TestBuilder(object):
         self.fork = fork
         self.language_level = language_level
         self.test_determinism = test_determinism
+        self.test_reload = test_reload
         self.common_utility_dir = common_utility_dir
         self.pythran_dir = pythran_dir
 
@@ -649,6 +650,7 @@ class TestBuilder(object):
                           language_level=self.language_level,
                           warning_errors=warning_errors,
                           test_determinism=self.test_determinism,
+                          test_reload=self.test_reload,
                           common_utility_dir=self.common_utility_dir,
                           pythran_dir=pythran_dir)
 
@@ -658,7 +660,7 @@ class CythonCompileTestCase(unittest.TestCase):
                  expect_errors=False, expect_warnings=False, annotate=False, cleanup_workdir=True,
                  cleanup_sharedlibs=True, cleanup_failures=True, cython_only=False,
                  fork=True, language_level=2, warning_errors=False,
-                 test_determinism=False,
+                 test_determinism=False, test_reload=False,
                  common_utility_dir=None, pythran_dir=None):
         self.test_directory = test_directory
         self.tags = tags
@@ -678,6 +680,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self.language_level = language_level
         self.warning_errors = warning_errors
         self.test_determinism = test_determinism
+        self.test_reload = test_reload
         self.common_utility_dir = common_utility_dir
         self.pythran_dir = pythran_dir
         unittest.TestCase.__init__(self)
@@ -764,8 +767,8 @@ class CythonCompileTestCase(unittest.TestCase):
 
     def runCompileTest(self):
         return self.compile(
-            self.test_directory, self.module, self.workdir,
-            self.test_directory, self.expect_errors, self.expect_warnings, self.annotate)
+            self.test_directory, self.module, self.workdir, self.test_directory,
+            self.expect_errors, self.expect_warnings, self.annotate, self.test_reload)
 
     def find_module_source_file(self, source_file):
         if not os.path.exists(source_file):
@@ -958,7 +961,7 @@ class CythonCompileTestCase(unittest.TestCase):
         return get_ext_fullpath(module)
 
     def compile(self, test_directory, module, workdir, incdir,
-                expect_errors, expect_warnings, annotate):
+                expect_errors, expect_warnings, annotate, enable_pep489):
         expected_errors = expected_warnings = errors = warnings = ()
         if expect_errors or expect_warnings:
             expected_errors, expected_warnings = self.split_source_and_output(
@@ -1007,12 +1010,16 @@ class CythonCompileTestCase(unittest.TestCase):
         if not self.cython_only:
             from Cython.Utils import captured_fd, print_bytes
             from distutils.errors import CompileError, LinkError
+            extra_args = {}
+            if enable_pep489:
+                extra_args['define_macros'] = [('CYTHON_PEP489_MULTI_PHASE_INIT', '1')]
             show_output = True
             get_stderr = get_stdout = None
             try:
                 with captured_fd(1) as get_stdout:
                     with captured_fd(2) as get_stderr:
-                        so_path = self.run_distutils(test_directory, module, workdir, incdir)
+                        so_path = self.run_distutils(
+                            test_directory, module, workdir, incdir, extra_extension_args=extra_args)
             except Exception as exc:
                 if ('cerror' in self.tags['tag'] and
                     ((get_stderr and get_stderr()) or
@@ -1104,6 +1111,8 @@ class CythonRunTestCase(CythonCompileTestCase):
                 module = module_or_name
             tests = doctest.DocTestSuite(module)
             tests.run(result)
+            if self.test_reload:
+                import_ext(module_or_name, ext_so_path)
         run_forked_test(result, run_test, self.shortDescription(), self.fork)
 
 def run_forked_test(result, run_func, test_name, fork=True):
@@ -1841,6 +1850,8 @@ def main():
     parser.add_option("--use_formal_grammar", default=False, action="store_true")
     parser.add_option("--test_determinism", default=False, action="store_true",
                       help="test whether Cython's output is deterministic")
+    parser.add_option("--pep489", dest="test_reload", default=False, action="store_true",
+                      help="enable PEP-489 support and try reloading the test modules")
     parser.add_option("--pythran-dir", dest="pythran_dir", default=None,
                       help="specify Pythran include directory. This will run the C++ tests using Pythran backend for Numpy")
 
@@ -2090,7 +2101,7 @@ def runtests(options, cmd_args, coverage=None):
                                 options.pyregr,
                                 options.cython_only, languages, test_bugs,
                                 options.fork, options.language_level,
-                                options.test_determinism,
+                                options.test_determinism, options.test_reload,
                                 common_utility_dir, options.pythran_dir)
         test_suite.addTest(filetests.build_suite())
 
@@ -2105,7 +2116,7 @@ def runtests(options, cmd_args, coverage=None):
                                     True,
                                     options.cython_only, languages, test_bugs,
                                     options.fork, sys.version_info[0],
-                                    options.test_determinism,
+                                    options.test_determinism, options.test_reload,
                                     common_utility_dir)
             sys.stderr.write("Including CPython regression tests in %s\n" % sys_pyregr_dir)
             test_suite.addTest(filetests.handle_directory(sys_pyregr_dir, 'pyregr'))
