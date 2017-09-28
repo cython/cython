@@ -15,32 +15,35 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t); /*proto*/
 
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     while (t->p) {
-        #if PY_MAJOR_VERSION < 3
-        if (t->is_unicode) {
-            *t->p = PyUnicode_DecodeUTF8(t->s, t->n - 1, NULL);
-        } else if (t->intern) {
-            *t->p = PyString_InternFromString(t->s);
-        } else {
-            *t->p = PyString_FromStringAndSize(t->s, t->n - 1);
-        }
-        #else  /* Python 3+ has unicode identifiers */
-        if (t->is_unicode | t->is_str) {
-            if (t->intern) {
-                *t->p = PyUnicode_InternFromString(t->s);
-            } else if (t->encoding) {
-                *t->p = PyUnicode_Decode(t->s, t->n - 1, t->encoding, NULL);
+        // Do not overwrite interned strings with PEP-489 reload.
+        if (!CYTHON_PEP489_MULTI_PHASE_INIT || !*t->p) {
+            #if PY_MAJOR_VERSION < 3
+            if (t->is_unicode) {
+                *t->p = PyUnicode_DecodeUTF8(t->s, t->n - 1, NULL);
+            } else if (t->intern) {
+                *t->p = PyString_InternFromString(t->s);
             } else {
-                *t->p = PyUnicode_FromStringAndSize(t->s, t->n - 1);
+                *t->p = PyString_FromStringAndSize(t->s, t->n - 1);
             }
-        } else {
-            *t->p = PyBytes_FromStringAndSize(t->s, t->n - 1);
+            #else  /* Python 3+ has unicode identifiers */
+            if (t->is_unicode | t->is_str) {
+                if (t->intern) {
+                    *t->p = PyUnicode_InternFromString(t->s);
+                } else if (t->encoding) {
+                    *t->p = PyUnicode_Decode(t->s, t->n - 1, t->encoding, NULL);
+                } else {
+                    *t->p = PyUnicode_FromStringAndSize(t->s, t->n - 1);
+                }
+            } else {
+                *t->p = PyBytes_FromStringAndSize(t->s, t->n - 1);
+            }
+            #endif
+            if (!*t->p)
+                return -1;
+            // initialise cached hash value
+            if (PyObject_Hash(*t->p) == -1)
+                return -1;
         }
-        #endif
-        if (!*t->p)
-            return -1;
-        // initialise cached hash value
-        if (PyObject_Hash(*t->p) == -1)
-            return -1;
         ++t;
     }
     return 0;

@@ -1120,6 +1120,7 @@ class GlobalState(object):
 
         if Options.generate_cleanup_code:
             w = self.parts['cleanup_module']
+            w.putln("#endif")
             w.putln("}")
             w.exit_cfunc_scope()
 
@@ -1273,11 +1274,7 @@ class GlobalState(object):
         interned_cname = self.get_interned_identifier(name).cname
         self.use_utility_code(
             UtilityCode.load_cached("GetBuiltinName", "ObjectHandling.c"))
-        w.putln('%s = __Pyx_GetBuiltinName(%s); if (!%s) %s' % (
-            cname,
-            interned_cname,
-            cname,
-            w.error_goto(pos)))
+        w.put_assign_ref_once(cname, "__Pyx_GetBuiltinName(%s)" % interned_cname, pos)
 
     def generate_const_declarations(self):
         self.generate_cached_methods_decls()
@@ -1411,9 +1408,7 @@ class GlobalState(object):
                 function = "PyInt_FromLong(%sL)"
             else:
                 function = "PyInt_FromLong(%s)"
-            init_globals.putln('%s = %s; %s' % (
-                cname, function % value_code,
-                init_globals.error_goto_if_null(cname, self.module_pos)))
+            init_globals.put_assign_ref_once(cname, function % value_code, self.module_pos)
 
     # The functions below are there in a transition phase only
     # and will be deprecated. They are called from Nodes.BlockNode.
@@ -2042,9 +2037,9 @@ class CCodeWriter(object):
 
     def put_assign_ref_once(self, cname, value, pos=None):
         if pos is None:
-            self.putln("__Pyx_ASSIGN_ONCE_NO_ERROR(%s, %s)" % (cname, value))
+            self.putln("__Pyx_ASSIGN_REF_ONCE_NO_ERROR(%s, %s)" % (cname, value))
         else:
-            self.putln("__Pyx_ASSIGN_ONCE(%s, %s, %s)" % (cname, value, self.error_goto(pos)))
+            self.putln("__Pyx_ASSIGN_REF_ONCE(%s, %s, %s)" % (cname, value, self.error_goto(pos)))
 
     def put_pymethoddef(self, entry, term, allow_skip=True):
         if entry.is_special or entry.name == '__getattribute__':
