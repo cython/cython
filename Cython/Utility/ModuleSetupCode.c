@@ -755,7 +755,7 @@ static PyObject* ${pymodule_create_func_cname}(PyObject *spec, CYTHON_UNUSED PyM
 
     // For now, we only have exactly one module instance.
     if (${module_cname})
-        return __Pyx_NewRef({module_cname});
+        return __Pyx_NewRef(${module_cname});
 
     modname = PyObject_GetAttrString(spec, "name");
     if (unlikely(!modname)) goto bad;
