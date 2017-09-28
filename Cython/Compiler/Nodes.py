@@ -1805,9 +1805,6 @@ class FuncDefNode(StatNode, BlockNode):
         tempvardecl_code = code.insertion_point()
         self.generate_keyword_list(code)
 
-        # ----- Extern library function declarations
-        lenv.generate_library_function_declarations(code)
-
         # ----- GIL acquisition
         acquire_gil = self.acquire_gil
 
