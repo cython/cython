@@ -2878,8 +2878,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.error_goto_if_null(type.vtabptr_cname, pos)))
         env.types_imported.add(type)
 
-    py3_type_name_map = {'str' : 'bytes', 'unicode' : 'str'}
-
     def generate_type_import_call(self, type, code, error_code):
         if type.typedef_flag:
             objstruct = type.objstruct_cname
