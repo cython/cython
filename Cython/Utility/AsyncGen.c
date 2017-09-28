@@ -1041,19 +1041,19 @@ static int __pyx_AsyncGen_init(void) {
     __pyx__PyAsyncGenAThrowType_type.tp_getattro = PyObject_GenericGetAttr;
     __pyx__PyAsyncGenASendType_type.tp_getattro = PyObject_GenericGetAttr;
 
-    __pyx_AsyncGenType = __Pyx_FetchCommonType(&__pyx_AsyncGenType_type);
+    __pyx_AsyncGenType = __Pyx_FetchCommonTypeOnce(__pyx_AsyncGenType, &__pyx_AsyncGenType_type);
     if (unlikely(!__pyx_AsyncGenType))
         return -1;
 
-    __pyx__PyAsyncGenAThrowType = __Pyx_FetchCommonType(&__pyx__PyAsyncGenAThrowType_type);
+    __pyx__PyAsyncGenAThrowType = __Pyx_FetchCommonTypeOnce(__pyx__PyAsyncGenAThrowType, &__pyx__PyAsyncGenAThrowType_type);
     if (unlikely(!__pyx__PyAsyncGenAThrowType))
         return -1;
 
-    __pyx__PyAsyncGenWrappedValueType = __Pyx_FetchCommonType(&__pyx__PyAsyncGenWrappedValueType_type);
+    __pyx__PyAsyncGenWrappedValueType = __Pyx_FetchCommonTypeOnce(__pyx__PyAsyncGenWrappedValueType, &__pyx__PyAsyncGenWrappedValueType_type);
     if (unlikely(!__pyx__PyAsyncGenWrappedValueType))
         return -1;
 
-    __pyx__PyAsyncGenASendType = __Pyx_FetchCommonType(&__pyx__PyAsyncGenASendType_type);
+    __pyx__PyAsyncGenASendType = __Pyx_FetchCommonTypeOnce(__pyx__PyAsyncGenASendType, &__pyx__PyAsyncGenASendType_type);
     if (unlikely(!__pyx__PyAsyncGenASendType))
         return -1;
 

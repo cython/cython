@@ -729,7 +729,7 @@ static PyTypeObject __pyx_CyFunctionType_type = {
 
 
 static int __pyx_CyFunction_init(void) {
-    __pyx_CyFunctionType = __Pyx_FetchCommonType(&__pyx_CyFunctionType_type);
+    __pyx_CyFunctionType = __Pyx_FetchCommonTypeOnce(__pyx_CyFunctionType, &__pyx_CyFunctionType_type);
     if (unlikely(__pyx_CyFunctionType == NULL)) {
         return -1;
     }
@@ -1201,7 +1201,7 @@ static PyTypeObject __pyx_FusedFunctionType_type = {
 };
 
 static int __pyx_FusedFunction_init(void) {
-    __pyx_FusedFunctionType = __Pyx_FetchCommonType(&__pyx_FusedFunctionType_type);
+    __pyx_FusedFunctionType = __Pyx_FetchCommonTypeOnce(__pyx_FusedFunctionType, &__pyx_FusedFunctionType_type);
     if (__pyx_FusedFunctionType == NULL) {
         return -1;
     }

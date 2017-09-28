@@ -2040,6 +2040,12 @@ class CCodeWriter(object):
         if entry.in_closure:
             self.put_giveref('Py_None')
 
+    def put_assign_ref_once(self, cname, value, pos=None):
+        if pos is None:
+            self.putln("__Pyx_ASSIGN_ONCE_NO_ERROR(%s, %s)" % (cname, value))
+        else:
+            self.putln("__Pyx_ASSIGN_ONCE(%s, %s, %s)" % (cname, value, self.error_goto(pos)))
+
     def put_pymethoddef(self, entry, term, allow_skip=True):
         if entry.is_special or entry.name == '__getattribute__':
             if entry.name not in special_py_methods:

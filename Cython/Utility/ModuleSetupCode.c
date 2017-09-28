@@ -738,6 +738,16 @@ PyEval_InitThreads();
 #endif
 
 
+/////////////// ModuleInitHelpers ///////////////
+
+#if CYTHON_PEP489_MULTI_PHASE_INIT
+#define __Pyx_ASSIGN_REF_ONCE(name, value, error_goto)  if (name); else { name = value; if (unlikely(!name)) error_goto }
+#define __Pyx_ASSIGN_REF_ONCE_NO_ERROR(name, value)  if (name); else { name = value; }
+#else
+#define __Pyx_ASSIGN_REF_ONCE(name, value, error_goto)  name = value; if (unlikely(!name)) error_goto
+#define __Pyx_ASSIGN_REF_ONCE_NO_ERROR(name, value)  name = value;
+#endif
+
 /////////////// ModuleCreationPEP489 ///////////////
 //@substitute: naming
 
@@ -758,10 +768,6 @@ static int __Pyx_copy_spec_to_module(PyObject *spec, PyObject *moddict, const ch
 
 static PyObject* ${pymodule_create_func_cname}(PyObject *spec, CYTHON_UNUSED PyModuleDef *def) {
     PyObject *module = NULL, *moddict, *modname;
-
-    // For now, we only have exactly one module instance.
-    if (${module_cname})
-        return __Pyx_NewRef(${module_cname});
 
     modname = PyObject_GetAttrString(spec, "name");
     if (unlikely(!modname)) goto bad;

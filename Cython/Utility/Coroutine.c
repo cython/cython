@@ -1577,11 +1577,11 @@ static int __pyx_Coroutine_init(void) {
     // on Windows, C-API functions can't be used in slots statically
     __pyx_CoroutineType_type.tp_getattro = PyObject_GenericGetAttr;
 
-    __pyx_CoroutineType = __Pyx_FetchCommonType(&__pyx_CoroutineType_type);
+    __pyx_CoroutineType = __Pyx_FetchCommonTypeOnce(__pyx_CoroutineType, &__pyx_CoroutineType_type);
     if (unlikely(!__pyx_CoroutineType))
         return -1;
 
-    __pyx_CoroutineAwaitType = __Pyx_FetchCommonType(&__pyx_CoroutineAwaitType_type);
+    __pyx_CoroutineAwaitType = __Pyx_FetchCommonTypeOnce(__pyx_CoroutineAwaitType, &__pyx_CoroutineAwaitType_type);
     if (unlikely(!__pyx_CoroutineAwaitType))
         return -1;
     return 0;
@@ -1680,7 +1680,7 @@ static int __pyx_Generator_init(void) {
     __pyx_GeneratorType_type.tp_getattro = PyObject_GenericGetAttr;
     __pyx_GeneratorType_type.tp_iter = PyObject_SelfIter;
 
-    __pyx_GeneratorType = __Pyx_FetchCommonType(&__pyx_GeneratorType_type);
+    __pyx_GeneratorType = __Pyx_FetchCommonTypeOnce(__pyx_GeneratorType, &__pyx_GeneratorType_type);
     if (unlikely(!__pyx_GeneratorType)) {
         return -1;
     }
@@ -2005,7 +2005,7 @@ old_types.add(_cython_generator_type)
 //////////////////// StopAsyncIteration.proto ////////////////////
 
 #define __Pyx_StopAsyncIteration_USED
-static PyObject *__Pyx_PyExc_StopAsyncIteration;
+static PyObject *__Pyx_PyExc_StopAsyncIteration = 0;
 static int __pyx_StopAsyncIteration_init(void); /*proto*/
 
 //////////////////// StopAsyncIteration ////////////////////
@@ -2084,7 +2084,7 @@ static int __pyx_StopAsyncIteration_init(void) {
     __Pyx__PyExc_StopAsyncIteration_type.tp_dictoffset = ((PyTypeObject*)PyExc_BaseException)->tp_dictoffset;
     __Pyx__PyExc_StopAsyncIteration_type.tp_base = (PyTypeObject*)PyExc_Exception;
 
-    __Pyx_PyExc_StopAsyncIteration = (PyObject*) __Pyx_FetchCommonType(&__Pyx__PyExc_StopAsyncIteration_type);
+    __Pyx_PyExc_StopAsyncIteration = (PyObject*) __Pyx_FetchCommonTypeOnce(__Pyx_PyExc_StopAsyncIteration, &__Pyx__PyExc_StopAsyncIteration_type);
     if (unlikely(!__Pyx_PyExc_StopAsyncIteration))
         return -1;
     if (builtins && unlikely(PyMapping_SetItemString(builtins, (char*) "StopAsyncIteration", __Pyx_PyExc_StopAsyncIteration) < 0))

@@ -701,17 +701,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('static CYTHON_INLINE void __Pyx_pretend_to_initialize(void* ptr) { (void)ptr; }')
         code.putln('')
         code.putln('static PyObject *%s = NULL;' % env.module_cname)
-        code.putln('static PyObject *%s;' % env.module_dict_cname)
-        code.putln('static PyObject *%s;' % Naming.builtins_cname)
-        code.putln('static PyObject *%s;' % Naming.cython_runtime_cname)
-        code.putln('static PyObject *%s;' % Naming.empty_tuple)
-        code.putln('static PyObject *%s;' % Naming.empty_bytes)
-        code.putln('static PyObject *%s;' % Naming.empty_unicode)
+        code.putln('static PyObject *%s = NULL;' % env.module_dict_cname)
+        code.putln('static PyObject *%s = NULL;' % Naming.builtins_cname)
+        code.putln('static PyObject *%s = NULL;' % Naming.cython_runtime_cname)
+        code.putln('static PyObject *%s = NULL;' % Naming.empty_tuple)
+        code.putln('static PyObject *%s = NULL;' % Naming.empty_bytes)
+        code.putln('static PyObject *%s = NULL;' % Naming.empty_unicode)
         if Options.pre_import is not None:
             code.putln('static PyObject *%s;' % Naming.preimport_cname)
         code.putln('static int %s;' % Naming.lineno_cname)
         code.putln('static int %s = 0;' % Naming.clineno_cname)
-        code.putln('static const char * %s= %s;' % (Naming.cfilenm_cname, Naming.file_c_macro))
+        code.putln('static const char *%s = %s;' % (Naming.cfilenm_cname, Naming.file_c_macro))
         code.putln('static const char *%s;' % Naming.filename_cname)
 
         env.use_utility_code(UtilityCode.load_cached("FastTypeChecks", "ModuleSetupCode.c"))
@@ -2258,6 +2258,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.exit_cfunc_scope()  # done with labels
 
     def generate_module_init_func(self, imported_modules, env, code):
+        code.putln("")
+        code.putln(UtilityCode.load_as_string("ModuleInitHelpers", "ModuleSetupCode.c")[1])
+
         code.enter_cfunc_scope(self.scope)
         code.putln("")
         header2 = "PyMODINIT_FUNC init%s(void)" % env.module_name
@@ -2298,21 +2301,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.globalstate.use_utility_code(UtilityCode.load_cached("Profile", "Profile.c"))
 
         code.put_declare_refcount_context()
-        code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
-        # Hack: enforce single initialisation.
-        code.putln("if (%s && %s == %s) return 0;" % (
-            Naming.module_cname,
-            Naming.module_cname,
-            Naming.pymodinit_module_arg,
-        ))
-        code.putln("#endif")
-
         if profile or linetrace:
             tempdecl_code.put_trace_declarations()
             code.put_trace_frame_init()
 
         code.putln("#if CYTHON_REFNANNY")
-        code.putln("__Pyx_RefNanny = __Pyx_RefNannyImportAPI(\"refnanny\");")
+        code.put_assign_ref_once("__Pyx_RefNanny", "__Pyx_RefNannyImportAPI(\"refnanny\")")
         code.putln("if (!__Pyx_RefNanny) {")
         code.putln("  PyErr_Clear();")
         code.putln("  __Pyx_RefNanny = __Pyx_RefNannyImportAPI(\"Cython.Runtime.refnanny\");")
@@ -2325,12 +2319,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         env.use_utility_code(UtilityCode.load("CheckBinaryVersion", "ModuleSetupCode.c"))
         code.put_error_if_neg(self.pos, "__Pyx_check_binary_version()")
 
-        code.putln("%s = PyTuple_New(0); %s" % (
-            Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)))
-        code.putln("%s = PyBytes_FromStringAndSize(\"\", 0); %s" % (
-            Naming.empty_bytes, code.error_goto_if_null(Naming.empty_bytes, self.pos)))
-        code.putln("%s = PyUnicode_FromStringAndSize(\"\", 0); %s" % (
-            Naming.empty_unicode, code.error_goto_if_null(Naming.empty_unicode, self.pos)))
+        code.put_assign_ref_once(Naming.empty_tuple, "PyTuple_New(0)", self.pos)
+        code.put_assign_ref_once(Naming.empty_bytes, 'PyBytes_FromStringAndSize("", 0)', self.pos)
+        code.put_assign_ref_once(Naming.empty_unicode, 'PyUnicode_FromStringAndSize("", 0)', self.pos)
 
         for ext_type in ('CyFunction', 'FusedFunction', 'Coroutine', 'Generator', 'AsyncGen', 'StopAsyncIteration'):
             code.putln("#ifdef __Pyx_%s_USED" % ext_type)
@@ -2342,10 +2333,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.put_error_if_neg(self.pos, "_import_array()")
 
         code.putln("/*--- Threads initialization code ---*/")
-        code.putln("#if defined(__PYX_FORCE_INIT_THREADS) && __PYX_FORCE_INIT_THREADS")
-        code.putln("#ifdef WITH_THREAD /* Python build with threading support? */")
+        code.putln("#if defined(WITH_THREAD) && defined(__PYX_FORCE_INIT_THREADS) && __PYX_FORCE_INIT_THREADS")
         code.putln("PyEval_InitThreads();")
-        code.putln("#endif")
         code.putln("#endif")
 
         code.putln("/*--- Module creation code ---*/")
