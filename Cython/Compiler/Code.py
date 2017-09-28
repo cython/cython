@@ -1125,7 +1125,7 @@ class GlobalState(object):
             w.exit_cfunc_scope()
 
     def put_pyobject_decl(self, entry):
-        self['global_var'].putln("static PyObject *%s;" % entry.cname)
+        self['global_var'].putln("static PyObject *%s=0;" % entry.cname)
 
     # constant handling at code generation time
 
@@ -1289,7 +1289,7 @@ class GlobalState(object):
         decls_writer = self.parts['decls']
         for _, cname, c in consts:
             decls_writer.putln(
-                "static %s;" % c.type.declaration_code(cname))
+                "static %s=0;" % c.type.declaration_code(cname))
 
     def generate_cached_methods_decls(self):
         if not self.cached_cmethods:
@@ -1358,7 +1358,7 @@ class GlobalState(object):
                     encoding = '"%s"' % py_string.encoding.lower()
 
                 decls_writer.putln(
-                    "static PyObject *%s;" % py_string.cname)
+                    "static PyObject *%s=0;" % py_string.cname)
                 if py_string.py3str_cstring:
                     w.putln("#if PY_MAJOR_VERSION >= 3")
                     w.putln("{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
@@ -1397,7 +1397,7 @@ class GlobalState(object):
         init_globals = self.parts['init_globals']
         for py_type, _, _, value, value_code, c in consts:
             cname = c.cname
-            decls_writer.putln("static PyObject *%s;" % cname)
+            decls_writer.putln("static PyObject *%s=0;" % cname)
             if py_type == 'float':
                 function = 'PyFloat_FromDouble(%s)'
             elif py_type == 'long':
