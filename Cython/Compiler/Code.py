@@ -1033,7 +1033,7 @@ class GlobalState(object):
         else:
             w = self.parts['cached_builtins']
             w.enter_cfunc_scope()
-            w.putln("static int __Pyx_InitCachedBuiltins(void) {")
+            w.putln("static int __Pyx_InitCachedBuiltins(PyObject *builtins) {")
 
         w = self.parts['cached_constants']
         w.enter_cfunc_scope()
@@ -1274,7 +1274,7 @@ class GlobalState(object):
         interned_cname = self.get_interned_identifier(name).cname
         self.use_utility_code(
             UtilityCode.load_cached("GetBuiltinName", "ObjectHandling.c"))
-        w.put_assign_ref_once(cname, "__Pyx_GetBuiltinName(%s)" % interned_cname, pos)
+        w.put_assign_ref_once(cname, "__Pyx__GetBuiltinName(builtins, %s)" % (interned_cname), pos)
 
     def generate_const_declarations(self):
         self.generate_cached_methods_decls()

@@ -992,15 +992,16 @@ static CYTHON_INLINE PyObject* __Pyx_PyBoolOrNull_FromLong(long b) {
 }
 
 /////////////// GetBuiltinName.proto ///////////////
+//@substitute: naming
 
-static PyObject *__Pyx_GetBuiltinName(PyObject *name); /*proto*/
+#define __Pyx_GetBuiltinName(name)  __Pyx__GetBuiltinName($builtins_cname, name)
+static PyObject *__Pyx__GetBuiltinName(PyObject *builtins, PyObject *name); /*proto*/
 
 /////////////// GetBuiltinName ///////////////
 //@requires: PyObjectGetAttrStr
-//@substitute: naming
 
-static PyObject *__Pyx_GetBuiltinName(PyObject *name) {
-    PyObject* result = __Pyx_PyObject_GetAttrStr($builtins_cname, name);
+static PyObject *__Pyx__GetBuiltinName(PyObject *builtins, PyObject *name) {
+    PyObject* result = __Pyx_PyObject_GetAttrStr(builtins, name);
     if (unlikely(!result)) {
         PyErr_Format(PyExc_NameError,
 #if PY_MAJOR_VERSION >= 3
@@ -1013,8 +1014,10 @@ static PyObject *__Pyx_GetBuiltinName(PyObject *name) {
 }
 
 /////////////// GetNameInClass.proto ///////////////
+//@substitute: naming
 
-static PyObject *__Pyx_GetNameInClass(PyObject *nmspace, PyObject *name); /*proto*/
+#define __Pyx_GetNameInClass(nmspace, name)  __Pyx__GetNameInClass($moddict_cname, $builtins_cname, nmspace, name)
+static PyObject *__Pyx__GetNameInClass(PyObject *moddict, PyObject *builtins, PyObject *nmspace, PyObject *name); /*proto*/
 
 /////////////// GetNameInClass ///////////////
 //@requires: PyObjectGetAttrStr
@@ -1023,20 +1026,20 @@ static PyObject *__Pyx_GetNameInClass(PyObject *nmspace, PyObject *name); /*prot
 //@requires: Exceptions.c::PyErrFetchRestore
 //@requires: Exceptions.c::PyErrExceptionMatches
 
-static PyObject *__Pyx_GetGlobalNameAfterAttributeLookup(PyObject *name) {
+static PyObject *__Pyx_GetGlobalNameAfterAttributeLookup(PyObject *moddict, PyObject *builtins, PyObject *name) {
     __Pyx_PyThreadState_declare
     __Pyx_PyThreadState_assign
     if (unlikely(!__Pyx_PyErr_ExceptionMatches(PyExc_AttributeError)))
         return NULL;
     __Pyx_PyErr_Clear();
-    return __Pyx_GetModuleGlobalName(name);
+    return __Pyx__GetModuleGlobalName(moddict, builtins, name);
 }
 
-static PyObject *__Pyx_GetNameInClass(PyObject *nmspace, PyObject *name) {
+static PyObject *__Pyx__GetNameInClass(PyObject *moddict, PyObject *builtins, PyObject *nmspace, PyObject *name) {
     PyObject *result;
     result = __Pyx_PyObject_GetAttrStr(nmspace, name);
     if (!result) {
-        result = __Pyx_GetGlobalNameAfterAttributeLookup(name);
+        result = __Pyx_GetGlobalNameAfterAttributeLookup(moddict, builtins, name);
     }
     return result;
 }
@@ -1057,36 +1060,37 @@ static PyObject *__Pyx_GetNameInClass(PyObject *nmspace, PyObject *name) {
 
 
 /////////////// GetModuleGlobalName.proto ///////////////
+//@substitute: naming
 
-static CYTHON_INLINE PyObject *__Pyx_GetModuleGlobalName(PyObject *name); /*proto*/
+#define __Pyx_GetModuleGlobalName(name)  __Pyx__GetModuleGlobalName($moddict_cname, $builtins_cname, name)
+static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *moddict, PyObject *builtins, PyObject *name); /*proto*/
 
 /////////////// GetModuleGlobalName ///////////////
 //@requires: GetBuiltinName
-//@substitute: naming
 
-static CYTHON_INLINE PyObject *__Pyx_GetModuleGlobalName(PyObject *name) {
+static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *moddict, PyObject *builtins, PyObject *name) {
     PyObject *result;
 #if !CYTHON_AVOID_BORROWED_REFS
 #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500A1
     // Identifier names are always interned and have a pre-calculated hash value.
-    result = _PyDict_GetItem_KnownHash($moddict_cname, name, ((PyASCIIObject *) name)->hash);
+    result = _PyDict_GetItem_KnownHash(moddict, name, ((PyASCIIObject *) name)->hash);
     if (likely(result)) {
         Py_INCREF(result);
     } else if (unlikely(PyErr_Occurred())) {
         result = NULL;
     } else {
 #else
-    result = PyDict_GetItem($moddict_cname, name);
+    result = PyDict_GetItem(moddict, name);
     if (likely(result)) {
         Py_INCREF(result);
     } else {
 #endif
 #else
-    result = PyObject_GetItem($moddict_cname, name);
+    result = PyObject_GetItem(moddict, name);
     if (!result) {
         PyErr_Clear();
 #endif
-        result = __Pyx_GetBuiltinName(name);
+        result = __Pyx__GetBuiltinName(builtins, name);
     }
     return result;
 }
