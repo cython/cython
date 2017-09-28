@@ -901,10 +901,6 @@ class Scope(object):
     def use_entry_utility_code(self, entry):
         self.global_scope().use_entry_utility_code(entry)
 
-    def generate_library_function_declarations(self, code):
-        # Generate extern decls for C library funcs used.
-        pass
-
     def defines_any(self, names):
         # Test whether any of the given names are defined in this scope.
         for name in names:
@@ -1239,10 +1235,6 @@ class ModuleScope(Scope):
         if submodule:
             scope = scope.find_submodule(submodule)
         return scope
-
-    def generate_library_function_declarations(self, code):
-        if self.directives['np_pythran']:
-            code.putln("import_array();")
 
     def lookup_submodule(self, name):
         # Return scope for submodule of this module, or None.
