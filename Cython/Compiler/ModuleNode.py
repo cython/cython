@@ -901,6 +901,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     code.put("virtual ")
                     has_virtual_methods = True
                 code.putln("%s;" % attr.type.declaration_code(attr.cname))
+            is_implementing = 'init_module' in code.globalstate.parts
             if constructor or py_attrs:
                 if constructor:
                     arg_decls = []
@@ -917,51 +918,61 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 else:
                     arg_decls = ["void"]
                     arg_names = []
-                code.putln("%s(%s) {" % (type.cname, ", ".join(arg_decls)))
-                if py_attrs:
-                    code.put_ensure_gil()
-                    for attr in py_attrs:
-                        code.put_init_var_to_py_none(attr, nanny=False);
-                if constructor:
-                    code.putln("%s(%s);" % (constructor.cname, ", ".join(arg_names)))
-                if py_attrs:
-                    code.put_release_ensured_gil()
-                code.putln("}")
+                if is_implementing:
+                  code.putln("%s(%s) {" % (type.cname, ", ".join(arg_decls)))
+                  if py_attrs:
+                      code.put_ensure_gil()
+                      for attr in py_attrs:
+                          code.put_init_var_to_py_none(attr, nanny=False);
+                  if constructor:
+                      code.putln("%s(%s);" % (constructor.cname, ", ".join(arg_names)))
+                  if py_attrs:
+                      code.put_release_ensured_gil()
+                  code.putln("}")
+                else:
+                  code.putln("%s(%s);" % (type.cname, ", ".join(arg_decls)))
             if destructor or py_attrs or has_virtual_methods:
                 if has_virtual_methods:
                     code.put("virtual ")
-                code.putln("~%s() {" % type.cname)
-                if py_attrs:
-                    code.put_ensure_gil()
-                if destructor:
-                    code.putln("%s();" % destructor.cname)
-                if py_attrs:
-                    for attr in py_attrs:
-                        code.put_var_xdecref(attr, nanny=False);
-                    code.put_release_ensured_gil()
-                code.putln("}")
+                if is_implementing:
+                  code.putln("~%s() {" % type.cname)
+                  if py_attrs:
+                      code.put_ensure_gil()
+                  if destructor:
+                      code.putln("%s();" % destructor.cname)
+                  if py_attrs:
+                      for attr in py_attrs:
+                          code.put_var_xdecref(attr, nanny=False);
+                      code.put_release_ensured_gil()
+                  code.putln("}")
+                else:
+                  code.putln("~%s();" % type.cname)
             if py_attrs:
                 # Also need copy constructor and assignment operators.
-                code.putln("%s(const %s& __Pyx_other) {" % (type.cname, type.cname))
-                code.put_ensure_gil()
-                for attr in scope.var_entries:
-                    if not attr.type.is_cfunction:
-                        code.putln("%s = __Pyx_other.%s;" % (attr.cname, attr.cname))
-                        code.put_var_incref(attr, nanny=False)
-                code.put_release_ensured_gil()
-                code.putln("}")
-                code.putln("%s& operator=(const %s& __Pyx_other) {" % (type.cname, type.cname))
-                code.putln("if (this != &__Pyx_other) {")
-                code.put_ensure_gil()
-                for attr in scope.var_entries:
-                    if not attr.type.is_cfunction:
-                        code.put_var_xdecref(attr, nanny=False);
-                        code.putln("%s = __Pyx_other.%s;" % (attr.cname, attr.cname))
-                        code.put_var_incref(attr, nanny=False)
-                code.put_release_ensured_gil()
-                code.putln("}")
-                code.putln("return *this;")
-                code.putln("}")
+                if is_implementing:
+                  code.putln("%s(const %s& __Pyx_other) {" % (type.cname, type.cname))
+                  code.put_ensure_gil()
+                  for attr in scope.var_entries:
+                      if not attr.type.is_cfunction:
+                          code.putln("%s = __Pyx_other.%s;" % (attr.cname, attr.cname))
+                          code.put_var_incref(attr, nanny=False)
+                  code.put_release_ensured_gil()
+                  code.putln("}")
+                  code.putln("%s& operator=(const %s& __Pyx_other) {" % (type.cname, type.cname))
+                  code.putln("if (this != &__Pyx_other) {")
+                  code.put_ensure_gil()
+                  for attr in scope.var_entries:
+                      if not attr.type.is_cfunction:
+                          code.put_var_xdecref(attr, nanny=False);
+                          code.putln("%s = __Pyx_other.%s;" % (attr.cname, attr.cname))
+                          code.put_var_incref(attr, nanny=False)
+                  code.put_release_ensured_gil()
+                  code.putln("}")
+                  code.putln("return *this;")
+                  code.putln("}")
+                else:
+                  code.putln("%s(const %s& __Pyx_other);" % (type.cname, type.cname))
+                  code.putln("%s& operator=(const %s& __Pyx_other);" % (type.cname, type.cname))
             code.putln("};")
 
     def generate_enum_definition(self, entry, code):

@@ -226,6 +226,18 @@ def test_CppClassWithObjectMemberCopyAssign(name):
     print "Nothing alive."
 
 
+# Github issue #1886.
+cdef public cppclass PublicCppClassWithObjectMember:
+  object o
+
+def test_PublicCppClassWithObjectMember():
+  """
+  >>> test_PublicCppClassWithObjectMember()
+  """
+  cdef PublicCppClassWithObjectMember c
+  assert c.o is None
+
+
 cdef cppclass UncopyableConstructorArgument:
     unique_ptr[vector[int]] member
     __init__(unique_ptr[vector[int]] arg):
