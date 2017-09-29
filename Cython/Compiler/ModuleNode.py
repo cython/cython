@@ -2326,7 +2326,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("/*--- Library function declarations ---*/")
         if env.directives['np_pythran']:
-            code.put_error_goto_if_neg(self.pos, "_import_array()")
+            code.put_error_if_neg(self.pos, "_import_array()")
 
         code.putln("/*--- Threads initialization code ---*/")
         code.putln("#if defined(__PYX_FORCE_INIT_THREADS) && __PYX_FORCE_INIT_THREADS")
