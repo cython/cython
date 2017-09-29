@@ -620,7 +620,7 @@ static PyTypeObject __pyx__PyAsyncGenASendType_type = {
     0,                                          /* tp_weaklist */
     0,                                          /* tp_del */
     0,                                          /* tp_version_tag */
-#if PY_VERSION_HEX >= 0x030400a1
+#if CYTHON_USE_TP_FINALIZE
     0,                                          /* tp_finalize */
 #endif
 };
@@ -729,7 +729,7 @@ static PyTypeObject __pyx__PyAsyncGenWrappedValueType_type = {
     0,                                          /* tp_weaklist */
     0,                                          /* tp_del */
     0,                                          /* tp_version_tag */
-#if PY_VERSION_HEX >= 0x030400a1
+#if CYTHON_USE_TP_FINALIZE
     0,                                          /* tp_finalize */
 #endif
 };
@@ -1006,7 +1006,7 @@ static PyTypeObject __pyx__PyAsyncGenAThrowType_type = {
     0,                                          /* tp_weaklist */
     0,                                          /* tp_del */
     0,                                          /* tp_version_tag */
-#if PY_VERSION_HEX >= 0x030400a1
+#if CYTHON_USE_TP_FINALIZE
     0,                                          /* tp_finalize */
 #endif
 };

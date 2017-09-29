@@ -1071,7 +1071,7 @@ static void __Pyx_Coroutine_dealloc(PyObject *self) {
     if (gen->resume_label >= 0) {
         // Generator is paused or unstarted, so we need to close
         PyObject_GC_Track(self);
-#if PY_VERSION_HEX >= 0x030400a1
+#if CYTHON_USE_TP_FINALIZE
         if (PyObject_CallFinalizerFromDealloc(self))
 #else
         Py_TYPE(gen)->tp_del(self);
@@ -1106,7 +1106,7 @@ static void __Pyx_Coroutine_del(PyObject *self) {
         return;
     }
 
-#if PY_VERSION_HEX < 0x030400a1
+#if !CYTHON_USE_TP_FINALIZE
     // Temporarily resurrect the object.
     assert(self->ob_refcnt == 0);
     self->ob_refcnt = 1;
@@ -1187,7 +1187,7 @@ static void __Pyx_Coroutine_del(PyObject *self) {
     // Restore the saved exception.
     __Pyx_ErrRestore(error_type, error_value, error_traceback);
 
-#if PY_VERSION_HEX < 0x030400a1
+#if !CYTHON_USE_TP_FINALIZE
     // Undo the temporary resurrection; can't use DECREF here, it would
     // cause a recursive call.
     assert(self->ob_refcnt > 0);
@@ -1430,7 +1430,7 @@ static PyTypeObject __pyx_CoroutineAwaitType_type = {
     0,                                  /*tp_weaklist*/
     0,                                  /*tp_del*/
     0,                                  /*tp_version_tag*/
-#if PY_VERSION_HEX >= 0x030400a1
+#if CYTHON_USE_TP_FINALIZE
     0,                                  /*tp_finalize*/
 #endif
 };
@@ -2055,7 +2055,7 @@ static PyTypeObject __Pyx__PyExc_StopAsyncIteration_type = {
     0,                                  /*tp_weaklist*/
     0,                                  /*tp_del*/
     0,                                  /*tp_version_tag*/
-#if PY_VERSION_HEX >= 0x030400a1
+#if CYTHON_USE_TP_FINALIZE
     0,                                  /*tp_finalize*/
 #endif
 };
