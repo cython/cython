@@ -42,8 +42,8 @@ def _find_dep_file_path(main_file, file_path):
         for sys_path in sys.path:
             test_path = os.path.realpath(os.path.join(sys_path, file_path))
             if os.path.exists(test_path):
-                return test_path
-    return abs_path
+                return _get_actual_filename(test_path)
+    return  _get_actual_filename(abs_path)
 
 
 def _get_actual_filename(filepath):
@@ -67,7 +67,7 @@ def _get_actual_filename(filepath):
     # disk letter
     test_name = [dirs[0].upper()]
     for d in dirs[1:]:
-        test_name += ["%s[%s]" % (d[:-1], d[-1])]
+        test_name.append("{}[{}]".format(d[:-1], d[-1]))
     res = glob.glob('\\'.join(test_name))
     if not res:
         #File not found
@@ -93,7 +93,7 @@ class Plugin(CoveragePlugin):
         if filename.startswith('<') or filename.startswith('memory:'):
             return None
         c_file = py_file = None
-        filename = os.path.abspath(filename)
+        filename =  _get_actual_filename(os.path.abspath(filename))
         if self._c_files_map and filename in self._c_files_map:
             c_file = self._c_files_map[filename][0]
 
@@ -243,7 +243,7 @@ class Plugin(CoveragePlugin):
             self._c_files_map = {}
 
         for filename, code in code_lines.items():
-            abs_path = _get_actual_filename(_find_dep_file_path(c_file, filename))
+            abs_path = _find_dep_file_path(c_file, filename)
             self._c_files_map[abs_path] = (c_file, filename, code)
 
         if sourcefile not in self._c_files_map:
