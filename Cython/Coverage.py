@@ -9,6 +9,7 @@ from __future__ import absolute_import
 import re
 import os.path
 import sys
+import glob
 from collections import defaultdict
 
 from coverage.plugin import CoveragePlugin, FileTracer, FileReporter  # requires coverage.py 4.0+
@@ -43,6 +44,35 @@ def _find_dep_file_path(main_file, file_path):
             if os.path.exists(test_path):
                 return test_path
     return abs_path
+
+
+def _get_actual_filename(filepath):
+    """
+    on windows:
+    search the file `filepath' on the file system 
+    and return it with the correct upper/lowercases
+    on linux: return the filepath unmodified
+    
+    Parameters
+    ----------
+    filepath : str
+    
+    Returns
+    -------
+    filepath : str
+    """
+    if not sys.platform.startswith('win'):
+        return filepath
+    dirs = filepath.split('\\')
+    # disk letter
+    test_name = [dirs[0].upper()]
+    for d in dirs[1:]:
+        test_name += ["%s[%s]" % (d[:-1], d[-1])]
+    res = glob.glob('\\'.join(test_name))
+    if not res:
+        #File not found
+        return filepath
+    return res[0]
 
 
 class Plugin(CoveragePlugin):
@@ -91,7 +121,7 @@ class Plugin(CoveragePlugin):
         #    from coverage.python import PythonFileReporter
         #    return PythonFileReporter(filename)
 
-        filename = os.path.abspath(filename)
+        filename = _get_actual_filename(os.path.abspath(filename))
         if self._c_files_map and filename in self._c_files_map:
             c_file, rel_file_path, code = self._c_files_map[filename]
         else:
@@ -213,7 +243,7 @@ class Plugin(CoveragePlugin):
             self._c_files_map = {}
 
         for filename, code in code_lines.items():
-            abs_path = _find_dep_file_path(c_file, filename)
+            abs_path = _get_actual_filename(_find_dep_file_path(c_file, filename))
             self._c_files_map[abs_path] = (c_file, filename, code)
 
         if sourcefile not in self._c_files_map:
