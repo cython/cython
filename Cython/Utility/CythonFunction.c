@@ -1216,14 +1216,14 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method); /*proto*/
 //////////////////// ClassMethod ////////////////////
 
 static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
-#if CYTHON_COMPILING_IN_PYPY
+#if CYTHON_COMPILING_IN_PYPY && PYPY_VERSION_NUM <= 0x05080000
     if (PyObject_TypeCheck(method, &PyWrapperDescr_Type)) {
         // cdef classes
         return PyClassMethod_New(method);
     }
 #else
-#if CYTHON_COMPILING_IN_PYSTON
-    // special C-API function only in Pyston
+#if CYTHON_COMPILING_IN_PYSTON || CYTHON_COMPILING_IN_PYPY
+    // special C-API function only in Pyston and PyPy >= 5.9
     if (PyMethodDescr_Check(method)) {
 #else
     // It appears that PyMethodDescr_Type is not exposed anywhere in the CPython C-API
