@@ -17,7 +17,7 @@ Bugs fixed
 * Py3 list comprehensions in class bodies resulted in invalid C code.
   (Github issue #1889)
 
-* Modules built for later CPython 3.5.x versions failed to import in 3.5.1.
+* Modules built for later CPython 3.5.x versions failed to import in 3.5.0/3.5.1.
   (Github issue #1880)
 
 * Deallocating fused types functions and methods kept their GC tracking enabled,
@@ -30,7 +30,10 @@ Bugs fixed
   passed by reference and not by value to allow for non-copyable arguments, such
   as ``unique_ptr``.
 
-* Some issues with the relaxed exception value handling were resolved.
+* API-exported C++ classes with Python object members failed to compile.
+  (Github issue #1866)
+
+* Some issues with the new relaxed exception value handling were resolved.
 
 * Python classes as annotation types could prevent compilation.
   (Github issue #1887)
