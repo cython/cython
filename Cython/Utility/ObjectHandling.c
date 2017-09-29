@@ -1019,12 +1019,25 @@ static PyObject *__Pyx_GetNameInClass(PyObject *nmspace, PyObject *name); /*prot
 /////////////// GetNameInClass ///////////////
 //@requires: PyObjectGetAttrStr
 //@requires: GetModuleGlobalName
+//@requires: Exceptions.c::PyThreadStateGet
+//@requires: Exceptions.c::PyErrFetchRestore
+//@requires: Exceptions.c::PyErrExceptionMatches
+
+static PyObject *__Pyx_GetGlobalNameAfterAttributeLookup(PyObject *name) {
+    __Pyx_PyThreadState_declare
+    __Pyx_PyThreadState_assign
+    if (unlikely(!__Pyx_PyErr_ExceptionMatches(PyExc_AttributeError)))
+        return NULL;
+    __Pyx_PyErr_Clear();
+    return __Pyx_GetModuleGlobalName(name);
+}
 
 static PyObject *__Pyx_GetNameInClass(PyObject *nmspace, PyObject *name) {
     PyObject *result;
     result = __Pyx_PyObject_GetAttrStr(nmspace, name);
-    if (!result)
-        result = __Pyx_GetModuleGlobalName(name);
+    if (!result) {
+        result = __Pyx_GetGlobalNameAfterAttributeLookup(name);
+    }
     return result;
 }
 
