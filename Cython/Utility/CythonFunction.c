@@ -722,7 +722,7 @@ static PyTypeObject __pyx_CyFunctionType_type = {
     0,                                  /*tp_weaklist*/
     0,                                  /*tp_del*/
     0,                                  /*tp_version_tag*/
-#if CYTHON_USE_TP_FINALIZE
+#if PY_VERSION_HEX >= 0x030400a1
     0,                                  /*tp_finalize*/
 #endif
 };
@@ -1195,7 +1195,7 @@ static PyTypeObject __pyx_FusedFunctionType_type = {
     0,                                  /*tp_weaklist*/
     0,                                  /*tp_del*/
     0,                                  /*tp_version_tag*/
-#if CYTHON_USE_TP_FINALIZE
+#if PY_VERSION_HEX >= 0x030400a1
     0,                                  /*tp_finalize*/
 #endif
 };

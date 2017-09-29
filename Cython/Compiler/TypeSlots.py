@@ -873,7 +873,7 @@ slot_table = (
     EmptySlot("tp_weaklist"),
     EmptySlot("tp_del"),
     EmptySlot("tp_version_tag"),
-    EmptySlot("tp_finalize", ifdef="CYTHON_USE_TP_FINALIZE"),
+    EmptySlot("tp_finalize", ifdef="PY_VERSION_HEX >= 0x030400a1"),
 )
 
 #------------------------------------------------------------------------------------------
