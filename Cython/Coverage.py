@@ -9,7 +9,6 @@ from __future__ import absolute_import
 import re
 import os.path
 import sys
-import glob
 from collections import defaultdict
 
 from coverage.plugin import CoveragePlugin, FileTracer, FileReporter  # requires coverage.py 4.0+
