@@ -4,6 +4,7 @@
 """
 PYTHON -c "import shutil; shutil.copy('pkg/coverage_test_pyx.pyx', 'pkg/coverage_test_pyx.pxi')"
 PYTHON setup.py build_ext -i
+PYTHON rename_pyd.py
 PYTHON coverage_test.py
 """
 
@@ -21,6 +22,20 @@ setup(ext_modules = cythonize([
 ######## .coveragerc ########
 [run]
 plugins = Cython.Coverage
+
+
+######## rename_pyd.py ########
+
+import os
+import glob
+
+pyd_files = glob.glob('**/*.pyd', recursive=True)
+for filepath in pyd_files:
+    folder, fn = os.path.split(filepath)
+    basename, ext = os.path.splitext(fn)
+    new_name = os.path.splitext(basename)[0] + '.pyd'
+    new_filepath = os.path.join(folder, new_name)
+    os.rename(filepath, new_filepath)
 
 
 ######## pkg/__init__.py ########
