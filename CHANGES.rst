@@ -41,6 +41,8 @@ Bugs fixed
 * Cython annotation types in Python files could lead to import failures
   with a "cython undefined" error.  Recognised types are now turned into strings.
 
+* Coverage analysis could fail to report on extension modules on some platforms.
+
 * Annotations could be parsed (and rejected) as types even with
   ``annotation_typing=False``.
 

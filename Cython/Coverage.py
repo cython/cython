@@ -114,7 +114,7 @@ class Plugin(CoveragePlugin):
                 basename = basename[:platform_suffix.start()]
         elif ext == '.so':
             # Linux/Unix/Mac extension module
-            platform_suffix = re.search(r'[.]cpython-[0-9]+[a-z]*(?:-[a-z0-9]+)?$', basename, re.I)
+            platform_suffix = re.search(r'[.]cpython-[0-9]+[-_a-z0-9]*$', basename, re.I)
             if platform_suffix:
                 basename = basename[:platform_suffix.start()]
         elif ext == '.pxi':
