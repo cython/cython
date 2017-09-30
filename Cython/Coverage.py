@@ -107,7 +107,7 @@ class Plugin(CoveragePlugin):
         if ext in ('.py', '.pyx', '.pxd', '.c', '.cpp'):
             pass
         elif ext in ('.so', '.pyd'):
-            platform_suffix = re.search(r'[.]cpython-[0-9]+[a-z]*$', basename, re.I)
+            platform_suffix = re.search(r'[.]cp(?:ython-[0-9]+[a-z]*|[0-9]+-win[_a-z0-9]*)$', basename, re.I)
             if platform_suffix:
                 basename = basename[:platform_suffix.start()]
         elif ext == '.pxi':
