@@ -106,8 +106,14 @@ class Plugin(CoveragePlugin):
         ext = ext.lower()
         if ext in ('.py', '.pyx', '.pxd', '.c', '.cpp'):
             pass
-        elif ext in ('.so', '.pyd'):
-            platform_suffix = re.search(r'[.]cp(?:ython-[0-9]+[a-z]*|[0-9]+-win[_a-z0-9]*)$', basename, re.I)
+        elif ext == '.pyd':
+            # Windows extension module
+            platform_suffix = re.search(r'[.]cp[0-9]+-win[_a-z0-9]*$', basename, re.I)
+            if platform_suffix:
+                basename = basename[:platform_suffix.start()]
+        elif ext == '.so':
+            # Linux/Unix/Mac extension module
+            platform_suffix = re.search(r'[.]cpython-[0-9]+[a-z]*(?:-[a-z0-9]+)?$', basename, re.I)
             if platform_suffix:
                 basename = basename[:platform_suffix.start()]
         elif ext == '.pxi':
