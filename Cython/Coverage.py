@@ -13,6 +13,7 @@ import glob
 from collections import defaultdict
 
 from coverage.plugin import CoveragePlugin, FileTracer, FileReporter  # requires coverage.py 4.0+
+from coverage.files import canonical_filename
 
 from .Utils import find_root_package_dir, is_package_dir, open_source_file
 
@@ -42,37 +43,8 @@ def _find_dep_file_path(main_file, file_path):
         for sys_path in sys.path:
             test_path = os.path.realpath(os.path.join(sys_path, file_path))
             if os.path.exists(test_path):
-                return _get_actual_filename(test_path)
-    return  _get_actual_filename(abs_path)
-
-
-def _get_actual_filename(filepath):
-    """
-    on windows:
-    search the file `filepath' on the file system 
-    and return it with the correct upper/lowercases
-    on linux: return the filepath unmodified
-    
-    Parameters
-    ----------
-    filepath : str
-    
-    Returns
-    -------
-    filepath : str
-    """
-    if not sys.platform.startswith('win'):
-        return filepath
-    dirs = filepath.split('\\')
-    # disk letter
-    test_name = [dirs[0].upper()]
-    for d in dirs[1:]:
-        test_name.append("{}[{}]".format(d[:-1], d[-1]))
-    res = glob.glob('\\'.join(test_name))
-    if not res:
-        #File not found
-        return filepath
-    return res[0]
+                return canonical_filename(test_path)
+    return canonical_filename(abs_path)
 
 
 class Plugin(CoveragePlugin):
@@ -93,7 +65,7 @@ class Plugin(CoveragePlugin):
         if filename.startswith('<') or filename.startswith('memory:'):
             return None
         c_file = py_file = None
-        filename =  _get_actual_filename(os.path.abspath(filename))
+        filename = canonical_filename(os.path.abspath(filename))
         if self._c_files_map and filename in self._c_files_map:
             c_file = self._c_files_map[filename][0]
 
@@ -121,7 +93,7 @@ class Plugin(CoveragePlugin):
         #    from coverage.python import PythonFileReporter
         #    return PythonFileReporter(filename)
 
-        filename = _get_actual_filename(os.path.abspath(filename))
+        filename = canonical_filename(os.path.abspath(filename))
         if self._c_files_map and filename in self._c_files_map:
             c_file, rel_file_path, code = self._c_files_map[filename]
         else:
