@@ -20,7 +20,7 @@ except:
         def str_to_unicode(self, s):
             return s
 
-    __test__ = False
+    __test__ = {}
     get_ipython = lambda: None
     py3compat = _py3compat()
 
