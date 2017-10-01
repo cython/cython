@@ -125,6 +125,7 @@ class TestIPythonMagic(CythonTest):
         self.assertEqual(ip.user_ns['g'], 2 // 10)
         self.assertEqual(ip.user_ns['h'], 2 // 10)
 
+    @skip_win32('Skip on Windows')
     def test_cython3_pgo(self):
         # The Cython cell defines the functions f() and call().
         ip.run_cell_magic('cython', '-3 --pgo', pgo_cython3_code)
