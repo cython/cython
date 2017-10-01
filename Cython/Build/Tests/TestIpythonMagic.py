@@ -13,6 +13,9 @@ try:
     from IPython.utils import py3compat
 except:
     __test__ = False
+    ip = None
+else:
+    ip = get_ipython()
 
 try:
     # disable IPython history thread to avoid having to clean it up
@@ -23,7 +26,6 @@ except ImportError:
 
 from Cython.TestUtils import CythonTest
 
-ip = get_ipython()
 code = py3compat.str_to_unicode("""\
 def f(x):
     return 2*x
