@@ -12,6 +12,7 @@ import sys
 from collections import defaultdict
 
 from coverage.plugin import CoveragePlugin, FileTracer, FileReporter  # requires coverage.py 4.0+
+from coverage.files import canonical_filename
 
 from .Utils import find_root_package_dir, is_package_dir, open_source_file
 
@@ -41,8 +42,8 @@ def _find_dep_file_path(main_file, file_path):
         for sys_path in sys.path:
             test_path = os.path.realpath(os.path.join(sys_path, file_path))
             if os.path.exists(test_path):
-                return test_path
-    return abs_path
+                return canonical_filename(test_path)
+    return canonical_filename(abs_path)
 
 
 class Plugin(CoveragePlugin):
@@ -63,7 +64,7 @@ class Plugin(CoveragePlugin):
         if filename.startswith('<') or filename.startswith('memory:'):
             return None
         c_file = py_file = None
-        filename = os.path.abspath(filename)
+        filename = canonical_filename(os.path.abspath(filename))
         if self._c_files_map and filename in self._c_files_map:
             c_file = self._c_files_map[filename][0]
 
@@ -91,7 +92,7 @@ class Plugin(CoveragePlugin):
         #    from coverage.python import PythonFileReporter
         #    return PythonFileReporter(filename)
 
-        filename = os.path.abspath(filename)
+        filename = canonical_filename(os.path.abspath(filename))
         if self._c_files_map and filename in self._c_files_map:
             c_file, rel_file_path, code = self._c_files_map[filename]
         else:
