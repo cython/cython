@@ -183,7 +183,7 @@ def test_transpose():
     cdef dtype_t[:, :] b = a.T
     print a.T.shape[0], a.T.shape[1]
     print a_obj.T.shape
-    print numpy_obj.T.shape
+    print tuple(map(int, numpy_obj.T.shape)) # might use longs in Py2
 
     cdef dtype_t[:, :] c
     with nogil:
