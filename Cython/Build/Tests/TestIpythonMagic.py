@@ -3,19 +3,26 @@
 
 """Tests for the Cython magics extension."""
 
+from __future__ import absolute_import
+
 import os
 import sys
 from contextlib import contextmanager
 from Cython.Build import IpythonMagic
+from Cython.TestUtils import CythonTest
 
 try:
     from IPython.testing.globalipapp import get_ipython
     from IPython.utils import py3compat
 except:
+    # Disable tests and fake helpers for initialisation below.
+    class _py3compat(object):
+        def str_to_unicode(self, s):
+            return s
+
     __test__ = False
-    ip = None
-else:
-    ip = get_ipython()
+    get_ipython = lambda: None
+    py3compat = _py3compat()
 
 try:
     # disable IPython history thread to avoid having to clean it up
@@ -24,7 +31,8 @@ try:
 except ImportError:
     pass
 
-from Cython.TestUtils import CythonTest
+# Initialise IPython after disabling history thread.
+ip = get_ipython()
 
 code = py3compat.str_to_unicode("""\
 def f(x):
