@@ -14,7 +14,7 @@ from Cython.TestUtils import CythonTest
 try:
     from IPython.testing.globalipapp import get_ipython
     from IPython.utils import py3compat
-except:
+except ImportError:
     # Disable tests and fake helpers for initialisation below.
     class _py3compat(object):
         def str_to_unicode(self, s):
