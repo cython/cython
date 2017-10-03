@@ -1372,7 +1372,9 @@ def _analyse_name_as_type(name, pos, env):
         else:
             sizeof_node = declaration.root.stats[0].expr
             if isinstance(sizeof_node, SizeofTypeNode):
-                return sizeof_node.arg_type.analyse_types(env)
+                sizeof_node = sizeof_node.analyse_types(env)
+                if isinstance(sizeof_node, SizeofTypeNode):
+                    return sizeof_node.arg_type
     return None
 
 
