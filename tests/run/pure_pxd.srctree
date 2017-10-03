@@ -41,11 +41,10 @@ class TypedMethod():
     """
     >>> t = TypedMethod()
     >>> t.meth()
-    0.0
+    97
     """
     def meth(self):
-        from array import array
-        x = array('d', [0.0])
+        x = bytearray(b'abcdefg')
         return x[0]
 
 
@@ -91,7 +90,7 @@ cdef class ExtTypeAttributes:
 
 
 cdef class TypedMethod:
-    @cython.locals(x='double[:]')
+    @cython.locals(x='char[:]')
     cpdef meth(self)
 
 
