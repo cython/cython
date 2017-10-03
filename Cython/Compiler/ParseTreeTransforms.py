@@ -1385,10 +1385,15 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
             elif decorator.is_attribute and decorator.obj.name in properties:
                 handler_name = self._map_property_attribute(decorator.attribute)
                 if handler_name:
-                    assert decorator.obj.name == node.name
-                    if len(node.decorators) > 1:
+                    if decorator.obj.name != node.name:
+                        # CPython does not generate an error or warning, but not something useful either.
+                        error(decorator_node.pos,
+                              "Mismatching property names, expected '%s', got '%s'" % (
+                                  decorator.obj.name, node.name))
+                    elif len(node.decorators) > 1:
                         return self._reject_decorated_property(node, decorator_node)
-                    return self._add_to_property(properties, node, handler_name, decorator_node)
+                    else:
+                        return self._add_to_property(properties, node, handler_name, decorator_node)
 
         # we clear node.decorators, so we need to set the
         # is_staticmethod/is_classmethod attributes now
