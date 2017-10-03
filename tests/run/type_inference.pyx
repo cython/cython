@@ -137,15 +137,21 @@ def multiple_assignments():
     a = 3
     a = 4
     a = 5
-    assert typeof(a) == "long"
+    assert typeof(a) == "long", typeof(a)
     b = a
     b = 3.1
     b = 3.14159
-    assert typeof(b) == "double"
+    assert typeof(b) == "double", typeof(b)
     c = a
     c = b
     c = [1,2,3]
-    assert typeof(c) == "Python object"
+    assert typeof(c) == "Python object", typeof(c)
+    d = b'abc'
+    d = bytes()
+    d = bytes(b'xyz')
+    d = None
+    assert typeof(d) == "bytes object", typeof(d)
+
 
 def arithmetic():
     """

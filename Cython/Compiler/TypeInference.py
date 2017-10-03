@@ -415,6 +415,22 @@ class SimpleAssignmentTypeInferer(object):
             entry = node.entry
             return spanning_type(types, entry.might_overflow, entry.pos, scope)
 
+        def inferred_types(entry):
+            has_none = False
+            has_pyobjects = False
+            types = []
+            for assmt in entry.cf_assignments:
+                if assmt.rhs.is_none:
+                    has_none = True
+                else:
+                    rhs_type = assmt.inferred_type
+                    if rhs_type and rhs_type.is_pyobject:
+                        has_pyobjects = True
+                    types.append(rhs_type)
+            if has_none and not has_pyobjects:
+                types.append(py_object_type)
+            return types
+
         def resolve_assignments(assignments):
             resolved = set()
             for assmt in assignments:
@@ -467,7 +483,7 @@ class SimpleAssignmentTypeInferer(object):
                 continue
             entry_type = py_object_type
             if assmts_resolved.issuperset(entry.cf_assignments):
-                types = [assmt.inferred_type for assmt in entry.cf_assignments]
+                types = inferred_types(entry)
                 if types and all(types):
                     entry_type = spanning_type(
                         types, entry.might_overflow, entry.pos, scope)
@@ -477,8 +493,9 @@ class SimpleAssignmentTypeInferer(object):
         def reinfer():
             dirty = False
             for entry in inferred:
-                types = [assmt.infer_type()
-                         for assmt in entry.cf_assignments]
+                for assmt in entry.cf_assignments:
+                    assmt.infer_type()
+                types = inferred_types(entry)
                 new_type = spanning_type(types, entry.might_overflow, entry.pos, scope)
                 if new_type != entry.type:
                     self.set_entry_type(entry, new_type)
