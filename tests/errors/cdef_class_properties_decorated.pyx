@@ -34,9 +34,14 @@ cdef class Prop:
     def prop2(self, value):
         pass
 
+    @prop2.setter
+    def other_name(self, value):
+        pass
+
 
 _ERRORS = """
 19:4: Property methods with additional decorators are not supported
 27:4: Property methods with additional decorators are not supported
 33:4: Property methods with additional decorators are not supported
+37:4: Mismatching property names, expected 'prop2', got 'other_name'
 """

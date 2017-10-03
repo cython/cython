@@ -990,6 +990,8 @@ class CythonCompileTestCase(unittest.TestCase):
                     self.fail('Nondeterministic file generation: %s' % ', '.join(diffs))
 
         tostderr = sys.__stderr__.write
+        if expected_warnings or (expect_warnings and warnings):
+            self._match_output(expected_warnings, warnings, tostderr)
         if 'cerror' in self.tags['tag']:
             if errors:
                 tostderr("\n=== Expected C compile error ===\n")
@@ -1000,8 +1002,6 @@ class CythonCompileTestCase(unittest.TestCase):
         elif errors or expected_errors:
             self._match_output(expected_errors, errors, tostderr)
             return None
-        if expected_warnings or (expect_warnings and warnings):
-            self._match_output(expected_warnings, warnings, tostderr)
 
         so_path = None
         if not self.cython_only:
