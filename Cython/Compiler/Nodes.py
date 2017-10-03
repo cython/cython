@@ -461,17 +461,27 @@ class StatNode(Node):
 
 class CDefExternNode(StatNode):
     #  include_file   string or None
-    #  body           StatNode
+    #  body           StatListNode
 
     child_attrs = ["body"]
 
     def analyse_declarations(self, env):
-        if self.include_file:
-            env.add_include_file(self.include_file)
         old_cinclude_flag = env.in_cinclude
         env.in_cinclude = 1
         self.body.analyse_declarations(env)
         env.in_cinclude = old_cinclude_flag
+        inc = self.include_file
+        if inc:
+            stats = self.body.stats
+            if inc[0] == '<' and inc[-1] == '>':
+                # System include => always early
+                env.add_include_file(inc)
+            elif stats and all(isinstance(node, CVarDefNode) for node in stats):
+                # Generate a late include if the body is not empty and
+                # all statements are variable or function declarations.
+                env.add_include_file(inc, late=True)
+            else:
+                env.add_include_file(inc)
 
     def analyse_expressions(self, env):
         return self
