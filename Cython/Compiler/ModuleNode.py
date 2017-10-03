@@ -138,7 +138,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         env.return_type = PyrexTypes.c_void_type
         self.referenced_modules = []
         self.find_referenced_modules(env, self.referenced_modules, {})
-        env.fixup_includes()
         self.sort_cdef_classes(env)
         self.generate_c_code(env, options, result)
         self.generate_h_code(env, options, result)
@@ -739,7 +738,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if early:
             includes += env.include_files_early
         if late:
-            includes += env.include_files_late
+            includes += [include for include in env.include_files_late
+                         if include not in env.include_files_early]
         for filename in includes:
             byte_decoded_filenname = str(filename)
 

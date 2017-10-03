@@ -1253,20 +1253,13 @@ class ModuleScope(Scope):
         if filename in self.python_include_files:
             return
         # Possibly, the same include appears both as early and as late
-        # include. We'll deal with this in fixup_includes().
+        # include. We'll deal with this at code generation time.
         if late:
             incs = self.include_files_late
         else:
             incs = self.include_files_early
         if filename not in incs:
             incs.append(filename)
-
-    def fixup_includes(self):
-        for filename in self.include_files_early:
-            try:
-                self.include_files_late.remove(filename)
-            except ValueError:
-                pass
 
     def add_imported_module(self, scope):
         if scope not in self.cimported_modules:
