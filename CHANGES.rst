@@ -2,6 +2,24 @@
 Cython Changelog
 ================
 
+0.27.2 (2017-??-??)
+===================
+
+Bugs fixed
+----------
+
+* Crash on first lookup of "cline_in_traceback" option during exception handling.
+  (Github issue #1907)
+
+* Some nested module level comprehensions failed to compile.
+  (Github issue #1906)
+
+* Compiler crash on some complex type declarations in pure mode.
+  (Github issue #1908)
+
+* Compiler crash on misnamed properties. (Github issue #1905)
+
+
 0.27.1 (2017-10-01)
 ===================
 
