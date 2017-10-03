@@ -1704,7 +1704,10 @@ class LocalScope(Scope):
         # Return None if not found.
         entry = Scope.lookup(self, name)
         if entry is not None:
-            if entry.scope is not self and entry.scope.is_closure_scope:
+            entry_scope = entry.scope
+            while entry_scope.is_genexpr_scope:
+                entry_scope = entry_scope.outer_scope
+            if entry_scope is not self and entry_scope.is_closure_scope:
                 if hasattr(entry.scope, "scope_class"):
                     raise InternalError("lookup() after scope class created.")
                 # The actual c fragment for the different scopes differs
@@ -1740,8 +1743,12 @@ class GeneratorExpressionScope(Scope):
     is_genexpr_scope = True
 
     def __init__(self, outer_scope):
-        name = outer_scope.global_scope().next_id(Naming.genexpr_id_ref)
-        Scope.__init__(self, name, outer_scope, outer_scope)
+        parent_scope = outer_scope
+        # TODO: also ignore class scopes?
+        while parent_scope.is_genexpr_scope:
+            parent_scope = parent_scope.parent_scope
+        name = parent_scope.global_scope().next_id(Naming.genexpr_id_ref)
+        Scope.__init__(self, name, outer_scope, parent_scope)
         self.directives = outer_scope.directives
         self.genexp_prefix = "%s%d%s" % (Naming.pyrex_prefix, len(name), name)
 
@@ -1768,7 +1775,10 @@ class GeneratorExpressionScope(Scope):
         cname = '%s%s' % (self.genexp_prefix, self.parent_scope.mangle(Naming.var_prefix, name or self.next_id()))
         entry = self.declare(name, cname, type, pos, visibility)
         entry.is_variable = True
-        entry.is_local = True
+        if self.parent_scope.is_module_scope:
+            entry.is_cglobal = True
+        else:
+            entry.is_local = True
         entry.in_subscope = True
         self.var_entries.append(entry)
         self.entries[name] = entry

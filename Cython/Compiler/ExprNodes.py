@@ -7949,8 +7949,7 @@ class ScopedExprNode(ExprNode):
         generate_inner_evaluation_code(code)
 
         # normal (non-error) exit
-        for entry in py_entries:
-            code.put_var_xdecref_clear(entry)
+        self._generate_vars_cleanup(code, py_entries)
 
         # error/loop body exit points
         exit_scope = code.new_label('exit_scope')
@@ -7959,14 +7958,21 @@ class ScopedExprNode(ExprNode):
                                  list(zip(code.get_loop_labels(), old_loop_labels))):
             if code.label_used(label):
                 code.put_label(label)
-                for entry in py_entries:
-                    code.put_var_xdecref_clear(entry)
+                self._generate_vars_cleanup(code, py_entries)
                 code.put_goto(old_label)
         code.put_label(exit_scope)
         code.putln('} /* exit inner scope */')
 
         code.set_loop_labels(old_loop_labels)
         code.error_label = old_error_label
+
+    def _generate_vars_cleanup(self, code, py_entries):
+        for entry in py_entries:
+            if entry.is_cglobal:
+                code.put_var_gotref(entry)
+                code.put_decref_set(entry.cname, "Py_None")
+            else:
+                code.put_var_xdecref_clear(entry)
 
 
 class ComprehensionNode(ScopedExprNode):
