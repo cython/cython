@@ -80,6 +80,82 @@ modifier_output_mapper = {
 is_self_assignment = re.compile(r" *(\w+) = (\1);\s*$").match
 
 
+class IncludeCode(object):
+    """
+    An include file and/or verbatim C code to be included in the
+    generated sources.
+    """
+    # attributes:
+    #
+    #  pieces    {order: unicode}: pieces of C code to be generated.
+    #            For the included file, the key "order" is zero.
+    #            For verbatim include code, the "order" is the "order"
+    #            attribute of the original IncludeCode where this piece
+    #            of C code was first added. This is needed to prevent
+    #            duplication if the same include code is found through
+    #            multiple cimports.
+    #  location  int: where to put this include in the C sources, one
+    #            of the constants INITIAL, EARLY, LATE
+    #  order     int: sorting order (automatically set by increasing counter)
+
+    # Constants for location. If the same include occurs with different
+    # locations, the earliest one takes precedense.
+    INITIAL = 0
+    EARLY = 1
+    LATE = 2
+
+    counter = 1   # Counter for "order"
+
+    def __init__(self, include=None, verbatim=None, late=True, initial=False):
+        self.order = self.counter
+        type(self).counter += 1
+        self.pieces = {}
+
+        if include:
+            if include[0] == '<' and include[-1] == '>':
+                self.pieces[0] = u'#include {0}'.format(include)
+                late = False  # system include is never late
+            else:
+                self.pieces[0] = u'#include "{0}"'.format(include)
+
+        if verbatim:
+            self.pieces[self.order] = verbatim
+
+        if initial:
+            self.location = self.INITIAL
+        elif late:
+            self.location = self.LATE
+        else:
+            self.location = self.EARLY
+
+    def dict_update(self, d, key):
+        """
+        Insert `self` in dict `d` with key `key`. If that key already
+        exists, update the attributes of the existing value with `self`.
+        """
+        if key in d:
+            other = d[key]
+            other.location = min(self.location, other.location)
+            other.pieces.update(self.pieces)
+        else:
+            d[key] = self
+
+    def sortkey(self):
+        return self.order
+
+    def mainpiece(self):
+        """
+        Return the main piece of C code, corresponding to the include
+        file. If there was no include file, return None.
+        """
+        return self.pieces.get(0)
+
+    def write(self, code):
+        # Write values of self.pieces dict, sorted by the keys
+        for k in sorted(self.pieces):
+            code.putln(self.pieces[k])
+
+
 def get_utility_dir():
     # make this a function and not global variables:
     # http://trac.cython.org/cython_trac/ticket/475
