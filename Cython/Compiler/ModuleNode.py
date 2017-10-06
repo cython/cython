@@ -2299,6 +2299,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.put_declare_refcount_context()
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
+        code.putln('PyObject *moddict, *spec;')
+        code.putln('moddict = PyModule_GetDict(__pyx_pyinit_module);')
+        code.putln('spec = PyDict_GetItemString(moddict, "__spec__");')
+        code.putln('__Pyx_copy_spec_to_module(spec, moddict, "loader", "__loader__");')
+        code.putln('__Pyx_copy_spec_to_module(spec, moddict, "origin", "__file__");')
+        code.putln('__Pyx_copy_spec_to_module(spec, moddict, "parent", "__package__");')
+        code.putln('__Pyx_copy_spec_to_module(spec, moddict, "submodule_search_locations", "__path__");')
         # Hack: enforce single initialisation.
         code.putln("if (%s && %s == %s) return 0;" % (
             Naming.module_cname,
@@ -2631,12 +2638,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#if PY_MAJOR_VERSION >= 3")
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         exec_func_cname = self.mod_init_func_cname(Naming.pymodule_exec_func_cname, env)
-        code.putln("static PyObject* %s(PyObject *spec, PyModuleDef *def); /*proto*/" %
-                   Naming.pymodule_create_func_cname)
         code.putln("static int %s(PyObject* module); /*proto*/" % exec_func_cname)
 
         code.putln("static PyModuleDef_Slot %s[] = {" % Naming.pymoduledef_slots_cname)
-        code.putln("{Py_mod_create, (void*)%s}," % Naming.pymodule_create_func_cname)
         code.putln("{Py_mod_exec, (void*)%s}," % exec_func_cname)
         code.putln("{0, NULL}")
         code.putln("};")
