@@ -240,7 +240,6 @@ def update_openmp_extension(ext):
 
     if flags:
         compile_flags, link_flags = flags
-
         ext.extra_compile_args.extend(compile_flags.split())
         ext.extra_link_args.extend(link_flags.split())
         return ext
@@ -248,6 +247,40 @@ def update_openmp_extension(ext):
         return ext
 
     return EXCLUDE_EXT
+
+def update_cpp11_extension(ext):
+    """
+        update cpp11 extensions that will run on versions of gcc >4.8
+    """
+    gcc_version = get_gcc_version()
+    if gcc_version is not None:
+        gcc_major_vers = gcc_version.split(".")[0]
+        gcc_minor_vers = gcc_version.split(".")[1]
+        if float(gcc_major_version + "." + gcc_minor_vers) > 4.8
+            compile_flags, link_flags = flags
+            ext.extra_compile_args.extend("-std=c++11")
+        return ext    
+return EXCLUDE_EXT
+
+
+def get_gcc_version():
+    """
+        finds gcc version using Popen
+    """
+    matcher = re.compile(r"gcc version (\d+\.\d+)").search
+    try:
+        p = subprocess.Popen([cc, "-v"], stderr=subprocess.PIPE, env=env)
+    except EnvironmentError:
+        # Be compatible with Python 3
+        warnings.warn("Unable to find the %s compiler: %s: %s" %
+                      (language, os.strerror(sys.exc_info()[1].errno), cc))
+        return None
+    _, output = p.communicate()
+
+    output = output.decode(locale.getpreferredencoding() or 'ASCII', 'replace')
+    gcc_version = matcher(output)
+    return gcc_version
+
 
 def get_openmp_compiler_flags(language):
     """
@@ -272,20 +305,8 @@ def get_openmp_compiler_flags(language):
     # Force english output
     env = os.environ.copy()
     env['LC_MESSAGES'] = 'C'
+    gcc_version = get_gcc_version()
 
-    matcher = re.compile(r"gcc version (\d+\.\d+)").search
-    try:
-        p = subprocess.Popen([cc, "-v"], stderr=subprocess.PIPE, env=env)
-    except EnvironmentError:
-        # Be compatible with Python 3
-        warnings.warn("Unable to find the %s compiler: %s: %s" %
-                      (language, os.strerror(sys.exc_info()[1].errno), cc))
-        return None
-    _, output = p.communicate()
-
-    output = output.decode(locale.getpreferredencoding() or 'ASCII', 'replace')
-
-    gcc_version = matcher(output)
     if not gcc_version:
         return None # not gcc - FIXME: do something about other compilers
 
@@ -313,6 +334,7 @@ EXCLUDE_EXT = object()
 EXT_EXTRAS = {
     'tag:numpy' : update_numpy_extension,
     'tag:openmp': update_openmp_extension,
+    'tag:cpp11': update_cpp11_extension,
     'tag:trace' : update_linetrace_extension,
 }
 

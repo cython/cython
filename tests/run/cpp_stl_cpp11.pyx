@@ -14,7 +14,7 @@ py_unicode = unicode
 
 def test_unordered_map_functionality():
     """
-    >>> test_cxx11_unordered_map
+    >>> test_cpp11_unordered_map
     tests basic unordered map functionality
     checks insertion with Pair and [] operator
     checks erase with pair and and key    
