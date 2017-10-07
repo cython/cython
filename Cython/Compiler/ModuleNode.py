@@ -2396,6 +2396,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put_error_if_neg(self.pos, "__Pyx_patch_abc()")
         code.putln("#endif")
 
+        code.use_label(code.return_label)
+        code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT && !CYTHON_PEP489_REINIT")
+        code.putln("{ static int initialised = 0; if (!initialised) initialised = 1; else goto %s; }" % (
+            code.return_label))
+        code.putln("#else")
+        code.putln("if ((1)); else goto %s;" % code.return_label)
+        # avoid unused label warning
+        code.putln("#endif")
+
         if profile or linetrace:
             code.put_trace_call(header3, self.pos, nogil=not code.funcstate.gil_owned)
             code.funcstate.can_trace = True
