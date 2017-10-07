@@ -1112,7 +1112,7 @@ class CythonRunTestCase(CythonCompileTestCase):
             tests = doctest.DocTestSuite(module)
             tests.run(result)
             if self.test_reload:
-                import_ext(module_or_name, ext_so_path)
+                import_ext(module_or_name, ext_so_path)  # try to reload module
         run_forked_test(result, run_test, self.shortDescription(), self.fork)
 
 def run_forked_test(result, run_func, test_name, fork=True):
