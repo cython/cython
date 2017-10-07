@@ -1549,14 +1549,16 @@ class UnicodeNode(ConstNode):
                 data_cname = code.get_pyunicode_ptr_const(self.value)
                 code = code.get_cached_constants_writer()
                 code.mark_pos(self.pos)
+                code.putln("__Pyx_INIT_ONCE(%s) {" % self.result())
                 code.putln(
                     "%s = PyUnicode_FromUnicode(%s, (sizeof(%s) / sizeof(Py_UNICODE))-1); %s" % (
-                        self.result_code,
+                        self.result(),
                         data_cname,
                         data_cname,
-                        code.error_goto_if_null(self.result_code, self.pos)))
+                        code.error_goto_if_null(self.result(), self.pos)))
                 code.put_error_if_neg(
                     self.pos, "__Pyx_PyUnicode_READY(%s)" % self.result_code)
+                code.putln("}")
             else:
                 self.result_code = code.get_py_string_const(self.value)
         else:
@@ -5050,6 +5052,7 @@ class SliceNode(ExprNode):
             self.result_code = code.get_py_const(py_object_type, 'slice', cleanup_level=2)
             code = code.get_cached_constants_writer()
             code.mark_pos(self.pos)
+            code.putln("__Pyx_INIT_ONCE(%s) {" % self.result())
 
         code.putln(
             "%s = PySlice_New(%s, %s, %s); %s" % (
@@ -5061,6 +5064,8 @@ class SliceNode(ExprNode):
         code.put_gotref(self.py_result())
         if self.is_literal:
             code.put_giveref(self.py_result())
+            code.putln("}")
+
 
 class SliceIntNode(SliceNode):
     #  start:stop:step in subscript list
@@ -7707,8 +7712,10 @@ class TupleNode(SequenceNode):
             tuple_target = code.get_py_const(py_object_type, 'tuple', cleanup_level=2)
             const_code = code.get_cached_constants_writer()
             const_code.mark_pos(self.pos)
+            const_code.putln("__Pyx_INIT_ONCE(%s) {" % tuple_target)
             self.generate_sequence_packing_code(const_code, tuple_target, plain=True)
             const_code.put_giveref(tuple_target)
+            const_code.putln("}")
             code.putln('%s = PyNumber_Multiply(%s, %s); %s' % (
                 self.result(), tuple_target, self.mult_factor.py_result(),
                 code.error_goto_if_null(self.result(), self.pos)
@@ -7720,8 +7727,10 @@ class TupleNode(SequenceNode):
             self.result_code = code.get_py_const(py_object_type, 'tuple', cleanup_level=2)
             code = code.get_cached_constants_writer()
             code.mark_pos(self.pos)
+            code.putln("__Pyx_INIT_ONCE(%s) {" % self.result())
             self.generate_sequence_packing_code(code)
             code.put_giveref(self.py_result())
+            code.putln("}")
         else:
             self.type.entry.used = True
             self.generate_sequence_packing_code(code)
@@ -9305,8 +9314,9 @@ class CodeObjectNode(ExprNode):
         if self.def_node.starstar_arg:
             flags.append('CO_VARKEYWORDS')
 
+        code.putln("__Pyx_INIT_ONCE(%s) {" % self.result())
         code.putln("%s = (PyObject*)__Pyx_PyCode_New(%d, %d, %d, 0, %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, %s); %s" % (
-            self.result_code,
+            self.result(),
             len(func.args) - func.num_kwonly_args,  # argcount
             func.num_kwonly_args,      # kwonlyargcount (Py3 only)
             len(self.varnames.args),   # nlocals
@@ -9323,6 +9333,7 @@ class CodeObjectNode(ExprNode):
             Naming.empty_bytes,        # lnotab
             code.error_goto_if_null(self.result_code, self.pos),
             ))
+        code.putln("}")
 
 
 class DefaultLiteralArgNode(ExprNode):

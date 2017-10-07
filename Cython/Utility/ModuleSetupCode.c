@@ -743,9 +743,11 @@ PyEval_InitThreads();
 #if CYTHON_PEP489_MULTI_PHASE_INIT
 #define __Pyx_ASSIGN_REF_ONCE(name, value, error_goto)  if (name); else { name = value; if (unlikely(!name)) error_goto }
 #define __Pyx_ASSIGN_REF_ONCE_NO_ERROR(name, value)  if (name); else { name = value; }
+#define __Pyx_INIT_ONCE(name)  if (name); else
 #else
 #define __Pyx_ASSIGN_REF_ONCE(name, value, error_goto)  name = value; if (unlikely(!name)) error_goto
 #define __Pyx_ASSIGN_REF_ONCE_NO_ERROR(name, value)  name = value;
+#define __Pyx_INIT_ONCE(name)  /* if (!name) */
 #endif
 
 /////////////// ModuleCreationPEP489 ///////////////
