@@ -2860,10 +2860,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if entry.visibility == 'extern' and not entry.utility_code_definition:
                 self.generate_type_import_code(env, entry.type, entry.pos, code)
             else:
+                ext_type = entry.type
+                if ext_type.typeobj_cname and ext_type.typeptr_cname:
+                    code.putln("__Pyx_INIT_ONCE(%s) {" % ext_type.typeptr_cname)
                 self.generate_base_type_import_code(env, entry, code)
                 self.generate_exttype_vtable_init_code(entry, code)
                 self.generate_type_ready_code(env, entry, code)
                 self.generate_typeptr_assignment_code(entry, code)
+                if ext_type.typeobj_cname and ext_type.typeptr_cname:
+                    code.putln("}")
 
     def generate_base_type_import_code(self, env, entry, code):
         base_type = entry.type.base_type
