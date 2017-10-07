@@ -2867,18 +2867,18 @@ class WithExitCallNode(ExprNode):
     # The __exit__() call of a 'with' statement.  Used in both the
     # except and finally clauses.
 
-    # with_stat  WithStatNode                the surrounding 'with' statement
-    # args       TupleNode or ResultStatNode the exception info tuple
-    # await      AwaitExprNode               the await expression of an 'async with' statement
+    # with_stat   WithStatNode                the surrounding 'with' statement
+    # args        TupleNode or ResultStatNode the exception info tuple
+    # await_expr  AwaitExprNode               the await expression of an 'async with' statement
 
-    subexprs = ['args', 'await']
+    subexprs = ['args', 'await_expr']
     test_if_run = True
-    await = None
+    await_expr = None
 
     def analyse_types(self, env):
         self.args = self.args.analyse_types(env)
-        if self.await:
-            self.await = self.await.analyse_types(env)
+        if self.await_expr:
+            self.await_expr = self.await_expr.analyse_types(env)
         self.type = PyrexTypes.c_bint_type
         self.is_temp = True
         return self
@@ -2905,12 +2905,12 @@ class WithExitCallNode(ExprNode):
         code.putln(code.error_goto_if_null(result_var, self.pos))
         code.put_gotref(result_var)
 
-        if self.await:
+        if self.await_expr:
             # FIXME: result_var temp currently leaks into the closure
-            self.await.generate_evaluation_code(code, source_cname=result_var, decref_source=True)
-            code.putln("%s = %s;" % (result_var, self.await.py_result()))
-            self.await.generate_post_assignment_code(code)
-            self.await.free_temps(code)
+            self.await_expr.generate_evaluation_code(code, source_cname=result_var, decref_source=True)
+            code.putln("%s = %s;" % (result_var, self.await_expr.py_result()))
+            self.await_expr.generate_post_assignment_code(code)
+            self.await_expr.free_temps(code)
 
         if self.result_is_used:
             self.allocate_temp_result(code)

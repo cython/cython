@@ -1292,7 +1292,7 @@ class WithTransform(CythonTransform, SkipDeclarations):
                                 pos, with_stat=node,
                                 test_if_run=False,
                                 args=excinfo_target,
-                                await=ExprNodes.AwaitExprNode(pos, arg=None) if is_async else None)),
+                                await_expr=ExprNodes.AwaitExprNode(pos, arg=None) if is_async else None)),
                         body=Nodes.ReraiseStatNode(pos),
                     ),
                 ],
@@ -1314,7 +1314,7 @@ class WithTransform(CythonTransform, SkipDeclarations):
                     test_if_run=True,
                     args=ExprNodes.TupleNode(
                         pos, args=[ExprNodes.NoneNode(pos) for _ in range(3)]),
-                    await=ExprNodes.AwaitExprNode(pos, arg=None) if is_async else None)),
+                    await_expr=ExprNodes.AwaitExprNode(pos, arg=None) if is_async else None)),
             handle_error_case=False,
         )
         return node
