@@ -2693,11 +2693,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(code.error_goto_if_null(env.module_cname, self.pos))
         code.putln("#endif")  # CYTHON_PEP489_MULTI_PHASE_INIT
 
+        code.putln("__Pyx_INIT_ONCE(%s) {" % env.module_dict_cname)
+        # FIXME: remove global module dict reference!
         code.putln(
             "%s = PyModule_GetDict(%s); %s" % (
                 env.module_dict_cname, env.module_cname,
                 code.error_goto_if_null(env.module_dict_cname, self.pos)))
         code.put_incref(env.module_dict_cname, py_object_type, nanny=False)
+        code.putln("}")
 
         # FIXME: remove global module reference!
         code.put_assign_ref_once(Naming.builtins_cname, "PyImport_AddModule(__Pyx_BUILTIN_MODULE_NAME)", self.pos)
