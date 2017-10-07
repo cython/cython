@@ -43,7 +43,6 @@ cdef extern from "<unordered_map>" namespace "std" nogil:
         pair[iterator, iterator] equal_range(T&)
         #pair[const_iterator, const_iterator] equal_range(key_type&)
         iterator erase(iterator)
-        bint erase(T)
         iterator erase(iterator, iterator)
         size_t erase(T&)
         iterator find(T&)
