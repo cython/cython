@@ -252,7 +252,7 @@ def update_cpp11_extension(ext):
     """
         update cpp11 extensions that will run on versions of gcc >4.8
     """
-    gcc_version = get_gcc_version()
+    gcc_version = get_gcc_version(ext.language)
     if gcc_version is not None:
         if float(gcc_version) > 4.8:
             compile_flags, link_flags = flags
@@ -261,31 +261,9 @@ def update_cpp11_extension(ext):
     return EXCLUDE_EXT
 
 
-def get_gcc_version():
+def get_gcc_version(language):
     """
         finds gcc version using Popen
-    """
-    matcher = re.compile(r"gcc version (\d+\.\d+)").search
-    try:
-        p = subprocess.Popen([cc, "-v"], stderr=subprocess.PIPE, env=env)
-    except EnvironmentError:
-        # Be compatible with Python 3
-        warnings.warn("Unable to find the %s compiler: %s: %s" %
-                      (language, os.strerror(sys.exc_info()[1].errno), cc))
-        return None
-    _, output = p.communicate()
-
-    output = output.decode(locale.getpreferredencoding() or 'ASCII', 'replace')
-    gcc_version = matcher(output)
-    return gcc_version
-
-
-def get_openmp_compiler_flags(language):
-    """
-    As of gcc 4.2, it supports OpenMP 2.5. Gcc 4.4 implements 3.0. We don't
-    (currently) check for other compilers.
-
-    returns a two-tuple of (CFLAGS, LDFLAGS) to build the OpenMP extension
     """
     if language == 'cpp':
         cc = sysconfig.get_config_var('CXX')
@@ -303,7 +281,28 @@ def get_openmp_compiler_flags(language):
     # Force english output
     env = os.environ.copy()
     env['LC_MESSAGES'] = 'C'
-    gcc_version = get_gcc_version()
+    matcher = re.compile(r"gcc version (\d+\.\d+)").search
+    try:
+        p = subprocess.Popen([cc, "-v"], stderr=subprocess.PIPE, env=env)
+    except EnvironmentError:
+        # Be compatible with Python 3
+        warnings.warn("Unable to find the %s compiler: %s: %s" %
+                      (language, os.strerror(sys.exc_info()[1].errno), cc))
+        return None
+    _, output = p.communicate()
+    output = output.decode(locale.getpreferredencoding() or 'ASCII', 'replace')
+    gcc_version = matcher(output)
+    return gcc_version
+
+
+def get_openmp_compiler_flags(language):
+    """
+    As of gcc 4.2, it supports OpenMP 2.5. Gcc 4.4 implements 3.0. We don't
+    (currently) check for other compilers.
+
+    returns a two-tuple of (CFLAGS, LDFLAGS) to build the OpenMP extension
+    """
+    gcc_version = get_gcc_version(language)
 
     if not gcc_version:
         return None # not gcc - FIXME: do something about other compilers
