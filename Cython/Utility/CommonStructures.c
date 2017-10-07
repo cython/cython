@@ -1,6 +1,6 @@
 /////////////// FetchCommonType.proto ///////////////
 
-#if CYTHON_PEP489_MULTI_PHASE_INIT
+#if CYTHON_PEP489_REINIT
 #define __Pyx_FetchCommonTypeOnce(old_ptr, type)  (old_ptr ? old_ptr : __Pyx_FetchCommonType(type))
 #else
 #define __Pyx_FetchCommonTypeOnce(old_ptr, type)  __Pyx_FetchCommonType(type)

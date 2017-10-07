@@ -2524,7 +2524,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln('static void %s(CYTHON_UNUSED PyObject *self) {' %
                    Naming.cleanup_cname)
-        code.putln("#if !CYTHON_PEP489_MULTI_PHASE_INIT")
+        code.putln("#if !CYTHON_PEP489_REINIT")
         if Options.generate_cleanup_code >= 2:
             code.putln("/*--- Global cleanup code ---*/")
             rev_entries = list(env.var_entries)
@@ -2947,7 +2947,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             return
 
         # FIXME: copy types to heap and re-initialise to make methods pick up the right globals
-        code.putln("if (!CYTHON_PEP489_MULTI_PHASE_INIT || !(%s.tp_flags & Py_TPFLAGS_READY)) {" % typeobj_cname)
+        code.putln("__Pyx_INIT_ONCE(%s.tp_flags & Py_TPFLAGS_READY) {" % typeobj_cname)
         # Start of one-time type setup.
         for slot in TypeSlots.slot_table:
             slot.generate_dynamic_init_code(scope, code)

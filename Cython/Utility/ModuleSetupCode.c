@@ -174,9 +174,7 @@
     #define CYTHON_FAST_PYCALL 1
   #endif
   #ifndef CYTHON_PEP489_MULTI_PHASE_INIT
-    // Disabled for now.  Most extension modules simply can't deal with it, and Cython isn't ready either.
-    // See issues listed here: https://docs.python.org/3/c-api/init.html#sub-interpreter-support
-    #define CYTHON_PEP489_MULTI_PHASE_INIT (0 && PY_VERSION_HEX >= 0x03050000)
+    #define CYTHON_PEP489_MULTI_PHASE_INIT (PY_VERSION_HEX >= 0x03050000)
   #endif
   #ifndef CYTHON_USE_TP_FINALIZE
     #define CYTHON_USE_TP_FINALIZE (PY_VERSION_HEX >= 0x030400a1)
@@ -185,6 +183,14 @@
 
 #if !defined(CYTHON_FAST_PYCCALL)
 #define CYTHON_FAST_PYCCALL  (CYTHON_FAST_PYCALL && PY_VERSION_HEX >= 0x030600B1)
+#endif
+#if !CYTHON_PEP489_MULTI_PHASE_INIT
+#undef CYTHON_PEP489_REINIT
+#endif
+#ifndef CYTHON_PEP489_REINIT
+// Disabled for now.  Most extension modules simply can't deal with it, and Cython isn't ready either.
+// See issues listed here: https://docs.python.org/3/c-api/init.html#sub-interpreter-support
+#define CYTHON_PEP489_REINIT 0
 #endif
 
 #if CYTHON_USE_PYLONG_INTERNALS
@@ -740,7 +746,7 @@ PyEval_InitThreads();
 
 /////////////// ModuleInitHelpers ///////////////
 
-#if CYTHON_PEP489_MULTI_PHASE_INIT
+#if CYTHON_PEP489_REINIT
 #define __Pyx_ASSIGN_REF_ONCE(name, value, error_goto)  if (name); else { name = value; if (unlikely(!name)) error_goto }
 #define __Pyx_ASSIGN_REF_ONCE_NO_ERROR(name, value)  if (name); else { name = value; }
 #define __Pyx_INIT_ONCE(name)  if (name); else
@@ -770,6 +776,10 @@ static int __Pyx_copy_spec_to_module(PyObject *spec, PyObject *moddict, const ch
 
 static PyObject* ${pymodule_create_func_cname}(PyObject *spec, CYTHON_UNUSED PyModuleDef *def) {
     PyObject *module = NULL, *moddict, *modname;
+
+#if !CYTHON_PEP489_REINIT
+    if (${module_cname}) return __Pyx_NewRef(${module_cname});
+#endif
 
     modname = PyObject_GetAttrString(spec, "name");
     if (unlikely(!modname)) goto bad;

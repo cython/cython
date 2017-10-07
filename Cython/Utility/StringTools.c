@@ -16,7 +16,7 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t); /*proto*/
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     while (t->p) {
         // Do not overwrite interned strings with PEP-489 reload.
-        if (!CYTHON_PEP489_MULTI_PHASE_INIT || !*t->p) {
+        __Pyx_INIT_ONCE(*t->p) {
             #if PY_MAJOR_VERSION < 3
             if (t->is_unicode) {
                 *t->p = PyUnicode_DecodeUTF8(t->s, t->n - 1, NULL);
