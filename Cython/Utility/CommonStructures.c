@@ -35,6 +35,7 @@ static PyTypeObject* __Pyx_FetchCommonType(PyTypeObject* type) {
     } else {
         if (!PyErr_ExceptionMatches(PyExc_AttributeError)) goto bad;
         PyErr_Clear();
+        // eventually, this should use PyType_Copy() with PEP489
         if (PyType_Ready(type) < 0) goto bad;
         if (PyObject_SetAttrString(fake_module, type->tp_name, (PyObject*) type) < 0)
             goto bad;
