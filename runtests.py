@@ -258,7 +258,7 @@ def update_cpp11_extension(ext):
             compile_flags, link_flags = flags
             ext.extra_compile_args.extend("-std=c++11")
         return ext    
-return EXCLUDE_EXT
+    return EXCLUDE_EXT
 
 
 def get_gcc_version():
