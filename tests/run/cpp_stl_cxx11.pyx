@@ -14,10 +14,10 @@ py_unicode = unicode
 
 def test_unordered_map_functionality():
     """
-        tests basic unordered map functionality
-        checks insertion with Pair and [] operator
-        checks erase with pair and and key
-        
+    >>> test_cxx11_unordered_map
+    tests basic unordered map functionality
+    checks insertion with Pair and [] operator
+    checks erase with pair and and key    
     """
     cdef:
         unordered_map[int, int] int_map = unordered_map[int,int]()
