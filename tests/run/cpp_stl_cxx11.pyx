@@ -26,11 +26,12 @@ def test_unordered_map_functionality():
         pair[unordered_map[int,int].iterator, bint] pair_iter  = int_map.insert(pair_insert)
     assert int_map[1] == 2
     assert int_map.size() == 1
-    assert int_map.erase(pair_insert) == int_map.end()
+    assert int_map.erase(1) == 1 # returns number of elements erased
     assert int_map.size() == 0
     int_map[1] = 2
     assert int_map.size() == 1
     assert int_map[1] == 2
-    assert int_map.erase(1) == int_map.end()
+    iterator = int_map.find(1)
+    assert int_map.erase(iterator) == int_map.end()
 
 
