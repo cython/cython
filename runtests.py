@@ -271,8 +271,6 @@ def get_gcc_version(language):
         cc = sysconfig.get_config_var('CC')
 
     if not cc:
-        if sys.platform == 'win32':
-            return '/openmp', ''
         return None
 
     # For some reason, cc can be e.g. 'gcc -pthread'
@@ -305,7 +303,10 @@ def get_openmp_compiler_flags(language):
     gcc_version = get_gcc_version(language)
 
     if not gcc_version:
-        return None # not gcc - FIXME: do something about other compilers
+        if sys.platform == 'win32':
+            return '/openmp', ''
+        else:
+            return None # not gcc - FIXME: do something about other compilers
 
     # gcc defines "__int128_t", assume that at least all 64 bit architectures have it
     global COMPILER_HAS_INT128
