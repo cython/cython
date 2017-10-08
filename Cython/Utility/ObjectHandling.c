@@ -1067,10 +1067,20 @@ static CYTHON_INLINE PyObject *__Pyx_GetModuleGlobalName(PyObject *name); /*prot
 static CYTHON_INLINE PyObject *__Pyx_GetModuleGlobalName(PyObject *name) {
     PyObject *result;
 #if !CYTHON_AVOID_BORROWED_REFS
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500A1
+    // Identifier names are always interned and have a pre-calculated hash value.
+    result = _PyDict_GetItem_KnownHash($moddict_cname, name, ((PyASCIIObject *) name)->hash);
+    if (likely(result)) {
+        Py_INCREF(result);
+    } else if (unlikely(PyErr_Occurred())) {
+        result = NULL;
+    } else {
+#else
     result = PyDict_GetItem($moddict_cname, name);
     if (likely(result)) {
         Py_INCREF(result);
     } else {
+#endif
 #else
     result = PyObject_GetItem($moddict_cname, name);
     if (!result) {
