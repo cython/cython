@@ -259,11 +259,21 @@ class IterationTransform(Visitor.EnvTransform):
                 return self._transform_reversed_iteration(node, iterator)
 
         # range() iteration?
-        if Options.convert_range and (node.target.type.is_int or node.target.type.is_enum):
-            if iterator.self is None and function.is_name and \
-                   function.entry and function.entry.is_builtin and \
-                   function.name in ('range', 'xrange'):
+        if Options.convert_range and arg_count >= 1 and (
+                iterator.self is None and
+                function.is_name and function.name in ('range', 'xrange') and
+                function.entry and function.entry.is_builtin):
+            if node.target.type.is_int or node.target.type.is_enum:
                 return self._transform_range_iteration(node, iterator, reversed=reversed)
+            if node.target.type.is_pyobject:
+                # Assume that small integer ranges (C long >= 32bit) are best handled in C as well.
+                for arg in (iterator.arg_tuple.args if iterator.args is None else iterator.args):
+                    if isinstance(arg, ExprNodes.IntNode):
+                        if arg.has_constant_result() and -2**30 <= arg.constant_result < 2**30:
+                            continue
+                    break
+                else:
+                    return self._transform_range_iteration(node, iterator, reversed=reversed)
 
         return node
 
@@ -768,6 +778,7 @@ class IterationTransform(Visitor.EnvTransform):
             step=step, body=node.body,
             else_clause=node.else_clause,
             from_range=True)
+        for_node.set_up_loop(self.current_env())
 
         if bound2_is_temp:
             for_node = UtilNodes.LetNode(bound2, for_node)

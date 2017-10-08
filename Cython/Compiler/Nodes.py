@@ -6426,10 +6426,24 @@ class ForFromStatNode(LoopNode, StatNode):
                         "Consider switching the directions of the relations.", 2)
             self.step = self.step.analyse_types(env)
 
-        if self.target.type.is_numeric:
-            loop_type = self.target.type
+        self.set_up_loop(env)
+        target_type = self.target.type
+        if not (target_type.is_pyobject or target_type.is_numeric):
+            error(self.target.pos, "for-from loop variable must be c numeric type or Python object")
+
+        self.body = self.body.analyse_expressions(env)
+        if self.else_clause:
+            self.else_clause = self.else_clause.analyse_expressions(env)
+        return self
+
+    def set_up_loop(self, env):
+        from . import ExprNodes
+
+        target_type = self.target.type
+        if target_type.is_numeric:
+            loop_type = target_type
         else:
-            loop_type = PyrexTypes.c_int_type
+            loop_type = PyrexTypes.c_long_type if target_type.is_pyobject else PyrexTypes.c_int_type
             if not self.bound1.type.is_pyobject:
                 loop_type = PyrexTypes.widest_numeric_type(loop_type, self.bound1.type)
             if not self.bound2.type.is_pyobject:
@@ -6445,10 +6459,7 @@ class ForFromStatNode(LoopNode, StatNode):
             if not self.step.is_literal:
                 self.step = self.step.coerce_to_temp(env)
 
-        target_type = self.target.type
-        if not (target_type.is_pyobject or target_type.is_numeric):
-            error(self.target.pos, "for-from loop variable must be c numeric type or Python object")
-        if target_type.is_numeric:
+        if target_type.is_numeric or target_type.is_enum:
             self.is_py_target = False
             if isinstance(self.target, ExprNodes.BufferIndexNode):
                 raise error(self.pos, "Buffer or memoryview slicing/indexing not allowed as for-loop target.")
@@ -6458,12 +6469,7 @@ class ForFromStatNode(LoopNode, StatNode):
             self.is_py_target = True
             c_loopvar_node = ExprNodes.TempNode(self.pos, loop_type, env)
             self.loopvar_node = c_loopvar_node
-            self.py_loopvar_node = \
-                ExprNodes.CloneNode(c_loopvar_node).coerce_to_pyobject(env)
-        self.body = self.body.analyse_expressions(env)
-        if self.else_clause:
-            self.else_clause = self.else_clause.analyse_expressions(env)
-        return self
+            self.py_loopvar_node = ExprNodes.CloneNode(c_loopvar_node).coerce_to_pyobject(env)
 
     def generate_execution_code(self, code):
         code.mark_pos(self.pos)
@@ -6484,7 +6490,7 @@ class ForFromStatNode(LoopNode, StatNode):
 
         loopvar_type = PyrexTypes.c_long_type if self.target.type.is_enum else self.target.type
 
-        if from_range:
+        if from_range and not self.is_py_target:
             loopvar_name = code.funcstate.allocate_temp(loopvar_type, False)
         else:
             loopvar_name = self.loopvar_node.result()
@@ -6507,10 +6513,7 @@ class ForFromStatNode(LoopNode, StatNode):
 
         coerced_loopvar_node = self.py_loopvar_node
         if coerced_loopvar_node is None and from_range:
-            loopvar_cvalue = loopvar_name
-            if self.target.type.is_enum:
-                loopvar_cvalue = '(%s)%s' % (self.target.type.declaration_code(''), loopvar_cvalue)
-            coerced_loopvar_node = ExprNodes.RawCNameExprNode(self.target.pos, loopvar_type, loopvar_cvalue)
+            coerced_loopvar_node = ExprNodes.RawCNameExprNode(self.target.pos, loopvar_type, loopvar_name)
         if coerced_loopvar_node is not None:
             coerced_loopvar_node.generate_evaluation_code(code)
             self.target.generate_assignment_code(coerced_loopvar_node, code)
@@ -6558,7 +6561,7 @@ class ForFromStatNode(LoopNode, StatNode):
             # depend on whether or not the loop is a python type.
             self.py_loopvar_node.generate_evaluation_code(code)
             self.target.generate_assignment_code(self.py_loopvar_node, code)
-        if from_range:
+        if from_range and not self.is_py_target:
             code.funcstate.release_temp(loopvar_name)
 
         break_label = code.break_label
