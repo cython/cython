@@ -40,7 +40,7 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
             return -1;
         // initialise cached hash value
         if (PyObject_Hash(*t->p) == -1)
-            PyErr_Clear();
+            return -1;
         ++t;
     }
     return 0;

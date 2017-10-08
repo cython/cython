@@ -3830,12 +3830,12 @@ class DefNodeWrapper(FuncDefNode):
                         continue
                     code.putln('if (kw_args > 0) {')
                     # don't overwrite default argument
-                    code.putln('PyObject* value = PyDict_GetItem(%s, %s);' % (
+                    code.putln('PyObject* value = __Pyx_PyDict_GetItemStr(%s, %s);' % (
                         Naming.kwds_cname, pystring_cname))
                     code.putln('if (value) { values[%d] = value; kw_args--; }' % i)
                     code.putln('}')
                 else:
-                    code.putln('if (likely((values[%d] = PyDict_GetItem(%s, %s)) != 0)) kw_args--;' % (
+                    code.putln('if (likely((values[%d] = __Pyx_PyDict_GetItemStr(%s, %s)) != 0)) kw_args--;' % (
                         i, Naming.kwds_cname, pystring_cname))
                     if i < min_positional_args:
                         if i == 0:
@@ -3921,7 +3921,7 @@ class DefNodeWrapper(FuncDefNode):
             else:
                 code.putln('if (kw_args == 1) {')
                 code.putln('const Py_ssize_t index = %d;' % first_optional_arg)
-            code.putln('PyObject* value = PyDict_GetItem(%s, *%s[index]);' % (
+            code.putln('PyObject* value = __Pyx_PyDict_GetItemStr(%s, *%s[index]);' % (
                 Naming.kwds_cname, Naming.pykwdlist_cname))
             code.putln('if (value) { values[index] = value; kw_args--; }')
             if len(optional_args) > 1:

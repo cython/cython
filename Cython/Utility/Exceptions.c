@@ -580,7 +580,7 @@ static int __Pyx_CLineForTraceback(CYTHON_UNUSED PyThreadState *tstate, int c_li
 #if CYTHON_COMPILING_IN_CPYTHON
     cython_runtime_dict = _PyObject_GetDictPtr(${cython_runtime_cname});
     if (likely(cython_runtime_dict)) {
-      use_cline = PyDict_GetItem(*cython_runtime_dict, PYIDENT("cline_in_traceback"));
+      use_cline = __Pyx_PyDict_GetItemStr(*cython_runtime_dict, PYIDENT("cline_in_traceback"));
     } else
 #endif
     {

@@ -808,7 +808,7 @@ static PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw); /*proto*
 //@requires: CalculateMetaclass
 
 static PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw) {
-    PyObject *metaclass = mkw ? PyDict_GetItem(mkw, PYIDENT("metaclass")) : NULL;
+    PyObject *metaclass = mkw ? __Pyx_PyDict_GetItemStr(mkw, PYIDENT("metaclass")) : NULL;
     if (metaclass) {
         Py_INCREF(metaclass);
         if (PyDict_DelItem(mkw, PYIDENT("metaclass")) < 0) {
@@ -845,7 +845,7 @@ static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *na
         return NULL;
 
     /* Python2 __metaclass__ */
-    metaclass = PyDict_GetItem(dict, PYIDENT("__metaclass__"));
+    metaclass = __Pyx_PyDict_GetItemStr(dict, PYIDENT("__metaclass__"));
     if (metaclass) {
         Py_INCREF(metaclass);
         if (PyType_Check(metaclass)) {
