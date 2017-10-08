@@ -6484,7 +6484,10 @@ class ForFromStatNode(LoopNode, StatNode):
         if self.step is not None:
             self.step.generate_evaluation_code(code)
             step = self.step.result()
-            incop = "%s=%s" % (incop[0], step)
+            incop = "%s=%s" % (incop[0], step)  # e.g. '++' => '+= STEP'
+        else:
+            step = '1'
+
         from . import ExprNodes
         if isinstance(self.loopvar_node, ExprNodes.TempNode):
             self.loopvar_node.allocate(code)
@@ -6500,8 +6503,6 @@ class ForFromStatNode(LoopNode, StatNode):
         if loopvar_type.is_int and not loopvar_type.signed and self.relation2[0] == '>':
             # Handle the case where the endpoint of an unsigned int iteration
             # is within step of 0.
-            if not self.step:
-                step = 1
             code.putln("for (%s = %s%s + %s; %s %s %s + %s; ) { %s%s;" % (
                 loopvar_name,
                 self.bound1.result(), offset, step,
