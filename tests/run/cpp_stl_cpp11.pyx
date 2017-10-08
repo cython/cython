@@ -33,5 +33,6 @@ def test_unordered_map_functionality():
     assert int_map[1] == 2
     iterator = int_map.find(1)
     assert int_map.erase(iterator) == int_map.end()
+    return "pass"
 
 
