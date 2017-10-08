@@ -6443,6 +6443,9 @@ class ForFromStatNode(LoopNode, StatNode):
         if target_type.is_numeric:
             loop_type = target_type
         else:
+            if target_type.is_enum:
+                warning(self.target.pos,
+                        "Integer loops over enum values are fragile. Please cast to a safe integer type instead.")
             loop_type = PyrexTypes.c_long_type if target_type.is_pyobject else PyrexTypes.c_int_type
             if not self.bound1.type.is_pyobject:
                 loop_type = PyrexTypes.widest_numeric_type(loop_type, self.bound1.type)
