@@ -1041,6 +1041,21 @@ static PyObject *__Pyx_GetNameInClass(PyObject *nmspace, PyObject *name) {
     return result;
 }
 
+
+/////////////// SetNameInClass.proto ///////////////
+
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500A1
+// Identifier names are always interned and have a pre-calculated hash value.
+#define __Pyx_SetNameInClass(ns, name, value) \
+    (likely(PyDict_CheckExact(ns)) ? _PyDict_SetItem_KnownHash(ns, name, value, ((PyASCIIObject *) name)->hash) : PyObject_SetItem(ns, name, value))
+#elif CYTHON_COMPILING_IN_CPYTHON
+#define __Pyx_SetNameInClass(ns, name, value) \
+    (likely(PyDict_CheckExact(ns)) ? PyDict_SetItem(ns, name, value) : PyObject_SetItem(ns, name, value))
+#else
+#define __Pyx_SetNameInClass(ns, name, value)  PyObject_SetItem(ns, name, value)
+#endif
+
+
 /////////////// GetModuleGlobalName.proto ///////////////
 
 static CYTHON_INLINE PyObject *__Pyx_GetModuleGlobalName(PyObject *name); /*proto*/
