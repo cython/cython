@@ -1728,9 +1728,6 @@ class FuncDefNode(StatNode, BlockNode):
 
     def generate_function_definitions(self, env, code):
         from . import Buffer
-        if self.return_type.is_memoryviewslice:
-            from . import MemoryView
-
         lenv = self.local_scope
         if lenv.is_closure_scope and not lenv.is_passthrough:
             outer_scope_cname = "%s->%s" % (Naming.cur_scope_cname,
@@ -1806,7 +1803,7 @@ class FuncDefNode(StatNode, BlockNode):
             if self.return_type.is_pyobject:
                 init = " = NULL"
             elif self.return_type.is_memoryviewslice:
-                init = ' = ' + MemoryView.memslice_entry_init
+                init = ' = ' + self.return_type.literal_code(self.return_type.default_value)
 
             code.putln("%s%s;" % (
                 self.return_type.declaration_code(Naming.retval_cname),
@@ -1974,7 +1971,7 @@ class FuncDefNode(StatNode, BlockNode):
                 code.put_init_to_py_none(lhs, self.return_type)
             else:
                 val = self.return_type.default_value
-                if val:
+                if val and not self.return_type.is_memoryviewslice:
                     code.putln("%s = %s;" % (Naming.retval_cname, val))
                 elif not self.return_type.is_void:
                     code.putln("__Pyx_pretend_to_initialize(&%s);" % Naming.retval_cname)
@@ -2002,6 +1999,7 @@ class FuncDefNode(StatNode, BlockNode):
                 code.putln("__Pyx_ErrRestore(__pyx_type, __pyx_value, __pyx_tb);}")
 
             if self.return_type.is_memoryviewslice:
+                from . import MemoryView
                 MemoryView.put_init_entry(Naming.retval_cname, code)
                 err_val = Naming.retval_cname
             else:

@@ -1288,8 +1288,10 @@ class GlobalState(object):
         consts.sort()
         decls_writer = self.parts['decls']
         for _, cname, c in consts:
-            decls_writer.putln(
-                "static %s=0;" % c.type.declaration_code(cname))
+            decls_writer.putln("static %s=%s;" % (
+                c.type.declaration_code(cname),
+                c.type.literal_code(c.type.default_value),
+            ))
 
     def generate_cached_methods_decls(self):
         if not self.cached_cmethods:
@@ -1824,8 +1826,7 @@ class CCodeWriter(object):
             if type.is_pyobject:
                 self.putln("%s = NULL;" % decl)
             elif type.is_memoryviewslice:
-                from . import MemoryView
-                self.putln("%s = %s;" % (decl, MemoryView.memslice_entry_init))
+                self.putln("%s = %s;" % (decl, type.literal_code(type.default_value)))
             else:
                 self.putln("%s%s;" % (static and "static " or "", decl))
 
