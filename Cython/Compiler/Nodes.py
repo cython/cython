@@ -6524,7 +6524,7 @@ class ForFromStatNode(LoopNode, StatNode):
         self.body.generate_execution_code(code)
         code.put_label(code.continue_label)
 
-        if self.py_loopvar_node:
+        if not from_range and self.py_loopvar_node:
             # This mess is to make for..from loops with python targets behave
             # exactly like those with C targets with regards to re-assignment
             # of the loop variable.
@@ -6559,7 +6559,7 @@ class ForFromStatNode(LoopNode, StatNode):
 
         code.putln("}")
 
-        if self.py_loopvar_node:
+        if not from_range and self.py_loopvar_node:
             # This is potentially wasteful, but we don't want the semantics to
             # depend on whether or not the loop is a python type.
             self.py_loopvar_node.generate_evaluation_code(code)
