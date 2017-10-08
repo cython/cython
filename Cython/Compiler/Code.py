@@ -1033,7 +1033,7 @@ class GlobalState(object):
         else:
             w = self.parts['cached_builtins']
             w.enter_cfunc_scope()
-            w.putln("static int __Pyx_InitCachedBuiltins(PyObject *builtins) {")
+            w.putln("static int __Pyx_InitCachedBuiltins(CYTHON_UNUSED PyObject *builtins) {")
 
         w = self.parts['cached_constants']
         w.enter_cfunc_scope()
