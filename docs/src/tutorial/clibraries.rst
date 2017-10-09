@@ -580,6 +580,47 @@ instead that accepts an arbitrary Python iterable::
             for value in values:
                 self.append(value)
 
+
+Now we can test our Queue implementation using a python script, e.g.::
+
+    # file: test_queue.py
+
+    from __future__ import absolute_import
+    from __future__ import division
+    from __future__ import print_function
+
+    import queue
+
+
+    Q = queue.Queue()
+
+    Q.append(10)
+    Q.append(20)
+    print(Q.peek())
+    print(Q.pop())
+    print(Q.pop())
+    # print(Q.pop()) # This will raise error.
+
+    i = 10000
+
+    values = range(i)
+
+    start_time = time.time()
+
+    Q.extend(values)
+
+    end_time = time.time() - start_time
+
+    print("Adding {} items took {:1.3f} msecs.".format(i, 1000 * end_time))
+
+    for i in range(41):
+        Q.pop()
+
+    Q.pop()
+    print("The answer is:")
+    print(Q.pop())
+
+
 As a quick test with 10000 numbers on the author's machine indicates,
 using this Queue from Cython code with C ``int`` values is about five
 times as fast as using it from Cython code with Python object values,
