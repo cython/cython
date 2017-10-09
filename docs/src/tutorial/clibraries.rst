@@ -290,7 +290,7 @@ Now we can build the project using::
 
 And test whether our build was successful::
 
-    $ python -c 'import queue; Q = queue.Queue ; Q()'
+    $ python -c 'import queue; Q = queue.Queue()' 
 
 
 Dynamic Linking
@@ -340,7 +340,7 @@ Now we can import and test the queue::
 Once we have compiled the module for the first time, we can now import
 it and instantiate a new Queue::
 
-    $ python -c 'import queue.Queue as Q ; Q()'
+    $ python -c 'import queue; Q = queue.Queue()'
 
 However, this is all our Queue class can do so far, so let's make it
 more usable.
