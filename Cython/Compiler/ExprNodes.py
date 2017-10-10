@@ -7984,6 +7984,7 @@ class ComprehensionNode(ScopedExprNode):
     child_attrs = ["loop"]
 
     is_temp = True
+    constant_result = not_a_constant
 
     def infer_type(self, env):
         return self.type
