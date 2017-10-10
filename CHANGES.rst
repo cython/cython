@@ -8,6 +8,9 @@ Cython Changelog
 Bugs fixed
 ----------
 
+* Comprehensions could incorrectly be optimised away when they appeared in boolean
+  test contexts.  (Github issue #1920)
+
 * Crash on first lookup of "cline_in_traceback" option during exception handling.
   (Github issue #1907)
 
