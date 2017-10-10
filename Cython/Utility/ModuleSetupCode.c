@@ -755,35 +755,6 @@ static int __Pyx_copy_spec_to_module(PyObject *spec, PyObject *moddict, const ch
     }
     return result;
 }
-
-static PyObject* ${pymodule_create_func_cname}(PyObject *spec, CYTHON_UNUSED PyModuleDef *def) {
-    PyObject *module = NULL, *moddict, *modname;
-
-    // For now, we only have exactly one module instance.
-    if (${module_cname})
-        return __Pyx_NewRef(${module_cname});
-
-    modname = PyObject_GetAttrString(spec, "name");
-    if (unlikely(!modname)) goto bad;
-
-    module = PyModule_NewObject(modname);
-    Py_DECREF(modname);
-    if (unlikely(!module)) goto bad;
-
-    moddict = PyModule_GetDict(module);
-    if (unlikely(!moddict)) goto bad;
-    // moddict is a borrowed reference
-
-    if (unlikely(__Pyx_copy_spec_to_module(spec, moddict, "loader", "__loader__") < 0)) goto bad;
-    if (unlikely(__Pyx_copy_spec_to_module(spec, moddict, "origin", "__file__") < 0)) goto bad;
-    if (unlikely(__Pyx_copy_spec_to_module(spec, moddict, "parent", "__package__") < 0)) goto bad;
-    if (unlikely(__Pyx_copy_spec_to_module(spec, moddict, "submodule_search_locations", "__path__") < 0)) goto bad;
-
-    return module;
-bad:
-    Py_XDECREF(module);
-    return NULL;
-}
 //#endif
 
 
