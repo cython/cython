@@ -1302,10 +1302,12 @@ class PyExtensionType(PyObjectType):
     #  vtabstruct_cname string           Name of C method table struct
     #  vtabptr_cname    string           Name of pointer to C method table
     #  vtable_cname     string           Name of C method table definition
+    #  early_init       boolean          Whether to initialize early (as opposed to during module execution).
     #  defered_declarations [thunk]      Used to declare class hierarchies in order
 
     is_extension_type = 1
     has_attributes = 1
+    early_init = 1
 
     objtypedef_cname = None
 

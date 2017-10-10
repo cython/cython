@@ -2874,8 +2874,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             else:
                 self.generate_base_type_import_code(env, entry, code)
                 self.generate_exttype_vtable_init_code(entry, code)
-                self.generate_type_ready_code(env, entry, code)
-                self.generate_typeptr_assignment_code(entry, code)
+                if entry.type.early_init:
+                  self.generate_type_ready_code(entry, code)
 
     def generate_base_type_import_code(self, env, entry, code):
         base_type = entry.type.base_type
@@ -2949,7 +2949,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             not type.is_external or type.is_subclassed,
             error_code))
 
-    def generate_type_ready_code(self, env, entry, code):
+    @staticmethod
+    def generate_type_ready_code(entry, code):
         # Generate a call to PyType_Ready for an extension
         # type defined in this module.
         type = entry.type
@@ -3041,6 +3042,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     code.putln('if (__Pyx_setup_reduce((PyObject*)&%s) < 0) %s' % (
                                   typeobj_cname,
                                   code.error_goto(entry.pos)))
+        # Generate code to initialise the typeptr of an extension
+        # type defined in this module to point to its type object.
+        if type.typeobj_cname:
+            code.putln(
+                "%s = &%s;" % (
+                    type.typeptr_cname, type.typeobj_cname))
 
     def generate_exttype_vtable_init_code(self, entry, code):
         # Generate code to initialise the C method table of an
@@ -3070,15 +3077,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                             meth_entry.cname,
                             cast,
                             meth_entry.func_cname))
-
-    def generate_typeptr_assignment_code(self, entry, code):
-        # Generate code to initialise the typeptr of an extension
-        # type defined in this module to point to its type object.
-        type = entry.type
-        if type.typeobj_cname:
-            code.putln(
-                "%s = &%s;" % (
-                    type.typeptr_cname, type.typeobj_cname))
 
 def generate_cfunction_declaration(entry, env, code, definition):
     from_cy_utility = entry.used and entry.utility_code_definition

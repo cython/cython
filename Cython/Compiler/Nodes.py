@@ -4410,36 +4410,13 @@ class PyClassDefNode(ClassDefNode):
         if self.is_py3_style_class:
             error(self.classobj.pos, "Python3 style class could not be represented as C class")
             return
-        bases = self.classobj.bases.args
-        if len(bases) == 0:
-            base_class_name = None
-            base_class_module = None
-        elif len(bases) == 1:
-            base = bases[0]
-            path = []
-            from .ExprNodes import AttributeNode, NameNode
-            while isinstance(base, AttributeNode):
-                path.insert(0, base.attribute)
-                base = base.obj
-            if isinstance(base, NameNode):
-                path.insert(0, base.name)
-                base_class_name = path[-1]
-                if len(path) > 1:
-                    base_class_module = u'.'.join(path[:-1])
-                else:
-                    base_class_module = None
-            else:
-                error(self.classobj.bases.args.pos, "Invalid base class")
-        else:
-            error(self.classobj.bases.args.pos, "C class may only have one base class")
-            return None
 
+        from . import ExprNodes
         return CClassDefNode(self.pos,
                              visibility='private',
                              module_name=None,
                              class_name=self.name,
-                             base_class_module=base_class_module,
-                             base_class_name=base_class_name,
+                             bases=self.classobj.bases or ExprNodes.TupleNode(self.pos, args=[]),
                              decorators=self.decorators,
                              body=self.body,
                              in_pxd=False,
@@ -4531,8 +4508,7 @@ class CClassDefNode(ClassDefNode):
     #  module_name        string or None    For import of extern type objects
     #  class_name         string            Unqualified name of class
     #  as_name            string or None    Name to declare as in this scope
-    #  base_class_module  string or None    Module containing the base class
-    #  base_class_name    string or None    Name of the base class
+    #  bases              TupleNode         Base class(es)
     #  objstruct_name     string or None    Specified C name of object struct
     #  typeobj_name       string or None    Specified C name of type object
     #  in_pxd             boolean           Is in a .pxd file
@@ -4612,44 +4588,31 @@ class CClassDefNode(ClassDefNode):
                 self.module.has_extern_class = 1
                 env.add_imported_module(self.module)
 
-        if self.base_class_name:
-            if self.base_class_module:
-                base_class_scope = env.find_imported_module(self.base_class_module.split('.'), self.pos)
-                if not base_class_scope:
-                    error(self.pos, "'%s' is not a cimported module" % self.base_class_module)
-                    return
-            else:
-                base_class_scope = env
-            if self.base_class_name == 'object':
-                # extension classes are special and don't need to inherit from object
-                if base_class_scope is None or base_class_scope.lookup('object') is None:
-                    self.base_class_name = None
-                    self.base_class_module = None
-                    base_class_scope = None
-            if base_class_scope:
-                base_class_entry = base_class_scope.find(self.base_class_name, self.pos)
-                if base_class_entry:
-                    if not base_class_entry.is_type:
-                        error(self.pos, "'%s' is not a type name" % self.base_class_name)
-                    elif not base_class_entry.type.is_extension_type and \
-                             not (base_class_entry.type.is_builtin_type and
-                                  base_class_entry.type.objstruct_cname):
-                        error(self.pos, "'%s' is not an extension type" % self.base_class_name)
-                    elif not base_class_entry.type.is_complete():
-                        error(self.pos, "Base class '%s' of type '%s' is incomplete" % (
-                            self.base_class_name, self.class_name))
-                    elif base_class_entry.type.scope and base_class_entry.type.scope.directives and \
-                             base_class_entry.type.is_final_type:
-                        error(self.pos, "Base class '%s' of type '%s' is final" % (
-                            self.base_class_name, self.class_name))
-                    elif base_class_entry.type.is_builtin_type and \
-                             base_class_entry.type.name in ('tuple', 'str', 'bytes'):
-                        error(self.pos, "inheritance from PyVarObject types like '%s' is not currently supported"
-                              % base_class_entry.type.name)
-                    else:
-                        self.base_type = base_class_entry.type
-                if env.directives.get('freelist', 0) > 0:
-                    warning(self.pos, "freelists cannot be used on subtypes, only the base class can manage them", 1)
+        if self.bases.args:
+          base = self.bases.args[0]
+          base_type = base.analyse_as_type(env)
+          if base_type is None:
+            error(base.pos, "First base of '%s' is not an extension type" % self.class_name)
+          elif base_type == PyrexTypes.py_object_type:
+            base_class_scope = None
+          elif not base_type.is_extension_type and \
+                   not (base_type.is_builtin_type and base_type.objstruct_cname):
+              error(base.pos, "'%s' is not an extension type" % base_type.name)
+          elif not base_type.is_complete():
+              error(base.pos, "Base class '%s' of type '%s' is incomplete" % (
+                  base_type.name, self.class_name))
+          elif base_type.scope and base_type.scope.directives and \
+                   base_type.is_final_type:
+              error(base.pos, "Base class '%s' of type '%s' is final" % (
+                  base_type, self.class_name))
+          elif base_type.is_builtin_type and \
+                   base_type.name in ('tuple', 'str', 'bytes'):
+              error(base.pos, "inheritance from PyVarObject types like '%s' is not currently supported"
+                    % base_type.name)
+          else:
+              self.base_type = base_type
+          if env.directives.get('freelist', 0) > 0:
+              warning(self.pos, "freelists cannot be used on subtypes, only the base class can manage them", 1)
 
         has_body = self.body is not None
         if has_body and self.base_type and not self.base_type.scope:
@@ -4709,6 +4672,31 @@ class CClassDefNode(ClassDefNode):
             else:
                 scope.implemented = 1
 
+        if len(self.bases.args) > 1:
+          if not has_body or self.in_pxd:
+            error(self.bases.args[1].pos, "Only declare first base in declaration.")
+          for other_base in self.bases.args[1:]:
+            if other_base.analyse_as_type(env):
+              # TODO(robertwb): We may also want to enforce some checks
+              # at runtime.
+              error(other_base.pos, "Only one extension type base class allowed.")
+          if not self.scope.lookup("__dict__"):
+            #TODO(robertwb): See if this can be safely removed.
+            error(self.pos, "Extension types with multiple bases must have a __dict__ attribute")
+          self.entry.type.early_init = 0
+          from . import ExprNodes
+          self.type_init_args = ExprNodes.TupleNode(
+              self.pos,
+              args=[ExprNodes.StringNode(self.pos, value=self.class_name),
+                    self.bases,
+                    ExprNodes.DictNode(self.pos, key_value_pairs=[])])
+        elif self.base_type:
+          self.entry.type.early_init = self.base_type.is_external or self.base_type.early_init
+          self.type_init_args = None
+        else:
+          self.entry.type.early_init = 1
+          self.type_init_args = None
+
         env.allocate_vtable_names(self.entry)
 
         for thunk in self.entry.type.defered_declarations:
@@ -4718,6 +4706,8 @@ class CClassDefNode(ClassDefNode):
         if self.body:
             scope = self.entry.type.scope
             self.body = self.body.analyse_expressions(scope)
+        if self.type_init_args:
+            self.type_init_args.analyse_expressions(env)
         return self
 
     def generate_function_definitions(self, env, code):
@@ -4731,8 +4721,38 @@ class CClassDefNode(ClassDefNode):
         code.mark_pos(self.pos)
         if self.body:
             self.body.generate_execution_code(code)
+        if not self.entry.type.early_init:
+            if self.type_init_args:
+              self.type_init_args.generate_evaluation_code(code)
+              bases = "PyTuple_GET_ITEM(%s, 1)" % self.type_init_args.result()
+              first_base = "((PyTypeObject*)PyTuple_GET_ITEM(%s, 0))" % bases
+              # Let Python do the base types compatibility checking.
+              trial_type = code.funcstate.allocate_temp(PyrexTypes.py_object_type, True)
+              code.putln("%s = PyType_Type.tp_new(&PyType_Type, %s, NULL);" % (
+                  trial_type, self.type_init_args.result()))
+              code.putln(code.error_goto_if_null(trial_type, self.pos))
+              code.put_gotref(trial_type)
+              code.putln("if (((PyTypeObject*) %s)->tp_base != %s) {" % (
+                  trial_type, first_base))
+              code.putln("PyErr_Format(PyExc_TypeError, \"best base '%s' must be equal to first base '%s'\",")
+              code.putln("             ((PyTypeObject*) %s)->tp_base->tp_name, %s->tp_name);" % (
+                         trial_type, first_base))
+              code.putln(code.error_goto(self.pos))
+              code.putln("}")
+              code.funcstate.release_temp(trial_type)
+              code.put_incref(bases, PyrexTypes.py_object_type)
+              code.put_giveref(bases)
+              code.putln("%s.tp_bases = %s;" % (self.entry.type.typeobj_cname, bases))
+              code.put_decref_clear(trial_type, PyrexTypes.py_object_type)
+              self.type_init_args.generate_disposal_code(code)
+              self.type_init_args.free_temps(code)
+
+            from . import ModuleNode
+            ModuleNode.ModuleNode.generate_type_ready_code(self.entry, code)
 
     def annotate(self, code):
+        if self.type_init_args:
+            self.type_init_args.annotate(code)
         if self.body:
             self.body.annotate(code)
 

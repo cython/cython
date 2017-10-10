@@ -3435,19 +3435,15 @@ def p_c_class_definition(s, pos,  ctx):
         as_name = class_name
     objstruct_name = None
     typeobj_name = None
-    base_class_module = None
-    base_class_name = None
+    bases = None
     if s.sy == '(':
-        s.next()
-        base_class_path = [p_ident(s)]
-        while s.sy == '.':
-            s.next()
-            base_class_path.append(p_ident(s))
-        if s.sy == ',':
-            s.error("C class may only have one base class", fatal=False)
-        s.expect(')')
-        base_class_module = ".".join(base_class_path[:-1])
-        base_class_name = base_class_path[-1]
+        positional_args, keyword_args = p_call_parse_args(s, allow_genexp=False)
+        if keyword_args:
+          s.error("C classes cannot take keyword bases.")
+        bases, _ = p_call_build_packed_args(pos, positional_args, keyword_args)
+    if bases is None:
+      bases = ExprNodes.TupleNode(pos, args=[])
+
     if s.sy == '[':
         if ctx.visibility not in ('public', 'extern') and not ctx.api:
             error(s.position(), "Name options only allowed for 'public', 'api', or 'extern' C class")
@@ -3487,8 +3483,7 @@ def p_c_class_definition(s, pos,  ctx):
         module_name = ".".join(module_path),
         class_name = class_name,
         as_name = as_name,
-        base_class_module = base_class_module,
-        base_class_name = base_class_name,
+        bases = bases,
         objstruct_name = objstruct_name,
         typeobj_name = typeobj_name,
         in_pxd = ctx.level == 'module_pxd',
