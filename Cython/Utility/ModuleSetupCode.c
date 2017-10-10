@@ -774,33 +774,42 @@ static int __Pyx_copy_spec_to_module(PyObject *spec, PyObject *moddict, const ch
     return result;
 }
 
+// TODO: remove module create function entirely when we can get rid of the one-time init hack below.
 static PyObject* ${pymodule_create_func_cname}(PyObject *spec, CYTHON_UNUSED PyModuleDef *def) {
-    PyObject *module = NULL, *moddict, *modname;
+    PyObject *module, *modname;
 
 #if !CYTHON_PEP489_REINIT
+    // Enforce one-time initialisation.
     if (${module_cname}) return __Pyx_NewRef(${module_cname});
 #endif
 
     modname = PyObject_GetAttrString(spec, "name");
-    if (unlikely(!modname)) goto bad;
+    if (unlikely(!modname)) return NULL;
 
     module = PyModule_NewObject(modname);
     Py_DECREF(modname);
-    if (unlikely(!module)) goto bad;
+    return module;
+}
 
-    moddict = PyModule_GetDict(module);
-    if (unlikely(!moddict)) goto bad;
-    // moddict is a borrowed reference
+static int __Pyx_PyModule_InitAttributes(PyObject *moddict) {
+    PyObject *spec = PyDict_GetItemString(moddict, "__spec__");
+    if (unlikely(!spec)) goto bad_lookup;
+    Py_INCREF(spec);
 
     if (unlikely(__Pyx_copy_spec_to_module(spec, moddict, "loader", "__loader__") < 0)) goto bad;
     if (unlikely(__Pyx_copy_spec_to_module(spec, moddict, "origin", "__file__") < 0)) goto bad;
     if (unlikely(__Pyx_copy_spec_to_module(spec, moddict, "parent", "__package__") < 0)) goto bad;
     if (unlikely(__Pyx_copy_spec_to_module(spec, moddict, "submodule_search_locations", "__path__") < 0)) goto bad;
 
-    return module;
+    Py_DECREF(spec);
+    return 0;
+bad_lookup:
+    if (!PyErr_Occurred()) {
+        PyErr_SetString(PyExc_RuntimeError, "Module __spec__ not set on new module");
+    }
 bad:
-    Py_XDECREF(module);
-    return NULL;
+    Py_XDECREF(spec);
+    return -1;
 }
 //#endif
 

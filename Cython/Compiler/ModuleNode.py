@@ -2700,6 +2700,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 env.module_dict_cname, env.module_cname,
                 code.error_goto_if_null(env.module_dict_cname, self.pos)))
         code.put_incref(env.module_dict_cname, py_object_type, nanny=False)
+        code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
+        code.put_error_if_neg(self.pos, "__Pyx_PyModule_InitAttributes(%s)" % env.module_dict_cname)
+        code.putln("#endif")
         code.putln("}")
 
         # FIXME: remove global module reference!
