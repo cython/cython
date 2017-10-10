@@ -2403,6 +2403,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     _map_to_capi_len_function = {
         Builtin.unicode_type:    "__Pyx_PyUnicode_GET_LENGTH",
         Builtin.bytes_type:      "PyBytes_GET_SIZE",
+        Builtin.bytearray_type:  'PyByteArray_GET_SIZE',
         Builtin.list_type:       "PyList_GET_SIZE",
         Builtin.tuple_type:      "PyTuple_GET_SIZE",
         Builtin.set_type:        "PySet_GET_SIZE",
