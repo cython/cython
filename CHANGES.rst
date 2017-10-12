@@ -2,6 +2,21 @@
 Cython Changelog
 ================
 
+0.28.0 (2017-??-??)
+===================
+
+Features added
+--------------
+
+* Cdef classes can now multiply inherit from ordinary Python classes.
+  (The primary base must still be a c class, possibly ``object``, and
+  the other bases must *not* be cdef classes.)
+
+Bugs fixed
+----------
+
+
+
 0.27.2 (2017-??-??)
 ===================
 
