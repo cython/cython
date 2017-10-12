@@ -4615,7 +4615,7 @@ class CClassDefNode(ClassDefNode):
                     % base_type.name)
           else:
               self.base_type = base_type
-          if env.directives.get('freelist', 0) > 0:
+          if env.directives.get('freelist', 0) > 0 and base_type != PyrexTypes.py_object_type:
               warning(self.pos, "freelists cannot be used on subtypes, only the base class can manage them", 1)
 
         has_body = self.body is not None
