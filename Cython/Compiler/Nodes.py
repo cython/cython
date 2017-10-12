@@ -4591,13 +4591,17 @@ class CClassDefNode(ClassDefNode):
         if self.bases.args:
           base = self.bases.args[0]
           base_type = base.analyse_as_type(env)
+          if base_type in (PyrexTypes.c_int_type, PyrexTypes.c_long_type, PyrexTypes.c_float_type):
+              # Use the Python rather than C variant of these types.
+              base_type = env.lookup(str(base_type)).type
           if base_type is None:
             error(base.pos, "First base of '%s' is not an extension type" % self.class_name)
           elif base_type == PyrexTypes.py_object_type:
             base_class_scope = None
           elif not base_type.is_extension_type and \
                    not (base_type.is_builtin_type and base_type.objstruct_cname):
-              error(base.pos, "'%s' is not an extension type" % base_type.name)
+              print (base_type, base_type.is_builtin_type)
+              error(base.pos, "'%s' is not an extension type" % base_type)
           elif not base_type.is_complete():
               error(base.pos, "Base class '%s' of type '%s' is incomplete" % (
                   base_type.name, self.class_name))
