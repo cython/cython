@@ -4751,11 +4751,11 @@ class CClassDefNode(ClassDefNode):
               self.type_init_args.generate_disposal_code(code)
               self.type_init_args.free_temps(code)
 
-            self.generate_type_ready_code(self.entry, code)
+            self.generate_type_ready_code(self.entry, code, True)
 
     # Also called from ModuleNode for early init types.
     @staticmethod
-    def generate_type_ready_code(entry, code):
+    def generate_type_ready_code(entry, code, heap_type_bases=False):
         # Generate a call to PyType_Ready for an extension
         # type defined in this module.
         type = entry.type
@@ -4765,10 +4765,24 @@ class CClassDefNode(ClassDefNode):
             if entry.visibility != 'extern':
                 for slot in TypeSlots.slot_table:
                     slot.generate_dynamic_init_code(scope, code)
+                if heap_type_bases:
+                  # As of https://bugs.python.org/issue22079
+                  # PyType_Ready enforces that all bases of a non-heap type
+                  # are non-heap.  We know this is the case for the solid base,
+                  # but other bases may be heap allocated and are kept alive
+                  # though the bases reference.
+                  # Other than this check, this flag is unused in this method.
+                  code.putln("#if PY_VERSION_HEX >= 0x03050000")
+                  code.putln("%s.tp_flags |= Py_TPFLAGS_HEAPTYPE;" % typeobj_cname)
+                  code.putln("#endif")
                 code.putln(
                     "if (PyType_Ready(&%s) < 0) %s" % (
                         typeobj_cname,
                         code.error_goto(entry.pos)))
+                if heap_type_bases:
+                  code.putln("#if PY_VERSION_HEX >= 0x03050000")
+                  code.putln("%s.tp_flags &= ~Py_TPFLAGS_HEAPTYPE;" % typeobj_cname)
+                  code.putln("#endif")
                 # Don't inherit tp_print from builtin types, restoring the
                 # behavior of using tp_repr or tp_str instead.
                 code.putln("%s.tp_print = 0;" % typeobj_cname)
