@@ -449,7 +449,7 @@ class Scope(object):
                 # Likewise ignore inherited classes.
                 pass
             elif visibility == 'extern':
-                warning(pos, "'%s' redeclared " % name, 0)
+                warning(pos, "'%s' redeclared " % name, 1)
             elif visibility != 'ignore':
                 error(pos, "'%s' redeclared " % name)
         entry = Entry(name, cname, type, pos = pos)
