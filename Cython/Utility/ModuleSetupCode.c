@@ -507,7 +507,7 @@
 
 
 #ifndef CYTHON_FALLTHROUGH
-  #ifdef __cplusplus
+  #if defined(__cplusplus) && __cplusplus >= 201103L
     #if __has_cpp_attribute(fallthrough)
       #define CYTHON_FALLTHROUGH [[fallthrough]]
     #elif __has_cpp_attribute(clang::fallthrough)
@@ -516,7 +516,9 @@
   #endif
 
   #ifndef CYTHON_FALLTHROUGH
-    #if __has_attribute(fallthrough) || (defined(__GNUC__) && defined(__attribute__))
+    #if defined(__clang__) && __has_attribute(fallthrough)
+      #define CYTHON_FALLTHROUGH __attribute__((fallthrough))
+    #elif defined(__GNUC__) && defined(__attribute__)
       #define CYTHON_FALLTHROUGH __attribute__((fallthrough))
     #else
       #define CYTHON_FALLTHROUGH

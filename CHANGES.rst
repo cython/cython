@@ -26,6 +26,9 @@ Bugs fixed
 * ``std::unordered_map.erase()`` was declared with an incorrect ``void`` return
   type in ``libcpp.unordered_map``.  (Github issue #1484)
 
+* Invalid use of C++ ``fallthrough`` attribute before C++11 and similar issue in clang.
+  (Github issue #1930)
+
 * Compiler crash on misnamed properties. (Github issue #1905)
 
 
