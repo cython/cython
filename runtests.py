@@ -71,7 +71,7 @@ CY3_DIR = None
 
 from distutils.command.build_ext import build_ext as _build_ext
 from distutils import sysconfig
-
+from distutils import ccompiler
 _to_clean = []
 
 @atexit.register
@@ -240,7 +240,6 @@ def update_openmp_extension(ext):
 
     if flags:
         compile_flags, link_flags = flags
-
         ext.extra_compile_args.extend(compile_flags.split())
         ext.extra_link_args.extend(link_flags.split())
         return ext
@@ -249,21 +248,32 @@ def update_openmp_extension(ext):
 
     return EXCLUDE_EXT
 
-def get_openmp_compiler_flags(language):
+def update_cpp11_extension(ext):
     """
-    As of gcc 4.2, it supports OpenMP 2.5. Gcc 4.4 implements 3.0. We don't
-    (currently) check for other compilers.
+        update cpp11 extensions that will run on versions of gcc >4.8
+    """
+    gcc_version = get_gcc_version(ext.language)
+    compiler_version = gcc_version.group(1)
+    if gcc_version is not None:
+        compiler_version = gcc_version.group(1)
+        if float(compiler_version) > 4.8:
+            ext.extra_compile_args.extend("-std=c++11")
+        return ext    
+    return EXCLUDE_EXT
 
-    returns a two-tuple of (CFLAGS, LDFLAGS) to build the OpenMP extension
+
+def get_gcc_version(language):
+    """
+        finds gcc version using Popen
     """
     if language == 'cpp':
         cc = sysconfig.get_config_var('CXX')
     else:
         cc = sysconfig.get_config_var('CC')
+    if not cc:
+       cc = ccompiler.get_default_compiler()
 
     if not cc:
-        if sys.platform == 'win32':
-            return '/openmp', ''
         return None
 
     # For some reason, cc can be e.g. 'gcc -pthread'
@@ -272,7 +282,6 @@ def get_openmp_compiler_flags(language):
     # Force english output
     env = os.environ.copy()
     env['LC_MESSAGES'] = 'C'
-
     matcher = re.compile(r"gcc version (\d+\.\d+)").search
     try:
         p = subprocess.Popen([cc, "-v"], stderr=subprocess.PIPE, env=env)
@@ -282,12 +291,25 @@ def get_openmp_compiler_flags(language):
                       (language, os.strerror(sys.exc_info()[1].errno), cc))
         return None
     _, output = p.communicate()
-
     output = output.decode(locale.getpreferredencoding() or 'ASCII', 'replace')
-
     gcc_version = matcher(output)
+    return gcc_version
+
+
+def get_openmp_compiler_flags(language):
+    """
+    As of gcc 4.2, it supports OpenMP 2.5. Gcc 4.4 implements 3.0. We don't
+    (currently) check for other compilers.
+
+    returns a two-tuple of (CFLAGS, LDFLAGS) to build the OpenMP extension
+    """
+    gcc_version = get_gcc_version(language)
+
     if not gcc_version:
-        return None # not gcc - FIXME: do something about other compilers
+        if sys.platform == 'win32':
+            return '/openmp', ''
+        else:
+            return None # not gcc - FIXME: do something about other compilers
 
     # gcc defines "__int128_t", assume that at least all 64 bit architectures have it
     global COMPILER_HAS_INT128
@@ -313,6 +335,7 @@ EXCLUDE_EXT = object()
 EXT_EXTRAS = {
     'tag:numpy' : update_numpy_extension,
     'tag:openmp': update_openmp_extension,
+    'tag:cpp11': update_cpp11_extension,
     'tag:trace' : update_linetrace_extension,
 }
 
