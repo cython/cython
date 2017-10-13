@@ -255,7 +255,6 @@ def update_cpp11_extension(ext):
     gcc_version = get_gcc_version(ext.language)
     compiler_version = gcc_version.group(1)
     if gcc_version is not None:
-        print gcc_version
         compiler_version = gcc_version.group(1)
         if float(compiler_version) > 4.8:
             ext.extra_compile_args.extend("-std=c++11")
