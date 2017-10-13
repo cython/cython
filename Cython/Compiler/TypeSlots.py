@@ -576,7 +576,7 @@ def get_special_method_signature(name):
     if slot:
         return slot.signature
     elif name in richcmp_special_methods:
-        return binaryfunc
+        return ibinaryfunc
     else:
         return None
 
