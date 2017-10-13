@@ -11,3 +11,4 @@ Also see the `Cython project homepage <http://cython.org/>`_.
    src/tutorial/index
    src/userguide/index
    src/reference/index
+   src/changes
