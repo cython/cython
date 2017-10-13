@@ -23,6 +23,9 @@ Bugs fixed
 * Compiler crash on some complex type declarations in pure mode.
   (Github issue #1908)
 
+* ``std::unordered_map.erase()`` was declared with an incorrect ``void`` return
+  type in ``libcpp.unordered_map``.  (Github issue #1484)
+
 * Compiler crash on misnamed properties. (Github issue #1905)
 
 
