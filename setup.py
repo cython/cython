@@ -68,24 +68,16 @@ if 'setuptools' in sys.modules:
     setuptools_extra_args['entry_points'] = {
         'console_scripts': [
             'cython = Cython.Compiler.Main:setuptools_main',
-            'cythonize = Cython.Build.Cythonize:main'
+            'cythonize = Cython.Build.Cythonize:main',
+            'cygdb = Cython.Debugger.Cygdb:main',
         ]
     }
     scripts = []
 else:
     if os.name == "posix":
-        scripts = ["bin/cython", 'bin/cythonize']
+        scripts = ["bin/cython", "bin/cythonize", "bin/cygdb"]
     else:
-        scripts = ["cython.py", "cythonize.py"]
-
-if 'setuptools' in sys.modules:
-    setuptools_extra_args['entry_points']['console_scripts'].append(
-        'cygdb = Cython.Debugger.Cygdb:main')
-else:
-    if os.name == "posix":
-        scripts.append('bin/cygdb')
-    else:
-        scripts.append('cygdb.py')
+        scripts = ["cython.py", "cythonize.py", "cygdb.py"]
 
 
 def compile_cython_modules(profile=False, compile_more=False, cython_with_refnanny=False):
