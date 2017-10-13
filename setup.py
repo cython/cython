@@ -12,6 +12,10 @@ import sys
 import platform
 is_cpython = platform.python_implementation() == 'CPython'
 
+# this specifies which versions of python we support, pip >= 9 knows to skip
+# versions of packages which are not compatible with the running python
+PYTHON_REQUIRES = '>=2.6, !=3.0.*, !=3.1.*, !=3.2.*'
+
 if sys.platform == "darwin":
     # Don't create resource files on OS X tar.
     os.environ['COPY_EXTENDED_ATTRIBUTES_DISABLE'] = 'true'
@@ -59,6 +63,7 @@ setup_args['package_data'] = {
 setuptools_extra_args = {}
 
 if 'setuptools' in sys.modules:
+    setuptools_extra_args['python_requires'] = PYTHON_REQUIRES
     setuptools_extra_args['zip_safe'] = False
     setuptools_extra_args['entry_points'] = {
         'console_scripts': [
