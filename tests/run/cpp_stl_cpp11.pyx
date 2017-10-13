@@ -6,12 +6,6 @@ import sys
 from libcpp.unordered_map cimport unordered_map
 from libcpp.pair cimport pair
 
-py_set = set
-py_xrange = xrange
-py_unicode = unicode
-
-
-
 def test_unordered_map_functionality():
     """
     >>> test_unordered_map_functionality()
