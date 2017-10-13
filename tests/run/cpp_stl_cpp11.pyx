@@ -14,7 +14,7 @@ py_unicode = unicode
 
 def test_unordered_map_functionality():
     """
-    >>> test_cpp11_unordered_map()
+    >>> test_unordered_map_functionality()
     pass
     """
     cdef:
