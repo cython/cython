@@ -522,9 +522,7 @@
   #endif
 
   #ifndef CYTHON_FALLTHROUGH
-    #if defined(__clang__) && __has_attribute(fallthrough)
-      #define CYTHON_FALLTHROUGH __attribute__((fallthrough))
-    #elif defined(__GNUC__) && defined(__attribute__)
+    #if !defined(_MSC_VER) && __has_attribute(fallthrough)
       #define CYTHON_FALLTHROUGH __attribute__((fallthrough))
     #else
       #define CYTHON_FALLTHROUGH
