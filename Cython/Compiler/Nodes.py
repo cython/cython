@@ -1137,7 +1137,7 @@ class TemplatedTypeNode(CBaseTypeNode):
                     type = template_node.analyse_as_type(env)
                     if type is None:
                         error(template_node.pos, "unknown type in template argument")
-                        return error_type
+                        type = error_type
                     template_types.append(type)
                 self.type = base_type.specialize_here(self.pos, template_types)
 
