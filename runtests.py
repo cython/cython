@@ -122,7 +122,7 @@ EXT_DEP_MODULES = {
     'tag:array':    'array',
     'tag:coverage': 'Cython.Coverage',
     'Coverage':     'Cython.Coverage',
-    'tag:ipython':  'IPython',
+    'tag:ipython':  'IPython.testing.globalipapp',
     'tag:jedi':     'jedi_BROKEN_AND_DISABLED',
 }
 
