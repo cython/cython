@@ -15,6 +15,7 @@ from . import ExprNodes
 from . import Nodes
 from . import Options
 from . import Builtin
+from . import Errors
 
 from .Visitor import VisitorTransform, TreeVisitor
 from .Visitor import CythonTransform, EnvTransform, ScopeTrackingTransform
@@ -3157,8 +3158,9 @@ class ReplaceFusedTypeChecks(VisitorTransform):
         return self.transform(node)
 
     def visit_PrimaryCmpNode(self, node):
-        type1 = node.operand1.analyse_as_type(self.local_scope)
-        type2 = node.operand2.analyse_as_type(self.local_scope)
+        with Errors.local_errors(ignore=True):
+          type1 = node.operand1.analyse_as_type(self.local_scope)
+          type2 = node.operand2.analyse_as_type(self.local_scope)
 
         if type1 and type2:
             false_node = ExprNodes.BoolNode(node.pos, value=False)

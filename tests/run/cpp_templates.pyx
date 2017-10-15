@@ -131,6 +131,19 @@ def test_func_ptr(double x):
     finally:
         del w
 
+def test_typeof(double x):
+    """
+    >>> test_func_ptr(3)
+    9.0
+    >>> test_func_ptr(-1.5)
+    2.25
+    """
+    try:
+        w = new Wrap[cython.typeof(&f)](&f)
+        return w.get()(x)
+    finally:
+        del w
+
 def test_cast_template_pointer():
     """
     >>> test_cast_template_pointer()

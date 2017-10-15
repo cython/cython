@@ -5267,6 +5267,11 @@ class SimpleCallNode(CallNode):
                     error(self.args[0].pos, "Unknown type")
                 else:
                     return PyrexTypes.CPtrType(type)
+        elif attr == 'typeof':
+            if len(self.args) != 1:
+                error(self.args.pos, "only one type allowed.")
+            operand = self.args[0].analyse_types(env)
+            return operand.type
 
     def explicit_args_kwds(self):
         return self.args, None
@@ -10682,6 +10687,10 @@ class TypeofNode(ExprNode):
         literal = literal.analyse_types(env)
         self.literal = literal.coerce_to_pyobject(env)
         return self
+
+    def analyse_as_type(env):
+        self.operand = self.operand.analyse_types(env)
+        return self.operand.type
 
     def may_be_none(self):
         return False
