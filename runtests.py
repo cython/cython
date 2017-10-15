@@ -253,7 +253,6 @@ def update_cpp11_extension(ext):
         update cpp11 extensions that will run on versions of gcc >4.8
     """
     gcc_version = get_gcc_version(ext.language)
-    compiler_version = gcc_version.group(1)
     if gcc_version is not None:
         compiler_version = gcc_version.group(1)
         if float(compiler_version) > 4.8:
