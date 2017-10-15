@@ -632,7 +632,7 @@ class TrackNumpyAttributes(VisitorTransform, SkipDeclarations):
     visit_Node = VisitorTransform.recurse_to_children
 
 
-class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
+class InterpretCompilerDirectives(CythonTransform):
     """
     After parsing, directives can be stored in a number of places:
     - #cython-comments at the top of the file (stored in ModuleNode)
@@ -857,6 +857,11 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                 node.cython_attribute = directive
         return node
 
+    def visit_NewExprNode(self, node):
+        self.visit(node.cppclass)
+        self.visitchildren(node)
+        return node
+
     def try_to_parse_directives(self, node):
         # If node is the contents of an directive (in a with statement or
         # decorator), returns a list of (directivename, value) pairs.
@@ -987,7 +992,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
     def visit_CVarDefNode(self, node):
         directives = self._extract_directives(node, 'function')
         if not directives:
-            return node
+            return self.visit_Node(node)
         for name, value in directives.items():
             if name == 'locals':
                 node.directive_locals = value

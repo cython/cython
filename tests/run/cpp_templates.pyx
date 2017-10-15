@@ -1,5 +1,6 @@
 # tag: cpp
 
+cimport cython
 from cython.operator import dereference as deref
 
 cdef extern from "cpp_templates_helper.h":
@@ -148,3 +149,16 @@ def test_static(x):
     (1, 1.5)
     """
     return Div[int].half(x), Div[double].half(x)
+
+def test_pure_syntax(int i):
+    """
+    >>> test_ptr(3)
+    3
+    >>> test_ptr(5)
+    5
+    """
+    try:
+        w = new Wrap[cython.pointer(int)](&i)
+        return deref(w.get())
+    finally:
+        del w
