@@ -1927,7 +1927,7 @@ class FuncDefNode(StatNode, BlockNode):
                     code.put_var_incref(entry)
 
             # Note: defaults are always incref-ed. For def functions, we
-            #       we aquire arguments from object converstion, so we have
+            #       we acquire arguments from object converstion, so we have
             #       new references. If we are a cdef function, we need to
             #       incref our arguments
             elif is_cdef and entry.type.is_memoryviewslice and len(entry.cf_assignments) > 1:
@@ -4234,7 +4234,7 @@ class GeneratorBodyDefNode(DefNode):
 
 class OverrideCheckNode(StatNode):
     # A Node for dispatching to the def method if it
-    # is overriden.
+    # is overridden.
     #
     #  py_func
     #

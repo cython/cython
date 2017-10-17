@@ -4185,7 +4185,7 @@ class BufferIndexNode(_IndexingBaseNode):
         if is_pythran_expr(base_type) and is_pythran_supported_type(rhs.type):
             obj = code.funcstate.allocate_temp(PythranExpr(pythran_type(self.base.type)), manage_ref=False)
             # We have got to do this because we have to declare pythran objects
-            # at the beggining of the functions.
+            # at the beginning of the functions.
             # Indeed, Cython uses "goto" statement for error management, and
             # RAII doesn't work with that kind of construction.
             # Moreover, the way Pythran expressions are made is that they don't
@@ -10427,7 +10427,7 @@ class CythonArrayNode(ExprNode):
 
     def allocate_temp_result(self, code):
         if self.temp_code:
-            raise RuntimeError("temp allocated mulitple times")
+            raise RuntimeError("temp allocated multiple times")
 
         self.temp_code = code.funcstate.allocate_temp(self.type, True)
 

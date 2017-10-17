@@ -1,7 +1,7 @@
 #
 # Nodes used as utilities and support for transforms etc.
 # These often make up sets including both Nodes and ExprNodes
-# so it is convenient to have them in a seperate module.
+# so it is convenient to have them in a separate module.
 #
 
 from __future__ import absolute_import

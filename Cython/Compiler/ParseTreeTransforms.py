@@ -1877,7 +1877,7 @@ if VALUE is not None:
 
     def visit_FuncDefNode(self, node):
         """
-        Analyse a function and its body, as that hasn't happend yet.  Also
+        Analyse a function and its body, as that hasn't happened yet.  Also
         analyse the directive_locals set by @cython.locals().
 
         Then, if we are a function with fused arguments, replace the function
@@ -2066,7 +2066,7 @@ if VALUE is not None:
 
     # Some nodes are no longer needed after declaration
     # analysis and can be dropped. The analysis was performed
-    # on these nodes in a seperate recursive process from the
+    # on these nodes in a separate recursive process from the
     # enclosing function or module, so we can simply drop them.
     def visit_CDeclaratorNode(self, node):
         # necessary to ensure that all CNameDeclaratorNodes are visited.

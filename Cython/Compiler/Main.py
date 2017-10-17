@@ -356,7 +356,7 @@ class Context(object):
                         from ..Parser import ConcreteSyntaxTree
                     except ImportError:
                         raise RuntimeError(
-                            "Formal grammer can only be used with compiled Cython with an available pgen.")
+                            "Formal grammar can only be used with compiled Cython with an available pgen.")
                     ConcreteSyntaxTree.p_module(source_filename)
         except UnicodeDecodeError as e:
             #import traceback
@@ -683,7 +683,7 @@ def compile(source, options = None, full_module_name = None, **kwds):
     compile(source [, options], [, <option> = <value>]...)
 
     Compile one or more Pyrex implementation files, with optional timestamp
-    checking and recursing on dependecies. The source argument may be a string
+    checking and recursing on dependencies. The source argument may be a string
     or a sequence of strings If it is a string and no recursion or timestamp
     checking is requested, a CompilationResult is returned, otherwise a
     CompilationResultSet is returned.

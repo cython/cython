@@ -92,7 +92,7 @@ cdef extern from *:  # Hard-coded utility code hack.
 
         def __getbuffer__(self, Py_buffer* info, int flags):
             # This implementation of getbuffer is geared towards Cython
-            # requirements, and does not yet fullfill the PEP.
+            # requirements, and does not yet fulfill the PEP.
             # In particular strided access is always provided regardless
             # of flags
             item_count = Py_SIZE(self)
@@ -143,7 +143,7 @@ cdef inline array copy(array self):
     return op
 
 cdef inline int extend_buffer(array self, char* stuff, Py_ssize_t n) except -1:
-    """ efficent appending of new stuff of same type
+    """ efficient appending of new stuff of same type
     (e.g. of same array type)
     n: number of elements (not number of bytes!) """
     cdef Py_ssize_t itemsize = self.ob_descr.itemsize

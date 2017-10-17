@@ -116,7 +116,7 @@ def pyext_coms(platform):
     return pyext_cccom, pyext_cxxcom, pyext_linkcom
 
 def set_basic_vars(env):
-    # Set construction variables which are independant on whether we are using
+    # Set construction variables which are independent on whether we are using
     # distutils or not.
     env['PYEXTCPPPATH'] = SCons.Util.CLVar('$PYEXTINCPATH')
 
