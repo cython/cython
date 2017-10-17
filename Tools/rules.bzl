@@ -48,7 +48,7 @@ def pyx_library(
                            ["-s '%s=%s'" % x for x in cython_options])
     # TODO(robertwb): It might be better to only generate the C files,
     # letting cc_library (or similar) handle the rest, but there isn't yet
-    # suport compiling Python C extensions from bazel.
+    # support compiling Python C extensions from bazel.
     native.genrule(
         name = name + "_cythonize",
         srcs = pyx_srcs,

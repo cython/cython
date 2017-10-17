@@ -213,7 +213,7 @@ cdef extern from "Python.h":
     object              PyList_AsTuple                  (object)
     int                 PyList_Check                    (object)                    # Always succeeds.
     int                 PyList_CheckExact               (object)                    # Always succeeds.
-    int                 PyList_GET_SIZE                 (object)                    # Always suceeds.
+    int                 PyList_GET_SIZE                 (object)                    # Always succeeds.
     object              PyList_GetSlice                 (object, Py_ssize_t, Py_ssize_t)
     int                 PyList_Insert                   (object, Py_ssize_t, object)       except -1
     object              PyList_New                      (Py_ssize_t)

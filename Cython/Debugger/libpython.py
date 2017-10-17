@@ -2596,7 +2596,7 @@ class PythonCodeExecutor(object):
         inferior.
 
         Of course, executing any code in the inferior may be dangerous and may
-        leave the debuggee in an unsafe state or terminate it alltogether.
+        leave the debuggee in an unsafe state or terminate it altogether.
         """
         if '\0' in code:
             raise gdb.GdbError("String contains NUL byte.")

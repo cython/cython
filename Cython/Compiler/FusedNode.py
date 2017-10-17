@@ -225,7 +225,7 @@ class FusedCFuncDefNode(StatListNode):
         """
         Create a new local scope for the copied node and append it to
         self.nodes. A new local scope is needed because the arguments with the
-        fused types are aready in the local scope, and we need the specialized
+        fused types are already in the local scope, and we need the specialized
         entries created after analyse_declarations on each specialized version
         of the (CFunc)DefNode.
         f2s is a dict mapping each fused type to its specialized version
@@ -438,7 +438,7 @@ class FusedCFuncDefNode(StatListNode):
                     if dtype is not None:
                         itemsize = dtype.itemsize
                         kind = ord(dtype.kind)
-                        # We only support the endianess of the current compiler
+                        # We only support the endianness of the current compiler
                         byteorder = dtype.byteorder
                         if byteorder == "<" and not __Pyx_Is_Little_Endian():
                             arg_is_pythran_compatible = False

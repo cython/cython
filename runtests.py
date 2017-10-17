@@ -94,7 +94,7 @@ def _cleanup_files():
 def get_distutils_distro(_cache=[]):
     if _cache:
         return _cache[0]
-    # late import to accomodate for setuptools override
+    # late import to accommodate for setuptools override
     from distutils.dist import Distribution
     distutils_distro = Distribution()
 
@@ -1765,7 +1765,7 @@ def main():
                       help="do not delete the generated C files (allows passing --no-cython on next run)")
     parser.add_option("--no-cleanup-sharedlibs", dest="cleanup_sharedlibs",
                       action="store_false", default=True,
-                      help="do not delete the generated shared libary files (allows manual module experimentation)")
+                      help="do not delete the generated shared library files (allows manual module experimentation)")
     parser.add_option("--no-cleanup-failures", dest="cleanup_failures",
                       action="store_false", default=True,
                       help="enable --no-cleanup and --no-cleanup-sharedlibs for failed tests only")
