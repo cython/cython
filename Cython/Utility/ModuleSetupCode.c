@@ -512,13 +512,22 @@
       #define CYTHON_FALLTHROUGH [[fallthrough]]
     #elif __has_cpp_attribute(clang::fallthrough)
       #define CYTHON_FALLTHROUGH [[clang::fallthrough]]
+    #elif __has_cpp_attribute(gnu::fallthrough)
+      #define CYTHON_FALLTHROUGH [[gnu::fallthrough]]
     #endif
   #endif
 
   #ifndef CYTHON_FALLTHROUGH
-    #if (defined(__GNUC__) || defined(__clang__)) && __has_attribute(fallthrough)
+    #if __has_attribute(fallthrough)
       #define CYTHON_FALLTHROUGH __attribute__((fallthrough))
     #else
+      #define CYTHON_FALLTHROUGH
+    #endif
+  #endif
+
+  #if defined(__clang__ ) && defined(__apple_build_version__)
+    #if __apple_build_version__ < 7000000 /* Xcode < 7.0 */
+      #undef  CYTHON_FALLTHROUGH
       #define CYTHON_FALLTHROUGH
     #endif
   #endif

@@ -1,6 +1,7 @@
 # Makefile for creating our standalone Cython program
 PYTHON := python
 PYVERSION := $(shell $(PYTHON) -c "import sys; print(sys.version[:3])")
+PYPREFIX := $(shell $(PYTHON) -c "import sys; print(sys.prefix)")
 
 INCDIR := $(shell $(PYTHON) -c "from distutils import sysconfig; print(sysconfig.get_python_inc())")
 PLATINCDIR := $(shell $(PYTHON) -c "from distutils import sysconfig; print(sysconfig.get_python_inc(plat_specific=True))")
@@ -31,5 +32,5 @@ clean:
 	@rm -f *~ *.o *.so core core.* *.c embedded test.output
 
 test: clean all
-	LD_LIBRARY_PATH=$(LIBDIR1):$$LD_LIBRARY_PATH ./embedded > test.output
+	PYTHONHOME=$(PYPREFIX) LD_LIBRARY_PATH=$(LIBDIR1):$$LD_LIBRARY_PATH ./embedded > test.output
 	$(PYTHON) assert_equal.py embedded.output test.output

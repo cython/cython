@@ -253,7 +253,6 @@ def update_cpp11_extension(ext):
         update cpp11 extensions that will run on versions of gcc >4.8
     """
     gcc_version = get_gcc_version(ext.language)
-    compiler_version = gcc_version.group(1)
     if gcc_version is not None:
         compiler_version = gcc_version.group(1)
         if float(compiler_version) > 4.8:
@@ -2088,6 +2087,13 @@ def runtests(options, cmd_args, coverage=None):
     if options.shard_num <= 0:
         sys.stderr.write("Backends: %s\n" % ','.join(backends))
     languages = backends
+
+    if 'TRAVIS' in os.environ and sys.platform == 'darwin' and 'cpp' in languages:
+        bugs_file_name = 'travis_macos_cpp_bugs.txt'
+        exclude_selectors += [
+            FileListExcluder(os.path.join(ROOTDIR, bugs_file_name),
+                             verbose=verbose_excludes)
+        ]
 
     if options.use_common_utility_dir:
         common_utility_dir = os.path.join(WORKDIR, 'utility_code')
