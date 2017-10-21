@@ -1647,21 +1647,20 @@ class TagsSelector(object):
 class RegExSelector(object):
     def __init__(self, pattern_string):
         try:
-            self.pattern = re.compile(pattern_string, re.I|re.U)
+            self.regex_matches = re.compile(pattern_string, re.I|re.U).search
         except re.error:
             print('Invalid pattern: %r' % pattern_string)
             raise
 
     def __call__(self, testname, tags=None):
-        return self.pattern.search(testname)
+        return self.regex_matches(testname)
 
 
 def string_selector(s):
-    ix = s.find(':')
-    if ix == -1:
-        return RegExSelector(s)
+    if ':' in s:
+        return TagsSelector(*s.split(':', 1))
     else:
-        return TagsSelector(s[:ix], s[ix+1:])
+        return RegExSelector(s)
 
 
 class ShardExcludeSelector(object):
