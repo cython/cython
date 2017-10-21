@@ -1576,7 +1576,8 @@ class EmbedTest(unittest.TestCase):
         except OSError:
             pass
 
-class MissingDependencyExcluder:
+
+class MissingDependencyExcluder(object):
     def __init__(self, deps):
         # deps: { matcher func : module name }
         self.exclude_matchers = []
@@ -1593,7 +1594,8 @@ class MissingDependencyExcluder:
                 return True
         return False
 
-class VersionDependencyExcluder:
+
+class VersionDependencyExcluder(object):
     def __init__(self, deps):
         # deps: { version : matcher func }
         from sys import version_info
@@ -1610,8 +1612,7 @@ class VersionDependencyExcluder:
         return False
 
 
-class FileListExcluder:
-
+class FileListExcluder(object):
     def __init__(self, list_file, verbose=False):
         self.verbose = verbose
         self.excludes = {}
@@ -1631,8 +1632,7 @@ class FileListExcluder:
         return exclude
 
 
-class TagsSelector:
-
+class TagsSelector(object):
     def __init__(self, tag, value):
         self.tag = tag
         self.value = value
@@ -1643,8 +1643,8 @@ class TagsSelector:
         else:
             return self.value in tags[self.tag]
 
-class RegExSelector:
 
+class RegExSelector(object):
     def __init__(self, pattern_string):
         try:
             self.pattern = re.compile(pattern_string, re.I|re.U)
