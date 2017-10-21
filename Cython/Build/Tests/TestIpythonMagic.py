@@ -20,8 +20,13 @@ except ImportError:
         def str_to_unicode(self, s):
             return s
 
-    __test__ = {}
     py3compat = _py3compat()
+
+    def skip_if_not_installed(_):
+        return None
+else:
+    def skip_if_not_installed(c):
+        return c
 
 try:
     # disable IPython history thread before it gets started to avoid having to clean it up
@@ -69,6 +74,7 @@ else:
         return _skip_win32
 
 
+@skip_if_not_installed
 class TestIPythonMagic(CythonTest):
 
     @classmethod
