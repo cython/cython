@@ -4192,9 +4192,10 @@ class BufferIndexNode(_IndexingBaseNode):
             # support move-assignation easily.
             # This, we explicitly destroy then in-place new objects in this
             # case.
+            index = '[%s]' if len(self.indices) == 1 else '(%s)'
             code.putln("__Pyx_call_destructor(%s);" % obj)
             code.putln("new (&%s) decltype(%s){%s};" % (obj, obj, self.base.pythran_result()))
-            code.putln("%s(%s) %s= %s;" % (
+            code.putln(("%s" + index + " %s= %s;") % (
                 obj,
                 pythran_indexing_code(self.indices),
                 op,
@@ -4225,7 +4226,8 @@ class BufferIndexNode(_IndexingBaseNode):
         if is_pythran_expr(self.base.type):
             res = self.result()
             code.putln("__Pyx_call_destructor(%s);" % res)
-            code.putln("new (&%s) decltype(%s){%s[%s]};" % (
+            index = '[%s]' if len(self.indices) == 1 else '(%s)'
+            code.putln(("new (&%s) decltype(%s){%s" + index + "};") % (
                 res,
                 res,
                 self.base.pythran_result(),
