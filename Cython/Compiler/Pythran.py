@@ -58,45 +58,55 @@ def pythran_unaryop_type(op, type_):
         op, pythran_type(type_))
 
 
-def pythran_indexing_type(type_, indices):
-    def index_code(idx):
-        if idx.is_slice:
-            if idx.step.is_none:
-                func = "contiguous_slice"
-                n = 2
-            else:
-                func = "slice"
-                n = 3
-            return "pythonic::types::%s(%s)" % (
-                func, ",".join(["0"]*n))
-        elif idx.type.is_int:
-            return "std::declval<%s>()" % idx.type.sign_and_name()
-        elif idx.type.is_pythran_expr:
-            return "std::declval<%s>()" % idx.type.pythran_type
-        raise ValueError("unsupported indexing type %s!" % idx.type)
+@cython.ccall
+def _index_access(index_code, indices):
+    indexing = ",".join([index_code(idx) for idx in indices])
+    return ('[%s]' if len(indices) == 1 else '(%s)') % indexing
 
-    indexing = ",".join(index_code(idx) for idx in indices)
-    return type_remove_ref("decltype(std::declval<%s>()[%s])" % (pythran_type(type_), indexing))
+
+def _index_type_code(idx):
+    if idx.is_slice:
+        if idx.step.is_none:
+            func = "contiguous_slice"
+            n = 2
+        else:
+            func = "slice"
+            n = 3
+        return "pythonic::types::%s(%s)" % (
+            func, ",".join(["0"]*n))
+    elif idx.type.is_int:
+        return "std::declval<%s>()" % idx.type.sign_and_name()
+    elif idx.type.is_pythran_expr:
+        return "std::declval<%s>()" % idx.type.pythran_type
+    raise ValueError("unsupported indexing type %s!" % idx.type)
+
+
+def _index_code(idx):
+    if idx.is_slice:
+        values = idx.start, idx.stop, idx.step
+        if idx.step.is_none:
+            func = "contiguous_slice"
+            values = values[:2]
+        else:
+            func = "slice"
+        return "pythonic::types::%s(%s)" % (
+            func, ",".join((v.pythran_result() for v in values)))
+    elif idx.type.is_int:
+        return to_pythran(idx)
+    elif idx.type.is_pythran_expr:
+        return idx.pythran_result()
+    raise ValueError("unsupported indexing type %s" % idx.type)
+
+
+def pythran_indexing_type(type_, indices):
+    return type_remove_ref("decltype(std::declval<%s>()%s)" % (
+        pythran_type(type_),
+        _index_access(_index_type_code, indices),
+    ))
 
 
 def pythran_indexing_code(indices):
-    def index_code(idx):
-        if idx.is_slice:
-            values = idx.start, idx.stop, idx.step
-            if idx.step.is_none:
-                func = "contiguous_slice"
-                values = values[:2]
-            else:
-                func = "slice"
-            return "pythonic::types::%s(%s)" % (
-                func, ",".join((v.pythran_result() for v in values)))
-        elif idx.type.is_int:
-            return to_pythran(idx)
-        elif idx.type.is_pythran_expr:
-            return idx.pythran_result()
-        raise ValueError("unsupported indexing type %s" % idx.type)
-
-    return ",".join(index_code(idx) for idx in indices)
+    return _index_access(_index_code, indices)
 
 
 def pythran_func_type(func, args):
