@@ -1,3 +1,5 @@
+# cython: language_level=3
+
 from __future__ import absolute_import
 
 from .PyrexTypes import CType, CTypedefType, CStructOrUnionType
@@ -58,7 +60,7 @@ def pythran_unaryop_type(op, type_):
         op, pythran_type(type_))
 
 
-@cython.ccall
+@cython.cfunc
 def _index_access(index_code, indices):
     indexing = ",".join([index_code(idx) for idx in indices])
     return ('[%s]' if len(indices) == 1 else '(%s)') % indexing
