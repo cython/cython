@@ -4100,7 +4100,8 @@ class BufferIndexNode(_IndexingBaseNode):
 
     def analyse_buffer_index(self, env, getting):
         if is_pythran_expr(self.base.type):
-            self.type = PythranExpr(pythran_indexing_type(self.base.type, self.indices))
+            index_with_type_list = [(idx, idx.type) for idx in self.indices]
+            self.type = PythranExpr(pythran_indexing_type(self.base.type, index_with_type_list))
         else:
             self.base = self.base.coerce_to_simple(env)
             self.type = self.base.type.dtype
