@@ -1471,6 +1471,7 @@ class CType(PyrexType):
             source_code,
             code.error_goto_if(error_condition or self.error_condition(result_code), error_pos))
 
+
 class PythranExpr(CType):
     # Pythran object of a given type
 
@@ -1509,6 +1510,10 @@ class PythranExpr(CType):
     def __eq__(self, other):
         """Equality operation for PythranExpr using the str representation"""
         return isinstance(other, PythranExpr) and self.pythran_type == other.pythran_type
+
+    def __ne__(self, other):
+        """Equality operation for PythranExpr using the str representation"""
+        return not isinstance(other, PythranExpr) or self.pythran_type != other.pythran_type
 
     def __hash__(self):
         """Hash function using the str representation"""
