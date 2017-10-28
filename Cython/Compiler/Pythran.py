@@ -66,7 +66,8 @@ def _index_access(index_code, indices):
     return ('[%s]' if len(indices) == 1 else '(%s)') % indexing
 
 
-def _index_type_code(idx):
+def _index_type_code(index_with_type):
+    idx, index_type = index_with_type
     if idx.is_slice:
         if idx.step.is_none:
             func = "contiguous_slice"
@@ -76,11 +77,11 @@ def _index_type_code(idx):
             n = 3
         return "pythonic::types::%s(%s)" % (
             func, ",".join(["0"]*n))
-    elif idx.type.is_int:
-        return "std::declval<%s>()" % idx.type.sign_and_name()
-    elif idx.type.is_pythran_expr:
-        return "std::declval<%s>()" % idx.type.pythran_type
-    raise ValueError("unsupported indexing type %s!" % idx.type)
+    elif index_type.is_int:
+        return "std::declval<%s>()" % index_type.sign_and_name()
+    elif index_type.is_pythran_expr:
+        return "std::declval<%s>()" % index_type.pythran_type
+    raise ValueError("unsupported indexing type %s!" % index_type)
 
 
 def _index_code(idx):

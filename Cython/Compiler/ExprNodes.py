@@ -2284,7 +2284,11 @@ class NameNode(AtomicExprNode):
                             code.putln('%s = %s;' % (self.result(), result))
                     else:
                         result = rhs.result_as(self.ctype())
-                        code.putln('%s = %s;' % (self.result(), result))
+
+                        if is_pythran_expr(self.type):
+                            code.putln('new (&%s) decltype(%s){%s};' % (self.result(), self.result(), result))
+                        else:
+                            code.putln('%s = %s;' % (self.result(), result))
                 if debug_disposal_code:
                     print("NameNode.generate_assignment_code:")
                     print("...generating post-assignment code for %s" % rhs)
@@ -3450,6 +3454,10 @@ class IndexNode(_IndexingBaseNode):
             if index_func is not None:
                 return index_func.type.return_type
 
+        if is_pythran_expr(base_type) and is_pythran_expr(index_type):
+            index_with_type = (self.index, index_type)
+            return PythranExpr(pythran_indexing_type(base_type, [index_with_type]))
+
         # may be slicing or indexing, we don't know
         if base_type in (unicode_type, str_type):
             # these types always returns their own type on Python indexing/slicing
@@ -4100,7 +4108,8 @@ class BufferIndexNode(_IndexingBaseNode):
 
     def analyse_buffer_index(self, env, getting):
         if is_pythran_expr(self.base.type):
-            self.type = PythranExpr(pythran_indexing_type(self.base.type, self.indices))
+            index_with_type_list = [(idx, idx.type) for idx in self.indices]
+            self.type = PythranExpr(pythran_indexing_type(self.base.type, index_with_type_list))
         else:
             self.base = self.base.coerce_to_simple(env)
             self.type = self.base.type.dtype
@@ -12241,7 +12250,13 @@ class PrimaryCmpNode(ExprNode, CmpNode):
     is_memslice_nonecheck = False
 
     def infer_type(self, env):
-        # TODO: Actually implement this (after merging with -unstable).
+        type1 = self.operand1.infer_type(env)
+        type2 = self.operand2.infer_type(env)
+
+        if is_pythran_expr(type1) or is_pythran_expr(type2):
+            if is_pythran_supported_type(type1) and is_pythran_supported_type(type2):
+                return PythranExpr(pythran_binop_type(self.operator, type1, type2))
+
         return py_object_type
 
     def type_dependencies(self, env):

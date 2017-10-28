@@ -561,6 +561,8 @@ def safe_spanning_type(types, might_overflow, pos, scope):
         # find_spanning_type() only returns 'bint' for clean boolean
         # operations without other int types, so this is safe, too
         return result_type
+    elif result_type.is_pythran_expr:
+        return result_type
     elif result_type.is_ptr:
         # Any pointer except (signed|unsigned|) char* can't implicitly
         # become a PyObject, and inferring char* is now accepted, too.
