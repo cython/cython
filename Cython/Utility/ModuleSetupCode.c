@@ -598,6 +598,29 @@ class __Pyx_FakeReference {
 #endif
 
 
+/////////////// PyModInitFuncType.proto ///////////////
+
+#if PY_MAJOR_VERSION < 3
+
+#ifdef CYTHON_NO_PYINIT_EXPORT
+// define this to void manually because PyMODINIT_FUNC adds __declspec(dllexport) to it's definition.
+#define __Pyx_PyMODINIT_FUNC void
+#else
+#define __Pyx_PyMODINIT_FUNC PyMODINIT_FUNC
+#endif
+
+#else
+
+#ifdef CYTHON_NO_PYINIT_EXPORT
+// define this to PyObject * manually because PyMODINIT_FUNC adds __declspec(dllexport) to it's definition.
+#define __Pyx_PyMODINIT_FUNC PyObject *
+#else
+#define __Pyx_PyMODINIT_FUNC PyMODINIT_FUNC
+#endif
+
+#endif
+
+
 /////////////// FastTypeChecks.proto ///////////////
 
 #if CYTHON_COMPILING_IN_CPYTHON
