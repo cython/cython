@@ -43,6 +43,44 @@ paths to libraries you need to link with]
 A ``yourmod.so`` file is now in the same directory and your module,
 ``yourmod``, is available for you to import as you normally would.
 
+Compiling in a embedded interpreter
+===================================
+
+Sometimes you might want to use cython to compile a python module you
+made into your hand made embedded python. Here is how to do that.
+
+On the top of your C file above the main function you created
+type this without the quotes::
+
+    PyMODINIT_FUNC PyInit__test(void);
+
+for python 3.x and::
+
+    PyMODINIT_FUNC init_test(void);
+
+for python 2.
+
+Where Module Name is the name of the module you cythonized. If you
+are not sure on the name of the module init function refer to your
+generated module source file.
+
+You need to use ``PyImport_AppendInittab`` but right
+before you use ``Py_SetProgramName`` and ``Py_Initialize`` in your
+main as well::
+
+    PyImport_AppendInittab("_test", PyInit__test);
+
+for python 3.x and::
+
+    PyImport_AppendInittab("_test", init_test)
+
+After that is done go in and for all the sources you use define the
+following in the compiler's command line::
+
+    CYTHON_NO_PYINIT_EXPORT
+
+This macro is to ensure that your module initialization function is
+not exported.
 
 Compiling with ``distutils``
 ============================
