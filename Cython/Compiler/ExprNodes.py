@@ -3450,6 +3450,10 @@ class IndexNode(_IndexingBaseNode):
             if index_func is not None:
                 return index_func.type.return_type
 
+        if is_pythran_expr(base_type) and is_pythran_expr(index_type):
+            index_with_type = (self.index, index_type)
+            return PythranExpr(pythran_indexing_type(base_type, [index_with_type]))
+
         # may be slicing or indexing, we don't know
         if base_type in (unicode_type, str_type):
             # these types always returns their own type on Python indexing/slicing
