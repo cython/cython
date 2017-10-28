@@ -2284,7 +2284,11 @@ class NameNode(AtomicExprNode):
                             code.putln('%s = %s;' % (self.result(), result))
                     else:
                         result = rhs.result_as(self.ctype())
-                        code.putln('%s = %s;' % (self.result(), result))
+
+                        if is_pythran_expr(self.type):
+                            code.putln('new (&%s) decltype(%s){%s};' % (self.result(), self.result(), result))
+                        else:
+                            code.putln('%s = %s;' % (self.result(), result))
                 if debug_disposal_code:
                     print("NameNode.generate_assignment_code:")
                     print("...generating post-assignment code for %s" % rhs)
