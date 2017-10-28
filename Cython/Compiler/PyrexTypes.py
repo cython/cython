@@ -1508,11 +1508,11 @@ class PythranExpr(CType):
 
     def __eq__(self, other):
         """Equality operation for PythranExpr using the str representation"""
-        return str(self) == str(other)
+        return isinstance(other, PythranExpr) and self.pythran_type == other.pythran_type
 
     def __hash__(self):
         """Hash function using the str representation"""
-        return hash(str(self))
+        return hash(self.pythran_type)
 
 
 class CConstType(BaseType):
