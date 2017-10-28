@@ -1506,6 +1506,15 @@ class PythranExpr(CType):
 
         return True
 
+    def __eq__(self, other):
+        """Equality operation for PythranExpr using the str representation"""
+        return str(self) == str(other)
+
+    def __hash__(self):
+        """Hash function using the str representation"""
+        return hash(str(self))
+
+
 class CConstType(BaseType):
 
     is_const = 1
