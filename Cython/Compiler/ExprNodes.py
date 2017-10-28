@@ -12257,6 +12257,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
             if is_pythran_supported_type(type1) and is_pythran_supported_type(type2):
                 return PythranExpr(pythran_binop_type(self.operator, type1, type2))
 
+        # TODO: implement this for other types.
         return py_object_type
 
     def type_dependencies(self, env):
