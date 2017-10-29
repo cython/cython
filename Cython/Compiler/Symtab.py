@@ -35,12 +35,12 @@ iso_c99_keywords = set(
 
 def c_safe_identifier(cname):
     # There are some C limitations on struct entry names.
-    if ((cname[:2] == '__'
-         and not (cname.startswith(Naming.pyrex_prefix)
-                  or cname in ('__weakref__', '__dict__')))
-        or cname in iso_c99_keywords):
+    if ((cname[:2] == '__' and not (cname.startswith(Naming.pyrex_prefix)
+                                    or cname in ('__weakref__', '__dict__')))
+            or cname in iso_c99_keywords):
         cname = Naming.pyrex_prefix + cname
     return cname
+
 
 class BufferAux(object):
     writable_needed = False
