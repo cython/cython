@@ -1,5 +1,5 @@
 # mode: run
-# tag: annotation_typing, pure3.0
+# tag: annotation_typing, pure3.0, mypy
 
 import cython
 
@@ -7,7 +7,7 @@ is_compiled = cython.compiled
 
 MyUnion = cython.union(n=cython.int, x=cython.double)
 MyStruct = cython.struct(is_integral=cython.bint, data=MyUnion)
-MyStruct2 = cython.typedef(MyStruct[2])
+MyStruct2 = cython.typedef(MyStruct[2])  # type: cython.StructType
 
 
 @cython.ccall  # cpdef => C return type
