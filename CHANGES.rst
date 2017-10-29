@@ -2,6 +2,48 @@
 Cython Changelog
 ================
 
+0.28 (2017-10-22)
+=================
+
+Features added
+--------------
+
+* Type inference is now supported for Pythran compiled NumPy expressions.
+  Patch by Nils Braun.  (Github issue #1954)
+
+* C file includes are moved behind the module declarations if possible, to allow
+  them to depend on module declarations themselves.
+  Patch by Jeroen Demeyer.  (Github issue #1896)
+
+* Some ``bytearray`` operations have been optimised similar to ``bytes``.
+
+* Safe integer loops (< range(2^30)) are optimised into C loops.
+
+* Python compatible ``cython.*`` types can now be mixed with type declarations
+  in Cython syntax.
+
+* Name lookups in the module and in classes are faster.
+
+* Some missing signals were added to ``libc/signal.pxd``.
+  Patch by Jeroen Demeyer.  (Github issue #1914)
+
+* Defining the macro ``CYTHON_NO_PYINIT_EXPORT`` will prevent the module init
+  function from being exported as symbol, e.g. when linking modules statically
+  in an embedding setup.  Patch by AraHaan.  (Github issue #1944)
+
+Bugs fixed
+----------
+
+* C++ declarations for ``unordered_map`` were corrected.
+  Patch by Michael Schatzow.  (Github issue #1484)
+
+* Iterator declarations in C++ ``deque`` and ``vector`` were corrected.
+  Patch by Alex Huszagh.  (Github issue #1870)
+
+Other changes
+-------------
+
+
 0.27.3 (2017-??-??)
 ===================
 
