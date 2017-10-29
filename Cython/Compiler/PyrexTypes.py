@@ -1488,35 +1488,29 @@ class PythranExpr(CType):
         self.from_py_function = "from_python<%s>" % (self.pythran_type)
         self.scope = None
 
-    def declaration_code(self, entity_code, for_display = 0, dll_linkage = None, pyrex = 0):
-        assert pyrex == 0
-        return "%s %s" % (self.name, entity_code)
+    def declaration_code(self, entity_code, for_display=0, dll_linkage=None, pyrex=0):
+        assert not pyrex
+        return "%s %s" % (self.cname, entity_code)
 
     def attributes_known(self):
         if self.scope is None:
             from . import Symtab
-            self.scope = scope = Symtab.CClassScope(
-                    '',
-                    None,
-                    visibility="extern")
+            # FIXME: fake C scope, might be better represented by a struct or C++ class scope
+            self.scope = scope = Symtab.CClassScope('', None, visibility="extern")
             scope.parent_type = self
             scope.directives = {}
-            # rank 3 == long
-            scope.declare_var("shape", CPtrType(CIntType(3)), None, cname="_shape", is_cdef=True)
-            scope.declare_var("ndim", CIntType(3), None, cname="value", is_cdef=True)
+            scope.declare_var("shape", CPtrType(c_long_type), None, cname="_shape", is_cdef=True)
+            scope.declare_var("ndim", c_long_type, None, cname="value", is_cdef=True)
 
         return True
 
     def __eq__(self, other):
-        """Equality operation for PythranExpr using the str representation"""
         return isinstance(other, PythranExpr) and self.pythran_type == other.pythran_type
 
     def __ne__(self, other):
-        """Equality operation for PythranExpr using the str representation"""
-        return not isinstance(other, PythranExpr) or self.pythran_type != other.pythran_type
+        return not (isinstance(other, PythranExpr) and self.pythran_type == other.pythran_type)
 
     def __hash__(self):
-        """Hash function using the str representation"""
         return hash(self.pythran_type)
 
 
