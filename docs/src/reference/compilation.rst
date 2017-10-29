@@ -45,54 +45,6 @@ A ``yourmod.so`` file is now in the same directory and your module,
 ``yourmod``, is available for you to import as you normally would.
 
 
-Integrating multiple modules
-============================
-
-It some scenarios, it can be useful to link multiple Cython modules
-(or other extension modules) into a single binary, e.g. when embedding
-Python in another application.  This can be done through the inittab
-import mechanism of CPython.
-
-Create a new C file to integrate the extension modules and add this
-macro to it::
-
-    #if PY_MAJOR_VERSION < 3
-    # define MODINIT(name)  init ## name
-    #else
-    # define MODINIT(name)  PyInit_ ## name
-    #endif
-
-If you are only targeting Python 3.x, just use ``PyInit_`` as prefix.
-
-Then, for each or the modules, declare its module init function
-as follows, replacing ``...`` by the name of the module::
-
-    PyMODINIT_FUNC  MODINIT(...) (void);
-
-In C++, declare them as ``extern C``.
-
-If you are not sure of the name of the module init function, refer
-to your generated module source file and look for a function name
-starting with ``PyInit_``.
-
-Next, before you start the Python runtime from your application code
-with ``Py_Initialize()``, you need to initialise the modules at runtime
-using the ``PyImport_AppendInittab()`` C-API function, again inserting
-the name of each of the modules::
-
-    PyImport_AppendInittab("...", MODINIT(...));
-
-This enables normal imports for the embedded extension modules.
-
-In order to prevent the joined binary from exporting all of the module
-init functions as public symbols, Cython 0.28 and later can hide these
-symbols if the macro ``CYTHON_NO_PYINIT_EXPORT`` is defined while
-C-compiling the module C files.
-
-Also take a look at the `cython_freeze
-<https://github.com/cython/cython/blob/master/bin/cython_freeze>` tool.
-
-
 Compiling with ``distutils``
 ============================
 
@@ -356,6 +308,55 @@ e.g.::
 
 These ``.pxd`` files need not have corresponding ``.pyx``
 modules if they contain purely declarations of external libraries.
+
+
+Integrating multiple modules
+============================
+
+In some scenarios, it can be useful to link multiple Cython modules
+(or other extension modules) into a single binary, e.g. when embedding
+Python in another application.  This can be done through the inittab
+import mechanism of CPython.
+
+Create a new C file to integrate the extension modules and add this
+macro to it::
+
+    #if PY_MAJOR_VERSION < 3
+    # define MODINIT(name)  init ## name
+    #else
+    # define MODINIT(name)  PyInit_ ## name
+    #endif
+
+If you are only targeting Python 3.x, just use ``PyInit_`` as prefix.
+
+Then, for each or the modules, declare its module init function
+as follows, replacing ``...`` by the name of the module::
+
+    PyMODINIT_FUNC  MODINIT(...) (void);
+
+In C++, declare them as ``extern C``.
+
+If you are not sure of the name of the module init function, refer
+to your generated module source file and look for a function name
+starting with ``PyInit_``.
+
+Next, before you start the Python runtime from your application code
+with ``Py_Initialize()``, you need to initialise the modules at runtime
+using the ``PyImport_AppendInittab()`` C-API function, again inserting
+the name of each of the modules::
+
+    PyImport_AppendInittab("...", MODINIT(...));
+
+This enables normal imports for the embedded extension modules.
+
+In order to prevent the joined binary from exporting all of the module
+init functions as public symbols, Cython 0.28 and later can hide these
+symbols if the macro ``CYTHON_NO_PYINIT_EXPORT`` is defined while
+C-compiling the module C files.
+
+Also take a look at the `cython_freeze
+<https://github.com/cython/cython/blob/master/bin/cython_freeze>` tool.
+
 
 Compiling with :mod:`pyximport`
 ===============================
