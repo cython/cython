@@ -1474,7 +1474,7 @@ class CType(PyrexType):
 class PythranExpr(CType):
     # Pythran object of a given type
 
-    to_py_function = "to_python_from_expr"
+    to_py_function = "__Pyx_pythran_to_python"
     is_pythran_expr = True
     writable = True
     has_attributes = 1
