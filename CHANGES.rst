@@ -8,6 +8,9 @@ Cython Changelog
 Bugs fixed
 ----------
 
+* String forward references to extension types like ``@cython.locals(x="ExtType")``
+  failed to find the named type.  (Github issue #1962)
+
 * NumPy slicing generated incorrect results when compiled with Pythran.
   (Github issue #1946)
 
