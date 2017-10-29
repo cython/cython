@@ -17,6 +17,7 @@ Cython code, unlike Python, must be compiled.  This happens in two stages:
 The following sub-sections describe several ways to build your
 extension modules, and how to pass directives to the Cython compiler.
 
+
 Compiling from the command line
 ===============================
 
@@ -43,44 +44,54 @@ paths to libraries you need to link with]
 A ``yourmod.so`` file is now in the same directory and your module,
 ``yourmod``, is available for you to import as you normally would.
 
-Compiling in a embedded interpreter
-===================================
 
-Sometimes you might want to use cython to compile a python module you
-made into your hand made embedded python. Here is how to do that.
+Integrating multiple modules
+============================
 
-On the top of your C file above the main function you created
-type this without the quotes::
+It some scenarios, it can be useful to link multiple Cython modules
+(or other extension modules) into a single binary, e.g. when embedding
+Python in another application.  This can be done through the inittab
+import mechanism of CPython.
 
-    PyMODINIT_FUNC PyInit__test(void);
+Create a new C file to integrate the extension modules and add this
+macro to it::
 
-for python 3.x and::
+    #if PY_MAJOR_VERSION < 3
+    # define MODINIT(name)  init ## name
+    #else
+    # define MODINIT(name)  PyInit_ ## name
+    #endif
 
-    PyMODINIT_FUNC init_test(void);
+If you are only targeting Python 3.x, just use ``PyInit_`` as prefix.
 
-for python 2.
+Then, for each or the modules, declare its module init function
+as follows, replacing ``...`` by the name of the module::
 
-Where Module Name is the name of the module you cythonized. If you
-are not sure on the name of the module init function refer to your
-generated module source file.
+    PyMODINIT_FUNC  MODINIT(...) (void);
 
-You need to use ``PyImport_AppendInittab`` but right
-before you use ``Py_SetProgramName`` and ``Py_Initialize`` in your
-main as well::
+In C++, declare them as ``extern C``.
 
-    PyImport_AppendInittab("_test", PyInit__test);
+If you are not sure of the name of the module init function, refer
+to your generated module source file and look for a function name
+starting with ``PyInit_``.
 
-for python 3.x and::
+Next, before you start the Python runtime from your application code
+with ``Py_Initialize()``, you need to initialise the modules at runtime
+using the ``PyImport_AppendInittab()`` C-API function, again inserting
+the name of each of the modules::
 
-    PyImport_AppendInittab("_test", init_test)
+    PyImport_AppendInittab("...", MODINIT(...));
 
-After that is done go in and for all the sources you use define the
-following in the compiler's command line::
+This enables normal imports for the embedded extension modules.
 
-    CYTHON_NO_PYINIT_EXPORT
+In order to prevent the joined binary from exporting all of the module
+init functions as public symbols, Cython 0.28 and later can hide these
+symbols if the macro ``CYTHON_NO_PYINIT_EXPORT`` is defined while
+C-compiling the module C files.
 
-This macro is to ensure that your module initialization function is
-not exported.
+Also take a look at the `cython_freeze
+<https://github.com/cython/cython/blob/master/bin/cython_freeze>` tool.
+
 
 Compiling with ``distutils``
 ============================
