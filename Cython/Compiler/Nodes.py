@@ -7156,6 +7156,7 @@ class TryFinallyStatNode(StatNode):
             code.putln('}')
 
         if preserve_error:
+            code.put_label(new_error_label)
             code.putln('/*exception exit:*/{')
             if not self.in_generator:
                 code.putln("__Pyx_PyThreadState_declare")
@@ -7173,7 +7174,6 @@ class TryFinallyStatNode(StatNode):
             exc_vars = tuple([
                 code.funcstate.allocate_temp(py_object_type, manage_ref=False)
                 for _ in range(6)])
-            code.put_label(new_error_label)
             self.put_error_catcher(
                 code, temps_to_clean_up, exc_vars, exc_lineno_cnames, exc_filename_cname)
             finally_old_labels = code.all_new_labels()
@@ -7266,11 +7266,11 @@ class TryFinallyStatNode(StatNode):
         code.globalstate.use_utility_code(get_exception_utility_code)
         code.globalstate.use_utility_code(swap_exception_utility_code)
 
-        code.putln(' '.join(["%s = 0;"]*len(exc_vars)) % exc_vars)
         if self.is_try_finally_in_nogil:
             code.put_ensure_gil(declare_gilstate=False)
         code.putln("__Pyx_PyThreadState_assign")
 
+        code.putln(' '.join(["%s = 0;" % var for var in exc_vars]))
         for temp_name, type in temps_to_clean_up:
             code.put_xdecref_clear(temp_name, type)
 
@@ -7315,7 +7315,7 @@ class TryFinallyStatNode(StatNode):
         if self.is_try_finally_in_nogil:
             code.put_release_ensured_gil()
 
-        code.putln(' '.join(["%s = 0;"]*len(exc_vars)) % exc_vars)
+        code.putln(' '.join(["%s = 0;" % var for var in exc_vars]))
         if exc_lineno_cnames:
             code.putln("%s = %s; %s = %s; %s = %s;" % (
                 Naming.lineno_cname, exc_lineno_cnames[0],
