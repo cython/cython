@@ -257,7 +257,7 @@ def update_cpp11_extension(ext):
         compiler_version = gcc_version.group(1)
         if float(compiler_version) > 4.8:
             ext.extra_compile_args.extend("-std=c++11")
-        return ext    
+        return ext
     return EXCLUDE_EXT
 
 
