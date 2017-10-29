@@ -257,7 +257,7 @@ def update_cpp11_extension(ext):
         compiler_version = gcc_version.group(1)
         if float(compiler_version) > 4.8:
             ext.extra_compile_args.extend("-std=c++11")
-        return ext    
+        return ext
     return EXCLUDE_EXT
 
 
@@ -612,7 +612,7 @@ class TestBuilder(object):
                     if pyver
                 ]
                 if not min_py_ver or any(sys.version_info >= min_ver for min_ver in min_py_ver):
-                    suite.addTest(PureDoctestTestCase(module, os.path.join(path, filename)))
+                    suite.addTest(PureDoctestTestCase(module, os.path.join(path, filename), tags))
 
         return suite
 
@@ -1202,7 +1202,8 @@ def run_forked_test(result, run_func, test_name, fork=True):
         except: pass
 
 class PureDoctestTestCase(unittest.TestCase):
-    def __init__(self, module_name, module_path):
+    def __init__(self, module_name, module_path, tags):
+        self.tags = tags
         self.module_name = module_name
         self.module_path = module_path
         unittest.TestCase.__init__(self, 'run')
@@ -1234,6 +1235,24 @@ class PureDoctestTestCase(unittest.TestCase):
             self.tearDown()
         except Exception:
             pass
+
+        try:
+            from mypy import api as mypy_api
+            nomypy = False
+        except ImportError:
+            nomypy = True
+        if 'mypy' in self.tags['tag'] and not nomypy:
+
+            mypy_result = mypy_api.run((
+                self.module_path,
+                '--ignore-missing-imports',
+                '--follow-imports', 'skip',
+            ))
+
+            if mypy_result[2]:
+                import pdb; pdb.set_trace()
+                self.fail(mypy_result[0])
+
 
 is_private_field = re.compile('^_[^_]').match
 
