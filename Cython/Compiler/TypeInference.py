@@ -427,6 +427,8 @@ class SimpleAssignmentTypeInferer(object):
                     if rhs_type and rhs_type.is_pyobject:
                         has_pyobjects = True
                     types.append(rhs_type)
+            # Ignore None assignments as long as there are concrete Python type assignments.
+            # but include them if None is the only assigned Python object.
             if has_none and not has_pyobjects:
                 types.append(py_object_type)
             return types
