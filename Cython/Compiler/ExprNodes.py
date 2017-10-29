@@ -1362,6 +1362,11 @@ def _analyse_name_as_type(name, pos, env):
     type = PyrexTypes.parse_basic_type(name)
     if type is not None:
         return type
+
+    global_entry = env.global_scope().lookup_here(name)
+    if global_entry and global_entry.type and global_entry.type.is_extension_type:
+        return global_entry.type
+
     from .TreeFragment import TreeFragment
     with local_errors(ignore=True):
         pos = (pos[0], pos[1], pos[2]-7)
