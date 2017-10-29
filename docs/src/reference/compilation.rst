@@ -355,7 +355,7 @@ symbols if the macro ``CYTHON_NO_PYINIT_EXPORT`` is defined while
 C-compiling the module C files.
 
 Also take a look at the `cython_freeze
-<https://github.com/cython/cython/blob/master/bin/cython_freeze>` tool.
+<https://github.com/cython/cython/blob/master/bin/cython_freeze>`_ tool.
 
 
 Compiling with :mod:`pyximport`
