@@ -2,6 +2,18 @@
 Cython Changelog
 ================
 
+0.27.3 (2017-??-??)
+===================
+
+Bugs fixed
+----------
+
+* NumPy slicing generated incorrect results when compiled with Pythran.
+  (Github issue #1946)
+
+* Adapt to recent C-API change of ``PyThreadState`` in CPython 3.7.
+
+
 0.27.2 (2017-10-22)
 ===================
 
