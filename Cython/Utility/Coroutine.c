@@ -1058,6 +1058,7 @@ static int __Pyx_Coroutine_clear(PyObject *self) {
 #endif
     Py_CLEAR(gen->gi_name);
     Py_CLEAR(gen->gi_qualname);
+    Py_CLEAR(gen->gi_modulename);
     return 0;
 }
 
