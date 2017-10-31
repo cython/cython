@@ -783,13 +783,13 @@ static PyObject *__Pyx_Coroutine_Send(PyObject *self, PyObject *value) {
             ret = __Pyx_async_gen_asend_send(yf, value);
         } else
         #endif
-        #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x03030000 && (!defined(_MSC_VER) || PY_VERSION_HEX >= 0x03060000)
+        #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x03030000 && (defined(__linux__) || PY_VERSION_HEX >= 0x030600B3)
         // _PyGen_Send() is not exported before Py3.6
         if (PyGen_CheckExact(yf)) {
             ret = _PyGen_Send((PyGenObject*)yf, value == Py_None ? NULL : value);
         } else
         #endif
-        #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x03050000 && defined(PyCoro_CheckExact) && (!defined(_MSC_VER) || PY_VERSION_HEX >= 0x03060000)
+        #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x03050000 && defined(PyCoro_CheckExact) && (defined(__linux__) || PY_VERSION_HEX >= 0x030600B3)
         // _PyGen_Send() is not exported before Py3.6
         if (PyCoro_CheckExact(yf)) {
             ret = _PyGen_Send((PyGenObject*)yf, value == Py_None ? NULL : value);
@@ -885,7 +885,7 @@ static PyObject *__Pyx_Generator_Next(PyObject *self) {
             ret = __Pyx_Generator_Next(yf);
         } else
         #endif
-        #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x03030000 && (!defined(_MSC_VER) || PY_VERSION_HEX >= 0x03060000)
+        #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x03030000 && (defined(__linux__) || PY_VERSION_HEX >= 0x030600B3)
         // _PyGen_Send() is not exported before Py3.6
         if (PyGen_CheckExact(yf)) {
             ret = _PyGen_Send((PyGenObject*)yf, NULL);

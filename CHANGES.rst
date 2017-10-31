@@ -14,6 +14,9 @@ Bugs fixed
 * NumPy slicing generated incorrect results when compiled with Pythran.
   (Github issue #1946)
 
+* Fix "undefined reference" linker error for generators on Windows in Py3.3-3.5.
+  (Github issue #1968)
+
 * Adapt to recent C-API change of ``PyThreadState`` in CPython 3.7.
 
 
