@@ -4032,9 +4032,10 @@ class GeneratorDefNode(DefNode):
 
         code.putln('{')
         code.putln('__pyx_CoroutineObject *gen = __Pyx_%s_New('
-                   '(__pyx_coroutine_body_t) %s, (PyObject *) %s, %s, %s, %s); %s' % (
+                   '(__pyx_coroutine_body_t) %s, %s, (PyObject *) %s, %s, %s, %s); %s' % (
                        self.gen_type_name,
-                       body_cname, Naming.cur_scope_cname, name, qualname, module_name,
+                       body_cname, self.code_object.calculate_result_code(code) if self.code_object else 'NULL',
+                       Naming.cur_scope_cname, name, qualname, module_name,
                        code.error_goto_if_null('gen', self.pos)))
         code.put_decref(Naming.cur_scope_cname, py_object_type)
         if self.requires_classobj:
@@ -4129,6 +4130,9 @@ class GeneratorBodyDefNode(DefNode):
         linetrace = code.globalstate.directives['linetrace']
         if profile or linetrace:
             tempvardecl_code.put_trace_declarations()
+            code.funcstate.can_trace = True
+            code_object = self.code_object.calculate_result_code(code) if self.code_object else None
+            code.put_trace_frame_init(code_object)
 
         # ----- Resume switch point.
         code.funcstate.init_closure_temps(lenv.scope_class.type.scope)
@@ -4166,6 +4170,9 @@ class GeneratorBodyDefNode(DefNode):
                                                 Naming.generator_cname)))
             # FIXME: this silences a potential "unused" warning => try to avoid unused closures in more cases
             code.putln("CYTHON_MAYBE_UNUSED_VAR(%s);" % Naming.cur_scope_cname)
+
+        if profile or linetrace:
+            code.funcstate.can_trace = False
 
         code.mark_pos(self.pos)
         code.putln("")

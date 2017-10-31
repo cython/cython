@@ -34,6 +34,9 @@ Features added
 Bugs fixed
 ----------
 
+* Line tracing did not include generators and coroutines.
+  (Github issue #1949)
+
 * C++ declarations for ``unordered_map`` were corrected.
   Patch by Michael Schatzow.  (Github issue #1484)
 

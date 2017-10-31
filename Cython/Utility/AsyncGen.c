@@ -34,7 +34,7 @@ static PyObject *__Pyx__PyAsyncGenValueWrapperNew(PyObject *val);
 
 
 static __pyx_CoroutineObject *__Pyx_AsyncGen_New(
-            __pyx_coroutine_body_t body, PyObject *closure,
+            __pyx_coroutine_body_t body, PyObject *code, PyObject *closure,
             PyObject *name, PyObject *qualname, PyObject *module_name) {
     __pyx_PyAsyncGenObject *gen = PyObject_GC_New(__pyx_PyAsyncGenObject, __pyx_AsyncGenType);
     if (unlikely(!gen))
@@ -42,7 +42,7 @@ static __pyx_CoroutineObject *__Pyx_AsyncGen_New(
     gen->ag_finalizer = NULL;
     gen->ag_closed = 0;
     gen->ag_hooks_inited = 0;
-    return __Pyx__Coroutine_NewInit((__pyx_CoroutineObject*)gen, body, closure, name, qualname, module_name);
+    return __Pyx__Coroutine_NewInit((__pyx_CoroutineObject*)gen, body, code, closure, name, qualname, module_name);
 }
 
 static int __pyx_AsyncGen_init(void);
