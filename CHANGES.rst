@@ -15,6 +15,9 @@ Features added
   them to depend on module declarations themselves.
   Patch by Jeroen Demeyer.  (Github issue #1896)
 
+* The new TSS C-API in CPython 3.7 is supported and has been backported.
+  Patch by Naotoshi Seo.  (Github issue #1932)
+
 * Some ``bytearray`` operations have been optimised similar to ``bytes``.
 
 * Safe integer loops (< range(2^30)) are optimised into C loops.
