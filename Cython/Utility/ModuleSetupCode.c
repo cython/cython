@@ -431,7 +431,7 @@ class __Pyx_FakeReference {
 #endif
 
 // TSS (Thread Specific Storage) API
-#if PY_VERSION_HEX < 0x03070000 && !defined(PyThread_tss_create)
+#if PY_VERSION_HEX < 0x030700A2 && !defined(PyThread_tss_create) && !defined(Py_tss_NEEDS_INIT)
 #include "pythread.h"
 #define Py_tss_NEEDS_INIT 0
 typedef int Py_tss_t;
