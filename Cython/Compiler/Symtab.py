@@ -2105,8 +2105,7 @@ class CClassScope(ClassScope):
         if name == "__new__":
             error(pos, "__new__ method of extension type will change semantics "
                 "in a future version of Pyrex and Cython. Use __cinit__ instead.")
-        entry = self.declare_var(name, py_object_type, pos,
-                                 visibility='extern')
+        entry = self.declare_var(name, py_object_type, pos, visibility='ignore')
         special_sig = get_special_method_signature(name)
         if special_sig:
             # Special methods get put in the method table with a particular
