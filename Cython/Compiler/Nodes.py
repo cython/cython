@@ -1854,6 +1854,10 @@ class FuncDefNode(StatNode, BlockNode):
                 code_object = self.code_object.calculate_result_code(code) if self.code_object else None
                 code.put_trace_frame_init(code_object)
 
+        # ----- Special check for getbuffer
+        if is_getbuffer_slot:
+            self.getbuffer_check(code)
+
         # ----- set up refnanny
         if use_refnanny:
             tempvardecl_code.put_declare_refcount_context()
@@ -2201,31 +2205,59 @@ class FuncDefNode(StatNode, BlockNode):
     #
     # Special code for the __getbuffer__ function
     #
-    def getbuffer_init(self, code):
-        info = self.local_scope.arg_entries[1].cname
-        # Python 3.0 betas have a bug in memoryview which makes it call
-        # getbuffer with a NULL parameter. For now we work around this;
-        # the following block should be removed when this bug is fixed.
-        code.putln("if (%s != NULL) {" % info)
-        code.putln("%s->obj = Py_None; __Pyx_INCREF(Py_None);" % info)
-        code.put_giveref("%s->obj" % info) # Do not refnanny object within structs
+    def _get_py_buffer_info(self):
+        py_buffer = self.local_scope.arg_entries[1]
+        try:
+            # Check builtin definition of struct Py_buffer
+            obj_type = py_buffer.type.base_type.scope.entries['obj'].type
+        except (AttributeError, KeyError):
+            # User code redeclared struct Py_buffer
+            obj_type = None
+        return py_buffer, obj_type
+
+    # Old Python 3 used to support write-locks on buffer-like objects by
+    # calling PyObject_GetBuffer() with a view==NULL parameter. This obscure
+    # feature is obsolete, it was almost never used (only one instance in
+    # `Modules/posixmodule.c` in Python 3.1) and it is now officially removed
+    # (see bpo-14203). We add an extra check here to prevent legacy code from
+    # from trying to use the feature and prevent segmentation faults.
+    def getbuffer_check(self, code):
+        py_buffer, _ = self._get_py_buffer_info()
+        view = py_buffer.cname
+        code.putln("if (%s == NULL) {" % view)
+        code.putln("PyErr_SetString(PyExc_BufferError, "
+                   "\"PyObject_GetBuffer: view==NULL argument is obsolete\");")
+        code.putln("return -1;")
         code.putln("}")
+
+    def getbuffer_init(self, code):
+        py_buffer, obj_type = self._get_py_buffer_info()
+        view = py_buffer.cname
+        if obj_type and obj_type.is_pyobject:
+            code.put_init_to_py_none("%s->obj" % view, obj_type)
+            code.put_giveref("%s->obj" % view) # Do not refnanny object within structs
+        else:
+            code.putln("%s->obj = NULL;" % view)
 
     def getbuffer_error_cleanup(self, code):
-        info = self.local_scope.arg_entries[1].cname
-        code.putln("if (%s != NULL && %s->obj != NULL) {"
-                   % (info, info))
-        code.put_gotref("%s->obj" % info)
-        code.putln("__Pyx_DECREF(%s->obj); %s->obj = NULL;"
-                   % (info, info))
-        code.putln("}")
+        py_buffer, obj_type = self._get_py_buffer_info()
+        view = py_buffer.cname
+        if obj_type and obj_type.is_pyobject:
+            code.putln("if (%s->obj != NULL) {" % view)
+            code.put_gotref("%s->obj" % view)
+            code.put_decref_clear("%s->obj" % view, obj_type)
+            code.putln("}")
+        else:
+            code.putln("Py_CLEAR(%s->obj);" % view)
 
     def getbuffer_normal_cleanup(self, code):
-        info = self.local_scope.arg_entries[1].cname
-        code.putln("if (%s != NULL && %s->obj == Py_None) {" % (info, info))
-        code.put_gotref("Py_None")
-        code.putln("__Pyx_DECREF(Py_None); %s->obj = NULL;" % info)
-        code.putln("}")
+        py_buffer, obj_type = self._get_py_buffer_info()
+        view = py_buffer.cname
+        if obj_type and obj_type.is_pyobject:
+            code.putln("if (%s->obj == Py_None) {" % view)
+            code.put_gotref("%s->obj" % view)
+            code.put_decref_clear("%s->obj" % view, obj_type)
+            code.putln("}")
 
     def get_preprocessor_guard(self):
         if not self.entry.is_special:
