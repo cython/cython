@@ -50,7 +50,7 @@ Other changes
 -------------
 
 
-0.27.3 (2017-??-??)
+0.27.3 (2017-11-03)
 ===================
 
 Bugs fixed
@@ -60,7 +60,7 @@ Bugs fixed
   failed to find the named type.  (Github issue #1962)
 
 * NumPy slicing generated incorrect results when compiled with Pythran.
-  (Github issue #1946)
+  Original patch by Serge Guelton (Github issue #1946).
 
 * Fix "undefined reference" linker error for generators on Windows in Py3.3-3.5.
   (Github issue #1968)
