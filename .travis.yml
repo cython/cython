@@ -8,6 +8,7 @@ addons:
       - gdb
       - python-dbg
       - python3-dbg
+      - gcc-6
 
 cache:
   pip: true
@@ -84,6 +85,17 @@ branches:
     - release
 
 before_install:
+  - |
+    if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+      mkdir "$HOME/gcc-symlinks"
+      export PATH="$HOME/gcc-symlinks:$PATH"
+      ln -s $HOME/gcc-symlinks/gcc /usr/bin/gcc-6
+      ln -s $HOME/gcc-symlinks/g++ /usr/bin/gcc-6
+
+      which gcc
+      which g++
+    fi
+
   - |
     if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then # Install Miniconda
       curl -s -o miniconda.sh https://repo.continuum.io/miniconda/Miniconda$PY-latest-MacOSX-x86_64.sh;
