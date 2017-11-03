@@ -8,7 +8,7 @@ addons:
       - gdb
       - python-dbg
       - python3-dbg
-      - gcc-6
+      - gcc-5
 
 cache:
   pip: true
@@ -89,8 +89,8 @@ before_install:
     if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
       mkdir "$HOME/gcc-symlinks"
       export PATH="$HOME/gcc-symlinks:$PATH"
-      ln -s $HOME/gcc-symlinks/gcc /usr/bin/gcc-6
-      ln -s $HOME/gcc-symlinks/g++ /usr/bin/gcc-6
+      ln -s $HOME/gcc-symlinks/gcc /usr/bin/gcc-5
+      ln -s $HOME/gcc-symlinks/g++ /usr/bin/gcc-5
 
       which gcc
       which g++
