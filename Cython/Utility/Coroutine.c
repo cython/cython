@@ -1724,13 +1724,20 @@ static void __Pyx__ReturnWithStopIteration(PyObject* value) {
         Py_INCREF(value);
         exc = value;
     }
+    #if CYTHON_FAST_THREAD_STATE
     __Pyx_PyThreadState_assign
-    if (!$local_tstate_cname->exc_type) {
+    #if PY_VERSION_HEX >= 0x030700A2
+    if (!$local_tstate_cname->exc_state.exc_type)
+    #else
+    if (!$local_tstate_cname->exc_type)
+    #endif
+    {
         // no chaining needed => avoid the overhead in PyErr_SetObject()
         Py_INCREF(PyExc_StopIteration);
         __Pyx_ErrRestore(PyExc_StopIteration, exc, NULL);
         return;
     }
+    #endif
 #else
     args = PyTuple_Pack(1, value);
     if (unlikely(!args)) return;
