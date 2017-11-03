@@ -229,6 +229,7 @@ def update_numpy_extension(ext):
     for attr, value in get_info('npymath').items():
         getattr(ext, attr).extend(value)
 
+
 def update_openmp_extension(ext):
     ext.openmp = True
     language = ext.language
@@ -248,6 +249,7 @@ def update_openmp_extension(ext):
 
     return EXCLUDE_EXT
 
+
 def update_cpp11_extension(ext):
     """
         update cpp11 extensions that will run on versions of gcc >4.8
@@ -256,7 +258,7 @@ def update_cpp11_extension(ext):
     if gcc_version is not None:
         compiler_version = gcc_version.group(1)
         if float(compiler_version) > 4.8:
-            ext.extra_compile_args.extend("-std=c++11")
+            ext.extra_compile_args.append("-std=c++11")
         return ext    
     return EXCLUDE_EXT
 
