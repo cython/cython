@@ -67,6 +67,9 @@ Bugs fixed
 
 * Adapt to recent C-API change of ``PyThreadState`` in CPython 3.7.
 
+* Fix signature of ``PyWeakref_GetObject()`` API declaration.
+  Patch by Jeroen Demeyer (Github issue #1975).
+
 
 0.27.2 (2017-10-22)
 ===================
