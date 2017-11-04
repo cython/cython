@@ -658,6 +658,7 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
                     {{endif}}
                     }
                     // if size doesn't fit into a long or PY_LONG_LONG anymore, fall through to default
+                    CYTHON_FALLTHROUGH;
                 {{endfor}}
                 {{endfor}}
 
@@ -842,6 +843,7 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
                 // check above.  However, the number of digits that CPython uses for a given PyLong
                 // value is minimal, and together with the "(size-1) * SHIFT < 53" check above,
                 // this should make it safe.
+                CYTHON_FALLTHROUGH;
             {{endfor}}
             default:
         #else
