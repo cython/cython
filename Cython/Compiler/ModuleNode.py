@@ -2495,13 +2495,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.enter_cfunc_scope(scope)
                 prototypes.putln("static int %s(void); /*proto*/" % self.cfunc_name)
                 code.putln("static int %s(void) {" % self.cfunc_name)
+                code.put_declare_refcount_context()
+                self.tempdecl_code = code.insertion_point()
+                code.put_setup_refcount_context(self.cfunc_name)
                 # Leave a grepable marker that makes it easy to find the generator source.
                 code.putln("/*--- %s ---*/" % self.description)
-                self.tempdecl_code = code.insertion_point()
                 return code
 
             def __exit__(self, *args):
                 code = function_code
+                code.put_finish_refcount_context()
                 code.putln("return 0;")
 
                 self.tempdecl_code.put_temp_declarations(code.funcstate)
@@ -2512,6 +2515,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     code.put_label(code.error_label)
                     for cname, type in code.funcstate.all_managed_temps():
                         code.put_xdecref(cname, type)
+                    code.put_finish_refcount_context()
                     code.putln("return -1;")
                 code.putln("}")
                 code.exit_cfunc_scope()
