@@ -2475,6 +2475,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.exit_cfunc_scope()
 
     def mod_init_subfunction(self, scope, orig_code):
+        """
+        Return a context manager that allows deviating the module init code generation
+        into a separate function and instead inserts a call to it.
+
+        Can be reused sequentially to create multiple functions.
+        The functions get inserted at the point where the context manager was created.
+        The call gets inserted where the context manager is used (on entry).
+        """
         prototypes = orig_code.insertion_point()
         prototypes.putln("")
         function_code = orig_code.insertion_point()
