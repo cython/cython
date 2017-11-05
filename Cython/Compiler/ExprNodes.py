@@ -3897,16 +3897,12 @@ class IndexNode(_IndexingBaseNode):
                 utility_code = TempitaUtilityCode.load_cached("GetItemInt", "ObjectHandling.c")
             else:
                 if self.base.type is dict_type:
-                    if self.index.type in (str_type, unicode_type):
-                        function = "__Pyx_PyDict_GetItemUnicode"
-                        utility_code = UtilityCode.load_cached("DictGetItemUnicode", "ObjectHandling.c")
-                    else:
-                        function = "__Pyx_PyDict_GetItem"
-                        utility_code = UtilityCode.load_cached("DictGetItem", "ObjectHandling.c")
-                elif self.index.type in (str_type, unicode_type):
+                    function = "__Pyx_PyDict_GetItem"
+                    utility_code = UtilityCode.load_cached("DictGetItem", "ObjectHandling.c")
+                elif self.base.type is py_object_type and self.index.type in (str_type, unicode_type):
                     # obj[str] is probably doing a dict lookup
-                    function = "__Pyx_PyObject_GetItemUnicode"
-                    utility_code = UtilityCode.load_cached("DictGetItemUnicode", "ObjectHandling.c")
+                    function = "__Pyx_PyObject_Dict_GetItem"
+                    utility_code = UtilityCode.load_cached("DictGetItem", "ObjectHandling.c")
                 else:
                     function = "PyObject_GetItem"
         elif self.type.is_unicode_char and self.base.type is unicode_type:
