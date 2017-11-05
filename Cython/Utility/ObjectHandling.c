@@ -262,6 +262,49 @@ static CYTHON_INLINE int __Pyx_IterFinish(void) {
 #endif
 }
 
+
+/////////////// ObjectGetItem.proto ///////////////
+
+#if CYTHON_USE_TYPE_SLOTS
+static CYTHON_INLINE PyObject *__Pyx_PyObject_GetItem(PyObject *obj, PyObject* key);/*proto*/
+#else
+#define __Pyx_PyObject_GetItem(obj, key)  PyObject_GetItem(obj, key)
+#endif
+
+/////////////// ObjectGetItem ///////////////
+// //@requires: GetItemInt - added in IndexNode as it uses templating.
+
+#if CYTHON_USE_TYPE_SLOTS
+static PyObject *__Pyx_PyObject_GetIndex(PyObject *obj, PyObject* index) {
+    PySequenceMethods *m = Py_TYPE(obj)->tp_as_sequence;
+    if (likely(m && m->sq_item)) {
+        PyObject *runerr;
+        Py_ssize_t key_value = __Pyx_PyIndex_AsSsize_t(index);
+        if (likely(key_value != -1 || !(runerr = PyErr_Occurred()))) {
+            return __Pyx_GetItemInt_Fast(obj, key_value, 0, 1, 1);
+        }
+
+        // Error handling code -- only manage OverflowError differently.
+        if (PyErr_GivenExceptionMatches(runerr, PyExc_OverflowError)) {
+            PyErr_Clear();
+            PyErr_Format(PyExc_IndexError, "cannot fit '%.200s' into an index-sized integer", Py_TYPE(index)->tp_name);
+        }
+    } else {
+        PyErr_Format(PyExc_TypeError, "'%.200s' object is not subscriptable", Py_TYPE(obj)->tp_name);
+    }
+    return NULL;
+}
+
+static PyObject *__Pyx_PyObject_GetItem(PyObject *obj, PyObject* key) {
+    PyMappingMethods *m = Py_TYPE(obj)->tp_as_mapping;
+    if (likely(m && m->mp_subscript)) {
+        return m->mp_subscript(obj, key);
+    }
+    return __Pyx_PyObject_GetIndex(obj, key);
+}
+#endif
+
+
 /////////////// DictGetItem.proto ///////////////
 
 #if PY_MAJOR_VERSION >= 3 && !CYTHON_COMPILING_IN_PYPY
