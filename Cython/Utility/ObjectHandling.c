@@ -262,7 +262,58 @@ static CYTHON_INLINE int __Pyx_IterFinish(void) {
 #endif
 }
 
+/////////////// DictGetItemUnicode.proto ///////////////
+//@requires: DictGetItem
+
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500A1 && CYTHON_USE_UNICODE_INTERNALS
+static CYTHON_INLINE PyObject *__Pyx__PyDict_GetItemUnicode(PyObject *d, PyObject* key);
+
+#define __Pyx_PyDict_GetItemUnicode(d, key)  \
+    (likely(PyUnicode_CheckExact(key) && ((PyASCIIObject *) key)->hash != -1) ? \
+     __Pyx__PyDict_GetItemUnicode(d, key) : __Pyx_PyDict_GetItem(d, key))
+
+#define __Pyx_PyObject_GetItemUnicode(obj, name) \
+    (likely(PyDict_CheckExact(obj)) ? \
+     __Pyx_PyDict_GetItemUnicode(obj, name) : PyObject_GetItem(obj, name))
+
+#else /* Py < 3.5 */
+#define __Pyx_PyDict_GetItemUnicode(d, key)  __Pyx_PyDict_GetItem(d, key)
+
+#if PY_MAJOR_VERSION >= 3 && !CYTHON_COMPILING_IN_PYPY
+#define __Pyx_PyObject_GetItemUnicode(obj, name) \
+    (likely(PyDict_CheckExact(obj)) ? \
+     __Pyx_PyDict_GetItem(obj, name) : PyObject_GetItem(obj, name))
+#else
+#define __Pyx_PyObject_GetItemUnicode(obj, name)  PyObject_GetItem(obj, name)
+#endif
+
+#endif
+
+/////////////// DictGetItemUnicode ///////////////
+
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500A1 && CYTHON_USE_UNICODE_INTERNALS
+static PyObject *__Pyx__PyDict_GetItemUnicode(PyObject *d, PyObject* key) {
+    PyObject *value;
+    value = __Pyx_PyDict_GetItemStr(d, key);
+    if (unlikely(!value)) {
+        PyErr_SetObject(PyExc_KeyError, key);
+        return NULL;
+    }
+    Py_INCREF(value);
+    return value;
+}
+#endif
+
+
 /////////////// DictGetItem.proto ///////////////
+
+#if PY_MAJOR_VERSION >= 3 && !CYTHON_COMPILING_IN_PYPY
+static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key);/*proto*/
+#else
+#define __Pyx_PyDict_GetItem(d, key) PyObject_GetItem(d, key)
+#endif
+
+/////////////// DictGetItem ///////////////
 
 #if PY_MAJOR_VERSION >= 3 && !CYTHON_COMPILING_IN_PYPY
 static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key) {
@@ -280,8 +331,6 @@ static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key) {
     Py_INCREF(value);
     return value;
 }
-#else
-    #define __Pyx_PyDict_GetItem(d, key) PyObject_GetItem(d, key)
 #endif
 
 /////////////// GetItemInt.proto ///////////////
