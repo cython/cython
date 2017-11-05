@@ -22,6 +22,9 @@ Features added
 
 * Safe integer loops (< range(2^30)) are optimised into C loops.
 
+* Some PEP-484/526 container type declarations are now considered for
+  loop optimisations.
+
 * Python compatible ``cython.*`` types can now be mixed with type declarations
   in Cython syntax.
 

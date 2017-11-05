@@ -60,6 +60,7 @@ class Entry(object):
     # cname            string     C name of entity
     # type             PyrexType  Type of entity
     # doc              string     Doc string
+    # annotation       ExprNode   PEP 484/526 annotation
     # init             string     Initial value
     # visibility       'private' or 'public' or 'extern'
     # is_builtin       boolean    Is an entry in the Python builtins dict
@@ -138,6 +139,7 @@ class Entry(object):
     inline_func_in_pxd = False
     borrowed = 0
     init = ""
+    annotation = None
     visibility = 'private'
     is_builtin = 0
     is_cglobal = 0

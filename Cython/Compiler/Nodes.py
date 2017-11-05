@@ -2159,7 +2159,10 @@ class FuncDefNode(StatNode, BlockNode):
             error(arg.pos, "Invalid use of 'void'")
         elif not arg.type.is_complete() and not (arg.type.is_array or arg.type.is_memoryviewslice):
             error(arg.pos, "Argument type '%s' is incomplete" % arg.type)
-        return env.declare_arg(arg.name, arg.type, arg.pos)
+        entry = env.declare_arg(arg.name, arg.type, arg.pos)
+        if arg.annotation:
+            entry.annotation = arg.annotation
+        return entry
 
     def generate_arg_type_test(self, arg, code):
         # Generate type test for one argument.
@@ -2775,6 +2778,7 @@ class DefNode(FuncDefNode):
                 name_declarator, type = formal_arg.analyse(scope, nonempty=1)
                 cfunc_args.append(PyrexTypes.CFuncTypeArg(name=name_declarator.name,
                                                           cname=None,
+                                                          annotation=formal_arg.annotation,
                                                           type=py_object_type,
                                                           pos=formal_arg.pos))
             cfunc_type = PyrexTypes.CFuncType(return_type=py_object_type,

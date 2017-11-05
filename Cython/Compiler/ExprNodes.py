@@ -1863,6 +1863,7 @@ class NameNode(AtomicExprNode):
         if atype is None:
             atype = unspecified_type if as_target and env.directives['infer_types'] != False else py_object_type
         self.entry = env.declare_var(name, atype, self.pos, is_cdef=not as_target)
+        self.entry.annotation = annotation
 
     def analyse_as_module(self, env):
         # Try to interpret this as a reference to a cimported module.

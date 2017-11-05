@@ -3153,15 +3153,18 @@ class CFuncTypeArg(BaseType):
     or_none = False
     accept_none = True
     accept_builtin_subtypes = False
+    annotation = None
 
     subtypes = ['type']
 
-    def __init__(self, name, type, pos, cname=None):
+    def __init__(self, name, type, pos, cname=None, annotation=None):
         self.name = name
         if cname is not None:
             self.cname = cname
         else:
             self.cname = Naming.var_prefix + name
+        if annotation is not None:
+            self.annotation = annotation
         self.type = type
         self.pos = pos
         self.needs_type_test = False # TODO: should these defaults be set in analyse_types()?
@@ -3174,6 +3177,7 @@ class CFuncTypeArg(BaseType):
 
     def specialize(self, values):
         return CFuncTypeArg(self.name, self.type.specialize(values), self.pos, self.cname)
+
 
 class ToPyStructUtilityCode(object):
 
