@@ -35,6 +35,11 @@ Features added
 * Some missing signals were added to ``libc/signal.pxd``.
   Patch by Jeroen Demeyer.  (Github issue #1914)
 
+* The exception handling of the function types used by CPython's type slot
+  functions was corrected to match the de-facto standard behaviour, so that
+  code that uses them directly benefits from automatic and correct exception
+  propagation.  Patch by Jeroen Demeyer.  (Github issue #1980)
+
 * Defining the macro ``CYTHON_NO_PYINIT_EXPORT`` will prevent the module init
   function from being exported as symbol, e.g. when linking modules statically
   in an embedding setup.  Patch by AraHaan.  (Github issue #1944)
