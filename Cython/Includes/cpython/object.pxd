@@ -30,6 +30,7 @@ cdef extern from "Python.h":
     ctypedef void (*destructor)(PyObject*)
     ctypedef int (*visitproc)(PyObject*, void *) except -1
     ctypedef int (*traverseproc)(PyObject*, visitproc, void*) except -1
+    ctypedef void (*freefunc)(void*)
 
     ctypedef object (*descrgetfunc)(object, object, object)
     ctypedef int (*descrsetfunc)(object, object, object) except -1
@@ -46,6 +47,7 @@ cdef extern from "Python.h":
         destructor tp_dealloc
         traverseproc tp_traverse
         inquiry tp_clear
+        freefunc tp_free
 
         ternaryfunc tp_call
         hashfunc tp_hash
