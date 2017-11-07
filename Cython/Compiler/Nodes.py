@@ -4809,6 +4809,7 @@ class CClassDefNode(ClassDefNode):
             for slot in TypeSlots.slot_table:
                 slot.generate_dynamic_init_code(scope, code)
             if heap_type_bases:
+
                 # As of https://bugs.python.org/issue22079
                 # PyType_Ready enforces that all bases of a non-heap type
                 # are non-heap.  We know this is the case for the solid base,
@@ -4863,13 +4864,19 @@ class CClassDefNode(ClassDefNode):
                     if preprocessor_guard:
                         code.putln('#endif')
             if type.vtable_cname:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached('SetVTable', 'ImportExport.c'))
                 code.putln(
                     "if (__Pyx_SetVtable(%s.tp_dict, %s) < 0) %s" % (
                         typeobj_cname,
                         type.vtabptr_cname,
                         code.error_goto(entry.pos)))
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached('SetVTable', 'ImportExport.c'))
+                if heap_type_bases:
+                    code.globalstate.use_utility_code(
+                        UtilityCode.load_cached('MergeVTables', 'ImportExport.c'))
+                    code.putln("if (__Pyx_MergeVtables(&%s) < 0) %s" % (
+                        typeobj_cname,
+                        code.error_goto(entry.pos)))
             if not type.scope.is_internal and not type.scope.directives['internal']:
                 # scope.is_internal is set for types defined by
                 # Cython (such as closures), the 'internal'
