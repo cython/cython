@@ -2875,7 +2875,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 self.generate_base_type_import_code(env, entry, code)
                 self.generate_exttype_vtable_init_code(entry, code)
                 if entry.type.early_init:
-                  self.generate_type_ready_code(entry, code)
+                    self.generate_type_ready_code(entry, code)
 
     def generate_base_type_import_code(self, env, entry, code):
         base_type = entry.type.base_type

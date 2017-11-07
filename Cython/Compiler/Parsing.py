@@ -3439,10 +3439,10 @@ def p_c_class_definition(s, pos,  ctx):
     if s.sy == '(':
         positional_args, keyword_args = p_call_parse_args(s, allow_genexp=False)
         if keyword_args:
-          s.error("C classes cannot take keyword bases.")
+            s.error("C classes cannot take keyword bases.")
         bases, _ = p_call_build_packed_args(pos, positional_args, keyword_args)
     if bases is None:
-      bases = ExprNodes.TupleNode(pos, args=[])
+        bases = ExprNodes.TupleNode(pos, args=[])
 
     if s.sy == '[':
         if ctx.visibility not in ('public', 'extern') and not ctx.api:

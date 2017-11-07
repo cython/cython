@@ -4589,34 +4589,33 @@ class CClassDefNode(ClassDefNode):
                 env.add_imported_module(self.module)
 
         if self.bases.args:
-          base = self.bases.args[0]
-          base_type = base.analyse_as_type(env)
-          if base_type in (PyrexTypes.c_int_type, PyrexTypes.c_long_type, PyrexTypes.c_float_type):
-              # Use the Python rather than C variant of these types.
-              base_type = env.lookup(str(base_type)).type
-          if base_type is None:
-            error(base.pos, "First base of '%s' is not an extension type" % self.class_name)
-          elif base_type == PyrexTypes.py_object_type:
-            base_class_scope = None
-          elif not base_type.is_extension_type and \
-                   not (base_type.is_builtin_type and base_type.objstruct_cname):
-              print (base_type, base_type.is_builtin_type)
-              error(base.pos, "'%s' is not an extension type" % base_type)
-          elif not base_type.is_complete():
-              error(base.pos, "Base class '%s' of type '%s' is incomplete" % (
-                  base_type.name, self.class_name))
-          elif base_type.scope and base_type.scope.directives and \
-                   base_type.is_final_type:
-              error(base.pos, "Base class '%s' of type '%s' is final" % (
-                  base_type, self.class_name))
-          elif base_type.is_builtin_type and \
-                   base_type.name in ('tuple', 'str', 'bytes'):
-              error(base.pos, "inheritance from PyVarObject types like '%s' is not currently supported"
-                    % base_type.name)
-          else:
-              self.base_type = base_type
-          if env.directives.get('freelist', 0) > 0 and base_type != PyrexTypes.py_object_type:
-              warning(self.pos, "freelists cannot be used on subtypes, only the base class can manage them", 1)
+            base = self.bases.args[0]
+            base_type = base.analyse_as_type(env)
+            if base_type in (PyrexTypes.c_int_type, PyrexTypes.c_long_type, PyrexTypes.c_float_type):
+                # Use the Python rather than C variant of these types.
+                base_type = env.lookup(base_type.sign_and_name()).type
+            if base_type is None:
+                error(base.pos, "First base of '%s' is not an extension type" % self.class_name)
+            elif base_type == PyrexTypes.py_object_type:
+                base_class_scope = None
+            elif not base_type.is_extension_type and \
+                     not (base_type.is_builtin_type and base_type.objstruct_cname):
+                error(base.pos, "'%s' is not an extension type" % base_type)
+            elif not base_type.is_complete():
+                error(base.pos, "Base class '%s' of type '%s' is incomplete" % (
+                    base_type.name, self.class_name))
+            elif base_type.scope and base_type.scope.directives and \
+                     base_type.is_final_type:
+                error(base.pos, "Base class '%s' of type '%s' is final" % (
+                    base_type, self.class_name))
+            elif base_type.is_builtin_type and \
+                     base_type.name in ('tuple', 'str', 'bytes'):
+                error(base.pos, "inheritance from PyVarObject types like '%s' is not currently supported"
+                      % base_type.name)
+            else:
+                self.base_type = base_type
+            if env.directives.get('freelist', 0) > 0 and base_type != PyrexTypes.py_object_type:
+                warning(self.pos, "freelists cannot be used on subtypes, only the base class can manage them", 1)
 
         has_body = self.body is not None
         if has_body and self.base_type and not self.base_type.scope:
@@ -4677,29 +4676,29 @@ class CClassDefNode(ClassDefNode):
                 scope.implemented = 1
 
         if len(self.bases.args) > 1:
-          if not has_body or self.in_pxd:
-            error(self.bases.args[1].pos, "Only declare first base in declaration.")
-          for other_base in self.bases.args[1:]:
-            if other_base.analyse_as_type(env):
-              # TODO(robertwb): We may also want to enforce some checks
-              # at runtime.
-              error(other_base.pos, "Only one extension type base class allowed.")
-          if not self.scope.lookup("__dict__"):
-            #TODO(robertwb): See if this can be safely removed.
-            error(self.pos, "Extension types with multiple bases must have a __dict__ attribute")
-          self.entry.type.early_init = 0
-          from . import ExprNodes
-          self.type_init_args = ExprNodes.TupleNode(
-              self.pos,
-              args=[ExprNodes.StringNode(self.pos, value=self.class_name),
-                    self.bases,
-                    ExprNodes.DictNode(self.pos, key_value_pairs=[])])
+            if not has_body or self.in_pxd:
+                error(self.bases.args[1].pos, "Only declare first base in declaration.")
+            for other_base in self.bases.args[1:]:
+                if other_base.analyse_as_type(env):
+                    # TODO(robertwb): We may also want to enforce some checks
+                    # at runtime.
+                    error(other_base.pos, "Only one extension type base class allowed.")
+            if not self.scope.lookup("__dict__"):
+                #TODO(robertwb): See if this can be safely removed.
+                error(self.pos, "Extension types with multiple bases must have a __dict__ attribute")
+            self.entry.type.early_init = 0
+            from . import ExprNodes
+            self.type_init_args = ExprNodes.TupleNode(
+                self.pos,
+                args=[ExprNodes.IdentifierStringNode(self.pos, value=self.class_name),
+                      self.bases,
+                      ExprNodes.DictNode(self.pos, key_value_pairs=[])])
         elif self.base_type:
-          self.entry.type.early_init = self.base_type.is_external or self.base_type.early_init
-          self.type_init_args = None
+            self.entry.type.early_init = self.base_type.is_external or self.base_type.early_init
+            self.type_init_args = None
         else:
-          self.entry.type.early_init = 1
-          self.type_init_args = None
+            self.entry.type.early_init = 1
+            self.type_init_args = None
 
         env.allocate_vtable_names(self.entry)
 
@@ -4727,29 +4726,29 @@ class CClassDefNode(ClassDefNode):
             self.body.generate_execution_code(code)
         if not self.entry.type.early_init:
             if self.type_init_args:
-              self.type_init_args.generate_evaluation_code(code)
-              bases = "PyTuple_GET_ITEM(%s, 1)" % self.type_init_args.result()
-              first_base = "((PyTypeObject*)PyTuple_GET_ITEM(%s, 0))" % bases
-              # Let Python do the base types compatibility checking.
-              trial_type = code.funcstate.allocate_temp(PyrexTypes.py_object_type, True)
-              code.putln("%s = PyType_Type.tp_new(&PyType_Type, %s, NULL);" % (
-                  trial_type, self.type_init_args.result()))
-              code.putln(code.error_goto_if_null(trial_type, self.pos))
-              code.put_gotref(trial_type)
-              code.putln("if (((PyTypeObject*) %s)->tp_base != %s) {" % (
-                  trial_type, first_base))
-              code.putln("PyErr_Format(PyExc_TypeError, \"best base '%s' must be equal to first base '%s'\",")
-              code.putln("             ((PyTypeObject*) %s)->tp_base->tp_name, %s->tp_name);" % (
-                         trial_type, first_base))
-              code.putln(code.error_goto(self.pos))
-              code.putln("}")
-              code.funcstate.release_temp(trial_type)
-              code.put_incref(bases, PyrexTypes.py_object_type)
-              code.put_giveref(bases)
-              code.putln("%s.tp_bases = %s;" % (self.entry.type.typeobj_cname, bases))
-              code.put_decref_clear(trial_type, PyrexTypes.py_object_type)
-              self.type_init_args.generate_disposal_code(code)
-              self.type_init_args.free_temps(code)
+                self.type_init_args.generate_evaluation_code(code)
+                bases = "PyTuple_GET_ITEM(%s, 1)" % self.type_init_args.result()
+                first_base = "((PyTypeObject*)PyTuple_GET_ITEM(%s, 0))" % bases
+                # Let Python do the base types compatibility checking.
+                trial_type = code.funcstate.allocate_temp(PyrexTypes.py_object_type, True)
+                code.putln("%s = PyType_Type.tp_new(&PyType_Type, %s, NULL);" % (
+                    trial_type, self.type_init_args.result()))
+                code.putln(code.error_goto_if_null(trial_type, self.pos))
+                code.put_gotref(trial_type)
+                code.putln("if (((PyTypeObject*) %s)->tp_base != %s) {" % (
+                    trial_type, first_base))
+                code.putln("PyErr_Format(PyExc_TypeError, \"best base '%s' must be equal to first base '%s'\",")
+                code.putln("             ((PyTypeObject*) %s)->tp_base->tp_name, %s->tp_name);" % (
+                           trial_type, first_base))
+                code.putln(code.error_goto(self.pos))
+                code.putln("}")
+                code.funcstate.release_temp(trial_type)
+                code.put_incref(bases, PyrexTypes.py_object_type)
+                code.put_giveref(bases)
+                code.putln("%s.tp_bases = %s;" % (self.entry.type.typeobj_cname, bases))
+                code.put_decref_clear(trial_type, PyrexTypes.py_object_type)
+                self.type_init_args.generate_disposal_code(code)
+                self.type_init_args.free_temps(code)
 
             self.generate_type_ready_code(self.entry, code, True)
 
@@ -4761,106 +4760,107 @@ class CClassDefNode(ClassDefNode):
         type = entry.type
         typeobj_cname = type.typeobj_cname
         scope = type.scope
-        if scope: # could be None if there was an error
-            if entry.visibility != 'extern':
-                for slot in TypeSlots.slot_table:
-                    slot.generate_dynamic_init_code(scope, code)
-                if heap_type_bases:
-                  # As of https://bugs.python.org/issue22079
-                  # PyType_Ready enforces that all bases of a non-heap type
-                  # are non-heap.  We know this is the case for the solid base,
-                  # but other bases may be heap allocated and are kept alive
-                  # though the bases reference.
-                  # Other than this check, this flag is unused in this method.
-                  code.putln("#if PY_VERSION_HEX >= 0x03050000")
-                  code.putln("%s.tp_flags |= Py_TPFLAGS_HEAPTYPE;" % typeobj_cname)
-                  code.putln("#endif")
+        if not scope:  # could be None if there was an error
+            return
+        if entry.visibility != 'extern':
+            for slot in TypeSlots.slot_table:
+                slot.generate_dynamic_init_code(scope, code)
+            if heap_type_bases:
+                # As of https://bugs.python.org/issue22079
+                # PyType_Ready enforces that all bases of a non-heap type
+                # are non-heap.  We know this is the case for the solid base,
+                # but other bases may be heap allocated and are kept alive
+                # though the bases reference.
+                # Other than this check, this flag is unused in this method.
+                code.putln("#if PY_VERSION_HEX >= 0x03050000")
+                code.putln("%s.tp_flags |= Py_TPFLAGS_HEAPTYPE;" % typeobj_cname)
+                code.putln("#endif")
+            code.putln(
+                "if (PyType_Ready(&%s) < 0) %s" % (
+                    typeobj_cname,
+                    code.error_goto(entry.pos)))
+            if heap_type_bases:
+                code.putln("#if PY_VERSION_HEX >= 0x03050000")
+                code.putln("%s.tp_flags &= ~Py_TPFLAGS_HEAPTYPE;" % typeobj_cname)
+                code.putln("#endif")
+            # Don't inherit tp_print from builtin types, restoring the
+            # behavior of using tp_repr or tp_str instead.
+            code.putln("%s.tp_print = 0;" % typeobj_cname)
+            # Fix special method docstrings. This is a bit of a hack, but
+            # unless we let PyType_Ready create the slot wrappers we have
+            # a significant performance hit. (See trac #561.)
+            for func in entry.type.scope.pyfunc_entries:
+                is_buffer = func.name in ('__getbuffer__', '__releasebuffer__')
+                if (func.is_special and Options.docstrings and
+                        func.wrapperbase_cname and not is_buffer):
+                    slot = TypeSlots.method_name_to_slot[func.name]
+                    preprocessor_guard = slot.preprocessor_guard_code()
+                    if preprocessor_guard:
+                        code.putln(preprocessor_guard)
+                    code.putln('#if CYTHON_COMPILING_IN_CPYTHON')
+                    code.putln("{")
+                    code.putln(
+                        'PyObject *wrapper = PyObject_GetAttrString((PyObject *)&%s, "%s"); %s' % (
+                            typeobj_cname,
+                            func.name,
+                            code.error_goto_if_null('wrapper', entry.pos)))
+                    code.putln(
+                        "if (Py_TYPE(wrapper) == &PyWrapperDescr_Type) {")
+                    code.putln(
+                        "%s = *((PyWrapperDescrObject *)wrapper)->d_base;" % (
+                            func.wrapperbase_cname))
+                    code.putln(
+                        "%s.doc = %s;" % (func.wrapperbase_cname, func.doc_cname))
+                    code.putln(
+                        "((PyWrapperDescrObject *)wrapper)->d_base = &%s;" % (
+                            func.wrapperbase_cname))
+                    code.putln("}")
+                    code.putln("}")
+                    code.putln('#endif')
+                    if preprocessor_guard:
+                        code.putln('#endif')
+            if type.vtable_cname:
                 code.putln(
-                    "if (PyType_Ready(&%s) < 0) %s" % (
+                    "if (__Pyx_SetVtable(%s.tp_dict, %s) < 0) %s" % (
+                        typeobj_cname,
+                        type.vtabptr_cname,
+                        code.error_goto(entry.pos)))
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached('SetVTable', 'ImportExport.c'))
+            if not type.scope.is_internal and not type.scope.directives['internal']:
+                # scope.is_internal is set for types defined by
+                # Cython (such as closures), the 'internal'
+                # directive is set by users
+                code.putln(
+                    'if (PyObject_SetAttrString(%s, "%s", (PyObject *)&%s) < 0) %s' % (
+                        Naming.module_cname,
+                        scope.class_name,
                         typeobj_cname,
                         code.error_goto(entry.pos)))
-                if heap_type_bases:
-                  code.putln("#if PY_VERSION_HEX >= 0x03050000")
-                  code.putln("%s.tp_flags &= ~Py_TPFLAGS_HEAPTYPE;" % typeobj_cname)
-                  code.putln("#endif")
-                # Don't inherit tp_print from builtin types, restoring the
-                # behavior of using tp_repr or tp_str instead.
-                code.putln("%s.tp_print = 0;" % typeobj_cname)
-                # Fix special method docstrings. This is a bit of a hack, but
-                # unless we let PyType_Ready create the slot wrappers we have
-                # a significant performance hit. (See trac #561.)
-                for func in entry.type.scope.pyfunc_entries:
-                    is_buffer = func.name in ('__getbuffer__', '__releasebuffer__')
-                    if (func.is_special and Options.docstrings and
-                            func.wrapperbase_cname and not is_buffer):
-                        slot = TypeSlots.method_name_to_slot[func.name]
-                        preprocessor_guard = slot.preprocessor_guard_code()
-                        if preprocessor_guard:
-                            code.putln(preprocessor_guard)
-                        code.putln('#if CYTHON_COMPILING_IN_CPYTHON')
-                        code.putln("{")
-                        code.putln(
-                            'PyObject *wrapper = PyObject_GetAttrString((PyObject *)&%s, "%s"); %s' % (
-                                typeobj_cname,
-                                func.name,
-                                code.error_goto_if_null('wrapper', entry.pos)))
-                        code.putln(
-                            "if (Py_TYPE(wrapper) == &PyWrapperDescr_Type) {")
-                        code.putln(
-                            "%s = *((PyWrapperDescrObject *)wrapper)->d_base;" % (
-                                func.wrapperbase_cname))
-                        code.putln(
-                            "%s.doc = %s;" % (func.wrapperbase_cname, func.doc_cname))
-                        code.putln(
-                            "((PyWrapperDescrObject *)wrapper)->d_base = &%s;" % (
-                                func.wrapperbase_cname))
-                        code.putln("}")
-                        code.putln("}")
-                        code.putln('#endif')
-                        if preprocessor_guard:
-                            code.putln('#endif')
-                if type.vtable_cname:
-                    code.putln(
-                        "if (__Pyx_SetVtable(%s.tp_dict, %s) < 0) %s" % (
-                            typeobj_cname,
-                            type.vtabptr_cname,
-                            code.error_goto(entry.pos)))
-                    code.globalstate.use_utility_code(
-                        UtilityCode.load_cached('SetVTable', 'ImportExport.c'))
-                if not type.scope.is_internal and not type.scope.directives['internal']:
-                    # scope.is_internal is set for types defined by
-                    # Cython (such as closures), the 'internal'
-                    # directive is set by users
-                    code.putln(
-                        'if (PyObject_SetAttrString(%s, "%s", (PyObject *)&%s) < 0) %s' % (
-                            Naming.module_cname,
-                            scope.class_name,
-                            typeobj_cname,
-                            code.error_goto(entry.pos)))
-                weakref_entry = scope.lookup_here("__weakref__") if not scope.is_closure_class_scope else None
-                if weakref_entry:
-                    if weakref_entry.type is py_object_type:
-                        tp_weaklistoffset = "%s.tp_weaklistoffset" % typeobj_cname
-                        if type.typedef_flag:
-                            objstruct = type.objstruct_cname
-                        else:
-                            objstruct = "struct %s" % type.objstruct_cname
-                        code.putln("if (%s == 0) %s = offsetof(%s, %s);" % (
-                            tp_weaklistoffset,
-                            tp_weaklistoffset,
-                            objstruct,
-                            weakref_entry.cname))
+            weakref_entry = scope.lookup_here("__weakref__") if not scope.is_closure_class_scope else None
+            if weakref_entry:
+                if weakref_entry.type is py_object_type:
+                    tp_weaklistoffset = "%s.tp_weaklistoffset" % typeobj_cname
+                    if type.typedef_flag:
+                        objstruct = type.objstruct_cname
                     else:
-                        error(weakref_entry.pos, "__weakref__ slot must be of type 'object'")
-                if scope.lookup_here("__reduce_cython__") if not scope.is_closure_class_scope else None:
-                    # Unfortunately, we cannot reliably detect whether a
-                    # superclass defined __reduce__ at compile time, so we must
-                    # do so at runtime.
-                    code.globalstate.use_utility_code(
-                        UtilityCode.load_cached('SetupReduce', 'ExtensionTypes.c'))
-                    code.putln('if (__Pyx_setup_reduce((PyObject*)&%s) < 0) %s' % (
-                                  typeobj_cname,
-                                  code.error_goto(entry.pos)))
+                        objstruct = "struct %s" % type.objstruct_cname
+                    code.putln("if (%s == 0) %s = offsetof(%s, %s);" % (
+                        tp_weaklistoffset,
+                        tp_weaklistoffset,
+                        objstruct,
+                        weakref_entry.cname))
+                else:
+                    error(weakref_entry.pos, "__weakref__ slot must be of type 'object'")
+            if scope.lookup_here("__reduce_cython__") if not scope.is_closure_class_scope else None:
+                # Unfortunately, we cannot reliably detect whether a
+                # superclass defined __reduce__ at compile time, so we must
+                # do so at runtime.
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached('SetupReduce', 'ExtensionTypes.c'))
+                code.putln('if (__Pyx_setup_reduce((PyObject*)&%s) < 0) %s' % (
+                              typeobj_cname,
+                              code.error_goto(entry.pos)))
         # Generate code to initialise the typeptr of an extension
         # type defined in this module to point to its type object.
         if type.typeobj_cname:
