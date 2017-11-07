@@ -2,8 +2,8 @@
 Cython Changelog
 ================
 
-0.28.0 (2017-??-??)
-===================
+0.28 (2017-??-??)
+=================
 
 Features added
 --------------
@@ -12,12 +12,80 @@ Features added
   (The primary base must still be a c class, possibly ``object``, and
   the other bases must *not* be cdef classes.)
 
+* Type inference is now supported for Pythran compiled NumPy expressions.
+  Patch by Nils Braun.  (Github issue #1954)
+
+* C file includes are moved behind the module declarations if possible, to allow
+  them to depend on module declarations themselves.
+  Patch by Jeroen Demeyer.  (Github issue #1896)
+
+* The new TSS C-API in CPython 3.7 is supported and has been backported.
+  Patch by Naotoshi Seo.  (Github issue #1932)
+
+* Subscripting (item access) is faster in some cases.
+
+* Some ``bytearray`` operations have been optimised similar to ``bytes``.
+
+* Safe integer loops (< range(2^30)) are optimised into C loops.
+
+* Some PEP-484/526 container type declarations are now considered for
+  loop optimisations.
+
+* Python compatible ``cython.*`` types can now be mixed with type declarations
+  in Cython syntax.
+
+* Name lookups in the module and in classes are faster.
+
+* Some missing signals were added to ``libc/signal.pxd``.
+  Patch by Jeroen Demeyer.  (Github issue #1914)
+
+* The exception handling of the function types used by CPython's type slot
+  functions was corrected to match the de-facto standard behaviour, so that
+  code that uses them directly benefits from automatic and correct exception
+  propagation.  Patch by Jeroen Demeyer.  (Github issue #1980)
+
+* Defining the macro ``CYTHON_NO_PYINIT_EXPORT`` will prevent the module init
+  function from being exported as symbol, e.g. when linking modules statically
+  in an embedding setup.  Patch by AraHaan.  (Github issue #1944)
+
 Bugs fixed
 ----------
 
+* Line tracing did not include generators and coroutines.
+  (Github issue #1949)
+
+* C++ declarations for ``unordered_map`` were corrected.
+  Patch by Michael Schatzow.  (Github issue #1484)
+
+* Iterator declarations in C++ ``deque`` and ``vector`` were corrected.
+  Patch by Alex Huszagh.  (Github issue #1870)
+
+Other changes
+-------------
 
 
-0.27.2 (2017-??-??)
+0.27.3 (2017-11-03)
+===================
+
+Bugs fixed
+----------
+
+* String forward references to extension types like ``@cython.locals(x="ExtType")``
+  failed to find the named type.  (Github issue #1962)
+
+* NumPy slicing generated incorrect results when compiled with Pythran.
+  Original patch by Serge Guelton (Github issue #1946).
+
+* Fix "undefined reference" linker error for generators on Windows in Py3.3-3.5.
+  (Github issue #1968)
+
+* Adapt to recent C-API change of ``PyThreadState`` in CPython 3.7.
+
+* Fix signature of ``PyWeakref_GetObject()`` API declaration.
+  Patch by Jeroen Demeyer (Github issue #1975).
+
+
+0.27.2 (2017-10-22)
 ===================
 
 Bugs fixed
@@ -25,6 +93,9 @@ Bugs fixed
 
 * Comprehensions could incorrectly be optimised away when they appeared in boolean
   test contexts.  (Github issue #1920)
+
+* The special methods ``__eq__``, ``__lt__`` etc. in extension types did not type
+  their first argument as the type of the class but ``object``.  (Github issue #1935)
 
 * Crash on first lookup of "cline_in_traceback" option during exception handling.
   (Github issue #1907)
@@ -34,6 +105,12 @@ Bugs fixed
 
 * Compiler crash on some complex type declarations in pure mode.
   (Github issue #1908)
+
+* ``std::unordered_map.erase()`` was declared with an incorrect ``void`` return
+  type in ``libcpp.unordered_map``.  (Github issue #1484)
+
+* Invalid use of C++ ``fallthrough`` attribute before C++11 and similar issue in clang.
+  (Github issue #1930)
 
 * Compiler crash on misnamed properties. (Github issue #1905)
 

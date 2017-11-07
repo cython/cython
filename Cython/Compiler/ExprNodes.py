@@ -1362,6 +1362,11 @@ def _analyse_name_as_type(name, pos, env):
     type = PyrexTypes.parse_basic_type(name)
     if type is not None:
         return type
+
+    global_entry = env.global_scope().lookup_here(name)
+    if global_entry and global_entry.type and global_entry.type.is_extension_type:
+        return global_entry.type
+
     from .TreeFragment import TreeFragment
     with local_errors(ignore=True):
         pos = (pos[0], pos[1], pos[2]-7)
@@ -1858,6 +1863,7 @@ class NameNode(AtomicExprNode):
         if atype is None:
             atype = unspecified_type if as_target and env.directives['infer_types'] != False else py_object_type
         self.entry = env.declare_var(name, atype, self.pos, is_cdef=not as_target)
+        self.entry.annotation = annotation
 
     def analyse_as_module(self, env):
         # Try to interpret this as a reference to a cimported module.
@@ -2284,7 +2290,11 @@ class NameNode(AtomicExprNode):
                             code.putln('%s = %s;' % (self.result(), result))
                     else:
                         result = rhs.result_as(self.ctype())
-                        code.putln('%s = %s;' % (self.result(), result))
+
+                        if is_pythran_expr(self.type):
+                            code.putln('new (&%s) decltype(%s){%s};' % (self.result(), self.result(), result))
+                        else:
+                            code.putln('%s = %s;' % (self.result(), result))
                 if debug_disposal_code:
                     print("NameNode.generate_assignment_code:")
                     print("...generating post-assignment code for %s" % rhs)
@@ -3450,6 +3460,10 @@ class IndexNode(_IndexingBaseNode):
             if index_func is not None:
                 return index_func.type.return_type
 
+        if is_pythran_expr(base_type) and is_pythran_expr(index_type):
+            index_with_type = (self.index, index_type)
+            return PythranExpr(pythran_indexing_type(base_type, [index_with_type]))
+
         # may be slicing or indexing, we don't know
         if base_type in (unicode_type, str_type):
             # these types always returns their own type on Python indexing/slicing
@@ -3869,6 +3883,8 @@ class IndexNode(_IndexingBaseNode):
         if not self.is_temp:
             # all handled in self.calculate_result_code()
             return
+
+        utility_code = None
         if self.type.is_pyobject:
             error_value = 'NULL'
             if self.index.type.is_int:
@@ -3878,31 +3894,37 @@ class IndexNode(_IndexingBaseNode):
                     function = "__Pyx_GetItemInt_Tuple"
                 else:
                     function = "__Pyx_GetItemInt"
-                code.globalstate.use_utility_code(
-                    TempitaUtilityCode.load_cached("GetItemInt", "ObjectHandling.c"))
+                utility_code = TempitaUtilityCode.load_cached("GetItemInt", "ObjectHandling.c")
             else:
                 if self.base.type is dict_type:
                     function = "__Pyx_PyDict_GetItem"
-                    code.globalstate.use_utility_code(
-                        UtilityCode.load_cached("DictGetItem", "ObjectHandling.c"))
+                    utility_code = UtilityCode.load_cached("DictGetItem", "ObjectHandling.c")
+                elif self.base.type is py_object_type and self.index.type in (str_type, unicode_type):
+                    # obj[str] is probably doing a dict lookup
+                    function = "__Pyx_PyObject_Dict_GetItem"
+                    utility_code = UtilityCode.load_cached("DictGetItem", "ObjectHandling.c")
                 else:
-                    function = "PyObject_GetItem"
+                    function = "__Pyx_PyObject_GetItem"
+                    code.globalstate.use_utility_code(
+                        TempitaUtilityCode.load_cached("GetItemInt", "ObjectHandling.c"))
+                    utility_code = UtilityCode.load_cached("ObjectGetItem", "ObjectHandling.c")
         elif self.type.is_unicode_char and self.base.type is unicode_type:
             assert self.index.type.is_int
             function = "__Pyx_GetItemInt_Unicode"
             error_value = '(Py_UCS4)-1'
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("GetItemIntUnicode", "StringTools.c"))
+            utility_code = UtilityCode.load_cached("GetItemIntUnicode", "StringTools.c")
         elif self.base.type is bytearray_type:
             assert self.index.type.is_int
             assert self.type.is_int
             function = "__Pyx_GetItemInt_ByteArray"
             error_value = '-1'
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("GetItemIntByteArray", "StringTools.c"))
+            utility_code = UtilityCode.load_cached("GetItemIntByteArray", "StringTools.c")
         elif not (self.base.type.is_cpp_class and self.exception_check):
             assert False, "unexpected type %s and base type %s for indexing" % (
                 self.type, self.base.type)
+
+        if utility_code is not None:
+            code.globalstate.use_utility_code(utility_code)
 
         if self.index.type.is_int:
             index_code = self.index.result()
@@ -4100,7 +4122,8 @@ class BufferIndexNode(_IndexingBaseNode):
 
     def analyse_buffer_index(self, env, getting):
         if is_pythran_expr(self.base.type):
-            self.type = PythranExpr(pythran_indexing_type(self.base.type, self.indices))
+            index_with_type_list = [(idx, idx.type) for idx in self.indices]
+            self.type = PythranExpr(pythran_indexing_type(self.base.type, index_with_type_list))
         else:
             self.base = self.base.coerce_to_simple(env)
             self.type = self.base.type.dtype
@@ -4185,7 +4208,7 @@ class BufferIndexNode(_IndexingBaseNode):
         if is_pythran_expr(base_type) and is_pythran_supported_type(rhs.type):
             obj = code.funcstate.allocate_temp(PythranExpr(pythran_type(self.base.type)), manage_ref=False)
             # We have got to do this because we have to declare pythran objects
-            # at the beggining of the functions.
+            # at the beginning of the functions.
             # Indeed, Cython uses "goto" statement for error management, and
             # RAII doesn't work with that kind of construction.
             # Moreover, the way Pythran expressions are made is that they don't
@@ -4194,7 +4217,7 @@ class BufferIndexNode(_IndexingBaseNode):
             # case.
             code.putln("__Pyx_call_destructor(%s);" % obj)
             code.putln("new (&%s) decltype(%s){%s};" % (obj, obj, self.base.pythran_result()))
-            code.putln("%s(%s) %s= %s;" % (
+            code.putln("%s%s %s= %s;" % (
                 obj,
                 pythran_indexing_code(self.indices),
                 op,
@@ -4225,7 +4248,7 @@ class BufferIndexNode(_IndexingBaseNode):
         if is_pythran_expr(self.base.type):
             res = self.result()
             code.putln("__Pyx_call_destructor(%s);" % res)
-            code.putln("new (&%s) decltype(%s){%s[%s]};" % (
+            code.putln("new (&%s) decltype(%s){%s%s};" % (
                 res,
                 res,
                 self.base.pythran_result(),
@@ -5267,6 +5290,11 @@ class SimpleCallNode(CallNode):
                     error(self.args[0].pos, "Unknown type")
                 else:
                     return PyrexTypes.CPtrType(type)
+        elif attr == 'typeof':
+            if len(self.args) != 1:
+                error(self.args.pos, "only one type allowed.")
+            operand = self.args[0].analyse_types(env)
+            return operand.type
 
     def explicit_args_kwds(self):
         return self.args, None
@@ -10422,7 +10450,7 @@ class CythonArrayNode(ExprNode):
 
     def allocate_temp_result(self, code):
         if self.temp_code:
-            raise RuntimeError("temp allocated mulitple times")
+            raise RuntimeError("temp allocated multiple times")
 
         self.temp_code = code.funcstate.allocate_temp(self.type, True)
 
@@ -10682,6 +10710,10 @@ class TypeofNode(ExprNode):
         literal = literal.analyse_types(env)
         self.literal = literal.coerce_to_pyobject(env)
         return self
+
+    def analyse_as_type(env):
+        self.operand = self.operand.analyse_types(env)
+        return self.operand.type
 
     def may_be_none(self):
         return False
@@ -12232,7 +12264,14 @@ class PrimaryCmpNode(ExprNode, CmpNode):
     is_memslice_nonecheck = False
 
     def infer_type(self, env):
-        # TODO: Actually implement this (after merging with -unstable).
+        type1 = self.operand1.infer_type(env)
+        type2 = self.operand2.infer_type(env)
+
+        if is_pythran_expr(type1) or is_pythran_expr(type2):
+            if is_pythran_supported_type(type1) and is_pythran_supported_type(type2):
+                return PythranExpr(pythran_binop_type(self.operator, type1, type2))
+
+        # TODO: implement this for other types.
         return py_object_type
 
     def type_dependencies(self, env):

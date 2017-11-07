@@ -273,7 +273,7 @@ attribute access, you could just implement some properties::
 Cython initializes C++ class attributes of a cdef class using the nullary constructor.
 If the class you're wrapping does not have a nullary constructor, you must store a pointer
 to the wrapped class and manually allocate and deallocate it.
-A convienient and safe place to do so is in the `__cinit__` and `__dealloc__` methods
+A convenient and safe place to do so is in the `__cinit__` and `__dealloc__` methods
 which are guaranteed to be called exactly once upon creation and deletion of the Python
 instance.
 
@@ -645,7 +645,7 @@ e.g.::
     cdef vector[int] v = ...
     it = v.begin()
 
-(Though of course the ``for .. in`` syntax is prefered for objects supporting
+(Though of course the ``for .. in`` syntax is preferred for objects supporting
 the iteration protocol.)
 
 RTTI and typeid()

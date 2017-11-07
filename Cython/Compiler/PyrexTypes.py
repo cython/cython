@@ -1473,10 +1473,11 @@ class CType(PyrexType):
             source_code,
             code.error_goto_if(error_condition or self.error_condition(result_code), error_pos))
 
+
 class PythranExpr(CType):
     # Pythran object of a given type
 
-    to_py_function = "to_python_from_expr"
+    to_py_function = "__Pyx_pythran_to_python"
     is_pythran_expr = True
     writable = True
     has_attributes = 1
@@ -1489,24 +1490,31 @@ class PythranExpr(CType):
         self.from_py_function = "from_python<%s>" % (self.pythran_type)
         self.scope = None
 
-    def declaration_code(self, entity_code, for_display = 0, dll_linkage = None, pyrex = 0):
-        assert pyrex == 0
-        return "%s %s" % (self.name, entity_code)
+    def declaration_code(self, entity_code, for_display=0, dll_linkage=None, pyrex=0):
+        assert not pyrex
+        return "%s %s" % (self.cname, entity_code)
 
     def attributes_known(self):
         if self.scope is None:
             from . import Symtab
-            self.scope = scope = Symtab.CClassScope(
-                    '',
-                    None,
-                    visibility="extern")
+            # FIXME: fake C scope, might be better represented by a struct or C++ class scope
+            self.scope = scope = Symtab.CClassScope('', None, visibility="extern")
             scope.parent_type = self
             scope.directives = {}
-            # rank 3 == long
-            scope.declare_var("shape", CPtrType(CIntType(3)), None, cname="_shape", is_cdef=True)
-            scope.declare_var("ndim", CIntType(3), None, cname="value", is_cdef=True)
+            scope.declare_var("shape", CPtrType(c_long_type), None, cname="_shape", is_cdef=True)
+            scope.declare_var("ndim", c_long_type, None, cname="value", is_cdef=True)
 
         return True
+
+    def __eq__(self, other):
+        return isinstance(other, PythranExpr) and self.pythran_type == other.pythran_type
+
+    def __ne__(self, other):
+        return not (isinstance(other, PythranExpr) and self.pythran_type == other.pythran_type)
+
+    def __hash__(self):
+        return hash(self.pythran_type)
+
 
 class CConstType(BaseType):
 
@@ -3147,15 +3155,18 @@ class CFuncTypeArg(BaseType):
     or_none = False
     accept_none = True
     accept_builtin_subtypes = False
+    annotation = None
 
     subtypes = ['type']
 
-    def __init__(self, name, type, pos, cname=None):
+    def __init__(self, name, type, pos, cname=None, annotation=None):
         self.name = name
         if cname is not None:
             self.cname = cname
         else:
             self.cname = Naming.var_prefix + name
+        if annotation is not None:
+            self.annotation = annotation
         self.type = type
         self.pos = pos
         self.needs_type_test = False # TODO: should these defaults be set in analyse_types()?
@@ -3168,6 +3179,7 @@ class CFuncTypeArg(BaseType):
 
     def specialize(self, values):
         return CFuncTypeArg(self.name, self.type.specialize(values), self.pos, self.cname)
+
 
 class ToPyStructUtilityCode(object):
 

@@ -127,9 +127,11 @@ take `self` as the first argument.
 Rich comparisons
 -----------------
 
-Starting with Cython 0.27, the Python special methods :meth:``__eq__``, :meth:``__lt__``, etc.
-can be implemented. In previous versions, :meth:``__richcmp__`` was the only way to implement
-rich comparisons. It takes an integer indicating which operation is to be performed, as follows:
+Starting with Cython 0.27, the Python
+`special methods <https://docs.python.org/3/reference/datamodel.html#basic-customization>`_
+:meth:``__eq__``, :meth:``__lt__``, etc. can be implemented.  In previous versions,
+:meth:``__richcmp__`` was the only way to implement rich comparisons.  It takes an integer
+indicating which operation is to be performed, as follows:
 
 +-----+-----+-------+
 |  <  |  0  | Py_LT |
@@ -170,6 +172,8 @@ declare different types, conversions will be performed as necessary.
 General
 ^^^^^^^
 
+https://docs.python.org/3/reference/datamodel.html#special-method-names
+
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | Name 	                | Parameters                            | Return type | 	Description                                 |
 +=======================+=======================================+=============+=====================================================+
@@ -203,24 +207,28 @@ General
 Rich comparison operators
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __richcmp__           |x, y, int op                           | object      | Rich comparison (no direct Python equivalent)       |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __eq__                |x, y                                   | object      | x == y                                              |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __ne__                |x, y                                   | object      | x != y  (falls back to ``__eq__`` if not available) |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __lt__                |x, y                                   | object      | x < y                                               |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __gt__                |x, y                                   | object      | x > y                                               |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __le__                |x, y                                   | object      | x <= y                                              |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __ge__                |x, y                                   | object      | x >= y                                              |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
+https://docs.python.org/3/reference/datamodel.html#basic-customization
+
++-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
+| __richcmp__           |x, y, int op                           | object      | Rich comparison (no direct Python equivalent)          |
++-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
+| __eq__                |self, y                                | object      | self == y                                              |
++-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
+| __ne__                |self, y                                | object      | self != y  (falls back to ``__eq__`` if not available) |
++-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
+| __lt__                |self, y                                | object      | self < y                                               |
++-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
+| __gt__                |self, y                                | object      | self > y                                               |
++-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
+| __le__                |self, y                                | object      | self <= y                                              |
++-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
+| __ge__                |self, y                                | object      | self >= y                                              |
++-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
 
 Arithmetic operators
 ^^^^^^^^^^^^^^^^^^^^
+
+https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types
 
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | Name 	                | Parameters                            | Return type | 	Description                                 |
@@ -267,6 +275,8 @@ Arithmetic operators
 Numeric conversions
 ^^^^^^^^^^^^^^^^^^^
 
+https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types
+
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | Name 	                | Parameters                            | Return type | 	Description                                 |
 +=======================+=======================================+=============+=====================================================+
@@ -285,6 +295,8 @@ Numeric conversions
 
 In-place arithmetic operators
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types
 
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | Name 	                | Parameters                            | Return type | 	Description                                 |
@@ -319,6 +331,8 @@ In-place arithmetic operators
 Sequences and mappings
 ^^^^^^^^^^^^^^^^^^^^^^
 
+https://docs.python.org/3/reference/datamodel.html#emulating-container-types
+
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | Name 	                | Parameters                            | Return type | 	Description                                 |
 +=======================+=======================================+=============+=====================================================+
@@ -341,6 +355,8 @@ Sequences and mappings
 
 Iterators
 ^^^^^^^^^
+
+https://docs.python.org/3/reference/datamodel.html#emulating-container-types
 
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | Name 	                | Parameters                            | Return type | 	Description                                 |
@@ -376,6 +392,8 @@ Buffer interface [legacy] (no Python equivalents - see note 1)
 
 Descriptor objects (see note 2)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+https://docs.python.org/3/reference/datamodel.html#emulating-container-types
 
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | Name 	                | Parameters                            | Return type | 	Description                                 |

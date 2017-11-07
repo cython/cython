@@ -187,7 +187,18 @@ class IterationTransform(Visitor.EnvTransform):
         return self._optimise_for_loop(node, node.iterator.sequence)
 
     def _optimise_for_loop(self, node, iterator, reversed=False):
-        if iterator.type is Builtin.dict_type:
+        annotation_type = None
+        if (iterator.is_name or iterator.is_attribute) and iterator.entry and iterator.entry.annotation:
+            annotation = iterator.entry.annotation
+            if annotation.is_subscript:
+                annotation = annotation.base  # container base type
+            # FIXME: generalise annotation evaluation => maybe provide a "qualified name" also for imported names?
+            if annotation.is_name and annotation.entry and annotation.entry.qualified_name == 'typing.Dict':
+                annotation_type = Builtin.dict_type
+            elif annotation.is_name and annotation.name == 'Dict':
+                annotation_type = Builtin.dict_type
+
+        if Builtin.dict_type in (iterator.type, annotation_type):
             # like iterating over dict.keys()
             if reversed:
                 # CPython raises an error here: not a sequence

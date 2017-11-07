@@ -87,13 +87,13 @@ def pytypes_cdef(a, b=2, c=3, d=4):
 
 def ctypes_def(a: list, b: cython.int = 2, c: cython.long = 3, d: cython.float = 4) -> list:
     """
-    >>> pytypes_def([1])
-    ('list object', 'Python object', 'Python object', 'double')
+    >>> ctypes_def([1])
+    ('list object', 'int', 'long', 'float')
     [1, 2, 3, 4.0]
-    >>> pytypes_def([1], 3)
-    ('list object', 'Python object', 'Python object', 'double')
+    >>> ctypes_def([1], 3)
+    ('list object', 'int', 'long', 'float')
     [1, 3, 3, 4.0]
-    >>> pytypes_def(123)
+    >>> ctypes_def(123)
     Traceback (most recent call last):
     TypeError: Argument 'a' has incorrect type (expected list, got int)
     """

@@ -363,7 +363,7 @@ class CodeWriter(DeclarationWriter):
             self.dedent()
 
     def visit_IfStatNode(self, node):
-        # The IfClauseNode is handled directly without a seperate match
+        # The IfClauseNode is handled directly without a separate match
         # for clariy.
         self.startline(u"if ")
         self.visit(node.if_clauses[0].condition)

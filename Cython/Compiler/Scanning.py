@@ -168,7 +168,7 @@ class SourceDescriptor(object):
         if self._escaped_description is None:
             esc_desc = \
                 self.get_description().encode('ASCII', 'replace').decode("ASCII")
-            # Use foreward slashes on Windows since these paths
+            # Use forward slashes on Windows since these paths
             # will be used in the #line directives in the C/C++ files.
             self._escaped_description = esc_desc.replace('\\', '/')
         return self._escaped_description

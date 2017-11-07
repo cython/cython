@@ -452,7 +452,7 @@ def c_contig(int[::1] mslice):
 
 def c_contig_2d(int[:, ::1] mslice):
     """
-    Multi-dim has seperate implementation
+    Multi-dim has separate implementation
 
     >>> A = IntMockBuffer(None, range(12), shape=(3,4))
     >>> c_contig_2d(A)

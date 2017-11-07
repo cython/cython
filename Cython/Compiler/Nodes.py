@@ -1137,7 +1137,7 @@ class TemplatedTypeNode(CBaseTypeNode):
                     type = template_node.analyse_as_type(env)
                     if type is None:
                         error(template_node.pos, "unknown type in template argument")
-                        return error_type
+                        type = error_type
                     template_types.append(type)
                 self.type = base_type.specialize_here(self.pos, template_types)
 
@@ -1854,6 +1854,10 @@ class FuncDefNode(StatNode, BlockNode):
                 code_object = self.code_object.calculate_result_code(code) if self.code_object else None
                 code.put_trace_frame_init(code_object)
 
+        # ----- Special check for getbuffer
+        if is_getbuffer_slot:
+            self.getbuffer_check(code)
+
         # ----- set up refnanny
         if use_refnanny:
             tempvardecl_code.put_declare_refcount_context()
@@ -1927,7 +1931,7 @@ class FuncDefNode(StatNode, BlockNode):
                     code.put_var_incref(entry)
 
             # Note: defaults are always incref-ed. For def functions, we
-            #       we aquire arguments from object converstion, so we have
+            #       we acquire arguments from object converstion, so we have
             #       new references. If we are a cdef function, we need to
             #       incref our arguments
             elif is_cdef and entry.type.is_memoryviewslice and len(entry.cf_assignments) > 1:
@@ -2155,7 +2159,10 @@ class FuncDefNode(StatNode, BlockNode):
             error(arg.pos, "Invalid use of 'void'")
         elif not arg.type.is_complete() and not (arg.type.is_array or arg.type.is_memoryviewslice):
             error(arg.pos, "Argument type '%s' is incomplete" % arg.type)
-        return env.declare_arg(arg.name, arg.type, arg.pos)
+        entry = env.declare_arg(arg.name, arg.type, arg.pos)
+        if arg.annotation:
+            entry.annotation = arg.annotation
+        return entry
 
     def generate_arg_type_test(self, arg, code):
         # Generate type test for one argument.
@@ -2201,31 +2208,59 @@ class FuncDefNode(StatNode, BlockNode):
     #
     # Special code for the __getbuffer__ function
     #
-    def getbuffer_init(self, code):
-        info = self.local_scope.arg_entries[1].cname
-        # Python 3.0 betas have a bug in memoryview which makes it call
-        # getbuffer with a NULL parameter. For now we work around this;
-        # the following block should be removed when this bug is fixed.
-        code.putln("if (%s != NULL) {" % info)
-        code.putln("%s->obj = Py_None; __Pyx_INCREF(Py_None);" % info)
-        code.put_giveref("%s->obj" % info) # Do not refnanny object within structs
+    def _get_py_buffer_info(self):
+        py_buffer = self.local_scope.arg_entries[1]
+        try:
+            # Check builtin definition of struct Py_buffer
+            obj_type = py_buffer.type.base_type.scope.entries['obj'].type
+        except (AttributeError, KeyError):
+            # User code redeclared struct Py_buffer
+            obj_type = None
+        return py_buffer, obj_type
+
+    # Old Python 3 used to support write-locks on buffer-like objects by
+    # calling PyObject_GetBuffer() with a view==NULL parameter. This obscure
+    # feature is obsolete, it was almost never used (only one instance in
+    # `Modules/posixmodule.c` in Python 3.1) and it is now officially removed
+    # (see bpo-14203). We add an extra check here to prevent legacy code from
+    # from trying to use the feature and prevent segmentation faults.
+    def getbuffer_check(self, code):
+        py_buffer, _ = self._get_py_buffer_info()
+        view = py_buffer.cname
+        code.putln("if (%s == NULL) {" % view)
+        code.putln("PyErr_SetString(PyExc_BufferError, "
+                   "\"PyObject_GetBuffer: view==NULL argument is obsolete\");")
+        code.putln("return -1;")
         code.putln("}")
+
+    def getbuffer_init(self, code):
+        py_buffer, obj_type = self._get_py_buffer_info()
+        view = py_buffer.cname
+        if obj_type and obj_type.is_pyobject:
+            code.put_init_to_py_none("%s->obj" % view, obj_type)
+            code.put_giveref("%s->obj" % view) # Do not refnanny object within structs
+        else:
+            code.putln("%s->obj = NULL;" % view)
 
     def getbuffer_error_cleanup(self, code):
-        info = self.local_scope.arg_entries[1].cname
-        code.putln("if (%s != NULL && %s->obj != NULL) {"
-                   % (info, info))
-        code.put_gotref("%s->obj" % info)
-        code.putln("__Pyx_DECREF(%s->obj); %s->obj = NULL;"
-                   % (info, info))
-        code.putln("}")
+        py_buffer, obj_type = self._get_py_buffer_info()
+        view = py_buffer.cname
+        if obj_type and obj_type.is_pyobject:
+            code.putln("if (%s->obj != NULL) {" % view)
+            code.put_gotref("%s->obj" % view)
+            code.put_decref_clear("%s->obj" % view, obj_type)
+            code.putln("}")
+        else:
+            code.putln("Py_CLEAR(%s->obj);" % view)
 
     def getbuffer_normal_cleanup(self, code):
-        info = self.local_scope.arg_entries[1].cname
-        code.putln("if (%s != NULL && %s->obj == Py_None) {" % (info, info))
-        code.put_gotref("Py_None")
-        code.putln("__Pyx_DECREF(Py_None); %s->obj = NULL;" % info)
-        code.putln("}")
+        py_buffer, obj_type = self._get_py_buffer_info()
+        view = py_buffer.cname
+        if obj_type and obj_type.is_pyobject:
+            code.putln("if (%s->obj == Py_None) {" % view)
+            code.put_gotref("%s->obj" % view)
+            code.put_decref_clear("%s->obj" % view, obj_type)
+            code.putln("}")
 
     def get_preprocessor_guard(self):
         if not self.entry.is_special:
@@ -2743,6 +2778,7 @@ class DefNode(FuncDefNode):
                 name_declarator, type = formal_arg.analyse(scope, nonempty=1)
                 cfunc_args.append(PyrexTypes.CFuncTypeArg(name=name_declarator.name,
                                                           cname=None,
+                                                          annotation=formal_arg.annotation,
                                                           type=py_object_type,
                                                           pos=formal_arg.pos))
             cfunc_type = PyrexTypes.CFuncType(return_type=py_object_type,
@@ -4032,9 +4068,10 @@ class GeneratorDefNode(DefNode):
 
         code.putln('{')
         code.putln('__pyx_CoroutineObject *gen = __Pyx_%s_New('
-                   '(__pyx_coroutine_body_t) %s, (PyObject *) %s, %s, %s, %s); %s' % (
+                   '(__pyx_coroutine_body_t) %s, %s, (PyObject *) %s, %s, %s, %s); %s' % (
                        self.gen_type_name,
-                       body_cname, Naming.cur_scope_cname, name, qualname, module_name,
+                       body_cname, self.code_object.calculate_result_code(code) if self.code_object else 'NULL',
+                       Naming.cur_scope_cname, name, qualname, module_name,
                        code.error_goto_if_null('gen', self.pos)))
         code.put_decref(Naming.cur_scope_cname, py_object_type)
         if self.requires_classobj:
@@ -4129,6 +4166,9 @@ class GeneratorBodyDefNode(DefNode):
         linetrace = code.globalstate.directives['linetrace']
         if profile or linetrace:
             tempvardecl_code.put_trace_declarations()
+            code.funcstate.can_trace = True
+            code_object = self.code_object.calculate_result_code(code) if self.code_object else None
+            code.put_trace_frame_init(code_object)
 
         # ----- Resume switch point.
         code.funcstate.init_closure_temps(lenv.scope_class.type.scope)
@@ -4166,6 +4206,9 @@ class GeneratorBodyDefNode(DefNode):
                                                 Naming.generator_cname)))
             # FIXME: this silences a potential "unused" warning => try to avoid unused closures in more cases
             code.putln("CYTHON_MAYBE_UNUSED_VAR(%s);" % Naming.cur_scope_cname)
+
+        if profile or linetrace:
+            code.funcstate.can_trace = False
 
         code.mark_pos(self.pos)
         code.putln("")
@@ -4234,7 +4277,7 @@ class GeneratorBodyDefNode(DefNode):
 
 class OverrideCheckNode(StatNode):
     # A Node for dispatching to the def method if it
-    # is overriden.
+    # is overridden.
     #
     #  py_func
     #
@@ -6974,7 +7017,8 @@ class TryExceptStatNode(StatNode):
         else:
             # try block cannot raise exceptions, but we had to allocate the temps above,
             # so just keep the C compiler from complaining about them being unused
-            save_exc.putln("if (%s); else {/*mark used*/}" % '||'.join(exc_save_vars))
+            mark_vars_used =  ["(void)%s;" % var for var in exc_save_vars]
+            save_exc.putln("%s /* mark used */" % ' '.join(mark_vars_used))
 
             def restore_saved_exception():
                 pass
@@ -7293,6 +7337,7 @@ class TryFinallyStatNode(StatNode):
             code.putln('}')
 
         if preserve_error:
+            code.put_label(new_error_label)
             code.putln('/*exception exit:*/{')
             if not self.in_generator:
                 code.putln("__Pyx_PyThreadState_declare")
@@ -7310,7 +7355,6 @@ class TryFinallyStatNode(StatNode):
             exc_vars = tuple([
                 code.funcstate.allocate_temp(py_object_type, manage_ref=False)
                 for _ in range(6)])
-            code.put_label(new_error_label)
             self.put_error_catcher(
                 code, temps_to_clean_up, exc_vars, exc_lineno_cnames, exc_filename_cname)
             finally_old_labels = code.all_new_labels()
@@ -7403,11 +7447,11 @@ class TryFinallyStatNode(StatNode):
         code.globalstate.use_utility_code(get_exception_utility_code)
         code.globalstate.use_utility_code(swap_exception_utility_code)
 
-        code.putln(' '.join(["%s = 0;"]*len(exc_vars)) % exc_vars)
         if self.is_try_finally_in_nogil:
             code.put_ensure_gil(declare_gilstate=False)
         code.putln("__Pyx_PyThreadState_assign")
 
+        code.putln(' '.join(["%s = 0;" % var for var in exc_vars]))
         for temp_name, type in temps_to_clean_up:
             code.put_xdecref_clear(temp_name, type)
 
@@ -7452,7 +7496,7 @@ class TryFinallyStatNode(StatNode):
         if self.is_try_finally_in_nogil:
             code.put_release_ensured_gil()
 
-        code.putln(' '.join(["%s = 0;"]*len(exc_vars)) % exc_vars)
+        code.putln(' '.join(["%s = 0;" % var for var in exc_vars]))
         if exc_lineno_cnames:
             code.putln("%s = %s; %s = %s; %s = %s;" % (
                 Naming.lineno_cname, exc_lineno_cnames[0],

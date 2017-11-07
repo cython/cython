@@ -7,10 +7,11 @@ from __future__ import absolute_import
 import cython
 cython.declare(Naming=object, Options=object, PyrexTypes=object, TypeSlots=object,
                error=object, warning=object, py_object_type=object, UtilityCode=object,
-               EncodedString=object)
+               EncodedString=object, re=object)
 
 import json
 import os
+import re
 import operator
 from .PyrexTypes import CPtrType
 from . import Future
@@ -359,7 +360,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code = globalstate['before_global_var']
         code.putln('#define __Pyx_MODULE_NAME "%s"' % self.full_module_name)
-        code.putln("int %s%s = 0;" % (Naming.module_is_main, self.full_module_name.replace('.', '__')))
+        module_is_main = "%s%s" % (Naming.module_is_main, self.full_module_name.replace('.', '__'))
+        code.putln("extern int %s;" % module_is_main)
+        code.putln("int %s = 0;" % module_is_main)
         code.putln("")
         code.putln("/* Implementation of '%s' */" % env.qualified_name)
 
@@ -639,6 +642,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self._put_setup_code(code, "CppInitCode")
         else:
             self._put_setup_code(code, "CInitCode")
+        self._put_setup_code(code, "PythonCompatibility")
         self._put_setup_code(code, "MathInitCode")
 
         if options.c_line_in_traceback:
@@ -2254,14 +2258,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("return -1;")
         code.putln("}")
         code.putln("")
-        code.putln(UtilityCode.load_cached("ImportStar", "ImportExport.c").impl)
+        code.putln(UtilityCode.load_as_string("ImportStar", "ImportExport.c")[1])
         code.exit_cfunc_scope()  # done with labels
 
     def generate_module_init_func(self, imported_modules, env, code):
+        subfunction = self.mod_init_subfunction(self.scope, code)
+
         code.enter_cfunc_scope(self.scope)
         code.putln("")
-        header2 = "PyMODINIT_FUNC init%s(void)" % env.module_name
-        header3 = "PyMODINIT_FUNC %s(void)" % self.mod_init_func_cname('PyInit', env)
+        code.putln(UtilityCode.load_as_string("PyModInitFuncType", "ModuleSetupCode.c")[0])
+        header2 = "__Pyx_PyMODINIT_FUNC init%s(void)" % env.module_name
+        header3 = "__Pyx_PyMODINIT_FUNC %s(void)" % self.mod_init_func_cname('PyInit', env)
         code.putln("#if PY_MAJOR_VERSION < 3")
         code.putln("%s; /*proto*/" % header2)
         code.putln(header2)
@@ -2377,30 +2384,32 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("/*--- Constants init code ---*/")
         code.put_error_if_neg(self.pos, "__Pyx_InitCachedConstants()")
 
-        code.putln("/*--- Global init code ---*/")
-        self.generate_global_init_code(env, code)
+        code.putln("/*--- Global type/function init code ---*/")
 
-        code.putln("/*--- Variable export code ---*/")
-        self.generate_c_variable_export_code(env, code)
+        with subfunction("Global init code") as inner_code:
+            self.generate_global_init_code(env, inner_code)
 
-        code.putln("/*--- Function export code ---*/")
-        self.generate_c_function_export_code(env, code)
+        with subfunction("Variable export code") as inner_code:
+            self.generate_c_variable_export_code(env, inner_code)
 
-        code.putln("/*--- Type init code ---*/")
-        self.generate_type_init_code(env, code)
+        with subfunction("Function export code") as inner_code:
+            self.generate_c_function_export_code(env, inner_code)
 
-        code.putln("/*--- Type import code ---*/")
-        for module in imported_modules:
-            self.generate_type_import_code_for_module(module, env, code)
+        with subfunction("Type init code") as inner_code:
+            self.generate_type_init_code(env, inner_code)
 
-        code.putln("/*--- Variable import code ---*/")
-        for module in imported_modules:
-            self.generate_c_variable_import_code_for_module(module, env, code)
+        with subfunction("Type import code") as inner_code:
+            for module in imported_modules:
+                self.generate_type_import_code_for_module(module, env, inner_code)
 
-        code.putln("/*--- Function import code ---*/")
-        for module in imported_modules:
-            self.specialize_fused_types(module)
-            self.generate_c_function_import_code_for_module(module, env, code)
+        with subfunction("Variable import code") as inner_code:
+            for module in imported_modules:
+                self.generate_c_variable_import_code_for_module(module, env, inner_code)
+
+        with subfunction("Function import code") as inner_code:
+            for module in imported_modules:
+                self.specialize_fused_types(module)
+                self.generate_c_function_import_code_for_module(module, env, inner_code)
 
         code.putln("/*--- Execution code ---*/")
         code.mark_pos(None)
@@ -2464,6 +2473,71 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         tempdecl_code.put_temp_declarations(code.funcstate)
 
         code.exit_cfunc_scope()
+
+    def mod_init_subfunction(self, scope, orig_code):
+        """
+        Return a context manager that allows deviating the module init code generation
+        into a separate function and instead inserts a call to it.
+
+        Can be reused sequentially to create multiple functions.
+        The functions get inserted at the point where the context manager was created.
+        The call gets inserted where the context manager is used (on entry).
+        """
+        prototypes = orig_code.insertion_point()
+        prototypes.putln("")
+        function_code = orig_code.insertion_point()
+        function_code.putln("")
+
+        class ModInitSubfunction(object):
+            def __init__(self, code_type):
+                cname = '_'.join(code_type.lower().split())
+                assert re.match("^[a-z0-9_]+$", cname)
+                self.cfunc_name = "__Pyx_modinit_%s" % cname
+                self.description = code_type
+                self.tempdecl_code = None
+                self.call_code = None
+
+            def __enter__(self):
+                self.call_code = orig_code.insertion_point()
+                code = function_code
+                code.enter_cfunc_scope(scope)
+                prototypes.putln("static int %s(void); /*proto*/" % self.cfunc_name)
+                code.putln("static int %s(void) {" % self.cfunc_name)
+                code.put_declare_refcount_context()
+                self.tempdecl_code = code.insertion_point()
+                code.put_setup_refcount_context(self.cfunc_name)
+                # Leave a grepable marker that makes it easy to find the generator source.
+                code.putln("/*--- %s ---*/" % self.description)
+                return code
+
+            def __exit__(self, *args):
+                code = function_code
+                code.put_finish_refcount_context()
+                code.putln("return 0;")
+
+                self.tempdecl_code.put_temp_declarations(code.funcstate)
+                self.tempdecl_code = None
+
+                needs_error_handling = code.label_used(code.error_label)
+                if needs_error_handling:
+                    code.put_label(code.error_label)
+                    for cname, type in code.funcstate.all_managed_temps():
+                        code.put_xdecref(cname, type)
+                    code.put_finish_refcount_context()
+                    code.putln("return -1;")
+                code.putln("}")
+                code.exit_cfunc_scope()
+                code.putln("")
+
+                if needs_error_handling:
+                    self.call_code.use_label(orig_code.error_label)
+                    self.call_code.putln("if (unlikely(%s() != 0)) goto %s;" % (
+                        self.cfunc_name, orig_code.error_label))
+                else:
+                    self.call_code.putln("(void)%s();" % self.cfunc_name)
+                self.call_code = None
+
+        return ModInitSubfunction
 
     def generate_module_import_setup(self, env, code):
         module_path = env.directives['set_initial_path']

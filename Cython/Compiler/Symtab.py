@@ -35,12 +35,12 @@ iso_c99_keywords = set(
 
 def c_safe_identifier(cname):
     # There are some C limitations on struct entry names.
-    if ((cname[:2] == '__'
-         and not (cname.startswith(Naming.pyrex_prefix)
-                  or cname in ('__weakref__', '__dict__')))
-        or cname in iso_c99_keywords):
+    if ((cname[:2] == '__' and not (cname.startswith(Naming.pyrex_prefix)
+                                    or cname in ('__weakref__', '__dict__')))
+            or cname in iso_c99_keywords):
         cname = Naming.pyrex_prefix + cname
     return cname
+
 
 class BufferAux(object):
     writable_needed = False
@@ -60,6 +60,7 @@ class Entry(object):
     # cname            string     C name of entity
     # type             PyrexType  Type of entity
     # doc              string     Doc string
+    # annotation       ExprNode   PEP 484/526 annotation
     # init             string     Initial value
     # visibility       'private' or 'public' or 'extern'
     # is_builtin       boolean    Is an entry in the Python builtins dict
@@ -138,6 +139,7 @@ class Entry(object):
     inline_func_in_pxd = False
     borrowed = 0
     init = ""
+    annotation = None
     visibility = 'private'
     is_builtin = 0
     is_cglobal = 0
@@ -449,7 +451,7 @@ class Scope(object):
                 # Likewise ignore inherited classes.
                 pass
             elif visibility == 'extern':
-                warning(pos, "'%s' redeclared " % name, 0)
+                warning(pos, "'%s' redeclared " % name, 1)
             elif visibility != 'ignore':
                 error(pos, "'%s' redeclared " % name)
         entry = Entry(name, cname, type, pos = pos)
