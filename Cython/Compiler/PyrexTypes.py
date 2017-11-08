@@ -3730,6 +3730,8 @@ class CppClassType(CType):
             return True
         elif other_type.is_cpp_class:
             return other_type.is_subclass(self)
+        elif other_type.is_string and self.cname in cpp_string_conversions:
+            return True
 
     def attributes_known(self):
         return self.scope is not None
