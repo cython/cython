@@ -2342,6 +2342,12 @@ class CppClassScope(Scope):
             cname = "%s__dealloc__%s" % (Naming.func_prefix, class_name)
             name = '<del>'
             type.return_type = PyrexTypes.CVoidType()
+        if name in ('<init>', '<del>') and type.nogil:
+            for base in self.type.base_classes:
+                base_entry = base.scope.lookup(name)
+                if base_entry and not base_entry.type.nogil:
+                    error(pos, "Constructor cannot be called without GIL unless all base constructors can also be called without GIL")
+                    error(base_entry.pos, "Base constructor defined here.")
         prev_entry = self.lookup_here(name)
         entry = self.declare_var(name, type, pos,
                                  defining=defining,
