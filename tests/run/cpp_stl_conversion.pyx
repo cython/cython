@@ -74,7 +74,7 @@ def test_string_call(a, b):
 
 def test_c_string_convert(char *c_string):
     """
-    >>> normalize(test_c_string_convert("abc"))
+    >>> normalize(test_c_string_convert("abc".encode('ascii')))
     'abc'
     """
     cdef string s
