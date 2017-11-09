@@ -8,6 +8,10 @@ Cython Changelog
 Features added
 --------------
 
+* Cdef classes can now multiply inherit from ordinary Python classes.
+  (The primary base must still be a c class, possibly ``object``, and
+  the other bases must *not* be cdef classes.)
+
 * Type inference is now supported for Pythran compiled NumPy expressions.
   Patch by Nils Braun.  (Github issue #1954)
 
