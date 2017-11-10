@@ -323,6 +323,8 @@ cdef extern from "numpy/arrayobject.h":
     ctypedef signed long long   npy_int96
     ctypedef signed long long   npy_int128
 
+    ctypedef unsigned char      npy_bool8
+
     ctypedef unsigned char      npy_uint8
     ctypedef unsigned short     npy_uint16
     ctypedef unsigned int       npy_uint32
@@ -725,6 +727,8 @@ cdef extern from "numpy/arrayobject.h":
 
 # The ones that are commented out needs an IFDEF function
 # in Cython to enable them only on the right systems.
+
+ctypedef npy_bool8      bool8_t
 
 ctypedef npy_int8       int8_t
 ctypedef npy_int16      int16_t
