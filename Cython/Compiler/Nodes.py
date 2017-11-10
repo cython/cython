@@ -68,8 +68,9 @@ def embed_position(pos, docstring):
     return doc
 
 
-def analyse_type_annotation(annotation, env):
+def analyse_type_annotation(annotation, env, assigned_value=None):
     base_type = None
+    is_ambiguous = False
     explicit_pytype = explicit_ctype = False
     if annotation.is_dict_literal:
         warning(annotation.pos,
@@ -88,6 +89,13 @@ def analyse_type_annotation(annotation, env):
             warning(annotation.pos, "Duplicate type declarations found in signature annotation")
     arg_type = annotation.analyse_as_type(env)
     if annotation.is_name and not annotation.cython_attribute and annotation.name in ('int', 'long', 'float'):
+        # Map builtin numeric Python types to C types in safe cases.
+        if assigned_value is not None and arg_type is not None and not arg_type.is_pyobject:
+            assigned_type = assigned_value.infer_type(env)
+            if assigned_type and assigned_type.is_pyobject:
+                # C type seems unsafe, e.g. due to 'None' default value  => ignore annotation type
+                is_ambiguous = True
+                arg_type = None
         # ignore 'int' and require 'cython.int' to avoid unsafe integer declarations
         if arg_type in (PyrexTypes.c_long_type, PyrexTypes.c_int_type, PyrexTypes.c_float_type):
             arg_type = PyrexTypes.c_double_type if annotation.name == 'float' else py_object_type
@@ -100,6 +108,8 @@ def analyse_type_annotation(annotation, env):
                     "Python type declaration in signature annotation does not refer to a Python type")
         base_type = CAnalysedBaseTypeNode(
             annotation.pos, type=arg_type, is_arg=True)
+    elif is_ambiguous:
+        warning(annotation.pos, "Ambiguous types in annotation, ignoring")
     else:
         warning(annotation.pos, "Unknown type declaration in annotation, ignoring")
     return base_type, arg_type
@@ -900,7 +910,7 @@ class CArgDeclNode(Node):
         annotation = self.annotation
         if not annotation:
             return None
-        base_type, arg_type = analyse_type_annotation(annotation, env)
+        base_type, arg_type = analyse_type_annotation(annotation, env, assigned_value=self.default)
         if base_type is not None:
             self.base_type = base_type
         return arg_type
