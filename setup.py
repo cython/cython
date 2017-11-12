@@ -93,8 +93,9 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
         "Cython.Compiler.FlowControl",
         "Cython.Compiler.Code",
         "Cython.Runtime.refnanny",
-        # "Cython.Compiler.FusedNode",
+        "Cython.Compiler.FusedNode",
         "Cython.Tempita._tempita",
+        "Cython.StringIOTree",
     ]
     if compile_more:
         compiled_modules.extend([
