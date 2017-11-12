@@ -7165,19 +7165,42 @@ class ExceptClauseNode(Node):
 
     def generate_handling_code(self, code, end_label):
         code.mark_pos(self.pos)
+
         if self.pattern:
-            code.globalstate.use_utility_code(UtilityCode.load_cached("PyErrExceptionMatches", "Exceptions.c"))
+            has_non_literals = not all(
+                pattern.is_literal or (pattern.entry and pattern.entry.is_const)
+                for pattern in self.pattern)
+
+            if has_non_literals:
+                # For non-trivial exception check expressions, hide the live exception from C-API calls.
+                exc_vars = [code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+                            for _ in range(3)]
+                code.globalstate.use_utility_code(UtilityCode.load_cached("PyErrFetchRestore", "Exceptions.c"))
+                code.putln("__Pyx_ErrFetch(&%s, &%s, &%s);" % tuple(exc_vars))
+                code.globalstate.use_utility_code(UtilityCode.load_cached("FastTypeChecks", "ModuleSetupCode.c"))
+                exc_test_func = "__Pyx_PyErr_GivenExceptionMatches(%s, %%s)" % exc_vars[0]
+            else:
+                exc_vars = ()
+                code.globalstate.use_utility_code(UtilityCode.load_cached("PyErrExceptionMatches", "Exceptions.c"))
+                exc_test_func = "__Pyx_PyErr_ExceptionMatches(%s)"
+
             exc_tests = []
             for pattern in self.pattern:
                 pattern.generate_evaluation_code(code)
-                exc_tests.append("__Pyx_PyErr_ExceptionMatches(%s)" % pattern.py_result())
+                exc_tests.append(exc_test_func % pattern.py_result())
 
-            match_flag = code.funcstate.allocate_temp(PyrexTypes.c_int_type, False)
-            code.putln(
-                "%s = %s;" % (match_flag, ' || '.join(exc_tests)))
+            match_flag = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
+            code.putln("%s = %s;" % (match_flag, ' || '.join(exc_tests)))
             for pattern in self.pattern:
                 pattern.generate_disposal_code(code)
                 pattern.free_temps(code)
+
+            if has_non_literals:
+                code.putln("__Pyx_ErrRestore(%s, %s, %s);" % tuple(exc_vars))
+                code.putln(' '.join(["%s = 0;" % var for var in exc_vars]))
+                for temp in exc_vars:
+                    code.funcstate.release_temp(temp)
+
             code.putln(
                 "if (%s) {" %
                     match_flag)
@@ -7196,8 +7219,7 @@ class ExceptClauseNode(Node):
             code.putln("}")
             return
 
-        exc_vars = [code.funcstate.allocate_temp(py_object_type,
-                                                 manage_ref=True)
+        exc_vars = [code.funcstate.allocate_temp(py_object_type, manage_ref=True)
                     for _ in range(3)]
         code.put_add_traceback(self.function_name)
         # We always have to fetch the exception value even if
