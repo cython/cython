@@ -7168,7 +7168,7 @@ class ExceptClauseNode(Node):
 
         if self.pattern:
             has_non_literals = not all(
-                pattern.is_literal or (pattern.entry and pattern.entry.is_const)
+                pattern.is_literal or pattern.is_simple() and not pattern.is_temp
                 for pattern in self.pattern)
 
             if has_non_literals:
