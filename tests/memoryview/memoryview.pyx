@@ -1039,3 +1039,47 @@ def min_max_tree_restructuring():
     cdef char[:] aview = a
 
     return max(<char>1, aview[0]), min(<char>5, aview[2])
+
+
+@cython.test_fail_if_path_exists(
+    '//MemoryViewSliceNode',
+)
+@cython.test_assert_path_exists(
+    '//MemoryViewIndexNode',
+)
+#@cython.boundscheck(False)  # reduce C code clutter
+def optimised_index_of_slice(int[:,:,:] arr, int x, int y, int z):
+    """
+    >>> arr = IntMockBuffer("A", list(range(10*10*10)), shape=(10,10,10))
+    >>> optimised_index_of_slice(arr, 2, 3, 4)
+    acquired A
+    (123, 123)
+    (223, 223)
+    (133, 133)
+    (124, 124)
+    (234, 234)
+    (123, 123)
+    (123, 123)
+    (123, 123)
+    (134, 134)
+    (134, 134)
+    (234, 234)
+    (234, 234)
+    (234, 234)
+    released A
+    """
+    print(arr[1, 2, 3], arr[1][2][3])
+    print(arr[x, 2, 3], arr[x][2][3])
+    print(arr[1, y, 3], arr[1][y][3])
+    print(arr[1, 2, z], arr[1][2][z])
+    print(arr[x, y, z], arr[x][y][z])
+
+    print(arr[1, 2, 3], arr[:, 2][1][3])
+    print(arr[1, 2, 3], arr[:, 2, :][1, 3])
+    print(arr[1, 2, 3], arr[:, 2, 3][1])
+    print(arr[1, y, z], arr[1, :][y][z])
+    print(arr[1, y, z], arr[1, :][y, z])
+
+    print(arr[x, y, z], arr[x][:][:][y][:][:][z])
+    print(arr[x, y, z], arr[:][x][:][y][:][:][z])
+    print(arr[x, y, z], arr[:, :][x][:, :][y][:][z])
