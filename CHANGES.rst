@@ -52,7 +52,8 @@ Bugs fixed
 ----------
 
 * Catching exceptions with a non-trivial exception pattern could call into
-  CPython with a live exception set.
+  CPython with a live exception set.  This triggered incorrect behaviour
+  and crashes, especially in CPython 3.7.
 
 * Line tracing did not include generators and coroutines.
   (Github issue #1949)
