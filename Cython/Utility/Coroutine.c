@@ -894,6 +894,11 @@ static PyObject *__Pyx_Generator_Next(PyObject *self) {
             ret = _PyGen_Send((PyGenObject*)yf, NULL);
         } else
         #endif
+        #ifdef __Pyx_Coroutine_USED
+        if (__Pyx_Coroutine_Check(yf)) {
+            ret = __Pyx_Coroutine_Send(yf, Py_None);
+        } else
+        #endif
             ret = Py_TYPE(yf)->tp_iternext(yf);
         gen->is_running = 0;
         //Py_DECREF(yf);
@@ -1590,6 +1595,8 @@ static PyTypeObject __pyx_CoroutineType_type = {
 #endif
 };
 
+static PyTypeObject __pyx_IterableCoroutineType_type;
+
 static int __pyx_Coroutine_init(void) {
     // on Windows, C-API functions can't be used in slots statically
     __pyx_CoroutineType_type.tp_getattro = PyObject_GenericGetAttr;
@@ -1621,8 +1628,8 @@ static PyTypeObject *__pyx_IterableCoroutineType = 0;
 #undef __Pyx_Coroutine_Check
 #define __Pyx_Coroutine_Check(obj) (__Pyx_Coroutine_CheckExact(obj) || (Py_TYPE(obj) == __pyx_IterableCoroutineType))
 
-#define __Pyx_IterableCoroutine_New(body, closure, name, qualname, module_name)  \
-    __Pyx__Coroutine_New(__pyx_IterableCoroutineType, body, closure, name, qualname, module_name)
+#define __Pyx_IterableCoroutine_New(body, code, closure, name, qualname, module_name)  \
+    __Pyx__Coroutine_New(__pyx_IterableCoroutineType, body, code, closure, name, qualname, module_name)
 
 
 //////////////////// IterableCoroutine ////////////////////
