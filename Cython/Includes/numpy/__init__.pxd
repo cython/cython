@@ -90,6 +90,7 @@ cdef extern from "numpy/arrayobject.h":
         NPY_ANYORDER
         NPY_CORDER
         NPY_FORTRANORDER
+        NPY_KEEPORDER
 
     ctypedef enum NPY_CLIPMODE:
         NPY_CLIP
