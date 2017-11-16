@@ -2,7 +2,6 @@
 
 //////////////////// CythonFunction.proto ////////////////////
 #define __Pyx_CyFunction_USED 1
-#include <structmember.h>
 
 #define __Pyx_CYFUNCTION_STATICMETHOD  0x01
 #define __Pyx_CYFUNCTION_CLASSMETHOD   0x02
@@ -74,6 +73,8 @@ static int __pyx_CyFunction_init(void);
 //@substitute: naming
 //@requires: CommonStructures.c::FetchCommonType
 ////@requires: ObjectHandling.c::PyObjectGetAttrStr
+
+#include <structmember.h>
 
 static PyObject *
 __Pyx_CyFunction_get_doc(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *closure)
