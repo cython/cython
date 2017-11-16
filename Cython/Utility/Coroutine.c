@@ -1595,8 +1595,6 @@ static PyTypeObject __pyx_CoroutineType_type = {
 #endif
 };
 
-static PyTypeObject __pyx_IterableCoroutineType_type;
-
 static int __pyx_Coroutine_init(void) {
     // on Windows, C-API functions can't be used in slots statically
     __pyx_CoroutineType_type.tp_getattro = PyObject_GenericGetAttr;
@@ -1624,6 +1622,7 @@ static int __pyx_Coroutine_init(void) {
 #define __Pyx_IterableCoroutine_USED
 
 static PyTypeObject *__pyx_IterableCoroutineType = 0;
+static PyTypeObject __pyx_IterableCoroutineType_type;
 
 #undef __Pyx_Coroutine_Check
 #define __Pyx_Coroutine_Check(obj) (__Pyx_Coroutine_CheckExact(obj) || (Py_TYPE(obj) == __pyx_IterableCoroutineType))
