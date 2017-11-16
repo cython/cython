@@ -1227,6 +1227,13 @@ static void __Pyx_Coroutine_del(PyObject *self) {
 }
 
 static PyObject *
+__Pyx_Coroutine_get_frame(__pyx_CoroutineObject *self)
+{
+    // Fake implementation that always returns None, but at least does not raise an AttributeError.
+    Py_RETURN_NONE;
+}
+
+static PyObject *
 __Pyx_Coroutine_get_name(__pyx_CoroutineObject *self)
 {
     PyObject *name = self->gi_name;
@@ -1499,6 +1506,8 @@ static PyGetSetDef __pyx_Coroutine_getsets[] = {
      (char*) PyDoc_STR("name of the coroutine"), 0},
     {(char *) "__qualname__", (getter)__Pyx_Coroutine_get_qualname, (setter)__Pyx_Coroutine_set_qualname,
      (char*) PyDoc_STR("qualified name of the coroutine"), 0},
+    {(char *) "cr_frame", (getter)__Pyx_Coroutine_get_frame, NULL,
+     (char*) PyDoc_STR("Frame of the coroutine"), 0},
     {0, 0, 0, 0, 0}
 };
 
