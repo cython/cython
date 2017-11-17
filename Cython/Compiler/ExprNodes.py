@@ -4145,10 +4145,6 @@ class BufferIndexNode(_IndexingBaseNode):
 
     def nogil_check(self, env):
         if self.is_buffer_access or self.is_memview_index:
-            if env.directives['boundscheck']:
-                warning(self.pos, "Use boundscheck(False) for faster access",
-                        level=1)
-
             if self.type.is_pyobject:
                 error(self.pos, "Cannot access buffer with object dtype without gil")
                 self.type = error_type
@@ -4175,6 +4171,11 @@ class BufferIndexNode(_IndexingBaseNode):
         """
         ndarray[1, 2, 3] and memslice[1, 2, 3]
         """
+        if self.in_nogil_context:
+            if self.is_buffer_access or self.is_memview_index:
+                if code.globalstate.directives['boundscheck']:
+                    warning(self.pos, "Use boundscheck(False) for faster access", level=1)
+
         # Assign indices to temps of at least (s)size_t to allow further index calculations.
         index_temps = [self.get_index_in_temp(code,ivar) for ivar in self.indices]
 
