@@ -19,6 +19,11 @@ Features added
   them to depend on module declarations themselves.
   Patch by Jeroen Demeyer.  (Github issue #1896)
 
+* Decorating an async coroutine with ``@types.coroutine`` or ``@asyncio.coroutine``
+  changes its type at compile time to make it iterable.  While this is not
+  strictly in line with PEP-492, it improves the interoperability with old-style
+  coroutines that use ``yield from`` instead of ``await``.
+
 * The new TSS C-API in CPython 3.7 is supported and has been backported.
   Patch by Naotoshi Seo.  (Github issue #1932)
 
