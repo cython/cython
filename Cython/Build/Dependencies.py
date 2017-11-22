@@ -864,7 +864,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
 
 # This is the user-exposed entry point.
 def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, force=False, language=None,
-              exclude_failures=False, **options):
+              exclude_failures=False, c_file=None, **options):
     """
     Compile a set of source modules into C/C++ files and return a list of distutils
     Extension objects for them.
@@ -880,6 +880,9 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     will be determined at a per-file level based on compiler directives.  This
     affects only modules found based on file names.  Extension instances passed
     into cythonize() will not be changed.
+
+    To change the generated filename provide c_file. Note: Do not manually include
+    the file extension that will automatically be added to this.
 
     For parallel compilation, set the 'nthreads' option to the number of
     concurrent builds.
@@ -942,13 +945,22 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
             base, ext = os.path.splitext(source)
             if ext in ('.pyx', '.py'):
                 if m.np_pythran:
-                    c_file = base + '.cpp'
+                    if not c_file:
+                        c_file = base + '.cpp'
+                    else:
+                        c_file = c_file + '.cpp'
                     options = pythran_options
                 elif m.language == 'c++':
-                    c_file = base + '.cpp'
+                    if not c_file:
+                        c_file = base + '.cpp'
+                    else:
+                        c_file = c_file + '.cpp'
                     options = cpp_options
                 else:
-                    c_file = base + '.c'
+                    if not c_file:
+                        c_file = base + '.c'
+                    else:
+                        c_file = c_file + '.c'
                     options = c_options
 
                 # setup for out of place build directory if enabled
