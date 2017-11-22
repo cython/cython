@@ -36,6 +36,9 @@ Features added
 * Some PEP-484/526 container type declarations are now considered for
   loop optimisations.
 
+* Indexing into memoryview slices with ``view[i][j]`` is now optimised into
+  ``view[i, j]``.
+
 * Python compatible ``cython.*`` types can now be mixed with type declarations
   in Cython syntax.
 
