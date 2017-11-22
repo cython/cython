@@ -470,8 +470,9 @@ class StatNode(Node):
 
 
 class CDefExternNode(StatNode):
-    #  include_file   string or None
-    #  body           StatListNode
+    #  include_file       string or None
+    #  verbatim_include   string or None
+    #  body               StatListNode
 
     child_attrs = ["body"]
 
@@ -480,18 +481,16 @@ class CDefExternNode(StatNode):
         env.in_cinclude = 1
         self.body.analyse_declarations(env)
         env.in_cinclude = old_cinclude_flag
-        inc = self.include_file
-        if inc:
+
+        if self.include_file or self.verbatim_include:
+            # Determine whether include should be late
             stats = self.body.stats
-            if inc[0] == '<' and inc[-1] == '>':
-                # System include => always early
-                env.add_include_file(inc)
-            elif stats and all(isinstance(node, CVarDefNode) for node in stats):
-                # Generate a late include if the body is not empty and
-                # all statements are variable or function declarations.
-                env.add_include_file(inc, late=True)
+            if not stats:
+                # Special case: empty 'cdef extern' blocks are early
+                late = False
             else:
-                env.add_include_file(inc)
+                late = all(isinstance(node, CVarDefNode) for node in stats)
+            env.add_include_file(self.include_file, self.verbatim_include, late)
 
     def analyse_expressions(self, env):
         return self

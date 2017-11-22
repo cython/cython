@@ -1068,9 +1068,8 @@ class ModuleScope(Scope):
     # doc                  string             Module doc string
     # doc_cname            string             C name of module doc string
     # utility_code_list    [UtilityCode]      Queuing utility codes for forwarding to Code.py
-    # python_include_files [string]           Standard  Python headers to be included
-    # include_files_early  [string]           C headers to be included before Cython decls
-    # include_files_late   [string]           C headers to be included after Cython decls
+    # c_includes           {key: IncludeCode} C headers or verbatim code to be generated
+    #                                         See process_include() for more documentation
     # string_to_entry      {string : Entry}   Map string const to entry
     # identifier_to_entry  {string : Entry}   Map identifier string const to entry
     # context              Context
@@ -1113,9 +1112,7 @@ class ModuleScope(Scope):
         self.doc_cname = Naming.moddoc_cname
         self.utility_code_list = []
         self.module_entries = {}
-        self.python_include_files = ["Python.h"]
-        self.include_files_early = []
-        self.include_files_late = []
+        self.c_includes = {}
         self.type_names = dict(outer_scope.type_names)
         self.pxd_file_loaded = 0
         self.cimported_modules = []
@@ -1129,6 +1126,7 @@ class ModuleScope(Scope):
         for var_name in ['__builtins__', '__name__', '__file__', '__doc__', '__path__',
                          '__spec__', '__loader__', '__package__', '__cached__']:
             self.declare_var(EncodedString(var_name), py_object_type, None)
+        self.process_include(Code.IncludeCode("Python.h", initial=True))
 
     def qualifying_scope(self):
         return self.parent_module
@@ -1251,24 +1249,50 @@ class ModuleScope(Scope):
             module = module.lookup_submodule(submodule)
         return module
 
-    def add_include_file(self, filename, late=False):
-        if filename in self.python_include_files:
-            return
-        # Possibly, the same include appears both as early and as late
-        # include. We'll deal with this at code generation time.
-        if late:
-            incs = self.include_files_late
-        else:
-            incs = self.include_files_early
-        if filename not in incs:
-            incs.append(filename)
+    def add_include_file(self, filename, verbatim_include=None, late=False):
+        """
+        Add `filename` as include file. Add `verbatim_include` as
+        verbatim text in the C file.
+        Both `filename` and `verbatim_include` can be `None` or empty.
+        """
+        inc = Code.IncludeCode(filename, verbatim_include, late=late)
+        self.process_include(inc)
+
+    def process_include(self, inc):
+        """
+        Add `inc`, which is an instance of `IncludeCode`, to this
+        `ModuleScope`. This either adds a new element to the
+        `c_includes` dict or it updates an existing entry.
+
+        In detail: the values of the dict `self.c_includes` are
+        instances of `IncludeCode` containing the code to be put in the
+        generated C file. The keys of the dict are needed to ensure
+        uniqueness in two ways: if an include file is specified in
+        multiple "cdef extern" blocks, only one `#include` statement is
+        generated. Second, the same include might occur multiple times
+        if we find it through multiple "cimport" paths. So we use the
+        generated code (of the form `#include "header.h"`) as dict key.
+
+        If verbatim code does not belong to any include file (i.e. it
+        was put in a `cdef extern from *` block), then we use a unique
+        dict key: namely, the `sortkey()`.
+
+        One `IncludeCode` object can contain multiple pieces of C code:
+        one optional "main piece" for the include file and several other
+        pieces for the verbatim code. The `IncludeCode.dict_update`
+        method merges the pieces of two different `IncludeCode` objects
+        if needed.
+        """
+        key = inc.mainpiece()
+        if key is None:
+            key = inc.sortkey()
+        inc.dict_update(self.c_includes, key)
+        inc = self.c_includes[key]
 
     def add_imported_module(self, scope):
         if scope not in self.cimported_modules:
-            for filename in scope.include_files_early:
-                self.add_include_file(filename, late=False)
-            for filename in scope.include_files_late:
-                self.add_include_file(filename, late=True)
+            for inc in scope.c_includes.values():
+                self.process_include(inc)
             self.cimported_modules.append(scope)
             for m in scope.cimported_modules:
                 self.add_imported_module(m)
