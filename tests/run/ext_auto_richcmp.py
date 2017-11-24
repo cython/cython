@@ -78,8 +78,12 @@ class ClassEq(X):
     ... else: a >= b
     Traceback (most recent call last):
     TypeError...
+
+    >>> print(a.__eq__.__doc__)
+    EQ
     """
     def __eq__(self, other):
+        """EQ"""
         assert 1 <= self.x <= 2
         assert isinstance(self, ClassEq), type(self)
         if isinstance(other, X):
@@ -141,8 +145,14 @@ class ClassEqNe(ClassEq):
     ... else: a >= b
     Traceback (most recent call last):
     TypeError...
+
+    #>>> print(a.__eq__.__doc__)
+    #EQ
+    >>> print(a.__ne__.__doc__)
+    NE
     """
     def __ne__(self, other):
+        """NE"""
         assert 1 <= self.x <= 2
         assert isinstance(self, ClassEqNe), type(self)
         if isinstance(other, X):
@@ -240,8 +250,16 @@ class ClassEqNeGe(ClassEqNe):
     ... else: a >= 'x'
     Traceback (most recent call last):
     TypeError...
+
+    #>>> print(a.__eq__.__doc__)
+    #EQ
+    #>>> print(a.__ne__.__doc__)
+    #NE
+    >>> print(a.__ge__.__doc__)
+    GE
    """
     def __ge__(self, other):
+        """GE"""
         assert 1 <= self.x <= 2
         assert isinstance(self, ClassEqNeGe), type(self)
         if isinstance(other, X):
