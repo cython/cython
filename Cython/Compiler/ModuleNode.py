@@ -2962,8 +2962,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     is_buffer = func.name in ('__getbuffer__', '__releasebuffer__')
                     if (func.is_special and Options.docstrings and
                             func.wrapperbase_cname and not is_buffer):
-                        slot = TypeSlots.method_name_to_slot[func.name]
-                        preprocessor_guard = slot.preprocessor_guard_code()
+                        slot = TypeSlots.method_name_to_slot.get(func.name)
+                        preprocessor_guard = slot.preprocessor_guard_code() if slot else None
                         if preprocessor_guard:
                             code.putln(preprocessor_guard)
                         code.putln('#if CYTHON_COMPILING_IN_CPYTHON')
