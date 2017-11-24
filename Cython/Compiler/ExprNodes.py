@@ -3690,23 +3690,33 @@ class IndexNode(_IndexingBaseNode):
         else:
             indices = [self.index]
 
-        base_type = self.base.type
+        base = self.base
+        base_type = base.type
         replacement_node = None
         if base_type.is_memoryviewslice:
             # memoryviewslice indexing or slicing
             from . import MemoryView
+            if base.is_memview_slice:
+                # For memory views, "view[i][j]" is the same as "view[i, j]" => use the latter for speed.
+                merged_indices = base.merged_indices(indices)
+                if merged_indices is not None:
+                    base = base.base
+                    base_type = base.type
+                    indices = merged_indices
             have_slices, indices, newaxes = MemoryView.unellipsify(indices, base_type.ndim)
             if have_slices:
-                replacement_node = MemoryViewSliceNode(self.pos, indices=indices, base=self.base)
+                replacement_node = MemoryViewSliceNode(self.pos, indices=indices, base=base)
             else:
-                replacement_node = MemoryViewIndexNode(self.pos, indices=indices, base=self.base)
+                replacement_node = MemoryViewIndexNode(self.pos, indices=indices, base=base)
         elif base_type.is_buffer or base_type.is_pythran_expr:
             if base_type.is_pythran_expr or len(indices) == base_type.ndim:
                 # Buffer indexing
                 is_buffer_access = True
                 indices = [index.analyse_types(env) for index in indices]
                 if base_type.is_pythran_expr:
-                    do_replacement = all(index.type.is_int or index.is_slice or index.type.is_pythran_expr for index in indices)
+                    do_replacement = all(
+                        index.type.is_int or index.is_slice or index.type.is_pythran_expr
+                        for index in indices)
                     if do_replacement:
                         for i,index in enumerate(indices):
                             if index.is_slice:
@@ -3716,7 +3726,7 @@ class IndexNode(_IndexingBaseNode):
                 else:
                     do_replacement = all(index.type.is_int for index in indices)
                 if do_replacement:
-                    replacement_node = BufferIndexNode(self.pos, indices=indices, base=self.base)
+                    replacement_node = BufferIndexNode(self.pos, indices=indices, base=base)
                     # On cloning, indices is cloned. Otherwise, unpack index into indices.
                     assert not isinstance(self.index, CloneNode)
 
@@ -4424,6 +4434,37 @@ class MemoryViewSliceNode(MemoryViewIndexNode):
             return MemoryCopyScalar(self.pos, self)
         else:
             return MemoryCopySlice(self.pos, self)
+
+    def merged_indices(self, indices):
+        """Return a new list of indices/slices with 'indices' merged into the current ones
+        according to slicing rules.
+        Is used to implement "view[i][j]" => "view[i, j]".
+        Return None if the indices cannot (easily) be merged at compile time.
+        """
+        if not indices:
+            return None
+        # NOTE: Need to evaluate "self.original_indices" here as they might differ from "self.indices".
+        new_indices = self.original_indices[:]
+        indices = indices[:]
+        for i, s in enumerate(self.original_indices):
+            if s.is_slice:
+                if s.start.is_none and s.stop.is_none and s.step.is_none:
+                    # Full slice found, replace by index.
+                    new_indices[i] = indices[0]
+                    indices.pop(0)
+                    if not indices:
+                        return new_indices
+                else:
+                    # Found something non-trivial, e.g. a partial slice.
+                    return None
+            elif not s.type.is_int:
+                # Not a slice, not an integer index => could be anything...
+                return None
+        if indices:
+            if len(new_indices) + len(indices) > self.base.type.ndim:
+                return None
+            new_indices += indices
+        return new_indices
 
     def is_simple(self):
         if self.is_ellipsis_noop:
