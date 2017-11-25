@@ -210,8 +210,6 @@ Rich comparison operators
 https://docs.python.org/3/reference/datamodel.html#basic-customization
 
 +-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
-| __richcmp__           |x, y, int op                           | object      | Rich comparison (no direct Python equivalent)          |
-+-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
 | __eq__                |self, y                                | object      | self == y                                              |
 +-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
 | __ne__                |self, y                                | object      | self != y  (falls back to ``__eq__`` if not available) |
@@ -224,6 +222,12 @@ https://docs.python.org/3/reference/datamodel.html#basic-customization
 +-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
 | __ge__                |self, y                                | object      | self >= y                                              |
 +-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
+| __richcmp__           |x, y, int op                           | object      | Joined rich comparison method for all of the above     |
+|                       |                                       |             | (deprecated, no direct Python equivalent)              |
++-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
+
+New code should better implement the separate Python special methods instead of trying to
+correctly implement the joined ``__richcmp__()`` method.
 
 Arithmetic operators
 ^^^^^^^^^^^^^^^^^^^^

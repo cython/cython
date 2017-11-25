@@ -279,9 +279,10 @@ Rich Comparisons
 * Starting with Cython 0.27, the Python
   `special methods <https://docs.python.org/3/reference/datamodel.html#basic-customization>`_
   ``__eq__``, ``__lt__``, etc. can be implemented.  In previous versions, ``__richcmp__`` was
-  the only way to implement rich comparisons.
+  the only way to implement rich comparisons, but is now deprecated.
 * A single special method called ``__richcmp__()`` can be used to implement all the individual
-  rich compare, special method types.
+  rich compare, special method types.  Note, however, that it is often easier to correctly
+  implement the separate Python special methods than to get the ``__richcmp__()`` method right.
 * ``__richcmp__()`` takes an integer argument, indicating which operation is to be performed
   as shown in the table below.
 
