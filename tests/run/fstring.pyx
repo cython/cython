@@ -10,10 +10,7 @@ cimport cython
 import sys
 IS_PYPY = hasattr(sys, 'pypy_version_info')
 
-cdef extern from *:
-    int INT_MAX
-    long LONG_MAX
-    long LONG_MIN
+from libc.limits cimport INT_MAX, LONG_MAX, LONG_MIN
 
 max_int = INT_MAX
 max_long = LONG_MAX
@@ -147,6 +144,15 @@ def format_c_numbers_max(int n, long l):
     s2 = f"{n:012X}:{l:020X}"
     assert isinstance(s2, unicode), type(s2)
     return s1, s2
+
+
+def format_c_number_const():
+    """
+    >>> s = format_c_number_const()
+    >>> s == '{0}'.format(max_long) or s
+    True
+    """
+    return f"{LONG_MAX}"
 
 
 def format_c_number_range(int n):
