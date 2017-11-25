@@ -72,6 +72,9 @@ Bugs fixed
 * Iterator declarations in C++ ``deque`` and ``vector`` were corrected.
   Patch by Alex Huszagh.  (Github issue #1870)
 
+* Some declaration types in ``libc.limits`` were corrected.
+  Patch by Jeroen Demeyer.  (Github issue #2016)
+
 Other changes
 -------------
 
