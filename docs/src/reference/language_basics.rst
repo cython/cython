@@ -250,11 +250,12 @@ Parameters
         cdef int eggs(unsigned long l, float f):
             ...
 
-* As these parameters are passed into a Python declared function, they are magically **converted** to the specified C type value.
+* As these parameters are passed into a Python declared function,
+  they are automatically **converted** to the specified C type value,
+  if a conversion is possible and safe.  This applies to numeric and
+  string types, as well as some C++ container types.
 
- * This holds true for only numeric and string types
-
-* If no type is specified for a parameter or a return value, it is assumed to be a Python object
+* If no type is specified for a parameter or a return value, it is assumed to be a Python object.
 
  * The following takes two Python objects as parameters and returns a Python object::
 
@@ -263,8 +264,7 @@ Parameters
 
   .. note::
 
-      This is different from the C language behavior, where it is an ``int`` by default.
-
+      This is different from the C language behavior, where missing types are assumed as ``int`` by default.
 
 
 * Python object types have reference counting performed according to the standard Python/C-API rules:
@@ -274,7 +274,7 @@ Parameters
 
  .. warning::
 
-    This only applies to Cython code. Other Python packages which
+    This only applies to Cython code.  Other Python packages which
     are implemented in C like NumPy may not follow these conventions.
 
 * The name ``object`` can be used to explicitly declare something as a Python Object.
@@ -373,10 +373,10 @@ Checked Type Casts
   ``MyExtensionType`` without any checking at all.
 
 * To have a cast checked, use the syntax like: ``<MyExtensionType?>x``.
-  In this case, Cython will throw an error if ``x`` is not an instance
-  of ``MyExtensionType``.
-  As explained in :ref:`typing_types`, this requires the exact class
-  for builtin classes, but a subclass for extension types.
+  In this case, Cython will apply a runtime check that raises a ``TypeError``
+  if ``x`` is not an instance of ``MyExtensionType``.
+  As explained in :ref:`typing_types`, this tests for the exact class
+  for builtin types, but allows subclasses for extension types.
 
 
 ==========================
