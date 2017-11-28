@@ -59,6 +59,10 @@ Features added
 Bugs fixed
 ----------
 
+* The arguments of the ``num_threads`` parameter of parallel sections
+  were not sufficiently validated and could lead to invalid C code.
+  (Github issue #1957)
+
 * Catching exceptions with a non-trivial exception pattern could call into
   CPython with a live exception set.  This triggered incorrect behaviour
   and crashes, especially in CPython 3.7.
