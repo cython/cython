@@ -1234,13 +1234,6 @@ static void __Pyx_Coroutine_del(PyObject *self) {
 }
 
 static PyObject *
-__Pyx_Coroutine_get_frame(__pyx_CoroutineObject *self)
-{
-    // Fake implementation that always returns None, but at least does not raise an AttributeError.
-    Py_RETURN_NONE;
-}
-
-static PyObject *
 __Pyx_Coroutine_get_name(__pyx_CoroutineObject *self)
 {
     PyObject *name = self->gi_name;
@@ -1469,6 +1462,13 @@ static PyObject *__Pyx_Coroutine_await(PyObject *coroutine) {
         return NULL;
     }
     return __Pyx__Coroutine_await(coroutine);
+}
+
+static PyObject *
+__Pyx_Coroutine_get_frame(__pyx_CoroutineObject *self)
+{
+    // Fake implementation that always returns None, but at least does not raise an AttributeError.
+    Py_RETURN_NONE;
 }
 
 #if CYTHON_COMPILING_IN_CPYTHON && PY_MAJOR_VERSION >= 3 && PY_VERSION_HEX < 0x030500B1
