@@ -8060,7 +8060,7 @@ class ParallelStatNode(StatNode, ParallelNode):
                     self.num_threads.compile_time_value(env) <= 0):
                 error(self.pos, "argument to num_threads must be greater than 0")
 
-            if not self.num_threads.is_simple():
+            if not self.num_threads.is_simple() or self.num_threads.type.is_pyobject:
                 self.num_threads = self.num_threads.coerce_to(
                     PyrexTypes.c_int_type, env).coerce_to_temp(env)
         return self
