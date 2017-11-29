@@ -1082,7 +1082,7 @@ class NoneNode(PyConstNode):
         return True
 
     def coerce_to(self, dst_type, env):
-        if not (dst_type.is_pyobject or dst_type.is_error):
+        if not (dst_type.is_pyobject or dst_type.is_memoryviewslice or dst_type.is_error):
             # Catch this error early and loudly.
             error(self.pos, "Cannot assign None to %s" % dst_type)
         return super(NoneNode, self).coerce_to(dst_type, env)
