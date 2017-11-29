@@ -149,9 +149,6 @@ with nogil, cython.parallel.parallel():
     with cython.parallel.parallel():
         pass
 
-with nogil, cython.parallel.parallel(num_threads=None):
-    pass
-
 
 _ERRORS = u"""
 3:8: cython.parallel.parallel is not a module
@@ -187,6 +184,4 @@ _ERRORS = u"""
 139:62: Chunksize not valid for the schedule runtime
 145:70: Calling gil-requiring function not allowed without gil
 149:33: Nested parallel with blocks are disallowed
-152:49: Cannot assign None to int
-152:49: Coercion from Python not allowed without the GIL
 """

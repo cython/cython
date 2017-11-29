@@ -8016,11 +8016,17 @@ class ParallelStatNode(StatNode, ParallelNode):
         if self.kwargs:
             # Try to find num_threads and chunksize keyword arguments
             pairs = []
+            seen = set()
             for dictitem in self.kwargs.key_value_pairs:
+                if dictitem.key.value in seen:
+                    error(self.pos, "Duplicate keyword argument found: %s" % dictitem.key.value)
+                seen.add(dictitem.key.value)
                 if dictitem.key.value == 'num_threads':
-                    self.num_threads = dictitem.value
+                    if not dictitem.value.is_none:
+                       self.num_threads = dictitem.value
                 elif self.is_prange and dictitem.key.value == 'chunksize':
-                    self.chunksize = dictitem.value
+                    if not dictitem.value.is_none:
+                        self.chunksize = dictitem.value
                 else:
                     pairs.append(dictitem)
 
