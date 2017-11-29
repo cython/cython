@@ -1465,7 +1465,7 @@ static PyObject *__Pyx_Coroutine_await(PyObject *coroutine) {
 }
 
 static PyObject *
-__Pyx_Coroutine_get_frame(__pyx_CoroutineObject *self)
+__Pyx_Coroutine_get_frame(CYTHON_UNUSED __pyx_CoroutineObject *self)
 {
     // Fake implementation that always returns None, but at least does not raise an AttributeError.
     Py_RETURN_NONE;

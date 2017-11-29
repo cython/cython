@@ -944,11 +944,13 @@ static PyMethodDef __Pyx_async_gen_athrow_methods[] = {
 };
 
 
+#if CYTHON_USE_ASYNC_SLOTS
 static __Pyx_PyAsyncMethodsStruct __Pyx_async_gen_athrow_as_async = {
     PyObject_SelfIter,                          /* am_await */
     0,                                          /* am_aiter */
     0                                           /* am_anext */
 };
+#endif
 
 
 static PyTypeObject __pyx__PyAsyncGenAThrowType_type = {
