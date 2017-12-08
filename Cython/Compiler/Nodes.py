@@ -4736,14 +4736,11 @@ class CClassDefNode(ClassDefNode):
         if len(self.bases.args) > 1:
             if not has_body or self.in_pxd:
                 error(self.bases.args[1].pos, "Only declare first base in declaration.")
+            # At runtime, we check that the other bases are heap types
+            # and that a __dict__ is added if required.
             for other_base in self.bases.args[1:]:
                 if other_base.analyse_as_type(env):
-                    # TODO(robertwb): We may also want to enforce some checks
-                    # at runtime.
                     error(other_base.pos, "Only one extension type base class allowed.")
-            if not self.scope.lookup("__dict__"):
-                #TODO(robertwb): See if this can be safely removed.
-                error(self.pos, "Extension types with multiple bases must have a __dict__ attribute")
             self.entry.type.early_init = 0
             from . import ExprNodes
             self.type_init_args = ExprNodes.TupleNode(
@@ -4824,24 +4821,16 @@ class CClassDefNode(ClassDefNode):
             for slot in TypeSlots.slot_table:
                 slot.generate_dynamic_init_code(scope, code)
             if heap_type_bases:
-
-                # As of https://bugs.python.org/issue22079
-                # PyType_Ready enforces that all bases of a non-heap type
-                # are non-heap.  We know this is the case for the solid base,
-                # but other bases may be heap allocated and are kept alive
-                # though the bases reference.
-                # Other than this check, this flag is unused in this method.
-                code.putln("#if PY_VERSION_HEX >= 0x03050000")
-                code.putln("%s.tp_flags |= Py_TPFLAGS_HEAPTYPE;" % typeobj_cname)
-                code.putln("#endif")
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached('PyType_Ready', 'ExtensionTypes.c'))
+                readyfunc = "__Pyx_PyType_Ready"
+            else:
+                readyfunc = "PyType_Ready"
             code.putln(
-                "if (PyType_Ready(&%s) < 0) %s" % (
+                "if (%s(&%s) < 0) %s" % (
+                    readyfunc,
                     typeobj_cname,
                     code.error_goto(entry.pos)))
-            if heap_type_bases:
-                code.putln("#if PY_VERSION_HEX >= 0x03050000")
-                code.putln("%s.tp_flags &= ~Py_TPFLAGS_HEAPTYPE;" % typeobj_cname)
-                code.putln("#endif")
             # Don't inherit tp_print from builtin types, restoring the
             # behavior of using tp_repr or tp_str instead.
             code.putln("%s.tp_print = 0;" % typeobj_cname)
