@@ -26,12 +26,6 @@ The style of this tutorial will not fit everybody, so you can also consider:
 * Basic Cython documentation (see `Cython front page <http://cython.org>`_).
 * ``[:enhancements/buffer:Spec for the efficient indexing]``
 
-.. Note::
-    The fast array access documented below is a completely new feature, and
-    there may be bugs waiting to be discovered. It might be a good idea to do
-    a manual sanity check on the C code Cython generates before using this for
-    serious purposes, at least until some months have passed.
-
 Cython at a glance
 ====================
 
