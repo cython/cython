@@ -1082,11 +1082,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None, raise_on_f
 
     if fingerprint:
         if not os.path.exists(options.cache):
-            try:
-                os.mkdir(options.cache)
-            except:
-                if not os.path.exists(options.cache):
-                    raise
+            safe_makedirs(options.cache)
         # Cython-generated c files are highly compressible.
         # (E.g. a compression ratio of about 10 for Sage).
         fingerprint_file = join_path(
