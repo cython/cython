@@ -800,7 +800,6 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
         for file in nonempty(sorted(extended_iglob(filepattern)), "'%s' doesn't match any files" % filepattern):
             if os.path.abspath(file) in to_exclude:
                 continue
-            pkg = deps.package(file)
             module_name = deps.fully_qualified_name(file)
             if '*' in name:
                 if module_name in explicit_modules:
