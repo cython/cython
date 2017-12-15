@@ -59,6 +59,11 @@ Features added
 Bugs fixed
 ----------
 
+* If a module name is explicitly provided for an ``Extension()`` that is compiled
+  via ``cythonize()``, it was previously ignored and replaced by the source file
+  name.  It can now be used to override the target module name, e.g. for compiling
+  prefixed accelerator modules from Python files.  (Github issue #2038)
+
 * The arguments of the ``num_threads`` parameter of parallel sections
   were not sufficiently validated and could lead to invalid C code.
   (Github issue #1957)

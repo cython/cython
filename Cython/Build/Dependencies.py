@@ -914,6 +914,16 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
             for dep in m.depends:
                 copy_to_build_dir(dep)
 
+        cy_sources = [
+            source for source in m.sources
+            if os.path.splitext(source)[1] in ('.pyx', '.py')]
+        if len(cy_sources) == 1:
+            # normal "special" case: believe the Extension module name to allow user overrides
+            full_module_name = m.name
+        else:
+            # infer FQMN from source files
+            full_module_name = None
+
         new_sources = []
         for source in m.sources:
             base, ext = os.path.splitext(source)
@@ -960,7 +970,8 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                         fingerprint = None
                     to_compile.append((
                         priority, source, c_file, fingerprint, quiet,
-                        options, not exclude_failures, module_metadata.get(m.name)))
+                        options, not exclude_failures, module_metadata.get(m.name),
+                        full_module_name))
                 new_sources.append(c_file)
                 modules_by_cfile[c_file].append(m)
             else:
@@ -1079,8 +1090,9 @@ else:
 # TODO: Share context? Issue: pyx processing leaks into pxd module
 @record_results
 def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
-                  raise_on_failure=True, embedded_metadata=None, progress=""):
-    from ..Compiler.Main import compile, default_options
+                  raise_on_failure=True, embedded_metadata=None, full_module_name=None,
+                  progress=""):
+    from ..Compiler.Main import compile_single, default_options
     from ..Compiler.Errors import CompileError, PyrexError
 
     if fingerprint:
@@ -1113,7 +1125,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
 
     any_failures = 0
     try:
-        result = compile([pyx_file], options)
+        result = compile_single(pyx_file, options, full_module_name=full_module_name)
         if result.num_errors > 0:
             any_failures = 1
     except (EnvironmentError, PyrexError) as e:
