@@ -18,12 +18,12 @@ try:
 except ImportError:
     basestring = str
 
-from . import Errors
 # Do not import Parsing here, import it when needed, because Parsing imports
 # Nodes, which globally needs debug command line options initialized to set a
 # conditional metaclass. These options are processed by CmdLine called from
 # main() in this file.
 # import Parsing
+from . import Errors
 from .StringEncoding import EncodedString
 from .Scanning import PyrexScanner, FileSourceDescriptor
 from .Errors import PyrexError, CompileError, error, warning
@@ -38,6 +38,7 @@ module_name_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_
 
 verbose = 0
 
+
 class CompilationData(object):
     #  Bundles the information that is passed from transform to transform.
     #  (For now, this is only)
@@ -51,6 +52,7 @@ class CompilationData(object):
     #  options               CompilationOptions
     #  result                CompilationResult
     pass
+
 
 class Context(object):
     #  This class encapsulates the context needed for compiling
@@ -239,7 +241,7 @@ class Context(object):
         pxd = self.search_include_directories(qualified_name, ".pxd", pos, sys_path=sys_path)
         if pxd is None: # XXX Keep this until Includes/Deprecated is removed
             if (qualified_name.startswith('python') or
-                qualified_name in ('stdlib', 'stdio', 'stl')):
+                    qualified_name in ('stdlib', 'stdio', 'stl')):
                 standard_include_path = os.path.abspath(os.path.normpath(
                         os.path.join(os.path.dirname(__file__), os.path.pardir, 'Includes')))
                 deprecated_include_path = os.path.join(standard_include_path, 'Deprecated')
@@ -426,6 +428,7 @@ class Context(object):
                 pass
             result.c_file = None
 
+
 def get_output_filename(source_filename, cwd, options):
     if options.cplus:
         c_suffix = ".cpp"
@@ -441,6 +444,7 @@ def get_output_filename(source_filename, cwd, options):
     else:
         return suggested_file_name
 
+
 def create_default_resultobj(compilation_source, options):
     result = CompilationResult()
     result.main_source_file = compilation_source.source_desc.filename
@@ -450,6 +454,7 @@ def create_default_resultobj(compilation_source, options):
                         compilation_source.cwd, options)
     result.embedded_metadata = options.embedded_metadata
     return result
+
 
 def run_pipeline(source, options, full_module_name=None, context=None):
     from . import Pipeline
@@ -496,11 +501,11 @@ def run_pipeline(source, options, full_module_name=None, context=None):
     return result
 
 
-#------------------------------------------------------------------------
+# ------------------------------------------------------------------------
 #
 #  Main Python entry points
 #
-#------------------------------------------------------------------------
+# ------------------------------------------------------------------------
 
 class CompilationSource(object):
     """
@@ -511,6 +516,7 @@ class CompilationSource(object):
         self.source_desc = source_desc
         self.full_module_name = full_module_name
         self.cwd = cwd
+
 
 class CompilationOptions(object):
     """
@@ -678,6 +684,7 @@ def compile_multiple(sources, options):
             processed.add(source)
     return results
 
+
 def compile(source, options = None, full_module_name = None, **kwds):
     """
     compile(source [, options], [, <option> = <value>]...)
@@ -694,13 +701,16 @@ def compile(source, options = None, full_module_name = None, **kwds):
     else:
         return compile_multiple(source, options)
 
-#------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------
 #
 #  Main command-line entry point
 #
-#------------------------------------------------------------------------
+# ------------------------------------------------------------------------
+
 def setuptools_main():
     return main(command_line = 1)
+
 
 def main(command_line = 0):
     args = sys.argv[1:]
@@ -727,12 +737,11 @@ def main(command_line = 0):
         sys.exit(1)
 
 
-
-#------------------------------------------------------------------------
+# ------------------------------------------------------------------------
 #
 #  Set the default options depending on the platform
 #
-#------------------------------------------------------------------------
+# ------------------------------------------------------------------------
 
 default_options = dict(
     show_version = 0,
