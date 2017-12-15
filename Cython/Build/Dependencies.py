@@ -3,9 +3,17 @@ from __future__ import absolute_import, print_function
 import cython
 from .. import __version__
 
+import os
+import shutil
+import hashlib
+import subprocess
 import collections
-import re, os, sys, time
+import re, sys, time
 from glob import iglob
+from io import open as io_open
+from os.path import relpath as _relpath
+from distutils.extension import Extension
+from distutils.util import strtobool
 
 try:
     import gzip
@@ -14,34 +22,6 @@ try:
 except ImportError:
     gzip_open = open
     gzip_ext = ''
-import shutil
-import subprocess
-import os
-
-try:
-    import hashlib
-except ImportError:
-    import md5 as hashlib
-
-try:
-    from io import open as io_open
-except ImportError:
-    from codecs import open as io_open
-
-try:
-    from os.path import relpath as _relpath
-except ImportError:
-    # Py<2.6
-    def _relpath(path, start=os.path.curdir):
-        if not path:
-            raise ValueError("no path specified")
-        start_list = os.path.abspath(start).split(os.path.sep)
-        path_list = os.path.abspath(path).split(os.path.sep)
-        i = len(os.path.commonprefix([start_list, path_list]))
-        rel_list = [os.path.pardir] * (len(start_list)-i) + path_list[i:]
-        if not rel_list:
-            return os.path.curdir
-        return os.path.join(*rel_list)
 
 try:
     import pythran
@@ -49,9 +29,6 @@ try:
     PythranAvailable = True
 except:
     PythranAvailable = False
-
-from distutils.extension import Extension
-from distutils.util import strtobool
 
 from .. import Utils
 from ..Utils import (cached_function, cached_method, path_exists,
@@ -920,7 +897,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     deps = create_dependency_tree(ctx, quiet=quiet)
     build_dir = getattr(options, 'build_dir', None)
 
-    modules_by_cfile = {}
+    modules_by_cfile = collections.defaultdict(list)
     to_compile = []
     for m in module_list:
         if build_dir:
@@ -983,10 +960,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                     to_compile.append((priority, source, c_file, fingerprint, quiet,
                                        options, not exclude_failures, module_metadata.get(m.name)))
                 new_sources.append(c_file)
-                if c_file not in modules_by_cfile:
-                    modules_by_cfile[c_file] = [m]
-                else:
-                    modules_by_cfile[c_file].append(m)
+                modules_by_cfile[c_file].append(m)
             else:
                 new_sources.append(source)
                 if build_dir:
