@@ -690,8 +690,8 @@ def compile(source, options = None, full_module_name = None, **kwds):
     compile(source [, options], [, <option> = <value>]...)
 
     Compile one or more Pyrex implementation files, with optional timestamp
-    checking and recursing on dependencies. The source argument may be a string
-    or a sequence of strings If it is a string and no recursion or timestamp
+    checking and recursing on dependencies.  The source argument may be a string
+    or a sequence of strings.  If it is a string and no recursion or timestamp
     checking is requested, a CompilationResult is returned, otherwise a
     CompilationResultSet is returned.
     """
