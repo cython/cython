@@ -957,8 +957,9 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                         fingerprint = deps.transitive_fingerprint(source, extra)
                     else:
                         fingerprint = None
-                    to_compile.append((priority, source, c_file, fingerprint, quiet,
-                                       options, not exclude_failures, module_metadata.get(m.name)))
+                    to_compile.append((
+                        priority, source, c_file, fingerprint, quiet,
+                        options, not exclude_failures, module_metadata.get(m.name)))
                 new_sources.append(c_file)
                 modules_by_cfile[c_file].append(m)
             else:
@@ -1076,7 +1077,8 @@ else:
 
 # TODO: Share context? Issue: pyx processing leaks into pxd module
 @record_results
-def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None, raise_on_failure=True, embedded_metadata=None, progress=""):
+def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
+                  raise_on_failure=True, embedded_metadata=None, progress=""):
     from ..Compiler.Main import compile, default_options
     from ..Compiler.Errors import CompileError, PyrexError
 
