@@ -79,6 +79,9 @@ Bugs fixed
 * Some declaration types in ``libc.limits`` were corrected.
   Patch by Jeroen Demeyer.  (Github issue #2016)
 
+* ``@cython.final`` was not accepted on Python classes with an ``@cython.cclass``
+  decorator.  (Github issue #2040)
+
 Other changes
 -------------
 

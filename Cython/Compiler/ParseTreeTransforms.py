@@ -1033,7 +1033,8 @@ class InterpretCompilerDirectives(CythonTransform):
         directives = []
         realdecs = []
         both = []
-        for dec in node.decorators:
+        # Decorators coming first take precedence.
+        for dec in node.decorators[::-1]:
             new_directives = self.try_to_parse_directives(dec.decorator)
             if new_directives is not None:
                 for directive in new_directives:
@@ -1043,15 +1044,17 @@ class InterpretCompilerDirectives(CythonTransform):
                             directives.append(directive)
                         if directive[0] == 'staticmethod':
                             both.append(dec)
+                    # Adapt scope type based on decorators that change it.
+                    if directive[0] == 'cclass' and scope_name == 'class':
+                        scope_name = 'cclass'
             else:
                 realdecs.append(dec)
-        if realdecs and isinstance(node, (Nodes.CFuncDefNode, Nodes.CClassDefNode, Nodes.CVarDefNode)):
+        if realdecs and (scope_name == 'cclass' or
+                         isinstance(node, (Nodes.CFuncDefNode, Nodes.CClassDefNode, Nodes.CVarDefNode))):
             raise PostParseError(realdecs[0].pos, "Cdef functions/classes cannot take arbitrary decorators.")
-        else:
-            node.decorators = realdecs + both
+        node.decorators = realdecs[::-1] + both[::-1]
         # merge or override repeated directives
         optdict = {}
-        directives.reverse() # Decorators coming first take precedence
         for directive in directives:
             name, value = directive
             if name in optdict:
