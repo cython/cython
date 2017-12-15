@@ -897,19 +897,20 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     deps = create_dependency_tree(ctx, quiet=quiet)
     build_dir = getattr(options, 'build_dir', None)
 
+    def copy_to_build_dir(filepath, root=os.getcwd()):
+        filepath_abs = os.path.abspath(filepath)
+        if os.path.isabs(filepath):
+            filepath = filepath_abs
+        if filepath_abs.startswith(root):
+            # distutil extension depends are relative to cwd
+            mod_dir = join_path(build_dir,
+                                os.path.dirname(_relpath(filepath, root)))
+            copy_once_if_newer(filepath_abs, mod_dir)
+
     modules_by_cfile = collections.defaultdict(list)
     to_compile = []
     for m in module_list:
         if build_dir:
-            root = os.getcwd()  # distutil extension depends are relative to cwd
-            def copy_to_build_dir(filepath, root=root):
-                filepath_abs = os.path.abspath(filepath)
-                if os.path.isabs(filepath):
-                    filepath = filepath_abs
-                if filepath_abs.startswith(root):
-                    mod_dir = join_path(build_dir,
-                            os.path.dirname(_relpath(filepath, root)))
-                    copy_once_if_newer(filepath_abs, mod_dir)
             for dep in m.depends:
                 copy_to_build_dir(dep)
 
