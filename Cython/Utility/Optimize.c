@@ -397,17 +397,13 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(
 }
 
 
-/////////////// py_set_discard_unhashable.proto ///////////////
-
-static int __Pyx_PySet_DiscardUnhashable(PyObject *set, PyObject *key); /* proto */
-
 /////////////// py_set_discard_unhashable ///////////////
 
 static int __Pyx_PySet_DiscardUnhashable(PyObject *set, PyObject *key) {
     PyObject *tmpkey;
     int rv;
 
-    if (!PySet_Check(key) || !PyErr_ExceptionMatches(PyExc_TypeError))
+    if (likely(!PySet_Check(key) || !PyErr_ExceptionMatches(PyExc_TypeError)))
         return -1;
     PyErr_Clear();
     tmpkey = PyFrozenSet_New(key);
@@ -427,14 +423,13 @@ static CYTHON_INLINE int __Pyx_PySet_Discard(PyObject *set, PyObject *key); /*pr
 //@requires: py_set_discard_unhashable
 
 static CYTHON_INLINE int __Pyx_PySet_Discard(PyObject *set, PyObject *key) {
-    int rv;
-
-    rv = PySet_Discard(set, key);
-    /* Convert *key* to frozenset if necessary */
-    if (unlikely(rv < 0)) {
-        return __Pyx_PySet_DiscardUnhashable(set, key);
+    int found = PySet_Discard(set, key);
+    // Convert *key* to frozenset if necessary
+    if (unlikely(found < 0)) {
+        found = __Pyx_PySet_DiscardUnhashable(set, key);
     }
-    return rv;
+    // note: returns -1 on error, 0 (not found) or 1 (found) otherwise => error check for -1 or < 0 works
+    return found;
 }
 
 
@@ -445,16 +440,13 @@ static CYTHON_INLINE int __Pyx_PySet_Remove(PyObject *set, PyObject *key); /*pro
 /////////////// py_set_remove ///////////////
 //@requires: py_set_discard_unhashable
 
-static CYTHON_INLINE int __Pyx_PySet_Remove(PyObject *set, PyObject *key) {
-    int rv;
-
-    rv = PySet_Discard(set, key);
-    /* Convert *key* to frozenset if necessary */
-    if (unlikely(rv < 0)) {
-        rv = __Pyx_PySet_DiscardUnhashable(set, key);
+static int __Pyx_PySet_RemoveNotFound(PyObject *set, PyObject *key, int found) {
+    // Convert *key* to frozenset if necessary
+    if (unlikely(found < 0)) {
+        found = __Pyx_PySet_DiscardUnhashable(set, key);
     }
-    if (rv == 0) {
-        /* Not found */
+    if (likely(found == 0)) {
+        // Not found
         PyObject *tup;
         tup = PyTuple_Pack(1, key);
         if (!tup)
@@ -462,6 +454,16 @@ static CYTHON_INLINE int __Pyx_PySet_Remove(PyObject *set, PyObject *key) {
         PyErr_SetObject(PyExc_KeyError, tup);
         Py_DECREF(tup);
         return -1;
+    }
+    // note: returns -1 on error, 0 (not found) or 1 (found) otherwise => error check for -1 or < 0 works
+    return found;
+}
+
+static CYTHON_INLINE int __Pyx_PySet_Remove(PyObject *set, PyObject *key) {
+    int found = PySet_Discard(set, key);
+    if (unlikely(found != 1)) {
+        // note: returns -1 on error, 0 (not found) or 1 (found) otherwise => error check for -1 or < 0 works
+        return __Pyx_PySet_RemoveNotFound(set, key, found);
     }
     return 0;
 }
