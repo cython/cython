@@ -397,6 +397,76 @@ static CYTHON_INLINE int __Pyx_dict_iter_next(
 }
 
 
+/////////////// py_set_discard_unhashable.proto ///////////////
+
+static int __Pyx_PySet_DiscardUnhashable(PyObject *set, PyObject *key); /* proto */
+
+/////////////// py_set_discard_unhashable ///////////////
+
+static int __Pyx_PySet_DiscardUnhashable(PyObject *set, PyObject *key) {
+    PyObject *tmpkey;
+    int rv;
+
+    if (!PySet_Check(key) || !PyErr_ExceptionMatches(PyExc_TypeError))
+        return -1;
+    PyErr_Clear();
+    tmpkey = PyFrozenSet_New(key);
+    if (tmpkey == NULL)
+        return -1;
+    rv = PySet_Discard(set, tmpkey);
+    Py_DECREF(tmpkey);
+    return rv;
+}
+
+
+/////////////// py_set_discard.proto ///////////////
+
+static CYTHON_INLINE int __Pyx_PySet_Discard(PyObject *set, PyObject *key); /*proto*/
+
+/////////////// py_set_discard ///////////////
+//@requires: py_set_discard_unhashable
+
+static CYTHON_INLINE int __Pyx_PySet_Discard(PyObject *set, PyObject *key) {
+    int rv;
+
+    rv = PySet_Discard(set, key);
+    /* Convert *key* to frozenset if necessary */
+    if (unlikely(rv < 0)) {
+        return __Pyx_PySet_DiscardUnhashable(set, key);
+    }
+    return rv;
+}
+
+
+/////////////// py_set_remove.proto ///////////////
+
+static CYTHON_INLINE int __Pyx_PySet_Remove(PyObject *set, PyObject *key); /*proto*/
+
+/////////////// py_set_remove ///////////////
+//@requires: py_set_discard_unhashable
+
+static CYTHON_INLINE int __Pyx_PySet_Remove(PyObject *set, PyObject *key) {
+    int rv;
+
+    rv = PySet_Discard(set, key);
+    /* Convert *key* to frozenset if necessary */
+    if (unlikely(rv < 0)) {
+        rv = __Pyx_PySet_DiscardUnhashable(set, key);
+    }
+    if (rv == 0) {
+        /* Not found */
+        PyObject *tup;
+        tup = PyTuple_Pack(1, key);
+        if (!tup)
+            return -1;
+        PyErr_SetObject(PyExc_KeyError, tup);
+        Py_DECREF(tup);
+        return -1;
+    }
+    return 0;
+}
+
+
 /////////////// unicode_iter.proto ///////////////
 
 static CYTHON_INLINE int __Pyx_init_unicode_iteration(
