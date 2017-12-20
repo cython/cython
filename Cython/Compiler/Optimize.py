@@ -2913,6 +2913,27 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             may_return_none=True,
             utility_code=load_c_utility('dict_setdefault'))
 
+    PyDict_Pop_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("dict", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("key", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("default", PyrexTypes.py_object_type, None),
+            ])
+
+    def _handle_simple_method_dict_pop(self, node, function, args, is_unbound_method):
+        """Replace dict.pop() by a call to _PyDict_Pop().
+        """
+        if len(args) == 2:
+            args.append(ExprNodes.NullNode(node.pos))
+        elif len(args) != 3:
+            self._error_wrong_arg_count('dict.pop', node, args, "2 or 3")
+            return node
+
+        return self._substitute_method_call(
+            node, function,
+            "_PyDict_Pop", self.PyDict_Pop_func_type,
+            'split', is_unbound_method, args)
+
     Pyx_PyInt_BinopInt_func_type = PyrexTypes.CFuncType(
         PyrexTypes.py_object_type, [
             PyrexTypes.CFuncTypeArg("op1", PyrexTypes.py_object_type, None),
