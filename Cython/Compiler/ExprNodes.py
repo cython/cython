@@ -12192,22 +12192,27 @@ class CmpNode(object):
                     self.special_bool_cmp_function = "__Pyx_PyString_Equals"
                     return True
         elif self.operator in ('in', 'not_in'):
-            for type_name, special_type in [
-                    ('Dict', Builtin.dict_type),
-                    ('Set', Builtin.set_type),
-                    ('Unicode', Builtin.unicode_type)]:
-                if self.operand2.type is special_type:
-                    self.operand2 = self.operand2.as_none_safe_node("'NoneType' object is not iterable")
-                    break
+            if self.operand2.type is Builtin.dict_type:
+                self.operand2 = self.operand2.as_none_safe_node("'NoneType' object is not iterable")
+                self.special_bool_cmp_utility_code = UtilityCode.load_cached("PyDictContains", "ObjectHandling.c")
+                self.special_bool_cmp_function = "__Pyx_PyDict_ContainsTF"
+                return True
+            elif self.operand2.type is Builtin.set_type:
+                self.operand2 = self.operand2.as_none_safe_node("'NoneType' object is not iterable")
+                self.special_bool_cmp_utility_code = UtilityCode.load_cached("PySetContains", "ObjectHandling.c")
+                self.special_bool_cmp_function = "__Pyx_PySet_ContainsTF"
+                return True
+            elif self.operand2.type is Builtin.unicode_type:
+                self.operand2 = self.operand2.as_none_safe_node("'NoneType' object is not iterable")
+                self.special_bool_cmp_utility_code = UtilityCode.load_cached("PyUnicodeContains", "StringTools.c")
+                self.special_bool_cmp_function = "__Pyx_PyUnicode_ContainsTF"
+                return True
             else:
                 if not self.operand2.type.is_pyobject:
                     self.operand2 = self.operand2.coerce_to_pyobject(env)
-                type_name = 'Sequence'
-            # map to utility functions PySequenceContains, PySetContains, PyDictContains etc.
-            self.special_bool_cmp_utility_code = UtilityCode.load_cached(
-                "Py%sContains" % type_name, "ObjectHandling.c")
-            self.special_bool_cmp_function = "__Pyx_Py%s_ContainsTF" % type_name
-            return True
+                self.special_bool_cmp_utility_code = UtilityCode.load_cached("PySequenceContains", "ObjectHandling.c")
+                self.special_bool_cmp_function = "__Pyx_PySequence_ContainsTF"
+                return True
         return False
 
     def generate_operation_code(self, code, result_code,
