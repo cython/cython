@@ -2932,7 +2932,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         return self._substitute_method_call(
             node, function,
             "_PyDict_Pop", self.PyDict_Pop_func_type,
-            'split', is_unbound_method, args)
+            'pop', is_unbound_method, args)
 
     Pyx_PyInt_BinopInt_func_type = PyrexTypes.CFuncType(
         PyrexTypes.py_object_type, [
