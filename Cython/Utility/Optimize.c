@@ -269,6 +269,26 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *ke
 
 #define __Pyx_PyDict_Clear(d) (PyDict_Clear(d), 0)
 
+
+/////////////// py_dict_pop.proto ///////////////
+
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX > 0x030600B3
+#define __Pyx_PyDict_Pop(d, key, default_value) _PyDict_Pop(d, key, default_value)
+#else
+static CYTHON_INLINE PyObject *__Pyx_PyDict_Pop(PyObject *d, PyObject *key, PyObject *default_value); /*proto*/
+#endif
+
+
+/////////////// py_dict_pop ///////////////
+
+#if !(CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX > 0x030600B3)
+static CYTHON_INLINE PyObject *__Pyx_PyDict_Pop(PyObject *d, PyObject *key, PyObject *default_value) {
+    // 'default_value' can be NULL
+    return PyObject_CallMethodObjArgs(d, PYIDENT("pop"), key, default_value);
+}
+#endif
+
+
 /////////////// dict_iter.proto ///////////////
 
 static CYTHON_INLINE PyObject* __Pyx_dict_iterator(PyObject* dict, int is_dict, PyObject* method_name,
