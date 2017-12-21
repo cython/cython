@@ -1485,12 +1485,11 @@ done:
 }
 
 static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name, PyObject* arg) {
-    PyObject *method, *result = NULL;
+    PyObject *method, *result;
     method = __Pyx_PyObject_GetAttrStr(obj, method_name);
-    if (unlikely(!method)) goto done;
+    if (unlikely(!method)) return NULL;
     result = __Pyx__PyObject_CallMethod1(method, arg);
-done:
-    Py_XDECREF(method);
+    Py_DECREF(method);
     return result;
 }
 
