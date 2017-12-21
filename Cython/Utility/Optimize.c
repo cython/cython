@@ -284,7 +284,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_Pop(PyObject *d, PyObject *key, PyOb
 #if !(CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX > 0x030600B3)
 static CYTHON_INLINE PyObject *__Pyx_PyDict_Pop(PyObject *d, PyObject *key, PyObject *default_value) {
     // 'default_value' can be NULL
-    return PyObject_CallMethodObjArgs(d, PYIDENT("pop"), key, default_value);
+    return PyObject_CallMethodObjArgs(d, PYIDENT("pop"), key, default_value, NULL);
 }
 #endif
 
