@@ -27,6 +27,12 @@ Features added
 * The new TSS C-API in CPython 3.7 is supported and has been backported.
   Patch by Naotoshi Seo.  (Github issue #1932)
 
+* The set methods ``.remove()`` and ``.discard()`` are optimised.
+  Patch by Antoine Pitrou.  (Github issue #2042)
+
+* ``dict.pop()`` is optimised.
+  Original patch by Antoine Pitrou.  (Github issue #2047)
+
 * Subscripting (item access) is faster in some cases.
 
 * Some ``bytearray`` operations have been optimised similar to ``bytes``.
