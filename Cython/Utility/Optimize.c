@@ -272,21 +272,25 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *ke
 
 /////////////// py_dict_pop.proto ///////////////
 
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX > 0x030600B3
-#define __Pyx_PyDict_Pop(d, key, default_value) _PyDict_Pop(d, key, default_value)
-#else
 static CYTHON_INLINE PyObject *__Pyx_PyDict_Pop(PyObject *d, PyObject *key, PyObject *default_value); /*proto*/
-#endif
-
 
 /////////////// py_dict_pop ///////////////
+//@requires: ObjectHandling.c::PyObjectCallMethod1
+//@requires: ObjectHandling.c::PyObjectCallMethod2
 
-#if !(CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX > 0x030600B3)
 static CYTHON_INLINE PyObject *__Pyx_PyDict_Pop(PyObject *d, PyObject *key, PyObject *default_value) {
-    // 'default_value' can be NULL
-    return PyObject_CallMethodObjArgs(d, PYIDENT("pop"), key, default_value, NULL);
-}
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX > 0x030600B3
+    if ((1)) {
+        return _PyDict_Pop(d, key, default_value);
+    } else
+    // avoid "function unused" warnings
 #endif
+    if (default_value) {
+        return __Pyx_PyObject_CallMethod2(d, PYIDENT("pop"), key, default_value);
+    } else {
+        return __Pyx_PyObject_CallMethod1(d, PYIDENT("pop"), key);
+    }
+}
 
 
 /////////////// dict_iter.proto ///////////////
