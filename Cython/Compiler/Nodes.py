@@ -3862,11 +3862,11 @@ class DefNodeWrapper(FuncDefNode):
                 code.putln('switch (pos_args) {')
             for i, arg in enumerate(all_args[:last_required_arg+1]):
                 if max_positional_args > 0 and i <= max_positional_args:
+                    if i != 0:
+                        code.putln('CYTHON_FALLTHROUGH;')
                     if self.star_arg and i == max_positional_args:
                         code.putln('default:')
                     else:
-                        if i != 0:
-                            code.putln('CYTHON_FALLTHROUGH;')
                         code.putln('case %2d:' % i)
                 pystring_cname = code.intern_identifier(arg.name)
                 if arg.default:
