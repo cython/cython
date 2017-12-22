@@ -6129,19 +6129,13 @@ class CachedBuiltinMethodCallNode(CallNode):
         return ExprNode.may_be_none(self)
 
     def generate_result_code(self, code):
-        arg_count = len(self.args)
-        obj_type = self.obj.type
-        call_func = '__Pyx_CallUnboundCMethod%d' % arg_count
-        utility_code_name = "CallUnboundCMethod%d" % arg_count
-        code.globalstate.use_utility_code(UtilityCode.load_cached(utility_code_name, "ObjectHandling.c"))
-        cache_cname = code.globalstate.get_cached_unbound_method(
-            obj_type.cname, self.method_name)
-        args = [self.obj] + self.args
-        code.putln("%s = %s(&%s, %s); %s" % (
-            self.result(),
-            call_func,
-            cache_cname,
-            ', '.join(arg.py_result() for arg in args),
+        type_cname = self.obj.type.cname
+        obj_cname = self.obj.py_result()
+        args = [arg.py_result() for arg in self.args]
+        call_code = code.globalstate.cached_unbound_method_call_code(
+            obj_cname, type_cname, self.method_name, args)
+        code.putln("%s = %s; %s" % (
+            self.result(), call_code,
             code.error_goto_if_null(self.result(), self.pos)
         ))
         code.put_gotref(self.result())

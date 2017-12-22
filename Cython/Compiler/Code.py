@@ -507,15 +507,18 @@ class UtilityCode(UtilityCodeBase):
 
         utility_code = set()
         def externalise(matchobj):
-            type_cname, method_name, args = matchobj.groups()
-            args = [arg.strip() for arg in args[1:].split(',')]
-            assert 1 <= len(args) <= 3, "CALL_UNBOUND_METHOD() does not support %d call arguments" % len(args)
-            call = '__Pyx_CallUnboundCMethod%d' % (len(args) - 1,)
-            utility_code.add("CallUnboundCMethod%d" % (len(args) - 1,))
-            cname = output.get_cached_unbound_method(type_cname, method_name)
-            return '%s(&%s, %s)' % (call, cname, ', '.join(args))
+            type_cname, method_name, obj_cname, args = matchobj.groups()
+            args = [arg.strip() for arg in args[1:].split(',')] if args else []
+            assert len(args) < 3, "CALL_UNBOUND_METHOD() does not support %d call arguments" % len(args)
+            return output.cached_unbound_method_call_code(obj_cname, type_cname, method_name, args)
 
-        impl = re.sub(r'CALL_UNBOUND_METHOD\(([a-zA-Z_]+),\s*"([^"]+)"((?:,\s*[^),]+)+)\)', externalise, impl)
+        impl = re.sub(
+            r'CALL_UNBOUND_METHOD\('
+            r'([a-zA-Z_]+),'      # type cname
+            r'\s*"([^"]+)",'      # method name
+            r'\s*([^),]+)'        # object cname
+            r'((?:,\s*[^),]+)*)'  # args*
+            r'\)', externalise, impl)
         assert 'CALL_UNBOUND_METHOD(' not in impl
 
         for helper in sorted(utility_code):
@@ -1318,6 +1321,18 @@ class GlobalState(object):
             cname = self.cached_cmethods[key] = self.new_const_cname(
                 'umethod', '%s_%s' % (type_cname, method_name))
         return cname
+
+    def cached_unbound_method_call_code(self, obj_cname, type_cname, method_name, arg_cnames):
+        # admittedly, not the best place to put this method, but it is reused by UtilityCode and ExprNodes ...
+        utility_code_name = "CallUnboundCMethod%d" % len(arg_cnames)
+        self.use_utility_code(UtilityCode.load_cached(utility_code_name, "ObjectHandling.c"))
+        cache_cname = self.get_cached_unbound_method(type_cname, method_name)
+        args = [obj_cname] + arg_cnames
+        return "__Pyx_%s(&%s, %s)" % (
+            utility_code_name,
+            cache_cname,
+            ', '.join(args),
+        )
 
     def add_cached_builtin_decl(self, entry):
         if entry.is_builtin and entry.is_const:
@@ -2363,6 +2378,7 @@ class CCodeWriter(object):
         self.putln("    #define likely(x)   __builtin_expect(!!(x), 1)")
         self.putln("    #define unlikely(x) __builtin_expect(!!(x), 0)")
         self.putln("#endif")
+
 
 class PyrexCodeWriter(object):
     # f                file      output file
