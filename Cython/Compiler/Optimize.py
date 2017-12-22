@@ -2202,6 +2202,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         arg_count = len(arg_list)
         if is_unbound_method or arg_count >= 3 or not function.type.is_pyobject:
             return node
+        if function.obj.type.name == 'basestring':
+            # allows different string types => unsafe
+            return node
         assert function.obj.type.is_builtin_type
         return ExprNodes.CachedBuiltinMethodCallNode(
             node, function.obj, attr_name, arg_list)
