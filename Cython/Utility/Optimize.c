@@ -208,9 +208,9 @@ static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObjec
         Py_INCREF(value);
     } else {
         if (default_value == Py_None)
-            default_value = NULL;
-        value = PyObject_CallMethodObjArgs(
-            d, PYIDENT("get"), key, default_value, NULL);
+            value = CALL_UNBOUND_METHOD(PyDict_Type, "get", d, key);
+        else
+            value = CALL_UNBOUND_METHOD(PyDict_Type, "get", d, key, default_value);
     }
 #endif
     return value;
@@ -222,7 +222,6 @@ static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObjec
 static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value, int is_safe_type); /*proto*/
 
 /////////////// dict_setdefault ///////////////
-//@requires: ObjectHandling.c::PyObjectCallMethod2
 
 static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *key, PyObject *default_value,
                                                        CYTHON_UNUSED int is_safe_type) {
@@ -259,7 +258,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *ke
 #endif
 #endif
     } else {
-        value = __Pyx_PyObject_CallMethod2(d, PYIDENT("setdefault"), key, default_value);
+        value = CALL_UNBOUND_METHOD(PyDict_Type, "setdefault", d, key, default_value);
     }
     return value;
 }
@@ -275,8 +274,6 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_SetDefault(PyObject *d, PyObject *ke
 static CYTHON_INLINE PyObject *__Pyx_PyDict_Pop(PyObject *d, PyObject *key, PyObject *default_value); /*proto*/
 
 /////////////// py_dict_pop ///////////////
-//@requires: ObjectHandling.c::PyObjectCallMethod1
-//@requires: ObjectHandling.c::PyObjectCallMethod2
 
 static CYTHON_INLINE PyObject *__Pyx_PyDict_Pop(PyObject *d, PyObject *key, PyObject *default_value) {
 #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX > 0x030600B3
@@ -286,9 +283,9 @@ static CYTHON_INLINE PyObject *__Pyx_PyDict_Pop(PyObject *d, PyObject *key, PyOb
     // avoid "function unused" warnings
 #endif
     if (default_value) {
-        return __Pyx_PyObject_CallMethod2(d, PYIDENT("pop"), key, default_value);
+        return CALL_UNBOUND_METHOD(PyDict_Type, "pop", d, key, default_value);
     } else {
-        return __Pyx_PyObject_CallMethod1(d, PYIDENT("pop"), key);
+        return CALL_UNBOUND_METHOD(PyDict_Type, "pop", d, key);
     }
 }
 

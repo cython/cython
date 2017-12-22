@@ -509,15 +509,9 @@ class UtilityCode(UtilityCodeBase):
         def externalise(matchobj):
             type_cname, method_name, args = matchobj.groups()
             args = [arg.strip() for arg in args[1:].split(',')]
-            if len(args) == 1:
-                call = '__Pyx_CallUnboundCMethod0'
-                utility_code.add("CallUnboundCMethod0")
-            elif len(args) == 2:
-                call = '__Pyx_CallUnboundCMethod1'
-                utility_code.add("CallUnboundCMethod1")
-            else:
-                assert False, "CALL_UNBOUND_METHOD() requires 1 or 2 call arguments"
-
+            assert 1 <= len(args) <= 3, "CALL_UNBOUND_METHOD() does not support %d call arguments" % len(args)
+            call = '__Pyx_CallUnboundCMethod%d' % (len(args) - 1,)
+            utility_code.add("CallUnboundCMethod%d" % (len(args) - 1,))
             cname = output.get_cached_unbound_method(type_cname, method_name, len(args))
             return '%s(&%s, %s)' % (call, cname, ', '.join(args))
 
