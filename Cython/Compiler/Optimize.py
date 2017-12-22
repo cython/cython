@@ -2200,10 +2200,10 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         This enables caching the underlying C function of the method at runtime.
         """
         arg_count = len(arg_list)
-        if is_unbound_method or arg_count >= 3 or not function.type.is_pyobject:
+        if is_unbound_method or arg_count >= 3 or not (function.is_attribute and function.is_py_attr):
             return node
-        if function.obj.type.name == 'basestring':
-            # allows different string types => unsafe
+        if function.obj.type.name in ('basestring', 'type'):
+            # these allow different actual types => unsafe
             return node
         assert function.obj.type.is_builtin_type
         return ExprNodes.CachedBuiltinMethodCallNode(
