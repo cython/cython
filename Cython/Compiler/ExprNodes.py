@@ -6110,6 +6110,43 @@ class PythonCapiCallNode(SimpleCallNode):
         SimpleCallNode.__init__(self, pos, **kwargs)
 
 
+class CachedBuiltinMethodCallNode(CallNode):
+    # Python call to a method of a known Python builtin (only created in transforms)
+
+    subexprs = ['obj', 'args']
+    is_temp = True
+
+    def __init__(self, call_node, obj, method_name, args):
+        super(CachedBuiltinMethodCallNode, self).__init__(
+            call_node.pos,
+            obj=obj, method_name=method_name, args=args,
+            may_return_none=call_node.may_return_none,
+            type=call_node.type)
+
+    def may_be_none(self):
+        if self.may_return_none is not None:
+            return self.may_return_none
+        return ExprNode.may_be_none(self)
+
+    def generate_result_code(self, code):
+        arg_count = len(self.args)
+        obj_type = self.obj.type
+        call_func = '__Pyx_CallUnboundCMethod%d' % arg_count
+        utility_code_name = "CallUnboundCMethod%d" % arg_count
+        code.globalstate.use_utility_code(UtilityCode.load_cached(utility_code_name, "ObjectHandling.c"))
+        cache_cname = code.globalstate.get_cached_unbound_method(
+            obj_type.cname, self.method_name)
+        args = [self.obj] + self.args
+        code.putln("%s = %s(&%s, %s); %s" % (
+            self.result(),
+            call_func,
+            cache_cname,
+            ', '.join(arg.py_result() for arg in args),
+            code.error_goto_if_null(self.result(), self.pos)
+        ))
+        code.put_gotref(self.result())
+
+
 class GeneralCallNode(CallNode):
     #  General Python function call, including keyword,
     #  * and ** arguments.

@@ -512,7 +512,7 @@ class UtilityCode(UtilityCodeBase):
             assert 1 <= len(args) <= 3, "CALL_UNBOUND_METHOD() does not support %d call arguments" % len(args)
             call = '__Pyx_CallUnboundCMethod%d' % (len(args) - 1,)
             utility_code.add("CallUnboundCMethod%d" % (len(args) - 1,))
-            cname = output.get_cached_unbound_method(type_cname, method_name, len(args))
+            cname = output.get_cached_unbound_method(type_cname, method_name)
             return '%s(&%s, %s)' % (call, cname, ', '.join(args))
 
         impl = re.sub(r'CALL_UNBOUND_METHOD\(([a-zA-Z_]+),\s*"([^"]+)"((?:,\s*[^),]+)+)\)', externalise, impl)
@@ -1310,8 +1310,8 @@ class GlobalState(object):
             prefix = Naming.const_prefix
         return "%s%s" % (prefix, name_suffix)
 
-    def get_cached_unbound_method(self, type_cname, method_name, args_count):
-        key = (type_cname, method_name, args_count)
+    def get_cached_unbound_method(self, type_cname, method_name):
+        key = (type_cname, method_name)
         try:
             cname = self.cached_cmethods[key]
         except KeyError:
@@ -1371,7 +1371,7 @@ class GlobalState(object):
         decl = self.parts['decls']
         init = self.parts['init_globals']
         cnames = []
-        for (type_cname, method_name, _), cname in sorted(self.cached_cmethods.items()):
+        for (type_cname, method_name), cname in sorted(self.cached_cmethods.items()):
             cnames.append(cname)
             method_name_cname = self.get_interned_identifier(StringEncoding.EncodedString(method_name)).cname
             decl.putln('static __Pyx_CachedCFunction %s = {0, &%s, 0, 0, 0};' % (

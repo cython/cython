@@ -2177,7 +2177,8 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             attribute=attr_name,
             is_called=True).analyse_as_type_attribute(self.current_env())
         if method is None:
-            return node
+            return self._optimise_generic_builtin_method_call(
+                node, attr_name, function, arg_list, is_unbound_method)
         args = node.args
         if args is None and node.arg_tuple:
             args = node.arg_tuple.args
@@ -2192,6 +2193,18 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         return call_node.coerce_to(node.type, self.current_env())
 
     ### builtin types
+
+    def _optimise_generic_builtin_method_call(self, node, attr_name, function, arg_list, is_unbound_method):
+        """
+        Try to inject an unbound method call for a call to a method of a known builtin type.
+        This enables caching the underlying C function of the method at runtime.
+        """
+        arg_count = len(arg_list)
+        if is_unbound_method or arg_count >= 3 or not function.type.is_pyobject:
+            return node
+        assert function.obj.type.is_builtin_type
+        return ExprNodes.CachedBuiltinMethodCallNode(
+            node, function.obj, attr_name, arg_list)
 
     PyDict_Copy_func_type = PyrexTypes.CFuncType(
         Builtin.dict_type, [
