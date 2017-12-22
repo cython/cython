@@ -198,6 +198,8 @@ static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObjec
         value = default_value;
     }
     Py_INCREF(value);
+    // avoid C compiler warning about unused utility functions
+    if ((1));
 #else
     if (PyString_CheckExact(key) || PyUnicode_CheckExact(key) || PyInt_CheckExact(key)) {
         /* these presumably have safe hash functions */
@@ -206,13 +208,14 @@ static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObjec
             value = default_value;
         }
         Py_INCREF(value);
-    } else {
+    }
+#endif
+    else {
         if (default_value == Py_None)
             value = CALL_UNBOUND_METHOD(PyDict_Type, "get", d, key);
         else
             value = CALL_UNBOUND_METHOD(PyDict_Type, "get", d, key, default_value);
     }
-#endif
     return value;
 }
 
