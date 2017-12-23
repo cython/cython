@@ -193,10 +193,15 @@ class IterationTransform(Visitor.EnvTransform):
             if annotation.is_subscript:
                 annotation = annotation.base  # container base type
             # FIXME: generalise annotation evaluation => maybe provide a "qualified name" also for imported names?
-            if annotation.is_name and annotation.entry and annotation.entry.qualified_name == 'typing.Dict':
-                annotation_type = Builtin.dict_type
-            elif annotation.is_name and annotation.name == 'Dict':
-                annotation_type = Builtin.dict_type
+            if annotation.is_name:
+                if annotation.entry and annotation.entry.qualified_name == 'typing.Dict':
+                    annotation_type = Builtin.dict_type
+                elif annotation.name == 'Dict':
+                    annotation_type = Builtin.dict_type
+                if annotation.entry and annotation.entry.qualified_name in ('typing.Set', 'typing.FrozenSet'):
+                    annotation_type = Builtin.set_type
+                elif annotation.name in ('Set', 'FrozenSet'):
+                    annotation_type = Builtin.set_type
 
         if Builtin.dict_type in (iterator.type, annotation_type):
             # like iterating over dict.keys()
@@ -205,6 +210,13 @@ class IterationTransform(Visitor.EnvTransform):
                 return node
             return self._transform_dict_iteration(
                 node, dict_obj=iterator, method=None, keys=True, values=False)
+
+        if (Builtin.set_type in (iterator.type, annotation_type) or
+                Builtin.frozenset_type in (iterator.type, annotation_type)):
+            if reversed:
+                # CPython raises an error here: not a sequence
+                return node
+            return self._transform_set_iteration(node, iterator)
 
         # C array (slice) iteration?
         if iterator.type.is_ptr or iterator.type.is_array:
@@ -967,6 +979,85 @@ class IterationTransform(Visitor.EnvTransform):
             PyrexTypes.CFuncTypeArg("p_orig_length",  PyrexTypes.c_py_ssize_t_ptr_type, None),
             PyrexTypes.CFuncTypeArg("p_is_dict",  PyrexTypes.c_int_ptr_type, None),
             ])
+
+    PySet_Iterator_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("set",  PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("is_set",  PyrexTypes.c_int_type, None),
+            PyrexTypes.CFuncTypeArg("p_orig_length",  PyrexTypes.c_py_ssize_t_ptr_type, None),
+            PyrexTypes.CFuncTypeArg("p_is_set",  PyrexTypes.c_int_ptr_type, None),
+            ])
+
+    def _transform_set_iteration(self, node, set_obj):
+        temps = []
+        temp = UtilNodes.TempHandle(PyrexTypes.py_object_type)
+        temps.append(temp)
+        set_temp = temp.ref(set_obj.pos)
+        temp = UtilNodes.TempHandle(PyrexTypes.c_py_ssize_t_type)
+        temps.append(temp)
+        pos_temp = temp.ref(node.pos)
+
+        if isinstance(node.body, Nodes.StatListNode):
+            body = node.body
+        else:
+            body = Nodes.StatListNode(pos = node.body.pos,
+                                      stats = [node.body])
+
+        # keep original length to guard against set modification
+        set_len_temp = UtilNodes.TempHandle(PyrexTypes.c_py_ssize_t_type)
+        temps.append(set_len_temp)
+        set_len_temp_addr = ExprNodes.AmpersandNode(
+            node.pos, operand=set_len_temp.ref(set_obj.pos),
+            type=PyrexTypes.c_ptr_type(set_len_temp.type))
+        temp = UtilNodes.TempHandle(PyrexTypes.c_int_type)
+        temps.append(temp)
+        is_set_temp = temp.ref(node.pos)
+        is_set_temp_addr = ExprNodes.AmpersandNode(
+            node.pos, operand=is_set_temp,
+            type=PyrexTypes.c_ptr_type(temp.type))
+
+        value_target = node.target
+        iter_next_node = Nodes.SetIterationNextNode(
+            set_temp, set_len_temp.ref(set_obj.pos), pos_temp, value_target, is_set_temp)
+        iter_next_node = iter_next_node.analyse_expressions(self.current_env())
+        body.stats[0:0] = [iter_next_node]
+
+        def flag_node(value):
+            value = value and 1 or 0
+            return ExprNodes.IntNode(node.pos, value=str(value), constant_result=value)
+
+        result_code = [
+            Nodes.SingleAssignmentNode(
+                node.pos,
+                lhs=pos_temp,
+                rhs=ExprNodes.IntNode(node.pos, value='0', constant_result=0)),
+            Nodes.SingleAssignmentNode(
+                set_obj.pos,
+                lhs=set_temp,
+                rhs=ExprNodes.PythonCapiCallNode(
+                    set_obj.pos,
+                    "__Pyx_set_iterator",
+                    self.PySet_Iterator_func_type,
+                    utility_code=UtilityCode.load_cached("set_iter", "Optimize.c"),
+                    args=[set_obj, flag_node(set_obj.type is Builtin.set_type),
+                          set_len_temp_addr, is_set_temp_addr,
+                          ],
+                    is_temp=True,
+                )),
+            Nodes.WhileStatNode(
+                node.pos,
+                condition=None,
+                body=body,
+                else_clause=node.else_clause,
+                )
+            ]
+
+        return UtilNodes.TempsBlockNode(
+            node.pos, temps=temps,
+            body=Nodes.StatListNode(
+                node.pos,
+                stats = result_code
+                ))
 
 
 class SwitchTransform(Visitor.EnvTransform):

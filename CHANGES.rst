@@ -33,6 +33,9 @@ Features added
 * ``dict.pop()`` is optimised.
   Original patch by Antoine Pitrou.  (Github issue #2047)
 
+* Iteration over sets and frozensets is optimised.
+  (Github issue #2048)
+
 * Calls to builtin methods that are not specifically optimised into C-API calls
   now use a cache that avoids repeated lookups of the underlying C function.
   (Github issue #2054)

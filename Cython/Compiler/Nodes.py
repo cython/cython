@@ -6443,6 +6443,66 @@ class DictIterationNextNode(Node):
             var.release(code)
 
 
+class SetIterationNextNode(Node):
+    # Helper node for calling _PySet_NextEntry() inside of a WhileStatNode
+    # and checking the set size for changes.  Created in Optimize.py.
+    child_attrs = ['set_obj', 'expected_size', 'pos_index_var',
+                   'coerced_value_var', 'value_target', 'is_set_flag']
+
+    coerced_value_var = value_ref = None
+
+    def __init__(self, set_obj, expected_size, pos_index_var, value_target, is_set_flag):
+        Node.__init__(
+            self, set_obj.pos,
+            set_obj=set_obj,
+            expected_size=expected_size,
+            pos_index_var=pos_index_var,
+            value_target=value_target,
+            is_set_flag=is_set_flag,
+            is_temp=True,
+            type=PyrexTypes.c_bint_type)
+
+    def analyse_expressions(self, env):
+        from . import ExprNodes
+        self.set_obj = self.set_obj.analyse_types(env)
+        self.expected_size = self.expected_size.analyse_types(env)
+        self.pos_index_var = self.pos_index_var.analyse_types(env)
+        self.value_target = self.value_target.analyse_target_types(env)
+        self.value_ref = ExprNodes.TempNode(self.value_target.pos, type=PyrexTypes.py_object_type)
+        self.coerced_value_var = self.value_ref.coerce_to(self.value_target.type, env)
+        self.is_set_flag = self.is_set_flag.analyse_types(env)
+        return self
+
+    def generate_function_definitions(self, env, code):
+        self.set_obj.generate_function_definitions(env, code)
+
+    def generate_execution_code(self, code):
+        code.globalstate.use_utility_code(UtilityCode.load_cached("set_iter", "Optimize.c"))
+        self.set_obj.generate_evaluation_code(code)
+
+        value_ref = self.value_ref
+        value_ref.allocate(code)
+
+        result_temp = code.funcstate.allocate_temp(PyrexTypes.c_int_type, False)
+        code.putln("%s = __Pyx_set_iter_next(%s, %s, &%s, &%s, %s);" % (
+            result_temp,
+            self.set_obj.py_result(),
+            self.expected_size.result(),
+            self.pos_index_var.result(),
+            value_ref.result(),
+            self.is_set_flag.result()
+        ))
+        code.putln("if (unlikely(%s == 0)) break;" % result_temp)
+        code.putln(code.error_goto_if("%s == -1" % result_temp, self.pos))
+        code.funcstate.release_temp(result_temp)
+
+        # evaluate all coercions before the assignments
+        code.put_gotref(value_ref.result())
+        self.coerced_value_var.generate_evaluation_code(code)
+        self.value_target.generate_assignment_code(self.coerced_value_var, code)
+        value_ref.release(code)
+
+
 def ForStatNode(pos, **kw):
     if 'iterator' in kw:
         if kw['iterator'].is_async:
