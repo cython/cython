@@ -276,15 +276,20 @@ Arithmetic Methods
 Rich Comparisons
 ================
 
-* Starting with Cython 0.27, the Python
+There are two ways to implement comparison methods.
+Depending on the application, one way or the other may be better:
+
+* The first way uses the 6 Python
   `special methods <https://docs.python.org/3/reference/datamodel.html#basic-customization>`_
-  ``__eq__``, ``__lt__``, etc. can be implemented.  In previous versions, ``__richcmp__`` was
-  the only way to implement rich comparisons, but is now deprecated.
-* A single special method called ``__richcmp__()`` can be used to implement all the individual
-  rich compare, special method types.  Note, however, that it is often easier to correctly
-  implement the separate Python special methods than to get the ``__richcmp__()`` method right.
-* ``__richcmp__()`` takes an integer argument, indicating which operation is to be performed
-  as shown in the table below.
+  ``__eq__``, ``__lt__``, etc.
+  This is new since Cython 0.27 and works exactly as in plain Python classes.
+* The second way uses a single special method ``__richcmp__``.
+  This implements all rich comparison operations in one method.
+  The signature is ``def __richcmp__(self, other, int op)`` matching the
+  `PyObject_RichCompare() <https://docs.python.org/3/c-api/object.html#c.PyObject_RichCompare>`_
+  Python/C API function.
+  The integer argument ``op`` indicates which operation is to be performed
+  as shown in the table below:
 
   +-----+-----+-------+
   |  <  |  0  | Py_LT |

@@ -127,28 +127,34 @@ take `self` as the first argument.
 Rich comparisons
 -----------------
 
-Starting with Cython 0.27, the Python
-`special methods <https://docs.python.org/3/reference/datamodel.html#basic-customization>`_
-:meth:``__eq__``, :meth:``__lt__``, etc. can be implemented.  In previous versions,
-:meth:``__richcmp__`` was the only way to implement rich comparisons.  It takes an integer
-indicating which operation is to be performed, as follows:
+There are two ways to implement comparison methods.
+Depending on the application, one way or the other may be better:
 
-+-----+-----+-------+
-|  <  |  0  | Py_LT |
-+-----+-----+-------+
-| ==  |  2  | Py_EQ |
-+-----+-----+-------+
-|  >  |  4  | Py_GT |
-+-----+-----+-------+
-| <=  |  1  | Py_LE |
-+-----+-----+-------+
-| !=  |  3  | Py_NE |
-+-----+-----+-------+
-| >=  |  5  | Py_GE |
-+-----+-----+-------+
+* The first way uses the 6 Python
+  `special methods <https://docs.python.org/3/reference/datamodel.html#basic-customization>`_
+  :meth:`__eq__`, :meth:`__lt__`, etc.
+  This is new since Cython 0.27 and works exactly as in plain Python classes.
+* The second way uses a single special method :meth:`__richcmp__`.
+  This implements all rich comparison operations in one method.
+  The signature is ``def __richcmp__(self, other, int op)``.
+  The integer argument ``op`` indicates which operation is to be performed
+  as shown in the table below:
 
-The named constants can be cimported from the ``cpython.object`` module.
-They should generally be preferred over plain integers to improve readabilty.
+  +-----+-------+
+  |  <  | Py_LT |
+  +-----+-------+
+  | ==  | Py_EQ |
+  +-----+-------+
+  |  >  | Py_GT |
+  +-----+-------+
+  | <=  | Py_LE |
+  +-----+-------+
+  | !=  | Py_NE |
+  +-----+-------+
+  | >=  | Py_GE |
+  +-----+-------+
+
+  These constants can be cimported from the ``cpython.object`` module.
 
 The :meth:`__next__` method
 ----------------------------
@@ -209,6 +215,10 @@ Rich comparison operators
 
 https://docs.python.org/3/reference/datamodel.html#basic-customization
 
+You can choose to either implement the standard Python special methods
+like :meth:`__eq__` or the single special method :meth:`__richcmp__`.
+Depending on the application, one way or the other may be better.
+
 +-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
 | __eq__                |self, y                                | object      | self == y                                              |
 +-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
@@ -222,12 +232,9 @@ https://docs.python.org/3/reference/datamodel.html#basic-customization
 +-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
 | __ge__                |self, y                                | object      | self >= y                                              |
 +-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
-| __richcmp__           |x, y, int op                           | object      | Joined rich comparison method for all of the above     |
-|                       |                                       |             | (deprecated, no direct Python equivalent)              |
+| __richcmp__           |self, y, int op                        | object      | Joined rich comparison method for all of the above     |
+|                       |                                       |             | (no direct Python equivalent)                          |
 +-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
-
-New code should better implement the separate Python special methods instead of trying to
-correctly implement the joined ``__richcmp__()`` method.
 
 Arithmetic operators
 ^^^^^^^^^^^^^^^^^^^^
