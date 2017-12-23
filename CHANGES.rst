@@ -35,6 +35,7 @@ Features added
 
 * Calls to builtin methods that are not specifically optimised into C-API calls
   now use a cache that avoids repeated lookups of the underlying C function.
+  (Github issue #2054)
 
 * Subscripting (item access) is faster in some cases.
 
