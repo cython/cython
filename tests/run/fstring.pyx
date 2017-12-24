@@ -167,7 +167,7 @@ def format_c_number_range_width(int n):
     """
     >>> for i in range(-1000, 1001):
     ...     formatted = format_c_number_range_width(i)
-    ...     expected = '{:04d}'.format(i)
+    ...     expected = '{n:04d}'.format(n=i)
     ...     assert formatted == expected, "%r != %r" % (formatted, expected)
     """
     return f'{n:04}'
@@ -177,7 +177,7 @@ def format_c_number_range_width0(int n):
     """
     >>> for i in range(-100, 101):
     ...     formatted = format_c_number_range_width0(i)
-    ...     expected = '{:00d}'.format(i)
+    ...     expected = '{n:00d}'.format(n=i)
     ...     assert formatted == expected, "%r != %r" % (formatted, expected)
     """
     return f'{n:00}'
@@ -187,7 +187,7 @@ def format_c_number_range_width1(int n):
     """
     >>> for i in range(-100, 101):
     ...     formatted = format_c_number_range_width1(i)
-    ...     expected = '{:01d}'.format(i)
+    ...     expected = '{n:01d}'.format(n=i)
     ...     assert formatted == expected, "%r != %r" % (formatted, expected)
     """
     return f'{n:01}'
@@ -197,7 +197,7 @@ def format_c_number_range_width_m4(int n):
     """
     >>> for i in range(-100, 101):
     ...     formatted = format_c_number_range_width_m4(i)
-    ...     expected = '{:-4d}'.format(i)
+    ...     expected = '{n:-4d}'.format(n=i)
     ...     assert formatted == expected, "%r != %r" % (formatted, expected)
     """
     return f'{n:-4}'
