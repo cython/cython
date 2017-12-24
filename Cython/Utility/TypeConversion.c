@@ -645,7 +645,8 @@ static const char DIGIT_PAIRS_8[2*8*8+1] = {
 };
 
 static const char DIGITS_HEX[2*16+1] = {
-    "0123456789abcdef0123456789ABCDEF"
+    "0123456789abcdef"
+    "0123456789ABCDEF"
 };
 
 
@@ -686,13 +687,13 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
     if (format_char == 'X') {
         hex_digits += 16;
         format_char = 'x';
-    };
+    }
 
     // surprise: even trivial sprintf() calls don't get optimised in gcc (4.8)
     remaining = value; /* not using abs(value) to avoid overflow problems */
     last_one_off = 0;
     dpos = end;
-    while (remaining != 0) {
+    do {
         int digit_pos;
         switch (format_char) {
         case 'o':
@@ -717,12 +718,11 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
             assert(0);
             break;
         }
-    }
+    } while (unlikely(remaining != 0));
+
     if (last_one_off) {
         assert(*dpos == '0');
         dpos++;
-    } else if (unlikely(dpos == end)) {
-        *(--dpos) = '0';
     }
     length = end - dpos;
     ulength = length;

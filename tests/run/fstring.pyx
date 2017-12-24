@@ -157,7 +157,7 @@ def format_c_number_const():
 
 def format_c_number_range(int n):
     """
-    >>> for i in range(-1000, 1000):
+    >>> for i in range(-1000, 1001):
     ...     assert format_c_number_range(i) == str(i)
     """
     return f'{n}'
@@ -165,15 +165,47 @@ def format_c_number_range(int n):
 
 def format_c_number_range_width(int n):
     """
-    >>> for i in range(-1000, 1000):
-    ...     assert format_c_number_range_width(i) == '%04d' % i, format_c_number_range_width(i)
+    >>> for i in range(-1000, 1001):
+    ...     formatted = format_c_number_range_width(i)
+    ...     expected = '{:04d}'.format(i)
+    ...     assert formatted == expected, "%r != %r" % (formatted, expected)
     """
     return f'{n:04}'
 
 
+def format_c_number_range_width0(int n):
+    """
+    >>> for i in range(-100, 101):
+    ...     formatted = format_c_number_range_width0(i)
+    ...     expected = '{:00d}'.format(i)
+    ...     assert formatted == expected, "%r != %r" % (formatted, expected)
+    """
+    return f'{n:00}'
+
+
+def format_c_number_range_width1(int n):
+    """
+    >>> for i in range(-100, 101):
+    ...     formatted = format_c_number_range_width1(i)
+    ...     expected = '{:01d}'.format(i)
+    ...     assert formatted == expected, "%r != %r" % (formatted, expected)
+    """
+    return f'{n:01}'
+
+
+def format_c_number_range_width_m4(int n):
+    """
+    >>> for i in range(-100, 101):
+    ...     formatted = format_c_number_range_width_m4(i)
+    ...     expected = '{:-4d}'.format(i)
+    ...     assert formatted == expected, "%r != %r" % (formatted, expected)
+    """
+    return f'{n:-4}'
+
+
 def format_c_number_range_dyn_width(int n, int width):
     """
-    >>> for i in range(-1000, 1000):
+    >>> for i in range(-1000, 1001):
     ...     assert format_c_number_range_dyn_width(i, 0) == str(i), format_c_number_range_dyn_width(i, 0)
     ...     assert format_c_number_range_dyn_width(i, 1) == '%01d' % i, format_c_number_range_dyn_width(i, 1)
     ...     assert format_c_number_range_dyn_width(i, 4) == '%04d' % i, format_c_number_range_dyn_width(i, 4)
