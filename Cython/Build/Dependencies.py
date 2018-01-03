@@ -785,6 +785,9 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                 print("Warning: Extension name '%s' does not match fully qualified name '%s' of '%s'" % (
                     name, module_name, file))
                 module_name = name
+                
+            if module_name == 'cython':
+                raise ValueError('cython is a special module, cannot be used as a module name')
 
             if module_name not in seen:
                 try:
