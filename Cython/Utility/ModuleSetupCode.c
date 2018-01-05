@@ -1100,6 +1100,20 @@ end:
 }
 #endif /* CYTHON_REFNANNY */
 
+
+/////////////// ImportRefnannyAPI ///////////////
+
+#if CYTHON_REFNANNY
+__Pyx_RefNanny = __Pyx_RefNannyImportAPI("refnanny");
+if (!__Pyx_RefNanny) {
+  PyErr_Clear();
+  __Pyx_RefNanny = __Pyx_RefNannyImportAPI("Cython.Runtime.refnanny");
+  if (!__Pyx_RefNanny)
+      Py_FatalError("failed to import 'refnanny' module");
+}
+#endif
+
+
 /////////////// RegisterModuleCleanup.proto ///////////////
 //@substitute: naming
 

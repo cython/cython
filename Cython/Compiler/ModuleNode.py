@@ -2312,15 +2312,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             tempdecl_code.put_trace_declarations()
             code.put_trace_frame_init()
 
-        code.putln("#if CYTHON_REFNANNY")
-        code.putln("__Pyx_RefNanny = __Pyx_RefNannyImportAPI(\"refnanny\");")
-        code.putln("if (!__Pyx_RefNanny) {")
-        code.putln("  PyErr_Clear();")
-        code.putln("  __Pyx_RefNanny = __Pyx_RefNannyImportAPI(\"Cython.Runtime.refnanny\");")
-        code.putln("  if (!__Pyx_RefNanny)")
-        code.putln("      Py_FatalError(\"failed to import 'refnanny' module\");")
-        code.putln("}")
-        code.putln("#endif")
+        refnanny_import_code = UtilityCode.load_as_string("ImportRefnannyAPI", "ModuleSetupCode.c")[1]
+        code.putln(refnanny_import_code.rstrip())
         code.put_setup_refcount_context(header3)
 
         env.use_utility_code(UtilityCode.load("CheckBinaryVersion", "ModuleSetupCode.c"))
