@@ -2028,8 +2028,8 @@ class CCodeWriter(object):
             self.put_xdecref_memoryviewslice(cname, have_gil=have_gil)
             return
 
-        prefix = nanny and '__Pyx' or 'Py'
-        X = null_check and 'X' or ''
+        prefix = '__Pyx' if nanny else 'Py'
+        X = 'X' if null_check else ''
 
         if clear:
             if clear_before_decref:
