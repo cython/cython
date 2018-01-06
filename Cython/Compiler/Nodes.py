@@ -5040,6 +5040,8 @@ class ExprStatNode(StatNode):
     def analyse_expressions(self, env):
         self.expr.result_is_used = False  # hint that .result() may safely be left empty
         self.expr = self.expr.analyse_expressions(env)
+        # Repeat in case of node replacement.
+        self.expr.result_is_used = False  # hint that .result() may safely be left empty
         return self
 
     def nogil_check(self, env):
@@ -5050,6 +5052,7 @@ class ExprStatNode(StatNode):
 
     def generate_execution_code(self, code):
         code.mark_pos(self.pos)
+        self.expr.result_is_used = False  # hint that .result() may safely be left empty
         self.expr.generate_evaluation_code(code)
         if not self.expr.is_temp and self.expr.result():
             code.putln("%s;" % self.expr.result())
