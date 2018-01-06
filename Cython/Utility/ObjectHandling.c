@@ -1306,17 +1306,17 @@ static PyObject* __Pyx__CallUnboundCMethod0(__Pyx_CachedCFunction* cfunc, PyObje
 #if CYTHON_COMPILING_IN_CPYTHON
 // FASTCALL methods receive "&empty_tuple" as simple "PyObject[0]*"
 #define __Pyx_CallUnboundCMethod0(cfunc, self)  \
-    ((likely((cfunc)->func)) ? \
+    (likely((cfunc)->func) ? \
         (likely((cfunc)->flag == METH_NOARGS) ?  (*((cfunc)->func))(self, NULL) : \
-         (likely((cfunc)->flag == (METH_VARARGS | METH_KEYWORDS)) ?  ((*(PyCFunctionWithKeywords)(cfunc)->func)(self, $empty_tuple, NULL)) : \
-             ((cfunc)->flag == METH_VARARGS ?  (*((cfunc)->func))(self, $empty_tuple) : \
-              (PY_VERSION_HEX >= 0x030600B1 && (cfunc)->flag == METH_FASTCALL ? \
-                (PY_VERSION_HEX >= 0x030700A0 ? \
-                    (*(__Pyx_PyCFunctionFast)(cfunc)->func)(self, &$empty_tuple, 0) : \
-                    (*(__Pyx_PyCFunctionFastWithKeywords)(cfunc)->func)(self, &$empty_tuple, 0, NULL)) : \
-              (PY_VERSION_HEX >= 0x030700A0 && (cfunc)->flag == (METH_FASTCALL | METH_KEYWORDS) ? \
-                    (*(__Pyx_PyCFunctionFastWithKeywords)(cfunc)->func)(self, &$empty_tuple, 0, NULL) : \
-                    __Pyx__CallUnboundCMethod0(cfunc, self)))))) : \
+         (PY_VERSION_HEX >= 0x030600B1 && likely((cfunc)->flag == METH_FASTCALL) ? \
+            (PY_VERSION_HEX >= 0x030700A0 ? \
+                (*(__Pyx_PyCFunctionFast)(cfunc)->func)(self, &$empty_tuple, 0) : \
+                (*(__Pyx_PyCFunctionFastWithKeywords)(cfunc)->func)(self, &$empty_tuple, 0, NULL)) : \
+          (PY_VERSION_HEX >= 0x030700A0 && (cfunc)->flag == (METH_FASTCALL | METH_KEYWORDS) ? \
+            (*(__Pyx_PyCFunctionFastWithKeywords)(cfunc)->func)(self, &$empty_tuple, 0, NULL) : \
+            (likely((cfunc)->flag == (METH_VARARGS | METH_KEYWORDS)) ?  ((*(PyCFunctionWithKeywords)(cfunc)->func)(self, $empty_tuple, NULL)) : \
+               ((cfunc)->flag == METH_VARARGS ?  (*((cfunc)->func))(self, $empty_tuple) : \
+               __Pyx__CallUnboundCMethod0(cfunc, self)))))) : \
         __Pyx__CallUnboundCMethod0(cfunc, self))
 #else
 #define __Pyx_CallUnboundCMethod0(cfunc, self)  __Pyx__CallUnboundCMethod0(cfunc, self)
