@@ -5055,7 +5055,10 @@ class ExprStatNode(StatNode):
         self.expr.result_is_used = False  # hint that .result() may safely be left empty
         self.expr.generate_evaluation_code(code)
         if not self.expr.is_temp and self.expr.result():
-            code.putln("(void)(%s);" % self.expr.result())
+            result = self.expr.result()
+            if not self.expr.type.is_void:
+                result = "(void)(%s)" % result
+            code.putln("%s;" % result)
         self.expr.generate_disposal_code(code)
         self.expr.free_temps(code)
 
