@@ -2832,9 +2832,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         if not value.is_sequence_constructor:
             return node
         items = list(value.args)
-        if value.mult_factor is not None or len(items) > 4:
-            # Appending wins for short sequences but might slow down for multiple resize operations.
-            # Ignorantly assume that this a good enough limit that avoids repeated resizing.
+        if value.mult_factor is not None or len(items) > 8:
+            # Appending wins for short sequences but slows down when multiple resize operations are needed.
+            # This seems to be a good enough limit that avoids repeated resizing.
             if isinstance(value, ExprNodes.ListNode):
                 # At least avoid the list building and use a faster tuple instead.
                 tuple_node = args[1].as_tuple().analyse_types(self.current_env(), skip_children=True)

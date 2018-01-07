@@ -180,13 +180,13 @@ def test_list_pop_all():
 def test_list_extend(seq=None, x=4):
     """
     >>> test_list_extend()
-    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
     >>> test_list_extend([])
-    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
     >>> test_list_extend([1])
-    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 1]
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 1]
     >>> test_list_extend([1, 2])
-    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 1, 2]
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 1, 2]
     """
     cdef list l = [1,2,3]
     l.extend([])
@@ -195,7 +195,7 @@ def test_list_extend(seq=None, x=4):
     assert l == [1,2,3]
     assert len(l) == 3
     l.extend([4,x+1,6])
-    l.extend([7,8,9,10,11,12,13,14])
+    l.extend([7,8,9,10,11,12,13,14,15,16])
     if seq is not None:
         l.extend(seq)
     return l
@@ -208,13 +208,13 @@ def test_list_extend(seq=None, x=4):
 def test_list_extend_unbound(seq=None, x=4):
     """
     >>> test_list_extend_unbound()
-    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
     >>> test_list_extend_unbound([])
-    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
     >>> test_list_extend_unbound([1])
-    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 1]
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 1]
     >>> test_list_extend_unbound([1, 2])
-    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 1, 2]
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 1, 2]
     """
     cdef list l = [1,2,3]
     list.extend(l, [])
@@ -229,7 +229,7 @@ def test_list_extend_unbound(seq=None, x=4):
     assert l == [1,2,3]
     assert len(l) == 3
     list.extend(l, [4,x+1,6])
-    list.extend(l, [7,8,9,10,11,12,13,14])
+    list.extend(l, [7,8,9,10,11,12,13,14,15,16])
     if seq is not None:
         list.extend(l, seq)
     return l
