@@ -581,15 +581,23 @@ class MethodDispatcherTransform(EnvTransform):
             # into a C function call (defined in the builtin scope)
             if not function.entry:
                 return node
+            entry = function.entry
             is_builtin = (
-                function.entry.is_builtin or
-                function.entry is self.current_env().builtin_scope().lookup_here(function.name))
+                entry.is_builtin or
+                entry is self.current_env().builtin_scope().lookup_here(function.name))
             if not is_builtin:
                 if function.cf_state and function.cf_state.is_single:
                     # we know the value of the variable
                     # => see if it's usable instead
                     return self._delegate_to_assigned_value(
                         node, function, arg_list, kwargs)
+                if arg_list and entry.is_cmethod and entry.scope and entry.scope.parent_type.is_builtin_type:
+                    if entry.scope.parent_type is arg_list[0].type:
+                        # Optimised (unbound) method of a builtin type => try to "de-optimise".
+                        return self._dispatch_to_method_handler(
+                            entry.name, self_arg=None, is_unbound_method=True,
+                            type_name=entry.scope.parent_type.name,
+                            node=node, function=function, arg_list=arg_list, kwargs=kwargs)
                 return node
             function_handler = self._find_handler(
                 "function_%s" % function.name, kwargs)
@@ -615,8 +623,7 @@ class MethodDispatcherTransform(EnvTransform):
             obj_type = self_arg.type
             is_unbound_method = False
             if obj_type.is_builtin_type:
-                if (obj_type is Builtin.type_type and self_arg.is_name and
-                        arg_list and arg_list[0].type.is_pyobject):
+                if obj_type is Builtin.type_type and self_arg.is_name and arg_list and arg_list[0].type.is_pyobject:
                     # calling an unbound method like 'list.append(L,x)'
                     # (ignoring 'type.mro()' here ...)
                     type_name = self_arg.name

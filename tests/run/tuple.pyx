@@ -139,3 +139,29 @@ def tuple_of_tuple_or_none(tuple x):
     TypeError: ...itera...
     """
     return tuple(tuple(tuple(x)))
+
+
+@cython.test_fail_if_path_exists(
+    "//ExprStatNode//TupleNode",
+    "//ExprStatNode",
+)
+def unused_literals():
+    """
+    >>> unused_literals()
+    """
+    (1, 2, 3)
+    (1, 2, 3 + 4)
+    ("abc", 'def')
+    #(int(), 2, 3)
+
+
+@cython.test_assert_path_exists(
+    "//ExprStatNode",
+    "//ExprStatNode//TupleNode",
+)
+def unused_non_literal():
+    """
+    >>> unused_non_literal()
+    """
+    (set(), None)
+    (range(10), None)

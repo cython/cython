@@ -2046,11 +2046,18 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
 
     def visit_ExprStatNode(self, node):
         """
-        Drop useless coercions.
+        Drop dead code and useless coercions.
         """
         self.visitchildren(node)
         if isinstance(node.expr, ExprNodes.CoerceToPyTypeNode):
             node.expr = node.expr.arg
+        expr = node.expr
+        if expr is None or expr.is_none or expr.is_literal:
+            # Expression was removed or is dead code => remove ExprStatNode as well.
+            return None
+        if expr.is_name and expr.entry and (expr.entry.is_local or expr.entry.is_arg):
+            # Ignore dead references to local variables etc.
+            return None
         return node
 
     def visit_CoerceToBooleanNode(self, node):
@@ -2814,6 +2821,62 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             result_is_used=False,
             utility_code=load_c_utility('append')
         )
+
+    def _handle_simple_method_list_extend(self, node, function, args, is_unbound_method):
+        """Replace list.extend([...]) for short sequence literals values by sequential appends
+        to avoid creating an intermediate sequence argument.
+        """
+        if len(args) != 2:
+            return node
+        obj, value = args
+        if not value.is_sequence_constructor or value.mult_factor is not None:
+            return node
+        items = list(value.args)
+        if len(items) > 4:
+            # Appending wins for short sequences.
+            # Ignorantly assume that this a good enough limit that avoids repeated resizing.
+            return node
+        wrapped_obj = self._wrap_self_arg(obj, function, is_unbound_method, 'extend')
+        if not items:
+            # Empty sequences are not likely to occur, but why waste a call to list.extend() for them?
+            wrapped_obj.result_is_used = node.result_is_used
+            return wrapped_obj
+        cloned_obj = obj = wrapped_obj
+        if len(items) > 1 and not obj.is_simple():
+            cloned_obj = UtilNodes.LetRefNode(obj)
+        # Use ListComp_Append() for all but the last item and finish with PyList_Append()
+        # to shrink the list storage size at the very end if necessary.
+        temps = []
+        arg = items[-1]
+        if not arg.is_simple():
+            arg = UtilNodes.LetRefNode(arg)
+            temps.append(arg)
+        new_node = ExprNodes.PythonCapiCallNode(
+            node.pos, "__Pyx_PyList_Append", self.PyObject_Append_func_type,
+            args=[cloned_obj, arg],
+            is_temp=True,
+            utility_code=load_c_utility("ListAppend"))
+        for arg in items[-2::-1]:
+            if not arg.is_simple():
+                arg = UtilNodes.LetRefNode(arg)
+                temps.append(arg)
+            new_node = ExprNodes.binop_node(
+                node.pos, '|',
+                ExprNodes.PythonCapiCallNode(
+                    node.pos, "__Pyx_ListComp_Append", self.PyObject_Append_func_type,
+                    args=[cloned_obj, arg], py_name="extend",
+                    is_temp=True,
+                    utility_code=load_c_utility("ListCompAppend")),
+                new_node,
+                type=PyrexTypes.c_returncode_type,
+            )
+        new_node.result_is_used = node.result_is_used
+        if cloned_obj is not obj:
+            temps.append(cloned_obj)
+        for temp in temps:
+            new_node = UtilNodes.EvalWithTempExprNode(temp, new_node)
+            new_node.result_is_used = node.result_is_used
+        return new_node
 
     PyByteArray_Append_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_returncode_type, [
@@ -3791,18 +3854,8 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                                 may_return_none=ExprNodes.PythonCapiCallNode.may_return_none,
                                 with_none_check=True):
         args = list(args)
-        if with_none_check and args and not args[0].is_literal:
-            self_arg = args[0]
-            if is_unbound_method:
-                self_arg = self_arg.as_none_safe_node(
-                    "descriptor '%s' requires a '%s' object but received a 'NoneType'",
-                    format_args=[attr_name, function.obj.name])
-            else:
-                self_arg = self_arg.as_none_safe_node(
-                    "'NoneType' object has no attribute '%{0}s'".format('.30' if len(attr_name) <= 30 else ''),
-                    error = "PyExc_AttributeError",
-                    format_args = [attr_name])
-            args[0] = self_arg
+        if with_none_check and args:
+            args[0] = self._wrap_self_arg(args[0], function, is_unbound_method, attr_name)
         if is_temp is None:
             is_temp = node.is_temp
         return ExprNodes.PythonCapiCallNode(
@@ -3813,6 +3866,20 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             may_return_none = may_return_none,
             result_is_used = node.result_is_used,
             )
+
+    def _wrap_self_arg(self, self_arg, function, is_unbound_method, attr_name):
+        if self_arg.is_literal:
+            return self_arg
+        if is_unbound_method:
+            self_arg = self_arg.as_none_safe_node(
+                "descriptor '%s' requires a '%s' object but received a 'NoneType'",
+                format_args=[attr_name, self_arg.type.name])
+        else:
+            self_arg = self_arg.as_none_safe_node(
+                "'NoneType' object has no attribute '%{0}s'".format('.30' if len(attr_name) <= 30 else ''),
+                error="PyExc_AttributeError",
+                format_args=[attr_name])
+        return self_arg
 
     def _inject_int_default_argument(self, node, args, arg_index, type, default_value):
         assert len(args) >= arg_index

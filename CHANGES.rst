@@ -36,6 +36,9 @@ Features added
 * Iteration over sets and frozensets is optimised.
   (Github issue #2048)
 
+* ``alist.extend([a,b,c])`` is optimised into sequential ``list.append()`` calls
+  for short literal sequences.
+
 * Calls to builtin methods that are not specifically optimised into C-API calls
   now use a cache that avoids repeated lookups of the underlying C function.
   (Github issue #2054)
