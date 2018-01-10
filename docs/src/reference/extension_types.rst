@@ -306,7 +306,7 @@ Depending on the application, one way or the other may be better:
   +-----+-----+-------+
 
   The named constants can be cimported from the ``cpython.object`` module.
-  They should generally be preferred over plain integers to improve readabilty.
+  They should generally be preferred over plain integers to improve readability.
 
 
 The ``__next__()`` Method
