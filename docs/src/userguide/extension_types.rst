@@ -532,6 +532,76 @@ statically sized freelist of ``N`` instances for a given type.  Example::
 
 .. _making_extension_types_weak_referenceable:
 
+.. _existing-pointers-instantiation:
+
+Instantiation from existing C/C++ pointers
+===========================================
+
+It is quite common to want to instantiate an extension class from an existing
+(pointer to a) data structure, often as returned by external C/C++ functions.
+
+As extension classes can only accept Python objects as arguments in their
+contructors, this necessitates the use of factory functions. For example, ::
+
+    from libc.stdlib cimport malloc, free
+
+    # Example C struct
+    ctypedef struct my_c_struct:
+        int a
+        int b
+
+
+    cdef class WrapperClass:
+        """A wrapper class for a C/C++ data structure"""
+        cdef my_c_struct *_ptr
+
+        def __cinit__(self):
+            # On cinit, do not create new structure but set pointer to NULL
+            self._ptr = NULL
+
+        def __dealloc__(self):
+            # De-allocate if we have a non-null pointer
+            if self._ptr is not NULL:
+                free(self._ptr)
+
+
+    cdef WrapperClass PyWrapperClass(my_c_struct *_ptr):
+        """Factory function to create WrapperClass objects from
+        given my_c_struct pointer"""
+        # Call to __new__ bypasses __init__ constructor
+        cdef WrapperClass wrapper = WrapperClass.__new__(WrapperClass)
+        wrapper._ptr = _ptr
+        return wrapper
+
+
+    cdef WrapperClass PyNewWrapperClass():
+        """Factory function to create WrapperClass objects with
+        newly allocated my_c_struct"""
+        cdef my_c_struct *_ptr = <my_c_struct *>malloc(sizeof(my_c_struct))
+        return PyWrapperClass(_ptr)
+
+
+To then create a ``WrapperClass`` object from an existing ``my_c_struct``
+pointer, ``PyWrapperClass(ptr)`` can be used. It is possible to create multiple
+python objects all from the same C pointer which point to the same in-memory
+data, if that is wanted, though care must be taken when de-allocating as can
+be seen above with the non-null check. The gil must *not* be released either,
+or another lock used if it is, in such cases or race conditions can occur
+with multiple de-allocations.
+
+Attempts to accept ``my_c_struct`` pointers in ``__cinit__`` will result
+in errors like::
+
+  Cannot convert 'my_c_struct *' to Python object
+
+This is because Cython cannot automatically convert the structure to a Python
+object, unlike with native types like ``int``.
+
+Note that for native types, Cython will copy the value and create a new Python
+object while in the above case, data is not copied and it is responsibility of
+the extension class to correctly de-allocate.
+
+
 Making extension types weak-referenceable
 ==========================================
 
