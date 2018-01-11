@@ -332,7 +332,7 @@ Automatic Type Conversion
         cdef char *s
         s = pystring1 + pystring2
 
-    * The reason is that concatenating to strings in Python produces a temporary variable.
+    * The reason is that concatenating two strings in Python produces a temporary variable.
 
      * The variable is decrefed, and the Python string deallocated as soon as the statement has finished,
 
