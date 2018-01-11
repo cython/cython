@@ -388,7 +388,7 @@ Extension Types and None
 * Be very aware of exposing Python functions that take extension types as arguments::
 
     def widen_shrubbery(Shrubbery sh, extra_width): # This is dangerous
-    sh.width = sh.width + extra_width
+        sh.width = sh.width + extra_width
 
     * Users could **crash** the program by passing ``None`` for the ``sh`` parameter.
     * This could be avoided by::
