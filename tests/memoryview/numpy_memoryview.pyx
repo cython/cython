@@ -299,7 +299,7 @@ def test_coerce_to_numpy():
     deallocating...
     (16.5+17.7j)
     deallocating...
-    (18.8+19.96j)
+    (18.8125+19.9375j)
     deallocating...
     22
     deallocating...
@@ -369,7 +369,7 @@ def test_coerce_to_numpy():
 
     floatcomplex[idx] = 14.4 + 15.5j
     doublecomplex[idx] = 16.5 + 17.7j
-    longdoublecomplex[idx] = 18.8 + 19.96j
+    longdoublecomplex[idx] = 18.8125 + 19.9375j  # x/64 to avoid float format rounding issues
 
     h_shorts[idx] = 22
     h_doubles[idx] = 33.33
