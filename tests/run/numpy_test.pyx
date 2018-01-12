@@ -42,7 +42,7 @@ try:
      [5 6 7 8 9]]
     2 0 9 5
 
-    >>> three_dim()
+    >>> three_dim()  # doctest: +NORMALIZE_WHITESPACE
     [[[  0.   1.   2.   3.]
       [  4.   5.   6.   7.]]
     <_BLANKLINE_>
