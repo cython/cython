@@ -7472,17 +7472,14 @@ class SequenceNode(ExprNode):
         code.putln("PyObject* sequence = %s;" % rhs.py_result())
 
         # list/tuple => check size
-        code.putln("#if !CYTHON_COMPILING_IN_PYPY")
-        code.putln("Py_ssize_t size = Py_SIZE(sequence);")
-        code.putln("#else")
-        code.putln("Py_ssize_t size = PySequence_Size(sequence);")  # < 0 => exception
-        code.putln("#endif")
+        code.putln("Py_ssize_t size = __Pyx_PySequence_SIZE(sequence);")
         code.putln("if (unlikely(size != %d)) {" % len(self.args))
         code.globalstate.use_utility_code(raise_too_many_values_to_unpack)
         code.putln("if (size > %d) __Pyx_RaiseTooManyValuesError(%d);" % (
             len(self.args), len(self.args)))
         code.globalstate.use_utility_code(raise_need_more_values_to_unpack)
         code.putln("else if (size >= 0) __Pyx_RaiseNeedMoreValuesError(size);")
+        # < 0 => exception
         code.putln(code.error_goto(self.pos))
         code.putln("}")
 
