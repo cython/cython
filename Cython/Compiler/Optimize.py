@@ -8,14 +8,16 @@ import itertools
 from . import TypeSlots
 from .ExprNodes import not_a_constant
 import cython
-cython.declare(UtilityCode=object, EncodedString=object, bytes_literal=object,
+cython.declare(UtilityCode=object, EncodedString=object, bytes_literal=object, encoded_string=object,
                Nodes=object, ExprNodes=object, PyrexTypes=object, Builtin=object,
                UtilNodes=object, _py_int_types=object)
 
 if sys.version_info[0] >= 3:
     _py_int_types = int
+    _py_string_types = (bytes, str)
 else:
     _py_int_types = (int, long)
+    _py_string_types = (bytes, unicode)
 
 from . import Nodes
 from . import ExprNodes
@@ -26,7 +28,7 @@ from . import UtilNodes
 from . import Options
 
 from .Code import UtilityCode, TempitaUtilityCode
-from .StringEncoding import EncodedString, bytes_literal
+from .StringEncoding import EncodedString, bytes_literal, encoded_string
 from .Errors import error
 from .ParseTreeTransforms import SkipDeclarations
 
@@ -4156,7 +4158,41 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         if isinstance(node.operand1, ExprNodes.IntNode) and \
                 node.operand2.is_sequence_constructor:
             return self._calculate_constant_seq(node, node.operand2, node.operand1)
+        if node.operand1.is_string_literal:
+            return self._multiply_string(node, node.operand1, node.operand2)
+        elif node.operand2.is_string_literal:
+            return self._multiply_string(node, node.operand2, node.operand1)
         return self.visit_BinopNode(node)
+
+    def _multiply_string(self, node, string_node, multiplier_node):
+        multiplier = multiplier_node.constant_result
+        if not isinstance(multiplier, _py_int_types):
+            return node
+        if not (node.has_constant_result() and isinstance(node.constant_result, _py_string_types)):
+            return node
+        if len(node.constant_result) > 256:
+            # Too long for static creation, leave it to runtime.  (-> arbitrary limit)
+            return node
+
+        build_string = encoded_string
+        if isinstance(string_node, ExprNodes.BytesNode):
+            build_string = bytes_literal
+        elif isinstance(string_node, ExprNodes.StringNode):
+            if string_node.unicode_value is not None:
+                string_node.unicode_value = encoded_string(
+                    string_node.unicode_value * multiplier,
+                    string_node.unicode_value.encoding)
+        elif isinstance(string_node, ExprNodes.UnicodeNode):
+            if string_node.bytes_value is not None:
+                string_node.bytes_value = bytes_literal(
+                    string_node.bytes_value * multiplier,
+                    string_node.bytes_value.encoding)
+        else:
+            assert False, "unknown string node type: %s" % type(string_node)
+        string_node.value = build_string(
+            string_node.value * multiplier,
+            string_node.value.encoding)
+        return string_node
 
     def _calculate_constant_seq(self, node, sequence_node, factor):
         if factor.constant_result != 1 and sequence_node.args:
