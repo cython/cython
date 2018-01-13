@@ -12,8 +12,9 @@ addons:
       - python3-dbg
       - gcc-6
       - g++-6
-      - gcc-7
-      - g++-7
+      # GCC-7 currently takes 5-7 *minutes* to download on travis
+      #- gcc-7
+      #- g++-7
 
 cache:
   pip: true
@@ -46,8 +47,8 @@ env:
 
 matrix:
   include:
-    - python: 3.7-dev
-      env: BACKEND=c PY=3 CC=gcc-7
+    #- python: 3.7-dev
+    #  env: BACKEND=c PY=3 CC=gcc-7
     - os: osx
       osx_image: xcode6.4
       env: BACKEND=c PY=2
