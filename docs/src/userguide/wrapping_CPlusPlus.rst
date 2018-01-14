@@ -290,6 +290,19 @@ instance.
 If you prefer giving the same name to the wrapper as the C++ class, see the
 section on :ref:`resolving naming conflicts <resolve-conflicts>`.
 
+Compilation and Importing
+=========================
+
+Run ``$python setup.py build_ext --inplace``
+
+Create :file:`test_import.py`:
+::
+  import rect
+
+  x0, y0, x1, y1 = 1, 2, 3, 4
+  rect_obj = rect.Rectangle(x0, y0, x1, y1)
+
+  print(dir(rect_object))
 
 Advanced C++ features
 ======================
