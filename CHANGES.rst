@@ -88,6 +88,9 @@ Bugs fixed
   CPython with a live exception set.  This triggered incorrect behaviour
   and crashes, especially in CPython 3.7.
 
+* Some async helper functions were not defined in the generated C code when
+  compiling simple async code.  (Github issue #2075)
+
 * Line tracing did not include generators and coroutines.
   (Github issue #1949)
 
