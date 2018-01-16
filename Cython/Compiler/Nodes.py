@@ -4232,6 +4232,9 @@ class GeneratorBodyDefNode(DefNode):
         # on normal generator termination, we do not take the exception propagation
         # path: no traceback info is required and not creating it is much faster
         if not self.is_inlined and not self.body.is_terminator:
+            if self.is_async_gen_body:
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("StopAsyncIteration", "Coroutine.c"))
             code.putln('PyErr_SetNone(%s);' % (
                 '__Pyx_PyExc_StopAsyncIteration' if self.is_async_gen_body else 'PyExc_StopIteration'))
         # ----- Error cleanup
@@ -5918,6 +5921,8 @@ class ReturnStatNode(StatNode):
             if self.return_type.is_pyobject:
                 if self.in_generator:
                     if self.in_async_gen:
+                        code.globalstate.use_utility_code(
+                            UtilityCode.load_cached("StopAsyncIteration", "Coroutine.c"))
                         code.put("PyErr_SetNone(__Pyx_PyExc_StopAsyncIteration); ")
                     code.putln("%s = NULL;" % Naming.retval_cname)
                 else:

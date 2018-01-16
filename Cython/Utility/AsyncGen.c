@@ -102,6 +102,7 @@ static int __Pyx_async_gen_init_hooks(__pyx_PyAsyncGenObject *o) {
 //////////////////// AsyncGenerator ////////////////////
 //@requires: AsyncGeneratorInitFinalizer
 //@requires: Coroutine.c::Coroutine
+//@requires: Coroutine.c::ReturnWithStopIteration
 //@requires: ObjectHandling.c::PyObjectCallMethod1
 
 
