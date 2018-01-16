@@ -554,43 +554,67 @@ contructors, this necessitates the use of factory functions. For example, ::
     cdef class WrapperClass:
         """A wrapper class for a C/C++ data structure"""
         cdef my_c_struct *_ptr
+        cdef bint ptr_owner
 
         def __cinit__(self):
             # On cinit, do not create new structure but set pointer to NULL
             self._ptr = NULL
+            self.ptr_owner = True
 
         def __dealloc__(self):
-            # De-allocate if we have a non-null pointer
-            if self._ptr is not NULL:
+            # De-allocate if not null and flag is set
+            if self._ptr is not NULL and self.ptr_owner is True:
                 free(self._ptr)
+                self._ptr = NULL
 
+        # Extension class properties
+        @property
+        def a(self):
+            return self._ptr.a if self._ptr is not NULL else None
 
-    cdef WrapperClass PyWrapperClass(my_c_struct *_ptr):
-        """Factory function to create WrapperClass objects from
-        given my_c_struct pointer"""
-        # Call to __new__ bypasses __init__ constructor
-        cdef WrapperClass wrapper = WrapperClass.__new__(WrapperClass)
-        wrapper._ptr = _ptr
-        return wrapper
+        @property
+        def b(self):
+            return self._ptr.b if self._ptr is not NULL else None
 
+        @staticmethod
+        cdef WrapperClass from_ptr(my_c_struct *_ptr):
+            """Factory function to create WrapperClass objects from
+            given my_c_struct pointer"""
+            # Call to __new__ bypasses __init__ constructor
+            cdef WrapperClass wrapper = WrapperClass.__new__(WrapperClass)
+            wrapper._ptr = _ptr
+            return wrapper
 
-    cdef WrapperClass PyNewWrapperClass():
-        """Factory function to create WrapperClass objects with
-        newly allocated my_c_struct"""
-        cdef my_c_struct *_ptr = <my_c_struct *>malloc(sizeof(my_c_struct))
-        return PyWrapperClass(_ptr)
+        @staticmethod
+        cdef WrapperClass new_struct():
+            """Factory function to create WrapperClass objects with
+            newly allocated my_c_struct"""
+            cdef my_c_struct *_ptr = <my_c_struct *>malloc(sizeof(my_c_struct))
+            if _ptr is NULL:
+                raise MemoryError
+            _ptr.a = 0
+            _ptr.b = 0
+            return WrapperClass.from_ptr(_ptr)
 
 
 To then create a ``WrapperClass`` object from an existing ``my_c_struct``
-pointer, ``PyWrapperClass(ptr)`` can be used. It is possible to create multiple
-python objects all from the same C pointer which point to the same in-memory
-data, if that is wanted, though care must be taken when de-allocating as can
-be seen above with the non-null check. The gil must *not* be released either,
-or another lock used if it is, in such cases or race conditions can occur
-with multiple de-allocations.
+pointer, ``WrapperClass.from_ptr(ptr)`` can be used in Cython code. To allocate
+a new structure and wrap it at same time, ``WrapperClass.new_struct`` can be
+used instead.
 
-Attempts to accept ``my_c_struct`` pointers in ``__cinit__`` will result
-in errors like::
+It is possible to create multiple Python objects all from the same pointer
+which point to the same in-memory data, if that is wanted, though care must be
+taken when de-allocating as can be seen above.
+Additionally, the ``ptr_owner`` flag can be used to control which
+``WrapperClass`` object owns the pointer and is responsible for de-allocation -
+this is set to ``True`` by default in the example.
+
+The GIL must *not* be released in ``__dealloc__`` either, or another lock used
+if it is, in such cases or race conditions can occur with multiple
+de-allocations.
+
+Attempts to accept ``my_c_struct`` pointers in ``__cinit__`` will result in
+errors like::
 
   Cannot convert 'my_c_struct *' to Python object
 
