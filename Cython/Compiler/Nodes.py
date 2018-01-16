@@ -3190,7 +3190,10 @@ class DefNode(FuncDefNode):
             arg_code_list.append(arg_decl_code(self.star_arg))
         if self.starstar_arg:
             arg_code_list.append(arg_decl_code(self.starstar_arg))
-        arg_code = ', '.join(arg_code_list)
+        if arg_code_list:
+            arg_code = ', '.join(arg_code_list)
+        else:
+            arg_code = 'void'  # No arguments
         dc = self.return_type.declaration_code(self.entry.pyfunc_cname)
 
         decls_code = code.globalstate['decls']
