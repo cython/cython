@@ -88,6 +88,10 @@ Bugs fixed
   CPython with a live exception set.  This triggered incorrect behaviour
   and crashes, especially in CPython 3.7.
 
+* The signature of the special ``__richcmp__()`` method was corrected to recognise
+  the type of the first argument as ``self``.  It was previously treated as plain
+  object, but CPython actually guarantees that it always has the correct type.
+
 * Some async helper functions were not defined in the generated C code when
   compiling simple async code.  (Github issue #2075)
 
