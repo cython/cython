@@ -482,21 +482,22 @@ class UtilityCode(UtilityCodeBase):
     def inject_string_constants(self, impl, output):
         """Replace 'PYIDENT("xyz")' by a constant Python identifier cname.
         """
-        if 'PYIDENT(' not in impl:
+        if 'PYIDENT(' not in impl and 'PYUNICODE(' not in impl:
             return False, impl
 
         replacements = {}
         def externalise(matchobj):
-            name = matchobj.group(1)
+            key = matchobj.groups()
             try:
-                cname = replacements[name]
+                cname = replacements[key]
             except KeyError:
-                cname = replacements[name] = output.get_interned_identifier(
-                    StringEncoding.EncodedString(name)).cname
+                str_type, name = key
+                cname = replacements[key] = output.get_py_string_const(
+                        StringEncoding.EncodedString(name), identifier=str_type == 'IDENT').cname
             return cname
 
-        impl = re.sub(r'PYIDENT\("([^"]+)"\)', externalise, impl)
-        assert 'PYIDENT(' not in impl
+        impl = re.sub(r'PY(IDENT|UNICODE)\("([^"]+)"\)', externalise, impl)
+        assert 'PYIDENT(' not in impl and 'PYUNICODE(' not in impl
         return bool(replacements), impl
 
     def inject_unbound_methods(self, impl, output):

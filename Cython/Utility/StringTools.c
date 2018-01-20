@@ -1136,3 +1136,27 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FormatAndDecref(PyObject* s, PyObj
     Py_DECREF(s);
     return result;
 }
+
+
+//////////////////// PyUnicode_Unicode.proto ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Unicode(PyObject *obj);/*proto*/
+
+//////////////////// PyUnicode_Unicode ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyUnicode_Unicode(PyObject *obj) {
+    if (unlikely(obj == Py_None))
+        obj = PYUNICODE("None");
+    return __Pyx_NewRef(obj);
+}
+
+
+//////////////////// PyObject_Unicode.proto ////////////////////
+
+#if PY_MAJOR_VERSION >= 3
+#define __Pyx_PyObject_Unicode(obj) \
+    (likely(PyUnicode_CheckExact(obj)) ? __Pyx_NewRef(obj) : PyObject_Str(obj))
+#else
+#define __Pyx_PyObject_Unicode(obj) \
+    (likely(PyUnicode_CheckExact(obj)) ? __Pyx_NewRef(obj) : PyObject_Unicode(obj))
+#endif
