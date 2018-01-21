@@ -5879,19 +5879,23 @@ class ReturnStatNode(StatNode):
         if not self.return_type:
             # error reported earlier
             return
-        if self.return_type.is_pyobject:
-            code.put_xdecref(Naming.retval_cname,
-                             self.return_type)
 
-        if self.value:
-            self.value.generate_evaluation_code(code)
+        value = self.value
+        if self.return_type.is_pyobject:
+            code.put_xdecref(Naming.retval_cname, self.return_type)
+            if value and value.is_none:
+                # Use specialised default handling for "return None".
+                value = None
+
+        if value:
+            value.generate_evaluation_code(code)
             if self.return_type.is_memoryviewslice:
                 from . import MemoryView
                 MemoryView.put_acquire_memoryviewslice(
                     lhs_cname=Naming.retval_cname,
                     lhs_type=self.return_type,
-                    lhs_pos=self.value.pos,
-                    rhs=self.value,
+                    lhs_pos=value.pos,
+                    rhs=value,
                     code=code,
                     have_gil=self.in_nogil_context)
             elif self.in_generator:
@@ -5900,15 +5904,15 @@ class ReturnStatNode(StatNode):
                     UtilityCode.load_cached("ReturnWithStopIteration", "Coroutine.c"))
                 code.putln("%s = NULL; __Pyx_ReturnWithStopIteration(%s);" % (
                     Naming.retval_cname,
-                    self.value.py_result()))
-                self.value.generate_disposal_code(code)
+                    value.py_result()))
+                value.generate_disposal_code(code)
             else:
-                self.value.make_owned_reference(code)
+                value.make_owned_reference(code)
                 code.putln("%s = %s;" % (
                     Naming.retval_cname,
-                    self.value.result_as(self.return_type)))
-            self.value.generate_post_assignment_code(code)
-            self.value.free_temps(code)
+                    value.result_as(self.return_type)))
+            value.generate_post_assignment_code(code)
+            value.free_temps(code)
         else:
             if self.return_type.is_pyobject:
                 if self.in_generator:
