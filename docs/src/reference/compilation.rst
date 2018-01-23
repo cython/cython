@@ -588,6 +588,37 @@ Configurable optimisations
     completely wrong.
     Disabling this option can also reduce the code size.  Default is True.
 
+Warnings
+--------
+
+All warning directives take True / False as options
+to turn the warning on / off.
+
+``warn.undeclared`` (default False)
+    Warns about any variables that are implicitly declared without a ``cdef`` declaration
+
+``warn.unreachable`` (default True)
+    Warns about code paths that are statically determined to be unreachable, e.g.
+    returning twice unconditionally.
+
+``warn.maybe_uninitialized`` (default False)
+    Warns about use of variables that are conditionally uninitialized.
+
+``warn.unused`` (default False)
+    Warns about unused variables and declarations
+
+``warn.unused_arg`` (default False)
+    Warns about unused function arguments
+
+``warn.unused_result`` (default False)
+    Warns about unused assignment to the same name, such as
+    ``r = 2; r = 1 + 2``
+
+``warn.multiple_declarators`` (default True)
+   Warns about multiple variables declared on the same line with at least one pointer type.
+   For example ``cdef double* a, b`` - which, as in C, declares ``a`` as a pointer, ``b`` as
+   a value type, but could be mininterpreted as declaring two pointers.
+
 
 How to set directives
 ---------------------
