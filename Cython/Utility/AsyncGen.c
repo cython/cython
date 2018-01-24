@@ -104,7 +104,7 @@ static int __Pyx_async_gen_init_hooks(__pyx_PyAsyncGenObject *o) {
 //@requires: Coroutine.c::Coroutine
 //@requires: Coroutine.c::ReturnWithStopIteration
 //@requires: ObjectHandling.c::PyObjectCallMethod1
-
+//@requires: ObjectHandling.c::PyObject_GenericGetAttrNoDict
 
 PyDoc_STRVAR(__Pyx_async_gen_send_doc,
 "send(arg) -> send 'arg' into generator,\n\
@@ -1041,10 +1041,10 @@ __Pyx_async_gen_athrow_new(__pyx_PyAsyncGenObject *gen, PyObject *args)
 
 static int __pyx_AsyncGen_init(void) {
     // on Windows, C-API functions can't be used in slots statically
-    __pyx_AsyncGenType_type.tp_getattro = PyObject_GenericGetAttr;
-    __pyx__PyAsyncGenWrappedValueType_type.tp_getattro = PyObject_GenericGetAttr;
-    __pyx__PyAsyncGenAThrowType_type.tp_getattro = PyObject_GenericGetAttr;
-    __pyx__PyAsyncGenASendType_type.tp_getattro = PyObject_GenericGetAttr;
+    __pyx_AsyncGenType_type.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
+    __pyx__PyAsyncGenWrappedValueType_type.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
+    __pyx__PyAsyncGenAThrowType_type.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
+    __pyx__PyAsyncGenASendType_type.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
 
     __pyx_AsyncGenType = __Pyx_FetchCommonType(&__pyx_AsyncGenType_type);
     if (unlikely(!__pyx_AsyncGenType))

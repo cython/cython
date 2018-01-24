@@ -1226,7 +1226,82 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_LookupSpecial(PyObject* obj, PyObj
 #define __Pyx_PyObject_LookupSpecial(o,n) __Pyx_PyObject_GetAttrStr(o,n)
 #endif
 
-/////////////// PyObjectGetAttrStr.proto ///////////////
+
+/////////////// PyObject_GenericGetAttrNoDict.proto ///////////////
+
+#if CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP
+static PyObject* __Pyx_PyObject_GenericGetAttrNoDict(PyObject* obj, PyObject* attr_name);
+#else
+// No-args macro to allow function pointer assignment.
+#define __Pyx_PyObject_GenericGetAttrNoDict PyObject_GenericGetAttr
+#endif
+
+/////////////// PyObject_GenericGetAttrNoDict ///////////////
+
+#if CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP
+
+static PyObject *__Pyx_RaiseGenericAttributeError(PyTypeObject *tp, PyObject *attr_name) {
+    PyErr_Format(PyExc_AttributeError,
+#if PY_MAJOR_VERSION >= 3
+                 "'%.50s' object has no attribute '%U'",
+                 tp->tp_name, attr_name);
+#else
+                 "'%.50s' object has no attribute '%.400s'",
+                 tp->tp_name, PyString_AS_STRING(attr_name));
+#endif
+    return NULL;
+}
+
+static PyObject* __Pyx_PyObject_GenericGetAttrNoDict(PyObject* obj, PyObject* attr_name) {
+    // Copied and adapted from _PyObject_GenericGetAttrWithDict() in CPython 2.6/3.7.
+    // To be used in the "tp_getattro" slot of extension types that have no instance dict and cannot be subclassed.
+    PyObject *descr, *res;
+    PyTypeObject *tp = Py_TYPE(obj);
+    descrgetfunc f = NULL;
+
+    if (unlikely(!PyString_Check(attr_name))) {
+        return PyObject_GenericGetAttr(obj, attr_name);
+    }
+
+    assert(!tp->tp_dictoffset);
+    descr = _PyType_Lookup(tp, attr_name);
+    if (descr
+        #if PY_MAJOR_VERSION < 3
+            && likely(PyType_HasFeature(Py_TYPE(descr), Py_TPFLAGS_HAVE_CLASS))
+        #endif
+            ) {
+        f = Py_TYPE(descr)->tp_descr_get;
+        // Optimise for the non-descriptor case because it is faster.
+        if (unlikely(f)) {
+            Py_INCREF(descr);
+            res = f(descr, obj, (PyObject *)tp);
+            Py_DECREF(descr);
+            goto done;
+        }
+    }
+    if (likely(descr)) {
+        Py_INCREF(descr);
+        res = descr;
+        goto done;
+    }
+
+    return __Pyx_RaiseGenericAttributeError(tp, attr_name);
+done:
+    return res;
+}
+// CYTHON_USE_PYTYPE_LOOKUP
+#endif
+
+
+////////////// PyObjectGetAttrStr.proto ///////////////
+
+#if CYTHON_USE_TYPE_SLOTS
+static CYTHON_INLINE PyObject* __Pyx_PyObject_GetAttrStr(PyObject* obj, PyObject* attr_name);/*proto*/
+#else
+#define __Pyx_PyObject_GetAttrStr(o,n) PyObject_GetAttr(o,n)
+#endif
+
+/////////////// PyObjectGetAttrStr ///////////////
 
 #if CYTHON_USE_TYPE_SLOTS
 static CYTHON_INLINE PyObject* __Pyx_PyObject_GetAttrStr(PyObject* obj, PyObject* attr_name) {
@@ -1239,14 +1314,22 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_GetAttrStr(PyObject* obj, PyObject
 #endif
     return PyObject_GetAttr(obj, attr_name);
 }
-#else
-#define __Pyx_PyObject_GetAttrStr(o,n) PyObject_GetAttr(o,n)
 #endif
+
 
 /////////////// PyObjectSetAttrStr.proto ///////////////
 
 #if CYTHON_USE_TYPE_SLOTS
-#define __Pyx_PyObject_DelAttrStr(o,n) __Pyx_PyObject_SetAttrStr(o,n,NULL)
+#define __Pyx_PyObject_DelAttrStr(o,n) __Pyx_PyObject_SetAttrStr(o, n, NULL)
+static CYTHON_INLINE int __Pyx_PyObject_SetAttrStr(PyObject* obj, PyObject* attr_name, PyObject* value);/*proto*/
+#else
+#define __Pyx_PyObject_DelAttrStr(o,n)   PyObject_DelAttr(o,n)
+#define __Pyx_PyObject_SetAttrStr(o,n,v) PyObject_SetAttr(o,n,v)
+#endif
+
+/////////////// PyObjectSetAttrStr ///////////////
+
+#if CYTHON_USE_TYPE_SLOTS
 static CYTHON_INLINE int __Pyx_PyObject_SetAttrStr(PyObject* obj, PyObject* attr_name, PyObject* value) {
     PyTypeObject* tp = Py_TYPE(obj);
     if (likely(tp->tp_setattro))
@@ -1257,9 +1340,6 @@ static CYTHON_INLINE int __Pyx_PyObject_SetAttrStr(PyObject* obj, PyObject* attr
 #endif
     return PyObject_SetAttr(obj, attr_name, value);
 }
-#else
-#define __Pyx_PyObject_DelAttrStr(o,n)   PyObject_DelAttr(o,n)
-#define __Pyx_PyObject_SetAttrStr(o,n,v) PyObject_SetAttr(o,n,v)
 #endif
 
 
