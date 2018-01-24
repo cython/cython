@@ -1293,43 +1293,6 @@ done:
 #endif
 
 
-/////////////// PyObjectGetDict.proto ///////////////
-
-// Doesn't actually depend on CYTHON_USE_PYTYPE_LOOKUP, but all usages currently have that constraint.
-#if CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP
-static PyObject* __Pyx_PyObject_GetDict(PyTypeObject* tp, PyObject *obj);
-#endif
-
-/////////////// PyObjectGetDict ///////////////
-
-#if CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP
-static PyObject* __Pyx_PyObject_GetDict(PyTypeObject* tp, PyObject *obj) {
-    // Copied from _PyObject_GetDictPtr() in CPython.
-    Py_ssize_t dictoffset = tp->tp_dictoffset;
-    if (dictoffset != 0) {
-        PyObject **dictptr;
-        if (unlikely(dictoffset < 0)) {
-            Py_ssize_t tsize;
-            size_t size;
-
-            tsize = ((PyVarObject *)obj)->ob_size;
-            if (tsize < 0)
-                tsize = -tsize;
-            size = _PyObject_VAR_SIZE(tp, tsize);
-            assert(size <= PY_SSIZE_T_MAX);
-
-            dictoffset += (Py_ssize_t)size;
-            assert(dictoffset > 0);
-            // assert(dictoffset % SIZEOF_VOID_P == 0);
-        }
-        dictptr = (PyObject **) ((char *)obj + dictoffset);
-        return *dictptr;
-    }
-    return NULL;
-}
-#endif
-
-
 /////////////// PyObject_GenericGetAttr.proto ///////////////
 
 #if CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP
@@ -1340,68 +1303,15 @@ static PyObject* __Pyx_PyObject_GenericGetAttr(PyObject* obj, PyObject* attr_nam
 #endif
 
 /////////////// PyObject_GenericGetAttr ///////////////
-//@requires: PyObjectGetDict
 //@requires: PyObject_GenericGetAttrNoDict
 
 #if CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP
 static PyObject* __Pyx_PyObject_GenericGetAttr(PyObject* obj, PyObject* attr_name) {
-    // Copied and adapted from _PyObject_GenericGetAttrWithDict() in CPython 2.6/3.7.
-    // To be used in the "tp_getattro" slot of extension types that have no instance dict can get one by subclassing.
-    PyObject *descr, *res;
-    PyTypeObject *tp = Py_TYPE(obj);
-    descrgetfunc f = NULL;
-
-    if (likely(!tp->tp_dictoffset)) {
-        return __Pyx_PyObject_GenericGetAttrNoDict(obj, attr_name);
-    }
-
-    if (unlikely(!PyString_CheckExact(attr_name))) {
+    if (unlikely(Py_TYPE(obj)->tp_dictoffset)) {
         return PyObject_GenericGetAttr(obj, attr_name);
     }
-
-    descr = _PyType_Lookup(tp, attr_name);
-    if (descr
-        #if PY_MAJOR_VERSION < 3
-            && likely(PyType_HasFeature(Py_TYPE(descr), Py_TPFLAGS_HAVE_CLASS))
-        #endif
-            ) {
-        f = Py_TYPE(descr)->tp_descr_get;
-        // Writable properties are less common than dict attributes and methods.
-        if (f && unlikely(PyDescr_IsData(descr))) {
-            Py_INCREF(descr);
-            res = f(descr, obj, (PyObject *)tp);
-            Py_DECREF(descr);
-            goto done;
-        }
-    }
-    {
-        PyObject *dict = __Pyx_PyObject_GetDict(tp, obj);
-        if (dict) {
-            Py_INCREF(dict);
-            res = PyDict_GetItem(dict, attr_name);
-            if (res) {
-                Py_INCREF(res);
-                Py_DECREF(dict);
-                goto done;
-            }
-            Py_DECREF(dict);
-        }
-    }
-    if (likely(descr)) {
-        Py_INCREF(descr);
-        res = descr;
-        if (f) {
-            res = f(descr, obj, (PyObject*)tp);
-            Py_DECREF(descr);
-        }
-        goto done;
-    }
-
-    return __Pyx_RaiseGenericAttributeError(tp, attr_name);
-done:
-    return res;
+    return __Pyx_PyObject_GenericGetAttrNoDict(obj, attr_name);
 }
-// CYTHON_USE_PYTYPE_LOOKUP
 #endif
 
 
