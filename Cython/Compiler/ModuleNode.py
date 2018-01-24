@@ -1880,16 +1880,19 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # If that raises an AttributeError, call the __getattr__ if defined.
         #
         # In both cases, defined can be in this class, or any base class.
-        def lookup_here_or_base(n, type=None):
+        def lookup_here_or_base(n, tp=None, extern_return=None):
             # Recursive lookup
-            if type is None:
-                type = scope.parent_type
-            r = type.scope.lookup_here(n)
-            if r is None and \
-               type.base_type is not None:
-                return lookup_here_or_base(n, type.base_type)
-            else:
-                return r
+            if tp is None:
+                tp = scope.parent_type
+            r = tp.scope.lookup_here(n)
+            if r is None:
+                if tp.is_external and extern_return is not None:
+                    return extern_return
+                if tp.base_type is not None:
+                    return lookup_here_or_base(n, tp.base_type)
+            return r
+
+        has_instance_dict = lookup_here_or_base("__dict__", extern_return="extern")
         getattr_entry = lookup_here_or_base("__getattr__")
         getattribute_entry = lookup_here_or_base("__getattribute__")
         code.putln("")
@@ -1901,8 +1904,20 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "PyObject *v = %s(o, n);" % (
                     getattribute_entry.func_cname))
         else:
+            if not has_instance_dict and scope.parent_type.is_final_type:
+                # Final with no dict => use faster type attribute lookup.
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("PyObject_GenericGetAttrNoDict", "ObjectHandling.c"))
+                generic_getattr_cfunc = "__Pyx_PyObject_GenericGetAttrNoDict"
+            elif not has_instance_dict or has_instance_dict == "extern":
+                # No dict in the known ancestors, but don't know about extern ancestors or subtypes.
+                code.globalstate.use_utility_code(
+                    UtilityCode.load_cached("PyObject_GenericGetAttr", "ObjectHandling.c"))
+                generic_getattr_cfunc = "__Pyx_PyObject_GenericGetAttr"
+            else:
+                generic_getattr_cfunc = "PyObject_GenericGetAttr"
             code.putln(
-                "PyObject *v = PyObject_GenericGetAttr(o, n);")
+                "PyObject *v = %s(o, n);" % generic_getattr_cfunc)
         if getattr_entry is not None:
             code.putln(
                 "if (!v && PyErr_ExceptionMatches(PyExc_AttributeError)) {")
