@@ -1240,7 +1240,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_GenericGetAttrNoDict(PyObject* obj
 
 #if CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP
 
-static PyObject *__Pyx_RaiseGenericAttributeError(PyTypeObject *tp, PyObject *attr_name) {
+static PyObject *__Pyx_RaiseGenericGetAttributeError(PyTypeObject *tp, PyObject *attr_name) {
     PyErr_Format(PyExc_AttributeError,
 #if PY_MAJOR_VERSION >= 3
                  "'%.50s' object has no attribute '%U'",
@@ -1265,7 +1265,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_GenericGetAttrNoDict(PyObject* obj
     assert(!tp->tp_dictoffset);
     descr = _PyType_Lookup(tp, attr_name);
     if (unlikely(!descr)) {
-        return __Pyx_RaiseGenericAttributeError(tp, attr_name);
+        return __Pyx_RaiseGenericGetAttributeError(tp, attr_name);
     }
 
     Py_INCREF(descr);
