@@ -23,7 +23,17 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         Py_ssize_t i, n = PyTuple_GET_SIZE(bases);
         for (i = 1; i < n; i++)  /* Skip first base */
         {
-            PyTypeObject *b = (PyTypeObject*)PyTuple_GET_ITEM(bases, i);
+            PyObject *b0 = PyTuple_GET_ITEM(bases, i);
+#if PY_MAJOR_VERSION < 3
+            /* Disallow old-style classes */
+            if (PyClass_Check(b0))
+            {
+                PyErr_Format(PyExc_TypeError, "base class '%.200s' is an old-style class",
+                             PyString_AS_STRING(((PyClassObject*)b0)->cl_name));
+                return -1;
+            }
+#endif
+            PyTypeObject *b = (PyTypeObject*)b0;
             if (!PyType_HasFeature(b, Py_TPFLAGS_HEAPTYPE))
             {
                 PyErr_Format(PyExc_TypeError, "base class '%.200s' is not a heap type",
