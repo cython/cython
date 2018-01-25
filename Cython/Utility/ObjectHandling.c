@@ -1230,7 +1230,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_LookupSpecial(PyObject* obj, PyObj
 /////////////// PyObject_GenericGetAttrNoDict.proto ///////////////
 
 #if CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP
-static PyObject* __Pyx_PyObject_GenericGetAttrNoDict(PyObject* obj, PyObject* attr_name);
+static CYTHON_INLINE PyObject* __Pyx_PyObject_GenericGetAttrNoDict(PyObject* obj, PyObject* attr_name);
 #else
 // No-args macro to allow function pointer assignment.
 #define __Pyx_PyObject_GenericGetAttrNoDict PyObject_GenericGetAttr
@@ -1252,12 +1252,11 @@ static PyObject *__Pyx_RaiseGenericAttributeError(PyTypeObject *tp, PyObject *at
     return NULL;
 }
 
-static PyObject* __Pyx_PyObject_GenericGetAttrNoDict(PyObject* obj, PyObject* attr_name) {
+static CYTHON_INLINE PyObject* __Pyx_PyObject_GenericGetAttrNoDict(PyObject* obj, PyObject* attr_name) {
     // Copied and adapted from _PyObject_GenericGetAttrWithDict() in CPython 2.6/3.7.
     // To be used in the "tp_getattro" slot of extension types that have no instance dict and cannot be subclassed.
-    PyObject *descr, *res;
+    PyObject *descr;
     PyTypeObject *tp = Py_TYPE(obj);
-    descrgetfunc f = NULL;
 
     if (unlikely(!PyString_Check(attr_name))) {
         return PyObject_GenericGetAttr(obj, attr_name);
@@ -1265,29 +1264,25 @@ static PyObject* __Pyx_PyObject_GenericGetAttrNoDict(PyObject* obj, PyObject* at
 
     assert(!tp->tp_dictoffset);
     descr = _PyType_Lookup(tp, attr_name);
-    if (descr
-        #if PY_MAJOR_VERSION < 3
-            && likely(PyType_HasFeature(Py_TYPE(descr), Py_TPFLAGS_HAVE_CLASS))
-        #endif
-            ) {
-        f = Py_TYPE(descr)->tp_descr_get;
-        // Optimise for the non-descriptor case because it is faster.
-        if (unlikely(f)) {
-            Py_INCREF(descr);
-            res = f(descr, obj, (PyObject *)tp);
-            Py_DECREF(descr);
-            goto done;
-        }
-    }
-    if (likely(descr)) {
-        Py_INCREF(descr);
-        res = descr;
-        goto done;
+    if (unlikely(!descr)) {
+        return __Pyx_RaiseGenericAttributeError(tp, attr_name);
     }
 
-    return __Pyx_RaiseGenericAttributeError(tp, attr_name);
-done:
-    return res;
+    Py_INCREF(descr);
+
+    #if PY_MAJOR_VERSION < 3
+    if (likely(PyType_HasFeature(Py_TYPE(descr), Py_TPFLAGS_HAVE_CLASS)))
+    #endif
+    {
+        descrgetfunc f = Py_TYPE(descr)->tp_descr_get;
+        // Optimise for the non-descriptor case because it is faster.
+        if (unlikely(f)) {
+            PyObject *res = f(descr, obj, (PyObject *)tp);
+            Py_DECREF(descr);
+            return res;
+        }
+    }
+    return descr;
 }
 #endif
 
