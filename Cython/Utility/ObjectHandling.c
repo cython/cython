@@ -1289,7 +1289,6 @@ static PyObject* __Pyx_PyObject_GenericGetAttrNoDict(PyObject* obj, PyObject* at
 done:
     return res;
 }
-// CYTHON_USE_PYTYPE_LOOKUP
 #endif
 
 
