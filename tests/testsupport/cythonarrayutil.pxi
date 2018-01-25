@@ -3,7 +3,7 @@ cimport cython
 from cython.view cimport array
 
 cdef void callback(void *data):
-    print "callback called"
+    print("callback called")
     free(data)
 
 def create_array(shape, mode, use_callback=False):
