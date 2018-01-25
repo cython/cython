@@ -60,6 +60,8 @@ Features added
 
 * Name lookups in the module and in classes are faster.
 
+* Python attribute lookups on extension types without instance dict are faster.
+
 * Some missing signals were added to ``libc/signal.pxd``.
   Patch by Jeroen Demeyer.  (Github issue #1914)
 

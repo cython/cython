@@ -4840,6 +4840,26 @@ class CClassDefNode(ClassDefNode):
             # Don't inherit tp_print from builtin types, restoring the
             # behavior of using tp_repr or tp_str instead.
             code.putln("%s.tp_print = 0;" % typeobj_cname)
+
+            # Use specialised attribute lookup for types with generic lookup but no instance dict.
+            getattr_slot_func = TypeSlots.get_slot_code_by_name(scope, 'tp_getattro')
+            dictoffset_slot_func = TypeSlots.get_slot_code_by_name(scope, 'tp_dictoffset')
+            if getattr_slot_func == '0' and dictoffset_slot_func == '0':
+                if type.is_final_type:
+                    py_cfunc = "__Pyx_PyObject_GenericGetAttrNoDict"  # grepable
+                    utility_func = "PyObject_GenericGetAttrNoDict"
+                else:
+                    py_cfunc = "__Pyx_PyObject_GenericGetAttr"
+                    utility_func = "PyObject_GenericGetAttr"
+                code.globalstate.use_utility_code(UtilityCode.load_cached(utility_func, "ObjectHandling.c"))
+
+                code.putln("if ((CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP) &&"
+                           " likely(!%s.tp_dictoffset && %s.tp_getattro == PyObject_GenericGetAttr)) {" % (
+                    typeobj_cname, typeobj_cname))
+                code.putln("%s.tp_getattro = %s;" % (
+                    typeobj_cname, py_cfunc))
+                code.putln("}")
+
             # Fix special method docstrings. This is a bit of a hack, but
             # unless we let PyType_Ready create the slot wrappers we have
             # a significant performance hit. (See trac #561.)

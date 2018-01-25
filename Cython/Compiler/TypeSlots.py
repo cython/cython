@@ -612,6 +612,20 @@ def get_slot_function(scope, slot):
             return slot_code
     return None
 
+
+def get_slot_by_name(slot_name):
+    # For now, only search the type struct, no referenced sub-structs.
+    for slot in slot_table:
+        if slot.slot_name == slot_name:
+            return slot
+    assert False, "Slot not found: %s" % slot_name
+
+
+def get_slot_code_by_name(scope, slot_name):
+    slot = get_slot_by_name(slot_name)
+    return slot.slot_code(scope)
+
+
 #------------------------------------------------------------------------------------------
 #
 #  Signatures for generic Python functions and methods.
