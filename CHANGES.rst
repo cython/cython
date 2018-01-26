@@ -36,6 +36,8 @@ Features added
 * Iteration over sets and frozensets is optimised.
   (Github issue #2048)
 
+* Safe integer loops (< range(2^30)) are automatically optimised into C loops.
+
 * ``alist.extend([a,b,c])`` is optimised into sequential ``list.append()`` calls
   for short literal sequences.
 
@@ -45,11 +47,11 @@ Features added
 
 * Single argument function calls can avoid the argument tuple creation in some cases.
 
+* Formatting C enum values in f-strings is faster, as well as some other special cases.
+
 * Subscripting (item access) is faster in some cases.
 
 * Some ``bytearray`` operations have been optimised similar to ``bytes``.
-
-* Safe integer loops (< range(2^30)) are optimised into C loops.
 
 * Some PEP-484/526 container type declarations are now considered for
   loop optimisations.
