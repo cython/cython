@@ -5678,20 +5678,21 @@ class SimpleCallNode(CallNode):
         return True
 
     def generate_evaluation_code(self, code):
-        # Avoid tuple creation for Python calls with 0 or 1 args.
-        func_type = self.function_type()
-        if self.function.is_name or self.function.is_attribute:
-            code.globalstate.use_entry_utility_code(self.function.entry)
+        function = self.function
+        if function.is_name or function.is_attribute:
+            code.globalstate.use_entry_utility_code(function.entry)
 
-        if not func_type.is_pyobject or len(self.arg_tuple.args) > 1:
+        if not function.type.is_pyobject or len(self.arg_tuple.args) > 1 or (
+                self.arg_tuple.args and self.arg_tuple.is_literal):
             super(SimpleCallNode, self).generate_evaluation_code(code)
             return
 
-        function = self.function
-        function.generate_evaluation_code(code)
+        # Special case 0-args and try to avoid explicit tuple creation for Python calls with 1 arg.
         arg = self.arg_tuple.args[0] if self.arg_tuple.args else None
-        if arg is not None:
-            arg.generate_evaluation_code(code)
+        subexprs = (self.self, self.coerced_self, function, arg)
+        for subexpr in subexprs:
+            if subexpr is not None:
+                subexpr.generate_evaluation_code(code)
 
         code.mark_pos(self.pos)
         assert self.is_temp
@@ -5717,11 +5718,10 @@ class SimpleCallNode(CallNode):
 
         code.put_gotref(self.py_result())
 
-        function.generate_disposal_code(code)
-        function.free_temps(code)
-        if arg is not None:
-            arg.generate_disposal_code(code)
-            arg.free_temps(code)
+        for subexpr in subexprs:
+            if subexpr is not None:
+                subexpr.generate_disposal_code(code)
+                subexpr.free_temps(code)
 
     def generate_result_code(self, code):
         func_type = self.function_type()
