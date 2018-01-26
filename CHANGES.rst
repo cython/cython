@@ -43,6 +43,8 @@ Features added
   now use a cache that avoids repeated lookups of the underlying C function.
   (Github issue #2054)
 
+* Single argument function calls can avoid the argument tuple creation in some cases.
+
 * Subscripting (item access) is faster in some cases.
 
 * Some ``bytearray`` operations have been optimised similar to ``bytes``.

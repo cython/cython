@@ -5677,29 +5677,64 @@ class SimpleCallNode(CallNode):
             return False  # skip allocation of unused result temp
         return True
 
-    def generate_result_code(self, code):
+    def generate_evaluation_code(self, code):
+        # Avoid tuple creation for Python calls with 0 or 1 args.
         func_type = self.function_type()
         if self.function.is_name or self.function.is_attribute:
             code.globalstate.use_entry_utility_code(self.function.entry)
+
+        if not func_type.is_pyobject or len(self.arg_tuple.args) > 1:
+            super(SimpleCallNode, self).generate_evaluation_code(code)
+            return
+
+        function = self.function
+        function.generate_evaluation_code(code)
+        arg = self.arg_tuple.args[0] if self.arg_tuple.args else None
+        if arg is not None:
+            arg.generate_evaluation_code(code)
+
+        code.mark_pos(self.pos)
+        assert self.is_temp
+        self.allocate_temp_result(code)
+
+        if arg is None:
+            code.globalstate.use_utility_code(UtilityCode.load_cached(
+                "PyObjectCallNoArg", "ObjectHandling.c"))
+            code.putln(
+                "%s = __Pyx_PyObject_CallNoArg(%s); %s" % (
+                    self.result(),
+                    function.py_result(),
+                    code.error_goto_if_null(self.result(), self.pos)))
+        else:
+            code.globalstate.use_utility_code(UtilityCode.load_cached(
+                "PyObjectCallOneArg", "ObjectHandling.c"))
+            code.putln(
+                "%s = __Pyx_PyObject_CallOneArg(%s, %s); %s" % (
+                    self.result(),
+                    function.py_result(),
+                    arg.py_result(),
+                    code.error_goto_if_null(self.result(), self.pos)))
+
+        code.put_gotref(self.py_result())
+
+        function.generate_disposal_code(code)
+        function.free_temps(code)
+        if arg is not None:
+            arg.generate_disposal_code(code)
+            arg.free_temps(code)
+
+    def generate_result_code(self, code):
+        func_type = self.function_type()
         if func_type.is_pyobject:
-            if func_type is not type_type and not self.arg_tuple.args and self.arg_tuple.is_literal:
-                code.globalstate.use_utility_code(UtilityCode.load_cached(
-                    "PyObjectCallNoArg", "ObjectHandling.c"))
-                code.putln(
-                    "%s = __Pyx_PyObject_CallNoArg(%s); %s" % (
-                        self.result(),
-                        self.function.py_result(),
-                        code.error_goto_if_null(self.result(), self.pos)))
-            else:
-                arg_code = self.arg_tuple.py_result()
-                code.globalstate.use_utility_code(UtilityCode.load_cached(
-                    "PyObjectCall", "ObjectHandling.c"))
-                code.putln(
-                    "%s = __Pyx_PyObject_Call(%s, %s, NULL); %s" % (
-                        self.result(),
-                        self.function.py_result(),
-                        arg_code,
-                        code.error_goto_if_null(self.result(), self.pos)))
+            arg_code = self.arg_tuple.py_result()
+            code.globalstate.use_utility_code(UtilityCode.load_cached(
+                "PyObjectCall", "ObjectHandling.c"))
+            code.putln(
+                "%s = __Pyx_PyObject_Call(%s, %s, NULL); %s" % (
+                    self.result(),
+                    self.function.py_result(),
+                    arg_code,
+                    code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
         elif func_type.is_cfunction:
             if self.has_optional_args:
