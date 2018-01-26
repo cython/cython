@@ -431,3 +431,16 @@ def format_str(value):
     b = f'x{value!s:6}x'
     assert isinstance(b, unicode), type(b)
     return a, b
+
+
+@cython.test_fail_if_path_exists(
+    "//FormattedValueNode",  # bytes.decode() returns unicode => formatting is useless
+    "//JoinedStrNode",       # replaced by call to PyUnicode_Concat()
+    "//PythonCapiCallNode//PythonCapiCallNode",
+)
+def format_decoded_bytes(bytes value):
+    """
+    >>> print(format_decoded_bytes(b'xyz'))
+    U-xyz
+    """
+    return f"U-{value.decode('utf-8')}"

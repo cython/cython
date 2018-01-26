@@ -2337,6 +2337,18 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             utility_code=utility_code,
             py_name="unicode")
 
+    def visit_FormattedValueNode(self, node):
+        """Simplify or avoid plain string formatting of a unicode value.
+        This seems misplaced here, but plain unicode formatting is essentially
+        a call to the unicode() builtin, which is optimised right above.
+        """
+        self.visitchildren(node)
+        if node.value.type is Builtin.unicode_type and not node.c_format_spec and not node.format_spec:
+            if not node.conversion_char or node.conversion_char == 's':
+                # value is definitely a unicode string and we don't format it any special
+                return self._handle_simple_function_unicode(node, None, [node.value])
+        return node
+
     PyDict_Copy_func_type = PyrexTypes.CFuncType(
         Builtin.dict_type, [
             PyrexTypes.CFuncTypeArg("dict", Builtin.dict_type, None)
@@ -4584,6 +4596,7 @@ class FinalOptimizePhase(Visitor.CythonTransform, Visitor.NodeRefCleanupMixin):
         - eliminate None assignment and refcounting for first assignment.
         - isinstance -> typecheck for cdef types
         - eliminate checks for None and/or types that became redundant after tree changes
+        - eliminate useless string formatting steps
         - replace Python function calls that look like method calls by a faster PyMethodCallNode
     """
     def visit_SingleAssignmentNode(self, node):
@@ -4663,6 +4676,7 @@ class FinalOptimizePhase(Visitor.CythonTransform, Visitor.NodeRefCleanupMixin):
         if not node.arg.may_be_none():
             return node.arg
         return node
+
 
 class ConsolidateOverflowCheck(Visitor.CythonTransform):
     """
