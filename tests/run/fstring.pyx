@@ -79,6 +79,23 @@ def format2(ab, cd):
     return a, b, c
 
 
+ctypedef enum TestValues:
+    enum_ABC = 1
+    enum_XYZ = 2
+
+
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
+def format_c_enum():
+    """
+    >>> s = format_c_enum()
+    >>> s == '1-2' or s
+    True
+    """
+    return f"{enum_ABC}-{enum_XYZ}"
+
+
 def format_c_numbers(signed char c, short s, int n, long l, float f, double d):
     """
     >>> s1, s2, s3, s4 = format_c_numbers(123, 135, 12, 12312312, 2.3456, 3.1415926)
@@ -123,6 +140,9 @@ def format_c_numbers(signed char c, short s, int n, long l, float f, double d):
     return s1, s2, s3, s4
 
 
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
 def format_c_numbers_max(int n, long l):
     """
     >>> n, l = max_int, max_long
@@ -155,6 +175,9 @@ def format_c_number_const():
     return f"{LONG_MAX}"
 
 
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
 def format_c_number_range(int n):
     """
     >>> for i in range(-1000, 1001):
@@ -163,6 +186,9 @@ def format_c_number_range(int n):
     return f'{n}'
 
 
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
 def format_c_number_range_width(int n):
     """
     >>> for i in range(-1000, 1001):
@@ -183,6 +209,9 @@ def format_c_number_range_width0(int n):
     return f'{n:00}'
 
 
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
 def format_c_number_range_width1(int n):
     """
     >>> for i in range(-100, 101):
@@ -193,6 +222,9 @@ def format_c_number_range_width1(int n):
     return f'{n:01}'
 
 
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
 def format_c_number_range_width_m4(int n):
     """
     >>> for i in range(-100, 101):
@@ -215,6 +247,9 @@ def format_c_number_range_dyn_width(int n, int width):
     return f'{n:0{width}}'
 
 
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
 def format_bool(bint x):
     """
     >>> a, b, c, d = format_bool(1)

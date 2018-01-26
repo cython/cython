@@ -1730,20 +1730,36 @@ class ForbidUseClass:
 ForbidUse = ForbidUseClass()
 
 
-class CIntType(CNumericType):
-
-    is_int = 1
-    typedef_flag = 0
+class CIntLike(object):
+    """Mixin for shared behaviour of C integers and enums.
+    """
     to_py_function = None
     from_py_function = None
     to_pyunicode_utility = None
     default_format_spec = 'd'
-    exception_value = -1
 
     def can_coerce_to_pyobject(self, env):
         return True
 
     def can_coerce_from_pyobject(self, env):
+        return True
+
+    def create_to_py_utility_code(self, env):
+        if type(self).to_py_function is None:
+            self.to_py_function = "__Pyx_PyInt_From_" + self.specialization_name()
+            env.use_utility_code(TempitaUtilityCode.load_cached(
+                "CIntToPy", "TypeConversion.c",
+                context={"TYPE": self.empty_declaration_code(),
+                         "TO_PY_FUNCTION": self.to_py_function}))
+        return True
+
+    def create_from_py_utility_code(self, env):
+        if type(self).from_py_function is None:
+            self.from_py_function = "__Pyx_PyInt_As_" + self.specialization_name()
+            env.use_utility_code(TempitaUtilityCode.load_cached(
+                "CIntFromPy", "TypeConversion.c",
+                context={"TYPE": self.empty_declaration_code(),
+                         "FROM_PY_FUNCTION": self.from_py_function}))
         return True
 
     @staticmethod
@@ -1788,23 +1804,12 @@ class CIntType(CNumericType):
         format_type, width, padding_char = self._parse_format(format_spec)
         return "%s(%s, %d, '%s', '%s')" % (utility_code_name, cvalue, width, padding_char, format_type)
 
-    def create_to_py_utility_code(self, env):
-        if type(self).to_py_function is None:
-            self.to_py_function = "__Pyx_PyInt_From_" + self.specialization_name()
-            env.use_utility_code(TempitaUtilityCode.load_cached(
-                "CIntToPy", "TypeConversion.c",
-                context={"TYPE": self.empty_declaration_code(),
-                         "TO_PY_FUNCTION": self.to_py_function}))
-        return True
 
-    def create_from_py_utility_code(self, env):
-        if type(self).from_py_function is None:
-            self.from_py_function = "__Pyx_PyInt_As_" + self.specialization_name()
-            env.use_utility_code(TempitaUtilityCode.load_cached(
-                "CIntFromPy", "TypeConversion.c",
-                context={"TYPE": self.empty_declaration_code(),
-                         "FROM_PY_FUNCTION": self.from_py_function}))
-        return True
+class CIntType(CIntLike, CNumericType):
+
+    is_int = 1
+    typedef_flag = 0
+    exception_value = -1
 
     def get_to_py_type_conversion(self):
         if self.rank < list(rank_to_type_name).index('int'):
@@ -3804,7 +3809,7 @@ def is_optional_template_param(type):
     return isinstance(type, TemplatePlaceholderType) and type.optional
 
 
-class CEnumType(CType):
+class CEnumType(CIntLike, CType):
     #  name           string
     #  cname          string or None
     #  typedef_flag   boolean
@@ -3851,28 +3856,6 @@ class CEnumType(CType):
                 return CEnumType(
                     self.name, self.cname, self.typedef_flag, namespace)
         return self
-
-    def can_coerce_to_pyobject(self, env):
-        return True
-
-    def can_coerce_from_pyobject(self, env):
-        return True
-
-    def create_to_py_utility_code(self, env):
-        self.to_py_function = "__Pyx_PyInt_From_" + self.specialization_name()
-        env.use_utility_code(TempitaUtilityCode.load_cached(
-            "CIntToPy", "TypeConversion.c",
-            context={"TYPE": self.empty_declaration_code(),
-                     "TO_PY_FUNCTION": self.to_py_function}))
-        return True
-
-    def create_from_py_utility_code(self, env):
-        self.from_py_function = "__Pyx_PyInt_As_" + self.specialization_name()
-        env.use_utility_code(TempitaUtilityCode.load_cached(
-            "CIntFromPy", "TypeConversion.c",
-            context={"TYPE": self.empty_declaration_code(),
-                     "FROM_PY_FUNCTION": self.from_py_function}))
-        return True
 
     def from_py_call_code(self, source_code, result_code, error_pos, code,
                           from_py_function=None, error_condition=None):
