@@ -1379,7 +1379,7 @@ class ModuleScope(Scope):
         if is_cdef:
             entry.is_cglobal = 1
             if entry.type.is_pyobject:
-                entry.init = 0
+                entry.init = "0"
             self.var_entries.append(entry)
         else:
             entry.is_pyglobal = 1
