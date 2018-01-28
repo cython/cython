@@ -192,7 +192,8 @@ class PyrexType(BaseType):
     #  is_pythran_expr       boolean     Is Pythran expr
     #  is_numpy_buffer       boolean     Is Numpy array buffer
     #  has_attributes        boolean     Has C dot-selectable attributes
-    #  default_value         string      Initial value
+    #  default_value         string      Initial value that can be assigned before first user assignment.
+    #  declaration_value     string      The value statically assigned on declaration (if any).
     #  entry                 Entry       The Entry for this type
     #
     #  declaration_code(entity_code,
@@ -254,6 +255,7 @@ class PyrexType(BaseType):
     is_numpy_buffer = 0
     has_attributes = 0
     default_value = ""
+    declaration_value = ""
 
     def resolve(self):
         # If a typedef, returns the base type.
@@ -1083,6 +1085,7 @@ class PyObjectType(PyrexType):
     name = "object"
     is_pyobject = 1
     default_value = "0"
+    declaration_value = "0"
     buffer_defaults = None
     is_extern = False
     is_subclassed = False
@@ -2224,6 +2227,25 @@ complex_ops = {
     (2, '**'): 'pow',
     (2, '=='): 'eq',
 }
+
+
+class CPyTSSTType(CType):
+    #
+    #   PEP-539 "Py_tss_t" type
+    #
+
+    declaration_value = "Py_tss_NEEDS_INIT"
+
+    def __repr__(self):
+        return "<Py_tss_t>"
+
+    def declaration_code(self, entity_code,
+                         for_display=0, dll_linkage=None, pyrex=0):
+        if pyrex or for_display:
+            base_code = "Py_tss_t"
+        else:
+            base_code = public_decl("Py_tss_t", dll_linkage)
+        return self.base_declaration_code(base_code, entity_code)
 
 
 class CPointerBaseType(CType):
@@ -4088,6 +4110,9 @@ c_gilstate_type = CEnumType("PyGILState_STATE", "PyGILState_STATE", True)
 c_threadstate_type = CStructOrUnionType("PyThreadState", "struct", None, 1, "PyThreadState")
 c_threadstate_ptr_type = CPtrType(c_threadstate_type)
 
+# PEP-539 "Py_tss_t" type
+c_pytss_t_type = CPyTSSTType()
+
 # the Py_buffer type is defined in Builtin.py
 c_py_buffer_type = CStructOrUnionType("Py_buffer", "struct", None, 1, "Py_buffer")
 c_py_buffer_ptr_type = CPtrType(c_py_buffer_type)
@@ -4153,6 +4178,7 @@ modifiers_and_name_to_type = {
 
     #
     (1,  0, "void"): c_void_type,
+    (1,  0, "Py_tss_t"): c_pytss_t_type,
 
     (1,  0, "bint"):       c_bint_type,
     (0,  0, "Py_UNICODE"): c_py_unicode_type,

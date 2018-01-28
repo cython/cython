@@ -1378,8 +1378,8 @@ class ModuleScope(Scope):
                                   api=api, in_pxd=in_pxd, is_cdef=is_cdef)
         if is_cdef:
             entry.is_cglobal = 1
-            if entry.type.is_pyobject:
-                entry.init = "0"
+            if entry.type.declaration_value:
+                entry.init = entry.type.declaration_value
             self.var_entries.append(entry)
         else:
             entry.is_pyglobal = 1
@@ -1710,8 +1710,8 @@ class LocalScope(Scope):
         entry = Scope.declare_var(self, name, type, pos,
                                   cname=cname, visibility=visibility,
                                   api=api, in_pxd=in_pxd, is_cdef=is_cdef)
-        if type.is_pyobject:
-            entry.init = "0"
+        if entry.type.declaration_value:
+            entry.init = entry.type.declaration_value
         entry.is_local = 1
 
         entry.in_with_gil_block = self._in_with_gil_block

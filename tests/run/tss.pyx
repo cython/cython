@@ -3,16 +3,21 @@
 from cpython.pythread cimport *
 
 
+cdef Py_tss_t *pass_py_tss_t_ptr(Py_tss_t *value):
+    return value
+
+
 def tss_create_delete():
     """
     >>> tss_create_delete()
     (True, False)
     """
-    cdef Py_tss_t tss_key = Py_tss_NEEDS_INIT
+    cdef Py_tss_t tss_key
     cdef bint after_create, after_delete
     if PyThread_tss_create(&tss_key) != 0:
         raise MemoryError()
     after_create = PyThread_tss_is_created(&tss_key) != 0
+    assert after_create == PyThread_tss_is_created(pass_py_tss_t_ptr(&tss_key))
     PyThread_tss_delete(&tss_key)
     after_delete = PyThread_tss_is_created(&tss_key) != 0
     return (after_create, after_delete)
@@ -58,7 +63,7 @@ def tss_set_get():
     >>> tss_set_get()
     1
     """
-    cdef Py_tss_t tss_key = Py_tss_NEEDS_INIT
+    cdef Py_tss_t tss_key
     cdef int the_value = 1
     cdef int ret_value
     if PyThread_tss_create(&tss_key) != 0:

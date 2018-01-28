@@ -27,6 +27,10 @@ Features added
 * The new TSS C-API in CPython 3.7 is supported and has been backported.
   Patch by Naotoshi Seo.  (Github issue #1932)
 
+* Cython knows the new ``Py_tss_t`` type defined in PEP-539 and automatically
+  initialises variables declared with that type to ``Py_tss_NEEDS_INIT``,
+  a value which cannot be used outside of static assignments.
+
 * The set methods ``.remove()`` and ``.discard()`` are optimised.
   Patch by Antoine Pitrou.  (Github issue #2042)
 

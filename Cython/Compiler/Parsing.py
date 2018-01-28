@@ -2710,6 +2710,7 @@ special_basic_c_types = cython.declare(dict, {
     "ssize_t"    : (2, 0),
     "size_t"     : (0, 0),
     "ptrdiff_t"  : (2, 0),
+    "Py_tss_t"   : (1, 0),
 })
 
 sign_and_longness_words = cython.declare(

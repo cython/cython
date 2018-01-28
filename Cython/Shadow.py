@@ -385,7 +385,7 @@ py_complex = typedef(complex, "double complex")
 int_types = ['char', 'short', 'Py_UNICODE', 'int', 'Py_UCS4', 'long', 'longlong', 'Py_ssize_t', 'size_t']
 float_types = ['longdouble', 'double', 'float']
 complex_types = ['longdoublecomplex', 'doublecomplex', 'floatcomplex', 'complex']
-other_types = ['bint', 'void']
+other_types = ['bint', 'void', 'Py_tss_t']
 
 to_repr = {
     'longlong': 'long long',
@@ -420,13 +420,13 @@ for name in complex_types:
     gs[name] = typedef(py_complex, to_repr(name, name))
 
 bint = typedef(bool, "bint")
-void = typedef(int, "void")
+void = typedef(None, "void")
+Py_tss_t = typedef(None, "Py_tss_t")
 
 for t in int_types + float_types + complex_types + other_types:
     for i in range(1, 4):
         gs["%s_%s" % ('p'*i, t)] = gs[t]._pointer(i)
 
-void = typedef(None, "void")
 NULL = gs['p_void'](0)
 
 # looks like 'gs' has some users out there by now...

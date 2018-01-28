@@ -39,10 +39,9 @@ cdef extern from "pythread.h":
     # Cleanup after a fork
     void PyThread_ReInitTLS()
 
-    # Thread Specific Storage (TSS) API in CPython 3.7+
-    ctypedef struct Py_tss_t:
-        pass
-    Py_tss_t Py_tss_NEEDS_INIT
+    # Thread Specific Storage (TSS) API in CPython 3.7+ (also backported)
+    #ctypedef struct Py_tss_t: pass   # Cython built-in type
+    Py_tss_t Py_tss_NEEDS_INIT        # Not normally useful: Cython auto-initialises declared "Py_tss_t" variables.
     Py_tss_t * PyThread_tss_alloc()
     void PyThread_tss_free(Py_tss_t *key)
     int PyThread_tss_is_created(Py_tss_t *key)
