@@ -1064,13 +1064,13 @@ class CythonCompileTestCase(unittest.TestCase):
     def _match_output(self, expected_output, actual_output, write):
         try:
             for expected, actual in zip(expected_output, actual_output):
-                self.assertEquals(expected, actual)
+                self.assertEqual(expected, actual)
             if len(actual_output) < len(expected_output):
                 expected = expected_output[len(actual_output)]
-                self.assertEquals(expected, None)
+                self.assertEqual(expected, None)
             elif len(actual_output) > len(expected_output):
                 unexpected = actual_output[len(expected_output)]
-                self.assertEquals(None, unexpected)
+                self.assertEqual(None, unexpected)
         except AssertionError:
             write("\n=== Expected: ===\n")
             write('\n'.join(expected_output))
