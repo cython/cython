@@ -102,6 +102,9 @@ Bugs fixed
   the type of the first argument as ``self``.  It was previously treated as plain
   object, but CPython actually guarantees that it always has the correct type.
 
+* Some Python 3 exceptions were not recognised as builtins when running Cython
+  under Python 2.
+
 * Some async helper functions were not defined in the generated C code when
   compiling simple async code.  (Github issue #2075)
 
