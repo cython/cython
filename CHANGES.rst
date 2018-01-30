@@ -544,7 +544,8 @@ Features added
 * The new METH_FASTCALL calling convention for PyCFunctions is supported
   in CPython 3.6.  See https://bugs.python.org/issue27810
 
-* Initial support for using Cython modules in Pyston.  Patch by Daetalus.
+* Initial support for using Cython modules in Pyston.
+  Patch by Boxiang Sun.
 
 * Dynamic Python attributes are allowed on cdef classes if an attribute
   ``cdef dict __dict__`` is declared in the class.  Patch by empyrical.
