@@ -5403,11 +5403,13 @@ class SimpleCallNode(CallNode):
                 has_pythran_args &= is_pythran_supported_node_or_none(arg)
             self.is_numpy_call_with_exprs = bool(has_pythran_args)
         if self.is_numpy_call_with_exprs:
-            self.args = None
             env.add_include_file("pythonic/numpy/%s.hpp" % self.function.attribute)
-            self.type = PythranExpr(pythran_func_type(self.function.attribute, self.arg_tuple.args))
-            self.may_return_none = True
-            self.is_temp = 1
+            return NumPyMethodCallNode.from_node(
+                self,
+                function=self.function,
+                arg_tuple=self.arg_tuple,
+                type=PythranExpr(pythran_func_type(self.function.attribute, self.arg_tuple.args)),
+            )
         elif func_type.is_pyobject:
             self.arg_tuple = TupleNode(self.pos, args = self.args)
             self.arg_tuple = self.arg_tuple.analyse_types(env).coerce_to_pyobject(env)
@@ -5803,11 +5805,34 @@ class SimpleCallNode(CallNode):
             if self.has_optional_args:
                 code.funcstate.release_temp(self.opt_arg_struct)
 
-    @classmethod
-    def from_node(cls, node, **kwargs):
-        ret = super(SimpleCallNode, cls).from_node(node, **kwargs)
-        ret.is_numpy_call_with_exprs = node.is_numpy_call_with_exprs
-        return ret
+
+class NumPyMethodCallNode(SimpleCallNode):
+    # Pythran call to a NumPy function or method.
+    #
+    # function    ExprNode      the function/method to call
+    # arg_tuple   TupleNode     the arguments as an args tuple
+
+    subexprs = ['function', 'arg_tuple']
+    is_temp = True
+    may_return_none = True
+
+    def generate_evaluation_code(self, code):
+        code.mark_pos(self.pos)
+        self.allocate_temp_result(code)
+
+        self.function.generate_evaluation_code(code)
+        assert self.arg_tuple.mult_factor is None
+        args = self.arg_tuple.args
+        for arg in args:
+            arg.generate_evaluation_code(code)
+
+        code.putln("// function evaluation code for numpy function")
+        code.putln("__Pyx_call_destructor(%s);" % self.result())
+        code.putln("new (&%s) decltype(%s){pythonic::numpy::functor::%s{}(%s)};" % (
+            self.result(),
+            self.result(),
+            self.function.attribute,
+            ", ".join(a.pythran_result() for a in args)))
 
 
 class PyMethodCallNode(SimpleCallNode):
@@ -5829,16 +5854,6 @@ class PyMethodCallNode(SimpleCallNode):
         args = self.arg_tuple.args
         for arg in args:
             arg.generate_evaluation_code(code)
-
-        if self.is_numpy_call_with_exprs:
-            code.putln("// function evaluation code for numpy function")
-            code.putln("__Pyx_call_destructor(%s);" % self.result())
-            code.putln("new (&%s) decltype(%s){pythonic::numpy::functor::%s{}(%s)};" % (
-                self.result(),
-                self.result(),
-                self.function.attribute,
-                ", ".join(a.pythran_result() for a in self.arg_tuple.args)))
-            return
 
         # make sure function is in temp so that we can replace the reference below if it's a method
         reuse_function_temp = self.function.is_temp

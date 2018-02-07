@@ -4657,6 +4657,11 @@ class FinalOptimizePhase(Visitor.CythonTransform, Visitor.NodeRefCleanupMixin):
                         node, function=function, arg_tuple=node.arg_tuple, type=node.type))
         return node
 
+    def visit_NumPyMethodCallNode(self, node):
+        # Exclude from replacement above.
+        self.visitchildren(node)
+        return node
+
     def visit_PyTypeTestNode(self, node):
         """Remove tests for alternatively allowed None values from
         type tests when we know that the argument cannot be None
