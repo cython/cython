@@ -6184,9 +6184,13 @@ class IfStatNode(StatNode):
         code.mark_pos(self.pos)
         end_label = code.new_label()
         last = len(self.if_clauses)
-        if not self.else_clause:
+        if self.else_clause:
+            # If the 'else' clause is 'unlikely', then set the preceding 'if' clause to 'likely' to reflect that.
+            self._set_branch_hint(self.if_clauses[-1], self.else_clause, inverse=True)
+        else:
             last -= 1  # avoid redundant goto at end of last if-clause
         for i, if_clause in enumerate(self.if_clauses):
+            self._set_branch_hint(if_clause, if_clause.body)
             if_clause.generate_execution_code(code, end_label, is_last=i == last)
         if self.else_clause:
             code.mark_pos(self.else_clause.pos)
@@ -6194,6 +6198,21 @@ class IfStatNode(StatNode):
             self.else_clause.generate_execution_code(code)
             code.putln("}")
         code.put_label(end_label)
+
+    def _set_branch_hint(self, clause, statements_node, inverse=False):
+        if not statements_node.is_terminator:
+            return
+        if not isinstance(statements_node, StatListNode) or not statements_node.stats:
+            return
+        # Anything that unconditionally raises exceptions should be considered unlikely.
+        if isinstance(statements_node.stats[-1], (RaiseStatNode, ReraiseStatNode)):
+            if len(statements_node.stats) > 1:
+                # Allow simple statements before the 'raise', but no conditions, loops, etc.
+                non_branch_nodes = (ExprStatNode, AssignmentNode, DelStatNode, GlobalNode, NonlocalNode)
+                for node in statements_node.stats[:-1]:
+                    if not isinstance(node, non_branch_nodes):
+                        return
+            clause.branch_hint = 'likely' if inverse else 'unlikely'
 
     def generate_function_definitions(self, env, code):
         for clause in self.if_clauses:
@@ -6215,6 +6234,7 @@ class IfClauseNode(Node):
     #  body        StatNode
 
     child_attrs = ["condition", "body"]
+    branch_hint = None
 
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)
@@ -6227,7 +6247,10 @@ class IfClauseNode(Node):
     def generate_execution_code(self, code, end_label, is_last):
         self.condition.generate_evaluation_code(code)
         code.mark_pos(self.pos)
-        code.putln("if (%s) {" % self._add_branch_hint(self.condition.result()))
+        condition = self.condition.result()
+        if self.branch_hint:
+            condition = '%s(%s)' % (self.branch_hint, condition)
+        code.putln("if (%s) {" % condition)
         self.condition.generate_disposal_code(code)
         self.condition.free_temps(code)
         self.body.generate_execution_code(code)
@@ -6235,21 +6258,6 @@ class IfClauseNode(Node):
         if not (is_last or self.body.is_terminator):
             code.put_goto(end_label)
         code.putln("}")
-
-    def _add_branch_hint(self, condition):
-        # If this gets more complex, it should be moved either into IfStatNode or into a tree transform.
-        if not self.body.is_terminator or not isinstance(self.body, StatListNode) or not self.body.stats:
-            return condition
-        # Anything that unconditionally raises exceptions should be considered unlikely.
-        if isinstance(self.body.stats[-1], (RaiseStatNode, ReraiseStatNode)):
-            if len(self.body.stats) > 1:
-                # Allow simple statements before the 'raise', but no conditions, loops, etc.
-                non_branch_nodes = (ExprStatNode, AssignmentNode, DelStatNode, GlobalNode, NonlocalNode)
-                for node in self.body.stats[:-1]:
-                    if not isinstance(node, non_branch_nodes):
-                        return condition
-            return 'unlikely(%s)' % condition
-        return condition
 
     def generate_function_definitions(self, env, code):
         self.condition.generate_function_definitions(env, code)
