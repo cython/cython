@@ -50,3 +50,16 @@ def struct_methods(v):
         pack('i', v),
         local_pack('f', v),
     ]
+
+
+cdef class SelfCast:
+    """
+    >>> f = SelfCast()
+    >>> f.index_of_self([f])
+    0
+    >>> f.index_of_self([])  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ValueError...
+    """
+    def index_of_self(self, list orbit not None):
+        return orbit.index(self)

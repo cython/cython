@@ -1445,18 +1445,10 @@ bad:
 
 /////////////// CallUnboundCMethod1.proto ///////////////
 
-static PyObject* __Pyx__CallUnboundCMethod1(__Pyx_CachedCFunction* cfunc, PyObject* self, PyObject* arg); /*proto*/
+static PyObject* __Pyx__CallUnboundCMethod1(__Pyx_CachedCFunction* cfunc, PyObject* self, PyObject* arg);/*proto*/
 
 #if CYTHON_COMPILING_IN_CPYTHON
-#define __Pyx_CallUnboundCMethod1(cfunc, self, arg)  \
-    ((likely((cfunc)->func && (cfunc)->flag == METH_O)) ? (*((cfunc)->func))(self, arg) : \
-        ((PY_VERSION_HEX >= 0x030600B1 && (cfunc)->func && (cfunc)->flag == METH_FASTCALL) ? \
-                (PY_VERSION_HEX >= 0x030700A0 ? \
-                    (*(__Pyx_PyCFunctionFast)(cfunc)->func)(self, &arg, 1) : \
-                    (*(__Pyx_PyCFunctionFastWithKeywords)(cfunc)->func)(self, &arg, 1, NULL)) : \
-              (PY_VERSION_HEX >= 0x030700A0 && (cfunc)->func && (cfunc)->flag == (METH_FASTCALL | METH_KEYWORDS) ? \
-                    (*(__Pyx_PyCFunctionFastWithKeywords)(cfunc)->func)(self, &arg, 1, NULL) : \
-        __Pyx__CallUnboundCMethod1(cfunc, self, arg))))
+static CYTHON_INLINE PyObject* __Pyx_CallUnboundCMethod1(__Pyx_CachedCFunction* cfunc, PyObject* self, PyObject* arg);/*proto*/
 #else
 #define __Pyx_CallUnboundCMethod1(cfunc, self, arg)  __Pyx__CallUnboundCMethod1(cfunc, self, arg)
 #endif
@@ -1464,6 +1456,27 @@ static PyObject* __Pyx__CallUnboundCMethod1(__Pyx_CachedCFunction* cfunc, PyObje
 /////////////// CallUnboundCMethod1 ///////////////
 //@requires: UnpackUnboundCMethod
 //@requires: PyObjectCall
+
+#if CYTHON_COMPILING_IN_CPYTHON
+static CYTHON_INLINE PyObject* __Pyx_CallUnboundCMethod1(__Pyx_CachedCFunction* cfunc, PyObject* self, PyObject* arg) {
+    if (likely(cfunc->func)) {
+        int flag = cfunc->flag;
+        // Not using #ifdefs for PY_VERSION_HEX to avoid C compiler warnings about unused functions.
+        if (flag == METH_O) {
+            return (*(cfunc->func))(self, arg);
+        } else if (PY_VERSION_HEX >= 0x030600B1 && flag == METH_FASTCALL) {
+            if (PY_VERSION_HEX >= 0x030700A0) {
+                return (*(__Pyx_PyCFunctionFast)cfunc->func)(self, &arg, 1);
+            } else {
+                return (*(__Pyx_PyCFunctionFastWithKeywords)cfunc->func)(self, &arg, 1, NULL);
+            }
+        } else if (PY_VERSION_HEX >= 0x030700A0 && flag == (METH_FASTCALL | METH_KEYWORDS)) {
+            return (*(__Pyx_PyCFunctionFastWithKeywords)cfunc->func)(self, &arg, 1, NULL);
+        }
+    }
+    return __Pyx__CallUnboundCMethod1(cfunc, self, arg);
+}
+#endif
 
 static PyObject* __Pyx__CallUnboundCMethod1(__Pyx_CachedCFunction* cfunc, PyObject* self, PyObject* arg){
     PyObject *args, *result = NULL;
