@@ -51,6 +51,8 @@ Features added
 
 * Single argument function calls can avoid the argument tuple creation in some cases.
 
+* Some redundant extension type checks are avoided.
+
 * Formatting C enum values in f-strings is faster, as well as some other special cases.
 
 * Subscripting (item access) is faster in some cases.

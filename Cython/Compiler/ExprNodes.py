@@ -12894,6 +12894,15 @@ class PyTypeTestNode(CoercionNode):
     def nonlocally_immutable(self):
         return self.arg.nonlocally_immutable()
 
+    def reanalyse(self):
+        if self.type != self.arg.type or not self.arg.is_temp:
+            return self
+        if not self.type.typeobj_is_available():
+            return self
+        if self.arg.may_be_none() and self.notnone:
+            return self.arg.as_none_safe_node("Cannot convert NoneType to %.200s" % self.type.name)
+        return self.arg
+
     def calculate_constant_result(self):
         # FIXME
         pass

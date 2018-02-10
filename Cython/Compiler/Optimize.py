@@ -2024,16 +2024,11 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     """
     ### cleanup to avoid redundant coercions to/from Python types
 
-    def _visit_PyTypeTestNode(self, node):
-        # disabled - appears to break assignments in some cases, and
-        # also drops a None check, which might still be required
+    def visit_PyTypeTestNode(self, node):
         """Flatten redundant type checks after tree changes.
         """
-        old_arg = node.arg
         self.visitchildren(node)
-        if old_arg is node.arg or node.arg.type != node.type:
-            return node
-        return node.arg
+        return node.reanalyse()
 
     def _visit_TypecastNode(self, node):
         # disabled - the user may have had a reason to put a type
@@ -2804,7 +2799,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                     PyTypeObjectPtr = PyrexTypes.CPtrType(
                         cython_scope.lookup('PyTypeObject').type)
                     pyx_tp_new_kwargs_func_type = PyrexTypes.CFuncType(
-                        PyrexTypes.py_object_type, [
+                        ext_type, [
                             PyrexTypes.CFuncTypeArg("type",   PyTypeObjectPtr, None),
                             PyrexTypes.CFuncTypeArg("args",   PyrexTypes.py_object_type, None),
                             PyrexTypes.CFuncTypeArg("kwargs", PyrexTypes.py_object_type, None),
@@ -2817,6 +2812,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                         node.pos, slot_func_cname,
                         pyx_tp_new_kwargs_func_type,
                         args=[type_arg, args_tuple, kwargs],
+                        may_return_none=False,
                         is_temp=True)
         else:
             # arbitrary variable, needs a None check for safety
