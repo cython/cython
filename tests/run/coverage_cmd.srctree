@@ -2,7 +2,7 @@
 # tag: coverage,trace
 
 """
-PYTHON -c 'import shutil; shutil.copy("pkg/coverage_test_pyx.pyx", "pkg/coverage_test_pyx.pxi")'
+PYTHON -c "import shutil; shutil.copy('pkg/coverage_test_pyx.pyx', 'pkg/coverage_test_pyx.pxi')"
 PYTHON setup.py build_ext -i
 PYTHON -m coverage run coverage_test.py
 PYTHON collect_coverage.py

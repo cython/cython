@@ -49,7 +49,7 @@ s5:
 wheel_manylinux: wheel_manylinux64 wheel_manylinux32
 
 wheel_manylinux32 wheel_manylinux64: dist/Cython-$(VERSION).tar.gz
-	echo "Building wheels for Cython $VERSION"
+	echo "Building wheels for Cython $(VERSION)"
 	mkdir -p wheelhouse_$(subst wheel_,,$@)
 	time docker run --rm -t \
 		-v $(shell pwd):/io \

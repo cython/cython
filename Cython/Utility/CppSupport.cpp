@@ -50,7 +50,7 @@ static void __Pyx_CppExn2PyErr() {
 /////////////// PythranConversion.proto ///////////////
 
 template <class T>
-auto to_python_from_expr(T &&value) -> decltype(to_python(
+auto __Pyx_pythran_to_python(T &&value) -> decltype(to_python(
       typename pythonic::returnable<typename std::remove_cv<typename std::remove_reference<T>::type>::type>::type{std::forward<T>(value)}))
 {
   using returnable_type = typename pythonic::returnable<typename std::remove_cv<typename std::remove_reference<T>::type>::type>::type;

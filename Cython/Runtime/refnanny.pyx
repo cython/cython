@@ -1,4 +1,4 @@
-# cython: language_level=3
+# cython: language_level=3, auto_pickle=False
 
 from cpython.ref cimport PyObject, Py_INCREF, Py_DECREF, Py_XDECREF, Py_XINCREF
 from cpython.exc cimport PyErr_Fetch, PyErr_Restore

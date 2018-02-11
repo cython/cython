@@ -502,11 +502,11 @@ def install(pyximport=True, pyimport=False, build_dir=None, build_in_temp=True,
     ``build_in_temp=False`` will produce the C files locally. Working
     with complex dependencies and debugging becomes more easy. This
     can principally interfere with existing files of the same name.
-    build_in_temp can be overriden by <modulename>.pyxbld/make_setup_args()
+    build_in_temp can be overridden by <modulename>.pyxbld/make_setup_args()
     by a dict item of 'build_in_temp'
 
     ``setup_args``: dict of arguments for Distribution - see
-    distutils.core.setup() . They are extended/overriden by those of
+    distutils.core.setup() . They are extended/overridden by those of
     <modulename>.pyxbld/make_setup_args()
 
     ``reload_support``:  Enables support for dynamic

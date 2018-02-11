@@ -12,6 +12,7 @@ import sys
 from collections import defaultdict
 
 from coverage.plugin import CoveragePlugin, FileTracer, FileReporter  # requires coverage.py 4.0+
+from coverage.files import canonical_filename
 
 from .Utils import find_root_package_dir, is_package_dir, open_source_file
 
@@ -41,8 +42,8 @@ def _find_dep_file_path(main_file, file_path):
         for sys_path in sys.path:
             test_path = os.path.realpath(os.path.join(sys_path, file_path))
             if os.path.exists(test_path):
-                return test_path
-    return abs_path
+                return canonical_filename(test_path)
+    return canonical_filename(abs_path)
 
 
 class Plugin(CoveragePlugin):
@@ -63,7 +64,7 @@ class Plugin(CoveragePlugin):
         if filename.startswith('<') or filename.startswith('memory:'):
             return None
         c_file = py_file = None
-        filename = os.path.abspath(filename)
+        filename = canonical_filename(os.path.abspath(filename))
         if self._c_files_map and filename in self._c_files_map:
             c_file = self._c_files_map[filename][0]
 
@@ -91,7 +92,7 @@ class Plugin(CoveragePlugin):
         #    from coverage.python import PythonFileReporter
         #    return PythonFileReporter(filename)
 
-        filename = os.path.abspath(filename)
+        filename = canonical_filename(os.path.abspath(filename))
         if self._c_files_map and filename in self._c_files_map:
             c_file, rel_file_path, code = self._c_files_map[filename]
         else:
@@ -99,6 +100,8 @@ class Plugin(CoveragePlugin):
             if not c_file:
                 return None  # unknown file
             rel_file_path, code = self._parse_lines(c_file, filename)
+            if code is None:
+                return None  # no source found
         return CythonModuleReporter(c_file, filename, rel_file_path, code)
 
     def _find_source_files(self, filename):
@@ -106,8 +109,14 @@ class Plugin(CoveragePlugin):
         ext = ext.lower()
         if ext in ('.py', '.pyx', '.pxd', '.c', '.cpp'):
             pass
-        elif ext in ('.so', '.pyd'):
-            platform_suffix = re.search(r'[.]cpython-[0-9]+[a-z]*$', basename, re.I)
+        elif ext == '.pyd':
+            # Windows extension module
+            platform_suffix = re.search(r'[.]cp[0-9]+-win[_a-z0-9]*$', basename, re.I)
+            if platform_suffix:
+                basename = basename[:platform_suffix.start()]
+        elif ext == '.so':
+            # Linux/Unix/Mac extension module
+            platform_suffix = re.search(r'[.](?:cpython|pypy)-[0-9]+[-_a-z0-9]*$', basename, re.I)
             if platform_suffix:
                 basename = basename[:platform_suffix.start()]
         elif ext == '.pxi':

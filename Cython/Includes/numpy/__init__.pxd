@@ -90,6 +90,7 @@ cdef extern from "numpy/arrayobject.h":
         NPY_ANYORDER
         NPY_CORDER
         NPY_FORTRANORDER
+        NPY_KEEPORDER
 
     ctypedef enum NPY_CLIPMODE:
         NPY_CLIP
@@ -213,22 +214,15 @@ cdef extern from "numpy/arrayobject.h":
         # -- the details of this may change.
         def __getbuffer__(ndarray self, Py_buffer* info, int flags):
             # This implementation of getbuffer is geared towards Cython
-            # requirements, and does not yet fullfill the PEP.
+            # requirements, and does not yet fulfill the PEP.
             # In particular strided access is always provided regardless
             # of flags
 
-            if info == NULL: return
-
-            cdef int copy_shape, i, ndim
+            cdef int i, ndim
             cdef int endian_detector = 1
             cdef bint little_endian = ((<char*>&endian_detector)[0] != 0)
 
             ndim = PyArray_NDIM(self)
-
-            if sizeof(npy_intp) != sizeof(Py_ssize_t):
-                copy_shape = 1
-            else:
-                copy_shape = 0
 
             if ((flags & pybuf.PyBUF_C_CONTIGUOUS == pybuf.PyBUF_C_CONTIGUOUS)
                 and not PyArray_CHKFLAGS(self, NPY_C_CONTIGUOUS)):
@@ -240,7 +234,7 @@ cdef extern from "numpy/arrayobject.h":
 
             info.buf = PyArray_DATA(self)
             info.ndim = ndim
-            if copy_shape:
+            if sizeof(npy_intp) != sizeof(Py_ssize_t):
                 # Allocate new buffer for strides and shape info.
                 # This is allocated as one block, strides first.
                 info.strides = <Py_ssize_t*>PyObject_Malloc(sizeof(Py_ssize_t) * 2 * <size_t>ndim)
@@ -260,16 +254,9 @@ cdef extern from "numpy/arrayobject.h":
             cdef dtype descr = self.descr
             cdef int offset
 
-            cdef bint hasfields = PyDataType_HASFIELDS(descr)
+            info.obj = self
 
-            if not hasfields and not copy_shape:
-                # do not call releasebuffer
-                info.obj = None
-            else:
-                # need to call releasebuffer
-                info.obj = self
-
-            if not hasfields:
+            if not PyDataType_HASFIELDS(descr):
                 t = descr.type_num
                 if ((descr.byteorder == c'>' and little_endian) or
                     (descr.byteorder == c'<' and not little_endian)):

@@ -26,7 +26,14 @@ run.datetime_pxd
 run.datetime_cimport
 run.datetime_members
 run.extern_builtins_T258
+run.line_trace
+run.line_profile_test
+run.pstats_profile_test
+run.longintrepr
 
 # refcounting-specific tests
 double_dealloc_T796
+run.exceptionrefcount
+run.capiimpl
+run.refcount_in_meth
 

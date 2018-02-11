@@ -4,7 +4,7 @@ class TestCodeWriter(CythonTest):
     # CythonTest uses the CodeWriter heavily, so do some checking by
     # roundtripping Cython code through the test framework.
 
-    # Note that this test is dependant upon the normal Cython parser
+    # Note that this test is dependent upon the normal Cython parser
     # to generate the input trees to the CodeWriter. This save *a lot*
     # of time; better to spend that time writing other tests than perfecting
     # this one...

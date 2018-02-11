@@ -1,4 +1,4 @@
-#cython: embedsignature=True
+#cython: embedsignature=True, annotation_typing=False
 
 import sys
 
@@ -81,7 +81,7 @@ __doc__ = ur"""
     Ext.m(self, a=u'spam')
 
     >>> print (Ext.n.__doc__)
-    Ext.n(self, a: int, double b: float = 1.0, *args: tuple, **kwargs: dict) -> (None, True)
+    Ext.n(self, a: int, b: float = 1.0, *args: tuple, **kwargs: dict) -> (None, True)
 
     >>> print (Ext.get_int.__doc__)
     Ext.get_int(self) -> int
@@ -403,8 +403,7 @@ cdef class Foo:
     def m03(self, a: 42, b: +42, c: -42) ->  int : pass  # XXX +42 -> 42
     def m04(self, a: 3.14, b: +3.14, c: -3.14) -> float : pass
     def m05(self, a: 1 + 2j, b: +2j, c: -2j) -> complex : pass
-    # this is not a valid PEP 484 declaration, and Cython interprets it as a C-tuple
-    #def m06(self, a: "abc", b: b"abc", c: u"abc") -> (str, bytes, unicode) : pass
+    def m06(self, a: "abc", b: b"abc", c: u"abc") -> (str, bytes, unicode) : pass
     def m07(self, a: [1, 2, 3], b: []) -> list: pass
     def m08(self, a: (1, 2, 3), b: ()) -> tuple: pass
     def m09(self, a: {1, 2, 3}, b: {i for i in ()}) -> set: pass
@@ -449,8 +448,8 @@ Foo.m04(self, a: 3.14, b: 3.14, c: -3.14) -> float
 >>> print(Foo.m05.__doc__)
 Foo.m05(self, a: 1 + 2j, b: +2j, c: -2j) -> complex
 
-#>>> print(Foo.m06.__doc__)
-#Foo.m06(self, a: 'abc', b: b'abc', c: u'abc') -> (str, bytes, unicode)
+>>> print(Foo.m06.__doc__)
+Foo.m06(self, a: 'abc', b: b'abc', c: u'abc') -> (str, bytes, unicode)
 
 >>> print(Foo.m07.__doc__)
 Foo.m07(self, a: [1, 2, 3], b: []) -> list

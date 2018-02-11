@@ -2,7 +2,236 @@
 Cython Changelog
 ================
 
-0.27 (2017-??-??)
+0.28 (2018-??-??)
+=================
+
+Features added
+--------------
+
+* Cdef classes can now multiply inherit from ordinary Python classes.
+  (The primary base must still be a c class, possibly ``object``, and
+  the other bases must *not* be cdef classes.)
+
+* Type inference is now supported for Pythran compiled NumPy expressions.
+  Patch by Nils Braun.  (Github issue #1954)
+
+* C file includes are moved behind the module declarations if possible, to allow
+  them to depend on module declarations themselves.
+  Patch by Jeroen Demeyer.  (Github issue #1896)
+
+* Decorating an async coroutine with ``@types.coroutine`` or ``@asyncio.coroutine``
+  changes its type at compile time to make it iterable.  While this is not
+  strictly in line with PEP-492, it improves the interoperability with old-style
+  coroutines that use ``yield from`` instead of ``await``.
+
+* The new TSS C-API in CPython 3.7 is supported and has been backported.
+  Patch by Naotoshi Seo.  (Github issue #1932)
+
+* Cython knows the new ``Py_tss_t`` type defined in PEP-539 and automatically
+  initialises variables declared with that type to ``Py_tss_NEEDS_INIT``,
+  a value which cannot be used outside of static assignments.
+
+* The set methods ``.remove()`` and ``.discard()`` are optimised.
+  Patch by Antoine Pitrou.  (Github issue #2042)
+
+* ``dict.pop()`` is optimised.
+  Original patch by Antoine Pitrou.  (Github issue #2047)
+
+* Iteration over sets and frozensets is optimised.
+  (Github issue #2048)
+
+* Safe integer loops (< range(2^30)) are automatically optimised into C loops.
+
+* ``alist.extend([a,b,c])`` is optimised into sequential ``list.append()`` calls
+  for short literal sequences.
+
+* Calls to builtin methods that are not specifically optimised into C-API calls
+  now use a cache that avoids repeated lookups of the underlying C function.
+  (Github issue #2054)
+
+* Single argument function calls can avoid the argument tuple creation in some cases.
+
+* Some redundant extension type checks are avoided.
+
+* Formatting C enum values in f-strings is faster, as well as some other special cases.
+
+* Subscripting (item access) is faster in some cases.
+
+* Some ``bytearray`` operations have been optimised similar to ``bytes``.
+
+* Some PEP-484/526 container type declarations are now considered for
+  loop optimisations.
+
+* Indexing into memoryview slices with ``view[i][j]`` is now optimised into
+  ``view[i, j]``.
+
+* Python compatible ``cython.*`` types can now be mixed with type declarations
+  in Cython syntax.
+
+* Name lookups in the module and in classes are faster.
+
+* Python attribute lookups on extension types without instance dict are faster.
+
+* Some missing signals were added to ``libc/signal.pxd``.
+  Patch by Jeroen Demeyer.  (Github issue #1914)
+
+* The exception handling of the function types used by CPython's type slot
+  functions was corrected to match the de-facto standard behaviour, so that
+  code that uses them directly benefits from automatic and correct exception
+  propagation.  Patch by Jeroen Demeyer.  (Github issue #1980)
+
+* Defining the macro ``CYTHON_NO_PYINIT_EXPORT`` will prevent the module init
+  function from being exported as symbol, e.g. when linking modules statically
+  in an embedding setup.  Patch by AraHaan.  (Github issue #1944)
+
+Bugs fixed
+----------
+
+* If a module name is explicitly provided for an ``Extension()`` that is compiled
+  via ``cythonize()``, it was previously ignored and replaced by the source file
+  name.  It can now be used to override the target module name, e.g. for compiling
+  prefixed accelerator modules from Python files.  (Github issue #2038)
+
+* The arguments of the ``num_threads`` parameter of parallel sections
+  were not sufficiently validated and could lead to invalid C code.
+  (Github issue #1957)
+
+* Catching exceptions with a non-trivial exception pattern could call into
+  CPython with a live exception set.  This triggered incorrect behaviour
+  and crashes, especially in CPython 3.7.
+
+* The signature of the special ``__richcmp__()`` method was corrected to recognise
+  the type of the first argument as ``self``.  It was previously treated as plain
+  object, but CPython actually guarantees that it always has the correct type.
+
+* Some Python 3 exceptions were not recognised as builtins when running Cython
+  under Python 2.
+
+* Some async helper functions were not defined in the generated C code when
+  compiling simple async code.  (Github issue #2075)
+
+* Line tracing did not include generators and coroutines.
+  (Github issue #1949)
+
+* C++ declarations for ``unordered_map`` were corrected.
+  Patch by Michael Schatzow.  (Github issue #1484)
+
+* Iterator declarations in C++ ``deque`` and ``vector`` were corrected.
+  Patch by Alex Huszagh.  (Github issue #1870)
+
+* Some declaration types in ``libc.limits`` were corrected.
+  Patch by Jeroen Demeyer.  (Github issue #2016)
+
+* ``@cython.final`` was not accepted on Python classes with an ``@cython.cclass``
+  decorator.  (Github issue #2040)
+
+Other changes
+-------------
+
+
+0.27.3 (2017-11-03)
+===================
+
+Bugs fixed
+----------
+
+* String forward references to extension types like ``@cython.locals(x="ExtType")``
+  failed to find the named type.  (Github issue #1962)
+
+* NumPy slicing generated incorrect results when compiled with Pythran.
+  Original patch by Serge Guelton (Github issue #1946).
+
+* Fix "undefined reference" linker error for generators on Windows in Py3.3-3.5.
+  (Github issue #1968)
+
+* Adapt to recent C-API change of ``PyThreadState`` in CPython 3.7.
+
+* Fix signature of ``PyWeakref_GetObject()`` API declaration.
+  Patch by Jeroen Demeyer (Github issue #1975).
+
+
+0.27.2 (2017-10-22)
+===================
+
+Bugs fixed
+----------
+
+* Comprehensions could incorrectly be optimised away when they appeared in boolean
+  test contexts.  (Github issue #1920)
+
+* The special methods ``__eq__``, ``__lt__`` etc. in extension types did not type
+  their first argument as the type of the class but ``object``.  (Github issue #1935)
+
+* Crash on first lookup of "cline_in_traceback" option during exception handling.
+  (Github issue #1907)
+
+* Some nested module level comprehensions failed to compile.
+  (Github issue #1906)
+
+* Compiler crash on some complex type declarations in pure mode.
+  (Github issue #1908)
+
+* ``std::unordered_map.erase()`` was declared with an incorrect ``void`` return
+  type in ``libcpp.unordered_map``.  (Github issue #1484)
+
+* Invalid use of C++ ``fallthrough`` attribute before C++11 and similar issue in clang.
+  (Github issue #1930)
+
+* Compiler crash on misnamed properties. (Github issue #1905)
+
+
+0.27.1 (2017-10-01)
+===================
+
+Features added
+--------------
+
+* The Jupyter magic has a new debug option ``--verbose`` that shows details about
+  the distutils invocation.  Patch by Boris Filippov (Github issue #1881).
+
+Bugs fixed
+----------
+
+* Py3 list comprehensions in class bodies resulted in invalid C code.
+  (Github issue #1889)
+
+* Modules built for later CPython 3.5.x versions failed to import in 3.5.0/3.5.1.
+  (Github issue #1880)
+
+* Deallocating fused types functions and methods kept their GC tracking enabled,
+  which could potentially lead to recursive deallocation attempts.
+
+* Crash when compiling in C++ mode with old setuptools versions.
+  (Github issue #1879)
+
+* C++ object arguments for the constructor of Cython implemented C++ are now
+  passed by reference and not by value to allow for non-copyable arguments, such
+  as ``unique_ptr``.
+
+* API-exported C++ classes with Python object members failed to compile.
+  (Github issue #1866)
+
+* Some issues with the new relaxed exception value handling were resolved.
+
+* Python classes as annotation types could prevent compilation.
+  (Github issue #1887)
+
+* Cython annotation types in Python files could lead to import failures
+  with a "cython undefined" error.  Recognised types are now turned into strings.
+
+* Coverage analysis could fail to report on extension modules on some platforms.
+
+* Annotations could be parsed (and rejected) as types even with
+  ``annotation_typing=False``.
+
+Other changes
+-------------
+
+* PEP 489 support has been disabled by default to counter incompatibilities with
+  import setups that try to reload or reinitialise modules.
+
+
+0.27 (2017-09-23)
 =================
 
 Features added
@@ -25,7 +254,8 @@ Features added
   `PEP 526 <https://www.python.org/dev/peps/pep-0526/>`_.  Cython types (e.g.
   ``cython.int``) are evaluated as C type declarations and everything else as Python
   types.  This can be disabled with the directive ``annotation_typing=False``.
-  (Github issue #1850)
+  Note that most complex PEP-484 style annotations are currently ignored.  This will
+  change in future releases. (Github issue #1850)
 
 * Extension types (also in pure Python mode) can implement the normal special methods
   ``__eq__``, ``__lt__`` etc. for comparisons instead of the low-level ``__richcmp__``
@@ -41,6 +271,15 @@ Features added
 * The gdb support for Python code (``libpython.py``) was updated to the latest
   version in CPython 3.7 (git rev 5fe59f8).
 
+* The compiler tries to find a usable exception return value for cdef functions
+  with ``except *`` if the returned type allows it.  Note that this feature is subject
+  to safety limitations, so it is still better to provide an explicit declaration.
+
+* C functions can be assigned to function pointers with a compatible exception
+  declaration, not only with exact matches.  A side-effect is that certain compatible
+  signature overrides are now allowed and some more mismatches of exception signatures
+  are now detected and rejected as errors that were not detected before.
+
 * The IPython/Jupyter magic integration has a new option ``%%cython --pgo`` for profile
   guided optimisation. It compiles the cell with PGO settings for the C compiler,
   executes it to generate a runtime profile, and then compiles it again using that
@@ -54,9 +293,19 @@ Features added
 * NumPy dtype subarrays are now accessible through the C-API.
   Patch by Gerald Dalley (Github issue #245).
 
+* Resolves several issues with PyPy and uses faster async slots in PyPy3.
+  Patch by Ronan Lamy (Github issues #1871, #1878).
 
 Bugs fixed
 ----------
+
+* Extension types that were cimported from other Cython modules could disagree
+  about the order of fused cdef methods in their call table.  This could lead
+  to wrong methods being called and potentially also crashes.  The fix required
+  changes to the ordering of fused methods in the call table, which may break
+  existing compiled modules that call fused cdef methods across module boundaries,
+  if these methods were implemented in a different order than they were declared
+  in the corresponding .pxd file. (Github issue #1873)
 
 * The exception state handling in generators and coroutines could lead to
   exceptions in the caller being lost if an exception was raised and handled
@@ -71,8 +320,22 @@ Bugs fixed
 * Compile time ``DEF`` assignments were evaluated even when they occur inside of
   falsy ``IF`` blocks. (Github issue #1796)
 
+* Disabling the line tracing from a trace function could fail.
+  Original patch by Dmitry Trofimov. (Github issue #1769)
+
+* Several issues with the Pythran integration were resolved.
+
 * abs(signed int) now returns a signed rather than unsigned int.
   (Github issue #1837)
+
+* Reading ``frame.f_locals`` of a Cython function (e.g. from a debugger or profiler
+  could modify the module globals. (Github issue #1836)
+
+* Buffer type mismatches in the NumPy buffer support could leak a reference to the
+  buffer owner.
+
+* Using the "is_f_contig" and "is_c_contig" memoryview methods together could leave
+  one of them undeclared. (Github issue #1872)
 
 * Compilation failed if the for-in-range loop target was not a variable but a more
   complex expression, e.g. an item assignment. (Github issue #1831)
@@ -92,7 +355,7 @@ Other changes
   `PEP 484 <https://www.python.org/dev/peps/pep-0484/>`_
   typing.  Only Cython types (e.g. ``cython.int``) and Python builtin types are
   currently considered as type declarations.  Everything else is ignored, but this
-  will probably change in a future Cython release.
+  will change in a future Cython release.
   (Github issue #1672)
 
 * The directive ``annotation_typing`` is now ``True`` by default, which enables
@@ -283,7 +546,8 @@ Features added
 * The new METH_FASTCALL calling convention for PyCFunctions is supported
   in CPython 3.6.  See https://bugs.python.org/issue27810
 
-* Initial support for using Cython modules in Pyston.  Patch by Daetalus.
+* Initial support for using Cython modules in Pyston.
+  Patch by Boxiang Sun.
 
 * Dynamic Python attributes are allowed on cdef classes if an attribute
   ``cdef dict __dict__`` is declared in the class.  Patch by empyrical.

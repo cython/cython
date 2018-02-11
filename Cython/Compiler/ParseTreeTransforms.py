@@ -15,6 +15,7 @@ from . import ExprNodes
 from . import Nodes
 from . import Options
 from . import Builtin
+from . import Errors
 
 from .Visitor import VisitorTransform, TreeVisitor
 from .Visitor import CythonTransform, EnvTransform, ScopeTrackingTransform
@@ -632,7 +633,7 @@ class TrackNumpyAttributes(VisitorTransform, SkipDeclarations):
     visit_Node = VisitorTransform.recurse_to_children
 
 
-class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
+class InterpretCompilerDirectives(CythonTransform):
     """
     After parsing, directives can be stored in a number of places:
     - #cython-comments at the top of the file (stored in ModuleNode)
@@ -857,6 +858,11 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                 node.cython_attribute = directive
         return node
 
+    def visit_NewExprNode(self, node):
+        self.visit(node.cppclass)
+        self.visitchildren(node)
+        return node
+
     def try_to_parse_directives(self, node):
         # If node is the contents of an directive (in a with statement or
         # decorator), returns a list of (directivename, value) pairs.
@@ -987,7 +993,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
     def visit_CVarDefNode(self, node):
         directives = self._extract_directives(node, 'function')
         if not directives:
-            return node
+            return self.visit_Node(node)
         for name, value in directives.items():
             if name == 'locals':
                 node.directive_locals = value
@@ -1027,7 +1033,8 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         directives = []
         realdecs = []
         both = []
-        for dec in node.decorators:
+        # Decorators coming first take precedence.
+        for dec in node.decorators[::-1]:
             new_directives = self.try_to_parse_directives(dec.decorator)
             if new_directives is not None:
                 for directive in new_directives:
@@ -1037,15 +1044,17 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                             directives.append(directive)
                         if directive[0] == 'staticmethod':
                             both.append(dec)
+                    # Adapt scope type based on decorators that change it.
+                    if directive[0] == 'cclass' and scope_name == 'class':
+                        scope_name = 'cclass'
             else:
                 realdecs.append(dec)
-        if realdecs and isinstance(node, (Nodes.CFuncDefNode, Nodes.CClassDefNode, Nodes.CVarDefNode)):
+        if realdecs and (scope_name == 'cclass' or
+                         isinstance(node, (Nodes.CFuncDefNode, Nodes.CClassDefNode, Nodes.CVarDefNode))):
             raise PostParseError(realdecs[0].pos, "Cdef functions/classes cannot take arbitrary decorators.")
-        else:
-            node.decorators = realdecs + both
+        node.decorators = realdecs[::-1] + both[::-1]
         # merge or override repeated directives
         optdict = {}
-        directives.reverse() # Decorators coming first take precedence
         for directive in directives:
             name, value = directive
             if name in optdict:
@@ -1292,7 +1301,7 @@ class WithTransform(CythonTransform, SkipDeclarations):
                                 pos, with_stat=node,
                                 test_if_run=False,
                                 args=excinfo_target,
-                                await=ExprNodes.AwaitExprNode(pos, arg=None) if is_async else None)),
+                                await_expr=ExprNodes.AwaitExprNode(pos, arg=None) if is_async else None)),
                         body=Nodes.ReraiseStatNode(pos),
                     ),
                 ],
@@ -1314,7 +1323,7 @@ class WithTransform(CythonTransform, SkipDeclarations):
                     test_if_run=True,
                     args=ExprNodes.TupleNode(
                         pos, args=[ExprNodes.NoneNode(pos) for _ in range(3)]),
-                    await=ExprNodes.AwaitExprNode(pos, arg=None) if is_async else None)),
+                    await_expr=ExprNodes.AwaitExprNode(pos, arg=None) if is_async else None)),
             handle_error_case=False,
         )
         return node
@@ -1385,10 +1394,15 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
             elif decorator.is_attribute and decorator.obj.name in properties:
                 handler_name = self._map_property_attribute(decorator.attribute)
                 if handler_name:
-                    assert decorator.obj.name == node.name
-                    if len(node.decorators) > 1:
+                    if decorator.obj.name != node.name:
+                        # CPython does not generate an error or warning, but not something useful either.
+                        error(decorator_node.pos,
+                              "Mismatching property names, expected '%s', got '%s'" % (
+                                  decorator.obj.name, node.name))
+                    elif len(node.decorators) > 1:
                         return self._reject_decorated_property(node, decorator_node)
-                    return self._add_to_property(properties, node, handler_name, decorator_node)
+                    else:
+                        return self._add_to_property(properties, node, handler_name, decorator_node)
 
         # we clear node.decorators, so we need to set the
         # is_staticmethod/is_classmethod attributes now
@@ -1535,6 +1549,13 @@ class ForwardDeclareTypes(CythonTransform):
     def visit_CClassDefNode(self, node):
         if node.class_name not in self.module_scope.entries:
             node.declare(self.module_scope)
+        # Expand fused methods of .pxd declared types to construct the final vtable order.
+        type = self.module_scope.entries[node.class_name].type
+        if type is not None and type.is_extension_type and not type.is_builtin_type and type.scope:
+            scope = type.scope
+            for entry in scope.cfunc_entries:
+                if entry.type and entry.type.is_fused:
+                    entry.type.get_all_specialized_function_types()
         return node
 
 
@@ -1859,7 +1880,7 @@ if VALUE is not None:
 
     def visit_FuncDefNode(self, node):
         """
-        Analyse a function and its body, as that hasn't happend yet.  Also
+        Analyse a function and its body, as that hasn't happened yet.  Also
         analyse the directive_locals set by @cython.locals().
 
         Then, if we are a function with fused arguments, replace the function
@@ -1922,6 +1943,8 @@ if VALUE is not None:
             binding = self.current_directives.get('binding')
             rhs = ExprNodes.PyCFunctionNode.from_defnode(node, binding)
             node.code_object = rhs.code_object
+            if node.is_generator:
+                node.gbody.code_object = node.code_object
 
         if env.is_py_class_scope:
             rhs.binding = True
@@ -2048,7 +2071,7 @@ if VALUE is not None:
 
     # Some nodes are no longer needed after declaration
     # analysis and can be dropped. The analysis was performed
-    # on these nodes in a seperate recursive process from the
+    # on these nodes in a separate recursive process from the
     # enclosing function or module, so we can simply drop them.
     def visit_CDeclaratorNode(self, node):
         # necessary to ensure that all CNameDeclaratorNodes are visited.
@@ -2573,10 +2596,27 @@ class MarkClosureVisitor(CythonTransform):
         collector.visitchildren(node)
 
         if node.is_async_def:
-            coroutine_type = Nodes.AsyncGenNode if collector.has_yield else Nodes.AsyncDefNode
+            coroutine_type = Nodes.AsyncDefNode
             if collector.has_yield:
+                coroutine_type = Nodes.AsyncGenNode
                 for yield_expr in collector.yields + collector.returns:
                     yield_expr.in_async_gen = True
+            elif node.decorators:
+                # evaluate @asyncio.coroutine() decorator at compile time if it's the inner-most one
+                # TODO: better decorator validation: should come from imported module
+                decorator = node.decorators[-1].decorator
+                if decorator.is_name and decorator.name == 'coroutine':
+                    pass
+                elif decorator.is_attribute and decorator.attribute == 'coroutine':
+                    if decorator.obj.is_name and decorator.obj.name in ('types', 'asyncio'):
+                        pass
+                    else:
+                        decorator = None
+                else:
+                    decorator = None
+                if decorator is not None:
+                    node.decorators.pop()
+                    coroutine_type = Nodes.IterableAsyncDefNode
         elif collector.has_await:
             found = next(y for y in collector.yields if y.is_await)
             error(found.pos, "'await' not allowed in generators (use 'yield')")
@@ -3140,8 +3180,9 @@ class ReplaceFusedTypeChecks(VisitorTransform):
         return self.transform(node)
 
     def visit_PrimaryCmpNode(self, node):
-        type1 = node.operand1.analyse_as_type(self.local_scope)
-        type2 = node.operand2.analyse_as_type(self.local_scope)
+        with Errors.local_errors(ignore=True):
+          type1 = node.operand1.analyse_as_type(self.local_scope)
+          type2 = node.operand2.analyse_as_type(self.local_scope)
 
         if type1 and type2:
             false_node = ExprNodes.BoolNode(node.pos, value=False)

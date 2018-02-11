@@ -17,7 +17,7 @@ DESCRIPTION
 with one or more Cython modules built in.  This allows one to create a single
 executable from Cython code, without having to have separate shared objects
 for each Cython module.  A major advantage of this approach is that it allows
-debuging with gprof(1), which does not work with shared objects.
+debugging with gprof(1), which does not work with shared objects.
 
 Unless ``-p`` is given, the first module's ``__name__`` is set to
 ``"__main__"`` and is imported on startup; if ``-p`` is given, a normal Python

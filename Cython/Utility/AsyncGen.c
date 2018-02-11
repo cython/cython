@@ -34,7 +34,7 @@ static PyObject *__Pyx__PyAsyncGenValueWrapperNew(PyObject *val);
 
 
 static __pyx_CoroutineObject *__Pyx_AsyncGen_New(
-            __pyx_coroutine_body_t body, PyObject *closure,
+            __pyx_coroutine_body_t body, PyObject *code, PyObject *closure,
             PyObject *name, PyObject *qualname, PyObject *module_name) {
     __pyx_PyAsyncGenObject *gen = PyObject_GC_New(__pyx_PyAsyncGenObject, __pyx_AsyncGenType);
     if (unlikely(!gen))
@@ -42,7 +42,7 @@ static __pyx_CoroutineObject *__Pyx_AsyncGen_New(
     gen->ag_finalizer = NULL;
     gen->ag_closed = 0;
     gen->ag_hooks_inited = 0;
-    return __Pyx__Coroutine_NewInit((__pyx_CoroutineObject*)gen, body, closure, name, qualname, module_name);
+    return __Pyx__Coroutine_NewInit((__pyx_CoroutineObject*)gen, body, code, closure, name, qualname, module_name);
 }
 
 static int __pyx_AsyncGen_init(void);
@@ -102,8 +102,9 @@ static int __Pyx_async_gen_init_hooks(__pyx_PyAsyncGenObject *o) {
 //////////////////// AsyncGenerator ////////////////////
 //@requires: AsyncGeneratorInitFinalizer
 //@requires: Coroutine.c::Coroutine
+//@requires: Coroutine.c::ReturnWithStopIteration
 //@requires: ObjectHandling.c::PyObjectCallMethod1
-
+//@requires: ObjectHandling.c::PyObject_GenericGetAttrNoDict
 
 PyDoc_STRVAR(__Pyx_async_gen_send_doc,
 "send(arg) -> send 'arg' into generator,\n\
@@ -279,19 +280,19 @@ __Pyx_async_gen_athrow(__pyx_PyAsyncGenObject *o, PyObject *args)
 
 
 static PyGetSetDef __Pyx_async_gen_getsetlist[] = {
-    {"__name__", (getter)__Pyx_Coroutine_get_name, (setter)__Pyx_Coroutine_set_name,
-     PyDoc_STR("name of the async generator"), 0},
-    {"__qualname__", (getter)__Pyx_Coroutine_get_qualname, (setter)__Pyx_Coroutine_set_qualname,
-     PyDoc_STR("qualified name of the async generator"), 0},
-    //REMOVED: {"ag_await", (getter)coro_get_cr_await, NULL,
-    //REMOVED:  PyDoc_STR("object being awaited on, or None")},
+    {(char*) "__name__", (getter)__Pyx_Coroutine_get_name, (setter)__Pyx_Coroutine_set_name,
+     (char*) PyDoc_STR("name of the async generator"), 0},
+    {(char*) "__qualname__", (getter)__Pyx_Coroutine_get_qualname, (setter)__Pyx_Coroutine_set_qualname,
+     (char*) PyDoc_STR("qualified name of the async generator"), 0},
+    //REMOVED: {(char*) "ag_await", (getter)coro_get_cr_await, NULL,
+    //REMOVED:  (char*) PyDoc_STR("object being awaited on, or None")},
     {0, 0, 0, 0, 0} /* Sentinel */
 };
 
 static PyMemberDef __Pyx_async_gen_memberlist[] = {
-    //REMOVED: {"ag_frame",   T_OBJECT, offsetof(__pyx_PyAsyncGenObject, ag_frame),   READONLY},
-    {"ag_running", T_BOOL,   offsetof(__pyx_CoroutineObject, is_running), READONLY, NULL},
-    //REMOVED: {"ag_code",    T_OBJECT, offsetof(__pyx_PyAsyncGenObject, ag_code),    READONLY},
+    //REMOVED: {(char*) "ag_frame",   T_OBJECT, offsetof(__pyx_PyAsyncGenObject, ag_frame),   READONLY},
+    {(char*) "ag_running", T_BOOL,   offsetof(__pyx_CoroutineObject, is_running), READONLY, NULL},
+    //REMOVED: {(char*) "ag_code",    T_OBJECT, offsetof(__pyx_PyAsyncGenObject, ag_code),    READONLY},
     //ADDED: "ag_await"
     {(char*) "ag_await", T_OBJECT, offsetof(__pyx_CoroutineObject, yieldfrom), READONLY,
      (char*) PyDoc_STR("object being awaited on, or None")},
@@ -331,8 +332,8 @@ static __Pyx_PyAsyncMethodsStruct __Pyx_async_gen_as_async = {
 };
 #endif
 
-PyTypeObject __pyx_AsyncGenType_type = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+static PyTypeObject __pyx_AsyncGenType_type = {
+    PyVarObject_HEAD_INIT(0, 0)
     "async_generator",                          /* tp_name */
     sizeof(__pyx_PyAsyncGenObject),             /* tp_basicsize */
     0,                                          /* tp_itemsize */
@@ -387,14 +388,16 @@ PyTypeObject __pyx_AsyncGenType_type = {
     0,                                          /* tp_cache */
     0,                                          /* tp_subclasses */
     0,                                          /* tp_weaklist */
-#if PY_VERSION_HEX >= 0x030400a1
+#if CYTHON_USE_TP_FINALIZE
     0,                                  /*tp_del*/
 #else
     __Pyx_Coroutine_del,                /*tp_del*/
 #endif
     0,                                          /* tp_version_tag */
-#if PY_VERSION_HEX >= 0x030400a1
+#if CYTHON_USE_TP_FINALIZE
     __Pyx_Coroutine_del,                        /* tp_finalize */
+#elif PY_VERSION_HEX >= 0x030400a1
+    0,                                          /* tp_finalize */
 #endif
 };
 
@@ -460,7 +463,7 @@ __Pyx_async_gen_unwrap_value(__pyx_PyAsyncGenObject *gen, PyObject *result)
 static void
 __Pyx_async_gen_asend_dealloc(__pyx_PyAsyncGenASend *o)
 {
-    _PyObject_GC_UNTRACK((PyObject *)o);
+    PyObject_GC_UnTrack((PyObject *)o);
     Py_CLEAR(o->ags_gen);
     Py_CLEAR(o->ags_sendval);
     if (__Pyx_ag_asend_freelist_free < _PyAsyncGen_MAXFREELIST) {
@@ -555,15 +558,17 @@ static PyMethodDef __Pyx_async_gen_asend_methods[] = {
 };
 
 
+#if CYTHON_USE_ASYNC_SLOTS
 static __Pyx_PyAsyncMethodsStruct __Pyx_async_gen_asend_as_async = {
     PyObject_SelfIter,                          /* am_await */
     0,                                          /* am_aiter */
     0                                           /* am_anext */
 };
+#endif
 
 
-PyTypeObject __pyx__PyAsyncGenASendType_type = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+static PyTypeObject __pyx__PyAsyncGenASendType_type = {
+    PyVarObject_HEAD_INIT(0, 0)
     "async_generator_asend",                    /* tp_name */
     sizeof(__pyx_PyAsyncGenASend),                    /* tp_basicsize */
     0,                                          /* tp_itemsize */
@@ -649,7 +654,7 @@ __Pyx_async_gen_asend_new(__pyx_PyAsyncGenObject *gen, PyObject *sendval)
 
     o->ags_state = __PYX_AWAITABLE_STATE_INIT;
 
-    _PyObject_GC_TRACK((PyObject*)o);
+    PyObject_GC_Track((PyObject*)o);
     return (PyObject*)o;
 }
 
@@ -660,7 +665,7 @@ __Pyx_async_gen_asend_new(__pyx_PyAsyncGenObject *gen, PyObject *sendval)
 static void
 __Pyx_async_gen_wrapped_val_dealloc(__pyx__PyAsyncGenWrappedValue *o)
 {
-    _PyObject_GC_UNTRACK((PyObject *)o);
+    PyObject_GC_UnTrack((PyObject *)o);
     Py_CLEAR(o->agw_val);
     if (__Pyx_ag_value_freelist_free < _PyAsyncGen_MAXFREELIST) {
         assert(__pyx__PyAsyncGenWrappedValue_CheckExact(o));
@@ -680,8 +685,8 @@ __Pyx_async_gen_wrapped_val_traverse(__pyx__PyAsyncGenWrappedValue *o,
 }
 
 
-PyTypeObject __pyx__PyAsyncGenWrappedValueType_type = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+static PyTypeObject __pyx__PyAsyncGenWrappedValueType_type = {
+    PyVarObject_HEAD_INIT(0, 0)
     "async_generator_wrapped_value",            /* tp_name */
     sizeof(__pyx__PyAsyncGenWrappedValue),            /* tp_basicsize */
     0,                                          /* tp_itemsize */
@@ -756,7 +761,7 @@ __Pyx__PyAsyncGenValueWrapperNew(PyObject *val)
     }
     o->agw_val = val;
     // no Py_INCREF(val) - steals reference!
-    _PyObject_GC_TRACK((PyObject*)o);
+    PyObject_GC_Track((PyObject*)o);
     return (PyObject*)o;
 }
 
@@ -767,7 +772,7 @@ __Pyx__PyAsyncGenValueWrapperNew(PyObject *val)
 static void
 __Pyx_async_gen_athrow_dealloc(__pyx_PyAsyncGenAThrow *o)
 {
-    _PyObject_GC_UNTRACK((PyObject *)o);
+    PyObject_GC_UnTrack((PyObject *)o);
     Py_CLEAR(o->agt_gen);
     Py_CLEAR(o->agt_args);
     PyObject_GC_Del(o);
@@ -942,15 +947,17 @@ static PyMethodDef __Pyx_async_gen_athrow_methods[] = {
 };
 
 
+#if CYTHON_USE_ASYNC_SLOTS
 static __Pyx_PyAsyncMethodsStruct __Pyx_async_gen_athrow_as_async = {
     PyObject_SelfIter,                          /* am_await */
     0,                                          /* am_aiter */
     0                                           /* am_anext */
 };
+#endif
 
 
-PyTypeObject __pyx__PyAsyncGenAThrowType_type = {
-    PyVarObject_HEAD_INIT(&PyType_Type, 0)
+static PyTypeObject __pyx__PyAsyncGenAThrowType_type = {
+    PyVarObject_HEAD_INIT(0, 0)
     "async_generator_athrow",                   /* tp_name */
     sizeof(__pyx_PyAsyncGenAThrow),                   /* tp_basicsize */
     0,                                          /* tp_itemsize */
@@ -1025,7 +1032,7 @@ __Pyx_async_gen_athrow_new(__pyx_PyAsyncGenObject *gen, PyObject *args)
     o->agt_state = __PYX_AWAITABLE_STATE_INIT;
     Py_INCREF(gen);
     Py_XINCREF(args);
-    _PyObject_GC_TRACK((PyObject*)o);
+    PyObject_GC_Track((PyObject*)o);
     return (PyObject*)o;
 }
 
@@ -1034,10 +1041,10 @@ __Pyx_async_gen_athrow_new(__pyx_PyAsyncGenObject *gen, PyObject *args)
 
 static int __pyx_AsyncGen_init(void) {
     // on Windows, C-API functions can't be used in slots statically
-    __pyx_AsyncGenType_type.tp_getattro = PyObject_GenericGetAttr;
-    __pyx__PyAsyncGenWrappedValueType_type.tp_getattro = PyObject_GenericGetAttr;
-    __pyx__PyAsyncGenAThrowType_type.tp_getattro = PyObject_GenericGetAttr;
-    __pyx__PyAsyncGenASendType_type.tp_getattro = PyObject_GenericGetAttr;
+    __pyx_AsyncGenType_type.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
+    __pyx__PyAsyncGenWrappedValueType_type.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
+    __pyx__PyAsyncGenAThrowType_type.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
+    __pyx__PyAsyncGenASendType_type.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
 
     __pyx_AsyncGenType = __Pyx_FetchCommonType(&__pyx_AsyncGenType_type);
     if (unlikely(!__pyx_AsyncGenType))

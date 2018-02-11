@@ -1,11 +1,13 @@
 # mode: run
 # tag: cpp, werror
 # cython: experimental_cpp_class_def=True
+# distutils: extra_compile_args=-std=c++0x
 
 cdef double pi
 from math import pi
 from libc.math cimport sin, cos
 from libcpp cimport bool
+from libcpp.memory cimport unique_ptr
 from libcpp.vector cimport vector
 from cython.operator cimport dereference as deref
 
@@ -222,3 +224,29 @@ def test_CppClassWithObjectMemberCopyAssign(name):
     print "Alive in vector", v[0].o
     v.clear()
     print "Nothing alive."
+
+
+# Github issue #1886.
+cdef public cppclass PublicCppClassWithObjectMember:
+  object o
+
+def test_PublicCppClassWithObjectMember():
+  """
+  >>> test_PublicCppClassWithObjectMember()
+  """
+  cdef PublicCppClassWithObjectMember c
+  assert c.o is None
+
+
+cdef cppclass UncopyableConstructorArgument:
+    unique_ptr[vector[int]] member
+    __init__(unique_ptr[vector[int]] arg):
+        this.member.reset(arg.release())
+
+def test_uncopyable_constructor_argument():
+    """
+    >>> test_uncopyable_constructor_argument()
+    """
+    cdef UncopyableConstructorArgument *c = new UncopyableConstructorArgument(
+        unique_ptr[vector[int]](new vector[int]()))
+    del c

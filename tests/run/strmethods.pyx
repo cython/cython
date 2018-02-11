@@ -55,6 +55,26 @@ def str_endswith(str s, sub, start=None, stop=None):
       return s.endswith(sub, start, stop)
 
 
+def object_as_name(object):
+    """
+    >>> object_as_name('abx')
+    True
+    >>> object_as_name('abc')
+    False
+    """
+    return object.endswith("x")
+
+
+def str_as_name(str):
+    """
+    >>> str_as_name('abx')
+    True
+    >>> str_as_name('abc')
+    False
+    """
+    return str.endswith("x")
+
+
 @cython.test_assert_path_exists(
     "//SimpleCallNode",
     "//SimpleCallNode//NoneCheckNode",

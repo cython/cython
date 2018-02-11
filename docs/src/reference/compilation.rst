@@ -17,31 +17,47 @@ Cython code, unlike Python, must be compiled.  This happens in two stages:
 The following sub-sections describe several ways to build your
 extension modules, and how to pass directives to the Cython compiler.
 
+
 Compiling from the command line
 ===============================
 
-Run the Cython compiler command with your options and list of ``.pyx``
-files to generate.  For example::
+Run the ``cythonize`` compiler command with your options and list of
+``.pyx`` files to generate.  For example::
 
-    $ cython -a yourmod.pyx
+    $ cythonize -a -i yourmod.pyx
 
-This creates a ``yourmod.c`` file, and the ``-a`` switch produces an
-annotated html file of the source code.  Pass the ``-h`` flag for a
-complete list of supported flags.
+This creates a ``yourmod.c`` file (or ``yourmod.cpp`` in C++ mode), compiles it,
+and puts the resulting extension module (``.so`` or ``.pyd``, depending on your
+platform) next to the source file for direct import (``-i`` builds "in place").
+The ``-a`` switch additionally produces an annotated html file of the source code.
 
-Compiling your ``.c`` files will vary depending on your operating
-system.  Python documentation for writing extension modules should
-have some details for your system.  Here we give an example on a Linux
-system::
+The ``cythonize`` command accepts multiple source files and glob patterns like
+``**/*.pyx`` as argument and also understands the common ``-j`` option for
+running multiple parallel build jobs.  When called without further options, it
+will only translate the source files to ``.c`` or ``.cpp`` files.  Pass the
+``-h`` flag for a complete list of supported options.
+
+There is also a simpler command line tool named ``cython`` which only invokes
+the source code translator.
+
+In the case of manual compilation, how to compile your ``.c`` files will vary
+depending on your operating system and compiler.  The Python documentation for
+writing extension modules should have some details for your system.  On a Linux
+system, for example, it might look similar to this::
 
     $ gcc -shared -pthread -fPIC -fwrapv -O2 -Wall -fno-strict-aliasing \
-          -I/usr/include/python2.7 -o yourmod.so yourmod.c
+          -I/usr/include/python3.5 -o yourmod.so yourmod.c
 
-[``gcc`` will need to have paths to your included header files and
-paths to libraries you need to link with]
+(``gcc`` will need to have paths to your included header files and paths
+to libraries you want to link with.)
 
-A ``yourmod.so`` file is now in the same directory and your module,
-``yourmod``, is available for you to import as you normally would.
+After compilation, a ``yourmod.so`` file is written into the target directory
+and your module, ``yourmod``, is available for you to import as with any other
+Python module.  Note that if you are not relying on ``cythonize`` or distutils,
+you will not automatically benefit from the platform specific file extension
+that CPython generates for disambiguation, such as
+``yourmod.cpython-35m-x86_64-linux-gnu.so`` on a regular 64bit Linux installation
+of CPython 3.5.
 
 
 Compiling with ``distutils``
@@ -308,6 +324,55 @@ e.g.::
 These ``.pxd`` files need not have corresponding ``.pyx``
 modules if they contain purely declarations of external libraries.
 
+
+Integrating multiple modules
+============================
+
+In some scenarios, it can be useful to link multiple Cython modules
+(or other extension modules) into a single binary, e.g. when embedding
+Python in another application.  This can be done through the inittab
+import mechanism of CPython.
+
+Create a new C file to integrate the extension modules and add this
+macro to it::
+
+    #if PY_MAJOR_VERSION < 3
+    # define MODINIT(name)  init ## name
+    #else
+    # define MODINIT(name)  PyInit_ ## name
+    #endif
+
+If you are only targeting Python 3.x, just use ``PyInit_`` as prefix.
+
+Then, for each or the modules, declare its module init function
+as follows, replacing ``...`` by the name of the module::
+
+    PyMODINIT_FUNC  MODINIT(...) (void);
+
+In C++, declare them as ``extern C``.
+
+If you are not sure of the name of the module init function, refer
+to your generated module source file and look for a function name
+starting with ``PyInit_``.
+
+Next, before you start the Python runtime from your application code
+with ``Py_Initialize()``, you need to initialise the modules at runtime
+using the ``PyImport_AppendInittab()`` C-API function, again inserting
+the name of each of the modules::
+
+    PyImport_AppendInittab("...", MODINIT(...));
+
+This enables normal imports for the embedded extension modules.
+
+In order to prevent the joined binary from exporting all of the module
+init functions as public symbols, Cython 0.28 and later can hide these
+symbols if the macro ``CYTHON_NO_PYINIT_EXPORT`` is defined while
+C-compiling the module C files.
+
+Also take a look at the `cython_freeze
+<https://github.com/cython/cython/blob/master/bin/cython_freeze>`_ tool.
+
+
 Compiling with :mod:`pyximport`
 ===============================
 
@@ -522,6 +587,37 @@ Configurable optimisations
     have a slight negative performance impact in some cases where the guess goes
     completely wrong.
     Disabling this option can also reduce the code size.  Default is True.
+
+Warnings
+--------
+
+All warning directives take True / False as options
+to turn the warning on / off.
+
+``warn.undeclared`` (default False)
+    Warns about any variables that are implicitly declared without a ``cdef`` declaration
+
+``warn.unreachable`` (default True)
+    Warns about code paths that are statically determined to be unreachable, e.g.
+    returning twice unconditionally.
+
+``warn.maybe_uninitialized`` (default False)
+    Warns about use of variables that are conditionally uninitialized.
+
+``warn.unused`` (default False)
+    Warns about unused variables and declarations
+
+``warn.unused_arg`` (default False)
+    Warns about unused function arguments
+
+``warn.unused_result`` (default False)
+    Warns about unused assignment to the same name, such as
+    ``r = 2; r = 1 + 2``
+
+``warn.multiple_declarators`` (default True)
+   Warns about multiple variables declared on the same line with at least one pointer type.
+   For example ``cdef double* a, b`` - which, as in C, declares ``a`` as a pointer, ``b`` as
+   a value type, but could be mininterpreted as declaring two pointers.
 
 
 How to set directives

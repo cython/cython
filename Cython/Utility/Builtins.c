@@ -109,7 +109,7 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
         locals = globals;
     }
 
-    if (PyDict_GetItem(globals, PYIDENT("__builtins__")) == NULL) {
+    if (__Pyx_PyDict_GetItemStr(globals, PYIDENT("__builtins__")) == NULL) {
         if (PyDict_SetItem(globals, PYIDENT("__builtins__"), PyEval_GetBuiltins()) < 0)
             goto bad;
     }
@@ -235,20 +235,20 @@ static PyObject* __Pyx_Intern(PyObject* s) {
 
 static CYTHON_INLINE PY_LONG_LONG __Pyx_abs_longlong(PY_LONG_LONG x) {
 #if defined (__cplusplus) && __cplusplus >= 201103L
-    return (unsigned PY_LONG_LONG) std::abs(x);
+    return std::abs(x);
 #elif defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
-    return (unsigned PY_LONG_LONG) llabs(x);
-#elif defined (_MSC_VER) && defined (_M_X64)
+    return llabs(x);
+#elif defined (_MSC_VER)
     // abs() is defined for long, but 64-bits type on MSVC is long long.
-    // Use MS-specific _abs64 instead.
-    return (unsigned PY_LONG_LONG) _abs64(x);
+    // Use MS-specific _abs64() instead, which returns the original (negative) value for abs(-MAX-1)
+    return _abs64(x);
 #elif defined (__GNUC__)
     // gcc or clang on 64 bit windows.
-    return (unsigned PY_LONG_LONG) __builtin_llabs(x);
+    return __builtin_llabs(x);
 #else
     if (sizeof(PY_LONG_LONG) <= sizeof(Py_ssize_t))
         return __Pyx_sst_abs(x);
-    return (x<0) ? (unsigned PY_LONG_LONG)-x : (unsigned PY_LONG_LONG)x;
+    return (x<0) ? -x : x;
 #endif
 }
 

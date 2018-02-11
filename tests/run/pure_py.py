@@ -341,3 +341,22 @@ def ccall_except_check_always(x):
     if x == 0:
         raise ValueError
     return x+1
+
+
+@cython.final
+@cython.cclass
+class CClass(object):
+    """
+    >>> c = CClass(2)
+    >>> c.get_attr()
+    int
+    2
+    """
+    cython.declare(attr=cython.int)
+
+    def __init__(self, attr):
+        self.attr = attr
+
+    def get_attr(self):
+        print(cython.typeof(self.attr))
+        return self.attr

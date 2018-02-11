@@ -1350,7 +1350,7 @@ cdef void broadcast_leading({{memviewslice_name}} *mslice,
         mslice.suboffsets[i] = -1
 
 #
-### Take care of refcounting the objects in slices. Do this seperately from any copying,
+### Take care of refcounting the objects in slices. Do this separately from any copying,
 ### to minimize acquiring the GIL
 #
 

@@ -7,7 +7,7 @@ cdef extern from *:
 
 max_int = INT_MAX
 max_long = LONG_MAX
-max_long_long = 2 ** (sizeof(long long) * 8 - 1) - 1
+max_long_long = (<object>2) ** (sizeof(long long) * 8 - 1) - 1
 
 
 cimport cython

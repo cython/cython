@@ -10,10 +10,7 @@ cimport cython
 import sys
 IS_PYPY = hasattr(sys, 'pypy_version_info')
 
-cdef extern from *:
-    int INT_MAX
-    long LONG_MAX
-    long LONG_MIN
+from libc.limits cimport INT_MAX, LONG_MAX, LONG_MIN
 
 max_int = INT_MAX
 max_long = LONG_MAX
@@ -82,6 +79,23 @@ def format2(ab, cd):
     return a, b, c
 
 
+ctypedef enum TestValues:
+    enum_ABC = 1
+    enum_XYZ = 2
+
+
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
+def format_c_enum():
+    """
+    >>> s = format_c_enum()
+    >>> s == '1-2' or s
+    True
+    """
+    return f"{enum_ABC}-{enum_XYZ}"
+
+
 def format_c_numbers(signed char c, short s, int n, long l, float f, double d):
     """
     >>> s1, s2, s3, s4 = format_c_numbers(123, 135, 12, 12312312, 2.3456, 3.1415926)
@@ -126,6 +140,9 @@ def format_c_numbers(signed char c, short s, int n, long l, float f, double d):
     return s1, s2, s3, s4
 
 
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
 def format_c_numbers_max(int n, long l):
     """
     >>> n, l = max_int, max_long
@@ -149,25 +166,78 @@ def format_c_numbers_max(int n, long l):
     return s1, s2
 
 
+def format_c_number_const():
+    """
+    >>> s = format_c_number_const()
+    >>> s == '{0}'.format(max_long) or s
+    True
+    """
+    return f"{LONG_MAX}"
+
+
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
 def format_c_number_range(int n):
     """
-    >>> for i in range(-1000, 1000):
+    >>> for i in range(-1000, 1001):
     ...     assert format_c_number_range(i) == str(i)
     """
     return f'{n}'
 
 
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
 def format_c_number_range_width(int n):
     """
-    >>> for i in range(-1000, 1000):
-    ...     assert format_c_number_range_width(i) == '%04d' % i, format_c_number_range_width(i)
+    >>> for i in range(-1000, 1001):
+    ...     formatted = format_c_number_range_width(i)
+    ...     expected = '{n:04d}'.format(n=i)
+    ...     assert formatted == expected, "%r != %r" % (formatted, expected)
     """
     return f'{n:04}'
 
 
+def format_c_number_range_width0(int n):
+    """
+    >>> for i in range(-100, 101):
+    ...     formatted = format_c_number_range_width0(i)
+    ...     expected = '{n:00d}'.format(n=i)
+    ...     assert formatted == expected, "%r != %r" % (formatted, expected)
+    """
+    return f'{n:00}'
+
+
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
+def format_c_number_range_width1(int n):
+    """
+    >>> for i in range(-100, 101):
+    ...     formatted = format_c_number_range_width1(i)
+    ...     expected = '{n:01d}'.format(n=i)
+    ...     assert formatted == expected, "%r != %r" % (formatted, expected)
+    """
+    return f'{n:01}'
+
+
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
+def format_c_number_range_width_m4(int n):
+    """
+    >>> for i in range(-100, 101):
+    ...     formatted = format_c_number_range_width_m4(i)
+    ...     expected = '{n:-4d}'.format(n=i)
+    ...     assert formatted == expected, "%r != %r" % (formatted, expected)
+    """
+    return f'{n:-4}'
+
+
 def format_c_number_range_dyn_width(int n, int width):
     """
-    >>> for i in range(-1000, 1000):
+    >>> for i in range(-1000, 1001):
     ...     assert format_c_number_range_dyn_width(i, 0) == str(i), format_c_number_range_dyn_width(i, 0)
     ...     assert format_c_number_range_dyn_width(i, 1) == '%01d' % i, format_c_number_range_dyn_width(i, 1)
     ...     assert format_c_number_range_dyn_width(i, 4) == '%04d' % i, format_c_number_range_dyn_width(i, 4)
@@ -177,6 +247,9 @@ def format_c_number_range_dyn_width(int n, int width):
     return f'{n:0{width}}'
 
 
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+)
 def format_bool(bint x):
     """
     >>> a, b, c, d = format_bool(1)
@@ -358,3 +431,16 @@ def format_str(value):
     b = f'x{value!s:6}x'
     assert isinstance(b, unicode), type(b)
     return a, b
+
+
+@cython.test_fail_if_path_exists(
+    "//FormattedValueNode",  # bytes.decode() returns unicode => formatting is useless
+    "//JoinedStrNode",       # replaced by call to PyUnicode_Concat()
+    "//PythonCapiCallNode//PythonCapiCallNode",
+)
+def format_decoded_bytes(bytes value):
+    """
+    >>> print(format_decoded_bytes(b'xyz'))
+    U-xyz
+    """
+    return f"U-{value.decode('utf-8')}"

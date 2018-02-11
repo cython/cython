@@ -51,8 +51,12 @@
   #define CYTHON_USE_TYPE_SLOTS 0
   #undef CYTHON_USE_PYTYPE_LOOKUP
   #define CYTHON_USE_PYTYPE_LOOKUP 0
-  #undef CYTHON_USE_ASYNC_SLOTS
-  #define CYTHON_USE_ASYNC_SLOTS 0
+  #if PY_VERSION_HEX < 0x03050000
+    #undef CYTHON_USE_ASYNC_SLOTS
+    #define CYTHON_USE_ASYNC_SLOTS 0
+  #elif !defined(CYTHON_USE_ASYNC_SLOTS)
+    #define CYTHON_USE_ASYNC_SLOTS 1
+  #endif
   #undef CYTHON_USE_PYLIST_INTERNALS
   #define CYTHON_USE_PYLIST_INTERNALS 0
   #undef CYTHON_USE_UNICODE_INTERNALS
@@ -73,6 +77,8 @@
   #define CYTHON_FAST_PYCALL 0
   #undef CYTHON_PEP489_MULTI_PHASE_INIT
   #define CYTHON_PEP489_MULTI_PHASE_INIT 0
+  #undef CYTHON_USE_TP_FINALIZE
+  #define CYTHON_USE_TP_FINALIZE 0
 
 #elif defined(PYSTON_VERSION)
   #define CYTHON_COMPILING_IN_PYPY 0
@@ -110,6 +116,8 @@
   #define CYTHON_FAST_PYCALL 0
   #undef CYTHON_PEP489_MULTI_PHASE_INIT
   #define CYTHON_PEP489_MULTI_PHASE_INIT 0
+  #undef CYTHON_USE_TP_FINALIZE
+  #define CYTHON_USE_TP_FINALIZE 0
 
 #else
   #define CYTHON_COMPILING_IN_PYPY 0
@@ -166,7 +174,12 @@
     #define CYTHON_FAST_PYCALL 1
   #endif
   #ifndef CYTHON_PEP489_MULTI_PHASE_INIT
-    #define CYTHON_PEP489_MULTI_PHASE_INIT (PY_VERSION_HEX >= 0x03050000)
+    // Disabled for now.  Most extension modules simply can't deal with it, and Cython isn't ready either.
+    // See issues listed here: https://docs.python.org/3/c-api/init.html#sub-interpreter-support
+    #define CYTHON_PEP489_MULTI_PHASE_INIT (0 && PY_VERSION_HEX >= 0x03050000)
+  #endif
+  #ifndef CYTHON_USE_TP_FINALIZE
+    #define CYTHON_USE_TP_FINALIZE (PY_VERSION_HEX >= 0x030400a1)
   #endif
 #endif
 
@@ -182,246 +195,12 @@
   #undef MASK
 #endif
 
-#if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX < 0x02070600 && !defined(Py_OptimizeFlag)
-  #define Py_OptimizeFlag 0
-#endif
-
-#define __PYX_BUILD_PY_SSIZE_T "n"
-#define CYTHON_FORMAT_SSIZE_T "z"
-
-#if PY_MAJOR_VERSION < 3
-  #define __Pyx_BUILTIN_MODULE_NAME "__builtin__"
-  #define __Pyx_PyCode_New(a, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos) \
-          PyCode_New(a+k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos)
-  #define __Pyx_DefaultClassType PyClass_Type
-#else
-  #define __Pyx_BUILTIN_MODULE_NAME "builtins"
-  #define __Pyx_PyCode_New(a, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos) \
-          PyCode_New(a, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos)
-  #define __Pyx_DefaultClassType PyType_Type
-#endif
-
-#ifndef Py_TPFLAGS_CHECKTYPES
-  #define Py_TPFLAGS_CHECKTYPES 0
-#endif
-#ifndef Py_TPFLAGS_HAVE_INDEX
-  #define Py_TPFLAGS_HAVE_INDEX 0
-#endif
-#ifndef Py_TPFLAGS_HAVE_NEWBUFFER
-  #define Py_TPFLAGS_HAVE_NEWBUFFER 0
-#endif
-#ifndef Py_TPFLAGS_HAVE_FINALIZE
-  #define Py_TPFLAGS_HAVE_FINALIZE 0
-#endif
-
-#if PY_VERSION_HEX < 0x030700A0 || !defined(METH_FASTCALL)
-  // new in CPython 3.6, but changed in 3.7 - see https://bugs.python.org/issue29464
-  #ifndef METH_FASTCALL
-     #define METH_FASTCALL 0x80
-  #endif
-  typedef PyObject *(*__Pyx_PyCFunctionFast) (PyObject *self, PyObject **args, Py_ssize_t nargs);
-  // new in CPython 3.7, used to be old signature of _PyCFunctionFast() in 3.6
-  typedef PyObject *(*__Pyx_PyCFunctionFastWithKeywords) (PyObject *self, PyObject **args,
-                                                          Py_ssize_t nargs, PyObject *kwnames);
-#else
-  #define __Pyx_PyCFunctionFast _PyCFunctionFast
-  #define __Pyx_PyCFunctionFastWithKeywords _PyCFunctionFastWithKeywords
-#endif
-#if CYTHON_FAST_PYCCALL
-#define __Pyx_PyFastCFunction_Check(func) \
-    ((PyCFunction_Check(func) && (METH_FASTCALL == (PyCFunction_GET_FLAGS(func) & ~(METH_CLASS | METH_STATIC | METH_COEXIST | METH_KEYWORDS)))))
-#else
-#define __Pyx_PyFastCFunction_Check(func) 0
-#endif
-
-#if !CYTHON_FAST_THREAD_STATE || PY_VERSION_HEX < 0x02070000
-  #define __Pyx_PyThreadState_Current PyThreadState_GET()
-#elif PY_VERSION_HEX >= 0x03050200
-  #define __Pyx_PyThreadState_Current _PyThreadState_UncheckedGet()
-#elif PY_VERSION_HEX >= 0x03000000
-  #define __Pyx_PyThreadState_Current PyThreadState_Get()
-#else
-  #define __Pyx_PyThreadState_Current _PyThreadState_Current
-#endif
-
-#if PY_MAJOR_VERSION >= 3 || CYTHON_FUTURE_DIVISION
-  #define __Pyx_PyNumber_Divide(x,y)         PyNumber_TrueDivide(x,y)
-  #define __Pyx_PyNumber_InPlaceDivide(x,y)  PyNumber_InPlaceTrueDivide(x,y)
-#else
-  #define __Pyx_PyNumber_Divide(x,y)         PyNumber_Divide(x,y)
-  #define __Pyx_PyNumber_InPlaceDivide(x,y)  PyNumber_InPlaceDivide(x,y)
-#endif
-
-/* new Py3.3 unicode type (PEP 393) */
-#if PY_VERSION_HEX > 0x03030000 && defined(PyUnicode_KIND)
-  #define CYTHON_PEP393_ENABLED 1
-  #define __Pyx_PyUnicode_READY(op)       (likely(PyUnicode_IS_READY(op)) ? \
-                                              0 : _PyUnicode_Ready((PyObject *)(op)))
-  #define __Pyx_PyUnicode_GET_LENGTH(u)   PyUnicode_GET_LENGTH(u)
-  #define __Pyx_PyUnicode_READ_CHAR(u, i) PyUnicode_READ_CHAR(u, i)
-  #define __Pyx_PyUnicode_MAX_CHAR_VALUE(u)   PyUnicode_MAX_CHAR_VALUE(u)
-  #define __Pyx_PyUnicode_KIND(u)         PyUnicode_KIND(u)
-  #define __Pyx_PyUnicode_DATA(u)         PyUnicode_DATA(u)
-  #define __Pyx_PyUnicode_READ(k, d, i)   PyUnicode_READ(k, d, i)
-  #define __Pyx_PyUnicode_WRITE(k, d, i, ch)  PyUnicode_WRITE(k, d, i, ch)
-  #define __Pyx_PyUnicode_IS_TRUE(u)      (0 != (likely(PyUnicode_IS_READY(u)) ? PyUnicode_GET_LENGTH(u) : PyUnicode_GET_SIZE(u)))
-#else
-  #define CYTHON_PEP393_ENABLED 0
-  #define PyUnicode_1BYTE_KIND  1
-  #define PyUnicode_2BYTE_KIND  2
-  #define PyUnicode_4BYTE_KIND  4
-  #define __Pyx_PyUnicode_READY(op)       (0)
-  #define __Pyx_PyUnicode_GET_LENGTH(u)   PyUnicode_GET_SIZE(u)
-  #define __Pyx_PyUnicode_READ_CHAR(u, i) ((Py_UCS4)(PyUnicode_AS_UNICODE(u)[i]))
-  #define __Pyx_PyUnicode_MAX_CHAR_VALUE(u)   ((sizeof(Py_UNICODE) == 2) ? 65535 : 1114111)
-  #define __Pyx_PyUnicode_KIND(u)         (sizeof(Py_UNICODE))
-  #define __Pyx_PyUnicode_DATA(u)         ((void*)PyUnicode_AS_UNICODE(u))
-  /* (void)(k) => avoid unused variable warning due to macro: */
-  #define __Pyx_PyUnicode_READ(k, d, i)   ((void)(k), (Py_UCS4)(((Py_UNICODE*)d)[i]))
-  #define __Pyx_PyUnicode_WRITE(k, d, i, ch)  (((void)(k)), ((Py_UNICODE*)d)[i] = ch)
-  #define __Pyx_PyUnicode_IS_TRUE(u)      (0 != PyUnicode_GET_SIZE(u))
-#endif
-
-#if CYTHON_COMPILING_IN_PYPY
-  #define __Pyx_PyUnicode_Concat(a, b)      PyNumber_Add(a, b)
-  #define __Pyx_PyUnicode_ConcatSafe(a, b)  PyNumber_Add(a, b)
-#else
-  #define __Pyx_PyUnicode_Concat(a, b)      PyUnicode_Concat(a, b)
-  #define __Pyx_PyUnicode_ConcatSafe(a, b)  ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
-      PyNumber_Add(a, b) : __Pyx_PyUnicode_Concat(a, b))
-#endif
-
-#if CYTHON_COMPILING_IN_PYPY && !defined(PyUnicode_Contains)
-  #define PyUnicode_Contains(u, s)  PySequence_Contains(u, s)
-#endif
-
-#if CYTHON_COMPILING_IN_PYPY && !defined(PyByteArray_Check)
-  #define PyByteArray_Check(obj)  PyObject_TypeCheck(obj, &PyByteArray_Type)
-#endif
-
-#if CYTHON_COMPILING_IN_PYPY && !defined(PyObject_Format)
-  #define PyObject_Format(obj, fmt)  PyObject_CallMethod(obj, "__format__", "O", fmt)
-#endif
-
-#if CYTHON_COMPILING_IN_PYPY && !defined(PyObject_Malloc)
-  #define PyObject_Malloc(s)   PyMem_Malloc(s)
-  #define PyObject_Free(p)     PyMem_Free(p)
-  #define PyObject_Realloc(p)  PyMem_Realloc(p)
-#endif
-
-#if CYTHON_COMPILING_IN_PYSTON
-  // special C-API functions only in Pyston
-  #define __Pyx_PyCode_HasFreeVars(co)  PyCode_HasFreeVars(co)
-  #define __Pyx_PyFrame_SetLineNumber(frame, lineno) PyFrame_SetLineNumber(frame, lineno)
-#else
-  #define __Pyx_PyCode_HasFreeVars(co)  (PyCode_GetNumFree(co) > 0)
-  #define __Pyx_PyFrame_SetLineNumber(frame, lineno)  (frame)->f_lineno = (lineno)
-#endif
-
-#define __Pyx_PyString_FormatSafe(a, b)   ((unlikely((a) == Py_None)) ? PyNumber_Remainder(a, b) : __Pyx_PyString_Format(a, b))
-#define __Pyx_PyUnicode_FormatSafe(a, b)  ((unlikely((a) == Py_None)) ? PyNumber_Remainder(a, b) : PyUnicode_Format(a, b))
-
-#if PY_MAJOR_VERSION >= 3
-  #define __Pyx_PyString_Format(a, b)  PyUnicode_Format(a, b)
-#else
-  #define __Pyx_PyString_Format(a, b)  PyString_Format(a, b)
-#endif
-
-#if PY_MAJOR_VERSION < 3 && !defined(PyObject_ASCII)
-  #define PyObject_ASCII(o)            PyObject_Repr(o)
-#endif
-
-#if PY_MAJOR_VERSION >= 3
-  #define PyBaseString_Type            PyUnicode_Type
-  #define PyStringObject               PyUnicodeObject
-  #define PyString_Type                PyUnicode_Type
-  #define PyString_Check               PyUnicode_Check
-  #define PyString_CheckExact          PyUnicode_CheckExact
-#endif
-
-#if PY_MAJOR_VERSION >= 3
-  #define __Pyx_PyBaseString_Check(obj) PyUnicode_Check(obj)
-  #define __Pyx_PyBaseString_CheckExact(obj) PyUnicode_CheckExact(obj)
-#else
-  #define __Pyx_PyBaseString_Check(obj) (PyString_Check(obj) || PyUnicode_Check(obj))
-  #define __Pyx_PyBaseString_CheckExact(obj) (PyString_CheckExact(obj) || PyUnicode_CheckExact(obj))
-#endif
-
-#ifndef PySet_CheckExact
-  #define PySet_CheckExact(obj)        (Py_TYPE(obj) == &PySet_Type)
-#endif
-
-#define __Pyx_PyException_Check(obj) __Pyx_TypeCheck(obj, PyExc_Exception)
-
-#if PY_MAJOR_VERSION >= 3
-  #define PyIntObject                  PyLongObject
-  #define PyInt_Type                   PyLong_Type
-  #define PyInt_Check(op)              PyLong_Check(op)
-  #define PyInt_CheckExact(op)         PyLong_CheckExact(op)
-  #define PyInt_FromString             PyLong_FromString
-  #define PyInt_FromUnicode            PyLong_FromUnicode
-  #define PyInt_FromLong               PyLong_FromLong
-  #define PyInt_FromSize_t             PyLong_FromSize_t
-  #define PyInt_FromSsize_t            PyLong_FromSsize_t
-  #define PyInt_AsLong                 PyLong_AsLong
-  #define PyInt_AS_LONG                PyLong_AS_LONG
-  #define PyInt_AsSsize_t              PyLong_AsSsize_t
-  #define PyInt_AsUnsignedLongMask     PyLong_AsUnsignedLongMask
-  #define PyInt_AsUnsignedLongLongMask PyLong_AsUnsignedLongLongMask
-  #define PyNumber_Int                 PyNumber_Long
-#endif
-
-#if PY_MAJOR_VERSION >= 3
-  #define PyBoolObject                 PyLongObject
-#endif
-
-#if PY_MAJOR_VERSION >= 3 && CYTHON_COMPILING_IN_PYPY
-  #ifndef PyUnicode_InternFromString
-    #define PyUnicode_InternFromString(s) PyUnicode_FromString(s)
-  #endif
-#endif
-
-#if PY_VERSION_HEX < 0x030200A4
-  typedef long Py_hash_t;
-  #define __Pyx_PyInt_FromHash_t PyInt_FromLong
-  #define __Pyx_PyInt_AsHash_t   PyInt_AsLong
-#else
-  #define __Pyx_PyInt_FromHash_t PyInt_FromSsize_t
-  #define __Pyx_PyInt_AsHash_t   PyInt_AsSsize_t
-#endif
-
-#if PY_MAJOR_VERSION >= 3
-  #define __Pyx_PyMethod_New(func, self, klass) ((self) ? PyMethod_New(func, self) : PyInstanceMethod_New(func))
-#else
-  #define __Pyx_PyMethod_New(func, self, klass) PyMethod_New(func, self, klass)
-#endif
-
 #ifndef __has_attribute
   #define __has_attribute(x) 0
 #endif
 
 #ifndef __has_cpp_attribute
   #define __has_cpp_attribute(x) 0
-#endif
-
-// backport of PyAsyncMethods from Py3.5 to older Py3.x versions
-// (mis-)using the "tp_reserved" type slot which is re-activated as "tp_as_async" in Py3.5
-#if CYTHON_USE_ASYNC_SLOTS
-  #if PY_VERSION_HEX >= 0x030500B1
-    #define __Pyx_PyAsyncMethodsStruct PyAsyncMethods
-    #define __Pyx_PyType_AsAsync(obj) (Py_TYPE(obj)->tp_as_async)
-  #else
-    #define __Pyx_PyType_AsAsync(obj) ((__Pyx_PyAsyncMethodsStruct*) (Py_TYPE(obj)->tp_reserved))
-  #endif
-#else
-  #define __Pyx_PyType_AsAsync(obj) NULL
-#endif
-#ifndef __Pyx_PyAsyncMethodsStruct
-    typedef struct {
-        unaryfunc am_await;
-        unaryfunc am_aiter;
-        unaryfunc am_anext;
-    } __Pyx_PyAsyncMethodsStruct;
 #endif
 
 // restrict
@@ -486,18 +265,27 @@
 
 
 #ifndef CYTHON_FALLTHROUGH
-  #ifdef __cplusplus
+  #if defined(__cplusplus) && __cplusplus >= 201103L
     #if __has_cpp_attribute(fallthrough)
       #define CYTHON_FALLTHROUGH [[fallthrough]]
     #elif __has_cpp_attribute(clang::fallthrough)
       #define CYTHON_FALLTHROUGH [[clang::fallthrough]]
+    #elif __has_cpp_attribute(gnu::fallthrough)
+      #define CYTHON_FALLTHROUGH [[gnu::fallthrough]]
     #endif
   #endif
 
   #ifndef CYTHON_FALLTHROUGH
-    #if __has_attribute(fallthrough) || (defined(__GNUC__) && defined(__attribute__))
+    #if __has_attribute(fallthrough)
       #define CYTHON_FALLTHROUGH __attribute__((fallthrough))
     #else
+      #define CYTHON_FALLTHROUGH
+    #endif
+  #endif
+
+  #if defined(__clang__ ) && defined(__apple_build_version__)
+    #if __apple_build_version__ < 7000000 /* Xcode < 7.0 */
+      #undef  CYTHON_FALLTHROUGH
       #define CYTHON_FALLTHROUGH
     #endif
   #endif
@@ -561,6 +349,323 @@ class __Pyx_FakeReference {
 };
 
 
+/////////////// PythonCompatibility ///////////////
+
+#if CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX < 0x02070600 && !defined(Py_OptimizeFlag)
+  #define Py_OptimizeFlag 0
+#endif
+
+#define __PYX_BUILD_PY_SSIZE_T "n"
+#define CYTHON_FORMAT_SSIZE_T "z"
+
+#if PY_MAJOR_VERSION < 3
+  #define __Pyx_BUILTIN_MODULE_NAME "__builtin__"
+  #define __Pyx_PyCode_New(a, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos) \
+          PyCode_New(a+k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos)
+  #define __Pyx_DefaultClassType PyClass_Type
+#else
+  #define __Pyx_BUILTIN_MODULE_NAME "builtins"
+  #define __Pyx_PyCode_New(a, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos) \
+          PyCode_New(a, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos)
+  #define __Pyx_DefaultClassType PyType_Type
+#endif
+
+#ifndef Py_TPFLAGS_CHECKTYPES
+  #define Py_TPFLAGS_CHECKTYPES 0
+#endif
+#ifndef Py_TPFLAGS_HAVE_INDEX
+  #define Py_TPFLAGS_HAVE_INDEX 0
+#endif
+#ifndef Py_TPFLAGS_HAVE_NEWBUFFER
+  #define Py_TPFLAGS_HAVE_NEWBUFFER 0
+#endif
+#ifndef Py_TPFLAGS_HAVE_FINALIZE
+  #define Py_TPFLAGS_HAVE_FINALIZE 0
+#endif
+
+#if PY_VERSION_HEX <= 0x030700A3 || !defined(METH_FASTCALL)
+  // new in CPython 3.6, but changed in 3.7 - see
+  // positional-only parameters:
+  //   https://bugs.python.org/issue29464
+  // const args:
+  //   https://bugs.python.org/issue32240
+  #ifndef METH_FASTCALL
+     #define METH_FASTCALL 0x80
+  #endif
+  typedef PyObject *(*__Pyx_PyCFunctionFast) (PyObject *self, PyObject *const *args, Py_ssize_t nargs);
+  // new in CPython 3.7, used to be old signature of _PyCFunctionFast() in 3.6
+  typedef PyObject *(*__Pyx_PyCFunctionFastWithKeywords) (PyObject *self, PyObject *const *args,
+                                                          Py_ssize_t nargs, PyObject *kwnames);
+#else
+  #define __Pyx_PyCFunctionFast _PyCFunctionFast
+  #define __Pyx_PyCFunctionFastWithKeywords _PyCFunctionFastWithKeywords
+#endif
+#if CYTHON_FAST_PYCCALL
+#define __Pyx_PyFastCFunction_Check(func) \
+    ((PyCFunction_Check(func) && (METH_FASTCALL == (PyCFunction_GET_FLAGS(func) & ~(METH_CLASS | METH_STATIC | METH_COEXIST | METH_KEYWORDS)))))
+#else
+#define __Pyx_PyFastCFunction_Check(func) 0
+#endif
+
+#if CYTHON_COMPILING_IN_PYPY && !defined(PyObject_Malloc)
+  #define PyObject_Malloc(s)   PyMem_Malloc(s)
+  #define PyObject_Free(p)     PyMem_Free(p)
+  #define PyObject_Realloc(p)  PyMem_Realloc(p)
+#endif
+
+#if CYTHON_COMPILING_IN_PYSTON
+  // special C-API functions only in Pyston
+  #define __Pyx_PyCode_HasFreeVars(co)  PyCode_HasFreeVars(co)
+  #define __Pyx_PyFrame_SetLineNumber(frame, lineno) PyFrame_SetLineNumber(frame, lineno)
+#else
+  #define __Pyx_PyCode_HasFreeVars(co)  (PyCode_GetNumFree(co) > 0)
+  #define __Pyx_PyFrame_SetLineNumber(frame, lineno)  (frame)->f_lineno = (lineno)
+#endif
+
+#if !CYTHON_FAST_THREAD_STATE || PY_VERSION_HEX < 0x02070000
+  #define __Pyx_PyThreadState_Current PyThreadState_GET()
+#elif PY_VERSION_HEX >= 0x03060000
+  //#elif PY_VERSION_HEX >= 0x03050200
+  // Actually added in 3.5.2, but compiling against that does not guarantee that we get imported there.
+  #define __Pyx_PyThreadState_Current _PyThreadState_UncheckedGet()
+#elif PY_VERSION_HEX >= 0x03000000
+  #define __Pyx_PyThreadState_Current PyThreadState_GET()
+#else
+  #define __Pyx_PyThreadState_Current _PyThreadState_Current
+#endif
+
+// TSS (Thread Specific Storage) API
+#if PY_VERSION_HEX < 0x030700A2 && !defined(PyThread_tss_create) && !defined(Py_tss_NEEDS_INIT)
+#include "pythread.h"
+#define Py_tss_NEEDS_INIT 0
+typedef int Py_tss_t;
+static CYTHON_INLINE int PyThread_tss_create(Py_tss_t *key) {
+  *key = PyThread_create_key();
+  return 0; // PyThread_create_key reports success always
+}
+static CYTHON_INLINE Py_tss_t * PyThread_tss_alloc(void) {
+  Py_tss_t *key = (Py_tss_t *)PyObject_Malloc(sizeof(Py_tss_t));
+  *key = Py_tss_NEEDS_INIT;
+  return key;
+}
+static CYTHON_INLINE void PyThread_tss_free(Py_tss_t *key) {
+  PyObject_Free(key);
+}
+static CYTHON_INLINE int PyThread_tss_is_created(Py_tss_t *key) {
+  return *key != Py_tss_NEEDS_INIT;
+}
+static CYTHON_INLINE void PyThread_tss_delete(Py_tss_t *key) {
+  PyThread_delete_key(*key);
+  *key = Py_tss_NEEDS_INIT;
+}
+static CYTHON_INLINE int PyThread_tss_set(Py_tss_t *key, void *value) {
+  return PyThread_set_key_value(*key, value);
+}
+static CYTHON_INLINE void * PyThread_tss_get(Py_tss_t *key) {
+  return PyThread_get_key_value(*key);
+}
+// PyThread_delete_key_value(key) is equalivalent to PyThread_set_key_value(key, NULL)
+// PyThread_ReInitTLS() is a no-op
+#endif // TSS (Thread Specific Storage) API
+
+#if CYTHON_COMPILING_IN_CPYTHON || defined(_PyDict_NewPresized)
+#define __Pyx_PyDict_NewPresized(n)  ((n <= 8) ? PyDict_New() : _PyDict_NewPresized(n))
+#else
+#define __Pyx_PyDict_NewPresized(n)  PyDict_New()
+#endif
+
+#if PY_MAJOR_VERSION >= 3 || CYTHON_FUTURE_DIVISION
+  #define __Pyx_PyNumber_Divide(x,y)         PyNumber_TrueDivide(x,y)
+  #define __Pyx_PyNumber_InPlaceDivide(x,y)  PyNumber_InPlaceTrueDivide(x,y)
+#else
+  #define __Pyx_PyNumber_Divide(x,y)         PyNumber_Divide(x,y)
+  #define __Pyx_PyNumber_InPlaceDivide(x,y)  PyNumber_InPlaceDivide(x,y)
+#endif
+
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500A1 && CYTHON_USE_UNICODE_INTERNALS
+#define __Pyx_PyDict_GetItemStr(dict, name)  _PyDict_GetItem_KnownHash(dict, name, ((PyASCIIObject *) name)->hash)
+#else
+#define __Pyx_PyDict_GetItemStr(dict, name)  PyDict_GetItem(dict, name)
+#endif
+
+/* new Py3.3 unicode type (PEP 393) */
+#if PY_VERSION_HEX > 0x03030000 && defined(PyUnicode_KIND)
+  #define CYTHON_PEP393_ENABLED 1
+  #define __Pyx_PyUnicode_READY(op)       (likely(PyUnicode_IS_READY(op)) ? \
+                                              0 : _PyUnicode_Ready((PyObject *)(op)))
+  #define __Pyx_PyUnicode_GET_LENGTH(u)   PyUnicode_GET_LENGTH(u)
+  #define __Pyx_PyUnicode_READ_CHAR(u, i) PyUnicode_READ_CHAR(u, i)
+  #define __Pyx_PyUnicode_MAX_CHAR_VALUE(u)   PyUnicode_MAX_CHAR_VALUE(u)
+  #define __Pyx_PyUnicode_KIND(u)         PyUnicode_KIND(u)
+  #define __Pyx_PyUnicode_DATA(u)         PyUnicode_DATA(u)
+  #define __Pyx_PyUnicode_READ(k, d, i)   PyUnicode_READ(k, d, i)
+  #define __Pyx_PyUnicode_WRITE(k, d, i, ch)  PyUnicode_WRITE(k, d, i, ch)
+  #define __Pyx_PyUnicode_IS_TRUE(u)      (0 != (likely(PyUnicode_IS_READY(u)) ? PyUnicode_GET_LENGTH(u) : PyUnicode_GET_SIZE(u)))
+#else
+  #define CYTHON_PEP393_ENABLED 0
+  #define PyUnicode_1BYTE_KIND  1
+  #define PyUnicode_2BYTE_KIND  2
+  #define PyUnicode_4BYTE_KIND  4
+  #define __Pyx_PyUnicode_READY(op)       (0)
+  #define __Pyx_PyUnicode_GET_LENGTH(u)   PyUnicode_GET_SIZE(u)
+  #define __Pyx_PyUnicode_READ_CHAR(u, i) ((Py_UCS4)(PyUnicode_AS_UNICODE(u)[i]))
+  #define __Pyx_PyUnicode_MAX_CHAR_VALUE(u)   ((sizeof(Py_UNICODE) == 2) ? 65535 : 1114111)
+  #define __Pyx_PyUnicode_KIND(u)         (sizeof(Py_UNICODE))
+  #define __Pyx_PyUnicode_DATA(u)         ((void*)PyUnicode_AS_UNICODE(u))
+  /* (void)(k) => avoid unused variable warning due to macro: */
+  #define __Pyx_PyUnicode_READ(k, d, i)   ((void)(k), (Py_UCS4)(((Py_UNICODE*)d)[i]))
+  #define __Pyx_PyUnicode_WRITE(k, d, i, ch)  (((void)(k)), ((Py_UNICODE*)d)[i] = ch)
+  #define __Pyx_PyUnicode_IS_TRUE(u)      (0 != PyUnicode_GET_SIZE(u))
+#endif
+
+#if CYTHON_COMPILING_IN_PYPY
+  #define __Pyx_PyUnicode_Concat(a, b)      PyNumber_Add(a, b)
+  #define __Pyx_PyUnicode_ConcatSafe(a, b)  PyNumber_Add(a, b)
+#else
+  #define __Pyx_PyUnicode_Concat(a, b)      PyUnicode_Concat(a, b)
+  #define __Pyx_PyUnicode_ConcatSafe(a, b)  ((unlikely((a) == Py_None) || unlikely((b) == Py_None)) ? \
+      PyNumber_Add(a, b) : __Pyx_PyUnicode_Concat(a, b))
+#endif
+
+#if CYTHON_COMPILING_IN_PYPY && !defined(PyUnicode_Contains)
+  #define PyUnicode_Contains(u, s)  PySequence_Contains(u, s)
+#endif
+
+#if CYTHON_COMPILING_IN_PYPY && !defined(PyByteArray_Check)
+  #define PyByteArray_Check(obj)  PyObject_TypeCheck(obj, &PyByteArray_Type)
+#endif
+
+#if CYTHON_COMPILING_IN_PYPY && !defined(PyObject_Format)
+  #define PyObject_Format(obj, fmt)  PyObject_CallMethod(obj, "__format__", "O", fmt)
+#endif
+
+#define __Pyx_PyString_FormatSafe(a, b)   ((unlikely((a) == Py_None)) ? PyNumber_Remainder(a, b) : __Pyx_PyString_Format(a, b))
+#define __Pyx_PyUnicode_FormatSafe(a, b)  ((unlikely((a) == Py_None)) ? PyNumber_Remainder(a, b) : PyUnicode_Format(a, b))
+
+#if PY_MAJOR_VERSION >= 3
+  #define __Pyx_PyString_Format(a, b)  PyUnicode_Format(a, b)
+#else
+  #define __Pyx_PyString_Format(a, b)  PyString_Format(a, b)
+#endif
+
+#if PY_MAJOR_VERSION < 3 && !defined(PyObject_ASCII)
+  #define PyObject_ASCII(o)            PyObject_Repr(o)
+#endif
+
+#if PY_MAJOR_VERSION >= 3
+  #define PyBaseString_Type            PyUnicode_Type
+  #define PyStringObject               PyUnicodeObject
+  #define PyString_Type                PyUnicode_Type
+  #define PyString_Check               PyUnicode_Check
+  #define PyString_CheckExact          PyUnicode_CheckExact
+#endif
+
+#if PY_MAJOR_VERSION >= 3
+  #define __Pyx_PyBaseString_Check(obj) PyUnicode_Check(obj)
+  #define __Pyx_PyBaseString_CheckExact(obj) PyUnicode_CheckExact(obj)
+#else
+  #define __Pyx_PyBaseString_Check(obj) (PyString_Check(obj) || PyUnicode_Check(obj))
+  #define __Pyx_PyBaseString_CheckExact(obj) (PyString_CheckExact(obj) || PyUnicode_CheckExact(obj))
+#endif
+
+#ifndef PySet_CheckExact
+  #define PySet_CheckExact(obj)        (Py_TYPE(obj) == &PySet_Type)
+#endif
+
+#if CYTHON_ASSUME_SAFE_MACROS
+  #define __Pyx_PySequence_SIZE(seq)  Py_SIZE(seq)
+#else
+  // NOTE: might fail with exception => check for -1
+  #define __Pyx_PySequence_SIZE(seq)  PySequence_Size(seq)
+#endif
+
+#if PY_MAJOR_VERSION >= 3
+  #define PyIntObject                  PyLongObject
+  #define PyInt_Type                   PyLong_Type
+  #define PyInt_Check(op)              PyLong_Check(op)
+  #define PyInt_CheckExact(op)         PyLong_CheckExact(op)
+  #define PyInt_FromString             PyLong_FromString
+  #define PyInt_FromUnicode            PyLong_FromUnicode
+  #define PyInt_FromLong               PyLong_FromLong
+  #define PyInt_FromSize_t             PyLong_FromSize_t
+  #define PyInt_FromSsize_t            PyLong_FromSsize_t
+  #define PyInt_AsLong                 PyLong_AsLong
+  #define PyInt_AS_LONG                PyLong_AS_LONG
+  #define PyInt_AsSsize_t              PyLong_AsSsize_t
+  #define PyInt_AsUnsignedLongMask     PyLong_AsUnsignedLongMask
+  #define PyInt_AsUnsignedLongLongMask PyLong_AsUnsignedLongLongMask
+  #define PyNumber_Int                 PyNumber_Long
+#endif
+
+#if PY_MAJOR_VERSION >= 3
+  #define PyBoolObject                 PyLongObject
+#endif
+
+#if PY_MAJOR_VERSION >= 3 && CYTHON_COMPILING_IN_PYPY
+  #ifndef PyUnicode_InternFromString
+    #define PyUnicode_InternFromString(s) PyUnicode_FromString(s)
+  #endif
+#endif
+
+#if PY_VERSION_HEX < 0x030200A4
+  typedef long Py_hash_t;
+  #define __Pyx_PyInt_FromHash_t PyInt_FromLong
+  #define __Pyx_PyInt_AsHash_t   PyInt_AsLong
+#else
+  #define __Pyx_PyInt_FromHash_t PyInt_FromSsize_t
+  #define __Pyx_PyInt_AsHash_t   PyInt_AsSsize_t
+#endif
+
+#if PY_MAJOR_VERSION >= 3
+  #define __Pyx_PyMethod_New(func, self, klass) ((self) ? PyMethod_New(func, self) : PyInstanceMethod_New(func))
+#else
+  #define __Pyx_PyMethod_New(func, self, klass) PyMethod_New(func, self, klass)
+#endif
+
+// backport of PyAsyncMethods from Py3.5 to older Py3.x versions
+// (mis-)using the "tp_reserved" type slot which is re-activated as "tp_as_async" in Py3.5
+#if CYTHON_USE_ASYNC_SLOTS
+  #if PY_VERSION_HEX >= 0x030500B1
+    #define __Pyx_PyAsyncMethodsStruct PyAsyncMethods
+    #define __Pyx_PyType_AsAsync(obj) (Py_TYPE(obj)->tp_as_async)
+  #else
+    #define __Pyx_PyType_AsAsync(obj) ((__Pyx_PyAsyncMethodsStruct*) (Py_TYPE(obj)->tp_reserved))
+  #endif
+#else
+  #define __Pyx_PyType_AsAsync(obj) NULL
+#endif
+#ifndef __Pyx_PyAsyncMethodsStruct
+    typedef struct {
+        unaryfunc am_await;
+        unaryfunc am_aiter;
+        unaryfunc am_anext;
+    } __Pyx_PyAsyncMethodsStruct;
+#endif
+
+
+/////////////// PyModInitFuncType.proto ///////////////
+
+#if PY_MAJOR_VERSION < 3
+
+#ifdef CYTHON_NO_PYINIT_EXPORT
+// define this to void manually because PyMODINIT_FUNC adds __declspec(dllexport) to it's definition.
+#define __Pyx_PyMODINIT_FUNC void
+#else
+#define __Pyx_PyMODINIT_FUNC PyMODINIT_FUNC
+#endif
+
+#else
+
+#ifdef CYTHON_NO_PYINIT_EXPORT
+// define this to PyObject * manually because PyMODINIT_FUNC adds __declspec(dllexport) to it's definition.
+#define __Pyx_PyMODINIT_FUNC PyObject *
+#else
+#define __Pyx_PyMODINIT_FUNC PyMODINIT_FUNC
+#endif
+
+#endif
+
+
 /////////////// FastTypeChecks.proto ///////////////
 
 #if CYTHON_COMPILING_IN_CPYTHON
@@ -573,6 +678,8 @@ static CYTHON_INLINE int __Pyx_PyErr_GivenExceptionMatches2(PyObject *err, PyObj
 #define __Pyx_PyErr_GivenExceptionMatches(err, type) PyErr_GivenExceptionMatches(err, type)
 #define __Pyx_PyErr_GivenExceptionMatches2(err, type1, type2) (PyErr_GivenExceptionMatches(err, type1) || PyErr_GivenExceptionMatches(err, type2))
 #endif
+
+#define __Pyx_PyException_Check(obj) __Pyx_TypeCheck(obj, PyExc_Exception)
 
 /////////////// FastTypeChecks ///////////////
 //@requires: Exceptions.c::PyThreadStateGet
@@ -731,6 +838,10 @@ static int __Pyx_copy_spec_to_module(PyObject *spec, PyObject *moddict, const ch
 
 static PyObject* ${pymodule_create_func_cname}(PyObject *spec, CYTHON_UNUSED PyModuleDef *def) {
     PyObject *module = NULL, *moddict, *modname;
+
+    // For now, we only have exactly one module instance.
+    if (${module_cname})
+        return __Pyx_NewRef(${module_cname});
 
     modname = PyObject_GetAttrString(spec, "name");
     if (unlikely(!modname)) goto bad;
@@ -996,6 +1107,20 @@ end:
 }
 #endif /* CYTHON_REFNANNY */
 
+
+/////////////// ImportRefnannyAPI ///////////////
+
+#if CYTHON_REFNANNY
+__Pyx_RefNanny = __Pyx_RefNannyImportAPI("refnanny");
+if (!__Pyx_RefNanny) {
+  PyErr_Clear();
+  __Pyx_RefNanny = __Pyx_RefNannyImportAPI("Cython.Runtime.refnanny");
+  if (!__Pyx_RefNanny)
+      Py_FatalError("failed to import 'refnanny' module");
+}
+#endif
+
+
 /////////////// RegisterModuleCleanup.proto ///////////////
 //@substitute: naming
 
@@ -1006,7 +1131,7 @@ static int __Pyx_RegisterCleanup(void); /*proto*/
 //@substitute: naming
 //@requires: ImportExport.c::ModuleImport
 
-#if PY_MAJOR_VERSION < 3
+#if PY_MAJOR_VERSION < 3 || CYTHON_COMPILING_IN_PYPY
 static PyObject* ${cleanup_cname}_atexit(PyObject *module, CYTHON_UNUSED PyObject *unused) {
     ${cleanup_cname}(module);
     Py_INCREF(Py_None); return Py_None;
@@ -1079,7 +1204,7 @@ bad:
 #else
 // fake call purely to work around "unused function" warning for __Pyx_ImportModule()
 static int __Pyx_RegisterCleanup(void) {
-    if ((0)) __Pyx_ImportModule(NULL);
+    (void)__Pyx_ImportModule; /* unused */
     return 0;
 }
 #endif

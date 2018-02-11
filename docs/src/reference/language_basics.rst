@@ -111,6 +111,9 @@ However with Cython it is possible to gain significant speed-ups through the use
 .. note:: Typing is not a necessity
 
     Providing static typing to parameters and variables is convenience to speed up your code, but it is not a necessity. Optimize where and when needed.
+    In fact, typing can *slow down* your code in the case where the
+    typing does not allow optimizations but where Cython still needs to
+    check that the type of some object matches the declared type.
 
 
 The cdef Statement
@@ -133,8 +136,10 @@ The ``cdef`` statement is used to make C level declarations for:
         int age
         float volume
 
-..note Structs can be declared as ``cdef packed struct``, which has
-the same effect as the C directive ``#pragma pack(1)``.
+.. note::
+
+    Structs can be declared as ``cdef packed struct``, which has
+    the same effect as the C directive ``#pragma pack(1)``.
 
 :Unions:
 
@@ -208,11 +213,35 @@ A series of declarations can grouped into a ``cdef`` block::
 
         ctypedef int *IntPtr
 
+.. _typing_types:
+
+C types and Python classes
+==========================
+
+There are three kinds of types that you can declare:
+
+1. C types, like ``cdef double x = 1.0``.
+   In the C code that Cython generates, this will create a C variable
+   of type ``double``. So working with this variable is exactly as fast
+   as working with a C variable of that type.
+
+2. Builtin Python classes like ``cdef list L = []``.
+   This requires an *exact* match of the class, it does not allow
+   subclasses. This allows Cython to optimize code by accessing
+   internals of the builtin class.
+   Cython uses a C variable of type ``PyObject*``.
+
+3. Extension types (declared with ``cdef class``).
+   This does allow subclasses. This typing is mostly used to access
+   ``cdef`` methods and attributes of the extension type.
+   The C code uses a variable which is a pointer to a structure of the
+   specific type, something like ``struct MyExtensionTypeObject*``.
+
 
 Parameters
 ==========
 
-* Both C and Python **function** types can be declared to have parameters C data types.
+* Both C and Python **function** types can be declared to have parameters with a given C data type.
 * Use normal C declaration syntax::
 
     def spam(int i, char *s):
@@ -221,30 +250,32 @@ Parameters
         cdef int eggs(unsigned long l, float f):
             ...
 
-* As these parameters are passed into a Python declared function, they are magically **converted** to the specified C type value.
+* As these parameters are passed into a Python declared function,
+  they are automatically **converted** to the specified C type value,
+  if a conversion is possible and safe.  This applies to numeric and
+  string types, as well as some C++ container types.
 
- * This holds true for only numeric and string types
-
-* If no type is specified for a parameter or a return value, it is assumed to be a Python object
+* If no type is specified for a parameter or a return value, it is assumed to be a Python object.
 
  * The following takes two Python objects as parameters and returns a Python object::
 
         cdef spamobjs(x, y):
             ...
 
-  .. note:: --
+  .. note::
 
-      This is different then C language behavior, where  it is an int by default.
+      This is different from the C language behavior, where missing types are assumed as ``int`` by default.
 
 
-
-* Python object types have reference counting performed according to the standard Python C-API rules:
+* Python object types have reference counting performed according to the standard Python/C-API rules:
 
  * Borrowed references are taken as parameters
  * New references are returned
 
-.. todo::
-    link or label here the one ref count caveat for NumPy.
+ .. warning::
+
+    This only applies to Cython code.  Other Python packages which
+    are implemented in C like NumPy may not follow these conventions.
 
 * The name ``object`` can be used to explicitly declare something as a Python Object.
 
@@ -259,61 +290,6 @@ Parameters
 
      cdef object foo(object int):
          ...
-
-.. todo::
-    Do a see also here ..??
-
-Optional Arguments
-------------------
-
-* Are supported for ``cdef`` and ``cpdef`` functions
-* There are differences though whether you declare them in a ``.pyx`` file or a ``.pxd`` file:
-
- * When in a ``.pyx`` file, the signature is the same as it is in Python itself::
-
-    cdef class A:
-        cdef foo(self):
-            print "A"
-    cdef class B(A)
-        cdef foo(self, x=None)
-            print "B", x
-    cdef class C(B):
-        cpdef foo(self, x=True, int k=3)
-            print "C", x, k
-
-
- * When in a ``.pxd`` file, the signature is different like this example: ``cdef foo(x=*)``::
-
-    cdef class A:
-        cdef foo(self)
-    cdef class B(A)
-        cdef foo(self, x=*)
-    cdef class C(B):
-        cpdef foo(self, x=*, int k=*)
-
-
-  * The number of arguments may increase when subclassing, but the arg types and order must be the same.
-
-* There may be a slight performance penalty when the optional arg is overridden with one that does not have default values.
-
-Keyword-only Arguments
-=======================
-
-* As in Python 3, ``def`` functions can have keyword-only arguments listed after a ``"*"`` parameter and before a ``"**"`` parameter if any::
-
-    def f(a, b, *args, c, d = 42, e, **kwds):
-        ...
-
- * Shown above, the ``c``, ``d`` and ``e`` arguments can not be passed as positional arguments and must be passed as keyword arguments.
- * Furthermore, ``c`` and ``e`` are required keyword arguments since they do not have a default value.
-
-* If the parameter name after the ``"*"`` is omitted, the function will not accept any extra positional arguments::
-
-    def g(a, b, *, c, d):
-        ...
-
- * Shown above, the signature takes exactly two positional parameters and has two required keyword parameters
-
 
 
 Automatic Type Conversion
@@ -356,7 +332,7 @@ Automatic Type Conversion
         cdef char *s
         s = pystring1 + pystring2
 
-    * The reason is that concatenating to strings in Python produces a temporary variable.
+    * The reason is that concatenating two strings in Python produces a temporary variable.
 
      * The variable is decrefed, and the Python string deallocated as soon as the statement has finished,
 
@@ -373,39 +349,35 @@ Automatic Type Conversion
 
 
 Type Casting
-=============
+============
 
-* The syntax used in type casting are ``"<"`` and ``">"``
+* The syntax used in type casting uses ``"<"`` and ``">"``, for example::
 
- .. note::
-    The syntax is different from C convention
+    cdef char *p
+    cdef float *q
+    p = <char*>q
 
- ::
-
-        cdef char *p, float *q
-        p = <char*>q
-
-* If one of the types is a python object for ``<type>x``, Cython will try and do a coercion.
+* If one of the types is a Python object for ``<type>x``, Cython will try to do a coercion.
 
  .. note:: Cython will not stop a casting where there is no conversion, but it will emit a warning.
 
-* If the address is what is wanted, cast to a ``void*`` first.
+* To get the address of some Python object, use a cast to a pointer type
+  like ``<void*>`` or ``<PyObject*>``.
 
+* The precedence of ``<...>`` is such that ``<type>a.b.c`` is interpreted as ``<type>(a.b.c)``.
 
-Type Checking
--------------
+Checked Type Casts
+------------------
 
-* A cast like ``<MyExtensionType>x`` will cast x to type ``MyExtensionType`` without type checking at all.
+* A cast like ``<MyExtensionType>x`` will cast x to the class
+  ``MyExtensionType`` without any checking at all.
 
-* To have a cast type checked, use the syntax like: ``<MyExtensionType?>x``.
+* To have a cast checked, use the syntax like: ``<MyExtensionType?>x``.
+  In this case, Cython will apply a runtime check that raises a ``TypeError``
+  if ``x`` is not an instance of ``MyExtensionType``.
+  As explained in :ref:`typing_types`, this tests for the exact class
+  for builtin types, but allows subclasses for extension types.
 
- * In this case, Cython will throw an error if ``"x"`` is not a (subclass) of ``MyExtensionType``
-
-* Automatic type checking for extension types can be obtained whenever ``isinstance()`` is used as the second parameter
-
-
-Python Objects
-==============
 
 ==========================
 Statements and Expressions
@@ -666,6 +638,57 @@ Note 1: Pyrex originally provided a function :func:`getattr3(obj, name, default)
 corresponding to the three-argument form of the Python builtin :func:`getattr()`.
 Cython still supports this function, but the usage is deprecated in favour of
 the normal builtin, which Cython can optimise in both forms.
+
+Optional Arguments
+==================
+
+* Are supported for ``cdef`` and ``cpdef`` functions
+* There are differences though whether you declare them in a ``.pyx`` file or a ``.pxd`` file:
+
+ * When in a ``.pyx`` file, the signature is the same as it is in Python itself::
+
+    cdef class A:
+        cdef foo(self):
+            print "A"
+    cdef class B(A)
+        cdef foo(self, x=None)
+            print "B", x
+    cdef class C(B):
+        cpdef foo(self, x=True, int k=3)
+            print "C", x, k
+
+
+ * When in a ``.pxd`` file, the signature is different like this example: ``cdef foo(x=*)``::
+
+    cdef class A:
+        cdef foo(self)
+    cdef class B(A)
+        cdef foo(self, x=*)
+    cdef class C(B):
+        cpdef foo(self, x=*, int k=*)
+
+
+  * The number of arguments may increase when subclassing, but the arg types and order must be the same.
+
+* There may be a slight performance penalty when the optional arg is overridden with one that does not have default values.
+
+Keyword-only Arguments
+=======================
+
+* As in Python 3, ``def`` functions can have keyword-only arguments listed after a ``"*"`` parameter and before a ``"**"`` parameter if any::
+
+    def f(a, b, *args, c, d = 42, e, **kwds):
+        ...
+
+ * Shown above, the ``c``, ``d`` and ``e`` arguments can not be passed as positional arguments and must be passed as keyword arguments.
+ * Furthermore, ``c`` and ``e`` are required keyword arguments since they do not have a default value.
+
+* If the parameter name after the ``"*"`` is omitted, the function will not accept any extra positional arguments::
+
+    def g(a, b, *, c, d):
+        ...
+
+ * Shown above, the signature takes exactly two positional parameters and has two required keyword parameters
 
 
 ============================

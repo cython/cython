@@ -1,4 +1,4 @@
-# cython: infer_types=True, language_level=3, py2_import=True
+# cython: infer_types=True, language_level=3, py2_import=True, auto_pickle=False
 #
 #   Cython Scanner
 #
@@ -62,6 +62,12 @@ class Method(object):
         method = getattr(stream, self.name)
         # self.kwargs is almost always unused => avoid call overhead
         return method(text, **self.kwargs) if self.kwargs is not None else method(text)
+
+    def __copy__(self):
+        return self  # immutable, no need to copy
+
+    def __deepcopy__(self, memo):
+        return self  # immutable, no need to copy
 
 
 #------------------------------------------------------------------
@@ -162,7 +168,7 @@ class SourceDescriptor(object):
         if self._escaped_description is None:
             esc_desc = \
                 self.get_description().encode('ASCII', 'replace').decode("ASCII")
-            # Use foreward slashes on Windows since these paths
+            # Use forward slashes on Windows since these paths
             # will be used in the #line directives in the C/C++ files.
             self._escaped_description = esc_desc.replace('\\', '/')
         return self._escaped_description
@@ -187,6 +193,12 @@ class SourceDescriptor(object):
             return self._cmp_name <= other._cmp_name
         except AttributeError:
             return False
+
+    def __copy__(self):
+        return self  # immutable, no need to copy
+
+    def __deepcopy__(self, memo):
+        return self  # immutable, no need to copy
 
 
 class FileSourceDescriptor(SourceDescriptor):

@@ -15,6 +15,7 @@ import subprocess
 import tempfile
 import traceback
 import warnings
+import zlib
 
 try:
     import platform
@@ -70,7 +71,7 @@ CY3_DIR = None
 
 from distutils.command.build_ext import build_ext as _build_ext
 from distutils import sysconfig
-
+from distutils import ccompiler
 _to_clean = []
 
 @atexit.register
@@ -93,7 +94,7 @@ def _cleanup_files():
 def get_distutils_distro(_cache=[]):
     if _cache:
         return _cache[0]
-    # late import to accomodate for setuptools override
+    # late import to accommodate for setuptools override
     from distutils.dist import Distribution
     distutils_distro = Distribution()
 
@@ -121,7 +122,7 @@ EXT_DEP_MODULES = {
     'tag:array':    'array',
     'tag:coverage': 'Cython.Coverage',
     'Coverage':     'Cython.Coverage',
-    'tag:ipython':  'IPython',
+    'tag:ipython':  'IPython.testing.globalipapp',
     'tag:jedi':     'jedi_BROKEN_AND_DISABLED',
 }
 
@@ -228,6 +229,7 @@ def update_numpy_extension(ext):
     for attr, value in get_info('npymath').items():
         getattr(ext, attr).extend(value)
 
+
 def update_openmp_extension(ext):
     ext.openmp = True
     language = ext.language
@@ -239,7 +241,6 @@ def update_openmp_extension(ext):
 
     if flags:
         compile_flags, link_flags = flags
-
         ext.extra_compile_args.extend(compile_flags.split())
         ext.extra_link_args.extend(link_flags.split())
         return ext
@@ -248,21 +249,32 @@ def update_openmp_extension(ext):
 
     return EXCLUDE_EXT
 
-def get_openmp_compiler_flags(language):
-    """
-    As of gcc 4.2, it supports OpenMP 2.5. Gcc 4.4 implements 3.0. We don't
-    (currently) check for other compilers.
 
-    returns a two-tuple of (CFLAGS, LDFLAGS) to build the OpenMP extension
+def update_cpp11_extension(ext):
+    """
+        update cpp11 extensions that will run on versions of gcc >4.8
+    """
+    gcc_version = get_gcc_version(ext.language)
+    if gcc_version is not None:
+        compiler_version = gcc_version.group(1)
+        if float(compiler_version) > 4.8:
+            ext.extra_compile_args.append("-std=c++11")
+        return ext    
+    return EXCLUDE_EXT
+
+
+def get_gcc_version(language):
+    """
+        finds gcc version using Popen
     """
     if language == 'cpp':
         cc = sysconfig.get_config_var('CXX')
     else:
         cc = sysconfig.get_config_var('CC')
+    if not cc:
+       cc = ccompiler.get_default_compiler()
 
     if not cc:
-        if sys.platform == 'win32':
-            return '/openmp', ''
         return None
 
     # For some reason, cc can be e.g. 'gcc -pthread'
@@ -271,7 +283,6 @@ def get_openmp_compiler_flags(language):
     # Force english output
     env = os.environ.copy()
     env['LC_MESSAGES'] = 'C'
-
     matcher = re.compile(r"gcc version (\d+\.\d+)").search
     try:
         p = subprocess.Popen([cc, "-v"], stderr=subprocess.PIPE, env=env)
@@ -281,12 +292,25 @@ def get_openmp_compiler_flags(language):
                       (language, os.strerror(sys.exc_info()[1].errno), cc))
         return None
     _, output = p.communicate()
-
     output = output.decode(locale.getpreferredencoding() or 'ASCII', 'replace')
-
     gcc_version = matcher(output)
+    return gcc_version
+
+
+def get_openmp_compiler_flags(language):
+    """
+    As of gcc 4.2, it supports OpenMP 2.5. Gcc 4.4 implements 3.0. We don't
+    (currently) check for other compilers.
+
+    returns a two-tuple of (CFLAGS, LDFLAGS) to build the OpenMP extension
+    """
+    gcc_version = get_gcc_version(language)
+
     if not gcc_version:
-        return None # not gcc - FIXME: do something about other compilers
+        if sys.platform == 'win32':
+            return '/openmp', ''
+        else:
+            return None # not gcc - FIXME: do something about other compilers
 
     # gcc defines "__int128_t", assume that at least all 64 bit architectures have it
     global COMPILER_HAS_INT128
@@ -312,6 +336,7 @@ EXCLUDE_EXT = object()
 EXT_EXTRAS = {
     'tag:numpy' : update_numpy_extension,
     'tag:openmp': update_openmp_extension,
+    'tag:cpp11': update_cpp11_extension,
     'tag:trace' : update_linetrace_extension,
 }
 
@@ -989,6 +1014,8 @@ class CythonCompileTestCase(unittest.TestCase):
                     self.fail('Nondeterministic file generation: %s' % ', '.join(diffs))
 
         tostderr = sys.__stderr__.write
+        if expected_warnings or (expect_warnings and warnings):
+            self._match_output(expected_warnings, warnings, tostderr)
         if 'cerror' in self.tags['tag']:
             if errors:
                 tostderr("\n=== Expected C compile error ===\n")
@@ -999,8 +1026,6 @@ class CythonCompileTestCase(unittest.TestCase):
         elif errors or expected_errors:
             self._match_output(expected_errors, errors, tostderr)
             return None
-        if expected_warnings or (expect_warnings and warnings):
-            self._match_output(expected_warnings, warnings, tostderr)
 
         so_path = None
         if not self.cython_only:
@@ -1039,13 +1064,13 @@ class CythonCompileTestCase(unittest.TestCase):
     def _match_output(self, expected_output, actual_output, write):
         try:
             for expected, actual in zip(expected_output, actual_output):
-                self.assertEquals(expected, actual)
+                self.assertEqual(expected, actual)
             if len(actual_output) < len(expected_output):
                 expected = expected_output[len(actual_output)]
-                self.assertEquals(expected, None)
+                self.assertEqual(expected, None)
             elif len(actual_output) > len(expected_output):
                 unexpected = actual_output[len(expected_output)]
-                self.assertEquals(None, unexpected)
+                self.assertEqual(None, unexpected)
         except AssertionError:
             write("\n=== Expected: ===\n")
             write('\n'.join(expected_output))
@@ -1553,7 +1578,8 @@ class EmbedTest(unittest.TestCase):
         except OSError:
             pass
 
-class MissingDependencyExcluder:
+
+class MissingDependencyExcluder(object):
     def __init__(self, deps):
         # deps: { matcher func : module name }
         self.exclude_matchers = []
@@ -1570,7 +1596,8 @@ class MissingDependencyExcluder:
                 return True
         return False
 
-class VersionDependencyExcluder:
+
+class VersionDependencyExcluder(object):
     def __init__(self, deps):
         # deps: { version : matcher func }
         from sys import version_info
@@ -1587,8 +1614,7 @@ class VersionDependencyExcluder:
         return False
 
 
-class FileListExcluder:
-
+class FileListExcluder(object):
     def __init__(self, list_file, verbose=False):
         self.verbose = verbose
         self.excludes = {}
@@ -1608,8 +1634,7 @@ class FileListExcluder:
         return exclude
 
 
-class TagsSelector:
-
+class TagsSelector(object):
     def __init__(self, tag, value):
         self.tag = tag
         self.value = value
@@ -1620,26 +1645,27 @@ class TagsSelector:
         else:
             return self.value in tags[self.tag]
 
-class RegExSelector:
 
+class RegExSelector(object):
     def __init__(self, pattern_string):
         try:
-            self.pattern = re.compile(pattern_string, re.I|re.U)
+            self.regex_matches = re.compile(pattern_string, re.I|re.U).search
         except re.error:
             print('Invalid pattern: %r' % pattern_string)
             raise
 
     def __call__(self, testname, tags=None):
-        return self.pattern.search(testname)
+        return self.regex_matches(testname)
+
 
 def string_selector(s):
-    ix = s.find(':')
-    if ix == -1:
-        return RegExSelector(s)
+    if ':' in s:
+        return TagsSelector(*s.split(':', 1))
     else:
-        return TagsSelector(s[:ix], s[ix+1:])
+        return RegExSelector(s)
 
-class ShardExcludeSelector:
+
+class ShardExcludeSelector(object):
     # This is an exclude selector so it can override the (include) selectors.
     # It may not provide uniform distribution (in time or count), but is a
     # determanistic partition of the tests which is important.
@@ -1647,36 +1673,11 @@ class ShardExcludeSelector:
         self.shard_num = shard_num
         self.shard_count = shard_count
 
-    def __call__(self, testname, tags=None):
-        return abs(hash(testname)) % self.shard_count != self.shard_num
-
-
-def refactor_for_py3(distdir, cy3_dir):
-    # need to convert Cython sources first
-    import lib2to3.refactor
-    from distutils.util import copydir_run_2to3
-    with open('2to3-fixers.txt') as f:
-        fixers = [line.strip() for line in f if line.strip()]
-    if not os.path.exists(cy3_dir):
-        os.makedirs(cy3_dir)
-    import distutils.log as dlog
-    dlog.set_threshold(dlog.INFO)
-    copydir_run_2to3(distdir, cy3_dir, fixer_names=fixers,
-                     template = '''
-                     global-exclude *
-                     graft Cython
-                     recursive-exclude Cython *
-                     recursive-include Cython *.py *.pyx *.pxd
-                     recursive-include Cython/Debugger/Tests *
-                     recursive-include Cython/Utility *
-                     recursive-exclude pyximport test
-                     include Tools/*.py
-                     include pyximport/*.py
-                     include runtests.py
-                     include cython.py
-                     include cythonize.py
-                     ''')
-    sys.path.insert(0, cy3_dir)
+    def __call__(self, testname, tags=None, _hash=zlib.crc32, _is_py2=sys.version_info[0] < 3):
+        # Cannot use simple hash() here as shard processes might use different hash seeds.
+        # CRC32 is fast and simple, but might return negative values in Py2.
+        hashval = _hash(testname) & 0x7fffffff if _is_py2 else _hash(testname.encode())
+        return hashval % self.shard_count != self.shard_num
 
 
 class PendingThreadsError(RuntimeError):
@@ -1764,7 +1765,7 @@ def main():
                       help="do not delete the generated C files (allows passing --no-cython on next run)")
     parser.add_option("--no-cleanup-sharedlibs", dest="cleanup_sharedlibs",
                       action="store_false", default=True,
-                      help="do not delete the generated shared libary files (allows manual module experimentation)")
+                      help="do not delete the generated shared library files (allows manual module experimentation)")
     parser.add_option("--no-cleanup-failures", dest="cleanup_failures",
                       action="store_false", default=True,
                       help="enable --no-cleanup and --no-cleanup-sharedlibs for failed tests only")
@@ -1873,10 +1874,6 @@ def main():
     if options.with_cython and sys.version_info[0] >= 3:
         sys.path.insert(0, options.cython_dir)
 
-    if options.watermark:
-        import Cython.Compiler.Version
-        Cython.Compiler.Version.watermark = options.watermark
-
     WITH_CYTHON = options.with_cython
 
     coverage = None
@@ -1893,20 +1890,6 @@ def main():
 
     if options.xml_output_dir:
         shutil.rmtree(options.xml_output_dir, ignore_errors=True)
-
-    if WITH_CYTHON:
-        global CompilationOptions, pyrex_default_options, cython_compile
-        from Cython.Compiler.Main import \
-            CompilationOptions, \
-            default_options as pyrex_default_options, \
-            compile as cython_compile
-        from Cython.Compiler import Errors
-        Errors.LEVEL = 0 # show all warnings
-        from Cython.Compiler import Options
-        Options.generate_cleanup_code = 3   # complete cleanup code
-        from Cython.Compiler import DebugFlags
-        DebugFlags.debug_temp_code_comments = 1
-        pyrex_default_options['formal_grammar'] = options.use_formal_grammar
 
     if options.shard_count > 1 and options.shard_num == -1:
         import multiprocessing
@@ -1938,16 +1921,38 @@ def main():
         sys.exit(return_code)
 
 
+def configure_cython(options):
+    global CompilationOptions, pyrex_default_options, cython_compile
+    from Cython.Compiler.Main import \
+        CompilationOptions, \
+        default_options as pyrex_default_options, \
+        compile as cython_compile
+    from Cython.Compiler import Errors
+    Errors.LEVEL = 0  # show all warnings
+    from Cython.Compiler import Options
+    Options.generate_cleanup_code = 3  # complete cleanup code
+    from Cython.Compiler import DebugFlags
+    DebugFlags.debug_temp_code_comments = 1
+    pyrex_default_options['formal_grammar'] = options.use_formal_grammar
+    if options.watermark:
+        import Cython.Compiler.Version
+        Cython.Compiler.Version.watermark = options.watermark
+
+
 def runtests_callback(args):
     options, cmd_args, shard_num = args
     options.shard_num = shard_num
     return runtests(options, cmd_args)
+
 
 def runtests(options, cmd_args, coverage=None):
 
     WITH_CYTHON = options.with_cython
     ROOTDIR = os.path.abspath(options.root_dir)
     WORKDIR = os.path.abspath(options.work_dir)
+
+    if WITH_CYTHON:
+        configure_cython(options)
 
     xml_output_dir = options.xml_output_dir
     if options.shard_num > -1:
@@ -2083,6 +2088,13 @@ def runtests(options, cmd_args, coverage=None):
     if options.shard_num <= 0:
         sys.stderr.write("Backends: %s\n" % ','.join(backends))
     languages = backends
+
+    if 'TRAVIS' in os.environ and sys.platform == 'darwin' and 'cpp' in languages:
+        bugs_file_name = 'travis_macos_cpp_bugs.txt'
+        exclude_selectors += [
+            FileListExcluder(os.path.join(ROOTDIR, bugs_file_name),
+                             verbose=verbose_excludes)
+        ]
 
     if options.use_common_utility_dir:
         common_utility_dir = os.path.join(WORKDIR, 'utility_code')

@@ -183,7 +183,7 @@ def test_transpose():
     cdef dtype_t[:, :] b = a.T
     print a.T.shape[0], a.T.shape[1]
     print a_obj.T.shape
-    print numpy_obj.T.shape
+    print tuple(map(int, numpy_obj.T.shape)) # might use longs in Py2
 
     cdef dtype_t[:, :] c
     with nogil:
@@ -293,13 +293,13 @@ def test_coerce_to_numpy():
     deallocating...
     12.2
     deallocating...
-    13.3
+    13.25
     deallocating...
     (14.4+15.5j)
     deallocating...
-    (16.6+17.7j)
+    (16.5+17.7j)
     deallocating...
-    (18.8+19.9j)
+    (18.8125+19.9375j)
     deallocating...
     22
     deallocating...
@@ -365,11 +365,11 @@ def test_coerce_to_numpy():
 
     floats[idx] = 11.1
     doubles[idx] = 12.2
-    longdoubles[idx] = 13.3
+    longdoubles[idx] = 13.25
 
     floatcomplex[idx] = 14.4 + 15.5j
-    doublecomplex[idx] = 16.6 + 17.7j
-    longdoublecomplex[idx] = 18.8 + 19.9j
+    doublecomplex[idx] = 16.5 + 17.7j
+    longdoublecomplex[idx] = 18.8125 + 19.9375j  # x/64 to avoid float format rounding issues
 
     h_shorts[idx] = 22
     h_doubles[idx] = 33.33

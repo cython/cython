@@ -1,4 +1,5 @@
-/////////////// Header.proto.h_code ///////////////
+/////////////// Header.proto ///////////////
+//@proto_block: h_code
 
 #if !defined(CYTHON_CCOMPLEX)
   #if defined(__cplusplus)
@@ -49,7 +50,8 @@
 #endif
 
 
-/////////////// Declarations.proto.complex_type_declarations ///////////////
+/////////////// Declarations.proto ///////////////
+//@proto_block: complex_type_declarations
 
 #if CYTHON_CCOMPLEX
   #ifdef __cplusplus

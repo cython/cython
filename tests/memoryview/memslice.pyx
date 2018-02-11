@@ -666,7 +666,7 @@ def c_contig(int[::1] buf):
 @testcase
 def c_contig_2d(int[:, ::1] buf):
     """
-    Multi-dim has seperate implementation
+    Multi-dim has separate implementation
 
     >>> A = IntMockBuffer(None, range(12), shape=(3,4), writable=False)
     >>> c_contig_2d(A)

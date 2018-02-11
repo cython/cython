@@ -699,29 +699,21 @@ __pyx_slices_overlap({{memviewslice_name}} *slice1,
 }
 
 
-////////// MemviewSliceIsCContig.proto //////////
+////////// MemviewSliceCheckContig.proto //////////
 
-#define __pyx_memviewslice_is_c_contig{{ndim}}(slice) \
-        __pyx_memviewslice_is_contig(slice, 'C', {{ndim}})
-
-
-////////// MemviewSliceIsFContig.proto //////////
-
-#define __pyx_memviewslice_is_f_contig{{ndim}}(slice) \
-        __pyx_memviewslice_is_contig(slice, 'F', {{ndim}})
+#define __pyx_memviewslice_is_contig_{{contig_type}}{{ndim}}(slice) \
+    __pyx_memviewslice_is_contig(slice, '{{contig_type}}', {{ndim}})
 
 
 ////////// MemviewSliceIsContig.proto //////////
 
-static int __pyx_memviewslice_is_contig(const {{memviewslice_name}} mvs,
-                                        char order, int ndim);
+static int __pyx_memviewslice_is_contig(const {{memviewslice_name}} mvs, char order, int ndim);/*proto*/
 
 
 ////////// MemviewSliceIsContig //////////
 
 static int
-__pyx_memviewslice_is_contig(const {{memviewslice_name}} mvs,
-                             char order, int ndim)
+__pyx_memviewslice_is_contig(const {{memviewslice_name}} mvs, char order, int ndim)
 {
     int i, index, step, start;
     Py_ssize_t itemsize = mvs.memview->view.itemsize;

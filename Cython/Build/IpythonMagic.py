@@ -53,7 +53,9 @@ import re
 import sys
 import time
 import copy
+import distutils.log
 import textwrap
+
 
 try:
     reload
@@ -236,6 +238,11 @@ class CythonMagics(Magics):
         help=("Enable profile guided optimisation in the C compiler. "
               "Compiles the cell twice and executes it in between to generate a runtime profile.")
     )
+    @magic_arguments.argument(
+        '--verbose', dest='quiet', action='store_false', default=True,
+        help=("Print debug information like generated .c/.cpp file location "
+              "and exact gcc/g++ command invoked.")
+    )
     @cell_magic
     def cython(self, line, cell):
         """Compile and import everything from a Cython code cell.
@@ -282,7 +289,6 @@ class CythonMagics(Magics):
         args = magic_arguments.parse_argstring(self.cython, line)
         code = cell if cell.endswith('\n') else cell + '\n'
         lib_dir = os.path.join(get_ipython_cache_dir(), 'cython')
-        quiet = True
         key = (code, line, sys.version_info, sys.executable, cython_version)
 
         if not os.path.exists(lib_dir):
@@ -311,7 +317,7 @@ class CythonMagics(Magics):
 
         extension = None
         if need_cythonize:
-            extensions = self._cythonize(module_name, code, lib_dir, args, quiet=quiet)
+            extensions = self._cythonize(module_name, code, lib_dir, args, quiet=args.quiet)
             assert len(extensions) == 1
             extension = extensions[0]
             self._code_cache[key] = module_name
@@ -319,7 +325,8 @@ class CythonMagics(Magics):
             if args.pgo:
                 self._profile_pgo_wrapper(extension, lib_dir)
 
-        self._build_extension(extension, lib_dir, pgo_step_name='use' if args.pgo else None)
+        self._build_extension(extension, lib_dir, pgo_step_name='use' if args.pgo else None,
+                              quiet=args.quiet)
 
         module = imp.load_dynamic(module_name, module_path)
         self._import_all(module)
@@ -386,7 +393,7 @@ class CythonMagics(Magics):
         so_module_path = os.path.join(lib_dir, pgo_module_name + self.so_ext)
         imp.load_dynamic(pgo_module_name, so_module_path)
 
-    def _cythonize(self, module_name, code, lib_dir, args, quiet=False):
+    def _cythonize(self, module_name, code, lib_dir, args, quiet=True):
         pyx_file = os.path.join(lib_dir, module_name + '.pyx')
         pyx_file = py3compat.cast_bytes_py2(pyx_file, encoding=sys.getfilesystemencoding())
 
@@ -422,10 +429,17 @@ class CythonMagics(Magics):
         except CompileError:
             return None
 
-    def _build_extension(self, extension, lib_dir, temp_dir=None, pgo_step_name=None):
+    def _build_extension(self, extension, lib_dir, temp_dir=None, pgo_step_name=None, quiet=True):
         build_extension = self._get_build_extension(
             extension, lib_dir=lib_dir, temp_dir=temp_dir, pgo_step_name=pgo_step_name)
-        build_extension.run()
+        old_threshold = None
+        try:
+            if not quiet:
+                old_threshold = distutils.log.set_threshold(distutils.log.DEBUG)
+            build_extension.run()
+        finally:
+            if not quiet and old_threshold is not None:
+                distutils.log.set_threshold(old_threshold)
 
     def _add_pgo_flags(self, build_extension, step_name, temp_dir):
         compiler_type = build_extension.compiler.compiler_type
