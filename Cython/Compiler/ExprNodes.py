@@ -9170,6 +9170,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 if not arg.default.is_literal:
                     arg.is_dynamic = True
                     if arg.type.is_pyobject:
+                        # FIXME: should we include memory views here?
                         nonliteral_objects.append(arg)
                     else:
                         nonliteral_other.append(arg)
