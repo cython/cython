@@ -8,6 +8,10 @@ Cython Changelog
 Features added
 --------------
 
+* When compiling with gcc, the module init function is now tuned for small
+  code size instead of whatever compile flags were provided externally.
+  (Github issue #2102)
+
 * Cdef classes can now multiply inherit from ordinary Python classes.
   (The primary base must still be a c class, possibly ``object``, and
   the other bases must *not* be cdef classes.)

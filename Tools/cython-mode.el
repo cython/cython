@@ -1,5 +1,7 @@
 ;;; cython-mode.el --- Major mode for editing Cython files
 
+;; License: Apache-2.0
+
 ;;; Commentary:
 
 ;; This should work with python-mode.el as well as either the new

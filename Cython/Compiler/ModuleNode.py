@@ -2279,10 +2279,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         header2 = "__Pyx_PyMODINIT_FUNC init%s(void)" % env.module_name
         header3 = "__Pyx_PyMODINIT_FUNC %s(void)" % self.mod_init_func_cname('PyInit', env)
         code.putln("#if PY_MAJOR_VERSION < 3")
-        code.putln("%s; /*proto*/" % header2)
+        # Optimise for small code size as the module init function is only executed once.
+        code.putln("%s CYTHON_SMALL_CODE; /*proto*/" % header2)
         code.putln(header2)
         code.putln("#else")
-        code.putln("%s; /*proto*/" % header3)
+        code.putln("%s CYTHON_SMALL_CODE; /*proto*/" % header3)
         code.putln(header3)
 
         # CPython 3.5+ supports multi-phase module initialisation (gives access to __spec__, __file__, etc.)
@@ -2296,7 +2297,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("")
         # main module init code lives in Py_mod_exec function, not in PyInit function
-        code.putln("static int %s(PyObject *%s)" % (
+        code.putln("static int %s(PyObject *%s) CYTHON_SMALL_CODE " % (
             self.mod_init_func_cname(Naming.pymodule_exec_func_cname, env),
             Naming.pymodinit_module_arg))
         code.putln("#endif")  # PEP489

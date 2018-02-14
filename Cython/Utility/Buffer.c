@@ -751,7 +751,7 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
           __Pyx_BufFmt_RaiseUnexpectedChar('Z');
           return NULL;
         }
-        /* fall through */
+        CYTHON_FALLTHROUGH;
       case 'c': case 'b': case 'B': case 'h': case 'H': case 'i': case 'I':
       case 'l': case 'L': case 'q': case 'Q':
       case 'f': case 'd': case 'g':
@@ -765,7 +765,7 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
           ++ts;
           break;
         }
-        /* fall through */
+        CYTHON_FALLTHROUGH;
       case 's':
         /* 's' or new type (cannot be added to current pool) */
         if (__Pyx_BufFmt_ProcessTypeChunk(ctx) == -1) return NULL;
