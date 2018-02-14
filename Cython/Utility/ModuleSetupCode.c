@@ -665,6 +665,12 @@ static CYTHON_INLINE void * PyThread_tss_get(Py_tss_t *key) {
 
 #endif
 
+#if defined(__GNUC__)
+    #define CYTHON_SMALL_CODE __attribute__((optimize("Os")))
+#else
+    #define CYTHON_SMALL_CODE
+#endif
+
 
 /////////////// FastTypeChecks.proto ///////////////
 
