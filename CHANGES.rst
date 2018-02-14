@@ -8,16 +8,21 @@ Cython Changelog
 Features added
 --------------
 
-* When compiling with gcc, the module init function is now tuned for small
-  code size instead of whatever compile flags were provided externally.
-  (Github issue #2102)
-
 * Cdef classes can now multiply inherit from ordinary Python classes.
   (The primary base must still be a c class, possibly ``object``, and
   the other bases must *not* be cdef classes.)
 
 * Type inference is now supported for Pythran compiled NumPy expressions.
   Patch by Nils Braun.  (Github issue #1954)
+
+* Read-only buffers are automatically supported for memoryviews if it can be
+  determined at compile time that the code does not need write access.
+  They can also be allowed explicitly by adding the ``const`` modifier to their
+  declaration.  (Github issues #1605, #1869)
+
+* When compiling with gcc, the module init function is now tuned for small
+  code size instead of whatever compile flags were provided externally.
+  (Github issue #2102)
 
 * C file includes are moved behind the module declarations if possible, to allow
   them to depend on module declarations themselves.
