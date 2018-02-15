@@ -907,9 +907,12 @@ class MemoryViewSliceType(PyrexType):
 
     def from_py_call_code(self, source_code, result_code, error_pos, code,
                           from_py_function=None, error_condition=None):
+        # NOTE: auto-detection of readonly buffers is disabled:
+        # writable = self.writable_needed or not self.dtype.is_const
+        writable = not self.dtype.is_const
         return self._assign_from_py_code(
             source_code, result_code, error_pos, code, from_py_function, error_condition,
-            extra_args=['PyBUF_WRITABLE' if self.writable_needed else '0'])
+            extra_args=['PyBUF_WRITABLE' if writable else '0'])
 
     def create_to_py_utility_code(self, env):
         self._dtype_to_py_func, self._dtype_from_py_func = self.dtype_object_conversion_funcs(env)
@@ -937,25 +940,29 @@ class MemoryViewSliceType(PyrexType):
         if self.dtype.is_pyobject:
             utility_name = "MemviewObjectToObject"
         else:
-            to_py = self.dtype.create_to_py_utility_code(env)
-            from_py = self.dtype.create_from_py_utility_code(env)
-            if not (to_py or from_py):
+            self.dtype.create_to_py_utility_code(env)
+            to_py_function = self.dtype.to_py_function
+
+            from_py_function = None
+            if not self.dtype.is_const:
+                self.dtype.create_from_py_utility_code(env)
+                from_py_function = self.dtype.from_py_function
+
+            if not (to_py_function or from_py_function):
                 return "NULL", "NULL"
-
-            if not self.dtype.to_py_function:
+            if not to_py_function:
                 get_function = "NULL"
-
-            if not self.dtype.from_py_function:
+            if not from_py_function:
                 set_function = "NULL"
 
             utility_name = "MemviewDtypeToObject"
             error_condition = (self.dtype.error_condition('value') or
                                'PyErr_Occurred()')
             context.update(
-                to_py_function = self.dtype.to_py_function,
-                from_py_function = self.dtype.from_py_function,
-                dtype = self.dtype.empty_declaration_code(),
-                error_condition = error_condition,
+                to_py_function=to_py_function,
+                from_py_function=from_py_function,
+                dtype=self.dtype.empty_declaration_code(),
+                error_condition=error_condition,
             )
 
         utility = TempitaUtilityCode.load_cached(
@@ -2456,7 +2463,7 @@ class CArrayType(CPointerBaseType):
 
     def from_py_call_code(self, source_code, result_code, error_pos, code,
                           from_py_function=None, error_condition=None):
-        assert not error_condition
+        assert not error_condition, '%s: %s' % (error_pos, error_condition)
         call_code = "%s(%s, %s, %s)" % (
             from_py_function or self.from_py_function,
             source_code, result_code, self.size)

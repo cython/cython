@@ -9,9 +9,8 @@ def new_array():
 ARRAY = new_array()
 
 
-cdef getmax(double[:] x):
-    """Example code, should work with both
-    ro and rw memoryviews"""
+cdef getmax(const double[:] x):
+    """Example code, should work with both ro and rw memoryviews"""
     cdef double max_val = -float('inf')
     for val in x:
         if val > max_val:
@@ -25,7 +24,7 @@ cdef update_array(double [:] x):
 
 
 cdef getconst(const double [:] x):
-    """Should only accept ro memoryviews"""
+    """Should accept ro memoryviews"""
     return x[0]
 
 

@@ -244,14 +244,14 @@ Note that this does not *require* the input to be read-only::
     a = np.linspace(0, 10, num=50)
     myslice = a
 
-Writable buffers will still be accepted by ``const`` views, but read-only
-buffers are not accepted for non-const, writable views.
+Writable buffers are still accepted by ``const`` views, but read-only
+buffers are not accepted for non-const, writable views::
 
-Cython will also request a read-only view automatically if it can determine
-at compile time that a writable buffer is not required.  The support for
-automatically distinguishing between buffer usage types, and the compile
-time correctness checks for read-only views are expected to further improve
-over time.
+    cdef double[:] myslice   # a normal read-write memory view
+
+    a = np.linspace(0, 10, num=50)
+    a.setflags(write=False)
+    myslice = a   # ERROR: requesting writable memory view from read-only buffer!
 
 
 Comparison to the old buffer support
