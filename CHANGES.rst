@@ -129,6 +129,9 @@ Bugs fixed
 * ``@cython.final`` was not accepted on Python classes with an ``@cython.cclass``
   decorator.  (Github issue #2040)
 
+* Cython no longer creates useless and incorrect ``PyInstanceMethod`` wrappers for
+  methods in Python 3.  Patch by Jeroen Demeyer.  (Github issue #2105)
+
 Other changes
 -------------
 
