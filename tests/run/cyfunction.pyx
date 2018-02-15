@@ -3,6 +3,7 @@
 # tag: cyfunction
 
 import sys
+IS_PY2 = sys.version_info[0] < 3
 IS_PY3 = sys.version_info[0] >= 3
 IS_PY34 = sys.version_info > (3, 4, 0, 'beta', 3)
 
@@ -348,3 +349,21 @@ cdef class TestDecoratedMethods:
         2
         """
         return x
+
+
+cdef class TestUnboundMethodCdef:
+    """
+    >>> C = TestUnboundMethodCdef
+    >>> IS_PY2 or (C.meth is C.__dict__["meth"])
+    True
+    """
+    def meth(self): pass
+
+
+class TestUnboundMethod:
+    """
+    >>> C = TestUnboundMethod
+    >>> IS_PY2 or (C.meth is C.__dict__["meth"])
+    True
+    """
+    def meth(self): pass
