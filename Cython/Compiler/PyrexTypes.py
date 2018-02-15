@@ -786,8 +786,12 @@ class MemoryViewSliceType(PyrexType):
             return False
 
         src_dtype, dst_dtype = src.dtype, dst.dtype
-        if dst_dtype.is_const and not src_dtype.is_const:
+        if dst_dtype.is_const:
+            # Requesting read-only views is always ok => consider only the non-const base type.
             dst_dtype = dst_dtype.const_base_type
+            if src_dtype.is_const:
+                # When assigning between read-only views, compare only the non-const base types.
+                src_dtype = src_dtype.const_base_type
 
         if src_dtype != dst_dtype:
             return False
