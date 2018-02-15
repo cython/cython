@@ -9043,66 +9043,6 @@ class ClassCellNode(ExprNode):
         code.put_incref(self.result(), py_object_type)
 
 
-class BoundMethodNode(ExprNode):
-    #  Helper class used in the implementation of Python
-    #  class definitions. Constructs an bound method
-    #  object from a class and a function.
-    #
-    #  function      ExprNode   Function object
-    #  self_object   ExprNode   self object
-
-    subexprs = ['function']
-
-    def analyse_types(self, env):
-        self.function = self.function.analyse_types(env)
-        self.type = py_object_type
-        self.is_temp = 1
-        return self
-
-    gil_message = "Constructing a bound method"
-
-    def generate_result_code(self, code):
-        code.putln(
-            "%s = __Pyx_PyMethod_New(%s, %s, (PyObject*)%s->ob_type); %s" % (
-                self.result(),
-                self.function.py_result(),
-                self.self_object.py_result(),
-                self.self_object.py_result(),
-                code.error_goto_if_null(self.result(), self.pos)))
-        code.put_gotref(self.py_result())
-
-class UnboundMethodNode(ExprNode):
-    #  Helper class used in the implementation of Python
-    #  class definitions. Constructs an unbound method
-    #  object from a class and a function.
-    #
-    #  function      ExprNode   Function object
-
-    type = py_object_type
-    is_temp = 1
-
-    subexprs = ['function']
-
-    def analyse_types(self, env):
-        self.function = self.function.analyse_types(env)
-        return self
-
-    def may_be_none(self):
-        return False
-
-    gil_message = "Constructing an unbound method"
-
-    def generate_result_code(self, code):
-        class_cname = code.pyclass_stack[-1].classobj.result()
-        code.putln(
-            "%s = __Pyx_PyMethod_New(%s, 0, %s); %s" % (
-                self.result(),
-                self.function.py_result(),
-                class_cname,
-                code.error_goto_if_null(self.result(), self.pos)))
-        code.put_gotref(self.py_result())
-
-
 class PyCFunctionNode(ExprNode, ModuleNameMixin):
     #  Helper class used in the implementation of Python
     #  functions.  Constructs a PyCFunction object
