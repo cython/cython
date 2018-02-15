@@ -227,27 +227,27 @@ As for NumPy, new axes can be introduced by indexing an array with ``None`` ::
 One may mix new axis indexing with all other forms of indexing and slicing.
 See also an example_.
 
-Const buffers
--------------
+Read-only views
+---------------
 
-Since Cython 0.28, memoryviews can be declared as ``const`` to allow
-read-only buffers as input::
+Since Cython 0.28, the memoryview item type can be declared as ``const`` to
+support read-only buffers as input::
 
-    cdef const double[:] myslice
+    cdef const double[:] myslice   # const item type => read-only view
 
     a = np.linspace(0, 10, num=50)
     a.setflags(write=False)
     myslice = a
 
-Note that this does not *require* the input to be read-only::
+Note that this does not *require* the input buffer to be read-only::
 
     a = np.linspace(0, 10, num=50)
-    myslice = a
+    myslice = a   # read-only view of a writable buffer
 
 Writable buffers are still accepted by ``const`` views, but read-only
 buffers are not accepted for non-const, writable views::
 
-    cdef double[:] myslice   # a normal read-write memory view
+    cdef double[:] myslice   # a normal read/write memory view
 
     a = np.linspace(0, 10, num=50)
     a.setflags(write=False)
