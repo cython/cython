@@ -1,3 +1,6 @@
+import sys
+IS_PY2 = sys.version_info[0] < 3
+
 import cython
 
 is_compiled = cython.compiled
@@ -360,3 +363,12 @@ class CClass(object):
     def get_attr(self):
         print(cython.typeof(self.attr))
         return self.attr
+
+
+class TestUnboundMethod:
+    """
+    >>> C = TestUnboundMethod
+    >>> IS_PY2 or (C.meth is C.__dict__["meth"])
+    True
+    """
+    def meth(self): pass
