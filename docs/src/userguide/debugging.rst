@@ -58,9 +58,11 @@ When using the Cython debugger, it's preferable that you build and run your code
 with an interpreter that is compiled with debugging symbols (i.e. configured
 with ``--with-pydebug`` or compiled with the ``-g`` CFLAG). If your Python is
 installed and managed by your package manager you probably need to install debug
-support separately, e.g. for ubuntu::
+support separately. If using NumPy then you also need to install numpy debugging, or you'll
+see an [import error for multiarray](https://bugzilla.redhat.com/show_bug.cgi?id=1030830).
+E.G. for ubuntu::
 
-    $ sudo apt-get install python-dbg
+    $ sudo apt-get install python-dbg python-numpy-dbg
     $ python-dbg setup.py build_ext --inplace
 
 Then you need to run your script with ``python-dbg`` also. Ensure that when
