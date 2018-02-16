@@ -635,7 +635,7 @@ class MemoryViewSliceType(PyrexType):
 
     def same_as_resolved_type(self, other_type):
         return ((other_type.is_memoryviewslice and
-            self.writable_needed == other_type.writable_needed and
+            #self.writable_needed == other_type.writable_needed and  # FIXME: should be only uni-directional
             self.dtype.same_as(other_type.dtype) and
             self.axes == other_type.axes) or
             other_type is error_type)
