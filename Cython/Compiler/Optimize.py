@@ -4596,6 +4596,8 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
         - eliminate useless string formatting steps
         - replace Python function calls that look like method calls by a faster PyMethodCallNode
     """
+    in_loop = False
+
     def visit_SingleAssignmentNode(self, node):
         """Avoid redundant initialisation of local variables before their
         first assignment.
@@ -4623,7 +4625,9 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
                     PyTypeObjectPtr = PyrexTypes.CPtrType(cython_scope.lookup('PyTypeObject').type)
                     node.args[1] = ExprNodes.CastNode(node.args[1], PyTypeObjectPtr)
         elif (node.is_temp and function.type.is_pyobject and self.current_directives.get(
-                "optimize.unpack_method_calls_in_pyinit" if self.current_env().is_module_scope else "optimize.unpack_method_calls")):
+                "optimize.unpack_method_calls_in_pyinit"
+                if not self.in_loop and self.current_env().is_module_scope
+                else "optimize.unpack_method_calls")):
             # optimise simple Python methods calls
             if isinstance(node.arg_tuple, ExprNodes.TupleNode) and not (
                     node.arg_tuple.mult_factor or (node.arg_tuple.is_literal and node.arg_tuple.args)):
@@ -4677,6 +4681,15 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
         self.visitchildren(node)
         if not node.arg.may_be_none():
             return node.arg
+        return node
+
+    def visit_LoopNode(self, node):
+        """Remember when we enter a loop as some expensive optimisations might still be worth it there.
+        """
+        old_val = self.in_loop
+        self.in_loop = True
+        self.visitchildren(node)
+        self.in_loop = old_val
         return node
 
 
