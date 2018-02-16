@@ -88,3 +88,25 @@ def test_const_mmview_ro(x):
     x.setflags(write=False)
     assert x.flags.writeable is False
     return getconst(x)
+
+
+def test_two_views(x):
+    """
+    >>> test_two_views(new_array())
+    23.0
+    """
+    cdef double[:] rw = x
+    cdef const double[:] ro = rw
+    rw[0] = 23
+    return ro[0]
+
+
+def test_assign_ro_to_rw(x):
+    """
+    >>> test_assign_ro_to_rw(new_array())
+    2.0
+    """
+    cdef const double[:] ro = x
+    cdef double[:] rw = np.empty_like(ro)
+    rw[:] = ro
+    return rw[2]

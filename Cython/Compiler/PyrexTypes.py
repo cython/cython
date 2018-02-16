@@ -782,8 +782,8 @@ class MemoryViewSliceType(PyrexType):
 
         src = self
 
-        if self.writable_needed and not dst.writable_needed:
-            return False
+        #if not copying and self.writable_needed and not dst.writable_needed:
+        #    return False
 
         src_dtype, dst_dtype = src.dtype, dst.dtype
         if dst_dtype.is_const:
@@ -792,6 +792,9 @@ class MemoryViewSliceType(PyrexType):
             if src_dtype.is_const:
                 # When assigning between read-only views, compare only the non-const base types.
                 src_dtype = src_dtype.const_base_type
+        elif copying and src_dtype.is_const:
+            # Copying by value => ignore const on source.
+            src_dtype = src_dtype.const_base_type
 
         if src_dtype != dst_dtype:
             return False
