@@ -20,7 +20,8 @@ Features added
 
 * When compiling with gcc, the module init function is now tuned for small
   code size instead of whatever compile flags were provided externally.
-  (Github issue #2102)
+  Cython now also disables some code intensive optimisations in that function
+  to further reduce the code size.  (Github issue #2102)
 
 * C file includes are moved behind the module declarations if possible, to allow
   them to depend on module declarations themselves.

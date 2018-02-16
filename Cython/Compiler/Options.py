@@ -194,6 +194,7 @@ _directive_defaults = {
 # optimizations
     'optimize.inline_defnode_calls': True,
     'optimize.unpack_method_calls': True,   # increases code size when True
+    'optimize.unpack_method_calls_in_pyinit': False,   # uselessly increases code size when True
     'optimize.use_switch': True,
 
 # remove unreachable code
