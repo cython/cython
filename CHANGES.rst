@@ -135,6 +135,9 @@ Bugs fixed
 * Cython no longer creates useless and incorrect ``PyInstanceMethod`` wrappers for
   methods in Python 3.  Patch by Jeroen Demeyer.  (Github issue #2105)
 
+* The builtin ``bytearray`` type could not be used as base type of cdef classes.
+  (Github issue #2106)
+
 Other changes
 -------------
 

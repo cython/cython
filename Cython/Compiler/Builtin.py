@@ -391,6 +391,8 @@ def init_builtin_types():
         utility = builtin_utility_code.get(name)
         if name == 'frozenset':
             objstruct_cname = 'PySetObject'
+        elif name == 'bytearray':
+            objstruct_cname = 'PyByteArrayObject'
         elif name == 'bool':
             objstruct_cname = None
         elif name == 'Exception':

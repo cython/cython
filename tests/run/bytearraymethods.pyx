@@ -275,3 +275,15 @@ def bytearray_append(bytearray b, signed char c, int i, object o):
     b.append(i)
     b.append(o)
     return b
+
+
+cdef class BytearraySubtype(bytearray):
+    """
+    >>> b = BytearraySubtype(b'abc')
+    >>> b._append(ord('x'))
+    >>> b.append(ord('y'))
+    >>> print(b.decode('ascii'))
+    abcxy
+    """
+    def _append(self, x):
+        self.append(x)
