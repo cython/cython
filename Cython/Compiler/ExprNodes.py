@@ -870,16 +870,19 @@ class ExprNode(Node):
                 elif not src_type.is_error:
                     error(self.pos,
                           "Cannot convert '%s' to memoryviewslice" % (src_type,))
-            elif not src.type.conforms_to(dst_type, broadcast=self.is_memview_broadcast,
-                                          copying=self.is_memview_copy_assignment):
-                if src.type.dtype.same_as(dst_type.dtype):
-                    msg = "Memoryview '%s' not conformable to memoryview '%s'."
-                    tup = src.type, dst_type
-                else:
-                    msg = "Different base types for memoryviews (%s, %s)"
-                    tup = src.type.dtype, dst_type.dtype
+            else:
+                if src.type.writable_needed:
+                    dst_type.writable_needed = True
+                if not src.type.conforms_to(dst_type, broadcast=self.is_memview_broadcast,
+                                            copying=self.is_memview_copy_assignment):
+                    if src.type.dtype.same_as(dst_type.dtype):
+                        msg = "Memoryview '%s' not conformable to memoryview '%s'."
+                        tup = src.type, dst_type
+                    else:
+                        msg = "Different base types for memoryviews (%s, %s)"
+                        tup = src.type.dtype, dst_type.dtype
 
-                error(self.pos, msg % tup)
+                    error(self.pos, msg % tup)
 
         elif dst_type.is_pyobject:
             if not src.type.is_pyobject:
@@ -4297,6 +4300,11 @@ class MemoryViewIndexNode(BufferIndexNode):
         self.is_pythran_mode = has_np_pythran(env)
         indices = self.indices
         have_slices, indices, newaxes = MemoryView.unellipsify(indices, self.base.type.ndim)
+
+        if not getting:
+            self.writable_needed = True
+            if self.base.is_name or self.base.is_attribute:
+                self.base.entry.type.writable_needed = True
 
         self.memslice_index = (not newaxes and len(indices) == self.base.type.ndim)
         axes = []
@@ -12772,12 +12780,12 @@ class CoerceToMemViewSliceNode(CoercionNode):
 
     def generate_result_code(self, code):
         self.type.create_from_py_utility_code(self.env)
-        code.putln("%s = %s(%s);" % (self.result(),
-                                     self.type.from_py_function,
-                                     self.arg.py_result()))
-
-        error_cond = self.type.error_condition(self.result())
-        code.putln(code.error_goto_if(error_cond, self.pos))
+        code.putln(self.type.from_py_call_code(
+            self.arg.py_result(),
+            self.result(),
+            self.pos,
+            code
+        ))
 
 
 class CastNode(CoercionNode):

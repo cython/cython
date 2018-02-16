@@ -3753,18 +3753,12 @@ class DefNodeWrapper(FuncDefNode):
             entry = arg.entry
             code.putln("%s = %s;" % (entry.cname, item))
         else:
-            func = arg.type.from_py_function
-            if func:
+            if arg.type.from_py_function:
                 if arg.default:
                     # C-typed default arguments must be handled here
                     code.putln('if (%s) {' % item)
-                rhs = "%s(%s)" % (func, item)
-                if arg.type.is_enum:
-                    rhs = arg.type.cast_code(rhs)
-                code.putln("%s = %s; %s" % (
-                    arg.entry.cname,
-                    rhs,
-                    code.error_goto_if(arg.type.error_condition(arg.entry.cname), arg.pos)))
+                code.putln(arg.type.from_py_call_code(
+                    item, arg.entry.cname, arg.pos, code))
                 if arg.default:
                     code.putln('} else {')
                     code.putln("%s = %s;" % (
@@ -4005,17 +3999,14 @@ class DefNodeWrapper(FuncDefNode):
 
     def generate_arg_conversion_from_pyobject(self, arg, code):
         new_type = arg.type
-        func = new_type.from_py_function
         # copied from CoerceFromPyTypeNode
-        if func:
-            lhs = arg.entry.cname
-            rhs = "%s(%s)" % (func, arg.hdr_cname)
-            if new_type.is_enum:
-                rhs = PyrexTypes.typecast(new_type, PyrexTypes.c_long_type, rhs)
-            code.putln("%s = %s; %s" % (
-                lhs,
-                rhs,
-                code.error_goto_if(new_type.error_condition(arg.entry.cname), arg.pos)))
+        if new_type.from_py_function:
+            code.putln(new_type.from_py_call_code(
+                arg.hdr_cname,
+                arg.entry.cname,
+                arg.pos,
+                code,
+            ))
         else:
             error(arg.pos, "Cannot convert Python object argument to type '%s'" % new_type)
 

@@ -2481,9 +2481,12 @@ def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
         error(pos, "Expected an identifier, found '%s'" % s.sy)
     if s.systring == 'const':
         s.next()
-        base_type = p_c_base_type(s,
-            self_flag = self_flag, nonempty = nonempty, templates = templates)
-        return Nodes.CConstTypeNode(pos, base_type = base_type)
+        base_type = p_c_base_type(s, self_flag=self_flag, nonempty=nonempty, templates=templates)
+        if isinstance(base_type, Nodes.MemoryViewSliceTypeNode):
+            # reverse order to avoid having to write "(const int)[:]"
+            base_type.base_type_node = Nodes.CConstTypeNode(pos, base_type=base_type.base_type_node)
+            return base_type
+        return Nodes.CConstTypeNode(pos, base_type=base_type)
     if looking_at_base_type(s):
         #print "p_c_simple_base_type: looking_at_base_type at", s.position()
         is_basic = 1

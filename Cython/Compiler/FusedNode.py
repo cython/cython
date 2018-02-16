@@ -390,7 +390,7 @@ class FusedCFuncDefNode(StatListNode):
             coerce_from_py_func=memslice_type.from_py_function,
             dtype=dtype)
         decl_code.putln(
-            "{{memviewslice_cname}} {{coerce_from_py_func}}(object)")
+            "{{memviewslice_cname}} {{coerce_from_py_func}}(object, int)")
 
         pyx_code.context.update(
             specialized_type_name=specialized_type.specialization_string,
@@ -400,7 +400,7 @@ class FusedCFuncDefNode(StatListNode):
             u"""
                 # try {{dtype}}
                 if itemsize == -1 or itemsize == {{sizeof_dtype}}:
-                    memslice = {{coerce_from_py_func}}(arg)
+                    memslice = {{coerce_from_py_func}}(arg, 0)
                     if memslice.memview:
                         __PYX_XDEC_MEMVIEW(&memslice, 1)
                         # print 'found a match for the buffer through format parsing'
