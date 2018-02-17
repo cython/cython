@@ -2,7 +2,7 @@ Installing Cython
 =================
 
 Many scientific Python distributions, such as Anaconda [Anaconda]_,
-Enthought Canopy [Canopy]_, Python(x,y) [Pythonxy]_, and Sage [Sage]_,
+Enthought Canopy [Canopy]_, and Sage [Sage]_,
 bundle Cython and no setup is needed.  Note however that if your
 distribution ships a version of Cython which is too old you can still
 use the instructions below to update Cython.  Everything in this
@@ -59,5 +59,4 @@ with
 
 .. [Anaconda] http://docs.continuum.io/anaconda/
 .. [Canopy] https://enthought.com/products/canopy/
-.. [Pythonxy] http://www.pythonxy.com/
 .. [Sage] W. Stein et al., Sage Mathematics Software, http://sagemath.org
