@@ -514,7 +514,7 @@ class FusedCFuncDefNode(StatListNode):
                     pyx_code.local_variable_declarations.put_chunk(
                         u"""
                             cdef bint {{dtype_name}}_is_signed
-                            {{dtype_name}}_is_signed = <{{dtype_type}}> -1 < 0
+                            {{dtype_name}}_is_signed = not (<{{dtype_type}}> -1 > 0)
                         """)
 
     def _split_fused_types(self, arg):
