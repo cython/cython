@@ -414,13 +414,13 @@ def test_coerce_to_numpy():
 @testcase_numpy_1_5
 def test_memslice_getbuffer():
     """
-    >>> print(test_memslice_getbuffer()); gc_collect_if_required()
+    >>> test_memslice_getbuffer(); gc_collect_if_required()
     [[ 0  2  4]
      [10 12 14]]
     callback called
     """
     cdef int[:, :] array = create_array((4, 5), mode="c", use_callback=True)
-    return np.asarray(array)[::2, ::2]
+    print(np.asarray(array)[::2, ::2])
 
 cdef class DeallocateMe(object):
     def __dealloc__(self):
