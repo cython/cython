@@ -43,14 +43,14 @@ try:
     2 0 9 5
 
     >>> three_dim()  # doctest: +NORMALIZE_WHITESPACE
-    [[[  0.   1.   2.   3.]
-      [  4.   5.   6.   7.]]
-    <_BLANKLINE_>
-     [[  8.   9.  10.  11.]
-      [ 12.  13.  14.  15.]]
-    <_BLANKLINE_>
-     [[ 16.  17.  18.  19.]
-      [ 20.  21.  22.  23.]]]
+    [[[0.   1.   2.   3.]
+      [4.   5.   6.   7.]]
+    <BLANKLINE>
+     [[8.   9.  10.  11.]
+      [12.  13.  14.  15.]]
+    <BLANKLINE>
+     [[16.  17.  18.  19.]
+      [20.  21.  22.  23.]]]
     6.0 0.0 13.0 8.0
 
     >>> obj_array()
@@ -286,10 +286,9 @@ def assert_dtype_sizes():
 
 def ndarray_str(arr):
     u"""
-    Since Py2.3 doctest don't support <BLANKLINE>, manually replace blank lines
-    with <_BLANKLINE_>
+    Work around display differences in NumPy 1.14.
     """
-    return unicode(arr).replace(u'\n\n', u'\n<_BLANKLINE_>\n')
+    return re.sub(ur'\[ +', '[', unicode(arr))
 
 def basic():
     cdef object[int, ndim=2] buf = np.arange(10, dtype='i').reshape((2, 5))
