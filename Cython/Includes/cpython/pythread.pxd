@@ -6,9 +6,11 @@ cdef extern from "pythread.h":
     ctypedef void *PyThread_type_sema
 
     void PyThread_init_thread()
-    long PyThread_start_new_thread(void (*)(void *), void *)
+    long PyThread_start_new_thread(void (*)(void *), void *)  # FIXME: legacy
+    #unsigned long PyThread_start_new_thread(void (*)(void *), void *)  # returned 'long' before Py3.7
     void PyThread_exit_thread()
-    long PyThread_get_thread_ident()
+    long PyThread_get_thread_ident()  # FIXME: legacy
+    #unsigned long PyThread_get_thread_ident()  # returned 'long' before Py3.7
 
     PyThread_type_lock PyThread_allocate_lock()
     void PyThread_free_lock(PyThread_type_lock)
