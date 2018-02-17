@@ -44,6 +44,14 @@ def testcase_numpy_1_5(f):
         __test__[f.__name__] = f.__doc__
     return f
 
+
+def gc_collect_if_required():
+    major, minor, *rest = np.__version__.split('.')
+    if (int(major), int(minor)) >= (1, 14):
+        import gc
+        gc.collect()
+
+
 #
 ### Test slicing memoryview slices
 #
@@ -406,13 +414,13 @@ def test_coerce_to_numpy():
 @testcase_numpy_1_5
 def test_memslice_getbuffer():
     """
-    >>> test_memslice_getbuffer()
+    >>> print(test_memslice_getbuffer()); gc_collect_if_required()
     [[ 0  2  4]
      [10 12 14]]
     callback called
     """
     cdef int[:, :] array = create_array((4, 5), mode="c", use_callback=True)
-    print np.asarray(array)[::2, ::2]
+    return np.asarray(array)[::2, ::2]
 
 cdef class DeallocateMe(object):
     def __dealloc__(self):
