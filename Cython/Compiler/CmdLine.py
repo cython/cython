@@ -154,6 +154,8 @@ def parse_command_line(args):
                 options.capi_reexport_cincludes = True
             elif option == "--fast-fail":
                 Options.fast_fail = True
+            elif option == "--cimport-from-pyx":
+                Options.cimport_from_pyx = True
             elif option in ('-Werror', '--warning-errors'):
                 Options.warning_errors = True
             elif option in ('-Wextra', '--warning-extra'):
