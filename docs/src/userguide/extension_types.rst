@@ -409,9 +409,9 @@ compatible types.::
     cdef class OwnedPointer:
         cdef void* ptr
 
-        cdef __dealloc__(self):
-            if ptr != NULL:
-                free(ptr)
+        def __dealloc__(self):
+        if self.ptr != NULL:
+            free(self.ptr)
 
         @staticmethod
         cdef create(void* ptr):
