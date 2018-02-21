@@ -1,5 +1,5 @@
-# disutils: language = c++
-# disutils: sources = Rectangle.cpp
+# distutils: language = c++
+# distutils: sources = Rectangle.cpp
 
 # Decalre the class with cdef
 cdef extern from "Rectangle.h" namespace "shapes":

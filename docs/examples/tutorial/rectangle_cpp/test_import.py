@@ -7,6 +7,8 @@ except ImportError:
     print("Module rect has not yet been built")
     print("Please run $python setup.py build_ext --inplace")
     print("Then try again")
+    import sys
+    sys.exit()
 
 x0, y0, x1, y1 = 1, 2, 3, 4
 
