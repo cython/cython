@@ -410,8 +410,8 @@ compatible types.::
         cdef void* ptr
 
         def __dealloc__(self):
-        if self.ptr != NULL:
-            free(self.ptr)
+            if self.ptr != NULL:
+                free(self.ptr)
 
         @staticmethod
         cdef create(void* ptr):
