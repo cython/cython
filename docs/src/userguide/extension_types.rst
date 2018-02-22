@@ -554,10 +554,8 @@ contructors, this necessitates the use of factory functions. For example, ::
         cdef my_c_struct *_ptr
         cdef bint ptr_owner
 
-        def __cinit__(self, owner=False):
-            # On cinit, do not create new structure but set pointer to NULL
-            self._ptr = NULL
-            self.ptr_owner = owner
+        def __cinit__(self):
+            self.ptr_owner = False
 
         def __dealloc__(self):
             # De-allocate if not null and flag is set
@@ -583,8 +581,9 @@ contructors, this necessitates the use of factory functions. For example, ::
             the extension type to ``free`` the structure pointed to by ``_ptr``
             when the wrapper object is deallocated."""
             # Call to __new__ bypasses __init__ constructor
-            cdef WrapperClass wrapper = WrapperClass.__new__(WrapperClass, owner=True)
+            cdef WrapperClass wrapper = WrapperClass.__new__(WrapperClass)
             wrapper._ptr = _ptr
+            wrapper.ptr_owner = owner
             return wrapper
 
         @staticmethod
