@@ -45,7 +45,7 @@ class TestTreeFragments(CythonTest):
         T = F.substitute({"v" : NameNode(pos=None, name="a")})
         v = F.root.stats[1].rhs.operand2.operand1
         a = T.stats[1].rhs.operand2.operand1
-        self.assertEquals(v.pos, a.pos)
+        self.assertEqual(v.pos, a.pos)
 
     def test_temps(self):
         TemplateTransform.temp_name_counter = 0
