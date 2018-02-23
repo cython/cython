@@ -795,7 +795,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
         scope.declare_var(arg_count_member, PyrexTypes.c_int_type, self.pos)
 
         for arg in func_type.args[len(func_type.args) - self.optional_arg_count:]:
-            scope.declare_var(arg.name, arg.type, arg.pos, allow_pyobject=1)
+            scope.declare_var(arg.name, arg.type, arg.pos, allow_pyobject=True, allow_memoryview=True)
 
         struct_cname = env.mangle(Naming.opt_arg_prefix, self.base.name)
 

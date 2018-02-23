@@ -1862,7 +1862,7 @@ class StructOrUnionScope(Scope):
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private',
                     api = 0, in_pxd = 0, is_cdef = 0,
-                    allow_pyobject = 0):
+                    allow_pyobject=False, allow_memoryview=False):
         # Add an entry for an attribute.
         if not cname:
             cname = name
@@ -1875,7 +1875,7 @@ class StructOrUnionScope(Scope):
         self.var_entries.append(entry)
         if type.is_pyobject and not allow_pyobject:
             error(pos, "C struct/union member cannot be a Python object")
-        elif type.is_memoryviewslice and not allow_pyobject:
+        elif type.is_memoryviewslice and not allow_memoryview:
             # Memory views wrap their buffer owner as a Python object.
             error(pos, "C struct/union member cannot be a memory view")
         if visibility != 'private':

@@ -9114,7 +9114,6 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
                 if not arg.default.is_literal:
                     arg.is_dynamic = True
                     if arg.type.is_pyobject:
-                        # FIXME: should we include memory views here?
                         nonliteral_objects.append(arg)
                     else:
                         nonliteral_other.append(arg)
@@ -9152,7 +9151,7 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
             for arg in nonliteral_other:
                 entry = scope.declare_var(arg.name, arg.type, None,
                                           Naming.arg_prefix + arg.name,
-                                          allow_pyobject=False)
+                                          allow_pyobject=False, allow_memoryview=True)
                 self.defaults.append((arg, entry))
             entry = module_scope.declare_struct_or_union(
                 None, 'struct', scope, 1, None, cname=cname)
