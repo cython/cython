@@ -188,10 +188,10 @@ class IterationTransform(Visitor.EnvTransform):
         self.visitchildren(node)
         return self._optimise_for_loop(node, node.iterator.sequence)
 
-    def _optimise_for_loop(self, node, iterator, reversed=False):
+    def _optimise_for_loop(self, node, iterable, reversed=False):
         annotation_type = None
-        if (iterator.is_name or iterator.is_attribute) and iterator.entry and iterator.entry.annotation:
-            annotation = iterator.entry.annotation
+        if (iterable.is_name or iterable.is_attribute) and iterable.entry and iterable.entry.annotation:
+            annotation = iterable.entry.annotation
             if annotation.is_subscript:
                 annotation = annotation.base  # container base type
             # FIXME: generalise annotation evaluation => maybe provide a "qualified name" also for imported names?
@@ -205,44 +205,44 @@ class IterationTransform(Visitor.EnvTransform):
                 elif annotation.name in ('Set', 'FrozenSet'):
                     annotation_type = Builtin.set_type
 
-        if Builtin.dict_type in (iterator.type, annotation_type):
+        if Builtin.dict_type in (iterable.type, annotation_type):
             # like iterating over dict.keys()
             if reversed:
                 # CPython raises an error here: not a sequence
                 return node
             return self._transform_dict_iteration(
-                node, dict_obj=iterator, method=None, keys=True, values=False)
+                node, dict_obj=iterable, method=None, keys=True, values=False)
 
-        if (Builtin.set_type in (iterator.type, annotation_type) or
-                Builtin.frozenset_type in (iterator.type, annotation_type)):
+        if (Builtin.set_type in (iterable.type, annotation_type) or
+                Builtin.frozenset_type in (iterable.type, annotation_type)):
             if reversed:
                 # CPython raises an error here: not a sequence
                 return node
-            return self._transform_set_iteration(node, iterator)
+            return self._transform_set_iteration(node, iterable)
 
         # C array (slice) iteration?
-        if iterator.type.is_ptr or iterator.type.is_array:
-            return self._transform_carray_iteration(node, iterator, reversed=reversed)
-        if iterator.type is Builtin.bytes_type:
-            return self._transform_bytes_iteration(node, iterator, reversed=reversed)
-        if iterator.type is Builtin.unicode_type:
-            return self._transform_unicode_iteration(node, iterator, reversed=reversed)
+        if iterable.type.is_ptr or iterable.type.is_array:
+            return self._transform_carray_iteration(node, iterable, reversed=reversed)
+        if iterable.type is Builtin.bytes_type:
+            return self._transform_bytes_iteration(node, iterable, reversed=reversed)
+        if iterable.type is Builtin.unicode_type:
+            return self._transform_unicode_iteration(node, iterable, reversed=reversed)
 
         # the rest is based on function calls
-        if not isinstance(iterator, ExprNodes.SimpleCallNode):
+        if not isinstance(iterable, ExprNodes.SimpleCallNode):
             return node
 
-        if iterator.args is None:
-            arg_count = iterator.arg_tuple and len(iterator.arg_tuple.args) or 0
+        if iterable.args is None:
+            arg_count = iterable.arg_tuple and len(iterable.arg_tuple.args) or 0
         else:
-            arg_count = len(iterator.args)
-            if arg_count and iterator.self is not None:
+            arg_count = len(iterable.args)
+            if arg_count and iterable.self is not None:
                 arg_count -= 1
 
-        function = iterator.function
+        function = iterable.function
         # dict iteration?
         if function.is_attribute and not reversed and not arg_count:
-            base_obj = iterator.self or function.obj
+            base_obj = iterable.self or function.obj
             method = function.attribute
             # in Py3, items() is equivalent to Py2's iteritems()
             is_safe_iter = self.global_scope().context.language_level >= 3
@@ -270,35 +270,35 @@ class IterationTransform(Visitor.EnvTransform):
                     node, base_obj, method, keys, values)
 
         # enumerate/reversed ?
-        if iterator.self is None and function.is_name and \
+        if iterable.self is None and function.is_name and \
                function.entry and function.entry.is_builtin:
             if function.name == 'enumerate':
                 if reversed:
                     # CPython raises an error here: not a sequence
                     return node
-                return self._transform_enumerate_iteration(node, iterator)
+                return self._transform_enumerate_iteration(node, iterable)
             elif function.name == 'reversed':
                 if reversed:
                     # CPython raises an error here: not a sequence
                     return node
-                return self._transform_reversed_iteration(node, iterator)
+                return self._transform_reversed_iteration(node, iterable)
 
         # range() iteration?
         if Options.convert_range and arg_count >= 1 and (
-                iterator.self is None and
+                iterable.self is None and
                 function.is_name and function.name in ('range', 'xrange') and
                 function.entry and function.entry.is_builtin):
             if node.target.type.is_int or node.target.type.is_enum:
-                return self._transform_range_iteration(node, iterator, reversed=reversed)
+                return self._transform_range_iteration(node, iterable, reversed=reversed)
             if node.target.type.is_pyobject:
                 # Assume that small integer ranges (C long >= 32bit) are best handled in C as well.
-                for arg in (iterator.arg_tuple.args if iterator.args is None else iterator.args):
+                for arg in (iterable.arg_tuple.args if iterable.args is None else iterable.args):
                     if isinstance(arg, ExprNodes.IntNode):
                         if arg.has_constant_result() and -2**30 <= arg.constant_result < 2**30:
                             continue
                     break
                 else:
-                    return self._transform_range_iteration(node, iterator, reversed=reversed)
+                    return self._transform_range_iteration(node, iterable, reversed=reversed)
 
         return node
 
