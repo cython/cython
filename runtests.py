@@ -116,6 +116,7 @@ def get_distutils_distro(_cache=[]):
 EXT_DEP_MODULES = {
     'tag:numpy':    'numpy',
     'tag:pythran':  'pythran',
+    'tag:setuptools':  'setuptools.sandbox',
     'tag:asyncio':  'asyncio',
     'tag:pstats':   'pstats',
     'tag:posix':    'posix',
