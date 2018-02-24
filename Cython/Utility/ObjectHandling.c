@@ -192,7 +192,7 @@ static void __Pyx_PyIter_Next_ErrorNoIterator(PyObject *iterator) {
 // originally copied from Py3's builtin_next()
 static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* defval) {
     PyObject* next;
-    // we always do a quick slot check because always PyIter_Check() is so wasteful
+    // We always do a quick slot check because calling PyIter_Check() is so wasteful.
     iternextfunc iternext = Py_TYPE(iterator)->tp_iternext;
     if (likely(iternext)) {
 #if CYTHON_USE_TYPE_SLOTS
@@ -204,15 +204,26 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* 
             return NULL;
         #endif
 #else
-        // note: PyIter_Next() crashes if the slot is NULL in CPython
+        // Since the slot was set, assume that PyIter_Next() will likely succeed, and properly fail otherwise.
+        // Note: PyIter_Next() crashes in CPython if "tp_iternext" is NULL.
         next = PyIter_Next(iterator);
         if (likely(next))
             return next;
 #endif
-    } else if (CYTHON_USE_TYPE_SLOTS || !PyIter_Check(iterator)) {
+    } else if (CYTHON_USE_TYPE_SLOTS || unlikely(!PyIter_Check(iterator))) {
+        // If CYTHON_USE_TYPE_SLOTS, then the slot was not set and we don't have an iterable.
+        // Otherwise, don't trust "tp_iternext" and rely on PyIter_Check().
         __Pyx_PyIter_Next_ErrorNoIterator(iterator);
         return NULL;
     }
+#if !CYTHON_USE_TYPE_SLOTS
+    else {
+        // We have an iterator with an empty "tp_iternext", but didn't call next() on it yet.
+        next = PyIter_Next(iterator);
+        if (likely(next))
+            return next;
+    }
+#endif
     return __Pyx_PyIter_Next2Default(defval);
 }
 
