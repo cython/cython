@@ -80,6 +80,49 @@ You can show Cython's code analysis by passing the ``--annotate`` option::
 
 .. figure:: jupyter.png
 
+Additional allowable arguments to the Cython magic are:
+
+-a, --annotate
+  Produce a colorized HTML version of the source.
+
+--cplus, -+
+  Output a C++ rather than C file
+
+-f, --force
+  Force the compilation of a new module, even if the source has been previously compiled.
+
+-3
+  Select Python 3 syntax
+
+-2
+  Select Python 2 syntax
+
+-c=COMPILE_ARGS, --compile-args=COMPILE_ARGS
+  Extra flags to pass to compiler via the extra_compile_args.
+
+--link-args LINK_ARGS
+ Extra flags to pass to linker via the extra_link_args.
+
+-l LIB, --lib LIB
+ Add a library to link the extension against (can be specified multiple times).
+
+-L dir	
+  Add a path to the list of libary directories (can be specified multiple times).
+
+-I INCLUDE, --include INCLUDE
+ Add a path to the list of include directories (can be specified multiple times).
+
+-S, --src
+  Add a path to the list of src files (can be specified multiple times).
+
+-n NAME, --name NAME
+  Specify a name for the Cython module.
+
+--pgo
+  Enable profile guided optimisation in the C compiler. Compiles the cell twice and executes it in between to generate a runtime profile.
+
+--verbose
+  Print debug information like generated .c/.cpp file location and exact gcc/g++ command invoked.
 
 Using the Sage notebook
 -----------------------
