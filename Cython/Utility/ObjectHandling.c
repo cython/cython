@@ -170,12 +170,10 @@ static PyObject *__Pyx_PyIter_Next2Default(PyObject* defval) {
     __Pyx_PyThreadState_assign
     exc_type = __Pyx_PyErr_Occurred();
     if (unlikely(exc_type)) {
-        if (unlikely(!__Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration)))
+        if (!defval || unlikely(!__Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration)))
             return NULL;
-        if (defval) {
-            __Pyx_PyErr_Clear();
-            Py_INCREF(defval);
-        }
+        __Pyx_PyErr_Clear();
+        Py_INCREF(defval);
         return defval;
     }
     if (defval) {
