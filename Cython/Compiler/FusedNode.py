@@ -455,7 +455,7 @@ class FusedCFuncDefNode(StatListNode):
                             cur_stride = itemsize
                             shape = arg.shape
                             strides = arg.strides
-                            for i in range(arg.ndim):
+                            for i in range(arg.ndim-1, -1, -1):
                                 if (<Py_ssize_t>strides[i]) != cur_stride:
                                     arg_is_pythran_compatible = False
                                     break
