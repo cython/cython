@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+import re
 import sys
 import copy
 import codecs
@@ -29,7 +30,7 @@ from . import Options
 
 from .Code import UtilityCode, TempitaUtilityCode
 from .StringEncoding import EncodedString, bytes_literal, encoded_string
-from .Errors import error
+from .Errors import error, warning
 from .ParseTreeTransforms import SkipDeclarations
 
 try:
@@ -4249,6 +4250,78 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             else:
                 sequence_node.mult_factor = factor
         return sequence_node
+
+    def visit_ModNode(self, node):
+        self.visitchildren(node)
+        if isinstance(node.operand1, ExprNodes.UnicodeNode) and isinstance(node.operand2, ExprNodes.TupleNode):
+            if not node.operand2.mult_factor:
+                fstring = self._build_fstring(node.operand1.pos, node.operand1.value, node.operand2.args)
+                if fstring is not None:
+                    return fstring
+        return node
+
+    _parse_string_format_regex = (
+        u'(%(?:'            # %...
+        u'(?:[0-9]+|[ ])?'  # width (optional) or space prefix fill character (optional)
+        u'(?:[.][0-9]+)?'   # precision (optional)
+        u')?.)'             # format type (or something different for unsupported formats)
+    )
+
+    def _build_fstring(self, pos, ustring, format_args):
+        # Issues formatting warnings instead of errors since we really only catch a few errors by accident.
+        args = iter(format_args)
+        substrings = []
+        can_be_optimised = True
+        for s in re.split(self._parse_string_format_regex, ustring):
+            if not s:
+                continue
+            if s == u'%%':
+                substrings.append(ExprNodes.UnicodeNode(pos, value=EncodedString(u'%'), constant_result=u'%'))
+                continue
+            if s[0] != u'%':
+                if s[-1] == u'%':
+                    warning(pos, "Incomplete format: '...%s'" % s[-3:], level=1)
+                    can_be_optimised = False
+                substrings.append(ExprNodes.UnicodeNode(pos, value=EncodedString(s), constant_result=s))
+                continue
+            format_type = s[-1]
+            try:
+                arg = next(args)
+            except StopIteration:
+                warning(pos, "Too few arguments for format placeholders", level=1)
+                can_be_optimised = False
+                break
+            if format_type in u'srfdoxX':
+                format_spec = s[1:]
+                if format_type in u'doxX' and u'.' in format_spec:
+                    # Precision is not allowed for integers in format(), but ok in %-formatting.
+                    can_be_optimised = False
+                elif format_type in u'rs':
+                    format_spec = format_spec[:-1]
+                substrings.append(ExprNodes.FormattedValueNode(
+                    arg.pos, value=arg,
+                    conversion_char=format_type if format_type in u'rs' else None,
+                    format_spec=ExprNodes.UnicodeNode(
+                        pos, value=EncodedString(format_spec), constant_result=format_spec)
+                        if format_spec else None,
+                ))
+            else:
+                # keep it simple for now ...
+                can_be_optimised = False
+
+        if not can_be_optimised:
+            # Print all warnings we can find before finally giving up here.
+            return None
+
+        try:
+            next(args)
+        except StopIteration: pass
+        else:
+            warning(pos, "Too many arguments for format placeholders", level=1)
+            return None
+
+        node = ExprNodes.JoinedStrNode(pos, values=substrings)
+        return self.visit_JoinedStrNode(node)
 
     def visit_FormattedValueNode(self, node):
         self.visitchildren(node)

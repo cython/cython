@@ -1,5 +1,5 @@
 # mode: run
-# tag: f_strings, pep498
+# tag: f_strings, pep498, werror
 
 ####
 # Cython specific PEP 498 tests in addition to test_fstring.pyx from CPython
@@ -444,3 +444,39 @@ def format_decoded_bytes(bytes value):
     U-xyz
     """
     return f"U-{value.decode('utf-8')}"
+
+
+@cython.test_fail_if_path_exists(
+    "//AddNode",
+    "//ModNode",
+)
+@cython.test_assert_path_exists(
+    "//FormattedValueNode",
+    "//JoinedStrNode",
+)
+def generated_fstring(int i, unicode u not None, o):
+    """
+    >>> i, u, o = 11, u'xyz', [1]
+    >>> print(((
+    ...     u"(i) %s-%.3s-%r-%.3r-%d-%3d-%o-%04o-%x-%4x-%X-%03X-%.1f-%04.2f %% "
+    ...     u"(u) %s-%.2s-%r-%.7r %% "
+    ...     u"(o) %s-%.2s-%r-%.2r"
+    ... ) % (
+    ...     i, i, i, i, i, i, i, i, i, i, i, i, i, i,
+    ...     u, u, u, u,
+    ...     o, o, o, o,
+    ... )).replace("-u'xyz'", "-'xyz'"))
+    (i) 11-11-11-11-11- 11-13-0013-b-   b-B-00B-11.0-11.00 % (u) xyz-xy-'xyz'-'xyz' % (o) [1]-[1-[1]-[1
+
+    >>> print(generated_fstring(i, u, o).replace("-u'xyz'", "-'xyz'"))
+    (i) 11-11-11-11-11- 11-13-0013-b-   b-B-00B-11.0-11.00 % (u) xyz-xy-'xyz'-'xyz' % (o) [1]-[1-[1]-[1
+    """
+    return (
+        u"(i) %s-%.3s-%r-%.3r-%d-%3d-%o-%04o-%x-%4x-%X-%03X-%.1f-%04.2f %% "
+        u"(u) %s-%.2s-%r-%.7r %% "
+        u"(o) %s-%.2s-%r-%.2r"
+    ) % (
+        i, i, i, i, i, i, i, i, i, i, i, i, i, i,
+        u, u, u, u,
+        o, o, o, o,
+    )

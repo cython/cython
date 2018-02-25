@@ -63,6 +63,8 @@ Features added
 
 * Formatting C enum values in f-strings is faster, as well as some other special cases.
 
+* String formatting with the '%' operator is optimised into f-strings in simple cases.
+
 * Subscripting (item access) is faster in some cases.
 
 * Some ``bytearray`` operations have been optimised similar to ``bytes``.
