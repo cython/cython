@@ -10782,7 +10782,7 @@ class TypeofNode(ExprNode):
         self.literal = literal.coerce_to_pyobject(env)
         return self
 
-    def analyse_as_type(env):
+    def analyse_as_type(self, env):
         self.operand = self.operand.analyse_types(env)
         return self.operand.type
 
