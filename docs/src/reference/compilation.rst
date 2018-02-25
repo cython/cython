@@ -451,17 +451,25 @@ Cython code.  Here is the list of currently supported directives:
     ([]-operator) in the code will not cause any IndexErrors to be
     raised. Lists, tuples, and strings are affected only if the index
     can be determined to be non-negative (or if ``wraparound`` is False).
-    Conditions
-    which would normally trigger an IndexError may instead cause
+    Conditions which would normally trigger an IndexError may instead cause
     segfaults or data corruption if this is set to False.
     Default is True.
 
 ``wraparound``  (True / False)
-    In Python arrays can be indexed relative to the end. For example
-    A[-1] indexes the last value of a list. In C negative indexing is
-    not supported. If set to False, Cython will neither check for nor
-    correctly handle negative indices, possibly causing segfaults or
-    data corruption.
+    In Python, arrays and sequences can be indexed relative to the end.
+    For example, A[-1] indexes the last value of a list.
+    In C, negative indexing is not supported.
+    If set to False, Cython is allowed to neither check for nor correctly
+    handle negative indices, possibly causing segfaults or data corruption.
+    If bounds checks are enabled (the default, see ``boundschecks`` above),
+    negative indexing will usually raise an ``IndexError`` for indices that
+    Cython evaluates itself.
+    However, these cases can be difficult to recognise in user code to
+    distinguish them from indexing or slicing that is evaluated by the
+    underlying Python array or sequence object and thus continues to support
+    wrap-around indices.
+    It is therefore safest to apply this option only to code that does not
+    process negative indices at all.
     Default is True.
 
 ``initializedcheck`` (True / False)
