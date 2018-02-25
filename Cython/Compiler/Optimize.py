@@ -4258,7 +4258,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 fstring = self._build_fstring(node.operand1.pos, node.operand1.value, node.operand2.args)
                 if fstring is not None:
                     return fstring
-        return node
+        return self.visit_BinopNode(node)
 
     _parse_string_format_regex = (
         u'(%(?:'            # %...
