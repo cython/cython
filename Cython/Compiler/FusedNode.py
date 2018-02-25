@@ -421,10 +421,11 @@ class FusedCFuncDefNode(StatListNode):
         # The first thing to find a match in this loop breaks out of the loop
         pyx_code.put_chunk(
             u"""
+                """ + (u"arg_is_pythran_compatible = False" if pythran_types else u"") + u"""
                 if ndarray is not None:
                     if isinstance(arg, ndarray):
                         dtype = arg.dtype
-                        """ + ("arg_is_pythran_compatible = True" if pythran_types else "") + """
+                        """ + (u"arg_is_pythran_compatible = True" if pythran_types else u"") + u"""
                     elif __pyx_memoryview_check(arg):
                         arg_base = arg.base
                         if isinstance(arg_base, ndarray):
@@ -444,7 +445,7 @@ class FusedCFuncDefNode(StatListNode):
         if pythran_types:
             pyx_code.put_chunk(
                 u"""
-                        # We only support the endianness of the current compiler
+                        # Pythran only supports the endianness of the current compiler
                         byteorder = dtype.byteorder
                         if byteorder == "<" and not __Pyx_Is_Little_Endian():
                             arg_is_pythran_compatible = False
@@ -455,12 +456,12 @@ class FusedCFuncDefNode(StatListNode):
                             shape = arg.shape
                             strides = arg.strides
                             for i in range(arg.ndim):
-                                if strides[i] != cur_stride:
+                                if (<Py_ssize_t>strides[i]) != cur_stride:
                                     arg_is_pythran_compatible = False
                                     break
-                                cur_stride *= shape[i]
+                                cur_stride *= <Py_ssize_t> shape[i]
                             else:
-                                arg_is_pythran_compatible = not (arg.flags.f_contiguous and arg.ndim > 1)
+                                arg_is_pythran_compatible = not (arg.flags.f_contiguous and (<Py_ssize_t>arg.ndim) > 1)
                 """)
         pyx_code.named_insertion_point("numpy_dtype_checks")
         self._buffer_check_numpy_dtype(pyx_code, buffer_types, pythran_types)
@@ -497,7 +498,7 @@ class FusedCFuncDefNode(StatListNode):
         if pythran_types:
             pyx_code.local_variable_declarations.put_chunk(u"""
                 cdef bint arg_is_pythran_compatible
-                arg_is_pythran_compatible = False
+                cdef Py_ssize_t cur_stride
             """)
 
         pyx_code.imports.put_chunk(
