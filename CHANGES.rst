@@ -23,10 +23,6 @@ Features added
   Cython now also disables some code intensive optimisations in that function
   to further reduce the code size.  (Github issue #2102)
 
-* C file includes are moved behind the module declarations if possible, to allow
-  them to depend on module declarations themselves.
-  Patch by Jeroen Demeyer.  (Github issue #1896)
-
 * Decorating an async coroutine with ``@cython.iterable_coroutine`` changes its
   type at compile time to make it iterable.  While this is not strictly in line
   with PEP-492, it improves the interoperability with old-style coroutines that
