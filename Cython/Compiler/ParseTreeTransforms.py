@@ -2601,22 +2601,8 @@ class MarkClosureVisitor(CythonTransform):
                 coroutine_type = Nodes.AsyncGenNode
                 for yield_expr in collector.yields + collector.returns:
                     yield_expr.in_async_gen = True
-            elif node.decorators:
-                # evaluate @asyncio.coroutine() decorator at compile time if it's the inner-most one
-                # TODO: better decorator validation: should come from imported module
-                decorator = node.decorators[-1].decorator
-                if decorator.is_name and decorator.name == 'coroutine':
-                    pass
-                elif decorator.is_attribute and decorator.attribute == 'coroutine':
-                    if decorator.obj.is_name and decorator.obj.name in ('types', 'asyncio'):
-                        pass
-                    else:
-                        decorator = None
-                else:
-                    decorator = None
-                if decorator is not None:
-                    node.decorators.pop()
-                    coroutine_type = Nodes.IterableAsyncDefNode
+            elif self.current_directives['iterable_coroutine']:
+                coroutine_type = Nodes.IterableAsyncDefNode
         elif collector.has_await:
             found = next(y for y in collector.yields if y.is_await)
             error(found.pos, "'await' not allowed in generators (use 'yield')")

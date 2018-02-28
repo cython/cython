@@ -577,6 +577,16 @@ Cython code.  Here is the list of currently supported directives:
 ``unraisable_tracebacks`` (True / False)
     Whether to print tracebacks when suppressing unraisable exceptions.
 
+``iterable_coroutine`` (True / False)
+    `PEP 492 <https://www.python.org/dev/peps/pep-0492/>`_ specifies that async-def
+    coroutines must not be iterable, in order to prevent accidental misuse in
+    non-async contexts.  However, this makes it difficult and inefficient to write
+    backwards compatible code that uses async-def coroutines in Cython but needs to
+    interact with async Python code that uses the older yield-from syntax, such as
+    asyncio before Python 3.5.  This directive can be applied in modules or
+    selectively as decorator on an async-def coroutine to make the affected
+    coroutine(s) iterable and thus directly interoperable with yield-from.
+
 
 Configurable optimisations
 --------------------------
