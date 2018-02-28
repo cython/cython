@@ -155,7 +155,7 @@ class IncludeCode(object):
 
         if initial:
             self.location = self.INITIAL
-        elif late:
+        elif False and late:
             self.location = self.LATE
         else:
             self.location = self.EARLY

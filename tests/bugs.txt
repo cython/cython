@@ -16,6 +16,9 @@ cimport_alias_subclass
 # PEP-489 is currently disabled
 run.mod__spec__
 
+# Late includes are currently disabled
+run.extern_include_order
+
 # CPython regression tests that don't current work:
 pyregr.test_signal
 pyregr.test_capi
