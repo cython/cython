@@ -1599,17 +1599,14 @@ static PyTypeObject __pyx_CoroutineType_type = {
 static int __pyx_Coroutine_init(void) {
     // on Windows, C-API functions can't be used in slots statically
     __pyx_CoroutineType_type.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
-
-#ifdef __Pyx_IterableCoroutine_USED
-    __pyx_IterableCoroutineType_type.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
-    __pyx_IterableCoroutineType = __Pyx_FetchCommonType(&__pyx_IterableCoroutineType_type);
-    if (unlikely(!__pyx_IterableCoroutineType))
-        return -1;
-#endif
-
     __pyx_CoroutineType = __Pyx_FetchCommonType(&__pyx_CoroutineType_type);
     if (unlikely(!__pyx_CoroutineType))
         return -1;
+
+#ifdef __Pyx_IterableCoroutine_USED
+    if (unlikely(__pyx_IterableCoroutine_init() == -1))
+        return -1;
+#endif
 
     __pyx_CoroutineAwaitType = __Pyx_FetchCommonType(&__pyx_CoroutineAwaitType_type);
     if (unlikely(!__pyx_CoroutineAwaitType))
@@ -1623,7 +1620,6 @@ static int __pyx_Coroutine_init(void) {
 #define __Pyx_IterableCoroutine_USED
 
 static PyTypeObject *__pyx_IterableCoroutineType = 0;
-static PyTypeObject __pyx_IterableCoroutineType_type;
 
 #undef __Pyx_Coroutine_Check
 #define __Pyx_Coroutine_Check(obj) (__Pyx_Coroutine_CheckExact(obj) || (Py_TYPE(obj) == __pyx_IterableCoroutineType))
@@ -1631,13 +1627,16 @@ static PyTypeObject __pyx_IterableCoroutineType_type;
 #define __Pyx_IterableCoroutine_New(body, code, closure, name, qualname, module_name)  \
     __Pyx__Coroutine_New(__pyx_IterableCoroutineType, body, code, closure, name, qualname, module_name)
 
+static int __pyx_IterableCoroutine_init(void);/*proto*/
+
 
 //////////////////// IterableCoroutine ////////////////////
 //@requires: Coroutine
+//@requires: CommonStructures.c::FetchCommonType
 
 static PyTypeObject __pyx_IterableCoroutineType_type = {
     PyVarObject_HEAD_INIT(0, 0)
-    "legacy_coroutine",                 /*tp_name*/
+    "iterable_coroutine",               /*tp_name*/
     sizeof(__pyx_CoroutineObject),      /*tp_basicsize*/
     0,                                  /*tp_itemsize*/
     (destructor) __Pyx_Coroutine_dealloc,/*tp_dealloc*/
@@ -1701,6 +1700,15 @@ static PyTypeObject __pyx_IterableCoroutineType_type = {
     __Pyx_Coroutine_del,                /*tp_finalize*/
 #endif
 };
+
+
+static int __pyx_IterableCoroutine_init(void) {
+    __pyx_IterableCoroutineType_type.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
+    __pyx_IterableCoroutineType = __Pyx_FetchCommonType(&__pyx_IterableCoroutineType_type);
+    if (unlikely(!__pyx_IterableCoroutineType))
+        return -1;
+    return 0;
+}
 
 
 //////////////////// Generator ////////////////////
