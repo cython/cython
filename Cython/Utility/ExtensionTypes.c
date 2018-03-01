@@ -17,6 +17,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
     // tp_dictoffset (i.e. there is no __dict__ attribute in the object
     // structure), we need to check that none of the base classes sets
     // it either.
+    int r;
     PyObject *bases = t->tp_bases;
     if (bases)
     {
@@ -64,7 +65,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
     t->tp_flags |= Py_TPFLAGS_HEAPTYPE;
 #endif
 
-    int r = PyType_Ready(t);
+    r = PyType_Ready(t);
 
 #if PY_VERSION_HEX >= 0x03050000
     t->tp_flags &= ~Py_TPFLAGS_HEAPTYPE;
