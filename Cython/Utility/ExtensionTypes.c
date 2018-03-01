@@ -24,6 +24,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
         for (i = 1; i < n; i++)  /* Skip first base */
         {
             PyObject *b0 = PyTuple_GET_ITEM(bases, i);
+            PyTypeObject *b;
 #if PY_MAJOR_VERSION < 3
             /* Disallow old-style classes */
             if (PyClass_Check(b0))
@@ -33,7 +34,7 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
                 return -1;
             }
 #endif
-            PyTypeObject *b = (PyTypeObject*)b0;
+            b = (PyTypeObject*)b0;
             if (!PyType_HasFeature(b, Py_TPFLAGS_HEAPTYPE))
             {
                 PyErr_Format(PyExc_TypeError, "base class '%.200s' is not a heap type",
