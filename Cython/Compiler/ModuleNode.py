@@ -2322,6 +2322,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.module_cname,
             Naming.pymodinit_module_arg,
         ))
+        code.putln("#elif PY_MAJOR_VERSION >= 3")
+        # Hack: enforce single initialisation also on reimports under different names on Python 3 (with PEP 3121/489).
+        code.putln("if (%s) return __Pyx_NewRef(%s);" % (
+            Naming.module_cname,
+            Naming.module_cname,
+        ))
         code.putln("#endif")
 
         if profile or linetrace:
