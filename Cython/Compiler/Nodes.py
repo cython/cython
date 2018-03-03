@@ -485,7 +485,9 @@ class CDefExternNode(StatNode):
         if self.include_file or self.verbatim_include:
             # Determine whether include should be late
             stats = self.body.stats
-            if not stats:
+            if not env.directives['preliminary_late_includes_cy28']:
+                late = False
+            elif not stats:
                 # Special case: empty 'cdef extern' blocks are early
                 late = False
             else:
