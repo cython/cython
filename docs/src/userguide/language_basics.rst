@@ -545,12 +545,14 @@ statement, for example,::
 
     include "spamstuff.pxi"
 
-The contents of the named file are textually included at that point. The
+The contents of the named file are textually included at that point.  The
 included file can contain any complete statements or declarations that are
 valid in the context where the include statement appears, including other
-include statements. The contents of the included file should begin at an
+include statements.  The contents of the included file should begin at an
 indentation level of zero, and will be treated as though they were indented to
-the level of the include statement that is including the file.
+the level of the include statement that is including the file.  The include
+statement cannot, however, be used outside of the module scope, such as inside
+of functions or class bodies.
 
 .. note::
 
