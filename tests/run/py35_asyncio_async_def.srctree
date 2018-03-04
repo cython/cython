@@ -43,12 +43,12 @@ async def cy_async():
 async def say():
     await cb()
 
-async def cb(): # renaming this to "say" would prevent crash
+async def cb():
     print("awaiting:")
     await cy_async()
     await py_async()
     print("sleeping:")
-    await asyncio.sleep(3)
+    await asyncio.sleep(0.5)
     print("done!")
 
 
