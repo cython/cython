@@ -106,6 +106,14 @@ class AnnotationCCodeWriter(CCodeWriter):
         .cython.code .c_call  { color: #0000FF; }
     """)
 
+    # on-click toggle function to show/hide C source code
+    _onclick_attr = ' onclick="{}"'.format((
+        "(function(s){"
+        "    s.display =  s.display === 'block' ? 'none' : 'block'"
+        "})(this.nextElementSibling.style)"
+        ).replace(' ', '')  # poor dev's JS minification
+    )
+
     def save_annotation(self, source_filename, target_filename, coverage_xml=None):
         with Utils.open_source_file(source_filename) as f:
             code = f.read()
@@ -242,12 +250,7 @@ class AnnotationCCodeWriter(CCodeWriter):
                      calls['py_macro_api'] + calls['pyx_macro_api'])
 
             if c_code:
-                onclick = textwrap.dedent('''
-                     onclick="
-                    this.nextElementSibling.style.display != 'block' ?
-                    this.nextElementSibling.style.display = 'block' :
-                    this.nextElementSibling.style.display = 'none'
-                "''').replace('\n', '')
+                onclick = self._onclick_attr
                 expandsymbol = '+'
             else:
                 onclick = ''
