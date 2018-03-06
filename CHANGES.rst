@@ -28,6 +28,9 @@ Features added
   with PEP-492, it improves the interoperability with old-style coroutines that
   use ``yield from`` instead of ``await``.
 
+* The IPython magic has preliminary support for JupyterLab.
+  (Github issue #1775)
+
 * The new TSS C-API in CPython 3.7 is supported and has been backported.
   Patch by Naotoshi Seo.  (Github issue #1932)
 
@@ -109,6 +112,8 @@ Bugs fixed
 * The signature of the special ``__richcmp__()`` method was corrected to recognise
   the type of the first argument as ``self``.  It was previously treated as plain
   object, but CPython actually guarantees that it always has the correct type.
+  Note: this can change the semantics of user code that previously relied on
+  ``self`` being untyped.
 
 * Some Python 3 exceptions were not recognised as builtins when running Cython
   under Python 2.
