@@ -451,8 +451,9 @@ class Scope(object):
                 # Likewise ignore inherited classes.
                 pass
             elif visibility == 'extern':
-                # Silenced, until we have a safer way to prevent pxd-defined cpdef functions from ending up here.
-                warning(pos, "'%s' redeclared " % name, 0)
+                # Silenced outside of "cdef extern" blocks, until we have a safe way to
+                # prevent pxd-defined cpdef functions from ending up here.
+                warning(pos, "'%s' redeclared " % name, 1 if self.in_cinclude else 0)
             elif visibility != 'ignore':
                 error(pos, "'%s' redeclared " % name)
         entry = Entry(name, cname, type, pos = pos)
