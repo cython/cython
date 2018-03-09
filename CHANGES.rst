@@ -130,6 +130,10 @@ Bugs fixed
 * Iterator declarations in C++ ``deque`` and ``vector`` were corrected.
   Patch by Alex Huszagh.  (Github issue #1870)
 
+* The const modifiers in the C++ ``string`` declarations were corrected, together
+  with the coercion behaviour of string literals into C++ strings.
+  (Github issue #2132)
+
 * Some declaration types in ``libc.limits`` were corrected.
   Patch by Jeroen Demeyer.  (Github issue #2016)
 
