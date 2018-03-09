@@ -1442,7 +1442,7 @@ class BytesNode(ConstNode):
                 node.type = Builtin.bytes_type
             else:
                 self.check_for_coercion_error(dst_type, env, fail=True)
-                return node
+            return node
         elif dst_type in (PyrexTypes.c_char_ptr_type, PyrexTypes.c_const_char_ptr_type):
             node.type = dst_type
             return node
@@ -1467,7 +1467,6 @@ class BytesNode(ConstNode):
         else:
             # not const => use plain C string literal and cast to mutable type
             literal = self.value.as_c_string_literal()
-            # C++ may require a cast
             result = typecast(self.type, PyrexTypes.c_void_ptr_type, literal)
         self.result_code = result
 
