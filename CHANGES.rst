@@ -146,6 +146,9 @@ Bugs fixed
 * The builtin ``bytearray`` type could not be used as base type of cdef classes.
   (Github issue #2106)
 
+* Overloaded C++ functions no longer issue warnings about redeclarations.
+  (Github issue #2013)
+
 Other changes
 -------------
 

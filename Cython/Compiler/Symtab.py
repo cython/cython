@@ -446,9 +446,22 @@ class Scope(object):
             warning(pos, "'%s' is a reserved name in C." % cname, -1)
         entries = self.entries
         if name and name in entries and not shadow:
-            old_type = entries[name].type
-            if self.is_cpp_class_scope and type.is_cfunction and old_type.is_cfunction and type != old_type:
-                # C++ method overrides are ok
+            old_entry = entries[name]
+
+            # Reject redeclared C++ functions only if they have the same type signature.
+            cpp_override_allowed = False
+            if type.is_cfunction and old_entry.type.is_cfunction and self.is_cpp():
+                for alt_entry in old_entry.all_alternatives():
+                    if type == alt_entry.type:
+                        if name == '<init>' and not type.args:
+                            # Cython pre-declares the no-args constructor - allow later user definitions.
+                            cpp_override_allowed = True
+                        break
+                else:
+                    cpp_override_allowed = True
+
+            if cpp_override_allowed:
+                # C++ function/method overrides with different signatures are ok.
                 pass
             elif self.is_cpp_class_scope and entries[name].is_inherited:
                 # Likewise ignore inherited classes.
