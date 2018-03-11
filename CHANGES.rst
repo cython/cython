@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-0.28 (2018-??-??)
+0.28 (2018-03-??)
 =================
 
 Features added
@@ -17,6 +17,10 @@ Features added
 
 * The ``const`` modifier can be applied to memoryview declarations to allow
   read-only buffers as input.  (Github issues #1605, #1869)
+
+* C code in the docstring of a ``cdef extern`` block is copied verbatimly
+  into the generated file.
+  Patch by Jeroen Demeyer.  (Github issue #1915)
 
 * When compiling with gcc, the module init function is now tuned for small
   code size instead of whatever compile flags were provided externally.
@@ -84,6 +88,9 @@ Features added
 * Some missing signals were added to ``libc/signal.pxd``.
   Patch by Jeroen Demeyer.  (Github issue #1914)
 
+* The warning about repeated extern declarations is now visible by default.
+  (Github issue #1874)
+
 * The exception handling of the function types used by CPython's type slot
   functions was corrected to match the de-facto standard behaviour, so that
   code that uses them directly benefits from automatic and correct exception
@@ -145,9 +152,6 @@ Bugs fixed
 
 * The builtin ``bytearray`` type could not be used as base type of cdef classes.
   (Github issue #2106)
-
-* Overloaded C++ functions no longer issue warnings about redeclarations.
-  (Github issue #2013)
 
 Other changes
 -------------
