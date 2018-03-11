@@ -2,6 +2,12 @@
 Working with NumPy
 =======================
 
+.. NOTE:: In Cython 0.16, typed memoryviews were introduced.
+          They are easier to use than the numpy syntax, they are faster,
+          and don't need the GIL. They should be preferred to the
+          syntax presented in this page. 
+          See :ref:`Typed Memoryviews <memoryviews>`.
+
 You can use NumPy from Cython exactly the same as in regular Python, but by
 doing so you are losing potentially high speedups because Cython has support
 for fast access to NumPy arrays. Let's see how this works with a simple
