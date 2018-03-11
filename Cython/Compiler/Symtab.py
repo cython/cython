@@ -218,9 +218,12 @@ class Entry(object):
     def __repr__(self):
         return "%s(<%x>, name=%s, type=%s)" % (type(self).__name__, id(self), self.name, self.type)
 
+    def already_declared_here(self):
+        error(self.pos, "Previous declaration is here")
+
     def redeclared(self, pos):
         error(pos, "'%s' does not match previous declaration" % self.name)
-        error(self.pos, "Previous declaration is here")
+        self.already_declared_here()
 
     def all_alternatives(self):
         return [self] + self.overloaded_alternatives
@@ -456,6 +459,7 @@ class Scope(object):
                 warning(pos, "'%s' redeclared " % name, 1 if self.in_cinclude else 0)
             elif visibility != 'ignore':
                 error(pos, "'%s' redeclared " % name)
+                entries[name].already_declared_here()
         entry = Entry(name, cname, type, pos = pos)
         entry.in_cinclude = self.in_cinclude
         entry.create_wrapper = create_wrapper
@@ -587,6 +591,7 @@ class Scope(object):
         else:
             if not (entry.is_type and entry.type.is_cpp_class):
                 error(pos, "'%s' redeclared " % name)
+                entry.already_declared_here()
                 return None
             elif scope and entry.type.scope:
                 warning(pos, "'%s' already defined  (ignoring second definition)" % name, 0)
@@ -597,11 +602,13 @@ class Scope(object):
             if base_classes:
                 if entry.type.base_classes and entry.type.base_classes != base_classes:
                     error(pos, "Base type does not match previous declaration")
+                    entry.already_declared_here()
                 else:
                     entry.type.base_classes = base_classes
             if templates or entry.type.templates:
                 if templates != entry.type.templates:
                     error(pos, "Template parameters do not match previous declaration")
+                    entry.already_declared_here()
 
         def declare_inherited_attributes(entry, base_classes):
             for base_class in base_classes:
@@ -1733,6 +1740,7 @@ class LocalScope(Scope):
         orig_entry = self.lookup_here(name)
         if orig_entry and orig_entry.scope is self and not orig_entry.from_closure:
             error(pos, "'%s' redeclared as nonlocal" % name)
+            orig_entry.already_declared_here()
         else:
             entry = self.lookup(name)
             if entry is None or not entry.from_closure:
@@ -1966,6 +1974,7 @@ class PyClassScope(ClassScope):
         orig_entry = self.lookup_here(name)
         if orig_entry and orig_entry.scope is self and not orig_entry.from_closure:
             error(pos, "'%s' redeclared as nonlocal" % name)
+            orig_entry.already_declared_here()
         else:
             entry = self.lookup(name)
             if entry is None:
