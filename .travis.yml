@@ -39,7 +39,7 @@ env:
     - USE_CCACHE=1
     - CCACHE_SLOPPINESS=pch_defines,time_macros
     - CCACHE_COMPRESS=1
-    - CCACHE_MAXSIZE=100M
+    - CCACHE_MAXSIZE=150M
     - PATH="/usr/lib/ccache:$HOME/gcc-symlinks:$PATH"
   matrix:
     - BACKEND=c
