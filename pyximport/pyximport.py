@@ -82,7 +82,7 @@ def _info(message, *args):
 # already built. It might be more efficient to only do it when the
 # mod time of the .pyx is newer than the mod time of the .so but
 # the question is how to get distutils to tell me the name of the .so
-# before it builds it. Maybe it is easy...but maybe the peformance
+# before it builds it. Maybe it is easy...but maybe the performance
 # issue isn't real.
 def _load_pyrex(name, filename):
     "Load a pyrex file given a name and filename."

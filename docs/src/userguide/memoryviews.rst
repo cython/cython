@@ -352,7 +352,7 @@ For a 3D C contiguous array::
     Out[6]: (12, 4, 1)
 
 A Fortran contiguous array has the opposite memory ordering, with the elements
-on the first axis closest togther in memory::
+on the first axis closest together in memory::
 
     In [7]: f_contig = np.array(c_contig, order='F')
     In [8]: np.all(f_contig == c_contig)

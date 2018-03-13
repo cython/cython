@@ -276,7 +276,7 @@ class FusedCFuncDefNode(StatListNode):
 
     def _fused_instance_checks(self, normal_types, pyx_code, env):
         """
-        Genereate Cython code for instance checks, matching an object to
+        Generate Cython code for instance checks, matching an object to
         specialized types.
         """
         for specialized_type in normal_types:
