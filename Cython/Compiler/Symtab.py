@@ -122,7 +122,7 @@ class Entry(object):
     #
     # buffer_aux       BufferAux or None  Extra information needed for buffer variables
     # inline_func_in_pxd boolean  Hacky special case for inline function in pxd file.
-    #                             Ideally this should not be necesarry.
+    #                             Ideally this should not be necessary.
     # might_overflow   boolean    In an arithmetic expression that could cause
     #                             overflow (used for type inference).
     # utility_code_definition     For some Cython builtins, the utility code
@@ -2421,7 +2421,7 @@ class CppClassScope(Scope):
         # to work with this type.
         for base_entry in \
             base_scope.inherited_var_entries + base_scope.var_entries:
-                #contructor/destructor is not inherited
+                #constructor/destructor is not inherited
                 if base_entry.name in ("<init>", "<del>"):
                     continue
                 #print base_entry.name, self.entries

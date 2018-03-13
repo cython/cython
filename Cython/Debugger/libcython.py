@@ -488,7 +488,7 @@ class SourceFileDescriptor(object):
 
 class CyGDBError(gdb.GdbError):
     """
-    Base class for Cython-command related erorrs
+    Base class for Cython-command related errors
     """
 
     def __init__(self, *args):

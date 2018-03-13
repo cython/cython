@@ -440,7 +440,7 @@ class UtilityCode(UtilityCodeBase):
     hashes/equals by instance
 
     proto           C prototypes
-    impl            implemenation code
+    impl            implementation code
     init            code to call on module initialization
     requires        utility code dependencies
     proto_block     the place in the resulting file where the prototype should
@@ -1639,7 +1639,7 @@ class CCodeWriter(object):
       as well
     - labels, temps, exc_vars: One must construct a scope in which these can
       exist by calling enter_cfunc_scope/exit_cfunc_scope (these are for
-      sanity checking and forward compatabilty). Created insertion points
+      sanity checking and forward compatibility). Created insertion points
       looses this scope and cannot access it.
     - marker: Not copied to insertion point
     - filename_table, filename_list, input_file_contents: All codewriters

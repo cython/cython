@@ -370,7 +370,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buf_entry,
     pybuffernd_struct = buffer_aux.buflocal_nd_var.cname
     flags = get_flags(buffer_aux, buffer_type)
 
-    code.putln("{")  # Set up necesarry stack for getbuffer
+    code.putln("{")  # Set up necessary stack for getbuffer
     code.putln("__Pyx_BufFmt_StackElem __pyx_stack[%d];" % buffer_type.dtype.struct_nesting_depth())
 
     getbuffer = get_getbuffer_call(code, "%s", buffer_aux, buffer_type) # fill in object below

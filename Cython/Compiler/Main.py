@@ -509,7 +509,7 @@ def run_pipeline(source, options, full_module_name=None, context=None):
 
 class CompilationSource(object):
     """
-    Contains the data necesarry to start up a compilation pipeline for
+    Contains the data necessary to start up a compilation pipeline for
     a single compilation unit.
     """
     def __init__(self, source_desc, full_module_name, cwd):

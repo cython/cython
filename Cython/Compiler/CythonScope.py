@@ -27,7 +27,7 @@ class CythonScope(ModuleScope):
             entry.in_cinclude = True
 
     def is_cpp(self):
-        # Alow C++ utility code in C++ contexts.
+        # Allow C++ utility code in C++ contexts.
         return self.context.cpp
 
     def lookup_type(self, name):
