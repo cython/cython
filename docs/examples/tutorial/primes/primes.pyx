@@ -1,19 +1,23 @@
-def primes(int kmax):
-    cdef int n, k, i
+def primes(int nb_primes):
+    cdef int n, i, len_p
     cdef int p[1000]
-    result = []
-    if kmax > 1000:
-        kmax = 1000
-    k = 0
-    n = 2
-    while k < kmax:
-        i = 0
-        while i < k and n % p[i] != 0:
-            i = i + 1
-        if i == k:
-            p[k] = n
-            k = k + 1
-            result.append(n)
-        n = n + 1
-    return result
+    if nb_primes > 1000:
+        nb_primes = 1000
 
+    len_p = 0  # The number of elements in p
+    n = 2
+    while len_p < nb_primes:
+        # Is n prime?
+        for i in p[:len_p]:
+            if n % i == 0:
+                break
+
+        # If no break occurred in the loop
+        else:
+            p[len_p] = n
+            len_p += 1
+        n += 1
+
+    # Let's put the result in a python list:
+    result_as_list  = [prime for prime in p[:len_p]]
+    return result_as_list
