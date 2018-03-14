@@ -34,7 +34,7 @@ things in getting started is just figuring out how to compile your extension.
 
 So lets start with the canonical python hello world::
 
-    print "Hello World"
+    print("Hello World")
 
 Save this code in a file named :file:`helloworld.pyx`.  Now we need to create
 the :file:`setup.py`, which is like a python Makefile (for more information
@@ -85,7 +85,7 @@ Cython will still fail to compile a lot of Python modules, in which
 case the import mechanism will fall back to loading the Python source
 modules instead.  The .py import mechanism is installed like this::
 
-    >>> pyximport.install(pyimport = True)
+    >>> pyximport.install(pyimport=True)
 
 Note that it is not recommended to let :mod:`pyximport` build code
 on end user side as it hooks into their import system.  The best way
@@ -170,5 +170,5 @@ Language Details
 
 For more about the Cython language, see :ref:`language-basics`.
 To dive right in to using Cython in a numerical computation context,
-see :ref:`numpy_tutorial`.
+see :ref:`memoryviews`.
 
