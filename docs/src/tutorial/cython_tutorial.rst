@@ -270,7 +270,7 @@ It's possible to compare the speed now::
     >>> %timeit primes(500)
 502 µs ± 2.22 µs per loop (mean ± std. dev. of 7 runs, 1000 loops each)
 
-The Cython version is 11 550 times faster than the Python version! What could explain this?
+The Cython version is 11 times faster than the Python version! What could explain this?
 
 Multiple things:
  * In this program, very little computation happen at each line.
@@ -281,10 +281,10 @@ Multiple things:
    when using Python. Because everything in python is an object, and every object is
    implemented as a dictionary, this is not very cache friendly.
 
-It's worth mentioning that you won't usually get speedups like this.
-We very likeky touched a sweet spot with the CPU cache. Usually the speedups
-are between 2x to 1000x. As always, remember to profile before adding types
-everywhere.
+Usually the speedups are between 2x to 1000x. It depends on how much you call
+the Python interpreter. As always, remember to profile before adding types
+everywhere. Adding types makes your code less readable, so use them with
+moderation.
 
 
 Language Details
