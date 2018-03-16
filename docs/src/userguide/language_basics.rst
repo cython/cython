@@ -334,7 +334,7 @@ possibilities.
    a value for each of the union fields.  Cython 0.23 and later, however,
    will refuse to automatically convert a union with unsafe type
    combinations.  An example is a union of an ``int`` and a ``char*``,
-   in which case the pointer value may or be not be a valid pointer.
+   in which case the pointer value may or may not be a valid pointer.
 
 
 Caveats when using a Python string in a C context
