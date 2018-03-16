@@ -35,19 +35,19 @@ according to the system used:
 .. dagss tried other forms of ReST lists and they didn't look nice
 .. with rst2latex.
 
+The simplest way of installing Cython is by using ``pip``:
+
+::
+
+  pip install Cython
+
+
 The newest Cython release can always be downloaded from
 http://cython.org.  Unpack the tarball or zip file, enter the
 directory, and then run::
 
   python setup.py install
 
-If you have ``pip`` set up on your system (e.g. in a virtualenv or a
-recent Python version), you should be able to fetch Cython from PyPI
-and install it using
-
-::
-
-  pip install Cython
 
 For one-time builds, e.g. for CI/testing, on platforms that are not covered
 by one of the wheel packages provided on PyPI, it is substantially faster
