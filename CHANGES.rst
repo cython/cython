@@ -2,6 +2,19 @@
 Cython Changelog
 ================
 
+0.28.1 (2018-0?-??)
+===================
+
+Features added
+--------------
+
+Bugs fixed
+----------
+
+* ``PyFrozenSet_New()`` was accidentally used in PyPy where it is lacking
+  from the C-API.
+
+
 0.28 (2018-03-13)
 =================
 

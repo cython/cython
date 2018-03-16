@@ -486,6 +486,7 @@ static CYTHON_INLINE int __Pyx_set_iter_next(
 }
 
 /////////////// py_set_discard_unhashable ///////////////
+//@requires: Builtins.c::pyfrozenset_new
 
 static int __Pyx_PySet_DiscardUnhashable(PyObject *set, PyObject *key) {
     PyObject *tmpkey;
@@ -494,7 +495,7 @@ static int __Pyx_PySet_DiscardUnhashable(PyObject *set, PyObject *key) {
     if (likely(!PySet_Check(key) || !PyErr_ExceptionMatches(PyExc_TypeError)))
         return -1;
     PyErr_Clear();
-    tmpkey = PyFrozenSet_New(key);
+    tmpkey = __Pyx_PyFrozenSet_New(key);
     if (tmpkey == NULL)
         return -1;
     rv = PySet_Discard(set, tmpkey);

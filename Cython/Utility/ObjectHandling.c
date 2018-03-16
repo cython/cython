@@ -1049,6 +1049,7 @@ static CYTHON_INLINE int __Pyx_PyDict_ContainsTF(PyObject* item, PyObject* dict,
 static CYTHON_INLINE int __Pyx_PySet_ContainsTF(PyObject* key, PyObject* set, int eq); /* proto */
 
 /////////////// PySetContains ///////////////
+//@requires: Builtins.c::pyfrozenset_new
 
 static int __Pyx_PySet_ContainsUnhashable(PyObject *set, PyObject *key) {
     int result = -1;
@@ -1056,7 +1057,7 @@ static int __Pyx_PySet_ContainsUnhashable(PyObject *set, PyObject *key) {
         /* Convert key to frozenset */
         PyObject *tmpkey;
         PyErr_Clear();
-        tmpkey = PyFrozenSet_New(key);
+        tmpkey = __Pyx_PyFrozenSet_New(key);
         if (tmpkey != NULL) {
             result = PySet_Contains(set, tmpkey);
             Py_DECREF(tmpkey);
