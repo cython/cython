@@ -35,9 +35,7 @@ according to the system used:
 .. dagss tried other forms of ReST lists and they didn't look nice
 .. with rst2latex.
 
-The simplest way of installing Cython is by using ``pip``:
-
-::
+The simplest way of installing Cython is by using ``pip``::
 
   pip install Cython
 
