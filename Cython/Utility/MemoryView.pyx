@@ -543,7 +543,7 @@ cdef class memoryview(object):
 
     __pyx_getbuffer = capsule(<void *> &__pyx_memoryview_getbuffer, "getbuffer(obj, view, flags)")
 
-    # Some properties that have the same sematics as in NumPy
+    # Some properties that have the same semantics as in NumPy
     @property
     def T(self):
         cdef _memoryviewslice result = memoryview_copy(self)

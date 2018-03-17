@@ -900,7 +900,7 @@ class CythonInfo(CythonBase, libpython.PythonInfo):
 
     def lineno(self, frame):
         # Take care of the Python and Cython levels. We need to care for both
-        # as we can't simply dispath to 'py-step', since that would work for
+        # as we can't simply dispatch to 'py-step', since that would work for
         # stepping through Python code, but it would not step back into Cython-
         # related code. The C level should be dispatched to the 'step' command.
         if self.is_cython_function(frame):
