@@ -1729,12 +1729,7 @@ class NewExprNode(AtomicExprNode):
             self.type = error_type
             return
         self.cpp_check(env)
-        constructor = type.scope.lookup(u'<init>')
-        if constructor is None:
-            func_type = PyrexTypes.CFuncType(
-                type, [], exception_check='+', nogil=True)
-            type.scope.declare_cfunction(u'<init>', func_type, self.pos)
-            constructor = type.scope.lookup(u'<init>')
+        constructor = type.get_constructor(self.pos)
         self.class_type = type
         self.entry = constructor
         self.type = constructor.type

@@ -3817,6 +3817,23 @@ class CppClassType(CType):
             func_type = func_type.base_type
         return func_type.return_type
 
+    def get_constructor(self, pos):
+        constructor = self.scope.lookup('<init>')
+        if constructor is not None:
+            return constructor
+
+        # Otherwise: automatically declare no-args default constructor.
+        # Make it "nogil" if the base classes allow it.
+        nogil = True
+        for base in self.base_classes:
+            base_constructor = base.scope.lookup('<init>')
+            if base_constructor and not base_constructor.type.nogil:
+                nogil = False
+                break
+
+        func_type = CFuncType(self, [], exception_check='+', nogil=nogil)
+        return self.scope.declare_cfunction(u'<init>', func_type, pos)
+
     def check_nullary_constructor(self, pos, msg="stack allocated"):
         constructor = self.scope.lookup(u'<init>')
         if constructor is not None and best_match([], constructor.all_alternatives()) is None:
