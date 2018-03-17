@@ -147,7 +147,7 @@ of ``f`` is known to be a C double.)  A notable exception, however, is
 that an overflow would not occur (and so falls back to ``object`` in case
 Python's bignums are needed).  To allow inference of C integer types, set the
 ``infer_types`` :ref:`directive <compiler-directives>` to ``True``. This directive
-does a work similar to the ``auto`` keyword in C++ for the readers who are familliar
+does a work similar to the ``auto`` keyword in C++ for the readers who are familiar
 with this language feature. It can be of great help to cut down on the need to type
 everything, but it also can lead to surprises. Especially if one isn't familiar with
 arithmetic expressions with c types. A quick overview of those
