@@ -1595,6 +1595,12 @@ class CConstType(BaseType):
             self.to_py_function = self.const_base_type.to_py_function
             return True
 
+    def same_as_resolved_type(self, other_type):
+        if other_type.is_const:
+            return self.const_base_type.same_as_resolved_type(other_type.const_base_type)
+        # Accept const LHS <- non-const RHS.
+        return self.const_base_type.same_as_resolved_type(other_type)
+
     def __getattr__(self, name):
         return getattr(self.const_base_type, name)
 

@@ -1,6 +1,6 @@
-# distutils: extra_compile_args=-std=c++0x
 # mode: run
-# tag: cpp, werror
+# tag: cpp, werror, cpp11
+# distutils: extra_compile_args=-std=c++0x
 
 from libcpp.memory cimport unique_ptr, shared_ptr, default_delete
 from libcpp cimport nullptr
@@ -11,6 +11,10 @@ cdef extern from "cpp_smart_ptr_helper.h":
 
     cdef cppclass FreePtr[T]:
         pass
+
+
+ctypedef const CountAllocDealloc const_CountAllocDealloc
+
 
 def test_unique_ptr():
     """
@@ -42,17 +46,18 @@ def test_unique_ptr():
     x_ptr3.reset()
     assert x_ptr3.get() == nullptr;
 
-def test_shared_ptr():
+
+def test_const_shared_ptr():
     """
-    >>> test_shared_ptr()
+    >>> test_const_shared_ptr()
     """
     cdef int alloc_count = 0, dealloc_count = 0
-    cdef shared_ptr[CountAllocDealloc] ptr = shared_ptr[CountAllocDealloc](
+    cdef shared_ptr[const CountAllocDealloc] ptr = shared_ptr[const_CountAllocDealloc](
         new CountAllocDealloc(&alloc_count, &dealloc_count))
     assert alloc_count == 1
     assert dealloc_count == 0
 
-    cdef shared_ptr[CountAllocDealloc] ptr2 = ptr
+    cdef shared_ptr[const CountAllocDealloc] ptr2 = ptr
     assert alloc_count == 1
     assert dealloc_count == 0
 

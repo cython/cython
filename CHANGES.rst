@@ -14,6 +14,10 @@ Bugs fixed
 * ``PyFrozenSet_New()`` was accidentally used in PyPy where it is lacking
   from the C-API.
 
+* Assignment between some C++ templated types were incorrectly rejected
+  when the templates mix ``const`` with ``ctypedef``.
+  (Github issue #2148)
+
 
 0.28 (2018-03-13)
 =================
