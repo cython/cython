@@ -142,15 +142,23 @@ Now, let's dig into the core of the function::
     cdef int p[1000]
 
 Lines 2 and 3 use the ``cdef`` statement to define some local C variables.
-The result is put in ``p``, it will be converted to a python list at the end
-of the function (line 22). ::
+The result is stored in the C array ``p`` during processing,
+and will be copied into a Python list at the end (line 22).
+
+.. NOTE:: You cannot create very large arrays in this manner, because
+          they are allocated on something called the stack.
+          To request larger arrays,
+          or even arrays with a length only known at runtime
+          you can learn how to use :ref:`Python arrays<array-array>`
+          or :ref:`NumPy arrays<memoryviews>` with Cython.
+::
 
     if nb_primes > 1000:
         nb_primes = 1000
 
 As in C, declaring a static array requires knowing the size at compile time.
-We make sure the user doesn't set a value above 1000 (or we'll have a nice
-segmentation fault, just like in C). ::
+We make sure the user doesn't set a value above 1000 (or we would have a
+segmentation fault, just like in C).  ::
 
     len_p = 0  # The number of elements in p
     n = 2
@@ -171,10 +179,9 @@ You will notice the way we iterate over the ``p`` C array.  ::
 
     for i in p[:len_p]:
 
-The loop gets translated into C code transparently. No more ugly C for loops!
-Well don't forget how to loop in C style with integers yet, you might need it someday.
-If you don't use ``:len_p`` then Cython will loop over the 1000 elements of
-the array (it won't go out of bounds and give a segmentation fault). ::
+The loop gets translated into C code transparently. As if it was a Python list
+or a NumPy array. If you don't use ``[:len_p]`` then Cython will loop
+over the 1000 elements of the array. ::
 
     # If no break occurred in the loop
     else:
@@ -184,29 +191,29 @@ the array (it won't go out of bounds and give a segmentation fault). ::
 
 If no breaks occurred, it means that we found a prime, and the block of code
 after the ``else`` line 16 will be executed. We add the prime found to ``p``.
-If you find having a else after a for loop strange, just know that it's a
-hidden secret of the python syntax, and actually doesn't exist in C!
-But since Cython is made to be written with the Python syntax, it'll
-work out, as if you wrote Python code, but at C speed in this case.
-If the for...else syntax still confuses you, see this excellent
+If you find having an ``else`` after a ``for-loop`` strange, just know that it's a
+lesser known features of the Python language of the python syntax, and
+actually doesn't exist in C! But since Cython is made to be written with the
+Python syntax, it'll work out, but at C speed in this case.
+If the ``for-else`` syntax still confuses you, see this excellent
 `blog post <https://shahriar.svbtle.com/pythons-else-clause-in-loops>`_. ::
 
     # Let's put the result in a python list:
     result_as_list  = [prime for prime in p[:len_p]]
     return result_as_list
 
-Line 22, before returning the result, we need to convert our C array into a
-Python list, because Python can't read C arrays. Note that Cython handle
-for you the conversion of quite some types between C and Python (you can
-see exactly which :ref:`here<type-conversion>`. But not C arrays. We can trick
+Line 22, before returning the result, we need to copy our C array into a
+Python list, because Python can't read C arrays. Cython can automatically
+convert many C types from and to Python types, as described in the
+documentation on :ref:`type conversion <type-conversion>`. But not C arrays. We can trick
 Cython into doing it because Cython knows how to convert a C int to a Python int.
-By doing a list comprehension, we "cast" each C int prime from p into a Python int.
+By doing a list comprehension, we "cast" each C int prime from ``p`` into a Python int.
 You could have also iterated manually over the C array and used
 ``result_as_list.append(prime)``, the result would have been the same.
 
 You'll notice we declare a Python list exactly the same way it would be in Python.
-Because the variable ``result_as_list`` hasn't been given a type, it is assumed to
-hold a Python object.
+Because the variable ``result_as_list`` hasn't been explicitly declared with a type,
+it is assumed to hold a Python object.
 
 Finally, at line 18, a normal
 Python return statement returns the result list.
@@ -222,14 +229,18 @@ See, it works! And if you're curious about how much work Cython has saved you,
 take a look at the C code generated for this module.
 
 
-It is always good to check where is the Python interaction in the code with the
-``annotate=True`` parameter in ``cythonize()``. Let's see:
+Cython has a way to visualise where interaction with Python objects and
+Python's C-API is taking place. For this, pass the
+``annotate=True`` parameter to ``cythonize()``. It produces a HTML file. Let's see:
 
 .. figure:: htmlreport.png
 
+If a line is white, it means that the code generated doesn't interact
+with Python, so will run fast. The darker the yellow, the more Python
+interaction there is. Those yellow lines will run slower.
 The function declaration and return use the Python interpreter so it makes
 sense for those lines to be yellow. Same for the list comprehension because
-it involves the creation of a python object. But the line ``if n % i == 0:``, why?
+it involves the creation of a Python object. But the line ``if n % i == 0:``, why?
 We can examine the generated C code to understand:
 
 .. figure:: python_division.png
@@ -257,20 +268,43 @@ Let's write the same program, but Python-style::
             n += 1
         return p
 
+
+It is also possible to take a plain ``.py`` file and to compile it with Cython.
+Let's take ``primes_python``, change the function name to ``primes_python_compiled`` and
+compile it with Cython (without changing the code). We will also change the name of the
+file to ``example_py_cy.py`` to differentiate it from the others.
+Now the ``setup.py`` looks like this::
+
+    from distutils.core import setup
+    from Cython.Build import cythonize
+
+    setup(
+        ext_modules=cythonize(['example.pyx',        # has the primes() function
+                               'example_py_cy.py'],  # has the primes_python_compiled() function
+                              annotate=True),        # produces the html annotation file
+    )
+
 Now we can ensure that those two programs output the same values::
 
-    >>> primes_python(500) == primes(500)
+    >>> primes_python(1000) == primes(1000)
+    True
+    >>> primes_python_compiled(1000) == primes(1000)
     True
 
 It's possible to compare the speed now::
 
-    >>> %timeit primes_python(500)
-5.8 ms ± 178 µs per loop (mean ± std. dev. of 7 runs, 100 loops each) ::
+    python -m timeit -s 'from example_py import primes_python' 'primes_python(1000)'
+    10 loops, best of 3: 23 msec per loop
 
-    >>> %timeit primes(500)
-502 µs ± 2.22 µs per loop (mean ± std. dev. of 7 runs, 1000 loops each)
+    python -m timeit -s 'from example_py_cy import primes_python_compiled' 'primes_python_compiled(1000)'
+    100 loops, best of 3: 11.9 msec per loop
 
-The Cython version is 11 times faster than the Python version! What could explain this?
+    python -m timeit -s 'from example import primes' 'primes(1000)'
+    1000 loops, best of 3: 1.65 msec per loop
+
+The cythonize version of ``primes_python`` is 2 times faster than the Python one,
+without changing a single line of code.
+The Cython version is 13 times faster than the Python version! What could explain this?
 
 Multiple things:
  * In this program, very little computation happen at each line.
