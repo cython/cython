@@ -146,11 +146,15 @@ The result is stored in the C array ``p`` during processing,
 and will be copied into a Python list at the end (line 22).
 
 .. NOTE:: You cannot create very large arrays in this manner, because
-          they are allocated on something called the stack.
+          they are allocated on the C function call stack, which is a
+          rather precious and scarce resource.
           To request larger arrays,
-          or even arrays with a length only known at runtime
-          you can learn how to use :ref:`Python arrays<array-array>`
-          or :ref:`NumPy arrays<memoryviews>` with Cython.
+          or even arrays with a length only known at runtime,
+          you can learn how to make efficient use of
+          :ref:`C memory allocation <memory_allocation>`,
+          :ref:`Python arrays <array-array>`
+          or :ref:`NumPy arrays <memoryviews>` with Cython.
+
 ::
 
     if nb_primes > 1000:
@@ -179,9 +183,11 @@ You will notice the way we iterate over the ``p`` C array.  ::
 
     for i in p[:len_p]:
 
-The loop gets translated into C code transparently. As if it was a Python list
-or a NumPy array. If you don't use ``[:len_p]`` then Cython will loop
-over the 1000 elements of the array. ::
+The loop gets translated into a fast C loop and works just like iterating
+over a Python list or NumPy array.  If you don't slice the C array with
+``[:len_p]``, then Cython will loop over the 1000 elements of the array.
+
+::
 
     # If no break occurred in the loop
     else:
@@ -191,29 +197,31 @@ over the 1000 elements of the array. ::
 
 If no breaks occurred, it means that we found a prime, and the block of code
 after the ``else`` line 16 will be executed. We add the prime found to ``p``.
-If you find having an ``else`` after a ``for-loop`` strange, just know that it's a
-lesser known features of the Python language of the python syntax, and
-actually doesn't exist in C! But since Cython is made to be written with the
-Python syntax, it'll work out, but at C speed in this case.
-If the ``for-else`` syntax still confuses you, see this excellent
-`blog post <https://shahriar.svbtle.com/pythons-else-clause-in-loops>`_. ::
+If you find having an ``else`` after a for-loop strange, just know that it's a
+lesser known features of the Python language, and that Cython executes it at
+C speed for you.
+If the for-else syntax confuses you, see this excellent
+`blog post <https://shahriar.svbtle.com/pythons-else-clause-in-loops>`_.
+
+::
 
     # Let's put the result in a python list:
     result_as_list  = [prime for prime in p[:len_p]]
     return result_as_list
 
-Line 22, before returning the result, we need to copy our C array into a
-Python list, because Python can't read C arrays. Cython can automatically
+In line 22, before returning the result, we need to copy our C array into a
+Python list, because Python can't read C arrays.  Cython can automatically
 convert many C types from and to Python types, as described in the
-documentation on :ref:`type conversion <type-conversion>`. But not C arrays. We can trick
-Cython into doing it because Cython knows how to convert a C int to a Python int.
-By doing a list comprehension, we "cast" each C int prime from ``p`` into a Python int.
-You could have also iterated manually over the C array and used
+documentation on :ref:`type conversion <type-conversion>`, so we can use
+a simple list comprehension here to copy the C ``int`` values into a Python
+list of Python ``int`` objects, which Cython creates automatically along the way.
+You could also have iterated manually over the C array and used
 ``result_as_list.append(prime)``, the result would have been the same.
 
 You'll notice we declare a Python list exactly the same way it would be in Python.
 Because the variable ``result_as_list`` hasn't been explicitly declared with a type,
-it is assumed to hold a Python object.
+it is assumed to hold a Python object, and from the assignment, Cython also knows
+that the exact type is a Python list.
 
 Finally, at line 18, a normal
 Python return statement returns the result list.
@@ -279,9 +287,9 @@ Now the ``setup.py`` looks like this::
     from Cython.Build import cythonize
 
     setup(
-        ext_modules=cythonize(['example.pyx',        # has the primes() function
-                               'example_py_cy.py'],  # has the primes_python_compiled() function
-                              annotate=True),        # produces the html annotation file
+        ext_modules=cythonize(['example.pyx',        # Cython code file with primes() function
+                               'example_py_cy.py'],  # Python code file with primes_python_compiled() function
+                              annotate=True),        # enables generation of the html annotation file
     )
 
 Now we can ensure that those two programs output the same values::
