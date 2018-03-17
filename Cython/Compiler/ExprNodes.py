@@ -16,6 +16,7 @@ cython.declare(error=object, warning=object, warn_once=object, InternalError=obj
                bytearray_type=object, slice_type=object, _py_int_types=object,
                IS_PYTHON3=cython.bint)
 
+import re
 import sys
 import copy
 import os.path
@@ -11484,6 +11485,20 @@ class DivNode(NumBinopNode):
                 self.operand2.result())
 
 
+_find_formatting_types = re.compile(
+    br"%"
+    br"(?:%|"  # %%
+    br"(?:\([^)]+\))?"  # %(name)
+    br"[-+#,0-9 ]*([a-z])"  # %.2f  etc.
+    br")").findall
+
+# These format conversion types can never trigger a Unicode string conversion in Py2.
+_safe_bytes_formats = set([
+    # Excludes 's' and 'r', which can generate non-bytes strings.
+    b'd', b'i', b'o', b'u', b'x', b'X', b'e', b'E', b'f', b'F', b'g', b'G', b'c', b'b', b'a',
+])
+
+
 class ModNode(DivNode):
     #  '%' operator.
 
@@ -11493,7 +11508,7 @@ class ModNode(DivNode):
                 or NumBinopNode.is_py_operation_types(self, type1, type2))
 
     def infer_builtin_types_operation(self, type1, type2):
-        # b'%s' % xyz  raises an exception in Py3, so it's safe to infer the type for Py2
+        # b'%s' % xyz  raises an exception in Py3<3.5, so it's safe to infer the type for Py2 and later Py3's.
         if type1 is unicode_type:
             # None + xyz  may be implemented by RHS
             if type2.is_builtin_type or not self.operand1.may_be_none():
@@ -11503,6 +11518,11 @@ class ModNode(DivNode):
                 return type2
             elif type2.is_numeric:
                 return type1
+            elif self.operand1.is_string_literal:
+                if type1 is str_type or type1 is bytes_type:
+                    if set(_find_formatting_types(self.operand1.value)) <= _safe_bytes_formats:
+                        return type1
+                return basestring_type
             elif type1 is bytes_type and not type2.is_builtin_type:
                 return None   # RHS might implement '% operator differently in Py3
             else:

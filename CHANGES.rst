@@ -22,6 +22,10 @@ Bugs fixed
   fail if the base class constructor was declared without ``nogil``.
   (Github issue #2157)
 
+* Bytes %-formatting inferred ``basestring`` (bytes or unicode) as result type
+  in some cases where ``bytes`` would have been safe to infer.
+  (Github issue #2153)
+
 
 0.28 (2018-03-13)
 =================
