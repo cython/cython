@@ -18,6 +18,10 @@ Bugs fixed
   when the templates mix ``const`` with ``ctypedef``.
   (Github issue #2148)
 
+* Undeclared C++ no-args constructors in subclasses could make the compilation
+  fail if the base class constructor was declared without ``nogil``.
+  (Github issue #2157)
+
 
 0.28 (2018-03-13)
 =================
