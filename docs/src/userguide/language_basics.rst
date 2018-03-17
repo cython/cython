@@ -301,6 +301,10 @@ return value and raise it yourself, for example,::
         raise SpamError("Couldn't open the spam file")
 
 
+
+
+.. _type-conversion:
+
 Automatic type conversions
 ==========================
 
