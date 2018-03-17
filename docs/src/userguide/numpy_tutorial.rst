@@ -6,6 +6,13 @@
 Cython for NumPy users
 **************************
 
+.. NOTE:: Cython 0.16 introduced typed memoryviews as a successor to the NumPy
+          integration described here.  They are easier to use than the buffer syntax
+          below, have less overhead, and can be passed around without requiring the GIL.
+          They should be preferred to the syntax presented in this page.
+          See :ref:`Typed Memoryviews <memoryviews>`.
+
+
 This tutorial is aimed at NumPy users who have no experience with Cython at
 all. If you have some knowledge of Cython you may want to skip to the
 ''Efficient indexing'' section which explains the new improvements made in
