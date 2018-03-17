@@ -74,8 +74,5 @@ The latest version of Pyrex can be found `here <http://www.cosc.canterbury.ac.nz
 | Greg Ewing, Computer Science Dept
 | University of Canterbury
 | Christchurch, New Zealand
-| greg@cosc.canterbury.ac.nz
-|  
 
  A citizen of NewZealandCorp, a wholly-owned subsidiary of USA Inc.
-
