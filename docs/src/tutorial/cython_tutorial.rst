@@ -244,8 +244,10 @@ Python's C-API is taking place. For this, pass the
 .. figure:: htmlreport.png
 
 If a line is white, it means that the code generated doesn't interact
-with Python, so will run fast. The darker the yellow, the more Python
-interaction there is. Those yellow lines will run slower.
+with Python, so will run as fast as normal C code.  The darker the yellow, the more
+Python interaction there is in that line.  Those yellow lines will usually operate
+on Python objects, raise exceptions, or do other kinds of higher-level operations
+than what can easily be translated into simple and fast C code.
 The function declaration and return use the Python interpreter so it makes
 sense for those lines to be yellow. Same for the list comprehension because
 it involves the creation of a Python object. But the line ``if n % i == 0:``, why?
