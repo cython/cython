@@ -2297,7 +2297,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("")
         # main module init code lives in Py_mod_exec function, not in PyInit function
-        code.putln("static int %s(PyObject *%s) CYTHON_SMALL_CODE " % (
+        code.putln("static int %s(PyObject *%s)" % (
             self.mod_init_func_cname(Naming.pymodule_exec_func_cname, env),
             Naming.pymodinit_module_arg))
         code.putln("#endif")  # PEP489
