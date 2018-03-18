@@ -51,7 +51,7 @@ Python code is a stated goal, you can see the differences with Python in
 :ref:`limitations <cython-limitations>`.
 
 Your Cython environment
-========================
+=======================
 
 Using Cython consists of these steps:
 
@@ -136,50 +136,8 @@ valid Python and valid Cython code. I'll refer to it as both
 :file:`convolve_py.py` for the Python version and :file:`convolve1.pyx` for the
 Cython version -- Cython uses ".pyx" as its file suffix.
 
-.. code-block:: python
-
-    from __future__ import division
-    import numpy as np
-    def naive_convolve(f, g):
-        # f is an image and is indexed by (v, w)
-        # g is a filter kernel and is indexed by (s, t),
-        #   it needs odd dimensions
-        # h is the output image and is indexed by (x, y),
-        #   it is not cropped
-        if g.shape[0] % 2 != 1 or g.shape[1] % 2 != 1:
-            raise ValueError("Only odd dimensions on filter supported")
-        # smid and tmid are number of pixels between the center pixel
-        # and the edge, ie for a 5x5 filter they will be 2.
-        #
-        # The output size is calculated by adding smid, tmid to each
-        # side of the dimensions of the input image.
-        vmax = f.shape[0]
-        wmax = f.shape[1]
-        smax = g.shape[0]
-        tmax = g.shape[1]
-        smid = smax // 2
-        tmid = tmax // 2
-        xmax = vmax + 2*smid
-        ymax = wmax + 2*tmid
-        # Allocate result image.
-        h = np.zeros([xmax, ymax], dtype=f.dtype)
-        # Do convolution
-        for x in range(xmax):
-            for y in range(ymax):
-                # Calculate pixel value for h at (x,y). Sum one component
-                # for each pixel (s, t) of the filter g.
-                s_from = max(smid - x, -smid)
-                s_to = min((xmax - x) - smid, smid + 1)
-                t_from = max(tmid - y, -tmid)
-                t_to = min((ymax - y) - tmid, tmid + 1)
-                value = 0
-                for s in range(s_from, s_to):
-                    for t in range(t_from, t_to):
-                        v = x - smid + s
-                        w = y - tmid + t
-                        value += g[smid - s, tmid - t] * f[v, w]
-                h[x, y] = value
-        return h
+.. literalinclude:: ../../examples/userguide/convolve_py.py
+    :linenos:
 
 This should be compiled to produce :file:`yourmod.so` (for Linux systems). We
 run a Python session to test both the Python version (imported from
@@ -220,87 +178,10 @@ Adding types
 =============
 
 To add types we use custom Cython syntax, so we are now breaking Python source
-compatibility. Here's :file:`convolve2.pyx`. *Read the comments!*  ::
+compatibility. Here's :file:`convolve2.pyx`. *Read the comments!*
 
-    from __future__ import division
-    import numpy as np
-    # "cimport" is used to import special compile-time information
-    # about the numpy module (this is stored in a file numpy.pxd which is
-    # currently part of the Cython distribution).
-    cimport numpy as np
-    # We now need to fix a datatype for our arrays. I've used the variable
-    # DTYPE for this, which is assigned to the usual NumPy runtime
-    # type info object.
-    DTYPE = np.int
-    # "ctypedef" assigns a corresponding compile-time type to DTYPE_t. For
-    # every type in the numpy module there's a corresponding compile-time
-    # type with a _t-suffix.
-    ctypedef np.int_t DTYPE_t
-    # The builtin min and max functions works with Python objects, and are
-    # so very slow. So we create our own.
-    #  - "cdef" declares a function which has much less overhead than a normal
-    #    def function (but it is not Python-callable)
-    #  - "inline" is passed on to the C compiler which may inline the functions
-    #  - The C type "int" is chosen as return type and argument types
-    #  - Cython allows some newer Python constructs like "a if x else b", but
-    #    the resulting C file compiles with Python 2.3 through to Python 3.0 beta.
-    cdef inline int int_max(int a, int b): return a if a >= b else b
-    cdef inline int int_min(int a, int b): return a if a <= b else b
-    # "def" can type its arguments but not have a return type. The type of the
-    # arguments for a "def" function is checked at run-time when entering the
-    # function.
-    #
-    # The arrays f, g and h is typed as "np.ndarray" instances. The only effect
-    # this has is to a) insert checks that the function arguments really are
-    # NumPy arrays, and b) make some attribute access like f.shape[0] much
-    # more efficient. (In this example this doesn't matter though.)
-    def naive_convolve(np.ndarray f, np.ndarray g):
-        if g.shape[0] % 2 != 1 or g.shape[1] % 2 != 1:
-            raise ValueError("Only odd dimensions on filter supported")
-        assert f.dtype == DTYPE and g.dtype == DTYPE
-        # The "cdef" keyword is also used within functions to type variables. It
-        # can only be used at the top indentation level (there are non-trivial
-        # problems with allowing them in other places, though we'd love to see
-        # good and thought out proposals for it).
-        #
-        # For the indices, the "int" type is used. This corresponds to a C int,
-        # other C types (like "unsigned int") could have been used instead.
-        # Purists could use "Py_ssize_t" which is the proper Python type for
-        # array indices.
-        cdef int vmax = f.shape[0]
-        cdef int wmax = f.shape[1]
-        cdef int smax = g.shape[0]
-        cdef int tmax = g.shape[1]
-        cdef int smid = smax // 2
-        cdef int tmid = tmax // 2
-        cdef int xmax = vmax + 2*smid
-        cdef int ymax = wmax + 2*tmid
-        cdef np.ndarray h = np.zeros([xmax, ymax], dtype=DTYPE)
-        cdef int x, y, s, t, v, w
-        # It is very important to type ALL your variables. You do not get any
-        # warnings if not, only much slower code (they are implicitly typed as
-        # Python objects).
-        cdef int s_from, s_to, t_from, t_to
-        # For the value variable, we want to use the same data type as is
-        # stored in the array, so we use "DTYPE_t" as defined above.
-        # NB! An important side-effect of this is that if "value" overflows its
-        # datatype size, it will simply wrap around like in C, rather than raise
-        # an error like in Python.
-        cdef DTYPE_t value
-        for x in range(xmax):
-            for y in range(ymax):
-                s_from = int_max(smid - x, -smid)
-                s_to = int_min((xmax - x) - smid, smid + 1)
-                t_from = int_max(tmid - y, -tmid)
-                t_to = int_min((ymax - y) - tmid, tmid + 1)
-                value = 0
-                for s in range(s_from, s_to):
-                    for t in range(t_from, t_to):
-                        v = x - smid + s
-                        w = y - tmid + t
-                        value += g[smid - s, tmid - t] * f[v, w]
-                h[x, y] = value
-        return h
+.. literalinclude:: ../../examples/userguide/convolve_typed.pyx
+    :linenos:
 
 At this point, have a look at the generated C code for :file:`convolve1.pyx` and
 :file:`convolve2.pyx`. Click on the lines to expand them and see corresponding C.
@@ -337,12 +218,10 @@ not provided then one-dimensional is assumed).
 
 More information on this syntax [:enhancements/buffer:can be found here].
 
-Showing the changes needed to produce :file:`convolve3.pyx` only::
+Showing the changes needed to produce :file:`convolve3.pyx` only
 
-    ...
-    def naive_convolve(np.ndarray[DTYPE_t, ndim=2] f, np.ndarray[DTYPE_t, ndim=2] g):
-    ...
-    cdef np.ndarray[DTYPE_t, ndim=2] h = ...
+.. literalinclude:: ../../examples/userguide/convolve_memview.pyx
+    :linenos:
 
 Usage:
 
@@ -445,12 +324,26 @@ function call.)
     The actual rules are a bit more complicated but the main message is clear: Do
     not use typed objects without knowing that they are not set to ``None``.
 
+Declaring the NumPy arrays as contiguous
+========================================
+
+Insert stuff here.
+
+Making the function cleaner
+===========================
+
+Some comments here.
+
+.. literalinclude:: ../../examples/userguide/convolve_infer_types.pyx
+    :linenos:
+
 More generic code
 ==================
 
-It would be possible to do::
+It would be possible to do
 
-    def naive_convolve(object[DTYPE_t, ndim=2] f, ...):
+.. literalinclude:: ../../examples/userguide/convolve_fused_types.pyx
+    :linenos:
 
 i.e. use :obj:`object` rather than :obj:`np.ndarray`. Under Python 3.0 this
 can allow your algorithm to work with any libraries supporting the buffer
@@ -462,7 +355,9 @@ compile-time if the type is set to :obj:`np.ndarray`, specifically it is
 assumed that the data is stored in pure strided mode and not in indirect
 mode).
 
-[:enhancements/buffer:More information]
+Where to go from here?
+======================
+
 
 The future
 ============
@@ -472,21 +367,16 @@ here has gone through a lot of thinking and planning already; still they may
 or may not happen depending on available developer time and resources for
 Cython.
 
-1. Support for efficient access to structs/records stored in arrays; currently
-   only primitive types are allowed.
-2. Support for efficient access to complex floating point types in arrays. The
+1. Support for efficient access to complex floating point types in arrays. The
    main obstacle here is getting support for efficient complex datatypes in
    Cython.
-3. Calling NumPy/SciPy functions currently has a Python call overhead; it
+2. Calling NumPy/SciPy functions currently has a Python call overhead; it
    would be possible to take a short-cut from Cython directly to C. (This does
    however require some isolated and incremental changes to those libraries;
    mail the Cython mailing list for details).
-4. Efficient code that is generic with respect to the number of dimensions.
+3. Efficient code that is generic with respect to the number of dimensions.
    This can probably be done today by calling the NumPy C multi-dimensional
    iterator API directly; however it would be nice to have for-loops over
    :func:`enumerate` and :func:`ndenumerate` on NumPy arrays create efficient
    code.
-5. A high-level construct for writing type-generic code, so that one can write
-   functions that work simultaneously with many datatypes. Note however that a
-   macro preprocessor language can help with doing this for now.
 
