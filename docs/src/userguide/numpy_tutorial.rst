@@ -133,13 +133,13 @@ The first Cython program
 The code below does 2D discrete convolution of an image with a filter (and I'm
 sure you can do better!, let it serve for demonstration purposes). It is both
 valid Python and valid Cython code. I'll refer to it as both
-:file:`convolve_py.py` for the Python version and :file:`convolve1.pyx` for the
+:file:`convolve_py.py` for the Python version and :file:`convolve_cy.pyx` for the
 Cython version -- Cython uses ".pyx" as its file suffix.
 
 .. literalinclude:: ../../examples/userguide/convolve_py.py
     :linenos:
 
-This should be compiled to produce :file:`yourmod.so` (for Linux systems). We
+This should be compiled to produce :file:`convolve_cy.so` (for Linux systems). We
 run a Python session to test both the Python version (imported from
 ``.py``-file) and the compiled Cython module.
 
@@ -153,8 +153,8 @@ run a Python session to test both the Python version (imported from
     array([[1, 1, 1],
         [2, 2, 2],
         [1, 1, 1]])
-    In [4]: import convolve1
-    In [4]: convolve1.naive_convolve(np.array([[1, 1, 1]], dtype=np.int),
+    In [4]: import convolve_cy
+    In [4]: convolve_cy.naive_convolve(np.array([[1, 1, 1]], dtype=np.int),
     ...     np.array([[1],[2],[1]], dtype=np.int))
     Out [4]:
     array([[1, 1, 1],
@@ -164,13 +164,17 @@ run a Python session to test both the Python version (imported from
     In [12]: f = np.arange(N*N, dtype=np.int).reshape((N,N))
     In [13]: g = np.arange(81, dtype=np.int).reshape((9, 9))
     In [19]: %timeit -n2 -r3 convolve_py.naive_convolve(f, g)
-    2 loops, best of 3: 1.86 s per loop
-    In [20]: %timeit -n2 -r3 convolve1.naive_convolve(f, g)
-    2 loops, best of 3: 1.41 s per loop
+    422 ms ± 2.06 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+    In [20]: %timeit -n2 -r3 convolve_cy.naive_convolve(f, g)
+    342 ms ± 1.39 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
 
 There's not such a huge difference yet; because the C code still does exactly
 what the Python interpreter does (meaning, for instance, that a new object is
-allocated for each number used). Look at the generated html file and see what
+allocated for each number used). You can look at the Python interaction
+and the generated C code by using `-a` when calling Cython from the command
+line, `%%cython -a` when using a Jupyter Notebook, or by using
+`cythonize('convolve_cy.pyx', annotate=True)` when using a `setup.py`.
+Look at the generated html file and see what
 is needed for even the simplest statements you get the point quickly. We need
 to give Cython more information; we need to add types.
 
@@ -358,9 +362,16 @@ mode).
 Where to go from here?
 ======================
 
+* Since there is no Python interaction in the loops, it is possible with Cython
+  to release the GIL and use multiple cores easily. To learn how to do that,
+  you can see :ref:`using parallelism in Cython <parallel>`.
+* If you want to learn how to make use of `BLAS <http://www.netlib.org/blas/>`_
+  or `LAPACK <http://www.netlib.org/lapack/>`_ with Cython, you can watch
+  `the presentation of Ian Henriksen at SciPy 2015
+  <https://www.youtube.com/watch?v=R4yB-8tB0J0&t=693s&ab_channel=Enthought>`_.
 
 The future
-============
+==========
 
 These are some points to consider for further development. All points listed
 here has gone through a lot of thinking and planning already; still they may

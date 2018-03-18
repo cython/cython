@@ -24,6 +24,8 @@ def naive_convolve_types(f, g):
     # other C types (like "unsigned int") could have been used instead.
     # Purists could use "Py_ssize_t" which is the proper Python type for
     # array indices.
+    cdef int x, y, s, t, v, w, s_from, s_to, t_from, t_to
+
     cdef int vmax = f.shape[0]
     cdef int wmax = f.shape[1]
     cdef int smax = g.shape[0]
@@ -33,11 +35,9 @@ def naive_convolve_types(f, g):
     cdef int xmax = vmax + 2*smid
     cdef int ymax = wmax + 2*tmid
     h = np.zeros([xmax, ymax], dtype=DTYPE)
-    cdef int x, y, s, t, v, w
     # It is very important to type ALL your variables. You do not get any
     # warnings if not, only much slower code (they are implicitly typed as
     # Python objects).
-    cdef int s_from, s_to, t_from, t_to
     # For the value variable, we want to use the same data type as is
     # stored in the array, so we use "DTYPE_t" as defined above.
     # NB! An important side-effect of this is that if "value" overflows its
