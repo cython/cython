@@ -40,7 +40,7 @@ def naive_convolve(f, g):
     cdef int value
     for x in range(xmax):
         for y in range(ymax):
-            # Cython has built-in C functions for min and max
+            # Cython has built-in C functions for min and max.
             # This makes the following lines very fast.
             s_from = max(smid - x, -smid)
             s_to = min((xmax - x) - smid, smid + 1)

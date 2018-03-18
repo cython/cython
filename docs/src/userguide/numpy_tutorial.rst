@@ -163,9 +163,9 @@ run a Python session to test both the Python version (imported from
     In [11]: N = 300
     In [12]: f = np.arange(N*N, dtype=np.int).reshape((N,N))
     In [13]: g = np.arange(81, dtype=np.int).reshape((9, 9))
-    In [19]: %timeit -n2 -r3 convolve_py.naive_convolve(f, g)
+    In [19]: %timeit convolve_py.naive_convolve(f, g)
     3.9 s ± 12.4 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
-    In [20]: %timeit -n2 -r3 convolve_cy.naive_convolve(f, g)
+    In [20]: %timeit convolve_cy.naive_convolve(f, g)
     3.12 s ± 15.2 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
 
 There's not such a huge difference yet; because the C code still does exactly
@@ -201,11 +201,7 @@ After building this and continuing my (very informal) benchmarks, I get:
 
 .. sourcecode:: ipython
 
-    In [19]: %timeit -n2 -r3 convolve_py.naive_convolve(f, g)
-    3.9 s ± 12.4 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
-    In [20]: %timeit -n2 -r3 convolve_cy.naive_convolve(f, g)
-    3.12 s ± 15.2 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
-    In [22]: %timeit -n2 -r3 convolve_typed.naive_convolve(f, g)
+    In [22]: %timeit convolve_typed.naive_convolve(f, g)
     13.8 s ± 122 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
 
 So in the end, adding types make the Cython code slower?
@@ -263,13 +259,7 @@ Let's see how much faster accessing is now.
 
 .. sourcecode:: ipython
 
-    In [19]: %timeit -n2 -r3 convolve_py.naive_convolve(f, g)
-    3.9 s ± 12.4 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
-    In [20]: %timeit -n2 -r3 convolve_cy.naive_convolve(f, g)
-    3.12 s ± 15.2 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
-    In [21]: %timeit -n2 -r3 convolve_typed.naive_convolve(f, g)
-    13.8 s ± 122 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
-    In [22]: %timeit -n2 -r3 convolve_memview.naive_convolve(f, g)
+    In [22]: %timeit convolve_memview.naive_convolve(f, g)
     13.5 ms ± 455 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 Note the importance of this change.
@@ -307,16 +297,10 @@ information.
 
 .. sourcecode:: ipython
 
-    In [19]: %timeit -n2 -r3 convolve_py.naive_convolve(f, g)
-    3.9 s ± 12.4 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
-    In [20]: %timeit -n2 -r3 convolve_cy.naive_convolve(f, g)
-    3.12 s ± 15.2 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
-    In [21]: %timeit -n2 -r3 convolve_typed.naive_convolve(f, g)
-    13.8 s ± 122 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
-    In [22]: %timeit -n2 -r3 convolve_memview.naive_convolve(f, g)
-    13.5 ms ± 455 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
-    In [23]: %timeit -n2 -r3 convolve_index.naive_convolve(f, g)
+    In [23]: %timeit convolve_index.naive_convolve(f, g)
     7.57 ms ± 151 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+
+We're now 515 times faster than the interpreted Python version.
 
 .. Warning::
 
@@ -356,42 +340,82 @@ get by declaring the memoryviews as contiguous:
 
 .. sourcecode:: ipython
 
-    In [19]: %timeit -n2 -r3 convolve_py.naive_convolve(f, g)
-    3.9 s ± 12.4 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
-    In [20]: %timeit -n2 -r3 convolve_cy.naive_convolve(f, g)
-    3.12 s ± 15.2 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
-    In [21]: %timeit -n2 -r3 convolve_typed.naive_convolve(f, g)
-    13.8 s ± 122 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
-    In [22]: %timeit -n2 -r3 convolve_memview.naive_convolve(f, g)
-    13.5 ms ± 455 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
-    In [23]: %timeit -n2 -r3 convolve_index.naive_convolve(f, g)
-    7.57 ms ± 151 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
-    In [23]: %timeit -n2 -r3 convolve_contiguous.naive_convolve(f, g)
+    In [23]: %timeit convolve_contiguous.naive_convolve(f, g)
     7.2 ms ± 40.6 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
+We're now 541 times faster than the interpreted Python version.
 
 Making the function cleaner
 ===========================
 
 Declaring types can make your code quite verbose. If you don't mind
 Cython inferring the C types of your variables, you can use
-the `infer_types=True` compiler directive. It will save you quite a bit
-of typing.
+the ``infer_types=True`` compiler directive at the top of the file.
+It will save you quite a bit of typing.
 
-# explain here why value must be typed
+Note that since type declarations must happen at the top indentation level,
+Cython won't infer the type of variable declared for the first time
+in other indentation levels. It would change too much the meaning of
+our code. This is why, we must still declare manually the type of the
+``value`` variable.
+
+And actually, manually giving the type of the ``value`` variable will
+be useful when using fused types.
 
 .. literalinclude:: ../../examples/userguide/convolve_infer_types.pyx
     :linenos:
 
-# explain here why it is faster.
+We now do a speed test:
+
+.. sourcecode:: ipython
+
+    In [24]: %timeit convolve_infer_types.naive_convolve(f, g)
+    5.33 ms ± 72.4 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+
+We're now 731 times faster than the interpreted Python version.
+
+# Explain the black magic of why it's faster.
 
 More generic code
 ==================
 
-# Explain here templated
+All those speed gains are nice, but adding types constrains our code.
+At the moment, it would mean that our function only work with
+NumPy arrays with the ``np.intc`` type. Is it possible to make our
+code work for multiple NumPy data types?
+
+Yes, with the help of a new feature called fused types.
+You can learn more about it at :ref:`this section of the documentation
+<fusedtypes>`.
+It is similar to C++ 's templates. It generates mutiple function declarations
+at compile time, and then chooses the right one at run-time based on the
+types of the arguments provided. It is also possible to check with
+``if-else`` statements what is the value of the fused type.
+
+In our example, since we don't have access anymore to the NumPy's dtype
+of our input arrays, we use those ``if-else`` statements to
+know what NumPy data type we should use for our output array.
+
+In this case, our function now works for ints, doubles and floats.
 
 .. literalinclude:: ../../examples/userguide/convolve_fused_types.pyx
     :linenos:
+
+We can check that the output type is the right one::
+
+    >>>naive_convolve_fused_types(f, g).dtype
+    dtype('int32')
+    >>>naive_convolve_fused_types(f.astype(np.double), g.astype(np.double)).dtype
+    dtype('float64')
+
+We now do a speed test:
+
+.. sourcecode:: ipython
+
+    In [25]: %timeit convolve_fused_types.naive_convolve(f, g)
+    5.08 ms ± 173 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+
+We're now 767 times faster than the interpreted Python version.
 
 # Explain the black magic of why it's faster.
 
