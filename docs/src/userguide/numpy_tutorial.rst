@@ -182,7 +182,7 @@ Adding types
 =============
 
 To add types we use custom Cython syntax, so we are now breaking Python source
-compatibility. Here's :file:`convolve2.pyx`. *Read the comments!*
+compatibility. Here's :file:`convolve_typed.pyx`. *Read the comments!*
 
 .. literalinclude:: ../../examples/userguide/convolve_typed.pyx
     :linenos:
