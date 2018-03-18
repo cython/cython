@@ -6,35 +6,29 @@
 Cython for NumPy users
 **************************
 
-.. NOTE:: Cython 0.16 introduced typed memoryviews as a successor to the NumPy
-          integration described here.  They are easier to use than the buffer syntax
-          below, have less overhead, and can be passed around without requiring the GIL.
-          They should be preferred to the syntax presented in this page.
-          See :ref:`Typed Memoryviews <memoryviews>`.
-
-
 This tutorial is aimed at NumPy users who have no experience with Cython at
 all. If you have some knowledge of Cython you may want to skip to the
-''Efficient indexing'' section which explains the new improvements made in
-summer 2008.
+''Efficient indexing'' section.
 
 The main scenario considered is NumPy end-use rather than NumPy/SciPy
 development. The reason is that Cython is not (yet) able to support functions
-that are generic with respect to datatype and the number of dimensions in a
+that are generic with respect to the number of dimensions in a
 high-level fashion. This restriction is much more severe for SciPy development
 than more specific, "end-user" functions. See the last section for more
 information on this.
 
 The style of this tutorial will not fit everybody, so you can also consider:
 
-* Robert Bradshaw's `slides on cython for SciPy2008
-  <http://wiki.sagemath.org/scipy08?action=AttachFile&do=get&target=scipy-cython.tgz>`_
-  (a higher-level and quicker introduction)
-* Basic Cython documentation (see `Cython front page <http://cython.org>`_).
-* ``[:enhancements/buffer:Spec for the efficient indexing]``
+* Kurt Smith's `video tutorial of Cython at SciPy 2015
+  <https://www.youtube.com/watch?v=gMvkiQ-gOW8&t=4730s&ab_channel=Enthought>`_.
+  It's longuer but some readers like watching talks more than reading.
+  The slides and notebooks of this talk are `on github
+  <https://github.com/kwmsmith/scipy-2015-cython-tutorial>`_.
+* Basic Cython documentation (see `Cython front page
+  <https://cython.readthedocs.io/en/latest/index.html>`_).
 
 Cython at a glance
-====================
+==================
 
 Cython is a compiler which compiles Python-like code files to C code. Still,
 ''Cython is not a Python to C translator''. That is, it doesn't take your full
@@ -52,9 +46,9 @@ This has two important consequences:
   of C libraries. When writing code in Cython you can call into C code as
   easily as into Python code.
 
-Some Python constructs are not yet supported, though making Cython compile all
-Python code is a stated goal (among the more important omissions are inner
-functions and generator functions).
+Very few Python constructs are not yet supported, though making Cython compile all
+Python code is a stated goal, you can see the differences with Python in
+:ref:`limitations <cython-limitations>`.
 
 Your Cython environment
 ========================
@@ -70,31 +64,36 @@ However there are several options to automate these steps:
 
 1. The `SAGE <http://sagemath.org>`_ mathematics software system provides
    excellent support for using Cython and NumPy from an interactive command
-   line (like IPython) or through a notebook interface (like
+   line or through a notebook interface (like
    Maple/Mathematica). See `this documentation
-   <http://www.sagemath.org/doc/prog/node40.html>`_.
-2. A version of `pyximport <http://www.prescod.net/pyximport/>`_ is shipped
-   with Cython, so that you can import pyx-files dynamically into Python and
+   <http://doc.sagemath.org/html/en/developer/coding_in_cython.html>`_.
+2. Cython can be used as an extension within a Jupyter notebook,
+   making it easy to compile and use Cython code with just a ``%%cython``
+   at the top of a cell. For more information see
+   :ref:`Using the Jupyter Notebook <jupyter-notebook>`.
+3. A version of pyximport is shipped with Cython,
+   so that you can import pyx-files dynamically into Python and
    have them compiled automatically (See :ref:`pyximport`).
-3. Cython supports distutils so that you can very easily create build scripts
+4. Cython supports distutils so that you can very easily create build scripts
    which automate the process, this is the preferred method for full programs.
-4. Manual compilation (see below)
+   See :ref:`Compiling with distutils <compiling-distutils>`.
+5. Manual compilation (see below)
 
 .. Note::
     If using another interactive command line environment than SAGE, like
-    IPython or Python itself, it is important that you restart the process
+    IPython, Jupyter Notebook or Python itself, it is important that you restart the process
     when you recompile the module. It is not enough to issue an "import"
     statement again.
 
 Installation
 =============
 
-Unless you are used to some other automatic method:
-`download Cython <http://cython.org/#download>`_ (0.9.8.1.1 or later), unpack it,
-and run the usual ```python setup.py install``. This will install a
-``cython`` executable on your system. It is also possible to use Cython from
-the source directory without installing (simply launch :file:`cython.py` in the
-root directory).
+If you already have a C compiler, just do::
+
+   pip install Cython
+
+otherwise, see :ref:`the installation page <install>`.
+
 
 As of this writing SAGE comes with an older release of Cython than required
 for this tutorial. So if using SAGE you should download the newest Cython and
@@ -124,10 +123,6 @@ extensions should have some details. On Linux this often means something
 like::
 
     $ gcc -shared -pthread -fPIC -fwrapv -O2 -Wall -fno-strict-aliasing -I/usr/include/python2.7 -o yourmod.so yourmod.c
-
-``gcc`` should have access to the NumPy C header files so if they are not
-installed at :file:`/usr/include/numpy` or similar you may need to pass another
-option for those.
 
 This creates :file:`yourmod.so` in the same directory, which is importable by
 Python by using a normal ``import yourmod`` statement.

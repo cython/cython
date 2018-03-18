@@ -59,7 +59,7 @@ that CPython generates for disambiguation, such as
 ``yourmod.cpython-35m-x86_64-linux-gnu.so`` on a regular 64bit Linux installation
 of CPython 3.5.
 
-
+.. _compiling-distutils:
 Compiling with ``distutils``
 ============================
 
