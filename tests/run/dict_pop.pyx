@@ -1,3 +1,5 @@
+# mode: run
+# tag: dict, pop, builtins
 
 cimport cython
 
@@ -32,3 +34,25 @@ def dict_pop_default(dict d, key, default):
     (20, {})
     """
     return d.pop(key, default), d
+
+
+cdef class MyType:
+    cdef public int i
+    def __init__(self, i):
+        self.i = i
+
+
+@cython.test_assert_path_exists("//SingleAssignmentNode//PythonCapiCallNode")
+@cython.test_fail_if_path_exists("//SingleAssignmentNode//AttributeNode")
+def dict_pop_default_typed(dict d, key, default):
+    """
+    >>> d = {1: MyType(2)}
+    >>> dict_pop_default_typed(d, 1, None)
+    2
+    >>> dict_pop_default_typed(d, 3, None)
+    >>> dict_pop_default_typed(d, 3, "default")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: Cannot convert str to ...MyType
+    """
+    cdef MyType x = d.pop(key, default)
+    return x.i if x is not None else None

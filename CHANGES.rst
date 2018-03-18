@@ -26,6 +26,9 @@ Bugs fixed
   in some cases where ``bytes`` would have been safe to infer.
   (Github issue #2153)
 
+* ``None`` was accidentally disallowed as typed return value of ``dict.pop()``.
+  (Github issue #2152)
+
 
 0.28 (2018-03-13)
 =================
