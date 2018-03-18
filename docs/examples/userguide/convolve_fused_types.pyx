@@ -8,7 +8,7 @@ ctypedef fused my_type:
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef naive_convolve_fused_types(my_type [:,:] f, my_type [:,:] g):
+cpdef naive_convolve(my_type [:,:] f, my_type [:,:] g):
     if g.shape[0] % 2 != 1 or g.shape[1] % 2 != 1:
         raise ValueError("Only odd dimensions on filter supported")
 

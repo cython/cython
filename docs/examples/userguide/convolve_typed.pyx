@@ -1,17 +1,11 @@
 import numpy as np
 
-# "def" can type its arguments but not have a return type. The type of the
-# arguments for a "def" function is checked at run-time when entering the
-# function.
 # We now need to fix a datatype for our arrays. I've used the variable
 # DTYPE for this, which is assigned to the usual NumPy runtime
 # type info object.
 DTYPE = np.intc
-# The arrays f, g and h is typed as "np.ndarray" instances. The only effect
-# this has is to a) insert checks that the function arguments really are
-# NumPy arrays, and b) make some attribute access like f.shape[0] much
-# more efficient. (In this example this doesn't matter though.)
-def naive_convolve_types(f, g):
+
+def naive_convolve(f, g):
     if g.shape[0] % 2 != 1 or g.shape[1] % 2 != 1:
         raise ValueError("Only odd dimensions on filter supported")
     assert f.dtype == DTYPE and g.dtype == DTYPE
@@ -46,6 +40,8 @@ def naive_convolve_types(f, g):
     cdef int value
     for x in range(xmax):
         for y in range(ymax):
+            # Cython has built-in C functions for min and max
+            # This makes the following lines very fast.
             s_from = max(smid - x, -smid)
             s_to = min((xmax - x) - smid, smid + 1)
             t_from = max(tmid - y, -tmid)

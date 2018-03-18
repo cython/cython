@@ -1,11 +1,12 @@
 # cython: infer_types=True
 import numpy as np
+cimport cython
 
 DTYPE = np.intc
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-def naive_convolve_infer_types(int [:,::1] f, int [:,::1] g):
+def naive_convolve(int [:,::1] f, int [:,::1] g):
     if g.shape[0] % 2 != 1 or g.shape[1] % 2 != 1:
         raise ValueError("Only odd dimensions on filter supported")
 

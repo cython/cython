@@ -1,6 +1,6 @@
 from __future__ import division
 import numpy as np
-def naive_convolve_py(f, g):
+def naive_convolve(f, g):
     # f is an image and is indexed by (v, w)
     # g is a filter kernel and is indexed by (s, t),
     #   it needs odd dimensions

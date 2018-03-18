@@ -2,7 +2,7 @@ import numpy as np
 
 DTYPE = np.intc
 
-def naive_convolve_memview(int [:,:] f, int [:,:] g):
+def naive_convolve(int [:,:] f, int [:,:] g):
     if g.shape[0] % 2 != 1 or g.shape[1] % 2 != 1:
         raise ValueError("Only odd dimensions on filter supported")
 

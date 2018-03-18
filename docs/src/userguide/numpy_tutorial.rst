@@ -160,22 +160,24 @@ run a Python session to test both the Python version (imported from
     array([[1, 1, 1],
         [2, 2, 2],
         [1, 1, 1]])
-    In [11]: N = 100
+    In [11]: N = 300
     In [12]: f = np.arange(N*N, dtype=np.int).reshape((N,N))
     In [13]: g = np.arange(81, dtype=np.int).reshape((9, 9))
     In [19]: %timeit -n2 -r3 convolve_py.naive_convolve(f, g)
-    422 ms ± 2.06 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+    3.9 s ± 12.4 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
     In [20]: %timeit -n2 -r3 convolve_cy.naive_convolve(f, g)
-    342 ms ± 1.39 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+    3.12 s ± 15.2 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
 
 There's not such a huge difference yet; because the C code still does exactly
 what the Python interpreter does (meaning, for instance, that a new object is
-allocated for each number used). You can look at the Python interaction
-and the generated C code by using `-a` when calling Cython from the command
-line, `%%cython -a` when using a Jupyter Notebook, or by using
-`cythonize('convolve_cy.pyx', annotate=True)` when using a `setup.py`.
+allocated for each number used).
+
+You can look at the Python interaction and the generated C
+code by using ``-a`` when calling Cython from the command
+line, ``%%cython -a`` when using a Jupyter Notebook, or by using
+``cythonize('convolve_cy.pyx', annotate=True)`` when using a ``setup.py``.
 Look at the generated html file and see what
-is needed for even the simplest statements you get the point quickly. We need
+is needed for even the simplest statements. You get the point quickly. We need
 to give Cython more information; we need to add types.
 
 Adding types
@@ -187,62 +189,95 @@ compatibility. Here's :file:`convolve_typed.pyx`. *Read the comments!*
 .. literalinclude:: ../../examples/userguide/convolve_typed.pyx
     :linenos:
 
-At this point, have a look at the generated C code for :file:`convolve1.pyx` and
-:file:`convolve2.pyx`. Click on the lines to expand them and see corresponding C.
-(Note that this code annotation is currently experimental and especially
-"trailing" cleanup code for a block may stick to the last expression in the
-block and make it look worse than it is -- use some common sense).
+.. figure:: convolve_types_html.png
 
-* .. literalinclude: convolve1.html
-* .. literalinclude: convolve2.html
+At this point, have a look at the generated C code for :file:`convolve_cy.pyx` and
+:file:`convolve_typed.pyx`. Click on the lines to expand them and see corresponding C.
 
-Especially have a look at the for loops: In :file:`convolve1.c`, these are ~20 lines
-of C code to set up while in :file:`convolve2.c` a normal C for loop is used.
+Especially have a look at the for loops: In :file:`convolve_cy.c`, these are ~20 lines
+of C code to set up while in :file:`convolve_typed.c` a normal C for loop is used.
 
 After building this and continuing my (very informal) benchmarks, I get:
 
 .. sourcecode:: ipython
 
-    In [21]: import convolve2
-    In [22]: %timeit -n2 -r3 convolve2.naive_convolve(f, g)
-    2 loops, best of 3: 828 ms per loop
+    In [19]: %timeit -n2 -r3 convolve_py.naive_convolve(f, g)
+    3.9 s ± 12.4 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+    In [20]: %timeit -n2 -r3 convolve_cy.naive_convolve(f, g)
+    3.12 s ± 15.2 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+    In [22]: %timeit -n2 -r3 convolve_typed.naive_convolve(f, g)
+    13.8 s ± 122 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
 
-Efficient indexing
-====================
+So in the end, adding types make the Cython code slower?
 
-There's still a bottleneck killing performance, and that is the array lookups
-and assignments. The ``[]``-operator still uses full Python operations --
+What happend is that most of the time spend in this code is spent on line
+60. ::
+
+    value += g[smid - s, tmid - t] * f[v, w]
+
+So what made this line so much slower than in the pure Python version?
+
+``g`` and ``f`` are still NumPy arrays, so Python objects, and expect
+Python integers as indexes. Here we give C integers. So every time
+Cython reaches this line, it has to convert all the C integers to Python
+integers. Since this line is called very often, it outweight the speed
+benefits of the pure C loops that were created from the ``range()`` earlier.
+
+Furthermore, ``g[smid - s, tmid - t] * f[v, w]`` returns a Python integer
+and ``value`` is a C integers, Cython has to do a type conversion again.
+In the end those types conversions add up. And made our convolution really
+slow. But this can be solved easily by using memoryviews.
+
+Efficient indexing with memoryviews
+===================================
+
+There are still two bottleneck killing performance, and that is the array lookups
+and assignments, as well as C/Python types conversion.
+The ``[]``-operator still uses full Python operations --
 what we would like to do instead is to access the data buffer directly at C
 speed.
 
 What we need to do then is to type the contents of the :obj:`ndarray` objects.
-We do this with a special "buffer" syntax which must be told the datatype
-(first argument) and number of dimensions ("ndim" keyword-only argument, if
-not provided then one-dimensional is assumed).
+We do this with a memoryview. There is :ref:`a page in the Cython documentation
+<memoryviews>` dedicated to it.
 
-More information on this syntax [:enhancements/buffer:can be found here].
+In short, memoryviews are C structures that can hold a pointer to the data
+of a NumPy array. They also support slices, so they work even if
+the NumPy array isn't contiguous in memory.
+They can be indexed by C integers, thus allowing fast access to the
+NumPy array data.
 
-Showing the changes needed to produce :file:`convolve3.pyx` only
+No data is copied from the NumPy array to the memoryview in our example.
+As the name implies, it is only a "view" of the memory. So we can use
+``h`` for efficient indexing and return then ``h_np``
+because we want to return a NumPy array.
+
+Here is how to use them in our code:
+
+:file:`convolve_memview.pyx`
 
 .. literalinclude:: ../../examples/userguide/convolve_memview.pyx
     :linenos:
 
-Usage:
+Let's see how much faster accessing is now.
 
 .. sourcecode:: ipython
 
-    In [18]: import convolve3
-    In [19]: %timeit -n3 -r100 convolve3.naive_convolve(f, g)
-    3 loops, best of 100: 11.6 ms per loop
+    In [19]: %timeit -n2 -r3 convolve_py.naive_convolve(f, g)
+    3.9 s ± 12.4 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+    In [20]: %timeit -n2 -r3 convolve_cy.naive_convolve(f, g)
+    3.12 s ± 15.2 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+    In [21]: %timeit -n2 -r3 convolve_typed.naive_convolve(f, g)
+    13.8 s ± 122 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+    In [22]: %timeit -n2 -r3 convolve_memview.naive_convolve(f, g)
+    13.5 ms ± 455 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 Note the importance of this change.
+We're now 290 times faster than an interpreted version of Python.
 
-*Gotcha*: This efficient indexing only affects certain index operations,
-namely those with exactly ``ndim`` number of typed integer indices. So if
-``v`` for instance isn't typed, then the lookup ``f[v, w]`` isn't
-optimized. On the other hand this means that you can continue using Python
-objects for sophisticated dynamic slicing etc. just as when the array is not
-typed.
+Memoryviews can be used with slices too, or even
+with Python arrays. Check out the `memoryview page <memoryviews>`to see what they
+can do for you.
 
 Tuning indexing further
 ========================
@@ -252,13 +287,15 @@ The array lookups are still slowed down by two factors:
 1. Bounds checking is performed.
 2. Negative indices are checked for and handled correctly.  The code above is
    explicitly coded so that it doesn't use negative indices, and it
-   (hopefully) always access within bounds. We can add a decorator to disable
-   bounds checking::
+   (hopefully) always access within bounds.
+
+    With decorators, we can deactivate those checks::
 
         ...
         cimport cython
-        @cython.boundscheck(False) # turn off bounds-checking for entire function
-        def naive_convolve(np.ndarray[DTYPE_t, ndim=2] f, np.ndarray[DTYPE_t, ndim=2] g):
+        @cython.boundscheck(False)  # Deactivate bounds checking
+        @cython.wraparound(False)   # Deactivate negative indexing.
+        def naive_convolve(int [:, :] f, int [:, :] g):
         ...
 
 Now bounds checking is not performed (and, as a side-effect, if you ''do''
@@ -267,54 +304,19 @@ and in the worst case corrupt data). It is possible to switch bounds-checking
 mode in many ways, see :ref:`compiler-directives` for more
 information.
 
-Negative indices are dealt with by ensuring Cython that the indices will be
-positive, by casting the variables to unsigned integer types (if you do have
-negative values, then this casting will create a very large positive value
-instead and you will attempt to access out-of-bounds values). Casting is done
-with a special ``<>``-syntax. The code below is changed to use either
-unsigned ints or casting as appropriate::
-
-        ...
-        cdef int s, t                                                                            # changed
-        cdef unsigned int x, y, v, w                                                             # changed
-        cdef int s_from, s_to, t_from, t_to
-        cdef DTYPE_t value
-        for x in range(xmax):
-            for y in range(ymax):
-                s_from = max(smid - x, -smid)
-                s_to = min((xmax - x) - smid, smid + 1)
-                t_from = max(tmid - y, -tmid)
-                t_to = min((ymax - y) - tmid, tmid + 1)
-                value = 0
-                for s in range(s_from, s_to):
-                    for t in range(t_from, t_to):
-                        v = <unsigned int>(x - smid + s)                                         # changed
-                        w = <unsigned int>(y - tmid + t)                                         # changed
-                        value += g[<unsigned int>(smid - s), <unsigned int>(tmid - t)] * f[v, w] # changed
-                h[x, y] = value
-        ...
-
-(In the next Cython release we will likely add a compiler directive or
-argument to the ``np.ndarray[]``-type specifier to disable negative indexing
-so that casting so much isn't necessary; feedback on this is welcome.)
-
-The function call overhead now starts to play a role, so we compare the latter
-two examples with larger N:
 
 .. sourcecode:: ipython
 
-    In [11]: %timeit -n3 -r100 convolve4.naive_convolve(f, g)
-    3 loops, best of 100: 5.97 ms per loop
-    In [12]: N = 1000
-    In [13]: f = np.arange(N*N, dtype=np.int).reshape((N,N))
-    In [14]: g = np.arange(81, dtype=np.int).reshape((9, 9))
-    In [17]: %timeit -n1 -r10 convolve3.naive_convolve(f, g)
-    1 loops, best of 10: 1.16 s per loop
-    In [18]: %timeit -n1 -r10 convolve4.naive_convolve(f, g)
-    1 loops, best of 10: 597 ms per loop
-
-(Also this is a mixed benchmark as the result array is allocated within the
-function call.)
+    In [19]: %timeit -n2 -r3 convolve_py.naive_convolve(f, g)
+    3.9 s ± 12.4 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+    In [20]: %timeit -n2 -r3 convolve_cy.naive_convolve(f, g)
+    3.12 s ± 15.2 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+    In [21]: %timeit -n2 -r3 convolve_typed.naive_convolve(f, g)
+    13.8 s ± 122 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+    In [22]: %timeit -n2 -r3 convolve_memview.naive_convolve(f, g)
+    13.5 ms ± 455 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    In [23]: %timeit -n2 -r3 convolve_index.naive_convolve(f, g)
+    7.57 ms ± 151 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 .. Warning::
 
@@ -331,33 +333,67 @@ function call.)
 Declaring the NumPy arrays as contiguous
 ========================================
 
-Insert stuff here.
+For extra speed gains, if you know that the NumPy arrays you are
+providing are contiguous in memory, you can declare the
+memoryview as holding data contiguous in memory.
+
+We give an example on an array that has 3 dimensions.
+If they are C-contiguous you have to declare the memoryview like this::
+
+    cdef int [:,:,::1] a
+
+if they are F-contiguous, you can declare the memoryview like this::
+
+    cdef int [::1, :, :] a
+
+If all this makes no sense to you, you can skip it, the performance gains are
+not that important. If you still want to understand what contiguous arrays are
+all about, you can see `this answer on StackOverflow
+<https://stackoverflow.com/questions/26998223/what-is-the-difference-between-contiguous-and-non-contiguous-arrays>`_.
+
+For the sake of giving numbers, here are the speed gains that you should
+get by declaring the memoryviews as contiguous:
+
+.. sourcecode:: ipython
+
+    In [19]: %timeit -n2 -r3 convolve_py.naive_convolve(f, g)
+    3.9 s ± 12.4 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+    In [20]: %timeit -n2 -r3 convolve_cy.naive_convolve(f, g)
+    3.12 s ± 15.2 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+    In [21]: %timeit -n2 -r3 convolve_typed.naive_convolve(f, g)
+    13.8 s ± 122 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+    In [22]: %timeit -n2 -r3 convolve_memview.naive_convolve(f, g)
+    13.5 ms ± 455 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    In [23]: %timeit -n2 -r3 convolve_index.naive_convolve(f, g)
+    7.57 ms ± 151 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    In [23]: %timeit -n2 -r3 convolve_contiguous.naive_convolve(f, g)
+    7.2 ms ± 40.6 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+
 
 Making the function cleaner
 ===========================
 
-Some comments here.
+Declaring types can make your code quite verbose. If you don't mind
+Cython inferring the C types of your variables, you can use
+the `infer_types=True` compiler directive. It will save you quite a bit
+of typing.
+
+# explain here why value must be typed
 
 .. literalinclude:: ../../examples/userguide/convolve_infer_types.pyx
     :linenos:
 
+# explain here why it is faster.
+
 More generic code
 ==================
 
-It would be possible to do
+# Explain here templated
 
 .. literalinclude:: ../../examples/userguide/convolve_fused_types.pyx
     :linenos:
 
-i.e. use :obj:`object` rather than :obj:`np.ndarray`. Under Python 3.0 this
-can allow your algorithm to work with any libraries supporting the buffer
-interface; and support for e.g. the Python Imaging Library may easily be added
-if someone is interested also under Python 2.x.
-
-There is some speed penalty to this though (as one makes more assumptions
-compile-time if the type is set to :obj:`np.ndarray`, specifically it is
-assumed that the data is stored in pure strided mode and not in indirect
-mode).
+# Explain the black magic of why it's faster.
 
 Where to go from here?
 ======================
