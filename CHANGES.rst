@@ -5,13 +5,10 @@ Cython Changelog
 0.28.1 (2018-0?-??)
 ===================
 
-Features added
---------------
-
 Bugs fixed
 ----------
 
-* ``PyFrozenSet_New()`` was accidentally used in PyPy where it is lacking
+* ``PyFrozenSet_New()`` was accidentally used in PyPy where it is missing
   from the C-API.
 
 * Assignment between some C++ templated types were incorrectly rejected
