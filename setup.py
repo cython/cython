@@ -12,6 +12,10 @@ import sys
 import platform
 is_cpython = platform.python_implementation() == 'CPython'
 
+# this specifies which versions of python we support, pip >= 9 knows to skip
+# versions of packages which are not compatible with the running python
+PYTHON_REQUIRES = '>=2.6, !=3.0.*, !=3.1.*, !=3.2.*'
+
 if sys.platform == "darwin":
     # Don't create resource files on OS X tar.
     os.environ['COPY_EXTENDED_ATTRIBUTES_DISABLE'] = 'true'
@@ -59,28 +63,21 @@ setup_args['package_data'] = {
 setuptools_extra_args = {}
 
 if 'setuptools' in sys.modules:
+    setuptools_extra_args['python_requires'] = PYTHON_REQUIRES
     setuptools_extra_args['zip_safe'] = False
     setuptools_extra_args['entry_points'] = {
         'console_scripts': [
             'cython = Cython.Compiler.Main:setuptools_main',
-            'cythonize = Cython.Build.Cythonize:main'
+            'cythonize = Cython.Build.Cythonize:main',
+            'cygdb = Cython.Debugger.Cygdb:main',
         ]
     }
     scripts = []
 else:
     if os.name == "posix":
-        scripts = ["bin/cython", 'bin/cythonize']
+        scripts = ["bin/cython", "bin/cythonize", "bin/cygdb"]
     else:
-        scripts = ["cython.py", "cythonize.py"]
-
-if 'setuptools' in sys.modules:
-    setuptools_extra_args['entry_points']['console_scripts'].append(
-        'cygdb = Cython.Debugger.Cygdb:main')
-else:
-    if os.name == "posix":
-        scripts.append('bin/cygdb')
-    else:
-        scripts.append('cygdb.py')
+        scripts = ["cython.py", "cythonize.py", "cygdb.py"]
 
 
 def compile_cython_modules(profile=False, compile_more=False, cython_with_refnanny=False):
@@ -96,8 +93,9 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
         "Cython.Compiler.FlowControl",
         "Cython.Compiler.Code",
         "Cython.Runtime.refnanny",
-        # "Cython.Compiler.FusedNode",
+        "Cython.Compiler.FusedNode",
         "Cython.Tempita._tempita",
+        "Cython.StringIOTree",
     ]
     if compile_more:
         compiled_modules.extend([
@@ -264,7 +262,16 @@ setup(
         "Operating System :: OS Independent",
         "Programming Language :: Python",
         "Programming Language :: Python :: 2",
+        "Programming Language :: Python :: 2.6",
+        "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.3",
+        "Programming Language :: Python :: 3.4",
+        "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: Implementation :: CPython",
+        "Programming Language :: Python :: Implementation :: PyPy",
         "Programming Language :: C",
         "Programming Language :: Cython",
         "Topic :: Software Development :: Code Generators",

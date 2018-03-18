@@ -82,7 +82,7 @@ def _info(message, *args):
 # already built. It might be more efficient to only do it when the
 # mod time of the .pyx is newer than the mod time of the .so but
 # the question is how to get distutils to tell me the name of the .so
-# before it builds it. Maybe it is easy...but maybe the peformance
+# before it builds it. Maybe it is easy...but maybe the performance
 # issue isn't real.
 def _load_pyrex(name, filename):
     "Load a pyrex file given a name and filename."
@@ -502,11 +502,11 @@ def install(pyximport=True, pyimport=False, build_dir=None, build_in_temp=True,
     ``build_in_temp=False`` will produce the C files locally. Working
     with complex dependencies and debugging becomes more easy. This
     can principally interfere with existing files of the same name.
-    build_in_temp can be overriden by <modulename>.pyxbld/make_setup_args()
+    build_in_temp can be overridden by <modulename>.pyxbld/make_setup_args()
     by a dict item of 'build_in_temp'
 
     ``setup_args``: dict of arguments for Distribution - see
-    distutils.core.setup() . They are extended/overriden by those of
+    distutils.core.setup() . They are extended/overridden by those of
     <modulename>.pyxbld/make_setup_args()
 
     ``reload_support``:  Enables support for dynamic

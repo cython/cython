@@ -100,6 +100,8 @@ class Plugin(CoveragePlugin):
             if not c_file:
                 return None  # unknown file
             rel_file_path, code = self._parse_lines(c_file, filename)
+            if code is None:
+                return None  # no source found
         return CythonModuleReporter(c_file, filename, rel_file_path, code)
 
     def _find_source_files(self, filename):

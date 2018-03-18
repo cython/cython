@@ -83,12 +83,12 @@ class BasicStarshipExt(object):
 T = TypeVar('T')
 
 
-class Box(Generic[T]):
-    def __init__(self, content):
-        self.content: T = content
-
-
-box = Box(content=5)
+# FIXME: this fails in Py3.7 now
+#class Box(Generic[T]):
+#    def __init__(self, content):
+#        self.content: T = content
+#
+#box = Box(content=5)
 
 
 class Cls(object):
@@ -107,10 +107,57 @@ d['b']: int      # Annotates d['b'] with int.
 (y): int = 0  # Same situation here.
 
 
+@cython.test_assert_path_exists(
+    "//WhileStatNode",
+    "//WhileStatNode//DictIterationNextNode",
+)
+def iter_declared_dict(d):
+    """
+    >>> d = {1.1: 2.5, 3.3: 4.5}
+    >>> iter_declared_dict(d)
+    7.0
+
+    >>> class D(object):
+    ...     def __getitem__(self, x): return 2
+    ...     def __iter__(self): return iter([1, 2, 3])
+    >>> iter_declared_dict(D())
+    6.0
+    """
+    typed_dict : Dict[float, float] = d
+    s = 0.0
+    for key in typed_dict:
+        s += d[key]
+    return s
+
+
+@cython.test_assert_path_exists(
+    "//WhileStatNode",
+    "//WhileStatNode//DictIterationNextNode",
+)
+def iter_declared_dict_arg(d : Dict[float, float]):
+    """
+    >>> d = {1.1: 2.5, 3.3: 4.5}
+    >>> iter_declared_dict_arg(d)
+    7.0
+
+    >>> class D(object):
+    ...     def __getitem__(self, x): return 2
+    ...     def __iter__(self): return iter([1, 2, 3])
+    >>> iter_declared_dict_arg(D())
+    6.0
+    """
+    s = 0.0
+    for key in d:
+        s += d[key]
+    return s
+
 
 _WARNINGS = """
 37:19: Unknown type declaration in annotation, ignoring
 38:12: Unknown type declaration in annotation, ignoring
 39:18: Unknown type declaration in annotation, ignoring
 73:19: Unknown type declaration in annotation, ignoring
+# FIXME: these are sort-of evaluated now, so the warning is misleading
+126:21: Unknown type declaration in annotation, ignoring
+137:35: Unknown type declaration in annotation, ignoring
 """

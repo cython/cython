@@ -1,6 +1,7 @@
 # This file contains tests corresponding to unresolved bugs,
 # which will be skipped in the normal testing run.
 
+setuptools_reimport
 class_attribute_init_values_T18
 unsignedbehaviour_T184
 missing_baseclass_in_predecl_T262

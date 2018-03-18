@@ -378,7 +378,7 @@ class SimpleAssignmentTypeInferer(object):
                     self.set_entry_type(entry, py_object_type)
             return
 
-        # Set of assignemnts
+        # Set of assignments
         assignments = set()
         assmts_resolved = set()
         dependencies = {}
@@ -427,6 +427,8 @@ class SimpleAssignmentTypeInferer(object):
                     if rhs_type and rhs_type.is_pyobject:
                         has_pyobjects = True
                     types.append(rhs_type)
+            # Ignore None assignments as long as there are concrete Python type assignments.
+            # but include them if None is the only assigned Python object.
             if has_none and not has_pyobjects:
                 types.append(py_object_type)
             return types
@@ -560,6 +562,8 @@ def safe_spanning_type(types, might_overflow, pos, scope):
     elif result_type is PyrexTypes.c_bint_type:
         # find_spanning_type() only returns 'bint' for clean boolean
         # operations without other int types, so this is safe, too
+        return result_type
+    elif result_type.is_pythran_expr:
         return result_type
     elif result_type.is_ptr:
         # Any pointer except (signed|unsigned|) char* can't implicitly

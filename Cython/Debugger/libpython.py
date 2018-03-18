@@ -1941,7 +1941,6 @@ PyLocals()
 ##################################################################
 
 import re
-import atexit
 import warnings
 import tempfile
 import textwrap
@@ -2023,13 +2022,12 @@ class _LoggingState(object):
     """
 
     def __init__(self):
-        self.fd, self.filename = tempfile.mkstemp()
-        self.file = os.fdopen(self.fd, 'r+')
+        f = tempfile.NamedTemporaryFile('r+')
+        self.file = f
+        self.filename = f.name
+        self.fd = f.fileno()
         _execute("set logging file %s" % self.filename)
         self.file_position_stack = []
-
-        atexit.register(os.close, self.fd)
-        atexit.register(os.remove, self.filename)
 
     def __enter__(self):
         if not self.file_position_stack:
@@ -2596,7 +2594,7 @@ class PythonCodeExecutor(object):
         inferior.
 
         Of course, executing any code in the inferior may be dangerous and may
-        leave the debuggee in an unsafe state or terminate it alltogether.
+        leave the debuggee in an unsafe state or terminate it altogether.
         """
         if '\0' in code:
             raise gdb.GdbError("String contains NUL byte.")

@@ -9,13 +9,19 @@ IS_PY2 = sys.version_info[0] == 2
 
 @cython.cclass
 class X(object):
-    x = cython.declare(cython.int, visibility="public")
+    x = cython.declare(cython.int)
 
     def __init__(self, x):
         self.x = x
 
     def __repr__(self):
         return "<%d>" % self.x
+
+
+@cython.cfunc
+@cython.locals(x=X)
+def x_of(x):
+    return x.x
 
 
 @cython.cclass
@@ -72,11 +78,18 @@ class ClassEq(X):
     ... else: a >= b
     Traceback (most recent call last):
     TypeError...
+
+    >>> print(a.__eq__.__doc__)
+    EQ
     """
     def __eq__(self, other):
-        if isinstance(self, X):
-            if isinstance(other, X):
-                return self.x == other.x
+        """EQ"""
+        assert 1 <= self.x <= 2
+        assert isinstance(self, ClassEq), type(self)
+        if isinstance(other, X):
+            return self.x == x_of(other)
+        elif isinstance(other, int):
+            return self.x < other
         return NotImplemented
 
 
@@ -132,11 +145,20 @@ class ClassEqNe(ClassEq):
     ... else: a >= b
     Traceback (most recent call last):
     TypeError...
+
+    #>>> print(a.__eq__.__doc__)
+    #EQ
+    >>> print(a.__ne__.__doc__)
+    NE
     """
     def __ne__(self, other):
-        if isinstance(self, X):
-            if isinstance(other, X):
-                return self.x != other.x
+        """NE"""
+        assert 1 <= self.x <= 2
+        assert isinstance(self, ClassEqNe), type(self)
+        if isinstance(other, X):
+            return self.x != x_of(other)
+        elif isinstance(other, int):
+            return self.x < other
         return NotImplemented
 
 
@@ -208,11 +230,42 @@ class ClassEqNeGe(ClassEqNe):
     ... else: a > b
     Traceback (most recent call last):
     TypeError...
-    """
+
+    >>> 2 <= a
+    False
+    >>> a >= 2
+    False
+    >>> 1 <= a
+    True
+    >>> a >= 1
+    True
+    >>> a >= 2
+    False
+
+    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
+    ... else: 'x' <= a
+    Traceback (most recent call last):
+    TypeError...
+    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
+    ... else: a >= 'x'
+    Traceback (most recent call last):
+    TypeError...
+
+    #>>> print(a.__eq__.__doc__)
+    #EQ
+    #>>> print(a.__ne__.__doc__)
+    #NE
+    >>> print(a.__ge__.__doc__)
+    GE
+   """
     def __ge__(self, other):
-        if isinstance(self, X):
-            if isinstance(other, X):
-                return self.x >= other.x
+        """GE"""
+        assert 1 <= self.x <= 2
+        assert isinstance(self, ClassEqNeGe), type(self)
+        if isinstance(other, X):
+            return self.x >= x_of(other)
+        elif isinstance(other, int):
+            return self.x >= other
         return NotImplemented
 
 
@@ -274,11 +327,34 @@ class ClassLe(X):
     True
     >>> b >= c
     True
+
+    >>> 2 >= a
+    True
+    >>> a <= 2
+    True
+    >>> 1 >= a
+    True
+    >>> a <= 1
+    True
+    >>> a <= 0
+    False
+
+    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
+    ... else: 'x' >= a
+    Traceback (most recent call last):
+    TypeError...
+    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
+    ... else: a <= 'x'
+    Traceback (most recent call last):
+    TypeError...
     """
     def __le__(self, other):
-        if isinstance(self, X):
-            if isinstance(other, X):
-                return self.x <= other.x
+        assert 1 <= self.x <= 2
+        assert isinstance(self, ClassLe), type(self)
+        if isinstance(other, X):
+            return self.x <= x_of(other)
+        elif isinstance(other, int):
+            return self.x <= other
         return NotImplemented
 
 
@@ -320,11 +396,37 @@ class ClassLt(X):
     [<1>, <1>, <2>]
     >>> sorted([b, a, c])
     [<1>, <1>, <2>]
+
+    >>> 2 > a
+    True
+    >>> a < 2
+    True
+    >>> 1 > a
+    False
+    >>> a < 1
+    False
+
+    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
+    ... else: 1 < a
+    Traceback (most recent call last):
+    TypeError...
+
+    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
+    ... else: 'x' > a
+    Traceback (most recent call last):
+    TypeError...
+    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
+    ... else: a < 'x'
+    Traceback (most recent call last):
+    TypeError...
     """
     def __lt__(self, other):
-        if isinstance(self, X):
-            if isinstance(other, X):
-                return self.x < other.x
+        assert 1 <= self.x <= 2
+        assert isinstance(self, ClassLt), type(self)
+        if isinstance(other, X):
+            return self.x < x_of(other)
+        elif isinstance(other, int):
+            return self.x < other
         return NotImplemented
 
 
@@ -368,9 +470,12 @@ class ClassLtGtInherited(X):
     [<1>, <1>, <2>]
     """
     def __gt__(self, other):
-        if isinstance(self, X):
-            if isinstance(other, X):
-                return self.x > other.x
+        assert 1 <= self.x <= 2
+        assert isinstance(self, ClassLtGtInherited), type(self)
+        if isinstance(other, X):
+            return self.x > x_of(other)
+        elif isinstance(other, int):
+            return self.x > other
         return NotImplemented
 
 
@@ -412,17 +517,49 @@ class ClassLtGt(X):
     [<1>, <1>, <2>]
     >>> sorted([b, a, c])
     [<1>, <1>, <2>]
+
+    >>> 2 > a
+    True
+    >>> 2 < a
+    False
+    >>> a < 2
+    True
+    >>> a > 2
+    False
+
+    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
+    ... else: 'x' > a
+    Traceback (most recent call last):
+    TypeError...
+    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
+    ... else: 'x' < a
+    Traceback (most recent call last):
+    TypeError...
+    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
+    ... else: a < 'x'
+    Traceback (most recent call last):
+    TypeError...
+    >>> if IS_PY2: raise TypeError  # doctest: +ELLIPSIS
+    ... else: a > 'x'
+    Traceback (most recent call last):
+    TypeError...
     """
     def __lt__(self, other):
-        if isinstance(self, X):
-            if isinstance(other, X):
-                return self.x < other.x
+        assert 1 <= self.x <= 2
+        assert isinstance(self, ClassLtGt), type(self)
+        if isinstance(other, X):
+            return self.x < x_of(other)
+        elif isinstance(other, int):
+            return self.x < other
         return NotImplemented
 
     def __gt__(self, other):
-        if isinstance(self, X):
-            if isinstance(other, X):
-                return self.x > other.x
+        assert 1 <= self.x <= 2
+        assert isinstance(self, ClassLtGt), type(self)
+        if isinstance(other, X):
+            return self.x > x_of(other)
+        elif isinstance(other, int):
+            return self.x > other
         return NotImplemented
 
 

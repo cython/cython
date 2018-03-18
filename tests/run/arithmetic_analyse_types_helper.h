@@ -1,4 +1,4 @@
-/* A set of mutually incompatable return types. */
+/* A set of mutually incompatible return types. */
 
 struct short_return { char *msg; };
 struct int_return { char *msg; };

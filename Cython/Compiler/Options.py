@@ -171,6 +171,8 @@ _directive_defaults = {
     'language_level': 2,
     'fast_getattr': False, # Undocumented until we come up with a better way to handle this everywhere.
     'py2_import': False, # For backward compatibility of Cython's source code in Py3 source mode
+    'preliminary_late_includes_cy28': False,  # Temporary directive in 0.28, to be removed in a later version (see GH#2079).
+    'iterable_coroutine': False,  # Make async coroutines backwards compatible with the old asyncio yield-from syntax.
     'c_string_type': 'bytes',
     'c_string_encoding': '',
     'type_version_tag': True,   # enables Py_TPFLAGS_HAVE_VERSION_TAG on extension types
@@ -194,6 +196,7 @@ _directive_defaults = {
 # optimizations
     'optimize.inline_defnode_calls': True,
     'optimize.unpack_method_calls': True,   # increases code size when True
+    'optimize.unpack_method_calls_in_pyinit': False,   # uselessly increases code size when True
     'optimize.use_switch': True,
 
 # remove unreachable code
@@ -319,6 +322,7 @@ directive_scopes = { # defaults to available everywhere
     'old_style_globals': ('module',),
     'np_pythran': ('module',),
     'fast_gil': ('module',),
+    'iterable_coroutine': ('module', 'function'),
 }
 
 

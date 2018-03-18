@@ -427,7 +427,12 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewItems(PyObject* d) {
         return CALL_UNBOUND_METHOD(PyDict_Type, "viewitems", d);
 }
 
+
 //////////////////// pyfrozenset_new.proto ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it);
+
+//////////////////// pyfrozenset_new ////////////////////
 //@substitute: naming
 
 static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {

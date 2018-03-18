@@ -528,15 +528,15 @@ string type to :obj:`str`::
     py_bytes_object = <unicode>c_string
 
 The other direction, i.e. automatic encoding to C strings, is only
-supported for the ASCII codec (and the "default encoding", which is
-runtime specific and may or may not be ASCII).  This is because
-CPython handles the memory management in this case by keeping an
-encoded copy of the string alive together with the original unicode
-string.  Otherwise, there would be no way to limit the lifetime of
-the encoded string in any sensible way, thus rendering any attempt to
-extract a C string pointer from it a dangerous endeavour.  As long
-as you stick to the ASCII encoding for the ``c_string_encoding``
-directive, though, the following will work::
+supported for ASCII and the "default encoding", which is usually UTF-8
+in Python 3 and usually ASCII in Python 2.  CPython handles the memory
+management in this case by keeping an encoded copy of the string alive
+together with the original unicode string.  Otherwise, there would be no
+way to limit the lifetime of the encoded string in any sensible way,
+thus rendering any attempt to extract a C string pointer from it a
+dangerous endeavour.  The following safely converts a Unicode string to
+ASCII (change ``c_string_encoding`` to ``default`` to use the default
+encoding instead)::
 
     # cython: c_string_type=unicode, c_string_encoding=ascii
 

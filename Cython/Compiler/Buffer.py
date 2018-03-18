@@ -326,7 +326,7 @@ def put_acquire_arg_buffer(entry, code, pos):
     code.putln("__Pyx_BufFmt_StackElem __pyx_stack[%d];" % entry.type.dtype.struct_nesting_depth())
     code.putln(code.error_goto_if("%s == -1" % getbuffer, pos))
     code.putln("}")
-    # An exception raised in arg parsing cannot be catched, so no
+    # An exception raised in arg parsing cannot be caught, so no
     # need to care about the buffer then.
     put_unpack_buffer_aux_into_scope(entry, code)
 
@@ -370,7 +370,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buf_entry,
     pybuffernd_struct = buffer_aux.buflocal_nd_var.cname
     flags = get_flags(buffer_aux, buffer_type)
 
-    code.putln("{")  # Set up necesarry stack for getbuffer
+    code.putln("{")  # Set up necessary stack for getbuffer
     code.putln("__Pyx_BufFmt_StackElem __pyx_stack[%d];" % buffer_type.dtype.struct_nesting_depth())
 
     getbuffer = get_getbuffer_call(code, "%s", buffer_aux, buffer_type) # fill in object below
@@ -617,7 +617,7 @@ class GetAndReleaseBufferUtilityCode(object):
 
 
 def mangle_dtype_name(dtype):
-    # Use prefixes to seperate user defined types from builtins
+    # Use prefixes to separate user defined types from builtins
     # (consider "typedef float unsigned_int")
     if dtype.is_pyobject:
         return "object"
@@ -636,7 +636,7 @@ def get_type_information_cname(code, dtype, maxdepth=None):
     and return the name of the type info struct.
 
     Structs with two floats of the same size are encoded as complex numbers.
-    One can seperate between complex numbers declared as struct or with native
+    One can separate between complex numbers declared as struct or with native
     encoding by inspecting to see if the fields field of the type is
     filled in.
     """

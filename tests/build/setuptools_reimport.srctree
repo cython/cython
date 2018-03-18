@@ -1,0 +1,23 @@
+# mode: run
+# tag: setuptools
+
+PYTHON setup.py
+
+
+######## module.pyx ########
+
+cimport cython
+
+
+######## import_cython.py ########
+
+import Cython.Compiler.Main
+
+
+######## setup.py ########
+
+from setuptools.sandbox import run_setup
+run_setup('import_cython.py', ['egg_info'])
+
+from Cython.Build import cythonize
+cythonize('module.pyx')

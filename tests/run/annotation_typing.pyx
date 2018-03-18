@@ -87,13 +87,13 @@ def pytypes_cdef(a, b=2, c=3, d=4):
 
 def ctypes_def(a: list, b: cython.int = 2, c: cython.long = 3, d: cython.float = 4) -> list:
     """
-    >>> pytypes_def([1])
-    ('list object', 'Python object', 'Python object', 'double')
+    >>> ctypes_def([1])
+    ('list object', 'int', 'long', 'float')
     [1, 2, 3, 4.0]
-    >>> pytypes_def([1], 3)
-    ('list object', 'Python object', 'Python object', 'double')
+    >>> ctypes_def([1], 3)
+    ('list object', 'int', 'long', 'float')
     [1, 3, 3, 4.0]
-    >>> pytypes_def(123)
+    >>> ctypes_def(123)
     Traceback (most recent call last):
     TypeError: Argument 'a' has incorrect type (expected list, got int)
     """
@@ -215,6 +215,22 @@ class LateClass(object):
     pass
 
 
+def py_float_default(price : float=None, ndigits=4):
+    """
+    Python default arguments should prevent C type inference.
+
+    >>> py_float_default()
+    (None, 4)
+    >>> py_float_default(2)
+    (2, 4)
+    >>> py_float_default(2.0)
+    (2.0, 4)
+    >>> py_float_default(2, 3)
+    (2, 3)
+    """
+    return price, ndigits
+
+
 _WARNINGS = """
 8:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
 8:47: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
@@ -223,6 +239,7 @@ _WARNINGS = """
 8:85: Python type declaration in signature annotation does not refer to a Python type
 8:85: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
 211:44: Unknown type declaration in annotation, ignoring
+218:29: Ambiguous types in annotation, ignoring
 # BUG:
 46:6: 'pytypes_cpdef' redeclared
 121:0: 'struct_io' redeclared

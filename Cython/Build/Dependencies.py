@@ -3,9 +3,17 @@ from __future__ import absolute_import, print_function
 import cython
 from .. import __version__
 
+import os
+import shutil
+import hashlib
+import subprocess
 import collections
-import re, os, sys, time
+import re, sys, time
 from glob import iglob
+from io import open as io_open
+from os.path import relpath as _relpath
+from distutils.extension import Extension
+from distutils.util import strtobool
 
 try:
     import gzip
@@ -14,34 +22,6 @@ try:
 except ImportError:
     gzip_open = open
     gzip_ext = ''
-import shutil
-import subprocess
-import os
-
-try:
-    import hashlib
-except ImportError:
-    import md5 as hashlib
-
-try:
-    from io import open as io_open
-except ImportError:
-    from codecs import open as io_open
-
-try:
-    from os.path import relpath as _relpath
-except ImportError:
-    # Py<2.6
-    def _relpath(path, start=os.path.curdir):
-        if not path:
-            raise ValueError("no path specified")
-        start_list = os.path.abspath(start).split(os.path.sep)
-        path_list = os.path.abspath(path).split(os.path.sep)
-        i = len(os.path.commonprefix([start_list, path_list]))
-        rel_list = [os.path.pardir] * (len(start_list)-i) + path_list[i:]
-        if not rel_list:
-            return os.path.curdir
-        return os.path.join(*rel_list)
 
 try:
     import pythran
@@ -49,9 +29,6 @@ try:
     PythranAvailable = True
 except:
     PythranAvailable = False
-
-from distutils.extension import Extension
-from distutils.util import strtobool
 
 from .. import Utils
 from ..Utils import (cached_function, cached_method, path_exists,
@@ -777,11 +754,11 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
             cython_sources = [s for s in pattern.sources
                               if os.path.splitext(s)[1] in ('.py', '.pyx')]
             if cython_sources:
-              filepattern = cython_sources[0]
-              if len(cython_sources) > 1:
-                print("Warning: Multiple cython sources found for extension '%s': %s\n"
-                "See http://cython.readthedocs.io/en/latest/src/userguide/sharing_declarations.html "
-                "for sharing declarations among Cython files." % (pattern.name, cython_sources))
+                filepattern = cython_sources[0]
+                if len(cython_sources) > 1:
+                    print("Warning: Multiple cython sources found for extension '%s': %s\n"
+                          "See http://cython.readthedocs.io/en/latest/src/userguide/sharing_declarations.html "
+                          "for sharing declarations among Cython files." % (pattern.name, cython_sources))
             else:
                 # ignore non-cython modules
                 module_list.append(pattern)
@@ -800,15 +777,15 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
         for file in nonempty(sorted(extended_iglob(filepattern)), "'%s' doesn't match any files" % filepattern):
             if os.path.abspath(file) in to_exclude:
                 continue
-            pkg = deps.package(file)
             module_name = deps.fully_qualified_name(file)
             if '*' in name:
                 if module_name in explicit_modules:
                     continue
-            elif name != module_name:
-                print("Warning: Extension name '%s' does not match fully qualified name '%s' of '%s'" % (
-                    name, module_name, file))
+            elif name:
                 module_name = name
+
+            if module_name == 'cython':
+                raise ValueError('cython is a special module, cannot be used as a module name')
 
             if module_name not in seen:
                 try:
@@ -921,21 +898,32 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     deps = create_dependency_tree(ctx, quiet=quiet)
     build_dir = getattr(options, 'build_dir', None)
 
-    modules_by_cfile = {}
+    def copy_to_build_dir(filepath, root=os.getcwd()):
+        filepath_abs = os.path.abspath(filepath)
+        if os.path.isabs(filepath):
+            filepath = filepath_abs
+        if filepath_abs.startswith(root):
+            # distutil extension depends are relative to cwd
+            mod_dir = join_path(build_dir,
+                                os.path.dirname(_relpath(filepath, root)))
+            copy_once_if_newer(filepath_abs, mod_dir)
+
+    modules_by_cfile = collections.defaultdict(list)
     to_compile = []
     for m in module_list:
         if build_dir:
-            root = os.getcwd()  # distutil extension depends are relative to cwd
-            def copy_to_build_dir(filepath, root=root):
-                filepath_abs = os.path.abspath(filepath)
-                if os.path.isabs(filepath):
-                    filepath = filepath_abs
-                if filepath_abs.startswith(root):
-                    mod_dir = join_path(build_dir,
-                            os.path.dirname(_relpath(filepath, root)))
-                    copy_once_if_newer(filepath_abs, mod_dir)
             for dep in m.depends:
                 copy_to_build_dir(dep)
+
+        cy_sources = [
+            source for source in m.sources
+            if os.path.splitext(source)[1] in ('.pyx', '.py')]
+        if len(cy_sources) == 1:
+            # normal "special" case: believe the Extension module name to allow user overrides
+            full_module_name = m.name
+        else:
+            # infer FQMN from source files
+            full_module_name = None
 
         new_sources = []
         for source in m.sources:
@@ -981,13 +969,12 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                         fingerprint = deps.transitive_fingerprint(source, extra)
                     else:
                         fingerprint = None
-                    to_compile.append((priority, source, c_file, fingerprint, quiet,
-                                       options, not exclude_failures, module_metadata.get(m.name)))
+                    to_compile.append((
+                        priority, source, c_file, fingerprint, quiet,
+                        options, not exclude_failures, module_metadata.get(m.name),
+                        full_module_name))
                 new_sources.append(c_file)
-                if c_file not in modules_by_cfile:
-                    modules_by_cfile[c_file] = [m]
-                else:
-                    modules_by_cfile[c_file].append(m)
+                modules_by_cfile[c_file].append(m)
             else:
                 new_sources.append(source)
                 if build_dir:
@@ -1103,17 +1090,15 @@ else:
 
 # TODO: Share context? Issue: pyx processing leaks into pxd module
 @record_results
-def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None, raise_on_failure=True, embedded_metadata=None, progress=""):
-    from ..Compiler.Main import compile, default_options
+def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
+                  raise_on_failure=True, embedded_metadata=None, full_module_name=None,
+                  progress=""):
+    from ..Compiler.Main import compile_single, default_options
     from ..Compiler.Errors import CompileError, PyrexError
 
     if fingerprint:
         if not os.path.exists(options.cache):
-            try:
-                os.mkdir(options.cache)
-            except:
-                if not os.path.exists(options.cache):
-                    raise
+            safe_makedirs(options.cache)
         # Cython-generated c files are highly compressible.
         # (E.g. a compression ratio of about 10 for Sage).
         fingerprint_file = join_path(
@@ -1141,7 +1126,7 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None, raise_on_f
 
     any_failures = 0
     try:
-        result = compile([pyx_file], options)
+        result = compile_single(pyx_file, options, full_module_name=full_module_name)
         if result.num_errors > 0:
             any_failures = 1
     except (EnvironmentError, PyrexError) as e:

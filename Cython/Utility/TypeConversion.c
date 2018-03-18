@@ -645,7 +645,8 @@ static const char DIGIT_PAIRS_8[2*8*8+1] = {
 };
 
 static const char DIGITS_HEX[2*16+1] = {
-    "0123456789abcdef0123456789ABCDEF"
+    "0123456789abcdef"
+    "0123456789ABCDEF"
 };
 
 
@@ -686,43 +687,42 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
     if (format_char == 'X') {
         hex_digits += 16;
         format_char = 'x';
-    };
+    }
 
     // surprise: even trivial sprintf() calls don't get optimised in gcc (4.8)
     remaining = value; /* not using abs(value) to avoid overflow problems */
     last_one_off = 0;
     dpos = end;
-    while (remaining != 0) {
+    do {
         int digit_pos;
         switch (format_char) {
         case 'o':
             digit_pos = abs((int)(remaining % (8*8)));
-            remaining = remaining / (8*8);
+            remaining = ({{TYPE}}) (remaining / (8*8));
             dpos -= 2;
             *(uint16_t*)dpos = ((uint16_t*)DIGIT_PAIRS_8)[digit_pos]; /* copy 2 digits at a time */
             last_one_off = (digit_pos < 8);
             break;
         case 'd':
             digit_pos = abs((int)(remaining % (10*10)));
-            remaining = remaining / (10*10);
+            remaining = ({{TYPE}}) (remaining / (10*10));
             dpos -= 2;
             *(uint16_t*)dpos = ((uint16_t*)DIGIT_PAIRS_10)[digit_pos]; /* copy 2 digits at a time */
             last_one_off = (digit_pos < 10);
             break;
         case 'x':
             *(--dpos) = hex_digits[abs((int)(remaining % 16))];
-            remaining = remaining / 16;
+            remaining = ({{TYPE}}) (remaining / 16);
             break;
         default:
             assert(0);
             break;
         }
-    }
+    } while (unlikely(remaining != 0));
+
     if (last_one_off) {
         assert(*dpos == '0');
         dpos++;
-    } else if (unlikely(dpos == end)) {
-        *(--dpos) = '0';
     }
     length = end - dpos;
     ulength = length;

@@ -3,11 +3,11 @@ Faster code via static typing
 
 Cython is a Python compiler.  This means that it can compile normal
 Python code without changes (with a few obvious exceptions of some as-yet
-unsupported language features).  However, for performance critical
-code, it is often helpful to add static type declarations, as they
-will allow Cython to step out of the dynamic nature of the Python code
-and generate simpler and faster C code - sometimes faster by orders of
-magnitude.
+unsupported language features, see :ref:`Cython limitations<cython-limitations>`).
+However, for performance critical code, it is often helpful to add
+static type declarations, as they will allow Cython to step out of the
+dynamic nature of the Python code and generate simpler and faster C code
+- sometimes faster by orders of magnitude.
 
 It must be noted, however, that type declarations can make the source
 code more verbose and thus less readable.  It is therefore discouraged
@@ -146,4 +146,10 @@ of ``f`` is known to be a C double.)  A notable exception, however, is
 *integer types used in arithmetic expressions*, as Cython is unable to ensure
 that an overflow would not occur (and so falls back to ``object`` in case
 Python's bignums are needed).  To allow inference of C integer types, set the
-``infer_types`` :ref:`directive <compiler-directives>` to ``True``.
+``infer_types`` :ref:`directive <compiler-directives>` to ``True``. This directive
+does a work similar to the ``auto`` keyword in C++ for the readers who are familiar
+with this language feature. It can be of great help to cut down on the need to type
+everything, but it also can lead to surprises. Especially if one isn't familiar with
+arithmetic expressions with c types. A quick overview of those
+can be found `here <https://www.eskimo.com/~scs/cclass/int/sx4cb.html>`_.
+

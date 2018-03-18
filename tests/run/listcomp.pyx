@@ -150,6 +150,57 @@ def listcomp_const_condition_false():
     return [x*2 for x in range(3) if False]
 
 
+@cython.test_fail_if_path_exists("//IfStatNode",
+                                 "//ComprehensionAppendNode")
+@cython.test_assert_path_exists("//ComprehensionNode")
+def listcomp_const_condition_false_bool_test():
+    """
+    >>> listcomp_const_condition_false_bool_test()
+    True
+    """
+    return not [l for l in [1] if False]
+
+
+@cython.test_fail_if_path_exists("//IfStatNode",
+                                 "//ComprehensionAppendNode")
+@cython.test_assert_path_exists("//ComprehensionNode")
+def listcomp_const_condition_false_assert():
+    """
+    >>> listcomp_const_condition_false_assert()
+    """
+    assert not [l for l in [1] if False]
+
+
+@cython.test_fail_if_path_exists("//ComprehensionNode//IfStatNode",
+                                 "//ComprehensionAppendNode")
+@cython.test_assert_path_exists("//ComprehensionNode",
+                                "//IfStatNode")
+def listcomp_const_condition_false_if():
+    """
+    >>> listcomp_const_condition_false_if()
+    True
+    """
+    if not [l for l in [1] if False]:
+        return True
+    return False
+
+
+@cython.test_fail_if_path_exists("//ComprehensionNode//IfStatNode",
+                                 "//ComprehensionAppendNode")
+@cython.test_assert_path_exists("//ComprehensionNode",
+                                "//IfStatNode")
+def listcomp_const_condition_false_typed_error():
+    """
+    >>> listcomp_const_condition_false_typed_error()  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
+    """
+    cdef str l
+    if not [l for l in [1] if False]:
+        return True
+    return False
+
+
 @cython.test_fail_if_path_exists("//IfStatNode")
 @cython.test_assert_path_exists("//ComprehensionNode",
                                 "//ComprehensionAppendNode")

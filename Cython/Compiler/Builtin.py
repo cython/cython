@@ -328,7 +328,10 @@ builtin_types_table = [
     ("set",       "PySet_Type",    [BuiltinMethod("__contains__",  "TO",   "b", "PySequence_Contains"),
                                     BuiltinMethod("clear",   "T",  "r", "PySet_Clear"),
                                     # discard() and remove() have a special treatment for unhashable values
-#                                    BuiltinMethod("discard", "TO", "r", "PySet_Discard"),
+                                    BuiltinMethod("discard", "TO", "r", "__Pyx_PySet_Discard",
+                                                  utility_code=UtilityCode.load("py_set_discard", "Optimize.c")),
+                                    BuiltinMethod("remove",  "TO", "r", "__Pyx_PySet_Remove",
+                                                  utility_code=UtilityCode.load("py_set_remove", "Optimize.c")),
                                     # update is actually variadic (see Github issue #1645)
 #                                    BuiltinMethod("update",     "TO", "r", "__Pyx_PySet_Update",
 #                                                  utility_code=UtilityCode.load_cached("PySet_Update", "Builtins.c")),
@@ -388,6 +391,8 @@ def init_builtin_types():
         utility = builtin_utility_code.get(name)
         if name == 'frozenset':
             objstruct_cname = 'PySetObject'
+        elif name == 'bytearray':
+            objstruct_cname = 'PyByteArrayObject'
         elif name == 'bool':
             objstruct_cname = None
         elif name == 'Exception':

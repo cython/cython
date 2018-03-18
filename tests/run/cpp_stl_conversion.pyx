@@ -72,6 +72,16 @@ def test_string_call(a, b):
     """
     return add_strings(a, b)
 
+def test_c_string_convert(char *c_string):
+    """
+    >>> normalize(test_c_string_convert("abc".encode('ascii')))
+    'abc'
+    """
+    cdef string s
+    with nogil:
+        s = c_string
+    return s
+
 def test_int_vector(o):
     """
     >>> test_int_vector([1, 2, 3])
