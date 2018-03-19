@@ -207,22 +207,22 @@ After building this and continuing my (very informal) benchmarks, I get:
 So in the end, adding types make the Cython code slower?
 
 What happend is that most of the time spend in this code is spent on line
-60. ::
+54. ::
 
     value += g[smid - s, tmid - t] * f[v, w]
 
 So what made this line so much slower than in the pure Python version?
 
 ``g`` and ``f`` are still NumPy arrays, so Python objects, and expect
-Python integers as indexes. Here we give C integers. So every time
+Python integers as indexes. Here we give C integer. So every time
 Cython reaches this line, it has to convert all the C integers to Python
 integers. Since this line is called very often, it outweight the speed
 benefits of the pure C loops that were created from the ``range()`` earlier.
 
 Furthermore, ``g[smid - s, tmid - t] * f[v, w]`` returns a Python integer
-and ``value`` is a C integers, Cython has to do a type conversion again.
+and ``value`` is a C integers, so Cython has to do a type conversion again.
 In the end those types conversions add up. And made our convolution really
-slow. But this can be solved easily by using memoryviews.
+slow. But this problem can be solved easily by using memoryviews.
 
 Efficient indexing with memoryviews
 ===================================
@@ -242,6 +242,13 @@ of a NumPy array. They also support slices, so they work even if
 the NumPy array isn't contiguous in memory.
 They can be indexed by C integers, thus allowing fast access to the
 NumPy array data.
+
+Here is how to declare a memoryview of integers::
+
+    cdef int [:] foo         # 1D memoryview
+    cdef int [:, :] foo      # 2D memoryview
+    cdef int [:, :, :] foo   # 3D memoryview
+    ...                      # You get the idea.
 
 No data is copied from the NumPy array to the memoryview in our example.
 As the name implies, it is only a "view" of the memory. So we can use
@@ -266,8 +273,8 @@ Note the importance of this change.
 We're now 290 times faster than an interpreted version of Python.
 
 Memoryviews can be used with slices too, or even
-with Python arrays. Check out the `memoryview page <memoryviews>`to see what they
-can do for you.
+with Python arrays. Check out the :ref:`memoryview page <memoryviews>` to
+see what they can do for you.
 
 Tuning indexing further
 ========================
@@ -319,18 +326,20 @@ Declaring the NumPy arrays as contiguous
 
 For extra speed gains, if you know that the NumPy arrays you are
 providing are contiguous in memory, you can declare the
-memoryview as holding data contiguous in memory.
+memoryview as contiguous.
 
 We give an example on an array that has 3 dimensions.
-If they are C-contiguous you have to declare the memoryview like this::
+If you want to give Cython the information that the data is C-contiguous
+you have to declare the memoryview like this::
 
     cdef int [:,:,::1] a
 
-if they are F-contiguous, you can declare the memoryview like this::
+If you want to give Cython the information that the data is C-contiguous
+you have to declare the memoryview like this::
 
     cdef int [::1, :, :] a
 
-If all this makes no sense to you, you can skip it, the performance gains are
+If all this makes no sense to you, you can skip this part, the performance gains are
 not that important. If you still want to understand what contiguous arrays are
 all about, you can see `this answer on StackOverflow
 <https://stackoverflow.com/questions/26998223/what-is-the-difference-between-contiguous-and-non-contiguous-arrays>`_.
@@ -354,7 +363,7 @@ the ``infer_types=True`` compiler directive at the top of the file.
 It will save you quite a bit of typing.
 
 Note that since type declarations must happen at the top indentation level,
-Cython won't infer the type of variable declared for the first time
+Cython won't infer the type of variables declared for the first time
 in other indentation levels. It would change too much the meaning of
 our code. This is why, we must still declare manually the type of the
 ``value`` variable.

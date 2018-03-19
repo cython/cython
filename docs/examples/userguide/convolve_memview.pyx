@@ -2,6 +2,7 @@ import numpy as np
 
 DTYPE = np.intc
 
+# It is possible to declare types in the function declaration.
 def naive_convolve(int [:,:] f, int [:,:] g):
     if g.shape[0] % 2 != 1 or g.shape[1] % 2 != 1:
         raise ValueError("Only odd dimensions on filter supported")
