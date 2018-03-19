@@ -8,8 +8,7 @@ Limitations
 
 This page used to list bugs in Cython that made the semantics of
 compiled code differ from that in Python.  Most of the missing
-features have been fixed in Cython 0.15.  The bug tracker has an
-up-to-date `list of remaining compatibility issues`_.  Note that a
+features have been fixed in Cython 0.15. Note that a
 future version 1.0 of Cython is planned to provide full Python
 language compatibility.
 
