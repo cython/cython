@@ -65,3 +65,5 @@ cdef extern from "<unordered_map>" namespace "std" nogil:
         #value_compare value_comp()
         void max_load_factor(float)
         float max_load_factor()
+        void reserve(size_t)
+        size_t bucket_count()
