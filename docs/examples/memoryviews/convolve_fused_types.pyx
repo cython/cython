@@ -1,28 +1,38 @@
+# cython: infer_types=True
 import numpy as np
+cimport cython
 
-DTYPE = np.intc
+ctypedef fused my_type:
+    int
+    double
+    long
 
-# It is possible to declare types in the function declaration.
-def naive_convolve(int [:,:] f, int [:,:] g):
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cpdef naive_convolve(my_type [:,:] f, my_type [:,:] g):
     if g.shape[0] % 2 != 1 or g.shape[1] % 2 != 1:
         raise ValueError("Only odd dimensions on filter supported")
 
-    # We don't need to check for the type of NumPy array here because
-    # a check is already performed when calling the function.
-    cdef int x, y, s, t, v, w, s_from, s_to, t_from, t_to
-    cdef int vmax = f.shape[0]
-    cdef int wmax = f.shape[1]
-    cdef int smax = g.shape[0]
-    cdef int tmax = g.shape[1]
-    cdef int smid = smax // 2
-    cdef int tmid = tmax // 2
-    cdef int xmax = vmax + 2*smid
-    cdef int ymax = wmax + 2*tmid
+    vmax = f.shape[0]
+    wmax = f.shape[1]
+    smax = g.shape[0]
+    tmax = g.shape[1]
+    smid = smax // 2
+    tmid = tmax // 2
+    xmax = vmax + 2*smid
+    ymax = wmax + 2*tmid
 
-    h_np =  np.zeros([xmax, ymax], dtype=DTYPE)
-    cdef int [:,:] h = h_np
+    if my_type is int:
+        dtype = np.intc
+    elif my_type is double:
+        dtype = np.double
+    else:
+        dtype = np.long
 
-    cdef int value
+    h_np =  np.zeros([xmax, ymax], dtype=dtype)
+    cdef my_type [:,:] h = h_np
+
+    cdef my_type value
     for x in range(xmax):
         for y in range(ymax):
             s_from = max(smid - x, -smid)

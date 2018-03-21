@@ -13,27 +13,24 @@ def naive_convolve(f, g):
     # can only be used at the top indentation level (there are non-trivial
     # problems with allowing them in other places, though we'd love to see
     # good and thought out proposals for it).
-    #
-    # For the indices, the "int" type is used. This corresponds to a C int,
-    # other C types (like "unsigned int") could have been used instead.
-    # Purists could use "Py_ssize_t" which is the proper Python type for
-    # array indices.
-    cdef int x, y, s, t, v, w, s_from, s_to, t_from, t_to
 
-    cdef int vmax = f.shape[0]
-    cdef int wmax = f.shape[1]
-    cdef int smax = g.shape[0]
-    cdef int tmax = g.shape[1]
-    cdef int smid = smax // 2
-    cdef int tmid = tmax // 2
-    cdef int xmax = vmax + 2*smid
-    cdef int ymax = wmax + 2*tmid
+    # Py_ssize_t is the proper C type for Python array indices.
+    cdef Py_ssize_t x, y, s, t, v, w, s_from, s_to, t_from, t_to
+
+    cdef Py_ssize_t vmax = f.shape[0]
+    cdef Py_ssize_t wmax = f.shape[1]
+    cdef Py_ssize_t smax = g.shape[0]
+    cdef Py_ssize_t tmax = g.shape[1]
+    cdef Py_ssize_t smid = smax // 2
+    cdef Py_ssize_t tmid = tmax // 2
+    cdef Py_ssize_t xmax = vmax + 2*smid
+    cdef Py_ssize_t ymax = wmax + 2*tmid
     h = np.zeros([xmax, ymax], dtype=DTYPE)
     # It is very important to type ALL your variables. You do not get any
     # warnings if not, only much slower code (they are implicitly typed as
     # Python objects).
     # For the value variable, we want to use the same data type as is
-    # stored in the array, so we use "DTYPE_t" as defined above.
+    # stored in the array, so we use int because it correspond to np.intc.
     # NB! An important side-effect of this is that if "value" overflows its
     # datatype size, it will simply wrap around like in C, rather than raise
     # an error like in Python.
