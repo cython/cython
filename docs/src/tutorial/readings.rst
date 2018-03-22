@@ -4,7 +4,7 @@ Further reading
 The main documentation is located at http://docs.cython.org/. Some
 recent features might not have documentation written yet, in such
 cases some notes can usually be found in the form of a Cython
-Enhancement Proposal (CEP) on http://wiki.cython.org/enhancements.
+Enhancement Proposal (CEP) on https://github.com/cython/cython/wiki/enhancements.
 
 [Seljebotn09]_ contains more information about Cython and NumPy
 arrays. If you intend to use Cython code in a multi-threaded setting,
