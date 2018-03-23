@@ -63,6 +63,8 @@ cdef extern from "<string>" namespace "std" nogil:
 
         char& at(size_t)
         char& operator[](size_t)
+        char& front()
+        char& back()
         int compare(const string&)
 
         string& append(const string&)
