@@ -429,6 +429,64 @@ running session.  Please check `Sage documentation
 You can tailor the behavior of the Cython compiler by specifying the
 directives below.
 
+.. _compiling_notebook:
+
+Compiling with a Jupyter Notebook
+=================================
+
+It's possible to compile code in a notebook cell with Cython.
+For this you need to load the Cython magic::
+
+    %load_ext Cython
+
+Then you can define a Cython cell by writing ``%%cython`` on top of it.
+Like this::
+
+    %%cython
+
+    cdef int a = 0
+    for i in range(10):
+        a += i
+    print(a)
+
+Note that each cell will be compiled individually. So if you use a package in a Cython
+cell, you will have to import this package in the same cell. It's not enough to
+have imported the package in a previous cell. Cython will tell you about it at
+compilation time if you don't comply.
+
+Additional allowable arguments to the Cython magic are:
+
+============================================  =======================================================================================================================================
+
+-a, --annotate                                Produce a colorized HTML version of the source.
+
+-+, --cplus                                   Output a C++ rather than C file.
+
+-f, --force                                   Force the compilation of a new module, even if the source has been previously compiled.
+
+-3                                            Select Python 3 syntax
+
+-2                                            Select Python 2 syntax
+
+-c=COMPILE_ARGS, --compile-args=COMPILE_ARGS  Extra flags to pass to compiler via the extra_compile_args.
+
+--link-args LINK_ARGS                         Extra flags to pass to linker via the extra_link_args.
+
+-l LIB, --lib LIB                             Add a library to link the extension against (can be specified multiple times).
+
+-L dir                                        Add a path to the list of libary directories (can be specified multiple times).
+
+-I INCLUDE, --include INCLUDE                 Add a path to the list of include directories (can be specified multiple times).
+
+-S, --src                                     Add a path to the list of src files (can be specified multiple times).
+
+-n NAME, --name NAME                          Specify a name for the Cython module.
+
+--pgo                                         Enable profile guided optimisation in the C compiler. Compiles the cell twice and executes it in between to generate a runtime profile.
+
+--verbose                                     Print debug information like generated .c/.cpp file location and exact gcc/g++ command invoked.
+============================================  =======================================================================================================================================
+
 .. _compiler-directives:
 
 Compiler directives
