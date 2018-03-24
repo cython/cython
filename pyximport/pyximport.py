@@ -496,9 +496,10 @@ def install(pyximport=True, pyimport=False, build_dir=None, build_in_temp=True,
 
     :param pyimport: You can pass ``pyimport=True`` to also
         install the ``.py`` import hook
-        in your meta-path.  Note, however, that it is highly experimental,
-        will not work for most ``.py`` files, and will therefore only slow
-        down your imports.  Use at your own risk.
+        in your meta-path.  Note, however, that it is rather experimental,
+        will not work at all for some ``.py`` files and packages, and will
+        heavily slow down your imports due to search and compilation.
+        Use at your own risk.
 
     :param build_dir: By default, compiled modules will end up in a ``.pyxbld``
         directory in the user's home directory.  Passing a different path
