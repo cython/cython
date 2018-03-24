@@ -1192,9 +1192,9 @@ class SwitchTransform(Visitor.EnvTransform):
             if common_var is None:
                 self.visitchildren(node)
                 return node
-            cases.append(Nodes.SwitchCaseNode(pos = if_clause.pos,
-                                              conditions = conditions,
-                                              body = if_clause.body))
+            cases.append(Nodes.SwitchCaseNode(pos=if_clause.pos,
+                                              conditions=conditions,
+                                              body=if_clause.body))
 
         condition_values = [
             cond for case in cases for cond in case.conditions]
@@ -1206,10 +1206,10 @@ class SwitchTransform(Visitor.EnvTransform):
             return node
 
         common_var = unwrap_node(common_var)
-        switch_node = Nodes.SwitchStatNode(pos = node.pos,
-                                           test = common_var,
-                                           cases = cases,
-                                           else_clause = node.else_clause)
+        switch_node = Nodes.SwitchStatNode(pos=node.pos,
+                                           test=common_var,
+                                           cases=cases,
+                                           else_clause=node.else_clause)
         return switch_node
 
     def visit_CondExprNode(self, node):
@@ -1220,10 +1220,11 @@ class SwitchTransform(Visitor.EnvTransform):
         not_in, common_var, conditions = self.extract_common_conditions(
             None, node.test, True)
         if common_var is None \
-               or len(conditions) < 2 \
-               or self.has_duplicate_values(conditions):
+                or len(conditions) < 2 \
+                or self.has_duplicate_values(conditions):
             self.visitchildren(node)
             return node
+
         return self.build_simple_switch_statement(
             node, common_var, conditions, not_in,
             node.true_val, node.false_val)
@@ -1236,8 +1237,8 @@ class SwitchTransform(Visitor.EnvTransform):
         not_in, common_var, conditions = self.extract_common_conditions(
             None, node, True)
         if common_var is None \
-               or len(conditions) < 2 \
-               or self.has_duplicate_values(conditions):
+                or len(conditions) < 2 \
+                or self.has_duplicate_values(conditions):
             self.visitchildren(node)
             node.wrap_operands(self.current_env())  # in case we changed the operands
             return node
@@ -1255,8 +1256,8 @@ class SwitchTransform(Visitor.EnvTransform):
         not_in, common_var, conditions = self.extract_common_conditions(
             None, node, True)
         if common_var is None \
-               or len(conditions) < 2 \
-               or self.has_duplicate_values(conditions):
+                or len(conditions) < 2 \
+                or self.has_duplicate_values(conditions):
             self.visitchildren(node)
             return node
 
