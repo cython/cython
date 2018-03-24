@@ -43,7 +43,8 @@ extensions = [
     'cython_highlighting',
     'sphinx.ext.pngmath',
     'sphinx.ext.todo',
-    'sphinx.ext.intersphinx'
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.autodoc'
     ]
 
 try: import rst2pdf
