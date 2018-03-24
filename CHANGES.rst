@@ -9,7 +9,21 @@ Bugs fixed
 ----------
 
 * The ``switch`` statement generation failed to apply to the body of converted
-  if-statements
+  if-statements.
+
+* ``NULL`` was sometimes rejected as exception return value when the returned
+  type is a fused pointer type.
+  Patch by Callie LeFave.  (Github issue #2177)
+
+* Fixed compatibility with PyPy 5.11.
+  Patch by Matti Picus.  (Github issue #2165)
+
+Other changes
+-------------
+
+* The NumPy tutorial was rewritten to use memoryviews instead of the older
+  buffer declaration syntax.
+  Contributed by Gabriel de Marmiesse.  (Github issue #2162)
 
 
 0.28.1 (2018-03-18)
