@@ -2,6 +2,16 @@
 Cython Changelog
 ================
 
+0.28.2 (2018-??-??)
+===================
+
+Bugs fixed
+----------
+
+* The ``switch`` statement generation failed to apply to the body of converted
+  if-statements
+
+
 0.28.1 (2018-03-18)
 ===================
 

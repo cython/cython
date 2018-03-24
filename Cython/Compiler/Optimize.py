@@ -1205,6 +1205,11 @@ class SwitchTransform(Visitor.EnvTransform):
             self.visitchildren(node)
             return node
 
+        # Recurse into body subtrees that we left untouched so far.
+        self.visitchildren(node, 'else_clause')
+        for case in cases:
+            self.visitchildren(case, 'body')
+
         common_var = unwrap_node(common_var)
         switch_node = Nodes.SwitchStatNode(pos=node.pos,
                                            test=common_var,
