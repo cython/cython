@@ -437,7 +437,7 @@ Compiling with a Jupyter Notebook
 It's possible to compile code in a notebook cell with Cython.
 For this you need to load the Cython magic::
 
-    %load_ext Cython
+    %load_ext cython
 
 Then you can define a Cython cell by writing ``%%cython`` on top of it.
 Like this::
@@ -449,12 +449,17 @@ Like this::
         a += i
     print(a)
 
-Note that each cell will be compiled individually. So if you use a package in a Cython
+Note that each cell will be compiled into a separate extension module. So if you use a package in a Cython
 cell, you will have to import this package in the same cell. It's not enough to
-have imported the package in a previous cell. Cython will tell you about it at
-compilation time if you don't comply.
+have imported the package in a previous cell. Cython will tell you that there are
+"undefined global names" at compilation time if you don't comply.
 
-Additional allowable arguments to the Cython magic are:
+The global names (top level functions, classes, variables and modules) of the
+cell are then loaded into the global namespace of the notebook. So in the
+end, it behaves as if you executed a Python cell.
+
+Additional allowable arguments to the Cython magic are listed below.
+You can see them also by typing ```%%cython?`` in IPython or a Jupyter notebook.
 
 ============================================  =======================================================================================================================================
 
