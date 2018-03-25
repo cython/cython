@@ -91,6 +91,8 @@ You can show Cython's code analysis by passing the ``--annotate`` option::
 
 .. figure:: jupyter.png
 
+For more information about the arguments of the ``%%cython`` magic, see
+:ref:`Compiling with a Jupyter Notebook <compiling_notebook>`.
 
 Using the Sage notebook
 -----------------------
