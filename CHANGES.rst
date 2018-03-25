@@ -5,6 +5,11 @@ Cython Changelog
 0.28.2 (2018-??-??)
 ===================
 
+Features added
+--------------
+
+* ``abs()`` is faster for Python long objects.
+
 Bugs fixed
 ----------
 
