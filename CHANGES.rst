@@ -10,6 +10,9 @@ Features added
 
 * ``abs()`` is faster for Python long objects.
 
+* The C++11 methods ``front()`` and ``end()`` were added to the declaration of
+  ``libcpp.string``.  Patch by Alex Huszagh.  (Github issue #2123)
+
 Bugs fixed
 ----------
 
