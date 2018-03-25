@@ -275,7 +275,17 @@ static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
         // digits are unsigned
         return PyLong_FromLong(((PyLongObject*)n)->ob_digit[0]);
     }
-    return ((PyTypeObject*)Py_TYPE(n))->tp_as_number->nb_negative(n);
+#if CYTHON_COMPILING_IN_CPYTHON
+    {
+        PyObject *copy = _PyLong_Copy((PyLongObject*)n);
+        if (likely(copy)) {
+            Py_SIZE(copy) = -(Py_SIZE(copy));
+        }
+        return copy;
+    }
+#else
+    return PyNumber_Negative(n);
+#endif
 }
 #endif
 
