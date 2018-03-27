@@ -711,8 +711,12 @@ class MemoryViewSliceType(PyrexType):
             to_axes_c = follow_dim * (ndim - 1) + contig_dim
             to_axes_f = contig_dim + follow_dim * (ndim -1)
 
-            to_memview_c = MemoryViewSliceType(self.dtype, to_axes_c)
-            to_memview_f = MemoryViewSliceType(self.dtype, to_axes_f)
+            dtype = self.dtype
+            if dtype.is_const:
+                dtype = dtype.const_base_type
+
+            to_memview_c = MemoryViewSliceType(dtype, to_axes_c)
+            to_memview_f = MemoryViewSliceType(dtype, to_axes_f)
 
             for to_memview, cython_name in [(to_memview_c, "copy"),
                                             (to_memview_f, "copy_fortran")]:

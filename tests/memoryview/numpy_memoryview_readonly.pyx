@@ -110,3 +110,17 @@ def test_assign_ro_to_rw(x):
     cdef double[:] rw = np.empty_like(ro)
     rw[:] = ro
     return rw[2]
+
+
+def test_copy():
+    """
+    >>> test_copy()
+    (1.0, 2.0, 1.0, 1.0, 1.0, 2.0)
+    """
+    cdef const double[:] ro = np.ones(3)
+    cdef const double[:] ro2 = ro.copy()
+    cdef double[:] rw = ro.copy()
+    cdef double[:] rw2 = ro2.copy()
+    rw[1] = 2
+    rw2[2] = 2
+    return rw[0], rw[1], rw[2], rw2[0], rw2[1], rw2[2]
