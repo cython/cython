@@ -214,7 +214,7 @@ After building this and continuing my (very informal) benchmarks, I get:
 
 So in the end, adding types make the Cython code slower?
 
-What happend is that most of the time spend in this code is spent on line
+What happened is that most of the time spend in this code is spent on line
 54. ::
 
     value += g[smid - s, tmid - t] * f[v, w]
@@ -404,7 +404,7 @@ code work for multiple NumPy data types?
 Yes, with the help of a new feature called fused types.
 You can learn more about it at :ref:`this section of the documentation
 <fusedtypes>`.
-It is similar to C++ 's templates. It generates mutiple function declarations
+It is similar to C++ 's templates. It generates multiple function declarations
 at compile time, and then chooses the right one at run-time based on the
 types of the arguments provided. By comparing types in if-conditions, it
 is also possible to execute entirely different code paths depending

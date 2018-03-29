@@ -479,7 +479,7 @@ You can see them also by typing ```%%cython?`` in IPython or a Jupyter notebook.
 
 -l LIB, --lib LIB                             Add a library to link the extension against (can be specified multiple times).
 
--L dir                                        Add a path to the list of libary directories (can be specified multiple times).
+-L dir                                        Add a path to the list of library directories (can be specified multiple times).
 
 -I INCLUDE, --include INCLUDE                 Add a path to the list of include directories (can be specified multiple times).
 
