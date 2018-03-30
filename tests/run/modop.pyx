@@ -216,7 +216,7 @@ def modptr():
 
 def mod_bigint(obj):
     """
-    >>> mod_bigint(3316000000000)
+    >>> print(mod_bigint(3316000000000))
     319
     """
     result = obj % 999
