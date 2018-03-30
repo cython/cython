@@ -3297,6 +3297,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             # mixed old-/new-style division is not currently optimised for integers
             return node
         elif abs(numval.constant_result) > 2**30:
+            # Cut off at an integer border that is still safe for all operations.
             return node
 
         args = list(args)
@@ -3307,7 +3308,8 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
         args.append(ExprNodes.BoolNode(node.pos, value=inplace, constant_result=inplace))
 
         utility_code = TempitaUtilityCode.load_cached(
-            "PyFloatBinop" if is_float else "PyIntBinop", "Optimize.c",
+            "PyFloatBinop" if is_float else "PyIntCompare" if operator in ('Eq', 'Ne') else "PyIntBinop",
+            "Optimize.c",
             context=dict(op=operator, order=arg_order, ret_type=ret_type))
 
         call_node = self._substitute_method_call(

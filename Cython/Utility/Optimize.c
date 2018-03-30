@@ -698,6 +698,90 @@ fallback:
 }
 
 
+/////////////// PyIntCompare.proto ///////////////
+
+{{py: c_ret_type = 'PyObject*' if ret_type.is_pyobject else 'int'}}
+static CYTHON_INLINE {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(PyObject *op1, PyObject *op2, long intval, long inplace); /*proto*/
+
+/////////////// PyIntCompare ///////////////
+
+{{py: pyval, ival = ('op2', 'b') if order == 'CObj' else ('op1', 'a') }}
+{{py: c_ret_type = 'PyObject*' if ret_type.is_pyobject else 'int'}}
+{{py: return_true = 'Py_RETURN_TRUE' if ret_type.is_pyobject else 'return 1'}}
+{{py: return_false = 'Py_RETURN_FALSE' if ret_type.is_pyobject else 'return 0'}}
+{{py: slot_name = op.lower() }}
+{{py: c_op = {'Eq': '==', 'Ne': '!='}[op] }}
+{{py:
+return_compare = (
+    (lambda a,b,c_op: "if ({a} {c_op} {b}) {return_true}; else {return_false};".format(
+        a=a, b=b, c_op=c_op, return_true=return_true, return_false=return_false))
+    if ret_type.is_pyobject else
+    (lambda a,b,c_op: "return ({a} {c_op} {b});".format(a=a, b=b, c_op=c_op))
+    )
+}}
+
+static CYTHON_INLINE {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHON_UNUSED long intval, CYTHON_UNUSED long inplace) {
+    if (op1 == op2) {
+        {{return_true if op == 'Eq' else return_false}};
+    }
+
+    #if PY_MAJOR_VERSION < 3
+    if (likely(PyInt_CheckExact({{pyval}}))) {
+        const long {{'a' if order == 'CObj' else 'b'}} = intval;
+        long {{ival}} = PyInt_AS_LONG({{pyval}});
+        {{return_compare('a', 'b', c_op)}}
+    }
+    #endif
+
+    #if CYTHON_USE_PYLONG_INTERNALS
+    if (likely(PyLong_CheckExact({{pyval}}))) {
+        int unequal;
+        unsigned long uintval;
+        Py_ssize_t size = Py_SIZE({{pyval}});
+        const digit* digits = ((PyLongObject*){{pyval}})->ob_digit;
+        if (intval == 0) {
+            // == 0  =>  Py_SIZE(pyval) == 0
+            {{return_compare('size', '0', c_op)}}
+        } else if (intval < 0) {
+            // < 0  =>  Py_SIZE(pyval) < 0
+            if (size >= 0)
+                {{return_false if op == 'Eq' else return_true}};
+            // both are negative => can use absolute values now.
+            intval = -intval;
+            size = -size;
+        } else {
+            // > 0  =>  Py_SIZE(pyval) > 0
+            if (size <= 0)
+                {{return_false if op == 'Eq' else return_true}};
+        }
+        // After checking that the sign is the same (and excluding 0), now compare the absolute values.
+        // When inlining, the C compiler should select exactly one line from this unrolled loop.
+        uintval = (unsigned long) intval;
+        if ((0));
+        {{for _size in range(4, 1, -1)}}
+#if PyLong_SHIFT * {{_size}} < SIZEOF_LONG*8
+        else if (uintval >= {{_size-1}}UL * (unsigned long) PyLong_BASE)
+            unequal = (size != {{_size}}) || (digits[0] != (uintval & PyLong_MASK))
+                {{for _i in range(1, _size)}} | (digits[{{_i}}] != ((uintval >> ({{_i}} * PyLong_SHIFT)) & PyLong_MASK)){{endfor}};
+#endif
+        {{endfor}}
+        else unequal = (size != 1) || (digits[0] != (uintval & PyLong_MASK));
+
+        {{return_compare('unequal', '0', c_op)}}
+    }
+    #endif
+
+    if (PyFloat_CheckExact({{pyval}})) {
+        const long {{'a' if order == 'CObj' else 'b'}} = intval;
+        double {{ival}} = PyFloat_AS_DOUBLE({{pyval}});
+        {{return_compare('(double)a', '(double)b', c_op)}}
+    }
+
+    return {{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(
+        PyObject_RichCompare(op1, op2, Py_{{op.upper()}}));
+}
+
+
 /////////////// PyIntBinop.proto ///////////////
 
 {{py: c_ret_type = 'PyObject*' if ret_type.is_pyobject else 'int'}}
