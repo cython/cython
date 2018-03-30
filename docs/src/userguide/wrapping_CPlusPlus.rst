@@ -658,7 +658,7 @@ Cython has support for the ``typeid(...)`` operator.
 The ``typeid(...)`` operator returns an object of the type ``const type_info &``.
 
 If you want to store a type_info value in a C variable, you will need to store it
-as a pointer rather than a reference:
+as a pointer rather than a reference::
 
     from libcpp.typeinfo cimport type_info
     cdef const type_info* info = &typeid(MyClass)
