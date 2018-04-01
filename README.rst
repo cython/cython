@@ -2,8 +2,8 @@ Welcome to Cython!
 ==================
 
 Cython is a language that makes writing C extensions for
-the Python language as easy as Python itself.  Cython is based on the
-well-known Pyrex, but supports more cutting edge functionality and
+Python as easy as Python itself.  Cython is based on
+Pyrex, but supports more cutting edge functionality and
 optimizations.
 
 The Cython language is very close to the Python language, but Cython
