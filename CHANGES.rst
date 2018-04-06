@@ -16,8 +16,13 @@ Features added
 Bugs fixed
 ----------
 
-* The ``switch`` statement generation failed to apply to the body of converted
-  if-statements.
+* The copy of a read-only memoryview was considered read-only as well, whereas
+  a common reason to copy a read-only view is to make it writable.  The result
+  of the copying is now a writable buffer by default.
+  (Github issue #2134)
+
+* The ``switch`` statement generation failed to apply recursively to the body of
+  converted if-statements.
 
 * ``NULL`` was sometimes rejected as exception return value when the returned
   type is a fused pointer type.
