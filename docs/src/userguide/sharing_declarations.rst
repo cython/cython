@@ -263,3 +263,8 @@ Some things to note about this example:
   doesn't bind the name Shrubbing in Landscaping's module namespace at run
   time, so to access :func:`Shrubbing.standard_shrubbery` we also need to
   ``import Shrubbing``.
+* One caveat if you use setuptools instead of distutils, the default
+  action when running ``python setup.py install`` is to create a zipped
+  ``egg`` file which will not work with ``cimport`` for ``pxd`` files
+  when you try to use them from a dependent package.
+  To prevent this, include ``zip_safe=False`` in the arguments to ``setup()``.
