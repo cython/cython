@@ -7,6 +7,19 @@ from __future__ import print_function
 import sys
 
 cdef extern from *:
+    """
+    #ifndef PyLong_SHIFT
+    #define PyLong_SHIFT 0
+    typedef int digit;
+    typedef int sdigit;
+    #endif
+    #ifndef PyLong_BASE
+    #define PyLong_BASE 0
+    #endif
+    #ifndef PyLong_MASK
+    #define PyLong_MASK 0
+    #endif
+    """
     # Python runtime
     cdef long PY_VERSION_HEX
 
