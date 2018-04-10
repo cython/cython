@@ -761,11 +761,11 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject els
         {{for _size in range(4, 1, -1)}}
 #if PyLong_SHIFT * {{_size}} < SIZEOF_LONG*8
         else if (uintval >= {{_size-1}}UL * (unsigned long) PyLong_BASE)
-            unequal = (size != {{_size}}) || (digits[0] != (uintval & PyLong_MASK))
-                {{for _i in range(1, _size)}} | (digits[{{_i}}] != ((uintval >> ({{_i}} * PyLong_SHIFT)) & PyLong_MASK)){{endfor}};
+            unequal = (size != {{_size}}) || (digits[0] != (uintval & (unsigned long) PyLong_MASK))
+                {{for _i in range(1, _size)}} | (digits[{{_i}}] != ((uintval >> ({{_i}} * PyLong_SHIFT)) & (unsigned long) PyLong_MASK)){{endfor}};
 #endif
         {{endfor}}
-        else unequal = (size != 1) || (digits[0] != (uintval & PyLong_MASK));
+        else unequal = (size != 1) || (digits[0] != (uintval & (unsigned long) PyLong_MASK));
 
         {{return_compare('unequal', '0', c_op)}}
     }
