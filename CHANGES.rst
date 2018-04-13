@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-0.28.2 (2018-??-??)
+0.28.2 (2018-04-13)
 ===================
 
 Features added
@@ -12,6 +12,9 @@ Features added
 
 * The C++11 methods ``front()`` and ``end()`` were added to the declaration of
   ``libcpp.string``.  Patch by Alex Huszagh.  (Github issue #2123)
+
+* The C++11 methods ``reserve()`` and ``bucket_count()`` are declared for
+  ``std::unordered_map``.  Patch by Valentin Valls.  (Github issue #2168)
 
 Bugs fixed
 ----------
