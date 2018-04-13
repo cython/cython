@@ -14,7 +14,7 @@ Features added
   ``libcpp.string``.  Patch by Alex Huszagh.  (Github issue #2123)
 
 * The C++11 methods ``reserve()`` and ``bucket_count()`` are declared for
-  ``std::unordered_map``.  Patch by Valentin Valls.  (Github issue #2168)
+  ``libcpp.unordered_map``.  Patch by Valentin Valls.  (Github issue #2168)
 
 Bugs fixed
 ----------
