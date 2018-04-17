@@ -462,7 +462,7 @@ static CYTHON_INLINE int __Pyx_set_iter_next(
         }
         (void)orig_length;
         (void)ppos;
-        return 0;
+        return 1;
     }
 #if CYTHON_COMPILING_IN_CPYTHON
     if (unlikely(PySet_GET_SIZE(iter_obj) != orig_length)) {

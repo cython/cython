@@ -2,6 +2,15 @@
 Cython Changelog
 ================
 
+0.28.3 (2018-??-??)
+===================
+
+Bugs fixed
+----------
+
+* Set iteration was broken in non-CPython since 0.28.
+
+
 0.28.2 (2018-04-13)
 ===================
 
