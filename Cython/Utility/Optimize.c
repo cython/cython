@@ -438,17 +438,17 @@ static CYTHON_INLINE PyObject* __Pyx_set_iterator(PyObject* iterable, int is_set
 #if CYTHON_COMPILING_IN_CPYTHON
     is_set = is_set || likely(PySet_CheckExact(iterable) || PyFrozenSet_CheckExact(iterable));
     *p_source_is_set = is_set;
-    if (unlikely(!is_set))
-        return PyObject_GetIter(iterable);
-    *p_orig_length = PySet_Size(iterable);
-    Py_INCREF(iterable);
-    return iterable;
+    if (likely(is_set)) {
+        *p_orig_length = PySet_Size(iterable);
+        Py_INCREF(iterable);
+        return iterable;
+    }
 #else
     (void)is_set;
     *p_source_is_set = 0;
+#endif
     *p_orig_length = 0;
     return PyObject_GetIter(iterable);
-#endif
 }
 
 static CYTHON_INLINE int __Pyx_set_iter_next(
