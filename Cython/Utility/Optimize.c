@@ -480,9 +480,9 @@ static CYTHON_INLINE int __Pyx_set_iter_next(
             Py_INCREF(*value);
             return 1;
         }
-        return 0;
     }
 #endif
+    return 0;
 }
 
 /////////////// py_set_discard_unhashable ///////////////
