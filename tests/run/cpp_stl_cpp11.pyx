@@ -4,6 +4,7 @@
 
 import sys
 from libcpp.unordered_map cimport unordered_map
+from libcpp.unordered_set cimport unordered_set
 from libcpp.vector cimport vector
 from libcpp.queue cimport queue
 from libcpp.queue cimport priority_queue
@@ -82,6 +83,43 @@ def test_map_functionality():
         const void* data
     int_map[77] = NULL
     data = int_map.const_at(77)
+    return "pass"
+
+
+def test_unordered_set_functionality():
+    """
+    >>> test_unordered_set_functionality()
+    'pass'
+    """
+    cdef:
+        unordered_set[int] int_set = unordered_set[int]()
+        unordered_set[int] int_set2
+        unordered_set[int].iterator iterator = int_set.begin()
+    int_set.insert(1)
+    assert int_set.size() == 1
+    int_set.erase(int_set.begin(), int_set.end())
+    assert int_set.size() == 0
+    int_set.insert(1)
+    assert int_set.erase(1) == 1 # returns number of elements erased
+    assert int_set.size() == 0
+    int_set.insert(1)
+    iterator = int_set.find(1)
+    assert int_set.erase(iterator) == int_set.end()
+
+    int_set2.insert(3)
+    int_set2.insert(5)
+    int_set.insert(int_set2.begin(), int_set2.end())
+    assert int_set.size() == 2
+
+    int_set.max_load_factor(0.5)
+    assert int_set.max_load_factor() == 0.5
+    int_set.rehash(20)
+    int_set.reserve(20)
+
+    int_set.bucket_size(0)
+    int_set.bucket_count()
+    int_set.max_bucket_count()
+    int_set.bucket(3)
     return "pass"
 
 
