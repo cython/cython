@@ -10,6 +10,7 @@ from libcpp.queue cimport priority_queue
 from libcpp.vector cimport vector
 from libcpp.pair cimport pair
 from libcpp.map cimport map
+from libcpp.deque cimport deque
 
 
 def test_vector_functionality():
@@ -41,6 +42,18 @@ def test_queue_functionality():
     int_queue.swap(int_queue2)
     assert int_queue.size() == 0
     assert int_queue2.size() == 1
+    return "pass"
+
+
+def test_deque_functionality():
+    """
+    >>> test_deque_functionality()
+    'pass'
+    """
+    cdef:
+        deque[int] int_deque = deque[int]()
+    int_deque.push_back(77)
+    int_deque.shrink_to_fit()
     return "pass"
 
 
