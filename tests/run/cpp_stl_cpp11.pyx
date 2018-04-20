@@ -11,6 +11,7 @@ from libcpp.queue cimport priority_queue
 from libcpp.vector cimport vector
 from libcpp.pair cimport pair
 from libcpp.map cimport map
+from libcpp.set cimport set
 from libcpp.deque cimport deque
 
 
@@ -70,6 +71,22 @@ def test_priority_queue_functionality():
     int_queue.swap(int_queue2)
     assert int_queue.size() == 0
     assert int_queue2.size() == 1
+    return "pass"
+
+
+def test_set_functionality():
+    """
+    >>> test_set_functionality()
+    'pass'
+    """
+    cdef:
+        set[int] int_set
+        set[int] int_set2
+    int_set2.insert(77)
+    int_set2.insert(66)
+    int_set.insert(int_set2.const_begin(), int_set2.const_end())
+    assert int_set.size() == 2
+    assert int_set.erase(int_set.const_begin(), int_set.const_end()) == int_set.end()
     return "pass"
 
 
