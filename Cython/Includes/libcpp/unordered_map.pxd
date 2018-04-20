@@ -41,7 +41,7 @@ cdef extern from "<unordered_map>" namespace "std" nogil:
         iterator end()
         const_iterator const_end "end"()
         pair[iterator, iterator] equal_range(T&)
-        #pair[const_iterator, const_iterator] equal_range(key_type&)
+        pair[const_iterator, const_iterator] const_equal_range "equal_range"(const T&)
         iterator erase(iterator)
         iterator erase(iterator, iterator)
         size_t erase(T&)
@@ -49,7 +49,7 @@ cdef extern from "<unordered_map>" namespace "std" nogil:
         const_iterator const_find "find"(T&)
         pair[iterator, bint] insert(pair[T, U]) # XXX pair[T,U]&
         iterator insert(iterator, pair[T, U]) # XXX pair[T,U]&
-        #void insert(input_iterator, input_iterator)
+        iterator insert(iterator, iterator)
         #key_compare key_comp()
         iterator lower_bound(T&)
         const_iterator const_lower_bound "lower_bound"(T&)
@@ -65,5 +65,9 @@ cdef extern from "<unordered_map>" namespace "std" nogil:
         #value_compare value_comp()
         void max_load_factor(float)
         float max_load_factor()
+        void rehash(size_t)
         void reserve(size_t)
         size_t bucket_count()
+        size_t max_bucket_count()
+        size_t bucket_size(size_t)
+        size_t bucket(const T&)
