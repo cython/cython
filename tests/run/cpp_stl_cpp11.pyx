@@ -151,6 +151,8 @@ def test_unordered_map_functionality():
         unordered_map[int,int].iterator iterator = int_map.begin()
         pair[unordered_map[int,int].iterator, bint] pair_iter  = int_map.insert(pair_insert)
         unordered_map[int, int] int_map2
+        unordered_map[int, int*] intptr_map
+        const int* intptr
     assert int_map[1] == 2
     assert int_map.size() == 1
     assert int_map.erase(1) == 1 # returns number of elements erased
@@ -178,4 +180,7 @@ def test_unordered_map_functionality():
     int_map.bucket_count()
     int_map.max_bucket_count()
     int_map.bucket(3)
+
+    intptr_map[0] = NULL
+    intptr = intptr_map.const_at(0)
     return "pass"
