@@ -9,6 +9,7 @@ from libcpp.queue cimport queue
 from libcpp.queue cimport priority_queue
 from libcpp.vector cimport vector
 from libcpp.pair cimport pair
+from libcpp.map cimport map
 
 
 def test_vector_functionality():
@@ -55,6 +56,19 @@ def test_priority_queue_functionality():
     int_queue.swap(int_queue2)
     assert int_queue.size() == 0
     assert int_queue2.size() == 1
+    return "pass"
+
+
+def test_map_functionality():
+    """
+    >>> test_map_functionality()
+    'pass'
+    """
+    cdef:
+        map[int, const void*] int_map
+        const void* data
+    int_map[77] = NULL
+    data = int_map.const_at(77)
     return "pass"
 
 

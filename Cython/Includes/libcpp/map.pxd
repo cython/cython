@@ -39,6 +39,7 @@ cdef extern from "<map>" namespace "std" nogil:
         bint operator<=(map&, map&)
         bint operator>=(map&, map&)
         U& at(const T&) except +
+        const U& const_at "at"(const T&) except +
         iterator begin()
         const_iterator const_begin "begin" ()
         void clear()
