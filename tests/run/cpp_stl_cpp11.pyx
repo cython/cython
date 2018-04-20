@@ -5,6 +5,8 @@
 import sys
 from libcpp.unordered_map cimport unordered_map
 from libcpp.vector cimport vector
+from libcpp.queue cimport queue
+from libcpp.queue cimport priority_queue
 from libcpp.vector cimport vector
 from libcpp.pair cimport pair
 
@@ -23,6 +25,36 @@ def test_vector_functionality():
     const_data = int_vector.const_data()
     assert data[0] == 77
     assert const_data[0] == 77
+    return "pass"
+
+
+def test_queue_functionality():
+    """
+    >>> test_queue_functionality()
+    'pass'
+    """
+    cdef:
+        queue[int] int_queue = queue[int]()
+        queue[int] int_queue2 = queue[int]()
+    int_queue.push(77)
+    int_queue.swap(int_queue2)
+    assert int_queue.size() == 0
+    assert int_queue2.size() == 1
+    return "pass"
+
+
+def test_priority_queue_functionality():
+    """
+    >>> test_priority_queue_functionality()
+    'pass'
+    """
+    cdef:
+        priority_queue[int] int_queue = priority_queue[int]()
+        priority_queue[int] int_queue2 = priority_queue[int]()
+    int_queue.push(77)
+    int_queue.swap(int_queue2)
+    assert int_queue.size() == 0
+    assert int_queue2.size() == 1
     return "pass"
 
 
