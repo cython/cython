@@ -84,4 +84,5 @@ cdef extern from "<vector>" namespace "std" nogil:
 
         # C++11 methods
         T* data()
+        const T* const_data "data"()
         void shrink_to_fit()

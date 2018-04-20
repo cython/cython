@@ -4,7 +4,27 @@
 
 import sys
 from libcpp.unordered_map cimport unordered_map
+from libcpp.vector cimport vector
+from libcpp.vector cimport vector
 from libcpp.pair cimport pair
+
+
+def test_vector_functionality():
+    """
+    >>> test_vector_functionality()
+    'pass'
+    """
+    cdef:
+        vector[int] int_vector = vector[int]()
+        int* data
+        const int* const_data
+    int_vector.push_back(77)
+    data = int_vector.data()
+    const_data = int_vector.const_data()
+    assert data[0] == 77
+    assert const_data[0] == 77
+    return "pass"
+
 
 def test_unordered_map_functionality():
     """
