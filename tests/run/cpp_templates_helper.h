@@ -22,7 +22,7 @@ class Pair {
     T2 _second;
 public:
     Pair() { }
-    Pair(T1 u, T2 v) { _first = u; _second = v; }
+    Pair(T1 u, T2 v): _first(u), _second(v) {}
     T1 first(void) { return _first; }
     T2 second(void) { return _second; }
     bool operator==(Pair<T1,T2> other) { return _first == other._first && _second == other._second; }
@@ -49,4 +49,16 @@ template <class T1, class T2>
 class BinaryAnd {
 public:
     static T1 call(T1 x, T2 y) { return x & y; }
+};
+
+template <typename T, T N = 1>
+class UnaryAnd {
+public:
+    static T call(T value) { return static_cast<T>(value & N); }
+};
+
+template <typename T, T N = 5>
+class UnaryPlus {
+public:
+    static T call(T value) { return static_cast<T>(value + N); }
 };

@@ -957,6 +957,9 @@ class CBaseTypeNode(Node):
     def analyse_as_type(self, env):
         return self.analyse(env)
 
+    def analyse_as_template_parameter(self, env):
+        return self.analyse_as_type(env)
+
 
 class CAnalysedBaseTypeNode(Node):
     # type            type
@@ -1145,7 +1148,7 @@ class TemplatedTypeNode(CBaseTypeNode):
             else:
                 template_types = []
                 for template_node in self.positional_args:
-                    type = template_node.analyse_as_type(env)
+                    type = template_node.analyse_as_template_parameter(env)
                     if type is None:
                         error(template_node.pos, "unknown type in template argument")
                         type = error_type
