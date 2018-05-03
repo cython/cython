@@ -1149,11 +1149,12 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
     elif fingerprint:
         f = open(c_file, 'rb')
         try:
-            g = gzip_open(fingerprint_file, 'wb')
+            g = gzip_open(fingerprint_file + '.tmp', 'wb')
             try:
                 shutil.copyfileobj(f, g)
             finally:
                 g.close()
+                os.rename(fingerprint_file + '.tmp', fingerprint_file)
         finally:
             f.close()
 
