@@ -582,7 +582,7 @@ class CompilationOptions(object):
         if 'formal_grammar' in directives and 'formal_grammar' not in kw:
             options['formal_grammar'] = directives['formal_grammar']
         if options['cache'] is True:
-            options['cache'] = os.path.expanduser("~/.cycache")
+            options['cache'] = os.path.join(Utils.get_cython_cache_dir(), 'compiler')
 
         self.__dict__.update(options)
 
