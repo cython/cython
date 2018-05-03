@@ -11053,9 +11053,8 @@ class CBinopNode(BinopNode):
         cpp_type = None
         if type1.is_cpp_class or type1.is_ptr:
             cpp_type = type1.find_cpp_operation_type(self.operator, type2)
-        # FIXME: handle the reversed case?
-        #if cpp_type is None and (type2.is_cpp_class or type2.is_ptr):
-        #    cpp_type = type2.find_cpp_operation_type(self.operator, type1)
+        if cpp_type is None and (type2.is_cpp_class or type2.is_ptr):
+            cpp_type = type2.find_cpp_operation_type(self.operator, type1)
         # FIXME: do we need to handle other cases here?
         return cpp_type
 

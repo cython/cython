@@ -321,6 +321,10 @@ Cython uses C++ naming for overloading operators::
             Foo operator-(Foo)
             int operator*(Foo)
             int operator/(int)
+            int operator*(int, Foo) # allows 1*Foo()
+        # nonmember operators can also be specified outside the class
+        double operator/(double, Foo)
+
 
     cdef Foo foo = new Foo()
 
@@ -329,6 +333,13 @@ Cython uses C++ naming for overloading operators::
 
     x = foo * foo2
     x = foo / 1
+
+    x = foo[0] * foo2
+    x = foo[0] / 1
+    x = 1*foo[0]
+
+    cdef double y
+    y = 2.0/foo[0]
 
 Note that if one has *pointers* to C++ objects, dereferencing must be done
 to avoid doing pointer arithmetic rather than arithmetic on the objects
