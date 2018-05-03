@@ -79,6 +79,8 @@
   #define CYTHON_PEP489_MULTI_PHASE_INIT 0
   #undef CYTHON_USE_TP_FINALIZE
   #define CYTHON_USE_TP_FINALIZE 0
+  #undef CYTHON_USE_DICT_VERSIONS
+  #define CYTHON_USE_DICT_VERSIONS 0
 
 #elif defined(PYSTON_VERSION)
   #define CYTHON_COMPILING_IN_PYPY 0
@@ -118,6 +120,8 @@
   #define CYTHON_PEP489_MULTI_PHASE_INIT 0
   #undef CYTHON_USE_TP_FINALIZE
   #define CYTHON_USE_TP_FINALIZE 0
+  #undef CYTHON_USE_DICT_VERSIONS
+  #define CYTHON_USE_DICT_VERSIONS 0
 
 #else
   #define CYTHON_COMPILING_IN_PYPY 0
@@ -180,6 +184,9 @@
   #endif
   #ifndef CYTHON_USE_TP_FINALIZE
     #define CYTHON_USE_TP_FINALIZE (PY_VERSION_HEX >= 0x030400a1)
+  #endif
+  #ifndef CYTHON_USE_DICT_VERSIONS
+    #define CYTHON_USE_DICT_VERSIONS (PY_VERSION_HEX >= 0x030600B1)
   #endif
 #endif
 
@@ -405,6 +412,23 @@ class __Pyx_FakeReference {
     ((PyCFunction_Check(func) && (METH_FASTCALL == (PyCFunction_GET_FLAGS(func) & ~(METH_CLASS | METH_STATIC | METH_COEXIST | METH_KEYWORDS)))))
 #else
 #define __Pyx_PyFastCFunction_Check(func) 0
+#endif
+
+#if CYTHON_USE_DICT_VERSIONS
+#define __PYX_GET_DICT_VERSION(dict)  (((PyDictObject*)(dict))->ma_version_tag)
+#define __PYX_PY_DICT_LOOKUP_IF_MODIFIED(VAR, DICT, LOOKUP) { \
+        static PY_UINT64_T __pyx_dict_version = 0; \
+        static PyObject *__pyx_dict_cached_value = NULL; \
+        if (__PYX_GET_DICT_VERSION(DICT) == __pyx_dict_version) { \
+            (VAR) = __pyx_dict_cached_value; \
+        } else { \
+            (VAR) = __pyx_dict_cached_value = (LOOKUP); \
+            __pyx_dict_version = __PYX_GET_DICT_VERSION(DICT); \
+        } \
+    }
+#else
+#define __PYX_GET_DICT_VERSION(dict)  (0)
+#define __PYX_PY_DICT_LOOKUP_IF_MODIFIED(VAR, DICT, LOOKUP)  (VAR) = (LOOKUP);
 #endif
 
 #if CYTHON_COMPILING_IN_PYPY && !defined(PyObject_Malloc)
