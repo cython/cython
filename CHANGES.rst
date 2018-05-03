@@ -10,6 +10,9 @@ Bugs fixed
 
 * Set iteration was broken in non-CPython since 0.28.
 
+* Overriding cpdef methods did not work in Python subclasses with slots.
+  (Github issue #1771)
+
 
 0.28.2 (2018-04-13)
 ===================
