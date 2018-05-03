@@ -20,9 +20,14 @@ from contextlib import contextmanager
 
 modification_time = os.path.getmtime
 
+_function_caches = []
+def clear_function_caches():
+    for cache in _function_caches:
+        cache.clear()
 
 def cached_function(f):
     cache = {}
+    _function_caches.append(cache)
     uncomputed = object()
     def wrapper(*args):
         res = cache.get(args, uncomputed)
