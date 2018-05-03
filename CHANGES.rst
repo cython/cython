@@ -28,6 +28,10 @@ Bugs fixed
 * The directive ``language_level=3`` did not apply to the first token in the
   source file.  (Github issue #2230)
 
+* Overriding cpdef methods did not work in Python subclasses with slots.
+  Note that this can have a performance impact on calls from Cython code.
+  (Github issue #1771)
+
 Other changes
 -------------
 
