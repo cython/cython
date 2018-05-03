@@ -1525,25 +1525,21 @@ class EndToEndTest(unittest.TestCase):
             .replace("CYTHON", "PYTHON %s" % os.path.join(self.cython_root, 'cython.py'))
             .replace("PYTHON", sys.executable))
         old_path = os.environ.get('PYTHONPATH')
-        os.environ['PYTHONPATH'] = self.cython_syspath + os.pathsep + (old_path or '')
-        try:
-            for command in filter(None, commands.splitlines()):
-                p = subprocess.Popen(command,
-                                     stderr=subprocess.PIPE,
-                                     stdout=subprocess.PIPE,
-                                     shell=True)
-                out, err = p.communicate()
-                res = p.returncode
-                if res != 0:
-                    print(command)
-                    print(self._try_decode(out))
-                    print(self._try_decode(err))
-                self.assertEqual(0, res, "non-zero exit status")
-        finally:
-            if old_path:
-                os.environ['PYTHONPATH'] = old_path
-            else:
-                del os.environ['PYTHONPATH']
+        env = dict(os.environ)
+        env['PYTHONPATH'] = self.cython_syspath + os.pathsep + (old_path or '')
+        for command in filter(None, commands.splitlines()):
+            p = subprocess.Popen(command,
+                                 stderr=subprocess.PIPE,
+                                 stdout=subprocess.PIPE,
+                                 shell=True,
+                                 env=env)
+            out, err = p.communicate()
+            res = p.returncode
+            if res != 0:
+                print(command)
+                print(self._try_decode(out))
+                print(self._try_decode(err))
+            self.assertEqual(0, res, "non-zero exit status")
         self.success = True
 
 
