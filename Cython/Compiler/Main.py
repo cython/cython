@@ -581,9 +581,10 @@ class CompilationOptions(object):
         r"""
         Return a string that contains all the options that are relevant for cache invalidation.
         """
+        # Collect only the data that can affect the generated file(s).
         data = {}
 
-        for key in self.__dict__:
+        for key, value in self.__dict__.items():
             if key in ['show_version', 'errors_to_stderr', 'verbose', 'quiet']:
                 # verbosity flags have no influence on the compilation result
                 continue
@@ -620,16 +621,16 @@ class CompilationOptions(object):
             elif key in ['use_listing_file', 'generate_pxi', 'annotate', 'annotate_coverage_xml']:
                 # all output files are contained in the cache so the types of
                 # files generated must be part of the fingerprint
-                pass
+                data[key] = value
             elif key in ['formal_grammar', 'evaluate_tree_assertions']:
                 # these bits can change whether compilation to C passes/fails
-                pass
+                data[key] = value
             elif key in ['embedded_metadata', 'emit_linenums', 'c_line_in_traceback', 'gdb_debug', 'relative_path_in_code_position_comments']:
                 # the generated code contains additional bits when these are set
-                pass
+                data[key] = value
             elif key in ['cplus', 'language_level', 'compile_time_env', 'np_pythran']:
                 # assorted bits that, e.g., influence the parser
-                pass
+                data[key] = value
             elif key == ['capi_reexport_cincludes']:
                 if self.capi_reexport_cincludes:
                     # our caching implementation does not yet include fingerprints of all the header files
@@ -640,9 +641,7 @@ class CompilationOptions(object):
             else:
                 # any unexpected option should go into the fingerprint; it's better
                 # to recompile than to return incorrect results from the cache.
-                pass
-
-            data[key] = self.__dict__[key]
+                data[key] = value
 
         def to_fingerprint(item):
             r"""
@@ -650,7 +649,7 @@ class CompilationOptions(object):
             deterministic ordering.
             """
             if isinstance(item, dict):
-                item = sorted([(repr(key), to_fingerprint(item[key])) for key in item])
+                item = sorted([(repr(key), to_fingerprint(value)) for key, value in item.items()])
             return repr(item)
 
         return to_fingerprint(data)
