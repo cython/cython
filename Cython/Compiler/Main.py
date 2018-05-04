@@ -613,6 +613,10 @@ class CompilationOptions(object):
                 # embedded_metadata, when the fingerprint is computed so we
                 # ignore it here.
                 continue
+            elif key in ['build_dir']:
+                # the (temporary) directory where we collect dependencies
+                # has no influence on the C output
+                continue
             elif key in ['use_listing_file', 'generate_pxi', 'annotate', 'annotate_coverage_xml']:
                 # all output files are contained in the cache so the types of
                 # files generated must be part of the fingerprint
@@ -825,6 +829,7 @@ default_options = dict(
     compile_time_env = None,
     common_utility_include_dir = None,
     output_dir=None,
+    build_dir=None,
     cache=None,
     create_extension=None,
     np_pythran=False
