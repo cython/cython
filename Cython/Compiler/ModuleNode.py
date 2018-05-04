@@ -2995,6 +2995,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         condition = replacement = None
         if module_name not in ('__builtin__', 'builtins'):
             module_name = '"%s"' % module_name
+        elif type.name in Code.ctypedef_builtins_map:
+            # Fast path for special builtins, don't actually import
+            ctypename = Code.ctypedef_builtins_map[type.name]
+            code.putln('%s = %s;' % (type.typeptr_cname, ctypename))
+            return
         else:
             module_name = '__Pyx_BUILTIN_MODULE_NAME'
             if type.name in Code.non_portable_builtins_map:
