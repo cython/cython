@@ -38,10 +38,12 @@ class TestCyCache(CythonTest):
         self.fresh_cythonize(a_pyx, cache=self.cache_dir)
         self.assertEqual(1, len(self.cache_files('a.c*')))
         a_contents1 = open(a_c).read()
+        os.unlink(a_c)
 
         open(a_pyx, 'w').write(content2)
         self.fresh_cythonize(a_pyx, cache=self.cache_dir)
         a_contents2 = open(a_c).read()
+        os.unlink(a_c)
 
         self.assertNotEqual(a_contents1, a_contents2, 'C file not changed!')
         self.assertEqual(2, len(self.cache_files('a.c*')))
