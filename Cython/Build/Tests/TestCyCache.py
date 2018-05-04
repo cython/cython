@@ -58,7 +58,7 @@ class TestInline(CythonTest):
         open(a_pyx, 'w').write('pass')
         self.fresh_cythonize(a_pyx, cache=self.cache_dir)
         a_cache = os.path.join(self.cache_dir, os.listdir(self.cache_dir)[0])
-        gzip.GzipFile(a_cache, 'wb').write('fake stuff')
+        gzip.GzipFile(a_cache, 'wb').write('fake stuff'.encode('ascii'))
         os.unlink(a_c)
         self.fresh_cythonize(a_pyx, cache=self.cache_dir)
         a_contents = open(a_c).read()

@@ -1157,9 +1157,9 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
         elif os.path.exists(c_file):
             os.remove(c_file)
     elif fingerprint:
-        artifacts = filter(None, [
+        artifacts = list(filter(None, [
             getattr(result, attr, None)
-            for attr in ('c_file', 'h_file', 'api_file', 'i_file')])
+            for attr in ('c_file', 'h_file', 'api_file', 'i_file')]))
         if len(artifacts) == 1:
             fingerprint_file = gz_fingerprint_file
             with open(c_file, 'rb') as f:
