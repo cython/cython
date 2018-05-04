@@ -360,7 +360,8 @@ def long_literal(value):
 
 @cached_function
 def get_cython_cache_dir():
-    """get the cython cache dir
+    r"""
+    Return the base directory containing Cython's caches.
 
     Priority:
 
