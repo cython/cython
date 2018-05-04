@@ -616,15 +616,28 @@ class DependencyTree(object):
     def newest_dependency(self, filename):
         return max([self.extract_timestamp(f) for f in self.all_dependencies(filename)])
 
-    def transitive_fingerprint(self, filename, extra=None):
+    def transitive_fingerprint(self, filename, module, compilation_options):
+        r"""
+        Return a fingerprint of a cython file that is about to be cythonized.
+
+        Fingerprints are looked up in future compilations. If the fingerprint
+        is found, the cythonization can be skipped. The fingerprint must
+        incorporate everything that has an influence on the generated code.
+        """
         try:
             m = hashlib.md5(__version__.encode('UTF-8'))
             m.update(file_hash(filename).encode('UTF-8'))
             for x in sorted(self.all_dependencies(filename)):
                 if os.path.splitext(x)[1] not in ('.c', '.cpp', '.h'):
                     m.update(file_hash(x).encode('UTF-8'))
-            if extra is not None:
-                m.update(str(extra).encode('UTF-8'))
+            # Include the module attributes that change the compilation result
+            # in the fingerprint. We do not iterate over module.__dict__ and
+            # include almost everything here as users might extend Extension
+            # with arbitrary (random) attributes that would lead to cache
+            # misses.
+            m.update(str((module.language, module.py_limited_api, module.np_pythran)).encode('UTF-8'))
+
+            m.update(compilation_options.get_fingerprint().encode('UTF-8'))
             return m.hexdigest()
         except IOError:
             return None
@@ -881,8 +894,6 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     if 'include_path' not in options:
         options['include_path'] = ['.']
     if 'common_utility_include_dir' in options:
-        if options.get('cache'):
-            raise NotImplementedError("common_utility_include_dir does not yet work with caching")
         safe_makedirs(options['common_utility_include_dir'])
 
     pythran_options = None
@@ -973,8 +984,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                         else:
                             print("Compiling %s because it depends on %s." % (source, dep))
                     if not force and options.cache:
-                        extra = m.language
-                        fingerprint = deps.transitive_fingerprint(source, extra)
+                        fingerprint = deps.transitive_fingerprint(source, m, options)
                     else:
                         fingerprint = None
                     to_compile.append((
