@@ -1,3 +1,4 @@
+import difflib
 import glob
 import gzip
 import os
@@ -5,11 +6,10 @@ import tempfile
 
 import Cython.Build.Dependencies
 import Cython.Utils
-#from Cython.Build.Dependencies import cythonize
 from Cython.TestUtils import CythonTest
 
 
-class TestInline(CythonTest):
+class TestCyCache(CythonTest):
 
     def setUp(self):
         CythonTest.setUp(self)
@@ -43,14 +43,17 @@ class TestInline(CythonTest):
         self.fresh_cythonize(a_pyx, cache=self.cache_dir)
         a_contents2 = open(a_c).read()
 
-        self.assertNotEqual(a_contents1, a_contents2)
+        self.assertNotEqual(a_contents1, a_contents2, 'C file not changed!')
         self.assertEqual(2, len(self.cache_files('a.c*')))
 
         open(a_pyx, 'w').write(content1)
         self.fresh_cythonize(a_pyx, cache=self.cache_dir)
         self.assertEqual(2, len(self.cache_files('a.c*')))
         a_contents = open(a_c).read()
-        self.assertEqual(a_contents, a_contents1)
+        self.assertEqual(
+            a_contents, a_contents1,
+            msg='\n'.join(list(difflib.unified_diff(
+                a_contents.split('\n'), a_contents1.split('\n')))[:10]))
 
     def test_cycache_uses_cache(self):
         a_pyx = os.path.join(self.src_dir, 'a.pyx')
@@ -62,7 +65,8 @@ class TestInline(CythonTest):
         os.unlink(a_c)
         self.fresh_cythonize(a_pyx, cache=self.cache_dir)
         a_contents = open(a_c).read()
-        self.assertEqual(a_contents, 'fake stuff')
+        self.assertEqual(a_contents, 'fake stuff',
+                         'Unexpected contents: %s...' % a_contents[:100])
 
     def test_multi_file_output(self):
         a_pyx = os.path.join(self.src_dir, 'a.pyx')
