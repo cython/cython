@@ -2,6 +2,22 @@
 Cython Changelog
 ================
 
+0.29 (2018-??-??)
+=================
+
+Features added
+--------------
+
+* In CPython 3.6 and later, looking up globals in the module dict is about
+  as fast as looking up C globals.
+
+Bugs fixed
+----------
+
+Other changes
+-------------
+
+
 0.28.3 (2018-??-??)
 ===================
 
