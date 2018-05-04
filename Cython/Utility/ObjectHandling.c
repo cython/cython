@@ -1111,7 +1111,8 @@ static PyObject *__Pyx_GetBuiltinName(PyObject *name) {
 
 /////////////// GetNameInClass.proto ///////////////
 
-static PyObject *__Pyx_GetNameInClass(PyObject *nmspace, PyObject *name); /*proto*/
+#define __Pyx_GetNameInClass(var, nmspace, name)  (var) = __Pyx__GetNameInClass(nmspace, name)
+static PyObject *__Pyx__GetNameInClass(PyObject *nmspace, PyObject *name); /*proto*/
 
 /////////////// GetNameInClass ///////////////
 //@requires: PyObjectGetAttrStr
@@ -1126,10 +1127,10 @@ static PyObject *__Pyx_GetGlobalNameAfterAttributeLookup(PyObject *name) {
     if (unlikely(!__Pyx_PyErr_ExceptionMatches(PyExc_AttributeError)))
         return NULL;
     __Pyx_PyErr_Clear();
-    return __Pyx_GetModuleGlobalName(name);
+    return __Pyx__GetModuleGlobalName(name);
 }
 
-static PyObject *__Pyx_GetNameInClass(PyObject *nmspace, PyObject *name) {
+static PyObject *__Pyx__GetNameInClass(PyObject *nmspace, PyObject *name) {
     PyObject *result;
     result = __Pyx_PyObject_GetAttrStr(nmspace, name);
     if (!result) {
@@ -1154,19 +1155,39 @@ static PyObject *__Pyx_GetNameInClass(PyObject *nmspace, PyObject *name) {
 
 
 /////////////// GetModuleGlobalName.proto ///////////////
+//@substitute: naming
 
-static CYTHON_INLINE PyObject *__Pyx_GetModuleGlobalName(PyObject *name); /*proto*/
+#if CYTHON_USE_DICT_VERSIONS
+#define __Pyx_GetModuleGlobalName(var, name)  { \
+    static PY_UINT64_T __pyx_dict_version = 0; \
+    static PyObject *__pyx_dict_cached_value = NULL; \
+    (var) = (likely(__pyx_dict_version == __PYX_GET_DICT_VERSION($moddict_cname))) ? \
+        (likely(__pyx_dict_cached_value) ? __Pyx_NewRef(__pyx_dict_cached_value) : __Pyx_GetBuiltinName(name)) : \
+        __Pyx__GetModuleGlobalName(name, &__pyx_dict_version, &__pyx_dict_cached_value); \
+}
+static PyObject *__Pyx__GetModuleGlobalName(PyObject *name, PY_UINT64_T *dict_version, PyObject **dict_cached_value); /*proto*/
+#else
+#define __Pyx_GetModuleGlobalName(var, name)  (var) = __Pyx__GetModuleGlobalName(name)
+static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name); /*proto*/
+#endif
+
 
 /////////////// GetModuleGlobalName ///////////////
 //@requires: GetBuiltinName
 //@substitute: naming
 
-static CYTHON_INLINE PyObject *__Pyx_GetModuleGlobalName(PyObject *name) {
+#if CYTHON_USE_DICT_VERSIONS
+static PyObject *__Pyx__GetModuleGlobalName(PyObject *name, PY_UINT64_T *dict_version, PyObject **dict_cached_value)
+#else
+static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *name)
+#endif
+{
     PyObject *result;
 #if !CYTHON_AVOID_BORROWED_REFS
 #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500A1
     // Identifier names are always interned and have a pre-calculated hash value.
     result = _PyDict_GetItem_KnownHash($moddict_cname, name, ((PyASCIIObject *) name)->hash);
+    __PYX_UPDATE_DICT_CACHE($moddict_cname, result, *dict_cached_value, *dict_version)
     if (likely(result)) {
         Py_INCREF(result);
     } else if (unlikely(PyErr_Occurred())) {
@@ -1174,12 +1195,14 @@ static CYTHON_INLINE PyObject *__Pyx_GetModuleGlobalName(PyObject *name) {
     } else {
 #else
     result = PyDict_GetItem($moddict_cname, name);
+    __PYX_UPDATE_DICT_CACHE($moddict_cname, result, *dict_cached_value, *dict_version)
     if (likely(result)) {
         Py_INCREF(result);
     } else {
 #endif
 #else
     result = PyObject_GetItem($moddict_cname, name);
+    __PYX_UPDATE_DICT_CACHE($moddict_cname, result, *dict_cached_value, *dict_version)
     if (!result) {
         PyErr_Clear();
 #endif

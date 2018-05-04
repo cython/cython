@@ -2148,7 +2148,7 @@ class NameNode(AtomicExprNode):
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("GetModuleGlobalName", "ObjectHandling.c"))
             code.putln(
-                '%s = __Pyx_GetModuleGlobalName(%s);' % (
+                '__Pyx_GetModuleGlobalName(%s, %s);' % (
                     self.result(),
                     interned_cname))
             if not self.cf_is_null:
@@ -2177,7 +2177,7 @@ class NameNode(AtomicExprNode):
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("GetModuleGlobalName", "ObjectHandling.c"))
                 code.putln(
-                    '%s = __Pyx_GetModuleGlobalName(%s); %s' % (
+                    '__Pyx_GetModuleGlobalName(%s, %s); %s' % (
                         self.result(),
                         interned_cname,
                         code.error_goto_if_null(self.result(), self.pos)))
@@ -2186,7 +2186,7 @@ class NameNode(AtomicExprNode):
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("GetNameInClass", "ObjectHandling.c"))
                 code.putln(
-                    '%s = __Pyx_GetNameInClass(%s, %s); %s' % (
+                    '__Pyx_GetNameInClass(%s, %s, %s); %s' % (
                         self.result(),
                         entry.scope.namespace_cname,
                         interned_cname,

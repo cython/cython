@@ -416,6 +416,9 @@ class __Pyx_FakeReference {
 
 #if CYTHON_USE_DICT_VERSIONS
 #define __PYX_GET_DICT_VERSION(dict)  (((PyDictObject*)(dict))->ma_version_tag)
+#define __PYX_UPDATE_DICT_CACHE(dict, value, cache_var, version_var) \
+    (version_var) = __PYX_GET_DICT_VERSION(dict); \
+    (cache_var) = (value);
 #define __PYX_PY_DICT_LOOKUP_IF_MODIFIED(VAR, DICT, LOOKUP) { \
         static PY_UINT64_T __pyx_dict_version = 0; \
         static PyObject *__pyx_dict_cached_value = NULL; \
@@ -428,6 +431,7 @@ class __Pyx_FakeReference {
     }
 #else
 #define __PYX_GET_DICT_VERSION(dict)  (0)
+#define __PYX_UPDATE_DICT_CACHE(dict, value, cache_var, version_var)
 #define __PYX_PY_DICT_LOOKUP_IF_MODIFIED(VAR, DICT, LOOKUP)  (VAR) = (LOOKUP);
 #endif
 

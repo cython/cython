@@ -6845,15 +6845,15 @@ class ForFromStatNode(LoopNode, StatNode):
                 if self.target.entry.scope.is_module_scope:
                     code.globalstate.use_utility_code(
                         UtilityCode.load_cached("GetModuleGlobalName", "ObjectHandling.c"))
-                    lookup_func = '__Pyx_GetModuleGlobalName(%s)'
+                    lookup_func = '__Pyx_GetModuleGlobalName(%s, %s); %s'
                 else:
                     code.globalstate.use_utility_code(
                         UtilityCode.load_cached("GetNameInClass", "ObjectHandling.c"))
-                    lookup_func = '__Pyx_GetNameInClass(%s, %%s)' % (
+                    lookup_func = '__Pyx_GetNameInClass(%s, {}, %s); %s'.format(
                         self.target.entry.scope.namespace_cname)
-                code.putln("%s = %s; %s" % (
+                code.putln(lookup_func % (
                     target_node.result(),
-                    lookup_func % interned_cname,
+                    interned_cname,
                     code.error_goto_if_null(target_node.result(), self.target.pos)))
                 code.put_gotref(target_node.result())
             else:
