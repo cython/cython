@@ -14,6 +14,7 @@ from io import open as io_open
 from os.path import relpath as _relpath
 from distutils.extension import Extension
 from distutils.util import strtobool
+import zipfile
 
 try:
     import gzip
@@ -24,6 +25,12 @@ except ImportError:
     gzip_ext = ''
 
 try:
+    import zlib
+    zipfile_compression_mode = zipfile.ZIP_DEFLATED
+except ImportError:
+    zipfile_compression_mode = zipfile.ZIP_STORED
+
+try:
     import pythran
     import pythran.config
     PythranAvailable = True
@@ -32,7 +39,7 @@ except:
 
 from .. import Utils
 from ..Utils import (cached_function, cached_method, path_exists,
-    safe_makedirs, copy_file_to_dir_if_newer, is_package_dir)
+    safe_makedirs, copy_file_to_dir_if_newer, is_package_dir, replace_suffix)
 from ..Compiler.Main import Context, CompilationOptions, default_options
 
 join_path = cached_function(os.path.join)
@@ -1101,21 +1108,24 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
             safe_makedirs(options.cache)
         # Cython-generated c files are highly compressible.
         # (E.g. a compression ratio of about 10 for Sage).
-        fingerprint_file = join_path(
-            options.cache, "%s-%s%s" % (os.path.basename(c_file), fingerprint, gzip_ext))
-        if os.path.exists(fingerprint_file):
+        fingerprint_file_base = join_path(
+            options.cache, "%s-%s" % (os.path.basename(c_file), fingerprint))
+        gz_fingerprint_file = fingerprint_file_base + gzip_ext
+        zip_fingerprint_file = fingerprint_file_base + '.zip'
+        if os.path.exists(gz_fingerprint_file) or os.path.exists(zip_fingerprint_file):
             if not quiet:
                 print("%sFound compiled %s in cache" % (progress, pyx_file))
-            os.utime(fingerprint_file, None)
-            g = gzip_open(fingerprint_file, 'rb')
-            try:
-                f = open(c_file, 'wb')
-                try:
-                    shutil.copyfileobj(g, f)
-                finally:
-                    f.close()
-            finally:
-                g.close()
+            if os.path.exists(gz_fingerprint_file):
+                os.utime(gz_fingerprint_file, None)
+                with gzip_open(gz_fingerprint_file, 'rb') as g:
+                    with open(c_file, 'wb') as f:
+                        shutil.copyfileobj(g, f)
+            else:
+                os.utime(zip_fingerprint_file, None)
+                dirname = os.path.dirname(c_file)
+                with zipfile.ZipFile(zip_fingerprint_file) as z:
+                    for artifact in z.namelist():
+                        z.extract(artifact, os.path.join(dirname, artifact))
             return
     if not quiet:
         print("%sCythonizing %s" % (progress, pyx_file))
@@ -1147,16 +1157,20 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
         elif os.path.exists(c_file):
             os.remove(c_file)
     elif fingerprint:
-        f = open(c_file, 'rb')
-        try:
-            g = gzip_open(fingerprint_file + '.tmp', 'wb')
-            try:
-                shutil.copyfileobj(f, g)
-            finally:
-                g.close()
-                os.rename(fingerprint_file + '.tmp', fingerprint_file)
-        finally:
-            f.close()
+        artifacts = filter(None, [
+            getattr(result, attr, None)
+            for attr in ('c_file', 'h_file', 'api_file', 'i_file')])
+        if len(artifacts) == 1:
+            fingerprint_file = gz_fingerprint_file
+            with open(c_file, 'rb') as f:
+                with gzip_open(fingerprint_file + '.tmp', 'wb') as g:
+                    shutil.copyfileobj(f, g)
+        else:
+            fingerprint_file = zip_fingerprint_file
+            with zipfile.ZipFile(fingerprint_file + '.tmp', 'w', zipfile_compression_mode) as zip:
+                for artifact in artifacts:
+                    zip.write(artifact, os.path.basename(artifact))
+        os.rename(fingerprint_file + '.tmp', fingerprint_file)
 
 
 def cythonize_one_helper(m):

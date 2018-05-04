@@ -55,7 +55,7 @@ class TestInline(CythonTest):
     def test_cycache_uses_cache(self):
         a_pyx = os.path.join(self.src_dir, 'a.pyx')
         a_c = a_pyx[:-4] + '.c'
-        open(a_pyx, 'w').write("pass")
+        open(a_pyx, 'w').write('pass')
         self.fresh_cythonize(a_pyx, cache=self.cache_dir)
         a_cache = os.path.join(self.cache_dir, os.listdir(self.cache_dir)[0])
         gzip.GzipFile(a_cache, 'wb').write('fake stuff')
@@ -63,3 +63,18 @@ class TestInline(CythonTest):
         self.fresh_cythonize(a_pyx, cache=self.cache_dir)
         a_contents = open(a_c).read()
         self.assertEqual(a_contents, 'fake stuff')
+
+    def test_multi_file_output(self):
+        a_pyx = os.path.join(self.src_dir, 'a.pyx')
+        a_c = a_pyx[:-4] + '.c'
+        a_h = a_pyx[:-4] + '.h'
+        a_api_h = a_pyx[:-4] + '_api.h'
+        open(a_pyx, 'w').write('cdef public api int foo(int x): return x\n')
+        self.fresh_cythonize(a_pyx, cache=self.cache_dir)
+        expected = [a_c, a_h, a_api_h]
+        for output in expected:
+            self.assertTrue(os.path.exists(output), output)
+            os.unlink(output)
+        self.fresh_cythonize(a_pyx, cache=self.cache_dir)
+        for output in expected:
+            self.assertTrue(os.path.exists(output), output)
