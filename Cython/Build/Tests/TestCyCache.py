@@ -87,14 +87,14 @@ class TestInline(CythonTest):
         self.fresh_cythonize(hash_pyx, cache=self.cache_dir, cplus=False)
         self.assertEqual(1, len(self.cache_files('options.c*')))
 
-        open(hash_pyx, 'w').write('pass')
+        os.unlink(hash_c)
         self.fresh_cythonize(hash_pyx, cache=self.cache_dir, cplus=True)
         self.assertEqual(2, len(self.cache_files('options.c*')))
 
-        open(hash_pyx, 'w').write('pass')
+        os.unlink(hash_c)
         self.fresh_cythonize(hash_pyx, cache=self.cache_dir, cplus=False, show_version=False)
         self.assertEqual(2, len(self.cache_files('options.c*')))
 
-        open(hash_pyx, 'w').write('pass')
+        os.unlink(hash_c)
         self.fresh_cythonize(hash_pyx, cache=self.cache_dir, cplus=False, show_version=True)
         self.assertEqual(2, len(self.cache_files('options.c*')))
