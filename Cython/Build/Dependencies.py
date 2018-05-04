@@ -3,11 +3,12 @@ from __future__ import absolute_import, print_function
 import cython
 from .. import __version__
 
+import collections
+import contextlib
+import hashlib
 import os
 import shutil
-import hashlib
 import subprocess
-import collections
 import re, sys, time
 from glob import iglob
 from io import open as io_open
@@ -1117,13 +1118,13 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
                 print("%sFound compiled %s in cache" % (progress, pyx_file))
             if os.path.exists(gz_fingerprint_file):
                 os.utime(gz_fingerprint_file, None)
-                with gzip_open(gz_fingerprint_file, 'rb') as g:
-                    with open(c_file, 'wb') as f:
+                with contextlib.closing(gzip_open(gz_fingerprint_file, 'rb')) as g:
+                    with contextlib.closing(open(c_file, 'wb')) as f:
                         shutil.copyfileobj(g, f)
             else:
                 os.utime(zip_fingerprint_file, None)
                 dirname = os.path.dirname(c_file)
-                with zipfile.ZipFile(zip_fingerprint_file) as z:
+                with contextlib.closing(zipfile.ZipFile(zip_fingerprint_file)) as z:
                     for artifact in z.namelist():
                         z.extract(artifact, os.path.join(dirname, artifact))
             return
@@ -1162,12 +1163,13 @@ def cythonize_one(pyx_file, c_file, fingerprint, quiet, options=None,
             for attr in ('c_file', 'h_file', 'api_file', 'i_file')]))
         if len(artifacts) == 1:
             fingerprint_file = gz_fingerprint_file
-            with open(c_file, 'rb') as f:
-                with gzip_open(fingerprint_file + '.tmp', 'wb') as g:
+            with contextlib.closing(open(c_file, 'rb')) as f:
+                with contextlib.closing(gzip_open(fingerprint_file + '.tmp', 'wb')) as g:
                     shutil.copyfileobj(f, g)
         else:
             fingerprint_file = zip_fingerprint_file
-            with zipfile.ZipFile(fingerprint_file + '.tmp', 'w', zipfile_compression_mode) as zip:
+            with contextlib.closing(zipfile.ZipFile(
+                fingerprint_file + '.tmp', 'w', zipfile_compression_mode)) as zip:
                 for artifact in artifacts:
                     zip.write(artifact, os.path.basename(artifact))
         os.rename(fingerprint_file + '.tmp', fingerprint_file)
