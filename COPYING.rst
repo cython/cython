@@ -8,7 +8,7 @@ Cython, which derives from Pyrex, is licensed under the Apache 2.0
 Software License.  More precisely, all modifications and new code
 made to go from Pyrex to Cython are so licensed.
 
-See LICENSE.txt for more details.
+See `LICENSE.txt <https://github.com/cython/cython/blob/master/LICENSE.txt>`_ for more details.
 
 ------------------
 

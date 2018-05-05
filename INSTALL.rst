@@ -19,4 +19,5 @@ OR
     your PYTHONPATH. On unix, also put the bin
     directory on your PATH.
 
-See README.txt for pointers to other documentation.
+See `README.rst <https://github.com/cython/cython/blob/master/README.rst>`_ for
+pointers to other documentation.
