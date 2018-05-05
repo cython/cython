@@ -42,8 +42,8 @@ See `LICENSE.txt <https://github.com/cython/cython/blob/master/LICENSE.txt>`_.
 Contributing:
 -------------
 
-If you want to contribute to the Cython project, you should take a look
-at `those ressources <https://github.com/cython/cython/blob/master/docs/CONTRIBUTING.rst>`_.
+Want to contribute to the Cython project?
+Here is some `help to get you started <https://github.com/cython/cython/blob/master/docs/CONTRIBUTING.rst>`_.
 
 
 Get the full source history:
