@@ -1413,20 +1413,20 @@ static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **me
 
 #if CYTHON_UNPACK_METHODS
 static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **method) {
+    PyObject *attr;
 #if CYTHON_COMPILING_IN_CPYTHON && CYTHON_USE_PYTYPE_LOOKUP
     // Copied from _PyObject_GetMethod() in CPython 3.7
     PyTypeObject *tp = Py_TYPE(obj);
     PyObject *descr;
     descrgetfunc f = NULL;
     PyObject **dictptr, *dict;
-    PyObject *attr;
     int meth_found = 0;
 
     assert (*method == NULL);
 
     if (unlikely(tp->tp_getattro != PyObject_GenericGetAttr)) {
-        *method = __Pyx_PyObject_GetAttrStr(obj, name);
-        return 0;
+        attr = __Pyx_PyObject_GetAttrStr(obj, name);
+        goto try_unpack;
     }
     if (unlikely(tp->tp_dict == NULL && PyType_Ready(tp) < 0)) {
         return 0;
@@ -1445,9 +1445,9 @@ static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **me
         } else {
             f = Py_TYPE(descr)->tp_descr_get;
             if (f != NULL && PyDescr_IsData(descr)) {
-                *method = f(descr, obj, (PyObject *)Py_TYPE(obj));
+                attr = f(descr, obj, (PyObject *)Py_TYPE(obj));
                 Py_DECREF(descr);
-                return 0;
+                goto try_unpack;
             }
         }
     }
@@ -1458,10 +1458,9 @@ static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **me
         attr = __Pyx_PyDict_GetItemStr(dict, name);
         if (attr != NULL) {
             Py_INCREF(attr);
-            *method = attr;
             Py_DECREF(dict);
             Py_XDECREF(descr);
-            return 0;
+            goto try_unpack;
         }
         Py_DECREF(dict);
     }
@@ -1472,9 +1471,9 @@ static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **me
     }
 
     if (f != NULL) {
-        *method = f(descr, obj, (PyObject *)Py_TYPE(obj));
+        attr = f(descr, obj, (PyObject *)Py_TYPE(obj));
         Py_DECREF(descr);
-        return 0;
+        goto try_unpack;
     }
 
     if (descr != NULL) {
@@ -1494,9 +1493,23 @@ static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **me
 
 // Generic fallback implementation using normal attribute lookup.
 #else
-    *method = __Pyx_PyObject_GetAttrStr(obj, name);
-    return 0;
+    attr = __Pyx_PyObject_GetAttrStr(obj, name);
+    goto try_unpack;
 #endif
+
+try_unpack:
+#if CYTHON_COMPILING_IN_CPYTHON
+    // Even if we failed to avoid creating a bound method object, it's still worth unpacking it now, if possible.
+    if (likely(attr) && PyMethod_Check(attr) && likely(PyMethod_GET_SELF(attr) == obj)) {
+        PyObject *function = PyMethod_GET_FUNCTION(attr);
+        Py_INCREF(function);
+        Py_DECREF(attr);
+        *method = function;
+        return 1;
+    }
+#endif
+    *method = attr;
+    return 0;
 }
 #endif
 
@@ -1755,7 +1768,6 @@ bad:
 /////////////// PyObjectCallMethod1.proto ///////////////
 
 static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name, PyObject* arg); /*proto*/
-static PyObject* __Pyx__PyObject_CallMethod1(PyObject* method, PyObject* arg); /*proto*/
 
 /////////////// PyObjectCallMethod1 ///////////////
 //@requires: PyObjectGetMethod
@@ -1764,17 +1776,9 @@ static PyObject* __Pyx__PyObject_CallMethod1(PyObject* method, PyObject* arg); /
 //@requires: PyObjectCall2Args
 
 static PyObject* __Pyx__PyObject_CallMethod1(PyObject* method, PyObject* arg) {
-    PyObject *result = NULL;
-#if CYTHON_UNPACK_METHODS
-    if (likely(PyMethod_Check(method))) {
-        PyObject *self = PyMethod_GET_SELF(method);
-        if (likely(self)) {
-            PyObject *function = PyMethod_GET_FUNCTION(method);
-            return __Pyx_PyObject_Call2Args(function, self, arg);
-        }
-    }
-#endif
-    result = __Pyx_PyObject_CallOneArg(method, arg);
+    // Separate function to avoid excessive inlining.
+    PyObject *result = __Pyx_PyObject_CallOneArg(method, arg);
+    Py_DECREF(method);
     return result;
 }
 
@@ -1791,9 +1795,7 @@ static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name
     method = __Pyx_PyObject_GetAttrStr(obj, method_name);
 #endif
     if (unlikely(!method)) return NULL;
-    result = __Pyx__PyObject_CallMethod1(method, arg);
-    Py_DECREF(method);
-    return result;
+    return __Pyx__PyObject_CallMethod1(method, arg);
 }
 
 
@@ -1838,18 +1840,6 @@ static PyObject* __Pyx_PyObject_Call3Args(PyObject* function, PyObject* arg1, Py
 }
 #endif
 
-static PyObject* __Pyx__PyObject_CallMethod2(PyObject* obj, PyObject* method_name, PyObject* arg1, PyObject* arg2) {
-#if CYTHON_UNPACK_METHODS
-    if (likely(PyMethod_Check(method)) && likely(PyMethod_GET_SELF(method))) {
-        PyObject *self, *function;
-        self = PyMethod_GET_SELF(method);
-        function = PyMethod_GET_FUNCTION(method);
-        return __Pyx_PyObject_Call3Args(method, obj, arg1, arg2);
-    }
-#endif
-    return __Pyx_PyObject_Call2Args(method, arg1, arg2);
-}
-
 static PyObject* __Pyx_PyObject_CallMethod2(PyObject* obj, PyObject* method_name, PyObject* arg1, PyObject* arg2) {
     PyObject *args, *method = NULL, *result = NULL;
 #if CYTHON_UNPACK_METHODS
@@ -1863,7 +1853,7 @@ static PyObject* __Pyx_PyObject_CallMethod2(PyObject* obj, PyObject* method_name
     method = __Pyx_PyObject_GetAttrStr(obj, method_name);
 #endif
     if (unlikely(!method)) return NULL;
-    result = __Pyx__PyObject_CallMethod2(method, arg1, arg2);
+    result = __Pyx_PyObject_Call2Args(method, arg1, arg2);
     Py_DECREF(method);
     return result;
 }
