@@ -628,9 +628,9 @@ Cython code.  Here is the list of currently supported directives:
     compilation.  Default is compatibility with Python 2.  To enable
     Python 3 source code semantics, set this to 3 at the start of a
     module or pass the "-3" command line option to the compiler.
-    Note that cimported and included source files inherit this
-    setting from the module being compiled, unless they explicitly
-    set their own language level.
+    Note that cimported files inherit this setting from the module
+    being compiled, unless they explicitly set their own language level.
+    Included source files always inherit this setting.
 
 ``c_string_type`` (bytes / str / unicode)
     Globally set the type of an implicit coercion from char* or std::string.
