@@ -1404,17 +1404,14 @@ static CYTHON_INLINE int __Pyx_PyObject_SetAttrStr(PyObject* obj, PyObject* attr
 
 /////////////// PyObjectGetMethod.proto ///////////////
 
-#if CYTHON_UNPACK_METHODS
 static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **method);/*proto*/
-#endif
 
 /////////////// PyObjectGetMethod ///////////////
 //@requires: PyObjectGetAttrStr
 
-#if CYTHON_UNPACK_METHODS
 static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **method) {
     PyObject *attr;
-#if CYTHON_COMPILING_IN_CPYTHON && CYTHON_USE_PYTYPE_LOOKUP
+#if CYTHON_UNPACK_METHODS && CYTHON_COMPILING_IN_CPYTHON && CYTHON_USE_PYTYPE_LOOKUP
     // Copied from _PyObject_GetMethod() in CPython 3.7
     PyTypeObject *tp = Py_TYPE(obj);
     PyObject *descr;
@@ -1498,7 +1495,7 @@ static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **me
 #endif
 
 try_unpack:
-#if CYTHON_COMPILING_IN_CPYTHON
+#if CYTHON_UNPACK_METHODS
     // Even if we failed to avoid creating a bound method object, it's still worth unpacking it now, if possible.
     if (likely(attr) && PyMethod_Check(attr) && likely(PyMethod_GET_SELF(attr) == obj)) {
         PyObject *function = PyMethod_GET_FUNCTION(attr);
@@ -1511,7 +1508,6 @@ try_unpack:
     *method = attr;
     return 0;
 }
-#endif
 
 
 /////////////// UnpackUnboundCMethod.proto ///////////////
@@ -1741,22 +1737,17 @@ static PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name
 
 /////////////// PyObjectCallMethod0 ///////////////
 //@requires: PyObjectGetMethod
-//@requires: PyObjectGetAttrStr
 //@requires: PyObjectCallOneArg
 //@requires: PyObjectCallNoArg
 
 static PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name) {
     PyObject *method = NULL, *result = NULL;
-#if CYTHON_UNPACK_METHODS
     int is_method = __Pyx_PyObject_GetMethod(obj, method_name, &method);
     if (likely(is_method)) {
         result = __Pyx_PyObject_CallOneArg(method, obj);
         Py_DECREF(method);
         return result;
     }
-#else
-    method = __Pyx_PyObject_GetAttrStr(obj, method_name);
-#endif
     if (unlikely(!method)) goto bad;
     result = __Pyx_PyObject_CallNoArg(method);
     Py_DECREF(method);
@@ -1771,7 +1762,6 @@ static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name
 
 /////////////// PyObjectCallMethod1 ///////////////
 //@requires: PyObjectGetMethod
-//@requires: PyObjectGetAttrStr
 //@requires: PyObjectCallOneArg
 //@requires: PyObjectCall2Args
 
@@ -1784,16 +1774,12 @@ static PyObject* __Pyx__PyObject_CallMethod1(PyObject* method, PyObject* arg) {
 
 static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name, PyObject* arg) {
     PyObject *method = NULL, *result;
-#if CYTHON_UNPACK_METHODS
     int is_method = __Pyx_PyObject_GetMethod(obj, method_name, &method);
     if (likely(is_method)) {
         result = __Pyx_PyObject_Call2Args(method, obj, arg);
         Py_DECREF(method);
         return result;
     }
-#else
-    method = __Pyx_PyObject_GetAttrStr(obj, method_name);
-#endif
     if (unlikely(!method)) return NULL;
     return __Pyx__PyObject_CallMethod1(method, arg);
 }
@@ -1804,13 +1790,11 @@ static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name
 static PyObject* __Pyx_PyObject_CallMethod2(PyObject* obj, PyObject* method_name, PyObject* arg1, PyObject* arg2); /*proto*/
 
 /////////////// PyObjectCallMethod2 ///////////////
-//@requires: PyObjectGetAttrStr
 //@requires: PyObjectCall
 //@requires: PyFunctionFastCall
 //@requires: PyCFunctionFastCall
 //@requires: PyObjectCall2Args
 
-#if CYTHON_UNPACK_METHODS
 static PyObject* __Pyx_PyObject_Call3Args(PyObject* function, PyObject* arg1, PyObject* arg2, PyObject* arg3) {
     #if CYTHON_FAST_PYCALL
     if (PyFunction_Check(function)) {
@@ -1838,20 +1822,15 @@ static PyObject* __Pyx_PyObject_Call3Args(PyObject* function, PyObject* arg1, Py
     Py_DECREF(args);
     return result;
 }
-#endif
 
 static PyObject* __Pyx_PyObject_CallMethod2(PyObject* obj, PyObject* method_name, PyObject* arg1, PyObject* arg2) {
     PyObject *args, *method = NULL, *result = NULL;
-#if CYTHON_UNPACK_METHODS
     int is_method = __Pyx_PyObject_GetMethod(obj, method_name, &method);
     if (likely(is_method)) {
         result = __Pyx_PyObject_Call3Args(method, obj, arg1, arg2);
         Py_DECREF(method);
         return result;
     }
-#else
-    method = __Pyx_PyObject_GetAttrStr(obj, method_name);
-#endif
     if (unlikely(!method)) return NULL;
     result = __Pyx_PyObject_Call2Args(method, arg1, arg2);
     Py_DECREF(method);
