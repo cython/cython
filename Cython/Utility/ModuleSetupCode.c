@@ -422,7 +422,7 @@ class __Pyx_FakeReference {
 #define __PYX_PY_DICT_LOOKUP_IF_MODIFIED(VAR, DICT, LOOKUP) { \
         static PY_UINT64_T __pyx_dict_version = 0; \
         static PyObject *__pyx_dict_cached_value = NULL; \
-        if (__PYX_GET_DICT_VERSION(DICT) == __pyx_dict_version) { \
+        if (likely(__PYX_GET_DICT_VERSION(DICT) == __pyx_dict_version)) { \
             (VAR) = __pyx_dict_cached_value; \
         } else { \
             (VAR) = __pyx_dict_cached_value = (LOOKUP); \
