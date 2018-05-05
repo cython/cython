@@ -77,8 +77,9 @@ containers.
 
 Pointer types are constructed as in C, by appending a ``*`` to the base type
 they point to, e.g. ``int**`` for a pointer to a pointer to a C int.
-Arrays use the normal C array syntax, e.g. ``int[10]``.  Note that Cython uses
-array access for pointer dereferencing, as ``*x`` is not valid Python syntax,
+Arrays use the normal C array syntax, e.g. ``int[10]``, and the size must be known at
+at compile time for stack allocated arrays. Cython doesn't support variable lenght arrays from C99.
+Note that Cython uses array access for pointer dereferencing, as ``*x`` is not valid Python syntax,
 whereas ``x[0]`` is.
 
 Also, the Python types ``list``, ``dict``, ``tuple``, etc. may be used for
