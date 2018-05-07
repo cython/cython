@@ -823,6 +823,8 @@ Compile-Time Definitions
 Conditional Statements
 =======================
 
+.. NOW IN USER GUIDE, DO NOT TOUCH
+
 * Similar semantics of the C pre-processor
 * The following statements can be used to conditionally include or exclude sections of code to compile.
 
