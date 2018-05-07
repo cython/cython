@@ -823,30 +823,6 @@ Compile-Time Definitions
 Conditional Statements
 =======================
 
-* Similar semantics of the C pre-processor
-* The following statements can be used to conditionally include or exclude sections of code to compile.
-
- * ``IF``
- * ``ELIF``
- * ``ELSE``
-
-::
-
-    IF UNAME_SYSNAME == "Windows":
-        include "icky_definitions.pxi"
-    ELIF UNAME_SYSNAME == "Darwin":
-        include "nice_definitions.pxi"
-    ELIF UNAME_SYSNAME == "Linux":
-        include "penguin_definitions.pxi"
-    ELSE:
-        include "other_definitions.pxi"
-
-* ``ELIF`` and  ``ELSE`` are optional.
-* ``IF`` can appear anywhere that a normal statement or declaration can appear
-* It can contain any statements or declarations that would be valid in that context.
-
- * This includes other ``IF`` and ``DEF`` statements
-
-
+See :ref:`conditional_statements` in the user guide.
 
 .. [#] The conversion is to/from str for Python 2.x, and bytes for Python 3.x.
