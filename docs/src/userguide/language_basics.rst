@@ -614,6 +614,8 @@ expression must evaluate to a Python value of type ``int``, ``long``,
     cdef int a2[OtherArraySize]
     print "I like", FavouriteFood
 
+.. _conditional_statements:
+
 Conditional Statements
 ----------------------
 
