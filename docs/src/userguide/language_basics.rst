@@ -216,15 +216,19 @@ There are differences though whether you declare them in a ``.pyx`` file or a ``
 
 When in a ``.pyx`` file, the signature is the same as it is in Python itself::
 
+    from __future__ import print_function
+
     cdef class A:
         cdef foo(self):
-            print "A"
-    cdef class B(A)
-        cdef foo(self, x=None)
-            print "B", x
+            print("A")
+
+    cdef class B(A):
+        cdef foo(self, x=None):
+            print("B", x)
+            
     cdef class C(B):
-        cpdef foo(self, x=True, int k=3)
-            print "C", x, k
+        cpdef foo(self, x=True, int k=3):
+            print("C", x, k)
 
 
 When in a ``.pxd`` file, the signature is different like this example: ``cdef foo(x=*)``.
@@ -233,7 +237,7 @@ possible in C, but doesn't need to know the value of the default arguments.::
 
     cdef class A:
         cdef foo(self)
-    cdef class B(A)
+    cdef class B(A):
         cdef foo(self, x=*)
     cdef class C(B):
         cpdef foo(self, x=*, int k=*)
