@@ -338,10 +338,17 @@ static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key) {
     value = PyDict_GetItemWithError(d, key);
     if (unlikely(!value)) {
         if (!PyErr_Occurred()) {
-            PyObject* args = PyTuple_Pack(1, key);
-            if (likely(args))
-                PyErr_SetObject(PyExc_KeyError, args);
-            Py_XDECREF(args);
+            if (unlikely(PyTuple_Check(key))) {
+                // CPython interprets tuples as separate arguments => must wrap them in another tuple.
+                PyObject* args = PyTuple_Pack(1, key);
+                if (likely(args)) {
+                    PyErr_SetObject(PyExc_KeyError, args);
+                    Py_DECREF(args);
+                }
+            } else {
+                // Avoid tuple packing if possible.
+                PyErr_SetObject(PyExc_KeyError, key);
+            }
         }
         return NULL;
     }
