@@ -543,7 +543,7 @@ Cython file types
 
 There are three file types in Cython:
 
-* The implementation files, carrying a ``.pyx`` suffix.
+* The implementation files, carrying a ``.py`` or ``.pyx`` suffix.
 * The definition files, carrying a ``.pxd`` suffix.
 * The include files, carrying a ``.pxi`` suffix.
 
@@ -553,9 +553,13 @@ The implementation file
 The implementation file, as the name suggest, contains the implementation
 of your functions, classes, extension types, etc. Nearly all the
 python syntax is supported in this file. Most of the time, a ``.py``
-file can be converted into a ``.pyx`` file without changing
-any code, and Cython will retain the python behavior, with a
-slight speed boost.
+file can be renamed into a ``.pyx`` file without changing
+any code, and Cython will retain the python behavior.
+
+It is possible for Cython to compile both ``.py`` and ``.pyx`` files.
+The name of the file isn't important if one wants to use only the Python syntax,
+and Cython won't change the generated code depending on the suffix used.
+Though, if one want to use the Cython syntax, using a ``.pyx`` file is necessary.
 
 In addition to the Python syntax, the user can also
 leverage Cython syntax (such as ``cdef``) to use C variables, can
@@ -563,13 +567,17 @@ declare functions as ``cdef`` or ``cpdef`` and can import C definitions
 with :keyword:`cimport`. Many other Cython features usable in implementation files
 can be found throughout this page and the rest of the Cython documentation.
 
-There are some restrictions on the implementation part of an extension type
+There are some restrictions on the implementation part of some :ref:`extension-types`
 if the corresponding definition file also defines that type.
 
 .. note::
 
     When a ``.pyx`` file is compiled, Cython first checks to see if a corresponding
-    ``.pxd`` file exists and processes it first.
+    ``.pxd`` file exists and processes it first. It acts like a header file for
+    a Cython ``.pyx`` file. You can put inside functions that will be used by
+    other Cython modules. This allows different Cython modules to use functions
+    and classes from each other without the Python overhead. To read more about
+    what how to do that, you can see :ref:`pxd_files`.
 
 
 The definition file
@@ -579,7 +587,6 @@ A definition file is used to declare various things.
 
 Any C declaration can be made, and it can be also a declaration of a C variable or
 function implemented in a C/C++ file. This can be done with ``cdef extern from``.
-
 Sometimes, ``.pxd`` files are used as a translation of C/C++ header files
 into a syntax that Cython can understand. This allows then the C/C++ variable and
 functions to be used directly in implementation files with :keyword:`cimport`.
@@ -596,7 +603,7 @@ wants to  access :keyword:`cdef` attributes and methods, or to inherit from
 .. note::
 
     You don't need to (and shouldn't) declare anything in a declaration file
-    public in order to make it available to other Cython modules; its mere
+    :keyword:`public` in order to make it available to other Cython modules; its mere
     presence in a definition file does that. You only need a public
     declaration if you want to make something available to external C code.
 
