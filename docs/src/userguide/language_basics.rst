@@ -302,6 +302,13 @@ return value and raise it yourself, for example,::
         raise SpamError("Couldn't open the spam file")
 
 
+Function Pointers
+-----------------
+
+When declaring a function in a ``struct``, it will automatically be converted into a
+function pointer. To learn more about function pointers in Cython and how
+they can help you, you can
+read `this blog <http://blog.yclin.me/gsoc/2016/07/17/Function-Pointer/>`_.
 
 
 .. _type-conversion:
