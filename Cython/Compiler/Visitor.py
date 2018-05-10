@@ -1,4 +1,5 @@
 # cython: infer_types=True
+# cython: language_level=3
 
 #
 #   Tree visitor and transform framework
