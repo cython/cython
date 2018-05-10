@@ -2,6 +2,7 @@
 from __future__ import absolute_import
 
 cimport cython
+from ..StringIOTree cimport StringIOTree
 
 
 cdef class UtilityCodeBase(object):
@@ -95,7 +96,27 @@ cdef class StringConst:
 
 #def funccontext_property(name):
 
-#class CCodeWriter(object):
+cdef class CCodeWriter(object):
+    cdef readonly StringIOTree buffer
+    cdef readonly list pyclass_stack
+    cdef readonly object globalstate
+    cdef readonly object funcstate
+    cdef object code_config
+    cdef object last_pos
+    cdef object last_marked_pos
+    cdef Py_ssize_t level
+    cdef public Py_ssize_t call_level  # debug-only, see Nodes.py
+    cdef bint bol
+
+    cpdef write(self, s)
+    cpdef put(self, code)
+    cpdef put_safe(self, code)
+    cpdef putln(self, code=*, bint safe=*)
+    @cython.final
+    cdef increase_indent(self)
+    @cython.final
+    cdef decrease_indent(self)
+
 
 cdef class PyrexCodeWriter:
     cdef public object f

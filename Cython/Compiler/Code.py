@@ -1619,7 +1619,8 @@ class GlobalState(object):
             self.use_utility_code(entry.utility_code_definition)
 
 
-def funccontext_property(name):
+def funccontext_property(func):
+    name = func.__name__
     attribute_of = operator.attrgetter(name)
     def get(self):
         return attribute_of(self.funcstate)
@@ -1670,8 +1671,7 @@ class CCodeWriter(object):
     #                                     about the current class one is in
     # code_config         CCodeConfig     configuration options for the C code writer
 
-    globalstate = code_config = None
-
+    @cython.locals(create_from='CCodeWriter')
     def __init__(self, create_from=None, buffer=None, copy_formatting=False):
         if buffer is None: buffer = StringIOTree()
         self.buffer = buffer
@@ -1680,6 +1680,8 @@ class CCodeWriter(object):
         self.pyclass_stack = []
 
         self.funcstate = None
+        self.globalstate = None
+        self.code_config = None
         self.level = 0
         self.call_level = 0
         self.bol = 1
@@ -1742,14 +1744,22 @@ class CCodeWriter(object):
         self.buffer.insert(writer.buffer)
 
     # Properties delegated to function scope
-    label_counter = funccontext_property("label_counter")
-    return_label = funccontext_property("return_label")
-    error_label = funccontext_property("error_label")
-    labels_used = funccontext_property("labels_used")
-    continue_label = funccontext_property("continue_label")
-    break_label = funccontext_property("break_label")
-    return_from_error_cleanup_label = funccontext_property("return_from_error_cleanup_label")
-    yield_labels = funccontext_property("yield_labels")
+    @funccontext_property
+    def label_counter(self): pass
+    @funccontext_property
+    def return_label(self): pass
+    @funccontext_property
+    def error_label(self): pass
+    @funccontext_property
+    def labels_used(self): pass
+    @funccontext_property
+    def continue_label(self): pass
+    @funccontext_property
+    def break_label(self): pass
+    @funccontext_property
+    def return_from_error_cleanup_label(self): pass
+    @funccontext_property
+    def yield_labels(self): pass
 
     # Functions delegated to function scope
     def new_label(self, name=None):    return self.funcstate.new_label(name)
