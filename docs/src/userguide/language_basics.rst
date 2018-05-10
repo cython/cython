@@ -208,6 +208,46 @@ In the interests of clarity, it is probably a good idea to always be explicit
 about object parameters in C functions.
 
 
+Optional Arguments
+------------------
+
+Unlike C, it is possible to use optional arguments in ``cdef`` and ``cpdef`` functions.
+There are differences though whether you declare them in a ``.pyx`` file or a ``.pxd`` file.
+
+When in a ``.pyx`` file, the signature is the same as it is in Python itself::
+
+    cdef class A:
+        cdef foo(self):
+            print "A"
+    cdef class B(A)
+        cdef foo(self, x=None)
+            print "B", x
+    cdef class C(B):
+        cpdef foo(self, x=True, int k=3)
+            print "C", x, k
+
+
+When in a ``.pxd`` file, the signature is different like this example: ``cdef foo(x=*)``.
+This is because the program calling the function just needs to know what signatures are
+possible in C, but doesn't need to know the value of the default arguments.::
+
+    cdef class A:
+        cdef foo(self)
+    cdef class B(A)
+        cdef foo(self, x=*)
+    cdef class C(B):
+        cpdef foo(self, x=*, int k=*)
+
+
+
+.. note::
+    The number of arguments may increase when subclassing,
+    but the arg types and order must be the same, as shown in the example above.
+
+There may be a slight performance penalty when the optional arg is overridden
+with one that does not have default values.
+
+
 Error return values
 -------------------
 
