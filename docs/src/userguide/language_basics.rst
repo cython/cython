@@ -381,6 +381,20 @@ Sometimes Cython will complain unnecessarily, and sometimes it will fail to
 detect a problem that exists. Ultimately, you need to understand the issue and
 be careful what you do.
 
+
+Checked Type Casts
+------------------
+
+A cast like ``<MyExtensionType>x`` will cast x to the class
+``MyExtensionType`` without any checking at all.
+
+To have a cast checked, use the syntax like: ``<MyExtensionType?>x``.
+In this case, Cython will apply a runtime check that raises a ``TypeError``
+if ``x`` is not an instance of ``MyExtensionType``.
+This tests for the exact class for builtin types,
+but allows subclasses for :ref:`extension-types`.
+
+
 Statements and expressions
 ==========================
 
