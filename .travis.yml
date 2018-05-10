@@ -80,7 +80,6 @@ matrix:
   allow_failures:
     - python: pypy
     - python: pypy3
-    - python: 3.7-dev
   exclude:
     - python: pypy
       env: BACKEND=cpp
