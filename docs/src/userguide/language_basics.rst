@@ -191,6 +191,12 @@ Reference counting for these objects is performed automatically according to
 the standard Python/C API rules (i.e. borrowed references are taken as
 parameters and a new reference is returned).
 
+ .. warning::
+
+    This only applies to Cython code.  Other Python packages which
+    are implemented in C like NumPy may not follow these conventions.
+
+
 The name object can also be used to explicitly declare something as a Python
 object. This can be useful if the name being declared would otherwise be taken
 as the name of a type, for example,::
