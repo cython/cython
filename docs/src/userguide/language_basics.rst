@@ -11,6 +11,33 @@
 Language Basics
 *****************
 
+
+Declaring Data Types
+====================
+
+As a dynamic language, Python encourages a programming style of considering
+classes and objects in terms of their methods and attributes, more than where
+they fit into the class hierarchy.
+
+This can make Python a very relaxed and comfortable language for rapid
+development, but with a price - the 'red tape' of managing data types is
+dumped onto the interpreter. At run time, the interpreter does a lot of work
+searching namespaces, fetching attributes and parsing argument and keyword tuples.
+This run-time ‘late binding’ is a major cause of Python’s relative slowness
+compared to ‘early binding’ languages such as C++.
+
+However with Cython it is possible to gain significant speed-ups through
+the use of ‘early binding’ programming techniques.
+
+.. note:: Typing is not a necessity
+
+    Providing static typing to parameters and variables is convenience to
+    speed up your code, but it is not a necessity. Optimize where and when needed.
+    In fact, typing can *slow down* your code in the case where the
+    typing does not allow optimizations but where Cython still needs to
+    check that the type of some object matches the declared type.
+
+
 C variable and type definitions
 ===============================
 
