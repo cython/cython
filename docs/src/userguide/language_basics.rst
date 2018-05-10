@@ -83,10 +83,20 @@ Note that Cython uses array access for pointer dereferencing, as ``*x`` is not v
 whereas ``x[0]`` is.
 
 Also, the Python types ``list``, ``dict``, ``tuple``, etc. may be used for
-static typing, as well as any user defined extension types.  The Python types
-int, long, and float are not available for static typing and instead interpreted as C
-``int``, ``long``, and ``float`` respectively, as statically typing variables with these Python
+static typing, as well as any user defined :ref:`extension-types`.
+For example::
+
+    cdef list foo = []
+
+This requires an *exact* match of the class, it does not allow
+subclasses. This allows Cython to optimize code by accessing
+internals of the builtin class.
+For this kind of typing, Cython uses internally a C variable of type ``PyObject*``.
+The Python types int, long, and float are not available for static
+typing and instead interpreted as C ``int``, ``long``, and ``float``
+respectively, as statically typing variables with these Python
 types has zero advantages.
+
 While these C types can be vastly faster, they have C semantics.
 Specifically, the integer types overflow
 and the C ``float`` type only has 32 bits of precision
@@ -94,6 +104,12 @@ and the C ``float`` type only has 32 bits of precision
 and is typically what one wants).
 If you want to use these numeric Python types simply omit the
 type declaration and let them be objects.
+
+It is also possible to declare :ref:`extension-types` (declared with ``cdef class``).
+This does allow subclasses. This typing is mostly used to access
+``cdef`` methods and attributes of the extension type.
+The C code uses a variable which is a pointer to a structure of the
+specific type, something like ``struct MyExtensionTypeObject*``.
 
 
 Grouping multiple C declarations
