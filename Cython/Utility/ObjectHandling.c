@@ -2234,10 +2234,11 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func) {
     }
 #endif
 #ifdef __Pyx_CyFunction_USED
-    if (likely(PyCFunction_Check(func) || __Pyx_TypeCheck(func, __pyx_CyFunctionType))) {
+    if (likely(PyCFunction_Check(func) || __Pyx_CyFunction_Check(func)))
 #else
-    if (likely(PyCFunction_Check(func))) {
+    if (likely(PyCFunction_Check(func)))
 #endif
+    {
         if (likely(PyCFunction_GET_FLAGS(func) & METH_NOARGS)) {
             // fast and simple case that we are optimising for
             return __Pyx_PyObject_CallMethO(func, NULL);
