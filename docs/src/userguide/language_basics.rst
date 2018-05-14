@@ -68,6 +68,20 @@ and C :keyword:`struct`, :keyword:`union` or :keyword:`enum` types::
 
 See also :ref:`struct-union-enum-styles`
 
+.. note::
+
+    Structs can be declared as ``cdef packed struct``, which has
+    the same effect as the C directive ``#pragma pack(1)``.
+
+Declaring an enum as ``cpdef`` will create a :pep:`435`-style Python wrapper::
+
+    cpdef enum CheeseState:
+        hard = 1
+        soft = 2
+        runny = 3
+
+
+
 There is currently no special syntax for defining a constant, but you can use
 an anonymous :keyword:`enum` declaration for this purpose, for example,::
 
@@ -91,6 +105,35 @@ an anonymous :keyword:`enum` declaration for this purpose, for example,::
 
         ctypedef int* IntPtr
 
+
+It is also possible to declare functions with :keyword:`cdef`, making them c functions.
+
+::
+
+    cdef int eggs(unsigned long l, float f):
+        ...
+
+You can read more about them in :ref:`python_functions_vs_c_functions`.
+
+You can declare classes with :keyword:`cdef`, making them :ref:`extension-types`. Those will
+have a behavior very close to python classes, but are faster because they use a ``struct``
+internally to store attributes.
+
+Here is a simple example::
+
+    cdef class Shrubbery:
+
+        cdef int width, height
+
+        def __init__(self, w, h):
+            self.width = w
+            self.height = h
+
+        def describe(self):
+            print "This shrubbery is", self.width, \
+                "by", self.height, "cubits."
+
+You can read more about them in :ref:`extension-types`.
 
 Types
 -----
@@ -140,6 +183,8 @@ can group them into a :keyword:`cdef` block like this::
         void f(Spam *s):
             print s.tons, "Tons of spam"
 
+
+.. _python_functions_vs_c_functions:
 
 Python functions vs. C functions
 ==================================
