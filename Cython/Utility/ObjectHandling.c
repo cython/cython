@@ -1439,12 +1439,13 @@ static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **me
     descr = _PyType_Lookup(tp, name);
     if (likely(descr != NULL)) {
         Py_INCREF(descr);
-        if (likely(PyFunction_Check(descr)
 #if PY_MAJOR_VERSION >= 3
-                // "PyMethodDescr_Type" is not part of the C-API in Py2.
-                || (Py_TYPE(descr) == &PyMethodDescr_Type)
+        if (likely(PyFunction_Check(descr) || (Py_TYPE(descr) == &PyMethodDescr_Type)))
+#else
+        // "PyMethodDescr_Type" is not part of the C-API in Py2.
+        if (likely(PyFunction_Check(descr)))
 #endif
-                )) {
+        {
             meth_found = 1;
         } else {
             f = Py_TYPE(descr)->tp_descr_get;
