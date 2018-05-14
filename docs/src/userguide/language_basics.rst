@@ -396,6 +396,47 @@ return value and raise it yourself, for example,::
         raise SpamError("Couldn't open the spam file")
 
 
+Overriding in extension types
+-----------------------------
+
+
+``cpdef`` methods can override ``cdef`` methods::
+
+    from __future__ import print_function
+
+    cdef class A:
+        cdef foo(self):
+            print("A")
+
+    cdef class B(A):
+        cdef foo(self, x=None):
+            print("B", x)
+
+    cdef class C(B):
+        cpdef foo(self, x=True, int k=3):
+            print("C", x, k)
+
+When subclassing an extension type with a Python class,
+``def`` methods can override ``cpdef`` methods but not ``cdef``
+methods::
+
+    from __future__ import print_function
+
+    cdef class A:
+        cdef foo(self):
+            print("A")
+
+    cdef class B(A):
+        cpdef foo(self):
+            print("B")
+
+    class C(B):         # NOTE: not cdef class
+        def foo(self):
+            print("C")
+
+If ``C`` above would be an extension type (``cdef class``),
+this would not work correctly.
+The Cython compiler will give a warning in that case.
 
 
 .. _type-conversion:
