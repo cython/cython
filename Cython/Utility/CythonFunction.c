@@ -47,6 +47,8 @@ typedef struct {
 
 static PyTypeObject *__pyx_CyFunctionType = 0;
 
+#define __Pyx_CyFunction_Check(obj)  (__Pyx_TypeCheck(obj, __pyx_CyFunctionType))
+
 #define __Pyx_CyFunction_NewEx(ml, flags, qualname, self, module, globals, code) \
     __Pyx_CyFunction_New(__pyx_CyFunctionType, ml, flags, qualname, self, module, globals, code)
 
@@ -1255,7 +1257,7 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
         return PyClassMethod_New(method);
     }
 #ifdef __Pyx_CyFunction_USED
-    else if (__Pyx_TypeCheck(method, __pyx_CyFunctionType)) {
+    else if (__Pyx_CyFunction_Check(method)) {
         return PyClassMethod_New(method);
     }
 #endif

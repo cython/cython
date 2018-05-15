@@ -12,6 +12,8 @@ Language Basics
 Cython File Types
 =================
 
+.. NOW IN USER GUIDE, DO NOT TOUCH
+
 There are three file types in Cython:
 
 * Implementation files carry a ``.pyx`` suffix

@@ -11,6 +11,33 @@
 Language Basics
 *****************
 
+
+Declaring Data Types
+====================
+
+As a dynamic language, Python encourages a programming style of considering
+classes and objects in terms of their methods and attributes, more than where
+they fit into the class hierarchy.
+
+This can make Python a very relaxed and comfortable language for rapid
+development, but with a price - the 'red tape' of managing data types is
+dumped onto the interpreter. At run time, the interpreter does a lot of work
+searching namespaces, fetching attributes and parsing argument and keyword tuples.
+This run-time ‘late binding’ is a major cause of Python’s relative slowness
+compared to ‘early binding’ languages such as C++.
+
+However with Cython it is possible to gain significant speed-ups through
+the use of ‘early binding’ programming techniques.
+
+.. note:: Typing is not a necessity
+
+    Providing static typing to parameters and variables is convenience to
+    speed up your code, but it is not a necessity. Optimize where and when needed.
+    In fact, typing can *slow down* your code in the case where the
+    typing does not allow optimizations but where Cython still needs to
+    check that the type of some object matches the declared type.
+
+
 C variable and type definitions
 ===============================
 
@@ -41,6 +68,20 @@ and C :keyword:`struct`, :keyword:`union` or :keyword:`enum` types::
 
 See also :ref:`struct-union-enum-styles`
 
+.. note::
+
+    Structs can be declared as ``cdef packed struct``, which has
+    the same effect as the C directive ``#pragma pack(1)``.
+
+Declaring an enum as ``cpdef`` will create a :pep:`435`-style Python wrapper::
+
+    cpdef enum CheeseState:
+        hard = 1
+        soft = 2
+        runny = 3
+
+
+
 There is currently no special syntax for defining a constant, but you can use
 an anonymous :keyword:`enum` declaration for this purpose, for example,::
 
@@ -65,6 +106,35 @@ an anonymous :keyword:`enum` declaration for this purpose, for example,::
         ctypedef int* IntPtr
 
 
+It is also possible to declare functions with :keyword:`cdef`, making them c functions.
+
+::
+
+    cdef int eggs(unsigned long l, float f):
+        ...
+
+You can read more about them in :ref:`python_functions_vs_c_functions`.
+
+You can declare classes with :keyword:`cdef`, making them :ref:`extension-types`. Those will
+have a behavior very close to python classes, but are faster because they use a ``struct``
+internally to store attributes.
+
+Here is a simple example::
+
+    cdef class Shrubbery:
+
+        cdef int width, height
+
+        def __init__(self, w, h):
+            self.width = w
+            self.height = h
+
+        def describe(self):
+            print "This shrubbery is", self.width, \
+                "by", self.height, "cubits."
+
+You can read more about them in :ref:`extension-types`.
+
 Types
 -----
 
@@ -83,10 +153,20 @@ Note that Cython uses array access for pointer dereferencing, as ``*x`` is not v
 whereas ``x[0]`` is.
 
 Also, the Python types ``list``, ``dict``, ``tuple``, etc. may be used for
-static typing, as well as any user defined extension types.  The Python types
-int, long, and float are not available for static typing and instead interpreted as C
-``int``, ``long``, and ``float`` respectively, as statically typing variables with these Python
+static typing, as well as any user defined :ref:`extension-types`.
+For example::
+
+    cdef list foo = []
+
+This requires an *exact* match of the class, it does not allow
+subclasses. This allows Cython to optimize code by accessing
+internals of the builtin class.
+For this kind of typing, Cython uses internally a C variable of type ``PyObject*``.
+The Python types int, long, and float are not available for static
+typing and instead interpreted as C ``int``, ``long``, and ``float``
+respectively, as statically typing variables with these Python
 types has zero advantages.
+
 While these C types can be vastly faster, they have C semantics.
 Specifically, the integer types overflow
 and the C ``float`` type only has 32 bits of precision
@@ -94,6 +174,12 @@ and the C ``float`` type only has 32 bits of precision
 and is typically what one wants).
 If you want to use these numeric Python types simply omit the
 type declaration and let them be objects.
+
+It is also possible to declare :ref:`extension-types` (declared with ``cdef class``).
+This does allow subclasses. This typing is mostly used to access
+``cdef`` methods and attributes of the extension type.
+The C code uses a variable which is a pointer to a structure of the
+specific type, something like ``struct MyExtensionTypeObject*``.
 
 
 Grouping multiple C declarations
@@ -113,6 +199,8 @@ can group them into a :keyword:`cdef` block like this::
         void f(Spam *s):
             print s.tons, "Tons of spam"
 
+
+.. _python_functions_vs_c_functions:
 
 Python functions vs. C functions
 ==================================
@@ -190,6 +278,12 @@ takes two Python objects as parameters and returns a Python object::
 Reference counting for these objects is performed automatically according to
 the standard Python/C API rules (i.e. borrowed references are taken as
 parameters and a new reference is returned).
+
+ .. warning::
+
+    This only applies to Cython code.  Other Python packages which
+    are implemented in C like NumPy may not follow these conventions.
+
 
 The name object can also be used to explicitly declare something as a Python
 object. This can be useful if the name being declared would otherwise be taken
@@ -302,6 +396,47 @@ return value and raise it yourself, for example,::
         raise SpamError("Couldn't open the spam file")
 
 
+Overriding in extension types
+-----------------------------
+
+
+``cpdef`` methods can override ``cdef`` methods::
+
+    from __future__ import print_function
+
+    cdef class A:
+        cdef foo(self):
+            print("A")
+
+    cdef class B(A):
+        cdef foo(self, x=None):
+            print("B", x)
+
+    cdef class C(B):
+        cpdef foo(self, x=True, int k=3):
+            print("C", x, k)
+
+When subclassing an extension type with a Python class,
+``def`` methods can override ``cpdef`` methods but not ``cdef``
+methods::
+
+    from __future__ import print_function
+
+    cdef class A:
+        cdef foo(self):
+            print("A")
+
+    cdef class B(A):
+        cpdef foo(self):
+            print("B")
+
+    class C(B):         # NOTE: not cdef class
+        def foo(self):
+            print("C")
+
+If ``C`` above would be an extension type (``cdef class``),
+this would not work correctly.
+The Cython compiler will give a warning in that case.
 
 
 .. _type-conversion:
@@ -422,6 +557,17 @@ Here is an example::
 
 The precedence of ``<...>`` is such that ``<type>a.b.c`` is interpreted as ``<type>(a.b.c)``.
 
+Checked Type Casts
+------------------
+
+A cast like ``<MyExtensionType>x`` will cast x to the class
+``MyExtensionType`` without any checking at all.
+
+To have a cast checked, use the syntax like: ``<MyExtensionType?>x``.
+In this case, Cython will apply a runtime check that raises a ``TypeError``
+if ``x`` is not an instance of ``MyExtensionType``.
+This tests for the exact class for builtin types,
+but allows subclasses for :ref:`extension-types`.
 
 Statements and expressions
 ==========================
@@ -580,8 +726,78 @@ Like other Python looping statements, break and continue may be used in the
 body, and the loop may have an else clause.
 
 
-The include statement
-=====================
+Cython file types
+=================
+
+There are three file types in Cython:
+
+* The implementation files, carrying a ``.py`` or ``.pyx`` suffix.
+* The definition files, carrying a ``.pxd`` suffix.
+* The include files, carrying a ``.pxi`` suffix.
+
+The implementation file
+-----------------------
+
+The implementation file, as the name suggest, contains the implementation
+of your functions, classes, extension types, etc. Nearly all the
+python syntax is supported in this file. Most of the time, a ``.py``
+file can be renamed into a ``.pyx`` file without changing
+any code, and Cython will retain the python behavior.
+
+It is possible for Cython to compile both ``.py`` and ``.pyx`` files.
+The name of the file isn't important if one wants to use only the Python syntax,
+and Cython won't change the generated code depending on the suffix used.
+Though, if one want to use the Cython syntax, using a ``.pyx`` file is necessary.
+
+In addition to the Python syntax, the user can also
+leverage Cython syntax (such as ``cdef``) to use C variables, can
+declare functions as ``cdef`` or ``cpdef`` and can import C definitions
+with :keyword:`cimport`. Many other Cython features usable in implementation files
+can be found throughout this page and the rest of the Cython documentation.
+
+There are some restrictions on the implementation part of some :ref:`extension-types`
+if the corresponding definition file also defines that type.
+
+.. note::
+
+    When a ``.pyx`` file is compiled, Cython first checks to see if a corresponding
+    ``.pxd`` file exists and processes it first. It acts like a header file for
+    a Cython ``.pyx`` file. You can put inside functions that will be used by
+    other Cython modules. This allows different Cython modules to use functions
+    and classes from each other without the Python overhead. To read more about
+    what how to do that, you can see :ref:`pxd_files`.
+
+
+The definition file
+-------------------
+
+A definition file is used to declare various things.
+
+Any C declaration can be made, and it can be also a declaration of a C variable or
+function implemented in a C/C++ file. This can be done with ``cdef extern from``.
+Sometimes, ``.pxd`` files are used as a translation of C/C++ header files
+into a syntax that Cython can understand. This allows then the C/C++ variable and
+functions to be used directly in implementation files with :keyword:`cimport`.
+You can read more about it in :ref:`external-C-code` and :ref:`wrapping-cplusplus`.
+
+It can also contain the definition part of an extension type and the declarations
+of functions for an external library.
+
+It cannot contain the implementations of any C or Python functions, or any
+Python class definitions, or any executable statements. It is needed when one
+wants to  access :keyword:`cdef` attributes and methods, or to inherit from
+:keyword:`cdef` classes defined in this module.
+
+.. note::
+
+    You don't need to (and shouldn't) declare anything in a declaration file
+    :keyword:`public` in order to make it available to other Cython modules; its mere
+    presence in a definition file does that. You only need a public
+    declaration if you want to make something available to external C code.
+
+
+The include statement and include files
+---------------------------------------
 
 .. warning::
     Historically the ``include`` statement was used for sharing declarations.
