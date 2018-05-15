@@ -220,14 +220,13 @@ listed after a ``"*"`` parameter and before a ``"**"`` parameter if any::
     # We cannot call f with less verbosity than this.
     foo = f(4, "bar", c=68, e=1.0)
 
-*  As shown above, the ``c``, ``d`` and ``e`` arguments can not be
-   passed as positional arguments and must be passed as keyword arguments.
+As shown above, the ``c``, ``d`` and ``e`` arguments can not be
+passed as positional arguments and must be passed as keyword arguments.
+Furthermore, ``c`` and ``e`` are **required** keyword arguments
+since they do not have a default value.
 
-*  Furthermore, ``c`` and ``e`` are required keyword arguments
-   since they do not have a default value.
-
-If the parameter name after the ``"*"`` is omitted, the function will
-not accept any extra positional arguments::
+A single ``"*"`` without argument name can be used to
+terminate the list of positional arguments::
 
     def g(a, b, *, c, d):
         ...
