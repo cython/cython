@@ -520,8 +520,7 @@ be careful what you do.
 Type Casting
 ------------
 
-As C uses the ``"("`` and ``")"`` for casting types, Cython uses ``"<"`` and ``">"``
-to signify a casting. For example::
+Where C uses ``"("`` and ``")"``, Cython uses ``"<"`` and ``">"``. For example::
 
     cdef char *p
     cdef float *q
@@ -568,6 +567,7 @@ In this case, Cython will apply a runtime check that raises a ``TypeError``
 if ``x`` is not an instance of ``MyExtensionType``.
 This tests for the exact class for builtin types,
 but allows subclasses for :ref:`extension-types`.
+
 
 Statements and expressions
 ==========================
