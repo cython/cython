@@ -212,7 +212,12 @@ Optional Arguments
 ------------------
 
 Unlike C, it is possible to use optional arguments in ``cdef`` and ``cpdef`` functions.
-There are differences though whether you declare them in a ``.pyx`` file or a ``.pxd`` file.
+There are differences though whether you declare them in a ``.pyx``
+file or the corresponding ``.pxd`` file.
+
+To avoid repetition (and potential future inconsistencies), default argument values are
+not visible in the declaration (in ``.pxd`` files) but only in
+the implementation (in ``.pyx`` files).
 
 When in a ``.pyx`` file, the signature is the same as it is in Python itself::
 
