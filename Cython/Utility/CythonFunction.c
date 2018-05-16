@@ -135,10 +135,11 @@ __Pyx_CyFunction_set_name(__pyx_CyFunctionObject *op, PyObject *value)
     PyObject *tmp;
 
 #if PY_MAJOR_VERSION >= 3
-    if (unlikely(value == NULL || !PyUnicode_Check(value))) {
+    if (unlikely(value == NULL || !PyUnicode_Check(value)))
 #else
-    if (unlikely(value == NULL || !PyString_Check(value))) {
+    if (unlikely(value == NULL || !PyString_Check(value)))
 #endif
+    {
         PyErr_SetString(PyExc_TypeError,
                         "__name__ must be set to a string object");
         return -1;
@@ -163,10 +164,11 @@ __Pyx_CyFunction_set_qualname(__pyx_CyFunctionObject *op, PyObject *value)
     PyObject *tmp;
 
 #if PY_MAJOR_VERSION >= 3
-    if (unlikely(value == NULL || !PyUnicode_Check(value))) {
+    if (unlikely(value == NULL || !PyUnicode_Check(value)))
 #else
-    if (unlikely(value == NULL || !PyString_Check(value))) {
+    if (unlikely(value == NULL || !PyString_Check(value)))
 #endif
+    {
         PyErr_SetString(PyExc_TypeError,
                         "__qualname__ must be set to a string object");
         return -1;
@@ -1227,7 +1229,7 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
 #else
 #if CYTHON_COMPILING_IN_PYSTON || CYTHON_COMPILING_IN_PYPY
     // special C-API function only in Pyston and PyPy >= 5.9
-    if (PyMethodDescr_Check(method)) {
+    if (PyMethodDescr_Check(method))
 #else
     // It appears that PyMethodDescr_Type is not exposed anywhere in the CPython C-API
     static PyTypeObject *methoddescr_type = NULL;
@@ -1237,8 +1239,9 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
        methoddescr_type = Py_TYPE(meth);
        Py_DECREF(meth);
     }
-    if (__Pyx_TypeCheck(method, methoddescr_type)) {
+    if (__Pyx_TypeCheck(method, methoddescr_type))
 #endif
+    {
         // cdef classes
         PyMethodDescrObject *descr = (PyMethodDescrObject *)method;
         #if PY_VERSION_HEX < 0x03020000
