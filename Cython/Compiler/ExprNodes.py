@@ -5918,44 +5918,38 @@ class PyMethodCallNode(SimpleCallNode):
 
         if not args:
             # fastest special case: try to avoid tuple creation
-            code.putln("if (%s) {" % self_arg)
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("PyObjectCallNoArg", "ObjectHandling.c"))
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("PyObjectCallOneArg", "ObjectHandling.c"))
             code.putln(
-                "%s = __Pyx_PyObject_CallOneArg(%s, %s); %s" % (
-                    self.result(),
+                "%s = (%s) ? __Pyx_PyObject_CallOneArg(%s, %s) : __Pyx_PyObject_CallNoArg(%s);" % (
+                    self.result(), self_arg,
                     function, self_arg,
-                    code.error_goto_if_null(self.result(), self.pos)))
-            code.put_decref_clear(self_arg, py_object_type)
+                    function))
+            code.put_xdecref_clear(self_arg, py_object_type)
             code.funcstate.release_temp(self_arg)
-            code.putln("} else {")
+            code.putln(code.error_goto_if_null(self.result(), self.pos))
+            code.put_gotref(self.py_result())
+        elif len(args) == 1:
+            # fastest special case: try to avoid tuple creation
             code.globalstate.use_utility_code(
-                UtilityCode.load_cached("PyObjectCallNoArg", "ObjectHandling.c"))
+                UtilityCode.load_cached("PyObjectCall2Args", "ObjectHandling.c"))
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("PyObjectCallOneArg", "ObjectHandling.c"))
+            arg = args[0]
             code.putln(
-                "%s = __Pyx_PyObject_CallNoArg(%s); %s" % (
-                    self.result(),
-                    function,
-                    code.error_goto_if_null(self.result(), self.pos)))
-            code.putln("}")
+                "%s = (%s) ? __Pyx_PyObject_Call2Args(%s, %s, %s) : __Pyx_PyObject_CallOneArg(%s, %s);" % (
+                    self.result(), self_arg,
+                    function, self_arg, arg.py_result(),
+                    function, arg.py_result()))
+            code.put_xdecref_clear(self_arg, py_object_type)
+            code.funcstate.release_temp(self_arg)
+            arg.generate_disposal_code(code)
+            arg.free_temps(code)
+            code.putln(code.error_goto_if_null(self.result(), self.pos))
             code.put_gotref(self.py_result())
         else:
-            if len(args) == 1:
-                code.putln("if (!%s) {" % self_arg)
-                code.globalstate.use_utility_code(
-                    UtilityCode.load_cached("PyObjectCallOneArg", "ObjectHandling.c"))
-                arg = args[0]
-                code.putln(
-                    "%s = __Pyx_PyObject_CallOneArg(%s, %s); %s" % (
-                        self.result(),
-                        function, arg.py_result(),
-                        code.error_goto_if_null(self.result(), self.pos)))
-                arg.generate_disposal_code(code)
-                code.put_gotref(self.py_result())
-                code.putln("} else {")
-                arg_offset = 1
-            else:
-                arg_offset = arg_offset_cname
-
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("PyFunctionFastCall", "ObjectHandling.c"))
             code.globalstate.use_utility_code(
@@ -5973,9 +5967,9 @@ class PyMethodCallNode(SimpleCallNode):
                     call_prefix,
                     function,
                     Naming.quick_temp_cname,
-                    arg_offset,
+                    arg_offset_cname,
                     len(args),
-                    arg_offset,
+                    arg_offset_cname,
                     code.error_goto_if_null(self.result(), self.pos)))
                 code.put_xdecref_clear(self_arg, py_object_type)
                 code.put_gotref(self.py_result())
@@ -5987,7 +5981,7 @@ class PyMethodCallNode(SimpleCallNode):
             code.putln("{")
             args_tuple = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
             code.putln("%s = PyTuple_New(%d+%s); %s" % (
-                args_tuple, len(args), arg_offset,
+                args_tuple, len(args), arg_offset_cname,
                 code.error_goto_if_null(args_tuple, self.pos)))
             code.put_gotref(args_tuple)
 
@@ -6003,7 +5997,7 @@ class PyMethodCallNode(SimpleCallNode):
                 arg.make_owned_reference(code)
                 code.put_giveref(arg.py_result())
                 code.putln("PyTuple_SET_ITEM(%s, %d+%s, %s);" % (
-                    args_tuple, i, arg_offset, arg.py_result()))
+                    args_tuple, i, arg_offset_cname, arg.py_result()))
             if len(args) > 1:
                 code.funcstate.release_temp(arg_offset_cname)
 

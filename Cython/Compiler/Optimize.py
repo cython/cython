@@ -4710,7 +4710,7 @@ class FinalOptimizePhase(Visitor.EnvTransform, Visitor.NodeRefCleanupMixin):
                 else "optimize.unpack_method_calls")):
             # optimise simple Python methods calls
             if isinstance(node.arg_tuple, ExprNodes.TupleNode) and not (
-                    node.arg_tuple.mult_factor or (node.arg_tuple.is_literal and node.arg_tuple.args)):
+                    node.arg_tuple.mult_factor or (node.arg_tuple.is_literal and len(node.arg_tuple.args) > 1)):
                 # simple call, now exclude calls to objects that are definitely not methods
                 may_be_a_method = True
                 if function.type is Builtin.type_type:

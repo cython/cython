@@ -1432,18 +1432,27 @@ static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **me
         attr = __Pyx_PyObject_GetAttrStr(obj, name);
         goto try_unpack;
     }
-    if (unlikely(tp->tp_dict == NULL && PyType_Ready(tp) < 0)) {
+    if (unlikely(tp->tp_dict == NULL) && unlikely(PyType_Ready(tp) < 0)) {
         return 0;
     }
 
     descr = _PyType_Lookup(tp, name);
     if (likely(descr != NULL)) {
         Py_INCREF(descr);
+        // Repeating the condition below accommodates for MSVC's inability to test macros inside of macro expansions.
 #if PY_MAJOR_VERSION >= 3
+        #ifdef __Pyx_CyFunction_USED
+        if (likely(PyFunction_Check(descr) || (Py_TYPE(descr) == &PyMethodDescr_Type) || __Pyx_CyFunction_Check(descr)))
+        #else
         if (likely(PyFunction_Check(descr) || (Py_TYPE(descr) == &PyMethodDescr_Type)))
+        #endif
 #else
         // "PyMethodDescr_Type" is not part of the C-API in Py2.
+        #ifdef __Pyx_CyFunction_USED
+        if (likely(PyFunction_Check(descr) || __Pyx_CyFunction_Check(descr)))
+        #else
         if (likely(PyFunction_Check(descr)))
+        #endif
 #endif
         {
             meth_found = 1;
@@ -2119,7 +2128,7 @@ static CYTHON_INLINE PyObject * __Pyx_PyCFunction_FastCall(PyObject *func_obj, P
 #endif  /* CYTHON_FAST_PYCCALL */
 
 
-/////////////// PyObjectCall2Args ///////////////
+/////////////// PyObjectCall2Args.proto ///////////////
 
 static CYTHON_UNUSED PyObject* __Pyx_PyObject_Call2Args(PyObject* function, PyObject* arg1, PyObject* arg2); /*proto*/
 
