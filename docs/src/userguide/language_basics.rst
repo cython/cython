@@ -11,6 +11,7 @@
 Language Basics
 *****************
 
+.. _declaring_data_types:
 
 Declaring Data Types
 ====================
@@ -37,6 +38,8 @@ the use of ‘early binding’ programming techniques.
     typing does not allow optimizations but where Cython still needs to
     check that the type of some object matches the declared type.
 
+
+.. _c_variable_and_type_definitions:
 
 C variable and type definitions
 ===============================
@@ -135,6 +138,9 @@ Here is a simple example::
 
 You can read more about them in :ref:`extension-types`.
 
+
+.. _types:
+
 Types
 -----
 
@@ -199,7 +205,8 @@ can group them into a :keyword:`cdef` block like this::
         void f(Spam *s):
             print s.tons, "Tons of spam"
 
-
+.. _cpdef:
+.. _cdef:
 .. _python_functions_vs_c_functions:
 
 Python functions vs. C functions
@@ -302,6 +309,8 @@ In the interests of clarity, it is probably a good idea to always be explicit
 about object parameters in C functions.
 
 
+.. _optional_arguments:
+
 Optional Arguments
 ------------------
 
@@ -351,6 +360,8 @@ There may be a slight performance penalty when the optional arg is overridden
 with one that does not have default values.
 
 
+.. _keyword_only_argument:
+
 Keyword-only Arguments
 ----------------------
 
@@ -380,6 +391,7 @@ terminate the list of positional arguments::
 Shown above, the signature takes exactly two positional
 parameters and has two required keyword parameters
 
+.. _error_return_values:
 
 Error return values
 -------------------
@@ -453,6 +465,9 @@ Some things to note:
   return type implicitly returns a Python object. (Exceptions on such functions
   are implicitly propagated by returning NULL.)
 
+
+.. _checking_return_values_of_non_cython_functions:
+
 Checking return values of non-Cython functions
 ----------------------------------------------
 
@@ -474,6 +489,7 @@ return value and raise it yourself, for example,::
     if p == NULL:
         raise SpamError("Couldn't open the spam file")
 
+.. _overriding_in_extension_types:
 
 Overriding in extension types
 -----------------------------
@@ -595,6 +611,7 @@ Sometimes Cython will complain unnecessarily, and sometimes it will fail to
 detect a problem that exists. Ultimately, you need to understand the issue and
 be careful what you do.
 
+.. _type_casting:
 
 Type Casting
 ------------
@@ -642,6 +659,8 @@ Here is an example::
 
 The precedence of ``<...>`` is such that ``<type>a.b.c`` is interpreted as ``<type>(a.b.c)``.
 
+.. _checked_type_casts:
+
 Checked Type Casts
 ------------------
 
@@ -654,6 +673,7 @@ if ``x`` is not an instance of ``MyExtensionType``.
 This tests for the exact class for builtin types,
 but allows subclasses for :ref:`extension-types`.
 
+.. _statements_and_expressions:
 
 Statements and expressions
 ==========================
@@ -701,6 +721,7 @@ variable residing in the scope where it is assigned.  The type of the variable
 depends on type inference, except for the global module scope, where it is
 always a Python object.
 
+.. _built_in_functions:
 
 Built-in Functions
 ------------------
@@ -811,6 +832,7 @@ Some things to note about the for-from loop:
 Like other Python looping statements, break and continue may be used in the
 body, and the loop may have an else clause.
 
+.. _cython_file_types:
 
 Cython file types
 =================
@@ -909,6 +931,7 @@ of functions or class bodies.
     separate parts that may be more appropriate in many cases. See
     :ref:`sharing-declarations`.
 
+.. _conditional_compilation:
 
 Conditional Compilation
 =======================
