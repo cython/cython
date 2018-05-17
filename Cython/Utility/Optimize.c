@@ -757,23 +757,16 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject els
         // After checking that the sign is the same (and excluding 0), now compare the absolute values.
         // When inlining, the C compiler should select exactly one line from this unrolled loop.
         uintval = (unsigned long) intval;
-        if ((0));
-        {{for _size in range(4, 1, -1)}}
+        {{for _size in range(4, 0, -1)}}
 #if PyLong_SHIFT * {{_size}} < SIZEOF_LONG*8
-        else if (uintval >= {{_size-1}}UL * (unsigned long) PyLong_BASE) {
-            if (uintval >= {{_size}}UL * (unsigned long) PyLong_BASE) {
-                // C integer value is between the maximum multiple digits that fit into a long completely and the maximum long value
-                unequal = (size != {{_size+1}}) || (digits[0] != (uintval & (unsigned long) PyLong_MASK))
-                    {{for _i in range(1, _size+1)}} | (digits[{{_i}}] != ((uintval >> ({{_i}} * PyLong_SHIFT)) & (unsigned long) PyLong_MASK)){{endfor}};
-            } else {
-                // C integer value is within the maximum multiple digits that fit into a long completely
-                unequal = (size != {{_size}}) || (digits[0] != (uintval & (unsigned long) PyLong_MASK))
-                    {{for _i in range(1, _size)}} | (digits[{{_i}}] != ((uintval >> ({{_i}} * PyLong_SHIFT)) & (unsigned long) PyLong_MASK)){{endfor}};
-            }
-        }
+        if (uintval >> (PyLong_SHIFT * {{_size}})) {
+            // C integer value is between the maximum multiple digits that fit into a long completely and the maximum long value
+            unequal = (size != {{_size+1}}) || (digits[0] != (uintval & (unsigned long) PyLong_MASK))
+                {{for _i in range(1, _size+1)}} | (digits[{{_i}}] != ((uintval >> ({{_i}} * PyLong_SHIFT)) & (unsigned long) PyLong_MASK)){{endfor}};
+        } else
 #endif
         {{endfor}}
-        else unequal = (size != 1) || (digits[0] != (uintval & (unsigned long) PyLong_MASK));
+            unequal = (size != 1) || (((unsigned long) digits[0]) != (uintval & (unsigned long) PyLong_MASK));
 
         {{return_compare('unequal', '0', c_op)}}
     }
