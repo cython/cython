@@ -596,6 +596,52 @@ detect a problem that exists. Ultimately, you need to understand the issue and
 be careful what you do.
 
 
+Type Casting
+------------
+
+Where C uses ``"("`` and ``")"``, Cython uses ``"<"`` and ``">"``. For example::
+
+    cdef char *p
+    cdef float *q
+    p = <char*>q
+
+When casting a C value to a Python object type or vice versa,
+Cython will attempt a coercion. Simple examples are casts like ``<int>pyobj``,
+which converts a Python number to a plain C ``int`` value, or ``<bytes>charptr``,
+which copies a C ``char*`` string into a new Python bytes object.
+
+ .. note:: Cython will not prevent a redundant cast, but emits a warning for it.
+
+To get the address of some Python object, use a cast to a pointer type
+like ``<void*>`` or ``<PyObject*>``.
+You can also cast a C pointer back to a Python object reference
+with ``<object>``, or a more specific builtin or extension type
+(e.g. ``<MyExtType>ptr``). This will increase the reference count of
+the object by one, i.e. the cast returns an owned reference.
+Here is an example::
+
+    from __future__ import print_function
+    from cpython.ref cimport PyObject
+    from libc.stdint cimport uintptr_t
+
+    python_string = "foo"
+
+    cdef void* ptr = <void*>python_string
+    cdef uintptr_t adress_in_c = <uintptr_t>ptr
+    address_from_void = adress_in_c        # address_from_void is a python int
+
+    cdef PyObject* ptr2 = <PyObject*>python_string
+    cdef uintptr_t address_in_c2 = <uintptr_t>ptr2
+    address_from_PyObject = address_in_c2  # address_from_PyObject is a python int
+
+    assert address_from_void == address_from_PyObject == id(python_string)
+
+    print(<object>ptr)                     # Prints "foo"
+    print(<object>ptr2)                    # prints "foo"
+
+
+The precedence of ``<...>`` is such that ``<type>a.b.c`` is interpreted as ``<type>(a.b.c)``.
+
 Checked Type Casts
 ------------------
 
