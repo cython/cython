@@ -760,7 +760,7 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject els
         {{for _size in range(4, 0, -1)}}
 #if PyLong_SHIFT * {{_size}} < SIZEOF_LONG*8
         if (uintval >> (PyLong_SHIFT * {{_size}})) {
-            // C integer value is between the maximum multiple digits that fit into a long completely and the maximum long value
+            // The C integer value is between (PyLong_BASE ** _size) and MIN(PyLong_BASE ** _size, LONG_MAX).
             unequal = (size != {{_size+1}}) || (digits[0] != (uintval & (unsigned long) PyLong_MASK))
                 {{for _i in range(1, _size+1)}} | (digits[{{_i}}] != ((uintval >> ({{_i}} * PyLong_SHIFT)) & (unsigned long) PyLong_MASK)){{endfor}};
         } else
