@@ -391,6 +391,14 @@ terminate the list of positional arguments::
 Shown above, the signature takes exactly two positional
 parameters and has two required keyword parameters
 
+Function Pointers
+-----------------
+
+Functions declared in a ``struct`` are automatically converted to function pointers.
+
+For using error return values with function pointers, see the note at the bottom
+of :ref:`error_return_values`.
+
 .. _error_return_values:
 
 Error return values
