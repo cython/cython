@@ -119,8 +119,6 @@ modifier_output_mapper = {
     'inline': 'CYTHON_INLINE'
 }.get
 
-is_self_assignment = re.compile(r" *(\w+) = (\1);\s*$").match
-
 
 class IncludeCode(object):
     """
@@ -1880,8 +1878,6 @@ class CCodeWriter(object):
         self.put(code)
 
     def put(self, code):
-        if is_self_assignment(code):
-            return
         fix_indent = False
         if "{" in code:
             dl = code.count("{")

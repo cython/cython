@@ -2307,7 +2307,7 @@ class NameNode(AtomicExprNode):
 
                         if is_pythran_expr(self.type):
                             code.putln('new (&%s) decltype(%s){%s};' % (self.result(), self.result(), result))
-                        else:
+                        elif result != self.result():
                             code.putln('%s = %s;' % (self.result(), result))
                 if debug_disposal_code:
                     print("NameNode.generate_assignment_code:")
@@ -7729,7 +7729,7 @@ class SequenceNode(ExprNode):
             code.put_decref(target_list, py_object_type)
             code.putln('%s = %s; %s = NULL;' % (target_list, sublist_temp, sublist_temp))
             code.putln('#else')
-            code.putln('%s = %s;' % (sublist_temp, sublist_temp)) # avoid warning about unused variable
+            code.putln('(void)%s;' % sublist_temp)  # avoid warning about unused variable
             code.funcstate.release_temp(sublist_temp)
             code.putln('#endif')
 
