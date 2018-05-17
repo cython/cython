@@ -67,8 +67,6 @@ Grouping cdef Declarations
 
 This section was moved to :ref:`c_variable_and_type_definitions`.
 
-.. _typing_types:
-
 C types and Python classes
 ==========================
 

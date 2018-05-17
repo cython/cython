@@ -138,7 +138,7 @@ Here is a simple example::
 
 You can read more about them in :ref:`extension-types`.
 
-
+.. _typing_types:
 .. _types:
 
 Types
