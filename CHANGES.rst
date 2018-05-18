@@ -22,6 +22,9 @@ Features added
 Bugs fixed
 ----------
 
+* The directive ``language_level=3`` did not apply to the first token in the
+  source file.  (Github issue #2230)
+
 Other changes
 -------------
 
