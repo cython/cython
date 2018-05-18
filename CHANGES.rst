@@ -16,6 +16,9 @@ Features added
 
 * Some internal and 1-argument method calls are faster.
 
+* The coverage plugin considers more C file extensions such as ``.cc`` and ``.cxx``.
+  (Github issue #2266)
+
 Bugs fixed
 ----------
 
