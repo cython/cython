@@ -2375,12 +2375,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put_error_if_neg(self.pos, "__Pyx_init_sys_getdefaultencoding_params()")
         code.putln("#endif")
 
-        __main__name = code.globalstate.get_py_string_const(
-            EncodedString("__main__"), identifier=True)
         code.putln("if (%s%s) {" % (Naming.module_is_main, self.full_module_name.replace('.', '__')))
-        code.put_error_if_neg(self.pos, 'PyObject_SetAttrString(%s, "__name__", %s)' % (
+        code.put_error_if_neg(self.pos, 'PyObject_SetAttr(%s, %s, %s)' % (
             env.module_cname,
-            __main__name.cname))
+            code.intern_identifier(EncodedString("__name__")),
+            code.intern_identifier(EncodedString("__main__"))))
         code.putln("}")
 
         # set up __file__ and __path__, then add the module to sys.modules

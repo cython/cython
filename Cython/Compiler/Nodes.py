@@ -4908,9 +4908,9 @@ class CClassDefNode(ClassDefNode):
                 # Cython (such as closures), the 'internal'
                 # directive is set by users
                 code.putln(
-                    'if (PyObject_SetAttrString(%s, "%s", (PyObject *)&%s) < 0) %s' % (
+                    'if (PyObject_SetAttr(%s, %s, (PyObject *)&%s) < 0) %s' % (
                         Naming.module_cname,
-                        scope.class_name,
+                        code.intern_identifier(scope.class_name),
                         typeobj_cname,
                         code.error_goto(entry.pos)))
             weakref_entry = scope.lookup_here("__weakref__") if not scope.is_closure_class_scope else None
