@@ -14,7 +14,7 @@ Bugs fixed
   (Github issue #1771)
 
 * ``UnicodeEncodeError`` in Py2 when ``%s`` formatting is optimised for
-  unicode strings.
+  unicode strings.  (Github issue #2276)
 
 
 0.28.2 (2018-04-13)
