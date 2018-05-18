@@ -16,6 +16,9 @@ Bugs fixed
 * ``UnicodeEncodeError`` in Py2 when ``%s`` formatting is optimised for
   unicode strings.  (Github issue #2276)
 
+* Work around a crash bug in g++ 4.4.x by disabling the size reduction setting
+  of the module init function in this version.  (Github issue #2235)
+
 
 0.28.2 (2018-04-13)
 ===================
