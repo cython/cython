@@ -8,10 +8,10 @@ Cython Changelog
 Features added
 --------------
 
-* In CPython 3.6 and later, looking up globals in the module dict is about
+* In CPython 3.6 and later, looking up globals in the module dict is almost
   as fast as looking up C globals.
 
-* (In-)equality Comparisons of objects to integer literals are faster.
+* (In-)equality comparisons of objects to integer literals are faster.
   (Github issue #2188)
 
 * Some internal and 1-argument method calls are faster.
