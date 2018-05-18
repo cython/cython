@@ -39,14 +39,14 @@ interface to them.
 
 .. _readonly:
 
-Attributes
-============
+Static Attributes
+=================
 
 Attributes of an extension type are stored directly in the object's C struct.
 The set of attributes is fixed at compile time; you can't add attributes to an
 extension type instance at run time simply by assigning to them, as you could
 with a Python class instance. (You can subclass the extension type in Python
-and add attributes to instances of the subclass, however.)
+and add attributes to instances of the subclass, see :ref:`dynamic_attributes`.)
 
 There are two ways that attributes of an extension type can be accessed: by
 Python attribute lookup, or by direct access to the C struct from Cython code.
@@ -75,6 +75,51 @@ and the depth attribute readable but not writable.
     Also the :keyword:`public` and :keyword:`readonly` options apply only to
     Python access, not direct access. All the attributes of an extension type
     are always readable and writable by C-level access.
+
+
+.. _dynamic_attributes:
+
+Dynamic Attributes
+==================
+
+It is not possible to add attributes to an extension type at runtime by default.
+You have two ways of avoiding this limitation, both add an overhead when
+a method is called from Python code.
+
+The first workaround is making a child Python class and is preferred way of
+keeping the static attributes of an extension
+type while enabling the use of dynamic attributes::
+
+    cdef class Animal:
+
+        cdef int number_of_legs
+        def __cinit__(self, int number_of_legs):
+            self.number_of_legs = number_of_legs
+
+
+    class ExtendableAnimal(Animal):  # Note that we use class, not cdef class
+        pass
+
+
+    dog = ExtendableAnimal(4)
+    dog.has_tail = True
+
+
+Declaring a ``__dict__`` attribute is the second way of enabling dynamic attributes
+and can have a significant performance penalty compared to subclassing,
+especially when using ``cpdef`` class methods::
+
+    cdef class Animal:
+
+        cdef int number_of_legs
+        cdef dict __dict__
+        def __cinit__(self, int number_of_legs):
+            self.number_of_legs = number_of_legs
+
+
+    dog = Animal(4)
+    dog.has_tail = True
+
 
 Type declarations
 ===================
