@@ -504,7 +504,7 @@ def generated_fstring(int i, unicode u not None, o):
 
 @cython.test_assert_path_exists(
     "//FormattedValueNode",
-    "//AddNode",
+    "//JoinedStrNode",
 )
 def percent_s_unicode(u, int i):
     u"""
