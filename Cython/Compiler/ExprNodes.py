@@ -3164,7 +3164,7 @@ class FormattedValueNode(ExprNode):
     c_format_spec = None
 
     find_conversion_func = {
-        's': 'PyObject_Str',
+        's': 'PyObject_Unicode',
         'r': 'PyObject_Repr',
         'a': 'PyObject_ASCII',  # NOTE: mapped to PyObject_Repr() in Py2
     }.get

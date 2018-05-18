@@ -500,3 +500,16 @@ def generated_fstring(int i, unicode u not None, o):
         u, u, u, u,
         o, o, o, o,
     )
+
+
+@cython.test_assert_path_exists(
+    "//FormattedValueNode",
+    "//AddNode",
+)
+def percent_s_unicode(u, int i):
+    u"""
+    >>> u = u'x\u0194z'
+    >>> print(percent_s_unicode(u, 12))
+    x\u0194z-12
+    """
+    return u"%s-%d" % (u, i)

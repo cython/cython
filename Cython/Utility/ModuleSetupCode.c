@@ -558,6 +558,7 @@ static CYTHON_INLINE void * PyThread_tss_get(Py_tss_t *key) {
   #define PyString_Type                PyUnicode_Type
   #define PyString_Check               PyUnicode_Check
   #define PyString_CheckExact          PyUnicode_CheckExact
+  #define PyObject_Unicode             PyObject_Str
 #endif
 
 #if PY_MAJOR_VERSION >= 3

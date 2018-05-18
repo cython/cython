@@ -13,6 +13,9 @@ Bugs fixed
 * Overriding cpdef methods did not work in Python subclasses with slots.
   (Github issue #1771)
 
+* ``UnicodeEncodeError`` in Py2 when ``%s`` formatting is optimised for
+  unicode strings.
+
 
 0.28.2 (2018-04-13)
 ===================
