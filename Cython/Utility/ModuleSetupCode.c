@@ -697,7 +697,8 @@ static CYTHON_INLINE void * PyThread_tss_get(Py_tss_t *key) {
 #ifndef CYTHON_SMALL_CODE
 #if defined(__clang__)
     #define CYTHON_SMALL_CODE
-#elif defined(__GNUC__)
+#elif defined(__GNUC__) && (!(defined(__cplusplus)) || (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ > 4)))
+    // At least g++ 4.4.7 can generate crashing code with this option. (GH #2235)
     #define CYTHON_SMALL_CODE __attribute__((optimize("Os")))
 #else
     #define CYTHON_SMALL_CODE
