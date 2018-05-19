@@ -45,8 +45,10 @@ Static Attributes
 Attributes of an extension type are stored directly in the object's C struct.
 The set of attributes is fixed at compile time; you can't add attributes to an
 extension type instance at run time simply by assigning to them, as you could
-with a Python class instance. (You can subclass the extension type in Python
-and add attributes to instances of the subclass, see :ref:`dynamic_attributes`.)
+with a Python class instance. However, you can explicitly enable support
+for dynamically assigned attributes, or subclass the extension type with a normal
+Python class, which then supports arbitrary attribute assignments.
+See :ref:`dynamic_attributes`.
 
 There are two ways that attributes of an extension type can be accessed: by
 Python attribute lookup, or by direct access to the C struct from Cython code.
@@ -84,11 +86,9 @@ Dynamic Attributes
 
 It is not possible to add attributes to an extension type at runtime by default.
 You have two ways of avoiding this limitation, both add an overhead when
-a method is called from Python code.
+a method is called from Python code. Especially when calling ``cpdef`` methods.
 
-The first workaround is making a child Python class and is preferred way of
-keeping the static attributes of an extension
-type while enabling the use of dynamic attributes::
+The first approach is to create a Python subclass.::
 
     cdef class Animal:
 
@@ -105,9 +105,7 @@ type while enabling the use of dynamic attributes::
     dog.has_tail = True
 
 
-Declaring a ``__dict__`` attribute is the second way of enabling dynamic attributes
-and can have a significant performance penalty compared to subclassing,
-especially when using ``cpdef`` class methods::
+Declaring a ``__dict__`` attribute is the second way of enabling dynamic attributes.::
 
     cdef class Animal:
 
