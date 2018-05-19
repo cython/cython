@@ -9,7 +9,9 @@ bottom. Some of these methods behave differently from their Python
 counterparts or have no direct Python counterparts, and require special
 mention.
 
-.. Note: Everything said on this page applies only to extension types, defined
+.. Note::
+
+    Everything said on this page applies only to extension types, defined
     with the :keyword:`cdef class` statement. It doesn't apply to classes defined with the
     Python :keyword:`class` statement, where the normal Python rules apply.
 
