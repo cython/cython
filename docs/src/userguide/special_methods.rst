@@ -13,11 +13,15 @@ mention.
     with the :keyword:`cdef class` statement. It doesn't apply to classes defined with the
     Python :keyword:`class` statement, where the normal Python rules apply.
 
+.. _declaration:
+
 Declaration
 ------------
 Special methods of extension types must be declared with :keyword:`def`, not
 :keyword:`cdef`. This does not impact their performance--Python uses different
 calling conventions to invoke these special methods.
+
+.. _docstrings:
 
 Docstrings
 -----------
@@ -27,6 +31,8 @@ types. You can place a docstring in the source to serve as a comment, but it
 won't show up in the corresponding :attr:`__doc__` attribute at run time. (This
 seems to be is a Python limitation -- there's nowhere in the `PyTypeObject`
 data structure to put such docstrings.)
+
+.. _initialisation_methods:
 
 Initialisation methods: :meth:`__cinit__` and :meth:`__init__`
 ---------------------------------------------------------------
@@ -90,6 +96,8 @@ complaining about the signature mismatch.
 
 .. [#] http://docs.python.org/reference/datamodel.html#object.__new__
 
+.. _finalization_method:
+
 Finalization method: :meth:`__dealloc__`
 ----------------------------------------
 
@@ -117,6 +125,8 @@ executed unless they are explicitly called by the subclass.
 
 .. Note:: There is no :meth:`__del__` method for extension types.
 
+.. _arithmetic_methods:
+
 Arithmetic methods
 -------------------
 
@@ -134,6 +144,8 @@ been given, you should return `NotImplemented`.
 This also applies to the in-place arithmetic method :meth:`__ipow__`. It doesn't apply
 to any of the other in-place methods (:meth:`__iadd__`, etc.) which always
 take `self` as the first argument.
+
+.. _righ_comparisons:
 
 Rich comparisons
 -----------------
@@ -166,6 +178,8 @@ Depending on the application, one way or the other may be better:
   +-----+-------+
 
   These constants can be cimported from the ``cpython.object`` module.
+
+.. _the__next__method:
 
 The :meth:`__next__` method
 ----------------------------

@@ -194,6 +194,7 @@ The old behavior is always available by passing a tuple as the second parameter:
     print isinstance(sh, Shrubbery)     # Check the type of sh
     print isinstance(sh, (Shrubbery,))  # Check sh.__class__
 
+.. _extension_types_and_none:
 
 Extension types and None
 =========================
@@ -262,6 +263,8 @@ many of the :meth:`__xxx__` special methods of extension types and their Python
 counterparts. There is a :ref:`separate page <special-methods>` devoted to this subject, and you should
 read it carefully before attempting to use any special methods in your
 extension types.
+
+.. _properties:
 
 Properties
 ============
@@ -355,6 +358,8 @@ when it is deleted.::
     We don't have: ['camembert']
     We don't have: ['camembert', 'cheddar']
     We don't have: []
+
+.. _subclassing:
 
 Subclassing
 =============
@@ -462,6 +467,7 @@ compatible types.::
             p.ptr = ptr
             return p
 
+.. _forward_declaring_extension_types:
 
 Forward-declaring extension types
 ===================================
@@ -526,6 +532,7 @@ statically sized freelist of ``N`` instances for a given type.  Example::
     penguin = None
     penguin = Penguin('fish 2')  # does not need to allocate memory!
 
+.. _making_extension_types_weak_referenceable:
 
 Making extension types weak-referenceable
 ==========================================
@@ -618,6 +625,8 @@ declaration makes an extension type defined in external C code available to a
 Cython module. A public extension type declaration makes an extension type
 defined in a Cython module available to external C code.
 
+.. _external_extension_types:
+
 External extension types
 ------------------------
 
@@ -672,6 +681,8 @@ built-in complex object.::
        :keyword:`struct` and :keyword:`union`, if your extension class
        declaration is inside a :keyword:`cdef` extern from block, you only need to
        declare those C members which you wish to access.
+
+.. _name_specification_clause:
 
 Name specification clause
 -------------------------
@@ -728,6 +739,8 @@ which corresponds to the implicit import statement::
 
       from My.Nested.Package import Spam as Yummy
 
+.. _types_names_vs_constructor_names:
+
 Type names vs. constructor names
 --------------------------------
 
@@ -757,6 +770,8 @@ both roles. So if you declare::
 then Yummy becomes both the type name and a name for the constructor. Again,
 there are other ways that you could get hold of the constructor, but only
 Yummy is usable as a type name.
+
+.. _public:
 
 Public extension types
 ======================
