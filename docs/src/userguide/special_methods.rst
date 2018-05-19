@@ -71,11 +71,22 @@ your :meth:`__cinit__`` method to take no arguments (other than self) it
 will simply ignore any extra arguments passed to the constructor without
 complaining about the signature mismatch.
 
-.. Note: Older Cython files may use :meth:`__new__` rather than :meth:`__cinit__`. The two are synonyms.
-  The name change from :meth:`__new__` to :meth:`__cinit__` was to avoid
-  confusion with Python :meth:`__new__` (which is an entirely different
-  concept) and eventually the use of :meth:`__new__` in Cython will be
-  disallowed to pave the way for supporting Python-style :meth:`__new__`
+..  Note::
+
+    All constructor arguments will be passed as Python objects.
+    This implies that non-convertible C types such as pointers or C++ objects
+    cannot be passed into the constructor from Cython code.  If this is needed,
+    use a factory function instead that handles the object initialisation.
+    It often helps to directly call ``__new__()`` in this function to bypass the
+    call to the ``__init__()`` constructor.
+
+.. Note::
+
+    Older Cython files may use :meth:`__new__` rather than :meth:`__cinit__`. The two are synonyms.
+    The name change from :meth:`__new__` to :meth:`__cinit__` was to avoid
+    confusion with Python :meth:`__new__` (which is an entirely different
+    concept) and eventually the use of :meth:`__new__` in Cython will be
+    disallowed to pave the way for supporting Python-style :meth:`__new__`
 
 .. [#] http://docs.python.org/reference/datamodel.html#object.__new__
 
