@@ -185,7 +185,7 @@ may result from trying to access invalid memory. Instead, one can write::
 which performs a type check (possibly raising a :class:`TypeError`) before making the
 cast and allowing the code to proceed.
 
-To explicitly test the type of an object, use the :meth:`isinstance` method.
+To explicitly test the type of an object, use the :meth:`isinstance` builtin function.
 For known builtin or extension types, Cython translates these into a
 fast and safe type check that ignores changes to
 the object's ``__class__`` attribute etc., so that after a successful
