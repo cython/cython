@@ -260,17 +260,21 @@ customize your build.
                         patterns or a list of Extension objects.  The latter
                         allows you to configure the extensions separately
                         through the normal distutils options.
+                        You can also pass Extension objects that have
+                        glob patterns as their sources. Then, cythonize
+                        will resolve the pattern and create a
+                        copy of the Extension for every matching file.
 
     :param exclude: When passing glob patterns as ``module_list``, you can exclude certain
                     module names explicitly by passing them into the ``exclude`` option.
 
     :param nthreads: The number of concurrent builds for parallel compilation
-                     (requires the Python module multiprocessing).
+                     (requires the ``multiprocessing`` module).
 
     :param aliases: If you want to use compiler directives like ``# distutils: ...`` but
                     can only know at compile time (when running the ``setup.py``) which values
                     to use, you can use aliases and pass a dictionary mapping those aliases
-                    to Python strings when calling :func:`cythonize`. As an example, sat you
+                    to Python strings when calling :func:`cythonize`. As an example, say you
                     want to use the compiler
                     directive ``# distutils: include_dirs = ../static_libs/include/``
                     but this path isn't always fixed and you want to find it when running
@@ -289,8 +293,6 @@ customize your build.
                      affects only modules found based on file names.  Extension instances passed
                      into :func:`cythonize` will not be changed. It is recommended to rather
                      use the compiler directive ``# distutils: language = c++`` than this option.
-                     If you don't, Cython will print a message telling you to use the
-                     compiler directives.
 
     :param exclude_failures: For a broad 'try to compile' mode that ignores compilation
                              failures and simply excludes the failed extensions,
@@ -298,9 +300,11 @@ customize your build.
                              really makes sense for compiling ``.py`` files which can also
                              be used without compilation.
 
-    :param annotate: If ``True``, will produce a HTML file for each of the ``.pxd`` files compiled.
-                     This HTML file will show each line of Cython code with how much
-                     Python interaction there is. It also allows you to see the C/C++ code
+    :param annotate: If ``True``, will produce a HTML file for each of the ``.pyx`` or ``.py``
+                     files compiled. The HTML file gives an indication
+                     of how much Python interaction there is in
+                     each of the source code lines, compared to plain C code.
+                     It also allows you to see the C/C++ code
                      generated for each line of Cython code. This report is invaluable when
                      optimizing a function for speed,
                      and for determining when to :ref:`release the GIL <nogil>`:
