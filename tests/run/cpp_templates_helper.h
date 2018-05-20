@@ -44,3 +44,9 @@ class Div {
 public:
     static T half(T value) { return value / 2; }
 };
+
+template <class T1, class T2>
+class BinaryAnd {
+public:
+    static T1 call(T1 x, T2 y) { return x & y; }
+};

@@ -57,7 +57,7 @@ file to be of the declared type.  Thus if one has a file :file:`A.py`::
             self.b = b
 
         def foo(self, x):
-            print x + _helper(1.0)
+            print(x + _helper(1.0))
 
 and adds :file:`A.pxd`::
 
@@ -84,7 +84,7 @@ then Cython will compile the :file:`A.py` as if it had been written as follows::
             self.b = b
 
         cpdef foo(self, double x):
-            print x + _helper(1.0)
+            print(x + _helper(1.0))
 
 Notice how in order to provide the Python wrappers to the definitions
 in the :file:`.pxd`, that is, to be accessible from Python,
@@ -312,8 +312,8 @@ Further Cython functions and declarations
   ::
 
     cython.declare(n=cython.longlong)
-    print cython.sizeof(cython.longlong)
-    print cython.sizeof(n)
+    print(cython.sizeof(cython.longlong))
+    print(cython.sizeof(n))
 
 * ``struct`` can be used to create struct types.::
 

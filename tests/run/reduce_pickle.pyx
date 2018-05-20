@@ -1,3 +1,6 @@
+# mode: run
+# tag: pickle
+
 import cython
 import sys
 

@@ -79,6 +79,8 @@
   #define CYTHON_PEP489_MULTI_PHASE_INIT 0
   #undef CYTHON_USE_TP_FINALIZE
   #define CYTHON_USE_TP_FINALIZE 0
+  #undef CYTHON_USE_DICT_VERSIONS
+  #define CYTHON_USE_DICT_VERSIONS 0
 
 #elif defined(PYSTON_VERSION)
   #define CYTHON_COMPILING_IN_PYPY 0
@@ -118,6 +120,8 @@
   #define CYTHON_PEP489_MULTI_PHASE_INIT 0
   #undef CYTHON_USE_TP_FINALIZE
   #define CYTHON_USE_TP_FINALIZE 0
+  #undef CYTHON_USE_DICT_VERSIONS
+  #define CYTHON_USE_DICT_VERSIONS 0
 
 #else
   #define CYTHON_COMPILING_IN_PYPY 0
@@ -180,6 +184,9 @@
   #endif
   #ifndef CYTHON_USE_TP_FINALIZE
     #define CYTHON_USE_TP_FINALIZE (PY_VERSION_HEX >= 0x030400a1)
+  #endif
+  #ifndef CYTHON_USE_DICT_VERSIONS
+    #define CYTHON_USE_DICT_VERSIONS (PY_VERSION_HEX >= 0x030600B1)
   #endif
 #endif
 
@@ -383,14 +390,18 @@ class __Pyx_FakeReference {
   #define Py_TPFLAGS_HAVE_FINALIZE 0
 #endif
 
-#if PY_VERSION_HEX < 0x030700A0 || !defined(METH_FASTCALL)
-  // new in CPython 3.6, but changed in 3.7 - see https://bugs.python.org/issue29464
+#if PY_VERSION_HEX <= 0x030700A3 || !defined(METH_FASTCALL)
+  // new in CPython 3.6, but changed in 3.7 - see
+  // positional-only parameters:
+  //   https://bugs.python.org/issue29464
+  // const args:
+  //   https://bugs.python.org/issue32240
   #ifndef METH_FASTCALL
      #define METH_FASTCALL 0x80
   #endif
-  typedef PyObject *(*__Pyx_PyCFunctionFast) (PyObject *self, PyObject **args, Py_ssize_t nargs);
+  typedef PyObject *(*__Pyx_PyCFunctionFast) (PyObject *self, PyObject *const *args, Py_ssize_t nargs);
   // new in CPython 3.7, used to be old signature of _PyCFunctionFast() in 3.6
-  typedef PyObject *(*__Pyx_PyCFunctionFastWithKeywords) (PyObject *self, PyObject **args,
+  typedef PyObject *(*__Pyx_PyCFunctionFastWithKeywords) (PyObject *self, PyObject *const *args,
                                                           Py_ssize_t nargs, PyObject *kwnames);
 #else
   #define __Pyx_PyCFunctionFast _PyCFunctionFast
@@ -401,6 +412,27 @@ class __Pyx_FakeReference {
     ((PyCFunction_Check(func) && (METH_FASTCALL == (PyCFunction_GET_FLAGS(func) & ~(METH_CLASS | METH_STATIC | METH_COEXIST | METH_KEYWORDS)))))
 #else
 #define __Pyx_PyFastCFunction_Check(func) 0
+#endif
+
+#if CYTHON_USE_DICT_VERSIONS
+#define __PYX_GET_DICT_VERSION(dict)  (((PyDictObject*)(dict))->ma_version_tag)
+#define __PYX_UPDATE_DICT_CACHE(dict, value, cache_var, version_var) \
+    (version_var) = __PYX_GET_DICT_VERSION(dict); \
+    (cache_var) = (value);
+#define __PYX_PY_DICT_LOOKUP_IF_MODIFIED(VAR, DICT, LOOKUP) { \
+        static PY_UINT64_T __pyx_dict_version = 0; \
+        static PyObject *__pyx_dict_cached_value = NULL; \
+        if (likely(__PYX_GET_DICT_VERSION(DICT) == __pyx_dict_version)) { \
+            (VAR) = __pyx_dict_cached_value; \
+        } else { \
+            (VAR) = __pyx_dict_cached_value = (LOOKUP); \
+            __pyx_dict_version = __PYX_GET_DICT_VERSION(DICT); \
+        } \
+    }
+#else
+#define __PYX_GET_DICT_VERSION(dict)  (0)
+#define __PYX_UPDATE_DICT_CACHE(dict, value, cache_var, version_var)
+#define __PYX_PY_DICT_LOOKUP_IF_MODIFIED(VAR, DICT, LOOKUP)  (VAR) = (LOOKUP);
 #endif
 
 #if CYTHON_COMPILING_IN_PYPY && !defined(PyObject_Malloc)
@@ -430,6 +462,40 @@ class __Pyx_FakeReference {
   #define __Pyx_PyThreadState_Current _PyThreadState_Current
 #endif
 
+// TSS (Thread Specific Storage) API
+#if PY_VERSION_HEX < 0x030700A2 && !defined(PyThread_tss_create) && !defined(Py_tss_NEEDS_INIT)
+#include "pythread.h"
+#define Py_tss_NEEDS_INIT 0
+typedef int Py_tss_t;
+static CYTHON_INLINE int PyThread_tss_create(Py_tss_t *key) {
+  *key = PyThread_create_key();
+  return 0; // PyThread_create_key reports success always
+}
+static CYTHON_INLINE Py_tss_t * PyThread_tss_alloc(void) {
+  Py_tss_t *key = (Py_tss_t *)PyObject_Malloc(sizeof(Py_tss_t));
+  *key = Py_tss_NEEDS_INIT;
+  return key;
+}
+static CYTHON_INLINE void PyThread_tss_free(Py_tss_t *key) {
+  PyObject_Free(key);
+}
+static CYTHON_INLINE int PyThread_tss_is_created(Py_tss_t *key) {
+  return *key != Py_tss_NEEDS_INIT;
+}
+static CYTHON_INLINE void PyThread_tss_delete(Py_tss_t *key) {
+  PyThread_delete_key(*key);
+  *key = Py_tss_NEEDS_INIT;
+}
+static CYTHON_INLINE int PyThread_tss_set(Py_tss_t *key, void *value) {
+  return PyThread_set_key_value(*key, value);
+}
+static CYTHON_INLINE void * PyThread_tss_get(Py_tss_t *key) {
+  return PyThread_get_key_value(*key);
+}
+// PyThread_delete_key_value(key) is equalivalent to PyThread_set_key_value(key, NULL)
+// PyThread_ReInitTLS() is a no-op
+#endif // TSS (Thread Specific Storage) API
+
 #if CYTHON_COMPILING_IN_CPYTHON || defined(_PyDict_NewPresized)
 #define __Pyx_PyDict_NewPresized(n)  ((n <= 8) ? PyDict_New() : _PyDict_NewPresized(n))
 #else
@@ -444,7 +510,7 @@ class __Pyx_FakeReference {
   #define __Pyx_PyNumber_InPlaceDivide(x,y)  PyNumber_InPlaceDivide(x,y)
 #endif
 
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500A1
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500A1 && CYTHON_USE_UNICODE_INTERNALS
 #define __Pyx_PyDict_GetItemStr(dict, name)  _PyDict_GetItem_KnownHash(dict, name, ((PyASCIIObject *) name)->hash)
 #else
 #define __Pyx_PyDict_GetItemStr(dict, name)  PyDict_GetItem(dict, name)
@@ -520,6 +586,7 @@ class __Pyx_FakeReference {
   #define PyString_Type                PyUnicode_Type
   #define PyString_Check               PyUnicode_Check
   #define PyString_CheckExact          PyUnicode_CheckExact
+  #define PyObject_Unicode             PyObject_Str
 #endif
 
 #if PY_MAJOR_VERSION >= 3
@@ -532,6 +599,13 @@ class __Pyx_FakeReference {
 
 #ifndef PySet_CheckExact
   #define PySet_CheckExact(obj)        (Py_TYPE(obj) == &PySet_Type)
+#endif
+
+#if CYTHON_ASSUME_SAFE_MACROS
+  #define __Pyx_PySequence_SIZE(seq)  Py_SIZE(seq)
+#else
+  // NOTE: might fail with exception => check for -1
+  #define __Pyx_PySequence_SIZE(seq)  PySequence_Size(seq)
 #endif
 
 #if PY_MAJOR_VERSION >= 3
@@ -572,7 +646,7 @@ class __Pyx_FakeReference {
 #endif
 
 #if PY_MAJOR_VERSION >= 3
-  #define __Pyx_PyMethod_New(func, self, klass) ((self) ? PyMethod_New(func, self) : PyInstanceMethod_New(func))
+  #define __Pyx_PyMethod_New(func, self, klass) ((self) ? PyMethod_New(func, self) : (Py_INCREF(func), func))
 #else
   #define __Pyx_PyMethod_New(func, self, klass) PyMethod_New(func, self, klass)
 #endif
@@ -618,6 +692,17 @@ class __Pyx_FakeReference {
 #define __Pyx_PyMODINIT_FUNC PyMODINIT_FUNC
 #endif
 
+#endif
+
+#ifndef CYTHON_SMALL_CODE
+#if defined(__clang__)
+    #define CYTHON_SMALL_CODE
+#elif defined(__GNUC__) && (!(defined(__cplusplus)) || (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ > 4)))
+    // At least g++ 4.4.7 can generate crashing code with this option. (GH #2235)
+    #define CYTHON_SMALL_CODE __attribute__((optimize("Os")))
+#else
+    #define CYTHON_SMALL_CODE
+#endif
 #endif
 
 
@@ -1061,6 +1146,20 @@ end:
     return (__Pyx_RefNannyAPIStruct *)r;
 }
 #endif /* CYTHON_REFNANNY */
+
+
+/////////////// ImportRefnannyAPI ///////////////
+
+#if CYTHON_REFNANNY
+__Pyx_RefNanny = __Pyx_RefNannyImportAPI("refnanny");
+if (!__Pyx_RefNanny) {
+  PyErr_Clear();
+  __Pyx_RefNanny = __Pyx_RefNannyImportAPI("Cython.Runtime.refnanny");
+  if (!__Pyx_RefNanny)
+      Py_FatalError("failed to import 'refnanny' module");
+}
+#endif
+
 
 /////////////// RegisterModuleCleanup.proto ///////////////
 //@substitute: naming

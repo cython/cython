@@ -1,6 +1,14 @@
+.. _working-numpy:
+
 =======================
 Working with NumPy
 =======================
+
+.. NOTE:: Cython 0.16 introduced typed memoryviews as a successor to the NumPy
+          integration described here.  They are easier to use than the buffer syntax
+          below, have less overhead, and can be passed around without requiring the GIL.
+          They should be preferred to the syntax presented in this page.
+          See :ref:`Cython for NumPy users <numpy_tutorial>`.
 
 You can use NumPy from Cython exactly the same as in regular Python, but by
 doing so you are losing potentially high speedups because Cython has support

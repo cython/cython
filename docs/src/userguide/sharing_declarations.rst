@@ -101,7 +101,7 @@ uses it.
     def serve():
         cdef spamdish d
         prepare(&d)
-        print "%d oz spam, filler no. %d" % (d.oz_of_spam, d.filler)
+        print("%d oz spam, filler no. %d" % (d.oz_of_spam, d.filler))
 
 It is important to understand that the :keyword:`cimport` statement can only
 be used to import C data types, C functions and variables, and extension
@@ -184,11 +184,13 @@ example:
 
 :file:`spammery.pyx`::
 
+    from __future__ import print_function
+
     from volume cimport cube
 
     def menu(description, size):
-        print description, ":", cube(size), \
-            "cubic metres of spam"
+        print(description, ":", cube(size),
+              "cubic metres of spam")
 
     menu("Entree", 1)
     menu("Main course", 3)
@@ -243,7 +245,7 @@ and another module which uses it:
 
     cdef Shrubbing.Shrubbery sh
     sh = Shrubbing.standard_shrubbery()
-    print "Shrubbery size is %d x %d" % (sh.width, sh.length)
+    print("Shrubbery size is %d x %d" % (sh.width, sh.length))
 
 One would then need to compile both of these modules, e.g. using
 
@@ -263,3 +265,8 @@ Some things to note about this example:
   doesn't bind the name Shrubbing in Landscaping's module namespace at run
   time, so to access :func:`Shrubbing.standard_shrubbery` we also need to
   ``import Shrubbing``.
+* One caveat if you use setuptools instead of distutils, the default
+  action when running ``python setup.py install`` is to create a zipped
+  ``egg`` file which will not work with ``cimport`` for ``pxd`` files
+  when you try to use them from a dependent package.
+  To prevent this, include ``zip_safe=False`` in the arguments to ``setup()``.

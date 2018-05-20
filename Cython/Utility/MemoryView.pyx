@@ -65,6 +65,7 @@ cdef extern from *:
         PyBUF_STRIDES
         PyBUF_INDIRECT
         PyBUF_RECORDS
+        PyBUF_RECORDS_RO
 
     ctypedef struct __Pyx_TypeInfo:
         pass
@@ -408,6 +409,9 @@ cdef class memoryview(object):
             return self.convert_item_to_object(itemp)
 
     def __setitem__(memoryview self, object index, object value):
+        if self.view.readonly:
+            raise TypeError("Cannot assign to read-only memoryview")
+
         have_slices, index = _unellipsify(index, self.view.ndim)
 
         if have_slices:
@@ -507,6 +511,9 @@ cdef class memoryview(object):
 
     @cname('getbuffer')
     def __getbuffer__(self, Py_buffer *info, int flags):
+        if flags & PyBUF_WRITABLE and self.view.readonly:
+            raise ValueError("Cannot create writable memory view from read-only memoryview")
+
         if flags & PyBUF_STRIDES:
             info.shape = self.view.shape
         else:
@@ -531,12 +538,12 @@ cdef class memoryview(object):
         info.ndim = self.view.ndim
         info.itemsize = self.view.itemsize
         info.len = self.view.len
-        info.readonly = 0
+        info.readonly = self.view.readonly
         info.obj = self
 
     __pyx_getbuffer = capsule(<void *> &__pyx_memoryview_getbuffer, "getbuffer(obj, view, flags)")
 
-    # Some properties that have the same sematics as in NumPy
+    # Some properties that have the same semantics as in NumPy
     @property
     def T(self):
         cdef _memoryviewslice result = memoryview_copy(self)
@@ -1012,7 +1019,10 @@ cdef memoryview_fromslice({{memviewslice_name}} memviewslice,
     (<__pyx_buffer *> &result.view).obj = Py_None
     Py_INCREF(Py_None)
 
-    result.flags = PyBUF_RECORDS
+    if (<memoryview>memviewslice.memview).flags & PyBUF_WRITABLE:
+        result.flags = PyBUF_RECORDS
+    else:
+        result.flags = PyBUF_RECORDS_RO
 
     result.view.shape = <Py_ssize_t *> result.from_slice.shape
     result.view.strides = <Py_ssize_t *> result.from_slice.strides

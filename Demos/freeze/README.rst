@@ -1,13 +1,14 @@
 NAME
 ====
 
-cython_freeze - create a C file for embedding Cython modules
+**cython_freeze** - create a C file for embedding Cython modules
 
 
 SYNOPSIS
 ========
+::
 
-cython_freeze [-o outfile] [-p] module [...]
+    cython_freeze [-o outfile] [-p] module [...]
 
 
 DESCRIPTION
@@ -32,21 +33,20 @@ modules, but it requires another C source file to be created.
 
 OPTIONS
 =======
+::
 
--o FILE, --outfile=FILE   write output to FILE instead of standard output
--p, --pymain              do not automatically run the first module as __main__
+    -o FILE, --outfile=FILE   write output to FILE instead of standard output
+    -p, --pymain              do not automatically run the first module as __main__
 
 
 EXAMPLE
 =======
 
-In the Demos/freeze directory, there exist two Cython modules:
+In the ``Demos/freeze`` directory, there exist two Cython modules:
 
-lcmath.pyx
-    A module that interfaces with the -lm library.
+* ``lcmath.pyx``: A module that interfaces with the -lm library.
 
-combinatorics.pyx
-    A module that implements n-choose-r using lcmath.
+* ``combinatorics.pyx``: A module that implements n-choose-r using lcmath.
 
 Both modules have the Python idiom ``if __name__ == "__main__"``, which only
 execute if that module is the "main" module.  If run as main, lcmath prints the

@@ -215,6 +215,22 @@ class LateClass(object):
     pass
 
 
+def py_float_default(price : float=None, ndigits=4):
+    """
+    Python default arguments should prevent C type inference.
+
+    >>> py_float_default()
+    (None, 4)
+    >>> py_float_default(2)
+    (2, 4)
+    >>> py_float_default(2.0)
+    (2.0, 4)
+    >>> py_float_default(2, 3)
+    (2, 3)
+    """
+    return price, ndigits
+
+
 _WARNINGS = """
 8:32: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
 8:47: Dicts should no longer be used as type annotations. Use 'cython.int' etc. directly.
@@ -223,6 +239,7 @@ _WARNINGS = """
 8:85: Python type declaration in signature annotation does not refer to a Python type
 8:85: Strings should no longer be used for type declarations. Use 'cython.int' etc. directly.
 211:44: Unknown type declaration in annotation, ignoring
+218:29: Ambiguous types in annotation, ignoring
 # BUG:
 46:6: 'pytypes_cpdef' redeclared
 121:0: 'struct_io' redeclared

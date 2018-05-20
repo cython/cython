@@ -2464,6 +2464,31 @@ class CoroAsyncIOCompatTest(unittest.TestCase):
 
         self.assertEqual(buffer, [1, 2, 'MyException'])
 
+    def test_asyncio_cython_crash_gh1999(self):
+        async def await_future(loop):
+            fut = loop.create_future()
+            loop.call_later(1, lambda: fut.set_result(1))
+            await fut
+
+        async def delegate_to_await_future(loop):
+            await await_future(loop)
+
+        ns = {}
+        __builtins__.exec("""
+        async def call(loop, await_func):  # requires Py3.5+
+            await await_func(loop)
+        """.strip(), ns, ns)
+        call = ns['call']
+
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(call(loop, delegate_to_await_future))
+        finally:
+            loop.close()
+            asyncio.set_event_loop(None)
+
 
 class SysSetCoroWrapperTest(unittest.TestCase):
 

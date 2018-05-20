@@ -55,6 +55,26 @@ def str_endswith(str s, sub, start=None, stop=None):
       return s.endswith(sub, start, stop)
 
 
+def object_as_name(object):
+    """
+    >>> object_as_name('abx')
+    True
+    >>> object_as_name('abc')
+    False
+    """
+    return object.endswith("x")
+
+
+def str_as_name(str):
+    """
+    >>> str_as_name('abx')
+    True
+    >>> str_as_name('abc')
+    False
+    """
+    return str.endswith("x")
+
+
 @cython.test_assert_path_exists(
     "//SimpleCallNode",
     "//SimpleCallNode//NoneCheckNode",
@@ -96,9 +116,9 @@ def mod_format(str s, values):
     True
     >>> mod_format(format2, ('XYZ', 'ABC')) == 'abcXYZdefABCghi'  or  mod_format(format2, ('XYZ', 'ABC'))
     True
-    >>> mod_format(None, 'sa')
+    >>> mod_format(None, 'sa')  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: unsupported operand type(s) for %: 'NoneType' and 'str'
+    TypeError: ...NoneType...
     >>> class RMod(object):
     ...     def __rmod__(self, other):
     ...         return 123

@@ -116,6 +116,7 @@ def get_distutils_distro(_cache=[]):
 EXT_DEP_MODULES = {
     'tag:numpy':    'numpy',
     'tag:pythran':  'pythran',
+    'tag:setuptools':  'setuptools.sandbox',
     'tag:asyncio':  'asyncio',
     'tag:pstats':   'pstats',
     'tag:posix':    'posix',
@@ -214,9 +215,17 @@ def def_to_cdef(source):
 
     return '\n'.join(output)
 
+
+def exclude_extension_in_pyver(*versions):
+    def check(ext):
+        return EXCLUDE_EXT if sys.version_info[:2] in versions else ext
+    return check
+
+
 def update_linetrace_extension(ext):
     ext.define_macros.append(('CYTHON_TRACE', 1))
     return ext
+
 
 def update_numpy_extension(ext):
     import numpy
@@ -228,6 +237,7 @@ def update_numpy_extension(ext):
     # This is typically a static-only library.
     for attr, value in get_info('npymath').items():
         getattr(ext, attr).extend(value)
+
 
 def update_openmp_extension(ext):
     ext.openmp = True
@@ -248,6 +258,7 @@ def update_openmp_extension(ext):
 
     return EXCLUDE_EXT
 
+
 def update_cpp11_extension(ext):
     """
         update cpp11 extensions that will run on versions of gcc >4.8
@@ -256,7 +267,7 @@ def update_cpp11_extension(ext):
     if gcc_version is not None:
         compiler_version = gcc_version.group(1)
         if float(compiler_version) > 4.8:
-            ext.extra_compile_args.extend("-std=c++11")
+            ext.extra_compile_args.append("-std=c++11")
         return ext
     return EXCLUDE_EXT
 
@@ -336,6 +347,7 @@ EXT_EXTRAS = {
     'tag:openmp': update_openmp_extension,
     'tag:cpp11': update_cpp11_extension,
     'tag:trace' : update_linetrace_extension,
+    'tag:bytesformat':  exclude_extension_in_pyver((3, 3), (3, 4)),  # no %-bytes formatting
 }
 
 
@@ -369,6 +381,7 @@ VER_DEP_MODULES = {
     (3,4,999): (operator.gt, lambda x: x in ['run.initial_file_path',
                                              ]),
     (3,5): (operator.lt, lambda x: x in ['run.py35_pep492_interop',
+                                         'run.py35_asyncio_async_def',
                                          'run.mod__spec__',
                                          'run.pep526_variable_annotations',  # typing module
                                          ]),
@@ -1062,13 +1075,13 @@ class CythonCompileTestCase(unittest.TestCase):
     def _match_output(self, expected_output, actual_output, write):
         try:
             for expected, actual in zip(expected_output, actual_output):
-                self.assertEquals(expected, actual)
+                self.assertEqual(expected, actual)
             if len(actual_output) < len(expected_output):
                 expected = expected_output[len(actual_output)]
-                self.assertEquals(expected, None)
+                self.assertEqual(expected, None)
             elif len(actual_output) > len(expected_output):
                 unexpected = actual_output[len(expected_output)]
-                self.assertEquals(None, unexpected)
+                self.assertEqual(None, unexpected)
         except AssertionError:
             write("\n=== Expected: ===\n")
             write('\n'.join(expected_output))
@@ -1531,25 +1544,21 @@ class EndToEndTest(unittest.TestCase):
             .replace("CYTHON", "PYTHON %s" % os.path.join(self.cython_root, 'cython.py'))
             .replace("PYTHON", sys.executable))
         old_path = os.environ.get('PYTHONPATH')
-        os.environ['PYTHONPATH'] = self.cython_syspath + os.pathsep + (old_path or '')
-        try:
-            for command in filter(None, commands.splitlines()):
-                p = subprocess.Popen(command,
-                                     stderr=subprocess.PIPE,
-                                     stdout=subprocess.PIPE,
-                                     shell=True)
-                out, err = p.communicate()
-                res = p.returncode
-                if res != 0:
-                    print(command)
-                    print(self._try_decode(out))
-                    print(self._try_decode(err))
-                self.assertEqual(0, res, "non-zero exit status")
-        finally:
-            if old_path:
-                os.environ['PYTHONPATH'] = old_path
-            else:
-                del os.environ['PYTHONPATH']
+        env = dict(os.environ)
+        env['PYTHONPATH'] = self.cython_syspath + os.pathsep + (old_path or '')
+        for command in filter(None, commands.splitlines()):
+            p = subprocess.Popen(command,
+                                 stderr=subprocess.PIPE,
+                                 stdout=subprocess.PIPE,
+                                 shell=True,
+                                 env=env)
+            out, err = p.communicate()
+            res = p.returncode
+            if res != 0:
+                print(command)
+                print(self._try_decode(out))
+                print(self._try_decode(err))
+            self.assertEqual(0, res, "non-zero exit status")
         self.success = True
 
 

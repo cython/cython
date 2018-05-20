@@ -227,6 +227,33 @@ As for NumPy, new axes can be introduced by indexing an array with ``None`` ::
 One may mix new axis indexing with all other forms of indexing and slicing.
 See also an example_.
 
+Read-only views
+---------------
+
+Since Cython 0.28, the memoryview item type can be declared as ``const`` to
+support read-only buffers as input::
+
+    cdef const double[:] myslice   # const item type => read-only view
+
+    a = np.linspace(0, 10, num=50)
+    a.setflags(write=False)
+    myslice = a
+
+Note that this does not *require* the input buffer to be read-only::
+
+    a = np.linspace(0, 10, num=50)
+    myslice = a   # read-only view of a writable buffer
+
+Writable buffers are still accepted by ``const`` views, but read-only
+buffers are not accepted for non-const, writable views::
+
+    cdef double[:] myslice   # a normal read/write memory view
+
+    a = np.linspace(0, 10, num=50)
+    a.setflags(write=False)
+    myslice = a   # ERROR: requesting writable memory view from read-only buffer!
+
+
 Comparison to the old buffer support
 ====================================
 
@@ -325,7 +352,7 @@ For a 3D C contiguous array::
     Out[6]: (12, 4, 1)
 
 A Fortran contiguous array has the opposite memory ordering, with the elements
-on the first axis closest togther in memory::
+on the first axis closest together in memory::
 
     In [7]: f_contig = np.array(c_contig, order='F')
     In [8]: np.all(f_contig == c_contig)

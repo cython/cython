@@ -93,8 +93,9 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
         "Cython.Compiler.FlowControl",
         "Cython.Compiler.Code",
         "Cython.Runtime.refnanny",
-        # "Cython.Compiler.FusedNode",
+        "Cython.Compiler.FusedNode",
         "Cython.Tempita._tempita",
+        "Cython.StringIOTree",
     ]
     if compile_more:
         compiled_modules.extend([
@@ -268,6 +269,7 @@ setup(
         "Programming Language :: Python :: 3.4",
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: Implementation :: CPython",
         "Programming Language :: Python :: Implementation :: PyPy",
         "Programming Language :: C",

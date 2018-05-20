@@ -2,7 +2,6 @@
 
 //////////////////// CythonFunction.proto ////////////////////
 #define __Pyx_CyFunction_USED 1
-#include <structmember.h>
 
 #define __Pyx_CYFUNCTION_STATICMETHOD  0x01
 #define __Pyx_CYFUNCTION_CLASSMETHOD   0x02
@@ -48,6 +47,8 @@ typedef struct {
 
 static PyTypeObject *__pyx_CyFunctionType = 0;
 
+#define __Pyx_CyFunction_Check(obj)  (__Pyx_TypeCheck(obj, __pyx_CyFunctionType))
+
 #define __Pyx_CyFunction_NewEx(ml, flags, qualname, self, module, globals, code) \
     __Pyx_CyFunction_New(__pyx_CyFunctionType, ml, flags, qualname, self, module, globals, code)
 
@@ -74,6 +75,8 @@ static int __pyx_CyFunction_init(void);
 //@substitute: naming
 //@requires: CommonStructures.c::FetchCommonType
 ////@requires: ObjectHandling.c::PyObjectGetAttrStr
+
+#include <structmember.h>
 
 static PyObject *
 __Pyx_CyFunction_get_doc(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *closure)
@@ -132,10 +135,11 @@ __Pyx_CyFunction_set_name(__pyx_CyFunctionObject *op, PyObject *value)
     PyObject *tmp;
 
 #if PY_MAJOR_VERSION >= 3
-    if (unlikely(value == NULL || !PyUnicode_Check(value))) {
+    if (unlikely(value == NULL || !PyUnicode_Check(value)))
 #else
-    if (unlikely(value == NULL || !PyString_Check(value))) {
+    if (unlikely(value == NULL || !PyString_Check(value)))
 #endif
+    {
         PyErr_SetString(PyExc_TypeError,
                         "__name__ must be set to a string object");
         return -1;
@@ -160,10 +164,11 @@ __Pyx_CyFunction_set_qualname(__pyx_CyFunctionObject *op, PyObject *value)
     PyObject *tmp;
 
 #if PY_MAJOR_VERSION >= 3
-    if (unlikely(value == NULL || !PyUnicode_Check(value))) {
+    if (unlikely(value == NULL || !PyUnicode_Check(value)))
 #else
-    if (unlikely(value == NULL || !PyString_Check(value))) {
+    if (unlikely(value == NULL || !PyString_Check(value)))
 #endif
+    {
         PyErr_SetString(PyExc_TypeError,
                         "__qualname__ must be set to a string object");
         return -1;
@@ -1224,7 +1229,7 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
 #else
 #if CYTHON_COMPILING_IN_PYSTON || CYTHON_COMPILING_IN_PYPY
     // special C-API function only in Pyston and PyPy >= 5.9
-    if (PyMethodDescr_Check(method)) {
+    if (PyMethodDescr_Check(method))
 #else
     // It appears that PyMethodDescr_Type is not exposed anywhere in the CPython C-API
     static PyTypeObject *methoddescr_type = NULL;
@@ -1234,8 +1239,9 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
        methoddescr_type = Py_TYPE(meth);
        Py_DECREF(meth);
     }
-    if (__Pyx_TypeCheck(method, methoddescr_type)) {
+    if (__Pyx_TypeCheck(method, methoddescr_type))
 #endif
+    {
         // cdef classes
         PyMethodDescrObject *descr = (PyMethodDescrObject *)method;
         #if PY_VERSION_HEX < 0x03020000
@@ -1254,7 +1260,7 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
         return PyClassMethod_New(method);
     }
 #ifdef __Pyx_CyFunction_USED
-    else if (__Pyx_TypeCheck(method, __pyx_CyFunctionType)) {
+    else if (__Pyx_CyFunction_Check(method)) {
         return PyClassMethod_New(method);
     }
 #endif

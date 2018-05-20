@@ -26,6 +26,10 @@ class CythonScope(ModuleScope):
                                          cname='<error>')
             entry.in_cinclude = True
 
+    def is_cpp(self):
+        # Allow C++ utility code in C++ contexts.
+        return self.context.cpp
+
     def lookup_type(self, name):
         # This function should go away when types are all first-level objects.
         type = parse_basic_type(name)

@@ -10,26 +10,27 @@ cdef extern from "Python.h":
     ctypedef object (*unaryfunc)(object)
     ctypedef object (*binaryfunc)(object, object)
     ctypedef object (*ternaryfunc)(object, object, object)
-    ctypedef int (*inquiry)(object)
-    ctypedef Py_ssize_t (*lenfunc)(object)
+    ctypedef int (*inquiry)(object) except -1
+    ctypedef Py_ssize_t (*lenfunc)(object) except -1
     ctypedef object (*ssizeargfunc)(object, Py_ssize_t)
     ctypedef object (*ssizessizeargfunc)(object, Py_ssize_t, Py_ssize_t)
-    ctypedef int (*ssizeobjargproc)(object, Py_ssize_t, object)
-    ctypedef int (*ssizessizeobjargproc)(object, Py_ssize_t, Py_ssize_t, object)
-    ctypedef int (*objobjargproc)(object, object, object)
-    ctypedef int (*objobjproc)(object, object)
+    ctypedef int (*ssizeobjargproc)(object, Py_ssize_t, object) except -1
+    ctypedef int (*ssizessizeobjargproc)(object, Py_ssize_t, Py_ssize_t, object) except -1
+    ctypedef int (*objobjargproc)(object, object, object) except -1
+    ctypedef int (*objobjproc)(object, object) except -1
 
-    ctypedef Py_hash_t (*hashfunc)(object)
+    ctypedef Py_hash_t (*hashfunc)(object) except -1
     ctypedef object (*reprfunc)(object)
 
-    ctypedef int (*cmpfunc)(object, object)
+    ctypedef int (*cmpfunc)(object, object) except -2
     ctypedef object (*richcmpfunc)(object, object, int)
 
     # The following functions use 'PyObject*' as first argument instead of 'object' to prevent
     # accidental reference counting when calling them during a garbage collection run.
     ctypedef void (*destructor)(PyObject*)
-    ctypedef int (*visitproc)(PyObject*, void *)
-    ctypedef int (*traverseproc)(PyObject*, visitproc, void*)
+    ctypedef int (*visitproc)(PyObject*, void *) except -1
+    ctypedef int (*traverseproc)(PyObject*, visitproc, void*) except -1
+    ctypedef void (*freefunc)(void*)
 
     ctypedef object (*descrgetfunc)(object, object, object)
     ctypedef int (*descrsetfunc)(object, object, object) except -1
@@ -46,6 +47,7 @@ cdef extern from "Python.h":
         destructor tp_dealloc
         traverseproc tp_traverse
         inquiry tp_clear
+        freefunc tp_free
 
         ternaryfunc tp_call
         hashfunc tp_hash

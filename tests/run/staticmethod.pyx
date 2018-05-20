@@ -139,6 +139,14 @@ cdef class ArgsKwargs(object):
         """
         return args + tuple(sorted(kwargs.items()))
 
+    @staticmethod
+    def no_args():
+        """
+        >>> ArgsKwargs().no_args()
+        OK!
+        """
+        print("OK!")
+
 
 class StaticmethodSubclass(staticmethod):
     """

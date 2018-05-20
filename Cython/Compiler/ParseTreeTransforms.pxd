@@ -7,9 +7,6 @@ from .Visitor cimport (
     CythonTransform, VisitorTransform, TreeVisitor,
     ScopeTrackingTransform, EnvTransform)
 
-cdef class NameNodeCollector(TreeVisitor):
-    cdef list name_nodes
-
 cdef class SkipDeclarations: # (object):
     pass
 

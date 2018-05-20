@@ -216,7 +216,7 @@ meaningful output from the cProfile module. The rest of the code is mostly
 unchanged, I only typed some variables which will likely speed things up a bit.
 
 We also need to modify our profiling script to import the Cython module directly.
-Here is the complete version adding the import of the pyximport module::
+Here is the complete version adding the import of the :ref:`Pyximport<pyximport>` module::
 
    #!/usr/bin/env python
    # encoding: utf-8

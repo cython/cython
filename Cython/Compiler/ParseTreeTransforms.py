@@ -25,20 +25,6 @@ from .StringEncoding import EncodedString, _unicode
 from .Errors import error, warning, CompileError, InternalError
 from .Code import UtilityCode
 
-class NameNodeCollector(TreeVisitor):
-    """Collect all NameNodes of a (sub-)tree in the ``name_nodes``
-    attribute.
-    """
-    def __init__(self):
-        super(NameNodeCollector, self).__init__()
-        self.name_nodes = []
-
-    def visit_NameNode(self, node):
-        self.name_nodes.append(node)
-
-    def visit_Node(self, node):
-        self._visitchildren(node, None)
-
 
 class SkipDeclarations(object):
     """
@@ -65,6 +51,7 @@ class SkipDeclarations(object):
 
     def visit_CStructOrUnionDefNode(self, node):
         return node
+
 
 class NormalizeTree(CythonTransform):
     """
@@ -1033,7 +1020,8 @@ class InterpretCompilerDirectives(CythonTransform):
         directives = []
         realdecs = []
         both = []
-        for dec in node.decorators:
+        # Decorators coming first take precedence.
+        for dec in node.decorators[::-1]:
             new_directives = self.try_to_parse_directives(dec.decorator)
             if new_directives is not None:
                 for directive in new_directives:
@@ -1043,15 +1031,17 @@ class InterpretCompilerDirectives(CythonTransform):
                             directives.append(directive)
                         if directive[0] == 'staticmethod':
                             both.append(dec)
+                    # Adapt scope type based on decorators that change it.
+                    if directive[0] == 'cclass' and scope_name == 'class':
+                        scope_name = 'cclass'
             else:
                 realdecs.append(dec)
-        if realdecs and isinstance(node, (Nodes.CFuncDefNode, Nodes.CClassDefNode, Nodes.CVarDefNode)):
+        if realdecs and (scope_name == 'cclass' or
+                         isinstance(node, (Nodes.CFuncDefNode, Nodes.CClassDefNode, Nodes.CVarDefNode))):
             raise PostParseError(realdecs[0].pos, "Cdef functions/classes cannot take arbitrary decorators.")
-        else:
-            node.decorators = realdecs + both
+        node.decorators = realdecs[::-1] + both[::-1]
         # merge or override repeated directives
         optdict = {}
-        directives.reverse() # Decorators coming first take precedence
         for directive in directives:
             name, value = directive
             if name in optdict:
@@ -1940,6 +1930,8 @@ if VALUE is not None:
             binding = self.current_directives.get('binding')
             rhs = ExprNodes.PyCFunctionNode.from_defnode(node, binding)
             node.code_object = rhs.code_object
+            if node.is_generator:
+                node.gbody.code_object = node.code_object
 
         if env.is_py_class_scope:
             rhs.binding = True
@@ -2591,10 +2583,13 @@ class MarkClosureVisitor(CythonTransform):
         collector.visitchildren(node)
 
         if node.is_async_def:
-            coroutine_type = Nodes.AsyncGenNode if collector.has_yield else Nodes.AsyncDefNode
+            coroutine_type = Nodes.AsyncDefNode
             if collector.has_yield:
+                coroutine_type = Nodes.AsyncGenNode
                 for yield_expr in collector.yields + collector.returns:
                     yield_expr.in_async_gen = True
+            elif self.current_directives['iterable_coroutine']:
+                coroutine_type = Nodes.IterableAsyncDefNode
         elif collector.has_await:
             found = next(y for y in collector.yields if y.is_await)
             error(found.pos, "'await' not allowed in generators (use 'yield')")

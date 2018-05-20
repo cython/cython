@@ -14,6 +14,8 @@ statement, Cython also lets you create new built-in Python types, known as
 extension types. You define an extension type using the :keyword:`cdef` class
 statement.  Here's an example::
 
+    from __future__ import print_function
+
     cdef class Shrubbery:
 
         cdef int width, height
@@ -23,8 +25,8 @@ statement.  Here's an example::
             self.height = h
 
         def describe(self):
-            print "This shrubbery is", self.width, \
-                "by", self.height, "cubits."
+            print("This shrubbery is", self.width,
+                  "by", self.height, "cubits.")
 
 As you can see, a Cython extension type definition looks a lot like a Python
 class definition. Within it, you use the def statement to define methods that
@@ -39,14 +41,16 @@ interface to them.
 
 .. _readonly:
 
-Attributes
-============
+Static Attributes
+=================
 
 Attributes of an extension type are stored directly in the object's C struct.
 The set of attributes is fixed at compile time; you can't add attributes to an
 extension type instance at run time simply by assigning to them, as you could
-with a Python class instance. (You can subclass the extension type in Python
-and add attributes to instances of the subclass, however.)
+with a Python class instance. However, you can explicitly enable support
+for dynamically assigned attributes, or subclass the extension type with a normal
+Python class, which then supports arbitrary attribute assignments.
+See :ref:`dynamic_attributes`.
 
 There are two ways that attributes of an extension type can be accessed: by
 Python attribute lookup, or by direct access to the C struct from Cython code.
@@ -75,6 +79,47 @@ and the depth attribute readable but not writable.
     Also the :keyword:`public` and :keyword:`readonly` options apply only to
     Python access, not direct access. All the attributes of an extension type
     are always readable and writable by C-level access.
+
+
+.. _dynamic_attributes:
+
+Dynamic Attributes
+==================
+
+It is not possible to add attributes to an extension type at runtime by default.
+You have two ways of avoiding this limitation, both add an overhead when
+a method is called from Python code. Especially when calling ``cpdef`` methods.
+
+The first approach is to create a Python subclass.::
+
+    cdef class Animal:
+
+        cdef int number_of_legs
+        def __cinit__(self, int number_of_legs):
+            self.number_of_legs = number_of_legs
+
+
+    class ExtendableAnimal(Animal):  # Note that we use class, not cdef class
+        pass
+
+
+    dog = ExtendableAnimal(4)
+    dog.has_tail = True
+
+
+Declaring a ``__dict__`` attribute is the second way of enabling dynamic attributes.::
+
+    cdef class Animal:
+
+        cdef int number_of_legs
+        cdef dict __dict__
+        def __cinit__(self, int number_of_legs):
+            self.number_of_legs = number_of_legs
+
+
+    dog = Animal(4)
+    dog.has_tail = True
+
 
 Type declarations
 ===================
@@ -121,13 +166,13 @@ Suppose I have a method :meth:`quest` which returns an object of type :class:`Sh
 To access it's width I could write::
 
     cdef Shrubbery sh = quest()
-    print sh.width
+    print(sh.width)
 
 which requires the use of a local variable and performs a type test on assignment.
 If you *know* the return value of :meth:`quest` will be of type :class:`Shrubbery`
 you can use a cast to write::
 
-    print (<Shrubbery>quest()).width
+    print( (<Shrubbery>quest()).width )
 
 This may be dangerous if :meth:`quest()` is not actually a :class:`Shrubbery`, as it
 will try to access width as a C struct member which may not exist. At the C level,
@@ -135,22 +180,19 @@ rather than raising an :class:`AttributeError`, either an nonsensical result wil
 returned (interpreting whatever data is at that address as an int) or a segfault
 may result from trying to access invalid memory. Instead, one can write::
 
-    print (<Shrubbery?>quest()).width
+    print( (<Shrubbery?>quest()).width )
 
 which performs a type check (possibly raising a :class:`TypeError`) before making the
 cast and allowing the code to proceed.
 
-To explicitly test the type of an object, use the :meth:`isinstance` method. By default,
-in Python, the :meth:`isinstance` method checks the :class:`__class__` attribute of the
-first argument to determine if it is of the required type. However, this is potentially
-unsafe as the :class:`__class__` attribute can be spoofed or changed, but the C structure
-of an extension type must be correct to access its :keyword:`cdef` attributes and call its :keyword:`cdef` methods. Cython detects if the second argument is a known extension
-type and does a type check instead, analogous to Pyrex's :meth:`typecheck`.
-The old behavior is always available by passing a tuple as the second parameter::
+To explicitly test the type of an object, use the :meth:`isinstance` builtin function.
+For known builtin or extension types, Cython translates these into a
+fast and safe type check that ignores changes to
+the object's ``__class__`` attribute etc., so that after a successful
+:meth:`isinstance` test, code can rely on the expected C structure of the
+extension type and its :keyword:`cdef` attributes and methods.
 
-    print isinstance(sh, Shrubbery)     # Check the type of sh
-    print isinstance(sh, (Shrubbery,))  # Check sh.__class__
-
+.. _extension_types_and_none:
 
 Extension types and None
 =========================
@@ -219,6 +261,8 @@ many of the :meth:`__xxx__` special methods of extension types and their Python
 counterparts. There is a :ref:`separate page <special-methods>` devoted to this subject, and you should
 read it carefully before attempting to use any special methods in your
 extension types.
+
+.. _properties:
 
 Properties
 ============
@@ -294,16 +338,16 @@ when it is deleted.::
     from cheesy import CheeseShop
 
     shop = CheeseShop()
-    print shop.cheese
+    print(shop.cheese)
 
     shop.cheese = "camembert"
-    print shop.cheese
+    print(shop.cheese)
 
     shop.cheese = "cheddar"
-    print shop.cheese
+    print(shop.cheese)
 
     del shop.cheese
-    print shop.cheese
+    print(shop.cheese)
 
 .. sourcecode:: text
 
@@ -312,6 +356,8 @@ when it is deleted.::
     We don't have: ['camembert']
     We don't have: ['camembert', 'cheddar']
     We don't have: []
+
+.. _subclassing:
 
 Subclassing
 =============
@@ -371,21 +417,21 @@ compared to a :keyword:`cdef` method::
     cdef class Parrot:
 
         cdef void describe(self):
-            print "This parrot is resting."
+            print("This parrot is resting.")
 
     cdef class Norwegian(Parrot):
 
         cdef void describe(self):
             Parrot.describe(self)
-            print "Lovely plumage!"
+            print("Lovely plumage!")
 
 
     cdef Parrot p1, p2
     p1 = Parrot()
     p2 = Norwegian()
-    print "p1:"
+    print("p1:")
     p1.describe()
-    print "p2:"
+    print("p2:")
     p2.describe()
 
 .. sourcecode:: text
@@ -409,9 +455,9 @@ compatible types.::
     cdef class OwnedPointer:
         cdef void* ptr
 
-        cdef __dealloc__(self):
-            if ptr != NULL:
-                free(ptr)
+        def __dealloc__(self):
+            if self.ptr != NULL:
+                free(self.ptr)
 
         @staticmethod
         cdef create(void* ptr):
@@ -419,6 +465,7 @@ compatible types.::
             p.ptr = ptr
             return p
 
+.. _forward_declaring_extension_types:
 
 Forward-declaring extension types
 ===================================
@@ -483,6 +530,7 @@ statically sized freelist of ``N`` instances for a given type.  Example::
     penguin = None
     penguin = Penguin('fish 2')  # does not need to allocate memory!
 
+.. _making_extension_types_weak_referenceable:
 
 Making extension types weak-referenceable
 ==========================================
@@ -575,6 +623,8 @@ declaration makes an extension type defined in external C code available to a
 Cython module. A public extension type declaration makes an extension type
 defined in a Cython module available to external C code.
 
+.. _external_extension_types:
+
 External extension types
 ------------------------
 
@@ -591,6 +641,8 @@ objects defined in the Python core or in a non-Cython extension module.
 Here is an example which will let you get at the C-level members of the
 built-in complex object.::
 
+    from __future__ import print_function
+
     cdef extern from "complexobject.h":
 
         struct Py_complex:
@@ -602,8 +654,8 @@ built-in complex object.::
 
     # A function which uses the above type
     def spam(complex c):
-        print "Real:", c.cval.real
-        print "Imag:", c.cval.imag
+        print("Real:", c.cval.real)
+        print("Imag:", c.cval.imag)
 
 .. note::
 
@@ -629,6 +681,8 @@ built-in complex object.::
        :keyword:`struct` and :keyword:`union`, if your extension class
        declaration is inside a :keyword:`cdef` extern from block, you only need to
        declare those C members which you wish to access.
+
+.. _name_specification_clause:
 
 Name specification clause
 -------------------------
@@ -685,6 +739,8 @@ which corresponds to the implicit import statement::
 
       from My.Nested.Package import Spam as Yummy
 
+.. _types_names_vs_constructor_names:
+
 Type names vs. constructor names
 --------------------------------
 
@@ -714,6 +770,8 @@ both roles. So if you declare::
 then Yummy becomes both the type name and a name for the constructor. Again,
 there are other ways that you could get hold of the constructor, but only
 Yummy is usable as a type name.
+
+.. _public:
 
 Public extension types
 ======================

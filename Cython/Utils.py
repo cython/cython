@@ -20,9 +20,14 @@ from contextlib import contextmanager
 
 modification_time = os.path.getmtime
 
+_function_caches = []
+def clear_function_caches():
+    for cache in _function_caches:
+        cache.clear()
 
 def cached_function(f):
     cache = {}
+    _function_caches.append(cache)
     uncomputed = object()
     def wrapper(*args):
         res = cache.get(args, uncomputed)
@@ -355,7 +360,8 @@ def long_literal(value):
 
 @cached_function
 def get_cython_cache_dir():
-    """get the cython cache dir
+    r"""
+    Return the base directory containing Cython's caches.
 
     Priority:
 
