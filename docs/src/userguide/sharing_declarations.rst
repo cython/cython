@@ -101,7 +101,7 @@ uses it.
     def serve():
         cdef spamdish d
         prepare(&d)
-        print "%d oz spam, filler no. %d" % (d.oz_of_spam, d.filler)
+        print("%d oz spam, filler no. %d" % (d.oz_of_spam, d.filler))
 
 It is important to understand that the :keyword:`cimport` statement can only
 be used to import C data types, C functions and variables, and extension
@@ -184,11 +184,13 @@ example:
 
 :file:`spammery.pyx`::
 
+    from __future__ import print_function
+
     from volume cimport cube
 
     def menu(description, size):
-        print description, ":", cube(size), \
-            "cubic metres of spam"
+        print(description, ":", cube(size),
+              "cubic metres of spam")
 
     menu("Entree", 1)
     menu("Main course", 3)
@@ -243,7 +245,7 @@ and another module which uses it:
 
     cdef Shrubbing.Shrubbery sh
     sh = Shrubbing.standard_shrubbery()
-    print "Shrubbery size is %d x %d" % (sh.width, sh.length)
+    print("Shrubbery size is %d x %d" % (sh.width, sh.length))
 
 One would then need to compile both of these modules, e.g. using
 

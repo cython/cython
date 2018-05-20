@@ -428,7 +428,7 @@ Cython uses a bracket syntax for templating. A simple example for wrapping C++ v
 
     cdef vector[int].iterator it = v.begin()
     while it != v.end():
-        print deref(it)
+        print(deref(it))
         inc(it)
 
     del v
@@ -447,8 +447,8 @@ the template parameter list following the function name::
     cdef extern from "<algorithm>" namespace "std":
         T max[T](T a, T b)
 
-    print max[long](3, 4)
-    print max(1.5, 2.5)  # simple template argument deduction
+    print(max[long](3, 4))
+    print(max(1.5, 2.5))  # simple template argument deduction
 
 
 Standard library
@@ -467,7 +467,7 @@ For example::
     for i in range(10):
         vect.push_back(i)
     for i in range(10):
-        print vect[i]
+        print(vect[i])
 
 The pxd files in ``/Cython/Includes/libcpp`` also work as good examples on
 how to declare C++ classes.

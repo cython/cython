@@ -14,6 +14,8 @@ statement, Cython also lets you create new built-in Python types, known as
 extension types. You define an extension type using the :keyword:`cdef` class
 statement.  Here's an example::
 
+    from __future__ import print_function
+
     cdef class Shrubbery:
 
         cdef int width, height
@@ -23,8 +25,8 @@ statement.  Here's an example::
             self.height = h
 
         def describe(self):
-            print "This shrubbery is", self.width, \
-                "by", self.height, "cubits."
+            print("This shrubbery is", self.width,
+                  "by", self.height, "cubits.")
 
 As you can see, a Cython extension type definition looks a lot like a Python
 class definition. Within it, you use the def statement to define methods that
@@ -164,13 +166,13 @@ Suppose I have a method :meth:`quest` which returns an object of type :class:`Sh
 To access it's width I could write::
 
     cdef Shrubbery sh = quest()
-    print sh.width
+    print(sh.width)
 
 which requires the use of a local variable and performs a type test on assignment.
 If you *know* the return value of :meth:`quest` will be of type :class:`Shrubbery`
 you can use a cast to write::
 
-    print (<Shrubbery>quest()).width
+    print( (<Shrubbery>quest()).width )
 
 This may be dangerous if :meth:`quest()` is not actually a :class:`Shrubbery`, as it
 will try to access width as a C struct member which may not exist. At the C level,
@@ -178,21 +180,17 @@ rather than raising an :class:`AttributeError`, either an nonsensical result wil
 returned (interpreting whatever data is at that address as an int) or a segfault
 may result from trying to access invalid memory. Instead, one can write::
 
-    print (<Shrubbery?>quest()).width
+    print( (<Shrubbery?>quest()).width )
 
 which performs a type check (possibly raising a :class:`TypeError`) before making the
 cast and allowing the code to proceed.
 
-To explicitly test the type of an object, use the :meth:`isinstance` method. By default,
-in Python, the :meth:`isinstance` method checks the :class:`__class__` attribute of the
-first argument to determine if it is of the required type. However, this is potentially
-unsafe as the :class:`__class__` attribute can be spoofed or changed, but the C structure
-of an extension type must be correct to access its :keyword:`cdef` attributes and call its :keyword:`cdef` methods. Cython detects if the second argument is a known extension
-type and does a type check instead, analogous to Pyrex's :meth:`typecheck`.
-The old behavior is always available by passing a tuple as the second parameter::
-
-    print isinstance(sh, Shrubbery)     # Check the type of sh
-    print isinstance(sh, (Shrubbery,))  # Check sh.__class__
+To explicitly test the type of an object, use the :meth:`isinstance` method.
+For known builtin or extension types, Cython translates these into a
+fast and safe type check that ignores changes to
+the object's ``__class__`` attribute etc., so that after a successful
+:meth:`isinstance` test, code can rely on the expected C structure of the
+extension type and its :keyword:`cdef` attributes and methods.
 
 .. _extension_types_and_none:
 
@@ -340,16 +338,16 @@ when it is deleted.::
     from cheesy import CheeseShop
 
     shop = CheeseShop()
-    print shop.cheese
+    print(shop.cheese)
 
     shop.cheese = "camembert"
-    print shop.cheese
+    print(shop.cheese)
 
     shop.cheese = "cheddar"
-    print shop.cheese
+    print(shop.cheese)
 
     del shop.cheese
-    print shop.cheese
+    print(shop.cheese)
 
 .. sourcecode:: text
 
@@ -419,21 +417,21 @@ compared to a :keyword:`cdef` method::
     cdef class Parrot:
 
         cdef void describe(self):
-            print "This parrot is resting."
+            print("This parrot is resting.")
 
     cdef class Norwegian(Parrot):
 
         cdef void describe(self):
             Parrot.describe(self)
-            print "Lovely plumage!"
+            print("Lovely plumage!")
 
 
     cdef Parrot p1, p2
     p1 = Parrot()
     p2 = Norwegian()
-    print "p1:"
+    print("p1:")
     p1.describe()
-    print "p2:"
+    print("p2:")
     p2.describe()
 
 .. sourcecode:: text
@@ -643,6 +641,8 @@ objects defined in the Python core or in a non-Cython extension module.
 Here is an example which will let you get at the C-level members of the
 built-in complex object.::
 
+    from __future__ import print_function
+
     cdef extern from "complexobject.h":
 
         struct Py_complex:
@@ -654,8 +654,8 @@ built-in complex object.::
 
     # A function which uses the above type
     def spam(complex c):
-        print "Real:", c.cval.real
-        print "Imag:", c.cval.imag
+        print("Real:", c.cval.real)
+        print("Imag:", c.cval.imag)
 
 .. note::
 
