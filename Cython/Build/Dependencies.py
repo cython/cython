@@ -635,7 +635,11 @@ class DependencyTree(object):
             # include almost everything here as users might extend Extension
             # with arbitrary (random) attributes that would lead to cache
             # misses.
-            m.update(str((module.language, module.py_limited_api, module.np_pythran)).encode('UTF-8'))
+            m.update(str((
+                module.language,
+                getattr(module, 'py_limited_api', False),
+                getattr(module, 'np_pythran', False)
+            )).encode('UTF-8'))
 
             m.update(compilation_options.get_fingerprint().encode('UTF-8'))
             return m.hexdigest()
