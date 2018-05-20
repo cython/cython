@@ -24,27 +24,10 @@ type that can encapsulate all memory management.
 
 .. [CAlg] Simon Howard, C Algorithms library, http://c-algorithms.sourceforge.net/
 
-.. _download_and_install_calg:
-
-Download & Install [CAlg]
-==========================
+Defining external declarations
+==============================
 
 You can download CAlg `here <https://github.com/fragglet/c-algorithms/archive/master.zip>`_.
-
-You may want to test whether you can build c-algorithms on your system using (not necessary)::
-
-    $ cd c-algorithms
-    $ sh autogen.sh 
-    $ ./configure
-    $ make
-
-to install CAlg run::
-
-    $ make install
-
-
-Defining external declarations
-===============================
 
 The C API of the queue implementation, which is defined in the header
 file ``c-algorithms/src/queue.h``, essentially looks like this::
@@ -192,7 +175,7 @@ the type.
 
 
 Memory management
-====================
+=================
 
 Before we continue implementing the other methods, it is important to
 understand that the above implementation is not safe.  In case
@@ -266,7 +249,7 @@ Static Linking
 To build the c-code automatically we need to include compiler directives in `queue.pyx`::
 
     # distutils: sources = c-algorithms/src/queue.c
-    # distutils: include_dirs = c-algorithms/src/ 
+    # distutils: include_dirs = c-algorithms/src/
 
     cimport cqueue
 
@@ -282,15 +265,16 @@ To build the c-code automatically we need to include compiler directives in `que
                 cqueue.queue_free(self._c_queue)
 
 The ``sources`` compiler directive gives the path of the C
-files that distutils is going to compile.
+files that distutils is going to compile and
+link (statically) into the resulting extension module.
 In general all relevant header files should be found in ``include_dirs``.
 Now we can build the project using::
 
-    $ python setup.py build_ext -i 
+    $ python setup.py build_ext -i
 
 And test whether our build was successful::
 
-    $ python -c 'import queue; Q = queue.Queue()' 
+    $ python -c 'import queue; Q = queue.Queue()'
 
 
 Dynamic Linking
@@ -298,15 +282,26 @@ Dynamic Linking
 
 Dynamic linking is useful, if the library we are going to wrap is already
 installed on the system. To perform dynamic linking we first need to
-build and install c-alg. Follow the instruction in
-paragraph :ref:`download_and_install_calg` to install the library. Afterwards the
-file :file:`/usr/local/lib/libcalg.so` should exist.
+build and install c-alg.
+
+To build c-algorithms on your system::
+
+    $ cd c-algorithms
+    $ sh autogen.sh
+    $ ./configure
+    $ make
+
+to install CAlg run::
+
+    $ make install
+
+Afterwards the file :file:`/usr/local/lib/libcalg.so` should exist.
 
 .. note::
 
-    This path may be different on different platforms,
+    This path applies to Linux systems and may be different,
     so you will need to adapt the rest of the tutorial depending on the
-    where `libcalg.so` is on your system.
+    where ``libcalg.so`` or ``libcalg.dll`` is on your system.
 
 In this approach we need to tell the setup script to link with an external library.
 To do so we need to extend the setup script to install change the extension setup from
@@ -326,7 +321,7 @@ to
 
 Now we should be able to build the project using::
 
-    $ python setup.py build_ext -i 
+    $ python setup.py build_ext -i
 
 If the `libcalg` is not installed in a 'normal' location, users can provide the
 required parameters externally by passing appropriate C compiler
@@ -346,6 +341,7 @@ the `LD_LIBRARY_PATH` environment variable, e.g. by setting::
 Once we have compiled the module for the first time, we can now import
 it and instantiate a new Queue::
 
+    $ export PYTHONPATH=.
     $ python -c 'import queue; Q = queue.Queue()'
 
 However, this is all our Queue class can do so far, so let's make it
@@ -590,8 +586,6 @@ instead that accepts an arbitrary Python iterable::
 Now we can test our Queue implementation using a python script,
 for example here :file:`test_queue.py`.::
 
-    from __future__ import absolute_import
-    from __future__ import division
     from __future__ import print_function
 
     import queue
