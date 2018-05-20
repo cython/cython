@@ -333,6 +333,38 @@ everywhere. Adding types makes your code less readable, so use them with
 moderation.
 
 
+Primes with C++
+===============
+
+With Cython, it is also possible to take advantage of the C++ language, notably,
+part of the C++ standard library is directly importable from Cython code.
+
+Let's see what our :file:`primes.pyx` becomes when
+using `vector <http://en.cppreference.com/w/cpp/container/vector>`_ from the C++
+standard library.
+
+.. note::
+
+    Vector in C++ is a data structure which implements a list or stack based
+    on a resizeable C array. It is similar to the Python ``array``
+    type in the ``array`` standard library module.
+    There is a method `reserve` available which will avoid copies if you know in advance
+    how many elements you are going to put in the vector. For more details
+    see `this page from cppreference <http://en.cppreference.com/w/cpp/container/vector>`_.
+
+.. literalinclude:: ../../examples/tutorial/primes/primes_cpp.pyx
+    :linenos:
+
+The first line is a compiler directive. It tells Cython to compile your code to C++.
+This will enable the use of C++ language features and the C++ standard library.
+Note that it isn't possible to compile Cython code to C++ with `pyximport`. You
+should use a :file:`setup.py` or a notebook to run this example.
+
+You can see that the API of a vector is similar to the API of a Python list,
+and can sometimes be used as a drop-in replacement in Cython.
+
+For more details about using C++ with Cython, see :ref:`wrapping-cplusplus`.
+
 Language Details
 ================
 
