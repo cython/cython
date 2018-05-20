@@ -24,6 +24,7 @@ type that can encapsulate all memory management.
 
 .. [CAlg] Simon Howard, C Algorithms library, http://c-algorithms.sourceforge.net/
 
+
 Defining external declarations
 ==============================
 
@@ -299,8 +300,8 @@ Afterwards the file :file:`/usr/local/lib/libcalg.so` should exist.
 
 .. note::
 
-    This path applies to Linux systems and may be different,
-    so you will need to adapt the rest of the tutorial depending on the
+    This path applies to Linux systems and may be different on other platforms,
+    so you will need to adapt the rest of the tutorial depending on the path
     where ``libcalg.so`` or ``libcalg.dll`` is on your system.
 
 In this approach we need to tell the setup script to link with an external library.
