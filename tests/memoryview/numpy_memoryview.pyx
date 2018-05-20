@@ -26,6 +26,13 @@ def get_array():
 
 a = get_array()
 
+def get_float16_array():
+    cdef np.ndarray[np.float16_t, ndim=3] a
+    a = np.arange(8 * 14 * 11, dtype=np.float16).reshape(8, 14, 11)
+    return a
+
+_ = get_float16_array()
+
 def ae(*args):
     "assert equals"
     for x in args:
