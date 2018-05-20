@@ -3610,6 +3610,7 @@ def p_compiler_directive_comments(s):
                 new_directives = Options.parse_directive_list(directives_string, ignore_unknown=True)
             except ValueError as e:
                 s.error(e.args[0], fatal=False)
+                s.next()
                 continue
 
             for name in new_directives:
