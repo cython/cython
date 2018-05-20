@@ -1,5 +1,7 @@
+
+******************
 Using C libraries
-=================
+******************
 
 Apart from writing fast code, one of the main use cases of Cython is
 to call external C libraries from Python code.  As Cython code
@@ -22,12 +24,13 @@ type that can encapsulate all memory management.
 
 .. [CAlg] Simon Howard, C Algorithms library, http://c-algorithms.sourceforge.net/
 
-
 Defining external declarations
-------------------------------
+==============================
+
+You can download CAlg `here <https://github.com/fragglet/c-algorithms/archive/master.zip>`_.
 
 The C API of the queue implementation, which is defined in the header
-file ``libcalg/queue.h``, essentially looks like this::
+file ``c-algorithms/src/queue.h``, essentially looks like this::
 
     /* file: queue.h */
 
@@ -52,7 +55,7 @@ file, say, ``cqueue.pxd``::
 
     # file: cqueue.pxd
 
-    cdef extern from "libcalg/queue.h":
+    cdef extern from "c-algorithms/src/queue.h":
         ctypedef struct Queue:
             pass
         ctypedef void* QueueValue
@@ -123,7 +126,7 @@ provided ``.pxd`` files.
 
 
 Writing a wrapper class
------------------------
+=======================
 
 After declaring our C library's API, we can start to design the Queue
 class that should wrap the C queue.  It will live in a file called
@@ -172,7 +175,7 @@ the type.
 
 
 Memory management
------------------
+=================
 
 Before we continue implementing the other methods, it is important to
 understand that the above implementation is not safe.  In case
@@ -218,7 +221,7 @@ the init method::
 
 
 Compiling and linking
----------------------
+=====================
 
 At this point, we have a working Cython module that we can test.  To
 compile it, we need to configure a ``setup.py`` script for distutils.
@@ -232,10 +235,76 @@ Here is the most basic script for compiling a Cython module::
         ext_modules = cythonize([Extension("queue", ["queue.pyx"])])
     )
 
-To build against the external C library, we must extend this script to
-include the necessary setup.  Assuming the library is installed in the
-usual places (e.g. under ``/usr/lib`` and ``/usr/include`` on a
-Unix-like system), we could simply change the extension setup from
+
+To build against the external C library, we need to make sure Cython finds the necessary libraries. 
+There are two ways to archive this. First we can tell distutils where to find
+the c-source to compile the :file:`queue.c` implementation automatically. Alternatively,
+we can build and install C-Alg as system library and dynamically link it. The latter is useful
+if other applications also use C-Alg.
+
+
+Static Linking
+---------------
+
+To build the c-code automatically we need to include compiler directives in `queue.pyx`::
+
+    # distutils: sources = c-algorithms/src/queue.c
+    # distutils: include_dirs = c-algorithms/src/
+
+    cimport cqueue
+
+    cdef class Queue:
+        cdef cqueue.Queue* _c_queue
+        def __cinit__(self):
+            self._c_queue = cqueue.queue_new()
+            if self._c_queue is NULL:
+                raise MemoryError()
+
+        def __dealloc__(self):
+            if self._c_queue is not NULL:
+                cqueue.queue_free(self._c_queue)
+
+The ``sources`` compiler directive gives the path of the C
+files that distutils is going to compile and
+link (statically) into the resulting extension module.
+In general all relevant header files should be found in ``include_dirs``.
+Now we can build the project using::
+
+    $ python setup.py build_ext -i
+
+And test whether our build was successful::
+
+    $ python -c 'import queue; Q = queue.Queue()'
+
+
+Dynamic Linking
+---------------
+
+Dynamic linking is useful, if the library we are going to wrap is already
+installed on the system. To perform dynamic linking we first need to
+build and install c-alg.
+
+To build c-algorithms on your system::
+
+    $ cd c-algorithms
+    $ sh autogen.sh
+    $ ./configure
+    $ make
+
+to install CAlg run::
+
+    $ make install
+
+Afterwards the file :file:`/usr/local/lib/libcalg.so` should exist.
+
+.. note::
+
+    This path applies to Linux systems and may be different,
+    so you will need to adapt the rest of the tutorial depending on the
+    where ``libcalg.so`` or ``libcalg.dll`` is on your system.
+
+In this approach we need to tell the setup script to link with an external library.
+To do so we need to extend the setup script to install change the extension setup from
 
 ::
 
@@ -250,7 +319,11 @@ to
                   libraries=["calg"])
         ])
 
-If it is not installed in a 'normal' location, users can provide the
+Now we should be able to build the project using::
+
+    $ python setup.py build_ext -i
+
+If the `libcalg` is not installed in a 'normal' location, users can provide the
 required parameters externally by passing appropriate C compiler
 flags, such as::
 
@@ -258,11 +331,18 @@ flags, such as::
     LDFLAGS="-L/usr/local/otherdir/calg/lib"     \
         python setup.py build_ext -i
 
+
+
+Before we run the module, we also need to make sure that `libcalg` is in
+the `LD_LIBRARY_PATH` environment variable, e.g. by setting::
+
+   $ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
+
 Once we have compiled the module for the first time, we can now import
 it and instantiate a new Queue::
 
     $ export PYTHONPATH=.
-    $ python -c 'import queue.Queue as Q ; Q()'
+    $ python -c 'import queue; Q = queue.Queue()'
 
 However, this is all our Queue class can do so far, so let's make it
 more usable.
@@ -501,6 +581,47 @@ instead that accepts an arbitrary Python iterable::
         cpdef extend(self, values):
             for value in values:
                 self.append(value)
+
+
+Now we can test our Queue implementation using a python script,
+for example here :file:`test_queue.py`.::
+
+    from __future__ import print_function
+
+    import queue
+
+
+    Q = queue.Queue()
+
+    Q.append(10)
+    Q.append(20)
+    print(Q.peek())
+    print(Q.pop())
+    print(Q.pop())
+    try:
+        print(Q.pop())
+    except IndexError as e:
+        print("Error message:", e)  # Prints "Queue is empty"
+
+    i = 10000
+
+    values = range(i)
+
+    start_time = time.time()
+
+    Q.extend(values)
+
+    end_time = time.time() - start_time
+
+    print("Adding {} items took {:1.3f} msecs.".format(i, 1000 * end_time))
+
+    for i in range(41):
+        Q.pop()
+
+    Q.pop()
+    print("The answer is:")
+    print(Q.pop())
+
 
 As a quick test with 10000 numbers on the author's machine indicates,
 using this Queue from Cython code with C ``int`` values is about five
