@@ -237,6 +237,80 @@ Just as an example, this adds ``mylib`` as library to every extension::
     then the argument to ``create_extension`` must be pickleable.
     In particular, it cannot be a lambda function.
 
+Cythonize arguments
+-------------------
+
+The function :func:`cythonize` can take extra arguments which will allow you to
+customize your build.
+
+.. py:function:: cythonize(module_list, \
+                           exclude=None, \
+                           nthreads=0, \
+                           aliases=None, \
+                           quiet=False, \
+                           force=False, \
+                           language=None, \
+                           exclude_failures=False, \
+                           **options)
+
+    Compile a set of source modules into C/C++ files and return a list of distutils
+    Extension objects for them.
+
+    :param module_list: As module list, pass either a glob pattern, a list of glob
+                        patterns or a list of Extension objects.  The latter
+                        allows you to configure the extensions separately
+                        through the normal distutils options.
+
+    :param exclude: When passing glob patterns as ``module_list``, you can exclude certain
+                    module names explicitly by passing them into the ``exclude`` option.
+
+    :param nthreads: The number of concurrent builds for parallel compilation
+                     (requires the Python module multiprocessing).
+
+    :param aliases: If you want to use compiler directives like ``# distutils: ...`` but
+                    can only know at compile time (when running the ``setup.py``) which values
+                    to use, you can use aliases and pass a dictionary mapping those aliases
+                    to Python strings when calling :func:`cythonize`. As an example, sat you
+                    want to use the compiler
+                    directive ``# distutils: include_dirs = ../static_libs/include/``
+                    but this path isn't always fixed and you want to find it when running
+                    the ``setup.py``. You can then do ``# distutils: include_dirs = MY_HEADERS``,
+                    find the value of ``MY_HEADERS`` in the ``setup.py``, put it in a python
+                    variable called ``foo`` as a string, and then call
+                    ``cythonize(..., aliases={'MY_HEADERS': foo})``.
+
+    :param quiet: If True, Cython won't print error and warning messages during the compilation.
+
+    :param force: Forces the recompilation of the Cython modules, even if the timestamps
+                  don't indicate that a recompilation is necessary.
+
+    :param language: To globally enable C++ mode, you can pass ``language='c++'``. Otherwise, this
+                     will be determined at a per-file level based on compiler directives.  This
+                     affects only modules found based on file names.  Extension instances passed
+                     into :func:`cythonize` will not be changed. It is recommended to rather
+                     use the compiler directive ``# distutils: language = c++`` than this option.
+                     If you don't, Cython will print a message telling you to use the
+                     compiler directives.
+
+    :param exclude_failures: For a broad 'try to compile' mode that ignores compilation
+                             failures and simply excludes the failed extensions,
+                             pass ``exclude_failures=True``. Note that this only
+                             really makes sense for compiling ``.py`` files which can also
+                             be used without compilation.
+
+    :param annotate: If ``True``, will produce a HTML file for each of the ``.pxd`` files compiled.
+                     This HTML file will show each line of Cython code with how much
+                     Python interaction there is. It also allows you to see the C/C++ code
+                     generated for each line of Cython code. This report is invaluable when
+                     optimizing a function for speed,
+                     and for determining when to :ref:`release the GIL <nogil>`:
+                     in general, a ``nogil`` block may contain only "white" code.
+                     See examples in :ref:`determining_where_to_add_types` or
+                     :ref:`primes`.
+
+    :param compiler_directives: Allow to set compiler directives in the ``setup.py`` like this:
+                                ``compiler_directives={'embedsignature': True}``.
+                                See :ref:`compiler-directives`.
 
 Distributing Cython modules
 ----------------------------

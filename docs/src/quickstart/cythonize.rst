@@ -107,6 +107,8 @@ methods.
 
 Speedup: 150 times over pure Python.
 
+.. _determining_where_to_add_types:
+
 Determining where to add types
 ------------------------------
 
