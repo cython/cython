@@ -60,4 +60,4 @@ Identity vs. equality for inferred literals
     if some_runtime_expression:
         b = a        # creates a new Python float object
         c = a        # creates a new Python float object
-    print b is c     # most likely not the same object
+    print(b is c)     # most likely not the same object

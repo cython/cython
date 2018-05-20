@@ -124,6 +124,8 @@ internally to store attributes.
 
 Here is a simple example::
 
+    from __future__ import print_function
+
     cdef class Shrubbery:
 
         cdef int width, height
@@ -133,8 +135,8 @@ Here is a simple example::
             self.height = h
 
         def describe(self):
-            print "This shrubbery is", self.width, \
-                "by", self.height, "cubits."
+            print("This shrubbery is", self.width,
+                  "by", self.height, "cubits.")
 
 You can read more about them in :ref:`extension-types`.
 
@@ -194,6 +196,8 @@ Grouping multiple C declarations
 If you have a series of declarations that all begin with :keyword:`cdef`, you
 can group them into a :keyword:`cdef` block like this::
 
+    from __future__ import print_function
+
     cdef:
         struct Spam:
             int tons
@@ -203,7 +207,7 @@ can group them into a :keyword:`cdef` block like this::
         Spam *p
 
         void f(Spam *s):
-            print s.tons, "Tons of spam"
+            print(s.tons, "Tons of spam")
 
 .. _cpdef:
 .. _cdef:
@@ -645,7 +649,6 @@ with ``<object>``, or a more specific builtin or extension type
 the object by one, i.e. the cast returns an owned reference.
 Here is an example::
 
-    from __future__ import print_function
     from cpython.ref cimport PyObject
     from libc.stdint cimport uintptr_t
 
@@ -985,9 +988,11 @@ expression must evaluate to a Python value of type ``int``, ``long``,
 
 ::
 
+    from __future__ import print_function
+
     cdef int a1[ArraySize]
     cdef int a2[OtherArraySize]
-    print "I like", FavouriteFood
+    print("I like", FavouriteFood)
 
 Conditional Statements
 ----------------------
