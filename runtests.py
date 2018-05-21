@@ -522,7 +522,9 @@ class TestBuilder(object):
                  cleanup_workdir, cleanup_sharedlibs, cleanup_failures,
                  with_pyregr, cython_only, languages, test_bugs, fork, language_level,
                  test_determinism,
-                 common_utility_dir, pythran_dir=None):
+                 common_utility_dir, pythran_dir=None,
+                 default_mode='run',
+                 add_embedded_test=True):
         self.rootdir = rootdir
         self.workdir = workdir
         self.selectors = selectors
@@ -540,6 +542,8 @@ class TestBuilder(object):
         self.test_determinism = test_determinism
         self.common_utility_dir = common_utility_dir
         self.pythran_dir = pythran_dir
+        self.default_mode = default_mode
+        self.add_embedded_test = add_embedded_test
 
     def build_suite(self):
         suite = unittest.TestSuite()
@@ -554,7 +558,7 @@ class TestBuilder(object):
                     continue
                 suite.addTest(
                     self.handle_directory(path, filename))
-        if sys.platform not in ['win32']:
+        if sys.platform not in ['win32'] and self.add_embedded_test:
             # Non-Windows makefile.
             if [1 for selector in self.selectors if selector("embedded")] \
                 and not [1 for selector in self.exclude_selectors if selector("embedded")]:
@@ -589,7 +593,7 @@ class TestBuilder(object):
                         if match(fqmodule, tags)]:
                     continue
 
-            mode = 'run' # default
+            mode = self.default_mode
             if tags['mode']:
                 mode = tags['mode'][0]
             elif context == 'pyregr':
@@ -610,8 +614,10 @@ class TestBuilder(object):
                     test_class = CythonUnitTestCase
                 else:
                     test_class = CythonRunTestCase
-            else:
+            elif mode in ['compile', 'error', 'test']:
                 test_class = CythonCompileTestCase
+            else:
+                raise KeyError('Invalid test mode: ' + mode)
 
             for test in self.build_tests(test_class, path, workdir,
                                          module, mode == 'error', tags):
@@ -1802,6 +1808,9 @@ def main():
     parser.add_option("--no-pyregr", dest="pyregr",
                       action="store_false", default=True,
                       help="do not run the regression tests of CPython in tests/pyregr/")
+    parser.add_option("--no-examples", dest="examples",
+                      action="store_false", default=True,
+                      help="Do not run the documentation tests in the examples directory.")
     parser.add_option("--cython-only", dest="cython_only",
                       action="store_true", default=False,
                       help="only compile pyx to c, do not run C compiler or run the tests")
@@ -1856,6 +1865,9 @@ def main():
                       action="store_true",
                       help="stop on first failure or error")
     parser.add_option("--root-dir", dest="root_dir", default=os.path.join(DISTDIR, 'tests'),
+                      help="working directory")
+    parser.add_option("--examples-dir", dest="examples_dir",
+                      default=os.path.join(DISTDIR, 'docs', 'examples'),
                       help="working directory")
     parser.add_option("--work-dir", dest="work_dir", default=os.path.join(os.getcwd(), 'TEST_TMP'),
                       help="working directory")
@@ -2129,6 +2141,18 @@ def runtests(options, cmd_args, coverage=None):
                                 options.fork, options.language_level,
                                 options.test_determinism,
                                 common_utility_dir, options.pythran_dir)
+        test_suite.addTest(filetests.build_suite())
+    if options.examples and languages:
+        filetests = TestBuilder(options.examples_dir, WORKDIR, selectors, exclude_selectors,
+                                options.annotate_source, options.cleanup_workdir,
+                                options.cleanup_sharedlibs, options.cleanup_failures,
+                                options.pyregr,
+                                options.cython_only, languages, test_bugs,
+                                options.fork, options.language_level,
+                                options.test_determinism,
+                                common_utility_dir, options.pythran_dir,
+                                default_mode='compile',
+                                add_embedded_test=False)
         test_suite.addTest(filetests.build_suite())
 
     if options.system_pyregr and languages:
