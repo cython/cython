@@ -530,8 +530,6 @@ statically sized freelist of ``N`` instances for a given type.  Example::
     penguin = None
     penguin = Penguin('fish 2')  # does not need to allocate memory!
 
-.. _making_extension_types_weak_referenceable:
-
 .. _existing-pointers-instantiation:
 
 Instantiation from existing C/C++ pointers
@@ -556,10 +554,10 @@ contructors, this necessitates the use of factory functions. For example, ::
         cdef my_c_struct *_ptr
         cdef bint ptr_owner
 
-        def __cinit__(self):
+        def __cinit__(self, owner=False):
             # On cinit, do not create new structure but set pointer to NULL
             self._ptr = NULL
-            self.ptr_owner = True
+            self.ptr_owner = owner
 
         def __dealloc__(self):
             # De-allocate if not null and flag is set
@@ -577,11 +575,15 @@ contructors, this necessitates the use of factory functions. For example, ::
             return self._ptr.b if self._ptr is not NULL else None
 
         @staticmethod
-        cdef WrapperClass from_ptr(my_c_struct *_ptr):
+        cdef WrapperClass from_ptr(my_c_struct *_ptr, bint owner=False):
             """Factory function to create WrapperClass objects from
-            given my_c_struct pointer"""
+            given my_c_struct pointer.
+
+            Setting ``owner`` flag to ``True`` causes
+            the extension type to ``free`` the structure pointed to by ``_ptr``
+            when the wrapper object is deallocated."""
             # Call to __new__ bypasses __init__ constructor
-            cdef WrapperClass wrapper = WrapperClass.__new__(WrapperClass)
+            cdef WrapperClass wrapper = WrapperClass.__new__(WrapperClass, owner=True)
             wrapper._ptr = _ptr
             return wrapper
 
@@ -594,12 +596,12 @@ contructors, this necessitates the use of factory functions. For example, ::
                 raise MemoryError
             _ptr.a = 0
             _ptr.b = 0
-            return WrapperClass.from_ptr(_ptr)
+            return WrapperClass.from_ptr(_ptr, owner=True)
 
 
 To then create a ``WrapperClass`` object from an existing ``my_c_struct``
 pointer, ``WrapperClass.from_ptr(ptr)`` can be used in Cython code. To allocate
-a new structure and wrap it at same time, ``WrapperClass.new_struct`` can be
+a new structure and wrap it at the same time, ``WrapperClass.new_struct`` can be
 used instead.
 
 It is possible to create multiple Python objects all from the same pointer
@@ -607,24 +609,29 @@ which point to the same in-memory data, if that is wanted, though care must be
 taken when de-allocating as can be seen above.
 Additionally, the ``ptr_owner`` flag can be used to control which
 ``WrapperClass`` object owns the pointer and is responsible for de-allocation -
-this is set to ``True`` by default in the example.
+this is set to ``False`` by default in the example and can be enabled by calling
+``from_ptr(ptr, owner=True)``.
 
 The GIL must *not* be released in ``__dealloc__`` either, or another lock used
 if it is, in such cases or race conditions can occur with multiple
 de-allocations.
 
-Attempts to accept ``my_c_struct`` pointers in ``__cinit__`` will result in
-errors like::
+Being a part of the object constructor, the ``__cinit__`` method has a Python
+signature, which makes it unable to accept a ``my_c_struct`` pointer as an
+argument.
+
+Attempts to use pointers in a Python signature will result in errors like::
 
   Cannot convert 'my_c_struct *' to Python object
 
-This is because Cython cannot automatically convert the structure to a Python
+This is because Cython cannot automatically convert a pointer to a Python
 object, unlike with native types like ``int``.
 
 Note that for native types, Cython will copy the value and create a new Python
-object while in the above case, data is not copied and it is responsibility of
-the extension class to correctly de-allocate.
+object while in the above case, data is not copied and deallocating memory is
+a responsibility of the extension class.
 
+.. _making_extension_types_weak_referenceable:
 
 Making extension types weak-referenceable
 ==========================================
