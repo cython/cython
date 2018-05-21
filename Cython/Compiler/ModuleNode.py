@@ -707,7 +707,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('static PyObject *%s = NULL;' % env.module_cname)
         code.putln('static PyObject *%s;' % env.module_dict_cname)
         code.putln('static PyObject *%s;' % Naming.builtins_cname)
-        code.putln('static PyObject *%s;' % Naming.cython_runtime_cname)
+        code.putln('static PyObject *%s = NULL;' % Naming.cython_runtime_cname)
         code.putln('static PyObject *%s;' % Naming.empty_tuple)
         code.putln('static PyObject *%s;' % Naming.empty_bytes)
         code.putln('static PyObject *%s;' % Naming.empty_unicode)
