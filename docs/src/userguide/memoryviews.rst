@@ -396,6 +396,8 @@ like::
 
     int [:, :, :] my_memoryview = obj
 
+.. _c_and_fortran_contiguous_memoryviews:
+
 C and Fortran contiguous memoryviews
 ------------------------------------
 
@@ -704,7 +706,7 @@ array with an external C function implemented in :file:`C_func_file.c`:
 .. literalinclude:: ../../examples/memoryviews/C_func_file.c
     :linenos:
 
-This file have a header file called :file:`C_func_file.h` containing::
+This file comes with a header file called :file:`C_func_file.h` containing::
 
     void multiply_by_10_in_C(double arr[], unsigned int n);
 
@@ -716,21 +718,22 @@ You can call the function in a Cython file in the following way:
     :linenos:
 
 Several things to note:
-
+ - ``::1`` requests a C contiguous view, and fails if the buffer is not C contiguous.
+   See :ref:`c_and_fortran_contiguous_memoryviews`.
  - ``&arr_memview[0]`` can be understood as 'the adress of the first element of the
-   memoryview'.
+   memoryview'. For contiguous arrays, this is equivalent to the
+   start address of the flat memory buffer.
  - ``arr_memview.shape[0]`` could have been replaced by ``arr_memview.size``,
    ``arr.shape[0]`` or ``arr.size``. But ``arr_memview.shape[0]`` is more efficient
-   because it doesn't require a conversion from a Python ``int`` to an
-   unsigned C integer.
+   because it doesn't require any Python interaction.
  - ``multiply_by_10`` will perform computation in-place if the array passed is contiguous,
    and will return a new numpy array if ``arr`` is not contiguous.
  - If you are using Python arrays instead of numpy arrays, you don't need to check
    if the data is stored contiguously as this is always the case. See :ref:`array-array`.
 
-This way, you can have access the function more or less as a regular
-Python function while its data and associated memory gracefully managed
-by NumPy. For the details of how to compile and
+This way, you can call the C function similar to a normal Python function,
+and leave all the memory management and cleanup to NumPy arrays and Python's
+object handling. For the details of how to compile and
 call functions in C files, see :ref:`using_c_libraries`.
 
 
