@@ -617,6 +617,12 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
 #if CYTHON_COMPILING_IN_CPYTHON
     PyObject **cython_runtime_dict;
 #endif
+
+    if (unlikely(!${cython_runtime_cname})) {
+        // Very early error where the runtime module is not set up yet.
+        return c_line;
+    }
+
     __Pyx_ErrFetchInState(tstate, &ptype, &pvalue, &ptraceback);
 
 #if CYTHON_COMPILING_IN_CPYTHON
