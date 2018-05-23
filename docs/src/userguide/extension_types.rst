@@ -530,6 +530,106 @@ statically sized freelist of ``N`` instances for a given type.  Example::
     penguin = None
     penguin = Penguin('fish 2')  # does not need to allocate memory!
 
+.. _existing-pointers-instantiation:
+
+Instantiation from existing C/C++ pointers
+===========================================
+
+It is quite common to want to instantiate an extension class from an existing
+(pointer to a) data structure, often as returned by external C/C++ functions.
+
+As extension classes can only accept Python objects as arguments in their
+contructors, this necessitates the use of factory functions. For example, ::
+
+    from libc.stdlib cimport malloc, free
+
+    # Example C struct
+    ctypedef struct my_c_struct:
+        int a
+        int b
+
+
+    cdef class WrapperClass:
+        """A wrapper class for a C/C++ data structure"""
+        cdef my_c_struct *_ptr
+        cdef bint ptr_owner
+
+        def __cinit__(self):
+            self.ptr_owner = False
+
+        def __dealloc__(self):
+            # De-allocate if not null and flag is set
+            if self._ptr is not NULL and self.ptr_owner is True:
+                free(self._ptr)
+                self._ptr = NULL
+
+        # Extension class properties
+        @property
+        def a(self):
+            return self._ptr.a if self._ptr is not NULL else None
+
+        @property
+        def b(self):
+            return self._ptr.b if self._ptr is not NULL else None
+
+        @staticmethod
+        cdef WrapperClass from_ptr(my_c_struct *_ptr, bint owner=False):
+            """Factory function to create WrapperClass objects from
+            given my_c_struct pointer.
+
+            Setting ``owner`` flag to ``True`` causes
+            the extension type to ``free`` the structure pointed to by ``_ptr``
+            when the wrapper object is deallocated."""
+            # Call to __new__ bypasses __init__ constructor
+            cdef WrapperClass wrapper = WrapperClass.__new__(WrapperClass)
+            wrapper._ptr = _ptr
+            wrapper.ptr_owner = owner
+            return wrapper
+
+        @staticmethod
+        cdef WrapperClass new_struct():
+            """Factory function to create WrapperClass objects with
+            newly allocated my_c_struct"""
+            cdef my_c_struct *_ptr = <my_c_struct *>malloc(sizeof(my_c_struct))
+            if _ptr is NULL:
+                raise MemoryError
+            _ptr.a = 0
+            _ptr.b = 0
+            return WrapperClass.from_ptr(_ptr, owner=True)
+
+
+To then create a ``WrapperClass`` object from an existing ``my_c_struct``
+pointer, ``WrapperClass.from_ptr(ptr)`` can be used in Cython code. To allocate
+a new structure and wrap it at the same time, ``WrapperClass.new_struct`` can be
+used instead.
+
+It is possible to create multiple Python objects all from the same pointer
+which point to the same in-memory data, if that is wanted, though care must be
+taken when de-allocating as can be seen above.
+Additionally, the ``ptr_owner`` flag can be used to control which
+``WrapperClass`` object owns the pointer and is responsible for de-allocation -
+this is set to ``False`` by default in the example and can be enabled by calling
+``from_ptr(ptr, owner=True)``.
+
+The GIL must *not* be released in ``__dealloc__`` either, or another lock used
+if it is, in such cases or race conditions can occur with multiple
+de-allocations.
+
+Being a part of the object constructor, the ``__cinit__`` method has a Python
+signature, which makes it unable to accept a ``my_c_struct`` pointer as an
+argument.
+
+Attempts to use pointers in a Python signature will result in errors like::
+
+  Cannot convert 'my_c_struct *' to Python object
+
+This is because Cython cannot automatically convert a pointer to a Python
+object, unlike with native types like ``int``.
+
+Note that for native types, Cython will copy the value and create a new Python
+object while in the above case, data is not copied and deallocating memory is
+a responsibility of the extension class.
+
 .. _making_extension_types_weak_referenceable:
 
 Making extension types weak-referenceable
