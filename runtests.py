@@ -518,28 +518,26 @@ class ErrorWriter(object):
 
 
 class TestBuilder(object):
-    def __init__(self, rootdir, workdir, selectors, exclude_selectors, annotate,
-                 cleanup_workdir, cleanup_sharedlibs, cleanup_failures,
-                 with_pyregr, cython_only, languages, test_bugs, fork, language_level,
-                 test_determinism,
+    def __init__(self, rootdir, workdir, selectors, exclude_selectors, options,
+                 with_pyregr, languages, test_bugs, language_level,
                  common_utility_dir, pythran_dir=None,
                  default_mode='run',
-                 add_embedded_test=True):
+                 add_embedded_test=False):
         self.rootdir = rootdir
         self.workdir = workdir
         self.selectors = selectors
         self.exclude_selectors = exclude_selectors
-        self.annotate = annotate
-        self.cleanup_workdir = cleanup_workdir
-        self.cleanup_sharedlibs = cleanup_sharedlibs
-        self.cleanup_failures = cleanup_failures
+        self.annotate = options.annotate_source
+        self.cleanup_workdir = options.cleanup_workdir
+        self.cleanup_sharedlibs = options.cleanup_sharedlibs
+        self.cleanup_failures = options.cleanup_failures
         self.with_pyregr = with_pyregr
-        self.cython_only = cython_only
+        self.cython_only = options.cython_only
         self.languages = languages
         self.test_bugs = test_bugs
-        self.fork = fork
+        self.fork = options.fork
         self.language_level = language_level
-        self.test_determinism = test_determinism
+        self.test_determinism = options.test_determinism
         self.common_utility_dir = common_utility_dir
         self.pythran_dir = pythran_dir
         self.default_mode = default_mode
@@ -2134,25 +2132,16 @@ def runtests(options, cmd_args, coverage=None):
 
     if options.filetests and languages:
         filetests = TestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
-                                options.annotate_source, options.cleanup_workdir,
-                                options.cleanup_sharedlibs, options.cleanup_failures,
-                                options.pyregr,
-                                options.cython_only, languages, test_bugs,
-                                options.fork, options.language_level,
-                                options.test_determinism,
-                                common_utility_dir, options.pythran_dir)
+                                options, options.pyregr, languages, test_bugs,
+                                options.language_level, common_utility_dir,
+                                options.pythran_dir, add_embedded_test=True)
         test_suite.addTest(filetests.build_suite())
     if options.examples and languages:
         filetests = TestBuilder(options.examples_dir, WORKDIR, selectors, exclude_selectors,
-                                options.annotate_source, options.cleanup_workdir,
-                                options.cleanup_sharedlibs, options.cleanup_failures,
-                                options.pyregr,
-                                options.cython_only, languages, test_bugs,
-                                options.fork, options.language_level,
-                                options.test_determinism,
-                                common_utility_dir, options.pythran_dir,
-                                default_mode='compile',
-                                add_embedded_test=False)
+                                options, options.pyregr, languages, test_bugs,
+                                options.language_level, common_utility_dir,
+                                options.pythran_dir,
+                                default_mode='compile')
         test_suite.addTest(filetests.build_suite())
 
     if options.system_pyregr and languages:
@@ -2161,13 +2150,9 @@ def runtests(options, cmd_args, coverage=None):
             sys_pyregr_dir = os.path.join(os.path.dirname(sys.executable), 'Lib', 'test')  # source build
         if os.path.isdir(sys_pyregr_dir):
             filetests = TestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
-                                    options.annotate_source, options.cleanup_workdir,
-                                    options.cleanup_sharedlibs, options.cleanup_failures,
-                                    True,
-                                    options.cython_only, languages, test_bugs,
-                                    options.fork, sys.version_info[0],
-                                    options.test_determinism,
-                                    common_utility_dir)
+                                    options, True, languages, test_bugs,
+                                    sys.version_info[0], common_utility_dir,
+                                    add_embedded_test=True)
             sys.stderr.write("Including CPython regression tests in %s\n" % sys_pyregr_dir)
             test_suite.addTest(filetests.handle_directory(sys_pyregr_dir, 'pyregr'))
 
