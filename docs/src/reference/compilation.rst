@@ -53,27 +53,28 @@ to libraries you want to link with.)
 
 After compilation, a ``yourmod.so`` file is written into the target directory
 and your module, ``yourmod``, is available for you to import as with any other
-Python module.  Note that if you are not relying on ``cythonize`` or distutils,
+Python module.  Note that if you are not relying on ``cythonize`` or setuptools,
 you will not automatically benefit from the platform specific file extension
 that CPython generates for disambiguation, such as
 ``yourmod.cpython-35m-x86_64-linux-gnu.so`` on a regular 64bit Linux installation
 of CPython 3.5.
 
-.. _compiling-distutils:
-Compiling with ``distutils``
+.. _compiling-setuptools:
+Compiling with ``setuptools``
 ============================
 
-The ``distutils`` package is part of the standard library.  It is the standard
+The ``setuptools`` package is part of the standard library.  It is the standard
 way of building Python packages, including native extension modules.  The
 following example configures the build for a Cython file called *hello.pyx*.
 First, create a ``setup.py`` script::
 
-    from distutils.core import setup
+    from setuptools import setup
     from Cython.Build import cythonize
 
     setup(
         name = "My hello app",
         ext_modules = cythonize('hello.pyx'),  # accepts a glob pattern
+        zip_safe=False,
     )
 
 Now, run the command ``python setup.py build_ext --inplace`` in your
@@ -91,12 +92,13 @@ Configuring the C-Build
 If you have include files in non-standard places you can pass an
 ``include_path`` parameter to ``cythonize``::
 
-    from distutils.core import setup
+    from setuptools import setup
     from Cython.Build import cythonize
 
     setup(
         name = "My hello app",
         ext_modules = cythonize("src/*.pyx", include_path = [...]),
+        zip_safe=False,
     )
 
 Often, Python packages that offer a C-level API provide a way to find
@@ -116,8 +118,7 @@ linker options you will need to create ``Extension`` instances manually
 (note that glob syntax can still be used to specify multiple extensions
 in one line)::
 
-    from distutils.core import setup
-    from distutils.extension import Extension
+    from seetuptools import setup, Extension
     from Cython.Build import cythonize
 
     extensions = [
@@ -134,17 +135,12 @@ in one line)::
     setup(
         name = "My hello app",
         ext_modules = cythonize(extensions),
+        zip_safe=False,
     )
 
-Note that when using setuptools, you should import it before Cython as
-setuptools may replace the ``Extension`` class in distutils.  Otherwise,
-both might disagree about the class to use here.
-
-Note also that if you use setuptools instead of distutils, the default
-action when running ``python setup.py install`` is to create a zipped
-``egg`` file which will not work with ``cimport`` for ``pxd`` files
-when you try to use them from a dependent package.
-To prevent this, include ``zip_safe=False`` in the arguments to ``setup()``.
+``zip_safe=False`` is included in arguments to ``setup`` so that a zipped egg file
+is not generated which will not work with ``cimport`` and ``pxd`` files when they
+are used from other dependent packages.
 
 If your options are static (for example you do not need to call a tool like
 ``pkg-config`` to determine them) you can also provide them directly in your
@@ -167,27 +163,28 @@ Note that these sources are added to the list of sources of the current
 extension module.  Spelling this out in the :file:`setup.py` file looks
 as follows::
 
-    from distutils.core import setup
+    from setuptools import setup, Extension
     from Cython.Build import cythonize
-    from distutils.extension import Extension
 
     sourcefiles = ['example.pyx', 'helper.c', 'another_helper.c']
 
     extensions = [Extension("example", sourcefiles)]
 
     setup(
-        ext_modules = cythonize(extensions)
+        ext_modules = cythonize(extensions),
+        zip_safe=False,
     )
 
 The :class:`Extension` class takes many options, and a fuller explanation can
-be found in the `distutils documentation`_. Some useful options to know about
-are ``include_dirs``, ``libraries``, and ``library_dirs`` which specify where
+be found in the `distutils documentation`_, which ``setuptools`` extends.
+Some useful options to know about are ``include_dirs``, ``libraries``,
+and ``library_dirs`` which specify where
 to find the ``.h`` and library files when linking to external libraries.
 
 .. _distutils documentation: http://docs.python.org/extending/building.html
 
 Sometimes this is not enough and you need finer customization of the
-distutils :class:`Extension`.
+:class:`Extension` class.
 To do this, you can provide a custom function ``create_extension``
 to create the final :class:`Extension` object after Cython has processed
 the sources, dependencies and ``# distutils`` directives but before the
@@ -329,21 +326,20 @@ doesn't want to use it just to install your module. Also, the installed version
 may not be the same one you used, and may not compile your sources correctly.
 
 This simply means that the :file:`setup.py` file that you ship with will just
-be a normal distutils file on the generated `.c` files, for the basic example
+be a normal setuptools file on the generated `.c` files, for the basic example
 we would have instead::
 
-    from distutils.core import setup
-    from distutils.extension import Extension
+    from setuptools import setup, Extension
 
     setup(
-        ext_modules = [Extension("example", ["example.c"])]
+        ext_modules = [Extension("example", ["example.c"])],
+        zip_safe=False,
     )
 
 This is easy to combine with :func:`cythonize` by changing the file extension
 of the extension module sources::
 
-    from distutils.core import setup
-    from distutils.extension import Extension
+    from setuptools import setup, Extension
 
     USE_CYTHON = ...   # command line option, try-import, ...
 
@@ -356,7 +352,8 @@ of the extension module sources::
         extensions = cythonize(extensions)
 
     setup(
-        ext_modules = extensions
+        ext_modules = extensions,
+        zip_safe=False,
     )
 
 If you have many extensions and want to avoid the additional complexity in the
@@ -390,6 +387,7 @@ Cython's build_ext module which runs ``cythonize`` as part of the build process:
         ],
         extensions = [Extension("*", ["*.pyx"])],
         cmdclass={'build_ext': Cython.Build.build_ext},
+        zip_safe=False,
         ...
     )
 
@@ -402,17 +400,16 @@ e.g.::
             'my_package': ['*.pxd'],
             'my_package/sub_package': ['*.pxd'],
         },
+        zip_safe=False,
         ...
     )
 
 These ``.pxd`` files need not have corresponding ``.pyx``
 modules if they contain purely declarations of external libraries.
 
-Remember that if you use setuptools instead of distutils, the default
-action when running ``python setup.py install`` is to create a zipped
-``egg`` file which will not work with ``cimport`` for ``pxd`` files
-when you try to use them from a dependent package.
-To prevent this, include ``zip_safe=False`` in the arguments to ``setup()``.
+Remember to include ``zip_safe=False`` in the arguments to ``setup()`` to 
+indicate to setuptools that a zipped egg file should not be created which
+will not work with ``cimport`` and ``pxd`` files from dependent packages.
 
 
 Integrating multiple modules
@@ -842,12 +839,13 @@ In :file:`setup.py`
 Compiler directives can also be set in the :file:`setup.py` file by passing a keyword
 argument to ``cythonize``::
 
-    from distutils.core import setup
+    from setuptools import setup
     from Cython.Build import cythonize
 
     setup(
         name = "My hello app",
         ext_modules = cythonize('hello.pyx', compiler_directives={'embedsignature': True}),
+        zip_safe=False,
     )
 
 This will override the default directives as specified in the ``compiler_directives`` dictionary.

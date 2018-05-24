@@ -8,8 +8,8 @@ Cython code must, unlike Python, be compiled. This happens in two stages:
  - The ``.c`` file is compiled by a C compiler to
    a ``.so`` file (or ``.pyd`` on Windows) which can be
    ``import``-ed directly into a Python session.
-   Distutils or setuptools take care of this part.
-   Although Cython can call them for you in certain cases.
+   Setuptools take care of this part,
+   although Cython can call it for you in certain cases.
 
 To understand fully the Cython + distutils/setuptools build process,
 one may want to read more about
@@ -17,9 +17,9 @@ one may want to read more about
 
 There are several ways to build Cython code:
 
- - Write a distutils/setuptools ``setup.py``. This is the normal and recommended way.
+ - Write a setuptools ``setup.py``. This is the normal and recommended way.
  - Use :ref:`Pyximport<pyximport>`, importing Cython ``.pyx`` files as if they
-   were ``.py`` files (using distutils to compile and build in the background).
+   were ``.py`` files (using setuptools to compile and build in the background).
    This method is easier than writing a ``setup.py``, but is not very flexible.
    So you'll need to write a ``setup.py`` if, for example, you need certain compilations options.
  - Run the ``cython`` command-line utility manually to produce the ``.c`` file
@@ -30,12 +30,21 @@ There are several ways to build Cython code:
    both of which allow Cython code inline.
    This is the easiest way to get started writing Cython code and running it.
 
-Currently, using distutils or setuptools is the most common way Cython files are built and distributed.
+Currently, using setuptools is the most common way Cython files are built and distributed.
 The other methods are described in more detail in the :ref:`compilation` section of the reference manual.
 
+It is advised to update setuptools to the most recent supported version on
+the Python distribution being used for best results.
 
-Building a Cython module using distutils
-----------------------------------------
+Most commonly this is done via ``pip``::
+
+  pip install -U setuptools
+
+If ``pip`` is not available on your platform, refer to `Installation Guide <https://pip.pypa.io/en/stable/installing/#installing-with-get-pip-py>`_.
+
+
+Building a Cython module using setuptools
+-----------------------------------------
 
 Imagine a simple "hello world" script in a file ``hello.pyx``::
 
@@ -44,23 +53,22 @@ Imagine a simple "hello world" script in a file ``hello.pyx``::
 
 The following could be a corresponding ``setup.py`` script::
 
-  from distutils.core import setup
+  from setuptools import setup
   from Cython.Build import cythonize
 
   setup(
     name = 'Hello world app',
     ext_modules = cythonize("hello.pyx"),
+    zip_safe=False,
   )
 
 To build, run ``python setup.py build_ext --inplace``.  Then simply
 start a Python session and do ``from hello import say_hello_to`` and
 use the imported function as you see fit.
 
-One caveat if you use setuptools instead of distutils, the default
-action when running ``python setup.py install`` is to create a zipped
-``egg`` file which will not work with ``cimport`` for ``pxd`` files
-when you try to use them from a dependent package.
-To prevent this, include ``zip_safe=False`` in the arguments to ``setup()``.
+``zip_safe=False`` is included in arguments to ``setup`` so that a zipped egg file
+is not generated which will not work with ``cimport`` and ``pxd`` files when they
+are used from other dependent packages.
 
 .. _jupyter-notebook:
 
