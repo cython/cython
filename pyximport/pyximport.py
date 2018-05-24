@@ -249,6 +249,10 @@ class PyxImporter(object):
     def find_module(self, fullname, package_path=None):
         if fullname in sys.modules  and  not pyxargs.reload_support:
             return None  # only here when reload()
+
+        # package_path might be a _NamespacePath. Convert that into a list...
+        if package_path is not None and not isinstance(package_path, list):
+            package_path = list(package_path)
         try:
             fp, pathname, (ext,mode,ty) = imp.find_module(fullname,package_path)
             if fp: fp.close()  # Python should offer a Default-Loader to avoid this double find/open!
