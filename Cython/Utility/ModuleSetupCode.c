@@ -672,6 +672,20 @@ static CYTHON_INLINE void * PyThread_tss_get(Py_tss_t *key) {
 #endif
 
 
+/////////////// SmallCodeConfig.proto ///////////////
+
+#ifndef CYTHON_SMALL_CODE
+#if defined(__clang__)
+    #define CYTHON_SMALL_CODE
+#elif defined(__GNUC__) && (!(defined(__cplusplus)) || (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ > 4)))
+    // At least g++ 4.4.7 can generate crashing code with this option. (GH #2235)
+    #define CYTHON_SMALL_CODE __attribute__((optimize("Os")))
+#else
+    #define CYTHON_SMALL_CODE
+#endif
+#endif
+
+
 /////////////// PyModInitFuncType.proto ///////////////
 
 #if PY_MAJOR_VERSION < 3
@@ -692,17 +706,6 @@ static CYTHON_INLINE void * PyThread_tss_get(Py_tss_t *key) {
 #define __Pyx_PyMODINIT_FUNC PyMODINIT_FUNC
 #endif
 
-#endif
-
-#ifndef CYTHON_SMALL_CODE
-#if defined(__clang__)
-    #define CYTHON_SMALL_CODE
-#elif defined(__GNUC__) && (!(defined(__cplusplus)) || (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ > 4)))
-    // At least g++ 4.4.7 can generate crashing code with this option. (GH #2235)
-    #define CYTHON_SMALL_CODE __attribute__((optimize("Os")))
-#else
-    #define CYTHON_SMALL_CODE
-#endif
 #endif
 
 
@@ -862,7 +865,7 @@ PyEval_InitThreads();
 //@substitute: naming
 
 //#if CYTHON_PEP489_MULTI_PHASE_INIT
-static int __Pyx_copy_spec_to_module(PyObject *spec, PyObject *moddict, const char* from_name, const char* to_name) {
+static CYTHON_SMALL_CODE int __Pyx_copy_spec_to_module(PyObject *spec, PyObject *moddict, const char* from_name, const char* to_name) {
     PyObject *value = PyObject_GetAttrString(spec, from_name);
     int result = 0;
     if (likely(value)) {
@@ -876,7 +879,7 @@ static int __Pyx_copy_spec_to_module(PyObject *spec, PyObject *moddict, const ch
     return result;
 }
 
-static PyObject* ${pymodule_create_func_cname}(PyObject *spec, CYTHON_UNUSED PyModuleDef *def) {
+static CYTHON_SMALL_CODE PyObject* ${pymodule_create_func_cname}(PyObject *spec, CYTHON_UNUSED PyModuleDef *def) {
     PyObject *module = NULL, *moddict, *modname;
 
     // For now, we only have exactly one module instance.

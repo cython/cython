@@ -375,13 +375,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_lambda_definitions(env, code)
         # generate normal variable and function definitions
         self.generate_variable_definitions(env, code)
+
         self.body.generate_function_definitions(env, code)
+
         code.mark_pos(None)
         self.generate_typeobj_definitions(env, code)
         self.generate_method_table(env, code)
         if env.has_import_star:
             self.generate_import_star(env, code)
         self.generate_pymoduledef_struct(env, code)
+
+        # initialise the macro to reduce the code size of one-time functionality
+        code.putln(UtilityCode.load_as_string("SmallCodeConfig", "ModuleSetupCode.c")[0].strip())
 
         # init_globals is inserted before this
         self.generate_module_init_func(modules[:-1], env, globalstate['init_module'])
@@ -2297,7 +2302,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("")
         # main module init code lives in Py_mod_exec function, not in PyInit function
-        code.putln("static int %s(PyObject *%s)" % (
+        code.putln("static CYTHON_SMALL_CODE int %s(PyObject *%s)" % (
             self.mod_init_func_cname(Naming.pymodule_exec_func_cname, env),
             Naming.pymodinit_module_arg))
         code.putln("#endif")  # PEP489
@@ -2509,7 +2514,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 self.call_code = orig_code.insertion_point()
                 code = function_code
                 code.enter_cfunc_scope(scope)
-                prototypes.putln("static int %s(void); /*proto*/" % self.cfunc_name)
+                prototypes.putln("static CYTHON_SMALL_CODE int %s(void); /*proto*/" % self.cfunc_name)
                 code.putln("static int %s(void) {" % self.cfunc_name)
                 code.put_declare_refcount_context()
                 self.tempdecl_code = code.insertion_point()

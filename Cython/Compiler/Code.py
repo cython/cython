@@ -1147,19 +1147,19 @@ class GlobalState(object):
         else:
             w = self.parts['cached_builtins']
             w.enter_cfunc_scope()
-            w.putln("static int __Pyx_InitCachedBuiltins(void) {")
+            w.putln("static CYTHON_SMALL_CODE int __Pyx_InitCachedBuiltins(void) {")
 
         w = self.parts['cached_constants']
         w.enter_cfunc_scope()
         w.putln("")
-        w.putln("static int __Pyx_InitCachedConstants(void) {")
+        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {")
         w.put_declare_refcount_context()
         w.put_setup_refcount_context("__Pyx_InitCachedConstants")
 
         w = self.parts['init_globals']
         w.enter_cfunc_scope()
         w.putln("")
-        w.putln("static int __Pyx_InitGlobals(void) {")
+        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitGlobals(void) {")
 
         if not Options.generate_cleanup_code:
             del self.parts['cleanup_globals']
@@ -1167,7 +1167,7 @@ class GlobalState(object):
             w = self.parts['cleanup_globals']
             w.enter_cfunc_scope()
             w.putln("")
-            w.putln("static void __Pyx_CleanupGlobals(void) {")
+            w.putln("static CYTHON_SMALL_CODE void __Pyx_CleanupGlobals(void) {")
 
         code = self.parts['utility_code_proto']
         code.putln("")
