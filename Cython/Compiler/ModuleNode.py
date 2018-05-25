@@ -2466,7 +2466,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # user code in atexit or other global registries.
         ##code.put_decref_clear(env.module_dict_cname, py_object_type, nanny=False)
         code.putln('}')
-        code.put_decref_clear(env.module_cname, py_object_type, nanny=False)
+        code.put_decref_clear(env.module_cname, py_object_type, nanny=False, clear_before_decref=True)
         code.putln('} else if (!PyErr_Occurred()) {')
         code.putln('PyErr_SetString(PyExc_ImportError, "init %s");' % env.qualified_name)
         code.putln('}')
