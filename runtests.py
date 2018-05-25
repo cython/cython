@@ -1863,7 +1863,8 @@ def main():
                       action="store_true",
                       help="stop on first failure or error")
     parser.add_option("--root-dir", dest="root_dir", default=os.path.join(DISTDIR, 'tests'),
-                      help="working directory")
+                      help=("Directory to look for the file based "
+                            "tests (the ones which are deactivated with '--no-file'."))
     parser.add_option("--examples-dir", dest="examples_dir",
                       default=os.path.join(DISTDIR, 'docs', 'examples'),
                       help="working directory")

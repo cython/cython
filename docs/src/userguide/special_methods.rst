@@ -88,6 +88,8 @@ complaining about the signature mismatch.
     It often helps to directly call ``__new__()`` in this function to bypass the
     call to the ``__init__()`` constructor.
 
+    See :ref:`existing-pointers-instantiation` for an example.
+
 .. Note::
 
     Older Cython files may use :meth:`__new__` rather than :meth:`__cinit__`. The two are synonyms.

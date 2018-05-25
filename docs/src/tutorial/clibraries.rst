@@ -1,4 +1,6 @@
 
+.. _using_c_libraries:
+
 ******************
 Using C libraries
 ******************
