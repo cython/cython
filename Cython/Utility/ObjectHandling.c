@@ -509,10 +509,11 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
     }
 #else
 #if CYTHON_COMPILING_IN_PYPY
-    if (is_list || (PySequence_Check(o) && !PyDict_Check(o))) {
+    if (is_list || (PySequence_Check(o) && !PyDict_Check(o)))
 #else
-    if (is_list || PySequence_Check(o)) {
+    if (is_list || PySequence_Check(o))
 #endif
+    {
         return PySequence_SetItem(o, i, v);
     }
 #endif

@@ -321,10 +321,11 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb);
 /////////////// GetException ///////////////
 
 #if CYTHON_FAST_THREAD_STATE
-static int __Pyx__GetException(PyThreadState *tstate, PyObject **type, PyObject **value, PyObject **tb) {
+static int __Pyx__GetException(PyThreadState *tstate, PyObject **type, PyObject **value, PyObject **tb)
 #else
-static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb) {
+static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb)
 #endif
+{
     PyObject *local_type, *local_value, *local_tb;
 #if CYTHON_FAST_THREAD_STATE
     PyObject *tmp_type, *tmp_value, *tmp_tb;
