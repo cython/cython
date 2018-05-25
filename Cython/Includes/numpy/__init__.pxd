@@ -333,7 +333,9 @@ cdef extern from "numpy/arrayobject.h":
     ctypedef unsigned long long npy_uint96
     ctypedef unsigned long long npy_uint128
 
-    ctypedef npy_uint16   npy_half
+    ctypedef struct npy_half:
+        npy_uint16 value
+
     ctypedef npy_half     npy_float16
     ctypedef float        npy_float32
     ctypedef double       npy_float64
