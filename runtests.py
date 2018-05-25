@@ -1856,7 +1856,8 @@ def main():
                       action="store_true",
                       help="stop on first failure or error")
     parser.add_option("--root-dir", dest="root_dir", default=os.path.join(DISTDIR, 'tests'),
-                      help="working directory")
+                      help=("Directory to look for the file based "
+                            "tests (the ones which are deactivated with '--no-file'."))
     parser.add_option("--work-dir", dest="work_dir", default=os.path.join(os.getcwd(), 'TEST_TMP'),
                       help="working directory")
     parser.add_option("--cython-dir", dest="cython_dir", default=os.getcwd(),
