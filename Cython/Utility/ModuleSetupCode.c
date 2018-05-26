@@ -1168,11 +1168,15 @@ if (!__Pyx_RefNanny) {
 //@substitute: naming
 
 static void ${cleanup_cname}(PyObject *self); /*proto*/
+
+#if PY_MAJOR_VERSION < 3 || CYTHON_COMPILING_IN_PYPY
 static int __Pyx_RegisterCleanup(void); /*proto*/
+#else
+#define __Pyx_RegisterCleanup() (0)
+#endif
 
 /////////////// RegisterModuleCleanup ///////////////
 //@substitute: naming
-//@requires: ImportExport.c::ModuleImport
 
 #if PY_MAJOR_VERSION < 3 || CYTHON_COMPILING_IN_PYPY
 static PyObject* ${cleanup_cname}_atexit(PyObject *module, CYTHON_UNUSED PyObject *unused) {
@@ -1202,7 +1206,7 @@ static int __Pyx_RegisterCleanup(void) {
     if (!cleanup_func)
         goto bad;
 
-    atexit = __Pyx_ImportModule("atexit");
+    atexit = PyImport_ImportModule("atexit");
     if (!atexit)
         goto bad;
     reg = PyObject_GetAttrString(atexit, "_exithandlers");
@@ -1243,12 +1247,6 @@ bad:
     Py_XDECREF(args);
     Py_XDECREF(res);
     return ret;
-}
-#else
-// fake call purely to work around "unused function" warning for __Pyx_ImportModule()
-static int __Pyx_RegisterCleanup(void) {
-    (void)__Pyx_ImportModule; /* unused */
-    return 0;
 }
 #endif
 

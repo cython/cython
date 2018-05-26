@@ -222,31 +222,6 @@ bad:
 }
 
 
-/////////////// ModuleImport.proto ///////////////
-
-static PyObject *__Pyx_ImportModule(const char *name); /*proto*/
-
-/////////////// ModuleImport ///////////////
-//@requires: PyIdentifierFromString
-
-#ifndef __PYX_HAVE_RT_ImportModule
-#define __PYX_HAVE_RT_ImportModule
-static PyObject *__Pyx_ImportModule(const char *name) {
-    PyObject *py_name = 0;
-    PyObject *py_module = 0;
-
-    py_name = __Pyx_PyIdentifier_FromString(name);
-    if (!py_name)
-        goto bad;
-    py_module = PyImport_Import(py_name);
-    Py_DECREF(py_name);
-    return py_module;
-bad:
-    return 0;
-}
-#endif
-
-
 /////////////// SetPackagePathFromImportLib.proto ///////////////
 
 // PY_VERSION_HEX >= 0x03030000
@@ -336,8 +311,6 @@ set_path:
 static PyTypeObject *__Pyx_ImportType(PyObject* module, const char *module_name, const char *class_name, size_t size, int strict);  /*proto*/
 
 /////////////// TypeImport ///////////////
-//@requires: PyIdentifierFromString
-//@requires: ModuleImport
 
 #ifndef __PYX_HAVE_RT_ImportType
 #define __PYX_HAVE_RT_ImportType
@@ -345,19 +318,13 @@ static PyTypeObject *__Pyx_ImportType(PyObject *module, const char *module_name,
     size_t size, int strict)
 {
     PyObject *result = 0;
-    PyObject *py_name = 0;
     char warning[200];
     Py_ssize_t basicsize;
 #ifdef Py_LIMITED_API
     PyObject *py_basicsize;
 #endif
 
-    py_name = __Pyx_PyIdentifier_FromString(class_name);
-    if (!py_name)
-        goto bad;
-    result = PyObject_GetAttr(module, py_name);
-    Py_DECREF(py_name);
-    py_name = 0;
+    result = PyObject_GetAttrString(module, class_name);
     if (!result)
         goto bad;
     if (!PyType_Check(result)) {

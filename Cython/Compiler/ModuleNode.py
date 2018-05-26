@@ -270,7 +270,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     h_code.putln("static %s = 0;" %  type.declaration_code(cname))
                     h_code.putln("#define %s (*%s)" % (entry.name, cname))
             h_code.put(UtilityCode.load_as_string("PyIdentifierFromString", "ImportExport.c")[0])
-            h_code.put(UtilityCode.load_as_string("ModuleImport", "ImportExport.c")[1])
             if api_vars:
                 h_code.put(UtilityCode.load_as_string("VoidPtrImport", "ImportExport.c")[1])
             if api_funcs:
@@ -280,7 +279,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code.putln("")
             h_code.putln("static int import_%s(void) {" % self.api_name(env))
             h_code.putln("PyObject *module = 0;")
-            h_code.putln('module = __Pyx_ImportModule("%s");' % env.qualified_name)
+            h_code.putln('module = PyImport_ImportModule("%s");' % env.qualified_name)
             h_code.putln("if (!module) goto bad;")
             for entry in api_funcs:
                 cname = env.mangle(Naming.func_prefix_api, entry.name)
@@ -2904,12 +2903,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 entries.append(entry)
         if entries:
             env.use_utility_code(
-                UtilityCode.load_cached("ModuleImport", "ImportExport.c"))
-            env.use_utility_code(
                 UtilityCode.load_cached("VoidPtrImport", "ImportExport.c"))
             temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
             code.putln(
-                '%s = __Pyx_ImportModule("%s"); if (!%s) %s' % (
+                '%s = PyImport_ImportModule("%s"); if (!%s) %s' % (
                     temp,
                     module.qualified_name,
                     temp,
@@ -2934,12 +2931,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 entries.append(entry)
         if entries:
             env.use_utility_code(
-                UtilityCode.load_cached("ModuleImport", "ImportExport.c"))
-            env.use_utility_code(
                 UtilityCode.load_cached("FunctionImport", "ImportExport.c"))
             temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
             code.putln(
-                '%s = __Pyx_ImportModule("%s"); if (!%s) %s' % (
+                '%s = PyImport_ImportModule("%s"); if (!%s) %s' % (
                     temp,
                     module.qualified_name,
                     temp,
@@ -3099,7 +3094,7 @@ class ModuleImportGenerator(object):
         code = self.code
         temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
         self.temps.append(temp)
-        code.putln('%s = __Pyx_ImportModule(%s); if (unlikely(!%s)) %s' % (
+        code.putln('%s = PyImport_ImportModule(%s); if (unlikely(!%s)) %s' % (
             temp, module_name_string, temp, error_code))
         code.put_gotref(temp)
         self.imported[module_name_string] = temp
