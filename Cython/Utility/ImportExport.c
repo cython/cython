@@ -333,7 +333,7 @@ set_path:
 
 /////////////// TypeImport.proto ///////////////
 
-static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class_name, size_t size, int strict);  /*proto*/
+static PyTypeObject *__Pyx_ImportType(PyObject* module, const char *module_name, const char *class_name, size_t size, int strict);  /*proto*/
 
 /////////////// TypeImport ///////////////
 //@requires: PyIdentifierFromString
@@ -341,10 +341,9 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
 
 #ifndef __PYX_HAVE_RT_ImportType
 #define __PYX_HAVE_RT_ImportType
-static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class_name,
+static PyTypeObject *__Pyx_ImportType(PyObject *module, const char *module_name, const char *class_name,
     size_t size, int strict)
 {
-    PyObject *py_module = 0;
     PyObject *result = 0;
     PyObject *py_name = 0;
     char warning[200];
@@ -353,17 +352,12 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
     PyObject *py_basicsize;
 #endif
 
-    py_module = __Pyx_ImportModule(module_name);
-    if (!py_module)
-        goto bad;
     py_name = __Pyx_PyIdentifier_FromString(class_name);
     if (!py_name)
         goto bad;
-    result = PyObject_GetAttr(py_module, py_name);
+    result = PyObject_GetAttr(module, py_name);
     Py_DECREF(py_name);
     py_name = 0;
-    Py_DECREF(py_module);
-    py_module = 0;
     if (!result)
         goto bad;
     if (!PyType_Check(result)) {
@@ -398,7 +392,6 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
     }
     return (PyTypeObject *)result;
 bad:
-    Py_XDECREF(py_module);
     Py_XDECREF(result);
     return NULL;
 }

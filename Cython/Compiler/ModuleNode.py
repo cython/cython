@@ -294,11 +294,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 h_code.putln(
                     'if (__Pyx_ImportVoidPtr(module, "%s", (void **)&%s, "%s") < 0) goto bad;'
                     % (entry.name, cname, sig))
+            with ModuleImportGenerator(h_code, imported_modules={env.qualified_name: 'module'}) as import_generator:
+                for entry in api_extension_types:
+                    self.generate_type_import_call(entry.type, h_code, "goto bad;", import_generator)
             h_code.putln("Py_DECREF(module); module = 0;")
-            for entry in api_extension_types:
-                self.generate_type_import_call(
-                    entry.type, h_code,
-                    "if (!%s) goto bad;" % entry.type.typeptr_cname)
             h_code.putln("return 0;")
             h_code.putln("bad:")
             h_code.putln("Py_XDECREF(module);")
@@ -2880,9 +2879,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # Generate type import code for all exported extension types in
         # an imported module.
         #if module.c_class_entries:
-        for entry in module.c_class_entries:
-            if entry.defined_in_pxd:
-                self.generate_type_import_code(env, entry.type, entry.pos, code)
+        with ModuleImportGenerator(code) as import_generator:
+            for entry in module.c_class_entries:
+                if entry.defined_in_pxd:
+                    self.generate_type_import_code(env, entry.type, entry.pos, code, import_generator)
 
     def specialize_fused_types(self, pxd_env):
         """
@@ -2957,30 +2957,30 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_type_init_code(self, env, code):
         # Generate type import code for extern extension types
         # and type ready code for non-extern ones.
-        for entry in env.c_class_entries:
-            if entry.visibility == 'extern' and not entry.utility_code_definition:
-                self.generate_type_import_code(env, entry.type, entry.pos, code)
-            else:
-                self.generate_base_type_import_code(env, entry, code)
-                self.generate_exttype_vtable_init_code(entry, code)
-                if entry.type.early_init:
-                    self.generate_type_ready_code(entry, code)
+        with ModuleImportGenerator(code) as import_generator:
+            for entry in env.c_class_entries:
+                if entry.visibility == 'extern' and not entry.utility_code_definition:
+                    self.generate_type_import_code(env, entry.type, entry.pos, code, import_generator)
+                else:
+                    self.generate_base_type_import_code(env, entry, code, import_generator)
+                    self.generate_exttype_vtable_init_code(entry, code)
+                    if entry.type.early_init:
+                        self.generate_type_ready_code(entry, code)
 
-    def generate_base_type_import_code(self, env, entry, code):
+    def generate_base_type_import_code(self, env, entry, code, import_generator):
         base_type = entry.type.base_type
         if (base_type and base_type.module_name != env.qualified_name and not
                 base_type.is_builtin_type and not entry.utility_code_definition):
-            self.generate_type_import_code(env, base_type, self.pos, code)
+            self.generate_type_import_code(env, base_type, self.pos, code, import_generator)
 
-    def generate_type_import_code(self, env, type, pos, code):
+    def generate_type_import_code(self, env, type, pos, code, import_generator):
         # If not already done, generate code to import the typeobject of an
         # extension type defined in another module, and extract its C method
         # table pointer if any.
         if type in env.types_imported:
             return
         env.use_utility_code(UtilityCode.load_cached("TypeImport", "ImportExport.c"))
-        self.generate_type_import_call(type, code,
-                                       code.error_goto_if_null(type.typeptr_cname, pos))
+        self.generate_type_import_call(type, code, code.error_goto(pos), import_generator)
         if type.vtabptr_cname:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached('GetVTable', 'ImportExport.c'))
@@ -2991,7 +2991,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.error_goto_if_null(type.vtabptr_cname, pos)))
         env.types_imported.add(type)
 
-    def generate_type_import_call(self, type, code, error_code):
+    def generate_type_import_call(self, type, code, error_code, import_generator):
         if type.typedef_flag:
             objstruct = type.objstruct_cname
         else:
@@ -3014,8 +3014,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # Some builtin types have a tp_basicsize which differs from sizeof(...):
                 sizeof_objstruct = Code.basicsize_builtins_map[objstruct]
 
-        code.put('%s = __Pyx_ImportType(%s,' % (
+        module = import_generator.imported_module(module_name, error_code)
+        code.put('%s = __Pyx_ImportType(%s, %s,' % (
             type.typeptr_cname,
+            module,
             module_name))
 
         if condition and replacement:
@@ -3039,8 +3041,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             code.put('sizeof(%s), ' % objstruct)
 
-        code.putln('%i); %s' % (
+        code.putln('%i); if (unlikely(!%s)) %s' % (
             not type.is_external or type.is_subclassed,
+            type.typeptr_cname,
             error_code))
 
     def generate_type_ready_code(self, entry, code):
@@ -3074,6 +3077,43 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                             meth_entry.cname,
                             cast,
                             meth_entry.func_cname))
+
+
+class ModuleImportGenerator(object):
+    """
+    Helper to generate module import while importing external types.
+    This is used to avoid excessive re-imports of external modules when multiple types are looked up.
+    """
+    def __init__(self, code, imported_modules=None):
+        self.code = code
+        self.imported = {}
+        if imported_modules:
+            for name, cname in imported_modules.items():
+                self.imported['"%s"' % name] = cname
+        self.temps = []  # remember original import order for freeing
+
+    def imported_module(self, module_name_string, error_code):
+        if module_name_string in self.imported:
+            return self.imported[module_name_string]
+
+        code = self.code
+        temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+        self.temps.append(temp)
+        code.putln('%s = __Pyx_ImportModule(%s); if (unlikely(!%s)) %s' % (
+            temp, module_name_string, temp, error_code))
+        code.put_gotref(temp)
+        self.imported[module_name_string] = temp
+        return temp
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        code = self.code
+        for temp in self.temps:
+            code.put_decref_clear(temp, py_object_type)
+            code.funcstate.release_temp(temp)
+
 
 def generate_cfunction_declaration(entry, env, code, definition):
     from_cy_utility = entry.used and entry.utility_code_definition

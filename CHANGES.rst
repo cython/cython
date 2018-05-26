@@ -19,6 +19,9 @@ Features added
 * The coverage plugin considers more C file extensions such as ``.cc`` and ``.cxx``.
   (Github issue #2266)
 
+* Modules that cimport many external extension types from other Cython modules
+  execute less import requests during module initialisation.
+
 Bugs fixed
 ----------
 
