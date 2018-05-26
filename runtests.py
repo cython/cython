@@ -375,6 +375,7 @@ VER_DEP_MODULES = {
                                         ]),
     (3,3) : (operator.lt, lambda x: x in ['build.package_compilation',
                                           'run.yield_from_py33',
+                                          'pyximport.pyximport_namespace',
                                           ]),
     (3,4): (operator.lt, lambda x: x in ['run.py34_signature',
                                          ]),
