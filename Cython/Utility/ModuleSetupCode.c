@@ -1138,9 +1138,9 @@ static CYTHON_INLINE int __Pyx_Is_Little_Endian(void)
 static __Pyx_RefNannyAPIStruct *__Pyx_RefNannyImportAPI(const char *modname) {
     PyObject *m = NULL, *p = NULL;
     void *r = NULL;
-    m = PyImport_ImportModule((char *)modname);
+    m = PyImport_ImportModule(modname);
     if (!m) goto end;
-    p = PyObject_GetAttrString(m, (char *)"RefNannyAPI");
+    p = PyObject_GetAttrString(m, "RefNannyAPI");
     if (!p) goto end;
     r = PyLong_AsVoidPtr(p);
 end:
