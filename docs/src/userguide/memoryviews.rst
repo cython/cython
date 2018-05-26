@@ -706,9 +706,10 @@ array with an external C function implemented in :file:`C_func_file.c`:
 .. literalinclude:: ../../examples/memoryviews/C_func_file.c
     :linenos:
 
-This file comes with a header file called :file:`C_func_file.h` containing::
+This file comes with a header file called :file:`C_func_file.h` containing:
 
-    void multiply_by_10_in_C(double arr[], unsigned int n);
+.. literalinclude:: ../../examples/memoryviews/C_func_file.h
+    :linenos:
 
 where ``arr`` points to the array and ``n`` is its size.
 
