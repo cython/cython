@@ -2152,8 +2152,7 @@ def runtests(options, cmd_args, coverage=None):
         if os.path.isdir(sys_pyregr_dir):
             filetests = TestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
                                     options, True, languages, test_bugs,
-                                    sys.version_info[0], common_utility_dir,
-                                    add_embedded_test=True)
+                                    sys.version_info[0], common_utility_dir)
             sys.stderr.write("Including CPython regression tests in %s\n" % sys_pyregr_dir)
             test_suite.addTest(filetests.handle_directory(sys_pyregr_dir, 'pyregr'))
 
