@@ -2866,6 +2866,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if entries:
             env.use_utility_code(
                 UtilityCode.load_cached("FunctionExport", "ImportExport.c"))
+            # Note: while this looks like it could be more cheaply stored and read from a struct array,
+            # investigation shows that the resulting binary is smaller with repeated functions calls.
             for entry in entries:
                 signature = entry.type.signature_string()
                 code.putln('if (__Pyx_ExportFunction("%s", (void (*)(void))%s, "%s") < 0) %s' % (
