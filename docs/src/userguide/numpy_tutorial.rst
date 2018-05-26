@@ -144,7 +144,7 @@ valid Python and valid Cython code. I'll refer to it as both
 :file:`convolve_py.py` for the Python version and :file:`convolve_cy.pyx` for the
 Cython version -- Cython uses ".pyx" as its file suffix.
 
-.. literalinclude:: ../../examples/memoryviews/convolve_py.py
+.. literalinclude:: ../../examples/userguide/numpy_tutorial/convolve_py.py
     :linenos:
 
 This should be compiled to produce :file:`convolve_cy.so` (for Linux systems). We
@@ -194,7 +194,7 @@ Adding types
 To add types we use custom Cython syntax, so we are now breaking Python source
 compatibility. Here's :file:`convolve_typed.pyx`. *Read the comments!*
 
-.. literalinclude:: ../../examples/memoryviews/convolve_typed.pyx
+.. literalinclude:: ../../examples/userguide/numpy_tutorial/convolve_typed.pyx
     :linenos:
 
 .. figure:: convolve_types_html.png
@@ -269,7 +269,7 @@ Here is how to use them in our code:
 
 :file:`convolve_memview.pyx`
 
-.. literalinclude:: ../../examples/memoryviews/convolve_memview.pyx
+.. literalinclude:: ../../examples/userguide/numpy_tutorial/convolve_memview.pyx
     :linenos:
 
 Let's see how much faster accessing is now.
@@ -381,7 +381,7 @@ our code. This is why, we must still declare manually the type of the
 And actually, manually giving the type of the ``value`` variable will
 be useful when using fused types.
 
-.. literalinclude:: ../../examples/memoryviews/convolve_infer_types.pyx
+.. literalinclude:: ../../examples/userguide/numpy_tutorial/convolve_infer_types.pyx
     :linenos:
 
 We now do a speed test:
@@ -416,7 +416,7 @@ know what NumPy data type we should use for our output array.
 
 In this case, our function now works for ints, doubles and floats.
 
-.. literalinclude:: ../../examples/memoryviews/convolve_fused_types.pyx
+.. literalinclude:: ../../examples/userguide/numpy_tutorial/convolve_fused_types.pyx
     :linenos:
 
 We can check that the output type is the right one::

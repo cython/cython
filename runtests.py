@@ -16,6 +16,7 @@ import tempfile
 import traceback
 import warnings
 import zlib
+import glob
 
 try:
     import platform
@@ -639,14 +640,14 @@ class TestBuilder(object):
         expect_warnings = 'warnings' in tags['tag']
 
         if expect_errors:
-            if 'cpp' in tags['tag'] and 'cpp' in self.languages:
+            if skip_c(tags) and 'cpp' in self.languages:
                 languages = ['cpp']
             else:
                 languages = self.languages[:1]
         else:
             languages = self.languages
 
-        if 'cpp' in tags['tag'] and 'c' in languages:
+        if skip_c(tags) and 'c' in languages:
             languages = list(languages)
             languages.remove('c')
         elif 'no-cpp' in tags['tag'] and 'cpp' in self.languages:
@@ -691,6 +692,22 @@ class TestBuilder(object):
                           test_determinism=self.test_determinism,
                           common_utility_dir=self.common_utility_dir,
                           pythran_dir=pythran_dir)
+
+
+def skip_c(tags):
+    if 'cpp' in tags['tag']:
+        return True
+
+    # We don't want to create a distutils key in the
+    # dictionary so we check before looping.
+    if 'distutils' in tags:
+        for option in tags['distutils']:
+            splitted = option.split('=')
+            if len(splitted) == 2:
+                argument, value = splitted
+                if argument.strip() == 'language' and value.strip() == 'c++':
+                    return True
+    return False
 
 
 class CythonCompileTestCase(unittest.TestCase):
@@ -2139,12 +2156,13 @@ def runtests(options, cmd_args, coverage=None):
                                 options.pythran_dir, add_embedded_test=True)
         test_suite.addTest(filetests.build_suite())
     if options.examples and languages:
-        filetests = TestBuilder(options.examples_dir, WORKDIR, selectors, exclude_selectors,
-                                options, options.pyregr, languages, test_bugs,
-                                options.language_level, common_utility_dir,
-                                options.pythran_dir,
-                                default_mode='compile')
-        test_suite.addTest(filetests.build_suite())
+        for subdirectory in glob.glob(os.path.join(options.examples_dir, "*/")):
+            filetests = TestBuilder(subdirectory, WORKDIR, selectors, exclude_selectors,
+                                    options, options.pyregr, languages, test_bugs,
+                                    options.language_level, common_utility_dir,
+                                    options.pythran_dir,
+                                    default_mode='compile')
+            test_suite.addTest(filetests.build_suite())
 
     if options.system_pyregr and languages:
         sys_pyregr_dir = os.path.join(sys.prefix, 'lib', 'python'+sys.version[:3], 'test')
