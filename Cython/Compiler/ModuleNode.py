@@ -3036,7 +3036,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             code.put('sizeof(%s), ' % objstruct)
 
-        code.putln('%i); if (unlikely(!%s)) %s' % (
+        code.putln('%i); if (!%s) %s' % (
             not type.is_external or type.is_subclassed,
             type.typeptr_cname,
             error_code))
