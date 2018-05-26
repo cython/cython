@@ -242,7 +242,6 @@ static PyObject *__Pyx_ImportModule(const char *name) {
     Py_DECREF(py_name);
     return py_module;
 bad:
-    Py_XDECREF(py_name);
     return 0;
 }
 #endif
