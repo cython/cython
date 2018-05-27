@@ -40,9 +40,6 @@ Bugs fixed
 
 * Set iteration was broken in non-CPython since 0.28.
 
-* Overriding cpdef methods did not work in Python subclasses with slots.
-  (Github issue #1771)
-
 * ``UnicodeEncodeError`` in Py2 when ``%s`` formatting is optimised for
   unicode strings.  (Github issue #2276)
 
