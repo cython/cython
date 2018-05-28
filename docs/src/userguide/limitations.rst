@@ -48,16 +48,3 @@ but don't fill in locals and can't fill in co_code.
 To be fully compatible, we would have to generate these stack frame objects at
 function call time (with a potential performance penalty).  We may have an
 option to enable this for debugging.
-
-
-Identity vs. equality for inferred literals
-===========================================
-
-::
-
-    a = 1.0          # a inferred to be C type 'double'
-    b = c = None     # b and c inferred to be type 'object'
-    if some_runtime_expression:
-        b = a        # creates a new Python float object
-        c = a        # creates a new Python float object
-    print(b is c)     # most likely not the same object
