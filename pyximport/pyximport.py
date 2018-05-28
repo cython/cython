@@ -52,6 +52,7 @@ import imp
 import os
 import sys
 from zipimport import zipimporter, ZipImportError
+import warnings
 
 mod_name = "pyximport"
 
@@ -105,6 +106,12 @@ def get_distutils_extension(modname, pyxfilename, language_level=None):
         extension_mod = Extension(name = modname, sources=[pyxfilename])
         if language_level is not None:
             extension_mod.cython_directives = {'language_level': language_level}
+        else:
+            if sys.version_info[0] == 3:
+                warnings.warn("Your interpreter is using Python 3 but you didn't set "
+                              "language_level when calling `pyximport.install()`.\n"
+                              "The Python 2 semantics are going to be used. \nIf you "
+                              "want the Python 3 semantics, use `language_level=3`.")
     return extension_mod,setup_args
 
 
