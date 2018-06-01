@@ -8,6 +8,9 @@ Cython Changelog
 Features added
 --------------
 
+* Raising exceptions from nogil code will automatically acquire the GIL, instead
+  of requiring an explicit ``with gil`` block.
+
 * In CPython 3.6 and later, looking up globals in the module dict is almost
   as fast as looking up C globals.
 
@@ -16,11 +19,11 @@ Features added
 
 * Some internal and 1-argument method calls are faster.
 
-* The coverage plugin considers more C file extensions such as ``.cc`` and ``.cxx``.
-  (Github issue #2266)
-
 * Modules that cimport many external extension types from other Cython modules
   execute less import requests during module initialisation.
+
+* The coverage plugin considers more C file extensions such as ``.cc`` and ``.cxx``.
+  (Github issue #2266)
 
 Bugs fixed
 ----------

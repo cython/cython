@@ -55,7 +55,7 @@ cdef object m():
         print obj
         del fred
         return obj
-        raise obj
+        raise obj  # allowed!
         if obj:
             pass
         while obj:
@@ -155,7 +155,6 @@ _ERRORS = u"""
 55:8: Python print statement not allowed without gil
 56:8: Deleting Python object not allowed without gil
 57:8: Returning Python object not allowed without gil
-58:8: Raising exception not allowed without gil
 59:11: Truth-testing Python object not allowed without gil
 61:14: Truth-testing Python object not allowed without gil
 63:8: For-loop using object bounds or target not allowed without gil

@@ -1,13 +1,124 @@
+# mode: run
+# tag: nogil, withgil, exceptions
+
+cdef void foo_nogil(int i) nogil except *:
+    if i != 0: raise ValueError("huhu !")
+
+
 cdef void foo(int i) except * with gil:
     if i != 0: raise ValueError
+
 
 cdef int bar(int i) except? -1 with gil:
     if i != 0: raise ValueError
     return 0
 
+
 cdef int spam(int i) except? -1 with gil:
     if i != 0: raise TypeError
     return -1
+
+
+def test_foo_nogil():
+    """
+    >>> test_foo_nogil()
+    """
+    #
+    foo_nogil(0)
+    foo_nogil(0)
+    with nogil:
+        foo_nogil(0)
+        foo_nogil(0)
+    #
+    try:
+        with nogil:
+            foo_nogil(0)
+    finally:
+        pass
+    #
+    try:
+        with nogil:
+            foo_nogil(0)
+        with nogil:
+            foo_nogil(0)
+    finally:
+        pass
+    #
+    try:
+        with nogil:
+            foo_nogil(0)
+        with nogil:
+            foo_nogil(1)
+    except:
+        with nogil:
+            foo_nogil(0)
+    finally:
+        with nogil:
+            foo_nogil(0)
+        pass
+    #
+    try:
+        with nogil:
+            foo_nogil(0)
+            foo_nogil(0)
+    finally:
+        pass
+    #
+    try:
+        with nogil:
+            foo_nogil(0)
+            foo_nogil(1)
+    except:
+        with nogil:
+            foo_nogil(0)
+    finally:
+        with nogil:
+            foo_nogil(0)
+        pass
+    #
+    try:
+        with nogil:
+            foo_nogil(0)
+        try:
+            with nogil:
+                foo_nogil(1)
+        except:
+            with nogil:
+                foo_nogil(1)
+        finally:
+            with nogil:
+                foo_nogil(0)
+            pass
+    except:
+        with nogil:
+            foo_nogil(0)
+    finally:
+        with nogil:
+            foo_nogil(0)
+        pass
+    #
+    try:
+        with nogil:
+            foo_nogil(0)
+        try:
+            with nogil:
+                foo_nogil(1)
+        except:
+            with nogil:
+                foo_nogil(1)
+        finally:
+            with nogil:
+                foo_nogil(1)
+            pass
+    except:
+        with nogil:
+            foo_nogil(0)
+    finally:
+        with nogil:
+            foo_nogil(0)
+        pass
+    #
+
 
 def test_foo():
     """
@@ -108,6 +219,7 @@ def test_foo():
             foo(0)
         pass
     #
+
 
 def test_bar():
     """
