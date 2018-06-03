@@ -56,6 +56,21 @@ cdef class DisableTpClear:
             pto.tp_clear(self)
 
 
+cdef class ReallowTpClear(DisableTpClear):
+    """
+    >>> import gc
+    >>> obj = ReallowTpClear()
+    >>> is_tp_clear_null(obj)
+    False
+
+    >>> obj.attr = obj  # create hard reference cycle
+    >>> del obj; _ignore = gc.collect()
+
+    # Problem: cannot really validate that the cycle was cleaned up without using weakrefs etc...
+    """
+    cdef public object attr
+
+
 def test_closure_without_clear(str x):
     """
     >>> c = test_closure_without_clear('abc')

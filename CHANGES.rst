@@ -39,6 +39,17 @@ Other changes
 -------------
 
 
+0.28.4 (2018-??-??)
+===================
+
+Bugs fixed
+----------
+
+* Reallowing ``tp_clear()`` in a subtype of an ``@no_gc_clear`` extension type
+  generated an invalid C function call to the (non-existent) base type implementation.
+  (Github issue #2309)
+
+
 0.28.3 (2018-05-27)
 ===================
 
