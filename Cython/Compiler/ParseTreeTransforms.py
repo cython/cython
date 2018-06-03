@@ -2778,7 +2778,10 @@ class CreateClosureClasses(CythonTransform):
 
 class InjectGilHandling(VisitorTransform, SkipDeclarations):
     """
-    Allow certain Python operations inside of GIL blocks by implicitly acquiring the GIL.
+    Allow certain Python operations inside of nogil blocks by implicitly acquiring the GIL.
+
+    Must run before the AnalyseDeclarationsTransform to make sure the GILStatNodes get
+    set up, parallel sections know that the GIL is acquired inside of them, etc.
     """
     def __call__(self, root):
         self.nogil = False
