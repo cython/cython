@@ -2795,6 +2795,10 @@ class InjectGilHandling(VisitorTransform, SkipDeclarations):
             node = Nodes.GILStatNode(node.pos, state='gil', body=node)
         return node
 
+    # further candidates:
+    # def visit_AssertStatNode(self, node):
+    # def visit_ReraiseStatNode(self, node):
+
     # nogil tracking
 
     def visit_GILStatNode(self, node):
