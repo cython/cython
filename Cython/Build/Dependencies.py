@@ -127,6 +127,27 @@ def file_hash(filename):
     return m.hexdigest()
 
 
+def update_pythran_extension(ext):
+    if not PythranAvailable:
+        raise RuntimeError("You first need to install Pythran to use the np_pythran directive.")
+    pythran_ext = pythran.config.make_extension()
+    ext.include_dirs.extend(pythran_ext['include_dirs'])
+    ext.extra_compile_args.extend(pythran_ext['extra_compile_args'])
+    ext.extra_link_args.extend(pythran_ext['extra_link_args'])
+    ext.define_macros.extend(pythran_ext['define_macros'])
+    ext.undef_macros.extend(pythran_ext['undef_macros'])
+    ext.library_dirs.extend(pythran_ext['library_dirs'])
+    ext.libraries.extend(pythran_ext['libraries'])
+    ext.language = 'c++'
+
+    # These options are not compatible with the way normal Cython extensions work
+    for bad_option in ["-fwhole-program", "-fvisibility=hidden"]:
+        try:
+            ext.extra_compile_args.remove(bad_option)
+        except ValueError:
+            pass
+
+
 def parse_list(s):
     """
     >>> parse_list("")
@@ -178,27 +199,6 @@ distutils_settings = {
     'language':             transitive_str,
     'np_pythran':           bool_or
 }
-
-
-def update_pythran_extension(ext):
-    if not PythranAvailable:
-        raise RuntimeError("You first need to install Pythran to use the np_pythran directive.")
-    pythran_ext = pythran.config.make_extension()
-    ext.include_dirs.extend(pythran_ext['include_dirs'])
-    ext.extra_compile_args.extend(pythran_ext['extra_compile_args'])
-    ext.extra_link_args.extend(pythran_ext['extra_link_args'])
-    ext.define_macros.extend(pythran_ext['define_macros'])
-    ext.undef_macros.extend(pythran_ext['undef_macros'])
-    ext.library_dirs.extend(pythran_ext['library_dirs'])
-    ext.libraries.extend(pythran_ext['libraries'])
-    ext.language = 'c++'
-
-    # These options are not compatible with the way normal Cython extensions work
-    for bad_option in ["-fwhole-program", "-fvisibility=hidden"]:
-        try:
-            ext.extra_compile_args.remove(bad_option)
-        except ValueError:
-            pass
 
 
 @cython.locals(start=cython.Py_ssize_t, end=cython.Py_ssize_t)
