@@ -505,7 +505,7 @@ influence the compilation of Cython or Python files.
 Dependency Handling
 --------------------
 
-Since :mod:`pyximport` does not use `cythonize()` internally, it currently
+Since :mod:`pyximport` does not use :func:`cythonize()` internally, it currently
 requires a different setup for dependencies.  It is possible to declare that
 your module depends on multiple files, (likely ``.h`` and ``.pxd`` files).
 If your Cython module is named ``foo`` and thus has the filename
@@ -523,6 +523,10 @@ directly.
 Limitations
 ------------
 
+:mod:`pyximport` does not use :func:`cythonize()`. Thus it is not
+possible to do things like using compiler directives at
+the top of Cython files or compiling Cython code to C++.
+
 Pyximport does not give you any control over how your Cython file is
 compiled.  Usually the defaults are fine.  You might run into problems if
 you wanted to write your program in half-C, half-Cython and build them
@@ -536,8 +540,9 @@ was supposed to.
 
 Basic module reloading support is available with the option ``reload_support=True``.
 Note that this will generate a new module filename for each build and thus
-end up loading multiple shared libraries into memory over time.  CPython does
-not support reloading shared libraries as such.
+end up loading multiple shared libraries into memory over time.  CPython have limited
+support for reloading shared libraries as such,
+see `PEP 489 <https://www.python.org/dev/peps/pep-0489/>`_.
 
 Pyximport puts both your ``.c`` file and the platform-specific binary into
 a separate build directory, usually ``$HOME/.pyxblx/``.  To copy it back
