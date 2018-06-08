@@ -6,7 +6,7 @@ def func((a, b)):
 
 _ERRORS = u"""
 4:9: Missing argument name
-5:13: undeclared name not builtin: a
-5:16: undeclared name not builtin: b
+5:11: undeclared name not builtin: a
+5:15: undeclared name not builtin: b
 """
 

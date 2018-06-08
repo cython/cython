@@ -47,3 +47,13 @@ def genexpr_of_lambdas(int N):
     [(0, 0), (1, 2), (2, 4), (3, 6), (4, 8)]
     """
     return ( ((lambda : x), (lambda : x*2)) for x in range(N) )
+
+
+def genexpr_with_bool_binop(values):
+    """
+    >>> values = [(1, 2, 3), (None, 4, None), (5, None, 6)]
+    >>> genexpr_with_bool_binop(values)
+    [(1, 2, 3), ('X', 4, 'X'), (5, 'X', 6)]
+    """
+    # copied from CPython's test_itertools.py
+    return [tuple((e is None and 'X' or e) for e in t) for t in values]

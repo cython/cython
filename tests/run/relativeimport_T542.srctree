@@ -1,0 +1,76 @@
+# mode: run
+# tag: import
+
+"""
+PYTHON setup.py build_ext -i
+PYTHON test_relative_import.py
+"""
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("*/*.pyx"),
+)
+
+
+######## test_relative_import.py ########
+
+from relimport.testmod import test_relative, test_absolute
+a, bmod, afunc, bfunc = test_relative()
+
+try:
+    test_absolute()
+except ImportError:
+    pass
+else:
+    assert False, "absolute import succeeded"
+
+import relimport.a
+import relimport.bmod
+import relimport.testmod
+
+assert relimport.a == a
+assert relimport.bmod == bmod
+assert afunc() == 'a', afunc
+assert bfunc() == 'b', bfunc
+
+
+######## relimport/__init__.py ########
+
+######## relimport/a.pyx ########
+
+def afunc(): return 'a'
+
+
+######## relimport/bmod.pyx ########
+
+def bfunc(): return 'b'
+
+
+######## relimport/testmod.pyx ########
+# cython: language_level=3
+
+from relimport import a as global_a, bmod as global_bmod
+
+from . import *
+
+assert a is global_a, a
+assert bmod is global_bmod, bmod
+
+def test_relative():
+    from . import a, bmod
+    from . import (a, bmod)
+    from . import (a, bmod,)
+    from .a import afunc
+    from .bmod import bfunc
+
+    assert afunc() == 'a', afunc()
+    assert bfunc() == 'b', bfunc()
+
+    return a, bmod, afunc, bfunc
+
+def test_absolute():
+    import bmod

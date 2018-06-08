@@ -1,9 +1,13 @@
+import sys
+IS_PY2 = sys.version_info[0] < 3
+
 import cython
 
 is_compiled = cython.compiled
 
 NULL = 5
 _NULL = NULL
+
 
 def test_sizeof():
     """
@@ -24,6 +28,7 @@ def test_sizeof():
     else:
         print(cython.sizeof(cython.char) == 1)
 
+
 def test_declare(n):
     """
     >>> test_declare(100)
@@ -43,6 +48,7 @@ def test_declare(n):
     ptr = cython.declare(cython.p_int, cython.address(y))
     return y, ptr[0]
 
+
 @cython.locals(x=cython.double, n=cython.int)
 def test_cast(x):
     """
@@ -52,6 +58,7 @@ def test_cast(x):
     n = cython.cast(cython.int, x)
     return n
 
+
 @cython.locals(x=cython.int, y=cython.p_int)
 def test_address(x):
     """
@@ -60,6 +67,30 @@ def test_address(x):
     """
     y = cython.address(x)
     return y[0]
+
+
+@cython.wraparound(False)
+def test_wraparound(x):
+    """
+    >>> test_wraparound([1, 2, 3])
+    [1, 2, 1]
+    """
+    with cython.wraparound(True):
+        x[-1] = x[0]
+    return x
+
+
+@cython.boundscheck(False)
+def test_boundscheck(x):
+    """
+    >>> test_boundscheck([1, 2, 3])
+    3
+    >>> try: test_boundscheck([1, 2])
+    ... except IndexError: pass
+    """
+    with cython.boundscheck(True):
+        return x[2]
+
 
 ## CURRENTLY BROKEN - FIXME!!
 ## Is this test make sense? Implicit conversion in pure Python??
@@ -74,7 +105,8 @@ def test_address(x):
 ##     y = x
 ##     return y
 
-def test_with_nogil(nogil):
+
+def test_with_nogil(nogil, should_raise=False):
     """
     >>> raised = []
     >>> class nogil(object):
@@ -89,13 +121,24 @@ def test_with_nogil(nogil):
     True
     >>> raised
     [None]
+
+    >>> test_with_nogil(nogil(), should_raise=True)
+    Traceback (most recent call last):
+    ValueError: RAISED!
+
+    >>> raised[1] is None
+    False
     """
     result = False
+    should_raise_bool = True if should_raise else False  # help the type inference ...
     with nogil:
         print("WORKS")
         with cython.nogil:
             result = True
+            if should_raise_bool:
+                raise ValueError("RAISED!")
     return result
+
 
 MyUnion = cython.union(n=cython.int, x=cython.double)
 MyStruct = cython.struct(is_integral=cython.bint, data=MyUnion)
@@ -173,6 +216,7 @@ def test_declare_c_types(n):
     #z02 = cython.declare(cython.doublecomplex, n+1j)
     #z03 = cython.declare(cython.longdoublecomplex, n+1j)
 
+
 @cython.ccall
 @cython.returns(cython.double)
 def c_call(x):
@@ -193,6 +237,149 @@ def c_call(x):
     """
     return x
 
+
 def call_ccall(x):
     ret = c_call(x)
     return ret, cython.typeof(ret)
+
+
+@cython.cfunc
+@cython.inline
+@cython.returns(cython.double)
+def cdef_inline(x):
+    """
+    >>> result, return_type = call_cdef_inline(1)
+    >>> (not is_compiled and 'float') or type(return_type).__name__
+    'float'
+    >>> (not is_compiled and 'double') or return_type
+    'double'
+    >>> (is_compiled and 'int') or return_type
+    'int'
+    >>> result == 2.0  or  result
+    True
+    """
+    return x + 1
+
+
+def call_cdef_inline(x):
+    ret = cdef_inline(x)
+    return ret, cython.typeof(ret)
+
+
+@cython.locals(counts=cython.int[10], digit=cython.int)
+def count_digits_in_carray(digits):
+    """
+    >>> digits = '37692837651902834128342341'
+    >>> ''.join(sorted(digits))
+    '01112222333334445667788899'
+    >>> count_digits_in_carray(map(int, digits))
+    [1, 3, 4, 5, 3, 1, 2, 2, 3, 2]
+    """
+    counts = [0] * 10
+    for digit in digits:
+        assert 0 <= digit <= 9
+        counts[digit] += 1
+    return counts
+
+
+@cython.test_assert_path_exists("//CFuncDeclaratorNode//IntNode[@value = '-1']")
+@cython.ccall
+@cython.returns(cython.long)
+@cython.exceptval(-1)
+def ccall_except(x):
+    """
+    >>> ccall_except(41)
+    42
+    >>> ccall_except(0)
+    Traceback (most recent call last):
+    ValueError
+    """
+    if x == 0:
+        raise ValueError
+    return x+1
+
+
+@cython.test_assert_path_exists("//CFuncDeclaratorNode//IntNode[@value = '-1']")
+@cython.cfunc
+@cython.returns(cython.long)
+@cython.exceptval(-1)
+def cdef_except(x):
+    """
+    >>> call_cdef_except(41)
+    42
+    >>> call_cdef_except(0)
+    Traceback (most recent call last):
+    ValueError
+    """
+    if x == 0:
+        raise ValueError
+    return x+1
+
+
+def call_cdef_except(x):
+    return cdef_except(x)
+
+
+@cython.test_assert_path_exists("//CFuncDeclaratorNode//IntNode[@value = '-1']")
+@cython.ccall
+@cython.returns(cython.long)
+@cython.exceptval(-1, check=True)
+def ccall_except_check(x):
+    """
+    >>> ccall_except_check(41)
+    42
+    >>> ccall_except_check(-2)
+    -1
+    >>> ccall_except_check(0)
+    Traceback (most recent call last):
+    ValueError
+    """
+    if x == 0:
+        raise ValueError
+    return x+1
+
+
+@cython.test_fail_if_path_exists("//CFuncDeclaratorNode//IntNode[@value = '-1']")
+@cython.test_assert_path_exists("//CFuncDeclaratorNode")
+@cython.ccall
+@cython.returns(cython.long)
+@cython.exceptval(check=True)
+def ccall_except_check_always(x):
+    """
+    >>> ccall_except_check_always(41)
+    42
+    >>> ccall_except_check_always(0)
+    Traceback (most recent call last):
+    ValueError
+    """
+    if x == 0:
+        raise ValueError
+    return x+1
+
+
+@cython.final
+@cython.cclass
+class CClass(object):
+    """
+    >>> c = CClass(2)
+    >>> c.get_attr()
+    int
+    2
+    """
+    cython.declare(attr=cython.int)
+
+    def __init__(self, attr):
+        self.attr = attr
+
+    def get_attr(self):
+        print(cython.typeof(self.attr))
+        return self.attr
+
+
+class TestUnboundMethod:
+    """
+    >>> C = TestUnboundMethod
+    >>> IS_PY2 or (C.meth is C.__dict__["meth"])
+    True
+    """
+    def meth(self): pass

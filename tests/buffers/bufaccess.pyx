@@ -28,11 +28,7 @@ def testcase(func):
     for e in exclude:
         if e(func.__name__):
             return func
-    doctest = func.__doc__
-    if sys.version_info >= (3,1,1):
-        doctest = doctest.replace('does not have the buffer interface',
-                                  'does not support the buffer interface')
-    __test__[func.__name__] = doctest
+    __test__[func.__name__] = func.__doc__
     return func
 
 
@@ -47,6 +43,33 @@ def nousage():
     The challenge here is just compilation.
     """
     cdef object[int, ndim=2] buf
+
+
+@testcase
+def disabled_usage(obj):
+    """
+    The challenge here is just compilation.
+
+    >>> disabled_usage(None)
+    """
+    cdef object[int, ndim=2] buf
+    if False:
+        buf = obj
+    return obj
+
+
+@testcase
+def nousage_cleanup(x):
+    """
+    >>> nousage_cleanup(False)
+    >>> nousage_cleanup(True)
+    Traceback (most recent call last):
+    RuntimeError
+    """
+    cdef object[int, ndim=2] buf
+    if x:
+        raise RuntimeError()
+
 
 @testcase
 def acquire_release(o1, o2):
@@ -179,18 +202,15 @@ def acquire_failure5():
 @testcase
 def acquire_nonbuffer1(first, second=None):
     """
-    >>> acquire_nonbuffer1(3)
+    >>> acquire_nonbuffer1(3)   # doctest: +ELLIPSIS
     Traceback (most recent call last):
-      ...
-    TypeError: 'int' does not have the buffer interface
-    >>> acquire_nonbuffer1(type)
+    TypeError:... 'int'...
+    >>> acquire_nonbuffer1(type)   # doctest: +ELLIPSIS
     Traceback (most recent call last):
-      ...
-    TypeError: 'type' does not have the buffer interface
-    >>> acquire_nonbuffer1(None, 2)
+    TypeError:... 'type'...
+    >>> acquire_nonbuffer1(None, 2)   # doctest: +ELLIPSIS
     Traceback (most recent call last):
-      ...
-    TypeError: 'int' does not have the buffer interface
+    TypeError:... 'int'...
     """
     cdef object[int] buf
     buf = first
@@ -464,6 +484,63 @@ def set_int_2d(object[int, ndim=2] buf, int i, int j, int value):
     buf[i, j] = value
 
 @testcase
+def set_int_2d_cascaded(object[int, ndim=2] buf, int i, int j, int value):
+    """
+    Uses get_int_2d to read back the value afterwards. For pure
+    unit test, one should support reading in MockBuffer instead.
+
+    >>> C = IntMockBuffer("C", range(6), (2,3))
+    >>> set_int_2d_cascaded(C, 1, 1, 10)
+    acquired C
+    released C
+    10
+    >>> get_int_2d(C, 1, 1)
+    acquired C
+    released C
+    10
+
+    Check negative indexing:
+    >>> set_int_2d_cascaded(C, -1, 0, 3)
+    acquired C
+    released C
+    3
+    >>> get_int_2d(C, -1, 0)
+    acquired C
+    released C
+    3
+
+    >>> set_int_2d_cascaded(C, -1, -2, 8)
+    acquired C
+    released C
+    8
+    >>> get_int_2d(C, -1, -2)
+    acquired C
+    released C
+    8
+
+    >>> set_int_2d_cascaded(C, -2, -3, 9)
+    acquired C
+    released C
+    9
+    >>> get_int_2d(C, -2, -3)
+    acquired C
+    released C
+    9
+
+    Out-of-bounds errors:
+    >>> set_int_2d_cascaded(C, 2, 0, 19)
+    Traceback (most recent call last):
+    IndexError: Out of bounds on buffer access (axis 0)
+    >>> set_int_2d_cascaded(C, 0, -4, 19)
+    Traceback (most recent call last):
+    IndexError: Out of bounds on buffer access (axis 1)
+
+    """
+    cdef int casc_value
+    buf[i, j] = casc_value = value
+    return casc_value
+
+@testcase
 def list_comprehension(object[int] buf, len):
     """
     >>> list_comprehension(IntMockBuffer(None, [1,2,3]), 3)
@@ -522,7 +599,7 @@ def readonly(obj):
     acquired R
     25
     released R
-    >>> [str(x) for x in R.recieved_flags]  # Works in both py2 and py3
+    >>> [str(x) for x in R.received_flags]  # Works in both py2 and py3
     ['FORMAT', 'INDIRECT', 'ND', 'STRIDES']
     """
     cdef object[unsigned short int, ndim=3] buf = obj
@@ -535,7 +612,7 @@ def writable(obj):
     >>> writable(R)
     acquired R
     released R
-    >>> [str(x) for x in R.recieved_flags] # Py2/3
+    >>> [str(x) for x in R.received_flags] # Py2/3
     ['FORMAT', 'INDIRECT', 'ND', 'STRIDES', 'WRITABLE']
     """
     cdef object[unsigned short int, ndim=3] buf = obj
@@ -549,7 +626,7 @@ def strided(object[int, ndim=1, mode='strided'] buf):
     acquired A
     released A
     2
-    >>> [str(x) for x in A.recieved_flags] # Py2/3
+    >>> [str(x) for x in A.received_flags] # Py2/3
     ['FORMAT', 'ND', 'STRIDES']
 
     Check that the suboffsets were patched back prior to release.
@@ -564,7 +641,7 @@ def c_contig(object[int, ndim=1, mode='c'] buf):
     >>> A = IntMockBuffer(None, range(4))
     >>> c_contig(A)
     2
-    >>> [str(x) for x in A.recieved_flags]
+    >>> [str(x) for x in A.received_flags]
     ['FORMAT', 'ND', 'STRIDES', 'C_CONTIGUOUS']
     """
     return buf[2]
@@ -572,12 +649,12 @@ def c_contig(object[int, ndim=1, mode='c'] buf):
 @testcase
 def c_contig_2d(object[int, ndim=2, mode='c'] buf):
     """
-    Multi-dim has seperate implementation
+    Multi-dim has separate implementation
 
     >>> A = IntMockBuffer(None, range(12), shape=(3,4))
     >>> c_contig_2d(A)
     7
-    >>> [str(x) for x in A.recieved_flags]
+    >>> [str(x) for x in A.received_flags]
     ['FORMAT', 'ND', 'STRIDES', 'C_CONTIGUOUS']
     """
     return buf[1, 3]
@@ -588,7 +665,7 @@ def f_contig(object[int, ndim=1, mode='fortran'] buf):
     >>> A = IntMockBuffer(None, range(4))
     >>> f_contig(A)
     2
-    >>> [str(x) for x in A.recieved_flags]
+    >>> [str(x) for x in A.received_flags]
     ['FORMAT', 'ND', 'STRIDES', 'F_CONTIGUOUS']
     """
     return buf[2]
@@ -601,7 +678,7 @@ def f_contig_2d(object[int, ndim=2, mode='fortran'] buf):
     >>> A = IntMockBuffer(None, range(12), shape=(4,3), strides=(1, 4))
     >>> f_contig_2d(A)
     7
-    >>> [str(x) for x in A.recieved_flags]
+    >>> [str(x) for x in A.received_flags]
     ['FORMAT', 'ND', 'STRIDES', 'F_CONTIGUOUS']
     """
     return buf[3, 1]
@@ -1026,7 +1103,7 @@ def bufdefaults1(IntStridedMockBuffer[int, ndim=1] buf):
     >>> bufdefaults1(A)
     acquired A
     released A
-    >>> [str(x) for x in A.recieved_flags]
+    >>> [str(x) for x in A.received_flags]
     ['FORMAT', 'ND', 'STRIDES']
     """
     pass
@@ -1164,3 +1241,14 @@ def test_inplace_assignment():
 
     buf[0] = get_int()
     print buf[0]
+
+@testcase
+def test_nested_assignment():
+    """
+    >>> test_nested_assignment()
+    100
+    """
+    cdef object[int] inner = IntMockBuffer(None, [1, 2, 3])
+    cdef object[int] outer = IntMockBuffer(None, [1, 2, 3])
+    outer[inner[0]] = 100
+    return outer[inner[0]]

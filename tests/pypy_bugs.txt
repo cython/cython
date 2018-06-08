@@ -1,0 +1,39 @@
+# This file contains tests corresponding to unresolved bugs
+# either in PyPy, PyPy's cpyext, or Cython under PyPy,
+# which will be skipped in the normal testing run.
+
+broken_exception
+bufaccess
+memoryview
+memslice
+sequential_parallel
+
+yield_from_pep380
+memoryview_inplace_division
+
+# gc issue?
+memoryview_in_subclasses
+external_ref_reassignment
+run.exttype_dealloc
+
+# bugs in cpyext
+run.special_methods_T561
+run.special_methods_T561_py2
+
+# tests for things that don't exist in cpyext
+compile.pylong
+run.datetime_pxd
+run.datetime_cimport
+run.datetime_members
+run.extern_builtins_T258
+run.line_trace
+run.line_profile_test
+run.pstats_profile_test
+run.longintrepr
+
+# refcounting-specific tests
+double_dealloc_T796
+run.exceptionrefcount
+run.capiimpl
+run.refcount_in_meth
+

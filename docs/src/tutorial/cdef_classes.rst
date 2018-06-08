@@ -47,7 +47,7 @@ fast for use from Cython and one slower for use from Python. Then::
           return sin(x**2)
 
 This does slightly more than providing a python wrapper for a cdef
-method: unlike a cdef method, a cpdef method is fully overrideable by
+method: unlike a cdef method, a cpdef method is fully overridable by
 methods and instance attributes in Python subclasses.  It adds a
 little calling overhead compared to a cdef method.
 
@@ -138,9 +138,10 @@ Attributes in cdef classes behave differently from attributes in regular classes
       # Available in Python-space:
       cdef public double freq
       # Available in Python-space:
-      property period:
-          def __get__(self):
-              return 1.0 / self.freq
-          def __set__(self, value):
-              self.freq = 1.0 / value
+      @property
+      def period(self):
+          return 1.0 / self.freq
+      @period.setter
+      def period(self, value):
+          self.freq = 1.0 / value
       <...>

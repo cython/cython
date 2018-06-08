@@ -1,11 +1,8 @@
-__doc__ = u"""
-    >>> x
-    5L
+"""
+>>> x == 5 or repr(x)
+True
 """
 
-import sys
-if sys.version_info[0] >= 3 or sys.maxint > 2**31:
-    __doc__ = __doc__.replace(u"5L", u"5")
 
 cdef unsigned int ui
 ui = 5

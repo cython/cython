@@ -1,4 +1,4 @@
-from cpython.ref cimport PyObject
+from .object cimport PyObject
 
 cdef extern from "Python.h":
 
@@ -25,7 +25,7 @@ cdef extern from "Python.h":
     # Return true if p is a dict object, but not an instance of a
     # subtype of the dict type.
 
-    object PyDict_New()
+    dict PyDict_New()
     # Return value: New reference.
     # Return a new empty dictionary, or NULL on failure.
 
@@ -43,7 +43,7 @@ cdef extern from "Python.h":
     # matches key, return 1, otherwise return 0. On error, return
     # -1. This is equivalent to the Python expression "key in p".
 
-    object PyDict_Copy(object p)
+    dict PyDict_Copy(object p)
     # Return value: New reference.
     # Return a new dictionary that contains the same key-value pairs as p.
 
@@ -52,7 +52,7 @@ cdef extern from "Python.h":
     # be hashable; if it isn't, TypeError will be raised. Return 0 on
     # success or -1 on failure.
 
-    int PyDict_SetItemString(object p, char *key, object val) except -1
+    int PyDict_SetItemString(object p, const char *key, object val) except -1
     # Insert value into the dictionary p using key as a key. key
     # should be a char*. The key object is created using
     # PyString_FromString(key). Return 0 on success or -1 on failure.
@@ -62,7 +62,7 @@ cdef extern from "Python.h":
     # hashable; if it isn't, TypeError is raised. Return 0 on success
     # or -1 on failure.
 
-    int PyDict_DelItemString(object p, char *key) except -1
+    int PyDict_DelItemString(object p, const char *key) except -1
     # Remove the entry in dictionary p which has a key specified by
     # the string key. Return 0 on success or -1 on failure.
 
@@ -72,24 +72,24 @@ cdef extern from "Python.h":
     # NULL if the key key is not present, but without setting an
     # exception.
 
-    PyObject* PyDict_GetItemString(object p, char *key)
+    PyObject* PyDict_GetItemString(object p, const char *key)
     # Return value: Borrowed reference.
     # This is the same as PyDict_GetItem(), but key is specified as a
     # char*, rather than a PyObject*.
 
-    object PyDict_Items(object p)
+    list PyDict_Items(object p)
     # Return value: New reference.
     # Return a PyListObject containing all the items from the
     # dictionary, as in the dictionary method items() (see the Python
     # Library Reference).
 
-    object PyDict_Keys(object p)
+    list PyDict_Keys(object p)
     # Return value: New reference.
     # Return a PyListObject containing all the keys from the
     # dictionary, as in the dictionary method keys() (see the Python
     # Library Reference).
 
-    object PyDict_Values(object p)
+    list PyDict_Values(object p)
     # Return value: New reference.
     # Return a PyListObject containing all the values from the
     # dictionary p, as in the dictionary method values() (see the

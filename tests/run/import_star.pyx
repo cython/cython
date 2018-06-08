@@ -1,8 +1,18 @@
+# mode: run
 
 cdef object executable, version_info
 cdef long hexversion
 
+ctypedef struct MyStruct:
+    int x, y, z
+
+# conversion code for this struct will be generated but not used
+# (there used to be a problem getting Cython conversion code generated here)
+cdef MyStruct _no_such_name_ = MyStruct(1, 2, 3)
+
+
 from sys import *
+
 
 def test_cdefed_objects():
     """
@@ -12,6 +22,7 @@ def test_cdefed_objects():
     """
     return executable, version_info
 
+
 def test_cdefed_cvalues():
     """
     >>> hexver = test_cdefed_cvalues()
@@ -19,6 +30,7 @@ def test_cdefed_cvalues():
     >>> assert hexver > 0x02020000
     """
     return hexversion
+
 
 def test_non_cdefed_names():
     """

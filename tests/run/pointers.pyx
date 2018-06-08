@@ -1,3 +1,4 @@
+cimport cython
 
 cdef char* c_string = b'abcdefg'
 cdef void* void_ptr = c_string
@@ -60,3 +61,29 @@ def bool_binop_truth(int x):
         print True
     if c_string and x or not (void_ptr or int_ptr and float_ptr) or x:
         print True
+
+
+def binop_voidptr(int x, long y, char* z):
+    """
+    >>> binop_voidptr(1, 3, b'abc')
+    'void *'
+    """
+    result = &x and &y and z
+    return cython.typeof(result)
+
+
+def cond_expr_voidptr(int x, long y, char* z):
+    """
+    >>> cond_expr_voidptr(0, -1, b'abc')
+    ('void *', 0)
+    >>> cond_expr_voidptr(-1, 0, b'abc')
+    ('void *', -1)
+    >>> cond_expr_voidptr(-1, 0, b'')
+    ('void *', 0)
+    >>> cond_expr_voidptr(0, -1, b'')
+    ('void *', -1)
+    """
+    result = &x if len(z) else &y
+    assert sizeof(long) >= sizeof(int)
+    assert -1 == <int>(-1L)
+    return cython.typeof(result), (<int*>result)[0]

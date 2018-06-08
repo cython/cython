@@ -62,3 +62,22 @@ def test_g():
     cdef Grail l
     spam.g = &l
     eggs_g(spam)
+
+
+cdef struct Ints:
+    int a, b
+
+def assign_fields_in_loop():
+    """
+    >>> assign_fields_in_loop()
+    2
+    """
+    cdef int i = 0
+    cdef Ints s
+    for s.a, s.b in enumerate(range(3)):
+        assert s.a == s.b
+        assert s.a == i
+        i += 1
+
+    assert s.a == s.b
+    return s.b

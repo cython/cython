@@ -18,6 +18,7 @@ arg_prefix        = pyrex_prefix + "arg_"
 funcdoc_prefix    = pyrex_prefix + "doc_"
 enum_prefix       = pyrex_prefix + "e_"
 func_prefix       = pyrex_prefix + "f_"
+func_prefix_api   = pyrex_prefix + "api_f_"
 pyfunc_prefix     = pyrex_prefix + "pf_"
 pywrap_prefix     = pyrex_prefix + "pw_"
 genbody_prefix    = pyrex_prefix + "gb_"
@@ -29,8 +30,6 @@ label_prefix      = pyrex_prefix + "L"
 pymethdef_prefix  = pyrex_prefix + "mdef_"
 methtab_prefix    = pyrex_prefix + "methods_"
 memtab_prefix     = pyrex_prefix + "members_"
-interned_str_prefix = pyrex_prefix + "n_"
-interned_num_prefix = pyrex_prefix + "int_"
 objstruct_prefix  = pyrex_prefix + "obj_"
 typeptr_prefix    = pyrex_prefix + "ptype_"
 prop_set_prefix   = pyrex_prefix + "setprop_"
@@ -38,6 +37,7 @@ type_prefix       = pyrex_prefix + "t_"
 typeobj_prefix    = pyrex_prefix + "type_"
 var_prefix        = pyrex_prefix + "v_"
 varptr_prefix     = pyrex_prefix + "vp_"
+varptr_prefix_api = pyrex_prefix + "api_vp_"
 wrapperbase_prefix= pyrex_prefix + "wrapperbase_"
 pybuffernd_prefix   = pyrex_prefix + "pybuffernd_"
 pybufferstruct_prefix  = pyrex_prefix + "pybuffer_"
@@ -53,6 +53,18 @@ module_is_main   = pyrex_prefix + "module_is_main_"
 defaults_struct_prefix = pyrex_prefix + "defaults"
 dynamic_args_cname = pyrex_prefix + "dynamic_args"
 
+interned_prefixes = {
+    'str': pyrex_prefix + "n_",
+    'int': pyrex_prefix + "int_",
+    'float': pyrex_prefix + "float_",
+    'tuple': pyrex_prefix + "tuple_",
+    'codeobj': pyrex_prefix + "codeobj_",
+    'slice': pyrex_prefix + "slice_",
+    'ustring': pyrex_prefix + "ustring_",
+    'umethod': pyrex_prefix + "umethod_",
+}
+
+ctuple_type_prefix = pyrex_prefix + "ctuple_"
 args_cname       = pyrex_prefix + "args"
 generator_cname  = pyrex_prefix + "generator"
 sent_value_cname = pyrex_prefix + "sent_value"
@@ -70,6 +82,7 @@ kwds_cname       = pyrex_prefix + "kwds"
 lineno_cname     = pyrex_prefix + "lineno"
 clineno_cname    = pyrex_prefix + "clineno"
 cfilenm_cname    = pyrex_prefix + "cfilenm"
+local_tstate_cname = pyrex_prefix + "tstate"
 module_cname     = pyrex_prefix + "m"
 moddoc_cname     = pyrex_prefix + "mdoc"
 methtable_cname  = pyrex_prefix + "methods"
@@ -83,10 +96,15 @@ gilstate_cname   = pyrex_prefix + "state"
 skip_dispatch_cname = pyrex_prefix + "skip_dispatch"
 empty_tuple      = pyrex_prefix + "empty_tuple"
 empty_bytes      = pyrex_prefix + "empty_bytes"
+empty_unicode	 = pyrex_prefix + "empty_unicode"
 print_function   = pyrex_prefix + "print"
 print_function_kwargs   = pyrex_prefix + "print_kwargs"
 cleanup_cname    = pyrex_prefix + "module_cleanup"
 pymoduledef_cname = pyrex_prefix + "moduledef"
+pymoduledef_slots_cname = pyrex_prefix + "moduledef_slots"
+pymodinit_module_arg = pyrex_prefix + "pyinit_module"
+pymodule_create_func_cname = pyrex_prefix + "pymod_create"
+pymodule_exec_func_cname = pyrex_prefix + "pymod_exec"
 optional_args_cname = pyrex_prefix + "optional_args"
 import_star      = pyrex_prefix + "import_star"
 import_star_set  = pyrex_prefix + "import_star_set"
@@ -98,6 +116,7 @@ frame_code_cname = pyrex_prefix + "frame_code"
 binding_cfunc    = pyrex_prefix + "binding_PyCFunctionType"
 fused_func_prefix = pyrex_prefix + 'fuse_'
 quick_temp_cname = pyrex_prefix + "temp" # temp variable for quick'n'dirty temping
+cython_runtime_cname   = pyrex_prefix + "cython_runtime"
 
 global_code_object_cache_find = pyrex_prefix + 'find_code_object'
 global_code_object_cache_insert = pyrex_prefix + 'insert_code_object'

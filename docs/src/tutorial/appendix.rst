@@ -1,8 +1,8 @@
 Appendix: Installing MinGW on Windows
 =====================================
 
- 1. Download the MinGW installer from 
-    http://www.mingw.org/wiki/HOWTO_Install_the_MinGW_GCC_Compiler_Suite. 
+ 1. Download the MinGW installer from
+    http://www.mingw.org/wiki/HOWTO_Install_the_MinGW_GCC_Compiler_Suite.
     (As of this
     writing, the download link is a bit difficult to find; it's under
     "About" in the menu on the left-hand side). You want the file
@@ -17,8 +17,8 @@ Appendix: Installing MinGW on Windows
     http://support.microsoft.com/kb/310519
  4. Finally, tell Python to use MinGW as the default compiler
     (otherwise it will try for Visual C). If Python is installed to
-    "c:\\Python26", create a file named
-    "c:\\Python26\\Lib\\distutils\\distutils.cfg" containing::
+    "c:\\Python27", create a file named
+    "c:\\Python27\\Lib\\distutils\\distutils.cfg" containing::
 
       [build]
       compiler = mingw32
@@ -28,4 +28,4 @@ procedure. Any contributions towards making the Windows install
 process smoother is welcomed; it is an unfortunate fact that none of
 the regular Cython developers have convenient access to Windows.
 
-.. [WinInst] http://wiki.cython.org/InstallingOnWindows
+.. [WinInst] https://github.com/cython/cython/wiki/CythonExtensionsOnWindows

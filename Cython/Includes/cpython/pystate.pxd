@@ -1,10 +1,10 @@
 # Thread and interpreter state structures and their interfaces
 
-from cpython.ref cimport PyObject
+from .object cimport PyObject
 
 cdef extern from "Python.h":
 
-    # We make these an opague types. If the user wants specific attributes,
+    # We make these an opaque types. If the user wants specific attributes,
     # they can be declared manually.
 
     ctypedef struct PyInterpreterState:

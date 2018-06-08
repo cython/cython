@@ -44,6 +44,14 @@ def testcase_numpy_1_5(f):
         __test__[f.__name__] = f.__doc__
     return f
 
+
+def gc_collect_if_required():
+    major, minor, *rest = np.__version__.split('.')
+    if (int(major), int(minor)) >= (1, 14):
+        import gc
+        gc.collect()
+
+
 #
 ### Test slicing memoryview slices
 #
@@ -163,6 +171,7 @@ def test_ellipsis_memoryview(array):
     ae(e.shape[0], e_obj.shape[0])
     ae(e.strides[0], e_obj.strides[0])
 
+
 @testcase
 def test_transpose():
     """
@@ -182,7 +191,7 @@ def test_transpose():
     cdef dtype_t[:, :] b = a.T
     print a.T.shape[0], a.T.shape[1]
     print a_obj.T.shape
-    print numpy_obj.T.shape
+    print tuple(map(int, numpy_obj.T.shape)) # might use longs in Py2
 
     cdef dtype_t[:, :] c
     with nogil:
@@ -192,6 +201,20 @@ def test_transpose():
     assert (<object> a).strides == (<object> c).strides
 
     print a[3, 2], a.T[2, 3], a_obj[3, 2], a_obj.T[2, 3], numpy_obj[3, 2], numpy_obj.T[2, 3]
+
+
+@testcase
+def test_transpose_type(a):
+    """
+    >>> a = np.zeros((5, 10), dtype=np.float64)
+    >>> a[4, 6] = 9
+    >>> test_transpose_type(a)
+    9.0
+    """
+    cdef double[:, ::1] m = a
+    cdef double[::1, :] m_transpose = a.T
+    print m_transpose[6, 4]
+
 
 @testcase_numpy_1_5
 def test_numpy_like_attributes(cyarray):
@@ -278,13 +301,13 @@ def test_coerce_to_numpy():
     deallocating...
     12.2
     deallocating...
-    13.3
+    13.25
     deallocating...
     (14.4+15.5j)
     deallocating...
-    (16.6+17.7j)
+    (16.5+17.7j)
     deallocating...
-    (18.8+19.9j)
+    (18.8125+19.9375j)
     deallocating...
     22
     deallocating...
@@ -296,28 +319,28 @@ def test_coerce_to_numpy():
     #
     ### First set up some C arrays that will be used to hold data
     #
-    cdef MyStruct mystructs[20]
-    cdef SmallStruct smallstructs[20]
-    cdef NestedStruct nestedstructs[20]
-    cdef PackedStruct packedstructs[20]
+    cdef MyStruct[20] mystructs
+    cdef SmallStruct[20] smallstructs
+    cdef NestedStruct[20] nestedstructs
+    cdef PackedStruct[20] packedstructs
 
-    cdef signed char chars[20]
-    cdef short shorts[20]
-    cdef int ints[20]
-    cdef long long longlongs[20]
-    cdef td_h_short externs[20]
+    cdef signed char[20] chars
+    cdef short[20] shorts
+    cdef int[20] ints
+    cdef long long[20] longlongs
+    cdef td_h_short[20] externs
 
-    cdef float floats[20]
-    cdef double doubles[20]
-    cdef long double longdoubles[20]
+    cdef float[20] floats
+    cdef double[20] doubles
+    cdef long double[20] longdoubles
 
-    cdef float complex floatcomplex[20]
-    cdef double complex doublecomplex[20]
-    cdef long double complex longdoublecomplex[20]
+    cdef float complex[20] floatcomplex
+    cdef double complex[20] doublecomplex
+    cdef long double complex[20] longdoublecomplex
 
-    cdef td_h_short h_shorts[20]
-    cdef td_h_double h_doubles[20]
-    cdef td_h_ushort h_ushorts[20]
+    cdef td_h_short[20] h_shorts
+    cdef td_h_double[20] h_doubles
+    cdef td_h_ushort[20] h_ushorts
 
     cdef Py_ssize_t idx = 17
 
@@ -350,11 +373,11 @@ def test_coerce_to_numpy():
 
     floats[idx] = 11.1
     doubles[idx] = 12.2
-    longdoubles[idx] = 13.3
+    longdoubles[idx] = 13.25
 
     floatcomplex[idx] = 14.4 + 15.5j
-    doublecomplex[idx] = 16.6 + 17.7j
-    longdoublecomplex[idx] = 18.8 + 19.9j
+    doublecomplex[idx] = 16.5 + 17.7j
+    longdoublecomplex[idx] = 18.8125 + 19.9375j  # x/64 to avoid float format rounding issues
 
     h_shorts[idx] = 22
     h_doubles[idx] = 33.33
@@ -391,13 +414,13 @@ def test_coerce_to_numpy():
 @testcase_numpy_1_5
 def test_memslice_getbuffer():
     """
-    >>> test_memslice_getbuffer()
+    >>> test_memslice_getbuffer(); gc_collect_if_required()
     [[ 0  2  4]
      [10 12 14]]
     callback called
     """
     cdef int[:, :] array = create_array((4, 5), mode="c", use_callback=True)
-    print np.asarray(array)[::2, ::2]
+    print(np.asarray(array)[::2, ::2])
 
 cdef class DeallocateMe(object):
     def __dealloc__(self):
@@ -406,7 +429,7 @@ cdef class DeallocateMe(object):
 # Disabled! References cycles don't seem to be supported by NumPy
 # @testcase
 def acquire_release_cycle(obj):
-    """
+    DISABLED_DOCSTRING = """
     >>> a = np.arange(20, dtype=np.object)
     >>> a[10] = DeallocateMe()
     >>> acquire_release_cycle(a)
@@ -586,7 +609,7 @@ cdef getbuffer(Buffer self, Py_buffer *info):
     info.format = self.format
 
 cdef class Buffer(object):
-    cdef Py_ssize_t _shape[2]
+    cdef Py_ssize_t[2] _shape
     cdef bytes format
     cdef float[:, :] m
     cdef object shape, strides
@@ -668,3 +691,11 @@ def test_null_strides_error(buffer_obj):
         fortran_buf2 = buffer_obj
     except ValueError, e:
         print e
+
+def test_refcount_GH507():
+    """
+    >>> test_refcount_GH507()
+    """
+    a = np.arange(12).reshape([3, 4])
+    cdef np.int_t[:,:] a_view = a
+    cdef np.int_t[:,:] b = a_view[1:2,:].T

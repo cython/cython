@@ -2,35 +2,44 @@
 # TreeFragments - parsing of strings to trees
 #
 
-import re
-from StringIO import StringIO
-from Scanning import PyrexScanner, StringSourceDescriptor
-from Symtab import ModuleScope
-import PyrexTypes
-from Visitor import VisitorTransform
-from Nodes import Node, StatListNode
-from ExprNodes import NameNode
-import Parsing
-import Main
-import UtilNodes
-
 """
 Support for parsing strings into code trees.
 """
 
+from __future__ import absolute_import
+
+import re
+from io import StringIO
+
+from .Scanning import PyrexScanner, StringSourceDescriptor
+from .Symtab import ModuleScope
+from . import PyrexTypes
+from .Visitor import VisitorTransform
+from .Nodes import Node, StatListNode
+from .ExprNodes import NameNode
+from .StringEncoding import _unicode
+from . import Parsing
+from . import Main
+from . import UtilNodes
+
+
 class StringParseContext(Main.Context):
-    def __init__(self, name, include_directories=None):
-        if include_directories is None: include_directories = []
-        Main.Context.__init__(self, include_directories, {},
-                              create_testscope=False)
+    def __init__(self, name, include_directories=None, compiler_directives=None, cpp=False):
+        if include_directories is None:
+            include_directories = []
+        if compiler_directives is None:
+            compiler_directives = {}
+        Main.Context.__init__(self, include_directories, compiler_directives,
+                              create_testscope=False, cpp=cpp)
         self.module_name = name
 
-    def find_module(self, module_name, relative_to = None, pos = None, need_pxd = 1):
+    def find_module(self, module_name, relative_to=None, pos=None, need_pxd=1, absolute_fallback=True):
         if module_name not in (self.module_name, 'cython'):
             raise AssertionError("Not yet supporting any cimports/includes from string code snippets")
-        return ModuleScope(module_name, parent_module = None, context = self)
+        return ModuleScope(module_name, parent_module=None, context=self)
 
-def parse_from_strings(name, code, pxds={}, level=None, initial_pos=None,
+
+def parse_from_strings(name, code, pxds=None, level=None, initial_pos=None,
                        context=None, allow_struct_enum_decorator=False):
     """
     Utility method to parse a (unicode) string of code. This is mostly
@@ -51,7 +60,7 @@ def parse_from_strings(name, code, pxds={}, level=None, initial_pos=None,
     # to use a unicode string so that code fragments don't have to bother
     # with encoding. This means that test code passed in should not have an
     # encoding header.
-    assert isinstance(code, unicode), "unicode code snippets only please"
+    assert isinstance(code, _unicode), "unicode code snippets only please"
     encoding = "UTF-8"
 
     module_name = name
@@ -59,7 +68,7 @@ def parse_from_strings(name, code, pxds={}, level=None, initial_pos=None,
         initial_pos = (name, 1, 0)
     code_source = StringSourceDescriptor(name, code)
 
-    scope = context.find_module(module_name, pos = initial_pos, need_pxd = 0)
+    scope = context.find_module(module_name, pos=initial_pos, need_pxd=False)
 
     buf = StringIO(code)
 
@@ -77,6 +86,7 @@ def parse_from_strings(name, code, pxds={}, level=None, initial_pos=None,
     tree.scope = scope
     return tree
 
+
 class TreeCopier(VisitorTransform):
     def visit_Node(self, node):
         if node is None:
@@ -85,6 +95,7 @@ class TreeCopier(VisitorTransform):
             c = node.clone_node()
             self.visitchildren(c)
             return c
+
 
 class ApplyPositionAndCopy(TreeCopier):
     def __init__(self, pos):
@@ -95,6 +106,7 @@ class ApplyPositionAndCopy(TreeCopier):
         copy = super(ApplyPositionAndCopy, self).visit_Node(node)
         copy.pos = self.pos
         return copy
+
 
 class TemplateTransform(VisitorTransform):
     """
@@ -185,26 +197,41 @@ class TemplateTransform(VisitorTransform):
         else:
             return self.visit_Node(node)
 
+
 def copy_code_tree(node):
     return TreeCopier()(node)
 
-INDENT_RE = re.compile(ur"^ *")
+
+_match_indent = re.compile(u"^ *").match
+
+
 def strip_common_indent(lines):
-    "Strips empty lines and common indentation from the list of strings given in lines"
+    """Strips empty lines and common indentation from the list of strings given in lines"""
     # TODO: Facilitate textwrap.indent instead
     lines = [x for x in lines if x.strip() != u""]
-    minindent = min([len(INDENT_RE.match(x).group(0)) for x in lines])
-    lines = [x[minindent:] for x in lines]
+    if lines:
+        minindent = min([len(_match_indent(x).group(0)) for x in lines])
+        lines = [x[minindent:] for x in lines]
     return lines
 
+
 class TreeFragment(object):
-    def __init__(self, code, name="(tree fragment)", pxds={}, temps=[], pipeline=[], level=None, initial_pos=None):
-        if isinstance(code, unicode):
+    def __init__(self, code, name=None, pxds=None, temps=None, pipeline=None, level=None, initial_pos=None):
+        if pxds is None:
+            pxds = {}
+        if temps is None:
+            temps = []
+        if pipeline is None:
+            pipeline = []
+        if not name:
+            name = "(tree fragment)"
+
+        if isinstance(code, _unicode):
             def fmt(x): return u"\n".join(strip_common_indent(x.split(u"\n")))
 
             fmt_code = fmt(code)
             fmt_pxds = {}
-            for key, value in pxds.iteritems():
+            for key, value in pxds.items():
                 fmt_pxds[key] = fmt(value)
             mod = t = parse_from_strings(name, fmt_code, fmt_pxds, level=level, initial_pos=initial_pos)
             if level is None:
@@ -217,7 +244,8 @@ class TreeFragment(object):
                 t = transform(t)
             self.root = t
         elif isinstance(code, Node):
-            if pxds != {}: raise NotImplementedError()
+            if pxds:
+                raise NotImplementedError()
             self.root = code
         else:
             raise ValueError("Unrecognized code format (accepts unicode and Node)")
@@ -226,10 +254,15 @@ class TreeFragment(object):
     def copy(self):
         return copy_code_tree(self.root)
 
-    def substitute(self, nodes={}, temps=[], pos = None):
+    def substitute(self, nodes=None, temps=None, pos = None):
+        if nodes is None:
+            nodes = {}
+        if temps is None:
+            temps = []
         return TemplateTransform()(self.root,
                                    substitutions = nodes,
                                    temps = self.temps + temps, pos = pos)
+
 
 class SetPosTransform(VisitorTransform):
     def __init__(self, pos):

@@ -14,6 +14,8 @@ statement, Cython also lets you create new built-in Python types, known as
 extension types. You define an extension type using the :keyword:`cdef` class
 statement.  Here's an example::
 
+    from __future__ import print_function
+
     cdef class Shrubbery:
 
         cdef int width, height
@@ -23,8 +25,8 @@ statement.  Here's an example::
             self.height = h
 
         def describe(self):
-            print "This shrubbery is", self.width, \
-                "by", self.height, "cubits."
+            print("This shrubbery is", self.width,
+                  "by", self.height, "cubits.")
 
 As you can see, a Cython extension type definition looks a lot like a Python
 class definition. Within it, you use the def statement to define methods that
@@ -35,18 +37,20 @@ The main difference is that you can use the :keyword:`cdef` statement to define
 attributes. The attributes may be Python objects (either generic or of a
 particular extension type), or they may be of any C data type. So you can use
 extension types to wrap arbitrary C data structures and provide a Python-like
-interface to them.  
+interface to them.
 
 .. _readonly:
 
-Attributes
-============
+Static Attributes
+=================
 
 Attributes of an extension type are stored directly in the object's C struct.
 The set of attributes is fixed at compile time; you can't add attributes to an
 extension type instance at run time simply by assigning to them, as you could
-with a Python class instance. (You can subclass the extension type in Python
-and add attributes to instances of the subclass, however.)
+with a Python class instance. However, you can explicitly enable support
+for dynamically assigned attributes, or subclass the extension type with a normal
+Python class, which then supports arbitrary attribute assignments.
+See :ref:`dynamic_attributes`.
 
 There are two ways that attributes of an extension type can be accessed: by
 Python attribute lookup, or by direct access to the C struct from Cython code.
@@ -75,6 +79,47 @@ and the depth attribute readable but not writable.
     Also the :keyword:`public` and :keyword:`readonly` options apply only to
     Python access, not direct access. All the attributes of an extension type
     are always readable and writable by C-level access.
+
+
+.. _dynamic_attributes:
+
+Dynamic Attributes
+==================
+
+It is not possible to add attributes to an extension type at runtime by default.
+You have two ways of avoiding this limitation, both add an overhead when
+a method is called from Python code. Especially when calling ``cpdef`` methods.
+
+The first approach is to create a Python subclass.::
+
+    cdef class Animal:
+
+        cdef int number_of_legs
+        def __cinit__(self, int number_of_legs):
+            self.number_of_legs = number_of_legs
+
+
+    class ExtendableAnimal(Animal):  # Note that we use class, not cdef class
+        pass
+
+
+    dog = ExtendableAnimal(4)
+    dog.has_tail = True
+
+
+Declaring a ``__dict__`` attribute is the second way of enabling dynamic attributes.::
+
+    cdef class Animal:
+
+        cdef int number_of_legs
+        cdef dict __dict__
+        def __cinit__(self, int number_of_legs):
+            self.number_of_legs = number_of_legs
+
+
+    dog = Animal(4)
+    dog.has_tail = True
+
 
 Type declarations
 ===================
@@ -117,40 +162,37 @@ The same consideration applies to local variables, for example,::
 Type Testing and Casting
 ------------------------
 
-Suppose I have a method :meth:`quest` which returns an object of type :class:`Shrubbery`. 
+Suppose I have a method :meth:`quest` which returns an object of type :class:`Shrubbery`.
 To access it's width I could write::
 
     cdef Shrubbery sh = quest()
-    print sh.width
+    print(sh.width)
 
-which requires the use of a local variable and performs a type test on assignment. 
+which requires the use of a local variable and performs a type test on assignment.
 If you *know* the return value of :meth:`quest` will be of type :class:`Shrubbery`
 you can use a cast to write::
 
-    print (<Shrubbery>quest()).width
+    print( (<Shrubbery>quest()).width )
 
-This may be dangerous if :meth:`quest()` is not actually a :class:`Shrubbery`, as it 
-will try to access width as a C struct member which may not exist. At the C level, 
-rather than raising an :class:`AttributeError`, either an nonsensical result will be 
-returned (interpreting whatever data is at at that address as an int) or a segfault 
+This may be dangerous if :meth:`quest()` is not actually a :class:`Shrubbery`, as it
+will try to access width as a C struct member which may not exist. At the C level,
+rather than raising an :class:`AttributeError`, either an nonsensical result will be
+returned (interpreting whatever data is at that address as an int) or a segfault
 may result from trying to access invalid memory. Instead, one can write::
 
-    print (<Shrubbery?>quest()).width
+    print( (<Shrubbery?>quest()).width )
 
-which performs a type check (possibly raising a :class:`TypeError`) before making the 
-cast and allowing the code to proceed. 
+which performs a type check (possibly raising a :class:`TypeError`) before making the
+cast and allowing the code to proceed.
 
-To explicitly test the type of an object, use the :meth:`isinstance` method. By default, 
-in Python, the :meth:`isinstance` method checks the :class:`__class__` attribute of the 
-first argument to determine if it is of the required type. However, this is potentially 
-unsafe as the :class:`__class__` attribute can be spoofed or changed, but the C structure 
-of an extension type must be correct to access its :keyword:`cdef` attributes and call its :keyword:`cdef` methods. Cython detects if the second argument is a known extension 
-type and does a type check instead, analogous to Pyrex's :meth:`typecheck`.  
-The old behavior is always available by passing a tuple as the second parameter::
+To explicitly test the type of an object, use the :meth:`isinstance` builtin function.
+For known builtin or extension types, Cython translates these into a
+fast and safe type check that ignores changes to
+the object's ``__class__`` attribute etc., so that after a successful
+:meth:`isinstance` test, code can rely on the expected C structure of the
+extension type and its :keyword:`cdef` attributes and methods.
 
-    print isinstance(sh, Shrubbery)     # Check the type of sh
-    print isinstance(sh, (Shrubbery,))  # Check sh.__class__
-
+.. _extension_types_and_none:
 
 Extension types and None
 =========================
@@ -207,7 +249,7 @@ with checking that it has the right type.
       be ``None``.
     * When comparing a value with ``None``, keep in mind that, if ``x`` is a Python
       object, ``x is None`` and ``x is not None`` are very efficient because they
-      translate directly to C pointer comparisons, whereas ``x == None`` and 
+      translate directly to C pointer comparisons, whereas ``x == None`` and
       ``x != None``, or simply using ``x`` as a boolean value (as in ``if x: ...``)
       will invoke Python operations and therefore be much slower.
 
@@ -220,10 +262,31 @@ counterparts. There is a :ref:`separate page <special-methods>` devoted to this 
 read it carefully before attempting to use any special methods in your
 extension types.
 
+.. _properties:
+
 Properties
 ============
 
-There is a special syntax for defining properties in an extension class::
+You can declare properties in an extension class using the same syntax as in ordinary Python code::
+
+    cdef class Spam:
+
+        @property
+        def cheese(self):
+            # This is called when the property is read.
+            ...
+
+        @cheese.setter
+        def cheese(self, value):
+                # This is called when the property is written.
+                ...
+
+        @cheese.deleter
+        def cheese(self):
+            # This is called when the property is deleted.
+
+
+There is also a special (deprecated) legacy syntax for defining properties in an extension class::
 
     cdef class Spam:
 
@@ -241,7 +304,7 @@ There is a special syntax for defining properties in an extension class::
 
             def __del__(self):
                 # This is called when the property is deleted.
-     
+
 
 The :meth:`__get__`, :meth:`__set__` and :meth:`__del__` methods are all
 optional; if they are omitted, an exception will be raised when the
@@ -250,7 +313,7 @@ corresponding operation is attempted.
 Here's a complete example. It defines a property which adds to a list each
 time it is written to, returns the list when it is read, and empties the list
 when it is deleted.::
- 
+
     # cheesy.pyx
     cdef class CheeseShop:
 
@@ -259,31 +322,32 @@ when it is deleted.::
         def __cinit__(self):
             self.cheeses = []
 
-        property cheese:
+        @property
+        def cheese(self):
+            return "We don't have: %s" % self.cheeses
 
-            def __get__(self):
-                return "We don't have: %s" % self.cheeses
+        @cheese.setter
+        def cheese(self, value):
+            self.cheeses.append(value)
 
-            def __set__(self, value):
-                self.cheeses.append(value)
-
-            def __del__(self):
-                del self.cheeses[:]
+        @cheese.deleter
+        def cheese(self):
+            del self.cheeses[:]
 
     # Test input
     from cheesy import CheeseShop
 
     shop = CheeseShop()
-    print shop.cheese
+    print(shop.cheese)
 
     shop.cheese = "camembert"
-    print shop.cheese
+    print(shop.cheese)
 
     shop.cheese = "cheddar"
-    print shop.cheese
+    print(shop.cheese)
 
     del shop.cheese
-    print shop.cheese
+    print(shop.cheese)
 
 .. sourcecode:: text
 
@@ -292,6 +356,8 @@ when it is deleted.::
     We don't have: ['camembert']
     We don't have: ['camembert', 'cheddar']
     We don't have: []
+
+.. _subclassing:
 
 Subclassing
 =============
@@ -345,27 +411,27 @@ functions, C methods are declared using :keyword:`cdef` or :keyword:`cpdef` inst
 :keyword:`def`. C methods are "virtual", and may be overridden in derived
 extension types. In addition, :keyword:`cpdef` methods can even be overridden by python
 methods when called as C method. This adds a little to their calling overhead
-compared to a :keyword:`cdef` methd::
+compared to a :keyword:`cdef` method::
 
     # pets.pyx
     cdef class Parrot:
 
         cdef void describe(self):
-            print "This parrot is resting."
+            print("This parrot is resting.")
 
     cdef class Norwegian(Parrot):
 
         cdef void describe(self):
             Parrot.describe(self)
-            print "Lovely plumage!"
+            print("Lovely plumage!")
 
 
     cdef Parrot p1, p2
     p1 = Parrot()
     p2 = Norwegian()
-    print "p1:"
+    print("p1:")
     p1.describe()
-    print "p2:"
+    print("p2:")
     p2.describe()
 
 .. sourcecode:: text
@@ -382,21 +448,31 @@ method using the usual Python technique, i.e.::
 
     Parrot.describe(self)
 
+`cdef` methods can be declared static by using the @staticmethod decorator.
+This can be especially useful for constructing classes that take non-Python
+compatible types.::
+
+    cdef class OwnedPointer:
+        cdef void* ptr
+
+        def __dealloc__(self):
+            if self.ptr != NULL:
+                free(self.ptr)
+
+        @staticmethod
+        cdef create(void* ptr):
+            p = OwnedPointer()
+            p.ptr = ptr
+            return p
+
+.. _forward_declaring_extension_types:
 
 Forward-declaring extension types
 ===================================
 
 Extension types can be forward-declared, like :keyword:`struct` and
-:keyword:`union` types. This will be necessary if you have two extension types
-that need to refer to each other, e.g.::
-
-    cdef class Shrubbery # forward declaration
-
-    cdef class Shrubber:
-        cdef Shrubbery work_in_progress
-
-    cdef class Shrubbery:
-        cdef Shrubber creator
+:keyword:`union` types.  This is usually not necessary and violates the
+DRY principle (Don't Repeat Yourself).
 
 If you are forward-declaring an extension type that has a base class, you must
 specify the base class in both the forward declaration and its subsequent
@@ -454,6 +530,107 @@ statically sized freelist of ``N`` instances for a given type.  Example::
     penguin = None
     penguin = Penguin('fish 2')  # does not need to allocate memory!
 
+.. _existing-pointers-instantiation:
+
+Instantiation from existing C/C++ pointers
+===========================================
+
+It is quite common to want to instantiate an extension class from an existing
+(pointer to a) data structure, often as returned by external C/C++ functions.
+
+As extension classes can only accept Python objects as arguments in their
+contructors, this necessitates the use of factory functions. For example, ::
+
+    from libc.stdlib cimport malloc, free
+
+    # Example C struct
+    ctypedef struct my_c_struct:
+        int a
+        int b
+
+
+    cdef class WrapperClass:
+        """A wrapper class for a C/C++ data structure"""
+        cdef my_c_struct *_ptr
+        cdef bint ptr_owner
+
+        def __cinit__(self):
+            self.ptr_owner = False
+
+        def __dealloc__(self):
+            # De-allocate if not null and flag is set
+            if self._ptr is not NULL and self.ptr_owner is True:
+                free(self._ptr)
+                self._ptr = NULL
+
+        # Extension class properties
+        @property
+        def a(self):
+            return self._ptr.a if self._ptr is not NULL else None
+
+        @property
+        def b(self):
+            return self._ptr.b if self._ptr is not NULL else None
+
+        @staticmethod
+        cdef WrapperClass from_ptr(my_c_struct *_ptr, bint owner=False):
+            """Factory function to create WrapperClass objects from
+            given my_c_struct pointer.
+
+            Setting ``owner`` flag to ``True`` causes
+            the extension type to ``free`` the structure pointed to by ``_ptr``
+            when the wrapper object is deallocated."""
+            # Call to __new__ bypasses __init__ constructor
+            cdef WrapperClass wrapper = WrapperClass.__new__(WrapperClass)
+            wrapper._ptr = _ptr
+            wrapper.ptr_owner = owner
+            return wrapper
+
+        @staticmethod
+        cdef WrapperClass new_struct():
+            """Factory function to create WrapperClass objects with
+            newly allocated my_c_struct"""
+            cdef my_c_struct *_ptr = <my_c_struct *>malloc(sizeof(my_c_struct))
+            if _ptr is NULL:
+                raise MemoryError
+            _ptr.a = 0
+            _ptr.b = 0
+            return WrapperClass.from_ptr(_ptr, owner=True)
+
+
+To then create a ``WrapperClass`` object from an existing ``my_c_struct``
+pointer, ``WrapperClass.from_ptr(ptr)`` can be used in Cython code. To allocate
+a new structure and wrap it at the same time, ``WrapperClass.new_struct`` can be
+used instead.
+
+It is possible to create multiple Python objects all from the same pointer
+which point to the same in-memory data, if that is wanted, though care must be
+taken when de-allocating as can be seen above.
+Additionally, the ``ptr_owner`` flag can be used to control which
+``WrapperClass`` object owns the pointer and is responsible for de-allocation -
+this is set to ``False`` by default in the example and can be enabled by calling
+``from_ptr(ptr, owner=True)``.
+
+The GIL must *not* be released in ``__dealloc__`` either, or another lock used
+if it is, in such cases or race conditions can occur with multiple
+de-allocations.
+
+Being a part of the object constructor, the ``__cinit__`` method has a Python
+signature, which makes it unable to accept a ``my_c_struct`` pointer as an
+argument.
+
+Attempts to use pointers in a Python signature will result in errors like::
+
+  Cannot convert 'my_c_struct *' to Python object
+
+This is because Cython cannot automatically convert a pointer to a Python
+object, unlike with native types like ``int``.
+
+Note that for native types, Cython will copy the value and create a new Python
+object while in the above case, data is not copied and deallocating memory is
+a responsibility of the extension class.
+
+.. _making_extension_types_weak_referenceable:
 
 Making extension types weak-referenceable
 ==========================================
@@ -465,7 +642,7 @@ object called :attr:`__weakref__`. For example,::
     cdef class ExplodingAnimal:
         """This animal will self-destruct when it is
         no longer strongly referenced."""
-    
+
         cdef object __weakref__
 
 
@@ -505,6 +682,38 @@ which makes it impossible to clean up the cursor.
 Using the ``no_gc_clear`` decorator this can not happen anymore because the
 references of a cursor object will not be cleared anymore.
 
+In rare cases, extension types can be guaranteed not to participate in cycles,
+but the compiler won't be able to prove this. This would be the case if
+the class can never reference itself, even indirectly.
+In that case, you can manually disable cycle collection by using the
+``no_gc`` decorator, but beware that doing so when in fact the extension type
+can participate in cycles could cause memory leaks ::
+
+    @cython.no_gc
+    cdef class UserInfo:
+        cdef str name
+        cdef tuple addresses
+
+If you can be sure addresses will contain only references to strings,
+the above would be safe, and it may yield a significant speedup, depending on
+your usage pattern.
+
+
+Controlling pickling
+====================
+
+By default, Cython will generate a ``__reduce__()`` method to allow pickling
+an extension type if and only if each of its members are convertible to Python
+and it has no ``__cinit__`` method.
+To require this behavior (i.e. throw an error at compile time if a class
+cannot be pickled) decorate the class with ``@cython.auto_pickle(True)``.
+One can also annotate with ``@cython.auto_pickle(False)`` to get the old
+behavior of not generating a ``__reduce__`` method in any case.
+
+Manually implementing a ``__reduce__`` or `__reduce_ex__`` method will also
+disable this auto-generation and can be used to support pickling of more
+complicated types.
+
 
 Public and external extension types
 ====================================
@@ -513,6 +722,8 @@ Extension types can be declared extern or public. An extern extension type
 declaration makes an extension type defined in external C code available to a
 Cython module. A public extension type declaration makes an extension type
 defined in a Cython module available to external C code.
+
+.. _external_extension_types:
 
 External extension types
 ------------------------
@@ -530,6 +741,8 @@ objects defined in the Python core or in a non-Cython extension module.
 Here is an example which will let you get at the C-level members of the
 built-in complex object.::
 
+    from __future__ import print_function
+
     cdef extern from "complexobject.h":
 
         struct Py_complex:
@@ -541,8 +754,8 @@ built-in complex object.::
 
     # A function which uses the above type
     def spam(complex c):
-        print "Real:", c.cval.real
-        print "Imag:", c.cval.imag
+        print("Real:", c.cval.real)
+        print("Imag:", c.cval.imag)
 
 .. note::
 
@@ -560,7 +773,7 @@ built-in complex object.::
 
     2. As well as the name of the extension type, the module in which its type
        object can be found is also specified. See the implicit importing section
-       below. 
+       below.
 
     3. When declaring an external extension type, you don't declare any
        methods.  Declaration of methods is not required in order to call them,
@@ -568,6 +781,8 @@ built-in complex object.::
        :keyword:`struct` and :keyword:`union`, if your extension class
        declaration is inside a :keyword:`cdef` extern from block, you only need to
        declare those C members which you wish to access.
+
+.. _name_specification_clause:
 
 Name specification clause
 -------------------------
@@ -618,11 +833,13 @@ You can also specify an alternative name under which to import the type using
 an as clause, for example,::
 
       cdef extern class My.Nested.Package.Spam as Yummy:
-         ... 
+         ...
 
 which corresponds to the implicit import statement::
 
       from My.Nested.Package import Spam as Yummy
+
+.. _types_names_vs_constructor_names:
 
 Type names vs. constructor names
 --------------------------------
@@ -640,7 +857,7 @@ When you declare::
 
 the name Spam serves both these roles. There may be other names by which you
 can refer to the constructor, but only Spam can be used as a type name. For
-example, if you were to explicity import MyModule, you could use
+example, if you were to explicitly import MyModule, you could use
 ``MyModule.Spam()`` to create a Spam instance, but you wouldn't be able to use
 :class:`MyModule.Spam` as a type name.
 
@@ -653,6 +870,8 @@ both roles. So if you declare::
 then Yummy becomes both the type name and a name for the constructor. Again,
 there are other ways that you could get hold of the constructor, but only
 Yummy is usable as a type name.
+
+.. _public:
 
 Public extension types
 ======================

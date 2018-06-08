@@ -35,8 +35,21 @@ ctypedef fused fused_t:
     MyEnum
 
 
+ctypedef ExtClassA xxxlast
+ctypedef ExtClassB aaafirst
+
+
+ctypedef fused fused_with_object:
+    aaafirst
+    object
+    xxxlast
+    int
+    long
+
+
 f = 5.6
 i = 9
+
 
 def opt_func(fused_t obj, cython.floating myf = 1.2, cython.integral myi = 7):
     """
@@ -92,11 +105,15 @@ def opt_func(fused_t obj, cython.floating myf = 1.2, cython.integral myi = 7):
 
     >>> opt_func(object(), f)
     Traceback (most recent call last):
-      ...
     TypeError: Function call with ambiguous argument types
+    >>> opt_func()
+    Traceback (most recent call last):
+    TypeError: Expected at least 1 argument, got 0
+    >>> opt_func("abc", f, i, 5)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...at most 3...
     >>> opt_func[ExtClassA, cy.float, cy.long](object(), f)
     Traceback (most recent call last):
-      ...
     TypeError: Argument 'obj' has incorrect type (expected fused_def.ExtClassA, got object)
     """
     print cython.typeof(obj), cython.typeof(myf), cython.typeof(myi)
@@ -110,6 +127,42 @@ def test_opt_func():
     ham 5.60 4 5.60 9
     """
     opt_func("ham", f, entry4)
+
+
+def func_with_object(fused_with_object obj, cython.integral myi = 7):
+    """
+    >>> func_with_object(1)
+    long long
+    1 7
+    >>> func_with_object(1, 3)
+    long long
+    1 3
+    >>> func_with_object['int', 'int'](1, 3)
+    int int
+    1 3
+    >>> func_with_object(1j, 3)
+    Python object long
+    1j 3
+    >>> func_with_object('abc', 3)
+    Python object long
+    abc 3
+    >>> func_with_object(ExtClassA(), 3)
+    xxxlast long
+    ExtClassA 3
+    >>> func_with_object(ExtClassB(), 3)
+    aaafirst long
+    ExtClassB 3
+    >>> func_with_object['object', 'long'](ExtClassA(), 3)
+    Python object long
+    ExtClassA 3
+    >>> func_with_object['object', 'long'](ExtClassB(), 3)
+    Python object long
+    ExtClassB 3
+    """
+    print cython.typeof(obj), cython.typeof(myi)
+    print obj, myi
+
+
 
 def args_kwargs(fused_t obj, cython.floating myf = 1.2, *args, **kwargs):
     """

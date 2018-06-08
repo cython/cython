@@ -26,6 +26,37 @@ def test_object_assmt():
     assert typeof(a) == "Python object", typeof(a)
     assert typeof(b) == "long", typeof(b)
 
+
+class RAdd(object):
+    other = None
+    def __radd__(self, other):
+        self._other = other
+        return self
+    def __repr__(self):
+        return '%s(%s)' % (type(self).__name__, self._other)
+
+
+def test_inplace_assignment():
+    """
+    >>> test_inplace_assignment()
+    RAdd([1, 2, 3])
+    """
+    l = [1, 2, 3]
+    # inferred type of l is list, but assignment result is object
+    l += RAdd()
+    return l
+
+
+def test_reassignment():
+    """
+    >>> test_reassignment()
+    (1, 2, 3)
+    """
+    l = [1, 2, 3]
+    l = (1, 2, 3)
+    return l
+
+
 def test_long_vs_double(cond):
     """
     >>> test_long_vs_double(0)

@@ -1,0 +1,29 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import foo"
+PYTHON -c "import a"
+
+######## setup.py ########
+
+from Cython.Build import cythonize
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("*.pyx"),
+)
+
+######## foo.pxd ########
+
+cdef void bar() except *
+
+######## foo.pyx ########
+
+cdef extern from "bar_impl.c":
+    void bar() except *
+
+######## bar_impl.c ########
+
+static void bar() {}
+
+######## a.pyx ########
+
+from foo cimport bar

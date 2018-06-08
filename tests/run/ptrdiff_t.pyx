@@ -2,18 +2,18 @@ from cython cimport typeof
 
 def test(ptrdiff_t i):
     """
-    >>> test(0)
+    >>> int(test(0))
     0
-    >>> test(1)
+    >>> int(test(1))
     1
-    >>> test(2)
+    >>> int(test(2))
     2
-    >>> test(-1)
+    >>> int(test(-1))
     -1
-    >>> test(-2)
+    >>> int(test(-2))
     -2
-    >>> str(test((1<<31)-1))
-    '2147483647'
+    >>> int(test((1<<31)-1))
+    2147483647
     """
     return i
 
@@ -28,7 +28,7 @@ cdef class A:
     True
     >>> a.b == 2
     True
-    >>> a.foo(5)
+    >>> print(a.foo(5))
     5
     >>> try: a.foo(1<<200)
     ... except (OverflowError, TypeError): print("ERROR")

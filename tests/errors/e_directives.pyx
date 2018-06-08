@@ -1,6 +1,6 @@
 # mode: error
 
-# cython: nonexistant = True
+# cython: nonexistent = True
 # cython: boundscheck = true
 # cython: boundscheck = 9
 

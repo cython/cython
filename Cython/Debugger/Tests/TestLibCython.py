@@ -14,65 +14,55 @@ from distutils import ccompiler
 
 import runtests
 import Cython.Distutils.extension
-import Cython.Distutils.build_ext
+import Cython.Distutils.old_build_ext as build_ext
 from Cython.Debugger import Cygdb as cygdb
 
 root = os.path.dirname(os.path.abspath(__file__))
 codefile = os.path.join(root, 'codefile')
 cfuncs_file = os.path.join(root, 'cfuncs.c')
 
-f = open(codefile)
-try:
-    source_to_lineno = dict([ (line.strip(), i + 1) for i, line in enumerate(f) ])
-finally:
-    f.close()
-
-# Cython.Distutils.__init__ imports build_ext from build_ext which means we
-# can't access the module anymore. Get it from sys.modules instead.
-build_ext = sys.modules['Cython.Distutils.build_ext']
+with open(codefile) as f:
+    source_to_lineno = dict((line.strip(), i + 1) for i, line in enumerate(f))
 
 
 have_gdb = None
 def test_gdb():
     global have_gdb
-    if have_gdb is None:
-        try:
-            p = subprocess.Popen(['gdb', '-v'], stdout=subprocess.PIPE)
+    if have_gdb is not None:
+        return have_gdb
+
+    have_gdb = False
+    try:
+        p = subprocess.Popen(['gdb', '-nx', '--version'], stdout=subprocess.PIPE)
+    except OSError:
+        # gdb not found
+        gdb_version = None
+    else:
+        stdout, _ = p.communicate()
+        # Based on Lib/test/test_gdb.py
+        regex = "GNU gdb [^\d]*(\d+)\.(\d+)"
+        gdb_version = re.match(regex, stdout.decode('ascii', 'ignore'))
+
+    if gdb_version:
+        gdb_version_number = list(map(int, gdb_version.groups()))
+        if gdb_version_number >= [7, 2]:
             have_gdb = True
-        except OSError:
-            # gdb was not installed
-            have_gdb = False
-        else:
-            gdb_version = p.stdout.read().decode('ascii')
-            p.wait()
-            p.stdout.close()
-
-        if have_gdb:
-            # Based on Lib/test/test_gdb.py
-            regex = "^GNU gdb [^\d]*(\d+)\.(\d+)"
-            gdb_version_number = list(map(int, re.search(regex, gdb_version).groups()))
-
-            if gdb_version_number >= [7, 2]:
-                python_version_script = tempfile.NamedTemporaryFile(mode='w+')
+            with tempfile.NamedTemporaryFile(mode='w+') as python_version_script:
                 python_version_script.write(
                     'python import sys; print("%s %s" % sys.version_info[:2])')
                 python_version_script.flush()
                 p = subprocess.Popen(['gdb', '-batch', '-x', python_version_script.name],
                                      stdout=subprocess.PIPE)
-                python_version = p.stdout.read().decode('ascii')
-                p.wait()
+                stdout, _ = p.communicate()
                 try:
-                    python_version_number = list(map(int, python_version.split()))
+                    internal_python_version = list(map(int, stdout.decode('ascii', 'ignore').split()))
+                    if internal_python_version < [2, 6]:
+                        have_gdb = False
                 except ValueError:
                     have_gdb = False
 
-        # Be Python 3 compatible
-        if (not have_gdb
-            or gdb_version_number < [7, 2]
-            or python_version_number < [2, 6]):
-            warnings.warn(
-                'Skipping gdb tests, need gdb >= 7.2 with Python >= 2.6')
-            have_gdb = False
+    if not have_gdb:
+        warnings.warn('Skipping gdb tests, need gdb >= 7.2 with Python >= 2.6')
 
     return have_gdb
 
@@ -100,6 +90,8 @@ class DebuggerTestCase(unittest.TestCase):
 
             shutil.copy(codefile, self.destfile)
             shutil.copy(cfuncs_file, self.cfuncs_destfile + '.c')
+            shutil.copy(cfuncs_file.replace('.c', '.h'),
+                        self.cfuncs_destfile + '.h')
 
             compiler = ccompiler.new_compiler()
             compiler.compile(['cfuncs.c'], debug=True, extra_postargs=['-fPIC'])
@@ -115,6 +107,7 @@ class DebuggerTestCase(unittest.TestCase):
                 workdir=self.tempdir,
                 # we clean up everything (not only compiled files)
                 cleanup_workdir=False,
+                tags=runtests.parse_tags(codefile),
                 **opts
             )
 
@@ -146,6 +139,7 @@ class DebuggerTestCase(unittest.TestCase):
             finally:
                 optimization_disabler.restore_state()
                 sys.stderr = stderr
+                new_stderr.close()
 
             # ext = Cython.Distutils.extension.Extension(
                 # 'codefile',
@@ -187,6 +181,8 @@ class GdbDebuggerTestCase(DebuggerTestCase):
 
             def excepthook(type, value, tb):
                 traceback.print_exception(type, value, tb)
+                sys.stderr.flush()
+                sys.stdout.flush()
                 os._exit(1)
 
             sys.excepthook = excepthook
@@ -210,11 +206,8 @@ class GdbDebuggerTestCase(DebuggerTestCase):
         self.gdb_command_file = cygdb.make_command_file(self.tempdir,
                                                         prefix_code)
 
-        f = open(self.gdb_command_file, 'a')
-        try:
+        with open(self.gdb_command_file, 'a') as f:
             f.write(code)
-        finally:
-            f.close()
 
         args = ['gdb', '-batch', '-x', self.gdb_command_file, '-n', '--args',
                 sys.executable, '-c', 'import codefile']
@@ -227,60 +220,26 @@ class GdbDebuggerTestCase(DebuggerTestCase):
             os.path.abspath(Cython.__file__))))
         env = dict(os.environ, PYTHONPATH=os.pathsep.join(paths))
 
-        try:
-            p = subprocess.Popen(['gdb', '-v'], stdout=subprocess.PIPE)
-            have_gdb = True
-        except OSError:
-            # gdb was not installed
-            have_gdb = False
-        else:
-            gdb_version = p.stdout.read().decode('ascii')
-            p.wait()
-            p.stdout.close()
-
-        if have_gdb:
-            # Based on Lib/test/test_gdb.py
-            regex = "^GNU gdb [^\d]*(\d+)\.(\d+)"
-            gdb_version_number = list(map(int, re.search(regex, gdb_version).groups()))
-
-            if gdb_version_number >= [7, 2]:
-                python_version_script = tempfile.NamedTemporaryFile(mode='w+')
-                python_version_script.write(
-                    'python import sys; print("%s %s" % sys.version_info[:2])')
-                python_version_script.flush()
-                p = subprocess.Popen(['gdb', '-batch', '-x', python_version_script.name],
-                                     stdout=subprocess.PIPE)
-                python_version = p.stdout.read().decode('ascii')
-                p.wait()
-                try:
-                    python_version_number = list(map(int, python_version.split()))
-                except ValueError:
-                    have_gdb = False
-
-
-        # Be Python 3 compatible
-        if (not have_gdb
-            or gdb_version_number < [7, 2]
-            or python_version_number < [2, 6]):
-            self.p = None
-            warnings.warn(
-                'Skipping gdb tests, need gdb >= 7.2 with Python >= 2.6')
-        else:
-            self.p = subprocess.Popen(
-                args,
-                stdout=open(os.devnull, 'w'),
-                stderr=subprocess.PIPE,
-                env=env)
+        self.p = subprocess.Popen(
+            args,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=env)
 
     def tearDown(self):
         if not test_gdb():
             return
 
-        super(GdbDebuggerTestCase, self).tearDown()
-        if self.p:
-            self.p.stderr.close()
-            self.p.wait()
-        os.remove(self.gdb_command_file)
+        try:
+            super(GdbDebuggerTestCase, self).tearDown()
+            if self.p:
+                try: self.p.stdout.close()
+                except: pass
+                try: self.p.stderr.close()
+                except: pass
+                self.p.wait()
+        finally:
+            os.remove(self.gdb_command_file)
 
 
 class TestAll(GdbDebuggerTestCase):
@@ -290,19 +249,25 @@ class TestAll(GdbDebuggerTestCase):
             return
 
         out, err = self.p.communicate()
+        out = out.decode('UTF-8')
         err = err.decode('UTF-8')
 
-        exit_status = self.p.wait()
+        exit_status = self.p.returncode
 
         if exit_status == 1:
+            sys.stderr.write(out)
             sys.stderr.write(err)
         elif exit_status >= 2:
-            border = '*' * 30
-            start = '%s   v INSIDE GDB v   %s' % (border, border)
-            end   = '%s   ^ INSIDE GDB ^   %s' % (border, border)
-            errmsg = '\n%s\n%s%s' % (start, err, end)
+            border = u'*' * 30
+            start  = u'%s   v INSIDE GDB v   %s' % (border, border)
+            stderr = u'%s   v STDERR v   %s' % (border, border)
+            end    = u'%s   ^ INSIDE GDB ^   %s' % (border, border)
+            errmsg = u'\n%s\n%s%s\n%s%s' % (start, out, stderr, err, end)
 
             sys.stderr.write(errmsg)
+
+        # FIXME: re-enable this to make the test fail on internal failures
+        #self.assertEqual(exit_status, 0)
 
 
 if __name__ == '__main__':

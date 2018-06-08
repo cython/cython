@@ -1,0 +1,165 @@
+PYTHON setup.py build_ext --inplace
+PYTHON test_profile.py
+
+######## setup.py ###########
+
+from distutils.extension import Extension
+from distutils.core import setup
+from Cython.Build import cythonize
+
+extensions = [
+    Extension("collatz", ["collatz.pyx"], define_macros=[('CYTHON_TRACE', '1')])
+]
+
+setup(
+    ext_modules = cythonize(extensions)
+)
+
+######## test_profile.py ###########
+
+try:
+    import line_profiler
+except ImportError:
+    print("No line profiler, skipping test.")
+    import sys
+    sys.exit(0)
+
+
+def assert_stats(profile, name):
+    profile.print_stats()
+    stats = profile.get_stats()
+    assert len(stats.timings) > 0, "No profile stats."
+    for key, timings in stats.timings.items():
+        if key[-1] == name:
+            assert len(timings) > 0
+            break
+    else:
+        raise ValueError("No stats for %s." % name)
+
+
+from collatz import collatz
+func = collatz
+profile = line_profiler.LineProfiler(func)
+profile.runcall(func, 19)
+assert_stats(profile, func.__name__)
+
+from collatz import cp_collatz
+func = cp_collatz
+profile = line_profiler.LineProfiler(func)
+profile.runcall(func, 19)
+assert_stats(profile, func.__name__)
+
+from collatz import run_generator, cy_generator
+func = cy_generator
+profile = line_profiler.LineProfiler(func)
+profile.runcall(run_generator, 19)
+assert_stats(profile, func.__name__)
+
+from collatz import run_coro, cy_coro
+func = cy_coro
+profile = line_profiler.LineProfiler(func)
+profile.runcall(run_coro, 19)
+assert_stats(profile, func.__name__)
+
+from collatz import PyClass
+obj = PyClass()
+func = obj.py_pymethod
+profile = line_profiler.LineProfiler(func)
+profile.runcall(func)
+assert_stats(profile, func.__name__)
+
+from collatz import CClass
+obj = CClass()
+func = obj.c_pymethod
+profile = line_profiler.LineProfiler(func)
+profile.runcall(func)
+assert_stats(profile, func.__name__)
+
+func = obj.cp_pymethod
+profile = line_profiler.LineProfiler(func)
+profile.runcall(func, 19)
+assert_stats(profile, func.__name__)
+
+
+######## collatz.pyx ###########
+# cython: linetrace=True
+
+cimport cython
+
+@cython.binding(True)
+def collatz(n):
+    while n > 1:
+        if n % 2 == 0:
+            n //= 2
+        else:
+            n = 3*n+1
+
+
+@cython.binding(True)
+cpdef cp_collatz(n):
+    while n > 1:
+        if n % 2 == 0:
+            n //= 2
+        else:
+            n = 3*n+1
+
+
+@cython.binding(True)
+def cy_generator(int n):
+   x = 1
+   for i in range(n):
+       yield x + 2
+
+
+@cython.binding(True)
+def run_generator(n):
+    assert len(list(cy_generator(n))) == n
+
+
+@cython.binding(True)
+async def cy_coro(int n):
+    while n > 1:
+        if n % 2 == 0:
+            n //= 2
+        else:
+            n = 3*n+1
+
+
+@cython.binding(True)
+def run_coro(n):
+    coro = cy_coro(n)
+    try:
+        coro.send(None)
+    except StopIteration:
+        assert True
+    else:
+        assert False, "Coroutine did not raise"
+
+
+@cython.binding(True)
+class PyClass(object):
+    def py_pymethod(self):
+        x = 1
+        for i in range(10):
+            a = x + 2
+        return a * 3
+
+
+@cython.binding(True)
+cdef class CClass:
+    def c_pymethod(self, c=2):
+        for i in range(10):
+            a = c + 1
+        y = self.cmethod(c + a)
+        return y * 4
+
+    cpdef cp_pymethod(self, r):
+        for i in range(10):
+            a = r + 1
+        z = self.c_pymethod(a) + self.cmethod(r)
+        return z * 2
+
+    cdef cmethod(self, s):
+        for i in range(10):
+            p = s + 3
+        return p * 5

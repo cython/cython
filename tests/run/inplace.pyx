@@ -111,7 +111,7 @@ def test_side_effects():
     a[side_effect(1)] += 10
     a[c_side_effect(2)] += 100
     cdef int i
-    cdef int b[5]
+    cdef int[5] b
     for i from 0 <= i < 5:
         b[i] = i
     b[side_effect(3)] += 10

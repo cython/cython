@@ -1,0 +1,53 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import import_enums_test"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize(["enums.pyx", "no_enums.pyx"]),
+)
+
+######## enums.pyx ########
+
+cpdef enum:
+    BAR
+
+cpdef foo(): pass
+
+######## enums.pxd ########
+
+cpdef enum:
+    FOO
+
+cpdef enum NamedEnumType:
+    NamedEnumValue = 389
+
+cpdef foo()
+
+######## no_enums.pyx ########
+
+from enums cimport *
+
+def get_named_enum_value():
+    return NamedEnumType.NamedEnumValue
+
+######## import_enums_test.py ########
+
+# We can import enums with a star import.
+from enums import *
+
+print(dir())
+assert 'BAR' in dir() and 'FOO' in dir()
+assert 'NamedEnumType' in dir()
+
+# enums not generated in the wrong module
+import no_enums
+print(dir(no_enums))
+assert 'FOO' not in dir(no_enums)
+assert 'foo' not in dir(no_enums)
+
+assert no_enums.get_named_enum_value() == NamedEnumType.NamedEnumValue

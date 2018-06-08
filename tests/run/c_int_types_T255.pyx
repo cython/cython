@@ -22,7 +22,7 @@ def test_schar(signed char x):
    >>> test_schar(128) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: value too large to convert to signed char
    """
    return x
 
@@ -43,7 +43,7 @@ def test_add_schar(x, y):
    >>> test_add_schar(SCHAR_MAX, 1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: value too large to convert to signed char
    """
    cdef signed char r = x + y
    return r
@@ -55,7 +55,7 @@ def test_uchar(unsigned char x):
    >>> test_uchar(-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: can't convert negative value to unsigned char
    >>> test_uchar(0)
    0
    >>> test_uchar(1)
@@ -65,7 +65,7 @@ def test_uchar(unsigned char x):
    >>> test_uchar(UCHAR_MAX+1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: value too large to convert to unsigned char
    """
    return x
 
@@ -76,7 +76,7 @@ def test_add_uchar(x, y):
    >>> test_add_uchar(UCHAR_MAX, 1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: value too large to convert to unsigned char
    """
    cdef unsigned char r = x + y
    return r
@@ -95,7 +95,7 @@ def test_char(char x):
    Traceback (most recent call last):
        ...
    OverflowError: ...
-   >>> if CHAR_MIN < 0: 
+   >>> if CHAR_MIN < 0:
    ...     assert test_char(-1) == -1
    >>> test_char(CHAR_MIN) == CHAR_MIN
    True
@@ -108,7 +108,7 @@ def test_char(char x):
    >>> test_char(CHAR_MAX+1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: value too large to convert to char
    """
    return x
 
@@ -129,7 +129,7 @@ def test_add_char(x, y):
    >>> test_add_char(CHAR_MAX, 1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: value too large to convert to char
    """
    cdef char r = x + y
    return r
@@ -144,7 +144,7 @@ def test_short(short x):
    >>> test_short(SHORT_MIN-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: value too large to convert to short
    >>> test_short(SHORT_MIN) == SHORT_MIN
    True
    >>> test_short(-1)
@@ -158,7 +158,7 @@ def test_short(short x):
    >>> test_short(SHORT_MAX+1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: value too large to convert to short
    """
    return x
 
@@ -167,7 +167,7 @@ def test_add_short(x, y):
    >>> test_add_short(SHORT_MIN, -1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: value too large to convert to short
    >>> test_add_short(SHORT_MIN, 0) == SHORT_MIN
    True
    >>> test_add_short(SHORT_MIN, 1) == SHORT_MIN+1
@@ -179,7 +179,7 @@ def test_add_short(x, y):
    >>> test_add_short(SHORT_MAX, 1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: value too large to convert to short
    """
    cdef short r = x + y
    return r
@@ -192,7 +192,7 @@ def test_sshort(short x):
    >>> test_sshort(SSHORT_MIN-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: value too large to convert to short
    >>> test_sshort(SSHORT_MIN) == SSHORT_MIN
    True
    >>> test_sshort(-1)
@@ -206,7 +206,7 @@ def test_sshort(short x):
    >>> test_short(SSHORT_MAX+1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: value too large to convert to short
    """
    return x
 
@@ -215,7 +215,7 @@ def test_add_sshort(x, y):
    >>> test_add_sshort(SSHORT_MIN, -1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: value too large to convert to short
    >>> test_add_sshort(SSHORT_MIN, 0) == SSHORT_MIN
    True
    >>> test_add_sshort(SSHORT_MIN, 1) == SSHORT_MIN+1
@@ -227,7 +227,7 @@ def test_add_sshort(x, y):
    >>> test_add_sshort(SSHORT_MAX, 1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: value too large to convert to short
    """
    cdef signed short r = x + y
    return r
@@ -239,7 +239,7 @@ def test_ushort(unsigned short x):
    >>> test_ushort(-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: can't convert negative value to unsigned short
    >>> test_ushort(0)
    0
    >>> test_ushort(1)
@@ -260,7 +260,7 @@ def test_add_ushort(x, y):
    >>> test_add_ushort(USHORT_MAX, 1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: value too large to convert to unsigned short
    """
    cdef unsigned short r = x + y
    return r
@@ -318,7 +318,7 @@ def test_add_int(x, y):
 SINT_MAX = <signed int>((<unsigned int>-1)>>1)
 SINT_MIN = (-SINT_MAX-1)
 
-def test_sint(int x):
+def test_sint(signed int x):
    u"""
    >>> test_sint(SINT_MIN-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
@@ -370,7 +370,7 @@ def test_uint(unsigned int x):
    >>> test_uint(-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: can't convert negative value to unsigned int
    >>> print(test_uint(0))
    0
    >>> print(test_uint(1))
@@ -449,7 +449,7 @@ def test_add_long(x, y):
 SLONG_MAX = <signed long>((<unsigned long>-1)>>1)
 SLONG_MIN = (-SLONG_MAX-1)
 
-def test_slong(long x):
+def test_slong(signed long x):
    u"""
    >>> test_slong(SLONG_MIN-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
@@ -501,7 +501,7 @@ def test_ulong(unsigned long x):
    >>> test_ulong(-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: can't convert negative value to unsigned long
    >>> print(test_ulong(0))
    0
    >>> print(test_ulong(1))
@@ -632,7 +632,7 @@ def test_ulonglong(unsigned long long x):
    >>> test_ulonglong(-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
-   OverflowError: ...
+   OverflowError: can't convert negative value to unsigned PY_LONG_LONG
    >>> print(test_ulonglong(0))
    0
    >>> print(test_ulonglong(1))

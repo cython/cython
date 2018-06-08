@@ -23,7 +23,7 @@ else:
 """
 
 def test_assign():
-    cdef char s[17]
+    cdef char[17] s
 
     s[ 0] = c'\x10'
     s[ 1] = c'\x21'

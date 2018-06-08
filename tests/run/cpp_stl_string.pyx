@@ -1,4 +1,5 @@
-# tag: cpp
+# mode: run
+# tag: cpp, warnings
 
 cimport cython
 
@@ -7,6 +8,51 @@ from libcpp.string cimport string
 b_asdf = b'asdf'
 b_asdg = b'asdg'
 b_s = b's'
+
+
+cdef int compare_to_asdf_ref(string& s) except -999:
+    return s.compare(b"asdf")
+
+def test_coerced_literal_ref():
+    """
+    >>> test_coerced_literal_ref()
+    0
+    """
+    return compare_to_asdf_ref("asdf")
+
+
+cdef int compare_to_asdf_const_ref(const string& s) except -999:
+    return s.compare(b"asdf")
+
+def test_coerced_literal_const_ref():
+    """
+    >>> test_coerced_literal_const_ref()
+    0
+    """
+    return compare_to_asdf_const_ref("asdf")
+
+
+cdef int compare_to_asdf_const(const string s) except -999:
+    return s.compare(b"asdf")
+
+def test_coerced_literal_const():
+    """
+    >>> test_coerced_literal_const()
+    0
+    """
+    return compare_to_asdf_const("asdf")
+
+
+def test_conversion(py_obj):
+    """
+    >>> test_conversion(b_asdf) == b_asdf or test_conversion(b_asdf)
+    True
+    >>> test_conversion(123)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: expected ..., int found
+    """
+    cdef string s = py_obj
+    return s
 
 def test_indexing(char *py_str):
     """
@@ -72,7 +118,7 @@ def test_copy(char *a):
     True
     """
     cdef string t = string(a)
-    cdef char buffer[6]
+    cdef char[6] buffer
     cdef size_t length = t.copy(buffer, 4, 1)
     buffer[length] = c'\0'
     return buffer
@@ -154,6 +200,29 @@ def test_decode(char* a):
     """
     cdef string b = string(a)
     return b.decode('ascii')
+
+
+@cython.test_assert_path_exists("//ReturnStatNode//PythonCapiCallNode")
+def test_cstr_decode(char* a):
+    """
+    >>> print(test_cstr_decode(b_asdf))
+    asdf
+    """
+    cdef string b = string(a)
+    return b.c_str().decode('utf-8')
+
+
+@cython.test_assert_path_exists("//ReturnStatNode//PythonCapiCallNode")
+@cython.test_fail_if_path_exists("//ReturnStatNode//AttributeNode")
+def test_cstr_ptr_decode(char* a):
+    """
+    >>> print(test_cstr_ptr_decode(b_asdf))
+    asdf
+    """
+    cdef string b = string(a)
+    s = b.c_str()
+    return s.decode('utf-8')
+
 
 @cython.test_assert_path_exists("//PythonCapiCallNode")
 @cython.test_fail_if_path_exists("//AttributeNode")
@@ -265,3 +334,18 @@ def test_greater_than(char *a, char *b):
     cdef string s = string(a)
     cdef string t = string(b)
     return (s > t, s > b, s >= b)
+
+
+def test_iteration(string s):
+    """
+    >>> test_iteration(b'xyz')
+    [120, 121, 122]
+    >>> test_iteration(b'')
+    []
+    """
+    return [c for c in s]
+
+
+_WARNINGS = """
+21:31: Cannot pass Python object as C++ data structure reference (string &), will pass by copy.
+"""

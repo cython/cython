@@ -94,7 +94,7 @@ It currently supports OpenMP, but later on more backends might be supported.
 
     The ``chunksize`` argument indicates the chunksize to be used for dividing the iterations among threads.
     This is only valid for ``static``, ``dynamic`` and ``guided`` scheduling, and is optional. Different chunksizes
-    may give substatially different performance results, depending on the schedule, the load balance it provides,
+    may give substantially different performance results, depending on the schedule, the load balance it provides,
     the scheduling overhead and the amount of false sharing (if any).
 
     Example with a reduction::
@@ -160,30 +160,37 @@ It currently supports OpenMP, but later on more backends might be supported.
     Returns the id of the thread. For n threads, the ids will range from 0 to
     n-1.
 
+
 Compiling
 =========
+
 To actually use the OpenMP support, you need to tell the C or C++ compiler to
-enable OpenMP. For gcc this can be done as follows in a setup.py::
+enable OpenMP.  For gcc this can be done as follows in a setup.py::
 
     from distutils.core import setup
     from distutils.extension import Extension
-    from Cython.Distutils import build_ext
+    from Cython.Build import cythonize
 
-    ext_module = Extension(
-        "hello",
-        ["hello.pyx"],
-        extra_compile_args=['-fopenmp'],
-        extra_link_args=['-fopenmp'],
-    )
+    ext_modules = [
+        Extension(
+            "hello",
+            ["hello.pyx"],
+            extra_compile_args=['-fopenmp'],
+            extra_link_args=['-fopenmp'],
+        )
+    ]
 
     setup(
-        name = 'Hello world app',
-        cmdclass = {'build_ext': build_ext},
-        ext_modules = [ext_module],
+        name='hello-parallel-world',
+        ext_modules=cythonize(ext_modules),
     )
+
+For Microsoft Visual C++ compiler, use ``'/openmp'`` instead of ``'-fopenmp'``.
+
 
 Breaking out of loops
 =====================
+
 The parallel with and prange blocks support the statements break, continue and
 return in nogil mode. Additionally, it is valid to use a ``with gil`` block
 inside these blocks, and have exceptions propagate from them.

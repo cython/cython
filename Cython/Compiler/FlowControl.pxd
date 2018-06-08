@@ -1,6 +1,8 @@
+from __future__ import absolute_import
+
 cimport cython
 
-from Cython.Compiler.Visitor cimport CythonTransform, TreeVisitor
+from .Visitor cimport CythonTransform, TreeVisitor
 
 cdef class ControlBlock:
      cdef public set children
@@ -87,6 +89,11 @@ cdef class Uninitialized:
 cdef class Unknown:
     pass
 
+
+cdef class MessageCollection:
+    cdef set messages
+
+
 @cython.locals(dirty=bint, block=ControlBlock, parent=ControlBlock,
                assmt=NameAssignment)
 cdef check_definitions(ControlFlow flow, dict compiler_directives)
@@ -94,6 +101,7 @@ cdef check_definitions(ControlFlow flow, dict compiler_directives)
 @cython.final
 cdef class ControlFlowAnalysis(CythonTransform):
     cdef object gv_ctx
+    cdef object constant_folder
     cdef set reductions
     cdef list env_stack
     cdef list stack

@@ -2,6 +2,7 @@
 
 cimport cython.parallel
 from cython.parallel import prange, threadid
+from cython.view cimport array
 from libc.stdlib cimport malloc, calloc, free, abort
 from libc.stdio cimport puts
 
@@ -45,6 +46,34 @@ def test_descending_prange():
         sum += i
 
     return sum
+
+def test_prange_matches_range(int start, int stop, int step):
+    """
+    >>> test_prange_matches_range(0, 8, 3)
+    >>> test_prange_matches_range(0, 9, 3)
+    >>> test_prange_matches_range(0, 10, 3)
+
+    >>> test_prange_matches_range(0, 10, -3)
+
+    >>> test_prange_matches_range(0, -10, -3)
+    >>> test_prange_matches_range(1, -10, -3)
+    >>> test_prange_matches_range(2, -10, -3)
+    >>> test_prange_matches_range(3, -10, -3)
+    """
+    cdef int i, range_last, prange_last
+    prange_set = set()
+    for i in prange(start, stop, step, nogil=True, num_threads=3):
+        prange_last = i
+        with gil:
+            prange_set.add(i)
+    range_set = set(range(start, stop, step))
+    assert range_set == prange_set, "missing: %s extra %s" % (sorted(range_set-prange_set), sorted(prange_set - range_set))
+    for ii in range(start, stop, step):
+        range_last = ii
+    if range_set:
+        assert prange_last == i
+        assert range_last == prange_last
+
 
 def test_propagation():
     """
@@ -709,3 +738,19 @@ def test_clean_temps():
     except Exception, e:
         print e.args[0]
 
+
+def test_pointer_temps(double x):
+    """
+    >>> test_pointer_temps(1.0)
+    4.0
+    """
+    cdef Py_ssize_t i
+    cdef double* f
+    cdef double[:] arr = array(format="d", shape=(10,), itemsize=sizeof(double))
+    arr[0] = 4.0
+    arr[1] = 3.0
+
+    for i in prange(10, nogil=True, num_threads=1):
+        f = &arr[0]
+
+    return f[0]

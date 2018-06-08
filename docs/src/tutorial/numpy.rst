@@ -1,9 +1,17 @@
+.. _working-numpy:
+
 =======================
 Working with NumPy
 =======================
 
+.. NOTE:: Cython 0.16 introduced typed memoryviews as a successor to the NumPy
+          integration described here.  They are easier to use than the buffer syntax
+          below, have less overhead, and can be passed around without requiring the GIL.
+          They should be preferred to the syntax presented in this page.
+          See :ref:`Cython for NumPy users <numpy_tutorial>`.
+
 You can use NumPy from Cython exactly the same as in regular Python, but by
-doing so you are loosing potentially high speedups because Cython has support
+doing so you are losing potentially high speedups because Cython has support
 for fast access to NumPy arrays. Let's see how this works with a simple
 example.
 
@@ -73,7 +81,7 @@ run a Python session to test both the Python version (imported from
         [2, 2, 2],
         [1, 1, 1]])
     In [4]: import convolve1
-    In [4]: convolve1.naive_convolve(np.array([[1, 1, 1]], dtype=np.int), 
+    In [4]: convolve1.naive_convolve(np.array([[1, 1, 1]], dtype=np.int),
     ...     np.array([[1],[2],[1]], dtype=np.int))
     Out [4]:
     array([[1, 1, 1],
@@ -126,7 +134,7 @@ compatibility. Consider this code (*read the comments!*) ::
             raise ValueError("Only odd dimensions on filter supported")
         assert f.dtype == DTYPE and g.dtype == DTYPE
         # The "cdef" keyword is also used within functions to type variables. It
-        # can only be used at the top indendation level (there are non-trivial
+        # can only be used at the top indentation level (there are non-trivial
         # problems with allowing them in other places, though we'd love to see
         # good and thought out proposals for it).
         #
@@ -196,7 +204,7 @@ These are the needed changes::
     def naive_convolve(np.ndarray[DTYPE_t, ndim=2] f, np.ndarray[DTYPE_t, ndim=2] g):
     ...
     cdef np.ndarray[DTYPE_t, ndim=2] h = ...
-    
+
 Usage:
 
 .. sourcecode:: ipython
@@ -227,42 +235,20 @@ The array lookups are still slowed down by two factors:
 
         ...
         cimport cython
-        @cython.boundscheck(False) # turn of bounds-checking for entire function
+        @cython.boundscheck(False) # turn off bounds-checking for entire function
+        @cython.wraparound(False)  # turn off negative index wrapping for entire function
         def naive_convolve(np.ndarray[DTYPE_t, ndim=2] f, np.ndarray[DTYPE_t, ndim=2] g):
         ...
-        
+
 Now bounds checking is not performed (and, as a side-effect, if you ''do''
 happen to access out of bounds you will in the best case crash your program
 and in the worst case corrupt data). It is possible to switch bounds-checking
-mode in many ways, see [:reference/directives:compiler directives] for more
+mode in many ways, see :ref:`compiler-directives` for more
 information.
 
-Negative indices are dealt with by ensuring Cython that the indices will be
-positive, by casting the variables to unsigned integer types (if you do have
-negative values, then this casting will create a very large positive value
-instead and you will attempt to access out-of-bounds values). Casting is done
-with a special ``<>``-syntax. The code below is changed to use either
-unsigned ints or casting as appropriate::
-
-        ...
-        cdef int s, t                                                                            # changed
-        cdef unsigned int x, y, v, w                                                             # changed
-        cdef int s_from, s_to, t_from, t_to
-        cdef DTYPE_t value
-        for x in range(xmax):
-            for y in range(ymax):
-                s_from = max(smid - x, -smid)
-                s_to = min((xmax - x) - smid, smid + 1)
-                t_from = max(tmid - y, -tmid)
-                t_to = min((ymax - y) - tmid, tmid + 1)
-                value = 0
-                for s in range(s_from, s_to):
-                    for t in range(t_from, t_to):
-                        v = <unsigned int>(x - smid + s)                                         # changed
-                        w = <unsigned int>(y - tmid + t)                                         # changed
-                        value += g[<unsigned int>(smid - s), <unsigned int>(tmid - t)] * f[v, w] # changed
-                h[x, y] = value
-        ...
+Also, we've disabled the check to wrap negative indices (e.g. g[-1] giving
+the last value).  As with disabling bounds checking, bad things will happen
+if we try to actually use negative indices with this disabled.
 
 The function call overhead now starts to play a role, so we compare the latter
 two examples with larger N:
@@ -310,4 +296,3 @@ There is some speed penalty to this though (as one makes more assumptions
 compile-time if the type is set to :obj:`np.ndarray`, specifically it is
 assumed that the data is stored in pure strided mode and not in indirect
 mode).
-

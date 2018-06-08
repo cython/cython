@@ -11,6 +11,36 @@
 Language Basics
 *****************
 
+.. _declaring_data_types:
+
+Declaring Data Types
+====================
+
+As a dynamic language, Python encourages a programming style of considering
+classes and objects in terms of their methods and attributes, more than where
+they fit into the class hierarchy.
+
+This can make Python a very relaxed and comfortable language for rapid
+development, but with a price - the 'red tape' of managing data types is
+dumped onto the interpreter. At run time, the interpreter does a lot of work
+searching namespaces, fetching attributes and parsing argument and keyword tuples.
+This run-time ‘late binding’ is a major cause of Python’s relative slowness
+compared to ‘early binding’ languages such as C++.
+
+However with Cython it is possible to gain significant speed-ups through
+the use of ‘early binding’ programming techniques.
+
+.. note:: Typing is not a necessity
+
+    Providing static typing to parameters and variables is convenience to
+    speed up your code, but it is not a necessity. Optimize where and when needed.
+    In fact, typing can *slow down* your code in the case where the
+    typing does not allow optimizations but where Cython still needs to
+    check that the type of some object matches the declared type.
+
+
+.. _c_variable_and_type_definitions:
+
 C variable and type definitions
 ===============================
 
@@ -31,7 +61,7 @@ and C :keyword:`struct`, :keyword:`union` or :keyword:`enum` types::
         float *eggs
 
     cdef enum CheeseType:
-        cheddar, edam, 
+        cheddar, edam,
         camembert
 
     cdef enum CheeseState:
@@ -40,6 +70,20 @@ and C :keyword:`struct`, :keyword:`union` or :keyword:`enum` types::
         runny = 3
 
 See also :ref:`struct-union-enum-styles`
+
+.. note::
+
+    Structs can be declared as ``cdef packed struct``, which has
+    the same effect as the C directive ``#pragma pack(1)``.
+
+Declaring an enum as ``cpdef`` will create a :pep:`435`-style Python wrapper::
+
+    cpdef enum CheeseState:
+        hard = 1
+        soft = 2
+        runny = 3
+
+
 
 There is currently no special syntax for defining a constant, but you can use
 an anonymous :keyword:`enum` declaration for this purpose, for example,::
@@ -64,23 +108,110 @@ an anonymous :keyword:`enum` declaration for this purpose, for example,::
 
         ctypedef int* IntPtr
 
+
+It is also possible to declare functions with :keyword:`cdef`, making them c functions.
+
+::
+
+    cdef int eggs(unsigned long l, float f):
+        ...
+
+You can read more about them in :ref:`python_functions_vs_c_functions`.
+
+You can declare classes with :keyword:`cdef`, making them :ref:`extension-types`. Those will
+have a behavior very close to python classes, but are faster because they use a ``struct``
+internally to store attributes.
+
+Here is a simple example::
+
+    from __future__ import print_function
+
+    cdef class Shrubbery:
+
+        cdef int width, height
+
+        def __init__(self, w, h):
+            self.width = w
+            self.height = h
+
+        def describe(self):
+            print("This shrubbery is", self.width,
+                  "by", self.height, "cubits.")
+
+You can read more about them in :ref:`extension-types`.
+
+.. _typing_types:
+.. _types:
+
+Types
+-----
+
+Cython uses the normal C syntax for C types, including pointers.  It provides
+all the standard C types, namely ``char``, ``short``, ``int``, ``long``,
+``long long`` as well as their ``unsigned`` versions, e.g. ``unsigned int``.
+The special ``bint`` type is used for C boolean values (``int`` with 0/non-0
+values for False/True) and ``Py_ssize_t`` for (signed) sizes of Python
+containers.
+
+Pointer types are constructed as in C, by appending a ``*`` to the base type
+they point to, e.g. ``int**`` for a pointer to a pointer to a C int.
+Arrays use the normal C array syntax, e.g. ``int[10]``, and the size must be known
+at compile time for stack allocated arrays. Cython doesn't support variable length arrays from C99.
+Note that Cython uses array access for pointer dereferencing, as ``*x`` is not valid Python syntax,
+whereas ``x[0]`` is.
+
+Also, the Python types ``list``, ``dict``, ``tuple``, etc. may be used for
+static typing, as well as any user defined :ref:`extension-types`.
+For example::
+
+    cdef list foo = []
+
+This requires an *exact* match of the class, it does not allow
+subclasses. This allows Cython to optimize code by accessing
+internals of the builtin class.
+For this kind of typing, Cython uses internally a C variable of type ``PyObject*``.
+The Python types int, long, and float are not available for static
+typing and instead interpreted as C ``int``, ``long``, and ``float``
+respectively, as statically typing variables with these Python
+types has zero advantages.
+
+While these C types can be vastly faster, they have C semantics.
+Specifically, the integer types overflow
+and the C ``float`` type only has 32 bits of precision
+(as opposed to the 64-bit C ``double`` which Python floats wrap
+and is typically what one wants).
+If you want to use these numeric Python types simply omit the
+type declaration and let them be objects.
+
+It is also possible to declare :ref:`extension-types` (declared with ``cdef class``).
+This does allow subclasses. This typing is mostly used to access
+``cdef`` methods and attributes of the extension type.
+The C code uses a variable which is a pointer to a structure of the
+specific type, something like ``struct MyExtensionTypeObject*``.
+
+
 Grouping multiple C declarations
 --------------------------------
 
 If you have a series of declarations that all begin with :keyword:`cdef`, you
 can group them into a :keyword:`cdef` block like this::
 
+    from __future__ import print_function
+
     cdef:
         struct Spam:
             int tons
 
         int i
-        float f
+        float a
         Spam *p
 
         void f(Spam *s):
-            print s.tons, "Tons of spam"
+            print(s.tons, "Tons of spam")
 
+.. _cpdef:
+.. _cdef:
+.. _python_functions_vs_c_functions:
 
 Python functions vs. C functions
 ==================================
@@ -92,14 +223,14 @@ Python objects as parameters and return Python objects.
 
 C functions are defined using the new :keyword:`cdef` statement. They take
 either Python objects or C values as parameters, and can return either Python
-objects or C values. 
+objects or C values.
 
 Within a Cython module, Python functions and C functions can call each other
 freely, but only Python functions can be called from outside the module by
 interpreted Python code. So, any functions that you want to "export" from your
-Cython module must be declared as Python functions using def. 
-There is also a hybrid function, called :keyword:`cpdef`. A :keyword:`cpdef` 
-can be called from anywhere, but uses the faster C calling conventions 
+Cython module must be declared as Python functions using def.
+There is also a hybrid function, called :keyword:`cpdef`. A :keyword:`cpdef`
+can be called from anywhere, but uses the faster C calling conventions
 when being called from other Cython code. A :keyword:`cpdef` can also be overridden
 by a Python method on a subclass or an instance attribute, even when called from Cython.
 If this happens, most performance gains are of course lost and even if it does not,
@@ -136,6 +267,11 @@ with string attributes if they are to be used after the function returns.
 C functions, on the other hand, can have parameters of any type, since they're
 passed in directly using a normal C function call.
 
+Functions declared using :keyword:`cdef` with Python object return type, like Python functions, will return a :keyword:`None`
+value when execution leaves the function body without an explicit return value. This is in
+contrast to C/C++, which leaves the return value undefined. 
+In the case of non-Python object return types, the equivalent of zero is returned, for example, 0 for ``int``, :keyword:`False` for ``bint`` and :keyword:`NULL` for pointer types.
+
 A more complete comparison of the pros and cons of these different method
 types can be found at :ref:`early-binding-for-speed`.
 
@@ -154,6 +290,12 @@ Reference counting for these objects is performed automatically according to
 the standard Python/C API rules (i.e. borrowed references are taken as
 parameters and a new reference is returned).
 
+ .. warning::
+
+    This only applies to Cython code.  Other Python packages which
+    are implemented in C like NumPy may not follow these conventions.
+
+
 The name object can also be used to explicitly declare something as a Python
 object. This can be useful if the name being declared would otherwise be taken
 as the name of a type, for example,::
@@ -170,6 +312,98 @@ object as the explicit return type of a function, e.g.::
 In the interests of clarity, it is probably a good idea to always be explicit
 about object parameters in C functions.
 
+
+.. _optional_arguments:
+
+Optional Arguments
+------------------
+
+Unlike C, it is possible to use optional arguments in ``cdef`` and ``cpdef`` functions.
+There are differences though whether you declare them in a ``.pyx``
+file or the corresponding ``.pxd`` file.
+
+To avoid repetition (and potential future inconsistencies), default argument values are
+not visible in the declaration (in ``.pxd`` files) but only in
+the implementation (in ``.pyx`` files).
+
+When in a ``.pyx`` file, the signature is the same as it is in Python itself::
+
+    from __future__ import print_function
+
+    cdef class A:
+        cdef foo(self):
+            print("A")
+
+    cdef class B(A):
+        cdef foo(self, x=None):
+            print("B", x)
+            
+    cdef class C(B):
+        cpdef foo(self, x=True, int k=3):
+            print("C", x, k)
+
+
+When in a ``.pxd`` file, the signature is different like this example: ``cdef foo(x=*)``.
+This is because the program calling the function just needs to know what signatures are
+possible in C, but doesn't need to know the value of the default arguments.::
+
+    cdef class A:
+        cdef foo(self)
+    cdef class B(A):
+        cdef foo(self, x=*)
+    cdef class C(B):
+        cpdef foo(self, x=*, int k=*)
+
+
+
+.. note::
+    The number of arguments may increase when subclassing,
+    but the arg types and order must be the same, as shown in the example above.
+
+There may be a slight performance penalty when the optional arg is overridden
+with one that does not have default values.
+
+
+.. _keyword_only_argument:
+
+Keyword-only Arguments
+----------------------
+
+As in Python 3, ``def`` functions can have keyword-only arguments
+listed after a ``"*"`` parameter and before a ``"**"`` parameter if any::
+
+    def f(a, b, *args, c, d = 42, e, **kwds):
+        ...
+
+    # We cannot call f with less verbosity than this.
+    foo = f(4, "bar", c=68, e=1.0)
+
+As shown above, the ``c``, ``d`` and ``e`` arguments can not be
+passed as positional arguments and must be passed as keyword arguments.
+Furthermore, ``c`` and ``e`` are **required** keyword arguments
+since they do not have a default value.
+
+A single ``"*"`` without argument name can be used to
+terminate the list of positional arguments::
+
+    def g(a, b, *, c, d):
+        ...
+
+    # We cannot call g with less verbosity than this.
+    foo = g(4.0, "something", c=68, d="other")
+
+Shown above, the signature takes exactly two positional
+parameters and has two required keyword parameters
+
+Function Pointers
+-----------------
+
+Functions declared in a ``struct`` are automatically converted to function pointers.
+
+For using error return values with function pointers, see the note at the bottom
+of :ref:`error_return_values`.
+
+.. _error_return_values:
 
 Error return values
 -------------------
@@ -192,7 +426,11 @@ returns ``-1``, an exception will be assumed to have occurred and will be
 propagated.
 
 When you declare an exception value for a function, you should never
-explicitly return that value. If all possible return values are legal and you
+explicitly or implicitly return that value. In particular, if the exceptional return value
+is a ``False`` value, then you should ensure the function will never terminate via an implicit
+or empty return.
+
+If all possible return values are legal and you
 can't reserve one entirely for signalling errors, you can use an alternative
 form of exception value declaration::
 
@@ -212,18 +450,18 @@ This form causes Cython to generate a call to :c:func:`PyErr_Occurred` after
 every call to spam, regardless of what value it returns. If you have a
 function returning void that needs to propagate errors, you will have to use
 this form, since there isn't any return value to test.
-Otherwise there is little use for this form. 
+Otherwise there is little use for this form.
 
 An external C++ function that may raise an exception can be declared with::
 
     cdef int spam() except +
 
-See :ref:`wrapping-cplusplus` for more details. 
+See :ref:`wrapping-cplusplus` for more details.
 
 Some things to note:
 
 * Exception values can only declared for functions returning an integer, enum,
-  float or pointer type, and the value must be a constant expression. 
+  float or pointer type, and the value must be a constant expression.
   Void functions can only use the ``except *`` form.
 * The exception value specification is part of the signature of the function.
   If you're passing a pointer to a function as a parameter or assigning it
@@ -236,8 +474,11 @@ Some things to note:
 
 * You don't need to (and shouldn't) declare exception values for functions
   which return Python objects. Remember that a function with no declared
-  return type implicitly returns a Python object. (Exceptions on such functions 
+  return type implicitly returns a Python object. (Exceptions on such functions
   are implicitly propagated by returning NULL.)
+
+
+.. _checking_return_values_of_non_cython_functions:
 
 Checking return values of non-Cython functions
 ----------------------------------------------
@@ -260,7 +501,53 @@ return value and raise it yourself, for example,::
     if p == NULL:
         raise SpamError("Couldn't open the spam file")
 
-    
+.. _overriding_in_extension_types:
+
+Overriding in extension types
+-----------------------------
+
+
+``cpdef`` methods can override ``cdef`` methods::
+
+    from __future__ import print_function
+
+    cdef class A:
+        cdef foo(self):
+            print("A")
+
+    cdef class B(A):
+        cdef foo(self, x=None):
+            print("B", x)
+
+    cdef class C(B):
+        cpdef foo(self, x=True, int k=3):
+            print("C", x, k)
+
+When subclassing an extension type with a Python class,
+``def`` methods can override ``cpdef`` methods but not ``cdef``
+methods::
+
+    from __future__ import print_function
+
+    cdef class A:
+        cdef foo(self):
+            print("A")
+
+    cdef class B(A):
+        cpdef foo(self):
+            print("B")
+
+    class C(B):         # NOTE: not cdef class
+        def foo(self):
+            print("C")
+
+If ``C`` above would be an extension type (``cdef class``),
+this would not work correctly.
+The Cython compiler will give a warning in that case.
+
+
+.. _type-conversion:
+
 Automatic type conversions
 ==========================
 
@@ -272,22 +559,30 @@ possibilities.
 +----------------------------+--------------------+------------------+
 | C types                    | From Python types  | To Python types  |
 +============================+====================+==================+
-| [unsigned] char            | int, long          | int              |
-| [unsigned] short           |                    |                  |
+| [unsigned] char,           | int, long          | int              |
+| [unsigned] short,          |                    |                  |
 | int, long                  |                    |                  |
 +----------------------------+--------------------+------------------+
-| unsigned int               | int, long          | long             |
-| unsigned long              |                    |                  |
+| unsigned int,              | int, long          | long             |
+| unsigned long,             |                    |                  |
 | [unsigned] long long       |                    |                  |
 +----------------------------+--------------------+------------------+
 | float, double, long double | int, long, float   | float            |
 +----------------------------+--------------------+------------------+
 | char*                      | str/bytes          | str/bytes [#]_   |
 +----------------------------+--------------------+------------------+
-| struct                     |                    | dict             |
+| struct,                    |                    | dict [#1]_       |
+| union                      |                    |                  |
 +----------------------------+--------------------+------------------+
 
-.. [#] The conversion is to/from str for Python 2.x, and bytes for Python 3.x. 
+.. [#] The conversion is to/from str for Python 2.x, and bytes for Python 3.x.
+
+.. [#1] The conversion from a C union type to a Python dict will add
+   a value for each of the union fields.  Cython 0.23 and later, however,
+   will refuse to automatically convert a union with unsafe type
+   combinations.  An example is a union of an ``int`` and a ``char*``,
+   in which case the pointer value may or may not be a valid pointer.
+
 
 Caveats when using a Python string in a C context
 -------------------------------------------------
@@ -328,6 +623,69 @@ Sometimes Cython will complain unnecessarily, and sometimes it will fail to
 detect a problem that exists. Ultimately, you need to understand the issue and
 be careful what you do.
 
+.. _type_casting:
+
+Type Casting
+------------
+
+Where C uses ``"("`` and ``")"``, Cython uses ``"<"`` and ``">"``. For example::
+
+    cdef char *p
+    cdef float *q
+    p = <char*>q
+
+When casting a C value to a Python object type or vice versa,
+Cython will attempt a coercion. Simple examples are casts like ``<int>pyobj``,
+which converts a Python number to a plain C ``int`` value, or ``<bytes>charptr``,
+which copies a C ``char*`` string into a new Python bytes object.
+
+ .. note:: Cython will not prevent a redundant cast, but emits a warning for it.
+
+To get the address of some Python object, use a cast to a pointer type
+like ``<void*>`` or ``<PyObject*>``.
+You can also cast a C pointer back to a Python object reference
+with ``<object>``, or a more specific builtin or extension type
+(e.g. ``<MyExtType>ptr``). This will increase the reference count of
+the object by one, i.e. the cast returns an owned reference.
+Here is an example::
+
+    from cpython.ref cimport PyObject
+    from libc.stdint cimport uintptr_t
+
+    python_string = "foo"
+
+    cdef void* ptr = <void*>python_string
+    cdef uintptr_t adress_in_c = <uintptr_t>ptr
+    address_from_void = adress_in_c        # address_from_void is a python int
+
+    cdef PyObject* ptr2 = <PyObject*>python_string
+    cdef uintptr_t address_in_c2 = <uintptr_t>ptr2
+    address_from_PyObject = address_in_c2  # address_from_PyObject is a python int
+
+    assert address_from_void == address_from_PyObject == id(python_string)
+
+    print(<object>ptr)                     # Prints "foo"
+    print(<object>ptr2)                    # prints "foo"
+
+
+The precedence of ``<...>`` is such that ``<type>a.b.c`` is interpreted as ``<type>(a.b.c)``.
+
+.. _checked_type_casts:
+
+Checked Type Casts
+------------------
+
+A cast like ``<MyExtensionType>x`` will cast x to the class
+``MyExtensionType`` without any checking at all.
+
+To have a cast checked, use the syntax like: ``<MyExtensionType?>x``.
+In this case, Cython will apply a runtime check that raises a ``TypeError``
+if ``x`` is not an instance of ``MyExtensionType``.
+This tests for the exact class for builtin types,
+but allows subclasses for :ref:`extension-types`.
+
+.. _statements_and_expressions:
+
 Statements and expressions
 ==========================
 
@@ -352,9 +710,9 @@ direct equivalent in Python.
 
 * An integer literal is treated as a C constant, and will
   be truncated to whatever size your C compiler thinks appropriate.
-  To get a Python integer (of arbitrary precision) cast immediately to 
-  an object (e.g. ``<object>100000000000000000000``). The ``L``, ``LL``, 
-  and ``U`` suffixes have the same meaning as in C. 
+  To get a Python integer (of arbitrary precision) cast immediately to
+  an object (e.g. ``<object>100000000000000000000``). The ``L``, ``LL``,
+  and ``U`` suffixes have the same meaning as in C.
 * There is no ``->`` operator in Cython. Instead of ``p->x``, use ``p.x``
 * There is no unary ``*`` operator in Cython. Instead of ``*p``, use ``p[0]``
 * There is an ``&`` operator, with the same semantics as in C.
@@ -370,27 +728,11 @@ Scope rules
 Cython determines whether a variable belongs to a local scope, the module
 scope, or the built-in scope completely statically. As with Python, assigning
 to a variable which is not otherwise declared implicitly declares it to be a
-Python variable residing in the scope where it is assigned.
+variable residing in the scope where it is assigned.  The type of the variable
+depends on type inference, except for the global module scope, where it is
+always a Python object.
 
-.. note::
-    A consequence of these rules is that the module-level scope behaves the
-    same way as a Python local scope if you refer to a variable before assigning
-    to it. In particular, tricks such as the following will not work in Cython::
-
-        try:
-            x = True
-        except NameError:
-            True = 1
-
-    because, due to the assignment, the True will always be looked up in the
-    module-level scope. You would have to do something like this instead::
-
-        import __builtin__
-        try:
-            True = __builtin__.True
-        except AttributeError:
-            True = 1
-
+.. _built_in_functions:
 
 Built-in Functions
 ------------------
@@ -495,18 +837,89 @@ Some things to note about the for-from loop:
 * The name between the lower and upper bounds must be the same as the target
   name.
 * The direction of iteration is determined by the relations. If they are both
-  from the set {``<``, ``<=``} then it is upwards; if they are both from the set 
+  from the set {``<``, ``<=``} then it is upwards; if they are both from the set
   {``>``, ``>=``} then it is downwards. (Any other combination is disallowed.)
 
 Like other Python looping statements, break and continue may be used in the
 body, and the loop may have an else clause.
 
+.. _cython_file_types:
 
-The include statement
-=====================
+Cython file types
+=================
 
-.. warning:: 
-    Historically the ``include`` statement was used for sharing declarations. 
+There are three file types in Cython:
+
+* The implementation files, carrying a ``.py`` or ``.pyx`` suffix.
+* The definition files, carrying a ``.pxd`` suffix.
+* The include files, carrying a ``.pxi`` suffix.
+
+The implementation file
+-----------------------
+
+The implementation file, as the name suggest, contains the implementation
+of your functions, classes, extension types, etc. Nearly all the
+python syntax is supported in this file. Most of the time, a ``.py``
+file can be renamed into a ``.pyx`` file without changing
+any code, and Cython will retain the python behavior.
+
+It is possible for Cython to compile both ``.py`` and ``.pyx`` files.
+The name of the file isn't important if one wants to use only the Python syntax,
+and Cython won't change the generated code depending on the suffix used.
+Though, if one want to use the Cython syntax, using a ``.pyx`` file is necessary.
+
+In addition to the Python syntax, the user can also
+leverage Cython syntax (such as ``cdef``) to use C variables, can
+declare functions as ``cdef`` or ``cpdef`` and can import C definitions
+with :keyword:`cimport`. Many other Cython features usable in implementation files
+can be found throughout this page and the rest of the Cython documentation.
+
+There are some restrictions on the implementation part of some :ref:`extension-types`
+if the corresponding definition file also defines that type.
+
+.. note::
+
+    When a ``.pyx`` file is compiled, Cython first checks to see if a corresponding
+    ``.pxd`` file exists and processes it first. It acts like a header file for
+    a Cython ``.pyx`` file. You can put inside functions that will be used by
+    other Cython modules. This allows different Cython modules to use functions
+    and classes from each other without the Python overhead. To read more about
+    what how to do that, you can see :ref:`pxd_files`.
+
+
+The definition file
+-------------------
+
+A definition file is used to declare various things.
+
+Any C declaration can be made, and it can be also a declaration of a C variable or
+function implemented in a C/C++ file. This can be done with ``cdef extern from``.
+Sometimes, ``.pxd`` files are used as a translation of C/C++ header files
+into a syntax that Cython can understand. This allows then the C/C++ variable and
+functions to be used directly in implementation files with :keyword:`cimport`.
+You can read more about it in :ref:`external-C-code` and :ref:`wrapping-cplusplus`.
+
+It can also contain the definition part of an extension type and the declarations
+of functions for an external library.
+
+It cannot contain the implementations of any C or Python functions, or any
+Python class definitions, or any executable statements. It is needed when one
+wants to  access :keyword:`cdef` attributes and methods, or to inherit from
+:keyword:`cdef` classes defined in this module.
+
+.. note::
+
+    You don't need to (and shouldn't) declare anything in a declaration file
+    :keyword:`public` in order to make it available to other Cython modules; its mere
+    presence in a definition file does that. You only need a public
+    declaration if you want to make something available to external C code.
+
+
+The include statement and include files
+---------------------------------------
+
+.. warning::
+    Historically the ``include`` statement was used for sharing declarations.
     Use :ref:`sharing-declarations` instead.
 
 A Cython source file can include material from other files using the include
@@ -514,12 +927,14 @@ statement, for example,::
 
     include "spamstuff.pxi"
 
-The contents of the named file are textually included at that point. The
+The contents of the named file are textually included at that point.  The
 included file can contain any complete statements or declarations that are
 valid in the context where the include statement appears, including other
-include statements. The contents of the included file should begin at an
+include statements.  The contents of the included file should begin at an
 indentation level of zero, and will be treated as though they were indented to
-the level of the include statement that is including the file.
+the level of the include statement that is including the file.  The include
+statement cannot, however, be used outside of the module scope, such as inside
+of functions or class bodies.
 
 .. note::
 
@@ -527,6 +942,7 @@ the level of the include statement that is including the file.
     separate parts that may be more appropriate in many cases. See
     :ref:`sharing-declarations`.
 
+.. _conditional_compilation:
 
 Conditional Compilation
 =======================
@@ -539,7 +955,7 @@ Compile-Time Definitions
 
 A compile-time constant can be defined using the DEF statement::
 
-    DEF FavouriteFood = "spam"
+    DEF FavouriteFood = u"spam"
     DEF ArraySize = 42
     DEF OtherArraySize = 2 * ArraySize + 17
 
@@ -556,20 +972,27 @@ returned by :func:`os.uname`.
 The following selection of builtin constants and functions are also available:
 
     None, True, False,
-    abs, bool, chr, cmp, complex, dict, divmod, enumerate,
-    float, hash, hex, int, len, list, long, map, max, min,
-    oct, ord, pow, range, reduce, repr, round, slice, str,
-    sum, tuple, xrange, zip
+    abs, all, any, ascii, bin, bool, bytearray, bytes, chr, cmp, complex, dict,
+    divmod, enumerate, filter, float, format, frozenset, hash, hex, int, len,
+    list, long, map, max, min, oct, ord, pow, range, reduce, repr, reversed,
+    round, set, slice, sorted, str, sum, tuple, xrange, zip
+
+Note that some of these builtins may not be available when compiling under
+Python 2.x or 3.x, or may behave differently in both.
 
 A name defined using ``DEF`` can be used anywhere an identifier can appear,
 and it is replaced with its compile-time value as though it were written into
 the source at that point as a literal. For this to work, the compile-time
 expression must evaluate to a Python value of type ``int``, ``long``,
-``float`` or ``str``.::
+``float``, ``bytes`` or ``unicode`` (``str`` in Py3).
+
+::
+
+    from __future__ import print_function
 
     cdef int a1[ArraySize]
     cdef int a2[OtherArraySize]
-    print "I like", FavouriteFood
+    print("I like", FavouriteFood)
 
 Conditional Statements
 ----------------------

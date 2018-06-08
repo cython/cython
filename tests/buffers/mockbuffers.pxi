@@ -17,16 +17,18 @@ available_flags = (
 cdef class MockBuffer:
     cdef object format, offset
     cdef void* buffer
-    cdef int len, itemsize, ndim
+    cdef Py_ssize_t len, itemsize
     cdef Py_ssize_t* strides
     cdef Py_ssize_t* shape
     cdef Py_ssize_t* suboffsets
     cdef object label, log
+    cdef int ndim
+    cdef bint writable
 
-    cdef readonly object recieved_flags, release_ok
+    cdef readonly object received_flags, release_ok
     cdef public object fail
 
-    def __init__(self, label, data, shape=None, strides=None, format=None, offset=0):
+    def __init__(self, label, data, shape=None, strides=None, format=None, writable=True, offset=0):
         # It is important not to store references to data after the constructor
         # as refcounting is checked on object buffers.
         self.label = label
@@ -34,6 +36,7 @@ cdef class MockBuffer:
         self.log = ""
         self.offset = offset
         self.itemsize = self.get_itemsize()
+        self.writable = writable
         if format is None: format = self.get_default_format()
         if shape is None: shape = (len(data),)
         if strides is None:
@@ -55,7 +58,7 @@ cdef class MockBuffer:
             else: break
         if len(datashape) > 1:
             # indirect access
-            self.ndim = len(datashape)
+            self.ndim = <int>len(datashape)
             shape = datashape
             self.buffer = self.create_indirect_buffer(data, shape)
             suboffsets = [0] * (self.ndim-1) + [-1]
@@ -64,7 +67,7 @@ cdef class MockBuffer:
         else:
             # strided and/or simple access
             self.buffer = self.create_buffer(data)
-            self.ndim = len(shape)
+            self.ndim = <int>len(shape)
             self.suboffsets = NULL
 
         try:
@@ -126,16 +129,19 @@ cdef class MockBuffer:
         if self.fail:
             raise ValueError("Failing on purpose")
 
-        self.recieved_flags = []
+        self.received_flags = []
         cdef int value
         for name, value in available_flags:
             if (value & flags) == value:
-                self.recieved_flags.append(name)
+                self.received_flags.append(name)
+
+        if flags & cpython.buffer.PyBUF_WRITABLE and not self.writable:
+            raise BufferError("Writable buffer requested from read-only mock: %s" % ' | '.join(self.received_flags))
 
         buffer.buf = <void*>(<char*>self.buffer + (<int>self.offset * self.itemsize))
         buffer.obj = self
         buffer.len = self.len
-        buffer.readonly = 0
+        buffer.readonly = not self.writable
         buffer.format = <char*>self.format
         buffer.ndim = self.ndim
         buffer.shape = self.shape

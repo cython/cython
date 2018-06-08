@@ -1,0 +1,50 @@
+# tag: cpp
+
+"""
+PYTHON setup.py build_ext --inplace
+PYTHON -c "from call_stack_allocated import test; test()"
+"""
+
+######## setup.py ########
+
+from distutils.core import setup
+from Cython.Build import cythonize
+setup(ext_modules=cythonize('*.pyx', language='c++'))
+
+######## call.cpp ########
+
+class wint {
+public:
+  long long val;
+  wint() { val = 0; }
+  wint(long long val) { this->val = val; }
+  long long &operator()() { return this->val; }
+  long long operator()(long long i) { return this->val + i; }
+  long long operator()(long long i, long long j) { return this->val + i + j; }
+};
+
+######## call.pxd ########
+
+cdef extern from "call.cpp" nogil:
+    cppclass wint:
+        long long val
+        wint()
+        wint(long long val)
+        long long& operator()()
+        long long operator()(long long i)
+        long long operator()(long long i, long long j)
+
+
+######## call_stack_allocated.pyx ########
+
+from call cimport wint
+def test():
+    cdef wint a = wint(4)
+    cdef long long b = 3
+    b = a()
+    assert b == 4
+    b = a(1ll)
+    assert b == 5
+    b = a(1ll, 1ll)
+    assert b == 6
+

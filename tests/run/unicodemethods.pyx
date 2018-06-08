@@ -8,6 +8,9 @@ PY_VERSION = sys.version_info
 
 text = u'ab jd  sdflk as sa  sadas asdas fsdf '
 sep = u'  '
+format1 = u'abc%sdef'
+format2 = u'abc%sdef%sghi'
+unicode_sa = u'sa'
 
 multiline_text = u'''\
 ab jd
@@ -183,9 +186,8 @@ pipe_sep = u'|'
     "//CastNode", "//TypecastNode",
     "//SimpleCallNode//AttributeNode[@is_py_attr = true]")
 @cython.test_assert_path_exists(
-    "//SimpleCallNode",
-    "//SimpleCallNode//NoneCheckNode",
-    "//SimpleCallNode//AttributeNode[@is_py_attr = false]")
+    "//PythonCapiCallNode",
+)
 def join(unicode sep, l):
     """
     >>> l = text.split()
@@ -198,13 +200,14 @@ def join(unicode sep, l):
     """
     return sep.join(l)
 
+
 @cython.test_fail_if_path_exists(
     "//CoerceToPyTypeNode", "//CoerceFromPyTypeNode",
     "//CastNode", "//TypecastNode", "//NoneCheckNode",
     "//SimpleCallNode//AttributeNode[@is_py_attr = true]")
 @cython.test_assert_path_exists(
-    "//SimpleCallNode",
-    "//SimpleCallNode//AttributeNode[@is_py_attr = false]")
+    "//PythonCapiCallNode",
+)
 def join_sep(l):
     """
     >>> l = text.split()
@@ -215,11 +218,60 @@ def join_sep(l):
     >>> print( join_sep(l) )
     ab|jd|sdflk|as|sa|sadas|asdas|fsdf
     """
-    return u'|'.join(l)
+    result = u'|'.join(l)
+    assert cython.typeof(result) == 'unicode object', cython.typeof(result)
+    return result
+
+
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode", "//CoerceFromPyTypeNode",
+    "//CastNode", "//TypecastNode", "//NoneCheckNode",
+    "//SimpleCallNode//AttributeNode[@is_py_attr = true]"
+)
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode",
+    "//InlinedGeneratorExpressionNode"
+)
+def join_sep_genexpr(l):
+    """
+    >>> l = text.split()
+    >>> len(l)
+    8
+    >>> print( '<<%s>>' % '|'.join(s + ' ' for s in l) )
+    <<ab |jd |sdflk |as |sa |sadas |asdas |fsdf >>
+    >>> print( '<<%s>>' % join_sep_genexpr(l) )
+    <<ab |jd |sdflk |as |sa |sadas |asdas |fsdf >>
+    """
+    result = u'|'.join(s + u' ' for s in l)
+    assert cython.typeof(result) == 'unicode object', cython.typeof(result)
+    return result
+
+
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode", "//CoerceFromPyTypeNode",
+    "//CastNode", "//TypecastNode",
+)
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode",
+    "//InlinedGeneratorExpressionNode"
+)
+def join_sep_genexpr_dictiter(dict d):
+    """
+    >>> l = text.split()
+    >>> d = dict(zip(range(len(l)), l))
+    >>> print('|'.join( sorted(' '.join('%s:%s' % (k, v) for k, v in d.items()).split()) ))
+    0:ab|1:jd|2:sdflk|3:as|4:sa|5:sadas|6:asdas|7:fsdf
+    >>> print('|'.join( sorted(join_sep_genexpr_dictiter(d).split())) )
+    0:ab|1:jd|2:sdflk|3:as|4:sa|5:sadas|6:asdas|7:fsdf
+    """
+    result = u' '.join('%s:%s' % (k, v) for k, v in d.iteritems())
+    assert cython.typeof(result) == 'unicode object', cython.typeof(result)
+    return result
+
 
 @cython.test_assert_path_exists(
-    "//SimpleCallNode",
-    "//SimpleCallNode//NameNode")
+    "//PythonCapiCallNode",
+)
 def join_unbound(unicode sep, l):
     """
     >>> l = text.split()
@@ -381,6 +433,122 @@ def in_test(unicode s, substring):
     TypeError: 'NoneType' object is not iterable
     """
     return substring in s
+
+
+# unicode.__concat__(s, suffix)
+
+def concat_any(unicode s, suffix):
+    """
+    >>> concat(text, 'sa') == text + 'sa'  or  concat(text, 'sa')
+    True
+    >>> concat(None, 'sa')   # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
+    >>> concat(text, None)   # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
+    >>> class RAdd(object):
+    ...     def __radd__(self, other):
+    ...         return 123
+    >>> concat(None, 'sa')   # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
+    """
+    assert cython.typeof(s + suffix) == 'Python object', cython.typeof(s + suffix)
+    return s + suffix
+
+
+def concat(unicode s, str suffix):
+    """
+    >>> concat(text, 'sa') == text + 'sa'  or  concat(text, 'sa')
+    True
+    >>> concat(None, 'sa')   # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
+    >>> concat(text, None)   # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
+    >>> class RAdd(object):
+    ...     def __radd__(self, other):
+    ...         return 123
+    >>> concat(None, 'sa')   # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...
+    """
+    assert cython.typeof(s + object()) == 'Python object', cython.typeof(s + object())
+    assert cython.typeof(s + suffix) == 'unicode object', cython.typeof(s + suffix)
+    return s + suffix
+
+
+def concat_literal_str(str suffix):
+    """
+    >>> concat_literal_str('sa') == 'abcsa'  or  concat_literal_str('sa')
+    True
+    >>> concat_literal_str(None)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...NoneType...
+    """
+    assert cython.typeof(u'abc' + object()) == 'Python object', cython.typeof(u'abc' + object())
+    assert cython.typeof(u'abc' + suffix) == 'unicode object', cython.typeof(u'abc' + suffix)
+    return u'abc' + suffix
+
+
+def concat_literal_unicode(unicode suffix):
+    """
+    >>> concat_literal_unicode(unicode_sa) == 'abcsa'  or  concat_literal_unicode(unicode_sa)
+    True
+    >>> concat_literal_unicode(None)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...NoneType...
+    """
+    assert cython.typeof(u'abc' + suffix) == 'unicode object', cython.typeof(u'abc' + suffix)
+    return u'abc' + suffix
+
+
+# unicode.__mod__(format, values)
+
+def mod_format(unicode s, values):
+    """
+    >>> mod_format(format1, 'sa') == 'abcsadef'  or  mod_format(format1, 'sa')
+    True
+    >>> mod_format(format2, ('XYZ', 'ABC')) == 'abcXYZdefABCghi'  or  mod_format(format2, ('XYZ', 'ABC'))
+    True
+    >>> mod_format(None, 'sa')   # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: unsupported operand type(s) for %: 'NoneType' and 'str'
+    >>> class RMod(object):
+    ...     def __rmod__(self, other):
+    ...         return 123
+    >>> mod_format(None, RMod())
+    123
+    """
+    assert cython.typeof(s % values) == 'Python object', cython.typeof(s % values)
+    return s % values
+
+
+def mod_format_literal(values):
+    """
+    >>> mod_format_literal('sa') == 'abcsadef'  or  mod_format(format1, 'sa')
+    True
+    >>> mod_format_literal(('sa',)) == 'abcsadef'  or  mod_format(format1, ('sa',))
+    True
+    >>> mod_format_literal(['sa']) == "abc['sa']def"  or  mod_format(format1, ['sa'])
+    True
+    """
+    assert cython.typeof(u'abc%sdef' % values) == 'unicode object', cython.typeof(u'abc%sdef' % values)
+    return u'abc%sdef' % values
+
+
+def mod_format_tuple(*values):
+    """
+    >>> mod_format_tuple('sa') == 'abcsadef'  or  mod_format(format1, 'sa')
+    True
+    >>> mod_format_tuple()
+    Traceback (most recent call last):
+    TypeError: not enough arguments for format string
+    """
+    assert cython.typeof(u'abc%sdef' % values) == 'unicode object', cython.typeof(u'abc%sdef' % values)
+    return u'abc%sdef' % values
 
 
 # unicode.find(s, sub, [start, [end]])

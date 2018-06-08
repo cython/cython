@@ -9,11 +9,6 @@ see <http://www.cosc.canterbury.ac.nz/greg.ewing/python/yield-from/YieldFrom-Pyt
 
 import sys
 
-try:
-    _next = next  # not in Py<=2.5
-except NameError:
-    def _next(it):
-        return it.next()
 
 def _lines(trace):
     for line in trace:
@@ -360,6 +355,7 @@ def __test_value_attribute_of_StopIteration_exception():
     pex(e)
     return trace
 
+
 def test_exception_value_crash():
     """
     >>> test_exception_value_crash()
@@ -373,6 +369,50 @@ def test_exception_value_crash():
         yield "g2"
         return [42]
     return list(g1())
+
+
+def test_return_none():
+    """
+    >>> test_return_none()
+    ['g2']
+    """
+    # There used to be a refcount error in CPython when the return value
+    # stored in the StopIteration has a refcount of 1.
+    def g1():
+        yield from g2()
+    def g2():
+        yield "g2"
+        return None
+    return list(g1())
+
+
+def test_finally_return_none(raise_exc=None):
+    """
+    >>> gen = test_finally_return_none()
+    >>> next(gen)
+    'g2'
+    >>> next(gen)
+    Traceback (most recent call last):
+    StopIteration
+
+    >>> gen = test_finally_return_none()
+    >>> next(gen)
+    'g2'
+    >>> try: gen.throw(ValueError())
+    ... except StopIteration: pass
+    ... else: print("FAILED")
+    """
+    # There used to be a refcount error in CPython when the return value
+    # stored in the StopIteration has a refcount of 1.
+    def g1():
+        yield from g2()
+    def g2():
+        try:
+            yield "g2"
+        finally:
+            return None
+    return g1()
+
 
 def test_generator_return_value():
     """
@@ -1018,7 +1058,7 @@ def yield_in_return(x):
     >>> x = yield_in_return(range(3))
     >>> for _ in range(10):
     ...     try:
-    ...         print(_next(x))
+    ...         print(next(x))
     ...     except StopIteration:
     ...         if sys.version_info >= (3,3):
     ...             print(sys.exc_info()[1].value is None)
@@ -1031,3 +1071,18 @@ def yield_in_return(x):
     True
     """
     return (yield from x)
+
+
+def gi_yieldfrom(it):
+    """
+    >>> it = iter([1, 2, 3])
+    >>> g = gi_yieldfrom(it)
+    >>> g.gi_yieldfrom is None or "ERROR: %r" % g.gi_yieldfrom
+    True
+    >>> next(g)
+    1
+    >>> g.gi_yieldfrom is it or "ERROR: %r" % g.gi_yieldfrom
+    True
+    """
+    x = yield from it
+    return x

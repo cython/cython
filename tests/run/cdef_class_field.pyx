@@ -1,6 +1,7 @@
 # mode: run
-# tag: cdefclass
+# tag: exttype
 # ticket: 677
+
 """
 >>> str(Foo(4))
 '4'

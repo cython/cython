@@ -14,13 +14,19 @@ Java / C#.
 
 .. _generic programming: http://en.wikipedia.org/wiki/Generic_programming
 
-.. Note:: Support is experimental and new in this release, there may be bugs!
+.. Note:: Support is still somewhat experimental, there may be bugs!
+
+.. Note:: Fused types are not currently supported as attributes of extension
+          types.  Only variables and function/method arguments can be declared
+          with fused types.
+
 
 Quickstart
 ==========
 
 ::
 
+    from __future__ import print_function
     cimport cython
 
     ctypedef fused char_or_float:
@@ -36,8 +42,8 @@ Quickstart
         cdef:
             cython.char a = 127
             cython.float b = 127
-        print 'char', plus_one(a)
-        print 'float', plus_one(b)
+        print('char', plus_one(a))
+        print('float', plus_one(b))
 
 This gives::
 
@@ -85,22 +91,23 @@ specialization of the fused type must be the same::
         return cython.typeof(arg1) == cython.typeof(arg2)
 
 In this case, the type of both parameters is either an int, or a double
-(according to the previous examples). However, because these arguments are the
-same fused type of ``my_fused_type``, both ``arg1`` and ``arg2`` must be
+(according to the previous examples). However, because these arguments use the
+same fused type ``my_fused_type``, both ``arg1`` and ``arg2`` are
 specialized to the same type.  Therefore this function returns True for every
 possible valid invocation. You are allowed to mix fused types however::
 
     def func(A x, B y):
         ...
 
-where ``A`` and ``B`` are different fused types. This will result in specialized
-code paths for all combinations of types contained in ``A`` and ``B``.
+where ``A`` and ``B`` are different fused types.  This will result in
+specialized code paths for all combinations of types contained in ``A``
+and ``B``.
 
 Fused types and arrays
 ----------------------
 
 Note that specializations of only numeric types may not be very useful, as one
-can usually rely on promotion of types. This is not true for arrays, pointers
+can usually rely on promotion of types.  This is not true for arrays, pointers
 and typed views of memory however.  Indeed, one may write::
 
     def myfunc(A[:, :] x):
@@ -110,6 +117,45 @@ and typed views of memory however.  Indeed, one may write::
 
     cdef otherfunc(A *x):
         ...
+
+Note that in Cython 0.20.x and earlier, the compiler generated the full cross
+product of all type combinations when a fused type was used by more than one
+memory view in a type signature, e.g.
+
+::
+
+    def myfunc(A[:] a, A[:] b):
+        # a and b had independent item types in Cython 0.20.x and earlier.
+        ...
+
+This was unexpected for most users, unlikely to be desired, and also inconsistent
+with other structured type declarations like C arrays of fused types, which were
+considered the same type.  It was thus changed in Cython 0.21 to use the same
+type for all memory views of a fused type.  In order to get the original
+behaviour, it suffices to declare the same fused type under different names, and
+then use these in the declarations::
+
+    ctypedef fused A:
+        int
+        long
+
+    ctypedef fused B:
+        int
+        long
+
+    def myfunc(A[:] a, B[:] b):
+        # a and b are independent types here and may have different item types
+        ...
+
+To get only identical types also in older Cython versions (pre-0.21), a ``ctypedef``
+can be used::
+
+    ctypedef A[:] A_1d
+
+    def myfunc(A_1d a, A_1d b):
+        # a and b have identical item types here, also in older Cython versions
+        ...
+
 
 Selecting Specializations
 =========================
@@ -222,7 +268,7 @@ to figure out whether a specialization is part of another set of types
             long_pointer = &i
 
         if bunch_of_types in string_t:
-            print "s is a string!"
+            print("s is a string!")
 
 __signatures__
 ==============

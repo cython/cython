@@ -1,13 +1,15 @@
 #!/usr/bin/env python
 
+from __future__ import absolute_import
+
 import os
 import shutil
 import tempfile
-
 from distutils.core import setup
-from Cython.Build.Dependencies import cythonize, extended_iglob
-from Cython.Utils import is_package_dir
-from Cython.Compiler import Options
+
+from .Dependencies import cythonize, extended_iglob
+from ..Utils import is_package_dir
+from ..Compiler import Options
 
 try:
     import multiprocessing
@@ -31,7 +33,7 @@ class _FakePool(object):
 def parse_directives(option, name, value, parser):
     dest = option.dest
     old_directives = dict(getattr(parser.values, dest,
-                                  Options.directive_defaults))
+                                  Options.get_directive_defaults()))
     directives = Options.parse_directive_list(
         value, relaxed_bool=True, current_settings=old_directives)
     setattr(parser.values, dest, directives)
@@ -60,9 +62,9 @@ def find_package_base(path):
 
 def cython_compile(path_pattern, options):
     pool = None
-    paths = map(os.path.abspath, extended_iglob(path_pattern))
+    all_paths = map(os.path.abspath, extended_iglob(path_pattern))
     try:
-        for path in paths:
+        for path in all_paths:
             if options.build_inplace:
                 base_dir = path
                 while not os.path.isdir(base_dir) or is_package_dir(base_dir):
@@ -72,8 +74,7 @@ def cython_compile(path_pattern, options):
 
             if os.path.isdir(path):
                 # recursively compiling a package
-                paths = [os.path.join(path, '**', '*.%s' % ext)
-                         for ext in ('py', 'pyx')]
+                paths = [os.path.join(path, '**', '*.{py,pyx}')]
             else:
                 # assume it's a file(-like thing)
                 paths = [path]
@@ -143,6 +144,8 @@ def parse_args(args):
                       help='set a cythonize option')
     parser.add_option('-3', dest='python3_mode', action='store_true',
                       help='use Python 3 syntax mode by default')
+    parser.add_option('-a', '--annotate', dest='annotate', action='store_true',
+                      help='generate annotated HTML page for source files')
 
     parser.add_option('-x', '--exclude', metavar='PATTERN', dest='excludes',
                       action='append', default=[],
@@ -185,6 +188,9 @@ def main(args=None):
         # increase Python compatibility by ignoring compile time errors
         Options.error_on_unknown_names = False
         Options.error_on_uninitialized = False
+
+    if options.annotate:
+        Options.annotate = True
 
     for path in paths:
         cython_compile(path, options)

@@ -8,30 +8,33 @@ Debugging your Cython program
 
 Cython comes with an extension for the GNU Debugger that helps users debug
 Cython code. To use this functionality, you will need to install gdb 7.2 or
-higher, built with Python support (linked to Python 2.5 or higher).
+higher, built with Python support (linked to Python 2.6 or higher).
 The debugger supports debuggees with versions 2.6 and higher. For Python 3,
 code should be built with Python 3 and the debugger should be run with
 Python 2 (or at least it should be able to find the Python 2 Cython
-installation).
+installation). Note that in recent versions of Ubuntu, for instance, ``gdb``
+installed with ``apt-get`` is configured with Python 3. On such systems, the
+proper configuration of ``gdb`` can be obtained by downloading the ``gdb``
+source, and then running::
+
+    ./configure --with-python=python2
+    make
+    sudo make install
 
 The debugger will need debug information that the Cython compiler can export.
-This can be achieved from within the setup
-script by passing ``pyrex_gdb=True`` to your Cython Extenion class::
+This can be achieved from within the setup script by passing ``gdb_debug=True``
+to ``cythonize()``::
 
-    from Cython.Distutils import extension
+    from distutils.core import setup
+    from distutils.extension import Extension
 
-    ext = extension.Extension('source', ['source.pyx'], pyrex_gdb=True)
-    setup(..., ext_modules=[ext])
+    extensions = [Extension('source', ['source.pyx'])]
 
-With this approach debug information can be enabled on a per-module basis.
-Another (easier) way is to simply pass the ``--pyrex-gdb`` flag as a command
-line argument::
+    setup(..., ext_modules=cythonize(extensions, gdb_debug=True))
 
-    python setup.py build_ext --pyrex-gdb
-
-For development it's often easy to use the ``--inplace`` flag also, which makes
-distutils build your project "in place", i.e., not in a separate `build`
-directory.
+For development it's often helpful to pass the ``--inplace`` flag to
+the ``setup.py`` script, which makes distutils build your project
+"in place", i.e., not in a separate `build` directory.
 
 When invoking Cython from the command line directly you can have it write
 debug information using the ``--gdb`` flag::
@@ -45,7 +48,7 @@ Running the Debugger
 To run the Cython debugger and have it import the debug information exported
 by Cython, run ``cygdb`` in the build directory::
 
-    $ python setup.py build_ext --pyrex-gdb --inplace
+    $ python setup.py build_ext --inplace
     $ cygdb
     GNU gdb (GDB) 7.2
     ...
@@ -55,12 +58,17 @@ When using the Cython debugger, it's preferable that you build and run your code
 with an interpreter that is compiled with debugging symbols (i.e. configured
 with ``--with-pydebug`` or compiled with the ``-g`` CFLAG). If your Python is
 installed and managed by your package manager you probably need to install debug
-support separately, e.g. for ubuntu::
+support separately. If using NumPy then you also need to install numpy debugging, or you'll
+see an [import error for multiarray](https://bugzilla.redhat.com/show_bug.cgi?id=1030830).
+E.G. for ubuntu::
 
-    $ sudo apt-get install python-dbg
-    $ python-dbg setup.py build_ext --pyrex-gdb --inplace
+    $ sudo apt-get install python-dbg python-numpy-dbg
+    $ python-dbg setup.py build_ext --inplace
 
-Then you need to run your script with ``python-dbg`` also.
+Then you need to run your script with ``python-dbg`` also. Ensure that when
+building your package with debug symbols that cython extensions are re-compiled
+if they had been previously compiled. If your package is version controlled, you
+might want to perform ``git clean -fxd`` or ``hg purge --all`` before building.
 
 You can also pass additional arguments to gdb::
 
@@ -68,7 +76,7 @@ You can also pass additional arguments to gdb::
 
 i.e.::
 
-    $ cygdb . --args python-dbg mainscript.py
+    $ cygdb . -- --args python-dbg mainscript.py
 
 To tell cygdb not to import any debug information, supply ``--`` as the first
 argument::

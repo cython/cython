@@ -1,0 +1,38 @@
+# tag: cpp
+
+"""
+PYTHON setup.py build_ext -i
+PYTHON test.py
+"""
+
+############### setup.py ###################
+from distutils.core import setup
+from Cython.Build import cythonize
+
+setup(
+    name="cython_test",
+    ext_modules=cythonize('*.pyx', language="c++")
+)
+
+
+############### test.py ###################
+
+from cpp_exc import TestClass
+
+TestClass().test_func()
+
+
+############### cpp_exc.pxd ###################
+
+cdef inline void handle_exception():
+    pass
+
+cdef class TestClass:
+    cpdef test_func(self) except +handle_exception
+
+
+############### cpp_exc.pyx ###################
+
+cdef class TestClass:
+    cpdef test_func(self) except +handle_exception:
+        print('test')

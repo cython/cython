@@ -1,20 +1,20 @@
-cdef extern from "<queue>" namespace "std":
+cdef extern from "<queue>" namespace "std" nogil:
     cdef cppclass queue[T]:
-        queue() nogil except +
-        queue(queue&) nogil except +
+        queue() except +
+        queue(queue&) except +
         #queue(Container&)
-        T& back() nogil
-        bint empty() nogil
-        T& front() nogil
-        void pop() nogil
-        void push(T&) nogil
-        size_t size() nogil
+        T& back()
+        bint empty()
+        T& front()
+        void pop()
+        void push(T&)
+        size_t size()
     cdef cppclass priority_queue[T]:
-        priority_queue() nogil except +
-        priority_queue(priority_queue&) nogil except +
+        priority_queue() except +
+        priority_queue(priority_queue&) except +
         #priority_queue(Container&)
-        bint empty() nogil
-        void pop() nogil
-        void push(T&) nogil
-        size_t size() nogil
-        T& top() nogil
+        bint empty()
+        void pop()
+        void push(T&)
+        size_t size()
+        T& top()

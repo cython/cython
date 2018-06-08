@@ -3,12 +3,17 @@
 #   and associated know-how.
 #
 
-import Naming
-import PyrexTypes
-import StringEncoding
+from __future__ import absolute_import
+
+from . import Naming
+from . import PyrexTypes
+from .Errors import error
 
 invisible = ['__cinit__', '__dealloc__', '__richcmp__',
              '__nonzero__', '__bool__']
+
+richcmp_special_methods = ['__eq__', '__ne__', '__lt__', '__gt__', '__le__', '__ge__']
+
 
 class Signature(object):
     #  Method slot signature descriptor.
@@ -67,8 +72,8 @@ class Signature(object):
         # and are not looked up in here
     }
 
-    type_to_format_map = dict([(type_, format_)
-                                   for format_, type_ in format_map.iteritems()])
+    type_to_format_map = dict(
+        (type_, format_) for format_, type_ in format_map.items())
 
     error_value_map = {
         'O': "NULL",
@@ -93,8 +98,14 @@ class Signature(object):
         self.fixed_arg_format = arg_format
         self.ret_format = ret_format
         self.error_value = self.error_value_map.get(ret_format, None)
-        self.exception_check = self.error_value is not None
+        self.exception_check = ret_format != 'r' and self.error_value is not None
         self.is_staticmethod = False
+
+    def __repr__(self):
+        return '<Signature[%s(%s%s)]>' % (
+            self.ret_format,
+            ', '.join(self.fixed_arg_format),
+            '*' if self.has_generic_args else '')
 
     def num_fixed_args(self):
         return len(self.fixed_arg_format)
@@ -124,7 +135,7 @@ class Signature(object):
     def function_type(self, self_arg_override=None):
         #  Construct a C function type descriptor for this signature
         args = []
-        for i in xrange(self.num_fixed_args()):
+        for i in range(self.num_fixed_args()):
             if self_arg_override is not None and self.is_self_arg(i):
                 assert isinstance(self_arg_override, PyrexTypes.CFuncTypeArg)
                 args.append(self_arg_override)
@@ -191,6 +202,10 @@ class SlotDescriptor(object):
         return guard
 
     def generate(self, scope, code):
+        preprocessor_guard = self.preprocessor_guard_code()
+        if preprocessor_guard:
+            code.putln(preprocessor_guard)
+
         end_pypy_guard = False
         if self.is_initialised_dynamically:
             value = "0"
@@ -214,16 +229,16 @@ class SlotDescriptor(object):
                     code.putln("%s, /*%s*/" % (inherited_value, self.slot_name))
                     code.putln("#else")
                     end_pypy_guard = True
-        preprocessor_guard = self.preprocessor_guard_code()
-        if preprocessor_guard:
-            code.putln(preprocessor_guard)
+
         code.putln("%s, /*%s*/" % (value, self.slot_name))
+
+        if end_pypy_guard:
+            code.putln("#endif")
+
         if self.py3 == '<RESERVED>':
             code.putln("#else")
             code.putln("0, /*reserved*/")
         if preprocessor_guard:
-            code.putln("#endif")
-        if end_pypy_guard:
             code.putln("#endif")
 
     # Some C implementations have trouble statically
@@ -290,11 +305,11 @@ class MethodSlot(SlotDescriptor):
 
     def slot_code(self, scope):
         entry = scope.lookup_here(self.method_name)
-        if entry and entry.func_cname:
+        if entry and entry.is_special and entry.func_cname:
             return entry.func_cname
         for method_name in self.alternatives:
             entry = scope.lookup_here(method_name)
-            if entry and entry.func_cname:
+            if entry and entry.is_special and entry.func_cname:
                 return entry.func_cname
         return "0"
 
@@ -350,10 +365,13 @@ class ConstructorSlot(InternalMethodSlot):
         self.method = method
 
     def slot_code(self, scope):
+        entry = scope.lookup_here(self.method)
         if (self.slot_name != 'tp_new'
                 and scope.parent_type.base_type
                 and not scope.has_pyobject_attrs
-                and not scope.lookup_here(self.method)):
+                and not scope.has_memoryview_attrs
+                and not scope.has_cpp_class_attrs
+                and not (entry and entry.is_special)):
             # if the type does not have object attributes, it can
             # delegate GC methods to its parent - iff the parent
             # functions are defined in the same module
@@ -362,6 +380,8 @@ class ConstructorSlot(InternalMethodSlot):
                 entry = scope.parent_scope.lookup_here(scope.parent_type.base_type.name)
                 if entry.visibility != 'extern':
                     return self.slot_code(parent_type_scope)
+        if entry and not entry.is_special:
+            return "0"
         return InternalMethodSlot.slot_code(self, scope)
 
 
@@ -379,10 +399,21 @@ class SyntheticSlot(InternalMethodSlot):
         self.default_value = default_value
 
     def slot_code(self, scope):
-        if scope.defines_any(self.user_methods):
+        if scope.defines_any_special(self.user_methods):
             return InternalMethodSlot.slot_code(self, scope)
         else:
             return self.default_value
+
+
+class RichcmpSlot(MethodSlot):
+    def slot_code(self, scope):
+        entry = scope.lookup_here(self.method_name)
+        if entry and entry.is_special and entry.func_cname:
+            return entry.func_cname
+        elif scope.defines_any_special(richcmp_special_methods):
+            return scope.mangle_internal(self.slot_name)
+        else:
+            return "0"
 
 
 class TypeFlagsSlot(SlotDescriptor):
@@ -408,14 +439,12 @@ class DocStringSlot(SlotDescriptor):
     #  Descriptor for the docstring slot.
 
     def slot_code(self, scope):
-        if scope.doc is not None:
-            if scope.doc.is_unicode:
-                doc = scope.doc.utf8encode()
-            else:
-                doc = scope.doc.byteencode()
-            return '__Pyx_DOCSTR("%s")' % StringEncoding.escape_byte_string(doc)
-        else:
+        doc = scope.doc
+        if doc is None:
             return "0"
+        if doc.is_unicode:
+            doc = doc.as_utf8_string()
+        return doc.as_c_string_literal()
 
 
 class SuiteSlot(SlotDescriptor):
@@ -423,8 +452,8 @@ class SuiteSlot(SlotDescriptor):
     #
     #  sub_slots   [SlotDescriptor]
 
-    def __init__(self, sub_slots, slot_type, slot_name):
-        SlotDescriptor.__init__(self, slot_name)
+    def __init__(self, sub_slots, slot_type, slot_name, ifdef=None):
+        SlotDescriptor.__init__(self, slot_name, ifdef=ifdef)
         self.sub_slots = sub_slots
         self.slot_type = slot_type
         substructures.append(self)
@@ -446,6 +475,8 @@ class SuiteSlot(SlotDescriptor):
     def generate_substructure(self, scope, code):
         if not self.is_empty(scope):
             code.putln("")
+            if self.ifdef:
+                code.putln("#if %s" % self.ifdef)
             code.putln(
                 "static %s %s = {" % (
                     self.slot_type,
@@ -453,6 +484,8 @@ class SuiteSlot(SlotDescriptor):
             for slot in self.sub_slots:
                 slot.generate(scope, code)
             code.putln("};")
+            if self.ifdef:
+                code.putln("#endif")
 
 substructures = []   # List of all SuiteSlot instances
 
@@ -498,6 +531,27 @@ class BaseClassSlot(SlotDescriptor):
                 base_type.typeptr_cname))
 
 
+class DictOffsetSlot(SlotDescriptor):
+    #  Slot descriptor for a class' dict offset, for dynamic attributes.
+
+    def slot_code(self, scope):
+        dict_entry = scope.lookup_here("__dict__") if not scope.is_closure_class_scope else None
+        if dict_entry and dict_entry.is_variable:
+            if getattr(dict_entry.type, 'cname', None) != 'PyDict_Type':
+                error(dict_entry.pos, "__dict__ slot must be of type 'dict'")
+                return "0"
+            type = scope.parent_type
+            if type.typedef_flag:
+                objstruct = type.objstruct_cname
+            else:
+                objstruct = "struct %s" % type.objstruct_cname
+            return ("offsetof(%s, %s)" % (
+                        objstruct,
+                        dict_entry.cname))
+        else:
+            return "0"
+
+
 # The following dictionary maps __xxx__ method names to slot descriptors.
 
 method_name_to_slot = {}
@@ -521,6 +575,8 @@ def get_special_method_signature(name):
     slot = method_name_to_slot.get(name)
     if slot:
         return slot.signature
+    elif name in richcmp_special_methods:
+        return ibinaryfunc
     else:
         return None
 
@@ -555,6 +611,20 @@ def get_slot_function(scope, slot):
         if entry.visibility != 'extern':
             return slot_code
     return None
+
+
+def get_slot_by_name(slot_name):
+    # For now, only search the type struct, no referenced sub-structs.
+    for slot in slot_table:
+        if slot.slot_name == slot_name:
+            return slot
+    assert False, "Slot not found: %s" % slot_name
+
+
+def get_slot_code_by_name(scope, slot_name):
+    slot = get_slot_by_name(slot_name)
+    return slot.slot_code(scope)
+
 
 #------------------------------------------------------------------------------------------
 #
@@ -622,8 +692,7 @@ delattrofunc = Signature("TO", 'r')
 cmpfunc = Signature("TO", "i")             # typedef int (*cmpfunc)(PyObject *, PyObject *);
 reprfunc = Signature("T", "O")             # typedef PyObject *(*reprfunc)(PyObject *);
 hashfunc = Signature("T", "h")             # typedef Py_hash_t (*hashfunc)(PyObject *);
-                                           # typedef PyObject *(*richcmpfunc) (PyObject *, PyObject *, int);
-richcmpfunc = Signature("OOi", "O")        # typedef PyObject *(*richcmpfunc) (PyObject *, PyObject *, int);
+richcmpfunc = Signature("TOi", "O")        # typedef PyObject *(*richcmpfunc) (PyObject *, PyObject *, int);
 getiterfunc = Signature("T", "O")          # typedef PyObject *(*getiterfunc) (PyObject *);
 iternextfunc = Signature("T", "O")         # typedef PyObject *(*iternextfunc) (PyObject *);
 descrgetfunc = Signature("TOO", "O")       # typedef PyObject *(*descrgetfunc) (PyObject *, PyObject *, PyObject *);
@@ -656,11 +725,13 @@ property_accessor_signatures = {
 #
 #------------------------------------------------------------------------------------------
 
+PyNumberMethods_Py3_GUARD = "PY_MAJOR_VERSION < 3 || (CYTHON_COMPILING_IN_PYPY && PY_VERSION_HEX < 0x03050000)"
+
 PyNumberMethods = (
     MethodSlot(binaryfunc, "nb_add", "__add__"),
     MethodSlot(binaryfunc, "nb_subtract", "__sub__"),
     MethodSlot(binaryfunc, "nb_multiply", "__mul__"),
-    MethodSlot(binaryfunc, "nb_divide", "__div__", py3 = False),
+    MethodSlot(binaryfunc, "nb_divide", "__div__", ifdef = PyNumberMethods_Py3_GUARD),
     MethodSlot(binaryfunc, "nb_remainder", "__mod__"),
     MethodSlot(binaryfunc, "nb_divmod", "__divmod__"),
     MethodSlot(ternaryfunc, "nb_power", "__pow__"),
@@ -674,18 +745,18 @@ PyNumberMethods = (
     MethodSlot(binaryfunc, "nb_and", "__and__"),
     MethodSlot(binaryfunc, "nb_xor", "__xor__"),
     MethodSlot(binaryfunc, "nb_or", "__or__"),
-    EmptySlot("nb_coerce", py3 = False),
+    EmptySlot("nb_coerce", ifdef = PyNumberMethods_Py3_GUARD),
     MethodSlot(unaryfunc, "nb_int", "__int__", fallback="__long__"),
     MethodSlot(unaryfunc, "nb_long", "__long__", fallback="__int__", py3 = "<RESERVED>"),
     MethodSlot(unaryfunc, "nb_float", "__float__"),
-    MethodSlot(unaryfunc, "nb_oct", "__oct__", py3 = False),
-    MethodSlot(unaryfunc, "nb_hex", "__hex__", py3 = False),
+    MethodSlot(unaryfunc, "nb_oct", "__oct__", ifdef = PyNumberMethods_Py3_GUARD),
+    MethodSlot(unaryfunc, "nb_hex", "__hex__", ifdef = PyNumberMethods_Py3_GUARD),
 
     # Added in release 2.0
     MethodSlot(ibinaryfunc, "nb_inplace_add", "__iadd__"),
     MethodSlot(ibinaryfunc, "nb_inplace_subtract", "__isub__"),
     MethodSlot(ibinaryfunc, "nb_inplace_multiply", "__imul__"),
-    MethodSlot(ibinaryfunc, "nb_inplace_divide", "__idiv__", py3 = False),
+    MethodSlot(ibinaryfunc, "nb_inplace_divide", "__idiv__", ifdef = PyNumberMethods_Py3_GUARD),
     MethodSlot(ibinaryfunc, "nb_inplace_remainder", "__imod__"),
     MethodSlot(ibinaryfunc, "nb_inplace_power", "__ipow__"), # actually ternaryfunc!!!
     MethodSlot(ibinaryfunc, "nb_inplace_lshift", "__ilshift__"),
@@ -702,7 +773,11 @@ PyNumberMethods = (
     MethodSlot(ibinaryfunc, "nb_inplace_true_divide", "__itruediv__"),
 
     # Added in release 2.5
-    MethodSlot(unaryfunc, "nb_index", "__index__", ifdef = "PY_VERSION_HEX >= 0x02050000")
+    MethodSlot(unaryfunc, "nb_index", "__index__"),
+
+    # Added in release 3.5
+    MethodSlot(binaryfunc, "nb_matrix_multiply", "__matmul__", ifdef="PY_VERSION_HEX >= 0x03050000"),
+    MethodSlot(ibinaryfunc, "nb_inplace_matrix_multiply", "__imatmul__", ifdef="PY_VERSION_HEX >= 0x03050000"),
 )
 
 PySequenceMethods = (
@@ -730,8 +805,14 @@ PyBufferProcs = (
     MethodSlot(segcountproc, "bf_getsegcount", "__getsegcount__", py3 = False),
     MethodSlot(charbufferproc, "bf_getcharbuffer", "__getcharbuffer__", py3 = False),
 
-    MethodSlot(getbufferproc, "bf_getbuffer", "__getbuffer__", ifdef = "PY_VERSION_HEX >= 0x02060000"),
-    MethodSlot(releasebufferproc, "bf_releasebuffer", "__releasebuffer__", ifdef = "PY_VERSION_HEX >= 0x02060000")
+    MethodSlot(getbufferproc, "bf_getbuffer", "__getbuffer__"),
+    MethodSlot(releasebufferproc, "bf_releasebuffer", "__releasebuffer__")
+)
+
+PyAsyncMethods = (
+    MethodSlot(unaryfunc, "am_await", "__await__"),
+    MethodSlot(unaryfunc, "am_aiter", "__aiter__"),
+    MethodSlot(unaryfunc, "am_anext", "__anext__"),
 )
 
 #------------------------------------------------------------------------------------------
@@ -747,7 +828,11 @@ slot_table = (
     EmptySlot("tp_print"), #MethodSlot(printfunc, "tp_print", "__print__"),
     EmptySlot("tp_getattr"),
     EmptySlot("tp_setattr"),
-    MethodSlot(cmpfunc, "tp_compare", "__cmp__", py3 = '<RESERVED>'),
+
+    # tp_compare (Py2) / tp_reserved (Py3<3.5) / tp_as_async (Py3.5+) is always used as tp_as_async in Py3
+    MethodSlot(cmpfunc, "tp_compare", "__cmp__", ifdef="PY_MAJOR_VERSION < 3"),
+    SuiteSlot(PyAsyncMethods, "__Pyx_PyAsyncMethodsStruct", "tp_as_async", ifdef="PY_MAJOR_VERSION >= 3"),
+
     MethodSlot(reprfunc, "tp_repr", "__repr__"),
 
     SuiteSlot(PyNumberMethods, "PyNumberMethods", "tp_as_number"),
@@ -769,8 +854,7 @@ slot_table = (
     GCDependentSlot("tp_traverse"),
     GCClearReferencesSlot("tp_clear"),
 
-    # Later -- synthesize a method to split into separate ops?
-    MethodSlot(richcmpfunc, "tp_richcompare", "__richcmp__", inherited=False),  # Py3 checks for __hash__
+    RichcmpSlot(richcmpfunc, "tp_richcompare", "__richcmp__", inherited=False),  # Py3 checks for __hash__
 
     EmptySlot("tp_weaklistoffset"),
 
@@ -787,7 +871,7 @@ slot_table = (
     SyntheticSlot("tp_descr_get", ["__get__"], "0"),
     SyntheticSlot("tp_descr_set", ["__set__", "__delete__"], "0"),
 
-    EmptySlot("tp_dictoffset"),
+    DictOffsetSlot("tp_dictoffset"),
 
     MethodSlot(initproc, "tp_init", "__init__"),
     EmptySlot("tp_alloc"), #FixedSlot("tp_alloc", "PyType_GenericAlloc"),
@@ -801,7 +885,7 @@ slot_table = (
     EmptySlot("tp_subclasses"),
     EmptySlot("tp_weaklist"),
     EmptySlot("tp_del"),
-    EmptySlot("tp_version_tag", ifdef="PY_VERSION_HEX >= 0x02060000"),
+    EmptySlot("tp_version_tag"),
     EmptySlot("tp_finalize", ifdef="PY_VERSION_HEX >= 0x030400a1"),
 )
 
@@ -820,6 +904,7 @@ MethodSlot(objargproc, "", "__delitem__")
 MethodSlot(ssizessizeobjargproc, "", "__setslice__")
 MethodSlot(ssizessizeargproc, "", "__delslice__")
 MethodSlot(getattrofunc, "", "__getattr__")
+MethodSlot(getattrofunc, "", "__getattribute__")
 MethodSlot(setattrofunc, "", "__setattr__")
 MethodSlot(delattrofunc, "", "__delattr__")
 MethodSlot(descrgetfunc, "", "__get__")

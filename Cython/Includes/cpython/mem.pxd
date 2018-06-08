@@ -73,3 +73,36 @@ cdef extern from "Python.h":
 
     # PyMem_MALLOC(), PyMem_REALLOC(), PyMem_FREE().
     # PyMem_NEW(), PyMem_RESIZE(), PyMem_DEL().
+
+
+    #####################################################################
+    # Raw object memory interface
+    #####################################################################
+
+    # Functions to call the same malloc/realloc/free as used by Python's
+    # object allocator.  If WITH_PYMALLOC is enabled, these may differ from
+    # the platform malloc/realloc/free.  The Python object allocator is
+    # designed for fast, cache-conscious allocation of many "small" objects,
+    # and with low hidden memory overhead.
+    #
+    # PyObject_Malloc(0) returns a unique non-NULL pointer if possible.
+    #
+    # PyObject_Realloc(NULL, n) acts like PyObject_Malloc(n).
+    # PyObject_Realloc(p != NULL, 0) does not return  NULL, or free the memory
+    # at p.
+    #
+    # Returned pointers must be checked for NULL explicitly; no action is
+    # performed on failure other than to return NULL (no warning it printed, no
+    # exception is set, etc).
+    #
+    # For allocating objects, use PyObject_{New, NewVar} instead whenever
+    # possible.  The PyObject_{Malloc, Realloc, Free} family is exposed
+    # so that you can exploit Python's small-block allocator for non-object
+    # uses.  If you must use these routines to allocate object memory, make sure
+    # the object gets initialized via PyObject_{Init, InitVar} after obtaining
+    # the raw memory.
+
+    void* PyObject_Malloc(size_t size)
+    void* PyObject_Calloc(size_t nelem, size_t elsize)
+    void* PyObject_Realloc(void *ptr, size_t new_size)
+    void PyObject_Free(void *ptr)

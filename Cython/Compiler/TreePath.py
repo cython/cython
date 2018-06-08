@@ -6,8 +6,10 @@ function selects a part of the expression, e.g. a child node, a
 specific descendant or a node that holds an attribute.
 """
 
+from __future__ import absolute_import
+
 import re
-import sys
+import operator
 
 path_tokenizer = re.compile(
     "("
@@ -132,6 +134,7 @@ def handle_descendants(next, token):
 
     return select
 
+
 def handle_attribute(next, token):
     token = next()
     if token[0]:
@@ -145,16 +148,7 @@ def handle_attribute(next, token):
     else:
         if token[0] == '=':
             value = parse_path_value(next)
-    if sys.version_info >= (2,6) or (sys.version_info >= (2,4) and '.' not in name):
-        import operator
-        readattr = operator.attrgetter(name)
-    else:
-        name_path = name.split('.')
-        def readattr(node):
-            attr_value = node
-            for attr in name_path:
-                attr_value = getattr(attr_value, attr)
-            return attr_value
+    readattr = operator.attrgetter(name)
     if value is None:
         def select(result):
             for node in result:
@@ -175,6 +169,7 @@ def handle_attribute(next, token):
                     yield attr_value
     return select
 
+
 def parse_path_value(next):
     token = next()
     value = token[0]
@@ -185,6 +180,8 @@ def parse_path_value(next):
             return int(value)
         except ValueError:
             pass
+    elif token[1].isdigit():
+        return int(token[1])
     else:
         name = token[1].lower()
         if name == 'true':

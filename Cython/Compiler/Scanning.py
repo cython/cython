@@ -1,23 +1,24 @@
-# cython: infer_types=True, language_level=3, py2_import=True
+# cython: infer_types=True, language_level=3, py2_import=True, auto_pickle=False
 #
 #   Cython Scanner
 #
 
+from __future__ import absolute_import
+
+import cython
+cython.declare(make_lexicon=object, lexicon=object,
+               print_function=object, error=object, warning=object,
+               os=object, platform=object)
+
 import os
 import platform
 
-import cython
-cython.declare(EncodedString=object, string_prefixes=object, raw_prefixes=object, IDENT=unicode,
-               print_function=object)
-
-from Cython import Utils
-from Cython.Plex.Scanners import Scanner
-from Cython.Plex.Errors import UnrecognizedInput
-from Errors import error
-from Lexicon import string_prefixes, raw_prefixes, make_lexicon, IDENT
-from Future import print_function
-
-from StringEncoding import EncodedString
+from .. import Utils
+from ..Plex.Scanners import Scanner
+from ..Plex.Errors import UnrecognizedInput
+from .Errors import error, warning
+from .Lexicon import any_string_prefix, make_lexicon, IDENT
+from .Future import print_function
 
 debug_scanner = 0
 trace_scanner = 0
@@ -26,11 +27,13 @@ scanner_dump_file = None
 
 lexicon = None
 
+
 def get_lexicon():
     global lexicon
     if not lexicon:
         lexicon = make_lexicon()
     return lexicon
+
 
 #------------------------------------------------------------------
 
@@ -47,20 +50,31 @@ pyx_reserved_words = py_reserved_words + [
     "cimport", "DEF", "IF", "ELIF", "ELSE"
 ]
 
+
 class Method(object):
 
-    def __init__(self, name):
+    def __init__(self, name, **kwargs):
         self.name = name
-        self.__name__ = name # for Plex tracing
+        self.kwargs = kwargs or None
+        self.__name__ = name  # for Plex tracing
 
     def __call__(self, stream, text):
-        return getattr(stream, self.name)(text)
+        method = getattr(stream, self.name)
+        # self.kwargs is almost always unused => avoid call overhead
+        return method(text, **self.kwargs) if self.kwargs is not None else method(text)
+
+    def __copy__(self):
+        return self  # immutable, no need to copy
+
+    def __deepcopy__(self, memo):
+        return self  # immutable, no need to copy
+
 
 #------------------------------------------------------------------
 
 class CompileTimeScope(object):
 
-    def __init__(self, outer = None):
+    def __init__(self, outer=None):
         self.entries = {}
         self.outer = outer
 
@@ -86,10 +100,10 @@ class CompileTimeScope(object):
             else:
                 raise
 
+
 def initial_compile_time_env():
     benv = CompileTimeScope()
-    names = ('UNAME_SYSNAME', 'UNAME_NODENAME', 'UNAME_RELEASE',
-        'UNAME_VERSION', 'UNAME_MACHINE')
+    names = ('UNAME_SYSNAME', 'UNAME_NODENAME', 'UNAME_RELEASE', 'UNAME_VERSION', 'UNAME_MACHINE')
     for name, value in zip(names, platform.uname()):
         benv.declare(name, value)
     try:
@@ -97,13 +111,17 @@ def initial_compile_time_env():
     except ImportError:
         import builtins
 
-    names = ('False', 'True',
-             'abs', 'all', 'any', 'ascii', 'bin', 'bool', 'bytearray', 'bytes',
-             'chr', 'cmp', 'complex', 'dict', 'divmod', 'enumerate', 'filter',
-             'float', 'format', 'frozenset', 'hash', 'hex', 'int', 'len',
-             'list', 'long', 'map', 'max', 'min', 'oct', 'ord', 'pow', 'range',
-             'repr', 'reversed', 'round', 'set', 'slice', 'sorted', 'str',
-             'sum', 'tuple', 'xrange', 'zip')
+    names = (
+        'False', 'True',
+        'abs', 'all', 'any', 'ascii', 'bin', 'bool', 'bytearray', 'bytes',
+        'chr', 'cmp', 'complex', 'dict', 'divmod', 'enumerate', 'filter',
+        'float', 'format', 'frozenset', 'hash', 'hex', 'int', 'len',
+        'list', 'map', 'max', 'min', 'oct', 'ord', 'pow', 'range',
+        'repr', 'reversed', 'round', 'set', 'slice', 'sorted', 'str',
+        'sum', 'tuple', 'zip',
+        ### defined below in a platform independent way
+        # 'long', 'unicode', 'reduce', 'xrange'
+    )
 
     for name in names:
         try:
@@ -111,8 +129,17 @@ def initial_compile_time_env():
         except AttributeError:
             # ignore, likely Py3
             pass
+
+    # Py2/3 adaptations
+    from functools import reduce
+    benv.declare('reduce', reduce)
+    benv.declare('unicode', getattr(builtins, 'unicode', getattr(builtins, 'str')))
+    benv.declare('long', getattr(builtins, 'long', getattr(builtins, 'int')))
+    benv.declare('xrange', getattr(builtins, 'xrange', getattr(builtins, 'range')))
+
     denv = CompileTimeScope(benv)
     return denv
+
 
 #------------------------------------------------------------------
 
@@ -139,8 +166,11 @@ class SourceDescriptor(object):
 
     def get_escaped_description(self):
         if self._escaped_description is None:
-            self._escaped_description = \
+            esc_desc = \
                 self.get_description().encode('ASCII', 'replace').decode("ASCII")
+            # Use forward slashes on Windows since these paths
+            # will be used in the #line directives in the C/C++ files.
+            self._escaped_description = esc_desc.replace('\\', '/')
         return self._escaped_description
 
     def __gt__(self, other):
@@ -164,6 +194,13 @@ class SourceDescriptor(object):
         except AttributeError:
             return False
 
+    def __copy__(self):
+        return self  # immutable, no need to copy
+
+    def __deepcopy__(self, memo):
+        return self  # immutable, no need to copy
+
+
 class FileSourceDescriptor(SourceDescriptor):
     """
     Represents a code source. A code source is a more generic abstraction
@@ -176,6 +213,9 @@ class FileSourceDescriptor(SourceDescriptor):
         filename = Utils.decode_filename(filename)
         self.path_description = path_description or filename
         self.filename = filename
+        # Prefer relative paths to current directory (which is most likely the project root) over absolute paths.
+        workdir = os.path.abspath('.') + os.sep
+        self.file_path = filename[len(workdir):] if filename.startswith(workdir) else filename
         self.set_file_type_from_name(filename)
         self._cmp_name = filename
         self._lines = {}
@@ -190,15 +230,10 @@ class FileSourceDescriptor(SourceDescriptor):
                 return lines
         except KeyError:
             pass
-        f = Utils.open_source_file(
-            self.filename, encoding=encoding,
-            error_handling=error_handling,
-            # newline normalisation is costly before Py2.6
-            require_normalised_newlines=False)
-        try:
+
+        with Utils.open_source_file(self.filename, encoding=encoding, error_handling=error_handling) as f:
             lines = list(f)
-        finally:
-            f.close()
+
         if key in self._lines:
             self._lines[key] = lines
         else:
@@ -208,7 +243,11 @@ class FileSourceDescriptor(SourceDescriptor):
         return lines
 
     def get_description(self):
-        return self.path_description
+        try:
+            return os.path.relpath(self.path_description)
+        except ValueError:
+            # path not under current directory => use complete file path
+            return self.path_description
 
     def get_error_description(self):
         path = self.filename
@@ -218,7 +257,7 @@ class FileSourceDescriptor(SourceDescriptor):
         return path
 
     def get_filenametable_entry(self):
-        return self.filename
+        return self.file_path
 
     def __eq__(self, other):
         return isinstance(other, FileSourceDescriptor) and self.filename == other.filename
@@ -228,6 +267,7 @@ class FileSourceDescriptor(SourceDescriptor):
 
     def __repr__(self):
         return "<FileSourceDescriptor:%s>" % self.filename
+
 
 class StringSourceDescriptor(SourceDescriptor):
     """
@@ -246,8 +286,8 @@ class StringSourceDescriptor(SourceDescriptor):
         if not encoding:
             return self.codelines
         else:
-            return [ line.encode(encoding, error_handling).decode(encoding)
-                     for line in self.codelines ]
+            return [line.encode(encoding, error_handling).decode(encoding)
+                    for line in self.codelines]
 
     def get_description(self):
         return self.name
@@ -269,6 +309,7 @@ class StringSourceDescriptor(SourceDescriptor):
     def __repr__(self):
         return "<StringSourceDescriptor:%s>" % self.name
 
+
 #------------------------------------------------------------------
 
 class PyrexScanner(Scanner):
@@ -278,8 +319,8 @@ class PyrexScanner(Scanner):
     #  compile_time_eval  boolean  In a true conditional compilation context
     #  compile_time_expr  boolean  In a compile-time expression context
 
-    def __init__(self, file, filename, parent_scanner = None,
-                 scope = None, context = None, source_encoding=None, parse_comments=True, initial_pos=None):
+    def __init__(self, file, filename, parent_scanner=None,
+                 scope=None, context=None, source_encoding=None, parse_comments=True, initial_pos=None):
         Scanner.__init__(self, get_lexicon(), file, filename, initial_pos)
         if parent_scanner:
             self.context = parent_scanner.context
@@ -293,8 +334,7 @@ class PyrexScanner(Scanner):
             self.compile_time_env = initial_compile_time_env()
             self.compile_time_eval = 1
             self.compile_time_expr = 0
-            if hasattr(context.options, 'compile_time_env') and \
-               context.options.compile_time_env is not None:
+            if getattr(context.options, 'compile_time_env', None):
                 self.compile_time_env.update(context.options.compile_time_env)
         self.parse_comments = parse_comments
         self.source_encoding = source_encoding
@@ -308,6 +348,7 @@ class PyrexScanner(Scanner):
         self.indentation_stack = [0]
         self.indentation_char = None
         self.bracket_nesting_level = 0
+        self.async_enabled = 0
         self.begin('INDENT')
         self.sy = ''
         self.next()
@@ -316,15 +357,18 @@ class PyrexScanner(Scanner):
         if self.parse_comments:
             self.produce('commentline', text)
 
+    def strip_underscores(self, text, symbol):
+        self.produce(symbol, text.replace('_', ''))
+
     def current_level(self):
         return self.indentation_stack[-1]
 
     def open_bracket_action(self, text):
-        self.bracket_nesting_level = self.bracket_nesting_level + 1
+        self.bracket_nesting_level += 1
         return text
 
     def close_bracket_action(self, text):
-        self.bracket_nesting_level = self.bracket_nesting_level - 1
+        self.bracket_nesting_level -= 1
         return text
 
     def newline_action(self, text):
@@ -340,9 +384,7 @@ class PyrexScanner(Scanner):
     }
 
     def begin_string_action(self, text):
-        if text[:1] in string_prefixes:
-            text = text[1:]
-        if text[:1] in raw_prefixes:
+        while text[:1] in any_string_prefix:
             text = text[1:]
         self.begin(self.string_states[text])
         self.produce('BEGIN_STRING')
@@ -402,18 +444,16 @@ class PyrexScanner(Scanner):
             sy, systring = self.read()
         except UnrecognizedInput:
             self.error("Unrecognized character")
+            return  # just a marker, error() always raises
         if sy == IDENT:
             if systring in self.keywords:
                 if systring == u'print' and print_function in self.context.future_directives:
                     self.keywords.discard('print')
-                    systring = EncodedString(systring)
                 elif systring == u'exec' and self.context.language_level >= 3:
                     self.keywords.discard('exec')
-                    systring = EncodedString(systring)
                 else:
                     sy = systring
-            else:
-                systring = EncodedString(systring)
+            systring = self.context.intern_ustring(systring)
         self.sy = sy
         self.systring = systring
         if False: # debug_scanner:
@@ -441,27 +481,27 @@ class PyrexScanner(Scanner):
         # This method should be added to Plex
         self.queue.insert(0, (token, value))
 
-    def error(self, message, pos = None, fatal = True):
+    def error(self, message, pos=None, fatal=True):
         if pos is None:
             pos = self.position()
         if self.sy == 'INDENT':
-            err = error(pos, "Possible inconsistent indentation")
+            error(pos, "Possible inconsistent indentation")
         err = error(pos, message)
         if fatal: raise err
 
-    def expect(self, what, message = None):
+    def expect(self, what, message=None):
         if self.sy == what:
             self.next()
         else:
             self.expected(what, message)
 
-    def expect_keyword(self, what, message = None):
+    def expect_keyword(self, what, message=None):
         if self.sy == IDENT and self.systring == what:
             self.next()
         else:
             self.expected(what, message)
 
-    def expected(self, what, message = None):
+    def expected(self, what, message=None):
         if message:
             self.error(message)
         else:
@@ -472,14 +512,33 @@ class PyrexScanner(Scanner):
             self.error("Expected '%s', found '%s'" % (what, found))
 
     def expect_indent(self):
-        self.expect('INDENT',
-            "Expected an increase in indentation level")
+        self.expect('INDENT', "Expected an increase in indentation level")
 
     def expect_dedent(self):
-        self.expect('DEDENT',
-            "Expected a decrease in indentation level")
+        self.expect('DEDENT', "Expected a decrease in indentation level")
 
-    def expect_newline(self, message = "Expected a newline"):
+    def expect_newline(self, message="Expected a newline", ignore_semicolon=False):
         # Expect either a newline or end of file
+        useless_trailing_semicolon = None
+        if ignore_semicolon and self.sy == ';':
+            useless_trailing_semicolon = self.position()
+            self.next()
         if self.sy != 'EOF':
             self.expect('NEWLINE', message)
+        if useless_trailing_semicolon is not None:
+            warning(useless_trailing_semicolon, "useless trailing semicolon")
+
+    def enter_async(self):
+        self.async_enabled += 1
+        if self.async_enabled == 1:
+            self.keywords.add('async')
+            self.keywords.add('await')
+
+    def exit_async(self):
+        assert self.async_enabled > 0
+        self.async_enabled -= 1
+        if not self.async_enabled:
+            self.keywords.discard('await')
+            self.keywords.discard('async')
+            if self.sy in ('async', 'await'):
+                self.sy, self.systring = IDENT, self.context.intern_ustring(self.sy)

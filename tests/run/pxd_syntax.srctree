@@ -1,0 +1,51 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import a; a.test()"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+
+from distutils.core import setup
+
+setup(
+    ext_modules = cythonize("a.pyx"),
+)
+
+######## a.pyx ########
+
+cdef class ExtTypeDocstringPass:
+    pass
+
+cdef class ExtTypeDocstring:
+    "huhu!"   # this should override the .pxd docstring
+
+cdef class ExtTypePass:
+    pass
+
+cdef class ExtTypeDocstringPassString:
+    pass
+
+def test():
+    assert not ExtTypePass().__doc__, ExtTypePass().__doc__
+    assert ExtTypeDocstring().__doc__ == "huhu!", ExtTypeDocstring().__doc__
+    assert ExtTypeDocstringPass().__doc__ == "hoho!", ExtTypeDocstringPass().__doc__
+    assert ExtTypeDocstringPassString().__doc__ == "hoho!", ExtTypeDocstringPassString().__doc__
+
+######## a.pxd ########
+
+cdef class ExtTypePass:
+    pass
+
+cdef class ExtTypeDocstring:
+    """
+    hoho
+    """
+
+cdef class ExtTypeDocstringPass:
+    "hoho!"
+    pass
+
+cdef class ExtTypeDocstringPassString:
+    "hoho!"
+    pass
+    "more hoho"

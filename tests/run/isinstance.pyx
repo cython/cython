@@ -5,6 +5,10 @@ from cpython.bool cimport bool
 cdef class A:
     pass
 
+
+a_as_obj = A
+
+
 @cython.test_assert_path_exists('//SimpleCallNode//SimpleCallNode')
 @cython.test_fail_if_path_exists('//SimpleCallNode//PythonCapiCallNode',
                                  '//PythonCapiCallNode//SimpleCallNode')
@@ -16,9 +20,8 @@ def test_non_optimised():
     # Non-optimized
     cdef object foo = A
     assert isinstance(A(), foo)
-    assert isinstance(0, (int, long))
-    assert not isinstance(u"xyz", (int, long))
     return True
+
 
 @cython.test_assert_path_exists('//PythonCapiCallNode',
                                 '//PythonCapiCallNode//SimpleCallNode',
@@ -106,6 +109,7 @@ def test_optimised():
     assert isinstance(A(), <type>untyped_type)
     return True
 
+
 @cython.test_assert_path_exists('//PythonCapiCallNode')
 @cython.test_fail_if_path_exists('//SimpleCallNode//SimpleCallNode',
                                  '//SimpleCallNode//PythonCapiCallNode',
@@ -118,7 +122,13 @@ def test_optimised_tuple():
     assert isinstance(int(),   (int, long, float, bytes, str, unicode, tuple, list, dict, set, slice, type, A))
     assert isinstance(list(),  (int, long, float, bytes, str, unicode, tuple, list, dict, set, slice, type, A))
     assert isinstance(A(),  (int, long, float, bytes, str, unicode, tuple, list, dict, set, slice, type, A))
+    assert isinstance(A(),  (int, long, float, bytes, str, unicode, tuple, list, dict, set, slice, type, A, a_as_obj))
+    assert isinstance(A(),  (int, long, float, bytes, str, unicode, tuple, list, dict, set, slice, type, a_as_obj, A))
+    assert isinstance(A(),  (int, long, float, bytes, str, unicode, a_as_obj, tuple, list, dict, set, slice, type, A))
+    assert isinstance(0, (int, long))
+    assert not isinstance(u"xyz", (int, long))
     return True
+
 
 def test_custom():
     """
@@ -134,6 +144,11 @@ cdef class B:
 cdef class C:
     pass
 
+
+@cython.test_assert_path_exists('//PythonCapiCallNode')
+@cython.test_fail_if_path_exists('//SimpleCallNode//SimpleCallNode',
+                                 '//SimpleCallNode//PythonCapiCallNode',
+                                 '//TupleNode//NameNode')
 def test_custom_tuple(obj):
     """
     >>> test_custom_tuple(A())
@@ -144,6 +159,7 @@ def test_custom_tuple(obj):
     False
     """
     return isinstance(obj, (A,B))
+
 
 def test_nested(x):
     """

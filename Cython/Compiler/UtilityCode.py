@@ -1,19 +1,22 @@
-from TreeFragment import parse_from_strings, StringParseContext
-import Symtab
-import Naming
-import Code
+from __future__ import absolute_import
+
+from .TreeFragment import parse_from_strings, StringParseContext
+from . import Symtab
+from . import Naming
+from . import Code
+
 
 class NonManglingModuleScope(Symtab.ModuleScope):
 
     def __init__(self, prefix, *args, **kw):
         self.prefix = prefix
         self.cython_scope = None
+        self.cpp = kw.pop('cpp', False)
         Symtab.ModuleScope.__init__(self, *args, **kw)
 
     def add_imported_entry(self, name, entry, pos):
         entry.used = True
-        return super(NonManglingModuleScope, self).add_imported_entry(
-                                                        name, entry, pos)
+        return super(NonManglingModuleScope, self).add_imported_entry(name, entry, pos)
 
     def mangle(self, prefix, name=None):
         if name:
@@ -25,12 +28,13 @@ class NonManglingModuleScope(Symtab.ModuleScope):
         else:
             return Symtab.ModuleScope.mangle(self, prefix)
 
+
 class CythonUtilityCodeContext(StringParseContext):
     scope = None
 
-    def find_module(self, module_name, relative_to = None, pos = None,
-                    need_pxd = 1):
-
+    def find_module(self, module_name, relative_to=None, pos=None, need_pxd=True, absolute_fallback=True):
+        if relative_to:
+            raise AssertionError("Relative imports not supported in utility code.")
         if module_name != self.module_name:
             if module_name not in self.modules:
                 raise AssertionError("Only the cython cimport is supported.")
@@ -38,10 +42,8 @@ class CythonUtilityCodeContext(StringParseContext):
                 return self.modules[module_name]
 
         if self.scope is None:
-            self.scope = NonManglingModuleScope(self.prefix,
-                                                module_name,
-                                                parent_module=None,
-                                                context=self)
+            self.scope = NonManglingModuleScope(
+                self.prefix, module_name, parent_module=None, context=self, cpp=self.cpp)
 
         return self.scope
 
@@ -66,14 +68,21 @@ class CythonUtilityCode(Code.UtilityCodeBase):
     is_cython_utility = True
 
     def __init__(self, impl, name="__pyxutil", prefix="", requires=None,
-                 file=None, from_scope=None, context=None):
+                 file=None, from_scope=None, context=None, compiler_directives=None,
+                 outer_module_scope=None):
         # 1) We need to delay the parsing/processing, so that all modules can be
         #    imported without import loops
         # 2) The same utility code object can be used for multiple source files;
         #    while the generated node trees can be altered in the compilation of a
         #    single file.
         # Hence, delay any processing until later.
+        context_types = {}
         if context is not None:
+            from .PyrexTypes import BaseType
+            for key, value in context.items():
+                if isinstance(value, BaseType):
+                    context[key] = key
+                    context_types[key] = value
             impl = Code.sub_tempita(impl, context, file, name)
         self.impl = impl
         self.name = name
@@ -81,21 +90,41 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         self.prefix = prefix
         self.requires = requires or []
         self.from_scope = from_scope
+        self.outer_module_scope = outer_module_scope
+        self.compiler_directives = compiler_directives
+        self.context_types = context_types
+
+    def __eq__(self, other):
+        if isinstance(other, CythonUtilityCode):
+            return self._equality_params() == other._equality_params()
+        else:
+            return False
+
+    def _equality_params(self):
+        outer_scope = self.outer_module_scope
+        while isinstance(outer_scope, NonManglingModuleScope):
+            outer_scope = outer_scope.outer_scope
+        return self.impl, outer_scope, self.compiler_directives
+
+    def __hash__(self):
+        return hash(self.impl)
 
     def get_tree(self, entries_only=False, cython_scope=None):
-        from AnalysedTreeTransforms import AutoTestDictTransform
+        from .AnalysedTreeTransforms import AutoTestDictTransform
         # The AutoTestDictTransform creates the statement "__test__ = {}",
         # which when copied into the main ModuleNode overwrites
         # any __test__ in user code; not desired
         excludes = [AutoTestDictTransform]
 
-        import Pipeline, ParseTreeTransforms
-        context = CythonUtilityCodeContext(self.name)
+        from . import Pipeline, ParseTreeTransforms
+        context = CythonUtilityCodeContext(
+            self.name, compiler_directives=self.compiler_directives,
+            cpp=cython_scope.is_cpp() if cython_scope else False)
         context.prefix = self.prefix
         context.cython_scope = cython_scope
         #context = StringParseContext(self.name)
-        tree = parse_from_strings(self.name, self.impl, context=context,
-                                  allow_struct_enum_decorator=True)
+        tree = parse_from_strings(
+            self.name, self.impl, context=context, allow_struct_enum_decorator=True)
         pipeline = Pipeline.create_pipeline(context, 'pyx', exclude_classes=excludes)
 
         if entries_only:
@@ -114,17 +143,48 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         pipeline = Pipeline.insert_into_pipeline(pipeline, transform,
                                                  before=before)
 
+        def merge_scope(scope):
+            def merge_scope_transform(module_node):
+                module_node.scope.merge_in(scope)
+                return module_node
+            return merge_scope_transform
+
         if self.from_scope:
+            pipeline = Pipeline.insert_into_pipeline(
+                pipeline, merge_scope(self.from_scope),
+                before=ParseTreeTransforms.AnalyseDeclarationsTransform)
+
+        for dep in self.requires:
+            if isinstance(dep, CythonUtilityCode) and hasattr(dep, 'tree') and not cython_scope:
+                pipeline = Pipeline.insert_into_pipeline(
+                    pipeline, merge_scope(dep.tree.scope),
+                    before=ParseTreeTransforms.AnalyseDeclarationsTransform)
+
+        if self.outer_module_scope:
+            # inject outer module between utility code module and builtin module
             def scope_transform(module_node):
-                module_node.scope.merge_in(self.from_scope)
+                module_node.scope.outer_scope = self.outer_module_scope
                 return module_node
 
-            transform = ParseTreeTransforms.AnalyseDeclarationsTransform
-            pipeline = Pipeline.insert_into_pipeline(pipeline, scope_transform,
-                                                     before=transform)
+            pipeline = Pipeline.insert_into_pipeline(
+                pipeline, scope_transform,
+                before=ParseTreeTransforms.AnalyseDeclarationsTransform)
+
+        if self.context_types:
+            # inject types into module scope
+            def scope_transform(module_node):
+                for name, type in self.context_types.items():
+                    entry = module_node.scope.declare_type(name, type, None, visibility='extern')
+                    entry.in_cinclude = True
+                return module_node
+
+            pipeline = Pipeline.insert_into_pipeline(
+                pipeline, scope_transform,
+                before=ParseTreeTransforms.AnalyseDeclarationsTransform)
 
         (err, tree) = Pipeline.run_pipeline(pipeline, tree, printtree=False)
         assert not err, err
+        self.tree = tree
         return tree
 
     def put_code(self, output):
@@ -153,20 +213,20 @@ class CythonUtilityCode(Code.UtilityCodeBase):
         entries.pop('__builtins__')
         entries.pop('__doc__')
 
-        for name, entry in entries.iteritems():
+        for entry in entries.values():
             entry.utility_code_definition = self
             entry.used = used
 
         original_scope = tree.scope
-        dest_scope.merge_in(original_scope, merge_unused=True,
-                            whitelist=whitelist)
+        dest_scope.merge_in(original_scope, merge_unused=True, whitelist=whitelist)
         tree.scope = dest_scope
 
         for dep in self.requires:
             if dep.is_cython_utility:
-                dep.declare_in_scope(dest_scope)
+                dep.declare_in_scope(dest_scope, cython_scope=cython_scope)
 
         return original_scope
+
 
 def declare_declarations_in_scope(declaration_string, env, private_type=True,
                                   *args, **kwargs):

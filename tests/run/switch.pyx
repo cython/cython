@@ -143,6 +143,75 @@ def switch_c(int x):
     return -1
 
 
+
+@cython.test_assert_path_exists(
+    '//SwitchStatNode',
+    '//SwitchStatNode//SwitchStatNode',
+)
+@cython.test_fail_if_path_exists('//BoolBinopNode', '//PrimaryCmpNode')
+def switch_in_switch(int x, int y):
+    """
+    >>> switch_in_switch(1, 1)
+    (1, 1)
+    >>> switch_in_switch(1, 2)
+    (1, 2)
+    >>> switch_in_switch(1, 4)
+    (1, 3)
+
+    >>> switch_in_switch(2, 1)
+    (2, 1)
+    >>> switch_in_switch(2, 2)
+    (2, 2)
+    >>> switch_in_switch(2, 3)
+    (2, 3)
+    >>> switch_in_switch(2, 4)
+    (2, 4)
+    >>> switch_in_switch(2, 20)
+    (2, 4)
+
+    >>> switch_in_switch(3, 0)
+    False
+    >>> switch_in_switch(3, 1)
+    True
+    >>> switch_in_switch(3, 2)
+    True
+    >>> switch_in_switch(3, 3)
+    True
+    >>> switch_in_switch(3, 4)
+    False
+
+    >>> switch_in_switch(20, 0)
+    True
+    >>> switch_in_switch(20, 1)
+    False
+    >>> switch_in_switch(20, 3)
+    False
+    >>> switch_in_switch(20, 4)
+    True
+    """
+    if x == 1:
+        if y == 1:
+            return 1,1
+        elif y == 2:
+            return 1,2
+        else:
+            return 1,3
+    elif x == 2:
+        if y == 1:
+            return 2,1
+        elif y == 2:
+            return 2,2
+        elif y == 3:
+            return 2,3
+        else:
+            return 2,4
+    elif x == 3:
+        return y in (1,2,3)
+    else:
+        return y not in (1,2,3)
+    return 'FAILED'
+
+
 @cython.test_assert_path_exists('//SwitchStatNode')
 @cython.test_fail_if_path_exists('//IfStatNode')
 def switch_or(int x):
@@ -359,3 +428,39 @@ def int_enum_duplicates_mix(int x):
         return 2
     else:
         return 3
+
+
+@cython.test_assert_path_exists('//SwitchStatNode')
+@cython.test_fail_if_path_exists('//BoolBinopNode', '//PrimaryCmpNode')
+def int_in_bool_binop(int x):
+    """
+    >>> int_in_bool_binop(0)
+    False
+    >>> int_in_bool_binop(1)
+    True
+    >>> int_in_bool_binop(2)
+    True
+    >>> int_in_bool_binop(3)
+    False
+    """
+    return x == 1 or x == 2
+
+
+@cython.test_assert_path_exists('//SwitchStatNode')
+@cython.test_fail_if_path_exists('//BoolBinopNode', '//PrimaryCmpNode')
+def int_in_bool_binop_3(int x):
+    """
+    >>> int_in_bool_binop_3(0)
+    False
+    >>> int_in_bool_binop_3(1)
+    True
+    >>> int_in_bool_binop_3(2)
+    True
+    >>> int_in_bool_binop_3(3)
+    False
+    >>> int_in_bool_binop_3(4)
+    True
+    >>> int_in_bool_binop_3(5)
+    False
+    """
+    return x == 1 or x == 2 or x == 4

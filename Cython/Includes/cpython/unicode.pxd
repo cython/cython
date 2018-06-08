@@ -25,57 +25,60 @@ cdef extern from *:
     char* PyUnicode_AS_DATA(object o)
 
     # Return 1 or 0 depending on whether ch is a whitespace character.
-    bint Py_UNICODE_ISSPACE(Py_UNICODE ch)
+    bint Py_UNICODE_ISSPACE(Py_UCS4 ch)
 
     # Return 1 or 0 depending on whether ch is a lowercase character.
-    bint Py_UNICODE_ISLOWER(Py_UNICODE ch)
+    bint Py_UNICODE_ISLOWER(Py_UCS4 ch)
 
     # Return 1 or 0 depending on whether ch is an uppercase character.
-    bint Py_UNICODE_ISUPPER(Py_UNICODE ch)
+    bint Py_UNICODE_ISUPPER(Py_UCS4 ch)
 
     # Return 1 or 0 depending on whether ch is a titlecase character.
-    bint Py_UNICODE_ISTITLE(Py_UNICODE ch)
+    bint Py_UNICODE_ISTITLE(Py_UCS4 ch)
 
     # Return 1 or 0 depending on whether ch is a linebreak character.
-    bint Py_UNICODE_ISLINEBREAK(Py_UNICODE ch)
+    bint Py_UNICODE_ISLINEBREAK(Py_UCS4 ch)
 
     # Return 1 or 0 depending on whether ch is a decimal character.
-    bint Py_UNICODE_ISDECIMAL(Py_UNICODE ch)
+    bint Py_UNICODE_ISDECIMAL(Py_UCS4 ch)
 
     # Return 1 or 0 depending on whether ch is a digit character.
-    bint Py_UNICODE_ISDIGIT(Py_UNICODE ch)
+    bint Py_UNICODE_ISDIGIT(Py_UCS4 ch)
 
     # Return 1 or 0 depending on whether ch is a numeric character.
-    bint Py_UNICODE_ISNUMERIC(Py_UNICODE ch)
+    bint Py_UNICODE_ISNUMERIC(Py_UCS4 ch)
 
     # Return 1 or 0 depending on whether ch is an alphabetic character.
-    bint Py_UNICODE_ISALPHA(Py_UNICODE ch)
+    bint Py_UNICODE_ISALPHA(Py_UCS4 ch)
 
     # Return 1 or 0 depending on whether ch is an alphanumeric character.
-    bint Py_UNICODE_ISALNUM(Py_UNICODE ch)
+    bint Py_UNICODE_ISALNUM(Py_UCS4 ch)
 
     # Return the character ch converted to lower case.
-    Py_UNICODE Py_UNICODE_TOLOWER(Py_UNICODE ch)
+    # Used to return a Py_UNICODE value before Py3.3.
+    Py_UCS4 Py_UNICODE_TOLOWER(Py_UCS4 ch)
 
     # Return the character ch converted to upper case.
-    Py_UNICODE Py_UNICODE_TOUPPER(Py_UNICODE ch)
+    # Used to return a Py_UNICODE value before Py3.3.
+    Py_UCS4 Py_UNICODE_TOUPPER(Py_UCS4 ch)
 
     # Return the character ch converted to title case.
-    Py_UNICODE Py_UNICODE_TOTITLE(Py_UNICODE ch)
+    # Used to return a Py_UNICODE value before Py3.3.
+    Py_UCS4 Py_UNICODE_TOTITLE(Py_UCS4 ch)
 
     # Return the character ch converted to a decimal positive
     # integer. Return -1 if this is not possible. This macro does not
     # raise exceptions.
-    int Py_UNICODE_TODECIMAL(Py_UNICODE ch)
+    int Py_UNICODE_TODECIMAL(Py_UCS4 ch)
 
     # Return the character ch converted to a single digit
     # integer. Return -1 if this is not possible. This macro does not
     # raise exceptions.
-    int Py_UNICODE_TODIGIT(Py_UNICODE ch)
+    int Py_UNICODE_TODIGIT(Py_UCS4 ch)
 
     # Return the character ch converted to a double. Return -1.0 if
     # this is not possible. This macro does not raise exceptions.
-    double Py_UNICODE_TONUMERIC(Py_UNICODE ch)
+    double Py_UNICODE_TONUMERIC(Py_UCS4 ch)
 
     # To create Unicode objects and access their basic sequence
     # properties, use these APIs:
@@ -87,14 +90,14 @@ cdef extern from *:
     # not NULL, the return value might be a shared object. Therefore,
     # modification of the resulting Unicode object is only allowed
     # when u is NULL.
-    object PyUnicode_FromUnicode(Py_UNICODE *u, Py_ssize_t size)
+    unicode PyUnicode_FromUnicode(Py_UNICODE *u, Py_ssize_t size)
 
     # Create a Unicode Object from the given Unicode code point ordinal.
     #
     # The ordinal must be in range(0x10000) on narrow Python builds
     # (UCS2), and range(0x110000) on wide builds (UCS4). A ValueError
     # is raised in case it is not.
-    object PyUnicode_FromOrdinal(int ordinal)
+    unicode PyUnicode_FromOrdinal(int ordinal)
 
     # Return a read-only pointer to the Unicode object's internal
     # Py_UNICODE buffer, NULL if unicode is not a Unicode object.
@@ -131,6 +134,131 @@ cdef extern from *:
 
     #Py_ssize_t PyUnicode_AsWideChar(object o, wchar_t *w, Py_ssize_t size)
 
+
+# Unicode Methods
+
+    # Concat two strings giving a new Unicode string.
+    # Return value: New reference.
+    unicode PyUnicode_Concat(object left, object right)
+
+    # Split a string giving a list of Unicode strings. If sep is NULL,
+    # splitting will be done at all whitespace substrings. Otherwise,
+    # splits occur at the given separator. At most maxsplit splits will
+    # be done. If negative, no limit is set. Separators are not included
+    # in the resulting list.
+    # Return value: New reference.
+    list PyUnicode_Split(object s, object sep, Py_ssize_t maxsplit)
+
+    # Split a Unicode string at line breaks, returning a list of Unicode
+    # strings. CRLF is considered to be one line break. If keepend is 0,
+    # the Line break characters are not included in the resulting strings.
+    # Return value: New reference.
+    list PyUnicode_Splitlines(object s, bint keepend)
+
+    # Translate a string by applying a character mapping table to it and
+    # return the resulting Unicode object.
+    #
+    # The mapping table must map Unicode ordinal integers to Unicode ordinal
+    # integers or None (causing deletion of the character).
+    #
+    # Mapping tables need only provide the __getitem__() interface;
+    # dictionaries and sequences work well. Unmapped character ordinals (ones
+    # which cause a LookupError) are left untouched and are copied as-is.
+    #
+    # errors has the usual meaning for codecs. It may be NULL which indicates
+    # to use the default error handling.
+    # Return value: New reference.
+    unicode PyUnicode_Translate(object str, object table, const char *errors)
+
+    # Join a sequence of strings using the given separator and return the
+    # resulting Unicode string.
+    # Return value: New reference.
+    unicode PyUnicode_Join(object separator, object seq)
+
+    # Return 1 if substr matches str[start:end] at the given tail end
+    # (direction == -1 means to do a prefix match, direction == 1 a
+    # suffix match), 0 otherwise.
+    # Return -1 if an error occurred.
+    Py_ssize_t PyUnicode_Tailmatch(object str, object substr,
+                                   Py_ssize_t start, Py_ssize_t end, int direction) except -1
+
+    # Return the first position of substr in str[start:end] using the given
+    # direction (direction == 1 means to do a forward search, direction == -1
+    # a backward search). The return value is the index of the first match;
+    # a value of -1 indicates that no match was found, and -2 indicates that an
+    # error occurred and an exception has been set.
+    Py_ssize_t PyUnicode_Find(object str, object substr, Py_ssize_t start, Py_ssize_t end, int direction) except -2
+
+    # Return the first position of the character ch in str[start:end] using
+    # the given direction (direction == 1 means to do a forward search,
+    # direction == -1 a backward search). The return value is the index of
+    # the first match; a value of -1 indicates that no match was found, and
+    # -2 indicates that an error occurred and an exception has been set.
+    # New in version 3.3.
+    Py_ssize_t PyUnicode_FindChar(object str, Py_UCS4 ch, Py_ssize_t start, Py_ssize_t end, int direction) except -2
+
+    # Return the number of non-overlapping occurrences of substr in
+    # str[start:end]. Return -1 if an error occurred.
+    Py_ssize_t PyUnicode_Count(object str, object substr, Py_ssize_t start, Py_ssize_t end) except -1
+
+    # Replace at most maxcount occurrences of substr in str with replstr and
+    # return the resulting Unicode object. maxcount == -1 means replace all
+    # occurrences.
+    # Return value: New reference.
+    unicode PyUnicode_Replace(object str, object substr, object replstr, Py_ssize_t maxcount)
+
+    # Compare two strings and return -1, 0, 1 for less than,
+    # equal, and greater than, respectively.
+    int PyUnicode_Compare(object left, object right) except? -1
+
+    # Compare a unicode object, uni, with string and return -1, 0, 1 for less than,
+    # equal, and greater than, respectively. It is best to pass only ASCII-encoded
+    # strings, but the function interprets the input string as ISO-8859-1 if it
+    # contains non-ASCII characters.
+    int PyUnicode_CompareWithASCIIString(object uni, char *string) except? -1
+
+    # Rich compare two unicode strings and return one of the following:
+    #
+    #    NULL in case an exception was raised
+    #    Py_True or Py_False for successful comparisons
+    #    Py_NotImplemented in case the type combination is unknown
+    #
+    # Note that Py_EQ and Py_NE comparisons can cause a UnicodeWarning in case
+    # the conversion of the arguments to Unicode fails with a UnicodeDecodeError.
+    #
+    # Possible values for op are Py_GT, Py_GE, Py_EQ, Py_NE, Py_LT, and Py_LE.
+    object PyUnicode_RichCompare(object left, object right, int op)
+
+    # Return a new string object from format and args; this is analogous to
+    # format % args.
+    # Return value: New reference.
+    unicode PyUnicode_Format(object format, object args)
+
+    # Check whether element is contained in container and return true or false
+    # accordingly.
+    #
+    # element has to coerce to a one element Unicode string. -1 is returned
+    # if there was an error.
+    int PyUnicode_Contains(object container, object element) except -1
+
+    # Intern the argument *string in place. The argument must be the address
+    # of a pointer variable pointing to a Python unicode string object. If
+    # there is an existing interned string that is the same as *string, it sets
+    # *string to it (decrementing the reference count of the old string object
+    # and incrementing the reference count of the interned string object),
+    # otherwise it leaves *string alone and interns it (incrementing its reference
+    # count). (Clarification: even though there is a lot of talk about reference
+    # counts, think of this function as reference-count-neutral; you own the object
+    # after the call if and only if you owned it before the call.)
+    #void PyUnicode_InternInPlace(PyObject **string)
+
+    # A combination of PyUnicode_FromString() and PyUnicode_InternInPlace(),
+    # returning either a new unicode string object that has been interned, or
+    # a new ("owned") reference to an earlier interned string object with the
+    # same value.
+    unicode PyUnicode_InternFromString(const char *v)
+
+
 # Codecs
 
     # Create a Unicode object by decoding size bytes of the encoded
@@ -161,22 +289,22 @@ cdef extern from *:
     # Create a Unicode object by decoding size bytes of the UTF-8
     # encoded string s. Return NULL if an exception was raised by the
     # codec.
-    object PyUnicode_DecodeUTF8(char *s, Py_ssize_t size, char *errors)
+    unicode PyUnicode_DecodeUTF8(char *s, Py_ssize_t size, char *errors)
 
     # If consumed is NULL, behave like PyUnicode_DecodeUTF8(). If
     # consumed is not NULL, trailing incomplete UTF-8 byte sequences
     # will not be treated as an error. Those bytes will not be decoded
     # and the number of bytes that have been decoded will be stored in
     # consumed. New in version 2.4.
-    object PyUnicode_DecodeUTF8Stateful(char *s, Py_ssize_t size, char *errors, Py_ssize_t *consumed)
+    unicode PyUnicode_DecodeUTF8Stateful(char *s, Py_ssize_t size, char *errors, Py_ssize_t *consumed)
 
     # Encode the Py_UNICODE buffer of the given size using UTF-8 and
     # return a Python string object. Return NULL if an exception was
     # raised by the codec.
-    object PyUnicode_EncodeUTF8(Py_UNICODE *s, Py_ssize_t size, char *errors)
+    bytes PyUnicode_EncodeUTF8(Py_UNICODE *s, Py_ssize_t size, char *errors)
 
     # Encode a Unicode objects using UTF-8 and return the result as Python string object. Error handling is ``strict''. Return NULL if an exception was raised by the codec.
-    object PyUnicode_AsUTF8String(object unicode)
+    bytes PyUnicode_AsUTF8String(object unicode)
 
 # These are the UTF-16 codec APIs:
 
@@ -198,7 +326,7 @@ cdef extern from *:
     # order at the.
     #
     # If byteorder is NULL, the codec starts in native order mode.
-    object PyUnicode_DecodeUTF16(char *s, Py_ssize_t size, char *errors, int *byteorder)
+    unicode PyUnicode_DecodeUTF16(char *s, Py_ssize_t size, char *errors, int *byteorder)
 
     # If consumed is NULL, behave like PyUnicode_DecodeUTF16(). If
     # consumed is not NULL, PyUnicode_DecodeUTF16Stateful() will not
@@ -206,7 +334,7 @@ cdef extern from *:
     # number of bytes or a split surrogate pair) as an error. Those
     # bytes will not be decoded and the number of bytes that have been
     # decoded will be stored in consumed. New in version 2.4.
-    object PyUnicode_DecodeUTF16Stateful(char *s, Py_ssize_t size, char *errors, int *byteorder, Py_ssize_t *consumed)
+    unicode PyUnicode_DecodeUTF16Stateful(char *s, Py_ssize_t size, char *errors, int *byteorder, Py_ssize_t *consumed)
 
     # Return a Python string object holding the UTF-16 encoded value
     # of the Unicode data in s. If byteorder is not 0, output is
@@ -223,13 +351,13 @@ cdef extern from *:
     # If Py_UNICODE_WIDE is defined, a single Py_UNICODE value may get
     # represented as a surrogate pair. If it is not defined, each
     # Py_UNICODE values is interpreted as an UCS-2 character.
-    object PyUnicode_EncodeUTF16(Py_UNICODE *s, Py_ssize_t size, char *errors, int byteorder)
+    bytes PyUnicode_EncodeUTF16(Py_UNICODE *s, Py_ssize_t size, char *errors, int byteorder)
 
     # Return a Python string using the UTF-16 encoding in native byte
     # order. The string always starts with a BOM mark. Error handling
     # is ``strict''. Return NULL if an exception was raised by the
     # codec.
-    object PyUnicode_AsUTF16String(object unicode)
+    bytes PyUnicode_AsUTF16String(object unicode)
 
 # These are the ``Unicode Escape'' codec APIs:
 
@@ -270,17 +398,17 @@ cdef extern from *:
     # Create a Unicode object by decoding size bytes of the Latin-1
     # encoded string s. Return NULL if an exception was raised by the
     # codec.
-    object PyUnicode_DecodeLatin1(char *s, Py_ssize_t size, char *errors)
+    unicode PyUnicode_DecodeLatin1(char *s, Py_ssize_t size, char *errors)
 
     # Encode the Py_UNICODE buffer of the given size using Latin-1 and
-    # return a Python string object. Return NULL if an exception was
+    # return a Python bytes object. Return NULL if an exception was
     # raised by the codec.
-    object PyUnicode_EncodeLatin1(Py_UNICODE *s, Py_ssize_t size, char *errors)
+    bytes PyUnicode_EncodeLatin1(Py_UNICODE *s, Py_ssize_t size, char *errors)
 
     # Encode a Unicode objects using Latin-1 and return the result as
-    # Python string object. Error handling is ``strict''. Return NULL
+    # Python bytes object. Error handling is ``strict''. Return NULL
     # if an exception was raised by the codec.
-    object PyUnicode_AsLatin1String(object unicode)
+    bytes PyUnicode_AsLatin1String(object unicode)
 
 # These are the ASCII codec APIs. Only 7-bit ASCII data is
 # accepted. All other codes generate errors.
@@ -288,17 +416,17 @@ cdef extern from *:
     # Create a Unicode object by decoding size bytes of the ASCII
     # encoded string s. Return NULL if an exception was raised by the
     # codec.
-    object PyUnicode_DecodeASCII(char *s, Py_ssize_t size, char *errors)
+    unicode PyUnicode_DecodeASCII(char *s, Py_ssize_t size, char *errors)
 
     # Encode the Py_UNICODE buffer of the given size using ASCII and
-    # return a Python string object. Return NULL if an exception was
+    # return a Python bytes object. Return NULL if an exception was
     # raised by the codec.
-    object PyUnicode_EncodeASCII(Py_UNICODE *s, Py_ssize_t size, char *errors)
+    bytes PyUnicode_EncodeASCII(Py_UNICODE *s, Py_ssize_t size, char *errors)
 
     # Encode a Unicode objects using ASCII and return the result as
-    # Python string object. Error handling is ``strict''. Return NULL
+    # Python bytes object. Error handling is ``strict''. Return NULL
     # if an exception was raised by the codec.
-    object PyUnicode_AsASCIIString(object o)
+    bytes PyUnicode_AsASCIIString(object o)
 
 # These are the mapping codec APIs:
 #
@@ -339,6 +467,8 @@ cdef extern from *:
     # Encode the Py_UNICODE buffer of the given size using the given
     # mapping object and return a Python string object. Return NULL if
     # an exception was raised by the codec.
+    #
+    # Deprecated since version 3.3, will be removed in version 4.0.
     object PyUnicode_EncodeCharmap(Py_UNICODE *s, Py_ssize_t size, object mapping, char *errors)
 
     # Encode a Unicode objects using the given mapping object and
@@ -359,6 +489,8 @@ cdef extern from *:
     # dictionaries and sequences work well. Unmapped character
     # ordinals (ones which cause a LookupError) are left untouched and
     # are copied as-is.
+    #
+    # Deprecated since version 3.3, will be removed in version 4.0.
     object PyUnicode_TranslateCharmap(Py_UNICODE *s, Py_ssize_t size,
                                       object table, char *errors)
 
@@ -371,21 +503,43 @@ cdef extern from *:
     # Create a Unicode object by decoding size bytes of the MBCS
     # encoded string s. Return NULL if an exception was raised by the
     # codec.
-    object PyUnicode_DecodeMBCS(char *s, Py_ssize_t size, char *errors)
+    unicode PyUnicode_DecodeMBCS(char *s, Py_ssize_t size, char *errors)
 
     # If consumed is NULL, behave like PyUnicode_DecodeMBCS(). If
     # consumed is not NULL, PyUnicode_DecodeMBCSStateful() will not
     # decode trailing lead byte and the number of bytes that have been
     # decoded will be stored in consumed. New in version 2.5.
     # NOTE: Python 2.x uses 'int' values for 'size' and 'consumed' (changed in 3.0)
-    object PyUnicode_DecodeMBCSStateful(char *s, Py_ssize_t size, char *errors, Py_ssize_t *consumed)
+    unicode PyUnicode_DecodeMBCSStateful(char *s, Py_ssize_t size, char *errors, Py_ssize_t *consumed)
 
     # Encode the Py_UNICODE buffer of the given size using MBCS and
     # return a Python string object. Return NULL if an exception was
     # raised by the codec.
-    object PyUnicode_EncodeMBCS(Py_UNICODE *s, Py_ssize_t size, char *errors)
+    bytes PyUnicode_EncodeMBCS(Py_UNICODE *s, Py_ssize_t size, char *errors)
 
     # Encode a Unicode objects using MBCS and return the result as
     # Python string object. Error handling is ``strict''. Return NULL
     # if an exception was raised by the codec.
-    object PyUnicode_AsMBCSString(object o)
+    bytes PyUnicode_AsMBCSString(object o)
+
+    # Encode the Unicode object using the specified code page and return
+    # a Python bytes object. Return NULL if an exception was raised by the
+    # codec. Use CP_ACP code page to get the MBCS encoder.
+    #
+    # New in version 3.3.
+    bytes PyUnicode_EncodeCodePage(int code_page, object unicode, const char *errors)
+
+
+# Py_UCS4 helpers (new in CPython 3.3)
+
+    # These utility functions work on strings of Py_UCS4 characters and
+    # otherwise behave like the C standard library functions with the same name.
+
+    size_t Py_UCS4_strlen(const Py_UCS4 *u)
+    Py_UCS4* Py_UCS4_strcpy(Py_UCS4 *s1, const Py_UCS4 *s2)
+    Py_UCS4* Py_UCS4_strncpy(Py_UCS4 *s1, const Py_UCS4 *s2, size_t n)
+    Py_UCS4* Py_UCS4_strcat(Py_UCS4 *s1, const Py_UCS4 *s2)
+    int Py_UCS4_strcmp(const Py_UCS4 *s1, const Py_UCS4 *s2)
+    int Py_UCS4_strncmp(const Py_UCS4 *s1, const Py_UCS4 *s2, size_t n)
+    Py_UCS4* Py_UCS4_strchr(const Py_UCS4 *s, Py_UCS4 c)
+    Py_UCS4* Py_UCS4_strrchr(const Py_UCS4 *s, Py_UCS4 c)

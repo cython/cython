@@ -1,4 +1,4 @@
-from cpython.ref cimport PyObject
+from .object cimport PyObject
 
 cdef extern from "Python.h":
 
@@ -50,7 +50,7 @@ cdef extern from "Python.h":
     # return value to a specific exception; use
     # PyErr_ExceptionMatches() instead, shown below. (The comparison
     # could easily fail since the exception may be an instance instead
-    # of a class, in the case of a class exception, or it may the a
+    # of a class, in the case of a class exception, or it may be a
     # subclass of the expected exception.)
 
     bint PyErr_ExceptionMatches(object exc)
@@ -223,7 +223,7 @@ cdef extern from "Python.h":
     # function returns 0. The error indicator may or may not be
     # cleared if it was previously set.
 
-    void PyErr_SetInterrupt()
+    void PyErr_SetInterrupt() nogil
     # This function simulates the effect of a SIGINT signal arriving
     # -- the next time PyErr_CheckSignals() is called,
     # KeyboardInterrupt will be raised. It may be called without

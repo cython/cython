@@ -1,12 +1,30 @@
+# mode: run
+
 def foo():
     """
     >>> foo()
     """
     a = 42
     a1 = 0123
+    an1 = -0123
+    assert a1 == -an1
     a2 = 0xabc
+    an2 = -0xabc
+    assert a2 == -an2
     a3 = 0xDEF
+    an3 = -0xDEF
+    assert a3 == -an3
     a4 = 1234567890L
+    an4 = -1234567890L
+    assert a4 == -an4
+    a5 = 0o123
+    an5 = -0o123
+    assert a5 == -an5
+    assert a5 == a1
+    a6 = 0b101
+    an6 = -0b101
+    assert a6 == -an6 == 5
+
     b = 42.88e17
     b0a = 1.
     b0b = .1
@@ -16,8 +34,10 @@ def foo():
     b0f = 1.1e1
     b0g = 1.1e-1
     b0h = 1e1
+
     b1 = 3j
     b2 = 3.1415J
+
     b3 = c'X'
     c = "spanish inquisition"
     d = "this" "parrot" "is" "resting"

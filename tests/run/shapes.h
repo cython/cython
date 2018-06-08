@@ -9,7 +9,7 @@ namespace shapes {
     class Shape
     {
     public:
-        virtual float area() = 0;
+        virtual float area() const = 0;
         Shape() { constructor_count++; }
         virtual ~Shape() { destructor_count++; }
     };
@@ -24,7 +24,7 @@ namespace shapes {
             this->height = height;
         }
 
-        float area() { return width * height; }
+        float area() const { return width * height; }
         int width;
         int height;
 
@@ -40,17 +40,23 @@ namespace shapes {
         Square(int side) : Rectangle(side, side) { this->side = side; }
         int side;
     };
-
-    class Circle : public Shape {
+    
+    class Ellipse : public Shape {
     public:
-        Circle(int radius) { this->radius = radius; }
-        float area() { return 3.1415926535897931f * radius; }
+        Ellipse(int a, int b) { this->a = a; this->b = b; }
+        float area() const { return 3.1415926535897931f * a * b; }
+        int a, b;
+    };
+    
+    class Circle : public Ellipse {
+    public:
+        Circle(int radius) : Ellipse(radius, radius) { this->radius = radius; }
         int radius;
     };
 
     class Empty : public Shape {
     public:
-        float area() { return 0; }
+        float area() const { return 0; }
     };
 
 }

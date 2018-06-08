@@ -1,6 +1,6 @@
 # mode: run
 # ticket: 723
-# tags: lambda
+# tag: lambda
 
 def t723(a):
     """

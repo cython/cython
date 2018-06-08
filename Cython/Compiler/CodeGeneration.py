@@ -1,5 +1,8 @@
-from Cython.Compiler.Visitor import VisitorTransform
-from Cython.Compiler.Nodes import StatListNode
+from __future__ import absolute_import
+
+from .Visitor import VisitorTransform
+from .Nodes import StatListNode
+
 
 class ExtractPxdCode(VisitorTransform):
     """
@@ -9,7 +12,7 @@ class ExtractPxdCode(VisitorTransform):
     The result is a tuple (StatListNode, ModuleScope), i.e.
     everything that is needed from the pxd after it is processed.
 
-    A purer approach would be to seperately compile the pxd code,
+    A purer approach would be to separately compile the pxd code,
     but the result would have to be slightly more sophisticated
     than pure strings (functions + wanted interned strings +
     wanted utility code + wanted cached objects) so for now this

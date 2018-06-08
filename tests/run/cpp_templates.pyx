@@ -1,13 +1,20 @@
 # tag: cpp
 
+cimport cython
 from cython.operator import dereference as deref
 
 cdef extern from "cpp_templates_helper.h":
-    cdef cppclass Wrap[T]:
+    cdef cppclass Wrap[T, AltType=*, UndeclarableAltType=*]:
         Wrap(T)
         void set(T)
         T get()
         bint operator==(Wrap[T])
+
+        AltType get_alt_type()
+        void set_alt_type(AltType)
+
+        UndeclarableAltType create()
+        bint accept(UndeclarableAltType)
 
     cdef cppclass Pair[T1,T2]:
         Pair(T1,T2)
@@ -21,6 +28,10 @@ cdef extern from "cpp_templates_helper.h":
 
     cdef cppclass SubClass[T2, T3](SuperClass[T2, T3]):
         pass
+
+    cdef cppclass Div[T]:
+        @staticmethod
+        T half(T value)
 
 def test_int(int x, int y):
     """
@@ -52,6 +63,31 @@ def test_double(double x, double y):
         return a.get(), b.get(), deref(a) == deref(b)
     finally:
         del a, b
+
+
+def test_default_template_arguments(double x):
+    """
+    >>> test_default_template_arguments(3.5)
+    (3.5, 3.0)
+    """
+    try:
+        a = new Wrap[double](x)
+        b = new Wrap[double, int, long](x)
+
+        ax = a.get_alt_type()
+        a.set_alt_type(ax)
+        assert a.accept(a.create())  # never declared
+
+        bx = b.get_alt_type()
+        b.set_alt_type(bx)
+
+        bc = b.create()              # declaration here is fine
+        assert b.accept(bc)
+
+        return a.get(), b.get()
+    finally:
+        del a
+
 
 def test_pair(int i, double x):
     """
@@ -95,6 +131,19 @@ def test_func_ptr(double x):
     finally:
         del w
 
+def test_typeof(double x):
+    """
+    >>> test_func_ptr(3)
+    9.0
+    >>> test_func_ptr(-1.5)
+    2.25
+    """
+    try:
+        w = new Wrap[cython.typeof(&f)](&f)
+        return w.get()(x)
+    finally:
+        del w
+
 def test_cast_template_pointer():
     """
     >>> test_cast_template_pointer()
@@ -104,3 +153,25 @@ def test_cast_template_pointer():
 
     sup = sub
     sup = <SubClass[int, float] *> sub
+
+def test_static(x):
+    """
+    >>> test_static(2)
+    (1, 1.0)
+    >>> test_static(3)
+    (1, 1.5)
+    """
+    return Div[int].half(x), Div[double].half(x)
+
+def test_pure_syntax(int i):
+    """
+    >>> test_ptr(3)
+    3
+    >>> test_ptr(5)
+    5
+    """
+    try:
+        w = new Wrap[cython.pointer(int)](&i)
+        return deref(w.get())
+    finally:
+        del w

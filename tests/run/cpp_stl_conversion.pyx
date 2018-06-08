@@ -1,8 +1,12 @@
-# tag: cpp
+# mode: run
+# tag: cpp, werror
+# distutils: extra_compile_args=-std=c++0x
 
 import sys
 from libcpp.map cimport map
+from libcpp.unordered_map cimport unordered_map
 from libcpp.set cimport set as cpp_set
+from libcpp.unordered_set cimport unordered_set
 from libcpp.string cimport string
 from libcpp.pair cimport pair
 from libcpp.vector cimport vector
@@ -68,6 +72,16 @@ def test_string_call(a, b):
     """
     return add_strings(a, b)
 
+def test_c_string_convert(char *c_string):
+    """
+    >>> normalize(test_c_string_convert("abc".encode('ascii')))
+    'abc'
+    """
+    cdef string s
+    with nogil:
+        s = c_string
+    return s
+
 def test_int_vector(o):
     """
     >>> test_int_vector([1, 2, 3])
@@ -112,6 +126,32 @@ def test_double_vector(o):
     cdef vector[double] v = o
     return v
 
+def test_repeated_double_vector(a, b, int n):
+    """
+    >>> test_repeated_double_vector(1, 1.5, 3)
+    [1.0, 1.5, 1.0, 1.5, 1.0, 1.5]
+    """
+    cdef vector[double] v = [a, b] * n
+    return v
+
+ctypedef int my_int
+
+def test_typedef_vector(o):
+    """
+    >>> test_typedef_vector([1, 2, 3])
+    [1, 2, 3]
+    >>> test_typedef_vector([1, 2, 3**100])       #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    OverflowError: ...
+    >>> test_typedef_vector([1, 2, None])       #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    TypeError: an integer is required
+    """
+    cdef vector[my_int] v = o
+    return v
+
 def test_pair(o):
     """
     >>> test_pair((1, 2))
@@ -140,6 +180,18 @@ def test_set(o):
     cdef cpp_set[long] s = o
     return s
 
+def test_unordered_set(o):
+   """
+   >>> sorted(test_unordered_set([1, 2, 3]))
+   [1, 2, 3]
+   >>> sorted(test_unordered_set([1, 2, 3, 3]))
+   [1, 2, 3]
+   >>> type(test_unordered_set([])) is py_set
+   True
+   """
+   cdef unordered_set[long] s = o
+   return s
+
 def test_map(o):
     """
     >>> test_map({1: 1.0, 2: 0.5, 3: 0.25})
@@ -148,12 +200,43 @@ def test_map(o):
     cdef map[int, double] m = o
     return m
 
+def test_unordered_map(o):
+   """
+   >>> d = test_map({1: 1.0, 2: 0.5, 3: 0.25})
+   >>> sorted(d)
+   [1, 2, 3]
+   >>> (d[1], d[2], d[3])
+   (1.0, 0.5, 0.25)
+   """
+   cdef unordered_map[int, double] m = o
+   return m
+
 def test_nested(o):
     """
     >>> test_nested({})
     {}
-    >>> test_nested({(1.0, 2.0): [1, 2, 3], (1.0, 0.5): [1, 10, 100]})
-    {(1.0, 2.0): [1, 2, 3], (1.0, 0.5): [1, 10, 100]}
+    >>> d = test_nested({(1.0, 2.0): [1, 2, 3], (1.0, 0.5): [1, 10, 100]})
+    >>> type(d) is dict or type(d)
+    True
+    >>> sorted(d)
+    [(1.0, 0.5), (1.0, 2.0)]
+    >>> d[(1.0, 0.5)]
+    [1, 10, 100]
+    >>> d[(1.0, 2.0)]
+    [1, 2, 3]
     """
     cdef map[pair[double, double], vector[int]] m = o
+    return m
+
+cpdef enum Color:
+    RED = 0
+    GREEN
+    BLUE
+
+def test_enum_map(o):
+    """
+    >>> test_enum_map({RED: GREEN})
+    {0: 1}
+    """
+    cdef map[Color, Color] m = o
     return m

@@ -1,5 +1,12 @@
 # cython.* namespace for pure mode.
-__version__ = "0.20dev"
+from __future__ import absolute_import
+
+__version__ = "0.29a0"
+
+try:
+    from __builtin__ import basestring
+except ImportError:
+    basestring = str
 
 
 # BEGIN shameless copy from Cython/minivect/minitypes.py
@@ -34,8 +41,6 @@ def index_type(base_type, item):
     a 2D strided array of doubles. The syntax is the same as for
     Cython memoryviews.
     """
-    assert isinstance(item, (tuple, slice))
-
     class InvalidTypeSpecification(Exception):
         pass
 
@@ -60,9 +65,13 @@ def index_type(base_type, item):
         return _ArrayType(base_type, len(item),
                           is_c_contig=step_idx == len(item) - 1,
                           is_f_contig=step_idx == 0)
-    else:
+    elif isinstance(item, slice):
         verify_slice(item)
         return _ArrayType(base_type, 1, is_c_contig=bool(item.step))
+    else:
+        # int[8] etc.
+        assert int(item) == item  # array size must be a plain integer
+        array(base_type, item)
 
 # END shameless copy
 
@@ -93,23 +102,43 @@ class _EmptyDecoratorAndManager(object):
     def __exit__(self, exc_type, exc_value, traceback):
         pass
 
+class _Optimization(object):
+    pass
+
 cclass = ccall = cfunc = _EmptyDecoratorAndManager()
 
-returns = lambda type_arg: _EmptyDecoratorAndManager()
+returns = wraparound = boundscheck = initializedcheck = nonecheck = \
+    overflowcheck = embedsignature = cdivision = cdivision_warnings = \
+    always_allows_keywords = profile = linetrace = infer_types = \
+    unraisable_tracebacks = freelist = \
+        lambda _: _EmptyDecoratorAndManager()
 
-final = internal = type_version_tag = no_gc_clear = _empty_decorator
+exceptval = lambda _=None, check=True: _EmptyDecoratorAndManager()
 
+optimization = _Optimization()
+
+overflowcheck.fold = optimization.use_switch = \
+    optimization.unpack_method_calls = lambda arg: _EmptyDecoratorAndManager()
+
+final = internal = type_version_tag = no_gc_clear = no_gc = _empty_decorator
+
+
+_cython_inline = None
 def inline(f, *args, **kwds):
-  if isinstance(f, basestring):
-    from Cython.Build.Inline import cython_inline
-    return cython_inline(f, *args, **kwds)
-  else:
-    assert len(args) == len(kwds) == 0
-    return f
+    if isinstance(f, basestring):
+        global _cython_inline
+        if _cython_inline is None:
+            from Cython.Build.Inline import cython_inline as _cython_inline
+        return _cython_inline(f, *args, **kwds)
+    else:
+        assert len(args) == len(kwds) == 0
+        return f
+
 
 def compile(f):
     from Cython.Build.Inline import RuntimeCompiledFunction
     return RuntimeCompiledFunction(f)
+
 
 # Special functions
 
@@ -117,6 +146,7 @@ def cdiv(a, b):
     q = a / b
     if q < 0:
         q += 1
+    return q
 
 def cmod(a, b):
     r = a % b
@@ -127,7 +157,9 @@ def cmod(a, b):
 
 # Emulated language constructs
 
-def cast(type, *args):
+def cast(type, *args, **kwargs):
+    kwargs.pop('typecheck', None)
+    assert not kwargs
     if hasattr(type, '__call__'):
         return type(*args)
     else:
@@ -231,7 +263,7 @@ class StructType(CythonType):
             for key, value in cast_from.__dict__.items():
                 setattr(self, key, value)
         else:
-            for key, value in data.iteritems():
+            for key, value in data.items():
                 setattr(self, key, value)
 
     def __setattr__(self, key, value):
@@ -258,7 +290,7 @@ class UnionType(CythonType):
             datadict = data
         if len(datadict) > 1:
             raise AttributeError("Union can only store one field at a time.")
-        for key, value in datadict.iteritems():
+        for key, value in datadict.items():
             setattr(self, key, value)
 
     def __setattr__(self, key, value):
@@ -342,7 +374,7 @@ def _specialized_from_args(signatures, args, kwargs):
 py_int = typedef(int, "int")
 try:
     py_long = typedef(long, "long")
-except NameError: # Py3
+except NameError:  # Py3
     py_long = typedef(int, "long")
 py_float = typedef(float, "float")
 py_complex = typedef(complex, "double complex")
@@ -350,10 +382,10 @@ py_complex = typedef(complex, "double complex")
 
 # Predefined types
 
-int_types = ['char', 'short', 'Py_UNICODE', 'int', 'long', 'longlong', 'Py_ssize_t', 'size_t']
+int_types = ['char', 'short', 'Py_UNICODE', 'int', 'Py_UCS4', 'long', 'longlong', 'Py_ssize_t', 'size_t']
 float_types = ['longdouble', 'double', 'float']
 complex_types = ['longdoublecomplex', 'doublecomplex', 'floatcomplex', 'complex']
-other_types = ['bint', 'void']
+other_types = ['bint', 'void', 'Py_tss_t']
 
 to_repr = {
     'longlong': 'long long',
@@ -365,10 +397,19 @@ to_repr = {
 
 gs = globals()
 
+# note: cannot simply name the unicode type here as 2to3 gets in the way and replaces it by str
+try:
+    import __builtin__ as builtins
+except ImportError:  # Py3
+    import builtins
+
+gs['unicode'] = typedef(getattr(builtins, 'unicode', str), 'unicode')
+del builtins
+
 for name in int_types:
     reprname = to_repr(name, name)
     gs[name] = typedef(py_int, reprname)
-    if name != 'Py_UNICODE' and not name.endswith('size_t'):
+    if name not in ('Py_UNICODE', 'Py_UCS4') and not name.endswith('size_t'):
         gs['u'+name] = typedef(py_int, "unsigned " + reprname)
         gs['s'+name] = typedef(py_int, "signed " + reprname)
 
@@ -379,14 +420,17 @@ for name in complex_types:
     gs[name] = typedef(py_complex, to_repr(name, name))
 
 bint = typedef(bool, "bint")
-void = typedef(int, "void")
+void = typedef(None, "void")
+Py_tss_t = typedef(None, "Py_tss_t")
 
 for t in int_types + float_types + complex_types + other_types:
     for i in range(1, 4):
-        gs["%s_%s" % ('p'*i, t)] = globals()[t]._pointer(i)
+        gs["%s_%s" % ('p'*i, t)] = gs[t]._pointer(i)
 
-void = typedef(None, "void")
-NULL = p_void(0)
+NULL = gs['p_void'](0)
+
+# looks like 'gs' has some users out there by now...
+#del gs
 
 integral = floating = numeric = _FusedType()
 

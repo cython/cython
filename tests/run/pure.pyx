@@ -49,6 +49,26 @@ def test_cast(x):
     n = cython.cast(cython.int, x)
     return n
 
+@cython.locals(as_list=list)
+def test_cast_object(x, typecheck):
+    """
+    >>> test_cast_object([1, 2, 3], True)
+    [1, 2, 3]
+    >>> test_cast_object([1, 2, 3], False)
+    [1, 2, 3]
+    >>> test_cast_object((1, 2, 3), True)
+    Traceback (most recent call last):
+    ...
+    TypeError: Expected list, got tuple
+    >>> test_cast_object((1, 2, 3), False)
+    (1, 2, 3)
+    """
+    if typecheck:
+        as_list = cython.cast(list, x, typecheck=True)
+    else:
+        as_list = cython.cast(list, x, typecheck=False)
+    return as_list
+
 @cython.locals(x=cython.int, y=cython.p_int)
 def test_address(x):
     """
@@ -140,3 +160,23 @@ def test_declare_c_types(n):
     #z01 = cython.declare(cython.floatcomplex, n+1j)
     #z02 = cython.declare(cython.doublecomplex, n+1j)
     #z03 = cython.declare(cython.longdoublecomplex, n+1j)
+
+
+cdef class ExtType:
+    """
+    >>> x = ExtType()
+    >>> x.forward_ref(x)
+    'ExtType'
+    """
+    @cython.locals(x="ExtType")
+    def forward_ref(self, x):
+        return cython.typeof(x)
+
+
+def ext_type_string_ref(x: "ExtType"):
+    """
+    >>> x = ExtType()
+    >>> ext_type_string_ref(x)
+    'ExtType'
+    """
+    return cython.typeof(x)

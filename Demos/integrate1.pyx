@@ -1,5 +1,8 @@
+# cython: language_level=3
+
 def f(x):
     return x**2-x
+
 
 def integrate_f(a, b, N):
     s = 0.0

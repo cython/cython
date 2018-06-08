@@ -34,6 +34,6 @@ cdef extern from "Python.h":
     double PyFloat_AsDouble(object pyfloat) except? -1
     # Return a C double representation of the contents of pyfloat.
 
-    double PyFloat_AS_DOUBLE(object pyfloat) except? -1
+    double PyFloat_AS_DOUBLE(object pyfloat)
     # Return a C double representation of the contents of pyfloat, but
     # without error checking.

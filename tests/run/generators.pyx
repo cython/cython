@@ -2,15 +2,18 @@
 # tag: generators
 
 try:
-    from builtins import next # Py3k
-except ImportError:
-    def next(it):
-        return it.next()
+    import backports_abc
+except ImportError: pass
+else: backports_abc.patch()
 
-if hasattr(__builtins__, 'GeneratorExit'):
-    GeneratorExit = __builtins__.GeneratorExit
-else: # < 2.5
-    GeneratorExit = StopIteration
+try:
+    from collections.abc import Generator
+except ImportError:
+    try:
+        from collections import Generator
+    except ImportError:
+        Generator = object  # easy win
+
 
 def very_simple():
     """
@@ -23,12 +26,70 @@ def very_simple():
     >>> next(x)
     Traceback (most recent call last):
     StopIteration
+
     >>> x = very_simple()
     >>> x.send(1)
     Traceback (most recent call last):
     TypeError: can't send non-None value to a just-started generator
     """
     yield 1
+
+
+def attributes():
+    """
+    >>> x = attributes()
+    >>> x.__name__
+    'attributes'
+    >>> x.__qualname__
+    'attributes'
+    >>> x.gi_running  # before next()
+    False
+    >>> inner = next(x)
+    >>> x.gi_running  # after next()
+    False
+    >>> next(x)
+    Traceback (most recent call last):
+    StopIteration
+    >>> x.gi_running  # after termination
+    False
+
+    >>> y = inner()
+    >>> y.__name__
+    '<lambda>'
+    >>> y.__qualname__
+    'attributes.<locals>.inner.<locals>.<lambda>'
+
+    >>> y.__name__ = 123
+    Traceback (most recent call last):
+    TypeError: __name__ must be set to a string object
+    >>> y.__name__
+    '<lambda>'
+    >>> y.__qualname__ = None
+    Traceback (most recent call last):
+    TypeError: __qualname__ must be set to a string object
+    >>> y.__qualname__
+    'attributes.<locals>.inner.<locals>.<lambda>'
+
+    >>> y.__name__ = 'abc'
+    >>> y.__name__
+    'abc'
+    >>> y.__name__ = None
+    Traceback (most recent call last):
+    TypeError: __name__ must be set to a string object
+    >>> y.__name__
+    'abc'
+    >>> y.__qualname__ = 'huhu'
+    >>> y.__qualname__
+    'huhu'
+    >>> y.__qualname__ = 123
+    Traceback (most recent call last):
+    TypeError: __qualname__ must be set to a string object
+    >>> y.__qualname__
+    'huhu'
+    """
+    def inner():
+        return (lambda : (yield 1))
+    yield inner()
 
 
 def simple():
@@ -246,6 +307,7 @@ def test_decorated(*args):
     for i in args:
         yield i
 
+
 def test_return(a):
     """
     >>> d = dict()
@@ -261,6 +323,76 @@ def test_return(a):
     yield 1
     a['i_was_here'] = True
     return
+
+
+def test_return_in_finally(a):
+    """
+    >>> d = dict()
+    >>> obj = test_return_in_finally(d)
+    >>> next(obj)
+    1
+    >>> next(obj)
+    Traceback (most recent call last):
+    StopIteration
+    >>> d['i_was_here']
+    True
+
+    >>> d = dict()
+    >>> obj = test_return_in_finally(d)
+    >>> next(obj)
+    1
+    >>> obj.send(2)
+    Traceback (most recent call last):
+    StopIteration
+    >>> d['i_was_here']
+    True
+
+    >>> obj = test_return_in_finally(None)
+    >>> next(obj)
+    1
+    >>> next(obj)
+    Traceback (most recent call last):
+    StopIteration
+
+    >>> obj = test_return_in_finally(None)
+    >>> next(obj)
+    1
+    >>> obj.send(2)
+    Traceback (most recent call last):
+    StopIteration
+    """
+    yield 1
+    try:
+        a['i_was_here'] = True
+    finally:
+        return
+
+
+def test_return_none_in_finally(a):
+    """
+    >>> d = dict()
+    >>> obj = test_return_none_in_finally(d)
+    >>> next(obj)
+    1
+    >>> next(obj)
+    Traceback (most recent call last):
+    StopIteration
+    >>> d['i_was_here']
+    True
+
+    >>> obj = test_return_none_in_finally(None)
+    >>> next(obj)
+    1
+    >>> next(obj)
+    Traceback (most recent call last):
+    StopIteration
+    """
+    yield 1
+    try:
+        a['i_was_here'] = True
+    finally:
+        return None
+
 
 def test_copied_yield(foo):
     """
@@ -349,3 +481,24 @@ def test_double_with_gil_section():
                     pass
             with gil:
                 pass
+
+
+def test_generator_abc():
+    """
+    >>> isinstance(test_generator_abc(), Generator)
+    True
+
+    >>> try:
+    ...     from collections.abc import Generator
+    ... except ImportError:
+    ...     try:
+    ...         from collections import Generator
+    ...     except ImportError:
+    ...         Generator = object  # easy win
+
+    >>> isinstance(test_generator_abc(), Generator)
+    True
+    >>> isinstance((lambda:(yield))(), Generator)
+    True
+    """
+    yield 1

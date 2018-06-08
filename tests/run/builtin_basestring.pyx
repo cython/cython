@@ -1,4 +1,6 @@
 
+cimport cython
+
 import sys
 IS_PY3 = sys.version_info[0] >= 3
 
@@ -84,3 +86,23 @@ def basestring_typed_argument(basestring obj):
     TypeError: ...got S...
     """
     return obj
+
+
+@cython.test_assert_path_exists(
+    "//SimpleCallNode",
+    "//SimpleCallNode//NoneCheckNode",
+    "//SimpleCallNode//AttributeNode[@is_py_attr = false]")
+def basestring_join(basestring s, *values):
+    """
+    >>> print(basestring_join(ustring, 'a', 'b', 'c'))
+    aabcdefbabcdefc
+    >>> print(basestring_join(sstring, 'a', 'b', 'c'))
+    aabcdefbabcdefc
+    >>> if IS_PY3: print('abcdefabcdefabcdef')
+    ... else: print(basestring_join(bstring, bstring, bstring).decode('utf8'))
+    abcdefabcdefabcdef
+    >>> basestring_join(None, 'a', 'b', 'c')
+    Traceback (most recent call last):
+    AttributeError: 'NoneType' object has no attribute 'join'
+    """
+    return s.join(values)

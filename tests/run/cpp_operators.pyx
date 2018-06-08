@@ -1,16 +1,18 @@
-# tag: cpp
+# mode: run
+# tag: cpp, werror
 
 from cython cimport typeof
 
 cimport cython.operator
-from cython.operator cimport dereference as deref
+from cython.operator cimport typeid, dereference as deref
 
 from libc.string cimport const_char
+from libcpp cimport bool
 
 cdef out(s, result_type=None):
     print '%s [%s]' % (s.decode('ascii'), result_type)
 
-cdef extern from "cpp_operators_helper.h":
+cdef extern from "cpp_operators_helper.h" nogil:
     cdef cppclass TestOps:
 
         const_char* operator+()
@@ -25,18 +27,29 @@ cdef extern from "cpp_operators_helper.h":
         const_char* operator--(int)
 
         const_char* operator+(int)
+        const_char* operator+(int,const TestOps&)
         const_char* operator-(int)
+        const_char* operator-(int,const TestOps&)
         const_char* operator*(int)
+        # deliberately omitted operator* to test case where only defined outside class
         const_char* operator/(int)
+        const_char* operator/(int,const TestOps&)
         const_char* operator%(int)
+        const_char* operator%(int,const TestOps&)
 
         const_char* operator|(int)
+        const_char* operator|(int,const TestOps&)
         const_char* operator&(int)
+        const_char* operator&(int,const TestOps&)
         const_char* operator^(int)
+        const_char* operator^(int,const TestOps&)
         const_char* operator,(int)
+        const_char* operator,(int,const TestOps&)
 
         const_char* operator<<(int)
+        const_char* operator<<(int,const TestOps&)
         const_char* operator>>(int)
+        const_char* operator>>(int,const TestOps&)
 
         const_char* operator==(int)
         const_char* operator!=(int)
@@ -47,6 +60,32 @@ cdef extern from "cpp_operators_helper.h":
 
         const_char* operator[](int)
         const_char* operator()(int)
+    
+    # Defining the operator outside the class does work
+    # but doesn't help when importing from pxd files
+    # (they don't get imported)
+    const_char* operator+(float,const TestOps&)
+    # deliberately omitted operator- to test case where only defined in class
+    const_char* operator*(float,const TestOps&)
+    const_char* operator/(float,const TestOps&)
+    const_char* operator%(float,const TestOps&)
+
+    const_char* operator|(float,const TestOps&)
+    const_char* operator&(float,const TestOps&)
+    const_char* operator^(float,const TestOps&)
+    const_char* operator,(float,const TestOps&)
+
+    const_char* operator<<(float,const TestOps&)
+    const_char* operator>>(float,const TestOps&)
+
+    cdef cppclass TruthClass:
+        TruthClass()
+        TruthClass(bool)
+        bool operator bool()
+        bool value
+
+cdef cppclass TruthSubClass(TruthClass):
+    pass
 
 def test_unops():
     """
@@ -118,6 +157,63 @@ def test_binop():
     out(x, typeof(x))
     del t
 
+def test_nonmember_binop():
+    """
+    >>> test_nonmember_binop()
+    nonmember binary + [const_char *]
+    nonmember binary - [const_char *]
+    nonmember binary / [const_char *]
+    nonmember binary % [const_char *]
+    nonmember binary & [const_char *]
+    nonmember binary | [const_char *]
+    nonmember binary ^ [const_char *]
+    nonmember binary << [const_char *]
+    nonmember binary >> [const_char *]
+    nonmember binary COMMA [const_char *]
+    nonmember binary2 + [const_char *]
+    nonmember binary2 * [const_char *]
+    nonmember binary2 / [const_char *]
+    nonmember binary2 % [const_char *]
+    nonmember binary2 & [const_char *]
+    nonmember binary2 | [const_char *]
+    nonmember binary2 ^ [const_char *]
+    nonmember binary2 << [const_char *]
+    nonmember binary2 >> [const_char *]
+    nonmember binary2 COMMA [const_char *]
+    """
+    
+    cdef TestOps* t = new TestOps()
+    out(1 + t[0], typeof(1 + t[0]))
+    out(1 - t[0], typeof(1 - t[0]))
+    # * deliberately omitted
+    out(1 / t[0], typeof(1 / t[0]))
+    out(1 % t[0], typeof(1 % t[0]))
+    out(1 & t[0], typeof(1 & t[0]))
+    out(1 | t[0], typeof(1 | t[0]))
+    out(1 ^ t[0], typeof(1 ^ t[0]))
+    out(1 << t[0], typeof(1 << t[0]))
+    out(1 >> t[0], typeof(1 >> t[0]))
+    
+    x = cython.operator.comma(1, t[0])
+    out(x, typeof(x))
+    
+    # now test float operators defined outside class
+    out(1. + t[0], typeof(1. + t[0]))
+    # operator - deliberately omitted
+    out(1. * t[0], typeof(1. * t[0]))
+    out(1. / t[0], typeof(1. / t[0]))
+    out(1. % t[0], typeof(1. % t[0]))
+    out(1. & t[0], typeof(1. & t[0]))
+    out(1. | t[0], typeof(1. | t[0]))
+    out(1. ^ t[0], typeof(1. ^ t[0]))
+    out(1. << t[0], typeof(1. << t[0]))
+    out(1. >> t[0], typeof(1. >> t[0]))
+    
+    # for some reason we need a cdef here - not sure this is quite right
+    y = cython.operator.comma(1., t[0])
+    out(y, typeof(y))
+    del t
+
 def test_cmp():
     """
     >>> test_cmp()
@@ -147,3 +243,66 @@ def test_index_call():
     out(t[0][100], typeof(t[0][100]))
     out(t[0](100), typeof(t[0](100)))
     del t
+
+def test_bool_op():
+    """
+    >>> test_bool_op()
+    """
+    cdef TruthClass yes = TruthClass(True)
+    cdef TruthClass no = TruthClass(False)
+    if yes:
+        pass
+    else:
+        assert False
+    if no:
+        assert False
+
+def test_bool_cond():
+    """
+    >>> test_bool_cond()
+    """
+    assert (TruthClass(False) or TruthClass(False)).value == False
+    assert (TruthClass(False) or TruthClass(True)).value == True
+    assert (TruthClass(True) or TruthClass(False)).value == True
+    assert (TruthClass(True) or TruthClass(True)).value == True
+
+    assert (TruthClass(False) and TruthClass(False)).value == False
+    assert (TruthClass(False) and TruthClass(True)).value == False
+    assert (TruthClass(True) and TruthClass(False)).value == False
+    assert (TruthClass(True) and TruthClass(True)).value == True
+
+
+ctypedef int* int_ptr
+
+def test_typeid_op():
+    """
+    >>> test_typeid_op()
+    """
+    cdef TruthClass* test_1 = new TruthClass()
+    cdef TruthSubClass* test_2 = new TruthSubClass()
+    cdef TruthClass* test_3 = <TruthClass*> test_2
+    cdef TruthClass* test_4 = <TruthClass*> 0
+
+    assert typeid(TruthClass).name()
+    assert typeid(test_1).name()
+    assert typeid(TruthClass) == typeid(deref(test_1))
+
+    assert typeid(TruthSubClass).name()
+    assert typeid(test_2).name()
+    assert typeid(TruthSubClass) == typeid(deref(test_2))
+    assert typeid(TruthSubClass) == typeid(deref(test_3))
+    assert typeid(TruthClass) != typeid(deref(test_3))
+
+    assert typeid(TruthClass).name()
+    assert typeid(test_3).name()
+    assert typeid(TruthSubClass).name()
+    assert typeid(deref(test_2)).name()
+    assert typeid(int_ptr).name()
+
+    try:
+        typeid(deref(test_4))
+        assert False
+    except TypeError:
+        assert True
+
+    del test_1, test_2

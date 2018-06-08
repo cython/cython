@@ -5,6 +5,8 @@ cdef extern from *:
 	cdef void (*fp)() nogil
 
 fp = f
+
+
 _ERRORS = u"""
-7:6: Cannot assign type 'void (void)' to 'void (*)(void) nogil'
+7:5: Cannot assign type 'void (void)' to 'void (*)(void) nogil'
 """

@@ -30,7 +30,7 @@ cdef object m():
         17L
         <object>7j
         help
-        `"Hello"`
+        xxx = `"Hello"`
         import fred
         from fred import obj
         for x in obj:
@@ -42,6 +42,7 @@ cdef object m():
         (x, y)
         [x, y]
         {x: y}
+        {x, y}
         obj and x
         t(obj)
 #        f(42) # Cython handles this internally
@@ -54,7 +55,7 @@ cdef object m():
         print obj
         del fred
         return obj
-        raise obj
+        raise obj  # allowed!
         if obj:
             pass
         while obj:
@@ -95,16 +96,16 @@ def bare_pyvar_name(object x):
 _ERRORS = u"""
 4:5: Function with Python return type cannot be declared nogil
 7:5: Function declared nogil has Python locals or temporaries
-9:6: Assignment of Python object not allowed without gil
+9:4: Assignment of Python object not allowed without gil
 12:5: Discarding owned Python object not allowed without gil
 14:5: Function with Python return type cannot be declared nogil
 18:5: Calling gil-requiring function not allowed without gil
 27:9: Calling gil-requiring function not allowed without gil
-29:12: Assignment of Python object not allowed without gil
+29:8: Assignment of Python object not allowed without gil
 31:16: Constructing complex number not allowed without gil
-33:8: Backquote expression not allowed without gil
-33:8: Discarding owned Python object not allowed without gil
-33:9: Operation not allowed without gil
+33:8: Assignment of Python object not allowed without gil
+33:14: Backquote expression not allowed without gil
+33:15: Operation not allowed without gil
 34:15: Assignment of Python object not allowed without gil
 34:15: Operation not allowed without gil
 34:15: Python import not allowed without gil
@@ -120,44 +121,45 @@ _ERRORS = u"""
 40:11: Constructing Python slice object not allowed without gil
 40:11: Discarding owned Python object not allowed without gil
 40:11: Indexing Python object not allowed without gil
-40:13: Converting to Python object not allowed without gil
-40:15: Converting to Python object not allowed without gil
-40:17: Converting to Python object not allowed without gil
+40:12: Converting to Python object not allowed without gil
+40:14: Converting to Python object not allowed without gil
+40:16: Converting to Python object not allowed without gil
 41:11: Accessing Python attribute not allowed without gil
 41:11: Discarding owned Python object not allowed without gil
 42:9: Constructing Python tuple not allowed without gil
 42:9: Discarding owned Python object not allowed without gil
 43:8: Constructing Python list not allowed without gil
 43:8: Discarding owned Python object not allowed without gil
-44:8: Constructing Python dict not allowed without gil
-44:8: Discarding owned Python object not allowed without gil
-45:12: Discarding owned Python object not allowed without gil
-45:12: Truth-testing Python object not allowed without gil
-46:13: Python type test not allowed without gil
-48:10: Discarding owned Python object not allowed without gil
-48:10: Operation not allowed without gil
-49:8: Discarding owned Python object not allowed without gil
-49:8: Operation not allowed without gil
-50:10: Assignment of Python object not allowed without gil
-50:14: Assignment of Python object not allowed without gil
-51:9: Assignment of Python object not allowed without gil
-51:13: Assignment of Python object not allowed without gil
-51:16: Creating temporary Python reference not allowed without gil
-51:19: Creating temporary Python reference not allowed without gil
+44:9: Constructing Python dict not allowed without gil
+44:9: Discarding owned Python object not allowed without gil
+45:9: Constructing Python set not allowed without gil
+45:9: Discarding owned Python object not allowed without gil
+46:12: Discarding owned Python object not allowed without gil
+46:12: Truth-testing Python object not allowed without gil
+47:10: Python type test not allowed without gil
+49:10: Discarding owned Python object not allowed without gil
+49:10: Operation not allowed without gil
+50:8: Discarding owned Python object not allowed without gil
+50:8: Operation not allowed without gil
+51:8: Assignment of Python object not allowed without gil
+51:12: Assignment of Python object not allowed without gil
+52:8: Assignment of Python object not allowed without gil
 52:11: Assignment of Python object not allowed without gil
-52:11: Indexing Python object not allowed without gil
-53:11: Accessing Python attribute not allowed without gil
+52:15: Creating temporary Python reference not allowed without gil
+52:18: Creating temporary Python reference not allowed without gil
 53:11: Assignment of Python object not allowed without gil
-54:8: Constructing Python tuple not allowed without gil
-54:8: Python print statement not allowed without gil
-55:8: Deleting Python object not allowed without gil
-56:8: Returning Python object not allowed without gil
-57:8: Raising exception not allowed without gil
-58:14: Truth-testing Python object not allowed without gil
-60:17: Truth-testing Python object not allowed without gil
-62:8: For-loop using object bounds or target not allowed without gil
-62:14: Coercion from Python not allowed without the GIL
-62:25: Coercion from Python not allowed without the GIL
-64:8: Try-except statement not allowed without gil
-85:8: For-loop using object bounds or target not allowed without gil
+53:11: Indexing Python object not allowed without gil
+54:11: Accessing Python attribute not allowed without gil
+54:11: Assignment of Python object not allowed without gil
+55:8: Constructing Python tuple not allowed without gil
+55:8: Python print statement not allowed without gil
+56:8: Deleting Python object not allowed without gil
+57:8: Returning Python object not allowed without gil
+59:11: Truth-testing Python object not allowed without gil
+61:14: Truth-testing Python object not allowed without gil
+63:8: For-loop using object bounds or target not allowed without gil
+63:12: Coercion from Python not allowed without the GIL
+63:24: Coercion from Python not allowed without the GIL
+65:8: Try-except statement not allowed without gil
+86:8: For-loop using object bounds or target not allowed without gil
 """

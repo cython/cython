@@ -1,4 +1,16 @@
-# tag: cpp
+# mode: run
+# tag: cpp, werror
+
+cdef extern from "shapes.h" namespace "shapes":
+    cdef cppclass Shape:
+        float area()
+
+    cdef cppclass Circle(Shape):
+        int radius
+        Circle(int)
+
+    cdef cppclass Square(Shape):
+        Square(int)
 
 from cython cimport typeof
 
@@ -22,3 +34,17 @@ def test_reversed_vector_iteration(L):
         incr(it)
         print('%s: %s' % (typeof(a), a))
     print(typeof(a))
+
+def test_derived_types(int size, bint round):
+    """
+    >>> test_derived_types(5, True)
+    Shape *
+    >>> test_derived_types(5, False)
+    Shape *
+    """
+    if round:
+        ptr = new Circle(size)
+    else:
+        ptr = new Square(size)
+    print typeof(ptr)
+    del ptr

@@ -1,0 +1,67 @@
+# mode: run
+# tag: cpp
+
+"""
+PYTHON setup.py build_ext --inplace
+PYTHON -c "from assignment_overload import test; test()"
+"""
+
+######## setup.py ########
+
+from distutils.core import setup
+from Cython.Build import cythonize
+setup(ext_modules=cythonize("*.pyx", language='c++'))
+
+
+######## assign.cpp ########
+
+class wrapped_int {
+public:
+  long long val;
+  wrapped_int() { val = 0; }
+  wrapped_int(long long val) { this->val = val; }
+  wrapped_int &operator=(const wrapped_int &other) {
+    this->val = other.val;
+    return *this;
+  }
+  wrapped_int &operator=(const long long val) {
+    this->val = val;
+    return *this;
+  }
+};
+
+
+######## assign.pxd ########
+
+cdef extern from "assign.cpp" nogil:
+    cppclass wrapped_int:
+        long long val
+        wrapped_int()
+        wrapped_int(long long val)
+        wrapped_int& operator=(const wrapped_int &other)
+        wrapped_int& operator=(const long long &other)
+
+
+######## assignment_overload.pyx ########
+
+from assign cimport wrapped_int
+
+def test():
+    cdef wrapped_int a = wrapped_int(2)
+    cdef wrapped_int b = wrapped_int(3)
+    cdef long long c = 4
+
+    assert &a != &b
+    assert a.val != b.val
+
+    a = b
+    assert &a != &b
+    assert a.val == b.val
+    a = c
+    assert a.val == c
+
+    a, b, c = 2, 3, 4
+    a = b = c
+    assert &a != &b
+    assert a.val == b.val
+    assert b.val == c

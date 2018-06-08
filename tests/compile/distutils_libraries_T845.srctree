@@ -1,0 +1,33 @@
+PYTHON setup.py build_ext --inplace
+
+######## setup.py ########
+
+from Cython.Build import cythonize
+from Cython.Distutils.extension import Extension
+
+ext_modules = [
+    Extension("a", ["a.pyx"]),
+    Extension("x", ["x.pyx"]),
+    Extension("y", ["y.pyx"]),
+]
+
+ext_modules = cythonize(ext_modules)
+
+assert len(ext_modules[0].libraries) == 2
+assert ext_modules[1].libraries == ["lib_x"]
+assert ext_modules[2].libraries == ["lib_y"]
+
+######## libx.pxd ########
+# distutils: libraries = lib_x
+
+######## liby.pxd ########
+# distutils: libraries = lib_y
+
+######## a.pyx ########
+cimport libx , liby
+
+######## x.pyx ########
+cimport libx
+
+######## y.pyx ########
+cimport liby

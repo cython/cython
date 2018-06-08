@@ -1,0 +1,93 @@
+# mode: run
+# tag: coverage,trace,nogil
+
+"""
+PYTHON setup.py build_ext -i
+PYTHON coverage_test.py
+"""
+
+######## setup.py ########
+
+from distutils.core import setup
+from Cython.Build import cythonize
+
+setup(ext_modules = cythonize([
+    'coverage_test_*.pyx',
+]))
+
+
+######## .coveragerc ########
+[run]
+plugins = Cython.Coverage
+
+
+######## coverage_test_nogil.pyx ########
+# cython: linetrace=True
+# distutils: define_macros=CYTHON_TRACE=1 CYTHON_TRACE_NOGIL=1
+
+cdef int func1(int a, int b) nogil:
+    cdef int x                   #  5
+    with gil:                    #  6
+        x = 1                    #  7
+    cdef int c = func2(a) + b    #  8
+    return x + c                 #  9
+
+
+cdef int func2(int a) with gil:
+    return a * 2                 # 13
+
+
+def call(int a, int b):
+    a, b = b, a                  # 17
+    with nogil:                  # 18
+        result = func1(b, a)     # 19
+    return result                # 20
+
+
+######## coverage_test.py ########
+
+import os.path
+try:
+    # io.StringIO in Py2.x cannot handle str ...
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
+
+from coverage import coverage
+
+
+import coverage_test_nogil
+
+assert not any(coverage_test_nogil.__file__.endswith(ext)
+               for ext in '.py .pyc .pyo .pyw .pyx .pxi'.split()), \
+    coverage_test_nogil.__file__
+
+
+def run_coverage(module):
+    module_name = module.__name__
+    module_path = module_name + '.pyx'
+
+    cov = coverage()
+    cov.start()
+    assert module.call(1, 2) == (1 * 2) + 2 + 1
+    cov.stop()
+
+    out = StringIO()
+    cov.report(file=out)
+    #cov.report([module], file=out)
+    lines = out.getvalue().splitlines()
+    assert any(module_path in line for line in lines), \
+        "'%s' not found in coverage report:\n\n%s" % (module_path, out.getvalue())
+
+    mod_file, exec_lines, excl_lines, missing_lines, _ = cov.analysis2(os.path.abspath(module_path))
+    assert module_path in mod_file
+
+    executed = set(exec_lines) - set(missing_lines)
+    # check that everything that runs with the gil owned was executed
+    assert all(line in executed for line in [13, 17, 18, 20]), '%s / %s' % (exec_lines, missing_lines)
+    # check that everything that runs in nogil sections was executed
+    assert all(line in executed for line in [6, 7, 8, 9]), '%s / %s' % (exec_lines, missing_lines)
+
+
+if __name__ == '__main__':
+    run_coverage(coverage_test_nogil)

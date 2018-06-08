@@ -1,0 +1,41 @@
+PYTHON setup.py build_ext --inplace
+
+######## setup.py ########
+
+from Cython.Build import cythonize
+ext_modules = cythonize("foo.pyx")
+assert set(ext_modules[0].depends) == set(["a.h", "b.h", "c.h", "d.h"])
+
+######## foo.pyx ########
+IF 1:
+    cimport a
+    from b cimport something
+
+    include "c.pxi"
+
+    cdef extern from "d.h":
+        pass
+
+######## a.pxd ########
+cdef extern from "a.h":
+    pass
+
+######## b.pxd ########
+cdef extern from "b.h":
+    cdef void something()
+
+######## c.pxi ########
+cdef extern from "c.h":
+    pass
+
+######## a.h ########
+/* empty */
+
+######## b.h ########
+/* empty */
+
+######## c.h ########
+/* empty */
+
+######## d.h ########
+/* empty */

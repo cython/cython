@@ -6,9 +6,17 @@ __doc__ = u"""
     b'spam'
 """
 
+_unicode = unicode
+
 import sys
-if sys.version_info[0] < 3:
+IS_PY3 = sys.version_info[0] >= 3
+
+if not IS_PY3:
     __doc__ = __doc__.replace(u" b'", u" '")
+
+
+def print_large_number(n):
+    print(str(n).rstrip('L'))
 
 
 DEF TUPLE = (1, 2, u"buckle my shoe")
@@ -21,8 +29,11 @@ DEF INT1 = 42
 DEF INT2 = 0x42
 DEF INT3 = -0x42
 DEF LONG = 666L
+DEF LARGE_NUM32 = (1 << 32) - 1
+DEF LARGE_NUM64 = (1 << 64) - 1
 DEF FLOAT = 12.5
-DEF STR = b"spam"
+DEF BYTES = b"spam"
+DEF UNICODE = u"spam-u"
 DEF TWO = TUPLE[1]
 DEF FIVE = TWO + 3
 DEF TRUE  = TRUE_FALSE[0]
@@ -31,6 +42,7 @@ DEF INT_TUPLE1 = TUPLE[:2]
 DEF INT_TUPLE2 = TUPLE[1:4:2]
 DEF ELLIPSIS = ...
 DEF EXPRESSION = int(float(2*2)) + int(str(2)) + int(max(1,2,3)) + sum([TWO, FIVE])
+DEF UNICODE_EXPRESSION = unicode(BYTES.decode('utf8')).encode('ascii').decode('latin1')
 
 
 def c():
@@ -81,6 +93,24 @@ def l():
     cdef long l = LONG
     return l
 
+def large_nums():
+    """
+    >>> ul32, ul64, l64, n64 = large_nums()
+    >>> print_large_number(ul32)
+    4294967295
+    >>> print_large_number(ul64)
+    18446744073709551615
+    >>> print_large_number(l64)
+    4294967295
+    >>> print_large_number(n64)
+    -4294967295
+    """
+    cdef unsigned long ul32 = LARGE_NUM32
+    cdef unsigned long long ul64 = LARGE_NUM64
+    cdef long long l64 = LARGE_NUM32
+    cdef long long n64 = -LARGE_NUM32
+    return ul32, ul64, l64, n64
+
 def f():
     """
     >>> f()
@@ -93,8 +123,28 @@ def s():
     """
     see module docstring above
     """
-    cdef char* s = STR
+    cdef char* s = BYTES
     return s
+
+def type_of_bytes():
+    """
+    >>> t, s = type_of_bytes()
+    >>> assert t is bytes, t
+    >>> assert type(s) is bytes, type(s)
+    """
+    t = type(BYTES)
+    s = BYTES
+    return t, s
+
+def type_of_unicode():
+    """
+    >>> t, s = type_of_unicode()
+    >>> assert t is _unicode, t
+    >>> assert type(s) is _unicode, type(s)
+    """
+    t = type(UNICODE)
+    s = UNICODE
+    return t, s
 
 @cython.test_assert_path_exists('//TupleNode')
 def constant_tuple():
@@ -166,6 +216,16 @@ def expression():
     """
     cdef int i = EXPRESSION
     return i
+
+
+def unicode_expression():
+    """
+    >>> print(unicode_expression())
+    spam
+    """
+    s = UNICODE_EXPRESSION
+    return s
+
 
 def none():
     """

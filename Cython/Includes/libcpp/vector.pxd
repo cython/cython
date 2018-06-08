@@ -1,72 +1,87 @@
-cdef extern from "<vector>" namespace "std":
-    cdef cppclass vector[T]:
+cdef extern from "<vector>" namespace "std" nogil:
+    cdef cppclass vector[T,ALLOCATOR=*]:
+        ctypedef T value_type
+        ctypedef ALLOCATOR allocator_type
+
+        # these should really be allocator_type.size_type and
+        # allocator_type.difference_type to be true to the C++ definition
+        # but cython doesn't support deferred access on template arguments
+        ctypedef size_t size_type
+        ctypedef ptrdiff_t difference_type
+
         cppclass iterator:
-            T& operator*() nogil
-            iterator operator++() nogil
-            iterator operator--() nogil
-            iterator operator+(size_t) nogil
-            iterator operator-(size_t) nogil
-            bint operator==(iterator) nogil
-            bint operator!=(iterator) nogil
-            bint operator<(iterator) nogil
-            bint operator>(iterator) nogil
-            bint operator<=(iterator) nogil
-            bint operator>=(iterator) nogil
+            T& operator*()
+            iterator operator++()
+            iterator operator--()
+            iterator operator+(size_type)
+            iterator operator-(size_type)
+            difference_type operator-(iterator)
+            bint operator==(iterator)
+            bint operator!=(iterator)
+            bint operator<(iterator)
+            bint operator>(iterator)
+            bint operator<=(iterator)
+            bint operator>=(iterator)
         cppclass reverse_iterator:
-            T& operator*() nogil
-            iterator operator++() nogil
-            iterator operator--() nogil
-            iterator operator+(size_t) nogil
-            iterator operator-(size_t) nogil
-            bint operator==(reverse_iterator) nogil
-            bint operator!=(reverse_iterator) nogil
-            bint operator<(reverse_iterator) nogil
-            bint operator>(reverse_iterator) nogil
-            bint operator<=(reverse_iterator) nogil
-            bint operator>=(reverse_iterator) nogil
-        #cppclass const_iterator(iterator):
-        #    pass
-        #cppclass const_reverse_iterator(reverse_iterator):
-        #    pass
-        vector() nogil except +
-        vector(vector&) nogil except +
-        vector(size_t) nogil except +
-        vector(size_t, T&) nogil except +
+            T& operator*()
+            reverse_iterator operator++()
+            reverse_iterator operator--()
+            reverse_iterator operator+(size_type)
+            reverse_iterator operator-(size_type)
+            difference_type operator-(reverse_iterator)
+            bint operator==(reverse_iterator)
+            bint operator!=(reverse_iterator)
+            bint operator<(reverse_iterator)
+            bint operator>(reverse_iterator)
+            bint operator<=(reverse_iterator)
+            bint operator>=(reverse_iterator)
+        cppclass const_iterator(iterator):
+            pass
+        cppclass const_reverse_iterator(reverse_iterator):
+            pass
+        vector() except +
+        vector(vector&) except +
+        vector(size_type) except +
+        vector(size_type, T&) except +
         #vector[input_iterator](input_iterator, input_iterator)
-        T& operator[](size_t) nogil
+        T& operator[](size_type)
         #vector& operator=(vector&)
-        bint operator==(vector&, vector&) nogil
-        bint operator!=(vector&, vector&) nogil
-        bint operator<(vector&, vector&) nogil
-        bint operator>(vector&, vector&) nogil
-        bint operator<=(vector&, vector&) nogil
-        bint operator>=(vector&, vector&) nogil
-        void assign(size_t, T&) nogil
-        #void assign[input_iterator](input_iterator, input_iterator)
-        T& at(size_t) nogil
-        T& back() nogil
-        iterator begin() nogil
-        #const_iterator begin()
-        size_t capacity() nogil
-        void clear() nogil
-        bint empty() nogil
-        iterator end() nogil
-        #const_iterator end()
-        iterator erase(iterator) nogil
-        iterator erase(iterator, iterator) nogil
-        T& front() nogil
-        iterator insert(iterator, T&) nogil
-        void insert(iterator, size_t, T&) nogil
-        void insert(iterator, iterator, iterator) nogil
-        size_t max_size() nogil
-        void pop_back() nogil
-        void push_back(T&) nogil
-        reverse_iterator rbegin() nogil
-        #const_reverse_iterator rbegin()
-        reverse_iterator rend() nogil
-        #const_reverse_iterator rend()
-        void reserve(size_t) nogil
-        void resize(size_t) nogil
-        void resize(size_t, T&) nogil
-        size_t size() nogil
-        void swap(vector&) nogil
+        bint operator==(vector&, vector&)
+        bint operator!=(vector&, vector&)
+        bint operator<(vector&, vector&)
+        bint operator>(vector&, vector&)
+        bint operator<=(vector&, vector&)
+        bint operator>=(vector&, vector&)
+        void assign(size_type, const T&)
+        void assign[input_iterator](input_iterator, input_iterator) except +
+        T& at(size_type) except +
+        T& back()
+        iterator begin()
+        const_iterator const_begin "begin"()
+        size_type capacity()
+        void clear()
+        bint empty()
+        iterator end()
+        const_iterator const_end "end"()
+        iterator erase(iterator)
+        iterator erase(iterator, iterator)
+        T& front()
+        iterator insert(iterator, const T&) except +
+        iterator insert(iterator, size_type, const T&) except +
+        iterator insert[Iter](iterator, Iter, Iter) except +
+        size_type max_size()
+        void pop_back()
+        void push_back(T&) except +
+        reverse_iterator rbegin()
+        const_reverse_iterator const_rbegin "crbegin"()
+        reverse_iterator rend()
+        const_reverse_iterator const_rend "crend"()
+        void reserve(size_type)
+        void resize(size_type) except +
+        void resize(size_type, T&) except +
+        size_type size()
+        void swap(vector&)
+
+        # C++11 methods
+        T* data()
+        void shrink_to_fit()

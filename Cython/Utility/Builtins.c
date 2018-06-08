@@ -21,20 +21,15 @@ static PyObject* __Pyx_Globals(void); /*proto*/
 
 static PyObject* __Pyx_Globals(void) {
     Py_ssize_t i;
-    //PyObject *d;
-    PyObject *names = NULL;
-    PyObject *globals = PyObject_GetAttr($module_cname, PYIDENT("__dict__"));
-    if (!globals) {
-        PyErr_SetString(PyExc_TypeError,
-            "current module must have __dict__ attribute");
-        goto bad;
-    }
+    PyObject *names;
+    PyObject *globals = $moddict_cname;
+    Py_INCREF(globals);
     names = PyObject_Dir($module_cname);
     if (!names)
         goto bad;
     for (i = PyList_GET_SIZE(names)-1; i >= 0; i--) {
 #if CYTHON_COMPILING_IN_PYPY
-        PyObject* name = PySequence_GetItem(names, i);
+        PyObject* name = PySequence_ITEM(names, i);
         if (!name)
             goto bad;
 #else
@@ -62,9 +57,6 @@ static PyObject* __Pyx_Globals(void) {
     }
     Py_DECREF(names);
     return globals;
-    // d = PyDictProxy_New(globals);
-    // Py_DECREF(globals);
-    // return d;
 bad:
     Py_XDECREF(names);
     Py_XDECREF(globals);
@@ -107,9 +99,7 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
     char *code = 0;
 
     if (!globals || globals == Py_None) {
-        globals = PyModule_GetDict($module_cname);
-        if (!globals)
-            goto bad;
+        globals = $moddict_cname;
     } else if (!PyDict_Check(globals)) {
         PyErr_Format(PyExc_TypeError, "exec() arg 2 must be a dict, not %.200s",
                      Py_TYPE(globals)->tp_name);
@@ -119,18 +109,18 @@ static PyObject* __Pyx_PyExec3(PyObject* o, PyObject* globals, PyObject* locals)
         locals = globals;
     }
 
-    if (PyDict_GetItem(globals, PYIDENT("__builtins__")) == NULL) {
+    if (__Pyx_PyDict_GetItemStr(globals, PYIDENT("__builtins__")) == NULL) {
         if (PyDict_SetItem(globals, PYIDENT("__builtins__"), PyEval_GetBuiltins()) < 0)
             goto bad;
     }
 
     if (PyCode_Check(o)) {
-        if (PyCode_GetNumFree((PyCodeObject *)o) > 0) {
+        if (__Pyx_PyCode_HasFreeVars((PyCodeObject *)o)) {
             PyErr_SetString(PyExc_TypeError,
                 "code object passed to exec() may not contain free variables");
             goto bad;
         }
-        #if PY_VERSION_HEX < 0x030200B1
+        #if CYTHON_COMPILING_IN_PYPY || PY_VERSION_HEX < 0x030200B1
         result = PyEval_EvalCode((PyCodeObject *)o, globals, locals);
         #else
         result = PyEval_EvalCode(o, globals, locals);
@@ -178,19 +168,47 @@ static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *, PyObject *, PyObject *
 
 //////////////////// GetAttr3 ////////////////////
 //@requires: ObjectHandling.c::GetAttr
+//@requires: Exceptions.c::PyThreadStateGet
+//@requires: Exceptions.c::PyErrFetchRestore
+//@requires: Exceptions.c::PyErrExceptionMatches
+
+static PyObject *__Pyx_GetAttr3Default(PyObject *d) {
+    __Pyx_PyThreadState_declare
+    __Pyx_PyThreadState_assign
+    if (unlikely(!__Pyx_PyErr_ExceptionMatches(PyExc_AttributeError)))
+        return NULL;
+    __Pyx_PyErr_Clear();
+    Py_INCREF(d);
+    return d;
+}
 
 static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject *d) {
     PyObject *r = __Pyx_GetAttr(o, n);
-    if (unlikely(!r)) {
-        if (!PyErr_ExceptionMatches(PyExc_AttributeError))
-            goto bad;
-        PyErr_Clear();
-        r = d;
-        Py_INCREF(d);
+    return (likely(r)) ? r : __Pyx_GetAttr3Default(d);
+}
+
+//////////////////// HasAttr.proto ////////////////////
+
+static CYTHON_INLINE int __Pyx_HasAttr(PyObject *, PyObject *); /*proto*/
+
+//////////////////// HasAttr ////////////////////
+//@requires: ObjectHandling.c::GetAttr
+
+static CYTHON_INLINE int __Pyx_HasAttr(PyObject *o, PyObject *n) {
+    PyObject *r;
+    if (unlikely(!__Pyx_PyBaseString_Check(n))) {
+        PyErr_SetString(PyExc_TypeError,
+                        "hasattr(): attribute name must be string");
+        return -1;
     }
-    return r;
-bad:
-    return NULL;
+    r = __Pyx_GetAttr(o, n);
+    if (unlikely(!r)) {
+        PyErr_Clear();
+        return 0;
+    } else {
+        Py_DECREF(r);
+        return 1;
+    }
 }
 
 //////////////////// Intern.proto ////////////////////
@@ -213,56 +231,122 @@ static PyObject* __Pyx_Intern(PyObject* s) {
     return s;
 }
 
-//////////////////// abs_int.proto ////////////////////
-
-static CYTHON_INLINE unsigned int __Pyx_abs_int(int x) {
-    if (unlikely(x == -INT_MAX-1))
-        return ((unsigned int)INT_MAX) + 1U;
-    return (unsigned int) abs(x);
-}
-
-//////////////////// abs_long.proto ////////////////////
-
-static CYTHON_INLINE unsigned long __Pyx_abs_long(long x) {
-    if (unlikely(x == -LONG_MAX-1))
-        return ((unsigned long)LONG_MAX) + 1U;
-    return (unsigned long) labs(x);
-}
-
 //////////////////// abs_longlong.proto ////////////////////
 
-static CYTHON_INLINE unsigned PY_LONG_LONG __Pyx_abs_longlong(PY_LONG_LONG x) {
-#ifndef PY_LLONG_MAX
-#ifdef LLONG_MAX
-    const PY_LONG_LONG PY_LLONG_MAX = LLONG_MAX;
+static CYTHON_INLINE PY_LONG_LONG __Pyx_abs_longlong(PY_LONG_LONG x) {
+#if defined (__cplusplus) && __cplusplus >= 201103L
+    return std::abs(x);
+#elif defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+    return llabs(x);
+#elif defined (_MSC_VER)
+    // abs() is defined for long, but 64-bits type on MSVC is long long.
+    // Use MS-specific _abs64() instead, which returns the original (negative) value for abs(-MAX-1)
+    return _abs64(x);
+#elif defined (__GNUC__)
+    // gcc or clang on 64 bit windows.
+    return __builtin_llabs(x);
 #else
-    // copied from pyport.h in CPython 3.3, missing in 2.4
-    const PY_LONG_LONG PY_LLONG_MAX = (1 + 2 * ((1LL << (CHAR_BIT * sizeof(PY_LONG_LONG) - 2)) - 1));
-#endif
-#endif
-    if (unlikely(x == -PY_LLONG_MAX-1))
-        return ((unsigned PY_LONG_LONG)PY_LLONG_MAX) + 1U;
-#if defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
-    return (unsigned PY_LONG_LONG) llabs(x);
-#else
-    return (x<0) ? (unsigned PY_LONG_LONG)-x : (unsigned PY_LONG_LONG)x;
+    if (sizeof(PY_LONG_LONG) <= sizeof(Py_ssize_t))
+        return __Pyx_sst_abs(x);
+    return (x<0) ? -x : x;
 #endif
 }
+
+
+//////////////////// py_abs.proto ////////////////////
+
+#if CYTHON_USE_PYLONG_INTERNALS
+static PyObject *__Pyx_PyLong_AbsNeg(PyObject *num);/*proto*/
+
+#define __Pyx_PyNumber_Absolute(x) \
+    ((likely(PyLong_CheckExact(x))) ? \
+         (likely(Py_SIZE(x) >= 0) ? (Py_INCREF(x), (x)) : __Pyx_PyLong_AbsNeg(x)) : \
+         PyNumber_Absolute(x))
+
+#else
+#define __Pyx_PyNumber_Absolute(x)  PyNumber_Absolute(x)
+#endif
+
+//////////////////// py_abs ////////////////////
+
+#if CYTHON_USE_PYLONG_INTERNALS
+static PyObject *__Pyx_PyLong_AbsNeg(PyObject *n) {
+    if (likely(Py_SIZE(n) == -1)) {
+        // digits are unsigned
+        return PyLong_FromLong(((PyLongObject*)n)->ob_digit[0]);
+    }
+#if CYTHON_COMPILING_IN_CPYTHON
+    {
+        PyObject *copy = _PyLong_Copy((PyLongObject*)n);
+        if (likely(copy)) {
+            Py_SIZE(copy) = -(Py_SIZE(copy));
+        }
+        return copy;
+    }
+#else
+    return PyNumber_Negative(n);
+#endif
+}
+#endif
+
 
 //////////////////// pow2.proto ////////////////////
 
 #define __Pyx_PyNumber_Power2(a, b) PyNumber_Power(a, b, Py_None)
+
+
+//////////////////// object_ord.proto ////////////////////
+//@requires: TypeConversion.c::UnicodeAsUCS4
+
+#if PY_MAJOR_VERSION >= 3
+#define __Pyx_PyObject_Ord(c) \
+    (likely(PyUnicode_Check(c)) ? (long)__Pyx_PyUnicode_AsPy_UCS4(c) : __Pyx__PyObject_Ord(c))
+#else
+#define __Pyx_PyObject_Ord(c) __Pyx__PyObject_Ord(c)
+#endif
+static long __Pyx__PyObject_Ord(PyObject* c); /*proto*/
+
+//////////////////// object_ord ////////////////////
+
+static long __Pyx__PyObject_Ord(PyObject* c) {
+    Py_ssize_t size;
+    if (PyBytes_Check(c)) {
+        size = PyBytes_GET_SIZE(c);
+        if (likely(size == 1)) {
+            return (unsigned char) PyBytes_AS_STRING(c)[0];
+        }
+#if PY_MAJOR_VERSION < 3
+    } else if (PyUnicode_Check(c)) {
+        return (long)__Pyx_PyUnicode_AsPy_UCS4(c);
+#endif
+#if (!CYTHON_COMPILING_IN_PYPY) || (defined(PyByteArray_AS_STRING) && defined(PyByteArray_GET_SIZE))
+    } else if (PyByteArray_Check(c)) {
+        size = PyByteArray_GET_SIZE(c);
+        if (likely(size == 1)) {
+            return (unsigned char) PyByteArray_AS_STRING(c)[0];
+        }
+#endif
+    } else {
+        // FIXME: support character buffers - but CPython doesn't support them either
+        PyErr_Format(PyExc_TypeError,
+            "ord() expected string of length 1, but %.200s found", c->ob_type->tp_name);
+        return (long)(Py_UCS4)-1;
+    }
+    PyErr_Format(PyExc_TypeError,
+        "ord() expected a character, but string of length %zd found", size);
+    return (long)(Py_UCS4)-1;
+}
+
 
 //////////////////// py_dict_keys.proto ////////////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Keys(PyObject* d); /*proto*/
 
 //////////////////// py_dict_keys ////////////////////
-//@requires: ObjectHandling.c::PyObjectCallMethod
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Keys(PyObject* d) {
     if (PY_MAJOR_VERSION >= 3)
-        return __Pyx_PyObject_CallMethod1((PyObject*)&PyDict_Type, PYIDENT("keys"), d);
+        return CALL_UNBOUND_METHOD(PyDict_Type, "keys", d);
     else
         return PyDict_Keys(d);
 }
@@ -272,11 +356,10 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_Keys(PyObject* d) {
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Values(PyObject* d); /*proto*/
 
 //////////////////// py_dict_values ////////////////////
-//@requires: ObjectHandling.c::PyObjectCallMethod
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Values(PyObject* d) {
     if (PY_MAJOR_VERSION >= 3)
-        return __Pyx_PyObject_CallMethod1((PyObject*)&PyDict_Type, PYIDENT("values"), d);
+        return CALL_UNBOUND_METHOD(PyDict_Type, "values", d);
     else
         return PyDict_Values(d);
 }
@@ -286,11 +369,10 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_Values(PyObject* d) {
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Items(PyObject* d); /*proto*/
 
 //////////////////// py_dict_items ////////////////////
-//@requires: ObjectHandling.c::PyObjectCallMethod
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_Items(PyObject* d) {
     if (PY_MAJOR_VERSION >= 3)
-        return __Pyx_PyObject_CallMethod1((PyObject*)&PyDict_Type, PYIDENT("items"), d);
+        return CALL_UNBOUND_METHOD(PyDict_Type, "items", d);
     else
         return PyDict_Items(d);
 }
@@ -300,10 +382,12 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_Items(PyObject* d) {
 static CYTHON_INLINE PyObject* __Pyx_PyDict_IterKeys(PyObject* d); /*proto*/
 
 //////////////////// py_dict_iterkeys ////////////////////
-//@requires: ObjectHandling.c::PyObjectCallMethod
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_IterKeys(PyObject* d) {
-    return __Pyx_PyObject_CallMethod0(d, (PY_MAJOR_VERSION >= 3) ? PYIDENT("keys") : PYIDENT("iterkeys"));
+    if (PY_MAJOR_VERSION >= 3)
+        return CALL_UNBOUND_METHOD(PyDict_Type, "keys", d);
+    else
+        return CALL_UNBOUND_METHOD(PyDict_Type, "iterkeys", d);
 }
 
 //////////////////// py_dict_itervalues.proto ////////////////////
@@ -311,10 +395,12 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_IterKeys(PyObject* d) {
 static CYTHON_INLINE PyObject* __Pyx_PyDict_IterValues(PyObject* d); /*proto*/
 
 //////////////////// py_dict_itervalues ////////////////////
-//@requires: ObjectHandling.c::PyObjectCallMethod
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_IterValues(PyObject* d) {
-    return __Pyx_PyObject_CallMethod0(d, (PY_MAJOR_VERSION >= 3) ? PYIDENT("values") : PYIDENT("itervalues"));
+    if (PY_MAJOR_VERSION >= 3)
+        return CALL_UNBOUND_METHOD(PyDict_Type, "values", d);
+    else
+        return CALL_UNBOUND_METHOD(PyDict_Type, "itervalues", d);
 }
 
 //////////////////// py_dict_iteritems.proto ////////////////////
@@ -322,10 +408,12 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_IterValues(PyObject* d) {
 static CYTHON_INLINE PyObject* __Pyx_PyDict_IterItems(PyObject* d); /*proto*/
 
 //////////////////// py_dict_iteritems ////////////////////
-//@requires: ObjectHandling.c::PyObjectCallMethod
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_IterItems(PyObject* d) {
-    return __Pyx_PyObject_CallMethod0(d, (PY_MAJOR_VERSION >= 3) ? PYIDENT("items") : PYIDENT("iteritems"));
+    if (PY_MAJOR_VERSION >= 3)
+        return CALL_UNBOUND_METHOD(PyDict_Type, "items", d);
+    else
+        return CALL_UNBOUND_METHOD(PyDict_Type, "iteritems", d);
 }
 
 //////////////////// py_dict_viewkeys.proto ////////////////////
@@ -336,10 +424,12 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_IterItems(PyObject* d) {
 static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewKeys(PyObject* d); /*proto*/
 
 //////////////////// py_dict_viewkeys ////////////////////
-//@requires: ObjectHandling.c::PyObjectCallMethod
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewKeys(PyObject* d) {
-    return __Pyx_PyObject_CallMethod0(d, (PY_MAJOR_VERSION >= 3) ? PYIDENT("keys") : PYIDENT("viewkeys"));
+    if (PY_MAJOR_VERSION >= 3)
+        return CALL_UNBOUND_METHOD(PyDict_Type, "keys", d);
+    else
+        return CALL_UNBOUND_METHOD(PyDict_Type, "viewkeys", d);
 }
 
 //////////////////// py_dict_viewvalues.proto ////////////////////
@@ -350,10 +440,12 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewKeys(PyObject* d) {
 static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewValues(PyObject* d); /*proto*/
 
 //////////////////// py_dict_viewvalues ////////////////////
-//@requires: ObjectHandling.c::PyObjectCallMethod
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewValues(PyObject* d) {
-    return __Pyx_PyObject_CallMethod0(d, (PY_MAJOR_VERSION >= 3) ? PYIDENT("values") : PYIDENT("viewvalues"));
+    if (PY_MAJOR_VERSION >= 3)
+        return CALL_UNBOUND_METHOD(PyDict_Type, "values", d);
+    else
+        return CALL_UNBOUND_METHOD(PyDict_Type, "viewvalues", d);
 }
 
 //////////////////// py_dict_viewitems.proto ////////////////////
@@ -364,8 +456,83 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewValues(PyObject* d) {
 static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewItems(PyObject* d); /*proto*/
 
 //////////////////// py_dict_viewitems ////////////////////
-//@requires: ObjectHandling.c::PyObjectCallMethod
 
 static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewItems(PyObject* d) {
-    return __Pyx_PyObject_CallMethod0(d, (PY_MAJOR_VERSION >= 3) ? PYIDENT("items") : PYIDENT("viewitems"));
+    if (PY_MAJOR_VERSION >= 3)
+        return CALL_UNBOUND_METHOD(PyDict_Type, "items", d);
+    else
+        return CALL_UNBOUND_METHOD(PyDict_Type, "viewitems", d);
+}
+
+
+//////////////////// pyfrozenset_new.proto ////////////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it);
+
+//////////////////// pyfrozenset_new ////////////////////
+//@substitute: naming
+
+static CYTHON_INLINE PyObject* __Pyx_PyFrozenSet_New(PyObject* it) {
+    if (it) {
+        PyObject* result;
+#if CYTHON_COMPILING_IN_PYPY
+        // PyPy currently lacks PyFrozenSet_CheckExact() and PyFrozenSet_New()
+        PyObject* args;
+        args = PyTuple_Pack(1, it);
+        if (unlikely(!args))
+            return NULL;
+        result = PyObject_Call((PyObject*)&PyFrozenSet_Type, args, NULL);
+        Py_DECREF(args);
+        return result;
+#else
+        if (PyFrozenSet_CheckExact(it)) {
+            Py_INCREF(it);
+            return it;
+        }
+        result = PyFrozenSet_New(it);
+        if (unlikely(!result))
+            return NULL;
+        if (likely(PySet_GET_SIZE(result)))
+            return result;
+        // empty frozenset is a singleton
+        // seems wasteful, but CPython does the same
+        Py_DECREF(result);
+#endif
+    }
+#if CYTHON_USE_TYPE_SLOTS
+    return PyFrozenSet_Type.tp_new(&PyFrozenSet_Type, $empty_tuple, NULL);
+#else
+    return PyObject_Call((PyObject*)&PyFrozenSet_Type, $empty_tuple, NULL);
+#endif
+}
+
+
+//////////////////// PySet_Update.proto ////////////////////
+
+static CYTHON_INLINE int __Pyx_PySet_Update(PyObject* set, PyObject* it); /*proto*/
+
+//////////////////// PySet_Update ////////////////////
+
+static CYTHON_INLINE int __Pyx_PySet_Update(PyObject* set, PyObject* it) {
+    PyObject *retval;
+    #if CYTHON_USE_TYPE_SLOTS && !CYTHON_COMPILING_IN_PYPY
+    if (PyAnySet_Check(it)) {
+        if (PySet_GET_SIZE(it) == 0)
+            return 0;
+        // fast and safe case: CPython will update our result set and return it
+        retval = PySet_Type.tp_as_number->nb_inplace_or(set, it);
+        if (likely(retval == set)) {
+            Py_DECREF(retval);
+            return 0;
+        }
+        if (unlikely(!retval))
+            return -1;
+        // unusual result, fall through to set.update() call below
+        Py_DECREF(retval);
+    }
+    #endif
+    retval = CALL_UNBOUND_METHOD(PySet_Type, "update", set, it);
+    if (unlikely(!retval)) return -1;
+    Py_DECREF(retval);
+    return 0;
 }

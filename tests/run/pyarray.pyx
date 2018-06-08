@@ -105,6 +105,16 @@ def test_resize(a):
     assert len(cb) == 10
     assert cb[9] == cb[-1] == cb.data.as_floats[9] == 9
 
+def test_resize_smart(a):
+    """
+    >>> a = array.array('d', [1, 2, 3])
+    >>> test_resize_smart(a)
+    2
+    """
+    cdef array.array cb = array.copy(a)
+    array.resize_smart(cb, 2)
+    return len(cb)
+
 def test_buffer():
     """
     >>> test_buffer()
@@ -147,8 +157,15 @@ def test_extend():
     """
     cdef array.array ca = array.array('i', [1, 2, 3])
     cdef array.array cb = array.array('i', [4, 5])
+    cdef array.array cf = array.array('f', [1.0, 2.0, 3.0])
     array.extend(ca, cb)
     assert list(ca) == [1, 2, 3, 4, 5], list(ca)
+    try:
+        array.extend(ca, cf)
+    except TypeError:
+        pass
+    else:
+        assert False, 'extending incompatible array types did not raise'
 
 def test_likes(a):
     """

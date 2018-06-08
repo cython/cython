@@ -4,6 +4,8 @@
 template <typename T>
 struct Bar {
     Bar & ref() { return *this; }
+    const Bar & const_ref() { return *this; }
+    const Bar & const_ref_const() const { return *this; }
     T value;
 };
 

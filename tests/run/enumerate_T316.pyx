@@ -62,7 +62,7 @@ def c_enumerate_carray_target():
     3 4
     """
     cdef int k
-    cdef int i[1]
+    cdef int[1] i
     for i[0],k in enumerate(range(1,5)):
         print i[0], k
 

@@ -3,7 +3,74 @@
 # tag: cyfunction
 
 import sys
+IS_PY2 = sys.version_info[0] < 3
 IS_PY3 = sys.version_info[0] >= 3
+IS_PY34 = sys.version_info > (3, 4, 0, 'beta', 3)
+
+
+def inspect_isroutine():
+    """
+    >>> inspect_isroutine()
+    True
+    """
+    import inspect
+    return inspect.isroutine(inspect_isroutine)
+
+
+def inspect_isfunction():
+    """
+    >>> inspect_isfunction()
+    False
+    False
+    """
+    import inspect, types
+    print isinstance(inspect_isfunction, types.FunctionType)
+    return inspect.isfunction(inspect_isfunction)
+
+
+def inspect_isbuiltin():
+    """
+    >>> inspect_isbuiltin()
+    False
+    False
+    """
+    import inspect, types
+    print isinstance(inspect_isfunction, types.BuiltinFunctionType)
+    return inspect.isbuiltin(inspect_isbuiltin)
+
+
+def inspect_signature(a, b, c=123, *, d=234):
+    """
+    >>> sig = inspect_signature(1, 2)
+    >>> if IS_PY34: list(sig.parameters)
+    ... else: ['a', 'b', 'c', 'd']
+    ['a', 'b', 'c', 'd']
+    >>> if IS_PY34: sig.parameters['c'].default == 123
+    ... else: True
+    True
+    >>> if IS_PY34: sig.parameters['d'].default == 234
+    ... else: True
+    True
+    """
+    import inspect
+    return inspect.signature(inspect_signature) if IS_PY34 else None
+
+
+# def test___signature__(a, b, c=123, *, d=234):
+#     """
+#     >>> sig = test___signature__(1, 2)
+#     >>> if IS_PY34: list(sig.parameters)
+#     ... else: ['a', 'b', 'c', 'd']
+#     ['a', 'b', 'c', 'd']
+#     >>> if IS_PY34: sig.parameters['c'].default == 123
+#     ... else: True
+#     True
+#     >>> if IS_PY34: sig.parameters['d'].default == 234
+#     ... else: True
+#     True
+#     """
+#     return inspect_signature.__signature__ if IS_PY34 else None
+
 
 def test_dict():
     """
@@ -31,42 +98,6 @@ def test_name():
     'foo'
     """
 
-
-def test_qualname():
-    """
-    >>> test_qualname.__qualname__
-    'test_qualname'
-    >>> test_qualname.__qualname__ = 123 #doctest:+ELLIPSIS
-    Traceback (most recent call last):
-    TypeError: __qualname__ must be set to a ... object
-    >>> test_qualname.__qualname__ = 'foo'
-    >>> test_qualname.__qualname__
-    'foo'
-    """
-
-
-def test_nested_qualname():
-    """
-    >>> func, lambda_func = test_nested_qualname()
-
-    >>> func().__qualname__
-    'test_nested_qualname.<locals>.outer.<locals>.Test'
-    >>> func().test.__qualname__
-    'test_nested_qualname.<locals>.outer.<locals>.Test.test'
-    >>> func()().test.__qualname__
-    'test_nested_qualname.<locals>.outer.<locals>.Test.test'
-
-    >>> lambda_func.__qualname__
-    'test_nested_qualname.<locals>.<lambda>'
-    """
-    def outer():
-        class Test(object):
-            def test(self):
-                return 123
-        return Test
-    return outer, lambda:None
-
-
 def test_doc():
     """
     >>> del test_doc.__doc__
@@ -77,6 +108,19 @@ def test_doc():
     >>> test_doc.func_doc
     'docstring'
     """
+
+
+def test_hash():
+    """
+    >>> d = {test_hash: 123}
+    >>> test_hash in d
+    True
+    >>> d[test_hash]
+    123
+    >>> hash(test_hash) == hash(test_hash)
+    True
+    """
+
 
 def test_closure():
     """
@@ -261,3 +305,89 @@ def test_annotations(a: "test", b: "other" = 2, c: 123 = 4) -> "ret":
     def inner(x: "banana", y: b()) -> c():
         return x,y
     return inner
+
+
+def add_one(func):
+    "Decorator to add 1 to the last argument of the function call"
+    def inner(*args):
+        args = args[:-1] + (args[-1] + 1,)
+        return func(*args)
+    return inner
+
+@add_one
+def test_decorated(x):
+    """
+    >>> test_decorated(0)
+    1
+    """
+    return x
+
+@add_one
+@add_one
+def test_decorated2(x):
+    """
+    >>> test_decorated2(0)
+    2
+    """
+    return x
+
+
+cdef class TestDecoratedMethods:
+    @add_one
+    def test(self, x):
+        """
+        >>> TestDecoratedMethods().test(0)
+        1
+        """
+        return x
+
+    @add_one
+    @add_one
+    def test2(self, x):
+        """
+        >>> TestDecoratedMethods().test2(0)
+        2
+        """
+        return x
+
+    def test_calls(self, x):
+        """
+        >>> TestDecoratedMethods().test_calls(2)
+        25
+        """
+        return self.test(x) + self.test2(x*10)
+
+
+cdef class TestUnboundMethodCdef:
+    """
+    >>> C = TestUnboundMethodCdef
+    >>> IS_PY2 or (C.meth is C.__dict__["meth"])
+    True
+    """
+    def meth(self): pass
+
+
+class TestUnboundMethod:
+    """
+    >>> C = TestUnboundMethod
+    >>> IS_PY2 or (C.meth is C.__dict__["meth"])
+    True
+    """
+    def meth(self): pass
+
+
+cdef class TestOptimisedBuiltinMethod:
+    """
+    >>> obj = TestOptimisedBuiltinMethod()
+    >>> obj.append(2)
+    3
+    >>> obj.call(2)
+    4
+    >>> obj.call(3, obj)
+    5
+    """
+    def append(self, arg):
+        print(arg+1)
+
+    def call(self, arg, obj=None):
+        (obj or self).append(arg+1)  # optimistically optimised => uses fast fallback method call

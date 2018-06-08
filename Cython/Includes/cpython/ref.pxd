@@ -1,11 +1,6 @@
+from .object cimport PyObject, PyTypeObject, Py_TYPE  # legacy imports for re-export
+
 cdef extern from "Python.h":
-    ctypedef struct PyTypeObject
-    ctypedef struct PyObject:
-        Py_ssize_t ob_refcnt
-        PyTypeObject *ob_type
-    cdef PyTypeObject *Py_TYPE(object)
-
-
     #####################################################################
     # 3. Reference Counts
     #####################################################################

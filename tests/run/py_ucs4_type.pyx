@@ -1,9 +1,16 @@
 # -*- coding: iso-8859-1 -*-
+# mode: run
+# tag: warnings
+
 
 cimport cython
 
 cdef Py_UCS4 char_ASCII = u'A'
 cdef Py_UCS4 char_KLINGON = u'\uF8D2'
+
+u_A = char_ASCII
+u_KLINGON = char_KLINGON
+
 
 def compare_ASCII():
     """
@@ -86,6 +93,19 @@ def unicode_ordinal(Py_UCS4 i):
     """
     return i
 
+
+def ord_py_ucs4(Py_UCS4 x):
+    """
+    >>> ord_py_ucs4(u0)
+    0
+    >>> ord_py_ucs4(u_A)
+    65
+    >>> ord_py_ucs4(u_KLINGON)
+    63698
+    """
+    return ord(x)
+
+
 @cython.test_assert_path_exists('//PythonCapiCallNode')
 @cython.test_fail_if_path_exists('//SimpleCallNode')
 def unicode_type_methods(Py_UCS4 uchar):
@@ -127,6 +147,24 @@ def unicode_methods(Py_UCS4 uchar):
         uchar.upper(),
         uchar.title(),
         ]
+
+
+@cython.test_assert_path_exists('//PythonCapiCallNode')
+@cython.test_fail_if_path_exists(
+    '//SimpleCallNode',
+    '//CoerceFromPyTypeNode',
+)
+def unicode_method_return_type(Py_UCS4 uchar):
+    """
+    >>> unicode_method_return_type(ord('A'))
+    [True, False]
+    >>> unicode_method_return_type(ord('a'))
+    [False, True]
+    """
+    cdef Py_UCS4 uc, ul
+    uc, ul = uchar.upper(), uchar.lower()
+    return [uc == uchar, ul == uchar]
+
 
 @cython.test_assert_path_exists('//IntNode')
 @cython.test_fail_if_path_exists('//SimpleCallNode',
@@ -209,14 +247,31 @@ def count_lower_case_characters_slice_reversed(unicode ustring):
              count += 1
     return count
 
-def loop_object_over_unicode_literal():
+def loop_object_over_latin1_unicode_literal():
     """
-    >>> print(loop_object_over_unicode_literal())
+    >>> result = loop_object_over_latin1_unicode_literal()
+    >>> print(result[:-1])
     abcdefg
+    >>> ord(result[-1]) == 0xD7
+    True
     """
     cdef object uchar
     chars = []
-    for uchar in u'abcdefg':
+    for uchar in u'abcdefg\xD7':
+        chars.append(uchar)
+    return u''.join(chars)
+
+def loop_object_over_unicode_literal():
+    """
+    >>> result = loop_object_over_unicode_literal()
+    >>> print(result[:-1])
+    abcdefg
+    >>> ord(result[-1]) == 0xF8FD
+    True
+    """
+    cdef object uchar
+    chars = []
+    for uchar in u'abcdefg\uF8FD':
         chars.append(uchar)
     return u''.join(chars)
 
@@ -234,6 +289,23 @@ def iter_and_in():
     for c in u'abcdefgh':
         if c in u'abCDefGh':
             print c
+
+
+@cython.test_fail_if_path_exists('//ForInStatNode')
+def iter_inferred():
+    """
+    >>> iter_inferred()
+    a
+    b
+    c
+    d
+    e
+    """
+    uchars = list(u"abcde")
+    uchars = u''.join(uchars)
+    for c in uchars:
+        print c
+
 
 @cython.test_assert_path_exists('//SwitchStatNode',
                                 '//ForFromStatNode')
@@ -273,3 +345,26 @@ def uchar_in(Py_UCS4 uchar, unicode ustring):
     """
     assert uchar == 0x12345, ('%X' % uchar)
     return uchar in ustring
+
+
+def uchar_lookup_in_dict(obj, Py_UCS4 uchar):
+    """
+    >>> d = {u_KLINGON: 1234, u0: 0, u1: 1, u_A: 2}
+    >>> uchar_lookup_in_dict(d, u_KLINGON)
+    (1234, 1234)
+    >>> uchar_lookup_in_dict(d, u_A)
+    (2, 2)
+    >>> uchar_lookup_in_dict(d, u0)
+    (0, 0)
+    >>> uchar_lookup_in_dict(d, u1)
+    (1, 1)
+    """
+    cdef dict d = obj
+    dval = d[uchar]
+    objval = obj[uchar]
+    return dval, objval
+
+
+_WARNINGS = """
+364:16: Item lookup of unicode character codes now always converts to a Unicode string. Use an explicit C integer cast to get back the previous integer lookup behaviour.
+"""

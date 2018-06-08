@@ -1,7 +1,6 @@
 # tag: numpy
-
-# Numpy <= 1.7.1 doesn't have a C++ guard in the header file.
 # tag: no-cpp
+# Numpy <= 1.7.1 doesn't have a C++ guard in the header file.
 
 cimport numpy.math as npmath
 
@@ -38,6 +37,7 @@ def test_fp_classif():
     assert not npmath.isnan(d_zero)
     assert not npmath.isnan(f_zero)
 
+    assert npmath.isinf(-npmath.INFINITY)
     assert npmath.isinf(npmath.INFINITY)
     assert npmath.isnan(npmath.NAN)
 

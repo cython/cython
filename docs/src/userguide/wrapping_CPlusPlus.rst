@@ -9,24 +9,12 @@ Using C++ in Cython
 Overview
 =========
 
-Cython v0.13 introduces native support for most of the C++ language.
-This means that the previous tricks that were used to wrap C++ classes
-(as described in http://wiki.cython.org/WrappingCPlusPlus_ForCython012AndLower)
-are no longer needed.
-
-Wrapping C++ classes with Cython is now much more straightforward.
-This document describe in details the new way of wrapping C++ code.
-
-What's new in Cython v0.13 about C++
----------------------------------------------------
-
-For users of previous Cython versions, here is a brief overview of the
-main new features of Cython v0.13 regarding C++ support:
+Cython has native support for most of the C++ language.  Specifically:
 
 * C++ objects can now be dynamically allocated with ``new`` and ``del`` keywords.
 * C++ objects can be stack-allocated.
 * C++ classes can be declared with the new keyword ``cppclass``.
-* Templated classes are supported.
+* Templated classes and functions are supported.
 * Overloaded functions are supported.
 * Overloading of C++ operators (such as operator+, operator[],...) is supported.
 
@@ -60,56 +48,50 @@ document. Let's assume it will be in a header file called
         class Rectangle {
         public:
             int x0, y0, x1, y1;
+            Rectangle();
             Rectangle(int x0, int y0, int x1, int y1);
             ~Rectangle();
-            int getLength();
-            int getHeight();
             int getArea();
+            void getSize(int* width, int* height);
             void move(int dx, int dy);
         };
     }
-    
+
 and the implementation in the file called :file:`Rectangle.cpp`:
 
 .. sourcecode:: c++
 
     #include "Rectangle.h"
 
-    using namespace shapes;
+    namespace shapes {
 
-    Rectangle::Rectangle(int X0, int Y0, int X1, int Y1)
-    {
-        x0 = X0;
-        y0 = Y0;
-        x1 = X1;
-        y1 = Y1;
-    }
+      Rectangle::Rectangle() { }
 
-    Rectangle::~Rectangle()
-    {
-    }
+        Rectangle::Rectangle(int X0, int Y0, int X1, int Y1) {
+            x0 = X0;
+            y0 = Y0;
+            x1 = X1;
+            y1 = Y1;
+        }
 
-    int Rectangle::getLength()
-    {
-        return (x1 - x0);
-    }
+        Rectangle::~Rectangle() { }
 
-    int Rectangle::getHeight()
-    {
-        return (y1 - y0);
-    }
+        int Rectangle::getArea() {
+            return (x1 - x0) * (y1 - y0);
+        }
 
-    int Rectangle::getArea()
-    {
-        return (x1 - x0) * (y1 - y0);
-    }
+        void Rectangle::getSize(int *width, int *height) {
+            (*width) = x1 - x0;
+            (*height) = y1 - y0;
+        }
 
-    void Rectangle::move(int dx, int dy)
-    {
-        x0 += dx;
-        y0 += dy;
-        x1 += dx;
-        y1 += dy;
+        void Rectangle::move(int dx, int dy) {
+            x0 += dx;
+            y0 += dy;
+            x1 += dx;
+            y1 += dy;
+        }
+
     }
 
 This is pretty dumb, but should suffice to demonstrate the steps involved.
@@ -137,10 +119,29 @@ together into :file:`rect.so`, which you can then import in Python using
 ``import rect`` (if you forget to link the :file:`Rectangle.o`, you will
 get missing symbols while importing the library in Python).
 
+Note that the ``language`` option has no effect on user provided Extension
+objects that are passed into ``cythonize()``.  It is only used for modules
+found by file name (as in the example above).
+
+The ``cythonize()`` function in Cython versions up to 0.21 does not
+recognize the ``language`` option and it needs to be specified as an
+option to an :class:`Extension` that describes your extension and that
+is then handled by ``cythonize()`` as follows::
+
+   from distutils.core import setup, Extension
+   from Cython.Build import cythonize
+
+   setup(ext_modules = cythonize(Extension(
+              "rect",                                # the extension name
+              sources=["rect.pyx", "Rectangle.cpp"], # the Cython source and
+                                                     # additional C++ source files
+              language="c++",                        # generate and compile C++ code
+         )))
+
 The options can also be passed directly from the source file, which is
-often preferable.  Starting with version 0.17, Cython also allows to
-pass external source files into the ``cythonize()`` command this way.
-Here is a simplified setup.py file::
+often preferable (and overrides any global option).  Starting with
+version 0.17, Cython also allows to pass external source files into the
+``cythonize()`` command this way.  Here is a simplified setup.py file::
 
    from distutils.core import setup
    from Cython.Build import cythonize
@@ -152,7 +153,7 @@ Here is a simplified setup.py file::
 
 And in the .pyx source file, write this into the first comment block, before
 any source code, to compile it in C++ mode and link it statically against the
-:file:`Rectange.cpp` code file::
+:file:`Rectangle.cpp` code file::
 
    # distutils: language = c++
    # distutils: sources = Rectangle.cpp
@@ -182,7 +183,7 @@ class name from Rectangle.h and adjust for Cython syntax, so now it becomes::
 
     cdef extern from "Rectangle.h" namespace "shapes":
         cdef cppclass Rectangle:
-    
+
 Add public attributes
 ^^^^^^^^^^^^^^^^^^^^^^
 
@@ -190,11 +191,11 @@ We now need to declare the attributes and methods for use on Cython::
 
     cdef extern from "Rectangle.h" namespace "shapes":
         cdef cppclass Rectangle:
+            Rectangle() except +
             Rectangle(int, int, int, int) except +
             int x0, y0, x1, y1
-            int getLength()
-            int getHeight()
             int getArea()
+            void getSize(int* width, int* height)
             void move(int, int)
 
 Note that the constructor is declared as "except +".  If the C++ code or
@@ -208,12 +209,12 @@ Declare a var with the wrapped C++ class
 
 Now, we use cdef to declare a var of the class with the C++ ``new`` statement::
 
-    cdef Rectangle *rec = new Rectangle(1, 2, 3, 4)
+    rec_ptr = new Rectangle(1, 2, 3, 4)
     try:
-        recLength = rec.getLength()
+        recArea = rec_ptr.getArea()
         ...
     finally:
-        del rec     # delete heap allocated object
+        del rec_ptr     # delete heap allocated object
 
 It's also possible to declare a stack allocated object, as long as it has
 a "default" constructor::
@@ -227,7 +228,7 @@ a "default" constructor::
         ...
 
 Note that, like C++, if the class has only one constructor and it
-is a default one, it's not necessary to declare it.
+is a nullary one, it's not necessary to declare it.
 
 Create Cython wrapper class
 ----------------------------
@@ -237,32 +238,57 @@ of the C++ Rectangle type.  Now, we need to make this accessible from
 external Python code (which is our whole point).
 
 Common programming practice is to create a Cython extension type which
-holds a C++ instance pointer as an attribute ``thisptr``, and create a bunch of
+holds a C++ instance as an attribute and create a bunch of
 forwarding methods. So we can implement the Python extension type as::
 
     cdef class PyRectangle:
-        cdef Rectangle *thisptr      # hold a C++ instance which we're wrapping
+        cdef Rectangle c_rect      # hold a C++ instance which we're wrapping
         def __cinit__(self, int x0, int y0, int x1, int y1):
-            self.thisptr = new Rectangle(x0, y0, x1, y1)
-        def __dealloc__(self):
-            del self.thisptr
-        def getLength(self):
-            return self.thisptr.getLength()
-        def getHeight(self):
-            return self.thisptr.getHeight()
-        def getArea(self):
-            return self.thisptr.getArea()
+            self.c_rect = Rectangle(x0, y0, x1, y1)
+        def get_area(self):
+            return self.c_rect.getArea()
+        def get_size(self):
+            cdef int width, height
+            self.c_rect.getSize(&width, &height)
+            return width, height
         def move(self, dx, dy):
-            self.thisptr.move(dx, dy)
+            self.c_rect.move(dx, dy)
 
 And there we have it. From a Python perspective, this extension type will look
-and feel just like a natively defined Rectangle class. If you want to give
+and feel just like a natively defined Rectangle class.
+It should be noted that
+
+If you want to give
 attribute access, you could just implement some properties::
 
-    property x0:
-        def __get__(self): return self.thisptr.x0
-        def __set__(self, x0): self.thisptr.x0 = x0
+    @property
+    def x0(self):
+        return self.c_rect.x0
+
+    @x0.setter
+    def x0(self):
+        def __set__(self, x0): self.c_rect.x0 = x0
     ...
+
+Cython initializes C++ class attributes of a cdef class using the nullary constructor.
+If the class you're wrapping does not have a nullary constructor, you must store a pointer
+to the wrapped class and manually allocate and deallocate it.
+A convenient and safe place to do so is in the `__cinit__` and `__dealloc__` methods
+which are guaranteed to be called exactly once upon creation and deletion of the Python
+instance.
+
+::
+
+    cdef class PyRectangle:
+        cdef Rectangle* c_rect      # hold a pointer to the C++ instance which we're wrapping
+        def __cinit__(self, int x0, int y0, int x1, int y1):
+            self.c_rect = new Rectangle(x0, y0, x1, y1)
+        def __dealloc__(self):
+            del self.c_rect
+        ...
+
+If you prefer giving the same name to the wrapper as the C++ class, see the
+section on :ref:`resolving naming conflicts <resolve-conflicts>`.
 
 
 Advanced C++ features
@@ -286,30 +312,45 @@ and use any of them::
 Overloading operators
 ----------------------
 
-Cython uses C++ for overloading operators::
+Cython uses C++ naming for overloading operators::
 
     cdef extern from "foo.h":
         cdef cppclass Foo:
             Foo()
-            Foo* operator+(Foo*)
-            Foo* operator-(Foo)
-            int operator*(Foo*)
+            Foo operator+(Foo)
+            Foo operator-(Foo)
+            int operator*(Foo)
             int operator/(int)
+            int operator*(int, Foo) # allows 1*Foo()
+        # nonmember operators can also be specified outside the class
+        double operator/(double, Foo)
 
-    cdef Foo* foo = new Foo()
-    cdef int x
 
-    cdef Foo* foo2 = foo[0] + foo
-    foo2 = foo[0] - foo[0]
+    cdef Foo foo = new Foo()
+
+    foo2 = foo + foo
+    foo2 = foo - foo
+
+    x = foo * foo2
+    x = foo / 1
 
     x = foo[0] * foo2
     x = foo[0] / 1
+    x = 1*foo[0]
 
-    cdef Foo f
-    foo = f + &f
-    foo2 = f - f
+    cdef double y
+    y = 2.0/foo[0]
 
-    del foo, foo2
+Note that if one has *pointers* to C++ objects, dereferencing must be done
+to avoid doing pointer arithmetic rather than arithmetic on the objects
+themselves::
+
+    cdef Foo* foo_ptr = new Foo()
+    foo = foo_ptr[0] + foo_ptr[0]
+    x = foo_ptr[0] / 2
+
+    del foo_ptr
+
 
 Nested class declarations
 --------------------------
@@ -329,9 +370,9 @@ nested in Cython::
             T& at(int)
             iterator begin()
             iterator end()
-            
+
     cdef vector[int].iterator iter  #iter is declared as being of type vector<int>::iterator
-            
+
 Note that the nested class is declared with a ``cppclass`` but without a ``cdef``.
 
 C++ operators not compatible with Python syntax
@@ -346,12 +387,17 @@ a special module ``cython.operator``. The functions provided are:
 * ``cython.operator.dereference`` for dereferencing. ``dereference(foo)``
   will produce the C++ code ``*(foo)``
 * ``cython.operator.preincrement`` for pre-incrementation. ``preincrement(foo)``
-  will produce the C++ code ``++(foo)``
-* ...
+  will produce the C++ code ``++(foo)``.
+  Similarly for ``predecrement``, ``postincrement`` and ``postdecrement``.
+* ``cython.operator.comma`` for the comma operator. ``comma(a, b)``
+  will produce the C++ code ``((a), (b))``.
 
 These functions need to be cimported. Of course, one can use a
 ``from ... cimport ... as`` to have shorter and more readable functions.
 For example: ``from cython.operator cimport dereference as deref``.
+
+For completeness, it's also worth mentioning ``cython.operator.address``
+which can also be written ``&foo``.
 
 Templates
 ----------
@@ -382,13 +428,28 @@ Cython uses a bracket syntax for templating. A simple example for wrapping C++ v
 
     cdef vector[int].iterator it = v.begin()
     while it != v.end():
-        print deref(it)
+        print(deref(it))
         inc(it)
 
     del v
 
-Multiple template parameters can be defined as a list, such as [T, U, V]
-or [int, bool, char].
+Multiple template parameters can be defined as a list, such as ``[T, U, V]``
+or ``[int, bool, char]``.  Optional template parameters can be indicated
+by writing ``[T, U, V=*]``.  In the event that Cython needs to explicitly
+reference the type of a default template parameter for an incomplete template
+instantiation, it will write ``MyClass<T, U>::V``, so if the class provides
+a typedef for its template parameters it is preferable to use that name here.
+
+
+Template functions are defined similarly to class templates, with
+the template parameter list following the function name::
+
+    cdef extern from "<algorithm>" namespace "std":
+        T max[T](T a, T b)
+
+    print(max[long](3, 4))
+    print(max(1.5, 2.5))  # simple template argument deduction
+
 
 Standard library
 -----------------
@@ -402,12 +463,14 @@ For example::
     from libcpp.vector cimport vector
 
     cdef vector[int] vect
-    cdef int i
+    cdef int i, x
     for i in range(10):
         vect.push_back(i)
     for i in range(10):
-        print vect[i]
-        
+        print(vect[i])
+    for x in vect:
+        print(x)
+
 The pxd files in ``/Cython/Includes/libcpp`` also work as good examples on
 how to declare C++ classes.
 
@@ -427,7 +490,7 @@ arguments) or by an explicit cast, e.g.::
     print(vect)              # [1, 3, 5, 7, 9]
 
     cdef vector[string] cpp_strings = b'ab cd ef gh'.split()
-    print(cpp_strings.get(1))   # b'cd'
+    print(cpp_strings[1])   # b'cd'
 
 The following coercions are available:
 
@@ -450,6 +513,47 @@ The items in the containers are converted to a corresponding type
 automatically, which includes recursively converting containers
 inside of containers, e.g. a C++ vector of maps of strings.
 
+Iteration over stl containers (or indeed any class with ``begin()`` and
+``end()`` methods returning an object supporting incrementing, dereferencing,
+and comparison) is supported via the ``for .. in`` syntax (including in list
+comprehensions).  For example, one can write::
+
+    cdef vector[int] v = ...
+    for value in v:
+        f(value)
+    return [x*x for x in v if x % 2 == 0]
+
+If the loop target variable is unspecified, an assignment from type
+``*container.begin()`` is used for :ref:`type inference <compiler-directives>`.
+
+
+Simplified wrapping with default constructor
+--------------------------------------------
+
+If your extension type instantiates a wrapped C++ class using the default
+constructor (not passing any arguments), you may be able to simplify the
+lifecycle handling by tying it directly to the lifetime of the Python wrapper
+object.  Instead of a pointer attribute, you can declare an instance::
+
+    cdef class VectorStack:
+        cdef vector[int] v
+
+        def push(self, x):
+            self.v.push_back(x)
+
+        def pop(self):
+            if self.v.empty():
+                raise IndexError()
+            x = self.v.back()
+            self.v.pop_back()
+            return x
+
+Cython will automatically generate code that instantiates the C++ object
+instance when the Python object is created and deletes it when the Python
+object is garbage collected.
+
+
+
 Exceptions
 -----------
 
@@ -470,6 +574,8 @@ The translation is performed according to the following table
 | ``bad_alloc``         | ``MemoryError``     |
 +-----------------------+---------------------+
 | ``bad_cast``          | ``TypeError``       |
++-----------------------+---------------------+
+| ``bad_typeid``        | ``TypeError``       |
 +-----------------------+---------------------+
 | ``domain_error``      | ``ValueError``      |
 +-----------------------+---------------------+
@@ -521,10 +627,60 @@ If the Rectangle class has a static member:
         };
     }
 
-you can declare it as a function living in the class namespace, i.e.::
+you can declare it using the Python @staticmethod decorator, i.e.::
 
-    cdef extern from "Rectangle.h" namespace "shapes::Rectangle":
-        void do_something()
+    cdef extern from "Rectangle.h" namespace "shapes":
+        cdef cppclass Rectangle:
+            ...
+            @staticmethod
+            void do_something()
+
+
+Declaring/Using References
+---------------------------
+
+Cython supports declaring lvalue references using the standard ``Type&`` syntax.
+Note, however, that it is unnecessary to declare the arguments of extern
+functions as references (const or otherwise) as it has no impact on the
+caller's syntax.
+
+
+``auto`` Keyword
+----------------
+
+Though Cython does not have an ``auto`` keyword, Cython local variables
+not explicitly typed with ``cdef`` are deduced from the types of the right hand
+side of *all* their assignments (see the ``infer_types``
+:ref:`compiler directive <compiler-directives>`).  This is particularly handy
+when dealing with functions that return complicated, nested, templated types,
+e.g.::
+
+    cdef vector[int] v = ...
+    it = v.begin()
+
+(Though of course the ``for .. in`` syntax is preferred for objects supporting
+the iteration protocol.)
+
+RTTI and typeid()
+=================
+
+Cython has support for the ``typeid(...)`` operator.
+
+    from cython.operator cimport typeid
+
+The ``typeid(...)`` operator returns an object of the type ``const type_info &``.
+
+If you want to store a type_info value in a C variable, you will need to store it
+as a pointer rather than a reference::
+
+    from libcpp.typeinfo cimport type_info
+    cdef const type_info* info = &typeid(MyClass)
+
+If an invalid type is passed to ``typeid``, it will throw an ``std::bad_typeid``
+exception which is converted into a ``TypeError`` exception in Python.
+
+An additional C++11-only RTTI-related class, ``std::type_index``, is available
+in ``libcpp.typeindex``.
 
 
 Caveats and Limitations
@@ -542,12 +698,7 @@ module which:
 
 * includes the needed C headers in an extern "C" block
 * contains minimal forwarding functions in C++, each of which calls the
-  respective pure-C function 
-
-Declaring/Using References
----------------------------
-
-Question: How do you declare and call a function that takes a reference as an argument?
+  respective pure-C function
 
 C++ left-values
 ----------------
@@ -555,5 +706,3 @@ C++ left-values
 C++ allows functions returning a reference to be left-values.  This is currently
 not supported in Cython. ``cython.operator.dereference(foo)`` is also not
 considered a left-value.
-
-

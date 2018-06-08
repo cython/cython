@@ -5,7 +5,7 @@
 from libc.string cimport const_char, const_void
 
 
-cdef extern from "stdio.h" nogil:
+cdef extern from "<stdio.h>" nogil:
 
     ctypedef struct FILE
     cdef FILE *stdin
@@ -77,4 +77,4 @@ cdef extern from "stdio.h" nogil:
     int fputc   (int c, FILE *stream)
     int putc    (int c, FILE *stream)
 
-
+    size_t getline(char **lineptr, size_t *n, FILE *stream)

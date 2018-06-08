@@ -10,7 +10,7 @@ __pyx_capsule_create(void *p, CYTHON_UNUSED const char *sig)
 {
     PyObject *cobj;
 
-#if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION == 3 && PY_MINOR_VERSION == 0)
+#if PY_VERSION_HEX >= 0x02070000
     cobj = PyCapsule_New(p, sig, NULL);
 #else
     cobj = PyCObject_FromVoidPtr(p, NULL);

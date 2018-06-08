@@ -46,6 +46,12 @@ cdef extern from "Python.h":
     object PyInt_FromSsize_t(Py_ssize_t ival)
     # Return value: New reference.
     # Create a new integer object with a value of ival. If the value
+    # is larger than LONG_MAX or smaller than LONG_MIN, a long integer
+    # object is returned.
+
+    object PyInt_FromSize_t(size_t ival)
+    # Return value: New reference.
+    # Create a new integer object with a value of ival. If the value
     # exceeds LONG_MAX, a long integer object is returned.
 
     long PyInt_AsLong(object io) except? -1
@@ -77,3 +83,7 @@ cdef extern from "Python.h":
     long PyInt_GetMax()
     # Return the system's idea of the largest integer it can handle
     # (LONG_MAX, as defined in the system header files).
+
+    int PyInt_ClearFreeList()
+    # Clear the integer free list. Return the number of items that could not be freed.
+    # New in version 2.6.

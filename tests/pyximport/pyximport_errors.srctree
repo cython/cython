@@ -1,0 +1,47 @@
+
+PYTHON -c "import pyximport_test; pyximport_test.test()"
+
+######## pyximport_test.py ########
+
+import os.path
+from contextlib import contextmanager
+import pyximport
+
+pyximport.install(build_dir=os.path.join(os.path.dirname(__file__), "TEST_TMP"))
+
+@contextmanager
+def fails(exc=ImportError):
+    try:
+        yield
+    except exc:
+        pass
+    else:
+        raise RuntimeError("NOT RAISED!")
+
+
+def test():
+    with fails():
+        import compiler_error
+
+    with fails():
+        import syntax_error
+
+    with fails():
+        import runtime_error
+
+
+######## compiler_error.pyx ########
+
+from __future__ import braces
+
+
+######## syntax_error.pyx ########
+
+def test {
+    BRACES!
+}
+
+
+######## runtime_error.pyx ########
+
+raise ValueError()

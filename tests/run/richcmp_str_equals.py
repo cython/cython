@@ -11,12 +11,16 @@ class testobj(object):
     def __eq__(self, other):
         return plop()
 
-def test_equals():
+def test_equals(x):
     """
-    >>> result = test_equals()
+    >>> x = testobj()
+    >>> result = test_equals(x)
     >>> isinstance(result, plop)
     True
+    >>> test_equals('hihi')
+    False
+    >>> test_equals('coucou')
+    True
     """
-    blah = testobj()
-    eq = blah == 'coucou'  # not every str equals returns a bool ...
+    eq = x == 'coucou'  # not every str equals returns a bool ...
     return eq

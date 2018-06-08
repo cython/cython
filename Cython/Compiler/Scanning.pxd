@@ -1,11 +1,20 @@
+from __future__ import absolute_import
+
 import cython
 
-from Cython.Plex.Scanners cimport Scanner
+from ..Plex.Scanners cimport Scanner
+
+cdef unicode any_string_prefix, IDENT
+
+cdef get_lexicon()
+cdef initial_compile_time_env()
 
 cdef class Method:
     cdef object name
-    cdef object __name__
+    cdef dict kwargs
+    cdef readonly object __name__  # for tracing the scanner
 
+@cython.final
 cdef class CompileTimeScope:
     cdef public dict entries
     cdef public CompileTimeScope outer
@@ -13,6 +22,7 @@ cdef class CompileTimeScope:
     cdef lookup_here(self, name)
     cpdef lookup(self, name)
 
+@cython.final
 cdef class PyrexScanner(Scanner):
     cdef public context
     cdef public list included_files
@@ -26,6 +36,7 @@ cdef class PyrexScanner(Scanner):
     cdef public list indentation_stack
     cdef public indentation_char
     cdef public int bracket_nesting_level
+    cdef bint async_enabled
     cdef public sy
     cdef public systring
 
@@ -49,4 +60,6 @@ cdef class PyrexScanner(Scanner):
     cdef expected(self, what, message = *)
     cdef expect_indent(self)
     cdef expect_dedent(self)
-    cdef expect_newline(self, message = *)
+    cdef expect_newline(self, message=*, bint ignore_semicolon=*)
+    cdef int enter_async(self) except -1
+    cdef int exit_async(self) except -1

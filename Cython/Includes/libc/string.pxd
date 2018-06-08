@@ -7,7 +7,7 @@ cdef extern from *:
     ctypedef const unsigned char const_uchar "const unsigned char"
     ctypedef const void const_void "const void"
 
-cdef extern from "string.h" nogil:
+cdef extern from "<string.h>" nogil:
 
     void *memcpy  (void *pto, const void *pfrom, size_t size)
     void *memmove (void *pto, const void *pfrom, size_t size)

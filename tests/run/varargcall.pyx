@@ -1,5 +1,6 @@
-cdef grail(char *blarg, ...):
+cdef grail(const char *blarg, ...):
     pass
+
 
 def swallow():
     """
@@ -7,3 +8,5 @@ def swallow():
     """
     grail("spam")
     grail("spam", 42)
+    grail("spam", b"abc")
+    grail("spam", "abc")

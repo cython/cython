@@ -1,5 +1,6 @@
+# mode: run
+# tag: cpp, werror
 # cython: experimental_cpp_class_def=True
-# tag: cpp
 
 from libcpp.vector cimport vector
 

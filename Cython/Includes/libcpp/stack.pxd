@@ -1,10 +1,11 @@
-cdef extern from "<stack>" namespace "std":
+cdef extern from "<stack>" namespace "std" nogil:
     cdef cppclass stack[T]:
-        stack() nogil except +
-        stack(stack&) nogil except +
+        ctypedef T value_type
+        stack() except +
+        stack(stack&) except +
         #stack(Container&)
-        bint empty() nogil
-        void pop() nogil
-        void push(T&) nogil
-        size_t size() nogil
-        T& top() nogil
+        bint empty()
+        void pop()
+        void push(T&)
+        size_t size()
+        T& top()

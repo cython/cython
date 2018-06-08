@@ -1,5 +1,7 @@
 # mode: run
 # tag: closures
+# preparse: id
+# preparse: def_to_cdef
 #
 # closure_tests_1.pyx
 #

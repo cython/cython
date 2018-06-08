@@ -1,0 +1,23 @@
+PYTHON setup.py build_ext --inplace
+
+######## setup.py ###########
+
+from distutils.core import setup
+from Cython.Build import cythonize
+
+import Cython.Compiler.Scanning
+
+Cython.Compiler.Scanning.trace_scanner = 1
+
+setup(
+    ext_modules = cythonize("*.pyx")
+)
+
+import simple
+assert simple.test() == 123
+
+
+######## simple.pyx ###########
+
+def test():
+    return 123

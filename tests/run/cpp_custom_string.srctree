@@ -1,0 +1,71 @@
+# mode: run
+# tag: cpp, werror
+
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import a; a.test_convert()"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from Cython.Compiler import PyrexTypes
+PyrexTypes.cpp_string_conversions += ("MyString", "MyString2")
+
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize("*.pyx"),
+)
+
+######## my_string.cpp ########
+
+#include <string>
+
+class MyString {
+  public:
+    MyString() { }
+    MyString(const char* data, size_t size) : value_(data, size) { }
+    const char* data() const { return value_.data(); }
+    const size_t size() const { return value_.size(); }
+  private:
+    std::string value_;
+};
+
+class MyString2 : public MyString {
+  public:
+    MyString2() : MyString() { }
+    MyString2(const char* data, size_t size) : MyString(data, size) { }
+};
+
+typedef MyString MyTypedefString;
+
+######## a.pyx ########
+
+# distutils: language = c++
+
+cdef extern from "my_string.cpp":
+  cdef cppclass MyString:
+    pass
+
+  cdef cppclass MyString2:
+    pass
+
+  ctypedef MyString2 MyTypedefString  # really a MyString
+
+def do_convert(MyString value):
+    return value
+
+def do_convert2(MyString2 value):
+    return value
+
+def do_convert_typedef(MyTypedefString value):
+    return value
+
+def test_convert():
+    assert do_convert(b"abc") == b"abc"
+    assert do_convert(b"ab\0c") == b"ab\0c"
+
+    assert do_convert2(b"abc") == b"abc"
+    assert do_convert2(b"ab\0c") == b"ab\0c"
+
+    assert do_convert_typedef(b"abc") == b"abc"
+    assert do_convert_typedef(b"ab\0c") == b"ab\0c"

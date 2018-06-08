@@ -1,0 +1,43 @@
+PYTHON setup.py build_ext --inplace
+
+######## setup.py ########
+
+from Cython.Build import cythonize
+from Cython.Distutils.extension import Extension
+
+import sys
+sys.path.append("path")
+
+ext_modules = [
+    Extension("importer", ["importer.pyx"]),
+]
+
+ext_modules = cythonize(ext_modules, include_path=["include"])
+
+
+######## pkg/__init__.py ########
+
+
+######## pkg/a.pxd ########
+
+cdef class A(object):
+  pass
+
+######## importer.pyx ########
+
+cimport pkg.a
+cimport pkg.a as a
+cimport pkg.a as a_by_another_name
+from pkg cimport a as from_cimported_a
+
+cdef class A1(a.A):
+  pass
+
+cdef class A2(a_by_another_name.A):
+  pass
+
+cdef class A3(pkg.a.A):
+  pass
+
+cdef class A4(from_cimported_a.A):
+  pass

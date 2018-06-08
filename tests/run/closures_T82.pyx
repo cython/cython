@@ -1,6 +1,8 @@
 # mode: run
 # tag: closures
 # ticket: 82
+# preparse: id
+# preparse: def_to_cdef
 
 cimport cython
 

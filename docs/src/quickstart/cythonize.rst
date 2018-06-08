@@ -3,11 +3,11 @@ Faster code via static typing
 
 Cython is a Python compiler.  This means that it can compile normal
 Python code without changes (with a few obvious exceptions of some as-yet
-unsupported language features).  However, for performance critical
-code, it is often helpful to add static type declarations, as they
-will allow Cython to step out of the dynamic nature of the Python code
-and generate simpler and faster C code - sometimes faster by orders of
-magnitude.
+unsupported language features, see :ref:`Cython limitations<cython-limitations>`).
+However, for performance critical code, it is often helpful to add
+static type declarations, as they will allow Cython to step out of the
+dynamic nature of the Python code and generate simpler and faster C code
+- sometimes faster by orders of magnitude.
 
 It must be noted, however, that type declarations can make the source
 code more verbose and thus less readable.  It is therefore discouraged
@@ -24,7 +24,7 @@ where value overflows on conversion to a C type will raise a Python
 when doing arithmetic.) The generated C code will handle the
 platform dependent sizes of C types correctly and safely in this case.
 
-Types are declared via the cdef keyword. 
+Types are declared via the cdef keyword.
 
 
 Typing Variables
@@ -62,7 +62,7 @@ With additional type declarations, this might look like::
 
 Since the iterator variable ``i`` is typed with C semantics, the for-loop will be compiled
 to pure C code.  Typing ``a``, ``s`` and ``dx`` is important as they are involved
-in arithmetic withing the for-loop; typing ``b`` and ``N`` makes less of a
+in arithmetic within the for-loop; typing ``b`` and ``N`` makes less of a
 difference, but in this case it is not much extra work to be
 consistent and type the entire function.
 
@@ -107,6 +107,8 @@ methods.
 
 Speedup: 150 times over pure Python.
 
+.. _determining_where_to_add_types:
+
 Determining where to add types
 ------------------------------
 
@@ -114,18 +116,42 @@ Because static typing is often the key to large speed gains, beginners
 often have a tendency to type everything in sight. This cuts down on both
 readability and flexibility, and can even slow things down (e.g. by adding
 unnecessary type checks, conversions, or slow buffer unpacking).
-On the other hand, it is easy to kill 
-performance by forgetting to type a critical loop variable. Two essential 
-tools to help with this task are profiling and annotation. 
-Profiling should be the first step of any optimization effort, and can 
+On the other hand, it is easy to kill
+performance by forgetting to type a critical loop variable. Two essential
+tools to help with this task are profiling and annotation.
+Profiling should be the first step of any optimization effort, and can
 tell you where you are spending your time. Cython's annotation can then
-tell you why your code is taking time. 
+tell you why your code is taking time.
 
 Using the ``-a`` switch to the ``cython`` command line program (or
 following a link from the Sage notebook) results in an HTML report
 of Cython code interleaved with the generated C code.  Lines are
-colored according to the level of "typedness" -- white lines
-translates to pure C without any Python API calls. This report
-is invaluable when optimizing a function for speed.
+colored according to the level of "typedness" --
+white lines translate to pure C,
+while lines that require the Python C-API are yellow
+(darker as they translate to more C-API interaction).
+Lines that translate to C code have a plus (``+``) in front
+and can be clicked to show the generated code.
+
+This report is invaluable when optimizing a function for speed,
+and for determining when to :ref:`release the GIL <nogil>`:
+in general, a ``nogil`` block may contain only "white" code.
 
 .. figure:: htmlreport.png
+
+Note that Cython deduces the type of local variables based on their assignments
+(including as loop variable targets) which can also cut down on the need to
+explicitly specify types everywhere.
+For example, declaring ``dx`` to be of type double above is unnecessary,
+as is declaring the type of ``s`` in the last version (where the return type
+of ``f`` is known to be a C double.)  A notable exception, however, is
+*integer types used in arithmetic expressions*, as Cython is unable to ensure
+that an overflow would not occur (and so falls back to ``object`` in case
+Python's bignums are needed).  To allow inference of C integer types, set the
+``infer_types`` :ref:`directive <compiler-directives>` to ``True``. This directive
+does a work similar to the ``auto`` keyword in C++ for the readers who are familiar
+with this language feature. It can be of great help to cut down on the need to type
+everything, but it also can lead to surprises. Especially if one isn't familiar with
+arithmetic expressions with c types. A quick overview of those
+can be found `here <https://www.eskimo.com/~scs/cclass/int/sx4cb.html>`_.
+

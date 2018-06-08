@@ -1,11 +1,19 @@
-template <class T>
+template <typename T, typename S=T, typename U=T>
 class Wrap {
     T value;
 public:
+    typedef S AltType;
+
     Wrap(T v) : value(v) { }
     void set(T v) { value = v; }
     T get(void) { return value; }
     bool operator==(Wrap<T> other) { return value == other.value; }
+
+    S get_alt_type(void) { return (S) value; }
+    void set_alt_type(S v) { value = (T) v; }
+
+    U create(void) { return (U) value; }
+    bool accept(U v) { return v == (U) value; }
 };
 
 template <class T1, class T2>
@@ -29,4 +37,16 @@ public:
 
 template <class T2, class T3>
 class SubClass : public SuperClass<T2, T3> {
+};
+
+template <class T>
+class Div {
+public:
+    static T half(T value) { return value / 2; }
+};
+
+template <class T1, class T2>
+class BinaryAnd {
+public:
+    static T1 call(T1 x, T2 y) { return x & y; }
 };

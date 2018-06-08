@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Cython documentation build configuration file, created by
-# sphinx-quickstart on Sun Dec 16 18:23:12 2012.
+# sphinx-quickstart on Sun Jun 29 13:36:38 2014.
 #
 # This file is execfile()d with the current directory set to its containing dir.
 #
@@ -12,6 +12,7 @@
 # serve to show the default.
 
 import sys, os, os.path, re
+import itertools
 import datetime
 
 YEAR = datetime.date.today().strftime('%Y')
@@ -42,7 +43,8 @@ extensions = [
     'cython_highlighting',
     'sphinx.ext.pngmath',
     'sphinx.ext.todo',
-    'sphinx.ext.intersphinx'
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.autodoc'
     ]
 
 try: import rst2pdf
@@ -61,8 +63,6 @@ source_suffix = '.rst'
 # The master toctree document.
 master_doc = 'index'
 
-exclude_patterns = ['py*', 'build']
-
 # General information about the project.
 project = 'Cython'
 authors = 'Stefan Behnel, Robert Bradshaw, Dag Sverre Seljebotn, Greg Ewing, William Stein, Gabriel Gellner, et al.'
@@ -77,11 +77,13 @@ release = '0.15'
 try:
     _match_version = re.compile(r'^\s*_*version\s*_*\s*=\s*["\']([^"\']+)["\'].*').match
     with open(os.path.join(os.path.dirname(__file__), '..', 'Cython', 'Shadow.py')) as _f:
-        for line in _f:
+        for line in itertools.islice(_f, 5):  # assume version comes early enough
             _m = _match_version(line)
             if _m:
                 release = _m.group(1)
                 break
+        else:
+            print("FAILED TO PARSE PROJECT VERSION !")
 except:
     pass
 # The short X.Y version.
@@ -99,7 +101,7 @@ today_fmt = '%B %d, %Y'
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-exclude_patterns = []
+exclude_patterns = ['py*', 'build', 'BUILD', 'TEST_TMP']
 
 # The reST default role (used for this markup: `text`) to use for all documents.
 #default_role = None
@@ -125,7 +127,10 @@ pygments_style = 'sphinx'
 todo_include_todos = True
 
 # intersphinx for standard :keyword:s (def, for, etc.)
-intersphinx_mapping = {'python': ('http://docs.python.org/3.3', None)}
+intersphinx_mapping = {'python': ('http://docs.python.org/3/', None)}
+
+# If true, keep warnings as "system message" paragraphs in the built documents.
+#keep_warnings = False
 
 
 # -- Options for HTML output ---------------------------------------------------
@@ -133,6 +138,12 @@ intersphinx_mapping = {'python': ('http://docs.python.org/3.3', None)}
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 html_theme = 'default'
+try:
+    import sphinx
+    if os.path.isdir(os.path.join(os.path.dirname(sphinx.__file__), 'themes', 'nature')):
+        html_theme = 'nature'
+except (ImportError, AttributeError):
+    pass  # use default theme
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -151,12 +162,12 @@ html_theme = 'default'
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-#html_logo = None
+html_logo = "_static/cythonlogo.png"
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
 # pixels large.
-#html_favicon = None
+html_favicon = "_static/favicon.ico"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -285,6 +296,9 @@ texinfo_documents = [
 # How to display URL addresses: 'footnote', 'no', or 'inline'.
 #texinfo_show_urls = 'footnote'
 
+# If true, do not generate a @detailmenu in the "Top" node's menu.
+#texinfo_no_detailmenu = False
+
 
 # -- Options for Epub output ---------------------------------------------------
 
@@ -311,6 +325,9 @@ epub_copyright = copyright
 # A tuple containing the cover image and cover page html template filenames.
 #epub_cover = ()
 
+# A sequence of (type, uri, title) tuples for the guide element of content.opf.
+#epub_guide = ()
+
 # HTML files that should be inserted before the pages created by sphinx.
 # The format is a list of tuples containing the path and title.
 #epub_pre_files = []
@@ -327,6 +344,19 @@ epub_copyright = copyright
 
 # Allow duplicate toc entries.
 #epub_tocdup = True
+
+# Fix unsupported image types using the PIL.
+#epub_fix_images = False
+
+# Scale large images.
+#epub_max_image_width = 0
+
+# If 'no', URL addresses will not be shown.
+#epub_show_urls = 'inline'
+
+# If false, no index is generated.
+#epub_use_index = True
+
 
 # -- Options for PDF output --------------------------------------------------
 

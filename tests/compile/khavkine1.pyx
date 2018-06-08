@@ -1,7 +1,7 @@
 # mode: compile
 
 cdef class T:
-    cdef int a[1]
+    cdef int[1] a
 
 cdef object b
 

@@ -9,24 +9,32 @@ bottom. Some of these methods behave differently from their Python
 counterparts or have no direct Python counterparts, and require special
 mention.
 
-.. Note: Everything said on this page applies only to extension types, defined
+.. Note::
+
+    Everything said on this page applies only to extension types, defined
     with the :keyword:`cdef class` statement. It doesn't apply to classes defined with the
-    Python :keyword:`class` statement, where the normal Python rules apply.  
-    
+    Python :keyword:`class` statement, where the normal Python rules apply.
+
+.. _declaration:
+
 Declaration
 ------------
 Special methods of extension types must be declared with :keyword:`def`, not
 :keyword:`cdef`. This does not impact their performance--Python uses different
-calling conventions to invoke these special methods. 
+calling conventions to invoke these special methods.
+
+.. _docstrings:
 
 Docstrings
 -----------
 
 Currently, docstrings are not fully supported in some special methods of extension
 types. You can place a docstring in the source to serve as a comment, but it
-won't show up in the corresponding :attr:`__doc__` attribute at run time. (This 
-seems to be is a Python limitation -- there's nowhere in the `PyTypeObject` 
-data structure to put such docstrings.) 
+won't show up in the corresponding :attr:`__doc__` attribute at run time. (This
+seems to be is a Python limitation -- there's nowhere in the `PyTypeObject`
+data structure to put such docstrings.)
+
+.. _initialisation_methods:
 
 Initialisation methods: :meth:`__cinit__` and :meth:`__init__`
 ---------------------------------------------------------------
@@ -36,7 +44,7 @@ The :meth:`__cinit__` method is where you should perform basic C-level
 initialisation of the object, including allocation of any C data structures
 that your object will own. You need to be careful what you do in the
 :meth:`__cinit__` method, because the object may not yet be fully valid Python
-object when it is called. Therefore, you should be careful invoking any Python 
+object when it is called. Therefore, you should be careful invoking any Python
 operations which might touch the object; in particular, its methods.
 
 By the time your :meth:`__cinit__` method is called, memory has been allocated for the
@@ -67,25 +75,32 @@ ignore extra arguments. Otherwise, any Python subclass which has an
 :meth:`__init__` with a different signature will have to override
 :meth:`__new__` [#]_ as well as :meth:`__init__`, which the writer of a Python
 class wouldn't expect to have to do.  Alternatively, as a convenience, if you declare
-your :meth:`__cinit__`` method to take no arguments (other than self) it 
+your :meth:`__cinit__`` method to take no arguments (other than self) it
 will simply ignore any extra arguments passed to the constructor without
-complaining about the signature mismatch. 
+complaining about the signature mismatch.
 
-.. Note: Older Cython files may use :meth:`__new__` rather than :meth:`__cinit__`. The two are synonyms. 
-  The name change from :meth:`__new__` to :meth:`__cinit__` was to avoid 
-  confusion with Python :meth:`__new__` (which is an entirely different 
-  concept) and eventually the use of :meth:`__new__` in Cython will be 
-  disallowed to pave the way for supporting Python-style :meth:`__new__`  
+..  Note::
+
+    All constructor arguments will be passed as Python objects.
+    This implies that non-convertible C types such as pointers or C++ objects
+    cannot be passed into the constructor from Cython code.  If this is needed,
+    use a factory function instead that handles the object initialisation.
+    It often helps to directly call ``__new__()`` in this function to bypass the
+    call to the ``__init__()`` constructor.
+
+    See :ref:`existing-pointers-instantiation` for an example.
 
 .. [#] http://docs.python.org/reference/datamodel.html#object.__new__
+
+.. _finalization_method:
 
 Finalization method: :meth:`__dealloc__`
 ----------------------------------------
 
 The counterpart to the :meth:`__cinit__` method is the :meth:`__dealloc__`
 method, which should perform the inverse of the :meth:`__cinit__` method. Any
-C data that you explicitly allocated (e.g. via malloc) in your 
-:meth:`__cinit__` method should be freed in your :meth:`__dealloc__` method. 
+C data that you explicitly allocated (e.g. via malloc) in your
+:meth:`__cinit__` method should be freed in your :meth:`__dealloc__` method.
 
 You need to be careful what you do in a :meth:`__dealloc__` method. By the time your
 :meth:`__dealloc__` method is called, the object may already have been partially
@@ -97,7 +112,7 @@ deallocating C data.
 
 You don't need to worry about deallocating Python attributes of your object,
 because that will be done for you by Cython after your :meth:`__dealloc__` method
-returns. 
+returns.
 
 When subclassing extension types, be aware that the :meth:`__dealloc__` method
 of the superclass will always be called, even if it is overridden.  This is in
@@ -105,6 +120,8 @@ contrast to typical Python behavior where superclass methods will not be
 executed unless they are explicitly called by the subclass.
 
 .. Note:: There is no :meth:`__del__` method for extension types.
+
+.. _arithmetic_methods:
 
 Arithmetic methods
 -------------------
@@ -116,35 +133,49 @@ operation, the same method of the second operand is called, with the operands
 in the same order.
 
 This means that you can't rely on the first parameter of these methods being
-"self" or being the right type, and you should test the types of both operands 
-before deciding what to do. If you can't handle the combination of types you've 
+"self" or being the right type, and you should test the types of both operands
+before deciding what to do. If you can't handle the combination of types you've
 been given, you should return `NotImplemented`.
 
 This also applies to the in-place arithmetic method :meth:`__ipow__`. It doesn't apply
 to any of the other in-place methods (:meth:`__iadd__`, etc.) which always
 take `self` as the first argument.
 
+.. _righ_comparisons:
+
 Rich comparisons
 -----------------
 
-There are no separate methods for the individual rich comparison operations
-(:meth:`__eq__`, :meth:`__le__`, etc.) Instead there is a single method
-:meth:`__richcmp__` which takes an integer indicating which operation is to be
-performed, as follows:
-             
-+-----+-----+
-|  <  |  0  |	
-+-----+-----+
-| ==  |  2  |
-+-----+-----+
-|  >  |  4  |
-+-----+-----+
-| <=  |  1  |	
-+-----+-----+
-| !=  |  3  |	
-+-----+-----+
-| >=  |  5  |
-+-----+-----+
+There are two ways to implement comparison methods.
+Depending on the application, one way or the other may be better:
+
+* The first way uses the 6 Python
+  `special methods <https://docs.python.org/3/reference/datamodel.html#basic-customization>`_
+  :meth:`__eq__`, :meth:`__lt__`, etc.
+  This is new since Cython 0.27 and works exactly as in plain Python classes.
+* The second way uses a single special method :meth:`__richcmp__`.
+  This implements all rich comparison operations in one method.
+  The signature is ``def __richcmp__(self, other, int op)``.
+  The integer argument ``op`` indicates which operation is to be performed
+  as shown in the table below:
+
+  +-----+-------+
+  |  <  | Py_LT |
+  +-----+-------+
+  | ==  | Py_EQ |
+  +-----+-------+
+  |  >  | Py_GT |
+  +-----+-------+
+  | <=  | Py_LE |
+  +-----+-------+
+  | !=  | Py_NE |
+  +-----+-------+
+  | >=  | Py_GE |
+  +-----+-------+
+
+  These constants can be cimported from the ``cpython.object`` module.
+
+.. _the__next__method:
 
 The :meth:`__next__` method
 ----------------------------
@@ -164,9 +195,11 @@ with no type specified in the table are generic Python objects.
 
 You don't have to declare your method as taking these parameter types. If you
 declare different types, conversions will be performed as necessary.
- 
+
 General
 ^^^^^^^
+
+https://docs.python.org/3/reference/datamodel.html#special-method-names
 
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | Name 	                | Parameters                            | Return type | 	Description                                 |
@@ -178,8 +211,6 @@ General
 | __dealloc__           |self 	                                |             | Basic deallocation (no direct Python equivalent)    |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | __cmp__               |x, y 	                                | int         | 3-way comparison                                    |
-+-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
-| __richcmp__           |x, y, int op                           | object      | Rich comparison (no direct Python equivalent)       |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | __str__               |self 	                                | object      | str(self)                                           |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
@@ -200,8 +231,36 @@ General
 | __delattr__           |self, name                             |             | Delete attribute                                    |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 
+Rich comparison operators
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+https://docs.python.org/3/reference/datamodel.html#basic-customization
+
+You can choose to either implement the standard Python special methods
+like :meth:`__eq__` or the single special method :meth:`__richcmp__`.
+Depending on the application, one way or the other may be better.
+
++-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
+| __eq__                |self, y                                | object      | self == y                                              |
++-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
+| __ne__                |self, y                                | object      | self != y  (falls back to ``__eq__`` if not available) |
++-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
+| __lt__                |self, y                                | object      | self < y                                               |
++-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
+| __gt__                |self, y                                | object      | self > y                                               |
++-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
+| __le__                |self, y                                | object      | self <= y                                              |
++-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
+| __ge__                |self, y                                | object      | self >= y                                              |
++-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
+| __richcmp__           |self, y, int op                        | object      | Joined rich comparison method for all of the above     |
+|                       |                                       |             | (no direct Python equivalent)                          |
++-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
+
 Arithmetic operators
 ^^^^^^^^^^^^^^^^^^^^
+
+https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types
 
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | Name 	                | Parameters                            | Return type | 	Description                                 |
@@ -248,6 +307,8 @@ Arithmetic operators
 Numeric conversions
 ^^^^^^^^^^^^^^^^^^^
 
+https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types
+
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | Name 	                | Parameters                            | Return type | 	Description                                 |
 +=======================+=======================================+=============+=====================================================+
@@ -266,6 +327,8 @@ Numeric conversions
 
 In-place arithmetic operators
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+https://docs.python.org/3/reference/datamodel.html#emulating-numeric-types
 
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | Name 	                | Parameters                            | Return type | 	Description                                 |
@@ -300,6 +363,8 @@ In-place arithmetic operators
 Sequences and mappings
 ^^^^^^^^^^^^^^^^^^^^^^
 
+https://docs.python.org/3/reference/datamodel.html#emulating-container-types
+
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | Name 	                | Parameters                            | Return type | 	Description                                 |
 +=======================+=======================================+=============+=====================================================+
@@ -323,19 +388,21 @@ Sequences and mappings
 Iterators
 ^^^^^^^^^
 
+https://docs.python.org/3/reference/datamodel.html#emulating-container-types
+
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | Name 	                | Parameters                            | Return type | 	Description                                 |
 +=======================+=======================================+=============+=====================================================+
 | __next__ 	        | self 	                                | object      |	Get next item (called next in Python)               |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 
-Buffer interface [PEP 3118] (no Python equivalents - see note 1)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Buffer interface [:PEP:`3118`] (no Python equivalents - see note 1)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | Name                  | Parameters                            | Return type |         Description                                 |
 +=======================+=======================================+=============+=====================================================+
-| __getbuffer__         | self, Py_buffer `*view`, int flags    |             |                                                     | 
+| __getbuffer__         | self, Py_buffer `*view`, int flags    |             |                                                     |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | __releasebuffer__     | self, Py_buffer `*view`               |             |                                                     |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
@@ -346,7 +413,7 @@ Buffer interface [legacy] (no Python equivalents - see note 1)
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | Name                  | Parameters                            | Return type |         Description                                 |
 +=======================+=======================================+=============+=====================================================+
-| __getreadbuffer__     | self, Py_ssize_t i, void `**p`        |             |                                                     | 
+| __getreadbuffer__     | self, Py_ssize_t i, void `**p`        |             |                                                     |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | __getwritebuffer__    | self, Py_ssize_t i, void `**p`        |             |                                                     |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
@@ -357,6 +424,8 @@ Buffer interface [legacy] (no Python equivalents - see note 1)
 
 Descriptor objects (see note 2)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+https://docs.python.org/3/reference/datamodel.html#emulating-container-types
 
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 | Name 	                | Parameters                            | Return type | 	Description                                 |
@@ -371,10 +440,10 @@ Descriptor objects (see note 2)
 .. note:: (1) The buffer interface was intended for use by C code and is not directly
         accessible from Python. It is described in the Python/C API Reference Manual
         of Python 2.x under sections 6.6 and 10.6. It was superseded by the new
-        PEP 3118 buffer protocol in Python 2.6 and is no longer available in Python 3.
+        :PEP:`3118` buffer protocol in Python 2.6 and is no longer available in Python 3.
+        For a how-to guide to the new API, see :ref:`buffer`.
 
 .. note:: (2) Descriptor objects are part of the support mechanism for new-style
         Python classes. See the discussion of descriptors in the Python documentation.
-        See also PEP 252, "Making Types Look More Like Classes", and PEP 253,
+        See also :PEP:`252`, "Making Types Look More Like Classes", and :PEP:`253`,
         "Subtyping Built-In Types".
-

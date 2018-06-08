@@ -3,15 +3,21 @@
 #   Cython Scanner - Lexical Definitions
 #
 
+from __future__ import absolute_import
+
 raw_prefixes = "rR"
-string_prefixes = "cCuUbB"
+bytes_prefixes = "bB"
+string_prefixes = "fFuU" + bytes_prefixes
+char_prefixes = "cC"
+any_string_prefix = raw_prefixes + string_prefixes + char_prefixes
 IDENT = 'IDENT'
 
+
 def make_lexicon():
-    from Cython.Plex import \
+    from ..Plex import \
         Str, Any, AnyBut, AnyChar, Rep, Rep1, Opt, Bol, Eol, Eof, \
         TEXT, IGNORE, State, Lexicon
-    from Scanning import Method
+    from .Scanning import Method
 
     letter = Any("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_")
     digit = Any("0123456789")
@@ -20,47 +26,27 @@ def make_lexicon():
     hexdigit = Any("0123456789ABCDEFabcdef")
     indentation = Bol + Rep(Any(" \t"))
 
-    decimal = Rep1(digit)
+    def underscore_digits(d):
+        return Rep1(d) + Rep(Str("_") + Rep1(d))
+
+    decimal = underscore_digits(digit)
     dot = Str(".")
     exponent = Any("Ee") + Opt(Any("+-")) + decimal
     decimal_fract = (decimal + dot + Opt(decimal)) | (dot + decimal)
 
     name = letter + Rep(letter | digit)
-    intconst = decimal | (Str("0") + ((Any("Xx") + Rep1(hexdigit)) |
-                                      (Any("Oo") + Rep1(octdigit)) |
-                                      (Any("Bb") + Rep1(bindigit)) ))
+    intconst = decimal | (Str("0") + ((Any("Xx") + underscore_digits(hexdigit)) |
+                                      (Any("Oo") + underscore_digits(octdigit)) |
+                                      (Any("Bb") + underscore_digits(bindigit)) ))
     intsuffix = (Opt(Any("Uu")) + Opt(Any("Ll")) + Opt(Any("Ll"))) | (Opt(Any("Ll")) + Opt(Any("Ll")) + Opt(Any("Uu")))
     intliteral = intconst + intsuffix
     fltconst = (decimal_fract + Opt(exponent)) | (decimal + exponent)
     imagconst = (intconst | fltconst) + Any("jJ")
 
-    sq_string = (
-        Str("'") +
-        Rep(AnyBut("\\\n'") | (Str("\\") + AnyChar)) +
-        Str("'")
-    )
-
-    dq_string = (
-        Str('"') +
-        Rep(AnyBut('\\\n"') | (Str("\\") + AnyChar)) +
-        Str('"')
-    )
-
-    non_sq = AnyBut("'") | (Str('\\') + AnyChar)
-    tsq_string = (
-        Str("'''")
-        + Rep(non_sq | (Str("'") + non_sq) | (Str("''") + non_sq))
-        + Str("'''")
-    )
-
-    non_dq = AnyBut('"') | (Str('\\') + AnyChar)
-    tdq_string = (
-        Str('"""')
-        + Rep(non_dq | (Str('"') + non_dq) | (Str('""') + non_dq))
-        + Str('"""')
-    )
-
-    beginstring = Opt(Any(string_prefixes)) + Opt(Any(raw_prefixes)) + (Str("'") | Str('"') | Str("'''") | Str('"""'))
+    # invalid combinations of prefixes are caught in p_string_literal
+    beginstring = Opt(Rep(Any(string_prefixes + raw_prefixes)) |
+                      Any(char_prefixes)
+                      ) + (Str("'") | Str('"') | Str("'''") | Str('"""'))
     two_oct = octdigit + octdigit
     three_oct = octdigit + octdigit + octdigit
     two_hex = hexdigit + hexdigit
@@ -70,14 +56,12 @@ def make_lexicon():
                              Str('u') + four_hex | Str('x') + two_hex |
                              Str('U') + four_hex + four_hex | AnyChar)
 
-
-    deco = Str("@")
     bra = Any("([{")
     ket = Any(")]}")
-    punct = Any(":,;+-*/|&<>=.%`~^?!")
+    punct = Any(":,;+-*/|&<>=.%`~^?!@")
     diphthong = Str("==", "<>", "!=", "<=", ">=", "<<", ">>", "**", "//",
                     "+=", "-=", "*=", "/=", "%=", "|=", "^=", "&=",
-                    "<<=", ">>=", "**=", "//=", "->")
+                    "<<=", ">>=", "**=", "//=", "->", "@=")
     spaces = Rep1(Any(" \t\f"))
     escaped_newline = Str("\\\n")
     lineterm = Eol + Opt(Str("\n"))
@@ -86,17 +70,15 @@ def make_lexicon():
 
     return Lexicon([
         (name, IDENT),
-        (intliteral, 'INT'),
-        (fltconst, 'FLOAT'),
-        (imagconst, 'IMAG'),
-        (deco, 'DECORATOR'),
+        (intliteral, Method('strip_underscores', symbol='INT')),
+        (fltconst, Method('strip_underscores', symbol='FLOAT')),
+        (imagconst, Method('strip_underscores', symbol='IMAG')),
         (punct | diphthong, TEXT),
 
         (bra, Method('open_bracket_action')),
         (ket, Method('close_bracket_action')),
         (lineterm, Method('newline_action')),
 
-        #(stringlit, 'STRING'),
         (beginstring, Method('begin_string_action')),
 
         (comment, IGNORE),

@@ -1,6 +1,6 @@
 # mode: run
 # ticket: 736
-# tags: default arguments, closure
+# tag: default arguments, closure
 
 def default_args_for_closure(a=1, b=2):
     """

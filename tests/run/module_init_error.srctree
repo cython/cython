@@ -1,0 +1,71 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import test_fail_in_init; test_fail_in_init.try_import()"
+PYTHON -c "import test_fail_in_init_after_atexit; test_fail_in_init_after_atexit.try_import()"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+
+setup(
+    ext_modules = cythonize("fail_in_init*.pyx")
+)
+
+######## test_fail_in_init.py ########
+
+import sys
+
+def try_import():
+    try:
+        import fail_in_init
+    except ValueError:
+        pass
+    else:
+        raise RuntimeError("expected ValueError from import")
+
+    if (3, 3) <= sys.version_info < (3, 5):
+        assert 'fail_in_init' not in sys.modules
+    elif 'fail_in_init' in sys.modules:
+        try:
+            sys.modules['fail_in_init'].fail()
+        except AttributeError:
+            pass  # this is "ok enough"
+        except ValueError:
+            pass  # this is what we had expected
+        else:
+            raise RuntimeError("expected ValueError from call through sys.modules")
+
+######## fail_in_init.pyx ########
+
+def fail():
+    raise ValueError("kaputt")
+
+fail()
+
+######## test_fail_in_init_after_atexit.py ########
+
+def try_import():
+    try:
+        import fail_in_init_after_atexit
+    except ValueError:
+        pass
+    else:
+        raise RuntimeError("expected ValueError from import")
+
+######## fail_in_init_after_atexit.pyx ########
+
+X = 5
+
+def callback():
+    try:
+        print(X)
+    except NameError:
+        pass  # NameError is acceptable, a crash is not
+
+import atexit
+atexit.register(callback)
+
+def fail():
+    raise ValueError("holla!")
+
+fail()

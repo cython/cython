@@ -3,18 +3,38 @@
 #            anywhere else in particular
 #
 
-import os, sys, re, codecs
+from __future__ import absolute_import
+
+try:
+    from __builtin__ import basestring
+except ImportError:
+    basestring = str
+
+import os
+import sys
+import re
+import io
+import codecs
+import shutil
+from contextlib import contextmanager
 
 modification_time = os.path.getmtime
 
+_function_caches = []
+def clear_function_caches():
+    for cache in _function_caches:
+        cache.clear()
+
 def cached_function(f):
     cache = {}
+    _function_caches.append(cache)
     uncomputed = object()
     def wrapper(*args):
         res = cache.get(args, uncomputed)
         if res is uncomputed:
             res = cache[args] = f(*args)
         return res
+    wrapper.uncached = f
     return wrapper
 
 def cached_method(f):
@@ -34,6 +54,7 @@ def replace_suffix(path, newsuf):
     base, _ = os.path.splitext(path)
     return base + newsuf
 
+
 def open_new_file(path):
     if os.path.exists(path):
         # Make sure to create a new file here so we can
@@ -44,7 +65,10 @@ def open_new_file(path):
     # ASCII strings or (e.g. for file names) byte encoded strings as
     # Unicode, so we need a direct mapping from the first 256 Unicode
     # characters to a byte sequence, which ISO-8859-1 provides
+
+    # note: can't use io.open() in Py2 as we may be writing str objects
     return codecs.open(path, "w", encoding="ISO-8859-1")
+
 
 def castrate_file(path, st):
     #  Remove junk contents from an output file after a
@@ -65,6 +89,34 @@ def castrate_file(path, st):
 def file_newer_than(path, time):
     ftime = modification_time(path)
     return ftime > time
+
+
+def safe_makedirs(path):
+    try:
+        os.makedirs(path)
+    except OSError:
+        if not os.path.isdir(path):
+            raise
+
+
+def copy_file_to_dir_if_newer(sourcefile, destdir):
+    """
+    Copy file sourcefile to directory destdir (creating it if needed),
+    preserving metadata. If the destination file exists and is not
+    older than the source file, the copying is skipped.
+    """
+    destfile = os.path.join(destdir, os.path.basename(sourcefile))
+    try:
+        desttime = modification_time(destfile)
+    except OSError:
+        # New file does not exist, destdir may or may not exist
+        safe_makedirs(destdir)
+    else:
+        # New file already exists
+        if not file_newer_than(sourcefile, desttime):
+            return
+    shutil.copy2(sourcefile, destfile)
+
 
 @cached_function
 def search_include_directories(dirs, qualified_name, suffix, pos,
@@ -135,6 +187,7 @@ def check_package_dir(dir, package_names):
 @cached_function
 def is_package_dir(dir_path):
     for filename in ("__init__.py",
+                     "__init__.pyc",
                      "__init__.pyx",
                      "__init__.pxd"):
         path = os.path.join(dir_path, filename)
@@ -168,20 +221,20 @@ def path_exists(path):
 # file name encodings
 
 def decode_filename(filename):
-    if isinstance(filename, unicode):
-        return filename
-    try:
-        filename_encoding = sys.getfilesystemencoding()
-        if filename_encoding is None:
-            filename_encoding = sys.getdefaultencoding()
-        filename = filename.decode(filename_encoding)
-    except UnicodeDecodeError:
-        pass
+    if isinstance(filename, bytes):
+        try:
+            filename_encoding = sys.getfilesystemencoding()
+            if filename_encoding is None:
+                filename_encoding = sys.getdefaultencoding()
+            filename = filename.decode(filename_encoding)
+        except UnicodeDecodeError:
+            pass
     return filename
 
 # support for source file encoding detection
 
 _match_file_encoding = re.compile(u"coding[:=]\s*([-\w.]+)").search
+
 
 def detect_file_encoding(source_filename):
     f = open_source_file(source_filename, encoding="UTF-8", error_handling='ignore')
@@ -189,30 +242,34 @@ def detect_file_encoding(source_filename):
         return detect_opened_file_encoding(f)
     finally:
         f.close()
-    
+
+
 def detect_opened_file_encoding(f):
     # PEPs 263 and 3120
     # Most of the time the first two lines fall in the first 250 chars,
     # and this bulk read/split is much faster.
-    lines = f.read(250).split("\n")
-    if len(lines) > 2:
-        m = _match_file_encoding(lines[0]) or _match_file_encoding(lines[1])
+    lines = f.read(250).split(u"\n")
+    if len(lines) > 1:
+        m = _match_file_encoding(lines[0])
         if m:
             return m.group(1)
-        else:
-            return "UTF-8"
-    else:
-        # Fallback to one-char-at-a-time detection.
-        f.seek(0)
-        chars = []
-        for i in range(2):
+        elif len(lines) > 2:
+            m = _match_file_encoding(lines[1])
+            if m:
+                return m.group(1)
+            else:
+                return "UTF-8"
+    # Fallback to one-char-at-a-time detection.
+    f.seek(0)
+    chars = []
+    for i in range(2):
+        c = f.read(1)
+        while c and c != u'\n':
+            chars.append(c)
             c = f.read(1)
-            while c and c != u'\n':
-                chars.append(c)
-                c = f.read(1)
-            encoding = _match_file_encoding(u''.join(chars))
-            if encoding:
-                return encoding.group(1)
+        encoding = _match_file_encoding(u''.join(chars))
+        if encoding:
+            return encoding.group(1)
     return "UTF-8"
 
 
@@ -226,132 +283,65 @@ def skip_bom(f):
         f.seek(0)
 
 
-normalise_newlines = re.compile(u'\r\n?|\n').sub
-
-
-class NormalisedNewlineStream(object):
-    """The codecs module doesn't provide universal newline support.
-    This class is used as a stream wrapper that provides this
-    functionality.  The new 'io' in Py2.6+/3.x supports this out of the
-    box.
-    """
-
-    def __init__(self, stream):
-        # let's assume .read() doesn't change
-        self.stream = stream
-        self._read = stream.read
-        self.close = stream.close
-        self.encoding = getattr(stream, 'encoding', 'UTF-8')
-
-    def read(self, count=-1):
-        data = self._read(count)
-        if u'\r' not in data:
-            return data
-        if data.endswith(u'\r'):
-            # may be missing a '\n'
-            data += self._read(1)
-        return normalise_newlines(u'\n', data)
-
-    def readlines(self):
-        content = []
-        data = self.read(0x1000)
-        while data:
-            content.append(data)
-            data = self.read(0x1000)
-
-        return u''.join(content).splitlines(True)
-
-    def seek(self, pos):
-        if pos == 0:
-            self.stream.seek(0)
-        else:
-            raise NotImplementedError
-
-
-io = None
-if sys.version_info >= (2,6):
-    try:
-        import io
-    except ImportError:
-        pass
-
-
 def open_source_file(source_filename, mode="r",
-                     encoding=None, error_handling=None,
-                     require_normalised_newlines=True):
+                     encoding=None, error_handling=None):
     if encoding is None:
         # Most of the time the coding is unspecified, so be optimistic that
         # it's UTF-8.
         f = open_source_file(source_filename, encoding="UTF-8", mode=mode, error_handling='ignore')
         encoding = detect_opened_file_encoding(f)
-        if (encoding == "UTF-8"
-                and error_handling == 'ignore'
-                and require_normalised_newlines):
+        if encoding == "UTF-8" and error_handling == 'ignore':
             f.seek(0)
             skip_bom(f)
             return f
         else:
             f.close()
-    #
+
     if not os.path.exists(source_filename):
         try:
             loader = __loader__
             if source_filename.startswith(loader.archive):
                 return open_source_from_loader(
                     loader, source_filename,
-                    encoding, error_handling,
-                    require_normalised_newlines)
+                    encoding, error_handling)
         except (NameError, AttributeError):
             pass
-    #
-    if io is not None:
-        stream = io.open(source_filename, mode=mode,
-                         encoding=encoding, errors=error_handling)
-    else:
-        # codecs module doesn't have universal newline support
-        stream = codecs.open(source_filename, mode=mode,
-                             encoding=encoding, errors=error_handling)
-        if require_normalised_newlines:
-            stream = NormalisedNewlineStream(stream)
+
+    stream = io.open(source_filename, mode=mode,
+                     encoding=encoding, errors=error_handling)
     skip_bom(stream)
     return stream
 
 
 def open_source_from_loader(loader,
                             source_filename,
-                            encoding=None, error_handling=None,
-                            require_normalised_newlines=True):
+                            encoding=None, error_handling=None):
     nrmpath = os.path.normpath(source_filename)
     arcname = nrmpath[len(loader.archive)+1:]
     data = loader.get_data(arcname)
-    if io is not None:
-        return io.TextIOWrapper(io.BytesIO(data),
-                                encoding=encoding,
-                                errors=error_handling)
-    else:
-        try:
-            import cStringIO as StringIO
-        except ImportError:
-            import StringIO
-        reader = codecs.getreader(encoding)
-        stream = reader(StringIO.StringIO(data))
-        if require_normalised_newlines:
-            stream = NormalisedNewlineStream(stream)
-        return stream
+    return io.TextIOWrapper(io.BytesIO(data),
+                            encoding=encoding,
+                            errors=error_handling)
+
 
 def str_to_number(value):
     # note: this expects a string as input that was accepted by the
-    # parser already
+    # parser already, with an optional "-" sign in front
+    is_neg = False
+    if value[:1] == '-':
+        is_neg = True
+        value = value[1:]
     if len(value) < 2:
         value = int(value, 0)
     elif value[0] == '0':
-        if value[1] in 'xX':
+        literal_type = value[1]  # 0'o' - 0'b' - 0'x'
+        if literal_type in 'xX':
             # hex notation ('0x1AF')
             value = int(value[2:], 16)
-        elif value[1] in 'oO':
+        elif literal_type in 'oO':
             # Py3 octal notation ('0o136')
             value = int(value[2:], 8)
-        elif value[1] in 'bB':
+        elif literal_type in 'bB':
             # Py3 binary notation ('0b101')
             value = int(value[2:], 2)
         else:
@@ -359,35 +349,19 @@ def str_to_number(value):
             value = int(value, 8)
     else:
         value = int(value, 0)
-    return value
+    return -value if is_neg else value
+
 
 def long_literal(value):
     if isinstance(value, basestring):
         value = str_to_number(value)
     return not -2**31 <= value < 2**31
 
-# all() and any() are new in 2.5
-try:
-    # Make sure to bind them on the module, as they will be accessed as
-    # attributes
-    all = all
-    any = any
-except NameError:
-    def all(items):
-        for item in items:
-            if not item:
-                return False
-        return True
-
-    def any(items):
-        for item in items:
-            if item:
-                return True
-        return False
 
 @cached_function
 def get_cython_cache_dir():
-    """get the cython cache dir
+    r"""
+    Return the base directory containing Cython's caches.
 
     Priority:
 
@@ -413,3 +387,103 @@ def get_cython_cache_dir():
 
     # last fallback: ~/.cython
     return os.path.expanduser(os.path.join('~', '.cython'))
+
+
+@contextmanager
+def captured_fd(stream=2, encoding=None):
+    pipe_in = t = None
+    orig_stream = os.dup(stream)  # keep copy of original stream
+    try:
+        pipe_in, pipe_out = os.pipe()
+        os.dup2(pipe_out, stream)  # replace stream by copy of pipe
+        try:
+            os.close(pipe_out)  # close original pipe-out stream
+            data = []
+
+            def copy():
+                try:
+                    while True:
+                        d = os.read(pipe_in, 1000)
+                        if d:
+                            data.append(d)
+                        else:
+                            break
+                finally:
+                    os.close(pipe_in)
+
+            def get_output():
+                output = b''.join(data)
+                if encoding:
+                    output = output.decode(encoding)
+                return output
+
+            from threading import Thread
+            t = Thread(target=copy)
+            t.daemon = True  # just in case
+            t.start()
+            yield get_output
+        finally:
+            os.dup2(orig_stream, stream)  # restore original stream
+            if t is not None:
+                t.join()
+    finally:
+        os.close(orig_stream)
+
+
+def print_bytes(s, end=b'\n', file=sys.stdout, flush=True):
+    file.flush()
+    try:
+        out = file.buffer  # Py3
+    except AttributeError:
+        out = file         # Py2
+    out.write(s)
+    if end:
+        out.write(end)
+    if flush:
+        out.flush()
+
+class LazyStr:
+    def __init__(self, callback):
+        self.callback = callback
+    def __str__(self):
+        return self.callback()
+    def __repr__(self):
+        return self.callback()
+    def __add__(self, right):
+        return self.callback() + right
+    def __radd__(self, left):
+        return left + self.callback()
+
+
+class OrderedSet(object):
+  def __init__(self, elements=()):
+    self._list = []
+    self._set = set()
+    self.update(elements)
+  def __iter__(self):
+    return iter(self._list)
+  def update(self, elements):
+    for e in elements:
+      self.add(e)
+  def add(self, e):
+    if e not in self._set:
+      self._list.append(e)
+      self._set.add(e)
+
+
+# Class decorator that adds a metaclass and recreates the class with it.
+# Copied from 'six'.
+def add_metaclass(metaclass):
+    """Class decorator for creating a class with a metaclass."""
+    def wrapper(cls):
+        orig_vars = cls.__dict__.copy()
+        slots = orig_vars.get('__slots__')
+        if slots is not None:
+            if isinstance(slots, str):
+                slots = [slots]
+            for slots_var in slots:
+                orig_vars.pop(slots_var)
+        orig_vars.pop('__dict__', None)
+        orig_vars.pop('__weakref__', None)
+        return metaclass(cls.__name__, cls.__bases__, orig_vars)
+    return wrapper

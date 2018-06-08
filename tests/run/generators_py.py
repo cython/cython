@@ -1,13 +1,8 @@
 # mode: run
 # tag: generators
 
+import sys
 import cython
-
-try:
-    from builtins import next # Py3k
-except ImportError:
-    def next(it):
-        return it.next()
 
 
 def very_simple():
@@ -153,25 +148,39 @@ def check_throw():
         except ValueError:
             pass
 
+
 def check_yield_in_except():
     """
-    >>> import sys
-    >>> orig_exc = sys.exc_info()[0]
-    >>> g = check_yield_in_except()
-    >>> next(g)
-    >>> next(g)
-    >>> orig_exc is sys.exc_info()[0] or sys.exc_info()[0]
+    >>> if sys.version_info[0] == 2: sys.exc_clear()
+    >>> try:
+    ...     raise TypeError("RAISED !")
+    ... except TypeError as orig_exc:
+    ...     assert isinstance(orig_exc, TypeError), orig_exc
+    ...     g = check_yield_in_except()
+    ...     print(orig_exc is sys.exc_info()[1] or sys.exc_info())
+    ...     next(g)
+    ...     print(orig_exc is sys.exc_info()[1] or sys.exc_info())
+    ...     next(g)
+    ...     print(orig_exc is sys.exc_info()[1] or sys.exc_info())
     True
+    True
+    True
+    >>> next(g)
+    Traceback (most recent call last):
+    StopIteration
     """
     try:
         yield
         raise ValueError
-    except ValueError:
+    except ValueError as exc:
+        assert sys.exc_info()[1] is exc, sys.exc_info()
         yield
+        if cython.compiled or sys.version_info[0] > 2:
+            assert sys.exc_info()[1] is exc, sys.exc_info()
+
 
 def yield_in_except_throw_exc_type():
     """
-    >>> import sys
     >>> g = yield_in_except_throw_exc_type()
     >>> next(g)
     >>> g.throw(TypeError)
@@ -183,12 +192,14 @@ def yield_in_except_throw_exc_type():
     """
     try:
         raise ValueError
-    except ValueError:
+    except ValueError as exc:
+        assert sys.exc_info()[1] is exc, sys.exc_info()
         yield
+        assert sys.exc_info()[1] is exc, sys.exc_info()
+
 
 def yield_in_except_throw_instance():
     """
-    >>> import sys
     >>> g = yield_in_except_throw_instance()
     >>> next(g)
     >>> g.throw(TypeError())
@@ -200,8 +211,11 @@ def yield_in_except_throw_instance():
     """
     try:
         raise ValueError
-    except ValueError:
+    except ValueError as exc:
+        assert sys.exc_info()[1] is exc, sys.exc_info()
         yield
+        assert sys.exc_info()[1] is exc, sys.exc_info()
+
 
 def test_swap_assignment():
     """

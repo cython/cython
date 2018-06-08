@@ -23,9 +23,19 @@ def conditional(a, b):
         return 3
     print 'oops'
 
+def try_except():
+    try:
+        raise TypeError
+    except ValueError:
+        pass
+    else:
+        print 'unreachable'
+
+
 _ERRORS = """
 6:4: Unreachable code
 11:8: Unreachable code
 15:8: Unreachable code
 24:4: Unreachable code
+32:8: Unreachable code
 """

@@ -1,6 +1,9 @@
 # mode: compile
 
-cdef extern from "cnamespec.h":
+cdef extern from *:
+    """
+    int c_a, c_b;
+    """
     int a "c_a", b "c_b"
 
 cdef struct foo "c_foo":
@@ -14,7 +17,8 @@ cdef double spam "c_spam" (int i, float f):
     cdef double d "c_d"
     cdef foo *p
     global b
-    d = spam(a, f)
+    if i:
+      d = spam(a, f)
     cdef foo q
     q.i = 7
     p = &q

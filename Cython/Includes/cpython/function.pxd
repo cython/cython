@@ -1,4 +1,4 @@
-from cpython.ref cimport PyObject
+from .object cimport PyObject
 
 cdef extern from "Python.h":
 

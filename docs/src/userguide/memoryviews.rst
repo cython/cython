@@ -25,6 +25,9 @@ exposes writable buffer through the `PEP 3118`_ buffer interface.
 Quickstart
 ==========
 
+If you are used to working with NumPy, the following examples should get you
+started with Cython memory views.
+
 ::
 
     from cython.view cimport array as cvarray
@@ -43,7 +46,7 @@ Quickstart
     cdef int [:, :, :] cyarr_view = cyarr
 
     # Show the sum of all the arrays before altering it
-    print "NumPy sum of the NumPy array before assignments:", narr.sum()
+    print("NumPy sum of the NumPy array before assignments: %s" % narr.sum())
 
     # We can copy the values from one memoryview into another using a single
     # statement, by either indexing with ... or (NumPy-style) with a colon.
@@ -57,10 +60,11 @@ Quickstart
     cyarr_view[0, 0, 0] = 1000
 
     # Assigning into the memoryview on the NumPy array alters the latter
-    print "NumPy sum of NumPy array after assignments:", narr.sum()
+    print("NumPy sum of NumPy array after assignments: %s" % narr.sum())
 
     # A function using a memoryview does not usually need the GIL
     cpdef int sum3d(int[:, :, :] arr) nogil:
+        cdef size_t i, j, k
         cdef int total = 0
         I = arr.shape[0]
         J = arr.shape[1]
@@ -73,11 +77,11 @@ Quickstart
 
     # A function accepting a memoryview knows how to use a NumPy array,
     # a C array, a Cython array...
-    print "Memoryview sum of NumPy array is", sum3d(narr)
-    print "Memoryview sum of C array is", sum3d(carr)
-    print "Memoryview sum of Cython array is", sum3d(cyarr)
+    print("Memoryview sum of NumPy array is %s" % sum3d(narr))
+    print("Memoryview sum of C array is %s" % sum3d(carr))
+    print("Memoryview sum of Cython array is %s" % sum3d(cyarr))
     # ... and of course, a memoryview.
-    print "Memoryview sum of C memoryview is", sum3d(carr_view)
+    print("Memoryview sum of C memoryview is %s" % sum3d(carr_view))
 
 This code should give the following output::
 
@@ -88,28 +92,93 @@ This code should give the following output::
     Memoryview sum of Cython array is 1351
     Memoryview sum of C memoryview is 451
 
+
 Using memoryviews
 =================
 
-Indexing and Slicing
---------------------
+Syntax
+------
 
-Indexing and slicing can be done with or without the GIL. It basically works
-like NumPy. If indices are specified for every dimension you will get an element
-of the base type (e.g. `int`), otherwise you will get a new view. An Ellipsis
+Memory views use Python slicing syntax in a similar way as NumPy.
+
+To create a complete view on a one-dimensional int buffer::
+
+    cdef int[:] view1D = exporting_object
+
+A complete 3D view::
+
+    cdef int[:,:,:] view3D = exporting_object
+
+A 2D view that restricts the first dimension of a buffer to 100 rows
+starting at the second (index 1) and then skips every second (odd) row::
+
+    cdef int[1:102:2,:] partial_view = exporting_object
+
+This also works conveniently as function arguments:
+
+.. code-block:: cython
+
+    def process_3d_buffer(int[1:102:2,:] view not None):
+        ...
+
+The ``not None`` declaration for the argument automatically rejects
+None values as input, which would otherwise be allowed.  The reason why
+None is allowed by default is that it is conveniently used for return
+arguments::
+
+   def process_buffer(int[:,:] input not None,
+                      int[:,:] output = None):
+       if output is None:
+           output = ...  # e.g. numpy.empty_like(input)
+       # process 'input' into 'output'
+       return output
+
+Cython will reject incompatible buffers automatically, e.g. passing a
+three dimensional buffer into a function that requires a two
+dimensional buffer will raise a ``ValueError``.
+
+
+Indexing
+--------
+
+In Cython, index access on memory views is automatically translated
+into memory addresses.  The following code requests a two-dimensional
+memory view of C ``int`` typed items and indexes into it::
+
+   cdef int[:,:] buf = exporting_object
+
+   print(buf[1,2])
+
+Negative indices work as well, counting from the end of the respective
+dimension::
+
+   print(buf[-1,-2])
+
+The following function loops over each dimension of a 2D array and
+adds 1 to each item::
+
+   def add_one(int[:,:] buf):
+       for x in xrange(buf.shape[0]):
+           for y in xrange(buf.shape[1]):
+               buf[x,y] += 1
+
+Indexing and slicing can be done with or without the GIL.  It basically works
+like NumPy.  If indices are specified for every dimension you will get an element
+of the base type (e.g. `int`).  Otherwise, you will get a new view.  An Ellipsis
 means you get consecutive slices for every unspecified dimension::
 
-    cdef int[:, :, :] my_view = ...
+    cdef int[:, :, :] my_view = exporting_object
 
     # These are all equivalent
     my_view[10]
     my_view[10, :, :]
     my_view[10, ...]
 
+
 Copying
 -------
 
-Memoryviews can be copied inplace::
+Memory views can be copied in place::
 
     cdef int[:, :, :] to_view, from_view
     ...
@@ -157,6 +226,33 @@ As for NumPy, new axes can be introduced by indexing an array with ``None`` ::
 
 One may mix new axis indexing with all other forms of indexing and slicing.
 See also an example_.
+
+Read-only views
+---------------
+
+Since Cython 0.28, the memoryview item type can be declared as ``const`` to
+support read-only buffers as input::
+
+    cdef const double[:] myslice   # const item type => read-only view
+
+    a = np.linspace(0, 10, num=50)
+    a.setflags(write=False)
+    myslice = a
+
+Note that this does not *require* the input buffer to be read-only::
+
+    a = np.linspace(0, 10, num=50)
+    myslice = a   # read-only view of a writable buffer
+
+Writable buffers are still accepted by ``const`` views, but read-only
+buffers are not accepted for non-const, writable views::
+
+    cdef double[:] myslice   # a normal read/write memory view
+
+    a = np.linspace(0, 10, num=50)
+    a.setflags(write=False)
+    myslice = a   # ERROR: requesting writable memory view from read-only buffer!
+
 
 Comparison to the old buffer support
 ====================================
@@ -256,7 +352,7 @@ For a 3D C contiguous array::
     Out[6]: (12, 4, 1)
 
 A Fortran contiguous array has the opposite memory ordering, with the elements
-on the first axis closest togther in memory::
+on the first axis closest together in memory::
 
     In [7]: f_contig = np.array(c_contig, order='F')
     In [8]: np.all(f_contig == c_contig)
@@ -300,6 +396,8 @@ like::
 
     int [:, :, :] my_memoryview = obj
 
+.. _c_and_fortran_contiguous_memoryviews:
+
 C and Fortran contiguous memoryviews
 ------------------------------------
 
@@ -315,7 +413,9 @@ in memory.  If you know you will have a 3D Fortran contiguous array::
 
     cdef int[::1, :, :] f_contiguous = f_contig
 
-If you try to do this kind of thing::
+If you pass a non-contiguous buffer, for example
+
+::
 
     # This array is C contiguous
     c_contig = np.arange(24).reshape((2,3,4))
@@ -324,13 +424,13 @@ If you try to do this kind of thing::
     # But this isn't
     c_contiguous = np.array(c_contig, order='F')
 
-you will get a ``ValueError`` like this at runtime::
+you will get a ``ValueError`` at runtime::
 
     /Users/mb312/dev_trees/minimal-cython/mincy.pyx in init mincy (mincy.c:17267)()
-        69 
+        69
         70 # But this isn't
     ---> 71 c_contiguous = np.array(c_contig, order='F')
-        72 
+        72
         73 # Show the sum of all the arrays before altering it
 
     /Users/mb312/dev_trees/minimal-cython/stringsource in View.MemoryView.memoryview_cwrapper (mincy.c:9995)()
@@ -457,14 +557,14 @@ converted back to Cython-space memoryviews at any time.
 
 They have the following attributes:
 
-    * shape
-    * strides
-    * suboffsets
-    * ndim
-    * size
-    * itemsize
-    * nbytes
-    * base
+    * ``shape``: size in each dimension, as a tuple.
+    * ``strides``: stride along each dimension, in bytes.
+    * ``suboffsets``
+    * ``ndim``: number of dimensions.
+    * ``size``: total number of items in the view (product of the shape).
+    * ``itemsize``: size, in bytes, of the items in the view.
+    * ``nbytes``: equal to ``size`` times ``itemsize``.
+    * ``base``
 
 And of course the aforementioned ``T`` attribute (:ref:`view_transposing`).
 These attributes have the same semantics as in NumPy_.  For instance, to
@@ -476,9 +576,14 @@ retrieve the original object::
     cdef cnp.int32_t[:] a = numpy.arange(10, dtype=numpy.int32)
     a = a[::2]
 
-    print a, numpy.asarray(a), a.base
+    print(a)
+    print(numpy.asarray(a))
+    print(a.base)
 
-    # this prints: <MemoryView of 'ndarray' object> [0 2 4 6 8] [0 1 2 3 4 5 6 7 8 9]
+    # this prints:
+    #    <MemoryView of 'ndarray' object>
+    #    [0 2 4 6 8]
+    #    [0 1 2 3 4 5 6 7 8 9]
 
 Note that this example returns the original object from which the view was
 obtained, and that the view was resliced in the meantime.
@@ -573,10 +678,10 @@ None Slices
 ===========
 
 Although memoryview slices are not objects they can be set to None and they can
-be be checked for being None as well::
+be checked for being None as well::
 
     def func(double[:] myarray = None):
-        print myarray is None
+        print(myarray is None)
 
 If the function requires real memory views as input, it is therefore best to
 reject None input straight away in the signature, which is supported in Cython
@@ -587,6 +692,51 @@ reject None input straight away in the signature, which is supported in Cython
 
 Unlike object attributes of extension classes, memoryview slices are not
 initialized to None.
+
+
+Pass data from a C function via pointer
+=======================================
+
+Since use of pointers in C is ubiquitous, here we give a quick example of how
+to call C functions whose arguments contain pointers. Let's suppose you want to
+manage an array (allocate and deallocate) with NumPy (it can also be Python arrays, or
+anything that supports the buffer interface), but you want to perform computation on this
+array with an external C function implemented in :file:`C_func_file.c`:
+
+.. literalinclude:: ../../examples/memoryviews/C_func_file.c
+    :linenos:
+
+This file comes with a header file called :file:`C_func_file.h` containing:
+
+.. literalinclude:: ../../examples/memoryviews/C_func_file.h
+    :linenos:
+
+where ``arr`` points to the array and ``n`` is its size.
+
+You can call the function in a Cython file in the following way:
+
+.. literalinclude:: ../../examples/memoryviews/memview_to_c.pyx
+    :linenos:
+
+Several things to note:
+ - ``::1`` requests a C contiguous view, and fails if the buffer is not C contiguous.
+   See :ref:`c_and_fortran_contiguous_memoryviews`.
+ - ``&arr_memview[0]`` can be understood as 'the adress of the first element of the
+   memoryview'. For contiguous arrays, this is equivalent to the
+   start address of the flat memory buffer.
+ - ``arr_memview.shape[0]`` could have been replaced by ``arr_memview.size``,
+   ``arr.shape[0]`` or ``arr.size``. But ``arr_memview.shape[0]`` is more efficient
+   because it doesn't require any Python interaction.
+ - ``multiply_by_10`` will perform computation in-place if the array passed is contiguous,
+   and will return a new numpy array if ``arr`` is not contiguous.
+ - If you are using Python arrays instead of numpy arrays, you don't need to check
+   if the data is stored contiguously as this is always the case. See :ref:`array-array`.
+
+This way, you can call the C function similar to a normal Python function,
+and leave all the memory management and cleanup to NumPy arrays and Python's
+object handling. For the details of how to compile and
+call functions in C files, see :ref:`using_c_libraries`.
+
 
 .. _GIL: http://docs.python.org/dev/glossary.html#term-global-interpreter-lock
 .. _new style buffers: http://docs.python.org/c-api/buffer.html

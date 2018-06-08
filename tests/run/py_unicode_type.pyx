@@ -1,9 +1,15 @@
 # -*- coding: iso-8859-1 -*-
+# mode: run
+# tag: warnings
 
 cimport cython
 
 cdef Py_UNICODE char_ASCII = u'A'
 cdef Py_UNICODE char_KLINGON = u'\uF8D2'
+
+u_A = char_ASCII
+u_KLINGON = char_KLINGON
+
 
 def compare_ASCII():
     """
@@ -78,6 +84,19 @@ def unicode_ordinal(Py_UNICODE i):
     """
     return i
 
+
+def ord_pyunicode(Py_UNICODE x):
+    """
+    >>> ord_pyunicode(u0)
+    0
+    >>> ord_pyunicode(u_A)
+    65
+    >>> ord_pyunicode(u_KLINGON)
+    63698
+    """
+    return ord(x)
+
+
 @cython.test_assert_path_exists('//PythonCapiCallNode')
 @cython.test_fail_if_path_exists('//SimpleCallNode')
 def unicode_type_methods(Py_UNICODE uchar):
@@ -128,6 +147,7 @@ def len_uchar(Py_UNICODE uchar):
     >>> len_uchar(ord('A'))
     1
     """
+    assert uchar  # just to avoid C compiler unused arg warning
     return len(uchar)
 
 def index_uchar(Py_UNICODE uchar, Py_ssize_t i):
@@ -211,3 +231,26 @@ def index_and_in():
     for i in range(1,9):
         if u'abcdefgh'[-i] in u'abCDefGh':
             print i
+
+
+def uchar_lookup_in_dict(obj, Py_UNICODE uchar):
+    """
+    >>> d = {u_KLINGON: 1234, u0: 0, u1: 1, u_A: 2}
+    >>> uchar_lookup_in_dict(d, u_KLINGON)
+    (1234, 1234)
+    >>> uchar_lookup_in_dict(d, u_A)
+    (2, 2)
+    >>> uchar_lookup_in_dict(d, u0)
+    (0, 0)
+    >>> uchar_lookup_in_dict(d, u1)
+    (1, 1)
+    """
+    cdef dict d = obj
+    dval = d[uchar]
+    objval = obj[uchar]
+    return dval, objval
+
+
+_WARNINGS = """
+250:16: Item lookup of unicode character codes now always converts to a Unicode string. Use an explicit C integer cast to get back the previous integer lookup behaviour.
+"""

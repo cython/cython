@@ -18,6 +18,8 @@ static void __Pyx_CppExn2PyErr() {
     PyErr_SetString(PyExc_MemoryError, exn.what());
   } catch (const std::bad_cast& exn) {
     PyErr_SetString(PyExc_TypeError, exn.what());
+  } catch (const std::bad_typeid& exn) {
+    PyErr_SetString(PyExc_TypeError, exn.what());
   } catch (const std::domain_error& exn) {
     PyErr_SetString(PyExc_ValueError, exn.what());
   } catch (const std::invalid_argument& exn) {
@@ -44,3 +46,13 @@ static void __Pyx_CppExn2PyErr() {
   }
 }
 #endif
+
+/////////////// PythranConversion.proto ///////////////
+
+template <class T>
+auto __Pyx_pythran_to_python(T &&value) -> decltype(to_python(
+      typename pythonic::returnable<typename std::remove_cv<typename std::remove_reference<T>::type>::type>::type{std::forward<T>(value)}))
+{
+  using returnable_type = typename pythonic::returnable<typename std::remove_cv<typename std::remove_reference<T>::type>::type>::type;
+  return to_python(returnable_type{std::forward<T>(value)});
+}

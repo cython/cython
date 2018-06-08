@@ -175,6 +175,7 @@ def test_cdef_attribute():
     >>> test_cdef_attribute()
     Memoryview is not initialized
     local variable 'myview' referenced before assignment
+    local variable 'myview' referenced before assignment
     get_ext_obj called
     Memoryview is not initialized
     <MemoryView of 'array' object>
@@ -195,8 +196,11 @@ def test_cdef_attribute():
     else:
         print "No UnboundLocalError was raised"
 
-    # uninitialized assignment is valid
-    cdef int[:] otherview = myview
+    cdef int[:] otherview
+    try:
+         otherview = myview
+    except UnboundLocalError, e:
+        print e.args[0]
 
     try:
         print get_ext_obj().mview
@@ -416,7 +420,7 @@ def writable(unsigned short int[:, :, :] mslice):
     >>> writable(R)
     acquired R
     released R
-    >>> [str(x) for x in R.recieved_flags] # Py2/3
+    >>> [str(x) for x in R.received_flags] # Py2/3
     ['FORMAT', 'ND', 'STRIDES', 'WRITABLE']
     """
     buf = mslice
@@ -448,7 +452,7 @@ def c_contig(int[::1] mslice):
 
 def c_contig_2d(int[:, ::1] mslice):
     """
-    Multi-dim has seperate implementation
+    Multi-dim has separate implementation
 
     >>> A = IntMockBuffer(None, range(12), shape=(3,4))
     >>> c_contig_2d(A)
@@ -954,7 +958,7 @@ def test_contig_scalar_to_slice_assignment():
     14 14 14 14
     20 20 20 20
     """
-    cdef int a[5][10]
+    cdef int[5][10] a
     cdef int[:, ::1] _m = a
     m = _m
 
@@ -974,3 +978,108 @@ def test_dtype_object_scalar_assignment():
 
     (<object> m)[:] = SingleObject(3)
     assert m[0] == m[4] == m[-1] == 3
+
+
+def test_assignment_in_conditional_expression(bint left):
+    """
+    >>> test_assignment_in_conditional_expression(True)
+    1.0
+    2.0
+    1.0
+    2.0
+    >>> test_assignment_in_conditional_expression(False)
+    3.0
+    4.0
+    3.0
+    4.0
+    """
+    cdef double a[2]
+    cdef double b[2]
+    a[:] = [1, 2]
+    b[:] = [3, 4]
+
+    cdef double[:] A = a
+    cdef double[:] B = b
+    cdef double[:] C, c
+
+    # assign new memoryview references
+    C = A if left else B
+
+    for i in range(C.shape[0]):
+        print C[i]
+
+    # create new memoryviews
+    c = a if left else b
+    for i in range(c.shape[0]):
+        print c[i]
+
+
+def test_cpython_offbyone_issue_23349():
+    """
+    >>> print(test_cpython_offbyone_issue_23349())
+    testing
+    """
+    cdef unsigned char[:] v = bytearray(b"testing")
+    # the following returns 'estingt' without the workaround
+    return bytearray(v).decode('ascii')
+
+
+@cython.test_fail_if_path_exists('//SimpleCallNode')
+@cython.test_assert_path_exists(
+    '//ReturnStatNode//TupleNode',
+    '//ReturnStatNode//TupleNode//CondExprNode',
+)
+def min_max_tree_restructuring():
+    """
+    >>> min_max_tree_restructuring()
+    (1, 3)
+    """
+    cdef char a[5]
+    a = [1, 2, 3, 4, 5]
+    cdef char[:] aview = a
+
+    return max(<char>1, aview[0]), min(<char>5, aview[2])
+
+
+@cython.test_fail_if_path_exists(
+    '//MemoryViewSliceNode',
+)
+@cython.test_assert_path_exists(
+    '//MemoryViewIndexNode',
+)
+#@cython.boundscheck(False)  # reduce C code clutter
+def optimised_index_of_slice(int[:,:,:] arr, int x, int y, int z):
+    """
+    >>> arr = IntMockBuffer("A", list(range(10*10*10)), shape=(10,10,10))
+    >>> optimised_index_of_slice(arr, 2, 3, 4)
+    acquired A
+    (123, 123)
+    (223, 223)
+    (133, 133)
+    (124, 124)
+    (234, 234)
+    (123, 123)
+    (123, 123)
+    (123, 123)
+    (134, 134)
+    (134, 134)
+    (234, 234)
+    (234, 234)
+    (234, 234)
+    released A
+    """
+    print(arr[1, 2, 3], arr[1][2][3])
+    print(arr[x, 2, 3], arr[x][2][3])
+    print(arr[1, y, 3], arr[1][y][3])
+    print(arr[1, 2, z], arr[1][2][z])
+    print(arr[x, y, z], arr[x][y][z])
+
+    print(arr[1, 2, 3], arr[:, 2][1][3])
+    print(arr[1, 2, 3], arr[:, 2, :][1, 3])
+    print(arr[1, 2, 3], arr[:, 2, 3][1])
+    print(arr[1, y, z], arr[1, :][y][z])
+    print(arr[1, y, z], arr[1, :][y, z])
+
+    print(arr[x, y, z], arr[x][:][:][y][:][:][z])
+    print(arr[x, y, z], arr[:][x][:][y][:][:][z])
+    print(arr[x, y, z], arr[:, :][x][:, :][y][:][z])

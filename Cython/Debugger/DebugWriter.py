@@ -1,4 +1,4 @@
-from __future__ import with_statement
+from __future__ import absolute_import
 
 import os
 import sys
@@ -10,24 +10,14 @@ try:
 except ImportError:
     have_lxml = False
     try:
-        # Python 2.5
         from xml.etree import cElementTree as etree
     except ImportError:
         try:
-            # Python 2.5
             from xml.etree import ElementTree as etree
         except ImportError:
-            try:
-                # normal cElementTree install
-                import cElementTree as etree
-            except ImportError:
-                try:
-                    # normal ElementTree install
-                    import elementtree.ElementTree as etree
-                except ImportError:
-                    etree = None
+            etree = None
 
-from Cython.Compiler import Errors
+from ..Compiler import Errors
 
 
 class CythonDebugWriter(object):
@@ -42,7 +32,7 @@ class CythonDebugWriter(object):
         if etree is None:
             raise Errors.NoElementTreeInstalledException()
 
-        self.output_dir = os.path.join(output_dir, 'cython_debug')
+        self.output_dir = os.path.join(output_dir or os.curdir, 'cython_debug')
         self.tb = etree.TreeBuilder()
         # set by Cython.Compiler.ParseTreeTransforms.DebugTransform
         self.module_name = None
@@ -61,7 +51,7 @@ class CythonDebugWriter(object):
 
         try:
             os.makedirs(self.output_dir)
-        except OSError, e:
+        except OSError as e:
             if e.errno != errno.EEXIST:
                 raise
 

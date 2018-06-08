@@ -1,0 +1,76 @@
+# mode: run
+# tag: cimport
+
+PYTHON setup.py build_ext --inplace
+PYTHON -c "from pkg.b import test; assert test() == (1, 2)"
+PYTHON -c "from pkg.sub.c import test; assert test() == (1, 2)"
+
+######## setup.py ########
+
+from distutils.core import setup
+from Cython.Build import cythonize
+from Cython.Distutils.extension import Extension
+
+setup(
+    ext_modules=cythonize('**/*.pyx'),
+)
+
+
+######## pkg/__init__.py ########
+
+######## pkg/sub/__init__.py ########
+
+######## pkg/a.pyx ########
+
+from .sub.reimport cimport myint
+
+cdef myint i = 5
+assert i == 5
+
+cdef class test_pxd:
+    pass
+
+
+######## pkg/a.pxd ########
+
+cdef class test_pxd:
+    cdef public int x
+    cdef public int y
+
+
+######## pkg/b.pyx ########
+
+from . cimport a
+from .a cimport test_pxd
+cimport a as implicitly_relative_a
+
+assert a.test_pxd is test_pxd
+assert implicitly_relative_a.test_pxd is test_pxd
+
+def test():
+    cdef test_pxd obj = test_pxd()
+    obj.x = 1
+    obj.y = 2
+    return (obj.x, obj.y)
+
+
+######## pkg/sub/c.pyx ########
+
+from ..a cimport test_pxd
+
+
+def test():
+    cdef test_pxd obj = test_pxd()
+    obj.x = 1
+    obj.y = 2
+    return (obj.x, obj.y)
+
+
+######## pkg/sub/tdef.pxd ########
+
+ctypedef int myint
+
+
+######## pkg/sub/reimport.pxd ########
+
+from .tdef cimport myint

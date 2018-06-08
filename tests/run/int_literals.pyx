@@ -1,27 +1,31 @@
-__doc__ = u"""
->>> c_longs()
-(1, 1L, -1, 18446744073709551615L)
->>> negative_c_longs()
-(-1, -9223285636854775809L)
->>> py_longs()
-(1, 1L, 100000000000000000000000000000000L, -100000000000000000000000000000000L)
+# mode: run
+# tag: syntax
 
->>> py_huge_calculated_long()
-1606938044258990275541962092341162602522202993782792835301376L
->>> py_huge_computation_small_result_neg()
-(-2535301200456458802993406410752L, -2535301200456458802993406410752L)
-"""
+from __future__ import absolute_import
 
 cimport cython
 from cython cimport typeof
 
 import sys
 
-if sys.version_info[0] >= 3:
-    __doc__ = __doc__.replace(u'L', u'')
-elif sys.maxint > 2**31:
-    # sizeof(long) == sizeof(long long)
-    __doc__ = __doc__.replace("9223285636854775809L", "9223285636854775809")
+
+def valid_underscore_literals():
+    """
+    >>> valid_underscore_literals()
+    """
+    # Copied from CPython's test_grammar.py
+    assert 0_0_0 == 0
+    assert 4_2 == 42
+    assert 1_0000_0000 == 100000000
+    assert 0b1001_0100 == 0b10010100
+    assert 0xffff_ffff == 0xffffffff
+    assert 0o5_7_7 == 0o577
+    assert 1_00_00.5 == 10000.5
+    assert 1e1_0 == 1e10
+    assert .1_4 == .14
+    assert 1_0 == 1_0L == 1_0LL == 1_0UL == 1_0ULL
+    assert typeof(1_0ULL) == "unsigned long long"
+
 
 @cython.test_assert_path_exists(
     '//IntNode[@longness = "LL"]',
@@ -29,6 +33,10 @@ elif sys.maxint > 2**31:
     )
 @cython.test_fail_if_path_exists('//IntNode[@longness = ""]')
 def c_longs():
+    """
+    >>> c_longs() == (1, 1, -1, 18446744073709551615)  or  c_longs()
+    True
+    """
     cdef long a = 1L
     cdef unsigned long ua = 1UL
     cdef long long aa = 0xFFFFFFFFFFFFFFFFLL
@@ -41,16 +49,32 @@ def c_longs():
     )
 @cython.test_fail_if_path_exists('//IntNode[@longness = ""]')
 def negative_c_longs():
+    """
+    >>> negative_c_longs() == (-1, -9223285636854775809)  or  negative_c_longs()
+    True
+    """
     cdef long a = -1L
     cdef long long aa = -9223285636854775809LL
     return a, aa
 
 def py_longs():
+    """
+    >>> py_longs() == (
+    ...     1, 1, 100000000000000000000000000000000, -100000000000000000000000000000000
+    ...     )  or  py_longs()
+    True
+    """
     return 1, 1L, 100000000000000000000000000000000, -100000000000000000000000000000000
 
 @cython.test_fail_if_path_exists("//NumBinopNode", "//IntBinopNode")
 @cython.test_assert_path_exists("//ReturnStatNode/IntNode")
 def py_huge_calculated_long():
+    """
+    >>> py_huge_calculated_long() == (
+    ...     1606938044258990275541962092341162602522202993782792835301376
+    ...     )  or  py_huge_calculated_long()
+    True
+    """
     return 1 << 200
 
 @cython.test_fail_if_path_exists("//NumBinopNode", "//IntBinopNode")
@@ -65,6 +89,12 @@ def py_huge_computation_small_result():
 @cython.test_fail_if_path_exists("//NumBinopNode", "//IntBinopNode")
 #@cython.test_assert_path_exists("//ReturnStatNode/IntNode")
 def py_huge_computation_small_result_neg():
+    """
+    >>> py_huge_computation_small_result_neg() == (
+    ...    -2535301200456458802993406410752, -2535301200456458802993406410752
+    ...    )  or  py_huge_computation_small_result_neg()
+    True
+    """
     return -(2 ** 101), (-2) ** 101
 
 def large_literal():

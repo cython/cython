@@ -1,6 +1,5 @@
 import os
 
-from Cython.Compiler import CmdLine
 from Cython.TestUtils import TransformTest
 from Cython.Compiler.ParseTreeTransforms import *
 from Cython.Compiler.Nodes import *
@@ -203,18 +202,18 @@ class TestInterpretCompilerDirectives(TransformTest):
 
 
 # TODO: Re-enable once they're more robust.
-if sys.version_info[:2] >= (2, 5) and False:
+if False:
     from Cython.Debugger import DebugWriter
     from Cython.Debugger.Tests.TestLibCython import DebuggerTestCase
 else:
     # skip test, don't let it inherit unittest.TestCase
     DebuggerTestCase = object
 
+
 class TestDebugTransform(DebuggerTestCase):
 
     def elem_hasattrs(self, elem, attrs):
-        # we shall supporteth python 2.3 !
-        return all([attr in elem.attrib for attr in attrs])
+        return all(attr in elem.attrib for attr in attrs)
 
     def test_debug_info(self):
         try:
@@ -224,15 +223,13 @@ class TestDebugTransform(DebuggerTestCase):
             # the xpath of the standard ElementTree is primitive, don't use
             # anything fancy
             L = list(t.find('/Module/Globals'))
-            # assertTrue is retarded, use the normal assert statement
             assert L
-            xml_globals = dict(
-                            [(e.attrib['name'], e.attrib['type']) for e in L])
+            xml_globals = dict((e.attrib['name'], e.attrib['type']) for e in L)
             self.assertEqual(len(L), len(xml_globals))
 
             L = list(t.find('/Module/Functions'))
             assert L
-            xml_funcs = dict([(e.attrib['qualified_name'], e) for e in L])
+            xml_funcs = dict((e.attrib['qualified_name'], e) for e in L)
             self.assertEqual(len(L), len(xml_funcs))
 
             # test globals
@@ -243,7 +240,7 @@ class TestDebugTransform(DebuggerTestCase):
             funcnames = ('codefile.spam', 'codefile.ham', 'codefile.eggs',
                          'codefile.closure', 'codefile.inner')
             required_xml_attrs = 'name', 'cname', 'qualified_name'
-            assert all([f in xml_funcs for f in funcnames])
+            assert all(f in xml_funcs for f in funcnames)
             spam, ham, eggs = [xml_funcs[funcname] for funcname in funcnames]
 
             self.assertEqual(spam.attrib['name'], 'spam')
@@ -271,10 +268,12 @@ class TestDebugTransform(DebuggerTestCase):
             assert 'puts' in spam_stepinto
             assert 'some_c_function' in spam_stepinto
         except:
-            print open(self.debug_dest).read()
+            f = open(self.debug_dest)
+            try:
+                print(f.read())
+            finally:
+                f.close()
             raise
-
-
 
 
 

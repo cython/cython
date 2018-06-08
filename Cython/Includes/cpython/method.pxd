@@ -1,5 +1,6 @@
+from .object cimport PyObject
+
 cdef extern from "Python.h":
-    ctypedef void PyObject
     ############################################################################
     # 7.5.4 Method Objects
     ############################################################################

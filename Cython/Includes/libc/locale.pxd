@@ -4,7 +4,7 @@
 from libc.string cimport const_char
 
 
-cdef extern from "locale.h" nogil:
+cdef extern from "<locale.h>" nogil:
 
     struct lconv:
         char *decimal_point

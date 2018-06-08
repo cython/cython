@@ -1,9 +1,12 @@
-from Symtab import ModuleScope
-from PyrexTypes import *
-from UtilityCode import CythonUtilityCode
-from Errors import error
-from Scanning import StringSourceDescriptor
-import MemoryView
+from __future__ import absolute_import
+
+from .Symtab import ModuleScope
+from .PyrexTypes import *
+from .UtilityCode import CythonUtilityCode
+from .Errors import error
+from .Scanning import StringSourceDescriptor
+from . import MemoryView
+
 
 class CythonScope(ModuleScope):
     is_cython_builtin = 1
@@ -22,6 +25,10 @@ class CythonScope(ModuleScope):
                                          None,
                                          cname='<error>')
             entry.in_cinclude = True
+
+    def is_cpp(self):
+        # Allow C++ utility code in C++ contexts.
+        return self.context.cpp
 
     def lookup_type(self, name):
         # This function should go away when types are all first-level objects.
@@ -64,7 +71,9 @@ class CythonScope(ModuleScope):
         name_path = qname.split(u'.')
         scope = self
         while len(name_path) > 1:
-            scope = scope.lookup_here(name_path[0]).as_module
+            scope = scope.lookup_here(name_path[0])
+            if scope:
+                scope = scope.as_module
             del name_path[0]
             if scope is None:
                 return None

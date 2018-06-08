@@ -2,9 +2,11 @@
 #   Cython - Command Line Parsing
 #
 
+from __future__ import absolute_import
+
 import os
 import sys
-import Options
+from . import Options
 
 usage = """\
 Cython (http://cython.org) is a compiler for code written in the
@@ -32,6 +34,7 @@ Options:
 
   -D, --no-docstrings            Strip docstrings from the compiled module.
   -a, --annotate                 Produce a colorized HTML version of the source.
+  --annotate-coverage <cov.xml>  Annotate and include coverage information from cov.xml.
   --line-directives              Produce #line directives pointing to the .pyx source
   --cplus                        Output a C++ rather than C file.
   --embed[=<method_name>]        Generate a main() function that embeds the Python interpreter.
@@ -46,6 +49,7 @@ Options:
   -X, --directive <name>=<value>[,<name=value,...] Overrides a compiler directive
 """
 
+
 #The following experimental options are supported only on MacOSX:
 #  -C, --compile    Compile generated .c file to .o file
 #  --link           Link .o file to produce extension module (implies -C)
@@ -56,16 +60,29 @@ def bad_usage():
     sys.stderr.write(usage)
     sys.exit(1)
 
-def parse_command_line(args):
 
-    from Cython.Compiler.Main import \
-        CompilationOptions, default_options
+def parse_command_line(args):
+    from .Main import CompilationOptions, default_options
+
+    pending_arg = []
 
     def pop_arg():
-        if args:
-            return args.pop(0)
-        else:
+        if not args or pending_arg:
             bad_usage()
+        if '=' in args[0] and args[0].startswith('--'):  # allow "--long-option=xyz"
+            name, value = args.pop(0).split('=', 1)
+            pending_arg.append(value)
+            return name
+        return args.pop(0)
+
+    def pop_value(default=None):
+        if pending_arg:
+            return pending_arg.pop()
+        elif default is not None:
+            return default
+        elif not args:
+            bad_usage()
+        return args.pop(0)
 
     def get_param(option):
         tail = option[2:]
@@ -86,17 +103,15 @@ def parse_command_line(args):
             elif option in ("-+", "--cplus"):
                 options.cplus = 1
             elif option == "--embed":
-                Options.embed = "main"
-            elif option.startswith("--embed="):
-                Options.embed = option[8:]
+                Options.embed = pop_value("main")
             elif option.startswith("-I"):
                 options.include_path.append(get_param(option))
             elif option == "--include-dir":
-                options.include_path.append(pop_arg())
+                options.include_path.append(pop_value())
             elif option in ("-w", "--working"):
-                options.working_path = pop_arg()
+                options.working_path = pop_value()
             elif option in ("-o", "--output-file"):
-                options.output_file = pop_arg()
+                options.output_file = pop_value()
             elif option in ("-t", "--timestamps"):
                 options.timestamps = 1
             elif option in ("-f", "--force"):
@@ -106,13 +121,16 @@ def parse_command_line(args):
             elif option in ("-p", "--embed-positions"):
                 Options.embed_pos_in_docstring = 1
             elif option in ("-z", "--pre-import"):
-                Options.pre_import = pop_arg()
+                Options.pre_import = pop_value()
             elif option == "--cleanup":
-                Options.generate_cleanup_code = int(pop_arg())
+                Options.generate_cleanup_code = int(pop_value())
             elif option in ("-D", "--no-docstrings"):
                 Options.docstrings = False
             elif option in ("-a", "--annotate"):
                 Options.annotate = True
+            elif option == "--annotate-coverage":
+                Options.annotate = True
+                Options.annotate_coverage_xml = pop_value()
             elif option == "--convert-range":
                 Options.convert_range = True
             elif option == "--line-directives":
@@ -124,7 +142,7 @@ def parse_command_line(args):
                 options.output_dir = os.curdir
             elif option == "--gdb-outdir":
                 options.gdb_debug = True
-                options.output_dir = pop_arg()
+                options.output_dir = pop_value()
             elif option == "--lenient":
                 Options.error_on_unknown_names = False
                 Options.error_on_uninitialized = False
@@ -136,6 +154,8 @@ def parse_command_line(args):
                 options.capi_reexport_cincludes = True
             elif option == "--fast-fail":
                 Options.fast_fail = True
+            elif option == "--cimport-from-pyx":
+                Options.cimport_from_pyx = True
             elif option in ('-Werror', '--warning-errors'):
                 Options.warning_errors = True
             elif option in ('-Wextra', '--warning-extra'):
@@ -146,17 +166,17 @@ def parse_command_line(args):
                 if option.startswith('-X') and option[2:].strip():
                     x_args = option[2:]
                 else:
-                    x_args = pop_arg()
+                    x_args = pop_value()
                 try:
                     options.compiler_directives = Options.parse_directive_list(
                         x_args, relaxed_bool=True,
                         current_settings=options.compiler_directives)
-                except ValueError, e:
+                except ValueError as e:
                     sys.stderr.write("Error in compiler directive: %s\n" % e.args[0])
                     sys.exit(1)
             elif option.startswith('--debug'):
                 option = option[2:].replace('-', '_')
-                import DebugFlags
+                from . import DebugFlags
                 if option in dir(DebugFlags):
                     setattr(DebugFlags, option, True)
                 else:
@@ -170,6 +190,10 @@ def parse_command_line(args):
                 sys.exit(1)
         else:
             sources.append(pop_arg())
+
+    if pending_arg:
+        bad_usage()
+
     if options.use_listing_file and len(sources) > 1:
         sys.stderr.write(
             "cython: Only one source file allowed when using -o\n")

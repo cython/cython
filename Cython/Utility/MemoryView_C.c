@@ -1,4 +1,5 @@
 ////////// MemviewSliceStruct.proto //////////
+//@proto_block: utility_code_proto_before_types
 
 /* memoryview slice struct */
 struct {{memview_struct_name}};
@@ -11,8 +12,12 @@ typedef struct {
   Py_ssize_t suboffsets[{{max_dims}}];
 } {{memviewslice_name}};
 
+// used for "len(memviewslice)"
+#define __Pyx_MemoryView_Len(m)  (m.shape[0])
+
 
 /////////// Atomics.proto /////////////
+//@proto_block: utility_code_proto_before_types
 
 #include <pythread.h>
 
@@ -33,15 +38,16 @@ typedef struct {
     #ifdef __PYX_DEBUG_ATOMICS
         #warning "Using GNU atomics"
     #endif
-#elif CYTHON_ATOMICS && MSC_VER
+#elif CYTHON_ATOMICS && defined(_MSC_VER) && 0
     /* msvc */
     #include <Windows.h>
+    #undef __pyx_atomic_int_type
     #define __pyx_atomic_int_type LONG
     #define __pyx_atomic_incr_aligned(value, lock) InterlockedIncrement(value)
     #define __pyx_atomic_decr_aligned(value, lock) InterlockedDecrement(value)
 
     #ifdef __PYX_DEBUG_ATOMICS
-        #warning "Using MSVC atomics"
+        #pragma message ("Using MSVC atomics")
     #endif
 #elif CYTHON_ATOMICS && (defined(__ICC) || defined(__INTEL_COMPILER)) && 0
     #define __pyx_atomic_incr_aligned(value, lock) _InterlockedIncrement(value)
@@ -76,7 +82,7 @@ typedef volatile __pyx_atomic_int_type __pyx_atomic_int;
 
 /////////////// ObjectToMemviewSlice.proto ///////////////
 
-static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *);
+static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *, int writable_flag);
 
 
 ////////// MemviewSliceInit.proto //////////
@@ -121,7 +127,7 @@ static CYTHON_INLINE char *__pyx_memviewslice_index_full(
 /////////////// ObjectToMemviewSlice ///////////////
 //@requires: MemviewSliceValidateAndInit
 
-static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *obj) {
+static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *obj, int writable_flag) {
     {{memviewslice_name}} result = {{memslice_init}};
     __Pyx_BufFmt_StackElem stack[{{struct_nesting_depth}}];
     int axes_specs[] = { {{axes_specs}} };
@@ -134,7 +140,7 @@ static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *obj) {
     }
 
     retcode = __Pyx_ValidateAndInit_memviewslice(axes_specs, {{c_or_f_flag}},
-                                                 {{buf_flag}}, {{ndim}},
+                                                 {{buf_flag}} | writable_flag, {{ndim}},
                                                  &{{dtype_typeinfo}}, stack,
                                                  &result, obj);
 
@@ -163,6 +169,8 @@ static int __Pyx_ValidateAndInit_memviewslice(
 
 /////////////// MemviewSliceValidateAndInit ///////////////
 //@requires: Buffer.c::TypeInfoCompare
+//@requires: Buffer.c::BufferFormatStructs
+//@requires: Buffer.c::BufferFormatCheck
 
 static int
 __pyx_check_strides(Py_buffer *buf, int dim, int ndim, int spec)
@@ -238,7 +246,7 @@ __pyx_check_suboffsets(Py_buffer *buf, int dim, CYTHON_UNUSED int ndim, int spec
     if (spec & __Pyx_MEMVIEW_PTR) {
         if (!buf->suboffsets || (buf->suboffsets && buf->suboffsets[dim] < 0)) {
             PyErr_Format(PyExc_ValueError,
-                         "Buffer is not indirectly accessisble "
+                         "Buffer is not indirectly accessible "
                          "in dimension %d.", dim);
             goto fail;
         }
@@ -436,23 +444,24 @@ no_fail:
     return retval;
 }
 
+#ifndef Py_NO_RETURN
+// available since Py3.3
+#define Py_NO_RETURN
+#endif
 
-static CYTHON_INLINE void __pyx_fatalerror(const char *fmt, ...) {
+static void __pyx_fatalerror(const char *fmt, ...) Py_NO_RETURN {
     va_list vargs;
     char msg[200];
-
-    va_start(vargs, fmt);
 
 #ifdef HAVE_STDARG_PROTOTYPES
     va_start(vargs, fmt);
 #else
     va_start(vargs);
 #endif
-
     vsnprintf(msg, 200, fmt, vargs);
-    Py_FatalError(msg);
-
     va_end(vargs);
+
+    Py_FatalError(msg);
 }
 
 static CYTHON_INLINE int
@@ -690,32 +699,24 @@ __pyx_slices_overlap({{memviewslice_name}} *slice1,
 }
 
 
-////////// MemviewSliceIsCContig.proto //////////
+////////// MemviewSliceCheckContig.proto //////////
 
-#define __pyx_memviewslice_is_c_contig{{ndim}}(slice) \
-        __pyx_memviewslice_is_contig(&slice, 'C', {{ndim}})
-
-
-////////// MemviewSliceIsFContig.proto //////////
-
-#define __pyx_memviewslice_is_f_contig{{ndim}}(slice) \
-        __pyx_memviewslice_is_contig(&slice, 'F', {{ndim}})
+#define __pyx_memviewslice_is_contig_{{contig_type}}{{ndim}}(slice) \
+    __pyx_memviewslice_is_contig(slice, '{{contig_type}}', {{ndim}})
 
 
 ////////// MemviewSliceIsContig.proto //////////
 
-static int __pyx_memviewslice_is_contig(const {{memviewslice_name}} *mvs,
-                                        char order, int ndim);
+static int __pyx_memviewslice_is_contig(const {{memviewslice_name}} mvs, char order, int ndim);/*proto*/
 
 
 ////////// MemviewSliceIsContig //////////
 
 static int
-__pyx_memviewslice_is_contig(const {{memviewslice_name}} *mvs,
-                             char order, int ndim)
+__pyx_memviewslice_is_contig(const {{memviewslice_name}} mvs, char order, int ndim)
 {
     int i, index, step, start;
-    Py_ssize_t itemsize = mvs->memview->view.itemsize;
+    Py_ssize_t itemsize = mvs.memview->view.itemsize;
 
     if (order == 'F') {
         step = 1;
@@ -727,10 +728,10 @@ __pyx_memviewslice_is_contig(const {{memviewslice_name}} *mvs,
 
     for (i = 0; i < ndim; i++) {
         index = start + step * i;
-        if (mvs->suboffsets[index] >= 0 || mvs->strides[index] != itemsize)
+        if (mvs.suboffsets[index] >= 0 || mvs.strides[index] != itemsize)
             return 0;
 
-        itemsize *= mvs->shape[index];
+        itemsize *= mvs.shape[index];
     }
 
     return 1;
@@ -754,11 +755,11 @@ __pyx_memviewslice_index_full(const char *bufp, Py_ssize_t idx,
 /////////////// MemviewDtypeToObject.proto ///////////////
 
 {{if to_py_function}}
-static PyObject *{{get_function}}(const char *itemp); /* proto */
+static CYTHON_INLINE PyObject *{{get_function}}(const char *itemp); /* proto */
 {{endif}}
 
 {{if from_py_function}}
-static int {{set_function}}(const char *itemp, PyObject *obj); /* proto */
+static CYTHON_INLINE int {{set_function}}(const char *itemp, PyObject *obj); /* proto */
 {{endif}}
 
 /////////////// MemviewDtypeToObject ///////////////
@@ -768,13 +769,13 @@ static int {{set_function}}(const char *itemp, PyObject *obj); /* proto */
 /* Convert a dtype to or from a Python object */
 
 {{if to_py_function}}
-static PyObject *{{get_function}}(const char *itemp) {
+static CYTHON_INLINE PyObject *{{get_function}}(const char *itemp) {
     return (PyObject *) {{to_py_function}}(*({{dtype}} *) itemp);
 }
 {{endif}}
 
 {{if from_py_function}}
-static int {{set_function}}(const char *itemp, PyObject *obj) {
+static CYTHON_INLINE int {{set_function}}(const char *itemp, PyObject *obj) {
     {{dtype}} value = {{from_py_function}}(obj);
     if ({{error_condition}})
         return 0;
@@ -815,7 +816,7 @@ if (unlikely(__pyx_memoryview_slice_memviewslice(
     {{src}}.shape[{{dim}}], {{src}}.strides[{{dim}}], {{src}}.suboffsets[{{dim}}],
     {{dim}},
     {{new_ndim}},
-    &{{suboffset_dim}},
+    &{{get_suboffset_dim()}},
     {{start}},
     {{stop}},
     {{step}},
@@ -840,7 +841,7 @@ if (unlikely(__pyx_memoryview_slice_memviewslice(
 {{else}}
     {{dst}}.suboffsets[{{new_ndim}}] = {{src}}.suboffsets[{{dim}}];
     if ({{src}}.suboffsets[{{dim}}] >= 0)
-        {{suboffset_dim}} = {{new_ndim}};
+        {{get_suboffset_dim()}} = {{new_ndim}};
 {{endif}}
 
 
@@ -877,7 +878,7 @@ if (unlikely(__pyx_memoryview_slice_memviewslice(
     {{if all_dimensions_direct}}
         {{dst}}.data += __pyx_tmp_idx * __pyx_tmp_stride;
     {{else}}
-        if ({{suboffset_dim}} < 0) {
+        if ({{get_suboffset_dim()}} < 0) {
             {{dst}}.data += __pyx_tmp_idx * __pyx_tmp_stride;
 
             /* This dimension is the first dimension, or is preceded by    */
@@ -899,7 +900,7 @@ if (unlikely(__pyx_memoryview_slice_memviewslice(
             {{endif}}
 
         } else {
-            {{dst}}.suboffsets[{{suboffset_dim}}] += __pyx_tmp_idx * __pyx_tmp_stride;
+            {{dst}}.suboffsets[{{get_suboffset_dim()}}] += __pyx_tmp_idx * __pyx_tmp_stride;
 
             /* Note: dimension can not be indirect, the compiler will have */
             /*       issued an error */

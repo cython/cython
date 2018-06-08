@@ -24,6 +24,18 @@ def simple_parallel_int_mix():
     ai, bi = al, bl = ao, bo = c = d = [1,2]
     return ao, bo, ai, bi, al, bl, c, d
 
+def simple_parallel_int_mix_recursive():
+    """
+    >>> simple_parallel_int_mix_recursive()
+    (1, 2, 3, 1, [2, 3], 1, 2, 3, 1, 2, 3, [1, [2, 3]], [1, [2, 3]])
+    """
+    cdef int ai, bi, ci
+    cdef long al, bl, cl
+    cdef object ao, bo, co
+    cdef object xo, yo
+    ai, [bi, ci] = al, [bl, cl] = xo, yo = ao, [bo, co] = c = d = [1, [2, 3]]
+    return ao, bo, co, xo, yo, ai, bi, ci, al, bl, cl, c, d
+
 cdef int called = 0
 
 cdef char* get_string():
@@ -89,3 +101,18 @@ def assign_carray():
     assert b[0] == 2
     assert c[1] == 3
     return a[0], b[0], c[1]
+
+
+def pyobject_from_cvalue(table, key):
+    """
+    >>> table = {'X':0, 'Y':1}
+    >>> pyobject_from_cvalue(table, 'Z')
+    2
+    >>> pyobject_from_cvalue(table, 'X')
+    0
+    """
+    cdef int num
+    num = table.get(key, -1)
+    if num < 0:
+        num = table[key] = len(table)
+    return num

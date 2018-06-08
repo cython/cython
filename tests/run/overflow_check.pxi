@@ -3,7 +3,7 @@ cimport cython
 cdef object two = 2
 cdef int size_in_bits = sizeof(INT) * 8
 
-cdef bint is_signed_ = ((<INT>-1) < 0)
+cdef bint is_signed_ = not ((<INT>-1) > 0)
 cdef INT max_value_ = <INT>(two ** (size_in_bits - is_signed_) - 1)
 cdef INT min_value_ = ~max_value_
 cdef INT half_ = max_value_ // <INT>2
@@ -30,9 +30,9 @@ cpdef check(func, op, a, b):
         op_res = op(a, b)
     except OverflowError:
         assign_overflow = True
-    assert func_overflow == assign_overflow, "Inconsistant overflow: %s(%s, %s)" % (func, a, b)
+    assert func_overflow == assign_overflow, "Inconsistent overflow: %s(%s, %s)" % (func, a, b)
     if not func_overflow:
-        assert res == op_res, "Inconsistant values: %s(%s, %s) == %s != %s" % (func, a, b, res, op_res)
+        assert res == op_res, "Inconsistent values: %s(%s, %s) == %s != %s" % (func, a, b, res, op_res)
 
 medium_values = (max_value_ / 2, max_value_ / 3, min_value_ / 2, <INT>sqrt(<long double>max_value_) - <INT>1, <INT>sqrt(<long double>max_value_) + 1)
 def run_test(func, op):
