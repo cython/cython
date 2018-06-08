@@ -139,6 +139,9 @@ def parse_args(args):
     parser.add_option('-X', '--directive', metavar='NAME=VALUE,...', dest='directives',
                       type=str, action='callback', callback=parse_directives, default={},
                       help='set a compiler directive')
+    parser.add_option('-E', '--compile-time-env', metavar='NAME=VALUE,...', dest='compile_time_env',
+                      type=str, action='callback', callback=Options.parse_compile_time_env, default={},
+                      help='set a compile time environment variables')
     parser.add_option('-s', '--option', metavar='NAME=VALUE', dest='options',
                       type=str, action='callback', callback=parse_options, default={},
                       help='set a cythonize option')
