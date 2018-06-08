@@ -4349,10 +4349,10 @@ class OverrideCheckNode(StatNode):
         # instance at a time.
         code.putln("static PY_UINT64_T tp_dict_version = 0, obj_dict_version = 0;")
         code.putln("if (likely("
-                   "Py_TYPE(%s)->tp_dictoffset && "
                    "Py_TYPE(%s)->tp_dict && "
                    "tp_dict_version == __PYX_GET_DICT_VERSION(Py_TYPE(%s)->tp_dict) && "
-                   "obj_dict_version == __PYX_GET_DICT_VERSION(_PyObject_GetDictPtr(%s))"
+                   "(!Py_TYPE(%s)->tp_dictoffset || "
+                   "obj_dict_version == __PYX_GET_DICT_VERSION(_PyObject_GetDictPtr(%s)))"
                    "));" % (
             self_arg, self_arg, self_arg, self_arg))
         code.putln("else {")
