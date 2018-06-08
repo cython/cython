@@ -40,6 +40,9 @@ Bugs fixed
   Note that this can have a performance impact on calls from Cython code.
   (Github issue #1771)
 
+* Fix declarations of builtin or C types using strings in pure python mode.
+  (Github issue #2046)
+
 Other changes
 -------------
 
