@@ -4343,6 +4343,10 @@ class OverrideCheckNode(StatNode):
                 self_arg, self_arg))
 
         code.putln("#if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_PYTYPE_LOOKUP")
+        # TODO: remove the object dict version check by 'inlining' the getattr implementation for methods.
+        # This would allow checking the dict versions around _PyType_Lookup() if it returns a descriptor,
+        # and would (tada!) make this check a pure type based thing instead of supporting only a single
+        # instance at a time.
         code.putln("static PY_UINT64_T tp_dict_version = 0, obj_dict_version = 0;")
         code.putln("if (likely("
                    "Py_TYPE(%s)->tp_dictoffset && "
