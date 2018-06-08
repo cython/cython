@@ -13,6 +13,11 @@ Features added
 
 * In CPython 3.6 and later, looking up globals in the module dict is almost
   as fast as looking up C globals.
+  (Github issue #2313)
+
+* For a Python subclass of an extension type, repeated method calls to non-overridden
+  cpdef methods can avoid the attribute lookup in Py3.6+, which makes them 4x faster.
+  (Github issue #2313)
 
 * (In-)equality comparisons of objects to integer literals are faster.
   (Github issue #2188)
