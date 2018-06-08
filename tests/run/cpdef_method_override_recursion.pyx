@@ -35,22 +35,32 @@ class PyOverride(Ext):
     """
     >>> p = PyOverride()
     >>> p.rec(10)
+    10
     5
-    >>> p.rec(11)
-    0
+    >>> p.rec(12)
+    12
+    11
+    10
+    5
     """
     def rec(self, i):
-        return Ext.rec(self, i-1) if i > 10 else 5
+        print(i)
+        return Ext.rec(self, i) if i > 10 else 5
 
 
 class SlotsOverride(Ext):
     """
     >>> s = SlotsOverride()
     >>> s.rec(10)
+    10
     6
-    >>> s.rec(11)
-    0
+    >>> s.rec(12)
+    12
+    11
+    10
+    6
     """
     __slots__ = ()
     def rec(self, i):
-        return Ext.rec(self, i-1) if i > 10 else 6
+        print(i)
+        return Ext.rec(self, i) if i > 10 else 6
