@@ -29,7 +29,7 @@ The general procedure for wrapping a C++ file can now be described as follows:
   * declare classes as ``cdef cppclass`` blocks
   * declare public names (variables, methods and constructors)
 
-* Write an extension modules, ``cimport`` from the .pxd file and use
+* Write one or more extension modules, ``cimport`` them from the .pxd file and use
   the declarations.
 
 A simple Tutorial
@@ -67,30 +67,30 @@ and the implementation in the file called :file:`Rectangle.cpp`:
 
       Rectangle::Rectangle() { }
 
-        Rectangle::Rectangle(int X0, int Y0, int X1, int Y1) {
-            x0 = X0;
-            y0 = Y0;
-            x1 = X1;
-            y1 = Y1;
-        }
+      Rectangle::Rectangle(int X0, int Y0, int X1, int Y1) {
+          x0 = X0;
+          y0 = Y0;
+          x1 = X1;
+          y1 = Y1;
+      }
 
-        Rectangle::~Rectangle() { }
+      Rectangle::~Rectangle() { }
 
-        int Rectangle::getArea() {
-            return (x1 - x0) * (y1 - y0);
-        }
+      int Rectangle::getArea() {
+          return (x1 - x0) * (y1 - y0);
+      }
 
-        void Rectangle::getSize(int *width, int *height) {
-            (*width) = x1 - x0;
-            (*height) = y1 - y0;
-        }
+      void Rectangle::getSize(int *width, int *height) {
+          (*width) = x1 - x0;
+          (*height) = y1 - y0;
+      }
 
-        void Rectangle::move(int dx, int dy) {
-            x0 += dx;
-            y0 += dy;
-            x1 += dx;
-            y1 += dy;
-        }
+      void Rectangle::move(int dx, int dy) {
+          x0 += dx;
+          y0 += dy;
+          x1 += dx;
+          y1 += dy;
+      }
 
     }
 
@@ -112,7 +112,7 @@ with distutils, you just need to pass the option ``language="c++"``::
               language="c++",             # generate C++ code
          ))
 
-Cython will generate and compile the :file:`rect.cpp` file (from the
+Cython will generate and compile the :file:`rect.cpp` file (from
 :file:`rect.pyx`), then it will compile :file:`Rectangle.cpp`
 (implementation of the ``Rectangle`` class) and link both objects files
 together into :file:`rect.so`, which you can then import in Python using
@@ -140,7 +140,7 @@ is then handled by ``cythonize()`` as follows::
 
 The options can also be passed directly from the source file, which is
 often preferable (and overrides any global option).  Starting with
-version 0.17, Cython also allows to pass external source files into the
+version 0.17, Cython also allows passing external source files into the
 ``cythonize()`` command this way.  Here is a simplified setup.py file::
 
    from distutils.core import setup
@@ -209,7 +209,7 @@ Declare a var with the wrapped C++ class
 
 Now, we use cdef to declare a var of the class with the C++ ``new`` statement::
 
-    rec_ptr = new Rectangle(1, 2, 3, 4)
+    rec_ptr = new Rectangle(1, 2, 3, 4)  # Instantiate a Rectangle object on the heap
     try:
         recArea = rec_ptr.getArea()
         ...
@@ -290,6 +290,19 @@ instance.
 If you prefer giving the same name to the wrapper as the C++ class, see the
 section on :ref:`resolving naming conflicts <resolve-conflicts>`.
 
+Compilation and Importing
+=========================
+
+Run ``$python setup.py build_ext --inplace``
+
+Create :file:`test_import.py`:
+::
+  import rect
+
+  x0, y0, x1, y1 = 1, 2, 3, 4
+  rect_obj = rect.Rectangle(x0, y0, x1, y1)
+
+  print(dir(rect_object))
 
 Advanced C++ features
 ======================
@@ -378,7 +391,7 @@ Note that the nested class is declared with a ``cppclass`` but without a ``cdef`
 C++ operators not compatible with Python syntax
 ------------------------------------------------
 
-Cython try to keep a syntax as close as possible to standard Python.
+Cython tries to keep its syntax as close as possible to standard Python.
 Because of this, certain C++ operators, like the preincrement ``++foo``
 or the dereferencing operator ``*foo`` cannot be used with the same
 syntax as C++. Cython provides functions replacing these operators in
