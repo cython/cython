@@ -60,8 +60,8 @@ def parse_options(option, name, value, parser):
 def parse_compile_time_env(option, name, value, parser):
     dest = option.dest
     old_env = dict(getattr(parser.values, dest, {}))
-    directives = Options.parse_compile_time_env(value, current_settings=old_env)
-    setattr(parser.values, dest, directives)
+    new_env = Options.parse_compile_time_env(value, current_settings=old_env)
+    setattr(parser.values, dest, new_env)
 
 
 def find_package_base(path):
