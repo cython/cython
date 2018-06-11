@@ -14,4 +14,4 @@ namespace shapes {
 	};
 }
 
-#endif // RECTANGLE_H
+#endif
