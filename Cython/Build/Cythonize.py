@@ -151,7 +151,7 @@ def parse_args(args):
     parser.add_option('-E', '--compile-time-env', metavar='NAME=VALUE,...',
                       dest='compile_time_env', default={}, type="str",
                       action='callback', callback=parse_compile_time_env,
-                      help='set a compile time environment variables')
+                      help='set a compile time environment variable')
     parser.add_option('-s', '--option', metavar='NAME=VALUE',
                       dest='options', default={}, type="str",
                       action='callback', callback=parse_options,
