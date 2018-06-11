@@ -52,6 +52,13 @@ def parse_options(option, name, value, parser):
     setattr(parser.values, dest, options)
 
 
+def parse_compile_time_env(option, name, value, parser):
+    dest = option.dest
+    old_env = dict(getattr(parser.values, dest, {}))
+    directives = Options.parse_compile_time_env(value, current_settings=old_env)
+    setattr(parser.values, dest, directives)
+
+
 def find_package_base(path):
     base_dir, package_path = os.path.split(path)
     while os.path.isfile(os.path.join(base_dir, '__init__.py')):
@@ -85,6 +92,7 @@ def cython_compile(path_pattern, options):
                 exclude_failures=options.keep_going,
                 exclude=options.excludes,
                 compiler_directives=options.directives,
+                compile_time_env=options.compile_time_env,
                 force=options.force,
                 quiet=options.quiet,
                 **options.options)
@@ -136,14 +144,17 @@ def parse_args(args):
     from optparse import OptionParser
     parser = OptionParser(usage='%prog [options] [sources and packages]+')
 
-    parser.add_option('-X', '--directive', metavar='NAME=VALUE,...', dest='directives',
-                      type=str, action='callback', callback=parse_directives, default={},
+    parser.add_option('-X', '--directive', metavar='NAME=VALUE,...',
+                      dest='directives', default={}, type="str",
+                      action='callback', callback=parse_directives,
                       help='set a compiler directive')
-    parser.add_option('-E', '--compile-time-env', metavar='NAME=VALUE,...', dest='compile_time_env',
-                      type=str, action='callback', callback=Options.parse_compile_time_env, default={},
+    parser.add_option('-E', '--compile-time-env', metavar='NAME=VALUE,...',
+                      dest='compile_time_env', default={}, type="str",
+                      action='callback', callback=parse_compile_time_env,
                       help='set a compile time environment variables')
-    parser.add_option('-s', '--option', metavar='NAME=VALUE', dest='options',
-                      type=str, action='callback', callback=parse_options, default={},
+    parser.add_option('-s', '--option', metavar='NAME=VALUE',
+                      dest='options', default={}, type="str",
+                      action='callback', callback=parse_options,
                       help='set a cythonize option')
     parser.add_option('-3', dest='python3_mode', action='store_true',
                       help='use Python 3 syntax mode by default')
