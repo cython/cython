@@ -47,10 +47,11 @@ Options:
   --warning-errors, -Werror      Make all warnings into errors
   --warning-extra, -Wextra       Enable extra warnings
   -X, --directive <name>=<value>[,<name=value,...] Overrides a compiler directive
+  -E, --compile-time-env name=value[,<name=value,...] Provides compile time env like DEF would do.
 """
 
 
-#The following experimental options are supported only on MacOSX:
+# The following experimental options are supported only on MacOSX:
 #  -C, --compile    Compile generated .c file to .o file
 #  --link           Link .o file to produce extension module (implies -C)
 #  -+, --cplus      Use C++ compiler for compiling and linking
@@ -173,6 +174,17 @@ def parse_command_line(args):
                         current_settings=options.compiler_directives)
                 except ValueError as e:
                     sys.stderr.write("Error in compiler directive: %s\n" % e.args[0])
+                    sys.exit(1)
+            elif option == "--compile-time-env" or option.startswith('-E'):
+                if option.startswith('-E') and option[2:].strip():
+                    x_args = option[2:]
+                else:
+                    x_args = pop_value()
+                try:
+                    options.compile_time_env = Options.parse_compile_time_env(
+                        x_args, current_settings=options.compile_time_env)
+                except ValueError as e:
+                    sys.stderr.write("Error in compile-time-env: %s\n" % e.args[0])
                     sys.exit(1)
             elif option.startswith('--debug'):
                 option = option[2:].replace('-', '_')

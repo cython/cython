@@ -4,6 +4,7 @@
 
 from __future__ import absolute_import
 
+
 class ShouldBeFromDirective(object):
 
     known_directives = []
@@ -120,21 +121,21 @@ closure_freelist_size = 8
 
 
 def get_directive_defaults():
-  # To add an item to this list, all accesses should be changed to use the new
-  # directive, and the global option itself should be set to an instance of
-  # ShouldBeFromDirective.
-  for old_option in ShouldBeFromDirective.known_directives:
-    value = globals().get(old_option.options_name)
-    assert old_option.directive_name in _directive_defaults
-    if not isinstance(value, ShouldBeFromDirective):
-        if old_option.disallow:
-            raise RuntimeError(
-                "Option '%s' must be set from directive '%s'" % (
-                old_option.option_name, old_option.directive_name))
-        else:
-            # Warn?
-            _directive_defaults[old_option.directive_name] = value
-  return _directive_defaults
+    # To add an item to this list, all accesses should be changed to use the new
+    # directive, and the global option itself should be set to an instance of
+    # ShouldBeFromDirective.
+    for old_option in ShouldBeFromDirective.known_directives:
+        value = globals().get(old_option.options_name)
+        assert old_option.directive_name in _directive_defaults
+        if not isinstance(value, ShouldBeFromDirective):
+            if old_option.disallow:
+                raise RuntimeError(
+                    "Option '%s' must be set from directive '%s'" % (
+                    old_option.option_name, old_option.directive_name))
+            else:
+                # Warn?
+                _directive_defaults[old_option.directive_name] = value
+    return _directive_defaults
 
 # Declare compiler directives
 _directive_defaults = {
@@ -146,14 +147,14 @@ _directive_defaults = {
     'exceptval' : None,  # (except value=None, check=True)
     'auto_cpdef': False,
     'auto_pickle': None,
-    'cdivision': False, # was True before 0.12
+    'cdivision': False,  # was True before 0.12
     'cdivision_warnings': False,
     'overflowcheck': False,
     'overflowcheck.fold': True,
     'always_allow_keywords': False,
     'allow_none_for_extension_args': True,
     'wraparound' : True,
-    'ccomplex' : False, # use C99/C++ for complex types and arith
+    'ccomplex' : False,  # use C99/C++ for complex types and arith
     'callspec' : "",
     'final' : False,
     'internal' : False,
@@ -162,20 +163,20 @@ _directive_defaults = {
     'no_gc': False,
     'linetrace': False,
     'emit_code_comments': True,  # copy original source code into C code comments
-    'annotation_typing': True,   # read type declarations from Python function annotations
+    'annotation_typing': True,  # read type declarations from Python function annotations
     'infer_types': None,
     'infer_types.verbose': False,
     'autotestdict': True,
     'autotestdict.cdef': False,
     'autotestdict.all': False,
     'language_level': 2,
-    'fast_getattr': False, # Undocumented until we come up with a better way to handle this everywhere.
-    'py2_import': False, # For backward compatibility of Cython's source code in Py3 source mode
+    'fast_getattr': False,  # Undocumented until we come up with a better way to handle this everywhere.
+    'py2_import': False,  # For backward compatibility of Cython's source code in Py3 source mode
     'preliminary_late_includes_cy28': False,  # Temporary directive in 0.28, to be removed in a later version (see GH#2079).
     'iterable_coroutine': False,  # Make async coroutines backwards compatible with the old asyncio yield-from syntax.
     'c_string_type': 'bytes',
     'c_string_encoding': '',
-    'type_version_tag': True,   # enables Py_TPFLAGS_HAVE_VERSION_TAG on extension types
+    'type_version_tag': True,  # enables Py_TPFLAGS_HAVE_VERSION_TAG on extension types
     'unraisable_tracebacks': True,
     'old_style_globals': False,
     'np_pythran': False,
@@ -195,16 +196,16 @@ _directive_defaults = {
 
 # optimizations
     'optimize.inline_defnode_calls': True,
-    'optimize.unpack_method_calls': True,   # increases code size when True
-    'optimize.unpack_method_calls_in_pyinit': False,   # uselessly increases code size when True
+    'optimize.unpack_method_calls': True,  # increases code size when True
+    'optimize.unpack_method_calls_in_pyinit': False,  # uselessly increases code size when True
     'optimize.use_switch': True,
 
 # remove unreachable code
     'remove_unreachable': True,
 
 # control flow debug directives
-    'control_flow.dot_output': "", # Graphviz output filename
-    'control_flow.dot_annotate_defs': False, # Annotate definitions
+    'control_flow.dot_output': "",  # Graphviz output filename
+    'control_flow.dot_annotate_defs': False,  # Annotate definitions
 
 # test support
     'test_assert_path_exists' : [],
@@ -273,9 +274,9 @@ directive_types = {
     'auto_pickle': bool,
     'final' : bool,  # final cdef classes and methods
     'internal' : bool,  # cdef class visibility in the module dict
-    'infer_types' : bool, # values can be True/None/False
+    'infer_types' : bool,  # values can be True/None/False
     'binding' : bool,
-    'cfunc' : None, # decorators do not take directive value
+    'cfunc' : None,  # decorators do not take directive value
     'ccall' : None,
     'inline' : None,
     'staticmethod' : None,
@@ -291,7 +292,7 @@ for key, val in _directive_defaults.items():
     if key not in directive_types:
         directive_types[key] = type(val)
 
-directive_scopes = { # defaults to available everywhere
+directive_scopes = {  # defaults to available everywhere
     # 'module', 'function', 'class', 'with statement'
     'auto_pickle': ('module', 'cclass'),
     'final' : ('cclass', 'function'),
@@ -423,7 +424,7 @@ def parse_directive_list(s, relaxed_bool=False, ignore_unknown=False,
         item = item.strip()
         if not item:
             continue
-        if not '=' in item:
+        if '=' not in item:
             raise ValueError('Expected "=" in option "%s"' % item)
         name, value = [s.strip() for s in item.strip().split('=', 1)]
         if name not in _directive_defaults:
@@ -440,4 +441,74 @@ def parse_directive_list(s, relaxed_bool=False, ignore_unknown=False,
         else:
             parsed_value = parse_directive_value(name, value, relaxed_bool=relaxed_bool)
             result[name] = parsed_value
+    return result
+
+
+def parse_variable_value(value):
+    """
+    Parses value as an option value for the given name and returns
+    the interpreted value.
+
+    >>> parse_variable_value('True')
+    True
+    >>> parse_variable_value('true')
+    'true'
+    >>> parse_variable_value('us-ascii')
+    'us-ascii'
+    >>> parse_variable_value('str')
+    'str'
+    >>> parse_variable_value('123')
+    123
+    >>> parse_variable_value('1.23')
+    1.23
+
+    """
+    if value == "True":
+        return True
+    elif value == "False":
+        return False
+    elif value == "None":
+        return None
+    elif value.isdigit():
+        return int(value)
+    else:
+        try:
+            value = float(value)
+        except Exception:
+            # Not a float
+            pass
+        return value
+
+
+def parse_compile_time_env(s, current_settings=None):
+    """
+    Parses a comma-separated list of pragma options. Whitespace
+    is not considered.
+
+    >>> parse_compile_time_env('      ')
+    {}
+    >>> (parse_compile_time_env('HAVE_OPENMP=True') ==
+    ... {'HAVE_OPENMP': True})
+    True
+    >>> parse_compile_time_env('  asdf')
+    Traceback (most recent call last):
+       ...
+    ValueError: Expected "=" in option "asdf"
+    >>> parse_compile_time_env('NUM_THREADS=4') == {'NUM_THREADS': 4}
+    True
+    >>> parse_compile_time_env('unknown=anything') == {'unknown': 'anything'}
+    True
+    """
+    if current_settings is None:
+        result = {}
+    else:
+        result = current_settings
+    for item in s.split(','):
+        item = item.strip()
+        if not item:
+            continue
+        if '=' not in item:
+            raise ValueError('Expected "=" in option "%s"' % item)
+        name, value = [s.strip() for s in item.split('=', 1)]
+        result[name] = parse_variable_value(value)
     return result
