@@ -1888,8 +1888,6 @@ def main():
 
     options, cmd_args = parser.parse_args(args)
 
-    WORKDIR = os.path.abspath(options.work_dir)
-
     if options.with_cython and sys.version_info[0] >= 3:
         sys.path.insert(0, options.cython_dir)
 
