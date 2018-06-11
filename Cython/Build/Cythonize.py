@@ -25,9 +25,14 @@ class _FakePool(object):
         for _ in imap(func, args):
             pass
 
-    def close(self): pass
-    def terminate(self): pass
-    def join(self): pass
+    def close(self):
+        pass
+
+    def terminate(self):
+        pass
+
+    def join(self):
+        pass
 
 
 def parse_directives(option, name, value, parser):
