@@ -4,6 +4,7 @@
 
 from __future__ import absolute_import
 
+
 class ShouldBeFromDirective(object):
 
     known_directives = []
@@ -120,21 +121,21 @@ closure_freelist_size = 8
 
 
 def get_directive_defaults():
-  # To add an item to this list, all accesses should be changed to use the new
-  # directive, and the global option itself should be set to an instance of
-  # ShouldBeFromDirective.
-  for old_option in ShouldBeFromDirective.known_directives:
-    value = globals().get(old_option.options_name)
-    assert old_option.directive_name in _directive_defaults
-    if not isinstance(value, ShouldBeFromDirective):
-        if old_option.disallow:
-            raise RuntimeError(
-                "Option '%s' must be set from directive '%s'" % (
-                old_option.option_name, old_option.directive_name))
-        else:
-            # Warn?
-            _directive_defaults[old_option.directive_name] = value
-  return _directive_defaults
+    # To add an item to this list, all accesses should be changed to use the new
+    # directive, and the global option itself should be set to an instance of
+    # ShouldBeFromDirective.
+    for old_option in ShouldBeFromDirective.known_directives:
+        value = globals().get(old_option.options_name)
+        assert old_option.directive_name in _directive_defaults
+        if not isinstance(value, ShouldBeFromDirective):
+            if old_option.disallow:
+                raise RuntimeError(
+                    "Option '%s' must be set from directive '%s'" % (
+                    old_option.option_name, old_option.directive_name))
+            else:
+                # Warn?
+                _directive_defaults[old_option.directive_name] = value
+    return _directive_defaults
 
 # Declare compiler directives
 _directive_defaults = {
@@ -486,16 +487,16 @@ def parse_compile_time_env(s, current_settings=None):
 
     >>> parse_compile_time_env('      ')
     {}
-    >>> (parse_compile_time_env('boundscheck=True') ==
-    ... {'boundscheck': True})
+    >>> (parse_compile_time_env('HAVE_OPENMP=True') ==
+    ... {'HAVE_OPENMP': True})
     True
     >>> parse_compile_time_env('  asdf')
     Traceback (most recent call last):
        ...
     ValueError: Expected "=" in option "asdf"
-    >>> parse_compile_time_env('boundscheck=hey') == {'boundscheck': 'hey'}
+    >>> parse_compile_time_env('NUM_THREADS=4') == {'NUM_THREADS': 4}
     True
-    >>> parse_compile_time_env('unknown=True') == {'unknown': True}
+    >>> parse_compile_time_env('unknown=anything') == {'unknown': 'anything'}
     True
     """
     if current_settings is None:
