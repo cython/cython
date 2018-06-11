@@ -30,6 +30,10 @@ Features added
 * The coverage plugin considers more C file extensions such as ``.cc`` and ``.cxx``.
   (Github issue #2266)
 
+* The `cythonize` command accepts compile time variable values (as set by `DEF`)
+  through the new `-E` option.
+  Patch by Jerome Kieffer.  (Github issue #2315)
+
 Bugs fixed
 ----------
 
