@@ -871,8 +871,7 @@ class CythonCompileTestCase(unittest.TestCase):
         include_dirs = INCLUDE_DIRS + [os.path.join(test_directory, '..', TEST_SUPPORT_DIR)]
         if incdir:
             include_dirs.append(incdir)
-        source = self.find_module_source_file(
-            os.path.join(test_directory, module + '.pyx'))
+
         if self.preparse == 'id':
             source = self.find_module_source_file(
                 os.path.join(test_directory, module + '.pyx'))
