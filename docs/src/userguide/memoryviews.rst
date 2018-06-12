@@ -703,19 +703,19 @@ manage an array (allocate and deallocate) with NumPy (it can also be Python arra
 anything that supports the buffer interface), but you want to perform computation on this
 array with an external C function implemented in :file:`C_func_file.c`:
 
-.. literalinclude:: ../../examples/memoryviews/C_func_file.c
+.. literalinclude:: ../../examples/userguide/memoryviews/C_func_file.c
     :linenos:
 
 This file comes with a header file called :file:`C_func_file.h` containing:
 
-.. literalinclude:: ../../examples/memoryviews/C_func_file.h
+.. literalinclude:: ../../examples/userguide/memoryviews/C_func_file.h
     :linenos:
 
 where ``arr`` points to the array and ``n`` is its size.
 
 You can call the function in a Cython file in the following way:
 
-.. literalinclude:: ../../examples/memoryviews/memview_to_c.pyx
+.. literalinclude:: ../../examples/userguide/memoryviews/memview_to_c.pyx
     :linenos:
 
 Several things to note:

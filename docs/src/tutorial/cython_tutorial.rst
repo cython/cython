@@ -97,7 +97,7 @@ Fibonacci Fun
 
 From the official Python tutorial a simple fibonacci function is defined as:
 
-.. literalinclude:: ../../examples/tutorial/fib1/fib.pyx
+.. literalinclude:: ../../examples/tutorial/cython_tutorial/fib.pyx
 
 Now following the steps for the Hello World example we first rename the file
 to have a `.pyx` extension, lets say :file:`fib.pyx`, then we create the
@@ -105,7 +105,7 @@ to have a `.pyx` extension, lets say :file:`fib.pyx`, then we create the
 that you need to change is the name of the Cython filename, and the resulting
 module name, doing this we have:
 
-.. literalinclude:: ../../examples/tutorial/fib1/setup.py
+.. literalinclude:: ../../examples/tutorial/cython_tutorial/setup.py
 
 Build the extension with the same command used for the helloworld.pyx:
 
@@ -130,7 +130,7 @@ them as a Python list.
 
 :file:`primes.pyx`:
 
-.. literalinclude:: ../../examples/tutorial/primes/primes.pyx
+.. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
     :linenos:
 
 You'll see that it starts out just like a normal Python function definition,
@@ -352,7 +352,7 @@ standard library.
     how many elements you are going to put in the vector. For more details
     see `this page from cppreference <http://en.cppreference.com/w/cpp/container/vector>`_.
 
-.. literalinclude:: ../../examples/tutorial/primes/primes_cpp.pyx
+.. literalinclude:: ../../examples/tutorial/cython_tutorial/primes_cpp.pyx
     :linenos:
 
 The first line is a compiler directive. It tells Cython to compile your code to C++.
