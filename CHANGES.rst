@@ -8,19 +8,31 @@ Cython Changelog
 Features added
 --------------
 
+* Raising exceptions from nogil code will automatically acquire the GIL, instead
+  of requiring an explicit ``with gil`` block.
+
 * In CPython 3.6 and later, looking up globals in the module dict is almost
   as fast as looking up C globals.
+  (Github issue #2313)
+
+* For a Python subclass of an extension type, repeated method calls to non-overridden
+  cpdef methods can avoid the attribute lookup in Py3.6+, which makes them 4x faster.
+  (Github issue #2313)
 
 * (In-)equality comparisons of objects to integer literals are faster.
   (Github issue #2188)
 
 * Some internal and 1-argument method calls are faster.
 
+* Modules that cimport many external extension types from other Cython modules
+  execute less import requests during module initialisation.
+
 * The coverage plugin considers more C file extensions such as ``.cc`` and ``.cxx``.
   (Github issue #2266)
 
-* Modules that cimport many external extension types from other Cython modules
-  execute less import requests during module initialisation.
+* The `cythonize` command accepts compile time variable values (as set by `DEF`)
+  through the new `-E` option.
+  Patch by Jerome Kieffer.  (Github issue #2315)
 
 Bugs fixed
 ----------
@@ -28,20 +40,35 @@ Bugs fixed
 * The directive ``language_level=3`` did not apply to the first token in the
   source file.  (Github issue #2230)
 
+* Overriding cpdef methods did not work in Python subclasses with slots.
+  Note that this can have a performance impact on calls from Cython code.
+  (Github issue #1771)
+
+* Fix declarations of builtin or C types using strings in pure python mode.
+  (Github issue #2046)
+
 Other changes
 -------------
 
 
-0.28.3 (2018-??-??)
+0.28.4 (2018-??-??)
+===================
+
+Bugs fixed
+----------
+
+* Reallowing ``tp_clear()`` in a subtype of an ``@no_gc_clear`` extension type
+  generated an invalid C function call to the (non-existent) base type implementation.
+  (Github issue #2309)
+
+
+0.28.3 (2018-05-27)
 ===================
 
 Bugs fixed
 ----------
 
 * Set iteration was broken in non-CPython since 0.28.
-
-* Overriding cpdef methods did not work in Python subclasses with slots.
-  (Github issue #1771)
 
 * ``UnicodeEncodeError`` in Py2 when ``%s`` formatting is optimised for
   unicode strings.  (Github issue #2276)

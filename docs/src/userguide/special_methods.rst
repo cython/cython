@@ -90,14 +90,6 @@ complaining about the signature mismatch.
 
     See :ref:`existing-pointers-instantiation` for an example.
 
-.. Note::
-
-    Older Cython files may use :meth:`__new__` rather than :meth:`__cinit__`. The two are synonyms.
-    The name change from :meth:`__new__` to :meth:`__cinit__` was to avoid
-    confusion with Python :meth:`__new__` (which is an entirely different
-    concept) and eventually the use of :meth:`__new__` in Cython will be
-    disallowed to pave the way for supporting Python-style :meth:`__new__`
-
 .. [#] http://docs.python.org/reference/datamodel.html#object.__new__
 
 .. _finalization_method:

@@ -1606,7 +1606,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("}")
 
     def generate_clear_function(self, scope, code, cclass_entry):
-        tp_slot = TypeSlots.GCDependentSlot("tp_clear")
+        tp_slot = TypeSlots.get_slot_by_name("tp_clear")
         slot_func = scope.mangle_internal("tp_clear")
         base_type = scope.parent_type.base_type
         if tp_slot.slot_code(scope) != slot_func:

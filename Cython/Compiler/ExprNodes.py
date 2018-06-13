@@ -1376,8 +1376,12 @@ def _analyse_name_as_type(name, pos, env):
     if type is not None:
         return type
 
-    global_entry = env.global_scope().lookup_here(name)
-    if global_entry and global_entry.type and global_entry.type.is_extension_type:
+    global_entry = env.global_scope().lookup(name)
+    if global_entry and global_entry.type and (
+            global_entry.type.is_extension_type
+            or global_entry.type.is_struct_or_union
+            or global_entry.type.is_builtin_type
+            or global_entry.type.is_cpp_class):
         return global_entry.type
 
     from .TreeFragment import TreeFragment

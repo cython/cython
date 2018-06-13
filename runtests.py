@@ -102,13 +102,17 @@ def get_distutils_distro(_cache=[]):
     if sys.platform == 'win32':
         # TODO: Figure out why this hackery (see http://thread.gmane.org/gmane.comp.python.cython.devel/8280/).
         config_files = distutils_distro.find_config_files()
-        try: config_files.remove('setup.cfg')
-        except ValueError: pass
+        try:
+            config_files.remove('setup.cfg')
+        except ValueError:
+            pass
         distutils_distro.parse_config_files(config_files)
 
         cfgfiles = distutils_distro.find_config_files()
-        try: cfgfiles.remove('setup.cfg')
-        except ValueError: pass
+        try:
+            cfgfiles.remove('setup.cfg')
+        except ValueError:
+            pass
         distutils_distro.parse_config_files(cfgfiles)
     _cache.append(distutils_distro)
     return distutils_distro
@@ -888,8 +892,7 @@ class CythonCompileTestCase(unittest.TestCase):
         include_dirs = INCLUDE_DIRS + [os.path.join(test_directory, '..', TEST_SUPPORT_DIR)]
         if incdir:
             include_dirs.append(incdir)
-        source = self.find_module_source_file(
-            os.path.join(test_directory, module + '.pyx'))
+
         if self.preparse == 'id':
             source = self.find_module_source_file(
                 os.path.join(test_directory, module + '.pyx'))
@@ -1233,8 +1236,10 @@ def run_forked_test(result, run_func, test_name, fork=True):
             raise Exception("Tests in module '%s' exited with status %d" %
                             (module_name, result_code))
     finally:
-        try: os.unlink(result_file)
-        except: pass
+        try:
+            os.unlink(result_file)
+        except:
+            pass
 
 class PureDoctestTestCase(unittest.TestCase):
     def __init__(self, module_name, module_path):
@@ -1600,7 +1605,7 @@ class EmbedTest(unittest.TestCase):
         if sys.version_info[0] >=3 and CY3_DIR:
             cython = os.path.join(CY3_DIR, cython)
         cython = os.path.abspath(os.path.join('..', '..', cython))
-        self.assert_(os.system(
+        self.assertTrue(os.system(
             "make PYTHON='%s' CYTHON='%s' LIBDIR1='%s' test > make.output" % (sys.executable, cython, libdir)) == 0)
         try:
             os.remove('make.output')
@@ -1905,8 +1910,6 @@ def main():
 
     options, cmd_args = parser.parse_args(args)
 
-    WORKDIR = os.path.abspath(options.work_dir)
-
     if options.with_cython and sys.version_info[0] >= 3:
         sys.path.insert(0, options.cython_dir)
 
@@ -2178,8 +2181,10 @@ def runtests(options, cmd_args, coverage=None):
     if xml_output_dir:
         from Cython.Tests.xmlrunner import XMLTestRunner
         if not os.path.exists(xml_output_dir):
-            try: os.makedirs(xml_output_dir)
-            except OSError: pass  # concurrency issue?
+            try:
+                os.makedirs(xml_output_dir)
+            except OSError:
+                pass  # concurrency issue?
         test_runner = XMLTestRunner(output=xml_output_dir,
                                     verbose=options.verbosity > 0)
         if options.failfast:
