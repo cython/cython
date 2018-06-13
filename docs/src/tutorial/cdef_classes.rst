@@ -103,26 +103,9 @@ Some notes on our new implementation of ``evaluate``:
 
 There is a *compiler directive* ``nonecheck`` which turns on checks
 for this, at the cost of decreased speed. Here's how compiler directives
-are used to dynamically switch on or off ``nonecheck``::
+are used to dynamically switch on or off ``nonecheck``:
 
-  #cython: nonecheck=True
-  #        ^^^ Turns on nonecheck globally
-
-  import cython
-
-  # Turn off nonecheck locally for the function
-  @cython.nonecheck(False)
-  def func():
-      cdef MyClass obj = None
-      try:
-          # Turn nonecheck on again for a block
-          with cython.nonecheck(True):
-              print obj.myfunc() # Raises exception
-      except AttributeError:
-          pass
-      print obj.myfunc() # Hope for a crash!
-
-
+.. literalinclude:: ../../examples/tutorial/cdef_classes/nonecheck.pyx
 
 Attributes in cdef classes behave differently from attributes in regular classes:
 
