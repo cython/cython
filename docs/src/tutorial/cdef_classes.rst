@@ -2,15 +2,9 @@ Extension types (aka. cdef classes)
 ===================================
 
 To support object-oriented programming, Cython supports writing normal
-Python classes exactly as in Python::
+Python classes exactly as in Python:
 
-    class MathFunction(object):
-        def __init__(self, name, operator):
-            self.name = name
-            self.operator = operator
-
-        def __call__(self, *operands):
-            return self.operator(*operands)
+.. literalinclude:: ../../examples/tutorial/cdef_classes/math_function.py
 
 Based on what Python calls a "built-in type", however, Cython supports
 a second kind of class: *extension types*, sometimes referred to as
