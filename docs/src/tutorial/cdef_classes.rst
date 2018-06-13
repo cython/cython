@@ -40,31 +40,18 @@ function on floating point numbers::
           return 0
 
 The directive cpdef makes two versions of the method available; one
-fast for use from Cython and one slower for use from Python. Then::
+fast for use from Cython and one slower for use from Python. Then:
 
-  cdef class SinOfSquareFunction(Function):
-      cpdef double evaluate(self, double x) except *:
-          return sin(x**2)
+.. literalinclude:: ../../examples/tutorial/cdef_classes/sin_of_square.pyx
 
 This does slightly more than providing a python wrapper for a cdef
 method: unlike a cdef method, a cpdef method is fully overridable by
 methods and instance attributes in Python subclasses.  It adds a
 little calling overhead compared to a cdef method.
 
-Using this, we can now change our integration example::
+Using this, we can now change our integration example:
 
-  def integrate(Function f, double a, double b, int N):
-      cdef int i
-      cdef double s, dx
-      if f is None:
-          raise ValueError("f cannot be None")
-      s = 0
-      dx = (b-a)/N
-      for i in range(N):
-          s += f.evaluate(a+i*dx)
-      return s * dx
-
-  print(integrate(SinOfSquareFunction(), 0, 1, 10000))
+.. literalinclude:: ../../examples/tutorial/cdef_classes/integrate.pyx
 
 This is almost as fast as the previous code, however it is much more flexible
 as the function to integrate can be changed. We can even pass in a new
