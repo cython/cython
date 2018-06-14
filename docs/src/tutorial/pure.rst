@@ -42,31 +42,13 @@ If a :file:`.pxd` file is found with the same name as the :file:`.py` file
 being compiled, it will be searched for :keyword:`cdef` classes and
 :keyword:`cdef`/:keyword:`cpdef` functions and methods.  The compiler will
 then convert the corresponding classes/functions/methods in the :file:`.py`
-file to be of the declared type.  Thus if one has a file :file:`A.py`::
+file to be of the declared type.  Thus if one has a file :file:`A.py`:
 
-    def myfunction(x, y=2):
-        a = x-y
-        return a + x * y
+.. literalinclude:: ../../examples/tutorial/pure/A.py
 
-    def _helper(a):
-        return a + 1
+and adds :file:`A.pxd`:
 
-    class A:
-        def __init__(self, b=0):
-            self.a = 3
-            self.b = b
-
-        def foo(self, x):
-            print(x + _helper(1.0))
-
-and adds :file:`A.pxd`::
-
-    cpdef int myfunction(int x, int y=*)
-    cdef double _helper(double a)
-
-    cdef class A:
-        cdef public int a,b
-        cpdef foo(self, double x)
+.. literalinclude:: ../../examples/tutorial/pure/A.pxd
 
 then Cython will compile the :file:`A.py` as if it had been written as follows::
 
