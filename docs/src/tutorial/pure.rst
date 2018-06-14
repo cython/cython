@@ -223,26 +223,9 @@ Static typing
 
   Since version 0.27, Cython also supports the variable annotations defined
   in `PEP 526 <https://www.python.org/dev/peps/pep-0526/>`_. This allows to
-  declare types of variables in a Python 3.6 compatible way as follows::
+  declare types of variables in a Python 3.6 compatible way as follows:
 
-    def func():
-        # Cython types are evaluated as for cdef declarations
-        x : cython.int               # cdef int x
-        y : cython.double = 0.57721  # cdef double y = 0.57721
-        z : cython.float  = 0.57721  # cdef float z  = 0.57721
-
-        # Python types shadow Cython types for compatibility reasons
-        a : float = 0.54321          # cdef double a = 0.54321
-        b : int = 5                  # cdef object b = 5
-        c : long = 6                 # cdef object c = 6
-
-    @cython.cclass
-    class A:
-        a : cython.int
-        b : cython.int
-        def __init__(self, b=0):
-            self.a = 3
-            self.b = b
+  .. literalinclude:: ../../examples/tutorial/pure/pep_526.py
 
   There is currently no way to express the visibility of object attributes.
 
