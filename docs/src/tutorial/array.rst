@@ -42,18 +42,7 @@ functions, it is possible to access the underlying contiguous array as a
 pointer. There is no type or bounds checking, so be careful to use the
 right type and signedness.
 
-::
-
-    from cpython cimport array
-    import array
-
-    cdef array.array a = array.array('i', [1, 2, 3])
-
-    # access underlying pointer:
-    print(a.data.as_ints[0])
-
-    from libc.string cimport memset
-    memset(a.data.as_voidptr, 0, len(a) * sizeof(int))
+.. literalinclude:: ../../examples/tutorial/array/unsafe_usage.pyx
 
 Note that any length-changing operation on the array object may invalidate the
 pointer.
