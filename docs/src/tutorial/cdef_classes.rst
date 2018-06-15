@@ -27,11 +27,9 @@ Cython code and pure Python code.
 So far our integration example has not been very useful as it only
 integrates a single hard-coded function. In order to remedy this,
 with hardly sacrificing speed, we will use a cdef class to represent a
-function on floating point numbers::
+function on floating point numbers:
 
-  cdef class Function:
-      cpdef double evaluate(self, double x) except *:
-          return 0
+.. literalinclude:: ../../examples/tutorial/cdef_classes/math_function_2.pyx
 
 The directive cpdef makes two versions of the method available; one
 fast for use from Cython and one slower for use from Python. Then::
