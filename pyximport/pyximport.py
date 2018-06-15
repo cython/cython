@@ -249,6 +249,10 @@ class PyxImporter(object):
     def find_module(self, fullname, package_path=None):
         if fullname in sys.modules  and  not pyxargs.reload_support:
             return None  # only here when reload()
+
+        # package_path might be a _NamespacePath. Convert that into a list...
+        if package_path is not None and not isinstance(package_path, list):
+            package_path = list(package_path)
         try:
             fp, pathname, (ext,mode,ty) = imp.find_module(fullname,package_path)
             if fp: fp.close()  # Python should offer a Default-Loader to avoid this double find/open!
@@ -485,49 +489,54 @@ def install(pyximport=True, pyimport=False, build_dir=None, build_in_temp=True,
             setup_args=None, reload_support=False,
             load_py_module_on_import_failure=False, inplace=False,
             language_level=None):
-    """Main entry point. Call this to install the .pyx import hook in
+    """ Main entry point for pyxinstall.
+
+    Call this to install the ``.pyx`` import hook in
     your meta-path for a single Python process.  If you want it to be
-    installed whenever you use Python, add it to your sitecustomize
+    installed whenever you use Python, add it to your ``sitecustomize``
     (as described above).
 
-    You can pass ``pyimport=True`` to also install the .py import hook
-    in your meta-path.  Note, however, that it is highly experimental,
-    will not work for most .py files, and will therefore only slow
-    down your imports.  Use at your own risk.
+    :param pyximport: If set to False, does not try to import ``.pyx`` files.
 
-    By default, compiled modules will end up in a ``.pyxbld``
-    directory in the user's home directory.  Passing a different path
-    as ``build_dir`` will override this.
+    :param pyimport: You can pass ``pyimport=True`` to also
+        install the ``.py`` import hook
+        in your meta-path.  Note, however, that it is rather experimental,
+        will not work at all for some ``.py`` files and packages, and will
+        heavily slow down your imports due to search and compilation.
+        Use at your own risk.
 
-    ``build_in_temp=False`` will produce the C files locally. Working
-    with complex dependencies and debugging becomes more easy. This
-    can principally interfere with existing files of the same name.
-    build_in_temp can be overridden by <modulename>.pyxbld/make_setup_args()
-    by a dict item of 'build_in_temp'
+    :param build_dir: By default, compiled modules will end up in a ``.pyxbld``
+        directory in the user's home directory.  Passing a different path
+        as ``build_dir`` will override this.
 
-    ``setup_args``: dict of arguments for Distribution - see
-    distutils.core.setup() . They are extended/overridden by those of
-    <modulename>.pyxbld/make_setup_args()
+    :param build_in_temp: If ``False``, will produce the C files locally. Working
+        with complex dependencies and debugging becomes more easy. This
+        can principally interfere with existing files of the same name.
 
-    ``reload_support``:  Enables support for dynamic
-    reload(<pyxmodulename>), e.g. after a change in the Cython code.
-    Additional files <so_path>.reloadNN may arise on that account, when
-    the previously loaded module file cannot be overwritten.
+    :param setup_args: Dict of arguments for Distribution.
+        See ``distutils.core.setup()``.
 
-    ``load_py_module_on_import_failure``: If the compilation of a .py
-    file succeeds, but the subsequent import fails for some reason,
-    retry the import with the normal .py module instead of the
-    compiled module.  Note that this may lead to unpredictable results
-    for modules that change the system state during their import, as
-    the second import will rerun these modifications in whatever state
-    the system was left after the import of the compiled module
-    failed.
+    :param reload_support: Enables support for dynamic
+        ``reload(my_module)``, e.g. after a change in the Cython code.
+        Additional files ``<so_path>.reloadNN`` may arise on that account, when
+        the previously loaded module file cannot be overwritten.
 
-    ``inplace``: Install the compiled module next to the source file.
+    :param load_py_module_on_import_failure: If the compilation of a ``.py``
+        file succeeds, but the subsequent import fails for some reason,
+        retry the import with the normal ``.py`` module instead of the
+        compiled module.  Note that this may lead to unpredictable results
+        for modules that change the system state during their import, as
+        the second import will rerun these modifications in whatever state
+        the system was left after the import of the compiled module
+        failed.
 
-    ``language_level``: The source language level to use: 2 or 3.
-    The default is to use the language level of the current Python
-    runtime for .py files and Py2 for .pyx files.
+    :param inplace: Install the compiled module
+        (``.so`` for Linux and Mac / ``.pyd`` for Windows)
+        next to the source file.
+
+    :param language_level: The source language level to use: 2 or 3.
+        The default is to use the language level of the current Python
+        runtime for .py files and Py2 for ``.pyx`` files.
     """
     if setup_args is None:
         setup_args = {}

@@ -3594,31 +3594,49 @@ def p_code(s, level=None, ctx=Ctx):
             repr(s.sy), repr(s.systring)))
     return body
 
+
 _match_compiler_directive_comment = cython.declare(object, re.compile(
     r"^#\s*cython\s*:\s*((\w|[.])+\s*=.*)$").match)
+
 
 def p_compiler_directive_comments(s):
     result = {}
     while s.sy == 'commentline':
+        pos = s.position()
         m = _match_compiler_directive_comment(s.systring)
         if m:
-            directives = m.group(1).strip()
+            directives_string = m.group(1).strip()
             try:
-                result.update(Options.parse_directive_list(
-                    directives, ignore_unknown=True))
+                new_directives = Options.parse_directive_list(directives_string, ignore_unknown=True)
             except ValueError as e:
                 s.error(e.args[0], fatal=False)
+                s.next()
+                continue
+
+            for name in new_directives:
+                if name not in result:
+                    pass
+                elif new_directives[name] == result[name]:
+                    warning(pos, "Duplicate directive found: %s" % (name,))
+                else:
+                    s.error("Conflicting settings found for top-level directive %s: %r and %r" % (
+                        name, result[name], new_directives[name]), pos=pos)
+
+            if 'language_level' in new_directives:
+                # Make sure we apply the language level already to the first token that follows the comments.
+                s.context.set_language_level(new_directives['language_level'])
+
+            result.update(new_directives)
+
         s.next()
     return result
+
 
 def p_module(s, pxd, full_module_name, ctx=Ctx):
     pos = s.position()
 
     directive_comments = p_compiler_directive_comments(s)
     s.parse_comments = False
-
-    if 'language_level' in directive_comments:
-        s.context.set_language_level(directive_comments['language_level'])
 
     doc = p_doc_string(s)
     if pxd:

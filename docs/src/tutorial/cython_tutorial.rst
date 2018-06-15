@@ -77,7 +77,7 @@ It is shipped and installed with Cython and can be used like this::
     >>> import helloworld
     Hello World
 
-Since Cython 0.11, the :mod:`pyximport` module also has experimental
+Since Cython 0.11, the :ref:`Pyximport<pyximport>` module also has experimental
 compilation support for normal Python modules.  This allows you to
 automatically run Cython on every .pyx and .py module that Python
 imports, including the standard library and installed packages.
@@ -87,7 +87,7 @@ modules instead.  The .py import mechanism is installed like this::
 
     >>> pyximport.install(pyimport=True)
 
-Note that it is not recommended to let :mod:`pyximport` build code
+Note that it is not recommended to let :ref:`Pyximport<pyximport>` build code
 on end user side as it hooks into their import system.  The best way
 to cater for end users is to provide pre-built binary packages in the
 `wheel <https://wheel.readthedocs.io/>`_ packaging format.
@@ -97,7 +97,7 @@ Fibonacci Fun
 
 From the official Python tutorial a simple fibonacci function is defined as:
 
-.. literalinclude:: ../../examples/tutorial/fib1/fib.pyx
+.. literalinclude:: ../../examples/tutorial/cython_tutorial/fib.pyx
 
 Now following the steps for the Hello World example we first rename the file
 to have a `.pyx` extension, lets say :file:`fib.pyx`, then we create the
@@ -105,7 +105,7 @@ to have a `.pyx` extension, lets say :file:`fib.pyx`, then we create the
 that you need to change is the name of the Cython filename, and the resulting
 module name, doing this we have:
 
-.. literalinclude:: ../../examples/tutorial/fib1/setup.py
+.. literalinclude:: ../../examples/tutorial/cython_tutorial/setup.py
 
 Build the extension with the same command used for the helloworld.pyx:
 
@@ -119,6 +119,8 @@ And use the new extension with::
     >>> fib.fib(2000)
     1 1 2 3 5 8 13 21 34 55 89 144 233 377 610 987 1597
 
+.. _primes:
+
 Primes
 =======
 
@@ -128,7 +130,7 @@ them as a Python list.
 
 :file:`primes.pyx`:
 
-.. literalinclude:: ../../examples/tutorial/primes/primes.pyx
+.. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
     :linenos:
 
 You'll see that it starts out just like a normal Python function definition,
@@ -330,6 +332,38 @@ the Python interpreter. As always, remember to profile before adding types
 everywhere. Adding types makes your code less readable, so use them with
 moderation.
 
+
+Primes with C++
+===============
+
+With Cython, it is also possible to take advantage of the C++ language, notably,
+part of the C++ standard library is directly importable from Cython code.
+
+Let's see what our :file:`primes.pyx` becomes when
+using `vector <http://en.cppreference.com/w/cpp/container/vector>`_ from the C++
+standard library.
+
+.. note::
+
+    Vector in C++ is a data structure which implements a list or stack based
+    on a resizeable C array. It is similar to the Python ``array``
+    type in the ``array`` standard library module.
+    There is a method `reserve` available which will avoid copies if you know in advance
+    how many elements you are going to put in the vector. For more details
+    see `this page from cppreference <http://en.cppreference.com/w/cpp/container/vector>`_.
+
+.. literalinclude:: ../../examples/tutorial/cython_tutorial/primes_cpp.pyx
+    :linenos:
+
+The first line is a compiler directive. It tells Cython to compile your code to C++.
+This will enable the use of C++ language features and the C++ standard library.
+Note that it isn't possible to compile Cython code to C++ with `pyximport`. You
+should use a :file:`setup.py` or a notebook to run this example.
+
+You can see that the API of a vector is similar to the API of a Python list,
+and can sometimes be used as a drop-in replacement in Cython.
+
+For more details about using C++ with Cython, see :ref:`wrapping-cplusplus`.
 
 Language Details
 ================

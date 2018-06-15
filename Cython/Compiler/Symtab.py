@@ -906,10 +906,28 @@ class Scope(object):
                 if res is not None:
                     return res
         function = self.lookup("operator%s" % operator)
-        if function is None:
+        function_alternatives = []
+        if function is not None:
+            function_alternatives = function.all_alternatives()
+
+        # look-up nonmember methods listed within a class
+        method_alternatives = []
+        if len(operands)==2: # binary operators only
+            for n in range(2):
+                if operands[n].type.is_cpp_class:
+                    obj_type = operands[n].type
+                    method = obj_type.scope.lookup("operator%s" % operator)
+                    if method is not None:
+                        method_alternatives += method.all_alternatives()
+
+        if (not method_alternatives) and (not function_alternatives):
             return None
+
+        # select the unique alternatives
+        all_alternatives = list(set(method_alternatives + function_alternatives))
+
         return PyrexTypes.best_match([arg.type for arg in operands],
-                                     function.all_alternatives())
+                                     all_alternatives)
 
     def lookup_operator_for_types(self, pos, operator, types):
         from .Nodes import Node

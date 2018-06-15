@@ -212,3 +212,12 @@ def modptr():
     str3 = "eggs"
     obj1 = str2 % str3  # '%' operator doesn't work on byte strings in Py3
     return obj1
+
+
+def mod_bigint(obj):
+    """
+    >>> print(mod_bigint(3316000000000))
+    319
+    """
+    result = obj % 999
+    return result

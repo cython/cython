@@ -27,18 +27,29 @@ cdef extern from "cpp_operators_helper.h" nogil:
         const_char* operator--(int)
 
         const_char* operator+(int)
+        const_char* operator+(int,const TestOps&)
         const_char* operator-(int)
+        const_char* operator-(int,const TestOps&)
         const_char* operator*(int)
+        # deliberately omitted operator* to test case where only defined outside class
         const_char* operator/(int)
+        const_char* operator/(int,const TestOps&)
         const_char* operator%(int)
+        const_char* operator%(int,const TestOps&)
 
         const_char* operator|(int)
+        const_char* operator|(int,const TestOps&)
         const_char* operator&(int)
+        const_char* operator&(int,const TestOps&)
         const_char* operator^(int)
+        const_char* operator^(int,const TestOps&)
         const_char* operator,(int)
+        const_char* operator,(int,const TestOps&)
 
         const_char* operator<<(int)
+        const_char* operator<<(int,const TestOps&)
         const_char* operator>>(int)
+        const_char* operator>>(int,const TestOps&)
 
         const_char* operator==(int)
         const_char* operator!=(int)
@@ -49,6 +60,23 @@ cdef extern from "cpp_operators_helper.h" nogil:
 
         const_char* operator[](int)
         const_char* operator()(int)
+    
+    # Defining the operator outside the class does work
+    # but doesn't help when importing from pxd files
+    # (they don't get imported)
+    const_char* operator+(float,const TestOps&)
+    # deliberately omitted operator- to test case where only defined in class
+    const_char* operator*(float,const TestOps&)
+    const_char* operator/(float,const TestOps&)
+    const_char* operator%(float,const TestOps&)
+
+    const_char* operator|(float,const TestOps&)
+    const_char* operator&(float,const TestOps&)
+    const_char* operator^(float,const TestOps&)
+    const_char* operator,(float,const TestOps&)
+
+    const_char* operator<<(float,const TestOps&)
+    const_char* operator>>(float,const TestOps&)
 
     cdef cppclass TruthClass:
         TruthClass()
@@ -127,6 +155,63 @@ def test_binop():
 
     x = cython.operator.comma(t[0], 1)
     out(x, typeof(x))
+    del t
+
+def test_nonmember_binop():
+    """
+    >>> test_nonmember_binop()
+    nonmember binary + [const_char *]
+    nonmember binary - [const_char *]
+    nonmember binary / [const_char *]
+    nonmember binary % [const_char *]
+    nonmember binary & [const_char *]
+    nonmember binary | [const_char *]
+    nonmember binary ^ [const_char *]
+    nonmember binary << [const_char *]
+    nonmember binary >> [const_char *]
+    nonmember binary COMMA [const_char *]
+    nonmember binary2 + [const_char *]
+    nonmember binary2 * [const_char *]
+    nonmember binary2 / [const_char *]
+    nonmember binary2 % [const_char *]
+    nonmember binary2 & [const_char *]
+    nonmember binary2 | [const_char *]
+    nonmember binary2 ^ [const_char *]
+    nonmember binary2 << [const_char *]
+    nonmember binary2 >> [const_char *]
+    nonmember binary2 COMMA [const_char *]
+    """
+    
+    cdef TestOps* t = new TestOps()
+    out(1 + t[0], typeof(1 + t[0]))
+    out(1 - t[0], typeof(1 - t[0]))
+    # * deliberately omitted
+    out(1 / t[0], typeof(1 / t[0]))
+    out(1 % t[0], typeof(1 % t[0]))
+    out(1 & t[0], typeof(1 & t[0]))
+    out(1 | t[0], typeof(1 | t[0]))
+    out(1 ^ t[0], typeof(1 ^ t[0]))
+    out(1 << t[0], typeof(1 << t[0]))
+    out(1 >> t[0], typeof(1 >> t[0]))
+    
+    x = cython.operator.comma(1, t[0])
+    out(x, typeof(x))
+    
+    # now test float operators defined outside class
+    out(1. + t[0], typeof(1. + t[0]))
+    # operator - deliberately omitted
+    out(1. * t[0], typeof(1. * t[0]))
+    out(1. / t[0], typeof(1. / t[0]))
+    out(1. % t[0], typeof(1. % t[0]))
+    out(1. & t[0], typeof(1. & t[0]))
+    out(1. | t[0], typeof(1. | t[0]))
+    out(1. ^ t[0], typeof(1. ^ t[0]))
+    out(1. << t[0], typeof(1. << t[0]))
+    out(1. >> t[0], typeof(1. >> t[0]))
+    
+    # for some reason we need a cdef here - not sure this is quite right
+    y = cython.operator.comma(1., t[0])
+    out(y, typeof(y))
     del t
 
 def test_cmp():

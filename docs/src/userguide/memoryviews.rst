@@ -396,6 +396,8 @@ like::
 
     int [:, :, :] my_memoryview = obj
 
+.. _c_and_fortran_contiguous_memoryviews:
+
 C and Fortran contiguous memoryviews
 ------------------------------------
 
@@ -690,6 +692,51 @@ reject None input straight away in the signature, which is supported in Cython
 
 Unlike object attributes of extension classes, memoryview slices are not
 initialized to None.
+
+
+Pass data from a C function via pointer
+=======================================
+
+Since use of pointers in C is ubiquitous, here we give a quick example of how
+to call C functions whose arguments contain pointers. Let's suppose you want to
+manage an array (allocate and deallocate) with NumPy (it can also be Python arrays, or
+anything that supports the buffer interface), but you want to perform computation on this
+array with an external C function implemented in :file:`C_func_file.c`:
+
+.. literalinclude:: ../../examples/userguide/memoryviews/C_func_file.c
+    :linenos:
+
+This file comes with a header file called :file:`C_func_file.h` containing:
+
+.. literalinclude:: ../../examples/userguide/memoryviews/C_func_file.h
+    :linenos:
+
+where ``arr`` points to the array and ``n`` is its size.
+
+You can call the function in a Cython file in the following way:
+
+.. literalinclude:: ../../examples/userguide/memoryviews/memview_to_c.pyx
+    :linenos:
+
+Several things to note:
+ - ``::1`` requests a C contiguous view, and fails if the buffer is not C contiguous.
+   See :ref:`c_and_fortran_contiguous_memoryviews`.
+ - ``&arr_memview[0]`` can be understood as 'the adress of the first element of the
+   memoryview'. For contiguous arrays, this is equivalent to the
+   start address of the flat memory buffer.
+ - ``arr_memview.shape[0]`` could have been replaced by ``arr_memview.size``,
+   ``arr.shape[0]`` or ``arr.size``. But ``arr_memview.shape[0]`` is more efficient
+   because it doesn't require any Python interaction.
+ - ``multiply_by_10`` will perform computation in-place if the array passed is contiguous,
+   and will return a new numpy array if ``arr`` is not contiguous.
+ - If you are using Python arrays instead of numpy arrays, you don't need to check
+   if the data is stored contiguously as this is always the case. See :ref:`array-array`.
+
+This way, you can call the C function similar to a normal Python function,
+and leave all the memory management and cleanup to NumPy arrays and Python's
+object handling. For the details of how to compile and
+call functions in C files, see :ref:`using_c_libraries`.
+
 
 .. _GIL: http://docs.python.org/dev/glossary.html#term-global-interpreter-lock
 .. _new style buffers: http://docs.python.org/c-api/buffer.html

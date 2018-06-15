@@ -338,10 +338,17 @@ static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key) {
     value = PyDict_GetItemWithError(d, key);
     if (unlikely(!value)) {
         if (!PyErr_Occurred()) {
-            PyObject* args = PyTuple_Pack(1, key);
-            if (likely(args))
-                PyErr_SetObject(PyExc_KeyError, args);
-            Py_XDECREF(args);
+            if (unlikely(PyTuple_Check(key))) {
+                // CPython interprets tuples as separate arguments => must wrap them in another tuple.
+                PyObject* args = PyTuple_Pack(1, key);
+                if (likely(args)) {
+                    PyErr_SetObject(PyExc_KeyError, args);
+                    Py_DECREF(args);
+                }
+            } else {
+                // Avoid tuple packing if possible.
+                PyErr_SetObject(PyExc_KeyError, key);
+            }
         }
         return NULL;
     }
@@ -502,10 +509,11 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
     }
 #else
 #if CYTHON_COMPILING_IN_PYPY
-    if (is_list || (PySequence_Check(o) && !PyDict_Check(o))) {
+    if (is_list || (PySequence_Check(o) && !PyDict_Check(o)))
 #else
-    if (is_list || PySequence_Check(o)) {
+    if (is_list || PySequence_Check(o))
 #endif
+    {
         return PySequence_SetItem(o, i, v);
     }
 #endif
@@ -1113,7 +1121,7 @@ static PyObject *__Pyx__GetBuiltinName(PyObject *builtins, PyObject *name) {
 /////////////// GetNameInClass.proto ///////////////
 //@substitute: naming
 
-#define __Pyx_GetNameInClass(nmspace, name)  __Pyx__GetNameInClass($moddict_cname, $builtins_cname, nmspace, name)
+#define __Pyx_GetNameInClass(var, nmspace, name)  (var) = __Pyx__GetNameInClass($moddict_cname, $builtins_cname, nmspace, name)
 static PyObject *__Pyx__GetNameInClass(PyObject *moddict, PyObject *builtins, PyObject *nmspace, PyObject *name); /*proto*/
 
 /////////////// GetNameInClass ///////////////
@@ -1124,12 +1132,14 @@ static PyObject *__Pyx__GetNameInClass(PyObject *moddict, PyObject *builtins, Py
 //@requires: Exceptions.c::PyErrExceptionMatches
 
 static PyObject *__Pyx_GetGlobalNameAfterAttributeLookup(PyObject *moddict, PyObject *builtins, PyObject *name) {
+    PyObject *result;
     __Pyx_PyThreadState_declare
     __Pyx_PyThreadState_assign
     if (unlikely(!__Pyx_PyErr_ExceptionMatches(PyExc_AttributeError)))
         return NULL;
     __Pyx_PyErr_Clear();
-    return __Pyx__GetModuleGlobalName(moddict, builtins, name);
+    __Pyx_GetModuleGlobalNameUncached(moddict, builtins, result, name);
+    return result;
 }
 
 static PyObject *__Pyx__GetNameInClass(PyObject *moddict, PyObject *builtins, PyObject *nmspace, PyObject *name) {
@@ -1159,37 +1169,62 @@ static PyObject *__Pyx__GetNameInClass(PyObject *moddict, PyObject *builtins, Py
 /////////////// GetModuleGlobalName.proto ///////////////
 //@substitute: naming
 
-#define __Pyx_GetModuleGlobalName(name)  __Pyx__GetModuleGlobalName($moddict_cname, $builtins_cname, name)
+#if CYTHON_USE_DICT_VERSIONS
+#define __Pyx_GetModuleGlobalName(var, name)  { \
+    static PY_UINT64_T __pyx_dict_version = 0; \
+    static PyObject *__pyx_dict_cached_value = NULL; \
+    (var) = (likely(__pyx_dict_version == __PYX_GET_DICT_VERSION($moddict_cname))) ? \
+        (likely(__pyx_dict_cached_value) ? __Pyx_NewRef(__pyx_dict_cached_value) : __Pyx_GetBuiltinName(name)) : \
+        __Pyx__GetModuleGlobalName($moddict_cname, $builtins_cname, name, &__pyx_dict_version, &__pyx_dict_cached_value); \
+}
+#define __Pyx_GetModuleGlobalNameUncached(moddict, builtins, var, name)  { \
+    PY_UINT64_T __pyx_dict_version; \
+    PyObject *__pyx_dict_cached_value; \
+    (var) = __Pyx__GetModuleGlobalName(moddict, builtins, name, &__pyx_dict_version, &__pyx_dict_cached_value); \
+}
+static PyObject *__Pyx__GetModuleGlobalName(PyObject *moddict, PyObject *builtins, PyObject *name, PY_UINT64_T *dict_version, PyObject **dict_cached_value); /*proto*/
+#else
+#define __Pyx_GetModuleGlobalName(var, name)  (var) = __Pyx__GetModuleGlobalName($moddict_cname, $builtins_cname, name)
+#define __Pyx_GetModuleGlobalNameUncached(moddict, builtins, var, name)  (var) = __Pyx__GetModuleGlobalName(moddict, builtins, name)
 static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *moddict, PyObject *builtins, PyObject *name); /*proto*/
+#endif
 
 /////////////// GetModuleGlobalName ///////////////
 //@requires: GetBuiltinName
 
-static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *moddict, PyObject *builtins, PyObject *name) {
+#if CYTHON_USE_DICT_VERSIONS
+static PyObject *__Pyx__GetModuleGlobalName(PyObject *moddict, PyObject *builtins, PyObject *name, PY_UINT64_T *dict_version, PyObject **dict_cached_value)
+#else
+static CYTHON_INLINE PyObject *__Pyx__GetModuleGlobalName(PyObject *moddict, PyObject *builtins, PyObject *name)
+#endif
+{
     PyObject *result;
 #if !CYTHON_AVOID_BORROWED_REFS
 #if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x030500A1
     // Identifier names are always interned and have a pre-calculated hash value.
     result = _PyDict_GetItem_KnownHash(moddict, name, ((PyASCIIObject *) name)->hash);
+    __PYX_UPDATE_DICT_CACHE(moddict, result, *dict_cached_value, *dict_version)
     if (likely(result)) {
-        Py_INCREF(result);
+        return __Pyx_NewRef(result);
     } else if (unlikely(PyErr_Occurred())) {
-        result = NULL;
-    } else {
+        return NULL;
+    }
 #else
     result = PyDict_GetItem(moddict, name);
+    __PYX_UPDATE_DICT_CACHE(moddict, result, *dict_cached_value, *dict_version)
     if (likely(result)) {
-        Py_INCREF(result);
-    } else {
+        return __Pyx_NewRef(result);
+    }
 #endif
 #else
     result = PyObject_GetItem(moddict, name);
-    if (!result) {
-        PyErr_Clear();
-#endif
-        result = __Pyx__GetBuiltinName(builtins, name);
+    __PYX_UPDATE_DICT_CACHE(moddict, result, *dict_cached_value, *dict_version)
+    if (likely(result)) {
+        return __Pyx_NewRef(result);
     }
-    return result;
+    PyErr_Clear();
+#endif
+    return __Pyx__GetBuiltinName(builtins, name);
 }
 
 //////////////////// GetAttr.proto ////////////////////
@@ -1373,6 +1408,124 @@ static CYTHON_INLINE int __Pyx_PyObject_SetAttrStr(PyObject* obj, PyObject* attr
     return PyObject_SetAttr(obj, attr_name, value);
 }
 #endif
+
+
+/////////////// PyObjectGetMethod.proto ///////////////
+
+static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **method);/*proto*/
+
+/////////////// PyObjectGetMethod ///////////////
+//@requires: PyObjectGetAttrStr
+
+static int __Pyx_PyObject_GetMethod(PyObject *obj, PyObject *name, PyObject **method) {
+    PyObject *attr;
+#if CYTHON_UNPACK_METHODS && CYTHON_COMPILING_IN_CPYTHON && CYTHON_USE_PYTYPE_LOOKUP
+    // Copied from _PyObject_GetMethod() in CPython 3.7
+    PyTypeObject *tp = Py_TYPE(obj);
+    PyObject *descr;
+    descrgetfunc f = NULL;
+    PyObject **dictptr, *dict;
+    int meth_found = 0;
+
+    assert (*method == NULL);
+
+    if (unlikely(tp->tp_getattro != PyObject_GenericGetAttr)) {
+        attr = __Pyx_PyObject_GetAttrStr(obj, name);
+        goto try_unpack;
+    }
+    if (unlikely(tp->tp_dict == NULL) && unlikely(PyType_Ready(tp) < 0)) {
+        return 0;
+    }
+
+    descr = _PyType_Lookup(tp, name);
+    if (likely(descr != NULL)) {
+        Py_INCREF(descr);
+        // Repeating the condition below accommodates for MSVC's inability to test macros inside of macro expansions.
+#if PY_MAJOR_VERSION >= 3
+        #ifdef __Pyx_CyFunction_USED
+        if (likely(PyFunction_Check(descr) || (Py_TYPE(descr) == &PyMethodDescr_Type) || __Pyx_CyFunction_Check(descr)))
+        #else
+        if (likely(PyFunction_Check(descr) || (Py_TYPE(descr) == &PyMethodDescr_Type)))
+        #endif
+#else
+        // "PyMethodDescr_Type" is not part of the C-API in Py2.
+        #ifdef __Pyx_CyFunction_USED
+        if (likely(PyFunction_Check(descr) || __Pyx_CyFunction_Check(descr)))
+        #else
+        if (likely(PyFunction_Check(descr)))
+        #endif
+#endif
+        {
+            meth_found = 1;
+        } else {
+            f = Py_TYPE(descr)->tp_descr_get;
+            if (f != NULL && PyDescr_IsData(descr)) {
+                attr = f(descr, obj, (PyObject *)Py_TYPE(obj));
+                Py_DECREF(descr);
+                goto try_unpack;
+            }
+        }
+    }
+
+    dictptr = _PyObject_GetDictPtr(obj);
+    if (dictptr != NULL && (dict = *dictptr) != NULL) {
+        Py_INCREF(dict);
+        attr = __Pyx_PyDict_GetItemStr(dict, name);
+        if (attr != NULL) {
+            Py_INCREF(attr);
+            Py_DECREF(dict);
+            Py_XDECREF(descr);
+            goto try_unpack;
+        }
+        Py_DECREF(dict);
+    }
+
+    if (meth_found) {
+        *method = descr;
+        return 1;
+    }
+
+    if (f != NULL) {
+        attr = f(descr, obj, (PyObject *)Py_TYPE(obj));
+        Py_DECREF(descr);
+        goto try_unpack;
+    }
+
+    if (descr != NULL) {
+        *method = descr;
+        return 0;
+    }
+
+    PyErr_Format(PyExc_AttributeError,
+#if PY_MAJOR_VERSION >= 3
+                 "'%.50s' object has no attribute '%U'",
+                 tp->tp_name, name);
+#else
+                 "'%.50s' object has no attribute '%.400s'",
+                 tp->tp_name, PyString_AS_STRING(name));
+#endif
+    return 0;
+
+// Generic fallback implementation using normal attribute lookup.
+#else
+    attr = __Pyx_PyObject_GetAttrStr(obj, name);
+    goto try_unpack;
+#endif
+
+try_unpack:
+#if CYTHON_UNPACK_METHODS
+    // Even if we failed to avoid creating a bound method object, it's still worth unpacking it now, if possible.
+    if (likely(attr) && PyMethod_Check(attr) && likely(PyMethod_GET_SELF(attr) == obj)) {
+        PyObject *function = PyMethod_GET_FUNCTION(attr);
+        Py_INCREF(function);
+        Py_DECREF(attr);
+        *method = function;
+        return 1;
+    }
+#endif
+    *method = attr;
+    return 0;
+}
 
 
 /////////////// UnpackUnboundCMethod.proto ///////////////
@@ -1601,25 +1754,19 @@ bad:
 static PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name); /*proto*/
 
 /////////////// PyObjectCallMethod0 ///////////////
-//@requires: PyObjectGetAttrStr
+//@requires: PyObjectGetMethod
 //@requires: PyObjectCallOneArg
 //@requires: PyObjectCallNoArg
 
 static PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name) {
-    PyObject *method, *result = NULL;
-    method = __Pyx_PyObject_GetAttrStr(obj, method_name);
-    if (unlikely(!method)) goto bad;
-#if CYTHON_UNPACK_METHODS
-    if (likely(PyMethod_Check(method))) {
-        PyObject *self = PyMethod_GET_SELF(method);
-        if (likely(self)) {
-            PyObject *function = PyMethod_GET_FUNCTION(method);
-            result = __Pyx_PyObject_CallOneArg(function, self);
-            Py_DECREF(method);
-            return result;
-        }
+    PyObject *method = NULL, *result = NULL;
+    int is_method = __Pyx_PyObject_GetMethod(obj, method_name, &method);
+    if (likely(is_method)) {
+        result = __Pyx_PyObject_CallOneArg(method, obj);
+        Py_DECREF(method);
+        return result;
     }
-#endif
+    if (unlikely(!method)) goto bad;
     result = __Pyx_PyObject_CallNoArg(method);
     Py_DECREF(method);
 bad:
@@ -1630,64 +1777,29 @@ bad:
 /////////////// PyObjectCallMethod1.proto ///////////////
 
 static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name, PyObject* arg); /*proto*/
-static PyObject* __Pyx__PyObject_CallMethod1(PyObject* method, PyObject* arg); /*proto*/
 
 /////////////// PyObjectCallMethod1 ///////////////
-//@requires: PyObjectGetAttrStr
+//@requires: PyObjectGetMethod
 //@requires: PyObjectCallOneArg
-//@requires: PyFunctionFastCall
-//@requires: PyCFunctionFastCall
+//@requires: PyObjectCall2Args
 
 static PyObject* __Pyx__PyObject_CallMethod1(PyObject* method, PyObject* arg) {
-    PyObject *result = NULL;
-#if CYTHON_UNPACK_METHODS
-    if (likely(PyMethod_Check(method))) {
-        PyObject *self = PyMethod_GET_SELF(method);
-        if (likely(self)) {
-            PyObject *args;
-            PyObject *function = PyMethod_GET_FUNCTION(method);
-            #if CYTHON_FAST_PYCALL
-            if (PyFunction_Check(function)) {
-                PyObject *args[2] = {self, arg};
-                result = __Pyx_PyFunction_FastCall(function, args, 2);
-                goto done;
-            }
-            #endif
-            #if CYTHON_FAST_PYCCALL
-            if (__Pyx_PyFastCFunction_Check(function)) {
-                PyObject *args[2] = {self, arg};
-                result = __Pyx_PyCFunction_FastCall(function, args, 2);
-                goto done;
-            }
-            #endif
-            args = PyTuple_New(2);
-            if (unlikely(!args)) goto done;
-            Py_INCREF(self);
-            PyTuple_SET_ITEM(args, 0, self);
-            Py_INCREF(arg);
-            PyTuple_SET_ITEM(args, 1, arg);
-            Py_INCREF(function);
-            result = __Pyx_PyObject_Call(function, args, NULL);
-            Py_DECREF(args);
-            Py_DECREF(function);
-            return result;
-        }
-    }
-#endif
-    result = __Pyx_PyObject_CallOneArg(method, arg);
-    // avoid "unused label" warning
-    goto done;
-done:
+    // Separate function to avoid excessive inlining.
+    PyObject *result = __Pyx_PyObject_CallOneArg(method, arg);
+    Py_DECREF(method);
     return result;
 }
 
 static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name, PyObject* arg) {
-    PyObject *method, *result;
-    method = __Pyx_PyObject_GetAttrStr(obj, method_name);
+    PyObject *method = NULL, *result;
+    int is_method = __Pyx_PyObject_GetMethod(obj, method_name, &method);
+    if (likely(is_method)) {
+        result = __Pyx_PyObject_Call2Args(method, obj, arg);
+        Py_DECREF(method);
+        return result;
+    }
     if (unlikely(!method)) return NULL;
-    result = __Pyx__PyObject_CallMethod1(method, arg);
-    Py_DECREF(method);
-    return result;
+    return __Pyx__PyObject_CallMethod1(method, arg);
 }
 
 
@@ -1696,72 +1808,49 @@ static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name
 static PyObject* __Pyx_PyObject_CallMethod2(PyObject* obj, PyObject* method_name, PyObject* arg1, PyObject* arg2); /*proto*/
 
 /////////////// PyObjectCallMethod2 ///////////////
-//@requires: PyObjectGetAttrStr
 //@requires: PyObjectCall
 //@requires: PyFunctionFastCall
 //@requires: PyCFunctionFastCall
+//@requires: PyObjectCall2Args
+
+static PyObject* __Pyx_PyObject_Call3Args(PyObject* function, PyObject* arg1, PyObject* arg2, PyObject* arg3) {
+    #if CYTHON_FAST_PYCALL
+    if (PyFunction_Check(function)) {
+        PyObject *args[3] = {arg1, arg2, arg3};
+        return __Pyx_PyFunction_FastCall(function, args, 3);
+    }
+    #endif
+    #if CYTHON_FAST_PYCCALL
+    if (__Pyx_PyFastCFunction_Check(function)) {
+        PyObject *args[3] = {arg1, arg2, arg3};
+        return __Pyx_PyFunction_FastCall(function, args, 3);
+    }
+    #endif
+
+    args = PyTuple_New(3);
+    if (unlikely(!args)) goto done;
+    Py_INCREF(arg1);
+    PyTuple_SET_ITEM(args, 0, arg1);
+    Py_INCREF(arg2);
+    PyTuple_SET_ITEM(args, 1, arg2);
+    Py_INCREF(arg3);
+    PyTuple_SET_ITEM(args, 2, arg3);
+
+    result = __Pyx_PyObject_Call(function, args, NULL);
+    Py_DECREF(args);
+    return result;
+}
 
 static PyObject* __Pyx_PyObject_CallMethod2(PyObject* obj, PyObject* method_name, PyObject* arg1, PyObject* arg2) {
-    PyObject *args, *method, *result = NULL;
-    method = __Pyx_PyObject_GetAttrStr(obj, method_name);
-    if (unlikely(!method)) return NULL;
-#if CYTHON_UNPACK_METHODS
-    if (likely(PyMethod_Check(method)) && likely(PyMethod_GET_SELF(method))) {
-        PyObject *self, *function;
-        self = PyMethod_GET_SELF(method);
-        function = PyMethod_GET_FUNCTION(method);
-        #if CYTHON_FAST_PYCALL
-        if (PyFunction_Check(function)) {
-            PyObject *args[3] = {self, arg1, arg2};
-            result = __Pyx_PyFunction_FastCall(function, args, 3);
-            goto done;
-        }
-        #endif
-        #if CYTHON_FAST_PYCCALL
-        if (__Pyx_PyFastCFunction_Check(function)) {
-            PyObject *args[3] = {self, arg1, arg2};
-            result = __Pyx_PyFunction_FastCall(function, args, 3);
-            goto done;
-        }
-        #endif
-        args = PyTuple_New(3);
-        if (unlikely(!args)) goto done;
-        Py_INCREF(self);
-        PyTuple_SET_ITEM(args, 0, self);
-        Py_INCREF(arg1);
-        PyTuple_SET_ITEM(args, 1, arg1);
-        Py_INCREF(arg2);
-        PyTuple_SET_ITEM(args, 2, arg2);
-        Py_INCREF(function);
+    PyObject *args, *method = NULL, *result = NULL;
+    int is_method = __Pyx_PyObject_GetMethod(obj, method_name, &method);
+    if (likely(is_method)) {
+        result = __Pyx_PyObject_Call3Args(method, obj, arg1, arg2);
         Py_DECREF(method);
-        method = function;
-    } else
-#endif
-#if CYTHON_FAST_PYCALL
-    if (PyFunction_Check(method)) {
-        PyObject *args[2] = {arg1, arg2};
-        result = __Pyx_PyFunction_FastCall(method, args, 2);
-        goto done;
-    } else
-#endif
-#if CYTHON_FAST_PYCCALL
-    if (__Pyx_PyFastCFunction_Check(method)) {
-        PyObject *args[2] = {arg1, arg2};
-        result = __Pyx_PyCFunction_FastCall(method, args, 2);
-        goto done;
-    } else
-#endif
-    {
-        args = PyTuple_New(2);
-        if (unlikely(!args)) goto done;
-        Py_INCREF(arg1);
-        PyTuple_SET_ITEM(args, 0, arg1);
-        Py_INCREF(arg2);
-        PyTuple_SET_ITEM(args, 1, arg2);
+        return result;
     }
-    result = __Pyx_PyObject_Call(method, args, NULL);
-    Py_DECREF(args);
-done:
+    if (unlikely(!method)) return NULL;
+    result = __Pyx_PyObject_Call2Args(method, arg1, arg2);
     Py_DECREF(method);
     return result;
 }
@@ -2040,6 +2129,46 @@ static CYTHON_INLINE PyObject * __Pyx_PyCFunction_FastCall(PyObject *func_obj, P
 #endif  /* CYTHON_FAST_PYCCALL */
 
 
+/////////////// PyObjectCall2Args.proto ///////////////
+
+static CYTHON_UNUSED PyObject* __Pyx_PyObject_Call2Args(PyObject* function, PyObject* arg1, PyObject* arg2); /*proto*/
+
+/////////////// PyObjectCall2Args ///////////////
+//@requires: PyObjectCall
+//@requires: PyFunctionFastCall
+//@requires: PyCFunctionFastCall
+
+static CYTHON_UNUSED PyObject* __Pyx_PyObject_Call2Args(PyObject* function, PyObject* arg1, PyObject* arg2) {
+    PyObject *args, *result = NULL;
+    #if CYTHON_FAST_PYCALL
+    if (PyFunction_Check(function)) {
+        PyObject *args[2] = {arg1, arg2};
+        return __Pyx_PyFunction_FastCall(function, args, 2);
+    }
+    #endif
+    #if CYTHON_FAST_PYCCALL
+    if (__Pyx_PyFastCFunction_Check(function)) {
+        PyObject *args[2] = {arg1, arg2};
+        return __Pyx_PyCFunction_FastCall(function, args, 2);
+    }
+    #endif
+
+    args = PyTuple_New(2);
+    if (unlikely(!args)) goto done;
+    Py_INCREF(arg1);
+    PyTuple_SET_ITEM(args, 0, arg1);
+    Py_INCREF(arg2);
+    PyTuple_SET_ITEM(args, 1, arg2);
+
+    Py_INCREF(function);
+    result = __Pyx_PyObject_Call(function, args, NULL);
+    Py_DECREF(args);
+    Py_DECREF(function);
+done:
+    return result;
+}
+
+
 /////////////// PyObjectCallOneArg.proto ///////////////
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObject *arg); /*proto*/
@@ -2116,10 +2245,11 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func) {
     }
 #endif
 #ifdef __Pyx_CyFunction_USED
-    if (likely(PyCFunction_Check(func) || __Pyx_TypeCheck(func, __pyx_CyFunctionType))) {
+    if (likely(PyCFunction_Check(func) || __Pyx_CyFunction_Check(func)))
 #else
-    if (likely(PyCFunction_Check(func))) {
+    if (likely(PyCFunction_Check(func)))
 #endif
+    {
         if (likely(PyCFunction_GET_FLAGS(func) & METH_NOARGS)) {
             // fast and simple case that we are optimising for
             return __Pyx_PyObject_CallMethO(func, NULL);

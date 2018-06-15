@@ -16,6 +16,7 @@ import tempfile
 import traceback
 import warnings
 import zlib
+import glob
 
 try:
     import platform
@@ -101,13 +102,17 @@ def get_distutils_distro(_cache=[]):
     if sys.platform == 'win32':
         # TODO: Figure out why this hackery (see http://thread.gmane.org/gmane.comp.python.cython.devel/8280/).
         config_files = distutils_distro.find_config_files()
-        try: config_files.remove('setup.cfg')
-        except ValueError: pass
+        try:
+            config_files.remove('setup.cfg')
+        except ValueError:
+            pass
         distutils_distro.parse_config_files(config_files)
 
         cfgfiles = distutils_distro.find_config_files()
-        try: cfgfiles.remove('setup.cfg')
-        except ValueError: pass
+        try:
+            cfgfiles.remove('setup.cfg')
+        except ValueError:
+            pass
         distutils_distro.parse_config_files(cfgfiles)
     _cache.append(distutils_distro)
     return distutils_distro
@@ -268,7 +273,7 @@ def update_cpp11_extension(ext):
         compiler_version = gcc_version.group(1)
         if float(compiler_version) > 4.8:
             ext.extra_compile_args.append("-std=c++11")
-        return ext    
+        return ext
     return EXCLUDE_EXT
 
 
@@ -375,6 +380,7 @@ VER_DEP_MODULES = {
                                         ]),
     (3,3) : (operator.lt, lambda x: x in ['build.package_compilation',
                                           'run.yield_from_py33',
+                                          'pyximport.pyximport_namespace',
                                           ]),
     (3,4): (operator.lt, lambda x: x in ['run.py34_signature',
                                          ]),
@@ -518,29 +524,31 @@ class ErrorWriter(object):
 
 
 class TestBuilder(object):
-    def __init__(self, rootdir, workdir, selectors, exclude_selectors, annotate,
-                 cleanup_workdir, cleanup_sharedlibs, cleanup_failures,
-                 with_pyregr, cython_only, languages, test_bugs, fork, language_level,
-                 test_determinism, test_reload,
-                 common_utility_dir, pythran_dir=None):
+    def __init__(self, rootdir, workdir, selectors, exclude_selectors, options,
+                 with_pyregr, languages, test_bugs, language_level,
+                 common_utility_dir, pythran_dir=None,
+                 default_mode='run',
+                 add_embedded_test=False):
         self.rootdir = rootdir
         self.workdir = workdir
         self.selectors = selectors
         self.exclude_selectors = exclude_selectors
-        self.annotate = annotate
-        self.cleanup_workdir = cleanup_workdir
-        self.cleanup_sharedlibs = cleanup_sharedlibs
-        self.cleanup_failures = cleanup_failures
+        self.annotate = options.annotate_source
+        self.cleanup_workdir = options.cleanup_workdir
+        self.cleanup_sharedlibs = options.cleanup_sharedlibs
+        self.cleanup_failures = options.cleanup_failures
         self.with_pyregr = with_pyregr
-        self.cython_only = cython_only
+        self.cython_only = options.cython_only
         self.languages = languages
         self.test_bugs = test_bugs
-        self.fork = fork
+        self.fork = options.fork
         self.language_level = language_level
-        self.test_determinism = test_determinism
-        self.test_reload = test_reload
+        self.test_determinism = options.test_determinism
+        self.test_reload = options.test_reload
         self.common_utility_dir = common_utility_dir
         self.pythran_dir = pythran_dir
+        self.default_mode = default_mode
+        self.add_embedded_test = add_embedded_test
 
     def build_suite(self):
         suite = unittest.TestSuite()
@@ -555,7 +563,7 @@ class TestBuilder(object):
                     continue
                 suite.addTest(
                     self.handle_directory(path, filename))
-        if sys.platform not in ['win32']:
+        if sys.platform not in ['win32'] and self.add_embedded_test:
             # Non-Windows makefile.
             if [1 for selector in self.selectors if selector("embedded")] \
                 and not [1 for selector in self.exclude_selectors if selector("embedded")]:
@@ -590,7 +598,7 @@ class TestBuilder(object):
                         if match(fqmodule, tags)]:
                     continue
 
-            mode = 'run' # default
+            mode = self.default_mode
             if tags['mode']:
                 mode = tags['mode'][0]
             elif context == 'pyregr':
@@ -611,8 +619,10 @@ class TestBuilder(object):
                     test_class = CythonUnitTestCase
                 else:
                     test_class = CythonRunTestCase
-            else:
+            elif mode in ['compile', 'error', 'test']:
                 test_class = CythonCompileTestCase
+            else:
+                raise KeyError('Invalid test mode: ' + mode)
 
             for test in self.build_tests(test_class, path, workdir,
                                          module, mode == 'error', tags):
@@ -635,14 +645,14 @@ class TestBuilder(object):
         expect_warnings = 'warnings' in tags['tag']
 
         if expect_errors:
-            if 'cpp' in tags['tag'] and 'cpp' in self.languages:
+            if skip_c(tags) and 'cpp' in self.languages:
                 languages = ['cpp']
             else:
                 languages = self.languages[:1]
         else:
             languages = self.languages
 
-        if 'cpp' in tags['tag'] and 'c' in languages:
+        if skip_c(tags) and 'c' in languages:
             languages = list(languages)
             languages.remove('c')
         elif 'no-cpp' in tags['tag'] and 'cpp' in self.languages:
@@ -688,6 +698,22 @@ class TestBuilder(object):
                           test_reload=self.test_reload,
                           common_utility_dir=self.common_utility_dir,
                           pythran_dir=pythran_dir)
+
+
+def skip_c(tags):
+    if 'cpp' in tags['tag']:
+        return True
+
+    # We don't want to create a distutils key in the
+    # dictionary so we check before looping.
+    if 'distutils' in tags:
+        for option in tags['distutils']:
+            splitted = option.split('=')
+            if len(splitted) == 2:
+                argument, value = splitted
+                if argument.strip() == 'language' and value.strip() == 'c++':
+                    return True
+    return False
 
 
 class CythonCompileTestCase(unittest.TestCase):
@@ -869,8 +895,7 @@ class CythonCompileTestCase(unittest.TestCase):
         include_dirs = INCLUDE_DIRS + [os.path.join(test_directory, '..', TEST_SUPPORT_DIR)]
         if incdir:
             include_dirs.append(incdir)
-        source = self.find_module_source_file(
-            os.path.join(test_directory, module + '.pyx'))
+
         if self.preparse == 'id':
             source = self.find_module_source_file(
                 os.path.join(test_directory, module + '.pyx'))
@@ -1220,8 +1245,10 @@ def run_forked_test(result, run_func, test_name, fork=True):
             raise Exception("Tests in module '%s' exited with status %d" %
                             (module_name, result_code))
     finally:
-        try: os.unlink(result_file)
-        except: pass
+        try:
+            os.unlink(result_file)
+        except:
+            pass
 
 class PureDoctestTestCase(unittest.TestCase):
     def __init__(self, module_name, module_path):
@@ -1534,25 +1561,21 @@ class EndToEndTest(unittest.TestCase):
             .replace("CYTHON", "PYTHON %s" % os.path.join(self.cython_root, 'cython.py'))
             .replace("PYTHON", sys.executable))
         old_path = os.environ.get('PYTHONPATH')
-        os.environ['PYTHONPATH'] = self.cython_syspath + os.pathsep + (old_path or '')
-        try:
-            for command in filter(None, commands.splitlines()):
-                p = subprocess.Popen(command,
-                                     stderr=subprocess.PIPE,
-                                     stdout=subprocess.PIPE,
-                                     shell=True)
-                out, err = p.communicate()
-                res = p.returncode
-                if res != 0:
-                    print(command)
-                    print(self._try_decode(out))
-                    print(self._try_decode(err))
-                self.assertEqual(0, res, "non-zero exit status")
-        finally:
-            if old_path:
-                os.environ['PYTHONPATH'] = old_path
-            else:
-                del os.environ['PYTHONPATH']
+        env = dict(os.environ)
+        env['PYTHONPATH'] = self.cython_syspath + os.pathsep + (old_path or '')
+        for command in filter(None, commands.splitlines()):
+            p = subprocess.Popen(command,
+                                 stderr=subprocess.PIPE,
+                                 stdout=subprocess.PIPE,
+                                 shell=True,
+                                 env=env)
+            out, err = p.communicate()
+            res = p.returncode
+            if res != 0:
+                print(command)
+                print(self._try_decode(out))
+                print(self._try_decode(err))
+            self.assertEqual(0, res, "non-zero exit status")
         self.success = True
 
 
@@ -1591,7 +1614,7 @@ class EmbedTest(unittest.TestCase):
         if sys.version_info[0] >=3 and CY3_DIR:
             cython = os.path.join(CY3_DIR, cython)
         cython = os.path.abspath(os.path.join('..', '..', cython))
-        self.assert_(os.system(
+        self.assertTrue(os.system(
             "make PYTHON='%s' CYTHON='%s' LIBDIR1='%s' test > make.output" % (sys.executable, cython, libdir)) == 0)
         try:
             os.remove('make.output')
@@ -1815,6 +1838,9 @@ def main():
     parser.add_option("--no-pyregr", dest="pyregr",
                       action="store_false", default=True,
                       help="do not run the regression tests of CPython in tests/pyregr/")
+    parser.add_option("--no-examples", dest="examples",
+                      action="store_false", default=True,
+                      help="Do not run the documentation tests in the examples directory.")
     parser.add_option("--cython-only", dest="cython_only",
                       action="store_true", default=False,
                       help="only compile pyx to c, do not run C compiler or run the tests")
@@ -1869,6 +1895,10 @@ def main():
                       action="store_true",
                       help="stop on first failure or error")
     parser.add_option("--root-dir", dest="root_dir", default=os.path.join(DISTDIR, 'tests'),
+                      help=("Directory to look for the file based "
+                            "tests (the ones which are deactivated with '--no-file'."))
+    parser.add_option("--examples-dir", dest="examples_dir",
+                      default=os.path.join(DISTDIR, 'docs', 'examples'),
                       help="working directory")
     parser.add_option("--work-dir", dest="work_dir", default=os.path.join(os.getcwd(), 'TEST_TMP'),
                       help="working directory")
@@ -1890,8 +1920,6 @@ def main():
                       help="specify Pythran include directory. This will run the C++ tests using Pythran backend for Numpy")
 
     options, cmd_args = parser.parse_args(args)
-
-    WORKDIR = os.path.abspath(options.work_dir)
 
     if options.with_cython and sys.version_info[0] >= 3:
         sys.path.insert(0, options.cython_dir)
@@ -2137,14 +2165,18 @@ def runtests(options, cmd_args, coverage=None):
 
     if options.filetests and languages:
         filetests = TestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
-                                options.annotate_source, options.cleanup_workdir,
-                                options.cleanup_sharedlibs, options.cleanup_failures,
-                                options.pyregr,
-                                options.cython_only, languages, test_bugs,
-                                options.fork, options.language_level,
-                                options.test_determinism, options.test_reload,
-                                common_utility_dir, options.pythran_dir)
+                                options, options.pyregr, languages, test_bugs,
+                                options.language_level, common_utility_dir,
+                                options.pythran_dir, add_embedded_test=True)
         test_suite.addTest(filetests.build_suite())
+    if options.examples and languages:
+        for subdirectory in glob.glob(os.path.join(options.examples_dir, "*/")):
+            filetests = TestBuilder(subdirectory, WORKDIR, selectors, exclude_selectors,
+                                    options, options.pyregr, languages, test_bugs,
+                                    options.language_level, common_utility_dir,
+                                    options.pythran_dir,
+                                    default_mode='compile')
+            test_suite.addTest(filetests.build_suite())
 
     if options.system_pyregr and languages:
         sys_pyregr_dir = os.path.join(sys.prefix, 'lib', 'python'+sys.version[:3], 'test')
@@ -2152,21 +2184,18 @@ def runtests(options, cmd_args, coverage=None):
             sys_pyregr_dir = os.path.join(os.path.dirname(sys.executable), 'Lib', 'test')  # source build
         if os.path.isdir(sys_pyregr_dir):
             filetests = TestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
-                                    options.annotate_source, options.cleanup_workdir,
-                                    options.cleanup_sharedlibs, options.cleanup_failures,
-                                    True,
-                                    options.cython_only, languages, test_bugs,
-                                    options.fork, sys.version_info[0],
-                                    options.test_determinism, options.test_reload,
-                                    common_utility_dir)
+                                    options, True, languages, test_bugs,
+                                    sys.version_info[0], common_utility_dir)
             sys.stderr.write("Including CPython regression tests in %s\n" % sys_pyregr_dir)
             test_suite.addTest(filetests.handle_directory(sys_pyregr_dir, 'pyregr'))
 
     if xml_output_dir:
         from Cython.Tests.xmlrunner import XMLTestRunner
         if not os.path.exists(xml_output_dir):
-            try: os.makedirs(xml_output_dir)
-            except OSError: pass  # concurrency issue?
+            try:
+                os.makedirs(xml_output_dir)
+            except OSError:
+                pass  # concurrency issue?
         test_runner = XMLTestRunner(output=xml_output_dir,
                                     verbose=options.verbosity > 0)
         if options.failfast:

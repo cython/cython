@@ -14,7 +14,7 @@ Magic command interface for interactive work with Cython
 Usage
 =====
 
-To enable the magics below, execute ``%load_ext cythonmagic``.
+To enable the magics below, execute ``%load_ext cython``.
 
 ``%%cython``
 

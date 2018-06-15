@@ -124,7 +124,8 @@ builtin_function_table = [
                                   PyrexTypes.c_double_complex_type,
                                   PyrexTypes.c_longdouble_complex_type)
                         ) + [
-    BuiltinFunction('abs',        "O",    "O",     "PyNumber_Absolute"),
+    BuiltinFunction('abs',        "O",    "O",     "__Pyx_PyNumber_Absolute",
+                    utility_code=UtilityCode.load("py_abs", "Builtins.c")),
     #('all',       "",     "",      ""),
     #('any',       "",     "",      ""),
     #('ascii',     "",     "",      ""),

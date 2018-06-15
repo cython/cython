@@ -2,6 +2,8 @@
 # mode: run
 # tag: generators, python3, exceptions
 
+print(end='')  # test that language_level 3 applies immediately at the module start, for the first token.
+
 cimport cython
 
 __doc__ = """

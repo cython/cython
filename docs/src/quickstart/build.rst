@@ -18,7 +18,7 @@ one may want to read more about
 There are several ways to build Cython code:
 
  - Write a distutils/setuptools ``setup.py``. This is the normal and recommended way.
- - Use ``pyximport``, importing Cython ``.pyx`` files as if they
+ - Use :ref:`Pyximport<pyximport>`, importing Cython ``.pyx`` files as if they
    were ``.py`` files (using distutils to compile and build in the background).
    This method is easier than writing a ``setup.py``, but is not very flexible.
    So you'll need to write a ``setup.py`` if, for example, you need certain compilations options.
@@ -37,25 +37,25 @@ The other methods are described in more detail in the :ref:`compilation` section
 Building a Cython module using distutils
 ----------------------------------------
 
-Imagine a simple "hello world" script in a file ``hello.pyx``::
+Imagine a simple "hello world" script in a file ``hello.pyx``:
 
-  def say_hello_to(name):
-      print("Hello %s!" % name)
+.. literalinclude:: ../../examples/quickstart/build/hello.pyx
 
-The following could be a corresponding ``setup.py`` script::
+The following could be a corresponding ``setup.py`` script:
 
-  from distutils.core import setup
-  from Cython.Build import cythonize
-
-  setup(
-    name = 'Hello world app',
-    ext_modules = cythonize("hello.pyx"),
-  )
+.. literalinclude:: ../../examples/quickstart/build/setup.py
 
 To build, run ``python setup.py build_ext --inplace``.  Then simply
 start a Python session and do ``from hello import say_hello_to`` and
 use the imported function as you see fit.
 
+One caveat if you use setuptools instead of distutils, the default
+action when running ``python setup.py install`` is to create a zipped
+``egg`` file which will not work with ``cimport`` for ``pxd`` files
+when you try to use them from a dependent package.
+To prevent this, include ``zip_safe=False`` in the arguments to ``setup()``.
+
+.. _jupyter-notebook:
 
 Using the Jupyter notebook
 --------------------------
@@ -90,6 +90,8 @@ You can show Cython's code analysis by passing the ``--annotate`` option::
 
 .. figure:: jupyter.png
 
+For more information about the arguments of the ``%%cython`` magic, see
+:ref:`Compiling with a Jupyter Notebook <compiling_notebook>`.
 
 Using the Sage notebook
 -----------------------

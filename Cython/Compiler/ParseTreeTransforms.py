@@ -25,20 +25,6 @@ from .StringEncoding import EncodedString, _unicode
 from .Errors import error, warning, CompileError, InternalError
 from .Code import UtilityCode
 
-class NameNodeCollector(TreeVisitor):
-    """Collect all NameNodes of a (sub-)tree in the ``name_nodes``
-    attribute.
-    """
-    def __init__(self):
-        super(NameNodeCollector, self).__init__()
-        self.name_nodes = []
-
-    def visit_NameNode(self, node):
-        self.name_nodes.append(node)
-
-    def visit_Node(self, node):
-        self._visitchildren(node, None)
-
 
 class SkipDeclarations(object):
     """
@@ -65,6 +51,7 @@ class SkipDeclarations(object):
 
     def visit_CStructOrUnionDefNode(self, node):
         return node
+
 
 class NormalizeTree(CythonTransform):
     """
@@ -2787,6 +2774,60 @@ class CreateClosureClasses(CythonTransform):
         else:
             self.visitchildren(node)
             return node
+
+
+class InjectGilHandling(VisitorTransform, SkipDeclarations):
+    """
+    Allow certain Python operations inside of nogil blocks by implicitly acquiring the GIL.
+
+    Must run before the AnalyseDeclarationsTransform to make sure the GILStatNodes get
+    set up, parallel sections know that the GIL is acquired inside of them, etc.
+    """
+    def __call__(self, root):
+        self.nogil = False
+        return super(InjectGilHandling, self).__call__(root)
+
+    # special node handling
+
+    def visit_RaiseStatNode(self, node):
+        """Allow raising exceptions in nogil sections by wrapping them in a 'with gil' block."""
+        if self.nogil:
+            node = Nodes.GILStatNode(node.pos, state='gil', body=node)
+        return node
+
+    # further candidates:
+    # def visit_AssertStatNode(self, node):
+    # def visit_ReraiseStatNode(self, node):
+
+    # nogil tracking
+
+    def visit_GILStatNode(self, node):
+        was_nogil = self.nogil
+        self.nogil = (node.state == 'nogil')
+        self.visitchildren(node)
+        self.nogil = was_nogil
+        return node
+
+    def visit_CFuncDefNode(self, node):
+        was_nogil = self.nogil
+        if isinstance(node.declarator, Nodes.CFuncDeclaratorNode):
+            self.nogil = node.declarator.nogil and not node.declarator.with_gil
+        self.visitchildren(node)
+        self.nogil = was_nogil
+        return node
+
+    def visit_ParallelRangeNode(self, node):
+        was_nogil = self.nogil
+        self.nogil = node.nogil
+        self.visitchildren(node)
+        self.nogil = was_nogil
+        return node
+
+    def visit_ExprNode(self, node):
+        # No special GIL handling inside of expressions for now.
+        return node
+
+    visit_Node = VisitorTransform.recurse_to_children
 
 
 class GilCheck(VisitorTransform):

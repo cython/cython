@@ -475,7 +475,7 @@ made available when you include :file:`modulename_api.h`.::
 
     cdef api void activate(Vehicle *v):
         if v.speed >= 88 and v.power >= 1.21:
-            print "Time travel achieved"
+            print("Time travel achieved")
 
 .. sourcecode:: c
 

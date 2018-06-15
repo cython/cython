@@ -106,7 +106,7 @@ def test_boundscheck(x):
 ##     return y
 
 
-def test_with_nogil(nogil):
+def test_with_nogil(nogil, should_raise=False):
     """
     >>> raised = []
     >>> class nogil(object):
@@ -121,13 +121,24 @@ def test_with_nogil(nogil):
     True
     >>> raised
     [None]
+
+    >>> test_with_nogil(nogil(), should_raise=True)
+    Traceback (most recent call last):
+    ValueError: RAISED!
+
+    >>> raised[1] is None
+    False
     """
     result = False
+    should_raise_bool = True if should_raise else False  # help the type inference ...
     with nogil:
         print("WORKS")
         with cython.nogil:
             result = True
+            if should_raise_bool:
+                raise ValueError("RAISED!")
     return result
+
 
 MyUnion = cython.union(n=cython.int, x=cython.double)
 MyStruct = cython.struct(is_integral=cython.bint, data=MyUnion)

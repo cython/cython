@@ -28,4 +28,4 @@ procedure. Any contributions towards making the Windows install
 process smoother is welcomed; it is an unfortunate fact that none of
 the regular Cython developers have convenient access to Windows.
 
-.. [WinInst] http://wiki.cython.org/InstallingOnWindows
+.. [WinInst] https://github.com/cython/cython/wiki/CythonExtensionsOnWindows

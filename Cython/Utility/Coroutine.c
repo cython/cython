@@ -120,7 +120,7 @@ static CYTHON_INLINE PyObject *__Pyx_Coroutine_GetAwaitableIter(PyObject *o); /*
 static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *o); /*proto*/
 
 //////////////////// GetAwaitIter ////////////////////
-//@requires: ObjectHandling.c::PyObjectGetAttrStr
+//@requires: ObjectHandling.c::PyObjectGetMethod
 //@requires: ObjectHandling.c::PyObjectCallNoArg
 //@requires: ObjectHandling.c::PyObjectCallOneArg
 
@@ -191,19 +191,14 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
     } else
 #endif
     {
-        PyObject *method = __Pyx_PyObject_GetAttrStr(obj, PYIDENT("__await__"));
-        if (unlikely(!method)) goto slot_error;
-        #if CYTHON_UNPACK_METHODS
-        if (likely(PyMethod_Check(method))) {
-            PyObject *self = PyMethod_GET_SELF(method);
-            if (likely(self)) {
-                PyObject *function = PyMethod_GET_FUNCTION(method);
-                res = __Pyx_PyObject_CallOneArg(function, self);
-            } else
-                res = __Pyx_PyObject_CallNoArg(method);
-        } else
-        #endif
+        PyObject *method = NULL;
+        int is_method = __Pyx_PyObject_GetMethod(obj, PYIDENT("__await__"), &method);
+        if (likely(is_method)) {
+            res = __Pyx_PyObject_CallOneArg(method, obj);
+        } else if (likely(method)) {
             res = __Pyx_PyObject_CallNoArg(method);
+        } else
+            goto slot_error;
         Py_DECREF(method);
     }
     if (unlikely(!res)) {
@@ -1249,10 +1244,11 @@ __Pyx_Coroutine_set_name(__pyx_CoroutineObject *self, PyObject *value)
     PyObject *tmp;
 
 #if PY_MAJOR_VERSION >= 3
-    if (unlikely(value == NULL || !PyUnicode_Check(value))) {
+    if (unlikely(value == NULL || !PyUnicode_Check(value)))
 #else
-    if (unlikely(value == NULL || !PyString_Check(value))) {
+    if (unlikely(value == NULL || !PyString_Check(value)))
 #endif
+    {
         PyErr_SetString(PyExc_TypeError,
                         "__name__ must be set to a string object");
         return -1;
@@ -1280,10 +1276,11 @@ __Pyx_Coroutine_set_qualname(__pyx_CoroutineObject *self, PyObject *value)
     PyObject *tmp;
 
 #if PY_MAJOR_VERSION >= 3
-    if (unlikely(value == NULL || !PyUnicode_Check(value))) {
+    if (unlikely(value == NULL || !PyUnicode_Check(value)))
 #else
-    if (unlikely(value == NULL || !PyString_Check(value))) {
+    if (unlikely(value == NULL || !PyString_Check(value)))
 #endif
+    {
         PyErr_SetString(PyExc_TypeError,
                         "__qualname__ must be set to a string object");
         return -1;

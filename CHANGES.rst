@@ -2,16 +2,128 @@
 Cython Changelog
 ================
 
-0.28.1 (2018-0?-??)
+0.29 (2018-??-??)
+=================
+
+Features added
+--------------
+
+* Raising exceptions from nogil code will automatically acquire the GIL, instead
+  of requiring an explicit ``with gil`` block.
+
+* In CPython 3.6 and later, looking up globals in the module dict is almost
+  as fast as looking up C globals.
+  (Github issue #2313)
+
+* For a Python subclass of an extension type, repeated method calls to non-overridden
+  cpdef methods can avoid the attribute lookup in Py3.6+, which makes them 4x faster.
+  (Github issue #2313)
+
+* (In-)equality comparisons of objects to integer literals are faster.
+  (Github issue #2188)
+
+* Some internal and 1-argument method calls are faster.
+
+* Modules that cimport many external extension types from other Cython modules
+  execute less import requests during module initialisation.
+
+* The coverage plugin considers more C file extensions such as ``.cc`` and ``.cxx``.
+  (Github issue #2266)
+
+* The `cythonize` command accepts compile time variable values (as set by `DEF`)
+  through the new `-E` option.
+  Patch by Jerome Kieffer.  (Github issue #2315)
+
+Bugs fixed
+----------
+
+* The directive ``language_level=3`` did not apply to the first token in the
+  source file.  (Github issue #2230)
+
+* Overriding cpdef methods did not work in Python subclasses with slots.
+  Note that this can have a performance impact on calls from Cython code.
+  (Github issue #1771)
+
+* Fix declarations of builtin or C types using strings in pure python mode.
+  (Github issue #2046)
+
+Other changes
+-------------
+
+
+0.28.4 (2018-??-??)
+===================
+
+Bugs fixed
+----------
+
+* Reallowing ``tp_clear()`` in a subtype of an ``@no_gc_clear`` extension type
+  generated an invalid C function call to the (non-existent) base type implementation.
+  (Github issue #2309)
+
+
+0.28.3 (2018-05-27)
+===================
+
+Bugs fixed
+----------
+
+* Set iteration was broken in non-CPython since 0.28.
+
+* ``UnicodeEncodeError`` in Py2 when ``%s`` formatting is optimised for
+  unicode strings.  (Github issue #2276)
+
+* Work around a crash bug in g++ 4.4.x by disabling the size reduction setting
+  of the module init function in this version.  (Github issue #2235)
+
+
+0.28.2 (2018-04-13)
 ===================
 
 Features added
 --------------
 
+* ``abs()`` is faster for Python long objects.
+
+* The C++11 methods ``front()`` and ``end()`` were added to the declaration of
+  ``libcpp.string``.  Patch by Alex Huszagh.  (Github issue #2123)
+
+* The C++11 methods ``reserve()`` and ``bucket_count()`` are declared for
+  ``libcpp.unordered_map``.  Patch by Valentin Valls.  (Github issue #2168)
+
 Bugs fixed
 ----------
 
-* ``PyFrozenSet_New()`` was accidentally used in PyPy where it is lacking
+* The copy of a read-only memoryview was considered read-only as well, whereas
+  a common reason to copy a read-only view is to make it writable.  The result
+  of the copying is now a writable buffer by default.
+  (Github issue #2134)
+
+* The ``switch`` statement generation failed to apply recursively to the body of
+  converted if-statements.
+
+* ``NULL`` was sometimes rejected as exception return value when the returned
+  type is a fused pointer type.
+  Patch by Callie LeFave.  (Github issue #2177)
+
+* Fixed compatibility with PyPy 5.11.
+  Patch by Matti Picus.  (Github issue #2165)
+
+Other changes
+-------------
+
+* The NumPy tutorial was rewritten to use memoryviews instead of the older
+  buffer declaration syntax.
+  Contributed by Gabriel de Marmiesse.  (Github issue #2162)
+
+
+0.28.1 (2018-03-18)
+===================
+
+Bugs fixed
+----------
+
+* ``PyFrozenSet_New()`` was accidentally used in PyPy where it is missing
   from the C-API.
 
 * Assignment between some C++ templated types were incorrectly rejected
@@ -25,6 +137,9 @@ Bugs fixed
 * Bytes %-formatting inferred ``basestring`` (bytes or unicode) as result type
   in some cases where ``bytes`` would have been safe to infer.
   (Github issue #2153)
+
+* ``None`` was accidentally disallowed as typed return value of ``dict.pop()``.
+  (Github issue #2152)
 
 
 0.28 (2018-03-13)

@@ -2,15 +2,9 @@ Extension types (aka. cdef classes)
 ===================================
 
 To support object-oriented programming, Cython supports writing normal
-Python classes exactly as in Python::
+Python classes exactly as in Python:
 
-    class MathFunction(object):
-        def __init__(self, name, operator):
-            self.name = name
-            self.operator = operator
-
-        def __call__(self, *operands):
-            return self.operator(*operands)
+.. literalinclude:: ../../examples/tutorial/cdef_classes/math_function.py
 
 Based on what Python calls a "built-in type", however, Cython supports
 a second kind of class: *extension types*, sometimes referred to as
@@ -33,11 +27,9 @@ Cython code and pure Python code.
 So far our integration example has not been very useful as it only
 integrates a single hard-coded function. In order to remedy this,
 with hardly sacrificing speed, we will use a cdef class to represent a
-function on floating point numbers::
+function on floating point numbers:
 
-  cdef class Function:
-      cpdef double evaluate(self, double x) except *:
-          return 0
+.. literalinclude:: ../../examples/tutorial/cdef_classes/math_function_2.pyx
 
 The directive cpdef makes two versions of the method available; one
 fast for use from Cython and one slower for use from Python. Then::
@@ -103,26 +95,9 @@ Some notes on our new implementation of ``evaluate``:
 
 There is a *compiler directive* ``nonecheck`` which turns on checks
 for this, at the cost of decreased speed. Here's how compiler directives
-are used to dynamically switch on or off ``nonecheck``::
+are used to dynamically switch on or off ``nonecheck``:
 
-  #cython: nonecheck=True
-  #        ^^^ Turns on nonecheck globally
-
-  import cython
-
-  # Turn off nonecheck locally for the function
-  @cython.nonecheck(False)
-  def func():
-      cdef MyClass obj = None
-      try:
-          # Turn nonecheck on again for a block
-          with cython.nonecheck(True):
-              print obj.myfunc() # Raises exception
-      except AttributeError:
-          pass
-      print obj.myfunc() # Hope for a crash!
-
-
+.. literalinclude:: ../../examples/tutorial/cdef_classes/nonecheck.pyx
 
 Attributes in cdef classes behave differently from attributes in regular classes:
 

@@ -54,6 +54,16 @@ non_portable_builtins_map = {
     'raw_input'     : ('PY_MAJOR_VERSION >= 3', 'input'),
 }
 
+ctypedef_builtins_map = {
+    # types of builtins in "ctypedef class" statements which we don't
+    # import either because the names conflict with C types or because
+    # the type simply is not exposed.
+    'py_int'             : '&PyInt_Type',
+    'py_long'            : '&PyLong_Type',
+    'py_float'           : '&PyFloat_Type',
+    'wrapper_descriptor' : '&PyWrapperDescr_Type',
+}
+
 basicsize_builtins_map = {
     # builtins whose type has a different tp_basicsize than sizeof(...)
     'PyTypeObject': 'PyHeapTypeObject',
@@ -108,8 +118,6 @@ special_py_methods = set([
 modifier_output_mapper = {
     'inline': 'CYTHON_INLINE'
 }.get
-
-is_self_assignment = re.compile(r" *(\w+) = (\1);\s*$").match
 
 
 class IncludeCode(object):
@@ -1139,19 +1147,19 @@ class GlobalState(object):
         else:
             w = self.parts['cached_builtins']
             w.enter_cfunc_scope()
-            w.putln("static int __Pyx_InitCachedBuiltins(CYTHON_UNUSED PyObject *builtins) {")
+            w.putln("static CYTHON_SMALL_CODE int __Pyx_InitCachedBuiltins(CYTHON_UNUSED PyObject *builtins) {")
 
         w = self.parts['cached_constants']
         w.enter_cfunc_scope()
         w.putln("")
-        w.putln("static int __Pyx_InitCachedConstants(void) {")
+        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {")
         w.put_declare_refcount_context()
         w.put_setup_refcount_context("__Pyx_InitCachedConstants")
 
         w = self.parts['init_globals']
         w.enter_cfunc_scope()
         w.putln("")
-        w.putln("static int __Pyx_InitGlobals(void) {")
+        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitGlobals(void) {")
 
         if not Options.generate_cleanup_code:
             del self.parts['cleanup_globals']
@@ -1159,7 +1167,7 @@ class GlobalState(object):
             w = self.parts['cleanup_globals']
             w.enter_cfunc_scope()
             w.putln("")
-            w.putln("static void __Pyx_CleanupGlobals(void) {")
+            w.putln("static CYTHON_SMALL_CODE void __Pyx_CleanupGlobals(void) {")
 
         code = self.parts['utility_code_proto']
         code.putln("")
@@ -1606,7 +1614,8 @@ class GlobalState(object):
             self.use_utility_code(entry.utility_code_definition)
 
 
-def funccontext_property(name):
+def funccontext_property(func):
+    name = func.__name__
     attribute_of = operator.attrgetter(name)
     def get(self):
         return attribute_of(self.funcstate)
@@ -1657,8 +1666,7 @@ class CCodeWriter(object):
     #                                     about the current class one is in
     # code_config         CCodeConfig     configuration options for the C code writer
 
-    globalstate = code_config = None
-
+    @cython.locals(create_from='CCodeWriter')
     def __init__(self, create_from=None, buffer=None, copy_formatting=False):
         if buffer is None: buffer = StringIOTree()
         self.buffer = buffer
@@ -1667,6 +1675,8 @@ class CCodeWriter(object):
         self.pyclass_stack = []
 
         self.funcstate = None
+        self.globalstate = None
+        self.code_config = None
         self.level = 0
         self.call_level = 0
         self.bol = 1
@@ -1729,14 +1739,22 @@ class CCodeWriter(object):
         self.buffer.insert(writer.buffer)
 
     # Properties delegated to function scope
-    label_counter = funccontext_property("label_counter")
-    return_label = funccontext_property("return_label")
-    error_label = funccontext_property("error_label")
-    labels_used = funccontext_property("labels_used")
-    continue_label = funccontext_property("continue_label")
-    break_label = funccontext_property("break_label")
-    return_from_error_cleanup_label = funccontext_property("return_from_error_cleanup_label")
-    yield_labels = funccontext_property("yield_labels")
+    @funccontext_property
+    def label_counter(self): pass
+    @funccontext_property
+    def return_label(self): pass
+    @funccontext_property
+    def error_label(self): pass
+    @funccontext_property
+    def labels_used(self): pass
+    @funccontext_property
+    def continue_label(self): pass
+    @funccontext_property
+    def break_label(self): pass
+    @funccontext_property
+    def return_from_error_cleanup_label(self): pass
+    @funccontext_property
+    def yield_labels(self): pass
 
     # Functions delegated to function scope
     def new_label(self, name=None):    return self.funcstate.new_label(name)
@@ -1857,8 +1875,6 @@ class CCodeWriter(object):
         self.put(code)
 
     def put(self, code):
-        if is_self_assignment(code):
-            return
         fix_indent = False
         if "{" in code:
             dl = code.count("{")

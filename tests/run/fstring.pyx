@@ -140,6 +140,26 @@ def format_c_numbers(signed char c, short s, int n, long l, float f, double d):
     return s1, s2, s3, s4
 
 
+def format_c_numbers_unsigned(unsigned char c, unsigned short s, unsigned int n, unsigned long l):
+    """
+    >>> s1, s2, s3 = format_c_numbers_unsigned(123, 135, 12, 12312312)
+    >>> print(s1)
+    123 135 5675737012
+    >>> print(s2)
+      12f
+    >>> print(s3)
+    0C014    bbdef8
+
+    """
+    s1 = f"{c}{s:4} {l:o}{n}"
+    assert isinstance(s1, unicode), type(s1)
+    s2 = f"{n:-4}f"
+    assert isinstance(s2, unicode), type(s2)
+    s3 = f"{n:02X}{n:03o}{l:10x}"
+    assert isinstance(s3, unicode), type(s3)
+    return s1, s2, s3
+
+
 @cython.test_fail_if_path_exists(
     "//CoerceToPyTypeNode",
 )
@@ -480,3 +500,16 @@ def generated_fstring(int i, unicode u not None, o):
         u, u, u, u,
         o, o, o, o,
     )
+
+
+@cython.test_assert_path_exists(
+    "//FormattedValueNode",
+    "//JoinedStrNode",
+)
+def percent_s_unicode(u, int i):
+    u"""
+    >>> u = u'x\u0194z'
+    >>> print(percent_s_unicode(u, 12))
+    x\u0194z-12
+    """
+    return u"%s-%d" % (u, i)

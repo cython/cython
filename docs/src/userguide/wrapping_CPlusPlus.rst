@@ -321,6 +321,10 @@ Cython uses C++ naming for overloading operators::
             Foo operator-(Foo)
             int operator*(Foo)
             int operator/(int)
+            int operator*(int, Foo) # allows 1*Foo()
+        # nonmember operators can also be specified outside the class
+        double operator/(double, Foo)
+
 
     cdef Foo foo = new Foo()
 
@@ -329,6 +333,13 @@ Cython uses C++ naming for overloading operators::
 
     x = foo * foo2
     x = foo / 1
+
+    x = foo[0] * foo2
+    x = foo[0] / 1
+    x = 1*foo[0]
+
+    cdef double y
+    y = 2.0/foo[0]
 
 Note that if one has *pointers* to C++ objects, dereferencing must be done
 to avoid doing pointer arithmetic rather than arithmetic on the objects
@@ -417,7 +428,7 @@ Cython uses a bracket syntax for templating. A simple example for wrapping C++ v
 
     cdef vector[int].iterator it = v.begin()
     while it != v.end():
-        print deref(it)
+        print(deref(it))
         inc(it)
 
     del v
@@ -436,8 +447,8 @@ the template parameter list following the function name::
     cdef extern from "<algorithm>" namespace "std":
         T max[T](T a, T b)
 
-    print max[long](3, 4)
-    print max(1.5, 2.5)  # simple template argument deduction
+    print(max[long](3, 4))
+    print(max(1.5, 2.5))  # simple template argument deduction
 
 
 Standard library
@@ -452,11 +463,13 @@ For example::
     from libcpp.vector cimport vector
 
     cdef vector[int] vect
-    cdef int i
+    cdef int i, x
     for i in range(10):
         vect.push_back(i)
     for i in range(10):
-        print vect[i]
+        print(vect[i])
+    for x in vect:
+        print(x)
 
 The pxd files in ``/Cython/Includes/libcpp`` also work as good examples on
 how to declare C++ classes.
@@ -658,7 +671,7 @@ Cython has support for the ``typeid(...)`` operator.
 The ``typeid(...)`` operator returns an object of the type ``const type_info &``.
 
 If you want to store a type_info value in a C variable, you will need to store it
-as a pointer rather than a reference:
+as a pointer rather than a reference::
 
     from libcpp.typeinfo cimport type_info
     cdef const type_info* info = &typeid(MyClass)

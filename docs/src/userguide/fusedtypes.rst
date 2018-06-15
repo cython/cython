@@ -26,6 +26,7 @@ Quickstart
 
 ::
 
+    from __future__ import print_function
     cimport cython
 
     ctypedef fused char_or_float:
@@ -41,8 +42,8 @@ Quickstart
         cdef:
             cython.char a = 127
             cython.float b = 127
-        print 'char', plus_one(a)
-        print 'float', plus_one(b)
+        print('char', plus_one(a))
+        print('float', plus_one(b))
 
 This gives::
 
@@ -267,7 +268,7 @@ to figure out whether a specialization is part of another set of types
             long_pointer = &i
 
         if bunch_of_types in string_t:
-            print "s is a string!"
+            print("s is a string!")
 
 __signatures__
 ==============

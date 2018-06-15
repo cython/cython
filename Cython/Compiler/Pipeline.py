@@ -141,7 +141,7 @@ def create_pipeline(context, mode, exclude_classes=()):
     assert mode in ('pyx', 'py', 'pxd')
     from .Visitor import PrintTree
     from .ParseTreeTransforms import WithTransform, NormalizeTree, PostParse, PxdPostParse
-    from .ParseTreeTransforms import ForwardDeclareTypes, AnalyseDeclarationsTransform
+    from .ParseTreeTransforms import ForwardDeclareTypes, InjectGilHandling, AnalyseDeclarationsTransform
     from .ParseTreeTransforms import AnalyseExpressionsTransform, FindInvalidUseOfFusedTypes
     from .ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
     from .ParseTreeTransforms import TrackNumpyAttributes, InterpretCompilerDirectives, TransformBuiltinMethods
@@ -194,6 +194,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         FlattenInListTransform(),
         DecoratorTransform(context),
         ForwardDeclareTypes(context),
+        InjectGilHandling(),
         AnalyseDeclarationsTransform(context),
         AutoTestDictTransform(context),
         EmbedSignature(context),

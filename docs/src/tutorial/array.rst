@@ -18,14 +18,7 @@ module is built into both Python and Cython.
 Safe usage with memory views
 ----------------------------
 
-::
-
-    from cpython cimport array
-    import array
-    cdef array.array a = array.array('i', [1, 2, 3])
-    cdef int[:] ca = a
-
-    print ca[0]
+.. literalinclude:: ../../examples/tutorial/array/safe_usage.pyx
 
 NB: the import brings the regular Python array object into the namespace
 while the cimport adds functions accessible from Cython.
@@ -51,8 +44,8 @@ functions without overhead, so long as it is typed::
     cdef int no_overhead(int[:] ca):
         return ca[0]
 
-    print overhead(a)  # new memory view will be constructed, overhead
-    print no_overhead(ca)  # ca is already a memory view, so no overhead
+    print(overhead(a))  # new memory view will be constructed, overhead
+    print(no_overhead(ca))  # ca is already a memory view, so no overhead
 
 Zero-overhead, unsafe access to raw C pointer
 ---------------------------------------------
@@ -69,7 +62,7 @@ right type and signedness.
     cdef array.array a = array.array('i', [1, 2, 3])
 
     # access underlying pointer:
-    print a.data.as_ints[0]
+    print(a.data.as_ints[0])
 
     from libc.string cimport memset
     memset(a.data.as_voidptr, 0, len(a) * sizeof(int))

@@ -1,5 +1,9 @@
+
+.. _using_c_libraries:
+
+******************
 Using C libraries
-=================
+******************
 
 Apart from writing fast code, one of the main use cases of Cython is
 to call external C libraries from Python code.  As Cython code
@@ -24,51 +28,20 @@ type that can encapsulate all memory management.
 
 
 Defining external declarations
-------------------------------
+==============================
+
+You can download CAlg `here <https://github.com/fragglet/c-algorithms/archive/master.zip>`_.
 
 The C API of the queue implementation, which is defined in the header
-file ``libcalg/queue.h``, essentially looks like this::
+file ``c-algorithms/src/queue.h``, essentially looks like this:
 
-    /* file: queue.h */
-
-    typedef struct _Queue Queue;
-    typedef void *QueueValue;
-
-    Queue *queue_new(void);
-    void queue_free(Queue *queue);
-
-    int queue_push_head(Queue *queue, QueueValue data);
-    QueueValue queue_pop_head(Queue *queue);
-    QueueValue queue_peek_head(Queue *queue);
-
-    int queue_push_tail(Queue *queue, QueueValue data);
-    QueueValue queue_pop_tail(Queue *queue);
-    QueueValue queue_peek_tail(Queue *queue);
-
-    int queue_is_empty(Queue *queue);
+.. literalinclude:: ../../examples/tutorial/clibraries/c-algorithms/src/queue.h
+    :language: C
 
 To get started, the first step is to redefine the C API in a ``.pxd``
-file, say, ``cqueue.pxd``::
+file, say, ``cqueue.pxd``:
 
-    # file: cqueue.pxd
-
-    cdef extern from "libcalg/queue.h":
-        ctypedef struct Queue:
-            pass
-        ctypedef void* QueueValue
-
-        Queue* queue_new()
-        void queue_free(Queue* queue)
-
-        int queue_push_head(Queue* queue, QueueValue data)
-        QueueValue  queue_pop_head(Queue* queue)
-        QueueValue queue_peek_head(Queue* queue)
-
-        int queue_push_tail(Queue* queue, QueueValue data)
-        QueueValue queue_pop_tail(Queue* queue)
-        QueueValue queue_peek_tail(Queue* queue)
-
-        bint queue_is_empty(Queue* queue)
+.. literalinclude:: ../../examples/tutorial/clibraries/cqueue.pxd
 
 Note how these declarations are almost identical to the header file
 declarations, so you can often just copy them over.  However, you do
@@ -123,7 +96,7 @@ provided ``.pxd`` files.
 
 
 Writing a wrapper class
------------------------
+=======================
 
 After declaring our C library's API, we can start to design the Queue
 class that should wrap the C queue.  It will live in a file called
@@ -138,16 +111,9 @@ class that should wrap the C queue.  It will live in a file called
        library, there must not be a ``.pyx`` file with the same name
        that Cython associates with it.
 
-Here is a first start for the Queue class::
+Here is a first start for the Queue class:
 
-    # file: queue.pyx
-
-    cimport cqueue
-
-    cdef class Queue:
-        cdef cqueue.Queue* _c_queue
-        def __cinit__(self):
-            self._c_queue = cqueue.queue_new()
+.. literalinclude:: ../../examples/tutorial/clibraries/queue.pyx
 
 Note that it says ``__cinit__`` rather than ``__init__``.  While
 ``__init__`` is available as well, it is not guaranteed to be run (for
@@ -172,7 +138,7 @@ the type.
 
 
 Memory management
------------------
+=================
 
 Before we continue implementing the other methods, it is important to
 understand that the above implementation is not safe.  In case
@@ -184,16 +150,9 @@ that case, it will return ``NULL``, whereas it would normally return a
 pointer to the new queue.
 
 The Python way to get out of this is to raise a ``MemoryError`` [#]_.
-We can thus change the init function as follows::
+We can thus change the init function as follows:
 
-    cimport cqueue
-
-    cdef class Queue:
-        cdef cqueue.Queue* _c_queue
-        def __cinit__(self):
-            self._c_queue = cqueue.queue_new()
-            if self._c_queue is NULL:
-                raise MemoryError()
+.. literalinclude:: ../../examples/tutorial/clibraries/queue2.pyx
 
 .. [#] In the specific case of a ``MemoryError``, creating a new
    exception instance in order to raise it may actually fail because
@@ -218,7 +177,7 @@ the init method::
 
 
 Compiling and linking
----------------------
+=====================
 
 At this point, we have a working Cython module that we can test.  To
 compile it, we need to configure a ``setup.py`` script for distutils.
@@ -232,10 +191,76 @@ Here is the most basic script for compiling a Cython module::
         ext_modules = cythonize([Extension("queue", ["queue.pyx"])])
     )
 
-To build against the external C library, we must extend this script to
-include the necessary setup.  Assuming the library is installed in the
-usual places (e.g. under ``/usr/lib`` and ``/usr/include`` on a
-Unix-like system), we could simply change the extension setup from
+
+To build against the external C library, we need to make sure Cython finds the necessary libraries. 
+There are two ways to archive this. First we can tell distutils where to find
+the c-source to compile the :file:`queue.c` implementation automatically. Alternatively,
+we can build and install C-Alg as system library and dynamically link it. The latter is useful
+if other applications also use C-Alg.
+
+
+Static Linking
+---------------
+
+To build the c-code automatically we need to include compiler directives in `queue.pyx`::
+
+    # distutils: sources = c-algorithms/src/queue.c
+    # distutils: include_dirs = c-algorithms/src/
+
+    cimport cqueue
+
+    cdef class Queue:
+        cdef cqueue.Queue* _c_queue
+        def __cinit__(self):
+            self._c_queue = cqueue.queue_new()
+            if self._c_queue is NULL:
+                raise MemoryError()
+
+        def __dealloc__(self):
+            if self._c_queue is not NULL:
+                cqueue.queue_free(self._c_queue)
+
+The ``sources`` compiler directive gives the path of the C
+files that distutils is going to compile and
+link (statically) into the resulting extension module.
+In general all relevant header files should be found in ``include_dirs``.
+Now we can build the project using::
+
+    $ python setup.py build_ext -i
+
+And test whether our build was successful::
+
+    $ python -c 'import queue; Q = queue.Queue()'
+
+
+Dynamic Linking
+---------------
+
+Dynamic linking is useful, if the library we are going to wrap is already
+installed on the system. To perform dynamic linking we first need to
+build and install c-alg.
+
+To build c-algorithms on your system::
+
+    $ cd c-algorithms
+    $ sh autogen.sh
+    $ ./configure
+    $ make
+
+to install CAlg run::
+
+    $ make install
+
+Afterwards the file :file:`/usr/local/lib/libcalg.so` should exist.
+
+.. note::
+
+    This path applies to Linux systems and may be different on other platforms,
+    so you will need to adapt the rest of the tutorial depending on the path
+    where ``libcalg.so`` or ``libcalg.dll`` is on your system.
+
+In this approach we need to tell the setup script to link with an external library.
+To do so we need to extend the setup script to install change the extension setup from
 
 ::
 
@@ -250,7 +275,11 @@ to
                   libraries=["calg"])
         ])
 
-If it is not installed in a 'normal' location, users can provide the
+Now we should be able to build the project using::
+
+    $ python setup.py build_ext -i
+
+If the `libcalg` is not installed in a 'normal' location, users can provide the
 required parameters externally by passing appropriate C compiler
 flags, such as::
 
@@ -258,11 +287,18 @@ flags, such as::
     LDFLAGS="-L/usr/local/otherdir/calg/lib"     \
         python setup.py build_ext -i
 
+
+
+Before we run the module, we also need to make sure that `libcalg` is in
+the `LD_LIBRARY_PATH` environment variable, e.g. by setting::
+
+   $ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib
+
 Once we have compiled the module for the first time, we can now import
 it and instantiate a new Queue::
 
     $ export PYTHONPATH=.
-    $ python -c 'import queue.Queue as Q ; Q()'
+    $ python -c 'import queue; Q = queue.Queue()'
 
 However, this is all our Queue class can do so far, so let's make it
 more usable.
@@ -501,6 +537,12 @@ instead that accepts an arbitrary Python iterable::
         cpdef extend(self, values):
             for value in values:
                 self.append(value)
+
+
+Now we can test our Queue implementation using a python script,
+for example here :file:`test_queue.py`:
+
+.. literalinclude:: ../../examples/tutorial/clibraries/test_queue.py
 
 As a quick test with 10000 numbers on the author's machine indicates,
 using this Queue from Cython code with C ``int`` values is about five
