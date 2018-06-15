@@ -10,8 +10,8 @@ addons:
       - gdb
       - python-dbg
       - python3-dbg
-      - gcc-6
-      - g++-6
+      - gcc-8
+      - g++-8
       # GCC-7 currently takes 5-7 *minutes* to download on travis
       #- gcc-7
       #- g++-7
@@ -48,7 +48,7 @@ env:
 matrix:
   include:
     #- python: 3.7-dev
-    #  env: BACKEND=c PY=3 CC=gcc-7
+    #  env: BACKEND=c PY=3 CC=gcc-8
     - os: osx
       osx_image: xcode6.4
       env: BACKEND=c PY=2
@@ -95,8 +95,8 @@ before_install:
   - |
     if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
       mkdir "$HOME/gcc-symlinks"
-      ln -s /usr/bin/gcc-6 $HOME/gcc-symlinks/gcc 
-      ln -s /usr/bin/g++-6 $HOME/gcc-symlinks/g++ 
+      ln -s /usr/bin/gcc-8 $HOME/gcc-symlinks/gcc
+      ln -s /usr/bin/g++-8 $HOME/gcc-symlinks/g++
       
       if [ -n "$CC" ]; then "$CC" --version; else gcc --version; fi
     fi
