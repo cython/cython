@@ -540,7 +540,7 @@ was supposed to.
 
 Basic module reloading support is available with the option ``reload_support=True``.
 Note that this will generate a new module filename for each build and thus
-end up loading multiple shared libraries into memory over time.  CPython have limited
+end up loading multiple shared libraries into memory over time. CPython has limited
 support for reloading shared libraries as such,
 see `PEP 489 <https://www.python.org/dev/peps/pep-0489/>`_.
 
