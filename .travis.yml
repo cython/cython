@@ -12,9 +12,6 @@ addons:
       - python3-dbg
       - gcc-8
       - g++-8
-      # GCC-7 currently takes 5-7 *minutes* to download on travis
-      #- gcc-7
-      #- g++-7
 
 cache:
   pip: true
