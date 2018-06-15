@@ -30,22 +30,10 @@ documentation for the `array module <http://docs.python.org/library/array.html>`
 Notice that when a Python array is assigned to a variable typed as
 memory view, there will be a slight overhead to construct the memory
 view. However, from that point on the variable can be passed to other
-functions without overhead, so long as it is typed::
+functions without overhead, so long as it is typed:
 
-    from cpython cimport array
-    import array
-    cdef array.array a = array.array('i', [1, 2, 3])
-    cdef int[:] ca = a
+.. literalinclude:: ../../examples/tutorial/array/overhead.pyx
 
-    cdef int overhead(object a):
-        cdef int[:] ca = a
-        return ca[0]
-
-    cdef int no_overhead(int[:] ca):
-        return ca[0]
-
-    print(overhead(a))  # new memory view will be constructed, overhead
-    print(no_overhead(ca))  # ca is already a memory view, so no overhead
 
 Zero-overhead, unsafe access to raw C pointer
 ---------------------------------------------
