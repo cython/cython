@@ -88,7 +88,7 @@ which is readable by Cython:
 Note that the constructor is declared as "except +". If the C++ code or
 the initial memory allocation raises an exception due to a failure, this
 will let Cython safely raise an appropriate Python exception instead
-(see below). Without this declaration, C++ exceptions originating from
+(see below).  Without this declaration, C++ exceptions originating from
 the constructor will not be handled by Cython.
 
 We use the lines::
@@ -174,13 +174,19 @@ To compile a Cython module, it is necessary to have a :file:`setup.py` file:
 
 .. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/setup.py
 
-Run ``$python setup.py build_ext --inplace``
+Run ``$ python setup.py build_ext --inplace``
 
-Create :file:`test_import.py`:
+To test it, open the Python interpreter::
 
-.. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/example_usage.py
+    >>> import rect
+    >>> x0, y0, x1, y1 = 1, 2, 3, 4
+    >>> rect_obj = rect.PyRectangle(x0, y0, x1, y1)
+    >>> print(dir(rect_obj))
+    ['__class__', '__delattr__', '__dir__', '__doc__', '__eq__', '__format__', '__ge__',
+     '__getattribute__', '__gt__', '__hash__', '__init__', '__init_subclass__', '__le__',
+     '__lt__', '__ne__', '__new__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__',
+     '__setstate__', '__sizeof__', '__str__', '__subclasshook__', 'get_area', 'get_size', 'move']
 
-You can now test your wrapper with ``$python test_import.py``.
 
 Advanced C++ features
 ======================
@@ -591,7 +597,7 @@ possible to declare them in the :file:`setup.py` file::
 
 Cython will generate and compile the :file:`rect.cpp` file (from
 :file:`rect.pyx`), then it will compile :file:`Rectangle.cpp`
-(implementation of the ``Rectangle`` class) and link both objects files
+(implementation of the ``Rectangle`` class) and link both object files
 together into :file:`rect.so`, which you can then import in Python using
 ``import rect`` (if you forget to link the :file:`Rectangle.o`, you will
 get missing symbols while importing the library in Python).
@@ -634,6 +640,12 @@ any source code, to compile it in C++ mode and link it statically against the
 
    # distutils: language = c++
    # distutils: sources = Rectangle.cpp
+
+.. note::
+
+     When using distutils directives, the paths are relative to the working
+     directory of the distutils run (which is usually the
+     project root where the :file:`setup.py` resides).
 
 To compile manually (e.g. using ``make``), the ``cython`` command-line
 utility can be used to generate a C++ ``.cpp`` file, and then compile it
