@@ -492,6 +492,64 @@ on end user side as it hooks into their import system.  The best way
 to cater for end users is to provide pre-built binary packages in the
 `wheel <https://wheel.readthedocs.io/>`_ packaging format.
 
+
+Arguments
+---------
+
+The function ``pyximport.install()`` can take several arguments to
+influence the compilation of Cython or Python files.
+
+.. autofunction:: pyximport.install
+
+
+Dependency Handling
+--------------------
+
+Since :mod:`pyximport` does not use :func:`cythonize()` internally, it currently
+requires a different setup for dependencies.  It is possible to declare that
+your module depends on multiple files, (likely ``.h`` and ``.pxd`` files).
+If your Cython module is named ``foo`` and thus has the filename
+:file:`foo.pyx` then you should create another file in the same directory
+called :file:`foo.pyxdep`.  The :file:`modname.pyxdep` file can be a list of
+filenames or "globs" (like ``*.pxd`` or ``include/*.h``).  Each filename or
+glob must be on a separate line.  Pyximport will check the file date for each
+of those files before deciding whether to rebuild the module.  In order to
+keep track of the fact that the dependency has been handled, Pyximport updates
+the modification time of your ".pyx" source file.  Future versions may do
+something more sophisticated like informing distutils of the dependencies
+directly.
+
+
+Limitations
+------------
+
+:mod:`pyximport` does not use :func:`cythonize()`. Thus it is not
+possible to do things like using compiler directives at
+the top of Cython files or compiling Cython code to C++.
+
+Pyximport does not give you any control over how your Cython file is
+compiled.  Usually the defaults are fine.  You might run into problems if
+you wanted to write your program in half-C, half-Cython and build them
+into a single library.
+
+Pyximport does not hide the Distutils/GCC warnings and errors generated
+by the import process.  Arguably this will give you better feedback if
+something went wrong and why.  And if nothing went wrong it will give you
+the warm fuzzy feeling that pyximport really did rebuild your module as it
+was supposed to.
+
+Basic module reloading support is available with the option ``reload_support=True``.
+Note that this will generate a new module filename for each build and thus
+end up loading multiple shared libraries into memory over time. CPython has limited
+support for reloading shared libraries as such,
+see `PEP 489 <https://www.python.org/dev/peps/pep-0489/>`_.
+
+Pyximport puts both your ``.c`` file and the platform-specific binary into
+a separate build directory, usually ``$HOME/.pyxblx/``.  To copy it back
+into the package hierarchy (usually next to the source file) for manual
+reuse, you can pass the option ``inplace=True``.
+
+
 Compiling with ``cython.inline``
 =================================
 
