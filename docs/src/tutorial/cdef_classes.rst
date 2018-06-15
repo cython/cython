@@ -49,6 +49,11 @@ method: unlike a cdef method, a cpdef method is fully overridable by
 methods and instance attributes in Python subclasses.  It adds a
 little calling overhead compared to a cdef method.
 
+To make the classes reusable across modules, we define them
+in a :file:`sin_of_square.pxd` file:
+
+.. literalinclude:: ../../examples/tutorial/cdef_classes/sin_of_square.pxd
+
 Using this, we can now change our integration example:
 
 .. literalinclude:: ../../examples/tutorial/cdef_classes/integrate.pyx
