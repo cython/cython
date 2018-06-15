@@ -47,6 +47,8 @@ Bugs fixed
 * Fix declarations of builtin or C types using strings in pure python mode.
   (Github issue #2046)
 
+* Several internal function signatures were fixed that lead to warnings in gcc-8.
+
 Other changes
 -------------
 

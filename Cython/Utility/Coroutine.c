@@ -1229,7 +1229,7 @@ static void __Pyx_Coroutine_del(PyObject *self) {
 }
 
 static PyObject *
-__Pyx_Coroutine_get_name(__pyx_CoroutineObject *self)
+__Pyx_Coroutine_get_name(__pyx_CoroutineObject *self, CYTHON_UNUSED void *context)
 {
     PyObject *name = self->gi_name;
     // avoid NULL pointer dereference during garbage collection
@@ -1239,7 +1239,7 @@ __Pyx_Coroutine_get_name(__pyx_CoroutineObject *self)
 }
 
 static int
-__Pyx_Coroutine_set_name(__pyx_CoroutineObject *self, PyObject *value)
+__Pyx_Coroutine_set_name(__pyx_CoroutineObject *self, PyObject *value, CYTHON_UNUSED void *context)
 {
     PyObject *tmp;
 
@@ -1261,7 +1261,7 @@ __Pyx_Coroutine_set_name(__pyx_CoroutineObject *self, PyObject *value)
 }
 
 static PyObject *
-__Pyx_Coroutine_get_qualname(__pyx_CoroutineObject *self)
+__Pyx_Coroutine_get_qualname(__pyx_CoroutineObject *self, CYTHON_UNUSED void *context)
 {
     PyObject *name = self->gi_qualname;
     // avoid NULL pointer dereference during garbage collection
@@ -1271,7 +1271,7 @@ __Pyx_Coroutine_get_qualname(__pyx_CoroutineObject *self)
 }
 
 static int
-__Pyx_Coroutine_set_qualname(__pyx_CoroutineObject *self, PyObject *value)
+__Pyx_Coroutine_set_qualname(__pyx_CoroutineObject *self, PyObject *value, CYTHON_UNUSED void *context)
 {
     PyObject *tmp;
 
@@ -1463,7 +1463,7 @@ static PyObject *__Pyx_Coroutine_await(PyObject *coroutine) {
 }
 
 static PyObject *
-__Pyx_Coroutine_get_frame(CYTHON_UNUSED __pyx_CoroutineObject *self)
+__Pyx_Coroutine_get_frame(CYTHON_UNUSED __pyx_CoroutineObject *self, CYTHON_UNUSED void *context)
 {
     // Fake implementation that always returns None, but at least does not raise an AttributeError.
     Py_RETURN_NONE;
