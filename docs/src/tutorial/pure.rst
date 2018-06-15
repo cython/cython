@@ -168,11 +168,7 @@ Static typing
 
     cython.declare(x=cython.int, y=cython.double)  # cdef int x; cdef double y
 
-  It can also be used to type class constructors:
-
-  .. literalinclude:: ../../examples/tutorial/pure/class_constructor.py
-
-  And even to define extension type private, readonly and public attributes::
+  It can also be used to define extension type private, readonly and public attributes::
 
     @cython.cclass
     class A:
