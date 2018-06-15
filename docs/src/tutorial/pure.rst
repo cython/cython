@@ -122,14 +122,13 @@ Static typing
 * ``cython.declare`` declares a typed variable in the current scope, which can be
   used in place of the :samp:`cdef type var [= value]` construct. This has two forms,
   the first as an assignment (useful as it creates a declaration in interpreted
-  mode as well)::
+  mode as well):
 
-    x = cython.declare(cython.int)              # cdef int x
-    y = cython.declare(cython.double, 0.57721)  # cdef double y = 0.57721
+  .. literalinclude:: ../../examples/tutorial/pure/cython_declare.py
 
-  and the second mode as a simple function call::
+  and the second mode as a simple function call:
 
-    cython.declare(x=cython.int, y=cython.double)  # cdef int x; cdef double y
+  .. literalinclude:: ../../examples/tutorial/pure/cython_declare2.py
 
   It can also be used to type class constructors::
 
