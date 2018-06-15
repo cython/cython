@@ -55,16 +55,7 @@ it is possible to create a new array with the same type as a template,
 and preallocate a given number of elements. The array is initialized to
 zero when requested.
 
-::
-
-    from cpython cimport array
-    import array
-
-    cdef array.array int_array_template = array.array('i', [])
-    cdef array.array newarray
-
-    # create an array with 3 elements with same type as template
-    newarray = array.clone(int_array_template, 3, zero=False)
+.. literalinclude:: ../../examples/tutorial/array/clone.pyx
 
 An array can also be extended and resized; this avoids repeated memory
 reallocation which would occur if elements would be appended or removed
