@@ -109,12 +109,7 @@ modules when Cython is not installed.
 * ``compiled`` is a special variable which is set to ``True`` when the compiler
   runs, and ``False`` in the interpreter. Thus, the code
 
-  ::
-
-    if cython.compiled:
-        print("Yep, I'm compiled.")
-    else:
-        print("Just a lowly interpreted script.")
+  .. literalinclude:: ../../examples/tutorial/pure/compiled_switch.py
 
   will behave differently depending on whether or not the code is executed as a
   compiled extension (:file:`.so`/:file:`.pyd`) module or a plain :file:`.py`
