@@ -50,24 +50,9 @@ module-level::
     cdef int i, j, k
     cdef float f, g[42], *h
 
-and C :keyword:`struct`, :keyword:`union` or :keyword:`enum` types::
+and C :keyword:`struct`, :keyword:`union` or :keyword:`enum` types:
 
-    cdef struct Grail:
-        int age
-        float volume
-
-    cdef union Food:
-        char *spam
-        float *eggs
-
-    cdef enum CheeseType:
-        cheddar, edam,
-        camembert
-
-    cdef enum CheeseState:
-        hard = 1
-        soft = 2
-        runny = 3
+.. literalinclude:: ../../examples/userguide/language_basics/struct_union_enum.pyx
 
 See also :ref:`struct-union-enum-styles`
 
