@@ -2194,10 +2194,9 @@ class CCodeWriter(object):
             if entry.is_special:
                 method_flags += [method_coexist]
             func_ptr = entry.func_cname
-            # Add extra casts, but try not to shadow real warnings.
+            # Add required casts, but try not to shadow real warnings.
             cast = '__Pyx_PyCFunctionFast' if 'METH_FASTCALL' in method_flags else 'PyCFunction'
             if 'METH_KEYWORDS' in method_flags:
-                # Need an extra cast
                 cast += 'WithKeywords'
             if cast != 'PyCFunction':
                 func_ptr = '(void*)(%s)%s' % (cast, func_ptr)
