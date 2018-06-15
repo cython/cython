@@ -125,20 +125,9 @@ relation we want to use has been proven by Euler in 1735 and is known as the
          \frac{1}{2^2} + \dots + \frac{1}{k^2}  \big) \approx
    6 \big( \frac{1}{1^2} + \frac{1}{2^2} + \dots + \frac{1}{n^2}  \big)
 
-A simple Python code for evaluating the truncated sum looks like this::
+A simple Python code for evaluating the truncated sum looks like this:
 
-   #!/usr/bin/env python
-   # encoding: utf-8
-   # filename: calc_pi.py
-
-   def recip_square(i):
-       return 1./i**2
-
-   def approx_pi(n=10000000):
-       val = 0.
-       for k in range(1,n+1):
-           val += recip_square(k)
-       return (6 * val)**.5
+.. literalinclude:: ../../examples/tutorial/profiling_tutorial/calc_pi.py
 
 On my box, this needs approximately 4 seconds to run the function with the
 default n. The higher we choose n, the better will be the approximation for
@@ -147,20 +136,9 @@ places to optimize this code. But remember the golden rule of optimization:
 Never optimize without having profiled. Let me repeat this: **Never** optimize
 without having profiled your code. Your thoughts about which part of your
 code takes too much time are wrong. At least, mine are always wrong. So let's
-write a short script to profile our code::
+write a short script to profile our code:
 
-   #!/usr/bin/env python
-   # encoding: utf-8
-   # filename: profile.py
-
-   import pstats, cProfile
-
-   import calc_pi
-
-   cProfile.runctx("calc_pi.approx_pi()", globals(), locals(), "Profile.prof")
-
-   s = pstats.Stats("Profile.prof")
-   s.strip_dirs().sort_stats("time").print_stats()
+.. literalinclude:: ../../examples/tutorial/profiling_tutorial/profile.py
 
 Running this on my box gives the following output:
 
