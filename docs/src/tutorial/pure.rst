@@ -378,22 +378,9 @@ Using C arrays for fixed size lists
 
 Since Cython 0.22, C arrays can automatically coerce to Python lists or tuples.
 This can be exploited to replace fixed size Python lists in Python code by C
-arrays when compiled.  An example::
+arrays when compiled.  An example:
 
-    import cython
-
-    @cython.locals(counts=cython.int[10], digit=cython.int)
-    def count_digits(digits):
-        """
-        >>> digits = '01112222333334445667788899'
-        >>> count_digits(map(int, digits))
-        [1, 3, 4, 5, 3, 1, 2, 2, 3, 2]
-        """
-        counts = [0] * 10
-        for digit in digits:
-            assert 0 <= digit <= 9
-            counts[digit] += 1
-        return counts
+.. literalinclude:: ../../examples/tutorial/pure/c_arrays.py
 
 In normal Python, this will use a Python list to collect the counts, whereas
 Cython will generate C code that uses a C array of C ints.
