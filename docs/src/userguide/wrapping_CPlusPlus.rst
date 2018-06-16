@@ -11,7 +11,7 @@ Overview
 
 Cython has native support for most of the C++ language.  Specifically:
 
-* C++ objects can now be dynamically allocated with ``new`` and ``del`` keywords.
+* C++ objects can be dynamically allocated with ``new`` and ``del`` keywords.
 * C++ objects can be stack-allocated.
 * C++ classes can be declared with the new keyword ``cppclass``.
 * Templated classes and functions are supported.
@@ -22,15 +22,14 @@ Procedure Overview
 -------------------
 The general procedure for wrapping a C++ file can now be described as follows:
 
-* Specify C++ language in :file:`setup.py` script or locally in a source file.
-* Create one or more .pxd files with ``cdef extern from`` blocks and
-  (if existing) the C++ namespace name.  In these blocks,
+* Specify C++ language in a :file:`setup.py` script or locally in a source file.
+* Create one or more ``.pxd`` files with ``cdef extern from`` blocks and
+  (if existing) the C++ namespace name. In these blocks:
 
   * declare classes as ``cdef cppclass`` blocks
   * declare public names (variables, methods and constructors)
 
-* Write an extension modules, ``cimport`` from the .pxd file and use
-  the declarations.
+* ``cimport`` them in one or more extension modules (``.pyx`` files).
 
 A simple Tutorial
 ==================
@@ -42,126 +41,17 @@ Here is a tiny C++ API which we will use as an example throughout this
 document. Let's assume it will be in a header file called
 :file:`Rectangle.h`:
 
-.. sourcecode:: c++
-
-    namespace shapes {
-        class Rectangle {
-        public:
-            int x0, y0, x1, y1;
-            Rectangle();
-            Rectangle(int x0, int y0, int x1, int y1);
-            ~Rectangle();
-            int getArea();
-            void getSize(int* width, int* height);
-            void move(int dx, int dy);
-        };
-    }
+.. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/Rectangle.h
+    :language: c++
+    :tab-width: 4
 
 and the implementation in the file called :file:`Rectangle.cpp`:
 
-.. sourcecode:: c++
-
-    #include "Rectangle.h"
-
-    namespace shapes {
-
-      Rectangle::Rectangle() { }
-
-        Rectangle::Rectangle(int X0, int Y0, int X1, int Y1) {
-            x0 = X0;
-            y0 = Y0;
-            x1 = X1;
-            y1 = Y1;
-        }
-
-        Rectangle::~Rectangle() { }
-
-        int Rectangle::getArea() {
-            return (x1 - x0) * (y1 - y0);
-        }
-
-        void Rectangle::getSize(int *width, int *height) {
-            (*width) = x1 - x0;
-            (*height) = y1 - y0;
-        }
-
-        void Rectangle::move(int dx, int dy) {
-            x0 += dx;
-            y0 += dy;
-            x1 += dx;
-            y1 += dy;
-        }
-
-    }
+.. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/Rectangle.cpp
+    :language: c++
+    :tab-width: 4
 
 This is pretty dumb, but should suffice to demonstrate the steps involved.
-
-Specify C++ language in setup.py
----------------------------------
-
-The best way to build Cython code from :file:`setup.py` scripts is the
-``cythonize()`` function.  To make Cython generate and compile C++ code
-with distutils, you just need to pass the option ``language="c++"``::
-
-   from distutils.core import setup
-   from Cython.Build import cythonize
-
-   setup(ext_modules = cythonize(
-              "rect.pyx",                 # our Cython source
-              sources=["Rectangle.cpp"],  # additional source file(s)
-              language="c++",             # generate C++ code
-         ))
-
-Cython will generate and compile the :file:`rect.cpp` file (from the
-:file:`rect.pyx`), then it will compile :file:`Rectangle.cpp`
-(implementation of the ``Rectangle`` class) and link both objects files
-together into :file:`rect.so`, which you can then import in Python using
-``import rect`` (if you forget to link the :file:`Rectangle.o`, you will
-get missing symbols while importing the library in Python).
-
-Note that the ``language`` option has no effect on user provided Extension
-objects that are passed into ``cythonize()``.  It is only used for modules
-found by file name (as in the example above).
-
-The ``cythonize()`` function in Cython versions up to 0.21 does not
-recognize the ``language`` option and it needs to be specified as an
-option to an :class:`Extension` that describes your extension and that
-is then handled by ``cythonize()`` as follows::
-
-   from distutils.core import setup, Extension
-   from Cython.Build import cythonize
-
-   setup(ext_modules = cythonize(Extension(
-              "rect",                                # the extension name
-              sources=["rect.pyx", "Rectangle.cpp"], # the Cython source and
-                                                     # additional C++ source files
-              language="c++",                        # generate and compile C++ code
-         )))
-
-The options can also be passed directly from the source file, which is
-often preferable (and overrides any global option).  Starting with
-version 0.17, Cython also allows to pass external source files into the
-``cythonize()`` command this way.  Here is a simplified setup.py file::
-
-   from distutils.core import setup
-   from Cython.Build import cythonize
-
-   setup(
-       name = "rectangleapp",
-       ext_modules = cythonize('*.pyx'),
-   )
-
-And in the .pyx source file, write this into the first comment block, before
-any source code, to compile it in C++ mode and link it statically against the
-:file:`Rectangle.cpp` code file::
-
-   # distutils: language = c++
-   # distutils: sources = Rectangle.cpp
-
-To compile manually (e.g. using ``make``), the ``cython`` command-line
-utility can be used to generate a C++ ``.cpp`` file, and then compile it
-into a python extension.  C++ mode for the ``cython`` command is turned
-on with the ``--cplus`` option.
 
 Declaring a C++ class interface
 --------------------------------
@@ -173,7 +63,9 @@ basic ``cdef extern from`` block::
     cdef extern from "Rectangle.h" namespace "shapes":
 
 This will make the C++ class def for Rectangle available. Note the namespace declaration.
-Namespaces are simply used to make the fully qualified name of the object, and can be nested (e.g. ``"outer::inner"``) or even refer to classes (e.g. ``"namespace::MyClass`` to declare static members on MyClass).
+Namespaces are simply used to make the fully qualified name of the object,
+and can be nested (e.g. ``"outer::inner"``) or even refer to
+classes (e.g. ``"namespace::MyClass`` to declare static members on MyClass).
 
 Declare class with cdef cppclass
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -187,34 +79,47 @@ class name from Rectangle.h and adjust for Cython syntax, so now it becomes::
 Add public attributes
 ^^^^^^^^^^^^^^^^^^^^^^
 
-We now need to declare the attributes and methods for use on Cython::
+We now need to declare the attributes and methods for use on Cython. We put those declarations
+in a file called :file:`Rectangle.pxd`. You can see it as a header file
+which is readable by Cython:
 
-    cdef extern from "Rectangle.h" namespace "shapes":
-        cdef cppclass Rectangle:
-            Rectangle() except +
-            Rectangle(int, int, int, int) except +
-            int x0, y0, x1, y1
-            int getArea()
-            void getSize(int* width, int* height)
-            void move(int, int)
+.. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/Rectangle.pxd
 
-Note that the constructor is declared as "except +".  If the C++ code or
+Note that the constructor is declared as "except +". If the C++ code or
 the initial memory allocation raises an exception due to a failure, this
 will let Cython safely raise an appropriate Python exception instead
 (see below).  Without this declaration, C++ exceptions originating from
 the constructor will not be handled by Cython.
 
+We use the lines::
+
+    cdef extern from "Rectangle.cpp":
+        pass
+
+to include the C++ code from :file:`Rectangle.cpp`. It is also possible to specify to
+distutils that :file:`Rectangle.cpp` is a source. To do that, you can add this directive at the
+top of the ``.pyx`` (not ``.pxd``) file::
+
+    # distutils: sources = Rectangle.cpp
+
+Note that when you use ``cdef extern from``, the path that you specify is relative to the current
+file, but if you use the distutils directive, the path is relative to the
+:file:`setup.py`. If you want to discover the path of the sources when
+running the :file:`setup.py`, you can use the ``aliases`` argument
+of the :func:`cythonize` function.
+
 Declare a var with the wrapped C++ class
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Now, we use cdef to declare a var of the class with the C++ ``new`` statement::
+Now, we use cdef to declare a var of the class with the C++ ``new`` statement:
 
-    rec_ptr = new Rectangle(1, 2, 3, 4)
-    try:
-        recArea = rec_ptr.getArea()
-        ...
-    finally:
-        del rec_ptr     # delete heap allocated object
+.. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/cython_usage.pyx
+
+The line::
+
+    # distutils: language = c++
+
+is to indicate to Cython that this ``.pyx`` file has to be compiled to C++.
 
 It's also possible to declare a stack allocated object, as long as it has
 a "default" constructor::
@@ -239,36 +144,16 @@ external Python code (which is our whole point).
 
 Common programming practice is to create a Cython extension type which
 holds a C++ instance as an attribute and create a bunch of
-forwarding methods. So we can implement the Python extension type as::
+forwarding methods. So we can implement the Python extension type as:
 
-    cdef class PyRectangle:
-        cdef Rectangle c_rect      # hold a C++ instance which we're wrapping
-        def __cinit__(self, int x0, int y0, int x1, int y1):
-            self.c_rect = Rectangle(x0, y0, x1, y1)
-        def get_area(self):
-            return self.c_rect.getArea()
-        def get_size(self):
-            cdef int width, height
-            self.c_rect.getSize(&width, &height)
-            return width, height
-        def move(self, dx, dy):
-            self.c_rect.move(dx, dy)
+.. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/rect.pyx
 
 And there we have it. From a Python perspective, this extension type will look
 and feel just like a natively defined Rectangle class.
-It should be noted that
+It should be noted that if you want to give
+attribute access, you could just implement some properties:
 
-If you want to give
-attribute access, you could just implement some properties::
-
-    @property
-    def x0(self):
-        return self.c_rect.x0
-
-    @x0.setter
-    def x0(self):
-        def __set__(self, x0): self.c_rect.x0 = x0
-    ...
+.. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/rect_with_attributes.pyx
 
 Cython initializes C++ class attributes of a cdef class using the nullary constructor.
 If the class you're wrapping does not have a nullary constructor, you must store a pointer
@@ -277,18 +162,30 @@ A convenient and safe place to do so is in the `__cinit__` and `__dealloc__` met
 which are guaranteed to be called exactly once upon creation and deletion of the Python
 instance.
 
-::
-
-    cdef class PyRectangle:
-        cdef Rectangle* c_rect      # hold a pointer to the C++ instance which we're wrapping
-        def __cinit__(self, int x0, int y0, int x1, int y1):
-            self.c_rect = new Rectangle(x0, y0, x1, y1)
-        def __dealloc__(self):
-            del self.c_rect
-        ...
+.. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/rect_ptr.pyx
 
 If you prefer giving the same name to the wrapper as the C++ class, see the
 section on :ref:`resolving naming conflicts <resolve-conflicts>`.
+
+Compilation and Importing
+=========================
+
+To compile a Cython module, it is necessary to have a :file:`setup.py` file:
+
+.. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/setup.py
+
+Run ``$ python setup.py build_ext --inplace``
+
+To test it, open the Python interpreter::
+
+    >>> import rect
+    >>> x0, y0, x1, y1 = 1, 2, 3, 4
+    >>> rect_obj = rect.PyRectangle(x0, y0, x1, y1)
+    >>> print(dir(rect_obj))
+    ['__class__', '__delattr__', '__dir__', '__doc__', '__eq__', '__format__', '__ge__',
+     '__getattribute__', '__gt__', '__hash__', '__init__', '__init_subclass__', '__le__',
+     '__lt__', '__ne__', '__new__', '__reduce__', '__reduce_ex__', '__repr__', '__setattr__',
+     '__setstate__', '__sizeof__', '__str__', '__subclasshook__', 'get_area', 'get_size', 'move']
 
 
 Advanced C++ features
@@ -378,7 +275,7 @@ Note that the nested class is declared with a ``cppclass`` but without a ``cdef`
 C++ operators not compatible with Python syntax
 ------------------------------------------------
 
-Cython try to keep a syntax as close as possible to standard Python.
+Cython tries to keep its syntax as close as possible to standard Python.
 Because of this, certain C++ operators, like the preincrement ``++foo``
 or the dereferencing operator ``*foo`` cannot be used with the same
 syntax as C++. Cython provides functions replacing these operators in
@@ -681,6 +578,79 @@ exception which is converted into a ``TypeError`` exception in Python.
 
 An additional C++11-only RTTI-related class, ``std::type_index``, is available
 in ``libcpp.typeindex``.
+
+
+Specify C++ language in setup.py
+================================
+
+Instead of specifying the language and the sources in the source files, it is
+possible to declare them in the :file:`setup.py` file::
+
+   from distutils.core import setup
+   from Cython.Build import cythonize
+
+   setup(ext_modules = cythonize(
+              "rect.pyx",                 # our Cython source
+              sources=["Rectangle.cpp"],  # additional source file(s)
+              language="c++",             # generate C++ code
+         ))
+
+Cython will generate and compile the :file:`rect.cpp` file (from
+:file:`rect.pyx`), then it will compile :file:`Rectangle.cpp`
+(implementation of the ``Rectangle`` class) and link both object files
+together into :file:`rect.so`, which you can then import in Python using
+``import rect`` (if you forget to link the :file:`Rectangle.o`, you will
+get missing symbols while importing the library in Python).
+
+Note that the ``language`` option has no effect on user provided Extension
+objects that are passed into ``cythonize()``.  It is only used for modules
+found by file name (as in the example above).
+
+The ``cythonize()`` function in Cython versions up to 0.21 does not
+recognize the ``language`` option and it needs to be specified as an
+option to an :class:`Extension` that describes your extension and that
+is then handled by ``cythonize()`` as follows::
+
+   from distutils.core import setup, Extension
+   from Cython.Build import cythonize
+
+   setup(ext_modules = cythonize(Extension(
+              "rect",                                # the extension name
+              sources=["rect.pyx", "Rectangle.cpp"], # the Cython source and
+                                                     # additional C++ source files
+              language="c++",                        # generate and compile C++ code
+         )))
+
+The options can also be passed directly from the source file, which is
+often preferable (and overrides any global option).  Starting with
+version 0.17, Cython also allows passing external source files into the
+``cythonize()`` command this way.  Here is a simplified setup.py file::
+
+   from distutils.core import setup
+   from Cython.Build import cythonize
+
+   setup(
+       name = "rectangleapp",
+       ext_modules = cythonize('*.pyx'),
+   )
+
+And in the .pyx source file, write this into the first comment block, before
+any source code, to compile it in C++ mode and link it statically against the
+:file:`Rectangle.cpp` code file::
+
+   # distutils: language = c++
+   # distutils: sources = Rectangle.cpp
+
+.. note::
+
+     When using distutils directives, the paths are relative to the working
+     directory of the distutils run (which is usually the
+     project root where the :file:`setup.py` resides).
+
+To compile manually (e.g. using ``make``), the ``cython`` command-line
+utility can be used to generate a C++ ``.cpp`` file, and then compile it
+into a python extension.  C++ mode for the ``cython`` command is turned
+on with the ``--cplus`` option.
 
 
 Caveats and Limitations
