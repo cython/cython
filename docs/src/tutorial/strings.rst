@@ -107,17 +107,21 @@ within a well defined context.
 Passing byte strings
 --------------------
 
+we have a dummy C functions declared in
+a file called :file:`c_func.pyx` that we are going to reuse throughout this tutorial:
+
+.. literalinclude:: ../../examples/tutorial/string/c_func.pyx
+
+We make a corresponding :file:`c_func.pxd` to be able to cimport those functions:
+
+.. literalinclude:: ../../examples/tutorial/string/c_func.pxd
+
 It is very easy to pass byte strings between C code and Python.
 When receiving a byte string from a C library, you can let Cython
 convert it into a Python byte string by simply assigning it to a
-Python variable::
+Python variable:
 
-    cdef char* c_string = c_call_returning_a_c_string()
-    cdef bytes py_string = c_string
-
-A type cast to :obj:`object` or :obj:`bytes` will do the same thing::
-
-    py_string = <bytes> c_string
+.. literalinclude:: ../../examples/tutorial/string/assignment.pyx
 
 This creates a Python byte string object that holds a copy of the
 original C string.  It can be safely passed around in Python code, and
@@ -133,15 +137,9 @@ C string first to find out the length by counting the bytes up to the
 terminating null byte.  In many cases, the user code will know the
 length already, e.g. because a C function returned it.  In this case,
 it is much more efficient to tell Cython the exact number of bytes by
-slicing the C string::
+slicing the C string. Here is an example:
 
-    cdef char* c_string = NULL
-    cdef Py_ssize_t length = 0
-
-    # get pointer and length from a C function
-    get_a_c_string(&c_string, &length)
-
-    py_bytes_string = c_string[:length]
+.. literalinclude:: ../../examples/tutorial/string/slicing_c_string.pyx
 
 Here, no additional byte counting is required and ``length`` bytes from
 the ``c_string`` will be copied into the Python bytes object, including
