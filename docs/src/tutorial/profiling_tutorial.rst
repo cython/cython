@@ -276,24 +276,9 @@ That bought us another 1.8 seconds. Not the dramatic change we could have
 expected. And why is recip_square still in this table; it is supposed to be
 inlined, isn't it?  The reason for this is that Cython still generates profiling code
 even if the function call is eliminated. Let's tell it to not
-profile recip_square any more; we couldn't get the function to be much faster anyway::
+profile recip_square any more; we couldn't get the function to be much faster anyway:
 
-   # encoding: utf-8
-   # cython: profile=True
-   # filename: calc_pi.pyx
-
-   cimport cython
-
-   @cython.profile(False)
-   cdef inline double recip_square(int i):
-       return 1./(i*i)
-
-   def approx_pi(int n=10000000):
-       cdef double val = 0.
-       cdef int k
-       for k in xrange(1,n+1):
-           val += recip_square(k)
-       return (6 * val)**.5
+.. literalinclude:: ../../examples/tutorial/profiling_tutorial/calc_pi_4.pyx
 
 Running this shows an interesting result:
 
