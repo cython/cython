@@ -52,6 +52,9 @@ Bugs fixed
 Other changes
 -------------
 
+* The documentation was restructured, cleaned up and examples are now tested.
+  Contributed by Gabriel de Marmiesse.  (Github issue #2245)
+
 
 0.28.4 (2018-??-??)
 ===================
