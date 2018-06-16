@@ -172,23 +172,11 @@ xrange makes the code run in 5.8 seconds.
 
 We could optimize a lot in the pure Python version, but since we are interested
 in Cython, let's move forward and bring this module to Cython. We would do this
-anyway at some time to get the loop run faster. Here is our first Cython version::
+anyway at some time to get the loop run faster. Here is our first Cython version:
 
-   # encoding: utf-8
-   # cython: profile=True
-   # filename: calc_pi.pyx
+.. literalinclude:: ../../examples/tutorial/profiling_tutorial/calc_pi_2.pyx
 
-   def recip_square(int i):
-       return 1./i**2
-
-   def approx_pi(int n=10000000):
-       cdef double val = 0.
-       cdef int k
-       for k in xrange(1,n+1):
-           val += recip_square(k)
-       return (6 * val)**.5
-
-Note the second line: We have to tell Cython that profiling should be enabled.
+Note the first line: We have to tell Cython that profiling should be enabled.
 This makes the Cython code slightly slower, but without this we would not get
 meaningful output from the cProfile module. The rest of the code is mostly
 unchanged, I only typed some variables which will likely speed things up a bit.
