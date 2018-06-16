@@ -1,4 +1,5 @@
 # cython: language_level = 2
+# cython: auto_pickle=False
 #
 #   Code output module
 #

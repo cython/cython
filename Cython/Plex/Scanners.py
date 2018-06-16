@@ -1,3 +1,4 @@
+# cython: auto_pickle=False
 #=======================================================================
 #
 #   Python Lexical Analyser
