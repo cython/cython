@@ -2,8 +2,8 @@
 # You can ignore the previous line.
 # It's for internal testing of the cython documentation.
 
-from __future__ import division
 import numpy as np
+
 # "cimport" is used to import special compile-time information
 # about the numpy module (this is stored in a file numpy.pxd which is
 # currently part of the Cython distribution).
@@ -13,10 +13,12 @@ cimport numpy as np
 # DTYPE for this, which is assigned to the usual NumPy runtime
 # type info object.
 DTYPE = np.int
+
 # "ctypedef" assigns a corresponding compile-time type to DTYPE_t. For
 # every type in the numpy module there's a corresponding compile-time
 # type with a _t-suffix.
 ctypedef np.int_t DTYPE_t
+
 # "def" can type its arguments but not have a return type. The type of the
 # arguments for a "def" function is checked at run-time when entering the
 # function.
@@ -29,6 +31,7 @@ def naive_convolve(np.ndarray f, np.ndarray g):
     if g.shape[0] % 2 != 1 or g.shape[1] % 2 != 1:
         raise ValueError("Only odd dimensions on filter supported")
     assert f.dtype == DTYPE and g.dtype == DTYPE
+
     # The "cdef" keyword is also used within functions to type variables. It
     # can only be used at the top indentation level (there are non-trivial
     # problems with allowing them in other places, though we'd love to see
@@ -48,10 +51,12 @@ def naive_convolve(np.ndarray f, np.ndarray g):
     cdef int ymax = wmax + 2 * tmid
     cdef np.ndarray h = np.zeros([xmax, ymax], dtype=DTYPE)
     cdef int x, y, s, t, v, w
+
     # It is very important to type ALL your variables. You do not get any
     # warnings if not, only much slower code (they are implicitly typed as
     # Python objects).
     cdef int s_from, s_to, t_from, t_to
+
     # For the value variable, we want to use the same data type as is
     # stored in the array, so we use "DTYPE_t" as defined above.
     # NB! An important side-effect of this is that if "value" overflows its
