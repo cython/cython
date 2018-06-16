@@ -213,21 +213,9 @@ so it would be wise to turn it into a cdef to reduce call overhead. We should
 also get rid of the power operator: it is turned into a pow(i,2) function call by
 Cython, but we could instead just write i*i which could be faster. The
 whole function is also a good candidate for inlining.  Let's look at the
-necessary changes for these ideas::
+necessary changes for these ideas:
 
-   # encoding: utf-8
-   # cython: profile=True
-   # filename: calc_pi.pyx
-
-   cdef inline double recip_square(int i):
-       return 1./(i*i)
-
-   def approx_pi(int n=10000000):
-       cdef double val = 0.
-       cdef int k
-       for k in xrange(1,n+1):
-           val += recip_square(k)
-       return (6 * val)**.5
+.. literalinclude:: ../../examples/tutorial/profiling_tutorial/calc_pi_3.pyx
 
 Now running the profile script yields:
 
