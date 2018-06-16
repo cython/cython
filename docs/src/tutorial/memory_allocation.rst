@@ -35,6 +35,15 @@ in cython from ``clibc.stdlib``. Their signatures are:
 A very simple example of malloc usage is the following:
 
 .. literalinclude:: ../../examples/tutorial/memory_allocation/malloc.pyx
+    :linenos:
+
+.. note::
+
+    Here we take Python doubles (with ``ran(0, 1)``) and convert
+    them to C doubles when putting them in ``my_array``. After that,
+    we put them back into a Python list at line 19. So those C doubles
+    are converted again into Python doubles. This is highly inefficient,
+    and only for demo purposes.
 
 Note that the C-API functions for allocating memory on the Python heap
 are generally preferred over the low-level C functions above as the

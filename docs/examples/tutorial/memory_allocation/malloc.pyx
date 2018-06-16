@@ -13,7 +13,7 @@ def random_noise(int number=1):
         for i in range(number):
             my_array[i] = ran(0, 1)
 
-        return [my_array[i] for i in range(number)]
+        return [x for x in my_array[:number]]
     finally:
         # return the previously allocated memory to the system
         free(my_array)
