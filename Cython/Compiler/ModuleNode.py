@@ -2144,17 +2144,23 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if env.is_c_class_scope and not env.pyfunc_entries:
             return
         binding = env.directives['binding']
+
         code.putln("")
+        wrapper_code_writer = code.insertion_point()
+
         code.putln(
             "static PyMethodDef %s[] = {" % (
                 env.method_table_cname))
         for entry in env.pyfunc_entries:
             if not entry.fused_cfunction and not (binding and entry.is_overridable):
-                code.put_pymethoddef(entry, ",")
+                code.put_pymethoddef(entry, ",", wrapper_code_writer=wrapper_code_writer)
         code.putln(
             "{0, 0, 0, 0}")
         code.putln(
             "};")
+
+        if wrapper_code_writer.getvalue():
+            wrapper_code_writer.putln("")
 
     def generate_dict_getter_function(self, scope, code):
         dict_attr = scope.lookup_here("__dict__")
