@@ -12,21 +12,9 @@ Introduction
 As well as creating normal user-defined classes with the Python class
 statement, Cython also lets you create new built-in Python types, known as
 extension types. You define an extension type using the :keyword:`cdef` class
-statement.  Here's an example::
+statement.  Here's an example:
 
-    from __future__ import print_function
-
-    cdef class Shrubbery:
-
-        cdef int width, height
-
-        def __init__(self, w, h):
-            self.width = w
-            self.height = h
-
-        def describe(self):
-            print("This shrubbery is", self.width,
-                  "by", self.height, "cubits.")
+.. literalinclude:: ../../examples/userguide/extension_types/shrubbery.pyx
 
 As you can see, a Cython extension type definition looks a lot like a Python
 class definition. Within it, you use the def statement to define methods that
