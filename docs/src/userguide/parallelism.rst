@@ -79,10 +79,10 @@ It currently supports OpenMP, but later on more backends might be supported.
        performance than when the same scheduling policy is statically
        configured at compile time.
 
-..  auto             The decision regarding scheduling is delegated to the
-..                   compiler and/or runtime system. The programmer gives
-..                   the implementation the freedom to choose any possible
-..                   mapping of iterations to threads in the team.
+    ..  auto             The decision regarding scheduling is delegated to the
+    ..                   compiler and/or runtime system. The programmer gives
+    ..                   the implementation the freedom to choose any possible
+    ..                   mapping of iterations to threads in the team.
 
     The default schedule is implementation defined. For more information consult
     the OpenMP specification [#]_.
@@ -97,17 +97,9 @@ It currently supports OpenMP, but later on more backends might be supported.
     may give substantially different performance results, depending on the schedule, the load balance it provides,
     the scheduling overhead and the amount of false sharing (if any).
 
-    Example with a reduction::
+    Example with a reduction:
 
-        from cython.parallel import prange
-
-        cdef int i
-        cdef int sum = 0
-
-        for i in prange(n, nogil=True):
-            sum += i
-
-        print sum
+    .. literalinclude:: ../../examples/userguide/parallelism/simple_sum.pyx
 
     Example with a typed memoryview (e.g. a NumPy array)::
 
