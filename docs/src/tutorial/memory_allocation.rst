@@ -32,27 +32,18 @@ in cython from ``clibc.stdlib``. Their signatures are:
     void* realloc(void* ptr, size_t size)
     void free(void* ptr)
 
-A very simple example of malloc usage is the following::
+A very simple example of malloc usage is the following:
 
-    import random
-    from libc.stdlib cimport malloc, free
+.. literalinclude:: ../../examples/tutorial/memory_allocation/malloc.pyx
+    :linenos:
 
-    def random_noise(int number=1):
-        cdef int i
-        # allocate number * sizeof(double) bytes of memory
-        cdef double *my_array = <double *>malloc(number * sizeof(double))
-        if not my_array:
-            raise MemoryError()
+.. note::
 
-        try:
-            ran = random.normalvariate
-            for i in range(number):
-                my_array[i] = ran(0,1)
-
-            return [ my_array[i] for i in range(number) ]
-        finally:
-            # return the previously allocated memory to the system
-            free(my_array)
+    Here we take Python doubles (with ``ran(0, 1)``) and convert
+    them to C doubles when putting them in ``my_array``. After that,
+    we put them back into a Python list at line 19. So those C doubles
+    are converted again into Python doubles. This is highly inefficient,
+    and only for demo purposes.
 
 Note that the C-API functions for allocating memory on the Python heap
 are generally preferred over the low-level C functions above as the
