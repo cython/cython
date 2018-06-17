@@ -16,21 +16,7 @@ The following Cython/C++ code implements a matrix of floats,
 where the number of columns is fixed at construction time
 but rows can be added dynamically.
 
-::
-
-    # matrix.pyx
-    from libcpp.vector cimport vector
-
-    cdef class Matrix:
-        cdef unsigned ncols
-        cdef vector[float] v
-
-        def __cinit__(self, unsigned ncols):
-            self.ncols = ncols
-
-        def add_row(self):
-            """Adds a row, initially zero-filled."""
-            self.v.extend(self.ncols)
+.. literalinclude:: ../../examples/userguide/buffer/matrix.pyx
 
 There are no methods to do anything productive with the matrices' contents.
 We could implement custom ``__getitem__``, ``__setitem__``, etc. for this,
@@ -57,7 +43,7 @@ which Cython handles specially.
 
         def add_row(self):
             """Adds a row, initially zero-filled."""
-            self.v.extend(self.ncols)
+            self.v.resize(self.v.size() + self.ncols)
 
         def __getbuffer__(self, Py_buffer *buffer, int flags):
             cdef Py_ssize_t itemsize = sizeof(self.v[0])
