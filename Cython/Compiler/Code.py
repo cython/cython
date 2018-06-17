@@ -439,6 +439,10 @@ class UtilityCodeBase(object):
     def get_tree(self, **kwargs):
         pass
 
+    def __deepcopy__(self, memodict=None):
+        # No need to deep-copy utility code since it's essentially immutable.
+        return self
+
 
 class UtilityCode(UtilityCodeBase):
     """
