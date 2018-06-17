@@ -2196,12 +2196,9 @@ class CCodeWriter(object):
                 method_flags += [method_coexist]
             func_ptr = entry.func_cname
             # Add required casts, but try not to shadow real warnings.
-            if 'METH_NOARGS' in method_flags:
-                cast = 'PyNoArgsFunction'
-            else:
-                cast = '__Pyx_PyCFunctionFast' if 'METH_FASTCALL' in method_flags else 'PyCFunction'
-                if 'METH_KEYWORDS' in method_flags:
-                    cast += 'WithKeywords'
+            cast = '__Pyx_PyCFunctionFast' if 'METH_FASTCALL' in method_flags else 'PyCFunction'
+            if 'METH_KEYWORDS' in method_flags:
+                cast += 'WithKeywords'
             if cast != 'PyCFunction':
                 func_ptr = '(void*)(%s)%s' % (cast, func_ptr)
             self.putln(
