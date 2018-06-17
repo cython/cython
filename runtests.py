@@ -867,7 +867,7 @@ class CythonCompileTestCase(unittest.TestCase):
 
     def split_source_and_output(self, test_directory, module, workdir):
         source_file = self.find_module_source_file(os.path.join(test_directory, module) + '.pyx')
-        source_and_output = io_open(source_file, 'rU', encoding='ISO-8859-1')
+        source_and_output = io_open(source_file, 'r', encoding='ISO-8859-1')
         error_writer = warnings_writer = None
         try:
             out = io_open(os.path.join(workdir, module + os.path.splitext(source_file)[1]),
