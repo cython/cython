@@ -1,6 +1,5 @@
 # queue.pyx
 
-from libc.stdint cimport intptr_t
 cimport cqueue
 
 cdef class Queue:
@@ -23,12 +22,12 @@ cdef class Queue:
         if self._c_queue is not NULL:
             cqueue.queue_free(self._c_queue)
 
-    cpdef append(self, intptr_t value):
+    cpdef append(self, int value):
         if not cqueue.queue_push_tail(self._c_queue,
                                       <void*> value):
             raise MemoryError()
 
-    cdef extend(self, intptr_t* values, size_t count):
+    cdef extend(self, int* values, size_t count):
         cdef size_t i
         for i in range(count):
             if not cqueue.queue_push_tail(
@@ -43,8 +42,8 @@ cdef class Queue:
         for value in values:
             self.append(value)
 
-    cpdef intptr_t peek(self) except? -1:
-        cdef intptr_t value = <intptr_t> cqueue.queue_peek_head(self._c_queue)
+    cpdef int peek(self) except? -1:
+        cdef int value = <Py_ssize_t> cqueue.queue_peek_head(self._c_queue)
 
         if value == 0:
             # this may mean that the queue is empty,
@@ -53,10 +52,10 @@ cdef class Queue:
                 raise IndexError("Queue is empty")
         return value
 
-    cpdef intptr_t pop(self) except? -1:
+    cpdef int pop(self) except? -1:
         if cqueue.queue_is_empty(self._c_queue):
             raise IndexError("Queue is empty")
-        return <intptr_t> cqueue.queue_pop_head(self._c_queue)
+        return <Py_ssize_t> cqueue.queue_pop_head(self._c_queue)
 
     def __bool__(self):
         return not cqueue.queue_is_empty(self._c_queue)
