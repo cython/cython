@@ -48,6 +48,7 @@ Bugs fixed
   (Github issue #2046)
 
 * Several internal function signatures were fixed that lead to warnings in gcc-8.
+  (Github issue #2363)
 
 Other changes
 -------------
