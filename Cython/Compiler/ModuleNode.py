@@ -295,7 +295,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     % (entry.name, cname, sig))
             with ModuleImportGenerator(h_code, imported_modules={env.qualified_name: 'module'}) as import_generator:
                 for entry in api_extension_types:
-                    self.generate_type_import_call(entry.type, h_code, "goto bad;", import_generator)
+                    self.generate_type_import_call(entry.type, h_code, import_generator, error_code="goto bad;")
             h_code.putln("Py_DECREF(module); module = 0;")
             h_code.putln("return 0;")
             h_code.putln("bad:")
@@ -2980,8 +2980,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # table pointer if any.
         if type in env.types_imported:
             return
-        env.use_utility_code(UtilityCode.load_cached("TypeImport", "ImportExport.c"))
-        self.generate_type_import_call(type, code, code.error_goto(pos), import_generator)
+        self.generate_type_import_call(type, code, import_generator, error_pos=pos)
         if type.vtabptr_cname:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached('GetVTable', 'ImportExport.c'))
@@ -2992,7 +2991,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.error_goto_if_null(type.vtabptr_cname, pos)))
         env.types_imported.add(type)
 
-    def generate_type_import_call(self, type, code, error_code, import_generator):
+    def generate_type_import_call(self, type, code, import_generator, error_code=None, error_pos=None):
         if type.typedef_flag:
             objstruct = type.objstruct_cname
         else:
@@ -3015,6 +3014,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # Some builtin types have a tp_basicsize which differs from sizeof(...):
                 sizeof_objstruct = Code.basicsize_builtins_map[objstruct]
 
+        if not error_code:
+            assert error_pos is not None
+            error_code = code.error_goto(error_pos)
+
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("TypeImport", "ImportExport.c"))
         module = import_generator.imported_module(module_name, error_code)
         code.put('%s = __Pyx_ImportType(%s, %s,' % (
             type.typeptr_cname,
