@@ -27,20 +27,21 @@ cdef class Queue:
                                       <void*> value):
             raise MemoryError()
 
-    cdef extend(self, int* values, size_t count):
+    # The `cpdef` feature is obviously not available for the `extend()`
+    # method, as the method signature is incompatible with Python argument
+    # types (Python doesn't have pointers). However, we can rename
+    # the C-ish `extend()` method to e.g. `extend_ints()`, and write
+    # a new `extend()` method instead that accepts an arbitrary Python iterable.
+    cpdef extend(self, values):
+        for value in values:
+            self.append(value)
+
+    cdef extend_ints(self, int* values, size_t count):
         cdef size_t i
         for i in range(count):
             if not cqueue.queue_push_tail(
                     self._c_queue, <void*> values[i]):
                 raise MemoryError()
-
-    # The `cpdef` feature is obviously not available for the `extend()`
-    # method, as the method signature is incompatible with Python argument
-    # types (Python doesn't have pointers). However, we can make a method
-    # called `extend_python` instead that accepts an arbitrary Python iterable.
-    cpdef extend_python(self, values):
-        for value in values:
-            self.append(value)
 
     cpdef int peek(self) except? -1:
         cdef int value = <Py_ssize_t> cqueue.queue_peek_head(self._c_queue)
