@@ -2980,6 +2980,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # table pointer if any.
         if type in env.types_imported:
             return
+        if type.name not in Code.ctypedef_builtins_map:
+            # see corresponding condition in generate_type_import_call() below!
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("TypeImport", "ImportExport.c"))
         self.generate_type_import_call(type, code, import_generator, error_pos=pos)
         if type.vtabptr_cname:
             code.globalstate.use_utility_code(
@@ -3018,8 +3022,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             assert error_pos is not None
             error_code = code.error_goto(error_pos)
 
-        code.globalstate.use_utility_code(
-            UtilityCode.load_cached("TypeImport", "ImportExport.c"))
         module = import_generator.imported_module(module_name, error_code)
         code.put('%s = __Pyx_ImportType(%s, %s,' % (
             type.typeptr_cname,
