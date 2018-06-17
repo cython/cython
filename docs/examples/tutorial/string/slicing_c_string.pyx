@@ -9,8 +9,7 @@ def main():
     # get pointer and length from a C function
     get_a_c_string(&c_string, &length)
 
-    py_bytes_string = c_string[:length]
-
-    free(c_string)
-    print(py_bytes_string)  # py_bytes_string is still available
-
+    try:
+        py_bytes_string = c_string[:length]  # Performs a copy of the data
+    finally:
+        free(c_string)
