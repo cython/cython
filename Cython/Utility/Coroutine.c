@@ -1458,6 +1458,12 @@ static CYTHON_INLINE PyObject *__Pyx__Coroutine_await(PyObject *coroutine) {
     return (PyObject*)await;
 }
 
+#if PY_VERSION_HEX < 0x030500B1
+static PyObject *__Pyx_Coroutine_await_method(PyObject *coroutine, CYTHON_UNUSED PyObject *arg) {
+    return __Pyx__Coroutine_await(coroutine);
+}
+#endif
+
 static PyObject *__Pyx_Coroutine_await(PyObject *coroutine) {
     if (unlikely(!coroutine || !__Pyx_Coroutine_Check(coroutine))) {
         PyErr_SetString(PyExc_TypeError, "invalid input, expected coroutine");
@@ -1495,7 +1501,7 @@ static PyMethodDef __pyx_Coroutine_methods[] = {
     {"close", (PyCFunction) __Pyx_Coroutine_Close_Method, METH_NOARGS,
      (char*) PyDoc_STR("close() -> raise GeneratorExit inside coroutine.")},
 #if PY_VERSION_HEX < 0x030500B1
-    {"__await__", (PyCFunction) __Pyx_Coroutine_await, METH_NOARGS,
+    {"__await__", (PyCFunction) __Pyx_Coroutine_await_method, METH_NOARGS,
      (char*) PyDoc_STR("__await__() -> return an iterator to be used in await expression.")},
 #endif
     {0, 0, 0, 0}
