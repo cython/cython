@@ -13,6 +13,10 @@ def random_noise(int number=1):
         for i in range(number):
             my_array[i] = ran(0, 1)
 
+        # ... let's just assume we do some more heavy C calculations here to make up
+        # for the work that it takes to pack the C double values into Python float
+        # objects below, right after throwing away the existing objects above.
+
         return [x for x in my_array[:number]]
     finally:
         # return the previously allocated memory to the system
