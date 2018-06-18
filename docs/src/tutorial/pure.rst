@@ -161,10 +161,7 @@ Static typing
   following example.  To avoid conflicts with other kinds of annotation
   usages, this can be disabled with the directive ``annotation_typing=False``.
 
-  ::
-
-    def func(a_pydict: dict, a_cint: cython.int) -> tuple:
-        ...
+  .. literalinclude:: ../../examples/tutorial/pure/annotations.py
 
   This can be combined with the ``@cython.exceptval()`` decorator for non-Python
   return types::
