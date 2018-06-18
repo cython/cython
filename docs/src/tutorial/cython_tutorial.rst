@@ -263,23 +263,9 @@ just like Python does. You can deactivate those checks by using the
 :ref:`compiler directives<compiler-directives>`.
 
 Now let's see if, even if we have division checks, we obtained a boost in speed.
-Let's write the same program, but Python-style::
+Let's write the same program, but Python-style:
 
-    def primes_python(nb_primes):
-        p = []
-        n = 2
-        while len(p) < nb_primes:
-            # Is n prime?
-            for i in p:
-                if n % i == 0:
-                    break
-
-            # If no break occurred in the loop
-            else:
-                p.append(n)
-            n += 1
-        return p
-
+.. literalinclude:: ../../examples/tutorial/cython_tutorial/primes_python.py
 
 It is also possible to take a plain ``.py`` file and to compile it with Cython.
 Let's take ``primes_python``, change the function name to ``primes_python_compiled`` and
