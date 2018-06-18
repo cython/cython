@@ -157,15 +157,9 @@ slice indices will lead to data corruption and crashes.
 Note that the creation of the Python bytes string can fail with an
 exception, e.g. due to insufficient memory.  If you need to
 :c:func:`free()` the string after the conversion, you should wrap
-the assignment in a try-finally construct::
+the assignment in a try-finally construct:
 
-    from libc.stdlib cimport free
-    cdef bytes py_string
-    cdef char* c_string = c_call_creating_a_new_c_string()
-    try:
-        py_string = c_string
-    finally:
-        free(c_string)
+.. literalinclude:: ../../examples/tutorial/string/try_finally.pyx
 
 To convert the byte string back into a C :c:type:`char*`, use the
 opposite assignment::
