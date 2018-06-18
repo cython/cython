@@ -140,12 +140,9 @@ Static typing
         e = cython.declare(cython.int, 5, visibility='readonly')
 
 * ``@cython.locals`` is a decorator that is used to specify the types of local
-  variables in the function body (including the arguments)::
+  variables in the function body (including the arguments):
 
-    @cython.locals(a=cython.double, b=cython.double, n=cython.p_double)
-    def foo(a, b, x, y):
-        n = a*b
-        ...
+  .. literalinclude:: ../../examples/tutorial/pure/locals.py
 
 * ``@cython.returns(<type>)`` specifies the function's return type.
 
