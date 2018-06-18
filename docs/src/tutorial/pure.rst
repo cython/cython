@@ -167,13 +167,9 @@ Static typing
         ...
 
   This can be combined with the ``@cython.exceptval()`` decorator for non-Python
-  return types::
+  return types:
 
-    @cython.exceptval(-1):
-    def func(x : cython.int) -> cython.int:
-        if x < 0:
-            raise ValueError("need integer >= 0")
-        return x+1
+  .. literalinclude:: ../../examples/tutorial/pure/exceptval.py
 
   Since version 0.27, Cython also supports the variable annotations defined
   in `PEP 526 <https://www.python.org/dev/peps/pep-0526/>`_. This allows to
