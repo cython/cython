@@ -363,20 +363,13 @@ With a Python byte string object, you would normally just call the
     ustring = byte_string.decode('UTF-8')
 
 Cython allows you to do the same for a C string, as long as it
-contains no null bytes::
+contains no null bytes:
 
-    cdef char* some_c_string = c_call_returning_a_c_string()
-    ustring = some_c_string.decode('UTF-8')
+.. literalinclude:: ../../examples/tutorial/string/naive_decode.pyx
 
-And, more efficiently, for strings where the length is known::
+And, more efficiently, for strings where the length is known:
 
-    cdef char* c_string = NULL
-    cdef Py_ssize_t length = 0
-
-    # get pointer and length from a C function
-    get_a_c_string(&c_string, &length)
-
-    ustring = c_string[:length].decode('UTF-8')
+.. literalinclude:: ../../examples/tutorial/string/decode.pyx
 
 The same should be used when the string contains null bytes, e.g. when
 it uses an encoding like UCS-4, where each character is encoded in four
