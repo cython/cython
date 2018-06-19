@@ -275,16 +275,9 @@ And should then be used like this::
 
 Similarly, if the further processing happens at the byte level, but Unicode
 string input should be accepted, then the following might work, if you are
-using memory views::
+using memory views:
 
-    # define a global name for whatever char type is used in the module
-    ctypedef unsigned char char_type
-
-    cdef char_type[:] _chars(s):
-        if isinstance(s, unicode):
-            # encode to the specific encoding used inside of the module
-            s = (<unicode>s).encode('utf8')
-        return s
+.. literalinclude:: ../../examples/tutorial/string/to_char.pyx
 
 In this case, you might want to additionally ensure that byte string
 input really uses the correct encoding, e.g. if you require pure ASCII
