@@ -353,13 +353,15 @@ example.
 
 So far, we can only add data to the queue.  The next step is to write
 the two methods to get the first element: ``peek()`` and ``pop()``,
-which provide read-only and destructive read access respectively::
+which provide read-only and destructive read access respectively.
+To avoid the compiler warning when casting ``void*`` to ``int`` directly,
+we use an intermediate data type big enough to hold a ``void*``. Here ``Py_ssize_t``::
 
     cdef int peek(self):
-        return <int>cqueue.queue_peek_head(self._c_queue)
+        return <Py_ssize_t>cqueue.queue_peek_head(self._c_queue)
 
     cdef int pop(self):
-        return <int>cqueue.queue_pop_head(self._c_queue)
+        return <Py_ssize_t>cqueue.queue_pop_head(self._c_queue)
 
 
 Handling errors
@@ -376,7 +378,7 @@ simply return ``0``.  To deal with this, we need to special case this
 value, and check if the queue really is empty or not::
 
     cdef int peek(self) except? -1:
-        value = <int>cqueue.queue_peek_head(self._c_queue)
+        cdef int value = <Py_ssize_t>cqueue.queue_peek_head(self._c_queue)
         if value == 0:
             # this may mean that the queue is empty, or
             # that it happens to contain a 0 value
@@ -428,7 +430,7 @@ removal.  Instead, we must test it on entry::
     cdef int pop(self) except? -1:
         if cqueue.queue_is_empty(self._c_queue):
             raise IndexError("Queue is empty")
-        return <int>cqueue.queue_pop_head(self._c_queue)
+        return <Py_ssize_t>cqueue.queue_pop_head(self._c_queue)
 
 The return value for exception propagation is declared exactly as for
 ``peek()``.
@@ -467,77 +469,9 @@ methods even when they are called from Cython. This adds a tiny overhead
 compared to ``cdef`` methods.
 
 The following listing shows the complete implementation that uses
-``cpdef`` methods where possible::
+``cpdef`` methods where possible:
 
-    cimport cqueue
-
-    cdef class Queue:
-        """A queue class for C integer values.
-
-        >>> q = Queue()
-        >>> q.append(5)
-        >>> q.peek()
-        5
-        >>> q.pop()
-        5
-        """
-        cdef cqueue.Queue* _c_queue
-        def __cinit__(self):
-            self._c_queue = cqueue.queue_new()
-            if self._c_queue is NULL:
-                raise MemoryError()
-
-        def __dealloc__(self):
-            if self._c_queue is not NULL:
-                cqueue.queue_free(self._c_queue)
-
-        cpdef append(self, int value):
-            if not cqueue.queue_push_tail(self._c_queue,
-                                          <void*>value):
-                raise MemoryError()
-
-        cdef extend(self, int* values, size_t count):
-            cdef size_t i
-            for i in xrange(count):
-                if not cqueue.queue_push_tail(
-                        self._c_queue, <void*>values[i]):
-                    raise MemoryError()
-
-        cpdef int peek(self) except? -1:
-            cdef int value = \
-                <int>cqueue.queue_peek_head(self._c_queue)
-            if value == 0:
-                # this may mean that the queue is empty,
-                # or that it happens to contain a 0 value
-                if cqueue.queue_is_empty(self._c_queue):
-                    raise IndexError("Queue is empty")
-            return value
-
-        cpdef int pop(self) except? -1:
-            if cqueue.queue_is_empty(self._c_queue):
-                raise IndexError("Queue is empty")
-            return <int>cqueue.queue_pop_head(self._c_queue)
-
-        def __bool__(self):
-            return not cqueue.queue_is_empty(self._c_queue)
-
-The ``cpdef`` feature is obviously not available for the ``extend()``
-method, as the method signature is incompatible with Python argument
-types.  However, if wanted, we can rename the C-ish ``extend()``
-method to e.g. ``c_extend()``, and write a new ``extend()`` method
-instead that accepts an arbitrary Python iterable::
-
-        cdef c_extend(self, int* values, size_t count):
-            cdef size_t i
-            for i in range(count):
-                if not cqueue.queue_push_tail(
-                        self._c_queue, <void*>values[i]):
-                    raise MemoryError()
-
-        cpdef extend(self, values):
-            for value in values:
-                self.append(value)
-
+.. literalinclude:: ../../examples/tutorial/clibraries/queue3.pyx
 
 Now we can test our Queue implementation using a python script,
 for example here :file:`test_queue.py`:
