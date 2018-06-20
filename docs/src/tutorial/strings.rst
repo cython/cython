@@ -202,13 +202,7 @@ of byte containers, e.g. :obj:`bytearray` objects or memory views.
 Depending on how (and where) the data is being processed, it may be a
 good idea to instead receive a 1-dimensional memory view, e.g.
 
-::
-
-    def process_byte_data(unsigned char[:] data):
-        length = data.shape[0]
-        first_byte = data[0]
-        slice_view = data[1:-1]
-        ...
+.. literalinclude:: ../../examples/tutorial/string/arg_memview.pyx
 
 Cython's memory views are described in more detail in
 :doc:`../userguide/memoryviews`, but the above example already shows
