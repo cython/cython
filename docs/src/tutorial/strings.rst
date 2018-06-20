@@ -308,32 +308,6 @@ follows:
 
 .. literalinclude:: ../../examples/tutorial/string/const.pyx
 
-Previous versions required users to make the necessary declarations
-at a textual level.  If you need to support older Cython versions,
-you can use the following approach.
-
-In general, for arguments of external C functions, the ``const``
-modifier does not matter and can be left out in the Cython
-declaration (e.g. in a .pxd file).  The C compiler will still do
-the right thing, even if you declare this to Cython:
-
-.. literalinclude:: ../../examples/tutorial/string/const_left_out.pyx
-
-However, in most other situations, such as for return values and
-variables that use specifically typedef-ed API types, it does matter
-and the C compiler will emit at least a warning if used incorrectly.
-To help with this, you can use the type definitions in the
-``libc.string`` module, e.g.:
-
-.. literalinclude:: ../../examples/tutorial/string/const_char.pyx
-
-Note: even if the API only uses ``const`` for function arguments,
-it is still preferable to properly declare them using these
-provided :c:type:`const_char` types in order to simplify adaptations.
-In Cython 0.18, these standard declarations have been changed to
-use the correct ``const`` modifier, so your code will automatically
-benefit from the new ``const`` support if it uses them.
-
 
 Decoding bytes to text
 ----------------------
