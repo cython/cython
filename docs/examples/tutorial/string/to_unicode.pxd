@@ -1,1 +1,1 @@
-cdef unicode _ustring(s)
+cdef unicode _text(s)

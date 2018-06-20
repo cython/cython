@@ -1,5 +1,5 @@
-from to_unicode cimport _ustring
+from to_unicode cimport _text
 
 def api_func(s):
-    text = _ustring(s)
+    text_input = _text(s)
     # ...
