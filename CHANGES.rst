@@ -34,6 +34,9 @@ Features added
   through the new `-E` option.
   Patch by Jerome Kieffer.  (Github issue #2315)
 
+* ``pyximport`` can import from namespace packages.
+  Patch by Prakhar Goel.  (Github issue #2294)
+
 Bugs fixed
 ----------
 
