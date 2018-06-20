@@ -278,20 +278,13 @@ Magic Attributes within the .pxd
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The special `cython` module can also be imported and used within the augmenting
-:file:`.pxd` file. For example, the following Python file :file:`dostuff.py`::
+:file:`.pxd` file. For example, the following Python file :file:`dostuff.py`:
 
-    def dostuff(n):
-        t = 0
-        for i in range(n):
-            t += i
-        return t
+.. literalinclude:: ../../examples/tutorial/pure/dostuff.py
 
-can be augmented with the following :file:`.pxd` file :file:`dostuff.pxd`::
+can be augmented with the following :file:`.pxd` file :file:`dostuff.pxd`:
 
-    import cython
-
-    @cython.locals(t = cython.int, i = cython.int)
-    cpdef int dostuff(int n)
+.. literalinclude:: ../../examples/tutorial/pure/dostuff.pxd
 
 The :func:`cython.declare()` function can be used to specify types for global
 variables in the augmenting :file:`.pxd` file.
