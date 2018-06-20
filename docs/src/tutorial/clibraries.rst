@@ -348,14 +348,14 @@ Adding an ``extend()`` method should now be straight forward::
                     self._c_queue, <void*>values[i]):
                 raise MemoryError()
 
-This becomes handy when reading values from a NumPy array, for
-example.
+This becomes handy when reading values from a C array, for example.
 
 So far, we can only add data to the queue.  The next step is to write
 the two methods to get the first element: ``peek()`` and ``pop()``,
 which provide read-only and destructive read access respectively.
-To avoid the compiler warning when casting ``void*`` to ``int`` directly,
-we use an intermediate data type big enough to hold a ``void*``. Here ``Py_ssize_t``::
+To avoid compiler warnings when casting ``void*`` to ``int`` directly,
+we use an intermediate data type that is big enough to hold a ``void*``.
+Here, ``Py_ssize_t``::
 
     cdef int peek(self):
         return <Py_ssize_t>cqueue.queue_peek_head(self._c_queue)
@@ -363,19 +363,26 @@ we use an intermediate data type big enough to hold a ``void*``. Here ``Py_ssize
     cdef int pop(self):
         return <Py_ssize_t>cqueue.queue_pop_head(self._c_queue)
 
+Normally, in C, we risk loosing data when we convert a larger integer type
+to a smaller integer type without checking the boundaries, and ``Py_ssize_t``
+may be a larger type than ``int``.  But since we control how values are added
+to the queue, we already know that all values that are in the queue fit into
+an ``int``, so the above conversion from ``void*`` to ``Py_ssize_t`` to ``int``
+(the return type) is safe by design.
+
 
 Handling errors
 ---------------
 
 Now, what happens when the queue is empty?  According to the
 documentation, the functions return a ``NULL`` pointer, which is
-typically not a valid value.  Since we are simply casting to and
+typically not a valid value.  But since we are simply casting to and
 from ints, we cannot distinguish anymore if the return value was
 ``NULL`` because the queue was empty or because the value stored in
-the queue was ``0``.  However, in Cython code, we would expect the
-first case to raise an exception, whereas the second case should
-simply return ``0``.  To deal with this, we need to special case this
-value, and check if the queue really is empty or not::
+the queue was ``0``.  In Cython code, we want the first case to
+raise an exception, whereas the second case should simply return
+``0``.  To deal with this, we need to special case this value,
+and check if the queue really is empty or not::
 
     cdef int peek(self) except? -1:
         cdef int value = <Py_ssize_t>cqueue.queue_peek_head(self._c_queue)
@@ -467,6 +474,19 @@ intermediate argument conversion from or to Python types. Note that ``cpdef``
 methods ensure that they can be appropriately overridden by Python
 methods even when they are called from Cython. This adds a tiny overhead
 compared to ``cdef`` methods.
+
+Now that we have both a C-interface and a Python interface for our
+class, we should make sure that both interfaces are consistent.
+Python users would expect an ``extend()`` method that accepts arbitrary
+iterables, whereas C users would like to have one that allows passing
+C arrays and C memory.  Both signatures are incompatible.
+
+We will solve this issue by considering that in C, the API could also
+want to support other input types, e.g. arrays of ``long`` or ``char``,
+which is usually supported with differently named C API functions such as
+``extend_ints()``, ``extend_longs()``, extend_chars()``, etc.  This allows
+us to free the method name ``extend()`` for the duck typed Python method,
+which can accept arbitrary iterables.
 
 The following listing shows the complete implementation that uses
 ``cpdef`` methods where possible:

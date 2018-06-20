@@ -27,11 +27,12 @@ cdef class Queue:
                                       <void*> value):
             raise MemoryError()
 
-    # The `cpdef` feature is obviously not available for the `extend()`
+    # The `cpdef` feature is obviously not available for the original "extend()"
     # method, as the method signature is incompatible with Python argument
-    # types (Python doesn't have pointers). However, we can rename
-    # the C-ish `extend()` method to e.g. `extend_ints()`, and write
-    # a new `extend()` method instead that accepts an arbitrary Python iterable.
+    # types (Python does not have pointers).  However, we can rename
+    # the C-ish "extend()" method to e.g. "extend_ints()", and write
+    # a new "extend()" method that provides a suitable Python interface by
+    # accepting an arbitrary Python iterable.
     cpdef extend(self, values):
         for value in values:
             self.append(value)
