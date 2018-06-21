@@ -668,13 +668,9 @@ Iteration
 Cython 0.13 supports efficient iteration over :c:type:`char*`,
 bytes and unicode strings, as long as the loop variable is
 appropriately typed. So the following will generate the expected
-C code::
+C code:
 
-    cdef char* c_string = ...
-
-    cdef char c
-    for c in c_string[:100]:
-        if c == 'A': ...
+.. literalinclude:: ../../examples/tutorial/string/for_char.pyx
 
 The same applies to bytes objects::
 
