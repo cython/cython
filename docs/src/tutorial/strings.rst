@@ -676,22 +676,14 @@ C code::
     for c in c_string[:100]:
         if c == 'A': ...
 
-The same applies to bytes objects::
+The same applies to bytes objects:
 
-    cdef bytes bytes_string = ...
-
-    cdef char c
-    for c in bytes_string:
-        if c == 'A': ...
+.. literalinclude:: ../../examples/tutorial/string/for_bytes.pyx
 
 For unicode objects, Cython will automatically infer the type of the
-loop variable as :c:type:`Py_UCS4`::
+loop variable as :c:type:`Py_UCS4`:
 
-    cdef unicode ustring = ...
-
-    # NOTE: no typing required for 'uchar' !
-    for uchar in ustring:
-        if uchar == u'A': ...
+.. literalinclude:: ../../examples/tutorial/string/for_unicode.pyx
 
 The automatic type inference usually leads to much more efficient code
 here.  However, note that some unicode operations still require the
@@ -704,11 +696,9 @@ loop to enforce one-time coercion before running Python operations on
 it.
 
 There are also optimisations for ``in`` tests, so that the following
-code will run in plain C code, (actually using a switch statement)::
+code will run in plain C code, (actually using a switch statement):
 
-    cdef Py_UCS4 uchar_val = get_a_unicode_character()
-    if uchar_val in u'abcABCxY':
-        ...
+.. literalinclude:: ../../examples/tutorial/string/if_char_in.pyx
 
 Combined with the looping optimisation above, this can result in very
 efficient character switching code, e.g. in unicode parsers.
