@@ -312,23 +312,9 @@ that are 'obviously' correct than to rely on the data to be as expected.
 It is common practice to wrap string conversions (and non-trivial type
 conversions in general) in dedicated functions, as this needs to be
 done in exactly the same way whenever receiving text from C.  This
-could look as follows::
+could look as follows:
 
-    from libc.stdlib cimport free
-
-    cdef unicode tounicode(char* s):
-        return s.decode('UTF-8', 'strict')
-
-    cdef unicode tounicode_with_length(
-            char* s, size_t length):
-        return s[:length].decode('UTF-8', 'strict')
-
-    cdef unicode tounicode_with_length_and_free(
-            char* s, size_t length):
-        try:
-            return s[:length].decode('UTF-8', 'strict')
-        finally:
-            free(s)
+.. literalinclude:: ../../examples/tutorial/string/utf_eight.pyx
 
 Most likely, you will prefer shorter function names in your code based
 on the kind of string being handled.  Different types of content often
