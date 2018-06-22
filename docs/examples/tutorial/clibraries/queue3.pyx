@@ -38,11 +38,9 @@ cdef class Queue:
             self.append(value)
 
     cdef extend_ints(self, int* values, size_t count):
-        cdef size_t i
-        for i in range(count):
-            if not cqueue.queue_push_tail(
-                    self._c_queue, <void*> values[i]):
-                raise MemoryError()
+        cdef int value
+        for value in values[:count]:  # Slicing pointer to limit the iteration boundaries.
+            self.append(value)
 
     cpdef int peek(self) except? -1:
         cdef int value = <Py_ssize_t> cqueue.queue_peek_head(self._c_queue)

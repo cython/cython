@@ -342,11 +342,9 @@ Adding an ``extend()`` method should now be straight forward::
     cdef extend(self, int* values, size_t count):
         """Append all ints to the queue.
         """
-        cdef size_t i
-        for i in range(count):
-            if not cqueue.queue_push_tail(
-                    self._c_queue, <void*>values[i]):
-                raise MemoryError()
+        cdef int value
+        for value in values[:count]:  # Slicing pointer to limit the iteration boundaries.
+            self.append(value)
 
 This becomes handy when reading values from a C array, for example.
 
