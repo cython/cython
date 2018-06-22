@@ -200,17 +200,9 @@ whether it will simply break or whether it will return 2.
 
 Using OpenMP Functions
 ======================
-OpenMP functions can be used by cimporting ``openmp``::
+OpenMP functions can be used by cimporting ``openmp``:
 
-    from cython.parallel cimport parallel
-    cimport openmp
-
-    cdef int num_threads
-
-    openmp.omp_set_dynamic(1)
-    with nogil, parallel():
-        num_threads = openmp.omp_get_num_threads()
-        ...
+.. literalinclude:: ../../examples/userguide/parallelism/cimport_openmp.pyx
 
 .. rubric:: References
 
