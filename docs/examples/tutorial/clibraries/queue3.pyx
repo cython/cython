@@ -39,7 +39,7 @@ cdef class Queue:
 
     cdef extend_ints(self, int* values, size_t count):
         cdef int value
-        for value in values[:count]:  # It is possible to slice pointers in Cython.
+        for value in values[:count]:  # Slicing pointer to limit the iteration boundaries.
             self.append(value)
 
     cpdef int peek(self) except? -1:

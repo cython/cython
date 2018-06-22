@@ -343,7 +343,7 @@ Adding an ``extend()`` method should now be straight forward::
         """Append all ints to the queue.
         """
         cdef int value
-        for value in values[:count]:  # It is possible to slice pointers in Cython.
+        for value in values[:count]:  # Slicing pointer to limit the iteration boundaries.
             self.append(value)
 
 This becomes handy when reading values from a C array, for example.
