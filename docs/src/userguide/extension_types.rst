@@ -48,11 +48,9 @@ first method, but Cython code can use either method.
 By default, extension type attributes are only accessible by direct access,
 not Python access, which means that they are not accessible from Python code.
 To make them accessible from Python code, you need to declare them as
-:keyword:`public` or :keyword:`readonly`. For example::
+:keyword:`public` or :keyword:`readonly`. For example:
 
-    cdef class Shrubbery:
-        cdef public int width, height
-        cdef readonly float depth
+.. literalinclude:: ../../examples/userguide/extension_types/python_access.pyx
 
 makes the width and height attributes readable and writable from Python code,
 and the depth attribute readable but not writable.
