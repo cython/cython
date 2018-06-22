@@ -119,29 +119,7 @@ This is where ``__releasebuffer__`` comes in.
 We can add a reference count to each matrix,
 and lock it for mutation whenever a view exists.
 
-::
-
-    cdef class Matrix:
-        # ...
-        cdef int view_count
-
-        def __cinit__(self, Py_ssize_t ncols):
-            self.ncols = ncols
-            self.view_count = 0
-
-        def add_row(self):
-            if self.view_count > 0:
-                raise ValueError("can't add row while being viewed")
-            self.v.resize(self.v.size() + self.ncols)
-
-        def __getbuffer__(self, Py_buffer *buffer, int flags):
-            # ... as before
-
-            self.view_count += 1
-
-        def __releasebuffer__(self, Py_buffer *buffer):
-            self.view_count -= 1
-
+.. literalinclude:: ../../examples/userguide/buffer/view_count.pyx
 
 Flags
 -----
