@@ -191,21 +191,9 @@ exiting procedure is best-effort. For prange() this means that the loop
 body is skipped after the first break, return or exception for any subsequent
 iteration in any thread. It is undefined which value shall be returned if
 multiple different values may be returned, as the iterations are in no
-particular order::
+particular order:
 
-    from cython.parallel import prange
-
-    cdef int func(Py_ssize_t n):
-        cdef Py_ssize_t i
-
-        for i in prange(n, nogil=True):
-            if i == 8:
-                with gil:
-                    raise Exception()
-            elif i == 4:
-                break
-            elif i == 2:
-                return i
+.. literalinclude:: ../../examples/userguide/parallelism/breaking_loop.pyx
 
 In the example above it is undefined whether an exception shall be raised,
 whether it will simply break or whether it will return 2.
