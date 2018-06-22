@@ -216,15 +216,9 @@ when only a small slice is returned.  Since memoryviews do not copy the
 data, they would otherwise keep the entire original buffer alive.  The
 general idea here is to be liberal with input by accepting any kind of
 byte buffer, but strict with output by returning a simple, well adapted
-object.  This can simply be done as follows::
+object.  This can simply be done as follows:
 
-    def process_byte_data(unsigned char[:] data):
-        # ... process the data
-        if return_all:
-            return bytes(data)
-        else:
-            # example for returning a slice
-            return bytes(data[5:35])
+.. literalinclude:: ../../examples/tutorial/string/return_memview.pyx
 
 If the byte input is actually encoded text, and the further processing
 should happen at the Unicode level, then the right thing to do is to
