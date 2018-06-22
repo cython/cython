@@ -387,36 +387,17 @@ text, automatic encoding and decoding from and to Python unicode
 objects can reduce the code overhead a little.  In this case, you
 can set the ``c_string_type`` directive in your module to :obj:`unicode`
 and the ``c_string_encoding`` to the encoding that your C code uses,
-for example::
+for example:
 
-    # cython: c_string_type=unicode, c_string_encoding=utf8
-
-    cdef char* c_string = 'abcdefg'
-
-    # implicit decoding:
-    cdef object py_unicode_object = c_string
-
-    # explicit conversion to Python bytes:
-    py_bytes_object = <bytes>c_string
+.. literalinclude:: ../../examples/tutorial/string/auto_conversion_1.pyx
 
 The second use case is when all C strings that are being processed
 only contain ASCII encodable characters (e.g. numbers) and you want
 your code to use the native legacy string type in Python 2 for them,
 instead of always using Unicode. In this case, you can set the
-string type to :obj:`str`::
+string type to :obj:`str`:
 
-    # cython: c_string_type=str, c_string_encoding=ascii
-
-    cdef char* c_string = 'abcdefg'
-
-    # implicit decoding in Py3, bytes conversion in Py2:
-    cdef object py_str_object = c_string
-
-    # explicit conversion to Python bytes:
-    py_bytes_object = <bytes>c_string
-
-    # explicit conversion to Python unicode:
-    py_bytes_object = <unicode>c_string
+.. literalinclude:: ../../examples/tutorial/string/auto_conversion_2.pyx
 
 The other direction, i.e. automatic encoding to C strings, is only
 supported for ASCII and the "default encoding", which is usually UTF-8
@@ -427,14 +408,9 @@ way to limit the lifetime of the encoded string in any sensible way,
 thus rendering any attempt to extract a C string pointer from it a
 dangerous endeavour.  The following safely converts a Unicode string to
 ASCII (change ``c_string_encoding`` to ``default`` to use the default
-encoding instead)::
+encoding instead):
 
-    # cython: c_string_type=unicode, c_string_encoding=ascii
-
-    def func():
-        ustring = u'abc'
-        cdef char* s = ustring
-        return s[0]    # returns u'a'
+.. literalinclude:: ../../examples/tutorial/string/auto_conversion_3.pyx
 
 (This example uses a function context in order to safely control the
 lifetime of the Unicode string.  Global Python variables can be
