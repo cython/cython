@@ -78,36 +78,13 @@ It is not possible to add attributes to an extension type at runtime by default.
 You have two ways of avoiding this limitation, both add an overhead when
 a method is called from Python code. Especially when calling ``cpdef`` methods.
 
-The first approach is to create a Python subclass.::
+The first approach is to create a Python subclass.:
 
-    cdef class Animal:
+.. literalinclude:: ../../examples/userguide/extension_types/extendable_animal.pyx
 
-        cdef int number_of_legs
-        def __cinit__(self, int number_of_legs):
-            self.number_of_legs = number_of_legs
+Declaring a ``__dict__`` attribute is the second way of enabling dynamic attributes.:
 
-
-    class ExtendableAnimal(Animal):  # Note that we use class, not cdef class
-        pass
-
-
-    dog = ExtendableAnimal(4)
-    dog.has_tail = True
-
-
-Declaring a ``__dict__`` attribute is the second way of enabling dynamic attributes.::
-
-    cdef class Animal:
-
-        cdef int number_of_legs
-        cdef dict __dict__
-        def __cinit__(self, int number_of_legs):
-            self.number_of_legs = number_of_legs
-
-
-    dog = Animal(4)
-    dog.has_tail = True
-
+.. literalinclude:: ../../examples/userguide/extension_types/dict_animal.pyx
 
 Type declarations
 ===================
