@@ -363,12 +363,9 @@ the Unicode string into a temporarily created Python bytes object
 and then copies its buffer into a new C++ string.
 
 For the other direction, efficient decoding support is available
-in Cython 0.17 and later::
+in Cython 0.17 and later:
 
-    cdef string s = string(b'abcdefg')
-
-    ustring1 = s.decode('UTF-8')
-    ustring2 = s[2:-2].decode('UTF-8')
+.. literalinclude:: ../../examples/tutorial/string/decode_cpp_string.pyx
 
 For C++ strings, decoding slices will always take the proper length
 of the string into account and apply Python slicing semantics (e.g.
