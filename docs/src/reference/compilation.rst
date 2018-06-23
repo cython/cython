@@ -462,6 +462,7 @@ C-compiling the module C files.
 Also take a look at the `cython_freeze
 <https://github.com/cython/cython/blob/master/bin/cython_freeze>`_ tool.
 
+.. _pyximport:
 
 Compiling with :mod:`pyximport`
 ===============================
