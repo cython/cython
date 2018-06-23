@@ -185,6 +185,8 @@ method called :meth:`__next__`, not next. The Python system will automatically
 supply a next method which calls your :meth:`__next__`. Do *NOT* explicitly
 give your type a :meth:`next` method, or bad things could happen.
 
+.. _special_methods_table:
+
 Special Method Table
 ---------------------
 
