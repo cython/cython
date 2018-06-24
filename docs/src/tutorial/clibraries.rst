@@ -30,7 +30,7 @@ type that can encapsulate all memory management.
 Defining external declarations
 ==============================
 
-You can download CAlg `here <https://github.com/fragglet/c-algorithms/archive/master.zip>`_.
+You can download CAlg `here <https://codeload.github.com/fragglet/c-algorithms/zip/master>`_.
 
 The C API of the queue implementation, which is defined in the header
 file ``c-algorithms/src/queue.h``, essentially looks like this:

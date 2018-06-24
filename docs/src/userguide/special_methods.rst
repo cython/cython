@@ -90,7 +90,7 @@ complaining about the signature mismatch.
 
     See :ref:`existing-pointers-instantiation` for an example.
 
-.. [#] http://docs.python.org/reference/datamodel.html#object.__new__
+.. [#] https://docs.python.org/3/reference/datamodel.html#object.__new__
 
 .. _finalization_method:
 

@@ -105,7 +105,7 @@ Cython modules just with simple import statements, even like this:
 Note that it is not recommended to let :mod:`pyximport` build code
 on end user side as it hooks into their import system.  The best way
 to cater for end users is to provide pre-built binary packages in the
-`wheel <https://wheel.readthedocs.io/>`_ packaging format.
+`wheel <https://wheel.readthedocs.io/en/stable/>`_ packaging format.
 
 Arguments
 ---------
