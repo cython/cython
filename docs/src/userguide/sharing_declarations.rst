@@ -80,28 +80,13 @@ Here is an example. :file:`dishes.pxd` is a definition file which exports a
 C data type. :file:`restaurant.pyx` is an implementation file which imports and
 uses it.
 
-:file:`dishes.pxd`::
+:file:`dishes.pxd`:
 
-   cdef enum otherstuff:
-       sausage, eggs, lettuce
+.. literalinclude:: ../../examples/userguide/sharing_declarations/dishes.pxd
 
-   cdef struct spamdish:
-       int oz_of_spam
-       otherstuff filler
+:file:`restaurant.pyx`:
 
-:file:`restaurant.pyx`::
-
-    cimport dishes
-    from dishes cimport spamdish
-
-    cdef void prepare(spamdish *d):
-        d.oz_of_spam = 42
-        d.filler = dishes.sausage
-
-    def serve():
-        cdef spamdish d
-        prepare(&d)
-        print("%d oz spam, filler no. %d" % (d.oz_of_spam, d.filler))
+.. literalinclude:: ../../examples/userguide/sharing_declarations/restaurant.pyx
 
 It is important to understand that the :keyword:`cimport` statement can only
 be used to import C data types, C functions and variables, and extension
@@ -173,28 +158,17 @@ C functions defined at the top level of a module can be made available via
 :keyword:`cimport` by putting headers for them in the ``.pxd`` file, for
 example:
 
-:file:`volume.pxd`::
+:file:`volume.pxd`:
 
-    cdef float cube(float)
+.. literalinclude:: ../../examples/userguide/sharing_declarations/volume.pxd
 
-:file:`volume.pyx`::
+:file:`volume.pyx`:
 
-    cdef float cube(float x):
-        return x * x * x
+.. literalinclude:: ../../examples/userguide/sharing_declarations/volume.pyx
 
-:file:`spammery.pyx`::
+:file:`spammery.pyx`:
 
-    from __future__ import print_function
-
-    from volume cimport cube
-
-    def menu(description, size):
-        print(description, ":", cube(size),
-              "cubic metres of spam")
-
-    menu("Entree", 1)
-    menu("Main course", 3)
-    menu("Dessert", 2)
+.. literalinclude:: ../../examples/userguide/sharing_declarations/spammery.pyx
 
 .. note::
 
