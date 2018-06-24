@@ -458,32 +458,12 @@ contains the api call which is generating the segmentation fault does not call
 the :func:`import_modulename` function before the api call which crashes.
 
 Any public C type or extension type declarations in the Cython module are also
-made available when you include :file:`modulename_api.h`.::
+made available when you include :file:`modulename_api.h`.:
 
-    # delorean.pyx
-    cdef public struct Vehicle:
-        int speed
-        float power
+.. literalinclude:: ../../examples/userguide/external_C_code/delorean.pyx
 
-    cdef api void activate(Vehicle *v):
-        if v.speed >= 88 and v.power >= 1.21:
-            print("Time travel achieved")
-
-.. sourcecode:: c
-
-    # marty.c
-    #include "delorean_api.h"
-
-    Vehicle car;
-
-    int main(int argc, char *argv[]) {
-        Py_Initialize();
-        import_delorean();
-        car.speed = atoi(argv[1]);
-        car.power = atof(argv[2]);
-        activate(&car);
-        Py_Finalize();
-    }
+.. literalinclude:: ../../examples/userguide/external_C_code/marty.c
+    :language: C
 
 .. note::
 
