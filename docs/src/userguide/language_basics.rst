@@ -311,35 +311,15 @@ To avoid repetition (and potential future inconsistencies), default argument val
 not visible in the declaration (in ``.pxd`` files) but only in
 the implementation (in ``.pyx`` files).
 
-When in a ``.pyx`` file, the signature is the same as it is in Python itself::
+When in a ``.pyx`` file, the signature is the same as it is in Python itself:
 
-    from __future__ import print_function
-
-    cdef class A:
-        cdef foo(self):
-            print("A")
-
-    cdef class B(A):
-        cdef foo(self, x=None):
-            print("B", x)
-            
-    cdef class C(B):
-        cpdef foo(self, x=True, int k=3):
-            print("C", x, k)
-
+.. literalinclude:: ../../examples/userguide/language_basics/optional_subclassing.pyx
 
 When in a ``.pxd`` file, the signature is different like this example: ``cdef foo(x=*)``.
 This is because the program calling the function just needs to know what signatures are
-possible in C, but doesn't need to know the value of the default arguments.::
+possible in C, but doesn't need to know the value of the default arguments.:
 
-    cdef class A:
-        cdef foo(self)
-    cdef class B(A):
-        cdef foo(self, x=*)
-    cdef class C(B):
-        cpdef foo(self, x=*, int k=*)
-
-
+.. literalinclude:: ../../examples/userguide/language_basics/optional_subclassing.pxd
 
 .. note::
     The number of arguments may increase when subclassing,
@@ -492,21 +472,9 @@ Overriding in extension types
 -----------------------------
 
 
-``cpdef`` methods can override ``cdef`` methods::
+``cpdef`` methods can override ``cdef`` methods:
 
-    from __future__ import print_function
-
-    cdef class A:
-        cdef foo(self):
-            print("A")
-
-    cdef class B(A):
-        cdef foo(self, x=None):
-            print("B", x)
-
-    cdef class C(B):
-        cpdef foo(self, x=True, int k=3):
-            print("C", x, k)
+.. literalinclude:: ../../examples/userguide/language_basics/optional_subclassing.pyx
 
 When subclassing an extension type with a Python class,
 ``def`` methods can override ``cpdef`` methods but not ``cdef``
