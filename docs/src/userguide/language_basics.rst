@@ -355,13 +355,9 @@ Keyword-only Arguments
 ----------------------
 
 As in Python 3, ``def`` functions can have keyword-only arguments
-listed after a ``"*"`` parameter and before a ``"**"`` parameter if any::
+listed after a ``"*"`` parameter and before a ``"**"`` parameter if any:
 
-    def f(a, b, *args, c, d = 42, e, **kwds):
-        ...
-
-    # We cannot call f with less verbosity than this.
-    foo = f(4, "bar", c=68, e=1.0)
+.. literalinclude:: ../../examples/userguide/language_basics/kwargs_1.pyx
 
 As shown above, the ``c``, ``d`` and ``e`` arguments can not be
 passed as positional arguments and must be passed as keyword arguments.
@@ -369,16 +365,12 @@ Furthermore, ``c`` and ``e`` are **required** keyword arguments
 since they do not have a default value.
 
 A single ``"*"`` without argument name can be used to
-terminate the list of positional arguments::
+terminate the list of positional arguments:
 
-    def g(a, b, *, c, d):
-        ...
-
-    # We cannot call g with less verbosity than this.
-    foo = g(4.0, "something", c=68, d="other")
+.. literalinclude:: ../../examples/userguide/language_basics/kwargs_2.pyx
 
 Shown above, the signature takes exactly two positional
-parameters and has two required keyword parameters
+parameters and has two required keyword parameters.
 
 Function Pointers
 -----------------
