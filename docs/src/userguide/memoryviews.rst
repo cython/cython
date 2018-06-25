@@ -171,8 +171,10 @@ As for NumPy, new axes can be introduced by indexing an array with ``None`` ::
     # 2D array with shape (50, 1)
     myslice[:, None]
 
+    # 3D array with shape (1, 10, 1)
+    myslice[None, 10:-20:2, None]
+
 One may mix new axis indexing with all other forms of indexing and slicing.
-See also an example_.
 
 Read-only views
 ---------------
