@@ -179,20 +179,9 @@ Grouping multiple C declarations
 --------------------------------
 
 If you have a series of declarations that all begin with :keyword:`cdef`, you
-can group them into a :keyword:`cdef` block like this::
+can group them into a :keyword:`cdef` block like this:
 
-    from __future__ import print_function
-
-    cdef:
-        struct Spam:
-            int tons
-
-        int i
-        float a
-        Spam *p
-
-        void f(Spam *s):
-            print(s.tons, "Tons of spam")
+.. literalinclude:: ../../examples/userguide/language_basics/cdef_block.pyx
 
 .. _cpdef:
 .. _cdef:
