@@ -186,6 +186,11 @@ support read-only buffers as input::
     a.setflags(write=False)
     myslice = a
 
+Using a non-const memoryview with a binary Python string produces a runtime error.
+You can solve this issue with a ``const`` memoryview:
+
+.. literalinclude:: ../../examples/userguide/memoryviews/view_string.pyx
+
 Note that this does not *require* the input buffer to be read-only::
 
     a = np.linspace(0, 10, num=50)
