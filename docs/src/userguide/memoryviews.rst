@@ -125,17 +125,9 @@ means you get consecutive slices for every unspecified dimension::
 Copying
 -------
 
-Memory views can be copied in place::
+Memory views can be copied in place:
 
-    cdef int[:, :, :] to_view, from_view
-    ...
-
-    # copy the elements in from_view to to_view
-    to_view[...] = from_view
-    # or
-    to_view[:] = from_view
-    # or
-    to_view[:, :, :] = from_view
+.. literalinclude:: ../../examples/userguide/memoryviews/copy.pyx
 
 They can also be copied with the ``copy()`` and ``copy_fortran()`` methods; see
 :ref:`view_copy_c_fortran`.
