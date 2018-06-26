@@ -146,10 +146,9 @@ Transposing
 -----------
 
 In most cases (see below), the memoryview can be transposed in the same way that
-NumPy slices can be transposed::
+NumPy slices can be transposed:
 
-    cdef int[:, ::1] c_contig = ...
-    cdef int[::1, :] f_contig = c_contig.T
+.. literalinclude:: ../../examples/userguide/memoryviews/transpose.pyx
 
 This gives a new, transposed, view on the data.
 
