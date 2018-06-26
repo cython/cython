@@ -70,6 +70,9 @@ Bugs fixed
   generated an invalid C function call to the (non-existent) base type implementation.
   (Github issue #2309)
 
+* Exception catching based on a non-literal (runtime) tuple could fail to match the
+  exception.  (Github issue #2425)
+
 
 0.28.3 (2018-05-27)
 ===================
