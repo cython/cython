@@ -1,9 +1,8 @@
 from __future__ import print_function
-cimport cython
 
 ctypedef fused char_or_float:
-    cython.char
-    cython.float
+    char
+    float
 
 
 cpdef char_or_float plus_one(char_or_float var):
@@ -12,7 +11,7 @@ cpdef char_or_float plus_one(char_or_float var):
 
 def show_me():
     cdef:
-        cython.char a = 127
-        cython.float b = 127
+        char a = 127
+        float b = 127
     print('char', plus_one(a))
     print('float', plus_one(b))
