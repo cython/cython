@@ -178,13 +178,9 @@ Read-only views
 ---------------
 
 Since Cython 0.28, the memoryview item type can be declared as ``const`` to
-support read-only buffers as input::
+support read-only buffers as input:
 
-    cdef const double[:] myslice   # const item type => read-only view
-
-    a = np.linspace(0, 10, num=50)
-    a.setflags(write=False)
-    myslice = a
+.. literalinclude:: ../../examples/userguide/memoryviews/np_flag_const.pyx
 
 Note that this does not *require* the input buffer to be read-only::
 
