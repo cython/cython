@@ -780,7 +780,11 @@ static int __Pyx_PyErr_GivenExceptionMatchesTuple(PyObject *exc_type, PyObject *
         #if PY_MAJOR_VERSION < 3
         if (likely(exc_type == t)) return 1;
         #endif
-        if (__Pyx_inner_PyErr_GivenExceptionMatches2(exc_type, NULL, t)) return 1;
+        if (likely(PyExceptionClass_Check(t))) {
+            if (__Pyx_inner_PyErr_GivenExceptionMatches2(exc_type, NULL, t)) return 1;
+        } else {
+            // FIXME: Py3: PyErr_SetString(PyExc_TypeError, "catching classes that do not inherit from BaseException is not allowed");
+        }
     }
     return 0;
 }
@@ -788,15 +792,19 @@ static int __Pyx_PyErr_GivenExceptionMatchesTuple(PyObject *exc_type, PyObject *
 static CYTHON_INLINE int __Pyx_PyErr_GivenExceptionMatches(PyObject *err, PyObject* exc_type) {
     if (likely(err == exc_type)) return 1;
     if (likely(PyExceptionClass_Check(err))) {
-        if (unlikely(PyTuple_Check(exc_type))) {
+        if (likely(PyExceptionClass_Check(exc_type))) {
+            return __Pyx_inner_PyErr_GivenExceptionMatches2(err, NULL, exc_type);
+        } else if (likely(PyTuple_Check(exc_type))) {
             return __Pyx_PyErr_GivenExceptionMatchesTuple(err, exc_type);
+        } else {
+            // FIXME: Py3: PyErr_SetString(PyExc_TypeError, "catching classes that do not inherit from BaseException is not allowed");
         }
-        return __Pyx_inner_PyErr_GivenExceptionMatches2(err, NULL, exc_type);
     }
     return PyErr_GivenExceptionMatches(err, exc_type);
 }
 
 static CYTHON_INLINE int __Pyx_PyErr_GivenExceptionMatches2(PyObject *err, PyObject *exc_type1, PyObject *exc_type2) {
+    // Only used internally with known exception types => pure safety check assertions.
     assert(PyExceptionClass_Check(exc_type1));
     assert(PyExceptionClass_Check(exc_type2));
     if (likely(err == exc_type1 || err == exc_type2)) return 1;
