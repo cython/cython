@@ -112,14 +112,9 @@ adds 1 to each item::
 Indexing and slicing can be done with or without the GIL.  It basically works
 like NumPy.  If indices are specified for every dimension you will get an element
 of the base type (e.g. `int`).  Otherwise, you will get a new view.  An Ellipsis
-means you get consecutive slices for every unspecified dimension::
+means you get consecutive slices for every unspecified dimension:
 
-    cdef int[:, :, :] my_view = exporting_object
-
-    # These are all equivalent
-    my_view[10]
-    my_view[10, :, :]
-    my_view[10, ...]
+.. literalinclude:: ../../examples/userguide/memoryviews/slicing.pyx
 
 
 Copying
