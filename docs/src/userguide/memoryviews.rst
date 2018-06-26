@@ -102,12 +102,9 @@ dimension::
    print(buf[-1,-2])
 
 The following function loops over each dimension of a 2D array and
-adds 1 to each item::
+adds 1 to each item:
 
-   def add_one(int[:,:] buf):
-       for x in xrange(buf.shape[0]):
-           for y in xrange(buf.shape[1]):
-               buf[x,y] += 1
+.. literalinclude:: ../../examples/userguide/memoryviews/add_one.pyx
 
 Indexing and slicing can be done with or without the GIL.  It basically works
 like NumPy.  If indices are specified for every dimension you will get an element
