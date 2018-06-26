@@ -164,7 +164,7 @@ the assignment in a try-finally construct:
 To convert the byte string back into a C :c:type:`char*`, use the
 opposite assignment::
 
-    cdef char* other_c_string = py_string
+    cdef char* other_c_string = py_string  # other_c_string is a 0-terminated string.
 
 This is a very fast operation after which ``other_c_string`` points to
 the byte string buffer of the Python string itself.  It is tied to the
