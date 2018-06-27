@@ -104,7 +104,13 @@ the necessary include files, e.g. for NumPy::
 
     include_path = [numpy.get_include()]
 
-Note for Numpy users.  Despite this, you will still get warnings like the
+.. note::
+
+    Using memoryviews or importing NumPy with ``import numpy`` does not mean that
+    you have to add the path to NumPy include files. You need to add this path only
+    if you use ``cimport numpy``.
+
+Despite this, you will still get warnings like the
 following from the compiler, because Cython is using a deprecated Numpy API::
 
    .../include/numpy/npy_1_7_deprecated_api.h:15:2: warning: #warning "Using deprecated NumPy API, disable it by " "#defining NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION" [-Wcpp]
