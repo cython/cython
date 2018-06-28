@@ -339,13 +339,9 @@ a typedef for its template parameters it is preferable to use that name here.
 
 
 Template functions are defined similarly to class templates, with
-the template parameter list following the function name::
+the template parameter list following the function name:
 
-    cdef extern from "<algorithm>" namespace "std":
-        T max[T](T a, T b)
-
-    print(max[long](3, 4))
-    print(max(1.5, 2.5))  # simple template argument deduction
+.. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/function_template.pyx
 
 
 Standard library
