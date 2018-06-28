@@ -252,23 +252,9 @@ themselves::
 Nested class declarations
 --------------------------
 C++ allows nested class declaration. Class declarations can also be
-nested in Cython::
+nested in Cython:
 
-    cdef extern from "<vector>" namespace "std":
-        cdef cppclass vector[T]:
-            cppclass iterator:
-                T operator*()
-                iterator operator++()
-                bint operator==(iterator)
-                bint operator!=(iterator)
-            vector()
-            void push_back(T&)
-            T& operator[](int)
-            T& at(int)
-            iterator begin()
-            iterator end()
-
-    cdef vector[int].iterator iter  #iter is declared as being of type vector<int>::iterator
+.. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/nested_class.pyx
 
 Note that the nested class is declared with a ``cppclass`` but without a ``cdef``.
 
