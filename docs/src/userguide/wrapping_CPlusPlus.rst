@@ -355,18 +355,9 @@ Most of the containers of the C++ Standard Library have been declared
 in pxd files located in ``/Cython/Includes/libcpp``.  These containers
 are: deque, list, map,  pair,  queue,  set,  stack,  vector.
 
-For example::
+For example:
 
-    from libcpp.vector cimport vector
-
-    cdef vector[int] vect
-    cdef int i, x
-    for i in range(10):
-        vect.push_back(i)
-    for i in range(10):
-        print(vect[i])
-    for x in vect:
-        print(x)
+.. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/vector_demo.pyx
 
 The pxd files in ``/Cython/Includes/libcpp`` also work as good examples on
 how to declare C++ classes.
