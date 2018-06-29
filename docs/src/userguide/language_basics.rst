@@ -556,6 +556,8 @@ possibilities.
 +----------------------------+--------------------+------------------+
 | char*                      | str/bytes          | str/bytes [#]_   |
 +----------------------------+--------------------+------------------+
+| C array                    | iterable           | list [#2]_       |
++----------------------------+--------------------+------------------+
 | struct,                    |                    | dict [#1]_       |
 | union                      |                    |                  |
 +----------------------------+--------------------+------------------+
@@ -567,6 +569,10 @@ possibilities.
    will refuse to automatically convert a union with unsafe type
    combinations.  An example is a union of an ``int`` and a ``char*``,
    in which case the pointer value may or may not be a valid pointer.
+
+.. [#2] Other than signed/unsigned char[].
+   The conversion will fail if the length of C array is not known at compile time,
+   and when using a slice of a C array.
 
 
 Caveats when using a Python string in a C context
