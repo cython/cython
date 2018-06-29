@@ -430,20 +430,9 @@ Simplified wrapping with default constructor
 If your extension type instantiates a wrapped C++ class using the default
 constructor (not passing any arguments), you may be able to simplify the
 lifecycle handling by tying it directly to the lifetime of the Python wrapper
-object.  Instead of a pointer attribute, you can declare an instance::
+object.  Instead of a pointer attribute, you can declare an instance:
 
-    cdef class VectorStack:
-        cdef vector[int] v
-
-        def push(self, x):
-            self.v.push_back(x)
-
-        def pop(self):
-            if self.v.empty():
-                raise IndexError()
-            x = self.v.back()
-            self.v.pop_back()
-            return x
+.. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/wrapper_vector.pyx
 
 Cython will automatically generate code that instantiates the C++ object
 instance when the Python object is created and deletes it when the Python
