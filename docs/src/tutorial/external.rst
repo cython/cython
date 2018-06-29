@@ -92,7 +92,7 @@ names like this::
       char* strstr(const char*, const char*)
 
 However, this prevents Cython code from calling it with keyword
-arguments (supported since Cython 0.19).  It is therefore preferable
+arguments.  It is therefore preferable
 to write the declaration like this instead:
 
 .. literalinclude:: ../../examples/tutorial/external/keyword_args.pyx

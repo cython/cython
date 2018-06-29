@@ -371,7 +371,7 @@ For example::
 The pxd files in ``/Cython/Includes/libcpp`` also work as good examples on
 how to declare C++ classes.
 
-Since Cython 0.17, the STL containers coerce from and to the
+The STL containers coerce from and to the
 corresponding Python builtin types.  The conversion is triggered
 either by an assignment to a typed variable (including typed function
 arguments) or by an explicit cast, e.g.::
