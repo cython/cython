@@ -809,8 +809,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
             elif name:
                 module_name = name
 
-            if module_name == 'cython':
-                raise ValueError('cython is a special module, cannot be used as a module name')
+            Utils.raise_error_if_module_name_forbidden(module_name)
 
             if module_name not in seen:
                 try:
