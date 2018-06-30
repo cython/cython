@@ -22,9 +22,8 @@ Python 3 Support
 Cython creates ``.c`` files that can be built and used with both
 Python 2.x and Python 3.x. In fact, compiling your module with
 Cython may very well be the easiest way to port code to Python 3.
-We are also working to make the compiler run in both Python 2.x and 3.x.
 
-Many Python 3 constructs are already supported by Cython.
+Nearly all Python 3 constructs are supported by Cython.
 
 List/Set/Dict Comprehensions
 ----------------------------
