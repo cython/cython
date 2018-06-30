@@ -51,7 +51,8 @@ system, for example, it might look similar to this::
 (``gcc`` will need to have paths to your included header files and paths
 to libraries you want to link with.)
 
-After compilation, a ``yourmod.so`` file is written into the target directory
+After compilation, a ``yourmod.so`` (:file:`yourmod.pyd` for Windows)
+file is written into the target directory
 and your module, ``yourmod``, is available for you to import as with any other
 Python module.  Note that if you are not relying on ``cythonize`` or distutils,
 you will not automatically benefit from the platform specific file extension
