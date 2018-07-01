@@ -1446,6 +1446,22 @@ class CythonPyregrTestCase(CythonRunTestCase):
         run_forked_test(result, run_test, self.shortDescription(), self.fork)
 
 
+class TestCodeFormat(unittest.TestCase):
+
+    def __init__(self, cython_dir):
+        self.cython_dir = cython_dir
+        unittest.TestCase.__init__(self)
+
+    def runTest(self):
+        import pycodestyle
+        config_file = os.path.join(self.cython_dir, "tox.ini")
+        paths = glob.glob(os.path.join(self.cython_dir, "**/*.py"), recursive=True)
+        style = pycodestyle.StyleGuide(config_file=config_file)
+        print("")  # Fix the first line of the report.
+        result = style.check_files(paths)
+        self.assertEqual(result.total_errors, 0, "Found code style errors.")
+
+
 include_debugger = IS_CPYTHON
 
 
@@ -1868,6 +1884,9 @@ def main():
     parser.add_option("--no-examples", dest="examples",
                       action="store_false", default=True,
                       help="Do not run the documentation tests in the examples directory.")
+    parser.add_option("--no-code-style", dest="code_style",
+                      action="store_false", default=True,
+                      help="Do not run the code style (PEP8) checks.")
     parser.add_option("--cython-only", dest="cython_only",
                       action="store_true", default=False,
                       help="only compile pyx to c, do not run C compiler or run the tests")
@@ -2213,6 +2232,9 @@ def runtests(options, cmd_args, coverage=None):
                                     sys.version_info[0], common_utility_dir)
             sys.stderr.write("Including CPython regression tests in %s\n" % sys_pyregr_dir)
             test_suite.addTest(filetests.handle_directory(sys_pyregr_dir, 'pyregr'))
+
+    if options.code_style and options.shard_num <= 0:
+        test_suite.addTest(TestCodeFormat(options.cython_dir))
 
     if xml_output_dir:
         from Cython.Tests.xmlrunner import XMLTestRunner
