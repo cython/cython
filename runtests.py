@@ -618,7 +618,7 @@ class TestBuilder(object):
                     test_class = CythonUnitTestCase
                 else:
                     test_class = CythonRunTestCase
-            elif mode in ['compile', 'error', 'test']:
+            elif mode in ['compile', 'error']:
                 test_class = CythonCompileTestCase
             else:
                 raise KeyError('Invalid test mode: ' + mode)
