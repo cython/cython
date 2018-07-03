@@ -423,6 +423,14 @@ comprehensions).  For example, one can write::
 If the loop target variable is unspecified, an assignment from type
 ``*container.begin()`` is used for :ref:`type inference <compiler-directives>`.
 
+.. note::
+
+    Slicing stl containers is supported,
+    you can do ``for x in my_vector[:5]: ...`` but unlike pointers slices,
+    it will create a temporary Python object and iterate over it. Thus
+    making the iteration very slow. You might want to avoid slicing
+    C++ containers for performance reasons.
+
 
 Simplified wrapping with default constructor
 --------------------------------------------
