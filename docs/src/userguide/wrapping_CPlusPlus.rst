@@ -352,8 +352,9 @@ Standard library
 -----------------
 
 Most of the containers of the C++ Standard Library have been declared
-in pxd files located in ``/Cython/Includes/libcpp``.  These containers
-are: deque, list, map,  pair,  queue,  set,  stack,  vector.
+in pxd files located
+in `/Cython/Includes/libcpp <https://github.com/cython/cython/tree/master/Cython/Includes/libcpp>`_.
+These containers are: deque, list, map,  pair,  queue,  set,  stack,  vector.
 
 For example::
 
@@ -368,8 +369,9 @@ For example::
     for x in vect:
         print(x)
 
-The pxd files in ``/Cython/Includes/libcpp`` also work as good examples on
-how to declare C++ classes.
+The pxd files
+in `/Cython/Includes/libcpp <https://github.com/cython/cython/tree/master/Cython/Includes/libcpp>`_
+are also work good examples on how to declare C++ classes.
 
 Since Cython 0.17, the STL containers coerce from and to the
 corresponding Python builtin types.  The conversion is triggered
