@@ -175,15 +175,15 @@ run a Python session to test both the Python version (imported from
     In [7]: def compute_np(array_1, array_2, a, b, c):
        ...:     return np.clip(array_1, 2, 10) * a + array_2 * b + c
     In [8]: %timeit compute_np(array_1, array_2, a, b, c)
-    8.69 ms ± 297 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    8.11 ms ± 25.4 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
     In [9]: import compute_py
     In [10]: compute_py.compute(array_1, array_2, a, b, c)
-    25.6 s ± 225 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+    27.9 s ± 1.75 s per loop (mean ± std. dev. of 7 runs, 1 loop each)
 
     In [11]: import compute_cy
     In [12]: compute_cy.compute(array_1, array_2, a, b, c)
-    21.9 s ± 398 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+    22.1 s ± 142 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
 
 There's not such a huge difference yet; because the C code still does exactly
 what the Python interpreter does (meaning, for instance, that a new object is
@@ -218,7 +218,7 @@ After building this and continuing my (very informal) benchmarks, I get:
 .. sourcecode:: ipython
 
     In [13]: %timeit compute_typed.compute(array_1, array_2, a, b, c)
-    10.5 s ± 301 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+    10.1 s ± 50.9 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
 
 So adding types does make the code faster, but nowhere
 near the speed of NumPy?
@@ -287,10 +287,10 @@ Let's see how much faster accessing is now.
 .. sourcecode:: ipython
 
     In [22]: %timeit compute_memview.compute(array_1, array_2, a, b, c)
-    9.56 ms ± 139 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    8.83 ms ± 42.9 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 Note the importance of this change.
-We're now 2700 times faster than an interpreted version of Python and close
+We're now 3161 times faster than an interpreted version of Python and close
 to NumPy speed.
 
 Memoryviews can be used with slices too, or even
@@ -326,9 +326,9 @@ information.
 .. sourcecode:: ipython
 
     In [23]: %timeit compute_index.compute(array_1, array_2, a, b, c)
-    6.1 ms ± 103 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    6.04 ms ± 12.2 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
-We're now faster than the NumPy version. NumPy is really well written,
+We're now faster than the NumPy version, not by much (1.3x). NumPy is really well written,
 but does not performs operation lazily, meaning a lot
 of back and forth in memory. Our version is very memory efficient and
 cache friendly because we know the operations in advance.
@@ -375,9 +375,10 @@ get by declaring the memoryviews as contiguous:
 .. sourcecode:: ipython
 
     In [23]: %timeit compute_contiguous.compute(array_1, array_2, a, b, c)
-    4.13 ms ± 87.2 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    4.18 ms ± 34 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
-We're now around two times faster than the NumPy version.
+We're now around two times faster than the NumPy version, and 6600 times
+faster than the pure Python version!
 
 Making the function cleaner
 ===========================
@@ -403,7 +404,7 @@ We now do a speed test:
 .. sourcecode:: ipython
 
     In [24]: %timeit compute_infer_types.compute(array_1, array_2, a, b, c)
-    4.1 ms ± 54.8 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    4.25 ms ± 52.2 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 Lo and behold, the speed has not changed.
 
@@ -444,7 +445,7 @@ We now do a speed test:
 .. sourcecode:: ipython
 
     In [25]: %timeit compute_fused_types.compute(array_1, array_2, a, b, c)
-    6 ms ± 70.3 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    6.17 ms ± 164 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 We're a bit slower than before, because of the right call to the clip function
 must be found at runtime and adds a bit of overhead.
@@ -471,7 +472,10 @@ We can have substantial speed gains for minimal effort:
 .. sourcecode:: ipython
 
     In [25]: %timeit compute_prange.compute(array_1, array_2, a, b, c)
-    3.41 ms ± 93.6 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    3.55 ms ± 80.6 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+
+We're now 7858 times faster than the pure Python version and 2.3 times faster
+than NumPy!
 
 Where to go from here?
 ======================
