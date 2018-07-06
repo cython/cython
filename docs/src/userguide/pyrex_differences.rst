@@ -261,26 +261,13 @@ remain the same. There is a slight performance penalty in some cases when a
 cdef/cpdef function without any optional is overridden with one that does have
 default argument values.
 
-For example, one can have the ``.pxd`` file::
+For example, one can have the ``.pxd`` file:
 
-    cdef class A:
-        cdef foo(self)
-    cdef class B(A)
-        cdef foo(self, x=*)
-    cdef class C(B):
-        cpdef foo(self, x=*, int k=*)
+.. literalinclude:: ../../examples/userguide/language_basics/optional_subclassing.pxd
 
-with corresponding ``.pyx`` file::
+with corresponding ``.pyx`` file:
 
-    cdef class A:
-        cdef foo(self):
-            print "A"
-    cdef class B(A)
-        cdef foo(self, x=None)
-            print "B", x
-    cdef class C(B):
-        cpdef foo(self, x=True, int k=3)
-            print "C", x, k
+.. literalinclude:: ../../examples/userguide/language_basics/optional_subclassing.pyx
 
 .. note::
 
