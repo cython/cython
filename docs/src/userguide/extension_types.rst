@@ -105,21 +105,23 @@ will be very inefficient. If the attribute is private, it will not work at all
 -- the code will compile, but an attribute error will be raised at run time.
 
 The solution is to declare ``sh`` as being of type :class:`Shrubbery`, as
-follows::
+follows:
 
-    cdef widen_shrubbery(Shrubbery sh, extra_width):
-        sh.width = sh.width + extra_width
+.. literalinclude:: ../../examples/userguide/extension_types/widen_shrubbery.pyx
 
 Now the Cython compiler knows that ``sh`` has a C attribute called
 :attr:`width` and will generate code to access it directly and efficiently.
-The same consideration applies to local variables, for example,::
+The same consideration applies to local variables, for example:
 
-    cdef Shrubbery another_shrubbery(Shrubbery sh1):
-        cdef Shrubbery sh2
-        sh2 = Shrubbery()
-        sh2.width = sh1.width
-        sh2.height = sh1.height
-        return sh2
+.. literalinclude:: ../../examples/userguide/extension_types/shrubbery_2.pyx
+
+.. note::
+
+    We here ``cimport`` the class :class:`Shrubbery`, and this is necessary
+    to declare the type at compile time. To be able to ``cimport`` an extension type,
+    we split the class definition into two parts, one in a definition file and
+    the other in the corresponding implementation file. You should read
+    :ref:`sharing_extension_types` to learn to do that.
 
 
 Type Testing and Casting

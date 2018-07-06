@@ -199,6 +199,7 @@ example:
     this object from Python, nor can you use it from Cython using a normal import
     statement; you have to use :keyword:`cimport`.
 
+.. _sharing_extension_types:
 
 Sharing Extension Types
 =======================
