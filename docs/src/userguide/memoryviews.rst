@@ -441,15 +441,16 @@ and they can be used like this:
 .. literalinclude:: ../../examples/userguide/memoryviews/memory_layout.pyx
 
 Only the first, last or the dimension following an indirect dimension may be
-specified contiguous::
-
-    from cython cimport view
-
-    # INVALID
-    cdef int[::view.contiguous, ::view.indirect, :] a
-    cdef int[::1, ::view.indirect, :] b
+specified contiguous:
 
 .. literalinclude:: ../../examples/userguide/memoryviews/memory_layout_2.pyx
+
+::
+
+    # INVALID
+    cdef int[::view.contiguous, ::view.indirect, :] d
+    cdef int[::1, ::view.indirect, :] e
+
 
 The difference between the `contiguous` flag and the `::1` specifier is that the
 former specifies contiguity for only one dimension, whereas the latter specifies
