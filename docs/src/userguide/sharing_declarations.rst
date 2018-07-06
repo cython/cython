@@ -147,17 +147,13 @@ for an imaginary module, and :keyword:`cimport` that module. You can then
 refer to the C functions by qualifying them with the name of the module.
 Here's an example:
 
-:file:`c_lunch.pxd`::
+:file:`c_lunch.pxd`:
 
-    cdef extern from "lunch.h":
-        void eject_tomato(float)
+.. literalinclude:: ../../examples/userguide/sharing_declarations/c_lunch.pxd
 
-:file:`lunch.pyx`::
+:file:`lunch.pyx`:
 
-    cimport c_lunch
-
-    def eject_tomato(float speed):
-        c_lunch.eject_tomato(speed)
+.. literalinclude:: ../../examples/userguide/sharing_declarations/lunch.pyx
 
 You don't need any :file:`c_lunch.pyx` file, because the only things defined
 in :file:`c_lunch.pxd` are extern C entities. There won't be any actual
@@ -222,38 +218,23 @@ Python methods.
 Here is an example of a module which defines and exports an extension type,
 and another module which uses it:
 
-:file:`Shrubbing.pxd`::
+:file:`shrubbing.pxd`:
 
-    cdef class Shrubbery:
-        cdef int width
-        cdef int length
+.. literalinclude:: ../../examples/userguide/sharing_declarations/shrubbing.pxd
 
-:file:`Shrubbing.pyx`::
+:file:`shrubbing.pyx`:
 
-    cdef class Shrubbery:
-        def __cinit__(self, int w, int l):
-            self.width = w
-            self.length = l
+.. literalinclude:: ../../examples/userguide/sharing_declarations/shrubbing.pyx
 
-    def standard_shrubbery():
-        return Shrubbery(3, 7)
+:file:`landscaping.pyx`:
 
-:file:`Landscaping.pyx`::
-
-    cimport Shrubbing
-    import Shrubbing
-
-    cdef Shrubbing.Shrubbery sh
-    sh = Shrubbing.standard_shrubbery()
-    print("Shrubbery size is %d x %d" % (sh.width, sh.length))
+.. literalinclude:: ../../examples/userguide/sharing_declarations/landscaping.pyx
 
 One would then need to compile both of these modules, e.g. using
 
-:file:`setup.py`::
+:file:`setup.py`:
 
-    from distutils.core import setup
-    from Cython.Build import cythonize
-    setup(ext_modules = cythonize(["Landscaping.pyx", "Shrubbing.pyx"]))
+.. literalinclude:: ../../examples/userguide/sharing_declarations/setup.py
 
 Some things to note about this example:
 
