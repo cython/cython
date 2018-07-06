@@ -127,7 +127,7 @@ pygments_style = 'sphinx'
 todo_include_todos = True
 
 # intersphinx for standard :keyword:s (def, for, etc.)
-intersphinx_mapping = {'python': ('http://docs.python.org/3/', None)}
+intersphinx_mapping = {'python': ('https://docs.python.org/3/', None)}
 
 # If true, keep warnings as "system message" paragraphs in the built documents.
 #keep_warnings = False

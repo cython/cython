@@ -533,7 +533,8 @@ possible to declare them in the :file:`setup.py` file::
 Cython will generate and compile the :file:`rect.cpp` file (from
 :file:`rect.pyx`), then it will compile :file:`Rectangle.cpp`
 (implementation of the ``Rectangle`` class) and link both object files
-together into :file:`rect.so`, which you can then import in Python using
+together into :file:`rect.so` on Linux, or :file:`rect.pyd` on windows,
+which you can then import in Python using
 ``import rect`` (if you forget to link the :file:`Rectangle.o`, you will
 get missing symbols while importing the library in Python).
 
