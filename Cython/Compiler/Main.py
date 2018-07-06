@@ -469,6 +469,8 @@ def run_pipeline(source, options, full_module_name=None, context=None):
     abs_path = os.path.abspath(source)
     full_module_name = full_module_name or context.extract_module_name(source, options)
 
+    Utils.raise_error_if_module_name_forbidden(full_module_name)
+
     if options.relative_path_in_code_position_comments:
         rel_path = full_module_name.replace('.', os.sep) + source_ext
         if not abs_path.endswith(rel_path):
