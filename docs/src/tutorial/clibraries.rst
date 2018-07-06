@@ -326,7 +326,7 @@ pointer value.
 Here is a simple implementation for the ``append()`` method::
 
         cdef append(self, int value):
-            cqueue.queue_push_tail(self._c_queue, <void*>value)
+            cqueue.queue_push_tail(self._c_queue, <void*>&value)
 
 Again, the same error handling considerations as for the
 ``__cinit__()`` method apply, so that we end up with this
@@ -334,7 +334,7 @@ implementation instead::
 
         cdef append(self, int value):
             if not cqueue.queue_push_tail(self._c_queue,
-                                          <void*>value):
+                                          <void*>&value):
                 raise MemoryError()
 
 Adding an ``extend()`` method should now be straight forward::
