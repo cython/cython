@@ -256,7 +256,8 @@ nested in Cython:
 
 .. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/nested_class.pyx
 
-Note that the nested class is declared with a ``cppclass`` but without a ``cdef``.
+Note that the nested class is declared with a ``cppclass`` but without a ``cdef``,
+as it is already part of a ``cdef`` declaration section.
 
 C++ operators not compatible with Python syntax
 ------------------------------------------------
