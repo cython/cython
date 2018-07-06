@@ -3,12 +3,9 @@
 from libcpp.vector cimport vector
 
 def main():
-    cdef vector[int] v
-    cdef int i, value
+    cdef vector[int] v = [4, 6, 5, 10, 3]
 
-    for i in range(10):
-        v.push_back(i)
-
+    cdef int value
     for value in v:
         print(value)
 
