@@ -347,7 +347,7 @@ inherit from multiple extension types provided that the usual Python rules for
 multiple inheritance are followed (i.e. the C layouts of all the base classes
 must be compatible).
 
-Since Cython 0.13.1, there is a way to prevent extension types from
+There is a way to prevent extension types from
 being subtyped in Python.  This is done via the ``final`` directive,
 usually set on an extension type using a decorator::
 

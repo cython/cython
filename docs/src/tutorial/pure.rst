@@ -320,7 +320,7 @@ to make the names match again.
 Using C arrays for fixed size lists
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Since Cython 0.22, C arrays can automatically coerce to Python lists or tuples.
+C arrays can automatically coerce to Python lists or tuples.
 This can be exploited to replace fixed size Python lists in Python code by C
 arrays when compiled.  An example:
 
