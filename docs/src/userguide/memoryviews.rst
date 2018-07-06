@@ -415,31 +415,21 @@ The flags are as follows:
 * contiguous - contiguous and direct
 * indirect_contiguous - the list of pointers is contiguous
 
-and they can be used like this::
+and they can be used like this:
 
-    from cython cimport view
-
-    # direct access in both dimensions, strided in the first dimension, contiguous in the last
-    cdef int[:, ::view.contiguous] a
-
-    # contiguous list of pointers to contiguous lists of ints
-    cdef int[::view.indirect_contiguous, ::1] b
-
-    # direct or indirect in the first dimension, direct in the second dimension
-    # strided in both dimensions
-    cdef int[::view.generic, :] c
+.. literalinclude:: ../../examples/userguide/memoryviews/memory_layout.pyx
 
 Only the first, last or the dimension following an indirect dimension may be
-specified contiguous::
+specified contiguous:
+
+.. literalinclude:: ../../examples/userguide/memoryviews/memory_layout_2.pyx
+
+::
 
     # INVALID
-    cdef int[::view.contiguous, ::view.indirect, :] a
-    cdef int[::1, ::view.indirect, :] b
+    cdef int[::view.contiguous, ::view.indirect, :] d
+    cdef int[::1, ::view.indirect, :] e
 
-    # VALID
-    cdef int[::view.indirect, ::1, :] a
-    cdef int[::view.indirect, :, ::1] b
-    cdef int[::view.indirect_contiguous, ::1, :]
 
 The difference between the `contiguous` flag and the `::1` specifier is that the
 former specifies contiguity for only one dimension, whereas the latter specifies
