@@ -71,14 +71,9 @@ This also works conveniently as function arguments:
 The ``not None`` declaration for the argument automatically rejects
 None values as input, which would otherwise be allowed.  The reason why
 None is allowed by default is that it is conveniently used for return
-arguments::
+arguments:
 
-   def process_buffer(int[:,:] input not None,
-                      int[:,:] output = None):
-       if output is None:
-           output = ...  # e.g. numpy.empty_like(input)
-       # process 'input' into 'output'
-       return output
+.. literalinclude:: ../../examples/userguide/memoryviews/not_none.pyx
 
 Cython will reject incompatible buffers automatically, e.g. passing a
 three dimensional buffer into a function that requires a two
