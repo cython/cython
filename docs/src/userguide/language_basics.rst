@@ -107,21 +107,9 @@ You can declare classes with :keyword:`cdef`, making them :ref:`extension-types`
 have a behavior very close to python classes, but are faster because they use a ``struct``
 internally to store attributes.
 
-Here is a simple example::
+Here is a simple example:
 
-    from __future__ import print_function
-
-    cdef class Shrubbery:
-
-        cdef int width, height
-
-        def __init__(self, w, h):
-            self.width = w
-            self.height = h
-
-        def describe(self):
-            print("This shrubbery is", self.width,
-                  "by", self.height, "cubits.")
+.. literalinclude:: ../../examples/userguide/extension_types/shrubbery.pyx
 
 You can read more about them in :ref:`extension-types`.
 
