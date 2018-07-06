@@ -351,12 +351,9 @@ inside of containers, e.g. a C++ vector of maps of strings.
 Iteration over stl containers (or indeed any class with ``begin()`` and
 ``end()`` methods returning an object supporting incrementing, dereferencing,
 and comparison) is supported via the ``for .. in`` syntax (including in list
-comprehensions).  For example, one can write::
+comprehensions).  For example, one can write:
 
-    cdef vector[int] v = ...
-    for value in v:
-        f(value)
-    return [x*x for x in v if x % 2 == 0]
+.. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/iterate.pyx
 
 If the loop target variable is unspecified, an assignment from type
 ``*container.begin()`` is used for :ref:`type inference <compiler-directives>`.
