@@ -317,7 +317,7 @@ For example:
 
 The pxd files
 in `/Cython/Includes/libcpp <https://github.com/cython/cython/tree/master/Cython/Includes/libcpp>`_
-are also work good examples on how to declare C++ classes.
+also work as good examples on how to declare C++ classes.
 
 Since Cython 0.17, the STL containers coerce from and to the
 corresponding Python builtin types.  The conversion is triggered
