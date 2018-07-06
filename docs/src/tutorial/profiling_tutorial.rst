@@ -44,7 +44,7 @@ If your profiling is messed up because of the call overhead to some small
 functions that you rather do not want to see in your profile - either because
 you plan to inline them anyway or because you are sure that you can't make them
 any faster - you can use a special decorator to disable profiling for one
-function only:
+function only (regardless of whether it is globally enabled or not):
 
 .. literalinclude:: ../../examples/tutorial/profiling_tutorial/often_called.pyx
 
