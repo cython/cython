@@ -21,10 +21,14 @@ Python 3 Support
 
 Cython creates ``.c`` files that can be built and used with both
 Python 2.x and Python 3.x. In fact, compiling your module with
-Cython may very well be the easiest way to port code to Python 3.
-We are also working to make the compiler run in both Python 2.x and 3.x.
+Cython may very well be an easy way to port code to Python 3.
 
-Many Python 3 constructs are already supported by Cython.
+Cython also supports various syntax additions that came with
+Python 3.0 and later major Python releases.  If they do not conflict
+with existing Python 2.x syntax or semantics, they are usually just
+accepted by the compiler.  Everything else depends on the
+compiler directive ``language_level=3``
+(see :ref:`compiler directives<compiler-directives>`).
 
 List/Set/Dict Comprehensions
 ----------------------------
@@ -65,7 +69,6 @@ extra positional arguments, e.g.::
         ...
 
 takes exactly two positional parameters and has two required keyword parameters.
-
 
 
 Conditional expressions "x if b else y"
