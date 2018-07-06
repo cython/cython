@@ -115,6 +115,14 @@ The same consideration applies to local variables, for example:
 
 .. literalinclude:: ../../examples/userguide/extension_types/shrubbery_2.pyx
 
+.. note::
+
+    We here ``cimport`` the class :class:`Shrubbery`, and this is necessary
+    to declare the type at compile time. To be able to ``cimport`` an extension type,
+    we split the class definition into two parts, one in a definition file and
+    the other in the corresponding implementation file. You should read
+    :ref:`sharing_extension_types` to learn to do that.
+
 
 Type Testing and Casting
 ------------------------
