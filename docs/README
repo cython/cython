@@ -1,10 +1,10 @@
 Welcome to Cython's documentation.
 
-To build the documentation on Linux, you need Make installed on your system. Then execute::
+To build the documentation on Linux, you need Make and Sphinx installed on your system. Then execute::
 
 	make html
 
-On windows systems, open PowerShell and type::
+On windows systems, you only need Sphinx. Open PowerShell and type::
 
 	./make.bat html
 
