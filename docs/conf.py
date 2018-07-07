@@ -459,22 +459,14 @@ pdf_fit_background_mode = 'scale'
 
 # Making redirection:
 
-html_template = """
+html_template = """\
 <html>
     <head>
         <script>
-            // Redirect to the new-style URL
-            var new_location = '{0}'
-            
-            // Some browsers include the hash character in the anchor, strip it out
-            const anchor = window.location.hash.replace(/^#(.*)/, '$1');
-            if (anchor){{
-                new_location += '#' + anchor;
-            }}
-            
-            window.location = new_location
+            // Redirect to the new-style URL, but keep any #anchor etc.
+            window.location.href = '{0}';
         </script>
-        <meta http-equiv="refresh" content="1; url={0}:" />
+        <meta http-equiv="refresh" content="1; url={0}" />
     </head>
 </html>
 """
