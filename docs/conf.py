@@ -479,22 +479,25 @@ html_template = """
 </html>
 """
 
-list_redirects = [('reference/language_basics', 'userguide/language_basics')]
+list_redirects = [
+    ('reference/language_basics', 'userguide/language_basics'),
+]
 
 
 def add_legacy_redirects(app, docname):
-    if app.builder.name == 'html':
-        for old_link, new_link in list_redirects:
-            old_link = "src/" + old_link + ".html"
-            new_link = "src/" + new_link + ".html"
+    if app.builder.name != 'html':
+        return
+    for old_link, new_link in list_redirects:
+        old_link = "src/" + old_link + ".html"
+        new_link = "src/" + new_link + ".html"
 
-            rel_path = os.path.relpath(new_link, os.path.dirname(old_link))
+        rel_path = os.path.relpath(new_link, os.path.dirname(old_link))
 
-            html_to_write = html_template.format(rel_path)
-            target_path = app.outdir + '/' + old_link
+        html_to_write = html_template.format(rel_path)
+        target_path = app.outdir + '/' + old_link
 
-            with open(target_path, "w+") as f:
-                f.write(html_to_write)
+        with open(target_path, "w+") as f:
+            f.write(html_to_write)
 
 
 def setup(app):
