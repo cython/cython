@@ -463,12 +463,18 @@ html_template = """
 <html>
     <head>
         <script>
+            // Redirect to the new-style URL
+            var new_location = '{0}'
+            
             // Some browsers include the hash character in the anchor, strip it out
             const anchor = window.location.hash.replace(/^#(.*)/, '$1');
-
-            // Redirect to the new-style URL
-            window.location = '{}#' + anchor;
+            if (anchor){{
+                new_location += '#' + anchor;
+            }}
+            
+            window.location = new_location
         </script>
+        <meta http-equiv="refresh" content="1; url={0}:" />
     </head>
 </html>
 """
