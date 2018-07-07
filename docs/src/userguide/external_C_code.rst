@@ -567,7 +567,7 @@ header::
 
 If the callback may be called from another non-Python thread,
 care must be taken to initialize the GIL first, through a call to
-`PyEval_InitThreads() <http://docs.python.org/dev/c-api/init.html#PyEval_InitThreads>`_.
+`PyEval_InitThreads() <https://docs.python.org/dev/c-api/init.html#c.PyEval_InitThreads>`_.
 If you're already using  :ref:`cython.parallel <parallel>` in your module, this will already have been taken care of.
 
 The GIL may also be acquired through the ``with gil`` statement::

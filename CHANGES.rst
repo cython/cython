@@ -2183,9 +2183,9 @@ Features added
 
 * GDB support. http://docs.cython.org/src/userguide/debugging.html
 
-* A new build system with support for inline distutils directives, correct dependency tracking, and parallel compilation. http://wiki.cython.org/enhancements/distutils_preprocessing
+* A new build system with support for inline distutils directives, correct dependency tracking, and parallel compilation. https://github.com/cython/cython/wiki/enhancements-distutils_preprocessing
 
-* Support for dynamic compilation at runtime via the new cython.inline function and cython.compile decorator. http://wiki.cython.org/enhancements/inline
+* Support for dynamic compilation at runtime via the new cython.inline function and cython.compile decorator. https://github.com/cython/cython/wiki/enhancements-inline
 
 * "nogil" blocks are supported when compiling pure Python code by writing "with cython.nogil".
 

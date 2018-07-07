@@ -467,7 +467,7 @@ supports the ``__future__`` import ``unicode_literals`` that instructs
 the parser to read all unprefixed :obj:`str` literals in a source file as
 unicode string literals, just like Python 3.
 
-.. _`CEP 108`: http://wiki.cython.org/enhancements/stringliterals
+.. _`CEP 108`: https://github.com/cython/cython/wiki/enhancements-stringliterals
 
 Single bytes and characters
 ---------------------------

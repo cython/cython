@@ -149,6 +149,9 @@ As for NumPy, new axes can be introduced by indexing an array with ``None`` ::
     # 2D array with shape (50, 1)
     myslice[:, None]
 
+    # 3D array with shape (1, 10, 1)
+    myslice[None, 10:-20:2, None]
+
 One may mix new axis indexing with all other forms of indexing and slicing.
 See also an example_.
 
@@ -658,4 +661,4 @@ call functions in C files, see :ref:`using_c_libraries`.
 .. _new style buffers: http://docs.python.org/c-api/buffer.html
 .. _pep 3118: http://www.python.org/peps/pep-3118.html
 .. _NumPy: http://docs.scipy.org/doc/numpy/reference/arrays.ndarray.html#memory-layout
-.. _example: http://www.scipy.org/Numpy_Example_List#newaxis
+.. _example: https://docs.scipy.org/doc/numpy/reference/arrays.indexing.html
