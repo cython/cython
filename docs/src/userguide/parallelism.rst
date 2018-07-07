@@ -131,7 +131,7 @@ It currently supports OpenMP, but later on more backends might be supported.
 
        with nogil, parallel():
            local_buf = <int *> malloc(sizeof(int) * size)
-           if local_buf == NULL:
+           if local_buf is NULL:
                abort()
 
            # populate our local buffer in a sequential loop
