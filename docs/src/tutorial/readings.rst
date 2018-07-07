@@ -1,7 +1,7 @@
 Further reading
 ===============
 
-The main documentation is located at http://docs.cython.org/en/latest/. Some
+The main documentation is located at http://docs.cython.org/. Some
 recent features might not have documentation written yet, in such
 cases some notes can usually be found in the form of a Cython
 Enhancement Proposal (CEP) on https://github.com/cython/cython/wiki/enhancements.
@@ -23,4 +23,4 @@ Cython, or if you have suggestions for future development.
 .. [DevList] Cython developer mailing list: https://mail.python.org/mailman/listinfo/cython-devel
 .. [Seljebotn09] D. S. Seljebotn, Fast numerical computations with Cython,
    Proceedings of the 8th Python in Science Conference, 2009.
-.. [UserList] Cython users mailing list: https://groups.google.com/forum/#!forum/cython-users
+.. [UserList] Cython users mailing list: https://groups.google.com/group/cython-users

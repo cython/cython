@@ -80,7 +80,7 @@ Enabling coverage analysis
 --------------------------
 
 Since Cython 0.23, line tracing (see above) also enables support for coverage
-reporting with the `coverage.py <http://coverage.readthedocs.io/en/latest/>`_ tool.
+reporting with the `coverage.py <http://coverage.readthedocs.io/>`_ tool.
 To make the coverage analysis understand Cython modules, you also need to enable
 Cython's coverage plugin in your ``.coveragerc`` file as follows:
 
@@ -160,7 +160,7 @@ Running this on my box gives the following output:
 This contains the information that the code runs in 6.2 CPU seconds. Note that
 the code got slower by 2 seconds because it ran inside the cProfile module. The
 table contains the real valuable information.  You might want to check the
-Python `profiling documentation <https://docs.python.org/3/library/profile.html>`_
+Python `profiling documentation <https://docs.python.org/library/profile.html>`_
 for the nitty gritty details. The most important columns here are totime (total
 time spent in this function **not** counting functions that were called by this
 function) and cumtime (total time spent in this function **also** counting the

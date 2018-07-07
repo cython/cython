@@ -184,7 +184,7 @@ be found in the `distutils documentation`_. Some useful options to know about
 are ``include_dirs``, ``libraries``, and ``library_dirs`` which specify where
 to find the ``.h`` and library files when linking to external libraries.
 
-.. _distutils documentation: https://docs.python.org/3/extending/building.html
+.. _distutils documentation: https://docs.python.org/extending/building.html
 
 Sometimes this is not enough and you need finer customization of the
 distutils :class:`Extension`.
@@ -490,7 +490,7 @@ will fall back to loading the source modules instead.
 Note that it is not recommended to let :mod:`pyximport` build code
 on end user side as it hooks into their import system.  The best way
 to cater for end users is to provide pre-built binary packages in the
-`wheel <https://wheel.readthedocs.io/en/stable/>`_ packaging format.
+`wheel <https://wheel.readthedocs.io/>`_ packaging format.
 
 
 Arguments
