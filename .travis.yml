@@ -74,9 +74,14 @@ matrix:
       language: cpp
       compiler: clang
       cache: false
+    - env: STACKLESS=true BACKEND=c
+      python: 2.7
+    - env: STACKLESS=true BACKEND=c
+      python: 3.6
   allow_failures:
     - python: pypy
     - python: pypy3
+    - env: STACKLESS=true BACKEND=c
   exclude:
     - python: pypy
       env: BACKEND=cpp
@@ -99,11 +104,16 @@ before_install:
     fi
 
   - |
-    if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then # Install Miniconda
+    if [[ "$TRAVIS_OS_NAME" == "osx" -o "$STACKLESS" == "true" ]]; then # Install Miniconda
       curl -s -o miniconda.sh https://repo.continuum.io/miniconda/Miniconda$PY-latest-MacOSX-x86_64.sh;
       bash miniconda.sh -b -p $HOME/miniconda && rm miniconda.sh;
       export PATH="$HOME/miniconda/bin:$PATH"; hash -r;
       #conda install --quiet --yes nomkl --file=test-requirements.txt --file=test-requirements-cpython.txt;
+    fi
+
+  - if [[ "$STACKLESS" == "true" ]]; then
+      conda config --add channels stackless;
+      conda install stackless;
     fi
 
 install:
