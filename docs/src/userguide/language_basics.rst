@@ -428,12 +428,9 @@ returns ``NULL``. The except clause doesn't work that way; its only purpose is
 for propagating Python exceptions that have already been raised, either by a Cython
 function or a C function that calls Python/C API routines. To get an exception
 from a non-Python-aware function such as :func:`fopen`, you will have to check the
-return value and raise it yourself, for example,::
+return value and raise it yourself, for example:
 
-    cdef FILE* p
-    p = fopen("spam.txt", "r")
-    if p == NULL:
-        raise SpamError("Couldn't open the spam file")
+.. literalinclude:: ../../examples/userguide/language_basics/open_file.pyx
 
 .. _overriding_in_extension_types:
 

@@ -421,7 +421,7 @@ compatible types.::
         cdef void* ptr
 
         def __dealloc__(self):
-            if self.ptr != NULL:
+            if self.ptr is not NULL:
                 free(self.ptr)
 
         @staticmethod
