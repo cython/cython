@@ -1,3 +1,4 @@
+from __future__ import print_function
 cimport dishes
 from dishes cimport spamdish
 
@@ -8,4 +9,4 @@ cdef void prepare(spamdish *d):
 def serve():
     cdef spamdish d
     prepare(&d)
-    print(d.oz_of_spam, "oz spam, filler no.", d.filler)
+    print(f'{d.oz_of_spam} oz spam, filler no. {d.filler}')
