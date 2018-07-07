@@ -301,7 +301,7 @@ a typedef for its template parameters it is preferable to use that name here.
 Template functions are defined similarly to class templates, with
 the template parameter list following the function name:
 
-.. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/function_template.pyx
+.. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/function_templates.pyx
 
 
 Standard library
