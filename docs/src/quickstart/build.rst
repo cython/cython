@@ -105,4 +105,4 @@ Using the Sage notebook
 
 
 .. [Jupyter] http://jupyter.org/
-.. [Sage] W. Stein et al., Sage Mathematics Software, http://sagemath.org
+.. [Sage] W. Stein et al., Sage Mathematics Software, http://www.sagemath.org/

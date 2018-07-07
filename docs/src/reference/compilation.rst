@@ -191,7 +191,7 @@ be found in the `distutils documentation`_. Some useful options to know about
 are ``include_dirs``, ``libraries``, and ``library_dirs`` which specify where
 to find the ``.h`` and library files when linking to external libraries.
 
-.. _distutils documentation: http://docs.python.org/extending/building.html
+.. _distutils documentation: https://docs.python.org/extending/building.html
 
 Sometimes this is not enough and you need finer customization of the
 distutils :class:`Extension`.

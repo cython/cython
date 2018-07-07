@@ -45,7 +45,7 @@ language.
 
 .. [Cython] G. Ewing, R. W. Bradshaw, S. Behnel, D. S. Seljebotn et al.,
    The Cython compiler, http://cython.org.
-.. [IronPython] Jim Hugunin et al., http://www.codeplex.com/IronPython.
+.. [IronPython] Jim Hugunin et al., https://archive.codeplex.com/?p=IronPython.
 .. [Jython] J. Huginin, B. Warsaw, F. Bock, et al.,
    Jython: Python for the Java platform, http://www.jython.org.
 .. [PyPy] The PyPy Group, PyPy: a Python implementation written in Python,
@@ -53,4 +53,4 @@ language.
 .. [Pyrex] G. Ewing, Pyrex: C-Extensions for Python,
    http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
 .. [Python] G. van Rossum et al., The Python programming language,
-   http://python.org.
+   https://www.python.org/.

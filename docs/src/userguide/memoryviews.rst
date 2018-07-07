@@ -658,7 +658,5 @@ call functions in C files, see :ref:`using_c_libraries`.
 
 
 .. _GIL: http://docs.python.org/dev/glossary.html#term-global-interpreter-lock
-.. _new style buffers: http://docs.python.org/c-api/buffer.html
-.. _pep 3118: http://www.python.org/peps/pep-3118.html
-.. _NumPy: http://docs.scipy.org/doc/numpy/reference/arrays.ndarray.html#memory-layout
+.. _NumPy: https://docs.scipy.org/doc/numpy/reference/arrays.ndarray.html#memory-layout
 .. _example: https://docs.scipy.org/doc/numpy/reference/arrays.indexing.html

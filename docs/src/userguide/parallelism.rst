@@ -190,4 +190,4 @@ OpenMP functions can be used by cimporting ``openmp``:
 
 .. rubric:: References
 
-.. [#] http://www.openmp.org/mp-documents/spec30.pdf
+.. [#] https://www.openmp.org/mp-documents/spec30.pdf

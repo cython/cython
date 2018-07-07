@@ -75,7 +75,7 @@ Conditional expressions "x if b else y"
 =========================================
 
 Conditional expressions as described in
-http://www.python.org/dev/peps/pep-0308/::
+https://www.python.org/dev/peps/pep-0308/::
 
     X if C else Y
 
