@@ -507,7 +507,71 @@ Arguments
 The function ``pyximport.install()`` can take several arguments to
 influence the compilation of Cython or Python files.
 
-.. autofunction:: pyximport.install
+.. py:function:: pyximport.install(pyximport=True, \
+                                   pyimport=False, \
+                                   build_dir=None, \
+                                   build_in_temp=True, \
+                                   setup_args=None, \
+                                   reload_support=False, \
+                                   load_py_module_on_import_failure=False, \
+                                   inplace=False, \
+                                   language_level=None)
+
+
+    Main entry point for pyxinstall.
+
+    Call this to install the ``.pyx`` import hook in
+    your meta-path for a single Python process.  If you want it to be
+    installed whenever you use Python, add it to your ``sitecustomize``
+    (as described above).
+
+    :param pyximport: If set to False, does not try to import ``.pyx`` files.
+
+    :param pyimport: You can pass ``pyimport=True`` to also
+        install the ``.py`` import hook
+        in your meta-path.  Note, however, that it is rather experimental,
+        will not work at all for some ``.py`` files and packages, and will
+        heavily slow down your imports due to search and compilation.
+        Use at your own risk.
+
+    :param build_dir: By default, compiled modules will end up in a ``.pyxbld``
+        directory in the user's home directory.  Passing a different path
+        as ``build_dir`` will override this.
+
+    :param build_in_temp: If ``False``, will produce the C files locally. Working
+        with complex dependencies and debugging becomes more easy. This
+        can principally interfere with existing files of the same name.
+
+    :param setup_args: Dict of arguments for Distribution.
+        See ``distutils.core.setup()``.
+
+    :param reload_support: Enables support for dynamic
+        ``reload(my_module)``, e.g. after a change in the Cython code.
+        Additional files ``<so_path>.reloadNN`` may arise on that account, when
+        the previously loaded module file cannot be overwritten.
+
+    :param load_py_module_on_import_failure: If the compilation of a ``.py``
+        file succeeds, but the subsequent import fails for some reason,
+        retry the import with the normal ``.py`` module instead of the
+        compiled module.  Note that this may lead to unpredictable results
+        for modules that change the system state during their import, as
+        the second import will rerun these modifications in whatever state
+        the system was left after the import of the compiled module
+        failed.
+
+    :param inplace: Install the compiled module
+        (``.so`` for Linux and Mac / ``.pyd`` for Windows)
+        next to the source file.
+
+    :param language_level: The source language level to use: 2 or 3.
+        The default is to use the language level of the current Python
+        runtime for .py files and Py2 for ``.pyx`` files.
+
+..
+    autofunction:: pyximport.install
+    Once autodocs works with readthedocs, we have to remove
+    the function description here in the .rst and just use autofunction
+    that will fetch the pyximport docstring.
 
 
 Dependency Handling
