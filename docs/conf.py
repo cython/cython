@@ -462,12 +462,16 @@ pdf_fit_background_mode = 'scale'
 html_template = """
 <html>
     <head>
-        <meta http-equiv="refresh" content="1; url={0}:" />
         <script>
-            window.location.href = "{0}"
+            // Some browsers include the hash character in the anchor, strip it out
+            const anchor = window.location.hash.replace(/^#(.*)/, '$1');
+
+            // Redirect to the new-style URL
+            window.location = '{}#' + anchor;
         </script>
     </head>
-</html>"""
+</html>
+"""
 
 list_redirects = [('reference/language_basics', 'userguide/language_basics')]
 
