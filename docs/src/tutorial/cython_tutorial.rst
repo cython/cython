@@ -77,7 +77,7 @@ It is shipped and installed with Cython and can be used like this::
     >>> import helloworld
     Hello World
 
-Since Cython 0.11, the :ref:`Pyximport<pyximport>` module also has experimental
+The :ref:`Pyximport<pyximport>` module also has experimental
 compilation support for normal Python modules.  This allows you to
 automatically run Cython on every .pyx and .py module that Python
 imports, including the standard library and installed packages.

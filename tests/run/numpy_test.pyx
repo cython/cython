@@ -898,4 +898,33 @@ def test_copy_buffer(np.ndarray[double, ndim=1] a):
     return a
 
 
+@testcase
+def test_broadcast_comparison(np.ndarray[double, ndim=1] a):
+    """
+    >>> a = np.ones(10, dtype=np.double)
+    >>> a0, obj0, a1, obj1 = test_broadcast_comparison(a)
+    >>> np.all(a0 == (a == 0)) or a0
+    True
+    >>> np.all(a1 == (a == 1)) or a1
+    True
+    >>> np.all(obj0 == (a == 0)) or obj0
+    True
+    >>> np.all(obj1 == (a == 1)) or obj1
+    True
+
+    >>> a = np.zeros(10, dtype=np.double)
+    >>> a0, obj0, a1, obj1 = test_broadcast_comparison(a)
+    >>> np.all(a0 == (a == 0)) or a0
+    True
+    >>> np.all(a1 == (a == 1)) or a1
+    True
+    >>> np.all(obj0 == (a == 0)) or obj0
+    True
+    >>> np.all(obj1 == (a == 1)) or obj1
+    True
+    """
+    cdef object obj = a
+    return a == 0, obj == 0, a == 1, obj == 1
+
+
 include "numpy_common.pxi"

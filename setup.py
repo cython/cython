@@ -85,20 +85,20 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
     compiled_modules = [
         "Cython.Plex.Scanners",
         "Cython.Plex.Actions",
-        "Cython.Compiler.Pythran",
-        "Cython.Compiler.Lexicon",
         "Cython.Compiler.Scanning",
-        "Cython.Compiler.Parsing",
         "Cython.Compiler.Visitor",
         "Cython.Compiler.FlowControl",
-        "Cython.Compiler.Code",
         "Cython.Runtime.refnanny",
         "Cython.Compiler.FusedNode",
         "Cython.Tempita._tempita",
-        "Cython.StringIOTree",
     ]
     if compile_more:
         compiled_modules.extend([
+            "Cython.StringIOTree",
+            "Cython.Compiler.Code",
+            "Cython.Compiler.Lexicon",
+            "Cython.Compiler.Parsing",
+            "Cython.Compiler.Pythran",
             "Cython.Build.Dependencies",
             "Cython.Compiler.ParseTreeTransforms",
             "Cython.Compiler.Nodes",

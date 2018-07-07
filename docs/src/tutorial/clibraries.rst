@@ -158,7 +158,7 @@ We can thus change the init function as follows:
    exception instance in order to raise it may actually fail because
    we are running out of memory.  Luckily, CPython provides a C-API
    function ``PyErr_NoMemory()`` that safely raises the right
-   exception for us.  Since version 0.14.1, Cython automatically
+   exception for us.  Cython automatically
    substitutes this C-API call whenever you write ``raise
    MemoryError`` or ``raise MemoryError()``.  If you use an older
    version, you have to cimport the C-API function from the standard

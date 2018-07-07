@@ -3,7 +3,7 @@
 #   Cython Scanner - Lexical Definitions
 #
 
-from __future__ import absolute_import
+from __future__ import absolute_import, unicode_literals
 
 raw_prefixes = "rR"
 bytes_prefixes = "bB"

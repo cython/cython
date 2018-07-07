@@ -164,7 +164,7 @@ the assignment in a try-finally construct:
 To convert the byte string back into a C :c:type:`char*`, use the
 opposite assignment::
 
-    cdef char* other_c_string = py_string
+    cdef char* other_c_string = py_string  # other_c_string is a 0-terminated string.
 
 This is a very fast operation after which ``other_c_string`` points to
 the byte string buffer of the Python string itself.  It is tied to the
@@ -260,7 +260,7 @@ not modify a string they return, for example:
 
 .. literalinclude:: ../../examples/tutorial/string/someheader.h
 
-Since version 0.18, Cython has support for the ``const`` modifier in
+Cython has support for the ``const`` modifier in
 the language, so you can declare the above functions straight away as
 follows:
 
@@ -296,7 +296,7 @@ bytes most of which tend to be 0.
 
 Again, no bounds checking is done if slice indices are provided, so
 incorrect indices lead to data corruption and crashes.  However, using
-negative indices is possible since Cython 0.17 and will inject a call
+negative indices is possible and will inject a call
 to :c:func:`strlen()` in order to determine the string length.
 Obviously, this only works for 0-terminated strings without internal
 null bytes.  Text encoded in UTF-8 or one of the ISO-8859 encodings is
@@ -467,7 +467,7 @@ supports the ``__future__`` import ``unicode_literals`` that instructs
 the parser to read all unprefixed :obj:`str` literals in a source file as
 unicode string literals, just like Python 3.
 
-.. _`CEP 108`: http://wiki.cython.org/enhancements/stringliterals
+.. _`CEP 108`: https://github.com/cython/cython/wiki/enhancements-stringliterals
 
 Single bytes and characters
 ---------------------------
@@ -475,7 +475,7 @@ Single bytes and characters
 The Python C-API uses the normal C :c:type:`char` type to represent
 a byte value, but it has two special integer types for a Unicode code
 point value, i.e. a single Unicode character: :c:type:`Py_UNICODE`
-and :c:type:`Py_UCS4`.  Since version 0.13, Cython supports the
+and :c:type:`Py_UCS4`.  Cython supports the
 first natively, support for :c:type:`Py_UCS4` is new in Cython 0.15.
 :c:type:`Py_UNICODE` is either defined as an unsigned 2-byte or
 4-byte integer, or as :c:type:`wchar_t`, depending on the platform.
