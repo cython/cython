@@ -12,7 +12,7 @@ def open_file():
 
 def allocating_memory(number=10):
     cdef double *my_array = <double *> malloc(number * sizeof(double))
-    if not my_array:
+    if not my_array:  # same as 'is NULL' above
         raise MemoryError()
     ...
     free(my_array)
