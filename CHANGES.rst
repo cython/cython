@@ -2,7 +2,7 @@
 Cython Changelog
 ================
 
-0.28.4 (2018-??-??)
+0.28.4 (2018-07-08)
 ===================
 
 Bugs fixed
@@ -14,6 +14,8 @@ Bugs fixed
 
 * Exception catching based on a non-literal (runtime) tuple could fail to match the
   exception.  (Github issue #2425)
+
+* Compile fix for CPython 3.7.0a2.  (Github issue #2477)
 
 
 0.28.3 (2018-05-27)
