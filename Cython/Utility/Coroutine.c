@@ -1851,7 +1851,7 @@ static void __Pyx__ReturnWithStopIteration(PyObject* value) {
     }
     #if CYTHON_FAST_THREAD_STATE
     __Pyx_PyThreadState_assign
-    #if PY_VERSION_HEX >= 0x030700A2
+    #if PY_VERSION_HEX >= 0x030700A3
     if (!$local_tstate_cname->exc_state.exc_type)
     #else
     if (!$local_tstate_cname->exc_type)
