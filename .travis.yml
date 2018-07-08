@@ -116,7 +116,7 @@ before_install:
 
   - if [[ "$STACKLESS" == "true" ]]; then
       conda config --add channels stackless;
-      conda install stackless;
+      conda install --quiet --yes stackless;
     fi
 
 install:
