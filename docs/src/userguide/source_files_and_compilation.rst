@@ -75,34 +75,453 @@ them through :func:`cythonize`::
     )
 
 
-Pyximport
-===========
+.. _pyximport:
 
-Cython is a compiler.  Therefore it is natural that people tend to go
-through an edit/compile/test cycle with Cython modules.  :mod:`pyximport`
-simplifies this process by executing the "compile" step at need during
-import.  For instance, if you write a Cython module called :file:`foo.pyx`,
-with Pyximport you can import it in a regular Python module like this::
+Compiling with :mod:`pyximport`
+===============================
 
+For building Cython modules during development without explicitly
+running ``setup.py`` after each change, you can use :mod:`pyximport`::
 
-    import pyximport; pyximport.install()
-    import foo
+    >>> import pyximport; pyximport.install()
+    >>> import helloworld
+    Hello World
 
-Doing so will result in the compilation of :file:`foo.pyx` (with appropriate
-exceptions if it has an error in it).
+This allows you to automatically run Cython on every ``.pyx`` that
+Python is trying to import.  You should use this for simple Cython
+builds only where no extra C libraries and no special building setup
+is needed.
 
-If you would always like to import Cython files without building them specially,
-you can also add the first line above to your :file:`sitecustomize.py`.
-That will install the hook every time you run Python.  Then you can use
-Cython modules just with simple import statements, even like this:
+It is also possible to compile new ``.py`` modules that are being
+imported (including the standard library and installed packages).  For
+using this feature, just tell that to :mod:`pyximport`::
 
-.. sourcecode:: text
+    >>> pyximport.install(pyimport=True)
 
-    $ python -c "import foo"
+In the case that Cython fails to compile a Python module, :mod:`pyximport`
+will fall back to loading the source modules instead.
 
 Note that it is not recommended to let :mod:`pyximport` build code
 on end user side as it hooks into their import system.  The best way
 to cater for end users is to provide pre-built binary packages in the
 `wheel <https://wheel.readthedocs.io/>`_ packaging format.
 
-To have more information of :mod:`pyximport`, please refer to :ref:`pyximport`.
+
+Arguments
+---------
+
+The function ``pyximport.install()`` can take several arguments to
+influence the compilation of Cython or Python files.
+
+.. autofunction:: pyximport.install
+
+
+Dependency Handling
+--------------------
+
+Since :mod:`pyximport` does not use :func:`cythonize()` internally, it currently
+requires a different setup for dependencies.  It is possible to declare that
+your module depends on multiple files, (likely ``.h`` and ``.pxd`` files).
+If your Cython module is named ``foo`` and thus has the filename
+:file:`foo.pyx` then you should create another file in the same directory
+called :file:`foo.pyxdep`.  The :file:`modname.pyxdep` file can be a list of
+filenames or "globs" (like ``*.pxd`` or ``include/*.h``).  Each filename or
+glob must be on a separate line.  Pyximport will check the file date for each
+of those files before deciding whether to rebuild the module.  In order to
+keep track of the fact that the dependency has been handled, Pyximport updates
+the modification time of your ".pyx" source file.  Future versions may do
+something more sophisticated like informing distutils of the dependencies
+directly.
+
+
+Limitations
+------------
+
+:mod:`pyximport` does not use :func:`cythonize()`. Thus it is not
+possible to do things like using compiler directives at
+the top of Cython files or compiling Cython code to C++.
+
+Pyximport does not give you any control over how your Cython file is
+compiled.  Usually the defaults are fine.  You might run into problems if
+you wanted to write your program in half-C, half-Cython and build them
+into a single library.
+
+Pyximport does not hide the Distutils/GCC warnings and errors generated
+by the import process.  Arguably this will give you better feedback if
+something went wrong and why.  And if nothing went wrong it will give you
+the warm fuzzy feeling that pyximport really did rebuild your module as it
+was supposed to.
+
+Basic module reloading support is available with the option ``reload_support=True``.
+Note that this will generate a new module filename for each build and thus
+end up loading multiple shared libraries into memory over time. CPython has limited
+support for reloading shared libraries as such,
+see `PEP 489 <https://www.python.org/dev/peps/pep-0489/>`_.
+
+Pyximport puts both your ``.c`` file and the platform-specific binary into
+a separate build directory, usually ``$HOME/.pyxblx/``.  To copy it back
+into the package hierarchy (usually next to the source file) for manual
+reuse, you can pass the option ``inplace=True``.
+
+
+Compiling with ``cython.inline``
+=================================
+
+One can also compile Cython in a fashion similar to SciPy's ``weave.inline``.
+For example::
+
+    >>> import cython
+    >>> def f(a):
+    ...     ret = cython.inline("return a+b", b=3)
+    ...
+
+Unbound variables are automatically pulled from the surrounding local
+and global scopes, and the result of the compilation is cached for
+efficient re-use.
+
+Compiling with Sage
+===================
+
+The Sage notebook allows transparently editing and compiling Cython
+code simply by typing ``%cython`` at the top of a cell and evaluate
+it. Variables and functions defined in a Cython cell are imported into the
+running session.  Please check `Sage documentation
+<http://www.sagemath.org/doc/>`_ for details.
+
+You can tailor the behavior of the Cython compiler by specifying the
+directives below.
+
+.. _compiling_notebook:
+
+Compiling with a Jupyter Notebook
+=================================
+
+It's possible to compile code in a notebook cell with Cython.
+For this you need to load the Cython magic::
+
+    %load_ext cython
+
+Then you can define a Cython cell by writing ``%%cython`` on top of it.
+Like this::
+
+    %%cython
+
+    cdef int a = 0
+    for i in range(10):
+        a += i
+    print(a)
+
+Note that each cell will be compiled into a separate extension module. So if you use a package in a Cython
+cell, you will have to import this package in the same cell. It's not enough to
+have imported the package in a previous cell. Cython will tell you that there are
+"undefined global names" at compilation time if you don't comply.
+
+The global names (top level functions, classes, variables and modules) of the
+cell are then loaded into the global namespace of the notebook. So in the
+end, it behaves as if you executed a Python cell.
+
+Additional allowable arguments to the Cython magic are listed below.
+You can see them also by typing ```%%cython?`` in IPython or a Jupyter notebook.
+
+============================================  =======================================================================================================================================
+
+-a, --annotate                                Produce a colorized HTML version of the source.
+
+-+, --cplus                                   Output a C++ rather than C file.
+
+-f, --force                                   Force the compilation of a new module, even if the source has been previously compiled.
+
+-3                                            Select Python 3 syntax
+
+-2                                            Select Python 2 syntax
+
+-c=COMPILE_ARGS, --compile-args=COMPILE_ARGS  Extra flags to pass to compiler via the extra_compile_args.
+
+--link-args LINK_ARGS                         Extra flags to pass to linker via the extra_link_args.
+
+-l LIB, --lib LIB                             Add a library to link the extension against (can be specified multiple times).
+
+-L dir                                        Add a path to the list of library directories (can be specified multiple times).
+
+-I INCLUDE, --include INCLUDE                 Add a path to the list of include directories (can be specified multiple times).
+
+-S, --src                                     Add a path to the list of src files (can be specified multiple times).
+
+-n NAME, --name NAME                          Specify a name for the Cython module.
+
+--pgo                                         Enable profile guided optimisation in the C compiler. Compiles the cell twice and executes it in between to generate a runtime profile.
+
+--verbose                                     Print debug information like generated .c/.cpp file location and exact gcc/g++ command invoked.
+============================================  =======================================================================================================================================
+
+.. _compiler-directives:
+
+Compiler directives
+====================
+
+Compiler directives are instructions which affect the behavior of
+Cython code.  Here is the list of currently supported directives:
+
+``binding`` (True / False)
+    Controls whether free functions behave more like Python's CFunctions
+    (e.g. :func:`len`) or, when set to True, more like Python's functions.
+    When enabled, functions will bind to an instance when looked up as a
+    class attribute (hence the name) and will emulate the attributes
+    of Python functions, including introspections like argument names and
+    annotations.
+    Default is False.
+
+``boundscheck``  (True / False)
+    If set to False, Cython is free to assume that indexing operations
+    ([]-operator) in the code will not cause any IndexErrors to be
+    raised. Lists, tuples, and strings are affected only if the index
+    can be determined to be non-negative (or if ``wraparound`` is False).
+    Conditions which would normally trigger an IndexError may instead cause
+    segfaults or data corruption if this is set to False.
+    Default is True.
+
+``wraparound``  (True / False)
+    In Python, arrays and sequences can be indexed relative to the end.
+    For example, A[-1] indexes the last value of a list.
+    In C, negative indexing is not supported.
+    If set to False, Cython is allowed to neither check for nor correctly
+    handle negative indices, possibly causing segfaults or data corruption.
+    If bounds checks are enabled (the default, see ``boundschecks`` above),
+    negative indexing will usually raise an ``IndexError`` for indices that
+    Cython evaluates itself.
+    However, these cases can be difficult to recognise in user code to
+    distinguish them from indexing or slicing that is evaluated by the
+    underlying Python array or sequence object and thus continues to support
+    wrap-around indices.
+    It is therefore safest to apply this option only to code that does not
+    process negative indices at all.
+    Default is True.
+
+``initializedcheck`` (True / False)
+    If set to True, Cython checks that a memoryview is initialized
+    whenever its elements are accessed or assigned to. Setting this
+    to False disables these checks.
+    Default is True.
+
+``nonecheck``  (True / False)
+    If set to False, Cython is free to assume that native field
+    accesses on variables typed as an extension type, or buffer
+    accesses on a buffer variable, never occurs when the variable is
+    set to ``None``. Otherwise a check is inserted and the
+    appropriate exception is raised. This is off by default for
+    performance reasons.  Default is False.
+
+``overflowcheck`` (True / False)
+    If set to True, raise errors on overflowing C integer arithmetic
+    operations.  Incurs a modest runtime penalty, but is much faster than
+    using Python ints.  Default is False.
+
+``overflowcheck.fold`` (True / False)
+    If set to True, and overflowcheck is True, check the overflow bit for
+    nested, side-effect-free arithmetic expressions once rather than at every
+    step.  Depending on the compiler, architecture, and optimization settings,
+    this may help or hurt performance.  A simple suite of benchmarks can be
+    found in ``Demos/overflow_perf.pyx``.  Default is True.
+
+``embedsignature`` (True / False)
+    If set to True, Cython will embed a textual copy of the call
+    signature in the docstring of all Python visible functions and
+    classes. Tools like IPython and epydoc can thus display the
+    signature, which cannot otherwise be retrieved after
+    compilation.  Default is False.
+
+``cdivision`` (True / False)
+    If set to False, Cython will adjust the remainder and quotient
+    operators C types to match those of Python ints (which differ when
+    the operands have opposite signs) and raise a
+    ``ZeroDivisionError`` when the right operand is 0. This has up to
+    a 35% speed penalty. If set to True, no checks are performed.  See
+    `CEP 516 <https://github.com/cython/cython/wiki/enhancements-division>`_.  Default
+    is False.
+
+``cdivision_warnings`` (True / False)
+    If set to True, Cython will emit a runtime warning whenever
+    division is performed with negative operands.  See `CEP 516
+    <https://github.com/cython/cython/wiki/enhancements-division>`_.  Default is
+    False.
+
+``always_allow_keywords`` (True / False)
+    Avoid the ``METH_NOARGS`` and ``METH_O`` when constructing
+    functions/methods which take zero or one arguments. Has no effect
+    on special methods and functions with more than one argument. The
+    ``METH_NOARGS`` and ``METH_O`` signatures provide faster
+    calling conventions but disallow the use of keywords.
+
+``profile`` (True / False)
+    Write hooks for Python profilers into the compiled C code.  Default
+    is False.
+
+``linetrace`` (True / False)
+    Write line tracing hooks for Python profilers or coverage reporting
+    into the compiled C code.  This also enables profiling.  Default is
+    False.  Note that the generated module will not actually use line
+    tracing, unless you additionally pass the C macro definition
+    ``CYTHON_TRACE=1`` to the C compiler (e.g. using the distutils option
+    ``define_macros``).  Define ``CYTHON_TRACE_NOGIL=1`` to also include
+    ``nogil`` functions and sections.
+
+``infer_types`` (True / False)
+    Infer types of untyped variables in function bodies. Default is
+    None, indicating that only safe (semantically-unchanging) inferences
+    are allowed.
+    In particular, inferring *integral* types for variables *used in arithmetic
+    expressions* is considered unsafe (due to possible overflow) and must be
+    explicitly requested.
+
+``language_level`` (2/3)
+    Globally set the Python language level to be used for module
+    compilation.  Default is compatibility with Python 2.  To enable
+    Python 3 source code semantics, set this to 3 at the start of a
+    module or pass the "-3" command line option to the compiler.
+    Note that cimported files inherit this setting from the module
+    being compiled, unless they explicitly set their own language level.
+    Included source files always inherit this setting.
+
+``c_string_type`` (bytes / str / unicode)
+    Globally set the type of an implicit coercion from char* or std::string.
+
+``c_string_encoding`` (ascii, default, utf-8, etc.)
+    Globally set the encoding to use when implicitly coercing char* or std:string
+    to a unicode object.  Coercion from a unicode object to C type is only allowed
+    when set to ``ascii`` or ``default``, the latter being utf-8 in Python 3 and
+    nearly-always ascii in Python 2.
+
+``type_version_tag`` (True / False)
+    Enables the attribute cache for extension types in CPython by setting the
+    type flag ``Py_TPFLAGS_HAVE_VERSION_TAG``.  Default is True, meaning that
+    the cache is enabled for Cython implemented types.  To disable it
+    explicitly in the rare cases where a type needs to juggle with its ``tp_dict``
+    internally without paying attention to cache consistency, this option can
+    be set to False.
+
+``unraisable_tracebacks`` (True / False)
+    Whether to print tracebacks when suppressing unraisable exceptions.
+
+``iterable_coroutine`` (True / False)
+    `PEP 492 <https://www.python.org/dev/peps/pep-0492/>`_ specifies that async-def
+    coroutines must not be iterable, in order to prevent accidental misuse in
+    non-async contexts.  However, this makes it difficult and inefficient to write
+    backwards compatible code that uses async-def coroutines in Cython but needs to
+    interact with async Python code that uses the older yield-from syntax, such as
+    asyncio before Python 3.5.  This directive can be applied in modules or
+    selectively as decorator on an async-def coroutine to make the affected
+    coroutine(s) iterable and thus directly interoperable with yield-from.
+
+
+Configurable optimisations
+--------------------------
+
+``optimize.use_switch`` (True / False)
+    Whether to expand chained if-else statements (including statements like
+    ``if x == 1 or x == 2:``) into C switch statements.  This can have performance
+    benefits if there are lots of values but cause compiler errors if there are any
+    duplicate values (which may not be detectable at Cython compile time for all
+    C constants).  Default is True.
+
+``optimize.unpack_method_calls`` (True / False)
+    Cython can generate code that optimistically checks for Python method objects
+    at call time and unpacks the underlying function to call it directly.  This
+    can substantially speed up method calls, especially for builtins, but may also
+    have a slight negative performance impact in some cases where the guess goes
+    completely wrong.
+    Disabling this option can also reduce the code size.  Default is True.
+
+Warnings
+--------
+
+All warning directives take True / False as options
+to turn the warning on / off.
+
+``warn.undeclared`` (default False)
+    Warns about any variables that are implicitly declared without a ``cdef`` declaration
+
+``warn.unreachable`` (default True)
+    Warns about code paths that are statically determined to be unreachable, e.g.
+    returning twice unconditionally.
+
+``warn.maybe_uninitialized`` (default False)
+    Warns about use of variables that are conditionally uninitialized.
+
+``warn.unused`` (default False)
+    Warns about unused variables and declarations
+
+``warn.unused_arg`` (default False)
+    Warns about unused function arguments
+
+``warn.unused_result`` (default False)
+    Warns about unused assignment to the same name, such as
+    ``r = 2; r = 1 + 2``
+
+``warn.multiple_declarators`` (default True)
+   Warns about multiple variables declared on the same line with at least one pointer type.
+   For example ``cdef double* a, b`` - which, as in C, declares ``a`` as a pointer, ``b`` as
+   a value type, but could be mininterpreted as declaring two pointers.
+
+
+How to set directives
+---------------------
+
+Globally
+:::::::::
+
+One can set compiler directives through a special header comment at the top of the file, like this::
+
+    #!python
+    #cython: language_level=3, boundscheck=False
+
+The comment must appear before any code (but can appear after other
+comments or whitespace).
+
+One can also pass a directive on the command line by using the -X switch::
+
+    $ cython -X boundscheck=True ...
+
+Directives passed on the command line will override directives set in
+header comments.
+
+Locally
+::::::::
+
+For local blocks, you need to cimport the special builtin ``cython``
+module::
+
+    #!python
+    cimport cython
+
+Then you can use the directives either as decorators or in a with
+statement, like this::
+
+    #!python
+    @cython.boundscheck(False) # turn off boundscheck for this function
+    def f():
+        ...
+        # turn it temporarily on again for this block
+        with cython.boundscheck(True):
+            ...
+
+.. Warning:: These two methods of setting directives are **not**
+    affected by overriding the directive on the command-line using the
+    -X option.
+
+In :file:`setup.py`
+:::::::::::::::::::
+
+Compiler directives can also be set in the :file:`setup.py` file by passing a keyword
+argument to ``cythonize``::
+
+    from distutils.core import setup
+    from Cython.Build import cythonize
+
+    setup(
+        name="My hello app",
+        ext_modules=cythonize('hello.pyx', compiler_directives={'embedsignature': True}),
+    )
+
+This will override the default directives as specified in the ``compiler_directives`` dictionary.
+Note that explicit per-file or local directives as explained above take precedence over the
+values passed to ``cythonize``.
