@@ -2459,10 +2459,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put_label(code.error_label)
         for cname, type in code.funcstate.all_managed_temps():
             code.put_xdecref(cname, type)
-        # module state might not be ready for traceback generation with C-line handling yet
         code.putln('if (%s) {' % env.module_cname)
         code.putln('if (%s) {' % env.module_dict_cname)
-        code.put_add_traceback("init %s" % env.qualified_name, include_cline=False)
+        code.put_add_traceback("init %s" % env.qualified_name)
         code.globalstate.use_utility_code(Nodes.traceback_utility_code)
         # Module reference and module dict are in global variables which might still be needed
         # for cleanup, atexit code, etc., so leaking is better than crashing.
