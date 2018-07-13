@@ -42,6 +42,7 @@ cdef extern from "numpy/arrayobject.h":
         NPY_ULONG
         NPY_LONGLONG
         NPY_ULONGLONG
+        NPY_HALF
         NPY_FLOAT
         NPY_DOUBLE
         NPY_LONGDOUBLE
@@ -271,6 +272,7 @@ cdef extern from "numpy/arrayobject.h":
                 elif t == NPY_ULONG:       f = "L"
                 elif t == NPY_LONGLONG:    f = "q"
                 elif t == NPY_ULONGLONG:   f = "Q"
+                elif t == NPY_HALF:        f = "e"
                 elif t == NPY_FLOAT:       f = "f"
                 elif t == NPY_DOUBLE:      f = "d"
                 elif t == NPY_LONGDOUBLE:  f = "g"
@@ -331,6 +333,10 @@ cdef extern from "numpy/arrayobject.h":
     ctypedef unsigned long long npy_uint96
     ctypedef unsigned long long npy_uint128
 
+    ctypedef struct npy_half:
+        npy_uint16 value
+
+    ctypedef npy_half     npy_float16
     ctypedef float        npy_float32
     ctypedef double       npy_float64
     ctypedef long double  npy_float80
@@ -741,6 +747,7 @@ ctypedef npy_uint64     uint64_t
 #ctypedef npy_uint96     uint96_t
 #ctypedef npy_uint128    uint128_t
 
+ctypedef npy_float16    float16_t
 ctypedef npy_float32    float32_t
 ctypedef npy_float64    float64_t
 #ctypedef npy_float80    float80_t
@@ -844,6 +851,7 @@ cdef inline char* _util_dtypestring(dtype descr, char* f, char* end, int* offset
             elif t == NPY_ULONG:       f[0] = 76  #"L"
             elif t == NPY_LONGLONG:    f[0] = 113 #"q"
             elif t == NPY_ULONGLONG:   f[0] = 81  #"Q"
+            elif t == NPY_HALF:        f[0] = 101 #"e"
             elif t == NPY_FLOAT:       f[0] = 102 #"f"
             elif t == NPY_DOUBLE:      f[0] = 100 #"d"
             elif t == NPY_LONGDOUBLE:  f[0] = 103 #"g"

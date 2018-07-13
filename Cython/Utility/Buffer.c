@@ -324,7 +324,7 @@ static const char* __Pyx_BufFmt_DescribeTypeChar(char ch, int is_complex) {
 static size_t __Pyx_BufFmt_TypeCharToStandardSize(char ch, int is_complex) {
   switch (ch) {
     case '?': case 'c': case 'b': case 'B': case 's': case 'p': return 1;
-    case 'h': case 'H': return 2;
+    case 'e': case 'h': case 'H': return 2;
     case 'i': case 'I': case 'l': case 'L': return 4;
     case 'q': case 'Q': return 8;
     case 'f': return (is_complex ? 8 : 4);
@@ -343,7 +343,7 @@ static size_t __Pyx_BufFmt_TypeCharToStandardSize(char ch, int is_complex) {
 static size_t __Pyx_BufFmt_TypeCharToNativeSize(char ch, int is_complex) {
   switch (ch) {
     case 'c': case 'b': case 'B': case 's': case 'p': return 1;
-    case 'h': case 'H': return sizeof(short);
+    case 'e': case 'h': case 'H': return sizeof(short);
     case 'i': case 'I': return sizeof(int);
     case 'l': case 'L': return sizeof(long);
     #ifdef HAVE_LONG_LONG
@@ -374,7 +374,7 @@ typedef struct { char c; PY_LONG_LONG x; } __Pyx_st_longlong;
 static size_t __Pyx_BufFmt_TypeCharToAlignment(char ch, CYTHON_UNUSED int is_complex) {
   switch (ch) {
     case '?': case 'c': case 'b': case 'B': case 's': case 'p': return 1;
-    case 'h': case 'H': return sizeof(__Pyx_st_short) - sizeof(short);
+    case 'e': case 'h': case 'H': return sizeof(__Pyx_st_short) - sizeof(short);
     case 'i': case 'I': return sizeof(__Pyx_st_int) - sizeof(int);
     case 'l': case 'L': return sizeof(__Pyx_st_long) - sizeof(long);
 #ifdef HAVE_LONG_LONG
@@ -408,7 +408,7 @@ typedef struct { PY_LONG_LONG x; char c; } __Pyx_pad_longlong;
 static size_t __Pyx_BufFmt_TypeCharToPadding(char ch, CYTHON_UNUSED int is_complex) {
   switch (ch) {
     case '?': case 'c': case 'b': case 'B': case 's': case 'p': return 1;
-    case 'h': case 'H': return sizeof(__Pyx_pad_short) - sizeof(short);
+    case 'e': case 'h': case 'H': return sizeof(__Pyx_pad_short) - sizeof(short);
     case 'i': case 'I': return sizeof(__Pyx_pad_int) - sizeof(int);
     case 'l': case 'L': return sizeof(__Pyx_pad_long) - sizeof(long);
 #ifdef HAVE_LONG_LONG
@@ -432,6 +432,8 @@ static char __Pyx_BufFmt_TypeCharToGroup(char ch, int is_complex) {
     case 'l': case 'q': case 's': case 'p':
         return 'I';
     case 'B': case 'H': case 'I': case 'L': case 'Q':
+        return 'U';
+    case 'e':
         return 'U';
     case 'f': case 'd': case 'g':
         return (is_complex ? 'C' : 'R');
@@ -754,7 +756,7 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
         CYTHON_FALLTHROUGH;
       case 'c': case 'b': case 'B': case 'h': case 'H': case 'i': case 'I':
       case 'l': case 'L': case 'q': case 'Q':
-      case 'f': case 'd': case 'g':
+      case 'e': case 'f': case 'd': case 'g':
       case 'O': case 'p':
         if (ctx->enc_type == *ts && got_Z == ctx->is_complex &&
             ctx->enc_packmode == ctx->new_packmode) {
