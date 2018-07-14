@@ -7899,7 +7899,7 @@ class ListNode(SequenceNode):
         return ()
 
     def infer_type(self, env):
-        # TOOD: Infer non-object list arrays.
+        # TODO: Infer non-object list arrays.
         return list_type
 
     def analyse_expressions(self, env):
@@ -8564,7 +8564,7 @@ class DictNode(ExprNode):
         return ()
 
     def infer_type(self, env):
-        # TOOD: Infer struct constructors.
+        # TODO: Infer struct constructors.
         return dict_type
 
     def analyse_types(self, env):

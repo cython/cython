@@ -640,7 +640,7 @@ You can call the function in a Cython file in the following way:
 Several things to note:
  - ``::1`` requests a C contiguous view, and fails if the buffer is not C contiguous.
    See :ref:`c_and_fortran_contiguous_memoryviews`.
- - ``&arr_memview[0]`` can be understood as 'the adress of the first element of the
+ - ``&arr_memview[0]`` can be understood as 'the address of the first element of the
    memoryview'. For contiguous arrays, this is equivalent to the
    start address of the flat memory buffer.
  - ``arr_memview.shape[0]`` could have been replaced by ``arr_memview.size``,
