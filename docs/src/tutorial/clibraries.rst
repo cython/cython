@@ -192,7 +192,7 @@ Here is the most basic script for compiling a Cython module::
     )
 
 
-To build against the external C library, we need to make sure Cython finds the necessary libraries. 
+To build against the external C library, we need to make sure Cython finds the necessary libraries.
 There are two ways to archive this. First we can tell distutils where to find
 the c-source to compile the :file:`queue.c` implementation automatically. Alternatively,
 we can build and install C-Alg as system library and dynamically link it. The latter is useful
@@ -361,7 +361,7 @@ Here, ``Py_ssize_t``::
     cdef int pop(self):
         return <Py_ssize_t>cqueue.queue_pop_head(self._c_queue)
 
-Normally, in C, we risk loosing data when we convert a larger integer type
+Normally, in C, we risk losing data when we convert a larger integer type
 to a smaller integer type without checking the boundaries, and ``Py_ssize_t``
 may be a larger type than ``int``.  But since we control how values are added
 to the queue, we already know that all values that are in the queue fit into
