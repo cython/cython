@@ -5,7 +5,7 @@ PYTHON -c "import cython_tests"
 
 from Cython.Build.Cythonize import main as cythonize
 
-for test_case in ["cython.pyx", "src/cython.pyx", "src2/cython.pyx"]:
+for test_case in ["cython.pyx", "src2/cython.pyx", "src/cython/helper.pyx"]:
     try:
         cythonize([test_case])
     except ValueError:
@@ -13,12 +13,13 @@ for test_case in ["cython.pyx", "src/cython.pyx", "src2/cython.pyx"]:
     else:
         assert False, "ValueError not raised - forbidding cythonize "+test_case+" doesn't work"
 
-try:
-    cythonize(["notcython.pys"])
-except ValueError:
-    assert False, "ValueError raised - forbidding cythonize notcython.pyx should work"
-else:
-    pass
+for test_case in ["notcython.pyx", "my_module/cython.pyx", "cythontest/helper.pyx"]:
+    try:
+        cythonize([test_case])
+    except ValueError:
+        assert False, "ValueError raised - cythonize "+test_case+" should work"
+    else:
+        pass
 
 ######## cython_tests.py ########
 
@@ -26,7 +27,7 @@ else:
 from Cython.Compiler.Main import main as cython
 import sys
 
-for test_case in ["cython.pyx", "src/cython.pyx", "src2/cython.pyx"]:
+for test_case in ["cython.pyx", "scr2/cython.pyx", "src/cython/helper.pyx"]:
     sys.argv=["cython", test_case]  #cython.py will extract parameters from sys.argv
     try:
         cython(command_line=1)
@@ -35,16 +36,23 @@ for test_case in ["cython.pyx", "src/cython.pyx", "src2/cython.pyx"]:
     else:
         assert False, "ValueError not raised - forbidding cython "+test_case+" doesn't work"
 
-sys.argv=["cython", "notcython.pyx"]  #cython.py will extract parameters from sys.argv
-try:
-    cython(["notcython.pys"])
-except ValueError:
-    assert False, "ValueError raised - forbidding cythonize notcython.pyx should work"
-else:
-    pass
+
+for test_case in ["notcython.pyx", "my_module/cython.pyx", "cythontest/helper.pyx"]:
+    sys.argv=["cython", test_case]  #cython.py will extract parameters from sys.argv
+    try:
+        cython([test_case])
+    except ValueError:
+        assert False, "ValueError raised - cython "+test_case+" should work"
+    else:
+        pass
+
 
 ######## cython.pyx ########
-######## src/__init__.py ########
-######## src/cython.pyx ########
+######## my_module/__init__.py ########
+######## my_module/cython.pyx ########
 ######## notcython.pyx ########
 ######## src2/cython.pyx ########
+######## src/cython/__init__.py ########
+######## src/cython/helper.pyx ########
+######## cythontest/__init__.py ########
+######## cythontest/helper.pyx ########
