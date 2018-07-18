@@ -90,6 +90,9 @@ Bugs fixed
 * Work around a crash bug in g++ 4.4.x by disabling the size reduction setting
   of the module init function in this version.  (Github issue #2235)
 
+* Crash when exceptions occur early during module initialisation.
+  (Github issue #2199)
+
 
 0.28.2 (2018-04-13)
 ===================
