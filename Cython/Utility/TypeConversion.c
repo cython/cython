@@ -603,8 +603,7 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value);
 /////////////// CIntToPy ///////////////
 
 static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
-    const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = ({{TYPE}}) 0;
-    const int is_unsigned = neg_one > const_zero;
+    const int is_unsigned = ({{TYPE}}) 0 - 1 > 0;
     if (is_unsigned) {
         if (sizeof({{TYPE}}) < sizeof(long)) {
             return PyInt_FromLong((long) value);
@@ -696,8 +695,7 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
     Py_ssize_t length, ulength;
     int prepend_sign, last_one_off;
     {{TYPE}} remaining;
-    const {{TYPE}} neg_one = ({{TYPE}}) 0 - ({{TYPE}}) 1, const_zero = ({{TYPE}}) 0;
-    const int is_unsigned = neg_one > const_zero;
+    const int is_unsigned = ({{TYPE}}) 0 - 1 > 0;
 
     if (format_char == 'X') {
         hex_digits += 16;
@@ -742,7 +740,7 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
     length = end - dpos;
     ulength = length;
     prepend_sign = 0;
-    if (!is_unsigned && value <= neg_one) {
+    if (!is_unsigned && value < 0) {
         if (padding_char == ' ' || width <= length + 1) {
             *(--dpos) = '-';
             ++length;
@@ -825,8 +823,7 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *);
 {{py: from Cython.Utility import pylong_join }}
 
 static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
-    const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = ({{TYPE}}) 0;
-    const int is_unsigned = neg_one > const_zero;
+    const int is_unsigned = ({{TYPE}}) 0 - 1 > 0;
 #if PY_MAJOR_VERSION < 3
     if (likely(PyInt_Check(x))) {
         if (sizeof({{TYPE}}) < sizeof(long)) {
