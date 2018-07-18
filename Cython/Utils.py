@@ -491,5 +491,5 @@ def add_metaclass(metaclass):
 
 def raise_error_if_module_name_forbidden(full_module_name):
     #it is bad idea to call the pyx-file cython.pyx, so fail early
-    if full_module_name == 'cython'  or full_module_name.endswith('.cython'):
+    if full_module_name == 'cython' or full_module_name.startswith('cython.'):
         raise ValueError('cython is a special module, cannot be used as a module name')
