@@ -53,6 +53,10 @@ Bugs fixed
 * Several internal function signatures were fixed that lead to warnings in gcc-8.
   (Github issue #2363)
 
+* C lines of the module init function were unconditionally not reported in
+  exception stack traces.
+  Patch by Jeroen Demeyer.  (Github issue #2492)
+
 Other changes
 -------------
 
