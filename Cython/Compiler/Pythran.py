@@ -16,13 +16,10 @@ except ImportError:
 # Pythran/Numpy specific operations
 
 def has_np_pythran(env):
-    while env is not None:
-        directives = getattr(env, 'directives', None)
-        if directives and directives.get('np_pythran', False):
-            return True
-        env = env.outer_scope
-    return False
-
+    if env is None:
+        return False
+    directives = getattr(env, 'directives', None)
+    return (directives and directives.get('np_pythran', False))
 
 @cython.ccall
 def is_pythran_supported_dtype(type_):
