@@ -57,6 +57,10 @@ Bugs fixed
   exception stack traces.
   Patch by Jeroen Demeyer.  (Github issue #2492)
 
+* The discouraged usage of GCC's attribute ``optimize("Os")`` was replaced by the
+  similar attribute ``cold`` to reduce the code impact of the module init functions.
+  (Github issue #2494)
+
 Other changes
 -------------
 
