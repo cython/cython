@@ -1,5 +1,5 @@
 # mode: run
-# tag: list, tuple, slice
+# tag: list, tuple, slice, slicing
 
 def slice_list(list l, int start, int stop):
     """
@@ -203,3 +203,464 @@ def slice_charp_repeat(py_string_arg):
     cdef bytes slice_val = s[1:6]
     s = slice_val
     return s[1:3].decode(u'ASCII')
+
+ctypedef fused slicable:
+    list
+    tuple
+    bytes
+
+def slice_fused_type_start(slicable seq, start):
+    """
+    >>> l = [1,2,3,4,5]
+    >>> t = tuple(l)
+    >>> b = ''.join(map(str, l)).encode('ASCII')
+    >>> for o in (l, t, b):
+    ...     for s in (0, 4, 5, -5, None):
+    ...             slice_fused_type_start(o, s)
+    ... 
+    [1, 2, 3, 4, 5]
+    [5]
+    []
+    [1, 2, 3, 4, 5]
+    [1, 2, 3, 4, 5]
+    (1, 2, 3, 4, 5)
+    (5,)
+    ()
+    (1, 2, 3, 4, 5)
+    (1, 2, 3, 4, 5)
+    '12345'
+    '5'
+    ''
+    '12345'
+    '12345'
+    """
+    obj = seq[start:]
+    return obj
+
+def slice_fused_type_stop(slicable seq, stop):
+    """
+    >>> l = [1,2,3,4,5]
+    >>> t = tuple(l)
+    >>> b = ''.join(map(str, l)).encode('ASCII')
+    >>> for o in (l, t, b):
+    ...     for s in (0, 4, 5, -5, None):
+    ...             slice_fused_type_stop(o, s)
+    ... 
+    []
+    [1, 2, 3, 4]
+    [1, 2, 3, 4, 5]
+    []
+    [1, 2, 3, 4, 5]
+    ()
+    (1, 2, 3, 4)
+    (1, 2, 3, 4, 5)
+    ()
+    (1, 2, 3, 4, 5)
+    ''
+    '1234'
+    '12345'
+    ''
+    '12345'
+    """
+    obj = seq[:stop]
+    return obj
+
+def slice_fused_type_start_and_stop(slicable seq, start, stop):
+    """
+    >>> l = [1,2,3,4,5]
+    >>> t = tuple(l)
+    >>> b = ''.join(map(str, l)).encode('ASCII')
+    >>> for o in (l, t, b):
+    ...     for start in (0, 1, 4, 5, -5, None):
+    ...             for stop in (0, 4, 5, 10, -10, None):
+    ...                     slice_fused_type_start_and_stop(o, start, stop)
+    ... 
+    []
+    [1, 2, 3, 4]
+    [1, 2, 3, 4, 5]
+    [1, 2, 3, 4, 5]
+    []
+    [1, 2, 3, 4, 5]
+    []
+    [2, 3, 4]
+    [2, 3, 4, 5]
+    [2, 3, 4, 5]
+    []
+    [2, 3, 4, 5]
+    []
+    []
+    [5]
+    [5]
+    []
+    [5]
+    []
+    []
+    []
+    []
+    []
+    []
+    []
+    [1, 2, 3, 4]
+    [1, 2, 3, 4, 5]
+    [1, 2, 3, 4, 5]
+    []
+    [1, 2, 3, 4, 5]
+    []
+    [1, 2, 3, 4]
+    [1, 2, 3, 4, 5]
+    [1, 2, 3, 4, 5]
+    []
+    [1, 2, 3, 4, 5]
+    ()
+    (1, 2, 3, 4)
+    (1, 2, 3, 4, 5)
+    (1, 2, 3, 4, 5)
+    ()
+    (1, 2, 3, 4, 5)
+    ()
+    (2, 3, 4)
+    (2, 3, 4, 5)
+    (2, 3, 4, 5)
+    ()
+    (2, 3, 4, 5)
+    ()
+    ()
+    (5,)
+    (5,)
+    ()
+    (5,)
+    ()
+    ()
+    ()
+    ()
+    ()
+    ()
+    ()
+    (1, 2, 3, 4)
+    (1, 2, 3, 4, 5)
+    (1, 2, 3, 4, 5)
+    ()
+    (1, 2, 3, 4, 5)
+    ()
+    (1, 2, 3, 4)
+    (1, 2, 3, 4, 5)
+    (1, 2, 3, 4, 5)
+    ()
+    (1, 2, 3, 4, 5)
+    ''
+    '1234'
+    '12345'
+    '12345'
+    ''
+    '12345'
+    ''
+    '234'
+    '2345'
+    '2345'
+    ''
+    '2345'
+    ''
+    ''
+    '5'
+    '5'
+    ''
+    '5'
+    ''
+    ''
+    ''
+    ''
+    ''
+    ''
+    ''
+    '1234'
+    '12345'
+    '12345'
+    ''
+    '12345'
+    ''
+    '1234'
+    '12345'
+    '12345'
+    ''
+    '12345'
+    """
+    obj = seq[start:stop]
+    return obj
+
+def slice_fused_type_step(slicable seq, step):
+    """
+    >>> l = [1,2,3,4,5]
+    >>> t = tuple(l)
+    >>> b = ''.join(map(str, l)).encode('ASCII')
+    >>> for o in (l, t, b):
+    ...     for s in (1, -1, 2, -3, 10, -10, None):
+    ...             slice_fused_type_step(o, s)
+    ... 
+    [1, 2, 3, 4, 5]
+    [5, 4, 3, 2, 1]
+    [1, 3, 5]
+    [5, 2]
+    [1]
+    [5]
+    [1, 2, 3, 4, 5]
+    (1, 2, 3, 4, 5)
+    (5, 4, 3, 2, 1)
+    (1, 3, 5)
+    (5, 2)
+    (1,)
+    (5,)
+    (1, 2, 3, 4, 5)
+    '12345'
+    '54321'
+    '135'
+    '52'
+    '1'
+    '5'
+    '12345'
+    >>> for o in (l, t, b):
+    ...     try: slice_fused_type_step(o, 0)
+    ...     except ValueError: pass
+    """
+    obj = seq[::step]
+    return obj
+
+def slice_fused_type_start_and_step(slicable seq, start, step):
+    """
+    >>> l = [1,2,3,4,5]
+    >>> t = tuple(l)
+    >>> b = ''.join(map(str, l)).encode('ASCII')
+    >>> for o in (l, t, b):
+    ...     for start in (0, 2, 5, -5, None):
+    ...             for step in (1, -1, 2, -3, None):
+    ...                     slice_fused_type_start_and_step(o, start, step)
+    ... 
+    [1, 2, 3, 4, 5]
+    [1]
+    [1, 3, 5]
+    [1]
+    [1, 2, 3, 4, 5]
+    [3, 4, 5]
+    [3, 2, 1]
+    [3, 5]
+    [3]
+    [3, 4, 5]
+    []
+    [5, 4, 3, 2, 1]
+    []
+    [5, 2]
+    []
+    [1, 2, 3, 4, 5]
+    [1]
+    [1, 3, 5]
+    [1]
+    [1, 2, 3, 4, 5]
+    [1, 2, 3, 4, 5]
+    [5, 4, 3, 2, 1]
+    [1, 3, 5]
+    [5, 2]
+    [1, 2, 3, 4, 5]
+    (1, 2, 3, 4, 5)
+    (1,)
+    (1, 3, 5)
+    (1,)
+    (1, 2, 3, 4, 5)
+    (3, 4, 5)
+    (3, 2, 1)
+    (3, 5)
+    (3,)
+    (3, 4, 5)
+    ()
+    (5, 4, 3, 2, 1)
+    ()
+    (5, 2)
+    ()
+    (1, 2, 3, 4, 5)
+    (1,)
+    (1, 3, 5)
+    (1,)
+    (1, 2, 3, 4, 5)
+    (1, 2, 3, 4, 5)
+    (5, 4, 3, 2, 1)
+    (1, 3, 5)
+    (5, 2)
+    (1, 2, 3, 4, 5)
+    '12345'
+    '1'
+    '135'
+    '1'
+    '12345'
+    '345'
+    '321'
+    '35'
+    '3'
+    '345'
+    ''
+    '54321'
+    ''
+    '52'
+    ''
+    '12345'
+    '1'
+    '135'
+    '1'
+    '12345'
+    '12345'
+    '54321'
+    '135'
+    '52'
+    '12345'
+    >>> for o in (l, t, b):
+    ...     try: slice_fused_type_start_and_step(o, 0, 0)
+    ...     except ValueError: pass
+    """
+    obj = seq[start::step]
+    return obj
+
+def slice_fused_type_stop_and_step(slicable seq, stop, step):
+    """
+    >>> l = [1,2,3,4,5]
+    >>> t = tuple(l)
+    >>> b = ''.join(map(str, l)).encode('ASCII')
+    >>> for o in (l, t, b):
+    ...     for stop in (5, 10, 3, -10, None):
+    ...             for step in (1, -1, 2, -3, None):
+    ...                     slice_fused_type_stop_and_step(o, stop, step)
+    ... 
+    [1, 2, 3, 4, 5]
+    []
+    [1, 3, 5]
+    []
+    [1, 2, 3, 4, 5]
+    [1, 2, 3, 4, 5]
+    []
+    [1, 3, 5]
+    []
+    [1, 2, 3, 4, 5]
+    [1, 2, 3]
+    [5]
+    [1, 3]
+    [5]
+    [1, 2, 3]
+    []
+    [5, 4, 3, 2, 1]
+    []
+    [5, 2]
+    []
+    [1, 2, 3, 4, 5]
+    [5, 4, 3, 2, 1]
+    [1, 3, 5]
+    [5, 2]
+    [1, 2, 3, 4, 5]
+    (1, 2, 3, 4, 5)
+    ()
+    (1, 3, 5)
+    ()
+    (1, 2, 3, 4, 5)
+    (1, 2, 3, 4, 5)
+    ()
+    (1, 3, 5)
+    ()
+    (1, 2, 3, 4, 5)
+    (1, 2, 3)
+    (5,)
+    (1, 3)
+    (5,)
+    (1, 2, 3)
+    ()
+    (5, 4, 3, 2, 1)
+    ()
+    (5, 2)
+    ()
+    (1, 2, 3, 4, 5)
+    (5, 4, 3, 2, 1)
+    (1, 3, 5)
+    (5, 2)
+    (1, 2, 3, 4, 5)
+    '12345'
+    ''
+    '135'
+    ''
+    '12345'
+    '12345'
+    ''
+    '135'
+    ''
+    '12345'
+    '123'
+    '5'
+    '13'
+    '5'
+    '123'
+    ''
+    '54321'
+    ''
+    '52'
+    ''
+    '12345'
+    '54321'
+    '135'
+    '52'
+    '12345'
+    >>> for o in (l, t, b):
+    ...     try: slice_fused_type_stop_and_step(o, 5, 0)
+    ...     except ValueError: pass
+    """
+    obj = seq[:stop:step]
+    return obj
+
+def slice_fused_type_all(slicable seq, start, stop, step):
+    """
+    >>> l = [1,2,3,4,5]
+    >>> t = tuple(l)
+    >>> s = ''.join(map(str, l)).encode('ASCII')
+    >>> for o in (l, t, s):
+    ...     slice_fused_type_all(o, 0, 5, 1)
+    ...
+    [1, 2, 3, 4, 5]
+    (1, 2, 3, 4, 5)
+    '12345'
+    >>> for o in (l, t, s):
+    ...     slice_fused_type_all(o, 5, 0, -1)
+    ...
+    [5, 4, 3, 2]
+    (5, 4, 3, 2)
+    '5432'
+    >>> for o in (l, t, s):
+    ...     slice_fused_type_all(o, None, 5, 1)
+    ...
+    [1, 2, 3, 4, 5]
+    (1, 2, 3, 4, 5)
+    '12345'
+    >>> for o in (l, t, s):
+    ...     slice_fused_type_all(o, 5, None, -1)
+    ...
+    [5, 4, 3, 2, 1]
+    (5, 4, 3, 2, 1)
+    '54321'
+    >>> for o in (l, t, s):
+    ...     slice_fused_type_all(o, -100, 100, None)
+    ...
+    [1, 2, 3, 4, 5]
+    (1, 2, 3, 4, 5)
+    '12345'
+    >>> for o in (l, t, s):
+    ...     slice_fused_type_all(o, None, None, None)
+    ...
+    [1, 2, 3, 4, 5]
+    (1, 2, 3, 4, 5)
+    '12345'
+    >>> for o in (l, t, s):
+    ...     slice_fused_type_all(o, 1, 3, 2)
+    ...
+    [2]
+    (2,)
+    '2'
+    >>> for o in (l, t, s):
+    ...     slice_fused_type_all(o, 5, 1, -3)
+    ...
+    [5]
+    (5,)
+    '5'
+    """
+    obj = seq[start:stop:step]
+    return obj
