@@ -24,7 +24,6 @@ python:
   - 3.6
   - 2.6
   - 3.7
-  - 3.3
   - 3.4
   - 3.5
   - 3.7-dev
@@ -123,7 +122,7 @@ before_install:
 
 install:
   - python -c 'import sys; print("Python %s" % (sys.version,))'
-  - if [ -n "${TRAVIS_PYTHON_VERSION##*-dev}" -a -n "${TRAVIS_PYTHON_VERSION##2.6*}" ]; then pip install -r test-requirements.txt $( [ -z "${TRAVIS_PYTHON_VERSION##pypy*}" ] || echo " -r test-requirements-cpython.txt" ) $( [ -n "${TRAVIS_PYTHON_VERSION##3.3*}" ] || echo " tornado<5.0" ) ; fi
+  - if [ -n "${TRAVIS_PYTHON_VERSION##*-dev}" -a -n "${TRAVIS_PYTHON_VERSION##2.6*}" ]; then pip install -r test-requirements.txt $( [ -z "${TRAVIS_PYTHON_VERSION##pypy*}" ] || echo " -r test-requirements-cpython.txt" ) ; fi
   - CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" python setup.py build
 
 before_script: ccache -s || true
