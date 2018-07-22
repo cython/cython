@@ -63,6 +63,10 @@ Other changes
 * The documentation was restructured, cleaned up and examples are now tested.
   Contributed by Gabriel de Marmiesse.  (Github issue #2245)
 
+* Cython compiles less of its own modules at build time to reduce the installed
+  package size to about half of its previous size.  This makes the compiler
+  slightly slower, by about 5-7%.
+
 
 0.28.4 (2018-07-08)
 ===================
