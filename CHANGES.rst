@@ -53,14 +53,26 @@ Bugs fixed
 * Several internal function signatures were fixed that lead to warnings in gcc-8.
   (Github issue #2363)
 
+* C lines of the module init function were unconditionally not reported in
+  exception stack traces.
+  Patch by Jeroen Demeyer.  (Github issue #2492)
+
+* The discouraged usage of GCC's attribute ``optimize("Os")`` was replaced by the
+  similar attribute ``cold`` to reduce the code impact of the module init functions.
+  (Github issue #2494)
+
 Other changes
 -------------
 
 * The documentation was restructured, cleaned up and examples are now tested.
   Contributed by Gabriel de Marmiesse.  (Github issue #2245)
 
+* Cython compiles less of its own modules at build time to reduce the installed
+  package size to about half of its previous size.  This makes the compiler
+  slightly slower, by about 5-7%.
 
-0.28.4 (2018-??-??)
+
+0.28.4 (2018-07-08)
 ===================
 
 Bugs fixed
@@ -69,6 +81,11 @@ Bugs fixed
 * Reallowing ``tp_clear()`` in a subtype of an ``@no_gc_clear`` extension type
   generated an invalid C function call to the (non-existent) base type implementation.
   (Github issue #2309)
+
+* Exception catching based on a non-literal (runtime) tuple could fail to match the
+  exception.  (Github issue #2425)
+
+* Compile fix for CPython 3.7.0a2.  (Github issue #2477)
 
 
 0.28.3 (2018-05-27)
@@ -84,6 +101,9 @@ Bugs fixed
 
 * Work around a crash bug in g++ 4.4.x by disabling the size reduction setting
   of the module init function in this version.  (Github issue #2235)
+
+* Crash when exceptions occur early during module initialisation.
+  (Github issue #2199)
 
 
 0.28.2 (2018-04-13)
@@ -2180,9 +2200,9 @@ Features added
 
 * GDB support. http://docs.cython.org/src/userguide/debugging.html
 
-* A new build system with support for inline distutils directives, correct dependency tracking, and parallel compilation. http://wiki.cython.org/enhancements/distutils_preprocessing
+* A new build system with support for inline distutils directives, correct dependency tracking, and parallel compilation. https://github.com/cython/cython/wiki/enhancements-distutils_preprocessing
 
-* Support for dynamic compilation at runtime via the new cython.inline function and cython.compile decorator. http://wiki.cython.org/enhancements/inline
+* Support for dynamic compilation at runtime via the new cython.inline function and cython.compile decorator. https://github.com/cython/cython/wiki/enhancements-inline
 
 * "nogil" blocks are supported when compiling pure Python code by writing "with cython.nogil".
 

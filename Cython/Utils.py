@@ -487,3 +487,9 @@ def add_metaclass(metaclass):
         orig_vars.pop('__weakref__', None)
         return metaclass(cls.__name__, cls.__bases__, orig_vars)
     return wrapper
+
+
+def raise_error_if_module_name_forbidden(full_module_name):
+    #it is bad idea to call the pyx-file cython.pyx, so fail early
+    if full_module_name == 'cython' or full_module_name.startswith('cython.'):
+        raise ValueError('cython is a special module, cannot be used as a module name')

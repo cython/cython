@@ -713,7 +713,7 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject els
 {{py: c_op = {'Eq': '==', 'Ne': '!='}[op] }}
 {{py:
 return_compare = (
-    (lambda a,b,c_op: "if ({a} {c_op} {b}) {return_true}; else {return_false};".format(
+    (lambda a,b,c_op, return_true=return_true, return_false=return_false: "if ({a} {c_op} {b}) {return_true}; else {return_false};".format(
         a=a, b=b, c_op=c_op, return_true=return_true, return_false=return_false))
     if ret_type.is_pyobject else
     (lambda a,b,c_op: "return ({a} {c_op} {b});".format(a=a, b=b, c_op=c_op))

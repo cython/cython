@@ -18,3 +18,10 @@ numpy_parallel
 py_unicode_type
 
 test_grammar
+
+# Those tests don't work because MSVC wants to link to the c-algorithms library
+# when compiling and we don't want to download c-algorithms just for those tests.
+queue
+queue2
+queue3
+lunch

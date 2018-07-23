@@ -77,7 +77,7 @@ It is shipped and installed with Cython and can be used like this::
     >>> import helloworld
     Hello World
 
-Since Cython 0.11, the :ref:`Pyximport<pyximport>` module also has experimental
+The :ref:`Pyximport<pyximport>` module also has experimental
 compilation support for normal Python modules.  This allows you to
 automatically run Cython on every .pyx and .py module that Python
 imports, including the standard library and installed packages.
@@ -326,7 +326,7 @@ With Cython, it is also possible to take advantage of the C++ language, notably,
 part of the C++ standard library is directly importable from Cython code.
 
 Let's see what our :file:`primes.pyx` becomes when
-using `vector <http://en.cppreference.com/w/cpp/container/vector>`_ from the C++
+using `vector <https://en.cppreference.com/w/cpp/container/vector>`_ from the C++
 standard library.
 
 .. note::
@@ -336,7 +336,7 @@ standard library.
     type in the ``array`` standard library module.
     There is a method `reserve` available which will avoid copies if you know in advance
     how many elements you are going to put in the vector. For more details
-    see `this page from cppreference <http://en.cppreference.com/w/cpp/container/vector>`_.
+    see `this page from cppreference <https://en.cppreference.com/w/cpp/container/vector>`_.
 
 .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes_cpp.pyx
     :linenos:

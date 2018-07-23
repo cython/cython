@@ -51,7 +51,8 @@ system, for example, it might look similar to this::
 (``gcc`` will need to have paths to your included header files and paths
 to libraries you want to link with.)
 
-After compilation, a ``yourmod.so`` file is written into the target directory
+After compilation, a ``yourmod.so`` (:file:`yourmod.pyd` for Windows)
+file is written into the target directory
 and your module, ``yourmod``, is available for you to import as with any other
 Python module.  Note that if you are not relying on ``cythonize`` or distutils,
 you will not automatically benefit from the platform specific file extension
@@ -104,7 +105,13 @@ the necessary include files, e.g. for NumPy::
 
     include_path = [numpy.get_include()]
 
-Note for Numpy users.  Despite this, you will still get warnings like the
+.. note::
+
+    Using memoryviews or importing NumPy with ``import numpy`` does not mean that
+    you have to add the path to NumPy include files. You need to add this path only
+    if you use ``cimport numpy``.
+
+Despite this, you will still get warnings like the
 following from the compiler, because Cython is using a deprecated Numpy API::
 
    .../include/numpy/npy_1_7_deprecated_api.h:15:2: warning: #warning "Using deprecated NumPy API, disable it by " "#defining NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION" [-Wcpp]
@@ -184,7 +191,7 @@ be found in the `distutils documentation`_. Some useful options to know about
 are ``include_dirs``, ``libraries``, and ``library_dirs`` which specify where
 to find the ``.h`` and library files when linking to external libraries.
 
-.. _distutils documentation: http://docs.python.org/extending/building.html
+.. _distutils documentation: https://docs.python.org/extending/building.html
 
 Sometimes this is not enough and you need finer customization of the
 distutils :class:`Extension`.
@@ -243,78 +250,52 @@ Cythonize arguments
 The function :func:`cythonize` can take extra arguments which will allow you to
 customize your build.
 
-.. py:function:: cythonize(module_list, \
-                           exclude=None, \
-                           nthreads=0, \
-                           aliases=None, \
-                           quiet=False, \
-                           force=False, \
-                           language=None, \
-                           exclude_failures=False, \
-                           **options)
+.. autofunction:: Cython.Build.cythonize
 
-    Compile a set of source modules into C/C++ files and return a list of distutils
-    Extension objects for them.
 
-    :param module_list: As module list, pass either a glob pattern, a list of glob
-                        patterns or a list of Extension objects.  The latter
-                        allows you to configure the extensions separately
-                        through the normal distutils options.
-                        You can also pass Extension objects that have
-                        glob patterns as their sources. Then, cythonize
-                        will resolve the pattern and create a
-                        copy of the Extension for every matching file.
 
-    :param exclude: When passing glob patterns as ``module_list``, you can exclude certain
-                    module names explicitly by passing them into the ``exclude`` option.
+Compiler options
+----------------
 
-    :param nthreads: The number of concurrent builds for parallel compilation
-                     (requires the ``multiprocessing`` module).
+Compiler options can be set in the :file:`setup.py`, before calling :func:`cythonize`,
+like this::
 
-    :param aliases: If you want to use compiler directives like ``# distutils: ...`` but
-                    can only know at compile time (when running the ``setup.py``) which values
-                    to use, you can use aliases and pass a dictionary mapping those aliases
-                    to Python strings when calling :func:`cythonize`. As an example, say you
-                    want to use the compiler
-                    directive ``# distutils: include_dirs = ../static_libs/include/``
-                    but this path isn't always fixed and you want to find it when running
-                    the ``setup.py``. You can then do ``# distutils: include_dirs = MY_HEADERS``,
-                    find the value of ``MY_HEADERS`` in the ``setup.py``, put it in a python
-                    variable called ``foo`` as a string, and then call
-                    ``cythonize(..., aliases={'MY_HEADERS': foo})``.
+    from distutils.core import setup
 
-    :param quiet: If True, Cython won't print error and warning messages during the compilation.
+    from Cython.Build import cythonize
+    from Cython.Compiler import Options
 
-    :param force: Forces the recompilation of the Cython modules, even if the timestamps
-                  don't indicate that a recompilation is necessary.
+    Options.docstrings = False
 
-    :param language: To globally enable C++ mode, you can pass ``language='c++'``. Otherwise, this
-                     will be determined at a per-file level based on compiler directives.  This
-                     affects only modules found based on file names.  Extension instances passed
-                     into :func:`cythonize` will not be changed. It is recommended to rather
-                     use the compiler directive ``# distutils: language = c++`` than this option.
+    setup(
+        name = "hello",
+        ext_modules = cythonize("lib.pyx"),
+    )
 
-    :param exclude_failures: For a broad 'try to compile' mode that ignores compilation
-                             failures and simply excludes the failed extensions,
-                             pass ``exclude_failures=True``. Note that this only
-                             really makes sense for compiling ``.py`` files which can also
-                             be used without compilation.
+Here are the options that are available:
 
-    :param annotate: If ``True``, will produce a HTML file for each of the ``.pyx`` or ``.py``
-                     files compiled. The HTML file gives an indication
-                     of how much Python interaction there is in
-                     each of the source code lines, compared to plain C code.
-                     It also allows you to see the C/C++ code
-                     generated for each line of Cython code. This report is invaluable when
-                     optimizing a function for speed,
-                     and for determining when to :ref:`release the GIL <nogil>`:
-                     in general, a ``nogil`` block may contain only "white" code.
-                     See examples in :ref:`determining_where_to_add_types` or
-                     :ref:`primes`.
+.. autodata:: Cython.Compiler.Options.docstrings
+.. autodata:: Cython.Compiler.Options.embed_pos_in_docstring
+.. autodata:: Cython.Compiler.Options.emit_code_comments
+.. pre_import
+.. autodata:: Cython.Compiler.Options.generate_cleanup_code
+.. autodata:: Cython.Compiler.Options.clear_to_none
+.. autodata:: Cython.Compiler.Options.annotate
+.. annotate_coverage_xml
+.. autodata:: Cython.Compiler.Options.fast_fail
+.. autodata:: Cython.Compiler.Options.warning_errors
+.. autodata:: Cython.Compiler.Options.error_on_unknown_names
+.. autodata:: Cython.Compiler.Options.error_on_uninitialized
+.. autodata:: Cython.Compiler.Options.convert_range
+.. autodata:: Cython.Compiler.Options.cache_builtins
+.. autodata:: Cython.Compiler.Options.gcc_branch_hints
+.. autodata:: Cython.Compiler.Options.lookup_module_cpdef
+.. autodata:: Cython.Compiler.Options.embed
+.. old_style_globals
+.. autodata:: Cython.Compiler.Options.cimport_from_pyx
+.. autodata:: Cython.Compiler.Options.buffer_max_dims
+.. autodata:: Cython.Compiler.Options.closure_freelist_size
 
-    :param compiler_directives: Allow to set compiler directives in the ``setup.py`` like this:
-                                ``compiler_directives={'embedsignature': True}``.
-                                See :ref:`compiler-directives`.
 
 Distributing Cython modules
 ----------------------------
@@ -462,6 +443,7 @@ C-compiling the module C files.
 Also take a look at the `cython_freeze
 <https://github.com/cython/cython/blob/master/bin/cython_freeze>`_ tool.
 
+.. _pyximport:
 
 Compiling with :mod:`pyximport`
 ===============================

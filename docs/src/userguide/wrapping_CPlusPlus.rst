@@ -252,25 +252,12 @@ themselves::
 Nested class declarations
 --------------------------
 C++ allows nested class declaration. Class declarations can also be
-nested in Cython::
+nested in Cython:
 
-    cdef extern from "<vector>" namespace "std":
-        cdef cppclass vector[T]:
-            cppclass iterator:
-                T operator*()
-                iterator operator++()
-                bint operator==(iterator)
-                bint operator!=(iterator)
-            vector()
-            void push_back(T&)
-            T& operator[](int)
-            T& at(int)
-            iterator begin()
-            iterator end()
+.. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/nested_class.pyx
 
-    cdef vector[int].iterator iter  #iter is declared as being of type vector<int>::iterator
-
-Note that the nested class is declared with a ``cppclass`` but without a ``cdef``.
+Note that the nested class is declared with a ``cppclass`` but without a ``cdef``,
+as it is already part of a ``cdef`` declaration section.
 
 C++ operators not compatible with Python syntax
 ------------------------------------------------
@@ -299,36 +286,9 @@ which can also be written ``&foo``.
 Templates
 ----------
 
-Cython uses a bracket syntax for templating. A simple example for wrapping C++ vector::
+Cython uses a bracket syntax for templating. A simple example for wrapping C++ vector:
 
-    # import dereference and increment operators
-    from cython.operator cimport dereference as deref, preincrement as inc
-
-    cdef extern from "<vector>" namespace "std":
-        cdef cppclass vector[T]:
-            cppclass iterator:
-                T operator*()
-                iterator operator++()
-                bint operator==(iterator)
-                bint operator!=(iterator)
-            vector()
-            void push_back(T&)
-            T& operator[](int)
-            T& at(int)
-            iterator begin()
-            iterator end()
-
-    cdef vector[int] *v = new vector[int]()
-    cdef int i
-    for i in range(10):
-        v.push_back(i)
-
-    cdef vector[int].iterator it = v.begin()
-    while it != v.end():
-        print(deref(it))
-        inc(it)
-
-    del v
+.. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/templates.pyx
 
 Multiple template parameters can be defined as a list, such as ``[T, U, V]``
 or ``[int, bool, char]``.  Optional template parameters can be indicated
@@ -339,55 +299,33 @@ a typedef for its template parameters it is preferable to use that name here.
 
 
 Template functions are defined similarly to class templates, with
-the template parameter list following the function name::
+the template parameter list following the function name:
 
-    cdef extern from "<algorithm>" namespace "std":
-        T max[T](T a, T b)
-
-    print(max[long](3, 4))
-    print(max(1.5, 2.5))  # simple template argument deduction
+.. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/function_templates.pyx
 
 
 Standard library
 -----------------
 
 Most of the containers of the C++ Standard Library have been declared
-in pxd files located in ``/Cython/Includes/libcpp``.  These containers
-are: deque, list, map,  pair,  queue,  set,  stack,  vector.
+in pxd files located
+in `/Cython/Includes/libcpp <https://github.com/cython/cython/tree/master/Cython/Includes/libcpp>`_.
+These containers are: deque, list, map,  pair,  queue,  set,  stack,  vector.
 
-For example::
+For example:
 
-    from libcpp.vector cimport vector
+.. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/vector_demo.pyx
 
-    cdef vector[int] vect
-    cdef int i, x
-    for i in range(10):
-        vect.push_back(i)
-    for i in range(10):
-        print(vect[i])
-    for x in vect:
-        print(x)
+The pxd files
+in `/Cython/Includes/libcpp <https://github.com/cython/cython/tree/master/Cython/Includes/libcpp>`_
+also work as good examples on how to declare C++ classes.
 
-The pxd files in ``/Cython/Includes/libcpp`` also work as good examples on
-how to declare C++ classes.
-
-Since Cython 0.17, the STL containers coerce from and to the
+The STL containers coerce from and to the
 corresponding Python builtin types.  The conversion is triggered
 either by an assignment to a typed variable (including typed function
-arguments) or by an explicit cast, e.g.::
+arguments) or by an explicit cast, e.g.:
 
-    from libcpp.string cimport string
-    from libcpp.vector cimport vector
-
-    cdef string s = py_bytes_object
-    print(s)
-    cpp_string = <string> py_unicode_object.encode('utf-8')
-
-    cdef vector[int] vect = xrange(1, 10, 2)
-    print(vect)              # [1, 3, 5, 7, 9]
-
-    cdef vector[string] cpp_strings = b'ab cd ef gh'.split()
-    print(cpp_strings[1])   # b'cd'
+.. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/python_to_cpp.pyx
 
 The following coercions are available:
 
@@ -413,15 +351,20 @@ inside of containers, e.g. a C++ vector of maps of strings.
 Iteration over stl containers (or indeed any class with ``begin()`` and
 ``end()`` methods returning an object supporting incrementing, dereferencing,
 and comparison) is supported via the ``for .. in`` syntax (including in list
-comprehensions).  For example, one can write::
+comprehensions).  For example, one can write:
 
-    cdef vector[int] v = ...
-    for value in v:
-        f(value)
-    return [x*x for x in v if x % 2 == 0]
+.. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/iterate.pyx
 
 If the loop target variable is unspecified, an assignment from type
 ``*container.begin()`` is used for :ref:`type inference <compiler-directives>`.
+
+.. note::
+
+    Slicing stl containers is supported,
+    you can do ``for x in my_vector[:5]: ...`` but unlike pointers slices,
+    it will create a temporary Python object and iterate over it. Thus
+    making the iteration very slow. You might want to avoid slicing
+    C++ containers for performance reasons.
 
 
 Simplified wrapping with default constructor
@@ -430,20 +373,9 @@ Simplified wrapping with default constructor
 If your extension type instantiates a wrapped C++ class using the default
 constructor (not passing any arguments), you may be able to simplify the
 lifecycle handling by tying it directly to the lifetime of the Python wrapper
-object.  Instead of a pointer attribute, you can declare an instance::
+object.  Instead of a pointer attribute, you can declare an instance:
 
-    cdef class VectorStack:
-        cdef vector[int] v
-
-        def push(self, x):
-            self.v.push_back(x)
-
-        def pop(self):
-            if self.v.empty():
-                raise IndexError()
-            x = self.v.back()
-            self.v.pop_back()
-            return x
+.. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/wrapper_vector.pyx
 
 Cython will automatically generate code that instantiates the C++ object
 instance when the Python object is created and deletes it when the Python
@@ -598,7 +530,8 @@ possible to declare them in the :file:`setup.py` file::
 Cython will generate and compile the :file:`rect.cpp` file (from
 :file:`rect.pyx`), then it will compile :file:`Rectangle.cpp`
 (implementation of the ``Rectangle`` class) and link both object files
-together into :file:`rect.so`, which you can then import in Python using
+together into :file:`rect.so` on Linux, or :file:`rect.pyd` on windows,
+which you can then import in Python using
 ``import rect`` (if you forget to link the :file:`Rectangle.o`, you will
 get missing symbols while importing the library in Python).
 

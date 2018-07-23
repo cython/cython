@@ -21,10 +21,14 @@ Python 3 Support
 
 Cython creates ``.c`` files that can be built and used with both
 Python 2.x and Python 3.x. In fact, compiling your module with
-Cython may very well be the easiest way to port code to Python 3.
-We are also working to make the compiler run in both Python 2.x and 3.x.
+Cython may very well be an easy way to port code to Python 3.
 
-Many Python 3 constructs are already supported by Cython.
+Cython also supports various syntax additions that came with
+Python 3.0 and later major Python releases.  If they do not conflict
+with existing Python 2.x syntax or semantics, they are usually just
+accepted by the compiler.  Everything else depends on the
+compiler directive ``language_level=3``
+(see :ref:`compiler directives<compiler-directives>`).
 
 List/Set/Dict Comprehensions
 ----------------------------
@@ -67,12 +71,11 @@ extra positional arguments, e.g.::
 takes exactly two positional parameters and has two required keyword parameters.
 
 
-
 Conditional expressions "x if b else y"
 =========================================
 
 Conditional expressions as described in
-http://www.python.org/dev/peps/pep-0308/::
+https://www.python.org/dev/peps/pep-0308/::
 
     X if C else Y
 
@@ -258,26 +261,13 @@ remain the same. There is a slight performance penalty in some cases when a
 cdef/cpdef function without any optional is overridden with one that does have
 default argument values.
 
-For example, one can have the ``.pxd`` file::
+For example, one can have the ``.pxd`` file:
 
-    cdef class A:
-        cdef foo(self)
-    cdef class B(A)
-        cdef foo(self, x=*)
-    cdef class C(B):
-        cpdef foo(self, x=*, int k=*)
+.. literalinclude:: ../../examples/userguide/language_basics/optional_subclassing.pxd
 
-with corresponding ``.pyx`` file::
+with corresponding ``.pyx`` file:
 
-    cdef class A:
-        cdef foo(self):
-            print "A"
-    cdef class B(A)
-        cdef foo(self, x=None)
-            print "B", x
-    cdef class C(B):
-        cpdef foo(self, x=True, int k=3)
-            print "C", x, k
+.. literalinclude:: ../../examples/userguide/language_basics/optional_subclassing.pyx
 
 .. note::
 

@@ -71,14 +71,9 @@ This also works conveniently as function arguments:
 The ``not None`` declaration for the argument automatically rejects
 None values as input, which would otherwise be allowed.  The reason why
 None is allowed by default is that it is conveniently used for return
-arguments::
+arguments:
 
-   def process_buffer(int[:,:] input not None,
-                      int[:,:] output = None):
-       if output is None:
-           output = ...  # e.g. numpy.empty_like(input)
-       # process 'input' into 'output'
-       return output
+.. literalinclude:: ../../examples/userguide/memoryviews/not_none.pyx
 
 Cython will reject incompatible buffers automatically, e.g. passing a
 three dimensional buffer into a function that requires a two
@@ -102,40 +97,24 @@ dimension::
    print(buf[-1,-2])
 
 The following function loops over each dimension of a 2D array and
-adds 1 to each item::
+adds 1 to each item:
 
-   def add_one(int[:,:] buf):
-       for x in xrange(buf.shape[0]):
-           for y in xrange(buf.shape[1]):
-               buf[x,y] += 1
+.. literalinclude:: ../../examples/userguide/memoryviews/add_one.pyx
 
 Indexing and slicing can be done with or without the GIL.  It basically works
 like NumPy.  If indices are specified for every dimension you will get an element
 of the base type (e.g. `int`).  Otherwise, you will get a new view.  An Ellipsis
-means you get consecutive slices for every unspecified dimension::
+means you get consecutive slices for every unspecified dimension:
 
-    cdef int[:, :, :] my_view = exporting_object
-
-    # These are all equivalent
-    my_view[10]
-    my_view[10, :, :]
-    my_view[10, ...]
+.. literalinclude:: ../../examples/userguide/memoryviews/slicing.pyx
 
 
 Copying
 -------
 
-Memory views can be copied in place::
+Memory views can be copied in place:
 
-    cdef int[:, :, :] to_view, from_view
-    ...
-
-    # copy the elements in from_view to to_view
-    to_view[...] = from_view
-    # or
-    to_view[:] = from_view
-    # or
-    to_view[:, :, :] = from_view
+.. literalinclude:: ../../examples/userguide/memoryviews/copy.pyx
 
 They can also be copied with the ``copy()`` and ``copy_fortran()`` methods; see
 :ref:`view_copy_c_fortran`.
@@ -146,10 +125,9 @@ Transposing
 -----------
 
 In most cases (see below), the memoryview can be transposed in the same way that
-NumPy slices can be transposed::
+NumPy slices can be transposed:
 
-    cdef int[:, ::1] c_contig = ...
-    cdef int[::1, :] f_contig = c_contig.T
+.. literalinclude:: ../../examples/userguide/memoryviews/transpose.pyx
 
 This gives a new, transposed, view on the data.
 
@@ -171,6 +149,9 @@ As for NumPy, new axes can be introduced by indexing an array with ``None`` ::
     # 2D array with shape (50, 1)
     myslice[:, None]
 
+    # 3D array with shape (1, 10, 1)
+    myslice[None, 10:-20:2, None]
+
 One may mix new axis indexing with all other forms of indexing and slicing.
 See also an example_.
 
@@ -178,13 +159,14 @@ Read-only views
 ---------------
 
 Since Cython 0.28, the memoryview item type can be declared as ``const`` to
-support read-only buffers as input::
+support read-only buffers as input:
 
-    cdef const double[:] myslice   # const item type => read-only view
+.. literalinclude:: ../../examples/userguide/memoryviews/np_flag_const.pyx
 
-    a = np.linspace(0, 10, num=50)
-    a.setflags(write=False)
-    myslice = a
+Using a non-const memoryview with a binary Python string produces a runtime error.
+You can solve this issue with a ``const`` memoryview:
+
+.. literalinclude:: ../../examples/userguide/memoryviews/view_string.pyx
 
 Note that this does not *require* the input buffer to be read-only::
 
@@ -436,31 +418,21 @@ The flags are as follows:
 * contiguous - contiguous and direct
 * indirect_contiguous - the list of pointers is contiguous
 
-and they can be used like this::
+and they can be used like this:
 
-    from cython cimport view
-
-    # direct access in both dimensions, strided in the first dimension, contiguous in the last
-    cdef int[:, ::view.contiguous] a
-
-    # contiguous list of pointers to contiguous lists of ints
-    cdef int[::view.indirect_contiguous, ::1] b
-
-    # direct or indirect in the first dimension, direct in the second dimension
-    # strided in both dimensions
-    cdef int[::view.generic, :] c
+.. literalinclude:: ../../examples/userguide/memoryviews/memory_layout.pyx
 
 Only the first, last or the dimension following an indirect dimension may be
-specified contiguous::
+specified contiguous:
+
+.. literalinclude:: ../../examples/userguide/memoryviews/memory_layout_2.pyx
+
+::
 
     # INVALID
-    cdef int[::view.contiguous, ::view.indirect, :] a
-    cdef int[::1, ::view.indirect, :] b
+    cdef int[::view.contiguous, ::view.indirect, :] d
+    cdef int[::1, ::view.indirect, :] e
 
-    # VALID
-    cdef int[::view.indirect, ::1, :] a
-    cdef int[::view.indirect, :, ::1] b
-    cdef int[::view.indirect_contiguous, ::1, :]
 
 The difference between the `contiguous` flag and the `::1` specifier is that the
 former specifies contiguity for only one dimension, whereas the latter specifies
@@ -668,7 +640,7 @@ You can call the function in a Cython file in the following way:
 Several things to note:
  - ``::1`` requests a C contiguous view, and fails if the buffer is not C contiguous.
    See :ref:`c_and_fortran_contiguous_memoryviews`.
- - ``&arr_memview[0]`` can be understood as 'the adress of the first element of the
+ - ``&arr_memview[0]`` can be understood as 'the address of the first element of the
    memoryview'. For contiguous arrays, this is equivalent to the
    start address of the flat memory buffer.
  - ``arr_memview.shape[0]`` could have been replaced by ``arr_memview.size``,
@@ -686,7 +658,5 @@ call functions in C files, see :ref:`using_c_libraries`.
 
 
 .. _GIL: http://docs.python.org/dev/glossary.html#term-global-interpreter-lock
-.. _new style buffers: http://docs.python.org/c-api/buffer.html
-.. _pep 3118: http://www.python.org/peps/pep-3118.html
-.. _NumPy: http://docs.scipy.org/doc/numpy/reference/arrays.ndarray.html#memory-layout
-.. _example: http://www.scipy.org/Numpy_Example_List#newaxis
+.. _NumPy: https://docs.scipy.org/doc/numpy/reference/arrays.ndarray.html#memory-layout
+.. _example: https://docs.scipy.org/doc/numpy/reference/arrays.indexing.html

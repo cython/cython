@@ -25,7 +25,7 @@ while the cimport adds functions accessible from Cython.
 
 A Python array is constructed with a type signature and sequence of
 initial values. For the possible type signatures, refer to the Python
-documentation for the `array module <http://docs.python.org/library/array.html>`_.
+documentation for the `array module <https://docs.python.org/library/array.html>`_.
 
 Notice that when a Python array is assigned to a variable typed as
 memory view, there will be a slight overhead to construct the memory

@@ -360,7 +360,7 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb)
     *value = local_value;
     *tb = local_tb;
 #if CYTHON_FAST_THREAD_STATE
-    #if PY_VERSION_HEX >= 0x030700A2
+    #if PY_VERSION_HEX >= 0x030700A3
     tmp_type = tstate->exc_state.exc_type;
     tmp_value = tstate->exc_state.exc_value;
     tmp_tb = tstate->exc_state.exc_traceback;
@@ -404,7 +404,7 @@ static CYTHON_INLINE void __Pyx_ReraiseException(void) {
     PyObject *type = NULL, *value = NULL, *tb = NULL;
 #if CYTHON_FAST_THREAD_STATE
     PyThreadState *tstate = PyThreadState_GET();
-    #if PY_VERSION_HEX >= 0x030700A2
+    #if PY_VERSION_HEX >= 0x030700A3
     type = tstate->exc_state.exc_type;
     value = tstate->exc_state.exc_value;
     tb = tstate->exc_state.exc_traceback;
@@ -456,7 +456,7 @@ static CYTHON_INLINE void __Pyx__ExceptionReset(PyThreadState *tstate, PyObject 
 
 #if CYTHON_FAST_THREAD_STATE
 static CYTHON_INLINE void __Pyx__ExceptionSave(PyThreadState *tstate, PyObject **type, PyObject **value, PyObject **tb) {
-    #if PY_VERSION_HEX >= 0x030700A2
+    #if PY_VERSION_HEX >= 0x030700A3
     *type = tstate->exc_state.exc_type;
     *value = tstate->exc_state.exc_value;
     *tb = tstate->exc_state.exc_traceback;
@@ -473,7 +473,7 @@ static CYTHON_INLINE void __Pyx__ExceptionSave(PyThreadState *tstate, PyObject *
 static CYTHON_INLINE void __Pyx__ExceptionReset(PyThreadState *tstate, PyObject *type, PyObject *value, PyObject *tb) {
     PyObject *tmp_type, *tmp_value, *tmp_tb;
 
-    #if PY_VERSION_HEX >= 0x030700A2
+    #if PY_VERSION_HEX >= 0x030700A3
     tmp_type = tstate->exc_state.exc_type;
     tmp_value = tstate->exc_state.exc_value;
     tmp_tb = tstate->exc_state.exc_traceback;
@@ -511,7 +511,7 @@ static CYTHON_INLINE void __Pyx_ExceptionSwap(PyObject **type, PyObject **value,
 static CYTHON_INLINE void __Pyx__ExceptionSwap(PyThreadState *tstate, PyObject **type, PyObject **value, PyObject **tb) {
     PyObject *tmp_type, *tmp_value, *tmp_tb;
 
-    #if PY_VERSION_HEX >= 0x030700A2
+    #if PY_VERSION_HEX >= 0x030700A3
     tmp_type = tstate->exc_state.exc_type;
     tmp_value = tstate->exc_state.exc_value;
     tmp_tb = tstate->exc_state.exc_traceback;

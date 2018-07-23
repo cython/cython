@@ -107,21 +107,9 @@ You can declare classes with :keyword:`cdef`, making them :ref:`extension-types`
 have a behavior very close to python classes, but are faster because they use a ``struct``
 internally to store attributes.
 
-Here is a simple example::
+Here is a simple example:
 
-    from __future__ import print_function
-
-    cdef class Shrubbery:
-
-        cdef int width, height
-
-        def __init__(self, w, h):
-            self.width = w
-            self.height = h
-
-        def describe(self):
-            print("This shrubbery is", self.width,
-                  "by", self.height, "cubits.")
+.. literalinclude:: ../../examples/userguide/extension_types/shrubbery.pyx
 
 You can read more about them in :ref:`extension-types`.
 
@@ -179,20 +167,9 @@ Grouping multiple C declarations
 --------------------------------
 
 If you have a series of declarations that all begin with :keyword:`cdef`, you
-can group them into a :keyword:`cdef` block like this::
+can group them into a :keyword:`cdef` block like this:
 
-    from __future__ import print_function
-
-    cdef:
-        struct Spam:
-            int tons
-
-        int i
-        float a
-        Spam *p
-
-        void f(Spam *s):
-            print(s.tons, "Tons of spam")
+.. literalinclude:: ../../examples/userguide/language_basics/cdef_block.pyx
 
 .. _cpdef:
 .. _cdef:
@@ -311,35 +288,15 @@ To avoid repetition (and potential future inconsistencies), default argument val
 not visible in the declaration (in ``.pxd`` files) but only in
 the implementation (in ``.pyx`` files).
 
-When in a ``.pyx`` file, the signature is the same as it is in Python itself::
+When in a ``.pyx`` file, the signature is the same as it is in Python itself:
 
-    from __future__ import print_function
-
-    cdef class A:
-        cdef foo(self):
-            print("A")
-
-    cdef class B(A):
-        cdef foo(self, x=None):
-            print("B", x)
-            
-    cdef class C(B):
-        cpdef foo(self, x=True, int k=3):
-            print("C", x, k)
-
+.. literalinclude:: ../../examples/userguide/language_basics/optional_subclassing.pyx
 
 When in a ``.pxd`` file, the signature is different like this example: ``cdef foo(x=*)``.
 This is because the program calling the function just needs to know what signatures are
-possible in C, but doesn't need to know the value of the default arguments.::
+possible in C, but doesn't need to know the value of the default arguments.:
 
-    cdef class A:
-        cdef foo(self)
-    cdef class B(A):
-        cdef foo(self, x=*)
-    cdef class C(B):
-        cpdef foo(self, x=*, int k=*)
-
-
+.. literalinclude:: ../../examples/userguide/language_basics/optional_subclassing.pxd
 
 .. note::
     The number of arguments may increase when subclassing,
@@ -355,13 +312,9 @@ Keyword-only Arguments
 ----------------------
 
 As in Python 3, ``def`` functions can have keyword-only arguments
-listed after a ``"*"`` parameter and before a ``"**"`` parameter if any::
+listed after a ``"*"`` parameter and before a ``"**"`` parameter if any:
 
-    def f(a, b, *args, c, d = 42, e, **kwds):
-        ...
-
-    # We cannot call f with less verbosity than this.
-    foo = f(4, "bar", c=68, e=1.0)
+.. literalinclude:: ../../examples/userguide/language_basics/kwargs_1.pyx
 
 As shown above, the ``c``, ``d`` and ``e`` arguments can not be
 passed as positional arguments and must be passed as keyword arguments.
@@ -369,16 +322,12 @@ Furthermore, ``c`` and ``e`` are **required** keyword arguments
 since they do not have a default value.
 
 A single ``"*"`` without argument name can be used to
-terminate the list of positional arguments::
+terminate the list of positional arguments:
 
-    def g(a, b, *, c, d):
-        ...
-
-    # We cannot call g with less verbosity than this.
-    foo = g(4.0, "something", c=68, d="other")
+.. literalinclude:: ../../examples/userguide/language_basics/kwargs_2.pyx
 
 Shown above, the signature takes exactly two positional
-parameters and has two required keyword parameters
+parameters and has two required keyword parameters.
 
 Function Pointers
 -----------------
@@ -479,12 +428,9 @@ returns ``NULL``. The except clause doesn't work that way; its only purpose is
 for propagating Python exceptions that have already been raised, either by a Cython
 function or a C function that calls Python/C API routines. To get an exception
 from a non-Python-aware function such as :func:`fopen`, you will have to check the
-return value and raise it yourself, for example,::
+return value and raise it yourself, for example:
 
-    cdef FILE* p
-    p = fopen("spam.txt", "r")
-    if p == NULL:
-        raise SpamError("Couldn't open the spam file")
+.. literalinclude:: ../../examples/userguide/language_basics/open_file.pyx
 
 .. _overriding_in_extension_types:
 
@@ -492,39 +438,15 @@ Overriding in extension types
 -----------------------------
 
 
-``cpdef`` methods can override ``cdef`` methods::
+``cpdef`` methods can override ``cdef`` methods:
 
-    from __future__ import print_function
-
-    cdef class A:
-        cdef foo(self):
-            print("A")
-
-    cdef class B(A):
-        cdef foo(self, x=None):
-            print("B", x)
-
-    cdef class C(B):
-        cpdef foo(self, x=True, int k=3):
-            print("C", x, k)
+.. literalinclude:: ../../examples/userguide/language_basics/optional_subclassing.pyx
 
 When subclassing an extension type with a Python class,
 ``def`` methods can override ``cpdef`` methods but not ``cdef``
-methods::
+methods:
 
-    from __future__ import print_function
-
-    cdef class A:
-        cdef foo(self):
-            print("A")
-
-    cdef class B(A):
-        cpdef foo(self):
-            print("B")
-
-    class C(B):         # NOTE: not cdef class
-        def foo(self):
-            print("C")
+.. literalinclude:: ../../examples/userguide/language_basics/override.pyx
 
 If ``C`` above would be an extension type (``cdef class``),
 this would not work correctly.
@@ -556,6 +478,8 @@ possibilities.
 +----------------------------+--------------------+------------------+
 | char*                      | str/bytes          | str/bytes [#]_   |
 +----------------------------+--------------------+------------------+
+| C array                    | iterable           | list [#2]_       |
++----------------------------+--------------------+------------------+
 | struct,                    |                    | dict [#1]_       |
 | union                      |                    |                  |
 +----------------------------+--------------------+------------------+
@@ -567,6 +491,10 @@ possibilities.
    will refuse to automatically convert a union with unsafe type
    combinations.  An example is a union of an ``int`` and a ``char*``,
    in which case the pointer value may or may not be a valid pointer.
+
+.. [#2] Other than signed/unsigned char[].
+   The conversion will fail if the length of C array is not known at compile time,
+   and when using a slice of a C array.
 
 
 Caveats when using a Python string in a C context
@@ -632,26 +560,9 @@ You can also cast a C pointer back to a Python object reference
 with ``<object>``, or a more specific builtin or extension type
 (e.g. ``<MyExtType>ptr``). This will increase the reference count of
 the object by one, i.e. the cast returns an owned reference.
-Here is an example::
+Here is an example:
 
-    from cpython.ref cimport PyObject
-    from libc.stdint cimport uintptr_t
-
-    python_string = "foo"
-
-    cdef void* ptr = <void*>python_string
-    cdef uintptr_t adress_in_c = <uintptr_t>ptr
-    address_from_void = adress_in_c        # address_from_void is a python int
-
-    cdef PyObject* ptr2 = <PyObject*>python_string
-    cdef uintptr_t address_in_c2 = <uintptr_t>ptr2
-    address_from_PyObject = address_in_c2  # address_from_PyObject is a python int
-
-    assert address_from_void == address_from_PyObject == id(python_string)
-
-    print(<object>ptr)                     # Prints "foo"
-    print(<object>ptr2)                    # prints "foo"
-
+.. literalinclude:: ../../examples/userguide/language_basics/casting_python.pyx
 
 The precedence of ``<...>`` is such that ``<type>a.b.c`` is interpreted as ``<type>(a.b.c)``.
 
@@ -971,13 +882,7 @@ the source at that point as a literal. For this to work, the compile-time
 expression must evaluate to a Python value of type ``int``, ``long``,
 ``float``, ``bytes`` or ``unicode`` (``str`` in Py3).
 
-::
-
-    from __future__ import print_function
-
-    cdef int a1[ArraySize]
-    cdef int a2[OtherArraySize]
-    print("I like", FavouriteFood)
+.. literalinclude:: ../../examples/userguide/language_basics/compile_time.pyx
 
 Conditional Statements
 ----------------------

@@ -160,7 +160,8 @@ Cython version -- Cython uses ``.pyx`` as its file suffix.
 
 .. literalinclude:: ../../examples/userguide/numpy_tutorial/compute_py.py
 
-This should be compiled to produce :file:`compute_cy.so` (for Linux systems). We
+This should be compiled to produce :file:`convolve_cy.so` (for Linux systems,
+on Windows systems, this will be a ``.pyd`` file). We
 run a Python session to test both the Python version (imported from
 ``.py``-file) and the compiled Cython module.
 

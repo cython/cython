@@ -299,25 +299,11 @@ Calling C functions
 Normally, it isn't possible to call C functions in pure Python mode as there
 is no general way to support it in normal (uncompiled) Python.  However, in
 cases where an equivalent Python function exists, this can be achieved by
-combining C function coercion with a conditional import as follows::
+combining C function coercion with a conditional import as follows:
 
-    # in mymodule.pxd:
+.. literalinclude:: ../../examples/tutorial/pure/mymodule.pxd
 
-    # declare a C function as "cpdef" to export it to the module
-    cdef extern from "math.h":
-        cpdef double sin(double x)
-
-
-    # in mymodule.py:
-
-    import cython
-
-    # override with Python import if not in compiled code
-    if not cython.compiled:
-        from math import sin
-
-    # calls sin() from math.h when compiled with Cython and math.sin() in Python
-    print(sin(0))
+.. literalinclude:: ../../examples/tutorial/pure/mymodule.py
 
 Note that the "sin" function will show up in the module namespace of "mymodule"
 here (i.e. there will be a ``mymodule.sin()`` function).  You can mark it as an
@@ -334,7 +320,7 @@ to make the names match again.
 Using C arrays for fixed size lists
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Since Cython 0.22, C arrays can automatically coerce to Python lists or tuples.
+C arrays can automatically coerce to Python lists or tuples.
 This can be exploited to replace fixed size Python lists in Python code by C
 arrays when compiled.  An example:
 

@@ -12,7 +12,7 @@ operate on values of multiple types. Thus fused types allow `generic
 programming`_ and are akin to templates in C++ or generics in languages like
 Java / C#.
 
-.. _generic programming: http://en.wikipedia.org/wiki/Generic_programming
+.. _generic programming: https://en.wikipedia.org/wiki/Generic_programming
 
 .. Note:: Support is still somewhat experimental, there may be bugs!
 
