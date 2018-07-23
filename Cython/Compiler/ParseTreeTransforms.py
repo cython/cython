@@ -613,7 +613,8 @@ class TrackNumpyAttributes(VisitorTransform, SkipDeclarations):
 
     def visit_AttributeNode(self, node):
         self.visitchildren(node)
-        if node.obj.is_name and node.obj.name in self.numpy_module_names:
+        if (node.obj.is_name and node.obj.name in self.numpy_module_names) or \
+            node.obj.is_numpy_attribute:
             node.is_numpy_attribute = True
         return node
 
