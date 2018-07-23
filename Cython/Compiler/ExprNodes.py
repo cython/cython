@@ -4794,6 +4794,18 @@ class SliceIndexNode(ExprNode):
                     step=none_node
                 ).analyse_types(env)
         else:
+            # @TODO: Issue-2508
+            #   NameNode.coerce_to below returns an instance
+            #      of CoerceFromPyTypeNode, which is attempting a hard coercion to
+            #      PyrexTypes.c_py_ssize_t_type via __Pyx_PyIndex_AsSsize_t, which
+            #      internally relies on the CPython builtin PyNumber_Index, which
+            #      fails outright provided with non-integer input.
+            #   As a result, the following code is generated:
+            #      __pyx_t_TMPIDX = __Pyx_PyIndex_AsSsize_t(__pyx_v_VARNAME);
+            #   Which, in the case of self.start, needs to become:
+            #      if (__pyx_v_VARNAME == Py_None) { __pyx_t_TMPIDX = 0; } else { __pyx_t_TMPIDX = __Pyx_PyIndex_AsSsize_t(__pyx_v_VARNAME); }
+            #   And, in the case of self.stop, needs to become:
+            #      if (__pyx_v_VARNAME == Py_None) { __pyx_t_TMPIDX = PY_SSIZE_T_MAX; } else { __pyx_t_TMPIDX = __Pyx_PyIndex_AsSsize_t(__pyx_v_VARNAME); }
             c_int = PyrexTypes.c_py_ssize_t_type
             if self.start:
                 self.start = self.start.coerce_to(c_int, env)
