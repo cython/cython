@@ -92,6 +92,13 @@ cdef extern from "numpy/arrayobject.h":
         NPY_FORTRANORDER
         NPY_KEEPORDER
 
+    ctypedef enum NPY_CASTING:
+        NPY_NO_CASTING
+        NPY_EQUIV_CASTING
+        NPY_SAFE_CASTING
+        NPY_SAME_KIND_CASTING
+        NPY_UNSAFE_CASTING
+
     ctypedef enum NPY_CLIPMODE:
         NPY_CLIP
         NPY_WRAP
