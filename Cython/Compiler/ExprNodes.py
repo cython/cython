@@ -2133,6 +2133,8 @@ class NameNode(AtomicExprNode):
         entry = self.entry
         if entry is None:
             return # There was an error earlier
+        if entry.utility_code:
+            code.globalstate.use_utility_code(entry.utility_code)
         if entry.is_builtin and entry.is_const:
             return # Lookup already cached
         elif entry.is_pyclass_attr:
