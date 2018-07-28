@@ -5,7 +5,7 @@ sudo: false
 addons:
   apt:
     sources:
-      - ubuntu-toolchain-r-test
+      - sourceline: 'ppa:ubuntu-toolchain-r/test'
     packages:
       - gdb
       - python-dbg
