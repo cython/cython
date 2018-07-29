@@ -4256,7 +4256,10 @@ class GeneratorBodyDefNode(DefNode):
             code.put_xgiveref(Naming.retval_cname)
         else:
             code.put_xdecref_clear(Naming.retval_cname, py_object_type)
+        # For Py3.7, clearing is already done below.
+        code.putln("#if !CYTHON_USE_EXC_INFO_STACK")
         code.putln("__Pyx_Coroutine_ResetAndClearException(%s);" % Naming.generator_cname)
+        code.putln("#endif")
         code.putln('%s->resume_label = -1;' % Naming.generator_cname)
         # clean up as early as possible to help breaking any reference cycles
         code.putln('__Pyx_Coroutine_clear((PyObject*)%s);' % Naming.generator_cname)

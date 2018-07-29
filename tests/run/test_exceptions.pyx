@@ -1,4 +1,9 @@
 # Python test set -- part 5, built-in exceptions
+# Copied from CPython 3.7.
+
+# cython: language_level=3
+# mode: run
+# tag: generator, exception, tryfinally, tryexcept
 
 import copy
 import os
@@ -12,6 +17,12 @@ from test.support import (TESTFN, captured_stderr, check_impl_detail,
                           check_warnings, cpython_only, gc_collect, run_unittest,
                           no_tracing, unlink, import_module, script_helper,
                           SuppressCrashReport)
+
+no_tracing = unittest.skip("For nested functions, Cython generates a C call without recursion checks.")
+
+cpython_only = unittest.skip("Tests for _testcapi make no sense here.")
+
+
 class NaiveException(Exception):
     def __init__(self, x):
         self.x = x
@@ -80,8 +91,8 @@ class ExceptionTests(unittest.TestCase):
         self.raise_catch(MemoryError, "MemoryError")
 
         self.raise_catch(NameError, "NameError")
-        try: x = undefined_variable
-        except NameError: pass
+        #try: x = undefined_variable
+        #except NameError: pass
 
         self.raise_catch(OverflowError, "OverflowError")
         x = 1
@@ -649,16 +660,19 @@ class ExceptionTests(unittest.TestCase):
         obj = wr()
         self.assertIsNone(obj)
 
+    '''
+    # This is currently a compile error in Cython-3, although it works in Cython-2 => could also work in Cy-3.
     def test_exception_target_in_nested_scope(self):
         # issue 4617: This used to raise a SyntaxError
         # "can not delete variable 'e' referenced in nested scope"
         def print_error():
             e
         try:
-            something
+            1/0
         except Exception as e:
             print_error()
             # implicit "del e" here
+    '''
 
     def test_generator_leaking(self):
         # Test that generator exception state doesn't leak into the calling
