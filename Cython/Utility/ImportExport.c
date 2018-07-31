@@ -65,7 +65,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {
             if (!py_level)
                 goto bad;
             module = PyObject_CallFunctionObjArgs(py_import,
-                name, global_dict, empty_dict, list, py_level, NULL);
+                name, global_dict, empty_dict, list, py_level, (PyObject *)NULL);
             Py_DECREF(py_level);
             #else
             module = PyImport_ImportModuleLevelObject(
