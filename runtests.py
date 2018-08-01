@@ -274,10 +274,16 @@ def update_cpp11_extension(ext):
         if float(compiler_version) > 4.8:
             ext.extra_compile_args.append("-std=c++11")
         return ext
+
+    clang_verison = get_clang_version(ext.language)
+    if clang_verison:
+        ext.extra_compile_args.append("-std=c++11")
+        return ext
+
     return EXCLUDE_EXT
 
 
-def get_gcc_version(language):
+def get_cc_version(language):
     """
         finds gcc version using Popen
     """
@@ -297,7 +303,6 @@ def get_gcc_version(language):
     # Force english output
     env = os.environ.copy()
     env['LC_MESSAGES'] = 'C'
-    matcher = re.compile(r"gcc version (\d+\.\d+)").search
     try:
         p = subprocess.Popen([cc, "-v"], stderr=subprocess.PIPE, env=env)
     except EnvironmentError:
@@ -306,9 +311,17 @@ def get_gcc_version(language):
                       (language, os.strerror(sys.exc_info()[1].errno), cc))
         return None
     _, output = p.communicate()
-    output = output.decode(locale.getpreferredencoding() or 'ASCII', 'replace')
-    gcc_version = matcher(output)
-    return gcc_version
+    return output.decode(locale.getpreferredencoding() or 'ASCII', 'replace')
+
+
+def get_gcc_version(language):
+    matcher = re.compile(r"gcc version (\d+\.\d+)").search
+    return matcher(get_cc_version(language))
+
+
+def get_clang_version(language):
+    matcher = re.compile(r"clang-(\d+\.\d+)").search
+    return matcher(get_cc_version(language))
 
 
 def get_openmp_compiler_flags(language):
