@@ -71,6 +71,8 @@ Other changes
   package size to about half of its previous size.  This makes the compiler
   slightly slower, by about 5-7%.
 
+* ``set_array_base`` now calls ``PyArray_SetBaseObject``. Also modified
+  ``get_array_base`` to remove direct access to NumPy internals.
 
 0.28.4 (2018-07-08)
 ===================
