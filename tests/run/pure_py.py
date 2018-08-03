@@ -209,6 +209,10 @@ def test_declare_c_types(n):
 @cython.ccall
 @cython.returns(cython.double)
 def c_call(x):
+    return x
+
+
+def call_ccall(x):
     """
     Test that a declared return type is honoured when compiled.
 
@@ -224,10 +228,6 @@ def c_call(x):
     >>> (is_compiled and 1) or result
     1
     """
-    return x
-
-
-def call_ccall(x):
     ret = c_call(x)
     return ret, cython.typeof(ret)
 
@@ -236,9 +236,13 @@ def call_ccall(x):
 @cython.inline
 @cython.returns(cython.double)
 def cdef_inline(x):
+    return x + 1
+
+
+def call_cdef_inline(x):
     """
     >>> result, return_type = call_cdef_inline(1)
-    >>> (not is_compiled and 'float') or type(return_type).__name__
+    >>> (not is_compiled and 'float') or type(result).__name__
     'float'
     >>> (not is_compiled and 'double') or return_type
     'double'
@@ -247,10 +251,6 @@ def cdef_inline(x):
     >>> result == 2.0  or  result
     True
     """
-    return x + 1
-
-
-def call_cdef_inline(x):
     ret = cdef_inline(x)
     return ret, cython.typeof(ret)
 
@@ -293,6 +293,12 @@ def ccall_except(x):
 @cython.returns(cython.long)
 @cython.exceptval(-1)
 def cdef_except(x):
+    if x == 0:
+        raise ValueError
+    return x+1
+
+
+def call_cdef_except(x):
     """
     >>> call_cdef_except(41)
     42
@@ -300,12 +306,6 @@ def cdef_except(x):
     Traceback (most recent call last):
     ValueError
     """
-    if x == 0:
-        raise ValueError
-    return x+1
-
-
-def call_cdef_except(x):
     return cdef_except(x)
 
 
