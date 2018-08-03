@@ -269,7 +269,7 @@ def update_cpp11_extension(ext):
         update cpp11 extensions that will run on versions of gcc >4.8
     """
     gcc_version = get_gcc_version(ext.language)
-    if gcc_version is not None:
+    if gcc_version:
         compiler_version = gcc_version.group(1)
         if float(compiler_version) > 4.8:
             ext.extra_compile_args.append("-std=c++11")
@@ -295,7 +295,7 @@ def get_cc_version(language):
        cc = ccompiler.get_default_compiler()
 
     if not cc:
-        return None
+        return ''
 
     # For some reason, cc can be e.g. 'gcc -pthread'
     cc = cc.split()[0]
@@ -309,7 +309,7 @@ def get_cc_version(language):
         # Be compatible with Python 3
         warnings.warn("Unable to find the %s compiler: %s: %s" %
                       (language, os.strerror(sys.exc_info()[1].errno), cc))
-        return None
+        return ''
     _, output = p.communicate()
     return output.decode(locale.getpreferredencoding() or 'ASCII', 'replace')
 
