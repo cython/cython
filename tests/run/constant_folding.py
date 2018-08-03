@@ -110,6 +110,22 @@ def binop_bool():
 
 
 @cython.test_fail_if_path_exists(
+    "//MulNode",
+    "//PowNode",
+)
+def binop_mul_pow():
+    """
+    >>> binop_mul_pow()
+    (800, 12193263111263526900, 248832, 12467572902176589255564000298710470656)
+    """
+    mul_int = 20 * 40
+    mul_large_int = 1234567890 * 9876543210
+    pow_int = 12 ** 5
+    pow_large_int = 1234 ** 12
+    return (mul_int, mul_large_int, pow_int, pow_large_int)
+
+
+@cython.test_fail_if_path_exists(
     "//SliceIndexNode",
 )
 def slicing2():
