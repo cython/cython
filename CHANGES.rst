@@ -2,6 +2,19 @@
 Cython Changelog
 ================
 
+0.28.5 (2018-08-03)
+===================
+
+Bugs fixed
+----------
+
+* The discouraged usage of GCC's attribute ``optimize("Os")`` was replaced by the
+  similar attribute ``cold`` to reduce the code impact of the module init functions.
+  (Github issue #2494)
+
+* A reference leak in Py2.x was fixed when comparing str to unicode for equality.
+
+
 0.28.4 (2018-07-08)
 ===================
 
