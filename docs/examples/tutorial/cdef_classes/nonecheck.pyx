@@ -13,7 +13,7 @@ def func():
     try:
         # Turn nonecheck on again for a block
         with cython.nonecheck(True):
-            print obj.myfunc()  # Raises exception
+            print(obj.myfunc())  # Raises exception
     except AttributeError:
         pass
     print(obj.myfunc())  # Hope for a crash!
