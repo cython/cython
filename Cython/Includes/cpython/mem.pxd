@@ -1,3 +1,5 @@
+from cpython.version cimport PY_VERSION_HEX
+
 cdef extern from "Python.h":
 
     #####################################################################
@@ -21,6 +23,15 @@ cdef extern from "Python.h":
     # allocator as shown in the previous example, the allocated memory
     # for the I/O buffer escapes completely the Python memory
     # manager."
+
+    IF PY_VERSION_HEX >= 0x03040000:
+        void* PyMem_RawMalloc(size_t n) nogil
+        void* PyMem_RawRealloc(void *p, size_t n) nogil
+        void PyMem_RawFree(void *p) nogil
+    ELSE:
+        void* PyMem_RawMalloc "PyMem_Malloc" (size_t n) nogil
+        void* PyMem_RawRealloc "PyMem_Realloc" (void *p, size_t n) nogil
+        void PyMem_RawFree "PyMem_Free" (void *p) nogil
 
     # The following function sets, modeled after the ANSI C standard,
     # but specifying behavior when requesting zero bytes, are
