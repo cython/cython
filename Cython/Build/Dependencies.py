@@ -726,10 +726,7 @@ def default_create_extension(template, kwds):
         depends = resolve_depends(kwds['depends'], include_dirs)
         kwds['depends'] = sorted(set(depends + template.depends))
 
-    t = template.__class__
-    ext = t(**kwds)
-    metadata = dict(distutils=kwds, module_name=kwds['name'])
-    return (ext, metadata)
+    return template.__class__(**kwds)
 
 
 # This may be useful for advanced users?
@@ -847,8 +844,12 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                 module_list.append(m)
 
                 # Store metadata (this will be written as JSON in the
-                # generated C file but otherwise has no purpose)
-                module_metadata[module_name] = metadata
+                # generated C file and may be used to instantiate
+                # extensions when Cython is not installed)
+                module_metadata[module_name] = {
+                    'module_name': module_name,
+                    'distutils': kwds,
+                }
 
                 if file not in m.sources:
                     # Old setuptools unconditionally replaces .pyx with .c/.cpp

@@ -203,12 +203,8 @@ This function takes 2 arguments ``template`` and ``kwds``, where
 ``template`` is the :class:`Extension` object given as input to Cython
 and ``kwds`` is a :class:`dict` with all keywords which should be used
 to create the :class:`Extension`.
-The function ``create_extension`` must return a 2-tuple
-``(extension, metadata)``, where ``extension`` is the created
-:class:`Extension` and ``metadata`` is metadata which will be written
-as JSON at the top of the generated C files. This metadata is only used
-for debugging purposes, so you can put whatever you want in there
-(as long as it can be converted to JSON).
+The function ``create_extension`` returns the :class:`Extension` object
+that will be passed to distutils for compilation.
 The default function (defined in ``Cython.Build.Dependencies``) is::
 
     def default_create_extension(template, kwds):
@@ -217,10 +213,7 @@ The default function (defined in ``Cython.Build.Dependencies``) is::
             depends = resolve_depends(kwds['depends'], include_dirs)
             kwds['depends'] = sorted(set(depends + template.depends))
 
-        t = template.__class__
-        ext = t(**kwds)
-        metadata = dict(distutils=kwds, module_name=kwds['name'])
-        return (ext, metadata)
+        return template.__class__(**kwds)
 
 In case that you pass a string instead of an :class:`Extension` to
 ``cythonize()``, the ``template`` will be an :class:`Extension` without
