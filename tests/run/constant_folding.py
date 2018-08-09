@@ -5,6 +5,17 @@
 import cython
 
 
+import sys
+IS_PY2 = sys.version_info < (3, 0)
+
+
+def print_big_ints(t):
+    s = repr(t)
+    if IS_PY2:
+        s = s.replace('L', '')
+    print(s)
+
+
 @cython.test_fail_if_path_exists(
     "//UnaryMinusNode",
     "//UnaryPlusNode",
@@ -115,7 +126,7 @@ def binop_bool():
 )
 def binop_mul_pow():
     """
-    >>> binop_mul_pow()
+    >>> print_big_ints(binop_mul_pow())
     (800, 12193263111263526900, 248832, 12467572902176589255564000298710470656)
     """
     mul_int = 20 * 40
