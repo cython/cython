@@ -275,8 +275,8 @@ def update_cpp11_extension(ext):
             ext.extra_compile_args.append("-std=c++11")
         return ext
 
-    clang_verison = get_clang_version(ext.language)
-    if clang_verison:
+    clang_version = get_clang_version(ext.language)
+    if clang_version:
         ext.extra_compile_args.append("-std=c++11")
         return ext
 
