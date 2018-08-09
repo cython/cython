@@ -395,7 +395,7 @@ cdef extern from "numpy/arrayobject.h":
     npy_intp PyArray_DIM(ndarray, size_t)
     npy_intp PyArray_STRIDE(ndarray, size_t)
 
-    # object PyArray_BASE(ndarray) wrong refcount semantics
+    object PyArray_BASE(ndarray) #wrong refcount semantics?
     # dtype PyArray_DESCR(ndarray) wrong refcount semantics
     int PyArray_FLAGS(ndarray)
     npy_intp PyArray_ITEMSIZE(ndarray)
@@ -719,7 +719,7 @@ cdef extern from "numpy/arrayobject.h":
     object PyArray_CheckAxis (ndarray, int *, int)
     npy_intp PyArray_OverflowMultiplyList (npy_intp *, int)
     int PyArray_CompareString (char *, char *, size_t)
-    int PyArray_SetBaseObject(object, object)
+    int PyArray_SetBaseObject(ndarray, object)
 
 
 # Typedefs that matches the runtime dtype objects in
@@ -974,13 +974,15 @@ cdef extern from "numpy/ufuncobject.h":
 
     int _import_umath() except -1
 
-cdef inline void set_array_base(object arr, object base):
+cdef inline void set_array_base(ndarray arr, object base):
     Py_INCREF(base)
     PyArray_SetBaseObject(arr, base)
 
-cdef inline object get_array_base(object arr):
-    return <object>arr.base
-
+cdef inline object get_array_base(ndarray arr):
+    base = PyArray_BASE(arr)
+    # Do we need to convert NULL -> None?
+    # Do we need to incref base or is that done by cython?
+    return base
 
 # Versions of the import_* functions which are more suitable for
 # Cython code.
