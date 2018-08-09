@@ -441,7 +441,7 @@ class __Pyx_FakeReference {
   #define PyObject_Realloc(p)  PyMem_Realloc(p)
 #endif
 
-#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x03040000
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX < 0x030400A1
   #define PyMem_RawMalloc(n)           PyMem_Malloc(n)
   #define PyMem_RawRealloc(p, n)       PyMem_Realloc(p, n)
   #define PyMem_RawFree(p)             PyMem_Free(p)
