@@ -10,8 +10,8 @@ addons:
       - gdb
       - python-dbg
       - python3-dbg
-      - gcc-8
-      - g++-8
+      #- gcc-8
+      #- g++-8
 
 cache:
   pip: true
@@ -110,11 +110,18 @@ branches:
 before_install:
   - |
     if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
-      mkdir "$HOME/gcc-symlinks"
-      ln -s /usr/bin/gcc-8 $HOME/gcc-symlinks/gcc
-      ln -s /usr/bin/g++-8 $HOME/gcc-symlinks/g++
-      
+      sudo apt-get update
+      if [ "$BACKEND" = c ]; then
+        sudo apt-get install gcc-8
+        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 60
+        export CC=gcc-8
+      else
+        sudo apt-get install g++-8
+        sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-8 60
+        export CXX=g++-8
+      fi
       if [ -n "$CC" ]; then "$CC" --version; else gcc --version; fi
+      if [ -n "$CXX" ]; then "$CC" --version; else g++ --version; fi
     fi
 
   - |
