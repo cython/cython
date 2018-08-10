@@ -10,6 +10,7 @@ addons:
       - gdb
       - python-dbg
       - python3-dbg
+      - libzmq-dev  # needed by IPython/Tornado
       #- gcc-8
       #- g++-8
 
