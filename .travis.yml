@@ -94,7 +94,6 @@ matrix:
   allow_failures:
     - python: pypy
     - python: pypy3
-    - python: 3.7
     - python: 3.8-dev
     - env: STACKLESS=true BACKEND=c PY=2
     - env: STACKLESS=true BACKEND=c PY=3
