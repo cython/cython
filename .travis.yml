@@ -36,7 +36,7 @@ env:
     - CCACHE_SLOPPINESS=pch_defines,time_macros
     - CCACHE_COMPRESS=1
     - CCACHE_MAXSIZE=150M
-    - PATH="/usr/lib/ccache:$PATH"
+    - PATH="/usr/lib/ccache:$HOME/miniconda/bin:$PATH"
   matrix:
     - BACKEND=c
     - BACKEND=cpp
@@ -122,12 +122,13 @@ before_install:
 
   - |
     if [[ "$TRAVIS_OS_NAME" == "osx" ]] || [[ "$STACKLESS" == "true" ]]; then # Install Miniconda
-      if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then CONDA_PLATFORM=MacOSX; else CONDA_PLATFORM=Linux; fi;
-      curl -s -o miniconda.sh https://repo.continuum.io/miniconda/Miniconda$PY-latest-${CONDA_PLATFORM}-x86_64.sh;
-      bash miniconda.sh -b -p $HOME/miniconda && rm miniconda.sh;
-      export PATH="$HOME/miniconda/bin:$PATH"; hash -r;
-      #conda install --quiet --yes nomkl --file=test-requirements.txt --file=test-requirements-cpython.txt;
-      if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then which clang && clang --version || true; fi;
+      if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then CONDA_PLATFORM=MacOSX; else CONDA_PLATFORM=Linux; fi
+      curl -s -o miniconda.sh https://repo.continuum.io/miniconda/Miniconda$PY-latest-${CONDA_PLATFORM}-x86_64.sh
+      bash miniconda.sh -b -p $HOME/miniconda && rm miniconda.sh
+      $HOME/miniconda/bin/conda install --quiet --yes nomkl  clang  clang++
+      #conda install --quiet --yes nomkl --file=test-requirements.txt --file=test-requirements-cpython.txt
+      if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then which clang && clang --version && export CC=clang|| true; fi
+      if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then which clang++ && clang++ --version && export CXX=clang++ || true; fi
     fi
 
   - if [[ "$STACKLESS" == "true" ]]; then
