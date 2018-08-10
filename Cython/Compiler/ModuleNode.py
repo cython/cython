@@ -2326,11 +2326,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put_declare_refcount_context()
         code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
         # Hack: enforce single initialisation.
-        code.putln("if (%s && %s == %s) return 0;" % (
-            Naming.module_cname,
-            Naming.module_cname,
-            Naming.pymodinit_module_arg,
-        ))
+        # Most extension modules simply can't deal with it, and Cython isn't ready either.
+        # See issues listed here: https://docs.python.org/3/c-api/init.html#sub-interpreter-support
+        code.putln("if (%s) {" % Naming.module_cname)
+        code.putln('PyErr_SetString(PyExc_RuntimeError,'
+                   ' "Module has already been imported. Re-initialisation is not supported");')
+        code.putln("return -1;")
+        code.putln("}")
         code.putln("#elif PY_MAJOR_VERSION >= 3")
         # Hack: enforce single initialisation also on reimports under different names on Python 3 (with PEP 3121/489).
         code.putln("if (%s) return __Pyx_NewRef(%s);" % (
