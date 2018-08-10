@@ -395,7 +395,7 @@ cdef extern from "numpy/arrayobject.h":
     npy_intp PyArray_DIM(ndarray, size_t)
     npy_intp PyArray_STRIDE(ndarray, size_t)
 
-    object PyArray_BASE(ndarray) #wrong refcount semantics?
+    PyObject *PyArray_BASE(ndarray)  # returns borrowed reference!
     # dtype PyArray_DESCR(ndarray) wrong refcount semantics
     int PyArray_FLAGS(ndarray)
     npy_intp PyArray_ITEMSIZE(ndarray)
@@ -719,7 +719,7 @@ cdef extern from "numpy/arrayobject.h":
     object PyArray_CheckAxis (ndarray, int *, int)
     npy_intp PyArray_OverflowMultiplyList (npy_intp *, int)
     int PyArray_CompareString (char *, char *, size_t)
-    int PyArray_SetBaseObject(ndarray, object)
+    int PyArray_SetBaseObject(ndarray, base)  # NOTE: steals a reference to base! Use "set_array_base()" instead.
 
 
 # Typedefs that matches the runtime dtype objects in
@@ -975,11 +975,13 @@ cdef extern from "numpy/ufuncobject.h":
     int _import_umath() except -1
 
 cdef inline void set_array_base(ndarray arr, object base):
-    Py_INCREF(base) # important to do this before decref below!
+    Py_INCREF(base) # important to do this before stealing the reference below!
     PyArray_SetBaseObject(arr, base)
 
 cdef inline object get_array_base(ndarray arr):
     base = PyArray_BASE(arr)
+    if base is NULL:
+        return None
     return <object>base
 
 # Versions of the import_* functions which are more suitable for
