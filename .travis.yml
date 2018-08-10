@@ -6,13 +6,14 @@ addons:
   apt:
     sources:
       - sourceline: 'ppa:ubuntu-toolchain-r/test'
+    update: true
     packages:
       - gdb
       - python-dbg
       - python3-dbg
       - libzmq-dev  # needed by IPython/Tornado
-      #- gcc-8
-      #- g++-8
+      - gcc-8
+      - g++-8
 
 cache:
   pip: true
@@ -111,8 +112,6 @@ branches:
 before_install:
   - |
     if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
-      sudo apt-get update
-      sudo apt-get install gcc-8  $(if [ "$BACKEND" = cpp ]; then echo -n "g++-8"; fi )
       sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 60
       sudo update-alternatives --set gcc /usr/bin/gcc-8
       export CC="ccache gcc-8"
