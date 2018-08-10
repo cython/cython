@@ -1,6 +1,5 @@
 # mode: run
 # tag: cpp, werror, cpp11
-# distutils: extra_compile_args=-std=c++0x
 
 from libcpp.memory cimport unique_ptr, shared_ptr, default_delete, dynamic_pointer_cast
 from libcpp cimport nullptr

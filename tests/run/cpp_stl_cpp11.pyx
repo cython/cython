@@ -1,6 +1,5 @@
 # mode: run
 # tag: cpp, werror, cpp11
-# distutils: extra_compile_args=-std=c++0x
 
 import sys
 from libcpp.unordered_map cimport unordered_map
