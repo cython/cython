@@ -34,7 +34,7 @@ env:
     - CCACHE_SLOPPINESS=pch_defines,time_macros
     - CCACHE_COMPRESS=1
     - CCACHE_MAXSIZE=150M
-    - PATH="/usr/lib/ccache:$HOME/gcc-symlinks:$PATH"
+    - PATH="/usr/lib/ccache:$PATH"
   matrix:
     - BACKEND=c
     - BACKEND=cpp
@@ -114,10 +114,12 @@ before_install:
       if [ "$BACKEND" = c ]; then
         sudo apt-get install gcc-8
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 60
+        sudo update-alternatives --set gcc /usr/bin/gcc-8
         export CC=gcc-8
       else
         sudo apt-get install g++-8
         sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-8 60
+        sudo update-alternatives --set g++ /usr/bin/g++-8
         export CXX=g++-8
       fi
       if [ -n "$CC" ]; then "$CC" --version; else gcc --version; fi
