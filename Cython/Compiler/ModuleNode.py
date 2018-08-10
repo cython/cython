@@ -2330,7 +2330,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # See issues listed here: https://docs.python.org/3/c-api/init.html#sub-interpreter-support
         code.putln("if (%s) {" % Naming.module_cname)
         code.putln('PyErr_SetString(PyExc_RuntimeError,'
-                   ' "Module has already been imported. Re-initialisation is not supported");')
+                   ' "Module \'%s\' has already been imported. Re-initialisation is not supported");' %
+                   env.module_name)
         code.putln("return -1;")
         code.putln("}")
         code.putln("#elif PY_MAJOR_VERSION >= 3")
