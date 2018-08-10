@@ -8,6 +8,9 @@ Cython Changelog
 Features added
 --------------
 
+* PEP-489 multi-phase module initialisation has been enabled again.  Module
+  reloads raise an exception to prevent corruption of the static module state.
+
 * Raising exceptions from nogil code will automatically acquire the GIL, instead
   of requiring an explicit ``with gil`` block.
 
