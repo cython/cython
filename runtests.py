@@ -320,7 +320,7 @@ def get_gcc_version(language):
 
 
 def get_clang_version(language):
-    matcher = re.compile(r"clang-(\d+\.\d+)").search
+    matcher = re.compile(r"clang(?:-|\s+version\s+)(\d+\.\d+)").search
     return matcher(get_cc_version(language))
 
 
