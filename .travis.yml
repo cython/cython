@@ -23,11 +23,8 @@ python:
   - 2.7
   - 3.6
   - 2.6
-  - 3.7
   - 3.4
   - 3.5
-  - 3.7-dev
-  - 3.8-dev
   - pypy
   - pypy3
 
@@ -44,8 +41,18 @@ env:
 
 matrix:
   include:
-    #- python: 3.7-dev
-    #  env: BACKEND=c PY=3 CC=gcc-8
+    - python: 3.7
+      dist: xenial    # Required for Python 3.7
+      sudo: required  # travis-ci/travis-ci#9069
+    - python: 3.7
+      dist: xenial    # Required for Python 3.7
+      sudo: required  # travis-ci/travis-ci#9069
+    - python: 3.8-dev
+      dist: xenial    # Required for Python 3.7
+      sudo: required  # travis-ci/travis-ci#9069
+    - python: 3.8-dev
+      dist: xenial    # Required for Python 3.7
+      sudo: required  # travis-ci/travis-ci#9069
     - os: osx
       osx_image: xcode6.4
       env: BACKEND=c PY=2
