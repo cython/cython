@@ -975,14 +975,12 @@ cdef extern from "numpy/ufuncobject.h":
     int _import_umath() except -1
 
 cdef inline void set_array_base(ndarray arr, object base):
-    Py_INCREF(base)
+    Py_INCREF(base) # important to do this before decref below!
     PyArray_SetBaseObject(arr, base)
 
 cdef inline object get_array_base(ndarray arr):
     base = PyArray_BASE(arr)
-    # Do we need to convert NULL -> None?
-    # Do we need to incref base or is that done by cython?
-    return base
+    return <object>base
 
 # Versions of the import_* functions which are more suitable for
 # Cython code.
