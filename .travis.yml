@@ -114,11 +114,11 @@ before_install:
     if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
       sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 60
       sudo update-alternatives --set gcc /usr/bin/gcc-8
-      export CC="ccache gcc-8"
+      export CC=gcc-8
       if [ "$BACKEND" = cpp ]; then
         sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-8 60
         sudo update-alternatives --set g++ /usr/bin/g++-8
-        export CXX="ccache g++-8"
+        export CXX=g++-8
       fi
       if [ -n "$CC" ]; then $CC --version; else gcc --version; fi
       if [ -n "$CXX" ]; then $CXX --version; else g++ --version; fi
