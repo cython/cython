@@ -2333,11 +2333,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             Naming.module_cname,
             Naming.pymodinit_module_arg,
         ))
-        # TODO: We should raise an exception here, as long as Cython cannot actually support reinitialisation.
-        # code.putln('PyErr_SetString(PyExc_RuntimeError,'
-        #            ' "Module \'%s\' has already been imported. Re-initialisation is not supported");' %
-        #            env.module_name)
-        # code.putln("return -1;")
+        code.putln('PyErr_SetString(PyExc_RuntimeError,'
+                   ' "Module \'%s\' has already been imported. Re-initialisation is not supported.");' %
+                   env.module_name)
+        code.putln("return -1;")
         code.putln("}")
         code.putln("#elif PY_MAJOR_VERSION >= 3")
         # Hack: enforce single initialisation also on reimports under different names on Python 3 (with PEP 3121/489).

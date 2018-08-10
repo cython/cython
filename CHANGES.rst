@@ -57,6 +57,10 @@ Bugs fixed
   exception stack traces.
   Patch by Jeroen Demeyer.  (Github issue #2492)
 
+* When PEP-489 support is enabled, reloading the module overwrote any static
+  module state. It now raises an exception instead, given that reloading is
+  not actually supported.
+
 Other changes
 -------------
 
