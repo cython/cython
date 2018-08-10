@@ -123,7 +123,7 @@ before_install:
         export CXX=g++-8
       fi
       if [ -n "$CC" ]; then "$CC" --version; else gcc --version; fi
-      if [ -n "$CXX" ]; then "$CC" --version; else g++ --version; fi
+      if [ -n "$CXX" ]; then "$CXX" --version; else g++ --version; fi
     fi
 
   - |
