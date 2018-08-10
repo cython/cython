@@ -36,7 +36,7 @@ env:
     - CCACHE_SLOPPINESS=pch_defines,time_macros
     - CCACHE_COMPRESS=1
     - CCACHE_MAXSIZE=150M
-    - PATH="/usr/lib/ccache:$HOME/miniconda/bin:$PATH"
+    - PATH="/usr/lib/ccache:$HOME/gcclinks:$HOME/miniconda/bin:$PATH"
   matrix:
     - BACKEND=c
     - BACKEND=cpp
@@ -45,19 +45,19 @@ matrix:
   include:
     - python: 3.7
       dist: xenial    # Required for Python 3.7
-      sudo: required  # travis-ci/travis-ci#9069
+      #sudo: required  # travis-ci/travis-ci#9069
       env: BACKEND=c
     - python: 3.7
       dist: xenial    # Required for Python 3.7
-      sudo: required  # travis-ci/travis-ci#9069
+      #sudo: required  # travis-ci/travis-ci#9069
       env: BACKEND=cpp
     - python: 3.8-dev
       dist: xenial    # Required for Python 3.7
-      sudo: required  # travis-ci/travis-ci#9069
+      #sudo: required  # travis-ci/travis-ci#9069
       env: BACKEND=c
     - python: 3.8-dev
       dist: xenial    # Required for Python 3.7
-      sudo: required  # travis-ci/travis-ci#9069
+      #sudo: required  # travis-ci/travis-ci#9069
       env: BACKEND=cpp
     - os: osx
       osx_image: xcode6.4
@@ -111,9 +111,9 @@ branches:
 before_install:
   - |
     if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
-      sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 60 --slave /usr/bin/g++ g++ /usr/bin/g++-8
-      sudo update-alternatives --set gcc /usr/bin/gcc-8
-      sudo update-alternatives --set g++ /usr/bin/g++-8
+      mkdir -p $HOME/gcclinks
+      ln -s /usr/bin/gcc-8 $HOME/gcclinks/gcc
+      ln -s /usr/bin/g++-8 $HOME/gcclinks/g++
       export  CC=gcc-8  CXX=g++-8
       $CC --version
       $CXX --version
