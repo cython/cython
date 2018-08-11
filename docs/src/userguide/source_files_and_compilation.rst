@@ -425,6 +425,50 @@ You can see them also by typing ```%%cython?`` in IPython or a Jupyter notebook.
 --verbose                                     Print debug information like generated .c/.cpp file location and exact gcc/g++ command invoked.
 ============================================  =======================================================================================================================================
 
+
+Compiler options
+----------------
+
+Compiler options can be set in the :file:`setup.py`, before calling :func:`cythonize`,
+like this::
+
+    from distutils.core import setup
+
+    from Cython.Build import cythonize
+    from Cython.Compiler import Options
+
+    Options.docstrings = False
+
+    setup(
+        name = "hello",
+        ext_modules = cythonize("lib.pyx"),
+    )
+
+Here are the options that are available:
+
+.. autodata:: Cython.Compiler.Options.docstrings
+.. autodata:: Cython.Compiler.Options.embed_pos_in_docstring
+.. autodata:: Cython.Compiler.Options.emit_code_comments
+.. pre_import
+.. autodata:: Cython.Compiler.Options.generate_cleanup_code
+.. autodata:: Cython.Compiler.Options.clear_to_none
+.. autodata:: Cython.Compiler.Options.annotate
+.. annotate_coverage_xml
+.. autodata:: Cython.Compiler.Options.fast_fail
+.. autodata:: Cython.Compiler.Options.warning_errors
+.. autodata:: Cython.Compiler.Options.error_on_unknown_names
+.. autodata:: Cython.Compiler.Options.error_on_uninitialized
+.. autodata:: Cython.Compiler.Options.convert_range
+.. autodata:: Cython.Compiler.Options.cache_builtins
+.. autodata:: Cython.Compiler.Options.gcc_branch_hints
+.. autodata:: Cython.Compiler.Options.lookup_module_cpdef
+.. autodata:: Cython.Compiler.Options.embed
+.. old_style_globals
+.. autodata:: Cython.Compiler.Options.cimport_from_pyx
+.. autodata:: Cython.Compiler.Options.buffer_max_dims
+.. autodata:: Cython.Compiler.Options.closure_freelist_size
+
+
 .. _compiler-directives:
 
 Compiler directives
