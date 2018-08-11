@@ -1,6 +1,5 @@
-# distutils: extra_compile_args=-std=c++0x
 # mode: run
-# tag: cpp
+# tag: cpp, cpp11
 
 from libcpp.functional cimport function
 cimport cpp_function_lib

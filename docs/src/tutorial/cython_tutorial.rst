@@ -77,7 +77,7 @@ It is shipped and installed with Cython and can be used like this::
     >>> import helloworld
     Hello World
 
-Since Cython 0.11, the :ref:`Pyximport<pyximport>` module also has experimental
+The :ref:`Pyximport<pyximport>` module also has experimental
 compilation support for normal Python modules.  This allows you to
 automatically run Cython on every .pyx and .py module that Python
 imports, including the standard library and installed packages.
@@ -263,23 +263,9 @@ just like Python does. You can deactivate those checks by using the
 :ref:`compiler directives<compiler-directives>`.
 
 Now let's see if, even if we have division checks, we obtained a boost in speed.
-Let's write the same program, but Python-style::
+Let's write the same program, but Python-style:
 
-    def primes_python(nb_primes):
-        p = []
-        n = 2
-        while len(p) < nb_primes:
-            # Is n prime?
-            for i in p:
-                if n % i == 0:
-                    break
-
-            # If no break occurred in the loop
-            else:
-                p.append(n)
-            n += 1
-        return p
-
+.. literalinclude:: ../../examples/tutorial/cython_tutorial/primes_python.py
 
 It is also possible to take a plain ``.py`` file and to compile it with Cython.
 Let's take ``primes_python``, change the function name to ``primes_python_compiled`` and
@@ -340,7 +326,7 @@ With Cython, it is also possible to take advantage of the C++ language, notably,
 part of the C++ standard library is directly importable from Cython code.
 
 Let's see what our :file:`primes.pyx` becomes when
-using `vector <http://en.cppreference.com/w/cpp/container/vector>`_ from the C++
+using `vector <https://en.cppreference.com/w/cpp/container/vector>`_ from the C++
 standard library.
 
 .. note::
@@ -350,7 +336,7 @@ standard library.
     type in the ``array`` standard library module.
     There is a method `reserve` available which will avoid copies if you know in advance
     how many elements you are going to put in the vector. For more details
-    see `this page from cppreference <http://en.cppreference.com/w/cpp/container/vector>`_.
+    see `this page from cppreference <https://en.cppreference.com/w/cpp/container/vector>`_.
 
 .. literalinclude:: ../../examples/tutorial/cython_tutorial/primes_cpp.pyx
     :linenos:

@@ -1,4 +1,5 @@
 # cython: language_level = 2
+# cython: auto_pickle=False
 #
 #   Code output module
 #
@@ -437,6 +438,10 @@ class UtilityCodeBase(object):
 
     def get_tree(self, **kwargs):
         pass
+
+    def __deepcopy__(self, memodict=None):
+        # No need to deep-copy utility code since it's essentially immutable.
+        return self
 
 
 class UtilityCode(UtilityCodeBase):
@@ -2176,7 +2181,7 @@ class CCodeWriter(object):
         else:
             self.putln("__Pyx_ASSIGN_REF_ONCE(%s, %s, %s)" % (cname, value, self.error_goto(pos)))
 
-    def put_pymethoddef(self, entry, term, allow_skip=True):
+    def put_pymethoddef(self, entry, term, allow_skip=True, wrapper_code_writer=None):
         if entry.is_special or entry.name == '__getattribute__':
             if entry.name not in special_py_methods:
                 if entry.name == '__getattr__' and not self.globalstate.directives['fast_getattr']:
@@ -2186,22 +2191,38 @@ class CCodeWriter(object):
                 # that's better than ours.
                 elif allow_skip:
                     return
-        from .TypeSlots import method_coexist
-        if entry.doc:
-            doc_code = entry.doc_cname
-        else:
-            doc_code = 0
+
         method_flags = entry.signature.method_flags()
-        if method_flags:
-            if entry.is_special:
-                method_flags += [method_coexist]
-            self.putln(
-                '{"%s", (PyCFunction)%s, %s, %s}%s' % (
-                    entry.name,
-                    entry.func_cname,
-                    "|".join(method_flags),
-                    doc_code,
-                    term))
+        if not method_flags:
+            return
+        if entry.is_special:
+            from . import TypeSlots
+            method_flags += [TypeSlots.method_coexist]
+        func_ptr = wrapper_code_writer.put_pymethoddef_wrapper(entry) if wrapper_code_writer else entry.func_cname
+        # Add required casts, but try not to shadow real warnings.
+        cast = '__Pyx_PyCFunctionFast' if 'METH_FASTCALL' in method_flags else 'PyCFunction'
+        if 'METH_KEYWORDS' in method_flags:
+            cast += 'WithKeywords'
+        if cast != 'PyCFunction':
+            func_ptr = '(void*)(%s)%s' % (cast, func_ptr)
+        self.putln(
+            '{"%s", (PyCFunction)%s, %s, %s}%s' % (
+                entry.name,
+                func_ptr,
+                "|".join(method_flags),
+                entry.doc_cname if entry.doc else '0',
+                term))
+
+    def put_pymethoddef_wrapper(self, entry):
+        func_cname = entry.func_cname
+        if entry.is_special:
+            method_flags = entry.signature.method_flags()
+            if method_flags and 'METH_NOARGS' in method_flags:
+                # Special NOARGS methods really take no arguments besides 'self', but PyCFunction expects one.
+                func_cname = Naming.method_wrapper_prefix + func_cname
+                self.putln("static PyObject *%s(PyObject *self, CYTHON_UNUSED PyObject *arg) {return %s(self);}" % (
+                    func_cname, entry.func_cname))
+        return func_cname
 
     # GIL methods
 

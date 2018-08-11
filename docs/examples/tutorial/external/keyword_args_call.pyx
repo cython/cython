@@ -4,4 +4,4 @@ cdef extern from "string.h":
 cdef char* data = "hfvcakdfagbcffvschvxcdfgccbcfhvgcsnfxjh"
 
 cdef char* pos = strstr(needle='akd', haystack=data)
-print(pos != NULL)
+print(pos is not NULL)

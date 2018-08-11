@@ -2486,7 +2486,7 @@ class PyCont(ExecutionControlCommandBase):
 
 def _pointervalue(gdbval):
     """
-    Return the value of the pionter as a Python int.
+    Return the value of the pointer as a Python int.
 
     gdbval.type must be a pointer type
     """

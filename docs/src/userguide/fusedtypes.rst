@@ -12,7 +12,7 @@ operate on values of multiple types. Thus fused types allow `generic
 programming`_ and are akin to templates in C++ or generics in languages like
 Java / C#.
 
-.. _generic programming: http://en.wikipedia.org/wiki/Generic_programming
+.. _generic programming: https://en.wikipedia.org/wiki/Generic_programming
 
 .. Note:: Support is still somewhat experimental, there may be bugs!
 
@@ -24,26 +24,7 @@ Java / C#.
 Quickstart
 ==========
 
-::
-
-    from __future__ import print_function
-    cimport cython
-
-    ctypedef fused char_or_float:
-        cython.char
-        cython.float
-
-
-    cpdef char_or_float plus_one(char_or_float var):
-        return var + 1
-
-
-    def show_me():
-        cdef:
-            cython.char a = 127
-            cython.float b = 127
-        print('char', plus_one(a))
-        print('float', plus_one(b))
+.. literalinclude:: ../../examples/userguide/fusedtypes/char_or_float.pyx
 
 This gives::
 

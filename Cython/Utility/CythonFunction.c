@@ -100,7 +100,7 @@ __Pyx_CyFunction_get_doc(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *closure
 }
 
 static int
-__Pyx_CyFunction_set_doc(__pyx_CyFunctionObject *op, PyObject *value)
+__Pyx_CyFunction_set_doc(__pyx_CyFunctionObject *op, PyObject *value, CYTHON_UNUSED void *context)
 {
     PyObject *tmp = op->func_doc;
     if (value == NULL) {
@@ -114,7 +114,7 @@ __Pyx_CyFunction_set_doc(__pyx_CyFunctionObject *op, PyObject *value)
 }
 
 static PyObject *
-__Pyx_CyFunction_get_name(__pyx_CyFunctionObject *op)
+__Pyx_CyFunction_get_name(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *context)
 {
     if (unlikely(op->func_name == NULL)) {
 #if PY_MAJOR_VERSION >= 3
@@ -130,7 +130,7 @@ __Pyx_CyFunction_get_name(__pyx_CyFunctionObject *op)
 }
 
 static int
-__Pyx_CyFunction_set_name(__pyx_CyFunctionObject *op, PyObject *value)
+__Pyx_CyFunction_set_name(__pyx_CyFunctionObject *op, PyObject *value, CYTHON_UNUSED void *context)
 {
     PyObject *tmp;
 
@@ -152,14 +152,14 @@ __Pyx_CyFunction_set_name(__pyx_CyFunctionObject *op, PyObject *value)
 }
 
 static PyObject *
-__Pyx_CyFunction_get_qualname(__pyx_CyFunctionObject *op)
+__Pyx_CyFunction_get_qualname(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *context)
 {
     Py_INCREF(op->func_qualname);
     return op->func_qualname;
 }
 
 static int
-__Pyx_CyFunction_set_qualname(__pyx_CyFunctionObject *op, PyObject *value)
+__Pyx_CyFunction_set_qualname(__pyx_CyFunctionObject *op, PyObject *value, CYTHON_UNUSED void *context)
 {
     PyObject *tmp;
 
@@ -193,7 +193,7 @@ __Pyx_CyFunction_get_self(__pyx_CyFunctionObject *m, CYTHON_UNUSED void *closure
 }
 
 static PyObject *
-__Pyx_CyFunction_get_dict(__pyx_CyFunctionObject *op)
+__Pyx_CyFunction_get_dict(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *context)
 {
     if (unlikely(op->func_dict == NULL)) {
         op->func_dict = PyDict_New();
@@ -205,7 +205,7 @@ __Pyx_CyFunction_get_dict(__pyx_CyFunctionObject *op)
 }
 
 static int
-__Pyx_CyFunction_set_dict(__pyx_CyFunctionObject *op, PyObject *value)
+__Pyx_CyFunction_set_dict(__pyx_CyFunctionObject *op, PyObject *value, CYTHON_UNUSED void *context)
 {
     PyObject *tmp;
 
@@ -227,21 +227,21 @@ __Pyx_CyFunction_set_dict(__pyx_CyFunctionObject *op, PyObject *value)
 }
 
 static PyObject *
-__Pyx_CyFunction_get_globals(__pyx_CyFunctionObject *op)
+__Pyx_CyFunction_get_globals(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *context)
 {
     Py_INCREF(op->func_globals);
     return op->func_globals;
 }
 
 static PyObject *
-__Pyx_CyFunction_get_closure(CYTHON_UNUSED __pyx_CyFunctionObject *op)
+__Pyx_CyFunction_get_closure(CYTHON_UNUSED __pyx_CyFunctionObject *op, CYTHON_UNUSED void *context)
 {
     Py_INCREF(Py_None);
     return Py_None;
 }
 
 static PyObject *
-__Pyx_CyFunction_get_code(__pyx_CyFunctionObject *op)
+__Pyx_CyFunction_get_code(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *context)
 {
     PyObject* result = (op->func_code) ? op->func_code : Py_None;
     Py_INCREF(result);
@@ -274,7 +274,7 @@ __Pyx_CyFunction_init_defaults(__pyx_CyFunctionObject *op) {
 }
 
 static int
-__Pyx_CyFunction_set_defaults(__pyx_CyFunctionObject *op, PyObject* value) {
+__Pyx_CyFunction_set_defaults(__pyx_CyFunctionObject *op, PyObject* value, CYTHON_UNUSED void *context) {
     PyObject* tmp;
     if (!value) {
         // del => explicit None to prevent rebuilding
@@ -292,7 +292,7 @@ __Pyx_CyFunction_set_defaults(__pyx_CyFunctionObject *op, PyObject* value) {
 }
 
 static PyObject *
-__Pyx_CyFunction_get_defaults(__pyx_CyFunctionObject *op) {
+__Pyx_CyFunction_get_defaults(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *context) {
     PyObject* result = op->defaults_tuple;
     if (unlikely(!result)) {
         if (op->defaults_getter) {
@@ -307,7 +307,7 @@ __Pyx_CyFunction_get_defaults(__pyx_CyFunctionObject *op) {
 }
 
 static int
-__Pyx_CyFunction_set_kwdefaults(__pyx_CyFunctionObject *op, PyObject* value) {
+__Pyx_CyFunction_set_kwdefaults(__pyx_CyFunctionObject *op, PyObject* value, CYTHON_UNUSED void *context) {
     PyObject* tmp;
     if (!value) {
         // del => explicit None to prevent rebuilding
@@ -325,7 +325,7 @@ __Pyx_CyFunction_set_kwdefaults(__pyx_CyFunctionObject *op, PyObject* value) {
 }
 
 static PyObject *
-__Pyx_CyFunction_get_kwdefaults(__pyx_CyFunctionObject *op) {
+__Pyx_CyFunction_get_kwdefaults(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *context) {
     PyObject* result = op->defaults_kwdict;
     if (unlikely(!result)) {
         if (op->defaults_getter) {
@@ -340,7 +340,7 @@ __Pyx_CyFunction_get_kwdefaults(__pyx_CyFunctionObject *op) {
 }
 
 static int
-__Pyx_CyFunction_set_annotations(__pyx_CyFunctionObject *op, PyObject* value) {
+__Pyx_CyFunction_set_annotations(__pyx_CyFunctionObject *op, PyObject* value, CYTHON_UNUSED void *context) {
     PyObject* tmp;
     if (!value || value == Py_None) {
         value = NULL;
@@ -357,7 +357,7 @@ __Pyx_CyFunction_set_annotations(__pyx_CyFunctionObject *op, PyObject* value) {
 }
 
 static PyObject *
-__Pyx_CyFunction_get_annotations(__pyx_CyFunctionObject *op) {
+__Pyx_CyFunction_get_annotations(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *context) {
     PyObject* result = op->func_annotations;
     if (unlikely(!result)) {
         result = PyDict_New();
@@ -370,7 +370,7 @@ __Pyx_CyFunction_get_annotations(__pyx_CyFunctionObject *op) {
 
 //#if PY_VERSION_HEX >= 0x030400C1
 //static PyObject *
-//__Pyx_CyFunction_get_signature(__pyx_CyFunctionObject *op) {
+//__Pyx_CyFunction_get_signature(__pyx_CyFunctionObject *op, CYTHON_UNUSED void *context) {
 //    PyObject *inspect_module, *signature_class, *signature;
 //    // from inspect import Signature
 //    inspect_module = PyImport_ImportModuleLevelObject(PYIDENT("inspect"), NULL, NULL, NULL, 0);
@@ -593,7 +593,7 @@ static PyObject * __Pyx_CyFunction_CallMethod(PyObject *func, PyObject *self, Py
             return (*meth)(self, arg);
         break;
     case METH_VARARGS | METH_KEYWORDS:
-        return (*(PyCFunctionWithKeywords)meth)(self, arg, kw);
+        return (*(PyCFunctionWithKeywords)(void*)meth)(self, arg, kw);
     case METH_NOARGS:
         if (likely(kw == NULL || PyDict_Size(kw) == 0)) {
             size = PyTuple_GET_SIZE(arg);

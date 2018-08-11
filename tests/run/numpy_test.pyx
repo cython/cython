@@ -270,6 +270,7 @@ except:
 
 __test__[__name__] = __doc__
 
+
 def assert_dtype_sizes():
     assert sizeof(np.int8_t) == 1
     assert sizeof(np.int16_t) == 2
@@ -283,6 +284,16 @@ def assert_dtype_sizes():
     assert sizeof(np.float64_t) == 8
     assert sizeof(np.complex64_t) == 8
     assert sizeof(np.complex128_t) == 16
+
+
+@testcase
+def test_enums():
+    """
+    >>> test_enums()
+    """
+    cdef np.NPY_CASTING nc = np.NPY_NO_CASTING
+    assert nc != np.NPY_SAFE_CASTING
+
 
 def ndarray_str(arr):
     u"""
@@ -896,6 +907,35 @@ def test_copy_buffer(np.ndarray[double, ndim=1] a):
     a = a.copy()
     a = a.copy()
     return a
+
+
+@testcase
+def test_broadcast_comparison(np.ndarray[double, ndim=1] a):
+    """
+    >>> a = np.ones(10, dtype=np.double)
+    >>> a0, obj0, a1, obj1 = test_broadcast_comparison(a)
+    >>> np.all(a0 == (a == 0)) or a0
+    True
+    >>> np.all(a1 == (a == 1)) or a1
+    True
+    >>> np.all(obj0 == (a == 0)) or obj0
+    True
+    >>> np.all(obj1 == (a == 1)) or obj1
+    True
+
+    >>> a = np.zeros(10, dtype=np.double)
+    >>> a0, obj0, a1, obj1 = test_broadcast_comparison(a)
+    >>> np.all(a0 == (a == 0)) or a0
+    True
+    >>> np.all(a1 == (a == 1)) or a1
+    True
+    >>> np.all(obj0 == (a == 0)) or obj0
+    True
+    >>> np.all(obj1 == (a == 1)) or obj1
+    True
+    """
+    cdef object obj = a
+    return a == 0, obj == 0, a == 1, obj == 1
 
 
 include "numpy_common.pxi"

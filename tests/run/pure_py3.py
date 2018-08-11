@@ -1,5 +1,5 @@
 # mode: run
-# tag: annotation_typing, pure3.0
+# tag: annotation_typing, pure3.0, mypy
 
 import cython
 
@@ -7,7 +7,7 @@ is_compiled = cython.compiled
 
 MyUnion = cython.union(n=cython.int, x=cython.double)
 MyStruct = cython.struct(is_integral=cython.bint, data=MyUnion)
-MyStruct2 = cython.typedef(MyStruct[2])
+MyStruct2 = cython.typedef(MyStruct[2])  # type: cython.StructType
 
 
 @cython.ccall  # cpdef => C return type
@@ -42,6 +42,10 @@ def test_struct(n: cython.int, x: cython.double) -> MyStruct2:
 
 @cython.ccall
 def c_call(x) -> cython.double:
+    return x
+
+
+def call_ccall(x):
     """
     Test that a declared return type is honoured when compiled.
 
@@ -57,10 +61,6 @@ def c_call(x) -> cython.double:
     >>> (is_compiled and 1) or result
     1
     """
-    return x
-
-
-def call_ccall(x):
     ret = c_call(x)
     return ret, cython.typeof(ret)
 
@@ -68,9 +68,13 @@ def call_ccall(x):
 @cython.cfunc
 @cython.inline
 def cdef_inline(x) -> cython.double:
+    return x + 1
+
+
+def call_cdef_inline(x):
     """
     >>> result, return_type = call_cdef_inline(1)
-    >>> (not is_compiled and 'float') or type(return_type).__name__
+    >>> (not is_compiled and 'float') or type(result).__name__
     'float'
     >>> (not is_compiled and 'double') or return_type
     'double'
@@ -79,9 +83,5 @@ def cdef_inline(x) -> cython.double:
     >>> result == 2.0  or  result
     True
     """
-    return x + 1
-
-
-def call_cdef_inline(x):
     ret = cdef_inline(x)
     return ret, cython.typeof(ret)

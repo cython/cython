@@ -8,6 +8,15 @@ Cython Changelog
 Features added
 --------------
 
+* PEP-489 multi-phase module initialisation has been enabled again.  Module
+  reloads raise an exception to prevent corruption of the static module state.
+
+* A set of ``mypy`` compatible PEP-484 declarations were added for Cython's C data
+  types to integrate with static analysers in typed Python code.  They are available
+  in the ``Cython/Shadow.pyi`` module and describe the types in the special ``cython``
+  module that can be used for typing in Python code.
+  Original patch by Julian Gethmann. (Github issue #1965)
+
 * Raising exceptions from nogil code will automatically acquire the GIL, instead
   of requiring an explicit ``with gil`` block.
 
@@ -34,6 +43,19 @@ Features added
   through the new `-E` option.
   Patch by Jerome Kieffer.  (Github issue #2315)
 
+* ``pyximport`` can import from namespace packages.
+  Patch by Prakhar Goel.  (Github issue #2294)
+
+* Some missing numpy and CPython C-API declarations were added.
+  Patch by John Kirkham. (Github issues #2523, #2520, #2537)
+
+* The numpy helper functions ``set_array_base()`` and ``get_array_base()``
+  were adapted to the current numpy C-API recommendations.
+  Patch by Matti Picus. (Github issue #2528)
+
+* Several C++ STL declarations were extended and corrected.
+  Patch by Valentin Valls. (Github issue #2207)
+
 Bugs fixed
 ----------
 
@@ -47,11 +69,40 @@ Bugs fixed
 * Fix declarations of builtin or C types using strings in pure python mode.
   (Github issue #2046)
 
+* Several internal function signatures were fixed that lead to warnings in gcc-8.
+  (Github issue #2363)
+
+* C lines of the module init function were unconditionally not reported in
+  exception stack traces.
+  Patch by Jeroen Demeyer.  (Github issue #2492)
+
+* When PEP-489 support is enabled, reloading the module overwrote any static
+  module state. It now raises an exception instead, given that reloading is
+  not actually supported.
+
 Other changes
 -------------
 
+* The documentation was restructured, cleaned up and examples are now tested.
+  The NumPy tutorial was also rewritten to simplify the running example.
+  Contributed by Gabriel de Marmiesse.  (Github issue #2245)
 
-0.28.4 (2018-??-??)
+* Cython compiles less of its own modules at build time to reduce the installed
+  package size to about half of its previous size.  This makes the compiler
+  slightly slower, by about 5-7%.
+
+
+0.28.5 (2018-08-03)
+===================
+
+* The discouraged usage of GCC's attribute ``optimize("Os")`` was replaced by the
+  similar attribute ``cold`` to reduce the code impact of the module init functions.
+  (Github issue #2494)
+
+* A reference leak in Py2.x was fixed when comparing str to unicode for equality.
+
+
+0.28.4 (2018-07-08)
 ===================
 
 Bugs fixed
@@ -60,6 +111,11 @@ Bugs fixed
 * Reallowing ``tp_clear()`` in a subtype of an ``@no_gc_clear`` extension type
   generated an invalid C function call to the (non-existent) base type implementation.
   (Github issue #2309)
+
+* Exception catching based on a non-literal (runtime) tuple could fail to match the
+  exception.  (Github issue #2425)
+
+* Compile fix for CPython 3.7.0a2.  (Github issue #2477)
 
 
 0.28.3 (2018-05-27)
@@ -75,6 +131,9 @@ Bugs fixed
 
 * Work around a crash bug in g++ 4.4.x by disabling the size reduction setting
   of the module init function in this version.  (Github issue #2235)
+
+* Crash when exceptions occur early during module initialisation.
+  (Github issue #2199)
 
 
 0.28.2 (2018-04-13)
@@ -2171,9 +2230,9 @@ Features added
 
 * GDB support. http://docs.cython.org/src/userguide/debugging.html
 
-* A new build system with support for inline distutils directives, correct dependency tracking, and parallel compilation. http://wiki.cython.org/enhancements/distutils_preprocessing
+* A new build system with support for inline distutils directives, correct dependency tracking, and parallel compilation. https://github.com/cython/cython/wiki/enhancements-distutils_preprocessing
 
-* Support for dynamic compilation at runtime via the new cython.inline function and cython.compile decorator. http://wiki.cython.org/enhancements/inline
+* Support for dynamic compilation at runtime via the new cython.inline function and cython.compile decorator. https://github.com/cython/cython/wiki/enhancements-inline
 
 * "nogil" blocks are supported when compiling pure Python code by writing "with cython.nogil".
 

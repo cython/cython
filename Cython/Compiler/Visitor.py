@@ -1,5 +1,6 @@
 # cython: infer_types=True
 # cython: language_level=3
+# cython: auto_pickle=False
 
 #
 #   Tree visitor and transform framework

@@ -22,22 +22,7 @@ use of 'early binding' programming techniques.
 
 For example, consider the following (silly) code example:
 
-.. sourcecode:: cython
-
-    cdef class Rectangle:
-        cdef int x0, y0
-        cdef int x1, y1
-        def __init__(self, int x0, int y0, int x1, int y1):
-            self.x0 = x0; self.y0 = y0; self.x1 = x1; self.y1 = y1
-        def area(self):
-            area = (self.x1 - self.x0) * (self.y1 - self.y0)
-            if area < 0:
-                area = -area
-            return area
-
-    def rectArea(x0, y0, x1, y1):
-        rect = Rectangle(x0, y0, x1, y1)
-        return rect.area()
+.. literalinclude:: ../../examples/userguide/early_binding_for_speed/rectangle.pyx
 
 In the :func:`rectArea` method, the call to :meth:`rect.area` and the
 :meth:`.area` method contain a lot of Python overhead.
@@ -45,26 +30,7 @@ In the :func:`rectArea` method, the call to :meth:`rect.area` and the
 However, in Cython, it is possible to eliminate a lot of this overhead in cases
 where calls occur within Cython code. For example:
 
-.. sourcecode:: cython
-
-    cdef class Rectangle:
-        cdef int x0, y0
-        cdef int x1, y1
-        def __init__(self, int x0, int y0, int x1, int y1):
-            self.x0 = x0; self.y0 = y0; self.x1 = x1; self.y1 = y1
-        cdef int _area(self):
-            cdef int area
-            area = (self.x1 - self.x0) * (self.y1 - self.y0)
-            if area < 0:
-                area = -area
-            return area
-        def area(self):
-            return self._area()
-
-    def rectArea(x0, y0, x1, y1):
-        cdef Rectangle rect
-        rect = Rectangle(x0, y0, x1, y1)
-        return rect._area()
+.. literalinclude:: ../../examples/userguide/early_binding_for_speed/rectangle_cdef.pyx
 
 Here, in the Rectangle extension class, we have defined two different area
 calculation methods, the efficient :meth:`_area` C method, and the
@@ -80,29 +46,7 @@ dual-access methods - methods that can be efficiently called at C level, but
 can also be accessed from pure Python code at the cost of the Python access
 overheads. Consider this code:
 
-.. sourcecode:: cython
-
-    cdef class Rectangle:
-        cdef int x0, y0
-        cdef int x1, y1
-        def __init__(self, int x0, int y0, int x1, int y1):
-            self.x0 = x0; self.y0 = y0; self.x1 = x1; self.y1 = y1
-        cpdef int area(self):
-            cdef int area
-            area = (self.x1 - self.x0) * (self.y1 - self.y0)
-            if area < 0:
-                area = -area
-            return area
-
-    def rectArea(x0, y0, x1, y1):
-        cdef Rectangle rect
-        rect = Rectangle(x0, y0, x1, y1)
-        return rect.area()
-
-.. note::
-
-    in earlier versions of Cython, the :keyword:`cpdef` keyword is
-    ``rdef`` - but has the same effect).
+.. literalinclude:: ../../examples/userguide/early_binding_for_speed/rectangle_cpdef.pyx
 
 Here, we just have a single area method, declared as :keyword:`cpdef` to make it
 efficiently callable as a C function, but still accessible from pure Python

@@ -3260,10 +3260,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             return node
 
         if node.type.is_pyobject:
-            if operator in ('Eq', 'Ne'):
-                ret_type = PyrexTypes.c_bint_type
-            else:
-                ret_type = PyrexTypes.py_object_type
+            ret_type = PyrexTypes.py_object_type
         elif node.type is PyrexTypes.c_bint_type and operator in ('Eq', 'Ne'):
             ret_type = PyrexTypes.c_bint_type
         else:

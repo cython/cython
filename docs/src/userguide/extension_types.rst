@@ -12,21 +12,9 @@ Introduction
 As well as creating normal user-defined classes with the Python class
 statement, Cython also lets you create new built-in Python types, known as
 extension types. You define an extension type using the :keyword:`cdef` class
-statement.  Here's an example::
+statement.  Here's an example:
 
-    from __future__ import print_function
-
-    cdef class Shrubbery:
-
-        cdef int width, height
-
-        def __init__(self, w, h):
-            self.width = w
-            self.height = h
-
-        def describe(self):
-            print("This shrubbery is", self.width,
-                  "by", self.height, "cubits.")
+.. literalinclude:: ../../examples/userguide/extension_types/shrubbery.pyx
 
 As you can see, a Cython extension type definition looks a lot like a Python
 class definition. Within it, you use the def statement to define methods that
@@ -60,11 +48,9 @@ first method, but Cython code can use either method.
 By default, extension type attributes are only accessible by direct access,
 not Python access, which means that they are not accessible from Python code.
 To make them accessible from Python code, you need to declare them as
-:keyword:`public` or :keyword:`readonly`. For example::
+:keyword:`public` or :keyword:`readonly`. For example:
 
-    cdef class Shrubbery:
-        cdef public int width, height
-        cdef readonly float depth
+.. literalinclude:: ../../examples/userguide/extension_types/python_access.pyx
 
 makes the width and height attributes readable and writable from Python code,
 and the depth attribute readable but not writable.
@@ -90,36 +76,13 @@ It is not possible to add attributes to an extension type at runtime by default.
 You have two ways of avoiding this limitation, both add an overhead when
 a method is called from Python code. Especially when calling ``cpdef`` methods.
 
-The first approach is to create a Python subclass.::
+The first approach is to create a Python subclass.:
 
-    cdef class Animal:
+.. literalinclude:: ../../examples/userguide/extension_types/extendable_animal.pyx
 
-        cdef int number_of_legs
-        def __cinit__(self, int number_of_legs):
-            self.number_of_legs = number_of_legs
+Declaring a ``__dict__`` attribute is the second way of enabling dynamic attributes.:
 
-
-    class ExtendableAnimal(Animal):  # Note that we use class, not cdef class
-        pass
-
-
-    dog = ExtendableAnimal(4)
-    dog.has_tail = True
-
-
-Declaring a ``__dict__`` attribute is the second way of enabling dynamic attributes.::
-
-    cdef class Animal:
-
-        cdef int number_of_legs
-        cdef dict __dict__
-        def __cinit__(self, int number_of_legs):
-            self.number_of_legs = number_of_legs
-
-
-    dog = Animal(4)
-    dog.has_tail = True
-
+.. literalinclude:: ../../examples/userguide/extension_types/dict_animal.pyx
 
 Type declarations
 ===================
@@ -142,21 +105,23 @@ will be very inefficient. If the attribute is private, it will not work at all
 -- the code will compile, but an attribute error will be raised at run time.
 
 The solution is to declare ``sh`` as being of type :class:`Shrubbery`, as
-follows::
+follows:
 
-    cdef widen_shrubbery(Shrubbery sh, extra_width):
-        sh.width = sh.width + extra_width
+.. literalinclude:: ../../examples/userguide/extension_types/widen_shrubbery.pyx
 
 Now the Cython compiler knows that ``sh`` has a C attribute called
 :attr:`width` and will generate code to access it directly and efficiently.
-The same consideration applies to local variables, for example,::
+The same consideration applies to local variables, for example:
 
-    cdef Shrubbery another_shrubbery(Shrubbery sh1):
-        cdef Shrubbery sh2
-        sh2 = Shrubbery()
-        sh2.width = sh1.width
-        sh2.height = sh1.height
-        return sh2
+.. literalinclude:: ../../examples/userguide/extension_types/shrubbery_2.pyx
+
+.. note::
+
+    We here ``cimport`` the class :class:`Shrubbery`, and this is necessary
+    to declare the type at compile time. To be able to ``cimport`` an extension type,
+    we split the class definition into two parts, one in a definition file and
+    the other in the corresponding implementation file. You should read
+    :ref:`sharing_extension_types` to learn to do that.
 
 
 Type Testing and Casting
@@ -384,7 +349,7 @@ inherit from multiple extension types provided that the usual Python rules for
 multiple inheritance are followed (i.e. the C layouts of all the base classes
 must be compatible).
 
-Since Cython 0.13.1, there is a way to prevent extension types from
+There is a way to prevent extension types from
 being subtyped in Python.  This is done via the ``final`` directive,
 usually set on an extension type using a decorator::
 
@@ -456,7 +421,7 @@ compatible types.::
         cdef void* ptr
 
         def __dealloc__(self):
-            if self.ptr != NULL:
+            if self.ptr is not NULL:
                 free(self.ptr)
 
         @staticmethod

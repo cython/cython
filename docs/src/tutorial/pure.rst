@@ -130,15 +130,7 @@ Static typing
 
   .. literalinclude:: ../../examples/tutorial/pure/cython_declare2.py
 
-  It can also be used to type class constructors::
-
-    class A:
-        cython.declare(a=cython.int, b=cython.int)
-        def __init__(self, b=0):
-            self.a = 3
-            self.b = b
-
-  And even to define extension type private, readonly and public attributes::
+  It can also be used to define extension type private, readonly and public attributes::
 
     @cython.cclass
     class A:
@@ -148,12 +140,9 @@ Static typing
         e = cython.declare(cython.int, 5, visibility='readonly')
 
 * ``@cython.locals`` is a decorator that is used to specify the types of local
-  variables in the function body (including the arguments)::
+  variables in the function body (including the arguments):
 
-    @cython.locals(a=cython.double, b=cython.double, n=cython.p_double)
-    def foo(a, b, x, y):
-        n = a*b
-        ...
+  .. literalinclude:: ../../examples/tutorial/pure/locals.py
 
 * ``@cython.returns(<type>)`` specifies the function's return type.
 
@@ -169,19 +158,12 @@ Static typing
   following example.  To avoid conflicts with other kinds of annotation
   usages, this can be disabled with the directive ``annotation_typing=False``.
 
-  ::
-
-    def func(a_pydict: dict, a_cint: cython.int) -> tuple:
-        ...
+  .. literalinclude:: ../../examples/tutorial/pure/annotations.py
 
   This can be combined with the ``@cython.exceptval()`` decorator for non-Python
-  return types::
+  return types:
 
-    @cython.exceptval(-1):
-    def func(x : cython.int) -> cython.int:
-        if x < 0:
-            raise ValueError("need integer >= 0")
-        return x+1
+  .. literalinclude:: ../../examples/tutorial/pure/exceptval.py
 
   Since version 0.27, Cython also supports the variable annotations defined
   in `PEP 526 <https://www.python.org/dev/peps/pep-0526/>`_. This allows to
@@ -296,20 +278,13 @@ Magic Attributes within the .pxd
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The special `cython` module can also be imported and used within the augmenting
-:file:`.pxd` file. For example, the following Python file :file:`dostuff.py`::
+:file:`.pxd` file. For example, the following Python file :file:`dostuff.py`:
 
-    def dostuff(n):
-        t = 0
-        for i in range(n):
-            t += i
-        return t
+.. literalinclude:: ../../examples/tutorial/pure/dostuff.py
 
-can be augmented with the following :file:`.pxd` file :file:`dostuff.pxd`::
+can be augmented with the following :file:`.pxd` file :file:`dostuff.pxd`:
 
-    import cython
-
-    @cython.locals(t = cython.int, i = cython.int)
-    cpdef int dostuff(int n)
+.. literalinclude:: ../../examples/tutorial/pure/dostuff.pxd
 
 The :func:`cython.declare()` function can be used to specify types for global
 variables in the augmenting :file:`.pxd` file.
@@ -324,25 +299,11 @@ Calling C functions
 Normally, it isn't possible to call C functions in pure Python mode as there
 is no general way to support it in normal (uncompiled) Python.  However, in
 cases where an equivalent Python function exists, this can be achieved by
-combining C function coercion with a conditional import as follows::
+combining C function coercion with a conditional import as follows:
 
-    # in mymodule.pxd:
+.. literalinclude:: ../../examples/tutorial/pure/mymodule.pxd
 
-    # declare a C function as "cpdef" to export it to the module
-    cdef extern from "math.h":
-        cpdef double sin(double x)
-
-
-    # in mymodule.py:
-
-    import cython
-
-    # override with Python import if not in compiled code
-    if not cython.compiled:
-        from math import sin
-
-    # calls sin() from math.h when compiled with Cython and math.sin() in Python
-    print(sin(0))
+.. literalinclude:: ../../examples/tutorial/pure/mymodule.py
 
 Note that the "sin" function will show up in the module namespace of "mymodule"
 here (i.e. there will be a ``mymodule.sin()`` function).  You can mark it as an
@@ -359,7 +320,7 @@ to make the names match again.
 Using C arrays for fixed size lists
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Since Cython 0.22, C arrays can automatically coerce to Python lists or tuples.
+C arrays can automatically coerce to Python lists or tuples.
 This can be exploited to replace fixed size Python lists in Python code by C
 arrays when compiled.  An example:
 

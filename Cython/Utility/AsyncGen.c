@@ -259,6 +259,11 @@ __Pyx_async_gen_anext(PyObject *g)
     return __Pyx_async_gen_asend_new(o, NULL);
 }
 
+static PyObject *
+__Pyx_async_gen_anext_method(PyObject *g, CYTHON_UNUSED PyObject *arg) {
+    return __Pyx_async_gen_anext(g);
+}
+
 
 static PyObject *
 __Pyx_async_gen_asend(__pyx_PyAsyncGenObject *o, PyObject *arg)
@@ -279,6 +284,7 @@ __Pyx_async_gen_aclose(__pyx_PyAsyncGenObject *o, CYTHON_UNUSED PyObject *arg)
     return __Pyx_async_gen_athrow_new(o, NULL);
 }
 
+
 static PyObject *
 __Pyx_async_gen_athrow(__pyx_PyAsyncGenObject *o, PyObject *args)
 {
@@ -286,6 +292,12 @@ __Pyx_async_gen_athrow(__pyx_PyAsyncGenObject *o, PyObject *args)
         return NULL;
     }
     return __Pyx_async_gen_athrow_new(o, args);
+}
+
+
+static PyObject *
+__Pyx_async_gen_self_method(PyObject *g, CYTHON_UNUSED PyObject *arg) {
+    return __Pyx_NewRef(g);
 }
 
 
@@ -328,8 +340,8 @@ static PyMethodDef __Pyx_async_gen_methods[] = {
     {"asend", (PyCFunction)__Pyx_async_gen_asend, METH_O, __Pyx_async_asend_doc},
     {"athrow",(PyCFunction)__Pyx_async_gen_athrow, METH_VARARGS, __Pyx_async_athrow_doc},
     {"aclose", (PyCFunction)__Pyx_async_gen_aclose, METH_NOARGS, __Pyx_async_aclose_doc},
-    {"__aiter__", (PyCFunction)PyObject_SelfIter, METH_NOARGS, __Pyx_async_aiter_doc},
-    {"__anext__", (PyCFunction)__Pyx_async_gen_anext, METH_NOARGS, __Pyx_async_anext_doc},
+    {"__aiter__", (PyCFunction)__Pyx_async_gen_self_method, METH_NOARGS, __Pyx_async_aiter_doc},
+    {"__anext__", (PyCFunction)__Pyx_async_gen_anext_method, METH_NOARGS, __Pyx_async_anext_doc},
     {0, 0, 0, 0}        /* Sentinel */
 };
 
@@ -563,7 +575,7 @@ static PyMethodDef __Pyx_async_gen_asend_methods[] = {
     {"send", (PyCFunction)__Pyx_async_gen_asend_send, METH_O, __Pyx_async_gen_send_doc},
     {"throw", (PyCFunction)__Pyx_async_gen_asend_throw, METH_VARARGS, __Pyx_async_gen_throw_doc},
     {"close", (PyCFunction)__Pyx_async_gen_asend_close, METH_NOARGS, __Pyx_async_gen_close_doc},
-    {"__await__", (PyCFunction)PyObject_SelfIter, METH_NOARGS, __Pyx_async_gen_await_doc},
+    {"__await__", (PyCFunction)__Pyx_async_gen_self_method, METH_NOARGS, __Pyx_async_gen_await_doc},
     {0, 0, 0, 0}        /* Sentinel */
 };
 
@@ -952,7 +964,7 @@ static PyMethodDef __Pyx_async_gen_athrow_methods[] = {
     {"send", (PyCFunction)__Pyx_async_gen_athrow_send, METH_O, __Pyx_async_gen_send_doc},
     {"throw", (PyCFunction)__Pyx_async_gen_athrow_throw, METH_VARARGS, __Pyx_async_gen_throw_doc},
     {"close", (PyCFunction)__Pyx_async_gen_athrow_close, METH_NOARGS, __Pyx_async_gen_close_doc},
-    {"__await__", (PyCFunction)PyObject_SelfIter, METH_NOARGS, __Pyx_async_gen_await_doc},
+    {"__await__", (PyCFunction)__Pyx_async_gen_self_method, METH_NOARGS, __Pyx_async_gen_await_doc},
     {0, 0, 0, 0}        /* Sentinel */
 };
 

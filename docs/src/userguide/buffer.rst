@@ -16,21 +16,7 @@ The following Cython/C++ code implements a matrix of floats,
 where the number of columns is fixed at construction time
 but rows can be added dynamically.
 
-::
-
-    # matrix.pyx
-    from libcpp.vector cimport vector
-
-    cdef class Matrix:
-        cdef unsigned ncols
-        cdef vector[float] v
-
-        def __cinit__(self, unsigned ncols):
-            self.ncols = ncols
-
-        def add_row(self):
-            """Adds a row, initially zero-filled."""
-            self.v.extend(self.ncols)
+.. literalinclude:: ../../examples/userguide/buffer/matrix.pyx
 
 There are no methods to do anything productive with the matrices' contents.
 We could implement custom ``__getitem__``, ``__setitem__``, etc. for this,
@@ -41,51 +27,7 @@ Implementing the buffer protocol requires adding two methods,
 ``__getbuffer__`` and ``__releasebuffer__``,
 which Cython handles specially.
 
-::
-
-    from cpython cimport Py_buffer
-    from libcpp.vector cimport vector
-
-    cdef class Matrix:
-        cdef Py_ssize_t ncols
-        cdef Py_ssize_t shape[2]
-        cdef Py_ssize_t strides[2]
-        cdef vector[float] v
-
-        def __cinit__(self, Py_ssize_t ncols):
-            self.ncols = ncols
-
-        def add_row(self):
-            """Adds a row, initially zero-filled."""
-            self.v.extend(self.ncols)
-
-        def __getbuffer__(self, Py_buffer *buffer, int flags):
-            cdef Py_ssize_t itemsize = sizeof(self.v[0])
-
-            self.shape[0] = self.v.size() / self.ncols
-            self.shape[1] = self.ncols
-
-            # Stride 1 is the distance, in bytes, between two items in a row;
-            # this is the distance between two adjacent items in the vector.
-            # Stride 0 is the distance between the first elements of adjacent rows.
-            self.strides[1] = <Py_ssize_t>(  <char *>&(self.v[1])
-                                           - <char *>&(self.v[0]))
-            self.strides[0] = self.ncols * self.strides[1]
-
-            buffer.buf = <char *>&(self.v[0])
-            buffer.format = 'f'                     # float
-            buffer.internal = NULL                  # see References
-            buffer.itemsize = itemsize
-            buffer.len = self.v.size() * itemsize   # product(shape) * itemsize
-            buffer.ndim = 2
-            buffer.obj = self
-            buffer.readonly = 0
-            buffer.shape = self.shape
-            buffer.strides = self.strides
-            buffer.suboffsets = NULL                # for pointer arrays only
-
-        def __releasebuffer__(self, Py_buffer *buffer):
-            pass
+.. literalinclude:: ../../examples/userguide/buffer/matrix_with_buffer.pyx
 
 The method ``Matrix.__getbuffer__`` fills a descriptor structure,
 called a ``Py_buffer``, that is defined by the Python C-API.
@@ -133,29 +75,7 @@ This is where ``__releasebuffer__`` comes in.
 We can add a reference count to each matrix,
 and lock it for mutation whenever a view exists.
 
-::
-
-    cdef class Matrix:
-        # ...
-        cdef int view_count
-
-        def __cinit__(self, Py_ssize_t ncols):
-            self.ncols = ncols
-            self.view_count = 0
-
-        def add_row(self):
-            if self.view_count > 0:
-                raise ValueError("can't add row while being viewed")
-            self.v.resize(self.v.size() + self.ncols)
-
-        def __getbuffer__(self, Py_buffer *buffer, int flags):
-            # ... as before
-
-            self.view_count += 1
-
-        def __releasebuffer__(self, Py_buffer *buffer):
-            self.view_count -= 1
-
+.. literalinclude:: ../../examples/userguide/buffer/view_count.pyx
 
 Flags
 -----

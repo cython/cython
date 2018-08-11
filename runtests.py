@@ -248,6 +248,10 @@ def update_openmp_extension(ext):
     ext.openmp = True
     language = ext.language
 
+    if sys.platform == 'win32' and sys.version_info[:2] == (3,4):
+        # OpenMP tests fail in appveyor in Py3.4 -> just ignore them, EoL of Py3.4 is early 2019...
+        return EXCLUDE_EXT
+
     if language == 'cpp':
         flags = OPENMP_CPP_COMPILER_FLAGS
     else:
@@ -269,15 +273,21 @@ def update_cpp11_extension(ext):
         update cpp11 extensions that will run on versions of gcc >4.8
     """
     gcc_version = get_gcc_version(ext.language)
-    if gcc_version is not None:
+    if gcc_version:
         compiler_version = gcc_version.group(1)
         if float(compiler_version) > 4.8:
             ext.extra_compile_args.append("-std=c++11")
         return ext
+
+    clang_version = get_clang_version(ext.language)
+    if clang_version:
+        ext.extra_compile_args.append("-std=c++11")
+        return ext
+
     return EXCLUDE_EXT
 
 
-def get_gcc_version(language):
+def get_cc_version(language):
     """
         finds gcc version using Popen
     """
@@ -289,7 +299,7 @@ def get_gcc_version(language):
        cc = ccompiler.get_default_compiler()
 
     if not cc:
-        return None
+        return ''
 
     # For some reason, cc can be e.g. 'gcc -pthread'
     cc = cc.split()[0]
@@ -297,18 +307,25 @@ def get_gcc_version(language):
     # Force english output
     env = os.environ.copy()
     env['LC_MESSAGES'] = 'C'
-    matcher = re.compile(r"gcc version (\d+\.\d+)").search
     try:
         p = subprocess.Popen([cc, "-v"], stderr=subprocess.PIPE, env=env)
     except EnvironmentError:
         # Be compatible with Python 3
         warnings.warn("Unable to find the %s compiler: %s: %s" %
                       (language, os.strerror(sys.exc_info()[1].errno), cc))
-        return None
+        return ''
     _, output = p.communicate()
-    output = output.decode(locale.getpreferredencoding() or 'ASCII', 'replace')
-    gcc_version = matcher(output)
-    return gcc_version
+    return output.decode(locale.getpreferredencoding() or 'ASCII', 'replace')
+
+
+def get_gcc_version(language):
+    matcher = re.compile(r"gcc version (\d+\.\d+)").search
+    return matcher(get_cc_version(language))
+
+
+def get_clang_version(language):
+    matcher = re.compile(r"clang(?:-|\s+version\s+)(\d+\.\d+)").search
+    return matcher(get_cc_version(language))
 
 
 def get_openmp_compiler_flags(language):
@@ -619,7 +636,7 @@ class TestBuilder(object):
                     test_class = CythonUnitTestCase
                 else:
                     test_class = CythonRunTestCase
-            elif mode in ['compile', 'error', 'test']:
+            elif mode in ['compile', 'error']:
                 test_class = CythonCompileTestCase
             else:
                 raise KeyError('Invalid test mode: ' + mode)
@@ -636,7 +653,7 @@ class TestBuilder(object):
                     if pyver
                 ]
                 if not min_py_ver or any(sys.version_info >= min_ver for min_ver in min_py_ver):
-                    suite.addTest(PureDoctestTestCase(module, os.path.join(path, filename)))
+                    suite.addTest(PureDoctestTestCase(module, os.path.join(path, filename), tags))
 
         return suite
 
@@ -870,7 +887,7 @@ class CythonCompileTestCase(unittest.TestCase):
 
     def split_source_and_output(self, test_directory, module, workdir):
         source_file = self.find_module_source_file(os.path.join(test_directory, module) + '.pyx')
-        source_and_output = io_open(source_file, 'rU', encoding='ISO-8859-1')
+        source_and_output = io_open(source_file, 'r', encoding='ISO-8859-1')
         error_writer = warnings_writer = None
         try:
             out = io_open(os.path.join(workdir, module + os.path.splitext(source_file)[1]),
@@ -1251,7 +1268,8 @@ def run_forked_test(result, run_func, test_name, fork=True):
             pass
 
 class PureDoctestTestCase(unittest.TestCase):
-    def __init__(self, module_name, module_path):
+    def __init__(self, module_name, module_path, tags):
+        self.tags = tags
         self.module_name = module_name
         self.module_path = module_path
         unittest.TestCase.__init__(self, 'run')
@@ -1283,6 +1301,24 @@ class PureDoctestTestCase(unittest.TestCase):
             self.tearDown()
         except Exception:
             pass
+
+        try:
+            from mypy import api as mypy_api
+            nomypy = False
+        except ImportError:
+            nomypy = True
+        if 'mypy' in self.tags['tag'] and not nomypy:
+
+            mypy_result = mypy_api.run((
+                self.module_path,
+                '--ignore-missing-imports',
+                '--follow-imports', 'skip',
+            ))
+
+            if mypy_result[2]:
+                import pdb; pdb.set_trace()
+                self.fail(mypy_result[0])
+
 
 is_private_field = re.compile('^_[^_]').match
 
@@ -1417,6 +1453,22 @@ class CythonPyregrTestCase(CythonRunTestCase):
                 support.run_unittest, support.run_doctest = backup
 
         run_forked_test(result, run_test, self.shortDescription(), self.fork)
+
+
+class TestCodeFormat(unittest.TestCase):
+
+    def __init__(self, cython_dir):
+        self.cython_dir = cython_dir
+        unittest.TestCase.__init__(self)
+
+    def runTest(self):
+        import pycodestyle
+        config_file = os.path.join(self.cython_dir, "tox.ini")
+        paths = glob.glob(os.path.join(self.cython_dir, "**/*.py"), recursive=True)
+        style = pycodestyle.StyleGuide(config_file=config_file)
+        print("")  # Fix the first line of the report.
+        result = style.check_files(paths)
+        self.assertEqual(result.total_errors, 0, "Found code style errors.")
 
 
 include_debugger = IS_CPYTHON
@@ -1841,6 +1893,9 @@ def main():
     parser.add_option("--no-examples", dest="examples",
                       action="store_false", default=True,
                       help="Do not run the documentation tests in the examples directory.")
+    parser.add_option("--no-code-style", dest="code_style",
+                      action="store_false", default=True,
+                      help="Do not run the code style (PEP8) checks.")
     parser.add_option("--cython-only", dest="cython_only",
                       action="store_true", default=False,
                       help="only compile pyx to c, do not run C compiler or run the tests")
@@ -1923,6 +1978,10 @@ def main():
 
     if options.with_cython and sys.version_info[0] >= 3:
         sys.path.insert(0, options.cython_dir)
+
+    # requires glob with the wildcard.
+    if sys.version_info < (3, 5) or cmd_args:
+        options.code_style = False
 
     WITH_CYTHON = options.with_cython
 
@@ -2188,6 +2247,9 @@ def runtests(options, cmd_args, coverage=None):
                                     sys.version_info[0], common_utility_dir)
             sys.stderr.write("Including CPython regression tests in %s\n" % sys_pyregr_dir)
             test_suite.addTest(filetests.handle_directory(sys_pyregr_dir, 'pyregr'))
+
+    if options.code_style and options.shard_num <= 0:
+        test_suite.addTest(TestCodeFormat(options.cython_dir))
 
     if xml_output_dir:
         from Cython.Tests.xmlrunner import XMLTestRunner

@@ -43,9 +43,10 @@ from . import Future
 from ..Debugging import print_call_chain
 from .DebugFlags import debug_disposal_code, debug_temp_alloc, \
     debug_coercion
-from .Pythran import to_pythran, is_pythran_supported_type, is_pythran_supported_operation_type, \
-     is_pythran_expr, pythran_func_type, pythran_binop_type, pythran_unaryop_type, has_np_pythran, \
-     pythran_indexing_code, pythran_indexing_type, is_pythran_supported_node_or_none, pythran_type
+from .Pythran import (to_pythran, is_pythran_supported_type, is_pythran_supported_operation_type,
+     is_pythran_expr, pythran_func_type, pythran_binop_type, pythran_unaryop_type, has_np_pythran,
+     pythran_indexing_code, pythran_indexing_type, is_pythran_supported_node_or_none, pythran_type,
+     pythran_is_numpy_func_supported, pythran_get_func_include_file, pythran_functor)
 from .PyrexTypes import PythranExpr
 
 try:
@@ -5413,7 +5414,8 @@ class SimpleCallNode(CallNode):
 
         func_type = self.function_type()
         self.is_numpy_call_with_exprs = False
-        if has_np_pythran(env) and self.function.is_numpy_attribute:
+        if (has_np_pythran(env) and function.is_numpy_attribute and
+                pythran_is_numpy_func_supported(function)):
             has_pythran_args = True
             self.arg_tuple = TupleNode(self.pos, args = self.args)
             self.arg_tuple = self.arg_tuple.analyse_types(env)
@@ -5421,12 +5423,12 @@ class SimpleCallNode(CallNode):
                 has_pythran_args &= is_pythran_supported_node_or_none(arg)
             self.is_numpy_call_with_exprs = bool(has_pythran_args)
         if self.is_numpy_call_with_exprs:
-            env.add_include_file("pythonic/numpy/%s.hpp" % self.function.attribute)
+            env.add_include_file(pythran_get_func_include_file(function))
             return NumPyMethodCallNode.from_node(
                 self,
-                function=self.function,
+                function=function,
                 arg_tuple=self.arg_tuple,
-                type=PythranExpr(pythran_func_type(self.function.attribute, self.arg_tuple.args)),
+                type=PythranExpr(pythran_func_type(function, self.arg_tuple.args)),
             )
         elif func_type.is_pyobject:
             self.arg_tuple = TupleNode(self.pos, args = self.args)
@@ -5844,10 +5846,10 @@ class NumPyMethodCallNode(SimpleCallNode):
 
         code.putln("// function evaluation code for numpy function")
         code.putln("__Pyx_call_destructor(%s);" % self.result())
-        code.putln("new (&%s) decltype(%s){pythonic::numpy::functor::%s{}(%s)};" % (
+        code.putln("new (&%s) decltype(%s){%s{}(%s)};" % (
             self.result(),
             self.result(),
-            self.function.attribute,
+            pythran_functor(self.function),
             ", ".join(a.pythran_result() for a in args)))
 
 
@@ -7906,7 +7908,7 @@ class ListNode(SequenceNode):
         return ()
 
     def infer_type(self, env):
-        # TOOD: Infer non-object list arrays.
+        # TODO: Infer non-object list arrays.
         return list_type
 
     def analyse_expressions(self, env):
@@ -8571,7 +8573,7 @@ class DictNode(ExprNode):
         return ()
 
     def infer_type(self, env):
-        # TOOD: Infer struct constructors.
+        # TODO: Infer struct constructors.
         return dict_type
 
     def analyse_types(self, env):

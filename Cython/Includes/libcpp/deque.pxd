@@ -81,3 +81,6 @@ cdef extern from "<deque>" namespace "std" nogil:
         void resize(size_t, T&)
         size_t size()
         void swap(deque&)
+
+        # C++11 methods
+        void shrink_to_fit()

@@ -595,9 +595,9 @@ class MemoryViewSliceType(PyrexType):
         the packing specifiers specify how the array elements are layed-out
         in memory.
 
-        'contig' -- The data are contiguous in memory along this dimension.
+        'contig' -- The data is contiguous in memory along this dimension.
                 At most one dimension may be specified as 'contig'.
-        'strided' -- The data aren't contiguous along this dimenison.
+        'strided' -- The data isn't contiguous along this dimension.
         'follow' -- Used for C/Fortran contiguous arrays, a 'follow' dimension
             has its stride automatically computed from extents of the other
             dimensions to ensure C or Fortran memory layout.

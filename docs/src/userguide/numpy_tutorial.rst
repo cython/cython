@@ -76,7 +76,7 @@ However there are several options to automate these steps:
 4. Cython supports distutils so that you can very easily create build scripts
    which automate the process, this is the preferred method for
    Cython implemented libraries and packages.
-   See :ref:`Compiling with distutils <compiling-distutils>`.
+   See :ref:`Basic setup.py <basic_setup.py>`.
 5. Manual compilation (see below)
 
 .. Note::
@@ -147,7 +147,8 @@ Cython version -- Cython uses ".pyx" as its file suffix.
 .. literalinclude:: ../../examples/userguide/numpy_tutorial/convolve_py.py
     :linenos:
 
-This should be compiled to produce :file:`convolve_cy.so` (for Linux systems). We
+This should be compiled to produce :file:`convolve_cy.so` (for Linux systems,
+on Windows systems, this will be a ``.pyd`` file). We
 run a Python session to test both the Python version (imported from
 ``.py``-file) and the compiled Cython module.
 

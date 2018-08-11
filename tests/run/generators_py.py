@@ -81,17 +81,6 @@ def with_outer(*args):
             yield i
     return generator
 
-def with_outer_raising(*args):
-    """
-    >>> x = with_outer_raising(1, 2, 3)
-    >>> list(x())
-    [1, 2, 3]
-    """
-    def generator():
-        for i in args:
-            yield i
-        raise StopIteration
-    return generator
 
 def test_close():
     """

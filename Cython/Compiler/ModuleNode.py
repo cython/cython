@@ -113,7 +113,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             env.doc = self.doc = None
         elif Options.embed_pos_in_docstring:
             env.doc = EncodedString(u'File: %s (starting at line %s)' % Nodes.relative_position(self.pos))
-            if not self.doc is None:
+            if self.doc is not None:
                 env.doc = EncodedString(env.doc + u'\n' + self.doc)
                 env.doc.encoding = self.doc.encoding
         else:
@@ -295,7 +295,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     % (entry.name, cname, sig))
             with ModuleImportGenerator(h_code, imported_modules={env.qualified_name: 'module'}) as import_generator:
                 for entry in api_extension_types:
-                    self.generate_type_import_call(entry.type, h_code, "goto bad;", import_generator)
+                    self.generate_type_import_call(entry.type, h_code, import_generator, error_code="goto bad;")
             h_code.putln("Py_DECREF(module); module = 0;")
             h_code.putln("return 0;")
             h_code.putln("bad:")
@@ -2145,17 +2145,23 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if env.is_c_class_scope and not env.pyfunc_entries:
             return
         binding = env.directives['binding']
+
         code.putln("")
+        wrapper_code_writer = code.insertion_point()
+
         code.putln(
             "static PyMethodDef %s[] = {" % (
                 env.method_table_cname))
         for entry in env.pyfunc_entries:
             if not entry.fused_cfunction and not (binding and entry.is_overridable):
-                code.put_pymethoddef(entry, ",")
+                code.put_pymethoddef(entry, ",", wrapper_code_writer=wrapper_code_writer)
         code.putln(
             "{0, 0, 0, 0}")
         code.putln(
             "};")
+
+        if wrapper_code_writer.getvalue():
+            wrapper_code_writer.putln("")
 
     def generate_dict_getter_function(self, scope, code):
         dict_attr = scope.lookup_here("__dict__")
@@ -2319,6 +2325,31 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.globalstate.use_utility_code(UtilityCode.load_cached("Profile", "Profile.c"))
 
         code.put_declare_refcount_context()
+
+        '''
+        code.putln("#if CYTHON_PEP489_MULTI_PHASE_INIT")
+        # Most extension modules simply can't deal with it, and Cython isn't ready either.
+        # See issues listed here: https://docs.python.org/3/c-api/init.html#sub-interpreter-support
+        code.putln("if (%s) {" % Naming.module_cname)
+        # Hack: enforce single initialisation.
+        code.putln("if (%s == %s) return 0;" % (
+            Naming.module_cname,
+            Naming.pymodinit_module_arg,
+        ))
+        code.putln('PyErr_SetString(PyExc_RuntimeError,'
+                   ' "Module \'%s\' has already been imported. Re-initialisation is not supported.");' %
+                   env.module_name)
+        code.putln("return -1;")
+        code.putln("}")
+        code.putln("#elif PY_MAJOR_VERSION >= 3")
+        # Hack: enforce single initialisation also on reimports under different names on Python 3 (with PEP 3121/489).
+        code.putln("if (%s) return __Pyx_NewRef(%s);" % (
+            Naming.module_cname,
+            Naming.module_cname,
+        ))
+        code.putln("#endif")
+        '''
+
         if profile or linetrace:
             tempdecl_code.put_trace_declarations()
             code.put_trace_frame_init()
@@ -2443,10 +2474,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put_label(code.error_label)
         for cname, type in code.funcstate.all_managed_temps():
             code.put_xdecref(cname, type)
-        # module state might not be ready for traceback generation with C-line handling yet
         code.putln('if (%s) {' % env.module_cname)
         code.putln('if (%s) {' % env.module_dict_cname)
-        code.put_add_traceback("init %s" % env.qualified_name, include_cline=False)
+        code.put_add_traceback("init %s" % env.qualified_name)
         code.globalstate.use_utility_code(Nodes.traceback_utility_code)
         # Module reference and module dict are in global variables which might still be needed
         # for cleanup, atexit code, etc., so leaking is better than crashing.
@@ -2976,8 +3006,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # table pointer if any.
         if type in env.types_imported:
             return
-        env.use_utility_code(UtilityCode.load_cached("TypeImport", "ImportExport.c"))
-        self.generate_type_import_call(type, code, code.error_goto(pos), import_generator)
+        if type.name not in Code.ctypedef_builtins_map:
+            # see corresponding condition in generate_type_import_call() below!
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("TypeImport", "ImportExport.c"))
+        self.generate_type_import_call(type, code, import_generator, error_pos=pos)
         if type.vtabptr_cname:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached('GetVTable', 'ImportExport.c'))
@@ -2988,7 +3021,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.error_goto_if_null(type.vtabptr_cname, pos)))
         env.types_imported.add(type)
 
-    def generate_type_import_call(self, type, code, error_code, import_generator):
+    def generate_type_import_call(self, type, code, import_generator, error_code=None, error_pos=None):
         if type.typedef_flag:
             objstruct = type.objstruct_cname
         else:
@@ -3010,6 +3043,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if objstruct in Code.basicsize_builtins_map:
                 # Some builtin types have a tp_basicsize which differs from sizeof(...):
                 sizeof_objstruct = Code.basicsize_builtins_map[objstruct]
+
+        if not error_code:
+            assert error_pos is not None
+            error_code = code.error_goto(error_pos)
 
         module = import_generator.imported_module(module_name, error_code)
         code.put('%s = __Pyx_ImportType(%s, %s,' % (

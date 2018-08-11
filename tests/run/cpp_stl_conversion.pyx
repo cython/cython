@@ -1,6 +1,5 @@
 # mode: run
-# tag: cpp, werror
-# distutils: extra_compile_args=-std=c++0x
+# tag: cpp, werror, cpp11
 
 import sys
 from libcpp.map cimport map

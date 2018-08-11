@@ -90,7 +90,7 @@ complaining about the signature mismatch.
 
     See :ref:`existing-pointers-instantiation` for an example.
 
-.. [#] http://docs.python.org/reference/datamodel.html#object.__new__
+.. [#] https://docs.python.org/reference/datamodel.html#object.__new__
 
 .. _finalization_method:
 
@@ -185,6 +185,8 @@ method called :meth:`__next__`, not next. The Python system will automatically
 supply a next method which calls your :meth:`__next__`. Do *NOT* explicitly
 give your type a :meth:`next` method, or bad things could happen.
 
+.. _special_methods_table:
+
 Special Method Table
 ---------------------
 
@@ -241,6 +243,8 @@ like :meth:`__eq__` or the single special method :meth:`__richcmp__`.
 Depending on the application, one way or the other may be better.
 
 +-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
+| Name 	                | Parameters                            | Return type | 	Description                                    |
++=======================+=======================================+=============+========================================================+
 | __eq__                |self, y                                | object      | self == y                                              |
 +-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
 | __ne__                |self, y                                | object      | self != y  (falls back to ``__eq__`` if not available) |

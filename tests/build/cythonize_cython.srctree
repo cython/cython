@@ -1,0 +1,58 @@
+PYTHON -c "import cythonize_tests"
+PYTHON -c "import cython_tests"
+
+######## cythonize_tests.py ########
+
+from Cython.Build.Cythonize import main as cythonize
+
+for test_case in ["cython.pyx", "src2/cython.pyx", "src/cython/helper.pyx"]:
+    try:
+        cythonize([test_case])
+    except ValueError:
+        pass
+    else:
+        assert False, "ValueError not raised - forbidding cythonize "+test_case+" doesn't work"
+
+for test_case in ["notcython.pyx", "my_module/cython.pyx", "cythontest/helper.pyx"]:
+    try:
+        cythonize([test_case])
+    except ValueError:
+        assert False, "ValueError raised - cythonize "+test_case+" should work"
+    else:
+        pass
+
+######## cython_tests.py ########
+
+
+from Cython.Compiler.Main import main as cython
+import sys
+
+for test_case in ["cython.pyx", "scr2/cython.pyx", "src/cython/helper.pyx"]:
+    sys.argv=["cython", test_case]  #cython.py will extract parameters from sys.argv
+    try:
+        cython(command_line=1)
+    except ValueError:
+        pass
+    else:
+        assert False, "ValueError not raised - forbidding cython "+test_case+" doesn't work"
+
+
+for test_case in ["notcython.pyx", "my_module/cython.pyx", "cythontest/helper.pyx"]:
+    sys.argv=["cython", test_case]  #cython.py will extract parameters from sys.argv
+    try:
+        cython([test_case])
+    except ValueError:
+        assert False, "ValueError raised - cython "+test_case+" should work"
+    else:
+        pass
+
+
+######## cython.pyx ########
+######## my_module/__init__.py ########
+######## my_module/cython.pyx ########
+######## notcython.pyx ########
+######## src2/cython.pyx ########
+######## src/cython/__init__.py ########
+######## src/cython/helper.pyx ########
+######## cythontest/__init__.py ########
+######## cythontest/helper.pyx ########

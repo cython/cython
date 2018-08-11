@@ -16,7 +16,7 @@ def run_tests(N):
         print(func.__name__)
         for type in ['int', 'unsigned int', 'long long', 'unsigned long long', 'object']:
             if func == most_orthogonal:
-                if type == 'object' or np == None:
+                if type == 'object' or np is None:
                     continue
                 type_map = {'int': 'int32', 'unsigned int': 'uint32', 'long long': 'int64', 'unsigned long long': 'uint64'}
                 shape = N, 3
