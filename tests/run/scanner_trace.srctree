@@ -13,6 +13,11 @@ setup(
     ext_modules = cythonize("*.pyx")
 )
 
+# Make sure we can import from the current directory.
+import os
+import sys
+sys.path.insert(0, os.getcwd())
+
 import simple
 assert simple.test() == 123
 
