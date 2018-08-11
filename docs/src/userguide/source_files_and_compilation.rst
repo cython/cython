@@ -23,6 +23,8 @@ into an extension module.
 The following sub-sections describe several ways to build your
 extension modules, and how to pass directives to the Cython compiler.
 
+.. _compiling_command_line:
+
 Compiling from the command line
 ===============================
 
@@ -97,6 +99,7 @@ that CPython generates for disambiguation, such as
 ``yourmod.cpython-35m-x86_64-linux-gnu.so`` on a regular 64bit Linux installation
 of CPython 3.5.
 
+.. _basic_setup.py:
 
 Basic setup.py
 ===============
@@ -280,6 +283,16 @@ Just as an example, this adds ``mylib`` as library to every extension::
     then the argument to ``create_extension`` must be pickleable.
     In particular, it cannot be a lambda function.
 
+.. _cythonize_arguments:
+
+Cythonize arguments
+-------------------
+
+The function :func:`cythonize` can take extra arguments which will allow you to
+customize your build.
+
+.. autofunction:: Cython.Build.cythonize
+
 
 Multiple Cython Files in a Package
 ===================================
@@ -300,6 +313,8 @@ them through :func:`cythonize`::
         ext_modules = cythonize(extensions)
     )
 
+
+.. _distributing_cython_modules:
 
 Distributing Cython modules
 ----------------------------
@@ -399,6 +414,8 @@ action when running ``python setup.py install`` is to create a zipped
 when you try to use them from a dependent package.
 To prevent this, include ``zip_safe=False`` in the arguments to ``setup()``.
 
+
+.. _integrating_multiple_modules:
 
 Integrating multiple modules
 ============================
@@ -539,6 +556,8 @@ into the package hierarchy (usually next to the source file) for manual
 reuse, you can pass the option ``inplace=True``.
 
 
+.. _compiling_with_cython_inline:
+
 Compiling with ``cython.inline``
 =================================
 
@@ -553,6 +572,8 @@ For example::
 Unbound variables are automatically pulled from the surrounding local
 and global scopes, and the result of the compilation is cached for
 efficient re-use.
+
+.. _compiling_with_sage:
 
 Compiling with Sage
 ===================
@@ -629,6 +650,8 @@ You can see them also by typing ```%%cython?`` in IPython or a Jupyter notebook.
 --verbose                                     Print debug information like generated .c/.cpp file location and exact gcc/g++ command invoked.
 ============================================  =======================================================================================================================================
 
+
+.. _compiler_options:
 
 Compiler options
 ----------------
@@ -832,6 +855,8 @@ Cython code.  Here is the list of currently supported directives:
     coroutine(s) iterable and thus directly interoperable with yield-from.
 
 
+.. _configurable_optimisations:
+
 Configurable optimisations
 --------------------------
 
@@ -849,6 +874,8 @@ Configurable optimisations
     have a slight negative performance impact in some cases where the guess goes
     completely wrong.
     Disabling this option can also reduce the code size.  Default is True.
+
+.. _warnings:
 
 Warnings
 --------
@@ -881,6 +908,8 @@ to turn the warning on / off.
    For example ``cdef double* a, b`` - which, as in C, declares ``a`` as a pointer, ``b`` as
    a value type, but could be mininterpreted as declaring two pointers.
 
+
+.. _how_to_set_directives:
 
 How to set directives
 ---------------------
