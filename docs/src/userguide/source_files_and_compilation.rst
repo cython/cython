@@ -26,6 +26,19 @@ extension modules, and how to pass directives to the Cython compiler.
 Compiling from the command line
 ===============================
 
+There are two ways of compiling from the command line.
+
+* The ``cython`` command takes a ``.py`` or ``.pyx`` file and
+  compile it into a C/C++ file.
+
+* The ``cythonize`` command takes a ``.py`` or ``.pyx`` file and
+  compile it into a C/C++ file. It then compiles the C/C++ file into
+  an extension module which is directly importable from Python.
+
+
+Compiling with the ``cython`` command
+-------------------------------------
+
 One way is to compile it manually with the Cython
 compiler, e.g.:
 
@@ -41,6 +54,49 @@ official Python documentation.
 The other, and probably better, way is to use the :mod:`distutils` extension
 provided with Cython. The benefit of this method is that it will give the
 platform specific compilation options, acting like a stripped down autotools.
+
+
+Compiling with the ``cythonize`` command
+----------------------------------------
+
+Run the ``cythonize`` compiler command with your options and list of
+``.pyx`` files to generate an extension module.  For example::
+
+    $ cythonize -a -i yourmod.pyx
+
+This creates a ``yourmod.c`` file (or ``yourmod.cpp`` in C++ mode), compiles it,
+and puts the resulting extension module (``.so`` or ``.pyd``, depending on your
+platform) next to the source file for direct import (``-i`` builds "in place").
+The ``-a`` switch additionally produces an annotated html file of the source code.
+
+The ``cythonize`` command accepts multiple source files and glob patterns like
+``**/*.pyx`` as argument and also understands the common ``-j`` option for
+running multiple parallel build jobs.  When called without further options, it
+will only translate the source files to ``.c`` or ``.cpp`` files.  Pass the
+``-h`` flag for a complete list of supported options.
+
+There is also a simpler command line tool named ``cython`` which only invokes
+the source code translator.
+
+In the case of manual compilation, how to compile your ``.c`` files will vary
+depending on your operating system and compiler.  The Python documentation for
+writing extension modules should have some details for your system.  On a Linux
+system, for example, it might look similar to this::
+
+    $ gcc -shared -pthread -fPIC -fwrapv -O2 -Wall -fno-strict-aliasing \
+          -I/usr/include/python3.5 -o yourmod.so yourmod.c
+
+(``gcc`` will need to have paths to your included header files and paths
+to libraries you want to link with.)
+
+After compilation, a ``yourmod.so`` (:file:`yourmod.pyd` for Windows)
+file is written into the target directory
+and your module, ``yourmod``, is available for you to import as with any other
+Python module.  Note that if you are not relying on ``cythonize`` or distutils,
+you will not automatically benefit from the platform specific file extension
+that CPython generates for disambiguation, such as
+``yourmod.cpython-35m-x86_64-linux-gnu.so`` on a regular 64bit Linux installation
+of CPython 3.5.
 
 
 Basic setup.py
