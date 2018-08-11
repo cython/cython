@@ -248,6 +248,10 @@ def update_openmp_extension(ext):
     ext.openmp = True
     language = ext.language
 
+    if sys.platform == 'win32' and sys.version_info[:2] == (3,4):
+        # OpenMP tests fail in appveyor in Py3.4 -> just ignore them, EoL of Py3.4 is early 2019...
+        return EXCLUDE_EXT
+
     if language == 'cpp':
         flags = OPENMP_CPP_COMPILER_FLAGS
     else:
