@@ -29,10 +29,10 @@ Compiling from the command line
 There are two ways of compiling from the command line.
 
 * The ``cython`` command takes a ``.py`` or ``.pyx`` file and
-  compile it into a C/C++ file.
+  compiles it into a C/C++ file.
 
 * The ``cythonize`` command takes a ``.py`` or ``.pyx`` file and
-  compile it into a C/C++ file. It then compiles the C/C++ file into
+  compiles it into a C/C++ file.  It then compiles the C/C++ file into
   an extension module which is directly importable from Python.
 
 
@@ -75,8 +75,7 @@ running multiple parallel build jobs.  When called without further options, it
 will only translate the source files to ``.c`` or ``.cpp`` files.  Pass the
 ``-h`` flag for a complete list of supported options.
 
-There is also a simpler command line tool named ``cython`` which only invokes
-the source code translator.
+There simpler command line tool ``cython`` only invokes the source code translator.
 
 In the case of manual compilation, how to compile your ``.c`` files will vary
 depending on your operating system and compiler.  The Python documentation for
@@ -420,10 +419,10 @@ macro to it::
 
 If you are only targeting Python 3.x, just use ``PyInit_`` as prefix.
 
-Then, for each or the modules, declare its module init function
-as follows, replacing ``...`` by the name of the module::
+Then, for each of the modules, declare its module init function
+as follows, replacing ``some_module_name`` with the name of the module::
 
-    PyMODINIT_FUNC  MODINIT(...) (void);
+    PyMODINIT_FUNC  MODINIT(some_module_name) (void);
 
 In C++, declare them as ``extern C``.
 
@@ -436,7 +435,7 @@ with ``Py_Initialize()``, you need to initialise the modules at runtime
 using the ``PyImport_AppendInittab()`` C-API function, again inserting
 the name of each of the modules::
 
-    PyImport_AppendInittab("...", MODINIT(...));
+    PyImport_AppendInittab("some_module_name", MODINIT(some_module_name));
 
 This enables normal imports for the embedded extension modules.
 
@@ -447,6 +446,8 @@ C-compiling the module C files.
 
 Also take a look at the `cython_freeze
 <https://github.com/cython/cython/blob/master/bin/cython_freeze>`_ tool.
+It can generate the necessary boilerplate code for linking one or more
+modules into a single Python executable.
 
 
 .. _pyximport:
