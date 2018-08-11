@@ -246,6 +246,153 @@ them through :func:`cythonize`::
     )
 
 
+Distributing Cython modules
+----------------------------
+
+It is strongly recommended that you distribute the generated ``.c`` files as well
+as your Cython sources, so that users can install your module without needing
+to have Cython available.
+
+It is also recommended that Cython compilation not be enabled by default in the
+version you distribute. Even if the user has Cython installed, he/she probably
+doesn't want to use it just to install your module. Also, the installed version
+may not be the same one you used, and may not compile your sources correctly.
+
+This simply means that the :file:`setup.py` file that you ship with will just
+be a normal distutils file on the generated `.c` files, for the basic example
+we would have instead::
+
+    from distutils.core import setup
+    from distutils.extension import Extension
+
+    setup(
+        ext_modules = [Extension("example", ["example.c"])]
+    )
+
+This is easy to combine with :func:`cythonize` by changing the file extension
+of the extension module sources::
+
+    from distutils.core import setup
+    from distutils.extension import Extension
+
+    USE_CYTHON = ...   # command line option, try-import, ...
+
+    ext = '.pyx' if USE_CYTHON else '.c'
+
+    extensions = [Extension("example", ["example"+ext])]
+
+    if USE_CYTHON:
+        from Cython.Build import cythonize
+        extensions = cythonize(extensions)
+
+    setup(
+        ext_modules = extensions
+    )
+
+If you have many extensions and want to avoid the additional complexity in the
+declarations, you can declare them with their normal Cython sources and then
+call the following function instead of ``cythonize()`` to adapt the sources
+list in the Extensions when not using Cython::
+
+    import os.path
+
+    def no_cythonize(extensions, **_ignore):
+        for extension in extensions:
+            sources = []
+            for sfile in extension.sources:
+                path, ext = os.path.splitext(sfile)
+                if ext in ('.pyx', '.py'):
+                    if extension.language == 'c++':
+                        ext = '.cpp'
+                    else:
+                        ext = '.c'
+                    sfile = path + ext
+                sources.append(sfile)
+            extension.sources[:] = sources
+        return extensions
+
+Another option is to make Cython a setup dependency of your system and use
+Cython's build_ext module which runs ``cythonize`` as part of the build process::
+
+    setup(
+        setup_requires=[
+            'cython>=0.x',
+        ],
+        extensions = [Extension("*", ["*.pyx"])],
+        cmdclass={'build_ext': Cython.Build.build_ext},
+        ...
+    )
+
+If you want to expose the C-level interface of your library for other
+libraries to cimport from, use package_data to install the ``.pxd`` files,
+e.g.::
+
+    setup(
+        package_data = {
+            'my_package': ['*.pxd'],
+            'my_package/sub_package': ['*.pxd'],
+        },
+        ...
+    )
+
+These ``.pxd`` files need not have corresponding ``.pyx``
+modules if they contain purely declarations of external libraries.
+
+Remember that if you use setuptools instead of distutils, the default
+action when running ``python setup.py install`` is to create a zipped
+``egg`` file which will not work with ``cimport`` for ``pxd`` files
+when you try to use them from a dependent package.
+To prevent this, include ``zip_safe=False`` in the arguments to ``setup()``.
+
+
+Integrating multiple modules
+============================
+
+In some scenarios, it can be useful to link multiple Cython modules
+(or other extension modules) into a single binary, e.g. when embedding
+Python in another application.  This can be done through the inittab
+import mechanism of CPython.
+
+Create a new C file to integrate the extension modules and add this
+macro to it::
+
+    #if PY_MAJOR_VERSION < 3
+    # define MODINIT(name)  init ## name
+    #else
+    # define MODINIT(name)  PyInit_ ## name
+    #endif
+
+If you are only targeting Python 3.x, just use ``PyInit_`` as prefix.
+
+Then, for each or the modules, declare its module init function
+as follows, replacing ``...`` by the name of the module::
+
+    PyMODINIT_FUNC  MODINIT(...) (void);
+
+In C++, declare them as ``extern C``.
+
+If you are not sure of the name of the module init function, refer
+to your generated module source file and look for a function name
+starting with ``PyInit_``.
+
+Next, before you start the Python runtime from your application code
+with ``Py_Initialize()``, you need to initialise the modules at runtime
+using the ``PyImport_AppendInittab()`` C-API function, again inserting
+the name of each of the modules::
+
+    PyImport_AppendInittab("...", MODINIT(...));
+
+This enables normal imports for the embedded extension modules.
+
+In order to prevent the joined binary from exporting all of the module
+init functions as public symbols, Cython 0.28 and later can hide these
+symbols if the macro ``CYTHON_NO_PYINIT_EXPORT`` is defined while
+C-compiling the module C files.
+
+Also take a look at the `cython_freeze
+<https://github.com/cython/cython/blob/master/bin/cython_freeze>`_ tool.
+
+
 .. _pyximport:
 
 Compiling with :mod:`pyximport`
