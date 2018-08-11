@@ -120,8 +120,6 @@ before_install:
       ln -s /usr/bin/gcc-8 $HOME/gcclinks/gcc
       ln -s /usr/bin/g++-8 $HOME/gcclinks/g++
       export  CC=gcc-8  CXX=g++-8
-      $CC --version
-      $CXX --version
     fi
 
   - |
@@ -129,11 +127,15 @@ before_install:
       if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then CONDA_PLATFORM=MacOSX; else CONDA_PLATFORM=Linux; fi
       curl -s -o miniconda.sh https://repo.continuum.io/miniconda/Miniconda$PY-latest-${CONDA_PLATFORM}-x86_64.sh
       bash miniconda.sh -b -p $HOME/miniconda && rm miniconda.sh
-      $HOME/miniconda/bin/conda install --quiet --yes nomkl  clang  clang++
       #conda install --quiet --yes nomkl --file=test-requirements.txt --file=test-requirements-cpython.txt
-      if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then which clang && clang --version && export CC=clang|| true; fi
-      if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then which clang++ && clang++ --version && export CXX=clang++ || true; fi
+      if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+        which clang && clang --version && export CC=clang || true
+        which clang++ && clang++ --version && export CXX=clang++ || true
+      fi
     fi
+
+  - if [ -n "$CC" ]; then $CC --version; fi
+  - if [ -n "$CXX" ]; then $CXX --version; fi
 
   - if [[ "$STACKLESS" == "true" ]]; then
       conda config --add channels stackless;
