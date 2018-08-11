@@ -11,6 +11,12 @@ Features added
 * PEP-489 multi-phase module initialisation has been enabled again.  Module
   reloads raise an exception to prevent corruption of the static module state.
 
+* A set of ``mypy`` compatible PEP-484 declarations were added for Cython's C data
+  types to integrate with static analysers in typed Python code.  They are available
+  in the ``Cython/Shadow.pyi`` module and describe the types in the special ``cython``
+  module that can be used for typing in Python code.
+  Original patch by Julian Gethmann. (Github issue #1965)
+
 * Raising exceptions from nogil code will automatically acquire the GIL, instead
   of requiring an explicit ``with gil`` block.
 
@@ -40,6 +46,13 @@ Features added
 * ``pyximport`` can import from namespace packages.
   Patch by Prakhar Goel.  (Github issue #2294)
 
+* Some missing numpy and CPython C-API declarations were added.
+  Patch by John Kirkham. (Github issues #2523, #2520, #2537)
+
+* The numpy helper functions ``set_array_base()`` and ``get_array_base()``
+  were adapted to the current numpy C-API recommendations.
+  Patch by Matti Picus. (Github issue #2528)
+
 Bugs fixed
 ----------
 
@@ -68,14 +81,13 @@ Other changes
 -------------
 
 * The documentation was restructured, cleaned up and examples are now tested.
+  The NumPy tutorial was also rewritten to simplify the running example.
   Contributed by Gabriel de Marmiesse.  (Github issue #2245)
 
 * Cython compiles less of its own modules at build time to reduce the installed
   package size to about half of its previous size.  This makes the compiler
   slightly slower, by about 5-7%.
 
-* ``set_array_base`` now calls ``PyArray_SetBaseObject``. Also modified
-  ``get_array_base`` to remove direct access to NumPy internals.
 
 0.28.5 (2018-08-03)
 ===================
