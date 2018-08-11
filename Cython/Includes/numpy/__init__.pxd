@@ -17,7 +17,7 @@
 DEF _buffer_format_string_len = 255
 
 cimport cpython.buffer as pybuf
-from cpython.ref cimport Py_INCREF, Py_XDECREF
+from cpython.ref cimport Py_INCREF
 from cpython.mem cimport PyObject_Malloc, PyObject_Free
 from cpython.object cimport PyObject, PyTypeObject
 from cpython.type cimport type
@@ -171,7 +171,7 @@ cdef extern from "numpy/arrayobject.h":
     ctypedef class numpy.dtype [object PyArray_Descr]:
         # Use PyDataType_* macros when possible, however there are no macros
         # for accessing some of the fields, so some are defined.
-        cdef PyTypeObject* typeobj;
+        cdef PyTypeObject* typeobj
         cdef char kind
         cdef char type
         # Numpy sometimes mutates this without warning (e.g. it'll
