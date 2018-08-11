@@ -20,7 +20,7 @@ YEAR = datetime.date.today().strftime('%Y')
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-#sys.path.insert(0, os.path.abspath('.'))
+sys.path.insert(0, os.path.abspath('..'))
 sys.path.append(os.path.abspath('sphinxext'))
 
 # Import support for ipython console session syntax highlighting (lives
@@ -43,7 +43,8 @@ extensions = [
     'cython_highlighting',
     'sphinx.ext.pngmath',
     'sphinx.ext.todo',
-    'sphinx.ext.intersphinx'
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.autodoc'
     ]
 
 try: import rst2pdf
@@ -126,7 +127,7 @@ pygments_style = 'sphinx'
 todo_include_todos = True
 
 # intersphinx for standard :keyword:s (def, for, etc.)
-intersphinx_mapping = {'python': ('http://docs.python.org/3/', None)}
+intersphinx_mapping = {'python': ('https://docs.python.org/3/', None)}
 
 # If true, keep warnings as "system message" paragraphs in the built documents.
 #keep_warnings = False

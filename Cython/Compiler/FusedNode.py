@@ -276,7 +276,7 @@ class FusedCFuncDefNode(StatListNode):
 
     def _fused_instance_checks(self, normal_types, pyx_code, env):
         """
-        Genereate Cython code for instance checks, matching an object to
+        Generate Cython code for instance checks, matching an object to
         specialized types.
         """
         for specialized_type in normal_types:
@@ -390,7 +390,7 @@ class FusedCFuncDefNode(StatListNode):
             coerce_from_py_func=memslice_type.from_py_function,
             dtype=dtype)
         decl_code.putln(
-            "{{memviewslice_cname}} {{coerce_from_py_func}}(object)")
+            "{{memviewslice_cname}} {{coerce_from_py_func}}(object, int)")
 
         pyx_code.context.update(
             specialized_type_name=specialized_type.specialization_string,
@@ -400,7 +400,7 @@ class FusedCFuncDefNode(StatListNode):
             u"""
                 # try {{dtype}}
                 if itemsize == -1 or itemsize == {{sizeof_dtype}}:
-                    memslice = {{coerce_from_py_func}}(arg)
+                    memslice = {{coerce_from_py_func}}(arg, 0)
                     if memslice.memview:
                         __PYX_XDEC_MEMVIEW(&memslice, 1)
                         # print 'found a match for the buffer through format parsing'
@@ -421,10 +421,11 @@ class FusedCFuncDefNode(StatListNode):
         # The first thing to find a match in this loop breaks out of the loop
         pyx_code.put_chunk(
             u"""
+                """ + (u"arg_is_pythran_compatible = False" if pythran_types else u"") + u"""
                 if ndarray is not None:
                     if isinstance(arg, ndarray):
                         dtype = arg.dtype
-                        arg_is_pythran_compatible = True
+                        """ + (u"arg_is_pythran_compatible = True" if pythran_types else u"") + u"""
                     elif __pyx_memoryview_check(arg):
                         arg_base = arg.base
                         if isinstance(arg_base, ndarray):
@@ -438,24 +439,30 @@ class FusedCFuncDefNode(StatListNode):
                     if dtype is not None:
                         itemsize = dtype.itemsize
                         kind = ord(dtype.kind)
-                        # We only support the endianness of the current compiler
+                        dtype_signed = kind == 'i'
+            """)
+        pyx_code.indent(2)
+        if pythran_types:
+            pyx_code.put_chunk(
+                u"""
+                        # Pythran only supports the endianness of the current compiler
                         byteorder = dtype.byteorder
                         if byteorder == "<" and not __Pyx_Is_Little_Endian():
                             arg_is_pythran_compatible = False
-                        if byteorder == ">" and __Pyx_Is_Little_Endian():
+                        elif byteorder == ">" and __Pyx_Is_Little_Endian():
                             arg_is_pythran_compatible = False
-                        dtype_signed = kind == 'i'
                         if arg_is_pythran_compatible:
                             cur_stride = itemsize
-                            for dim,stride in zip(reversed(arg.shape),reversed(arg.strides)):
-                                if stride != cur_stride:
+                            shape = arg.shape
+                            strides = arg.strides
+                            for i in range(arg.ndim-1, -1, -1):
+                                if (<Py_ssize_t>strides[i]) != cur_stride:
                                     arg_is_pythran_compatible = False
                                     break
-                                cur_stride *= dim
+                                cur_stride *= <Py_ssize_t> shape[i]
                             else:
-                                arg_is_pythran_compatible = not (arg.flags.f_contiguous and arg.ndim > 1)
-            """)
-        pyx_code.indent(2)
+                                arg_is_pythran_compatible = not (arg.flags.f_contiguous and (<Py_ssize_t>arg.ndim) > 1)
+                """)
         pyx_code.named_insertion_point("numpy_dtype_checks")
         self._buffer_check_numpy_dtype(pyx_code, buffer_types, pythran_types)
         pyx_code.dedent(2)
@@ -464,7 +471,7 @@ class FusedCFuncDefNode(StatListNode):
             self._buffer_parse_format_string_check(
                     pyx_code, decl_code, specialized_type, env)
 
-    def _buffer_declarations(self, pyx_code, decl_code, all_buffer_types):
+    def _buffer_declarations(self, pyx_code, decl_code, all_buffer_types, pythran_types):
         """
         If we have any buffer specializations, write out some variable
         declarations and imports.
@@ -484,10 +491,14 @@ class FusedCFuncDefNode(StatListNode):
                 cdef Py_ssize_t itemsize
                 cdef bint dtype_signed
                 cdef char kind
-                cdef bint arg_is_pythran_compatible
 
                 itemsize = -1
-                arg_is_pythran_compatible = False
+            """)
+
+        if pythran_types:
+            pyx_code.local_variable_declarations.put_chunk(u"""
+                cdef bint arg_is_pythran_compatible
+                cdef Py_ssize_t cur_stride
             """)
 
         pyx_code.imports.put_chunk(
@@ -514,7 +525,7 @@ class FusedCFuncDefNode(StatListNode):
                     pyx_code.local_variable_declarations.put_chunk(
                         u"""
                             cdef bint {{dtype_name}}_is_signed
-                            {{dtype_name}}_is_signed = <{{dtype_type}}> -1 < 0
+                            {{dtype_name}}_is_signed = not (<{{dtype_type}}> -1 > 0)
                         """)
 
     def _split_fused_types(self, arg):
@@ -670,7 +681,7 @@ class FusedCFuncDefNode(StatListNode):
                 default_idx += 1
 
         if all_buffer_types:
-            self._buffer_declarations(pyx_code, decl_code, all_buffer_types)
+            self._buffer_declarations(pyx_code, decl_code, all_buffer_types, pythran_types)
             env.use_utility_code(Code.UtilityCode.load_cached("Import", "ImportExport.c"))
             env.use_utility_code(Code.UtilityCode.load_cached("ImportNumPyArray", "ImportExport.c"))
 

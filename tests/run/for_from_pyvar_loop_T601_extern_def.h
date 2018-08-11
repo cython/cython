@@ -1,2 +1,0 @@
-
-typedef unsigned long Ulong;

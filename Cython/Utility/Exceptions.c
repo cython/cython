@@ -321,10 +321,11 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb);
 /////////////// GetException ///////////////
 
 #if CYTHON_FAST_THREAD_STATE
-static int __Pyx__GetException(PyThreadState *tstate, PyObject **type, PyObject **value, PyObject **tb) {
+static int __Pyx__GetException(PyThreadState *tstate, PyObject **type, PyObject **value, PyObject **tb)
 #else
-static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb) {
+static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb)
 #endif
+{
     PyObject *local_type, *local_value, *local_tb;
 #if CYTHON_FAST_THREAD_STATE
     PyObject *tmp_type, *tmp_value, *tmp_tb;
@@ -359,7 +360,7 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb) 
     *value = local_value;
     *tb = local_tb;
 #if CYTHON_FAST_THREAD_STATE
-    #if PY_VERSION_HEX >= 0x030700A2
+    #if PY_VERSION_HEX >= 0x030700A3
     tmp_type = tstate->exc_state.exc_type;
     tmp_value = tstate->exc_state.exc_value;
     tmp_tb = tstate->exc_state.exc_traceback;
@@ -403,7 +404,7 @@ static CYTHON_INLINE void __Pyx_ReraiseException(void) {
     PyObject *type = NULL, *value = NULL, *tb = NULL;
 #if CYTHON_FAST_THREAD_STATE
     PyThreadState *tstate = PyThreadState_GET();
-    #if PY_VERSION_HEX >= 0x030700A2
+    #if PY_VERSION_HEX >= 0x030700A3
     type = tstate->exc_state.exc_type;
     value = tstate->exc_state.exc_value;
     tb = tstate->exc_state.exc_traceback;
@@ -455,7 +456,7 @@ static CYTHON_INLINE void __Pyx__ExceptionReset(PyThreadState *tstate, PyObject 
 
 #if CYTHON_FAST_THREAD_STATE
 static CYTHON_INLINE void __Pyx__ExceptionSave(PyThreadState *tstate, PyObject **type, PyObject **value, PyObject **tb) {
-    #if PY_VERSION_HEX >= 0x030700A2
+    #if PY_VERSION_HEX >= 0x030700A3
     *type = tstate->exc_state.exc_type;
     *value = tstate->exc_state.exc_value;
     *tb = tstate->exc_state.exc_traceback;
@@ -472,7 +473,7 @@ static CYTHON_INLINE void __Pyx__ExceptionSave(PyThreadState *tstate, PyObject *
 static CYTHON_INLINE void __Pyx__ExceptionReset(PyThreadState *tstate, PyObject *type, PyObject *value, PyObject *tb) {
     PyObject *tmp_type, *tmp_value, *tmp_tb;
 
-    #if PY_VERSION_HEX >= 0x030700A2
+    #if PY_VERSION_HEX >= 0x030700A3
     tmp_type = tstate->exc_state.exc_type;
     tmp_value = tstate->exc_state.exc_value;
     tmp_tb = tstate->exc_state.exc_traceback;
@@ -510,7 +511,7 @@ static CYTHON_INLINE void __Pyx_ExceptionSwap(PyObject **type, PyObject **value,
 static CYTHON_INLINE void __Pyx__ExceptionSwap(PyThreadState *tstate, PyObject **type, PyObject **value, PyObject **tb) {
     PyObject *tmp_type, *tmp_value, *tmp_tb;
 
-    #if PY_VERSION_HEX >= 0x030700A2
+    #if PY_VERSION_HEX >= 0x030700A3
     tmp_type = tstate->exc_state.exc_type;
     tmp_value = tstate->exc_state.exc_value;
     tmp_tb = tstate->exc_state.exc_traceback;
@@ -611,18 +612,26 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line);/*proto*/
 //@substitute: naming
 
 #ifndef CYTHON_CLINE_IN_TRACEBACK
-static int __Pyx_CLineForTraceback(CYTHON_UNUSED PyThreadState *tstate, int c_line) {
+static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
     PyObject *use_cline;
     PyObject *ptype, *pvalue, *ptraceback;
 #if CYTHON_COMPILING_IN_CPYTHON
     PyObject **cython_runtime_dict;
 #endif
+
+    if (unlikely(!${cython_runtime_cname})) {
+        // Very early error where the runtime module is not set up yet.
+        return c_line;
+    }
+
     __Pyx_ErrFetchInState(tstate, &ptype, &pvalue, &ptraceback);
 
 #if CYTHON_COMPILING_IN_CPYTHON
     cython_runtime_dict = _PyObject_GetDictPtr(${cython_runtime_cname});
     if (likely(cython_runtime_dict)) {
-      use_cline = __Pyx_PyDict_GetItemStr(*cython_runtime_dict, PYIDENT("cline_in_traceback"));
+        __PYX_PY_DICT_LOOKUP_IF_MODIFIED(
+            use_cline, *cython_runtime_dict,
+            __Pyx_PyDict_GetItemStr(*cython_runtime_dict, PYIDENT("cline_in_traceback")))
     } else
 #endif
     {
@@ -639,7 +648,7 @@ static int __Pyx_CLineForTraceback(CYTHON_UNUSED PyThreadState *tstate, int c_li
         c_line = 0;
         PyObject_SetAttr(${cython_runtime_cname}, PYIDENT("cline_in_traceback"), Py_False);
     }
-    else if (PyObject_Not(use_cline) != 0) {
+    else if (use_cline == Py_False || (use_cline != Py_True && PyObject_Not(use_cline) != 0)) {
         c_line = 0;
     }
     __Pyx_ErrRestoreInState(tstate, ptype, pvalue, ptraceback);

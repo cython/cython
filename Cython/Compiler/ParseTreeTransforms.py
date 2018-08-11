@@ -25,20 +25,6 @@ from .StringEncoding import EncodedString, _unicode
 from .Errors import error, warning, CompileError, InternalError
 from .Code import UtilityCode
 
-class NameNodeCollector(TreeVisitor):
-    """Collect all NameNodes of a (sub-)tree in the ``name_nodes``
-    attribute.
-    """
-    def __init__(self):
-        super(NameNodeCollector, self).__init__()
-        self.name_nodes = []
-
-    def visit_NameNode(self, node):
-        self.name_nodes.append(node)
-
-    def visit_Node(self, node):
-        self._visitchildren(node, None)
-
 
 class SkipDeclarations(object):
     """
@@ -65,6 +51,7 @@ class SkipDeclarations(object):
 
     def visit_CStructOrUnionDefNode(self, node):
         return node
+
 
 class NormalizeTree(CythonTransform):
     """
@@ -626,7 +613,8 @@ class TrackNumpyAttributes(VisitorTransform, SkipDeclarations):
 
     def visit_AttributeNode(self, node):
         self.visitchildren(node)
-        if node.obj.is_name and node.obj.name in self.numpy_module_names:
+        obj = node.obj
+        if (obj.is_name and obj.name in self.numpy_module_names) or obj.is_numpy_attribute:
             node.is_numpy_attribute = True
         return node
 
@@ -1033,7 +1021,8 @@ class InterpretCompilerDirectives(CythonTransform):
         directives = []
         realdecs = []
         both = []
-        for dec in node.decorators:
+        # Decorators coming first take precedence.
+        for dec in node.decorators[::-1]:
             new_directives = self.try_to_parse_directives(dec.decorator)
             if new_directives is not None:
                 for directive in new_directives:
@@ -1043,15 +1032,17 @@ class InterpretCompilerDirectives(CythonTransform):
                             directives.append(directive)
                         if directive[0] == 'staticmethod':
                             both.append(dec)
+                    # Adapt scope type based on decorators that change it.
+                    if directive[0] == 'cclass' and scope_name == 'class':
+                        scope_name = 'cclass'
             else:
                 realdecs.append(dec)
-        if realdecs and isinstance(node, (Nodes.CFuncDefNode, Nodes.CClassDefNode, Nodes.CVarDefNode)):
+        if realdecs and (scope_name == 'cclass' or
+                         isinstance(node, (Nodes.CFuncDefNode, Nodes.CClassDefNode, Nodes.CVarDefNode))):
             raise PostParseError(realdecs[0].pos, "Cdef functions/classes cannot take arbitrary decorators.")
-        else:
-            node.decorators = realdecs + both
+        node.decorators = realdecs[::-1] + both[::-1]
         # merge or override repeated directives
         optdict = {}
-        directives.reverse() # Decorators coming first take precedence
         for directive in directives:
             name, value = directive
             if name in optdict:
@@ -1940,6 +1931,8 @@ if VALUE is not None:
             binding = self.current_directives.get('binding')
             rhs = ExprNodes.PyCFunctionNode.from_defnode(node, binding)
             node.code_object = rhs.code_object
+            if node.is_generator:
+                node.gbody.code_object = node.code_object
 
         if env.is_py_class_scope:
             rhs.binding = True
@@ -2591,10 +2584,13 @@ class MarkClosureVisitor(CythonTransform):
         collector.visitchildren(node)
 
         if node.is_async_def:
-            coroutine_type = Nodes.AsyncGenNode if collector.has_yield else Nodes.AsyncDefNode
+            coroutine_type = Nodes.AsyncDefNode
             if collector.has_yield:
+                coroutine_type = Nodes.AsyncGenNode
                 for yield_expr in collector.yields + collector.returns:
                     yield_expr.in_async_gen = True
+            elif self.current_directives['iterable_coroutine']:
+                coroutine_type = Nodes.IterableAsyncDefNode
         elif collector.has_await:
             found = next(y for y in collector.yields if y.is_await)
             error(found.pos, "'await' not allowed in generators (use 'yield')")
@@ -2779,6 +2775,60 @@ class CreateClosureClasses(CythonTransform):
         else:
             self.visitchildren(node)
             return node
+
+
+class InjectGilHandling(VisitorTransform, SkipDeclarations):
+    """
+    Allow certain Python operations inside of nogil blocks by implicitly acquiring the GIL.
+
+    Must run before the AnalyseDeclarationsTransform to make sure the GILStatNodes get
+    set up, parallel sections know that the GIL is acquired inside of them, etc.
+    """
+    def __call__(self, root):
+        self.nogil = False
+        return super(InjectGilHandling, self).__call__(root)
+
+    # special node handling
+
+    def visit_RaiseStatNode(self, node):
+        """Allow raising exceptions in nogil sections by wrapping them in a 'with gil' block."""
+        if self.nogil:
+            node = Nodes.GILStatNode(node.pos, state='gil', body=node)
+        return node
+
+    # further candidates:
+    # def visit_AssertStatNode(self, node):
+    # def visit_ReraiseStatNode(self, node):
+
+    # nogil tracking
+
+    def visit_GILStatNode(self, node):
+        was_nogil = self.nogil
+        self.nogil = (node.state == 'nogil')
+        self.visitchildren(node)
+        self.nogil = was_nogil
+        return node
+
+    def visit_CFuncDefNode(self, node):
+        was_nogil = self.nogil
+        if isinstance(node.declarator, Nodes.CFuncDeclaratorNode):
+            self.nogil = node.declarator.nogil and not node.declarator.with_gil
+        self.visitchildren(node)
+        self.nogil = was_nogil
+        return node
+
+    def visit_ParallelRangeNode(self, node):
+        was_nogil = self.nogil
+        self.nogil = node.nogil
+        self.visitchildren(node)
+        self.nogil = was_nogil
+        return node
+
+    def visit_ExprNode(self, node):
+        # No special GIL handling inside of expressions for now.
+        return node
+
+    visit_Node = VisitorTransform.recurse_to_children
 
 
 class GilCheck(VisitorTransform):

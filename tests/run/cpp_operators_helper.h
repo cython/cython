@@ -1,6 +1,8 @@
 #define UN_OP(op) const char* operator op () { return "unary "#op; }
 #define POST_UN_OP(op) const char* operator op (int x) { x++; return "post "#op; }
 #define BIN_OP(op) const char* operator op (int x) { x++; return "binary "#op; }
+#define NONMEMBER_BIN_OP(op) const char* operator op (int x, const TestOps&) { x++; return "nonmember binary "#op; }
+#define NONMEMBER_BIN_OP2(op) const char* operator op (double x, const TestOps&) { x++; return "nonmember binary2 "#op; }
 
 #define COMMA ,
 
@@ -45,6 +47,34 @@ public:
     BIN_OP(());
 
 };
+
+NONMEMBER_BIN_OP(+)
+NONMEMBER_BIN_OP(-)
+NONMEMBER_BIN_OP(*)
+NONMEMBER_BIN_OP(/)
+NONMEMBER_BIN_OP(%)
+
+NONMEMBER_BIN_OP(<<)
+NONMEMBER_BIN_OP(>>)
+
+NONMEMBER_BIN_OP(|)
+NONMEMBER_BIN_OP(&)
+NONMEMBER_BIN_OP(^)
+NONMEMBER_BIN_OP(COMMA)
+
+NONMEMBER_BIN_OP2(+)
+NONMEMBER_BIN_OP2(-)
+NONMEMBER_BIN_OP2(*)
+NONMEMBER_BIN_OP2(/)
+NONMEMBER_BIN_OP2(%)
+
+NONMEMBER_BIN_OP2(<<)
+NONMEMBER_BIN_OP2(>>)
+
+NONMEMBER_BIN_OP2(|)
+NONMEMBER_BIN_OP2(&)
+NONMEMBER_BIN_OP2(^)
+NONMEMBER_BIN_OP2(COMMA)
 
 class TruthClass {
 public:

@@ -84,8 +84,9 @@ static CYTHON_INLINE size_t __Pyx_Py_UNICODE_strlen(const Py_UNICODE *u) {
 
 #define __Pyx_NewRef(obj) (Py_INCREF(obj), obj)
 #define __Pyx_Owned_Py_None(b) __Pyx_NewRef(Py_None)
-#define __Pyx_PyBool_FromLong(b) ((b) ? __Pyx_NewRef(Py_True) : __Pyx_NewRef(Py_False))
+static CYTHON_INLINE PyObject * __Pyx_PyBool_FromLong(long b);
 static CYTHON_INLINE int __Pyx_PyObject_IsTrue(PyObject*);
+static CYTHON_INLINE int __Pyx_PyObject_IsTrueAndDecref(PyObject*);
 static CYTHON_INLINE PyObject* __Pyx_PyNumber_IntOrLong(PyObject* x);
 
 #define __Pyx_PySequence_Tuple(obj) \
@@ -285,6 +286,14 @@ static CYTHON_INLINE int __Pyx_PyObject_IsTrue(PyObject* x) {
    else return PyObject_IsTrue(x);
 }
 
+static CYTHON_INLINE int __Pyx_PyObject_IsTrueAndDecref(PyObject* x) {
+    int retval;
+    if (unlikely(!x)) return -1;
+    retval = __Pyx_PyObject_IsTrue(x);
+    Py_DECREF(x);
+    return retval;
+}
+
 static PyObject* __Pyx_PyNumber_IntOrLongWrongResultType(PyObject* result, const char* type_name) {
 #if PY_MAJOR_VERSION >= 3
     if (PyLong_Check(result)) {
@@ -401,6 +410,12 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
   Py_DECREF(x);
   return ival;
 }
+
+
+static CYTHON_INLINE PyObject * __Pyx_PyBool_FromLong(long b) {
+  return b ? __Pyx_NewRef(Py_True) : __Pyx_NewRef(Py_False);
+}
+
 
 static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t ival) {
     return PyInt_FromSize_t(ival);
@@ -588,7 +603,7 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value);
 /////////////// CIntToPy ///////////////
 
 static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
-    const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = ({{TYPE}}) 0;
+    const {{TYPE}} neg_one = ({{TYPE}}) (({{TYPE}}) 0 - ({{TYPE}}) 1), const_zero = ({{TYPE}}) 0;
     const int is_unsigned = neg_one > const_zero;
     if (is_unsigned) {
         if (sizeof({{TYPE}}) < sizeof(long)) {
@@ -645,7 +660,8 @@ static const char DIGIT_PAIRS_8[2*8*8+1] = {
 };
 
 static const char DIGITS_HEX[2*16+1] = {
-    "0123456789abcdef0123456789ABCDEF"
+    "0123456789abcdef"
+    "0123456789ABCDEF"
 };
 
 
@@ -677,52 +693,51 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
     // 'dpos' points to end of digits array + 1 initially to allow for pre-decrement looping
     char *dpos, *end = digits + sizeof({{TYPE}})*3+2;
     const char *hex_digits = DIGITS_HEX;
-    Py_ssize_t ulength;
-    int length, prepend_sign, last_one_off;
+    Py_ssize_t length, ulength;
+    int prepend_sign, last_one_off;
     {{TYPE}} remaining;
-    const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = ({{TYPE}}) 0;
+    const {{TYPE}} neg_one = ({{TYPE}}) (({{TYPE}}) 0 - ({{TYPE}}) 1), const_zero = ({{TYPE}}) 0;
     const int is_unsigned = neg_one > const_zero;
 
     if (format_char == 'X') {
         hex_digits += 16;
         format_char = 'x';
-    };
+    }
 
     // surprise: even trivial sprintf() calls don't get optimised in gcc (4.8)
     remaining = value; /* not using abs(value) to avoid overflow problems */
     last_one_off = 0;
     dpos = end;
-    while (remaining != 0) {
+    do {
         int digit_pos;
         switch (format_char) {
         case 'o':
             digit_pos = abs((int)(remaining % (8*8)));
-            remaining = remaining / (8*8);
+            remaining = ({{TYPE}}) (remaining / (8*8));
             dpos -= 2;
             *(uint16_t*)dpos = ((uint16_t*)DIGIT_PAIRS_8)[digit_pos]; /* copy 2 digits at a time */
             last_one_off = (digit_pos < 8);
             break;
         case 'd':
             digit_pos = abs((int)(remaining % (10*10)));
-            remaining = remaining / (10*10);
+            remaining = ({{TYPE}}) (remaining / (10*10));
             dpos -= 2;
             *(uint16_t*)dpos = ((uint16_t*)DIGIT_PAIRS_10)[digit_pos]; /* copy 2 digits at a time */
             last_one_off = (digit_pos < 10);
             break;
         case 'x':
             *(--dpos) = hex_digits[abs((int)(remaining % 16))];
-            remaining = remaining / 16;
+            remaining = ({{TYPE}}) (remaining / 16);
             break;
         default:
             assert(0);
             break;
         }
-    }
+    } while (unlikely(remaining != 0));
+
     if (last_one_off) {
         assert(*dpos == '0');
         dpos++;
-    } else if (unlikely(dpos == end)) {
-        *(--dpos) = '0';
     }
     length = end - dpos;
     ulength = length;
@@ -743,7 +758,7 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
     if (ulength == 1) {
         return PyUnicode_FromOrdinal(*dpos);
     }
-    return __Pyx_PyUnicode_BuildFromAscii(ulength, dpos, length, prepend_sign, padding_char);
+    return __Pyx_PyUnicode_BuildFromAscii(ulength, dpos, (int) length, prepend_sign, padding_char);
 }
 
 
@@ -810,7 +825,7 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *);
 {{py: from Cython.Utility import pylong_join }}
 
 static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
-    const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = ({{TYPE}}) 0;
+    const {{TYPE}} neg_one = ({{TYPE}}) (({{TYPE}}) 0 - ({{TYPE}}) 1), const_zero = ({{TYPE}}) 0;
     const int is_unsigned = neg_one > const_zero;
 #if PY_MAJOR_VERSION < 3
     if (likely(PyInt_Check(x))) {

@@ -1,3 +1,78 @@
+/////////////// PyType_Ready.proto ///////////////
+
+static int __Pyx_PyType_Ready(PyTypeObject *t);
+
+/////////////// PyType_Ready ///////////////
+
+// Wrapper around PyType_Ready() with some runtime checks and fixes
+// to deal with multiple inheritance.
+static int __Pyx_PyType_Ready(PyTypeObject *t) {
+    // Loop over all bases (except the first) and check that those
+    // really are heap types. Otherwise, it would not be safe to
+    // subclass them.
+    //
+    // We also check tp_dictoffset: it is unsafe to inherit
+    // tp_dictoffset from a base class because the object structures
+    // would not be compatible. So, if our extension type doesn't set
+    // tp_dictoffset (i.e. there is no __dict__ attribute in the object
+    // structure), we need to check that none of the base classes sets
+    // it either.
+    int r;
+    PyObject *bases = t->tp_bases;
+    if (bases)
+    {
+        Py_ssize_t i, n = PyTuple_GET_SIZE(bases);
+        for (i = 1; i < n; i++)  /* Skip first base */
+        {
+            PyObject *b0 = PyTuple_GET_ITEM(bases, i);
+            PyTypeObject *b;
+#if PY_MAJOR_VERSION < 3
+            /* Disallow old-style classes */
+            if (PyClass_Check(b0))
+            {
+                PyErr_Format(PyExc_TypeError, "base class '%.200s' is an old-style class",
+                             PyString_AS_STRING(((PyClassObject*)b0)->cl_name));
+                return -1;
+            }
+#endif
+            b = (PyTypeObject*)b0;
+            if (!PyType_HasFeature(b, Py_TPFLAGS_HEAPTYPE))
+            {
+                PyErr_Format(PyExc_TypeError, "base class '%.200s' is not a heap type",
+                             b->tp_name);
+                return -1;
+            }
+            if (t->tp_dictoffset == 0 && b->tp_dictoffset)
+            {
+                PyErr_Format(PyExc_TypeError,
+                    "extension type '%.200s' has no __dict__ slot, but base type '%.200s' has: "
+                    "either add 'cdef dict __dict__' to the extension type "
+                    "or add '__slots__ = [...]' to the base type",
+                    t->tp_name, b->tp_name);
+                return -1;
+            }
+        }
+    }
+
+#if PY_VERSION_HEX >= 0x03050000
+    // As of https://bugs.python.org/issue22079
+    // PyType_Ready enforces that all bases of a non-heap type are
+    // non-heap. We know that this is the case for the solid base but
+    // other bases are heap allocated and are kept alive through the
+    // tp_bases reference.
+    // Other than this check, the Py_TPFLAGS_HEAPTYPE flag is unused
+    // in PyType_Ready().
+    t->tp_flags |= Py_TPFLAGS_HEAPTYPE;
+#endif
+
+    r = PyType_Ready(t);
+
+#if PY_VERSION_HEX >= 0x03050000
+    t->tp_flags &= ~Py_TPFLAGS_HEAPTYPE;
+#endif
+
+    return r;
+}
 
 /////////////// CallNextTpDealloc.proto ///////////////
 

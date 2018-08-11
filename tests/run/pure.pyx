@@ -160,3 +160,23 @@ def test_declare_c_types(n):
     #z01 = cython.declare(cython.floatcomplex, n+1j)
     #z02 = cython.declare(cython.doublecomplex, n+1j)
     #z03 = cython.declare(cython.longdoublecomplex, n+1j)
+
+
+cdef class ExtType:
+    """
+    >>> x = ExtType()
+    >>> x.forward_ref(x)
+    'ExtType'
+    """
+    @cython.locals(x="ExtType")
+    def forward_ref(self, x):
+        return cython.typeof(x)
+
+
+def ext_type_string_ref(x: "ExtType"):
+    """
+    >>> x = ExtType()
+    >>> ext_type_string_ref(x)
+    'ExtType'
+    """
+    return cython.typeof(x)

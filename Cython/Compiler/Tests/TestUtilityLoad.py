@@ -23,27 +23,27 @@ class TestUtilityLoader(unittest.TestCase):
 
     def test_load_as_string(self):
         got = strip_2tup(self.cls.load_as_string(self.name))
-        self.assertEquals(got, self.expected)
+        self.assertEqual(got, self.expected)
 
         got = strip_2tup(self.cls.load_as_string(self.name, self.filename))
-        self.assertEquals(got, self.expected)
+        self.assertEqual(got, self.expected)
 
     def test_load(self):
         utility = self.cls.load(self.name)
         got = strip_2tup((utility.proto, utility.impl))
-        self.assertEquals(got, self.expected)
+        self.assertEqual(got, self.expected)
 
         required, = utility.requires
         got = strip_2tup((required.proto, required.impl))
-        self.assertEquals(got, self.required)
+        self.assertEqual(got, self.required)
 
         utility = self.cls.load(self.name, from_file=self.filename)
         got = strip_2tup((utility.proto, utility.impl))
-        self.assertEquals(got, self.expected)
+        self.assertEqual(got, self.expected)
 
         utility = self.cls.load_cached(self.name, from_file=self.filename)
         got = strip_2tup((utility.proto, utility.impl))
-        self.assertEquals(got, self.expected)
+        self.assertEqual(got, self.expected)
 
 
 class TestTempitaUtilityLoader(TestUtilityLoader):
@@ -60,20 +60,20 @@ class TestTempitaUtilityLoader(TestUtilityLoader):
 
     def test_load_as_string(self):
         got = strip_2tup(self.cls.load_as_string(self.name, context=self.context))
-        self.assertEquals(got, self.expected_tempita)
+        self.assertEqual(got, self.expected_tempita)
 
     def test_load(self):
         utility = self.cls.load(self.name, context=self.context)
         got = strip_2tup((utility.proto, utility.impl))
-        self.assertEquals(got, self.expected_tempita)
+        self.assertEqual(got, self.expected_tempita)
 
         required, = utility.requires
         got = strip_2tup((required.proto, required.impl))
-        self.assertEquals(got, self.required_tempita)
+        self.assertEqual(got, self.required_tempita)
 
         utility = self.cls.load(self.name, from_file=self.filename, context=self.context)
         got = strip_2tup((utility.proto, utility.impl))
-        self.assertEquals(got, self.expected_tempita)
+        self.assertEqual(got, self.expected_tempita)
 
 
 class TestCythonUtilityLoader(TestTempitaUtilityLoader):

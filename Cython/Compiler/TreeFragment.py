@@ -24,13 +24,13 @@ from . import UtilNodes
 
 
 class StringParseContext(Main.Context):
-    def __init__(self, name, include_directories=None, compiler_directives=None):
+    def __init__(self, name, include_directories=None, compiler_directives=None, cpp=False):
         if include_directories is None:
             include_directories = []
         if compiler_directives is None:
             compiler_directives = {}
         Main.Context.__init__(self, include_directories, compiler_directives,
-                              create_testscope=False)
+                              create_testscope=False, cpp=cpp)
         self.module_name = name
 
     def find_module(self, module_name, relative_to=None, pos=None, need_pxd=1, absolute_fallback=True):

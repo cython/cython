@@ -65,6 +65,32 @@ def test_set_add():
     return s1
 
 
+def test_set_contains(v):
+    """
+    >>> test_set_contains(1)
+    True
+    >>> test_set_contains(2)
+    False
+    >>> test_set_contains(frozenset([1, 2, 3]))
+    True
+    >>> test_set_contains(frozenset([1, 2]))
+    False
+    >>> test_set_contains(set([1, 2, 3]))
+    True
+    >>> test_set_contains(set([1, 2]))
+    False
+    >>> try: test_set_contains([1, 2])
+    ... except TypeError: pass
+    ... else: print("NOT RAISED!")
+    """
+    cdef set s1
+    s1 = set()
+    s1.add(1)
+    s1.add('a')
+    s1.add(frozenset([1, 2, 3]))
+    return v in s1
+
+
 def test_set_update(v=None):
     """
     >>> type(test_set_update()) is set

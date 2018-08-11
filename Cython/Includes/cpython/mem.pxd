@@ -27,6 +27,7 @@ cdef extern from "Python.h":
     # available for allocating and releasing memory from the Python
     # heap:
 
+    void* PyMem_RawMalloc(size_t n) nogil
     void* PyMem_Malloc(size_t n)
     # Allocates n bytes and returns a pointer of type void* to the
     # allocated memory, or NULL if the request fails. Requesting zero
@@ -34,6 +35,7 @@ cdef extern from "Python.h":
     # PyMem_Malloc(1) had been called instead. The memory will not
     # have been initialized in any way.
 
+    void* PyMem_RawRealloc(void *p, size_t n) nogil
     void* PyMem_Realloc(void *p, size_t n)
     # Resizes the memory block pointed to by p to n bytes. The
     # contents will be unchanged to the minimum of the old and the new
@@ -43,6 +45,7 @@ cdef extern from "Python.h":
     # NULL, it must have been returned by a previous call to
     # PyMem_Malloc() or PyMem_Realloc().
 
+    void PyMem_RawFree(void *p) nogil
     void PyMem_Free(void *p)
     # Frees the memory block pointed to by p, which must have been
     # returned by a previous call to PyMem_Malloc() or

@@ -33,7 +33,7 @@ cdef extern from "Python.h":
     # a weakly-referencable object, or if callback is not callable,
     # None, or NULL, this will return NULL and raise TypeError.
 
-    PyObject* PyWeakref_GetObject(object ref)
+    PyObject* PyWeakref_GetObject(object ref) except NULL
     # Return the referenced object from a weak reference, ref.  If the
     # referent is no longer live, returns None.
 

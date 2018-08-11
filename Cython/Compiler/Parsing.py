@@ -2481,9 +2481,12 @@ def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
         error(pos, "Expected an identifier, found '%s'" % s.sy)
     if s.systring == 'const':
         s.next()
-        base_type = p_c_base_type(s,
-            self_flag = self_flag, nonempty = nonempty, templates = templates)
-        return Nodes.CConstTypeNode(pos, base_type = base_type)
+        base_type = p_c_base_type(s, self_flag=self_flag, nonempty=nonempty, templates=templates)
+        if isinstance(base_type, Nodes.MemoryViewSliceTypeNode):
+            # reverse order to avoid having to write "(const int)[:]"
+            base_type.base_type_node = Nodes.CConstTypeNode(pos, base_type=base_type.base_type_node)
+            return base_type
+        return Nodes.CConstTypeNode(pos, base_type=base_type)
     if looking_at_base_type(s):
         #print "p_c_simple_base_type: looking_at_base_type at", s.position()
         is_basic = 1
@@ -2710,6 +2713,7 @@ special_basic_c_types = cython.declare(dict, {
     "ssize_t"    : (2, 0),
     "size_t"     : (0, 0),
     "ptrdiff_t"  : (2, 0),
+    "Py_tss_t"   : (1, 0),
 })
 
 sign_and_longness_words = cython.declare(
@@ -3081,9 +3085,13 @@ def p_cdef_extern_block(s, pos, ctx):
         ctx.namespace = p_string_literal(s, 'u')[2]
     if p_nogil(s):
         ctx.nogil = 1
-    body = p_suite(s, ctx)
+
+    # Use "docstring" as verbatim string to include
+    verbatim_include, body = p_suite_with_docstring(s, ctx, True)
+
     return Nodes.CDefExternNode(pos,
         include_file = include_file,
+        verbatim_include = verbatim_include,
         body = body,
         namespace = ctx.namespace)
 
@@ -3435,19 +3443,15 @@ def p_c_class_definition(s, pos,  ctx):
         as_name = class_name
     objstruct_name = None
     typeobj_name = None
-    base_class_module = None
-    base_class_name = None
+    bases = None
     if s.sy == '(':
-        s.next()
-        base_class_path = [p_ident(s)]
-        while s.sy == '.':
-            s.next()
-            base_class_path.append(p_ident(s))
-        if s.sy == ',':
-            s.error("C class may only have one base class", fatal=False)
-        s.expect(')')
-        base_class_module = ".".join(base_class_path[:-1])
-        base_class_name = base_class_path[-1]
+        positional_args, keyword_args = p_call_parse_args(s, allow_genexp=False)
+        if keyword_args:
+            s.error("C classes cannot take keyword bases.")
+        bases, _ = p_call_build_packed_args(pos, positional_args, keyword_args)
+    if bases is None:
+        bases = ExprNodes.TupleNode(pos, args=[])
+
     if s.sy == '[':
         if ctx.visibility not in ('public', 'extern') and not ctx.api:
             error(s.position(), "Name options only allowed for 'public', 'api', or 'extern' C class")
@@ -3487,8 +3491,7 @@ def p_c_class_definition(s, pos,  ctx):
         module_name = ".".join(module_path),
         class_name = class_name,
         as_name = as_name,
-        base_class_module = base_class_module,
-        base_class_name = base_class_name,
+        bases = bases,
         objstruct_name = objstruct_name,
         typeobj_name = typeobj_name,
         in_pxd = ctx.level == 'module_pxd',
@@ -3591,31 +3594,49 @@ def p_code(s, level=None, ctx=Ctx):
             repr(s.sy), repr(s.systring)))
     return body
 
+
 _match_compiler_directive_comment = cython.declare(object, re.compile(
     r"^#\s*cython\s*:\s*((\w|[.])+\s*=.*)$").match)
+
 
 def p_compiler_directive_comments(s):
     result = {}
     while s.sy == 'commentline':
+        pos = s.position()
         m = _match_compiler_directive_comment(s.systring)
         if m:
-            directives = m.group(1).strip()
+            directives_string = m.group(1).strip()
             try:
-                result.update(Options.parse_directive_list(
-                    directives, ignore_unknown=True))
+                new_directives = Options.parse_directive_list(directives_string, ignore_unknown=True)
             except ValueError as e:
                 s.error(e.args[0], fatal=False)
+                s.next()
+                continue
+
+            for name in new_directives:
+                if name not in result:
+                    pass
+                elif new_directives[name] == result[name]:
+                    warning(pos, "Duplicate directive found: %s" % (name,))
+                else:
+                    s.error("Conflicting settings found for top-level directive %s: %r and %r" % (
+                        name, result[name], new_directives[name]), pos=pos)
+
+            if 'language_level' in new_directives:
+                # Make sure we apply the language level already to the first token that follows the comments.
+                s.context.set_language_level(new_directives['language_level'])
+
+            result.update(new_directives)
+
         s.next()
     return result
+
 
 def p_module(s, pxd, full_module_name, ctx=Ctx):
     pos = s.position()
 
     directive_comments = p_compiler_directive_comments(s)
     s.parse_comments = False
-
-    if 'language_level' in directive_comments:
-        s.context.set_language_level(directive_comments['language_level'])
 
     doc = p_doc_string(s)
     if pxd:

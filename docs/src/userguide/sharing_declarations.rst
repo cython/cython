@@ -80,28 +80,13 @@ Here is an example. :file:`dishes.pxd` is a definition file which exports a
 C data type. :file:`restaurant.pyx` is an implementation file which imports and
 uses it.
 
-:file:`dishes.pxd`::
+:file:`dishes.pxd`:
 
-   cdef enum otherstuff:
-       sausage, eggs, lettuce
+.. literalinclude:: ../../examples/userguide/sharing_declarations/dishes.pxd
 
-   cdef struct spamdish:
-       int oz_of_spam
-       otherstuff filler
+:file:`restaurant.pyx`:
 
-:file:`restaurant.pyx`::
-
-    cimport dishes
-    from dishes cimport spamdish
-
-    cdef void prepare(spamdish *d):
-        d.oz_of_spam = 42
-        d.filler = dishes.sausage
-
-    def serve():
-        cdef spamdish d
-        prepare(&d)
-        print "%d oz spam, filler no. %d" % (d.oz_of_spam, d.filler)
+.. literalinclude:: ../../examples/userguide/sharing_declarations/restaurant.pyx
 
 It is important to understand that the :keyword:`cimport` statement can only
 be used to import C data types, C functions and variables, and extension
@@ -147,17 +132,13 @@ for an imaginary module, and :keyword:`cimport` that module. You can then
 refer to the C functions by qualifying them with the name of the module.
 Here's an example:
 
-:file:`c_lunch.pxd`::
+:file:`c_lunch.pxd`:
 
-    cdef extern from "lunch.h":
-        void eject_tomato(float)
+.. literalinclude:: ../../examples/userguide/sharing_declarations/c_lunch.pxd
 
-:file:`lunch.pyx`::
+:file:`lunch.pyx`:
 
-    cimport c_lunch
-
-    def eject_tomato(float speed):
-        c_lunch.eject_tomato(speed)
+.. literalinclude:: ../../examples/userguide/sharing_declarations/lunch.pyx
 
 You don't need any :file:`c_lunch.pyx` file, because the only things defined
 in :file:`c_lunch.pxd` are extern C entities. There won't be any actual
@@ -173,26 +154,17 @@ C functions defined at the top level of a module can be made available via
 :keyword:`cimport` by putting headers for them in the ``.pxd`` file, for
 example:
 
-:file:`volume.pxd`::
+:file:`volume.pxd`:
 
-    cdef float cube(float)
+.. literalinclude:: ../../examples/userguide/sharing_declarations/volume.pxd
 
-:file:`volume.pyx`::
+:file:`volume.pyx`:
 
-    cdef float cube(float x):
-        return x * x * x
+.. literalinclude:: ../../examples/userguide/sharing_declarations/volume.pyx
 
-:file:`spammery.pyx`::
+:file:`spammery.pyx`:
 
-    from volume cimport cube
-
-    def menu(description, size):
-        print description, ":", cube(size), \
-            "cubic metres of spam"
-
-    menu("Entree", 1)
-    menu("Main course", 3)
-    menu("Dessert", 2)
+.. literalinclude:: ../../examples/userguide/sharing_declarations/spammery.pyx
 
 .. note::
 
@@ -201,6 +173,7 @@ example:
     this object from Python, nor can you use it from Cython using a normal import
     statement; you have to use :keyword:`cimport`.
 
+.. _sharing_extension_types:
 
 Sharing Extension Types
 =======================
@@ -220,38 +193,23 @@ Python methods.
 Here is an example of a module which defines and exports an extension type,
 and another module which uses it:
 
-:file:`Shrubbing.pxd`::
+:file:`shrubbing.pxd`:
 
-    cdef class Shrubbery:
-        cdef int width
-        cdef int length
+.. literalinclude:: ../../examples/userguide/sharing_declarations/shrubbing.pxd
 
-:file:`Shrubbing.pyx`::
+:file:`shrubbing.pyx`:
 
-    cdef class Shrubbery:
-        def __cinit__(self, int w, int l):
-            self.width = w
-            self.length = l
+.. literalinclude:: ../../examples/userguide/sharing_declarations/shrubbing.pyx
 
-    def standard_shrubbery():
-        return Shrubbery(3, 7)
+:file:`landscaping.pyx`:
 
-:file:`Landscaping.pyx`::
-
-    cimport Shrubbing
-    import Shrubbing
-
-    cdef Shrubbing.Shrubbery sh
-    sh = Shrubbing.standard_shrubbery()
-    print "Shrubbery size is %d x %d" % (sh.width, sh.length)
+.. literalinclude:: ../../examples/userguide/sharing_declarations/landscaping.pyx
 
 One would then need to compile both of these modules, e.g. using
 
-:file:`setup.py`::
+:file:`setup.py`:
 
-    from distutils.core import setup
-    from Cython.Build import cythonize
-    setup(ext_modules = cythonize(["Landscaping.pyx", "Shrubbing.pyx"]))
+.. literalinclude:: ../../examples/userguide/sharing_declarations/setup.py
 
 Some things to note about this example:
 
@@ -263,3 +221,8 @@ Some things to note about this example:
   doesn't bind the name Shrubbing in Landscaping's module namespace at run
   time, so to access :func:`Shrubbing.standard_shrubbery` we also need to
   ``import Shrubbing``.
+* One caveat if you use setuptools instead of distutils, the default
+  action when running ``python setup.py install`` is to create a zipped
+  ``egg`` file which will not work with ``cimport`` for ``pxd`` files
+  when you try to use them from a dependent package.
+  To prevent this, include ``zip_safe=False`` in the arguments to ``setup()``.

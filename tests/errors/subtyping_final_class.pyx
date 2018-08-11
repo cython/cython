@@ -10,5 +10,5 @@ cdef class SubType(FinalClass):
     pass
 
 _ERRORS = """
-9:5: Base class 'FinalClass' of type 'SubType' is final
+9:19: Base class 'FinalClass' of type 'SubType' is final
 """

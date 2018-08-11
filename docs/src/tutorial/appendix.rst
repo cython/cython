@@ -14,7 +14,7 @@ Appendix: Installing MinGW on Windows
     includes e.g. "c:\\mingw\\bin" (if you installed MinGW to
     "c:\\mingw"). The following web-page describes the procedure
     in Windows XP (the Vista procedure is similar):
-    http://support.microsoft.com/kb/310519
+    https://support.microsoft.com/kb/310519
  4. Finally, tell Python to use MinGW as the default compiler
     (otherwise it will try for Visual C). If Python is installed to
     "c:\\Python27", create a file named
@@ -28,4 +28,4 @@ procedure. Any contributions towards making the Windows install
 process smoother is welcomed; it is an unfortunate fact that none of
 the regular Cython developers have convenient access to Windows.
 
-.. [WinInst] http://wiki.cython.org/InstallingOnWindows
+.. [WinInst] https://github.com/cython/cython/wiki/CythonExtensionsOnWindows

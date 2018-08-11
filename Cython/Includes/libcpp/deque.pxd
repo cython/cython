@@ -5,7 +5,7 @@ cdef extern from "<deque>" namespace "std" nogil:
 
         # these should really be allocator_type.size_type and
         # allocator_type.difference_type to be true to the C++ definition
-        # but cython doesn't support defered access on template arguments
+        # but cython doesn't support deferred access on template arguments
         ctypedef size_t size_type
         ctypedef ptrdiff_t difference_type
 

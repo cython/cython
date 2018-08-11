@@ -12,6 +12,7 @@ setup(
 )
 
 ######## a.pxd ########
+# cython: preliminary_late_includes_cy28=True
 
 cdef extern from "a_early.h":
   ctypedef int my_int

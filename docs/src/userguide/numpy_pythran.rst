@@ -20,7 +20,7 @@ Usage example with distutils
 ----------------------------
 
 You first need to install Pythran. See its `documentation
-<https://pythonhosted.org/pythran/MANUAL.html>`_ for more information.
+<http://pythran.readthedocs.io/en/latest/>`_ for more information.
 
 Then, simply add a ``cython: np_pythran=True`` directive at the top of the
 Python files that needs to be compiled using Pythran numpy support.
@@ -48,7 +48,7 @@ Then, with the following header in ``hello_pythran.pyx``:
 Please note that Pythran can further be tweaked by adding settings in the
 ``$HOME/.pythranrc`` file. For instance, this can be used to enable `Boost.SIMD`_ support.
 See the `Pythran user manual
-<https://pythonhosted.org/pythran/MANUAL.html#customizing-your-pythranrc>`_ for
+<https://pythran.readthedocs.io/en/latest/MANUAL.html#customizing-your-pythranrc>`_ for
 more information.
 
 .. _Pythran: https://github.com/serge-sans-paille/pythran

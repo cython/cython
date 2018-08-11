@@ -11,12 +11,7 @@ Contents:
    :maxdepth: 2
 
    compilation
-   language_basics
-   extension_types
-   interfacing_with_other_code
-   special_mention
-   limitations
-   directives
+
 
 Indices and tables
 ------------------

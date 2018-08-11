@@ -1,0 +1,36 @@
+PYTHON setup.py build_ext --inplace
+
+######## setup.py ########
+
+from Cython.Build import cythonize
+from distutils.core import setup
+
+setup(
+    ext_modules = cythonize("*.pyx"),
+)
+
+######## test.pyx ########
+
+from moda cimport DEFINE_A
+from modb cimport DEFINE_B
+
+######## moda.pxd ########
+
+from verbatim cimport DEFINE_ONCE as DEFINE_A
+
+######## modb.pxd ########
+
+from verbatim cimport DEFINE_ONCE as DEFINE_B
+
+######## verbatim.pxd ########
+
+# Check that we include this only once
+cdef extern from *:
+    """
+    #ifdef DEFINE_ONCE
+    #error "DEFINE_ONCE already defined"
+    #endif
+
+    #define DEFINE_ONCE 1
+    """
+    int DEFINE_ONCE

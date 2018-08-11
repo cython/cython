@@ -20,9 +20,14 @@ from contextlib import contextmanager
 
 modification_time = os.path.getmtime
 
+_function_caches = []
+def clear_function_caches():
+    for cache in _function_caches:
+        cache.clear()
 
 def cached_function(f):
     cache = {}
+    _function_caches.append(cache)
     uncomputed = object()
     def wrapper(*args):
         res = cache.get(args, uncomputed)
@@ -355,7 +360,8 @@ def long_literal(value):
 
 @cached_function
 def get_cython_cache_dir():
-    """get the cython cache dir
+    r"""
+    Return the base directory containing Cython's caches.
 
     Priority:
 
@@ -481,3 +487,9 @@ def add_metaclass(metaclass):
         orig_vars.pop('__weakref__', None)
         return metaclass(cls.__name__, cls.__bases__, orig_vars)
     return wrapper
+
+
+def raise_error_if_module_name_forbidden(full_module_name):
+    #it is bad idea to call the pyx-file cython.pyx, so fail early
+    if full_module_name == 'cython' or full_module_name.startswith('cython.'):
+        raise ValueError('cython is a special module, cannot be used as a module name')

@@ -82,7 +82,7 @@ typedef volatile __pyx_atomic_int_type __pyx_atomic_int;
 
 /////////////// ObjectToMemviewSlice.proto ///////////////
 
-static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *);
+static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *, int writable_flag);
 
 
 ////////// MemviewSliceInit.proto //////////
@@ -127,7 +127,7 @@ static CYTHON_INLINE char *__pyx_memviewslice_index_full(
 /////////////// ObjectToMemviewSlice ///////////////
 //@requires: MemviewSliceValidateAndInit
 
-static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *obj) {
+static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *obj, int writable_flag) {
     {{memviewslice_name}} result = {{memslice_init}};
     __Pyx_BufFmt_StackElem stack[{{struct_nesting_depth}}];
     int axes_specs[] = { {{axes_specs}} };
@@ -140,7 +140,7 @@ static CYTHON_INLINE {{memviewslice_name}} {{funcname}}(PyObject *obj) {
     }
 
     retcode = __Pyx_ValidateAndInit_memviewslice(axes_specs, {{c_or_f_flag}},
-                                                 {{buf_flag}}, {{ndim}},
+                                                 {{buf_flag}} | writable_flag, {{ndim}},
                                                  &{{dtype_typeinfo}}, stack,
                                                  &result, obj);
 

@@ -7,9 +7,6 @@ from .Visitor cimport (
     CythonTransform, VisitorTransform, TreeVisitor,
     ScopeTrackingTransform, EnvTransform)
 
-cdef class NameNodeCollector(TreeVisitor):
-    cdef list name_nodes
-
 cdef class SkipDeclarations: # (object):
     pass
 
@@ -72,6 +69,9 @@ cdef class CreateClosureClasses(CythonTransform):
 
     cdef create_class_from_scope(self, node, target_module_scope, inner_node=*)
     cdef find_entries_used_in_closures(self, node)
+
+#cdef class InjectGilHandling(VisitorTransform, SkipDeclarations):
+#    cdef bint nogil
 
 cdef class GilCheck(VisitorTransform):
     cdef list env_stack

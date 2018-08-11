@@ -267,6 +267,9 @@ class EvalWithTempExprNode(ExprNodes.ExprNode, LetNodeMixin):
     def infer_type(self, env):
         return self.subexpression.infer_type(env)
 
+    def may_be_none(self):
+        return self.subexpression.may_be_none()
+
     def result(self):
         return self.subexpression.result()
 

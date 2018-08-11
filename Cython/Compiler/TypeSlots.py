@@ -612,6 +612,20 @@ def get_slot_function(scope, slot):
             return slot_code
     return None
 
+
+def get_slot_by_name(slot_name):
+    # For now, only search the type struct, no referenced sub-structs.
+    for slot in slot_table:
+        if slot.slot_name == slot_name:
+            return slot
+    assert False, "Slot not found: %s" % slot_name
+
+
+def get_slot_code_by_name(scope, slot_name):
+    slot = get_slot_by_name(slot_name)
+    return slot.slot_code(scope)
+
+
 #------------------------------------------------------------------------------------------
 #
 #  Signatures for generic Python functions and methods.
@@ -678,8 +692,7 @@ delattrofunc = Signature("TO", 'r')
 cmpfunc = Signature("TO", "i")             # typedef int (*cmpfunc)(PyObject *, PyObject *);
 reprfunc = Signature("T", "O")             # typedef PyObject *(*reprfunc)(PyObject *);
 hashfunc = Signature("T", "h")             # typedef Py_hash_t (*hashfunc)(PyObject *);
-                                           # typedef PyObject *(*richcmpfunc) (PyObject *, PyObject *, int);
-richcmpfunc = Signature("OOi", "O")        # typedef PyObject *(*richcmpfunc) (PyObject *, PyObject *, int);
+richcmpfunc = Signature("TOi", "O")        # typedef PyObject *(*richcmpfunc) (PyObject *, PyObject *, int);
 getiterfunc = Signature("T", "O")          # typedef PyObject *(*getiterfunc) (PyObject *);
 iternextfunc = Signature("T", "O")         # typedef PyObject *(*iternextfunc) (PyObject *);
 descrgetfunc = Signature("TOO", "O")       # typedef PyObject *(*descrgetfunc) (PyObject *, PyObject *, PyObject *);

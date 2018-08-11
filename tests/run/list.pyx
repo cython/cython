@@ -79,6 +79,10 @@ def test_list_reverse():
     l1.reverse()
     return l1
 
+
+@cython.test_assert_path_exists(
+    '//SimpleCallNode//AttributeNode[@entry.cname = "__Pyx_PyList_Append"]',
+)
 def test_list_append():
     """
     >>> test_list_append()
@@ -88,6 +92,36 @@ def test_list_append():
     l1.append(3)
     l1.append(4)
     return l1
+
+
+@cython.test_assert_path_exists(
+    '//SimpleCallNode//NameNode[@entry.cname = "__Pyx_PyList_Append"]',
+)
+def test_list_append_unbound():
+    """
+    >>> test_list_append_unbound()
+    [1, 2, 3, 4]
+    """
+    cdef list l1 = [1,2]
+    list.append(l1, 3)
+    list.append(l1, 4)
+    return l1
+
+
+@cython.test_assert_path_exists(
+    '//SimpleCallNode//NameNode[@entry.cname = "__Pyx_PyList_Append"]',
+)
+def test_list_append_unbound_assigned():
+    """
+    >>> test_list_append_unbound_assigned()
+    [1, 2, 3, 4]
+    """
+    append = list.append
+    cdef list l1 = [1,2]
+    append(l1, 3)
+    append(l1, 4)
+    return l1
+
 
 def test_list_append_insert():
     """
@@ -138,19 +172,126 @@ def test_list_pop_all():
         return i == 2
     return False
 
-def test_list_extend():
+
+@cython.test_assert_path_exists(
+    '//PythonCapiCallNode//PythonCapiFunctionNode[@cname = "__Pyx_ListComp_Append"]',
+    '//PythonCapiCallNode//PythonCapiFunctionNode[@cname = "__Pyx_PyList_Append"]',
+)
+def test_list_extend(seq=None, x=4):
     """
     >>> test_list_extend()
-    [1, 2, 3, 4, 5, 6]
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+    >>> test_list_extend([])
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+    >>> test_list_extend([1])
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 1]
+    >>> test_list_extend([1, 2])
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 1, 2]
     """
     cdef list l = [1,2,3]
     l.extend([])
     l.extend(())
-    l.extend(set())
+    l.extend(set())  # not currently optimised (not worth the trouble)
     assert l == [1,2,3]
     assert len(l) == 3
-    l.extend([4,5,6])
+    l.extend([4,x+1,6])
+    l.extend([7,8,9,10,11,12,13,14,15,16])
+    if seq is not None:
+        l.extend(seq)
     return l
+
+
+@cython.test_assert_path_exists(
+    '//PythonCapiCallNode//PythonCapiFunctionNode[@cname = "__Pyx_ListComp_Append"]',
+    '//PythonCapiCallNode//PythonCapiFunctionNode[@cname = "__Pyx_PyList_Append"]',
+)
+def test_list_extend_unbound(seq=None, x=4):
+    """
+    >>> test_list_extend_unbound()
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+    >>> test_list_extend_unbound([])
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+    >>> test_list_extend_unbound([1])
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 1]
+    >>> test_list_extend_unbound([1, 2])
+    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 1, 2]
+    """
+    cdef list l = [1,2,3]
+    list.extend(l, [])
+    list.extend(l, ())
+    try:
+        list.extend((), ())
+    except TypeError:
+        pass
+    else:
+        assert False, "TypeError not raised!"
+    list.extend(l, set())  # not currently optimised (not worth the trouble)
+    assert l == [1,2,3]
+    assert len(l) == 3
+    list.extend(l, [4,x+1,6])
+    list.extend(l, [7,8,9,10,11,12,13,14,15,16])
+    if seq is not None:
+        list.extend(l, seq)
+    return l
+
+@cython.test_assert_path_exists(
+    '//PythonCapiCallNode//PythonCapiFunctionNode[@cname = "__Pyx_ListComp_Append"]',
+    '//PythonCapiCallNode//PythonCapiFunctionNode[@cname = "__Pyx_PyList_Append"]',
+)
+def test_list_extend_sideeffect(seq=None, exc=False):
+    """
+    >>> test_list_extend_sideeffect()
+    ([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16], [4, 6, 7, 8])
+    >>> test_list_extend_sideeffect([])
+    ([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16], [4, 6, 7, 8])
+    >>> test_list_extend_sideeffect([], exc=True)
+    ([1, 2, 3, 10, 11, 12, 13, 14, 15, 16], [4, 7, 8])
+    >>> test_list_extend_sideeffect([1])
+    ([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 1], [4, 6, 7, 8])
+    >>> test_list_extend_sideeffect([1], exc=True)
+    ([1, 2, 3, 10, 11, 12, 13, 14, 15, 16, 1], [4, 7, 8])
+    >>> test_list_extend_sideeffect([1, 2])
+    ([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 1, 2], [4, 6, 7, 8])
+    """
+    calls = []
+    def sideeffect(value):
+        calls.append(value)
+        return value
+    def fail(value):
+        if exc:
+            raise TypeError("HUHU")
+        return value
+
+    cdef list l = [1,2,3]
+    l.extend([])
+    l.extend(())
+    l.extend(set())  # not currently optimised (not worth the trouble)
+    assert l == [1,2,3]
+    assert len(l) == 3
+
+    # Must first build all items, then append them in order.
+    # If building one value fails, none of them must be appended.
+    try:
+        l.extend([sideeffect(4), fail(5), sideeffect(6)])
+    except TypeError as e:
+        assert exc
+        assert "HUHU" in str(e)
+    else:
+        assert not exc
+
+    try:
+        l.extend([sideeffect(7), sideeffect(8), fail(9)])
+    except TypeError as e:
+        assert exc
+        assert "HUHU" in str(e)
+    else:
+        assert not exc
+
+    l.extend([10,11,12,13,14,15,16])
+    if seq is not None:
+        l.extend(seq)
+    return l, calls
+
 
 def test_none_list_extend(list l):
     """

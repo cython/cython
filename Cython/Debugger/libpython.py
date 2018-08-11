@@ -1941,7 +1941,6 @@ PyLocals()
 ##################################################################
 
 import re
-import atexit
 import warnings
 import tempfile
 import textwrap
@@ -2023,13 +2022,12 @@ class _LoggingState(object):
     """
 
     def __init__(self):
-        self.fd, self.filename = tempfile.mkstemp()
-        self.file = os.fdopen(self.fd, 'r+')
+        f = tempfile.NamedTemporaryFile('r+')
+        self.file = f
+        self.filename = f.name
+        self.fd = f.fileno()
         _execute("set logging file %s" % self.filename)
         self.file_position_stack = []
-
-        atexit.register(os.close, self.fd)
-        atexit.register(os.remove, self.filename)
 
     def __enter__(self):
         if not self.file_position_stack:
@@ -2488,7 +2486,7 @@ class PyCont(ExecutionControlCommandBase):
 
 def _pointervalue(gdbval):
     """
-    Return the value of the pionter as a Python int.
+    Return the value of the pointer as a Python int.
 
     gdbval.type must be a pointer type
     """

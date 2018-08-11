@@ -1,4 +1,5 @@
 /////////////// Profile.proto ///////////////
+//@requires: Exceptions.c::PyErrFetchRestore
 //@substitute: naming
 
 // Note that cPython ignores PyTrace_EXCEPTION,
@@ -110,7 +111,7 @@
 
   static void __Pyx_call_return_trace_func(PyThreadState *tstate, PyFrameObject *frame, PyObject *result) {
       PyObject *type, *value, *traceback;
-      PyErr_Fetch(&type, &value, &traceback);
+      __Pyx_ErrFetchInState(tstate, &type, &value, &traceback);
       tstate->tracing++;
       tstate->use_tracing = 0;
       if (CYTHON_TRACE && tstate->c_tracefunc)
@@ -120,7 +121,7 @@
       CYTHON_FRAME_DEL(frame);
       tstate->use_tracing = 1;
       tstate->tracing--;
-      PyErr_Restore(type, value, traceback);
+      __Pyx_ErrRestoreInState(tstate, type, value, traceback);
   }
 
   #ifdef WITH_THREAD
@@ -172,7 +173,7 @@
   static int __Pyx_call_line_trace_func(PyThreadState *tstate, PyFrameObject *frame, int lineno) {
       int ret;
       PyObject *type, *value, *traceback;
-      PyErr_Fetch(&type, &value, &traceback);
+      __Pyx_ErrFetchInState(tstate, &type, &value, &traceback);
       __Pyx_PyFrame_SetLineNumber(frame, lineno);
       tstate->tracing++;
       tstate->use_tracing = 0;
@@ -180,7 +181,7 @@
       tstate->use_tracing = 1;
       tstate->tracing--;
       if (likely(!ret)) {
-          PyErr_Restore(type, value, traceback);
+          __Pyx_ErrRestoreInState(tstate, type, value, traceback);
       } else {
           Py_XDECREF(type);
           Py_XDECREF(value);
@@ -266,7 +267,7 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
     retval = 1;
     tstate->tracing++;
     tstate->use_tracing = 0;
-    PyErr_Fetch(&type, &value, &traceback);
+    __Pyx_ErrFetchInState(tstate, &type, &value, &traceback);
     #if CYTHON_TRACE
     if (tstate->c_tracefunc)
         retval = tstate->c_tracefunc(tstate->c_traceobj, *frame, PyTrace_CALL, NULL) == 0;
@@ -277,7 +278,7 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
                            (CYTHON_TRACE && tstate->c_tracefunc));
     tstate->tracing--;
     if (retval) {
-        PyErr_Restore(type, value, traceback);
+        __Pyx_ErrRestoreInState(tstate, type, value, traceback);
         return tstate->use_tracing && retval;
     } else {
         Py_XDECREF(type);

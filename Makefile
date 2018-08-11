@@ -11,6 +11,11 @@ all:    local
 local:
 	${PYTHON} setup.py build_ext --inplace
 
+sdist: dist/Cython-$(VERSION).tar.gz
+
+dist/Cython-$(VERSION).tar.gz:
+	$(PYTHON) setup.py sdist
+
 TMPDIR = .repo_tmp
 .git: .gitrev
 	rm -rf $(TMPDIR)

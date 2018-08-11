@@ -44,14 +44,9 @@ If your profiling is messed up because of the call overhead to some small
 functions that you rather do not want to see in your profile - either because
 you plan to inline them anyway or because you are sure that you can't make them
 any faster - you can use a special decorator to disable profiling for one
-function only::
+function only (regardless of whether it is globally enabled or not):
 
-   cimport cython
-
-   @cython.profile(False)
-   def my_often_called_function():
-      pass
-
+.. literalinclude:: ../../examples/tutorial/profiling_tutorial/often_called.pyx
 
 Enabling line tracing
 ---------------------
@@ -80,7 +75,7 @@ Enabling coverage analysis
 --------------------------
 
 Since Cython 0.23, line tracing (see above) also enables support for coverage
-reporting with the `coverage.py <http://nedbatchelder.com/code/coverage/>`_ tool.
+reporting with the `coverage.py <http://coverage.readthedocs.io/>`_ tool.
 To make the coverage analysis understand Cython modules, you also need to enable
 Cython's coverage plugin in your ``.coveragerc`` file as follows:
 
@@ -116,7 +111,7 @@ turning it into Cython code and keep profiling until it is fast enough.
 As a toy example, we would like to evaluate the summation of the reciprocals of
 squares up to a certain integer :math:`n` for evaluating :math:`\pi`. The
 relation we want to use has been proven by Euler in 1735 and is known as the
-`Basel problem <http://en.wikipedia.org/wiki/Basel_problem>`_.
+`Basel problem <https://en.wikipedia.org/wiki/Basel_problem>`_.
 
 
 .. math::
@@ -125,20 +120,9 @@ relation we want to use has been proven by Euler in 1735 and is known as the
          \frac{1}{2^2} + \dots + \frac{1}{k^2}  \big) \approx
    6 \big( \frac{1}{1^2} + \frac{1}{2^2} + \dots + \frac{1}{n^2}  \big)
 
-A simple Python code for evaluating the truncated sum looks like this::
+A simple Python code for evaluating the truncated sum looks like this:
 
-   #!/usr/bin/env python
-   # encoding: utf-8
-   # filename: calc_pi.py
-
-   def recip_square(i):
-       return 1./i**2
-
-   def approx_pi(n=10000000):
-       val = 0.
-       for k in range(1,n+1):
-           val += recip_square(k)
-       return (6 * val)**.5
+.. literalinclude:: ../../examples/tutorial/profiling_tutorial/calc_pi.py
 
 On my box, this needs approximately 4 seconds to run the function with the
 default n. The higher we choose n, the better will be the approximation for
@@ -147,20 +131,9 @@ places to optimize this code. But remember the golden rule of optimization:
 Never optimize without having profiled. Let me repeat this: **Never** optimize
 without having profiled your code. Your thoughts about which part of your
 code takes too much time are wrong. At least, mine are always wrong. So let's
-write a short script to profile our code::
+write a short script to profile our code:
 
-   #!/usr/bin/env python
-   # encoding: utf-8
-   # filename: profile.py
-
-   import pstats, cProfile
-
-   import calc_pi
-
-   cProfile.runctx("calc_pi.approx_pi()", globals(), locals(), "Profile.prof")
-
-   s = pstats.Stats("Profile.prof")
-   s.strip_dirs().sort_stats("time").print_stats()
+.. literalinclude:: ../../examples/tutorial/profiling_tutorial/profile.py
 
 Running this on my box gives the following output:
 
@@ -182,7 +155,7 @@ Running this on my box gives the following output:
 This contains the information that the code runs in 6.2 CPU seconds. Note that
 the code got slower by 2 seconds because it ran inside the cProfile module. The
 table contains the real valuable information.  You might want to check the
-Python `profiling documentation <http://docs.python.org/library/profile.html>`_
+Python `profiling documentation <https://docs.python.org/library/profile.html>`_
 for the nitty gritty details. The most important columns here are totime (total
 time spent in this function **not** counting functions that were called by this
 function) and cumtime (total time spent in this function **also** counting the
@@ -194,45 +167,19 @@ xrange makes the code run in 5.8 seconds.
 
 We could optimize a lot in the pure Python version, but since we are interested
 in Cython, let's move forward and bring this module to Cython. We would do this
-anyway at some time to get the loop run faster. Here is our first Cython version::
+anyway at some time to get the loop run faster. Here is our first Cython version:
 
-   # encoding: utf-8
-   # cython: profile=True
-   # filename: calc_pi.pyx
+.. literalinclude:: ../../examples/tutorial/profiling_tutorial/calc_pi_2.pyx
 
-   def recip_square(int i):
-       return 1./i**2
-
-   def approx_pi(int n=10000000):
-       cdef double val = 0.
-       cdef int k
-       for k in xrange(1,n+1):
-           val += recip_square(k)
-       return (6 * val)**.5
-
-Note the second line: We have to tell Cython that profiling should be enabled.
+Note the first line: We have to tell Cython that profiling should be enabled.
 This makes the Cython code slightly slower, but without this we would not get
 meaningful output from the cProfile module. The rest of the code is mostly
 unchanged, I only typed some variables which will likely speed things up a bit.
 
 We also need to modify our profiling script to import the Cython module directly.
-Here is the complete version adding the import of the pyximport module::
+Here is the complete version adding the import of the :ref:`Pyximport<pyximport>` module:
 
-   #!/usr/bin/env python
-   # encoding: utf-8
-   # filename: profile.py
-
-   import pstats, cProfile
-
-   import pyximport
-   pyximport.install()
-
-   import calc_pi
-
-   cProfile.runctx("calc_pi.approx_pi()", globals(), locals(), "Profile.prof")
-
-   s = pstats.Stats("Profile.prof")
-   s.strip_dirs().sort_stats("time").print_stats()
+.. literalinclude:: ../../examples/tutorial/profiling_tutorial/profile_2.py
 
 We only added two lines, the rest stays completely the same. Alternatively, we could also
 manually compile our code into an extension; we wouldn't need to change the
@@ -261,21 +208,9 @@ so it would be wise to turn it into a cdef to reduce call overhead. We should
 also get rid of the power operator: it is turned into a pow(i,2) function call by
 Cython, but we could instead just write i*i which could be faster. The
 whole function is also a good candidate for inlining.  Let's look at the
-necessary changes for these ideas::
+necessary changes for these ideas:
 
-   # encoding: utf-8
-   # cython: profile=True
-   # filename: calc_pi.pyx
-
-   cdef inline double recip_square(int i):
-       return 1./(i*i)
-
-   def approx_pi(int n=10000000):
-       cdef double val = 0.
-       cdef int k
-       for k in xrange(1,n+1):
-           val += recip_square(k)
-       return (6 * val)**.5
+.. literalinclude:: ../../examples/tutorial/profiling_tutorial/calc_pi_3.pyx
 
 Now running the profile script yields:
 
@@ -298,24 +233,9 @@ That bought us another 1.8 seconds. Not the dramatic change we could have
 expected. And why is recip_square still in this table; it is supposed to be
 inlined, isn't it?  The reason for this is that Cython still generates profiling code
 even if the function call is eliminated. Let's tell it to not
-profile recip_square any more; we couldn't get the function to be much faster anyway::
+profile recip_square any more; we couldn't get the function to be much faster anyway:
 
-   # encoding: utf-8
-   # cython: profile=True
-   # filename: calc_pi.pyx
-
-   cimport cython
-
-   @cython.profile(False)
-   cdef inline double recip_square(int i):
-       return 1./(i*i)
-
-   def approx_pi(int n=10000000):
-       cdef double val = 0.
-       cdef int k
-       for k in xrange(1,n+1):
-           val += recip_square(k)
-       return (6 * val)**.5
+.. literalinclude:: ../../examples/tutorial/profiling_tutorial/calc_pi_4.pyx
 
 Running this shows an interesting result:
 

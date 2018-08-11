@@ -1,6 +1,5 @@
 # mode: run
-# tag: cpp, werror
-# distutils: extra_compile_args=-std=c++0x
+# tag: cpp, werror, cpp11
 
 import sys
 from libcpp.map cimport map
@@ -71,6 +70,16 @@ def test_string_call(a, b):
     'abcxyz'
     """
     return add_strings(a, b)
+
+def test_c_string_convert(char *c_string):
+    """
+    >>> normalize(test_c_string_convert("abc".encode('ascii')))
+    'abc'
+    """
+    cdef string s
+    with nogil:
+        s = c_string
+    return s
 
 def test_int_vector(o):
     """

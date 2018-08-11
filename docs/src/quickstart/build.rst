@@ -4,48 +4,58 @@ Building Cython code
 Cython code must, unlike Python, be compiled. This happens in two stages:
 
  - A ``.pyx`` file is compiled by Cython to a ``.c`` file, containing
-   the code of a Python extension module
+   the code of a Python extension module.
  - The ``.c`` file is compiled by a C compiler to
    a ``.so`` file (or ``.pyd`` on Windows) which can be
    ``import``-ed directly into a Python session.
+   Distutils or setuptools take care of this part.
+   Although Cython can call them for you in certain cases.
+
+To understand fully the Cython + distutils/setuptools build process,
+one may want to read more about
+`distributing Python modules <https://docs.python.org/3/distributing/index.html>`_.
 
 There are several ways to build Cython code:
 
- - Write a distutils ``setup.py``. This is the normal and recommended way.
- - Use ``pyximport``, importing Cython ``.pyx`` files as if they
+ - Write a distutils/setuptools ``setup.py``. This is the normal and recommended way.
+ - Use :ref:`Pyximport<pyximport>`, importing Cython ``.pyx`` files as if they
    were ``.py`` files (using distutils to compile and build in the background).
+   This method is easier than writing a ``setup.py``, but is not very flexible.
+   So you'll need to write a ``setup.py`` if, for example, you need certain compilations options.
  - Run the ``cython`` command-line utility manually to produce the ``.c`` file
    from the ``.pyx`` file, then manually compiling the ``.c`` file into a shared
    object library or DLL suitable for import from Python.
    (These manual steps are mostly for debugging and experimentation.)
  - Use the [Jupyter]_ notebook or the [Sage]_ notebook,
    both of which allow Cython code inline.
+   This is the easiest way to get started writing Cython code and running it.
 
-Currently, distutils is the most common way Cython files are built and distributed. The other methods are described in more detail in the :ref:`compilation` section of the reference manual.
+Currently, using distutils or setuptools is the most common way Cython files are built and distributed.
+The other methods are described in more detail in the :ref:`compilation` section of the reference manual.
 
 
 Building a Cython module using distutils
 ----------------------------------------
 
-Imagine a simple "hello world" script in a file ``hello.pyx``::
+Imagine a simple "hello world" script in a file ``hello.pyx``:
 
-  def say_hello_to(name):
-      print("Hello %s!" % name)
+.. literalinclude:: ../../examples/quickstart/build/hello.pyx
 
-The following could be a corresponding ``setup.py`` script::
+The following could be a corresponding ``setup.py`` script:
 
-  from distutils.core import setup
-  from Cython.Build import cythonize
-
-  setup(
-    name = 'Hello world app',
-    ext_modules = cythonize("hello.pyx"),
-  )
+.. literalinclude:: ../../examples/quickstart/build/setup.py
 
 To build, run ``python setup.py build_ext --inplace``.  Then simply
 start a Python session and do ``from hello import say_hello_to`` and
 use the imported function as you see fit.
 
+One caveat if you use setuptools instead of distutils, the default
+action when running ``python setup.py install`` is to create a zipped
+``egg`` file which will not work with ``cimport`` for ``pxd`` files
+when you try to use them from a dependent package.
+To prevent this, include ``zip_safe=False`` in the arguments to ``setup()``.
+
+.. _jupyter-notebook:
 
 Using the Jupyter notebook
 --------------------------
@@ -59,8 +69,8 @@ use pip:
     (venv)$ pip install jupyter
     (venv)$ jupyter notebook
 
-To enable support for Cython compilation, install Cython and load the
-``Cython`` extension from within the Jupyter notebook::
+To enable support for Cython compilation, install Cython as described in :ref:`the installation guide<install>`
+and load the ``Cython`` extension from within the Jupyter notebook::
 
     %load_ext Cython
 
@@ -80,6 +90,8 @@ You can show Cython's code analysis by passing the ``--annotate`` option::
 
 .. figure:: jupyter.png
 
+For more information about the arguments of the ``%%cython`` magic, see
+:ref:`Compiling with a Jupyter Notebook <compiling_notebook>`.
 
 Using the Sage notebook
 -----------------------
@@ -93,4 +105,4 @@ Using the Sage notebook
 
 
 .. [Jupyter] http://jupyter.org/
-.. [Sage] W. Stein et al., Sage Mathematics Software, http://sagemath.org
+.. [Sage] W. Stein et al., Sage Mathematics Software, http://www.sagemath.org/

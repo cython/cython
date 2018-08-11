@@ -14,8 +14,8 @@ cdef class TreeVisitor:
     cpdef visitchildren(self, parent, attrs=*)
 
 cdef class VisitorTransform(TreeVisitor):
+    cdef dict _process_children(self, parent, attrs=*)
     cpdef visitchildren(self, parent, attrs=*)
-    cpdef recurse_to_children(self, node)
 
 cdef class CythonTransform(VisitorTransform):
     cdef public context

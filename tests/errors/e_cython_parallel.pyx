@@ -149,6 +149,7 @@ with nogil, cython.parallel.parallel():
     with cython.parallel.parallel():
         pass
 
+
 _ERRORS = u"""
 3:8: cython.parallel.parallel is not a module
 4:0: No such directive: cython.parallel.something

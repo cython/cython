@@ -119,6 +119,41 @@ def test_fused_with_pointer():
     print
     print fused_with_pointer(string_array).decode('ascii')
 
+cdef fused_type1* fused_pointer_except_null(fused_type1* x) except NULL:
+    if fused_type1 is string_t:
+        assert(bool(x[0]))
+    else:
+        assert(x[0] < 10)
+    return x
+
+def test_fused_pointer_except_null(value):
+    """
+    >>> test_fused_pointer_except_null(1)
+    1
+    >>> test_fused_pointer_except_null(2.0)
+    2.0
+    >>> test_fused_pointer_except_null(b'foo')
+    foo
+    >>> test_fused_pointer_except_null(16)
+    Traceback (most recent call last):
+    AssertionError
+    >>> test_fused_pointer_except_null(15.1)
+    Traceback (most recent call last):
+    AssertionError
+    >>> test_fused_pointer_except_null(b'')
+    Traceback (most recent call last):
+    AssertionError
+    """
+    if isinstance(value, int):
+        test_int = cython.declare(cython.int, value)
+        print fused_pointer_except_null(&test_int)[0]
+    elif isinstance(value, float):
+        test_float = cython.declare(cython.float, value)
+        print fused_pointer_except_null(&test_float)[0]
+    elif isinstance(value, bytes):
+        test_str = cython.declare(string_t, value)
+        print fused_pointer_except_null(&test_str)[0].decode('ascii')
+
 include "cythonarrayutil.pxi"
 
 cpdef cython.integral test_fused_memoryviews(cython.integral[:, ::1] a):

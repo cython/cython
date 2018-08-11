@@ -171,6 +171,31 @@ def test_dynamic_defaults_fused():
         print "i", i, "func result", f(1.0), "defaults", get_defaults(f)
 
 
+def test_memoryview_none(const unsigned char[:] b=None):
+    """
+    >>> test_memoryview_none()
+    >>> test_memoryview_none(None)
+    >>> test_memoryview_none(b'abc')
+    97
+    """
+    if b is None:
+        return None
+    return b[0]
+
+
+def test_memoryview_bytes(const unsigned char[:] b=b'xyz'):
+    """
+    >>> test_memoryview_bytes()
+    120
+    >>> test_memoryview_bytes(None)
+    >>> test_memoryview_bytes(b'abc')
+    97
+    """
+    if b is None:
+        return None
+    return b[0]
+
+
 @cython.test_fail_if_path_exists(
     '//NameNode[@entry.in_closure = True]',
     '//NameNode[@entry.from_closure = True]')

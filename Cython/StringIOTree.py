@@ -1,7 +1,44 @@
+# cython: auto_pickle=False
+
+r"""
+Implements a buffer with insertion points. When you know you need to
+"get back" to a place and write more later, simply call insertion_point()
+at that spot and get a new StringIOTree object that is "left behind".
+
+EXAMPLE:
+
+>>> a = StringIOTree()
+>>> _= a.write('first\n')
+>>> b = a.insertion_point()
+>>> _= a.write('third\n')
+>>> _= b.write('second\n')
+>>> a.getvalue().split()
+['first', 'second', 'third']
+
+>>> c = b.insertion_point()
+>>> d = c.insertion_point()
+>>> _= d.write('alpha\n')
+>>> _= b.write('gamma\n')
+>>> _= c.write('beta\n')
+>>> b.getvalue().split()
+['second', 'alpha', 'beta', 'gamma']
+
+>>> i = StringIOTree()
+>>> d.insert(i)
+>>> _= i.write('inserted\n')
+>>> out = StringIO()
+>>> a.copyto(out)
+>>> out.getvalue().split()
+['first', 'second', 'alpha', 'inserted', 'beta', 'gamma', 'third']
+"""
+
+from __future__ import absolute_import  #, unicode_literals
+
 try:
+    # Prefer cStringIO since io.StringIO() does not support writing 'str' in Py2.
     from cStringIO import StringIO
 except ImportError:
-    from io import StringIO  # does not support writing 'str' in Py2
+    from io import StringIO
 
 
 class StringIOTree(object):
@@ -69,35 +106,3 @@ class StringIOTree(object):
     def allmarkers(self):
         children = self.prepended_children
         return [m for c in children for m in c.allmarkers()] + self.markers
-
-
-__doc__ = r"""
-Implements a buffer with insertion points. When you know you need to
-"get back" to a place and write more later, simply call insertion_point()
-at that spot and get a new StringIOTree object that is "left behind".
-
-EXAMPLE:
-
->>> a = StringIOTree()
->>> _= a.write('first\n')
->>> b = a.insertion_point()
->>> _= a.write('third\n')
->>> _= b.write('second\n')
->>> a.getvalue().split()
-['first', 'second', 'third']
-
->>> c = b.insertion_point()
->>> d = c.insertion_point()
->>> _= d.write('alpha\n')
->>> _= b.write('gamma\n')
->>> _= c.write('beta\n')
->>> b.getvalue().split()
-['second', 'alpha', 'beta', 'gamma']
->>> i = StringIOTree()
->>> d.insert(i)
->>> _= i.write('inserted\n')
->>> out = StringIO()
->>> a.copyto(out)
->>> out.getvalue().split()
-['first', 'second', 'alpha', 'inserted', 'beta', 'gamma', 'third']
-"""

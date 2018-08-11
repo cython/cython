@@ -146,4 +146,4 @@ cdef extern from "Python.h":
     # pointer. If pylong cannot be converted, an OverflowError will be
     # raised. This is only assured to produce a usable void pointer
     # for values created with PyLong_FromVoidPtr(). For values outside
-    # 0..LONG_MAX, both signed and unsigned integers are acccepted.
+    # 0..LONG_MAX, both signed and unsigned integers are accepted.

@@ -9,15 +9,21 @@ bottom. Some of these methods behave differently from their Python
 counterparts or have no direct Python counterparts, and require special
 mention.
 
-.. Note: Everything said on this page applies only to extension types, defined
+.. Note::
+
+    Everything said on this page applies only to extension types, defined
     with the :keyword:`cdef class` statement. It doesn't apply to classes defined with the
     Python :keyword:`class` statement, where the normal Python rules apply.
+
+.. _declaration:
 
 Declaration
 ------------
 Special methods of extension types must be declared with :keyword:`def`, not
 :keyword:`cdef`. This does not impact their performance--Python uses different
 calling conventions to invoke these special methods.
+
+.. _docstrings:
 
 Docstrings
 -----------
@@ -27,6 +33,8 @@ types. You can place a docstring in the source to serve as a comment, but it
 won't show up in the corresponding :attr:`__doc__` attribute at run time. (This
 seems to be is a Python limitation -- there's nowhere in the `PyTypeObject`
 data structure to put such docstrings.)
+
+.. _initialisation_methods:
 
 Initialisation methods: :meth:`__cinit__` and :meth:`__init__`
 ---------------------------------------------------------------
@@ -71,13 +79,20 @@ your :meth:`__cinit__`` method to take no arguments (other than self) it
 will simply ignore any extra arguments passed to the constructor without
 complaining about the signature mismatch.
 
-.. Note: Older Cython files may use :meth:`__new__` rather than :meth:`__cinit__`. The two are synonyms.
-  The name change from :meth:`__new__` to :meth:`__cinit__` was to avoid
-  confusion with Python :meth:`__new__` (which is an entirely different
-  concept) and eventually the use of :meth:`__new__` in Cython will be
-  disallowed to pave the way for supporting Python-style :meth:`__new__`
+..  Note::
 
-.. [#] http://docs.python.org/reference/datamodel.html#object.__new__
+    All constructor arguments will be passed as Python objects.
+    This implies that non-convertible C types such as pointers or C++ objects
+    cannot be passed into the constructor from Cython code.  If this is needed,
+    use a factory function instead that handles the object initialisation.
+    It often helps to directly call ``__new__()`` in this function to bypass the
+    call to the ``__init__()`` constructor.
+
+    See :ref:`existing-pointers-instantiation` for an example.
+
+.. [#] https://docs.python.org/reference/datamodel.html#object.__new__
+
+.. _finalization_method:
 
 Finalization method: :meth:`__dealloc__`
 ----------------------------------------
@@ -106,6 +121,8 @@ executed unless they are explicitly called by the subclass.
 
 .. Note:: There is no :meth:`__del__` method for extension types.
 
+.. _arithmetic_methods:
+
 Arithmetic methods
 -------------------
 
@@ -124,31 +141,41 @@ This also applies to the in-place arithmetic method :meth:`__ipow__`. It doesn't
 to any of the other in-place methods (:meth:`__iadd__`, etc.) which always
 take `self` as the first argument.
 
+.. _righ_comparisons:
+
 Rich comparisons
 -----------------
 
-Starting with Cython 0.27, the Python
-`special methods <https://docs.python.org/3/reference/datamodel.html#basic-customization>`_
-:meth:``__eq__``, :meth:``__lt__``, etc. can be implemented.  In previous versions,
-:meth:``__richcmp__`` was the only way to implement rich comparisons.  It takes an integer
-indicating which operation is to be performed, as follows:
+There are two ways to implement comparison methods.
+Depending on the application, one way or the other may be better:
 
-+-----+-----+-------+
-|  <  |  0  | Py_LT |
-+-----+-----+-------+
-| ==  |  2  | Py_EQ |
-+-----+-----+-------+
-|  >  |  4  | Py_GT |
-+-----+-----+-------+
-| <=  |  1  | Py_LE |
-+-----+-----+-------+
-| !=  |  3  | Py_NE |
-+-----+-----+-------+
-| >=  |  5  | Py_GE |
-+-----+-----+-------+
+* The first way uses the 6 Python
+  `special methods <https://docs.python.org/3/reference/datamodel.html#basic-customization>`_
+  :meth:`__eq__`, :meth:`__lt__`, etc.
+  This is new since Cython 0.27 and works exactly as in plain Python classes.
+* The second way uses a single special method :meth:`__richcmp__`.
+  This implements all rich comparison operations in one method.
+  The signature is ``def __richcmp__(self, other, int op)``.
+  The integer argument ``op`` indicates which operation is to be performed
+  as shown in the table below:
 
-The named constants can be cimported from the ``cpython.object`` module.
-They should generally be preferred over plain integers to improve readabilty.
+  +-----+-------+
+  |  <  | Py_LT |
+  +-----+-------+
+  | ==  | Py_EQ |
+  +-----+-------+
+  |  >  | Py_GT |
+  +-----+-------+
+  | <=  | Py_LE |
+  +-----+-------+
+  | !=  | Py_NE |
+  +-----+-------+
+  | >=  | Py_GE |
+  +-----+-------+
+
+  These constants can be cimported from the ``cpython.object`` module.
+
+.. _the__next__method:
 
 The :meth:`__next__` method
 ----------------------------
@@ -157,6 +184,8 @@ Extension types wishing to implement the iterator interface should define a
 method called :meth:`__next__`, not next. The Python system will automatically
 supply a next method which calls your :meth:`__next__`. Do *NOT* explicitly
 give your type a :meth:`next` method, or bad things could happen.
+
+.. _special_methods_table:
 
 Special Method Table
 ---------------------
@@ -209,9 +238,13 @@ Rich comparison operators
 
 https://docs.python.org/3/reference/datamodel.html#basic-customization
 
+You can choose to either implement the standard Python special methods
+like :meth:`__eq__` or the single special method :meth:`__richcmp__`.
+Depending on the application, one way or the other may be better.
+
 +-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
-| __richcmp__           |x, y, int op                           | object      | Rich comparison (no direct Python equivalent)          |
-+-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
+| Name 	                | Parameters                            | Return type | 	Description                                    |
++=======================+=======================================+=============+========================================================+
 | __eq__                |self, y                                | object      | self == y                                              |
 +-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
 | __ne__                |self, y                                | object      | self != y  (falls back to ``__eq__`` if not available) |
@@ -223,6 +256,9 @@ https://docs.python.org/3/reference/datamodel.html#basic-customization
 | __le__                |self, y                                | object      | self <= y                                              |
 +-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
 | __ge__                |self, y                                | object      | self >= y                                              |
++-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
+| __richcmp__           |self, y, int op                        | object      | Joined rich comparison method for all of the above     |
+|                       |                                       |             | (no direct Python equivalent)                          |
 +-----------------------+---------------------------------------+-------------+--------------------------------------------------------+
 
 Arithmetic operators

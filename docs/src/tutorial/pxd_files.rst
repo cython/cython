@@ -1,3 +1,5 @@
+.. _pxd_files:
+
 pxd files
 =========
 

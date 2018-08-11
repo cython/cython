@@ -2,6 +2,13 @@ cdef extern from "<list>" namespace "std" nogil:
     cdef cppclass list[T,ALLOCATOR=*]:
         ctypedef T value_type
         ctypedef ALLOCATOR allocator_type
+
+        # these should really be allocator_type.size_type and
+        # allocator_type.difference_type to be true to the C++ definition
+        # but cython doesn't support deferred access on template arguments
+        ctypedef size_t size_type
+        ctypedef ptrdiff_t difference_type
+
         cppclass iterator:
             iterator()
             iterator(iterator &)

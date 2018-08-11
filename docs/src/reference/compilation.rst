@@ -21,30 +21,46 @@ extension modules, and how to pass directives to the Cython compiler.
 Compiling from the command line
 ===============================
 
-Run the Cython compiler command with your options and list of ``.pyx``
-files to generate.  For example::
+Run the ``cythonize`` compiler command with your options and list of
+``.pyx`` files to generate.  For example::
 
-    $ cython -a yourmod.pyx
+    $ cythonize -a -i yourmod.pyx
 
-This creates a ``yourmod.c`` file, and the ``-a`` switch produces an
-annotated html file of the source code.  Pass the ``-h`` flag for a
-complete list of supported flags.
+This creates a ``yourmod.c`` file (or ``yourmod.cpp`` in C++ mode), compiles it,
+and puts the resulting extension module (``.so`` or ``.pyd``, depending on your
+platform) next to the source file for direct import (``-i`` builds "in place").
+The ``-a`` switch additionally produces an annotated html file of the source code.
 
-Compiling your ``.c`` files will vary depending on your operating
-system.  Python documentation for writing extension modules should
-have some details for your system.  Here we give an example on a Linux
-system::
+The ``cythonize`` command accepts multiple source files and glob patterns like
+``**/*.pyx`` as argument and also understands the common ``-j`` option for
+running multiple parallel build jobs.  When called without further options, it
+will only translate the source files to ``.c`` or ``.cpp`` files.  Pass the
+``-h`` flag for a complete list of supported options.
+
+There is also a simpler command line tool named ``cython`` which only invokes
+the source code translator.
+
+In the case of manual compilation, how to compile your ``.c`` files will vary
+depending on your operating system and compiler.  The Python documentation for
+writing extension modules should have some details for your system.  On a Linux
+system, for example, it might look similar to this::
 
     $ gcc -shared -pthread -fPIC -fwrapv -O2 -Wall -fno-strict-aliasing \
-          -I/usr/include/python2.7 -o yourmod.so yourmod.c
+          -I/usr/include/python3.5 -o yourmod.so yourmod.c
 
-[``gcc`` will need to have paths to your included header files and
-paths to libraries you need to link with]
+(``gcc`` will need to have paths to your included header files and paths
+to libraries you want to link with.)
 
-A ``yourmod.so`` file is now in the same directory and your module,
-``yourmod``, is available for you to import as you normally would.
+After compilation, a ``yourmod.so`` (:file:`yourmod.pyd` for Windows)
+file is written into the target directory
+and your module, ``yourmod``, is available for you to import as with any other
+Python module.  Note that if you are not relying on ``cythonize`` or distutils,
+you will not automatically benefit from the platform specific file extension
+that CPython generates for disambiguation, such as
+``yourmod.cpython-35m-x86_64-linux-gnu.so`` on a regular 64bit Linux installation
+of CPython 3.5.
 
-
+.. _compiling-distutils:
 Compiling with ``distutils``
 ============================
 
@@ -89,7 +105,13 @@ the necessary include files, e.g. for NumPy::
 
     include_path = [numpy.get_include()]
 
-Note for Numpy users.  Despite this, you will still get warnings like the
+.. note::
+
+    Using memoryviews or importing NumPy with ``import numpy`` does not mean that
+    you have to add the path to NumPy include files. You need to add this path only
+    if you use ``cimport numpy``.
+
+Despite this, you will still get warnings like the
 following from the compiler, because Cython is using a deprecated Numpy API::
 
    .../include/numpy/npy_1_7_deprecated_api.h:15:2: warning: #warning "Using deprecated NumPy API, disable it by " "#defining NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION" [-Wcpp]
@@ -124,6 +146,12 @@ in one line)::
 Note that when using setuptools, you should import it before Cython as
 setuptools may replace the ``Extension`` class in distutils.  Otherwise,
 both might disagree about the class to use here.
+
+Note also that if you use setuptools instead of distutils, the default
+action when running ``python setup.py install`` is to create a zipped
+``egg`` file which will not work with ``cimport`` for ``pxd`` files
+when you try to use them from a dependent package.
+To prevent this, include ``zip_safe=False`` in the arguments to ``setup()``.
 
 If your options are static (for example you do not need to call a tool like
 ``pkg-config`` to determine them) you can also provide them directly in your
@@ -163,7 +191,7 @@ be found in the `distutils documentation`_. Some useful options to know about
 are ``include_dirs``, ``libraries``, and ``library_dirs`` which specify where
 to find the ``.h`` and library files when linking to external libraries.
 
-.. _distutils documentation: http://docs.python.org/extending/building.html
+.. _distutils documentation: https://docs.python.org/extending/building.html
 
 Sometimes this is not enough and you need finer customization of the
 distutils :class:`Extension`.
@@ -215,6 +243,58 @@ Just as an example, this adds ``mylib`` as library to every extension::
     If you Cythonize in parallel (using the ``nthreads`` argument),
     then the argument to ``create_extension`` must be pickleable.
     In particular, it cannot be a lambda function.
+
+Cythonize arguments
+-------------------
+
+The function :func:`cythonize` can take extra arguments which will allow you to
+customize your build.
+
+.. autofunction:: Cython.Build.cythonize
+
+
+
+Compiler options
+----------------
+
+Compiler options can be set in the :file:`setup.py`, before calling :func:`cythonize`,
+like this::
+
+    from distutils.core import setup
+
+    from Cython.Build import cythonize
+    from Cython.Compiler import Options
+
+    Options.docstrings = False
+
+    setup(
+        name = "hello",
+        ext_modules = cythonize("lib.pyx"),
+    )
+
+Here are the options that are available:
+
+.. autodata:: Cython.Compiler.Options.docstrings
+.. autodata:: Cython.Compiler.Options.embed_pos_in_docstring
+.. autodata:: Cython.Compiler.Options.emit_code_comments
+.. pre_import
+.. autodata:: Cython.Compiler.Options.generate_cleanup_code
+.. autodata:: Cython.Compiler.Options.clear_to_none
+.. autodata:: Cython.Compiler.Options.annotate
+.. annotate_coverage_xml
+.. autodata:: Cython.Compiler.Options.fast_fail
+.. autodata:: Cython.Compiler.Options.warning_errors
+.. autodata:: Cython.Compiler.Options.error_on_unknown_names
+.. autodata:: Cython.Compiler.Options.error_on_uninitialized
+.. autodata:: Cython.Compiler.Options.convert_range
+.. autodata:: Cython.Compiler.Options.cache_builtins
+.. autodata:: Cython.Compiler.Options.gcc_branch_hints
+.. autodata:: Cython.Compiler.Options.lookup_module_cpdef
+.. autodata:: Cython.Compiler.Options.embed
+.. old_style_globals
+.. autodata:: Cython.Compiler.Options.cimport_from_pyx
+.. autodata:: Cython.Compiler.Options.buffer_max_dims
+.. autodata:: Cython.Compiler.Options.closure_freelist_size
 
 
 Distributing Cython modules
@@ -309,6 +389,12 @@ e.g.::
 These ``.pxd`` files need not have corresponding ``.pyx``
 modules if they contain purely declarations of external libraries.
 
+Remember that if you use setuptools instead of distutils, the default
+action when running ``python setup.py install`` is to create a zipped
+``egg`` file which will not work with ``cimport`` for ``pxd`` files
+when you try to use them from a dependent package.
+To prevent this, include ``zip_safe=False`` in the arguments to ``setup()``.
+
 
 Integrating multiple modules
 ============================
@@ -357,6 +443,7 @@ C-compiling the module C files.
 Also take a look at the `cython_freeze
 <https://github.com/cython/cython/blob/master/bin/cython_freeze>`_ tool.
 
+.. _pyximport:
 
 Compiling with :mod:`pyximport`
 ===============================
@@ -387,6 +474,64 @@ on end user side as it hooks into their import system.  The best way
 to cater for end users is to provide pre-built binary packages in the
 `wheel <https://wheel.readthedocs.io/>`_ packaging format.
 
+
+Arguments
+---------
+
+The function ``pyximport.install()`` can take several arguments to
+influence the compilation of Cython or Python files.
+
+.. autofunction:: pyximport.install
+
+
+Dependency Handling
+--------------------
+
+Since :mod:`pyximport` does not use :func:`cythonize()` internally, it currently
+requires a different setup for dependencies.  It is possible to declare that
+your module depends on multiple files, (likely ``.h`` and ``.pxd`` files).
+If your Cython module is named ``foo`` and thus has the filename
+:file:`foo.pyx` then you should create another file in the same directory
+called :file:`foo.pyxdep`.  The :file:`modname.pyxdep` file can be a list of
+filenames or "globs" (like ``*.pxd`` or ``include/*.h``).  Each filename or
+glob must be on a separate line.  Pyximport will check the file date for each
+of those files before deciding whether to rebuild the module.  In order to
+keep track of the fact that the dependency has been handled, Pyximport updates
+the modification time of your ".pyx" source file.  Future versions may do
+something more sophisticated like informing distutils of the dependencies
+directly.
+
+
+Limitations
+------------
+
+:mod:`pyximport` does not use :func:`cythonize()`. Thus it is not
+possible to do things like using compiler directives at
+the top of Cython files or compiling Cython code to C++.
+
+Pyximport does not give you any control over how your Cython file is
+compiled.  Usually the defaults are fine.  You might run into problems if
+you wanted to write your program in half-C, half-Cython and build them
+into a single library.
+
+Pyximport does not hide the Distutils/GCC warnings and errors generated
+by the import process.  Arguably this will give you better feedback if
+something went wrong and why.  And if nothing went wrong it will give you
+the warm fuzzy feeling that pyximport really did rebuild your module as it
+was supposed to.
+
+Basic module reloading support is available with the option ``reload_support=True``.
+Note that this will generate a new module filename for each build and thus
+end up loading multiple shared libraries into memory over time. CPython has limited
+support for reloading shared libraries as such,
+see `PEP 489 <https://www.python.org/dev/peps/pep-0489/>`_.
+
+Pyximport puts both your ``.c`` file and the platform-specific binary into
+a separate build directory, usually ``$HOME/.pyxblx/``.  To copy it back
+into the package hierarchy (usually next to the source file) for manual
+reuse, you can pass the option ``inplace=True``.
+
+
 Compiling with ``cython.inline``
 =================================
 
@@ -414,6 +559,69 @@ running session.  Please check `Sage documentation
 You can tailor the behavior of the Cython compiler by specifying the
 directives below.
 
+.. _compiling_notebook:
+
+Compiling with a Jupyter Notebook
+=================================
+
+It's possible to compile code in a notebook cell with Cython.
+For this you need to load the Cython magic::
+
+    %load_ext cython
+
+Then you can define a Cython cell by writing ``%%cython`` on top of it.
+Like this::
+
+    %%cython
+
+    cdef int a = 0
+    for i in range(10):
+        a += i
+    print(a)
+
+Note that each cell will be compiled into a separate extension module. So if you use a package in a Cython
+cell, you will have to import this package in the same cell. It's not enough to
+have imported the package in a previous cell. Cython will tell you that there are
+"undefined global names" at compilation time if you don't comply.
+
+The global names (top level functions, classes, variables and modules) of the
+cell are then loaded into the global namespace of the notebook. So in the
+end, it behaves as if you executed a Python cell.
+
+Additional allowable arguments to the Cython magic are listed below.
+You can see them also by typing ```%%cython?`` in IPython or a Jupyter notebook.
+
+============================================  =======================================================================================================================================
+
+-a, --annotate                                Produce a colorized HTML version of the source.
+
+-+, --cplus                                   Output a C++ rather than C file.
+
+-f, --force                                   Force the compilation of a new module, even if the source has been previously compiled.
+
+-3                                            Select Python 3 syntax
+
+-2                                            Select Python 2 syntax
+
+-c=COMPILE_ARGS, --compile-args=COMPILE_ARGS  Extra flags to pass to compiler via the extra_compile_args.
+
+--link-args LINK_ARGS                         Extra flags to pass to linker via the extra_link_args.
+
+-l LIB, --lib LIB                             Add a library to link the extension against (can be specified multiple times).
+
+-L dir                                        Add a path to the list of library directories (can be specified multiple times).
+
+-I INCLUDE, --include INCLUDE                 Add a path to the list of include directories (can be specified multiple times).
+
+-S, --src                                     Add a path to the list of src files (can be specified multiple times).
+
+-n NAME, --name NAME                          Specify a name for the Cython module.
+
+--pgo                                         Enable profile guided optimisation in the C compiler. Compiles the cell twice and executes it in between to generate a runtime profile.
+
+--verbose                                     Print debug information like generated .c/.cpp file location and exact gcc/g++ command invoked.
+============================================  =======================================================================================================================================
+
 .. _compiler-directives:
 
 Compiler directives
@@ -436,17 +644,25 @@ Cython code.  Here is the list of currently supported directives:
     ([]-operator) in the code will not cause any IndexErrors to be
     raised. Lists, tuples, and strings are affected only if the index
     can be determined to be non-negative (or if ``wraparound`` is False).
-    Conditions
-    which would normally trigger an IndexError may instead cause
+    Conditions which would normally trigger an IndexError may instead cause
     segfaults or data corruption if this is set to False.
     Default is True.
 
 ``wraparound``  (True / False)
-    In Python arrays can be indexed relative to the end. For example
-    A[-1] indexes the last value of a list. In C negative indexing is
-    not supported. If set to False, Cython will neither check for nor
-    correctly handle negative indices, possibly causing segfaults or
-    data corruption.
+    In Python, arrays and sequences can be indexed relative to the end.
+    For example, A[-1] indexes the last value of a list.
+    In C, negative indexing is not supported.
+    If set to False, Cython is allowed to neither check for nor correctly
+    handle negative indices, possibly causing segfaults or data corruption.
+    If bounds checks are enabled (the default, see ``boundschecks`` above),
+    negative indexing will usually raise an ``IndexError`` for indices that
+    Cython evaluates itself.
+    However, these cases can be difficult to recognise in user code to
+    distinguish them from indexing or slicing that is evaluated by the
+    underlying Python array or sequence object and thus continues to support
+    wrap-around indices.
+    It is therefore safest to apply this option only to code that does not
+    process negative indices at all.
     Default is True.
 
 ``initializedcheck`` (True / False)
@@ -530,9 +746,9 @@ Cython code.  Here is the list of currently supported directives:
     compilation.  Default is compatibility with Python 2.  To enable
     Python 3 source code semantics, set this to 3 at the start of a
     module or pass the "-3" command line option to the compiler.
-    Note that cimported and included source files inherit this
-    setting from the module being compiled, unless they explicitly
-    set their own language level.
+    Note that cimported files inherit this setting from the module
+    being compiled, unless they explicitly set their own language level.
+    Included source files always inherit this setting.
 
 ``c_string_type`` (bytes / str / unicode)
     Globally set the type of an implicit coercion from char* or std::string.
@@ -554,6 +770,16 @@ Cython code.  Here is the list of currently supported directives:
 ``unraisable_tracebacks`` (True / False)
     Whether to print tracebacks when suppressing unraisable exceptions.
 
+``iterable_coroutine`` (True / False)
+    `PEP 492 <https://www.python.org/dev/peps/pep-0492/>`_ specifies that async-def
+    coroutines must not be iterable, in order to prevent accidental misuse in
+    non-async contexts.  However, this makes it difficult and inefficient to write
+    backwards compatible code that uses async-def coroutines in Cython but needs to
+    interact with async Python code that uses the older yield-from syntax, such as
+    asyncio before Python 3.5.  This directive can be applied in modules or
+    selectively as decorator on an async-def coroutine to make the affected
+    coroutine(s) iterable and thus directly interoperable with yield-from.
+
 
 Configurable optimisations
 --------------------------
@@ -572,6 +798,37 @@ Configurable optimisations
     have a slight negative performance impact in some cases where the guess goes
     completely wrong.
     Disabling this option can also reduce the code size.  Default is True.
+
+Warnings
+--------
+
+All warning directives take True / False as options
+to turn the warning on / off.
+
+``warn.undeclared`` (default False)
+    Warns about any variables that are implicitly declared without a ``cdef`` declaration
+
+``warn.unreachable`` (default True)
+    Warns about code paths that are statically determined to be unreachable, e.g.
+    returning twice unconditionally.
+
+``warn.maybe_uninitialized`` (default False)
+    Warns about use of variables that are conditionally uninitialized.
+
+``warn.unused`` (default False)
+    Warns about unused variables and declarations
+
+``warn.unused_arg`` (default False)
+    Warns about unused function arguments
+
+``warn.unused_result`` (default False)
+    Warns about unused assignment to the same name, such as
+    ``r = 2; r = 1 + 2``
+
+``warn.multiple_declarators`` (default True)
+   Warns about multiple variables declared on the same line with at least one pointer type.
+   For example ``cdef double* a, b`` - which, as in C, declares ``a`` as a pointer, ``b`` as
+   a value type, but could be mininterpreted as declaring two pointers.
 
 
 How to set directives

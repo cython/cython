@@ -378,7 +378,7 @@ class SimpleAssignmentTypeInferer(object):
                     self.set_entry_type(entry, py_object_type)
             return
 
-        # Set of assignemnts
+        # Set of assignments
         assignments = set()
         assmts_resolved = set()
         dependencies = {}

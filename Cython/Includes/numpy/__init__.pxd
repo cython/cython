@@ -19,7 +19,7 @@ DEF _buffer_format_string_len = 255
 cimport cpython.buffer as pybuf
 from cpython.ref cimport Py_INCREF, Py_XDECREF
 from cpython.mem cimport PyObject_Malloc, PyObject_Free
-from cpython.object cimport PyObject
+from cpython.object cimport PyObject, PyTypeObject
 from cpython.type cimport type
 cimport libc.stdio as stdio
 
@@ -90,6 +90,14 @@ cdef extern from "numpy/arrayobject.h":
         NPY_ANYORDER
         NPY_CORDER
         NPY_FORTRANORDER
+        NPY_KEEPORDER
+
+    ctypedef enum NPY_CASTING:
+        NPY_NO_CASTING
+        NPY_EQUIV_CASTING
+        NPY_SAFE_CASTING
+        NPY_SAME_KIND_CASTING
+        NPY_UNSAFE_CASTING
 
     ctypedef enum NPY_CLIPMODE:
         NPY_CLIP
@@ -163,6 +171,7 @@ cdef extern from "numpy/arrayobject.h":
     ctypedef class numpy.dtype [object PyArray_Descr]:
         # Use PyDataType_* macros when possible, however there are no macros
         # for accessing some of the fields, so some are defined.
+        cdef PyTypeObject* typeobj;
         cdef char kind
         cdef char type
         # Numpy sometimes mutates this without warning (e.g. it'll
@@ -217,18 +226,11 @@ cdef extern from "numpy/arrayobject.h":
             # In particular strided access is always provided regardless
             # of flags
 
-            if info == NULL: return
-
-            cdef int copy_shape, i, ndim
+            cdef int i, ndim
             cdef int endian_detector = 1
             cdef bint little_endian = ((<char*>&endian_detector)[0] != 0)
 
             ndim = PyArray_NDIM(self)
-
-            if sizeof(npy_intp) != sizeof(Py_ssize_t):
-                copy_shape = 1
-            else:
-                copy_shape = 0
 
             if ((flags & pybuf.PyBUF_C_CONTIGUOUS == pybuf.PyBUF_C_CONTIGUOUS)
                 and not PyArray_CHKFLAGS(self, NPY_C_CONTIGUOUS)):
@@ -240,7 +242,7 @@ cdef extern from "numpy/arrayobject.h":
 
             info.buf = PyArray_DATA(self)
             info.ndim = ndim
-            if copy_shape:
+            if sizeof(npy_intp) != sizeof(Py_ssize_t):
                 # Allocate new buffer for strides and shape info.
                 # This is allocated as one block, strides first.
                 info.strides = <Py_ssize_t*>PyObject_Malloc(sizeof(Py_ssize_t) * 2 * <size_t>ndim)
@@ -260,16 +262,9 @@ cdef extern from "numpy/arrayobject.h":
             cdef dtype descr = self.descr
             cdef int offset
 
-            cdef bint hasfields = PyDataType_HASFIELDS(descr)
+            info.obj = self
 
-            if not hasfields and not copy_shape:
-                # do not call releasebuffer
-                info.obj = None
-            else:
-                # need to call releasebuffer
-                info.obj = self
-
-            if not hasfields:
+            if not PyDataType_HASFIELDS(descr):
                 t = descr.type_num
                 if ((descr.byteorder == c'>' and little_endian) or
                     (descr.byteorder == c'<' and not little_endian)):
@@ -408,7 +403,7 @@ cdef extern from "numpy/arrayobject.h":
     npy_intp PyArray_DIM(ndarray, size_t)
     npy_intp PyArray_STRIDE(ndarray, size_t)
 
-    # object PyArray_BASE(ndarray) wrong refcount semantics
+    PyObject *PyArray_BASE(ndarray)  # returns borrowed reference!
     # dtype PyArray_DESCR(ndarray) wrong refcount semantics
     int PyArray_FLAGS(ndarray)
     npy_intp PyArray_ITEMSIZE(ndarray)
@@ -732,6 +727,7 @@ cdef extern from "numpy/arrayobject.h":
     object PyArray_CheckAxis (ndarray, int *, int)
     npy_intp PyArray_OverflowMultiplyList (npy_intp *, int)
     int PyArray_CompareString (char *, char *, size_t)
+    int PyArray_SetBaseObject(ndarray, base)  # NOTE: steals a reference to base! Use "set_array_base()" instead.
 
 
 # Typedefs that matches the runtime dtype objects in
@@ -986,23 +982,15 @@ cdef extern from "numpy/ufuncobject.h":
 
     int _import_umath() except -1
 
-
 cdef inline void set_array_base(ndarray arr, object base):
-     cdef PyObject* baseptr
-     if base is None:
-         baseptr = NULL
-     else:
-         Py_INCREF(base) # important to do this before decref below!
-         baseptr = <PyObject*>base
-     Py_XDECREF(arr.base)
-     arr.base = baseptr
+    Py_INCREF(base) # important to do this before stealing the reference below!
+    PyArray_SetBaseObject(arr, base)
 
 cdef inline object get_array_base(ndarray arr):
-    if arr.base is NULL:
+    base = PyArray_BASE(arr)
+    if base is NULL:
         return None
-    else:
-        return <object>arr.base
-
+    return <object>base
 
 # Versions of the import_* functions which are more suitable for
 # Cython code.

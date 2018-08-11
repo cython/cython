@@ -14,7 +14,7 @@ Magic command interface for interactive work with Cython
 Usage
 =====
 
-To enable the magics below, execute ``%load_ext cythonmagic``.
+To enable the magics below, execute ``%load_ext cython``.
 
 ``%%cython``
 
@@ -166,11 +166,15 @@ class CythonMagics(Magics):
             f.write(cell)
         if 'pyximport' not in sys.modules or not self._pyximport_installed:
             import pyximport
-            pyximport.install(reload_support=True)
+            pyximport.install()
             self._pyximport_installed = True
         if module_name in self._reloads:
             module = self._reloads[module_name]
-            reload(module)
+            # Note: reloading extension modules is not actually supported
+            # (requires PEP-489 reinitialisation support).
+            # Don't know why this should ever have worked as it reads here.
+            # All we really need to do is to update the globals below.
+            #reload(module)
         else:
             __import__(module_name)
             module = sys.modules[module_name]

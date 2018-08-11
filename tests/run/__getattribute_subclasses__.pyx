@@ -208,7 +208,7 @@ cdef class boring_boring_getattr(boring_getattr):
 cdef class getattribute_boring_boring_getattr(boring_boring_getattr):
     """
     __getattribute__ is always tried first, then __getattr__, regardless of where
-    in the inheritance hiarchy they came from.
+    in the inheritance hierarchy they came from.
 
     >>> a = getattribute_boring_boring_getattr()
     >>> (a.getattr_called, a.getattribute_called)
@@ -253,7 +253,7 @@ cdef class getattribute_boring_boring_getattr(boring_boring_getattr):
 cdef class getattr_boring_boring_getattribute(boring_boring_getattribute):
     """
     __getattribute__ is always tried first, then __getattr__, regardless of where
-    in the inheritance hiarchy they came from.
+    in the inheritance hierarchy they came from.
 
     >>> a = getattr_boring_boring_getattribute()
     >>> (a.getattr_called, a.getattribute_called)
