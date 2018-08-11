@@ -1968,6 +1968,10 @@ def main():
     if options.with_cython and sys.version_info[0] >= 3:
         sys.path.insert(0, options.cython_dir)
 
+    # requires glob with the wildcard.
+    if sys.version_info < (3, 5) or cmd_args:
+        options.code_style = False
+
     WITH_CYTHON = options.with_cython
 
     coverage = None
