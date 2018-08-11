@@ -270,6 +270,7 @@ except:
 
 __test__[__name__] = __doc__
 
+
 def assert_dtype_sizes():
     assert sizeof(np.int8_t) == 1
     assert sizeof(np.int16_t) == 2
@@ -283,6 +284,16 @@ def assert_dtype_sizes():
     assert sizeof(np.float64_t) == 8
     assert sizeof(np.complex64_t) == 8
     assert sizeof(np.complex128_t) == 16
+
+
+@testcase
+def test_enums():
+    """
+    >>> test_enums()
+    """
+    cdef np.NPY_CASTING nc = np.NPY_NO_CASTING
+    assert nc != np.NPY_SAFE_CASTING
+
 
 def ndarray_str(arr):
     u"""
