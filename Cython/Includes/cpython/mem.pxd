@@ -1,5 +1,3 @@
-from cpython.version cimport PY_VERSION_HEX
-
 cdef extern from "Python.h":
 
     #####################################################################
