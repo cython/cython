@@ -53,6 +53,9 @@ Features added
   were adapted to the current numpy C-API recommendations.
   Patch by Matti Picus. (Github issue #2528)
 
+* Several C++ STL declarations were extended and corrected.
+  Patch by Valentin Valls. (Github issue #2207)
+
 Bugs fixed
 ----------
 
