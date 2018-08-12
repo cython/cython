@@ -5,9 +5,6 @@ dist: trusty
 
 addons:
   apt:
-    sources:
-      - sourceline: 'ppa:ubuntu-toolchain-r/test'
-    update: true
     packages:
       - gdb
       - python-dbg
