@@ -117,9 +117,9 @@ before_install:
   - |
     if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
       # adding apt repos in travis is really fragile => retry a couple of times.
-      sudo apt-add-repository --yes 'ppa:ubuntu-toolchain-r/test'
-      for i in {1..10}; do sudo apt-get update && break; done
-      for i in {1..10}; do sudo apt-get install gcc-8  $(if [ "$BACKEND" = cpp ]; then echo -n "g++-8"; fi ) && break ; done
+      for i in {1..10}; do sudo apt-add-repository --yes 'ppa:ubuntu-toolchain-r/test' && break; sleep 2; done
+      for i in {1..10}; do sudo apt-get update && break; sleep 2; done
+      for i in {1..10}; do sudo apt-get install gcc-8  $(if [ "$BACKEND" = cpp ]; then echo -n "g++-8"; fi ) && break; sleep 2; done
       sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 60 $(if [ "$BACKEND" = cpp ]; then echo " --slave /usr/bin/g++ g++ /usr/bin/g++-8"; fi)
       sudo update-alternatives --set gcc /usr/bin/gcc-8
       export CC=gcc-8
