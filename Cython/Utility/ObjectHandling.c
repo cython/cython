@@ -1942,7 +1942,6 @@ static PyObject *__Pyx_PyFunction_FastCallDict(PyObject *func, PyObject **args, 
 // copied from CPython 3.6 ceval.c
 
 #if CYTHON_FAST_PYCALL
-#include "frameobject.h"
 
 static PyObject* __Pyx_PyFunction_FastCallNoKw(PyCodeObject *co, PyObject **args, Py_ssize_t na,
                                                PyObject *globals) {
@@ -1963,7 +1962,7 @@ static PyObject* __Pyx_PyFunction_FastCallNoKw(PyCodeObject *co, PyObject **args
         return NULL;
     }
 
-    fastlocals = f->f_localsplus;
+    fastlocals = __Pyx_PyFrame_GetLocalsplus(f);
 
     for (i = 0; i < na; i++) {
         Py_INCREF(*args);
