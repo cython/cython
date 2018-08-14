@@ -2357,7 +2357,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         env.use_utility_code(UtilityCode.load("CheckBinaryVersion", "ModuleSetupCode.c"))
         code.put_error_if_neg(self.pos, "__Pyx_check_binary_version()")
 
+        code.putln("#ifdef __Pxy_PyFrame_Initialize_Offsets")
         code.putln("__Pxy_PyFrame_Initialize_Offsets();")
+        code.putln("#endif")
         code.putln("%s = PyTuple_New(0); %s" % (
             Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)))
         code.putln("%s = PyBytes_FromStringAndSize(\"\", 0); %s" % (

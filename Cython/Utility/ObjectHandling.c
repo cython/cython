@@ -1936,12 +1936,46 @@ static PyObject *__Pyx_PyFunction_FastCallDict(PyObject *func, PyObject **args, 
 #else
 #define __Pyx_PyFunction_FastCallDict(func, args, nargs, kwargs) _PyFunction_FastCallDict(func, args, nargs, kwargs)
 #endif
+
+// Backport from Python 3
+// Assert a build-time dependency, as an expression.
+//   Your compile will fail if the condition isn't true, or can't be evaluated
+//   by the compiler. This can be used in an expression: its value is 0.
+// Example:
+//   #define foo_to_char(foo)  \
+//       ((char *)(foo)        \
+//        + Py_BUILD_ASSERT_EXPR(offsetof(struct foo, string) == 0))
+//
+//   Written by Rusty Russell, public domain, http://ccodearchive.net/
+#define __Pyx_BUILD_ASSERT_EXPR(cond) \
+    (sizeof(char [1 - 2*!(cond)]) - 1)
 #endif
+
+#ifndef Py_MEMBER_SIZE
+// Get the size of a structure member in bytes
+#define Py_MEMBER_SIZE(type, member) sizeof(((type *)0)->member)
+#endif
+
+  #include "frameobject.h"
+  // This is the long runtime version of
+  //     #define __Pyx_PyFrame_GetLocalsplus(frame)  ((frame)->f_localsplus)
+  // offsetof(PyFrameObject, f_localsplus) differs between regular C-Python and Stackless Python.
+  // Therefore the offset is computed at run time from PyFrame_type.tp_basicsize. That is feasible,
+  // because f_localsplus is the last field of PyFrameObject (checked by Py_BUILD_ASSERT_EXPR below).
+  #define __Pxy_PyFrame_Initialize_Offsets()  \
+    ((void)__Pyx_BUILD_ASSERT_EXPR(sizeof(PyFrameObject) == offsetof(PyFrameObject, f_localsplus) + Py_MEMBER_SIZE(PyFrameObject, f_localsplus)), \
+     (void)(__pyx_pyframe_localsplus_offset = PyFrame_Type.tp_basicsize - Py_MEMBER_SIZE(PyFrameObject, f_localsplus)))
+  #define __Pyx_PyFrame_GetLocalsplus(frame)  \
+    (assert(__pyx_pyframe_localsplus_offset), (PyObject **)(((char *)(frame)) + __pyx_pyframe_localsplus_offset))
+#endif
+
 
 /////////////// PyFunctionFastCall ///////////////
 // copied from CPython 3.6 ceval.c
 
 #if CYTHON_FAST_PYCALL
+// Initialised by module init code, see above.
+static size_t __pyx_pyframe_localsplus_offset = 0;
 
 static PyObject* __Pyx_PyFunction_FastCallNoKw(PyCodeObject *co, PyObject **args, Py_ssize_t na,
                                                PyObject *globals) {
