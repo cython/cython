@@ -23,6 +23,11 @@ from cpython.object cimport PyObject, PyTypeObject
 from cpython.type cimport type
 cimport libc.stdio as stdio
 
+cdef extern from *:
+    """
+    #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+    """
+
 cdef extern from "Python.h":
     ctypedef int Py_intptr_t
 
@@ -123,37 +128,34 @@ cdef extern from "numpy/arrayobject.h":
         NPY_SEARCHRIGHT
 
     enum:
-        NPY_C_CONTIGUOUS
-        NPY_F_CONTIGUOUS
-        NPY_CONTIGUOUS
-        NPY_FORTRAN
-        NPY_OWNDATA
-        NPY_FORCECAST
-        NPY_ENSURECOPY
-        NPY_ENSUREARRAY
-        NPY_ELEMENTSTRIDES
-        NPY_ALIGNED
-        NPY_NOTSWAPPED
-        NPY_WRITEABLE
-        NPY_UPDATEIFCOPY
-        NPY_ARR_HAS_DESCR
+        NPY_ARRAY_C_CONTIGUOUS
+        NPY_ARRAY_F_CONTIGUOUS
+        NPY_ARRAY_OWNDATA
+        NPY_ARRAY_FORCECAST
+        NPY_ARRAY_ENSURECOPY
+        NPY_ARRAY_ENSUREARRAY
+        NPY_ARRAY_ELEMENTSTRIDES
+        NPY_ARRAY_ALIGNED
+        NPY_ARRAY_NOTSWAPPED
+        NPY_ARRAY_WRITEABLE
+        NPY_ARRAY_UPDATEIFCOPY
 
-        NPY_BEHAVED
-        NPY_BEHAVED_NS
-        NPY_CARRAY
-        NPY_CARRAY_RO
-        NPY_FARRAY
-        NPY_FARRAY_RO
-        NPY_DEFAULT
+        NPY_ARRAY_BEHAVED
+        NPY_ARRAY_BEHAVED_NS
+        NPY_ARRAY_CARRAY
+        NPY_ARRAY_CARRAY_RO
+        NPY_ARRAY_FARRAY
+        NPY_ARRAY_FARRAY_RO
+        NPY_ARRAY_DEFAULT
 
-        NPY_IN_ARRAY
-        NPY_OUT_ARRAY
-        NPY_INOUT_ARRAY
-        NPY_IN_FARRAY
-        NPY_OUT_FARRAY
-        NPY_INOUT_FARRAY
+        NPY_ARRAY_IN_ARRAY
+        NPY_ARRAY_OUT_ARRAY
+        NPY_ARRAY_INOUT_ARRAY
+        NPY_ARRAY_IN_FARRAY
+        NPY_ARRAY_OUT_FARRAY
+        NPY_ARRAY_INOUT_FARRAY
 
-        NPY_UPDATE_ALL
+        NPY_ARRAY_UPDATE_ALL
 
     cdef enum:
         NPY_MAXDIMS
@@ -214,7 +216,6 @@ cdef extern from "numpy/arrayobject.h":
             int ndim "nd"
             npy_intp *shape "dimensions"
             npy_intp *strides
-            dtype descr
             PyObject* base
 
         # Note: This syntax (function definition in pxd files) is an
@@ -233,11 +234,11 @@ cdef extern from "numpy/arrayobject.h":
             ndim = PyArray_NDIM(self)
 
             if ((flags & pybuf.PyBUF_C_CONTIGUOUS == pybuf.PyBUF_C_CONTIGUOUS)
-                and not PyArray_CHKFLAGS(self, NPY_C_CONTIGUOUS)):
+                and not PyArray_CHKFLAGS(self, NPY_ARRAY_C_CONTIGUOUS)):
                 raise ValueError(u"ndarray is not C contiguous")
 
             if ((flags & pybuf.PyBUF_F_CONTIGUOUS == pybuf.PyBUF_F_CONTIGUOUS)
-                and not PyArray_CHKFLAGS(self, NPY_F_CONTIGUOUS)):
+                and not PyArray_CHKFLAGS(self, NPY_ARRAY_F_CONTIGUOUS)):
                 raise ValueError(u"ndarray is not Fortran contiguous")
 
             info.buf = PyArray_DATA(self)
@@ -259,7 +260,7 @@ cdef extern from "numpy/arrayobject.h":
 
             cdef int t
             cdef char* f = NULL
-            cdef dtype descr = self.descr
+            cdef dtype descr = PyArray_DESCR(self)
             cdef int offset
 
             info.obj = self
@@ -404,7 +405,7 @@ cdef extern from "numpy/arrayobject.h":
     npy_intp PyArray_STRIDE(ndarray, size_t)
 
     PyObject *PyArray_BASE(ndarray)  # returns borrowed reference!
-    # dtype PyArray_DESCR(ndarray) wrong refcount semantics
+    dtype PyArray_DESCR(ndarray) # wrong refcount semantics
     int PyArray_FLAGS(ndarray)
     npy_intp PyArray_ITEMSIZE(ndarray)
     int PyArray_TYPE(ndarray arr)
