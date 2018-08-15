@@ -59,6 +59,9 @@ Features added
 Bugs fixed
 ----------
 
+* Crash when importing a module under Stackless Python that was built for CPython.
+  Patch by Anselm Kruis.  (Github issue #2534)
+
 * The directive ``language_level=3`` did not apply to the first token in the
   source file.  (Github issue #2230)
 
