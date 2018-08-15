@@ -1949,7 +1949,6 @@ static PyObject *__Pyx_PyFunction_FastCallDict(PyObject *func, PyObject **args, 
 //   Written by Rusty Russell, public domain, http://ccodearchive.net/
 #define __Pyx_BUILD_ASSERT_EXPR(cond) \
     (sizeof(char [1 - 2*!(cond)]) - 1)
-#endif
 
 #ifndef Py_MEMBER_SIZE
 // Get the size of a structure member in bytes
