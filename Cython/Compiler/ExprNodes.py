@@ -3400,10 +3400,21 @@ class IndexNode(_IndexingBaseNode):
                     positional_args=template_values,
                     keyword_args=None)
                 return type_node.analyse(env, base_type=base_type)
+            elif self.index.is_slice or self.index.is_sequence_constructor:
+                # memory view
+                from . import MemoryView
+                axes = [self.index] if self.index.is_slice else list(self.index.args)
+                return PyrexTypes.MemoryViewSliceType(base_type, MemoryView.get_axes_specs(env, axes))
             else:
+                # C array
                 index = self.index.compile_time_value(env)
                 if index is not None:
-                    return PyrexTypes.CArrayType(base_type, int(index))
+                    try:
+                        index = int(index)
+                    except (ValueError, TypeError):
+                        pass
+                    else:
+                        return PyrexTypes.CArrayType(base_type, index)
                 error(self.pos, "Array size must be a compile time constant")
         return None
 
