@@ -1956,6 +1956,9 @@ static PyObject *__Pyx_PyFunction_FastCallDict(PyObject *func, PyObject **args, 
 #define Py_MEMBER_SIZE(type, member) sizeof(((type *)0)->member)
 #endif
 
+  // Initialised by module init code.
+  static size_t __pyx_pyframe_localsplus_offset = 0;
+
   #include "frameobject.h"
   // This is the long runtime version of
   //     #define __Pyx_PyFrame_GetLocalsplus(frame)  ((frame)->f_localsplus)
@@ -1974,8 +1977,6 @@ static PyObject *__Pyx_PyFunction_FastCallDict(PyObject *func, PyObject **args, 
 // copied from CPython 3.6 ceval.c
 
 #if CYTHON_FAST_PYCALL
-// Initialised by module init code, see above.
-static size_t __pyx_pyframe_localsplus_offset = 0;
 
 static PyObject* __Pyx_PyFunction_FastCallNoKw(PyCodeObject *co, PyObject **args, Py_ssize_t na,
                                                PyObject *globals) {
