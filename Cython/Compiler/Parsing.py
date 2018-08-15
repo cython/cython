@@ -3370,7 +3370,11 @@ def p_def_statement(s, decorators=None, is_async_def=False):
         s.enter_async()
     s.next()
     name = _reject_cdef_modifier_in_py(s, p_ident(s))
-    s.expect('(')
+    s.expect(
+        '(',
+        "Expected '(', found '%s'. Did you use cdef syntax in a Python declaration? "
+        "Use decorators and Python type annotations instead." % (
+            s.systring if s.sy == 'IDENT' else s.sy))
     args, star_arg, starstar_arg = p_varargslist(s, terminator=')')
     s.expect(')')
     _reject_cdef_modifier_in_py(s, s.systring)
