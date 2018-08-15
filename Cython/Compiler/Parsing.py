@@ -13,7 +13,8 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object,
                Future=object, Options=object, error=object, warning=object,
                Builtin=object, ModuleNode=object, Utils=object, _unicode=object, _bytes=object,
                re=object, sys=object, _parse_escape_sequences=object, _parse_escape_sequences_raw=object,
-               partial=object, reduce=object, _IS_PY3=cython.bint, _IS_2BYTE_UNICODE=cython.bint)
+               partial=object, reduce=object, _IS_PY3=cython.bint, _IS_2BYTE_UNICODE=cython.bint,
+               _CDEF_MODIFIERS=tuple)
 
 from io import StringIO
 import re
@@ -35,6 +36,7 @@ from . import Options
 
 _IS_PY3 = sys.version_info[0] >= 3
 _IS_2BYTE_UNICODE = sys.maxunicode == 0xffff
+_CDEF_MODIFIERS = ('inline', 'nogil', 'api')
 
 
 class Ctx(object):
@@ -3350,6 +3352,16 @@ def p_decorators(s):
     return decorators
 
 
+def _reject_cdef_modifier_in_py(s, name):
+    """Step over incorrectly placed cdef modifiers (@see _CDEF_MODIFIERS) to provide a good error message for them.
+    """
+    if s.sy == 'IDENT' and name in _CDEF_MODIFIERS:
+        # Special enough to provide a good error message.
+        s.error("Cannot use cdef modifier '%s' in Python function signature. Use a decorator instead." % name, fatal=False)
+        return p_ident(s)  # Keep going, in case there are other errors.
+    return name
+
+
 def p_def_statement(s, decorators=None, is_async_def=False):
     # s.sy == 'def'
     pos = s.position()
@@ -3357,16 +3369,16 @@ def p_def_statement(s, decorators=None, is_async_def=False):
     if is_async_def:
         s.enter_async()
     s.next()
-    name = p_ident(s)
+    name = _reject_cdef_modifier_in_py(s, p_ident(s))
     s.expect('(')
     args, star_arg, starstar_arg = p_varargslist(s, terminator=')')
     s.expect(')')
-    if p_nogil(s):
-        error(pos, "Python function cannot be declared nogil")
+    _reject_cdef_modifier_in_py(s, s.systring)
     return_type_annotation = None
     if s.sy == '->':
         s.next()
         return_type_annotation = p_test(s)
+        _reject_cdef_modifier_in_py(s, s.systring)
 
     doc, body = p_suite_with_docstring(s, Ctx(level='function'))
     if is_async_def:
