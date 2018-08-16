@@ -2509,6 +2509,12 @@ class RemoveUnreachableCode(CythonTransform):
             node.else_clause = None
         return node
 
+    def visit_TryFinallyStatNode(self, node):
+        self.visitchildren(node)
+        if node.finally_clause.is_terminator:
+            node.is_terminator = True
+        return node
+
 
 class YieldNodeCollector(TreeVisitor):
 
