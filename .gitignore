@@ -28,6 +28,8 @@ Tools/*.elc
 *.swp
 *~
 
+.ipynb_checkpoints
+
 tags
 TAGS
 MANIFEST
