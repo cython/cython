@@ -4808,30 +4808,30 @@ class SliceIndexNode(ExprNode):
             #      if (__pyx_v_VARNAME == Py_None) { __pyx_t_TMPIDX = PY_SSIZE_T_MAX; } else { __pyx_t_TMPIDX = __Pyx_PyIndex_AsSsize_t(__pyx_v_VARNAME); }
             c_int = PyrexTypes.c_py_ssize_t_type
             if self.start:
-                # self.start = CondExprNode(
-                #     self.start.pos,
-                #     true_val = IntNode(self.start.pos, value = '0'),
-                #     false_val = self.start,
-                #     test = PrimaryCmpNode(
-                #         self.start.pos,
-                #         operand1 = self.start,
-                #         operator = 'is',
-                #         operand2 = NoneNode(self.pos)
-                #     )
-                # )
+                self.start = CondExprNode(
+                    self.start.pos,
+                    true_val = IntNode(self.start.pos, value = '0'),
+                    false_val = self.start,
+                    test = PrimaryCmpNode(
+                        self.start.pos,
+                        operand1 = self.start,
+                        operator = '==',
+                        operand2 = NoneNode(self.start.pos)
+                    )
+                )
                 self.start = self.start.coerce_to(c_int, env)
             if self.stop:
-                # self.stop = CondExprNode(
-                #     self.stop.pos,
-                #     true_val = IntNode(self.start.pos, value = 'PY_SSIZE_T_MAX'),
-                #     false_val = self.stop,
-                #     test = PrimaryCmpNode(
-                #         self.stop.pos,
-                #         operand1 = self.stop,
-                #         operator = 'is',
-                #         operand2 = NoneNode(self.pos)
-                #     )
-                # )
+                self.stop = CondExprNode(
+                    self.stop.pos,
+                    true_val = IntNode(self.stop.pos, value = 'PY_SSIZE_T_MAX'),
+                    false_val = self.stop,
+                    test = PrimaryCmpNode(
+                        self.stop.pos,
+                        operand1 = self.stop,
+                        operator = '==',
+                        operand2 = NoneNode(self.stop.pos)
+                    )
+                )
                 self.stop = self.stop.coerce_to(c_int, env)
         self.is_temp = 1
         return self
