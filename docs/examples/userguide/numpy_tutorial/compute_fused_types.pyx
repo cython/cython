@@ -5,7 +5,7 @@ cimport cython
 ctypedef fused my_type:
     int
     double
-    long
+    long long
 
 
 cdef my_type clip(my_type a, my_type min_value, my_type max_value):
@@ -20,14 +20,14 @@ def compute(my_type[:, ::1] array_1, my_type[:, ::1] array_2, my_type a, my_type
     y_max = array_1.shape[1]
     
     assert tuple(array_1.shape) == tuple(array_2.shape)
-    
-    if my_type == int:
+
+    if my_type is int:
         dtype = np.intc
-    elif my_type == double:
+    elif my_type is double:
         dtype = np.double
-    else:
-        dtype = np.long
-        
+    elif my_type is cython.longlong:
+        dtype = np.longlong
+
     result = np.zeros((x_max, y_max), dtype=dtype)
     cdef my_type[:, ::1] result_view = result
 

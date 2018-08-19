@@ -153,10 +153,11 @@ This function uses NumPy and is already really fast, so it might be a bit overki
 to do it again with Cython. This is for demonstration purposes. Nonetheless, we
 will show that we achieve a better speed and memory efficiency than NumPy at the cost of more verbosity.
 
-This code present the function with the loops over the two dimensions being unrolled.
+This code computes the function with the loops over the two dimensions being unrolled.
 It is both valid Python and valid Cython code. I'll refer to it as both
 :file:`compute_py.py` for the Python version and :file:`compute_cy.pyx` for the
-Cython version -- Cython uses ``.pyx`` as its file suffix.
+Cython version -- Cython uses ``.pyx`` as its file suffix (but it can also compile
+``.py`` files).
 
 .. literalinclude:: ../../examples/userguide/numpy_tutorial/compute_py.py
 
@@ -168,23 +169,23 @@ run a Python session to test both the Python version (imported from
 .. sourcecode:: ipython
 
     In [1]: import numpy as np
-    In [2]: array_1 = np.random.uniform(0, 1000, size=(1000, 2000)).astype(np.intc)
-    In [3]: array_2 = np.random.uniform(0, 1000, size=(1000, 2000)).astype(np.intc)
+    In [2]: array_1 = np.random.uniform(0, 1000, size=(3000, 2000)).astype(np.intc)
+    In [3]: array_2 = np.random.uniform(0, 1000, size=(3000, 2000)).astype(np.intc)
     In [4]: a = 4
     In [5]: b = 3
     In [6]: c = 9
     In [7]: def compute_np(array_1, array_2, a, b, c):
        ...:     return np.clip(array_1, 2, 10) * a + array_2 * b + c
     In [8]: %timeit compute_np(array_1, array_2, a, b, c)
-    8.11 ms ± 25.4 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    103 ms ± 4.16 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)
 
     In [9]: import compute_py
     In [10]: compute_py.compute(array_1, array_2, a, b, c)
-    27.9 s ± 1.75 s per loop (mean ± std. dev. of 7 runs, 1 loop each)
+    1min 10s ± 844 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
 
     In [11]: import compute_cy
     In [12]: compute_cy.compute(array_1, array_2, a, b, c)
-    22.1 s ± 142 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+    56.5 s ± 587 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
 
 There's not such a huge difference yet; because the C code still does exactly
 what the Python interpreter does (meaning, for instance, that a new object is
@@ -197,6 +198,7 @@ line, ``%%cython -a`` when using a Jupyter Notebook, or by using
 Look at the generated html file and see what
 is needed for even the simplest statements. You get the point quickly. We need
 to give Cython more information; we need to add types.
+
 
 Adding types
 =============
@@ -219,12 +221,12 @@ After building this and continuing my (very informal) benchmarks, I get:
 .. sourcecode:: ipython
 
     In [13]: %timeit compute_typed.compute(array_1, array_2, a, b, c)
-    10.1 s ± 50.9 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+    26.5 s ± 422 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
 
 So adding types does make the code faster, but nowhere
 near the speed of NumPy?
 
-What happened is that most of the time spend in this code is spent those lines,
+What happened is that most of the time spend in this code is spent in the following lines,
 and those lines are slower to execute than in pure Python::
 
     tmp = clip(array_1[x, y], 2, 10)
@@ -288,11 +290,11 @@ Let's see how much faster accessing is now.
 .. sourcecode:: ipython
 
     In [22]: %timeit compute_memview.compute(array_1, array_2, a, b, c)
-    8.83 ms ± 42.9 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    22.9 ms ± 197 µs per loop (mean ± std. dev. of 7 runs, 10 loops each)
 
 Note the importance of this change.
-We're now 3161 times faster than an interpreted version of Python and close
-to NumPy speed.
+We're now 3081 times faster than an interpreted version of Python and 4.5 times
+faster than NumPy.
 
 Memoryviews can be used with slices too, or even
 with Python arrays. Check out the :ref:`memoryview page <memoryviews>` to
@@ -327,12 +329,13 @@ information.
 .. sourcecode:: ipython
 
     In [23]: %timeit compute_index.compute(array_1, array_2, a, b, c)
-    6.04 ms ± 12.2 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    16.8 ms ± 25.4 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
-We're now faster than the NumPy version, not by much (1.3x). NumPy is really well written,
-but does not performs operation lazily, meaning a lot
-of back and forth in memory. Our version is very memory efficient and
-cache friendly because we know the operations in advance.
+We're faster than the NumPy version (6.2x). NumPy is really well written,
+but does not performs operation lazily, resulting in a lot
+of intermediate copy operations in memory. Our version is
+very memory efficient and cache friendly because we
+can execute the operations in a single run over the data.
 
 .. Warning::
 
@@ -365,7 +368,7 @@ you have to declare the memoryview like this::
     cdef int [::1, :, :] a
 
 If all this makes no sense to you, you can skip this part, declaring
-arrays as contiguous constrain the usage of your function.
+arrays as contiguous constrains the usage of your functions as it rejects array slices as input.
 If you still want to understand what contiguous arrays are
 all about, you can see `this answer on StackOverflow
 <https://stackoverflow.com/questions/26998223/what-is-the-difference-between-contiguous-and-non-contiguous-arrays>`_.
@@ -376,9 +379,9 @@ get by declaring the memoryviews as contiguous:
 .. sourcecode:: ipython
 
     In [23]: %timeit compute_contiguous.compute(array_1, array_2, a, b, c)
-    4.18 ms ± 34 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    11.1 ms ± 30.2 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
-We're now around two times faster than the NumPy version, and 6600 times
+We're now around nine times faster than the NumPy version, and 6300 times
 faster than the pure Python version!
 
 Making the function cleaner
@@ -405,7 +408,7 @@ We now do a speed test:
 .. sourcecode:: ipython
 
     In [24]: %timeit compute_infer_types.compute(array_1, array_2, a, b, c)
-    4.25 ms ± 52.2 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    11.5 ms ± 261 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
 Lo and behold, the speed has not changed.
 
@@ -446,10 +449,11 @@ We now do a speed test:
 .. sourcecode:: ipython
 
     In [25]: %timeit compute_fused_types.compute(array_1, array_2, a, b, c)
-    6.17 ms ± 164 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    11.5 ms ± 258 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
-We're a bit slower than before, because of the right call to the clip function
-must be found at runtime and adds a bit of overhead.
+More versions of the function are created at compile time. So it makes
+sense that the speed doesn't change for executing this function with
+integers as before.
 
 Using multiple threads
 ======================
@@ -461,7 +465,9 @@ distribute the work among multiple threads. It's important not to forget to pass
 correct arguments to the compiler to enable OpenMP. When using the Jupyter notebook,
 you should use the cell magic like this::
 
-    %%cython --compile-args=-fopenmp --link-args=-fopenmp --force
+    %%cython --force
+    # distutils: extra_compile_args=-fopenmp
+    # distutils: extra_link_args=-fopenmp
 
 The GIL must be released (see :ref:`Releasing the GIL <nogil>`), so this is why we
 declare our :func:`clip` function ``nogil``.
@@ -473,9 +479,9 @@ We can have substantial speed gains for minimal effort:
 .. sourcecode:: ipython
 
     In [25]: %timeit compute_prange.compute(array_1, array_2, a, b, c)
-    3.55 ms ± 80.6 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    9.33 ms ± 412 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
-We're now 7858 times faster than the pure Python version and 2.3 times faster
+We're now 7558 times faster than the pure Python version and 11.1 times faster
 than NumPy!
 
 Where to go from here?
