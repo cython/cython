@@ -204,6 +204,23 @@ def slice_charp_repeat(py_string_arg):
     s = slice_val
     return s[1:3].decode(u'ASCII')
 
+# Readers will find the common boilerplate in the tests below:
+#     >>> l = [1,2,3,4,5]
+#     >>> t = tuple(l)
+#     >>> b = ''.join(map(str, l)).encode('ASCII')
+#     >>> u = b.decode('ASCII')
+#     >>> o = (l, t, b, u)
+#     >>> n = ('list', 'tuple', 'bytes', 'unicode')
+#     >>> p = lambda o: o.decode() if isinstance(o, type(b)) else str(o)
+#     >>> r = lambda i, *a: '%s[%s] -> %s' % (n[i], ':'.join(map(repr, a)), FUNCTION_NAME(o[i], *a))
+# Originally, this was planned to be a basic iteration over
+#   the various object types contained within the slicable fused
+#   type, but Python2 -> Python3 semantics changed the class names
+#   and string representations used for raw bytes and unicode.
+# As a result, we dynamically adjust the printed string output
+#   for each test in order to ensure consistent results when running
+#   both Python2 and Python3.
+
 ctypedef fused slicable:
     list
     tuple
@@ -216,27 +233,38 @@ def slice_fused_type_start(slicable seq, start):
     >>> t = tuple(l)
     >>> b = ''.join(map(str, l)).encode('ASCII')
     >>> u = b.decode('ASCII')
+    >>> o = (l, t, b, u)
+    >>> n = ('list', 'tuple', 'bytes', 'unicode')
     >>> p = lambda o: o.decode() if isinstance(o, type(b)) else str(o)
-    >>> for o in (l, t, b, u):
-    ...     for s in (0, 4, 5, -5):
-    ...         print(p(slice_fused_type_start(o, s)))
+    >>> r = lambda i, s: '%s[%r:] -> %s' % (n[i], s, p(slice_fused_type_start(o[i], s)))
+    >>> for i in range(len(o)):
+    ...     for s in (0, len(l) - 1, len(l), -1, -len(l), None):
+    ...         print(r(i, s))
     ... 
-    [1, 2, 3, 4, 5]
-    [5]
-    []
-    [1, 2, 3, 4, 5]
-    (1, 2, 3, 4, 5)
-    (5,)
-    ()
-    (1, 2, 3, 4, 5)
-    12345
-    5
-    <BLANKLINE>
-    12345
-    12345
-    5
-    <BLANKLINE>
-    12345
+    list[0:] -> [1, 2, 3, 4, 5]
+    list[4:] -> [5]
+    list[5:] -> []
+    list[-1:] -> [5]
+    list[-5:] -> [1, 2, 3, 4, 5]
+    list[None:] -> [1, 2, 3, 4, 5]
+    tuple[0:] -> (1, 2, 3, 4, 5)
+    tuple[4:] -> (5,)
+    tuple[5:] -> ()
+    tuple[-1:] -> (5,)
+    tuple[-5:] -> (1, 2, 3, 4, 5)
+    tuple[None:] -> (1, 2, 3, 4, 5)
+    bytes[0:] -> 12345
+    bytes[4:] -> 5
+    bytes[5:] -> 
+    bytes[-1:] -> 5
+    bytes[-5:] -> 12345
+    bytes[None:] -> 12345
+    unicode[0:] -> 12345
+    unicode[4:] -> 5
+    unicode[5:] -> 
+    unicode[-1:] -> 5
+    unicode[-5:] -> 12345
+    unicode[None:] -> 12345
     """
     obj = seq[start:]
     return obj
@@ -247,31 +275,38 @@ def slice_fused_type_stop(slicable seq, stop):
     >>> t = tuple(l)
     >>> b = ''.join(map(str, l)).encode('ASCII')
     >>> u = b.decode('ASCII')
+    >>> o = (l, t, b, u)
+    >>> n = ('list', 'tuple', 'bytes', 'unicode')
     >>> p = lambda o: o.decode() if isinstance(o, type(b)) else str(o)
-    >>> for o in (l, t, b, u):
-    ...     for s in (0, 4, 5, -5, None):
-    ...         print(p(slice_fused_type_stop(o, s)))
+    >>> r = lambda i, s: '%s[:%r] -> %s' % (n[i], s, p(slice_fused_type_stop(o[i], s)))
+    >>> for i in range(len(o)):
+    ...     for s in (0, len(l) - 1, len(l), -1, -len(l), None):
+    ...         print(r(i, s))
     ... 
-    []
-    [1, 2, 3, 4]
-    [1, 2, 3, 4, 5]
-    []
-    [1, 2, 3, 4, 5]
-    ()
-    (1, 2, 3, 4)
-    (1, 2, 3, 4, 5)
-    ()
-    (1, 2, 3, 4, 5)
-    <BLANKLINE>
-    1234
-    12345
-    <BLANKLINE>
-    12345
-    <BLANKLINE>
-    1234
-    12345
-    <BLANKLINE>
-    12345
+    list[:0] -> []
+    list[:4] -> [1, 2, 3, 4]
+    list[:5] -> [1, 2, 3, 4, 5]
+    list[:-1] -> [1, 2, 3, 4]
+    list[:-5] -> []
+    list[:None] -> [1, 2, 3, 4, 5]
+    tuple[:0] -> ()
+    tuple[:4] -> (1, 2, 3, 4)
+    tuple[:5] -> (1, 2, 3, 4, 5)
+    tuple[:-1] -> (1, 2, 3, 4)
+    tuple[:-5] -> ()
+    tuple[:None] -> (1, 2, 3, 4, 5)
+    bytes[:0] -> 
+    bytes[:4] -> 1234
+    bytes[:5] -> 12345
+    bytes[:-1] -> 1234
+    bytes[:-5] -> 
+    bytes[:None] -> 12345
+    unicode[:0] -> 
+    unicode[:4] -> 1234
+    unicode[:5] -> 12345
+    unicode[:-1] -> 1234
+    unicode[:-5] -> 
+    unicode[:None] -> 12345
     """
     obj = seq[:stop]
     return obj
@@ -282,156 +317,39 @@ def slice_fused_type_start_and_stop(slicable seq, start, stop):
     >>> t = tuple(l)
     >>> b = ''.join(map(str, l)).encode('ASCII')
     >>> u = b.decode('ASCII')
+    >>> o = (l, t, b, u)
+    >>> n = ('list', 'tuple', 'bytes', 'unicode')
     >>> p = lambda o: o.decode() if isinstance(o, type(b)) else str(o)
-    >>> for o in (l, t, b, u):
-    ...     for start in (0, 1, 4, 5, -5, None):
-    ...         for stop in (0, 4, 5, 10, -10, None):
-    ...             print(p(slice_fused_type_start_and_stop(o, start, stop)))
+    >>> r = lambda i, t, s: '%s[%r:%r] -> %s' % (n[i], t, s, p(slice_fused_type_start_and_stop(o[i], t, s)))
+    >>> for i in range(len(o)): 
+    ...     for start, stop in ((0, len(l)), (0, None), (None, len(l)),
+    ...                         (-len(l), 0), (1, 0), (0, 1)):
+    ...         print(r(i, start, stop))
     ... 
-    []
-    [1, 2, 3, 4]
-    [1, 2, 3, 4, 5]
-    [1, 2, 3, 4, 5]
-    []
-    [1, 2, 3, 4, 5]
-    []
-    [2, 3, 4]
-    [2, 3, 4, 5]
-    [2, 3, 4, 5]
-    []
-    [2, 3, 4, 5]
-    []
-    []
-    [5]
-    [5]
-    []
-    [5]
-    []
-    []
-    []
-    []
-    []
-    []
-    []
-    [1, 2, 3, 4]
-    [1, 2, 3, 4, 5]
-    [1, 2, 3, 4, 5]
-    []
-    [1, 2, 3, 4, 5]
-    []
-    [1, 2, 3, 4]
-    [1, 2, 3, 4, 5]
-    [1, 2, 3, 4, 5]
-    []
-    [1, 2, 3, 4, 5]
-    ()
-    (1, 2, 3, 4)
-    (1, 2, 3, 4, 5)
-    (1, 2, 3, 4, 5)
-    ()
-    (1, 2, 3, 4, 5)
-    ()
-    (2, 3, 4)
-    (2, 3, 4, 5)
-    (2, 3, 4, 5)
-    ()
-    (2, 3, 4, 5)
-    ()
-    ()
-    (5,)
-    (5,)
-    ()
-    (5,)
-    ()
-    ()
-    ()
-    ()
-    ()
-    ()
-    ()
-    (1, 2, 3, 4)
-    (1, 2, 3, 4, 5)
-    (1, 2, 3, 4, 5)
-    ()
-    (1, 2, 3, 4, 5)
-    ()
-    (1, 2, 3, 4)
-    (1, 2, 3, 4, 5)
-    (1, 2, 3, 4, 5)
-    ()
-    (1, 2, 3, 4, 5)
-    <BLANKLINE>
-    1234
-    12345
-    12345
-    <BLANKLINE>
-    12345
-    <BLANKLINE>
-    234
-    2345
-    2345
-    <BLANKLINE>
-    2345
-    <BLANKLINE>
-    <BLANKLINE>
-    5
-    5
-    <BLANKLINE>
-    5
-    <BLANKLINE>
-    <BLANKLINE>
-    <BLANKLINE>
-    <BLANKLINE>
-    <BLANKLINE>
-    <BLANKLINE>
-    <BLANKLINE>
-    1234
-    12345
-    12345
-    <BLANKLINE>
-    12345
-    <BLANKLINE>
-    1234
-    12345
-    12345
-    <BLANKLINE>
-    12345
-    <BLANKLINE>
-    1234
-    12345
-    12345
-    <BLANKLINE>
-    12345
-    <BLANKLINE>
-    234
-    2345
-    2345
-    <BLANKLINE>
-    2345
-    <BLANKLINE>
-    <BLANKLINE>
-    5
-    5
-    <BLANKLINE>
-    5
-    <BLANKLINE>
-    <BLANKLINE>
-    <BLANKLINE>
-    <BLANKLINE>
-    <BLANKLINE>
-    <BLANKLINE>
-    <BLANKLINE>
-    1234
-    12345
-    12345
-    <BLANKLINE>
-    12345
-    <BLANKLINE>
-    1234
-    12345
-    12345
-    <BLANKLINE>
-    12345
+    list[0:5] -> [1, 2, 3, 4, 5]
+    list[0:None] -> [1, 2, 3, 4, 5]
+    list[None:5] -> [1, 2, 3, 4, 5]
+    list[-5:0] -> []
+    list[1:0] -> []
+    list[0:1] -> [1]
+    tuple[0:5] -> (1, 2, 3, 4, 5)
+    tuple[0:None] -> (1, 2, 3, 4, 5)
+    tuple[None:5] -> (1, 2, 3, 4, 5)
+    tuple[-5:0] -> ()
+    tuple[1:0] -> ()
+    tuple[0:1] -> (1,)
+    bytes[0:5] -> 12345
+    bytes[0:None] -> 12345
+    bytes[None:5] -> 12345
+    bytes[-5:0] -> 
+    bytes[1:0] -> 
+    bytes[0:1] -> 1
+    unicode[0:5] -> 12345
+    unicode[0:None] -> 12345
+    unicode[None:5] -> 12345
+    unicode[-5:0] -> 
+    unicode[1:0] -> 
+    unicode[0:1] -> 1
     """
     obj = seq[start:stop]
     return obj
@@ -442,42 +360,47 @@ def slice_fused_type_step(slicable seq, step):
     >>> t = tuple(l)
     >>> b = ''.join(map(str, l)).encode('ASCII')
     >>> u = b.decode('ASCII')
+    >>> o = (l, t, b, u)
+    >>> n = ('list', 'tuple', 'bytes', 'unicode')
     >>> p = lambda o: o.decode() if isinstance(o, type(b)) else str(o)
-    >>> for o in (l, t, b, u):
-    ...     for s in (1, -1, 2, -3, 10, -10, None):
-    ...         print(p(slice_fused_type_step(o, s)))
+    >>> r = lambda i, s: '%s[::%r] -> %s' % (n[i], s, p(slice_fused_type_step(o[i], s)))
+    >>> for i in range(len(o)):
+    ...     for s in (1, -1, 2, -3, 5, -5, None):
+    ...         print(r(i, s))
     ... 
-    [1, 2, 3, 4, 5]
-    [5, 4, 3, 2, 1]
-    [1, 3, 5]
-    [5, 2]
-    [1]
-    [5]
-    [1, 2, 3, 4, 5]
-    (1, 2, 3, 4, 5)
-    (5, 4, 3, 2, 1)
-    (1, 3, 5)
-    (5, 2)
-    (1,)
-    (5,)
-    (1, 2, 3, 4, 5)
-    12345
-    54321
-    135
-    52
-    1
-    5
-    12345
-    12345
-    54321
-    135
-    52
-    1
-    5
-    12345
-    >>> for o in (l, t, b):
-    ...     try: slice_fused_type_step(o, 0)
+    list[::1] -> [1, 2, 3, 4, 5]
+    list[::-1] -> [5, 4, 3, 2, 1]
+    list[::2] -> [1, 3, 5]
+    list[::-3] -> [5, 2]
+    list[::5] -> [1]
+    list[::-5] -> [5]
+    list[::None] -> [1, 2, 3, 4, 5]
+    tuple[::1] -> (1, 2, 3, 4, 5)
+    tuple[::-1] -> (5, 4, 3, 2, 1)
+    tuple[::2] -> (1, 3, 5)
+    tuple[::-3] -> (5, 2)
+    tuple[::5] -> (1,)
+    tuple[::-5] -> (5,)
+    tuple[::None] -> (1, 2, 3, 4, 5)
+    bytes[::1] -> 12345
+    bytes[::-1] -> 54321
+    bytes[::2] -> 135
+    bytes[::-3] -> 52
+    bytes[::5] -> 1
+    bytes[::-5] -> 5
+    bytes[::None] -> 12345
+    unicode[::1] -> 12345
+    unicode[::-1] -> 54321
+    unicode[::2] -> 135
+    unicode[::-3] -> 52
+    unicode[::5] -> 1
+    unicode[::-5] -> 5
+    unicode[::None] -> 12345
+    >>> for v in o:
+    ...     try: slice_fused_type_step(v, 0)
     ...     except ValueError: pass
+    ...     try: slice_fused_type_step(v, v)
+    ...     except TypeError: pass
     """
     obj = seq[::step]
     return obj
@@ -488,112 +411,56 @@ def slice_fused_type_start_and_step(slicable seq, start, step):
     >>> t = tuple(l)
     >>> b = ''.join(map(str, l)).encode('ASCII')
     >>> u = b.decode('ASCII')
+    >>> o = (l, t, b, u)
+    >>> n = ('list', 'tuple', 'bytes', 'unicode')
     >>> p = lambda o: o.decode() if isinstance(o, type(b)) else str(o)
-    >>> for o in (l, t, b, u):
-    ...     for start in (0, 2, 5, -5, None):
-    ...         for step in (1, -1, 2, -3, None):
-    ...             print(p(slice_fused_type_start_and_step(o, start, step)))
+    >>> r = lambda i, s, t: '%s[%r::%r] -> %s' % (n[i], s, t, p(slice_fused_type_start_and_step(o[i], s, t)))
+    >>> for i in range(len(o)):
+    ...     for start, step in ((0, 1), (0, -1), (1, 1), (1, -1),
+    ...                         (None, 1), (None, -1), (None, None),
+    ...                         (1, 2), (len(l), -2), (len(l), len(l))):
+    ...         print(r(i, start, step))
     ... 
-    [1, 2, 3, 4, 5]
-    [1]
-    [1, 3, 5]
-    [1]
-    [1, 2, 3, 4, 5]
-    [3, 4, 5]
-    [3, 2, 1]
-    [3, 5]
-    [3]
-    [3, 4, 5]
-    []
-    [5, 4, 3, 2, 1]
-    []
-    [5, 2]
-    []
-    [1, 2, 3, 4, 5]
-    [1]
-    [1, 3, 5]
-    [1]
-    [1, 2, 3, 4, 5]
-    [1, 2, 3, 4, 5]
-    [5, 4, 3, 2, 1]
-    [1, 3, 5]
-    [5, 2]
-    [1, 2, 3, 4, 5]
-    (1, 2, 3, 4, 5)
-    (1,)
-    (1, 3, 5)
-    (1,)
-    (1, 2, 3, 4, 5)
-    (3, 4, 5)
-    (3, 2, 1)
-    (3, 5)
-    (3,)
-    (3, 4, 5)
-    ()
-    (5, 4, 3, 2, 1)
-    ()
-    (5, 2)
-    ()
-    (1, 2, 3, 4, 5)
-    (1,)
-    (1, 3, 5)
-    (1,)
-    (1, 2, 3, 4, 5)
-    (1, 2, 3, 4, 5)
-    (5, 4, 3, 2, 1)
-    (1, 3, 5)
-    (5, 2)
-    (1, 2, 3, 4, 5)
-    12345
-    1
-    135
-    1
-    12345
-    345
-    321
-    35
-    3
-    345
-    <BLANKLINE>
-    54321
-    <BLANKLINE>
-    52
-    <BLANKLINE>
-    12345
-    1
-    135
-    1
-    12345
-    12345
-    54321
-    135
-    52
-    12345
-    12345
-    1
-    135
-    1
-    12345
-    345
-    321
-    35
-    3
-    345
-    <BLANKLINE>
-    54321
-    <BLANKLINE>
-    52
-    <BLANKLINE>
-    12345
-    1
-    135
-    1
-    12345
-    12345
-    54321
-    135
-    52
-    12345
+    list[0::1] -> [1, 2, 3, 4, 5]
+    list[0::-1] -> [1]
+    list[1::1] -> [2, 3, 4, 5]
+    list[1::-1] -> [2, 1]
+    list[None::1] -> [1, 2, 3, 4, 5]
+    list[None::-1] -> [5, 4, 3, 2, 1]
+    list[None::None] -> [1, 2, 3, 4, 5]
+    list[1::2] -> [2, 4]
+    list[5::-2] -> [5, 3, 1]
+    list[5::5] -> []
+    tuple[0::1] -> (1, 2, 3, 4, 5)
+    tuple[0::-1] -> (1,)
+    tuple[1::1] -> (2, 3, 4, 5)
+    tuple[1::-1] -> (2, 1)
+    tuple[None::1] -> (1, 2, 3, 4, 5)
+    tuple[None::-1] -> (5, 4, 3, 2, 1)
+    tuple[None::None] -> (1, 2, 3, 4, 5)
+    tuple[1::2] -> (2, 4)
+    tuple[5::-2] -> (5, 3, 1)
+    tuple[5::5] -> ()
+    bytes[0::1] -> 12345
+    bytes[0::-1] -> 1
+    bytes[1::1] -> 2345
+    bytes[1::-1] -> 21
+    bytes[None::1] -> 12345
+    bytes[None::-1] -> 54321
+    bytes[None::None] -> 12345
+    bytes[1::2] -> 24
+    bytes[5::-2] -> 531
+    bytes[5::5] -> 
+    unicode[0::1] -> 12345
+    unicode[0::-1] -> 1
+    unicode[1::1] -> 2345
+    unicode[1::-1] -> 21
+    unicode[None::1] -> 12345
+    unicode[None::-1] -> 54321
+    unicode[None::None] -> 12345
+    unicode[1::2] -> 24
+    unicode[5::-2] -> 531
+    unicode[5::5] -> 
     >>> for o in (l, t, b):
     ...     try: slice_fused_type_start_and_step(o, 0, 0)
     ...     except ValueError: pass
@@ -607,115 +474,49 @@ def slice_fused_type_stop_and_step(slicable seq, stop, step):
     >>> t = tuple(l)
     >>> b = ''.join(map(str, l)).encode('ASCII')
     >>> u = b.decode('ASCII')
+    >>> o = (l, t, b, u)
+    >>> n = ('list', 'tuple', 'bytes', 'unicode')
     >>> p = lambda o: o.decode() if isinstance(o, type(b)) else str(o)
-    >>> for o in (l, t, b, u):
-    ...     for stop in (5, 10, 3, -10, None):
-    ...         for step in (1, -1, 2, -3, None):
-    ...             print(p(slice_fused_type_stop_and_step(o, stop, step)))
+    >>> r = lambda i, s, t: '%s[:%r:%r] -> %s' % (n[i], s, t, p(slice_fused_type_stop_and_step(o[i], s, t)))
+    >>> for i in range(len(o)):
+    ...     for stop, step in ((len(l), 1), (len(l), None), (None, 1),
+    ...                        (len(l), -1), (len(l) - 1, 2), (len(l), -2),
+    ...                        (len(l), len(l))):
+    ...         print(r(i, stop, step))
     ... 
-    [1, 2, 3, 4, 5]
-    []
-    [1, 3, 5]
-    []
-    [1, 2, 3, 4, 5]
-    [1, 2, 3, 4, 5]
-    []
-    [1, 3, 5]
-    []
-    [1, 2, 3, 4, 5]
-    [1, 2, 3]
-    [5]
-    [1, 3]
-    [5]
-    [1, 2, 3]
-    []
-    [5, 4, 3, 2, 1]
-    []
-    [5, 2]
-    []
-    [1, 2, 3, 4, 5]
-    [5, 4, 3, 2, 1]
-    [1, 3, 5]
-    [5, 2]
-    [1, 2, 3, 4, 5]
-    (1, 2, 3, 4, 5)
-    ()
-    (1, 3, 5)
-    ()
-    (1, 2, 3, 4, 5)
-    (1, 2, 3, 4, 5)
-    ()
-    (1, 3, 5)
-    ()
-    (1, 2, 3, 4, 5)
-    (1, 2, 3)
-    (5,)
-    (1, 3)
-    (5,)
-    (1, 2, 3)
-    ()
-    (5, 4, 3, 2, 1)
-    ()
-    (5, 2)
-    ()
-    (1, 2, 3, 4, 5)
-    (5, 4, 3, 2, 1)
-    (1, 3, 5)
-    (5, 2)
-    (1, 2, 3, 4, 5)
-    12345
-    <BLANKLINE>
-    135
-    <BLANKLINE>
-    12345
-    12345
-    <BLANKLINE>
-    135
-    <BLANKLINE>
-    12345
-    123
-    5
-    13
-    5
-    123
-    <BLANKLINE>
-    54321
-    <BLANKLINE>
-    52
-    <BLANKLINE>
-    12345
-    54321
-    135
-    52
-    12345
-    12345
-    <BLANKLINE>
-    135
-    <BLANKLINE>
-    12345
-    12345
-    <BLANKLINE>
-    135
-    <BLANKLINE>
-    12345
-    123
-    5
-    13
-    5
-    123
-    <BLANKLINE>
-    54321
-    <BLANKLINE>
-    52
-    <BLANKLINE>
-    12345
-    54321
-    135
-    52
-    12345
-    >>> for o in (l, t, b):
-    ...     try: slice_fused_type_stop_and_step(o, 5, 0)
+    list[:5:1] -> [1, 2, 3, 4, 5]
+    list[:5:None] -> [1, 2, 3, 4, 5]
+    list[:None:1] -> [1, 2, 3, 4, 5]
+    list[:5:-1] -> []
+    list[:4:2] -> [1, 3]
+    list[:5:-2] -> []
+    list[:5:5] -> [1]
+    tuple[:5:1] -> (1, 2, 3, 4, 5)
+    tuple[:5:None] -> (1, 2, 3, 4, 5)
+    tuple[:None:1] -> (1, 2, 3, 4, 5)
+    tuple[:5:-1] -> ()
+    tuple[:4:2] -> (1, 3)
+    tuple[:5:-2] -> ()
+    tuple[:5:5] -> (1,)
+    bytes[:5:1] -> 12345
+    bytes[:5:None] -> 12345
+    bytes[:None:1] -> 12345
+    bytes[:5:-1] -> 
+    bytes[:4:2] -> 13
+    bytes[:5:-2] -> 
+    bytes[:5:5] -> 1
+    unicode[:5:1] -> 12345
+    unicode[:5:None] -> 12345
+    unicode[:None:1] -> 12345
+    unicode[:5:-1] -> 
+    unicode[:4:2] -> 13
+    unicode[:5:-2] -> 
+    unicode[:5:5] -> 1
+    >>> for v in o:
+    ...     try: slice_fused_type_stop_and_step(v, len(l), 0)
     ...     except ValueError: pass
+    ...     try: slice_fused_type_stop_and_step(v, len(l), v)
+    ...     except TypeError: pass
     """
     obj = seq[:stop:step]
     return obj
@@ -726,44 +527,57 @@ def slice_fused_type_all(slicable seq, start, stop, step):
     >>> t = tuple(l)
     >>> b = ''.join(map(str, l)).encode('ASCII')
     >>> u = b.decode('ASCII')
+    >>> o = (l, t, b, u)
+    >>> n = ('list', 'tuple', 'bytes', 'unicode')
     >>> p = lambda o: o.decode() if isinstance(o, type(b)) else str(o)
-    >>> for o in (l, t, b, u):
-    ...     for args in ((0, 5, 1), (5, 0, -1), (None, 5, 1), (5, None, -1),
-    ...                  (-100, 100, None), (None, None, None), (1, 3, 2), (5, 1, -3)):
-    ...         print(p(slice_fused_type_all(o, *args)))
+    >>> r = lambda i, s, t, e: '%s[%r:%r:%r] -> %s' % (n[i], s, t, e, p(slice_fused_type_all(o[i], s, t, e)))
+    >>> for i in range(len(o)):
+    ...     for args in ((0, len(l), 1), (len(l), 0, -1), (None, len(l), 1),
+    ...                  (len(l), None, -1), (-len(l), len(l), None), (None, None, None),
+    ...                  (1, 3, 2), (len(l), 1, -3), (len(l), 0, 1)):
+    ...         print(r(i, *args))
     ... 
-    [1, 2, 3, 4, 5]
-    [5, 4, 3, 2]
-    [1, 2, 3, 4, 5]
-    [5, 4, 3, 2, 1]
-    [1, 2, 3, 4, 5]
-    [1, 2, 3, 4, 5]
-    [2]
-    [5]
-    (1, 2, 3, 4, 5)
-    (5, 4, 3, 2)
-    (1, 2, 3, 4, 5)
-    (5, 4, 3, 2, 1)
-    (1, 2, 3, 4, 5)
-    (1, 2, 3, 4, 5)
-    (2,)
-    (5,)
-    12345
-    5432
-    12345
-    54321
-    12345
-    12345
-    2
-    5
-    12345
-    5432
-    12345
-    54321
-    12345
-    12345
-    2
-    5
+    list[0:5:1] -> [1, 2, 3, 4, 5]
+    list[5:0:-1] -> [5, 4, 3, 2]
+    list[None:5:1] -> [1, 2, 3, 4, 5]
+    list[5:None:-1] -> [5, 4, 3, 2, 1]
+    list[-5:5:None] -> [1, 2, 3, 4, 5]
+    list[None:None:None] -> [1, 2, 3, 4, 5]
+    list[1:3:2] -> [2]
+    list[5:1:-3] -> [5]
+    list[5:0:1] -> []
+    tuple[0:5:1] -> (1, 2, 3, 4, 5)
+    tuple[5:0:-1] -> (5, 4, 3, 2)
+    tuple[None:5:1] -> (1, 2, 3, 4, 5)
+    tuple[5:None:-1] -> (5, 4, 3, 2, 1)
+    tuple[-5:5:None] -> (1, 2, 3, 4, 5)
+    tuple[None:None:None] -> (1, 2, 3, 4, 5)
+    tuple[1:3:2] -> (2,)
+    tuple[5:1:-3] -> (5,)
+    tuple[5:0:1] -> ()
+    bytes[0:5:1] -> 12345
+    bytes[5:0:-1] -> 5432
+    bytes[None:5:1] -> 12345
+    bytes[5:None:-1] -> 54321
+    bytes[-5:5:None] -> 12345
+    bytes[None:None:None] -> 12345
+    bytes[1:3:2] -> 2
+    bytes[5:1:-3] -> 5
+    bytes[5:0:1] -> 
+    unicode[0:5:1] -> 12345
+    unicode[5:0:-1] -> 5432
+    unicode[None:5:1] -> 12345
+    unicode[5:None:-1] -> 54321
+    unicode[-5:5:None] -> 12345
+    unicode[None:None:None] -> 12345
+    unicode[1:3:2] -> 2
+    unicode[5:1:-3] -> 5
+    unicode[5:0:1] -> 
+    >>> for v in o:
+    ...     try: slice_fused_type_stop_and_step(v, len(l), 0)
+    ...     except ValueError: pass
+    ...     try: slice_fused_type_stop_and_step(v, len(l), v)
+    ...     except TypeError: pass
     """
     obj = seq[start:stop:step]
     return obj
