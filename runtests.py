@@ -227,6 +227,12 @@ def exclude_extension_in_pyver(*versions):
     return check
 
 
+def exclude_extension_on_platform(*platforms):
+    def check(ext):
+        return EXCLUDE_EXT if sys.platform in platforms else ext
+    return check
+
+
 def update_linetrace_extension(ext):
     ext.define_macros.append(('CYTHON_TRACE', 1))
     return ext
@@ -373,6 +379,7 @@ EXT_EXTRAS = {
     'tag:cpp11': update_cpp11_extension,
     'tag:trace' : update_linetrace_extension,
     'tag:bytesformat':  exclude_extension_in_pyver((3, 3), (3, 4)),  # no %-bytes formatting
+    'tag:no-macos':  exclude_extension_on_platform('darwin'),
 }
 
 
