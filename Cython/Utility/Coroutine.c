@@ -1449,7 +1449,7 @@ static PyTypeObject __pyx_CoroutineAwaitType_type = {
 #endif
 };
 
-#if PY_VERSION_HEX < 0x030500B1 || __Pyx_IterableCoroutine_USED || CYTHON_USE_ASYNC_SLOTS
+#if PY_VERSION_HEX < 0x030500B1 || defined(__Pyx_IterableCoroutine_USED) || CYTHON_USE_ASYNC_SLOTS
 static CYTHON_INLINE PyObject *__Pyx__Coroutine_await(PyObject *coroutine) {
     __pyx_CoroutineAwaitObject *await = PyObject_GC_New(__pyx_CoroutineAwaitObject, __pyx_CoroutineAwaitType);
     if (unlikely(!await)) return NULL;
@@ -1466,7 +1466,7 @@ static PyObject *__Pyx_Coroutine_await_method(PyObject *coroutine, CYTHON_UNUSED
 }
 #endif
 
-#if __Pyx_IterableCoroutine_USED || CYTHON_USE_ASYNC_SLOTS
+#if defined(__Pyx_IterableCoroutine_USED) || CYTHON_USE_ASYNC_SLOTS
 static PyObject *__Pyx_Coroutine_await(PyObject *coroutine) {
     if (unlikely(!coroutine || !__Pyx_Coroutine_Check(coroutine))) {
         PyErr_SetString(PyExc_TypeError, "invalid input, expected coroutine");
