@@ -139,7 +139,7 @@ The first Cython program
 ==========================
 
 You can easily execute the code of this tutorial by
-downloading `the Jupyter notebook <https://github.com/cython/cython/blob/master/docs/examples/userguide/numpy_tutorial/numpy_cython.ipynb>`_.
+downloading `the Jupyter notebook <https://github.com/cython/cython/blob/master/docs/examples/userguide/numpy_tutorial/numpy_and_cython.ipynb>`_.
 
 The code below does the equivalent of this function in numpy::
 
