@@ -123,6 +123,7 @@ cdef extern from "numpy/arrayobject.h":
         NPY_SEARCHRIGHT
 
     enum:
+        # DEPRECATED since NumPy 1.7 ! Do not use in new code!
         NPY_C_CONTIGUOUS
         NPY_F_CONTIGUOUS
         NPY_CONTIGUOUS
@@ -154,6 +155,37 @@ cdef extern from "numpy/arrayobject.h":
         NPY_INOUT_FARRAY
 
         NPY_UPDATE_ALL
+
+    enum:
+        # Added in NumPy 1.7 to replace the deprecated enums above.
+        NPY_ARRAY_C_CONTIGUOUS
+        NPY_ARRAY_F_CONTIGUOUS
+        NPY_ARRAY_OWNDATA
+        NPY_ARRAY_FORCECAST
+        NPY_ARRAY_ENSURECOPY
+        NPY_ARRAY_ENSUREARRAY
+        NPY_ARRAY_ELEMENTSTRIDES
+        NPY_ARRAY_ALIGNED
+        NPY_ARRAY_NOTSWAPPED
+        NPY_ARRAY_WRITEABLE
+        NPY_ARRAY_UPDATEIFCOPY
+
+        NPY_ARRAY_BEHAVED
+        NPY_ARRAY_BEHAVED_NS
+        NPY_ARRAY_CARRAY
+        NPY_ARRAY_CARRAY_RO
+        NPY_ARRAY_FARRAY
+        NPY_ARRAY_FARRAY_RO
+        NPY_ARRAY_DEFAULT
+
+        NPY_ARRAY_IN_ARRAY
+        NPY_ARRAY_OUT_ARRAY
+        NPY_ARRAY_INOUT_ARRAY
+        NPY_ARRAY_IN_FARRAY
+        NPY_ARRAY_OUT_FARRAY
+        NPY_ARRAY_INOUT_FARRAY
+
+        NPY_ARRAY_UPDATE_ALL
 
     cdef enum:
         NPY_MAXDIMS
@@ -214,7 +246,7 @@ cdef extern from "numpy/arrayobject.h":
             int ndim "nd"
             npy_intp *shape "dimensions"
             npy_intp *strides
-            dtype descr
+            dtype descr  # deprecated since NumPy 1.7 !
             PyObject* base
 
         # Note: This syntax (function definition in pxd files) is an
@@ -233,11 +265,11 @@ cdef extern from "numpy/arrayobject.h":
             ndim = PyArray_NDIM(self)
 
             if ((flags & pybuf.PyBUF_C_CONTIGUOUS == pybuf.PyBUF_C_CONTIGUOUS)
-                and not PyArray_CHKFLAGS(self, NPY_C_CONTIGUOUS)):
+                and not PyArray_CHKFLAGS(self, NPY_ARRAY_C_CONTIGUOUS)):
                 raise ValueError(u"ndarray is not C contiguous")
 
             if ((flags & pybuf.PyBUF_F_CONTIGUOUS == pybuf.PyBUF_F_CONTIGUOUS)
-                and not PyArray_CHKFLAGS(self, NPY_F_CONTIGUOUS)):
+                and not PyArray_CHKFLAGS(self, NPY_ARRAY_F_CONTIGUOUS)):
                 raise ValueError(u"ndarray is not Fortran contiguous")
 
             info.buf = PyArray_DATA(self)
@@ -259,7 +291,7 @@ cdef extern from "numpy/arrayobject.h":
 
             cdef int t
             cdef char* f = NULL
-            cdef dtype descr = self.descr
+            cdef dtype descr = <dtype>PyArray_DESCR(self)
             cdef int offset
 
             info.obj = self
@@ -404,7 +436,7 @@ cdef extern from "numpy/arrayobject.h":
     npy_intp PyArray_STRIDE(ndarray, size_t)
 
     PyObject *PyArray_BASE(ndarray)  # returns borrowed reference!
-    # dtype PyArray_DESCR(ndarray) wrong refcount semantics
+    PyObject *PyArray_DESCR(ndarray) # returns borrowed reference to dtype!
     int PyArray_FLAGS(ndarray)
     npy_intp PyArray_ITEMSIZE(ndarray)
     int PyArray_TYPE(ndarray arr)
