@@ -29,6 +29,7 @@ Tools/*.elc
 *~
 
 .ipynb_checkpoints
+docs/build
 
 tags
 TAGS
