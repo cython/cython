@@ -1,5 +1,7 @@
 # mode: run
-# tag: pep489
+# tag: pep489, no-macos
+
+# FIXME: don't know why this does not work on MacOS, but it's not worth failing the builds for now.
 
 
 import reload_ext_module

@@ -20,7 +20,8 @@ def test_sizeof():
     """
     x = cython.declare(cython.bint)
     print(cython.sizeof(x) == cython.sizeof(cython.bint))
-    print(cython.sizeof(cython.char) <= cython.sizeof(cython.short) <= cython.sizeof(cython.int) <= cython.sizeof(cython.long) <= cython.sizeof(cython.longlong))
+    sizeof = cython.sizeof
+    print(sizeof(cython.char) <= sizeof(cython.short) <= sizeof(cython.int) <= sizeof(cython.long) <= sizeof(cython.longlong))
     print(cython.sizeof(cython.uint) == cython.sizeof(cython.int))
     print(cython.sizeof(cython.p_int) == cython.sizeof(cython.p_double))
     if cython.compiled:

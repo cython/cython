@@ -5818,7 +5818,8 @@ class SimpleCallNode(CallNode):
                         and self.type.is_int
                         and self.type.signed
                         and self.function.result() in ('abs', 'labs', '__Pyx_abs_longlong')):
-                        goto_error = 'if (unlikely(%s < 0)) { PyErr_SetString(PyExc_OverflowError, "value too large"); %s; }' % (self.result(), code.error_goto(self.pos))
+                        goto_error = 'if (unlikely(%s < 0)) { PyErr_SetString(PyExc_OverflowError, "value too large"); %s; }' % (
+                            self.result(), code.error_goto(self.pos))
                     elif exc_checks:
                         goto_error = code.error_goto_if(" && ".join(exc_checks), self.pos)
                     else:

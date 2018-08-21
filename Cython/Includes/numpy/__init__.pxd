@@ -128,6 +128,7 @@ cdef extern from "numpy/arrayobject.h":
         NPY_SEARCHRIGHT
 
     enum:
+        # Added in NumPy 1.7 to replace the deprecated enums above.
         NPY_ARRAY_C_CONTIGUOUS
         NPY_ARRAY_F_CONTIGUOUS
         NPY_ARRAY_OWNDATA
@@ -260,7 +261,7 @@ cdef extern from "numpy/arrayobject.h":
 
             cdef int t
             cdef char* f = NULL
-            cdef dtype descr = PyArray_DESCR(self)
+            cdef dtype descr = <dtype>PyArray_DESCR(self)
             cdef int offset
 
             info.obj = self
@@ -405,7 +406,7 @@ cdef extern from "numpy/arrayobject.h":
     npy_intp PyArray_STRIDE(ndarray, size_t)
 
     PyObject *PyArray_BASE(ndarray)  # returns borrowed reference!
-    dtype PyArray_DESCR(ndarray) # wrong refcount semantics
+    PyObject *PyArray_DESCR(ndarray) # returns borrowed reference to dtype!
     int PyArray_FLAGS(ndarray)
     npy_intp PyArray_ITEMSIZE(ndarray)
     int PyArray_TYPE(ndarray arr)

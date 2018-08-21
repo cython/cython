@@ -52,13 +52,6 @@ Features added
 * Some missing numpy and CPython C-API declarations were added.
   Patch by John Kirkham. (Github issues #2523, #2520, #2537)
 
-* The numpy helper functions ``set_array_base()`` and ``get_array_base()``
-  were adapted to the current numpy C-API recommendations.
-  Patch by Matti Picus. (Github issue #2528)
-
-* Several C++ STL declarations were extended and corrected.
-  Patch by Valentin Valls. (Github issue #2207)
-
 Bugs fixed
 ----------
 
@@ -77,6 +70,16 @@ Bugs fixed
 
 * Several internal function signatures were fixed that lead to warnings in gcc-8.
   (Github issue #2363)
+
+* The numpy helper functions ``set_array_base()`` and ``get_array_base()``
+  were adapted to the current numpy C-API recommendations.
+  Patch by Matti Picus. (Github issue #2528)
+
+* Some NumPy related code was updated to avoid deprecated API usage.
+  Original patch by jbrockmendel.  (Github issue #2559)
+
+* Several C++ STL declarations were extended and corrected.
+  Patch by Valentin Valls. (Github issue #2207)
 
 * C lines of the module init function were unconditionally not reported in
   exception stack traces.
