@@ -19,6 +19,11 @@ if __name__ == '__main__':
 else:
     # Void cython.* directives.
     from Cython.Shadow import *
+    # Dynamic importing in Python 3.7+
+    from Cython.Shadow import __getattr__
+    import functools
+    __getattr__ = functools.partial(__getattr__, module='cython')
+    del functools
     ## and bring in the __version__
     from Cython import __version__
     from Cython import load_ipython_extension

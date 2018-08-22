@@ -461,3 +461,16 @@ class CythonDotParallel(object):
 import sys
 sys.modules['cython.parallel'] = CythonDotParallel()
 del sys
+
+
+def __getattr__(name, module=__name__):
+    import re
+    match = re.match('^(p+)_([a-zA-Z0-9]+)$', name)
+    if match:
+        depth = len(match.group(1))
+        type = match.group(2)
+
+        if type in int_types + float_types + complex_types + other_types:
+            return gs[type]._pointer(depth)
+
+    raise AttributeError("module '%s' has no attribute '%s'" % (module, name))
