@@ -200,6 +200,9 @@ cdef extern from "numpy/arrayobject.h":
         # as just a PyObject*.
         PyObject* shape
 
+    ctypedef struct PyArray_Descr:
+        pass
+
     ctypedef class numpy.dtype [object PyArray_Descr]:
         # Use PyDataType_* macros when possible, however there are no macros
         # for accessing some of the fields, so some are defined.
@@ -436,7 +439,7 @@ cdef extern from "numpy/arrayobject.h":
     npy_intp PyArray_STRIDE(ndarray, size_t)
 
     PyObject *PyArray_BASE(ndarray)  # returns borrowed reference!
-    PyObject *PyArray_DESCR(ndarray) # returns borrowed reference to dtype!
+    PyArray_Descr *PyArray_DESCR(ndarray) # returns borrowed reference to dtype!
     int PyArray_FLAGS(ndarray)
     npy_intp PyArray_ITEMSIZE(ndarray)
     int PyArray_TYPE(ndarray arr)
