@@ -149,11 +149,12 @@ respectively, as statically typing variables with these Python
 types has zero advantages.
 
 Cython provides an accelerated and typed equivalent of a Python tuple.
-A ``ctuple`` is assembled from any valid C types, for example::
+A ``ctuple`` is assembled from any valid C types. For example::
 
     cdef (double, int) bar
 
-They can be used like a Python tuple, including as function arguments and as return types.
+They can be used efficient alternatives to Python tuples, including in
+function definitions.
 
 While these C types can be vastly faster, they have C semantics.
 Specifically, the integer types overflow
@@ -215,7 +216,7 @@ using normal C declaration syntax. For example,::
     cdef int eggs(unsigned long l, float f):
         ...
 
-''ctuples'' may also be used::
+``ctuples`` may also be used::
 
     cdef (int, float) chips((long, long, double) t):
         ...
