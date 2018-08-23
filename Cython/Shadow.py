@@ -108,13 +108,14 @@ class _Optimization(object):
 cclass = ccall = cfunc = _EmptyDecoratorAndManager()
 
 returns = wraparound = boundscheck = initializedcheck = nonecheck = \
-    overflowcheck = embedsignature = cdivision = cdivision_warnings = \
+    embedsignature = cdivision = cdivision_warnings = \
     always_allows_keywords = profile = linetrace = infer_types = \
     unraisable_tracebacks = freelist = \
         lambda _: _EmptyDecoratorAndManager()
 
 exceptval = lambda _=None, check=True: _EmptyDecoratorAndManager()
 
+overflowcheck = lambda _: _EmptyDecoratorAndManager()
 optimization = _Optimization()
 
 overflowcheck.fold = optimization.use_switch = \
