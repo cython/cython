@@ -148,13 +148,13 @@ typing and instead interpreted as C ``int``, ``long``, and ``float``
 respectively, as statically typing variables with these Python
 types has zero advantages.
 
-Cython provides an accelerated and typed equivalent of a Python tuple.
+Cython provides an accelerated and typed equivalent of a Python tuple, the ``ctuple``.
 A ``ctuple`` is assembled from any valid C types. For example::
 
     cdef (double, int) bar
 
-They can be used efficient alternatives to Python tuples, including in
-function definitions.
+They compile down to C-structures and can be used as efficient alternatives to
+Python tuples.
 
 While these C types can be vastly faster, they have C semantics.
 Specifically, the integer types overflow
