@@ -119,9 +119,6 @@ You can read more about them in :ref:`extension-types`.
 Types
 -----
 
-Types
------
-
 Cython uses the normal C syntax for C types, including pointers.  It provides
 all the standard C types, namely ``char``, ``short``, ``int``, ``long``,
 ``long long`` as well as their ``unsigned`` versions, e.g. ``unsigned int``.
