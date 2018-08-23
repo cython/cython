@@ -422,6 +422,8 @@ cdef extern from "numpy/arrayobject.h":
     # Macros from ndarrayobject.h
     #
     bint PyArray_CHKFLAGS(ndarray m, int flags)
+    bint PyArray_IS_C_CONTIGUOUS(ndarray arr)
+    bint PyArray_IS_F_CONTIGUOUS(ndarray arr)
     bint PyArray_ISCONTIGUOUS(ndarray m)
     bint PyArray_ISWRITEABLE(ndarray m)
     bint PyArray_ISALIGNED(ndarray m)
