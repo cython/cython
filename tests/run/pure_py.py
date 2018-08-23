@@ -2,6 +2,7 @@ import sys
 IS_PY2 = sys.version_info[0] < 3
 
 import cython
+from cython import sizeof
 
 is_compiled = cython.compiled
 
@@ -20,7 +21,6 @@ def test_sizeof():
     """
     x = cython.declare(cython.bint)
     print(cython.sizeof(x) == cython.sizeof(cython.bint))
-    sizeof = cython.sizeof
     print(sizeof(cython.char) <= sizeof(cython.short) <= sizeof(cython.int) <= sizeof(cython.long) <= sizeof(cython.longlong))
     print(cython.sizeof(cython.uint) == cython.sizeof(cython.int))
     print(cython.sizeof(cython.p_int) == cython.sizeof(cython.p_double))
