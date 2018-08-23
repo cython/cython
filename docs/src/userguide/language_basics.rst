@@ -119,6 +119,9 @@ You can read more about them in :ref:`extension-types`.
 Types
 -----
 
+Types
+-----
+
 Cython uses the normal C syntax for C types, including pointers.  It provides
 all the standard C types, namely ``char``, ``short``, ``int``, ``long``,
 ``long long`` as well as their ``unsigned`` versions, e.g. ``unsigned int``.
@@ -147,6 +150,13 @@ The Python types int, long, and float are not available for static
 typing and instead interpreted as C ``int``, ``long``, and ``float``
 respectively, as statically typing variables with these Python
 types has zero advantages.
+
+Cython provides an accelerated and typed equivalent of a Python tuple.
+A ``ctuple`` is assembled from any valid C types, for example::
+
+    cdef (double, int) bar
+
+They can be used like a Python tuple, including as function arguments and as return types.
 
 While these C types can be vastly faster, they have C semantics.
 Specifically, the integer types overflow
@@ -206,6 +216,11 @@ using normal C declaration syntax. For example,::
         ...
 
     cdef int eggs(unsigned long l, float f):
+        ...
+
+''ctuples'' may also be used::
+
+    cdef (int, float) chips((long, long, double) t):
         ...
 
 When a parameter of a Python function is declared to have a C data type, it is
