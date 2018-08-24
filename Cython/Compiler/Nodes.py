@@ -7411,7 +7411,9 @@ class ExceptClauseNode(Node):
 
         if not self.body.is_terminator:
             for var in exc_vars:
-                code.put_decref_clear(var, py_object_type)
+                # FIXME: XDECREF() is needed to allow re-raising (which clears the exc_vars),
+                # but I don't think it's the right solution.
+                code.put_xdecref_clear(var, py_object_type)
             code.put_goto(end_label)
 
         for new_label, old_label in [(code.break_label, old_break_label),
