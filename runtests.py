@@ -65,6 +65,8 @@ except ImportError:
 try:
     from unittest import SkipTest
 except ImportError:
+    class SkipTest(Exception):  # don't raise, only provided to allow except-ing it!
+        pass
     def skip_test(reason):
         print("Skipping test: %s" % reason)
 else:
@@ -1025,7 +1027,7 @@ class CythonCompileTestCase(unittest.TestCase):
                     newext = fixer(extension)
                     if newext is EXCLUDE_EXT:
                         return skip_test("Test '%s' excluded due to tags '%s'" % (
-                            self.name, ', '.join(self.tags)))
+                            self.name, ', '.join(self.tags.get('tag', ''))))
                     extension = newext or extension
             if self.language == 'cpp':
                 extension.language = 'c++'
@@ -1174,7 +1176,7 @@ class CythonRunTestCase(CythonCompileTestCase):
             try:
                 self.success = False
                 ext_so_path = self.runCompileTest()
-                failures, errors = len(result.failures), len(result.errors)
+                failures, errors, skipped = len(result.failures), len(result.errors), len(result.skipped)
                 if not self.cython_only and ext_so_path is not None:
                     self.run_tests(result, ext_so_path)
                 if failures == len(result.failures) and errors == len(result.errors):
@@ -1182,6 +1184,9 @@ class CythonRunTestCase(CythonCompileTestCase):
                     self.success = True
             finally:
                 check_thread_termination()
+        except SkipTest as exc:
+            result.addSkip(self, str(exc))
+            result.stopTest(self)
         except Exception:
             result.addError(self, sys.exc_info())
             result.stopTest(self)
@@ -1363,17 +1368,18 @@ class PartialTestResult(_TextTestResult):
     def data(self):
         self.strip_error_results(self.failures)
         self.strip_error_results(self.errors)
-        return (self.failures, self.errors, self.testsRun,
+        return (self.failures, self.errors, self.skipped, self.testsRun,
                 self.stream.getvalue())
 
     def join_results(result, data):
         """Static method for merging the result back into the main
         result object.
         """
-        failures, errors, tests_run, output = data
+        failures, errors, skipped, tests_run, output = data
         if output:
             result.stream.write(output)
         result.errors.extend(errors)
+        result.skipped.extend(skipped)
         result.failures.extend(failures)
         result.testsRun += tests_run
 
