@@ -63,6 +63,15 @@ except ImportError:
             return bool(self._dict)
 
 try:
+    from unittest import SkipTest
+except ImportError:
+    def skip_test(reason):
+        print("Skipping test: %s" % reason)
+else:
+    def skip_test(reason):
+        raise SkipTest(reason)
+
+try:
     basestring
 except NameError:
     basestring = str
@@ -1015,7 +1024,8 @@ class CythonCompileTestCase(unittest.TestCase):
                 if matcher(module, self.tags):
                     newext = fixer(extension)
                     if newext is EXCLUDE_EXT:
-                        return
+                        return skip_test("Test '%s' excluded due to tags '%s'" % (
+                            self.name, ', '.join(self.tags)))
                     extension = newext or extension
             if self.language == 'cpp':
                 extension.language = 'c++'
@@ -1955,7 +1965,7 @@ def main():
                             "tests (the ones which are deactivated with '--no-file'."))
     parser.add_option("--examples-dir", dest="examples_dir",
                       default=os.path.join(DISTDIR, 'docs', 'examples'),
-                      help="working directory")
+                      help="Directory to look for documentation example tests")
     parser.add_option("--work-dir", dest="work_dir", default=os.path.join(os.getcwd(), 'TEST_TMP'),
                       help="working directory")
     parser.add_option("--cython-dir", dest="cython_dir", default=os.getcwd(),
