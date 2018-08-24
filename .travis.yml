@@ -160,4 +160,4 @@ script:
   - if [ "$BACKEND" = "cpp" -a -n "${TRAVIS_PYTHON_VERSION##2.6*}" ]; then pip install pythran; fi
   - if [ "$BACKEND" = "c" -a -n "${TRAVIS_PYTHON_VERSION##2*}" ]; then pip install mypy; fi
   - CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" python setup.py build_ext -i
-  - CFLAGS="-O0 -ggdb -Wall -Wextra" python runtests.py -vv $STYLE_ARGS -x Debugger --backends=$BACKEND $(if [ -z "$TEST_CODE_STYLE"; then echo " -j7 "; fi)
+  - CFLAGS="-O0 -ggdb -Wall -Wextra" python runtests.py -vv $STYLE_ARGS -x Debugger --backends=$BACKEND $(if [ -z "$TEST_CODE_STYLE" ]; then echo " -j7 "; fi)
