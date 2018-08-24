@@ -1384,7 +1384,10 @@ class PartialTestResult(_TextTestResult):
         if output:
             result.stream.write(output)
         result.errors.extend(errors)
-        result.skipped.extend(skipped)
+        try:
+            result.skipped.extend(skipped)
+        except AttributeError:
+            pass  # Py2.6
         result.failures.extend(failures)
         result.testsRun += tests_run
 
