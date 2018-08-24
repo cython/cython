@@ -688,8 +688,15 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, i
     tstate = __Pyx_PyThreadState_Current;
 #endif
 
-    // Traceback/Frame rules:
+    // Traceback/Frame rules pre-Py3.7:
     // - on entry, save external exception state in self->gi_exc_state, restore it on exit
+    // - on exit, keep internally generated exceptions in self->gi_exc_state, clear everything else
+    // - on entry, set "f_back" pointer of internal exception traceback to (current) outer call frame
+    // - on exit, clear "f_back" of internal exception traceback
+    // - do not touch external frames and tracebacks
+
+    // Traceback/Frame rules for Py3.7+ (CYTHON_USE_EXC_INFO_STACK):
+    // - on entry, push internal exception state in self->gi_exc_state on the exception stack
     // - on exit, keep internally generated exceptions in self->gi_exc_state, clear everything else
     // - on entry, set "f_back" pointer of internal exception traceback to (current) outer call frame
     // - on exit, clear "f_back" of internal exception traceback
