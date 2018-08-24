@@ -1176,7 +1176,8 @@ class CythonRunTestCase(CythonCompileTestCase):
             try:
                 self.success = False
                 ext_so_path = self.runCompileTest()
-                failures, errors, skipped = len(result.failures), len(result.errors), len(result.skipped)
+                # Py2.6 lacks "_TextTestResult.skipped"
+                failures, errors, skipped = len(result.failures), len(result.errors), len(getattr(result, 'skipped', []))
                 if not self.cython_only and ext_so_path is not None:
                     self.run_tests(result, ext_so_path)
                 if failures == len(result.failures) and errors == len(result.errors):
@@ -1355,6 +1356,10 @@ class PartialTestResult(_TextTestResult):
         _TextTestResult.__init__(
             self, self._StringIO(), True,
             base_result.dots + base_result.showAll*2)
+        try:
+            self.skipped
+        except AttributeError:
+            self.skipped = []  # Py2.6
 
     def strip_error_results(self, results):
         for test_case, error in results:
