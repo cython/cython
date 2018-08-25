@@ -161,7 +161,9 @@ def parse_args(args):
                       dest='options', default={}, type="str",
                       action='callback', callback=parse_options,
                       help='set a cythonize option')
-    parser.add_option('-3', dest='python3_mode', action='store_true',
+    parser.add_option('-2', dest='language_level', action='store_const', const=2, default=None,
+                      help='use Python 2 syntax mode by default')
+    parser.add_option('-3', dest='language_level', action='store_const', const=3,
                       help='use Python 3 syntax mode by default')
     parser.add_option('-a', '--annotate', dest='annotate', action='store_true',
                       help='generate annotated HTML page for source files')
@@ -195,8 +197,9 @@ def parse_args(args):
         options.build = True
     if multiprocessing is None:
         options.parallel = 0
-    if options.python3_mode:
-        options.options['language_level'] = 3
+    if options.language_level:
+        assert options.language_level in (2, 3)
+        options.options['language_level'] = options.language_level
     return options, args
 
 
