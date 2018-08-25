@@ -22,6 +22,12 @@ cdef extern from *:
     #ifndef PyLong_MASK
     #define PyLong_MASK 0
     #endif
+    #ifndef SIZEOF_UINTPTR_T
+    #define SIZEOF_UINTPTR_T 0
+    #endif
+    #ifndef SIZEOF_OFF_T
+    #define SIZEOF_OFF_T 0
+    #endif
     """
     # Python runtime
     cdef long PY_VERSION_HEX
