@@ -2104,7 +2104,8 @@ def time_stamper_thread(interval=10):
                 sleep(1./4)
             write('\n#### %s\n' % now())
 
-    thread = threading.Thread(target=time_stamper, name='time_stamper', daemon=True)
+    thread = threading.Thread(target=time_stamper, name='time_stamper')
+    thread.setDaemon(True)  # Py2.6 ...
     thread.start()
     try:
         yield
