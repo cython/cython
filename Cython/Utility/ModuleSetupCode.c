@@ -925,7 +925,7 @@ static CYTHON_SMALL_CODE int __Pyx_check_single_interpreter(void) {
 
     {
         PyErr_SetString(
-            PyExc_RuntimeError, "Interpreter change detected - this module does not support subinterpreters.");
+            PyExc_ImportError, "Interpreter change detected - this module does not support subinterpreters.");
         return -1;
     }
     return 0;
