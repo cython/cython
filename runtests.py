@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import atexit
 import os
 import sys
@@ -69,7 +71,7 @@ except ImportError:
     class SkipTest(Exception):  # don't raise, only provided to allow except-ing it!
         pass
     def skip_test(reason):
-        print("Skipping test: %s" % reason)
+        sys.stderr.write("Skipping test: %s\n" % reason)
 else:
     def skip_test(reason):
         raise SkipTest(reason)
@@ -1664,9 +1666,8 @@ class EndToEndTest(unittest.TestCase):
             out, err = p.communicate()
             res = p.returncode
             if res != 0:
-                print(command)
-                print(self._try_decode(out))
-                print(self._try_decode(err))
+                sys.stderr.write("%s\n%s\n%s\n" % (
+                    command, self._try_decode(out), self._try_decode(err)))
             self.assertEqual(0, res, "non-zero exit status")
         self.success = True
 
@@ -2049,21 +2050,22 @@ def main():
             for shard_num, return_code in pool.imap_unordered(runtests_callback, tasks):
                 if return_code != 0:
                     errors.append(shard_num)
-                    print("FAILED (%s/%s)" % (shard_num, options.shard_count))
-                print("ALL DONE (%s/%s)" % (shard_num, options.shard_count))
+                    sys.stderr.write("FAILED (%s/%s)\n" % (shard_num, options.shard_count))
+                sys.stderr.write("ALL DONE (%s/%s)\n" % (shard_num, options.shard_count))
         pool.close()
         pool.join()
         total_time = time.time() - total_time
-        print("Sharded tests run in %d seconds (%.1f minutes)" % (round(total_time), total_time / 60.))
+        sys.stderr.write("Sharded tests run in %d seconds (%.1f minutes)\n" % (round(total_time), total_time / 60.))
         if errors:
-            print("Errors for shards %s" % ", ".join([str(e) for e in errors]))
+            sys.stderr.write("Errors for shards %s\n" % ", ".join([str(e) for e in errors]))
             return_code = 1
         else:
             return_code = 0
     else:
         with time_stamper_thread():
             _, return_code = runtests(options, cmd_args, coverage)
-    print("ALL DONE")
+    sys.stderr.write("ALL DONE\n")
+    sys.stderr.flush()
 
     try:
         check_thread_termination(ignore_seen=False)
@@ -2091,6 +2093,7 @@ def time_stamper_thread(interval=10):
 
     interval = _xrange(interval * 4)
     now = datetime.now
+    write = sys.stderr.write
     stop = False
 
     def time_stamper():
@@ -2099,7 +2102,7 @@ def time_stamper_thread(interval=10):
                 if stop:
                     return
                 sleep(1./4)
-            print('\n#### %s' % now())
+            write('\n#### %s\n' % now())
 
     thread = threading.Thread(target=time_stamper)
     thread.start()
