@@ -4,7 +4,10 @@ Non-test that prints debug information about the current build environment.
 
 from __future__ import print_function
 
+import os
 import sys
+from distutils import sysconfig
+
 
 cdef extern from *:
     """
@@ -18,6 +21,12 @@ cdef extern from *:
     #endif
     #ifndef PyLong_MASK
     #define PyLong_MASK 0
+    #endif
+    #ifndef SIZEOF_UINTPTR_T
+    #define SIZEOF_UINTPTR_T 0
+    #endif
+    #ifndef SIZEOF_OFF_T
+    #define SIZEOF_OFF_T 0
     #endif
     """
     # Python runtime
@@ -45,6 +54,8 @@ cdef extern from *:
     cdef int SIZEOF_SIZE_T
     cdef int SIZEOF_LONG_LONG
     cdef int SIZEOF_VOID_P
+    cdef int SIZEOF_OFF_T
+    cdef int SIZEOF_UINTPTR_T
 
     # PyLong internals
     cdef long PyLong_BASE
@@ -52,6 +63,12 @@ cdef extern from *:
     cdef int PyLong_SHIFT
     cdef int digit
     cdef int sdigit
+
+
+def config_var(name, default=''):
+    return sysconfig.get_config_var(name) or default
+
+get_env = os.environ.get
 
 
 print(f"""Python build environment:
@@ -85,4 +102,21 @@ SIZEOF_LONG  {SIZEOF_LONG}  ({sizeof(long)})
 SIZEOF_SIZE_T  {SIZEOF_SIZE_T}  ({sizeof(Py_ssize_t)}, {getattr(sys, 'maxsize', getattr(sys, 'maxint', None))})
 SIZEOF_LONG_LONG  {SIZEOF_LONG_LONG}  ({sizeof(long long)})
 SIZEOF_VOID_P  {SIZEOF_VOID_P}  ({sizeof(void*)})
+SIZEOF_UINTPTR_T  {SIZEOF_UINTPTR_T}  ({sizeof(unsigned int *)})
+SIZEOF_OFF_T  {SIZEOF_OFF_T}
+
+Distutils:
+INCDIR = {sysconfig.get_python_inc()}
+LIBS = {config_var('LIBS')}
+LIBDIR = {config_var('LIBDIR')}
+LIBPL = {config_var('LIBPL')}
+Python LIBRARY = {config_var('LIBRARY')}
+LINKFORSHARED = {config_var('LINKFORSHARED')}
+
+CC (distutils) = {config_var('CC')}
+CC (env) = {get_env('CC', '')}
+CFLAGS (distutils) = {config_var('CFLAGS')}
+CFLAGS (env) = {get_env('CFLAGS', '')}
+LINKCC (distutils) = {config_var('LINKCC')}
+LINKCC (env) = {get_env('LINKCC', '')}
 """)

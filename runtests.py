@@ -17,6 +17,7 @@ import traceback
 import warnings
 import zlib
 import glob
+from contextlib import contextmanager
 
 try:
     import platform
@@ -61,6 +62,17 @@ except ImportError:
             return repr(self._dict)
         def __nonzero__(self):
             return bool(self._dict)
+
+try:
+    from unittest import SkipTest
+except ImportError:
+    class SkipTest(Exception):  # don't raise, only provided to allow except-ing it!
+        pass
+    def skip_test(reason):
+        print("Skipping test: %s" % reason)
+else:
+    def skip_test(reason):
+        raise SkipTest(reason)
 
 try:
     basestring
@@ -227,6 +239,12 @@ def exclude_extension_in_pyver(*versions):
     return check
 
 
+def exclude_extension_on_platform(*platforms):
+    def check(ext):
+        return EXCLUDE_EXT if sys.platform in platforms else ext
+    return check
+
+
 def update_linetrace_extension(ext):
     ext.define_macros.append(('CYTHON_TRACE', 1))
     return ext
@@ -282,6 +300,9 @@ def update_cpp11_extension(ext):
     clang_version = get_clang_version(ext.language)
     if clang_version:
         ext.extra_compile_args.append("-std=c++11")
+        if sys.platform == "darwin":
+          ext.extra_compile_args.append("-stdlib=libc++")
+          ext.extra_compile_args.append("-mmacosx-version-min=10.7")
         return ext
 
     return EXCLUDE_EXT
@@ -370,6 +391,7 @@ EXT_EXTRAS = {
     'tag:cpp11': update_cpp11_extension,
     'tag:trace' : update_linetrace_extension,
     'tag:bytesformat':  exclude_extension_in_pyver((3, 3), (3, 4)),  # no %-bytes formatting
+    'tag:no-macos':  exclude_extension_on_platform('darwin'),
 }
 
 
@@ -733,6 +755,18 @@ def skip_c(tags):
     return False
 
 
+def filter_stderr(stderr_bytes):
+    """
+    Filter annoying warnings from output.
+    """
+    if b"Command line warning D9025" in stderr_bytes:
+        # MSCV: cl : Command line warning D9025 : overriding '/Ox' with '/Od'
+        stderr_bytes = b'\n'.join(
+            line for line in stderr_bytes.splitlines()
+            if b"Command line warning D9025" not in line)
+    return stderr_bytes
+
+
 class CythonCompileTestCase(unittest.TestCase):
     def __init__(self, test_directory, workdir, module, tags, language='c', preparse='id',
                  expect_errors=False, expect_warnings=False, annotate=False, cleanup_workdir=True,
@@ -1008,7 +1042,8 @@ class CythonCompileTestCase(unittest.TestCase):
                 if matcher(module, self.tags):
                     newext = fixer(extension)
                     if newext is EXCLUDE_EXT:
-                        return
+                        return skip_test("Test '%s' excluded due to tags '%s'" % (
+                            self.name, ', '.join(self.tags.get('tag', ''))))
                     extension = newext or extension
             if self.language == 'cpp':
                 extension.language = 'c++'
@@ -1111,14 +1146,16 @@ class CythonCompileTestCase(unittest.TestCase):
                 if show_output:
                     stdout = get_stdout and get_stdout().strip()
                     if stdout:
-                        tostderr("\n=== C/C++ compiler output: ===\n")
-                        print_bytes(stdout, end=None, file=sys.__stderr__)
-                    stderr = get_stderr and get_stderr().strip()
+                        print_bytes(
+                            stdout, header_text="\n=== C/C++ compiler output: =========\n",
+                            end=None, file=sys.__stderr__)
+                    stderr = get_stderr and filter_stderr(get_stderr()).strip()
                     if stderr:
-                        tostderr("\n=== C/C++ compiler error output: ===\n")
-                        print_bytes(stderr, end=None, file=sys.__stderr__)
+                        print_bytes(
+                            stderr, header_text="\n=== C/C++ compiler error output: ===\n",
+                            end=None, file=sys.__stderr__)
                     if stdout or stderr:
-                        tostderr("\n==============================\n")
+                        tostderr("\n====================================\n")
         return so_path
 
     def _match_output(self, expected_output, actual_output, write):
@@ -1161,7 +1198,8 @@ class CythonRunTestCase(CythonCompileTestCase):
             try:
                 self.success = False
                 ext_so_path = self.runCompileTest()
-                failures, errors = len(result.failures), len(result.errors)
+                # Py2.6 lacks "_TextTestResult.skipped"
+                failures, errors, skipped = len(result.failures), len(result.errors), len(getattr(result, 'skipped', []))
                 if not self.cython_only and ext_so_path is not None:
                     self.run_tests(result, ext_so_path)
                 if failures == len(result.failures) and errors == len(result.errors):
@@ -1169,6 +1207,9 @@ class CythonRunTestCase(CythonCompileTestCase):
                     self.success = True
             finally:
                 check_thread_termination()
+        except SkipTest as exc:
+            result.addSkip(self, str(exc))
+            result.stopTest(self)
         except Exception:
             result.addError(self, sys.exc_info())
             result.stopTest(self)
@@ -1339,6 +1380,10 @@ class PartialTestResult(_TextTestResult):
         _TextTestResult.__init__(
             self, self._StringIO(), True,
             base_result.dots + base_result.showAll*2)
+        try:
+            self.skipped
+        except AttributeError:
+            self.skipped = []  # Py2.6
 
     def strip_error_results(self, results):
         for test_case, error in results:
@@ -1352,17 +1397,21 @@ class PartialTestResult(_TextTestResult):
     def data(self):
         self.strip_error_results(self.failures)
         self.strip_error_results(self.errors)
-        return (self.failures, self.errors, self.testsRun,
+        return (self.failures, self.errors, self.skipped, self.testsRun,
                 self.stream.getvalue())
 
     def join_results(result, data):
         """Static method for merging the result back into the main
         result object.
         """
-        failures, errors, tests_run, output = data
+        failures, errors, skipped, tests_run, output = data
         if output:
             result.stream.write(output)
         result.errors.extend(errors)
+        try:
+            result.skipped.extend(skipped)
+        except AttributeError:
+            pass  # Py2.6
         result.failures.extend(failures)
         result.testsRun += tests_run
 
@@ -1954,7 +2003,7 @@ def main():
                             "tests (the ones which are deactivated with '--no-file'."))
     parser.add_option("--examples-dir", dest="examples_dir",
                       default=os.path.join(DISTDIR, 'docs', 'examples'),
-                      help="working directory")
+                      help="Directory to look for documentation example tests")
     parser.add_option("--work-dir", dest="work_dir", default=os.path.join(os.getcwd(), 'TEST_TMP'),
                       help="working directory")
     parser.add_option("--cython-dir", dest="cython_dir", default=os.getcwd(),
@@ -2005,11 +2054,13 @@ def main():
         pool = multiprocessing.Pool(options.shard_count)
         tasks = [(options, cmd_args, shard_num) for shard_num in range(options.shard_count)]
         errors = []
-        for shard_num, return_code in pool.imap_unordered(runtests_callback, tasks):
-            if return_code != 0:
-                errors.append(shard_num)
-                print("FAILED (%s/%s)" % (shard_num, options.shard_count))
-            print("ALL DONE (%s/%s)" % (shard_num, options.shard_count))
+        # NOTE: create process pool before time stamper thread to avoid forking issues.
+        with time_stamper_thread():
+            for shard_num, return_code in pool.imap_unordered(runtests_callback, tasks):
+                if return_code != 0:
+                    errors.append(shard_num)
+                    print("FAILED (%s/%s)" % (shard_num, options.shard_count))
+                print("ALL DONE (%s/%s)" % (shard_num, options.shard_count))
         pool.close()
         pool.join()
         if errors:
@@ -2018,7 +2069,8 @@ def main():
         else:
             return_code = 0
     else:
-        _, return_code = runtests(options, cmd_args, coverage)
+        with time_stamper_thread():
+            _, return_code = runtests(options, cmd_args, coverage)
     print("ALL DONE")
 
     try:
@@ -2028,6 +2080,42 @@ def main():
         flush_and_terminate(return_code)
     else:
         sys.exit(return_code)
+
+
+@contextmanager
+def time_stamper_thread(interval=10):
+    """
+    Print regular time stamps into the build logs to find slow tests.
+    @param interval: time interval in seconds
+    """
+    try:
+        _xrange = xrange
+    except NameError:
+        _xrange = range
+
+    import threading
+    from datetime import datetime
+    from time import sleep
+
+    interval = _xrange(interval * 4)
+    now = datetime.now
+    stop = False
+
+    def time_stamper():
+        while True:
+            for _ in interval:
+                if stop:
+                    return
+                sleep(1./4)
+            print('\n#### %s' % now())
+
+    thread = threading.Thread(target=time_stamper)
+    thread.start()
+    try:
+        yield
+    finally:
+        stop = True
+        thread.join()
 
 
 def configure_cython(options):

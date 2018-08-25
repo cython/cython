@@ -396,6 +396,11 @@ class __Pyx_FakeReference {
   #define Py_TPFLAGS_HAVE_FINALIZE 0
 #endif
 
+#ifndef METH_STACKLESS
+  // already defined for Stackless Python (all versions) and C-Python >= 3.7
+  // value if defined: Stackless Python < 3.6: 0x80 else 0x100
+  #define METH_STACKLESS 0
+#endif
 #if PY_VERSION_HEX <= 0x030700A3 || !defined(METH_FASTCALL)
   // new in CPython 3.6, but changed in 3.7 - see
   // positional-only parameters:
@@ -415,7 +420,7 @@ class __Pyx_FakeReference {
 #endif
 #if CYTHON_FAST_PYCCALL
 #define __Pyx_PyFastCFunction_Check(func) \
-    ((PyCFunction_Check(func) && (METH_FASTCALL == (PyCFunction_GET_FLAGS(func) & ~(METH_CLASS | METH_STATIC | METH_COEXIST | METH_KEYWORDS)))))
+    ((PyCFunction_Check(func) && (METH_FASTCALL == (PyCFunction_GET_FLAGS(func) & ~(METH_CLASS | METH_STATIC | METH_COEXIST | METH_KEYWORDS | METH_STACKLESS)))))
 #else
 #define __Pyx_PyFastCFunction_Check(func) 0
 #endif

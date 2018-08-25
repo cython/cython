@@ -17,6 +17,9 @@ Features added
   module that can be used for typing in Python code.
   Original patch by Julian Gethmann. (Github issue #1965)
 
+* Memoryviews are supported in PEP-489 style type declarations.
+  (Github issue #2529)
+
 * Raising exceptions from nogil code will automatically acquire the GIL, instead
   of requiring an explicit ``with gil`` block.
 
@@ -49,15 +52,11 @@ Features added
 * Some missing numpy and CPython C-API declarations were added.
   Patch by John Kirkham. (Github issues #2523, #2520, #2537)
 
-* The numpy helper functions ``set_array_base()`` and ``get_array_base()``
-  were adapted to the current numpy C-API recommendations.
-  Patch by Matti Picus. (Github issue #2528)
-
-* Several C++ STL declarations were extended and corrected.
-  Patch by Valentin Valls. (Github issue #2207)
-
 Bugs fixed
 ----------
+
+* Crash when importing a module under Stackless Python that was built for CPython.
+  Patch by Anselm Kruis.  (Github issue #2534)
 
 * The directive ``language_level=3`` did not apply to the first token in the
   source file.  (Github issue #2230)
@@ -71,6 +70,16 @@ Bugs fixed
 
 * Several internal function signatures were fixed that lead to warnings in gcc-8.
   (Github issue #2363)
+
+* The numpy helper functions ``set_array_base()`` and ``get_array_base()``
+  were adapted to the current numpy C-API recommendations.
+  Patch by Matti Picus. (Github issue #2528)
+
+* Some NumPy related code was updated to avoid deprecated API usage.
+  Original patch by jbrockmendel.  (Github issue #2559)
+
+* Several C++ STL declarations were extended and corrected.
+  Patch by Valentin Valls. (Github issue #2207)
 
 * C lines of the module init function were unconditionally not reported in
   exception stack traces.

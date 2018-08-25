@@ -430,7 +430,9 @@ def captured_fd(stream=2, encoding=None):
         os.close(orig_stream)
 
 
-def print_bytes(s, end=b'\n', file=sys.stdout, flush=True):
+def print_bytes(s, header_text=None, end=b'\n', file=sys.stdout, flush=True):
+    if header_text:
+        file.write(header_text)  # note: text! => file.write() instead of out.write()
     file.flush()
     try:
         out = file.buffer  # Py3

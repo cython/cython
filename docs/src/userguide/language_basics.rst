@@ -148,6 +148,14 @@ typing and instead interpreted as C ``int``, ``long``, and ``float``
 respectively, as statically typing variables with these Python
 types has zero advantages.
 
+Cython provides an accelerated and typed equivalent of a Python tuple, the ``ctuple``.
+A ``ctuple`` is assembled from any valid C types. For example::
+
+    cdef (double, int) bar
+
+They compile down to C-structures and can be used as efficient alternatives to
+Python tuples.
+
 While these C types can be vastly faster, they have C semantics.
 Specifically, the integer types overflow
 and the C ``float`` type only has 32 bits of precision
@@ -206,6 +214,11 @@ using normal C declaration syntax. For example,::
         ...
 
     cdef int eggs(unsigned long l, float f):
+        ...
+
+``ctuples`` may also be used::
+
+    cdef (int, float) chips((long, long, double) t):
         ...
 
 When a parameter of a Python function is declared to have a C data type, it is

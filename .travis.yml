@@ -5,16 +5,13 @@ dist: trusty
 
 addons:
   apt:
-    sources:
-      - sourceline: 'ppa:ubuntu-toolchain-r/test'
-    update: true
     packages:
       - gdb
       - python-dbg
       - python3-dbg
       - libzmq-dev  # needed by IPython/Tornado
-      - gcc-8
-      - g++-8
+      #- gcc-8
+      #- g++-8
 
 cache:
   pip: true
@@ -37,7 +34,7 @@ env:
     - CCACHE_SLOPPINESS=pch_defines,time_macros
     - CCACHE_COMPRESS=1
     - CCACHE_MAXSIZE=150M
-    - PATH="/usr/lib/ccache:$HOME/gcclinks:$HOME/miniconda/bin:$PATH"
+    - PATH="/usr/lib/ccache:$HOME/miniconda/bin:$PATH"
   matrix:
     - BACKEND=c
     - BACKEND=cpp
@@ -116,28 +113,33 @@ branches:
 before_install:
   - |
     if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
-      mkdir -p $HOME/gcclinks
-      ln -s /usr/bin/gcc-8 $HOME/gcclinks/gcc
-      ln -s /usr/bin/g++-8 $HOME/gcclinks/g++
-      export  CC=gcc-8  CXX=g++-8
-      $CC --version
-      $CXX --version
+      # adding apt repos in travis is really fragile => retry a couple of times.
+      for i in {1..10}; do travis_retry sudo apt-add-repository --yes 'ppa:ubuntu-toolchain-r/test' && break; sleep 2; done
+      for i in {1..10}; do travis_retry sudo apt-get update && travis_retry sudo apt-get install --yes gcc-8  $(if [ "$BACKEND" = cpp ]; then echo -n "g++-8"; fi ) && break; sleep 2; done
+      sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 60 $(if [ "$BACKEND" = cpp ]; then echo " --slave /usr/bin/g++ g++ /usr/bin/g++-8"; fi)
+      sudo update-alternatives --set gcc /usr/bin/gcc-8
+      export CC=gcc
+      if [ "$BACKEND" = cpp ]; then sudo update-alternatives --set g++ /usr/bin/g++-8; export CXX=g++; fi
     fi
 
   - |
     if [[ "$TRAVIS_OS_NAME" == "osx" ]] || [[ "$STACKLESS" == "true" ]]; then # Install Miniconda
       if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then CONDA_PLATFORM=MacOSX; else CONDA_PLATFORM=Linux; fi
-      curl -s -o miniconda.sh https://repo.continuum.io/miniconda/Miniconda$PY-latest-${CONDA_PLATFORM}-x86_64.sh
+      travis_retry curl -s -o miniconda.sh https://repo.continuum.io/miniconda/Miniconda$PY-latest-${CONDA_PLATFORM}-x86_64.sh
       bash miniconda.sh -b -p $HOME/miniconda && rm miniconda.sh
-      $HOME/miniconda/bin/conda install --quiet --yes nomkl  clang  clang++
       #conda install --quiet --yes nomkl --file=test-requirements.txt --file=test-requirements-cpython.txt
-      if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then which clang && clang --version && export CC=clang|| true; fi
-      if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then which clang++ && clang++ --version && export CXX=clang++ || true; fi
+      if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+        which clang && clang --version && export CC=clang || true
+        which clang++ && clang++ --version && export CXX=clang++ || true
+      fi
     fi
+
+  - if [ -n "$CC" ]; then which $CC; $CC --version; fi
+  - if [ -n "$CXX" ]; then which $CXX; $CXX --version; fi
 
   - if [[ "$STACKLESS" == "true" ]]; then
       conda config --add channels stackless;
-      conda install --quiet --yes stackless;
+      travis_retry conda install --quiet --yes stackless;
     fi
 
 install:
@@ -158,4 +160,4 @@ script:
   - if [ "$BACKEND" = "cpp" -a -n "${TRAVIS_PYTHON_VERSION##2.6*}" ]; then pip install pythran; fi
   - if [ "$BACKEND" = "c" -a -n "${TRAVIS_PYTHON_VERSION##2*}" ]; then pip install mypy; fi
   - CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" python setup.py build_ext -i
-  - CFLAGS="-O0 -ggdb -Wall -Wextra" python runtests.py -vv $STYLE_ARGS -x Debugger --backends=$BACKEND -j7
+  - CFLAGS="-O0 -ggdb -Wall -Wextra" python runtests.py -vv $STYLE_ARGS -x Debugger --backends=$BACKEND $(if [ -z "$TEST_CODE_STYLE" ]; then echo " -j7 "; fi)

@@ -127,8 +127,9 @@ def test_unordered_set_functionality():
     int_set.insert(int_set2.begin(), int_set2.end())
     assert int_set.size() == 2
 
-    int_set.max_load_factor(0.5)
-    assert int_set.max_load_factor() == 0.5
+    if sys.platform != 'darwin':
+        int_set.max_load_factor(0.5)
+        assert int_set.max_load_factor() == 0.5
     int_set.rehash(20)
     int_set.reserve(20)
 
