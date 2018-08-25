@@ -74,7 +74,7 @@ test: off
 test_script:
   - "%PYTHON%\\Scripts\\pip.exe install -r test-requirements.txt"
   - "set CFLAGS=/Od"
-  - "%WITH_ENV% %PYTHON%\\python.exe runtests.py -vv --no-cpp -j4"
+  - "%WITH_ENV% %PYTHON%\\python.exe runtests.py -vv --no-cpp -j5"
 
 artifacts:
   - path: dist\*
