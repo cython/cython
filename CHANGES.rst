@@ -52,6 +52,9 @@ Features added
 * Some missing numpy and CPython C-API declarations were added.
   Patch by John Kirkham. (Github issues #2523, #2520, #2537)
 
+* Declarations for the `pylifecycle` C-API functions were added in a new .pxd file
+  `cpython.pylifecycle`.
+
 Bugs fixed
 ----------
 
