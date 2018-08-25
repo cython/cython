@@ -1827,7 +1827,7 @@ def check_thread_termination(ignore_seen=True):
     current = threading.currentThread()
     blocking_threads = []
     for t in threading.enumerate():
-        if not t.isAlive() or t == current:
+        if not t.isAlive() or t == current or t.name == 'time_stamper':
             continue
         t.join(timeout=2)
         if t.isAlive():
@@ -2104,7 +2104,7 @@ def time_stamper_thread(interval=10):
                 sleep(1./4)
             write('\n#### %s\n' % now())
 
-    thread = threading.Thread(target=time_stamper)
+    thread = threading.Thread(target=time_stamper, name='time_stamper', daemon=True)
     thread.start()
     try:
         yield
