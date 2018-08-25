@@ -17,6 +17,7 @@ import traceback
 import warnings
 import zlib
 import glob
+from contextlib import contextmanager
 
 try:
     import platform
@@ -2042,11 +2043,13 @@ def main():
         pool = multiprocessing.Pool(options.shard_count)
         tasks = [(options, cmd_args, shard_num) for shard_num in range(options.shard_count)]
         errors = []
-        for shard_num, return_code in pool.imap_unordered(runtests_callback, tasks):
-            if return_code != 0:
-                errors.append(shard_num)
-                print("FAILED (%s/%s)" % (shard_num, options.shard_count))
-            print("ALL DONE (%s/%s)" % (shard_num, options.shard_count))
+        # NOTE: create process pool before time stamper thread to avoid forking issues.
+        with time_stamper_thread():
+            for shard_num, return_code in pool.imap_unordered(runtests_callback, tasks):
+                if return_code != 0:
+                    errors.append(shard_num)
+                    print("FAILED (%s/%s)" % (shard_num, options.shard_count))
+                print("ALL DONE (%s/%s)" % (shard_num, options.shard_count))
         pool.close()
         pool.join()
         if errors:
@@ -2055,7 +2058,8 @@ def main():
         else:
             return_code = 0
     else:
-        _, return_code = runtests(options, cmd_args, coverage)
+        with time_stamper_thread():
+            _, return_code = runtests(options, cmd_args, coverage)
     print("ALL DONE")
 
     try:
@@ -2065,6 +2069,42 @@ def main():
         flush_and_terminate(return_code)
     else:
         sys.exit(return_code)
+
+
+@contextmanager
+def time_stamper_thread(interval=10):
+    """
+    Print regular time stamps into the build logs to find slow tests.
+    @param interval: time interval in seconds
+    """
+    try:
+        _xrange = xrange
+    except NameError:
+        _xrange = range
+
+    import threading
+    from datetime import datetime
+    from time import sleep
+
+    interval = _xrange(interval * 4)
+    now = datetime.now
+    stop = False
+
+    def time_stamper():
+        while True:
+            for _ in interval:
+                if stop:
+                    return
+                sleep(1./4)
+            print('\n#### %s' % now())
+
+    thread = threading.Thread(target=time_stamper)
+    thread.start()
+    try:
+        yield
+    finally:
+        stop = True
+        thread.join()
 
 
 def configure_cython(options):
