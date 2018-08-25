@@ -48,7 +48,7 @@ cdef extern from "Python.h":
     void PyThreadState_Delete(PyThreadState *)
 
     PyThreadState * PyThreadState_Get()
-    PyThreadState * PyThreadState_Swap(PyThreadState *)
+    PyThreadState * PyThreadState_Swap(PyThreadState *)  # NOTE: DO NOT USE IN CYTHON CODE !
     PyObject * PyThreadState_GetDict()
     int PyThreadState_SetAsyncExc(long, PyObject *)
 
