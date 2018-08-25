@@ -2044,6 +2044,7 @@ def main():
         tasks = [(options, cmd_args, shard_num) for shard_num in range(options.shard_count)]
         errors = []
         # NOTE: create process pool before time stamper thread to avoid forking issues.
+        total_time = time.time()
         with time_stamper_thread():
             for shard_num, return_code in pool.imap_unordered(runtests_callback, tasks):
                 if return_code != 0:
@@ -2052,6 +2053,8 @@ def main():
                 print("ALL DONE (%s/%s)" % (shard_num, options.shard_count))
         pool.close()
         pool.join()
+        total_time = time.time() - total_time
+        print("Sharded tests run in %d seconds (%.1f minutes)" % (round(total_time), total_time / 60.))
         if errors:
             print("Errors for shards %s" % ", ".join([str(e) for e in errors]))
             return_code = 1
