@@ -752,6 +752,18 @@ def skip_c(tags):
     return False
 
 
+def filter_stderr(stderr_bytes):
+    """
+    Filter annoying warnings from output.
+    """
+    if b"Command line warning D9025" in stderr_bytes:
+        # MSCV: cl : Command line warning D9025 : overriding '/Ox' with '/Od'
+        stderr_bytes = b'\n'.join(
+            line for line in stderr_bytes.splitlines()
+            if b"Command line warning D9025" not in line)
+    return stderr_bytes
+
+
 class CythonCompileTestCase(unittest.TestCase):
     def __init__(self, test_directory, workdir, module, tags, language='c', preparse='id',
                  expect_errors=False, expect_warnings=False, annotate=False, cleanup_workdir=True,
@@ -1126,14 +1138,16 @@ class CythonCompileTestCase(unittest.TestCase):
                 if show_output:
                     stdout = get_stdout and get_stdout().strip()
                     if stdout:
-                        tostderr("\n=== C/C++ compiler output: ===\n")
-                        print_bytes(stdout, end=None, file=sys.__stderr__)
-                    stderr = get_stderr and get_stderr().strip()
+                        print_bytes(
+                            stdout, header_text="\n=== C/C++ compiler output: =========\n",
+                            end=None, file=sys.__stderr__)
+                    stderr = get_stderr and filter_stderr(get_stderr()).strip()
                     if stderr:
-                        tostderr("\n=== C/C++ compiler error output: ===\n")
-                        print_bytes(stderr, end=None, file=sys.__stderr__)
+                        print_bytes(
+                            stderr, header_text="\n=== C/C++ compiler error output: ===\n",
+                            end=None, file=sys.__stderr__)
                     if stdout or stderr:
-                        tostderr("\n==============================\n")
+                        tostderr("\n====================================\n")
         return so_path
 
     def _match_output(self, expected_output, actual_output, write):
