@@ -2,9 +2,9 @@
 # tag: pep489, subinterpreter
 
 PYTHON setup.py build_ext --inplace
-PYTHON -c 'import subtest; subtest.run_main()'
-PYTHON -c 'import subtest; subtest.run_sub()'
-PYTHON -c 'import subtest; subtest.run_main(); subtest.run_sub()'
+PYTHON -c "import subtest; subtest.run_main()"
+PYTHON -c "import subtest; subtest.run_sub()"
+PYTHON -c "import subtest; subtest.run_main(); subtest.run_sub()"
 
 ######## setup.py ########
 
