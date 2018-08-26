@@ -581,9 +581,10 @@ class Stats(object):
         self.add_time(metric, t)
 
     def print_stats(self, out=sys.stderr):
-        lines = ['Times:']
+        lines = ['Times:\n']
         for metric, t in sorted(self.test_times.items()):
-            lines.append("%-12s: %5.2f sec  (%.3f / run)\n" % (metric, t, t / self.test_counts[metric]))
+            count = self.test_counts[metric]
+            lines.append("%-12s: %8.2f sec  (%d, %.3f / run)\n" % (metric, t, count, t / count))
         out.write(''.join(lines))
 
 
@@ -1746,9 +1747,8 @@ class EmbedTest(unittest.TestCase):
         if sys.version_info[0] >=3 and CY3_DIR:
             cython = os.path.join(CY3_DIR, cython)
         cython = os.path.abspath(os.path.join('..', '..', cython))
-        with self.stats.time('embed'):
-            self.assertTrue(os.system(
-                "make PYTHON='%s' CYTHON='%s' LIBDIR1='%s' test > make.output" % (sys.executable, cython, libdir)) == 0)
+        self.assertEqual(0, os.system(
+            "make PYTHON='%s' CYTHON='%s' LIBDIR1='%s' test > make.output" % (sys.executable, cython, libdir)))
         try:
             os.remove('make.output')
         except OSError:
