@@ -2068,15 +2068,14 @@ def main():
 
     coverage = None
     if options.coverage or options.coverage_xml or options.coverage_html:
-        if options.shard_count <= 1 and options.shard_num < 0:
-            if not WITH_CYTHON:
-                options.coverage = options.coverage_xml = options.coverage_html = False
-            else:
-                print("Enabling coverage analysis")
-                from coverage import coverage as _coverage
-                coverage = _coverage(branch=True, omit=['Test*'])
-                coverage.erase()
-                coverage.start()
+        if not WITH_CYTHON:
+            options.coverage = options.coverage_xml = options.coverage_html = False
+        elif options.shard_num == -1:
+            print("Enabling coverage analysis")
+            from coverage import coverage as _coverage
+            coverage = _coverage()
+            coverage.erase()
+            coverage.start()
 
     if options.xml_output_dir:
         shutil.rmtree(options.xml_output_dir, ignore_errors=True)
@@ -2106,8 +2105,17 @@ def main():
     else:
         with time_stamper_thread():
             _, return_code = runtests(options, cmd_args, coverage)
+
+    if coverage:
+        if options.shard_count > 1 and options.shard_num == -1:
+            coverage.combine()
+        coverage.stop()
+
     sys.stderr.write("ALL DONE\n")
     sys.stderr.flush()
+
+    if coverage:
+        save_coverage(coverage, options)
 
     try:
         check_thread_termination(ignore_seen=False)
@@ -2172,6 +2180,15 @@ def configure_cython(options):
     if options.watermark:
         import Cython.Compiler.Version
         Cython.Compiler.Version.watermark = options.watermark
+
+
+def save_coverage(coverage, options):
+    if options.coverage:
+        coverage.report(show_missing=0)
+    if options.coverage_xml:
+        coverage.xml_report(outfile="coverage-report.xml")
+    if options.coverage_html:
+        coverage.html_report(directory="coverage-report-html")
 
 
 def runtests_callback(args):
@@ -2412,29 +2429,6 @@ def runtests(options, cmd_args, coverage=None):
 
     if common_utility_dir and options.shard_num < 0 and options.cleanup_workdir:
         shutil.rmtree(common_utility_dir)
-
-    if coverage is not None:
-        coverage.stop()
-        ignored_modules = set(
-            'Cython.Compiler.' + name
-            for name in ('Version', 'DebugFlags', 'CmdLine')) | set(
-            'Cython.' + name
-            for name in ('Debugging',))
-        ignored_packages = ['Cython.Runtime', 'Cython.Tempita']
-        modules = [
-            module for name, module in sys.modules.items()
-            if module is not None and
-            name.startswith('Cython.') and
-            '.Tests' not in name and
-            name not in ignored_modules and
-            not any(name.startswith(package) for package in ignored_packages)
-        ]
-        if options.coverage:
-            coverage.report(modules, show_missing=0)
-        if options.coverage_xml:
-            coverage.xml_report(modules, outfile="coverage-report.xml")
-        if options.coverage_html:
-            coverage.html_report(modules, directory="coverage-report-html")
 
     stats.print_stats()
 
