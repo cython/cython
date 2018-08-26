@@ -464,6 +464,11 @@ del sys
 
 
 def __getattr__(name, module=__name__):
+    """Allows dynamic attribute access at the module level in Python 3.7+.
+
+    Currently used to enable infinite pointer depth based on name
+    e.g. ``pppppppp_int`` (old limit is 3 levels deep e.g. ``ppp_int``).
+    """
     import re
     match = re.match('^(p+)_([a-zA-Z0-9]+)$', name)
     if match:
