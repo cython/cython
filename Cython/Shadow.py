@@ -462,7 +462,8 @@ import sys
 sys.modules['cython.parallel'] = CythonDotParallel()
 del sys
 
-
+import functools
+@functools.lru_cache()
 def __getattr__(name, module=__name__):
     """Allows dynamic attribute access at the module level in Python 3.7+.
 
@@ -479,3 +480,4 @@ def __getattr__(name, module=__name__):
             return gs[type]._pointer(depth)
 
     raise AttributeError("module '%s' has no attribute '%s'" % (module, name))
+del functools
