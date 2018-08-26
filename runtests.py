@@ -581,6 +581,8 @@ class Stats(object):
         self.add_time(metric, t)
 
     def print_stats(self, out=sys.stderr):
+        if not self.test_times:
+            return
         lines = ['Times:\n']
         for metric, t in sorted(self.test_times.items()):
             count = self.test_counts[metric]
