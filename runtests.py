@@ -7,6 +7,7 @@ import os
 import sys
 import re
 import gc
+import heapq
 import locale
 import shutil
 import time
@@ -565,20 +566,26 @@ class ErrorWriter(object):
 
 
 class Stats(object):
+    TOP_N = 8
+
     def __init__(self):
         self.test_counts = defaultdict(int)
         self.test_times = defaultdict(float)
+        self.top_tests = defaultdict(list)
 
-    def add_time(self, metric, t):
+    def add_time(self, name, language, metric, t):
         self.test_counts[metric] += 1
         self.test_times[metric] += t
+        top = self.top_tests[metric]
+        push = heapq.heappushpop if len(top) >= self.TOP_N else heapq.heappush
+        push(top, (t, name, language))
 
     @contextmanager
-    def time(self, metric):
+    def time(self, name, language, metric):
         t = time.time()
         yield
         t = time.time() - t
-        self.add_time(metric, t)
+        self.add_time(name, language, metric, t)
 
     def print_stats(self, out=sys.stderr):
         if not self.test_times:
@@ -586,7 +593,10 @@ class Stats(object):
         lines = ['Times:\n']
         for metric, t in sorted(self.test_times.items()):
             count = self.test_counts[metric]
-            lines.append("%-12s: %8.2f sec  (%4d, %6.3f / run)\n" % (metric, t, count, t / count))
+            top = self.top_tests[metric]
+            lines.append("%-12s: %8.2f sec  (%4d, %6.3f / run) - slowest: %s\n" % (
+                metric, t, count, t / count,
+                ', '.join("'{2}:{1}' ({0:.2f}s)".format(*item) for item in heapq.nlargest(self.TOP_N, top))))
         out.write(''.join(lines))
 
 
@@ -1112,7 +1122,7 @@ class CythonCompileTestCase(unittest.TestCase):
             old_stderr = sys.stderr
             try:
                 sys.stderr = ErrorWriter()
-                with self.stats.time('cython'):
+                with self.stats.time(self.name, self.language, 'cython'):
                     self.run_cython(test_directory, module, workdir, incdir, annotate)
                 errors, warnings = sys.stderr.getall()
             finally:
@@ -1156,7 +1166,7 @@ class CythonCompileTestCase(unittest.TestCase):
             try:
                 with captured_fd(1) as get_stdout:
                     with captured_fd(2) as get_stderr:
-                        with self.stats.time('compile-%s' % self.language):
+                        with self.stats.time(self.name, self.language, 'compile-%s' % self.language):
                             so_path = self.run_distutils(test_directory, module, workdir, incdir)
             except Exception as exc:
                 if ('cerror' in self.tags['tag'] and
@@ -1245,18 +1255,18 @@ class CythonRunTestCase(CythonCompileTestCase):
             pass
 
     def run_tests(self, result, ext_so_path):
-        with self.stats.time('run'):
+        with self.stats.time(self.name, self.language, 'run'):
             self.run_doctests(self.module, result, ext_so_path)
 
     def run_doctests(self, module_or_name, result, ext_so_path):
         def run_test(result):
             if isinstance(module_or_name, basestring):
-                with self.stats.time('import'):
+                with self.stats.time(self.name, self.language, 'import'):
                     module = import_ext(module_or_name, ext_so_path)
             else:
                 module = module_or_name
             tests = doctest.DocTestSuite(module)
-            with self.stats.time('run'):
+            with self.stats.time(self.name, self.language, 'run'):
                 tests.run(result)
         run_forked_test(result, run_test, self.shortDescription(), self.fork)
 
@@ -1340,7 +1350,7 @@ def run_forked_test(result, run_func, test_name, fork=True):
 class PureDoctestTestCase(unittest.TestCase):
     def __init__(self, module_name, module_path, tags, stats=None):
         self.tags = tags
-        self.module_name = module_name
+        self.module_name = self.name = module_name
         self.module_path = module_path
         self.stats = stats
         unittest.TestCase.__init__(self, 'run')
@@ -1357,10 +1367,10 @@ class PureDoctestTestCase(unittest.TestCase):
             self.setUp()
 
             import imp
-            with self.stats.time('pyimport'):
+            with self.stats.time(self.name, 'py', 'pyimport'):
                 m = imp.load_source(loaded_module_name, self.module_path)
             try:
-                with self.stats.time('pyrun'):
+                with self.stats.time(self.name, 'py', 'pyrun'):
                     doctest.DocTestSuite(m).run(result)
             finally:
                 del m
@@ -1381,7 +1391,7 @@ class PureDoctestTestCase(unittest.TestCase):
             except ImportError:
                 pass
             else:
-                with self.stats.time('mypy'):
+                with self.stats.time(self.name, 'py', 'mypy'):
                     mypy_result = mypy_api.run((
                         self.module_path,
                         '--ignore-missing-imports',
@@ -1457,7 +1467,7 @@ class CythonUnitTestCase(CythonRunTestCase):
         return "compiling (%s) tests in %s" % (self.language, self.name)
 
     def run_tests(self, result, ext_so_path):
-        with self.stats.time('import'):
+        with self.stats.time(self.name, self.language, 'import'):
             module = import_ext(self.module, ext_so_path)
         unittest.defaultTestLoader.loadTestsFromModule(module).run(result)
 
@@ -1490,11 +1500,11 @@ class CythonPyregrTestCase(CythonRunTestCase):
                 suite.addTest(cls)
             else:
                 suite.addTest(unittest.makeSuite(cls))
-        with self.stats.time('run'):
+        with self.stats.time(self.name, self.language, 'run'):
             suite.run(result)
 
     def _run_doctest(self, result, module):
-        with self.stats.time('run'):
+        with self.stats.time(self.name, self.language, 'run'):
             self.run_doctests(module, result, None)
 
     def run_tests(self, result, ext_so_path):
@@ -1699,7 +1709,7 @@ class EndToEndTest(unittest.TestCase):
         env = dict(os.environ)
         env['PYTHONPATH'] = self.cython_syspath + os.pathsep + (old_path or '')
         for command in filter(None, commands.splitlines()):
-            with self.stats.time('endtoend'):
+            with self.stats.time(self.name, 'c', 'endtoend'):
                 p = subprocess.Popen(command,
                                      stderr=subprocess.PIPE,
                                      stdout=subprocess.PIPE,
