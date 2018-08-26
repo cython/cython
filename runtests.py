@@ -564,11 +564,34 @@ class ErrorWriter(object):
         pass  # ignore, only to match file-like interface
 
 
+class Stats(object):
+    def __init__(self):
+        self.test_counts = defaultdict(int)
+        self.test_times = defaultdict(float)
+
+    def add_time(self, metric, t):
+        self.test_counts[metric] += 1
+        self.test_times[metric] += t
+
+    @contextmanager
+    def time(self, metric):
+        t = time.time()
+        yield
+        t = time.time() - t
+        self.add_time(metric, t)
+
+    def print_stats(self, out=sys.stderr):
+        lines = ['Times:']
+        for metric, t in sorted(self.test_times.items()):
+            lines.append("%-12s: %5.2f sec  (%.3f / run)\n" % (metric, t, t / self.test_counts[metric]))
+        out.write(''.join(lines))
+
+
 class TestBuilder(object):
     def __init__(self, rootdir, workdir, selectors, exclude_selectors, options,
                  with_pyregr, languages, test_bugs, language_level,
                  common_utility_dir, pythran_dir=None,
-                 default_mode='run',
+                 default_mode='run', stats=None,
                  add_embedded_test=False):
         self.rootdir = rootdir
         self.workdir = workdir
@@ -588,6 +611,7 @@ class TestBuilder(object):
         self.common_utility_dir = common_utility_dir
         self.pythran_dir = pythran_dir
         self.default_mode = default_mode
+        self.stats = stats
         self.add_embedded_test = add_embedded_test
 
     def build_suite(self):
@@ -646,7 +670,7 @@ class TestBuilder(object):
 
             if ext == '.srctree':
                 if 'cpp' not in tags['tag'] or 'cpp' in self.languages:
-                    suite.addTest(EndToEndTest(filepath, workdir, self.cleanup_workdir))
+                    suite.addTest(EndToEndTest(filepath, workdir, self.cleanup_workdir, stats=self.stats))
                 continue
 
             # Choose the test suite.
@@ -676,7 +700,7 @@ class TestBuilder(object):
                     if pyver
                 ]
                 if not min_py_ver or any(sys.version_info >= min_ver for min_ver in min_py_ver):
-                    suite.addTest(PureDoctestTestCase(module, os.path.join(path, filename), tags))
+                    suite.addTest(PureDoctestTestCase(module, os.path.join(path, filename), tags, stats=self.stats))
 
         return suite
 
@@ -736,7 +760,8 @@ class TestBuilder(object):
                           warning_errors=warning_errors,
                           test_determinism=self.test_determinism,
                           common_utility_dir=self.common_utility_dir,
-                          pythran_dir=pythran_dir)
+                          pythran_dir=pythran_dir,
+                          stats=self.stats)
 
 
 def skip_c(tags):
@@ -773,7 +798,7 @@ class CythonCompileTestCase(unittest.TestCase):
                  cleanup_sharedlibs=True, cleanup_failures=True, cython_only=False,
                  fork=True, language_level=2, warning_errors=False,
                  test_determinism=False,
-                 common_utility_dir=None, pythran_dir=None):
+                 common_utility_dir=None, pythran_dir=None, stats=None):
         self.test_directory = test_directory
         self.tags = tags
         self.workdir = workdir
@@ -794,6 +819,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self.test_determinism = test_determinism
         self.common_utility_dir = common_utility_dir
         self.pythran_dir = pythran_dir
+        self.stats = stats
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
@@ -1083,7 +1109,8 @@ class CythonCompileTestCase(unittest.TestCase):
             old_stderr = sys.stderr
             try:
                 sys.stderr = ErrorWriter()
-                self.run_cython(test_directory, module, workdir, incdir, annotate)
+                with self.stats.time('cython'):
+                    self.run_cython(test_directory, module, workdir, incdir, annotate)
                 errors, warnings = sys.stderr.getall()
             finally:
                 sys.stderr = old_stderr
@@ -1126,7 +1153,8 @@ class CythonCompileTestCase(unittest.TestCase):
             try:
                 with captured_fd(1) as get_stdout:
                     with captured_fd(2) as get_stderr:
-                        so_path = self.run_distutils(test_directory, module, workdir, incdir)
+                        with self.stats.time('compile-%s' % self.language):
+                            so_path = self.run_distutils(test_directory, module, workdir, incdir)
             except Exception as exc:
                 if ('cerror' in self.tags['tag'] and
                     ((get_stderr and get_stderr()) or
@@ -1214,17 +1242,21 @@ class CythonRunTestCase(CythonCompileTestCase):
             pass
 
     def run_tests(self, result, ext_so_path):
-        self.run_doctests(self.module, result, ext_so_path)
+        with self.stats.time('run'):
+            self.run_doctests(self.module, result, ext_so_path)
 
     def run_doctests(self, module_or_name, result, ext_so_path):
         def run_test(result):
             if isinstance(module_or_name, basestring):
-                module = import_ext(module_or_name, ext_so_path)
+                with self.stats.time('import'):
+                    module = import_ext(module_or_name, ext_so_path)
             else:
                 module = module_or_name
             tests = doctest.DocTestSuite(module)
-            tests.run(result)
+            with self.stats.time('run'):
+                tests.run(result)
         run_forked_test(result, run_test, self.shortDescription(), self.fork)
+
 
 def run_forked_test(result, run_func, test_name, fork=True):
     if not fork or sys.version_info[0] >= 3 or not hasattr(os, 'fork'):
@@ -1301,11 +1333,13 @@ def run_forked_test(result, run_func, test_name, fork=True):
         except:
             pass
 
+
 class PureDoctestTestCase(unittest.TestCase):
-    def __init__(self, module_name, module_path, tags):
+    def __init__(self, module_name, module_path, tags, stats=None):
         self.tags = tags
         self.module_name = module_name
         self.module_path = module_path
+        self.stats = stats
         unittest.TestCase.__init__(self, 'run')
 
     def shortDescription(self):
@@ -1320,9 +1354,11 @@ class PureDoctestTestCase(unittest.TestCase):
             self.setUp()
 
             import imp
-            m = imp.load_source(loaded_module_name, self.module_path)
+            with self.stats.time('pyimport'):
+                m = imp.load_source(loaded_module_name, self.module_path)
             try:
-                doctest.DocTestSuite(m).run(result)
+                with self.stats.time('pyrun'):
+                    doctest.DocTestSuite(m).run(result)
             finally:
                 del m
                 if loaded_module_name in sys.modules:
@@ -1336,22 +1372,20 @@ class PureDoctestTestCase(unittest.TestCase):
         except Exception:
             pass
 
-        try:
-            from mypy import api as mypy_api
-            nomypy = False
-        except ImportError:
-            nomypy = True
-        if 'mypy' in self.tags['tag'] and not nomypy:
-
-            mypy_result = mypy_api.run((
-                self.module_path,
-                '--ignore-missing-imports',
-                '--follow-imports', 'skip',
-            ))
-
-            if mypy_result[2]:
-                import pdb; pdb.set_trace()
-                self.fail(mypy_result[0])
+        if 'mypy' in self.tags['tag']:
+            try:
+                from mypy import api as mypy_api
+            except ImportError:
+                pass
+            else:
+                with self.stats.time('mypy'):
+                    mypy_result = mypy_api.run((
+                        self.module_path,
+                        '--ignore-missing-imports',
+                        '--follow-imports', 'skip',
+                    ))
+                if mypy_result[2]:
+                    self.fail(mypy_result[0])
 
 
 is_private_field = re.compile('^_[^_]').match
@@ -1420,7 +1454,8 @@ class CythonUnitTestCase(CythonRunTestCase):
         return "compiling (%s) tests in %s" % (self.language, self.name)
 
     def run_tests(self, result, ext_so_path):
-        module = import_ext(self.module, ext_so_path)
+        with self.stats.time('import'):
+            module = import_ext(self.module, ext_so_path)
         unittest.defaultTestLoader.loadTestsFromModule(module).run(result)
 
 
@@ -1452,10 +1487,12 @@ class CythonPyregrTestCase(CythonRunTestCase):
                 suite.addTest(cls)
             else:
                 suite.addTest(unittest.makeSuite(cls))
-        suite.run(result)
+        with self.stats.time('run'):
+            suite.run(result)
 
     def _run_doctest(self, result, module):
-        self.run_doctests(module, result, None)
+        with self.stats.time('run'):
+            self.run_doctests(module, result, None)
 
     def run_tests(self, result, ext_so_path):
         try:
@@ -1606,11 +1643,12 @@ class EndToEndTest(unittest.TestCase):
     """
     cython_root = os.path.dirname(os.path.abspath(__file__))
 
-    def __init__(self, treefile, workdir, cleanup_workdir=True):
+    def __init__(self, treefile, workdir, cleanup_workdir=True, stats=None):
         self.name = os.path.splitext(os.path.basename(treefile))[0]
         self.treefile = treefile
         self.workdir = os.path.join(workdir, self.name)
         self.cleanup_workdir = cleanup_workdir
+        self.stats = stats
         cython_syspath = [self.cython_root]
         for path in sys.path:
             if path.startswith(self.cython_root) and path not in cython_syspath:
@@ -1658,12 +1696,13 @@ class EndToEndTest(unittest.TestCase):
         env = dict(os.environ)
         env['PYTHONPATH'] = self.cython_syspath + os.pathsep + (old_path or '')
         for command in filter(None, commands.splitlines()):
-            p = subprocess.Popen(command,
-                                 stderr=subprocess.PIPE,
-                                 stdout=subprocess.PIPE,
-                                 shell=True,
-                                 env=env)
-            out, err = p.communicate()
+            with self.stats.time('endtoend'):
+                p = subprocess.Popen(command,
+                                     stderr=subprocess.PIPE,
+                                     stdout=subprocess.PIPE,
+                                     shell=True,
+                                     env=env)
+                out, err = p.communicate()
             res = p.returncode
             if res != 0:
                 sys.stderr.write("%s\n%s\n%s\n" % (
@@ -1707,8 +1746,9 @@ class EmbedTest(unittest.TestCase):
         if sys.version_info[0] >=3 and CY3_DIR:
             cython = os.path.join(CY3_DIR, cython)
         cython = os.path.abspath(os.path.join('..', '..', cython))
-        self.assertTrue(os.system(
-            "make PYTHON='%s' CYTHON='%s' LIBDIR1='%s' test > make.output" % (sys.executable, cython, libdir)) == 0)
+        with self.stats.time('embed'):
+            self.assertTrue(os.system(
+                "make PYTHON='%s' CYTHON='%s' LIBDIR1='%s' test > make.output" % (sys.executable, cython, libdir)) == 0)
         try:
             os.remove('make.output')
         except OSError:
@@ -2299,6 +2339,7 @@ def runtests(options, cmd_args, coverage=None):
     sys.stderr.write("\n")
 
     test_suite = unittest.TestSuite()
+    stats = Stats()
 
     if options.unittests:
         collect_unittests(UNITTEST_ROOT, UNITTEST_MODULE + ".", test_suite, selectors, exclude_selectors)
@@ -2310,7 +2351,7 @@ def runtests(options, cmd_args, coverage=None):
         filetests = TestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
                                 options, options.pyregr, languages, test_bugs,
                                 options.language_level, common_utility_dir,
-                                options.pythran_dir, add_embedded_test=True)
+                                options.pythran_dir, add_embedded_test=True, stats=stats)
         test_suite.addTest(filetests.build_suite())
     if options.examples and languages:
         for subdirectory in glob.glob(os.path.join(options.examples_dir, "*/")):
@@ -2318,7 +2359,7 @@ def runtests(options, cmd_args, coverage=None):
                                     options, options.pyregr, languages, test_bugs,
                                     options.language_level, common_utility_dir,
                                     options.pythran_dir,
-                                    default_mode='compile')
+                                    default_mode='compile', stats=stats)
             test_suite.addTest(filetests.build_suite())
 
     if options.system_pyregr and languages:
@@ -2328,7 +2369,7 @@ def runtests(options, cmd_args, coverage=None):
         if os.path.isdir(sys_pyregr_dir):
             filetests = TestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
                                     options, True, languages, test_bugs,
-                                    sys.version_info[0], common_utility_dir)
+                                    sys.version_info[0], common_utility_dir, stats=stats)
             sys.stderr.write("Including CPython regression tests in %s\n" % sys_pyregr_dir)
             test_suite.addTest(filetests.handle_directory(sys_pyregr_dir, 'pyregr'))
 
@@ -2392,6 +2433,8 @@ def runtests(options, cmd_args, coverage=None):
             coverage.xml_report(modules, outfile="coverage-report.xml")
         if options.coverage_html:
             coverage.html_report(modules, directory="coverage-report-html")
+
+    stats.print_stats()
 
     if missing_dep_excluder.tests_missing_deps:
         sys.stderr.write("Following tests excluded because of missing dependencies on your system:\n")
