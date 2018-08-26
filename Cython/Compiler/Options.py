@@ -30,11 +30,11 @@ class ShouldBeFromDirective(object):
         % (self.options_name, self.directive_name))
 
 
-""" 
-The members of this module are documented using autodata in 
+"""
+The members of this module are documented using autodata in
 Cython/docs/src/reference/compilation.rst.
 See http://www.sphinx-doc.org/en/master/ext/autodoc.html#directive-autoattribute
-for how autodata works. 
+for how autodata works.
 Descriptions of those members should start with a #:
 Donc forget to keep the docs in sync by removing and adding
 the members in both this file and the .rst file.
