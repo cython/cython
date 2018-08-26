@@ -42,8 +42,8 @@ Features added
 * The coverage plugin considers more C file extensions such as ``.cc`` and ``.cxx``.
   (Github issue #2266)
 
-* The `cythonize` command accepts compile time variable values (as set by `DEF`)
-  through the new `-E` option.
+* The ``cythonize`` command accepts compile time variable values (as set by ``DEF``)
+  through the new ``-E`` option.
   Patch by Jerome Kieffer.  (Github issue #2315)
 
 * ``pyximport`` can import from namespace packages.
@@ -52,8 +52,11 @@ Features added
 * Some missing numpy and CPython C-API declarations were added.
   Patch by John Kirkham. (Github issues #2523, #2520, #2537)
 
-* Declarations for the `pylifecycle` C-API functions were added in a new .pxd file
-  `cpython.pylifecycle`.
+* Declarations for the ``pylifecycle`` C-API functions were added in a new .pxd file
+  ``cpython.pylifecycle``.
+
+* New C macro ``CYTHON_HEX_VERSION`` to access Cython's version in the same style as
+  ``PY_HEX_VERSION``.
 
 Bugs fixed
 ----------
