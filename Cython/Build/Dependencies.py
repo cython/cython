@@ -130,7 +130,7 @@ def file_hash(filename):
 def update_pythran_extension(ext):
     if not PythranAvailable:
         raise RuntimeError("You first need to install Pythran to use the np_pythran directive.")
-    pythran_ext = pythran.config.make_extension()
+    pythran_ext = pythran.config.make_extension(python=True)
     ext.include_dirs.extend(pythran_ext['include_dirs'])
     ext.extra_compile_args.extend(pythran_ext['extra_compile_args'])
     ext.extra_link_args.extend(pythran_ext['extra_link_args'])

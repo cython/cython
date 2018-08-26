@@ -39,7 +39,7 @@ def pythran_type(Ty, ptype="ndarray"):
             ctype = dtype.typedef_cname
         else:
             raise ValueError("unsupported type %s!" % dtype)
-        return "pythonic::types::%s<%s,%d>" % (ptype,ctype, ndim)
+        return "pythonic::types::%s<%s,pythonic::types::pshape<%s>>" % (ptype,ctype, ",".join(("long",)*ndim))
     if Ty.is_pythran_expr:
         return Ty.pythran_type
     #if Ty.is_none:
