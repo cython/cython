@@ -586,7 +586,7 @@ class Stats(object):
         lines = ['Times:\n']
         for metric, t in sorted(self.test_times.items()):
             count = self.test_counts[metric]
-            lines.append("%-12s: %8.2f sec  (%d, %.3f / run)\n" % (metric, t, count, t / count))
+            lines.append("%-12s: %8.2f sec  (%4d, %6.3f / run)\n" % (metric, t, count, t / count))
         out.write(''.join(lines))
 
 
