@@ -128,9 +128,9 @@ script:
       STYLE_ARGS="--no-unit --no-doctest --no-file --no-pyregr --no-examples";
     else
       STYLE_ARGS=--no-code-style;
-      if $PYTHON_DBG -V >&2; then CFLAGS="-O0 -ggdb" $PYTHON_DBG runtests.py -vv --no-code-style Debugger --backends=$BACKEND; fi
-      if [ -z "${BACKEND##*cpp*}" -a -n "${TRAVIS_PYTHON_VERSION##2.6*}" ]; then pip install pythran; fi
-      if [ "$BACKEND" != "cpp" -a -n "${TRAVIS_PYTHON_VERSION##2*}" ]; then pip install mypy; fi
+      if $PYTHON_DBG -V >&2; then CFLAGS="-O0 -ggdb" $PYTHON_DBG runtests.py -vv --no-code-style Debugger --backends=$BACKEND; fi;
+      if [ -z "${BACKEND##*cpp*}" -a -n "${TRAVIS_PYTHON_VERSION##2.6*}" ]; then pip install pythran; fi;
+      if [ "$BACKEND" != "cpp" -a -n "${TRAVIS_PYTHON_VERSION##2*}" ]; then pip install mypy; fi;
     fi
   - if [ "$COVERAGE" != "1" ]; then CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" python setup.py build_ext -i; fi
   - CFLAGS="-O0 -ggdb -Wall -Wextra" python runtests.py -vv $STYLE_ARGS -x Debugger --backends=$BACKEND $(if [ "$COVERAGE" == "1" ]; then echo " --coverage"; fi) $(if [ -z "$TEST_CODE_STYLE" ]; then echo " -j7 "; fi)
