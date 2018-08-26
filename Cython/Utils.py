@@ -495,3 +495,27 @@ def raise_error_if_module_name_forbidden(full_module_name):
     #it is bad idea to call the pyx-file cython.pyx, so fail early
     if full_module_name == 'cython' or full_module_name.startswith('cython.'):
         raise ValueError('cython is a special module, cannot be used as a module name')
+
+
+def build_hex_version(version_string):
+    """
+    Parse and translate '4.3a1' into the readable hex representation '0x040300A1' (like PY_HEX_VERSION).
+    """
+    # First, parse '4.12a1' into [4, 12, 0, 0xA01].
+    digits = []
+    release_status = 0xF0
+    for digit in re.split('([.abrc]+)', version_string):
+        if digit in ('a', 'b', 'rc'):
+            release_status = {'a': 0xA0, 'b': 0xB0, 'rc': 0xC0}[digit]
+            digits = (digits + [0, 0])[:3]  # 1.2a1 -> 1.2.0a1
+        elif digit != '.':
+            digits.append(int(digit))
+    digits = (digits + [0] * 3)[:4]
+    digits[3] += release_status
+
+    # Then, build a single hex value, two hex digits per version part.
+    hexversion = 0
+    for digit in digits:
+        hexversion = (hexversion << 8) + digit
+
+    return '0x%08X' % hexversion

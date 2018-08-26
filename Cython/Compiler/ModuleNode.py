@@ -27,7 +27,7 @@ from . import Pythran
 
 from .Errors import error, warning
 from .PyrexTypes import py_object_type
-from ..Utils import open_new_file, replace_suffix, decode_filename
+from ..Utils import open_new_file, replace_suffix, decode_filename, build_hex_version
 from .Code import UtilityCode, IncludeCode
 from .StringEncoding import EncodedString
 from .Pythran import has_np_pythran
@@ -637,6 +637,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         from .. import __version__
         code.putln('#define CYTHON_ABI "%s"' % __version__.replace('.', '_'))
+        code.putln('#define CYTHON_HEX_VERSION %s' % build_hex_version(__version__))
         code.putln("#define CYTHON_FUTURE_DIVISION %d" % (
             Future.division in env.context.future_directives))
 
