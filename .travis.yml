@@ -25,8 +25,6 @@ python:
   - 2.6
   - 3.4
   - 3.5
-  - pypy
-  - pypy3
 
 env:
   global:
@@ -96,6 +94,10 @@ matrix:
 #      language: cpp
 #      compiler: clang
 #      cache: false
+    - python: pypy
+      env: BACKEND=c
+    - python: pypy3
+      env: BACKEND=c
     - env: STACKLESS=true BACKEND=c PY=2
       python: 2.7
     - env: STACKLESS=true BACKEND=c PY=3
