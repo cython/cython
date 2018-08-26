@@ -31,10 +31,21 @@ env:
 matrix:
   include:
     - python: 2.7
+      env: BACKEND=c
+    - python: 2.7
+      env: BACKEND=cpp
     - python: 3.7
       dist: xenial    # Required for Python 3.7
       sudo: required  # travis-ci/travis-ci#9069
+      env: BACKEND=c
+    - python: 3.7
+      dist: xenial    # Required for Python 3.7
+      sudo: required  # travis-ci/travis-ci#9069
+      env: BACKEND=cpp
     - python: 2.6
+      env: BACKEND=c
+    - python: 2.6
+      env: BACKEND=cpp
 # Disabled: coverage analysis takes excessively long, several times longer than without.
 #    - python: 3.7
 #      dist: xenial    # Required for Python 3.7
@@ -45,8 +56,17 @@ matrix:
       sudo: required  # travis-ci/travis-ci#9069
       env: TEST_CODE_STYLE=1
     - python: 3.4
+      env: BACKEND=c
+    - python: 3.4
+      env: BACKEND=cpp
     - python: 3.5
+      env: BACKEND=c
+    - python: 3.5
+      env: BACKEND=cpp
     - python: 3.6
+      env: BACKEND=c
+    - python: 3.6
+      env: BACKEND=cpp
     - python: 3.8-dev
       dist: xenial    # Required for Python 3.7
       sudo: required  # travis-ci/travis-ci#9069
