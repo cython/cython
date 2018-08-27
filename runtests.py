@@ -566,9 +566,8 @@ class ErrorWriter(object):
 
 
 class Stats(object):
-    TOP_N = 8
-
-    def __init__(self):
+    def __init__(self, top_n=8):
+        self.top_n = top_n
         self.test_counts = defaultdict(int)
         self.test_times = defaultdict(float)
         self.top_tests = defaultdict(list)
@@ -577,7 +576,8 @@ class Stats(object):
         self.test_counts[metric] += 1
         self.test_times[metric] += t
         top = self.top_tests[metric]
-        push = heapq.heappushpop if len(top) >= self.TOP_N else heapq.heappush
+        push = heapq.heappushpop if len(top) >= self.top_n else heapq.heappush
+        # min-heap => pop smallest/shortest until longest times remain
         push(top, (t, name, language))
 
     @contextmanager
@@ -586,6 +586,16 @@ class Stats(object):
         yield
         t = time.time() - t
         self.add_time(name, language, metric, t)
+
+    def update(self, stats):
+        # type: (Stats) -> None
+        for metric, t in stats.test_times.items():
+            self.test_times[metric] += t
+            self.test_counts[metric] += stats.test_counts[metric]
+            top = self.top_tests[metric]
+            for entry in stats.top_tests[metric]:
+                push = heapq.heappushpop if len(top) >= self.top_n else heapq.heappush
+                push(top, entry)
 
     def print_stats(self, out=sys.stderr):
         if not self.test_times:
@@ -596,7 +606,7 @@ class Stats(object):
             top = self.top_tests[metric]
             lines.append("%-12s: %8.2f sec  (%4d, %6.3f / run) - slowest: %s\n" % (
                 metric, t, count, t / count,
-                ', '.join("'{2}:{1}' ({0:.2f}s)".format(*item) for item in heapq.nlargest(self.TOP_N, top))))
+                ', '.join("'{2}:{1}' ({0:.2f}s)".format(*item) for item in heapq.nlargest(self.top_n, top))))
         out.write(''.join(lines))
 
 
@@ -2097,12 +2107,14 @@ def main():
         errors = []
         # NOTE: create process pool before time stamper thread to avoid forking issues.
         total_time = time.time()
+        stats = Stats()
         with time_stamper_thread():
-            for shard_num, return_code in pool.imap_unordered(runtests_callback, tasks):
+            for shard_num, shard_stats, return_code in pool.imap_unordered(runtests_callback, tasks):
                 if return_code != 0:
                     errors.append(shard_num)
                     sys.stderr.write("FAILED (%s/%s)\n" % (shard_num, options.shard_count))
                 sys.stderr.write("ALL DONE (%s/%s)\n" % (shard_num, options.shard_count))
+                stats.update(shard_stats)
         pool.close()
         pool.join()
         total_time = time.time() - total_time
@@ -2114,18 +2126,19 @@ def main():
             return_code = 0
     else:
         with time_stamper_thread():
-            _, return_code = runtests(options, cmd_args, coverage)
+            _, stats, return_code = runtests(options, cmd_args, coverage)
 
     if coverage:
         if options.shard_count > 1 and options.shard_num == -1:
             coverage.combine()
         coverage.stop()
 
-    sys.stderr.write("ALL DONE\n")
-    sys.stderr.flush()
-
+    stats.print_stats(sys.stderr)
     if coverage:
         save_coverage(coverage, options)
+
+    sys.stderr.write("ALL DONE\n")
+    sys.stderr.flush()
 
     try:
         check_thread_termination(ignore_seen=False)
@@ -2440,8 +2453,6 @@ def runtests(options, cmd_args, coverage=None):
     if common_utility_dir and options.shard_num < 0 and options.cleanup_workdir:
         shutil.rmtree(common_utility_dir)
 
-    stats.print_stats()
-
     if missing_dep_excluder.tests_missing_deps:
         sys.stderr.write("Following tests excluded because of missing dependencies on your system:\n")
         for test in missing_dep_excluder.tests_missing_deps:
@@ -2452,9 +2463,9 @@ def runtests(options, cmd_args, coverage=None):
         sys.stderr.write("\n".join([repr(x) for x in refnanny.reflog]))
 
     if options.exit_ok:
-        return options.shard_num, 0
+        return options.shard_num, stats, 0
     else:
-        return options.shard_num, not result.wasSuccessful()
+        return options.shard_num, stats, not result.wasSuccessful()
 
 
 if __name__ == '__main__':
