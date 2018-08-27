@@ -4806,6 +4806,7 @@ class SliceIndexNode(ExprNode):
             #      if (__pyx_v_VARNAME == Py_None) { __pyx_t_TMPIDX = 0; } else { __pyx_t_TMPIDX = __Pyx_PyIndex_AsSsize_t(__pyx_v_VARNAME); }
             #   And, in the case of self.stop, needs to become:
             #      if (__pyx_v_VARNAME == Py_None) { __pyx_t_TMPIDX = PY_SSIZE_T_MAX; } else { __pyx_t_TMPIDX = __Pyx_PyIndex_AsSsize_t(__pyx_v_VARNAME); }
+            c_bool = PyrexTypes.c_bint_type
             c_int = PyrexTypes.c_py_ssize_t_type
             if self.start:
                 self.start = CondExprNode(
@@ -4815,11 +4816,13 @@ class SliceIndexNode(ExprNode):
                     test = PrimaryCmpNode(
                         self.start.pos,
                         operand1 = self.start,
-                        operator = '==',
-                        operand2 = NoneNode(self.start.pos)
-                    )
+                        operator = 'is',
+                        operand2 = NoneNode(self.start.pos),
+                        type = c_bool,  # Why isn't this set automatically?
+                    ),
+                    type = c_int,  # Why isn't this set automatically?
+                    is_temp = 1,  # Set to avoid call to calculate_result_code()
                 )
-                self.start = self.start.coerce_to(c_int, env)
             if self.stop:
                 self.stop = CondExprNode(
                     self.stop.pos,
@@ -4828,11 +4831,13 @@ class SliceIndexNode(ExprNode):
                     test = PrimaryCmpNode(
                         self.stop.pos,
                         operand1 = self.stop,
-                        operator = '==',
-                        operand2 = NoneNode(self.stop.pos)
-                    )
+                        operator = 'is',
+                        operand2 = NoneNode(self.stop.pos),
+                        type = c_bool,  # Why isn't this set automatically?
+                    ),
+                    type = c_int,  # Why isn't this set automatically?
+                    is_temp = 1,  # Set to avoid call to calculate_result_code()
                 )
-                self.stop = self.stop.coerce_to(c_int, env)
         self.is_temp = 1
         return self
 
