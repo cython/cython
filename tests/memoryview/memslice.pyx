@@ -24,14 +24,7 @@ else:
 __test__ = {}
 
 def testcase(func):
-    doctest = func.__doc__
-    if sys.version_info >= (3, 0):
-        _u = str
-    else:
-        _u = unicode
-    if not isinstance(doctest, _u):
-        doctest = doctest.decode('UTF-8')
-    __test__[func.__name__] = doctest
+    __test__[func.__name__] = func.__doc__
 
     def wrapper(*args, **kwargs):
         gc.collect()
