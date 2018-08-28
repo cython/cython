@@ -1265,8 +1265,7 @@ class CythonRunTestCase(CythonCompileTestCase):
             pass
 
     def run_tests(self, result, ext_so_path):
-        with self.stats.time(self.name, self.language, 'run'):
-            self.run_doctests(self.module, result, ext_so_path)
+        self.run_doctests(self.module, result, ext_so_path)
 
     def run_doctests(self, module_or_name, result, ext_so_path):
         def run_test(result):
@@ -1514,8 +1513,7 @@ class CythonPyregrTestCase(CythonRunTestCase):
             suite.run(result)
 
     def _run_doctest(self, result, module):
-        with self.stats.time(self.name, self.language, 'run'):
-            self.run_doctests(module, result, None)
+        self.run_doctests(module, result, None)
 
     def run_tests(self, result, ext_so_path):
         try:
