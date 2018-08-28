@@ -4749,9 +4749,29 @@ class SliceIndexNode(ExprNode):
                 analyse_base=False)
 
         if self.start:
-            self.start = self.start.analyse_types(env)
+            self.start = CondExprNode(
+                self.start.pos,
+                true_val = IntNode(self.start.pos, value = '0'),
+                false_val = self.start,
+                test = PrimaryCmpNode(
+                    self.start.pos,
+                    operand1 = self.start,
+                    operator = 'is',
+                    operand2 = NoneNode(self.start.pos),
+                )
+            ).analyse_types(env)
         if self.stop:
-            self.stop = self.stop.analyse_types(env)
+            self.stop = CondExprNode(
+                self.stop.pos,
+                true_val = IntNode(self.stop.pos, value = 'PY_SSIZE_T_MAX'),
+                false_val = self.stop,
+                test = PrimaryCmpNode(
+                    self.stop.pos,
+                    operand1 = self.stop,
+                    operator = 'is',
+                    operand2 = NoneNode(self.stop.pos),
+                )
+            ).analyse_types(env)
 
         if not env.directives['wraparound']:
             check_negative_indices(self.start, self.stop)
@@ -4794,50 +4814,11 @@ class SliceIndexNode(ExprNode):
                     step=none_node
                 ).analyse_types(env)
         else:
-            # @TODO: Issue-2508
-            #   NameNode.coerce_to below returns an instance
-            #      of CoerceFromPyTypeNode, which is attempting a hard coercion to
-            #      PyrexTypes.c_py_ssize_t_type via __Pyx_PyIndex_AsSsize_t, which
-            #      internally relies on the CPython builtin PyNumber_Index, which
-            #      fails outright provided with non-integer input.
-            #   As a result, the following code is generated:
-            #      __pyx_t_TMPIDX = __Pyx_PyIndex_AsSsize_t(__pyx_v_VARNAME);
-            #   Which, in the case of self.start, needs to become:
-            #      if (__pyx_v_VARNAME == Py_None) { __pyx_t_TMPIDX = 0; } else { __pyx_t_TMPIDX = __Pyx_PyIndex_AsSsize_t(__pyx_v_VARNAME); }
-            #   And, in the case of self.stop, needs to become:
-            #      if (__pyx_v_VARNAME == Py_None) { __pyx_t_TMPIDX = PY_SSIZE_T_MAX; } else { __pyx_t_TMPIDX = __Pyx_PyIndex_AsSsize_t(__pyx_v_VARNAME); }
-            c_bool = PyrexTypes.c_bint_type
             c_int = PyrexTypes.c_py_ssize_t_type
             if self.start:
-                self.start = CondExprNode(
-                    self.start.pos,
-                    true_val = IntNode(self.start.pos, value = '0'),
-                    false_val = self.start,
-                    test = PrimaryCmpNode(
-                        self.start.pos,
-                        operand1 = self.start,
-                        operator = 'is',
-                        operand2 = NoneNode(self.start.pos),
-                        type = c_bool,  # Why isn't this set automatically?
-                    ),
-                    type = c_int,  # Why isn't this set automatically?
-                    is_temp = 1,  # Set to avoid call to calculate_result_code()
-                )
+                self.start = self.start.coerce_to(c_int, env)
             if self.stop:
-                self.stop = CondExprNode(
-                    self.stop.pos,
-                    true_val = IntNode(self.stop.pos, value = 'PY_SSIZE_T_MAX'),
-                    false_val = self.stop,
-                    test = PrimaryCmpNode(
-                        self.stop.pos,
-                        operand1 = self.stop,
-                        operator = 'is',
-                        operand2 = NoneNode(self.stop.pos),
-                        type = c_bool,  # Why isn't this set automatically?
-                    ),
-                    type = c_int,  # Why isn't this set automatically?
-                    is_temp = 1,  # Set to avoid call to calculate_result_code()
-                )
+                self.stop = self.stop.coerce_to(c_int, env)
         self.is_temp = 1
         return self
 
