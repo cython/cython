@@ -2020,6 +2020,9 @@ def main():
     parser.add_option("--shard_num", dest="shard_num", metavar="K",
                       type=int, default=-1,
                       help="test only this single shard")
+    parser.add_option("--profile", dest="profile",
+                      action="store_true", default=False,
+                      help="enable profiling of the tests")
     parser.add_option("-C", "--coverage", dest="coverage",
                       action="store_true", default=False,
                       help="collect source coverage data for the Compiler")
@@ -2191,8 +2194,8 @@ def configure_cython(options):
     global CompilationOptions, pyrex_default_options, cython_compile
     from Cython.Compiler.Main import \
         CompilationOptions, \
-        default_options as pyrex_default_options, \
-        compile as cython_compile
+        default_options as pyrex_default_options
+    from Cython.Compiler.Options import _directive_defaults as directive_defaults
     from Cython.Compiler import Errors
     Errors.LEVEL = 0  # show all warnings
     from Cython.Compiler import Options
@@ -2200,6 +2203,8 @@ def configure_cython(options):
     from Cython.Compiler import DebugFlags
     DebugFlags.debug_temp_code_comments = 1
     pyrex_default_options['formal_grammar'] = options.use_formal_grammar
+    if options.profile:
+        directive_defaults['profile'] = True
     if options.watermark:
         import Cython.Compiler.Version
         Cython.Compiler.Version.watermark = options.watermark

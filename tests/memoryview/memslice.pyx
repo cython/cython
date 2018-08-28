@@ -12,6 +12,7 @@ from cython cimport view
 from cython.view cimport array
 from cython.parallel cimport prange, parallel
 
+from functools import wraps
 import gc
 import sys
 
@@ -21,11 +22,8 @@ else:
     import builtins
 
 
-__test__ = {}
-
 def testcase(func):
-    __test__[func.__name__] = func.__doc__
-
+    @wraps(func)
     def wrapper(*args, **kwargs):
         gc.collect()
         result = func(*args, **kwargs)
