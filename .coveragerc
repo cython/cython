@@ -1,0 +1,7 @@
+[run]
+branch = True
+parallel = True
+concurrency = multiprocessing,thread
+include = Cython/*
+source = Cython
+omit = Test*
