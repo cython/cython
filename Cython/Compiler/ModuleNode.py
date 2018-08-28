@@ -9,13 +9,14 @@ cython.declare(Naming=object, Options=object, PyrexTypes=object, TypeSlots=objec
                error=object, warning=object, py_object_type=object, UtilityCode=object,
                EncodedString=object, re=object)
 
+from collections import defaultdict
 import json
+import operator
 import os
 import re
-import operator
+
 from .PyrexTypes import CPtrType
 from . import Future
-
 from . import Annotate
 from . import Code
 from . import Naming
@@ -456,19 +457,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         tb = env.context.gdb_debug_outputwriter
         markers = ccodewriter.buffer.allmarkers()
 
-        d = {}
+        d = defaultdict(list)
         for c_lineno, cython_lineno in enumerate(markers):
             if cython_lineno > 0:
-                d.setdefault(cython_lineno, []).append(c_lineno + 1)
+                d[cython_lineno].append(c_lineno + 1)
 
         tb.start('LineNumberMapping')
         for cython_lineno, c_linenos in sorted(d.items()):
-            attrs = {
-                'c_linenos': ' '.join(map(str, c_linenos)),
-                'cython_lineno': str(cython_lineno),
-            }
-            tb.start('LineNumber', attrs)
-            tb.end('LineNumber')
+            tb.add_entry(
+                'LineNumber',
+                c_linenos=' '.join(map(str, c_linenos)),
+                cython_lineno=str(cython_lineno),
+            )
         tb.end('LineNumberMapping')
         tb.serialize()
 
