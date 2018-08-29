@@ -460,8 +460,7 @@ def memoize(f):
 def parse_tags(filepath):
     tags = defaultdict(list)
     parse_tag = re.compile(r'#\s*(\w+)\s*:(.*)$').match
-    f = io_open(filepath, encoding='ISO-8859-1', errors='ignore')
-    try:
+    with io_open(filepath, encoding='ISO-8859-1', errors='ignore') as f:
         for line in f:
             # ignore BOM-like bytes and whitespace
             line = line.lstrip(UTF8_BOM_BYTES).strip()
@@ -486,8 +485,6 @@ def parse_tags(filepath):
                 tags[tag].extend(filter(None, [value.strip() for value in values]))
             elif tags:
                 break  # assume all tags are in one block
-    finally:
-        f.close()
     return tags
 
 
