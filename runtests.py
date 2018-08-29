@@ -2169,7 +2169,7 @@ def time_stamper_thread(interval=10):
 
     interval = _xrange(interval * 4)
     now = datetime.now
-    write = sys.stderr.write
+    write = sys.__stderr__.write
     stop = False
 
     def time_stamper():
