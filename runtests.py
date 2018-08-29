@@ -948,7 +948,9 @@ class CythonCompileTestCase(unittest.TestCase):
         if self.preparse and self.preparse != 'id':
             preparse_func = globals()[self.preparse]
             def copy(src, dest):
-                open(dest, 'w').write(preparse_func(open(src).read()))
+                with open(src) as fin:
+                    with open(dest, 'w') as fout:
+                        fout.write(preparse_func(fin.read()))
         else:
             # use symlink on Unix, copy on Windows
             try:
@@ -969,22 +971,22 @@ class CythonCompileTestCase(unittest.TestCase):
 
     def split_source_and_output(self, test_directory, module, workdir):
         source_file = self.find_module_source_file(os.path.join(test_directory, module) + '.pyx')
-        source_and_output = io_open(source_file, 'r', encoding='ISO-8859-1')
-        error_writer = warnings_writer = None
-        try:
+        with io_open(source_file, 'r', encoding='ISO-8859-1') as source_and_output:
+            error_writer = warnings_writer = None
             out = io_open(os.path.join(workdir, module + os.path.splitext(source_file)[1]),
                           'w', encoding='ISO-8859-1')
-            for line in source_and_output:
-                if line.startswith("_ERRORS"):
-                    out.close()
-                    out = error_writer = ErrorWriter()
-                elif line.startswith("_WARNINGS"):
-                    out.close()
-                    out = warnings_writer = ErrorWriter()
-                else:
-                    out.write(line)
-        finally:
-            source_and_output.close()
+            try:
+                for line in source_and_output:
+                    if line.startswith("_ERRORS"):
+                        out.close()
+                        out = error_writer = ErrorWriter()
+                    elif line.startswith("_WARNINGS"):
+                        out.close()
+                        out = warnings_writer = ErrorWriter()
+                    else:
+                        out.write(line)
+            finally:
+                out.close()
 
         return (error_writer.geterrors() if error_writer else [],
                 warnings_writer.geterrors() if warnings_writer else [])
