@@ -4748,12 +4748,12 @@ class SliceIndexNode(ExprNode):
                 env, getting=getting, setting=not getting,
                 analyse_base=False)
 
-        from .UtilNodes import ResultRefNode
+        from .UtilNodes import EvalWithTempExprNode, ResultRefNode
         if self.start:
             self.start.analyse_types(env)
             if self.start.type.is_pyobject:
                 start_ref = ResultRefNode(self.start)
-                self.start = CondExprNode(
+                start_expr = CondExprNode(
                     self.start.pos,
                     true_val = IntNode(
                         self.start.pos,
@@ -4768,19 +4768,21 @@ class SliceIndexNode(ExprNode):
                         operand2 = NoneNode(self.start.pos),
                     )
                 )
-                self.start.coerce_to(PyrexTypes.c_py_ssize_t_type, env)
-                self.start.analyse_types(env)
+                start_expr.coerce_to(PyrexTypes.c_py_ssize_t_type, env)
+                start_expr.analyse_types(env)
+                self.start = EvalWithTempExprNode(start_ref, start_expr)
         if self.stop:
             self.stop.analyse_types(env)
             if self.stop.type.is_pyobject:
                 stop_ref = ResultRefNode(self.stop)
-                self.stop = CondExprNode(
+                stop_expr = CondExprNode(
                     self.stop.pos,
                     true_val = IntNode(
                         self.stop.pos,
                         value = 'PY_SSIZE_T_MAX',
                         # See: github.com/python/cpython/blob/2.7/Python/sysmodule.c#L1446
-                        constant_result = sys.maxsize
+                        constant_result = sys.maxsize,
+                        type = PyrexTypes.c_py_ssize_t_type
                     ),
                     false_val = stop_ref,
                     test = PrimaryCmpNode(
@@ -4790,8 +4792,9 @@ class SliceIndexNode(ExprNode):
                         operand2 = NoneNode(self.stop.pos),
                     )
                 )
-                self.stop.coerce_to(PyrexTypes.c_py_ssize_t_type, env)
-                self.stop.analyse_types(env)
+                stop_expr.coerce_to(PyrexTypes.c_py_ssize_t_type, env)
+                stop_expr.analyse_types(env)
+                self.stop = EvalWithTempExprNode(stop_ref, stop_expr)
 
         if not env.directives['wraparound']:
             check_negative_indices(self.start, self.stop)
