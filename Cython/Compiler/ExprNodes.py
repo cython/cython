@@ -4748,30 +4748,50 @@ class SliceIndexNode(ExprNode):
                 env, getting=getting, setting=not getting,
                 analyse_base=False)
 
+        from .UtilNodes import ResultRefNode
         if self.start:
-            self.start = CondExprNode(
-                self.start.pos,
-                true_val = IntNode(self.start.pos, value = '0'),
-                false_val = self.start,
-                test = PrimaryCmpNode(
+            self.start.analyse_types(env)
+            if self.start.type.is_pyobject:
+                start_ref = ResultRefNode(self.start)
+                self.start = CondExprNode(
                     self.start.pos,
-                    operand1 = self.start,
-                    operator = 'is',
-                    operand2 = NoneNode(self.start.pos),
+                    true_val = IntNode(
+                        self.start.pos,
+                        value = '0',
+                        constant_result = 0
+                    ),
+                    false_val = start_ref,
+                    test = PrimaryCmpNode(
+                        self.start.pos,
+                        operand1 = start_ref,
+                        operator = 'is',
+                        operand2 = NoneNode(self.start.pos),
+                    )
                 )
-            ).analyse_types(env)
+                self.start.coerce_to(PyrexTypes.c_py_ssize_t_type, env)
+                self.start.analyse_types(env)
         if self.stop:
-            self.stop = CondExprNode(
-                self.stop.pos,
-                true_val = IntNode(self.stop.pos, value = 'PY_SSIZE_T_MAX'),
-                false_val = self.stop,
-                test = PrimaryCmpNode(
+            self.stop.analyse_types(env)
+            if self.stop.type.is_pyobject:
+                stop_ref = ResultRefNode(self.stop)
+                self.stop = CondExprNode(
                     self.stop.pos,
-                    operand1 = self.stop,
-                    operator = 'is',
-                    operand2 = NoneNode(self.stop.pos),
+                    true_val = IntNode(
+                        self.stop.pos,
+                        value = 'PY_SSIZE_T_MAX',
+                        # See: github.com/python/cpython/blob/2.7/Python/sysmodule.c#L1446
+                        constant_result = sys.maxsize
+                    ),
+                    false_val = stop_ref,
+                    test = PrimaryCmpNode(
+                        self.stop.pos,
+                        operand1 = stop_ref,
+                        operator = 'is',
+                        operand2 = NoneNode(self.stop.pos),
+                    )
                 )
-            ).analyse_types(env)
+                self.stop.coerce_to(PyrexTypes.c_py_ssize_t_type, env)
+                self.stop.analyse_types(env)
 
         if not env.directives['wraparound']:
             check_negative_indices(self.start, self.stop)
@@ -4814,6 +4834,7 @@ class SliceIndexNode(ExprNode):
                     step=none_node
                 ).analyse_types(env)
         else:
+            # TODO: is this logic needed?
             c_int = PyrexTypes.c_py_ssize_t_type
             if self.start:
                 self.start = self.start.coerce_to(c_int, env)
