@@ -4781,8 +4781,7 @@ class SliceIndexNode(ExprNode):
                         self.stop.pos,
                         value = 'PY_SSIZE_T_MAX',
                         # See: github.com/python/cpython/blob/2.7/Python/sysmodule.c#L1446
-                        constant_result = sys.maxsize,
-                        type = PyrexTypes.c_py_ssize_t_type
+                        constant_result = sys.maxsize
                     ),
                     false_val = stop_ref,
                     test = PrimaryCmpNode(
