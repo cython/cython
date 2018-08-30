@@ -10,6 +10,11 @@ try:
 except ImportError:
     basestring = str
 
+try:
+    FileNotFoundError
+except NameError:
+    FileNotFoundError = OSError
+
 import os
 import sys
 import re
@@ -233,43 +238,28 @@ def decode_filename(filename):
 
 # support for source file encoding detection
 
-_match_file_encoding = re.compile(u"coding[:=]\s*([-\w.]+)").search
-
-
-def detect_file_encoding(source_filename):
-    f = open_source_file(source_filename, encoding="UTF-8", error_handling='ignore')
-    try:
-        return detect_opened_file_encoding(f)
-    finally:
-        f.close()
+_match_file_encoding = re.compile(b"coding[:=]\s*([-\w.]+)").search
 
 
 def detect_opened_file_encoding(f):
     # PEPs 263 and 3120
-    # Most of the time the first two lines fall in the first 250 chars,
+    # Most of the time the first two lines fall in the first couple of hundred chars,
     # and this bulk read/split is much faster.
-    lines = f.read(250).split(u"\n")
-    if len(lines) > 1:
-        m = _match_file_encoding(lines[0])
+    lines = ()
+    start = b''
+    while len(lines) < 3:
+        data = f.read(500)
+        start += data
+        lines = start.split(b"\n")
+        if not data:
+            break
+    m = _match_file_encoding(lines[0])
+    if m:
+        return m.group(1).decode('iso8859-1')
+    elif len(lines) > 1:
+        m = _match_file_encoding(lines[1])
         if m:
-            return m.group(1)
-        elif len(lines) > 2:
-            m = _match_file_encoding(lines[1])
-            if m:
-                return m.group(1)
-            else:
-                return "UTF-8"
-    # Fallback to one-char-at-a-time detection.
-    f.seek(0)
-    chars = []
-    for i in range(2):
-        c = f.read(1)
-        while c and c != u'\n':
-            chars.append(c)
-            c = f.read(1)
-        encoding = _match_file_encoding(u''.join(chars))
-        if encoding:
-            return encoding.group(1)
+            return m.group(1).decode('iso8859-1')
     return "UTF-8"
 
 
@@ -283,32 +273,33 @@ def skip_bom(f):
         f.seek(0)
 
 
-def open_source_file(source_filename, mode="r",
-                     encoding=None, error_handling=None):
-    if encoding is None:
-        # Most of the time the coding is unspecified, so be optimistic that
-        # it's UTF-8.
-        f = open_source_file(source_filename, encoding="UTF-8", mode=mode, error_handling='ignore')
-        encoding = detect_opened_file_encoding(f)
-        if encoding == "UTF-8" and error_handling == 'ignore':
+def open_source_file(source_filename, encoding=None, error_handling=None):
+    stream = None
+    try:
+        if encoding is None:
+            # Most of the time the encoding is not specified, so try hard to open the file only once.
+            f = io.open(source_filename, 'rb')
+            encoding = detect_opened_file_encoding(f)
             f.seek(0)
-            skip_bom(f)
-            return f
+            stream = io.TextIOWrapper(f, encoding=encoding, errors=error_handling)
         else:
-            f.close()
+            stream = io.open(source_filename, encoding=encoding, errors=error_handling)
 
-    if not os.path.exists(source_filename):
+    except OSError:
+        if os.path.exists(source_filename):
+            raise  # File is there, but something went wrong reading from it.
+        # Allow source files to be in zip files etc.
         try:
             loader = __loader__
             if source_filename.startswith(loader.archive):
-                return open_source_from_loader(
+                stream = open_source_from_loader(
                     loader, source_filename,
                     encoding, error_handling)
         except (NameError, AttributeError):
             pass
 
-    stream = io.open(source_filename, mode=mode,
-                     encoding=encoding, errors=error_handling)
+    if stream is None:
+        raise FileNotFoundError(source_filename)
     skip_bom(stream)
     return stream
 
