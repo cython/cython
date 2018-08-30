@@ -473,11 +473,8 @@ def parse_dependencies(source_filename):
     # Actual parsing is way too slow, so we use regular expressions.
     # The only catch is that we must strip comments and string
     # literals ahead of time.
-    fh = Utils.open_source_file(source_filename, error_handling='ignore')
-    try:
+    with Utils.open_source_file(source_filename, error_handling='ignore') as fh:
         source = fh.read()
-    finally:
-        fh.close()
     distutils_info = DistutilsInfo(source)
     source, literals = strip_string_literals(source)
     source = source.replace('\\\n', ' ').replace('\t', ' ')
