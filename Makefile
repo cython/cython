@@ -1,3 +1,4 @@
+PACKAGENAME=Cython
 PYTHON?=python
 TESTOPTS?=
 REPO = git://github.com/cython/cython.git
@@ -11,9 +12,9 @@ all:    local
 local:
 	${PYTHON} setup.py build_ext --inplace
 
-sdist: dist/Cython-$(VERSION).tar.gz
+sdist: dist/$(PACKAGENAME)-$(VERSION).tar.gz
 
-dist/Cython-$(VERSION).tar.gz:
+dist/$(PACKAGENAME)-$(VERSION).tar.gz:
 	$(PYTHON) setup.py sdist
 
 TMPDIR = .repo_tmp
@@ -53,8 +54,8 @@ s5:
 
 wheel_manylinux: wheel_manylinux64 wheel_manylinux32
 
-wheel_manylinux32 wheel_manylinux64: dist/Cython-$(VERSION).tar.gz
-	echo "Building wheels for Cython $(VERSION)"
+wheel_manylinux32 wheel_manylinux64: dist/$(PACKAGENAME)-$(VERSION).tar.gz
+	echo "Building wheels for $(PACKAGENAME) $(VERSION)"
 	mkdir -p wheelhouse_$(subst wheel_,,$@)
 	time docker run --rm -t \
 		-v $(shell pwd):/io \
@@ -66,4 +67,4 @@ wheel_manylinux32 wheel_manylinux64: dist/Cython-$(VERSION).tar.gz
 		    $$PYBIN/python -V; \
 		    { $$PYBIN/pip wheel -w /io/$$WHEELHOUSE /io/$< & } ; \
 		    done; wait; \
-		    for whl in /io/$$WHEELHOUSE/Cython-$(VERSION)-*-linux_*.whl; do auditwheel repair $$whl -w /io/$$WHEELHOUSE; done'
+		    for whl in /io/$$WHEELHOUSE/$(PACKAGENAME)-$(VERSION)-*-linux_*.whl; do auditwheel repair $$whl -w /io/$$WHEELHOUSE; done'
