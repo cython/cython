@@ -12,7 +12,10 @@ about 20%-50%.
 To go beyond that, Cython provides language constructs to add static typing
 and cythonic functionalities to a Python module to make it run much faster
 when compiled, while still allowing it to be interpreted.
-This is accomplished either via an augmenting :file:`.pxd` file, or
+This is accomplished either via an augmenting ``.pxd`` file, via Python
+type annotations (following
+`PEP 484 <https://www.python.org/dev/peps/pep-0484/>`_ and
+`PEP 526 <https://www.python.org/dev/peps/pep-0526/>`_), or
 via special functions and decorators available after importing the magic
 ``cython`` module.
 
