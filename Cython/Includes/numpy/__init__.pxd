@@ -23,6 +23,11 @@ from cpython.object cimport PyObject, PyTypeObject
 from cpython.type cimport type
 cimport libc.stdio as stdio
 
+cdef extern from *:
+    """
+    #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+    """
+
 cdef extern from "Python.h":
     ctypedef int Py_intptr_t
 
@@ -123,40 +128,6 @@ cdef extern from "numpy/arrayobject.h":
         NPY_SEARCHRIGHT
 
     enum:
-        # DEPRECATED since NumPy 1.7 ! Do not use in new code!
-        NPY_C_CONTIGUOUS
-        NPY_F_CONTIGUOUS
-        NPY_CONTIGUOUS
-        NPY_FORTRAN
-        NPY_OWNDATA
-        NPY_FORCECAST
-        NPY_ENSURECOPY
-        NPY_ENSUREARRAY
-        NPY_ELEMENTSTRIDES
-        NPY_ALIGNED
-        NPY_NOTSWAPPED
-        NPY_WRITEABLE
-        NPY_UPDATEIFCOPY
-        NPY_ARR_HAS_DESCR
-
-        NPY_BEHAVED
-        NPY_BEHAVED_NS
-        NPY_CARRAY
-        NPY_CARRAY_RO
-        NPY_FARRAY
-        NPY_FARRAY_RO
-        NPY_DEFAULT
-
-        NPY_IN_ARRAY
-        NPY_OUT_ARRAY
-        NPY_INOUT_ARRAY
-        NPY_IN_FARRAY
-        NPY_OUT_FARRAY
-        NPY_INOUT_FARRAY
-
-        NPY_UPDATE_ALL
-
-    enum:
         # Added in NumPy 1.7 to replace the deprecated enums above.
         NPY_ARRAY_C_CONTIGUOUS
         NPY_ARRAY_F_CONTIGUOUS
@@ -249,7 +220,6 @@ cdef extern from "numpy/arrayobject.h":
             int ndim "nd"
             npy_intp *shape "dimensions"
             npy_intp *strides
-            dtype descr  # deprecated since NumPy 1.7 !
             PyObject* base
 
         # Note: This syntax (function definition in pxd files) is an
