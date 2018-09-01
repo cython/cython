@@ -1477,7 +1477,9 @@ class CythonUnitTestCase(CythonRunTestCase):
     def run_tests(self, result, ext_so_path):
         with self.stats.time(self.name, self.language, 'import'):
             module = import_ext(self.module, ext_so_path)
-        unittest.defaultTestLoader.loadTestsFromModule(module).run(result)
+        tests = unittest.defaultTestLoader.loadTestsFromModule(module)
+        with self.stats.time(self.name, self.language, 'run'):
+            tests.run(result)
 
 
 class CythonPyregrTestCase(CythonRunTestCase):
@@ -1533,7 +1535,8 @@ class CythonPyregrTestCase(CythonRunTestCase):
             try:
                 try:
                     sys.stdout.flush() # helps in case of crashes
-                    module = import_ext(self.module, ext_so_path)
+                    with self.stats.time(self.name, self.language, 'import'):
+                        module = import_ext(self.module, ext_so_path)
                     sys.stdout.flush() # helps in case of crashes
                     if hasattr(module, 'test_main'):
                         # help 'doctest.DocFileTest' find the module path through frame inspection
