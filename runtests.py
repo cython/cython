@@ -1718,8 +1718,9 @@ class EndToEndTest(unittest.TestCase):
         old_path = os.environ.get('PYTHONPATH')
         env = dict(os.environ)
         env['PYTHONPATH'] = self.cython_syspath + os.pathsep + (old_path or '')
-        for command in filter(None, commands.splitlines()):
-            with self.stats.time(self.name, 'c', 'endtoend'):
+        for command_no, command in enumerate(filter(None, commands.splitlines()), 1):
+            with self.stats.time('%s(%d)' % (self.name, command_no), 'c',
+                                 'etoe-build' if ' setup.py ' in command else 'etoe-run'):
                 p = subprocess.Popen(command,
                                      stderr=subprocess.PIPE,
                                      stdout=subprocess.PIPE,
