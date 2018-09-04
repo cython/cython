@@ -849,6 +849,14 @@ f'{a * x()}'"""
         self.assertEqual(f'{d["foo"]}', 'bar')
         self.assertEqual(f"{d['foo']}", 'bar')
 
+    def test_inline_compiler_directives(self):
+        self.assertEqual(
+            cy_eval('sum(x)',
+                    x=[1,2,3],
+                    cython_compiler_directives={'boundscheck': False}),
+            6
+        )
+
     def __test_backslash_char(self):
         # Check eval of a backslash followed by a control char.
         # See bpo-30682: this used to raise an assert in pydebug mode.
