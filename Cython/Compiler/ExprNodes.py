@@ -4794,50 +4794,38 @@ class SliceIndexNode(ExprNode):
                     step=none_node
                 ).analyse_types(env)
         else:
-            from .UtilNodes import EvalWithTempExprNode, ResultRefNode
             c_int = PyrexTypes.c_py_ssize_t_type
+
+            def allow_none(node, default_value, env):
+                # Coerce to Py_ssize_t, but allow None as meaning the default slice bound.
+                from .UtilNodes import EvalWithTempExprNode, ResultRefNode
+
+                node_ref = ResultRefNode(node)
+                new_expr = CondExprNode(
+                    node.pos,
+                    true_val=IntNode(
+                        node.pos,
+                        type=c_int,
+                        value=default_value,
+                        constant_result=int(default_value) if default_value.isdigit() else not_a_constant,
+                    ),
+                    false_val=node_ref.coerce_to(c_int, env),
+                    test=PrimaryCmpNode(
+                        node.pos,
+                        operand1=node_ref,
+                        operator='is',
+                        operand2=NoneNode(node.pos),
+                    ).analyse_types(env)
+                ).analyse_result_type(env)
+                return EvalWithTempExprNode(node_ref, new_expr)
+
             if self.start:
                 if self.start.type.is_pyobject:
-                    start_ref = ResultRefNode(self.start)
-                    start_expr = CondExprNode(
-                        self.start.pos,
-                        true_val = IntNode(
-                            self.start.pos,
-                            value = '0',
-                            constant_result = 0
-                        ),
-                        false_val = start_ref,
-                        test = PrimaryCmpNode(
-                            self.start.pos,
-                            operand1 = start_ref,
-                            operator = 'is',
-                            operand2 = NoneNode(self.start.pos),
-                        )
-                    )
-                    start_expr = start_expr.analyse_types(env)
-                    start_expr = start_expr.coerce_to(c_int, env)
-                    self.start = EvalWithTempExprNode(start_ref, start_expr)
+                    self.start = allow_none(self.start, '0', env)
                 self.start = self.start.coerce_to(c_int, env)
             if self.stop:
                 if self.stop.type.is_pyobject:
-                    stop_ref = ResultRefNode(self.stop)
-                    stop_expr = CondExprNode(
-                        self.stop.pos,
-                        true_val = IntNode(
-                            self.stop.pos,
-                            value = 'PY_SSIZE_T_MAX'
-                        ),
-                        false_val = stop_ref,
-                        test = PrimaryCmpNode(
-                            self.stop.pos,
-                            operand1 = stop_ref,
-                            operator = 'is',
-                            operand2 = NoneNode(self.stop.pos),
-                        )
-                    )
-                    stop_expr = stop_expr.analyse_types(env)
-                    stop_expr = stop_expr.coerce_to(c_int, env)
-                    self.stop = EvalWithTempExprNode(stop_ref, stop_expr)
+                    self.stop = allow_none(self.stop, 'PY_SSIZE_T_MAX', env)
                 self.stop = self.stop.coerce_to(c_int, env)
         self.is_temp = 1
         return self
@@ -11947,6 +11935,7 @@ class CondExprNode(ExprNode):
 
     true_val = None
     false_val = None
+    is_temp = True
 
     subexprs = ['test', 'true_val', 'false_val']
 
@@ -11971,7 +11960,6 @@ class CondExprNode(ExprNode):
         self.test = self.test.analyse_types(env).coerce_to_boolean(env)
         self.true_val = self.true_val.analyse_types(env)
         self.false_val = self.false_val.analyse_types(env)
-        self.is_temp = 1
         return self.analyse_result_type(env)
 
     def analyse_result_type(self, env):
