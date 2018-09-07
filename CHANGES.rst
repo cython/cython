@@ -64,6 +64,9 @@ Bugs fixed
 * Crash when importing a module under Stackless Python that was built for CPython.
   Patch by Anselm Kruis.  (Github issue #2534)
 
+* 2-value slicing of typed sequences failed if the start or stop index was None.
+  Patch by Christian Gibson.  (Github issue #2508)
+
 * The directive ``language_level=3`` did not apply to the first token in the
   source file.  (Github issue #2230)
 
