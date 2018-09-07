@@ -2097,7 +2097,7 @@ def main():
         elif options.shard_num == -1:
             print("Enabling coverage analysis")
             from coverage import coverage as _coverage
-            coverage = _coverage()
+            coverage = _coverage(branch=True)
             coverage.erase()
             coverage.start()
 
