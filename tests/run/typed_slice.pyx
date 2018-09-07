@@ -1,6 +1,10 @@
 # mode: run
 # tag: list, tuple, slice, slicing
 
+cimport cython
+
+
+@cython.test_fail_if_path_exists("//CondExprNode")
 def slice_list(list l, int start, int stop):
     """
     >>> slice_list([1,2,3,4], 1, 3)
@@ -22,6 +26,7 @@ def slice_list(list l, int start, int stop):
     """
     return l[start:stop]
 
+@cython.test_fail_if_path_exists("//CondExprNode")
 def slice_list_start(list l, int start):
     """
     >>> slice_list_start([1,2,3,4], 1)
@@ -44,6 +49,7 @@ def slice_list_start(list l, int start):
     return l[start:]
 
 
+@cython.test_fail_if_path_exists("//CondExprNode")
 def slice_list_stop(list l, int stop):
     """
     >>> slice_list_stop([1,2,3,4], 3)
@@ -68,6 +74,7 @@ def slice_list_stop(list l, int stop):
     return l[:stop]
 
 
+@cython.test_fail_if_path_exists("//CondExprNode")
 def slice_list_copy(list l):
     """
     >>> slice_list_copy([])
@@ -78,6 +85,7 @@ def slice_list_copy(list l):
     return l[:]
 
 
+@cython.test_fail_if_path_exists("//CondExprNode")
 def slice_tuple_copy(tuple l):
     """
     >>> slice_tuple_copy(())
@@ -88,6 +96,7 @@ def slice_tuple_copy(tuple l):
     return l[:]
 
 
+@cython.test_fail_if_path_exists("//CondExprNode")
 def slice_tuple(tuple t, int start, int stop):
     """
     >>> slice_tuple((1,2,3,4), 1, 3)
@@ -110,6 +119,7 @@ def slice_tuple(tuple t, int start, int stop):
     return t[start:stop]
 
 
+@cython.test_fail_if_path_exists("//CondExprNode")
 def slice_tuple_start(tuple t, int start):
     """
     >>> slice_tuple_start((1,2,3,4), 1)
@@ -129,6 +139,8 @@ def slice_tuple_start(tuple t, int start):
     """
     return t[start:]
 
+
+@cython.test_fail_if_path_exists("//CondExprNode")
 def slice_tuple_stop(tuple t, int stop):
     """
     >>> slice_tuple_stop((1,2,3,4), 3)
@@ -147,6 +159,7 @@ def slice_tuple_stop(tuple t, int stop):
     return t[:stop]
 
 
+@cython.test_fail_if_path_exists("//CondExprNode")
 def slice_list_assign_list(list l):
     """
     >>> l = [1,2,3,4]
@@ -158,6 +171,7 @@ def slice_list_assign_list(list l):
     return l
 
 
+@cython.test_fail_if_path_exists("//CondExprNode")
 def slice_list_assign_tuple(list l):
     """
     >>> l = [1,2,3,4]
@@ -169,6 +183,7 @@ def slice_list_assign_tuple(list l):
     return l
 
 
+@cython.test_fail_if_path_exists("//CondExprNode")
 def slice_list_assign(list l, value):
     """
     >>> l = [1,2,3,4]
@@ -204,6 +219,7 @@ def slice_charp_repeat(py_string_arg):
     s = slice_val
     return s[1:3].decode(u'ASCII')
 
+
 # Readers will find the common boilerplate in the tests below:
 #     >>> l = [1,2,3,4,5]
 #     >>> t = tuple(l)
@@ -227,6 +243,8 @@ ctypedef fused slicable:
     bytes
     unicode
 
+
+@cython.test_assert_path_exists("//SliceIndexNode//CondExprNode")
 def slice_fused_type_start(slicable seq, start):
     """
     >>> l = [1,2,3,4,5]
@@ -269,6 +287,8 @@ def slice_fused_type_start(slicable seq, start):
     obj = seq[start:]
     return obj
 
+
+@cython.test_assert_path_exists("//SliceIndexNode//CondExprNode")
 def slice_fused_type_stop(slicable seq, stop):
     """
     >>> l = [1,2,3,4,5]
@@ -311,6 +331,8 @@ def slice_fused_type_stop(slicable seq, stop):
     obj = seq[:stop]
     return obj
 
+
+@cython.test_assert_path_exists("//SliceIndexNode//CondExprNode")
 def slice_fused_type_start_and_stop(slicable seq, start, stop):
     """
     >>> l = [1,2,3,4,5]
@@ -353,6 +375,7 @@ def slice_fused_type_start_and_stop(slicable seq, start, stop):
     """
     obj = seq[start:stop]
     return obj
+
 
 def slice_fused_type_step(slicable seq, step):
     """
@@ -404,6 +427,7 @@ def slice_fused_type_step(slicable seq, step):
     """
     obj = seq[::step]
     return obj
+
 
 def slice_fused_type_start_and_step(slicable seq, start, step):
     """
@@ -468,6 +492,7 @@ def slice_fused_type_start_and_step(slicable seq, start, step):
     obj = seq[start::step]
     return obj
 
+
 def slice_fused_type_stop_and_step(slicable seq, stop, step):
     """
     >>> l = [1,2,3,4,5]
@@ -520,6 +545,7 @@ def slice_fused_type_stop_and_step(slicable seq, stop, step):
     """
     obj = seq[:stop:step]
     return obj
+
 
 def slice_fused_type_all(slicable seq, start, stop, step):
     """
