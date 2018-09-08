@@ -4311,16 +4311,16 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 warning(pos, "Too few arguments for format placeholders", level=1)
                 can_be_optimised = False
                 break
-            if format_type in u'srfdoxX':
+            if format_type in u'asrfdoxX':
                 format_spec = s[1:]
                 if format_type in u'doxX' and u'.' in format_spec:
                     # Precision is not allowed for integers in format(), but ok in %-formatting.
                     can_be_optimised = False
-                elif format_type in u'rs':
+                elif format_type in u'ars':
                     format_spec = format_spec[:-1]
                 substrings.append(ExprNodes.FormattedValueNode(
                     arg.pos, value=arg,
-                    conversion_char=format_type if format_type in u'rs' else None,
+                    conversion_char=format_type if format_type in u'ars' else None,
                     format_spec=ExprNodes.UnicodeNode(
                         pos, value=EncodedString(format_spec), constant_result=format_spec)
                         if format_spec else None,

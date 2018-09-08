@@ -55,6 +55,9 @@ Features added
 * Declarations for the ``pylifecycle`` C-API functions were added in a new .pxd file
   ``cpython.pylifecycle``.
 
+* ``%a`` is included in the string formatting types that are optimised into f-strings.
+  In this case, it is also automatically mapped to ``%r`` in Python 2.x.
+
 * New C macro ``CYTHON_HEX_VERSION`` to access Cython's version in the same style as
   ``PY_HEX_VERSION``.
 
