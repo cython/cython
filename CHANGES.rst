@@ -73,6 +73,10 @@ Bugs fixed
 * Multiplied string literals lost their factor when they are part of another
   constant expression (e.g. 'x' * 10 + 'y' => 'xy').
 
+* String formatting with the '%' operator didn't call the special ``__rmod__()``
+  method if the right side is a string subclass that implements it.
+  (Python issue 28598)
+
 * The directive ``language_level=3`` did not apply to the first token in the
   source file.  (Github issue #2230)
 

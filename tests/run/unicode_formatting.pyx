@@ -34,3 +34,27 @@ def mix_format(a, int b, list c):
     -x-2-[1]-
     """
     return '-%s-%r-%a-' % (a, b, c)
+
+
+class PySubtype(unicode):
+    def __rmod__(self, other):
+        return f'PyRMOD({other})'
+
+
+cdef class ExtSubtype(unicode):
+    def __mod__(one, other):
+        return f'ExtMOD({one}, {other})'
+
+
+def subtypes():
+    """
+    >>> py, ext = subtypes()
+    >>> print(py)
+    PyRMOD(-%s-)
+    >>> print(ext)
+    ExtMOD(-%s-, ExtSub)
+    """
+    return [
+        '-%s-' % PySubtype("PySub"),
+        '-%s-' % ExtSubtype("ExtSub"),
+    ]

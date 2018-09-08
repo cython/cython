@@ -11616,13 +11616,19 @@ class ModNode(DivNode):
                     self.operand2.result())
 
     def py_operation_function(self, code):
-        if self.operand1.type is unicode_type:
-            if self.operand1.may_be_none():
+        type1, type2 = self.operand1.type, self.operand2.type
+        # ("..." % x)  must call "x.__rmod__()" for string subtypes.
+        if type1 is unicode_type:
+            if self.operand1.may_be_none() or (
+                    type2.is_extension_type and type2.subtype_of(type1) or
+                    type2 is py_object_type and not isinstance(self.operand2, CoerceToPyTypeNode)):
                 return '__Pyx_PyUnicode_FormatSafe'
             else:
                 return 'PyUnicode_Format'
-        elif self.operand1.type is str_type:
-            if self.operand1.may_be_none():
+        elif type1 is str_type:
+            if self.operand1.may_be_none() or (
+                    type2.is_extension_type and type2.subtype_of(type1) or
+                    type2 is py_object_type and not isinstance(self.operand2, CoerceToPyTypeNode)):
                 return '__Pyx_PyString_FormatSafe'
             else:
                 return '__Pyx_PyString_Format'
