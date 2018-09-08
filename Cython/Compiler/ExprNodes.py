@@ -3403,6 +3403,7 @@ class IndexNode(_IndexingBaseNode):
             elif self.index.is_slice or self.index.is_sequence_constructor:
                 # memory view
                 from . import MemoryView
+                env.use_utility_code(MemoryView.view_utility_code)
                 axes = [self.index] if self.index.is_slice else list(self.index.args)
                 return PyrexTypes.MemoryViewSliceType(base_type, MemoryView.get_axes_specs(env, axes))
             else:
@@ -4829,6 +4830,24 @@ class SliceIndexNode(ExprNode):
                 self.stop = self.stop.coerce_to(c_int, env)
         self.is_temp = 1
         return self
+
+    def analyse_as_type(self, env):
+        base_type = self.base.analyse_as_type(env)
+        if base_type and not base_type.is_pyobject:
+            if not self.start and not self.stop:
+                # memory view
+                from . import MemoryView
+                env.use_utility_code(MemoryView.view_utility_code)
+                none_node = NoneNode(self.pos)
+                slice_node = SliceNode(
+                    self.pos,
+                    start=none_node,
+                    stop=none_node,
+                    step=none_node,
+                )
+                return PyrexTypes.MemoryViewSliceType(
+                    base_type, MemoryView.get_axes_specs(env, [slice_node]))
+        return None
 
     nogil_check = Node.gil_error
     gil_message = "Slicing Python object"
