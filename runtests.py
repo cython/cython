@@ -425,6 +425,7 @@ VER_DEP_MODULES = {
                                           'pyximport.pyximport_namespace',
                                           ]),
     (3,4): (operator.lt, lambda x: x in ['run.py34_signature',
+                                         'run.test_unicode',  # taken from Py3.7, difficult to backport
                                          ]),
     (3,4,999): (operator.gt, lambda x: x in ['run.initial_file_path',
                                              ]),
