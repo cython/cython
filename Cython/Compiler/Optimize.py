@@ -4234,7 +4234,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                     string_node.bytes_value.encoding)
         else:
             assert False, "unknown string node type: %s" % type(string_node)
-        string_node.value = build_string(
+        string_node.constant_result = string_node.value = build_string(
             string_node.value * multiplier,
             string_node.value.encoding)
         return string_node

@@ -2,6 +2,16 @@
 Cython Changelog
 ================
 
+0.28.6 (??)
+===================
+
+Bugs fixed
+----------
+
+* Multiplied string literals lost their factor when they are part of another
+  constant expression (e.g. 'x' * 10 + 'y' => 'xy').
+
+
 0.28.5 (2018-08-03)
 ===================
 
