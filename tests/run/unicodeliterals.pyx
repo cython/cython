@@ -85,6 +85,8 @@ __doc__ = br"""
     True
     >>> wide_literal == u'\\U00101234'   # unescaped by Python
     True
+    >>> ustring_in_constant_tuple == ('a', u'abc', u'\\N{SNOWMAN}', u'x' * 3, u'\\N{SNOWMAN}' * 4 + u'O')  or  ustring_in_constant_tuple  # unescaped by Python
+    True
 """
 
 if sys.version_info >= (2,6,5):
@@ -118,3 +120,5 @@ add = u'Søk ik' + u'üÖä' + u'abc'
 null = u'\x00'
 
 wide_literal = u'\U00101234'
+
+ustring_in_constant_tuple = ('a', u'abc', u'\N{SNOWMAN}', u'x' * 3, u'\N{SNOWMAN}' * 4 + u'O')
