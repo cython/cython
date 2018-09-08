@@ -1315,9 +1315,10 @@ class UnicodeTest(CommonTest,
         self.assertRaises(ValueError, '{}'.format_map, 'a')
         self.assertRaises(ValueError, '{a} {}'.format_map, {"a" : 2, "b" : 1})
 
+        ZERO = 0
         class BadMapping:
             def __getitem__(self, key):
-                return 1/0
+                return 1 / ZERO
         self.assertRaises(KeyError, '{a}'.format_map, {})
         self.assertRaises(TypeError, '{a}'.format_map, [])
         self.assertRaises(ZeroDivisionError, '{a}'.format_map, BadMapping())
