@@ -1,5 +1,5 @@
 # mode: run
-# tag: pep484, numpy
+# tag: pep484, numpy, pure3.0
 ##, warnings
 
 import cython
