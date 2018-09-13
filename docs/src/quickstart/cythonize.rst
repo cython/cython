@@ -30,35 +30,17 @@ Types are declared via the cdef keyword.
 Typing Variables
 ----------------
 
-Consider the following pure Python code::
+Consider the following pure Python code:
 
-  def f(x):
-      return x**2-x
-
-  def integrate_f(a, b, N):
-      s = 0
-      dx = (b-a)/N
-      for i in range(N):
-          s += f(a+i*dx)
-      return s * dx
+.. literalinclude:: ../../examples/quickstart/cythonize/integrate.py
 
 Simply compiling this in Cython merely gives a 35% speedup.  This is
 better than nothing, but adding some static types can make a much larger
 difference.
 
-With additional type declarations, this might look like::
+With additional type declarations, this might look like:
 
-  def f(double x):
-      return x**2-x
-
-  def integrate_f(double a, double b, int N):
-      cdef int i
-      cdef double s, dx
-      s = 0
-      dx = (b-a)/N
-      for i in range(N):
-          s += f(a+i*dx)
-      return s * dx
+.. literalinclude:: ../../examples/quickstart/cythonize/integrate_cy.pyx
 
 Since the iterator variable ``i`` is typed with C semantics, the for-loop will be compiled
 to pure C code.  Typing ``a``, ``s`` and ``dx`` is important as they are involved
@@ -78,10 +60,9 @@ and in the call to it, yet a Python ``float`` object must be constructed around 
 argument in order to pass it.
 
 Therefore Cython provides a syntax for declaring a C-style function,
-the cdef keyword::
+the cdef keyword:
 
-  cdef double f(double x) except? -2:
-      return x**2-x
+.. literalinclude:: ../../examples/quickstart/cythonize/cdef_keyword.pyx
 
 Some form of except-modifier should usually be added, otherwise Cython
 will not be able to propagate exceptions raised in the function (or a
@@ -106,6 +87,8 @@ when called from within cython. This does add a tiny overhead compared to ``cdef
 methods.
 
 Speedup: 150 times over pure Python.
+
+.. _determining_where_to_add_types:
 
 Determining where to add types
 ------------------------------

@@ -1,8 +1,7 @@
 # mode: run
 # tag: cpp, werror, cpp11
-# distutils: extra_compile_args=-std=c++0x
 
-from libcpp.memory cimport unique_ptr, shared_ptr, default_delete
+from libcpp.memory cimport unique_ptr, shared_ptr, default_delete, dynamic_pointer_cast
 from libcpp cimport nullptr
 
 cdef extern from "cpp_smart_ptr_helper.h":
@@ -71,7 +70,8 @@ def test_const_shared_ptr():
 
 
 cdef cppclass A:
-    pass
+    void some_method():  # Force this to be a polymorphic class for dynamic cast.
+        pass
 
 cdef cppclass B(A):
     pass
@@ -80,3 +80,15 @@ cdef cppclass C(B):
     pass
 
 cdef shared_ptr[A] holding_subclass = shared_ptr[A](new C())
+
+def test_dynamic_pointer_cast():
+    """
+    >>> test_dynamic_pointer_cast()
+    """
+    cdef shared_ptr[B] b = shared_ptr[B](new B())
+    cdef shared_ptr[A] a = dynamic_pointer_cast[A, B](b)
+    assert a.get() == b.get()
+
+    a = shared_ptr[A](new A())
+    b = dynamic_pointer_cast[B, A](a)
+    assert b.get() == NULL

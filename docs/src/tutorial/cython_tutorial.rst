@@ -77,7 +77,7 @@ It is shipped and installed with Cython and can be used like this::
     >>> import helloworld
     Hello World
 
-Since Cython 0.11, the :ref:`Pyximport<pyximport>` module also has experimental
+The :ref:`Pyximport<pyximport>` module also has experimental
 compilation support for normal Python modules.  This allows you to
 automatically run Cython on every .pyx and .py module that Python
 imports, including the standard library and installed packages.
@@ -97,7 +97,7 @@ Fibonacci Fun
 
 From the official Python tutorial a simple fibonacci function is defined as:
 
-.. literalinclude:: ../../examples/tutorial/fib1/fib.pyx
+.. literalinclude:: ../../examples/tutorial/cython_tutorial/fib.pyx
 
 Now following the steps for the Hello World example we first rename the file
 to have a `.pyx` extension, lets say :file:`fib.pyx`, then we create the
@@ -105,7 +105,7 @@ to have a `.pyx` extension, lets say :file:`fib.pyx`, then we create the
 that you need to change is the name of the Cython filename, and the resulting
 module name, doing this we have:
 
-.. literalinclude:: ../../examples/tutorial/fib1/setup.py
+.. literalinclude:: ../../examples/tutorial/cython_tutorial/setup.py
 
 Build the extension with the same command used for the helloworld.pyx:
 
@@ -119,6 +119,8 @@ And use the new extension with::
     >>> fib.fib(2000)
     1 1 2 3 5 8 13 21 34 55 89 144 233 377 610 987 1597
 
+.. _primes:
+
 Primes
 =======
 
@@ -128,7 +130,7 @@ them as a Python list.
 
 :file:`primes.pyx`:
 
-.. literalinclude:: ../../examples/tutorial/primes/primes.pyx
+.. literalinclude:: ../../examples/tutorial/cython_tutorial/primes.pyx
     :linenos:
 
 You'll see that it starts out just like a normal Python function definition,
@@ -261,23 +263,9 @@ just like Python does. You can deactivate those checks by using the
 :ref:`compiler directives<compiler-directives>`.
 
 Now let's see if, even if we have division checks, we obtained a boost in speed.
-Let's write the same program, but Python-style::
+Let's write the same program, but Python-style:
 
-    def primes_python(nb_primes):
-        p = []
-        n = 2
-        while len(p) < nb_primes:
-            # Is n prime?
-            for i in p:
-                if n % i == 0:
-                    break
-
-            # If no break occurred in the loop
-            else:
-                p.append(n)
-            n += 1
-        return p
-
+.. literalinclude:: ../../examples/tutorial/cython_tutorial/primes_python.py
 
 It is also possible to take a plain ``.py`` file and to compile it with Cython.
 Let's take ``primes_python``, change the function name to ``primes_python_compiled`` and
@@ -330,6 +318,38 @@ the Python interpreter. As always, remember to profile before adding types
 everywhere. Adding types makes your code less readable, so use them with
 moderation.
 
+
+Primes with C++
+===============
+
+With Cython, it is also possible to take advantage of the C++ language, notably,
+part of the C++ standard library is directly importable from Cython code.
+
+Let's see what our :file:`primes.pyx` becomes when
+using `vector <https://en.cppreference.com/w/cpp/container/vector>`_ from the C++
+standard library.
+
+.. note::
+
+    Vector in C++ is a data structure which implements a list or stack based
+    on a resizeable C array. It is similar to the Python ``array``
+    type in the ``array`` standard library module.
+    There is a method `reserve` available which will avoid copies if you know in advance
+    how many elements you are going to put in the vector. For more details
+    see `this page from cppreference <https://en.cppreference.com/w/cpp/container/vector>`_.
+
+.. literalinclude:: ../../examples/tutorial/cython_tutorial/primes_cpp.pyx
+    :linenos:
+
+The first line is a compiler directive. It tells Cython to compile your code to C++.
+This will enable the use of C++ language features and the C++ standard library.
+Note that it isn't possible to compile Cython code to C++ with `pyximport`. You
+should use a :file:`setup.py` or a notebook to run this example.
+
+You can see that the API of a vector is similar to the API of a Python list,
+and can sometimes be used as a drop-in replacement in Cython.
+
+For more details about using C++ with Cython, see :ref:`wrapping-cplusplus`.
 
 Language Details
 ================

@@ -321,10 +321,11 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb);
 /////////////// GetException ///////////////
 
 #if CYTHON_FAST_THREAD_STATE
-static int __Pyx__GetException(PyThreadState *tstate, PyObject **type, PyObject **value, PyObject **tb) {
+static int __Pyx__GetException(PyThreadState *tstate, PyObject **type, PyObject **value, PyObject **tb)
 #else
-static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb) {
+static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb)
 #endif
+{
     PyObject *local_type, *local_value, *local_tb;
 #if CYTHON_FAST_THREAD_STATE
     PyObject *tmp_type, *tmp_value, *tmp_tb;
@@ -611,7 +612,7 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line);/*proto*/
 //@substitute: naming
 
 #ifndef CYTHON_CLINE_IN_TRACEBACK
-static int __Pyx_CLineForTraceback(CYTHON_UNUSED PyThreadState *tstate, int c_line) {
+static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line) {
     PyObject *use_cline;
     PyObject *ptype, *pvalue, *ptraceback;
 #if CYTHON_COMPILING_IN_CPYTHON
@@ -628,7 +629,9 @@ static int __Pyx_CLineForTraceback(CYTHON_UNUSED PyThreadState *tstate, int c_li
 #if CYTHON_COMPILING_IN_CPYTHON
     cython_runtime_dict = _PyObject_GetDictPtr(${cython_runtime_cname});
     if (likely(cython_runtime_dict)) {
-      use_cline = __Pyx_PyDict_GetItemStr(*cython_runtime_dict, PYIDENT("cline_in_traceback"));
+        __PYX_PY_DICT_LOOKUP_IF_MODIFIED(
+            use_cline, *cython_runtime_dict,
+            __Pyx_PyDict_GetItemStr(*cython_runtime_dict, PYIDENT("cline_in_traceback")))
     } else
 #endif
     {
@@ -645,7 +648,7 @@ static int __Pyx_CLineForTraceback(CYTHON_UNUSED PyThreadState *tstate, int c_li
         c_line = 0;
         PyObject_SetAttr(${cython_runtime_cname}, PYIDENT("cline_in_traceback"), Py_False);
     }
-    else if (PyObject_Not(use_cline) != 0) {
+    else if (use_cline == Py_False || (use_cline != Py_True && PyObject_Not(use_cline) != 0)) {
         c_line = 0;
     }
     __Pyx_ErrRestoreInState(tstate, ptype, pvalue, ptraceback);

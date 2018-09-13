@@ -332,17 +332,9 @@ Including verbatim C code
 -------------------------
 
 For advanced use cases, Cython allows you to directly write C code
-as "docstring" of a ``cdef extern from`` block::
+as "docstring" of a ``cdef extern from`` block:
 
-    cdef extern from *:
-        """
-        /* This is C code which will be put
-         * in the .c file output by Cython */
-        static long square(long x) {return x * x;}
-        #define assign(x, y) ((x) = (y))
-        """
-        long square(long x)
-        void assign(long& x, long y)
+.. literalinclude:: ../../examples/userguide/external_C_code/c_code_docstring.pyx
 
 The above is essentially equivalent to having the C code in a file
 ``header.h`` and writing ::
@@ -470,32 +462,12 @@ contains the api call which is generating the segmentation fault does not call
 the :func:`import_modulename` function before the api call which crashes.
 
 Any public C type or extension type declarations in the Cython module are also
-made available when you include :file:`modulename_api.h`.::
+made available when you include :file:`modulename_api.h`.:
 
-    # delorean.pyx
-    cdef public struct Vehicle:
-        int speed
-        float power
+.. literalinclude:: ../../examples/userguide/external_C_code/delorean.pyx
 
-    cdef api void activate(Vehicle *v):
-        if v.speed >= 88 and v.power >= 1.21:
-            print "Time travel achieved"
-
-.. sourcecode:: c
-
-    # marty.c
-    #include "delorean_api.h"
-
-    Vehicle car;
-
-    int main(int argc, char *argv[]) {
-        Py_Initialize();
-        import_delorean();
-        car.speed = atoi(argv[1]);
-        car.power = atof(argv[2]);
-        activate(&car);
-        Py_Finalize();
-    }
+.. literalinclude:: ../../examples/userguide/external_C_code/marty.c
+    :language: C
 
 .. note::
 
@@ -599,7 +571,7 @@ header::
 
 If the callback may be called from another non-Python thread,
 care must be taken to initialize the GIL first, through a call to
-`PyEval_InitThreads() <http://docs.python.org/dev/c-api/init.html#PyEval_InitThreads>`_.
+`PyEval_InitThreads() <https://docs.python.org/dev/c-api/init.html#c.PyEval_InitThreads>`_.
 If you're already using  :ref:`cython.parallel <parallel>` in your module, this will already have been taken care of.
 
 The GIL may also be acquired through the ``with gil`` statement::

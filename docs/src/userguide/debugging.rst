@@ -59,7 +59,7 @@ with an interpreter that is compiled with debugging symbols (i.e. configured
 with ``--with-pydebug`` or compiled with the ``-g`` CFLAG). If your Python is
 installed and managed by your package manager you probably need to install debug
 support separately. If using NumPy then you also need to install numpy debugging, or you'll
-see an [import error for multiarray](https://bugzilla.redhat.com/show_bug.cgi?id=1030830).
+see an `import error for multiarray <https://bugzilla.redhat.com/show_bug.cgi?id=1030830>`_.
 E.G. for ubuntu::
 
     $ sudo apt-get install python-dbg python-numpy-dbg

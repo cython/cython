@@ -1,5 +1,5 @@
 include MANIFEST.in README.rst INSTALL.txt ToDo.txt USAGE.txt CHANGES.rst
-include COPYING.txt LICENSE.txt 2to3-fixers.txt Makefile
+include COPYING.txt LICENSE.txt Makefile
 include .gitrev
 include pylintrc
 include setup.py

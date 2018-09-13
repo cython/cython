@@ -1,9 +1,20 @@
+# mode: run
+# tag: pyglobal
+
 """
-    >>> getg()
-    5
-    >>> setg(42)
-    >>> getg()
-    42
+>>> getg()
+5
+>>> getg()
+5
+>>> getg()
+5
+>>> setg(42)
+>>> getg()
+42
+>>> getg()
+42
+>>> getg()
+42
 """
 
 g = 5

@@ -37,20 +37,13 @@ The other methods are described in more detail in the :ref:`compilation` section
 Building a Cython module using distutils
 ----------------------------------------
 
-Imagine a simple "hello world" script in a file ``hello.pyx``::
+Imagine a simple "hello world" script in a file ``hello.pyx``:
 
-  def say_hello_to(name):
-      print("Hello %s!" % name)
+.. literalinclude:: ../../examples/quickstart/build/hello.pyx
 
-The following could be a corresponding ``setup.py`` script::
+The following could be a corresponding ``setup.py`` script:
 
-  from distutils.core import setup
-  from Cython.Build import cythonize
-
-  setup(
-    name = 'Hello world app',
-    ext_modules = cythonize("hello.pyx"),
-  )
+.. literalinclude:: ../../examples/quickstart/build/setup.py
 
 To build, run ``python setup.py build_ext --inplace``.  Then simply
 start a Python session and do ``from hello import say_hello_to`` and
@@ -112,4 +105,4 @@ Using the Sage notebook
 
 
 .. [Jupyter] http://jupyter.org/
-.. [Sage] W. Stein et al., Sage Mathematics Software, http://sagemath.org
+.. [Sage] W. Stein et al., Sage Mathematics Software, http://www.sagemath.org/

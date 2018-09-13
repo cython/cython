@@ -2,6 +2,7 @@ import sys
 IS_PY2 = sys.version_info[0] < 3
 
 import cython
+from cython import sizeof
 
 is_compiled = cython.compiled
 
@@ -20,7 +21,7 @@ def test_sizeof():
     """
     x = cython.declare(cython.bint)
     print(cython.sizeof(x) == cython.sizeof(cython.bint))
-    print(cython.sizeof(cython.char) <= cython.sizeof(cython.short) <= cython.sizeof(cython.int) <= cython.sizeof(cython.long) <= cython.sizeof(cython.longlong))
+    print(sizeof(cython.char) <= sizeof(cython.short) <= sizeof(cython.int) <= sizeof(cython.long) <= sizeof(cython.longlong))
     print(cython.sizeof(cython.uint) == cython.sizeof(cython.int))
     print(cython.sizeof(cython.p_int) == cython.sizeof(cython.p_double))
     if cython.compiled:
@@ -106,7 +107,7 @@ def test_boundscheck(x):
 ##     return y
 
 
-def test_with_nogil(nogil):
+def test_with_nogil(nogil, should_raise=False):
     """
     >>> raised = []
     >>> class nogil(object):
@@ -121,13 +122,24 @@ def test_with_nogil(nogil):
     True
     >>> raised
     [None]
+
+    >>> test_with_nogil(nogil(), should_raise=True)
+    Traceback (most recent call last):
+    ValueError: RAISED!
+
+    >>> raised[1] is None
+    False
     """
     result = False
+    should_raise_bool = True if should_raise else False  # help the type inference ...
     with nogil:
         print("WORKS")
         with cython.nogil:
             result = True
+            if should_raise_bool:
+                raise ValueError("RAISED!")
     return result
+
 
 MyUnion = cython.union(n=cython.int, x=cython.double)
 MyStruct = cython.struct(is_integral=cython.bint, data=MyUnion)

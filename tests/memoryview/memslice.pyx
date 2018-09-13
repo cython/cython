@@ -12,6 +12,7 @@ from cython cimport view
 from cython.view cimport array
 from cython.parallel cimport prange, parallel
 
+from functools import wraps
 import gc
 import sys
 
@@ -21,18 +22,8 @@ else:
     import builtins
 
 
-__test__ = {}
-
 def testcase(func):
-    doctest = func.__doc__
-    if sys.version_info >= (3, 0):
-        _u = str
-    else:
-        _u = unicode
-    if not isinstance(doctest, _u):
-        doctest = doctest.decode('UTF-8')
-    __test__[func.__name__] = doctest
-
+    @wraps(func)
     def wrapper(*args, **kwargs):
         gc.collect()
         result = func(*args, **kwargs)

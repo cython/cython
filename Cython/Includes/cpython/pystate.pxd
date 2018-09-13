@@ -7,6 +7,8 @@ cdef extern from "Python.h":
     # We make these an opaque types. If the user wants specific attributes,
     # they can be declared manually.
 
+    ctypedef long PY_INT64_T  # FIXME: Py2.7+, not defined here but used here
+
     ctypedef struct PyInterpreterState:
         pass
 
@@ -39,13 +41,14 @@ cdef extern from "Python.h":
     PyInterpreterState * PyInterpreterState_New()
     void PyInterpreterState_Clear(PyInterpreterState *)
     void PyInterpreterState_Delete(PyInterpreterState *)
+    PY_INT64_T PyInterpreterState_GetID(PyInterpreterState *)
 
     PyThreadState * PyThreadState_New(PyInterpreterState *)
     void PyThreadState_Clear(PyThreadState *)
     void PyThreadState_Delete(PyThreadState *)
 
     PyThreadState * PyThreadState_Get()
-    PyThreadState * PyThreadState_Swap(PyThreadState *)
+    PyThreadState * PyThreadState_Swap(PyThreadState *)  # NOTE: DO NOT USE IN CYTHON CODE !
     PyObject * PyThreadState_GetDict()
     int PyThreadState_SetAsyncExc(long, PyObject *)
 

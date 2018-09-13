@@ -10,5 +10,4 @@ Also see the `Cython project homepage <http://cython.org/>`_.
    src/quickstart/index
    src/tutorial/index
    src/userguide/index
-   src/reference/index
    src/changes

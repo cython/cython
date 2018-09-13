@@ -1,0 +1,18 @@
+
+PYTHON -c "import basic_test; basic_test.test()"
+
+######## basic_test.py ########
+
+import os.path
+import pyximport
+
+pyximport.install(build_dir=os.path.join(os.path.dirname(__file__), "TEST_TMP"))
+
+def test():
+    import nsmod.mymodule
+    assert nsmod.mymodule.test_string == "TEST"
+    assert not nsmod.mymodule.__file__.rstrip('oc').endswith('.py'), nsmod.mymodule.__file__
+
+######## nsmod/mymodule.pyx ########
+
+test_string = "TEST"

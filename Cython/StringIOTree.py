@@ -1,3 +1,5 @@
+# cython: auto_pickle=False
+
 r"""
 Implements a buffer with insertion points. When you know you need to
 "get back" to a place and write more later, simply call insertion_point()

@@ -30,13 +30,20 @@ If you already have a C compiler, just do::
 otherwise, see `the installation page <http://docs.cython.org/en/latest/src/quickstart/install.html>`_.
 
 
-LICENSE:
+License:
 --------
 
 The original Pyrex program was licensed "free of restrictions" (see below).
 Cython itself is licensed under the permissive **Apache License**.
 
 See `LICENSE.txt <https://github.com/cython/cython/blob/master/LICENSE.txt>`_.
+
+
+Contributing:
+-------------
+
+Want to contribute to the Cython project?
+Here is some `help to get you started <https://github.com/cython/cython/blob/master/docs/CONTRIBUTING.rst>`_.
 
 
 Get the full source history:

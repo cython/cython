@@ -15,11 +15,11 @@ Cython/*.c
 
 Tools/*.elc
 
-TEST_TMP/
-build/
-wheelhouse*/
+/TEST_TMP/
+/build/
+/wheelhouse*/
 !tests/build/
-dist/
+/dist/
 .gitrev
 .coverage
 *.orig
@@ -27,6 +27,9 @@ dist/
 *.dep
 *.swp
 *~
+
+.ipynb_checkpoints
+docs/build
 
 tags
 TAGS

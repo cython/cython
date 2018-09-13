@@ -76,7 +76,7 @@ However there are several options to automate these steps:
 4. Cython supports distutils so that you can very easily create build scripts
    which automate the process, this is the preferred method for
    Cython implemented libraries and packages.
-   See :ref:`Compiling with distutils <compiling-distutils>`.
+   See :ref:`Basic setup.py <basic_setup.py>`.
 5. Manual compilation (see below)
 
 .. Note::
@@ -138,43 +138,54 @@ Python by using a normal ``import yourmod`` statement.
 The first Cython program
 ==========================
 
-The code below does 2D discrete convolution of an image with a filter (and I'm
-sure you can do better!, let it serve for demonstration purposes). It is both
-valid Python and valid Cython code. I'll refer to it as both
-:file:`convolve_py.py` for the Python version and :file:`convolve_cy.pyx` for the
-Cython version -- Cython uses ".pyx" as its file suffix.
+You can easily execute the code of this tutorial by
+downloading `the Jupyter notebook <https://github.com/cython/cython/blob/master/docs/examples/userguide/numpy_tutorial/numpy_and_cython.ipynb>`_.
 
-.. literalinclude:: ../../examples/memoryviews/convolve_py.py
-    :linenos:
+The code below does the equivalent of this function in numpy::
 
-This should be compiled to produce :file:`convolve_cy.so` (for Linux systems). We
+    def compute_np(array_1, array_2, a, b, c):
+        return np.clip(array_1, 2, 10) * a + array_2 * b + c
+
+We'll say that ``array_1`` and ``array_2`` are 2D NumPy arrays of integer type and
+``a``, ``b`` and ``c`` are three Python integers.
+
+This function uses NumPy and is already really fast, so it might be a bit overkill
+to do it again with Cython. This is for demonstration purposes. Nonetheless, we
+will show that we achieve a better speed and memory efficiency than NumPy at the cost of more verbosity.
+
+This code computes the function with the loops over the two dimensions being unrolled.
+It is both valid Python and valid Cython code. I'll refer to it as both
+:file:`compute_py.py` for the Python version and :file:`compute_cy.pyx` for the
+Cython version -- Cython uses ``.pyx`` as its file suffix (but it can also compile
+``.py`` files).
+
+.. literalinclude:: ../../examples/userguide/numpy_tutorial/compute_py.py
+
+This should be compiled to produce :file:`convolve_cy.so` (for Linux systems,
+on Windows systems, this will be a ``.pyd`` file). We
 run a Python session to test both the Python version (imported from
 ``.py``-file) and the compiled Cython module.
 
 .. sourcecode:: ipython
 
     In [1]: import numpy as np
-    In [2]: import convolve_py
-    In [3]: convolve_py.naive_convolve(np.array([[1, 1, 1]], dtype=np.int),
-    ...     np.array([[1],[2],[1]], dtype=np.int))
-    Out [3]:
-    array([[1, 1, 1],
-        [2, 2, 2],
-        [1, 1, 1]])
-    In [4]: import convolve_cy
-    In [4]: convolve_cy.naive_convolve(np.array([[1, 1, 1]], dtype=np.int),
-    ...     np.array([[1],[2],[1]], dtype=np.int))
-    Out [4]:
-    array([[1, 1, 1],
-        [2, 2, 2],
-        [1, 1, 1]])
-    In [11]: N = 600
-    In [12]: f = np.arange(N*N, dtype=np.int).reshape((N,N))
-    In [13]: g = np.arange(81, dtype=np.int).reshape((9, 9))
-    In [19]: %timeit convolve_py.naive_convolve(f, g)
-    16 s ± 70.7 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
-    In [20]: %timeit convolve_cy.naive_convolve(f, g)
-    13.5 s ± 99.5 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+    In [2]: array_1 = np.random.uniform(0, 1000, size=(3000, 2000)).astype(np.intc)
+    In [3]: array_2 = np.random.uniform(0, 1000, size=(3000, 2000)).astype(np.intc)
+    In [4]: a = 4
+    In [5]: b = 3
+    In [6]: c = 9
+    In [7]: def compute_np(array_1, array_2, a, b, c):
+       ...:     return np.clip(array_1, 2, 10) * a + array_2 * b + c
+    In [8]: %timeit compute_np(array_1, array_2, a, b, c)
+    103 ms ± 4.16 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)
+
+    In [9]: import compute_py
+    In [10]: compute_py.compute(array_1, array_2, a, b, c)
+    1min 10s ± 844 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+
+    In [11]: import compute_cy
+    In [12]: compute_cy.compute(array_1, array_2, a, b, c)
+    56.5 s ± 587 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
 
 There's not such a huge difference yet; because the C code still does exactly
 what the Python interpreter does (meaning, for instance, that a new object is
@@ -183,53 +194,56 @@ allocated for each number used).
 You can look at the Python interaction and the generated C
 code by using ``-a`` when calling Cython from the command
 line, ``%%cython -a`` when using a Jupyter Notebook, or by using
-``cythonize('convolve_cy.pyx', annotate=True)`` when using a ``setup.py``.
+``cythonize('compute_cy.pyx', annotate=True)`` when using a ``setup.py``.
 Look at the generated html file and see what
 is needed for even the simplest statements. You get the point quickly. We need
 to give Cython more information; we need to add types.
+
 
 Adding types
 =============
 
 To add types we use custom Cython syntax, so we are now breaking Python source
-compatibility. Here's :file:`convolve_typed.pyx`. *Read the comments!*
+compatibility. Here's :file:`compute_typed.pyx`. *Read the comments!*
 
-.. literalinclude:: ../../examples/memoryviews/convolve_typed.pyx
-    :linenos:
+.. literalinclude:: ../../examples/userguide/numpy_tutorial/compute_typed.pyx
 
-.. figure:: convolve_types_html.png
+.. figure:: compute_typed_html.jpg
 
-At this point, have a look at the generated C code for :file:`convolve_cy.pyx` and
-:file:`convolve_typed.pyx`. Click on the lines to expand them and see corresponding C.
+At this point, have a look at the generated C code for :file:`compute_cy.pyx` and
+:file:`compute_typed.pyx`. Click on the lines to expand them and see corresponding C.
 
-Especially have a look at the ``for-loops``: In :file:`convolve_cy.c`, these are ~20 lines
-of C code to set up while in :file:`convolve_typed.c` a normal C for loop is used.
+Especially have a look at the ``for-loops``: In :file:`compute_cy.c`, these are ~20 lines
+of C code to set up while in :file:`compute_typed.c` a normal C for loop is used.
 
 After building this and continuing my (very informal) benchmarks, I get:
 
 .. sourcecode:: ipython
 
-    In [22]: %timeit convolve_typed.naive_convolve(f, g)
-    55.8 s ± 199 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+    In [13]: %timeit compute_typed.compute(array_1, array_2, a, b, c)
+    26.5 s ± 422 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
 
-So in the end, adding types make the Cython code slower?
+So adding types does make the code faster, but nowhere
+near the speed of NumPy?
 
-What happened is that most of the time spend in this code is spent on line
-54. ::
+What happened is that most of the time spend in this code is spent in the following lines,
+and those lines are slower to execute than in pure Python::
 
-    value += g[smid - s, tmid - t] * f[v, w]
+    tmp = clip(array_1[x, y], 2, 10)
+    tmp = tmp * a + array_2[x, y] * b
+    result[x, y] = tmp + c
 
-So what made this line so much slower than in the pure Python version?
+So what made those line so much slower than in the pure Python version?
 
-``g`` and ``f`` are still NumPy arrays, so Python objects, and expect
+``array_1`` and ``array_2`` are still NumPy arrays, so Python objects, and expect
 Python integers as indexes. Here we pass C int values. So every time
 Cython reaches this line, it has to convert all the C integers to Python
 int objects. Since this line is called very often, it outweighs the speed
 benefits of the pure C loops that were created from the ``range()`` earlier.
 
-Furthermore, ``g[smid - s, tmid - t] * f[v, w]`` returns a Python integer
-and ``value`` is a C integer, so Cython has to do type conversions again.
-In the end those types conversions add up. And made our convolution really
+Furthermore, ``tmp * a + array_2[x, y] * b`` returns a Python integer
+and ``tmp`` is a C integer, so Cython has to do type conversions again.
+In the end those types conversions add up. And made our computation really
 slow. But this problem can be solved easily by using memoryviews.
 
 Efficient indexing with memoryviews
@@ -262,25 +276,25 @@ Here is how to declare a memoryview of integers::
 
 No data is copied from the NumPy array to the memoryview in our example.
 As the name implies, it is only a "view" of the memory. So we can use the
-view ``h`` for efficient indexing and at the end return the real NumPy
-array ``h_np`` that holds the data that we operated on.
+view ``result_view`` for efficient indexing and at the end return the real NumPy
+array ``result`` that holds the data that we operated on.
 
 Here is how to use them in our code:
 
-:file:`convolve_memview.pyx`
+:file:`compute_memview.pyx`
 
-.. literalinclude:: ../../examples/memoryviews/convolve_memview.pyx
-    :linenos:
+.. literalinclude:: ../../examples/userguide/numpy_tutorial/compute_memview.pyx
 
 Let's see how much faster accessing is now.
 
 .. sourcecode:: ipython
 
-    In [22]: %timeit convolve_memview.naive_convolve(f, g)
-    57.1 ms ± 268 µs per loop (mean ± std. dev. of 7 runs, 10 loops each)
+    In [22]: %timeit compute_memview.compute(array_1, array_2, a, b, c)
+    22.9 ms ± 197 µs per loop (mean ± std. dev. of 7 runs, 10 loops each)
 
 Note the importance of this change.
-We're now 280 times faster than an interpreted version of Python.
+We're now 3081 times faster than an interpreted version of Python and 4.5 times
+faster than NumPy.
 
 Memoryviews can be used with slices too, or even
 with Python arrays. Check out the :ref:`memoryview page <memoryviews>` to
@@ -296,14 +310,14 @@ The array lookups are still slowed down by two factors:
    explicitly coded so that it doesn't use negative indices, and it
    (hopefully) always access within bounds.
 
-    With decorators, we can deactivate those checks::
+With decorators, we can deactivate those checks::
 
-        ...
-        cimport cython
-        @cython.boundscheck(False)  # Deactivate bounds checking
-        @cython.wraparound(False)   # Deactivate negative indexing.
-        def naive_convolve(int [:, :] f, int [:, :] g):
-        ...
+    ...
+    cimport cython
+    @cython.boundscheck(False)  # Deactivate bounds checking
+    @cython.wraparound(False)   # Deactivate negative indexing.
+    def compute(int[:, :] array_1, int[:, :] array_2, int a, int b, int c):
+    ...
 
 Now bounds checking is not performed (and, as a side-effect, if you ''do''
 happen to access out of bounds you will in the best case crash your program
@@ -314,15 +328,19 @@ information.
 
 .. sourcecode:: ipython
 
-    In [23]: %timeit convolve_index.naive_convolve(f, g)
-    19.8 ms ± 299 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+    In [23]: %timeit compute_index.compute(array_1, array_2, a, b, c)
+    16.8 ms ± 25.4 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
-We're now 800 times faster than the interpreted Python version.
+We're faster than the NumPy version (6.2x). NumPy is really well written,
+but does not performs operation lazily, resulting in a lot
+of intermediate copy operations in memory. Our version is
+very memory efficient and cache friendly because we
+can execute the operations in a single run over the data.
 
 .. Warning::
 
     Speed comes with some cost. Especially it can be dangerous to set typed
-    objects (like ``f``, ``g`` and ``h`` in our sample code) to ``None``.
+    objects (like ``array_1``, ``array_2`` and ``result_view`` in our sample code) to ``None``.
     Setting such objects to ``None`` is entirely legal, but all you can do with them
     is check whether they are None. All other use (attribute lookup or indexing)
     can potentially segfault or corrupt data (rather than raising exceptions as
@@ -349,8 +367,9 @@ you have to declare the memoryview like this::
 
     cdef int [::1, :, :] a
 
-If all this makes no sense to you, you can skip this part, the performance gains are
-not that important. If you still want to understand what contiguous arrays are
+If all this makes no sense to you, you can skip this part, declaring
+arrays as contiguous constrains the usage of your functions as it rejects array slices as input.
+If you still want to understand what contiguous arrays are
 all about, you can see `this answer on StackOverflow
 <https://stackoverflow.com/questions/26998223/what-is-the-difference-between-contiguous-and-non-contiguous-arrays>`_.
 
@@ -359,10 +378,11 @@ get by declaring the memoryviews as contiguous:
 
 .. sourcecode:: ipython
 
-    In [23]: %timeit convolve_contiguous.naive_convolve(f, g)
-    21.3 ms ± 489 µs per loop (mean ± std. dev. of 7 runs, 10 loops each)
+    In [23]: %timeit compute_contiguous.compute(array_1, array_2, a, b, c)
+    11.1 ms ± 30.2 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
-We're still around 800 times faster than the interpreted Python version.
+We're now around nine times faster than the NumPy version, and 6300 times
+faster than the pure Python version!
 
 Making the function cleaner
 ===========================
@@ -376,22 +396,21 @@ Note that since type declarations must happen at the top indentation level,
 Cython won't infer the type of variables declared for the first time
 in other indentation levels. It would change too much the meaning of
 our code. This is why, we must still declare manually the type of the
-``value`` variable.
+``tmp``, ``x`` and ``y`` variable.
 
-And actually, manually giving the type of the ``value`` variable will
+And actually, manually giving the type of the ``tmp`` variable will
 be useful when using fused types.
 
-.. literalinclude:: ../../examples/memoryviews/convolve_infer_types.pyx
-    :linenos:
+.. literalinclude:: ../../examples/userguide/numpy_tutorial/compute_infer_types.pyx
 
 We now do a speed test:
 
 .. sourcecode:: ipython
 
-    In [24]: %timeit convolve_infer_types.naive_convolve(f, g)
-    21.3 ms ± 344 µs per loop (mean ± std. dev. of 7 runs, 10 loops each)
+    In [24]: %timeit compute_infer_types.compute(array_1, array_2, a, b, c)
+    11.5 ms ± 261 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
-We're still around 800 times faster than the interpreted Python version.
+Lo and behold, the speed has not changed.
 
 More generic code
 ==================
@@ -416,31 +435,58 @@ know what NumPy data type we should use for our output array.
 
 In this case, our function now works for ints, doubles and floats.
 
-.. literalinclude:: ../../examples/memoryviews/convolve_fused_types.pyx
-    :linenos:
+.. literalinclude:: ../../examples/userguide/numpy_tutorial/compute_fused_types.pyx
 
 We can check that the output type is the right one::
 
-    >>>naive_convolve_fused_types(f, g).dtype
+    >>>compute(array_1, array_2, a, b, c).dtype
     dtype('int32')
-    >>>naive_convolve_fused_types(f.astype(np.double), g.astype(np.double)).dtype
+    >>>compute(array_1.astype(np.double), array_2.astype(np.double), a, b, c).dtype
     dtype('float64')
 
 We now do a speed test:
 
 .. sourcecode:: ipython
 
-    In [25]: %timeit convolve_fused_types.naive_convolve(f, g)
-    20 ms ± 392 µs per loop (mean ± std. dev. of 7 runs, 10 loops each)
+    In [25]: %timeit compute_fused_types.compute(array_1, array_2, a, b, c)
+    11.5 ms ± 258 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
-We're still around 800 times faster than the interpreted Python version.
+More versions of the function are created at compile time. So it makes
+sense that the speed doesn't change for executing this function with
+integers as before.
+
+Using multiple threads
+======================
+
+Cython have support for OpenMP. It have also some nice wrappers around it,
+like the function :func:`prange`. You can see more information about Cython and
+parralelism in :ref:`parallel`. Since we do elementwise operations, we can easily
+distribute the work among multiple threads. It's important not to forget to pass the
+correct arguments to the compiler to enable OpenMP. When using the Jupyter notebook,
+you should use the cell magic like this::
+
+    %%cython --force
+    # distutils: extra_compile_args=-fopenmp
+    # distutils: extra_link_args=-fopenmp
+
+The GIL must be released (see :ref:`Releasing the GIL <nogil>`), so this is why we
+declare our :func:`clip` function ``nogil``.
+
+.. literalinclude:: ../../examples/userguide/numpy_tutorial/compute_prange.pyx
+
+We can have substantial speed gains for minimal effort:
+
+.. sourcecode:: ipython
+
+    In [25]: %timeit compute_prange.compute(array_1, array_2, a, b, c)
+    9.33 ms ± 412 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+
+We're now 7558 times faster than the pure Python version and 11.1 times faster
+than NumPy!
 
 Where to go from here?
 ======================
 
-* Since there is no Python interaction in the loops, it is possible with Cython
-  to release the GIL and use multiple cores easily. To learn how to do that,
-  you can see :ref:`using parallelism in Cython <parallel>`.
 * If you want to learn how to make use of `BLAS <http://www.netlib.org/blas/>`_
   or `LAPACK <http://www.netlib.org/lapack/>`_ with Cython, you can watch
   `the presentation of Ian Henriksen at SciPy 2015

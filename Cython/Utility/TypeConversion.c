@@ -86,6 +86,7 @@ static CYTHON_INLINE size_t __Pyx_Py_UNICODE_strlen(const Py_UNICODE *u) {
 #define __Pyx_Owned_Py_None(b) __Pyx_NewRef(Py_None)
 static CYTHON_INLINE PyObject * __Pyx_PyBool_FromLong(long b);
 static CYTHON_INLINE int __Pyx_PyObject_IsTrue(PyObject*);
+static CYTHON_INLINE int __Pyx_PyObject_IsTrueAndDecref(PyObject*);
 static CYTHON_INLINE PyObject* __Pyx_PyNumber_IntOrLong(PyObject* x);
 
 #define __Pyx_PySequence_Tuple(obj) \
@@ -283,6 +284,14 @@ static CYTHON_INLINE int __Pyx_PyObject_IsTrue(PyObject* x) {
    int is_true = x == Py_True;
    if (is_true | (x == Py_False) | (x == Py_None)) return is_true;
    else return PyObject_IsTrue(x);
+}
+
+static CYTHON_INLINE int __Pyx_PyObject_IsTrueAndDecref(PyObject* x) {
+    int retval;
+    if (unlikely(!x)) return -1;
+    retval = __Pyx_PyObject_IsTrue(x);
+    Py_DECREF(x);
+    return retval;
 }
 
 static PyObject* __Pyx_PyNumber_IntOrLongWrongResultType(PyObject* result, const char* type_name) {
@@ -594,7 +603,7 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value);
 /////////////// CIntToPy ///////////////
 
 static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value) {
-    const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = ({{TYPE}}) 0;
+    const {{TYPE}} neg_one = ({{TYPE}}) (({{TYPE}}) 0 - ({{TYPE}}) 1), const_zero = ({{TYPE}}) 0;
     const int is_unsigned = neg_one > const_zero;
     if (is_unsigned) {
         if (sizeof({{TYPE}}) < sizeof(long)) {
@@ -687,7 +696,7 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
     Py_ssize_t length, ulength;
     int prepend_sign, last_one_off;
     {{TYPE}} remaining;
-    const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = ({{TYPE}}) 0;
+    const {{TYPE}} neg_one = ({{TYPE}}) (({{TYPE}}) 0 - ({{TYPE}}) 1), const_zero = ({{TYPE}}) 0;
     const int is_unsigned = neg_one > const_zero;
 
     if (format_char == 'X') {
@@ -816,7 +825,7 @@ static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *);
 {{py: from Cython.Utility import pylong_join }}
 
 static CYTHON_INLINE {{TYPE}} {{FROM_PY_FUNCTION}}(PyObject *x) {
-    const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = ({{TYPE}}) 0;
+    const {{TYPE}} neg_one = ({{TYPE}}) (({{TYPE}}) 0 - ({{TYPE}}) 1), const_zero = ({{TYPE}}) 0;
     const int is_unsigned = neg_one > const_zero;
 #if PY_MAJOR_VERSION < 3
     if (likely(PyInt_Check(x))) {

@@ -9,6 +9,9 @@ cdef extern from "<queue>" namespace "std" nogil:
         void pop()
         void push(T&)
         size_t size()
+        # C++11 methods
+        void swap(queue&)
+
     cdef cppclass priority_queue[T]:
         priority_queue() except +
         priority_queue(priority_queue&) except +
@@ -18,3 +21,5 @@ cdef extern from "<queue>" namespace "std" nogil:
         void push(T&)
         size_t size()
         T& top()
+        # C++11 methods
+        void swap(priority_queue&)

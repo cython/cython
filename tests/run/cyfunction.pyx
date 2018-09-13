@@ -350,6 +350,13 @@ cdef class TestDecoratedMethods:
         """
         return x
 
+    def test_calls(self, x):
+        """
+        >>> TestDecoratedMethods().test_calls(2)
+        25
+        """
+        return self.test(x) + self.test2(x*10)
+
 
 cdef class TestUnboundMethodCdef:
     """
@@ -367,3 +374,20 @@ class TestUnboundMethod:
     True
     """
     def meth(self): pass
+
+
+cdef class TestOptimisedBuiltinMethod:
+    """
+    >>> obj = TestOptimisedBuiltinMethod()
+    >>> obj.append(2)
+    3
+    >>> obj.call(2)
+    4
+    >>> obj.call(3, obj)
+    5
+    """
+    def append(self, arg):
+        print(arg+1)
+
+    def call(self, arg, obj=None):
+        (obj or self).append(arg+1)  # optimistically optimised => uses fast fallback method call

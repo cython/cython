@@ -2046,7 +2046,8 @@ class FuncDefNode(StatNode, BlockNode):
             if err_val is None and default_retval:
                 err_val = default_retval
             if err_val is not None:
-                code.putln("%s = %s;" % (Naming.retval_cname, err_val))
+                if err_val != Naming.retval_cname:
+                    code.putln("%s = %s;" % (Naming.retval_cname, err_val))
             elif not self.return_type.is_void:
                 code.putln("__Pyx_pretend_to_initialize(&%s);" % Naming.retval_cname)
 
@@ -4337,7 +4338,28 @@ class OverrideCheckNode(StatNode):
         if self.py_func.is_module_scope:
             code.putln("else {")
         else:
-            code.putln("else if (unlikely(Py_TYPE(%s)->tp_dictoffset != 0)) {" % self_arg)
+            code.putln("else if (unlikely((Py_TYPE(%s)->tp_dictoffset != 0)"
+                       " || (Py_TYPE(%s)->tp_flags & (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))) {" % (
+                self_arg, self_arg))
+
+        code.putln("#if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_PYTYPE_LOOKUP")
+        # TODO: remove the object dict version check by 'inlining' the getattr implementation for methods.
+        # This would allow checking the dict versions around _PyType_Lookup() if it returns a descriptor,
+        # and would (tada!) make this check a pure type based thing instead of supporting only a single
+        # instance at a time.
+        code.putln("static PY_UINT64_T tp_dict_version = 0, obj_dict_version = 0;")
+        code.putln("if (likely("
+                   "Py_TYPE(%s)->tp_dict && "
+                   "tp_dict_version == __PYX_GET_DICT_VERSION(Py_TYPE(%s)->tp_dict) && "
+                   "(!Py_TYPE(%s)->tp_dictoffset || "
+                   "obj_dict_version == __PYX_GET_DICT_VERSION(_PyObject_GetDictPtr(%s)))"
+                   "));" % (
+            self_arg, self_arg, self_arg, self_arg))
+        code.putln("else {")
+        code.putln("PY_UINT64_T type_dict_guard = (likely(Py_TYPE(%s)->tp_dict)) ? __PYX_GET_DICT_VERSION(Py_TYPE(%s)->tp_dict) : 0;" % (
+            self_arg, self_arg))
+        code.putln("#endif")
+
         func_node_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
         self.func_node.set_cname(func_node_temp)
         # need to get attribute manually--scope would return cdef method
@@ -4347,14 +4369,41 @@ class OverrideCheckNode(StatNode):
         code.putln("%s = __Pyx_PyObject_GetAttrStr(%s, %s); %s" % (
             func_node_temp, self_arg, interned_attr_cname, err))
         code.put_gotref(func_node_temp)
+
         is_builtin_function_or_method = "PyCFunction_Check(%s)" % func_node_temp
-        is_overridden = "(PyCFunction_GET_FUNCTION(%s) != (PyCFunction)%s)" % (
+        is_overridden = "(PyCFunction_GET_FUNCTION(%s) != (PyCFunction)(void*)%s)" % (
             func_node_temp, self.py_func.entry.func_cname)
         code.putln("if (!%s || %s) {" % (is_builtin_function_or_method, is_overridden))
         self.body.generate_execution_code(code)
         code.putln("}")
+
+        # NOTE: it's not 100% sure that we catch the exact versions here that were used for the lookup,
+        # but it is very unlikely that the versions change during lookup, and the type dict safe guard
+        # should increase the chance of detecting such a case.
+        code.putln("#if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_PYTYPE_LOOKUP")
+        code.putln("tp_dict_version = likely(Py_TYPE(%s)->tp_dict) ?"
+                   " __PYX_GET_DICT_VERSION(Py_TYPE(%s)->tp_dict) : 0;" % (
+            self_arg, self_arg))
+        code.putln("obj_dict_version = likely(Py_TYPE(%s)->tp_dictoffset) ?"
+                   " __PYX_GET_DICT_VERSION(_PyObject_GetDictPtr(%s)) : 0;" % (
+            self_arg, self_arg))
+        # Safety check that the type dict didn't change during the lookup.  Since CPython looks up the
+        # attribute (descriptor) first in the type dict and then in the instance dict or through the
+        # descriptor, the only really far-away lookup when we get here is one in the type dict. So we
+        # double check the type dict version before and afterwards to guard against later changes of
+        # the type dict during the lookup process.
+        code.putln("if (unlikely(type_dict_guard != tp_dict_version)) {")
+        code.putln("tp_dict_version = obj_dict_version = 0;")
+        code.putln("}")
+        code.putln("#endif")
+
         code.put_decref_clear(func_node_temp, PyrexTypes.py_object_type)
         code.funcstate.release_temp(func_node_temp)
+
+        code.putln("#if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_PYTYPE_LOOKUP")
+        code.putln("}")
+        code.putln("#endif")
+
         code.putln("}")
 
 
@@ -4905,9 +4954,9 @@ class CClassDefNode(ClassDefNode):
                 # Cython (such as closures), the 'internal'
                 # directive is set by users
                 code.putln(
-                    'if (PyObject_SetAttrString(%s, "%s", (PyObject *)&%s) < 0) %s' % (
+                    'if (PyObject_SetAttr(%s, %s, (PyObject *)&%s) < 0) %s' % (
                         Naming.module_cname,
-                        scope.class_name,
+                        code.intern_identifier(scope.class_name),
                         typeobj_cname,
                         code.error_goto(entry.pos)))
             weakref_entry = scope.lookup_here("__weakref__") if not scope.is_closure_class_scope else None
@@ -6843,15 +6892,15 @@ class ForFromStatNode(LoopNode, StatNode):
                 if self.target.entry.scope.is_module_scope:
                     code.globalstate.use_utility_code(
                         UtilityCode.load_cached("GetModuleGlobalName", "ObjectHandling.c"))
-                    lookup_func = '__Pyx_GetModuleGlobalName(%s)'
+                    lookup_func = '__Pyx_GetModuleGlobalName(%s, %s); %s'
                 else:
                     code.globalstate.use_utility_code(
                         UtilityCode.load_cached("GetNameInClass", "ObjectHandling.c"))
-                    lookup_func = '__Pyx_GetNameInClass(%s, %%s)' % (
+                    lookup_func = '__Pyx_GetNameInClass(%s, {}, %s); %s'.format(
                         self.target.entry.scope.namespace_cname)
-                code.putln("%s = %s; %s" % (
+                code.putln(lookup_func % (
                     target_node.result(),
-                    lookup_func % interned_cname,
+                    interned_cname,
                     code.error_goto_if_null(target_node.result(), self.target.pos)))
                 code.put_gotref(target_node.result())
             else:

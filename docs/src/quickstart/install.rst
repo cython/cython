@@ -22,7 +22,7 @@ according to the system used:
 
  - **Mac OS X** To retrieve gcc, one option is to install Apple's
    XCode, which can be retrieved from the Mac OS X's install DVDs or
-   from http://developer.apple.com.
+   from https://developer.apple.com/.
 
  - **Windows** A popular option is to use the open source MinGW (a
    Windows distribution of gcc). See the appendix for instructions for
@@ -57,6 +57,6 @@ with
     pip install Cython --install-option="--no-cython-compile"
 
 
-.. [Anaconda] http://docs.continuum.io/anaconda/
-.. [Canopy] https://enthought.com/products/canopy/
-.. [Sage] W. Stein et al., Sage Mathematics Software, http://sagemath.org
+.. [Anaconda] https://docs.anaconda.com/anaconda/
+.. [Canopy] https://www.enthought.com/product/canopy/
+.. [Sage] W. Stein et al., Sage Mathematics Software, http://www.sagemath.org/

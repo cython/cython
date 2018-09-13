@@ -10,6 +10,11 @@ try:
 except ImportError:
     basestring = str
 
+try:
+    FileNotFoundError
+except NameError:
+    FileNotFoundError = OSError
+
 import os
 import sys
 import re
@@ -20,9 +25,14 @@ from contextlib import contextmanager
 
 modification_time = os.path.getmtime
 
+_function_caches = []
+def clear_function_caches():
+    for cache in _function_caches:
+        cache.clear()
 
 def cached_function(f):
     cache = {}
+    _function_caches.append(cache)
     uncomputed = object()
     def wrapper(*args):
         res = cache.get(args, uncomputed)
@@ -228,43 +238,28 @@ def decode_filename(filename):
 
 # support for source file encoding detection
 
-_match_file_encoding = re.compile(u"coding[:=]\s*([-\w.]+)").search
-
-
-def detect_file_encoding(source_filename):
-    f = open_source_file(source_filename, encoding="UTF-8", error_handling='ignore')
-    try:
-        return detect_opened_file_encoding(f)
-    finally:
-        f.close()
+_match_file_encoding = re.compile(b"coding[:=]\s*([-\w.]+)").search
 
 
 def detect_opened_file_encoding(f):
     # PEPs 263 and 3120
-    # Most of the time the first two lines fall in the first 250 chars,
+    # Most of the time the first two lines fall in the first couple of hundred chars,
     # and this bulk read/split is much faster.
-    lines = f.read(250).split(u"\n")
-    if len(lines) > 1:
-        m = _match_file_encoding(lines[0])
+    lines = ()
+    start = b''
+    while len(lines) < 3:
+        data = f.read(500)
+        start += data
+        lines = start.split(b"\n")
+        if not data:
+            break
+    m = _match_file_encoding(lines[0])
+    if m:
+        return m.group(1).decode('iso8859-1')
+    elif len(lines) > 1:
+        m = _match_file_encoding(lines[1])
         if m:
-            return m.group(1)
-        elif len(lines) > 2:
-            m = _match_file_encoding(lines[1])
-            if m:
-                return m.group(1)
-            else:
-                return "UTF-8"
-    # Fallback to one-char-at-a-time detection.
-    f.seek(0)
-    chars = []
-    for i in range(2):
-        c = f.read(1)
-        while c and c != u'\n':
-            chars.append(c)
-            c = f.read(1)
-        encoding = _match_file_encoding(u''.join(chars))
-        if encoding:
-            return encoding.group(1)
+            return m.group(1).decode('iso8859-1')
     return "UTF-8"
 
 
@@ -278,32 +273,33 @@ def skip_bom(f):
         f.seek(0)
 
 
-def open_source_file(source_filename, mode="r",
-                     encoding=None, error_handling=None):
-    if encoding is None:
-        # Most of the time the coding is unspecified, so be optimistic that
-        # it's UTF-8.
-        f = open_source_file(source_filename, encoding="UTF-8", mode=mode, error_handling='ignore')
-        encoding = detect_opened_file_encoding(f)
-        if encoding == "UTF-8" and error_handling == 'ignore':
+def open_source_file(source_filename, encoding=None, error_handling=None):
+    stream = None
+    try:
+        if encoding is None:
+            # Most of the time the encoding is not specified, so try hard to open the file only once.
+            f = io.open(source_filename, 'rb')
+            encoding = detect_opened_file_encoding(f)
             f.seek(0)
-            skip_bom(f)
-            return f
+            stream = io.TextIOWrapper(f, encoding=encoding, errors=error_handling)
         else:
-            f.close()
+            stream = io.open(source_filename, encoding=encoding, errors=error_handling)
 
-    if not os.path.exists(source_filename):
+    except OSError:
+        if os.path.exists(source_filename):
+            raise  # File is there, but something went wrong reading from it.
+        # Allow source files to be in zip files etc.
         try:
             loader = __loader__
             if source_filename.startswith(loader.archive):
-                return open_source_from_loader(
+                stream = open_source_from_loader(
                     loader, source_filename,
                     encoding, error_handling)
         except (NameError, AttributeError):
             pass
 
-    stream = io.open(source_filename, mode=mode,
-                     encoding=encoding, errors=error_handling)
+    if stream is None:
+        raise FileNotFoundError(source_filename)
     skip_bom(stream)
     return stream
 
@@ -355,7 +351,8 @@ def long_literal(value):
 
 @cached_function
 def get_cython_cache_dir():
-    """get the cython cache dir
+    r"""
+    Return the base directory containing Cython's caches.
 
     Priority:
 
@@ -424,7 +421,9 @@ def captured_fd(stream=2, encoding=None):
         os.close(orig_stream)
 
 
-def print_bytes(s, end=b'\n', file=sys.stdout, flush=True):
+def print_bytes(s, header_text=None, end=b'\n', file=sys.stdout, flush=True):
+    if header_text:
+        file.write(header_text)  # note: text! => file.write() instead of out.write()
     file.flush()
     try:
         out = file.buffer  # Py3
@@ -481,3 +480,33 @@ def add_metaclass(metaclass):
         orig_vars.pop('__weakref__', None)
         return metaclass(cls.__name__, cls.__bases__, orig_vars)
     return wrapper
+
+
+def raise_error_if_module_name_forbidden(full_module_name):
+    #it is bad idea to call the pyx-file cython.pyx, so fail early
+    if full_module_name == 'cython' or full_module_name.startswith('cython.'):
+        raise ValueError('cython is a special module, cannot be used as a module name')
+
+
+def build_hex_version(version_string):
+    """
+    Parse and translate '4.3a1' into the readable hex representation '0x040300A1' (like PY_HEX_VERSION).
+    """
+    # First, parse '4.12a1' into [4, 12, 0, 0xA01].
+    digits = []
+    release_status = 0xF0
+    for digit in re.split('([.abrc]+)', version_string):
+        if digit in ('a', 'b', 'rc'):
+            release_status = {'a': 0xA0, 'b': 0xB0, 'rc': 0xC0}[digit]
+            digits = (digits + [0, 0])[:3]  # 1.2a1 -> 1.2.0a1
+        elif digit != '.':
+            digits.append(int(digit))
+    digits = (digits + [0] * 3)[:4]
+    digits[3] += release_status
+
+    # Then, build a single hex value, two hex digits per version part.
+    hexversion = 0
+    for digit in digits:
+        hexversion = (hexversion << 8) + digit
+
+    return '0x%08X' % hexversion

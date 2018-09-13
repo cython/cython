@@ -1,91 +1,103 @@
 os: linux
 dist: trusty
-sudo: false
+language: python
+# 'sudo' is enabled automatically by the 'apt' addon below.
+#sudo: false
 
 addons:
   apt:
-    sources:
-      - ubuntu-toolchain-r-test
     packages:
       - gdb
       - python-dbg
       - python3-dbg
-      - gcc-6
-      - g++-6
-      # GCC-7 currently takes 5-7 *minutes* to download on travis
-      #- gcc-7
-      #- g++-7
+      - libzmq-dev  # needed by IPython/Tornado
+      #- gcc-8
+      #- g++-8
 
 cache:
   pip: true
   directories:
     - $HOME/.ccache
 
-language: python
-python:
-  - 2.7
-  - 3.6
-  - 2.6
-  - 3.3
-  - 3.4
-  - 3.5
-  - 3.6-dev
-  - 3.7-dev
-  - pypy
-  - pypy3
-
 env:
   global:
     - USE_CCACHE=1
     - CCACHE_SLOPPINESS=pch_defines,time_macros
     - CCACHE_COMPRESS=1
-    - CCACHE_MAXSIZE=150M
-    - PATH="/usr/lib/ccache:$HOME/gcc-symlinks:$PATH"
-  matrix:
-    - BACKEND=c
-    - BACKEND=cpp
+    - CCACHE_MAXSIZE=250M
+    - PATH="/usr/lib/ccache:$HOME/miniconda/bin:$PATH"
+    - BACKEND=c,cpp
 
 matrix:
   include:
-    #- python: 3.7-dev
-    #  env: BACKEND=c PY=3 CC=gcc-7
+    - python: 2.7
+      env: BACKEND=c
+    - python: 2.7
+      env: BACKEND=cpp
+    - python: 3.7
+      dist: xenial    # Required for Python 3.7
+      sudo: required  # travis-ci/travis-ci#9069
+      env: BACKEND=c
+    - python: 3.7
+      dist: xenial    # Required for Python 3.7
+      sudo: required  # travis-ci/travis-ci#9069
+      env: BACKEND=cpp
+    - python: 2.6
+      env: BACKEND=c
+    - python: 2.6
+      env: BACKEND=cpp
+# Disabled: coverage analysis takes excessively long, several times longer than without.
+#    - python: 3.7
+#      dist: xenial    # Required for Python 3.7
+#      sudo: required  # travis-ci/travis-ci#9069
+#      env: COVERAGE=1
+    - python: 3.7
+      dist: xenial    # Required for Python 3.7
+      sudo: required  # travis-ci/travis-ci#9069
+      env: TEST_CODE_STYLE=1
+    - python: 3.4
+      env: BACKEND=c
+    - python: 3.4
+      env: BACKEND=cpp
+    - python: 3.5
+      env: BACKEND=c
+    - python: 3.5
+      env: BACKEND=cpp
+    - python: 3.6
+      env: BACKEND=c
+    - python: 3.6
+      env: BACKEND=cpp
+    - python: 3.8-dev
+      dist: xenial    # Required for Python 3.7
+      sudo: required  # travis-ci/travis-ci#9069
     - os: osx
       osx_image: xcode6.4
-      env: BACKEND=c PY=2
+      env: PY=2
       python: 2
       language: c
       compiler: clang
       cache: false
     - os: osx
       osx_image: xcode6.4
-      env: BACKEND=cpp PY=2
-      python: 2
-      language: cpp
-      compiler: clang
-      cache: false
-    - os: osx
-      osx_image: xcode6.4
-      env: BACKEND=c PY=3
+      env: PY=3
       python: 3
       language: c
       compiler: clang
       cache: false
-    - os: osx
-      osx_image: xcode6.4
-      env: BACKEND=cpp PY=3
-      python: 3
-      language: cpp
-      compiler: clang
-      cache: false
+    - python: pypy
+      env: BACKEND=c
+    - python: pypy3
+      env: BACKEND=c
+    - env: STACKLESS=true BACKEND=c PY=2
+      python: 2.7
+    - env: STACKLESS=true BACKEND=c PY=3
+      python: 3.6
   allow_failures:
     - python: pypy
     - python: pypy3
-    - python: 3.7-dev
-  exclude:
-    - python: pypy
-      env: BACKEND=cpp
-    - python: pypy3
-      env: BACKEND=cpp
+    - python: 3.8-dev
+    - env: STACKLESS=true BACKEND=c PY=2
+    - env: STACKLESS=true BACKEND=c PY=3
 
 branches:
   only:
@@ -95,31 +107,52 @@ branches:
 before_install:
   - |
     if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
-      mkdir "$HOME/gcc-symlinks"
-      ln -s /usr/bin/gcc-6 $HOME/gcc-symlinks/gcc 
-      ln -s /usr/bin/g++-6 $HOME/gcc-symlinks/g++ 
-      
-      if [ -n "$CC" ]; then "$CC" --version; else gcc --version; fi
+      # adding apt repos in travis is really fragile => retry a couple of times.
+      for i in {1..10}; do travis_retry sudo apt-add-repository --yes 'ppa:ubuntu-toolchain-r/test' && break; sleep 2; done
+      for i in {1..10}; do travis_retry sudo apt-get update && travis_retry sudo apt-get install --yes gcc-8  $(if [ -z "${BACKEND##*cpp*}" ]; then echo -n "g++-8"; fi ) && break; sleep 2; done
+      sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 60 $(if [ -z "${BACKEND##*cpp*}" ]; then echo " --slave /usr/bin/g++ g++ /usr/bin/g++-8"; fi)
+      sudo update-alternatives --set gcc /usr/bin/gcc-8
+      export CC=gcc
+      if [ -z "${BACKEND##*cpp*}" ]; then sudo update-alternatives --set g++ /usr/bin/g++-8; export CXX=g++; fi
     fi
 
   - |
-    if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then # Install Miniconda
-      curl -s -o miniconda.sh https://repo.continuum.io/miniconda/Miniconda$PY-latest-MacOSX-x86_64.sh;
-      bash miniconda.sh -b -p $HOME/miniconda && rm miniconda.sh;
-      export PATH="$HOME/miniconda/bin:$PATH"; hash -r;
-      #conda install --quiet --yes nomkl --file=test-requirements.txt --file=test-requirements-cpython.txt;
+    if [[ "$TRAVIS_OS_NAME" == "osx" ]] || [[ "$STACKLESS" == "true" ]]; then # Install Miniconda
+      if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then CONDA_PLATFORM=MacOSX; else CONDA_PLATFORM=Linux; fi
+      travis_retry curl -s -o miniconda.sh https://repo.continuum.io/miniconda/Miniconda$PY-latest-${CONDA_PLATFORM}-x86_64.sh
+      bash miniconda.sh -b -p $HOME/miniconda && rm miniconda.sh
+      #conda install --quiet --yes nomkl --file=test-requirements.txt --file=test-requirements-cpython.txt
+      if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+        which clang && clang --version && export CC=clang || true
+        which clang++ && clang++ --version && export CXX=clang++ || true
+      fi
+    fi
+
+  - if [ -n "$CC" ]; then which $CC; $CC --version; fi
+  - if [ -n "$CXX" ]; then which $CXX; $CXX --version; fi
+
+  - if [[ "$STACKLESS" == "true" ]]; then
+      conda config --add channels stackless;
+      travis_retry conda install --quiet --yes stackless;
     fi
 
 install:
   - python -c 'import sys; print("Python %s" % (sys.version,))'
-  - if [ -n "${TRAVIS_PYTHON_VERSION##*-dev}" -a -n "${TRAVIS_PYTHON_VERSION##2.6*}" ]; then pip install -r test-requirements.txt $( [ -z "${TRAVIS_PYTHON_VERSION##pypy*}" ] || echo " -r test-requirements-cpython.txt" ) $( [ -n "${TRAVIS_PYTHON_VERSION##3.3*}" ] || echo " tornado<5.0" ) ; fi
-  - CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" python setup.py build
+  - if [ -n "${TRAVIS_PYTHON_VERSION##*-dev}" -a -n "${TRAVIS_PYTHON_VERSION##2.6*}" ]; then pip install -r test-requirements.txt $( [ -z "${TRAVIS_PYTHON_VERSION##pypy*}" -o -z "${TRAVIS_PYTHON_VERSION##3.7*}" ] || echo " -r test-requirements-cpython.txt" ) ; fi
+#  - CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" python setup.py build
 
 before_script: ccache -s || true
 
 script:
   - PYTHON_DBG="python$( python -c 'import sys; print("%d.%d" % sys.version_info[:2])' )-dbg"
-  - if $PYTHON_DBG -V >&2; then CFLAGS="-O0 -ggdb" $PYTHON_DBG runtests.py -vv Debugger --backends=$BACKEND; fi
-  - if [ "$BACKEND" = "cpp" -a -n "${TRAVIS_PYTHON_VERSION##2.6*}" ]; then pip install pythran; fi
-  - CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" python setup.py build_ext -i
-  - CFLAGS="-O0 -ggdb -Wall -Wextra" python runtests.py -vv -x Debugger --backends=$BACKEND -j7
+  - if [ "$TEST_CODE_STYLE" = "1" ]; then
+      STYLE_ARGS="--no-unit --no-doctest --no-file --no-pyregr --no-examples";
+    else
+      STYLE_ARGS=--no-code-style;
+      if $PYTHON_DBG -V >&2; then CFLAGS="-O0 -ggdb" $PYTHON_DBG runtests.py -vv --no-code-style Debugger --backends=$BACKEND; fi;
+      if [ -z "${BACKEND##*cpp*}" -a -n "${TRAVIS_PYTHON_VERSION##2.6*}" ]; then pip install pythran; fi;
+      if [ "$BACKEND" != "cpp" -a -n "${TRAVIS_PYTHON_VERSION##2*}" ]; then pip install mypy; fi;
+    fi
+  - if [ "$COVERAGE" != "1" ]; then CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" python setup.py build_ext -i; fi
+  - CFLAGS="-O0 -ggdb -Wall -Wextra" python runtests.py -vv $STYLE_ARGS -x Debugger --backends=$BACKEND $(if [ "$COVERAGE" == "1" ]; then echo " --coverage"; fi) $(if [ -z "$TEST_CODE_STYLE" ]; then echo " -j7 "; fi)
+  - ccache -s || true
