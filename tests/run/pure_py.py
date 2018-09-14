@@ -275,14 +275,33 @@ def cdef_nogil(x):
     return x + 1
 
 
+@cython.cfunc
+@cython.nogil(True)
 @cython.locals(x=cython.int)
+@cython.returns(cython.int)
+def cdef_nogil_true(x):
+    return x + 1
+
+
+@cython.cfunc
+@cython.nogil(False)
+@cython.locals(x=cython.int)
+@cython.returns(cython.int)
+def cdef_nogil_false(x):
+    return x + 1
+
+
+@cython.locals(x=cython.int, result=cython.int)
 def test_cdef_nogil(x):
     """
     >>> test_cdef_nogil(5)
-    6
+    18
     """
     with cython.nogil:
         result = cdef_nogil(x)
+    with cython.nogil(True):
+        result += cdef_nogil_true(x)
+    result += cdef_nogil_false(x)
     return result
 
 

@@ -123,8 +123,6 @@ overflowcheck.fold = optimization.use_switch = \
 
 final = internal = type_version_tag = no_gc_clear = no_gc = _empty_decorator
 
-gil = nogil = _EmptyDecoratorAndManager()
-
 
 _cython_inline = None
 def inline(f, *args, **kwds):
@@ -186,6 +184,25 @@ def declare(type=None, value=_Unspecified, **kwds):
             return type()
     else:
         return value
+
+class _nogil(object):
+    """Support for 'with nogil' statement and @nogil decorator.
+    """
+    def __call__(self, x):
+        if callable(x):
+            # Used as function decorator => return the function unchanged.
+            return x
+        # Used as conditional context manager or to create an "@nogil(True/False)" decorator => keep going.
+        return self
+
+    def __enter__(self):
+        pass
+    def __exit__(self, exc_class, exc, tb):
+        return exc_class is None
+
+nogil = _nogil()
+gil = _nogil()
+del _nogil
 
 
 # Emulated types
