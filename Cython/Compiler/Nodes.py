@@ -2777,7 +2777,8 @@ class DefNode(FuncDefNode):
         self.num_required_kw_args = rk
         self.num_required_args = r
 
-    def as_cfunction(self, cfunc=None, scope=None, overridable=True, returns=None, except_val=None, modifiers=None):
+    def as_cfunction(self, cfunc=None, scope=None, overridable=True, returns=None, except_val=None, modifiers=None,
+                     nogil=False, with_gil=False):
         if self.star_arg:
             error(self.star_arg.pos, "cdef function cannot have star argument")
         if self.starstar_arg:
@@ -2798,8 +2799,8 @@ class DefNode(FuncDefNode):
                                               has_varargs=False,
                                               exception_value=None,
                                               exception_check=exception_check,
-                                              nogil=False,
-                                              with_gil=False,
+                                              nogil=nogil,
+                                              with_gil=with_gil,
                                               is_overridable=overridable)
             cfunc = CVarDefNode(self.pos, type=cfunc_type)
         else:

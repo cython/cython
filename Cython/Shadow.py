@@ -123,6 +123,8 @@ overflowcheck.fold = optimization.use_switch = \
 
 final = internal = type_version_tag = no_gc_clear = no_gc = _empty_decorator
 
+gil = nogil = _EmptyDecoratorAndManager()
+
 
 _cython_inline = None
 def inline(f, *args, **kwds):
@@ -185,17 +187,6 @@ def declare(type=None, value=_Unspecified, **kwds):
     else:
         return value
 
-class _nogil(object):
-    """Support for 'with nogil' statement
-    """
-    def __enter__(self):
-        pass
-    def __exit__(self, exc_class, exc, tb):
-        return exc_class is None
-
-nogil = _nogil()
-gil = _nogil()
-del _nogil
 
 # Emulated types
 

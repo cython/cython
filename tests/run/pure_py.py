@@ -267,6 +267,25 @@ def call_cdef_inline(x):
     return ret, cython.typeof(ret)
 
 
+@cython.cfunc
+@cython.nogil
+@cython.locals(x=cython.int)
+@cython.returns(cython.int)
+def cdef_nogil(x):
+    return x + 1
+
+
+@cython.locals(x=cython.int)
+def test_cdef_nogil(x):
+    """
+    >>> test_cdef_nogil(5)
+    6
+    """
+    with cython.nogil:
+        result = cdef_nogil(x)
+    return result
+
+
 @cython.locals(counts=cython.int[10], digit=cython.int)
 def count_digits_in_carray(digits):
     """
