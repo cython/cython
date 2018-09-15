@@ -364,13 +364,23 @@ static void __Pyx_Generator_Replace_StopIteration(CYTHON_UNUSED int in_async_gen
 
 typedef PyObject *(*__pyx_coroutine_body_t)(PyObject *, PyThreadState *, PyObject *);
 
+#if CYTHON_USE_EXC_INFO_STACK
+// See  https://bugs.python.org/issue25612
+#define __Pyx_ExcInfoStruct  _PyErr_StackItem
+#else
+// Minimal replacement struct for Py<3.7, without the Py3.7 exception state stack.
+typedef struct {
+    PyObject *exc_type;
+    PyObject *exc_value;
+    PyObject *exc_traceback;
+} __Pyx_ExcInfoStruct;
+#endif
+
 typedef struct {
     PyObject_HEAD
     __pyx_coroutine_body_t body;
     PyObject *closure;
-    PyObject *exc_type;
-    PyObject *exc_value;
-    PyObject *exc_traceback;
+    __Pyx_ExcInfoStruct gi_exc_state;
     PyObject *gi_weakreflist;
     PyObject *classobj;
     PyObject *yieldfrom;
@@ -391,20 +401,26 @@ static __pyx_CoroutineObject *__Pyx__Coroutine_NewInit(
             __pyx_CoroutineObject *gen, __pyx_coroutine_body_t body, PyObject *code, PyObject *closure,
             PyObject *name, PyObject *qualname, PyObject *module_name); /*proto*/
 
+static CYTHON_INLINE void __Pyx_Coroutine_ExceptionClear(__Pyx_ExcInfoStruct *self);
 static int __Pyx_Coroutine_clear(PyObject *self); /*proto*/
 static PyObject *__Pyx_Coroutine_Send(PyObject *self, PyObject *value); /*proto*/
 static PyObject *__Pyx_Coroutine_Close(PyObject *self); /*proto*/
 static PyObject *__Pyx_Coroutine_Throw(PyObject *gen, PyObject *args); /*proto*/
 
 // macros for exception state swapping instead of inline functions to make use of the local thread state context
+#if CYTHON_USE_EXC_INFO_STACK
+#define __Pyx_Coroutine_SwapException(self)
+#define __Pyx_Coroutine_ResetAndClearException(self)  __Pyx_Coroutine_ExceptionClear(&(self)->gi_exc_state)
+#else
 #define __Pyx_Coroutine_SwapException(self) { \
-    __Pyx_ExceptionSwap(&(self)->exc_type, &(self)->exc_value, &(self)->exc_traceback); \
-    __Pyx_Coroutine_ResetFrameBackpointer(self); \
+    __Pyx_ExceptionSwap(&(self)->gi_exc_state.exc_type, &(self)->gi_exc_state.exc_value, &(self)->gi_exc_state.exc_traceback); \
+    __Pyx_Coroutine_ResetFrameBackpointer(&(self)->gi_exc_state); \
     }
 #define __Pyx_Coroutine_ResetAndClearException(self) { \
-    __Pyx_ExceptionReset((self)->exc_type, (self)->exc_value, (self)->exc_traceback); \
-    (self)->exc_type = (self)->exc_value = (self)->exc_traceback = NULL; \
+    __Pyx_ExceptionReset((self)->gi_exc_state.exc_type, (self)->gi_exc_state.exc_value, (self)->gi_exc_state.exc_traceback); \
+    (self)->gi_exc_state.exc_type = (self)->gi_exc_state.exc_value = (self)->gi_exc_state.exc_traceback = NULL; \
     }
+#endif
 
 #if CYTHON_FAST_THREAD_STATE
 #define __Pyx_PyGen_FetchStopIterationValue(pvalue) \
@@ -414,7 +430,7 @@ static PyObject *__Pyx_Coroutine_Throw(PyObject *gen, PyObject *args); /*proto*/
     __Pyx_PyGen__FetchStopIterationValue(__Pyx_PyThreadState_Current, pvalue)
 #endif
 static int __Pyx_PyGen__FetchStopIterationValue(PyThreadState *tstate, PyObject **pvalue); /*proto*/
-static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__pyx_CoroutineObject *self); /*proto*/
+static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__Pyx_ExcInfoStruct *exc_state); /*proto*/
 
 
 //////////////////// Coroutine.proto ////////////////////
@@ -573,18 +589,19 @@ static int __Pyx_PyGen__FetchStopIterationValue(CYTHON_UNUSED PyThreadState *$lo
 }
 
 static CYTHON_INLINE
-void __Pyx_Coroutine_ExceptionClear(__pyx_CoroutineObject *self) {
-    PyObject *exc_type = self->exc_type;
-    PyObject *exc_value = self->exc_value;
-    PyObject *exc_traceback = self->exc_traceback;
+void __Pyx_Coroutine_ExceptionClear(__Pyx_ExcInfoStruct *exc_state) {
+    PyObject *t, *v, *tb;
+    t = exc_state->exc_type;
+    v = exc_state->exc_value;
+    tb = exc_state->exc_traceback;
 
-    self->exc_type = NULL;
-    self->exc_value = NULL;
-    self->exc_traceback = NULL;
+    exc_state->exc_type = NULL;
+    exc_state->exc_value = NULL;
+    exc_state->exc_traceback = NULL;
 
-    Py_XDECREF(exc_type);
-    Py_XDECREF(exc_value);
-    Py_XDECREF(exc_traceback);
+    Py_XDECREF(t);
+    Py_XDECREF(v);
+    Py_XDECREF(tb);
 }
 
 #define __Pyx_Coroutine_AlreadyRunningError(gen)  (__Pyx__Coroutine_AlreadyRunningError(gen), (PyObject*)NULL)
@@ -649,6 +666,7 @@ static
 PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, int closing) {
     __Pyx_PyThreadState_declare
     PyThreadState *tstate;
+    __Pyx_ExcInfoStruct *exc_state;
     PyObject *retval;
 
     assert(!self->is_running);
@@ -670,55 +688,82 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, i
     tstate = __Pyx_PyThreadState_Current;
 #endif
 
-    // Traceback/Frame rules:
-    // - on entry, save external exception state in self->exc_*, restore it on exit
-    // - on exit, keep internally generated exceptions in self->exc_*, clear everything else
+    // Traceback/Frame rules pre-Py3.7:
+    // - on entry, save external exception state in self->gi_exc_state, restore it on exit
+    // - on exit, keep internally generated exceptions in self->gi_exc_state, clear everything else
     // - on entry, set "f_back" pointer of internal exception traceback to (current) outer call frame
     // - on exit, clear "f_back" of internal exception traceback
     // - do not touch external frames and tracebacks
 
-    if (self->exc_type) {
-#if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_PYSTON
+    // Traceback/Frame rules for Py3.7+ (CYTHON_USE_EXC_INFO_STACK):
+    // - on entry, push internal exception state in self->gi_exc_state on the exception stack
+    // - on exit, keep internally generated exceptions in self->gi_exc_state, clear everything else
+    // - on entry, set "f_back" pointer of internal exception traceback to (current) outer call frame
+    // - on exit, clear "f_back" of internal exception traceback
+    // - do not touch external frames and tracebacks
+
+    exc_state = &self->gi_exc_state;
+    if (exc_state->exc_type) {
+        #if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_PYSTON
         // FIXME: what to do in PyPy?
-#else
+        #else
         // Generators always return to their most recent caller, not
         // necessarily their creator.
-        if (self->exc_traceback) {
-            PyTracebackObject *tb = (PyTracebackObject *) self->exc_traceback;
+        if (exc_state->exc_traceback) {
+            PyTracebackObject *tb = (PyTracebackObject *) exc_state->exc_traceback;
             PyFrameObject *f = tb->tb_frame;
 
             Py_XINCREF(tstate->frame);
             assert(f->f_back == NULL);
             f->f_back = tstate->frame;
         }
-#endif
+        #endif
+    }
+
+#if CYTHON_USE_EXC_INFO_STACK
+    // See  https://bugs.python.org/issue25612
+    exc_state->previous_item = tstate->exc_info;
+    tstate->exc_info = exc_state;
+#else
+    if (exc_state->exc_type) {
         // We were in an except handler when we left,
         // restore the exception state which was put aside.
-        __Pyx_ExceptionSwap(&self->exc_type, &self->exc_value,
-                            &self->exc_traceback);
+        __Pyx_ExceptionSwap(&exc_state->exc_type, &exc_state->exc_value, &exc_state->exc_traceback);
         // self->exc_* now holds the exception state of the caller
     } else {
         // save away the exception state of the caller
-        __Pyx_Coroutine_ExceptionClear(self);
-        __Pyx_ExceptionSave(&self->exc_type, &self->exc_value, &self->exc_traceback);
+        __Pyx_Coroutine_ExceptionClear(exc_state);
+        __Pyx_ExceptionSave(&exc_state->exc_type, &exc_state->exc_value, &exc_state->exc_traceback);
     }
+#endif
 
     self->is_running = 1;
     retval = self->body((PyObject *) self, tstate, value);
     self->is_running = 0;
 
+#if CYTHON_USE_EXC_INFO_STACK
+    // See  https://bugs.python.org/issue25612
+    exc_state = &self->gi_exc_state;
+    tstate->exc_info = exc_state->previous_item;
+    exc_state->previous_item = NULL;
+    // Cut off the exception frame chain so that we can reconnect it on re-entry above.
+    __Pyx_Coroutine_ResetFrameBackpointer(exc_state);
+#endif
+
     return retval;
 }
 
-static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__pyx_CoroutineObject *self) {
+static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__Pyx_ExcInfoStruct *exc_state) {
     // Don't keep the reference to f_back any longer than necessary.  It
     // may keep a chain of frames alive or it could create a reference
     // cycle.
-    if (likely(self->exc_traceback)) {
+    PyObject *exc_tb = exc_state->exc_traceback;
+
+    if (likely(exc_tb)) {
 #if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_PYSTON
     // FIXME: what to do in PyPy?
 #else
-        PyTracebackObject *tb = (PyTracebackObject *) self->exc_traceback;
+        PyTracebackObject *tb = (PyTracebackObject *) exc_tb;
         PyFrameObject *f = tb->tb_frame;
         Py_CLEAR(f->f_back);
 #endif
@@ -1039,14 +1084,18 @@ static PyObject *__Pyx_Coroutine_Throw(PyObject *self, PyObject *args) {
     return __Pyx__Coroutine_Throw(self, typ, val, tb, args, 1);
 }
 
+static CYTHON_INLINE int __Pyx_Coroutine_traverse_excstate(__Pyx_ExcInfoStruct *exc_state, visitproc visit, void *arg) {
+    Py_VISIT(exc_state->exc_type);
+    Py_VISIT(exc_state->exc_value);
+    Py_VISIT(exc_state->exc_traceback);
+    return 0;
+}
+
 static int __Pyx_Coroutine_traverse(__pyx_CoroutineObject *gen, visitproc visit, void *arg) {
     Py_VISIT(gen->closure);
     Py_VISIT(gen->classobj);
     Py_VISIT(gen->yieldfrom);
-    Py_VISIT(gen->exc_type);
-    Py_VISIT(gen->exc_value);
-    Py_VISIT(gen->exc_traceback);
-    return 0;
+    return __Pyx_Coroutine_traverse_excstate(&gen->gi_exc_state, visit, arg);
 }
 
 static int __Pyx_Coroutine_clear(PyObject *self) {
@@ -1055,9 +1104,7 @@ static int __Pyx_Coroutine_clear(PyObject *self) {
     Py_CLEAR(gen->closure);
     Py_CLEAR(gen->classobj);
     Py_CLEAR(gen->yieldfrom);
-    Py_CLEAR(gen->exc_type);
-    Py_CLEAR(gen->exc_value);
-    Py_CLEAR(gen->exc_traceback);
+    __Pyx_Coroutine_ExceptionClear(&gen->gi_exc_state);
 #ifdef __Pyx_AsyncGen_USED
     if (__Pyx_AsyncGen_CheckExact(self)) {
         Py_CLEAR(((__pyx_PyAsyncGenObject*)gen)->ag_finalizer);
@@ -1315,9 +1362,12 @@ static __pyx_CoroutineObject *__Pyx__Coroutine_NewInit(
     gen->resume_label = 0;
     gen->classobj = NULL;
     gen->yieldfrom = NULL;
-    gen->exc_type = NULL;
-    gen->exc_value = NULL;
-    gen->exc_traceback = NULL;
+    gen->gi_exc_state.exc_type = NULL;
+    gen->gi_exc_state.exc_value = NULL;
+    gen->gi_exc_state.exc_traceback = NULL;
+#if CYTHON_USE_EXC_INFO_STACK
+    gen->gi_exc_state.previous_item = NULL;
+#endif
     gen->gi_weakreflist = NULL;
     Py_XINCREF(qualname);
     gen->gi_qualname = qualname;
@@ -1862,8 +1912,8 @@ static void __Pyx__ReturnWithStopIteration(PyObject* value) {
     }
     #if CYTHON_FAST_THREAD_STATE
     __Pyx_PyThreadState_assign
-    #if PY_VERSION_HEX >= 0x030700A3
-    if (!$local_tstate_cname->exc_state.exc_type)
+    #if CYTHON_USE_EXC_INFO_STACK
+    if (!$local_tstate_cname->exc_info->exc_type)
     #else
     if (!$local_tstate_cname->exc_type)
     #endif

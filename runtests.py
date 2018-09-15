@@ -145,6 +145,7 @@ EXT_DEP_MODULES = {
     'Coverage':     'Cython.Coverage',
     'tag:ipython':  'IPython.testing.globalipapp',
     'tag:jedi':     'jedi_BROKEN_AND_DISABLED',
+    'tag:test.support': 'test.support',  # support module for CPython unit tests
 }
 
 def patch_inspect_isfunction():
@@ -433,6 +434,7 @@ VER_DEP_MODULES = {
                                          'run.py35_asyncio_async_def',
                                          'run.mod__spec__',
                                          'run.pep526_variable_annotations',  # typing module
+                                         'run.test_exceptions',  # copied from Py3.7+
                                          ]),
 }
 
