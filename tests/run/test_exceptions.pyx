@@ -127,12 +127,13 @@ class ExceptionTests(unittest.TestCase):
         self.raise_catch(ValueError, "ValueError")
         self.assertRaises(ValueError, chr, 17<<16)
 
+        ZERO = 0
         self.raise_catch(ZeroDivisionError, "ZeroDivisionError")
-        try: x = 1/0
+        try: x = 1/ZERO
         except ZeroDivisionError: pass
 
         self.raise_catch(Exception, "Exception")
-        try: x = 1/0
+        try: x = 1/ZERO
         except Exception as e: pass
 
         self.raise_catch(StopAsyncIteration, "StopAsyncIteration")
@@ -668,8 +669,9 @@ class ExceptionTests(unittest.TestCase):
         # "can not delete variable 'e' referenced in nested scope"
         def print_error():
             e
+        ZERO = 0
         try:
-            1/0
+            1/ZERO
         except Exception as e:
             print_error()
             # implicit "del e" here
@@ -730,8 +732,9 @@ class ExceptionTests(unittest.TestCase):
                 yield sys.exc_info()[1]
         it = g()
         next(it)
+        ZERO = 0
         try:
-            1/0
+            1/ZERO
         except ZeroDivisionError as e:
             self.assertIs(sys.exc_info()[1], e)
             gen_exc = it.throw(e)
@@ -743,8 +746,9 @@ class ExceptionTests(unittest.TestCase):
         # See issue #23353.  When an exception is raised by a generator,
         # the caller's exception state should still be restored.
         def g():
+            ZERO = 0
             try:
-                1/0
+                1/ZERO
             except ZeroDivisionError:
                 yield sys.exc_info()[0]
                 raise
@@ -1275,8 +1279,9 @@ class ExceptionTests(unittest.TestCase):
 
         with self.assertRaises(ZeroDivisionError):
             i = g()
+            ZERO = 0
             try:
-                1/0
+                1/ZERO
             except:
                 next(i)
                 next(i)
