@@ -409,12 +409,12 @@ static PyObject *__Pyx_Coroutine_Throw(PyObject *gen, PyObject *args); /*proto*/
 
 // macros for exception state swapping instead of inline functions to make use of the local thread state context
 #if CYTHON_USE_EXC_INFO_STACK
-#define __Pyx_Coroutine_SwapException(self)  __Pyx_Coroutine_ResetFrameBackpointer(self)
+#define __Pyx_Coroutine_SwapException(self)
 #define __Pyx_Coroutine_ResetAndClearException(self)  __Pyx_Coroutine_ExceptionClear(&(self)->gi_exc_state)
 #else
 #define __Pyx_Coroutine_SwapException(self) { \
     __Pyx_ExceptionSwap(&(self)->gi_exc_state.exc_type, &(self)->gi_exc_state.exc_value, &(self)->gi_exc_state.exc_traceback); \
-    __Pyx_Coroutine_ResetFrameBackpointer(self); \
+    __Pyx_Coroutine_ResetFrameBackpointer(&(self)->gi_exc_state); \
     }
 #define __Pyx_Coroutine_ResetAndClearException(self) { \
     __Pyx_ExceptionReset((self)->gi_exc_state.exc_type, (self)->gi_exc_state.exc_value, (self)->gi_exc_state.exc_traceback); \
@@ -430,7 +430,7 @@ static PyObject *__Pyx_Coroutine_Throw(PyObject *gen, PyObject *args); /*proto*/
     __Pyx_PyGen__FetchStopIterationValue(__Pyx_PyThreadState_Current, pvalue)
 #endif
 static int __Pyx_PyGen__FetchStopIterationValue(PyThreadState *tstate, PyObject **pvalue); /*proto*/
-static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__pyx_CoroutineObject *self); /*proto*/
+static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__Pyx_ExcInfoStruct *exc_state); /*proto*/
 
 
 //////////////////// Coroutine.proto ////////////////////
@@ -746,22 +746,24 @@ PyObject *__Pyx_Coroutine_SendEx(__pyx_CoroutineObject *self, PyObject *value, i
     exc_state = &self->gi_exc_state;
     tstate->exc_info = exc_state->previous_item;
     exc_state->previous_item = NULL;
+    // Cut off the exception frame chain so that we can reconnect it on re-entry above.
+    __Pyx_Coroutine_ResetFrameBackpointer(exc_state);
 #endif
 
     return retval;
 }
 
-static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__pyx_CoroutineObject *self) {
+static CYTHON_INLINE void __Pyx_Coroutine_ResetFrameBackpointer(__Pyx_ExcInfoStruct *exc_state) {
     // Don't keep the reference to f_back any longer than necessary.  It
     // may keep a chain of frames alive or it could create a reference
     // cycle.
-    PyObject *tb = self->gi_exc_state.exc_traceback;
+    PyObject *exc_tb = exc_state->exc_traceback;
 
-    if (likely(tb)) {
+    if (likely(exc_tb)) {
 #if CYTHON_COMPILING_IN_PYPY || CYTHON_COMPILING_IN_PYSTON
     // FIXME: what to do in PyPy?
 #else
-        PyTracebackObject *tb = (PyTracebackObject *) tb;
+        PyTracebackObject *tb = (PyTracebackObject *) exc_tb;
         PyFrameObject *f = tb->tb_frame;
         Py_CLEAR(f->f_back);
 #endif
