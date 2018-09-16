@@ -749,7 +749,12 @@ class TestBuilder(object):
         pythran_dir = self.pythran_dir
         if 'pythran' in tags['tag'] and not pythran_dir and 'cpp' in languages:
             import pythran.config
-            pythran_ext = pythran.config.make_extension()
+            from pythran import __version__ as pythran_version
+            pythran_ext = (
+                pythran.config.make_extension(python=True)
+                if pythran_version >= '0.9' or pythran_version >= '0.8.7'
+                else pythran.config.make_extension()
+            )
             pythran_dir = pythran_ext['include_dirs'][0]
 
         preparse_list = tags.get('preparse', ['id'])
