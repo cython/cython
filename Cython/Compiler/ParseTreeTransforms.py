@@ -2333,6 +2333,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
     @cython.cclass
     @cython.ccall
     @cython.inline
+    @cython.nogil
     """
 
     def visit_ModuleNode(self, node):
@@ -2352,6 +2353,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         modifiers = []
         if 'inline' in self.directives:
             modifiers.append('inline')
+        nogil = self.directives.get('nogil')
         except_val = self.directives.get('exceptval')
         return_type_node = self.directives.get('returns')
         if return_type_node is None and self.directives['annotation_typing']:
@@ -2364,7 +2366,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             except_val = (None, False)
         if 'ccall' in self.directives:
             node = node.as_cfunction(
-                overridable=True, modifiers=modifiers,
+                overridable=True, modifiers=modifiers, nogil=nogil,
                 returns=return_type_node, except_val=except_val)
             return self.visit(node)
         if 'cfunc' in self.directives:
@@ -2372,11 +2374,14 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
                 error(node.pos, "cfunc directive is not allowed here")
             else:
                 node = node.as_cfunction(
-                    overridable=False, modifiers=modifiers,
+                    overridable=False, modifiers=modifiers, nogil=nogil,
                     returns=return_type_node, except_val=except_val)
                 return self.visit(node)
         if 'inline' in modifiers:
             error(node.pos, "Python functions cannot be declared 'inline'")
+        if nogil:
+            # TODO: turn this into a "with gil" declaration.
+            error(node.pos, "Python functions cannot be declared 'nogil'")
         self.visitchildren(node)
         return node
 

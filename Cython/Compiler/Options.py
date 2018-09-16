@@ -184,6 +184,7 @@ _directive_defaults = {
     'ccomplex' : False,  # use C99/C++ for complex types and arith
     'callspec' : "",
     'final' : False,
+    'nogil' : False,
     'internal' : False,
     'profile': False,
     'no_gc_clear': False,
@@ -323,6 +324,7 @@ directive_scopes = {  # defaults to available everywhere
     # 'module', 'function', 'class', 'with statement'
     'auto_pickle': ('module', 'cclass'),
     'final' : ('cclass', 'function'),
+    'nogil' : ('function',),
     'inline' : ('function',),
     'returns' : ('function',),
     'exceptval' : ('function',),

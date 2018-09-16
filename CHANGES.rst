@@ -23,6 +23,9 @@ Features added
 * Raising exceptions from nogil code will automatically acquire the GIL, instead
   of requiring an explicit ``with gil`` block.
 
+* ``@cython.nogil`` is supported as a C-function decorator in Python code.
+  (Github issue #2557)
+
 * In CPython 3.6 and later, looking up globals in the module dict is almost
   as fast as looking up C globals.
   (Github issue #2313)

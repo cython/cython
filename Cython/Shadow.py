@@ -186,8 +186,15 @@ def declare(type=None, value=_Unspecified, **kwds):
         return value
 
 class _nogil(object):
-    """Support for 'with nogil' statement
+    """Support for 'with nogil' statement and @nogil decorator.
     """
+    def __call__(self, x):
+        if callable(x):
+            # Used as function decorator => return the function unchanged.
+            return x
+        # Used as conditional context manager or to create an "@nogil(True/False)" decorator => keep going.
+        return self
+
     def __enter__(self):
         pass
     def __exit__(self, exc_class, exc, tb):
@@ -196,6 +203,7 @@ class _nogil(object):
 nogil = _nogil()
 gil = _nogil()
 del _nogil
+
 
 # Emulated types
 

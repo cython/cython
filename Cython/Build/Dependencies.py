@@ -10,6 +10,7 @@ import os
 import shutil
 import subprocess
 import re, sys, time
+import warnings
 from glob import iglob
 from io import open as io_open
 from os.path import relpath as _relpath
@@ -34,9 +35,9 @@ except ImportError:
 try:
     import pythran
     import pythran.config
-    PythranAvailable = True
+    pythran_version = pythran.__version__
 except:
-    PythranAvailable = False
+    pythran_version = None
 
 from .. import Utils
 from ..Utils import (cached_function, cached_method, path_exists,
@@ -128,9 +129,13 @@ def file_hash(filename):
 
 
 def update_pythran_extension(ext):
-    if not PythranAvailable:
+    if not pythran_version:
         raise RuntimeError("You first need to install Pythran to use the np_pythran directive.")
-    pythran_ext = pythran.config.make_extension(python=True)
+    pythran_ext = (
+        pythran.config.make_extension(python=True)
+        if pythran_version >= '0.9' or pythran_version >= '0.8.7'
+        else pythran.config.make_extension()
+    )
     ext.include_dirs.extend(pythran_ext['include_dirs'])
     ext.extra_compile_args.extend(pythran_ext['extra_compile_args'])
     ext.extra_link_args.extend(pythran_ext['extra_link_args'])
@@ -935,7 +940,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
         safe_makedirs(options['common_utility_include_dir'])
 
     pythran_options = None
-    if PythranAvailable:
+    if pythran_version:
         pythran_options = CompilationOptions(**options)
         pythran_options.cplus = True
         pythran_options.np_pythran = True
