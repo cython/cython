@@ -14,6 +14,8 @@ transfers and can benefit from SIMD instructions of modern CPU.
 This can lead to really interesting speedup in some cases, going from 2 up to
 16, depending on the targeted CPU architecture and the original algorithm.
 
+The minimum required version of Pythran is 0.9.0.
+
 Please note that this feature is experimental.
 
 Usage example with distutils
