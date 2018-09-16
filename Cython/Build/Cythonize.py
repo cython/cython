@@ -25,9 +25,14 @@ class _FakePool(object):
         for _ in imap(func, args):
             pass
 
-    def close(self): pass
-    def terminate(self): pass
-    def join(self): pass
+    def close(self):
+        pass
+
+    def terminate(self):
+        pass
+
+    def join(self):
+        pass
 
 
 def parse_directives(option, name, value, parser):
@@ -50,6 +55,13 @@ def parse_options(option, name, value, parser):
             n, v = opt, True
         options[n] = v
     setattr(parser.values, dest, options)
+
+
+def parse_compile_time_env(option, name, value, parser):
+    dest = option.dest
+    old_env = dict(getattr(parser.values, dest, {}))
+    new_env = Options.parse_compile_time_env(value, current_settings=old_env)
+    setattr(parser.values, dest, new_env)
 
 
 def find_package_base(path):
@@ -85,6 +97,7 @@ def cython_compile(path_pattern, options):
                 exclude_failures=options.keep_going,
                 exclude=options.excludes,
                 compiler_directives=options.directives,
+                compile_time_env=options.compile_time_env,
                 force=options.force,
                 quiet=options.quiet,
                 **options.options)
@@ -136,13 +149,21 @@ def parse_args(args):
     from optparse import OptionParser
     parser = OptionParser(usage='%prog [options] [sources and packages]+')
 
-    parser.add_option('-X', '--directive', metavar='NAME=VALUE,...', dest='directives',
-                      type=str, action='callback', callback=parse_directives, default={},
+    parser.add_option('-X', '--directive', metavar='NAME=VALUE,...',
+                      dest='directives', default={}, type="str",
+                      action='callback', callback=parse_directives,
                       help='set a compiler directive')
-    parser.add_option('-s', '--option', metavar='NAME=VALUE', dest='options',
-                      type=str, action='callback', callback=parse_options, default={},
+    parser.add_option('-E', '--compile-time-env', metavar='NAME=VALUE,...',
+                      dest='compile_time_env', default={}, type="str",
+                      action='callback', callback=parse_compile_time_env,
+                      help='set a compile time environment variable')
+    parser.add_option('-s', '--option', metavar='NAME=VALUE',
+                      dest='options', default={}, type="str",
+                      action='callback', callback=parse_options,
                       help='set a cythonize option')
-    parser.add_option('-3', dest='python3_mode', action='store_true',
+    parser.add_option('-2', dest='language_level', action='store_const', const=2, default=None,
+                      help='use Python 2 syntax mode by default')
+    parser.add_option('-3', dest='language_level', action='store_const', const=3,
                       help='use Python 3 syntax mode by default')
     parser.add_option('-a', '--annotate', dest='annotate', action='store_true',
                       help='generate annotated HTML page for source files')
@@ -176,8 +197,9 @@ def parse_args(args):
         options.build = True
     if multiprocessing is None:
         options.parallel = 0
-    if options.python3_mode:
-        options.options['language_level'] = 3
+    if options.language_level:
+        assert options.language_level in (2, 3)
+        options.options['language_level'] = options.language_level
     return options, args
 
 

@@ -76,7 +76,7 @@ def exec(code_string, l, g):
     old_stderr = sys.stderr
     try:
         sys.stderr = StringIO()
-        ns = inline(code_string, locals=l, globals=g, lib_dir=os.path.dirname(__file__))
+        ns = inline(code_string, locals=l, globals=g, lib_dir=os.path.dirname(__file__), language_level=3)
     finally:
         sys.stderr = old_stderr
     g.update(ns)

@@ -6,16 +6,22 @@ from .PyrexTypes import CType, CTypedefType, CStructOrUnionType
 
 import cython
 
+try:
+    import pythran
+    pythran_version = pythran.__version__
+    pythran_is_0_8_7 = pythran_version >= '0.9' or pythran_version >= '0.8.7'
+except ImportError:
+    pythran_version = None
+    pythran_is_0_8_7 = False
+
 
 # Pythran/Numpy specific operations
 
 def has_np_pythran(env):
-    while env is not None:
-        directives = getattr(env, 'directives', None)
-        if directives and env.directives.get('np_pythran', False):
-            return True
-        env = env.outer_scope
-
+    if env is None:
+        return False
+    directives = getattr(env, 'directives', None)
+    return (directives and directives.get('np_pythran', False))
 
 @cython.ccall
 def is_pythran_supported_dtype(type_):
@@ -35,7 +41,10 @@ def pythran_type(Ty, ptype="ndarray"):
             ctype = dtype.typedef_cname
         else:
             raise ValueError("unsupported type %s!" % dtype)
-        return "pythonic::types::%s<%s,%d>" % (ptype,ctype, ndim)
+        if pythran_is_0_8_7:
+            return "pythonic::types::%s<%s,pythonic::types::pshape<%s>>" % (ptype,ctype, ",".join(("Py_ssize_t",)*ndim))
+        else:
+            return "pythonic::types::%s<%s,%d>" % (ptype,ctype, ndim)
     if Ty.is_pythran_expr:
         return Ty.pythran_type
     #if Ty.is_none:
@@ -111,10 +120,32 @@ def pythran_indexing_type(type_, indices):
 def pythran_indexing_code(indices):
     return _index_access(_index_code, indices)
 
+def np_func_to_list(func):
+    if not func.is_numpy_attribute:
+        return []
+    return np_func_to_list(func.obj) + [func.attribute]
+
+if pythran_version:
+    def pythran_is_numpy_func_supported(func):
+        CurF = pythran.tables.MODULES['numpy']
+        FL = np_func_to_list(func)
+        for F in FL:
+            CurF = CurF.get(F, None)
+            if CurF is None:
+                return False
+        return True
+else:
+    def pythran_is_numpy_func_supported(name):
+        return False
+
+def pythran_functor(func):
+    func = np_func_to_list(func)
+    submodules = "::".join(func[:-1] + ["functor"])
+    return "pythonic::numpy::%s::%s" % (submodules, func[-1])
 
 def pythran_func_type(func, args):
     args = ",".join(("std::declval<%s>()" % pythran_type(a.type) for a in args))
-    return "decltype(pythonic::numpy::functor::%s{}(%s))" % (func, args)
+    return "decltype(%s{}(%s))" % (pythran_functor(func), args)
 
 
 @cython.ccall
@@ -168,6 +199,9 @@ def is_pythran_buffer(type_):
     return (type_.is_numpy_buffer and is_pythran_supported_dtype(type_.dtype) and
             type_.mode in ("c", "strided") and not type_.cast)
 
+def pythran_get_func_include_file(func):
+    func = np_func_to_list(func)
+    return "pythonic/include/numpy/%s.hpp" % "/".join(func)
 
 def include_pythran_generic(env):
     # Generic files
@@ -181,5 +215,5 @@ def include_pythran_generic(env):
         env.add_include_file("pythonic/types/uint%d.hpp" % i)
         env.add_include_file("pythonic/types/int%d.hpp" % i)
     for t in ("float", "float32", "float64", "set", "slice", "tuple", "int",
-              "long", "complex", "complex64", "complex128"):
+              "complex", "complex64", "complex128"):
         env.add_include_file("pythonic/types/%s.hpp" % t)

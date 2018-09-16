@@ -2237,7 +2237,9 @@ class CClassScope(ClassScope):
                         # TODO(robertwb): Make this an error.
                         warning(pos,
                             "Compatible but non-identical C method '%s' not redeclared "
-                            "in definition part of extension type '%s'.  This may cause incorrect vtables to be generated." % (name, self.class_name), 2)
+                            "in definition part of extension type '%s'.  "
+                            "This may cause incorrect vtables to be generated." % (
+                                    name, self.class_name), 2)
                         warning(entry.pos, "Previous declaration is here", 2)
                     entry = self.add_cfunction(name, type, pos, cname, visibility='ignore', modifiers=modifiers)
                 else:

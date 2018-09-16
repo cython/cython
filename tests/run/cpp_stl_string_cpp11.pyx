@@ -1,6 +1,5 @@
 # mode: run
 # tag: cpp, werror, cpp11
-# distutils: extra_compile_args=-std=c++11
 
 from libcpp.string cimport string
 

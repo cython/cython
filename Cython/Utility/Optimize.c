@@ -698,13 +698,99 @@ fallback:
 }
 
 
+/////////////// PyIntCompare.proto ///////////////
+
+{{py: c_ret_type = 'PyObject*' if ret_type.is_pyobject else 'int'}}
+static CYTHON_INLINE {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(PyObject *op1, PyObject *op2, long intval, long inplace); /*proto*/
+
+/////////////// PyIntCompare ///////////////
+
+{{py: pyval, ival = ('op2', 'b') if order == 'CObj' else ('op1', 'a') }}
+{{py: c_ret_type = 'PyObject*' if ret_type.is_pyobject else 'int'}}
+{{py: return_true = 'Py_RETURN_TRUE' if ret_type.is_pyobject else 'return 1'}}
+{{py: return_false = 'Py_RETURN_FALSE' if ret_type.is_pyobject else 'return 0'}}
+{{py: slot_name = op.lower() }}
+{{py: c_op = {'Eq': '==', 'Ne': '!='}[op] }}
+{{py:
+return_compare = (
+    (lambda a,b,c_op, return_true=return_true, return_false=return_false: "if ({a} {c_op} {b}) {return_true}; else {return_false};".format(
+        a=a, b=b, c_op=c_op, return_true=return_true, return_false=return_false))
+    if ret_type.is_pyobject else
+    (lambda a,b,c_op: "return ({a} {c_op} {b});".format(a=a, b=b, c_op=c_op))
+    )
+}}
+
+static CYTHON_INLINE {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHON_UNUSED long intval, CYTHON_UNUSED long inplace) {
+    if (op1 == op2) {
+        {{return_true if op == 'Eq' else return_false}};
+    }
+
+    #if PY_MAJOR_VERSION < 3
+    if (likely(PyInt_CheckExact({{pyval}}))) {
+        const long {{'a' if order == 'CObj' else 'b'}} = intval;
+        long {{ival}} = PyInt_AS_LONG({{pyval}});
+        {{return_compare('a', 'b', c_op)}}
+    }
+    #endif
+
+    #if CYTHON_USE_PYLONG_INTERNALS
+    if (likely(PyLong_CheckExact({{pyval}}))) {
+        int unequal;
+        unsigned long uintval;
+        Py_ssize_t size = Py_SIZE({{pyval}});
+        const digit* digits = ((PyLongObject*){{pyval}})->ob_digit;
+        if (intval == 0) {
+            // == 0  =>  Py_SIZE(pyval) == 0
+            {{return_compare('size', '0', c_op)}}
+        } else if (intval < 0) {
+            // < 0  =>  Py_SIZE(pyval) < 0
+            if (size >= 0)
+                {{return_false if op == 'Eq' else return_true}};
+            // both are negative => can use absolute values now.
+            intval = -intval;
+            size = -size;
+        } else {
+            // > 0  =>  Py_SIZE(pyval) > 0
+            if (size <= 0)
+                {{return_false if op == 'Eq' else return_true}};
+        }
+        // After checking that the sign is the same (and excluding 0), now compare the absolute values.
+        // When inlining, the C compiler should select exactly one line from this unrolled loop.
+        uintval = (unsigned long) intval;
+        {{for _size in range(4, 0, -1)}}
+#if PyLong_SHIFT * {{_size}} < SIZEOF_LONG*8
+        if (uintval >> (PyLong_SHIFT * {{_size}})) {
+            // The C integer value is between (PyLong_BASE ** _size) and MIN(PyLong_BASE ** _size, LONG_MAX).
+            unequal = (size != {{_size+1}}) || (digits[0] != (uintval & (unsigned long) PyLong_MASK))
+                {{for _i in range(1, _size+1)}} | (digits[{{_i}}] != ((uintval >> ({{_i}} * PyLong_SHIFT)) & (unsigned long) PyLong_MASK)){{endfor}};
+        } else
+#endif
+        {{endfor}}
+            unequal = (size != 1) || (((unsigned long) digits[0]) != (uintval & (unsigned long) PyLong_MASK));
+
+        {{return_compare('unequal', '0', c_op)}}
+    }
+    #endif
+
+    if (PyFloat_CheckExact({{pyval}})) {
+        const long {{'a' if order == 'CObj' else 'b'}} = intval;
+        double {{ival}} = PyFloat_AS_DOUBLE({{pyval}});
+        {{return_compare('(double)a', '(double)b', c_op)}}
+    }
+
+    return {{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(
+        PyObject_RichCompare(op1, op2, Py_{{op.upper()}}));
+}
+
+
 /////////////// PyIntBinop.proto ///////////////
 
+{{py: c_ret_type = 'PyObject*' if ret_type.is_pyobject else 'int'}}
 #if !CYTHON_COMPILING_IN_PYPY
-static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, long intval, int inplace); /*proto*/
+static {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(PyObject *op1, PyObject *op2, long intval, int inplace); /*proto*/
 #else
-#define __Pyx_PyInt_{{op}}{{order}}(op1, op2, intval, inplace) \
-    {{if op in ('Eq', 'Ne')}}PyObject_RichCompare(op1, op2, Py_{{op.upper()}})
+#define __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(op1, op2, intval, inplace) \
+    {{if op in ('Eq', 'Ne')}}{{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(PyObject_RichCompare(op1, op2, Py_{{op.upper()}}))
     {{else}}(inplace ? PyNumber_InPlace{{op}}(op1, op2) : PyNumber_{{op}}(op1, op2))
     {{endif}}
 #endif
@@ -714,6 +800,9 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, long 
 #if !CYTHON_COMPILING_IN_PYPY
 {{py: from Cython.Utility import pylong_join }}
 {{py: pyval, ival = ('op2', 'b') if order == 'CObj' else ('op1', 'a') }}
+{{py: c_ret_type = 'PyObject*' if ret_type.is_pyobject else 'int'}}
+{{py: return_true = 'Py_RETURN_TRUE' if ret_type.is_pyobject else 'return 1'}}
+{{py: return_false = 'Py_RETURN_FALSE' if ret_type.is_pyobject else 'return 0'}}
 {{py: slot_name = {'TrueDivide': 'true_divide', 'FloorDivide': 'floor_divide'}.get(op, op.lower()) }}
 {{py:
 c_op = {
@@ -723,10 +812,10 @@ c_op = {
     }[op]
 }}
 
-static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHON_UNUSED long intval, CYTHON_UNUSED int inplace) {
+static {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHON_UNUSED long intval, CYTHON_UNUSED int inplace) {
     {{if op in ('Eq', 'Ne')}}
     if (op1 == op2) {
-        Py_RETURN_{{'TRUE' if op == 'Eq' else 'FALSE'}};
+        {{return_true if op == 'Eq' else return_false}};
     }
     {{endif}}
 
@@ -740,9 +829,9 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
 
         {{if op in ('Eq', 'Ne')}}
         if (a {{c_op}} b) {
-            Py_RETURN_TRUE;
+            {{return_true}};
         } else {
-            Py_RETURN_FALSE;
+            {{return_false}};
         }
         {{elif c_op in '+-'}}
             // adapted from intobject.c in Py2.7:
@@ -826,10 +915,11 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
                 {{if op in ('Eq', 'Ne')}}
                 #if PyLong_SHIFT < 30 && PyLong_SHIFT != 15
                 // unusual setup - your fault
-                default: return PyLong_Type.tp_richcompare({{'op1, op2' if order == 'ObjC' else 'op2, op1'}}, Py_{{op.upper()}});
+                default: return {{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(
+                    PyLong_Type.tp_richcompare({{'op1, op2' if order == 'ObjC' else 'op2, op1'}}, Py_{{op.upper()}}));
                 #else
                 // too large for the long values we allow => definitely not equal
-                default: Py_RETURN_{{'FALSE' if op == 'Eq' else 'TRUE'}};
+                default: {{return_false if op == 'Eq' else return_true}};
                 #endif
                 {{else}}
                 default: return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
@@ -838,9 +928,9 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
         }
         {{if op in ('Eq', 'Ne')}}
             if (a {{c_op}} b) {
-                Py_RETURN_TRUE;
+                {{return_true}};
             } else {
-                Py_RETURN_FALSE;
+                {{return_false}};
             }
         {{else}}
             {{if c_op == '%'}}
@@ -912,9 +1002,9 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
         double {{ival}} = PyFloat_AS_DOUBLE({{pyval}});
         {{if op in ('Eq', 'Ne')}}
             if ((double)a {{c_op}} (double)b) {
-                Py_RETURN_TRUE;
+                {{return_true}};
             } else {
-                Py_RETURN_FALSE;
+                {{return_false}};
             }
         {{else}}
             double result;
@@ -928,7 +1018,8 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
     {{endif}}
 
     {{if op in ('Eq', 'Ne')}}
-    return PyObject_RichCompare(op1, op2, Py_{{op.upper()}});
+    return {{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(
+        PyObject_RichCompare(op1, op2, Py_{{op.upper()}}));
     {{else}}
     return (inplace ? PyNumber_InPlace{{op}} : PyNumber_{{op}})(op1, op2);
     {{endif}}
@@ -937,11 +1028,12 @@ static PyObject* __Pyx_PyInt_{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHO
 
 /////////////// PyFloatBinop.proto ///////////////
 
+{{py: c_ret_type = 'PyObject*' if ret_type.is_pyobject else 'int'}}
 #if !CYTHON_COMPILING_IN_PYPY
-static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, double floatval, int inplace); /*proto*/
+static {{c_ret_type}} __Pyx_PyFloat_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(PyObject *op1, PyObject *op2, double floatval, int inplace); /*proto*/
 #else
-#define __Pyx_PyFloat_{{op}}{{order}}(op1, op2, floatval, inplace) \
-    {{if op in ('Eq', 'Ne')}}PyObject_RichCompare(op1, op2, Py_{{op.upper()}})
+#define __Pyx_PyFloat_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(op1, op2, floatval, inplace) \
+    {{if op in ('Eq', 'Ne')}}{{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(PyObject_RichCompare(op1, op2, Py_{{op.upper()}}))
     {{elif op == 'Divide'}}((inplace ? __Pyx_PyNumber_InPlaceDivide(op1, op2) : __Pyx_PyNumber_Divide(op1, op2)))
     {{else}}(inplace ? PyNumber_InPlace{{op}}(op1, op2) : PyNumber_{{op}}(op1, op2))
     {{endif}}
@@ -951,6 +1043,9 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
 
 #if !CYTHON_COMPILING_IN_PYPY
 {{py: from Cython.Utility import pylong_join }}
+{{py: c_ret_type = 'PyObject*' if ret_type.is_pyobject else 'int'}}
+{{py: return_true = 'Py_RETURN_TRUE' if ret_type.is_pyobject else 'return 1'}}
+{{py: return_false = 'Py_RETURN_FALSE' if ret_type.is_pyobject else 'return 0'}}
 {{py: pyval, fval = ('op2', 'b') if order == 'CObj' else ('op1', 'a') }}
 {{py:
 c_op = {
@@ -959,13 +1054,13 @@ c_op = {
     }[op]
 }}
 
-static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, double floatval, CYTHON_UNUSED int inplace) {
+static {{c_ret_type}} __Pyx_PyFloat_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(PyObject *op1, PyObject *op2, double floatval, CYTHON_UNUSED int inplace) {
     const double {{'a' if order == 'CObj' else 'b'}} = floatval;
     double {{fval}}{{if op not in ('Eq', 'Ne')}}, result{{endif}};
 
     {{if op in ('Eq', 'Ne')}}
     if (op1 == op2) {
-        Py_RETURN_{{'TRUE' if op == 'Eq' else 'FALSE'}};
+        {{return_true if op == 'Eq' else return_false}};
     }
     {{endif}}
 
@@ -1011,7 +1106,8 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
         {
         #endif
         {{if op in ('Eq', 'Ne')}}
-            return PyFloat_Type.tp_richcompare({{'op1, op2' if order == 'CObj' else 'op2, op1'}}, Py_{{op.upper()}});
+            return {{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(
+                PyFloat_Type.tp_richcompare({{'op1, op2' if order == 'CObj' else 'op2, op1'}}, Py_{{op.upper()}}));
         {{else}}
             {{fval}} = PyLong_AsDouble({{pyval}});
             if (unlikely({{fval}} == -1.0 && PyErr_Occurred())) return NULL;
@@ -1019,7 +1115,8 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
         }
     } else {
         {{if op in ('Eq', 'Ne')}}
-        return PyObject_RichCompare(op1, op2, Py_{{op.upper()}});
+        return {{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(
+            PyObject_RichCompare(op1, op2, Py_{{op.upper()}}));
         {{elif op == 'Divide'}}
         return (inplace ? __Pyx_PyNumber_InPlaceDivide(op1, op2) : __Pyx_PyNumber_Divide(op1, op2));
         {{else}}
@@ -1029,9 +1126,9 @@ static PyObject* __Pyx_PyFloat_{{op}}{{order}}(PyObject *op1, PyObject *op2, dou
 
     {{if op in ('Eq', 'Ne')}}
         if (a {{c_op}} b) {
-            Py_RETURN_TRUE;
+            {{return_true}};
         } else {
-            Py_RETURN_FALSE;
+            {{return_false}};
         }
     {{else}}
         // copied from floatobject.c in Py3.5:

@@ -2,21 +2,149 @@
 Cython Changelog
 ================
 
-0.28.6 (??)
-===================
+0.29 (2018-??-??)
+=================
+
+Features added
+--------------
+
+* PEP-489 multi-phase module initialisation has been enabled again.  Module
+  reloads in other subinterpreters raise an exception to prevent corruption
+  of the static module state.
+
+* A set of ``mypy`` compatible PEP-484 declarations were added for Cython's C data
+  types to integrate with static analysers in typed Python code.  They are available
+  in the ``Cython/Shadow.pyi`` module and describe the types in the special ``cython``
+  module that can be used for typing in Python code.
+  Original patch by Julian Gethmann. (Github issue #1965)
+
+* Memoryviews are supported in PEP-484/526 style type declarations.
+  (Github issue #2529)
+
+* Raising exceptions from nogil code will automatically acquire the GIL, instead
+  of requiring an explicit ``with gil`` block.
+
+* ``@cython.nogil`` is supported as a C-function decorator in Python code.
+  (Github issue #2557)
+
+* ``cython.inline()`` supports a direct ``language_level`` keyword argument that
+  was previously only available via a directive.
+
+* In CPython 3.6 and later, looking up globals in the module dict is almost
+  as fast as looking up C globals.
+  (Github issue #2313)
+
+* For a Python subclass of an extension type, repeated method calls to non-overridden
+  cpdef methods can avoid the attribute lookup in Py3.6+, which makes them 4x faster.
+  (Github issue #2313)
+
+* (In-)equality comparisons of objects to integer literals are faster.
+  (Github issue #2188)
+
+* Some internal and 1-argument method calls are faster.
+
+* Modules that cimport many external extension types from other Cython modules
+  execute less import requests during module initialisation.
+
+* The coverage plugin considers more C file extensions such as ``.cc`` and ``.cxx``.
+  (Github issue #2266)
+
+* The ``cythonize`` command accepts compile time variable values (as set by ``DEF``)
+  through the new ``-E`` option.
+  Patch by Jerome Kieffer.  (Github issue #2315)
+
+* ``pyximport`` can import from namespace packages.
+  Patch by Prakhar Goel.  (Github issue #2294)
+
+* Some missing numpy and CPython C-API declarations were added.
+  Patch by John Kirkham. (Github issues #2523, #2520, #2537)
+
+* Declarations for the ``pylifecycle`` C-API functions were added in a new .pxd file
+  ``cpython.pylifecycle``.
+
+* The Pythran support was updated to work with the latest Pythran 0.8.7.
+  Original patch by Adrien Guinet.  (Github issue #2600)
+
+* ``%a`` is included in the string formatting types that are optimised into f-strings.
+  In this case, it is also automatically mapped to ``%r`` in Python 2.x.
+
+* New C macro ``CYTHON_HEX_VERSION`` to access Cython's version in the same style as
+  ``PY_HEX_VERSION``.
 
 Bugs fixed
 ----------
+
+* The exception handling in generators and coroutines under CPython 3.7 was adapted
+  to the newly introduced exception stack.  Users of Cython 0.28 who want to support
+  Python 3.7 are encouraged to upgrade to 0.29 to avoid potentially incorrect error
+  reporting and tracebacks.
+
+* Crash when importing a module under Stackless Python that was built for CPython.
+  Patch by Anselm Kruis.  (Github issue #2534)
+
+* 2-value slicing of typed sequences failed if the start or stop index was None.
+  Patch by Christian Gibson.  (Github issue #2508)
 
 * Multiplied string literals lost their factor when they are part of another
   constant expression (e.g. 'x' * 10 + 'y' => 'xy').
 
+* String formatting with the '%' operator didn't call the special ``__rmod__()``
+  method if the right side is a string subclass that implements it.
+  (Python issue 28598)
+
+* The directive ``language_level=3`` did not apply to the first token in the
+  source file.  (Github issue #2230)
+
+* Overriding cpdef methods did not work in Python subclasses with slots.
+  Note that this can have a performance impact on calls from Cython code.
+  (Github issue #1771)
+
+* Fix declarations of builtin or C types using strings in pure python mode.
+  (Github issue #2046)
+
+* Several internal function signatures were fixed that lead to warnings in gcc-8.
+  (Github issue #2363)
+
+* The numpy helper functions ``set_array_base()`` and ``get_array_base()``
+  were adapted to the current numpy C-API recommendations.
+  Patch by Matti Picus. (Github issue #2528)
+
+* Some NumPy related code was updated to avoid deprecated API usage.
+  Original patch by jbrockmendel.  (Github issue #2559)
+
+* Several C++ STL declarations were extended and corrected.
+  Patch by Valentin Valls. (Github issue #2207)
+
+* C lines of the module init function were unconditionally not reported in
+  exception stack traces.
+  Patch by Jeroen Demeyer.  (Github issue #2492)
+
+* When PEP-489 support is enabled, reloading the module overwrote any static
+  module state. It now raises an exception instead, given that reloading is
+  not actually supported.
+
+Other changes
+-------------
+
+* Cython now emits a warning when no ``language_level`` (2 or 3) is set explicitly,
+  neither as a ``cythonize()`` option nor as a compiler directive.  This is meant
+  to prepare the transition of the default language level from currently Py2
+  to Py3, since that is what most new users will expect these days.  The next
+  major release is intended to make that change, so that it will parse all code
+  that does not request a specific language level as Python 3 code. The language
+  level 2 will continue to be supported for an indefinite time.
+
+* The documentation was restructured, cleaned up and examples are now tested.
+  The NumPy tutorial was also rewritten to simplify the running example.
+  Contributed by Gabriel de Marmiesse.  (Github issue #2245)
+
+* Cython compiles less of its own modules at build time to reduce the installed
+  package size to about half of its previous size.  This makes the compiler
+  slightly slower, by about 5-7%.
+
 
 0.28.5 (2018-08-03)
 ===================
-
-Bugs fixed
-----------
 
 * The discouraged usage of GCC's attribute ``optimize("Os")`` was replaced by the
   similar attribute ``cold`` to reduce the code impact of the module init functions.
@@ -2153,9 +2281,9 @@ Features added
 
 * GDB support. http://docs.cython.org/src/userguide/debugging.html
 
-* A new build system with support for inline distutils directives, correct dependency tracking, and parallel compilation. http://wiki.cython.org/enhancements/distutils_preprocessing
+* A new build system with support for inline distutils directives, correct dependency tracking, and parallel compilation. https://github.com/cython/cython/wiki/enhancements-distutils_preprocessing
 
-* Support for dynamic compilation at runtime via the new cython.inline function and cython.compile decorator. http://wiki.cython.org/enhancements/inline
+* Support for dynamic compilation at runtime via the new cython.inline function and cython.compile decorator. https://github.com/cython/cython/wiki/enhancements-inline
 
 * "nogil" blocks are supported when compiling pure Python code by writing "with cython.nogil".
 

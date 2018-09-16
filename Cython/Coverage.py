@@ -20,14 +20,17 @@ from .Utils import find_root_package_dir, is_package_dir, open_source_file
 from . import __version__
 
 
+C_FILE_EXTENSIONS = ['.c', '.cpp', '.cc', '.cxx']
+MODULE_FILE_EXTENSIONS = set(['.py', '.pyx', '.pxd'] + C_FILE_EXTENSIONS)
+
+
 def _find_c_source(base_path):
-    if os.path.exists(base_path + '.c'):
-        c_file = base_path + '.c'
-    elif os.path.exists(base_path + '.cpp'):
-        c_file = base_path + '.cpp'
-    else:
-        c_file = None
-    return c_file
+    file_exists = os.path.exists
+    for ext in C_FILE_EXTENSIONS:
+        file_name = base_path + ext
+        if file_exists(file_name):
+            return file_name
+    return None
 
 
 def _find_dep_file_path(main_file, file_path):
@@ -107,7 +110,7 @@ class Plugin(CoveragePlugin):
     def _find_source_files(self, filename):
         basename, ext = os.path.splitext(filename)
         ext = ext.lower()
-        if ext in ('.py', '.pyx', '.pxd', '.c', '.cpp'):
+        if ext in MODULE_FILE_EXTENSIONS:
             pass
         elif ext == '.pyd':
             # Windows extension module
@@ -130,7 +133,7 @@ class Plugin(CoveragePlugin):
             # none of our business
             return None, None
 
-        c_file = filename if ext in ('.c', '.cpp') else _find_c_source(basename)
+        c_file = filename if ext in C_FILE_EXTENSIONS else _find_c_source(basename)
         if c_file is None:
             # a module "pkg/mod.so" can have a source file "pkg/pkg.mod.c"
             package_root = find_root_package_dir.uncached(filename)
@@ -164,7 +167,7 @@ class Plugin(CoveragePlugin):
         splitext = os.path.splitext
         for filename in os.listdir(dir_path):
             ext = splitext(filename)[1].lower()
-            if ext in ('.c', '.cpp'):
+            if ext in C_FILE_EXTENSIONS:
                 self._parse_lines(os.path.join(dir_path, filename), source_file)
                 if source_file in self._c_files_map:
                     return

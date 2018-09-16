@@ -60,6 +60,14 @@ class TestInline(CythonTest):
         """, a=3, **self.test_kwds)
         self.assertEquals(type(b), float)
 
+    def test_compiler_directives(self):
+        self.assertEqual(
+            inline('return sum(x)',
+                   x=[1, 2, 3],
+                   cython_compiler_directives={'boundscheck': False}),
+            6
+        )
+
     if has_numpy:
 
         def test_numpy(self):

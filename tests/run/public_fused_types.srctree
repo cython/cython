@@ -227,8 +227,7 @@ ae(myobj.cpdef_method[cy.int, cy.float](10, 10.0), (10, 10.0))
 
 d = {'obj': obj, 'myobj': myobj, 'ae': ae}
 
-# FIXME: uncomment after subclassing CyFunction
-#exec s in d
+exec s in d
 
 # Test def methods
 # ae(obj.def_method(12, 14.9), 26)

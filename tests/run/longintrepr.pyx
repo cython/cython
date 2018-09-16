@@ -48,15 +48,15 @@ def lshift(long a, unsigned long n):
 
     if high == 0:
         ret = _PyLong_New(index + 1)
-        (<PyLongObject*>ret).ob_digit[index] = low
+        ret.ob_digit[index] = low
     else:
         ret = _PyLong_New(index + 2)
-        (<PyLongObject*>ret).ob_digit[index] = low
-        (<PyLongObject*>ret).ob_digit[index + 1] = high
+        ret.ob_digit[index] = low
+        ret.ob_digit[index + 1] = high
 
     while index >= 1:
         index -= 1
-        (<PyLongObject*>ret).ob_digit[index] = 0
+        ret.ob_digit[index] = 0
 
     if a < 0:
         Py_SIZE_PTR(ret)[0] *= -1

@@ -1,7 +1,7 @@
 # cython.* namespace for pure mode.
 from __future__ import absolute_import
 
-__version__ = "0.28.5"
+__version__ = "0.29b1"
 
 try:
     from __builtin__ import basestring
@@ -108,13 +108,14 @@ class _Optimization(object):
 cclass = ccall = cfunc = _EmptyDecoratorAndManager()
 
 returns = wraparound = boundscheck = initializedcheck = nonecheck = \
-    overflowcheck = embedsignature = cdivision = cdivision_warnings = \
+    embedsignature = cdivision = cdivision_warnings = \
     always_allows_keywords = profile = linetrace = infer_types = \
     unraisable_tracebacks = freelist = \
         lambda _: _EmptyDecoratorAndManager()
 
 exceptval = lambda _=None, check=True: _EmptyDecoratorAndManager()
 
+overflowcheck = lambda _: _EmptyDecoratorAndManager()
 optimization = _Optimization()
 
 overflowcheck.fold = optimization.use_switch = \
@@ -185,8 +186,15 @@ def declare(type=None, value=_Unspecified, **kwds):
         return value
 
 class _nogil(object):
-    """Support for 'with nogil' statement
+    """Support for 'with nogil' statement and @nogil decorator.
     """
+    def __call__(self, x):
+        if callable(x):
+            # Used as function decorator => return the function unchanged.
+            return x
+        # Used as conditional context manager or to create an "@nogil(True/False)" decorator => keep going.
+        return self
+
     def __enter__(self):
         pass
     def __exit__(self, exc_class, exc, tb):
@@ -195,6 +203,7 @@ class _nogil(object):
 nogil = _nogil()
 gil = _nogil()
 del _nogil
+
 
 # Emulated types
 

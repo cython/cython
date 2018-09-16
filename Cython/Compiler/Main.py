@@ -67,9 +67,10 @@ class Context(object):
     #  language_level        int     currently 2 or 3 for Python 2/3
 
     cython_scope = None
+    language_level = None  # warn when not set but default to Py2
 
     def __init__(self, include_directories, compiler_directives, cpp=False,
-                 language_level=2, options=None, create_testscope=True):
+                 language_level=None, options=None):
         # cython_scope is a hack, set to False by subclasses, in order to break
         # an infinite loop.
         # Better code organization would fix it.
@@ -91,7 +92,8 @@ class Context(object):
             os.path.join(os.path.dirname(__file__), os.path.pardir, 'Includes')))
         self.include_directories = include_directories + [standard_include_path]
 
-        self.set_language_level(language_level)
+        if language_level is not None:
+            self.set_language_level(language_level)
 
         self.gdb_debug_outputwriter = None
 
@@ -469,6 +471,8 @@ def run_pipeline(source, options, full_module_name=None, context=None):
     abs_path = os.path.abspath(source)
     full_module_name = full_module_name or context.extract_module_name(source, options)
 
+    Utils.raise_error_if_module_name_forbidden(full_module_name)
+
     if options.relative_path_in_code_position_comments:
         rel_path = full_module_name.replace('.', os.sep) + source_ext
         if not abs_path.endswith(rel_path):
@@ -519,29 +523,11 @@ class CompilationSource(object):
 
 
 class CompilationOptions(object):
+    r"""
+    See default_options at the end of this module for a list of all possible
+    options and CmdLine.usage and CmdLine.parse_command_line() for their
+    meaning.
     """
-    Options to the Cython compiler:
-
-    show_version      boolean   Display version number
-    use_listing_file  boolean   Generate a .lis file
-    errors_to_stderr  boolean   Echo errors to stderr when using .lis
-    include_path      [string]  Directories to search for include files
-    output_file       string    Name of generated .c file
-    generate_pxi      boolean   Generate .pxi file for public declarations
-    capi_reexport_cincludes
-                      boolean   Add cincluded headers to any auto-generated
-                                header files.
-    timestamps        boolean   Only compile changed source files.
-    verbose           boolean   Always print source names being compiled
-    compiler_directives  dict   Overrides for pragma options (see Options.py)
-    embedded_metadata    dict   Metadata to embed in the C file as json.
-    evaluate_tree_assertions boolean  Test support: evaluate parse tree assertions
-    language_level    integer   The Python language level: 2 or 3
-    formal_grammar    boolean  Parse the file with the formal grammar
-
-    cplus             boolean   Compile as c++ code
-    """
-
     def __init__(self, defaults=None, **kw):
         self.include_path = []
         if defaults:
@@ -564,9 +550,10 @@ class CompilationOptions(object):
                 ', '.join(unknown_options))
             raise ValueError(message)
 
+        directive_defaults = Options.get_directive_defaults()
         directives = dict(options['compiler_directives'])  # copy mutable field
         # check for invalid directives
-        unknown_directives = set(directives) - set(Options.get_directive_defaults())
+        unknown_directives = set(directives) - set(directive_defaults)
         if unknown_directives:
             message = "got unknown compiler directive%s: %s" % (
                 's' if len(unknown_directives) > 1 else '',
@@ -578,11 +565,13 @@ class CompilationOptions(object):
             warnings.warn("C++ mode forced when in Pythran mode!")
             options['cplus'] = True
         if 'language_level' in directives and 'language_level' not in kw:
-            options['language_level'] = int(directives['language_level'])
+            options['language_level'] = directives['language_level']
+        elif not options.get('language_level'):
+            options['language_level'] = directive_defaults.get('language_level')
         if 'formal_grammar' in directives and 'formal_grammar' not in kw:
             options['formal_grammar'] = directives['formal_grammar']
         if options['cache'] is True:
-            options['cache'] = os.path.expanduser("~/.cycache")
+            options['cache'] = os.path.join(Utils.get_cython_cache_dir(), 'compiler')
 
         self.__dict__.update(options)
 
@@ -594,6 +583,83 @@ class CompilationOptions(object):
     def create_context(self):
         return Context(self.include_path, self.compiler_directives,
                        self.cplus, self.language_level, options=self)
+
+    def get_fingerprint(self):
+        r"""
+        Return a string that contains all the options that are relevant for cache invalidation.
+        """
+        # Collect only the data that can affect the generated file(s).
+        data = {}
+
+        for key, value in self.__dict__.items():
+            if key in ['show_version', 'errors_to_stderr', 'verbose', 'quiet']:
+                # verbosity flags have no influence on the compilation result
+                continue
+            elif key in ['output_file', 'output_dir']:
+                # ignore the exact name of the output file
+                continue
+            elif key in ['timestamps']:
+                # the cache cares about the content of files, not about the timestamps of sources
+                continue
+            elif key in ['cache']:
+                # hopefully caching has no influence on the compilation result
+                continue
+            elif key in ['compiler_directives']:
+                # directives passed on to the C compiler do not influence the generated C code
+                continue
+            elif key in ['include_path']:
+                # this path changes which headers are tracked as dependencies,
+                # it has no influence on the generated C code
+                continue
+            elif key in ['working_path']:
+                # this path changes where modules and pxd files are found;
+                # their content is part of the fingerprint anyway, their
+                # absolute path does not matter
+                continue
+            elif key in ['create_extension']:
+                # create_extension() has already mangled the options, e.g.,
+                # embedded_metadata, when the fingerprint is computed so we
+                # ignore it here.
+                continue
+            elif key in ['build_dir']:
+                # the (temporary) directory where we collect dependencies
+                # has no influence on the C output
+                continue
+            elif key in ['use_listing_file', 'generate_pxi', 'annotate', 'annotate_coverage_xml']:
+                # all output files are contained in the cache so the types of
+                # files generated must be part of the fingerprint
+                data[key] = value
+            elif key in ['formal_grammar', 'evaluate_tree_assertions']:
+                # these bits can change whether compilation to C passes/fails
+                data[key] = value
+            elif key in ['embedded_metadata', 'emit_linenums', 'c_line_in_traceback', 'gdb_debug', 'relative_path_in_code_position_comments']:
+                # the generated code contains additional bits when these are set
+                data[key] = value
+            elif key in ['cplus', 'language_level', 'compile_time_env', 'np_pythran']:
+                # assorted bits that, e.g., influence the parser
+                data[key] = value
+            elif key == ['capi_reexport_cincludes']:
+                if self.capi_reexport_cincludes:
+                    # our caching implementation does not yet include fingerprints of all the header files
+                    raise NotImplementedError('capi_reexport_cincludes is not compatible with Cython caching')
+            elif key == ['common_utility_include_dir']:
+                if self.common_utility_include_dir:
+                    raise NotImplementedError('common_utility_include_dir is not compatible with Cython caching yet')
+            else:
+                # any unexpected option should go into the fingerprint; it's better
+                # to recompile than to return incorrect results from the cache.
+                data[key] = value
+
+        def to_fingerprint(item):
+            r"""
+            Recursively turn item into a string, turning dicts into lists with
+            deterministic ordering.
+            """
+            if isinstance(item, dict):
+                item = sorted([(repr(key), to_fingerprint(value)) for key, value in item.items()])
+            return repr(item)
+
+        return to_fingerprint(data)
 
 
 class CompilationResult(object):
@@ -763,7 +829,7 @@ default_options = dict(
     emit_linenums = False,
     relative_path_in_code_position_comments = True,
     c_line_in_traceback = True,
-    language_level = 2,
+    language_level = None,  # warn but default to 2
     formal_grammar = False,
     gdb_debug = False,
     compile_time_env = None,

@@ -1,4 +1,5 @@
 # cython: language_level = 2
+# cython: auto_pickle=False
 #
 #   Code output module
 #
@@ -52,6 +53,16 @@ non_portable_builtins_map = {
     'basestring'    : ('PY_MAJOR_VERSION >= 3', 'str'),
     'xrange'        : ('PY_MAJOR_VERSION >= 3', 'range'),
     'raw_input'     : ('PY_MAJOR_VERSION >= 3', 'input'),
+}
+
+ctypedef_builtins_map = {
+    # types of builtins in "ctypedef class" statements which we don't
+    # import either because the names conflict with C types or because
+    # the type simply is not exposed.
+    'py_int'             : '&PyInt_Type',
+    'py_long'            : '&PyLong_Type',
+    'py_float'           : '&PyFloat_Type',
+    'wrapper_descriptor' : '&PyWrapperDescr_Type',
 }
 
 basicsize_builtins_map = {
@@ -108,8 +119,6 @@ special_py_methods = set([
 modifier_output_mapper = {
     'inline': 'CYTHON_INLINE'
 }.get
-
-is_self_assignment = re.compile(r" *(\w+) = (\1);\s*$").match
 
 
 class IncludeCode(object):
@@ -429,6 +438,10 @@ class UtilityCodeBase(object):
 
     def get_tree(self, **kwargs):
         pass
+
+    def __deepcopy__(self, memodict=None):
+        # No need to deep-copy utility code since it's essentially immutable.
+        return self
 
 
 class UtilityCode(UtilityCodeBase):
@@ -1139,19 +1152,19 @@ class GlobalState(object):
         else:
             w = self.parts['cached_builtins']
             w.enter_cfunc_scope()
-            w.putln("static int __Pyx_InitCachedBuiltins(void) {")
+            w.putln("static CYTHON_SMALL_CODE int __Pyx_InitCachedBuiltins(void) {")
 
         w = self.parts['cached_constants']
         w.enter_cfunc_scope()
         w.putln("")
-        w.putln("static int __Pyx_InitCachedConstants(void) {")
+        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {")
         w.put_declare_refcount_context()
         w.put_setup_refcount_context("__Pyx_InitCachedConstants")
 
         w = self.parts['init_globals']
         w.enter_cfunc_scope()
         w.putln("")
-        w.putln("static int __Pyx_InitGlobals(void) {")
+        w.putln("static CYTHON_SMALL_CODE int __Pyx_InitGlobals(void) {")
 
         if not Options.generate_cleanup_code:
             del self.parts['cleanup_globals']
@@ -1159,7 +1172,7 @@ class GlobalState(object):
             w = self.parts['cleanup_globals']
             w.enter_cfunc_scope()
             w.putln("")
-            w.putln("static void __Pyx_CleanupGlobals(void) {")
+            w.putln("static CYTHON_SMALL_CODE void __Pyx_CleanupGlobals(void) {")
 
         code = self.parts['utility_code_proto']
         code.putln("")
@@ -1609,7 +1622,8 @@ class GlobalState(object):
             self.use_utility_code(entry.utility_code_definition)
 
 
-def funccontext_property(name):
+def funccontext_property(func):
+    name = func.__name__
     attribute_of = operator.attrgetter(name)
     def get(self):
         return attribute_of(self.funcstate)
@@ -1660,8 +1674,7 @@ class CCodeWriter(object):
     #                                     about the current class one is in
     # code_config         CCodeConfig     configuration options for the C code writer
 
-    globalstate = code_config = None
-
+    @cython.locals(create_from='CCodeWriter')
     def __init__(self, create_from=None, buffer=None, copy_formatting=False):
         if buffer is None: buffer = StringIOTree()
         self.buffer = buffer
@@ -1670,6 +1683,8 @@ class CCodeWriter(object):
         self.pyclass_stack = []
 
         self.funcstate = None
+        self.globalstate = None
+        self.code_config = None
         self.level = 0
         self.call_level = 0
         self.bol = 1
@@ -1732,14 +1747,22 @@ class CCodeWriter(object):
         self.buffer.insert(writer.buffer)
 
     # Properties delegated to function scope
-    label_counter = funccontext_property("label_counter")
-    return_label = funccontext_property("return_label")
-    error_label = funccontext_property("error_label")
-    labels_used = funccontext_property("labels_used")
-    continue_label = funccontext_property("continue_label")
-    break_label = funccontext_property("break_label")
-    return_from_error_cleanup_label = funccontext_property("return_from_error_cleanup_label")
-    yield_labels = funccontext_property("yield_labels")
+    @funccontext_property
+    def label_counter(self): pass
+    @funccontext_property
+    def return_label(self): pass
+    @funccontext_property
+    def error_label(self): pass
+    @funccontext_property
+    def labels_used(self): pass
+    @funccontext_property
+    def continue_label(self): pass
+    @funccontext_property
+    def break_label(self): pass
+    @funccontext_property
+    def return_from_error_cleanup_label(self): pass
+    @funccontext_property
+    def yield_labels(self): pass
 
     # Functions delegated to function scope
     def new_label(self, name=None):    return self.funcstate.new_label(name)
@@ -1860,8 +1883,6 @@ class CCodeWriter(object):
         self.put(code)
 
     def put(self, code):
-        if is_self_assignment(code):
-            return
         fix_indent = False
         if "{" in code:
             dl = code.count("{")
@@ -2158,7 +2179,7 @@ class CCodeWriter(object):
         if entry.in_closure:
             self.put_giveref('Py_None')
 
-    def put_pymethoddef(self, entry, term, allow_skip=True):
+    def put_pymethoddef(self, entry, term, allow_skip=True, wrapper_code_writer=None):
         if entry.is_special or entry.name == '__getattribute__':
             if entry.name not in special_py_methods:
                 if entry.name == '__getattr__' and not self.globalstate.directives['fast_getattr']:
@@ -2168,22 +2189,38 @@ class CCodeWriter(object):
                 # that's better than ours.
                 elif allow_skip:
                     return
-        from .TypeSlots import method_coexist
-        if entry.doc:
-            doc_code = entry.doc_cname
-        else:
-            doc_code = 0
+
         method_flags = entry.signature.method_flags()
-        if method_flags:
-            if entry.is_special:
-                method_flags += [method_coexist]
-            self.putln(
-                '{"%s", (PyCFunction)%s, %s, %s}%s' % (
-                    entry.name,
-                    entry.func_cname,
-                    "|".join(method_flags),
-                    doc_code,
-                    term))
+        if not method_flags:
+            return
+        if entry.is_special:
+            from . import TypeSlots
+            method_flags += [TypeSlots.method_coexist]
+        func_ptr = wrapper_code_writer.put_pymethoddef_wrapper(entry) if wrapper_code_writer else entry.func_cname
+        # Add required casts, but try not to shadow real warnings.
+        cast = '__Pyx_PyCFunctionFast' if 'METH_FASTCALL' in method_flags else 'PyCFunction'
+        if 'METH_KEYWORDS' in method_flags:
+            cast += 'WithKeywords'
+        if cast != 'PyCFunction':
+            func_ptr = '(void*)(%s)%s' % (cast, func_ptr)
+        self.putln(
+            '{"%s", (PyCFunction)%s, %s, %s}%s' % (
+                entry.name,
+                func_ptr,
+                "|".join(method_flags),
+                entry.doc_cname if entry.doc else '0',
+                term))
+
+    def put_pymethoddef_wrapper(self, entry):
+        func_cname = entry.func_cname
+        if entry.is_special:
+            method_flags = entry.signature.method_flags()
+            if method_flags and 'METH_NOARGS' in method_flags:
+                # Special NOARGS methods really take no arguments besides 'self', but PyCFunction expects one.
+                func_cname = Naming.method_wrapper_prefix + func_cname
+                self.putln("static PyObject *%s(PyObject *self, CYTHON_UNUSED PyObject *arg) {return %s(self);}" % (
+                    func_cname, entry.func_cname))
+        return func_cname
 
     # GIL methods
 
@@ -2260,7 +2297,8 @@ class CCodeWriter(object):
     # error handling
 
     def put_error_if_neg(self, pos, value):
-#        return self.putln("if (unlikely(%s < 0)) %s" % (value, self.error_goto(pos)))  # TODO this path is almost _never_ taken, yet this macro makes is slower!
+        # TODO this path is almost _never_ taken, yet this macro makes is slower!
+        # return self.putln("if (unlikely(%s < 0)) %s" % (value, self.error_goto(pos)))
         return self.putln("if (%s < 0) %s" % (value, self.error_goto(pos)))
 
     def put_error_if_unbound(self, pos, entry, in_nogil_context=False):
