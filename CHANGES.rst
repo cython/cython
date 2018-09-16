@@ -18,7 +18,7 @@ Features added
   module that can be used for typing in Python code.
   Original patch by Julian Gethmann. (Github issue #1965)
 
-* Memoryviews are supported in PEP-489 style type declarations.
+* Memoryviews are supported in PEP-484/526 style type declarations.
   (Github issue #2529)
 
 * Raising exceptions from nogil code will automatically acquire the GIL, instead
