@@ -156,8 +156,9 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
         extensions[-1].sources[0] = pyx_source_file
 
     from Cython.Distutils.build_ext import new_build_ext
+    from Cython.Compiler.Options import get_directive_defaults
+    get_directive_defaults()['language_level'] = 2
     if profile:
-        from Cython.Compiler.Options import get_directive_defaults
         get_directive_defaults()['profile'] = True
         sys.stderr.write("Enabled profiling for the Cython binary modules\n")
 

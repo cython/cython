@@ -3662,6 +3662,17 @@ def p_module(s, pxd, full_module_name, ctx=Ctx):
     directive_comments = p_compiler_directive_comments(s)
     s.parse_comments = False
 
+    if s.context.language_level is None:
+        s.context.set_language_level(2)
+        if pos[0].filename:
+            import warnings
+            warnings.warn(
+                "Cython directive 'language_level' not set, using 2 for now (Py2). "
+                "This will change in a later release! File: %s" % pos[0].filename,
+                FutureWarning,
+                stacklevel=1 if cython.compiled else 2,
+            )
+
     doc = p_doc_string(s)
     if pxd:
         level = 'module_pxd'

@@ -2295,8 +2295,8 @@ def runtests(options, cmd_args, coverage=None):
         sys.stderr.write("Disabling forked testing to support XML test output\n")
         options.fork = False
 
-    if WITH_CYTHON and options.language_level == 3:
-        sys.stderr.write("Using Cython language level 3.\n")
+    if WITH_CYTHON:
+        sys.stderr.write("Using Cython language level %d.\n" % options.language_level)
 
     test_bugs = False
     if options.tickets:

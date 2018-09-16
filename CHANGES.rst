@@ -26,6 +26,9 @@ Features added
 * ``@cython.nogil`` is supported as a C-function decorator in Python code.
   (Github issue #2557)
 
+* ``cython.inline()`` supports a direct ``language_level`` keyword argument that
+  was previously only available via a directive.
+
 * In CPython 3.6 and later, looking up globals in the module dict is almost
   as fast as looking up C globals.
   (Github issue #2313)
@@ -113,6 +116,14 @@ Bugs fixed
 
 Other changes
 -------------
+
+* Cython now emits a warning when no ``language_level`` (2 or 3) is set explicitly,
+  neither as a ``cythonize()`` option nor as a compiler directive.  This is meant
+  to prepare the transition of the default language level from currently Py2
+  to Py3, since that is what most new users will expect these days.  The next
+  major release is intended to make that change, so that it will parse all code
+  that does not request a specific language level as Python 3 code. The language
+  level 2 will continue to be supported for an indefinite time.
 
 * The documentation was restructured, cleaned up and examples are now tested.
   The NumPy tutorial was also rewritten to simplify the running example.

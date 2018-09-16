@@ -67,9 +67,10 @@ class Context(object):
     #  language_level        int     currently 2 or 3 for Python 2/3
 
     cython_scope = None
+    language_level = None  # warn when not set but default to Py2
 
     def __init__(self, include_directories, compiler_directives, cpp=False,
-                 language_level=2, options=None):
+                 language_level=None, options=None):
         # cython_scope is a hack, set to False by subclasses, in order to break
         # an infinite loop.
         # Better code organization would fix it.
@@ -91,7 +92,8 @@ class Context(object):
             os.path.join(os.path.dirname(__file__), os.path.pardir, 'Includes')))
         self.include_directories = include_directories + [standard_include_path]
 
-        self.set_language_level(language_level)
+        if language_level is not None:
+            self.set_language_level(language_level)
 
         self.gdb_debug_outputwriter = None
 
@@ -548,9 +550,10 @@ class CompilationOptions(object):
                 ', '.join(unknown_options))
             raise ValueError(message)
 
+        directive_defaults = Options.get_directive_defaults()
         directives = dict(options['compiler_directives'])  # copy mutable field
         # check for invalid directives
-        unknown_directives = set(directives) - set(Options.get_directive_defaults())
+        unknown_directives = set(directives) - set(directive_defaults)
         if unknown_directives:
             message = "got unknown compiler directive%s: %s" % (
                 's' if len(unknown_directives) > 1 else '',
@@ -562,7 +565,9 @@ class CompilationOptions(object):
             warnings.warn("C++ mode forced when in Pythran mode!")
             options['cplus'] = True
         if 'language_level' in directives and 'language_level' not in kw:
-            options['language_level'] = int(directives['language_level'])
+            options['language_level'] = directives['language_level']
+        elif not options.get('language_level'):
+            options['language_level'] = directive_defaults.get('language_level')
         if 'formal_grammar' in directives and 'formal_grammar' not in kw:
             options['formal_grammar'] = directives['formal_grammar']
         if options['cache'] is True:
@@ -824,7 +829,7 @@ default_options = dict(
     emit_linenums = False,
     relative_path_in_code_position_comments = True,
     c_line_in_traceback = True,
-    language_level = 2,
+    language_level = None,  # warn but default to 2
     formal_grammar = False,
     gdb_debug = False,
     compile_time_env = None,

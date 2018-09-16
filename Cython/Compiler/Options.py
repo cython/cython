@@ -197,7 +197,7 @@ _directive_defaults = {
     'autotestdict': True,
     'autotestdict.cdef': False,
     'autotestdict.all': False,
-    'language_level': 2,
+    'language_level': None,
     'fast_getattr': False,  # Undocumented until we come up with a better way to handle this everywhere.
     'py2_import': False,  # For backward compatibility of Cython's source code in Py3 source mode
     'preliminary_late_includes_cy28': False,  # Temporary directive in 0.28, to be removed in a later version (see GH#2079).
@@ -299,6 +299,7 @@ def normalise_encoding_name(option_name, encoding):
 
 # Override types possibilities above, if needed
 directive_types = {
+    'language_level': int,  # values can be None/2/3, where None == 2+warning
     'auto_pickle': bool,
     'final' : bool,  # final cdef classes and methods
     'internal' : bool,  # cdef class visibility in the module dict

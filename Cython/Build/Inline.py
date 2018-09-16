@@ -139,7 +139,7 @@ def _populate_unbound(kwds, unbound_symbols, locals=None, globals=None):
 def cython_inline(code, get_type=unsafe_type,
                   lib_dir=os.path.join(get_cython_cache_dir(), 'inline'),
                   cython_include_dirs=None, cython_compiler_directives=None,
-                  force=False, quiet=False, locals=None, globals=None, **kwds):
+                  force=False, quiet=False, locals=None, globals=None, language_level=None, **kwds):
 
     if get_type is None:
         get_type = lambda x: 'object'
@@ -171,6 +171,11 @@ def cython_inline(code, get_type=unsafe_type,
         if not quiet:
             # Parsing from strings not fully supported (e.g. cimports).
             print("Could not parse code as a string (to extract unbound symbols).")
+
+    cython_compiler_directives = dict(cython_compiler_directives or {})
+    if language_level is not None:
+        cython_compiler_directives['language_level'] = language_level
+
     cimports = []
     for name, arg in list(kwds.items()):
         if arg is cython_module:
@@ -178,7 +183,7 @@ def cython_inline(code, get_type=unsafe_type,
             del kwds[name]
     arg_names = sorted(kwds)
     arg_sigs = tuple([(get_type(kwds[arg], ctx), arg) for arg in arg_names])
-    key = orig_code, arg_sigs, sys.version_info, sys.executable, Cython.__version__
+    key = orig_code, arg_sigs, sys.version_info, sys.executable, language_level, Cython.__version__
     module_name = "_cython_inline_" + hashlib.md5(_unicode(key).encode('utf-8')).hexdigest()
 
     if module_name in sys.modules:
@@ -238,7 +243,7 @@ def __invoke(%(params)s):
             build_extension.extensions = cythonize(
                 [extension],
                 include_path=cython_include_dirs or ['.'],
-                compiler_directives=cython_compiler_directives or {},
+                compiler_directives=cython_compiler_directives,
                 quiet=quiet)
             build_extension.build_temp = os.path.dirname(pyx_file)
             build_extension.build_lib  = lib_dir
