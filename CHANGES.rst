@@ -26,6 +26,9 @@ Features added
 * ``@cython.nogil`` is supported as a C-function decorator in Python code.
   (Github issue #2557)
 
+* ``cython.inline()`` supports a direct ``language_level`` keyword argument that
+  was previously only available via a directive.
+
 * In CPython 3.6 and later, looking up globals in the module dict is almost
   as fast as looking up C globals.
   (Github issue #2313)
