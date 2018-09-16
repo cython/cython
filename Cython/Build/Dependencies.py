@@ -113,18 +113,14 @@ def nonempty(it, error_msg="expected non-empty iterator"):
 
 @cached_function
 def file_hash(filename):
-    path = os.path.normpath(filename.encode("UTF-8"))
-    prefix = (str(len(path)) + ":").encode("UTF-8")
+    path = os.path.normpath(filename)
+    prefix = ('%d:%s' % (len(path), path)).encode("UTF-8")
     m = hashlib.md5(prefix)
-    m.update(path)
-    f = open(filename, 'rb')
-    try:
+    with open(path, 'rb') as f:
         data = f.read(65000)
         while data:
             m.update(data)
             data = f.read(65000)
-    finally:
-        f.close()
     return m.hexdigest()
 
 
