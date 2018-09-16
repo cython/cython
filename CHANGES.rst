@@ -9,7 +9,8 @@ Features added
 --------------
 
 * PEP-489 multi-phase module initialisation has been enabled again.  Module
-  reloads raise an exception to prevent corruption of the static module state.
+  reloads in other subinterpreters raise an exception to prevent corruption
+  of the static module state.
 
 * A set of ``mypy`` compatible PEP-484 declarations were added for Cython's C data
   types to integrate with static analysers in typed Python code.  They are available
