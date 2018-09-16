@@ -117,6 +117,14 @@ Bugs fixed
 Other changes
 -------------
 
+* Cython now emits a warning when no ``language_level`` (2 or 3) is set explicitly,
+  neither as a ``cythonize()`` option nor as a compiler directive.  This is meant
+  to prepare the transition of the default language level from currently Py2
+  to Py3, since that is what most new users will expect these days.  The next
+  major release is intended to make that change, so that it will parse all code
+  that does not request a specific language level as Python 3 code. The language
+  level 2 will continue to be supported for an indefinite time.
+
 * The documentation was restructured, cleaned up and examples are now tested.
   The NumPy tutorial was also rewritten to simplify the running example.
   Contributed by Gabriel de Marmiesse.  (Github issue #2245)
