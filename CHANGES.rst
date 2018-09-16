@@ -61,6 +61,9 @@ Features added
 * Declarations for the ``pylifecycle`` C-API functions were added in a new .pxd file
   ``cpython.pylifecycle``.
 
+* The Pythran support was updated to work with the latest Pythran 0.8.7.
+  Original patch by Adrien Guinet.  (Github issue #2600)
+
 * ``%a`` is included in the string formatting types that are optimised into f-strings.
   In this case, it is also automatically mapped to ``%r`` in Python 2.x.
 
