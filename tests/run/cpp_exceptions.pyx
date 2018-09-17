@@ -21,7 +21,7 @@ cdef extern from "cpp_exceptions_helper.h":
     cdef void raise_typeerror() except +
     cdef void raise_underflow() except +
 
-    cdef object raise_py(bint fire_py) except +
+    cdef raise_or_throw(bint py) except +
 
     cdef cppclass Foo:
         int bar_raw "bar"(bint fire) except +
@@ -99,6 +99,19 @@ def test_underflow():
     ArithmeticError: underflow_error
     """
     raise_underflow()
+
+def test_func_that_can_raise_or_throw(bint py):
+    """
+    >>> test_func_that_can_raise_or_throw(0)
+    Traceback (most recent call last):
+    ...
+    RuntimeError: oopsie
+    >>> test_func_that_can_raise_or_throw(1)
+    Traceback (most recent call last):
+    ...
+    ValueError: oopsie
+    """
+    raise_or_throw(py)
 
 def test_int_raw(bint fire):
     """
@@ -201,17 +214,3 @@ def test_cppclass_method_custom(bint fire):
         foo.bar_custom(fire)
     finally:
         del foo
-
-def test_py(bint py_fire):
-    """
-    >>> test_py(True)
-    Traceback (most recent call last):
-    ...
-    RuntimeError: py error
-
-    >>> test_py(False)
-    Traceback (most recent call last):
-    ...
-    IndexError: c++ error
-    """
-    raise_py(py_fire)
