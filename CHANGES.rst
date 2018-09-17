@@ -123,6 +123,10 @@ Bugs fixed
   module state. It now raises an exception instead, given that reloading is
   not actually supported.
 
+* Object-returning, C++ exception throwing functions were not checking that
+  the return value was non-null.
+  Original patch by Matt Wozniski (Github Issue #2603)
+
 Other changes
 -------------
 
