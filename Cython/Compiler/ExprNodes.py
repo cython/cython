@@ -5838,7 +5838,7 @@ class SimpleCallNode(CallNode):
             elif self.type.is_memoryviewslice:
                 assert self.is_temp
                 exc_checks.append(self.type.error_condition(self.result()))
-            else:
+            elif func_type.exception_check != '+':
                 exc_val = func_type.exception_value
                 exc_check = func_type.exception_check
                 if exc_val is not None:
@@ -5859,20 +5859,22 @@ class SimpleCallNode(CallNode):
                         rhs = typecast(py_object_type, self.type, rhs)
                 else:
                     lhs = ""
+                if (self.overflowcheck
+                    and self.type.is_int
+                    and self.type.signed
+                    and self.function.result() in ('abs', 'labs', '__Pyx_abs_longlong')):
+                    goto_error = 'if (unlikely(%s < 0)) { PyErr_SetString(PyExc_OverflowError, "value too large"); %s; }' % (
+                        self.result(), code.error_goto(self.pos))
+                elif exc_checks:
+                    goto_error = code.error_goto_if(" && ".join(exc_checks), self.pos)
+                else:
+                    goto_error = ""
                 if func_type.exception_check == '+':
                     translate_cpp_exception(code, self.pos, '%s%s;' % (lhs, rhs),
                                             func_type.exception_value, self.nogil)
+                    if goto_error:
+                        code.putln(goto_error)
                 else:
-                    if (self.overflowcheck
-                        and self.type.is_int
-                        and self.type.signed
-                        and self.function.result() in ('abs', 'labs', '__Pyx_abs_longlong')):
-                        goto_error = 'if (unlikely(%s < 0)) { PyErr_SetString(PyExc_OverflowError, "value too large"); %s; }' % (
-                            self.result(), code.error_goto(self.pos))
-                    elif exc_checks:
-                        goto_error = code.error_goto_if(" && ".join(exc_checks), self.pos)
-                    else:
-                        goto_error = ""
                     code.putln("%s%s; %s" % (lhs, rhs, goto_error))
                 if self.type.is_pyobject and self.result():
                     code.put_gotref(self.py_result())
