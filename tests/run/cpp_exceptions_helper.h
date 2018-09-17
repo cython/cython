@@ -61,3 +61,12 @@ void raise_typeerror() {
 void raise_underflow() {
     throw std::underflow_error("underflow_error");
 }
+
+PyObject* raise_py(int fire_py) {
+  if (fire_py) {
+    PyErr_SetString(PyExc_RuntimeError, "py error");
+    return NULL;
+  } else {
+    throw std::out_of_range("c++ error");
+  }
+}

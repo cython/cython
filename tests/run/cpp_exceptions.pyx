@@ -21,6 +21,8 @@ cdef extern from "cpp_exceptions_helper.h":
     cdef void raise_typeerror() except +
     cdef void raise_underflow() except +
 
+    cdef object raise_py(bint fire_py) except +
+
     cdef cppclass Foo:
         int bar_raw "bar"(bint fire) except +
         int bar_value "bar"(bint fire) except +ValueError
@@ -199,3 +201,17 @@ def test_cppclass_method_custom(bint fire):
         foo.bar_custom(fire)
     finally:
         del foo
+
+def test_py(bint py_fire):
+    """
+    >>> test_py(True)
+    Traceback (most recent call last):
+    ...
+    RuntimeError: py error
+
+    >>> test_py(False)
+    Traceback (most recent call last):
+    ...
+    IndexError: c++ error
+    """
+    raise_py(py_fire)
