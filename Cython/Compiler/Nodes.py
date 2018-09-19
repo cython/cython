@@ -207,6 +207,9 @@ class Node(object):
     # can either contain a single node or a list of nodes. See Visitor.py.
     child_attrs = None
 
+    # Subset of attributes that are evaluated in the outer scope (e.g. function default arguments).
+    outer_attrs = None
+
     cf_state = None
 
     # This may be an additional (or 'actual') type that will be checked when
@@ -222,6 +225,7 @@ class Node(object):
     gil_message = "Operation"
 
     nogil_check = None
+    in_nogil_context = False  # For use only during code generation.
 
     def gil_error(self, env=None):
         error(self.pos, "%s not allowed without gil" % self.gil_message)
@@ -848,6 +852,7 @@ class CArgDeclNode(Node):
     # is_dynamic     boolean            Non-literal arg stored inside CyFunction
 
     child_attrs = ["base_type", "declarator", "default", "annotation"]
+    outer_attrs = ["default", "annotation"]
 
     is_self_arg = 0
     is_type_arg = 0
@@ -1680,10 +1685,6 @@ class FuncDefNode(StatNode, BlockNode):
             return None
         if not env.directives['annotation_typing'] or annotation.analyse_as_type(env) is None:
             annotation = annotation.analyse_types(env)
-        elif isinstance(self, CFuncDefNode):
-            # Discard invisible type annotations from cdef functions after applying them,
-            # as they might get in the way of @nogil declarations etc.
-            return None
         return annotation
 
     def analyse_annotations(self, env):
@@ -2741,6 +2742,7 @@ class DefNode(FuncDefNode):
     # decorator_indirection IndirectionNode Used to remove __Pyx_Method_ClassMethod for fused functions
 
     child_attrs = ["args", "star_arg", "starstar_arg", "body", "decorators", "return_type_annotation"]
+    outer_attrs = ["decorators", "return_type_annotation"]
 
     is_staticmethod = False
     is_classmethod = False
