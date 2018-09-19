@@ -1680,6 +1680,10 @@ class FuncDefNode(StatNode, BlockNode):
             return None
         if not env.directives['annotation_typing'] or annotation.analyse_as_type(env) is None:
             annotation = annotation.analyse_types(env)
+        elif isinstance(self, CFuncDefNode):
+            # Discard invisible type annotations from cdef functions after applying them,
+            # as they might get in the way of @nogil declarations etc.
+            return None
         return annotation
 
     def analyse_annotations(self, env):
