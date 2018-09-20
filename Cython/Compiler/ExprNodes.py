@@ -189,20 +189,31 @@ def infer_sequence_item_type(env, seq_node, index_node=None, seq_type=None):
 
 def get_exception_handler(exception_value):
     if exception_value is None:
-        return "__Pyx_CppExn2PyErr();"
+        return "__Pyx_CppExn2PyErr();", False
+    elif (exception_value.type == PyrexTypes.c_char_type
+          and exception_value.value == '*'):
+        return "__Pyx_CppExn2PyErr();", True
     elif exception_value.type.is_pyobject:
         return 'try { throw; } catch(const std::exception& exn) { PyErr_SetString(%s, exn.what()); } catch(...) { PyErr_SetNone(%s); }' % (
             exception_value.entry.cname,
-            exception_value.entry.cname)
+            exception_value.entry.cname), False
     else:
-        return '%s(); if (!PyErr_Occurred()) PyErr_SetString(PyExc_RuntimeError , "Error converting c++ exception.");' % exception_value.entry.cname
+        return '%s(); if (!PyErr_Occurred()) PyErr_SetString(PyExc_RuntimeError , "Error converting c++ exception.");' % exception_value.entry.cname, False
+
+def maybe_check_py_error(code, check_py_exception, pos, nogil):
+  if check_py_exception:
+    if nogil:
+      code.putln(code.error_goto_if("__Pyx_ErrOccurredWithGIL()", pos))
+    else:
+      code.putln(code.error_goto_if("PyErr_Occurred()", pos))
 
 def translate_cpp_exception(code, pos, inside, py_result, exception_value, nogil):
-    raise_py_exception = get_exception_handler(exception_value)
+    raise_py_exception, check_py_exception = get_exception_handler(exception_value)
     code.putln("try {")
     code.putln("%s" % inside)
     if py_result:
       code.putln(code.error_goto_if_null(py_result, pos))
+    maybe_check_py_error(code, check_py_exception, pos, nogil)
     code.putln("} catch(...) {")
     if nogil:
         code.put_ensure_gil(declare_gilstate=True)
@@ -216,12 +227,14 @@ def translate_cpp_exception(code, pos, inside, py_result, exception_value, nogil
 # both have an exception declaration.
 def translate_double_cpp_exception(code, pos, lhs_type, lhs_code, rhs_code,
     lhs_exc_val, assign_exc_val, nogil):
-    handle_lhs_exc = get_exception_handler(lhs_exc_val)
-    handle_assignment_exc = get_exception_handler(assign_exc_val)
+    handle_lhs_exc, lhc_check_py_exc = get_exception_handler(lhs_exc_val)
+    handle_assignment_exc, assignment_check_py_exc = get_exception_handler(assign_exc_val)
     code.putln("try {")
     code.putln(lhs_type.declaration_code("__pyx_local_lvalue = %s;" % lhs_code))
+    maybe_check_py_error(code, lhc_check_py_exc, pos, nogil)
     code.putln("try {")
     code.putln("__pyx_local_lvalue = %s;" % rhs_code)
+    maybe_check_py_error(code, assignment_check_py_exc, pos, nogil)
     # Catch any exception from the overloaded assignment.
     code.putln("} catch(...) {")
     if nogil:
