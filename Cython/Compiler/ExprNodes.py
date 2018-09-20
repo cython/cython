@@ -187,6 +187,8 @@ def infer_sequence_item_type(env, seq_node, index_node=None, seq_type=None):
             return item_types.pop()
     return None
 
+# Returns a block of code to translate the exception,
+# plus a boolean indicating whether to check for Python exceptions.
 def get_exception_handler(exception_value):
     if exception_value is None:
         return "__Pyx_CppExn2PyErr();", False
@@ -201,11 +203,11 @@ def get_exception_handler(exception_value):
         return '%s(); if (!PyErr_Occurred()) PyErr_SetString(PyExc_RuntimeError , "Error converting c++ exception.");' % exception_value.entry.cname, False
 
 def maybe_check_py_error(code, check_py_exception, pos, nogil):
-  if check_py_exception:
-    if nogil:
-      code.putln(code.error_goto_if("__Pyx_ErrOccurredWithGIL()", pos))
-    else:
-      code.putln(code.error_goto_if("PyErr_Occurred()", pos))
+    if check_py_exception:
+        if nogil:
+            code.putln(code.error_goto_if("__Pyx_ErrOccurredWithGIL()", pos))
+        else:
+            code.putln(code.error_goto_if("PyErr_Occurred()", pos))
 
 def translate_cpp_exception(code, pos, inside, py_result, exception_value, nogil):
     raise_py_exception, check_py_exception = get_exception_handler(exception_value)
