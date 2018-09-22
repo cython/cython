@@ -2677,7 +2677,7 @@ class CreateClosureClasses(CythonTransform):
         if node.is_generator:
             for scope in node.local_scope.iter_local_scopes():
                 for entry in scope.entries.values():
-                    if not entry.from_closure:
+                    if not (entry.from_closure or entry.is_pyglobal or entry.is_cglobal):
                         entry.in_closure = True
 
         from_closure, in_closure = self.find_entries_used_in_closures(node)
