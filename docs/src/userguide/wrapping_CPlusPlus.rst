@@ -111,7 +111,12 @@ of the :func:`cythonize` function.
 Declare a var with the wrapped C++ class
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Now, we use cdef to declare a var of the class with the C++ ``new`` statement:
+We'll create a ``.pyx`` file named ``rect.pyx`` to build our wrapper. We're
+using a name other than ``Rectangle``, but if you prefer giving the same name
+to the wrapper as the C++ class, see the section on 
+:ref:`resolving naming conflicts <resolve-conflicts>`.
+
+Within, we use cdef to declare a var of the class with the C++ ``new`` statement:
 
 .. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/cython_usage.pyx
 
@@ -163,9 +168,6 @@ which are guaranteed to be called exactly once upon creation and deletion of the
 instance.
 
 .. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/rect_ptr.pyx
-
-If you prefer giving the same name to the wrapper as the C++ class, see the
-section on :ref:`resolving naming conflicts <resolve-conflicts>`.
 
 Compilation and Importing
 =========================
