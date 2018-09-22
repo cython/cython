@@ -71,6 +71,8 @@ Features added
 * New C macro ``CYTHON_HEX_VERSION`` to access Cython's version in the same style as
   ``PY_HEX_VERSION``.
 
+* Constants in ``libc.math`` are now declared as ``const`` to simplify their handling.
+
 Bugs fixed
 ----------
 
@@ -102,6 +104,13 @@ Bugs fixed
 * Fix declarations of builtin or C types using strings in pure python mode.
   (Github issue #2046)
 
+* Generator expressions and lambdas failed to compile in ``@cfunc`` functions.
+  (Github issue #459)
+
+* Global names with ``const`` types were not excluded from star-import assignments
+  which could lead to invalid C code.
+  (Github issue #2621)
+
 * Several internal function signatures were fixed that lead to warnings in gcc-8.
   (Github issue #2363)
 
@@ -122,6 +131,10 @@ Bugs fixed
 * When PEP-489 support is enabled, reloading the module overwrote any static
   module state. It now raises an exception instead, given that reloading is
   not actually supported.
+
+* Object-returning, C++ exception throwing functions were not checking that
+  the return value was non-null.
+  Original patch by Matt Wozniski (Github Issue #2603)
 
 Other changes
 -------------

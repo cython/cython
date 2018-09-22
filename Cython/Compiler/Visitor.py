@@ -244,9 +244,15 @@ class VisitorTransform(TreeVisitor):
     was not, an exception will be raised. (Typically you want to ensure that you
     are within a StatListNode or similar before doing this.)
     """
-    def visitchildren(self, parent, attrs=None):
+    def visitchildren(self, parent, attrs=None, exclude=None):
         # generic def entry point for calls from Python subclasses
+        if exclude is not None:
+            attrs = self._select_attrs(parent.child_attrs if attrs is None else attrs, exclude)
         return self._process_children(parent, attrs)
+
+    @cython.final
+    def _select_attrs(self, attrs, exclude):
+        return [name for name in attrs if name not in exclude]
 
     @cython.final
     def _process_children(self, parent, attrs=None):

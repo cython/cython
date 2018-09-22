@@ -16,8 +16,9 @@ cdef class TreeVisitor:
 
 cdef class VisitorTransform(TreeVisitor):
     cdef dict _process_children(self, parent, attrs=*)
-    cpdef visitchildren(self, parent, attrs=*)
+    cpdef visitchildren(self, parent, attrs=*, exclude=*)
     cdef list _flatten_list(self, list orig_list)
+    cdef list _select_attrs(self, attrs, exclude)
 
 cdef class CythonTransform(VisitorTransform):
     cdef public context

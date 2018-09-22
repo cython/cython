@@ -197,10 +197,12 @@ def get_exception_handler(exception_value):
     else:
         return '%s(); if (!PyErr_Occurred()) PyErr_SetString(PyExc_RuntimeError , "Error converting c++ exception.");' % exception_value.entry.cname
 
-def translate_cpp_exception(code, pos, inside, exception_value, nogil):
+def translate_cpp_exception(code, pos, inside, py_result, exception_value, nogil):
     raise_py_exception = get_exception_handler(exception_value)
     code.putln("try {")
     code.putln("%s" % inside)
+    if py_result:
+      code.putln(code.error_goto_if_null(py_result, pos))
     code.putln("} catch(...) {")
     if nogil:
         code.put_ensure_gil(declare_gilstate=True)
@@ -2306,7 +2308,11 @@ class NameNode(AtomicExprNode):
                     if overloaded_assignment:
                         result = rhs.result()
                         if exception_check == '+':
-                            translate_cpp_exception(code, self.pos, '%s = %s;' % (self.result(), result), exception_value, self.in_nogil_context)
+                            translate_cpp_exception(
+                                code, self.pos,
+                                '%s = %s;' % (self.result(), result),
+                                self.result() if self.type.is_pyobject else None,
+                                exception_value, self.in_nogil_context)
                         else:
                             code.putln('%s = %s;' % (self.result(), result))
                     else:
@@ -3978,6 +3984,7 @@ class IndexNode(_IndexingBaseNode):
             translate_cpp_exception(code, self.pos,
                 "%s = %s[%s];" % (self.result(), self.base.result(),
                                   self.index.result()),
+                self.result() if self.type.is_pyobject else None,
                 self.exception_value, self.in_nogil_context)
         else:
             error_check = '!%s' if error_value == 'NULL' else '%%s == %s' % error_value
@@ -4048,6 +4055,7 @@ class IndexNode(_IndexingBaseNode):
                 # both exception handlers are the same.
                 translate_cpp_exception(code, self.pos,
                     "%s = %s;" % (self.result(), rhs.result()),
+                    self.result() if self.lhs.is_pyobject else None,
                     self.exception_value, self.in_nogil_context)
         else:
             code.putln(
@@ -5838,7 +5846,7 @@ class SimpleCallNode(CallNode):
             elif self.type.is_memoryviewslice:
                 assert self.is_temp
                 exc_checks.append(self.type.error_condition(self.result()))
-            else:
+            elif func_type.exception_check != '+':
                 exc_val = func_type.exception_value
                 exc_check = func_type.exception_check
                 if exc_val is not None:
@@ -5861,6 +5869,7 @@ class SimpleCallNode(CallNode):
                     lhs = ""
                 if func_type.exception_check == '+':
                     translate_cpp_exception(code, self.pos, '%s%s;' % (lhs, rhs),
+                                            self.result() if self.type.is_pyobject else None,
                                             func_type.exception_value, self.nogil)
                 else:
                     if (self.overflowcheck
@@ -10038,6 +10047,7 @@ class UnopNode(ExprNode):
             if self.is_cpp_operation() and self.exception_check == '+':
                 translate_cpp_exception(code, self.pos,
                     "%s = %s %s;" % (self.result(), self.operator, self.operand.result()),
+                    self.result() if self.type.is_pyobject else None,
                     self.exception_value, self.in_nogil_context)
             else:
                 code.putln("%s = %s %s;" % (self.result(), self.operator, self.operand.result()))
@@ -10277,6 +10287,7 @@ class AmpersandNode(CUnopNode):
         if (self.operand.type.is_cpp_class and self.exception_check == '+'):
             translate_cpp_exception(code, self.pos,
                 "%s = %s %s;" % (self.result(), self.operator, self.operand.result()),
+                self.result() if self.type.is_pyobject else None,
                 self.exception_value, self.in_nogil_context)
 
 
@@ -10821,7 +10832,7 @@ class TypeidNode(ExprNode):
             arg_code = self.arg_type.result()
         translate_cpp_exception(code, self.pos,
             "%s = typeid(%s);" % (self.temp_code, arg_code),
-            None, self.in_nogil_context)
+            None, None, self.in_nogil_context)
 
 class TypeofNode(ExprNode):
     #  Compile-time type of an expression, as a string.
@@ -11080,6 +11091,7 @@ class BinopNode(ExprNode):
             if self.is_cpp_operation() and self.exception_check == '+':
                 translate_cpp_exception(code, self.pos,
                                         "%s = %s;" % (self.result(), self.calculate_result_code()),
+                                        self.result() if self.type.is_pyobject else None,
                                         self.exception_value, self.in_nogil_context)
             else:
                 code.putln("%s = %s;" % (self.result(), self.calculate_result_code()))
@@ -12393,7 +12405,13 @@ class CmpNode(object):
                 self.c_operator(op),
                 code2)
             if self.is_cpp_comparison() and self.exception_check == '+':
-                translate_cpp_exception(code, self.pos, statement, self.exception_value, self.in_nogil_context)
+                translate_cpp_exception(
+                    code,
+                    self.pos,
+                    statement,
+                    result_code if self.type.is_pyobject else None,
+                    self.exception_value,
+                    self.in_nogil_context)
             code.putln(statement)
 
     def c_operator(self, op):
