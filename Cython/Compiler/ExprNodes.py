@@ -196,11 +196,20 @@ def get_exception_handler(exception_value):
           and exception_value.value == '*'):
         return "__Pyx_CppExn2PyErr();", True
     elif exception_value.type.is_pyobject:
-        return 'try { throw; } catch(const std::exception& exn) { PyErr_SetString(%s, exn.what()); } catch(...) { PyErr_SetNone(%s); }' % (
-            exception_value.entry.cname,
-            exception_value.entry.cname), False
+        return (
+            'try { throw; } catch(const std::exception& exn) {'
+            'PyErr_SetString(%s, exn.what());'
+            '} catch(...) { PyErr_SetNone(%s); }' % (
+                exception_value.entry.cname,
+                exception_value.entry.cname),
+            False)
     else:
-        return '%s(); if (!PyErr_Occurred()) PyErr_SetString(PyExc_RuntimeError , "Error converting c++ exception.");' % exception_value.entry.cname, False
+        return (
+            '%s(); if (!PyErr_Occurred())'
+            'PyErr_SetString(PyExc_RuntimeError, '
+            '"Error converting c++ exception.");' % (
+                exception_value.entry.cname),
+            False)
 
 def maybe_check_py_error(code, check_py_exception, pos, nogil):
     if check_py_exception:
