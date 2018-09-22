@@ -79,7 +79,7 @@ Bugs fixed
 * The exception handling in generators and coroutines under CPython 3.7 was adapted
   to the newly introduced exception stack.  Users of Cython 0.28 who want to support
   Python 3.7 are encouraged to upgrade to 0.29 to avoid potentially incorrect error
-  reporting and tracebacks.
+  reporting and tracebacks.  (Github issue #1958)
 
 * Crash when importing a module under Stackless Python that was built for CPython.
   Patch by Anselm Kruis.  (Github issue #2534)
