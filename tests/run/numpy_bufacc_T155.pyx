@@ -1,5 +1,5 @@
 # ticket: 155
-# tag: numpy
+# tag: numpy_old
 
 """
 >>> myfunc()

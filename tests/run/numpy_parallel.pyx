@@ -1,4 +1,4 @@
-# tag: numpy
+# tag: numpy_old
 # tag: openmp
 
 cimport cython
