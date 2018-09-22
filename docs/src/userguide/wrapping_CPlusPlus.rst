@@ -440,6 +440,13 @@ called, which allows one to do custom C++ to Python error "translations." If
 raise_py_error does not actually raise an exception a RuntimeError will be
 raised.
 
+There is also the special form::
+
+    cdef int raise_py_or_cpp() except +*
+
+for those functions that may raise either a Python or a C++ exception.
+
+
 Static member method
 --------------------
 
