@@ -2370,6 +2370,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
                 returns=return_type_node, except_val=except_val)
             return self.visit(node)
         if 'cfunc' in self.directives:
+            self.directives.pop('cfunc')
             if self.in_py_class:
                 error(node.pos, "cfunc directive is not allowed here")
             else:
