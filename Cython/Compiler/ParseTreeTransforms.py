@@ -958,30 +958,33 @@ class InterpretCompilerDirectives(CythonTransform):
         else:
             assert False
 
-    def visit_with_directives(self, body, directives):
-        olddirectives = self.directives
-        newdirectives = copy.copy(olddirectives)
-        newdirectives.update(directives)
-        self.directives = newdirectives
-        assert isinstance(body, Nodes.StatListNode), body
-        retbody = self.visit_Node(body)
-        directive = Nodes.CompilerDirectivesNode(pos=retbody.pos, body=retbody,
-                                                 directives=newdirectives)
-        self.directives = olddirectives
-        return directive
+    def visit_with_directives(self, node, directives):
+        if not directives:
+            return self.visit_Node(node)
+
+        old_directives = self.directives
+        new_directives = dict(old_directives)
+        new_directives.update(directives)
+
+        if new_directives == old_directives:
+            return self.visit_Node(node)
+
+        self.directives = new_directives
+        retbody = self.visit_Node(node)
+        self.directives = old_directives
+
+        if not isinstance(retbody, Nodes.StatListNode):
+            retbody = Nodes.StatListNode(node.pos, stats=[retbody])
+        return Nodes.CompilerDirectivesNode(
+            pos=retbody.pos, body=retbody, directives=new_directives)
 
     # Handle decorators
     def visit_FuncDefNode(self, node):
         directives = self._extract_directives(node, 'function')
-        if not directives:
-            return self.visit_Node(node)
-        body = Nodes.StatListNode(node.pos, stats=[node])
-        return self.visit_with_directives(body, directives)
+        return self.visit_with_directives(node, directives)
 
     def visit_CVarDefNode(self, node):
         directives = self._extract_directives(node, 'function')
-        if not directives:
-            return self.visit_Node(node)
         for name, value in directives.items():
             if name == 'locals':
                 node.directive_locals = value
@@ -990,29 +993,19 @@ class InterpretCompilerDirectives(CythonTransform):
                     node.pos,
                     "Cdef functions can only take cython.locals(), "
                     "staticmethod, or final decorators, got %s." % name))
-        body = Nodes.StatListNode(node.pos, stats=[node])
-        return self.visit_with_directives(body, directives)
+        return self.visit_with_directives(node, directives)
 
     def visit_CClassDefNode(self, node):
         directives = self._extract_directives(node, 'cclass')
-        if not directives:
-            return self.visit_Node(node)
-        body = Nodes.StatListNode(node.pos, stats=[node])
-        return self.visit_with_directives(body, directives)
+        return self.visit_with_directives(node, directives)
 
     def visit_CppClassNode(self, node):
         directives = self._extract_directives(node, 'cppclass')
-        if not directives:
-            return self.visit_Node(node)
-        body = Nodes.StatListNode(node.pos, stats=[node])
-        return self.visit_with_directives(body, directives)
+        return self.visit_with_directives(node, directives)
 
     def visit_PyClassDefNode(self, node):
         directives = self._extract_directives(node, 'class')
-        if not directives:
-            return self.visit_Node(node)
-        body = Nodes.StatListNode(node.pos, stats=[node])
-        return self.visit_with_directives(body, directives)
+        return self.visit_with_directives(node, directives)
 
     def _extract_directives(self, node, scope_name):
         if not node.decorators:
@@ -1059,7 +1052,7 @@ class InterpretCompilerDirectives(CythonTransform):
                 optdict[name] = value
         return optdict
 
-    # Handle with statements
+    # Handle with-statements
     def visit_WithStatNode(self, node):
         directive_dict = {}
         for directive in self.try_to_parse_directives(node.manager) or []:
@@ -2383,6 +2376,10 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             # TODO: turn this into a "with gil" declaration.
             error(node.pos, "Python functions cannot be declared 'nogil'")
         self.visitchildren(node)
+        return node
+
+    def visit_LambdaNode(self, node):
+        # No directives should modify lambdas or generator expressions (and also nothing in them).
         return node
 
     def visit_PyClassDefNode(self, node):
