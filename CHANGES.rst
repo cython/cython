@@ -71,6 +71,8 @@ Features added
 * New C macro ``CYTHON_HEX_VERSION`` to access Cython's version in the same style as
   ``PY_HEX_VERSION``.
 
+* Constants in ``libc.math`` are now declared as ``const`` to simplify their handling.
+
 Bugs fixed
 ----------
 
