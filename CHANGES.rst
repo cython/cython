@@ -105,6 +105,10 @@ Bugs fixed
 * Generator expressions and lambdas failed to compile in ``@cfunc`` functions.
   (Github issue #459)
 
+* Global names with ``const`` types were not excluded from star-import assignments
+  which could lead to invalid C code.
+  (Github issue #2621)
+
 * Several internal function signatures were fixed that lead to warnings in gcc-8.
   (Github issue #2363)
 
