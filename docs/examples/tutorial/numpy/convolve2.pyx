@@ -1,4 +1,4 @@
-# tag: numpy
+# tag: numpy_old
 # You can ignore the previous line.
 # It's for internal testing of the cython documentation.
 

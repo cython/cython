@@ -134,7 +134,8 @@ def get_distutils_distro(_cache=[]):
 
 
 EXT_DEP_MODULES = {
-    'tag:numpy':    'numpy',
+    'tag:numpy':     'numpy',
+    'tag:numpy_old': 'numpy',
     'tag:pythran':  'pythran',
     'tag:setuptools':  'setuptools.sandbox',
     'tag:asyncio':  'asyncio',
@@ -254,11 +255,18 @@ def update_linetrace_extension(ext):
     return ext
 
 
-def update_numpy_extension(ext):
+def update_old_numpy_extension(ext):
+    update_numpy_extension(ext, set_api17_macro=False)
+
+
+def update_numpy_extension(ext, set_api17_macro=True):
     import numpy
     from numpy.distutils.misc_util import get_info
 
     ext.include_dirs.append(numpy.get_include())
+
+    if set_api17_macro:
+        ext.define_macros.append(('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION'))
 
     # We need the npymath library for numpy.math.
     # This is typically a static-only library.
@@ -391,6 +399,7 @@ EXCLUDE_EXT = object()
 
 EXT_EXTRAS = {
     'tag:numpy' : update_numpy_extension,
+    'tag:numpy_old' : update_old_numpy_extension,
     'tag:openmp': update_openmp_extension,
     'tag:cpp11': update_cpp11_extension,
     'tag:trace' : update_linetrace_extension,

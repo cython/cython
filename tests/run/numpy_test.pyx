@@ -1,4 +1,4 @@
-# tag: numpy
+# tag: numpy_old
 # cannot be named "numpy" in order to not clash with the numpy module!
 
 cimport numpy as np
