@@ -170,8 +170,6 @@ _directive_defaults = {
     'nonecheck' : False,
     'initializedcheck' : True,
     'embedsignature' : False,
-    'locals' : {},
-    'exceptval' : None,  # (except value=None, check=True)
     'auto_cpdef': False,
     'auto_pickle': None,
     'cdivision': False,  # was True before 0.12
@@ -183,12 +181,8 @@ _directive_defaults = {
     'wraparound' : True,
     'ccomplex' : False,  # use C99/C++ for complex types and arith
     'callspec' : "",
-    'final' : False,
     'nogil' : False,
-    'internal' : False,
     'profile': False,
-    'no_gc_clear': False,
-    'no_gc': False,
     'linetrace': False,
     'emit_code_comments': True,  # copy original source code into C code comments
     'annotation_typing': True,  # read type declarations from Python function annotations
@@ -241,7 +235,6 @@ _directive_defaults = {
 
 # experimental, subject to change
     'binding': None,
-    'freelist': 0,
 
     'formal_grammar': False,
 }
@@ -301,7 +294,9 @@ def normalise_encoding_name(option_name, encoding):
 directive_types = {
     'language_level': int,  # values can be None/2/3, where None == 2+warning
     'auto_pickle': bool,
+    'locals': dict,
     'final' : bool,  # final cdef classes and methods
+    'nogil' : bool,
     'internal' : bool,  # cdef class visibility in the module dict
     'infer_types' : bool,  # values can be True/None/False
     'binding' : bool,
@@ -310,7 +305,10 @@ directive_types = {
     'inline' : None,
     'staticmethod' : None,
     'cclass' : None,
+    'no_gc_clear' : bool,
+    'no_gc' : bool,
     'returns' : type,
+    'exceptval': type,  # actually (type, check=True/False), but has its own parser
     'set_initial_path': str,
     'freelist': int,
     'c_string_type': one_of('bytes', 'bytearray', 'str', 'unicode'),
@@ -325,8 +323,10 @@ directive_scopes = {  # defaults to available everywhere
     # 'module', 'function', 'class', 'with statement'
     'auto_pickle': ('module', 'cclass'),
     'final' : ('cclass', 'function'),
-    'nogil' : ('function',),
+    'nogil' : ('function', 'with statement'),
     'inline' : ('function',),
+    'cfunc' : ('function', 'with statement'),
+    'ccall' : ('function', 'with statement'),
     'returns' : ('function',),
     'exceptval' : ('function',),
     'locals' : ('function',),
@@ -334,6 +334,7 @@ directive_scopes = {  # defaults to available everywhere
     'no_gc_clear' : ('cclass',),
     'no_gc' : ('cclass',),
     'internal' : ('cclass',),
+    'cclass' : ('class', 'cclass', 'with statement'),
     'autotestdict' : ('module',),
     'autotestdict.all' : ('module',),
     'autotestdict.cdef' : ('module',),
