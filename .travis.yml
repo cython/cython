@@ -97,7 +97,7 @@ matrix:
     - python: pypy3
     - python: 3.8-dev
     - env: STACKLESS=true BACKEND=c PY=2
-    - env: STACKLESS=true BACKEND=c PY=3
+    #- env: STACKLESS=true BACKEND=c PY=3
 
 branches:
   only:

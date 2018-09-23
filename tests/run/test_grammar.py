@@ -58,6 +58,14 @@ if not hasattr(unittest, 'skipUnless'):
 
     unittest.skipUnless = skipUnless
 
+if not hasattr(unittest, 'skip'):
+    def skip(message):
+        return unittest.skipUnless(False, message)
+
+    unittest.skip = skip
+
+skip = unittest.skip
+
 
 ### END OF CYTHON ADDED PART - COPIED PART FOLLOWS ###
 
@@ -202,6 +210,19 @@ the \'lazy\' dog.\n\
                 compile(s, "<test>", "exec")
             self.assertIn("unexpected EOF", str(cm.exception))
 
+var_annot_global: int # a global annotated is necessary for test_var_annot
+
+# custom namespace for testing __annotations__
+
+class CNS:
+    def __init__(self):
+        self._dct = {}
+    def __setitem__(self, item, value):
+        self._dct[item.lower()] = value
+    def __getitem__(self, item):
+        return self._dct[item]
+
+
 class GrammarTests(unittest.TestCase):
 
     # single_input: NEWLINE | simple_stmt | compound_stmt NEWLINE
@@ -216,6 +237,171 @@ class GrammarTests(unittest.TestCase):
     def test_eval_input(self):
         # testlist ENDMARKER
         x = eval('1, 0 or 1')
+
+    def test_var_annot_basics(self):
+        # all these should be allowed
+        var1: int = 5
+        var2: [int, str]
+        my_lst = [42]
+        def one():
+            return 1
+        int.new_attr: int
+        [list][0]: type
+        my_lst[one()-1]: int = 5
+        self.assertEqual(my_lst, [5])
+
+    @skip("Bug: global vs. local declarations do not currently raise an error")
+    def test_var_annot_syntax_errors(self):
+        # parser pass
+        check_syntax_error(self, "def f: int")
+        check_syntax_error(self, "x: int: str")
+        check_syntax_error(self, "def f():\n"
+                                 "    nonlocal x: int\n")
+        # AST pass
+        check_syntax_error(self, "[x, 0]: int\n")
+        check_syntax_error(self, "f(): int\n")
+        check_syntax_error(self, "(x,): int")
+        check_syntax_error(self, "def f():\n"
+                                 "    (x, y): int = (1, 2)\n")
+        # symtable pass
+        check_syntax_error(self, "def f():\n"
+                                 "    x: int\n"
+                                 "    global x\n")
+        check_syntax_error(self, "def f():\n"
+                                 "    global x\n"
+                                 "    x: int\n")
+
+    @skip("Class annotations not implemented")
+    def test_var_annot_basic_semantics(self):
+        # execution order
+        with self.assertRaises(ZeroDivisionError):
+            no_name[does_not_exist]: no_name_again = 1/0
+        with self.assertRaises(NameError):
+            no_name[does_not_exist]: 1/0 = 0
+        global var_annot_global
+
+        # function semantics
+        def f():
+            st: str = "Hello"
+            a.b: int = (1, 2)
+            return st
+        self.assertEqual(f.__annotations__, {})
+        def f_OK():
+            x: 1/0
+        f_OK()
+
+        ### The following are compile time errors in Cython.
+
+        #def fbad():
+        #    x: int
+        #    print(x)
+        #with self.assertRaises(UnboundLocalError):
+        #    fbad()
+        #def f2bad():
+        #    (no_such_global): int
+        #    print(no_such_global)
+        #try:
+        #    f2bad()
+        #except Exception as e:
+        #    self.assertIs(type(e), NameError)
+
+        # class semantics
+        class C:
+            __foo: int
+            s: str = "attr"
+            z = 2
+            def __init__(self, x):
+                self.x: int = x
+        self.assertEqual(C.__annotations__, {'_C__foo': int, 's': str})
+        with self.assertRaises(NameError):
+            class CBad:
+                no_such_name_defined.attr: int = 0
+        with self.assertRaises(NameError):
+            class Cbad2(C):
+                x: int
+                x.y: list = []
+
+    @skip("Class annotations not implemented")
+    def test_var_annot_metaclass_semantics(self):
+        class CMeta(type):
+            @classmethod
+            def __prepare__(metacls, name, bases, **kwds):
+                return {'__annotations__': CNS()}
+        class CC(metaclass=CMeta):
+            XX: 'ANNOT'
+        self.assertEqual(CC.__annotations__['xx'], 'ANNOT')
+
+    @skip("Depends on external test module")
+    def test_var_annot_module_semantics(self):
+        with self.assertRaises(AttributeError):
+            print(test.__annotations__)
+        self.assertEqual(ann_module.__annotations__,
+                     {1: 2, 'x': int, 'y': str, 'f': typing.Tuple[int, int]})
+        self.assertEqual(ann_module.M.__annotations__,
+                              {'123': 123, 'o': type})
+        self.assertEqual(ann_module2.__annotations__, {})
+
+    @skip("Depends on external test module")
+    def test_var_annot_in_module(self):
+        # check that functions fail the same way when executed
+        # outside of module where they were defined
+        from test.ann_module3 import f_bad_ann, g_bad_ann, D_bad_ann
+        with self.assertRaises(NameError):
+            f_bad_ann()
+        with self.assertRaises(NameError):
+            g_bad_ann()
+        with self.assertRaises(NameError):
+            D_bad_ann(5)
+
+    @skip("Depends on 3-args compiled exec()")
+    def test_var_annot_simple_exec(self):
+        gns = {}; lns= {}
+        exec("'docstring'\n"
+             "__annotations__[1] = 2\n"
+             "x: int = 5\n", gns, lns)
+        self.assertEqual(lns["__annotations__"], {1: 2, 'x': int})
+        with self.assertRaises(KeyError):
+            gns['__annotations__']
+
+    @skip("Depends on 3-args compiled exec()")
+    def test_var_annot_custom_maps(self):
+        # tests with custom locals() and __annotations__
+        ns = {'__annotations__': CNS()}
+        exec('X: int; Z: str = "Z"; (w): complex = 1j', ns)
+        self.assertEqual(ns['__annotations__']['x'], int)
+        self.assertEqual(ns['__annotations__']['z'], str)
+        with self.assertRaises(KeyError):
+            ns['__annotations__']['w']
+        nonloc_ns = {}
+        class CNS2:
+            def __init__(self):
+                self._dct = {}
+            def __setitem__(self, item, value):
+                nonlocal nonloc_ns
+                self._dct[item] = value
+                nonloc_ns[item] = value
+            def __getitem__(self, item):
+                return self._dct[item]
+        exec('x: int = 1', {}, CNS2())
+        self.assertEqual(nonloc_ns['__annotations__']['x'], int)
+
+    @skip("Depends on 3-args compiled exec()")
+    def test_var_annot_refleak(self):
+        # complex case: custom locals plus custom __annotations__
+        # this was causing refleak
+        cns = CNS()
+        nonloc_ns = {'__annotations__': cns}
+        class CNS2:
+            def __init__(self):
+                self._dct = {'__annotations__': cns}
+            def __setitem__(self, item, value):
+                nonlocal nonloc_ns
+                self._dct[item] = value
+                nonloc_ns[item] = value
+            def __getitem__(self, item):
+                return self._dct[item]
+        exec('X: str', {}, CNS2())
+        self.assertEqual(nonloc_ns['__annotations__']['x'], str)
 
     def test_funcdef(self):
         ### [decorators] 'def' NAME parameters ['->' test] ':' suite
@@ -374,6 +560,10 @@ class GrammarTests(unittest.TestCase):
         self.assertEqual(f(spam='fried', **{'eggs':'scrambled'}),
                          ((), {'eggs':'scrambled', 'spam':'fried'}))
 
+        # Check ast errors in *args and *kwargs
+        check_syntax_error(self, "f(*g(1=2))")
+        check_syntax_error(self, "f(**g(1=2))")
+
         # argument annotation tests
         def f(x) -> list: pass
         self.assertEqual(f.__annotations__, {'return': list})
@@ -414,10 +604,6 @@ class GrammarTests(unittest.TestCase):
         def f(x=1): return closure
         def f(*, k=1): return closure
         def f() -> int: return closure
-
-        # Check ast errors in *args and *kwargs
-        check_syntax_error(self, "f(*g(1=2))")
-        check_syntax_error(self, "f(**g(1=2))")
 
         # Check trailing commas are permitted in funcdef argument list
         def f(a,): pass
@@ -597,12 +783,92 @@ class GrammarTests(unittest.TestCase):
         test_inner()
 
     def test_return(self):
-        # 'return' [testlist]
+        # 'return' [testlist_star_expr]
         def g1(): return
         def g2(): return 1
+        def g3():
+            z = [2, 3]
+            return 1, *z
+
         g1()
         x = g2()
+        y = g3()
+        self.assertEqual(y, (1, 2, 3), "unparenthesized star expr return")
         check_syntax_error(self, "class foo:return 1")
+
+    def test_break_in_finally(self):
+        count = 0
+        while count < 2:
+            count += 1
+            try:
+                pass
+            finally:
+                break
+        self.assertEqual(count, 1)
+
+        count = 0
+        while count < 2:
+            count += 1
+            try:
+                continue
+            finally:
+                break
+        self.assertEqual(count, 1)
+
+        count = 0
+        while count < 2:
+            count += 1
+            try:
+                1/0
+            finally:
+                break
+        self.assertEqual(count, 1)
+
+        for count in [0, 1]:
+            self.assertEqual(count, 0)
+            try:
+                pass
+            finally:
+                break
+        self.assertEqual(count, 0)
+
+        for count in [0, 1]:
+            self.assertEqual(count, 0)
+            try:
+                continue
+            finally:
+                break
+        self.assertEqual(count, 0)
+
+        for count in [0, 1]:
+            self.assertEqual(count, 0)
+            try:
+                1/0
+            finally:
+                break
+        self.assertEqual(count, 0)
+
+    def test_return_in_finally(self):
+        def g1():
+            try:
+                pass
+            finally:
+                return 1
+        self.assertEqual(g1(), 1)
+
+        def g2():
+            try:
+                return 2
+            finally:
+                return 3
+        self.assertEqual(g2(), 3)
+
+        def g3():
+            try:
+                1/0
+            finally:
+                return 4
+        self.assertEqual(g3(), 4)
 
     def test_yield(self):
         # Allowed as standalone statement
@@ -627,6 +893,9 @@ class GrammarTests(unittest.TestCase):
         def g(): f((yield 1), 1)
         def g(): f((yield from ()))
         def g(): f((yield from ()), 1)
+        # Do not require parenthesis for tuple unpacking
+        def g(): rest = 4, 5, 6; yield 1, 2, 3, *rest
+        self.assertEquals(list(g()), [(1, 2, 3, 4, 5, 6)])
         check_syntax_error(self, "def g(): f(yield 1)")
         check_syntax_error(self, "def g(): f(yield 1, 1)")
         check_syntax_error(self, "def g(): f(yield from ())")
@@ -639,6 +908,42 @@ class GrammarTests(unittest.TestCase):
         check_syntax_error(self, "class foo:yield from ()")
         # Check annotation refleak on SyntaxError
         check_syntax_error(self, "def g(a:(yield)): pass")
+
+    @skip("DeprecationWarning not implemented")
+    def test_yield_in_comprehensions(self):
+        # Check yield in comprehensions
+        def g(): [x for x in [(yield 1)]]
+        def g(): [x for x in [(yield from ())]]
+
+        def check(code, warntext):
+            with self.assertWarnsRegex(DeprecationWarning, warntext):
+                compile(code, '<test string>', 'exec')
+            import warnings
+            with warnings.catch_warnings():
+                warnings.filterwarnings('error', category=DeprecationWarning)
+                with self.assertRaisesRegex(SyntaxError, warntext):
+                    compile(code, '<test string>', 'exec')
+
+        check("def g(): [(yield x) for x in ()]",
+              "'yield' inside list comprehension")
+        check("def g(): [x for x in () if not (yield x)]",
+              "'yield' inside list comprehension")
+        check("def g(): [y for x in () for y in [(yield x)]]",
+              "'yield' inside list comprehension")
+        check("def g(): {(yield x) for x in ()}",
+              "'yield' inside set comprehension")
+        check("def g(): {(yield x): x for x in ()}",
+              "'yield' inside dict comprehension")
+        check("def g(): {x: (yield x) for x in ()}",
+              "'yield' inside dict comprehension")
+        check("def g(): ((yield x) for x in ())",
+              "'yield' inside generator expression")
+        check("def g(): [(yield from x) for x in ()]",
+              "'yield' inside list comprehension")
+        check("class C: [(yield x) for x in ()]",
+              "'yield' inside list comprehension")
+        check("[(yield x) for x in ()]",
+              "'yield' inside list comprehension")
 
     def test_raise(self):
         # 'raise' test [',' test]
@@ -781,7 +1086,6 @@ class GrammarTests(unittest.TestCase):
         try: 1/0
         except EOFError: pass
         except TypeError as msg: pass
-        except RuntimeError as msg: pass
         except: pass
         else: pass
         try: 1/0
@@ -890,7 +1194,7 @@ class GrammarTests(unittest.TestCase):
         d[1,2] = 3
         d[1,2,3] = 4
         L = list(d)
-        L.sort(key=lambda x: x if isinstance(x, tuple) else ())
+        L.sort(key=lambda x: (type(x).__name__, x))
         self.assertEqual(str(L), '[1, (1,), (1, 2), (1, 2, 3)]')
 
     def test_atoms(self):
@@ -1141,18 +1445,6 @@ class GrammarTests(unittest.TestCase):
         self.assertEqual(m.other, 42)
 
     def test_async_await(self):
-        async = 1
-        await = 2
-        self.assertEqual(async, 1)
-
-        def async():
-            nonlocal await
-            await = 10
-        async()
-        self.assertEqual(await, 10)
-
-        #self.assertFalse(bool(async.__code__.co_flags & inspect.CO_COROUTINE))
-
         async def test():
             def sum():
                 pass
