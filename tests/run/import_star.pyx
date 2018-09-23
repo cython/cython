@@ -10,7 +10,7 @@ ctypedef struct MyStruct:
 # (there used to be a problem getting Cython conversion code generated here)
 cdef MyStruct _no_such_name_ = MyStruct(1, 2, 3)
 
-from libc.math cimport NAN
+from libc.math cimport M_PI
 
 # Danger ahead!
 from sys import *
@@ -43,11 +43,10 @@ def test_non_cdefed_names():
     return modules, path
 
 
-def test_cimported_NAN():
+def test_cimported_pi():
     """
-    >>> from math import isnan
-    >>> nan = test_cimported_NAN()
-    >>> isnan(nan)
+    >>> pi = test_cimported_pi()
+    >>> 3.14 < pi < 3.15
     True
     """
-    return NAN
+    return M_PI
