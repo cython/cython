@@ -6330,11 +6330,19 @@ class SwitchCaseNode(StatNode):
 
     child_attrs = ['conditions', 'body']
 
-    def generate_execution_code(self, code):
+    def generate_condition_evaluation_code(self, code):
         for cond in self.conditions:
-            code.mark_pos(cond.pos)
             cond.generate_evaluation_code(code)
+
+    def generate_execution_code(self, code):
+        num_conditions = len(self.conditions)
+        line_tracing_enabled = code.globalstate.directives['linetrace']
+        for i, cond in enumerate(self.conditions):
             code.putln("case %s:" % cond.result())
+            code.mark_pos(cond.pos)  # Tracing code must appear *after* the 'case' statement.
+            if line_tracing_enabled and i + 1 < num_conditions:
+                # Allow fall-through after the line tracing code.
+                code.putln('CYTHON_FALLTHROUGH;')
         self.body.generate_execution_code(code)
         code.mark_pos(self.pos, trace=False)
         code.putln("break;")
@@ -6361,6 +6369,10 @@ class SwitchStatNode(StatNode):
 
     def generate_execution_code(self, code):
         self.test.generate_evaluation_code(code)
+        # Make sure all conditions are evaluated before going into the switch() statement.
+        # This is required in order to prevent any execution code from leaking into the space between the cases.
+        for case in self.cases:
+            case.generate_condition_evaluation_code(code)
         code.mark_pos(self.pos)
         code.putln("switch (%s) {" % self.test.result())
         for case in self.cases:

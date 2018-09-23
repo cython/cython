@@ -1,4 +1,5 @@
 # mode: run
+# cython: linetrace=True
 
 cimport cython
 
