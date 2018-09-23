@@ -741,9 +741,11 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                             and not exc_val_type.is_pyobject
                             and not (exc_val_type.is_cfunction
                                      and not exc_val_type.return_type.is_pyobject
-                                     and not exc_val_type.args)):
+                                     and not exc_val_type.args)
+                            and not (exc_val_type == PyrexTypes.c_char_type
+                                     and self.exception_value.value == '*')):
                         error(self.exception_value.pos,
-                              "Exception value must be a Python exception or cdef function with no arguments.")
+                              "Exception value must be a Python exception or cdef function with no arguments or *.")
                     exc_val = self.exception_value
                 else:
                     self.exception_value = self.exception_value.coerce_to(

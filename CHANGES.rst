@@ -21,11 +21,15 @@ Features added
 * Memoryviews are supported in PEP-484/526 style type declarations.
   (Github issue #2529)
 
+* ``@cython.nogil`` is supported as a C-function decorator in Python code.
+  (Github issue #2557)
+
 * Raising exceptions from nogil code will automatically acquire the GIL, instead
   of requiring an explicit ``with gil`` block.
 
-* ``@cython.nogil`` is supported as a C-function decorator in Python code.
-  (Github issue #2557)
+* C++ functions can now be declared as potentially raising both C++ and Python
+  exceptions, so that Cython can handle both correctly.
+  (Github issue #2615)
 
 * ``cython.inline()`` supports a direct ``language_level`` keyword argument that
   was previously only available via a directive.

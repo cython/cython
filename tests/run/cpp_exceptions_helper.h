@@ -70,3 +70,11 @@ PyObject *raise_or_throw(int py) {
     PyErr_SetString(PyExc_ValueError, "oopsie");
     return NULL;
 }
+
+int raise_or_throw_int(int py) {
+    if (!py) {
+        throw std::runtime_error("oopsie");
+    }
+    PyErr_SetString(PyExc_ValueError, "oopsie");
+    return -1;
+}

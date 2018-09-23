@@ -22,6 +22,7 @@ cdef extern from "cpp_exceptions_helper.h":
     cdef void raise_underflow() except +
 
     cdef raise_or_throw(bint py) except +
+    cdef int raise_or_throw_int(bint py) except +*
 
     cdef cppclass Foo:
         int bar_raw "bar"(bint fire) except +
@@ -112,6 +113,19 @@ def test_func_that_can_raise_or_throw(bint py):
     ValueError: oopsie
     """
     raise_or_throw(py)
+
+def test_func_that_can_raise_or_throw_c_return(bint py):
+    """
+    >>> test_func_that_can_raise_or_throw_c_return(0)
+    Traceback (most recent call last):
+    ...
+    RuntimeError: oopsie
+    >>> test_func_that_can_raise_or_throw_c_return(1)
+    Traceback (most recent call last):
+    ...
+    ValueError: oopsie
+    """
+    raise_or_throw_int(py)
 
 def test_int_raw(bint fire):
     """
