@@ -50,6 +50,9 @@ Features added
 * Modules that cimport many external extension types from other Cython modules
   execute less import requests during module initialisation.
 
+* Constant tuples and slices are deduplicated and only created once per module.
+  (Github issue #2292)
+
 * The coverage plugin considers more C file extensions such as ``.cc`` and ``.cxx``.
   (Github issue #2266)
 
