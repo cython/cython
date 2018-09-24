@@ -6337,10 +6337,10 @@ class SwitchCaseNode(StatNode):
     def generate_execution_code(self, code):
         num_conditions = len(self.conditions)
         line_tracing_enabled = code.globalstate.directives['linetrace']
-        for i, cond in enumerate(self.conditions):
+        for i, cond in enumerate(self.conditions, 1):
             code.putln("case %s:" % cond.result())
             code.mark_pos(cond.pos)  # Tracing code must appear *after* the 'case' statement.
-            if line_tracing_enabled and i + 1 < num_conditions:
+            if line_tracing_enabled and i < num_conditions:
                 # Allow fall-through after the line tracing code.
                 code.putln('CYTHON_FALLTHROUGH;')
         self.body.generate_execution_code(code)

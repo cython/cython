@@ -187,6 +187,29 @@ def infer_sequence_item_type(env, seq_node, index_node=None, seq_type=None):
             return item_types.pop()
     return None
 
+
+def make_dedup_key(outer_type, item_nodes):
+    """
+    Recursively generate a deduplication key from a sequence of values.
+    Includes Cython node types to work around the fact that (1, 2.0) == (1.0, 2), for example.
+
+    @param outer_type: The type of the outer container.
+    @param item_nodes: A sequence of constant nodes that will be traversed recursively.
+    @return: A tuple that can be used as a dict key for deduplication.
+    """
+    item_keys = [
+        (py_object_type, None) if node is None
+        else make_dedup_key(node.type, node.args) if node.is_sequence_constructor
+        else make_dedup_key(node.type, (node.start, node.stop, node.step)) if node.is_slice
+        else (node.type, node.constant_result) if node.has_constant_result()
+        else None
+        for node in item_nodes
+    ]
+    if None in item_keys:
+        return None
+    return outer_type, tuple(item_keys)
+
+
 # Returns a block of code to translate the exception,
 # plus a boolean indicating whether to check for Python exceptions.
 def get_exception_handler(exception_value):
@@ -5228,7 +5251,8 @@ class SliceNode(ExprNode):
 
     def generate_result_code(self, code):
         if self.is_literal:
-            self.result_code = code.get_py_const(py_object_type, 'slice', cleanup_level=2)
+            dedup_key = make_dedup_key(self.type, (self,))
+            self.result_code = code.get_py_const(py_object_type, 'slice', cleanup_level=2, dedup_key=dedup_key)
             code = code.get_cached_constants_writer()
             code.mark_pos(self.pos)
 
@@ -7961,7 +7985,10 @@ class TupleNode(SequenceNode):
             return
 
         if self.is_literal or self.is_partly_literal:
-            tuple_target = code.get_py_const(py_object_type, 'tuple', cleanup_level=2)
+            dedup_key = None
+            if self.is_literal:
+                dedup_key = make_dedup_key(self.type, self.args)
+            tuple_target = code.get_py_const(py_object_type, 'tuple', cleanup_level=2, dedup_key=dedup_key)
             const_code = code.get_cached_constants_writer()
             const_code.mark_pos(self.pos)
             self.generate_sequence_packing_code(const_code, tuple_target, plain=not self.is_literal)

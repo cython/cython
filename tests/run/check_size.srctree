@@ -1,0 +1,155 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import runner"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+
+# force the build order
+setup(ext_modules= cythonize("check_size.pyx"))
+
+setup(ext_modules = cythonize("_check_size*.pyx"))
+
+######## check_size_nominal.h ########
+
+#include <Python.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct {
+    PyObject_HEAD
+    int f0;
+    int f1;
+    int f2;
+} FooStructNominal;
+
+#ifdef __cplusplus
+}
+#endif
+
+######## check_size_bigger.h ########
+
+#include <Python.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct {
+    PyObject_HEAD
+    int f0;
+    int f1;
+    int f2;
+    int f3;
+    int f4;
+} FooStructBig;
+
+#ifdef __cplusplus
+}
+#endif
+
+######## check_size_smaller.h ########
+
+#include <Python.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct {
+    PyObject_HEAD
+    int f9;
+} FooStructSmall;
+
+#ifdef __cplusplus
+}
+#endif
+
+
+######## check_size.pyx ########
+
+cdef class Foo:
+    cdef public int field0, field1, field2;
+
+    def __init__(self, f0, f1, f2):
+        self.field0 = f0
+        self.field1 = f1
+        self.field2 = f2
+
+######## _check_size0.pyx ########
+
+cdef extern from "check_size_nominal.h":
+
+    ctypedef class check_size.Foo [object FooStructNominal]:
+        cdef:
+            int f0
+            int f1
+
+
+cpdef public int testme(Foo f) except -1:
+    return f.f0 + f.f1
+
+######## _check_size1.pyx ########
+
+cdef extern from "check_size_bigger.h":
+
+    ctypedef class check_size.Foo [object FooStructBig]:
+        cdef:
+            int f0
+            int f1
+            int f2
+
+
+cpdef public int testme(Foo f, int f2) except -1:
+    f.f2 = f2
+    return f.f0 + f.f1 + f.f2
+
+######## _check_size2.pyx ########
+
+cdef extern from "check_size_smaller.h":
+
+    ctypedef class check_size.Foo [object FooStructSmall]:
+        cdef:
+            int f9
+
+
+cpdef public int testme(Foo f) except -1:
+    return f.f9
+
+######## runner.py ########
+
+import check_size, _check_size0, warnings
+
+foo = check_size.Foo(23, 123, 1023)
+
+assert foo.field0 == 23
+assert foo.field1 == 123
+
+ret =  _check_size0.testme(foo)
+assert ret == 23 + 123
+
+# ValueError since check_size.Foo's tp_basicsize is smaller than what is needed
+# for FooStructBig. Messing with f2 will access memory outside the struct!
+try:
+    import _check_size1
+    assert False
+except ValueError as e:
+    assert str(e).startswith('check_size.Foo has the wrong size, try recompiling')
+
+# Warining since check_size.Foo's tp_basicsize is larger than what is needed
+# for FooStructSmall. There is "spare", accessing FooStructSmall's fields will
+# never access invalid memory. This can happen, for instance, when using old
+# headers with a newer runtime, or when using an old _check_size2 with a newer
+# check_size, where the developers of check_size are careful to be backward
+# compatible.
+
+with warnings.catch_warnings(record=True) as w:
+    import _check_size2
+    assert len(w) == 1, 'expected one warning, got %d' % len(w)
+    assert str(w[-1].message).startswith('check_size.Foo size changed')
+
+ret = _check_size2.testme(foo)
+assert ret == 23
