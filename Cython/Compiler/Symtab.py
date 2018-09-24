@@ -1475,7 +1475,8 @@ class ModuleScope(Scope):
 
     def declare_c_class(self, name, pos, defining = 0, implementing = 0,
         module_name = None, base_type = None, objstruct_cname = None,
-        typeobj_cname = None, typeptr_cname = None, visibility = 'private', typedef_flag = 0, api = 0,
+        typeobj_cname = None, typeptr_cname = None, visibility = 'private',
+        typedef_flag = 0, api = 0, check_size=b'min',
         buffer_defaults = None, shadow = 0):
         # If this is a non-extern typedef class, expose the typedef, but use
         # the non-typedef struct internally to avoid needing forward
@@ -1508,7 +1509,8 @@ class ModuleScope(Scope):
         #  Make a new entry if needed
         #
         if not entry or shadow:
-            type = PyrexTypes.PyExtensionType(name, typedef_flag, base_type, visibility == 'extern')
+            type = PyrexTypes.PyExtensionType(name, typedef_flag, base_type,
+                                              visibility == 'extern', check_size=check_size)
             type.pos = pos
             type.buffer_defaults = buffer_defaults
             if objtypedef_cname is not None:

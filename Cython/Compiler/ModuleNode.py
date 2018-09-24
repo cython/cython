@@ -3059,10 +3059,21 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             code.put('sizeof(%s), ' % objstruct)
 
-        code.putln('%i); if (!%s) %s' % (
-            not type.is_external or type.is_subclassed,
-            type.typeptr_cname,
-            error_code))
+        # check_size
+        if not type.is_external or type.is_subclassed:
+            cs = '__PYX_CHECKSIZE_STRICT'
+        elif type.check_size == b'min':
+            cs = '__PYX_CHECKSIZE_MIN'
+        elif type.check_size is True:
+            cs = '__PYX_CHECKSIZE_STRICT'
+        elif type.check_size is False:
+            cs = '__PYX_CHECKSIZE_LOOSE'
+        else:
+            raise AttributeError("invalid value for check_size '%r' when compiling "
+                "%s.%s" % (type.check_size, module_name, type.name))
+        code.putln('%s);' % cs)
+
+        code.putln(' if (!%s) %s' % (type.typeptr_cname, error_code))
 
     def generate_type_ready_code(self, entry, code):
         Nodes.CClassDefNode.generate_type_ready_code(entry, code)

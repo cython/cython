@@ -3471,6 +3471,7 @@ def p_c_class_definition(s, pos,  ctx):
     objstruct_name = None
     typeobj_name = None
     bases = None
+    check_size = b'min'
     if s.sy == '(':
         positional_args, keyword_args = p_call_parse_args(s, allow_genexp=False)
         if keyword_args:
@@ -3482,7 +3483,7 @@ def p_c_class_definition(s, pos,  ctx):
     if s.sy == '[':
         if ctx.visibility not in ('public', 'extern') and not ctx.api:
             error(s.position(), "Name options only allowed for 'public', 'api', or 'extern' C class")
-        objstruct_name, typeobj_name = p_c_class_options(s)
+        objstruct_name, typeobj_name, check_size = p_c_class_options(s)
     if s.sy == ':':
         if ctx.level == 'module_pxd':
             body_level = 'c_class_pxd'
@@ -3521,6 +3522,7 @@ def p_c_class_definition(s, pos,  ctx):
         bases = bases,
         objstruct_name = objstruct_name,
         typeobj_name = typeobj_name,
+        check_size = check_size,
         in_pxd = ctx.level == 'module_pxd',
         doc = doc,
         body = body)
@@ -3528,6 +3530,7 @@ def p_c_class_definition(s, pos,  ctx):
 def p_c_class_options(s):
     objstruct_name = None
     typeobj_name = None
+    check_size = b'min'
     s.expect('[')
     while 1:
         if s.sy != 'IDENT':
@@ -3538,11 +3541,14 @@ def p_c_class_options(s):
         elif s.systring == 'type':
             s.next()
             typeobj_name = p_ident(s)
+        elif s.systring == 'check_size':
+            s.next()
+            check_size = p_atom(s).value
         if s.sy != ',':
             break
         s.next()
     s.expect(']', "Expected 'object' or 'type'")
-    return objstruct_name, typeobj_name
+    return objstruct_name, typeobj_name, check_size
 
 
 def p_property_decl(s):
