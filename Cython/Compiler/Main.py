@@ -94,8 +94,17 @@ class Context(object):
 
         if language_level is not None:
             self.set_language_level(language_level)
+        if self.compiler_directives.get('str_is_str') is not None:
+            self.set_str_is_str(self.compiler_directives['str_is_str'])
 
         self.gdb_debug_outputwriter = None
+
+    def set_str_is_str(self, str_is_str):
+        from .Future import unicode_literals
+        if str_is_str:
+            self.future_directives.discard(unicode_literals)
+        else:
+            self.future_directives.add(unicode_literals)
 
     def set_language_level(self, level):
         self.language_level = level

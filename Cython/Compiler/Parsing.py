@@ -3652,6 +3652,9 @@ def p_compiler_directive_comments(s):
             if 'language_level' in new_directives:
                 # Make sure we apply the language level already to the first token that follows the comments.
                 s.context.set_language_level(new_directives['language_level'])
+            if 'str_is_str' in new_directives:
+                # Make sure we apply 'str_is_str' directive already to the first token that follows the comments.
+                s.context.set_str_is_str(new_directives['str_is_str'])
 
             result.update(new_directives)
 
