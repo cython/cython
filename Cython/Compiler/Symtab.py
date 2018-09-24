@@ -21,6 +21,7 @@ from .PyrexTypes import py_object_type, unspecified_type
 from .TypeSlots import (
     pyfunction_signature, pymethod_signature, richcmp_special_methods,
     get_special_method_signature, get_property_accessor_signature)
+from . import Future
 
 from . import Code
 
@@ -1002,10 +1003,12 @@ class BuiltinScope(Scope):
             cname, type = definition
             self.declare_var(name, type, None, cname)
 
-    def lookup(self, name, language_level=None):
-        # 'language_level' is passed by ModuleScope
-        if language_level == 3:
-            if name == 'str':
+    def lookup(self, name, language_level=None, str_is_str=None):
+        # 'language_level' and 'str_is_str' are passed by ModuleScope
+        if name == 'str':
+            if str_is_str is None:
+                str_is_str = language_level in (None, 2)
+            if not str_is_str:
                 name = 'unicode'
         return Scope.lookup(self, name)
 
@@ -1174,15 +1177,18 @@ class ModuleScope(Scope):
     def global_scope(self):
         return self
 
-    def lookup(self, name, language_level=None):
+    def lookup(self, name, language_level=None, str_is_str=None):
         entry = self.lookup_here(name)
         if entry is not None:
             return entry
 
         if language_level is None:
             language_level = self.context.language_level if self.context is not None else 3
+        if str_is_str is None:
+            str_is_str = language_level == 2 or (
+                self.context is not None and Future.unicode_literals not in self.context.future_directives)
 
-        return self.outer_scope.lookup(name, language_level=language_level)
+        return self.outer_scope.lookup(name, language_level=language_level, str_is_str=str_is_str)
 
     def declare_tuple_type(self, pos, components):
         components = tuple(components)
