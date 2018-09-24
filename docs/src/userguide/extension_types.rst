@@ -736,6 +736,14 @@ built-in complex object.::
             ...
         } PyComplexObject;
 
+       At runtime, a check will be performed when importing the cython
+       c-extension module that ``__builtin__.complex``'s ``tp_basicsize``
+       matches ``sizeof(`PyComplexObject)``. This check can fail if in the cython
+       c-extension module was compiled with one version of the
+       ``complexobject.h`` header but imported into a python with a changed
+       header. This check can be tweaked by using ``check_size`` in the name
+       specification clause.
+
     2. As well as the name of the extension type, the module in which its type
        object can be found is also specified. See the implicit importing section
        below.
@@ -756,11 +764,23 @@ The part of the class declaration in square brackets is a special feature only
 available for extern or public extension types. The full form of this clause
 is::
 
-    [object object_struct_name, type type_object_name ]
+    [object object_struct_name, type type_object_name, check_size cs_option]
 
-where ``object_struct_name`` is the name to assume for the type's C struct,
-and type_object_name is the name to assume for the type's statically declared
-type object. (The object and type clauses can be written in either order.)
+Where:
+
+- ``object_struct_name`` is the name to assume for the type's C struct.
+- ``type_object_name`` is the name to assume for the type's statically
+  declared type object.
+- ``cs_option`` is ``'min'`` (the default), ``True``, or ``False`` and is only
+  used for external extension types. If ``True``, ``sizeof(object_struct)`` must
+  match the type's ``tp_basicsize``. If ``False``, or ``min``, the
+  ``object_struct`` may be smaller than the type's ``tp_basicsize``, which
+  indicates the type allocated at runtime may be part of an updated module, and
+  that the external module's developers extended the object in a
+  backward-compatible fashion (only adding new fields to the end of the
+  object). If ``min``, a warning will be emitted.
+
+The clauses can be written in any order.
 
 If the extension type declaration is inside a :keyword:`cdef` extern from
 block, the object clause is required, because Cython must be able to generate
