@@ -3544,6 +3544,14 @@ def p_c_class_options(s):
         elif s.systring == 'check_size':
             s.next()
             check_size = p_ident(s)
+            if check_size == 'False':
+                check_size = False
+            elif check_size == 'True':
+                check_size = True
+            elif check_size == 'min':
+                pass
+            else:
+                s.error('Expected False, True, or min, not %r' % check_size)
         if s.sy != ',':
             break
         s.next()

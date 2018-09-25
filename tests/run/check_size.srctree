@@ -4,6 +4,7 @@ PYTHON -c "import runner"
 ######## setup.py ########
 
 from Cython.Build.Dependencies import cythonize
+from Cython.Compiler.Errors import CompileError
 from distutils.core import setup
 
 # force the build order
@@ -14,8 +15,8 @@ setup(ext_modules = cythonize("_check_size*.pyx"))
 try:
     setup(ext_modules= cythonize("check_size6.pyx"))
     assert False
-except AttributeError as e:
-    assert 'max' in str(e)
+except CompileError as e:
+    pass
 
 ######## check_size_nominal.h ########
 
@@ -168,7 +169,7 @@ cpdef public int testme(Foo f) except -1:
 
 cdef extern from "check_size_smaller.h":
 
-    # Raise AttributeError when using bad value
+    # Raise Compilerror when using bad value
     ctypedef class check_size.Foo [object FooStructSmall, check_size max]:
         cdef:
             int f9
