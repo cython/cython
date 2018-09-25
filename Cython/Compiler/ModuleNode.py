@@ -3061,17 +3061,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         # check_size
         if not type.is_external or type.is_subclassed:
-            cs = '__PYX_CHECKSIZE_STRICT'
+            cs = 0 
         elif type.check_size == b'min':
-            cs = '__PYX_CHECKSIZE_MIN'
+            cs = 1
         elif type.check_size is True:
-            cs = '__PYX_CHECKSIZE_STRICT'
+            cs = 0
         elif type.check_size is False:
-            cs = '__PYX_CHECKSIZE_LOOSE'
+            cs = 2
         else:
             raise AttributeError("invalid value for check_size '%r' when compiling "
                 "%s.%s" % (type.check_size, module_name, type.name))
-        code.putln('%s);' % cs)
+        code.putln('%d);' % cs)
 
         code.putln(' if (!%s) %s' % (type.typeptr_cname, error_code))
 
