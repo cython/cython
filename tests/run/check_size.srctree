@@ -129,8 +129,8 @@ cpdef public int testme(Foo f) except -1:
 
 cdef extern from "check_size_smaller.h":
 
-    # make sure missing check_size is equivalent to 'min'
-    ctypedef class check_size.Foo [object FooStructSmall, check_size 'min']:
+    # make sure missing check_size is equivalent to min
+    ctypedef class check_size.Foo [object FooStructSmall, check_size min]:
         cdef:
             int f9
 
@@ -169,7 +169,7 @@ cpdef public int testme(Foo f) except -1:
 cdef extern from "check_size_smaller.h":
 
     # Raise AttributeError when using bad value
-    ctypedef class check_size.Foo [object FooStructSmall, check_size 'max']:
+    ctypedef class check_size.Foo [object FooStructSmall, check_size max]:
         cdef:
             int f9
 

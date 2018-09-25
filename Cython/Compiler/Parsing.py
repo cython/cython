@@ -3471,7 +3471,7 @@ def p_c_class_definition(s, pos,  ctx):
     objstruct_name = None
     typeobj_name = None
     bases = None
-    check_size = b'min'
+    check_size = 'min'
     if s.sy == '(':
         positional_args, keyword_args = p_call_parse_args(s, allow_genexp=False)
         if keyword_args:
@@ -3530,7 +3530,7 @@ def p_c_class_definition(s, pos,  ctx):
 def p_c_class_options(s):
     objstruct_name = None
     typeobj_name = None
-    check_size = b'min'
+    check_size = 'min'
     s.expect('[')
     while 1:
         if s.sy != 'IDENT':
@@ -3543,7 +3543,7 @@ def p_c_class_options(s):
             typeobj_name = p_ident(s)
         elif s.systring == 'check_size':
             s.next()
-            check_size = p_atom(s).value
+            check_size = p_ident(s)
         if s.sy != ',':
             break
         s.next()

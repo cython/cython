@@ -736,11 +736,11 @@ built-in complex object.::
             ...
         } PyComplexObject;
 
-       At runtime, a check will be performed when importing the cython
+       At runtime, a check will be performed when importing the Cython
        c-extension module that ``__builtin__.complex``'s ``tp_basicsize``
-       matches ``sizeof(`PyComplexObject)``. This check can fail if in the cython
+       matches ``sizeof(`PyComplexObject)``. This check can fail if the Cython
        c-extension module was compiled with one version of the
-       ``complexobject.h`` header but imported into a python with a changed
+       ``complexobject.h`` header but imported into a Python with a changed
        header. This check can be tweaked by using ``check_size`` in the name
        specification clause.
 
@@ -771,7 +771,7 @@ Where:
 - ``object_struct_name`` is the name to assume for the type's C struct.
 - ``type_object_name`` is the name to assume for the type's statically
   declared type object.
-- ``cs_option`` is ``'min'`` (the default), ``True``, or ``False`` and is only
+- ``cs_option`` is ``min`` (the default), ``True``, or ``False`` and is only
   used for external extension types. If ``True``, ``sizeof(object_struct)`` must
   match the type's ``tp_basicsize``. If ``False``, or ``min``, the
   ``object_struct`` may be smaller than the type's ``tp_basicsize``, which

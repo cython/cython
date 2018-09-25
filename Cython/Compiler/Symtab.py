@@ -1476,7 +1476,7 @@ class ModuleScope(Scope):
     def declare_c_class(self, name, pos, defining = 0, implementing = 0,
         module_name = None, base_type = None, objstruct_cname = None,
         typeobj_cname = None, typeptr_cname = None, visibility = 'private',
-        typedef_flag = 0, api = 0, check_size=b'min',
+        typedef_flag = 0, api = 0, check_size='min',
         buffer_defaults = None, shadow = 0):
         # If this is a non-extern typedef class, expose the typedef, but use
         # the non-typedef struct internally to avoid needing forward

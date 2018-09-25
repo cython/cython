@@ -1735,9 +1735,6 @@ class EndToEndTest(unittest.TestCase):
         old_path = os.environ.get('PYTHONPATH')
         env = dict(os.environ)
         env['PYTHONPATH'] = self.cython_syspath + os.pathsep + (old_path or '')
-        cmd = []
-        out = []
-        err = []
         for command_no, command in enumerate(filter(None, commands.splitlines()), 1):
             with self.stats.time('%s(%d)' % (self.name, command_no), 'c',
                                  'etoe-build' if ' setup.py ' in command else 'etoe-run'):
@@ -1746,15 +1743,11 @@ class EndToEndTest(unittest.TestCase):
                                      stdout=subprocess.PIPE,
                                      shell=True,
                                      env=env)
-                _out, _err = p.communicate()
-                cmd.append(command)
-                out.append(_out)
-                err.append(_err)
+                out, err = p.communicate()
             res = p.returncode
             if res != 0:
-                for c, o, e in zip(cmd, out, err):
-                    sys.stderr.write("%s\n%s\n%s\n\n" % (
-                        c, self._try_decode(o), self._try_decode(e)))
+                sys.stderr.write("%s\n%s\n%s\n" % (
+                    command, self._try_decode(out), self._try_decode(err)))
             self.assertEqual(0, res, "non-zero exit status")
         self.success = True
 
