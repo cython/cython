@@ -775,8 +775,17 @@ Attribute name matching and aliasing
 ------------------------------------
 
 Sometimes the type's C struct as specified in ``object_struct_name`` may use
-different labels for the fields. For example we may have an extension module
-``foo_extension``::
+different labels for the fields than those in the ``PyTypeObject``. This can
+easily happen in hand-coded C extensions where the ``PyTypeObject_Foo`` has a
+getter method, but the name does not match the name in the ``PyFooObject``. In
+NumPy, for instance, python-level ``dtype.itemsize`` is a getter for the C
+struct field ``elsize``. Cython supports aliasing field names so that one can
+write ``dtype.itemsize`` in Cython code which will be compiled into direct
+access of the C struct field, without going through a C-API equivalent of
+``dtype.__getattr__('itemsize')``.
+
+For example we may have an extension
+module ``foo_extension``::
 
     cdef class Foo:
         cdef public int field0, field1, field2;
