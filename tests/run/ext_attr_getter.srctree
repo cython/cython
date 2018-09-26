@@ -1,0 +1,109 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import runner"
+
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+from distutils.core import setup
+
+# force the build order
+setup(ext_modules= cythonize("foo_extension.pyx"))
+
+setup(ext_modules = cythonize("getter*.pyx"))
+
+######## foo_nominal.h ########
+
+#include <Python.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct {
+    PyObject_HEAD
+    int f0;
+    int f1;
+    int f2;
+} FooStructNominal;
+
+#ifdef __cplusplus
+}
+#endif
+
+######## foo_extension.pyx ########
+
+cdef class Foo:
+    cdef public int field0, field1, field2;
+
+    def __init__(self, f0, f1, f2):
+        self.field0 = f0
+        self.field1 = f1
+        self.field2 = f2
+
+cdef get_field0(Foo f):
+    return f.field0
+
+cdef get_field1(Foo f):
+    return f.field1
+
+cdef get_field2(Foo f):
+    return f.field2
+
+# A pure-python class that disallows direct access to fields
+class OpaqueFoo(Foo):
+
+    @property
+    def field0(self):
+        raise AttributeError('no direct access to field0')
+
+    @property
+    def field1(self):
+        raise AttributeError('no direct access to field1')
+
+    @property
+    def field2(self):
+        raise AttributeError('no direct access to field2')
+
+
+######## getter0.pyx ########
+
+# Access base Foo fields from C via aliased field names
+
+cdef extern from "foo_nominal.h":
+
+    ctypedef class foo_extension.Foo [object FooStructNominal]:
+        cdef:
+            int field0 "f0"
+            int field1 "f1"
+            int field2 "f2"
+
+def sum(Foo f):
+    # the f.__getattr__('field0') is replaced in c by f->f0
+    return f.field0 + f.field1 + f.field2
+
+######## runner.py ########
+
+import foo_extension, getter0
+
+foo = foo_extension.Foo(23, 123, 1023)
+
+assert foo.field0 == 23
+assert foo.field1 == 123
+assert foo.field2 == 1023
+
+ret =  getter0.sum(foo)
+assert ret == foo.field0 + foo.field1 + foo.field2
+
+opaque_foo = foo_extension.OpaqueFoo(23, 123, 1023)
+
+# C can access the fields through the aliases
+opaque_ret = getter0.sum(opaque_foo)
+assert opaque_ret == ret
+try:
+    # Python cannot access the fields
+    f0 = opaque_ret.field0
+    assert False
+except AttributeError as e:
+    pass
+
+

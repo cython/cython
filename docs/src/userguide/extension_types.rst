@@ -771,6 +771,81 @@ For public extension types, the object and type clauses are both required,
 because Cython must be able to generate code that is compatible with external C
 code.
 
+Attribute name matching and aliasing
+------------------------------------
+
+Sometimes the type's C struct as specified in ``object_struct_name`` may use
+different labels for the fields than those in the ``PyTypeObject``. This can
+easily happen in hand-coded C extensions where the ``PyTypeObject_Foo`` has a
+getter method, but the name does not match the name in the ``PyFooObject``. In
+NumPy, for instance, python-level ``dtype.itemsize`` is a getter for the C
+struct field ``elsize``. Cython supports aliasing field names so that one can
+write ``dtype.itemsize`` in Cython code which will be compiled into direct
+access of the C struct field, without going through a C-API equivalent of
+``dtype.__getattr__('itemsize')``.
+
+For example we may have an extension
+module ``foo_extension``::
+
+    cdef class Foo:
+        cdef public int field0, field1, field2;
+
+        def __init__(self, f0, f1, f2):
+            self.field0 = f0
+            self.field1 = f1
+            self.field2 = f2
+
+but a C struct in a file ``foo_nominal.h``::
+
+   typedef struct {
+        PyObject_HEAD
+        int f0;
+        int f1;
+        int f2;
+    } FooStructNominal;
+
+Note that the struct uses ``f0``, ``f1``, ``f2`` but they are ``field0``,
+``field1``, and ``field2`` in ``Foo``. We are given this situation, including
+a header file with that struct, and we wish to write a function to sum the
+values. If we write an extension module ``wrapper``::
+
+    cdef extern from "foo_nominal.h":
+
+        ctypedef class foo_extension.Foo [object FooStructNominal]:
+            cdef:
+                int field0
+                int field1
+                int feild2
+
+    def sum(Foo f):
+        return f.field0 + f.field1 + f.field2
+
+then ``wrapper.sum(f)`` (where ``f = foo_extension.Foo(1, 2, 3)``) will still
+use the C-API equivalent of::
+
+    return f.__getattr__('field0') +
+           f.__getattr__('field1') +
+           f.__getattr__('field1')
+
+instead of the desired C equivalent of ``return f->f0 + f->f1 + f->f2``. We can
+alias the fields by using::
+    cdef extern from "foo_nominal.h":
+
+        ctypedef class foo_extension.Foo [object FooStructNominal]:
+            cdef:
+                int field0 "f0"
+                int field1 "f1"
+                int field2 "f2"
+
+    def sum(Foo f) except -1:
+        return f.field0 + f.field1 + f.field2
+
+and now Cython will replace the slow ``__getattr__`` with direct C access to
+the FooStructNominal fields. This is useful when directly processing Python
+code. No changes to Python need be made to achieve significant speedups, even
+though the field names in Python and C are different. Of course, one should
+make sure the fields are equivalent.
+
 Implicit importing
 ------------------
 
