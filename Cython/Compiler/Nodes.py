@@ -2319,7 +2319,8 @@ class CFuncDefNode(FuncDefNode):
     #  is_static_method whether this is a static method
     #  is_c_class_method whether this is a cclass method
 
-    child_attrs = ["base_type", "declarator", "body", "py_func_stat"]
+    child_attrs = ["base_type", "declarator", "body", "py_func_stat", "decorators"]
+    outer_attrs = ["decorators"]
 
     inline_in_pxd = False
     decorators = None
@@ -2339,6 +2340,16 @@ class CFuncDefNode(FuncDefNode):
         return self.py_func.code_object if self.py_func else None
 
     def analyse_declarations(self, env):
+        if self.decorators:
+            for decorator in self.decorators:
+                func = decorator.decorator
+                if func.is_name:
+                    if func.name == 'classmethod' or func.name == 'staticmethod':
+                        error(self.pos, "Cannot handle these decorators yet")
+                    if func.name == 'property':
+                        # XXX DO SOMETHING HERE???
+                        pass
+
         self.is_c_class_method = env.is_c_class_scope
         if self.directive_locals is None:
             self.directive_locals = {}
@@ -5028,6 +5039,13 @@ class PropertyNode(StatNode):
         self.entry = env.declare_property(self.name, self.doc, self.pos)
         self.entry.scope.directives = env.directives
         self.body.analyse_declarations(self.entry.scope)
+        # XXX DO SOMETHING HERE???
+        if 0 and self.is_wrapper:
+            entry = self.body.stats[0].entry
+            entry.is_property = 1
+            entry.doc = self.doc
+            env.property_entries[-1] = entry
+            env.entries[self.name] = entry
 
     def analyse_expressions(self, env):
         self.body = self.body.analyse_expressions(env)

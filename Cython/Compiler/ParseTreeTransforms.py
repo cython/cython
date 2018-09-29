@@ -1031,7 +1031,7 @@ class InterpretCompilerDirectives(CythonTransform):
             else:
                 realdecs.append(dec)
         if realdecs and (scope_name == 'cclass' or
-                         isinstance(node, (Nodes.CFuncDefNode, Nodes.CClassDefNode, Nodes.CVarDefNode))):
+                         isinstance(node, (Nodes.CClassDefNode, Nodes.CVarDefNode))):
             raise PostParseError(realdecs[0].pos, "Cdef functions/classes cannot take arbitrary decorators.")
         node.decorators = realdecs[::-1] + both[::-1]
         # merge or override repeated directives
@@ -1397,6 +1397,67 @@ class DecoratorTransform(ScopeTrackingTransform, SkipDeclarations):
         decs = node.decorators
         node.decorators = None
         return self.chain_decorators(node, decs, node.name)
+
+    def visit_CFuncDefNode(self, node):
+        scope_type = self.scope_type
+        if scope_type != 'cclass' or not node.decorators:
+            return node
+
+        # XXX currently only handle getter property
+        # transform @property decorators
+        properties = self._properties[-1]
+        for decorator_node in node.decorators[::-1]:
+            decorator = decorator_node.decorator
+            if decorator.is_name and decorator.name == 'property':
+                if len(node.decorators) > 1:
+                    return self._reject_decorated_property(node, decorator_node)
+                name = node.declarator.base.name
+                # XXX Disables handling property decorator
+                # return [node]
+                node.name = name #EncodedString('__get__')
+                node.decorators.remove(decorator_node)
+                stat_list = [node]
+                if name in properties:
+                    prop = properties[name]
+                    prop.pos = node.pos
+                    prop.doc = node.doc
+                    prop.body.stats = stat_list
+                    return []
+                prop = Nodes.PropertyNode(node.pos, name=name)
+                prop.doc = node.doc
+                prop.body = Nodes.StatListNode(node.pos, stats=stat_list)
+                prop.is_wrapper = True
+                properties[name] = prop
+                return [prop]
+            elif decorator.is_attribute and decorator.obj.name in properties:
+                # TODO fix this
+                raise error(decorator_node.pos, "Not handled yet")
+                handler_name = self._map_property_attribute(decorator.attribute)
+                if handler_name:
+                    if decorator.obj.name != node.name:
+                        # CPython generates neither an error nor warning, but nothing useful either.
+                        error(decorator_node.pos,
+                              "Mismatching property names, expected '%s', got '%s'" % (
+                                  decorator.obj.name, node.name))
+                    elif len(node.decorators) > 1:
+                        return self._reject_decorated_property(node, decorator_node)
+                    else:
+                        return self._add_to_property(properties, node, handler_name, decorator_node)
+
+        # we clear node.decorators, so we need to set the
+        # is_staticmethod/is_classmethod attributes now
+        for decorator in node.decorators:
+            # TODO fix this
+            raise error(decorator.pos, "Not handled yet")
+            func = decorator.decorator
+            if func.is_name:
+                node.is_classmethod |= func.name == 'classmethod'
+                node.is_staticmethod |= func.name == 'staticmethod'
+
+        # transform normal decorators
+        decs = node.decorators
+        node.decorators = None
+        return self.chain_decorators(node, decs, None)
 
     @staticmethod
     def _reject_decorated_property(node, decorator_node):
