@@ -3061,9 +3061,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         # check_size
         if not type.is_external or type.is_subclassed:
-            if type.check_size != 'min':
-                raise AttributeError("unexpected check_size value '%s' when "
-                "compiling %s.%s" % (type.check_size, module_name, type.name))
             cs = 0
         elif type.check_size == 'min':
             cs = 1
@@ -3072,8 +3069,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         elif type.check_size == False:
             cs = 2
         else:
-            raise AttributeError("invalid value for check_size '%s' when compiling "
-                "%s.%s" % (type.check_size, module_name, type.name))
+            raise RuntimeError("invalid value for check_size '%s' when compiling %s.%s" % (
+                type.check_size, module_name, type.name))
         code.putln('%d);' % cs)
 
         code.putln(' if (!%s) %s' % (type.typeptr_cname, error_code))

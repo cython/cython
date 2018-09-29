@@ -3471,7 +3471,7 @@ def p_c_class_definition(s, pos,  ctx):
     objstruct_name = None
     typeobj_name = None
     bases = None
-    check_size = 'min'
+    check_size = None
     if s.sy == '(':
         positional_args, keyword_args = p_call_parse_args(s, allow_genexp=False)
         if keyword_args:
@@ -3512,6 +3512,8 @@ def p_c_class_definition(s, pos,  ctx):
                 error(pos, "Type object name specification required for 'api' C class")
     else:
         error(pos, "Invalid class visibility '%s'" % ctx.visibility)
+    if check_size is None:
+        check_size = 'min'  # TODO: move into 'CClassDefNode'
     return Nodes.CClassDefNode(pos,
         visibility = ctx.visibility,
         typedef_flag = ctx.typedef_flag,
@@ -3527,10 +3529,11 @@ def p_c_class_definition(s, pos,  ctx):
         doc = doc,
         body = body)
 
+
 def p_c_class_options(s):
     objstruct_name = None
     typeobj_name = None
-    check_size = 'min'
+    check_size = None
     s.expect('[')
     while 1:
         if s.sy != 'IDENT':

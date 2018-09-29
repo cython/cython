@@ -4617,6 +4617,7 @@ class PyClassDefNode(ClassDefNode):
             self.bases.free_temps(code)
         code.pyclass_stack.pop()
 
+
 class CClassDefNode(ClassDefNode):
     #  An extension type definition.
     #
