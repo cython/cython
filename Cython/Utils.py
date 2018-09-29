@@ -259,7 +259,7 @@ def detect_opened_file_encoding(f):
     elif len(lines) > 1:
         m = _match_file_encoding(lines[1])
         if m:
-            return m.group(1).decode('iso8859-1')
+            return m.group(2).decode('iso8859-1')
     return "UTF-8"
 
 
