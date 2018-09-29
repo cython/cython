@@ -34,6 +34,11 @@ Features added
 * ``cython.inline()`` supports a direct ``language_level`` keyword argument that
   was previously only available via a directive.
 
+* A new directive ``str_is_str=True`` was added that keeps unprefixed string
+  literals as type 'str' in both Py2 and Py3, and the builtin 'str' type unchanged
+  even when ``language_level=3``  is enabled.  This is meant to help user code to
+  migrate to Python 3 semantics without making support for Python 2.x difficult.
+
 * In CPython 3.6 and later, looking up globals in the module dict is almost
   as fast as looking up C globals.
   (Github issue #2313)
@@ -142,6 +147,10 @@ Bugs fixed
 * Object-returning, C++ exception throwing functions were not checking that
   the return value was non-null.
   Original patch by Matt Wozniski (Github Issue #2603)
+
+* The source file encoding detection could get confused if the
+  ``c_string_encoding`` directive appeared within the first two lines.
+  (Github issue #2632)
 
 Other changes
 -------------

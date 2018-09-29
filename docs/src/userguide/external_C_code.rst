@@ -219,6 +219,7 @@ same applies equally to union and enum declarations.
 |   } Foo;                |                                             |                                                                       |
 +-------------------------+---------------------------------------------+-----------------------------------------------------------------------+
 
+See also use of :ref:`external_extension_types`.
 Note that in all the cases below, you refer to the type in Cython code simply
 as :c:type:`Foo`, not ``struct Foo``.
 

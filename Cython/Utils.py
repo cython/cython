@@ -238,7 +238,7 @@ def decode_filename(filename):
 
 # support for source file encoding detection
 
-_match_file_encoding = re.compile(b"coding[:=]\s*([-\w.]+)").search
+_match_file_encoding = re.compile(br"(\w*coding)[:=]\s*([-\w.]+)").search
 
 
 def detect_opened_file_encoding(f):
@@ -254,8 +254,8 @@ def detect_opened_file_encoding(f):
         if not data:
             break
     m = _match_file_encoding(lines[0])
-    if m:
-        return m.group(1).decode('iso8859-1')
+    if m and m.group(1) != b'c_string_encoding':
+        return m.group(2).decode('iso8859-1')
     elif len(lines) > 1:
         m = _match_file_encoding(lines[1])
         if m:
