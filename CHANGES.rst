@@ -159,6 +159,10 @@ Bugs fixed
   ``c_string_encoding`` directive appeared within the first two lines.
   (Github issue #2632)
 
+* Cython generated modules no longer emit a warning during import when the
+  size of the NumPy array type is larger than what was found at compile time.
+  Instead, this is assumed to be a backwards compatible change on NumPy side.
+
 Other changes
 -------------
 

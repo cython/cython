@@ -203,7 +203,7 @@ cdef extern from "numpy/arrayobject.h":
     ctypedef struct PyArray_Descr:
         pass
 
-    ctypedef class numpy.dtype [object PyArray_Descr]:
+    ctypedef class numpy.dtype [object PyArray_Descr, check_size False]:
         # Use PyDataType_* macros when possible, however there are no macros
         # for accessing some of the fields, so some are defined.
         cdef PyTypeObject* typeobj
@@ -239,7 +239,7 @@ cdef extern from "numpy/arrayobject.h":
         # like PyArrayObject**.
         pass
 
-    ctypedef class numpy.ndarray [object PyArrayObject]:
+    ctypedef class numpy.ndarray [object PyArrayObject, check_size False]:
         cdef __cythonbufferdefaults__ = {"mode": "strided"}
 
         cdef:
