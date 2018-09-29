@@ -85,6 +85,10 @@ Features added
 
 * Constants in ``libc.math`` are now declared as ``const`` to simplify their handling.
 
+* An additional ``check_size`` clause was added to the ``ctypedef class`` name
+  specification to allow suppressing warnings when importing modules with
+  backward-compatible `PyTypeObject`` size changes.
+
 Bugs fixed
 ----------
 

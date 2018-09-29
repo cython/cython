@@ -4,12 +4,19 @@ PYTHON -c "import runner"
 ######## setup.py ########
 
 from Cython.Build.Dependencies import cythonize
+from Cython.Compiler.Errors import CompileError
 from distutils.core import setup
 
 # force the build order
 setup(ext_modules= cythonize("check_size.pyx"))
 
 setup(ext_modules = cythonize("_check_size*.pyx"))
+
+try:
+    setup(ext_modules= cythonize("check_size6.pyx"))
+    assert False
+except CompileError as e:
+    pass
 
 ######## check_size_nominal.h ########
 
@@ -119,6 +126,58 @@ cdef extern from "check_size_smaller.h":
 cpdef public int testme(Foo f) except -1:
     return f.f9
 
+######## _check_size3.pyx ########
+
+cdef extern from "check_size_smaller.h":
+
+    # make sure missing check_size is equivalent to min
+    ctypedef class check_size.Foo [object FooStructSmall, check_size min]:
+        cdef:
+            int f9
+
+
+cpdef public int testme(Foo f) except -1:
+    return f.f9
+
+######## _check_size4.pyx ########
+
+cdef extern from "check_size_smaller.h":
+
+    # Disable size check
+    ctypedef class check_size.Foo [object FooStructSmall, check_size False]:
+        cdef:
+            int f9
+
+
+cpdef public int testme(Foo f) except -1:
+    return f.f9
+
+######## _check_size5.pyx ########
+
+cdef extern from "check_size_smaller.h":
+
+    # Strict checking, will raise an error
+    ctypedef class check_size.Foo [object FooStructSmall, check_size True]:
+        cdef:
+            int f9
+
+
+cpdef public int testme(Foo f) except -1:
+    return f.f9
+
+######## check_size6.pyx ########
+
+cdef extern from "check_size_smaller.h":
+
+    # Raise Compilerror when using bad value
+    ctypedef class check_size.Foo [object FooStructSmall, check_size max]:
+        cdef:
+            int f9
+
+
+cpdef public int testme(Foo f) except -1:
+    return f.f9
+
 ######## runner.py ########
 
 import check_size, _check_size0, warnings
@@ -137,19 +196,36 @@ try:
     import _check_size1
     assert False
 except ValueError as e:
-    assert str(e).startswith('check_size.Foo has the wrong size, try recompiling')
+    assert str(e).startswith('check_size.Foo size changed')
 
 # Warining since check_size.Foo's tp_basicsize is larger than what is needed
 # for FooStructSmall. There is "spare", accessing FooStructSmall's fields will
 # never access invalid memory. This can happen, for instance, when using old
-# headers with a newer runtime, or when using an old _check_size2 with a newer
+# headers with a newer runtime, or when using an old _check_size{2,3} with a newer
 # check_size, where the developers of check_size are careful to be backward
 # compatible.
 
 with warnings.catch_warnings(record=True) as w:
+    warnings.simplefilter("always")
     import _check_size2
-    assert len(w) == 1, 'expected one warning, got %d' % len(w)
-    assert str(w[-1].message).startswith('check_size.Foo size changed')
+    import _check_size3
+    assert len(w) == 2, 'expected two warnings, got %d' % len(w)
+    assert str(w[0].message).startswith('check_size.Foo size changed')
+    assert str(w[1].message).startswith('check_size.Foo size changed')
 
 ret = _check_size2.testme(foo)
 assert ret == 23
+ret = _check_size3.testme(foo)
+assert ret == 23
+
+with warnings.catch_warnings(record=True) as w:
+    # No warning, runtime vendor must provide backward compatibility
+    import _check_size4
+    assert len(w) == 0
+
+try:
+    # Enforce strict checking
+    import _check_size5
+    assert False
+except ValueError as e:
+    assert str(e).startswith('check_size.Foo size changed')

@@ -308,15 +308,22 @@ set_path:
 
 /////////////// TypeImport.proto ///////////////
 
-static PyTypeObject *__Pyx_ImportType(PyObject* module, const char *module_name, const char *class_name, size_t size, int strict);  /*proto*/
+
+static PyTypeObject *__Pyx_ImportType(PyObject* module, const char *module_name, const char *class_name, size_t size, int check_size);  /*proto*/
 
 /////////////// TypeImport ///////////////
 
 #ifndef __PYX_HAVE_RT_ImportType
 #define __PYX_HAVE_RT_ImportType
 static PyTypeObject *__Pyx_ImportType(PyObject *module, const char *module_name, const char *class_name,
-    size_t size, int strict)
+    size_t size, int check_size)
 {
+    /*
+     * check_size tells what to do if tp_basicsize is different from size:
+     * 0 - Error (originates in check_size=True)
+     * 1 - Error if tp_basicsize is smaller, warn if larger (originates in check_size='min')
+     * 2 - Error if tp_basicsize is smaller (originates in check_size=False)
+    */ 
     PyObject *result = 0;
     char warning[200];
     Py_ssize_t basicsize;
@@ -345,18 +352,28 @@ static PyTypeObject *__Pyx_ImportType(PyObject *module, const char *module_name,
     if (basicsize == (Py_ssize_t)-1 && PyErr_Occurred())
         goto bad;
 #endif
-    if (!strict && (size_t)basicsize > size) {
-        PyOS_snprintf(warning, sizeof(warning),
-            "%s.%s size changed, may indicate binary incompatibility. Expected %zd, got %zd",
-            module_name, class_name, basicsize, size);
-        if (PyErr_WarnEx(NULL, warning, 0) < 0) goto bad;
-    }
-    else if ((size_t)basicsize != size) {
+    if ((size_t)basicsize < size) {
         PyErr_Format(PyExc_ValueError,
-            "%.200s.%.200s has the wrong size, try recompiling. Expected %zd, got %zd",
-            module_name, class_name, basicsize, size);
+            "%.200s.%.200s size changed, may indicate binary incompatibility. "
+            "Expected %zd from C header, got %zd from PyObject",
+            module_name, class_name, size, basicsize);
         goto bad;
     }
+    if (check_size == 0 && (size_t)basicsize != size) {
+        PyErr_Format(PyExc_ValueError,
+            "%.200s.%.200s size changed, may indicate binary incompatibility. "
+            "Expected %zd from C header, got %zd from PyObject",
+            module_name, class_name, size, basicsize);
+        goto bad;
+    }
+    else if (check_size == 1 && (size_t)basicsize > size) {
+        PyOS_snprintf(warning, sizeof(warning),
+            "%s.%s size changed, may indicate binary incompatibility. "
+            "Expected %zd from C header, got %zd from PyObject",
+            module_name, class_name, size, basicsize);
+        if (PyErr_WarnEx(NULL, warning, 0) < 0) goto bad;
+    }
+    /* check_size == 2 does not warn nor error */
     return (PyTypeObject *)result;
 bad:
     Py_XDECREF(result);
