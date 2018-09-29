@@ -90,6 +90,7 @@ Features added
 * An additional ``check_size`` clause was added to the ``ctypedef class`` name
   specification to allow suppressing warnings when importing modules with
   backward-compatible `PyTypeObject`` size changes.
+  (Github issue #2627)
 
 Bugs fixed
 ----------
