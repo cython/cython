@@ -148,6 +148,10 @@ Bugs fixed
   the return value was non-null.
   Original patch by Matt Wozniski (Github Issue #2603)
 
+* The source file encoding detection could get confused if the
+  ``c_string_encoding`` directive appeared within the first two lines.
+  (Github issue #2632)
+
 Other changes
 -------------
 
