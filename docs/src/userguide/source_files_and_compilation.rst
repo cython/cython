@@ -815,11 +815,14 @@ Cython code.  Here is the list of currently supported directives:
     expressions* is considered unsafe (due to possible overflow) and must be
     explicitly requested.
 
-``language_level`` (2/3)
+``language_level`` (2/3/3str)
     Globally set the Python language level to be used for module
     compilation.  Default is compatibility with Python 2.  To enable
-    Python 3 source code semantics, set this to 3 at the start of a
-    module or pass the "-3" command line option to the compiler.
+    Python 3 source code semantics, set this to 3 (or 3str) at the start
+    of a module or pass the "-3" or "--3str" command line options to the
+    compiler.  The ``3str`` option enables Python 3 semantics but does
+    not change the ``str`` type and unprefixed string literals to
+    ``unicode`` when the compiled code runs in Python 2.x.
     Note that cimported files inherit this setting from the module
     being compiled, unless they explicitly set their own language level.
     Included source files always inherit this setting.

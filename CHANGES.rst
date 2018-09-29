@@ -89,8 +89,8 @@ Features added
 
 * An additional ``check_size`` clause was added to the ``ctypedef class`` name
   specification to allow suppressing warnings when importing modules with
-  backward-compatible `PyTypeObject`` size changes.
-  (Github issue #2627)
+  backwards-compatible ``PyTypeObject`` size changes.
+  Patch by Matti Picus.  (Github issue #2627)
 
 Bugs fixed
 ----------
@@ -162,16 +162,16 @@ Bugs fixed
 Other changes
 -------------
 
-* Cython now emits a warning when no ``language_level`` (2 or 3) is set explicitly,
-  neither as a ``cythonize()`` option nor as a compiler directive.  This is meant
-  to prepare the transition of the default language level from currently Py2
-  to Py3, since that is what most new users will expect these days.  The future
-  default will, however, not enforce unicode literals, because this has proven a
-  major obstacle in the support for both Python 2.x and 3.x.  The next major
-  release is intended to make this change, so that it will parse all code that
-  does not request a specific language level as Python 3 code, but with ``str``
-  literals.  The language level 2 will continue to be supported for an indefinite
-  time.
+* Cython now emits a warning when no ``language_level`` (2, 3 or '3str') is set
+  explicitly, neither as a ``cythonize()`` option nor as a compiler directive.
+  This is meant to prepare the transition of the default language level from
+  currently Py2 to Py3, since that is what most new users will expect these days.
+  The future default will, however, not enforce unicode literals, because this
+  has proven a major obstacle in the support for both Python 2.x and 3.x.  The
+  next major release is intended to make this change, so that it will parse all
+  code that does not request a specific language level as Python 3 code, but with
+  ``str`` literals.  The language level 2 will continue to be supported for an
+  indefinite time.
 
 * The documentation was restructured, cleaned up and examples are now tested.
   The NumPy tutorial was also rewritten to simplify the running example.

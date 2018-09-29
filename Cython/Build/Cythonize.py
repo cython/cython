@@ -165,6 +165,8 @@ def parse_args(args):
                       help='use Python 2 syntax mode by default')
     parser.add_option('-3', dest='language_level', action='store_const', const=3,
                       help='use Python 3 syntax mode by default')
+    parser.add_option('--3str', dest='language_level', action='store_const', const='3str',
+                      help='use Python 3 syntax mode by default')
     parser.add_option('-a', '--annotate', dest='annotate', action='store_true',
                       help='generate annotated HTML page for source files')
 
@@ -198,7 +200,7 @@ def parse_args(args):
     if multiprocessing is None:
         options.parallel = 0
     if options.language_level:
-        assert options.language_level in (2, 3)
+        assert options.language_level in (2, 3, '3str')
         options.options['language_level'] = options.language_level
     return options, args
 
