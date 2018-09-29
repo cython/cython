@@ -34,10 +34,12 @@ Features added
 * ``cython.inline()`` supports a direct ``language_level`` keyword argument that
   was previously only available via a directive.
 
-* A new directive ``str_is_str=True`` was added that keeps unprefixed string
-  literals as type 'str' in both Py2 and Py3, and the builtin 'str' type unchanged
-  even when ``language_level=3``  is enabled.  This is meant to help user code to
-  migrate to Python 3 semantics without making support for Python 2.x difficult.
+* A new language level name ``3str`` was added that mostly corresponds to language
+  level 3, but keeps unprefixed string literals as type 'str' in both Py2 and Py3,
+  and the builtin 'str' type unchanged.  This will become the default in the next
+  Cython release and is meant to help user code a) transition more easily to this
+  new default and b) migrate to Python 3 source code semantics without making support
+  for Python 2.x difficult.
 
 * In CPython 3.6 and later, looking up globals in the module dict is almost
   as fast as looking up C globals.
@@ -158,10 +160,13 @@ Other changes
 * Cython now emits a warning when no ``language_level`` (2 or 3) is set explicitly,
   neither as a ``cythonize()`` option nor as a compiler directive.  This is meant
   to prepare the transition of the default language level from currently Py2
-  to Py3, since that is what most new users will expect these days.  The next
-  major release is intended to make that change, so that it will parse all code
-  that does not request a specific language level as Python 3 code. The language
-  level 2 will continue to be supported for an indefinite time.
+  to Py3, since that is what most new users will expect these days.  The future
+  default will, however, not enforce unicode literals, because this has proven a
+  major obstacle in the support for both Python 2.x and 3.x.  The next major
+  release is intended to make this change, so that it will parse all code that
+  does not request a specific language level as Python 3 code, but with ``str``
+  literals.  The language level 2 will continue to be supported for an indefinite
+  time.
 
 * The documentation was restructured, cleaned up and examples are now tested.
   The NumPy tutorial was also rewritten to simplify the running example.

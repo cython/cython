@@ -94,23 +94,24 @@ class Context(object):
 
         if language_level is not None:
             self.set_language_level(language_level)
-        if self.compiler_directives.get('str_is_str') is not None:
-            self.set_str_is_str(self.compiler_directives['str_is_str'])
 
         self.gdb_debug_outputwriter = None
 
-    def set_str_is_str(self, str_is_str):
-        from .Future import unicode_literals
-        if str_is_str:
-            self.future_directives.discard(unicode_literals)
-        else:
-            self.future_directives.add(unicode_literals)
-
     def set_language_level(self, level):
+        from .Future import print_function, unicode_literals, absolute_import, division
+        future_directives = []
+        if level == '3str':
+            future_directives = [print_function, absolute_import, division]
+            self.future_directives.discard(unicode_literals)
+            level = 3
+        else:
+            level = int(level)
+            if level >= 3:
+                future_directives = [print_function, unicode_literals, absolute_import, division]
         self.language_level = level
+        if future_directives:
+            self.future_directives.update(future_directives)
         if level >= 3:
-            from .Future import print_function, unicode_literals, absolute_import, division
-            self.future_directives.update([print_function, unicode_literals, absolute_import, division])
             self.modules['builtins'] = self.modules['__builtin__']
 
     def intern_ustring(self, value, encoding=None):

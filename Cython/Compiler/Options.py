@@ -198,7 +198,6 @@ _directive_defaults = {
     'iterable_coroutine': False,  # Make async coroutines backwards compatible with the old asyncio yield-from syntax.
     'c_string_type': 'bytes',
     'c_string_encoding': '',
-    'str_is_str': None,  # fall back to 'language_level == 2'
     'type_version_tag': True,  # enables Py_TPFLAGS_HAVE_VERSION_TAG on extension types
     'unraisable_tracebacks': True,
     'old_style_globals': False,
@@ -293,7 +292,7 @@ def normalise_encoding_name(option_name, encoding):
 
 # Override types possibilities above, if needed
 directive_types = {
-    'language_level': int,  # values can be None/2/3, where None == 2+warning
+    'language_level': str,  # values can be None/2/3/'3str', where None == 2+warning
     'auto_pickle': bool,
     'locals': dict,
     'final' : bool,  # final cdef classes and methods
@@ -314,7 +313,6 @@ directive_types = {
     'freelist': int,
     'c_string_type': one_of('bytes', 'bytearray', 'str', 'unicode'),
     'c_string_encoding': normalise_encoding_name,
-    'str_is_str': bool,
 }
 
 for key, val in _directive_defaults.items():
@@ -349,7 +347,6 @@ directive_scopes = {  # defaults to available everywhere
     # Avoid scope-specific to/from_py_functions for c_string.
     'c_string_type': ('module',),
     'c_string_encoding': ('module',),
-    'str_is_str': ('module',),
     'type_version_tag': ('module', 'cclass'),
     'language_level': ('module',),
     # globals() could conceivably be controlled at a finer granularity,

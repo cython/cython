@@ -1,4 +1,4 @@
-# cython: language_level=3, binding=True, str_is_str=True
+# cython: language_level=3str, binding=True
 # mode: run
 # tag: python3, str_is_str
 
