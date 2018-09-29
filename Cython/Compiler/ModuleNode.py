@@ -3062,11 +3062,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # check_size
         if not type.is_external or type.is_subclassed:
             cs = 0
-        elif type.check_size == 'min':
-            cs = 1
-        elif type.check_size == True:
+        elif type.check_size == 'error':
             cs = 0
-        elif type.check_size == False:
+        elif type.check_size == 'warn':
+            cs = 1
+        elif type.check_size == 'extend':
             cs = 2
         else:
             raise RuntimeError("invalid value for check_size '%s' when compiling %s.%s" % (

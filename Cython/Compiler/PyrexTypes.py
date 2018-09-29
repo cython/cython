@@ -1345,7 +1345,7 @@ class PyExtensionType(PyObjectType):
     #  vtable_cname     string           Name of C method table definition
     #  early_init       boolean          Whether to initialize early (as opposed to during module execution).
     #  defered_declarations [thunk]      Used to declare class hierarchies in order
-    #  check_size       'min' or boolean What to do if tp_basicsize does not match
+    #  check_size       'warn', 'error', 'extend'    What to do if tp_basicsize does not match
 
     is_extension_type = 1
     has_attributes = 1
@@ -1353,7 +1353,7 @@ class PyExtensionType(PyObjectType):
 
     objtypedef_cname = None
 
-    def __init__(self, name, typedef_flag, base_type, is_external=0, check_size='min'):
+    def __init__(self, name, typedef_flag, base_type, is_external=0, check_size=None):
         self.name = name
         self.scope = None
         self.typedef_flag = typedef_flag
@@ -1369,7 +1369,7 @@ class PyExtensionType(PyObjectType):
         self.vtabptr_cname = None
         self.vtable_cname = None
         self.is_external = is_external
-        self.check_size = check_size
+        self.check_size = check_size or 'warn'
         self.defered_declarations = []
 
     def set_scope(self, scope):

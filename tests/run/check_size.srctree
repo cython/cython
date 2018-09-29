@@ -13,7 +13,7 @@ setup(ext_modules= cythonize("check_size.pyx"))
 setup(ext_modules = cythonize("_check_size*.pyx"))
 
 try:
-    setup(ext_modules= cythonize("check_size6.pyx"))
+    setup(ext_modules= cythonize("check_size_invalid.pyx"))
     assert False
 except CompileError as e:
     pass
@@ -86,7 +86,7 @@ cdef class Foo:
         self.field1 = f1
         self.field2 = f2
 
-######## _check_size0.pyx ########
+######## _check_size_exact.pyx ########
 
 cdef extern from "check_size_nominal.h":
 
@@ -99,7 +99,7 @@ cdef extern from "check_size_nominal.h":
 cpdef public int testme(Foo f) except -1:
     return f.f0 + f.f1
 
-######## _check_size1.pyx ########
+######## _check_size_too_small.pyx ########
 
 cdef extern from "check_size_bigger.h":
 
@@ -114,7 +114,7 @@ cpdef public int testme(Foo f, int f2) except -1:
     f.f2 = f2
     return f.f0 + f.f1 + f.f2
 
-######## _check_size2.pyx ########
+######## _check_size_default.pyx ########
 
 cdef extern from "check_size_smaller.h":
 
@@ -126,12 +126,12 @@ cdef extern from "check_size_smaller.h":
 cpdef public int testme(Foo f) except -1:
     return f.f9
 
-######## _check_size3.pyx ########
+######## _check_size_warn.pyx ########
 
 cdef extern from "check_size_smaller.h":
 
-    # make sure missing check_size is equivalent to min
-    ctypedef class check_size.Foo [object FooStructSmall, check_size min]:
+    # make sure missing check_size is equivalent to warn
+    ctypedef class check_size.Foo [object FooStructSmall, check_size warn]:
         cdef:
             int f9
 
@@ -139,12 +139,12 @@ cdef extern from "check_size_smaller.h":
 cpdef public int testme(Foo f) except -1:
     return f.f9
 
-######## _check_size4.pyx ########
+######## _check_size_extend.pyx ########
 
 cdef extern from "check_size_smaller.h":
 
-    # Disable size check
-    ctypedef class check_size.Foo [object FooStructSmall, check_size False]:
+    # Allow size to be larger
+    ctypedef class check_size.Foo [object FooStructSmall, check_size extend]:
         cdef:
             int f9
 
@@ -152,12 +152,12 @@ cdef extern from "check_size_smaller.h":
 cpdef public int testme(Foo f) except -1:
     return f.f9
 
-######## _check_size5.pyx ########
+######## _check_size_error.pyx ########
 
 cdef extern from "check_size_smaller.h":
 
     # Strict checking, will raise an error
-    ctypedef class check_size.Foo [object FooStructSmall, check_size True]:
+    ctypedef class check_size.Foo [object FooStructSmall, check_size error]:
         cdef:
             int f9
 
@@ -165,12 +165,12 @@ cdef extern from "check_size_smaller.h":
 cpdef public int testme(Foo f) except -1:
     return f.f9
 
-######## check_size6.pyx ########
+######## check_size_invalid.pyx ########
 
 cdef extern from "check_size_smaller.h":
 
-    # Raise Compilerror when using bad value
-    ctypedef class check_size.Foo [object FooStructSmall, check_size max]:
+    # Raise CompileError when using bad value
+    ctypedef class check_size.Foo [object FooStructSmall, check_size hihi]:
         cdef:
             int f9
 
@@ -180,20 +180,20 @@ cpdef public int testme(Foo f) except -1:
 
 ######## runner.py ########
 
-import check_size, _check_size0, warnings
+import check_size, _check_size_exact, warnings
 
 foo = check_size.Foo(23, 123, 1023)
 
 assert foo.field0 == 23
 assert foo.field1 == 123
 
-ret =  _check_size0.testme(foo)
+ret =  _check_size_exact.testme(foo)
 assert ret == 23 + 123
 
 # ValueError since check_size.Foo's tp_basicsize is smaller than what is needed
 # for FooStructBig. Messing with f2 will access memory outside the struct!
 try:
-    import _check_size1
+    import _check_size_too_small
     assert False
 except ValueError as e:
     assert str(e).startswith('check_size.Foo size changed')
@@ -207,25 +207,28 @@ except ValueError as e:
 
 with warnings.catch_warnings(record=True) as w:
     warnings.simplefilter("always")
-    import _check_size2
-    import _check_size3
+    import _check_size_default
+    import _check_size_warn
     assert len(w) == 2, 'expected two warnings, got %d' % len(w)
     assert str(w[0].message).startswith('check_size.Foo size changed')
     assert str(w[1].message).startswith('check_size.Foo size changed')
 
-ret = _check_size2.testme(foo)
+ret = _check_size_default.testme(foo)
 assert ret == 23
-ret = _check_size3.testme(foo)
+ret = _check_size_warn.testme(foo)
 assert ret == 23
 
 with warnings.catch_warnings(record=True) as w:
     # No warning, runtime vendor must provide backward compatibility
-    import _check_size4
+    import _check_size_extend
     assert len(w) == 0
+
+ret = _check_size_extend.testme(foo)
+assert ret == 23
 
 try:
     # Enforce strict checking
-    import _check_size5
+    import _check_size_error
     assert False
 except ValueError as e:
     assert str(e).startswith('check_size.Foo size changed')

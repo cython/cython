@@ -4630,7 +4630,7 @@ class CClassDefNode(ClassDefNode):
     #  bases              TupleNode         Base class(es)
     #  objstruct_name     string or None    Specified C name of object struct
     #  typeobj_name       string or None    Specified C name of type object
-    #  check_size         'min' or boolean  What to do if tp_basicsize does not match
+    #  check_size         'warn', 'error', 'extend'     What to do if tp_basicsize does not match
     #  in_pxd             boolean           Is in a .pxd file
     #  decorators         [DecoratorNode]   list of decorators or None
     #  doc                string or None
@@ -4647,7 +4647,7 @@ class CClassDefNode(ClassDefNode):
     api = False
     objstruct_name = None
     typeobj_name = None
-    check_size = 'min'
+    check_size = None
     decorators = None
     shadow = False
 

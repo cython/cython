@@ -3512,8 +3512,6 @@ def p_c_class_definition(s, pos,  ctx):
                 error(pos, "Type object name specification required for 'api' C class")
     else:
         error(pos, "Invalid class visibility '%s'" % ctx.visibility)
-    if check_size is None:
-        check_size = 'min'  # TODO: move into 'CClassDefNode'
     return Nodes.CClassDefNode(pos,
         visibility = ctx.visibility,
         typedef_flag = ctx.typedef_flag,
@@ -3547,18 +3545,12 @@ def p_c_class_options(s):
         elif s.systring == 'check_size':
             s.next()
             check_size = p_ident(s)
-            if check_size == 'False':
-                check_size = False
-            elif check_size == 'True':
-                check_size = True
-            elif check_size == 'min':
-                pass
-            else:
-                s.error('Expected False, True, or min, not %r' % check_size)
+            if check_size not in ('extend', 'warn', 'error'):
+                s.error("Expected one of extend, warn or error, found %r" % check_size)
         if s.sy != ',':
             break
         s.next()
-    s.expect(']', "Expected 'object' or 'type'")
+    s.expect(']', "Expected 'object', 'type' or 'check_size'")
     return objstruct_name, typeobj_name, check_size
 
 

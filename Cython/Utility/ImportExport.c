@@ -319,11 +319,11 @@ static PyTypeObject *__Pyx_ImportType(PyObject *module, const char *module_name,
     size_t size, int check_size)
 {
     /*
-     * check_size tells what to do if tp_basicsize is different from size:
-     * 0 - Error (originates in check_size=True)
-     * 1 - Error if tp_basicsize is smaller, warn if larger (originates in check_size='min')
-     * 2 - Error if tp_basicsize is smaller (originates in check_size=False)
-    */ 
+     * 'check_size' tells what to do if tp_basicsize is different from size:
+     * 0 - Error (originates in check_size=error)
+     * 1 - Error if tp_basicsize is smaller, warn if larger (originates in check_size=warn)
+     * 2 - Error if tp_basicsize is smaller, but allow compatible extensions (originates in check_size=extend)
+    */
     PyObject *result = 0;
     char warning[200];
     Py_ssize_t basicsize;

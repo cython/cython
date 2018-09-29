@@ -771,14 +771,15 @@ Where:
 - ``object_struct_name`` is the name to assume for the type's C struct.
 - ``type_object_name`` is the name to assume for the type's statically
   declared type object.
-- ``cs_option`` is ``min`` (the default), ``True``, or ``False`` and is only
-  used for external extension types. If ``True``, ``sizeof(object_struct)`` must
-  match the type's ``tp_basicsize``. If ``False``, or ``min``, the
-  ``object_struct`` may be smaller than the type's ``tp_basicsize``, which
-  indicates the type allocated at runtime may be part of an updated module, and
-  that the external module's developers extended the object in a
-  backward-compatible fashion (only adding new fields to the end of the
-  object). If ``min``, a warning will be emitted.
+- ``cs_option`` is ``warn`` (the default), ``error``, or ``extend`` and is only
+  used for external extension types.  If ``error``, the ``sizeof(object_struct)``
+  that was found at compile time must match the type's runtime ``tp_basicsize``
+  exactly, otherwise the module import will fail with an error.  If ``warn``
+  or ``extend``, the ``object_struct`` is allowed to be smaller than the type's
+  ``tp_basicsize``, which indicates the runtime type may be part of an updated
+  module, and that the external module's developers extended the object in a
+  backward-compatible fashion (only adding new fields to the end of the object).
+  If ``warn``, a warning will be emitted in this case.
 
 The clauses can be written in any order.
 
