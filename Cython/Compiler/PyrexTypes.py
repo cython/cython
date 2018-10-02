@@ -1345,7 +1345,7 @@ class PyExtensionType(PyObjectType):
     #  vtable_cname     string           Name of C method table definition
     #  early_init       boolean          Whether to initialize early (as opposed to during module execution).
     #  defered_declarations [thunk]      Used to declare class hierarchies in order
-    #  check_size       'warn', 'error', 'extend'    What to do if tp_basicsize does not match
+    #  check_size       'warn', 'error', 'ignore'    What to do if tp_basicsize does not match
 
     is_extension_type = 1
     has_attributes = 1

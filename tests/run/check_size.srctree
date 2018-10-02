@@ -139,12 +139,12 @@ cdef extern from "check_size_smaller.h":
 cpdef public int testme(Foo f) except -1:
     return f.f9
 
-######## _check_size_extend.pyx ########
+######## _check_size_ignore.pyx ########
 
 cdef extern from "check_size_smaller.h":
 
     # Allow size to be larger
-    ctypedef class check_size.Foo [object FooStructSmall, check_size extend]:
+    ctypedef class check_size.Foo [object FooStructSmall, check_size ignore]:
         cdef:
             int f9
 
@@ -220,10 +220,10 @@ assert ret == 23
 
 with warnings.catch_warnings(record=True) as w:
     # No warning, runtime vendor must provide backward compatibility
-    import _check_size_extend
+    import _check_size_ignore
     assert len(w) == 0
 
-ret = _check_size_extend.testme(foo)
+ret = _check_size_ignore.testme(foo)
 assert ret == 23
 
 try:

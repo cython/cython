@@ -3545,8 +3545,8 @@ def p_c_class_options(s):
         elif s.systring == 'check_size':
             s.next()
             check_size = p_ident(s)
-            if check_size not in ('extend', 'warn', 'error'):
-                s.error("Expected one of extend, warn or error, found %r" % check_size)
+            if check_size not in ('ignore', 'warn', 'error'):
+                s.error("Expected one of ignore, warn or error, found %r" % check_size)
         if s.sy != ',':
             break
         s.next()

@@ -3066,7 +3066,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             cs = 0
         elif type.check_size == 'warn':
             cs = 1
-        elif type.check_size == 'extend':
+        elif type.check_size == 'ignore':
             cs = 2
         else:
             raise RuntimeError("invalid value for check_size '%s' when compiling %s.%s" % (
