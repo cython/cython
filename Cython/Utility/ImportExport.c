@@ -309,14 +309,21 @@ set_path:
 /////////////// TypeImport.proto ///////////////
 
 
-static PyTypeObject *__Pyx_ImportType(PyObject* module, const char *module_name, const char *class_name, size_t size, int check_size);  /*proto*/
+enum __Pyx_ImportType_CheckSize {
+   __Pyx_ImportType_CheckSize_Error = 0,
+   __Pyx_ImportType_CheckSize_Warn = 1,
+   __Pyx_ImportType_CheckSize_Ignore = 2
+};
+
+
+static PyTypeObject *__Pyx_ImportType(PyObject* module, const char *module_name, const char *class_name, size_t size, enum __Pyx_ImportType_CheckSize check_size);  /*proto*/
 
 /////////////// TypeImport ///////////////
 
 #ifndef __PYX_HAVE_RT_ImportType
 #define __PYX_HAVE_RT_ImportType
 static PyTypeObject *__Pyx_ImportType(PyObject *module, const char *module_name, const char *class_name,
-    size_t size, int check_size)
+    size_t size, enum __Pyx_ImportType_CheckSize check_size)
 {
     /*
      * 'check_size' tells what to do if tp_basicsize is different from size:
@@ -359,21 +366,21 @@ static PyTypeObject *__Pyx_ImportType(PyObject *module, const char *module_name,
             module_name, class_name, size, basicsize);
         goto bad;
     }
-    if (check_size == 0 && (size_t)basicsize != size) {
+    if (check_size == __Pyx_ImportType_CheckSize_Error && (size_t)basicsize != size) {
         PyErr_Format(PyExc_ValueError,
             "%.200s.%.200s size changed, may indicate binary incompatibility. "
             "Expected %zd from C header, got %zd from PyObject",
             module_name, class_name, size, basicsize);
         goto bad;
     }
-    else if (check_size == 1 && (size_t)basicsize > size) {
+    else if (check_size == __Pyx_ImportType_CheckSize_Warn && (size_t)basicsize > size) {
         PyOS_snprintf(warning, sizeof(warning),
             "%s.%s size changed, may indicate binary incompatibility. "
             "Expected %zd from C header, got %zd from PyObject",
             module_name, class_name, size, basicsize);
         if (PyErr_WarnEx(NULL, warning, 0) < 0) goto bad;
     }
-    /* check_size == 2 does not warn nor error */
+    /* check_size == __Pyx_ImportType_CheckSize_Ignore does not warn nor error */
     return (PyTypeObject *)result;
 bad:
     Py_XDECREF(result);

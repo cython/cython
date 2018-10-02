@@ -3060,18 +3060,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.put('sizeof(%s), ' % objstruct)
 
         # check_size
-        if not type.is_external or type.is_subclassed:
-            cs = 0
-        elif type.check_size == 'error':
-            cs = 0
-        elif type.check_size == 'warn':
-            cs = 1
-        elif type.check_size == 'ignore':
-            cs = 2
+        if type.check_size and type.check_size in ('error', 'warn', 'ignore'):
+            check_size = type.check_size
+        elif not type.is_external or type.is_subclassed:
+            check_size = 'error'
         else:
             raise RuntimeError("invalid value for check_size '%s' when compiling %s.%s" % (
                 type.check_size, module_name, type.name))
-        code.putln('%d);' % cs)
+        code.putln('__Pyx_ImportType_CheckSize_%s);' % check_size.title())
 
         code.putln(' if (!%s) %s' % (type.typeptr_cname, error_code))
 
