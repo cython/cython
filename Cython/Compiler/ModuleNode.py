@@ -276,6 +276,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if api_funcs:
                 h_code.put(UtilityCode.load_as_string("FunctionImport", "ImportExport.c")[1])
             if api_extension_types:
+                h_code.put(UtilityCode.load_as_string("TypeImport", "ImportExport.c")[0])
                 h_code.put(UtilityCode.load_as_string("TypeImport", "ImportExport.c")[1])
             h_code.putln("")
             h_code.putln("static int import_%s(void) {" % self.api_name(env))

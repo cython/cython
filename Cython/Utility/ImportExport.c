@@ -308,6 +308,8 @@ set_path:
 
 /////////////// TypeImport.proto ///////////////
 
+#ifndef __PYX_HAVE_RT_ImportType_proto
+#define __PYX_HAVE_RT_ImportType_proto
 
 enum __Pyx_ImportType_CheckSize {
    __Pyx_ImportType_CheckSize_Error = 0,
@@ -315,8 +317,9 @@ enum __Pyx_ImportType_CheckSize {
    __Pyx_ImportType_CheckSize_Ignore = 2
 };
 
-
 static PyTypeObject *__Pyx_ImportType(PyObject* module, const char *module_name, const char *class_name, size_t size, enum __Pyx_ImportType_CheckSize check_size);  /*proto*/
+
+#endif
 
 /////////////// TypeImport ///////////////
 
@@ -325,12 +328,6 @@ static PyTypeObject *__Pyx_ImportType(PyObject* module, const char *module_name,
 static PyTypeObject *__Pyx_ImportType(PyObject *module, const char *module_name, const char *class_name,
     size_t size, enum __Pyx_ImportType_CheckSize check_size)
 {
-    /*
-     * 'check_size' tells what to do if tp_basicsize is different from size:
-     * 0 - Error (originates in check_size=error)
-     * 1 - Error if tp_basicsize is smaller, warn if larger (originates in check_size=warn)
-     * 2 - Error if tp_basicsize is smaller, but allow compatible extensions (originates in check_size=extend)
-    */
     PyObject *result = 0;
     char warning[200];
     Py_ssize_t basicsize;
