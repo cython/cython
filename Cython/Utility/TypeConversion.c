@@ -178,7 +178,7 @@ static int __Pyx_init_sys_getdefaultencoding_params(void) {
     if (!default_encoding) goto bad;
     default_encoding_c = PyBytes_AsString(default_encoding);
     if (!default_encoding_c) goto bad;
-    __PYX_DEFAULT_STRING_ENCODING = (char*) malloc(strlen(default_encoding_c));
+    __PYX_DEFAULT_STRING_ENCODING = (char*) malloc(strlen(default_encoding_c) + 1);
     if (!__PYX_DEFAULT_STRING_ENCODING) goto bad;
     strcpy(__PYX_DEFAULT_STRING_ENCODING, default_encoding_c);
     Py_DECREF(default_encoding);
