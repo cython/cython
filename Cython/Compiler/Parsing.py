@@ -960,7 +960,7 @@ def p_string_literal(s, kind_override=None):
         bytes_value, unicode_value = chars.getstrings()
         if is_python3_source and has_non_ascii_literal_characters:
             # Python 3 forbids literal non-ASCII characters in byte strings
-            if kind not in ('u', 'f'):
+            if kind == 'b':
                 s.error("bytes can only contain ASCII literal characters.", pos=pos)
             bytes_value = None
     if kind == 'f':
