@@ -40,6 +40,8 @@ Options:
   --embed[=<method_name>]        Generate a main() function that embeds the Python interpreter.
   -2                             Compile based on Python-2 syntax and code semantics.
   -3                             Compile based on Python-3 syntax and code semantics.
+  --3str                         Compile based on Python-3 syntax and code semantics without
+                                 assuming unicode by default for string literals under Python 2.
   --lenient                      Change some compile time errors to runtime errors to
                                  improve Python compatibility
   --capi-reexport-cincludes      Add cincluded headers to any auto-generated header files.
@@ -151,6 +153,8 @@ def parse_command_line(args):
                 options.language_level = 2
             elif option == '-3':
                 options.language_level = 3
+            elif option == '--3str':
+                options.language_level = '3str'
             elif option == "--capi-reexport-cincludes":
                 options.capi_reexport_cincludes = True
             elif option == "--fast-fail":
