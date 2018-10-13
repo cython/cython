@@ -734,7 +734,8 @@ def default_create_extension(template, kwds):
 def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=False, language=None,
                           exclude_failures=False):
     if language is not None:
-        print('Please put "# distutils: language=%s" in your .pyx or .pxd file(s)' % language)
+        print('Warning: passing language={0!r} to cythonize() is deprecated. '
+              'Instead, put "# distutils: language={0}" in your .pyx or .pxd file(s)'.format(language))
     if exclude is None:
         exclude = []
     if patterns is None:
