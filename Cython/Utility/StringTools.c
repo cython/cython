@@ -331,7 +331,7 @@ static CYTHON_INLINE int __Pyx_GetItemInt_ByteArray_Fast(PyObject* string, Py_ss
     if (wraparound | boundscheck) {
         length = PyByteArray_GET_SIZE(string);
         if (wraparound & unlikely(i < 0)) i += length;
-        if ((!boundscheck) || likely((0 <= i) & (i < length))) {
+        if ((!boundscheck) || likely(__Pyx_is_valid_index(i, length))) {
             return (unsigned char) (PyByteArray_AS_STRING(string)[i]);
         } else {
             PyErr_SetString(PyExc_IndexError, "bytearray index out of range");
@@ -361,7 +361,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_ByteArray_Fast(PyObject* string, Py_ss
     if (wraparound | boundscheck) {
         length = PyByteArray_GET_SIZE(string);
         if (wraparound & unlikely(i < 0)) i += length;
-        if ((!boundscheck) || likely((0 <= i) & (i < length))) {
+        if ((!boundscheck) || likely(__Pyx_is_valid_index(i, length))) {
             PyByteArray_AS_STRING(string)[i] = (char) v;
             return 0;
         } else {
@@ -394,7 +394,7 @@ static CYTHON_INLINE Py_UCS4 __Pyx_GetItemInt_Unicode_Fast(PyObject* ustring, Py
     if (wraparound | boundscheck) {
         length = __Pyx_PyUnicode_GET_LENGTH(ustring);
         if (wraparound & unlikely(i < 0)) i += length;
-        if ((!boundscheck) || likely((0 <= i) & (i < length))) {
+        if ((!boundscheck) || likely(__Pyx_is_valid_index(i, length))) {
             return __Pyx_PyUnicode_READ_CHAR(ustring, i);
         } else {
             PyErr_SetString(PyExc_IndexError, "string index out of range");
@@ -752,15 +752,15 @@ static CYTHON_INLINE char __Pyx_PyBytes_GetItemInt(PyObject* bytes, Py_ssize_t i
 /////////////// bytes_index ///////////////
 
 static CYTHON_INLINE char __Pyx_PyBytes_GetItemInt(PyObject* bytes, Py_ssize_t index, int check_bounds) {
+    if (index < 0)
+        index += PyBytes_GET_SIZE(bytes);
     if (check_bounds) {
         Py_ssize_t size = PyBytes_GET_SIZE(bytes);
-        if (unlikely(index >= size) | ((index < 0) & unlikely(index < -size))) {
+        if (unlikely(!__Pyx_is_valid_index(index, size))) {
             PyErr_SetString(PyExc_IndexError, "string index out of range");
             return (char) -1;
         }
     }
-    if (index < 0)
-        index += PyBytes_GET_SIZE(bytes);
     return PyBytes_AS_STRING(bytes)[index];
 }
 
@@ -990,7 +990,7 @@ static CYTHON_INLINE int __Pyx_PyByteArray_AppendObject(PyObject* bytearray, PyO
     {
         // CPython calls PyNumber_Index() internally
         ival = __Pyx_PyIndex_AsSsize_t(value);
-        if (unlikely((ival < 0) | (ival > 255))) {
+        if (unlikely(!__Pyx_is_valid_index(ival, 256))) {
             if (ival == -1 && PyErr_Occurred())
                 return -1;
             goto bad_range;
@@ -1012,7 +1012,7 @@ static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value
 static CYTHON_INLINE int __Pyx_PyByteArray_Append(PyObject* bytearray, int value) {
     PyObject *pyval, *retval;
 #if CYTHON_COMPILING_IN_CPYTHON
-    if (likely((value >= 0) & (value <= 255))) {
+    if (likely(__Pyx_is_valid_index(value, 256))) {
         Py_ssize_t n = Py_SIZE(bytearray);
         if (likely(n != PY_SSIZE_T_MAX)) {
             if (unlikely(PyByteArray_Resize(bytearray, n + 1) < 0))
