@@ -857,7 +857,7 @@ if (unlikely(__pyx_memoryview_slice_memviewslice(
     if ({{wraparound}} && (__pyx_tmp_idx < 0))
         __pyx_tmp_idx += __pyx_tmp_shape;
 
-    if ({{boundscheck}} && (__pyx_tmp_idx < 0 || __pyx_tmp_idx >= __pyx_tmp_shape)) {
+    if ({{boundscheck}} && !__Pyx_is_valid_index(__pyx_tmp_idx, __pyx_tmp_shape)) {
         {{if not have_gil}}
             #ifdef WITH_THREAD
             PyGILState_STATE __pyx_gilstate_save = PyGILState_Ensure();

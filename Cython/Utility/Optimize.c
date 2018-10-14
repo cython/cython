@@ -165,7 +165,7 @@ static PyObject* __Pyx__PyList_PopIndex(PyObject* L, PyObject* py_ix, Py_ssize_t
         if (cix < 0) {
             cix += size;
         }
-        if (likely(0 <= cix && cix < size)) {
+        if (likely(__Pyx_is_valid_index(cix, size))) {
             PyObject* v = PyList_GET_ITEM(L, cix);
             Py_SIZE(L) -= 1;
             size -= 1;

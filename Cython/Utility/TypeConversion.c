@@ -16,6 +16,14 @@
           (is_signed || likely(v < (type)PY_SSIZE_T_MAX ||        \
                                v == (type)PY_SSIZE_T_MAX)))  )
 
+static CYTHON_INLINE int __Pyx_is_valid_index(Py_ssize_t i, Py_ssize_t limit) {
+    // Optimisation from Section 14.2 "Bounds Checking" in
+    //   https://www.agner.org/optimize/optimizing_cpp.pdf
+    // See https://bugs.python.org/issue28397
+    // The cast to unsigned effectively tests for "0 <= i < limit".
+    return (size_t) i < (size_t) limit;
+}
+
 // fast and unsafe abs(Py_ssize_t) that ignores the overflow for (-PY_SSIZE_T_MAX-1)
 #if defined (__cplusplus) && __cplusplus >= 201103L
     #include <cstdlib>
@@ -529,18 +537,23 @@ static Py_UCS4 __Pyx__PyObject_AsPy_UCS4(PyObject*);
 
 /////////////// ObjectAsUCS4 ///////////////
 
-static Py_UCS4 __Pyx__PyObject_AsPy_UCS4(PyObject* x) {
-   long ival;
-   ival = __Pyx_PyInt_As_long(x);
-   if (unlikely(ival < 0)) {
+static Py_UCS4 __Pyx__PyObject_AsPy_UCS4_raise_error(long ival) {
+   if (ival < 0) {
        if (!PyErr_Occurred())
            PyErr_SetString(PyExc_OverflowError,
                            "cannot convert negative value to Py_UCS4");
-       return (Py_UCS4)-1;
-   } else if (unlikely(ival > 1114111)) {
+   } else {
        PyErr_SetString(PyExc_OverflowError,
                        "value too large to convert to Py_UCS4");
-       return (Py_UCS4)-1;
+   }
+   return (Py_UCS4)-1;
+}
+
+static Py_UCS4 __Pyx__PyObject_AsPy_UCS4(PyObject* x) {
+   long ival;
+   ival = __Pyx_PyInt_As_long(x);
+   if (unlikely(!__Pyx_is_valid_index(ival, 1114111 + 1))) {
+       return __Pyx__PyObject_AsPy_UCS4_raise_error(ival);
    }
    return (Py_UCS4)ival;
 }
@@ -582,14 +595,16 @@ static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject* x) {
         #endif
         ival = __Pyx_PyInt_As_long(x);
     }
-    if (unlikely(ival < 0)) {
-        if (!PyErr_Occurred())
+    if (unlikely(!__Pyx_is_valid_index(ival, maxval + 1))) {
+        if (ival < 0) {
+            if (!PyErr_Occurred())
+                PyErr_SetString(PyExc_OverflowError,
+                                "cannot convert negative value to Py_UNICODE");
+            return (Py_UNICODE)-1;
+        } else {
             PyErr_SetString(PyExc_OverflowError,
-                            "cannot convert negative value to Py_UNICODE");
-        return (Py_UNICODE)-1;
-    } else if (unlikely(ival > maxval)) {
-        PyErr_SetString(PyExc_OverflowError,
-                        "value too large to convert to Py_UNICODE");
+                            "value too large to convert to Py_UNICODE");
+        }
         return (Py_UNICODE)-1;
     }
     return (Py_UNICODE)ival;
