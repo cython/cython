@@ -57,6 +57,8 @@ def no_unicode_literals():
     >>> print( no_unicode_literals() )
     True
     abcdefg
+
+    Testing non-ASCII docstrings: Πυθαγόρας
     """
     print(isinstance(str_string, str) or type(str_string))
     return str_string
