@@ -607,7 +607,7 @@ void __Pyx_Coroutine_ExceptionClear(__Pyx_ExcInfoStruct *exc_state) {
 #define __Pyx_Coroutine_AlreadyRunningError(gen)  (__Pyx__Coroutine_AlreadyRunningError(gen), (PyObject*)NULL)
 static void __Pyx__Coroutine_AlreadyRunningError(CYTHON_UNUSED __pyx_CoroutineObject *gen) {
     const char *msg;
-    if (0) {
+    if ((0)) {
     #ifdef __Pyx_Coroutine_USED
     } else if (__Pyx_Coroutine_Check((PyObject*)gen)) {
         msg = "coroutine already executing";
@@ -625,7 +625,7 @@ static void __Pyx__Coroutine_AlreadyRunningError(CYTHON_UNUSED __pyx_CoroutineOb
 #define __Pyx_Coroutine_NotStartedError(gen)  (__Pyx__Coroutine_NotStartedError(gen), (PyObject*)NULL)
 static void __Pyx__Coroutine_NotStartedError(CYTHON_UNUSED PyObject *gen) {
     const char *msg;
-    if (0) {
+    if ((0)) {
     #ifdef __Pyx_Coroutine_USED
     } else if (__Pyx_Coroutine_Check(gen)) {
         msg = "can't send non-None value to a just-started coroutine";
