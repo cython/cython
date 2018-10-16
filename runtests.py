@@ -2446,7 +2446,13 @@ def runtests(options, cmd_args, coverage=None):
             test_suite.addTest(filetests.handle_directory(sys_pyregr_dir, 'pyregr'))
 
     if options.code_style and options.shard_num <= 0:
-        test_suite.addTest(TestCodeFormat(options.cython_dir))
+        try:
+            import pycodestyle
+        except ImportError:
+            # Hack to make the exclusion visible.
+            missing_dep_excluder.tests_missing_deps.append('TestCodeFormat')
+        else:
+            test_suite.addTest(TestCodeFormat(options.cython_dir))
 
     if xml_output_dir:
         from Cython.Tests.xmlrunner import XMLTestRunner
