@@ -14,6 +14,9 @@ from cpython.object cimport PyObject
 from cpython.ref cimport Py_INCREF, Py_DECREF
 cimport cython
 
+import array as pyarray
+from libc.stdlib cimport malloc, free
+
 cdef extern from "Python.h":
     cdef int PyBUF_C_CONTIGUOUS
 
@@ -1083,3 +1086,30 @@ def optimised_index_of_slice(int[:,:,:] arr, int x, int y, int z):
     print(arr[x, y, z], arr[x][:][:][y][:][:][z])
     print(arr[x, y, z], arr[:][x][:][y][:][:][z])
     print(arr[x, y, z], arr[:, :][x][:, :][y][:][z])
+
+
+def test_assign_from_byteslike(byteslike):
+    """
+    >>> test_assign_from_byteslike(bytes(b'hello'))
+    b'hello'
+    >>> test_assign_from_byteslike(bytearray(b'howdy'))
+    b'howdy'
+    >>> test_assign_from_byteslike(pyarray.array('B', b'aloha'))
+    b'aloha'
+    >>> test_assign_from_byteslike(memoryview(b'bye!!'))
+    b'bye!!'
+    """
+    cdef void *buf
+    cdef unsigned char[:] mview
+
+    buf = malloc(5)
+    try:
+        mview = <unsigned char[:5]>(buf)
+
+        def assign(b):
+            b[:] = byteslike
+
+        assign(mview)
+        return bytes(mview)
+    finally:
+        free(buf)
