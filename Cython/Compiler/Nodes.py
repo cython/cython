@@ -7171,6 +7171,9 @@ class TryExceptStatNode(StatNode):
     gil_message = "Try-except statement"
 
     def generate_execution_code(self, code):
+        code.mark_pos(self.pos)  # before changing the error label, in case of tracing errors
+        code.putln("{")
+
         old_return_label = code.return_label
         old_break_label = code.break_label
         old_continue_label = code.continue_label
@@ -7186,8 +7189,6 @@ class TryExceptStatNode(StatNode):
 
         exc_save_vars = [code.funcstate.allocate_temp(py_object_type, False)
                          for _ in range(3)]
-        code.mark_pos(self.pos)
-        code.putln("{")
         save_exc = code.insertion_point()
         code.putln(
             "/*try:*/ {")
@@ -7520,7 +7521,9 @@ class TryFinallyStatNode(StatNode):
     gil_message = "Try-finally statement"
 
     def generate_execution_code(self, code):
-        code.mark_pos(self.pos)
+        code.mark_pos(self.pos)  # before changing the error label, in case of tracing errors
+        code.putln("/*try:*/ {")
+
         old_error_label = code.error_label
         old_labels = code.all_new_labels()
         new_labels = code.get_all_labels()
@@ -7529,7 +7532,6 @@ class TryFinallyStatNode(StatNode):
             code.error_label = old_error_label
         catch_label = code.new_label()
 
-        code.putln("/*try:*/ {")
         was_in_try_finally = code.funcstate.in_try_finally
         code.funcstate.in_try_finally = 1
 
