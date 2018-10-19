@@ -1094,22 +1094,24 @@ def test_assign_from_byteslike(byteslike):
     b'hello'
     >>> test_assign_from_byteslike(bytearray(b'howdy'))
     b'howdy'
-    >>> test_assign_from_byteslike(pyarray.array('B', b'aloha'))
-    b'aloha'
-    >>> test_assign_from_byteslike(memoryview(b'bye!!'))
-    b'bye!!'
     """
+    # fails on Python 2.7- with
+    #   TypeError: an integer is required
+    # >>> test_assign_from_byteslike(pyarray.array('B', b'aloha'))
+    # b'aloha'
+    # fails on Python 2.6- with
+    #   NameError: name 'memoryview' is not defined
+    # >>> test_assign_from_byteslike(memoryview(b'bye!!'))
+    # b'bye!!'
+    def assign(m):
+        m[:] = byteslike
+
     cdef void *buf
     cdef unsigned char[:] mview
-
     buf = malloc(5)
     try:
         mview = <unsigned char[:5]>(buf)
-
-        def assign(b):
-            b[:] = byteslike
-
         assign(mview)
-        return bytes(mview)
+        return (<unsigned char*>buf)[:5]
     finally:
         free(buf)
