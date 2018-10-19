@@ -1089,20 +1089,25 @@ def optimised_index_of_slice(int[:,:,:] arr, int x, int y, int z):
 
 
 def test_assign_from_byteslike(byteslike):
+    # Once http://python3statement.org is accepted, should be just
+    # >>> test_assign_from_byteslike(bytes(b'hello'))
+    # b'hello'
+    # ...
     """
-    >>> test_assign_from_byteslike(bytes(b'hello')) == b'hello'
-    True
-    >>> test_assign_from_byteslike(bytearray(b'howdy')) == b'howdy'
-    True
+    >>> print(test_assign_from_byteslike(bytes(b'hello')).decode())
+    hello
+    >>> print(test_assign_from_byteslike(bytearray(b'howdy')).decode())
+    howdy
     """
     # fails on Python 2.7- with
     #   TypeError: an integer is required
-    # >>> test_assign_from_byteslike(pyarray.array('B', b'aloha')) == b'aloha'
-    # True
+    # >>> print(test_assign_from_byteslike(pyarray.array('B', b'aloha')).decode())
+    # aloha
     # fails on Python 2.6- with
     #   NameError: name 'memoryview' is not defined
-    # >>> test_assign_from_byteslike(memoryview(b'bye!!')) == b'bye!!'
-    # True
+    # >>> print(test_assign_from_byteslike(memoryview(b'bye!!')).decode())
+    # bye!!
+
     def assign(m):
         m[:] = byteslike
 
