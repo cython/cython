@@ -1090,19 +1090,19 @@ def optimised_index_of_slice(int[:,:,:] arr, int x, int y, int z):
 
 def test_assign_from_byteslike(byteslike):
     """
-    >>> test_assign_from_byteslike(bytes(b'hello'))
-    b'hello'
-    >>> test_assign_from_byteslike(bytearray(b'howdy'))
-    b'howdy'
+    >>> test_assign_from_byteslike(bytes(b'hello')) == b'hello'
+    True
+    >>> test_assign_from_byteslike(bytearray(b'howdy')) == b'howdy'
+    True
     """
     # fails on Python 2.7- with
     #   TypeError: an integer is required
-    # >>> test_assign_from_byteslike(pyarray.array('B', b'aloha'))
-    # b'aloha'
+    # >>> test_assign_from_byteslike(pyarray.array('B', b'aloha')) == b'aloha'
+    # True
     # fails on Python 2.6- with
     #   NameError: name 'memoryview' is not defined
-    # >>> test_assign_from_byteslike(memoryview(b'bye!!'))
-    # b'bye!!'
+    # >>> test_assign_from_byteslike(memoryview(b'bye!!')) == b'bye!!'
+    # True
     def assign(m):
         m[:] = byteslike
 
