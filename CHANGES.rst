@@ -2,6 +2,16 @@
 Cython Changelog
 ================
 
+0.29.1 (2018-1?-??)
+===================
+
+Bugs fixed
+----------
+
+* Line tracing of ``try``-statements generated invalid C code.
+  (Github issue #2274)
+
+
 0.29 (2018-10-14)
 =================
 
