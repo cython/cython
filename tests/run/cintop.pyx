@@ -1,4 +1,8 @@
-__doc__ = u"""
+def f():
+    """
+    >>> f()
+    (45, 111)
+
     >>> int2 = 42
     >>> int3 = 7
     >>> char1 = ord('C')
@@ -12,13 +16,6 @@ __doc__ = u"""
     >>> long1 = char1 | int1
     >>> (int1, long1) == f()
     True
-
-"""
-
-def f():
-    """
-    >>> f()
-    (45, 111)
     """
     cdef int int1, int2, int3
     cdef char char1
