@@ -96,6 +96,7 @@ PyLong_MASK  {PyLong_MASK:X}
 PyLong_SHIFT  {PyLong_SHIFT}
 sizeof(digit)  {sizeof(digit)}
 sizeof(sdigit)  {sizeof(sdigit)}
+sys.getsize(1, 2**14, 2**15, 2**29, 2**30, 2**63, 2**64)  {tuple(sys.getsizeof(n) for n in (1, 2**14, 2**15, 2**29, 2**30, 2**63, 2**64))}
 
 SIZEOF_INT  {SIZEOF_INT}  ({sizeof(int)})
 SIZEOF_LONG  {SIZEOF_LONG}  ({sizeof(long)})
