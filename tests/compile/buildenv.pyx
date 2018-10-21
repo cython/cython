@@ -92,10 +92,11 @@ CYTHON_PEP489_MULTI_PHASE_INIT  {CYTHON_PEP489_MULTI_PHASE_INIT}
 CYTHON_USE_TP_FINALIZE  {CYTHON_USE_TP_FINALIZE}
 
 PyLong_BASE  0x{PyLong_BASE:X}
-PyLong_MASK  {PyLong_MASK:X}
+PyLong_MASK  0x{PyLong_MASK:X}
 PyLong_SHIFT  {PyLong_SHIFT}
-sizeof(digit)  {sizeof(digit)}
+sizeof(digit)   {sizeof(digit)}
 sizeof(sdigit)  {sizeof(sdigit)}
+sys.int_info  {getattr(sys, 'int_info', '-')}
 sys.getsizeof(1, 2**14, 2**15, 2**29, 2**30, 2**59, 2**60, 2**64)  {tuple(sys.getsizeof(n) for n in (1, 2**14, 2**15, 2**29, 2**30, 2**59, 2**60, 2**64))}
 
 SIZEOF_INT  {SIZEOF_INT}  ({sizeof(int)})
