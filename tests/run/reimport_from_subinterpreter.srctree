@@ -59,11 +59,14 @@ def run_sub():
     assert 0 == run_in_subinterpreter(b'1+1')
     assert 0 == run_in_subinterpreter(b'2+2')
 
-    assert 0 == run_in_subinterpreter(b'import package')
-    assert 0 == run_in_subinterpreter(b'import package')
+    # The subinterpreter does not add the current working directory to
+    # sys.path, so we need to add it manually.
+    pre = b'import sys; sys.path.insert(0, "."); '
+    assert 0 == run_in_subinterpreter(pre + b'import package')
+    assert 0 == run_in_subinterpreter(pre + b'import package')
 
     import sys
-    result = run_in_subinterpreter(b'import package.subtest')
+    result = run_in_subinterpreter(pre + b'import package.subtest')
     if not MAIN_HAS_IMPORTED:
         assert result == 0, result  # imports only in subinterpreters are ok
     elif sys.version_info >= (3, 5):
