@@ -1734,7 +1734,10 @@ class EndToEndTest(unittest.TestCase):
             .replace("PYTHON", sys.executable))
         old_path = os.environ.get('PYTHONPATH')
         env = dict(os.environ)
-        env['PYTHONPATH'] = self.cython_syspath + os.pathsep + (old_path or '')
+        new_path = self.cython_syspath
+        if old_path:
+            new_path = new_path + os.pathsep + old_path
+        env['PYTHONPATH'] = new_path
         cmd = []
         out = []
         err = []
