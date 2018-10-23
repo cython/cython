@@ -36,3 +36,8 @@ TAGS
 MANIFEST
 
 .tox
+
+# Jetbrains IDE project files
+/.idea
+/*.iml
+
