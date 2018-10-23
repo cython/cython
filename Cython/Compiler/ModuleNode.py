@@ -245,6 +245,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code.put_generated_by()
             api_guard = Naming.api_guard_prefix + self.api_name(env)
             h_code.put_h_guard(api_guard)
+            # Work around https://bugs.python.org/issue4709
+            h_code.putln('#ifdef __MINGW64__')
+            h_code.putln('#define MS_WIN64')
+            h_code.putln('#endif')
+
             h_code.putln('#include "Python.h"')
             if result.h_file:
                 h_code.putln('#include "%s"' % os.path.basename(result.h_file))
