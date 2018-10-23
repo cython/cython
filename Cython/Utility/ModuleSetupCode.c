@@ -205,6 +205,10 @@
   #undef SHIFT
   #undef BASE
   #undef MASK
+  /* Compile-time sanity check that these are indeed equal.  Github issue #2670. */
+  #ifdef SIZEOF_VOID_P
+    enum { __pyx_check_sizeof_voidp = 1/(SIZEOF_VOID_P == sizeof(void*)) };
+  #endif
 #endif
 
 #ifndef __has_attribute
