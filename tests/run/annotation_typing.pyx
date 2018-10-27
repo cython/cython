@@ -242,7 +242,7 @@ _WARNINGS = """
 218:29: Ambiguous types in annotation, ignoring
 # BUG:
 46:6: 'pytypes_cpdef' redeclared
-121:0: 'struct_io' redeclared
-156:0: 'struct_convert' redeclared
-175:0: 'exception_default' redeclared
+120:0: 'struct_io' redeclared
+149:0: 'struct_convert' redeclared
+168:0: 'exception_default' redeclared
 """
