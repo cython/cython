@@ -168,6 +168,13 @@ def search_include_directories(dirs, qualified_name, suffix, pos,
                                     package_filename)
                 if path_exists(path):
                     return path
+                inits = {"__init__.py", "__init__.pyx", "__init__.pxd"} - {package_filename}
+                paths = [os.path.join(dir, package_dir, module_name,
+                                    init_filename) for init_filename in inits] 
+                if any(path_exists(p) for p in paths):
+                    path = os.path.join(dir, package_dir, module_name, 'sub.pxd')
+                    if path_exists(path):
+                        return path
     return None
 
 
