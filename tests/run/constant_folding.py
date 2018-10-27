@@ -136,6 +136,17 @@ def binop_mul_pow():
     return (mul_int, mul_large_int, pow_int, pow_large_int)
 
 
+def binop_pow_negative():
+    """
+    >>> print_big_ints(binop_pow_negative())
+    (4.018775720164609e-06, 8.020807320287816e-38, 0.1)
+    """
+    pow_int = 12 ** -5
+    pow_large_int = 1234 ** -12
+    pow_expression_int = 10 ** (1-2)
+    return (pow_int, pow_large_int, pow_expression_int)
+
+
 @cython.test_fail_if_path_exists(
     "//SliceIndexNode",
 )
