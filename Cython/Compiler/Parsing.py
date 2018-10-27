@@ -3367,7 +3367,7 @@ def _reject_cdef_modifier_in_py(s, name):
 
 def p_def_statement(s, decorators=None, is_async_def=False):
     # s.sy == 'def'
-    pos = s.position()
+    pos = decorators[0].pos if decorators else s.position()
     # PEP 492 switches the async/await keywords on in "async def" functions
     if is_async_def:
         s.enter_async()
