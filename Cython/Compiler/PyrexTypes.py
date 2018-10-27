@@ -653,8 +653,9 @@ class MemoryViewSliceType(PyrexType):
         assert not pyrex
         assert not dll_linkage
         from . import MemoryView
+        base_code = self.__str__() if for_display else MemoryView.memviewslice_cname
         return self.base_declaration_code(
-                MemoryView.memviewslice_cname,
+                base_code,
                 entity_code)
 
     def attributes_known(self):
