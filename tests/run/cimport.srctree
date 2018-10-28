@@ -41,7 +41,10 @@ ctypedef int my_int
 
 ######## a.pyx ########
 
-from other cimport A, foo
+from other cimport (
+    A,
+    foo,
+)
 print A, foo(10)
 
 cimport other
