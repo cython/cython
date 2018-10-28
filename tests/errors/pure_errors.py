@@ -53,5 +53,5 @@ def pyfunc(x):  # invalid
 _ERRORS = """
 44:22: Calling gil-requiring function not allowed without gil
 45:24: Calling gil-requiring function not allowed without gil
-49:0: Python functions cannot be declared 'nogil'
+48:0: Python functions cannot be declared 'nogil'
 """
