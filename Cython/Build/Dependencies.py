@@ -399,6 +399,8 @@ dependency_regex = re.compile(r"(?:^\s*from +([0-9a-zA-Z_.]+) +cimport)|"
                               r"(?:^\s*cimport +([0-9a-zA-Z_.]+(?: *, *[0-9a-zA-Z_.]+)*))|"
                               r"(?:^\s*cdef +extern +from +['\"]([^'\"]+)['\"])|"
                               r"(?:^\s*include +['\"]([^'\"]+)['\"])", re.M)
+dependency_after_from_regex = re.compile(r"(?:^\s+\(((?:[0-9a-zA-Z_., ]*\n)*)\)\n)|"
+                                         r"(?:^\s+((?:[0-9a-zA-Z_., ]*))\n)")
 
 
 def normalize_existing(base_path, rel_paths):
@@ -488,6 +490,13 @@ def parse_dependencies(source_filename):
         cimport_from, cimport_list, extern, include = m.groups()
         if cimport_from:
             cimports.append(cimport_from)
+            m_after_from = dependency_after_from_regex.search(source[m.end():])
+            if m:
+                multiline, one_line = m_after_from.groups()
+                subimports = multiline or one_line
+                cimports.extend("{}.{}".format(cimport_from, s.strip())
+                                for s in subimports.split(','))
+
         elif cimport_list:
             cimports.extend(x.strip() for x in cimport_list.split(","))
         elif extern:
@@ -584,14 +593,14 @@ class DependencyTree(object):
             pxd_list = [filename[:-4] + '.pxd']
         else:
             pxd_list = []
+        # Cimports generates all possible combinations package.module
+        # when imported as from package cimport module.
         for module in self.cimports(filename):
             if module[:7] == 'cython.' or module == 'cython':
                 continue
             pxd_file = self.find_pxd(module, filename)
             if pxd_file is not None:
                 pxd_list.append(pxd_file)
-            elif not self.quiet:
-                print("%s: cannot find cimported module '%s'" % (filename, module))
         return tuple(pxd_list)
 
     @cached_method
