@@ -43,8 +43,6 @@ try:
 except ImportError:
     from builtins import str as basestring
 
-KEYWORDS_MUST_BE_BYTES = sys.version_info < (2, 7)
-
 
 non_portable_builtins_map = {
     # builtins that have different names in different Python versions
@@ -259,15 +257,11 @@ class UtilityCodeBase(object):
             utility[1] = code
         else:
             all_tags = utility[2]
-            if KEYWORDS_MUST_BE_BYTES:
-                type = type.encode('ASCII')
             all_tags[type] = code
 
         if tags:
             all_tags = utility[2]
             for name, values in tags.items():
-                if KEYWORDS_MUST_BE_BYTES:
-                    name = name.encode('ASCII')
                 all_tags.setdefault(name, set()).update(values)
 
     @classmethod

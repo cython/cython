@@ -199,10 +199,8 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* 
         next = iternext(iterator);
         if (likely(next))
             return next;
-        #if PY_VERSION_HEX >= 0x02070000
         if (unlikely(iternext == &_PyObject_NextNotImplemented))
             return NULL;
-        #endif
 #else
         // Since the slot was set, assume that PyIter_Next() will likely succeed, and properly fail otherwise.
         // Note: PyIter_Next() crashes in CPython if "tp_iternext" is NULL.
@@ -1303,7 +1301,7 @@ static PyObject *__Pyx_RaiseGenericGetAttributeError(PyTypeObject *tp, PyObject 
 }
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_GenericGetAttrNoDict(PyObject* obj, PyObject* attr_name) {
-    // Copied and adapted from _PyObject_GenericGetAttrWithDict() in CPython 2.6/3.7.
+    // Copied and adapted from _PyObject_GenericGetAttrWithDict() in CPython 3.6/3.7.
     // To be used in the "tp_getattro" slot of extension types that have no instance dict and cannot be subclassed.
     PyObject *descr;
     PyTypeObject *tp = Py_TYPE(obj);

@@ -48,7 +48,7 @@ The module also extends gdb with some python-specific commands.
 '''
 
 # NOTE: some gdbs are linked with Python 3, so this file should be dual-syntax
-# compatible (2.6+ and 3.0+).  See #19308.
+# compatible (2.7+ and 3.3+).  See #19308.
 
 from __future__ import print_function
 import gdb
@@ -1435,8 +1435,8 @@ The following code should ensure that the prettyprinter is registered
 if the code is autoloaded by gdb when visiting libpython.so, provided
 that this python file is installed to the same path as the library (or its
 .debug file) plus a "-gdb.py" suffix, e.g:
-  /usr/lib/libpython2.6.so.1.0-gdb.py
-  /usr/lib/debug/usr/lib/libpython2.6.so.1.0.debug-gdb.py
+  /usr/lib/libpython3.7.so.1.0-gdb.py
+  /usr/lib/debug/usr/lib/libpython3.7.so.1.0.debug-gdb.py
 """
 def register (obj):
     if obj is None:

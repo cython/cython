@@ -144,17 +144,6 @@ def silence_coro_gc():
         gc.collect()
 
 
-def min_py27(method):
-    return None if sys.version_info < (2, 7) else method
-
-
-def ignore_py26(manager):
-    @contextlib.contextmanager
-    def dummy():
-        yield
-    return dummy() if sys.version_info < (2, 7) else manager
-
-
 @contextlib.contextmanager
 def captured_stderr():
     try:
@@ -1826,7 +1815,7 @@ class CoroutineTest(unittest.TestCase):
 
         buffer = []
         async def test1():
-            with ignore_py26(self.assertWarnsRegex(DeprecationWarning, "legacy")):
+            with self.assertWarnsRegex(DeprecationWarning, "legacy"):
                 async for i1, i2 in AsyncIter():
                     buffer.append(i1 + i2)
 
@@ -1840,7 +1829,7 @@ class CoroutineTest(unittest.TestCase):
         buffer = []
         async def test2():
             nonlocal buffer
-            with ignore_py26(self.assertWarnsRegex(DeprecationWarning, "legacy")):
+            with self.assertWarnsRegex(DeprecationWarning, "legacy"):
                 async for i in AsyncIter():
                     buffer.append(i[0])
                     if i[0] == 20:
@@ -1859,7 +1848,7 @@ class CoroutineTest(unittest.TestCase):
         buffer = []
         async def test3():
             nonlocal buffer
-            with ignore_py26(self.assertWarnsRegex(DeprecationWarning, "legacy")):
+            with self.assertWarnsRegex(DeprecationWarning, "legacy"):
                 async for i in AsyncIter():
                     if i[0] > 20:
                         continue
@@ -2076,7 +2065,6 @@ class CoroutineTest(unittest.TestCase):
         self.assertEqual(CNT, 0)
 
     # old-style pre-Py3.5.2 protocol - no longer supported
-    @min_py27
     def __test_for_9(self):
         # Test that DeprecationWarning can safely be converted into
         # an exception (__aiter__ should not have a chance to raise
@@ -2094,7 +2082,6 @@ class CoroutineTest(unittest.TestCase):
                 run_async(foo())
 
     # old-style pre-Py3.5.2 protocol - no longer supported
-    @min_py27
     def __test_for_10(self):
         # Test that DeprecationWarning can safely be converted into
         # an exception.

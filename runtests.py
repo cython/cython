@@ -412,12 +412,7 @@ EXT_EXTRAS = {
 VER_DEP_MODULES = {
     # tests are excluded if 'CurrentPythonVersion OP VersionTuple', i.e.
     # (2,4) : (operator.lt, ...) excludes ... when PyVer < 2.4.x
-    (2,7) : (operator.lt, lambda x: x in ['run.withstat_py27', # multi context with statement
-                                          'run.yield_inside_lambda',
-                                          'run.test_dictviews',
-                                          'run.pyclass_special_methods',
-                                          'run.set_literals',
-                                          ]),
+
     # The next line should start (3,); but this is a dictionary, so
     # we can only have one (3,) key.  Since 2.7 is supposed to be the
     # last 2.x release, things would have to change drastically for this
@@ -1260,8 +1255,7 @@ class CythonRunTestCase(CythonCompileTestCase):
             try:
                 self.success = False
                 ext_so_path = self.runCompileTest()
-                # Py2.6 lacks "_TextTestResult.skipped"
-                failures, errors, skipped = len(result.failures), len(result.errors), len(getattr(result, 'skipped', []))
+                failures, errors, skipped = len(result.failures), len(result.errors), len(result.skipped)
                 if not self.cython_only and ext_so_path is not None:
                     self.run_tests(result, ext_so_path)
                 if failures == len(result.failures) and errors == len(result.errors):
@@ -1445,10 +1439,6 @@ class PartialTestResult(_TextTestResult):
         _TextTestResult.__init__(
             self, self._StringIO(), True,
             base_result.dots + base_result.showAll*2)
-        try:
-            self.skipped
-        except AttributeError:
-            self.skipped = []  # Py2.6
 
     def strip_error_results(self, results):
         for test_case, error in results:
@@ -1473,10 +1463,7 @@ class PartialTestResult(_TextTestResult):
         if output:
             result.stream.write(output)
         result.errors.extend(errors)
-        try:
-            result.skipped.extend(skipped)
-        except AttributeError:
-            pass  # Py2.6
+        result.skipped.extend(skipped)
         result.failures.extend(failures)
         result.testsRun += tests_run
 
@@ -2209,7 +2196,7 @@ def time_stamper_thread(interval=10):
             write('\n#### %s\n' % now())
 
     thread = threading.Thread(target=time_stamper, name='time_stamper')
-    thread.setDaemon(True)  # Py2.6 ...
+    thread.setDaemon(True)  # Py2 ...
     thread.start()
     try:
         yield
