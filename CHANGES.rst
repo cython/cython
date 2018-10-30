@@ -2,6 +2,26 @@
 Cython Changelog
 ================
 
+3.0.0 (2019-??-??)
+==================
+
+Bugs fixed
+----------
+
+* The first function line number of functions with decorators pointed to the
+  signature line and not the first decorator line, as in Python.
+  Patch by Felix Kohlgrüber.  (Github issue #2536)
+
+* Constant integer expressions that used a negative exponend were evaluated
+  as integer 0 instead of the expected float value.
+  Patch by Kryštof Pilnáček.  (Github issue #2133)
+
+Other changes
+-------------
+
+* Support for Python 2.6 was removed.
+
+
 0.29.1 (2018-1?-??)
 ===================
 
