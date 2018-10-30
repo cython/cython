@@ -11,8 +11,8 @@ def test():
 
 
 _ERRORS = u"""
-9:0: Expected path '//ComprehensionNode' not found in result tree
-9:0: Expected path '//ComprehensionNode//FuncDefNode' not found in result tree
-9:0: Unexpected path '//NameNode' found in result tree
-9:0: Unexpected path '//SimpleCallNode' found in result tree
+5:0: Expected path '//ComprehensionNode' not found in result tree
+5:0: Expected path '//ComprehensionNode//FuncDefNode' not found in result tree
+5:0: Unexpected path '//NameNode' found in result tree
+5:0: Unexpected path '//SimpleCallNode' found in result tree
 """
