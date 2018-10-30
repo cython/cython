@@ -5,7 +5,6 @@ cimport numpy as np
 cimport cython
 
 import re
-import sys
 
 
 def little_endian():
@@ -20,7 +19,7 @@ def testcase(f):
 
 def testcase_have_buffer_interface(f):
     major, minor, *rest = np.__version__.split('.')
-    if (int(major), int(minor)) >= (1, 5) and sys.version_info[:2] >= (2, 6):
+    if (int(major), int(minor)) >= (1, 5):
         __test__[f.__name__] = f.__doc__
     return f
 

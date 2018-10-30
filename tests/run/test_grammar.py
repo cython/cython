@@ -1520,24 +1520,6 @@ class GrammarTests(unittest.TestCase):
 
 GrammarTests.assertRaisesRegex = lambda self, exc, msg: self.assertRaises(exc)
 
-if sys.version_info < (2, 7):
-    def assertRaises(self, exc_type, func=None, *args, **kwargs):
-        if func is not None:
-            return unittest.TestCase.assertRaises(self, exc_type, func, *args, **kwargs)
-        @contextlib.contextmanager
-        def assertRaisesCM():
-            class Result(object):
-                exception = exc_type("unexpected EOF")  # see usage above
-            try:
-                yield Result()
-            except exc_type:
-                self.assertTrue(True)
-            else:
-                self.assertTrue(False)
-        return assertRaisesCM()
-    GrammarTests.assertRaises = assertRaises
-    TokenTests.assertRaises = assertRaises
-
 
 if not hasattr(unittest.TestCase, 'subTest'):
     @contextlib.contextmanager
@@ -1550,19 +1532,9 @@ if not hasattr(unittest.TestCase, 'subTest'):
     GrammarTests.subTest = subTest
 
 
-if not hasattr(unittest.TestCase, 'assertIn'):
-    def assertIn(self, member, container, msg=None):
-        self.assertTrue(member in container, msg)
-    TokenTests.assertIn = assertIn
-
-
 # FIXME: disabling some tests for real Cython bugs here
 del GrammarTests.test_comprehension_specials  # iterable pre-calculation in generator expression
 del GrammarTests.test_funcdef  # annotation mangling
-
-# this test is difficult to enable in Py2.6
-if sys.version_info < (2,7):
-    del GrammarTests.test_former_statements_refer_to_builtins
 
 
 if __name__ == '__main__':

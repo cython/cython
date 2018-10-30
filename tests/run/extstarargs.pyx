@@ -88,14 +88,12 @@ __doc__ = u"""
     (1, ('a', 1), ('b', 2))
 """
 
-import sys, re
-if sys.version_info >= (2,6):
-    __doc__ = re.sub(u"(ELLIPSIS[^>]*Error: )[^\n]*\n", u"\\1...\n", __doc__)
 
 cdef sorteditems(d):
     l = list(d.items())
     l.sort()
     return tuple(l)
+
 
 cdef class Silly:
 

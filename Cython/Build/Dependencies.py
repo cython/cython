@@ -1056,31 +1056,25 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     if N <= 1:
         nthreads = 0
     if nthreads:
-        # Requires multiprocessing (or Python >= 2.6)
+        import multiprocessing
+        pool = multiprocessing.Pool(
+            nthreads, initializer=_init_multiprocessing_helper)
+        # This is a bit more involved than it should be, because KeyboardInterrupts
+        # break the multiprocessing workers when using a normal pool.map().
+        # See, for example:
+        # http://noswap.com/blog/python-multiprocessing-keyboardinterrupt
         try:
-            import multiprocessing
-            pool = multiprocessing.Pool(
-                nthreads, initializer=_init_multiprocessing_helper)
-        except (ImportError, OSError):
-            print("multiprocessing required for parallel cythonization")
-            nthreads = 0
-        else:
-            # This is a bit more involved than it should be, because KeyboardInterrupts
-            # break the multiprocessing workers when using a normal pool.map().
-            # See, for example:
-            # http://noswap.com/blog/python-multiprocessing-keyboardinterrupt
-            try:
-                result = pool.map_async(cythonize_one_helper, to_compile, chunksize=1)
-                pool.close()
-                while not result.ready():
-                    try:
-                        result.get(99999)  # seconds
-                    except multiprocessing.TimeoutError:
-                        pass
-            except KeyboardInterrupt:
-                pool.terminate()
-                raise
-            pool.join()
+            result = pool.map_async(cythonize_one_helper, to_compile, chunksize=1)
+            pool.close()
+            while not result.ready():
+                try:
+                    result.get(99999)  # seconds
+                except multiprocessing.TimeoutError:
+                    pass
+        except KeyboardInterrupt:
+            pool.terminate()
+            raise
+        pool.join()
     if not nthreads:
         for args in to_compile:
             cythonize_one(*args)

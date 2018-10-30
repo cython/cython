@@ -418,9 +418,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_IterItems(PyObject* d) {
 
 //////////////////// py_dict_viewkeys.proto ////////////////////
 
-#if PY_VERSION_HEX < 0x02070000
-#error This module uses dict views, which require Python 2.7 or later
-#endif
 static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewKeys(PyObject* d); /*proto*/
 
 //////////////////// py_dict_viewkeys ////////////////////
@@ -434,9 +431,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewKeys(PyObject* d) {
 
 //////////////////// py_dict_viewvalues.proto ////////////////////
 
-#if PY_VERSION_HEX < 0x02070000
-#error This module uses dict views, which require Python 2.7 or later
-#endif
 static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewValues(PyObject* d); /*proto*/
 
 //////////////////// py_dict_viewvalues ////////////////////
@@ -450,9 +444,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewValues(PyObject* d) {
 
 //////////////////// py_dict_viewitems.proto ////////////////////
 
-#if PY_VERSION_HEX < 0x02070000
-#error This module uses dict views, which require Python 2.7 or later
-#endif
 static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewItems(PyObject* d); /*proto*/
 
 //////////////////// py_dict_viewitems ////////////////////

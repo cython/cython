@@ -60,8 +60,6 @@ class CompileError(PyrexError):
         self.message_only = message
         self.formatted_message = format_error(message, position)
         self.reported = False
-    # Deprecated and withdrawn in 2.6:
-    #   self.message = message
         Exception.__init__(self, self.formatted_message)
         # Python Exception subclass pickling is broken,
         # see http://bugs.python.org/issue1692335
@@ -74,8 +72,6 @@ class CompileWarning(PyrexWarning):
 
     def __init__(self, position = None, message = ""):
         self.position = position
-    # Deprecated and withdrawn in 2.6:
-    #   self.message = message
         Exception.__init__(self, format_position(position) + message)
 
 class InternalError(Exception):
