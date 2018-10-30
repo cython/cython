@@ -28,8 +28,23 @@ Other changes
 Bugs fixed
 ----------
 
+* Extensions compiled with MinGW-64 under Windows could misinterpret integer
+  objects larger than 15 bit and return incorrect results.
+  (Github issue #2670)
+
 * Line tracing of ``try``-statements generated invalid C code.
   (Github issue #2274)
+
+* When using the ``warn.undeclared`` directive, Cython's own code generated
+  warnings that are now fixed.
+  Patch by Nicolas Pauss.  (Github issue #2685)
+
+* Some C compiler warnings about unused memoryview code were fixed.
+  Patch by Ho Cheuk Ting.  (Github issue #2588)
+
+* Signatures with memory view arguments now show the expected type
+  when embedded in docstrings.
+  Patch by Matthew Chan and Benjamin Weigel.  (Github issue #2634)
 
 
 0.29 (2018-10-14)

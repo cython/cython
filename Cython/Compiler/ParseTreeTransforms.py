@@ -1707,6 +1707,8 @@ if VALUE is not None:
             # so it can be pickled *after* self is memoized.
             unpickle_func = TreeFragment(u"""
                 def %(unpickle_func_name)s(__pyx_type, long __pyx_checksum, __pyx_state):
+                    cdef object __pyx_PickleError
+                    cdef object __pyx_result
                     if __pyx_checksum != %(checksum)s:
                         from pickle import PickleError as __pyx_PickleError
                         raise __pyx_PickleError("Incompatible checksums (%%s vs %(checksum)s = (%(members)s))" %% __pyx_checksum)
@@ -1735,6 +1737,8 @@ if VALUE is not None:
 
             pickle_func = TreeFragment(u"""
                 def __reduce_cython__(self):
+                    cdef tuple state
+                    cdef object _dict
                     cdef bint use_setstate
                     state = (%(members)s)
                     _dict = getattr(self, '__dict__', None)
