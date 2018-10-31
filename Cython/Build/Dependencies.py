@@ -491,7 +491,7 @@ def parse_dependencies(source_filename):
         if cimport_from:
             cimports.append(cimport_from)
             m_after_from = dependency_after_from_regex.search(source[m.end():])
-            if m:
+            if m_after_from:
                 multiline, one_line = m_after_from.groups()
                 subimports = multiline or one_line
                 cimports.extend("{}.{}".format(cimport_from, s.strip())
