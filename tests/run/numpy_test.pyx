@@ -133,6 +133,7 @@ try:
        ...
     ValueError: ndarray is not C...contiguous
 
+    >>> test_dtype('?', inc1_bool)
     >>> test_dtype('b', inc1_byte)
     >>> test_dtype('B', inc1_ubyte)
     >>> test_dtype('h', inc1_short)
@@ -339,6 +340,7 @@ def test_f_contig(np.ndarray[int, ndim=2, mode='fortran'] arr):
         print u" ".join([unicode(arr[i, j]) for j in range(arr.shape[1])])
 
 # Exhaustive dtype tests -- increments element [1] by 1 (or 1+1j) for all dtypes
+def inc1_bool(np.ndarray[unsigned char] arr):           arr[1] += 1
 def inc1_byte(np.ndarray[char] arr):                    arr[1] += 1
 def inc1_ubyte(np.ndarray[unsigned char] arr):          arr[1] += 1
 def inc1_short(np.ndarray[short] arr):                  arr[1] += 1
@@ -401,6 +403,13 @@ def test_dtype(dtype, inc1):
         a = np.array([0, 10+10j], dtype=dtype)
         inc1(a)
         if a[1] != (11 + 11j): print u"failed!", a[1]
+    elif dtype == '?':
+        # bool ndarrays coerce all values to 0 or 1
+        a = np.array([0, 0], dtype=dtype)
+        inc1(a)
+        if a[1] != 1: print u"failed!"
+        inc1(a)
+        if a[1] != 1: print u"failed!"
     else:
         a = np.array([0, 10], dtype=dtype)
         inc1(a)
