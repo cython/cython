@@ -708,7 +708,7 @@ def test_boundscheck_and_wraparound(double[:, :] x):
     """
     >>> import numpy as np
     >>> array = np.ones((2,2)) * 3.5
-    >>> testing_memoryview(array)
+    >>> test_boundscheck_and_wraparound(array)
     """
     # Make sure we don't generate C compiler warnings for unused code here.
     cdef Py_ssize_t numrow = x.shape[0]
