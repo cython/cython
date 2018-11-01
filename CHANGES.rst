@@ -32,6 +32,10 @@ Bugs fixed
   objects larger than 15 bit and return incorrect results.
   (Github issue #2670)
 
+* Cython no longer requires the source to be writable when copying its data
+  into a memory view slice.
+  Patch by Andrey Paramonov.  (Github issue #2644)
+
 * Line tracing of ``try``-statements generated invalid C code.
   (Github issue #2274)
 

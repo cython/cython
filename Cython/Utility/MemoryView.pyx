@@ -426,7 +426,7 @@ cdef class memoryview(object):
     cdef is_slice(self, obj):
         if not isinstance(obj, memoryview):
             try:
-                obj = memoryview(obj, self.flags|PyBUF_ANY_CONTIGUOUS,
+                obj = memoryview(obj, self.flags & ~PyBUF_WRITABLE | PyBUF_ANY_CONTIGUOUS,
                                  self.dtype_is_object)
             except TypeError:
                 return None
