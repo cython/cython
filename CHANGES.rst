@@ -56,6 +56,11 @@ Bugs fixed
   when embedded in docstrings.
   Patch by Matthew Chan and Benjamin Weigel.  (Github issue #2634)
 
+* Some ``from ... cimport ...`` constructs were not correctly considered
+  when searching modified dependencies in ``cythonize()`` to decide
+  whether to recompile a module.
+  Patch by Kryštof Pilnáček.  (Github issue #2638)
+
 
 0.29 (2018-10-14)
 =================
