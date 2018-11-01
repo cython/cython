@@ -2,11 +2,15 @@
 Cython Changelog
 ================
 
-0.28.6 (??)
+0.28.6 (2018-11-01)
 ===================
 
 Bugs fixed
 ----------
+
+* Extensions compiled with MinGW-64 under Windows could misinterpret integer
+  objects larger than 15 bit and return incorrect results.
+  (Github issue #2670)
 
 * Multiplied string literals lost their factor when they are part of another
   constant expression (e.g. 'x' * 10 + 'y' => 'xy').
