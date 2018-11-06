@@ -121,9 +121,7 @@ def sum(Foo f):
 
 
 cdef extern from "foo.h":
-    ctypedef class foo_extension.Foo [object FooStructOpaque]:
-    # Importing will warn until we can use this syntax
-    # ctypedef class foo_extension.Foo [object FooStructOpaque, check_size]:
+    ctypedef class foo_extension.Foo [object FooStructOpaque, check_size ignore]:
         @property
         cdef int field0(self):
             return PyFoo_GET0(self)
@@ -196,9 +194,6 @@ except AttributeError as e:
 
 opaque_foo = foo_extension.OpaqueFoo(23, 123, 1023)
 
-# Remove warnings filter once we can use check_size=False
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore")
-    opaque_ret = getter1.sum(opaque_foo)
+opaque_ret = getter1.sum(opaque_foo)
 assert opaque_ret == ret
 
