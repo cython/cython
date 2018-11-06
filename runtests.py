@@ -2132,9 +2132,10 @@ def main():
     if options.xml_output_dir:
         shutil.rmtree(options.xml_output_dir, ignore_errors=True)
 
-    interval = 10
-    if not options.capture:
-        interval = 10000
+    if options.capture:
+        keep_alive_interval = 10
+    else:
+        keep_alive_interval = None
     if options.shard_count > 1 and options.shard_num == -1:
         import multiprocessing
         pool = multiprocessing.Pool(options.shard_count)
@@ -2143,7 +2144,7 @@ def main():
         # NOTE: create process pool before time stamper thread to avoid forking issues.
         total_time = time.time()
         stats = Stats()
-        with time_stamper_thread(interval=interval):
+        with time_stamper_thread(interval=keep_alive_interval):
             for shard_num, shard_stats, return_code in pool.imap_unordered(runtests_callback, tasks):
                 if return_code != 0:
                     errors.append(shard_num)
@@ -2160,7 +2161,7 @@ def main():
         else:
             return_code = 0
     else:
-        with time_stamper_thread(interval=interval):
+        with time_stamper_thread(interval=keep_alive_interval):
             _, stats, return_code = runtests(options, cmd_args, coverage)
 
     if coverage:
@@ -2199,27 +2200,31 @@ def time_stamper_thread(interval=10):
     from datetime import datetime
     from time import sleep
 
-    interval = _xrange(interval * 4)
-    now = datetime.now
-    write = sys.__stderr__.write
-    stop = False
-
-    def time_stamper():
-        while True:
-            for _ in interval:
-                if stop:
-                    return
-                sleep(1./4)
-            write('\n#### %s\n' % now())
-
-    thread = threading.Thread(target=time_stamper, name='time_stamper')
-    thread.setDaemon(True)  # Py2 ...
-    thread.start()
-    try:
+    if not interval or interval < 0:
+        # Do nothing
         yield
-    finally:
-        stop = True
-        thread.join()
+    else:
+        interval = _xrange(interval * 4)
+        now = datetime.now
+        write = sys.__stderr__.write
+        stop = False
+
+        def time_stamper():
+            while True:
+                for _ in interval:
+                    if stop:
+                        return
+                    sleep(1./4)
+                write('\n#### %s\n' % now())
+
+        thread = threading.Thread(target=time_stamper, name='time_stamper')
+        thread.setDaemon(True)  # Py2 ...
+        thread.start()
+        try:
+            yield
+        finally:
+            stop = True
+            thread.join()
 
 
 def configure_cython(options):

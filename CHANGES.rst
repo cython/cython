@@ -11,6 +11,9 @@ Features added
 * ``?`` is supported as NumPy dtype for ``bool``.
   Patch by Max Klein.  (Github issue #2675)
 
+* ``--no-capture`` added to ``runtests.py`` to prevent stdout,stderr capturing
+  during srctree tests
+
 Bugs fixed
 ----------
 
