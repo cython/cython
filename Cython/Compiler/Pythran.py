@@ -201,7 +201,7 @@ def is_pythran_buffer(type_):
 
 def pythran_get_func_include_file(func):
     func = np_func_to_list(func)
-    return "pythonic/include/numpy/%s.hpp" % "/".join(func)
+    return "pythonic/numpy/%s.hpp" % "/".join(func)
 
 def include_pythran_generic(env):
     # Generic files
