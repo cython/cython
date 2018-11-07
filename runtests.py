@@ -1570,6 +1570,8 @@ class TestCodeFormat(unittest.TestCase):
     def runTest(self):
         import pycodestyle
         config_file = os.path.join(self.cython_dir, "tox.ini")
+        if not os.path.exists(config_file):
+            config_file=os.path.join(os.path.dirname(__file__), "tox.ini")
         paths = glob.glob(os.path.join(self.cython_dir, "**/*.py"), recursive=True)
         style = pycodestyle.StyleGuide(config_file=config_file)
         print("")  # Fix the first line of the report.
