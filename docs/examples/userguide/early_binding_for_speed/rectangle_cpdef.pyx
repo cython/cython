@@ -8,7 +8,7 @@ cdef class Rectangle:
         self.x1 = x1
         self.y1 = y1
 
-    cpdef int _area(self):
+    cpdef int area(self):
         area = (self.x1 - self.x0) * (self.y1 - self.y0)
         if area < 0:
             area = -area
