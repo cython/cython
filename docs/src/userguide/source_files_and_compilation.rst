@@ -920,10 +920,9 @@ How to set directives
 Globally
 :::::::::
 
-One can set compiler directives through a special header comment at the top of the file, like this::
+One can set compiler directives through a special header comment near the top of the file, like this::
 
-    #!python
-    #cython: language_level=3, boundscheck=False
+    # cython: language_level=3, boundscheck=False
 
 The comment must appear before any code (but can appear after other
 comments or whitespace).
