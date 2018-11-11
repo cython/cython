@@ -11115,12 +11115,19 @@ class BinopNode(ExprNode):
         if self.type.is_pythran_expr:
             code.putln("// Pythran binop")
             code.putln("__Pyx_call_destructor(%s);" % self.result())
-            code.putln("new (&%s) decltype(%s){%s %s %s};" % (
-                self.result(),
-                self.result(),
-                self.operand1.pythran_result(),
-                self.operator,
-                self.operand2.pythran_result()))
+            if self.operator == '**':
+                code.putln("new (&%s) decltype(%s){pythonic::numpy::functor::power{}(%s, %s)};" % (
+                    self.result(),
+                    self.result(),
+                    self.operand1.pythran_result(),
+                    self.operand2.pythran_result()))
+            else:
+                code.putln("new (&%s) decltype(%s){%s %s %s};" % (
+                    self.result(),
+                    self.result(),
+                    self.operand1.pythran_result(),
+                    self.operator,
+                    self.operand2.pythran_result()))
         elif self.operand1.type.is_pyobject:
             function = self.py_operation_function(code)
             if self.operator == '**':
