@@ -606,6 +606,15 @@ class TrackNumpyAttributes(VisitorTransform, SkipDeclarations):
         super(TrackNumpyAttributes, self).__init__()
         self.numpy_module_names = set()
 
+    def visit_SingleAssignmentNode(self, node):
+        lhs, rhs = node.lhs, node.rhs
+        if not isinstance(rhs, ExprNodes.ImportNode):
+            return node
+        module_name = rhs.module_name.value
+        if module_name == u"numpy":
+            self.numpy_module_names.add(lhs.name)
+        return node
+
     def visit_CImportStatNode(self, node):
         if node.module_name == u"numpy":
             self.numpy_module_names.add(node.as_name or u"numpy")
