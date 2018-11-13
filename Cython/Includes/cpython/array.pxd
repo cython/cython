@@ -59,7 +59,7 @@ cdef extern from *:  # Hard-coded utility code hack.
     ctypedef object GETF(array a, Py_ssize_t ix)
     ctypedef object SETF(array a, Py_ssize_t ix, object o)
     ctypedef struct arraydescr:  # [object arraydescr]:
-            int typecode
+            char typecode
             int itemsize
             GETF getitem    # PyObject * (*getitem)(struct arrayobject *, Py_ssize_t);
             SETF setitem    # int (*setitem)(struct arrayobject *, Py_ssize_t, PyObject *);
