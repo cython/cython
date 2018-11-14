@@ -2243,21 +2243,20 @@ class ReplacePropertyNode(CythonTransform):
     def visit_CFuncDefNode(self, node):
         if not node.decorators:
             return node
-
-        # transform @property decorators
+        # transform @property decorators on ctypedef class functions
         for decorator_node in node.decorators[::-1]:
             decorator = decorator_node.decorator
             if decorator.is_name and decorator.name == 'property':
                 if len(node.decorators) > 1:
                     return self._reject_decorated_property(node, decorator_node)
-                name = node.declarator.base.name
-                node.name = name #EncodedString('__get__')
-                newstats = node.body.analyse_expressions(node.local_scope)
-                newnode = newstats.stats[0].value
-                newnode.name = name
+                # Mark the node as a cgetter
+                node.type.is_cgetter = True
+                # Add a func_cname to be output instead of the attribute
+                node.entry.func_cname = node.body.stats[0].value.function.name
+                # done - remove the decorator node
                 node.decorators.remove(decorator_node)
-                return [newnode]
-        # XXX still need to update everywhere that used the old node
+                return [node]
+
 
 class FindInvalidUseOfFusedTypes(CythonTransform):
 

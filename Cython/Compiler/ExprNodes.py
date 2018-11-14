@@ -6976,7 +6976,10 @@ class AttributeNode(ExprNode):
         self.obj = self.obj.analyse_types(env)
         self.analyse_attribute(env)
         if self.entry and self.entry.is_cmethod and not self.is_called:
-#            error(self.pos, "C method can only be called")
+            # It must be a property method. This should be done at a different level??
+            self.is_called = 1
+            self.op = ''
+            self.result_ctype = self.type.return_type
             pass
         ## Reference to C array turns into pointer to first element.
         #while self.type.is_array:
@@ -7146,6 +7149,8 @@ class AttributeNode(ExprNode):
         obj_code = obj.result_as(obj.type)
         #print "...obj_code =", obj_code ###
         if self.entry and self.entry.is_cmethod:
+            if getattr(self.entry.type, 'is_cgetter', False):
+                return "%s(%s)" %(self.entry.func_cname, obj_code)
             if obj.type.is_extension_type and not self.entry.is_builtin_cmethod:
                 if self.entry.final_func_cname:
                     return self.entry.final_func_cname
@@ -11223,6 +11228,10 @@ class NumBinopNode(BinopNode):
             self.operand2 = self.operand2.coerce_to(self.type, env)
 
     def compute_c_result_type(self, type1, type2):
+        if type1.is_cfunction and type1.is_cgetter:
+            type1 = type1.return_type
+        if type2.is_cfunction and type2.is_cgetter:
+            type2 = type2.return_type
         if self.c_types_okay(type1, type2):
             widest_type = PyrexTypes.widest_numeric_type(type1, type2)
             if widest_type is PyrexTypes.c_bint_type:

@@ -752,7 +752,8 @@ class Scope(object):
 
     def declare_cfunction(self, name, type, pos,
                           cname=None, visibility='private', api=0, in_pxd=0,
-                          defining=0, modifiers=(), utility_code=None, overridable=False):
+                          defining=0, modifiers=(), utility_code=None,
+                          overridable=False, property=False):
         # Add an entry for a C function.
         if not cname:
             if visibility != 'private' or api:
@@ -829,7 +830,8 @@ class Scope(object):
         type.entry = entry
         return entry
 
-    def add_cfunction(self, name, type, pos, cname, visibility, modifiers, inherited=False):
+    def add_cfunction(self, name, type, pos, cname, visibility, modifiers,
+                      inherited=False, property=False):
         # Add a C function entry without giving it a func_cname.
         entry = self.declare(name, cname, type, pos, visibility)
         entry.is_cfunction = 1
@@ -837,6 +839,8 @@ class Scope(object):
             entry.func_modifiers = modifiers
         if inherited or type.is_fused:
             self.cfunc_entries.append(entry)
+        elif property:
+            self.property_entries.append(entry)
         else:
             # For backwards compatibility reasons, we must keep all non-fused methods
             # before all fused methods, but separately for each type.
@@ -1435,7 +1439,8 @@ class ModuleScope(Scope):
 
     def declare_cfunction(self, name, type, pos,
                           cname=None, visibility='private', api=0, in_pxd=0,
-                          defining=0, modifiers=(), utility_code=None, overridable=False):
+                          defining=0, modifiers=(), utility_code=None,
+                          overridable=False, property=False):
         if not defining and 'inline' in modifiers:
             # TODO(github/1736): Make this an error.
             warning(pos, "Declarations should not be declared inline.", 1)
@@ -1459,7 +1464,7 @@ class ModuleScope(Scope):
             self, name, type, pos,
             cname=cname, visibility=visibility, api=api, in_pxd=in_pxd,
             defining=defining, modifiers=modifiers, utility_code=utility_code,
-            overridable=overridable)
+            overridable=overridable, property=property)
         return entry
 
     def declare_global(self, name, pos):
@@ -2214,7 +2219,8 @@ class CClassScope(ClassScope):
 
     def declare_cfunction(self, name, type, pos,
                           cname=None, visibility='private', api=0, in_pxd=0,
-                          defining=0, modifiers=(), utility_code=None, overridable=False):
+                          defining=0, modifiers=(), utility_code=None,
+                          overridable=False, property=False):
         if get_special_method_signature(name) and not self.parent_type.is_builtin_type:
             error(pos, "Special methods must be declared with 'def', not 'cdef'")
         args = type.args
@@ -2258,7 +2264,8 @@ class CClassScope(ClassScope):
                 error(pos,
                     "C method '%s' not previously declared in definition part of"
                     " extension type '%s'" % (name, self.class_name))
-            entry = self.add_cfunction(name, type, pos, cname, visibility, modifiers)
+            entry = self.add_cfunction(name, type, pos, cname, visibility,
+                                                 modifiers, property=property)
         if defining:
             entry.func_cname = self.mangle(Naming.func_prefix, name)
         entry.utility_code = utility_code
@@ -2274,11 +2281,13 @@ class CClassScope(ClassScope):
 
         return entry
 
-    def add_cfunction(self, name, type, pos, cname, visibility, modifiers, inherited=False):
+    def add_cfunction(self, name, type, pos, cname, visibility, modifiers,
+                                             inherited=False, property=False):
         # Add a cfunction entry without giving it a func_cname.
         prev_entry = self.lookup_here(name)
         entry = ClassScope.add_cfunction(self, name, type, pos, cname,
-                                         visibility, modifiers, inherited=inherited)
+                                    visibility, modifiers,
+                                    inherited=inherited, property=property)
         entry.is_cmethod = 1
         entry.prev_entry = prev_entry
         return entry

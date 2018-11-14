@@ -2422,11 +2422,16 @@ class CFuncDefNode(FuncDefNode):
 
         type.is_const_method = self.is_const_method
         type.is_static_method = self.is_static_method
+        property = False
+        if self.decorators:
+            for _node in self.decorators:
+                if _node.decorator.is_name and _node.decorator.name == 'property':
+                    property = True
         self.entry = env.declare_cfunction(
             name, type, self.pos,
             cname=cname, visibility=self.visibility, api=self.api,
             defining=self.body is not None, modifiers=self.modifiers,
-            overridable=self.overridable)
+            overridable=self.overridable, property=property)
         self.entry.inline_func_in_pxd = self.inline_in_pxd
         self.return_type = type.return_type
         if self.return_type.is_array and self.visibility != 'extern':
