@@ -150,7 +150,7 @@ def sum(Foo f):
 
 cdef extern from "foo.h":
     ctypedef class foo_extension.Foo [object FooStructOpaque]:
-        @staticmethod
+        @classmethod
         cdef void field0():
             print('in staticmethod of Foo')
 

@@ -2256,6 +2256,7 @@ class ReplacePropertyNode(CythonTransform):
                 # done - remove the decorator node
                 node.decorators.remove(decorator_node)
                 return [node]
+        return [node]
 
 
 class FindInvalidUseOfFusedTypes(CythonTransform):

@@ -2344,11 +2344,10 @@ class CFuncDefNode(FuncDefNode):
             for decorator in self.decorators:
                 func = decorator.decorator
                 if func.is_name:
-                    if func.name == 'classmethod' or func.name == 'staticmethod':
-                        error(self.pos, "Cannot handle these decorators yet")
-                    if func.name == 'property':
-                        # XXX DO SOMETHING HERE???
+                    if func.name in ('property', 'staticmethod'):
                         pass
+                    else:
+                        error(self.pos, "Cannot handle %s decorators yet" % func.name)
 
         self.is_c_class_method = env.is_c_class_scope
         if self.directive_locals is None:
