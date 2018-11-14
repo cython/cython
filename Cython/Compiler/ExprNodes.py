@@ -6976,10 +6976,11 @@ class AttributeNode(ExprNode):
         self.obj = self.obj.analyse_types(env)
         self.analyse_attribute(env)
         if self.entry and self.entry.is_cmethod and not self.is_called:
-            # It must be a property method. This should be done at a different level??
-            self.is_called = 1
-            self.op = ''
-            self.result_ctype = self.type.return_type
+            if getattr(self.entry, 'is_cgetter', False):
+                # This should be done at a different level??
+                self.is_called = 1
+                self.op = ''
+                self.result_ctype = self.type.return_type
             pass
         ## Reference to C array turns into pointer to first element.
         #while self.type.is_array:
