@@ -458,7 +458,7 @@ integers as before.
 Using multiple threads
 ======================
 
-Cython have support for OpenMP. It has also some nice wrappers around it,
+Cython have support for OpenMP. It also has some nice wrappers around it,
 like the function :func:`prange`. You can see more information about Cython and
 parallelism in :ref:`parallel`. Since we do elementwise operations, we can easily
 distribute the work among multiple threads. It's important not to forget to pass the
