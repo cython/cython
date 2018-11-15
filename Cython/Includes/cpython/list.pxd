@@ -40,13 +40,13 @@ cdef extern from "Python.h":
     # Return value: Borrowed reference.
     # Macro form of PyList_GetItem() without error checking.
 
-    int PyList_SetItem(object list, Py_ssize_t index, object item) except -1
+    int PyList_SetItem(object list, Py_ssize_t index, PyObject* item) except -1
     # Set the item at index index in list to item. Return 0 on success
     # or -1 on failure. Note: This function ``steals'' a reference to
     # item and discards a reference to an item already in the list at
     # the affected position.
 
-    void PyList_SET_ITEM(object list, Py_ssize_t i, object o)
+    void PyList_SET_ITEM(object list, Py_ssize_t i, PyObject* o)
     # Macro form of PyList_SetItem() without error checking. This is
     # normally only used to fill in new lists where there is no
     # previous content. Note: This function ``steals'' a reference to
