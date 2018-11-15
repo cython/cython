@@ -45,12 +45,12 @@ cdef extern from "Python.h":
     # Return value: New reference.
     # Take a slice of the tuple pointed to by p from low to high and return it as a new tuple.
 
-    int PyTuple_SetItem(object  p, Py_ssize_t pos, object  o) except -1
+    int PyTuple_SetItem(object  p, Py_ssize_t pos, PyObject* o) except -1
     # Insert a reference to object o at position pos of the tuple
     # pointed to by p. Return 0 on success. Note: This function
     # ``steals'' a reference to o.
 
-    void PyTuple_SET_ITEM(object  p, Py_ssize_t pos, object  o)
+    void PyTuple_SET_ITEM(object  p, Py_ssize_t pos, PyObject* o)
     # Like PyTuple_SetItem(), but does no error checking, and should
     # only be used to fill in brand new tuples. Note: This function
     # ``steals'' a reference to o.
