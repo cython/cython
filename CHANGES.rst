@@ -26,6 +26,10 @@ Bugs fixed
 * Some C compiler warnings about unused memoryview code were fixed.
   Patch by Ho Cheuk Ting.  (Github issue #2588)
 
+* The power operator and the support for NumPy math functions were fixed
+  in Pythran expressions.
+  Patch by Serge Guelton (Github issues #2702, #2709).
+
 * Signatures with memory view arguments now show the expected type
   when embedded in docstrings.
   Patch by Matthew Chan and Benjamin Weigel.  (Github issue #2634)
@@ -34,6 +38,9 @@ Bugs fixed
   when searching modified dependencies in ``cythonize()`` to decide
   whether to recompile a module.
   Patch by Kryštof Pilnáček.  (Github issue #2638)
+
+* A struct field type in the ``cpython.array`` declarations was corrected.
+  Patch by John Kirkham. (Github issue #2712)
 
 
 0.29 (2018-10-14)
