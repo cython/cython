@@ -515,7 +515,7 @@ cdef class memoryview(object):
         if flags & PyBUF_WRITABLE and self.view.readonly:
             raise ValueError("Cannot create writable memory view from read-only memoryview")
 
-        if flags & PyBUF_STRIDES:
+        if flags & PyBUF_ND:
             info.shape = self.view.shape
         else:
             info.shape = NULL
