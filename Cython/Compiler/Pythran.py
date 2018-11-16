@@ -60,8 +60,12 @@ def type_remove_ref(ty):
 
 
 def pythran_binop_type(op, tA, tB):
-    return "decltype(std::declval<%s>() %s std::declval<%s>())" % (
-        pythran_type(tA), op, pythran_type(tB))
+    if op == '**':
+        return 'decltype(pythonic::numpy::functor::power{}(std::declval<%s>(), std::declval<%s>()))' % (
+            pythran_type(tA), pythran_type(tB))
+    else:
+        return "decltype(std::declval<%s>() %s std::declval<%s>())" % (
+            pythran_type(tA), op, pythran_type(tB))
 
 
 def pythran_unaryop_type(op, type_):
@@ -209,6 +213,7 @@ def include_pythran_generic(env):
     env.add_include_file("pythonic/python/core.hpp")
     env.add_include_file("pythonic/types/bool.hpp")
     env.add_include_file("pythonic/types/ndarray.hpp")
+    env.add_include_file("pythonic/numpy/power.hpp")
     env.add_include_file("<new>")  # for placement new
 
     for i in (8, 16, 32, 64):
