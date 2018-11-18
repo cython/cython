@@ -640,6 +640,7 @@ class TestBuilder(object):
         self.default_mode = default_mode
         self.stats = stats
         self.add_embedded_test = add_embedded_test
+        self.capture = options.capture
 
     def build_suite(self):
         suite = unittest.TestSuite()
@@ -697,7 +698,9 @@ class TestBuilder(object):
 
             if ext == '.srctree':
                 if 'cpp' not in tags['tag'] or 'cpp' in self.languages:
-                    suite.addTest(EndToEndTest(filepath, workdir, self.cleanup_workdir, stats=self.stats))
+                    suite.addTest(EndToEndTest(filepath, workdir,
+                             self.cleanup_workdir, stats=self.stats,
+                             capture=self.capture))
                 continue
 
             # Choose the test suite.
@@ -1672,12 +1675,14 @@ class EndToEndTest(unittest.TestCase):
     """
     cython_root = os.path.dirname(os.path.abspath(__file__))
 
-    def __init__(self, treefile, workdir, cleanup_workdir=True, stats=None):
+    def __init__(self, treefile, workdir, cleanup_workdir=True, stats=None,
+                 capture=True):
         self.name = os.path.splitext(os.path.basename(treefile))[0]
         self.treefile = treefile
         self.workdir = os.path.join(workdir, self.name)
         self.cleanup_workdir = cleanup_workdir
         self.stats = stats
+        self.capture = capture
         cython_syspath = [self.cython_root]
         for path in sys.path:
             if path.startswith(self.cython_root) and path not in cython_syspath:
@@ -1733,16 +1738,23 @@ class EndToEndTest(unittest.TestCase):
         for command_no, command in enumerate(filter(None, commands.splitlines()), 1):
             with self.stats.time('%s(%d)' % (self.name, command_no), 'c',
                                  'etoe-build' if ' setup.py ' in command else 'etoe-run'):
-                p = subprocess.Popen(command,
+                if self.capture:
+                    p = subprocess.Popen(command,
                                      stderr=subprocess.PIPE,
                                      stdout=subprocess.PIPE,
                                      shell=True,
                                      env=env)
-                _out, _err = p.communicate()
+                    _out, _err = p.communicate()
+                    res = p.returncode
+                else:
+                    p = subprocess.call(command,
+                                     shell=True,
+                                     env=env)
+                    _out, _err = b'', b''
+                    res = p
                 cmd.append(command)
                 out.append(_out)
                 err.append(_err)
-            res = p.returncode
             if res != 0:
                 for c, o, e in zip(cmd, out, err):
                     sys.stderr.write("%s\n%s\n%s\n\n" % (
@@ -2094,6 +2106,8 @@ def main():
                       help="test whether Cython's output is deterministic")
     parser.add_option("--pythran-dir", dest="pythran_dir", default=None,
                       help="specify Pythran include directory. This will run the C++ tests using Pythran backend for Numpy")
+    parser.add_option("--no-capture", dest="capture", default=True, action="store_false",
+                      help="do not capture stdout, stderr in srctree tests. Makes pdb.set_trace interactive")
 
     options, cmd_args = parser.parse_args(args)
 
@@ -2120,6 +2134,10 @@ def main():
     if options.xml_output_dir:
         shutil.rmtree(options.xml_output_dir, ignore_errors=True)
 
+    if options.capture:
+        keep_alive_interval = 10
+    else:
+        keep_alive_interval = None
     if options.shard_count > 1 and options.shard_num == -1:
         import multiprocessing
         pool = multiprocessing.Pool(options.shard_count)
@@ -2128,7 +2146,7 @@ def main():
         # NOTE: create process pool before time stamper thread to avoid forking issues.
         total_time = time.time()
         stats = Stats()
-        with time_stamper_thread():
+        with time_stamper_thread(interval=keep_alive_interval):
             for shard_num, shard_stats, return_code in pool.imap_unordered(runtests_callback, tasks):
                 if return_code != 0:
                     errors.append(shard_num)
@@ -2145,7 +2163,7 @@ def main():
         else:
             return_code = 0
     else:
-        with time_stamper_thread():
+        with time_stamper_thread(interval=keep_alive_interval):
             _, stats, return_code = runtests(options, cmd_args, coverage)
 
     if coverage:
@@ -2184,27 +2202,31 @@ def time_stamper_thread(interval=10):
     from datetime import datetime
     from time import sleep
 
-    interval = _xrange(interval * 4)
-    now = datetime.now
-    write = sys.__stderr__.write
-    stop = False
-
-    def time_stamper():
-        while True:
-            for _ in interval:
-                if stop:
-                    return
-                sleep(1./4)
-            write('\n#### %s\n' % now())
-
-    thread = threading.Thread(target=time_stamper, name='time_stamper')
-    thread.setDaemon(True)  # Py2 ...
-    thread.start()
-    try:
+    if not interval or interval < 0:
+        # Do nothing
         yield
-    finally:
-        stop = True
-        thread.join()
+    else:
+        interval = _xrange(interval * 4)
+        now = datetime.now
+        write = sys.__stderr__.write
+        stop = False
+
+        def time_stamper():
+            while True:
+                for _ in interval:
+                    if stop:
+                        return
+                    sleep(1./4)
+                write('\n#### %s\n' % now())
+
+        thread = threading.Thread(target=time_stamper, name='time_stamper')
+        thread.setDaemon(True)  # Py2 ...
+        thread.start()
+        try:
+            yield
+        finally:
+            stop = True
+            thread.join()
 
 
 def configure_cython(options):
