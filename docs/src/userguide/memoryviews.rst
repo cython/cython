@@ -60,7 +60,7 @@ They also work conveniently as function arguments:
 
 .. code-block:: cython
 
-    def process_3d_buffer(int[:,:] view not None):
+    def process_3d_buffer(int[:,:,:] view not None):
         ...
 
 The ``not None`` declaration for the argument automatically rejects
