@@ -64,6 +64,7 @@ cdef extern from *:
         PyBUF_WRITABLE
         PyBUF_STRIDES
         PyBUF_INDIRECT
+        PyBUF_ND
         PyBUF_RECORDS
         PyBUF_RECORDS_RO
 
