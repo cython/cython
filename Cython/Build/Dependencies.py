@@ -399,8 +399,10 @@ dependency_regex = re.compile(r"(?:^\s*from +([0-9a-zA-Z_.]+) +cimport)|"
                               r"(?:^\s*cimport +([0-9a-zA-Z_.]+(?: *, *[0-9a-zA-Z_.]+)*))|"
                               r"(?:^\s*cdef +extern +from +['\"]([^'\"]+)['\"])|"
                               r"(?:^\s*include +['\"]([^'\"]+)['\"])", re.M)
-dependency_after_from_regex = re.compile(r"(?:^\s+\(((?:[0-9a-zA-Z_., ]*)*)\)[#\n])|"
-                                         r"(?:^\s+((?:[0-9a-zA-Z_., ]*))[#\n])", re.M)
+dependency_after_from_regex = re.compile(
+    r"(?:^\s+\(([0-9a-zA-Z_., ]*)\)[#\n])|"
+    r"(?:^\s+([0-9a-zA-Z_., ]*)[#\n])",
+    re.M)
 
 
 def normalize_existing(base_path, rel_paths):
@@ -494,7 +496,7 @@ def parse_dependencies(source_filename):
             if m_after_from:
                 multiline, one_line = m_after_from.groups()
                 subimports = multiline or one_line
-                cimports.extend("{}.{}".format(cimport_from, s.strip())
+                cimports.extend("{0}.{1}".format(cimport_from, s.strip())
                                 for s in subimports.split(','))
 
         elif cimport_list:
