@@ -52,12 +52,16 @@ Bugs fixed
   warnings that are now fixed.
   Patch by Nicolas Pauss.  (Github issue #2685)
 
+* Cython's memoryviews no longer require strides for setting the shape field
+  but only the ``PyBUF_ND`` flag to be set.
+  Patch by John Kirkham.  (Github issue #2716)
+
 * Some C compiler warnings about unused memoryview code were fixed.
   Patch by Ho Cheuk Ting.  (Github issue #2588)
 
 * The power operator and the support for NumPy math functions were fixed
   in Pythran expressions.
-  Patch by Serge Guelton (Github issues #2702, #2709).
+  Patch by Serge Guelton.  (Github issues #2702, #2709)
 
 * Signatures with memory view arguments now show the expected type
   when embedded in docstrings.
@@ -69,7 +73,7 @@ Bugs fixed
   Patch by Kryštof Pilnáček.  (Github issue #2638)
 
 * A struct field type in the ``cpython.array`` declarations was corrected.
-  Patch by John Kirkham. (Github issue #2712)
+  Patch by John Kirkham.  (Github issue #2712)
 
 
 0.29 (2018-10-14)
