@@ -5362,6 +5362,9 @@ class CallNode(ExprNode):
                         return PyrexTypes.c_double_type
                     elif function.entry.name in Builtin.types_that_construct_their_instance:
                         return result_type
+        func_type = self.function.analyse_as_type(env)
+        if func_type.is_struct_or_union or func_type.is_cpp_class:
+            return func_type
         return py_object_type
 
     def type_dependencies(self, env):
