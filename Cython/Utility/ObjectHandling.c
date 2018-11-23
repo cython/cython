@@ -1966,7 +1966,7 @@ static PyObject *__Pyx_PyFunction_FastCallDict(PyObject *func, PyObject **args, 
   // because f_localsplus is the last field of PyFrameObject (checked by Py_BUILD_ASSERT_EXPR below).
   #define __Pxy_PyFrame_Initialize_Offsets()  \
     ((void)__Pyx_BUILD_ASSERT_EXPR(sizeof(PyFrameObject) == offsetof(PyFrameObject, f_localsplus) + Py_MEMBER_SIZE(PyFrameObject, f_localsplus)), \
-     (void)(__pyx_pyframe_localsplus_offset = PyFrame_Type.tp_basicsize - Py_MEMBER_SIZE(PyFrameObject, f_localsplus)))
+     (void)(__pyx_pyframe_localsplus_offset = ((size_t)PyFrame_Type.tp_basicsize) - Py_MEMBER_SIZE(PyFrameObject, f_localsplus)))
   #define __Pyx_PyFrame_GetLocalsplus(frame)  \
     (assert(__pyx_pyframe_localsplus_offset), (PyObject **)(((char *)(frame)) + __pyx_pyframe_localsplus_offset))
 #endif
