@@ -496,7 +496,7 @@ def parse_dependencies(source_filename):
             if m_after_from:
                 multiline, one_line = m_after_from.groups()
                 subimports = multiline or one_line
-                cimports.extend("{}.{}".format(cimport_from, s.strip())
+                cimports.extend("{0}.{1}".format(cimport_from, s.strip())
                                 for s in subimports.split(','))
 
         elif cimport_list:
