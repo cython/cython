@@ -76,6 +76,58 @@ NONMEMBER_BIN_OP2(&)
 NONMEMBER_BIN_OP2(^)
 NONMEMBER_BIN_OP2(COMMA)
 
+
+/* RefTestOps */
+
+#define REF_UN_OP(op) int& operator op () { return value; }
+#define REF_POST_UN_OP(op) int& operator op (int x) { x++; return value; }
+#define REF_BIN_OP(op) int& operator op (int x) { x++; return value; }
+
+class RefTestOps {
+    int value = 0;
+
+public:
+
+    REF_UN_OP(-);
+    REF_UN_OP(+);
+    REF_UN_OP(*);
+    REF_UN_OP(~);
+    REF_UN_OP(!);
+    REF_UN_OP(&);
+
+    REF_UN_OP(++);
+    REF_UN_OP(--);
+    REF_POST_UN_OP(++);
+    REF_POST_UN_OP(--);
+
+    REF_BIN_OP(+);
+    REF_BIN_OP(-);
+    REF_BIN_OP(*);
+    REF_BIN_OP(/);
+    REF_BIN_OP(%);
+
+    REF_BIN_OP(<<);
+    REF_BIN_OP(>>);
+
+    REF_BIN_OP(|);
+    REF_BIN_OP(&);
+    REF_BIN_OP(^);
+    REF_BIN_OP(COMMA);
+
+    REF_BIN_OP(==);
+    REF_BIN_OP(!=);
+    REF_BIN_OP(<=);
+    REF_BIN_OP(<);
+    REF_BIN_OP(>=);
+    REF_BIN_OP(>);
+
+    REF_BIN_OP([]);
+    REF_BIN_OP(());
+};
+
+
+/* TruthClass */
+
 class TruthClass {
 public:
   TruthClass() : value(false) {}

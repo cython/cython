@@ -4102,7 +4102,7 @@ class IndexNode(_IndexingBaseNode):
                 # both exception handlers are the same.
                 translate_cpp_exception(code, self.pos,
                     "%s = %s;" % (self.result(), rhs.result()),
-                    self.result() if self.lhs.is_pyobject else None,
+                    self.result() if self.type.is_pyobject else None,
                     self.exception_value, self.in_nogil_context)
         else:
             code.putln(
