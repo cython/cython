@@ -73,7 +73,7 @@ build_script:
 test: off
 test_script:
   - "%PYTHON%\\Scripts\\pip.exe install -r test-requirements.txt"
-  - "set CFLAGS=/Od"
+  - "set CFLAGS=/Od /W4"
   - "%WITH_ENV% %PYTHON%\\python.exe runtests.py -vv --no-cpp --no-code-style -j5"
 
 artifacts:
