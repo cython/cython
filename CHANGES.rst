@@ -59,6 +59,12 @@ Bugs fixed
 * Some C compiler warnings about unused memoryview code were fixed.
   Patch by Ho Cheuk Ting.  (Github issue #2588)
 
+* A C compiler warning about implicit signed/unsigned conversion was fixed.
+  (Github issue #2729)
+
+* Assignments to C++ references returned by ``operator[]`` could fail to compile.
+  (Github issue #2671)
+
 * The power operator and the support for NumPy math functions were fixed
   in Pythran expressions.
   Patch by Serge Guelton.  (Github issues #2702, #2709)

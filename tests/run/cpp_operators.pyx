@@ -9,48 +9,56 @@ from cython.operator cimport typeid, dereference as deref
 from libc.string cimport const_char
 from libcpp cimport bool
 
+
 cdef out(s, result_type=None):
     print '%s [%s]' % (s.decode('ascii'), result_type)
+
+
+cdef iout(int s, result_type=None):
+    print '%s [%s]' % (s, result_type)
+
 
 cdef extern from "cpp_operators_helper.h" nogil:
     cdef cppclass TestOps:
 
-        const_char* operator+()
-        const_char* operator-()
-        const_char* operator*()
-        const_char* operator~()
-        const_char* operator!()
+        const_char* operator+() except +
+        const_char* operator-() except +
+        const_char* operator*() except +
+        const_char* operator~() except +
+        const_char* operator!() except +
 
+        # FIXME: using 'except +' here leads to wrong calls ???
         const_char* operator++()
         const_char* operator--()
         const_char* operator++(int)
         const_char* operator--(int)
 
-        const_char* operator+(int)
-        const_char* operator+(int,const TestOps&)
-        const_char* operator-(int)
-        const_char* operator-(int,const TestOps&)
-        const_char* operator*(int)
+        const_char* operator+(int) except +
+        const_char* operator+(int,const TestOps&) except +
+        const_char* operator-(int) except +
+        const_char* operator-(int,const TestOps&) except +
+        const_char* operator*(int) except +
         # deliberately omitted operator* to test case where only defined outside class
-        const_char* operator/(int)
-        const_char* operator/(int,const TestOps&)
-        const_char* operator%(int)
-        const_char* operator%(int,const TestOps&)
+        const_char* operator/(int) except +
+        const_char* operator/(int,const TestOps&) except +
+        const_char* operator%(int) except +
+        const_char* operator%(int,const TestOps&) except +
 
-        const_char* operator|(int)
-        const_char* operator|(int,const TestOps&)
-        const_char* operator&(int)
-        const_char* operator&(int,const TestOps&)
-        const_char* operator^(int)
-        const_char* operator^(int,const TestOps&)
-        const_char* operator,(int)
-        const_char* operator,(int,const TestOps&)
+        const_char* operator|(int) except +
+        const_char* operator|(int,const TestOps&) except +
+        const_char* operator&(int) except +
+        const_char* operator&(int,const TestOps&) except +
+        const_char* operator^(int) except +
+        const_char* operator^(int,const TestOps&) except +
+        const_char* operator,(int) except +
+        const_char* operator,(int,const TestOps&) except +
 
-        const_char* operator<<(int)
-        const_char* operator<<(int,const TestOps&)
-        const_char* operator>>(int)
-        const_char* operator>>(int,const TestOps&)
+        const_char* operator<<(int) except +
+        const_char* operator<<(int,const TestOps&) except +
+        const_char* operator>>(int) except +
+        const_char* operator>>(int,const TestOps&) except +
 
+        # FIXME: using 'except +' here leads to invalid C++ code ???
         const_char* operator==(int)
         const_char* operator!=(int)
         const_char* operator>=(int)
@@ -58,25 +66,73 @@ cdef extern from "cpp_operators_helper.h" nogil:
         const_char* operator>(int)
         const_char* operator<(int)
 
-        const_char* operator[](int)
-        const_char* operator()(int)
-    
+        const_char* operator[](int) except +
+        const_char* operator()(int) except +
+
     # Defining the operator outside the class does work
     # but doesn't help when importing from pxd files
     # (they don't get imported)
-    const_char* operator+(float,const TestOps&)
+    const_char* operator+(float,const TestOps&) except +
     # deliberately omitted operator- to test case where only defined in class
-    const_char* operator*(float,const TestOps&)
-    const_char* operator/(float,const TestOps&)
-    const_char* operator%(float,const TestOps&)
+    const_char* operator*(float,const TestOps&) except +
+    const_char* operator/(float,const TestOps&) except +
+    const_char* operator%(float,const TestOps&) except +
 
-    const_char* operator|(float,const TestOps&)
-    const_char* operator&(float,const TestOps&)
-    const_char* operator^(float,const TestOps&)
-    const_char* operator,(float,const TestOps&)
+    const_char* operator|(float,const TestOps&) except +
+    const_char* operator&(float,const TestOps&) except +
+    const_char* operator^(float,const TestOps&) except +
+    const_char* operator,(float,const TestOps&) except +
 
-    const_char* operator<<(float,const TestOps&)
-    const_char* operator>>(float,const TestOps&)
+    const_char* operator<<(float,const TestOps&) except +
+    const_char* operator>>(float,const TestOps&) except +
+
+    cdef cppclass RefTestOps:
+
+        int& operator+() except +
+        int& operator-() except +
+        int& operator*() except +
+        int& operator~() except +
+        int& operator!() except +
+
+        int& operator++() except +
+        int& operator--() except +
+        int& operator++(int) except +
+        int& operator--(int) except +
+
+        int& operator+(int) except +
+        int& operator+(int,const TestOps&) except +
+        int& operator-(int) except +
+        int& operator-(int,const TestOps&) except +
+        int& operator*(int) except +
+        # deliberately omitted operator* to test case where only defined outside class
+        int& operator/(int) except +
+        int& operator/(int,const TestOps&) except +
+        int& operator%(int) except +
+        int& operator%(int,const TestOps&) except +
+
+        int& operator|(int) except +
+        int& operator|(int,const TestOps&) except +
+        int& operator&(int) except +
+        int& operator&(int,const TestOps&) except +
+        int& operator^(int) except +
+        int& operator^(int,const TestOps&) except +
+        int& operator,(int) except +
+        int& operator,(int,const TestOps&) except +
+
+        int& operator<<(int) except +
+        int& operator<<(int,const TestOps&) except +
+        int& operator>>(int) except +
+        int& operator>>(int,const TestOps&) except +
+
+        int& operator==(int) except +
+        int& operator!=(int) except +
+        int& operator>=(int) except +
+        int& operator<=(int) except +
+        int& operator>(int) except +
+        int& operator<(int) except +
+
+        int& operator[](int) except +
+        int& operator()(int) except +
 
     cdef cppclass TruthClass:
         TruthClass()
@@ -84,8 +140,10 @@ cdef extern from "cpp_operators_helper.h" nogil:
         bool operator bool()
         bool value
 
+
 cdef cppclass TruthSubClass(TruthClass):
     pass
+
 
 def test_unops():
     """
@@ -233,6 +291,7 @@ def test_cmp():
     out(t[0] < 1, typeof(t[0] < 1))
     del t
 
+
 def test_index_call():
     """
     >>> test_index_call()
@@ -243,6 +302,20 @@ def test_index_call():
     out(t[0][100], typeof(t[0][100]))
     out(t[0](100), typeof(t[0](100)))
     del t
+
+
+def test_index_assignment():
+    """
+    >>> test_index_assignment()
+    0 [int &]
+    123 [int [&]]
+    """
+    cdef RefTestOps* t = new RefTestOps()
+    iout(t[0][100], typeof(t[0][100]))
+    t[0][99] = 123
+    iout(t[0](100), typeof(t[0](100)))
+    del t
+
 
 def test_bool_op():
     """
