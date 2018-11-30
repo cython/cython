@@ -969,8 +969,8 @@ class Scope(object):
         else:
             return outer.is_cpp()
 
-    def add_include_file(self, filename):
-        self.outer_scope.add_include_file(filename)
+    def add_include_file(self, filename, verbatim_include=None, late=False):
+        self.outer_scope.add_include_file(filename, verbatim_include, late)
 
 
 class PreImportScope(Scope):
