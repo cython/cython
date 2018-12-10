@@ -67,3 +67,25 @@ cdef class SubType(BaseTypeWithFinalMethods):
     @cython.test_assert_path_exists("//AttributeNode[@entry.is_final_cmethod=True]")
     def test_cdef(self):
         self.cdef_method()
+
+
+cdef class NonFinalBase(object):
+    cpdef call_from_base(self):
+        return self.cdef_method()
+
+    cdef cdef_method(self):
+        return 'base'
+
+@cython.final
+cdef class FinalSub(NonFinalBase):
+    """
+    >>> FinalSub().call_from_base()
+    'sub'
+    >>> FinalSub().call_from_sub()
+    'sub'
+    """
+    cpdef call_from_sub(self):
+        return self.cdef_method()
+
+    cdef cdef_method(self):
+        return 'sub'

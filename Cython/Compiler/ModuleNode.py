@@ -3101,7 +3101,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if entry.func_cname]
             if c_method_entries:
                 for meth_entry in c_method_entries:
-                    cast = meth_entry.type.signature_cast_string()
+                    cast = meth_entry.vtab_type.signature_cast_string()
                     code.putln(
                         "%s.%s = %s%s;" % (
                             type.vtable_cname,
