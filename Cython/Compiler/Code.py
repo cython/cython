@@ -1133,6 +1133,7 @@ class GlobalState(object):
         self.num_const_index = {}
         self.py_constants = []
         self.cached_cmethods = {}
+        self.initialised_constants = set()
 
         writer.set_global_state(self)
         self.rootwriter = writer
@@ -1242,7 +1243,12 @@ class GlobalState(object):
 
     # constant handling at code generation time
 
-    def get_cached_constants_writer(self):
+    def get_cached_constants_writer(self, target=None):
+        if target is not None:
+            if target in self.initialised_constants:
+                # Return None on second/later calls to prevent duplicate creation code.
+                return None
+            self.initialised_constants.add(target)
         return self.parts['cached_constants']
 
     def get_int_const(self, str_value, longness=False):
@@ -1816,8 +1822,8 @@ class CCodeWriter(object):
     def intern_identifier(self, text):
         return self.get_py_string_const(text, identifier=True)
 
-    def get_cached_constants_writer(self):
-        return self.globalstate.get_cached_constants_writer()
+    def get_cached_constants_writer(self, target=None):
+        return self.globalstate.get_cached_constants_writer(target)
 
     # code generation
 
