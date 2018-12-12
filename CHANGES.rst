@@ -2,6 +2,25 @@
 Cython Changelog
 ================
 
+0.29.2 (2018-12-??)
+===================
+
+Bugs fixed
+----------
+
+* The code generated for deduplicated constants leaked some references.
+  (Github issue #2750)
+
+* The declaration of ``sigismember()`` in ``libc.signal`` was corrected.
+  (Github issue #2756)
+
+* Crashes in compiler and test runner were fixed.
+  (Github issue #2736, #2755)
+
+* A C compiler warning about an invalid safety check was resolved.
+  (Github issue #2731)
+
+
 0.29.1 (2018-11-24)
 ===================
 
