@@ -199,10 +199,11 @@ def make_dedup_key(outer_type, item_nodes):
     """
     item_keys = [
         (py_object_type, None) if node is None
-        else make_dedup_key(node.type, node.args) if node.is_sequence_constructor
+        # For sequences and their "mult_factor", see TupleNode.
+        else make_dedup_key(node.type, [node.mult_factor if node.is_literal else None] + node.args) if node.is_sequence_constructor
         else make_dedup_key(node.type, (node.start, node.stop, node.step)) if node.is_slice
         else (node.type, node.constant_result) if node.has_constant_result()
-        else None
+        else None  # something we cannot handle => short-circuit below
         for node in item_nodes
     ]
     if None in item_keys:
@@ -7989,7 +7990,9 @@ class TupleNode(SequenceNode):
             return
 
         if self.is_literal or self.is_partly_literal:
-            dedup_key = make_dedup_key(self.type, self.args) if self.is_literal else None
+            # The "mult_factor" is part of the deduplication if it is also constant, i.e. when
+            # we deduplicate the multiplied result.  Otherwise, only deduplicate the constant part.
+            dedup_key = make_dedup_key(self.type, [self.mult_factor if self.is_literal else None] + self.args)
             tuple_target = code.get_py_const(py_object_type, 'tuple', cleanup_level=2, dedup_key=dedup_key)
             const_code = code.get_cached_constants_writer(tuple_target)
             if const_code is not None:

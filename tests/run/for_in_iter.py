@@ -61,6 +61,37 @@ def for_in_literal_mult_list():
         l.append(i)
     return l
 
+
+def listcomp_over_multiplied_constant_tuple():
+    """
+    >>> listcomp_over_multiplied_constant_tuple()
+    [[], [1, 2, 3], [1, 2, 3, 1, 2, 3], [1, 2, 3, 1, 2, 3, 1, 2, 3], [1, 2, 3, 1, 2, 3]]
+    """
+    return [
+        [i for i in (1, 2, 3) * 0],
+        [i for i in (1, 2, 3) * 1],
+        [i for i in (1, 2, 3) * 2],
+        [i for i in (1, 2, 3) * 3],
+        [i for i in (1, 2, 3) * 2],
+    ]
+
+
+@cython.test_assert_path_exists('//ReturnStatNode//ForInStatNode//TupleNode')
+@cython.test_fail_if_path_exists('//ReturnStatNode//ForInStatNode//ListNode')
+def listcomp_over_multiplied_constant_list():
+    """
+    >>> listcomp_over_multiplied_constant_list()
+    [[], [1, 2, 3], [1, 2, 3, 1, 2, 3], [1, 2, 3, 1, 2, 3, 1, 2, 3], [1, 2, 3, 1, 2, 3]]
+    """
+    return [
+        [i for i in [1, 2, 3] * 0],
+        [i for i in [1, 2, 3] * 1],
+        [i for i in [1, 2, 3] * 2],
+        [i for i in [1, 2, 3] * 3],
+        [i for i in [1, 2, 3] * 2],
+    ]
+
+
 class Iterable(object):
     """
     >>> for_in_pyiter(Iterable(5))

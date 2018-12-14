@@ -46,9 +46,9 @@ def return_folded_tuple():
 def return_nested_tuple():
     """
     >>> return_nested_tuple()
-    (1, (2, 3), (3, (4, 5)))
+    (1, (2, 3), (3, (4, 5), (2, 3, 2, 3)))
     """
-    return (1, (2, 3), (3, (4, 5)))
+    return (1, (2, 3), (3, (4, 5), (2, 3) * 2))
 
 @cython.test_assert_path_exists("//TupleNode",
                                 "//TupleNode[@is_literal = true]")
@@ -70,6 +70,32 @@ def return_constant_tuple2():
     (1, 2)
     """
     return (1,2)
+
+
+def return_multiplied_constant_tuple(n):
+    """
+    >>> tuples = return_multiplied_constant_tuple(2)
+    >>> type(tuples) is tuple
+    True
+    >>> for t in tuples: print(t)
+    ()
+    (1, 2, 3)
+    (1, 2, 3, 1, 2, 3)
+    (1, 2, 3, 1, 2, 3, 1, 2, 3)
+    (1, 2, 3, 1, 2, 3)
+    (1, 2, 3, 1, 2, 3)
+    ((1, 2, 3, 1, 2, 3), (1, 2, 3), (1, 2, 3, 1, 2, 3))
+    """
+    return (
+        (1, 2, 3) * 0,
+        (1, 2, 3) * 1,
+        (1, 2, 3) * 2,
+        (1, 2, 3) * 3,
+        (1, 2, 3) * 2,
+        (1, 2, 3) * n,
+        ((1, 2, 3) * n, (1, 2, 3), (1, 2, 3) * n),
+    )
+
 
 @cython.test_assert_path_exists("//TupleNode",
                                 "//TupleNode[@is_literal = true]")
