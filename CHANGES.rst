@@ -20,6 +20,9 @@ Features added
 Bugs fixed
 ----------
 
+* The ``Py_hash_t`` type failed to accept arbitrary "index" values.
+  (Github issue #2752)
+
 * The first function line number of functions with decorators pointed to the
   signature line and not the first decorator line, as in Python.
   Patch by Felix Kohlgrüber.  (Github issue #2536)
