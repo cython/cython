@@ -86,7 +86,7 @@ class Signature(object):
         'z': "-1",
     }
 
-    def __init__(self, arg_format, ret_format):
+    def __init__(self, arg_format, ret_format, nogil=0):
         self.has_dummy_arg = 0
         self.has_generic_args = 0
         if arg_format[:1] == '-':
@@ -100,6 +100,7 @@ class Signature(object):
         self.error_value = self.error_value_map.get(ret_format, None)
         self.exception_check = ret_format != 'r' and self.error_value is not None
         self.is_staticmethod = False
+        self.nogil = nogil
 
     def __repr__(self):
         return '<Signature[%s(%s%s)]>' % (
@@ -149,7 +150,8 @@ class Signature(object):
         exc_value = self.exception_value()
         return PyrexTypes.CFuncType(
             ret_type, args, exception_value=exc_value,
-            exception_check=self.exception_check)
+            exception_check=self.exception_check,
+            nogil=self.nogil)
 
     def method_flags(self):
         if self.ret_format == "O":
