@@ -14,6 +14,9 @@ Features added
 * ``--no-capture`` added to ``runtests.py`` to prevent stdout,stderr capturing
   during srctree tests
 
+* The builtin ``abs()`` function can now be used on C numbers in nogil code.
+  Patch by Elliott Sales de Andrade.  (Github issue #2748)
+
 Bugs fixed
 ----------
 
