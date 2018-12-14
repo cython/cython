@@ -1631,7 +1631,7 @@ class UnicodeNode(ConstNode):
                         self.result_code,
                         data_cname,
                         data_cname,
-                        code.error_goto_if_null(self.result_code, self.pos)))
+                        const_code.error_goto_if_null(self.result_code, self.pos)))
                 const_code.put_error_if_neg(
                     self.pos, "__Pyx_PyUnicode_READY(%s)" % self.result_code)
             else:
