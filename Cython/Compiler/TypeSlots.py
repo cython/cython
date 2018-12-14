@@ -86,14 +86,14 @@ class Signature(object):
         'z': "-1",
     }
 
-    def __init__(self, arg_format, ret_format, nogil=0):
-        self.has_dummy_arg = 0
-        self.has_generic_args = 0
+    def __init__(self, arg_format, ret_format, nogil=False):
+        self.has_dummy_arg = False
+        self.has_generic_args = False
         if arg_format[:1] == '-':
-            self.has_dummy_arg = 1
+            self.has_dummy_arg = True
             arg_format = arg_format[1:]
         if arg_format[-1:] == '*':
-            self.has_generic_args = 1
+            self.has_generic_args = True
             arg_format = arg_format[:-1]
         self.fixed_arg_format = arg_format
         self.ret_format = ret_format
@@ -522,7 +522,7 @@ class BaseClassSlot(SlotDescriptor):
     #  Slot descriptor for the base class slot.
 
     def __init__(self, name):
-        SlotDescriptor.__init__(self, name, dynamic = 1)
+        SlotDescriptor.__init__(self, name, dynamic=True)
 
     def generate_dynamic_init_code(self, scope, code):
         base_type = scope.parent_type.base_type
