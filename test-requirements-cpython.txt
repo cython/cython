@@ -1,1 +1,2 @@
+jupyter
 line_profiler
