@@ -485,6 +485,7 @@ static int __pyx_Generator_init(void); /*proto*/
 //@requires: Exceptions.c::SaveResetException
 //@requires: ObjectHandling.c::PyObjectCallMethod1
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
+//@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
 //@requires: CommonStructures.c::FetchCommonType
 
 #include <structmember.h>
@@ -894,12 +895,11 @@ static int __Pyx_Coroutine_CloseIter(__pyx_CoroutineObject *gen, PyObject *yf) {
     {
         PyObject *meth;
         gen->is_running = 1;
-        meth = __Pyx_PyObject_GetAttrStr(yf, PYIDENT("close"));
+        meth = __Pyx_PyObject_GetAttrStrNoError(yf, PYIDENT("close"));
         if (unlikely(!meth)) {
-            if (!PyErr_ExceptionMatches(PyExc_AttributeError)) {
+            if (unlikely(PyErr_Occurred())) {
                 PyErr_WriteUnraisable(yf);
             }
-            PyErr_Clear();
         } else {
             retval = PyObject_CallFunction(meth, NULL);
             Py_DECREF(meth);
@@ -1041,14 +1041,13 @@ static PyObject *__Pyx__Coroutine_Throw(PyObject *self, PyObject *typ, PyObject 
             ret = __Pyx__Coroutine_Throw(((__pyx_CoroutineAwaitObject*)yf)->coroutine, typ, val, tb, args, close_on_genexit);
         #endif
         } else {
-            PyObject *meth = __Pyx_PyObject_GetAttrStr(yf, PYIDENT("throw"));
+            PyObject *meth = __Pyx_PyObject_GetAttrStrNoError(yf, PYIDENT("throw"));
             if (unlikely(!meth)) {
                 Py_DECREF(yf);
-                if (!PyErr_ExceptionMatches(PyExc_AttributeError)) {
+                if (unlikely(PyErr_Occurred())) {
                     gen->is_running = 0;
                     return NULL;
                 }
-                PyErr_Clear();
                 __Pyx_Coroutine_Undelegate(gen);
                 gen->is_running = 0;
                 goto throw_here;

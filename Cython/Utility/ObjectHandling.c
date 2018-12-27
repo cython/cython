@@ -943,14 +943,14 @@ static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObj
                                       PyObject *mkw, int calculate_metaclass, int allow_py2_metaclass); /*proto*/
 
 /////////////// Py3ClassCreate ///////////////
-//@requires: PyObjectGetAttrStr
+//@requires: PyObjectGetAttrStrNoError
 //@requires: CalculateMetaclass
 
 static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name,
                                            PyObject *qualname, PyObject *mkw, PyObject *modname, PyObject *doc) {
     PyObject *ns;
     if (metaclass) {
-        PyObject *prep = __Pyx_PyObject_GetAttrStr(metaclass, PYIDENT("__prepare__"));
+        PyObject *prep = __Pyx_PyObject_GetAttrStrNoError(metaclass, PYIDENT("__prepare__"));
         if (prep) {
             PyObject *pargs = PyTuple_Pack(2, name, bases);
             if (unlikely(!pargs)) {
@@ -961,9 +961,8 @@ static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases,
             Py_DECREF(prep);
             Py_DECREF(pargs);
         } else {
-            if (unlikely(!PyErr_ExceptionMatches(PyExc_AttributeError)))
+            if (unlikely(PyErr_Occurred()))
                 return NULL;
-            PyErr_Clear();
             ns = PyDict_New();
         }
     } else {
@@ -1099,12 +1098,12 @@ static CYTHON_INLINE PyObject* __Pyx_PyBoolOrNull_FromLong(long b) {
 static PyObject *__Pyx_GetBuiltinName(PyObject *name); /*proto*/
 
 /////////////// GetBuiltinName ///////////////
-//@requires: PyObjectGetAttrStr
+//@requires: PyObjectGetAttrStrNoError
 //@substitute: naming
 
 static PyObject *__Pyx_GetBuiltinName(PyObject *name) {
-    PyObject* result = __Pyx_PyObject_GetAttrStr($builtins_cname, name);
-    if (unlikely(!result)) {
+    PyObject* result = __Pyx_PyObject_GetAttrStrNoError($builtins_cname, name);
+    if (unlikely(!result) && !PyErr_Occurred()) {
         PyErr_Format(PyExc_NameError,
 #if PY_MAJOR_VERSION >= 3
             "name '%U' is not defined", name);
@@ -1121,28 +1120,17 @@ static PyObject *__Pyx_GetBuiltinName(PyObject *name) {
 static PyObject *__Pyx__GetNameInClass(PyObject *nmspace, PyObject *name); /*proto*/
 
 /////////////// GetNameInClass ///////////////
-//@requires: PyObjectGetAttrStr
+//@requires: PyObjectGetAttrStrNoError
 //@requires: GetModuleGlobalName
-//@requires: Exceptions.c::PyThreadStateGet
-//@requires: Exceptions.c::PyErrFetchRestore
-//@requires: Exceptions.c::PyErrExceptionMatches
-
-static PyObject *__Pyx_GetGlobalNameAfterAttributeLookup(PyObject *name) {
-    PyObject *result;
-    __Pyx_PyThreadState_declare
-    __Pyx_PyThreadState_assign
-    if (unlikely(!__Pyx_PyErr_ExceptionMatches(PyExc_AttributeError)))
-        return NULL;
-    __Pyx_PyErr_Clear();
-    __Pyx_GetModuleGlobalNameUncached(result, name);
-    return result;
-}
 
 static PyObject *__Pyx__GetNameInClass(PyObject *nmspace, PyObject *name) {
     PyObject *result;
-    result = __Pyx_PyObject_GetAttrStr(nmspace, name);
+    result = __Pyx_PyObject_GetAttrStrNoError(nmspace, name);
     if (!result) {
-        result = __Pyx_GetGlobalNameAfterAttributeLookup(name);
+        if (unlikely(PyErr_Occurred()))
+            return NULL;
+        __Pyx_GetModuleGlobalNameUncached(result, name);
+        return result;
     }
     return result;
 }
@@ -1356,6 +1344,41 @@ static PyObject* __Pyx_PyObject_GenericGetAttr(PyObject* obj, PyObject* attr_nam
     return __Pyx_PyObject_GenericGetAttrNoDict(obj, attr_name);
 }
 #endif
+
+
+/////////////// PyObjectGetAttrStrNoError.proto ///////////////
+
+static CYTHON_INLINE PyObject* __Pyx_PyObject_GetAttrStrNoError(PyObject* obj, PyObject* attr_name);/*proto*/
+
+/////////////// PyObjectGetAttrStrNoError ///////////////
+//@requires: PyObjectGetAttrStr
+//@requires: Exceptions.c::PyThreadStateGet
+//@requires: Exceptions.c::PyErrFetchRestore
+//@requires: Exceptions.c::PyErrExceptionMatches
+
+static void __Pyx_PyObject_GetAttrStr_ClearAttributeError(void) {
+    __Pyx_PyThreadState_declare
+    __Pyx_PyThreadState_assign
+    if (likely(__Pyx_PyErr_ExceptionMatches(PyExc_AttributeError)))
+        __Pyx_PyErr_Clear();
+}
+
+static CYTHON_INLINE PyObject* __Pyx_PyObject_GetAttrStrNoError(PyObject* obj, PyObject* attr_name) {
+    PyObject *result;
+#if CYTHON_COMPILING_IN_CPYTHON && CYTHON_USE_TYPE_SLOTS && PY_VERSION_HEX >= 0x030700B1
+    // _PyObject_GenericGetAttrWithDict() in CPython 3.7+ can avoid raising the AttributeError.
+    // See https://bugs.python.org/issue32544
+    PyTypeObject* tp = Py_TYPE(obj);
+    if (likely(tp->tp_getattro == PyObject_GenericGetAttr)) {
+        return _PyObject_GenericGetAttrWithDict(obj, attr_name, NULL, 1);
+    }
+#endif
+    result = __Pyx_PyObject_GetAttrStr(obj, attr_name);
+    if (unlikely(!result)) {
+        __Pyx_PyObject_GetAttrStr_ClearAttributeError();
+    }
+    return result;
+}
 
 
 /////////////// PyObjectGetAttrStr.proto ///////////////
@@ -2303,7 +2326,7 @@ static PyObject* __Pyx_PyNumber_InPlaceMatrixMultiply(PyObject* x, PyObject* y);
 #endif
 
 /////////////// MatrixMultiply ///////////////
-//@requires: PyObjectGetAttrStr
+//@requires: PyObjectGetAttrStrNoError
 //@requires: PyObjectCallOneArg
 //@requires: PyFunctionFastCall
 //@requires: PyCFunctionFastCall
@@ -2353,17 +2376,15 @@ done:
     return result;
 }
 
-#define __Pyx_TryMatrixMethod(x, y, py_method_name) {                   \
-    PyObject *func = __Pyx_PyObject_GetAttrStr(x, py_method_name);      \
+#define __Pyx_TryMatrixMethod(x, y, py_method_name) {                     \
+    PyObject *func = __Pyx_PyObject_GetAttrStrNoError(x, py_method_name); \
     if (func) {                                                         \
         PyObject *result = __Pyx_PyObject_CallMatrixMethod(func, y);    \
         if (result != Py_NotImplemented)                                \
             return result;                                              \
         Py_DECREF(result);                                              \
-    } else {                                                            \
-        if (!PyErr_ExceptionMatches(PyExc_AttributeError))              \
-            return NULL;                                                \
-        PyErr_Clear();                                                  \
+    } else if (unlikely(PyErr_Occurred())) {                            \
+        return NULL;                                                    \
     }                                                                   \
 }
 
