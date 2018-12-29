@@ -2,7 +2,7 @@
 # "above" the setup.py (ie it's path begins with dots). 
 # For example, "../../../src/foo.pyx". See #2764 for details.
 
-cd a/b/c/d; PYTHON setup.py build_ext -b ../../pkg -t .
+cd a; cd b; cd c; cd d; PYTHON setup.py build_ext -b ../../pkg -t .
 PYTHON check_paths.py
 
 ######## a/b/c/d/setup.py ########
