@@ -428,6 +428,7 @@ VER_DEP_MODULES = {
     (3,3) : (operator.lt, lambda x: x in ['build.package_compilation',
                                           'run.yield_from_py33',
                                           'pyximport.pyximport_namespace',
+                                          'run.qualname',
                                           ]),
     (3,4): (operator.lt, lambda x: x in ['run.py34_signature',
                                          'run.test_unicode',  # taken from Py3.7, difficult to backport
