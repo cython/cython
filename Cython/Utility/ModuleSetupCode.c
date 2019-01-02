@@ -480,7 +480,7 @@ class __Pyx_FakeReference {
 typedef int Py_tss_t;
 static CYTHON_INLINE int PyThread_tss_create(Py_tss_t *key) {
   *key = PyThread_create_key();
-  return 0; // PyThread_create_key reports success always
+  return 0; /* PyThread_create_key reports success always */
 }
 static CYTHON_INLINE Py_tss_t * PyThread_tss_alloc(void) {
   Py_tss_t *key = (Py_tss_t *)PyObject_Malloc(sizeof(Py_tss_t));
@@ -505,7 +505,7 @@ static CYTHON_INLINE void * PyThread_tss_get(Py_tss_t *key) {
 }
 // PyThread_delete_key_value(key) is equalivalent to PyThread_set_key_value(key, NULL)
 // PyThread_ReInitTLS() is a no-op
-#endif // TSS (Thread Specific Storage) API
+#endif /* TSS (Thread Specific Storage) API */
 
 #if CYTHON_COMPILING_IN_CPYTHON || defined(_PyDict_NewPresized)
 #define __Pyx_PyDict_NewPresized(n)  ((n <= 8) ? PyDict_New() : _PyDict_NewPresized(n))
