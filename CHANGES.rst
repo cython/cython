@@ -27,7 +27,7 @@ Bugs fixed
   signature line and not the first decorator line, as in Python.
   Patch by Felix Kohlgrüber.  (Github issue #2536)
 
-* Constant integer expressions that used a negative exponend were evaluated
+* Constant integer expressions that used a negative exponent were evaluated
   as integer 0 instead of the expected float value.
   Patch by Kryštof Pilnáček.  (Github issue #2133)
 
