@@ -906,9 +906,9 @@ class FunctionState(object):
         try-except and try-finally blocks to clean up temps in the
         error case.
         """
-        return [(cname, type)
-                for (type, manage_ref), freelist in self.temps_free.items() if manage_ref
-                for cname in freelist[0]]
+        return sorted([(cname, type)
+                      for (type, manage_ref), freelist in self.temps_free.items() if manage_ref
+                      for cname in freelist[0]])
 
     def start_collecting_temps(self):
         """
