@@ -2,6 +2,22 @@
 Cython Changelog
 ================
 
+0.29.3 (2019-??-??)
+===================
+
+Bugs fixed
+----------
+
+* Some C code for memoryviews was generated in a non-deterministic order.
+  Patch by Martijn van Steenbergen.  (Github issue #2779)
+
+* C89 compatibility was accidentally lost since 0.28.
+  Patch by gastineau.  (Github issue #2778)
+
+* A C compiler cast warning was resolved.
+  Patch by Michael Buesch.  (Github issue #2774)
+
+
 0.29.2 (2018-12-14)
 ===================
 
