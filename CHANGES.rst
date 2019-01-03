@@ -20,6 +20,11 @@ Features added
 Bugs fixed
 ----------
 
+* The unicode methods ``.upper()``, ``.lower()`` and ``.title()`` were
+  incorrectly optimised for single character input values and only returned
+  the first character if multiple characters should have been returned.
+  They now use the original Python methods again.
+
 * The ``Py_hash_t`` type failed to accept arbitrary "index" values.
   (Github issue #2752)
 

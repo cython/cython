@@ -3374,6 +3374,8 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             PyrexTypes.CFuncTypeArg("uchar", PyrexTypes.c_py_ucs4_type, None),
             ])
 
+    # DISABLED: Return value can only be one character, which is not correct.
+    '''
     def _inject_unicode_character_conversion(self, node, function, args, is_unbound_method):
         if is_unbound_method or len(args) != 1:
             return node
@@ -3392,9 +3394,10 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             func_call = func_call.coerce_to_pyobject(self.current_env)
         return func_call
 
-    _handle_simple_method_unicode_lower = _inject_unicode_character_conversion
-    _handle_simple_method_unicode_upper = _inject_unicode_character_conversion
-    _handle_simple_method_unicode_title = _inject_unicode_character_conversion
+    #_handle_simple_method_unicode_lower = _inject_unicode_character_conversion
+    #_handle_simple_method_unicode_upper = _inject_unicode_character_conversion
+    #_handle_simple_method_unicode_title = _inject_unicode_character_conversion
+    '''
 
     PyUnicode_Splitlines_func_type = PyrexTypes.CFuncType(
         Builtin.list_type, [
