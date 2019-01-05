@@ -103,7 +103,7 @@ def pyx_to_dll(filename, ext=None, force_rebuild=0, build_in_temp=False, pyxbuil
         so_path = obj_build_ext.get_outputs()[0]
         if obj_build_ext.inplace:
             # Python distutils get_outputs()[ returns a wrong so_path
-            # when --inplace ; see http://bugs.python.org/issue5977
+            # when --inplace ; see https://bugs.python.org/issue5977
             # workaround:
             so_path = os.path.join(os.path.dirname(filename),
                                    os.path.basename(so_path))

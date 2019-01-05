@@ -1,4 +1,4 @@
-# http://pubs.opengroup.org/onlinepubs/009695399/basedefs/sys/resource.h.html
+# https://pubs.opengroup.org/onlinepubs/009695399/basedefs/sys/resource.h.html
 
 from posix.time  cimport timeval
 from posix.types cimport id_t

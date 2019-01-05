@@ -115,7 +115,7 @@ class BaseType(object):
         Deduce any template params in this (argument) type given the actual
         argument type.
 
-        http://en.cppreference.com/w/cpp/language/function_template#Template_argument_deduction
+        https://en.cppreference.com/w/cpp/language/function_template#Template_argument_deduction
         """
         return {}
 

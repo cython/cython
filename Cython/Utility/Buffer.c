@@ -224,8 +224,8 @@ fail:;
 //  the format string; the access mode/flags is checked by the
 //  exporter. See:
 //
-//  http://docs.python.org/3/library/struct.html
-//  http://legacy.python.org/dev/peps/pep-3118/#additions-to-the-struct-string-syntax
+//  https://docs.python.org/3/library/struct.html
+//  https://www.python.org/dev/peps/pep-3118/#additions-to-the-struct-string-syntax
 //
 //  The alignment code is copied from _struct.c in Python.
 

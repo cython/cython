@@ -106,6 +106,6 @@ Cython 0.11.2 (or newer, assuming the API does not change)
 SEE ALSO
 ========
 
-* `Python <http://www.python.org>`_
+* `Python <https://www.python.org/>`_
 * `Cython <http://www.cython.org>`_
-* `freeze.py <http://wiki.python.org/moin/Freeze>`_
+* `freeze.py <https://wiki.python.org/moin/Freeze>`_

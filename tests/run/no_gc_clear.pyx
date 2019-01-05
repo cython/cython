@@ -3,7 +3,7 @@ Check that the @cython.no_gc_clear decorator disables generation of the
 tp_clear slot so that __dealloc__ will still see the original reference
 contents.
 
-Discussed here: http://article.gmane.org/gmane.comp.python.cython.devel/14986
+Discussed here: https://article.gmane.org/gmane.comp.python.cython.devel/14986
 """
 
 cimport cython

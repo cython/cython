@@ -75,8 +75,8 @@ Enabling coverage analysis
 --------------------------
 
 Since Cython 0.23, line tracing (see above) also enables support for coverage
-reporting with the `coverage.py <http://coverage.readthedocs.io/>`_ tool.
-To make the coverage analysis understand Cython modules, you also need to enable
+reporting with the `coverage.py <https://coverage.readthedocs.io/>`_ tool. To
+make the coverage analysis understand Cython modules, you also need to enable
 Cython's coverage plugin in your ``.coveragerc`` file as follows:
 
 .. code-block:: ini
@@ -274,5 +274,3 @@ faster than calling pow(x,0.5).
 Even so, the result we achieved here is quite satisfactory: we came up with a
 solution that is much faster then our original Python version while retaining
 functionality and readability.
-
-

@@ -347,7 +347,7 @@
   #endif
 #endif
 
-// Work around clang bug http://stackoverflow.com/questions/21847816/c-invoke-nested-template-class-destructor
+// Work around clang bug https://stackoverflow.com/questions/21847816/c-invoke-nested-template-class-destructor
 template<typename T>
 void __Pyx_call_destructor(T& x) {
     x.~T();

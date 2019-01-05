@@ -1089,7 +1089,7 @@ def optimised_index_of_slice(int[:,:,:] arr, int x, int y, int z):
 
 
 def test_assign_from_byteslike(byteslike):
-    # Once http://python3statement.org is accepted, should be just
+    # Once https://python3statement.org/ is accepted, should be just
     # >>> test_assign_from_byteslike(bytes(b'hello'))
     # b'hello'
     # ...

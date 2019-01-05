@@ -1,5 +1,5 @@
 # POSIX additions to <stdlib.h>
-# http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/stdlib.h.html
+# https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/stdlib.h.html
 
 cdef extern from "<stdlib.h>" nogil:
     void   _Exit(int)

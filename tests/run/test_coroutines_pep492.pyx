@@ -1075,7 +1075,7 @@ class CoroutineTest(unittest.TestCase):
             c.close()
 
     def test_func_15(self):
-        # See http://bugs.python.org/issue25887 for details
+        # See https://bugs.python.org/issue25887 for details
 
         async def spammer():
             return 'spam'
@@ -1092,7 +1092,7 @@ class CoroutineTest(unittest.TestCase):
             reader(spammer_coro).send(None)
 
     def test_func_16(self):
-        # See http://bugs.python.org/issue25887 for details
+        # See https://bugs.python.org/issue25887 for details
 
         @types_coroutine
         def nop():
@@ -1123,7 +1123,7 @@ class CoroutineTest(unittest.TestCase):
             reader.throw(Exception('wat'))
 
     def test_func_17(self):
-        # See http://bugs.python.org/issue25887 for details
+        # See https://bugs.python.org/issue25887 for details
 
         async def coroutine():
             return 'spam'
@@ -1146,7 +1146,7 @@ class CoroutineTest(unittest.TestCase):
         coro.close()
 
     def test_func_18(self):
-        # See http://bugs.python.org/issue25887 for details
+        # See https://bugs.python.org/issue25887 for details
 
         async def coroutine():
             return 'spam'

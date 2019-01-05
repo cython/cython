@@ -9,7 +9,7 @@
 From gdb 7 onwards, gdb's build can be configured --with-python, allowing gdb
 to be extended with Python code e.g. for library-specific data visualizations,
 such as for the C++ STL types.  Documentation on this API can be seen at:
-http://sourceware.org/gdb/current/onlinedocs/gdb/Python-API.html
+https://sourceware.org/gdb/current/onlinedocs/gdb/Python-API.html
 
 
 This python module deals with the case when the process being debugged (the
@@ -315,7 +315,7 @@ class PyObjectPtr(object):
             def __repr__(self):
                 # For the NULL pointer, we have no way of knowing a type, so
                 # special-case it as per
-                # http://bugs.python.org/issue8032#msg100882
+                # https://bugs.python.org/issue8032#msg100882
                 if self.address == 0:
                     return '0x0'
                 return '<%s at remote 0x%x>' % (self.tp_name, self.address)
@@ -1451,7 +1451,7 @@ register (gdb.current_objfile ())
 
 # Unfortunately, the exact API exposed by the gdb module varies somewhat
 # from build to build
-# See http://bugs.python.org/issue8279?#msg102276
+# See https://bugs.python.org/issue8279?#msg102276
 
 class Frame(object):
     '''

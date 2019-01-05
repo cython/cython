@@ -652,6 +652,6 @@ object handling. For the details of how to compile and
 call functions in C files, see :ref:`using_c_libraries`.
 
 
-.. _GIL: http://docs.python.org/dev/glossary.html#term-global-interpreter-lock
+.. _GIL: https://docs.python.org/dev/glossary.html#term-global-interpreter-lock
 .. _NumPy: https://docs.scipy.org/doc/numpy/reference/arrays.ndarray.html#memory-layout
 .. _example: https://docs.scipy.org/doc/numpy/reference/arrays.indexing.html

@@ -582,7 +582,7 @@ The Sage notebook allows transparently editing and compiling Cython
 code simply by typing ``%cython`` at the top of a cell and evaluate
 it. Variables and functions defined in a Cython cell are imported into the
 running session.  Please check `Sage documentation
-<http://www.sagemath.org/doc/>`_ for details.
+<https://www.sagemath.org/doc/>`_ for details.
 
 You can tailor the behavior of the Cython compiler by specifying the
 directives below.

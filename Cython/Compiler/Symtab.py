@@ -443,7 +443,7 @@ class Scope(object):
         if type.is_buffer and not isinstance(self, LocalScope): # and not is_type:
             error(pos, 'Buffer types only allowed as function local variables')
         if not self.in_cinclude and cname and re.match("^_[_A-Z]+$", cname):
-            # See http://www.gnu.org/software/libc/manual/html_node/Reserved-Names.html#Reserved-Names
+            # See https://www.gnu.org/software/libc/manual/html_node/Reserved-Names.html#Reserved-Names
             warning(pos, "'%s' is a reserved name in C." % cname, -1)
         entries = self.entries
         if name and name in entries and not shadow:

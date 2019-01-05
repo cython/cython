@@ -14,7 +14,7 @@ line_re  = re.compile('.*?\n')
 
 class CythonLexer(RegexLexer):
     """
-    For `Cython <http://cython.org>`_ source code.
+    For `Cython <https://cython.org/>`_ source code.
     """
 
     name = 'Cython'
