@@ -2340,11 +2340,14 @@ class CFuncDefNode(FuncDefNode):
         return self.py_func.code_object if self.py_func else None
 
     def analyse_declarations(self, env):
+        is_property = False
         if self.decorators:
             for decorator in self.decorators:
                 func = decorator.decorator
                 if func.is_name:
-                    if func.name in ('property', 'staticmethod'):
+                    if func.name == 'property':
+                        is_property = True
+                    elif func.name == 'staticmethod':
                         pass
                     else:
                         error(self.pos, "Cannot handle %s decorators yet" % func.name)
@@ -2421,16 +2424,12 @@ class CFuncDefNode(FuncDefNode):
 
         type.is_const_method = self.is_const_method
         type.is_static_method = self.is_static_method
-        property = False
-        if self.decorators:
-            for _node in self.decorators:
-                if _node.decorator.is_name and _node.decorator.name == 'property':
-                    property = True
+
         self.entry = env.declare_cfunction(
             name, type, self.pos,
             cname=cname, visibility=self.visibility, api=self.api,
             defining=self.body is not None, modifiers=self.modifiers,
-            overridable=self.overridable, property=property)
+            overridable=self.overridable, is_property=is_property)
         self.entry.inline_func_in_pxd = self.inline_in_pxd
         self.return_type = type.return_type
         if self.return_type.is_array and self.visibility != 'extern':

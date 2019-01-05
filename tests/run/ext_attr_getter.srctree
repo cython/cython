@@ -44,17 +44,17 @@ typedef struct {
 
 int PyFoo_Get0F(FooStructOpaque *f)
 {
-    return ((FooStructNominal*)f)->f0;
+    return PyFoo_GET0M(f);
 }
 
 int PyFoo_Get1F(FooStructOpaque *f)
 {
-    return ((FooStructNominal*)f)->f1;
+    return PyFoo_GET1M(f);
 }
 
 int PyFoo_Get2F(FooStructOpaque *f)
 {
-    return ((FooStructNominal*)f)->f2;
+    return PyFoo_GET2M(f);
 }
 
 #ifdef __cplusplus
