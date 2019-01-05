@@ -123,15 +123,15 @@ def sum(Foo f):
 cdef extern from "foo.h":
     ctypedef class foo_extension.Foo [object FooStructOpaque, check_size ignore]:
         @property
-        cdef int field0(self):
+        cdef int fieldM0(self):
             return PyFoo_GET0M(self)
 
         @property
-        cdef int field1(self):
+        cdef int fieldF1(self):
             return PyFoo_Get1F(self)
 
         @property
-        cdef int field2(self):
+        cdef int fieldM2(self):
             return PyFoo_GET2M(self)
 
     int PyFoo_GET0M(Foo);  # this is actually a macro !
@@ -141,7 +141,7 @@ cdef extern from "foo.h":
 def sum(Foo f):
     # Note - not a cdef function but compiling the f.__getattr__('field0')
     # notices the getter and replaces the __getattr__ in c by PyFoo_GET anyway
-    return f.field0 + f.field1 + f.field2
+    return f.fieldM0 + f.fieldF1 + f.fieldM2
 
 
 ######## getter_fail0.pyx ########
