@@ -1938,7 +1938,8 @@ class StructOrUnionScope(Scope):
 
     def declare_cfunction(self, name, type, pos,
                           cname=None, visibility='private', api=0, in_pxd=0,
-                          defining=0, modifiers=(), overridable=False):  # currently no utility code ...
+                          defining=0, modifiers=(), overridable=False,
+                          is_property=False):  # currently no utility code ...
         if overridable:
             error(pos, "C struct/union member cannot be declared 'cpdef'")
         return self.declare_var(name, type, pos,
@@ -2409,7 +2410,7 @@ class CppClassScope(Scope):
     def declare_cfunction(self, name, type, pos,
                           cname=None, visibility='extern', api=0, in_pxd=0,
                           defining=0, modifiers=(), utility_code=None, overridable=False,
-                          property=False):
+                          is_property=False):
         class_name = self.name.split('::')[-1]
         if name in (class_name, '__init__') and cname is None:
             cname = "%s__init__%s" % (Naming.func_prefix, class_name)
