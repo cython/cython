@@ -5042,13 +5042,6 @@ class PropertyNode(StatNode):
         self.entry = env.declare_property(self.name, self.doc, self.pos)
         self.entry.scope.directives = env.directives
         self.body.analyse_declarations(self.entry.scope)
-        # XXX DO SOMETHING HERE???
-        if 0 and self.is_wrapper:
-            entry = self.body.stats[0].entry
-            entry.is_property = 1
-            entry.doc = self.doc
-            env.property_entries[-1] = entry
-            env.entries[self.name] = entry
 
     def analyse_expressions(self, env):
         self.body = self.body.analyse_expressions(env)
