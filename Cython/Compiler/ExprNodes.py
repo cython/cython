@@ -881,8 +881,8 @@ class ExprNode(Node):
         if used_as_reference and not src_type.is_reference:
             dst_type = dst_type.ref_base_type
 
-        if src_type.is_const:
-            src_type = src_type.const_base_type
+        if src_type.is_cv_qualified:
+            src_type = src_type.cv_base_type
 
         if src_type.is_fused or dst_type.is_fused:
             # See if we are coercing a fused function to a pointer to a
@@ -2868,8 +2868,8 @@ class NextNode(AtomicExprNode):
             item_type = env.lookup_operator_for_types(self.pos, "*", [iterator_type]).type.return_type
             if item_type.is_reference:
                 item_type = item_type.ref_base_type
-            if item_type.is_const:
-                item_type = item_type.const_base_type
+            if item_type.is_cv_qualified:
+                item_type = item_type.cv_base_type
             return item_type
         else:
             # Avoid duplication of complicated logic.
