@@ -115,7 +115,7 @@ def nonempty(it, error_msg="expected non-empty iterator"):
 def file_hash(filename):
     path = os.path.normpath(filename)
     prefix = ('%d:%s' % (len(path), path)).encode("UTF-8")
-    m = hashlib.md5(prefix)
+    m = hashlib.sha1(prefix)
     with open(path, 'rb') as f:
         data = f.read(65000)
         while data:
@@ -634,7 +634,7 @@ class DependencyTree(object):
         incorporate everything that has an influence on the generated code.
         """
         try:
-            m = hashlib.md5(__version__.encode('UTF-8'))
+            m = hashlib.sha1(__version__.encode('UTF-8'))
             m.update(file_hash(filename).encode('UTF-8'))
             for x in sorted(self.all_dependencies(filename)):
                 if os.path.splitext(x)[1] not in ('.c', '.cpp', '.h'):

@@ -13,21 +13,16 @@ cython.declare(os=object, re=object, operator=object, textwrap=object,
                DebugFlags=object, basestring=object, defaultdict=object,
                closing=object, partial=object)
 
+import hashlib
+import operator
 import os
 import re
 import shutil
-import sys
-import operator
 import textwrap
 from string import Template
 from functools import partial
 from contextlib import closing
 from collections import defaultdict
-
-try:
-    import hashlib
-except ImportError:
-    import md5 as hashlib
 
 from . import Naming
 from . import Options
@@ -1881,7 +1876,7 @@ class CCodeWriter(object):
         include_dir = self.globalstate.common_utility_include_dir
         if include_dir and len(code) > 1024:
             include_file = "%s_%s.h" % (
-                name, hashlib.md5(code.encode('utf8')).hexdigest())
+                name, hashlib.sha1(code.encode('utf8')).hexdigest())
             path = os.path.join(include_dir, include_file)
             if not os.path.exists(path):
                 tmp_path = '%s.tmp%s' % (path, os.getpid())

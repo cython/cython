@@ -39,6 +39,10 @@ Bugs fixed
 Other changes
 -------------
 
+* Source file fingerprinting now uses SHA-1 instead of MD5 since the latter
+  tends to be slower and less widely supported these days.
+  (Github issue #2790)
+
 * Support for Python 2.6 was removed.
 
 

@@ -3,11 +3,7 @@ from __future__ import absolute_import
 import sys, os, re, inspect
 import imp
 
-try:
-    import hashlib
-except ImportError:
-    import md5 as hashlib
-
+import hashlib
 from distutils.core import Distribution, Extension
 from distutils.command.build_ext import build_ext
 
@@ -184,7 +180,7 @@ def cython_inline(code, get_type=unsafe_type,
     arg_names = sorted(kwds)
     arg_sigs = tuple([(get_type(kwds[arg], ctx), arg) for arg in arg_names])
     key = orig_code, arg_sigs, sys.version_info, sys.executable, language_level, Cython.__version__
-    module_name = "_cython_inline_" + hashlib.md5(_unicode(key).encode('utf-8')).hexdigest()
+    module_name = "_cython_inline_" + hashlib.sha1(_unicode(key).encode('utf-8')).hexdigest()
 
     if module_name in sys.modules:
         module = sys.modules[module_name]
