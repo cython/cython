@@ -97,18 +97,17 @@ class Context(object):
 
     def set_language_level(self, level):
         from .Future import print_function, unicode_literals, absolute_import, division
-        future_directives = []
+        future_directives = set()
         if level == '3str':
-            future_directives = [print_function, absolute_import, division]
-            self.future_directives.discard(unicode_literals)
             level = 3
         else:
             level = int(level)
             if level >= 3:
-                future_directives = [print_function, unicode_literals, absolute_import, division]
+                future_directives.add(unicode_literals)
+        if level >= 3:
+            future_directives.update([print_function, absolute_import, division])
         self.language_level = level
-        if future_directives:
-            self.future_directives.update(future_directives)
+        self.future_directives = future_directives
         if level >= 3:
             self.modules['builtins'] = self.modules['__builtin__']
 
