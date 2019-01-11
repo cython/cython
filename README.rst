@@ -1,4 +1,4 @@
-Welcome to Cython!  
+Welcome to Cython!
 ==================
 
 Cython is a language that makes writing C extensions for
@@ -14,8 +14,8 @@ code from Cython code.
 This makes Cython the ideal language for wrapping external C libraries, and
 for fast C modules that speed up the execution of Python code.
 
-* Official website: http://cython.org/
-* Documentation: http://docs.cython.org/en/latest/
+* Official website: https://cython.org/
+* Documentation: http://docs.cython.org/
 * Github repository: https://github.com/cython/cython
 * Wiki: https://github.com/cython/cython/wiki
 

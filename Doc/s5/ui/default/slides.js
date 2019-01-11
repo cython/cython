@@ -1,6 +1,6 @@
 // S5 v1.1 slides.js -- released into the Public Domain
 //
-// Please see http://www.meyerweb.com/eric/tools/s5/credits.html for information
+// Please see https://meyerweb.com/eric/tools/s5/credits.html for information
 // about all the wonderful and talented contributors to this code!
 
 var undef;

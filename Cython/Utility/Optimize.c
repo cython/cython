@@ -648,7 +648,7 @@ static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject
 
 static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject *none, int inplace) {
 // in CPython, 1<<N is substantially faster than 2**N
-// see http://bugs.python.org/issue21420
+// see https://bugs.python.org/issue21420
 #if !CYTHON_COMPILING_IN_PYPY
     Py_ssize_t shiftby;
 #if PY_MAJOR_VERSION < 3

@@ -1,4 +1,4 @@
-# http://pubs.opengroup.org/onlinepubs/009695399/basedefs/sys/mman.h.html
+# https://pubs.opengroup.org/onlinepubs/009695399/basedefs/sys/mman.h.html
 
 from posix.types cimport off_t, mode_t
 

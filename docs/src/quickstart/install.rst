@@ -41,7 +41,7 @@ The simplest way of installing Cython is by using ``pip``::
 
 
 The newest Cython release can always be downloaded from
-http://cython.org.  Unpack the tarball or zip file, enter the
+https://cython.org/.  Unpack the tarball or zip file, enter the
 directory, and then run::
 
   python setup.py install
@@ -59,4 +59,4 @@ with
 
 .. [Anaconda] https://docs.anaconda.com/anaconda/
 .. [Canopy] https://www.enthought.com/product/canopy/
-.. [Sage] W. Stein et al., Sage Mathematics Software, http://www.sagemath.org/
+.. [Sage] W. Stein et al., Sage Mathematics Software, https://www.sagemath.org/

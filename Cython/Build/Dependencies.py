@@ -792,7 +792,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                 filepattern = cython_sources[0]
                 if len(cython_sources) > 1:
                     print("Warning: Multiple cython sources found for extension '%s': %s\n"
-                          "See http://cython.readthedocs.io/en/latest/src/userguide/sharing_declarations.html "
+                          "See https://cython.readthedocs.io/en/latest/src/userguide/sharing_declarations.html "
                           "for sharing declarations among Cython files." % (pattern.name, cython_sources))
             else:
                 # ignore non-cython modules
@@ -1073,7 +1073,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
         # This is a bit more involved than it should be, because KeyboardInterrupts
         # break the multiprocessing workers when using a normal pool.map().
         # See, for example:
-        # http://noswap.com/blog/python-multiprocessing-keyboardinterrupt
+        # https://noswap.com/blog/python-multiprocessing-keyboardinterrupt
         try:
             result = pool.map_async(cythonize_one_helper, to_compile, chunksize=1)
             pool.close()

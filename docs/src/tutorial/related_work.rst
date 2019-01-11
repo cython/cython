@@ -42,7 +42,7 @@ Python modules.
 .. [ctypes] https://docs.python.org/library/ctypes.html.
 .. there's also the original ctypes home page: http://python.net/crew/theller/ctypes/
 .. [Pyrex] G. Ewing, Pyrex: C-Extensions for Python,
-   http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
+   https://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
 .. [ShedSkin] M. Dufour, J. Coughlan, ShedSkin,
    https://github.com/shedskin/shedskin
 .. [SWIG] David M. Beazley et al.,

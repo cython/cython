@@ -1634,7 +1634,7 @@ Features added
 
 * Generators have new properties ``__name__`` and ``__qualname__``
   that provide the plain/qualified name of the generator function
-  (following CPython 3.5).  See http://bugs.python.org/issue21205
+  (following CPython 3.5).  See https://bugs.python.org/issue21205
 
 * The ``inline`` function modifier is available as a decorator
   ``@cython.inline`` in pure mode.
@@ -1680,7 +1680,7 @@ Optimizations
   evaluation and generally improves the code flow in the generated C code.
 
 * The Python expression "2 ** N" is optimised into bit shifting.
-  See http://bugs.python.org/issue21420
+  See https://bugs.python.org/issue21420
 
 * Cascaded assignments (a = b = ...) try to minimise the number of
   type coercions.

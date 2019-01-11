@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # Back-Propagation Neural Networks
 #
-# Written in Python.  See http://www.python.org/
+# Written in Python.  See https://www.python.org/
 #
 # Neil Schemenauer <nascheme@enme.ucalgary.ca>
 

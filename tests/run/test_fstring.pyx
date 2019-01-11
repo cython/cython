@@ -93,7 +93,7 @@ class TestCase(CythonTest):
         self.assertEqual(type(y).__format__(y, ''), 'class')
 
     def __test_ast(self):
-        # Inspired by http://bugs.python.org/issue24975
+        # Inspired by https://bugs.python.org/issue24975
         class X:
             def __init__(self):
                 self.called = False

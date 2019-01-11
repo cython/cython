@@ -20,7 +20,7 @@ Usage example with distutils
 ----------------------------
 
 You first need to install Pythran. See its `documentation
-<http://pythran.readthedocs.io/en/latest/>`_ for more information.
+<https://pythran.readthedocs.io/>`_ for more information.
 
 Then, simply add a ``cython: np_pythran=True`` directive at the top of the
 Python files that needs to be compiled using Pythran numpy support.
@@ -31,7 +31,7 @@ Here is an example of a simple ``setup.py`` file using distutils:
 
   from distutils.core import setup
   from Cython.Build import cythonize
-  
+
   setup(
       name = "My hello app",
       ext_modules = cythonize('hello_pythran.pyx')

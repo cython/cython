@@ -1986,7 +1986,7 @@ static PyObject *__Pyx_PyFunction_FastCallDict(PyObject *func, PyObject **args, 
 //       ((char *)(foo)        \
 //        + Py_BUILD_ASSERT_EXPR(offsetof(struct foo, string) == 0))
 //
-//   Written by Rusty Russell, public domain, http://ccodearchive.net/
+//   Written by Rusty Russell, public domain, https://ccodearchive.net/
 #define __Pyx_BUILD_ASSERT_EXPR(cond) \
     (sizeof(char [1 - 2*!(cond)]) - 1)
 

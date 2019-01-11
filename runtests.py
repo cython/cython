@@ -115,7 +115,7 @@ def get_distutils_distro(_cache=[]):
     distutils_distro = Distribution()
 
     if sys.platform == 'win32':
-        # TODO: Figure out why this hackery (see http://thread.gmane.org/gmane.comp.python.cython.devel/8280/).
+        # TODO: Figure out why this hackery (see https://thread.gmane.org/gmane.comp.python.cython.devel/8280/).
         config_files = distutils_distro.find_config_files()
         try:
             config_files.remove('setup.cfg')

@@ -62,7 +62,7 @@ class CompileError(PyrexError):
         self.reported = False
         Exception.__init__(self, self.formatted_message)
         # Python Exception subclass pickling is broken,
-        # see http://bugs.python.org/issue1692335
+        # see https://bugs.python.org/issue1692335
         self.args = (position, message)
 
     def __str__(self):
@@ -110,7 +110,7 @@ class CompilerCrash(CompileError):
             message += u'%s: %s' % (cause.__class__.__name__, cause)
         CompileError.__init__(self, pos, message)
         # Python Exception subclass pickling is broken,
-        # see http://bugs.python.org/issue1692335
+        # see https://bugs.python.org/issue1692335
         self.args = (pos, context, message, cause, stacktrace)
 
 class NoElementTreeInstalledException(PyrexError):
