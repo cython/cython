@@ -219,7 +219,7 @@ class Context(object):
                     # look for the non-existing pxd file next time.
                     scope.pxd_file_loaded = True
                     package_pathname = self.search_include_directories(qualified_name, ".py", pos)
-                    if package_pathname and package_pathname.endswith('__init__.py'):
+                    if package_pathname and package_pathname.endswith(Utils.PACKAGE_FILES):
                         pass
                     else:
                         error(pos, "'%s.pxd' not found" % qualified_name.replace('.', os.sep))

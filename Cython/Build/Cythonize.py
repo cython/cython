@@ -69,7 +69,7 @@ def parse_compile_time_env(option, name, value, parser):
 
 def find_package_base(path):
     base_dir, package_path = os.path.split(path)
-    while os.path.isfile(os.path.join(base_dir, '__init__.py')):
+    while is_package_dir(base_dir):
         base_dir, parent = os.path.split(base_dir)
         package_path = '%s/%s' % (parent, package_path)
     return base_dir, package_path

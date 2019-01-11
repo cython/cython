@@ -419,11 +419,12 @@ VER_DEP_MODULES = {
     # to be unsafe...
     (2,999): (operator.lt, lambda x: x in ['run.special_methods_T561_py3',
                                            'run.test_raisefrom',
+                                           'run.different_package_names',
                                            ]),
     (3,): (operator.ge, lambda x: x in ['run.non_future_division',
                                         'compile.extsetslice',
                                         'compile.extdelslice',
-                                        'run.special_methods_T561_py2'
+                                        'run.special_methods_T561_py2',
                                         ]),
     (3,3) : (operator.lt, lambda x: x in ['build.package_compilation',
                                           'run.yield_from_py33',
