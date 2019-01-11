@@ -80,19 +80,19 @@ matrix:
       language: c
       compiler: clang
       cache: false
-    - python: pypy
-      env: BACKEND=c
-    - python: pypy3
-      env: BACKEND=c
     - env: STACKLESS=true BACKEND=c PY=2
       python: 2.7
     - env: STACKLESS=true BACKEND=c PY=3
       python: 3.6
+    - python: pypy
+      env: BACKEND=c
+    - python: pypy3
+      env: BACKEND=c
   allow_failures:
     - python: pypy
     - python: pypy3
     - python: 3.8-dev
-    - env: STACKLESS=true BACKEND=c PY=2
+    #- env: STACKLESS=true BACKEND=c PY=2
     #- env: STACKLESS=true BACKEND=c PY=3
 
 branches:
