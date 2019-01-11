@@ -23,6 +23,8 @@ import codecs
 import shutil
 from contextlib import contextmanager
 
+PACKAGE_FILES = ("__init__.py", "__init__.pyc", "__init__.pyx", "__init__.pxd")
+
 modification_time = os.path.getmtime
 
 _function_caches = []
@@ -191,10 +193,7 @@ def check_package_dir(dir, package_names):
 
 @cached_function
 def is_package_dir(dir_path):
-    for filename in ("__init__.py",
-                     "__init__.pyc",
-                     "__init__.pyx",
-                     "__init__.pxd"):
+    for filename in PACKAGE_FILES:
         path = os.path.join(dir_path, filename)
         if path_exists(path):
             return 1
