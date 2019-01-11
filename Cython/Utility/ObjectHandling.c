@@ -429,10 +429,15 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, 
         }
     } else {
         // inlined PySequence_GetItem() + special cased length overflow
-        PySequenceMethods *m = Py_TYPE(o)->tp_as_sequence;
-        if (likely(m && m->sq_item)) {
-            if (wraparound && unlikely(i < 0) && likely(m->sq_length)) {
-                Py_ssize_t l = m->sq_length(o);
+        PyMappingMethods *mm = Py_TYPE(o)->tp_as_mapping;
+        PySequenceMethods *sm = Py_TYPE(o)->tp_as_sequence;
+        if (mm && mm->mp_subscript) {
+            PyObject *key = PyInt_FromSsize_t(i);
+            return likely(key) ? mm->mp_subscript(o, key) : NULL;
+        }
+        if (likely(sm && sm->sq_item)) {
+            if (wraparound && unlikely(i < 0) && likely(sm->sq_length)) {
+                Py_ssize_t l = sm->sq_length(o);
                 if (likely(l >= 0)) {
                     i += l;
                 } else {
@@ -442,7 +447,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, 
                     PyErr_Clear();
                 }
             }
-            return m->sq_item(o, i);
+            return sm->sq_item(o, i);
         }
     }
 #else
@@ -489,10 +494,15 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
         }
     } else {
         // inlined PySequence_SetItem() + special cased length overflow
-        PySequenceMethods *m = Py_TYPE(o)->tp_as_sequence;
-        if (likely(m && m->sq_ass_item)) {
-            if (wraparound && unlikely(i < 0) && likely(m->sq_length)) {
-                Py_ssize_t l = m->sq_length(o);
+        PyMappingMethods *mm = Py_TYPE(o)->tp_as_mapping;
+        PySequenceMethods *sm = Py_TYPE(o)->tp_as_sequence;
+        if (mm && mm->mp_ass_subscript) {
+            PyObject *key = PyInt_FromSsize_t(i);
+            return likely(key) ? mm->mp_ass_subscript(o, key, v) : -1;
+        }
+        if (likely(sm && sm->sq_ass_item)) {
+            if (wraparound && unlikely(i < 0) && likely(sm->sq_length)) {
+                Py_ssize_t l = sm->sq_length(o);
                 if (likely(l >= 0)) {
                     i += l;
                 } else {
@@ -502,7 +512,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
                     PyErr_Clear();
                 }
             }
-            return m->sq_ass_item(o, i, v);
+            return sm->sq_ass_item(o, i, v);
         }
     }
 #else
@@ -542,17 +552,22 @@ static int __Pyx_DelItem_Generic(PyObject *o, PyObject *j) {
 }
 
 static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i,
-                                               CYTHON_UNUSED int is_list, CYTHON_NCP_UNUSED int wraparound) {
+                                               int is_list, CYTHON_NCP_UNUSED int wraparound) {
 #if !CYTHON_USE_TYPE_SLOTS
     if (is_list || PySequence_Check(o)) {
         return PySequence_DelItem(o, i);
     }
 #else
     // inlined PySequence_DelItem() + special cased length overflow
-    PySequenceMethods *m = Py_TYPE(o)->tp_as_sequence;
-    if (likely(m && m->sq_ass_item)) {
-        if (wraparound && unlikely(i < 0) && likely(m->sq_length)) {
-            Py_ssize_t l = m->sq_length(o);
+    PyMappingMethods *mm = Py_TYPE(o)->tp_as_mapping;
+    PySequenceMethods *sm = Py_TYPE(o)->tp_as_sequence;
+    if ((!is_list) && mm && mm->mp_ass_subscript) {
+        PyObject *key = PyInt_FromSsize_t(i);
+        return likely(key) ? mm->mp_ass_subscript(o, key, (PyObject *)NULL) : -1;
+    }
+    if (likely(sm && sm->sq_ass_item)) {
+        if (wraparound && unlikely(i < 0) && likely(sm->sq_length)) {
+            Py_ssize_t l = sm->sq_length(o);
             if (likely(l >= 0)) {
                 i += l;
             } else {
@@ -562,7 +577,7 @@ static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i,
                 PyErr_Clear();
             }
         }
-        return m->sq_ass_item(o, i, (PyObject *)NULL);
+        return sm->sq_ass_item(o, i, (PyObject *)NULL);
     }
 #endif
     return __Pyx_DelItem_Generic(o, PyInt_FromSsize_t(i));
