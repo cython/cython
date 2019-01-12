@@ -2299,14 +2299,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("%s CYTHON_SMALL_CODE; /*proto*/" % header2)
         if self.scope.is_package:
             code.putln("#if !defined(CYTHON_NO_PYINIT_EXPORT) && (defined(WIN32) || defined(MS_WINDOWS))")
-            code.putln("__Pyx_PyMODINIT_FUNC init__init__(void) { init%s(); };" % env.module_name)
+            code.putln("__Pyx_PyMODINIT_FUNC init__init__(void) { init%s(); }" % env.module_name)
             code.putln("#endif")
         code.putln(header2)
         code.putln("#else")
         code.putln("%s CYTHON_SMALL_CODE; /*proto*/" % header3)
         if self.scope.is_package:
             code.putln("#if !defined(CYTHON_NO_PYINIT_EXPORT) && (defined(WIN32) || defined(MS_WINDOWS))")
-            code.putln("__Pyx_PyMODINIT_FUNC PyInit___init__(void) { return %s(); };" % (
+            code.putln("__Pyx_PyMODINIT_FUNC PyInit___init__(void) { return %s(); }" % (
                 self.mod_init_func_cname('PyInit', env)))
             code.putln("#endif")
         code.putln(header3)
