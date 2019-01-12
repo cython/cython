@@ -32,7 +32,7 @@ class Return(Action):
         return isinstance(other, Return) and self.value == other.value
 
     def __repr__(self):
-        return "Return(%s)" % repr(self.value)
+        return "Return(%r)" % self.value
 
 
 class Call(Action):
