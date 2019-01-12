@@ -931,6 +931,8 @@ static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *na
 #if PY_VERSION_HEX >= 0x03030000
     if (PyDict_SetItem(dict, PYIDENT("__qualname__"), qualname) < 0)
         return NULL;
+#else
+    CYTHON_MAYBE_UNUSED_VAR(qualname);
 #endif
 
     /* Python2 __metaclass__ */
@@ -993,6 +995,8 @@ static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases,
     if (unlikely(PyObject_SetItem(ns, PYIDENT("__module__"), modname) < 0)) goto bad;
 #if PY_VERSION_HEX >= 0x03030000
     if (unlikely(PyObject_SetItem(ns, PYIDENT("__qualname__"), qualname) < 0)) goto bad;
+#else
+    CYTHON_MAYBE_UNUSED_VAR(qualname);
 #endif
     if (unlikely(doc && PyObject_SetItem(ns, PYIDENT("__doc__"), doc) < 0)) goto bad;
     return ns;
