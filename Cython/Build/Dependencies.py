@@ -1006,7 +1006,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
                         warnings.warn("build_dir has no effect for absolute source paths")
                     else:
                         # remove any leading dots that remain
-                        c_file = c_file.split('../')[-1]
+                        c_file = c_file.split('..' + os.sep)[-1]
                     c_file = os.path.join(build_dir, c_file)
                     dir = os.path.dirname(c_file)
                     safe_makedirs_once(dir)
