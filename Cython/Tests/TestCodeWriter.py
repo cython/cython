@@ -19,9 +19,8 @@ class TestCodeWriter(CythonTest):
 
     def test_print(self):
         self.t(u"""
-                    print x, y
-                    print x + y ** 2
-                    print x, y, z,
+                    print(x + y ** 2)
+                    print(x, y, z)
                """)
 
     def test_if(self):
@@ -65,9 +64,9 @@ class TestCodeWriter(CythonTest):
     def test_for_loop(self):
         self.t(u"""
                     for x, y, z in f(g(h(34) * 2) + 23):
-                        print x, y, z
+                        print(x, y, z)
                     else:
-                        print 43
+                        print(43)
                 """)
 
     def test_inplace_assignment(self):
