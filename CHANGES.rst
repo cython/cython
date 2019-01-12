@@ -8,6 +8,9 @@ Cython Changelog
 Features added
 --------------
 
+* The ``volatile`` C modifier is supported in Cython code.
+  Patch by Jeroen Demeyer.  (Github issue #1667)
+
 * ``?`` is supported as NumPy dtype for ``bool``.
   Patch by Max Klein.  (Github issue #2675)
 
@@ -17,6 +20,9 @@ Features added
 * The builtin ``abs()`` function can now be used on C numbers in nogil code.
   Patch by Elliott Sales de Andrade.  (Github issue #2748)
 
+* PEP-479 (``generator_stop``) is now enabled by default with language level 3.
+  (Github issue #2580)
+
 Bugs fixed
 ----------
 
@@ -24,6 +30,11 @@ Bugs fixed
   incorrectly optimised for single character input values and only returned
   the first character if multiple characters should have been returned.
   They now use the original Python methods again.
+
+* Item access (subscripting) with integer indices/keys always tried the
+  Sequence protocol before the Mapping protocol, which diverged from Python
+  semantics.  It now passes through the Mapping protocol first when supported.
+  (Github issue #1807)
 
 * The ``Py_hash_t`` type failed to accept arbitrary "index" values.
   (Github issue #2752)
@@ -36,8 +47,22 @@ Bugs fixed
   as integer 0 instead of the expected float value.
   Patch by Kryštof Pilnáček.  (Github issue #2133)
 
+* Setting ``language_level=2`` in a file did not work if ``language_level=3``
+  was enabled globally before.
+  Patch by Jeroen Demeyer.  (Github issue #2791)
+
+* ``__init__.pyx`` files were not always considered as package indicators.
+  (Github issue #2665)
+
+* A C compiler cast warning was resolved.
+  Patch by Michael Buesch.  (Github issue #2775)
+
 Other changes
 -------------
+
+* Cython no longer generates ``__qualname__`` attributes for classes in Python
+  2.x since they are problematic there and not correctly maintained for subclasses.
+  Patch by Jeroen Demeyer.  (Github issue #2772)
 
 * Source file fingerprinting now uses SHA-1 instead of MD5 since the latter
   tends to be slower and less widely supported these days.
