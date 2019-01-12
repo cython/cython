@@ -20,8 +20,7 @@ cdef class __Pyx_EnumMeta(type):
 
 # @cython.internal
 cdef object __Pyx_EnumBase
-class __Pyx_EnumBase(int):
-    __metaclass__ = __Pyx_EnumMeta
+class __Pyx_EnumBase(int, metaclass=__Pyx_EnumMeta):
     def __new__(cls, value, name=None):
         for v in cls:
             if v == value:
