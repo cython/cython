@@ -47,6 +47,9 @@ Bugs fixed
   as integer 0 instead of the expected float value.
   Patch by Kryštof Pilnáček.  (Github issue #2133)
 
+* ``__doc__`` was not available inside of the class body during class creation.
+  (Github issue #1635)
+
 * Setting ``language_level=2`` in a file did not work if ``language_level=3``
   was enabled globally before.
   Patch by Jeroen Demeyer.  (Github issue #2791)

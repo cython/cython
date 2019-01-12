@@ -1300,6 +1300,8 @@ class ControlFlowAnalysis(CythonTransform):
         self.env_stack.append(self.env)
         self.env = node.scope
         self.flow.nextblock()
+        if node.doc_node:
+            self.flow.mark_assignment(node.doc_node, fake_rhs_expr, node.doc_node.entry)
         self.visitchildren(node, ('body',))
         self.flow.nextblock()
         self.env = self.env_stack.pop()

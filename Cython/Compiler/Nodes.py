@@ -4429,7 +4429,7 @@ class PyClassDefNode(ClassDefNode):
     #  A Python class definition.
     #
     #  name     EncodedString   Name of the class
-    #  doc      string or None
+    #  doc      string or None  The class docstring
     #  body     StatNode        Attribute definition code
     #  entry    Symtab.Entry
     #  scope    PyClassScope
@@ -4437,17 +4437,19 @@ class PyClassDefNode(ClassDefNode):
     #
     #  The following subnodes are constructed internally:
     #
+    #  doc_node NameNode   '__doc__' name that is made available to the class body
     #  dict     DictNode   Class dictionary or Py3 namespace
     #  classobj ClassNode  Class object
     #  target   NameNode   Variable to assign class object to
 
-    child_attrs = ["body", "dict", "metaclass", "mkw", "bases", "class_result",
+    child_attrs = ["doc_node", "body", "dict", "metaclass", "mkw", "bases", "class_result",
                    "target", "class_cell", "decorators"]
     decorators = None
     class_result = None
     is_py3_style_class = False  # Python3 style class (kwargs)
     metaclass = None
     mkw = None
+    doc_node = None
 
     def __init__(self, pos, name, bases, doc, body, decorators=None,
                  keyword_args=None, force_py3_semantics=False):
@@ -4461,6 +4463,7 @@ class PyClassDefNode(ClassDefNode):
         if self.doc and Options.docstrings:
             doc = embed_position(self.pos, self.doc)
             doc_node = ExprNodes.StringNode(pos, value=doc)
+            self.doc_node = ExprNodes.NameNode(name=EncodedString('__doc__'), type=py_object_type, pos=pos)
         else:
             doc_node = None
 
@@ -4565,6 +4568,8 @@ class PyClassDefNode(ClassDefNode):
         cenv = self.create_scope(env)
         cenv.directives = env.directives
         cenv.class_obj_cname = self.target.entry.cname
+        if self.doc_node:
+            self.doc_node.analyse_target_declaration(cenv)
         self.body.analyse_declarations(cenv)
 
     def analyse_expressions(self, env):
