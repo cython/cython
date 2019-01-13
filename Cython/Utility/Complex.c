@@ -279,7 +279,8 @@ static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject* o) {
                 }
             } else {
                 r = __Pyx_c_abs{{func_suffix}}(a);
-                theta = atan2{{m}}(a.imag, a.real);
+                // MSVC++ seems to require the input casts.
+                theta = atan2{{m}}(({{real_type}})a.imag, ({{real_type}})a.real);
             }
             lnr = log{{m}}(r);
             z_r = exp{{m}}(lnr * b.real - theta * b.imag);
