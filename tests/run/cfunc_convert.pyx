@@ -82,7 +82,7 @@ def test_global():
 
 cdef long long rad(long long x):
     cdef long long rad = 1
-    for p in range(2, <long long>sqrt(x) + 1):
+    for p in range(2, <long long>sqrt(<double>x) + 1):  # MSVC++ fails without the input cast
         if x % p == 0:
             rad *= p
             while x % p == 0:
