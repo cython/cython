@@ -2340,13 +2340,13 @@ class CFuncDefNode(FuncDefNode):
         return self.py_func.code_object if self.py_func else None
 
     def analyse_declarations(self, env):
-        is_property = False
+        is_property = 0
         if self.decorators:
             for decorator in self.decorators:
                 func = decorator.decorator
                 if func.is_name:
                     if func.name == 'property':
-                        is_property = True
+                        is_property = 1
                     elif func.name == 'staticmethod':
                         pass
                     else:
@@ -2429,7 +2429,11 @@ class CFuncDefNode(FuncDefNode):
             name, type, self.pos,
             cname=cname, visibility=self.visibility, api=self.api,
             defining=self.body is not None, modifiers=self.modifiers,
-            overridable=self.overridable, is_property=is_property)
+            overridable=self.overridable)
+        if is_property:
+            self.entry.is_property = 1
+            env.property_entries.append(self.entry)
+            env.cfunc_entries.remove(self.entry)
         self.entry.inline_func_in_pxd = self.inline_in_pxd
         self.return_type = type.return_type
         if self.return_type.is_array and self.visibility != 'extern':

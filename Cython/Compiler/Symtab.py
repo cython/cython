@@ -755,7 +755,7 @@ class Scope(object):
     def declare_cfunction(self, name, type, pos,
                           cname=None, visibility='private', api=0, in_pxd=0,
                           defining=0, modifiers=(), utility_code=None,
-                          overridable=False, is_property=False):
+                          overridable=False):
         # Add an entry for a C function.
         if not cname:
             if visibility != 'private' or api:
@@ -833,7 +833,7 @@ class Scope(object):
         return entry
 
     def add_cfunction(self, name, type, pos, cname, visibility, modifiers,
-                      inherited=False, is_property=False):
+                      inherited=False):
         # Add a C function entry without giving it a func_cname.
         entry = self.declare(name, cname, type, pos, visibility)
         entry.is_cfunction = 1
@@ -841,8 +841,6 @@ class Scope(object):
             entry.func_modifiers = modifiers
         if inherited or type.is_fused:
             self.cfunc_entries.append(entry)
-        elif is_property:
-            self.property_entries.append(entry)
         else:
             # For backwards compatibility reasons, we must keep all non-fused methods
             # before all fused methods, but separately for each type.
@@ -1442,7 +1440,7 @@ class ModuleScope(Scope):
     def declare_cfunction(self, name, type, pos,
                           cname=None, visibility='private', api=0, in_pxd=0,
                           defining=0, modifiers=(), utility_code=None,
-                          overridable=False, is_property=False):
+                          overridable=False):
         if not defining and 'inline' in modifiers:
             # TODO(github/1736): Make this an error.
             warning(pos, "Declarations should not be declared inline.", 1)
@@ -1466,7 +1464,7 @@ class ModuleScope(Scope):
             self, name, type, pos,
             cname=cname, visibility=visibility, api=api, in_pxd=in_pxd,
             defining=defining, modifiers=modifiers, utility_code=utility_code,
-            overridable=overridable, is_property=is_property)
+            overridable=overridable)
         return entry
 
     def declare_global(self, name, pos):
@@ -1940,8 +1938,8 @@ class StructOrUnionScope(Scope):
 
     def declare_cfunction(self, name, type, pos,
                           cname=None, visibility='private', api=0, in_pxd=0,
-                          defining=0, modifiers=(), overridable=False,
-                          is_property=False):  # currently no utility code ...
+                          defining=0, modifiers=(),
+                          overridable=False):  # currently no utility code ...
         if overridable:
             error(pos, "C struct/union member cannot be declared 'cpdef'")
         return self.declare_var(name, type, pos,
@@ -2223,7 +2221,7 @@ class CClassScope(ClassScope):
     def declare_cfunction(self, name, type, pos,
                           cname=None, visibility='private', api=0, in_pxd=0,
                           defining=0, modifiers=(), utility_code=None,
-                          overridable=False, is_property=False):
+                          overridable=False):
         if get_special_method_signature(name) and not self.parent_type.is_builtin_type:
             error(pos, "Special methods must be declared with 'def', not 'cdef'")
         args = type.args
@@ -2268,7 +2266,7 @@ class CClassScope(ClassScope):
                     "C method '%s' not previously declared in definition part of"
                     " extension type '%s'" % (name, self.class_name))
             entry = self.add_cfunction(name, type, pos, cname, visibility,
-                                                 modifiers, is_property=is_property)
+                                                 modifiers)
         if defining:
             entry.func_cname = self.mangle(Naming.func_prefix, name)
         entry.utility_code = utility_code
@@ -2285,12 +2283,12 @@ class CClassScope(ClassScope):
         return entry
 
     def add_cfunction(self, name, type, pos, cname, visibility, modifiers,
-                                             inherited=False, is_property=False):
+                                             inherited=False):
         # Add a cfunction entry without giving it a func_cname.
         prev_entry = self.lookup_here(name)
         entry = ClassScope.add_cfunction(self, name, type, pos, cname,
                                     visibility, modifiers,
-                                    inherited=inherited, is_property=is_property)
+                                    inherited=inherited)
         entry.is_cmethod = 1
         entry.prev_entry = prev_entry
         return entry
@@ -2411,8 +2409,7 @@ class CppClassScope(Scope):
 
     def declare_cfunction(self, name, type, pos,
                           cname=None, visibility='extern', api=0, in_pxd=0,
-                          defining=0, modifiers=(), utility_code=None, overridable=False,
-                          is_property=False):
+                          defining=0, modifiers=(), utility_code=None, overridable=False):
         class_name = self.name.split('::')[-1]
         if name in (class_name, '__init__') and cname is None:
             cname = "%s__init__%s" % (Naming.func_prefix, class_name)
