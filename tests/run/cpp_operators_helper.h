@@ -84,9 +84,11 @@ NONMEMBER_BIN_OP2(COMMA)
 #define REF_BIN_OP(op) int& operator op (int x) { x++; return value; }
 
 class RefTestOps {
-    int value = 0;
+    int value;
 
 public:
+
+    RefTestOps() { value = 0; }
 
     REF_UN_OP(-);
     REF_UN_OP(+);
