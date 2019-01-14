@@ -419,12 +419,11 @@ class CythonMagics(Magics):
                 quiet=quiet,
                 annotate=args.annotate,
                 force=True,
+                language_level=min(3, sys.version_info[0]),
             )
             if args.language_level is not None:
                 assert args.language_level in (2, 3)
                 opts['language_level'] = args.language_level
-            elif sys.version_info[0] >= 3:
-                opts['language_level'] = 3
             return cythonize([extension], **opts)
         except CompileError:
             return None

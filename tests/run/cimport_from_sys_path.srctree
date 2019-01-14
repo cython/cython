@@ -32,7 +32,7 @@ static int foo(int a)
 ######## a.pyx ########
 
 from b.other cimport foo
-print foo(10)
+print(foo(10))
 
 cimport b.other
-print b.other.foo(10)
+print(b.other.foo(10))

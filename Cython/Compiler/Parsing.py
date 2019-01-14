@@ -3688,12 +3688,12 @@ def p_module(s, pxd, full_module_name, ctx=Ctx):
     s.parse_comments = False
 
     if s.context.language_level is None:
-        s.context.set_language_level(2)
+        s.context.set_language_level('3str')
         if pos[0].filename:
             import warnings
             warnings.warn(
-                "Cython directive 'language_level' not set, using 2 for now (Py2). "
-                "This will change in a later release! File: %s" % pos[0].filename,
+                "Cython directive 'language_level' not set, using '3str' for now (Py3). "
+                "This has changed from earlier releases! File: %s" % pos[0].filename,
                 FutureWarning,
                 stacklevel=1 if cython.compiled else 2,
             )

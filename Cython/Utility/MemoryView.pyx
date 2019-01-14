@@ -177,7 +177,7 @@ cdef class array:
 
             if self.dtype_is_object:
                 p = <PyObject **> self.data
-                for i in range(self.len / itemsize):
+                for i in range(self.len // itemsize):
                     p[i] = Py_None
                     Py_INCREF(Py_None)
 
@@ -910,7 +910,7 @@ cdef char *pybuffer_index(Py_buffer *view, char *bufp, Py_ssize_t index,
     cdef char *resultp
 
     if view.ndim == 0:
-        shape = view.len / itemsize
+        shape = view.len // itemsize
         stride = itemsize
     else:
         shape = view.shape[dim]
@@ -944,7 +944,7 @@ cdef int transpose_memslice({{memviewslice_name}} *memslice) nogil except 0:
 
     # reverse strides and shape
     cdef int i, j
-    for i in range(ndim / 2):
+    for i in range(ndim // 2):
         j = ndim - 1 - i
         strides[i], strides[j] = strides[j], strides[i]
         shape[i], shape[j] = shape[j], shape[i]

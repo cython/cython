@@ -45,10 +45,10 @@ from other cimport (
     A,
     foo,
 )
-print A, foo(10)
+print(A, foo(10))
 
 cimport other
-print other.A, other.foo(10)
+print(other.A, other.foo(10))
 
 from pkg cimport sub
 cdef sub.my_int a = 100

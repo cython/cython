@@ -1572,7 +1572,7 @@ cdef class NAME:
         count = 0
         INIT_ASSIGNMENTS
         if IS_UNION and count > 1:
-            raise ValueError, "At most one union member should be specified."
+            raise ValueError("At most one union member should be specified.")
     def __str__(self):
         return STR_FORMAT % MEMBER_TUPLE
     def __repr__(self):
