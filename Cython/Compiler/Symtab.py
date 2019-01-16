@@ -771,7 +771,8 @@ class Scope(object):
                 entry.cname = cname
                 entry.func_cname = cname
             if visibility != 'private' and visibility != entry.visibility:
-                warning(pos, "Function '%s' previously declared as '%s', now as '%s'" % (name, entry.visibility, visibility), 1)
+                warning(pos, "Function '%s' previously declared as '%s', now as '%s'" % (
+                    name, entry.visibility, visibility), 1)
             if overridable != entry.is_overridable:
                 warning(pos, "Function '%s' previously declared as '%s'" % (
                     name, 'cpdef' if overridable else 'cdef'), 1)
@@ -1029,8 +1030,7 @@ class BuiltinScope(Scope):
         # If python_equiv == "*", the Python equivalent has the same name
         # as the entry, otherwise it has the name specified by python_equiv.
         name = EncodedString(name)
-        entry = self.declare_cfunction(name, type, None, cname, visibility='extern',
-                                       utility_code=utility_code)
+        entry = self.declare_cfunction(name, type, None, cname, visibility='extern', utility_code=utility_code)
         if python_equiv:
             if python_equiv == "*":
                 python_equiv = name
@@ -1438,8 +1438,7 @@ class ModuleScope(Scope):
 
     def declare_cfunction(self, name, type, pos,
                           cname=None, visibility='private', api=0, in_pxd=0,
-                          defining=0, modifiers=(), utility_code=None,
-                          overridable=False):
+                          defining=0, modifiers=(), utility_code=None, overridable=False):
         if not defining and 'inline' in modifiers:
             # TODO(github/1736): Make this an error.
             warning(pos, "Declarations should not be declared inline.", 1)
@@ -1937,8 +1936,7 @@ class StructOrUnionScope(Scope):
 
     def declare_cfunction(self, name, type, pos,
                           cname=None, visibility='private', api=0, in_pxd=0,
-                          defining=0, modifiers=(),
-                          overridable=False):  # currently no utility code ...
+                          defining=0, modifiers=(), overridable=False):  # currently no utility code ...
         if overridable:
             error(pos, "C struct/union member cannot be declared 'cpdef'")
         return self.declare_var(name, type, pos,
@@ -2219,8 +2217,7 @@ class CClassScope(ClassScope):
 
     def declare_cfunction(self, name, type, pos,
                           cname=None, visibility='private', api=0, in_pxd=0,
-                          defining=0, modifiers=(), utility_code=None,
-                          overridable=False):
+                          defining=0, modifiers=(), utility_code=None, overridable=False):
         if get_special_method_signature(name) and not self.parent_type.is_builtin_type:
             error(pos, "Special methods must be declared with 'def', not 'cdef'")
         args = type.args
@@ -2296,8 +2293,8 @@ class CClassScope(ClassScope):
         # overridden methods of builtin types still have their Python
         # equivalent that must be accessible to support bound methods
         name = EncodedString(name)
-        entry = self.declare_cfunction(name, type, None, cname, visibility='extern',
-                                       utility_code=utility_code)
+        entry = self.declare_cfunction(
+            name, type, pos=None, cname=cname, visibility='extern', utility_code=utility_code)
         var_entry = Entry(name, name, py_object_type)
         var_entry.is_variable = 1
         var_entry.is_builtin = 1
