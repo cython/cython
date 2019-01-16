@@ -754,8 +754,7 @@ class Scope(object):
 
     def declare_cfunction(self, name, type, pos,
                           cname=None, visibility='private', api=0, in_pxd=0,
-                          defining=0, modifiers=(), utility_code=None,
-                          overridable=False):
+                          defining=0, modifiers=(), utility_code=None, overridable=False):
         # Add an entry for a C function.
         if not cname:
             if visibility != 'private' or api:

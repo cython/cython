@@ -12,11 +12,12 @@ setup(ext_modules= cythonize("foo_extension.pyx", language_level=3))
 
 setup(ext_modules = cythonize("getter[0-9].pyx", language_level=3))
 
-try:
-    cythonize("getter_fail0.pyx", language_level=3)
-    assert False
-except CompileError:
-    print("\nGot expected exception, continuing\n")
+for name in ("getter_fail0.pyx", "getter_fail1.pyx"):
+    try:
+        cythonize(name, language_level=3)
+        assert False
+    except CompileError as e:
+        print("\nGot expected exception, continuing\n")
 
 ######## foo.h ########
 
@@ -154,6 +155,16 @@ cdef extern from "foo.h":
         cdef void field0():
             print('in staticmethod of Foo')
 
+######## getter_fail1.pyx ########
+
+# Make sure not all decorators are accepted
+cimport cython
+
+cdef extern from "foo.h":
+    ctypedef class foo_extension.Foo [object FooStructOpaque]:
+        @prop.getter
+        cdef void field0(self):
+            pass
 
 ######## runner.py ########
 

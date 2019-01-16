@@ -7147,7 +7147,7 @@ class AttributeNode(ExprNode):
         #print "...obj_code =", obj_code ###
         if self.entry and self.entry.is_cmethod:
             if self.entry.is_cgetter:
-                return "%s(%s)" %(self.entry.func_cname, obj_code)
+                return "%s(%s)" % (self.entry.func_cname, obj_code)
             if obj.type.is_extension_type and not self.entry.is_builtin_cmethod:
                 if self.entry.final_func_cname:
                     return self.entry.final_func_cname
