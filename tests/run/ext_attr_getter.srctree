@@ -4,14 +4,22 @@ PYTHON -c "import runner"
 ######## setup.py ########
 
 from Cython.Build.Dependencies import cythonize
+from Cython.Compiler.Errors import CompileError
 from distutils.core import setup
 
 # force the build order
-setup(ext_modules= cythonize("foo_extension.pyx"))
+setup(ext_modules= cythonize("foo_extension.pyx", language_level=3))
 
-setup(ext_modules = cythonize("getter*.pyx"))
+setup(ext_modules = cythonize("getter[0-9].pyx", language_level=3))
 
-######## foo_nominal.h ########
+for name in ("getter_fail0.pyx", "getter_fail1.pyx"):
+    try:
+        cythonize(name, language_level=3)
+        assert False
+    except CompileError as e:
+        print("\nGot expected exception, continuing\n")
+
+######## foo.h ########
 
 #include <Python.h>
 
@@ -26,6 +34,30 @@ typedef struct {
     int f2;
 } FooStructNominal;
 
+typedef struct {
+    PyObject_HEAD
+} FooStructOpaque;
+
+
+#define PyFoo_GET0M(a) ((FooStructNominal*)a)->f0
+#define PyFoo_GET1M(a) ((FooStructNominal*)a)->f1
+#define PyFoo_GET2M(a) ((FooStructNominal*)a)->f2
+
+int PyFoo_Get0F(FooStructOpaque *f)
+{
+    return PyFoo_GET0M(f);
+}
+
+int PyFoo_Get1F(FooStructOpaque *f)
+{
+    return PyFoo_GET1M(f);
+}
+
+int PyFoo_Get2F(FooStructOpaque *f)
+{
+    return PyFoo_GET2M(f);
+}
+
 #ifdef __cplusplus
 }
 #endif
@@ -33,21 +65,24 @@ typedef struct {
 ######## foo_extension.pyx ########
 
 cdef class Foo:
-    cdef public int field0, field1, field2;
+    cdef public int _field0, _field1, _field2;
+
+    @property
+    def field0(self):
+        return self._field0
+
+    @property
+    def field1(self):
+        return self._field1
+
+    @property
+    def field2(self):
+        return self._field2
 
     def __init__(self, f0, f1, f2):
-        self.field0 = f0
-        self.field1 = f1
-        self.field2 = f2
-
-cdef get_field0(Foo f):
-    return f.field0
-
-cdef get_field1(Foo f):
-    return f.field1
-
-cdef get_field2(Foo f):
-    return f.field2
+        self._field0 = f0
+        self._field1 = f1
+        self._field2 = f2
 
 # A pure-python class that disallows direct access to fields
 class OpaqueFoo(Foo):
@@ -64,12 +99,11 @@ class OpaqueFoo(Foo):
     def field2(self):
         raise AttributeError('no direct access to field2')
 
-
 ######## getter0.pyx ########
 
 # Access base Foo fields from C via aliased field names
 
-cdef extern from "foo_nominal.h":
+cdef extern from "foo.h":
 
     ctypedef class foo_extension.Foo [object FooStructNominal]:
         cdef:
@@ -78,13 +112,70 @@ cdef extern from "foo_nominal.h":
             int field2 "f2"
 
 def sum(Foo f):
-    # the f.__getattr__('field0') is replaced in c by f->f0
+    # Note - not a cdef function but compiling the f.__getattr__('field0')
+    # notices the alias and replaces the __getattr__ in c by f->f0 anyway
     return f.field0 + f.field1 + f.field2
+
+######## getter1.pyx ########
+
+# Access base Foo fields from C via getter functions
+
+
+cdef extern from "foo.h":
+    ctypedef class foo_extension.Foo [object FooStructOpaque, check_size ignore]:
+        @property
+        cdef int fieldM0(self):
+            return PyFoo_GET0M(self)
+
+        @property
+        cdef int fieldF1(self):
+            return PyFoo_Get1F(self)
+
+        @property
+        cdef int fieldM2(self):
+            return PyFoo_GET2M(self)
+
+    int PyFoo_GET0M(Foo);  # this is actually a macro !
+    int PyFoo_Get1F(Foo);
+    int PyFoo_GET2M(Foo);  # this is actually a macro !
+
+def sum(Foo f):
+    # Note - not a cdef function but compiling the f.__getattr__('field0')
+    # notices the getter and replaces the __getattr__ in c by PyFoo_GET anyway
+    return f.fieldM0 + f.fieldF1 + f.fieldM2
+
+
+######## getter_fail0.pyx ########
+
+# Make sure not all decorators are accepted
+
+cdef extern from "foo.h":
+    ctypedef class foo_extension.Foo [object FooStructOpaque]:
+        @classmethod
+        cdef void field0():
+            print('in staticmethod of Foo')
+
+######## getter_fail1.pyx ########
+
+# Make sure not all decorators are accepted
+cimport cython
+
+cdef extern from "foo.h":
+    ctypedef class foo_extension.Foo [object FooStructOpaque]:
+        @prop.getter
+        cdef void field0(self):
+            pass
 
 ######## runner.py ########
 
-import foo_extension, getter0
+import warnings
+import foo_extension, getter0, getter1
 
+def sum(f):
+    # pure python field access, but code is identical to cython cdef sum
+    return f.field0 + f.field1 + f.field2
+
+# Baseline test: if this fails something else is wrong
 foo = foo_extension.Foo(23, 123, 1023)
 
 assert foo.field0 == 23
@@ -92,18 +183,28 @@ assert foo.field1 == 123
 assert foo.field2 == 1023
 
 ret =  getter0.sum(foo)
-assert ret == foo.field0 + foo.field1 + foo.field2
+assert ret == sum(foo)
+
+# Aliasing test. Check 'cdef int field0 "f0" works as advertised:
+# - C can access the fields through the aliases
+# - Python cannot access the fields at all
 
 opaque_foo = foo_extension.OpaqueFoo(23, 123, 1023)
 
-# C can access the fields through the aliases
 opaque_ret = getter0.sum(opaque_foo)
 assert opaque_ret == ret
 try:
-    # Python cannot access the fields
     f0 = opaque_ret.field0
     assert False
 except AttributeError as e:
     pass
 
+# Getter test. Check C-level getter works as advertised:
+# - C accesses the fields through getter calls (maybe macros)
+# - Python accesses the fields through attribute lookup
+
+opaque_foo = foo_extension.OpaqueFoo(23, 123, 1023)
+
+opaque_ret = getter1.sum(opaque_foo)
+assert opaque_ret == ret
 

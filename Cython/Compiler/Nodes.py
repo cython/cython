@@ -2321,7 +2321,8 @@ class CFuncDefNode(FuncDefNode):
     #  is_static_method whether this is a static method
     #  is_c_class_method whether this is a cclass method
 
-    child_attrs = ["base_type", "declarator", "body", "py_func_stat"]
+    child_attrs = ["base_type", "declarator", "body", "py_func_stat", "decorators"]
+    outer_attrs = ["decorators"]
 
     inline_in_pxd = False
     decorators = None
@@ -2341,6 +2342,21 @@ class CFuncDefNode(FuncDefNode):
         return self.py_func.code_object if self.py_func else None
 
     def analyse_declarations(self, env):
+        is_property = 0
+        if self.decorators:
+            for decorator in self.decorators:
+                func = decorator.decorator
+                if func.is_name:
+                    if func.name == 'property':
+                        is_property = 1
+                    elif func.name == 'staticmethod':
+                        pass
+                    else:
+                        error(self.pos, "Cannot handle %s decorators yet" % func.name)
+                else:
+                    error(self.pos,
+                          "Cannot handle %s decorators yet" % type(func).__name__)
+
         self.is_c_class_method = env.is_c_class_scope
         if self.directive_locals is None:
             self.directive_locals = {}
@@ -2355,20 +2371,20 @@ class CFuncDefNode(FuncDefNode):
         self.is_static_method = 'staticmethod' in env.directives and not env.lookup_here('staticmethod')
         # The 2 here is because we need both function and argument names.
         if isinstance(self.declarator, CFuncDeclaratorNode):
-            name_declarator, type = self.declarator.analyse(
+            name_declarator, typ = self.declarator.analyse(
                 base_type, env, nonempty=2 * (self.body is not None),
                 directive_locals=self.directive_locals, visibility=self.visibility)
         else:
-            name_declarator, type = self.declarator.analyse(
+            name_declarator, typ = self.declarator.analyse(
                 base_type, env, nonempty=2 * (self.body is not None), visibility=self.visibility)
-        if not type.is_cfunction:
+        if not typ.is_cfunction:
             error(self.pos, "Suite attached to non-function declaration")
         # Remember the actual type according to the function header
         # written here, because the type in the symbol table entry
         # may be different if we're overriding a C method inherited
         # from the base type of an extension type.
-        self.type = type
-        type.is_overridable = self.overridable
+        self.type = typ
+        typ.is_overridable = self.overridable
         declarator = self.declarator
         while not hasattr(declarator, 'args'):
             declarator = declarator.base
@@ -2381,11 +2397,11 @@ class CFuncDefNode(FuncDefNode):
             error(self.cfunc_declarator.pos,
                   "Function with optional arguments may not be declared public or api")
 
-        if type.exception_check == '+' and self.visibility != 'extern':
+        if typ.exception_check == '+' and self.visibility != 'extern':
             warning(self.cfunc_declarator.pos,
                     "Only extern functions can throw C++ exceptions.")
 
-        for formal_arg, type_arg in zip(self.args, type.args):
+        for formal_arg, type_arg in zip(self.args, typ.args):
             self.align_argument_type(env, type_arg)
             formal_arg.type = type_arg.type
             formal_arg.name = type_arg.name
@@ -2406,20 +2422,25 @@ class CFuncDefNode(FuncDefNode):
                 elif 'inline' in self.modifiers:
                     warning(formal_arg.pos, "Buffer unpacking not optimized away.", 1)
 
-        self._validate_type_visibility(type.return_type, self.pos, env)
+        self._validate_type_visibility(typ.return_type, self.pos, env)
 
         name = name_declarator.name
         cname = name_declarator.cname
 
-        type.is_const_method = self.is_const_method
-        type.is_static_method = self.is_static_method
+        typ.is_const_method = self.is_const_method
+        typ.is_static_method = self.is_static_method
+
         self.entry = env.declare_cfunction(
-            name, type, self.pos,
+            name, typ, self.pos,
             cname=cname, visibility=self.visibility, api=self.api,
             defining=self.body is not None, modifiers=self.modifiers,
             overridable=self.overridable)
+        if is_property:
+            self.entry.is_property = 1
+            env.property_entries.append(self.entry)
+            env.cfunc_entries.remove(self.entry)
         self.entry.inline_func_in_pxd = self.inline_in_pxd
-        self.return_type = type.return_type
+        self.return_type = typ.return_type
         if self.return_type.is_array and self.visibility != 'extern':
             error(self.pos, "Function cannot return an array")
         if self.return_type.is_cpp_class:

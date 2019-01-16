@@ -1031,7 +1031,7 @@ class InterpretCompilerDirectives(CythonTransform):
             else:
                 realdecs.append(dec)
         if realdecs and (scope_name == 'cclass' or
-                         isinstance(node, (Nodes.CFuncDefNode, Nodes.CClassDefNode, Nodes.CVarDefNode))):
+                         isinstance(node, (Nodes.CClassDefNode, Nodes.CVarDefNode))):
             raise PostParseError(realdecs[0].pos, "Cdef functions/classes cannot take arbitrary decorators.")
         node.decorators = realdecs[::-1] + both[::-1]
         # merge or override repeated directives
@@ -2238,6 +2238,29 @@ class AnalyseExpressionsTransform(CythonTransform):
         if node.is_fused_index and not node.type.is_error:
             node = node.base
         return node
+
+class ReplacePropertyNode(CythonTransform):
+    def visit_CFuncDefNode(self, node):
+        if not node.decorators:
+            return node
+        decorator = self.find_first_decorator(node, 'property')
+        if decorator:
+            # transform class functions into c-getters
+            if len(node.decorators) > 1:
+                # raises
+                self._reject_decorated_property(node, decorator_node)
+            node.entry.is_cgetter = True
+            # Add a func_cname to be output instead of the attribute
+            node.entry.func_cname = node.body.stats[0].value.function.name
+            node.decorators.remove(decorator)
+        return node
+
+    def find_first_decorator(self, node, name):
+        for decorator_node in node.decorators[::-1]:
+            decorator = decorator_node.decorator
+            if decorator.is_name and decorator.name == name:
+                return decorator_node
+        return None
 
 
 class FindInvalidUseOfFusedTypes(CythonTransform):
