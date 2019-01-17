@@ -74,7 +74,7 @@ class Plugin(CoveragePlugin):
         if c_file is None:
             c_file, py_file = self._find_source_files(filename)
             if not c_file:
-                return None
+                return None  # unknown file
 
             # parse all source file paths and lines from C file
             # to learn about all relevant source files right away (pyx/pxi/pxd)
@@ -82,7 +82,9 @@ class Plugin(CoveragePlugin):
             #        is not from the main .pyx file but a file with a different
             #        name than the .c file (which prevents us from finding the
             #        .c file)
-            self._parse_lines(c_file, filename)
+            _, code = self._parse_lines(c_file, filename)
+            if code is None:
+                return None  # no source found
 
         if self._file_path_map is None:
             self._file_path_map = {}
