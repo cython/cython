@@ -146,7 +146,7 @@ def search_include_directories(dirs, qualified_name, suffix, pos,
         else:
             dirs = (find_root_package_dir(file_desc.filename),) + dirs
 
-    dotted_filename = qualified_name
+    dotted_filename = qualified_name.replace('.', os.path.sep)
     if suffix:
         dotted_filename += suffix
     if not include:
