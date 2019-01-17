@@ -17,6 +17,9 @@ Features added
 * ``--no-capture`` added to ``runtests.py`` to prevent stdout,stderr capturing
   during srctree tests
 
+* Properties can be defined for external extension types.
+  Patch by Matti Picus.  (Github issue #2640)
+
 * The builtin ``abs()`` function can now be used on C numbers in nogil code.
   Patch by Elliott Sales de Andrade.  (Github issue #2748)
 
@@ -57,11 +60,25 @@ Bugs fixed
 * ``__init__.pyx`` files were not always considered as package indicators.
   (Github issue #2665)
 
+* Compiling package ``__init__`` files could fail under Windows due to an
+  undefined export symbol.
+
+* Coverage reporting could fail when modules were moved around after the build.
+  Patch by Wenjun Si.  (Github issue #2776)
+
+* Some MSVC++ issues with complex numbers were resolved.
+  (Github issue #2797)
+
 * A C compiler cast warning was resolved.
   Patch by Michael Buesch.  (Github issue #2775)
 
 Other changes
 -------------
+
+* The default language level was changed to ``3str``, i.e. Python 3 semantics,
+  but with ``str`` literals (also in Python 2.7).  This is a backwards incompatible
+  change from the previous default of Python 2 semantics.  The previous behaviour,
+  is available through the directive ``language_level=2``.
 
 * Cython no longer generates ``__qualname__`` attributes for classes in Python
   2.x since they are problematic there and not correctly maintained for subclasses.
