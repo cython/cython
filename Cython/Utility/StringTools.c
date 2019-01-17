@@ -915,8 +915,8 @@ static PyObject* __Pyx_PyUnicode_BuildFromAscii(Py_ssize_t ulength, char* chars,
 #else
     // non-CPython
     {
-        uval = NULL;
         PyObject *sign = NULL, *padding = NULL;
+        uval = NULL;
         if (uoffset > 0) {
             prepend_sign = !!prepend_sign;
             if (uoffset > prepend_sign) {
