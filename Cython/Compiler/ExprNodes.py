@@ -3633,7 +3633,10 @@ class IndexNode(_IndexingBaseNode):
         self.nogil = env.nogil
         base_type = self.base.type
 
-        if not base_type.is_cfunction:
+        if base_type.is_cfunction:
+            if self.base.entry.is_cgetter:
+                base_type = base_type.return_type
+        else:
             self.index = self.index.analyse_types(env)
             self.original_index_type = self.index.type
 
@@ -3720,7 +3723,10 @@ class IndexNode(_IndexingBaseNode):
 
     def analyse_as_c_array(self, env, is_slice):
         base_type = self.base.type
-        self.type = base_type.base_type
+        if hasattr(self.base, 'entry') and self.base.entry.is_cgetter:
+            self.type = base_type.return_type.base_type
+        else:
+            self.type = base_type.base_type
         if is_slice:
             self.type = base_type
         elif self.index.type.is_pyobject:
@@ -3969,9 +3975,12 @@ class IndexNode(_IndexingBaseNode):
             else:
                 assert False, "unexpected base type in indexing: %s" % self.base.type
         elif self.base.type.is_cfunction:
-            return "%s<%s>" % (
-                self.base.result(),
-                ",".join([param.empty_declaration_code() for param in self.type_indices]))
+            if self.base.entry.is_cgetter:
+                index_code = "(%s[%s])"
+            else:
+                return "%s<%s>" % (
+                    self.base.result(),
+                    ",".join([param.empty_declaration_code() for param in self.type_indices]))
         elif self.base.type.is_ctuple:
             index = self.index.constant_result
             if index < 0:
