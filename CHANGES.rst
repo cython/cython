@@ -20,6 +20,10 @@ Features added
 * Properties can be defined for external extension types.
   Patch by Matti Picus.  (Github issue #2640)
 
+* The attributes ``gen.gi_frame`` and ``coro.cr_frame`` of Cython compiled
+  generators and coroutines now return an actual frame object for introspection.
+  (Github issue #2306)
+
 * The builtin ``abs()`` function can now be used on C numbers in nogil code.
   Patch by Elliott Sales de Andrade.  (Github issue #2748)
 
