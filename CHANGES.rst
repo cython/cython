@@ -12,10 +12,16 @@ Bugs fixed
   Patch by Martijn van Steenbergen.  (Github issue #2779)
 
 * C89 compatibility was accidentally lost since 0.28.
-  Patch by gastineau.  (Github issue #2778)
+  Patches by gastineau and true-pasky.  (Github issues #2778, #2801)
 
 * A C compiler cast warning was resolved.
   Patch by Michael Buesch.  (Github issue #2774)
+
+* An compilation failure with complex numbers under MSVC++ was resolved.
+  (Github issue #2797)
+
+* Coverage reporting could fail when modules were moved around after the build.
+  Patch by Wenjun Si.  (Github issue #2776)
 
 
 0.29.2 (2018-12-14)
