@@ -60,7 +60,7 @@ def test_prange_matches_range(int start, int stop, int step):
     >>> test_prange_matches_range(2, -10, -3)
     >>> test_prange_matches_range(3, -10, -3)
     """
-    cdef int i, range_last, prange_last
+    cdef int i = -765432, range_last = -876543, prange_last = -987654
     prange_set = set()
     for i in prange(start, stop, step, nogil=True, num_threads=3):
         prange_last = i

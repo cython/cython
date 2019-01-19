@@ -1309,7 +1309,6 @@ def run_forked_test(result, run_func, test_name, fork=True):
     child_id = os.fork()
     if not child_id:
         result_code = 0
-        output = None
         try:
             try:
                 tests = partial_result = None
@@ -1329,8 +1328,9 @@ def run_forked_test(result, run_func, test_name, fork=True):
                                 _shortDescription=test_name,
                                 module_name=None)
                         partial_result.addError(tests, sys.exc_info())
-                output = open(result_file, 'wb')
-                pickle.dump(partial_result.data(), output)
+                if partial_result is not None:
+                    with open(result_file, 'wb') as output:
+                        pickle.dump(partial_result.data(), output)
             except:
                 traceback.print_exc()
         finally:
@@ -1338,11 +1338,6 @@ def run_forked_test(result, run_func, test_name, fork=True):
             except: pass
             try: sys.stdout.flush()
             except: pass
-            try:
-                if output is not None:
-                    output.close()
-            except:
-                pass
             os._exit(result_code)
 
     try:
@@ -1352,18 +1347,22 @@ def run_forked_test(result, run_func, test_name, fork=True):
         # upper byte of result_code, and the signal it was
         # killed by in the lower byte
         if result_code & 255:
-            raise Exception("Tests in module '%s' were unexpectedly killed by signal %d"%
-                            (module_name, result_code & 255))
+            raise Exception(
+                "Tests in module '%s' were unexpectedly killed by signal %d, see test output for details." % (
+                    module_name, result_code & 255))
         result_code >>= 8
         if result_code in (0,1):
-            input = open(result_file, 'rb')
             try:
-                PartialTestResult.join_results(result, pickle.load(input))
-            finally:
-                input.close()
+                with open(result_file, 'rb') as f:
+                    PartialTestResult.join_results(result, pickle.load(f))
+            except Exception:
+                raise Exception(
+                    "Failed to load test result from test in module '%s' after exit status %d,"
+                    " see test output for details." % (module_name, result_code))
         if result_code:
-            raise Exception("Tests in module '%s' exited with status %d" %
-                            (module_name, result_code))
+            raise Exception(
+                "Tests in module '%s' exited with status %d, see test output for details." % (
+                    module_name, result_code))
     finally:
         try:
             os.unlink(result_file)
