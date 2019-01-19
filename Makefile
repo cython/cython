@@ -37,6 +37,7 @@ clean:
 	@rm -f *.pyd */*.pyd */*/*.pyd
 	@rm -f *~ */*~ */*/*~
 	@rm -f core */core
+	@rm -f Cython/*.c
 	@rm -f Cython/Compiler/*.c
 	@rm -f Cython/Plex/*.c
 	@rm -f Cython/Tempita/*.c
