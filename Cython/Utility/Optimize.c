@@ -887,6 +887,12 @@ static {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op
         {{endif}}
         const digit* digits = ((PyLongObject*){{pyval}})->ob_digit;
         const Py_ssize_t size = Py_SIZE({{pyval}});
+        {{if c_op == '&'}}
+        // special case for &-ing arbitrarily large numbers with known single digit operands
+        if ((intval & PyLong_MASK) == intval) {
+            return PyLong_FromLong(likely(size) ? digits[0] & intval : 0);
+        } else
+        {{endif}}
         // handle most common case first to avoid indirect branch and optimise branch prediction
         if (likely(__Pyx_sst_abs(size) <= 1)) {
             {{ival}} = likely(size) ? digits[0] : 0;
