@@ -17,6 +17,8 @@ Features added
 * Properties can be defined for external extension types.
   Patch by Matti Picus.  (Github issue #2640)
 
+* Multiplication of Python numbers with small constant integers is faster.
+
 * The attributes ``gen.gi_frame`` and ``coro.cr_frame`` of Cython compiled
   generators and coroutines now return an actual frame object for introspection.
   (Github issue #2306)

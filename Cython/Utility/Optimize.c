@@ -806,7 +806,7 @@ static {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op
 {{py: slot_name = {'TrueDivide': 'true_divide', 'FloorDivide': 'floor_divide'}.get(op, op.lower()) }}
 {{py:
 c_op = {
-    'Add': '+', 'Subtract': '-', 'Remainder': '%', 'TrueDivide': '/', 'FloorDivide': '/',
+    'Add': '+', 'Subtract': '-', 'Multiply': '*', 'Remainder': '%', 'TrueDivide': '/', 'FloorDivide': '/',
     'Or': '|', 'Xor': '^', 'And': '&', 'Rshift': '>>', 'Lshift': '<<',
     'Eq': '==', 'Ne': '!=',
     }[op]
@@ -868,6 +868,19 @@ static {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op
             if (likely(b < (long) (sizeof(long)*8) && a == (a << b) >> b) || !a) {
                 return PyInt_FromLong(a {{c_op}} b);
             }
+        {{elif c_op == '*'}}
+#ifdef HAVE_LONG_LONG
+            if (sizeof(PY_LONG_LONG) > sizeof(long)) {
+                PY_LONG_LONG result = (PY_LONG_LONG)a {{c_op}} (PY_LONG_LONG)b;
+                return (result >= LONG_MIN && result <= LONG_MAX) ?
+                    PyInt_FromLong((long)result) : PyLong_FromLongLong(result);
+            }
+#endif
+#if CYTHON_USE_TYPE_SLOTS
+            return PyInt_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
+#else
+            return PyNumber_{{op}}(op1, op2);
+#endif
         {{else}}
             // other operations are safe, no overflow
             return PyInt_FromLong(a {{c_op}} b);
@@ -893,13 +906,13 @@ static {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op
             return PyLong_FromLong(likely(size) ? digits[0] & intval : 0);
         }
         {{endif}}
-        // special cases for 0: + - % / // | ^ & >> <<
+        // special cases for 0: + - * % / // | ^ & >> <<
         if (unlikely(size == 0)) {
             {{if order == 'CObj' and c_op in '+-|^>><<'}}
             // x == x+0 == x-0 == x|0 == x^0 == x>>0 == x<<0
             return __Pyx_NewRef(op1);
-            {{elif order == 'CObj' and c_op in '&'}}
-            // 0 == x&0
+            {{elif order == 'CObj' and c_op in '*&'}}
+            // 0 == x*0 == x&0
             return __Pyx_NewRef(op2);
             {{elif order == 'ObjC' and c_op in '+|^'}}
             // x == 0+x == 0|x == 0^x
@@ -907,8 +920,8 @@ static {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op
             {{elif order == 'ObjC' and c_op == '-'}}
             // -x == 0-x
             return PyLong_FromLong(-intval);
-            {{elif order == 'ObjC' and (c_op in '%&>><<' or op == 'FloorDivide')}}
-            // 0 == 0%x == 0&x == 0>>x == 0<<x == 0//x
+            {{elif order == 'ObjC' and (c_op in '*%&>><<' or op == 'FloorDivide')}}
+            // 0 == 0*x == 0%x == 0&x == 0>>x == 0<<x == 0//x
             return __Pyx_NewRef(op1);
             {{endif}}
         }
@@ -921,15 +934,15 @@ static {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op
                 {{for _size in range(2, 5)}}
                 {{for _case in (-_size, _size)}}
                 case {{_case}}:
-                    if (8 * sizeof(long) - 1 > {{_size}} * PyLong_SHIFT{{if op == 'TrueDivide'}} && {{_size-1}} * PyLong_SHIFT < 53{{endif}}) {
+                    if (8 * sizeof(long) - 1 > {{_size}} * PyLong_SHIFT{{if c_op == '*'}}+30{{endif}}{{if op == 'TrueDivide'}} && {{_size-1}} * PyLong_SHIFT < 53{{endif}}) {
                         {{ival}} = {{'-' if _case < 0 else ''}}(long) {{pylong_join(_size, 'digits')}};
                         break;
                     {{if op not in ('Eq', 'Ne', 'TrueDivide')}}
-#ifdef HAVE_LONG_LONG
-                    } else if (8 * sizeof(PY_LONG_LONG) - 1 > {{_size}} * PyLong_SHIFT) {
+                    #ifdef HAVE_LONG_LONG
+                    } else if (8 * sizeof(PY_LONG_LONG) - 1 > {{_size}} * PyLong_SHIFT{{if c_op == '*'}}+30{{endif}}) {
                         ll{{ival}} = {{'-' if _case < 0 else ''}}(PY_LONG_LONG) {{pylong_join(_size, 'digits', 'unsigned PY_LONG_LONG')}};
                         goto long_long;
-#endif
+                    #endif
                     {{endif}}
                     }
                     // if size doesn't fit into a long or PY_LONG_LONG anymore, fall through to default
@@ -958,7 +971,15 @@ static {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op
                 {{return_false}};
             }
         {{else}}
-            {{if c_op == '%'}}
+            {{if c_op == '*'}}
+                (void)a; (void)b;
+                #ifdef HAVE_LONG_LONG
+                ll{{ival}} = {{ival}};
+                goto long_long;
+                #else
+                return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
+                #endif
+            {{elif c_op == '%'}}
                 // see ExprNodes.py :: mod_int_utility_code
                 x = a % b;
                 x += ((x != 0) & ((x ^ b) < 0)) * b;
@@ -1021,7 +1042,7 @@ static {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op
     }
     #endif
 
-    {{if c_op in '+-' or op in ('TrueDivide', 'Eq', 'Ne')}}
+    {{if c_op in '+-*' or op in ('TrueDivide', 'Eq', 'Ne')}}
     if (PyFloat_CheckExact({{pyval}})) {
         const long {{'a' if order == 'CObj' else 'b'}} = intval;
         double {{ival}} = PyFloat_AS_DOUBLE({{pyval}});
