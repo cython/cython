@@ -891,8 +891,27 @@ static {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op
         // special case for &-ing arbitrarily large numbers with known single digit operands
         if ((intval & PyLong_MASK) == intval) {
             return PyLong_FromLong(likely(size) ? digits[0] & intval : 0);
-        } else
+        }
         {{endif}}
+        // special cases for 0: + - % / // | ^ & >> <<
+        if (unlikely(size == 0)) {
+            {{if order == 'CObj' and c_op in '+-|^>><<'}}
+            // x == x+0 == x-0 == x|0 == x^0 == x>>0 == x<<0
+            return __Pyx_NewRef(op1);
+            {{elif order == 'CObj' and c_op in '&'}}
+            // 0 == x&0
+            return __Pyx_NewRef(op2);
+            {{elif order == 'ObjC' and c_op in '+|^'}}
+            // x == 0+x == 0|x == 0^x
+            return __Pyx_NewRef(op2);
+            {{elif order == 'ObjC' and c_op == '-'}}
+            // -x == 0-x
+            return PyLong_FromLong(-intval);
+            {{elif order == 'ObjC' and (c_op in '%&>><<' or op == 'FloorDivide')}}
+            // 0 == 0%x == 0&x == 0>>x == 0<<x == 0//x
+            return __Pyx_NewRef(op1);
+            {{endif}}
+        }
         // handle most common case first to avoid indirect branch and optimise branch prediction
         if (likely(__Pyx_sst_abs(size) <= 1)) {
             {{ival}} = likely(size) ? digits[0] : 0;
