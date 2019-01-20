@@ -14,9 +14,6 @@ Features added
 * ``?`` is supported as NumPy dtype for ``bool``.
   Patch by Max Klein.  (Github issue #2675)
 
-* ``--no-capture`` added to ``runtests.py`` to prevent stdout,stderr capturing
-  during srctree tests
-
 * Properties can be defined for external extension types.
   Patch by Matti Picus.  (Github issue #2640)
 
@@ -29,6 +26,9 @@ Features added
 
 * PEP-479 (``generator_stop``) is now enabled by default with language level 3.
   (Github issue #2580)
+
+* ``--no-capture`` added to ``runtests.py`` to prevent stdout/stderr capturing
+  during srctree tests.  Patch by Matti Picus.
 
 Bugs fixed
 ----------
@@ -75,7 +75,7 @@ Other changes
 
 * The default language level was changed to ``3str``, i.e. Python 3 semantics,
   but with ``str`` literals (also in Python 2.7).  This is a backwards incompatible
-  change from the previous default of Python 2 semantics.  The previous behaviour,
+  change from the previous default of Python 2 semantics.  The previous behaviour
   is available through the directive ``language_level=2``.
 
 * Cython no longer generates ``__qualname__`` attributes for classes in Python
