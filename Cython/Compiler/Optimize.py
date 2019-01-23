@@ -3177,6 +3177,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
     def _handle_simple_method_object___sub__(self, node, function, args, is_unbound_method):
         return self._optimise_num_binop('Subtract', node, function, args, is_unbound_method)
 
+    def _handle_simple_method_object___mul__(self, node, function, args, is_unbound_method):
+        return self._optimise_num_binop('Multiply', node, function, args, is_unbound_method)
+
     def _handle_simple_method_object___eq__(self, node, function, args, is_unbound_method):
         return self._optimise_num_binop('Eq', node, function, args, is_unbound_method)
 
