@@ -81,7 +81,6 @@ declare an equivalent packed struct that mimics the dtype:
 .. literalinclude:: ../../examples/userguide/memoryviews/custom_dtype.pyx
 
 
-
 Indexing
 --------
 
