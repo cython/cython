@@ -43,9 +43,11 @@ There are two methods concerned with initialising the object.
 The :meth:`__cinit__` method is where you should perform basic C-level
 initialisation of the object, including allocation of any C data structures
 that your object will own. You need to be careful what you do in the
-:meth:`__cinit__` method, because the object may not yet be fully valid Python
+:meth:`__cinit__` method, because the object may not yet be a fully valid Python
 object when it is called. Therefore, you should be careful invoking any Python
-operations which might touch the object; in particular, its methods.
+operations which might touch the object; in particular, its methods and anything
+that could be overridden by subtypes (and thus depend on their subtype state being
+initialised already).
 
 By the time your :meth:`__cinit__` method is called, memory has been allocated for the
 object and any C attributes it has have been initialised to 0 or null. (Any
@@ -53,12 +55,13 @@ Python attributes have also been initialised to None, but you probably
 shouldn't rely on that.) Your :meth:`__cinit__` method is guaranteed to be called
 exactly once.
 
-If your extension type has a base type, the :meth:`__cinit__` method of the base type
-is automatically called before your :meth:`__cinit__` method is called; you cannot
-explicitly call the inherited :meth:`__cinit__` method. If you need to pass a modified
-argument list to the base type, you will have to do the relevant part of the
-initialisation in the :meth:`__init__` method instead (where the normal rules for
-calling inherited methods apply).
+If your extension type has a base type, any existing :meth:`__cinit__` methods in
+the base type hierarchy are automatically called before your :meth:`__cinit__`
+method.  You cannot explicitly call the inherited :meth:`__cinit__` methods, and the
+base types are free to choose whether they implement :meth:`__cinit__` at all.
+If you need to pass a modified argument list to the base type, you will have to do
+the relevant part of the initialisation in the :meth:`__init__` method instead, where
+the normal rules for calling inherited methods apply.
 
 Any initialisation which cannot safely be done in the :meth:`__cinit__` method should
 be done in the :meth:`__init__` method. By the time :meth:`__init__` is called, the object is
