@@ -41,7 +41,7 @@ highlight_language = 'cython'
 extensions = [
     'ipython_console_highlighting',
     'cython_highlighting',
-    'sphinx.ext.pngmath',
+    'sphinx.ext.imgmath',
     'sphinx.ext.todo',
     'sphinx.ext.intersphinx',
     'sphinx.ext.autodoc'
@@ -131,6 +131,9 @@ intersphinx_mapping = {'python': ('https://docs.python.org/3/', None)}
 
 # If true, keep warnings as "system message" paragraphs in the built documents.
 #keep_warnings = False
+
+# The output image format. The default is 'png'. It should be either 'png' or 'svg'.
+imgmath_image_format = "svg"
 
 
 # -- Options for HTML output ---------------------------------------------------
