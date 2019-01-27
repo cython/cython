@@ -877,6 +877,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("  #pragma pack(push, 1)")
                 code.putln("#endif")
             code.putln(header)
+            if not scope.var_entries:
+                warning(entry.pos, "Empty %s definition: %s" % (type.kind, type.cname))
             for attr in scope.var_entries:
                 code.putln("%s;" % attr.type.declaration_code(attr.cname))
             code.putln(footer)
