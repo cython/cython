@@ -157,3 +157,73 @@ def int_int(int a, int b):
     (0.5, 2.0)
     """
     return a/b, b/a
+
+
+def div_by_0(a):
+    """
+    >>> div_by_0(0)
+    'OK'
+    >>> div_by_0(0.0)
+    'OK'
+    """
+    try:
+        1/a
+    except ZeroDivisionError:
+        pass
+    else:
+        return "FAIL 1"
+    try:
+        1//a
+    except ZeroDivisionError:
+        pass
+    else:
+        return "FAIL 2"
+    try:
+        5.0/a
+    except ZeroDivisionError:
+        pass
+    else:
+        return "FAIL 3"
+    try:
+        5.0//a
+    except ZeroDivisionError:
+        pass
+    else:
+        return "FAIL 4"
+    try:
+        5/a
+    except ZeroDivisionError:
+        pass
+    else:
+        return "FAIL 5"
+    try:
+        5//a
+    except ZeroDivisionError:
+        pass
+    else:
+        return "FAIL 6"
+    try:
+        (2**15)/a
+    except ZeroDivisionError:
+        pass
+    else:
+        return "FAIL 7"
+    try:
+        (2**15)//a
+    except ZeroDivisionError:
+        pass
+    else:
+        return "FAIL 8"
+    try:
+        (2**30)/a
+    except ZeroDivisionError:
+        pass
+    else:
+        return "FAIL 9"
+    try:
+        (2**30)//a
+    except ZeroDivisionError:
+        pass
+    else:
+        return "FAIL 10"
+    return 'OK'
