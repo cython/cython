@@ -156,6 +156,11 @@ def search_include_directories(dirs, qualified_name, suffix, pos,
         module_filename = module_name + suffix
         package_filename = "__init__" + suffix
 
+        if pos:
+            path = os.path.join(os.path.dirname(pos[0].filename), module_filename)
+            if path_exists(path):
+                return path
+
     for dir in dirs:
         path = os.path.join(dir, dotted_filename)
         if path_exists(path):
