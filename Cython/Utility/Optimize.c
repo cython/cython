@@ -839,6 +839,7 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, CYTHON_UNUSED
         long x;
         {{endif}}
         long {{ival}} = PyInt_AS_LONG({{pyval}});
+        {{zerodiv_check('b')}}
 
         {{if op in ('Eq', 'Ne')}}
         if (a {{c_op}} b) {
@@ -854,21 +855,18 @@ static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, CYTHON_UNUSED
                 return PyInt_FromLong(x);
             return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
         {{elif c_op == '%'}}
-            {{zerodiv_check('b')}}
             // see ExprNodes.py :: mod_int_utility_code
             x = a % b;
             x += ((x != 0) & ((x ^ b) < 0)) * b;
             return PyInt_FromLong(x);
         {{elif op == 'TrueDivide'}}
-            {{zerodiv_check('b')}}
             if (8 * sizeof(long) <= 53 || likely(labs({{ival}}) <= ((PY_LONG_LONG)1 << 53))) {
                 return PyFloat_FromDouble((double)a / (double)b);
             }
             // let Python do the rounding
             return PyInt_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
         {{elif op == 'FloorDivide'}}
-            // INT_MIN / -1  is the only case that overflows, b == 0 is an error case
-            {{zerodiv_check('b')}}
+            // INT_MIN / -1  is the only case that overflows
             if (unlikely(b == -1 && ((unsigned long)a) == 0-(unsigned long)a))
                 return PyInt_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
             else {
