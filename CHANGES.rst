@@ -92,6 +92,13 @@ Other changes
 * Support for Python 2.6 was removed.
 
 
+0.29.4 (2019-02-01)
+===================
+
+* Division of numeric constants by a runtime value of 0 could fail to raise a
+  ``ZeroDivisionError``.  (Github issue #2820)
+
+
 0.29.3 (2019-01-19)
 ===================
 

@@ -3166,6 +3166,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 PyrexTypes.CFuncTypeArg("op2", PyrexTypes.py_object_type, None),
                 PyrexTypes.CFuncTypeArg("cval", ctype, None),
                 PyrexTypes.CFuncTypeArg("inplace", PyrexTypes.c_bint_type, None),
+                PyrexTypes.CFuncTypeArg("zerodiv_check", PyrexTypes.c_bint_type, None),
             ], exception_value=None if ret_type.is_pyobject else ret_type.exception_value))
         for ctype in (PyrexTypes.c_long_type, PyrexTypes.c_double_type)
         for ret_type in (PyrexTypes.py_object_type, PyrexTypes.c_bint_type)
@@ -3300,12 +3301,22 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             # Cut off at an integer border that is still safe for all operations.
             return node
 
+        if operator in ('TrueDivide', 'FloorDivide', 'Divide', 'Remainder'):
+            if args[1].constant_result == 0:
+                # Don't optimise division by 0. :)
+                return node
+
         args = list(args)
         args.append((ExprNodes.FloatNode if is_float else ExprNodes.IntNode)(
             numval.pos, value=numval.value, constant_result=numval.constant_result,
             type=num_type))
         inplace = node.inplace if isinstance(node, ExprNodes.NumBinopNode) else False
         args.append(ExprNodes.BoolNode(node.pos, value=inplace, constant_result=inplace))
+        if is_float or operator not in ('Eq', 'Ne'):
+            # "PyFloatBinop" and "PyIntBinop" take an additional "check for zero division" argument.
+            zerodivision_check = arg_order == 'CObj' and (
+                not node.cdivision if isinstance(node, ExprNodes.DivNode) else False)
+            args.append(ExprNodes.BoolNode(node.pos, value=zerodivision_check, constant_result=zerodivision_check))
 
         utility_code = TempitaUtilityCode.load_cached(
             "PyFloatBinop" if is_float else "PyIntCompare" if operator in ('Eq', 'Ne') else "PyIntBinop",
