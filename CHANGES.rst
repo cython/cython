@@ -2,6 +2,16 @@
 Cython Changelog
 ================
 
+0.29.4 (2019-02-01)
+===================
+
+Bugs fixed
+----------
+
+* Division of numeric constants by a runtime value of 0 could fail to raise a
+  ``ZeroDivisionError``.  (Github issue #2820)
+
+
 0.29.3 (2019-01-19)
 ===================
 
