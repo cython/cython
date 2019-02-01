@@ -3309,9 +3309,11 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             type=num_type))
         inplace = node.inplace if isinstance(node, ExprNodes.NumBinopNode) else False
         args.append(ExprNodes.BoolNode(node.pos, value=inplace, constant_result=inplace))
-        zerodivision_check = arg_order == 'CObj' and (
-            not node.cdivision if isinstance(node, ExprNodes.DivNode) else False)
-        args.append(ExprNodes.BoolNode(node.pos, value=zerodivision_check, constant_result=zerodivision_check))
+        if is_float or operator not in ('Eq', 'Ne'):
+            # "PyFloatBinop" and "PyIntBinop" take an additional "check for zero division" argument.
+            zerodivision_check = arg_order == 'CObj' and (
+                not node.cdivision if isinstance(node, ExprNodes.DivNode) else False)
+            args.append(ExprNodes.BoolNode(node.pos, value=zerodivision_check, constant_result=zerodivision_check))
 
         utility_code = TempitaUtilityCode.load_cached(
             "PyFloatBinop" if is_float else "PyIntCompare" if operator in ('Eq', 'Ne') else "PyIntBinop",
