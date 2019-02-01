@@ -1086,7 +1086,7 @@ c_op = {
 
 {{if order == 'CObj' and c_op in '%/'}}
 #define {{zerodiv_check('operand')}} if (unlikely(zerodivision_check && ((operand) == 0))) { \
-    PyErr_SetString(PyExc_ZeroDivisionError, "integer division{{if op == 'Remainder'}} or modulo{{endif}} by zero"); \
+    PyErr_SetString(PyExc_ZeroDivisionError, "float division{{if op == 'Remainder'}} or modulo{{endif}} by zero"); \
     return NULL; \
 }
 {{endif}}
