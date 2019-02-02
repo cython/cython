@@ -754,3 +754,19 @@ def test_pointer_temps(double x):
         f = &arr[0]
 
     return f[0]
+
+
+def test_prange_in_with(int x, ctx):
+    """
+    >>> from contextlib import contextmanager
+    >>> @contextmanager
+    ... def ctx(l): yield l
+    >>> test_prange_in_with(4, ctx([0]))
+    6
+    """
+    cdef int i
+    with ctx as l:
+        for i in prange(x, nogil=True):
+            with gil:
+                l[0] += i
+        return l[0]
