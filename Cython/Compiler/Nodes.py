@@ -8439,9 +8439,10 @@ class ParallelStatNode(StatNode, ParallelNode):
         Make any used temporaries private. Before the relevant code block
         code.start_collecting_temps() should have been called.
         """
-        if self.is_parallel:
-            c = self.privatization_insertion_point
+        c = self.privatization_insertion_point
+        self.privatization_insertion_point = None
 
+        if self.is_parallel:
             self.temps = temps = code.funcstate.stop_collecting_temps()
             privates, firstprivates = [], []
             for temp, type in sorted(temps):
@@ -8532,8 +8533,10 @@ class ParallelStatNode(StatNode, ParallelNode):
         If compiled without OpenMP support (at the C level), then we still have
         to acquire the GIL to decref any object temporaries.
         """
+        begin_code = self.begin_of_parallel_block
+        self.begin_of_parallel_block = None
+
         if self.error_label_used:
-            begin_code = self.begin_of_parallel_block
             end_code = code
 
             begin_code.putln("#ifdef _OPENMP")
@@ -8746,6 +8749,8 @@ class ParallelStatNode(StatNode, ParallelNode):
         the for loop.
         """
         c = self.begin_of_parallel_control_block_point
+        self.begin_of_parallel_control_block_point = None
+        self.begin_of_parallel_control_block_point_after_decls = None
 
         # Firstly, always prefer errors over returning, continue or break
         if self.error_label_used:
@@ -9095,8 +9100,6 @@ class ParallelRangeNode(ParallelStatNode):
         code.putln("if (%(step)s == 0) abort();" % fmt_dict)
 
         self.setup_parallel_control_flow_block(code) # parallel control flow block
-
-        self.control_flow_var_code_point = code.insertion_point()
 
         # Note: nsteps is private in an outer scope if present
         code.putln("%(nsteps)s = (%(stop)s - %(start)s + %(step)s - %(step)s/abs(%(step)s)) / %(step)s;" % fmt_dict)
