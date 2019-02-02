@@ -2,6 +2,13 @@
 Cython Changelog
 ================
 
+0.29.5 (2019-??-??)
+===================
+
+* Compiler crash when `prange()` loops appear inside of with-statements.
+  (Github issue #2780)
+
+
 0.29.4 (2019-02-01)
 ===================
 
