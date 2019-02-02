@@ -290,7 +290,7 @@ class UtilityCodeBase(object):
             (r'^%(C)s{5,30}\s*(?P<name>(?:\w|\.)+)\s*%(C)s{5,30}|'
              r'^%(C)s+@(?P<tag>\w+)\s*:\s*(?P<value>(?:\w|[.:])+)') %
             {'C': comment}).match
-        match_type = re.compile('(.+)[.](proto(?:[.]\S+)?|impl|init|cleanup)$').match
+        match_type = re.compile(r'(.+)[.](proto(?:[.]\S+)?|impl|init|cleanup)$').match
 
         with closing(Utils.open_source_file(filename, encoding='UTF-8')) as f:
             all_lines = f.readlines()
