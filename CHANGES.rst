@@ -98,6 +98,9 @@ Other changes
 * Compiler crash when `prange()` loops appear inside of with-statements.
   (Github issue #2780)
 
+* Some C compiler warnings were resolved.
+  Patches by Christoph Gohlke.  (Github issues #2815, #2816, #2817, #2822)
+
 
 0.29.4 (2019-02-01)
 ===================
