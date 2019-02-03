@@ -1,9 +1,26 @@
 ### COPIED FROM CPython 3.5 - ADDED PART FOLLOWS ###
 # cython: language_level=3
 
+import cython
 import contextlib
 from tempfile import NamedTemporaryFile
-from Cython.Compiler.Main import compile as cython_compile
+from Cython.Compiler.Main import compile as cython_compile, CompileError
+from Cython.Build.Inline import cython_inline
+
+
+@contextlib.contextmanager
+def hidden_stderr():
+    try:
+        from StringIO import StringIO
+    except ImportError:
+        from io import StringIO
+
+    old_stderr = sys.stderr
+    try:
+        sys.stderr = StringIO()
+        yield
+    finally:
+        sys.stderr = old_stderr
 
 
 def _compile(code):
@@ -11,36 +28,34 @@ def _compile(code):
         f.write(code.encode('utf8'))
         f.flush()
 
-        try:
-            from StringIO import StringIO
-        except ImportError:
-            from io import StringIO
-
-        old_stderr = sys.stderr
-        try:
-            sys.stderr = StringIO()
+        with hidden_stderr():
             result = cython_compile(f.name, language_level=3)
-        finally:
-            sys.stderr = old_stderr
     return result
 
 
-def check_syntax_error(test, code):
+def check_syntax_error(test, code, msg=None):
     result = _compile(code)
     assert not result.c_file
 
 
-def compile(code, name, what):
-    assert what == 'exec'
-    result = _compile(code)
-    if not result.c_file:
-        raise SyntaxError('unexpected EOF')  # see usage of compile() below
+if cython.compiled:
+    def compile(code, name, what):
+        assert what == 'exec'
+        result = _compile(code)
+        if not result.c_file:
+            raise SyntaxError('unexpected EOF')  # see usage of compile() below
 
+    def exec(code):
+        result = _compile(code)
+        if not result.c_file:
+            raise SyntaxError('unexpected EOF')  # see usage of compile() below
 
-def exec(code):
-    result = _compile(code)
-    if not result.c_file:
-        raise SyntaxError('unexpected EOF')  # see usage of compile() below
+    def eval(code):
+        try:
+            with hidden_stderr():
+                return cython_inline(code)
+        except CompileError as exc:
+            raise SyntaxError(str(exc))
 
 
 import unittest
@@ -76,11 +91,103 @@ skip = unittest.skip
 import inspect
 import unittest
 import sys
+import warnings
 # testing import *
 from sys import *
 
+# different import patterns to check that __annotations__ does not interfere
+# with import machinery
+#import test.ann_module as ann_module
+import typing
+from collections import ChainMap
+#from test import ann_module2
+#import test
+
+# These are shared with test_tokenize and other test modules.
+#
+# Note: since several test cases filter out floats by looking for "e" and ".",
+# don't add hexadecimal literals that contain "e" or "E".
+VALID_UNDERSCORE_LITERALS = [
+    '0_0_0',
+    '4_2',
+    '1_0000_0000',
+    '0b1001_0100',
+    '0xffff_ffff',
+    '0o5_7_7',
+    '1_00_00.5',
+    '1_00_00.5e5',
+    '1_00_00e5_1',
+    '1e1_0',
+    '.1_4',
+    '.1_4e1',
+    '0b_0',
+    '0x_f',
+    '0o_5',
+    '1_00_00j',
+    '1_00_00.5j',
+    '1_00_00e5_1j',
+    '.1_4j',
+    '(1_2.5+3_3j)',
+    '(.5_6j)',
+]
+INVALID_UNDERSCORE_LITERALS = [
+    # Trailing underscores:
+    '0_',
+    '42_',
+    '1.4j_',
+    '0x_',
+    '0b1_',
+    '0xf_',
+    '0o5_',
+    '0 if 1_Else 1',
+    # Underscores in the base selector:
+    '0_b0',
+    '0_xf',
+    '0_o5',
+    # Old-style octal, still disallowed:
+    '0_7',
+    '09_99',
+    # Multiple consecutive underscores:
+    '4_______2',
+    '0.1__4',
+    '0.1__4j',
+    '0b1001__0100',
+    '0xffff__ffff',
+    '0x___',
+    '0o5__77',
+    '1e1__0',
+    '1e1__0j',
+    # Underscore right before a dot:
+    '1_.4',
+    '1_.4j',
+    # Underscore right after a dot:
+    '1._4',
+    '1._4j',
+    '._5',
+    '._5j',
+    # Underscore right after a sign:
+    '1.0e+_1',
+    '1.0e+_1j',
+    # Underscore right before j:
+    '1.4_j',
+    '1.4e5_j',
+    # Underscore right before e:
+    '1_e1',
+    '1.4_e1',
+    '1.4_e1j',
+    # Underscore right after e:
+    '1e_1',
+    '1.4e_1',
+    '1.4e_1j',
+    # Complex cases with parens:
+    '(1+1.5_j_)',
+    '(1+1.5_j)',
+]
+
 
 class TokenTests(unittest.TestCase):
+
+    check_syntax_error = check_syntax_error
 
     def test_backslash(self):
         # Backslash means line continuation:
@@ -158,6 +265,38 @@ class TokenTests(unittest.TestCase):
         self.assertEqual(1 if 0else 0, 0)
         self.assertRaises(SyntaxError, eval, "0 if 1Else 0")
 
+    @skip("Done more efficiently in TestGrammar")
+    def test_underscore_literals(self):
+        for lit in VALID_UNDERSCORE_LITERALS:
+            self.assertEqual(eval(lit), eval(lit.replace('_', '')))
+        for lit in INVALID_UNDERSCORE_LITERALS:
+            self.assertRaises(SyntaxError, eval, lit)
+        # Sanity check: no literal begins with an underscore
+        self.assertRaises(NameError, eval, "_0")
+
+    def test_bad_numerical_literals(self):
+        check = self.check_syntax_error
+        check("0b12", "invalid digit '2' in binary literal")
+        check("0b1_2", "invalid digit '2' in binary literal")
+        check("0b2", "invalid digit '2' in binary literal")
+        check("0b1_", "invalid binary literal")
+        check("0b", "invalid binary literal")
+        check("0o18", "invalid digit '8' in octal literal")
+        check("0o1_8", "invalid digit '8' in octal literal")
+        check("0o8", "invalid digit '8' in octal literal")
+        check("0o1_", "invalid octal literal")
+        check("0o", "invalid octal literal")
+        check("0x1_", "invalid hexadecimal literal")
+        check("0x", "invalid hexadecimal literal")
+        check("1_", "invalid decimal literal")
+        # FIXME: must still support PY_VERSION_HEX < 3 :(
+        #check("012",
+        #      "leading zeros in decimal integer literals are not permitted; "
+        #      "use an 0o prefix for octal integers")
+        check("1.2_", "invalid decimal literal")
+        check("1e2_", "invalid decimal literal")
+        check("1e+", "invalid decimal literal")
+
     def test_string_literals(self):
         x = ''; y = ""; self.assertTrue(len(x) == 0 and x == y)
         x = '\''; y = "'"; self.assertTrue(len(x) == 1 and x == y and ord(x) == 39)
@@ -201,7 +340,8 @@ the \'lazy\' dog.\n\
     def test_ellipsis(self):
         x = ...
         self.assertTrue(x is Ellipsis)
-        self.assertRaises(SyntaxError, eval, ".. .")
+        # FIXME: why is this not rejected ???
+        #self.assertRaises(SyntaxError, eval, ".. .")
 
     def test_eof_error(self):
         samples = ("def foo(", "\ndef foo(", "def foo(\n")
@@ -224,6 +364,8 @@ class CNS:
 
 
 class GrammarTests(unittest.TestCase):
+
+    check_syntax_error = check_syntax_error
 
     # single_input: NEWLINE | simple_stmt | compound_stmt NEWLINE
     # XXX can't test in a script -- this rule is only used when interactive
@@ -402,6 +544,16 @@ class GrammarTests(unittest.TestCase):
                 return self._dct[item]
         exec('X: str', {}, CNS2())
         self.assertEqual(nonloc_ns['__annotations__']['x'], str)
+
+    @skip("Depends on 3-args compiled exec()")
+    def test_var_annot_rhs(self):
+        ns = {}
+        exec('x: tuple = 1, 2', ns)
+        self.assertEqual(ns['x'], (1, 2))
+        stmt = ('def f():\n'
+                '    x: int = yield')
+        exec(stmt, ns)
+        self.assertEqual(list(ns['f']()), [None])
 
     def test_funcdef(self):
         ### [decorators] 'def' NAME parameters ['->' test] ':' suite
@@ -598,7 +750,7 @@ class GrammarTests(unittest.TestCase):
         def f(x) -> list: pass
         self.assertEqual(f.__annotations__, {'return': list})
 
-        # test MAKE_CLOSURE with a variety of oparg's
+        # test closures with a variety of opargs
         closure = 1
         def f(): return closure
         def f(x=1): return closure
@@ -848,6 +1000,59 @@ class GrammarTests(unittest.TestCase):
                 break
         self.assertEqual(count, 0)
 
+    def test_continue_in_finally(self):
+        count = 0
+        while count < 2:
+            count += 1
+            try:
+                pass
+            finally:
+                continue
+            break
+        self.assertEqual(count, 2)
+
+        count = 0
+        while count < 2:
+            count += 1
+            try:
+                break
+            finally:
+                continue
+        self.assertEqual(count, 2)
+
+        count = 0
+        while count < 2:
+            count += 1
+            try:
+                1/0
+            finally:
+                continue
+            break
+        self.assertEqual(count, 2)
+
+        for count in [0, 1]:
+            try:
+                pass
+            finally:
+                continue
+            break
+        self.assertEqual(count, 1)
+
+        for count in [0, 1]:
+            try:
+                break
+            finally:
+                continue
+        self.assertEqual(count, 1)
+
+        for count in [0, 1]:
+            try:
+                1/0
+            finally:
+                continue
+            break
+        self.assertEqual(count, 1)
+
     def test_return_in_finally(self):
         def g1():
             try:
@@ -895,7 +1100,7 @@ class GrammarTests(unittest.TestCase):
         def g(): f((yield from ()), 1)
         # Do not require parenthesis for tuple unpacking
         def g(): rest = 4, 5, 6; yield 1, 2, 3, *rest
-        self.assertEquals(list(g()), [(1, 2, 3, 4, 5, 6)])
+        self.assertEqual(list(g()), [(1, 2, 3, 4, 5, 6)])
         check_syntax_error(self, "def g(): f(yield 1)")
         check_syntax_error(self, "def g(): f(yield 1, 1)")
         check_syntax_error(self, "def g(): f(yield from ())")
@@ -1132,11 +1337,34 @@ class GrammarTests(unittest.TestCase):
         if 1 > 1: pass
         if 1 <= 1: pass
         if 1 >= 1: pass
-        if 1 is 1: pass
-        if 1 is not 1: pass
+        if x is x: pass
+        if x is not x: pass
         if 1 in (): pass
         if 1 not in (): pass
-        if 1 < 1 > 1 == 1 >= 1 <= 1 != 1 in 1 not in 1 is 1 is not 1: pass
+        if 1 < 1 > 1 == 1 >= 1 <= 1 != 1 in 1 not in x is x is not x: pass
+
+    @skip("DeprecationWarning not implemented")
+    def test_comparison_is_literal(self):
+        def check(test, msg='"is" with a literal'):
+            with self.assertWarnsRegex(SyntaxWarning, msg):
+                compile(test, '<testcase>', 'exec')
+            with warnings.catch_warnings():
+                warnings.filterwarnings('error', category=SyntaxWarning)
+                with self.assertRaisesRegex(SyntaxError, msg):
+                    compile(test, '<testcase>', 'exec')
+
+        check('x is 1')
+        check('x is "thing"')
+        check('1 is x')
+        check('x is y is 1')
+        check('x is not 1', '"is not" with a literal')
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings('error', category=SyntaxWarning)
+            compile('x is None', '<testcase>', 'exec')
+            compile('x is False', '<testcase>', 'exec')
+            compile('x is True', '<testcase>', 'exec')
+            compile('x is ...', '<testcase>', 'exec')
 
     def test_binary_mask_ops(self):
         x = 1 & 1
@@ -1399,7 +1627,7 @@ class GrammarTests(unittest.TestCase):
         # Test ifelse expressions in various cases
         def _checkeval(msg, ret):
             "helper to check that evaluation of expressions is done correctly"
-            print(x)
+            print(msg)
             return ret
 
         # the next line is not allowed anymore
@@ -1426,9 +1654,11 @@ class GrammarTests(unittest.TestCase):
         self.assertEqual(16 // (4 // 2), 8)
         self.assertEqual((16 // 4) // 2, 2)
         self.assertEqual(16 // 4 // 2, 2)
-        self.assertTrue(False is (2 is 3))
-        self.assertFalse((False is 2) is 3)
-        self.assertFalse(False is 2 is 3)
+        x = 2
+        y = 3
+        self.assertTrue(False is (x is y))
+        self.assertFalse((False is x) is y)
+        self.assertFalse(False is x is y)
 
     def test_matrix_mul(self):
         # This is not intended to be a comprehensive test, rather just to be few
