@@ -5,11 +5,14 @@ Cython Changelog
 0.29.5 (2019-??-??)
 ===================
 
-* Compiler crash when `prange()` loops appear inside of with-statements.
+* Compiler crash when ``prange()`` loops appear inside of with-statements.
   (Github issue #2780)
 
 * Some C compiler warnings were resolved.
   Patches by Christoph Gohlke.  (Github issues #2815, #2816, #2817, #2822)
+
+* Python conversion of C++ enums failed in 0.29.
+  Patch by Orivej Desh.  (Github issue #2767)
 
 
 0.29.4 (2019-02-01)
