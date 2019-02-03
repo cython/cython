@@ -305,7 +305,6 @@ static CYTHON_INLINE {{TYPE}} __Pyx_lshift_{{NAME}}_checking_overflow({{TYPE}} a
 
 /////////////// UnaryNegOverflows.proto ///////////////
 
-//FIXME: shouldn't the macro name be prefixed by "__Pyx_" ?  Too late now, I guess...
 // from intobject.c
-#define UNARY_NEG_WOULD_OVERFLOW(x)    \
+#define __Pyx_UNARY_NEG_WOULD_OVERFLOW(x)    \
         (((x) < 0) & ((unsigned long)(x) == 0-(unsigned long)(x)))

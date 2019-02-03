@@ -11576,7 +11576,7 @@ class DivNode(NumBinopNode):
                         minus1_check = '(!(((%s)-1) > 0)) && unlikely(%s == (%s)-1)' % (
                             type_of_op2, self.operand2.result(), type_of_op2)
                     code.putln("else if (sizeof(%s) == sizeof(long) && %s "
-                               " && unlikely(UNARY_NEG_WOULD_OVERFLOW(%s))) {" % (
+                               " && unlikely(__Pyx_UNARY_NEG_WOULD_OVERFLOW(%s))) {" % (
                                self.type.empty_declaration_code(),
                                minus1_check,
                                self.operand1.result()))
