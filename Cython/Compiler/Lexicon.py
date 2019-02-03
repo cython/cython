@@ -29,15 +29,19 @@ def make_lexicon():
     def underscore_digits(d):
         return Rep1(d) + Rep(Str("_") + Rep1(d))
 
+    def prefixed_digits(prefix, digits):
+        return Any(prefix) + Opt(Str("_")) + underscore_digits(digits)
+
     decimal = underscore_digits(digit)
     dot = Str(".")
     exponent = Any("Ee") + Opt(Any("+-")) + decimal
     decimal_fract = (decimal + dot + Opt(decimal)) | (dot + decimal)
 
     name = letter + Rep(letter | digit)
-    intconst = decimal | (Str("0") + ((Any("Xx") + underscore_digits(hexdigit)) |
-                                      (Any("Oo") + underscore_digits(octdigit)) |
-                                      (Any("Bb") + underscore_digits(bindigit)) ))
+    # FIXME: in PY_VERSION_HEX < 2, octal literals can start with plain 0, but not in Py3.
+    intconst = decimal | (Str("0") + (prefixed_digits("Xx", hexdigit) |
+                                      prefixed_digits("Oo", octdigit) |
+                                      prefixed_digits("Bb", bindigit) ))
     intsuffix = (Opt(Any("Uu")) + Opt(Any("Ll")) + Opt(Any("Ll"))) | (Opt(Any("Ll")) + Opt(Any("Ll")) + Opt(Any("Uu")))
     intliteral = intconst + intsuffix
     fltconst = (decimal_fract + Opt(exponent)) | (decimal + exponent)
