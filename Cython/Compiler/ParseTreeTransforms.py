@@ -3096,8 +3096,8 @@ class TransformBuiltinMethods(EnvTransform):
 
     def _inject_eval(self, node, func_name):
         lenv = self.current_env()
-        entry = lenv.lookup_here(func_name)
-        if entry or len(node.args) != 1:
+        entry = lenv.lookup(func_name)
+        if len(node.args) != 1 or (entry and not entry.is_builtin):
             return node
         # Inject globals and locals
         node.args.append(ExprNodes.GlobalsExprNode(node.pos))
