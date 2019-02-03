@@ -55,8 +55,8 @@ INVALID_UNDERSCORE_LITERALS = [
     '0_o5',
     # Old-style octal, still disallowed:
     # FIXME: still need to support PY_VERSION_HEX < 3
-    #'0_7',
-    #'09_99',
+    '0_7',
+    '09_99',
     # Multiple consecutive underscores:
     '4_______2',
     '0.1__4',

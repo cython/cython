@@ -20,6 +20,7 @@ def make_lexicon():
     from .Scanning import Method
 
     letter = Any("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_")
+    nonzero_digit = Any("123456789")
     digit = Any("0123456789")
     bindigit = Any("01")
     octdigit = Any("01234567")
@@ -30,7 +31,7 @@ def make_lexicon():
         return Rep1(d) + Rep(Str("_") + Rep1(d))
 
     def prefixed_digits(prefix, digits):
-        return Any(prefix) + Opt(Str("_")) + underscore_digits(digits)
+        return prefix + Opt(Str("_")) + underscore_digits(digits)
 
     decimal = underscore_digits(digit)
     dot = Str(".")
@@ -38,10 +39,13 @@ def make_lexicon():
     decimal_fract = (decimal + dot + Opt(decimal)) | (dot + decimal)
 
     name = letter + Rep(letter | digit)
-    # FIXME: in PY_VERSION_HEX < 2, octal literals can start with plain 0, but not in Py3.
-    intconst = decimal | (Str("0") + (prefixed_digits("Xx", hexdigit) |
-                                      prefixed_digits("Oo", octdigit) |
-                                      prefixed_digits("Bb", bindigit) ))
+    intconst = (prefixed_digits(nonzero_digit, digit) |  # decimal literals with underscores must not start with '0'
+                (Str("0") + (prefixed_digits(Any("Xx"), hexdigit) |
+                             prefixed_digits(Any("Oo"), octdigit) |
+                             prefixed_digits(Any("Bb"), bindigit) )) |
+                underscore_digits(Str('0'))  # 0_0_0_0... is allowed as a decimal literal
+                | Rep1(digit)  # FIXME: remove these Py2 style decimal/octal literals (PY_VERSION_HEX < 3)
+                )
     intsuffix = (Opt(Any("Uu")) + Opt(Any("Ll")) + Opt(Any("Ll"))) | (Opt(Any("Ll")) + Opt(Any("Ll")) + Opt(Any("Uu")))
     intliteral = intconst + intsuffix
     fltconst = (decimal_fract + Opt(exponent)) | (decimal + exponent)
