@@ -99,7 +99,7 @@ from sys import *
 # with import machinery
 #import test.ann_module as ann_module
 #import typing
-from collections import ChainMap
+#from collections import ChainMap
 #from test import ann_module2
 #import test
 
