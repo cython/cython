@@ -98,7 +98,7 @@ from sys import *
 # different import patterns to check that __annotations__ does not interfere
 # with import machinery
 #import test.ann_module as ann_module
-import typing
+#import typing
 from collections import ChainMap
 #from test import ann_module2
 #import test
