@@ -1,11 +1,8 @@
-#=======================================================================
-#
-#   Python Lexical Analyser
-#
-#   Converting NFA to DFA
-#
-#=======================================================================
+"""
+Python Lexical Analyser
 
+Converting NFA to DFA
+"""
 from __future__ import absolute_import
 
 from . import Machines
@@ -29,12 +26,14 @@ def nfa_to_dfa(old_machine, debug=None):
     # is reached.
     new_machine = Machines.FastMachine()
     state_map = StateMap(new_machine)
+
     # Seed the process using the initial states of the old machine.
     # Make the corresponding new states into initial states of the new
     # machine with the same names.
     for (key, old_state) in old_machine.initial_states.items():
         new_state = state_map.old_to_new(epsilon_closure(old_state))
         new_machine.make_initial_state(key, new_state)
+
     # Tricky bit here: we add things to the end of this list while we're
     # iterating over it. The iteration stops when closure is achieved.
     for new_state in new_machine.states:
@@ -42,9 +41,12 @@ def nfa_to_dfa(old_machine, debug=None):
         for old_state in state_map.new_to_old(new_state):
             for event, old_target_states in old_state.transitions.items():
                 if event and old_target_states:
-                    transitions.add_set(event, set_epsilon_closure(old_target_states))
+                    transitions.add_set(event,
+                                        set_epsilon_closure(old_target_states))
         for event, old_states in transitions.items():
-            new_machine.add_transitions(new_state, event, state_map.old_to_new(old_states))
+            new_machine.add_transitions(new_state, event,
+                                        state_map.old_to_new(old_states))
+
     if debug:
         debug.write("\n===== State Mapping =====\n")
         state_map.dump(debug)
@@ -119,8 +121,6 @@ class StateMap(object):
             new_state = self.new_machine.new_state(action)
             self.old_to_new_dict[key] = new_state
             self.new_to_old_dict[id(new_state)] = old_state_set
-            #for old_state in old_state_set.keys():
-            #new_state.merge_actions(old_state)
         return new_state
 
     def highest_priority_action(self, state_set):
@@ -132,13 +132,6 @@ class StateMap(object):
                 best_action = state.action
                 best_priority = priority
         return best_action
-
-    #    def old_to_new_set(self, old_state_set):
-    #        """
-    #        Return the new state corresponding to a set of old states as
-    #        a singleton set.
-    #        """
-    #        return {self.old_to_new(old_state_set):1}
 
     def new_to_old(self, new_state):
         """Given a new state, return a set of corresponding old states."""
@@ -160,5 +153,3 @@ class StateMap(object):
             old_state_set = self.new_to_old_dict[id(new_state)]
             file.write("   State %s <-- %s\n" % (
                 new_state['number'], state_set_str(old_state_set)))
-
-

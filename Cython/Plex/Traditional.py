@@ -1,11 +1,8 @@
-#=======================================================================
-#
-#   Python Lexical Analyser
-#
-#   Traditional Regular Expression Syntax
-#
-#=======================================================================
+"""
+Python Lexical Analyser
 
+Traditional Regular Expression Syntax
+"""
 from __future__ import absolute_import
 
 from .Regexps import Alt, Seq, Rep, Rep1, Opt, Any, AnyBut, Bol, Eol, Char
@@ -34,7 +31,7 @@ class REParser(object):
     def parse_re(self):
         re = self.parse_alt()
         if not self.end:
-            self.error("Unexpected %s" % repr(self.c))
+            self.error("Unexpected {c}".format(c=repr(self.c)))
         return re
 
     def parse_alt(self):
@@ -51,7 +48,7 @@ class REParser(object):
     def parse_seq(self):
         """Parse a sequence of regexps."""
         re_list = []
-        while not self.end and not self.c in "|)":
+        while not self.end and self.c not in "|)":
             re_list.append(self.parse_mod())
         return Seq(*re_list)
 
@@ -108,6 +105,7 @@ class REParser(object):
                     char_list.append(chr(a))
             else:
                 char_list.append(c1)
+
         chars = ''.join(char_list)
         if invert:
             return AnyBut(chars)
@@ -147,12 +145,9 @@ class REParser(object):
         if self.c == c:
             self.next()
         else:
-            self.error("Missing %s" % repr(c))
+            self.error("Missing {c}".format(c=repr(c)))
 
     def error(self, mess):
         """Raise exception to signal syntax error in regexp."""
-        raise RegexpSyntaxError("Syntax error in regexp %s at position %d: %s" % (
-            repr(self.s), self.i, mess))
-
-
-
+        raise RegexpSyntaxError("Syntax error in regexp %s at position %d: %s"
+                                % (repr(self.s), self.i, mess))

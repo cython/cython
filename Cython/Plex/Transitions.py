@@ -1,9 +1,8 @@
-#
-# Plex - Transition Maps
-#
-# This version represents state sets directly as dicts for speed.
-#
+"""
+Plex - Transition Maps
 
+This version represents state sets directly as dicts for speed.
+"""
 from __future__ import absolute_import
 
 try:
@@ -50,10 +49,8 @@ class TransitionMap(object):
             special = {}
         self.map = map
         self.special = special
-        #self.check() ###
 
-    def add(self, event, new_state,
-            TupleType=tuple):
+    def add(self, event, new_state, TupleType=tuple):
         """
         Add transition to |new_state| on |event|.
         """
@@ -68,8 +65,7 @@ class TransitionMap(object):
         else:
             self.get_special(event)[new_state] = 1
 
-    def add_set(self, event, new_set,
-                TupleType=tuple):
+    def add_set(self, event, new_set, TupleType=tuple):
         """
         Add transitions to the states in |new_set| on |event|.
         """
@@ -84,15 +80,13 @@ class TransitionMap(object):
         else:
             self.get_special(event).update(new_set)
 
-    def get_epsilon(self,
-                    none=None):
+    def get_epsilon(self, none=None):
         """
         Return the mapping for epsilon, or None.
         """
         return self.special.get('', none)
 
-    def iteritems(self,
-                  len=len):
+    def iteritems(self, len=len):
         """
         Return the mapping as an iterable of ((code1, code2), state_set) and
         (special_event, state_set) pairs.
@@ -119,8 +113,7 @@ class TransitionMap(object):
 
     # ------------------- Private methods --------------------
 
-    def split(self, code,
-              len=len, maxint=maxint):
+    def split(self, code, len=len, maxint=maxint):
         """
         Search the list for the position of the split point for |code|,
         inserting a new split point if necessary. Returns index |i| such
@@ -132,6 +125,7 @@ class TransitionMap(object):
         # Special case: code == map[-1]
         if code == maxint:
             return hi
+
         # General case
         lo = 0
         # loop invariant: map[lo] <= code < map[hi] and hi - lo >= 2
@@ -147,7 +141,6 @@ class TransitionMap(object):
             return lo
         else:
             map[hi:hi] = [code, map[hi - 1].copy()]
-            #self.check() ###
             return hi
 
     def get_special(self, event):
@@ -242,10 +235,6 @@ class TransitionMap(object):
 #
 #   State set manipulation functions
 #
-
-#def merge_state_sets(set1, set2):
-#        for state in set2.keys():
-#            set1[state] = 1
 
 def state_set_str(set):
     return "[%s]" % ','.join(["S%d" % state.number for state in set])
