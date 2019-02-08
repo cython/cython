@@ -642,6 +642,7 @@ static int __Pyx_CLineForTraceback(PyThreadState *tstate, int c_line);/*proto*/
 
 /////////////// CLineInTraceback ///////////////
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
+//@requires: ObjectHandling.c::PyDictVersioning
 //@requires: PyErrFetchRestore
 //@substitute: naming
 
