@@ -117,6 +117,9 @@ frame_code_cname = pyrex_prefix + "frame_code"
 binding_cfunc    = pyrex_prefix + "binding_PyCFunctionType"
 fused_func_prefix = pyrex_prefix + 'fuse_'
 quick_temp_cname = pyrex_prefix + "temp" # temp variable for quick'n'dirty temping
+tp_dict_version_temp = pyrex_prefix + "tp_dict_version"
+obj_dict_version_temp = pyrex_prefix + "obj_dict_version"
+type_dict_guard_temp = pyrex_prefix + "type_dict_guard"
 cython_runtime_cname   = pyrex_prefix + "cython_runtime"
 
 global_code_object_cache_find = pyrex_prefix + 'find_code_object'

@@ -92,8 +92,14 @@ Other changes
 * Support for Python 2.6 was removed.
 
 
-0.29.5 (2019-??-??)
+0.29.5 (2019-02-09)
 ===================
+
+Bugs fixed
+----------
+
+* Crash when defining a Python subclass of an extension type and repeatedly calling
+  a cpdef method on it.  (Github issue #2823)
 
 * Compiler crash when ``prange()`` loops appear inside of with-statements.
   (Github issue #2780)
