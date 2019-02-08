@@ -31,7 +31,7 @@ class REParser(object):
     def parse_re(self):
         re = self.parse_alt()
         if not self.end:
-            self.error("Unexpected {c}".format(c=repr(self.c)))
+            self.error("Unexpected %s" % repr(self.c))
         return re
 
     def parse_alt(self):
@@ -145,9 +145,9 @@ class REParser(object):
         if self.c == c:
             self.next()
         else:
-            self.error("Missing {c}".format(c=repr(c)))
+            self.error("Missing %s" % repr(c))
 
     def error(self, mess):
         """Raise exception to signal syntax error in regexp."""
-        raise RegexpSyntaxError("Syntax error in regexp %s at position %d: %s"
-                                % (repr(self.s), self.i, mess))
+        raise RegexpSyntaxError("Syntax error in regexp %s at position %d: %s" % (
+            repr(self.s), self.i, mess))

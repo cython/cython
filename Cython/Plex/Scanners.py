@@ -178,18 +178,16 @@ class Scanner(object):
                     state['number'], input_state, cur_pos, repr(cur_char)))
 
             # Begin inlined self.save_for_backup()
-            # action = state.action   # @slow
-            action = state['action']  # @fast
+            action = state['action']
             if action is not None:
                 b_action, b_cur_pos, b_cur_line, b_cur_line_start, b_cur_char, b_input_state, b_next_pos = \
                     action, cur_pos, cur_line, cur_line_start, cur_char, input_state, next_pos
             # End inlined self.save_for_backup()
 
             c = cur_char
-            # new_state = state.new_state(c)     # @slow
-            new_state = state.get(c, NOT_FOUND)  # @fast
-            if new_state is NOT_FOUND:  # @fast
-                new_state = c and state.get('else')  # @fast
+            new_state = state.get(c, NOT_FOUND)
+            if new_state is NOT_FOUND:
+                new_state = c and state.get('else')
 
             if new_state:
                 if trace:

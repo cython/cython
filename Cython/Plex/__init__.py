@@ -1,9 +1,6 @@
-#=======================================================================
-#
-#   Python Lexical Analyser
-#
-#=======================================================================
 """
+Python Lexical Analyser
+
 The Plex module provides lexical analysers with similar capabilities
 to GNU Flex. The following classes and functions are exported;
 see the attached docstrings for more information.

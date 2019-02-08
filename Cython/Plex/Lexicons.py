@@ -109,8 +109,7 @@ class Lexicon(object):
     machine = None  # Machine
     tables = None   # StateTableMachine
 
-    def __init__(self, specifications, debug=None,
-                 debug_flags=7, timings=None):
+    def __init__(self, specifications, debug=None, debug_flags=7, timings=None):
         if not isinstance(specifications, list):
             raise Errors.InvalidScanner("Scanner definition is not a list")
         if timings:
@@ -161,8 +160,7 @@ class Lexicon(object):
 
         self.machine = dfa
 
-    def add_token_to_machine(self, machine, initial_state,
-                             token_spec, token_number):
+    def add_token_to_machine(self, machine, initial_state, token_spec, token_number):
         try:
             (re, action_spec) = self.parse_token_definition(token_spec)
             if isinstance(action_spec, Actions.Action):
@@ -185,8 +183,7 @@ class Lexicon(object):
         if not isinstance(token_spec, tuple):
             raise Errors.InvalidToken("Token definition is not a tuple")
         if len(token_spec) != 2:
-            raise Errors.InvalidToken("Wrong number of items in "
-                                      "token definition")
+            raise Errors.InvalidToken("Wrong number of items in token definition")
 
         pattern, action = token_spec
         if not isinstance(pattern, Regexps.RE):

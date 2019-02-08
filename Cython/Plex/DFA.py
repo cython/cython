@@ -41,11 +41,9 @@ def nfa_to_dfa(old_machine, debug=None):
         for old_state in state_map.new_to_old(new_state):
             for event, old_target_states in old_state.transitions.items():
                 if event and old_target_states:
-                    transitions.add_set(event,
-                                        set_epsilon_closure(old_target_states))
+                    transitions.add_set(event, set_epsilon_closure(old_target_states))
         for event, old_states in transitions.items():
-            new_machine.add_transitions(new_state, event,
-                                        state_map.old_to_new(old_states))
+            new_machine.add_transitions(new_state, event, state_map.old_to_new(old_states))
 
     if debug:
         debug.write("\n===== State Mapping =====\n")
