@@ -1,12 +1,11 @@
 # cython: language_level=3str
 # cython: auto_pickle=False
-#=======================================================================
-#
-#   Python Lexical Analyser
-#
-#   Actions for use in token specifications
-#
-#=======================================================================
+"""
+Python Lexical Analyser
+
+Actions for use in token specifications
+"""
+
 
 class Action(object):
     def perform(self, token_stream, text):
@@ -88,7 +87,6 @@ class Ignore(Action):
 
 
 IGNORE = Ignore()
-#IGNORE.__doc__ = Ignore.__doc__
 
 
 class Text(Action):
@@ -106,6 +104,3 @@ class Text(Action):
 
 
 TEXT = Text()
-#TEXT.__doc__ = Text.__doc__
-
-

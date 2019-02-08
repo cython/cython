@@ -1,10 +1,8 @@
-#=======================================================================
-#
-#   Python Lexical Analyser
-#
-#   Exception classes
-#
-#=======================================================================
+"""
+Python Lexical Analyser
+
+Exception classes
+"""
 
 
 class PlexError(Exception):
