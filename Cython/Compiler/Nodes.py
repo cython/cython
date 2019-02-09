@@ -3466,8 +3466,8 @@ class DefNodeWrapper(FuncDefNode):
             if docstr.is_unicode:
                 docstr = docstr.as_utf8_string()
 
-            code.putln(
-                'static char %s[] = %s;' % (
+            if with_pymethdef:
+                code.putln('static char %s[] = %s;' % (
                     entry.doc_cname,
                     docstr.as_c_string_literal()))
 
