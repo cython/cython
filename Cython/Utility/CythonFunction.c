@@ -1216,7 +1216,7 @@ static int __pyx_FusedFunction_init(void) {
 //////////////////// ClassMethod.proto ////////////////////
 
 #include "descrobject.h"
-static PyObject* __Pyx_Method_ClassMethod(PyObject *method); /*proto*/
+static CYTHON_UNUSED PyObject* __Pyx_Method_ClassMethod(PyObject *method); /*proto*/
 
 //////////////////// ClassMethod ////////////////////
 
