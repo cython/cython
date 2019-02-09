@@ -3466,7 +3466,7 @@ class DefNodeWrapper(FuncDefNode):
             if docstr.is_unicode:
                 docstr = docstr.as_utf8_string()
 
-            if with_pymethdef or (entry.is_special and entry.name not in ('__getbuffer__', '__releasebuffer__')):
+            if not (entry.is_special and entry.name in ('__getbuffer__', '__releasebuffer__')):
                 code.putln('static char %s[] = %s;' % (
                     entry.doc_cname,
                     docstr.as_c_string_literal()))
