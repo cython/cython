@@ -109,14 +109,9 @@ class Lexicon(object):
     machine = None  # Machine
     tables = None   # StateTableMachine
 
-    def __init__(self, specifications, debug=None, debug_flags=7, timings=None):
+    def __init__(self, specifications, debug=None, debug_flags=7):
         if not isinstance(specifications, list):
             raise Errors.InvalidScanner("Scanner definition is not a list")
-        if timings:
-            from .Timing import time
-
-            total_time = 0.0
-            time1 = time()
 
         nfa = Machines.Machine()
         default_initial_state = nfa.new_initial_state('')
@@ -138,25 +133,15 @@ class Lexicon(object):
                     token_number,
                     "Expected a token definition (tuple) or State instance")
 
-        if timings:
-            time2 = time()
-            total_time = total_time + (time2 - time1)
-            time3 = time()
         if debug and (debug_flags & 1):
             debug.write("\n============= NFA ===========\n")
             nfa.dump(debug)
 
         dfa = DFA.nfa_to_dfa(nfa, debug=(debug_flags & 3) == 3 and debug)
-        if timings:
-            time4 = time()
-            total_time = total_time + (time4 - time3)
+
         if debug and (debug_flags & 2):
             debug.write("\n============= DFA ===========\n")
             dfa.dump(debug)
-        if timings:
-            timings.write("Constructing NFA : %5.2f\n" % (time2 - time1))
-            timings.write("Converting to DFA: %5.2f\n" % (time4 - time3))
-            timings.write("TOTAL            : %5.2f\n" % total_time)
 
         self.machine = dfa
 

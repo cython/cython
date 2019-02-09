@@ -17,10 +17,6 @@ class PlexValueError(PlexError, ValueError):
     pass
 
 
-class InvalidRegex(PlexError):
-    pass
-
-
 class InvalidToken(PlexError):
     def __init__(self, token_number, message):
         PlexError.__init__(self, "Token number %d: %s" % (token_number, message))

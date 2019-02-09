@@ -39,21 +39,6 @@ module_name_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_
 verbose = 0
 
 
-class CompilationData(object):
-    #  Bundles the information that is passed from transform to transform.
-    #  (For now, this is only)
-
-    #  While Context contains every pxd ever loaded, path information etc.,
-    #  this only contains the data related to a single compilation pass
-    #
-    #  pyx                   ModuleNode              Main code tree of this compilation.
-    #  pxds                  {string : ModuleNode}   Trees for the pxds used in the pyx.
-    #  codewriter            CCodeWriter             Where to output final code.
-    #  options               CompilationOptions
-    #  result                CompilationResult
-    pass
-
-
 class Context(object):
     #  This class encapsulates the context needed for compiling
     #  one or more Cython implementation files along with their
@@ -122,15 +107,6 @@ class Context(object):
         value = EncodedString(value)
         if encoding:
             value.encoding = encoding
-        self._interned[key] = value
-        return value
-
-    def intern_value(self, value, *key):
-        key = (type(value), value) + key
-        try:
-            return self._interned[key]
-        except KeyError:
-            pass
         self._interned[key] = value
         return value
 
