@@ -2110,7 +2110,7 @@ class NameNode(AtomicExprNode):
     def may_be_none(self):
         if self.cf_state and self.type and (self.type.is_pyobject or
                                             self.type.is_memoryviewslice):
-            # gard against infinite recursion on self-dependencies
+            # guard against infinite recursion on self-dependencies
             if getattr(self, '_none_checking', False):
                 # self-dependency - either this node receives a None
                 # value from *another* node, or it can not reference

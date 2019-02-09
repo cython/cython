@@ -504,7 +504,7 @@ It is quite common to want to instantiate an extension class from an existing
 (pointer to a) data structure, often as returned by external C/C++ functions.
 
 As extension classes can only accept Python objects as arguments in their
-contructors, this necessitates the use of factory functions. For example, ::
+constructors, this necessitates the use of factory functions. For example, ::
 
     from libc.stdlib cimport malloc, free
 
