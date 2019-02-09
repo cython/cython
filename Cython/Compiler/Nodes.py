@@ -4377,7 +4377,7 @@ class OverrideCheckNode(StatNode):
                        " || (Py_TYPE(%s)->tp_flags & (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))) {" % (
                 self_arg, self_arg))
 
-        code.putln("#if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_PYTYPE_LOOKUP")
+        code.putln("#if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_PYTYPE_LOOKUP && CYTHON_USE_TYPE_SLOTS")
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("PyDictVersioning", "ObjectHandling.c"))
         # TODO: remove the object dict version check by 'inlining' the getattr implementation for methods.
@@ -4412,7 +4412,7 @@ class OverrideCheckNode(StatNode):
         # NOTE: it's not 100% sure that we catch the exact versions here that were used for the lookup,
         # but it is very unlikely that the versions change during lookup, and the type dict safe guard
         # should increase the chance of detecting such a case.
-        code.putln("#if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_PYTYPE_LOOKUP")
+        code.putln("#if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_PYTYPE_LOOKUP && CYTHON_USE_TYPE_SLOTS")
         code.putln("%s = __Pyx_get_tp_dict_version(%s);" % (
             Naming.tp_dict_version_temp, self_arg))
         code.putln("%s = __Pyx_get_object_dict_version(%s);" % (
@@ -4432,7 +4432,7 @@ class OverrideCheckNode(StatNode):
         code.put_decref_clear(func_node_temp, PyrexTypes.py_object_type)
         code.funcstate.release_temp(func_node_temp)
 
-        code.putln("#if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_PYTYPE_LOOKUP")
+        code.putln("#if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_PYTYPE_LOOKUP && CYTHON_USE_TYPE_SLOTS")
         code.putln("}")
         code.putln("#endif")
 
