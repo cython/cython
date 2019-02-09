@@ -52,6 +52,26 @@ class Call(Action):
         return isinstance(other, Call) and self.function is other.function
 
 
+class Begin(Action):
+    """
+    Begin(state_name) is a Plex action which causes the Scanner to
+    enter the state |state_name|. See the docstring of Plex.Lexicon
+    for more information.
+    """
+
+    def __init__(self, state_name):
+        self.state_name = state_name
+
+    def perform(self, token_stream, text):
+        token_stream.begin(self.state_name)
+
+    def __repr__(self):
+        return "Begin(%s)" % self.state_name
+
+    def same_as(self, other):
+        return isinstance(other, Begin) and self.state_name == other.state_name
+
+
 class Ignore(Action):
     """
     IGNORE is a Plex action which causes its associated token
