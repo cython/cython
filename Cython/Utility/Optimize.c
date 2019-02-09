@@ -123,13 +123,13 @@ static PyObject* __Pyx__PyList_PopIndex(PyObject* L, PyObject* py_ix, Py_ssize_t
 #define __Pyx_PyObject_PopIndex(L, py_ix, ix, is_signed, type, to_py_func) ( \
     (likely(PyList_CheckExact(L) && __Pyx_fits_Py_ssize_t(ix, type, is_signed))) ? \
         __Pyx__PyList_PopIndex(L, py_ix, ix) : ( \
-        (unlikely(py_ix == Py_None)) ? __Pyx__PyObject_PopNewIndex(L, to_py_func(ix)) : \
+        (unlikely((py_ix) == Py_None)) ? __Pyx__PyObject_PopNewIndex(L, to_py_func(ix)) : \
             __Pyx__PyObject_PopIndex(L, py_ix)))
 
 #define __Pyx_PyList_PopIndex(L, py_ix, ix, is_signed, type, to_py_func) ( \
     __Pyx_fits_Py_ssize_t(ix, type, is_signed) ? \
         __Pyx__PyList_PopIndex(L, py_ix, ix) : ( \
-        (unlikely(py_ix == Py_None)) ? __Pyx__PyObject_PopNewIndex(L, to_py_func(ix)) : \
+        (unlikely((py_ix) == Py_None)) ? __Pyx__PyObject_PopNewIndex(L, to_py_func(ix)) : \
             __Pyx__PyObject_PopIndex(L, py_ix)))
 
 #else
@@ -138,7 +138,7 @@ static PyObject* __Pyx__PyList_PopIndex(PyObject* L, PyObject* py_ix, Py_ssize_t
     __Pyx_PyObject_PopIndex(L, py_ix, ix, is_signed, type, to_py_func)
 
 #define __Pyx_PyObject_PopIndex(L, py_ix, ix, is_signed, type, to_py_func) ( \
-    (unlikely(py_ix == Py_None)) ? __Pyx__PyObject_PopNewIndex(L, to_py_func(ix)) : \
+    (unlikely((py_ix) == Py_None)) ? __Pyx__PyObject_PopNewIndex(L, to_py_func(ix)) : \
         __Pyx__PyObject_PopIndex(L, py_ix))
 #endif
 
