@@ -51,25 +51,6 @@ pyx_reserved_words = py_reserved_words + [
 ]
 
 
-class Method(object):
-
-    def __init__(self, name, **kwargs):
-        self.name = name
-        self.kwargs = kwargs or None
-        self.__name__ = name  # for Plex tracing
-
-    def __call__(self, stream, text):
-        method = getattr(stream, self.name)
-        # self.kwargs is almost always unused => avoid call overhead
-        return method(text, **self.kwargs) if self.kwargs is not None else method(text)
-
-    def __copy__(self):
-        return self  # immutable, no need to copy
-
-    def __deepcopy__(self, memo):
-        return self  # immutable, no need to copy
-
-
 #------------------------------------------------------------------
 
 class CompileTimeScope(object):

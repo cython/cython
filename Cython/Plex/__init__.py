@@ -28,7 +28,7 @@ see the attached docstrings for more information.
 # flake8: noqa:F401
 from __future__ import absolute_import
 
-from .Actions import TEXT, IGNORE, Begin
+from .Actions import TEXT, IGNORE, Begin, Method
 from .Lexicons import Lexicon, State
 from .Regexps import RE, Seq, Alt, Rep1, Empty, Str, Any, AnyBut, AnyChar, Range
 from .Regexps import Opt, Rep, Bol, Eol, Eof, Case, NoCase

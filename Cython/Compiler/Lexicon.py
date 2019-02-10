@@ -16,8 +16,7 @@ IDENT = 'IDENT'
 def make_lexicon():
     from ..Plex import \
         Str, Any, AnyBut, AnyChar, Rep, Rep1, Opt, Bol, Eol, Eof, \
-        TEXT, IGNORE, State, Lexicon
-    from .Scanning import Method
+        TEXT, IGNORE, Method, State, Lexicon
 
     letter = Any("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_")
     nonzero_digit = Any("123456789")

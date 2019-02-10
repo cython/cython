@@ -14,6 +14,12 @@ class Action(object):
     def same_as(self, other):
         return self is other
 
+    def __copy__(self):
+        return self  # immutable, no need to copy
+
+    def __deepcopy__(self, memo):
+        return self  # immutable, no need to copy
+
 
 class Return(Action):
     """
@@ -50,6 +56,26 @@ class Call(Action):
 
     def same_as(self, other):
         return isinstance(other, Call) and self.function is other.function
+
+
+class Method(Action):
+    """
+    Plex action that calls a specific method on the token stream,
+    passing the matched text and any provided constant keyword arguments.
+    """
+
+    def __init__(self, name, **kwargs):
+        self.name = name
+        self.kwargs = kwargs or None
+        self.__name__ = name  # for Plex tracing
+
+    def perform(self, token_stream, text):
+        method = getattr(token_stream, self.name)
+        # self.kwargs is almost always unused => avoid call overhead
+        return method(text, **self.kwargs) if self.kwargs is not None else method(text)
+
+    def same_as(self, other):
+        return isinstance(other, Method) and self.name == other.name and self.kwargs == other.kwargs
 
 
 class Begin(Action):

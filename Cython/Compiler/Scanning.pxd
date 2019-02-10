@@ -9,11 +9,6 @@ cdef unicode any_string_prefix, IDENT
 cdef get_lexicon()
 cdef initial_compile_time_env()
 
-cdef class Method:
-    cdef object name
-    cdef dict kwargs
-    cdef readonly object __name__  # for tracing the scanner
-
 ## methods commented with '##' out are used by Parsing.py when compiled.
 
 @cython.final
