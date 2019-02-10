@@ -1,7 +1,7 @@
-#
-#   Cython -- Things that don't belong
-#            anywhere else in particular
-#
+"""
+Cython -- Things that don't belong
+          anywhere else in particular
+"""
 
 from __future__ import absolute_import
 
@@ -28,24 +28,31 @@ PACKAGE_FILES = ("__init__.py", "__init__.pyc", "__init__.pyx", "__init__.pxd")
 modification_time = os.path.getmtime
 
 _function_caches = []
+
+
 def clear_function_caches():
     for cache in _function_caches:
         cache.clear()
+
 
 def cached_function(f):
     cache = {}
     _function_caches.append(cache)
     uncomputed = object()
+
     def wrapper(*args):
         res = cache.get(args, uncomputed)
         if res is uncomputed:
             res = cache[args] = f(*args)
         return res
+
     wrapper.uncached = f
     return wrapper
 
+
 def cached_method(f):
     cache_name = '__%s_cache' % f.__name__
+
     def wrapper(self, *args):
         cache = getattr(self, cache_name, None)
         if cache is None:
@@ -55,7 +62,9 @@ def cached_method(f):
             return cache[args]
         res = cache[args] = f(self, *args)
         return res
+
     return wrapper
+
 
 def replace_suffix(path, newsuf):
     base, _ = os.path.splitext(path)
@@ -92,6 +101,7 @@ def castrate_file(path, st):
         f.close()
         if st:
             os.utime(path, (st.st_atime, st.st_mtime-1))
+
 
 def file_newer_than(path, time):
     ftime = modification_time(path)
@@ -156,17 +166,17 @@ def search_include_directories(dirs, qualified_name, suffix, pos,
         module_filename = module_name + suffix
         package_filename = "__init__" + suffix
 
-    for dir in dirs:
-        path = os.path.join(dir, dotted_filename)
+    for dirname in dirs:
+        path = os.path.join(dirname, dotted_filename)
         if path_exists(path):
             return path
         if not include:
-            package_dir = check_package_dir(dir, package_names)
+            package_dir = check_package_dir(dirname, package_names)
             if package_dir is not None:
                 path = os.path.join(package_dir, module_filename)
                 if path_exists(path):
                     return path
-                path = os.path.join(dir, package_dir, module_name,
+                path = os.path.join(dirname, package_dir, module_name,
                                     package_filename)
                 if path_exists(path):
                     return path
@@ -183,6 +193,7 @@ def find_root_package_dir(file_path):
     else:
         return dir
 
+
 @cached_function
 def check_package_dir(dir, package_names):
     for dirname in package_names:
@@ -191,12 +202,14 @@ def check_package_dir(dir, package_names):
             return None
     return dir
 
+
 @cached_function
 def is_package_dir(dir_path):
     for filename in PACKAGE_FILES:
         path = os.path.join(dir_path, filename)
         if path_exists(path):
             return 1
+
 
 @cached_function
 def path_exists(path):
@@ -222,6 +235,7 @@ def path_exists(path):
         pass
     return False
 
+
 # file name encodings
 
 def decode_filename(filename):
@@ -234,6 +248,7 @@ def decode_filename(filename):
         except UnicodeDecodeError:
             pass
     return filename
+
 
 # support for source file encoding detection
 
@@ -252,6 +267,7 @@ def detect_opened_file_encoding(f):
         lines = start.split(b"\n")
         if not data:
             break
+
     m = _match_file_encoding(lines[0])
     if m and m.group(1) != b'c_string_encoding':
         return m.group(2).decode('iso8859-1')
@@ -434,33 +450,41 @@ def print_bytes(s, header_text=None, end=b'\n', file=sys.stdout, flush=True):
     if flush:
         out.flush()
 
+
 class LazyStr:
     def __init__(self, callback):
         self.callback = callback
+
     def __str__(self):
         return self.callback()
+
     def __repr__(self):
         return self.callback()
+
     def __add__(self, right):
         return self.callback() + right
+
     def __radd__(self, left):
         return left + self.callback()
 
 
 class OrderedSet(object):
-  def __init__(self, elements=()):
-    self._list = []
-    self._set = set()
-    self.update(elements)
-  def __iter__(self):
-    return iter(self._list)
-  def update(self, elements):
-    for e in elements:
-      self.add(e)
-  def add(self, e):
-    if e not in self._set:
-      self._list.append(e)
-      self._set.add(e)
+    def __init__(self, elements=()):
+        self._list = []
+        self._set = set()
+        self.update(elements)
+
+    def __iter__(self):
+        return iter(self._list)
+
+    def update(self, elements):
+        for e in elements:
+            self.add(e)
+
+    def add(self, e):
+        if e not in self._set:
+            self._list.append(e)
+            self._set.add(e)
 
 
 # Class decorator that adds a metaclass and recreates the class with it.
@@ -482,7 +506,7 @@ def add_metaclass(metaclass):
 
 
 def raise_error_if_module_name_forbidden(full_module_name):
-    #it is bad idea to call the pyx-file cython.pyx, so fail early
+    # it is bad idea to call the pyx-file cython.pyx, so fail early
     if full_module_name == 'cython' or full_module_name.startswith('cython.'):
         raise ValueError('cython is a special module, cannot be used as a module name')
 
