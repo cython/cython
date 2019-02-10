@@ -67,12 +67,17 @@ class Method(Action):
     def __init__(self, name, **kwargs):
         self.name = name
         self.kwargs = kwargs or None
-        self.__name__ = name  # for Plex tracing
 
     def perform(self, token_stream, text):
         method = getattr(token_stream, self.name)
         # self.kwargs is almost always unused => avoid call overhead
         return method(text, **self.kwargs) if self.kwargs is not None else method(text)
+
+    def __repr__(self):
+        kwargs = (
+            ', '.join(sorted(['%s=%r' % item for item in self.kwargs.items()]))
+            if self.kwargs is not None else '')
+        return "Method(%s%s%s)" % (self.name, ', ' if kwargs else '', kwargs)
 
     def same_as(self, other):
         return isinstance(other, Method) and self.name == other.name and self.kwargs == other.kwargs

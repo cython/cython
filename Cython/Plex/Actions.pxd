@@ -1,3 +1,4 @@
+# cython: language_level=3
 
 cdef class Action:
     cdef perform(self, token_stream, text)
@@ -14,9 +15,8 @@ cdef class Call(Action):
     cpdef same_as(self, other)
 
 cdef class Method(Action):
-    cdef object name
+    cdef str name
     cdef dict kwargs
-    cdef readonly object __name__  # for tracing the scanner
 
 cdef class Begin(Action):
     cdef object state_name
