@@ -3184,18 +3184,22 @@ def p_c_struct_or_union_definition(s, pos, ctx):
     attributes = None
     if s.sy == ':':
         s.next()
-        s.expect('NEWLINE')
-        s.expect_indent()
         attributes = []
-        body_ctx = Ctx()
-        while s.sy != 'DEDENT':
-            if s.sy != 'pass':
-                attributes.append(
-                    p_c_func_or_var_declaration(s, s.position(), body_ctx))
-            else:
-                s.next()
-                s.expect_newline("Expected a newline")
-        s.expect_dedent()
+        if s.sy == 'pass':
+            s.next()
+            s.expect_newline("Expected a newline", ignore_semicolon=True)
+        else:
+            s.expect('NEWLINE')
+            s.expect_indent()
+            body_ctx = Ctx()
+            while s.sy != 'DEDENT':
+                if s.sy != 'pass':
+                    attributes.append(
+                        p_c_func_or_var_declaration(s, s.position(), body_ctx))
+                else:
+                    s.next()
+                    s.expect_newline("Expected a newline")
+            s.expect_dedent()
     else:
         s.expect_newline("Syntax error in struct or union definition")
     return Nodes.CStructOrUnionDefNode(pos,
