@@ -65,8 +65,6 @@ def bad_usage():
 
 
 def parse_command_line(args):
-    from .Main import CompilationOptions, default_options
-
     pending_arg = []
 
     def pop_arg():
@@ -94,7 +92,7 @@ def parse_command_line(args):
         else:
             return pop_arg()
 
-    options = CompilationOptions(default_options)
+    options = Options.CompilationOptions(Options.default_options)
     sources = []
     while args:
         if args[0].startswith("-"):

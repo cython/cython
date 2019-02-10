@@ -1029,9 +1029,9 @@ class CythonCompileTestCase(unittest.TestCase):
         try:
             CompilationOptions
         except NameError:
-            from Cython.Compiler.Main import CompilationOptions
+            from Cython.Compiler.Options import CompilationOptions
             from Cython.Compiler.Main import compile as cython_compile
-            from Cython.Compiler.Main import default_options
+            from Cython.Compiler.Options import default_options
         common_utility_include_dir = self.common_utility_dir
 
         options = CompilationOptions(
@@ -2232,7 +2232,7 @@ def time_stamper_thread(interval=10):
 
 def configure_cython(options):
     global CompilationOptions, pyrex_default_options, cython_compile
-    from Cython.Compiler.Main import \
+    from Cython.Compiler.Options import \
         CompilationOptions, \
         default_options as pyrex_default_options
     from Cython.Compiler.Options import _directive_defaults as directive_defaults
@@ -2304,7 +2304,7 @@ def runtests(options, cmd_args, coverage=None):
         options.cleanup_sharedlibs = False
         options.fork = False
         if WITH_CYTHON and include_debugger:
-            from Cython.Compiler.Main import default_options as compiler_default_options
+            from Cython.Compiler.Options import default_options as compiler_default_options
             compiler_default_options['gdb_debug'] = True
             compiler_default_options['output_dir'] = os.getcwd()
 
