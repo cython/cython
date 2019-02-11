@@ -42,7 +42,8 @@ except:
 from .. import Utils
 from ..Utils import (cached_function, cached_method, path_exists,
     safe_makedirs, copy_file_to_dir_if_newer, is_package_dir, replace_suffix)
-from ..Compiler.Main import Context, CompilationOptions, default_options
+from ..Compiler.Main import Context
+from ..Compiler.Options import CompilationOptions, default_options
 
 join_path = cached_function(os.path.join)
 copy_once_if_newer = cached_function(copy_file_to_dir_if_newer)
@@ -955,7 +956,7 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
 
     c_options = CompilationOptions(**options)
     cpp_options = CompilationOptions(**options); cpp_options.cplus = True
-    ctx = c_options.create_context()
+    ctx = Context.from_options(c_options)
     options = c_options
     module_list, module_metadata = create_extension_list(
         module_list,

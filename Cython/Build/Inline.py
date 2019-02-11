@@ -8,7 +8,8 @@ from distutils.core import Distribution, Extension
 from distutils.command.build_ext import build_ext
 
 import Cython
-from ..Compiler.Main import Context, CompilationOptions, default_options
+from ..Compiler.Main import Context
+from ..Compiler.Options import CompilationOptions, default_options
 
 from ..Compiler.ParseTreeTransforms import (CythonTransform,
         SkipDeclarations, AnalyseDeclarationsTransform, EnvTransform)

@@ -4,6 +4,10 @@
 
 from __future__ import absolute_import
 
+import os
+
+from Cython import Utils
+
 
 class ShouldBeFromDirective(object):
 
@@ -543,3 +547,184 @@ def parse_compile_time_env(s, current_settings=None):
         name, value = [s.strip() for s in item.split('=', 1)]
         result[name] = parse_variable_value(value)
     return result
+
+
+# ------------------------------------------------------------------------
+# CompilationOptions are constructed from user input and are the `option`
+#  object passed throughout the compilation pipeline.
+
+class CompilationOptions(object):
+    r"""
+    See default_options at the end of this module for a list of all possible
+    options and CmdLine.usage and CmdLine.parse_command_line() for their
+    meaning.
+    """
+    def __init__(self, defaults=None, **kw):
+        self.include_path = []
+        if defaults:
+            if isinstance(defaults, CompilationOptions):
+                defaults = defaults.__dict__
+        else:
+            defaults = default_options
+
+        options = dict(defaults)
+        options.update(kw)
+
+        # let's assume 'default_options' contains a value for most known compiler options
+        # and validate against them
+        unknown_options = set(options) - set(default_options)
+        # ignore valid options that are not in the defaults
+        unknown_options.difference_update(['include_path'])
+        if unknown_options:
+            message = "got unknown compilation option%s, please remove: %s" % (
+                's' if len(unknown_options) > 1 else '',
+                ', '.join(unknown_options))
+            raise ValueError(message)
+
+        directive_defaults = get_directive_defaults()
+        directives = dict(options['compiler_directives'])  # copy mutable field
+        # check for invalid directives
+        unknown_directives = set(directives) - set(directive_defaults)
+        if unknown_directives:
+            message = "got unknown compiler directive%s: %s" % (
+                's' if len(unknown_directives) > 1 else '',
+                ', '.join(unknown_directives))
+            raise ValueError(message)
+        options['compiler_directives'] = directives
+        if directives.get('np_pythran', False) and not options['cplus']:
+            import warnings
+            warnings.warn("C++ mode forced when in Pythran mode!")
+            options['cplus'] = True
+        if 'language_level' in directives and 'language_level' not in kw:
+            options['language_level'] = directives['language_level']
+        elif not options.get('language_level'):
+            options['language_level'] = directive_defaults.get('language_level')
+        if 'formal_grammar' in directives and 'formal_grammar' not in kw:
+            options['formal_grammar'] = directives['formal_grammar']
+        if options['cache'] is True:
+            options['cache'] = os.path.join(Utils.get_cython_cache_dir(), 'compiler')
+
+        self.__dict__.update(options)
+
+    def configure_language_defaults(self, source_extension):
+        if source_extension == 'py':
+            if self.compiler_directives.get('binding') is None:
+                self.compiler_directives['binding'] = True
+
+    def get_fingerprint(self):
+        r"""
+        Return a string that contains all the options that are relevant for cache invalidation.
+        """
+        # Collect only the data that can affect the generated file(s).
+        data = {}
+
+        for key, value in self.__dict__.items():
+            if key in ['show_version', 'errors_to_stderr', 'verbose', 'quiet']:
+                # verbosity flags have no influence on the compilation result
+                continue
+            elif key in ['output_file', 'output_dir']:
+                # ignore the exact name of the output file
+                continue
+            elif key in ['timestamps']:
+                # the cache cares about the content of files, not about the timestamps of sources
+                continue
+            elif key in ['cache']:
+                # hopefully caching has no influence on the compilation result
+                continue
+            elif key in ['compiler_directives']:
+                # directives passed on to the C compiler do not influence the generated C code
+                continue
+            elif key in ['include_path']:
+                # this path changes which headers are tracked as dependencies,
+                # it has no influence on the generated C code
+                continue
+            elif key in ['working_path']:
+                # this path changes where modules and pxd files are found;
+                # their content is part of the fingerprint anyway, their
+                # absolute path does not matter
+                continue
+            elif key in ['create_extension']:
+                # create_extension() has already mangled the options, e.g.,
+                # embedded_metadata, when the fingerprint is computed so we
+                # ignore it here.
+                continue
+            elif key in ['build_dir']:
+                # the (temporary) directory where we collect dependencies
+                # has no influence on the C output
+                continue
+            elif key in ['use_listing_file', 'generate_pxi', 'annotate', 'annotate_coverage_xml']:
+                # all output files are contained in the cache so the types of
+                # files generated must be part of the fingerprint
+                data[key] = value
+            elif key in ['formal_grammar', 'evaluate_tree_assertions']:
+                # these bits can change whether compilation to C passes/fails
+                data[key] = value
+            elif key in ['embedded_metadata', 'emit_linenums',
+                         'c_line_in_traceback', 'gdb_debug',
+                         'relative_path_in_code_position_comments']:
+                # the generated code contains additional bits when these are set
+                data[key] = value
+            elif key in ['cplus', 'language_level', 'compile_time_env', 'np_pythran']:
+                # assorted bits that, e.g., influence the parser
+                data[key] = value
+            elif key == ['capi_reexport_cincludes']:
+                if self.capi_reexport_cincludes:
+                    # our caching implementation does not yet include fingerprints of all the header files
+                    raise NotImplementedError('capi_reexport_cincludes is not compatible with Cython caching')
+            elif key == ['common_utility_include_dir']:
+                if self.common_utility_include_dir:
+                    raise NotImplementedError('common_utility_include_dir is not compatible with Cython caching yet')
+            else:
+                # any unexpected option should go into the fingerprint; it's better
+                # to recompile than to return incorrect results from the cache.
+                data[key] = value
+
+        def to_fingerprint(item):
+            r"""
+            Recursively turn item into a string, turning dicts into lists with
+            deterministic ordering.
+            """
+            if isinstance(item, dict):
+                item = sorted([(repr(key), to_fingerprint(value)) for key, value in item.items()])
+            return repr(item)
+
+        return to_fingerprint(data)
+
+
+# ------------------------------------------------------------------------
+#
+#  Set the default options depending on the platform
+#
+# ------------------------------------------------------------------------
+
+default_options = dict(
+    show_version=0,
+    use_listing_file=0,
+    errors_to_stderr=1,
+    cplus=0,
+    output_file=None,
+    annotate=None,
+    annotate_coverage_xml=None,
+    generate_pxi=0,
+    capi_reexport_cincludes=0,
+    working_path="",
+    timestamps=None,
+    verbose=0,
+    quiet=0,
+    compiler_directives={},
+    embedded_metadata={},
+    evaluate_tree_assertions=False,
+    emit_linenums=False,
+    relative_path_in_code_position_comments=True,
+    c_line_in_traceback=True,
+    language_level=None,  # warn but default to 2
+    formal_grammar=False,
+    gdb_debug=False,
+    compile_time_env=None,
+    common_utility_include_dir=None,
+    output_dir=None,
+    build_dir=None,
+    cache=None,
+    create_extension=None,
+    np_pythran=False
+)
