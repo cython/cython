@@ -272,7 +272,7 @@ class Context(object):
 
     def search_include_directories(self, qualified_name, suffix, pos,
                                    include=False, sys_path=False):
-        return Utils.search_include_directories(
+        return search_include_directories(
             tuple(self.include_directories), qualified_name, suffix, pos, include, sys_path)
 
     def find_root_package_dir(self, file_path):
@@ -618,6 +618,60 @@ def compile(source, options = None, full_module_name = None, **kwds):
         return compile_single(source, options, full_module_name)
     else:
         return compile_multiple(source, options)
+
+
+@Utils.cached_function
+def search_include_directories(dirs, qualified_name, suffix, pos,
+                               include=False, sys_path=False):
+    """
+    Search the list of include directories for the given file name.
+
+    If a source file position is given, first searches the directory
+    containing that file. Returns None if not found, but does not
+    report an error.
+
+    The 'include' option will disable package dereferencing.
+    If 'sys_path' is True, also search sys.path.
+    """
+    if sys_path:
+        dirs = dirs + tuple(sys.path)
+
+    if pos:
+        file_desc = pos[0]
+        if not isinstance(file_desc, FileSourceDescriptor):
+            raise RuntimeError("Only file sources for code supported")
+        if include:
+            dirs = (os.path.dirname(file_desc.filename),) + dirs
+        else:
+            dirs = (Utils.find_root_package_dir(file_desc.filename),) + dirs
+
+    dotted_filename = qualified_name
+    if suffix:
+        dotted_filename += suffix
+
+    if not include:
+        names = qualified_name.split('.')
+        package_names = tuple(names[:-1])
+        module_name = names[-1]
+        module_filename = module_name + suffix
+        package_filename = "__init__" + suffix
+
+    for dirname in dirs:
+        path = os.path.join(dirname, dotted_filename)
+        if os.path.exists(path):
+            return path
+
+        if not include:
+            package_dir = Utils.check_package_dir(dirname, package_names)
+            if package_dir is not None:
+                path = os.path.join(package_dir, module_filename)
+                if os.path.exists(path):
+                    return path
+                path = os.path.join(dirname, package_dir, module_name,
+                                    package_filename)
+                if os.path.exists(path):
+                    return path
+    return None
 
 
 # ------------------------------------------------------------------------
