@@ -92,6 +92,16 @@ Other changes
 * Support for Python 2.6 was removed.
 
 
+0.29.6 (2019-0?-??)
+===================
+
+Bugs fixed
+----------
+
+* Avoid a C #pragma in old gcc versions that was only added in GCC 4.6.
+  Patch by Michael Anselmi.  (Github issue #2838)
+
+
 0.29.5 (2019-02-09)
 ===================
 
