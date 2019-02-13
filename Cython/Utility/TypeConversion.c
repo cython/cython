@@ -703,11 +703,8 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
 // NOTE: inlining because most arguments are constant, which collapses lots of code below
 
 // GCC diagnostic pragmas were introduced in GCC 4.6
-#ifdef __GNUC__
-#define GCC_VERSION (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__)
-#if GCC_VERSION >= 40600
+#if defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6))
 #define GCC_DIAGNOSTIC
-#endif
 #endif
 static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t width, char padding_char, char format_char) {
     // simple and conservative C string allocation on the stack: each byte gives at most 3 digits, plus sign
