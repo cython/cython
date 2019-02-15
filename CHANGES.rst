@@ -98,6 +98,12 @@ Other changes
 Bugs fixed
 ----------
 
+* Fix a crash when accessing the ``__kwdefaults__`` special attribute of
+  fused functions.  (Github issue #1470)
+
+* Fix the parsing of buffer format strings that contain numeric sizes, which
+  could lead to incorrect input rejections.  (Github issue #2845)
+
 * Avoid a C #pragma in old gcc versions that was only added in GCC 4.6.
   Patch by Michael Anselmi.  (Github issue #2838)
 
