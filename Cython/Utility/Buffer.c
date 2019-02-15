@@ -273,7 +273,7 @@ static int __Pyx_BufFmt_ParseNumber(const char** ts) {
       return -1;
     } else {
         count = *t++ - '0';
-        while (*t >= '0' && *t < '9') {
+        while (*t >= '0' && *t <= '9') {
             count *= 10;
             count += *t++ - '0';
         }
