@@ -58,10 +58,19 @@ def opt_func(fused_t obj, cython.floating myf = 1.2, cython.integral myi = 7):
     >>> opt_func("spam", f, i)
     str object double long
     spam 5.60 9 5.60 9
+    >>> opt_func("spam", f, myi=i)
+    str object double long
+    spam 5.60 9 5.60 9
+    >>> opt_func("spam", myf=f, myi=i)
+    str object double long
+    spam 5.60 9 5.60 9
     >>> opt_func[str, float, int]("spam", f, i)
     str object float int
     spam 5.60 9 5.60 9
     >>> opt_func[str, cy.double, cy.long]("spam", f, i)
+    str object double long
+    spam 5.60 9 5.60 9
+    >>> opt_func[str, cy.double, cy.long]("spam", f, myi=i)
     str object double long
     spam 5.60 9 5.60 9
     >>> opt_func[str, float, cy.int]("spam", f, i)
@@ -127,6 +136,28 @@ def test_opt_func():
     ham 5.60 4 5.60 9
     """
     opt_func("ham", f, entry4)
+
+
+def test_opt_func_introspection():
+    """
+    >>> opt_func.__defaults__
+    (1.2, 7)
+    >>> opt_func.__kwdefaults__
+    >>> opt_func.__annotations__
+    {}
+
+    >>> opt_func[str, float, int].__defaults__
+    (1.2, 7)
+    >>> opt_func[str, float, int].__kwdefaults__
+    >>> opt_func[str, float, int].__annotations__
+    {}
+
+    >>> opt_func[str, cy.double, cy.long].__defaults__
+    (1.2, 7)
+    >>> opt_func[str, cy.double, cy.long].__kwdefaults__
+    >>> opt_func[str, cy.double, cy.long].__annotations__
+    {}
+    """
 
 
 def func_with_object(fused_with_object obj, cython.integral myi = 7):
