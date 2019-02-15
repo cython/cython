@@ -15,5 +15,5 @@ cdef class Rectangle:
         return area
 
 def rectArea(x0, y0, x1, y1):
-    cpdef rect = Rectangle(x0, y0, x1, y1)
+    cdef rect = Rectangle(x0, y0, x1, y1)
     return rect.area()
