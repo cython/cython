@@ -850,6 +850,7 @@ use the C-API equivalent of::
 
 instead of the desired C equivalent of ``return f->f0 + f->f1 + f->f2``. We can
 alias the fields by using::
+
     cdef extern from "foo_nominal.h":
 
         ctypedef class foo_extension.Foo [object FooStructNominal]:

@@ -20,6 +20,9 @@ A memoryview can be used in any context (function parameters, module-level, cdef
 class attribute, etc) and can be obtained from nearly any object that
 exposes writable buffer through the `PEP 3118`_ buffer interface.
 
+.. _`PEP 3118`: https://www.python.org/dev/peps/pep-3118/
+
+
 .. _view_quickstart:
 
 Quickstart
@@ -225,6 +228,8 @@ NumPy arrays support this interface, as do :ref:`view_cython_arrays`.  The
 "nearly all" is because the Python buffer interface allows the *elements* in the
 data array to themselves be pointers; Cython memoryviews do not yet support
 this.
+
+.. _`new style buffers`: https://docs.python.org/3/c-api/buffer.html
 
 .. _view_memory_layout:
 
