@@ -5,8 +5,8 @@ If you are looking for a good way to contribute to the Cython project, please
 
 * have a look at the `Cython Hacker Guide <https://github.com/cython/cython/wiki/HackerGuide>`_,
   especially the section on `getting started <https://github.com/cython/cython/wiki/HackerGuide#getting-started>`_.
-* look through the `issues that need help <https://github.com/cython/cython/issues?utf8=%E2%9C%93&q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22>`_.
-* look through the `issues that are a good entry point for beginners <https://github.com/cython/cython/issues?utf8=%E2%9C%93&q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22+>`_.
+* look through the `issues that need help <https://github.com/cython/cython/labels/help%20wanted>`_.
+* look through the `issues that are a good entry point for beginners <https://github.com/cython/cython/labels/good%20first%20issue>`_.
 * ask on the `core developers mailing list <https://mail.python.org/mailman/listinfo/cython-devel>`_ for guidance.
 
 If you have code that you want to contribute, please make sure that it
