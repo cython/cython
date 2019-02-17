@@ -194,6 +194,14 @@ static PyObject *__Pyx__Coroutine_GetAwaitableIter(PyObject *obj) {
         PyObject *method = NULL;
         int is_method = __Pyx_PyObject_GetMethod(obj, PYIDENT("__await__"), &method);
         if (likely(is_method)) {
+#if PY_VERSION_HEX >= 0x030700A1 && CYTHON_UNPACK_METHODS && CYTHON_FAST_PYCCALL
+            if (Py_TYPE(method) == &PyMethodDescr_Type) {
+                PyMethodDescrObject *descr = (PyMethodDescrObject *)method;
+                res = _PyMethodDef_RawFastCallKeywords(descr->d_method, obj, NULL, 0, NULL);
+                if (unlikely(!res))
+                    res = _Py_CheckFunctionResult(obj, res, NULL);
+            } else
+#endif
             res = __Pyx_PyObject_CallOneArg(method, obj);
         } else if (likely(method)) {
             res = __Pyx_PyObject_CallNoArg(method);
