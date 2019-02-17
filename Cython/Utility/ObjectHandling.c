@@ -1807,7 +1807,7 @@ static PyObject* __Pyx_PyObject_CallMethod0(PyObject* obj, PyObject* method_name
     PyObject *method = NULL, *result = NULL;
     int is_method = __Pyx_PyObject_GetMethod(obj, method_name, &method);
     if (likely(is_method)) {
-#if PY_VERSION_HEX >= 0x030700A0 && CYTHON_UNPACK_METHODS && CYTHON_FAST_PYCCALL
+#if PY_VERSION_HEX >= 0x030700A1 && CYTHON_UNPACK_METHODS && CYTHON_FAST_PYCCALL
         if (Py_TYPE(method) == &PyMethodDescr_Type) {
             PyMethodDescrObject *descr = (PyMethodDescrObject *)method;
             result = _PyMethodDef_RawFastCallKeywords(descr->d_method, obj, NULL, 0, NULL);
@@ -1906,7 +1906,7 @@ static PyObject* __Pyx_PyObject_CallMethod2(PyObject* obj, PyObject* method_name
     PyObject *args, *method = NULL, *result = NULL;
     int is_method = __Pyx_PyObject_GetMethod(obj, method_name, &method);
     if (likely(is_method)) {
-#if PY_VERSION_HEX >= 0x030700A0 && CYTHON_UNPACK_METHODS && CYTHON_FAST_PYCCALL
+#if PY_VERSION_HEX >= 0x030700A1 && CYTHON_UNPACK_METHODS && CYTHON_FAST_PYCCALL
         if (Py_TYPE(method) == &PyMethodDescr_Type) {
             PyMethodDescrObject *descr = (PyMethodDescrObject *)method;
             PyObject *args[2] = {arg1, arg2};
