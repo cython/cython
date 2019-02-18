@@ -1426,6 +1426,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         is_final_type = scope.parent_type.is_final_type
         needs_gc = scope.needs_gc()
+        needs_trashcan = scope.needs_trashcan()
 
         weakref_slot = scope.lookup_here("__weakref__") if not scope.is_closure_class_scope else None
         if weakref_slot not in scope.var_entries:
@@ -1463,6 +1464,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # it down, lest the garbage collection is invoked while
             # running this destructor.
             code.putln("PyObject_GC_UnTrack(o);")
+
+        if needs_trashcan:
+            code.globalstate.use_utility_code(
+                UtilityCode.load_cached("PyTrashcan", "ExtensionTypes.c"))
+            code.putln("__Pyx_TRASHCAN_BEGIN(o, %s)" % slot_func_cname)
 
         # call the user's __dealloc__
         self.generate_usr_dealloc_call(scope, code)
@@ -1537,6 +1543,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("(*Py_TYPE(o)->tp_free)(o);")
             if freelist_size:
                 code.putln("}")
+
+        if needs_trashcan:
+            code.putln("__Pyx_TRASHCAN_END")
+
         code.putln(
             "}")
 
