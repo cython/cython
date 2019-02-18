@@ -210,3 +210,25 @@ x = sin(0.0)
             ip.ex('g = f(10)')
         self.assertEqual(ip.user_ns['g'], 20.0)
         self.assertEquals([normal_log.INFO], normal_log.thresholds)
+
+
+    def test_cython_show_cythonized_c(self):
+        ip = self._ip
+        html = ip.run_cell_magic('cython', '--show-cythonized-code', code)
+        # somewhat brittle way to differentiate between annotated html and source code:
+        self.assertTrue('#include "Python.h"' in html.data)
+
+
+    def test_cython_show_cythonized_cpp(self):
+        ip = self._ip
+        html = ip.run_cell_magic('cython', '--show-cythonized-code --cplus', code)
+        # somewhat brittle way to differentiate between annotated html and source code:
+        self.assertTrue('#include "Python.h"' in html.data)
+
+
+    def test_cython_show_cythonized_with_anotate(self):
+        ip = self._ip
+        html = ip.run_cell_magic('cython', '--show-cythonized-code --a', code)
+        # somewhat brittle way to differentiate between annotated html and source code:
+        self.assertFalse('#include "Python.h"' in html.data)  # it is annotated html
+
