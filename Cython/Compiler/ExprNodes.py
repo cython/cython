@@ -11533,9 +11533,11 @@ class DivNode(NumBinopNode):
     def generate_evaluation_code(self, code):
         if not self.type.is_pyobject and not self.type.is_complex:
             if self.cdivision is None:
-                self.cdivision = (code.globalstate.directives['cdivision']
-                                    or not self.type.signed
-                                    or self.type.is_float)
+                self.cdivision = (
+                    code.globalstate.directives['cdivision']
+                    or self.type.is_float
+                    or ((self.type.is_numeric or self.type.is_enum) and not self.type.signed)
+                )
             if not self.cdivision:
                 code.globalstate.use_utility_code(
                     UtilityCode.load_cached("DivInt", "CMath.c").specialize(self.type))
