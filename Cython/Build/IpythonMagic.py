@@ -242,6 +242,10 @@ class CythonMagics(Magics):
         '--verbose', dest='quiet', action='store_false', default=True,
         help=("Print debug information like generated .c/.cpp file location "
               "and exact gcc/g++ command invoked.")
+    )    
+    @magic_arguments.argument(
+        '--show-cythonized-code', action='store_true', default=False,
+        help="Show cythonized c/cpp file (ignored if in combination with -a/--annotate)."
     )
     @cell_magic
     def cython(self, line, cell):
@@ -308,6 +312,12 @@ class CythonMagics(Magics):
         html_file = os.path.join(lib_dir, module_name + '.html')
         module_path = os.path.join(lib_dir, module_name + self.so_ext)
 
+        if args.cplus:
+            cythonized_file_ext = '.cpp'
+        else:
+            cythonized_file_ext = '.c'
+        cythonized_file = os.path.join(lib_dir, module_name + cythonized_file_ext)
+
         have_module = os.path.isfile(module_path)
         need_cythonize = args.pgo or not have_module
 
@@ -345,6 +355,19 @@ class CythonMagics(Magics):
                 print(e, file=sys.stderr)
             else:
                 return display.HTML(self.clean_annotated_html(annotated_html))
+
+        if args.show_cythonized_code:
+            try:
+                with io.open(cythonized_file, encoding='utf-8') as f:
+                    cythonized_code = f.read()
+            except IOError as e:
+                print('Cython completed successfully but the cythonized '
+                      'source could not be read.', file=sys.stderr)
+                print(e, file=sys.stderr)
+            else:
+                code_as_html = self.code_to_html(cythonized_code)  
+                return display.HTML(code_as_html)
+
 
     def _profile_pgo_wrapper(self, extension, lib_dir):
         """
@@ -533,6 +556,15 @@ class CythonMagics(Magics):
         r = re.compile('<p>Raw output: <a href="(.*)">(.*)</a>')
         html = '\n'.join(l for l in html.splitlines() if not r.match(l))
         return html
+
+    @staticmethod
+    def code_to_html(code):
+        """Convert source code to a html-file, so tabs and new lines are properly shown
+        """
+        return '<!DOCTYPE html><html><body><span style="white-space: pre">\n'+\
+               code+\
+               '</span></body></html>'
+
 
 __doc__ = __doc__.format(
     # rST doesn't see the -+ flag as part of an option list, so we
