@@ -1,4 +1,4 @@
 jupyter
 line_profiler
-# transitive dependency of jupyter (18.0.0 comes with a new libzmq)
-pyzmq>=18
+# transitive dependency of jupyter (18.0.0 is broken)
+pyzmq<18
