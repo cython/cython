@@ -17,6 +17,10 @@ Bugs fixed
 * Avoid a C #pragma in old gcc versions that was only added in GCC 4.6.
   Patch by Michael Anselmi.  (Github issue #2838)
 
+* Auto-encoding of Unicode strings to UTF-8 C/C++ strings failed in Python 3,
+  even though the default encoding there is UTF-8.
+  (Github issue #2819)
+
 
 0.29.5 (2019-02-09)
 ===================
