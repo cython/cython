@@ -33,6 +33,10 @@ Features added
 * ``--no-capture`` added to ``runtests.py`` to prevent stdout/stderr capturing
   during srctree tests.  Patch by Matti Picus.
 
+* ``@cython.trashcan(True)`` can be used on an extension type to enable the
+  CPython trashcan. This allows deallocating deeply recursive objects without
+  overflowing the stack.  Patch by Jeroen Demeyer.  (Github issue #2842)
+
 Bugs fixed
 ----------
 
