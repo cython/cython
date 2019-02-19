@@ -2041,7 +2041,7 @@ class PyClassScope(ClassScope):
 class CClassScope(ClassScope):
     #  Namespace of an extension type.
     #
-    #  parent_type           CClassType
+    #  parent_type           PyExtensionType
     #  #typeobj_cname        string or None
     #  #objstruct_cname      string
     #  method_table_cname    string
@@ -2084,6 +2084,22 @@ class CClassScope(ClassScope):
         elif self.parent_type.is_builtin_type:
             return not self.parent_type.is_gc_simple
         return False
+
+    def needs_trashcan(self):
+        # If the trashcan directive is explicitly set to False,
+        # unconditionally disable the trashcan.
+        directive = self.directives.get('trashcan')
+        if directive is False:
+            return False
+        # If the directive is set to True and the class has Python-valued
+        # C attributes, then it should use the trashcan in tp_dealloc.
+        if directive and self.has_cyclic_pyobject_attrs:
+            return True
+        # Use the trashcan if the base class uses it
+        base_type = self.parent_type.base_type
+        if base_type and base_type.scope is not None:
+            return base_type.scope.needs_trashcan()
+        return self.parent_type.builtin_trashcan
 
     def needs_tp_clear(self):
         """

@@ -1136,6 +1136,7 @@ class PyObjectType(PyrexType):
     is_extern = False
     is_subclassed = False
     is_gc_simple = False
+    builtin_trashcan = False  # builtin type using trashcan
 
     def __str__(self):
         return "Python object"
@@ -1190,8 +1191,12 @@ class PyObjectType(PyrexType):
 
 
 builtin_types_that_cannot_create_refcycles = set([
-    'bool', 'int', 'long', 'float', 'complex',
+    'object', 'bool', 'int', 'long', 'float', 'complex',
     'bytearray', 'bytes', 'unicode', 'str', 'basestring'
+])
+
+builtin_types_with_trashcan = set([
+    'dict', 'list', 'set', 'frozenset', 'tuple', 'type',
 ])
 
 
@@ -1218,6 +1223,7 @@ class BuiltinObjectType(PyObjectType):
         self.typeptr_cname = "(&%s)" % cname
         self.objstruct_cname = objstruct_cname
         self.is_gc_simple = name in builtin_types_that_cannot_create_refcycles
+        self.builtin_trashcan = name in builtin_types_with_trashcan
         if name == 'type':
             # Special case the type type, as many C API calls (and other
             # libraries) actually expect a PyTypeObject* for type arguments.
