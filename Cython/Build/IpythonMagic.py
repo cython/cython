@@ -242,7 +242,7 @@ class CythonMagics(Magics):
         '--verbose', dest='quiet', action='store_false', default=True,
         help=("Print debug information like generated .c/.cpp file location "
               "and exact gcc/g++ command invoked.")
-    )    
+    )
     @magic_arguments.argument(
         '--show-cythonized-code', action='store_true', default=False,
         help="Show cythonized c/cpp file (ignored if in combination with -a/--annotate)."
@@ -365,9 +365,8 @@ class CythonMagics(Magics):
                       'source could not be read.', file=sys.stderr)
                 print(e, file=sys.stderr)
             else:
-                code_as_html = self.code_to_html(cythonized_code)  
+                code_as_html = self.code_to_html(cythonized_code)
                 return display.HTML(code_as_html)
-
 
     def _profile_pgo_wrapper(self, extension, lib_dir):
         """
@@ -561,8 +560,8 @@ class CythonMagics(Magics):
     def code_to_html(code):
         """Convert source code to a html-file, so tabs and new lines are properly shown
         """
-        return '<!DOCTYPE html><html><body><span style="white-space: pre">\n'+\
-               code+\
+        return '<!DOCTYPE html><html><body><span style="white-space: pre">\n' + \
+               code + \
                '</span></body></html>'
 
 
