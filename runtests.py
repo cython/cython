@@ -784,7 +784,9 @@ class TestBuilder(object):
             os.makedirs(language_workdir)
         workdir = os.path.join(language_workdir, module)
         if preparse != 'id':
-            workdir += '_%s' % str(preparse)
+            workdir += '_%s' % (preparse,)
+        if language_level:
+            workdir += '_cy%d' % (language_level,)
         return test_class(path, workdir, module, tags,
                           language=language,
                           preparse=preparse,
