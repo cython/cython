@@ -65,7 +65,7 @@ class Ctx(object):
 
 def p_ident(s, message="Expected an identifier"):
     if s.sy == 'IDENT':
-        name = s.systring
+        name = s.context.intern_ustring(s.systring)
         s.next()
         return name
     else:
@@ -74,7 +74,7 @@ def p_ident(s, message="Expected an identifier"):
 def p_ident_list(s):
     names = []
     while s.sy == 'IDENT':
-        names.append(s.systring)
+        names.append(s.context.intern_ustring(s.systring))
         s.next()
         if s.sy != ',':
             break
