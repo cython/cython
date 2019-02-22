@@ -2055,12 +2055,20 @@ def p_with_items(s, is_async=False):
             s.error("with gil/nogil cannot be async")
         state = s.systring
         s.next()
+
+        # support conditional gil/nogil
+        condition = None
+        if s.sy == '(':
+            s.next()
+            condition = p_test(s)
+            s.expect(')')
+
         if s.sy == ',':
             s.next()
             body = p_with_items(s)
         else:
             body = p_suite(s)
-        return Nodes.GILStatNode(pos, state=state, body=body)
+        return Nodes.GILStatNode(pos, state=state, body=body, condition=condition)
     else:
         manager = p_test(s)
         target = None

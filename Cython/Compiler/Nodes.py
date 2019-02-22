@@ -7794,10 +7794,12 @@ class GILStatNode(NogilTryFinallyStatNode):
     #
     #   state   string   'gil' or 'nogil'
 
+    child_attrs = ["body", "condition", "finally_clause", "finally_except_clause"]
     state_temp = None
 
-    def __init__(self, pos, state, body):
+    def __init__(self, pos, state, body, condition=None):
         self.state = state
+        self.condition = condition
         self.create_state_temp_if_needed(pos, state, body)
         TryFinallyStatNode.__init__(
             self, pos,

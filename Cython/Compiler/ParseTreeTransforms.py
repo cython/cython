@@ -2915,6 +2915,11 @@ class GilCheck(VisitorTransform):
         return node
 
     def visit_GILStatNode(self, node):
+        if node.condition is not None:
+            error(node.pos, "Non-constant condition in a "
+                            "`with %s(<condition>)` statement" % node.state)
+            return node
+
         if self.nogil and node.nogil_check:
             node.nogil_check()
 
