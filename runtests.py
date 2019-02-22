@@ -754,6 +754,7 @@ class TestBuilder(object):
         elif 'no-cpp' in tags['tag'] and 'cpp' in self.languages:
             languages = list(languages)
             languages.remove('cpp')
+        language_levels = [2, 3] if 'all_language_levels' in tags['tag'] else [None]
 
         pythran_dir = self.pythran_dir
         if 'pythran' in tags['tag'] and not pythran_dir and 'cpp' in languages:
@@ -767,14 +768,16 @@ class TestBuilder(object):
             pythran_dir = pythran_ext['include_dirs'][0]
 
         preparse_list = tags.get('preparse', ['id'])
-        tests = [ self.build_test(test_class, path, workdir, module, tags, language,
+        tests = [ self.build_test(test_class, path, workdir, module, tags, language, language_level,
                                   expect_errors, expect_warnings, warning_errors, preparse,
                                   pythran_dir if language == "cpp" else None)
                   for language in languages
-                  for preparse in preparse_list ]
+                  for preparse in preparse_list
+                  for language_level in language_levels
+        ]
         return tests
 
-    def build_test(self, test_class, path, workdir, module, tags, language,
+    def build_test(self, test_class, path, workdir, module, tags, language, language_level,
                    expect_errors, expect_warnings, warning_errors, preparse, pythran_dir):
         language_workdir = os.path.join(workdir, language)
         if not os.path.exists(language_workdir):
@@ -793,7 +796,7 @@ class TestBuilder(object):
                           cleanup_failures=self.cleanup_failures,
                           cython_only=self.cython_only,
                           fork=self.fork,
-                          language_level=self.language_level,
+                          language_level=language_level or self.language_level,
                           warning_errors=warning_errors,
                           test_determinism=self.test_determinism,
                           common_utility_dir=self.common_utility_dir,
@@ -860,7 +863,15 @@ class CythonCompileTestCase(unittest.TestCase):
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
-        return "compiling (%s%s) %s" % (self.language, "/pythran" if self.pythran_dir is not None else "", self.name)
+        return "compiling (%s%s%s) %s" % (
+            self.language,
+            "/cy2" if self.language_level == 2 else "/cy3" if self.language_level == 3 else "",
+            "/pythran" if self.pythran_dir is not None else "",
+            self.name
+        )
+
+    def description_name(self):
+        return self.name
 
     def setUp(self):
         from Cython.Compiler import Options
@@ -1245,11 +1256,8 @@ class CythonRunTestCase(CythonCompileTestCase):
         from Cython.Compiler import Options
         Options.clear_to_none = False
 
-    def shortDescription(self):
-        if self.cython_only:
-            return CythonCompileTestCase.shortDescription(self)
-        else:
-            return "compiling (%s%s) and running %s" % (self.language, "/pythran" if self.pythran_dir is not None else "", self.name)
+    def description_name(self):
+        return self.name if self.cython_only else "and running %s" % self.name
 
     def run(self, result=None):
         if result is None:
