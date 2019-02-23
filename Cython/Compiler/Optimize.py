@@ -4700,7 +4700,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 node.condition = None
 
             # Condition is False - the body of the GILStatNode
-            # should run without changing changing the state of the gil
+            # should run without changing the state of the gil
             # return the body of the GILStatNode
             else:
                 return node.body

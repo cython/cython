@@ -7794,7 +7794,7 @@ class GILStatNode(NogilTryFinallyStatNode):
     #
     #   state   string   'gil' or 'nogil'
 
-    child_attrs = ["body", "condition", "finally_clause", "finally_except_clause"]
+    child_attrs = ["condition"] + NogilTryFinallyStatNode.child_attrs
     state_temp = None
 
     def __init__(self, pos, state, body, condition=None):

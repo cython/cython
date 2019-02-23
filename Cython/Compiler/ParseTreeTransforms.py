@@ -2916,8 +2916,9 @@ class GilCheck(VisitorTransform):
 
     def visit_GILStatNode(self, node):
         if node.condition is not None:
-            error(node.pos, "Non-constant condition in a "
-                            "`with %s(<condition>)` statement" % node.state)
+            error(node.condition.pos,
+                  "Non-constant condition in a "
+                  "`with %s(<condition>)` statement" % node.state)
             return node
 
         if self.nogil and node.nogil_check:
@@ -3255,6 +3256,13 @@ class ReplaceFusedTypeChecks(VisitorTransform):
         """
         Filters out any if clauses with false compile time type check
         expression.
+        """
+        self.visitchildren(node)
+        return self.transform(node)
+
+    def visit_GILStatNode(self, node):
+        """
+        Fold constant condition of GILStatNode.
         """
         self.visitchildren(node)
         return self.transform(node)
