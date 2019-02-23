@@ -2215,7 +2215,7 @@ def time_stamper_thread(interval=10):
         _xrange = range
 
     import threading
-    from datetime import datetime
+    import datetime
     from time import sleep
 
     if not interval or interval < 0:
@@ -2223,9 +2223,13 @@ def time_stamper_thread(interval=10):
         yield
     else:
         interval = _xrange(interval * 4)
-        now = datetime.now
-        write = sys.__stderr__.write
+        now = datetime.datetime.now
         stop = False
+
+        # We capture stderr in some places.
+        # => make sure we write to the real (original) stderr of the test runner.
+        def write(s, stderr=os.dup(2)):
+            os.write(stderr, s if IS_PY2 else s.encode('ascii'))
 
         def time_stamper():
             while True:
