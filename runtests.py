@@ -2209,6 +2209,11 @@ def time_stamper_thread(interval=10):
     Print regular time stamps into the build logs to find slow tests.
     @param interval: time interval in seconds
     """
+    if not interval or interval < 0:
+        # Do nothing
+        yield
+        return
+
     try:
         _xrange = xrange
     except NameError:
@@ -2218,35 +2223,33 @@ def time_stamper_thread(interval=10):
     import datetime
     from time import sleep
 
-    if not interval or interval < 0:
-        # Do nothing
+    interval = _xrange(interval * 4)
+    now = datetime.datetime.now
+    stop = False
+
+    # We capture stderr in some places.
+    # => make sure we write to the real (original) stderr of the test runner.
+    stderr = os.dup(2)
+    def write(s):
+        os.write(stderr, s if type(s) is bytes else s.encode('ascii'))
+
+    def time_stamper():
+        while True:
+            for _ in interval:
+                if stop:
+                    return
+                sleep(1./4)
+            write('\n#### %s\n' % now())
+
+    thread = threading.Thread(target=time_stamper, name='time_stamper')
+    thread.setDaemon(True)  # Py2 ...
+    thread.start()
+    try:
         yield
-    else:
-        interval = _xrange(interval * 4)
-        now = datetime.datetime.now
-        stop = False
-
-        # We capture stderr in some places.
-        # => make sure we write to the real (original) stderr of the test runner.
-        def write(s, stderr=os.dup(2)):
-            os.write(stderr, s if IS_PY2 else s.encode('ascii'))
-
-        def time_stamper():
-            while True:
-                for _ in interval:
-                    if stop:
-                        return
-                    sleep(1./4)
-                write('\n#### %s\n' % now())
-
-        thread = threading.Thread(target=time_stamper, name='time_stamper')
-        thread.setDaemon(True)  # Py2 ...
-        thread.start()
-        try:
-            yield
-        finally:
-            stop = True
-            thread.join()
+    finally:
+        stop = True
+        thread.join()
+        os.close(stderr)
 
 
 def configure_cython(options):
