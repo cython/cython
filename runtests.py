@@ -1586,10 +1586,12 @@ class TestCodeFormat(unittest.TestCase):
 
     def runTest(self):
         import pycodestyle
-        config_file = os.path.join(self.cython_dir, "tox.ini")
+        config_file = os.path.join(self.cython_dir, "setup.cfg")
         if not os.path.exists(config_file):
-            config_file=os.path.join(os.path.dirname(__file__), "tox.ini")
-        paths = glob.glob(os.path.join(self.cython_dir, "**/*.py"), recursive=True)
+            config_file=os.path.join(os.path.dirname(__file__), "setup.cfg")
+        paths = []
+        for codedir in ['Cython', 'Demos', 'docs', 'pyximport', 'tests']:
+            paths += glob.glob(os.path.join(self.cython_dir, codedir + "/**/*.py"), recursive=True)
         style = pycodestyle.StyleGuide(config_file=config_file)
         print("")  # Fix the first line of the report.
         result = style.check_files(paths)
