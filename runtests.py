@@ -29,6 +29,7 @@ try:
 except (ImportError, AttributeError):
     IS_CPYTHON = True
     IS_PYPY = False
+IS_PY2 = sys.version_info[0] < 3
 
 from io import open as io_open
 try:
@@ -1911,7 +1912,7 @@ class ShardExcludeSelector(object):
         self.shard_num = shard_num
         self.shard_count = shard_count
 
-    def __call__(self, testname, tags=None, _hash=zlib.crc32, _is_py2=sys.version_info[0] < 3):
+    def __call__(self, testname, tags=None, _hash=zlib.crc32, _is_py2=IS_PY2):
         # Cannot use simple hash() here as shard processes might use different hash seeds.
         # CRC32 is fast and simple, but might return negative values in Py2.
         hashval = _hash(testname) & 0x7fffffff if _is_py2 else _hash(testname.encode())
@@ -2493,10 +2494,7 @@ def runtests(options, cmd_args, coverage=None):
     else:
         text_runner_options = {}
         if options.failfast:
-            if sys.version_info < (2, 7):
-                sys.stderr.write("--failfast not supported with Python < 2.7\n")
-            else:
-                text_runner_options['failfast'] = True
+            text_runner_options['failfast'] = True
         test_runner = unittest.TextTestRunner(verbosity=options.verbosity, **text_runner_options)
 
     if options.pyximport_py:
