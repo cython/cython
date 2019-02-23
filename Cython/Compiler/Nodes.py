@@ -758,7 +758,9 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                     if not return_type.assignable_from(self.exception_value.type):
                         error(self.exception_value.pos,
                               "Exception value incompatible with function return type")
-                    if (return_type.is_int or return_type.is_float) and self.exception_value.has_constant_result():
+                    if (visibility != 'extern'
+                            and (return_type.is_int or return_type.is_float)
+                            and self.exception_value.has_constant_result()):
                         try:
                             type_default_value = float(return_type.default_value)
                         except ValueError:
