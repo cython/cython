@@ -1125,6 +1125,8 @@ class CythonCompileTestCase(unittest.TestCase):
                     extension = newext or extension
             if self.language == 'cpp':
                 extension.language = 'c++'
+            if IS_PY2:
+                workdir = str(workdir)  # work around type check in distutils that disallows unicode strings
             build_extension.extensions = [extension]
             build_extension.build_temp = workdir
             build_extension.build_lib  = workdir
