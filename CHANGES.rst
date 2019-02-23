@@ -8,6 +8,9 @@ Cython Changelog
 Features added
 --------------
 
+* Reimports of already imported modules are substantially faster.
+  (Github issue #2854)
+
 * The ``volatile`` C modifier is supported in Cython code.
   Patch by Jeroen Demeyer.  (Github issue #1667)
 

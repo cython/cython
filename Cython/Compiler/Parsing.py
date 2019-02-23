@@ -1675,11 +1675,6 @@ def p_import_statement(s):
                 as_name=as_name,
                 is_absolute=is_absolute)
         else:
-            if as_name and "." in dotted_name:
-                name_list = ExprNodes.ListNode(pos, args=[
-                    ExprNodes.IdentifierStringNode(pos, value=s.context.intern_ustring("*"))])
-            else:
-                name_list = None
             stat = Nodes.SingleAssignmentNode(
                 pos,
                 lhs=ExprNodes.NameNode(pos, name=as_name or target_name),
@@ -1687,7 +1682,8 @@ def p_import_statement(s):
                     pos,
                     module_name=ExprNodes.IdentifierStringNode(pos, value=dotted_name),
                     level=0 if is_absolute else None,
-                    name_list=name_list))
+                    get_top_level_module='.' in dotted_name and as_name is None,
+                    name_list=None))
         stats.append(stat)
     return Nodes.StatListNode(pos, stats=stats)
 
