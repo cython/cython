@@ -758,6 +758,15 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                     if not return_type.assignable_from(self.exception_value.type):
                         error(self.exception_value.pos,
                               "Exception value incompatible with function return type")
+                    if (return_type.is_int or return_type.is_float) and self.exception_value.has_constant_result():
+                        try:
+                            type_default_value = float(return_type.default_value)
+                        except ValueError:
+                            pass
+                        else:
+                            if self.exception_value.constant_result == type_default_value:
+                                warning(self.pos, "Ambiguous exception value, same as default return value: %r" %
+                                        self.exception_value.constant_result)
             exc_check = self.exception_check
         if return_type.is_cfunction:
             error(self.pos, "Function cannot return a function")
