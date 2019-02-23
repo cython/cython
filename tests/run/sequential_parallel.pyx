@@ -660,7 +660,7 @@ def outer_parallel_section():
         sum += inner_parallel_section()
     return sum
 
-cdef int nogil_cdef_except_clause() nogil except 0:
+cdef int nogil_cdef_except_clause() nogil except -1:
     return 1
 
 cdef void nogil_cdef_except_star() nogil except *:
