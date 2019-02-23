@@ -4707,7 +4707,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
         # If condition is not constant we keep the GILStatNode as it is.
         # Either it will later become constant (e.g. a `numeric is int`
-        # expression in a fused typed function) and then when ConstantFolding
+        # expression in a fused type function) and then when ConstantFolding
         # runs again it will be handled or a later transform (i.e. GilCheck)
         # will raise an error
         return node

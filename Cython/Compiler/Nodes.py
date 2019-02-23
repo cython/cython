@@ -7826,11 +7826,18 @@ class GILStatNode(NogilTryFinallyStatNode):
         if self.state == 'gil':
             env.has_with_gil_block = True
 
+        if self.condition is not None:
+            self.condition.analyse_declarations(env)
+
         return super(GILStatNode, self).analyse_declarations(env)
 
     def analyse_expressions(self, env):
         env.use_utility_code(
             UtilityCode.load_cached("ForceInitThreads", "ModuleSetupCode.c"))
+
+        if self.condition is not None:
+            self.condition = self.condition.analyse_expressions(env)
+
         was_nogil = env.nogil
         env.nogil = self.state == 'nogil'
         node = TryFinallyStatNode.analyse_expressions(self, env)
