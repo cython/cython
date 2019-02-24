@@ -96,6 +96,10 @@ def test_nested():
     return res
 
 
+DEF FREE_GIL = True
+DEF FREE_GIL_FALSE = False
+
+
 def test_nested_condition_false():
     """
     >>> test_nested_condition_false()
@@ -103,12 +107,12 @@ def test_nested_condition_false():
     """
     cdef int res = 0
 
-    with gil(False):
+    with gil(FREE_GIL_FALSE):
         res = f_gil(res)
         with nogil(False):
             res = f_gil(res)
 
-        with nogil(True):
+        with nogil(FREE_GIL):
             res = f_nogil(res)
             with gil(False):
                 res = f_nogil(res)
