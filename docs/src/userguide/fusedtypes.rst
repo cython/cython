@@ -249,6 +249,34 @@ to figure out whether a specialization is part of another set of types
         if bunch_of_types in string_t:
             print("s is a string!")
 
+.. _fused_gil_conditional:
+
+Conditional GIL Acquiring / Releasing
+=====================================
+
+Acquiring and releasing the GIL can be controlled by a condition
+which is known at compile time (see :ref:`_gil_conditional`).
+
+This is most useful when combined with fused types.
+A fused type function may have to handle both cython native types
+(e.g. cython.int or cython.double) and python types (e.g. object or bytes).
+Conditional Acquiring / Releasing the GIL provides a method for running
+the same piece of code either with the GIL released (for cython native types)
+and with the GIL held (for python types).::
+
+    cimport cython
+
+    ctypedef fused double_or_object:
+        cython.double
+        object
+
+    def increment(double_or_object x):
+        with nogil(double_or_object is cython.double):
+            # Same code handles both cython.double (GIL is released)
+            # and python object (GIL is not released).
+            x = x + 1
+        return x
+
 __signatures__
 ==============
 
