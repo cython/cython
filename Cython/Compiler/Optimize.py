@@ -4688,6 +4688,30 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             return None
         return node
 
+    def visit_GILStatNode(self, node):
+        self.visitchildren(node)
+        if node.condition is None:
+            return node
+
+        if node.condition.has_constant_result():
+            # Condition is True - Modify node to be a normal
+            # GILStatNode with condition=None
+            if node.condition.constant_result:
+                node.condition = None
+
+            # Condition is False - the body of the GILStatNode
+            # should run without changing the state of the gil
+            # return the body of the GILStatNode
+            else:
+                return node.body
+
+        # If condition is not constant we keep the GILStatNode as it is.
+        # Either it will later become constant (e.g. a `numeric is int`
+        # expression in a fused type function) and then when ConstantFolding
+        # runs again it will be handled or a later transform (i.e. GilCheck)
+        # will raise an error
+        return node
+
     # in the future, other nodes can have their own handler method here
     # that can replace them with a constant result node
 

@@ -580,6 +580,26 @@ The GIL may also be acquired through the ``with gil`` statement::
     with gil:
         <execute this block with the GIL acquired>
 
+.. _gil_conditional:
+
+Conditional Acquiring / Releasing the GIL
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Sometimes it is helpful to use a condition to decide whether to run a
+certain piece of code with or without the GIL. This code would run anyway,
+the difference is whether the GIL will be held or released.
+The condition must be constant (at compile time).
+
+This could be useful for profiling, debugging, performance testing, and
+for fused types (see :ref:`fused_gil_conditional`).::
+
+    DEF FREE_GIL = True
+
+    with nogil(FREE_GIL):
+        <code to be executed with the GIL released>
+
+        with gil(False):
+           <GIL is still released>
+
 Declaring a function as callable without the GIL
 --------------------------------------------------
 
