@@ -103,7 +103,7 @@ Other changes
 * Support for Python 2.6 was removed.
 
 
-0.29.6 (2019-0?-??)
+0.29.6 (2019-02-27)
 ===================
 
 Bugs fixed
