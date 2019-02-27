@@ -8,6 +8,10 @@ Cython Changelog
 Features added
 --------------
 
+* ``with gil/nogil`` statements can be conditional based on compile-time
+  constants, e.g. fused type checks.
+  Patch by Noam Hershtig.  (Github issue #2579)
+
 * Reimports of already imported modules are substantially faster.
   (Github issue #2854)
 
