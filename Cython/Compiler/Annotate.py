@@ -198,17 +198,21 @@ class AnnotationCCodeWriter(CCodeWriter):
             for line in coverage_data.iterfind('lines/line')
         )
 
-    def _htmlify_code(self, code):
+    def _htmlify_code(self, code, is_cython_code):
         try:
             from pygments import highlight
-            from pygments.lexers import CythonLexer
+            from pygments.lexers import CythonLexer, CppLexer
             from pygments.formatters import HtmlFormatter
         except ImportError:
             # no Pygments, just escape the code
             return html_escape(code)
 
+        if is_cython_code:
+            lexer = CythonLexer(stripnl=False, stripall=False)
+        else:
+            lexer = CppLexer(stripnl=False, stripall=False)
         html_code = highlight(
-            code, CythonLexer(stripnl=False, stripall=False),
+            code, lexer,
             HtmlFormatter(nowrap=True))
         return html_code
 
@@ -228,7 +232,7 @@ class AnnotationCCodeWriter(CCodeWriter):
             return u"<span class='%s'>%s</span>" % (
                 group_name, match.group(group_name))
 
-        lines = self._htmlify_code(cython_code).splitlines()
+        lines = self._htmlify_code(cython_code, True).splitlines()
         lineno_width = len(str(len(lines)))
         if not covered_lines:
             covered_lines = None
@@ -282,9 +286,9 @@ class AnnotationCCodeWriter(CCodeWriter):
 
         # now the whole code:
         outlist.append(u'<p><div class="cython">')
-        outlist.append(u"<pre class='cython line'{onclick}>+ Complete cythonized code</pre>\n".format(onclick=self._onclick_attr))     
-        complete_code = self.buffer.getvalue()
-        complete_code_as_html = _parse_code(annotate, html_escape(complete_code)) 
+        onclick_title = u"<pre class='cython line'{onclick}>+ Complete cythonized code</pre>\n"
+        outlist.append(onclick_title.format(onclick=self._onclick_attr))
+        complete_code_as_html = self._htmlify_code(self.buffer.getvalue(), False)
         outlist.append(u"<pre class='cython code'>{code}</pre>".format(code=complete_code_as_html))
         outlist.append(u"</div></p>")
 
