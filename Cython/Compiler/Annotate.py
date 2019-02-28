@@ -282,10 +282,9 @@ class AnnotationCCodeWriter(CCodeWriter):
 
         # now the whole code:
         outlist.append(u'<p><div class="cython">')
-        complete_code = StringIO()
-        self.buffer.copyto(complete_code)
-        outlist.append(u"<pre class='cython line'{onclick}>+ Complete cythonized code</pre>\n".format(onclick=self._onclick_attr))
-        complete_code_as_html = _parse_code(annotate, html_escape(complete_code.getvalue())) 
+        outlist.append(u"<pre class='cython line'{onclick}>+ Complete cythonized code</pre>\n".format(onclick=self._onclick_attr))     
+        complete_code = self.buffer.getvalue()
+        complete_code_as_html = _parse_code(annotate, html_escape(complete_code)) 
         outlist.append(u"<pre class='cython code'>{code}</pre>".format(code=complete_code_as_html))
         outlist.append(u"</div></p>")
 
