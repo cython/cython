@@ -2653,6 +2653,9 @@ class CFuncDefNode(FuncDefNode):
                 self.generate_arg_none_check(arg, code)
 
     def generate_execution_code(self, code):
+        if code.globalstate.directives['linetrace']:
+            code.mark_pos(self.pos)
+            code.putln("")  # generate line tracing code
         super(CFuncDefNode, self).generate_execution_code(code)
         if self.py_func_stat:
             self.py_func_stat.generate_execution_code(code)
