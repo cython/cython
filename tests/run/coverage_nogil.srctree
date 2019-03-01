@@ -25,19 +25,19 @@ plugins = Cython.Coverage
 # cython: linetrace=True
 # distutils: define_macros=CYTHON_TRACE=1 CYTHON_TRACE_NOGIL=1
 
-cdef int func1(int a, int b) nogil:
-    cdef int x                   #  5
-    with gil:                    #  6
-        x = 1                    #  7
-    cdef int c = func2(a) + b    #  8
-    return x + c                 #  9
+cdef int func1(int a, int b) nogil:  #  4
+    cdef int x                       #  5
+    with gil:                        #  6
+        x = 1                        #  7
+    cdef int c = func2(a) + b        #  8
+    return x + c                     #  9
 
 
-cdef int func2(int a) with gil:
+cdef int func2(int a) with gil:  # 12
     return a * 2                 # 13
 
 
-def call(int a, int b):
+def call(int a, int b):          # 16
     a, b = b, a                  # 17
     with nogil:                  # 18
         result = func1(b, a)     # 19
@@ -56,20 +56,18 @@ except ImportError:
 from coverage import coverage
 
 
-import coverage_test_nogil
-
-assert not any(coverage_test_nogil.__file__.endswith(ext)
-               for ext in '.py .pyc .pyo .pyw .pyx .pxi'.split()), \
-    coverage_test_nogil.__file__
-
-
-def run_coverage(module):
-    module_name = module.__name__
-    module_path = module_name + '.pyx'
-
+def run_coverage():
     cov = coverage()
     cov.start()
+
+    import coverage_test_nogil as module
+    module_name = module.__name__
+    module_path = module_name + '.pyx'
+    assert not any(module.__file__.endswith(ext)
+                   for ext in '.py .pyc .pyo .pyw .pyx .pxi'.split()), \
+        module.__file__
     assert module.call(1, 2) == (1 * 2) + 2 + 1
+
     cov.stop()
 
     out = StringIO()
@@ -84,10 +82,10 @@ def run_coverage(module):
 
     executed = set(exec_lines) - set(missing_lines)
     # check that everything that runs with the gil owned was executed
-    assert all(line in executed for line in [13, 17, 18, 20]), '%s / %s' % (exec_lines, missing_lines)
+    assert all(line in executed for line in [12, 13, 16, 17, 18, 20]), '%s / %s' % (exec_lines, missing_lines)
     # check that everything that runs in nogil sections was executed
-    assert all(line in executed for line in [6, 7, 8, 9]), '%s / %s' % (exec_lines, missing_lines)
+    assert all(line in executed for line in [4, 6, 7, 8, 9]), '%s / %s' % (exec_lines, missing_lines)
 
 
 if __name__ == '__main__':
-    run_coverage(coverage_test_nogil)
+    run_coverage()
