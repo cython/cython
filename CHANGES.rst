@@ -47,6 +47,9 @@ Features added
 Bugs fixed
 ----------
 
+* Coverage reporting did not include the signature line of ``cdef`` functions.
+  (Github issue #1461)
+
 * The unicode methods ``.upper()``, ``.lower()`` and ``.title()`` were
   incorrectly optimised for single character input values and only returned
   the first character if multiple characters should have been returned.
