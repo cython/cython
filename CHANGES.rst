@@ -103,6 +103,16 @@ Other changes
 * Support for Python 2.6 was removed.
 
 
+0.29.7 (2019-0?-??)
+===================
+
+Bugs fixed
+----------
+
+* Coverage reporting did not include the signature line of ``cdef`` functions.
+  (Github issue #1461)
+
+
 0.29.6 (2019-02-27)
 ===================
 
