@@ -255,7 +255,7 @@ Conditional GIL Acquiring / Releasing
 =====================================
 
 Acquiring and releasing the GIL can be controlled by a condition
-which is known at compile time (see :ref:`_gil_conditional`).
+which is known at compile time (see :ref:`gil_conditional`).
 
 This is most useful when combined with fused types.
 A fused type function may have to handle both cython native types
