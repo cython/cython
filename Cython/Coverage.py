@@ -191,6 +191,7 @@ class Plugin(CoveragePlugin):
             match_source_path_line = re.compile(r' */[*] +"(.*)":([0-9]+)$').match
             match_current_code_line = re.compile(r' *[*] (.*) # <<<<<<+$').match
             match_comment_end = re.compile(r' *[*]/$').match
+            match_trace_line = re.compile(r' *__Pyx_TraceLine\(([0-9]+),').match
             not_executable = re.compile(
                 r'\s*c(?:type)?def\s+'
                 r'(?:(?:public|external)\s+)?'
@@ -199,15 +200,20 @@ class Plugin(CoveragePlugin):
             ).match
 
             code_lines = defaultdict(dict)
-            filenames = set()
+            executable_lines = defaultdict(set)
+            current_filename = None
             with open(c_file) as lines:
                 lines = iter(lines)
                 for line in lines:
                     match = match_source_path_line(line)
                     if not match:
+                        if '__Pyx_TraceLine(' in line and current_filename is not None:
+                            trace_line = match_trace_line(line)
+                            if trace_line:
+                                executable_lines[current_filename].add(int(trace_line.group(1)))
                         continue
                     filename, lineno = match.groups()
-                    filenames.add(filename)
+                    current_filename = filename
                     lineno = int(lineno)
                     for comment_line in lines:
                         match = match_current_code_line(comment_line)
@@ -220,6 +226,12 @@ class Plugin(CoveragePlugin):
                         elif match_comment_end(comment_line):
                             # unexpected comment format - false positive?
                             break
+
+            # Remove lines that generated code but are not traceable.
+            for filename, lines in code_lines.items():
+                dead_lines = set(lines).difference(executable_lines.get(filename, ()))
+                for lineno in dead_lines:
+                    del lines[lineno]
 
             self._parsed_c_files[c_file] = code_lines
 
