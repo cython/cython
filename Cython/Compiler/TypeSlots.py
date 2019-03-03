@@ -446,7 +446,7 @@ class DocStringSlot(SlotDescriptor):
             return "0"
         if doc.is_unicode:
             doc = doc.as_utf8_string()
-        return doc.as_c_string_literal()
+        return "PyDoc_STR(%s)" % doc.as_c_string_literal()
 
 
 class SuiteSlot(SlotDescriptor):
