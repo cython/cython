@@ -10448,7 +10448,8 @@ class TypecastNode(ExprNode):
                         error(self.pos, "Python objects cannot be cast from pointers of primitive types")
                 else:
                     # Should this be an error?
-                    warning(self.pos, "No conversion from %s to %s, python object pointer used." % (self.operand.type, self.type))
+                    warning(self.pos, "No conversion from %s to %s, python object pointer used." % (
+                        self.operand.type, self.type))
                 self.operand = self.operand.coerce_to_simple(env)
         elif from_py and not to_py:
             if self.type.create_from_py_utility_code(env):
@@ -10457,7 +10458,8 @@ class TypecastNode(ExprNode):
                 if not (self.type.base_type.is_void or self.type.base_type.is_struct):
                     error(self.pos, "Python objects cannot be cast to pointers of primitive types")
             else:
-                warning(self.pos, "No conversion from %s to %s, python object pointer used." % (self.type, self.operand.type))
+                warning(self.pos, "No conversion from %s to %s, python object pointer used." % (
+                    self.type, self.operand.type))
         elif from_py and to_py:
             if self.typecheck:
                 self.operand = PyTypeTestNode(self.operand, self.type, env, notnone=True)
@@ -10469,6 +10471,13 @@ class TypecastNode(ExprNode):
         elif self.operand.type.is_fused:
             self.operand = self.operand.coerce_to(self.type, env)
             #self.type = self.operand.type
+        if self.type.is_ptr and self.type.base_type.is_cfunction and self.type.base_type.nogil:
+            op_type = self.operand.type
+            if op_type.is_ptr:
+                op_type = op_type.base_type
+            if op_type.is_cfunction and not op_type.nogil:
+                warning(self.pos,
+                        "Casting a GIL-requiring function into a nogil function circumvents GIL validation", 1)
         return self
 
     def is_simple(self):
