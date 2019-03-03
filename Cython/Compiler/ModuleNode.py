@@ -2350,6 +2350,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         profile = code.globalstate.directives['profile']
         linetrace = code.globalstate.directives['linetrace']
         if profile or linetrace:
+            if linetrace:
+                code.use_fast_gil_utility_code()
             code.globalstate.use_utility_code(UtilityCode.load_cached("Profile", "Profile.c"))
 
         code.put_declare_refcount_context()
