@@ -7539,11 +7539,13 @@ class TryFinallyStatNode(StatNode):
 
         code.funcstate.in_try_finally = was_in_try_finally
         code.putln("}")
-        code.set_all_labels(old_labels)
 
         temps_to_clean_up = code.funcstate.all_free_managed_temps()
         code.mark_pos(self.finally_clause.pos)
         code.putln("/*finally:*/ {")
+
+        # Reset labels only after writing out a potential line trace call for correct nogil error handling.
+        code.set_all_labels(old_labels)
 
         def fresh_finally_clause(_next=[self.finally_clause]):
             # generate the original subtree once and always keep a fresh copy
