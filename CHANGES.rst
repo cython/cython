@@ -11,6 +11,9 @@ Bugs fixed
 * Coverage reporting did not include the signature line of ``cdef`` functions.
   (Github issue #1461)
 
+* Casting a GIL-requiring function into a nogil function now issues a warning.
+  (Github issue #2879)
+
 
 0.29.6 (2019-02-27)
 ===================
