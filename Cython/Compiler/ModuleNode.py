@@ -2728,7 +2728,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if Options.pre_import is not None:
             code.put_decref_clear(Naming.preimport_cname, py_object_type,
                                   nanny=False, clear_before_decref=True)
-        for cname in [Naming.cython_runtime_cname, env.module_dict_cname, Naming.builtins_cname]:
+        for cname in [env.module_dict_cname, Naming.cython_runtime_cname, Naming.builtins_cname]:
             code.put_decref_clear(cname, py_object_type, nanny=False, clear_before_decref=True)
 
     def generate_main_method(self, env, code):
