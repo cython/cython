@@ -29,7 +29,12 @@ def anno_gen(x: 'int') -> 'float':
     >>> gen = anno_gen(2)
     >>> next(gen)
     2.0
-    >>> sorted(anno_gen.__annotations__.items())
-    [('return', 'float'), ('x', 'int')]
+    >>> ret, arg = sorted(anno_gen.__annotations__.items())
+    >>> print(ret[0]); print(ret[1])
+    return
+    float
+    >>> print(arg[0]); print(arg[1])
+    x
+    int
     """
     yield float(x)
