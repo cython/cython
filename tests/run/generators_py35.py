@@ -22,3 +22,14 @@ def with_outer_raising(*args):
             yield i
         raise StopIteration
     return generator
+
+
+def anno_gen(x: 'int') -> 'float':
+    """
+    >>> gen = anno_gen(2)
+    >>> next(gen)
+    2.0
+    >>> sorted(anno_gen.__annotations__.items())
+    [('return', 'float'), ('x', 'int')]
+    """
+    yield float(x)
