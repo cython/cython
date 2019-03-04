@@ -14,6 +14,9 @@ Bugs fixed
 * Casting a GIL-requiring function into a nogil function now issues a warning.
   (Github issue #2879)
 
+* Generators and coroutines were missing their return type annotation.
+  (Github issue #2884)
+
 
 0.29.6 (2019-02-27)
 ===================
