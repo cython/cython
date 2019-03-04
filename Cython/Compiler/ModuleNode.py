@@ -2209,7 +2209,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if doc:
                     if doc.is_unicode:
                         doc = doc.as_utf8_string()
-                    doc_code = doc.as_c_string_literal()
+                    doc_code = "PyDoc_STR(%s)" % doc.as_c_string_literal()
                 else:
                     doc_code = "0"
                 code.putln(
