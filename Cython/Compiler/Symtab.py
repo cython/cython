@@ -2420,15 +2420,17 @@ class CppClassScope(Scope):
             cname = name
         entry = self.lookup_here(name)
         if defining and entry is not None:
-            if entry.type.same_as(type):
+            if type.is_cfunction:
+                entry = self.declare(name, cname, type, pos, visibility)
+            elif entry.type.same_as(type):
                 # Fix with_gil vs nogil.
                 entry.type = entry.type.with_with_gil(type.with_gil)
-            elif type.is_cfunction and type.compatible_signature_with(entry.type):
-                entry.type = type
             else:
                 error(pos, "Function signature does not match previous declaration")
         else:
             entry = self.declare(name, cname, type, pos, visibility)
+            if type.is_cfunction and not defining:
+                entry.is_inherited = 1
         entry.is_variable = 1
         entry.is_cfunction = type.is_cfunction
         if type.is_cfunction and self.type:
@@ -2466,7 +2468,8 @@ class CppClassScope(Scope):
                 if base_entry and not base_entry.type.nogil:
                     error(pos, "Constructor cannot be called without GIL unless all base constructors can also be called without GIL")
                     error(base_entry.pos, "Base constructor defined here.")
-        prev_entry = self.lookup_here(name)
+        # The previous entries management is now done directly in Scope.declare
+        #prev_entry = self.lookup_here(name)
         entry = self.declare_var(name, type, pos,
                                  defining=defining,
                                  cname=cname, visibility=visibility)
