@@ -94,6 +94,9 @@ def cython_compile(path_pattern, options):
                 # assume it's a file(-like thing)
                 paths = [path]
 
+            if options.no_docstrings:
+                Options.docstrings = False
+            
             ext_modules = cythonize(
                 paths,
                 nthreads=options.parallel,
@@ -194,6 +197,8 @@ def parse_args(args):
                       help='increase Python compatibility by ignoring some compile time errors')
     parser.add_option('-k', '--keep-going', dest='keep_going', action='store_true',
                       help='compile as much as possible, ignore compilation failures')
+    parser.add_option('-D', '--no-docstrings', dest='no_docstrings', action='store_true',
+                      help='strip docstrings')
 
     options, args = parser.parse_args(args)
     if not args:
