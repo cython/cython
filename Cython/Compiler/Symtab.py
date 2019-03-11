@@ -2528,6 +2528,13 @@ class CppClassScope(Scope):
 
         return scope
 
+    def lookup_here(self, name):
+        if name == "__init__":
+            name = "<init>"
+        elif name == "__dealloc__":
+            name = "<del>"
+        return super(CppClassScope, self).lookup_here(name)
+
 
 class PropertyScope(Scope):
     #  Scope holding the __get__, __set__ and __del__ methods for
