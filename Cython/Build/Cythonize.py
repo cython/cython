@@ -94,9 +94,6 @@ def cython_compile(path_pattern, options):
                 # assume it's a file(-like thing)
                 paths = [path]
 
-            if options.no_docstrings:
-                Options.docstrings = False
-            
             ext_modules = cythonize(
                 paths,
                 nthreads=options.parallel,
@@ -223,6 +220,9 @@ def main(args=None):
 
     if options.annotate:
         Options.annotate = True
+
+    if options.no_docstrings:
+        Options.docstrings = False
 
     for path in paths:
         cython_compile(path, options)
