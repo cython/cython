@@ -18,6 +18,10 @@ Features added
 * The ``volatile`` C modifier is supported in Cython code.
   Patch by Jeroen Demeyer.  (Github issue #1667)
 
+* ``@cython.trashcan(True)`` can be used on an extension type to enable the
+  CPython trashcan. This allows deallocating deeply recursive objects without
+  overflowing the stack.  Patch by Jeroen Demeyer.  (Github issue #2842)
+
 * ``?`` is supported as NumPy dtype for ``bool``.
   Patch by Max Klein.  (Github issue #2675)
 
@@ -40,9 +44,8 @@ Features added
 * ``--no-capture`` added to ``runtests.py`` to prevent stdout/stderr capturing
   during srctree tests.  Patch by Matti Picus.
 
-* ``@cython.trashcan(True)`` can be used on an extension type to enable the
-  CPython trashcan. This allows deallocating deeply recursive objects without
-  overflowing the stack.  Patch by Jeroen Demeyer.  (Github issue #2842)
+* ``--no-docstrings`` option added to ``cythonize`` script.
+  Original patch by mo-han.  (Github issue #2889)
 
 Bugs fixed
 ----------
