@@ -3782,6 +3782,10 @@ def p_cpp_class_definition(s, pos,  ctx):
         s.next()
         s.expect('NEWLINE')
         s.expect_indent()
+        # Allow a cppclass to have docstrings. It will be discarded as comment.
+        # The goal of this is consistency: we can make docstrings inside cppclass methods,
+        # so why not on the cppclass itself ?
+        p_doc_string(s)
         attributes = []
         body_ctx = Ctx(visibility = ctx.visibility, level='cpp_class', nogil=nogil or ctx.nogil)
         body_ctx.templates = template_names
