@@ -448,16 +448,21 @@ class Scope(object):
             # See https://www.gnu.org/software/libc/manual/html_node/Reserved-Names.html#Reserved-Names
             warning(pos, "'%s' is a reserved name in C." % cname, -1)
         entries = self.entries
+        old_index = -1
         if name and name in entries and not shadow:
             old_entry = entries[name]
 
             # Reject redeclared C++ functions only if they have the same type signature.
             cpp_override_allowed = False
-            if type.is_cfunction and old_entry.type.is_cfunction and self.is_cpp():
-                for alt_entry in old_entry.all_alternatives():
-                    if type == alt_entry.type:
+            if type.is_cfunction and old_entry.type.is_cfunction and self.is_cpp_class_scope:
+                for index, alt_entry in enumerate(old_entry.all_alternatives()):
+                    if type.compatible_signature_with(alt_entry.type):
                         if name == '<init>' and not type.args:
                             # Cython pre-declares the no-args constructor - allow later user definitions.
+                            old_index = index
+                            cpp_override_allowed = True
+                        elif alt_entry.is_inherited:
+                            old_index = index
                             cpp_override_allowed = True
                         break
                 else:
@@ -481,12 +486,18 @@ class Scope(object):
         entry.create_wrapper = create_wrapper
         if name:
             entry.qualified_name = self.qualify_name(name)
-#            if name in entries and self.is_cpp():
-#                entries[name].overloaded_alternatives.append(entry)
-#            else:
-#                entries[name] = entry
             if not shadow:
-                entries[name] = entry
+                if name in entries and self.is_cpp_class_scope and type.is_cfunction:
+                    if old_index > -1:
+                        if old_index > 0:
+                            entries[name].overloaded_alternatives[old_index-1] = entry
+                        else:
+                            entry.overloaded_alternatives = entries[name].overloaded_alternatives
+                            entries[name] = entry
+                    else:
+                        entries[name].overloaded_alternatives.append(entry)
+                else:
+                    entries[name] = entry
 
         if type.is_memoryviewslice:
             from . import MemoryView
@@ -2459,8 +2470,8 @@ class CppClassScope(Scope):
         entry = self.declare_var(name, type, pos,
                                  defining=defining,
                                  cname=cname, visibility=visibility)
-        if prev_entry and not defining:
-            entry.overloaded_alternatives = prev_entry.all_alternatives()
+        #if prev_entry and not defining:
+        #    entry.overloaded_alternatives = prev_entry.all_alternatives()
         entry.utility_code = utility_code
         type.entry = entry
         return entry
