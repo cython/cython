@@ -1251,9 +1251,10 @@ def _init_multiprocessing_helper():
 def cleanup_cache(cache, target_size, ratio=.85):
     try:
         p = subprocess.Popen(['du', '-s', '-k', os.path.abspath(cache)], stdout=subprocess.PIPE)
+        stdout, _ = p.communicate()
         res = p.wait()
         if res == 0:
-            total_size = 1024 * int(p.stdout.read().strip().split()[0])
+            total_size = 1024 * int(stdout.strip().split()[0])
             if total_size < target_size:
                 return
     except (OSError, ValueError):
