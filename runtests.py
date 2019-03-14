@@ -1913,13 +1913,13 @@ threads_seen = []
 def check_thread_termination(ignore_seen=True):
     if threading is None: # no threading enabled in CPython
         return
-    current = threading.currentThread()
+    current = threading.current_thread()
     blocking_threads = []
     for t in threading.enumerate():
-        if not t.isAlive() or t == current or t.name == 'time_stamper':
+        if not t.is_alive() or t == current or t.name == 'time_stamper':
             continue
         t.join(timeout=2)
-        if t.isAlive():
+        if t.is_alive():
             if not ignore_seen:
                 blocking_threads.append(t)
                 continue
