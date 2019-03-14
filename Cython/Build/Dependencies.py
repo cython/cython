@@ -19,6 +19,11 @@ from distutils.util import strtobool
 import zipfile
 
 try:
+    from collections.abc import Iterable
+except ImportError:
+    from collections import Iterable
+
+try:
     import gzip
     gzip_open = gzip.open
     gzip_ext = '.gz'
@@ -749,7 +754,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
         exclude = []
     if patterns is None:
         return [], {}
-    elif isinstance(patterns, basestring) or not isinstance(patterns, collections.Iterable):
+    elif isinstance(patterns, basestring) or not isinstance(patterns, Iterable):
         patterns = [patterns]
     explicit_modules = set([m.name for m in patterns if isinstance(m, Extension)])
     seen = set()
