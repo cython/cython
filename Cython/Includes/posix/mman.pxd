@@ -46,6 +46,10 @@ cdef extern from "<sys/mman.h>" nogil:
     int   munlock(const void *addr, size_t Len)
     int   mlockall(int flags)
     int   munlockall()
+    # Linux-specific
+    enum: MLOCK_ONFAULT
+    enum: MCL_ONFAULT
+    int   mlock2(const void *addr, size_t len, int flags)
 
     int shm_open(const char *name, int oflag, mode_t mode)
     int shm_unlink(const char *name)
