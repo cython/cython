@@ -195,11 +195,11 @@ x = sin(0.0)
             ip.run_cell_magic('cython', '--verbose', code)
             ip.ex('g = f(10)')
         self.assertEqual(ip.user_ns['g'], 20.0)
-        self.assertEquals([verbose_log.INFO, verbose_log.DEBUG, verbose_log.INFO],
+        self.assertEqual([verbose_log.INFO, verbose_log.DEBUG, verbose_log.INFO],
                           verbose_log.thresholds)
 
         with mock_distutils() as normal_log:
             ip.run_cell_magic('cython', '', code)
             ip.ex('g = f(10)')
         self.assertEqual(ip.user_ns['g'], 20.0)
-        self.assertEquals([normal_log.INFO], normal_log.thresholds)
+        self.assertEqual([normal_log.INFO], normal_log.thresholds)

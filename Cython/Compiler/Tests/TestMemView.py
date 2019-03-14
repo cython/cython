@@ -48,7 +48,7 @@ class TestMemviewParsing(CythonTest):
     def test_basic(self):
         t = self.parse(u"cdef int[:] x")
         memv_node = t.stats[0].base_type
-        self.assert_(isinstance(memv_node, MemoryViewSliceTypeNode))
+        self.assertTrue(isinstance(memv_node, MemoryViewSliceTypeNode))
 
     # we also test other similar declarations (buffers, anonymous C arrays)
     # since the parsing has to distinguish between them.

@@ -87,7 +87,7 @@ class TestNormalizeTree(TransformTest):
 
     def test_pass_eliminated(self):
         t = self.run_pipeline([NormalizeTree(None)], u"pass")
-        self.assert_(len(t.stats) == 0)
+        self.assertTrue(len(t.stats) == 0)
 
 class TestWithTransform(object): # (TransformTest): # Disabled!
 

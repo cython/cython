@@ -24,10 +24,10 @@ class TestInline(CythonTest):
         self.test_kwds['lib_dir'] = lib_dir
 
     def test_simple(self):
-        self.assertEquals(inline("return 1+2", **self.test_kwds), 3)
+        self.assertEqual(inline("return 1+2", **self.test_kwds), 3)
 
     def test_types(self):
-        self.assertEquals(inline("""
+        self.assertEqual(inline("""
             cimport cython
             return cython.typeof(a), cython.typeof(b)
         """, a=1.0, b=[], **self.test_kwds), ('double', 'list object'))
@@ -35,13 +35,13 @@ class TestInline(CythonTest):
     def test_locals(self):
         a = 1
         b = 2
-        self.assertEquals(inline("return a+b", **self.test_kwds), 3)
+        self.assertEqual(inline("return a+b", **self.test_kwds), 3)
 
     def test_globals(self):
-        self.assertEquals(inline("return global_value + 1", **self.test_kwds), global_value + 1)
+        self.assertEqual(inline("return global_value + 1", **self.test_kwds), global_value + 1)
 
     def test_no_return(self):
-        self.assertEquals(inline("""
+        self.assertEqual(inline("""
             a = 1
             cdef double b = 2
             cdef c = []
@@ -49,7 +49,7 @@ class TestInline(CythonTest):
 
     def test_def_node(self):
         foo = inline("def foo(x): return x * x", **self.test_kwds)['foo']
-        self.assertEquals(foo(7), 49)
+        self.assertEqual(foo(7), 49)
 
     def test_class_ref(self):
         class Type(object):
@@ -64,7 +64,7 @@ class TestInline(CythonTest):
         c = cy.declare(cy.pointer(cy.float), &b)
         return b
         """, a=3, **self.test_kwds)
-        self.assertEquals(type(b), float)
+        self.assertEqual(type(b), float)
 
     def test_compiler_directives(self):
         self.assertEqual(
@@ -92,5 +92,5 @@ class TestInline(CythonTest):
             import numpy
             a = numpy.ndarray((10, 20))
             a[0,0] = 10
-            self.assertEquals(safe_type(a), 'numpy.ndarray[numpy.float64_t, ndim=2]')
-            self.assertEquals(inline("return a[0,0]", a=a, **self.test_kwds), 10.0)
+            self.assertEqual(safe_type(a), 'numpy.ndarray[numpy.float64_t, ndim=2]')
+            self.assertEqual(inline("return a[0,0]", a=a, **self.test_kwds), 10.0)
