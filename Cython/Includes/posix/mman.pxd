@@ -24,6 +24,8 @@ cdef extern from "<sys/mman.h>" nogil:
     enum: MAP_NOCORE                #  Typically available only on BSD
     enum: MAP_NOSYNC
 
+    void *MAP_FAILED
+
     void *mmap(void *addr, size_t Len, int prot, int flags, int fd, off_t off)
     int   munmap(void *addr, size_t Len)
     int   mprotect(void *addr, size_t Len, int prot)
