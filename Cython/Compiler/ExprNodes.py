@@ -13020,9 +13020,10 @@ class PyTypeTestNode(CoercionNode):
     exact_builtin_type = True
 
     def __init__(self, arg, dst_type, env, notnone=False):
-        #  The arg is know to be a Python object, and
+        #  The arg is known to be a Python object, and
         #  the dst_type is known to be an extension type.
-        assert dst_type.is_extension_type or dst_type.is_builtin_type, "PyTypeTest on non extension type"
+        assert dst_type.is_extension_type or dst_type.is_builtin_type, \
+            "PyTypeTest on non extension type %s" % dst_type
         CoercionNode.__init__(self, arg)
         self.type = dst_type
         self.result_ctype = arg.ctype()
