@@ -4527,22 +4527,20 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         cascades = [[node.operand1]]
         final_false_result = []
 
-        def split_cascades(cmp_node):
+        cmp_node = node
+        while cmp_node is not None:
             if cmp_node.has_constant_result():
                 if not cmp_node.constant_result:
                     # False => short-circuit
                     final_false_result.append(self._bool_node(cmp_node, False))
-                    return
+                    break
                 else:
                     # True => discard and start new cascade
                     cascades.append([cmp_node.operand2])
             else:
                 # not constant => append to current cascade
                 cascades[-1].append(cmp_node)
-            if cmp_node.cascade:
-                split_cascades(cmp_node.cascade)
-
-        split_cascades(node)
+            cmp_node = cmp_node.cascade
 
         cmp_nodes = []
         for cascade in cascades:
