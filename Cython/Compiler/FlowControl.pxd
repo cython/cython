@@ -107,6 +107,7 @@ cdef class ControlFlowAnalysis(CythonTransform):
     cdef list stack
     cdef object env
     cdef ControlFlow flow
+    cdef object object_expr
     cdef bint in_inplace_assignment
 
     cpdef mark_assignment(self, lhs, rhs=*)

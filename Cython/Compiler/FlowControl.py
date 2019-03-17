@@ -5,14 +5,12 @@ from __future__ import absolute_import
 import cython
 cython.declare(PyrexTypes=object, ExprNodes=object, Nodes=object,
                Builtin=object, InternalError=object, error=object, warning=object,
-               py_object_type=object, unspecified_type=object,
-               object_expr=object, fake_rhs_expr=object, TypedExprNode=object)
+               fake_rhs_expr=object, TypedExprNode=object)
 
 from . import Builtin
 from . import ExprNodes
 from . import Nodes
 from . import Options
-from .PyrexTypes import py_object_type, unspecified_type
 from . import PyrexTypes
 
 from .Visitor import TreeVisitor, CythonTransform
@@ -30,9 +28,8 @@ class TypedExprNode(ExprNodes.ExprNode):
     def may_be_none(self):
         return self._may_be_none != False
 
-object_expr = TypedExprNode(py_object_type, may_be_none=True)
 # Fake rhs to silence "unused variable" warning
-fake_rhs_expr = TypedExprNode(unspecified_type)
+fake_rhs_expr = TypedExprNode(PyrexTypes.unspecified_type)
 
 
 class ControlBlock(object):
@@ -375,9 +372,9 @@ class NameDeletion(NameAssignment):
 
     def infer_type(self):
         inferred_type = self.rhs.infer_type(self.entry.scope)
-        if (not inferred_type.is_pyobject and
-            inferred_type.can_coerce_to_pyobject(self.entry.scope)):
-            return py_object_type
+        if (not inferred_type.is_pyobject
+                and inferred_type.can_coerce_to_pyobject(self.entry.scope)):
+            return PyrexTypes.py_object_type
         self.inferred_type = inferred_type
         return inferred_type
 
@@ -687,6 +684,7 @@ class ControlFlowAnalysis(CythonTransform):
         self.env = node.scope
         self.stack = []
         self.flow = ControlFlow()
+        self.object_expr = TypedExprNode(PyrexTypes.py_object_type, may_be_none=True)
         self.visitchildren(node)
 
         check_definitions(self.flow, self.current_directives)
@@ -771,7 +769,7 @@ class ControlFlowAnalysis(CythonTransform):
             self.flow.nextblock()
 
         if not rhs:
-            rhs = object_expr
+            rhs = self.object_expr
         if lhs.is_name:
             if lhs.entry is not None:
                 entry = lhs.entry
