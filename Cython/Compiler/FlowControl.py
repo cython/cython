@@ -673,7 +673,8 @@ class AssignmentCollector(TreeVisitor):
 class ControlFlowAnalysis(CythonTransform):
 
     def visit_ModuleNode(self, node):
-        self.gv_ctx = GVContext()
+        dot_output = self.current_directives['control_flow.dot_output']
+        self.gv_ctx = GVContext() if dot_output else None
         self.constant_folder = ConstantFolding()
 
         # Set of NameNode reductions
@@ -689,14 +690,10 @@ class ControlFlowAnalysis(CythonTransform):
 
         check_definitions(self.flow, self.current_directives)
 
-        dot_output = self.current_directives['control_flow.dot_output']
         if dot_output:
             annotate_defs = self.current_directives['control_flow.dot_annotate_defs']
-            fp = open(dot_output, 'wt')
-            try:
+            with open(dot_output, 'wt') as fp:
                 self.gv_ctx.render(fp, 'module', annotate_defs=annotate_defs)
-            finally:
-                fp.close()
         return node
 
     def visit_FuncDefNode(self, node):
@@ -744,7 +741,8 @@ class ControlFlowAnalysis(CythonTransform):
         check_definitions(self.flow, self.current_directives)
         self.flow.blocks.add(self.flow.entry_point)
 
-        self.gv_ctx.add(GV(node.local_scope.name, self.flow))
+        if self.gv_ctx is not None:
+            self.gv_ctx.add(GV(node.local_scope.name, self.flow))
 
         self.flow = self.stack.pop()
         self.env = self.env_stack.pop()
