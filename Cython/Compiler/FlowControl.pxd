@@ -11,10 +11,8 @@ cdef class ControlBlock:
      cdef public list stats
      cdef public dict gen
      cdef public set bounded
-     cdef public dict input
-     cdef public dict output
 
-     # Big integer it bitsets
+     # Big integer bitsets
      cdef public object i_input
      cdef public object i_output
      cdef public object i_gen
