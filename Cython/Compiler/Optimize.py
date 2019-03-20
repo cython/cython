@@ -2777,11 +2777,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             return node
         type_arg = args[0]
         if not obj.is_name or not type_arg.is_name:
-            # play safe
-            return node
+            return node  # not a simple case
         if obj.type != Builtin.type_type or type_arg.type != Builtin.type_type:
-            # not a known type, play safe
-            return node
+            return node  # not a known type
         if not type_arg.type_entry or not obj.type_entry:
             if obj.name != type_arg.name:
                 return node
