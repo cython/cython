@@ -831,7 +831,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_typedef(self, entry, code):
         base_type = entry.type.typedef_base_type
-        if base_type.is_numeric:
+        enclosing_scope = entry.scope
+        if base_type.is_numeric and not enclosing_scope.is_cpp_class_scope:
             try:
                 writer = code.globalstate['numeric_typedefs']
             except KeyError:
@@ -909,6 +910,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     [base_class.empty_declaration_code() for base_class in type.base_classes])
                 code.put(" : public %s" % base_class_decl)
             code.putln(" {")
+            self.generate_type_header_code(scope.type_entries, code)
             py_attrs = [e for e in scope.entries.values()
                         if e.type.is_pyobject and not e.is_inherited]
             has_virtual_methods = False
