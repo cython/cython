@@ -1284,9 +1284,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         cpp_class_attrs = [entry for entry in scope.var_entries
                            if entry.type.is_cpp_class]
 
-        new_func_entry = scope.lookup_here("__new__")
-        if base_type or (new_func_entry and new_func_entry.is_special
-                         and not new_func_entry.trivial_signature):
+        cinit_func_entry = scope.lookup_here("__cinit__")
+        if cinit_func_entry and not cinit_func_entry.is_special:
+            cinit_func_entry = None
+
+        if base_type or (cinit_func_entry and not cinit_func_entry.trivial_signature):
             unused_marker = ''
         else:
             unused_marker = 'CYTHON_UNUSED '
@@ -1394,14 +1396,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if cclass_entry.cname == '__pyx_memoryviewslice':
             code.putln("p->from_slice.memview = NULL;")
 
-        if new_func_entry and new_func_entry.is_special:
-            if new_func_entry.trivial_signature:
+        if cinit_func_entry:
+            if cinit_func_entry.trivial_signature:
                 cinit_args = "o, %s, NULL" % Naming.empty_tuple
             else:
                 cinit_args = "o, a, k"
             needs_error_cleanup = True
             code.putln("if (unlikely(%s(%s) < 0)) goto bad;" % (
-                new_func_entry.func_cname, cinit_args))
+                cinit_func_entry.func_cname, cinit_args))
 
         code.putln(
             "return o;")
