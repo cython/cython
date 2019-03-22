@@ -870,7 +870,7 @@ class CythonCompileTestCase(unittest.TestCase):
             self.language,
             "/cy2" if self.language_level == 2 else "/cy3" if self.language_level == 3 else "",
             "/pythran" if self.pythran_dir is not None else "",
-            self.name
+            self.description_name()
         )
 
     def description_name(self):
@@ -1493,7 +1493,7 @@ class PartialTestResult(_TextTestResult):
 
 class CythonUnitTestCase(CythonRunTestCase):
     def shortDescription(self):
-        return "compiling (%s) tests in %s" % (self.language, self.name)
+        return "compiling (%s) tests in %s" % (self.language, self.description_name())
 
     def run_tests(self, result, ext_so_path):
         with self.stats.time(self.name, self.language, 'import'):
