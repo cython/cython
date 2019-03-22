@@ -1436,8 +1436,9 @@ static CYTHON_INLINE PyThreadState *__Pyx_FastGil_get_tcur(void) {
 
 static PyGILState_STATE __Pyx_FastGil_PyGILState_Ensure(void) {
   int current;
+  PyThreadState *tcur;
   __Pyx_FastGIL_Remember0();
-  PyThreadState *tcur = __Pyx_FastGil_get_tcur();
+  tcur = __Pyx_FastGil_get_tcur();
   if (tcur == NULL) {
     // Uninitialized, need to initialize now.
     return PyGILState_Ensure();
