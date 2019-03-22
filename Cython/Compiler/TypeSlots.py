@@ -362,17 +362,17 @@ class GCClearReferencesSlot(GCDependentSlot):
 class ConstructorSlot(InternalMethodSlot):
     #  Descriptor for tp_new and tp_dealloc.
 
-    def __init__(self, slot_name, method, **kargs):
+    def __init__(self, slot_name, method=None, **kargs):
         InternalMethodSlot.__init__(self, slot_name, **kargs)
         self.method = method
 
     def slot_code(self, scope):
-        entry = scope.lookup_here(self.method)
-        if (self.slot_name != 'tp_new'
-                and scope.parent_type.base_type
+        entry = scope.lookup_here(self.method) if self.method else None
+        if (scope.parent_type.base_type
                 and not scope.has_pyobject_attrs
                 and not scope.has_memoryview_attrs
                 and not scope.has_cpp_class_attrs
+                and not (self.slot_name == 'tp_new' and scope.parent_type.vtabslot_cname)
                 and not (entry and entry.is_special)):
             # if the type does not have object attributes, it can
             # delegate GC methods to its parent - iff the parent
@@ -382,8 +382,6 @@ class ConstructorSlot(InternalMethodSlot):
                 entry = scope.parent_scope.lookup_here(scope.parent_type.base_type.name)
                 if entry.visibility != 'extern':
                     return self.slot_code(parent_type_scope)
-        if entry and not entry.is_special:
-            return "0"
         return InternalMethodSlot.slot_code(self, scope)
 
 
@@ -877,7 +875,7 @@ slot_table = (
 
     MethodSlot(initproc, "tp_init", "__init__"),
     EmptySlot("tp_alloc"), #FixedSlot("tp_alloc", "PyType_GenericAlloc"),
-    InternalMethodSlot("tp_new"),
+    ConstructorSlot("tp_new", "__cinit__"),
     EmptySlot("tp_free"),
 
     EmptySlot("tp_is_gc"),

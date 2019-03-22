@@ -60,6 +60,11 @@ Bugs fixed
   semantics.  It now passes through the Mapping protocol first when supported.
   (Github issue #1807)
 
+* Extension types that do not need their own ``tp_new`` implementation (because
+  they have no object attributes etc.) directly inherit the implementation of
+  their parent type if that is available in the same module.
+  (Github issue #1555)
+
 * The ``Py_hash_t`` type failed to accept arbitrary "index" values.
   (Github issue #2752)
 
