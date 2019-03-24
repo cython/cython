@@ -233,25 +233,6 @@ class Context(object):
         # for a dotted filename, and its containing package root
         # directory is searched first for a non-dotted filename.
         pxd = self.search_include_directories(qualified_name, ".pxd", pos, sys_path=sys_path)
-        if pxd is None: # XXX Keep this until Includes/Deprecated is removed
-            if (qualified_name.startswith('python') or
-                    qualified_name in ('stdlib', 'stdio', 'stl')):
-                standard_include_path = os.path.abspath(os.path.normpath(
-                        os.path.join(os.path.dirname(__file__), os.path.pardir, 'Includes')))
-                deprecated_include_path = os.path.join(standard_include_path, 'Deprecated')
-                self.include_directories.append(deprecated_include_path)
-                try:
-                    pxd = self.search_include_directories(qualified_name, ".pxd", pos)
-                finally:
-                    self.include_directories.pop()
-                if pxd:
-                    name = qualified_name
-                    if name.startswith('python'):
-                        warning(pos, "'%s' is deprecated, use 'cpython'" % name, 1)
-                    elif name in ('stdlib', 'stdio'):
-                        warning(pos, "'%s' is deprecated, use 'libc.%s'" % (name, name), 1)
-                    elif name in ('stl'):
-                        warning(pos, "'%s' is deprecated, use 'libcpp.*.*'" % name, 1)
         if pxd is None and Options.cimport_from_pyx:
             return self.find_pyx_file(qualified_name, pos)
         return pxd
