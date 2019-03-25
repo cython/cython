@@ -5775,7 +5775,7 @@ class InPlaceAssignmentNode(AssignmentNode):
 
     def create_binop_node(self):
         from . import ExprNodes
-        return ExprNodes.binop_node(self.pos, self.operator, self.lhs, self.rhs)
+        return ExprNodes.binop_node(self.pos, self.operator, self.lhs, self.rhs, inplace=True)
 
 
 class PrintStatNode(StatNode):
