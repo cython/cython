@@ -3795,9 +3795,10 @@ class CppClassType(CType):
     def is_subclass(self, other_type):
         if self.same_as_resolved_type(other_type):
             return 1
-        for base_class in self.base_classes:
-            if base_class.is_subclass(other_type):
-                return 1
+        if self.base_classes:
+            for base_class in self.base_classes:
+                if base_class.is_subclass(other_type):
+                    return 1
         return 0
 
     def set_scope(self, scope):
