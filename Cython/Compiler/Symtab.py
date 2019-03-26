@@ -2511,6 +2511,8 @@ class CppClassScope(Scope):
                 entry.is_variable = 1
                 entry.is_inherited = 1
                 entry.is_cfunction = base_entry.is_cfunction
+                if entry.is_cfunction:
+                    entry.func_cname = base_entry.func_cname
                 self.inherited_var_entries.append(entry)
         for base_entry in base_scope.cfunc_entries:
             entry = self.declare_cfunction(base_entry.name, base_entry.type,
