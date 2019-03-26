@@ -1270,8 +1270,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type.empty_declaration_code()))
 
     def generate_new_function(self, scope, code, cclass_entry):
-        tp_slot = TypeSlots.ConstructorSlot("tp_new", '__new__')
+        tp_slot = TypeSlots.ConstructorSlot("tp_new", "__cinit__")
         slot_func = scope.mangle_internal("tp_new")
+        if tp_slot.slot_code(scope) != slot_func:
+            return  # never used
+
         type = scope.parent_type
         base_type = type.base_type
 
@@ -1554,7 +1557,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_usr_dealloc_call(self, scope, code):
         entry = scope.lookup_here("__dealloc__")
-        if not entry:
+        if not entry or not entry.is_special:
             return
 
         code.putln("{")
