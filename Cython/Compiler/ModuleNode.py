@@ -341,7 +341,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         modules = self.referenced_modules
 
         if Options.annotate or options.annotate:
-            rootwriter = Annotate.AnnotationCCodeWriter()
+            show_whole_c_code = Options.annotate == 2 or options.annotate == 2
+            rootwriter = Annotate.AnnotationCCodeWriter(show_whole_c_code=show_whole_c_code)
         else:
             rootwriter = Code.CCodeWriter()
 
