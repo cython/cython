@@ -198,7 +198,7 @@ class AnnotationCCodeWriter(CCodeWriter):
             for line in coverage_data.iterfind('lines/line')
         )
 
-    def _htmlify_code(self, code, is_cython_code):
+    def _htmlify_code(self, code, language):
         try:
             from pygments import highlight
             from pygments.lexers import CythonLexer, CppLexer
@@ -207,10 +207,13 @@ class AnnotationCCodeWriter(CCodeWriter):
             # no Pygments, just escape the code
             return html_escape(code)
 
-        if is_cython_code:
+        if language == "cython":
             lexer = CythonLexer(stripnl=False, stripall=False)
-        else:
+        elif language == "c/cpp":
             lexer = CppLexer(stripnl=False, stripall=False)
+        else:
+            # unknown language, use fallback
+            return html_escape(code)
         html_code = highlight(
             code, lexer,
             HtmlFormatter(nowrap=True))
@@ -232,7 +235,7 @@ class AnnotationCCodeWriter(CCodeWriter):
             return u"<span class='%s'>%s</span>" % (
                 group_name, match.group(group_name))
 
-        lines = self._htmlify_code(cython_code, True).splitlines()
+        lines = self._htmlify_code(cython_code, "cython").splitlines()
         lineno_width = len(str(len(lines)))
         if not covered_lines:
             covered_lines = None
@@ -288,7 +291,7 @@ class AnnotationCCodeWriter(CCodeWriter):
         outlist.append(u'<p><div class="cython">')
         onclick_title = u"<pre class='cython line'{onclick}>+ Complete cythonized code</pre>\n"
         outlist.append(onclick_title.format(onclick=self._onclick_attr))
-        complete_code_as_html = self._htmlify_code(self.buffer.getvalue(), False)
+        complete_code_as_html = self._htmlify_code(self.buffer.getvalue(), "c/cpp")
         outlist.append(u"<pre class='cython code'>{code}</pre>".format(code=complete_code_as_html))
         outlist.append(u"</div></p>")
 
