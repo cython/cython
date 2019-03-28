@@ -1,7 +1,14 @@
 # tag: cpp
 # mode: compile
 
-cdef extern from "cpp_enums.h":
+cdef extern from *:
+    """
+    enum Enum1 {
+        Item1,
+        Item2
+    };
+
+    """
     cdef enum Enum1:
         Item1
         Item2
@@ -13,7 +20,16 @@ cdef Enum1 x, y
 x = Item1
 y = Item2
 
-cdef extern from "cpp_enums.h" namespace "Namespace1":
+
+cdef extern from * namespace "Namespace1":
+    """
+    namespace Namespace1 {
+        enum Enum2 {
+            Item3,
+            Item4
+        };
+    }
+    """
     cdef enum Enum2:
         Item3
         Item4
