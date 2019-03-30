@@ -31,6 +31,11 @@ Features added
 * Multiplication of Python numbers with small constant integers is faster.
   (Github issue #2808)
 
+* Extension types that do not need their own ``tp_new`` implementation (because
+  they have no object attributes etc.) directly inherit the implementation of
+  their parent type if possible.
+  (Github issue #1555)
+
 * The attributes ``gen.gi_frame`` and ``coro.cr_frame`` of Cython compiled
   generators and coroutines now return an actual frame object for introspection.
   (Github issue #2306)
@@ -59,11 +64,6 @@ Bugs fixed
   Sequence protocol before the Mapping protocol, which diverged from Python
   semantics.  It now passes through the Mapping protocol first when supported.
   (Github issue #1807)
-
-* Extension types that do not need their own ``tp_new`` implementation (because
-  they have no object attributes etc.) directly inherit the implementation of
-  their parent type if that is available in the same module.
-  (Github issue #1555)
 
 * The ``Py_hash_t`` type failed to accept arbitrary "index" values.
   (Github issue #2752)
@@ -107,6 +107,11 @@ Other changes
 * Source file fingerprinting now uses SHA-1 instead of MD5 since the latter
   tends to be slower and less widely supported these days.
   (Github issue #2790)
+
+* The long deprecated include files ``python_*``, ``stdio``, ``stdlib`` and
+  ``stl`` in ``Cython/Includes/Deprecated/`` were removed.  Use the ``libc.*``
+  and ``cpython.*`` pxd modules instead.
+  Patch by Jeroen Demeyer.  (Github issue #2904)
 
 * Support for Python 2.6 was removed.
 
