@@ -40,6 +40,8 @@ module_name_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_
 
 verbose = 0
 
+standard_include_path = os.path.abspath(os.path.normpath(
+        os.path.join(os.path.dirname(__file__), os.path.pardir, 'Includes')))
 
 class Context(object):
     #  This class encapsulates the context needed for compiling
@@ -66,7 +68,7 @@ class Context(object):
         self.modules = {"__builtin__" : Builtin.builtin_scope}
         self.cython_scope = CythonScope.create_cython_scope(self)
         self.modules["cython"] = self.cython_scope
-        self.include_directories = include_directories
+        self.include_directories = tuple(include_directories)
         self.future_directives = set()
         self.compiler_directives = compiler_directives
         self.cpp = cpp
@@ -74,10 +76,6 @@ class Context(object):
 
         self.pxds = {}  # full name -> node tree
         self._interned = {}  # (type(value), value, *key_args) -> interned_value
-
-        standard_include_path = os.path.abspath(os.path.normpath(
-            os.path.join(os.path.dirname(__file__), os.path.pardir, 'Includes')))
-        self.include_directories = include_directories + [standard_include_path]
 
         if language_level is not None:
             self.set_language_level(language_level)
@@ -253,8 +251,13 @@ class Context(object):
 
     def search_include_directories(self, qualified_name, suffix, pos,
                                    include=False, sys_path=False):
-        return search_include_directories(
-            tuple(self.include_directories), qualified_name, suffix, pos, include, sys_path)
+        if sys_path:
+            include_dirs = self.include_directories + tuple(sys.path)
+        else:
+            include_dirs = self.include_directories
+        include_dirs = include_dirs + (standard_include_path,)
+        return search_include_directories(include_dirs, qualified_name,
+                                          suffix, pos, include)
 
     def find_root_package_dir(self, file_path):
         return Utils.find_root_package_dir(file_path)
@@ -274,8 +277,10 @@ class Context(object):
             return 1
         for kind, name in self.read_dependency_file(source_path):
             if kind == "cimport":
+                # missing suffix?
                 dep_path = self.find_pxd_file(name, pos)
             elif kind == "include":
+                # missing suffix?
                 dep_path = self.search_include_directories(name, pos)
             else:
                 continue
@@ -602,8 +607,7 @@ def compile(source, options = None, full_module_name = None, **kwds):
 
 
 @Utils.cached_function
-def search_include_directories(dirs, qualified_name, suffix, pos,
-                               include=False, sys_path=False):
+def search_include_directories(dirs, qualified_name, suffix, pos, include=False):
     """
     Search the list of include directories for the given file name.
 
@@ -612,10 +616,7 @@ def search_include_directories(dirs, qualified_name, suffix, pos,
     report an error.
 
     The 'include' option will disable package dereferencing.
-    If 'sys_path' is True, also search sys.path.
     """
-    if sys_path:
-        dirs = dirs + tuple(sys.path)
 
     if pos:
         file_desc = pos[0]
@@ -648,7 +649,18 @@ def search_include_directories(dirs, qualified_name, suffix, pos,
                 path = os.path.join(package_dir, module_filename)
                 if os.path.exists(path):
                     return path
-                path = os.path.join(dirname, package_dir, module_name,
+                # In most cases, dirname and package_dir will be the same.
+                # From the documentation of os.path.join:
+                # " If a component is an absolute path, all previous components
+                # are thrown away and joining continues from the absolute path
+                # component"
+                # So if dirname and package_dir are absolute pathes, one will
+                # be discarded. However what happens when they are relative
+                # single-component paths? They will be concatenated (repeated),
+                # causing rare and hard to debug problems.
+                # path = os.path.join(dirname, package_dir, module_name,
+                #                    package_filename)
+                path = os.path.join(package_dir, module_name,
                                     package_filename)
                 if os.path.exists(path):
                     return path
