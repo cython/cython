@@ -250,14 +250,17 @@ class SlotDescriptor(object):
 
     def generate_dynamic_init_code(self, scope, code):
         if self.is_initialised_dynamically:
-            value = self.slot_code(scope)
-            if value != "0":
-                code.putln("%s.%s = %s;" % (
-                    scope.parent_type.typeobj_cname,
-                    self.slot_name,
-                    value
-                    )
-                )
+            self.generate_set_slot_code(
+                self.slot_code(scope), scope, code)
+
+    def generate_set_slot_code(self, value, scope, code):
+        if value == "0":
+            return
+        code.putln("%s.%s = %s;" % (
+            scope.parent_type.typeobj_cname,
+            self.slot_name,
+            value,
+        ))
 
 
 class FixedSlot(SlotDescriptor):
@@ -408,10 +411,7 @@ class ConstructorSlot(InternalMethodSlot):
         else:
             return
 
-        code.putln("%s.%s = %s;" % (
-            scope.parent_type.typeobj_cname,
-            self.slot_name,
-            src))
+        self.generate_set_slot_code(src, scope, code)
 
 
 class SyntheticSlot(InternalMethodSlot):
