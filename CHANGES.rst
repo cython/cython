@@ -115,6 +115,10 @@ Other changes
 
 * Support for Python 2.6 was removed.
 
+* The search order for include files was changed. Previously it was
+  ``include_directories``, ``Cython/Includes``, ``sys.path``. Now it is
+  ``include_directories``, ``sys.path``, ``Cython/Includes``. (Github issue
+  #2905)
 
 0.29.7 (2019-0?-??)
 ===================
