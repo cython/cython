@@ -40,8 +40,8 @@ module_name_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_
 
 verbose = 0
 
-standard_include_path = os.path.abspath(os.path.normpath(
-        os.path.join(os.path.dirname(__file__), os.path.pardir, 'Includes')))
+standard_include_path = os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                        os.path.pardir, 'Includes'))
 
 class Context(object):
     #  This class encapsulates the context needed for compiling
@@ -68,7 +68,7 @@ class Context(object):
         self.modules = {"__builtin__" : Builtin.builtin_scope}
         self.cython_scope = CythonScope.create_cython_scope(self)
         self.modules["cython"] = self.cython_scope
-        self.include_directories = tuple(include_directories)
+        self.include_directories = include_directories
         self.future_directives = set()
         self.compiler_directives = compiler_directives
         self.cpp = cpp
@@ -251,11 +251,10 @@ class Context(object):
 
     def search_include_directories(self, qualified_name, suffix, pos,
                                    include=False, sys_path=False):
+        include_dirs = list(self.include_directories)
         if sys_path:
-            include_dirs = self.include_directories + tuple(sys.path)
-        else:
-            include_dirs = self.include_directories
-        include_dirs = include_dirs + (standard_include_path,)
+            include_dirs += list(sys.path)
+        include_dirs += [standard_include_path,]
         return search_include_directories(include_dirs, qualified_name,
                                           suffix, pos, include)
 
@@ -277,10 +276,8 @@ class Context(object):
             return 1
         for kind, name in self.read_dependency_file(source_path):
             if kind == "cimport":
-                # missing suffix?
                 dep_path = self.find_pxd_file(name, pos)
             elif kind == "include":
-                # missing suffix?
                 dep_path = self.search_include_directories(name, pos)
             else:
                 continue
@@ -649,17 +646,6 @@ def search_include_directories(dirs, qualified_name, suffix, pos, include=False)
                 path = os.path.join(package_dir, module_filename)
                 if os.path.exists(path):
                     return path
-                # In most cases, dirname and package_dir will be the same.
-                # From the documentation of os.path.join:
-                # " If a component is an absolute path, all previous components
-                # are thrown away and joining continues from the absolute path
-                # component"
-                # So if dirname and package_dir are absolute pathes, one will
-                # be discarded. However what happens when they are relative
-                # single-component paths? They will be concatenated (repeated),
-                # causing rare and hard to debug problems.
-                # path = os.path.join(dirname, package_dir, module_name,
-                #                    package_filename)
                 path = os.path.join(package_dir, module_name,
                                     package_filename)
                 if os.path.exists(path):
