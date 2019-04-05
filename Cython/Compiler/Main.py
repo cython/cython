@@ -251,10 +251,10 @@ class Context(object):
 
     def search_include_directories(self, qualified_name, suffix, pos,
                                    include=False, sys_path=False):
-        include_dirs = list(self.include_directories)
+        include_dirs = tuple(self.include_directories)
         if sys_path:
-            include_dirs += list(sys.path)
-        include_dirs += [standard_include_path,]
+            include_dirs = include_dirs + tuple(sys.path)
+        include_dirs = include_dirs + (standard_include_path,)
         return search_include_directories(include_dirs, qualified_name,
                                           suffix, pos, include)
 
