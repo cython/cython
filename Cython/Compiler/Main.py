@@ -40,8 +40,9 @@ module_name_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_
 
 verbose = 0
 
-standard_include_path = os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                        os.path.pardir, 'Includes'))
+standard_include_path = os.path.abspath(
+    os.path.join(os.path.dirname(os.path.dirname(__file__)), 'Includes'))
+
 
 class Context(object):
     #  This class encapsulates the context needed for compiling
