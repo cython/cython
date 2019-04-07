@@ -288,10 +288,11 @@ class Context(object):
 
     def search_include_directories(self, qualified_name, suffix, pos,
                                    include=False, sys_path=False):
-        include_dirs = tuple(self.include_directories)
+        include_dirs = self.include_directories
         if sys_path:
-            include_dirs = include_dirs + tuple(sys.path)
-        include_dirs = include_dirs + (standard_include_path,)
+            include_dirs = include_dirs + sys.path
+        # include_dirs must be hashable for caching in @cached_function
+        include_dirs = tuple(include_dirs + [standard_include_path])
         return search_include_directories(include_dirs, qualified_name,
                                           suffix, pos, include)
 
