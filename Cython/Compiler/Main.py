@@ -33,12 +33,7 @@ from . import Options
 from .Options import CompilationOptions, default_options
 from .CmdLine import parse_command_line
 
-from . import Version  # legacy import needed by old PyTables versions
-version = Version.version  # legacy attribute - use "Cython.__version__" instead
-
 module_name_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")
-
-verbose = 0
 
 standard_include_path = os.path.abspath(
     os.path.join(os.path.dirname(os.path.dirname(__file__)), 'Includes'))
@@ -675,7 +670,8 @@ def main(command_line = 0):
         sources = args
 
     if options.show_version:
-        sys.stderr.write("Cython version %s\n" % version)
+        from .. import __version__
+        sys.stderr.write("Cython version %s\n" % __version__)
     if options.working_path!="":
         os.chdir(options.working_path)
     try:
