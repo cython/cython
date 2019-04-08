@@ -45,6 +45,22 @@ class B(A):
             yield i
 
 
+class C(A):
+    """
+    >>> obj = C()
+    >>> obj.method_1()
+    2
+    >>> obj.method_2()
+    3
+    """
+
+    def method_1(self):
+        return __class__.class_method()
+
+    def method_2(self):
+        return __class__.static_method()
+
+
 def test_class_cell_empty():
     """
     >>> test_class_cell_empty()

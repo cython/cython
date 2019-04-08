@@ -3014,6 +3014,7 @@ class TransformBuiltinMethods(EnvTransform):
         return self.visit_cython_attribute(node)
 
     def visit_NameNode(self, node):
+        node = self._inject_class(node)
         return self.visit_cython_attribute(node)
 
     def visit_cython_attribute(self, node):
@@ -3112,6 +3113,21 @@ class TransformBuiltinMethods(EnvTransform):
             node.args.append(
                 ExprNodes.LocalsExprNode(
                     node.pos, self.current_scope_node(), lenv))
+        return node
+
+    def _inject_class(self, node):
+        if node.name == u'__class__':
+            # bare __class__ reference inside function
+            def_node = self.current_scope_node()
+            if (not isinstance(def_node, Nodes.DefNode) or not def_node.args or
+                len(self.env_stack) < 2):
+                return node
+            class_node, class_scope = self.env_stack[-2]
+            if class_scope.is_py_class_scope:
+                def_node.requires_classobj = True
+                class_node.class_cell.is_active = True
+                return ExprNodes.ClassCellNode(
+                        node.pos, is_generator=def_node.is_generator)
         return node
 
     def _inject_super(self, node, func_name):
