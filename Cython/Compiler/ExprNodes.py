@@ -6888,6 +6888,10 @@ class AttributeNode(ExprNode):
                         ubcm_entry.func_cname = entry.func_cname
                         ubcm_entry.is_unbound_cmethod = 1
                         ubcm_entry.scope = entry.scope
+                        if type.is_cpp_class:
+                            ubcm_entry.overloaded_alternatives = [
+                                Symtab.Entry(entry.name, entry.func_cname, entry.type) for entry in entry.overloaded_alternatives
+                            ]
                     return self.as_name_node(env, ubcm_entry, target=False)
             elif type.is_enum:
                 if self.attribute in type.values:
