@@ -1,5 +1,10 @@
+# tag: openmp
+# You can ignore the previous line.
+# It's for internal testing of the cython documentation.
+
 # distutils: extra_compile_args=-fopenmp
 # distutils: extra_link_args=-fopenmp
+
 import numpy as np
 cimport cython
 from cython.parallel import prange

@@ -219,6 +219,7 @@ same applies equally to union and enum declarations.
 |   } Foo;                |                                             |                                                                       |
 +-------------------------+---------------------------------------------+-----------------------------------------------------------------------+
 
+See also use of :ref:`external_extension_types`.
 Note that in all the cases below, you refer to the type in Cython code simply
 as :c:type:`Foo`, not ``struct Foo``.
 
@@ -523,7 +524,7 @@ Acquiring and Releasing the GIL
 ---------------------------------
 
 Cython provides facilities for acquiring and releasing the
-`Global Interpreter Lock (GIL) <http://docs.python.org/dev/glossary.html#term-global-interpreter-lock>`_.
+`Global Interpreter Lock (GIL) <https://docs.python.org/dev/glossary.html#term-global-interpreter-lock>`_.
 This may be useful when calling from multi-threaded code into
 (external C) code that may block, or when wanting to use Python
 from a (native) C thread callback.  Releasing the GIL should
@@ -578,6 +579,26 @@ The GIL may also be acquired through the ``with gil`` statement::
 
     with gil:
         <execute this block with the GIL acquired>
+
+.. _gil_conditional:
+
+Conditional Acquiring / Releasing the GIL
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Sometimes it is helpful to use a condition to decide whether to run a
+certain piece of code with or without the GIL. This code would run anyway,
+the difference is whether the GIL will be held or released.
+The condition must be constant (at compile time).
+
+This could be useful for profiling, debugging, performance testing, and
+for fused types (see :ref:`fused_gil_conditional`).::
+
+    DEF FREE_GIL = True
+
+    with nogil(FREE_GIL):
+        <code to be executed with the GIL released>
+
+        with gil(False):
+           <GIL is still released>
 
 Declaring a function as callable without the GIL
 --------------------------------------------------

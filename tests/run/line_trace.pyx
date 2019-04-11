@@ -5,7 +5,7 @@
 
 import sys
 
-from cpython.ref cimport PyObject, Py_INCREF, Py_XINCREF, Py_XDECREF
+from cpython.ref cimport PyObject, Py_INCREF, Py_XDECREF
 
 cdef extern from "frameobject.h":
     ctypedef struct PyFrameObject:
@@ -23,7 +23,7 @@ cdef extern from *:
 
 map_trace_types = {
     PyTrace_CALL:        'call',
-    PyTrace_EXCEPTION:   'exc',
+    PyTrace_EXCEPTION:   'exception',
     PyTrace_LINE:        'line',
     PyTrace_RETURN:      'return',
     PyTrace_C_CALL:      'ccall',
@@ -74,6 +74,10 @@ def _create_trace_func(trace):
     local_names = {}
 
     def _trace_func(frame, event, arg):
+        if sys.version_info < (3,) and 'line_trace' not in frame.f_code.co_filename:
+            # Prevent tracing into Py2 doctest functions.
+            return None
+
         trace.append((map_trace_types(event, event), frame.f_lineno - frame.f_code.co_firstlineno))
 
         lnames = frame.f_code.co_varnames
@@ -85,9 +89,9 @@ def _create_trace_func(trace):
         # Currently, the locals dict is empty for Cython code, but not for Python code.
         if frame.f_code.co_name.startswith('py_'):
             # Change this when we start providing proper access to locals.
-            assert frame.f_locals
+            assert frame.f_locals, frame.f_code.co_name
         else:
-            assert not frame.f_locals
+            assert not frame.f_locals, frame.f_code.co_name
 
         return _trace_func
     return _trace_func
@@ -152,6 +156,13 @@ def global_name(global_name):
 cdef int cy_add_nogil(int a, int b) nogil except -1:
     x = a + b   # 1
     return x    # 2
+
+
+def cy_try_except(func):
+    try:
+        return func()
+    except KeyError as exc:
+        raise AttributeError(exc.args[0])
 
 
 def run_trace(func, *args, bint with_sys=False):
@@ -224,6 +235,62 @@ def run_trace(func, *args, bint with_sys=False):
         else:
             PyEval_SetTrace(NULL, NULL)
     return trace
+
+
+def run_trace_with_exception(func, bint with_sys=False, bint fail=False):
+    """
+    >>> def py_return(retval=123): return retval
+    >>> run_trace_with_exception(py_return)
+    OK: 123
+    [('call', 0), ('line', 1), ('line', 2), ('call', 0), ('line', 0), ('return', 0), ('return', 2)]
+    >>> run_trace_with_exception(py_return, with_sys=True)
+    OK: 123
+    [('call', 0), ('line', 1), ('line', 2), ('call', 0), ('line', 0), ('return', 0), ('return', 2)]
+
+    >>> run_trace_with_exception(py_return, fail=True)
+    ValueError('failing line trace!')
+    [('call', 0)]
+
+    #>>> run_trace_with_exception(lambda: 123, with_sys=True, fail=True)
+    #ValueError('huhu')
+    #[('call', 0), ('line', 1), ('line', 2), ('call', 0), ('line', 0), ('return', 0), ('return', 2)]
+
+    >>> def py_raise_exc(exc=KeyError('huhu')): raise exc
+    >>> run_trace_with_exception(py_raise_exc)
+    AttributeError('huhu')
+    [('call', 0), ('line', 1), ('line', 2), ('call', 0), ('line', 0), ('exception', 0), ('return', 0), ('line', 3), ('line', 4), ('return', 4)]
+    >>> run_trace_with_exception(py_raise_exc, with_sys=True)
+    AttributeError('huhu')
+    [('call', 0), ('line', 1), ('line', 2), ('call', 0), ('line', 0), ('exception', 0), ('return', 0), ('line', 3), ('line', 4), ('return', 4)]
+    >>> run_trace_with_exception(py_raise_exc, fail=True)
+    ValueError('failing line trace!')
+    [('call', 0)]
+
+    #>>> run_trace_with_exception(raise_exc, with_sys=True, fail=True)
+    #ValueError('huhu')
+    #[('call', 0), ('line', 1), ('line', 2), ('call', 0), ('line', 0), ('exception', 0), ('return', 0), ('line', 3), ('line', 4), ('return', 4)]
+    """
+    trace = ['cy_try_except' if fail else 'NO ERROR']
+    trace_func = _create__failing_line_trace_func(trace) if fail else _create_trace_func(trace)
+    if with_sys:
+        sys.settrace(trace_func)
+    else:
+        PyEval_SetTrace(<Py_tracefunc>trace_trampoline, <PyObject*>trace_func)
+    try:
+        try:
+            retval = cy_try_except(func)
+        except ValueError as exc:
+            print("%s(%r)" % (type(exc).__name__, str(exc)))
+        except AttributeError as exc:
+            print("%s(%r)" % (type(exc).__name__, str(exc)))
+        else:
+            print('OK: %r' % retval)
+    finally:
+        if with_sys:
+            sys.settrace(None)
+        else:
+            PyEval_SetTrace(NULL, NULL)
+    return trace[1:]
 
 
 def fail_on_call_trace(func, *args):

@@ -55,7 +55,7 @@ efficiently callable as a C function, but still accessible from pure Python
 If within Cython code, we have a variable already 'early-bound' (ie, declared
 explicitly as type Rectangle, (or cast to type Rectangle), then invoking its
 area method will use the efficient C code path and skip the Python overhead.
-But if in Pyrex or regular Python code we have a regular object variable
+But if in Cython or regular Python code we have a regular object variable
 storing a Rectangle object, then invoking the area method will require:
 
 * an attribute lookup for the area method

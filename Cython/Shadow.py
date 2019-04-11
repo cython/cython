@@ -1,7 +1,7 @@
 # cython.* namespace for pure mode.
 from __future__ import absolute_import
 
-__version__ = "0.29a0"
+__version__ = "3.0a0"
 
 try:
     from __builtin__ import basestring
@@ -186,8 +186,15 @@ def declare(type=None, value=_Unspecified, **kwds):
         return value
 
 class _nogil(object):
-    """Support for 'with nogil' statement
+    """Support for 'with nogil' statement and @nogil decorator.
     """
+    def __call__(self, x):
+        if callable(x):
+            # Used as function decorator => return the function unchanged.
+            return x
+        # Used as conditional context manager or to create an "@nogil(True/False)" decorator => keep going.
+        return self
+
     def __enter__(self):
         pass
     def __exit__(self, exc_class, exc, tb):
@@ -196,6 +203,7 @@ class _nogil(object):
 nogil = _nogil()
 gil = _nogil()
 del _nogil
+
 
 # Emulated types
 
@@ -447,7 +455,7 @@ class CythonDotParallel(object):
     def parallel(self, num_threads=None):
         return nogil
 
-    def prange(self, start=0, stop=None, step=1, schedule=None, nogil=False):
+    def prange(self, start=0, stop=None, step=1, nogil=False, schedule=None, chunksize=None, num_threads=None):
         if stop is None:
             stop = start
             start = 0

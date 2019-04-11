@@ -65,7 +65,7 @@ class Ctx(object):
 
 def p_ident(s, message="Expected an identifier"):
     if s.sy == 'IDENT':
-        name = s.systring
+        name = s.context.intern_ustring(s.systring)
         s.next()
         return name
     else:
@@ -74,7 +74,7 @@ def p_ident(s, message="Expected an identifier"):
 def p_ident_list(s):
     names = []
     while s.sy == 'IDENT':
-        names.append(s.systring)
+        names.append(s.context.intern_ustring(s.systring))
         s.next()
         if s.sy != ',':
             break
@@ -317,9 +317,8 @@ def p_typecast(s):
     base_type = p_c_base_type(s)
     is_memslice = isinstance(base_type, Nodes.MemoryViewSliceTypeNode)
     is_template = isinstance(base_type, Nodes.TemplatedTypeNode)
-    is_const = isinstance(base_type, Nodes.CConstTypeNode)
-    if (not is_memslice and not is_template and not is_const
-        and base_type.name is None):
+    is_const_volatile = isinstance(base_type, Nodes.CConstOrVolatileTypeNode)
+    if not is_memslice and not is_template and not is_const_volatile and base_type.name is None:
         s.error("Unknown type")
     declarator = p_c_declarator(s, empty = 1)
     if s.sy == '?':
@@ -330,8 +329,7 @@ def p_typecast(s):
     s.expect(">")
     operand = p_factor(s)
     if is_memslice:
-        return ExprNodes.CythonArrayNode(pos, base_type_node=base_type,
-                                         operand=operand)
+        return ExprNodes.CythonArrayNode(pos, base_type_node=base_type, operand=operand)
 
     return ExprNodes.TypecastNode(pos,
         base_type = base_type,
@@ -960,7 +958,7 @@ def p_string_literal(s, kind_override=None):
         bytes_value, unicode_value = chars.getstrings()
         if is_python3_source and has_non_ascii_literal_characters:
             # Python 3 forbids literal non-ASCII characters in byte strings
-            if kind not in ('u', 'f'):
+            if kind == 'b':
                 s.error("bytes can only contain ASCII literal characters.", pos=pos)
             bytes_value = None
     if kind == 'f':
@@ -1677,11 +1675,6 @@ def p_import_statement(s):
                 as_name=as_name,
                 is_absolute=is_absolute)
         else:
-            if as_name and "." in dotted_name:
-                name_list = ExprNodes.ListNode(pos, args=[
-                    ExprNodes.IdentifierStringNode(pos, value=s.context.intern_ustring("*"))])
-            else:
-                name_list = None
             stat = Nodes.SingleAssignmentNode(
                 pos,
                 lhs=ExprNodes.NameNode(pos, name=as_name or target_name),
@@ -1689,7 +1682,8 @@ def p_import_statement(s):
                     pos,
                     module_name=ExprNodes.IdentifierStringNode(pos, value=dotted_name),
                     level=0 if is_absolute else None,
-                    name_list=name_list))
+                    get_top_level_module='.' in dotted_name and as_name is None,
+                    name_list=None))
         stats.append(stat)
     return Nodes.StatListNode(pos, stats=stats)
 
@@ -2057,12 +2051,20 @@ def p_with_items(s, is_async=False):
             s.error("with gil/nogil cannot be async")
         state = s.systring
         s.next()
+
+        # support conditional gil/nogil
+        condition = None
+        if s.sy == '(':
+            s.next()
+            condition = p_test(s)
+            s.expect(')')
+
         if s.sy == ',':
             s.next()
             body = p_with_items(s)
         else:
             body = p_suite(s)
-        return Nodes.GILStatNode(pos, state=state, body=body)
+        return Nodes.GILStatNode(pos, state=state, body=body, condition=condition)
     else:
         manager = p_test(s)
         target = None
@@ -2479,16 +2481,31 @@ def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
     complex = 0
     module_path = []
     pos = s.position()
-    if not s.sy == 'IDENT':
-        error(pos, "Expected an identifier, found '%s'" % s.sy)
-    if s.systring == 'const':
+
+    # Handle const/volatile
+    is_const = is_volatile = 0
+    while s.sy == 'IDENT':
+        if s.systring == 'const':
+            if is_const: error(pos, "Duplicate 'const'")
+            is_const = 1
+        elif s.systring == 'volatile':
+            if is_volatile: error(pos, "Duplicate 'volatile'")
+            is_volatile = 1
+        else:
+            break
         s.next()
+    if is_const or is_volatile:
         base_type = p_c_base_type(s, self_flag=self_flag, nonempty=nonempty, templates=templates)
         if isinstance(base_type, Nodes.MemoryViewSliceTypeNode):
             # reverse order to avoid having to write "(const int)[:]"
-            base_type.base_type_node = Nodes.CConstTypeNode(pos, base_type=base_type.base_type_node)
+            base_type.base_type_node = Nodes.CConstOrVolatileTypeNode(pos,
+                base_type=base_type.base_type_node, is_const=is_const, is_volatile=is_volatile)
             return base_type
-        return Nodes.CConstTypeNode(pos, base_type=base_type)
+        return Nodes.CConstOrVolatileTypeNode(pos,
+            base_type=base_type, is_const=is_const, is_volatile=is_volatile)
+
+    if s.sy != 'IDENT':
+        error(pos, "Expected an identifier, found '%s'" % s.sy)
     if looking_at_base_type(s):
         #print "p_c_simple_base_type: looking_at_base_type at", s.position()
         is_basic = 1
@@ -2937,6 +2954,9 @@ def p_exception_value_clause(s):
                 name = s.systring
                 s.next()
                 exc_val = p_name(s, name)
+            elif s.sy == '*':
+                exc_val = ExprNodes.CharNode(s.position(), value=u'*')
+                s.next()
         else:
             if s.sy == '?':
                 exc_check = 1
@@ -3168,18 +3188,22 @@ def p_c_struct_or_union_definition(s, pos, ctx):
     attributes = None
     if s.sy == ':':
         s.next()
-        s.expect('NEWLINE')
-        s.expect_indent()
         attributes = []
-        body_ctx = Ctx()
-        while s.sy != 'DEDENT':
-            if s.sy != 'pass':
-                attributes.append(
-                    p_c_func_or_var_declaration(s, s.position(), body_ctx))
-            else:
-                s.next()
-                s.expect_newline("Expected a newline")
-        s.expect_dedent()
+        if s.sy == 'pass':
+            s.next()
+            s.expect_newline("Expected a newline", ignore_semicolon=True)
+        else:
+            s.expect('NEWLINE')
+            s.expect_indent()
+            body_ctx = Ctx()
+            while s.sy != 'DEDENT':
+                if s.sy != 'pass':
+                    attributes.append(
+                        p_c_func_or_var_declaration(s, s.position(), body_ctx))
+                else:
+                    s.next()
+                    s.expect_newline("Expected a newline")
+            s.expect_dedent()
     else:
         s.expect_newline("Syntax error in struct or union definition")
     return Nodes.CStructOrUnionDefNode(pos,
@@ -3364,7 +3388,7 @@ def _reject_cdef_modifier_in_py(s, name):
 
 def p_def_statement(s, decorators=None, is_async_def=False):
     # s.sy == 'def'
-    pos = s.position()
+    pos = decorators[0].pos if decorators else s.position()
     # PEP 492 switches the async/await keywords on in "async def" functions
     if is_async_def:
         s.enter_async()
@@ -3468,6 +3492,7 @@ def p_c_class_definition(s, pos,  ctx):
     objstruct_name = None
     typeobj_name = None
     bases = None
+    check_size = None
     if s.sy == '(':
         positional_args, keyword_args = p_call_parse_args(s, allow_genexp=False)
         if keyword_args:
@@ -3479,7 +3504,7 @@ def p_c_class_definition(s, pos,  ctx):
     if s.sy == '[':
         if ctx.visibility not in ('public', 'extern') and not ctx.api:
             error(s.position(), "Name options only allowed for 'public', 'api', or 'extern' C class")
-        objstruct_name, typeobj_name = p_c_class_options(s)
+        objstruct_name, typeobj_name, check_size = p_c_class_options(s)
     if s.sy == ':':
         if ctx.level == 'module_pxd':
             body_level = 'c_class_pxd'
@@ -3518,13 +3543,16 @@ def p_c_class_definition(s, pos,  ctx):
         bases = bases,
         objstruct_name = objstruct_name,
         typeobj_name = typeobj_name,
+        check_size = check_size,
         in_pxd = ctx.level == 'module_pxd',
         doc = doc,
         body = body)
 
+
 def p_c_class_options(s):
     objstruct_name = None
     typeobj_name = None
+    check_size = None
     s.expect('[')
     while 1:
         if s.sy != 'IDENT':
@@ -3535,11 +3563,16 @@ def p_c_class_options(s):
         elif s.systring == 'type':
             s.next()
             typeobj_name = p_ident(s)
+        elif s.systring == 'check_size':
+            s.next()
+            check_size = p_ident(s)
+            if check_size not in ('ignore', 'warn', 'error'):
+                s.error("Expected one of ignore, warn or error, found %r" % check_size)
         if s.sy != ',':
             break
         s.next()
-    s.expect(']', "Expected 'object' or 'type'")
-    return objstruct_name, typeobj_name
+    s.expect(']', "Expected 'object', 'type' or 'check_size'")
+    return objstruct_name, typeobj_name, check_size
 
 
 def p_property_decl(s):
@@ -3661,6 +3694,17 @@ def p_module(s, pxd, full_module_name, ctx=Ctx):
 
     directive_comments = p_compiler_directive_comments(s)
     s.parse_comments = False
+
+    if s.context.language_level is None:
+        s.context.set_language_level('3str')
+        if pos[0].filename:
+            import warnings
+            warnings.warn(
+                "Cython directive 'language_level' not set, using '3str' for now (Py3). "
+                "This has changed from earlier releases! File: %s" % pos[0].filename,
+                FutureWarning,
+                stacklevel=1 if cython.compiled else 2,
+            )
 
     doc = p_doc_string(s)
     if pxd:

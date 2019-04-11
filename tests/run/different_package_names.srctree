@@ -1,0 +1,43 @@
+# mode: run
+# tag: import,cimport,packages
+
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import pkg_py"
+PYTHON -c "import pkg_py.pkg_pyx"
+PYTHON -c "import pkg_py.pkg_pyx.module as module; module.run_test()"
+
+######## setup.py ########
+
+from distutils.core import setup
+from Cython.Build import cythonize
+
+setup(
+    ext_modules=cythonize('**/*.pyx', language_level=3),
+)
+
+
+######## pkg_py/__init__.py ########
+
+TYPE = 'py'
+
+######## pkg_py/pkg_pyx/__init__.pyx ########
+
+TYPE = 'pyx'
+
+######## pkg_py/pkg_pyx/pkg_pxd/__init__.pxd ########
+
+# Not what Python would consider a package, but Cython can use it for cimports.
+from libc.math cimport fabs
+
+######## pkg_py/pkg_pyx/module.pyx ########
+
+from pkg_py.pkg_pyx.pkg_pxd cimport fabs
+
+def run_test():
+    import pkg_py
+    assert pkg_py.TYPE == 'py'
+
+    import pkg_py.pkg_pyx
+    assert pkg_py.pkg_pyx.TYPE == 'pyx'
+
+    assert fabs(-2.0) == 2.0

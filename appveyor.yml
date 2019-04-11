@@ -5,8 +5,9 @@ environment:
   global:
     # SDK v7.0 MSVC Express 2008's SetEnv.cmd script will fail if the
     # /E:ON and /V:ON options are not enabled in the batch script interpreter
-    # See: http://stackoverflow.com/a/13751649/163740
+    # See: https://stackoverflow.com/questions/11267463/compiling-python-modules-on-windows-x64/13751649#13751649
     WITH_ENV: "cmd /E:ON /V:ON /C .\\appveyor\\run_with_env.cmd"
+    BACKEND: c
 
   matrix:
     - PYTHON: "C:\\Python27"
@@ -24,6 +25,11 @@ environment:
     - PYTHON: "C:\\Python37-x64"
       PYTHON_VERSION: "3.7"
       PYTHON_ARCH: "64"
+
+    - PYTHON: "C:\\Python37-x64"
+      PYTHON_VERSION: "3.7"
+      PYTHON_ARCH: "64"
+      BACKEND: cpp
 
     - PYTHON: "C:\\Python36"
       PYTHON_VERSION: "3.6"
@@ -49,6 +55,11 @@ environment:
       PYTHON_VERSION: "3.4"
       PYTHON_ARCH: "64"
 
+    - PYTHON: "C:\\Python27-x64"
+      PYTHON_VERSION: "2.7"
+      PYTHON_ARCH: "64"
+      BACKEND: cpp
+
 clone_depth: 5
 
 branches:
@@ -73,8 +84,8 @@ build_script:
 test: off
 test_script:
   - "%PYTHON%\\Scripts\\pip.exe install -r test-requirements.txt"
-  - "set CFLAGS=/Od"
-  - "%WITH_ENV% %PYTHON%\\python.exe runtests.py -vv --no-cpp -j7"
+  - "set CFLAGS=/Od /W3"
+  - "%WITH_ENV% %PYTHON%\\python.exe runtests.py -vv --backend=%BACKEND% --no-code-style -j5"
 
 artifacts:
   - path: dist\*

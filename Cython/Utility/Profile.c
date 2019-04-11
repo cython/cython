@@ -197,12 +197,12 @@
           if (CYTHON_TRACE_NOGIL) {                                                        \
               int ret = 0;                                                                 \
               PyThreadState *tstate;                                                       \
-              PyGILState_STATE state = PyGILState_Ensure();                                \
+              PyGILState_STATE state = __Pyx_PyGILState_Ensure();                          \
               tstate = __Pyx_PyThreadState_Current;                                        \
               if (unlikely(tstate->use_tracing && tstate->c_tracefunc && $frame_cname->f_trace)) { \
                   ret = __Pyx_call_line_trace_func(tstate, $frame_cname, lineno);          \
               }                                                                            \
-              PyGILState_Release(state);                                                   \
+              __Pyx_PyGILState_Release(state);                                             \
               if (unlikely(ret)) goto_error;                                               \
           }                                                                                \
       } else {                                                                             \

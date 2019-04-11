@@ -533,8 +533,8 @@ def find_spanning_type(type1, type2):
 def simply_type(result_type, pos):
     if result_type.is_reference:
         result_type = result_type.ref_base_type
-    if result_type.is_const:
-        result_type = result_type.const_base_type
+    if result_type.is_cv_qualified:
+        result_type = result_type.cv_base_type
     if result_type.is_cpp_class:
         result_type.check_nullary_constructor(pos)
     if result_type.is_array:

@@ -370,6 +370,7 @@ def test_coerce_to_numpy():
     ints[idx] = 222
     longlongs[idx] = 333
     externs[idx] = 444
+    assert externs[idx] == 444  # avoid "set but not used" C compiler warning
 
     floats[idx] = 11.1
     doubles[idx] = 12.2
@@ -699,3 +700,21 @@ def test_refcount_GH507():
     a = np.arange(12).reshape([3, 4])
     cdef np.int_t[:,:] a_view = a
     cdef np.int_t[:,:] b = a_view[1:2,:].T
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def test_boundscheck_and_wraparound(double[:, :] x):
+    """
+    >>> import numpy as np
+    >>> array = np.ones((2,2)) * 3.5
+    >>> test_boundscheck_and_wraparound(array)
+    """
+    # Make sure we don't generate C compiler warnings for unused code here.
+    cdef Py_ssize_t numrow = x.shape[0]
+    cdef Py_ssize_t i
+    for i in range(numrow):
+        x[i, 0]
+        x[i]
+        x[i, ...]
+        x[i, :]

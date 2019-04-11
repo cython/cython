@@ -188,13 +188,13 @@ static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject* o) {
                 return {{type_name}}_from_parts(a.real / b.real, a.imag / b.imag);
             } else {
                 {{real_type}} r = b.imag / b.real;
-                {{real_type}} s = 1.0 / (b.real + b.imag * r);
+                {{real_type}} s = ({{real_type}})(1.0) / (b.real + b.imag * r);
                 return {{type_name}}_from_parts(
                     (a.real + a.imag * r) * s, (a.imag - a.real * r) * s);
             }
         } else {
             {{real_type}} r = b.real / b.imag;
-            {{real_type}} s = 1.0 / (b.imag + b.real * r);
+            {{real_type}} s = ({{real_type}})(1.0) / (b.imag + b.real * r);
             return {{type_name}}_from_parts(
                 (a.real * r + a.imag) * s, (a.imag * r - a.real) * s);
         }
@@ -275,7 +275,7 @@ static {{type}} __Pyx_PyComplex_As_{{type_name}}(PyObject* o) {
                     theta = 0;
                 } else {
                     r = -a.real;
-                    theta = atan2{{m}}(0, -1);
+                    theta = atan2{{m}}(0.0, -1.0);
                 }
             } else {
                 r = __Pyx_c_abs{{func_suffix}}(a);

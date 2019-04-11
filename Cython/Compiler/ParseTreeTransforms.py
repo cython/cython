@@ -958,30 +958,33 @@ class InterpretCompilerDirectives(CythonTransform):
         else:
             assert False
 
-    def visit_with_directives(self, body, directives):
-        olddirectives = self.directives
-        newdirectives = copy.copy(olddirectives)
-        newdirectives.update(directives)
-        self.directives = newdirectives
-        assert isinstance(body, Nodes.StatListNode), body
-        retbody = self.visit_Node(body)
-        directive = Nodes.CompilerDirectivesNode(pos=retbody.pos, body=retbody,
-                                                 directives=newdirectives)
-        self.directives = olddirectives
-        return directive
+    def visit_with_directives(self, node, directives):
+        if not directives:
+            return self.visit_Node(node)
+
+        old_directives = self.directives
+        new_directives = dict(old_directives)
+        new_directives.update(directives)
+
+        if new_directives == old_directives:
+            return self.visit_Node(node)
+
+        self.directives = new_directives
+        retbody = self.visit_Node(node)
+        self.directives = old_directives
+
+        if not isinstance(retbody, Nodes.StatListNode):
+            retbody = Nodes.StatListNode(node.pos, stats=[retbody])
+        return Nodes.CompilerDirectivesNode(
+            pos=retbody.pos, body=retbody, directives=new_directives)
 
     # Handle decorators
     def visit_FuncDefNode(self, node):
         directives = self._extract_directives(node, 'function')
-        if not directives:
-            return self.visit_Node(node)
-        body = Nodes.StatListNode(node.pos, stats=[node])
-        return self.visit_with_directives(body, directives)
+        return self.visit_with_directives(node, directives)
 
     def visit_CVarDefNode(self, node):
         directives = self._extract_directives(node, 'function')
-        if not directives:
-            return self.visit_Node(node)
         for name, value in directives.items():
             if name == 'locals':
                 node.directive_locals = value
@@ -990,29 +993,19 @@ class InterpretCompilerDirectives(CythonTransform):
                     node.pos,
                     "Cdef functions can only take cython.locals(), "
                     "staticmethod, or final decorators, got %s." % name))
-        body = Nodes.StatListNode(node.pos, stats=[node])
-        return self.visit_with_directives(body, directives)
+        return self.visit_with_directives(node, directives)
 
     def visit_CClassDefNode(self, node):
         directives = self._extract_directives(node, 'cclass')
-        if not directives:
-            return self.visit_Node(node)
-        body = Nodes.StatListNode(node.pos, stats=[node])
-        return self.visit_with_directives(body, directives)
+        return self.visit_with_directives(node, directives)
 
     def visit_CppClassNode(self, node):
         directives = self._extract_directives(node, 'cppclass')
-        if not directives:
-            return self.visit_Node(node)
-        body = Nodes.StatListNode(node.pos, stats=[node])
-        return self.visit_with_directives(body, directives)
+        return self.visit_with_directives(node, directives)
 
     def visit_PyClassDefNode(self, node):
         directives = self._extract_directives(node, 'class')
-        if not directives:
-            return self.visit_Node(node)
-        body = Nodes.StatListNode(node.pos, stats=[node])
-        return self.visit_with_directives(body, directives)
+        return self.visit_with_directives(node, directives)
 
     def _extract_directives(self, node, scope_name):
         if not node.decorators:
@@ -1038,7 +1031,7 @@ class InterpretCompilerDirectives(CythonTransform):
             else:
                 realdecs.append(dec)
         if realdecs and (scope_name == 'cclass' or
-                         isinstance(node, (Nodes.CFuncDefNode, Nodes.CClassDefNode, Nodes.CVarDefNode))):
+                         isinstance(node, (Nodes.CClassDefNode, Nodes.CVarDefNode))):
             raise PostParseError(realdecs[0].pos, "Cdef functions/classes cannot take arbitrary decorators.")
         node.decorators = realdecs[::-1] + both[::-1]
         # merge or override repeated directives
@@ -1059,7 +1052,7 @@ class InterpretCompilerDirectives(CythonTransform):
                 optdict[name] = value
         return optdict
 
-    # Handle with statements
+    # Handle with-statements
     def visit_WithStatNode(self, node):
         directive_dict = {}
         for directive in self.try_to_parse_directives(node.manager) or []:
@@ -1579,7 +1572,7 @@ cdef class NAME:
         count = 0
         INIT_ASSIGNMENTS
         if IS_UNION and count > 1:
-            raise ValueError, "At most one union member should be specified."
+            raise ValueError("At most one union member should be specified.")
     def __str__(self):
         return STR_FORMAT % MEMBER_TUPLE
     def __repr__(self):
@@ -1707,13 +1700,15 @@ if VALUE is not None:
                     e.type.create_to_py_utility_code(env)
                     e.type.create_from_py_utility_code(env)
             all_members_names = sorted([e.name for e in all_members])
-            checksum = '0x%s' % hashlib.md5(' '.join(all_members_names).encode('utf-8')).hexdigest()[:7]
+            checksum = '0x%s' % hashlib.sha1(' '.join(all_members_names).encode('utf-8')).hexdigest()[:7]
             unpickle_func_name = '__pyx_unpickle_%s' % node.class_name
 
             # TODO(robertwb): Move the state into the third argument
             # so it can be pickled *after* self is memoized.
             unpickle_func = TreeFragment(u"""
                 def %(unpickle_func_name)s(__pyx_type, long __pyx_checksum, __pyx_state):
+                    cdef object __pyx_PickleError
+                    cdef object __pyx_result
                     if __pyx_checksum != %(checksum)s:
                         from pickle import PickleError as __pyx_PickleError
                         raise __pyx_PickleError("Incompatible checksums (%%s vs %(checksum)s = (%(members)s))" %% __pyx_checksum)
@@ -1742,6 +1737,8 @@ if VALUE is not None:
 
             pickle_func = TreeFragment(u"""
                 def __reduce_cython__(self):
+                    cdef tuple state
+                    cdef object _dict
                     cdef bint use_setstate
                     state = (%(members)s)
                     _dict = getattr(self, '__dict__', None)
@@ -2242,6 +2239,29 @@ class AnalyseExpressionsTransform(CythonTransform):
             node = node.base
         return node
 
+class ReplacePropertyNode(CythonTransform):
+    def visit_CFuncDefNode(self, node):
+        if not node.decorators:
+            return node
+        decorator = self.find_first_decorator(node, 'property')
+        if decorator:
+            # transform class functions into c-getters
+            if len(node.decorators) > 1:
+                # raises
+                self._reject_decorated_property(node, decorator_node)
+            node.entry.is_cgetter = True
+            # Add a func_cname to be output instead of the attribute
+            node.entry.func_cname = node.body.stats[0].value.function.name
+            node.decorators.remove(decorator)
+        return node
+
+    def find_first_decorator(self, node, name):
+        for decorator_node in node.decorators[::-1]:
+            decorator = decorator_node.decorator
+            if decorator.is_name and decorator.name == name:
+                return decorator_node
+        return None
+
 
 class FindInvalidUseOfFusedTypes(CythonTransform):
 
@@ -2333,6 +2353,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
     @cython.cclass
     @cython.ccall
     @cython.inline
+    @cython.nogil
     """
 
     def visit_ModuleNode(self, node):
@@ -2352,6 +2373,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
         modifiers = []
         if 'inline' in self.directives:
             modifiers.append('inline')
+        nogil = self.directives.get('nogil')
         except_val = self.directives.get('exceptval')
         return_type_node = self.directives.get('returns')
         if return_type_node is None and self.directives['annotation_typing']:
@@ -2364,7 +2386,7 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
             except_val = (None, False)
         if 'ccall' in self.directives:
             node = node.as_cfunction(
-                overridable=True, modifiers=modifiers,
+                overridable=True, modifiers=modifiers, nogil=nogil,
                 returns=return_type_node, except_val=except_val)
             return self.visit(node)
         if 'cfunc' in self.directives:
@@ -2372,12 +2394,19 @@ class AdjustDefByDirectives(CythonTransform, SkipDeclarations):
                 error(node.pos, "cfunc directive is not allowed here")
             else:
                 node = node.as_cfunction(
-                    overridable=False, modifiers=modifiers,
+                    overridable=False, modifiers=modifiers, nogil=nogil,
                     returns=return_type_node, except_val=except_val)
                 return self.visit(node)
         if 'inline' in modifiers:
             error(node.pos, "Python functions cannot be declared 'inline'")
+        if nogil:
+            # TODO: turn this into a "with gil" declaration.
+            error(node.pos, "Python functions cannot be declared 'nogil'")
         self.visitchildren(node)
+        return node
+
+    def visit_LambdaNode(self, node):
+        # No directives should modify lambdas or generator expressions (and also nothing in them).
         return node
 
     def visit_PyClassDefNode(self, node):
@@ -2509,6 +2538,12 @@ class RemoveUnreachableCode(CythonTransform):
             node.else_clause = None
         return node
 
+    def visit_TryFinallyStatNode(self, node):
+        self.visitchildren(node)
+        if node.finally_clause.is_terminator:
+            node.is_terminator = True
+        return node
+
 
 class YieldNodeCollector(TreeVisitor):
 
@@ -2612,7 +2647,8 @@ class MarkClosureVisitor(CythonTransform):
             pos=node.pos, name=node.name, args=node.args,
             star_arg=node.star_arg, starstar_arg=node.starstar_arg,
             doc=node.doc, decorators=node.decorators,
-            gbody=gbody, lambda_name=node.lambda_name)
+            gbody=gbody, lambda_name=node.lambda_name,
+            return_type_annotation=node.return_type_annotation)
         return coroutine
 
     def visit_CFuncDefNode(self, node):
@@ -2669,7 +2705,7 @@ class CreateClosureClasses(CythonTransform):
         if node.is_generator:
             for scope in node.local_scope.iter_local_scopes():
                 for entry in scope.entries.values():
-                    if not entry.from_closure:
+                    if not (entry.from_closure or entry.is_pyglobal or entry.is_cglobal):
                         entry.in_closure = True
 
         from_closure, in_closure = self.find_entries_used_in_closures(node)
@@ -2850,34 +2886,49 @@ class GilCheck(VisitorTransform):
         self.nogil_declarator_only = False
         return super(GilCheck, self).__call__(root)
 
+    def _visit_scoped_children(self, node, gil_state):
+        was_nogil = self.nogil
+        outer_attrs = node.outer_attrs
+        if outer_attrs and len(self.env_stack) > 1:
+            self.nogil = self.env_stack[-2].nogil
+            self.visitchildren(node, outer_attrs)
+
+        self.nogil = gil_state
+        self.visitchildren(node, exclude=outer_attrs)
+        self.nogil = was_nogil
+
     def visit_FuncDefNode(self, node):
         self.env_stack.append(node.local_scope)
-        was_nogil = self.nogil
-        self.nogil = node.local_scope.nogil
+        inner_nogil = node.local_scope.nogil
 
-        if self.nogil:
+        if inner_nogil:
             self.nogil_declarator_only = True
 
-        if self.nogil and node.nogil_check:
+        if inner_nogil and node.nogil_check:
             node.nogil_check(node.local_scope)
 
-        self.visitchildren(node)
+        self._visit_scoped_children(node, inner_nogil)
 
         # This cannot be nested, so it doesn't need backup/restore
         self.nogil_declarator_only = False
 
         self.env_stack.pop()
-        self.nogil = was_nogil
         return node
 
     def visit_GILStatNode(self, node):
+        if node.condition is not None:
+            error(node.condition.pos,
+                  "Non-constant condition in a "
+                  "`with %s(<condition>)` statement" % node.state)
+            return node
+
         if self.nogil and node.nogil_check:
             node.nogil_check()
 
         was_nogil = self.nogil
-        self.nogil = (node.state == 'nogil')
+        is_nogil = (node.state == 'nogil')
 
-        if was_nogil == self.nogil and not self.nogil_declarator_only:
+        if was_nogil == is_nogil and not self.nogil_declarator_only:
             if not was_nogil:
                 error(node.pos, "Trying to acquire the GIL while it is "
                                 "already held.")
@@ -2890,8 +2941,7 @@ class GilCheck(VisitorTransform):
             # which is wrapped in a StatListNode. Just unpack that.
             node.finally_clause, = node.finally_clause.stats
 
-        self.visitchildren(node)
-        self.nogil = was_nogil
+        self._visit_scoped_children(node, is_nogil)
         return node
 
     def visit_ParallelRangeNode(self, node):
@@ -2938,8 +2988,12 @@ class GilCheck(VisitorTransform):
     def visit_Node(self, node):
         if self.env_stack and self.nogil and node.nogil_check:
             node.nogil_check(self.env_stack[-1])
-        self.visitchildren(node)
-        node.in_nogil_context = self.nogil
+        if node.outer_attrs:
+            self._visit_scoped_children(node, self.nogil)
+        else:
+            self.visitchildren(node)
+        if self.nogil:
+            node.in_nogil_context = True
         return node
 
 
@@ -3049,8 +3103,8 @@ class TransformBuiltinMethods(EnvTransform):
 
     def _inject_eval(self, node, func_name):
         lenv = self.current_env()
-        entry = lenv.lookup_here(func_name)
-        if entry or len(node.args) != 1:
+        entry = lenv.lookup(func_name)
+        if len(node.args) != 1 or (entry and not entry.is_builtin):
             return node
         # Inject globals and locals
         node.args.append(ExprNodes.GlobalsExprNode(node.pos))
@@ -3203,6 +3257,13 @@ class ReplaceFusedTypeChecks(VisitorTransform):
         """
         Filters out any if clauses with false compile time type check
         expression.
+        """
+        self.visitchildren(node)
+        return self.transform(node)
+
+    def visit_GILStatNode(self, node):
+        """
+        Fold constant condition of GILStatNode.
         """
         self.visitchildren(node)
         return self.transform(node)

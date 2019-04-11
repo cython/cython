@@ -7,9 +7,34 @@ def modobj(obj2, obj3):
     1
     >>> modobj('%d', 5)
     '5'
+    >>> modobj(1, 0)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: integer division or modulo by zero
     """
     obj1 = obj2 % obj3
     return obj1
+
+
+def mod_10_obj(int2):
+    """
+    >>> mod_10_obj(0)
+    Traceback (most recent call last):
+    ZeroDivisionError: integer division or modulo by zero
+    >>> 10 % 1
+    0
+    >>> mod_10_obj(1)
+    0
+    >>> mod_10_obj(3)
+    1
+    >>> 10 % -1
+    0
+    >>> mod_10_obj(-1)
+    0
+    >>> mod_10_obj(-10)
+    0
+    """
+    int1 = 10 % int2
+    return int1
 
 
 def mod_obj_10(int2):

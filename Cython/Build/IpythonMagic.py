@@ -62,11 +62,7 @@ try:
 except NameError:   # Python 3
     from imp import reload
 
-try:
-    import hashlib
-except ImportError:
-    import md5 as hashlib
-
+import hashlib
 from distutils.core import Distribution, Extension
 from distutils.command.build_ext import build_ext
 
@@ -308,7 +304,7 @@ class CythonMagics(Magics):
         if args.name:
             module_name = py3compat.unicode_to_str(args.name)
         else:
-            module_name = "_cython_magic_" + hashlib.md5(str(key).encode('utf-8')).hexdigest()
+            module_name = "_cython_magic_" + hashlib.sha1(str(key).encode('utf-8')).hexdigest()
         html_file = os.path.join(lib_dir, module_name + '.html')
         module_path = os.path.join(lib_dir, module_name + self.so_ext)
 
@@ -423,12 +419,11 @@ class CythonMagics(Magics):
                 quiet=quiet,
                 annotate=args.annotate,
                 force=True,
+                language_level=min(3, sys.version_info[0]),
             )
             if args.language_level is not None:
                 assert args.language_level in (2, 3)
                 opts['language_level'] = args.language_level
-            elif sys.version_info[0] >= 3:
-                opts['language_level'] = 3
             return cythonize([extension], **opts)
         except CompileError:
             return None

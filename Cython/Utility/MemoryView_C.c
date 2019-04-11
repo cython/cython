@@ -244,7 +244,7 @@ __pyx_check_suboffsets(Py_buffer *buf, int dim, CYTHON_UNUSED int ndim, int spec
     }
 
     if (spec & __Pyx_MEMVIEW_PTR) {
-        if (!buf->suboffsets || (buf->suboffsets && buf->suboffsets[dim] < 0)) {
+        if (!buf->suboffsets || (buf->suboffsets[dim] < 0)) {
             PyErr_Format(PyExc_ValueError,
                          "Buffer is not indirectly accessible "
                          "in dimension %d.", dim);
@@ -394,11 +394,7 @@ __Pyx_init_memviewslice(struct __pyx_memoryview_obj *memview,
     Py_buffer *buf = &memview->view;
     __Pyx_RefNannySetupContext("init_memviewslice", 0);
 
-    if (!buf) {
-        PyErr_SetString(PyExc_ValueError,
-            "buf is NULL.");
-        goto fail;
-    } else if (memviewslice->memview || memviewslice->data) {
+    if (memviewslice->memview || memviewslice->data) {
         PyErr_SetString(PyExc_ValueError,
             "memviewslice is already initialized!");
         goto fail;
@@ -852,28 +848,40 @@ if (unlikely(__pyx_memoryview_slice_memviewslice(
 
 {
     Py_ssize_t __pyx_tmp_idx = {{idx}};
-    Py_ssize_t __pyx_tmp_shape = {{src}}.shape[{{dim}}];
+
+    {{if wraparound or boundscheck}}
+        Py_ssize_t __pyx_tmp_shape = {{src}}.shape[{{dim}}];
+    {{endif}}
+
     Py_ssize_t __pyx_tmp_stride = {{src}}.strides[{{dim}}];
-    if ({{wraparound}} && (__pyx_tmp_idx < 0))
-        __pyx_tmp_idx += __pyx_tmp_shape;
+    {{if wraparound}}
+        if (__pyx_tmp_idx < 0)
+            __pyx_tmp_idx += __pyx_tmp_shape;
+    {{endif}}
 
-    if ({{boundscheck}} && (__pyx_tmp_idx < 0 || __pyx_tmp_idx >= __pyx_tmp_shape)) {
-        {{if not have_gil}}
-            #ifdef WITH_THREAD
-            PyGILState_STATE __pyx_gilstate_save = PyGILState_Ensure();
-            #endif
-        {{endif}}
+    {{if boundscheck}}
+        if (!__Pyx_is_valid_index(__pyx_tmp_idx, __pyx_tmp_shape)) {
+            {{if not have_gil}}
+                #ifdef WITH_THREAD
+                PyGILState_STATE __pyx_gilstate_save = PyGILState_Ensure();
+                #endif
+            {{endif}}
 
-        PyErr_SetString(PyExc_IndexError, "Index out of bounds (axis {{dim}})");
+            PyErr_SetString(PyExc_IndexError,
+                            "Index out of bounds (axis {{dim}})");
 
-        {{if not have_gil}}
-            #ifdef WITH_THREAD
-            PyGILState_Release(__pyx_gilstate_save);
-            #endif
-        {{endif}}
+            {{if not have_gil}}
+                #ifdef WITH_THREAD
+                PyGILState_Release(__pyx_gilstate_save);
+                #endif
+            {{endif}}
 
-        {{error_goto}}
-    }
+            {{error_goto}}
+        }
+    {{else}}
+        // make sure label is not un-used
+        if ((0)) {{error_goto}}
+    {{endif}}
 
     {{if all_dimensions_direct}}
         {{dst}}.data += __pyx_tmp_idx * __pyx_tmp_stride;

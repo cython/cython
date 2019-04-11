@@ -9,13 +9,13 @@ def diffuse():
     """
     >>> u = diffuse()
     >>> count_non_zero = np.sum(u > 0)
-    >>> 15000 < count_non_zero < (2**7) * (2**7) or count_non_zero
+    >>> 850 < count_non_zero < (2**5) * (2**5) or count_non_zero
     True
     """
-    lx, ly = (2**7, 2**7)
+    lx, ly = (2**5, 2**5)
     u = np.zeros([lx, ly], dtype=np.double)
     u[lx // 2, ly // 2] = 1000.0
-    _diffuse_numpy(u, 500)
+    _diffuse_numpy(u, 50)
     return u
 
 

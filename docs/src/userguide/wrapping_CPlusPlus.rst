@@ -111,7 +111,12 @@ of the :func:`cythonize` function.
 Declare a var with the wrapped C++ class
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Now, we use cdef to declare a var of the class with the C++ ``new`` statement:
+We'll create a ``.pyx`` file named ``rect.pyx`` to build our wrapper. We're
+using a name other than ``Rectangle``, but if you prefer giving the same name
+to the wrapper as the C++ class, see the section on 
+:ref:`resolving naming conflicts <resolve-conflicts>`.
+
+Within, we use cdef to declare a var of the class with the C++ ``new`` statement:
 
 .. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/cython_usage.pyx
 
@@ -163,9 +168,6 @@ which are guaranteed to be called exactly once upon creation and deletion of the
 instance.
 
 .. literalinclude:: ../../examples/userguide/wrapping_CPlusPlus/rect_ptr.pyx
-
-If you prefer giving the same name to the wrapper as the C++ class, see the
-section on :ref:`resolving naming conflicts <resolve-conflicts>`.
 
 Compilation and Importing
 =========================
@@ -439,6 +441,13 @@ If something_dangerous raises a C++ exception then raise_py_error will be
 called, which allows one to do custom C++ to Python error "translations." If
 raise_py_error does not actually raise an exception a RuntimeError will be
 raised.
+
+There is also the special form::
+
+    cdef int raise_py_or_cpp() except +*
+
+for those functions that may raise either a Python or a C++ exception.
+
 
 Static member method
 --------------------

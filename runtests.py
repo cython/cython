@@ -1,10 +1,13 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import atexit
 import os
 import sys
 import re
 import gc
+import heapq
 import locale
 import shutil
 import time
@@ -17,6 +20,7 @@ import traceback
 import warnings
 import zlib
 import glob
+from contextlib import contextmanager
 
 try:
     import platform
@@ -25,6 +29,7 @@ try:
 except (ImportError, AttributeError):
     IS_CPYTHON = True
     IS_PYPY = False
+IS_PY2 = sys.version_info[0] < 3
 
 from io import open as io_open
 try:
@@ -61,6 +66,17 @@ except ImportError:
             return repr(self._dict)
         def __nonzero__(self):
             return bool(self._dict)
+
+try:
+    from unittest import SkipTest
+except ImportError:
+    class SkipTest(Exception):  # don't raise, only provided to allow except-ing it!
+        pass
+    def skip_test(reason):
+        sys.stderr.write("Skipping test: %s\n" % reason)
+else:
+    def skip_test(reason):
+        raise SkipTest(reason)
 
 try:
     basestring
@@ -100,7 +116,7 @@ def get_distutils_distro(_cache=[]):
     distutils_distro = Distribution()
 
     if sys.platform == 'win32':
-        # TODO: Figure out why this hackery (see http://thread.gmane.org/gmane.comp.python.cython.devel/8280/).
+        # TODO: Figure out why this hackery (see https://thread.gmane.org/gmane.comp.python.cython.devel/8280/).
         config_files = distutils_distro.find_config_files()
         try:
             config_files.remove('setup.cfg')
@@ -119,7 +135,8 @@ def get_distutils_distro(_cache=[]):
 
 
 EXT_DEP_MODULES = {
-    'tag:numpy':    'numpy',
+    'tag:numpy':     'numpy',
+    'tag:numpy_old': 'numpy',
     'tag:pythran':  'pythran',
     'tag:setuptools':  'setuptools.sandbox',
     'tag:asyncio':  'asyncio',
@@ -130,6 +147,7 @@ EXT_DEP_MODULES = {
     'Coverage':     'Cython.Coverage',
     'tag:ipython':  'IPython.testing.globalipapp',
     'tag:jedi':     'jedi_BROKEN_AND_DISABLED',
+    'tag:test.support': 'test.support',  # support module for CPython unit tests
 }
 
 def patch_inspect_isfunction():
@@ -238,11 +256,18 @@ def update_linetrace_extension(ext):
     return ext
 
 
-def update_numpy_extension(ext):
+def update_old_numpy_extension(ext):
+    update_numpy_extension(ext, set_api17_macro=False)
+
+
+def update_numpy_extension(ext, set_api17_macro=True):
     import numpy
     from numpy.distutils.misc_util import get_info
 
     ext.include_dirs.append(numpy.get_include())
+
+    if set_api17_macro:
+        ext.define_macros.append(('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION'))
 
     # We need the npymath library for numpy.math.
     # This is typically a static-only library.
@@ -375,6 +400,7 @@ EXCLUDE_EXT = object()
 
 EXT_EXTRAS = {
     'tag:numpy' : update_numpy_extension,
+    'tag:numpy_old' : update_old_numpy_extension,
     'tag:openmp': update_openmp_extension,
     'tag:cpp11': update_cpp11_extension,
     'tag:trace' : update_linetrace_extension,
@@ -387,29 +413,27 @@ EXT_EXTRAS = {
 VER_DEP_MODULES = {
     # tests are excluded if 'CurrentPythonVersion OP VersionTuple', i.e.
     # (2,4) : (operator.lt, ...) excludes ... when PyVer < 2.4.x
-    (2,7) : (operator.lt, lambda x: x in ['run.withstat_py27', # multi context with statement
-                                          'run.yield_inside_lambda',
-                                          'run.test_dictviews',
-                                          'run.pyclass_special_methods',
-                                          'run.set_literals',
-                                          ]),
+
     # The next line should start (3,); but this is a dictionary, so
     # we can only have one (3,) key.  Since 2.7 is supposed to be the
     # last 2.x release, things would have to change drastically for this
     # to be unsafe...
     (2,999): (operator.lt, lambda x: x in ['run.special_methods_T561_py3',
                                            'run.test_raisefrom',
+                                           'run.different_package_names',
                                            ]),
     (3,): (operator.ge, lambda x: x in ['run.non_future_division',
                                         'compile.extsetslice',
                                         'compile.extdelslice',
-                                        'run.special_methods_T561_py2'
+                                        'run.special_methods_T561_py2',
                                         ]),
     (3,3) : (operator.lt, lambda x: x in ['build.package_compilation',
                                           'run.yield_from_py33',
                                           'pyximport.pyximport_namespace',
+                                          'run.qualname',
                                           ]),
     (3,4): (operator.lt, lambda x: x in ['run.py34_signature',
+                                         'run.test_unicode',  # taken from Py3.7, difficult to backport
                                          ]),
     (3,4,999): (operator.gt, lambda x: x in ['run.initial_file_path',
                                              ]),
@@ -417,6 +441,7 @@ VER_DEP_MODULES = {
                                          'run.py35_asyncio_async_def',
                                          'run.mod__spec__',
                                          'run.pep526_variable_annotations',  # typing module
+                                         'run.test_exceptions',  # copied from Py3.7+
                                          ]),
 }
 
@@ -445,8 +470,7 @@ def memoize(f):
 def parse_tags(filepath):
     tags = defaultdict(list)
     parse_tag = re.compile(r'#\s*(\w+)\s*:(.*)$').match
-    f = io_open(filepath, encoding='ISO-8859-1', errors='ignore')
-    try:
+    with io_open(filepath, encoding='ISO-8859-1', errors='ignore') as f:
         for line in f:
             # ignore BOM-like bytes and whitespace
             line = line.lstrip(UTF8_BOM_BYTES).strip()
@@ -471,8 +495,6 @@ def parse_tags(filepath):
                 tags[tag].extend(filter(None, [value.strip() for value in values]))
             elif tags:
                 break  # assume all tags are in one block
-    finally:
-        f.close()
     return tags
 
 
@@ -520,7 +542,7 @@ class build_ext(_build_ext):
 
 
 class ErrorWriter(object):
-    match_error = re.compile('(warning:)?(?:.*:)?\s*([-0-9]+)\s*:\s*([-0-9]+)\s*:\s*(.*)').match
+    match_error = re.compile(r'(warning:)?(?:.*:)?\s*([-0-9]+)\s*:\s*([-0-9]+)\s*:\s*(.*)').match
 
     def __init__(self):
         self.output = []
@@ -550,11 +572,56 @@ class ErrorWriter(object):
         pass  # ignore, only to match file-like interface
 
 
+class Stats(object):
+    def __init__(self, top_n=8):
+        self.top_n = top_n
+        self.test_counts = defaultdict(int)
+        self.test_times = defaultdict(float)
+        self.top_tests = defaultdict(list)
+
+    def add_time(self, name, language, metric, t):
+        self.test_counts[metric] += 1
+        self.test_times[metric] += t
+        top = self.top_tests[metric]
+        push = heapq.heappushpop if len(top) >= self.top_n else heapq.heappush
+        # min-heap => pop smallest/shortest until longest times remain
+        push(top, (t, name, language))
+
+    @contextmanager
+    def time(self, name, language, metric):
+        t = time.time()
+        yield
+        t = time.time() - t
+        self.add_time(name, language, metric, t)
+
+    def update(self, stats):
+        # type: (Stats) -> None
+        for metric, t in stats.test_times.items():
+            self.test_times[metric] += t
+            self.test_counts[metric] += stats.test_counts[metric]
+            top = self.top_tests[metric]
+            for entry in stats.top_tests[metric]:
+                push = heapq.heappushpop if len(top) >= self.top_n else heapq.heappush
+                push(top, entry)
+
+    def print_stats(self, out=sys.stderr):
+        if not self.test_times:
+            return
+        lines = ['Times:\n']
+        for metric, t in sorted(self.test_times.items()):
+            count = self.test_counts[metric]
+            top = self.top_tests[metric]
+            lines.append("%-12s: %8.2f sec  (%4d, %6.3f / run) - slowest: %s\n" % (
+                metric, t, count, t / count,
+                ', '.join("'{2}:{1}' ({0:.2f}s)".format(*item) for item in heapq.nlargest(self.top_n, top))))
+        out.write(''.join(lines))
+
+
 class TestBuilder(object):
     def __init__(self, rootdir, workdir, selectors, exclude_selectors, options,
                  with_pyregr, languages, test_bugs, language_level,
                  common_utility_dir, pythran_dir=None,
-                 default_mode='run',
+                 default_mode='run', stats=None,
                  add_embedded_test=False):
         self.rootdir = rootdir
         self.workdir = workdir
@@ -574,7 +641,9 @@ class TestBuilder(object):
         self.common_utility_dir = common_utility_dir
         self.pythran_dir = pythran_dir
         self.default_mode = default_mode
+        self.stats = stats
         self.add_embedded_test = add_embedded_test
+        self.capture = options.capture
 
     def build_suite(self):
         suite = unittest.TestSuite()
@@ -632,7 +701,9 @@ class TestBuilder(object):
 
             if ext == '.srctree':
                 if 'cpp' not in tags['tag'] or 'cpp' in self.languages:
-                    suite.addTest(EndToEndTest(filepath, workdir, self.cleanup_workdir))
+                    suite.addTest(EndToEndTest(filepath, workdir,
+                             self.cleanup_workdir, stats=self.stats,
+                             capture=self.capture))
                 continue
 
             # Choose the test suite.
@@ -662,7 +733,7 @@ class TestBuilder(object):
                     if pyver
                 ]
                 if not min_py_ver or any(sys.version_info >= min_ver for min_ver in min_py_ver):
-                    suite.addTest(PureDoctestTestCase(module, os.path.join(path, filename), tags))
+                    suite.addTest(PureDoctestTestCase(module, os.path.join(path, filename), tags, stats=self.stats))
 
         return suite
 
@@ -684,29 +755,39 @@ class TestBuilder(object):
         elif 'no-cpp' in tags['tag'] and 'cpp' in self.languages:
             languages = list(languages)
             languages.remove('cpp')
+        language_levels = [2, 3] if 'all_language_levels' in tags['tag'] else [None]
 
         pythran_dir = self.pythran_dir
         if 'pythran' in tags['tag'] and not pythran_dir and 'cpp' in languages:
             import pythran.config
-            pythran_ext = pythran.config.make_extension()
+            from pythran import __version__ as pythran_version
+            pythran_ext = (
+                pythran.config.make_extension(python=True)
+                if pythran_version >= '0.9' or pythran_version >= '0.8.7'
+                else pythran.config.make_extension()
+            )
             pythran_dir = pythran_ext['include_dirs'][0]
 
         preparse_list = tags.get('preparse', ['id'])
-        tests = [ self.build_test(test_class, path, workdir, module, tags, language,
+        tests = [ self.build_test(test_class, path, workdir, module, tags, language, language_level,
                                   expect_errors, expect_warnings, warning_errors, preparse,
                                   pythran_dir if language == "cpp" else None)
                   for language in languages
-                  for preparse in preparse_list ]
+                  for preparse in preparse_list
+                  for language_level in language_levels
+        ]
         return tests
 
-    def build_test(self, test_class, path, workdir, module, tags, language,
+    def build_test(self, test_class, path, workdir, module, tags, language, language_level,
                    expect_errors, expect_warnings, warning_errors, preparse, pythran_dir):
         language_workdir = os.path.join(workdir, language)
         if not os.path.exists(language_workdir):
             os.makedirs(language_workdir)
         workdir = os.path.join(language_workdir, module)
         if preparse != 'id':
-            workdir += '_%s' % str(preparse)
+            workdir += '_%s' % (preparse,)
+        if language_level:
+            workdir += '_cy%d' % (language_level,)
         return test_class(path, workdir, module, tags,
                           language=language,
                           preparse=preparse,
@@ -718,11 +799,12 @@ class TestBuilder(object):
                           cleanup_failures=self.cleanup_failures,
                           cython_only=self.cython_only,
                           fork=self.fork,
-                          language_level=self.language_level,
+                          language_level=language_level or self.language_level,
                           warning_errors=warning_errors,
                           test_determinism=self.test_determinism,
                           common_utility_dir=self.common_utility_dir,
-                          pythran_dir=pythran_dir)
+                          pythran_dir=pythran_dir,
+                          stats=self.stats)
 
 
 def skip_c(tags):
@@ -741,13 +823,25 @@ def skip_c(tags):
     return False
 
 
+def filter_stderr(stderr_bytes):
+    """
+    Filter annoying warnings from output.
+    """
+    if b"Command line warning D9025" in stderr_bytes:
+        # MSCV: cl : Command line warning D9025 : overriding '/Ox' with '/Od'
+        stderr_bytes = b'\n'.join(
+            line for line in stderr_bytes.splitlines()
+            if b"Command line warning D9025" not in line)
+    return stderr_bytes
+
+
 class CythonCompileTestCase(unittest.TestCase):
     def __init__(self, test_directory, workdir, module, tags, language='c', preparse='id',
                  expect_errors=False, expect_warnings=False, annotate=False, cleanup_workdir=True,
                  cleanup_sharedlibs=True, cleanup_failures=True, cython_only=False,
                  fork=True, language_level=2, warning_errors=False,
                  test_determinism=False,
-                 common_utility_dir=None, pythran_dir=None):
+                 common_utility_dir=None, pythran_dir=None, stats=None):
         self.test_directory = test_directory
         self.tags = tags
         self.workdir = workdir
@@ -768,10 +862,19 @@ class CythonCompileTestCase(unittest.TestCase):
         self.test_determinism = test_determinism
         self.common_utility_dir = common_utility_dir
         self.pythran_dir = pythran_dir
+        self.stats = stats
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
-        return "compiling (%s%s) %s" % (self.language, "/pythran" if self.pythran_dir is not None else "", self.name)
+        return "compiling (%s%s%s) %s" % (
+            self.language,
+            "/cy2" if self.language_level == 2 else "/cy3" if self.language_level == 3 else "",
+            "/pythran" if self.pythran_dir is not None else "",
+            self.description_name()
+        )
+
+    def description_name(self):
+        return self.name
 
     def setUp(self):
         from Cython.Compiler import Options
@@ -873,7 +976,9 @@ class CythonCompileTestCase(unittest.TestCase):
         if self.preparse and self.preparse != 'id':
             preparse_func = globals()[self.preparse]
             def copy(src, dest):
-                open(dest, 'w').write(preparse_func(open(src).read()))
+                with open(src) as fin:
+                    with open(dest, 'w') as fout:
+                        fout.write(preparse_func(fin.read()))
         else:
             # use symlink on Unix, copy on Windows
             try:
@@ -894,22 +999,22 @@ class CythonCompileTestCase(unittest.TestCase):
 
     def split_source_and_output(self, test_directory, module, workdir):
         source_file = self.find_module_source_file(os.path.join(test_directory, module) + '.pyx')
-        source_and_output = io_open(source_file, 'r', encoding='ISO-8859-1')
-        error_writer = warnings_writer = None
-        try:
+        with io_open(source_file, 'r', encoding='ISO-8859-1') as source_and_output:
+            error_writer = warnings_writer = None
             out = io_open(os.path.join(workdir, module + os.path.splitext(source_file)[1]),
                           'w', encoding='ISO-8859-1')
-            for line in source_and_output:
-                if line.startswith("_ERRORS"):
-                    out.close()
-                    out = error_writer = ErrorWriter()
-                elif line.startswith("_WARNINGS"):
-                    out.close()
-                    out = warnings_writer = ErrorWriter()
-                else:
-                    out.write(line)
-        finally:
-            source_and_output.close()
+            try:
+                for line in source_and_output:
+                    if line.startswith("_ERRORS"):
+                        out.close()
+                        out = error_writer = ErrorWriter()
+                    elif line.startswith("_WARNINGS"):
+                        out.close()
+                        out = warnings_writer = ErrorWriter()
+                    else:
+                        out.write(line)
+            finally:
+                out.close()
 
         return (error_writer.geterrors() if error_writer else [],
                 warnings_writer.geterrors() if warnings_writer else [])
@@ -938,9 +1043,9 @@ class CythonCompileTestCase(unittest.TestCase):
         try:
             CompilationOptions
         except NameError:
-            from Cython.Compiler.Main import CompilationOptions
+            from Cython.Compiler.Options import CompilationOptions
             from Cython.Compiler.Main import compile as cython_compile
-            from Cython.Compiler.Main import default_options
+            from Cython.Compiler.Options import default_options
         common_utility_include_dir = self.common_utility_dir
 
         options = CompilationOptions(
@@ -1015,10 +1120,13 @@ class CythonCompileTestCase(unittest.TestCase):
                 if matcher(module, self.tags):
                     newext = fixer(extension)
                     if newext is EXCLUDE_EXT:
-                        return
+                        return skip_test("Test '%s' excluded due to tags '%s'" % (
+                            self.name, ', '.join(self.tags.get('tag', ''))))
                     extension = newext or extension
             if self.language == 'cpp':
                 extension.language = 'c++'
+            if IS_PY2:
+                workdir = str(workdir)  # work around type check in distutils that disallows unicode strings
             build_extension.extensions = [extension]
             build_extension.build_temp = workdir
             build_extension.build_lib  = workdir
@@ -1056,7 +1164,8 @@ class CythonCompileTestCase(unittest.TestCase):
             old_stderr = sys.stderr
             try:
                 sys.stderr = ErrorWriter()
-                self.run_cython(test_directory, module, workdir, incdir, annotate)
+                with self.stats.time(self.name, self.language, 'cython'):
+                    self.run_cython(test_directory, module, workdir, incdir, annotate)
                 errors, warnings = sys.stderr.getall()
             finally:
                 sys.stderr = old_stderr
@@ -1099,7 +1208,8 @@ class CythonCompileTestCase(unittest.TestCase):
             try:
                 with captured_fd(1) as get_stdout:
                     with captured_fd(2) as get_stderr:
-                        so_path = self.run_distutils(test_directory, module, workdir, incdir)
+                        with self.stats.time(self.name, self.language, 'compile-%s' % self.language):
+                            so_path = self.run_distutils(test_directory, module, workdir, incdir)
             except Exception as exc:
                 if ('cerror' in self.tags['tag'] and
                     ((get_stderr and get_stderr()) or
@@ -1114,14 +1224,16 @@ class CythonCompileTestCase(unittest.TestCase):
                 if show_output:
                     stdout = get_stdout and get_stdout().strip()
                     if stdout:
-                        tostderr("\n=== C/C++ compiler output: ===\n")
-                        print_bytes(stdout, end=None, file=sys.__stderr__)
-                    stderr = get_stderr and get_stderr().strip()
+                        print_bytes(
+                            stdout, header_text="\n=== C/C++ compiler output: =========\n",
+                            end=None, file=sys.__stderr__)
+                    stderr = get_stderr and filter_stderr(get_stderr()).strip()
                     if stderr:
-                        tostderr("\n=== C/C++ compiler error output: ===\n")
-                        print_bytes(stderr, end=None, file=sys.__stderr__)
+                        print_bytes(
+                            stderr, header_text="\n=== C/C++ compiler error output: ===\n",
+                            end=None, file=sys.__stderr__)
                     if stdout or stderr:
-                        tostderr("\n==============================\n")
+                        tostderr("\n====================================\n")
         return so_path
 
     def _match_output(self, expected_output, actual_output, write):
@@ -1149,11 +1261,8 @@ class CythonRunTestCase(CythonCompileTestCase):
         from Cython.Compiler import Options
         Options.clear_to_none = False
 
-    def shortDescription(self):
-        if self.cython_only:
-            return CythonCompileTestCase.shortDescription(self)
-        else:
-            return "compiling (%s%s) and running %s" % (self.language, "/pythran" if self.pythran_dir is not None else "", self.name)
+    def description_name(self):
+        return self.name if self.cython_only else "and running %s" % self.name
 
     def run(self, result=None):
         if result is None:
@@ -1164,7 +1273,7 @@ class CythonRunTestCase(CythonCompileTestCase):
             try:
                 self.success = False
                 ext_so_path = self.runCompileTest()
-                failures, errors = len(result.failures), len(result.errors)
+                failures, errors, skipped = len(result.failures), len(result.errors), len(result.skipped)
                 if not self.cython_only and ext_so_path is not None:
                     self.run_tests(result, ext_so_path)
                 if failures == len(result.failures) and errors == len(result.errors):
@@ -1172,6 +1281,9 @@ class CythonRunTestCase(CythonCompileTestCase):
                     self.success = True
             finally:
                 check_thread_termination()
+        except SkipTest as exc:
+            result.addSkip(self, str(exc))
+            result.stopTest(self)
         except Exception:
             result.addError(self, sys.exc_info())
             result.stopTest(self)
@@ -1186,12 +1298,15 @@ class CythonRunTestCase(CythonCompileTestCase):
     def run_doctests(self, module_or_name, result, ext_so_path):
         def run_test(result):
             if isinstance(module_or_name, basestring):
-                module = import_ext(module_or_name, ext_so_path)
+                with self.stats.time(self.name, self.language, 'import'):
+                    module = import_ext(module_or_name, ext_so_path)
             else:
                 module = module_or_name
             tests = doctest.DocTestSuite(module)
-            tests.run(result)
+            with self.stats.time(self.name, self.language, 'run'):
+                tests.run(result)
         run_forked_test(result, run_test, self.shortDescription(), self.fork)
+
 
 def run_forked_test(result, run_func, test_name, fork=True):
     if not fork or sys.version_info[0] >= 3 or not hasattr(os, 'fork'):
@@ -1207,7 +1322,6 @@ def run_forked_test(result, run_func, test_name, fork=True):
     child_id = os.fork()
     if not child_id:
         result_code = 0
-        output = None
         try:
             try:
                 tests = partial_result = None
@@ -1227,8 +1341,9 @@ def run_forked_test(result, run_func, test_name, fork=True):
                                 _shortDescription=test_name,
                                 module_name=None)
                         partial_result.addError(tests, sys.exc_info())
-                output = open(result_file, 'wb')
-                pickle.dump(partial_result.data(), output)
+                if partial_result is not None:
+                    with open(result_file, 'wb') as output:
+                        pickle.dump(partial_result.data(), output)
             except:
                 traceback.print_exc()
         finally:
@@ -1236,11 +1351,6 @@ def run_forked_test(result, run_func, test_name, fork=True):
             except: pass
             try: sys.stdout.flush()
             except: pass
-            try:
-                if output is not None:
-                    output.close()
-            except:
-                pass
             os._exit(result_code)
 
     try:
@@ -1250,29 +1360,35 @@ def run_forked_test(result, run_func, test_name, fork=True):
         # upper byte of result_code, and the signal it was
         # killed by in the lower byte
         if result_code & 255:
-            raise Exception("Tests in module '%s' were unexpectedly killed by signal %d"%
-                            (module_name, result_code & 255))
+            raise Exception(
+                "Tests in module '%s' were unexpectedly killed by signal %d, see test output for details." % (
+                    module_name, result_code & 255))
         result_code >>= 8
         if result_code in (0,1):
-            input = open(result_file, 'rb')
             try:
-                PartialTestResult.join_results(result, pickle.load(input))
-            finally:
-                input.close()
+                with open(result_file, 'rb') as f:
+                    PartialTestResult.join_results(result, pickle.load(f))
+            except Exception:
+                raise Exception(
+                    "Failed to load test result from test in module '%s' after exit status %d,"
+                    " see test output for details." % (module_name, result_code))
         if result_code:
-            raise Exception("Tests in module '%s' exited with status %d" %
-                            (module_name, result_code))
+            raise Exception(
+                "Tests in module '%s' exited with status %d, see test output for details." % (
+                    module_name, result_code))
     finally:
         try:
             os.unlink(result_file)
         except:
             pass
 
+
 class PureDoctestTestCase(unittest.TestCase):
-    def __init__(self, module_name, module_path, tags):
+    def __init__(self, module_name, module_path, tags, stats=None):
         self.tags = tags
-        self.module_name = module_name
+        self.module_name = self.name = module_name
         self.module_path = module_path
+        self.stats = stats
         unittest.TestCase.__init__(self, 'run')
 
     def shortDescription(self):
@@ -1287,9 +1403,11 @@ class PureDoctestTestCase(unittest.TestCase):
             self.setUp()
 
             import imp
-            m = imp.load_source(loaded_module_name, self.module_path)
+            with self.stats.time(self.name, 'py', 'pyimport'):
+                m = imp.load_source(loaded_module_name, self.module_path)
             try:
-                doctest.DocTestSuite(m).run(result)
+                with self.stats.time(self.name, 'py', 'pyrun'):
+                    doctest.DocTestSuite(m).run(result)
             finally:
                 del m
                 if loaded_module_name in sys.modules:
@@ -1303,22 +1421,20 @@ class PureDoctestTestCase(unittest.TestCase):
         except Exception:
             pass
 
-        try:
-            from mypy import api as mypy_api
-            nomypy = False
-        except ImportError:
-            nomypy = True
-        if 'mypy' in self.tags['tag'] and not nomypy:
-
-            mypy_result = mypy_api.run((
-                self.module_path,
-                '--ignore-missing-imports',
-                '--follow-imports', 'skip',
-            ))
-
-            if mypy_result[2]:
-                import pdb; pdb.set_trace()
-                self.fail(mypy_result[0])
+        if 'mypy' in self.tags['tag']:
+            try:
+                from mypy import api as mypy_api
+            except ImportError:
+                pass
+            else:
+                with self.stats.time(self.name, 'py', 'mypy'):
+                    mypy_result = mypy_api.run((
+                        self.module_path,
+                        '--ignore-missing-imports',
+                        '--follow-imports', 'skip',
+                    ))
+                if mypy_result[2]:
+                    self.fail(mypy_result[0])
 
 
 is_private_field = re.compile('^_[^_]').match
@@ -1353,17 +1469,18 @@ class PartialTestResult(_TextTestResult):
     def data(self):
         self.strip_error_results(self.failures)
         self.strip_error_results(self.errors)
-        return (self.failures, self.errors, self.testsRun,
+        return (self.failures, self.errors, self.skipped, self.testsRun,
                 self.stream.getvalue())
 
     def join_results(result, data):
         """Static method for merging the result back into the main
         result object.
         """
-        failures, errors, tests_run, output = data
+        failures, errors, skipped, tests_run, output = data
         if output:
             result.stream.write(output)
         result.errors.extend(errors)
+        result.skipped.extend(skipped)
         result.failures.extend(failures)
         result.testsRun += tests_run
 
@@ -1376,11 +1493,14 @@ class PartialTestResult(_TextTestResult):
 
 class CythonUnitTestCase(CythonRunTestCase):
     def shortDescription(self):
-        return "compiling (%s) tests in %s" % (self.language, self.name)
+        return "compiling (%s) tests in %s" % (self.language, self.description_name())
 
     def run_tests(self, result, ext_so_path):
-        module = import_ext(self.module, ext_so_path)
-        unittest.defaultTestLoader.loadTestsFromModule(module).run(result)
+        with self.stats.time(self.name, self.language, 'import'):
+            module = import_ext(self.module, ext_so_path)
+        tests = unittest.defaultTestLoader.loadTestsFromModule(module)
+        with self.stats.time(self.name, self.language, 'run'):
+            tests.run(result)
 
 
 class CythonPyregrTestCase(CythonRunTestCase):
@@ -1411,7 +1531,8 @@ class CythonPyregrTestCase(CythonRunTestCase):
                 suite.addTest(cls)
             else:
                 suite.addTest(unittest.makeSuite(cls))
-        suite.run(result)
+        with self.stats.time(self.name, self.language, 'run'):
+            suite.run(result)
 
     def _run_doctest(self, result, module):
         self.run_doctests(module, result, None)
@@ -1435,7 +1556,8 @@ class CythonPyregrTestCase(CythonRunTestCase):
             try:
                 try:
                     sys.stdout.flush() # helps in case of crashes
-                    module = import_ext(self.module, ext_so_path)
+                    with self.stats.time(self.name, self.language, 'import'):
+                        module = import_ext(self.module, ext_so_path)
                     sys.stdout.flush() # helps in case of crashes
                     if hasattr(module, 'test_main'):
                         # help 'doctest.DocFileTest' find the module path through frame inspection
@@ -1464,8 +1586,12 @@ class TestCodeFormat(unittest.TestCase):
 
     def runTest(self):
         import pycodestyle
-        config_file = os.path.join(self.cython_dir, "tox.ini")
-        paths = glob.glob(os.path.join(self.cython_dir, "**/*.py"), recursive=True)
+        config_file = os.path.join(self.cython_dir, "setup.cfg")
+        if not os.path.exists(config_file):
+            config_file=os.path.join(os.path.dirname(__file__), "setup.cfg")
+        paths = []
+        for codedir in ['Cython', 'Demos', 'docs', 'pyximport', 'tests']:
+            paths += glob.glob(os.path.join(self.cython_dir, codedir + "/**/*.py"), recursive=True)
         style = pycodestyle.StyleGuide(config_file=config_file)
         print("")  # Fix the first line of the report.
         result = style.check_files(paths)
@@ -1565,11 +1691,14 @@ class EndToEndTest(unittest.TestCase):
     """
     cython_root = os.path.dirname(os.path.abspath(__file__))
 
-    def __init__(self, treefile, workdir, cleanup_workdir=True):
+    def __init__(self, treefile, workdir, cleanup_workdir=True, stats=None,
+                 capture=True):
         self.name = os.path.splitext(os.path.basename(treefile))[0]
         self.treefile = treefile
         self.workdir = os.path.join(workdir, self.name)
         self.cleanup_workdir = cleanup_workdir
+        self.stats = stats
+        self.capture = capture
         cython_syspath = [self.cython_root]
         for path in sys.path:
             if path.startswith(self.cython_root) and path not in cython_syspath:
@@ -1615,19 +1744,37 @@ class EndToEndTest(unittest.TestCase):
             .replace("PYTHON", sys.executable))
         old_path = os.environ.get('PYTHONPATH')
         env = dict(os.environ)
-        env['PYTHONPATH'] = self.cython_syspath + os.pathsep + (old_path or '')
-        for command in filter(None, commands.splitlines()):
-            p = subprocess.Popen(command,
-                                 stderr=subprocess.PIPE,
-                                 stdout=subprocess.PIPE,
-                                 shell=True,
-                                 env=env)
-            out, err = p.communicate()
-            res = p.returncode
+        new_path = self.cython_syspath
+        if old_path:
+            new_path = new_path + os.pathsep + old_path
+        env['PYTHONPATH'] = new_path
+        cmd = []
+        out = []
+        err = []
+        for command_no, command in enumerate(filter(None, commands.splitlines()), 1):
+            with self.stats.time('%s(%d)' % (self.name, command_no), 'c',
+                                 'etoe-build' if ' setup.py ' in command else 'etoe-run'):
+                if self.capture:
+                    p = subprocess.Popen(command,
+                                     stderr=subprocess.PIPE,
+                                     stdout=subprocess.PIPE,
+                                     shell=True,
+                                     env=env)
+                    _out, _err = p.communicate()
+                    res = p.returncode
+                else:
+                    p = subprocess.call(command,
+                                     shell=True,
+                                     env=env)
+                    _out, _err = b'', b''
+                    res = p
+                cmd.append(command)
+                out.append(_out)
+                err.append(_err)
             if res != 0:
-                print(command)
-                print(self._try_decode(out))
-                print(self._try_decode(err))
+                for c, o, e in zip(cmd, out, err):
+                    sys.stderr.write("%s\n%s\n%s\n\n" % (
+                        c, self._try_decode(o), self._try_decode(e)))
             self.assertEqual(0, res, "non-zero exit status")
         self.success = True
 
@@ -1667,8 +1814,8 @@ class EmbedTest(unittest.TestCase):
         if sys.version_info[0] >=3 and CY3_DIR:
             cython = os.path.join(CY3_DIR, cython)
         cython = os.path.abspath(os.path.join('..', '..', cython))
-        self.assertTrue(os.system(
-            "make PYTHON='%s' CYTHON='%s' LIBDIR1='%s' test > make.output" % (sys.executable, cython, libdir)) == 0)
+        self.assertEqual(0, os.system(
+            "make PYTHON='%s' CYTHON='%s' LIBDIR1='%s' test > make.output" % (sys.executable, cython, libdir)))
         try:
             os.remove('make.output')
         except OSError:
@@ -1769,7 +1916,7 @@ class ShardExcludeSelector(object):
         self.shard_num = shard_num
         self.shard_count = shard_count
 
-    def __call__(self, testname, tags=None, _hash=zlib.crc32, _is_py2=sys.version_info[0] < 3):
+    def __call__(self, testname, tags=None, _hash=zlib.crc32, _is_py2=IS_PY2):
         # Cannot use simple hash() here as shard processes might use different hash seeds.
         # CRC32 is fast and simple, but might return negative values in Py2.
         hashval = _hash(testname) & 0x7fffffff if _is_py2 else _hash(testname.encode())
@@ -1784,13 +1931,13 @@ threads_seen = []
 def check_thread_termination(ignore_seen=True):
     if threading is None: # no threading enabled in CPython
         return
-    current = threading.currentThread()
+    current = threading.current_thread()
     blocking_threads = []
     for t in threading.enumerate():
-        if not t.isAlive() or t == current:
+        if not t.is_alive() or t == current or t.name == 'time_stamper':
             continue
         t.join(timeout=2)
-        if t.isAlive():
+        if t.is_alive():
             if not ignore_seen:
                 blocking_threads.append(t)
                 continue
@@ -1918,6 +2065,9 @@ def main():
     parser.add_option("--shard_num", dest="shard_num", metavar="K",
                       type=int, default=-1,
                       help="test only this single shard")
+    parser.add_option("--profile", dest="profile",
+                      action="store_true", default=False,
+                      help="enable profiling of the tests")
     parser.add_option("-C", "--coverage", dest="coverage",
                       action="store_true", default=False,
                       help="collect source coverage data for the Compiler")
@@ -1955,7 +2105,7 @@ def main():
                             "tests (the ones which are deactivated with '--no-file'."))
     parser.add_option("--examples-dir", dest="examples_dir",
                       default=os.path.join(DISTDIR, 'docs', 'examples'),
-                      help="working directory")
+                      help="Directory to look for documentation example tests")
     parser.add_option("--work-dir", dest="work_dir", default=os.path.join(os.getcwd(), 'TEST_TMP'),
                       help="working directory")
     parser.add_option("--cython-dir", dest="cython_dir", default=os.getcwd(),
@@ -1972,6 +2122,8 @@ def main():
                       help="test whether Cython's output is deterministic")
     parser.add_option("--pythran-dir", dest="pythran_dir", default=None,
                       help="specify Pythran include directory. This will run the C++ tests using Pythran backend for Numpy")
+    parser.add_option("--no-capture", dest="capture", default=True, action="store_false",
+                      help="do not capture stdout, stderr in srctree tests. Makes pdb.set_trace interactive")
 
     options, cmd_args = parser.parse_args(args)
 
@@ -1986,39 +2138,61 @@ def main():
 
     coverage = None
     if options.coverage or options.coverage_xml or options.coverage_html:
-        if options.shard_count <= 1 and options.shard_num < 0:
-            if not WITH_CYTHON:
-                options.coverage = options.coverage_xml = options.coverage_html = False
-            else:
-                print("Enabling coverage analysis")
-                from coverage import coverage as _coverage
-                coverage = _coverage(branch=True, omit=['Test*'])
-                coverage.erase()
-                coverage.start()
+        if not WITH_CYTHON:
+            options.coverage = options.coverage_xml = options.coverage_html = False
+        elif options.shard_num == -1:
+            print("Enabling coverage analysis")
+            from coverage import coverage as _coverage
+            coverage = _coverage(branch=True)
+            coverage.erase()
+            coverage.start()
 
     if options.xml_output_dir:
         shutil.rmtree(options.xml_output_dir, ignore_errors=True)
 
+    if options.capture:
+        keep_alive_interval = 10
+    else:
+        keep_alive_interval = None
     if options.shard_count > 1 and options.shard_num == -1:
         import multiprocessing
         pool = multiprocessing.Pool(options.shard_count)
         tasks = [(options, cmd_args, shard_num) for shard_num in range(options.shard_count)]
         errors = []
-        for shard_num, return_code in pool.imap_unordered(runtests_callback, tasks):
-            if return_code != 0:
-                errors.append(shard_num)
-                print("FAILED (%s/%s)" % (shard_num, options.shard_count))
-            print("ALL DONE (%s/%s)" % (shard_num, options.shard_count))
+        # NOTE: create process pool before time stamper thread to avoid forking issues.
+        total_time = time.time()
+        stats = Stats()
+        with time_stamper_thread(interval=keep_alive_interval):
+            for shard_num, shard_stats, return_code in pool.imap_unordered(runtests_callback, tasks):
+                if return_code != 0:
+                    errors.append(shard_num)
+                    sys.stderr.write("FAILED (%s/%s)\n" % (shard_num, options.shard_count))
+                sys.stderr.write("ALL DONE (%s/%s)\n" % (shard_num, options.shard_count))
+                stats.update(shard_stats)
         pool.close()
         pool.join()
+        total_time = time.time() - total_time
+        sys.stderr.write("Sharded tests run in %d seconds (%.1f minutes)\n" % (round(total_time), total_time / 60.))
         if errors:
-            print("Errors for shards %s" % ", ".join([str(e) for e in errors]))
+            sys.stderr.write("Errors for shards %s\n" % ", ".join([str(e) for e in errors]))
             return_code = 1
         else:
             return_code = 0
     else:
-        _, return_code = runtests(options, cmd_args, coverage)
-    print("ALL DONE")
+        with time_stamper_thread(interval=keep_alive_interval):
+            _, stats, return_code = runtests(options, cmd_args, coverage)
+
+    if coverage:
+        if options.shard_count > 1 and options.shard_num == -1:
+            coverage.combine()
+        coverage.stop()
+
+    stats.print_stats(sys.stderr)
+    if coverage:
+        save_coverage(coverage, options)
+
+    sys.stderr.write("ALL DONE\n")
+    sys.stderr.flush()
 
     try:
         check_thread_termination(ignore_seen=False)
@@ -2029,12 +2203,61 @@ def main():
         sys.exit(return_code)
 
 
+@contextmanager
+def time_stamper_thread(interval=10):
+    """
+    Print regular time stamps into the build logs to find slow tests.
+    @param interval: time interval in seconds
+    """
+    if not interval or interval < 0:
+        # Do nothing
+        yield
+        return
+
+    try:
+        _xrange = xrange
+    except NameError:
+        _xrange = range
+
+    import threading
+    import datetime
+    from time import sleep
+
+    interval = _xrange(interval * 4)
+    now = datetime.datetime.now
+    stop = False
+
+    # We capture stderr in some places.
+    # => make sure we write to the real (original) stderr of the test runner.
+    stderr = os.dup(2)
+    def write(s):
+        os.write(stderr, s if type(s) is bytes else s.encode('ascii'))
+
+    def time_stamper():
+        while True:
+            for _ in interval:
+                if stop:
+                    return
+                sleep(1./4)
+            write('\n#### %s\n' % now())
+
+    thread = threading.Thread(target=time_stamper, name='time_stamper')
+    thread.setDaemon(True)  # Py2 ...
+    thread.start()
+    try:
+        yield
+    finally:
+        stop = True
+        thread.join()
+        os.close(stderr)
+
+
 def configure_cython(options):
     global CompilationOptions, pyrex_default_options, cython_compile
-    from Cython.Compiler.Main import \
+    from Cython.Compiler.Options import \
         CompilationOptions, \
-        default_options as pyrex_default_options, \
-        compile as cython_compile
+        default_options as pyrex_default_options
+    from Cython.Compiler.Options import _directive_defaults as directive_defaults
     from Cython.Compiler import Errors
     Errors.LEVEL = 0  # show all warnings
     from Cython.Compiler import Options
@@ -2042,9 +2265,20 @@ def configure_cython(options):
     from Cython.Compiler import DebugFlags
     DebugFlags.debug_temp_code_comments = 1
     pyrex_default_options['formal_grammar'] = options.use_formal_grammar
+    if options.profile:
+        directive_defaults['profile'] = True
     if options.watermark:
         import Cython.Compiler.Version
         Cython.Compiler.Version.watermark = options.watermark
+
+
+def save_coverage(coverage, options):
+    if options.coverage:
+        coverage.report(show_missing=0)
+    if options.coverage_xml:
+        coverage.xml_report(outfile="coverage-report.xml")
+    if options.coverage_html:
+        coverage.html_report(directory="coverage-report-html")
 
 
 def runtests_callback(args):
@@ -2092,7 +2326,7 @@ def runtests(options, cmd_args, coverage=None):
         options.cleanup_sharedlibs = False
         options.fork = False
         if WITH_CYTHON and include_debugger:
-            from Cython.Compiler.Main import default_options as compiler_default_options
+            from Cython.Compiler.Options import default_options as compiler_default_options
             compiler_default_options['gdb_debug'] = True
             compiler_default_options['output_dir'] = os.getcwd()
 
@@ -2114,8 +2348,8 @@ def runtests(options, cmd_args, coverage=None):
         sys.stderr.write("Disabling forked testing to support XML test output\n")
         options.fork = False
 
-    if WITH_CYTHON and options.language_level == 3:
-        sys.stderr.write("Using Cython language level 3.\n")
+    if WITH_CYTHON:
+        sys.stderr.write("Using Cython language level %d.\n" % options.language_level)
 
     test_bugs = False
     if options.tickets:
@@ -2214,6 +2448,7 @@ def runtests(options, cmd_args, coverage=None):
     sys.stderr.write("\n")
 
     test_suite = unittest.TestSuite()
+    stats = Stats()
 
     if options.unittests:
         collect_unittests(UNITTEST_ROOT, UNITTEST_MODULE + ".", test_suite, selectors, exclude_selectors)
@@ -2225,7 +2460,7 @@ def runtests(options, cmd_args, coverage=None):
         filetests = TestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
                                 options, options.pyregr, languages, test_bugs,
                                 options.language_level, common_utility_dir,
-                                options.pythran_dir, add_embedded_test=True)
+                                options.pythran_dir, add_embedded_test=True, stats=stats)
         test_suite.addTest(filetests.build_suite())
     if options.examples and languages:
         for subdirectory in glob.glob(os.path.join(options.examples_dir, "*/")):
@@ -2233,7 +2468,7 @@ def runtests(options, cmd_args, coverage=None):
                                     options, options.pyregr, languages, test_bugs,
                                     options.language_level, common_utility_dir,
                                     options.pythran_dir,
-                                    default_mode='compile')
+                                    default_mode='compile', stats=stats)
             test_suite.addTest(filetests.build_suite())
 
     if options.system_pyregr and languages:
@@ -2243,12 +2478,18 @@ def runtests(options, cmd_args, coverage=None):
         if os.path.isdir(sys_pyregr_dir):
             filetests = TestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
                                     options, True, languages, test_bugs,
-                                    sys.version_info[0], common_utility_dir)
+                                    sys.version_info[0], common_utility_dir, stats=stats)
             sys.stderr.write("Including CPython regression tests in %s\n" % sys_pyregr_dir)
             test_suite.addTest(filetests.handle_directory(sys_pyregr_dir, 'pyregr'))
 
     if options.code_style and options.shard_num <= 0:
-        test_suite.addTest(TestCodeFormat(options.cython_dir))
+        try:
+            import pycodestyle
+        except ImportError:
+            # Hack to make the exclusion visible.
+            missing_dep_excluder.tests_missing_deps.append('TestCodeFormat')
+        else:
+            test_suite.addTest(TestCodeFormat(options.cython_dir))
 
     if xml_output_dir:
         from Cython.Tests.xmlrunner import XMLTestRunner
@@ -2264,10 +2505,7 @@ def runtests(options, cmd_args, coverage=None):
     else:
         text_runner_options = {}
         if options.failfast:
-            if sys.version_info < (2, 7):
-                sys.stderr.write("--failfast not supported with Python < 2.7\n")
-            else:
-                text_runner_options['failfast'] = True
+            text_runner_options['failfast'] = True
         test_runner = unittest.TextTestRunner(verbosity=options.verbosity, **text_runner_options)
 
     if options.pyximport_py:
@@ -2285,29 +2523,6 @@ def runtests(options, cmd_args, coverage=None):
     if common_utility_dir and options.shard_num < 0 and options.cleanup_workdir:
         shutil.rmtree(common_utility_dir)
 
-    if coverage is not None:
-        coverage.stop()
-        ignored_modules = set(
-            'Cython.Compiler.' + name
-            for name in ('Version', 'DebugFlags', 'CmdLine')) | set(
-            'Cython.' + name
-            for name in ('Debugging',))
-        ignored_packages = ['Cython.Runtime', 'Cython.Tempita']
-        modules = [
-            module for name, module in sys.modules.items()
-            if module is not None and
-            name.startswith('Cython.') and
-            '.Tests' not in name and
-            name not in ignored_modules and
-            not any(name.startswith(package) for package in ignored_packages)
-        ]
-        if options.coverage:
-            coverage.report(modules, show_missing=0)
-        if options.coverage_xml:
-            coverage.xml_report(modules, outfile="coverage-report.xml")
-        if options.coverage_html:
-            coverage.html_report(modules, directory="coverage-report-html")
-
     if missing_dep_excluder.tests_missing_deps:
         sys.stderr.write("Following tests excluded because of missing dependencies on your system:\n")
         for test in missing_dep_excluder.tests_missing_deps:
@@ -2318,9 +2533,9 @@ def runtests(options, cmd_args, coverage=None):
         sys.stderr.write("\n".join([repr(x) for x in refnanny.reflog]))
 
     if options.exit_ok:
-        return options.shard_num, 0
+        return options.shard_num, stats, 0
     else:
-        return options.shard_num, not result.wasSuccessful()
+        return options.shard_num, stats, not result.wasSuccessful()
 
 
 if __name__ == '__main__':

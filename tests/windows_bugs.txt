@@ -25,3 +25,7 @@ queue
 queue2
 queue3
 lunch
+
+# "C linkage function cannot return C++ class" (uses public C++ cdef function)
+cpp_template_subclasses
+

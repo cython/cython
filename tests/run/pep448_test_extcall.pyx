@@ -474,7 +474,7 @@ def call_builtin_nonempty_dict():
 ''' Cython: currently just passes empty kwargs into f() while CPython keeps the content
 
 # A corner case of keyword dictionary items being deleted during
-# the function call setup. See <http://bugs.python.org/issue2016>.
+# the function call setup. See <https://bugs.python.org/issue2016>.
 
 def call_kwargs_modified_while_building():
     """

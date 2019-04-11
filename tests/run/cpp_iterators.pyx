@@ -25,7 +25,7 @@ def test_vector(py_v):
 
 def test_deque_iterator_subtraction(py_v):
     """
-    >>> test_deque_iterator_subtraction([1, 2, 3])
+    >>> print(test_deque_iterator_subtraction([1, 2, 3]))
     3
     """
     cdef deque[int] dint
@@ -38,7 +38,7 @@ def test_deque_iterator_subtraction(py_v):
 
 def test_vector_iterator_subtraction(py_v):
     """
-    >>> test_vector_iterator_subtraction([1, 2, 3])
+    >>> print(test_vector_iterator_subtraction([1, 2, 3]))
     3
     """
     cdef vector[int] vint = py_v

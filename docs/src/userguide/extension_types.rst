@@ -504,7 +504,7 @@ It is quite common to want to instantiate an extension class from an existing
 (pointer to a) data structure, often as returned by external C/C++ functions.
 
 As extension classes can only accept Python objects as arguments in their
-contructors, this necessitates the use of factory functions. For example, ::
+constructors, this necessitates the use of factory functions. For example, ::
 
     from libc.stdlib cimport malloc, free
 
@@ -611,10 +611,95 @@ object called :attr:`__weakref__`. For example,::
         cdef object __weakref__
 
 
-Controlling cyclic garbage collection in CPython
-================================================
+Controlling deallocation and garbage collection in CPython
+==========================================================
 
-By default each extension type will support the cyclic garbage collector of
+.. NOTE::
+
+    This section only applies to the usual CPython implementation
+    of Python. Other implementations like PyPy work differently.
+
+.. _dealloc_intro:
+
+Introduction
+------------
+
+First of all, it is good to understand that there are two ways to
+trigger deallocation of Python objects in CPython:
+CPython uses reference counting for all objects and any object with a
+reference count of zero is immediately deallocated. This is the most
+common way of deallocating an object. For example, consider ::
+
+    >>> x = "foo"
+    >>> x = "bar"
+
+After executing the second line, the string ``"foo"`` is no longer referenced,
+so it is deallocated. This is done using the ``tp_dealloc`` slot, which can be
+customized in Cython by implementing ``__dealloc__``.
+
+The second mechanism is the cyclic garbage collector.
+This is meant to resolve cyclic reference cycles such as ::
+
+    >>> class Object:
+    ...     pass
+    >>> def make_cycle():
+    ...     x = Object()
+    ...     y = [x]
+    ...     x.attr = y
+
+When calling ``make_cycle``, a reference cycle is created since ``x``
+references ``y`` and vice versa. Even though neither ``x`` or ``y``
+are accessible after ``make_cycle`` returns, both have a reference count
+of 1, so they are not immediately deallocated. At regular times, the garbage
+collector runs, which will notice the reference cycle
+(using the ``tp_traverse`` slot) and break it.
+Breaking a reference cycle means taking an object in the cycle
+and removing all references from it to other Python objects (we call this
+*clearing* an object). Clearing is almost the same as deallocating, except
+that the actual object is not yet freed. For ``x`` in the example above,
+the attributes of ``x`` would be removed from ``x``.
+
+Note that it suffices to clear just one object in the reference cycle,
+since there is no longer a cycle after clearing one object. Once the cycle
+is broken, the usual refcount-based deallocation will actually remove the
+objects from memory. Clearing is implemented in the ``tp_clear`` slot.
+As we just explained, it is sufficient that one object in the cycle
+implements ``tp_clear``.
+
+Enabling the deallocation trashcan
+----------------------------------
+
+In CPython, it is possible to create deeply recursive objects. For example::
+
+    >>> L = None
+    >>> for i in range(2**20):
+    ...     L = [L]
+
+Now imagine that we delete the final ``L``. Then ``L`` deallocates
+``L[0]``, which deallocates ``L[0][0]`` and so on until we reach a
+recursion depth of ``2**20``. This deallocation is done in C and such
+a deep recursion will likely overflow the C call stack, crashing Python.
+
+CPython invented a mechanism for this called the *trashcan*. It limits the
+recursion depth of deallocations by delaying some deallocations.
+
+By default, Cython extension types do not use the trashcan but it can be
+enabled by setting the ``trashcan`` directive to ``True``. For example::
+
+    cimport cython
+    @cython.trashcan(True)
+    cdef class Object:
+        cdef dict __dict__
+
+Trashcan usage is inherited by subclasses
+(unless explicitly disabled by ``@cython.trashcan(False)``).
+Some builtin types like ``list`` use the trashcan, so subclasses of it
+use the trashcan by default.
+
+Disabling cycle breaking (``tp_clear``)
+---------------------------------------
+
+By default, each extension type will support the cyclic garbage collector of
 CPython. If any Python objects can be referenced, Cython will automatically
 generate the ``tp_traverse`` and ``tp_clear`` slots. This is usually what you
 want.
@@ -622,13 +707,13 @@ want.
 There is at least one reason why this might not be what you want: If you need
 to cleanup some external resources in the ``__dealloc__`` special function and
 your object happened to be in a reference cycle, the garbage collector may
-have triggered a call to ``tp_clear`` to drop references. This is the way that
-reference cycles are broken so that the garbage can actually be reclaimed.
+have triggered a call to ``tp_clear`` to clear the object
+(see :ref:`dealloc_intro`).
 
-In that case any object references have vanished by the time when
-``__dealloc__`` is called. Now your cleanup code lost access to the objects it
-has to clean up. In that case you can disable the cycle breaker ``tp_clear``
-by using the ``no_gc_clear`` decorator ::
+In that case, any object references have vanished when ``__dealloc__``
+is called. Now your cleanup code lost access to the objects it has to clean up.
+To fix this, you can disable clearing instances of a specific class by using
+the ``no_gc_clear`` directive::
 
     @cython.no_gc_clear
     cdef class DBCursor:
@@ -641,17 +726,21 @@ by using the ``no_gc_clear`` decorator ::
 This example tries to close a cursor via a database connection when the Python
 object is destroyed. The ``DBConnection`` object is kept alive by the reference
 from ``DBCursor``. But if a cursor happens to be in a reference cycle, the
-garbage collector may effectively "steal" the database connection reference,
+garbage collector may delete the database connection reference,
 which makes it impossible to clean up the cursor.
 
-Using the ``no_gc_clear`` decorator this can not happen anymore because the
-references of a cursor object will not be cleared anymore.
+If you use ``no_gc_clear``, it is important that any given reference cycle
+contains at least one object *without* ``no_gc_clear``. Otherwise, the cycle
+cannot be broken, which is a memory leak.
+
+Disabling cyclic garbage collection
+-----------------------------------
 
 In rare cases, extension types can be guaranteed not to participate in cycles,
 but the compiler won't be able to prove this. This would be the case if
 the class can never reference itself, even indirectly.
 In that case, you can manually disable cycle collection by using the
-``no_gc`` decorator, but beware that doing so when in fact the extension type
+``no_gc`` directive, but beware that doing so when in fact the extension type
 can participate in cycles could cause memory leaks ::
 
     @cython.no_gc
@@ -736,6 +825,14 @@ built-in complex object.::
             ...
         } PyComplexObject;
 
+       At runtime, a check will be performed when importing the Cython
+       c-extension module that ``__builtin__.complex``'s ``tp_basicsize``
+       matches ``sizeof(`PyComplexObject)``. This check can fail if the Cython
+       c-extension module was compiled with one version of the
+       ``complexobject.h`` header but imported into a Python with a changed
+       header. This check can be tweaked by using ``check_size`` in the name
+       specification clause.
+
     2. As well as the name of the extension type, the module in which its type
        object can be found is also specified. See the implicit importing section
        below.
@@ -756,11 +853,24 @@ The part of the class declaration in square brackets is a special feature only
 available for extern or public extension types. The full form of this clause
 is::
 
-    [object object_struct_name, type type_object_name ]
+    [object object_struct_name, type type_object_name, check_size cs_option]
 
-where ``object_struct_name`` is the name to assume for the type's C struct,
-and type_object_name is the name to assume for the type's statically declared
-type object. (The object and type clauses can be written in either order.)
+Where:
+
+- ``object_struct_name`` is the name to assume for the type's C struct.
+- ``type_object_name`` is the name to assume for the type's statically
+  declared type object.
+- ``cs_option`` is ``warn`` (the default), ``error``, or ``ignore`` and is only
+  used for external extension types.  If ``error``, the ``sizeof(object_struct)``
+  that was found at compile time must match the type's runtime ``tp_basicsize``
+  exactly, otherwise the module import will fail with an error.  If ``warn``
+  or ``ignore``, the ``object_struct`` is allowed to be smaller than the type's
+  ``tp_basicsize``, which indicates the runtime type may be part of an updated
+  module, and that the external module's developers extended the object in a
+  backward-compatible fashion (only adding new fields to the end of the object).
+  If ``warn``, a warning will be emitted in this case.
+
+The clauses can be written in any order.
 
 If the extension type declaration is inside a :keyword:`cdef` extern from
 block, the object clause is required, because Cython must be able to generate
@@ -770,6 +880,82 @@ for extern extension types, the object clause is optional.
 For public extension types, the object and type clauses are both required,
 because Cython must be able to generate code that is compatible with external C
 code.
+
+Attribute name matching and aliasing
+------------------------------------
+
+Sometimes the type's C struct as specified in ``object_struct_name`` may use
+different labels for the fields than those in the ``PyTypeObject``. This can
+easily happen in hand-coded C extensions where the ``PyTypeObject_Foo`` has a
+getter method, but the name does not match the name in the ``PyFooObject``. In
+NumPy, for instance, python-level ``dtype.itemsize`` is a getter for the C
+struct field ``elsize``. Cython supports aliasing field names so that one can
+write ``dtype.itemsize`` in Cython code which will be compiled into direct
+access of the C struct field, without going through a C-API equivalent of
+``dtype.__getattr__('itemsize')``.
+
+For example we may have an extension
+module ``foo_extension``::
+
+    cdef class Foo:
+        cdef public int field0, field1, field2;
+
+        def __init__(self, f0, f1, f2):
+            self.field0 = f0
+            self.field1 = f1
+            self.field2 = f2
+
+but a C struct in a file ``foo_nominal.h``::
+
+   typedef struct {
+        PyObject_HEAD
+        int f0;
+        int f1;
+        int f2;
+    } FooStructNominal;
+
+Note that the struct uses ``f0``, ``f1``, ``f2`` but they are ``field0``,
+``field1``, and ``field2`` in ``Foo``. We are given this situation, including
+a header file with that struct, and we wish to write a function to sum the
+values. If we write an extension module ``wrapper``::
+
+    cdef extern from "foo_nominal.h":
+
+        ctypedef class foo_extension.Foo [object FooStructNominal]:
+            cdef:
+                int field0
+                int field1
+                int feild2
+
+    def sum(Foo f):
+        return f.field0 + f.field1 + f.field2
+
+then ``wrapper.sum(f)`` (where ``f = foo_extension.Foo(1, 2, 3)``) will still
+use the C-API equivalent of::
+
+    return f.__getattr__('field0') +
+           f.__getattr__('field1') +
+           f.__getattr__('field1')
+
+instead of the desired C equivalent of ``return f->f0 + f->f1 + f->f2``. We can
+alias the fields by using::
+
+    cdef extern from "foo_nominal.h":
+
+        ctypedef class foo_extension.Foo [object FooStructNominal]:
+            cdef:
+                int field0 "f0"
+                int field1 "f1"
+                int field2 "f2"
+
+    def sum(Foo f) except -1:
+        return f.field0 + f.field1 + f.field2
+
+and now Cython will replace the slow ``__getattr__`` with direct C access to
+the FooStructNominal fields. This is useful when directly processing Python
+code. No changes to Python need be made to achieve significant speedups, even
+though the field names in Python and C are different. Of course, one should
+make sure the fields are equivalent.
 
 Implicit importing
 ------------------

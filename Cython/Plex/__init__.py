@@ -1,10 +1,6 @@
-#=======================================================================
-#
-#   Python Lexical Analyser
-#
-#=======================================================================
-
 """
+Python Lexical Analyser
+
 The Plex module provides lexical analysers with similar capabilities
 to GNU Flex. The following classes and functions are exported;
 see the attached docstrings for more information.
@@ -29,10 +25,10 @@ see the attached docstrings for more information.
                     Actions for associating with patterns when
         creating a Lexicon.
 """
-
+# flake8: noqa:F401
 from __future__ import absolute_import
 
-from .Actions import TEXT, IGNORE, Begin
+from .Actions import TEXT, IGNORE, Begin, Method
 from .Lexicons import Lexicon, State
 from .Regexps import RE, Seq, Alt, Rep1, Empty, Str, Any, AnyBut, AnyChar, Range
 from .Regexps import Opt, Rep, Bol, Eol, Eof, Case, NoCase

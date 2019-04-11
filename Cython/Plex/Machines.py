@@ -1,14 +1,9 @@
-#=======================================================================
-#
-#   Python Lexical Analyser
-#
-#   Classes for building NFAs and DFAs
-#
-#=======================================================================
+"""
+Python Lexical Analyser
 
+Classes for building NFAs and DFAs
+"""
 from __future__ import absolute_import
-
-import sys
 
 from .Transitions import TransitionMap
 
@@ -36,7 +31,6 @@ class Machine(object):
         self.initial_states = {}
 
     def __del__(self):
-        #print "Destroying", self ###
         for state in self.states:
             state.destroy()
 
@@ -81,12 +75,10 @@ class Node(object):
     def __init__(self):
         # Preinitialise the list of empty transitions, because
         # the nfa-to-dfa algorithm needs it
-        #self.transitions = {'':[]}
         self.transitions = TransitionMap()
         self.action_priority = LOWEST_PRIORITY
 
     def destroy(self):
-        #print "Destroying", self ###
         self.transitions = None
         self.action = None
         self.epsilon_closure = None

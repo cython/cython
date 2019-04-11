@@ -21,7 +21,10 @@ except ImportError:
 
 class _FakePool(object):
     def map_async(self, func, args):
-        from itertools import imap
+        try:
+            from itertools import imap
+        except ImportError:
+            imap=map
         for _ in imap(func, args):
             pass
 
@@ -66,7 +69,7 @@ def parse_compile_time_env(option, name, value, parser):
 
 def find_package_base(path):
     base_dir, package_path = os.path.split(path)
-    while os.path.isfile(os.path.join(base_dir, '__init__.py')):
+    while is_package_dir(base_dir):
         base_dir, parent = os.path.split(base_dir)
         package_path = '%s/%s' % (parent, package_path)
     return base_dir, package_path
@@ -161,7 +164,11 @@ def parse_args(args):
                       dest='options', default={}, type="str",
                       action='callback', callback=parse_options,
                       help='set a cythonize option')
-    parser.add_option('-3', dest='python3_mode', action='store_true',
+    parser.add_option('-2', dest='language_level', action='store_const', const=2, default=None,
+                      help='use Python 2 syntax mode by default')
+    parser.add_option('-3', dest='language_level', action='store_const', const=3,
+                      help='use Python 3 syntax mode by default')
+    parser.add_option('--3str', dest='language_level', action='store_const', const='3str',
                       help='use Python 3 syntax mode by default')
     parser.add_option('-a', '--annotate', dest='annotate', action='store_true',
                       help='generate annotated HTML page for source files')
@@ -187,6 +194,8 @@ def parse_args(args):
                       help='increase Python compatibility by ignoring some compile time errors')
     parser.add_option('-k', '--keep-going', dest='keep_going', action='store_true',
                       help='compile as much as possible, ignore compilation failures')
+    parser.add_option('--no-docstrings', dest='no_docstrings', action='store_true',
+                      help='strip docstrings')
 
     options, args = parser.parse_args(args)
     if not args:
@@ -195,8 +204,9 @@ def parse_args(args):
         options.build = True
     if multiprocessing is None:
         options.parallel = 0
-    if options.python3_mode:
-        options.options['language_level'] = 3
+    if options.language_level:
+        assert options.language_level in (2, 3, '3str')
+        options.options['language_level'] = options.language_level
     return options, args
 
 
@@ -210,6 +220,9 @@ def main(args=None):
 
     if options.annotate:
         Options.annotate = True
+
+    if options.no_docstrings:
+        Options.docstrings = False
 
     for path in paths:
         cython_compile(path, options)

@@ -20,6 +20,9 @@ A memoryview can be used in any context (function parameters, module-level, cdef
 class attribute, etc) and can be obtained from nearly any object that
 exposes writable buffer through the `PEP 3118`_ buffer interface.
 
+.. _`PEP 3118`: https://www.python.org/dev/peps/pep-3118/
+
+
 .. _view_quickstart:
 
 Quickstart
@@ -56,16 +59,11 @@ A complete 3D view::
 
     cdef int[:,:,:] view3D = exporting_object
 
-A 2D view that restricts the first dimension of a buffer to 100 rows
-starting at the second (index 1) and then skips every second (odd) row::
-
-    cdef int[1:102:2,:] partial_view = exporting_object
-
-This also works conveniently as function arguments:
+They also work conveniently as function arguments:
 
 .. code-block:: cython
 
-    def process_3d_buffer(int[1:102:2,:] view not None):
+    def process_3d_buffer(int[:,:,:] view not None):
         ...
 
 The ``not None`` declaration for the argument automatically rejects
@@ -230,6 +228,8 @@ NumPy arrays support this interface, as do :ref:`view_cython_arrays`.  The
 "nearly all" is because the Python buffer interface allows the *elements* in the
 data array to themselves be pointers; Cython memoryviews do not yet support
 this.
+
+.. _`new style buffers`: https://docs.python.org/3/c-api/buffer.html
 
 .. _view_memory_layout:
 
@@ -657,6 +657,6 @@ object handling. For the details of how to compile and
 call functions in C files, see :ref:`using_c_libraries`.
 
 
-.. _GIL: http://docs.python.org/dev/glossary.html#term-global-interpreter-lock
+.. _GIL: https://docs.python.org/dev/glossary.html#term-global-interpreter-lock
 .. _NumPy: https://docs.scipy.org/doc/numpy/reference/arrays.ndarray.html#memory-layout
 .. _example: https://docs.scipy.org/doc/numpy/reference/arrays.indexing.html

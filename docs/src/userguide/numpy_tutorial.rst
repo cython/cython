@@ -65,7 +65,7 @@ However there are several options to automate these steps:
    excellent support for using Cython and NumPy from an interactive command
    line or through a notebook interface (like
    Maple/Mathematica). See `this documentation
-   <http://doc.sagemath.org/html/en/developer/coding_in_cython.html>`_.
+   <https://doc.sagemath.org/html/en/developer/coding_in_cython.html>`_.
 2. Cython can be used as an extension within a Jupyter notebook,
    making it easy to compile and use Cython code with just a ``%%cython``
    at the top of a cell. For more information see
@@ -161,8 +161,8 @@ Cython version -- Cython uses ``.pyx`` as its file suffix (but it can also compi
 
 .. literalinclude:: ../../examples/userguide/numpy_tutorial/compute_py.py
 
-This should be compiled to produce :file:`convolve_cy.so` (for Linux systems,
-on Windows systems, this will be a ``.pyd`` file). We
+This should be compiled to produce :file:`compute_cy.so` for Linux systems
+(on Windows systems, this will be a ``.pyd`` file). We
 run a Python session to test both the Python version (imported from
 ``.py``-file) and the compiled Cython module.
 
@@ -458,9 +458,9 @@ integers as before.
 Using multiple threads
 ======================
 
-Cython have support for OpenMP. It have also some nice wrappers around it,
+Cython has support for OpenMP.  It also has some nice wrappers around it,
 like the function :func:`prange`. You can see more information about Cython and
-parralelism in :ref:`parallel`. Since we do elementwise operations, we can easily
+parallelism in :ref:`parallel`. Since we do elementwise operations, we can easily
 distribute the work among multiple threads. It's important not to forget to pass the
 correct arguments to the compiler to enable OpenMP. When using the Jupyter notebook,
 you should use the cell magic like this::
@@ -487,8 +487,8 @@ than NumPy!
 Where to go from here?
 ======================
 
-* If you want to learn how to make use of `BLAS <http://www.netlib.org/blas/>`_
-  or `LAPACK <http://www.netlib.org/lapack/>`_ with Cython, you can watch
+* If you want to learn how to make use of `BLAS <https://www.netlib.org/blas/>`_
+  or `LAPACK <https://www.netlib.org/lapack/>`_ with Cython, you can watch
   `the presentation of Ian Henriksen at SciPy 2015
   <https://www.youtube.com/watch?v=R4yB-8tB0J0&t=693s&ab_channel=Enthought>`_.
 * If you want to learn how to use Pythran as backend in Cython, you

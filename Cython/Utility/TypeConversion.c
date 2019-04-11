@@ -16,6 +16,14 @@
           (is_signed || likely(v < (type)PY_SSIZE_T_MAX ||        \
                                v == (type)PY_SSIZE_T_MAX)))  )
 
+static CYTHON_INLINE int __Pyx_is_valid_index(Py_ssize_t i, Py_ssize_t limit) {
+    // Optimisation from Section 14.2 "Bounds Checking" in
+    //   https://www.agner.org/optimize/optimizing_cpp.pdf
+    // See https://bugs.python.org/issue28397
+    // The cast to unsigned effectively tests for "0 <= i < limit".
+    return (size_t) i < (size_t) limit;
+}
+
 // fast and unsafe abs(Py_ssize_t) that ignores the overflow for (-PY_SSIZE_T_MAX-1)
 #if defined (__cplusplus) && __cplusplus >= 201103L
     #include <cstdlib>
@@ -60,9 +68,9 @@ static CYTHON_INLINE PyObject* __Pyx_PyUnicode_FromString(const char*);
 #define __Pyx_PyBytes_AsString(s)     ((const char*) PyBytes_AS_STRING(s))
 #define __Pyx_PyBytes_AsSString(s)    ((const signed char*) PyBytes_AS_STRING(s))
 #define __Pyx_PyBytes_AsUString(s)    ((const unsigned char*) PyBytes_AS_STRING(s))
-#define __Pyx_PyObject_AsWritableString(s)    ((char*) __Pyx_PyObject_AsString(s))
-#define __Pyx_PyObject_AsWritableSString(s)    ((signed char*) __Pyx_PyObject_AsString(s))
-#define __Pyx_PyObject_AsWritableUString(s)    ((unsigned char*) __Pyx_PyObject_AsString(s))
+#define __Pyx_PyObject_AsWritableString(s)    ((char*)(__pyx_uintptr_t) __Pyx_PyObject_AsString(s))
+#define __Pyx_PyObject_AsWritableSString(s)    ((signed char*)(__pyx_uintptr_t) __Pyx_PyObject_AsString(s))
+#define __Pyx_PyObject_AsWritableUString(s)    ((unsigned char*)(__pyx_uintptr_t) __Pyx_PyObject_AsString(s))
 #define __Pyx_PyObject_AsSString(s)    ((const signed char*) __Pyx_PyObject_AsString(s))
 #define __Pyx_PyObject_AsUString(s)    ((const unsigned char*) __Pyx_PyObject_AsString(s))
 #define __Pyx_PyObject_FromCString(s)  __Pyx_PyObject_FromString((const char*)s)
@@ -94,6 +102,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyNumber_IntOrLong(PyObject* x);
 
 static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject*);
 static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t);
+static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject*);
 
 #if CYTHON_ASSUME_SAFE_MACROS
 #define __pyx_PyFloat_AsDouble(x) (PyFloat_CheckExact(x) ? PyFloat_AS_DOUBLE(x) : PyFloat_AsDouble(x))
@@ -178,7 +187,7 @@ static int __Pyx_init_sys_getdefaultencoding_params(void) {
     if (!default_encoding) goto bad;
     default_encoding_c = PyBytes_AsString(default_encoding);
     if (!default_encoding_c) goto bad;
-    __PYX_DEFAULT_STRING_ENCODING = (char*) malloc(strlen(default_encoding_c));
+    __PYX_DEFAULT_STRING_ENCODING = (char*) malloc(strlen(default_encoding_c) + 1);
     if (!__PYX_DEFAULT_STRING_ENCODING) goto bad;
     strcpy(__PYX_DEFAULT_STRING_ENCODING, default_encoding_c);
     Py_DECREF(default_encoding);
@@ -376,7 +385,7 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
     if (sizeof(Py_ssize_t) >= sizeof(long))
         return PyInt_AS_LONG(b);
     else
-        return PyInt_AsSsize_t(x);
+        return PyInt_AsSsize_t(b);
   }
 #endif
   if (likely(PyLong_CheckExact(b))) {
@@ -409,6 +418,25 @@ static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
   ival = PyInt_AsSsize_t(x);
   Py_DECREF(x);
   return ival;
+}
+
+
+static CYTHON_INLINE Py_hash_t __Pyx_PyIndex_AsHash_t(PyObject* o) {
+  if (sizeof(Py_hash_t) == sizeof(Py_ssize_t)) {
+    return __Pyx_PyIndex_AsSsize_t(o);
+#if PY_MAJOR_VERSION < 3
+  } else if (likely(PyInt_CheckExact(o))) {
+    return PyInt_AS_LONG(o);
+#endif
+  } else {
+    Py_ssize_t ival;
+    PyObject *x;
+    x = PyNumber_Index(o);
+    if (!x) return -1;
+    ival = PyInt_AsLong(x);
+    Py_DECREF(x);
+    return ival;
+  }
 }
 
 
@@ -529,18 +557,23 @@ static Py_UCS4 __Pyx__PyObject_AsPy_UCS4(PyObject*);
 
 /////////////// ObjectAsUCS4 ///////////////
 
-static Py_UCS4 __Pyx__PyObject_AsPy_UCS4(PyObject* x) {
-   long ival;
-   ival = __Pyx_PyInt_As_long(x);
-   if (unlikely(ival < 0)) {
+static Py_UCS4 __Pyx__PyObject_AsPy_UCS4_raise_error(long ival) {
+   if (ival < 0) {
        if (!PyErr_Occurred())
            PyErr_SetString(PyExc_OverflowError,
                            "cannot convert negative value to Py_UCS4");
-       return (Py_UCS4)-1;
-   } else if (unlikely(ival > 1114111)) {
+   } else {
        PyErr_SetString(PyExc_OverflowError,
                        "value too large to convert to Py_UCS4");
-       return (Py_UCS4)-1;
+   }
+   return (Py_UCS4)-1;
+}
+
+static Py_UCS4 __Pyx__PyObject_AsPy_UCS4(PyObject* x) {
+   long ival;
+   ival = __Pyx_PyInt_As_long(x);
+   if (unlikely(!__Pyx_is_valid_index(ival, 1114111 + 1))) {
+       return __Pyx__PyObject_AsPy_UCS4_raise_error(ival);
    }
    return (Py_UCS4)ival;
 }
@@ -582,14 +615,16 @@ static CYTHON_INLINE Py_UNICODE __Pyx_PyObject_AsPy_UNICODE(PyObject* x) {
         #endif
         ival = __Pyx_PyInt_As_long(x);
     }
-    if (unlikely(ival < 0)) {
-        if (!PyErr_Occurred())
+    if (unlikely(!__Pyx_is_valid_index(ival, maxval + 1))) {
+        if (ival < 0) {
+            if (!PyErr_Occurred())
+                PyErr_SetString(PyExc_OverflowError,
+                                "cannot convert negative value to Py_UNICODE");
+            return (Py_UNICODE)-1;
+        } else {
             PyErr_SetString(PyExc_OverflowError,
-                            "cannot convert negative value to Py_UNICODE");
-        return (Py_UNICODE)-1;
-    } else if (unlikely(ival > maxval)) {
-        PyErr_SetString(PyExc_OverflowError,
-                        "value too large to convert to Py_UNICODE");
+                            "value too large to convert to Py_UNICODE");
+        }
         return (Py_UNICODE)-1;
     }
     return (Py_UNICODE)ival;
@@ -673,20 +708,12 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
 //@requires: StringTools.c::BuildPyUnicode
 //@requires: CIntToDigits
 
-#ifdef _MSC_VER
-    #ifndef _MSC_STDINT_H_
-        #if _MSC_VER < 1300
-           typedef unsigned short    uint16_t;
-        #else
-           typedef unsigned __int16  uint16_t;
-        #endif
-    #endif
-#else
-   #include <stdint.h>
-#endif
-
 // NOTE: inlining because most arguments are constant, which collapses lots of code below
 
+// GCC diagnostic pragmas were introduced in GCC 4.6
+#if defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 6))
+#define GCC_DIAGNOSTIC
+#endif
 static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t width, char padding_char, char format_char) {
     // simple and conservative C string allocation on the stack: each byte gives at most 3 digits, plus sign
     char digits[sizeof({{TYPE}})*3+2];
@@ -696,7 +723,14 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
     Py_ssize_t length, ulength;
     int prepend_sign, last_one_off;
     {{TYPE}} remaining;
-    const {{TYPE}} neg_one = ({{TYPE}}) (({{TYPE}}) 0 - ({{TYPE}}) 1), const_zero = ({{TYPE}}) 0;
+#ifdef GCC_DIAGNOSTIC
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+#endif
+    const {{TYPE}} neg_one = ({{TYPE}}) -1, const_zero = ({{TYPE}}) 0;
+#ifdef GCC_DIAGNOSTIC
+#pragma GCC diagnostic pop
+#endif
     const int is_unsigned = neg_one > const_zero;
 
     if (format_char == 'X') {
@@ -715,14 +749,14 @@ static CYTHON_INLINE PyObject* {{TO_PY_FUNCTION}}({{TYPE}} value, Py_ssize_t wid
             digit_pos = abs((int)(remaining % (8*8)));
             remaining = ({{TYPE}}) (remaining / (8*8));
             dpos -= 2;
-            *(uint16_t*)dpos = ((uint16_t*)DIGIT_PAIRS_8)[digit_pos]; /* copy 2 digits at a time */
+            *(uint16_t*)dpos = ((const uint16_t*)DIGIT_PAIRS_8)[digit_pos]; /* copy 2 digits at a time */
             last_one_off = (digit_pos < 8);
             break;
         case 'd':
             digit_pos = abs((int)(remaining % (10*10)));
             remaining = ({{TYPE}}) (remaining / (10*10));
             dpos -= 2;
-            *(uint16_t*)dpos = ((uint16_t*)DIGIT_PAIRS_10)[digit_pos]; /* copy 2 digits at a time */
+            *(uint16_t*)dpos = ((const uint16_t*)DIGIT_PAIRS_10)[digit_pos]; /* copy 2 digits at a time */
             last_one_off = (digit_pos < 10);
             break;
         case 'x':

@@ -2777,11 +2777,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             return node
         type_arg = args[0]
         if not obj.is_name or not type_arg.is_name:
-            # play safe
-            return node
+            return node  # not a simple case
         if obj.type != Builtin.type_type or type_arg.type != Builtin.type_type:
-            # not a known type, play safe
-            return node
+            return node  # not a known type
         if not type_arg.type_entry or not obj.type_entry:
             if obj.name != type_arg.name:
                 return node
@@ -3166,6 +3164,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 PyrexTypes.CFuncTypeArg("op2", PyrexTypes.py_object_type, None),
                 PyrexTypes.CFuncTypeArg("cval", ctype, None),
                 PyrexTypes.CFuncTypeArg("inplace", PyrexTypes.c_bint_type, None),
+                PyrexTypes.CFuncTypeArg("zerodiv_check", PyrexTypes.c_bint_type, None),
             ], exception_value=None if ret_type.is_pyobject else ret_type.exception_value))
         for ctype in (PyrexTypes.c_long_type, PyrexTypes.c_double_type)
         for ret_type in (PyrexTypes.py_object_type, PyrexTypes.c_bint_type)
@@ -3176,6 +3175,9 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
 
     def _handle_simple_method_object___sub__(self, node, function, args, is_unbound_method):
         return self._optimise_num_binop('Subtract', node, function, args, is_unbound_method)
+
+    def _handle_simple_method_object___mul__(self, node, function, args, is_unbound_method):
+        return self._optimise_num_binop('Multiply', node, function, args, is_unbound_method)
 
     def _handle_simple_method_object___eq__(self, node, function, args, is_unbound_method):
         return self._optimise_num_binop('Eq', node, function, args, is_unbound_method)
@@ -3297,12 +3299,22 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             # Cut off at an integer border that is still safe for all operations.
             return node
 
+        if operator in ('TrueDivide', 'FloorDivide', 'Divide', 'Remainder'):
+            if args[1].constant_result == 0:
+                # Don't optimise division by 0. :)
+                return node
+
         args = list(args)
         args.append((ExprNodes.FloatNode if is_float else ExprNodes.IntNode)(
             numval.pos, value=numval.value, constant_result=numval.constant_result,
             type=num_type))
         inplace = node.inplace if isinstance(node, ExprNodes.NumBinopNode) else False
         args.append(ExprNodes.BoolNode(node.pos, value=inplace, constant_result=inplace))
+        if is_float or operator not in ('Eq', 'Ne'):
+            # "PyFloatBinop" and "PyIntBinop" take an additional "check for zero division" argument.
+            zerodivision_check = arg_order == 'CObj' and (
+                not node.cdivision if isinstance(node, ExprNodes.DivNode) else False)
+            args.append(ExprNodes.BoolNode(node.pos, value=zerodivision_check, constant_result=zerodivision_check))
 
         utility_code = TempitaUtilityCode.load_cached(
             "PyFloatBinop" if is_float else "PyIntCompare" if operator in ('Eq', 'Ne') else "PyIntBinop",
@@ -3374,6 +3386,8 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             PyrexTypes.CFuncTypeArg("uchar", PyrexTypes.c_py_ucs4_type, None),
             ])
 
+    # DISABLED: Return value can only be one character, which is not correct.
+    '''
     def _inject_unicode_character_conversion(self, node, function, args, is_unbound_method):
         if is_unbound_method or len(args) != 1:
             return node
@@ -3392,9 +3406,10 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
             func_call = func_call.coerce_to_pyobject(self.current_env)
         return func_call
 
-    _handle_simple_method_unicode_lower = _inject_unicode_character_conversion
-    _handle_simple_method_unicode_upper = _inject_unicode_character_conversion
-    _handle_simple_method_unicode_title = _inject_unicode_character_conversion
+    #_handle_simple_method_unicode_lower = _inject_unicode_character_conversion
+    #_handle_simple_method_unicode_upper = _inject_unicode_character_conversion
+    #_handle_simple_method_unicode_title = _inject_unicode_character_conversion
+    '''
 
     PyUnicode_Splitlines_func_type = PyrexTypes.CFuncType(
         Builtin.list_type, [
@@ -4247,7 +4262,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                     string_node.bytes_value.encoding)
         else:
             assert False, "unknown string node type: %s" % type(string_node)
-        string_node.value = build_string(
+        string_node.constant_result = string_node.value = build_string(
             string_node.value * multiplier,
             string_node.value.encoding)
         return string_node
@@ -4311,16 +4326,16 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 warning(pos, "Too few arguments for format placeholders", level=1)
                 can_be_optimised = False
                 break
-            if format_type in u'srfdoxX':
+            if format_type in u'asrfdoxX':
                 format_spec = s[1:]
                 if format_type in u'doxX' and u'.' in format_spec:
                     # Precision is not allowed for integers in format(), but ok in %-formatting.
                     can_be_optimised = False
-                elif format_type in u'rs':
+                elif format_type in u'ars':
                     format_spec = format_spec[:-1]
                 substrings.append(ExprNodes.FormattedValueNode(
                     arg.pos, value=arg,
-                    conversion_char=format_type if format_type in u'rs' else None,
+                    conversion_char=format_type if format_type in u'ars' else None,
                     format_spec=ExprNodes.UnicodeNode(
                         pos, value=EncodedString(format_spec), constant_result=format_spec)
                         if format_spec else None,
@@ -4510,22 +4525,20 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         cascades = [[node.operand1]]
         final_false_result = []
 
-        def split_cascades(cmp_node):
+        cmp_node = node
+        while cmp_node is not None:
             if cmp_node.has_constant_result():
                 if not cmp_node.constant_result:
                     # False => short-circuit
                     final_false_result.append(self._bool_node(cmp_node, False))
-                    return
+                    break
                 else:
                     # True => discard and start new cascade
                     cascades.append([cmp_node.operand2])
             else:
                 # not constant => append to current cascade
                 cascades[-1].append(cmp_node)
-            if cmp_node.cascade:
-                split_cascades(cmp_node.cascade)
-
-        split_cascades(node)
+            cmp_node = cmp_node.cascade
 
         cmp_nodes = []
         for cascade in cascades:
@@ -4669,6 +4682,30 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         # drop unused constant expressions
         if node.expr.has_constant_result():
             return None
+        return node
+
+    def visit_GILStatNode(self, node):
+        self.visitchildren(node)
+        if node.condition is None:
+            return node
+
+        if node.condition.has_constant_result():
+            # Condition is True - Modify node to be a normal
+            # GILStatNode with condition=None
+            if node.condition.constant_result:
+                node.condition = None
+
+            # Condition is False - the body of the GILStatNode
+            # should run without changing the state of the gil
+            # return the body of the GILStatNode
+            else:
+                return node.body
+
+        # If condition is not constant we keep the GILStatNode as it is.
+        # Either it will later become constant (e.g. a `numeric is int`
+        # expression in a fused type function) and then when ConstantFolding
+        # runs again it will be handled or a later transform (i.e. GilCheck)
+        # will raise an error
         return node
 
     # in the future, other nodes can have their own handler method here

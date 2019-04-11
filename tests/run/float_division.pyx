@@ -26,6 +26,39 @@ def float_by_float():
     return 3.0 / 2.0
 
 
+def div_by_0(x):
+    """
+    >>> div_by_0(0)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: float division...
+    >>> div_by_0(0.0)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: float division...
+    >>> div_by_0(1)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: float division...
+    >>> div_by_0(1.0)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: float division...
+    >>> float('inf') / 0.0  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: float division...
+    >>> div_by_0(float('inf'))  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: float division...
+    >>> div_by_0(float('-inf'))  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: float division...
+    >>> float('nan') / 0.0  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: float division...
+    >>> div_by_0(float('nan'))  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: float division...
+    """
+    return x / 0.0
+
+
 def div_1_by(x):
     """
     >>> div_1_by(1.0)
@@ -42,6 +75,12 @@ def div_1_by(x):
     -0.0
     >>> div_1_by(float('nan'))
     nan
+    >>> div_1_by(0)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: float division...
+    >>> div_1_by(0.0)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: float division...
     """
     return 1.0 / x
 
@@ -116,6 +155,12 @@ def div_neg_2_by(x):
     nan
     >>> div_neg_2_by(float('nan'))
     nan
+    >>> div_neg_2_by(0)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: float division...
+    >>> div_neg_2_by(0.0)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: float division...
     """
     return (-2.0) / x
 
@@ -148,6 +193,12 @@ def div_nan_by(x):
     nan
     >>> div_nan_by(float('nan'))
     nan
+    >>> div_nan_by(0)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: float division...
+    >>> div_nan_by(0.0)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: float division...
     """
     return float("nan") / x
 
@@ -182,6 +233,15 @@ def div_inf_by(x):
     nan
     >>> div_inf_by(float('-inf'))
     nan
+    >>> float("inf") / 0.0  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: float division...
+    >>> div_inf_by(0)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: float division...
+    >>> div_inf_by(0.0)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: float division...
     """
     return float("inf") / x
 
@@ -196,5 +256,14 @@ def div_neg_inf_by(x):
     inf
     >>> div_neg_inf_by(-1.0)
     inf
+    >>> float("-inf") / 0.0  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: float division...
+    >>> div_neg_inf_by(0)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: float division...
+    >>> div_neg_inf_by(0.0)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ZeroDivisionError: float division...
     """
     return float("-inf") / x

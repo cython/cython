@@ -4,7 +4,6 @@
 
 from __future__ import absolute_import
 
-import collections
 import copy
 import re
 
@@ -115,7 +114,7 @@ class BaseType(object):
         Deduce any template params in this (argument) type given the actual
         argument type.
 
-        http://en.cppreference.com/w/cpp/language/function_template#Template_argument_deduction
+        https://en.cppreference.com/w/cpp/language/function_template#Template_argument_deduction
         """
         return {}
 
@@ -176,7 +175,9 @@ class PyrexType(BaseType):
     #  is_ptr                boolean     Is a C pointer type
     #  is_null_ptr           boolean     Is the type of NULL
     #  is_reference          boolean     Is a C reference type
-    #  is_const              boolean     Is a C const type.
+    #  is_const              boolean     Is a C const type
+    #  is_volatile           boolean     Is a C volatile type
+    #  is_cv_qualified       boolean     Is a C const or volatile type
     #  is_cfunction          boolean     Is a C function type
     #  is_struct_or_union    boolean     Is a C struct or union type
     #  is_struct             boolean     Is a C struct type
@@ -236,6 +237,8 @@ class PyrexType(BaseType):
     is_null_ptr = 0
     is_reference = 0
     is_const = 0
+    is_volatile = 0
+    is_cv_qualified = 0
     is_cfunction = 0
     is_struct_or_union = 0
     is_cpp_class = 0
@@ -653,8 +656,9 @@ class MemoryViewSliceType(PyrexType):
         assert not pyrex
         assert not dll_linkage
         from . import MemoryView
+        base_code = str(self) if for_display else MemoryView.memviewslice_cname
         return self.base_declaration_code(
-                MemoryView.memviewslice_cname,
+                base_code,
                 entity_code)
 
     def attributes_known(self):
@@ -712,8 +716,8 @@ class MemoryViewSliceType(PyrexType):
             to_axes_f = contig_dim + follow_dim * (ndim -1)
 
             dtype = self.dtype
-            if dtype.is_const:
-                dtype = dtype.const_base_type
+            if dtype.is_cv_qualified:
+                dtype = dtype.cv_base_type
 
             to_memview_c = MemoryViewSliceType(dtype, to_axes_c)
             to_memview_f = MemoryViewSliceType(dtype, to_axes_f)
@@ -790,15 +794,18 @@ class MemoryViewSliceType(PyrexType):
         #    return False
 
         src_dtype, dst_dtype = src.dtype, dst.dtype
-        if dst_dtype.is_const:
-            # Requesting read-only views is always ok => consider only the non-const base type.
-            dst_dtype = dst_dtype.const_base_type
-            if src_dtype.is_const:
-                # When assigning between read-only views, compare only the non-const base types.
-                src_dtype = src_dtype.const_base_type
-        elif copying and src_dtype.is_const:
-            # Copying by value => ignore const on source.
-            src_dtype = src_dtype.const_base_type
+        # We can add but not remove const/volatile modifiers
+        # (except if we are copying by value, then anything is fine)
+        if not copying:
+            if src_dtype.is_const and not dst_dtype.is_const:
+                return False
+            if src_dtype.is_volatile and not dst_dtype.is_volatile:
+                return False
+        # const/volatile checks are done, remove those qualifiers
+        if src_dtype.is_cv_qualified:
+            src_dtype = src_dtype.cv_base_type
+        if dst_dtype.is_cv_qualified:
+            dst_dtype = dst_dtype.cv_base_type
 
         if src_dtype != dst_dtype:
             return False
@@ -1128,6 +1135,7 @@ class PyObjectType(PyrexType):
     is_extern = False
     is_subclassed = False
     is_gc_simple = False
+    builtin_trashcan = False  # builtin type using trashcan
 
     def __str__(self):
         return "Python object"
@@ -1182,8 +1190,12 @@ class PyObjectType(PyrexType):
 
 
 builtin_types_that_cannot_create_refcycles = set([
-    'bool', 'int', 'long', 'float', 'complex',
+    'object', 'bool', 'int', 'long', 'float', 'complex',
     'bytearray', 'bytes', 'unicode', 'str', 'basestring'
+])
+
+builtin_types_with_trashcan = set([
+    'dict', 'list', 'set', 'frozenset', 'tuple', 'type',
 ])
 
 
@@ -1210,6 +1222,7 @@ class BuiltinObjectType(PyObjectType):
         self.typeptr_cname = "(&%s)" % cname
         self.objstruct_cname = objstruct_cname
         self.is_gc_simple = name in builtin_types_that_cannot_create_refcycles
+        self.builtin_trashcan = name in builtin_types_with_trashcan
         if name == 'type':
             # Special case the type type, as many C API calls (and other
             # libraries) actually expect a PyTypeObject* for type arguments.
@@ -1345,6 +1358,7 @@ class PyExtensionType(PyObjectType):
     #  vtable_cname     string           Name of C method table definition
     #  early_init       boolean          Whether to initialize early (as opposed to during module execution).
     #  defered_declarations [thunk]      Used to declare class hierarchies in order
+    #  check_size       'warn', 'error', 'ignore'    What to do if tp_basicsize does not match
 
     is_extension_type = 1
     has_attributes = 1
@@ -1352,7 +1366,7 @@ class PyExtensionType(PyObjectType):
 
     objtypedef_cname = None
 
-    def __init__(self, name, typedef_flag, base_type, is_external=0):
+    def __init__(self, name, typedef_flag, base_type, is_external=0, check_size=None):
         self.name = name
         self.scope = None
         self.typedef_flag = typedef_flag
@@ -1368,6 +1382,7 @@ class PyExtensionType(PyObjectType):
         self.vtabptr_cname = None
         self.vtable_cname = None
         self.is_external = is_external
+        self.check_size = check_size or 'warn'
         self.defered_declarations = []
 
     def set_scope(self, scope):
@@ -1555,58 +1570,74 @@ class PythranExpr(CType):
         return hash(self.pythran_type)
 
 
-class CConstType(BaseType):
+class CConstOrVolatileType(BaseType):
+    "A C const or volatile type"
 
-    is_const = 1
+    is_cv_qualified = 1
 
-    def __init__(self, const_base_type):
-        self.const_base_type = const_base_type
-        if const_base_type.has_attributes and const_base_type.scope is not None:
-            from . import Symtab
-            self.scope = Symtab.CConstScope(const_base_type.scope)
+    def __init__(self, base_type, is_const=0, is_volatile=0):
+        self.cv_base_type = base_type
+        self.is_const = is_const
+        self.is_volatile = is_volatile
+        if base_type.has_attributes and base_type.scope is not None:
+            from .Symtab import CConstOrVolatileScope
+            self.scope = CConstOrVolatileScope(base_type.scope, is_const, is_volatile)
+
+    def cv_string(self):
+        cvstring = ""
+        if self.is_const:
+            cvstring = "const " + cvstring
+        if self.is_volatile:
+            cvstring = "volatile " + cvstring
+        return cvstring
 
     def __repr__(self):
-        return "<CConstType %s>" % repr(self.const_base_type)
+        return "<CConstOrVolatileType %s%r>" % (self.cv_string(), self.cv_base_type)
 
     def __str__(self):
         return self.declaration_code("", for_display=1)
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
+        cv = self.cv_string()
         if for_display or pyrex:
-            return "const " + self.const_base_type.declaration_code(entity_code, for_display, dll_linkage, pyrex)
+            return cv + self.cv_base_type.declaration_code(entity_code, for_display, dll_linkage, pyrex)
         else:
-            return self.const_base_type.declaration_code("const %s" % entity_code, for_display, dll_linkage, pyrex)
+            return self.cv_base_type.declaration_code(cv + entity_code, for_display, dll_linkage, pyrex)
 
     def specialize(self, values):
-        base_type = self.const_base_type.specialize(values)
-        if base_type == self.const_base_type:
+        base_type = self.cv_base_type.specialize(values)
+        if base_type == self.cv_base_type:
             return self
-        else:
-            return CConstType(base_type)
+        return CConstOrVolatileType(base_type,
+                self.is_const, self.is_volatile)
 
     def deduce_template_params(self, actual):
-        return self.const_base_type.deduce_template_params(actual)
+        return self.cv_base_type.deduce_template_params(actual)
 
     def can_coerce_to_pyobject(self, env):
-        return self.const_base_type.can_coerce_to_pyobject(env)
+        return self.cv_base_type.can_coerce_to_pyobject(env)
 
     def can_coerce_from_pyobject(self, env):
-        return self.const_base_type.can_coerce_from_pyobject(env)
+        return self.cv_base_type.can_coerce_from_pyobject(env)
 
     def create_to_py_utility_code(self, env):
-        if self.const_base_type.create_to_py_utility_code(env):
-            self.to_py_function = self.const_base_type.to_py_function
+        if self.cv_base_type.create_to_py_utility_code(env):
+            self.to_py_function = self.cv_base_type.to_py_function
             return True
 
     def same_as_resolved_type(self, other_type):
-        if other_type.is_const:
-            return self.const_base_type.same_as_resolved_type(other_type.const_base_type)
-        # Accept const LHS <- non-const RHS.
-        return self.const_base_type.same_as_resolved_type(other_type)
+        if other_type.is_cv_qualified:
+            return self.cv_base_type.same_as_resolved_type(other_type.cv_base_type)
+        # Accept cv LHS <- non-cv RHS.
+        return self.cv_base_type.same_as_resolved_type(other_type)
 
     def __getattr__(self, name):
-        return getattr(self.const_base_type, name)
+        return getattr(self.cv_base_type, name)
+
+
+def CConstType(base_type):
+    return CConstOrVolatileType(base_type, is_const=1)
 
 
 class FusedType(CType):
@@ -2299,8 +2330,8 @@ class CPointerBaseType(CType):
 
     def __init__(self, base_type):
         self.base_type = base_type
-        if base_type.is_const:
-            base_type = base_type.const_base_type
+        if base_type.is_cv_qualified:
+            base_type = base_type.cv_base_type
         for char_type in (c_char_type, c_uchar_type, c_schar_type):
             if base_type.same_as(char_type):
                 self.is_string = 1
@@ -2524,8 +2555,8 @@ class CPtrType(CPointerBaseType):
             return 1
         if other_type.is_null_ptr:
             return 1
-        if self.base_type.is_const:
-            self = CPtrType(self.base_type.const_base_type)
+        if self.base_type.is_cv_qualified:
+            self = CPtrType(self.base_type.cv_base_type)
         if self.base_type.is_cfunction:
             if other_type.is_ptr:
                 other_type = other_type.base_type.resolve()
@@ -3706,8 +3737,8 @@ class CppClassType(CType):
         return specialized
 
     def deduce_template_params(self, actual):
-        if actual.is_const:
-            actual = actual.const_base_type
+        if actual.is_cv_qualified:
+            actual = actual.cv_base_type
         if actual.is_reference:
             actual = actual.ref_base_type
         if self == actual:
@@ -4449,10 +4480,10 @@ def widest_numeric_type(type1, type2):
         type1 = type1.ref_base_type
     if type2.is_reference:
         type2 = type2.ref_base_type
-    if type1.is_const:
-        type1 = type1.const_base_type
-    if type2.is_const:
-        type2 = type2.const_base_type
+    if type1.is_cv_qualified:
+        type1 = type1.cv_base_type
+    if type2.is_cv_qualified:
+        type2 = type2.cv_base_type
     if type1 == type2:
         widest_type = type1
     elif type1.is_complex or type2.is_complex:
@@ -4671,6 +4702,13 @@ def c_const_type(base_type):
         return error_type
     else:
         return CConstType(base_type)
+
+def c_const_or_volatile_type(base_type, is_const, is_volatile):
+    # Construct a C const/volatile type.
+    if base_type is error_type:
+        return error_type
+    else:
+        return CConstOrVolatileType(base_type, is_const, is_volatile)
 
 def same_type(type1, type2):
     return type1.same_as(type2)

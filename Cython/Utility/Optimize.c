@@ -123,13 +123,13 @@ static PyObject* __Pyx__PyList_PopIndex(PyObject* L, PyObject* py_ix, Py_ssize_t
 #define __Pyx_PyObject_PopIndex(L, py_ix, ix, is_signed, type, to_py_func) ( \
     (likely(PyList_CheckExact(L) && __Pyx_fits_Py_ssize_t(ix, type, is_signed))) ? \
         __Pyx__PyList_PopIndex(L, py_ix, ix) : ( \
-        (unlikely(py_ix == Py_None)) ? __Pyx__PyObject_PopNewIndex(L, to_py_func(ix)) : \
+        (unlikely((py_ix) == Py_None)) ? __Pyx__PyObject_PopNewIndex(L, to_py_func(ix)) : \
             __Pyx__PyObject_PopIndex(L, py_ix)))
 
 #define __Pyx_PyList_PopIndex(L, py_ix, ix, is_signed, type, to_py_func) ( \
     __Pyx_fits_Py_ssize_t(ix, type, is_signed) ? \
         __Pyx__PyList_PopIndex(L, py_ix, ix) : ( \
-        (unlikely(py_ix == Py_None)) ? __Pyx__PyObject_PopNewIndex(L, to_py_func(ix)) : \
+        (unlikely((py_ix) == Py_None)) ? __Pyx__PyObject_PopNewIndex(L, to_py_func(ix)) : \
             __Pyx__PyObject_PopIndex(L, py_ix)))
 
 #else
@@ -138,7 +138,7 @@ static PyObject* __Pyx__PyList_PopIndex(PyObject* L, PyObject* py_ix, Py_ssize_t
     __Pyx_PyObject_PopIndex(L, py_ix, ix, is_signed, type, to_py_func)
 
 #define __Pyx_PyObject_PopIndex(L, py_ix, ix, is_signed, type, to_py_func) ( \
-    (unlikely(py_ix == Py_None)) ? __Pyx__PyObject_PopNewIndex(L, to_py_func(ix)) : \
+    (unlikely((py_ix) == Py_None)) ? __Pyx__PyObject_PopNewIndex(L, to_py_func(ix)) : \
         __Pyx__PyObject_PopIndex(L, py_ix))
 #endif
 
@@ -165,7 +165,7 @@ static PyObject* __Pyx__PyList_PopIndex(PyObject* L, PyObject* py_ix, Py_ssize_t
         if (cix < 0) {
             cix += size;
         }
-        if (likely(0 <= cix && cix < size)) {
+        if (likely(__Pyx_is_valid_index(cix, size))) {
             PyObject* v = PyList_GET_ITEM(L, cix);
             Py_SIZE(L) -= 1;
             size -= 1;
@@ -600,7 +600,7 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj); /* proto */
 static double __Pyx__PyObject_AsDouble(PyObject* obj) {
     PyObject* float_value;
 #if !CYTHON_USE_TYPE_SLOTS
-    float_value = PyNumber_Float(obj);  if (0) goto bad;
+    float_value = PyNumber_Float(obj);  if ((0)) goto bad;
 #else
     PyNumberMethods *nb = Py_TYPE(obj)->tp_as_number;
     if (likely(nb) && likely(nb->nb_float)) {
@@ -648,7 +648,7 @@ static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject
 
 static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject *none, int inplace) {
 // in CPython, 1<<N is substantially faster than 2**N
-// see http://bugs.python.org/issue21420
+// see https://bugs.python.org/issue21420
 #if !CYTHON_COMPILING_IN_PYPY
     Py_ssize_t shiftby;
 #if PY_MAJOR_VERSION < 3
@@ -787,9 +787,9 @@ static CYTHON_INLINE {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject els
 
 {{py: c_ret_type = 'PyObject*' if ret_type.is_pyobject else 'int'}}
 #if !CYTHON_COMPILING_IN_PYPY
-static {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(PyObject *op1, PyObject *op2, long intval, int inplace); /*proto*/
+static {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(PyObject *op1, PyObject *op2, long intval, int inplace, int zerodivision_check); /*proto*/
 #else
-#define __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(op1, op2, intval, inplace) \
+#define __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(op1, op2, intval, inplace, zerodivision_check) \
     {{if op in ('Eq', 'Ne')}}{{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(PyObject_RichCompare(op1, op2, Py_{{op.upper()}}))
     {{else}}(inplace ? PyNumber_InPlace{{op}}(op1, op2) : PyNumber_{{op}}(op1, op2))
     {{endif}}
@@ -804,15 +804,28 @@ static {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op
 {{py: return_true = 'Py_RETURN_TRUE' if ret_type.is_pyobject else 'return 1'}}
 {{py: return_false = 'Py_RETURN_FALSE' if ret_type.is_pyobject else 'return 0'}}
 {{py: slot_name = {'TrueDivide': 'true_divide', 'FloorDivide': 'floor_divide'}.get(op, op.lower()) }}
+{{py: cfunc_name = '__Pyx_PyInt_%s%s%s' % ('' if ret_type.is_pyobject else 'Bool', op, order)}}
 {{py:
 c_op = {
-    'Add': '+', 'Subtract': '-', 'Remainder': '%', 'TrueDivide': '/', 'FloorDivide': '/',
+    'Add': '+', 'Subtract': '-', 'Multiply': '*', 'Remainder': '%', 'TrueDivide': '/', 'FloorDivide': '/',
     'Or': '|', 'Xor': '^', 'And': '&', 'Rshift': '>>', 'Lshift': '<<',
     'Eq': '==', 'Ne': '!=',
     }[op]
 }}
+{{py:
+def zerodiv_check(operand, optype='integer', _is_mod=op == 'Remainder', _needs_check=(order == 'CObj' and c_op in '%/')):
+    return (((
+    'if (unlikely(zerodivision_check && ((%s) == 0))) {'
+    ' PyErr_SetString(PyExc_ZeroDivisionError, "%s division%s by zero");'
+    ' return NULL;'
+    '}') % (operand, optype, ' or modulo' if _is_mod else '')
+    ) if _needs_check else '')
+}}
 
-static {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(PyObject *op1, PyObject *op2, CYTHON_UNUSED long intval, CYTHON_UNUSED int inplace) {
+static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, CYTHON_UNUSED long intval, int inplace, int zerodivision_check) {
+    // Prevent "unused" warnings.
+    (void)inplace; (void)zerodivision_check;
+
     {{if op in ('Eq', 'Ne')}}
     if (op1 == op2) {
         {{return_true if op == 'Eq' else return_false}};
@@ -826,6 +839,7 @@ static {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op
         long x;
         {{endif}}
         long {{ival}} = PyInt_AS_LONG({{pyval}});
+        {{zerodiv_check('b')}}
 
         {{if op in ('Eq', 'Ne')}}
         if (a {{c_op}} b) {
@@ -868,6 +882,19 @@ static {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op
             if (likely(b < (long) (sizeof(long)*8) && a == (a << b) >> b) || !a) {
                 return PyInt_FromLong(a {{c_op}} b);
             }
+        {{elif c_op == '*'}}
+#ifdef HAVE_LONG_LONG
+            if (sizeof(PY_LONG_LONG) > sizeof(long)) {
+                PY_LONG_LONG result = (PY_LONG_LONG)a {{c_op}} (PY_LONG_LONG)b;
+                return (result >= LONG_MIN && result <= LONG_MAX) ?
+                    PyInt_FromLong((long)result) : PyLong_FromLongLong(result);
+            }
+#endif
+#if CYTHON_USE_TYPE_SLOTS
+            return PyInt_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
+#else
+            return PyNumber_{{op}}(op1, op2);
+#endif
         {{else}}
             // other operations are safe, no overflow
             return PyInt_FromLong(a {{c_op}} b);
@@ -887,6 +914,34 @@ static {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op
         {{endif}}
         const digit* digits = ((PyLongObject*){{pyval}})->ob_digit;
         const Py_ssize_t size = Py_SIZE({{pyval}});
+        {{if c_op == '&'}}
+        // special case for &-ing arbitrarily large numbers with known single digit operands
+        if ((intval & PyLong_MASK) == intval) {
+            return PyLong_FromLong(likely(size) ? digits[0] & intval : 0);
+        }
+        {{endif}}
+        // special cases for 0: + - * % / // | ^ & >> <<
+        if (unlikely(size == 0)) {
+            {{if order == 'CObj' and c_op in '%/'}}
+            // division by zero!
+            {{zerodiv_check('0')}}
+            {{elif order == 'CObj' and c_op in '+-|^>><<'}}
+            // x == x+0 == x-0 == x|0 == x^0 == x>>0 == x<<0
+            return __Pyx_NewRef(op1);
+            {{elif order == 'CObj' and c_op in '*&'}}
+            // 0 == x*0 == x&0
+            return __Pyx_NewRef(op2);
+            {{elif order == 'ObjC' and c_op in '+|^'}}
+            // x == 0+x == 0|x == 0^x
+            return __Pyx_NewRef(op2);
+            {{elif order == 'ObjC' and c_op == '-'}}
+            // -x == 0-x
+            return PyLong_FromLong(-intval);
+            {{elif order == 'ObjC' and (c_op in '*%&>><<' or op == 'FloorDivide')}}
+            // 0 == 0*x == 0%x == 0&x == 0>>x == 0<<x == 0//x
+            return __Pyx_NewRef(op1);
+            {{endif}}
+        }
         // handle most common case first to avoid indirect branch and optimise branch prediction
         if (likely(__Pyx_sst_abs(size) <= 1)) {
             {{ival}} = likely(size) ? digits[0] : 0;
@@ -896,15 +951,15 @@ static {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op
                 {{for _size in range(2, 5)}}
                 {{for _case in (-_size, _size)}}
                 case {{_case}}:
-                    if (8 * sizeof(long) - 1 > {{_size}} * PyLong_SHIFT{{if op == 'TrueDivide'}} && {{_size-1}} * PyLong_SHIFT < 53{{endif}}) {
+                    if (8 * sizeof(long) - 1 > {{_size}} * PyLong_SHIFT{{if c_op == '*'}}+30{{endif}}{{if op == 'TrueDivide'}} && {{_size-1}} * PyLong_SHIFT < 53{{endif}}) {
                         {{ival}} = {{'-' if _case < 0 else ''}}(long) {{pylong_join(_size, 'digits')}};
                         break;
                     {{if op not in ('Eq', 'Ne', 'TrueDivide')}}
-#ifdef HAVE_LONG_LONG
-                    } else if (8 * sizeof(PY_LONG_LONG) - 1 > {{_size}} * PyLong_SHIFT) {
+                    #ifdef HAVE_LONG_LONG
+                    } else if (8 * sizeof(PY_LONG_LONG) - 1 > {{_size}} * PyLong_SHIFT{{if c_op == '*'}}+30{{endif}}) {
                         ll{{ival}} = {{'-' if _case < 0 else ''}}(PY_LONG_LONG) {{pylong_join(_size, 'digits', 'unsigned PY_LONG_LONG')}};
                         goto long_long;
-#endif
+                    #endif
                     {{endif}}
                     }
                     // if size doesn't fit into a long or PY_LONG_LONG anymore, fall through to default
@@ -933,13 +988,21 @@ static {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op
                 {{return_false}};
             }
         {{else}}
-            {{if c_op == '%'}}
+            {{if c_op == '*'}}
+                (void)a; (void)b;
+                #ifdef HAVE_LONG_LONG
+                ll{{ival}} = {{ival}};
+                goto long_long;
+                #else
+                return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
+                #endif
+            {{elif c_op == '%'}}
                 // see ExprNodes.py :: mod_int_utility_code
                 x = a % b;
                 x += ((x != 0) & ((x ^ b) < 0)) * b;
             {{elif op == 'TrueDivide'}}
                 if ((8 * sizeof(long) <= 53 || likely(labs({{ival}}) <= ((PY_LONG_LONG)1 << 53)))
-                    || __Pyx_sst_abs(size) <= 52 / PyLong_SHIFT) {
+                        || __Pyx_sst_abs(size) <= 52 / PyLong_SHIFT) {
                     return PyFloat_FromDouble((double)a / (double)b);
                 }
                 return PyLong_Type.tp_as_number->nb_{{slot_name}}(op1, op2);
@@ -996,7 +1059,7 @@ static {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op
     }
     #endif
 
-    {{if c_op in '+-' or op in ('TrueDivide', 'Eq', 'Ne')}}
+    {{if c_op in '+-*' or op in ('TrueDivide', 'Eq', 'Ne')}}
     if (PyFloat_CheckExact({{pyval}})) {
         const long {{'a' if order == 'CObj' else 'b'}} = intval;
         double {{ival}} = PyFloat_AS_DOUBLE({{pyval}});
@@ -1008,6 +1071,7 @@ static {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op
             }
         {{else}}
             double result;
+            {{zerodiv_check('b', 'float')}}
             // copied from floatobject.c in Py3.5:
             PyFPE_START_PROTECT("{{op.lower() if not op.endswith('Divide') else 'divide'}}", return NULL)
             result = ((double)a) {{c_op}} (double)b;
@@ -1030,9 +1094,9 @@ static {{c_ret_type}} __Pyx_PyInt_{{'' if ret_type.is_pyobject else 'Bool'}}{{op
 
 {{py: c_ret_type = 'PyObject*' if ret_type.is_pyobject else 'int'}}
 #if !CYTHON_COMPILING_IN_PYPY
-static {{c_ret_type}} __Pyx_PyFloat_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(PyObject *op1, PyObject *op2, double floatval, int inplace); /*proto*/
+static {{c_ret_type}} __Pyx_PyFloat_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(PyObject *op1, PyObject *op2, double floatval, int inplace, int zerodivision_check); /*proto*/
 #else
-#define __Pyx_PyFloat_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(op1, op2, floatval, inplace) \
+#define __Pyx_PyFloat_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(op1, op2, floatval, inplace, zerodivision_check) \
     {{if op in ('Eq', 'Ne')}}{{'' if ret_type.is_pyobject else '__Pyx_PyObject_IsTrueAndDecref'}}(PyObject_RichCompare(op1, op2, Py_{{op.upper()}}))
     {{elif op == 'Divide'}}((inplace ? __Pyx_PyNumber_InPlaceDivide(op1, op2) : __Pyx_PyNumber_Divide(op1, op2)))
     {{else}}(inplace ? PyNumber_InPlace{{op}}(op1, op2) : PyNumber_{{op}}(op1, op2))
@@ -1047,16 +1111,28 @@ static {{c_ret_type}} __Pyx_PyFloat_{{'' if ret_type.is_pyobject else 'Bool'}}{{
 {{py: return_true = 'Py_RETURN_TRUE' if ret_type.is_pyobject else 'return 1'}}
 {{py: return_false = 'Py_RETURN_FALSE' if ret_type.is_pyobject else 'return 0'}}
 {{py: pyval, fval = ('op2', 'b') if order == 'CObj' else ('op1', 'a') }}
+{{py: cfunc_name = '__Pyx_PyFloat_%s%s%s' % ('' if ret_type.is_pyobject else 'Bool', op, order) }}
 {{py:
 c_op = {
     'Add': '+', 'Subtract': '-', 'TrueDivide': '/', 'Divide': '/', 'Remainder': '%',
     'Eq': '==', 'Ne': '!=',
     }[op]
 }}
+{{py:
+def zerodiv_check(operand, _is_mod=op == 'Remainder', _needs_check=(order == 'CObj' and c_op in '%/')):
+    return (((
+        'if (unlikely(zerodivision_check && ((%s) == 0.0))) {'
+        ' PyErr_SetString(PyExc_ZeroDivisionError, "float division%s by zero");'
+        ' return NULL;'
+        '}') % (operand, ' or modulo' if _is_mod else '')
+    ) if _needs_check else '')
+}}
 
-static {{c_ret_type}} __Pyx_PyFloat_{{'' if ret_type.is_pyobject else 'Bool'}}{{op}}{{order}}(PyObject *op1, PyObject *op2, double floatval, CYTHON_UNUSED int inplace) {
+static {{c_ret_type}} {{cfunc_name}}(PyObject *op1, PyObject *op2, double floatval, int inplace, int zerodivision_check) {
     const double {{'a' if order == 'CObj' else 'b'}} = floatval;
     double {{fval}}{{if op not in ('Eq', 'Ne')}}, result{{endif}};
+    // Prevent "unused" warnings.
+    (void)inplace; (void)zerodivision_check;
 
     {{if op in ('Eq', 'Ne')}}
     if (op1 == op2) {
@@ -1066,11 +1142,13 @@ static {{c_ret_type}} __Pyx_PyFloat_{{'' if ret_type.is_pyobject else 'Bool'}}{{
 
     if (likely(PyFloat_CheckExact({{pyval}}))) {
         {{fval}} = PyFloat_AS_DOUBLE({{pyval}});
+        {{zerodiv_check(fval)}}
     } else
 
     #if PY_MAJOR_VERSION < 3
     if (likely(PyInt_CheckExact({{pyval}}))) {
         {{fval}} = (double) PyInt_AS_LONG({{pyval}});
+        {{zerodiv_check(fval)}}
     } else
     #endif
 
@@ -1079,7 +1157,7 @@ static {{c_ret_type}} __Pyx_PyFloat_{{'' if ret_type.is_pyobject else 'Bool'}}{{
         const digit* digits = ((PyLongObject*){{pyval}})->ob_digit;
         const Py_ssize_t size = Py_SIZE({{pyval}});
         switch (size) {
-            case  0: {{fval}} = 0.0; break;
+            case  0: {{fval}} = 0.0; {{zerodiv_check(fval)}} break;
             case -1: {{fval}} = -(double) digits[0]; break;
             case  1: {{fval}} = (double) digits[0]; break;
             {{for _size in (2, 3, 4)}}
@@ -1111,6 +1189,11 @@ static {{c_ret_type}} __Pyx_PyFloat_{{'' if ret_type.is_pyobject else 'Bool'}}{{
         {{else}}
             {{fval}} = PyLong_AsDouble({{pyval}});
             if (unlikely({{fval}} == -1.0 && PyErr_Occurred())) return NULL;
+            {{if zerodiv_check(fval)}}
+            #if !CYTHON_USE_PYLONG_INTERNALS
+            {{zerodiv_check(fval)}}
+            #endif
+            {{endif}}
         {{endif}}
         }
     } else {

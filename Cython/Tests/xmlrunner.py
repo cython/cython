@@ -27,12 +27,12 @@ class TestSequenceFunctions(unittest.TestCase):
 
     def test_choice(self):
         element = random.choice(self.seq)
-        self.assert_(element in self.seq)
+        self.assertTrue(element in self.seq)
 
     def test_sample(self):
         self.assertRaises(ValueError, random.sample, self.seq, 20)
         for element in random.sample(self.seq, 5):
-            self.assert_(element in self.seq)
+            self.assertTrue(element in self.seq)
 
 if __name__ == '__main__':
     unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'))

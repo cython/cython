@@ -1,3 +1,5 @@
+# mode: run
+
 __doc__ = u"""
     >>> int2 = 42
     >>> int3 = 7
@@ -35,3 +37,24 @@ def f():
     int1 ^= int2 << int3 | int2 >> int3
     long1 = char1 | int1
     return int1, long1
+
+
+def long_int_shift():
+    """
+    >>> long_int_shift()
+    80082
+    10010
+    10010
+    10010
+    10010
+    """
+    value = 80082 # int using more than 2 bytes == long
+    print(value)
+    shiftedby3 = value >> 3
+    dividedby8 = value // 8
+    print(shiftedby3)
+    print(dividedby8)
+    shiftedby3 = 80082 >> 3
+    dividedby8 = 80082 // 8
+    print(shiftedby3)
+    print(dividedby8)

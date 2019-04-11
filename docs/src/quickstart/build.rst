@@ -104,5 +104,6 @@ Using the Sage notebook
   functions defined in a Cython cell imported into the running session.
 
 
-.. [Jupyter] http://jupyter.org/
-.. [Sage] W. Stein et al., Sage Mathematics Software, http://www.sagemath.org/
+.. [Jupyter] https://jupyter.org/
+..
+   [Sage] W. Stein et al., Sage Mathematics Software, https://www.sagemath.org/

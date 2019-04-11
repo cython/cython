@@ -28,10 +28,9 @@ def test_constructor_kwds(x, y, color):
     """
     >>> sorted(test_constructor_kwds(1.25, 2.5, 128).items())
     [('color', 128), ('x', 1.25), ('y', 2.5)]
-    >>> test_constructor_kwds(1.25, 2.5, None)
+    >>> test_constructor_kwds(1.25, 2.5, None)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ...
-    TypeError: an integer is required
+    TypeError:... int...
     """
     cdef Point p = Point(x=x, y=y, color=color)
     return p
@@ -41,10 +40,9 @@ def return_constructor_kwds(double x, y, color):
     """
     >>> sorted(return_constructor_kwds(1.25, 2.5, 128).items())
     [('color', 128), ('x', 1.25), ('y', 2.5)]
-    >>> return_constructor_kwds(1.25, 2.5, None)
+    >>> return_constructor_kwds(1.25, 2.5, None)  # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ...
-    TypeError: an integer is required
+    TypeError:... int...
     """
     return Point(x=x, y=y, color=color)
 

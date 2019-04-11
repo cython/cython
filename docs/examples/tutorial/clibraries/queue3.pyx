@@ -24,7 +24,7 @@ cdef class Queue:
 
     cpdef append(self, int value):
         if not cqueue.queue_push_tail(self._c_queue,
-                                      <void*> value):
+                                      <void*> <Py_ssize_t> value):
             raise MemoryError()
 
     # The `cpdef` feature is obviously not available for the original "extend()"

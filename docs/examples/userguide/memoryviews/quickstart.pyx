@@ -32,7 +32,7 @@ print("NumPy sum of NumPy array after assignments: %s" % narr.sum())
 
 # A function using a memoryview does not usually need the GIL
 cpdef int sum3d(int[:, :, :] arr) nogil:
-    cdef size_t i, j, k
+    cdef size_t i, j, k, I, J, K
     cdef int total = 0
     I = arr.shape[0]
     J = arr.shape[1]

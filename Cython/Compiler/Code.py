@@ -1,4 +1,4 @@
-# cython: language_level = 2
+# cython: language_level=3str
 # cython: auto_pickle=False
 #
 #   Code output module
@@ -13,21 +13,16 @@ cython.declare(os=object, re=object, operator=object, textwrap=object,
                DebugFlags=object, basestring=object, defaultdict=object,
                closing=object, partial=object)
 
+import hashlib
+import operator
 import os
 import re
 import shutil
-import sys
-import operator
 import textwrap
 from string import Template
 from functools import partial
 from contextlib import closing
 from collections import defaultdict
-
-try:
-    import hashlib
-except ImportError:
-    import md5 as hashlib
 
 from . import Naming
 from . import Options
@@ -42,8 +37,6 @@ try:
     from __builtin__ import basestring
 except ImportError:
     from builtins import str as basestring
-
-KEYWORDS_MUST_BE_BYTES = sys.version_info < (2, 7)
 
 
 non_portable_builtins_map = {
@@ -259,15 +252,11 @@ class UtilityCodeBase(object):
             utility[1] = code
         else:
             all_tags = utility[2]
-            if KEYWORDS_MUST_BE_BYTES:
-                type = type.encode('ASCII')
             all_tags[type] = code
 
         if tags:
             all_tags = utility[2]
             for name, values in tags.items():
-                if KEYWORDS_MUST_BE_BYTES:
-                    name = name.encode('ASCII')
                 all_tags.setdefault(name, set()).update(values)
 
     @classmethod
@@ -290,7 +279,7 @@ class UtilityCodeBase(object):
             (r'^%(C)s{5,30}\s*(?P<name>(?:\w|\.)+)\s*%(C)s{5,30}|'
              r'^%(C)s+@(?P<tag>\w+)\s*:\s*(?P<value>(?:\w|[.:])+)') %
             {'C': comment}).match
-        match_type = re.compile('(.+)[.](proto(?:[.]\S+)?|impl|init|cleanup)$').match
+        match_type = re.compile(r'(.+)[.](proto(?:[.]\S+)?|impl|init|cleanup)$').match
 
         with closing(Utils.open_source_file(filename, encoding='UTF-8')) as f:
             all_lines = f.readlines()
@@ -828,8 +817,8 @@ class FunctionState(object):
 
         A C string referring to the variable is returned.
         """
-        if type.is_const and not type.is_reference:
-            type = type.const_base_type
+        if type.is_cv_qualified and not type.is_reference:
+            type = type.cv_base_type
         elif type.is_reference and not type.is_fake_reference:
             type = type.ref_base_type
         if not type.is_pyobject and not type.is_memoryviewslice:
@@ -906,9 +895,11 @@ class FunctionState(object):
         try-except and try-finally blocks to clean up temps in the
         error case.
         """
-        return [(cname, type)
-                for (type, manage_ref), freelist in self.temps_free.items() if manage_ref
-                for cname in freelist[0]]
+        return sorted([  # Enforce deterministic order.
+            (cname, type)
+            for (type, manage_ref), freelist in self.temps_free.items() if manage_ref
+            for cname in freelist[0]
+        ])
 
     def start_collecting_temps(self):
         """
@@ -1134,10 +1125,12 @@ class GlobalState(object):
 
         self.const_cnames_used = {}
         self.string_const_index = {}
+        self.dedup_const_index = {}
         self.pyunicode_ptr_const_index = {}
         self.num_const_index = {}
         self.py_constants = []
         self.cached_cmethods = {}
+        self.initialised_constants = set()
 
         writer.set_global_state(self)
         self.rootwriter = writer
@@ -1247,7 +1240,12 @@ class GlobalState(object):
 
     # constant handling at code generation time
 
-    def get_cached_constants_writer(self):
+    def get_cached_constants_writer(self, target=None):
+        if target is not None:
+            if target in self.initialised_constants:
+                # Return None on second/later calls to prevent duplicate creation code.
+                return None
+            self.initialised_constants.add(target)
         return self.parts['cached_constants']
 
     def get_int_const(self, str_value, longness=False):
@@ -1265,13 +1263,19 @@ class GlobalState(object):
             c = self.new_num_const(str_value, 'float', value_code)
         return c
 
-    def get_py_const(self, type, prefix='', cleanup_level=None):
+    def get_py_const(self, type, prefix='', cleanup_level=None, dedup_key=None):
+        if dedup_key is not None:
+            const = self.dedup_const_index.get(dedup_key)
+            if const is not None:
+                return const
         # create a new Python object constant
         const = self.new_py_const(type, prefix)
         if cleanup_level is not None \
                 and cleanup_level <= Options.generate_cleanup_code:
             cleanup_writer = self.parts['cleanup_globals']
             cleanup_writer.putln('Py_CLEAR(%s);' % const.cname)
+        if dedup_key is not None:
+            self.dedup_const_index[dedup_key] = const
         return const
 
     def get_string_const(self, text, py_version=None):
@@ -1792,8 +1796,8 @@ class CCodeWriter(object):
     def get_py_float(self, str_value, value_code):
         return self.globalstate.get_float_const(str_value, value_code).cname
 
-    def get_py_const(self, type, prefix='', cleanup_level=None):
-        return self.globalstate.get_py_const(type, prefix, cleanup_level).cname
+    def get_py_const(self, type, prefix='', cleanup_level=None, dedup_key=None):
+        return self.globalstate.get_py_const(type, prefix, cleanup_level, dedup_key).cname
 
     def get_string_const(self, text):
         return self.globalstate.get_string_const(text).cname
@@ -1815,8 +1819,8 @@ class CCodeWriter(object):
     def intern_identifier(self, text):
         return self.get_py_string_const(text, identifier=True)
 
-    def get_cached_constants_writer(self):
-        return self.globalstate.get_cached_constants_writer()
+    def get_cached_constants_writer(self, target=None):
+        return self.globalstate.get_cached_constants_writer(target)
 
     # code generation
 
@@ -1872,7 +1876,7 @@ class CCodeWriter(object):
         include_dir = self.globalstate.common_utility_include_dir
         if include_dir and len(code) > 1024:
             include_file = "%s_%s.h" % (
-                name, hashlib.md5(code.encode('utf8')).hexdigest())
+                name, hashlib.sha1(code.encode('utf8')).hexdigest())
             path = os.path.join(include_dir, include_file)
             if not os.path.exists(path):
                 tmp_path = '%s.tmp%s' % (path, os.getpid())
@@ -2224,6 +2228,12 @@ class CCodeWriter(object):
 
     # GIL methods
 
+    def use_fast_gil_utility_code(self):
+        if self.globalstate.directives['fast_gil']:
+            self.globalstate.use_utility_code(UtilityCode.load_cached("FastGil", "ModuleSetupCode.c"))
+        else:
+            self.globalstate.use_utility_code(UtilityCode.load_cached("NoFastGil", "ModuleSetupCode.c"))
+
     def put_ensure_gil(self, declare_gilstate=True, variable=None):
         """
         Acquire the GIL. The generated code is safe even when no PyThreadState
@@ -2233,10 +2243,7 @@ class CCodeWriter(object):
         """
         self.globalstate.use_utility_code(
             UtilityCode.load_cached("ForceInitThreads", "ModuleSetupCode.c"))
-        if self.globalstate.directives['fast_gil']:
-          self.globalstate.use_utility_code(UtilityCode.load_cached("FastGil", "ModuleSetupCode.c"))
-        else:
-          self.globalstate.use_utility_code(UtilityCode.load_cached("NoFastGil", "ModuleSetupCode.c"))
+        self.use_fast_gil_utility_code()
         self.putln("#ifdef WITH_THREAD")
         if not variable:
             variable = '__pyx_gilstate_save'
@@ -2249,10 +2256,7 @@ class CCodeWriter(object):
         """
         Releases the GIL, corresponds to `put_ensure_gil`.
         """
-        if self.globalstate.directives['fast_gil']:
-          self.globalstate.use_utility_code(UtilityCode.load_cached("FastGil", "ModuleSetupCode.c"))
-        else:
-          self.globalstate.use_utility_code(UtilityCode.load_cached("NoFastGil", "ModuleSetupCode.c"))
+        self.use_fast_gil_utility_code()
         if not variable:
             variable = '__pyx_gilstate_save'
         self.putln("#ifdef WITH_THREAD")
@@ -2264,10 +2268,7 @@ class CCodeWriter(object):
         Acquire the GIL. The thread's thread state must have been initialized
         by a previous `put_release_gil`
         """
-        if self.globalstate.directives['fast_gil']:
-          self.globalstate.use_utility_code(UtilityCode.load_cached("FastGil", "ModuleSetupCode.c"))
-        else:
-          self.globalstate.use_utility_code(UtilityCode.load_cached("NoFastGil", "ModuleSetupCode.c"))
+        self.use_fast_gil_utility_code()
         self.putln("#ifdef WITH_THREAD")
         self.putln("__Pyx_FastGIL_Forget();")
         if variable:
@@ -2277,10 +2278,7 @@ class CCodeWriter(object):
 
     def put_release_gil(self, variable=None):
         "Release the GIL, corresponds to `put_acquire_gil`."
-        if self.globalstate.directives['fast_gil']:
-          self.globalstate.use_utility_code(UtilityCode.load_cached("FastGil", "ModuleSetupCode.c"))
-        else:
-          self.globalstate.use_utility_code(UtilityCode.load_cached("NoFastGil", "ModuleSetupCode.c"))
+        self.use_fast_gil_utility_code()
         self.putln("#ifdef WITH_THREAD")
         self.putln("PyThreadState *_save;")
         self.putln("Py_UNBLOCK_THREADS")

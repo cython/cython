@@ -9,7 +9,7 @@ import sys
 from . import Options
 
 usage = """\
-Cython (http://cython.org) is a compiler for code written in the
+Cython (https://cython.org/) is a compiler for code written in the
 Cython language.  Cython is based on Pyrex by Greg Ewing.
 
 Usage: cython [options] sourcefile.{pyx,py} ...
@@ -40,6 +40,8 @@ Options:
   --embed[=<method_name>]        Generate a main() function that embeds the Python interpreter.
   -2                             Compile based on Python-2 syntax and code semantics.
   -3                             Compile based on Python-3 syntax and code semantics.
+  --3str                         Compile based on Python-3 syntax and code semantics without
+                                 assuming unicode by default for string literals under Python 2.
   --lenient                      Change some compile time errors to runtime errors to
                                  improve Python compatibility
   --capi-reexport-cincludes      Add cincluded headers to any auto-generated header files.
@@ -63,8 +65,6 @@ def bad_usage():
 
 
 def parse_command_line(args):
-    from .Main import CompilationOptions, default_options
-
     pending_arg = []
 
     def pop_arg():
@@ -92,7 +92,7 @@ def parse_command_line(args):
         else:
             return pop_arg()
 
-    options = CompilationOptions(default_options)
+    options = Options.CompilationOptions(Options.default_options)
     sources = []
     while args:
         if args[0].startswith("-"):
@@ -151,6 +151,8 @@ def parse_command_line(args):
                 options.language_level = 2
             elif option == '-3':
                 options.language_level = 3
+            elif option == '--3str':
+                options.language_level = '3str'
             elif option == "--capi-reexport-cincludes":
                 options.capi_reexport_cincludes = True
             elif option == "--fast-fail":

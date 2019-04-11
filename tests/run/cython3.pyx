@@ -551,3 +551,16 @@ def annotation_syntax(a: "test new test", b : "other" = 2, *args: "ARGS", **kwar
     result : int = a + b
 
     return result
+
+
+async def async_def_annotations(x: 'int') -> 'float':
+    """
+    >>> ret, arg = sorted(async_def_annotations.__annotations__.items())
+    >>> print(ret[0]); print(ret[1])
+    return
+    float
+    >>> print(arg[0]); print(arg[1])
+    x
+    int
+    """
+    return float(x)

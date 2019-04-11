@@ -28,13 +28,11 @@ cdef class Scanner:
 
     cdef public level
 
-    @cython.final
     @cython.locals(input_state=long)
-    cdef next_char(self)
+    cdef inline next_char(self)
     @cython.locals(action=Action)
     cpdef tuple read(self)
-    @cython.final
-    cdef tuple scan_a_token(self)
+    cdef inline tuple scan_a_token(self)
     ##cdef tuple position(self)  # used frequently by Parsing.py
 
     @cython.final
@@ -44,7 +42,5 @@ cdef class Scanner:
                    trace=bint, discard=Py_ssize_t, data=unicode, buffer=unicode)
     cdef run_machine_inlined(self)
 
-    @cython.final
-    cdef begin(self, state)
-    @cython.final
-    cdef produce(self, value, text = *)
+    cdef inline begin(self, state)
+    cdef inline produce(self, value, text = *)

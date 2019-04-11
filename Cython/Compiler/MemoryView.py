@@ -487,7 +487,7 @@ def copy_c_or_fortran_cname(memview):
 
 def get_copy_new_utility(pos, from_memview, to_memview):
     if (from_memview.dtype != to_memview.dtype and
-            not (from_memview.dtype.is_const and from_memview.dtype.const_base_type == to_memview.dtype)):
+            not (from_memview.dtype.is_cv_qualified and from_memview.dtype.cv_base_type == to_memview.dtype)):
         error(pos, "dtypes must be the same!")
         return
     if len(from_memview.axes) != len(to_memview.axes):

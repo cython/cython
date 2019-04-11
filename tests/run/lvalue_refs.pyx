@@ -15,7 +15,7 @@ cdef void foo(vector[dpp] &bar, vector[vector[dp]] &baz) nogil:
 def test_lvalue_ref_assignment():
     cdef vector[dpp]        bar
     cdef vector[vector[dp]] baz
-    cdef vector[double]     data
+    cdef vector[double]     data = [0.0]
     cdef dp                 bongle = &data[0]
 
     bar.resize(1)

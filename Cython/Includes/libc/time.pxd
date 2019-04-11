@@ -1,4 +1,4 @@
-# http://en.wikipedia.org/wiki/C_date_and_time_functions
+# https://en.wikipedia.org/wiki/C_date_and_time_functions
 
 from libc.stddef cimport wchar_t
 

@@ -12,17 +12,22 @@ about 20%-50%.
 To go beyond that, Cython provides language constructs to add static typing
 and cythonic functionalities to a Python module to make it run much faster
 when compiled, while still allowing it to be interpreted.
-This is accomplished either via an augmenting :file:`.pxd` file, or
+This is accomplished via an augmenting ``.pxd`` file, via Python
+type annotations (following
+`PEP 484 <https://www.python.org/dev/peps/pep-0484/>`_ and
+`PEP 526 <https://www.python.org/dev/peps/pep-0526/>`_), and/or
 via special functions and decorators available after importing the magic
-``cython`` module.
+``cython`` module.  All three ways can be combined at need, although
+projects would commonly decide on a specific way to keep the static type
+information easy to manage.
 
 Although it is not typically recommended over writing straight Cython code
 in a :file:`.pyx` file, there are legitimate reasons to do this - easier
-testing, collaboration with pure Python developers, etc.  In pure mode, you
-are more or less restricted to code that can be expressed (or at least
-emulated) in Python, plus static type declarations. Anything beyond that
-can only be done in .pyx files with extended language syntax, because it
-depends on features of the Cython compiler.
+testing and debugging, collaboration with pure Python developers, etc.
+In pure mode, you are more or less restricted to code that can be expressed
+(or at least emulated) in Python, plus static type declarations. Anything
+beyond that can only be done in .pyx files with extended language syntax,
+because it depends on features of the Cython compiler.
 
 
 Augmenting .pxd

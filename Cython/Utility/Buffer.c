@@ -200,7 +200,7 @@ static int __Pyx__GetBufferAndValidate(
     __Pyx_BufFmt_Init(&ctx, stack, dtype);
     if (!__Pyx_BufFmt_CheckString(&ctx, buf->format)) goto fail;
   }
-  if (unlikely((unsigned)buf->itemsize != dtype->size)) {
+  if (unlikely((size_t)buf->itemsize != dtype->size)) {
     PyErr_Format(PyExc_ValueError,
       "Item size of buffer (%" CYTHON_FORMAT_SSIZE_T "d byte%s) does not match size of '%s' (%" CYTHON_FORMAT_SSIZE_T "d byte%s)",
       buf->itemsize, (buf->itemsize > 1) ? "s" : "",
@@ -224,8 +224,8 @@ fail:;
 //  the format string; the access mode/flags is checked by the
 //  exporter. See:
 //
-//  http://docs.python.org/3/library/struct.html
-//  http://legacy.python.org/dev/peps/pep-3118/#additions-to-the-struct-string-syntax
+//  https://docs.python.org/3/library/struct.html
+//  https://www.python.org/dev/peps/pep-3118/#additions-to-the-struct-string-syntax
 //
 //  The alignment code is copied from _struct.c in Python.
 
@@ -273,7 +273,7 @@ static int __Pyx_BufFmt_ParseNumber(const char** ts) {
       return -1;
     } else {
         count = *t++ - '0';
-        while (*t >= '0' && *t < '9') {
+        while (*t >= '0' && *t <= '9') {
             count *= 10;
             count += *t++ - '0';
         }
@@ -298,6 +298,7 @@ static void __Pyx_BufFmt_RaiseUnexpectedChar(char ch) {
 
 static const char* __Pyx_BufFmt_DescribeTypeChar(char ch, int is_complex) {
   switch (ch) {
+    case '?': return "'bool'";
     case 'c': return "'char'";
     case 'b': return "'signed char'";
     case 'B': return "'unsigned char'";
@@ -342,7 +343,7 @@ static size_t __Pyx_BufFmt_TypeCharToStandardSize(char ch, int is_complex) {
 
 static size_t __Pyx_BufFmt_TypeCharToNativeSize(char ch, int is_complex) {
   switch (ch) {
-    case 'c': case 'b': case 'B': case 's': case 'p': return 1;
+    case '?': case 'c': case 'b': case 'B': case 's': case 'p': return 1;
     case 'h': case 'H': return sizeof(short);
     case 'i': case 'I': return sizeof(int);
     case 'l': case 'L': return sizeof(long);
@@ -431,7 +432,7 @@ static char __Pyx_BufFmt_TypeCharToGroup(char ch, int is_complex) {
     case 'b': case 'h': case 'i':
     case 'l': case 'q': case 's': case 'p':
         return 'I';
-    case 'B': case 'H': case 'I': case 'L': case 'Q':
+    case '?': case 'B': case 'H': case 'I': case 'L': case 'Q':
         return 'U';
     case 'f': case 'd': case 'g':
         return (is_complex ? 'C' : 'R');
@@ -752,7 +753,7 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
           return NULL;
         }
         CYTHON_FALLTHROUGH;
-      case 'c': case 'b': case 'B': case 'h': case 'H': case 'i': case 'I':
+      case '?': case 'c': case 'b': case 'B': case 'h': case 'H': case 'i': case 'I':
       case 'l': case 'L': case 'q': case 'Q':
       case 'f': case 'd': case 'g':
       case 'O': case 'p':

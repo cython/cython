@@ -78,7 +78,7 @@ class TreeVisitor(object):
         self.dispatch_table = {}
         self.access_path = []
 
-    def dump_node(self, node, indent=0):
+    def dump_node(self, node):
         ignored = list(node.child_attrs or []) + [
             u'child_attrs', u'pos', u'gil_message', u'cpp_message', u'subexprs']
         values = []
@@ -90,7 +90,6 @@ class TreeVisitor(object):
                 source = os.path.basename(source.get_description())
             values.append(u'%s:%s:%s' % (source, pos[1], pos[2]))
         attribute_names = dir(node)
-        attribute_names.sort()
         for attr in attribute_names:
             if attr in ignored:
                 continue
@@ -156,7 +155,6 @@ class TreeVisitor(object):
         cls = type(obj)
         pattern = "visit_%s"
         mro = inspect.getmro(cls)
-        handler_method = None
         for mro_cls in mro:
             handler_method = getattr(self, pattern % mro_cls.__name__, None)
             if handler_method is not None:
@@ -246,28 +244,37 @@ class VisitorTransform(TreeVisitor):
     was not, an exception will be raised. (Typically you want to ensure that you
     are within a StatListNode or similar before doing this.)
     """
-    def visitchildren(self, parent, attrs=None):
+    def visitchildren(self, parent, attrs=None, exclude=None):
         # generic def entry point for calls from Python subclasses
+        if exclude is not None:
+            attrs = self._select_attrs(parent.child_attrs if attrs is None else attrs, exclude)
         return self._process_children(parent, attrs)
+
+    @cython.final
+    def _select_attrs(self, attrs, exclude):
+        return [name for name in attrs if name not in exclude]
 
     @cython.final
     def _process_children(self, parent, attrs=None):
         # fast cdef entry point for calls from Cython subclasses
         result = self._visitchildren(parent, attrs)
         for attr, newnode in result.items():
-            if type(newnode) is not list:
-                setattr(parent, attr, newnode)
-            else:
-                # Flatten the list one level and remove any None
-                newlist = []
-                for x in newnode:
-                    if x is not None:
-                        if type(x) is list:
-                            newlist += x
-                        else:
-                            newlist.append(x)
-                setattr(parent, attr, newlist)
+            if type(newnode) is list:
+                newnode = self._flatten_list(newnode)
+            setattr(parent, attr, newnode)
         return result
+
+    @cython.final
+    def _flatten_list(self, orig_list):
+        # Flatten the list one level and remove any None
+        newlist = []
+        for x in orig_list:
+            if x is not None:
+                if type(x) is list:
+                    newlist.extend(x)
+                else:
+                    newlist.append(x)
+        return newlist
 
     def recurse_to_children(self, node):
         self._process_children(node)
@@ -275,6 +282,7 @@ class VisitorTransform(TreeVisitor):
 
     def __call__(self, root):
         return self._visit(root)
+
 
 class CythonTransform(VisitorTransform):
     """

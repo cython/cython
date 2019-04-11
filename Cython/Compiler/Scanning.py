@@ -1,4 +1,4 @@
-# cython: infer_types=True, language_level=3, py2_import=True, auto_pickle=False
+# cython: infer_types=True, language_level=3, auto_pickle=False
 #
 #   Cython Scanner
 #
@@ -49,25 +49,6 @@ pyx_reserved_words = py_reserved_words + [
     "include", "ctypedef", "cdef", "cpdef",
     "cimport", "DEF", "IF", "ELIF", "ELSE"
 ]
-
-
-class Method(object):
-
-    def __init__(self, name, **kwargs):
-        self.name = name
-        self.kwargs = kwargs or None
-        self.__name__ = name  # for Plex tracing
-
-    def __call__(self, stream, text):
-        method = getattr(stream, self.name)
-        # self.kwargs is almost always unused => avoid call overhead
-        return method(text, **self.kwargs) if self.kwargs is not None else method(text)
-
-    def __copy__(self):
-        return self  # immutable, no need to copy
-
-    def __deepcopy__(self, memo):
-        return self  # immutable, no need to copy
 
 
 #------------------------------------------------------------------
@@ -147,6 +128,8 @@ class SourceDescriptor(object):
     """
     A SourceDescriptor should be considered immutable.
     """
+    filename = None
+
     _file_type = 'pyx'
 
     _escaped_description = None
@@ -274,8 +257,6 @@ class StringSourceDescriptor(SourceDescriptor):
     Instances of this class can be used instead of a filenames if the
     code originates from a string object.
     """
-    filename = None
-
     def __init__(self, name, code):
         self.name = name
         #self.set_file_type_from_name(name)

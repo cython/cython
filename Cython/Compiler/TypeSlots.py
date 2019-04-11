@@ -86,20 +86,21 @@ class Signature(object):
         'z': "-1",
     }
 
-    def __init__(self, arg_format, ret_format):
-        self.has_dummy_arg = 0
-        self.has_generic_args = 0
+    def __init__(self, arg_format, ret_format, nogil=False):
+        self.has_dummy_arg = False
+        self.has_generic_args = False
         if arg_format[:1] == '-':
-            self.has_dummy_arg = 1
+            self.has_dummy_arg = True
             arg_format = arg_format[1:]
         if arg_format[-1:] == '*':
-            self.has_generic_args = 1
+            self.has_generic_args = True
             arg_format = arg_format[:-1]
         self.fixed_arg_format = arg_format
         self.ret_format = ret_format
         self.error_value = self.error_value_map.get(ret_format, None)
         self.exception_check = ret_format != 'r' and self.error_value is not None
         self.is_staticmethod = False
+        self.nogil = nogil
 
     def __repr__(self):
         return '<Signature[%s(%s%s)]>' % (
@@ -149,7 +150,8 @@ class Signature(object):
         exc_value = self.exception_value()
         return PyrexTypes.CFuncType(
             ret_type, args, exception_value=exc_value,
-            exception_check=self.exception_check)
+            exception_check=self.exception_check,
+            nogil=self.nogil)
 
     def method_flags(self):
         if self.ret_format == "O":
@@ -248,14 +250,17 @@ class SlotDescriptor(object):
 
     def generate_dynamic_init_code(self, scope, code):
         if self.is_initialised_dynamically:
-            value = self.slot_code(scope)
-            if value != "0":
-                code.putln("%s.%s = %s;" % (
-                    scope.parent_type.typeobj_cname,
-                    self.slot_name,
-                    value
-                    )
-                )
+            self.generate_set_slot_code(
+                self.slot_code(scope), scope, code)
+
+    def generate_set_slot_code(self, value, scope, code):
+        if value == "0":
+            return
+        code.putln("%s.%s = %s;" % (
+            scope.parent_type.typeobj_cname,
+            self.slot_name,
+            value,
+        ))
 
 
 class FixedSlot(SlotDescriptor):
@@ -360,29 +365,53 @@ class GCClearReferencesSlot(GCDependentSlot):
 class ConstructorSlot(InternalMethodSlot):
     #  Descriptor for tp_new and tp_dealloc.
 
-    def __init__(self, slot_name, method, **kargs):
+    def __init__(self, slot_name, method=None, **kargs):
         InternalMethodSlot.__init__(self, slot_name, **kargs)
         self.method = method
 
-    def slot_code(self, scope):
-        entry = scope.lookup_here(self.method)
-        if (self.slot_name != 'tp_new'
-                and scope.parent_type.base_type
+    def _needs_own(self, scope):
+        if (scope.parent_type.base_type
                 and not scope.has_pyobject_attrs
                 and not scope.has_memoryview_attrs
                 and not scope.has_cpp_class_attrs
-                and not (entry and entry.is_special)):
+                and not (self.slot_name == 'tp_new' and scope.parent_type.vtabslot_cname)):
+            entry = scope.lookup_here(self.method) if self.method else None
+            if not (entry and entry.is_special):
+                return False
+        # Unless we can safely delegate to the parent, all types need a tp_new().
+        return True
+
+    def _parent_slot_function(self, scope):
+        parent_type_scope = scope.parent_type.base_type.scope
+        if scope.parent_scope is parent_type_scope.parent_scope:
+            entry = scope.parent_scope.lookup_here(scope.parent_type.base_type.name)
+            if entry.visibility != 'extern':
+                return self.slot_code(parent_type_scope)
+        return None
+
+    def slot_code(self, scope):
+        if not self._needs_own(scope):
             # if the type does not have object attributes, it can
             # delegate GC methods to its parent - iff the parent
             # functions are defined in the same module
-            parent_type_scope = scope.parent_type.base_type.scope
-            if scope.parent_scope is parent_type_scope.parent_scope:
-                entry = scope.parent_scope.lookup_here(scope.parent_type.base_type.name)
-                if entry.visibility != 'extern':
-                    return self.slot_code(parent_type_scope)
-        if entry and not entry.is_special:
-            return "0"
+            slot_code = self._parent_slot_function(scope)
+            return slot_code or '0'
         return InternalMethodSlot.slot_code(self, scope)
+
+    def generate_dynamic_init_code(self, scope, code):
+        if self.slot_code(scope) != '0':
+            return
+        # If we don't have our own slot function and don't know the
+        # parent function statically, copy it dynamically.
+        base_type = scope.parent_type.base_type
+        if base_type.is_extension_type and base_type.typeobj_cname:
+            src = '%s.%s' % (base_type.typeobj_cname, self.slot_name)
+        elif base_type.typeptr_cname:
+            src = '%s->%s' % (base_type.typeptr_cname, self.slot_name)
+        else:
+            return
+
+        self.generate_set_slot_code(src, scope, code)
 
 
 class SyntheticSlot(InternalMethodSlot):
@@ -444,7 +473,7 @@ class DocStringSlot(SlotDescriptor):
             return "0"
         if doc.is_unicode:
             doc = doc.as_utf8_string()
-        return doc.as_c_string_literal()
+        return "PyDoc_STR(%s)" % doc.as_c_string_literal()
 
 
 class SuiteSlot(SlotDescriptor):
@@ -520,7 +549,7 @@ class BaseClassSlot(SlotDescriptor):
     #  Slot descriptor for the base class slot.
 
     def __init__(self, name):
-        SlotDescriptor.__init__(self, name, dynamic = 1)
+        SlotDescriptor.__init__(self, name, dynamic=True)
 
     def generate_dynamic_init_code(self, scope, code):
         base_type = scope.parent_type.base_type
@@ -875,7 +904,7 @@ slot_table = (
 
     MethodSlot(initproc, "tp_init", "__init__"),
     EmptySlot("tp_alloc"), #FixedSlot("tp_alloc", "PyType_GenericAlloc"),
-    InternalMethodSlot("tp_new"),
+    ConstructorSlot("tp_new", "__cinit__"),
     EmptySlot("tp_free"),
 
     EmptySlot("tp_is_gc"),

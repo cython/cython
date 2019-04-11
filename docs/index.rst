@@ -2,7 +2,7 @@
 Welcome to Cython's Documentation
 =================================
 
-Also see the `Cython project homepage <http://cython.org/>`_.
+Also see the `Cython project homepage <https://cython.org/>`_.
 
 .. toctree::
    :maxdepth: 2

@@ -10,12 +10,18 @@ import os
 import shutil
 import subprocess
 import re, sys, time
+import warnings
 from glob import iglob
 from io import open as io_open
 from os.path import relpath as _relpath
 from distutils.extension import Extension
 from distutils.util import strtobool
 import zipfile
+
+try:
+    from collections.abc import Iterable
+except ImportError:
+    from collections import Iterable
 
 try:
     import gzip
@@ -34,14 +40,15 @@ except ImportError:
 try:
     import pythran
     import pythran.config
-    PythranAvailable = True
+    pythran_version = pythran.__version__
 except:
-    PythranAvailable = False
+    pythran_version = None
 
 from .. import Utils
 from ..Utils import (cached_function, cached_method, path_exists,
     safe_makedirs, copy_file_to_dir_if_newer, is_package_dir, replace_suffix)
-from ..Compiler.Main import Context, CompilationOptions, default_options
+from ..Compiler.Main import Context
+from ..Compiler.Options import CompilationOptions, default_options
 
 join_path = cached_function(os.path.join)
 copy_once_if_newer = cached_function(copy_file_to_dir_if_newer)
@@ -112,25 +119,25 @@ def nonempty(it, error_msg="expected non-empty iterator"):
 
 @cached_function
 def file_hash(filename):
-    path = os.path.normpath(filename.encode("UTF-8"))
-    prefix = (str(len(path)) + ":").encode("UTF-8")
-    m = hashlib.md5(prefix)
-    m.update(path)
-    f = open(filename, 'rb')
-    try:
+    path = os.path.normpath(filename)
+    prefix = ('%d:%s' % (len(path), path)).encode("UTF-8")
+    m = hashlib.sha1(prefix)
+    with open(path, 'rb') as f:
         data = f.read(65000)
         while data:
             m.update(data)
             data = f.read(65000)
-    finally:
-        f.close()
     return m.hexdigest()
 
 
 def update_pythran_extension(ext):
-    if not PythranAvailable:
+    if not pythran_version:
         raise RuntimeError("You first need to install Pythran to use the np_pythran directive.")
-    pythran_ext = pythran.config.make_extension()
+    pythran_ext = (
+        pythran.config.make_extension(python=True)
+        if pythran_version >= '0.9' or pythran_version >= '0.8.7'
+        else pythran.config.make_extension()
+    )
     ext.include_dirs.extend(pythran_ext['include_dirs'])
     ext.extra_compile_args.extend(pythran_ext['extra_compile_args'])
     ext.extra_link_args.extend(pythran_ext['extra_link_args'])
@@ -398,6 +405,10 @@ dependency_regex = re.compile(r"(?:^\s*from +([0-9a-zA-Z_.]+) +cimport)|"
                               r"(?:^\s*cimport +([0-9a-zA-Z_.]+(?: *, *[0-9a-zA-Z_.]+)*))|"
                               r"(?:^\s*cdef +extern +from +['\"]([^'\"]+)['\"])|"
                               r"(?:^\s*include +['\"]([^'\"]+)['\"])", re.M)
+dependency_after_from_regex = re.compile(
+    r"(?:^\s+\(([0-9a-zA-Z_., ]*)\)[#\n])|"
+    r"(?:^\s+([0-9a-zA-Z_., ]*)[#\n])",
+    re.M)
 
 
 def normalize_existing(base_path, rel_paths):
@@ -473,11 +484,8 @@ def parse_dependencies(source_filename):
     # Actual parsing is way too slow, so we use regular expressions.
     # The only catch is that we must strip comments and string
     # literals ahead of time.
-    fh = Utils.open_source_file(source_filename, error_handling='ignore')
-    try:
+    with Utils.open_source_file(source_filename, error_handling='ignore') as fh:
         source = fh.read()
-    finally:
-        fh.close()
     distutils_info = DistutilsInfo(source)
     source, literals = strip_string_literals(source)
     source = source.replace('\\\n', ' ').replace('\t', ' ')
@@ -490,6 +498,13 @@ def parse_dependencies(source_filename):
         cimport_from, cimport_list, extern, include = m.groups()
         if cimport_from:
             cimports.append(cimport_from)
+            m_after_from = dependency_after_from_regex.search(source, pos=m.end())
+            if m_after_from:
+                multiline, one_line = m_after_from.groups()
+                subimports = multiline or one_line
+                cimports.extend("{0}.{1}".format(cimport_from, s.strip())
+                                for s in subimports.split(','))
+
         elif cimport_list:
             cimports.extend(x.strip() for x in cimport_list.split(","))
         elif extern:
@@ -586,14 +601,14 @@ class DependencyTree(object):
             pxd_list = [filename[:-4] + '.pxd']
         else:
             pxd_list = []
+        # Cimports generates all possible combinations package.module
+        # when imported as from package cimport module.
         for module in self.cimports(filename):
             if module[:7] == 'cython.' or module == 'cython':
                 continue
             pxd_file = self.find_pxd(module, filename)
             if pxd_file is not None:
                 pxd_list.append(pxd_file)
-            elif not self.quiet:
-                print("%s: cannot find cimported module '%s'" % (filename, module))
         return tuple(pxd_list)
 
     @cached_method
@@ -625,7 +640,7 @@ class DependencyTree(object):
         incorporate everything that has an influence on the generated code.
         """
         try:
-            m = hashlib.md5(__version__.encode('UTF-8'))
+            m = hashlib.sha1(__version__.encode('UTF-8'))
             m.update(file_hash(filename).encode('UTF-8'))
             for x in sorted(self.all_dependencies(filename)):
                 if os.path.splitext(x)[1] not in ('.c', '.cpp', '.h'):
@@ -736,12 +751,13 @@ def default_create_extension(template, kwds):
 def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=False, language=None,
                           exclude_failures=False):
     if language is not None:
-        print('Please put "# distutils: language=%s" in your .pyx or .pxd file(s)' % language)
+        print('Warning: passing language={0!r} to cythonize() is deprecated. '
+              'Instead, put "# distutils: language={0}" in your .pyx or .pxd file(s)'.format(language))
     if exclude is None:
         exclude = []
     if patterns is None:
         return [], {}
-    elif isinstance(patterns, basestring) or not isinstance(patterns, collections.Iterable):
+    elif isinstance(patterns, basestring) or not isinstance(patterns, Iterable):
         patterns = [patterns]
     explicit_modules = set([m.name for m in patterns if isinstance(m, Extension)])
     seen = set()
@@ -782,7 +798,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
                 filepattern = cython_sources[0]
                 if len(cython_sources) > 1:
                     print("Warning: Multiple cython sources found for extension '%s': %s\n"
-                          "See http://cython.readthedocs.io/en/latest/src/userguide/sharing_declarations.html "
+                          "See https://cython.readthedocs.io/en/latest/src/userguide/sharing_declarations.html "
                           "for sharing declarations among Cython files." % (pattern.name, cython_sources))
             else:
                 # ignore non-cython modules
@@ -938,14 +954,14 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
         safe_makedirs(options['common_utility_include_dir'])
 
     pythran_options = None
-    if PythranAvailable:
+    if pythran_version:
         pythran_options = CompilationOptions(**options)
         pythran_options.cplus = True
         pythran_options.np_pythran = True
 
     c_options = CompilationOptions(**options)
     cpp_options = CompilationOptions(**options); cpp_options.cplus = True
-    ctx = c_options.create_context()
+    ctx = Context.from_options(c_options)
     options = c_options
     module_list, module_metadata = create_extension_list(
         module_list,
@@ -1057,31 +1073,25 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     if N <= 1:
         nthreads = 0
     if nthreads:
-        # Requires multiprocessing (or Python >= 2.6)
+        import multiprocessing
+        pool = multiprocessing.Pool(
+            nthreads, initializer=_init_multiprocessing_helper)
+        # This is a bit more involved than it should be, because KeyboardInterrupts
+        # break the multiprocessing workers when using a normal pool.map().
+        # See, for example:
+        # https://noswap.com/blog/python-multiprocessing-keyboardinterrupt
         try:
-            import multiprocessing
-            pool = multiprocessing.Pool(
-                nthreads, initializer=_init_multiprocessing_helper)
-        except (ImportError, OSError):
-            print("multiprocessing required for parallel cythonization")
-            nthreads = 0
-        else:
-            # This is a bit more involved than it should be, because KeyboardInterrupts
-            # break the multiprocessing workers when using a normal pool.map().
-            # See, for example:
-            # http://noswap.com/blog/python-multiprocessing-keyboardinterrupt
-            try:
-                result = pool.map_async(cythonize_one_helper, to_compile, chunksize=1)
-                pool.close()
-                while not result.ready():
-                    try:
-                        result.get(99999)  # seconds
-                    except multiprocessing.TimeoutError:
-                        pass
-            except KeyboardInterrupt:
-                pool.terminate()
-                raise
-            pool.join()
+            result = pool.map_async(cythonize_one_helper, to_compile, chunksize=1)
+            pool.close()
+            while not result.ready():
+                try:
+                    result.get(99999)  # seconds
+                except multiprocessing.TimeoutError:
+                    pass
+        except KeyboardInterrupt:
+            pool.terminate()
+            raise
+        pool.join()
     if not nthreads:
         for args in to_compile:
             cythonize_one(*args)
@@ -1246,9 +1256,10 @@ def _init_multiprocessing_helper():
 def cleanup_cache(cache, target_size, ratio=.85):
     try:
         p = subprocess.Popen(['du', '-s', '-k', os.path.abspath(cache)], stdout=subprocess.PIPE)
+        stdout, _ = p.communicate()
         res = p.wait()
         if res == 0:
-            total_size = 1024 * int(p.stdout.read().strip().split()[0])
+            total_size = 1024 * int(stdout.strip().split()[0])
             if total_size < target_size:
                 return
     except (OSError, ValueError):

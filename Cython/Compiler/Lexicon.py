@@ -16,10 +16,10 @@ IDENT = 'IDENT'
 def make_lexicon():
     from ..Plex import \
         Str, Any, AnyBut, AnyChar, Rep, Rep1, Opt, Bol, Eol, Eof, \
-        TEXT, IGNORE, State, Lexicon
-    from .Scanning import Method
+        TEXT, IGNORE, Method, State, Lexicon
 
     letter = Any("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_")
+    nonzero_digit = Any("123456789")
     digit = Any("0123456789")
     bindigit = Any("01")
     octdigit = Any("01234567")
@@ -29,15 +29,22 @@ def make_lexicon():
     def underscore_digits(d):
         return Rep1(d) + Rep(Str("_") + Rep1(d))
 
+    def prefixed_digits(prefix, digits):
+        return prefix + Opt(Str("_")) + underscore_digits(digits)
+
     decimal = underscore_digits(digit)
     dot = Str(".")
     exponent = Any("Ee") + Opt(Any("+-")) + decimal
     decimal_fract = (decimal + dot + Opt(decimal)) | (dot + decimal)
 
     name = letter + Rep(letter | digit)
-    intconst = decimal | (Str("0") + ((Any("Xx") + underscore_digits(hexdigit)) |
-                                      (Any("Oo") + underscore_digits(octdigit)) |
-                                      (Any("Bb") + underscore_digits(bindigit)) ))
+    intconst = (prefixed_digits(nonzero_digit, digit) |  # decimal literals with underscores must not start with '0'
+                (Str("0") + (prefixed_digits(Any("Xx"), hexdigit) |
+                             prefixed_digits(Any("Oo"), octdigit) |
+                             prefixed_digits(Any("Bb"), bindigit) )) |
+                underscore_digits(Str('0'))  # 0_0_0_0... is allowed as a decimal literal
+                | Rep1(digit)  # FIXME: remove these Py2 style decimal/octal literals (PY_VERSION_HEX < 3)
+                )
     intsuffix = (Opt(Any("Uu")) + Opt(Any("Ll")) + Opt(Any("Ll"))) | (Opt(Any("Ll")) + Opt(Any("Ll")) + Opt(Any("Uu")))
     intliteral = intconst + intsuffix
     fltconst = (decimal_fract + Opt(exponent)) | (decimal + exponent)

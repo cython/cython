@@ -391,3 +391,22 @@ cdef class TestOptimisedBuiltinMethod:
 
     def call(self, arg, obj=None):
         (obj or self).append(arg+1)  # optimistically optimised => uses fast fallback method call
+
+
+def do_nothing(f):
+    """Dummy decorator for `test_firstlineno_decorated_function`"""
+    return f
+
+
+@do_nothing
+@do_nothing
+def test_firstlineno_decorated_function():
+    """
+    check that `test_firstlineno_decorated_function` starts 5 lines below `do_nothing`
+
+    >>> test_firstlineno_decorated_function()
+    5
+    """
+    l1 = do_nothing.__code__.co_firstlineno
+    l2 = test_firstlineno_decorated_function.__code__.co_firstlineno
+    return l2 - l1

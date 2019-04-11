@@ -11,7 +11,7 @@ On windows systems, you only need Sphinx. Open PowerShell and type::
 You can then see the documentation by opening in a browser ``cython/docs/build/html/index.html``.
 
 The current Cython documentation files are hosted at
-https://cython.readthedocs.io/en/latest/
+https://cython.readthedocs.io/
 
 
 Notes

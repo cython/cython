@@ -132,15 +132,24 @@ def unicode_type_methods(Py_UCS4 uchar):
         uchar.isupper(),
         ]
 
-@cython.test_assert_path_exists('//PythonCapiCallNode')
-@cython.test_fail_if_path_exists('//SimpleCallNode')
+#@cython.test_assert_path_exists('//PythonCapiCallNode')
+#@cython.test_fail_if_path_exists('//SimpleCallNode')
 def unicode_methods(Py_UCS4 uchar):
     """
-    >>> unicode_methods(ord('A')) == ['a', 'A', 'A']
+    >>> unicode_methods(ord('A')) == ['a', 'A', 'A'] or unicode_methods(ord('A'))
     True
-    >>> unicode_methods(ord('a')) == ['a', 'A', 'A']
+    >>> unicode_methods(ord('a')) == ['a', 'A', 'A'] or unicode_methods(ord('a'))
+    True
+    >>> unicode_methods(0x1E9E) == [u'\\xdf', u'\\u1e9e', u'\\u1e9e'] or unicode_methods(0x1E9E)
+    True
+    >>> unicode_methods(0x0130) in (
+    ...     [u'i\\u0307', u'\\u0130', u'\\u0130'],  # Py3
+    ...     [u'i', u'\\u0130', u'\\u0130'],  # Py2
+    ... ) or unicode_methods(0x0130)
     True
     """
+    # \u1E9E == 'LATIN CAPITAL LETTER SHARP S'
+    # \u0130 == 'LATIN CAPITAL LETTER I WITH DOT ABOVE'
     return [
         # character conversion
         uchar.lower(),
@@ -149,11 +158,11 @@ def unicode_methods(Py_UCS4 uchar):
         ]
 
 
-@cython.test_assert_path_exists('//PythonCapiCallNode')
-@cython.test_fail_if_path_exists(
-    '//SimpleCallNode',
-    '//CoerceFromPyTypeNode',
-)
+#@cython.test_assert_path_exists('//PythonCapiCallNode')
+#@cython.test_fail_if_path_exists(
+#    '//SimpleCallNode',
+#    '//CoerceFromPyTypeNode',
+#)
 def unicode_method_return_type(Py_UCS4 uchar):
     """
     >>> unicode_method_return_type(ord('A'))
@@ -366,5 +375,5 @@ def uchar_lookup_in_dict(obj, Py_UCS4 uchar):
 
 
 _WARNINGS = """
-364:16: Item lookup of unicode character codes now always converts to a Unicode string. Use an explicit C integer cast to get back the previous integer lookup behaviour.
+373:16: Item lookup of unicode character codes now always converts to a Unicode string. Use an explicit C integer cast to get back the previous integer lookup behaviour.
 """

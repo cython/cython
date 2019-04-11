@@ -64,6 +64,7 @@ cdef extern from *:
         PyBUF_WRITABLE
         PyBUF_STRIDES
         PyBUF_INDIRECT
+        PyBUF_ND
         PyBUF_RECORDS
         PyBUF_RECORDS_RO
 
@@ -176,7 +177,7 @@ cdef class array:
 
             if self.dtype_is_object:
                 p = <PyObject **> self.data
-                for i in range(self.len / itemsize):
+                for i in range(self.len // itemsize):
                     p[i] = Py_None
                     Py_INCREF(Py_None)
 
@@ -426,7 +427,7 @@ cdef class memoryview(object):
     cdef is_slice(self, obj):
         if not isinstance(obj, memoryview):
             try:
-                obj = memoryview(obj, self.flags|PyBUF_ANY_CONTIGUOUS,
+                obj = memoryview(obj, self.flags & ~PyBUF_WRITABLE | PyBUF_ANY_CONTIGUOUS,
                                  self.dtype_is_object)
             except TypeError:
                 return None
@@ -514,7 +515,7 @@ cdef class memoryview(object):
         if flags & PyBUF_WRITABLE and self.view.readonly:
             raise ValueError("Cannot create writable memory view from read-only memoryview")
 
-        if flags & PyBUF_STRIDES:
+        if flags & PyBUF_ND:
             info.shape = self.view.shape
         else:
             info.shape = NULL
@@ -909,7 +910,7 @@ cdef char *pybuffer_index(Py_buffer *view, char *bufp, Py_ssize_t index,
     cdef char *resultp
 
     if view.ndim == 0:
-        shape = view.len / itemsize
+        shape = view.len // itemsize
         stride = itemsize
     else:
         shape = view.shape[dim]
@@ -943,7 +944,7 @@ cdef int transpose_memslice({{memviewslice_name}} *memslice) nogil except 0:
 
     # reverse strides and shape
     cdef int i, j
-    for i in range(ndim / 2):
+    for i in range(ndim // 2):
         j = ndim - 1 - i
         strides[i], strides[j] = strides[j], strides[i]
         shape[i], shape[j] = shape[j], shape[i]

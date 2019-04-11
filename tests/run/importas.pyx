@@ -1,4 +1,14 @@
+# mode: run
+# tag: all_language_levels
+
 __doc__ = u"""
+>>> try: sys
+... except NameError: pass
+... else: print("sys was defined!")
+>>> try: distutils
+... except NameError: pass
+... else: print("distutils was defined!")
+
 >>> import sys as sous
 >>> import distutils.core as corey
 >>> from copy import deepcopy as copey

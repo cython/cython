@@ -74,6 +74,49 @@ static int __Pyx_PyType_Ready(PyTypeObject *t) {
     return r;
 }
 
+/////////////// PyTrashcan.proto ///////////////
+
+// These macros are taken from https://github.com/python/cpython/pull/11841
+// Unlike the Py_TRASHCAN_SAFE_BEGIN/Py_TRASHCAN_SAFE_END macros, they
+// allow dealing correctly with subclasses.
+
+// This requires CPython version >= 2.7.4
+// (or >= 3.2.4 but we don't support such old Python 3 versions anyway)
+#if CYTHON_COMPILING_IN_CPYTHON && PY_VERSION_HEX >= 0x02070400
+#define __Pyx_TRASHCAN_BEGIN_CONDITION(op, cond) \
+    do { \
+        PyThreadState *_tstate = NULL; \
+        // If "cond" is false, then _tstate remains NULL and the deallocator
+        // is run normally without involving the trashcan
+        if (cond) { \
+            _tstate = PyThreadState_GET(); \
+            if (_tstate->trash_delete_nesting >= PyTrash_UNWIND_LEVEL) { \
+                // Store the object (to be deallocated later) and jump past
+                // Py_TRASHCAN_END, skipping the body of the deallocator
+                _PyTrash_thread_deposit_object((PyObject*)(op)); \
+                break; \
+            } \
+            ++_tstate->trash_delete_nesting; \
+        }
+        // The body of the deallocator is here.
+#define __Pyx_TRASHCAN_END \
+        if (_tstate) { \
+            --_tstate->trash_delete_nesting; \
+            if (_tstate->trash_delete_later && _tstate->trash_delete_nesting <= 0) \
+                _PyTrash_thread_destroy_chain(); \
+        } \
+    } while (0);
+
+#define __Pyx_TRASHCAN_BEGIN(op, dealloc) __Pyx_TRASHCAN_BEGIN_CONDITION(op, \
+        Py_TYPE(op)->tp_dealloc == (destructor)(dealloc))
+
+#else
+// The trashcan is a no-op on other Python implementations
+// or old CPython versions
+#define __Pyx_TRASHCAN_BEGIN(op, dealloc)
+#define __Pyx_TRASHCAN_END
+#endif
+
 /////////////// CallNextTpDealloc.proto ///////////////
 
 static void __Pyx_call_next_tp_dealloc(PyObject* obj, destructor current_tp_dealloc);
@@ -132,6 +175,7 @@ static void __Pyx_call_next_tp_clear(PyObject* obj, inquiry current_tp_clear) {
 static int __Pyx_setup_reduce(PyObject* type_obj);
 
 /////////////// SetupReduce ///////////////
+//@requires: ObjectHandling.c::PyObjectGetAttrStrNoError
 //@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@substitute: naming
 
@@ -139,7 +183,7 @@ static int __Pyx_setup_reduce_is_named(PyObject* meth, PyObject* name) {
   int ret;
   PyObject *name_attr;
 
-  name_attr = __Pyx_PyObject_GetAttrStr(meth, PYIDENT("__name__"));
+  name_attr = __Pyx_PyObject_GetAttrStrNoError(meth, PYIDENT("__name__"));
   if (likely(name_attr)) {
       ret = PyObject_RichCompareBool(name_attr, name, Py_EQ);
   } else {
@@ -192,7 +236,7 @@ static int __Pyx_setup_reduce(PyObject* type_obj) {
             ret = PyDict_SetItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__reduce__"), reduce_cython); if (unlikely(ret < 0)) goto BAD;
             ret = PyDict_DelItem(((PyTypeObject*)type_obj)->tp_dict, PYIDENT("__reduce_cython__")); if (unlikely(ret < 0)) goto BAD;
 
-            setstate = __Pyx_PyObject_GetAttrStr(type_obj, PYIDENT("__setstate__"));
+            setstate = __Pyx_PyObject_GetAttrStrNoError(type_obj, PYIDENT("__setstate__"));
             if (!setstate) PyErr_Clear();
             if (!setstate || __Pyx_setup_reduce_is_named(setstate, PYIDENT("__setstate_cython__"))) {
                 setstate_cython = __Pyx_PyObject_GetAttrStr(type_obj, PYIDENT("__setstate_cython__")); if (unlikely(!setstate_cython)) goto BAD;

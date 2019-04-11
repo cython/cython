@@ -14,6 +14,9 @@ from cpython.object cimport PyObject
 from cpython.ref cimport Py_INCREF, Py_DECREF
 cimport cython
 
+import array as pyarray
+from libc.stdlib cimport malloc, free
+
 cdef extern from "Python.h":
     cdef int PyBUF_C_CONTIGUOUS
 
@@ -1083,3 +1086,37 @@ def optimised_index_of_slice(int[:,:,:] arr, int x, int y, int z):
     print(arr[x, y, z], arr[x][:][:][y][:][:][z])
     print(arr[x, y, z], arr[:][x][:][y][:][:][z])
     print(arr[x, y, z], arr[:, :][x][:, :][y][:][z])
+
+
+def test_assign_from_byteslike(byteslike):
+    # Once https://python3statement.org/ is accepted, should be just
+    # >>> test_assign_from_byteslike(bytes(b'hello'))
+    # b'hello'
+    # ...
+    """
+    >>> print(test_assign_from_byteslike(bytes(b'hello')).decode())
+    hello
+    >>> print(test_assign_from_byteslike(bytearray(b'howdy')).decode())
+    howdy
+    """
+    # fails on Python 2.7- with
+    #   TypeError: an integer is required
+    # >>> print(test_assign_from_byteslike(pyarray.array('B', b'aloha')).decode())
+    # aloha
+    # fails on Python 2.6- with
+    #   NameError: name 'memoryview' is not defined
+    # >>> print(test_assign_from_byteslike(memoryview(b'bye!!')).decode())
+    # bye!!
+
+    def assign(m):
+        m[:] = byteslike
+
+    cdef void *buf
+    cdef unsigned char[:] mview
+    buf = malloc(5)
+    try:
+        mview = <unsigned char[:5]>(buf)
+        assign(mview)
+        return (<unsigned char*>buf)[:5]
+    finally:
+        free(buf)

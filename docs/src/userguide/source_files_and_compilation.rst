@@ -582,7 +582,7 @@ The Sage notebook allows transparently editing and compiling Cython
 code simply by typing ``%cython`` at the top of a cell and evaluate
 it. Variables and functions defined in a Cython cell are imported into the
 running session.  Please check `Sage documentation
-<http://www.sagemath.org/doc/>`_ for details.
+<https://www.sagemath.org/doc/>`_ for details.
 
 You can tailor the behavior of the Cython compiler by specifying the
 directives below.
@@ -815,11 +815,14 @@ Cython code.  Here is the list of currently supported directives:
     expressions* is considered unsafe (due to possible overflow) and must be
     explicitly requested.
 
-``language_level`` (2/3)
+``language_level`` (2/3/3str)
     Globally set the Python language level to be used for module
     compilation.  Default is compatibility with Python 2.  To enable
-    Python 3 source code semantics, set this to 3 at the start of a
-    module or pass the "-3" command line option to the compiler.
+    Python 3 source code semantics, set this to 3 (or 3str) at the start
+    of a module or pass the "-3" or "--3str" command line options to the
+    compiler.  The ``3str`` option enables Python 3 semantics but does
+    not change the ``str`` type and unprefixed string literals to
+    ``unicode`` when the compiled code runs in Python 2.x.
     Note that cimported files inherit this setting from the module
     being compiled, unless they explicitly set their own language level.
     Included source files always inherit this setting.
@@ -917,10 +920,9 @@ How to set directives
 Globally
 :::::::::
 
-One can set compiler directives through a special header comment at the top of the file, like this::
+One can set compiler directives through a special header comment near the top of the file, like this::
 
-    #!python
-    #cython: language_level=3, boundscheck=False
+    # cython: language_level=3, boundscheck=False
 
 The comment must appear before any code (but can appear after other
 comments or whitespace).

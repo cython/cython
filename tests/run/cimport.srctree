@@ -33,13 +33,24 @@ cdef int foo(int a):
 
 ctypedef int my_int
 
+######## pkg/subpkg/__init__.py ########
+
+######## pkg/subpkg/submod.pxd ########
+
+ctypedef int my_int
+
 ######## a.pyx ########
 
-from other cimport A, foo
-print A, foo(10)
+from other cimport (
+    A,
+    foo,
+)
+print(A, foo(10))
 
 cimport other
-print other.A, other.foo(10)
+print(other.A, other.foo(10))
 
 from pkg cimport sub
 cdef sub.my_int a = 100
+
+from pkg.subpkg cimport submod

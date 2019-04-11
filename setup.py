@@ -14,7 +14,7 @@ is_cpython = platform.python_implementation() == 'CPython'
 
 # this specifies which versions of python we support, pip >= 9 knows to skip
 # versions of packages which are not compatible with the running python
-PYTHON_REQUIRES = '>=2.6, !=3.0.*, !=3.1.*, !=3.2.*'
+PYTHON_REQUIRES = '>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*'
 
 if sys.platform == "darwin":
     # Don't create resource files on OS X tar.
@@ -42,8 +42,7 @@ pxd_include_dirs = [
     directory for directory, dirs, files
     in os.walk(os.path.join('Cython', 'Includes'))
     if '__init__.pyx' in files or '__init__.pxd' in files
-    or directory == os.path.join('Cython', 'Includes')
-    or directory == os.path.join('Cython', 'Includes', 'Deprecated')]
+    or directory == os.path.join('Cython', 'Includes')]
 
 pxd_include_patterns = [
     p+'/*.pxd' for p in pxd_include_dirs ] + [
@@ -156,8 +155,9 @@ def compile_cython_modules(profile=False, compile_more=False, cython_with_refnan
         extensions[-1].sources[0] = pyx_source_file
 
     from Cython.Distutils.build_ext import new_build_ext
+    from Cython.Compiler.Options import get_directive_defaults
+    get_directive_defaults()['language_level'] = 2
     if profile:
-        from Cython.Compiler.Options import get_directive_defaults
         get_directive_defaults()['profile'] = True
         sys.stderr.write("Enabled profiling for the Cython binary modules\n")
 
@@ -227,7 +227,7 @@ packages = [
 setup(
     name='Cython',
     version=version,
-    url='http://cython.org/',
+    url='https://cython.org/',
     author='Robert Bradshaw, Stefan Behnel, Dag Seljebotn, Greg Ewing, et al.',
     author_email='cython-devel@python.org',
     description="The Cython compiler for writing C extensions for the Python language.",
@@ -252,7 +252,7 @@ setup(
 
         pip install Cython --install-option="--no-cython-compile"
 
-    .. _Pyrex: http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
+    .. _Pyrex: https://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
     """),
     license='Apache',
     classifiers=[
@@ -262,7 +262,6 @@ setup(
         "Operating System :: OS Independent",
         "Programming Language :: Python",
         "Programming Language :: Python :: 2",
-        "Programming Language :: Python :: 2.6",
         "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.4",

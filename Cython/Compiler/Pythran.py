@@ -8,9 +8,11 @@ import cython
 
 try:
     import pythran
-    _pythran_available = True
+    pythran_version = pythran.__version__
+    pythran_is_0_8_7 = pythran_version >= '0.9' or pythran_version >= '0.8.7'
 except ImportError:
-    _pythran_available = False
+    pythran_version = None
+    pythran_is_0_8_7 = False
 
 
 # Pythran/Numpy specific operations
@@ -39,7 +41,10 @@ def pythran_type(Ty, ptype="ndarray"):
             ctype = dtype.typedef_cname
         else:
             raise ValueError("unsupported type %s!" % dtype)
-        return "pythonic::types::%s<%s,%d>" % (ptype,ctype, ndim)
+        if pythran_is_0_8_7:
+            return "pythonic::types::%s<%s,pythonic::types::pshape<%s>>" % (ptype,ctype, ",".join(("Py_ssize_t",)*ndim))
+        else:
+            return "pythonic::types::%s<%s,%d>" % (ptype,ctype, ndim)
     if Ty.is_pythran_expr:
         return Ty.pythran_type
     #if Ty.is_none:
@@ -55,8 +60,12 @@ def type_remove_ref(ty):
 
 
 def pythran_binop_type(op, tA, tB):
-    return "decltype(std::declval<%s>() %s std::declval<%s>())" % (
-        pythran_type(tA), op, pythran_type(tB))
+    if op == '**':
+        return 'decltype(pythonic::numpy::functor::power{}(std::declval<%s>(), std::declval<%s>()))' % (
+            pythran_type(tA), pythran_type(tB))
+    else:
+        return "decltype(std::declval<%s>() %s std::declval<%s>())" % (
+            pythran_type(tA), op, pythran_type(tB))
 
 
 def pythran_unaryop_type(op, type_):
@@ -120,7 +129,7 @@ def np_func_to_list(func):
         return []
     return np_func_to_list(func.obj) + [func.attribute]
 
-if _pythran_available:
+if pythran_version:
     def pythran_is_numpy_func_supported(func):
         CurF = pythran.tables.MODULES['numpy']
         FL = np_func_to_list(func)
@@ -196,7 +205,7 @@ def is_pythran_buffer(type_):
 
 def pythran_get_func_include_file(func):
     func = np_func_to_list(func)
-    return "pythonic/include/numpy/%s.hpp" % "/".join(func)
+    return "pythonic/numpy/%s.hpp" % "/".join(func)
 
 def include_pythran_generic(env):
     # Generic files
@@ -204,11 +213,12 @@ def include_pythran_generic(env):
     env.add_include_file("pythonic/python/core.hpp")
     env.add_include_file("pythonic/types/bool.hpp")
     env.add_include_file("pythonic/types/ndarray.hpp")
+    env.add_include_file("pythonic/numpy/power.hpp")
     env.add_include_file("<new>")  # for placement new
 
     for i in (8, 16, 32, 64):
         env.add_include_file("pythonic/types/uint%d.hpp" % i)
         env.add_include_file("pythonic/types/int%d.hpp" % i)
     for t in ("float", "float32", "float64", "set", "slice", "tuple", "int",
-              "long", "complex", "complex64", "complex128"):
+              "complex", "complex64", "complex128"):
         env.add_include_file("pythonic/types/%s.hpp" % t)

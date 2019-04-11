@@ -167,7 +167,7 @@ bad:
 static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *, PyObject *, PyObject *); /*proto*/
 
 //////////////////// GetAttr3 ////////////////////
-//@requires: ObjectHandling.c::GetAttr
+//@requires: ObjectHandling.c::PyObjectGetAttrStr
 //@requires: Exceptions.c::PyThreadStateGet
 //@requires: Exceptions.c::PyErrFetchRestore
 //@requires: Exceptions.c::PyErrExceptionMatches
@@ -183,7 +183,17 @@ static PyObject *__Pyx_GetAttr3Default(PyObject *d) {
 }
 
 static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject *d) {
-    PyObject *r = __Pyx_GetAttr(o, n);
+    PyObject *r;
+#if CYTHON_USE_TYPE_SLOTS
+    if (likely(PyString_Check(n))) {
+        r = __Pyx_PyObject_GetAttrStrNoError(o, n);
+        if (unlikely(!r) && likely(!PyErr_Occurred())) {
+            r = __Pyx_NewRef(d);
+        }
+        return r;
+    }
+#endif
+    r = PyObject_GetAttr(o, n);
     return (likely(r)) ? r : __Pyx_GetAttr3Default(d);
 }
 
@@ -418,9 +428,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_IterItems(PyObject* d) {
 
 //////////////////// py_dict_viewkeys.proto ////////////////////
 
-#if PY_VERSION_HEX < 0x02070000
-#error This module uses dict views, which require Python 2.7 or later
-#endif
 static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewKeys(PyObject* d); /*proto*/
 
 //////////////////// py_dict_viewkeys ////////////////////
@@ -434,9 +441,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewKeys(PyObject* d) {
 
 //////////////////// py_dict_viewvalues.proto ////////////////////
 
-#if PY_VERSION_HEX < 0x02070000
-#error This module uses dict views, which require Python 2.7 or later
-#endif
 static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewValues(PyObject* d); /*proto*/
 
 //////////////////// py_dict_viewvalues ////////////////////
@@ -450,9 +454,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewValues(PyObject* d) {
 
 //////////////////// py_dict_viewitems.proto ////////////////////
 
-#if PY_VERSION_HEX < 0x02070000
-#error This module uses dict views, which require Python 2.7 or later
-#endif
 static CYTHON_INLINE PyObject* __Pyx_PyDict_ViewItems(PyObject* d); /*proto*/
 
 //////////////////// py_dict_viewitems ////////////////////
