@@ -1,6 +1,6 @@
-# cython: language_level=3, binding=True
+# cython: language_level=3, binding=True, annotation_typing=False
 # mode: run
-# tag: generators, python3, exceptions
+# tag: generators, python3, exceptions, gh2230, gh2811
 
 print(end='')  # test that language_level 3 applies immediately at the module start, for the first token.
 
@@ -617,6 +617,18 @@ def annotation_syntax(a: "test new test", b : "other" = 2, *args: "ARGS", **kwar
     result : int = a + b
 
     return result
+
+
+def builtin_as_annotation(text: str):
+    # See https://github.com/cython/cython/issues/2811
+    """
+    >>> builtin_as_annotation("abc")
+    a
+    b
+    c
+    """
+    for c in text:
+        print(c)
 
 
 async def async_def_annotations(x: 'int') -> 'float':
