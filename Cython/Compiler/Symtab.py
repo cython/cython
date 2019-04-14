@@ -1238,12 +1238,14 @@ class ModuleScope(Scope):
             entry.is_builtin = 1
             entry.is_const = 1 # cached
             entry.name = name
+            entry.qualified_name = '__builtin__.' + name
             entry.cname = Naming.builtin_prefix + name
             self.cached_builtins.append(entry)
             self.undeclared_cached_builtins.append(entry)
         else:
             entry.is_builtin = 1
             entry.name = name
+            entry.qualified_name = '__builtin__.' + name
         return entry
 
     def find_module(self, module_name, pos, relative_level=-1):
