@@ -122,11 +122,18 @@ Other changes
   (Github issue #2905)
 
 
-0.29.7 (2019-0?-??)
+0.29.7 (2019-04-14)
 ===================
 
 Bugs fixed
 ----------
+
+* Crash when the shared Cython config module gets unloaded and another Cython
+  module reports an exceptions.  Cython now makes sure it keeps an owned reference
+  to the module.
+  (Github issue #2885)
+
+* Resolved a C89 compilation problem when enabling the fast-gil sharing feature.
 
 * Coverage reporting did not include the signature line of ``cdef`` functions.
   (Github issue #1461)
