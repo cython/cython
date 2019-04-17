@@ -152,3 +152,4 @@ script:
   - if [ "$COVERAGE" != "1" ]; then CFLAGS="-O2 -ggdb -Wall -Wextra $(python -c 'import sys; print("-fno-strict-aliasing" if sys.version_info[0] == 2 else "")')" python setup.py build_ext -i; fi
   - CFLAGS="-O0 -ggdb -Wall -Wextra" python runtests.py -vv $STYLE_ARGS -x Debugger --backends=$BACKEND $(if [ "$COVERAGE" == "1" ]; then echo " --coverage"; fi) $(if [ -z "$TEST_CODE_STYLE" ]; then echo " -j7 "; fi)
   - ccache -s || true
+  - if [ -n "${BACKEND##*cpp*}" ]; then ccache -C || true; fi
