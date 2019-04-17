@@ -45,6 +45,8 @@ cdef extern from "Python.h":
 
         newfunc tp_new
         destructor tp_dealloc
+        destructor tp_del
+        destructor tp_finalize
         traverseproc tp_traverse
         inquiry tp_clear
         freefunc tp_free
@@ -62,6 +64,8 @@ cdef extern from "Python.h":
 
         descrgetfunc tp_descr_get
         descrsetfunc tp_descr_set
+
+        unsigned int tp_version_tag
 
     ctypedef struct PyObject:
         Py_ssize_t ob_refcnt
@@ -397,3 +401,4 @@ cdef extern from "Python.h":
     long Py_TPFLAGS_DEFAULT_EXTERNAL
     long Py_TPFLAGS_DEFAULT_CORE
     long Py_TPFLAGS_DEFAULT
+    long Py_TPFLAGS_HAVE_FINALIZE
