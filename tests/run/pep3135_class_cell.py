@@ -10,6 +10,8 @@ class C(object):
     2
     >>> obj.method_2()
     3
+    >>> obj.method_3()
+    ['__class__', 'self']
     """
 
     @classmethod
@@ -25,3 +27,7 @@ class C(object):
 
     def method_2(self):
         return __class__.static_method()
+
+    def method_3(self):
+        __class__
+        return sorted(list(locals().keys()))

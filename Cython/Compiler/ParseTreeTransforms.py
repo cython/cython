@@ -3014,7 +3014,8 @@ class TransformBuiltinMethods(EnvTransform):
         return self.visit_cython_attribute(node)
 
     def visit_NameNode(self, node):
-        node = self._inject_class(node)
+        if node.name == u'__class__':
+            self._inject_class(node)
         return self.visit_cython_attribute(node)
 
     def visit_cython_attribute(self, node):
@@ -3115,20 +3116,30 @@ class TransformBuiltinMethods(EnvTransform):
                     node.pos, self.current_scope_node(), lenv))
         return node
 
+    def _check_inside_class(self, def_node):
+        return isinstance(def_node, Nodes.DefNode) and def_node.args and len(self.env_stack) >= 2
+        
+
+    def _get_current_class_and_scope(self):
+        return self.env_stack[-2]
+    
     def _inject_class(self, node):
-        if node.name == u'__class__':
-            # bare __class__ reference inside function
-            def_node = self.current_scope_node()
-            if (not isinstance(def_node, Nodes.DefNode) or not def_node.args or
-                len(self.env_stack) < 2):
-                return node
-            class_node, class_scope = self.env_stack[-2]
-            if class_scope.is_py_class_scope:
-                def_node.requires_classobj = True
-                class_node.class_cell.is_active = True
-                return ExprNodes.ClassCellNode(
-                        node.pos, is_generator=def_node.is_generator)
-        return node
+        # bare __class__ reference inside function
+        lenv = self.current_env()
+        entry = lenv.lookup_here(u"__class__")
+        if entry:
+            # Already have a __class__ local
+            return
+
+        def_node = self.current_scope_node()
+        if not self._check_inside_class(def_node):
+            return
+        
+        class_node, class_scope = self._get_current_class_and_scope()
+        if class_scope.is_py_class_scope:
+            def_node.requires_classobj = True
+            class_node.class_cell.is_active = True
+            lenv.entries[EncodedString(u"__class__")] = class_node.target.entry
 
     def _inject_super(self, node, func_name):
         lenv = self.current_env()
@@ -3137,10 +3148,9 @@ class TransformBuiltinMethods(EnvTransform):
             return node
         # Inject no-args super
         def_node = self.current_scope_node()
-        if (not isinstance(def_node, Nodes.DefNode) or not def_node.args or
-            len(self.env_stack) < 2):
+        if not self._check_inside_class(def_node):
             return node
-        class_node, class_scope = self.env_stack[-2]
+        class_node, class_scope = self._get_current_class_and_scope()
         if class_scope.is_py_class_scope:
             def_node.requires_classobj = True
             class_node.class_cell.is_active = True

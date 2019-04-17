@@ -52,13 +52,19 @@ class C(A):
     2
     >>> obj.method_2()
     3
+    >>> obj.method_3()
+    ['__class__', 'self']
     """
-
+    
     def method_1(self):
         return __class__.class_method()
 
     def method_2(self):
         return __class__.static_method()
+
+    def method_3(self):
+        __class__
+        return sorted(list(locals().keys()))
 
 
 def test_class_cell_empty():
