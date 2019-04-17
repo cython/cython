@@ -350,10 +350,7 @@ class PyImporter(PyxImporter):
                             language_level=language_level)
         self.uncompilable_modules = {}
         self.blocked_modules = ['Cython', 'pyxbuild', 'pyximport.pyxbuild',
-                                'distutils.extension', 'distutils.sysconfig']
-        # on OS X, distutils appears to shadow distutils.sysconfig
-        if os.name is 'posix' and os.uname()[0].lower().startswith('darwin'):
-            self.blocked_modules.append('distutils')
+                                'distutils']
 
     def find_module(self, fullname, package_path=None):
         if fullname in sys.modules:
