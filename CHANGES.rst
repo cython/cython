@@ -40,6 +40,9 @@ Features added
   generators and coroutines now return an actual frame object for introspection.
   (Github issue #2306)
 
+* Several missing declarations in ``cpython.*`` were added.
+  Patch by Jeroen Demeyer.  (Github issue #2826)
+
 * The builtin ``abs()`` function can now be used on C numbers in nogil code.
   Patch by Elliott Sales de Andrade.  (Github issue #2748)
 
