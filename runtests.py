@@ -1416,11 +1416,11 @@ class PureDoctestTestCase(unittest.TestCase):
                 pass
             else:
                 with self.stats.time(self.name, 'py', 'mypy'):
-                    mypy_result = mypy_api.run((
+                    mypy_result = mypy_api.run([
                         self.module_path,
                         '--ignore-missing-imports',
                         '--follow-imports', 'skip',
-                    ))
+                    ])
                 if mypy_result[2]:
                     self.fail(mypy_result[0])
 
