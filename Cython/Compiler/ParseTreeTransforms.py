@@ -3118,7 +3118,6 @@ class TransformBuiltinMethods(EnvTransform):
 
     def _check_inside_class(self, def_node):
         return isinstance(def_node, Nodes.DefNode) and def_node.args and len(self.env_stack) >= 2
-        
 
     def _get_current_class_and_scope(self):
         return self.env_stack[-2]
