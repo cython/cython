@@ -3133,11 +3133,10 @@ class TransformBuiltinMethods(EnvTransform):
         def_node = self.current_scope_node()
         if not self._check_inside_class(def_node):
             return
-        
+    
         class_node, class_scope = self._get_current_class_and_scope()
+        
         if class_scope.is_py_class_scope:
-            def_node.requires_classobj = True
-            class_node.class_cell.is_active = True
             lenv.entries[EncodedString(u"__class__")] = class_node.target.entry
 
     def _inject_super(self, node, func_name):
