@@ -1,7 +1,7 @@
 cdef extern from "Rectangle.cpp":
     pass
 
-# Decalre the class with cdef
+# Declare the class with cdef
 cdef extern from "Rectangle.h" namespace "shapes":
     cdef cppclass Rectangle:
         Rectangle() except +

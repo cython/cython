@@ -40,6 +40,9 @@ Features added
   generators and coroutines now return an actual frame object for introspection.
   (Github issue #2306)
 
+* Several missing declarations in ``cpython.*`` were added.
+  Patch by Jeroen Demeyer.  (Github issue #2826)
+
 * The builtin ``abs()`` function can now be used on C numbers in nogil code.
   Patch by Elliott Sales de Andrade.  (Github issue #2748)
 
@@ -122,11 +125,18 @@ Other changes
   (Github issue #2905)
 
 
-0.29.7 (2019-0?-??)
+0.29.7 (2019-04-14)
 ===================
 
 Bugs fixed
 ----------
+
+* Crash when the shared Cython config module gets unloaded and another Cython
+  module reports an exceptions.  Cython now makes sure it keeps an owned reference
+  to the module.
+  (Github issue #2885)
+
+* Resolved a C89 compilation problem when enabling the fast-gil sharing feature.
 
 * Coverage reporting did not include the signature line of ``cdef`` functions.
   (Github issue #1461)

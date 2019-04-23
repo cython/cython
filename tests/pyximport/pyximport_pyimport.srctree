@@ -8,7 +8,6 @@ import pyximport
 
 # blacklist for speed
 import pyximport.pyxbuild, Cython.Compiler.Pipeline
-import distutils.core, distutils.ccompiler, distutils.command.build
 
 pyximport.install(pyximport=False, pyimport=True,
                   build_dir=os.path.join(os.path.dirname(__file__), "TEST_TMP"))

@@ -350,7 +350,7 @@ class PyImporter(PyxImporter):
                             language_level=language_level)
         self.uncompilable_modules = {}
         self.blocked_modules = ['Cython', 'pyxbuild', 'pyximport.pyxbuild',
-                                'distutils.extension', 'distutils.sysconfig']
+                                'distutils']
 
     def find_module(self, fullname, package_path=None):
         if fullname in sys.modules:
