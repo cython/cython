@@ -21,7 +21,8 @@ True
 """
 
 import sys
-if sys.version_info[0] >= 3:
+IS_PY2 = sys.version_info[0] < 3
+if not IS_PY2:
     __doc__ = __doc__.replace(" u'", " '")
 
 def locals_function(a, b=2):
@@ -310,6 +311,45 @@ def unicode_literals():
     """
     print(isinstance(ustring, unicode) or type(ustring))
     return ustring
+
+
+def non_ascii_unprefixed_str():
+    u"""
+    >>> s = non_ascii_unprefixed_str()
+    >>> isinstance(s, bytes)
+    False
+    >>> len(s)
+    3
+    """
+    s = 'ø\x20\u0020'
+    assert isinstance(s, unicode)
+    return s
+
+
+def non_ascii_raw_str():
+    u"""
+    >>> s = non_ascii_raw_str()
+    >>> isinstance(s, bytes)
+    False
+    >>> len(s)
+    11
+    """
+    s = r'ø\x20\u0020'
+    assert isinstance(s, unicode)
+    return s
+
+
+def non_ascii_raw_prefixed_unicode():
+    u"""
+    >>> s = non_ascii_raw_prefixed_unicode()
+    >>> isinstance(s, bytes)
+    False
+    >>> len(s)
+    11
+    """
+    s = ru'ø\x20\u0020'
+    assert isinstance(s, unicode)
+    return s
 
 
 def str_type_is_unicode():
