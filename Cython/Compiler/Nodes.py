@@ -3929,7 +3929,7 @@ class DefNodeWrapper(FuncDefNode):
                 if arg.pos_only:
                     if i == last_required_posonly_arg:
                         code.put_goto(argtuple_error_label)
-                    if i == last_required_arg:
+                    elif i == last_required_arg:
                         code.putln('break;')
                     continue
                 if arg.default:
@@ -4014,12 +4014,17 @@ class DefNodeWrapper(FuncDefNode):
             pos_arg_count = "used_pos_args"
         else:
             pos_arg_count = "kwd_pos_args"
+        if num_pos_only_args > 0 and num_pos_only_args < len(all_args):
+            values_array = 'values + %d' % (num_pos_only_args)
+        else:
+            values_array = 'values'
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("ParseKeywords", "FunctionArguments.c"))
-        code.putln('if (unlikely(__Pyx_ParseOptionalKeywords(%s, %s, %s, values, %s, "%s") < 0)) %s' % (
+        code.putln('if (unlikely(__Pyx_ParseOptionalKeywords(%s, %s, %s, %s, %s, "%s") < 0)) %s' % (
             Naming.kwds_cname,
             Naming.pykwdlist_cname,
             self.starstar_arg and self.starstar_arg.entry.cname or '0',
+            values_array,
             pos_arg_count,
             self.name,
             code.error_goto(self.pos)))
@@ -4028,12 +4033,19 @@ class DefNodeWrapper(FuncDefNode):
     def generate_optional_kwonly_args_unpacking_code(self, all_args, code):
         optional_args = []
         first_optional_arg = -1
+        num_posonly_args = 0
         for i, arg in enumerate(all_args):
+            if arg.pos_only:
+                num_posonly_args += 1
             if not arg.kw_only or not arg.default:
                 continue
             if not optional_args:
                 first_optional_arg = i
             optional_args.append(arg.name)
+        if num_posonly_args > 0:
+            posonly_correction = '-%d' % num_posonly_args
+        else:
+            posonly_correction = ''
         if optional_args:
             if len(optional_args) > 1:
                 # if we receive more than the named kwargs, we either have **kwargs
@@ -4049,8 +4061,8 @@ class DefNodeWrapper(FuncDefNode):
             else:
                 code.putln('if (kw_args == 1) {')
                 code.putln('const Py_ssize_t index = %d;' % first_optional_arg)
-            code.putln('PyObject* value = __Pyx_PyDict_GetItemStr(%s, *%s[index]);' % (
-                Naming.kwds_cname, Naming.pykwdlist_cname))
+            code.putln('PyObject* value = __Pyx_PyDict_GetItemStr(%s, *%s[index%s]);' % (
+                Naming.kwds_cname, Naming.pykwdlist_cname, posonly_correction))
             code.putln('if (value) { values[index] = value; kw_args--; }')
             if len(optional_args) > 1:
                 code.putln('}')
