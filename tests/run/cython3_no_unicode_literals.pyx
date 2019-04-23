@@ -13,6 +13,10 @@ b = 2
 x = 'abc'
 """
 
+import sys
+IS_PY2 = sys.version_info[0] < 3
+
+
 def locals_function(a, b=2):
     x = 'abc'
     return locals()
@@ -62,6 +66,65 @@ def no_unicode_literals():
     """
     print(isinstance(str_string, str) or type(str_string))
     return str_string
+
+
+def non_ascii_str():
+    u"""
+    >>> s = 'ø\\x20\\u0020'
+    >>> isinstance(s, str)
+    True
+    >>> print(not IS_PY2 or len(s) == 9 or len(s))  # first is 2-char bytes in Py2, hex escape is resolved
+    True
+    >>> print(IS_PY2 or len(s) == 3 or len(s))      # 3 unicode characters in Py3
+    True
+
+    >>> s = non_ascii_str()
+    >>> isinstance(s, str)
+    True
+    >>> print(not IS_PY2 or len(s) == 9 or len(s))  # first is 2-char bytes in Py2, hex escape is resolved
+    True
+    >>> print(IS_PY2 or len(s) == 3 or len(s))      # 3 unicode characters in Py3
+    True
+    """
+    s = 'ø\x20\u0020'
+    assert isinstance(s, str)
+    assert (IS_PY2 and isinstance(s, bytes)) or (not IS_PY2 and isinstance(s, unicode))
+    return s
+
+
+def non_ascii_raw_str():
+    u"""
+    >>> s = r'ø\\x20\\u0020'
+    >>> print(not IS_PY2 or len(s) == 12 or len(s))  # Py2 (first character is two bytes)
+    True
+    >>> print(IS_PY2 or len(s) == 11 or len(s))      # Py3 (unicode string)
+    True
+
+    >>> s = non_ascii_raw_str()
+    >>> isinstance(s, str)
+    True
+    >>> print(not IS_PY2 or len(s) == 12 or len(s))  # Py2 (first character is two bytes)
+    True
+    >>> print(IS_PY2 or len(s) == 11 or len(s))      # Py3 (unicode string)
+    True
+    """
+    s = r'ø\x20\u0020'
+    assert isinstance(s, str)
+    assert (IS_PY2 and isinstance(s, bytes)) or (not IS_PY2 and isinstance(s, unicode))
+    return s
+
+
+def non_ascii_raw_unicode():
+    u"""
+    >>> s = non_ascii_raw_unicode()
+    >>> isinstance(s, bytes)
+    False
+    >>> len(s)
+    11
+    """
+    s = ru'ø\x20\u0020'
+    assert isinstance(s, unicode)
+    return s
 
 
 def str_type_is_str():
