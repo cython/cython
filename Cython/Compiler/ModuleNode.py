@@ -1475,11 +1475,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 UtilityCode.load_cached("PyTrashcan", "ExtensionTypes.c"))
             code.putln("__Pyx_TRASHCAN_BEGIN(o, %s)" % slot_func_cname)
 
+        if weakref_slot:
+            # We must clean the weakreferences before calling the user's __dealloc__
+            # because if the __dealloc__ releases the GIL, a weakref can be
+            # dereferenced accessing the object in an inconsistent state or
+            # resurrecting it.
+            code.putln("if (p->__weakref__) PyObject_ClearWeakRefs(o);")
+
         # call the user's __dealloc__
         self.generate_usr_dealloc_call(scope, code)
-
-        if weakref_slot:
-            code.putln("if (p->__weakref__) PyObject_ClearWeakRefs(o);")
 
         if dict_slot:
             code.putln("if (p->__dict__) PyDict_Clear(p->__dict__);")
