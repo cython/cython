@@ -2440,6 +2440,7 @@ class CppClassScope(Scope):
         else:
             entry = self.declare(name, cname, type, pos, visibility)
         entry.is_variable = 1
+        entry.is_cfunction = type.is_cfunction
         if type.is_cfunction and self.type:
             if not self.type.get_fused_types():
                 entry.func_cname = "%s::%s" % (self.type.empty_declaration_code(), cname)
@@ -2509,6 +2510,7 @@ class CppClassScope(Scope):
                     base_entry.type, None, 'extern')
                 entry.is_variable = 1
                 entry.is_inherited = 1
+                entry.is_cfunction = base_entry.is_cfunction
                 self.inherited_var_entries.append(entry)
         for base_entry in base_scope.cfunc_entries:
             entry = self.declare_cfunction(base_entry.name, base_entry.type,
