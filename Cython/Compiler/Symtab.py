@@ -2406,6 +2406,7 @@ class CppClassScope(Scope):
         Scope.__init__(self, name, outer_scope, None)
         self.directives = outer_scope.directives
         self.inherited_var_entries = []
+        self.inherited_type_entries = []
         if templates is not None:
             for T in templates:
                 template_entry = self.declare(
@@ -2514,12 +2515,13 @@ class CppClassScope(Scope):
                                            modifiers=base_entry.func_modifiers,
                                            utility_code=base_entry.utility_code)
             entry.is_inherited = 1
-        for base_entry in base_scope.type_entries:
+        for base_entry in base_scope.type_entries + base_scope.inherited_type_entries:
             if base_entry.name not in base_templates:
                 entry = self.declare_type(base_entry.name, base_entry.type,
                                           base_entry.pos, base_entry.cname,
-                                          base_entry.visibility)
+                                          base_entry.visibility, defining=0)
                 entry.is_inherited = 1
+                self.inherited_type_entries.append(entry)
 
     def specialize(self, values, type_entry):
         scope = CppClassScope(self.name, self.outer_scope)
