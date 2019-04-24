@@ -3800,6 +3800,11 @@ class CppClassType(CType):
                 return 1
         return 0
 
+    def set_scope(self, scope):
+        self.scope = scope
+        if scope:
+            scope.parent_type = self
+
     def subclass_dist(self, super_type):
         if self.same_as_resolved_type(super_type):
             return 0
