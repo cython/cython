@@ -25,6 +25,20 @@ cdef extern from "cpp_nested_classes_support.h":
     cdef cppclass SpecializedTypedClass(TypedClass[double]):
         pass
 
+cdef cppclass AA:
+    cppclass BB:
+        int square(int x):
+            return x * x
+        cppclass CC:
+            int cube(int x):
+                return x * x * x
+    BB* createB():
+        return new BB()
+    ctypedef int my_int
+    @staticmethod
+    my_int negate(my_int x):
+        return -x
+
 
 def test_nested_classes():
     """
@@ -40,7 +54,28 @@ def test_nested_classes():
     assert b_ptr.square(4) == 16
     del b_ptr
 
+def test_nested_defined_classes():
+    """
+    >>> test_nested_defined_classes()
+    """
+    cdef AA a
+    cdef AA.BB b
+    assert b.square(3) == 9
+    cdef AA.BB.CC c
+    assert c.cube(3) == 27
+
+    cdef AA.BB *b_ptr = a.createB()
+    assert b_ptr.square(4) == 16
+    del b_ptr
+
 def test_nested_typedef(py_x):
+    """
+    >>> test_nested_typedef(5)
+    """
+    cdef A.my_int x = py_x
+    assert A.negate(x) == -py_x
+
+def test_nested_defined_typedef(py_x):
     """
     >>> test_nested_typedef(5)
     """
