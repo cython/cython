@@ -139,10 +139,31 @@ def constant_types_comparing_equal():
     >>> constant_types_comparing_equal()
     ((False, False), (0, 0), (0.0, 0.0), (0, False), (False, 0.0), (0, 0.0))
     """
-    bint_tuple= (False, False)
+    bool_tuple= (False, False)
     int_tuple = (0, 0)
     float_tuple = (0.0, 0.0)
     int_bool = (0, False)
     bool_float = (False, 0.0)
     int_float = (0, 0.0)
-    return bint_tuple, int_tuple, float_tuple, int_bool, bool_float, int_float
+
+    assert bool_tuple is (False, False)
+    assert int_tuple is (0, 0)
+    assert bool_tuple == int_tuple
+    assert bool_tuple is not int_tuple
+    assert float_tuple is (0., 0.)
+    assert float_tuple == int_tuple
+    assert float_tuple is not int_tuple
+    assert int_bool is (0, False)
+    assert int_bool == bool_tuple
+    assert int_bool is not bool_tuple
+    assert int_bool is not int_tuple
+    assert bool_float is (False, 0.)
+    assert bool_float == bool_tuple
+    assert bool_float is not bool_tuple
+    assert bool_float is not float_tuple
+    assert int_float is (0, 0.)
+    assert int_float == int_tuple
+    assert int_float is not int_tuple
+    assert int_float is not float_tuple
+
+    return bool_tuple, int_tuple, float_tuple, int_bool, bool_float, int_float
