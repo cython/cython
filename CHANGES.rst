@@ -125,6 +125,19 @@ Other changes
   (Github issue #2905)
 
 
+0.29.8 (2019-0?-??)
+===================
+
+Bugs fixed
+----------
+
+* GH-2919: Python tuple constants that compare equal but have different item
+  types could incorrectly be merged into a single constant.
+
+* Non-ASCII characters in unprefixed strings could crash the compiler when
+  used with language level ``3str``.
+
+
 0.29.7 (2019-04-14)
 ===================
 
