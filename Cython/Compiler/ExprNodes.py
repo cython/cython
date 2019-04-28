@@ -198,11 +198,13 @@ def make_dedup_key(outer_type, item_nodes):
     @return: A tuple that can be used as a dict key for deduplication.
     """
     item_keys = [
-        (py_object_type, None) if node is None
+        (py_object_type, None, type(None)) if node is None
         # For sequences and their "mult_factor", see TupleNode.
         else make_dedup_key(node.type, [node.mult_factor if node.is_literal else None] + node.args) if node.is_sequence_constructor
         else make_dedup_key(node.type, (node.start, node.stop, node.step)) if node.is_slice
-        else (node.type, node.constant_result) if node.has_constant_result()
+        # For constants, look at the Python value type if we don't know the concrete Cython type.
+        else (node.type, node.constant_result,
+              type(node.constant_result) if node.type is py_object_type else None) if node.has_constant_result()
         else None  # something we cannot handle => short-circuit below
         for node in item_nodes
     ]
@@ -1207,6 +1209,10 @@ class BoolNode(ConstNode):
             return str(int(self.value))
 
     def coerce_to(self, dst_type, env):
+        if dst_type == self.type:
+            return self
+        if dst_type is py_object_type and self.type is Builtin.bool_type:
+            return self
         if dst_type.is_pyobject and self.type.is_int:
             return BoolNode(
                 self.pos, value=self.value,

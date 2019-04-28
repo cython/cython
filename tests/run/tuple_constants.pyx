@@ -132,3 +132,17 @@ def return_nonconstant_tuple():
     """
     a = eval("1")
     return ('a', a, 'd')
+
+
+def constant_types_comparing_equal():
+    """
+    >>> constant_types_comparing_equal()
+    ((False, False), (0, 0), (0.0, 0.0), (0, False), (False, 0.0), (0, 0.0))
+    """
+    bint_tuple= (False, False)
+    int_tuple = (0, 0)
+    float_tuple = (0.0, 0.0)
+    int_bool = (0, False)
+    bool_float = (False, 0.0)
+    int_float = (0, 0.0)
+    return bint_tuple, int_tuple, float_tuple, int_bool, bool_float, int_float
