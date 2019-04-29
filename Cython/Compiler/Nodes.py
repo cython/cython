@@ -859,8 +859,9 @@ class CArgDeclNode(Node):
     # annotation     ExprNode or None   Py3 function arg annotation
     # is_self_arg    boolean            Is the "self" arg of an extension type method
     # is_type_arg    boolean            Is the "class" arg of an extension type classmethod
-    # is_kw_only     boolean            Is a keyword-only argument
+    # kw_only        boolean            Is a keyword-only argument
     # is_dynamic     boolean            Non-literal arg stored inside CyFunction
+    # pos_only       boolean            Is a positional-only argument
 
     child_attrs = ["base_type", "declarator", "default", "annotation"]
     outer_attrs = ["default", "annotation"]
@@ -869,6 +870,7 @@ class CArgDeclNode(Node):
     is_type_arg = 0
     is_generic = 1
     kw_only = 0
+    pos_only = 0
     not_none = 0
     or_none = 0
     type = None
@@ -3653,6 +3655,7 @@ class DefNodeWrapper(FuncDefNode):
         positional_args = []
         required_kw_only_args = []
         optional_kw_only_args = []
+        num_pos_only_args = 0
         for arg in args:
             if arg.is_generic:
                 if arg.default:
@@ -3665,6 +3668,9 @@ class DefNodeWrapper(FuncDefNode):
                     required_kw_only_args.append(arg)
                 elif not arg.is_self_arg and not arg.is_type_arg:
                     positional_args.append(arg)
+
+                if arg.pos_only:
+                    num_pos_only_args += 1
 
         # sort required kw-only args before optional ones to avoid special
         # cases in the unpacking code
@@ -3683,10 +3689,10 @@ class DefNodeWrapper(FuncDefNode):
 
         code.putln('{')
         all_args = tuple(positional_args) + tuple(kw_only_args)
-        code.putln("static PyObject **%s[] = {%s,0};" % (
+        code.putln("static PyObject **%s[] = {%s};" % (
             Naming.pykwdlist_cname,
             ','.join(['&%s' % code.intern_identifier(arg.name)
-                      for arg in all_args])))
+                      for arg in all_args if not arg.pos_only] + ['0'])))
 
         # Before being converted and assigned to the target variables,
         # borrowed references to all unpacked argument values are
@@ -3704,8 +3710,8 @@ class DefNodeWrapper(FuncDefNode):
             Naming.kwds_cname))
         self.generate_keyword_unpacking_code(
             min_positional_args, max_positional_args,
-            has_fixed_positional_count, has_kw_only_args,
-            all_args, argtuple_error_label, code)
+            num_pos_only_args, has_fixed_positional_count,
+            has_kw_only_args, all_args, argtuple_error_label, code)
 
         # --- optimised code when we do not receive any keyword arguments
         if (self.num_required_kw_args and min_positional_args > 0) or min_positional_args == max_positional_args:
@@ -3868,8 +3874,8 @@ class DefNodeWrapper(FuncDefNode):
                 code.putln('values[%d] = %s;' % (i, arg.type.as_pyobject(default_value)))
 
     def generate_keyword_unpacking_code(self, min_positional_args, max_positional_args,
-                                        has_fixed_positional_count, has_kw_only_args,
-                                        all_args, argtuple_error_label, code):
+                                        num_pos_only_args, has_fixed_positional_count,
+                                        has_kw_only_args, all_args, argtuple_error_label, code):
         code.putln('Py_ssize_t kw_args;')
         code.putln('const Py_ssize_t pos_args = PyTuple_GET_SIZE(%s);' % Naming.args_cname)
         # copy the values from the args tuple and check that it's not too long
@@ -3899,9 +3905,12 @@ class DefNodeWrapper(FuncDefNode):
         code.putln('kw_args = PyDict_Size(%s);' % Naming.kwds_cname)
         if self.num_required_args or max_positional_args > 0:
             last_required_arg = -1
+            last_required_posonly_arg = -1
             for i, arg in enumerate(all_args):
                 if not arg.default:
                     last_required_arg = i
+                if arg.pos_only and not arg.default:
+                    last_required_posonly_arg = i
             if last_required_arg < max_positional_args:
                 last_required_arg = max_positional_args-1
             if max_positional_args > 0:
@@ -3915,6 +3924,12 @@ class DefNodeWrapper(FuncDefNode):
                     else:
                         code.putln('case %2d:' % i)
                 pystring_cname = code.intern_identifier(arg.name)
+                if arg.pos_only:
+                    if i == last_required_posonly_arg:
+                        code.put_goto(argtuple_error_label)
+                    elif i == last_required_arg:
+                        code.putln('break;')
+                    continue
                 if arg.default:
                     if arg.kw_only:
                         # optional kw-only args are handled separately below
@@ -3969,20 +3984,45 @@ class DefNodeWrapper(FuncDefNode):
         # arguments, this will always do the right thing for unpacking
         # keyword arguments, so that we can concentrate on optimising
         # common cases above.
+        #
+        # ParseOptionalKeywords() needs to know how many of the arguments
+        # that could be passed as keywords have in fact been passed as
+        # positional args.
+        if num_pos_only_args > 0:
+            # There are positional-only arguments which we don't want to count,
+            # since they cannot be keyword arguments.  Subtract the number of
+            # pos-only arguments from the number of positional arguments we got.
+            # If we get a negative number then none of the keyword arguments were
+            # passed as positional args.
+            code.putln('const Py_ssize_t kwd_pos_args = (pos_args < %d) ? 0 : (pos_args - %d);' % (
+                num_pos_only_args, num_pos_only_args))
+        elif max_positional_args > 0:
+            code.putln('const Py_ssize_t kwd_pos_args = pos_args;')
+
         if max_positional_args == 0:
             pos_arg_count = "0"
         elif self.star_arg:
-            code.putln("const Py_ssize_t used_pos_args = (pos_args < %d) ? pos_args : %d;" % (
-                max_positional_args, max_positional_args))
+            # If there is a *arg, the number of used positional args could be larger than
+            # the number of possible keyword arguments.  But ParseOptionalKeywords() uses the
+            # number of positional args as an index into the keyword argument name array,
+            # if this is larger than the number of kwd args we get a segfault.  So round
+            # this down to max_positional_args - num_pos_only_args (= num possible kwd args).
+            code.putln("const Py_ssize_t used_pos_args = (kwd_pos_args < %d) ? kwd_pos_args : %d;" % (
+                max_positional_args - num_pos_only_args, max_positional_args - num_pos_only_args))
             pos_arg_count = "used_pos_args"
         else:
-            pos_arg_count = "pos_args"
+            pos_arg_count = "kwd_pos_args"
+        if num_pos_only_args > 0 and num_pos_only_args < len(all_args):
+            values_array = 'values + %d' % (num_pos_only_args)
+        else:
+            values_array = 'values'
         code.globalstate.use_utility_code(
             UtilityCode.load_cached("ParseKeywords", "FunctionArguments.c"))
-        code.putln('if (unlikely(__Pyx_ParseOptionalKeywords(%s, %s, %s, values, %s, "%s") < 0)) %s' % (
+        code.putln('if (unlikely(__Pyx_ParseOptionalKeywords(%s, %s, %s, %s, %s, "%s") < 0)) %s' % (
             Naming.kwds_cname,
             Naming.pykwdlist_cname,
             self.starstar_arg and self.starstar_arg.entry.cname or '0',
+            values_array,
             pos_arg_count,
             self.name,
             code.error_goto(self.pos)))
@@ -3991,12 +4031,19 @@ class DefNodeWrapper(FuncDefNode):
     def generate_optional_kwonly_args_unpacking_code(self, all_args, code):
         optional_args = []
         first_optional_arg = -1
+        num_posonly_args = 0
         for i, arg in enumerate(all_args):
+            if arg.pos_only:
+                num_posonly_args += 1
             if not arg.kw_only or not arg.default:
                 continue
             if not optional_args:
                 first_optional_arg = i
             optional_args.append(arg.name)
+        if num_posonly_args > 0:
+            posonly_correction = '-%d' % num_posonly_args
+        else:
+            posonly_correction = ''
         if optional_args:
             if len(optional_args) > 1:
                 # if we receive more than the named kwargs, we either have **kwargs
@@ -4012,8 +4059,8 @@ class DefNodeWrapper(FuncDefNode):
             else:
                 code.putln('if (kw_args == 1) {')
                 code.putln('const Py_ssize_t index = %d;' % first_optional_arg)
-            code.putln('PyObject* value = __Pyx_PyDict_GetItemStr(%s, *%s[index]);' % (
-                Naming.kwds_cname, Naming.pykwdlist_cname))
+            code.putln('PyObject* value = __Pyx_PyDict_GetItemStr(%s, *%s[index%s]);' % (
+                Naming.kwds_cname, Naming.pykwdlist_cname, posonly_correction))
             code.putln('if (value) { values[index] = value; kw_args--; }')
             if len(optional_args) > 1:
                 code.putln('}')
