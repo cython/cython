@@ -2433,7 +2433,7 @@ class CppClassScope(Scope):
         if name in (class_name, '__init__') and cname is None:
             cname = "%s__init__%s" % (Naming.func_prefix, class_name)
             name = '<init>'
-            type.return_type = PyrexTypes.CVoidType()
+            type.return_type = PyrexTypes.c_void_type
             # This is called by the actual constructor, but need to support
             # arguments that cannot by called by value.
             type.original_args = type.args
@@ -2447,7 +2447,7 @@ class CppClassScope(Scope):
         elif name == '__dealloc__' and cname is None:
             cname = "%s__dealloc__%s" % (Naming.func_prefix, class_name)
             name = '<del>'
-            type.return_type = PyrexTypes.CVoidType()
+            type.return_type = PyrexTypes.c_void_type
         if name in ('<init>', '<del>') and type.nogil:
             for base in self.type.base_classes:
                 base_entry = base.scope.lookup(name)
