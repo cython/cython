@@ -51,6 +51,12 @@ class TestInline(CythonTest):
         foo = inline("def foo(x): return x * x", **self.test_kwds)['foo']
         self.assertEquals(foo(7), 49)
 
+    def test_class_ref(self):
+        class Type(object):
+            pass
+        tp = inline("Type")['Type']
+        self.assertEqual(tp, Type)
+
     def test_pure(self):
         import cython as cy
         b = inline("""

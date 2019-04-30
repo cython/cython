@@ -90,7 +90,7 @@ def safe_type(arg, context=None):
     elif 'numpy' in sys.modules and isinstance(arg, sys.modules['numpy'].ndarray):
         return 'numpy.ndarray[numpy.%s_t, ndim=%s]' % (arg.dtype.name, arg.ndim)
     else:
-        for base_type in py_type.mro():
+        for base_type in py_type.__mro__:
             if base_type.__module__ in ('__builtin__', 'builtins'):
                 return 'object'
             module = context.find_module(base_type.__module__, need_pxd=False)
