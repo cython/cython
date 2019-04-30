@@ -306,7 +306,6 @@ static PyCodeObject *__Pyx_createFrameCodeObject(const char *funcname, const cha
 
     py_code = PyCode_New(
         0,                /*int argcount,*/
-        0,                /*int kwonlyargcount,*/
         0,                /*int nlocals,*/
         0,                /*int stacksize,*/
         // make CPython use a fresh dict for "f_locals" at need (see GH #1836)
