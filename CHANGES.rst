@@ -144,6 +144,9 @@ Bugs fixed
 * Starred expressions in %-formatting tuples could fail to compile for
   unicode strings.  (Github issue #2939)
 
+* Passing Python class references through ``cython.inline()`` was broken.
+  (Github issue #2936)
+
 
 0.29.7 (2019-04-14)
 ===================
