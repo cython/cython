@@ -2812,14 +2812,17 @@ class DefNode(FuncDefNode):
 
     def __init__(self, pos, **kwds):
         FuncDefNode.__init__(self, pos, **kwds)
-        k = rk = r = 0
+        p = k = rk = r = 0
         for arg in self.args:
+            if arg.pos_only:
+                p += 1
             if arg.kw_only:
                 k += 1
                 if not arg.default:
                     rk += 1
             if not arg.default:
                 r += 1
+        self.num_posonly_args = p
         self.num_kwonly_args = k
         self.num_required_kw_args = rk
         self.num_required_args = r
@@ -3290,6 +3293,7 @@ class DefNodeWrapper(FuncDefNode):
 
     def __init__(self, *args, **kwargs):
         FuncDefNode.__init__(self, *args, **kwargs)
+        self.num_posonly_args = self.target.num_posonly_args
         self.num_kwonly_args = self.target.num_kwonly_args
         self.num_required_kw_args = self.target.num_required_kw_args
         self.num_required_args = self.target.num_required_args
@@ -3657,7 +3661,6 @@ class DefNodeWrapper(FuncDefNode):
         positional_args = []
         required_kw_only_args = []
         optional_kw_only_args = []
-        num_pos_only_args = 0
         for arg in args:
             if arg.is_generic:
                 if arg.default:
@@ -3670,9 +3673,6 @@ class DefNodeWrapper(FuncDefNode):
                     required_kw_only_args.append(arg)
                 elif not arg.is_self_arg and not arg.is_type_arg:
                     positional_args.append(arg)
-
-                if arg.pos_only:
-                    num_pos_only_args += 1
 
         # sort required kw-only args before optional ones to avoid special
         # cases in the unpacking code
@@ -3712,8 +3712,7 @@ class DefNodeWrapper(FuncDefNode):
             Naming.kwds_cname))
         self.generate_keyword_unpacking_code(
             min_positional_args, max_positional_args,
-            num_pos_only_args, has_fixed_positional_count,
-            has_kw_only_args, all_args, argtuple_error_label, code)
+            has_fixed_positional_count, has_kw_only_args, all_args, argtuple_error_label, code)
 
         # --- optimised code when we do not receive any keyword arguments
         if (self.num_required_kw_args and min_positional_args > 0) or min_positional_args == max_positional_args:
@@ -3876,7 +3875,7 @@ class DefNodeWrapper(FuncDefNode):
                 code.putln('values[%d] = %s;' % (i, arg.type.as_pyobject(default_value)))
 
     def generate_keyword_unpacking_code(self, min_positional_args, max_positional_args,
-                                        num_pos_only_args, has_fixed_positional_count,
+                                        has_fixed_positional_count,
                                         has_kw_only_args, all_args, argtuple_error_label, code):
         code.putln('Py_ssize_t kw_args;')
         code.putln('const Py_ssize_t pos_args = PyTuple_GET_SIZE(%s);' % Naming.args_cname)
@@ -3990,6 +3989,7 @@ class DefNodeWrapper(FuncDefNode):
         # ParseOptionalKeywords() needs to know how many of the arguments
         # that could be passed as keywords have in fact been passed as
         # positional args.
+        num_pos_only_args = self.num_posonly_args
         if num_pos_only_args > 0:
             # There are positional-only arguments which we don't want to count,
             # since they cannot be keyword arguments.  Subtract the number of
@@ -4014,8 +4014,8 @@ class DefNodeWrapper(FuncDefNode):
             pos_arg_count = "used_pos_args"
         else:
             pos_arg_count = "kwd_pos_args"
-        if num_pos_only_args > 0 and num_pos_only_args < len(all_args):
-            values_array = 'values + %d' % (num_pos_only_args)
+        if num_pos_only_args < len(all_args):
+            values_array = 'values + %d' % num_pos_only_args
         else:
             values_array = 'values'
         code.globalstate.use_utility_code(
@@ -4033,17 +4033,14 @@ class DefNodeWrapper(FuncDefNode):
     def generate_optional_kwonly_args_unpacking_code(self, all_args, code):
         optional_args = []
         first_optional_arg = -1
-        num_posonly_args = 0
         for i, arg in enumerate(all_args):
-            if arg.pos_only:
-                num_posonly_args += 1
             if not arg.kw_only or not arg.default:
                 continue
             if not optional_args:
                 first_optional_arg = i
             optional_args.append(arg.name)
-        if num_posonly_args > 0:
-            posonly_correction = '-%d' % num_posonly_args
+        if self.num_posonly_args > 0:
+            posonly_correction = '-%d' % self.num_posonly_args
         else:
             posonly_correction = ''
         if optional_args:
