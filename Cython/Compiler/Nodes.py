@@ -3016,8 +3016,10 @@ class DefNode(FuncDefNode):
             if self.decorators:
                 error(self.pos, "special functions of cdef classes cannot have decorators")
             self.entry.trivial_signature = len(self.args) == 1 and not (self.star_arg or self.starstar_arg)
-        elif not env.directives['always_allow_keywords'] and not (self.star_arg or self.starstar_arg):
-            # Use the simpler calling signature for zero- and one-argument functions.
+        elif not (self.star_arg or self.starstar_arg) and (
+                not env.directives['always_allow_keywords']
+                or all([arg.pos_only for arg in self.args])):
+            # Use the simpler calling signature for zero- and one-argument pos-only functions.
             if self.entry.signature is TypeSlots.pyfunction_signature:
                 if len(self.args) == 0:
                     self.entry.signature = TypeSlots.pyfunction_noargs

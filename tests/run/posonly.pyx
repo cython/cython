@@ -1,3 +1,4 @@
+# cython: always_allow_keywords=True
 # mode: run
 # tag: posonly
 
