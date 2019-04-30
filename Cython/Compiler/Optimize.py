@@ -4326,6 +4326,9 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 warning(pos, "Too few arguments for format placeholders", level=1)
                 can_be_optimised = False
                 break
+            if arg.is_starred:
+                can_be_optimised = False
+                break
             if format_type in u'asrfdoxX':
                 format_spec = s[1:]
                 if format_type in u'doxX' and u'.' in format_spec:
@@ -4343,6 +4346,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             else:
                 # keep it simple for now ...
                 can_be_optimised = False
+                break
 
         if not can_be_optimised:
             # Print all warnings we can find before finally giving up here.

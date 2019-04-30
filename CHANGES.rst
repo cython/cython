@@ -134,11 +134,15 @@ Other changes
 Bugs fixed
 ----------
 
-* GH-2919: Python tuple constants that compare equal but have different item
+* Python tuple constants that compare equal but have different item
   types could incorrectly be merged into a single constant.
+  (Github issue #2919)
 
 * Non-ASCII characters in unprefixed strings could crash the compiler when
   used with language level ``3str``.
+
+* Starred expressions in %-formatting tuples could fail to compile for
+  unicode strings.  (Github issue #2939)
 
 
 0.29.7 (2019-04-14)
