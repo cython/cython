@@ -33,12 +33,10 @@ from . import Options
 from .Options import CompilationOptions, default_options
 from .CmdLine import parse_command_line
 
-from . import Version  # legacy import needed by old PyTables versions
-version = Version.version  # legacy attribute - use "Cython.__version__" instead
-
 module_name_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")
 
-verbose = 0
+standard_include_path = os.path.abspath(
+    os.path.join(os.path.dirname(os.path.dirname(__file__)), 'Includes'))
 
 
 class Context(object):
@@ -74,10 +72,6 @@ class Context(object):
 
         self.pxds = {}  # full name -> node tree
         self._interned = {}  # (type(value), value, *key_args) -> interned_value
-
-        standard_include_path = os.path.abspath(os.path.normpath(
-            os.path.join(os.path.dirname(__file__), os.path.pardir, 'Includes')))
-        self.include_directories = include_directories + [standard_include_path]
 
         if language_level is not None:
             self.set_language_level(language_level)
@@ -233,25 +227,6 @@ class Context(object):
         # for a dotted filename, and its containing package root
         # directory is searched first for a non-dotted filename.
         pxd = self.search_include_directories(qualified_name, ".pxd", pos, sys_path=sys_path)
-        if pxd is None: # XXX Keep this until Includes/Deprecated is removed
-            if (qualified_name.startswith('python') or
-                    qualified_name in ('stdlib', 'stdio', 'stl')):
-                standard_include_path = os.path.abspath(os.path.normpath(
-                        os.path.join(os.path.dirname(__file__), os.path.pardir, 'Includes')))
-                deprecated_include_path = os.path.join(standard_include_path, 'Deprecated')
-                self.include_directories.append(deprecated_include_path)
-                try:
-                    pxd = self.search_include_directories(qualified_name, ".pxd", pos)
-                finally:
-                    self.include_directories.pop()
-                if pxd:
-                    name = qualified_name
-                    if name.startswith('python'):
-                        warning(pos, "'%s' is deprecated, use 'cpython'" % name, 1)
-                    elif name in ('stdlib', 'stdio'):
-                        warning(pos, "'%s' is deprecated, use 'libc.%s'" % (name, name), 1)
-                    elif name in ('stl'):
-                        warning(pos, "'%s' is deprecated, use 'libcpp.*.*'" % name, 1)
         if pxd is None and Options.cimport_from_pyx:
             return self.find_pyx_file(qualified_name, pos)
         return pxd
@@ -272,8 +247,13 @@ class Context(object):
 
     def search_include_directories(self, qualified_name, suffix, pos,
                                    include=False, sys_path=False):
-        return search_include_directories(
-            tuple(self.include_directories), qualified_name, suffix, pos, include, sys_path)
+        include_dirs = self.include_directories
+        if sys_path:
+            include_dirs = include_dirs + sys.path
+        # include_dirs must be hashable for caching in @cached_function
+        include_dirs = tuple(include_dirs + [standard_include_path])
+        return search_include_directories(include_dirs, qualified_name,
+                                          suffix, pos, include)
 
     def find_root_package_dir(self, file_path):
         return Utils.find_root_package_dir(file_path)
@@ -621,8 +601,7 @@ def compile(source, options = None, full_module_name = None, **kwds):
 
 
 @Utils.cached_function
-def search_include_directories(dirs, qualified_name, suffix, pos,
-                               include=False, sys_path=False):
+def search_include_directories(dirs, qualified_name, suffix, pos, include=False):
     """
     Search the list of include directories for the given file name.
 
@@ -631,10 +610,7 @@ def search_include_directories(dirs, qualified_name, suffix, pos,
     report an error.
 
     The 'include' option will disable package dereferencing.
-    If 'sys_path' is True, also search sys.path.
     """
-    if sys_path:
-        dirs = dirs + tuple(sys.path)
 
     if pos:
         file_desc = pos[0]
@@ -667,7 +643,7 @@ def search_include_directories(dirs, qualified_name, suffix, pos,
                 path = os.path.join(package_dir, module_filename)
                 if os.path.exists(path):
                     return path
-                path = os.path.join(dirname, package_dir, module_name,
+                path = os.path.join(package_dir, module_name,
                                     package_filename)
                 if os.path.exists(path):
                     return path
@@ -694,7 +670,8 @@ def main(command_line = 0):
         sources = args
 
     if options.show_version:
-        sys.stderr.write("Cython version %s\n" % version)
+        from .. import __version__
+        sys.stderr.write("Cython version %s\n" % __version__)
     if options.working_path!="":
         os.chdir(options.working_path)
     try:

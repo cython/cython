@@ -1,3 +1,5 @@
+# mode: run
+# tag: all_language_levels
 
 cimport cython
 
@@ -142,6 +144,22 @@ def unpack_tuple_keep_originals(a, b, c):
     (3, 4)
     """
     return (*a, *b, 2, *c)
+
+
+def unpack_tuple_in_string_formatting(a, *args):
+    """
+    >>> print(unpack_tuple_in_string_formatting(1, 2))
+    1 2
+    >>> print(unpack_tuple_in_string_formatting(1, 'x'))
+    1 'x'
+    >>> unpack_tuple_in_string_formatting(1)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...format...
+    >>> unpack_tuple_in_string_formatting(1, 2, 3)  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    TypeError: ...format...
+    """
+    return "%s %r" % (a, *args)
 
 
 #### lists

@@ -1,6 +1,6 @@
-# cython: language_level=3, binding=True
+# cython: language_level=3, binding=True, annotation_typing=False
 # mode: run
-# tag: generators, python3, exceptions
+# tag: generators, python3, exceptions, gh2230, gh2811
 
 print(end='')  # test that language_level 3 applies immediately at the module start, for the first token.
 
@@ -21,7 +21,8 @@ True
 """
 
 import sys
-if sys.version_info[0] >= 3:
+IS_PY2 = sys.version_info[0] < 3
+if not IS_PY2:
     __doc__ = __doc__.replace(" u'", " '")
 
 def locals_function(a, b=2):
@@ -312,6 +313,45 @@ def unicode_literals():
     return ustring
 
 
+def non_ascii_unprefixed_str():
+    u"""
+    >>> s = non_ascii_unprefixed_str()
+    >>> isinstance(s, bytes)
+    False
+    >>> len(s)
+    3
+    """
+    s = 'ø\x20\u0020'
+    assert isinstance(s, unicode)
+    return s
+
+
+def non_ascii_raw_str():
+    u"""
+    >>> s = non_ascii_raw_str()
+    >>> isinstance(s, bytes)
+    False
+    >>> len(s)
+    11
+    """
+    s = r'ø\x20\u0020'
+    assert isinstance(s, unicode)
+    return s
+
+
+def non_ascii_raw_prefixed_unicode():
+    u"""
+    >>> s = non_ascii_raw_prefixed_unicode()
+    >>> isinstance(s, bytes)
+    False
+    >>> len(s)
+    11
+    """
+    s = ru'ø\x20\u0020'
+    assert isinstance(s, unicode)
+    return s
+
+
 def str_type_is_unicode():
     """
     >>> str_type, s = str_type_is_unicode()
@@ -551,3 +591,28 @@ def annotation_syntax(a: "test new test", b : "other" = 2, *args: "ARGS", **kwar
     result : int = a + b
 
     return result
+
+
+def builtin_as_annotation(text: str):
+    # See https://github.com/cython/cython/issues/2811
+    """
+    >>> builtin_as_annotation("abc")
+    a
+    b
+    c
+    """
+    for c in text:
+        print(c)
+
+
+async def async_def_annotations(x: 'int') -> 'float':
+    """
+    >>> ret, arg = sorted(async_def_annotations.__annotations__.items())
+    >>> print(ret[0]); print(ret[1])
+    return
+    float
+    >>> print(arg[0]); print(arg[1])
+    x
+    int
+    """
+    return float(x)

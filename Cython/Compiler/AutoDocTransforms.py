@@ -55,7 +55,7 @@ class EmbedSignature(CythonTransform):
         return arg_doc
 
     def _fmt_arglist(self, args,
-                     npargs=0, pargs=None,
+                     npoargs=0, npargs=0, pargs=None,
                      nkargs=0, kargs=None,
                      hide_self=False):
         arglist = []
@@ -65,9 +65,11 @@ class EmbedSignature(CythonTransform):
                 arglist.append(arg_doc)
         if pargs:
             arg_doc = self._fmt_star_arg(pargs)
-            arglist.insert(npargs, '*%s' % arg_doc)
+            arglist.insert(npargs + npoargs, '*%s' % arg_doc)
         elif nkargs:
-            arglist.insert(npargs, '*')
+            arglist.insert(npargs + npoargs, '*')
+        if npoargs:
+            arglist.insert(npoargs, '/')
         if kargs:
             arg_doc = self._fmt_star_arg(kargs)
             arglist.append('**%s' % arg_doc)
@@ -80,12 +82,12 @@ class EmbedSignature(CythonTransform):
             return ret.declaration_code("", for_display=1)
 
     def _fmt_signature(self, cls_name, func_name, args,
-                       npargs=0, pargs=None,
+                       npoargs=0, npargs=0, pargs=None,
                        nkargs=0, kargs=None,
                        return_expr=None,
                        return_type=None, hide_self=False):
         arglist = self._fmt_arglist(args,
-                                    npargs, pargs,
+                                    npoargs, npargs, pargs,
                                     nkargs, kargs,
                                     hide_self=hide_self)
         arglist_doc = ', '.join(arglist)
@@ -147,11 +149,12 @@ class EmbedSignature(CythonTransform):
         else:
             class_name, func_name = self.class_name, node.name
 
+        npoargs = getattr(node, 'num_posonly_args', 0)
         nkargs = getattr(node, 'num_kwonly_args', 0)
-        npargs = len(node.args) - nkargs
+        npargs = len(node.args) - nkargs - npoargs
         signature = self._fmt_signature(
             class_name, func_name, node.args,
-            npargs, node.star_arg,
+            npoargs, npargs, node.star_arg,
             nkargs, node.starstar_arg,
             return_expr=node.return_type_annotation,
             return_type=None, hide_self=hide_self)

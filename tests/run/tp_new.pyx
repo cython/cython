@@ -1,3 +1,5 @@
+# mode: run
+# tag: exttype, tpnew
 # ticket: 808
 
 cimport cython

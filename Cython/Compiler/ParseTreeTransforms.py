@@ -2647,7 +2647,8 @@ class MarkClosureVisitor(CythonTransform):
             pos=node.pos, name=node.name, args=node.args,
             star_arg=node.star_arg, starstar_arg=node.starstar_arg,
             doc=node.doc, decorators=node.decorators,
-            gbody=gbody, lambda_name=node.lambda_name)
+            gbody=gbody, lambda_name=node.lambda_name,
+            return_type_annotation=node.return_type_annotation)
         return coroutine
 
     def visit_CFuncDefNode(self, node):
@@ -2915,6 +2916,12 @@ class GilCheck(VisitorTransform):
         return node
 
     def visit_GILStatNode(self, node):
+        if node.condition is not None:
+            error(node.condition.pos,
+                  "Non-constant condition in a "
+                  "`with %s(<condition>)` statement" % node.state)
+            return node
+
         if self.nogil and node.nogil_check:
             node.nogil_check()
 
@@ -3250,6 +3257,13 @@ class ReplaceFusedTypeChecks(VisitorTransform):
         """
         Filters out any if clauses with false compile time type check
         expression.
+        """
+        self.visitchildren(node)
+        return self.transform(node)
+
+    def visit_GILStatNode(self, node):
+        """
+        Fold constant condition of GILStatNode.
         """
         self.visitchildren(node)
         return self.transform(node)

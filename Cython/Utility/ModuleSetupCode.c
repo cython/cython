@@ -71,6 +71,8 @@
   #define CYTHON_UNPACK_METHODS 0
   #undef CYTHON_FAST_THREAD_STATE
   #define CYTHON_FAST_THREAD_STATE 0
+  #undef CYTHON_FAST_GIL
+  #define CYTHON_FAST_GIL 0
   #undef CYTHON_FAST_PYCALL
   #define CYTHON_FAST_PYCALL 0
   #undef CYTHON_PEP489_MULTI_PHASE_INIT
@@ -114,6 +116,8 @@
   #endif
   #undef CYTHON_FAST_THREAD_STATE
   #define CYTHON_FAST_THREAD_STATE 0
+  #undef CYTHON_FAST_GIL
+  #define CYTHON_FAST_GIL 0
   #undef CYTHON_FAST_PYCALL
   #define CYTHON_FAST_PYCALL 0
   #undef CYTHON_PEP489_MULTI_PHASE_INIT
@@ -168,6 +172,10 @@
   #endif
   #ifndef CYTHON_FAST_THREAD_STATE
     #define CYTHON_FAST_THREAD_STATE 1
+  #endif
+  #ifndef CYTHON_FAST_GIL
+    // Py3<3.5.2 does not support _PyThreadState_UncheckedGet().
+    #define CYTHON_FAST_GIL (PY_MAJOR_VERSION < 3 || PY_VERSION_HEX >= 0x03060000)
   #endif
   #ifndef CYTHON_FAST_PYCALL
     #define CYTHON_FAST_PYCALL 1
@@ -383,13 +391,18 @@ class __Pyx_FakeReference {
 
 #if PY_MAJOR_VERSION < 3
   #define __Pyx_BUILTIN_MODULE_NAME "__builtin__"
-  #define __Pyx_PyCode_New(a, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos) \
-          PyCode_New(a+k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos)
+  #define __Pyx_PyCode_New(a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos) \
+          PyCode_New(p+a+k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos)
   #define __Pyx_DefaultClassType PyClass_Type
 #else
   #define __Pyx_BUILTIN_MODULE_NAME "builtins"
-  #define __Pyx_PyCode_New(a, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos) \
-          PyCode_New(a, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos)
+#if PY_VERSION_HEX < 0x030800A4
+  #define __Pyx_PyCode_New(a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos) \
+          PyCode_New(p+a, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos)
+#else
+  #define __Pyx_PyCode_New(a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos) \
+          PyCode_New(a, p, k, l, s, f, code, c, n, v, fv, cell, fn, name, fline, lnos)
+#endif
   #define __Pyx_DefaultClassType PyType_Type
 #endif
 
@@ -1339,6 +1352,8 @@ __Pyx_FastGilFuncInit();
 /////////////// FastGil.proto ///////////////
 //@proto_block: utility_code_proto_before_types
 
+#if CYTHON_FAST_GIL
+
 struct __Pyx_FastGilVtab {
   PyGILState_STATE (*Fast_PyGILState_Ensure)(void);
   void (*Fast_PyGILState_Release)(PyGILState_STATE oldstate);
@@ -1373,6 +1388,14 @@ static void __Pyx_FastGilFuncInit(void);
   #endif
 #endif
 
+#else
+#define __Pyx_PyGILState_Ensure PyGILState_Ensure
+#define __Pyx_PyGILState_Release PyGILState_Release
+#define __Pyx_FastGIL_Remember()
+#define __Pyx_FastGIL_Forget()
+#define __Pyx_FastGilFuncInit()
+#endif
+
 /////////////// FastGil ///////////////
 //@requires: CommonStructures.c::FetchCommonPointer
 // The implementations of PyGILState_Ensure/Release calls PyThread_get_key_value
@@ -1381,6 +1404,8 @@ static void __Pyx_FastGilFuncInit(void);
 // common case is much faster.
 // To make optimal use of this thread local, we attempt to share it between
 // modules.
+
+#if CYTHON_FAST_GIL
 
 #define __Pyx_FastGIL_ABI_module "_cython_" CYTHON_ABI
 #define __Pyx_FastGIL_PyCapsuleName "FastGilFuncs"
@@ -1416,8 +1441,9 @@ static CYTHON_INLINE PyThreadState *__Pyx_FastGil_get_tcur(void) {
 
 static PyGILState_STATE __Pyx_FastGil_PyGILState_Ensure(void) {
   int current;
+  PyThreadState *tcur;
   __Pyx_FastGIL_Remember0();
-  PyThreadState *tcur = __Pyx_FastGil_get_tcur();
+  tcur = __Pyx_FastGil_get_tcur();
   if (tcur == NULL) {
     // Uninitialized, need to initialize now.
     return PyGILState_Ensure();
@@ -1487,3 +1513,5 @@ static void __Pyx_FastGilFuncInit(void) {
     __Pyx_FastGilFuncInit0();
   }
 }
+
+#endif

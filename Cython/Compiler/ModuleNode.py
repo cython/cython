@@ -1270,8 +1270,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type.empty_declaration_code()))
 
     def generate_new_function(self, scope, code, cclass_entry):
-        tp_slot = TypeSlots.ConstructorSlot("tp_new", '__new__')
+        tp_slot = TypeSlots.ConstructorSlot("tp_new", "__cinit__")
         slot_func = scope.mangle_internal("tp_new")
+        if tp_slot.slot_code(scope) != slot_func:
+            return  # never used
+
         type = scope.parent_type
         base_type = type.base_type
 
@@ -1284,9 +1287,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         cpp_class_attrs = [entry for entry in scope.var_entries
                            if entry.type.is_cpp_class]
 
-        new_func_entry = scope.lookup_here("__new__")
-        if base_type or (new_func_entry and new_func_entry.is_special
-                         and not new_func_entry.trivial_signature):
+        cinit_func_entry = scope.lookup_here("__cinit__")
+        if cinit_func_entry and not cinit_func_entry.is_special:
+            cinit_func_entry = None
+
+        if base_type or (cinit_func_entry and not cinit_func_entry.trivial_signature):
             unused_marker = ''
         else:
             unused_marker = 'CYTHON_UNUSED '
@@ -1394,14 +1399,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if cclass_entry.cname == '__pyx_memoryviewslice':
             code.putln("p->from_slice.memview = NULL;")
 
-        if new_func_entry and new_func_entry.is_special:
-            if new_func_entry.trivial_signature:
+        if cinit_func_entry:
+            if cinit_func_entry.trivial_signature:
                 cinit_args = "o, %s, NULL" % Naming.empty_tuple
             else:
                 cinit_args = "o, a, k"
             needs_error_cleanup = True
             code.putln("if (unlikely(%s(%s) < 0)) goto bad;" % (
-                new_func_entry.func_cname, cinit_args))
+                cinit_func_entry.func_cname, cinit_args))
 
         code.putln(
             "return o;")
@@ -1470,11 +1475,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 UtilityCode.load_cached("PyTrashcan", "ExtensionTypes.c"))
             code.putln("__Pyx_TRASHCAN_BEGIN(o, %s)" % slot_func_cname)
 
+        if weakref_slot:
+            # We must clean the weakreferences before calling the user's __dealloc__
+            # because if the __dealloc__ releases the GIL, a weakref can be
+            # dereferenced accessing the object in an inconsistent state or
+            # resurrecting it.
+            code.putln("if (p->__weakref__) PyObject_ClearWeakRefs(o);")
+
         # call the user's __dealloc__
         self.generate_usr_dealloc_call(scope, code)
-
-        if weakref_slot:
-            code.putln("if (p->__weakref__) PyObject_ClearWeakRefs(o);")
 
         if dict_slot:
             code.putln("if (p->__dict__) PyDict_Clear(p->__dict__);")
@@ -1552,7 +1561,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_usr_dealloc_call(self, scope, code):
         entry = scope.lookup_here("__dealloc__")
-        if not entry:
+        if not entry or not entry.is_special:
             return
 
         code.putln("{")
@@ -2209,7 +2218,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if doc:
                     if doc.is_unicode:
                         doc = doc.as_utf8_string()
-                    doc_code = doc.as_c_string_literal()
+                    doc_code = "PyDoc_STR(%s)" % doc.as_c_string_literal()
                 else:
                     doc_code = "0"
                 code.putln(
@@ -2350,6 +2359,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         profile = code.globalstate.directives['profile']
         linetrace = code.globalstate.directives['linetrace']
         if profile or linetrace:
+            if linetrace:
+                code.use_fast_gil_utility_code()
             code.globalstate.use_utility_code(UtilityCode.load_cached("Profile", "Profile.c"))
 
         code.put_declare_refcount_context()
@@ -2723,11 +2734,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 #            if entry.type.is_pyobject and entry.used:
 #                code.putln("Py_DECREF(%s); %s = 0;" % (
 #                    code.entry_as_pyobject(entry), entry.cname))
-        code.putln('#if CYTHON_COMPILING_IN_PYPY')
-        code.putln('Py_CLEAR(%s);' % Naming.builtins_cname)
-        code.putln('#endif')
-        code.put_decref_clear(env.module_dict_cname, py_object_type,
-                              nanny=False, clear_before_decref=True)
+        if Options.pre_import is not None:
+            code.put_decref_clear(Naming.preimport_cname, py_object_type,
+                                  nanny=False, clear_before_decref=True)
+        for cname in [env.module_dict_cname, Naming.cython_runtime_cname, Naming.builtins_cname]:
+            code.put_decref_clear(cname, py_object_type, nanny=False, clear_before_decref=True)
 
     def generate_main_method(self, env, code):
         module_is_main = "%s%s" % (Naming.module_is_main, self.full_module_name.replace('.', '__'))
@@ -2834,13 +2845,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             '%s = PyImport_AddModule(__Pyx_BUILTIN_MODULE_NAME); %s' % (
                 Naming.builtins_cname,
                 code.error_goto_if_null(Naming.builtins_cname, self.pos)))
+        code.put_incref(Naming.builtins_cname, py_object_type, nanny=False)
         code.putln(
             '%s = PyImport_AddModule((char *) "cython_runtime"); %s' % (
                 Naming.cython_runtime_cname,
                 code.error_goto_if_null(Naming.cython_runtime_cname, self.pos)))
-        code.putln('#if CYTHON_COMPILING_IN_PYPY')
-        code.putln('Py_INCREF(%s);' % Naming.builtins_cname)
-        code.putln('#endif')
+        code.put_incref(Naming.cython_runtime_cname, py_object_type, nanny=False)
         code.putln(
             'if (PyObject_SetAttrString(%s, "__builtins__", %s) < 0) %s;' % (
                 env.module_cname,
@@ -2852,6 +2862,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     Naming.preimport_cname,
                     Options.pre_import,
                     code.error_goto_if_null(Naming.preimport_cname, self.pos)))
+            code.put_incref(Naming.preimport_cname, py_object_type, nanny=False)
 
     def generate_global_init_code(self, env, code):
         # Generate code to initialise global PyObject *

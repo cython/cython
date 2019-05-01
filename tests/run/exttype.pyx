@@ -1,6 +1,52 @@
+# mode: run
+# tag: exttype, tpnew
+
+from __future__ import print_function
+
+from cpython.object cimport PyTypeObject
+
 
 cdef gobble(a, b):
-    print a, b
+    print(a, b)
+
+
+def tp_new_ptr(exttype):
+    assert isinstance(exttype, type)
+    tp = <PyTypeObject*> exttype
+    return <unsigned long long><void*>tp.tp_new
+
+
+cdef class Empty:
+    """
+    >>> n = Empty()
+    >>> isinstance(n, Empty)
+    True
+    >>> tp_new_ptr(Empty) != 0
+    True
+    """
+
+
+cdef class EmptySubclass(Empty):
+    """
+    >>> n = EmptySubclass()
+    >>> isinstance(n, EmptySubclass)
+    True
+    >>> tp_new_ptr(EmptySubclass) != 0
+    True
+    >>> tp_new_ptr(EmptySubclass) == tp_new_ptr(Empty)
+    True
+    """
+
+
+cdef class CInit:
+    """
+    >>> c = CInit()
+    >>> isinstance(c, CInit)
+    True
+    """
+    def __cinit__(self):
+        assert self is not None
+
 
 cdef class Spam:
     """
@@ -20,6 +66,7 @@ cdef class Spam:
 
     def eat(self):
         gobble(self.eggs, self.ham)
+
 
 def f(Spam spam):
     """

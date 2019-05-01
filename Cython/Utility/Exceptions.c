@@ -735,6 +735,7 @@ static PyCodeObject* __Pyx_CreateCodeObjectForTraceback(
     if (!py_funcname) goto bad;
     py_code = __Pyx_PyCode_New(
         0,            /*int argcount,*/
+        0,            /*int posonlyargcount,*/
         0,            /*int kwonlyargcount,*/
         0,            /*int nlocals,*/
         0,            /*int stacksize,*/

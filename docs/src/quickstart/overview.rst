@@ -1,7 +1,7 @@
 Cython - an overview
 ====================
 
-[Cython] is a programming language that makes writing C extensions
+[Cython]_ is a programming language that makes writing C extensions
 for the Python language as easy as Python itself.  It aims to become
 a superset of the [Python]_ language which gives it high-level,
 object-oriented, functional, and dynamic programming.  Its main feature
