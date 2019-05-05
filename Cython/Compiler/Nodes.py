@@ -3691,10 +3691,13 @@ class DefNodeWrapper(FuncDefNode):
 
         code.putln('{')
         all_args = tuple(positional_args) + tuple(kw_only_args)
-        code.putln("static PyObject **%s[] = {%s};" % (
-            Naming.pykwdlist_cname,
-            ','.join(['&%s' % code.intern_identifier(arg.name)
-                      for arg in all_args if not arg.pos_only] + ['0'])))
+        non_posonly_args = [arg for arg in all_args if not arg.pos_only]
+        do_generate_kw_unpacking = bool(non_posonly_args) or self.starstar_arg
+        if do_generate_kw_unpacking:
+            code.putln("static PyObject **%s[] = {%s};" % (
+                Naming.pykwdlist_cname,
+                ','.join(['&%s' % code.intern_identifier(arg.name)
+                          for arg in non_posonly_args] + ['0'])))
 
         # Before being converted and assigned to the target variables,
         # borrowed references to all unpacked argument values are
@@ -3710,9 +3713,14 @@ class DefNodeWrapper(FuncDefNode):
         code.putln("if (%s(%s)) {" % (
             (self.num_required_kw_args > 0) and "likely" or "unlikely",
             Naming.kwds_cname))
-        self.generate_keyword_unpacking_code(
-            min_positional_args, max_positional_args,
-            has_fixed_positional_count, has_kw_only_args, all_args, argtuple_error_label, code)
+
+        if do_generate_kw_unpacking:
+            self.generate_keyword_unpacking_code(
+                min_positional_args, max_positional_args,
+                has_fixed_positional_count, has_kw_only_args, all_args, argtuple_error_label, code)
+        else:
+            code.putln("PyErr_Format(PyExc_TypeError, \"%s() takes no keyword arguments\");" % self.name)
+            code.putln(code.error_goto(self.pos))
 
         # --- optimised code when we do not receive any keyword arguments
         if (self.num_required_kw_args and min_positional_args > 0) or min_positional_args == max_positional_args:
@@ -3877,6 +3885,14 @@ class DefNodeWrapper(FuncDefNode):
     def generate_keyword_unpacking_code(self, min_positional_args, max_positional_args,
                                         has_fixed_positional_count,
                                         has_kw_only_args, all_args, argtuple_error_label, code):
+        # First we count how many arguments must be passed as positional
+        num_required_posonly_args = num_posonly_args = 0
+        for i, arg in enumerate(all_args):
+            if arg.pos_only:
+                num_posonly_args += 1
+                if not arg.default:
+                    num_required_posonly_args += 1
+
         code.putln('Py_ssize_t kw_args;')
         code.putln('const Py_ssize_t pos_args = PyTuple_GET_SIZE(%s);' % Naming.args_cname)
         # copy the values from the args tuple and check that it's not too long
@@ -3885,10 +3901,24 @@ class DefNodeWrapper(FuncDefNode):
             code.putln('default:')
         for i in range(max_positional_args-1, -1, -1):
             code.put('case %2d: ' % (i+1))
-            code.putln("values[%d] = PyTuple_GET_ITEM(%s, %d);" % (
-                i, Naming.args_cname, i))
-            code.putln('CYTHON_FALLTHROUGH;')
-        code.putln('case  0: break;')
+            if i+1 > num_required_posonly_args:
+                code.putln("values[%d] = PyTuple_GET_ITEM(%s, %d);" % (
+                    i, Naming.args_cname, i))
+                code.putln('CYTHON_FALLTHROUGH;')
+            elif i+1 == num_required_posonly_args:
+                for j in range(num_required_posonly_args-1, -1, -1):
+                    code.putln("values[%d] = PyTuple_GET_ITEM(%s, %d);" % (
+                        j, Naming.args_cname, j))
+                code.putln('break;')
+            else:
+                code.putln('CYTHON_FALLTHROUGH;')
+
+        if num_required_posonly_args == 0:
+            code.putln('case  0: break;')
+        else:
+            # catch-all for not enough pos-only args passed
+            code.putln('case  0:')
+            code.put_goto(argtuple_error_label)
         if not self.star_arg:
             code.put('default: ') # more arguments than allowed
             code.put_goto(argtuple_error_label)
@@ -3906,31 +3936,24 @@ class DefNodeWrapper(FuncDefNode):
         code.putln('kw_args = PyDict_Size(%s);' % Naming.kwds_cname)
         if self.num_required_args or max_positional_args > 0:
             last_required_arg = -1
-            last_required_posonly_arg = -1
             for i, arg in enumerate(all_args):
                 if not arg.default:
                     last_required_arg = i
-                if arg.pos_only and not arg.default:
-                    last_required_posonly_arg = i
             if last_required_arg < max_positional_args:
                 last_required_arg = max_positional_args-1
-            if max_positional_args > 0:
+            if max_positional_args > num_posonly_args:
                 code.putln('switch (pos_args) {')
             for i, arg in enumerate(all_args[:last_required_arg+1]):
-                if max_positional_args > 0 and i <= max_positional_args:
-                    if i != 0:
+                if i < num_posonly_args:
+                    continue
+                if max_positional_args > num_posonly_args and i <= max_positional_args:
+                    if i != num_posonly_args:
                         code.putln('CYTHON_FALLTHROUGH;')
                     if self.star_arg and i == max_positional_args:
                         code.putln('default:')
                     else:
                         code.putln('case %2d:' % i)
                 pystring_cname = code.intern_identifier(arg.name)
-                if arg.pos_only:
-                    if i == last_required_posonly_arg:
-                        code.put_goto(argtuple_error_label)
-                    elif i == last_required_arg:
-                        code.putln('break;')
-                    continue
                 if arg.default:
                     if arg.kw_only:
                         # optional kw-only args are handled separately below
@@ -3969,7 +3992,7 @@ class DefNodeWrapper(FuncDefNode):
                             self.name, pystring_cname))
                         code.putln(code.error_goto(self.pos))
                         code.putln('}')
-            if max_positional_args > 0:
+            if max_positional_args > num_posonly_args:
                 code.putln('}')
 
         if has_kw_only_args:
