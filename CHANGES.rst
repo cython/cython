@@ -44,7 +44,7 @@ Features added
   (Github issue #2306)
 
 * Several missing declarations in ``cpython.*`` were added.
-  Patch by Jeroen Demeyer.  (Github issue #2826)
+  Patches by Jeroen Demeyer and Zackery Spytz.  (Github issues #2826, #2713)
 
 * The builtin ``abs()`` function can now be used on C numbers in nogil code.
   Patch by Elliott Sales de Andrade.  (Github issue #2748)
