@@ -126,7 +126,7 @@ def test_use_positional_as_keyword3(a, b, /):
     >>> test_use_positional_as_keyword3(1, 2)
     >>> test_use_positional_as_keyword3(a=1, b=2)
     Traceback (most recent call last):
-    TypeError: test_use_positional_as_keyword3() takes exactly 2 positional arguments (0 given)
+    TypeError: test_use_positional_as_keyword3() takes no keyword arguments
     """
 
 def test_positional_only_and_arg_invalid_calls(a, b, /, c):
@@ -266,7 +266,7 @@ class TestPosonlyMethods(object):
     Got type error
     >>> TestPosonlyMethods().f(1, b=2)
     Traceback (most recent call last):
-    TypeError: f() takes exactly 3 positional arguments (2 given)
+    TypeError: f() takes no keyword arguments
     """
     def f(self, a, b, /):
         return a, b
@@ -367,7 +367,7 @@ def test_serialization1(a, b, /):
     (1, 2)
     >>> unpickled_posonly(a=1, b=2)
     Traceback (most recent call last):
-    TypeError: test_serialization1() takes exactly 2 positional arguments (0 given)
+    TypeError: test_serialization1() takes no keyword arguments
     """
     return (a, b)
 
@@ -496,3 +496,34 @@ def f_call_one_optional_kwd(a,/,*,b=2):
     (1, 3)
     """
     return (a,b)
+
+def f_call_posonly_stararg(a,/,*args):
+    """
+    >>> f_call_posonly_stararg(1)
+    (1, ())
+    >>> f_call_posonly_stararg(1, 2, 3, 4)
+    (1, (2, 3, 4))
+    """
+    return (a,args)
+
+def f_call_posonly_kwarg(a,/,**kw):
+    """
+    >>> f_call_posonly_kwarg(1)
+    (1, {})
+    >>> f_call_posonly_kwarg(1, b=2, c=3, d=4)==(1, {'b': 2, 'c': 3, 'd': 4})
+    True
+    """
+    return (a,kw)
+
+def f_call_posonly_stararg_kwarg(a,/,*args,**kw):
+    """
+    >>> f_call_posonly_stararg_kwarg(1)
+    (1, (), {})
+    >>> f_call_posonly_stararg_kwarg(1, 2)
+    (1, (2,), {})
+    >>> f_call_posonly_stararg_kwarg(1, b=3, c=4)==(1, (), {'b': 3, 'c': 4})
+    True
+    >>> f_call_posonly_stararg_kwarg(1, 2, b=3, c=4)==(1, (2,), {'b': 3, 'c': 4})
+    True
+    """
+    return (a,args,kw)
