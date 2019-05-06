@@ -2295,7 +2295,7 @@ class CFuncDefNode(FuncDefNode):
     #  is_c_class_method whether this is a cclass method
 
     child_attrs = ["base_type", "declarator", "body", "py_func_stat", "decorators"]
-    outer_attrs = ["decorators"]
+    outer_attrs = ["decorators", "py_func_stat"]
 
     inline_in_pxd = False
     decorators = None
