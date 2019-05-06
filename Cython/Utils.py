@@ -147,16 +147,16 @@ def find_root_package_dir(file_path):
 
 
 @cached_function
-def check_package_dir(dir, package_names):
+def check_package_dir(dir_path, package_names):
     namespace = True
     for dirname in package_names:
-        dir = os.path.join(dir, dirname)
-        has_init = contains_init(dir)
+        dir_path = os.path.join(dir_path, dirname)
+        has_init = contains_init(dir_path)
         if not namespace and not has_init:
             return None, False
         elif has_init:
             namespace = False
-    return dir, namespace
+    return dir_path, namespace
 
 
 @cached_function
@@ -167,7 +167,6 @@ def contains_init(dir_path):
             return 1
 
 
-@cached_function
 def is_package_dir(dir_path):
     if contains_init(dir_path):
         return 1
