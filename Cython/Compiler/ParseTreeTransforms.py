@@ -3160,7 +3160,7 @@ class TransformBuiltinMethods(EnvTransform):
             return node
         # Inject no-args super
         def_node = self.current_scope_node()
-        if not self._check_inside_class(def_node):
+        if not self._check_inside_class(def_node) or not def_node.args:
             return node
         class_node, class_scope = self._get_current_class_and_scope()
         if class_scope.is_py_class_scope:
