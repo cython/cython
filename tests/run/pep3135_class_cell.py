@@ -12,6 +12,8 @@ class C(object):
     3
     >>> obj.method_3()
     ['__class__', 'self']
+    >>> obj.method_4()
+    ['self']
     """
 
     @classmethod
@@ -31,3 +33,84 @@ class C(object):
     def method_3(self):
         __class__
         return sorted(list(locals().keys()))
+
+    def method_4(self):
+        return sorted(list(locals().keys()))
+
+
+class D:
+    """
+    >>> obj = D()
+    >>> obj.method(1)
+    1
+    >>> obj.method(0)
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError: local variable '__class__' referenced before assignment
+    """
+    def method(self, x):
+        if x: __class__ = x
+        print(__class__)
+
+
+class E:
+    """
+    >>> obj = E()
+    >>> obj.method()().__name__
+    'E'
+    """
+    def method(self):
+        def inner(): return __class__
+        return inner
+
+
+class F:
+    """
+    >>> obj = F()
+    >>> obj.method()()().__name__
+    'F'
+    """
+    def method(self):
+        def inner():
+            def inner_inner():
+                return __class__
+            return inner_inner
+        return inner
+
+
+class G:
+    """
+    >>> obj = G()
+    >>> obj.method().__name__
+    'H'
+    """
+    def method(self):
+        class H:
+            def inner(self):
+                return __class__
+        return H().inner()
+
+
+class I:
+    """
+    >>> obj = I()
+    >>> obj.method()()().__name__
+    'J'
+    """
+    def method(self):
+        def inner():
+            class J:
+                def inner(self):
+                    return __class__
+            return J().inner
+        return inner
+
+
+class K:
+    """
+    >>> OldK = K
+    >>> K = None
+    >>> OldK().method().__name__
+    'K'
+    """
+    def method(self): return __class__

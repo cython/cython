@@ -9967,7 +9967,6 @@ class LocalsDictItemNode(DictItemNode):
             self.value = None
         return self
 
-
 class FuncLocalsExprNode(DictNode):
     def __init__(self, pos, env):
         local_vars = sorted([key for key, entry in env.entries.items() if entry.name])

@@ -3015,7 +3015,10 @@ class TransformBuiltinMethods(EnvTransform):
 
     def visit_NameNode(self, node):
         if node.name == u'__class__':
-            self._inject_class(node)
+            lenv = self.current_env()
+            entry = lenv.lookup_here(u'__class__')
+            if not entry:
+                node = self._inject_class(node)
         return self.visit_cython_attribute(node)
 
     def visit_cython_attribute(self, node):
@@ -3057,6 +3060,14 @@ class TransformBuiltinMethods(EnvTransform):
         if entry:
             # not the builtin
             return node
+
+        class_entry = lenv.lookup_here('__class__')
+        if not class_entry:
+            def_node = self.current_scope_node()
+            if def_node.has_class_reference:
+                local_class_node, _ = self._get_current_class_and_scope()
+                lenv.entries[EncodedString(u'__class__')] = local_class_node.target.entry
+
         pos = node.pos
         if func_name in ('locals', 'vars'):
             if func_name == 'locals' and len(node.args) > 0:
@@ -3069,7 +3080,7 @@ class TransformBuiltinMethods(EnvTransform):
                           % len(node.args))
                 if len(node.args) > 0:
                     return node # nothing to do
-            return ExprNodes.LocalsExprNode(pos, self.current_scope_node(), lenv)
+            return ExprNodes.LocalsExprNode(pos, def_node, lenv)
         else: # dir()
             if len(node.args) > 1:
                 error(self.pos, "Builtin 'dir()' called with wrong number of args, expected 0-1, got %d"
@@ -3117,27 +3128,30 @@ class TransformBuiltinMethods(EnvTransform):
         return node
 
     def _check_inside_class(self, def_node):
-        return isinstance(def_node, Nodes.DefNode) and def_node.args and len(self.env_stack) >= 2
+        return isinstance(def_node, Nodes.DefNode) and any(isinstance(node, Nodes.ClassDefNode) for node, _ in self.env_stack)
 
     def _get_current_class_and_scope(self):
-        return self.env_stack[-2]
+        return next(
+            (node, scope)
+            for node, scope
+            in self.env_stack[::-1]
+            if isinstance(node, Nodes.ClassDefNode)
+        )
     
     def _inject_class(self, node):
         # bare __class__ reference inside function
-        lenv = self.current_env()
-        entry = lenv.lookup_here(u"__class__")
-        if entry:
-            # Already have a __class__ local
-            return
-
         def_node = self.current_scope_node()
+
         if not self._check_inside_class(def_node):
-            return
-    
+            return node
+
         class_node, class_scope = self._get_current_class_and_scope()
-        
+
         if class_scope.is_py_class_scope:
-            lenv.entries[EncodedString(u"__class__")] = class_node.target.entry
+            def_node.has_class_reference = True
+            return ExprNodes.NameNode(node.pos, name=class_node.target.name)
+
+        return node
 
     def _inject_super(self, node, func_name):
         lenv = self.current_env()

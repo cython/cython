@@ -54,6 +54,8 @@ class C(A):
     3
     >>> obj.method_3()
     ['__class__', 'self']
+    >>> obj.method_4()
+    ['self']
     """
     
     def method_1(self):
@@ -65,6 +67,87 @@ class C(A):
     def method_3(self):
         __class__
         return sorted(list(locals().keys()))
+
+    def method_4(self):
+        return sorted(list(locals().keys()))
+
+
+class D:
+    """
+    >>> obj = D()
+    >>> obj.method(1)
+    1
+    >>> obj.method(0)
+    Traceback (most recent call last):
+    ...
+    UnboundLocalError: local variable '__class__' referenced before assignment
+    """
+    def method(self, x):
+        if x: __class__ = x
+        print(__class__)
+
+
+class E:
+    """
+    >>> obj = E()
+    >>> obj.method()()
+    <class 'py3k_super.E'>
+    """
+    def method(self):
+        def inner(): return __class__
+        return inner
+
+
+class F:
+    """
+    >>> obj = F()
+    >>> obj.method()()()
+    <class 'py3k_super.F'>
+    """
+    def method(self):
+        def inner():
+            def inner_inner():
+                return __class__
+            return inner_inner
+        return inner
+
+
+class G:
+    """
+    >>> obj = G()
+    >>> obj.method()
+    <class 'py3k_super.G.method.<locals>.H'>
+    """
+    def method(self):
+        class H:
+            def inner(self):
+                return __class__
+        return H().inner()
+
+
+class I:
+    """
+    >>> obj = I()
+    >>> obj.method()()()
+    <class 'py3k_super.I.method.<locals>.inner.<locals>.J'>
+    """
+    def method(self):
+        def inner():
+            class J:
+                def inner(self):
+                    return __class__
+            return J().inner
+        return inner
+
+
+class K:
+    """
+    >>> OldK = K
+    >>> K = None
+    >>> OldK().method().__name__
+    'K'
+    """
+    def method(self): return __class__
 
 
 def test_class_cell_empty():
