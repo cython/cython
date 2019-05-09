@@ -621,7 +621,7 @@ You can see them also by typing ```%%cython?`` in IPython or a Jupyter notebook.
 
 ============================================  =======================================================================================================================================
 
--a, --annotate                                Produce a colorized HTML version of the source. Use ``--annotate=2`` to include the complete generated C/C++-code as well.
+-a, --annotate                                Produce a colorized HTML version of the source. Use ``--annotate=show_entire_c_code`` to include the complete generated C/C++-code as well.
 
 -+, --cplus                                   Output a C++ rather than C file.
 

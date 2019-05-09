@@ -23,9 +23,9 @@ from .. import Utils
 
 class AnnotationCCodeWriter(CCodeWriter):
 
-    def __init__(self, create_from=None, buffer=None, copy_formatting=True, show_whole_c_code=False):
+    def __init__(self, create_from=None, buffer=None, copy_formatting=True, show_entire_c_code=False):
         CCodeWriter.__init__(self, create_from, buffer, copy_formatting=copy_formatting)
-        self.show_whole_c_code = show_whole_c_code
+        self.show_entire_c_code = show_entire_c_code
         if create_from is None:
             self.annotation_buffer = StringIO()
             self.last_annotated_pos = None
@@ -289,7 +289,7 @@ class AnnotationCCodeWriter(CCodeWriter):
         outlist.append(u"</div>")
 
         # now the whole c-code if needed:
-        if self.show_whole_c_code:
+        if self.show_entire_c_code:
             outlist.append(u'<p><div class="cython">')
             onclick_title = u"<pre class='cython line'{onclick}>+ Complete cythonized code</pre>\n"
             outlist.append(onclick_title.format(onclick=self._onclick_attr))
