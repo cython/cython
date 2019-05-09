@@ -210,3 +210,26 @@ x = sin(0.0)
             ip.ex('g = f(10)')
         self.assertEqual(ip.user_ns['g'], 20.0)
         self.assertEqual([normal_log.INFO], normal_log.thresholds)
+
+    def test_cython_annotate(self):
+        ip = self._ip
+        html = ip.run_cell_magic('cython', '--annotate', code)
+        # somewhat brittle way to differentiate between annotated htmls
+        # with/without complete source code:
+        self.assertTrue('Complete cythonized code"' not in html.data)
+
+    def test_cython_annotate_default(self):
+        ip = self._ip
+        html = ip.run_cell_magic('cython', '--a=default', code)
+        # somewhat brittle way to differentiate between annotated htmls
+        # with/without complete source code:
+        self.assertTrue('Complete cythonized code' not in html.data)
+
+    def test_cython_annotate_complete_c_code(self):
+        ip = self._ip
+        html = ip.run_cell_magic('cython', '--a=show_entire_c_code', code)
+        # somewhat brittle way to differentiate between annotated htmls
+        # with/without complete source code:
+        with open('/home/ed/tmp.txt', 'w') as f:
+             f.write(html.data)    
+        self.assertTrue('Complete cythonized code' in html.data)
