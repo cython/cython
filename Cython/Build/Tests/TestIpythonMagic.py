@@ -211,6 +211,11 @@ x = sin(0.0)
         self.assertEqual(ip.user_ns['g'], 20.0)
         self.assertEqual([normal_log.INFO], normal_log.thresholds)
 
+    def test_cython_no_annotate(self):
+        ip = self._ip
+        html = ip.run_cell_magic('cython', '', code)
+        self.assertTrue(html is None)
+
     def test_cython_annotate(self):
         ip = self._ip
         html = ip.run_cell_magic('cython', '--annotate', code)
