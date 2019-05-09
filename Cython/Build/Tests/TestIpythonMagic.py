@@ -230,6 +230,4 @@ x = sin(0.0)
         html = ip.run_cell_magic('cython', '--a=show_entire_c_code', code)
         # somewhat brittle way to differentiate between annotated htmls
         # with/without complete source code:
-        with open('/home/ed/tmp.txt', 'w') as f:
-             f.write(html.data)    
         self.assertTrue('Complete cythonized code' in html.data)
