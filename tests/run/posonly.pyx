@@ -2,8 +2,6 @@
 # mode: run
 # tag: posonly
 
-# TODO: remove posonly tag before merge
-
 import cython
 import sys
 import pickle
@@ -126,7 +124,7 @@ def test_use_positional_as_keyword3(a, b, /):
     >>> test_use_positional_as_keyword3(1, 2)
     >>> test_use_positional_as_keyword3(a=1, b=2)
     Traceback (most recent call last):
-    TypeError: test_use_positional_as_keyword3() takes no keyword arguments
+    TypeError: test_use_positional_as_keyword3() got an unexpected keyword argument 'a'
     """
 
 def test_positional_only_and_arg_invalid_calls(a, b, /, c):
@@ -266,7 +264,7 @@ class TestPosonlyMethods(object):
     Got type error
     >>> TestPosonlyMethods().f(1, b=2)
     Traceback (most recent call last):
-    TypeError: f() takes no keyword arguments
+    TypeError: f() got an unexpected keyword argument 'b'
     """
     def f(self, a, b, /):
         return a, b
@@ -367,7 +365,7 @@ def test_serialization1(a, b, /):
     (1, 2)
     >>> unpickled_posonly(a=1, b=2)
     Traceback (most recent call last):
-    TypeError: test_serialization1() takes no keyword arguments
+    TypeError: test_serialization1() got an unexpected keyword argument 'a'
     """
     return (a, b)
 
@@ -510,7 +508,8 @@ def f_call_posonly_kwarg(a,/,**kw):
     """
     >>> f_call_posonly_kwarg(1)
     (1, {})
-    >>> f_call_posonly_kwarg(1, b=2, c=3, d=4)==(1, {'b': 2, 'c': 3, 'd': 4})
+    >>> all_args = f_call_posonly_kwarg(1, b=2, c=3, d=4)
+    >>> all_args == (1, {'b': 2, 'c': 3, 'd': 4}) or all_args
     True
     """
     return (a,kw)
@@ -521,9 +520,23 @@ def f_call_posonly_stararg_kwarg(a,/,*args,**kw):
     (1, (), {})
     >>> f_call_posonly_stararg_kwarg(1, 2)
     (1, (2,), {})
-    >>> f_call_posonly_stararg_kwarg(1, b=3, c=4)==(1, (), {'b': 3, 'c': 4})
+    >>> all_args = f_call_posonly_stararg_kwarg(1, b=3, c=4)
+    >>> all_args == (1, (), {'b': 3, 'c': 4}) or all_args
     True
-    >>> f_call_posonly_stararg_kwarg(1, 2, b=3, c=4)==(1, (2,), {'b': 3, 'c': 4})
+    >>> all_args = f_call_posonly_stararg_kwarg(1, 2, b=3, c=4)
+    >>> all_args == (1, (2,), {'b': 3, 'c': 4}) or all_args
     True
     """
     return (a,args,kw)
+
+def test_empty_kwargs(a, b, /):
+    """
+    >>> test_empty_kwargs(1, 2)
+    (1, 2)
+    >>> test_empty_kwargs(1, 2, **{})
+    (1, 2)
+    >>> test_empty_kwargs(1, 2, **{'c': 3})
+    Traceback (most recent call last):
+    TypeError: test_empty_kwargs() got an unexpected keyword argument 'c'
+    """
+    return (a,b)
