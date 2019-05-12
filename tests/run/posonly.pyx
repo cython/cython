@@ -540,3 +540,19 @@ def test_empty_kwargs(a, b, /):
     TypeError: test_empty_kwargs() got an unexpected keyword argument 'c'
     """
     return (a,b)
+
+cdef class TestExtensionClass:
+    """
+    >>> t = TestExtensionClass()
+    >>> t.f(1,2)
+    (1, 2, 3)
+    >>> t.f(1,2,4)
+    (1, 2, 4)
+    >>> t.f(1, 2, c=4)
+    (1, 2, 4)
+    >>> t.f(1, 2, 5, c=6)
+    Traceback (most recent call last):
+    TypeError: f() got multiple values for keyword argument 'c'
+    """
+    def f(self, a, b, /, c=3):
+        return (a,b,c)

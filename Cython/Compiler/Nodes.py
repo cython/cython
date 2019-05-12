@@ -3661,6 +3661,7 @@ class DefNodeWrapper(FuncDefNode):
         positional_args = []
         required_kw_only_args = []
         optional_kw_only_args = []
+        num_pos_only_args = 0
         for arg in args:
             if arg.is_generic:
                 if arg.default:
@@ -3673,6 +3674,8 @@ class DefNodeWrapper(FuncDefNode):
                     required_kw_only_args.append(arg)
                 elif not arg.is_self_arg and not arg.is_type_arg:
                     positional_args.append(arg)
+                if arg.pos_only:
+                    num_pos_only_args += 1
 
         # sort required kw-only args before optional ones to avoid special
         # cases in the unpacking code
@@ -3907,10 +3910,10 @@ class DefNodeWrapper(FuncDefNode):
                                         has_fixed_positional_count,
                                         has_kw_only_args, all_args, argtuple_error_label, code):
         # First we count how many arguments must be passed as positional
-        num_required_posonly_args = num_posonly_args = 0
+        num_required_posonly_args = num_pos_only_args = 0
         for i, arg in enumerate(all_args):
             if arg.pos_only:
-                num_posonly_args += 1
+                num_pos_only_args += 1
                 if not arg.default:
                     num_required_posonly_args += 1
 
@@ -3964,11 +3967,11 @@ class DefNodeWrapper(FuncDefNode):
                     last_required_arg = i
             if last_required_arg < max_positional_args:
                 last_required_arg = max_positional_args-1
-            if max_positional_args > num_posonly_args:
+            if max_positional_args > num_pos_only_args:
                 code.putln('switch (pos_args) {')
-            for i, arg in enumerate(all_args[num_posonly_args:last_required_arg+1], num_posonly_args):
-                if max_positional_args > num_posonly_args and i <= max_positional_args:
-                    if i != num_posonly_args:
+            for i, arg in enumerate(all_args[num_pos_only_args:last_required_arg+1], num_pos_only_args):
+                if max_positional_args > num_pos_only_args and i <= max_positional_args:
+                    if i != num_pos_only_args:
                         code.putln('CYTHON_FALLTHROUGH;')
                     if self.star_arg and i == max_positional_args:
                         code.putln('default:')
@@ -4013,7 +4016,7 @@ class DefNodeWrapper(FuncDefNode):
                             self.name, pystring_cname))
                         code.putln(code.error_goto(self.pos))
                         code.putln('}')
-            if max_positional_args > num_posonly_args:
+            if max_positional_args > num_pos_only_args:
                 code.putln('}')
 
         if has_kw_only_args:
@@ -4033,7 +4036,6 @@ class DefNodeWrapper(FuncDefNode):
         # ParseOptionalKeywords() needs to know how many of the arguments
         # that could be passed as keywords have in fact been passed as
         # positional args.
-        num_pos_only_args = self.num_posonly_args
         if num_pos_only_args > 0:
             # There are positional-only arguments which we don't want to count,
             # since they cannot be keyword arguments.  Subtract the number of
@@ -4077,14 +4079,17 @@ class DefNodeWrapper(FuncDefNode):
     def generate_optional_kwonly_args_unpacking_code(self, all_args, code):
         optional_args = []
         first_optional_arg = -1
+        num_posonly_args = 0
         for i, arg in enumerate(all_args):
+            if arg.pos_only:
+                num_posonly_args += 1
             if not arg.kw_only or not arg.default:
                 continue
             if not optional_args:
                 first_optional_arg = i
             optional_args.append(arg.name)
-        if self.num_posonly_args > 0:
-            posonly_correction = '-%d' % self.num_posonly_args
+        if num_posonly_args > 0:
+            posonly_correction = '-%d' % num_posonly_args
         else:
             posonly_correction = ''
         if optional_args:
