@@ -11,7 +11,8 @@
 
 >>> import re
 >>> assert re.search('<pre .*def.* .*mixed_test.*</pre>', html)
->>> assert not re.search('Complete\scythonized\scode', html) # per default no complete c code
+>>> from Cython.Compiler.Annotate import AnnotationCCodeWriter
+>>> assert (AnnotationCCodeWriter.COMPLETE_CODE_TITLE not in html) # per default no complete c code
 """
 
 

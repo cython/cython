@@ -10,6 +10,7 @@ import sys
 from contextlib import contextmanager
 from Cython.Build import IpythonMagic
 from Cython.TestUtils import CythonTest
+from Cython.Compiler.Annotate import AnnotationCCodeWriter
 
 try:
     import IPython.testing.globalipapp
@@ -221,18 +222,18 @@ x = sin(0.0)
         html = ip.run_cell_magic('cython', '--annotate', code)
         # somewhat brittle way to differentiate between annotated htmls
         # with/without complete source code:
-        self.assertTrue('Complete cythonized code' not in html.data)
+        self.assertTrue(AnnotationCCodeWriter.COMPLETE_CODE_TITLE not in html.data)
 
     def test_cython_annotate_default(self):
         ip = self._ip
         html = ip.run_cell_magic('cython', '--a=default', code)
         # somewhat brittle way to differentiate between annotated htmls
         # with/without complete source code:
-        self.assertTrue('Complete cythonized code' not in html.data)
+        self.assertTrue(AnnotationCCodeWriter.COMPLETE_CODE_TITLE not in html.data)
 
     def test_cython_annotate_complete_c_code(self):
         ip = self._ip
         html = ip.run_cell_magic('cython', '--a=fullc', code)
         # somewhat brittle way to differentiate between annotated htmls
         # with/without complete source code:
-        self.assertTrue('Complete cythonized code' in html.data)
+        self.assertTrue(AnnotationCCodeWriter.COMPLETE_CODE_TITLE in html.data)

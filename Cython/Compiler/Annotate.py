@@ -22,6 +22,9 @@ from .. import Utils
 
 
 class AnnotationCCodeWriter(CCodeWriter):
+ 
+    # also used as marker for detection of complete code emission in tests
+    COMPLETE_CODE_TITLE = "Complete cythonized code"
 
     def __init__(self, create_from=None, buffer=None, copy_formatting=True, show_entire_c_code=False):
         CCodeWriter.__init__(self, create_from, buffer, copy_formatting=copy_formatting)
@@ -291,8 +294,11 @@ class AnnotationCCodeWriter(CCodeWriter):
         # now the whole c-code if needed:
         if self.show_entire_c_code:
             outlist.append(u'<p><div class="cython">')
-            onclick_title = u"<pre class='cython line'{onclick}>+ Complete cythonized code</pre>\n"
-            outlist.append(onclick_title.format(onclick=self._onclick_attr))
+            onclick_title = u"<pre class='cython line'{onclick}>+ {title}</pre>\n";
+            outlist.append(onclick_title.format(
+                              onclick=self._onclick_attr,
+                              title=AnnotationCCodeWriter.COMPLETE_CODE_TITLE,
+                           ))
             complete_code_as_html = self._htmlify_code(self.buffer.getvalue(), "c/cpp")
             outlist.append(u"<pre class='cython code'>{code}</pre>".format(code=complete_code_as_html))
             outlist.append(u"</div></p>")
