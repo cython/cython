@@ -122,9 +122,9 @@ def test_use_positional_as_keyword2(a, /, b):
 def test_use_positional_as_keyword3(a, b, /):
     """
     >>> test_use_positional_as_keyword3(1, 2)
-    >>> test_use_positional_as_keyword3(a=1, b=2)
+    >>> test_use_positional_as_keyword3(a=1, b=2) # doctest:+ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_use_positional_as_keyword3() got an unexpected keyword argument 'a'
+    TypeError: test_use_positional_as_keyword3() got an unexpected keyword argument '...'
     """
 
 def test_positional_only_and_arg_invalid_calls(a, b, /, c):
@@ -363,9 +363,9 @@ def test_serialization1(a, b, /):
     >>> unpickled_posonly = pickle.loads(pickled_posonly)
     >>> unpickled_posonly(1, 2)
     (1, 2)
-    >>> unpickled_posonly(a=1, b=2)
+    >>> unpickled_posonly(a=1, b=2) # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: test_serialization1() got an unexpected keyword argument 'a'
+    TypeError: test_serialization1() got an unexpected keyword argument '...'
     """
     return (a, b)
 
