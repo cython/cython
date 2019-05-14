@@ -3734,10 +3734,10 @@ class DefNodeWrapper(FuncDefNode):
         else:
             # Here we do not accept kw-args but we are passed a non-empty kw-dict.
             # We call ParseOptionalKeywords which will raise an appropriate error if
-            # the kw-args dict passed is non-empty.
+            # the kw-args dict passed is non-empty (which it will be, since kw_unpacking_condition is true)
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("ParseKeywords", "FunctionArguments.c"))
-            code.putln('if (unlikely(__Pyx_ParseOptionalKeywords(%s, %s, %s, %s, %s, "%s") < 0)) %s' % (
+            code.putln('if (likely(__Pyx_ParseOptionalKeywords(%s, %s, %s, %s, %s, "%s") < 0)) %s' % (
                 Naming.kwds_cname,
                 Naming.pykwdlist_cname,
                 self.starstar_arg and self.starstar_arg.entry.cname or '0',
