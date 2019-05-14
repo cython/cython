@@ -1,5 +1,5 @@
 # mode: run
-# tag: cpp, werror, cpp11
+# tag: cpp, cpp11
 # cython: experimental_cpp_class_def=True
 
 cdef double pi
@@ -249,3 +249,7 @@ def test_uncopyable_constructor_argument():
     cdef UncopyableConstructorArgument *c = new UncopyableConstructorArgument(
         unique_ptr[vector[int]](new vector[int]()))
     del c
+
+_WARNINGS="""
+23:4: Unraisable exception in function 'RegularPolygon.area'.
+"""
