@@ -16,7 +16,7 @@ Features added
   (Github issue #2854)
 
 * Positional-only arguments are supported in Python functions.
-  Patch by Josh Tobin.  (Github issue #2927)
+  Patch by Josh Tobin.  (Github issue #2915)
 
 * The ``volatile`` C modifier is supported in Cython code.
   Patch by Jeroen Demeyer.  (Github issue #1667)
@@ -119,13 +119,13 @@ Other changes
   and ``cpython.*`` pxd modules instead.
   Patch by Jeroen Demeyer.  (Github issue #2904)
 
-* Support for Python 2.6 was removed.
-
 * The search order for include files was changed. Previously it was
   ``include_directories``, ``Cython/Includes``, ``sys.path``. Now it is
   ``include_directories``, ``sys.path``, ``Cython/Includes``. This was done to
   allow third-party ``*.pxd`` files to override the ones in Cython.
-  (Github issue #2905)
+  Patch by Matti Picus.  (Github issue #2905)
+
+* Support for Python 2.6 was removed.
 
 
 0.29.8 (2019-0?-??)
