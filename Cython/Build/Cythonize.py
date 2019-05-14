@@ -148,7 +148,7 @@ def run_distutils(args):
                 shutil.rmtree(temp_dir)
 
 
-def parse_args(args):
+def create_args_parser():
     from optparse import OptionParser
     parser = OptionParser(usage='%prog [options] [sources and packages]+')
 
@@ -196,8 +196,16 @@ def parse_args(args):
                       help='compile as much as possible, ignore compilation failures')
     parser.add_option('--no-docstrings', dest='no_docstrings', action='store_true',
                       help='strip docstrings')
+    return parser
 
-    options, args = parser.parse_args(args)
+
+def parse_args_raw(parser, args):
+    return parser.parse_args(args)
+
+
+def parse_args(args):
+    parser = create_args_parser()
+    options, args = parse_args_raw(parser, args)
     if not args:
         parser.error("no source files provided")
     if options.build_inplace:
