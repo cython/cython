@@ -16,6 +16,8 @@ class A(object):
     def generator_test(self):
         return [1, 2, 3]
 
+    def super_class(self):
+        return __class__
 
 class B(A):
     """
@@ -28,6 +30,24 @@ class B(A):
     3
     >>> list(obj.generator_test())
     [1, 2, 3]
+    >>> obj.star_method()
+    1
+    >>> obj.starstar_method()
+    1
+    >>> obj.starstarstar_method()
+    1
+    >>> obj.star_class_method()
+    2
+    >>> obj.starstar_class_method()
+    2
+    >>> obj.starstarstar_class_method()
+    2
+    >>> obj.star_static_method(obj)
+    3
+    >>> obj.starstar_static_method(obj)
+    3
+    >>> obj.starstarstar_static_method(obj)
+    3
     """
     def method(self):
         return super().method()
@@ -44,6 +64,39 @@ class B(A):
         for i in super().generator_test():
             yield i
 
+    def star_method(self, *args):
+        return super().method()
+
+    def starstar_method(self, **kwargs):
+        return super().method()
+
+    def starstarstar_method(cls, *args, **kwargs):
+        return super().method()
+
+    @classmethod
+    def star_class_method(cls, *args):
+        return super().class_method()
+
+    @classmethod
+    def starstar_class_method(cls, **kwargs):
+        return super().class_method()
+
+    @classmethod
+    def starstarstar_class_method(cls, *args, **kwargs):
+        return super().class_method()
+
+    @staticmethod
+    def star_static_method(instance, *args):
+        return super().static_method()
+
+    @staticmethod
+    def starstar_static_method(instance, **kwargs):
+        return super().static_method()
+
+    @staticmethod
+    def starstarstar_static_method(instance, *args, **kwargs):
+        return super().static_method()
+
 
 class C(A):
     """
@@ -56,6 +109,10 @@ class C(A):
     ['__class__', 'self']
     >>> obj.method_4()
     ['self']
+    >>> obj.method_5()
+    <class 'py3k_super.C'>
+    >>> obj.super_class()
+    <class 'py3k_super.A'>
     """
     
     def method_1(self):
@@ -70,6 +127,9 @@ class C(A):
 
     def method_4(self):
         return sorted(list(locals().keys()))
+
+    def method_5(self):
+        return __class__
 
 
 class D:
@@ -90,8 +150,8 @@ class D:
 class E:
     """
     >>> obj = E()
-    >>> obj.method()()
-    <class 'py3k_super.E'>
+    >>> obj.method()().__name__
+    'E'
     """
     def method(self):
         def inner(): return __class__
@@ -101,8 +161,8 @@ class E:
 class F:
     """
     >>> obj = F()
-    >>> obj.method()()()
-    <class 'py3k_super.F'>
+    >>> obj.method()()().__name__
+    'F'
     """
     def method(self):
         def inner():
@@ -115,8 +175,8 @@ class F:
 class G:
     """
     >>> obj = G()
-    >>> obj.method()
-    <class 'py3k_super.G.method.<locals>.H'>
+    >>> obj.method().__name__
+    'H'
     """
     def method(self):
         class H:
@@ -128,8 +188,8 @@ class G:
 class I:
     """
     >>> obj = I()
-    >>> obj.method()()()
-    <class 'py3k_super.I.method.<locals>.inner.<locals>.J'>
+    >>> obj.method()()().__name__
+    'J'
     """
     def method(self):
         def inner():
@@ -141,14 +201,16 @@ class I:
 
 
 class K:
-    """
+    def method(self): return __class__
+
+__test__ = {
+    "k": """
     >>> OldK = K
     >>> K = None
     >>> OldK().method().__name__
     'K'
     """
-    def method(self): return __class__
-
+}
 
 def test_class_cell_empty():
     """

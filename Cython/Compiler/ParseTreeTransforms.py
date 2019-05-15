@@ -3061,9 +3061,10 @@ class TransformBuiltinMethods(EnvTransform):
             # not the builtin
             return node
 
+        def_node = self.current_scope_node()
+
         class_entry = lenv.lookup_here('__class__')
         if not class_entry:
-            def_node = self.current_scope_node()
             if def_node.has_class_reference:
                 local_class_node, _ = self._get_current_class_and_scope()
                 lenv.entries[EncodedString(u'__class__')] = local_class_node.target.entry
@@ -3133,8 +3134,7 @@ class TransformBuiltinMethods(EnvTransform):
     def _get_current_class_and_scope(self):
         return next(
             (node, scope)
-            for node, scope
-            in self.env_stack[::-1]
+            for node, scope in self.env_stack[::-1]
             if isinstance(node, Nodes.ClassDefNode)
         )
     

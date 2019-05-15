@@ -107,10 +107,13 @@ class I:
 
 
 class K:
-    """
+    def method(self): return __class__
+
+__test__ = {
+    "k": """
     >>> OldK = K
     >>> K = None
     >>> OldK().method().__name__
     'K'
     """
-    def method(self): return __class__
+}
