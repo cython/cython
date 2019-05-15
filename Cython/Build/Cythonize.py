@@ -148,7 +148,7 @@ def create_args_parser():
             new_env = Options.parse_compile_time_env(values, current_settings=old_env)
             setattr(namespace, self.dest, new_env)
 
-    parser = ArgumentParser(usage='%(prog)s [options] [sources and packages]+')
+    parser = ArgumentParser()
 
     parser.add_argument('-X', '--directive', metavar='NAME=VALUE,...',
                       dest='directives', default={}, type=str,
