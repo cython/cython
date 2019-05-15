@@ -26,7 +26,7 @@ cdef extern from "<complex.h>" nogil:
 
     # Absolute value, conjugates, and projection.
     double cabs(double complex z)
-    double carg(double complex z));
+    double carg(double complex z)
     double complex conj(double complex z)
     double complex cproj(double complex z)
 
