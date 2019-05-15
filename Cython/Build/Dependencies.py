@@ -19,6 +19,11 @@ from distutils.util import strtobool
 import zipfile
 
 try:
+    from collections.abc import Iterable
+except ImportError:
+    from collections import Iterable
+
+try:
     import gzip
     gzip_open = gzip.open
     gzip_ext = '.gz'
@@ -34,10 +39,8 @@ except ImportError:
 
 try:
     import pythran
-    import pythran.config
-    pythran_version = pythran.__version__
 except:
-    pythran_version = None
+    pythran = None
 
 from .. import Utils
 from ..Utils import (cached_function, cached_method, path_exists,
@@ -126,13 +129,13 @@ def file_hash(filename):
 
 
 def update_pythran_extension(ext):
-    if not pythran_version:
+    if pythran is None:
         raise RuntimeError("You first need to install Pythran to use the np_pythran directive.")
-    pythran_ext = (
-        pythran.config.make_extension(python=True)
-        if pythran_version >= '0.9' or pythran_version >= '0.8.7'
-        else pythran.config.make_extension()
-    )
+    try:
+        pythran_ext = pythran.config.make_extension(python=True)
+    except TypeError:  # older pythran version only
+        pythran_ext = pythran.config.make_extension()
+
     ext.include_dirs.extend(pythran_ext['include_dirs'])
     ext.extra_compile_args.extend(pythran_ext['extra_compile_args'])
     ext.extra_link_args.extend(pythran_ext['extra_link_args'])
@@ -752,7 +755,7 @@ def create_extension_list(patterns, exclude=None, ctx=None, aliases=None, quiet=
         exclude = []
     if patterns is None:
         return [], {}
-    elif isinstance(patterns, basestring) or not isinstance(patterns, collections.Iterable):
+    elif isinstance(patterns, basestring) or not isinstance(patterns, Iterable):
         patterns = [patterns]
     explicit_modules = set([m.name for m in patterns if isinstance(m, Extension)])
     seen = set()
@@ -948,8 +951,9 @@ def cythonize(module_list, exclude=None, nthreads=0, aliases=None, quiet=False, 
     if 'common_utility_include_dir' in options:
         safe_makedirs(options['common_utility_include_dir'])
 
-    pythran_options = None
-    if pythran_version:
+    if pythran is None:
+        pythran_options = None
+    else:
         pythran_options = CompilationOptions(**options)
         pythran_options.cplus = True
         pythran_options.np_pythran = True
@@ -1251,9 +1255,10 @@ def _init_multiprocessing_helper():
 def cleanup_cache(cache, target_size, ratio=.85):
     try:
         p = subprocess.Popen(['du', '-s', '-k', os.path.abspath(cache)], stdout=subprocess.PIPE)
+        stdout, _ = p.communicate()
         res = p.wait()
         if res == 0:
-            total_size = 1024 * int(p.stdout.read().strip().split()[0])
+            total_size = 1024 * int(stdout.strip().split()[0])
             if total_size < target_size:
                 return
     except (OSError, ValueError):

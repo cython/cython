@@ -45,6 +45,8 @@ cdef extern from "Python.h":
 
         newfunc tp_new
         destructor tp_dealloc
+        destructor tp_del
+        destructor tp_finalize
         traverseproc tp_traverse
         inquiry tp_clear
         freefunc tp_free
@@ -62,6 +64,8 @@ cdef extern from "Python.h":
 
         descrgetfunc tp_descr_get
         descrsetfunc tp_descr_set
+
+        unsigned int tp_version_tag
 
     ctypedef struct PyObject:
         Py_ssize_t ob_refcnt
@@ -176,6 +180,14 @@ cdef extern from "Python.h":
     # representation on success, NULL on failure. This is the
     # equivalent of the Python expression "str(o)". Called by the
     # str() built-in function and by the print statement.
+
+    object PyObject_Bytes(object o)
+    # Return value: New reference.
+    # Compute a bytes representation of object o. Return NULL on
+    # failure and a bytes object on success. This is equivalent to
+    # the Python expression bytes(o), when o is not an integer.
+    # Unlike bytes(o), a TypeError is raised when o is an integer
+    # instead of a zero-initialized bytes object.
 
     object PyObject_Unicode(object o)
     # Return value: New reference.
@@ -397,3 +409,4 @@ cdef extern from "Python.h":
     long Py_TPFLAGS_DEFAULT_EXTERNAL
     long Py_TPFLAGS_DEFAULT_CORE
     long Py_TPFLAGS_DEFAULT
+    long Py_TPFLAGS_HAVE_FINALIZE

@@ -1270,8 +1270,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type.empty_declaration_code()))
 
     def generate_new_function(self, scope, code, cclass_entry):
-        tp_slot = TypeSlots.ConstructorSlot("tp_new", '__new__')
+        tp_slot = TypeSlots.ConstructorSlot("tp_new", "__cinit__")
         slot_func = scope.mangle_internal("tp_new")
+        if tp_slot.slot_code(scope) != slot_func:
+            return  # never used
+
         type = scope.parent_type
         base_type = type.base_type
 
@@ -1284,9 +1287,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         cpp_class_attrs = [entry for entry in scope.var_entries
                            if entry.type.is_cpp_class]
 
-        new_func_entry = scope.lookup_here("__new__")
-        if base_type or (new_func_entry and new_func_entry.is_special
-                         and not new_func_entry.trivial_signature):
+        cinit_func_entry = scope.lookup_here("__cinit__")
+        if cinit_func_entry and not cinit_func_entry.is_special:
+            cinit_func_entry = None
+
+        if base_type or (cinit_func_entry and not cinit_func_entry.trivial_signature):
             unused_marker = ''
         else:
             unused_marker = 'CYTHON_UNUSED '
@@ -1394,14 +1399,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if cclass_entry.cname == '__pyx_memoryviewslice':
             code.putln("p->from_slice.memview = NULL;")
 
-        if new_func_entry and new_func_entry.is_special:
-            if new_func_entry.trivial_signature:
+        if cinit_func_entry:
+            if cinit_func_entry.trivial_signature:
                 cinit_args = "o, %s, NULL" % Naming.empty_tuple
             else:
                 cinit_args = "o, a, k"
             needs_error_cleanup = True
             code.putln("if (unlikely(%s(%s) < 0)) goto bad;" % (
-                new_func_entry.func_cname, cinit_args))
+                cinit_func_entry.func_cname, cinit_args))
 
         code.putln(
             "return o;")
@@ -1470,11 +1475,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 UtilityCode.load_cached("PyTrashcan", "ExtensionTypes.c"))
             code.putln("__Pyx_TRASHCAN_BEGIN(o, %s)" % slot_func_cname)
 
+        if weakref_slot:
+            # We must clean the weakreferences before calling the user's __dealloc__
+            # because if the __dealloc__ releases the GIL, a weakref can be
+            # dereferenced accessing the object in an inconsistent state or
+            # resurrecting it.
+            code.putln("if (p->__weakref__) PyObject_ClearWeakRefs(o);")
+
         # call the user's __dealloc__
         self.generate_usr_dealloc_call(scope, code)
-
-        if weakref_slot:
-            code.putln("if (p->__weakref__) PyObject_ClearWeakRefs(o);")
 
         if dict_slot:
             code.putln("if (p->__dict__) PyDict_Clear(p->__dict__);")
@@ -1552,7 +1561,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_usr_dealloc_call(self, scope, code):
         entry = scope.lookup_here("__dealloc__")
-        if not entry:
+        if not entry or not entry.is_special:
             return
 
         code.putln("{")

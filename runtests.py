@@ -428,6 +428,7 @@ VER_DEP_MODULES = {
                                         'run.special_methods_T561_py2',
                                         ]),
     (3,3) : (operator.lt, lambda x: x in ['build.package_compilation',
+                                          'build.cythonize_pep420_namespace',
                                           'run.yield_from_py33',
                                           'pyximport.pyximport_namespace',
                                           'run.qualname',
@@ -760,12 +761,10 @@ class TestBuilder(object):
         pythran_dir = self.pythran_dir
         if 'pythran' in tags['tag'] and not pythran_dir and 'cpp' in languages:
             import pythran.config
-            from pythran import __version__ as pythran_version
-            pythran_ext = (
-                pythran.config.make_extension(python=True)
-                if pythran_version >= '0.9' or pythran_version >= '0.8.7'
-                else pythran.config.make_extension()
-            )
+            try:
+                pythran_ext = pythran.config.make_extension(python=True)
+            except TypeError:  # old pythran version syntax
+                pythran_ext = pythran.config.make_extension()
             pythran_dir = pythran_ext['include_dirs'][0]
 
         preparse_list = tags.get('preparse', ['id'])
@@ -870,7 +869,7 @@ class CythonCompileTestCase(unittest.TestCase):
             self.language,
             "/cy2" if self.language_level == 2 else "/cy3" if self.language_level == 3 else "",
             "/pythran" if self.pythran_dir is not None else "",
-            self.name
+            self.description_name()
         )
 
     def description_name(self):
@@ -1428,11 +1427,11 @@ class PureDoctestTestCase(unittest.TestCase):
                 pass
             else:
                 with self.stats.time(self.name, 'py', 'mypy'):
-                    mypy_result = mypy_api.run((
+                    mypy_result = mypy_api.run([
                         self.module_path,
                         '--ignore-missing-imports',
                         '--follow-imports', 'skip',
-                    ))
+                    ])
                 if mypy_result[2]:
                     self.fail(mypy_result[0])
 
@@ -1493,7 +1492,7 @@ class PartialTestResult(_TextTestResult):
 
 class CythonUnitTestCase(CythonRunTestCase):
     def shortDescription(self):
-        return "compiling (%s) tests in %s" % (self.language, self.name)
+        return "compiling (%s) tests in %s" % (self.language, self.description_name())
 
     def run_tests(self, result, ext_so_path):
         with self.stats.time(self.name, self.language, 'import'):
@@ -1931,13 +1930,13 @@ threads_seen = []
 def check_thread_termination(ignore_seen=True):
     if threading is None: # no threading enabled in CPython
         return
-    current = threading.currentThread()
+    current = threading.current_thread()
     blocking_threads = []
     for t in threading.enumerate():
-        if not t.isAlive() or t == current or t.name == 'time_stamper':
+        if not t.is_alive() or t == current or t.name == 'time_stamper':
             continue
         t.join(timeout=2)
-        if t.isAlive():
+        if t.is_alive():
             if not ignore_seen:
                 blocking_threads.append(t)
                 continue

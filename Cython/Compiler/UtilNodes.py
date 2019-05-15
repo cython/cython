@@ -354,6 +354,9 @@ class TempResultFromStatNode(ExprNodes.ExprNode):
         self.body = self.body.analyse_expressions(env)
         return self
 
+    def may_be_none(self):
+        return self.result_ref.may_be_none()
+
     def generate_result_code(self, code):
         self.result_ref.result_code = self.result()
         self.body.generate_execution_code(code)

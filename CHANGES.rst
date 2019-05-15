@@ -15,8 +15,15 @@ Features added
 * Reimports of already imported modules are substantially faster.
   (Github issue #2854)
 
+* Positional-only arguments are supported in Python functions.
+  Patch by Josh Tobin.  (Github issue #2927)
+
 * The ``volatile`` C modifier is supported in Cython code.
   Patch by Jeroen Demeyer.  (Github issue #1667)
+
+* ``@cython.trashcan(True)`` can be used on an extension type to enable the
+  CPython trashcan. This allows deallocating deeply recursive objects without
+  overflowing the stack.  Patch by Jeroen Demeyer.  (Github issue #2842)
 
 * ``?`` is supported as NumPy dtype for ``bool``.
   Patch by Max Klein.  (Github issue #2675)
@@ -27,9 +34,17 @@ Features added
 * Multiplication of Python numbers with small constant integers is faster.
   (Github issue #2808)
 
+* Extension types that do not need their own ``tp_new`` implementation (because
+  they have no object attributes etc.) directly inherit the implementation of
+  their parent type if possible.
+  (Github issue #1555)
+
 * The attributes ``gen.gi_frame`` and ``coro.cr_frame`` of Cython compiled
   generators and coroutines now return an actual frame object for introspection.
   (Github issue #2306)
+
+* Several missing declarations in ``cpython.*`` were added.
+  Patches by Jeroen Demeyer and Zackery Spytz.  (Github issues #2826, #2713)
 
 * The builtin ``abs()`` function can now be used on C numbers in nogil code.
   Patch by Elliott Sales de Andrade.  (Github issue #2748)
@@ -40,9 +55,8 @@ Features added
 * ``--no-capture`` added to ``runtests.py`` to prevent stdout/stderr capturing
   during srctree tests.  Patch by Matti Picus.
 
-* ``@cython.trashcan(True)`` can be used on an extension type to enable the
-  CPython trashcan. This allows deallocating deeply recursive objects without
-  overflowing the stack.  Patch by Jeroen Demeyer.  (Github issue #2842)
+* ``--no-docstrings`` option added to ``cythonize`` script.
+  Original patch by mo-han.  (Github issue #2889)
 
 Bugs fixed
 ----------
@@ -100,14 +114,52 @@ Other changes
   tends to be slower and less widely supported these days.
   (Github issue #2790)
 
+* The long deprecated include files ``python_*``, ``stdio``, ``stdlib`` and
+  ``stl`` in ``Cython/Includes/Deprecated/`` were removed.  Use the ``libc.*``
+  and ``cpython.*`` pxd modules instead.
+  Patch by Jeroen Demeyer.  (Github issue #2904)
+
 * Support for Python 2.6 was removed.
 
+* The search order for include files was changed. Previously it was
+  ``include_directories``, ``Cython/Includes``, ``sys.path``. Now it is
+  ``include_directories``, ``sys.path``, ``Cython/Includes``. This was done to
+  allow third-party ``*.pxd`` files to override the ones in Cython.
+  (Github issue #2905)
 
-0.29.7 (2019-0?-??)
+
+0.29.8 (2019-0?-??)
 ===================
 
 Bugs fixed
 ----------
+
+* Python tuple constants that compare equal but have different item
+  types could incorrectly be merged into a single constant.
+  (Github issue #2919)
+
+* Non-ASCII characters in unprefixed strings could crash the compiler when
+  used with language level ``3str``.
+
+* Starred expressions in %-formatting tuples could fail to compile for
+  unicode strings.  (Github issue #2939)
+
+* Passing Python class references through ``cython.inline()`` was broken.
+  (Github issue #2936)
+
+
+0.29.7 (2019-04-14)
+===================
+
+Bugs fixed
+----------
+
+* Crash when the shared Cython config module gets unloaded and another Cython
+  module reports an exceptions.  Cython now makes sure it keeps an owned reference
+  to the module.
+  (Github issue #2885)
+
+* Resolved a C89 compilation problem when enabling the fast-gil sharing feature.
 
 * Coverage reporting did not include the signature line of ``cdef`` functions.
   (Github issue #1461)

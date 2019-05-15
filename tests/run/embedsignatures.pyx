@@ -83,6 +83,9 @@ __doc__ = ur"""
     >>> print (Ext.n.__doc__)
     Ext.n(self, a: int, b: float = 1.0, *args: tuple, **kwargs: dict) -> (None, True)
 
+    >>> print (Ext.o.__doc__)
+    Ext.o(self, a, b=1, /, c=5, *args, **kwargs)
+
     >>> print (Ext.get_int.__doc__)
     Ext.get_int(self) -> int
 
@@ -263,6 +266,9 @@ cdef class Ext:
         pass
 
     def n(self, a: int, b: float = 1.0, *args: tuple, **kwargs: dict) -> (None, True):
+        pass
+
+    def o(self, a, b=1, /, c=5, *args, **kwargs):
         pass
 
     cpdef int get_int(self):

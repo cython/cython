@@ -956,7 +956,8 @@ def p_string_literal(s, kind_override=None):
             error(pos, u"invalid character literal: %r" % bytes_value)
     else:
         bytes_value, unicode_value = chars.getstrings()
-        if is_python3_source and has_non_ascii_literal_characters:
+        if (has_non_ascii_literal_characters
+                and is_python3_source and Future.unicode_literals in s.context.future_directives):
             # Python 3 forbids literal non-ASCII characters in byte strings
             if kind == 'b':
                 s.error("bytes can only contain ASCII literal characters.", pos=pos)
@@ -2964,7 +2965,7 @@ def p_exception_value_clause(s):
             exc_val = p_test(s)
     return exc_val, exc_check
 
-c_arg_list_terminators = cython.declare(set, set(['*', '**', '.', ')', ':']))
+c_arg_list_terminators = cython.declare(set, set(['*', '**', '.', ')', ':', '/']))
 
 def p_c_arg_list(s, ctx = Ctx(), in_pyfunc = 0, cmethod_flag = 0,
                  nonempty_declarators = 0, kw_only = 0, annotated = 1):
@@ -3423,6 +3424,20 @@ def p_varargslist(s, terminator=')', annotated=1):
                         annotated = annotated)
     star_arg = None
     starstar_arg = None
+    if s.sy == '/':
+        if len(args) == 0:
+            s.error("Got zero positional-only arguments despite presence of "
+                    "positional-only specifier '/'")
+        s.next()
+        # Mark all args to the left as pos only
+        for arg in args:
+            arg.pos_only = 1
+        if s.sy == ',':
+            s.next()
+            args.extend(p_c_arg_list(s, in_pyfunc = 1,
+                nonempty_declarators = 1, annotated = annotated))
+        elif s.sy != terminator:
+            s.error("Syntax error in Python function argument list")
     if s.sy == '*':
         s.next()
         if s.sy == 'IDENT':

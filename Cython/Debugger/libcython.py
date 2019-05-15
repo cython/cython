@@ -392,7 +392,7 @@ class CythonBase(object):
 
         result = {}
         seen = set()
-        for k, v in pyobject_dict.items():
+        for k, v in pyobject_dict.iteritems():
             result[k.proxyval(seen)] = v
 
         return result
@@ -863,10 +863,10 @@ class CyBreak(CythonCommand):
     def complete(self, text, word):
         # Filter init-module functions (breakpoints can be set using
         # modulename:linenumber).
-        names =  [n for n, L in self.cy.functions_by_name.items()
-                  if any(not f.is_initmodule_function for f in L)]
-        qnames = [n for n, f in self.cy.functions_by_qualified_name.items()
-                  if not f.is_initmodule_function]
+        names =  [n for n, L in self.cy.functions_by_name.iteritems()
+                        if any(not f.is_initmodule_function for f in L)]
+        qnames = [n for n, f in self.cy.functions_by_qualified_name.iteritems()
+                        if not f.is_initmodule_function]
 
         if parameters.complete_unqualified:
             all_names = itertools.chain(qnames, names)
@@ -1156,7 +1156,7 @@ class CyLocals(CythonCommand):
 
         local_cython_vars = cython_function.locals
         max_name_length = len(max(local_cython_vars, key=len))
-        for name, cyvar in sorted(local_cython_vars.items(), key=sortkey):
+        for name, cyvar in sorted(local_cython_vars.iteritems(), key=sortkey):
             if self.is_initialized(self.get_cython_function(), cyvar.name):
                 value = gdb.parse_and_eval(cyvar.cname)
                 if not value.is_optimized_out:
@@ -1189,13 +1189,13 @@ class CyGlobals(CyLocals):
 
         seen = set()
         print('Python globals:')
-        for k, v in sorted(global_python_dict.items(), key=sortkey):
+        for k, v in sorted(global_python_dict.iteritems(), key=sortkey):
             v = v.get_truncated_repr(libpython.MAX_OUTPUT_LEN)
             seen.add(k)
             print('    %-*s = %s' % (max_name_length, k, v))
 
         print('C globals:')
-        for name, cyvar in sorted(module_globals.items(), key=sortkey):
+        for name, cyvar in sorted(module_globals.iteritems(), key=sortkey):
             if name not in seen:
                 try:
                     value = gdb.parse_and_eval(cyvar.cname)
@@ -1218,8 +1218,10 @@ class EvaluateOrExecuteCodeMixin(object):
         "Fill a remotely allocated dict with values from the Cython C stack"
         cython_func = self.get_cython_function()
 
-        for name, cyvar in cython_func.locals.items():
-            if cyvar.type == PythonObject and self.is_initialized(cython_func, name):
+        for name, cyvar in cython_func.locals.iteritems():
+            if (cyvar.type == PythonObject and
+                self.is_initialized(cython_func, name)):
+
                 try:
                     val = gdb.parse_and_eval(cyvar.cname)
                 except RuntimeError:

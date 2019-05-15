@@ -21,7 +21,7 @@ class TestBufferParsing(CythonTest):
     def test_basic(self):
         t = self.parse(u"cdef object[float, 4, ndim=2, foo=foo] x")
         bufnode = t.stats[0].base_type
-        self.assert_(isinstance(bufnode, TemplatedTypeNode))
+        self.assertTrue(isinstance(bufnode, TemplatedTypeNode))
         self.assertEqual(2, len(bufnode.positional_args))
 #        print bufnode.dump()
         # should put more here...
@@ -46,7 +46,7 @@ class TestBufferOptions(CythonTest):
     def nonfatal_error(self, error):
         # We're passing self as context to transform to trap this
         self.error = error
-        self.assert_(self.expect_error)
+        self.assertTrue(self.expect_error)
 
     def parse_opts(self, opts, expect_error=False):
         assert opts != ""
@@ -57,12 +57,12 @@ class TestBufferOptions(CythonTest):
             vardef = root.stats[0].body.stats[0]
             assert isinstance(vardef, CVarDefNode) # use normal assert as this is to validate the test code
             buftype = vardef.base_type
-            self.assert_(isinstance(buftype, TemplatedTypeNode))
-            self.assert_(isinstance(buftype.base_type_node, CSimpleBaseTypeNode))
+            self.assertTrue(isinstance(buftype, TemplatedTypeNode))
+            self.assertTrue(isinstance(buftype.base_type_node, CSimpleBaseTypeNode))
             self.assertEqual(u"object", buftype.base_type_node.name)
             return buftype
         else:
-            self.assert_(len(root.stats[0].body.stats) == 0)
+            self.assertTrue(len(root.stats[0].body.stats) == 0)
 
     def non_parse(self, expected_err, opts):
         self.parse_opts(opts, expect_error=True)
@@ -71,14 +71,14 @@ class TestBufferOptions(CythonTest):
 
     def __test_basic(self):
         buf = self.parse_opts(u"unsigned short int, 3")
-        self.assert_(isinstance(buf.dtype_node, CSimpleBaseTypeNode))
-        self.assert_(buf.dtype_node.signed == 0 and buf.dtype_node.longness == -1)
+        self.assertTrue(isinstance(buf.dtype_node, CSimpleBaseTypeNode))
+        self.assertTrue(buf.dtype_node.signed == 0 and buf.dtype_node.longness == -1)
         self.assertEqual(3, buf.ndim)
 
     def __test_dict(self):
         buf = self.parse_opts(u"ndim=3, dtype=unsigned short int")
-        self.assert_(isinstance(buf.dtype_node, CSimpleBaseTypeNode))
-        self.assert_(buf.dtype_node.signed == 0 and buf.dtype_node.longness == -1)
+        self.assertTrue(isinstance(buf.dtype_node, CSimpleBaseTypeNode))
+        self.assertTrue(buf.dtype_node.signed == 0 and buf.dtype_node.longness == -1)
         self.assertEqual(3, buf.ndim)
 
     def __test_ndim(self):
@@ -94,8 +94,8 @@ class TestBufferOptions(CythonTest):
             cdef object[ndim=ndim, dtype=int] y
         """, pipeline=[NormalizeTree(self), PostParse(self)]).root
         stats = t.stats[0].body.stats
-        self.assert_(stats[0].base_type.ndim == 3)
-        self.assert_(stats[1].base_type.ndim == 3)
+        self.assertTrue(stats[0].base_type.ndim == 3)
+        self.assertTrue(stats[1].base_type.ndim == 3)
 
     # add exotic and impossible combinations as they come along...
 
