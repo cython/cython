@@ -3055,6 +3055,7 @@ class TransformBuiltinMethods(EnvTransform):
 
     def _inject_locals(self, node, func_name):
         # locals()/dir()/vars() builtins
+
         lenv = self.current_env()
         entry = lenv.lookup_here(func_name)
         if entry:
@@ -3063,9 +3064,10 @@ class TransformBuiltinMethods(EnvTransform):
 
         def_node = self.current_scope_node()
 
-        class_entry = lenv.lookup_here('__class__')
-        if not class_entry:
-            if def_node.has_class_reference:
+        if lenv.is_py_class_scope and def_node.has_class_reference:
+            class_entry = lenv.lookup_here('__class__')
+
+            if not class_entry:
                 local_class_node, _ = self._get_current_class_and_scope()
                 lenv.entries[EncodedString(u'__class__')] = local_class_node.target.entry
 
