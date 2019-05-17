@@ -4722,8 +4722,17 @@ class MemoryCopyScalar(MemoryCopyNode):
             code.putln("%s __pyx_temp_slice = %s;" % (slice_decl, self.dst.result()))
             dst_temp = "__pyx_temp_slice"
 
+        force_strided = False
+        indices = self.dst.original_indices
+        for idx in indices:
+            if isinstance(idx, SliceNode) and not (idx.start.is_none and
+                                                   idx.stop.is_none and
+                                                   idx.step.is_none):
+                force_strided = True
+                
         slice_iter_obj = MemoryView.slice_iter(self.dst.type, dst_temp,
-                                               self.dst.type.ndim, code)
+                                               self.dst.type.ndim, code,
+                                               force_strided=force_strided)
         p = slice_iter_obj.start_loops()
 
         if dtype.is_pyobject:
