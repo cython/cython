@@ -25,6 +25,7 @@ class TestCythonizeArgsParser(TestCase):
             return False
         return True
 
+    # testing directives:
     def test_directive_short(self):
         options, args =  self.parse_args(['-X', 'cdivision=True'])
         self.assertFalse(args)
@@ -50,6 +51,64 @@ class TestCythonizeArgsParser(TestCase):
         self.assertTrue(self.are_default(options, ['directives']))
         self.assertEqual(options.directives['cdivision'], True)
         self.assertEqual(options.directives['c_string_type'], 'bytes')
+
+    def test_directive_value_yes(self):
+        options, args =  self.parse_args(['-X', 'cdivision=YeS'])
+        self.assertFalse(args)
+        self.assertTrue(self.are_default(options, ['directives']))
+        self.assertEqual(options.directives['cdivision'], True)
+
+    def test_directive_value_no(self):
+        options, args =  self.parse_args(['-X', 'cdivision=no'])
+        self.assertFalse(args)
+        self.assertTrue(self.are_default(options, ['directives']))
+        self.assertEqual(options.directives['cdivision'], False)
+
+    def test_directive_value_invalid(self):
+        with self.assertRaises(ValueError) as context:
+            options, args =  self.parse_args(['-X', 'cdivision=sadfasd'])
+
+    def test_directive_key_invalid(self):
+        with self.assertRaises(ValueError) as context:
+            options, args =  self.parse_args(['-X', 'abracadabra'])
+
+    def test_directive_no_value(self):
+        with self.assertRaises(ValueError) as context:
+            options, args =  self.parse_args(['-X', 'cdivision'])
+
+    def test_directives_types(self):
+        directives = { 
+                'auto_pickle': True,    
+                'c_string_type': 'bytearray',
+                'c_string_type': 'bytes',
+                'c_string_type': 'str',
+                'c_string_type': 'bytearray',
+                'c_string_type': 'unicode',
+                'c_string_encoding' : 'ascii', 
+                'language_level' : 2,
+                'language_level' : 3,
+                'language_level' : '3str',
+                'set_initial_path' : 'my_initial_path',
+        }
+        for key, value in directives.items():
+            cmd = '{key}={value}'.format(key=key, value=str(value))
+            options, args =  self.parse_args(['-X', cmd])
+            self.assertFalse(args)
+            self.assertTrue(self.are_default(options, ['directives']), msg = "Error for option: "+cmd)
+            self.assertEqual(options.directives[key], value, msg = "Error for option: "+cmd)
+
+    def test_directives_wrong(self):
+        directives = { 
+                'auto_pickle': 42,       # for bool type
+                'auto_pickle': 'NONONO', # for bool type   
+                'c_string_type': 'bites',
+                #'c_string_encoding' : 'a',  
+                #'language_level' : 4,
+        }
+        for key, value in directives.items():
+            cmd = '{key}={value}'.format(key=key, value=str(value))
+            with self.assertRaises(ValueError, msg = "Error for option: "+cmd) as context:
+                options, args =  self.parse_args(['-X', cmd])
 
     def test_compile_time_env_short(self):
         options, args =  self.parse_args(['-E', 'MYSIZE=10'])
@@ -77,6 +136,7 @@ class TestCythonizeArgsParser(TestCase):
         self.assertEqual(options.compile_time_env['MYSIZE'], 10)
         self.assertEqual(options.compile_time_env['ARRSIZE'], 11)
 
+    #testing options
     def test_option_short(self):
         options, args =  self.parse_args(['-s', 'docstrings=True'])
         self.assertFalse(args)
@@ -102,6 +162,54 @@ class TestCythonizeArgsParser(TestCase):
         self.assertTrue(self.are_default(options, ['options']))
         self.assertEqual(options.options['docstrings'], True)
         self.assertEqual(options.options['buffer_max_dims'], True) #  really?
+
+    def test_option_value_yes(self):
+        options, args =  self.parse_args(['-s', 'docstrings=YeS'])
+        self.assertFalse(args)
+        self.assertTrue(self.are_default(options, ['options']))
+        self.assertEqual(options.options['docstrings'], True)
+
+    def test_option_value_4242(self):
+        options, args =  self.parse_args(['-s', 'docstrings=4242'])
+        self.assertFalse(args)
+        self.assertTrue(self.are_default(options, ['options']))
+        self.assertEqual(options.options['docstrings'], True)
+
+    def test_option_value_0(self):
+        options, args =  self.parse_args(['-s', 'docstrings=0'])
+        self.assertFalse(args)
+        self.assertTrue(self.are_default(options, ['options']))
+        self.assertEqual(options.options['docstrings'], False)
+
+    def test_option_value_emptystr(self):
+        options, args =  self.parse_args(['-s', 'docstrings='])
+        self.assertFalse(args)
+        self.assertTrue(self.are_default(options, ['options']))
+        self.assertEqual(options.options['docstrings'], True)
+
+    def test_option_value_a_str(self):
+        options, args =  self.parse_args(['-s', 'docstrings=BB'])
+        self.assertFalse(args)
+        self.assertTrue(self.are_default(options, ['options']))
+        self.assertEqual(options.options['docstrings'], True)
+
+    def test_option_value_no(self):
+        options, args =  self.parse_args(['-s', 'docstrings=nO'])
+        self.assertFalse(args)
+        self.assertTrue(self.are_default(options, ['options']))
+        self.assertEqual(options.options['docstrings'], False)
+
+    def test_option_no_value(self):
+        options, args =  self.parse_args(['-s', 'docstrings'])
+        self.assertFalse(args)
+        self.assertTrue(self.are_default(options, ['options']))
+        self.assertEqual(options.options['docstrings'], True)
+
+    def test_option_any_key(self):      
+        options, args =  self.parse_args(['-s', 'abracadabra'])
+        self.assertFalse(args)
+        self.assertTrue(self.are_default(options, ['options']))
+        self.assertEqual(options.options['abracadabra'], True)
 
     def test_language_level_2(self):
         options, args =  self.parse_args(['-2'])
