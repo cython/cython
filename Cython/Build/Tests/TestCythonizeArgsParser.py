@@ -1,11 +1,11 @@
 from Cython.Build.Cythonize import create_args_parser, parse_args_raw, parse_args
-from Cython.TestUtils import CythonTest
+from unittest import TestCase
 
 
-class TestCythonizeArgsParser(CythonTest):
+class TestCythonizeArgsParser(TestCase):
 
     def setUp(self):
-        CythonTest.setUp(self)
+        TestCase.setUp(self)
         self.parse_args = lambda x, parser=create_args_parser() : parse_args_raw(parser, x)
 
 
@@ -261,7 +261,7 @@ class TestCythonizeArgsParser(CythonTest):
         self.assertEqual(options.build_inplace, True)
         self.assertTrue(self.are_default(options, ['build_inplace']))
 
-class TestParseArgs(CythonTest):
+class TestParseArgs(TestCase):
 
     def test_build_set_for_inplace(self):
         options, args = parse_args(['foo.pyx', '-i'])
