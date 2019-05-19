@@ -3062,9 +3062,11 @@ class TransformBuiltinMethods(EnvTransform):
             # not the builtin
             return node
 
+        # Handle __class__ injection
         def_node = self.current_scope_node()
 
-        if lenv.is_py_class_scope and def_node.has_class_reference:
+        if self._check_inside_class(def_node) and def_node.has_class_reference:
+
             class_entry = lenv.lookup_here('__class__')
 
             if not class_entry:
