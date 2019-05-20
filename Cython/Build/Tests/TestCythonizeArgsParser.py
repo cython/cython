@@ -77,14 +77,14 @@ class TestCythonizeArgsParser(TestCase):
             options, args =  self.parse_args(['-X', 'cdivision'])
 
     def test_directives_types(self):
-        directives = { 
-                'auto_pickle': True,    
+        directives = {
+                'auto_pickle': True,
                 'c_string_type': 'bytearray',
                 'c_string_type': 'bytes',
                 'c_string_type': 'str',
                 'c_string_type': 'bytearray',
                 'c_string_type': 'unicode',
-                'c_string_encoding' : 'ascii', 
+                'c_string_encoding' : 'ascii',
                 'language_level' : 2,
                 'language_level' : 3,
                 'language_level' : '3str',
@@ -98,11 +98,11 @@ class TestCythonizeArgsParser(TestCase):
             self.assertEqual(options.directives[key], value, msg = "Error for option: "+cmd)
 
     def test_directives_wrong(self):
-        directives = { 
+        directives = {
                 'auto_pickle': 42,       # for bool type
-                'auto_pickle': 'NONONO', # for bool type   
+                'auto_pickle': 'NONONO', # for bool type
                 'c_string_type': 'bites',
-                #'c_string_encoding' : 'a',  
+                #'c_string_encoding' : 'a',
                 #'language_level' : 4,
         }
         for key, value in directives.items():
@@ -205,7 +205,7 @@ class TestCythonizeArgsParser(TestCase):
         self.assertTrue(self.are_default(options, ['options']))
         self.assertEqual(options.options['docstrings'], True)
 
-    def test_option_any_key(self):      
+    def test_option_any_key(self):
         options, args =  self.parse_args(['-s', 'abracadabra'])
         self.assertFalse(args)
         self.assertTrue(self.are_default(options, ['options']))
