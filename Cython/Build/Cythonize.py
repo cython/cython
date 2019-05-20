@@ -38,35 +38,6 @@ class _FakePool(object):
         pass
 
 
-def parse_directives(option, name, value, parser):
-    dest = option.dest
-    old_directives = dict(getattr(parser.values, dest,
-                                  Options.get_directive_defaults()))
-    directives = Options.parse_directive_list(
-        value, relaxed_bool=True, current_settings=old_directives)
-    setattr(parser.values, dest, directives)
-
-
-def parse_options(option, name, value, parser):
-    dest = option.dest
-    options = dict(getattr(parser.values, dest, {}))
-    for opt in value.split(','):
-        if '=' in opt:
-            n, v = opt.split('=', 1)
-            v = v.lower() not in ('false', 'f', '0', 'no')
-        else:
-            n, v = opt, True
-        options[n] = v
-    setattr(parser.values, dest, options)
-
-
-def parse_compile_time_env(option, name, value, parser):
-    dest = option.dest
-    old_env = dict(getattr(parser.values, dest, {}))
-    new_env = Options.parse_compile_time_env(value, current_settings=old_env)
-    setattr(parser.values, dest, new_env)
-
-
 def find_package_base(path):
     base_dir, package_path = os.path.split(path)
     while is_package_dir(base_dir):
@@ -148,56 +119,93 @@ def run_distutils(args):
                 shutil.rmtree(temp_dir)
 
 
-def parse_args(args):
-    from optparse import OptionParser
-    parser = OptionParser(usage='%prog [options] [sources and packages]+')
+def create_args_parser():
+    from argparse import ArgumentParser, Action
 
-    parser.add_option('-X', '--directive', metavar='NAME=VALUE,...',
-                      dest='directives', default={}, type="str",
-                      action='callback', callback=parse_directives,
+    class ParseDirectivesAction(Action):
+        def __call__(self, parser, namespace, values, option_string=None):
+            old_directives = dict(getattr(namespace, self.dest,
+                                          Options.get_directive_defaults()))
+            directives = Options.parse_directive_list(
+                values, relaxed_bool=True, current_settings=old_directives)
+            setattr(namespace, self.dest, directives)
+
+    class ParseOptionsAction(Action):
+        def __call__(self, parser, namespace, values, option_string=None):
+            options = dict(getattr(namespace, self.dest, {}))
+            for opt in values.split(','):
+                if '=' in opt:
+                    n, v = opt.split('=', 1)
+                    v = v.lower() not in ('false', 'f', '0', 'no')
+                else:
+                    n, v = opt, True
+                options[n] = v
+            setattr(namespace, self.dest, options)
+
+    class ParseCompileTimeEnvAction(Action):
+        def __call__(self, parser, namespace, values, option_string=None):
+            old_env = dict(getattr(namespace, self.dest, {}))
+            new_env = Options.parse_compile_time_env(values, current_settings=old_env)
+            setattr(namespace, self.dest, new_env)
+
+    parser = ArgumentParser()
+
+    parser.add_argument('-X', '--directive', metavar='NAME=VALUE,...',
+                      dest='directives', default={}, type=str,
+                      action=ParseDirectivesAction,
                       help='set a compiler directive')
-    parser.add_option('-E', '--compile-time-env', metavar='NAME=VALUE,...',
-                      dest='compile_time_env', default={}, type="str",
-                      action='callback', callback=parse_compile_time_env,
+    parser.add_argument('-E', '--compile-time-env', metavar='NAME=VALUE,...',
+                      dest='compile_time_env', default={}, type=str,
+                      action=ParseCompileTimeEnvAction,
                       help='set a compile time environment variable')
-    parser.add_option('-s', '--option', metavar='NAME=VALUE',
-                      dest='options', default={}, type="str",
-                      action='callback', callback=parse_options,
+    parser.add_argument('-s', '--option', metavar='NAME=VALUE',
+                      dest='options', default={}, type=str,
+                      action=ParseOptionsAction,
                       help='set a cythonize option')
-    parser.add_option('-2', dest='language_level', action='store_const', const=2, default=None,
+    parser.add_argument('-2', dest='language_level', action='store_const', const=2, default=None,
                       help='use Python 2 syntax mode by default')
-    parser.add_option('-3', dest='language_level', action='store_const', const=3,
+    parser.add_argument('-3', dest='language_level', action='store_const', const=3,
                       help='use Python 3 syntax mode by default')
-    parser.add_option('--3str', dest='language_level', action='store_const', const='3str',
+    parser.add_argument('--3str', dest='language_level', action='store_const', const='3str',
                       help='use Python 3 syntax mode by default')
-    parser.add_option('-a', '--annotate', dest='annotate', action='store_true',
+    parser.add_argument('-a', '--annotate', dest='annotate', action='store_true', default=None,
                       help='generate annotated HTML page for source files')
 
-    parser.add_option('-x', '--exclude', metavar='PATTERN', dest='excludes',
+    parser.add_argument('-x', '--exclude', metavar='PATTERN', dest='excludes',
                       action='append', default=[],
                       help='exclude certain file patterns from the compilation')
 
-    parser.add_option('-b', '--build', dest='build', action='store_true',
+    parser.add_argument('-b', '--build', dest='build', action='store_true', default=None,
                       help='build extension modules using distutils')
-    parser.add_option('-i', '--inplace', dest='build_inplace', action='store_true',
+    parser.add_argument('-i', '--inplace', dest='build_inplace', action='store_true', default=None,
                       help='build extension modules in place using distutils (implies -b)')
-    parser.add_option('-j', '--parallel', dest='parallel', metavar='N',
+    parser.add_argument('-j', '--parallel', dest='parallel', metavar='N',
                       type=int, default=parallel_compiles,
                       help=('run builds in N parallel jobs (default: %d)' %
                             parallel_compiles or 1))
-    parser.add_option('-f', '--force', dest='force', action='store_true',
+    parser.add_argument('-f', '--force', dest='force', action='store_true', default=None,
                       help='force recompilation')
-    parser.add_option('-q', '--quiet', dest='quiet', action='store_true',
+    parser.add_argument('-q', '--quiet', dest='quiet', action='store_true', default=None,
                       help='be less verbose during compilation')
 
-    parser.add_option('--lenient', dest='lenient', action='store_true',
+    parser.add_argument('--lenient', dest='lenient', action='store_true', default=None,
                       help='increase Python compatibility by ignoring some compile time errors')
-    parser.add_option('-k', '--keep-going', dest='keep_going', action='store_true',
+    parser.add_argument('-k', '--keep-going', dest='keep_going', action='store_true', default=None,
                       help='compile as much as possible, ignore compilation failures')
-    parser.add_option('--no-docstrings', dest='no_docstrings', action='store_true',
+    parser.add_argument('--no-docstrings', dest='no_docstrings', action='store_true', default=None,
                       help='strip docstrings')
+    parser.add_argument('sources', nargs='*')
+    return parser
 
-    options, args = parser.parse_args(args)
+
+def parse_args_raw(parser, args):
+    options = parser.parse_args(args)
+    return (options, options.sources)
+
+
+def parse_args(args):
+    parser = create_args_parser()
+    options, args = parse_args_raw(parser, args)
     if not args:
         parser.error("no source files provided")
     if options.build_inplace:
