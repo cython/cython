@@ -125,6 +125,9 @@ Other changes
   allow third-party ``*.pxd`` files to override the ones in Cython.
   Patch by Matti Picus.  (Github issue #2905)
 
+* The command line parser was rewritten and modernised using ``argparse``.
+  Patch by Egor Dranischnikow.  (Github issue #2952)
+
 * Support for Python 2.6 was removed.
 
 
