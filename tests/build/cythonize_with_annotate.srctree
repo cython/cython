@@ -1,0 +1,50 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import not_annotated"
+PYTHON -c "import default_annotated"
+PYTHON -c "import fullc_annotated"
+######## setup.py ########
+
+from Cython.Build.Dependencies import cythonize
+
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize(["not_annotated.pyx"], language_level=3) +
+                cythonize(["default_annotated.pyx"], annotate=True, language_level=3) + 
+                cythonize(["fullc_annotated.pyx"], annotate='fullc', language_level=3)
+)
+######## not_annotated.pyx ########
+# check that html-file doesn't exist:
+
+import os.path as os_path
+module_path = os_path.join(os_path.dirname(__file__), os_path.basename(__file__).split('.', 1)[0])
+assert not os_path.isfile(module_path+'.html')
+
+
+
+######## default_annotated.pyx ########
+# load html-site and check that the marker isn't there:
+
+from codecs import open
+import os.path as os_path
+module_path = os_path.join(os_path.dirname(__file__), os_path.basename(__file__).split('.', 1)[0])
+with open(module_path + '.html', 'r', 'utf8') as html_file:
+    html = html_file.read()
+
+from Cython.Compiler.Annotate import AnnotationCCodeWriter
+assert (AnnotationCCodeWriter.COMPLETE_CODE_TITLE not in html) # per default no complete c code
+
+
+
+######## fullc_annotated.pyx ########
+# load html-site and check that the marker is there:
+
+from codecs import open
+import os.path as os_path
+module_path = os_path.join(os_path.dirname(__file__), os_path.basename(__file__).split('.', 1)[0])
+with open(module_path + '.html', 'r', 'utf8') as html_file:
+    html = html_file.read()
+
+from Cython.Compiler.Annotate import AnnotationCCodeWriter
+assert (AnnotationCCodeWriter.COMPLETE_CODE_TITLE in html)
+
