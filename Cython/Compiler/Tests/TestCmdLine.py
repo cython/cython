@@ -120,7 +120,7 @@ class CmdLineParserTest(TestCase):
 
     def test_annotate_fullc(self):
         options, sources = parse_command_line([
-            '--annotate=fullc', 
+            '--annotate=fullc',
             'source.pyx',
         ])
         self.assertEqual(Options.annotate, 'fullc')
