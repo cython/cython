@@ -2738,9 +2738,12 @@ class CreateClosureClasses(CythonTransform):
             node.needs_outer_scope = True
             return
 
+        # entry.cname can contain periods (eg. a derived C method of a class).
+        # We want to use the cname as part of a C struct name, so we replace
+        # periods with double underscores.
         as_name = '%s_%s' % (
             target_module_scope.next_id(Naming.closure_class_prefix),
-            node.entry.cname)
+            node.entry.cname.replace('.','__'))
 
         entry = target_module_scope.declare_c_class(
             name=as_name, pos=node.pos, defining=True,
