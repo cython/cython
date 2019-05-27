@@ -291,11 +291,13 @@ cdef class Wrapper(object):
 
 # Non-regression test for pickling unbound class methods of non-extension
 # classes
-class MyClass(object):
-    """
-    >>> import pickle
-    >>> pickle.loads(pickle.dumps(MyClass.my_method)) is MyClass.my_method
-    True
-    """
-    def my_method(self):
-        pass
+if sys.version_info[:2] >= (3, 5):
+    # builtin methods not picklable for python <= 3.4
+    class MyClass(object):
+        """
+        >>> import pickle
+        >>> pickle.loads(pickle.dumps(MyClass.my_method)) is MyClass.my_method
+        True
+        """
+        def my_method(self):
+            pass
