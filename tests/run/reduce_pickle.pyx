@@ -287,3 +287,15 @@ cdef class Wrapper(object):
           return "Wrapper(...)"
       else:
           return "Wrapper(%r)" % self.ref
+
+
+# Non-regression test for pickling unbound class methods of non-extension
+# classes
+class MyClass(object):
+    """
+    >>> import pickle
+    >>> pickle.loads(pickle.dumps(MyClass.my_method)) is MyClass.my_method
+    True
+    """
+    def my_method(self):
+        pass
