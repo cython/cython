@@ -2,11 +2,14 @@
 Cython Changelog
 ================
 
-0.29.8 (2019-0?-??)
+0.29.8 (2019-05-28)
 ===================
 
 Bugs fixed
 ----------
+
+* C compile errors with CPython 3.8 were resolved.
+  Patch by Marcel Plch.  (Github issue #2938)
 
 * Python tuple constants that compare equal but have different item
   types could incorrectly be merged into a single constant.
