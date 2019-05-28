@@ -299,6 +299,8 @@ if sys.version_info[:2] >= (3, 5):
         >>> pickle.loads(pickle.dumps(MyClass.my_method)) is MyClass.my_method
         True
         >>> bound_method = pickle.loads(pickle.dumps(MyClass().my_method))
+        >>> bound_method(1)
+        1
         """
         def my_method(self, x):
             return x
