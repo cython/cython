@@ -299,8 +299,8 @@ if sys.version_info[:2] >= (3, 5):
         >>> pickle.loads(pickle.dumps(MyClass.my_method)) is MyClass.my_method
         True
         >>> obj = MyClass()
-        >>> pickle.loads(pickle.dumps(obj.my_method))()
-        It works!
+        >>> pickle.loads(pickle.dumps(obj.my_method))() == "It works!"
+        True
         """
         def my_method(self):
-            print("It works!")
+            return "It works!"
