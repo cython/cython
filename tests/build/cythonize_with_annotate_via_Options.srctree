@@ -1,5 +1,5 @@
 PYTHON setup.py build_ext --inplace
-PYTHON -c "import fullc_annotated"
+PYTHON -c "import fullc_annotated; fullc_annotated.check()"
 
 ######## setup.py ########
 
@@ -17,12 +17,11 @@ setup(
 ######## fullc_annotated.pyx ########
 # load html-site and check that the marker is there:
 
-from codecs import open
-import os.path as os_path
-module_path = os_path.join(os_path.dirname(__file__), os_path.basename(__file__).split('.', 1)[0])
-with open(module_path + '.html', 'r', 'utf8') as html_file:
-    html = html_file.read()
+def check():
+    from codecs import open
+    with open(__name__+'.html', 'r', 'utf8') as html_file:
+        html = html_file.read()
 
-from Cython.Compiler.Annotate import AnnotationCCodeWriter
-assert (AnnotationCCodeWriter.COMPLETE_CODE_TITLE in html)
+    from Cython.Compiler.Annotate import AnnotationCCodeWriter
+    assert (AnnotationCCodeWriter.COMPLETE_CODE_TITLE in html)
 
