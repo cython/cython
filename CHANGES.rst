@@ -10,6 +10,9 @@ Bugs fixed
 
 * Fix a crash regression in 0.29.8 when creating code objects fails.
 
+* Remove an incorrect cast when using true-division in C++ operations.
+  (Github issue #1950)
+
 
 0.29.8 (2019-05-28)
 ===================
