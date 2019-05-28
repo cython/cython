@@ -2,6 +2,15 @@
 Cython Changelog
 ================
 
+0.29.9 (2019-05-29)
+===================
+
+Bugs fixed
+----------
+
+* Fix a crash regression in 0.29.8 when creating code objects fails.
+
+
 0.29.8 (2019-05-28)
 ===================
 
