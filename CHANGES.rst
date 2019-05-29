@@ -71,6 +71,9 @@ Bugs fixed
   semantics.  It now passes through the Mapping protocol first when supported.
   (Github issue #1807)
 
+* Pickling unbound methods of Python classes failed.
+  Patch by Pierre Glaser.  (Github issue #2972)
+
 * The ``Py_hash_t`` type failed to accept arbitrary "index" values.
   (Github issue #2752)
 
