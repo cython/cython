@@ -22,9 +22,13 @@ from .. import Utils
 
 
 class AnnotationCCodeWriter(CCodeWriter):
+ 
+    # also used as marker for detection of complete code emission in tests
+    COMPLETE_CODE_TITLE = "Complete cythonized code"
 
-    def __init__(self, create_from=None, buffer=None, copy_formatting=True):
+    def __init__(self, create_from=None, buffer=None, copy_formatting=True, show_entire_c_code=False):
         CCodeWriter.__init__(self, create_from, buffer, copy_formatting=copy_formatting)
+        self.show_entire_c_code = show_entire_c_code
         if create_from is None:
             self.annotation_buffer = StringIO()
             self.last_annotated_pos = None
@@ -198,17 +202,24 @@ class AnnotationCCodeWriter(CCodeWriter):
             for line in coverage_data.iterfind('lines/line')
         )
 
-    def _htmlify_code(self, code):
+    def _htmlify_code(self, code, language):
         try:
             from pygments import highlight
-            from pygments.lexers import CythonLexer
+            from pygments.lexers import CythonLexer, CppLexer
             from pygments.formatters import HtmlFormatter
         except ImportError:
             # no Pygments, just escape the code
             return html_escape(code)
 
+        if language == "cython":
+            lexer = CythonLexer(stripnl=False, stripall=False)
+        elif language == "c/cpp":
+            lexer = CppLexer(stripnl=False, stripall=False)
+        else:
+            # unknown language, use fallback
+            return html_escape(code)
         html_code = highlight(
-            code, CythonLexer(stripnl=False, stripall=False),
+            code, lexer,
             HtmlFormatter(nowrap=True))
         return html_code
 
@@ -228,7 +239,7 @@ class AnnotationCCodeWriter(CCodeWriter):
             return u"<span class='%s'>%s</span>" % (
                 group_name, match.group(group_name))
 
-        lines = self._htmlify_code(cython_code).splitlines()
+        lines = self._htmlify_code(cython_code, "cython").splitlines()
         lineno_width = len(str(len(lines)))
         if not covered_lines:
             covered_lines = None
@@ -279,6 +290,19 @@ class AnnotationCCodeWriter(CCodeWriter):
                 outlist.append(u"<pre class='cython code score-{score} {covered}'>{code}</pre>".format(
                     score=score, covered=covered, code=c_code))
         outlist.append(u"</div>")
+
+        # now the whole c-code if needed:
+        if self.show_entire_c_code:
+            outlist.append(u'<p><div class="cython">')
+            onclick_title = u"<pre class='cython line'{onclick}>+ {title}</pre>\n";
+            outlist.append(onclick_title.format(
+                              onclick=self._onclick_attr,
+                              title=AnnotationCCodeWriter.COMPLETE_CODE_TITLE,
+                           ))
+            complete_code_as_html = self._htmlify_code(self.buffer.getvalue(), "c/cpp")
+            outlist.append(u"<pre class='cython code'>{code}</pre>".format(code=complete_code_as_html))
+            outlist.append(u"</div></p>")
+
         return outlist
 
 

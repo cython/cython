@@ -179,8 +179,11 @@ class CythonMagics(Magics):
 
     @magic_arguments.magic_arguments()
     @magic_arguments.argument(
-        '-a', '--annotate', action='store_true', default=False,
-        help="Produce a colorized HTML version of the source."
+        '-a', '--annotate', nargs='?', const="default", type=str,
+        choices={"default","fullc"},
+        help="Produce a colorized HTML version of the source. "
+             "Use --annotate=fullc to include entire "
+             "generated C/C++-code."
     )
     @magic_arguments.argument(
         '-+', '--cplus', action='store_true', default=False,

@@ -1,6 +1,7 @@
 from Cython.Build.Cythonize import create_args_parser, parse_args_raw, parse_args
 from unittest import TestCase
 
+import argparse
 
 class TestCythonizeArgsParser(TestCase):
 
@@ -233,13 +234,25 @@ class TestCythonizeArgsParser(TestCase):
         options, args =  self.parse_args(['-a'])
         self.assertFalse(args)
         self.assertTrue(self.are_default(options, ['annotate']))
-        self.assertEqual(options.annotate, True)
+        self.assertEqual(options.annotate, 'default')
 
     def test_annotate_long(self):
         options, args =  self.parse_args(['--annotate'])
         self.assertFalse(args)
         self.assertTrue(self.are_default(options, ['annotate']))
-        self.assertEqual(options.annotate, True)
+        self.assertEqual(options.annotate, 'default')
+
+    def test_annotate_fullc(self):
+        options, args =  self.parse_args(['--annotate=fullc'])
+        self.assertFalse(args)
+        self.assertTrue(self.are_default(options, ['annotate']))
+        self.assertEqual(options.annotate, 'fullc')
+
+    def test_annotate_fullc(self):
+        options, args =  self.parse_args(['-a=default'])
+        self.assertFalse(args)
+        self.assertTrue(self.are_default(options, ['annotate']))
+        self.assertEqual(options.annotate, 'default')
 
     def test_exclude_short(self):
         options, args =  self.parse_args(['-x', '*.pyx'])
@@ -360,7 +373,7 @@ class TestCythonizeArgsParser(TestCase):
         options, args =  self.parse_args(['-i', 'file.pyx', '-a'])
         self.assertEqual(args, ['file.pyx'])
         self.assertEqual(options.build_inplace, True)
-        self.assertEqual(options.annotate, True)
+        self.assertEqual(options.annotate, 'default')
         self.assertTrue(self.are_default(options, ['build_inplace', 'annotate']))
 
     def test_option_trailing(self):

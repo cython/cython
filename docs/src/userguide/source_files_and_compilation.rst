@@ -621,7 +621,7 @@ You can see them also by typing ```%%cython?`` in IPython or a Jupyter notebook.
 
 ============================================  =======================================================================================================================================
 
--a, --annotate                                Produce a colorized HTML version of the source.
+-a, --annotate                                Produce a colorized HTML version of the source. Use ``--annotate=fullc`` to include the complete generated C/C++-code as well.
 
 -+, --cplus                                   Output a C++ rather than C file.
 
@@ -648,6 +648,7 @@ You can see them also by typing ```%%cython?`` in IPython or a Jupyter notebook.
 --pgo                                         Enable profile guided optimisation in the C compiler. Compiles the cell twice and executes it in between to generate a runtime profile.
 
 --verbose                                     Print debug information like generated .c/.cpp file location and exact gcc/g++ command invoked.
+
 ============================================  =======================================================================================================================================
 
 

@@ -98,6 +98,33 @@ class CmdLineParserTest(TestCase):
         self.assertTrue(options.gdb_debug)
         self.assertEqual(options.output_dir, '/gdb/outdir')
 
+    def test_no_annotate(self):
+        options, sources = parse_command_line([
+            '--embed=huhu', 'source.pyx'
+        ])
+        self.assertFalse(Options.annotate)
+
+    def test_annotate_simple(self):
+        options, sources = parse_command_line([
+            '-a',
+            'source.pyx',
+        ])
+        self.assertEqual(Options.annotate, 'default')
+
+    def test_annotate_default(self):
+        options, sources = parse_command_line([
+            '--annotate=default',
+            'source.pyx',
+        ])
+        self.assertEqual(Options.annotate, 'default')
+
+    def test_annotate_fullc(self):
+        options, sources = parse_command_line([
+            '--annotate=fullc',
+            'source.pyx',
+        ])
+        self.assertEqual(Options.annotate, 'fullc')
+
     def test_errors(self):
         def error(*args):
             old_stderr = sys.stderr
