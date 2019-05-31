@@ -66,6 +66,11 @@ Bugs fixed
   the first character if multiple characters should have been returned.
   They now use the original Python methods again.
 
+* Nested dict literals in function call kwargs could incorrectly raise an
+  error about duplicate keyword arguments, which are allowed when passing
+  them from dict literals.
+  (Github issue #2963)
+
 * Item access (subscripting) with integer indices/keys always tried the
   Sequence protocol before the Mapping protocol, which diverged from Python
   semantics.  It now passes through the Mapping protocol first when supported.
