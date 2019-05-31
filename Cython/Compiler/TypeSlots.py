@@ -887,6 +887,7 @@ slot_table = (
     EmptySlot("tp_del"),
     EmptySlot("tp_version_tag"),
     EmptySlot("tp_finalize", ifdef="PY_VERSION_HEX >= 0x030400a1"),
+    EmptySlot("tp_vectorcall", ifdef="PY_VERSION_HEX >= 0x030800b1"),
 )
 
 #------------------------------------------------------------------------------------------

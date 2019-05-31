@@ -2,6 +2,16 @@
 Cython Changelog
 ================
 
+0.29.10 (2019-06-0?)
+====================
+
+Bugs fixed
+----------
+
+* Fix compile errors in CPython 3.8b1 due to the new "tp_vectorcall" slots.
+  (Github issue #2976)
+
+
 0.29.9 (2019-05-29)
 ===================
 
