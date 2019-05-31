@@ -842,8 +842,11 @@ class UnicodeTest(CommonTest,
         self.assertEqual('h\u0130'.capitalize(), 'H\u0069\u0307')
         exp = '\u0399\u0308\u0300\u0069\u0307'
         self.assertEqual('\u1fd2\u0130'.capitalize(), exp)
-        # Note: differs between Py<3.8 and later.
-        #self.assertEqual('ﬁnnish'.capitalize(), 'FInnish')
+        if sys.version_info < (3, 8):
+            self.assertEqual('ﬁnnish'.capitalize(), 'FInnish')
+        else:
+            self.assertEqual('ﬁnnish'.capitalize(), 'Finnish')
+
         self.assertEqual('A\u0345\u03a3'.capitalize(), 'A\u0345\u03c2')
 
     def test_title(self):
