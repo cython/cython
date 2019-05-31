@@ -96,7 +96,7 @@ Bugs fixed
   (Github issue #2665)
 
 * Compiling package ``__init__`` files could fail under Windows due to an
-  undefined export symbol.
+  undefined export symbol.  (Github issue #2968)
 
 * A C compiler cast warning was resolved.
   Patch by Michael Buesch.  (Github issue #2775)
