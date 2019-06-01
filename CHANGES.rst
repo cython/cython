@@ -62,6 +62,8 @@ Features added
 * ``--no-docstrings`` option added to ``cythonize`` script.
   Original patch by mo-han.  (Github issue #2889)
 
+* The ``@cython.binding`` decorator is available in Python code.
+
 Bugs fixed
 ----------
 

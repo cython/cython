@@ -123,6 +123,8 @@ overflowcheck.fold = optimization.use_switch = \
 
 final = internal = type_version_tag = no_gc_clear = no_gc = _empty_decorator
 
+binding = lambda _: _empty_decorator
+
 
 _cython_inline = None
 def inline(f, *args, **kwds):
