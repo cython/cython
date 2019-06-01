@@ -4729,7 +4729,7 @@ class MemoryCopyScalar(MemoryCopyNode):
                                                    idx.stop.is_none and
                                                    idx.step.is_none):
                 force_strided = True
-                
+
         slice_iter_obj = MemoryView.slice_iter(self.dst.type, dst_temp,
                                                self.dst.type.ndim, code,
                                                force_strided=force_strided)
@@ -9574,7 +9574,7 @@ class CodeObjectNode(ExprNode):
 
         code.putln("%s = (PyObject*)__Pyx_PyCode_New(%d, %d, %d, %d, 0, %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, %s); %s" % (
             self.result_code,
-            len(func.args) - func.num_kwonly_args - func.num_posonly_args,  # argcount
+            len(func.args) - func.num_kwonly_args,  # argcount
             func.num_posonly_args,     # posonlyargcount (Py3.8+ only)
             func.num_kwonly_args,      # kwonlyargcount (Py3 only)
             len(self.varnames.args),   # nlocals
