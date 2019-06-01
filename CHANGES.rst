@@ -52,6 +52,10 @@ Features added
 * PEP-479 (``generator_stop``) is now enabled by default with language level 3.
   (Github issue #2580)
 
+* Code annotation accepts a new debugging argument ``--annotate=fullc`` that
+  will include the complete syntax highlighted C file in the HTML output.
+  (Github issue #2855)
+
 * ``--no-capture`` added to ``runtests.py`` to prevent stdout/stderr capturing
   during srctree tests.  Patch by Matti Picus.
 
@@ -75,6 +79,11 @@ Bugs fixed
   Sequence protocol before the Mapping protocol, which diverged from Python
   semantics.  It now passes through the Mapping protocol first when supported.
   (Github issue #1807)
+
+* Broadcast assignments to a multi-dimensional memory view slice could end
+  up in the wrong places when the underlying memory view is known to be
+  contiguous but the slice is not.
+  (Github issue #2941)
 
 * Pickling unbound methods of Python classes failed.
   Patch by Pierre Glaser.  (Github issue #2972)
