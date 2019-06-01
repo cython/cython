@@ -78,10 +78,8 @@ def func_introspection1(a, b, c, /, d, e=1, *, f, g=2):
     """
     >>> if sys.version_info[0] < 3:
     ...     assert func_introspection2.__code__.co_argcount == 7, func_introspection2.__code__.co_argcount
-    ... elif sys.version_info < (3, 8):
-    ...     assert func_introspection2.__code__.co_argcount == 5, func_introspection2.__code__.co_argcount
     ... else:
-    ...     assert func_introspection2.__code__.co_argcount == 2, func_introspection2.__code__.co_argcount
+    ...     assert func_introspection2.__code__.co_argcount == 5, func_introspection2.__code__.co_argcount
     >>> func_introspection1.__defaults__
     (1,)
     """
@@ -91,10 +89,8 @@ def func_introspection2(a, b, c=1, /, d=2, e=3, *, f, g=4):
     """
     >>> if sys.version_info[0] < 3:
     ...     assert func_introspection2.__code__.co_argcount == 7, func_introspection2.__code__.co_argcount
-    ... elif sys.version_info < (3, 8):
-    ...     assert func_introspection2.__code__.co_argcount == 5, func_introspection2.__code__.co_argcount
     ... else:
-    ...     assert func_introspection2.__code__.co_argcount == 2, func_introspection2.__code__.co_argcount
+    ...     assert func_introspection2.__code__.co_argcount == 5, func_introspection2.__code__.co_argcount
     >>> func_introspection2.__defaults__
     (1, 2, 3)
     """
