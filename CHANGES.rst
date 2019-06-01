@@ -11,6 +11,8 @@ Features added
 * ``std::move()`` is now available from ``libcpp.utility``.
   Patch by Omer Ozarslan.  (Github issue #2169)
 
+* The ``@cython.binding`` decorator is available in Python code.
+
 Bugs fixed
 ----------
 
