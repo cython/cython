@@ -97,6 +97,7 @@ class CmdLineParserTest(TestCase):
         self.assertEqual(Options.annotate_coverage_xml, 'cov.xml')
         self.assertTrue(options.gdb_debug)
         self.assertEqual(options.output_dir, '/gdb/outdir')
+        self.assertEqual(options.compiler_directives['wraparound'], False)
 
     def test_no_annotate(self):
         options, sources = parse_command_line([
