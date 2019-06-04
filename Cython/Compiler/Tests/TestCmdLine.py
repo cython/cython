@@ -421,6 +421,75 @@ class CmdLineParserTest(TestCase):
             self.assertEqual(getattr(DebugFlags, name), name in ['debug_disposal_code', 'debug_coercion'])
             setattr(DebugFlags, name, 0)  # restore original value
 
+    def test_gdb_overwrites_gdb_outdir(self):
+        options, sources = parse_command_line([
+            '--gdb-outdir=my_dir', '--gdb',
+            'file3.pyx'
+        ])
+        self.assertEqual(options.gdb_debug, True)
+        self.assertEqual(options.output_dir, os.curdir)
+        self.check_default_global_options()
+        self.check_default_options(options, ['gdb_debug', 'output_dir'])
+
+    def test_gdb_first(self):
+        options, sources = parse_command_line([
+            '--gdb', '--gdb-outdir=my_dir',
+            'file3.pyx'
+        ])
+        self.assertEqual(options.gdb_debug, True)
+        self.assertEqual(options.output_dir, 'my_dir')
+        self.check_default_global_options()
+        self.check_default_options(options, ['gdb_debug', 'output_dir'])
+
+    def test_coverage_overwrites_annotation(self):
+        options, sources = parse_command_line([
+            '--annotate-fullc', '--annotate-coverage=my.xml',
+            'file3.pyx'
+        ])
+        self.assertEqual(Options.annotate, True)
+        self.assertEqual(Options.annotate_coverage_xml, 'my.xml')
+        self.check_default_global_options(['annotate', 'annotate_coverage_xml'])
+        self.check_default_options(options)
+
+    def test_coverage_first(self):
+        options, sources = parse_command_line([
+            '--annotate-coverage=my.xml', '--annotate-fullc',
+            'file3.pyx'
+        ])
+        self.assertEqual(Options.annotate, 'fullc')
+        self.assertEqual(Options.annotate_coverage_xml, 'my.xml')
+        self.check_default_global_options(['annotate', 'annotate_coverage_xml'])
+        self.check_default_options(options)
+
+    def test_annotate_first_fullc_second(self):
+        options, sources = parse_command_line([
+            '--annotate', '--annotate-fullc',
+            'file3.pyx'
+        ])
+        self.assertEqual(Options.annotate, 'fullc')
+        self.check_default_global_options(['annotate'])
+        self.check_default_options(options)
+
+    def test_annotate_fullc_first(self):
+        options, sources = parse_command_line([
+            '--annotate-fullc', '--annotate',
+            'file3.pyx'
+        ])
+        self.assertEqual(Options.annotate, 'default')
+        self.check_default_global_options(['annotate'])
+        self.check_default_options(options)
+
+    def test_warning_extra_dont_overwrite(self):
+       options, sources = parse_command_line([
+                '-X', 'cdivision=True',
+                '--warning-extra',
+                '-X', 'c_string_type=bytes',
+                'source.pyx'
+       ])
+       self.assertTrue(len(options.compiler_directives), len(Options.extra_warnings) + 1)
+       self.check_default_global_options()
+       self.check_default_options(options, ['compiler_directives'])
+
     def test_errors(self):
         def error(*args):
             old_stderr = sys.stderr
