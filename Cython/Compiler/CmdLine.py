@@ -6,7 +6,38 @@ from __future__ import absolute_import
 
 import os
 import sys
+from argparse import Action
 from . import Options
+
+
+class ParseDirectivesAction(Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        old_directives = dict(getattr(namespace, self.dest,
+                                      Options.get_directive_defaults()))
+        directives = Options.parse_directive_list(
+            values, relaxed_bool=True, current_settings=old_directives)
+        setattr(namespace, self.dest, directives)
+
+
+class ParseOptionsAction(Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        options = dict(getattr(namespace, self.dest, {}))
+        for opt in values.split(','):
+            if '=' in opt:
+                n, v = opt.split('=', 1)
+                v = v.lower() not in ('false', 'f', '0', 'no')
+            else:
+                n, v = opt, True
+            options[n] = v
+        setattr(namespace, self.dest, options)
+
+
+class ParseCompileTimeEnvAction(Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        old_env = dict(getattr(namespace, self.dest, {}))
+        new_env = Options.parse_compile_time_env(values, current_settings=old_env)
+        setattr(namespace, self.dest, new_env)
+
 
 usage = """\
 Cython (https://cython.org/) is a compiler for code written in the
