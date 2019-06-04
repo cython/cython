@@ -1,4 +1,4 @@
-
+import os
 import sys
 import copy
 from unittest import TestCase
@@ -30,6 +30,19 @@ class CmdLineParserTest(TestCase):
         for name in vars(Options).keys():
             if name not in self._options_backup:
                 delattr(Options, name)
+
+    def check_default_global_options(self, white_list=[]):
+        no_value = object()
+        for name, orig_value in self._options_backup.items():
+            if name not in white_list:
+               self.assertEqual(getattr(Options, name, no_value), orig_value, msg="error in option " + name)
+
+    def check_default_options(self, options, white_list=[]):
+        default_options = Options.CompilationOptions(Options.default_options)
+        no_value = object()
+        for name in default_options.__dict__.keys():
+            if name not in white_list:
+               self.assertEqual(getattr(options, name, no_value), getattr(default_options, name), msg="error in option " + name)
 
     def test_short_options(self):
         options, sources = parse_command_line([
@@ -133,6 +146,270 @@ class CmdLineParserTest(TestCase):
             'source.pyx',
         ])
         self.assertEqual(Options.annotate, 'fullc')
+
+    def test_short_w(self):
+       options, sources = parse_command_line([
+                '-w', 'my_working_path',
+                'source.pyx'
+       ])
+       self.assertEqual(options.working_path, 'my_working_path')
+       self.check_default_global_options()
+       self.check_default_options(options, ['working_path'])
+
+    def test_short_o(self):
+       options, sources = parse_command_line([
+                '-o', 'my_output',
+                'source.pyx'
+       ])
+       self.assertEqual(options.output_file, 'my_output')
+       self.check_default_global_options()
+       self.check_default_options(options, ['output_file'])
+
+    def test_short_z(self):
+       options, sources = parse_command_line([
+                '-z', 'my_preimport',
+                'source.pyx'
+       ])
+       self.assertEqual(Options.pre_import, 'my_preimport')
+       self.check_default_global_options(['pre_import'])
+       self.check_default_options(options)
+
+    def test_convert_range(self):
+       options, sources = parse_command_line([
+                '--convert-range',
+                'source.pyx'
+       ])
+       self.assertEqual(Options.convert_range, True)
+       self.check_default_global_options(['convert_range'])
+       self.check_default_options(options)
+
+    def test_line_directives(self):
+       options, sources = parse_command_line([
+                '--line-directives',
+                'source.pyx'
+       ])
+       self.assertEqual(options.emit_linenums, True)
+       self.check_default_global_options()
+       self.check_default_options(options, ['emit_linenums'])
+
+    def test_no_c_in_traceback(self):
+       options, sources = parse_command_line([
+                '--no-c-in-traceback',
+                'source.pyx'
+       ])
+       self.assertEqual(options.c_line_in_traceback, False)
+       self.check_default_global_options()
+       self.check_default_options(options, ['c_line_in_traceback'])
+
+    def test_gdb(self):
+       options, sources = parse_command_line([
+                '--gdb',
+                'source.pyx'
+       ])
+       self.assertEqual(options.gdb_debug, True)
+       self.assertEqual(options.output_dir, os.curdir)
+       self.check_default_global_options()
+       self.check_default_options(options, ['gdb_debug', 'output_dir'])
+
+    def test_3str(self):
+       options, sources = parse_command_line([
+                '--3str',
+                'source.pyx'
+       ])
+       self.assertEqual(options.language_level, '3str')
+       self.check_default_global_options()
+       self.check_default_options(options, ['language_level'])
+
+    def test_capi_reexport_cincludes(self):
+       options, sources = parse_command_line([
+                '--capi-reexport-cincludes',
+                'source.pyx'
+       ])
+       self.assertEqual(options.capi_reexport_cincludes, True)
+       self.check_default_global_options()
+       self.check_default_options(options, ['capi_reexport_cincludes'])
+
+    def test_fast_fail(self):
+       options, sources = parse_command_line([
+                '--fast-fail',
+                'source.pyx'
+       ])
+       self.assertEqual(Options.fast_fail, True)
+       self.check_default_global_options(['fast_fail'])
+       self.check_default_options(options)
+
+    def test_cimport_from_pyx(self):
+       options, sources = parse_command_line([
+                '--cimport-from-pyx',
+                'source.pyx'
+       ])
+       self.assertEqual(Options.cimport_from_pyx, True)
+       self.check_default_global_options(['cimport_from_pyx'])
+       self.check_default_options(options)
+
+    def test_Werror(self):
+       options, sources = parse_command_line([
+                '-Werror',
+                'source.pyx'
+       ])
+       self.assertEqual(Options.warning_errors, True)
+       self.check_default_global_options(['warning_errors'])
+       self.check_default_options(options)
+
+    def test_warning_errors(self):
+       options, sources = parse_command_line([
+                '--warning-errors',
+                'source.pyx'
+       ])
+       self.assertEqual(Options.warning_errors, True)
+       self.check_default_global_options(['warning_errors'])
+       self.check_default_options(options)
+
+    def test_Wextra(self):
+       options, sources = parse_command_line([
+                '-Wextra',
+                'source.pyx'
+       ])
+       self.assertEqual(options.compiler_directives, Options.extra_warnings)
+       self.check_default_global_options()
+       self.check_default_options(options, ['compiler_directives'])
+
+    def test_warning_extra(self):
+       options, sources = parse_command_line([
+                '--warning-extra',
+                'source.pyx'
+       ])
+       self.assertEqual(options.compiler_directives, Options.extra_warnings)
+       self.check_default_global_options()
+       self.check_default_options(options, ['compiler_directives'])
+
+    def test_old_style_globals(self):
+       options, sources = parse_command_line([
+                '--old-style-globals',
+                'source.pyx'
+       ])
+       self.assertEqual(Options.old_style_globals, True)
+       self.check_default_global_options(['old_style_globals'])
+       self.check_default_options(options)
+
+    def test_directive_multiple(self):
+        options, source = parse_command_line([
+               '-X', 'cdivision=True',
+               '-X', 'c_string_type=bytes',
+               'source.pyx'
+        ])
+        self.assertEqual(options.compiler_directives['cdivision'], True)
+        self.assertEqual(options.compiler_directives['c_string_type'], 'bytes')
+        self.check_default_global_options()
+        self.check_default_options(options, ['compiler_directives'])
+
+    def test_directive_multiple_v2(self):
+        options, source = parse_command_line([
+               '-X', 'cdivision=True,c_string_type=bytes',
+               'source.pyx'
+        ])
+        self.assertEqual(options.compiler_directives['cdivision'], True)
+        self.assertEqual(options.compiler_directives['c_string_type'], 'bytes')
+        self.check_default_global_options()
+        self.check_default_options(options, ['compiler_directives'])
+
+    def test_directive_value_yes(self):
+        options, source = parse_command_line([
+               '-X', 'cdivision=YeS',
+               'source.pyx'
+        ])
+        self.assertEqual(options.compiler_directives['cdivision'], True)
+        self.check_default_global_options()
+        self.check_default_options(options, ['compiler_directives'])
+
+    def test_directive_value_no(self):
+        options, source = parse_command_line([
+               '-X', 'cdivision=no',
+               'source.pyx'
+        ])
+        self.assertEqual(options.compiler_directives['cdivision'], False)
+        self.check_default_global_options()
+        self.check_default_options(options, ['compiler_directives'])
+
+    # ToDo: activate
+    # def test_directive_value_invalid(self):
+    #    with self.assertRaises(ValueError) as context:
+    #        options, source = parse_command_line([
+    #           '-X', 'cdivision=sadfasd',
+    #           'source.pyx'
+    #        ])
+
+    # def test_directive_key_invalid(self):
+    #    with self.assertRaises(ValueError) as context:
+    #        options, source = parse_command_line([
+    #           '-X', 'abracadabra',
+    #           'source.pyx'
+    #        ])
+
+    # def test_directive_no_value(self):
+    #    with self.assertRaises(ValueError) as context:
+    #        options, source = parse_command_line([
+    #           '-X', 'cdivision',
+    #           'source.pyx'
+    #        ])
+
+    def test_compile_time_env_short(self):
+        options, source = parse_command_line([
+               '-E', 'MYSIZE=10',
+               'source.pyx'
+        ])
+        self.assertEqual(options.compile_time_env['MYSIZE'], 10)
+        self.check_default_global_options()
+        self.check_default_options(options, ['compile_time_env'])
+
+    def test_compile_time_env_long(self):
+        options, source = parse_command_line([
+               '--compile-time-env', 'MYSIZE=10',
+               'source.pyx'
+        ])
+        self.assertEqual(options.compile_time_env['MYSIZE'], 10)
+        self.check_default_global_options()
+        self.check_default_options(options, ['compile_time_env'])
+
+    def test_compile_time_env_multiple(self):
+        options, source = parse_command_line([
+               '-E', 'MYSIZE=10', '-E', 'ARRSIZE=11',
+               'source.pyx'
+        ])
+        self.assertEqual(options.compile_time_env['MYSIZE'], 10)
+        self.assertEqual(options.compile_time_env['ARRSIZE'], 11)
+        self.check_default_global_options()
+        self.check_default_options(options, ['compile_time_env'])
+
+    def test_compile_time_env_multiple_v2(self):
+        options, source = parse_command_line([
+               '-E', 'MYSIZE=10,ARRSIZE=11',
+               'source.pyx'
+        ])
+        self.assertEqual(options.compile_time_env['MYSIZE'], 10)
+        self.assertEqual(options.compile_time_env['ARRSIZE'], 11)
+        self.check_default_global_options()
+        self.check_default_options(options, ['compile_time_env'])
+
+    def test_option_first(self):
+        options, sources = parse_command_line(['-V', 'file.pyx'])
+        self.assertEqual(sources, ['file.pyx'])
+
+    def test_file_inbetween(self):
+        options, sources = parse_command_line(['-V', 'file.pyx', '-a'])
+        self.assertEqual(sources, ['file.pyx'])
+
+    def test_option_trailing(self):
+        options, sources = parse_command_line(['file.pyx', '-V'])
+        self.assertEqual(sources, ['file.pyx'])
+
+    def test_multiple_files(self):
+        options, sources = parse_command_line([
+             'file1.pyx', '-V',
+             'file2.pyx', '-a',
+             'file3.pyx'
+        ])
+        self.assertEqual(sources, ['file1.pyx', 'file2.pyx', 'file3.pyx'])
 
     def test_errors(self):
         def error(*args):
