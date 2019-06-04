@@ -411,6 +411,16 @@ class CmdLineParserTest(TestCase):
         ])
         self.assertEqual(sources, ['file1.pyx', 'file2.pyx', 'file3.pyx'])
 
+    def test_debug_flags(self):
+        options, sources = parse_command_line([
+             '--debug-disposal-code', '--debug-coercion',
+             'file3.pyx'
+        ])
+        from Cython.Compiler import DebugFlags
+        for name in ['debug_disposal_code', 'debug_temp_alloc', 'debug_coercion']:
+            self.assertEqual(getattr(DebugFlags, name), name in ['debug_disposal_code', 'debug_coercion'])
+            setattr(DebugFlags, name, 0)  # restore original value
+
     def test_errors(self):
         def error(*args):
             old_stderr = sys.stderr
@@ -429,3 +439,4 @@ class CmdLineParserTest(TestCase):
         error('--verbose=1')
         error('--verbose=1')
         error('--cleanup')
+        error('--debug-disposal-code-wrong-name', 'file3.pyx')

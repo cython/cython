@@ -204,12 +204,7 @@ def parse_command_line(args):
                     sys.exit(1)
             elif option.startswith('--debug'):
                 option = option[2:].replace('-', '_')
-                from . import DebugFlags
-                if option in dir(DebugFlags):
-                    setattr(DebugFlags, option, True)
-                else:
-                    sys.stderr.write("Unknown debug flag: %s\n" % option)
-                    bad_usage()
+                arguments[option] = True
             elif option in ('-h', '--help'):
                 sys.stdout.write(usage)
                 sys.exit(0)
@@ -224,7 +219,14 @@ def parse_command_line(args):
 
     options = Options.CompilationOptions(Options.default_options)
     for name, value in arguments.items():
-        if hasattr(Options, name):
+        if name.startswith('debug'):
+            from . import DebugFlags
+            if name in dir(DebugFlags):
+                setattr(DebugFlags, name, value)
+            else:
+                sys.stderr.write("Unknown debug flag: %s\n" % name)
+                bad_usage()
+        elif hasattr(Options, name):
             setattr(Options, name, value)
         else:
             setattr(options, name, value)
