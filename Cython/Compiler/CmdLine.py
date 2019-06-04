@@ -6,7 +6,7 @@ from __future__ import absolute_import
 
 import os
 import sys
-from argparse import Action
+from argparse import ArgumentParser, Action, SUPPRESS
 from . import Options
 
 
@@ -37,6 +37,37 @@ class ParseCompileTimeEnvAction(Action):
         old_env = dict(getattr(namespace, self.dest, {}))
         new_env = Options.parse_compile_time_env(values, current_settings=old_env)
         setattr(namespace, self.dest, new_env)
+
+
+class ActivateAllWarningsAction(Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        directives = getattr(namespace, 'compiler_directives', {})
+        directives.update(Options.extra_warnings)
+        setattr(namespace, 'compiler_directives', directives)
+
+
+class SetLenientAction(Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, 'error_on_unknown_names', False)
+        setattr(namespace, 'error_on_uninitialized', False)
+
+
+class SetGDBDebugAction(Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, 'gdb_debug', True)
+        setattr(namespace, 'output_dir', os.curdir)
+
+
+class SetGDBDebugOutputAction(Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, 'gdb_debug', True)
+        setattr(namespace, 'output_dir', values)
+
+
+class SetAnnotateCoverageAction(Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, 'annotate', True)
+        setattr(namespace, 'annotate_coverage_xml', values)
 
 
 usage = """\
@@ -98,155 +129,103 @@ def bad_usage():
 
 
 def parse_command_line_raw(args):
-    pending_arg = []
+    description = "Cython (https://cython.org/) is a compiler for code written in the "\
+                  "Cython language.  Cython is based on Pyrex by Greg Ewing."
 
-    def pop_arg():
-        if not args or pending_arg:
-            bad_usage()
-        if '=' in args[0] and args[0].startswith('--'):  # allow "--long-option=xyz"
-            name, value = args.pop(0).split('=', 1)
-            pending_arg.append(value)
-            return name
-        return args.pop(0)
+    parser = ArgumentParser(description=description)
 
-    def pop_value(default=None):
-        if pending_arg:
-            return pending_arg.pop()
-        elif default is not None:
-            return default
-        elif not args:
-            bad_usage()
-        return args.pop(0)
+    parser.add_argument("-V", "--version", dest='show_version', action='store_const', const=1,
+                      help='Display version number of cython compiler')
+    parser.add_argument("-l", "--create-listing", dest='use_listing_file', action='store_const', const=1,
+                      help='Write error messages to a listing file')
+    parser.add_argument("-I", "--include-dir", dest='include_path', action='append',
+                      help='Search for include files in named directory '
+                           '(multiple include directories are allowed).')
+    parser.add_argument("-o", "--output-file", dest='output_file', action='store', type=str,
+                      help='Specify name of generated C file')
+    parser.add_argument("-t", "--timestamps", dest='timestamps', action='store_const', const=1,
+                      help='Only compile newer source files')
+    parser.add_argument("-f", "--force", dest='timestamps', action='store_const', const=0,
+                      help='Compile all source files (overrides implied -t)')
+    parser.add_argument("-v", "--verbose", dest='verbose', action='count',
+                      help='Be verbose, print file names on multiple compilation')
+    parser.add_argument("-p", "--embed-positions", dest='embed_pos_in_docstring', action='store_const', const=1,
+                      help='If specified, the positions in Cython files of each '
+                           'function definition is embedded in its docstring.')
+    parser.add_argument("--cleanup", dest='generate_cleanup_code', action='store', type=int,
+                      help='Release interned objects on python exit, for memory debugging. '
+                           'Level indicates aggressiveness, default 0 releases nothing.')
+    parser.add_argument("-w", "--working", dest='working_path', action='store', type=str,
+                      help='Sets the working directory for Cython (the directory modules are searched from)')
+    parser.add_argument("--gdb", action=SetGDBDebugAction, nargs=0,
+                      help='Output debug information for cygdb')
+    parser.add_argument("--gdb-outdir", action=SetGDBDebugOutputAction, type=str,
+                      help='Specify gdb debug information output directory. Implies --gdb.')
+    parser.add_argument("-D", "--no-docstrings", dest='docstrings', action='store_false', default=None,
+                      help='Strip docstrings from the compiled module.')
+    parser.add_argument('-a', '--annotate', action='store_const', const='default', dest='annotate',
+                      help='Produce a colorized HTML version of the source.')
+    parser.add_argument('--annotate-fullc', action='store_const', const='fullc', dest='annotate',
+                      help='Produce a colorized HTML version of the source '
+                           'which includes entire generated C/C++-code.')
+    parser.add_argument("--annotate-coverage", dest='annotate_coverage_xml', action=SetAnnotateCoverageAction, type=str,
+                      help='Annotate and include coverage information from cov.xml.')
+    parser.add_argument("--line-directives", dest='emit_linenums', action='store_true', default=None,
+                      help='Produce #line directives pointing to the .pyx source')
+    parser.add_argument("-+", "--cplus", dest='cplus', action='store_const', const=1,
+                      help='Output a C++ rather than C file.')
+    parser.add_argument('--embed', nargs='?', const='main', type=str,
+                      help='Generate a main() function that embeds the Python interpreter.')
+    parser.add_argument('-2', dest='language_level', action='store_const', const=2,
+                      help='Compile based on Python-2 syntax and code semantics.')
+    parser.add_argument('-3', dest='language_level', action='store_const', const=3,
+                      help='Compile based on Python-3 syntax and code semantics.')
+    parser.add_argument('--3str', dest='language_level', action='store_const', const='3str',
+                      help='Compile based on Python-3 syntax and code semantics without '
+                           'assuming unicode by default for string literals under Python 2.')
+    parser.add_argument("--lenient", action=SetLenientAction, nargs=0,
+                      help='Change some compile time errors to runtime errors to '
+                           'improve Python compatibility')
+    parser.add_argument("--capi-reexport-cincludes", dest='capi_reexport_cincludes', action='store_true', default=None,
+                      help='Add cincluded headers to any auto-generated header files.')
+    parser.add_argument("--fast-fail", dest='fast_fail', action='store_true',
+                      help='Abort the compilation on the first error')
+    parser.add_argument("-Werror", "--warning-errors", dest='warning_errors', action='store_true', default=None,
+                      help='Make all warnings into errors')
+    parser.add_argument("-Wextra", "--warning-extra", action=ActivateAllWarningsAction, nargs=0,
+                      help='Enable extra warnings')
 
-    def get_param(option):
-        tail = option[2:]
-        if tail:
-            return tail
+    parser.add_argument('-X', '--directive', metavar='NAME=VALUE,...',
+                      dest='compiler_directives', default={}, type=str,
+                      action=ParseDirectivesAction,
+                      help='Overrides a compiler directive')
+    parser.add_argument('-E', '--compile-time-env', metavar='NAME=VALUE,...',
+                      dest='compile_time_env', default={}, type=str,
+                      action=ParseCompileTimeEnvAction,
+                      help='Provides compile time env like DEF would do.')
+    parser.add_argument('sources', nargs='*')
+
+    # TODO: add help
+    parser.add_argument("-z", "--pre-import", dest='pre_import', action='store', type=str, help=SUPPRESS)
+    parser.add_argument("--convert-range", dest='convert_range', action='store_true', default=None, help=SUPPRESS)
+    parser.add_argument("--no-c-in-traceback", dest='c_line_in_traceback', action='store_false', default=None, help=SUPPRESS)
+    parser.add_argument("--cimport-from-pyx", dest='cimport_from_pyx', action='store_true', default=None, help=SUPPRESS)
+    parser.add_argument("--old-style-globals", dest='old_style_globals', action='store_true', default=None, help=SUPPRESS)
+
+    arguments, unknown = parser.parse_known_args(args)
+
+    sources = arguments.sources
+    del arguments.sources
+
+    # unknown can be either debug or input files or really unknown
+    for option in unknown:
+        if option.startswith('--debug'):
+            option = option[2:].replace('-', '_')
+            setattr(arguments, option, True)
+        elif option.startswith('-'):
+            parser.error("unknown option " + option)
         else:
-            return pop_arg()
-
-    sources = []
-    arguments = {}
-    while args:
-        if args[0].startswith("-"):
-            option = pop_arg()
-            if option in ("-V", "--version"):
-                arguments['show_version'] = 1
-            elif option in ("-l", "--create-listing"):
-                arguments['use_listing_file'] = 1
-            elif option in ("-+", "--cplus"):
-                arguments['cplus'] = 1
-            elif option == "--embed":
-                arguments['embed'] = pop_value("main")
-            elif option.startswith("-I"):
-                i_path = arguments.get('include_path', [])
-                i_path.append(get_param(option))
-                arguments['include_path'] = i_path
-            elif option == "--include-dir":
-                i_path = arguments.get('include_path', [])
-                i_path.append(pop_value())
-                arguments['include_path'] = i_path
-            elif option in ("-w", "--working"):
-                arguments['working_path'] = pop_value()
-            elif option in ("-o", "--output-file"):
-                arguments['output_file'] = pop_value()
-            elif option in ("-t", "--timestamps"):
-                arguments['timestamps'] = 1
-            elif option in ("-f", "--force"):
-                arguments['timestamps'] = 0
-            elif option in ("-v", "--verbose"):
-                arguments['verbose'] = arguments.get('verbose', 0) + 1
-            elif option in ("-p", "--embed-positions"):
-                arguments['embed_pos_in_docstring'] = 1
-            elif option in ("-z", "--pre-import"):
-                arguments['pre_import'] = pop_value()
-            elif option == "--cleanup":
-                arguments['generate_cleanup_code'] = int(pop_value())
-            elif option in ("-D", "--no-docstrings"):
-                arguments['docstrings'] = False
-            elif option in ("-a", "--annotate"):
-                arguments['annotate'] = "default"
-            elif option == "--annotate-fullc":
-                arguments['annotate'] = "fullc"
-            elif option == "--annotate-coverage":
-                arguments['annotate'] = True
-                arguments['annotate_coverage_xml'] = pop_value()
-            elif option == "--convert-range":
-                arguments['convert_range'] = True
-            elif option == "--line-directives":
-                arguments['emit_linenums'] = True
-            elif option == "--no-c-in-traceback":
-                arguments['c_line_in_traceback'] = False
-            elif option == "--gdb":
-                arguments['gdb_debug'] = True
-                arguments['output_dir'] = os.curdir
-            elif option == "--gdb-outdir":
-                arguments['gdb_debug'] = True
-                arguments['output_dir'] = pop_value()
-            elif option == "--lenient":
-                arguments['error_on_unknown_names'] = False
-                arguments['error_on_uninitialized'] = False
-            elif option == '-2':
-                arguments['language_level'] = 2
-            elif option == '-3':
-                arguments['language_level'] = 3
-            elif option == '--3str':
-                arguments['language_level'] = '3str'
-            elif option == "--capi-reexport-cincludes":
-                arguments['capi_reexport_cincludes'] = True
-            elif option == "--fast-fail":
-                arguments['fast_fail'] = True
-            elif option == "--cimport-from-pyx":
-                arguments['cimport_from_pyx'] = True
-            elif option in ('-Werror', '--warning-errors'):
-                arguments['warning_errors'] = True
-            elif option in ('-Wextra', '--warning-extra'):
-                directives = arguments.get('compiler_directives', {})
-                directives.update(Options.extra_warnings)
-                arguments['compiler_directives'] = directives
-            elif option == "--old-style-globals":
-                arguments['old_style_globals'] = True
-            elif option == "--directive" or option.startswith('-X'):
-                if option.startswith('-X') and option[2:].strip():
-                    x_args = option[2:]
-                else:
-                    x_args = pop_value()
-                try:
-                    directives = arguments.get('compiler_directives', {})
-                    directives = Options.parse_directive_list(
-                        x_args, relaxed_bool=True,
-                        current_settings=directives)
-                    arguments['compiler_directives'] = directives
-                except ValueError as e:
-                    sys.stderr.write("Error in compiler directive: %s\n" % e.args[0])
-                    sys.exit(1)
-            elif option == "--compile-time-env" or option.startswith('-E'):
-                if option.startswith('-E') and option[2:].strip():
-                    x_args = option[2:]
-                else:
-                    x_args = pop_value()
-                try:
-                    envs = arguments.get('compile_time_env', {})
-                    envs = Options.parse_compile_time_env(
-                        x_args, current_settings=envs)
-                    arguments['compile_time_env'] = envs
-                except ValueError as e:
-                    sys.stderr.write("Error in compile-time-env: %s\n" % e.args[0])
-                    sys.exit(1)
-            elif option.startswith('--debug'):
-                option = option[2:].replace('-', '_')
-                arguments[option] = True
-            elif option in ('-h', '--help'):
-                sys.stdout.write(usage)
-                sys.exit(0)
-            else:
-                sys.stderr.write("Unknown compiler flag: %s\n" % option)
-                sys.exit(1)
-        else:
-            sources.append(pop_arg())
-
-    if pending_arg:
-        bad_usage()
+            sources.append(option)
 
     return arguments, sources
 
@@ -255,7 +234,9 @@ def parse_command_line(args):
     arguments, sources = parse_command_line_raw(args)
 
     options = Options.CompilationOptions(Options.default_options)
-    for name, value in arguments.items():
+    for name, value in vars(arguments).items():
+        if value is None or value == {}:
+            continue
         if name.startswith('debug'):
             from . import DebugFlags
             if name in dir(DebugFlags):
