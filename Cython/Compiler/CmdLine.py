@@ -94,90 +94,98 @@ def parse_command_line(args):
         else:
             return pop_arg()
 
-    options = Options.CompilationOptions(Options.default_options)
     sources = []
+    arguments = {}
     while args:
         if args[0].startswith("-"):
             option = pop_arg()
             if option in ("-V", "--version"):
-                options.show_version = 1
+                arguments['show_version'] = 1
             elif option in ("-l", "--create-listing"):
-                options.use_listing_file = 1
+                arguments['use_listing_file'] = 1
             elif option in ("-+", "--cplus"):
-                options.cplus = 1
+                arguments['cplus'] = 1
             elif option == "--embed":
-                Options.embed = pop_value("main")
+                arguments['embed'] = pop_value("main")
             elif option.startswith("-I"):
-                options.include_path.append(get_param(option))
+                i_path = arguments.get('include_path', [])
+                i_path.append(get_param(option))
+                arguments['include_path'] = i_path
             elif option == "--include-dir":
-                options.include_path.append(pop_value())
+                i_path = arguments.get('include_path', [])
+                i_path.append(pop_value())
+                arguments['include_path'] = i_path
             elif option in ("-w", "--working"):
-                options.working_path = pop_value()
+                arguments['working_path'] = pop_value()
             elif option in ("-o", "--output-file"):
-                options.output_file = pop_value()
+                arguments['output_file'] = pop_value()
             elif option in ("-t", "--timestamps"):
-                options.timestamps = 1
+                arguments['timestamps'] = 1
             elif option in ("-f", "--force"):
-                options.timestamps = 0
+                arguments['timestamps'] = 0
             elif option in ("-v", "--verbose"):
-                options.verbose += 1
+                arguments['verbose'] = arguments.get('verbose', 0) + 1
             elif option in ("-p", "--embed-positions"):
-                Options.embed_pos_in_docstring = 1
+                arguments['embed_pos_in_docstring'] = 1
             elif option in ("-z", "--pre-import"):
-                Options.pre_import = pop_value()
+                arguments['pre_import'] = pop_value()
             elif option == "--cleanup":
-                Options.generate_cleanup_code = int(pop_value())
+                arguments['generate_cleanup_code'] = int(pop_value())
             elif option in ("-D", "--no-docstrings"):
-                Options.docstrings = False
+                arguments['docstrings'] = False
             elif option in ("-a", "--annotate"):
-                Options.annotate = "default"
+                arguments['annotate'] = "default"
             elif option == "--annotate-fullc":
-                Options.annotate = "fullc"
+                arguments['annotate'] = "fullc"
             elif option == "--annotate-coverage":
-                Options.annotate = True
-                Options.annotate_coverage_xml = pop_value()
+                arguments['annotate'] = True
+                arguments['annotate_coverage_xml'] = pop_value()
             elif option == "--convert-range":
-                Options.convert_range = True
+                arguments['convert_range'] = True
             elif option == "--line-directives":
-                options.emit_linenums = True
+                arguments['emit_linenums'] = True
             elif option == "--no-c-in-traceback":
-                options.c_line_in_traceback = False
+                arguments['c_line_in_traceback'] = False
             elif option == "--gdb":
-                options.gdb_debug = True
-                options.output_dir = os.curdir
+                arguments['gdb_debug'] = True
+                arguments['output_dir'] = os.curdir
             elif option == "--gdb-outdir":
-                options.gdb_debug = True
-                options.output_dir = pop_value()
+                arguments['gdb_debug'] = True
+                arguments['output_dir'] = pop_value()
             elif option == "--lenient":
-                Options.error_on_unknown_names = False
-                Options.error_on_uninitialized = False
+                arguments['error_on_unknown_names'] = False
+                arguments['error_on_uninitialized'] = False
             elif option == '-2':
-                options.language_level = 2
+                arguments['language_level'] = 2
             elif option == '-3':
-                options.language_level = 3
+                arguments['language_level'] = 3
             elif option == '--3str':
-                options.language_level = '3str'
+                arguments['language_level'] = '3str'
             elif option == "--capi-reexport-cincludes":
-                options.capi_reexport_cincludes = True
+                arguments['capi_reexport_cincludes'] = True
             elif option == "--fast-fail":
-                Options.fast_fail = True
+                arguments['fast_fail'] = True
             elif option == "--cimport-from-pyx":
-                Options.cimport_from_pyx = True
+                arguments['cimport_from_pyx'] = True
             elif option in ('-Werror', '--warning-errors'):
-                Options.warning_errors = True
+                arguments['warning_errors'] = True
             elif option in ('-Wextra', '--warning-extra'):
-                options.compiler_directives.update(Options.extra_warnings)
+                directives = arguments.get('compiler_directives', {})
+                directives.update(Options.extra_warnings)
+                arguments['compiler_directives'] = directives
             elif option == "--old-style-globals":
-                Options.old_style_globals = True
+                arguments['old_style_globals'] = True
             elif option == "--directive" or option.startswith('-X'):
                 if option.startswith('-X') and option[2:].strip():
                     x_args = option[2:]
                 else:
                     x_args = pop_value()
                 try:
-                    options.compiler_directives = Options.parse_directive_list(
+                    directives = arguments.get('compiler_directives', {})
+                    directives = Options.parse_directive_list(
                         x_args, relaxed_bool=True,
-                        current_settings=options.compiler_directives)
+                        current_settings=directives)
+                    arguments['compiler_directives'] = directives
                 except ValueError as e:
                     sys.stderr.write("Error in compiler directive: %s\n" % e.args[0])
                     sys.exit(1)
@@ -187,8 +195,10 @@ def parse_command_line(args):
                 else:
                     x_args = pop_value()
                 try:
-                    options.compile_time_env = Options.parse_compile_time_env(
-                        x_args, current_settings=options.compile_time_env)
+                    envs = arguments.get('compile_time_env', {})
+                    envs = Options.parse_compile_time_env(
+                        x_args, current_settings=envs)
+                    arguments['compile_time_env'] = envs
                 except ValueError as e:
                     sys.stderr.write("Error in compile-time-env: %s\n" % e.args[0])
                     sys.exit(1)
@@ -211,6 +221,13 @@ def parse_command_line(args):
 
     if pending_arg:
         bad_usage()
+
+    options = Options.CompilationOptions(Options.default_options)
+    for name, value in arguments.items():
+        if hasattr(Options, name):
+            setattr(Options, name, value)
+        else:
+            setattr(options, name, value)
 
     if options.use_listing_file and len(sources) > 1:
         sys.stderr.write(
