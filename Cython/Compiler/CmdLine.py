@@ -66,7 +66,7 @@ def bad_usage():
     sys.exit(1)
 
 
-def parse_command_line(args):
+def parse_command_line_raw(args):
     pending_arg = []
 
     def pop_arg():
@@ -216,6 +216,12 @@ def parse_command_line(args):
 
     if pending_arg:
         bad_usage()
+
+    return arguments, sources
+
+
+def parse_command_line(args):
+    arguments, sources = parse_command_line_raw(args)
 
     options = Options.CompilationOptions(Options.default_options)
     for name, value in arguments.items():
