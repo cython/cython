@@ -52,7 +52,7 @@ Features added
 * PEP-479 (``generator_stop``) is now enabled by default with language level 3.
   (Github issue #2580)
 
-* Code annotation accepts a new debugging argument ``--annotate=fullc`` that
+* Code annotation accepts a new debugging argument ``--annotate-fullc`` that
   will include the complete syntax highlighted C file in the HTML output.
   (Github issue #2855)
 
