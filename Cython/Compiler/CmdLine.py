@@ -34,7 +34,8 @@ Options:
 
   -D, --no-docstrings            Strip docstrings from the compiled module.
   -a, --annotate                 Produce a colorized HTML version of the source.
-                                 Use --annotate=fullc to include entire generated C/C++-code.
+  --annotate-fullc               Produce a colorized HTML version of the source which
+                                 includes entire generated C/C++-code.
   --annotate-coverage <cov.xml>  Annotate and include coverage information from cov.xml.
   --line-directives              Produce #line directives pointing to the .pyx source
   --cplus                        Output a C++ rather than C file.
@@ -129,7 +130,9 @@ def parse_command_line(args):
             elif option in ("-D", "--no-docstrings"):
                 Options.docstrings = False
             elif option in ("-a", "--annotate"):
-                Options.annotate = pop_value('default')
+                Options.annotate = "default"
+            elif option == "--annotate-fullc":
+                Options.annotate = "fullc"
             elif option == "--annotate-coverage":
                 Options.annotate = True
                 Options.annotate_coverage_xml = pop_value()

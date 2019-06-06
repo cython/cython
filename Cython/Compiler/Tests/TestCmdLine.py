@@ -104,23 +104,23 @@ class CmdLineParserTest(TestCase):
         ])
         self.assertFalse(Options.annotate)
 
-    def test_annotate_simple(self):
+    def test_annotate_short(self):
         options, sources = parse_command_line([
             '-a',
             'source.pyx',
         ])
         self.assertEqual(Options.annotate, 'default')
 
-    def test_annotate_default(self):
+    def test_annotate_long(self):
         options, sources = parse_command_line([
-            '--annotate=default',
+            '--annotate',
             'source.pyx',
         ])
         self.assertEqual(Options.annotate, 'default')
 
     def test_annotate_fullc(self):
         options, sources = parse_command_line([
-            '--annotate=fullc',
+            '--annotate-fullc',
             'source.pyx',
         ])
         self.assertEqual(Options.annotate, 'fullc')
