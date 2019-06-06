@@ -226,14 +226,14 @@ x = sin(0.0)
 
     def test_cython_annotate_default(self):
         ip = self._ip
-        html = ip.run_cell_magic('cython', '--a=default', code)
+        html = ip.run_cell_magic('cython', '-a', code)
         # somewhat brittle way to differentiate between annotated htmls
         # with/without complete source code:
         self.assertTrue(AnnotationCCodeWriter.COMPLETE_CODE_TITLE not in html.data)
 
     def test_cython_annotate_complete_c_code(self):
         ip = self._ip
-        html = ip.run_cell_magic('cython', '--a=fullc', code)
+        html = ip.run_cell_magic('cython', '--annotate-fullc', code)
         # somewhat brittle way to differentiate between annotated htmls
         # with/without complete source code:
         self.assertTrue(AnnotationCCodeWriter.COMPLETE_CODE_TITLE in html.data)
