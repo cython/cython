@@ -243,16 +243,10 @@ class TestCythonizeArgsParser(TestCase):
         self.assertEqual(options.annotate, 'default')
 
     def test_annotate_fullc(self):
-        options, args =  self.parse_args(['--annotate=fullc'])
+        options, args =  self.parse_args(['--annotate-fullc'])
         self.assertFalse(args)
         self.assertTrue(self.are_default(options, ['annotate']))
         self.assertEqual(options.annotate, 'fullc')
-
-    def test_annotate_fullc(self):
-        options, args =  self.parse_args(['-a=default'])
-        self.assertFalse(args)
-        self.assertTrue(self.are_default(options, ['annotate']))
-        self.assertEqual(options.annotate, 'default')
 
     def test_annotate_and_positional(self):
         options, args =  self.parse_args(['-a', 'foo.pyx'])

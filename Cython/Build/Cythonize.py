@@ -168,10 +168,11 @@ def create_args_parser():
                       help='use Python 3 syntax mode by default')
     parser.add_argument('--3str', dest='language_level', action='store_const', const='3str',
                       help='use Python 3 syntax mode by default')
-    parser.add_argument('-a', '--annotate', nargs='?', const='default', type=str, choices={'default','fullc'},
-                      help='Produce a colorized HTML version of the source. '
-                           'Use --annotate=fullc to include entire '
-                           'generated C/C++-code.')
+    parser.add_argument('-a', '--annotate', action='store_const', const='default', dest='annotate',
+                      help='Produce a colorized HTML version of the source.')
+    parser.add_argument('--annotate-fullc', action='store_const', const='fullc', dest='annotate',
+                      help='Produce a colorized HTML version of the source '
+                           'which includes entire generated C/C++-code.')
     parser.add_argument('-x', '--exclude', metavar='PATTERN', dest='excludes',
                       action='append', default=[],
                       help='exclude certain file patterns from the compilation')
