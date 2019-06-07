@@ -1,4 +1,7 @@
-from Cython.Build.Cythonize import create_args_parser, parse_args_raw, parse_args
+from Cython.Build.Cythonize import (
+    create_args_parser, parse_args_raw, parse_args,
+    parallel_compiles
+)
 from unittest import TestCase
 
 import argparse
@@ -22,7 +25,7 @@ class TestCythonizeArgsParser(TestCase):
             if (getattr(options, opt_name) is not None) and (not opt_name in skip):
                 self.assertEqual(opt_name,"", msg="For option "+opt_name)
                 return False
-        if options.parallel!=3 and (not 'parallel' in skip):
+        if options.parallel!=parallel_compiles and (not 'parallel' in skip):
             return False
         return True
 
