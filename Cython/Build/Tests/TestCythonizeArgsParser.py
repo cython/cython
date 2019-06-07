@@ -392,6 +392,15 @@ class TestCythonizeArgsParser(TestCase):
         self.assertEqual(options.build_inplace, True)
         self.assertTrue(self.are_default(options, ['build_inplace']))
 
+    def test_interspersed_positional(self):
+        options, sources = self.parse_args([
+             'file1.pyx', '-a', 
+             'file2.pyx'
+        ])
+        self.assertEqual(sources, ['file1.pyx', 'file2.pyx'])
+        self.assertEqual(options.annotate, 'default')
+        self.assertTrue(self.are_default(options, ['annotate']))
+
 class TestParseArgs(TestCase):
 
     def test_build_set_for_inplace(self):
