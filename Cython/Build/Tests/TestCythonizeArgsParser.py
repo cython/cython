@@ -5,11 +5,11 @@ from Cython.Build.Cythonize import (
 from unittest import TestCase
 
 import sys
-import argparse
 try:
     from StringIO import StringIO
 except ImportError:
     from io import StringIO  # doesn't accept 'str' in Py2
+
 
 class TestCythonizeArgsParser(TestCase):
 
@@ -399,7 +399,7 @@ class TestCythonizeArgsParser(TestCase):
 
     def test_interspersed_positional(self):
         options, sources = self.parse_args([
-             'file1.pyx', '-a', 
+             'file1.pyx', '-a',
              'file2.pyx'
         ])
         self.assertEqual(sources, ['file1.pyx', 'file2.pyx'])
@@ -408,7 +408,7 @@ class TestCythonizeArgsParser(TestCase):
 
     def test_interspersed_positional2(self):
         options, sources = self.parse_args([
-             'file1.pyx', '-a', 
+             'file1.pyx', '-a',
              'file2.pyx', '-a', 'file3.pyx'
         ])
         self.assertEqual(sources, ['file1.pyx', 'file2.pyx', 'file3.pyx'])
@@ -417,7 +417,7 @@ class TestCythonizeArgsParser(TestCase):
 
     def test_interspersed_positional3(self):
         options, sources = self.parse_args([
-             '-f', 'f1', 'f2', '-a', 
+             '-f', 'f1', 'f2', '-a',
              'f3', 'f4', '-a', 'f5'
         ])
         self.assertEqual(sources, ['f1', 'f2', 'f3', 'f4', 'f5'])
@@ -429,7 +429,9 @@ class TestCythonizeArgsParser(TestCase):
         old_stderr = sys.stderr
         stderr = sys.stderr = StringIO()
         try:
-            self.assertRaises(SystemExit, self.parse_args, ['--unknown-option'])
+            self.assertRaises(SystemExit, self.parse_args,
+                              ['--unknown-option']
+                              )
         finally:
             sys.stderr = old_stderr
         self.assertTrue(stderr.getvalue())
