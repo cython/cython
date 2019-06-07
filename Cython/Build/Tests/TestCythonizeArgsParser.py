@@ -406,6 +406,25 @@ class TestCythonizeArgsParser(TestCase):
         self.assertEqual(options.annotate, 'default')
         self.assertTrue(self.are_default(options, ['annotate']))
 
+    def test_interspersed_positional2(self):
+        options, sources = self.parse_args([
+             'file1.pyx', '-a', 
+             'file2.pyx', '-a', 'file3.pyx'
+        ])
+        self.assertEqual(sources, ['file1.pyx', 'file2.pyx', 'file3.pyx'])
+        self.assertEqual(options.annotate, 'default')
+        self.assertTrue(self.are_default(options, ['annotate']))
+
+    def test_interspersed_positional3(self):
+        options, sources = self.parse_args([
+             '-f', 'f1', 'f2', '-a', 
+             'f3', 'f4', '-a', 'f5'
+        ])
+        self.assertEqual(sources, ['f1', 'f2', 'f3', 'f4', 'f5'])
+        self.assertEqual(options.annotate, 'default')
+        self.assertEqual(options.force, True)
+        self.assertTrue(self.are_default(options, ['annotate', 'force']))
+
     def test_wrong_option(self):
         old_stderr = sys.stderr
         stderr = sys.stderr = StringIO()
