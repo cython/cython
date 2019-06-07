@@ -16,11 +16,11 @@ class TestCythonizeArgsParser(TestCase):
         are_none = ['language_level', 'annotate', 'build', 'build_inplace', 'force', 'quiet', 'lenient', 'keep_going', 'no_docstrings']
         for opt_name in empty_containers:
             if len(getattr(options, opt_name))!=0 and (not opt_name in skip):
-                self.assertEqual(opt_name,"")
+                self.assertEqual(opt_name,"", msg="For option "+opt_name)
                 return False
         for opt_name in are_none:
             if (getattr(options, opt_name) is not None) and (not opt_name in skip):
-                self.assertEqual(opt_name,"")
+                self.assertEqual(opt_name,"", msg="For option "+opt_name)
                 return False
         if options.parallel!=3 and (not 'parallel' in skip):
             return False
@@ -243,16 +243,23 @@ class TestCythonizeArgsParser(TestCase):
         self.assertEqual(options.annotate, 'default')
 
     def test_annotate_fullc(self):
-        options, args =  self.parse_args(['--annotate=fullc'])
+        options, args =  self.parse_args(['--annotate-fullc'])
         self.assertFalse(args)
         self.assertTrue(self.are_default(options, ['annotate']))
         self.assertEqual(options.annotate, 'fullc')
 
-    def test_annotate_fullc(self):
-        options, args =  self.parse_args(['-a=default'])
-        self.assertFalse(args)
+    def test_annotate_and_positional(self):
+        options, args =  self.parse_args(['-a', 'foo.pyx'])
+        self.assertEqual(args, ['foo.pyx'])
         self.assertTrue(self.are_default(options, ['annotate']))
         self.assertEqual(options.annotate, 'default')
+
+    def test_annotate_and_optional(self):
+        options, args =  self.parse_args(['-a', '--3str'])
+        self.assertFalse(args)
+        self.assertTrue(self.are_default(options, ['annotate', 'language_level']))
+        self.assertEqual(options.annotate, 'default')
+        self.assertEqual(options.language_level, '3str')
 
     def test_exclude_short(self):
         options, args =  self.parse_args(['-x', '*.pyx'])
