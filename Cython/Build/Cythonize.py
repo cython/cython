@@ -210,7 +210,7 @@ def parse_args_raw(parser, args):
             parser.error("unknown option "+option)
         else:
             sources.append(option)
-    delattr(options, 'sources')
+    del options.sources
     return (options, sources)
 
 
