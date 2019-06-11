@@ -201,8 +201,17 @@ def create_args_parser():
 
 
 def parse_args_raw(parser, args):
-    options = parser.parse_args(args)
-    return (options, options.sources)
+    options, unknown = parser.parse_known_args(args)
+    sources = options.sources
+    # if positional arguments were interspersed
+    # some of them are in unknown
+    for option in unknown:
+        if option.startswith('-'):
+            parser.error("unknown option "+option)
+        else:
+            sources.append(option)
+    delattr(options, 'sources')
+    return (options, sources)
 
 
 def parse_args(args):
