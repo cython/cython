@@ -150,6 +150,19 @@ Other changes
 * Support for Python 2.6 was removed.
 
 
+0.29.11 (2019-0?-??)
+====================
+
+Bugs fixed
+----------
+
+* Invalid C code generated for lambda functions in cdef methods.
+  Patch by Josh Tobin.  (Github issue #2967)
+
+* Support slice handling in newer Pythran versions.
+  (Github issue #2989)
+
+
 0.29.10 (2019-06-02)
 ====================
 
