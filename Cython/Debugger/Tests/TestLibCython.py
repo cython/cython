@@ -40,7 +40,7 @@ def test_gdb():
     else:
         stdout, _ = p.communicate()
         # Based on Lib/test/test_gdb.py
-        regex = "GNU gdb [^\d]*(\d+)\.(\d+)"
+        regex = r"GNU gdb [^\d]*(\d+)\.(\d+)"
         gdb_version = re.match(regex, stdout.decode('ascii', 'ignore'))
 
     if gdb_version:
