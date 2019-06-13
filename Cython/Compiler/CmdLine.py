@@ -5,7 +5,6 @@
 from __future__ import absolute_import
 
 import os
-import sys
 from argparse import ArgumentParser, Action, SUPPRESS
 from . import Options
 
@@ -70,65 +69,7 @@ class SetAnnotateCoverageAction(Action):
         setattr(namespace, 'annotate_coverage_xml', values)
 
 
-usage = """\
-Cython (https://cython.org/) is a compiler for code written in the
-Cython language.  Cython is based on Pyrex by Greg Ewing.
-
-Usage: cython [options] sourcefile.{pyx,py} ...
-
-Options:
-  -V, --version                  Display version number of cython compiler
-  -l, --create-listing           Write error messages to a listing file
-  -I, --include-dir <directory>  Search for include files in named directory
-                                 (multiple include directories are allowed).
-  -o, --output-file <filename>   Specify name of generated C file
-  -t, --timestamps               Only compile newer source files
-  -f, --force                    Compile all source files (overrides implied -t)
-  -v, --verbose                  Be verbose, print file names on multiple compilation
-  -p, --embed-positions          If specified, the positions in Cython files of each
-                                 function definition is embedded in its docstring.
-  --cleanup <level>              Release interned objects on python exit, for memory debugging.
-                                 Level indicates aggressiveness, default 0 releases nothing.
-  -w, --working <directory>      Sets the working directory for Cython (the directory modules
-                                 are searched from)
-  --gdb                          Output debug information for cygdb
-  --gdb-outdir <directory>       Specify gdb debug information output directory. Implies --gdb.
-
-  -D, --no-docstrings            Strip docstrings from the compiled module.
-  -a, --annotate                 Produce a colorized HTML version of the source.
-  --annotate-fullc               Produce a colorized HTML version of the source which
-                                 includes entire generated C/C++-code.
-  --annotate-coverage <cov.xml>  Annotate and include coverage information from cov.xml.
-  --line-directives              Produce #line directives pointing to the .pyx source
-  --cplus                        Output a C++ rather than C file.
-  --embed[=<method_name>]        Generate a main() function that embeds the Python interpreter.
-  -2                             Compile based on Python-2 syntax and code semantics.
-  -3                             Compile based on Python-3 syntax and code semantics.
-  --3str                         Compile based on Python-3 syntax and code semantics without
-                                 assuming unicode by default for string literals under Python 2.
-  --lenient                      Change some compile time errors to runtime errors to
-                                 improve Python compatibility
-  --capi-reexport-cincludes      Add cincluded headers to any auto-generated header files.
-  --fast-fail                    Abort the compilation on the first error
-  --warning-errors, -Werror      Make all warnings into errors
-  --warning-extra, -Wextra       Enable extra warnings
-  -X, --directive <name>=<value>[,<name=value,...] Overrides a compiler directive
-  -E, --compile-time-env name=value[,<name=value,...] Provides compile time env like DEF would do.
-"""
-
-
-# The following experimental options are supported only on MacOSX:
-#  -C, --compile    Compile generated .c file to .o file
-#  --link           Link .o file to produce extension module (implies -C)
-#  -+, --cplus      Use C++ compiler for compiling and linking
-#  Additional .o files to link may be supplied when using -X."""
-
-def bad_usage():
-    sys.stderr.write(usage)
-    sys.exit(1)
-
-
-def parse_command_line_raw(args):
+def create_cython_argparser():
     description = "Cython (https://cython.org/) is a compiler for code written in the "\
                   "Cython language.  Cython is based on Pyrex by Greg Ewing."
 
@@ -211,7 +152,10 @@ def parse_command_line_raw(args):
     parser.add_argument("--no-c-in-traceback", dest='c_line_in_traceback', action='store_false', default=None, help=SUPPRESS)
     parser.add_argument("--cimport-from-pyx", dest='cimport_from_pyx', action='store_true', default=None, help=SUPPRESS)
     parser.add_argument("--old-style-globals", dest='old_style_globals', action='store_true', default=None, help=SUPPRESS)
+    return parser
 
+
+def parse_command_line_raw(parser, args):
     arguments, unknown = parser.parse_known_args(args)
 
     sources = arguments.sources
@@ -231,7 +175,8 @@ def parse_command_line_raw(args):
 
 
 def parse_command_line(args):
-    arguments, sources = parse_command_line_raw(args)
+    parser = create_cython_argparser()
+    arguments, sources = parse_command_line_raw(parser, args)
 
     options = Options.CompilationOptions(Options.default_options)
     for name, value in vars(arguments).items():
@@ -242,22 +187,16 @@ def parse_command_line(args):
             if name in dir(DebugFlags):
                 setattr(DebugFlags, name, value)
             else:
-                sys.stderr.write("Unknown debug flag: %s\n" % name)
-                bad_usage()
+                parser.error("Unknown debug flag: %s\n" % name)
         elif hasattr(Options, name):
             setattr(Options, name, value)
         else:
             setattr(options, name, value)
 
     if options.use_listing_file and len(sources) > 1:
-        sys.stderr.write(
-            "cython: Only one source file allowed when using -o\n")
-        sys.exit(1)
+        parser.error("cython: Only one source file allowed when using -o\n")
     if len(sources) == 0 and not options.show_version:
-        bad_usage()
+        parser.error("cython: Need at least one source file\n")
     if Options.embed and len(sources) > 1:
-        sys.stderr.write(
-            "cython: Only one source file allowed when using -embed\n")
-        sys.exit(1)
+        parser.error("cython: Only one source file allowed when using -embed\n")
     return options, sources
-
