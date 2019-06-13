@@ -355,27 +355,23 @@ class CmdLineParserTest(TestCase):
         self.check_default_global_options()
         self.check_default_options(options, ['compiler_directives'])
 
-    # ToDo: activate
-    # def test_directive_value_invalid(self):
-    #    with self.assertRaises(ValueError) as context:
-    #        options, source = parse_command_line([
-    #           '-X', 'cdivision=sadfasd',
-    #           'source.pyx'
-    #        ])
+    def test_directive_value_invalid(self):
+        self.assertRaises(ValueError, parse_command_line, [
+               '-X', 'cdivision=sadfasd',
+               'source.pyx'
+        ])
 
-    # def test_directive_key_invalid(self):
-    #    with self.assertRaises(ValueError) as context:
-    #        options, source = parse_command_line([
-    #           '-X', 'abracadabra',
-    #           'source.pyx'
-    #        ])
+    def test_directive_key_invalid(self):
+        self.assertRaises(ValueError, parse_command_line, [
+               '-X', 'abracadabra',
+               'source.pyx'
+        ])
 
-    # def test_directive_no_value(self):
-    #    with self.assertRaises(ValueError) as context:
-    #        options, source = parse_command_line([
-    #           '-X', 'cdivision',
-    #           'source.pyx'
-    #        ])
+    def test_directive_no_value(self):
+        self.assertRaises(ValueError, parse_command_line, [
+               '-X', 'cdivision',
+               'source.pyx'
+        ])
 
     def test_compile_time_env_short(self):
         options, source = parse_command_line([
