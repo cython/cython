@@ -1850,59 +1850,6 @@ static PyObject* __Pyx_PyObject_CallMethod1(PyObject* obj, PyObject* method_name
 }
 
 
-/////////////// PyObjectCallMethod2.proto ///////////////
-
-static PyObject* __Pyx_PyObject_CallMethod2(PyObject* obj, PyObject* method_name, PyObject* arg1, PyObject* arg2); /*proto*/
-
-/////////////// PyObjectCallMethod2 ///////////////
-//@requires: PyObjectCall
-//@requires: PyFunctionFastCall
-//@requires: PyCFunctionFastCall
-//@requires: PyObjectCall2Args
-
-static PyObject* __Pyx_PyObject_Call3Args(PyObject* function, PyObject* arg1, PyObject* arg2, PyObject* arg3) {
-    #if CYTHON_FAST_PYCALL
-    if (PyFunction_Check(function)) {
-        PyObject *args[3] = {arg1, arg2, arg3};
-        return __Pyx_PyFunction_FastCall(function, args, 3);
-    }
-    #endif
-    #if CYTHON_FAST_PYCCALL
-    if (__Pyx_PyFastCFunction_Check(function)) {
-        PyObject *args[3] = {arg1, arg2, arg3};
-        return __Pyx_PyFunction_FastCall(function, args, 3);
-    }
-    #endif
-
-    args = PyTuple_New(3);
-    if (unlikely(!args)) goto done;
-    Py_INCREF(arg1);
-    PyTuple_SET_ITEM(args, 0, arg1);
-    Py_INCREF(arg2);
-    PyTuple_SET_ITEM(args, 1, arg2);
-    Py_INCREF(arg3);
-    PyTuple_SET_ITEM(args, 2, arg3);
-
-    result = __Pyx_PyObject_Call(function, args, NULL);
-    Py_DECREF(args);
-    return result;
-}
-
-static PyObject* __Pyx_PyObject_CallMethod2(PyObject* obj, PyObject* method_name, PyObject* arg1, PyObject* arg2) {
-    PyObject *args, *method = NULL, *result = NULL;
-    int is_method = __Pyx_PyObject_GetMethod(obj, method_name, &method);
-    if (likely(is_method)) {
-        result = __Pyx_PyObject_Call3Args(method, obj, arg1, arg2);
-        Py_DECREF(method);
-        return result;
-    }
-    if (unlikely(!method)) return NULL;
-    result = __Pyx_PyObject_Call2Args(method, arg1, arg2);
-    Py_DECREF(method);
-    return result;
-}
-
-
 /////////////// tp_new.proto ///////////////
 
 #define __Pyx_tp_new(type_obj, args) __Pyx_tp_new_kwargs(type_obj, args, NULL)
