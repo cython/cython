@@ -2252,7 +2252,9 @@ def test_contig_scalar_to_slice_assignment():
     """
     >>> test_contig_scalar_to_slice_assignment()
     14 14 14 14
+    30 14 30 14
     20 20 20 20
+    30 30 20 20
     """
     cdef int[5][10] a
     cdef int[:, ::1] m = a
@@ -2260,8 +2262,14 @@ def test_contig_scalar_to_slice_assignment():
     m[...] = 14
     print m[0, 0], m[-1, -1], m[3, 2], m[4, 9]
 
+    m[:, :1] = 30
+    print m[0, 0], m[0, 1], m[1, 0], m[1, 1]
+
     m[:, :] = 20
     print m[0, 0], m[-1, -1], m[3, 2], m[4, 9]
+
+    m[:1, :] = 30
+    print m[0, 0], m[0, 1], m[1, 0], m[1, 1]
 
 @testcase
 def test_dtype_object_scalar_assignment():

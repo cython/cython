@@ -4722,8 +4722,17 @@ class MemoryCopyScalar(MemoryCopyNode):
             code.putln("%s __pyx_temp_slice = %s;" % (slice_decl, self.dst.result()))
             dst_temp = "__pyx_temp_slice"
 
+        force_strided = False
+        indices = self.dst.original_indices
+        for idx in indices:
+            if isinstance(idx, SliceNode) and not (idx.start.is_none and
+                                                   idx.stop.is_none and
+                                                   idx.step.is_none):
+                force_strided = True
+
         slice_iter_obj = MemoryView.slice_iter(self.dst.type, dst_temp,
-                                               self.dst.type.ndim, code)
+                                               self.dst.type.ndim, code,
+                                               force_strided=force_strided)
         p = slice_iter_obj.start_loops()
 
         if dtype.is_pyobject:
@@ -9565,7 +9574,7 @@ class CodeObjectNode(ExprNode):
 
         code.putln("%s = (PyObject*)__Pyx_PyCode_New(%d, %d, %d, %d, 0, %s, %s, %s, %s, %s, %s, %s, %s, %s, %d, %s); %s" % (
             self.result_code,
-            len(func.args) - func.num_kwonly_args - func.num_posonly_args,  # argcount
+            len(func.args) - func.num_kwonly_args,  # argcount
             func.num_posonly_args,     # posonlyargcount (Py3.8+ only)
             func.num_kwonly_args,      # kwonlyargcount (Py3 only)
             len(self.varnames.args),   # nlocals
@@ -11559,7 +11568,7 @@ class DivNode(NumBinopNode):
                 self.operand2 = self.operand2.coerce_to_simple(env)
 
     def compute_c_result_type(self, type1, type2):
-        if self.operator == '/' and self.ctruedivision:
+        if self.operator == '/' and self.ctruedivision and not type1.is_cpp_class and not type2.is_cpp_class:
             if not type1.is_float and not type2.is_float:
                 widest_type = PyrexTypes.widest_numeric_type(type1, PyrexTypes.c_double_type)
                 widest_type = PyrexTypes.widest_numeric_type(type2, widest_type)
@@ -11650,7 +11659,7 @@ class DivNode(NumBinopNode):
                 code.putln("}")
 
     def calculate_result_code(self):
-        if self.type.is_complex:
+        if self.type.is_complex or self.is_cpp_operation():
             return NumBinopNode.calculate_result_code(self)
         elif self.type.is_float and self.operator == '//':
             return "floor(%s / %s)" % (

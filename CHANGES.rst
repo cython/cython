@@ -16,7 +16,7 @@ Features added
   (Github issue #2854)
 
 * Positional-only arguments are supported in Python functions.
-  Patch by Josh Tobin.  (Github issue #2927)
+  Patch by Josh Tobin.  (Github issue #2915)
 
 * The ``volatile`` C modifier is supported in Cython code.
   Patch by Jeroen Demeyer.  (Github issue #1667)
@@ -52,11 +52,17 @@ Features added
 * PEP-479 (``generator_stop``) is now enabled by default with language level 3.
   (Github issue #2580)
 
+* Code annotation accepts a new debugging argument ``--annotate-fullc`` that
+  will include the complete syntax highlighted C file in the HTML output.
+  (Github issue #2855)
+
 * ``--no-capture`` added to ``runtests.py`` to prevent stdout/stderr capturing
   during srctree tests.  Patch by Matti Picus.
 
 * ``--no-docstrings`` option added to ``cythonize`` script.
   Original patch by mo-han.  (Github issue #2889)
+
+* The ``@cython.binding`` decorator is available in Python code.
 
 Bugs fixed
 ----------
@@ -66,10 +72,23 @@ Bugs fixed
   the first character if multiple characters should have been returned.
   They now use the original Python methods again.
 
+* Nested dict literals in function call kwargs could incorrectly raise an
+  error about duplicate keyword arguments, which are allowed when passing
+  them from dict literals.
+  (Github issue #2963)
+
 * Item access (subscripting) with integer indices/keys always tried the
   Sequence protocol before the Mapping protocol, which diverged from Python
   semantics.  It now passes through the Mapping protocol first when supported.
   (Github issue #1807)
+
+* Broadcast assignments to a multi-dimensional memory view slice could end
+  up in the wrong places when the underlying memory view is known to be
+  contiguous but the slice is not.
+  (Github issue #2941)
+
+* Pickling unbound methods of Python classes failed.
+  Patch by Pierre Glaser.  (Github issue #2972)
 
 * The ``Py_hash_t`` type failed to accept arbitrary "index" values.
   (Github issue #2752)
@@ -93,7 +112,7 @@ Bugs fixed
   (Github issue #2665)
 
 * Compiling package ``__init__`` files could fail under Windows due to an
-  undefined export symbol.
+  undefined export symbol.  (Github issue #2968)
 
 * A C compiler cast warning was resolved.
   Patch by Michael Buesch.  (Github issue #2775)
@@ -119,20 +138,61 @@ Other changes
   and ``cpython.*`` pxd modules instead.
   Patch by Jeroen Demeyer.  (Github issue #2904)
 
-* Support for Python 2.6 was removed.
-
 * The search order for include files was changed. Previously it was
   ``include_directories``, ``Cython/Includes``, ``sys.path``. Now it is
   ``include_directories``, ``sys.path``, ``Cython/Includes``. This was done to
   allow third-party ``*.pxd`` files to override the ones in Cython.
-  (Github issue #2905)
+  Patch by Matti Picus.  (Github issue #2905)
+
+* The command line parser was rewritten and modernised using ``argparse``.
+  Patch by Egor Dranischnikow.  (Github issue #2952)
+
+* Support for Python 2.6 was removed.
 
 
-0.29.8 (2019-0?-??)
+0.29.11 (2019-0?-??)
+====================
+
+Bugs fixed
+----------
+
+* Invalid C code generated for lambda functions in cdef methods.
+  Patch by Josh Tobin.  (Github issue #2967)
+
+* Support slice handling in newer Pythran versions.
+  (Github issue #2989)
+
+
+0.29.10 (2019-06-02)
+====================
+
+Bugs fixed
+----------
+
+* Fix compile errors in CPython 3.8b1 due to the new "tp_vectorcall" slots.
+  (Github issue #2976)
+
+
+0.29.9 (2019-05-29)
 ===================
 
 Bugs fixed
 ----------
+
+* Fix a crash regression in 0.29.8 when creating code objects fails.
+
+* Remove an incorrect cast when using true-division in C++ operations.
+  (Github issue #1950)
+
+
+0.29.8 (2019-05-28)
+===================
+
+Bugs fixed
+----------
+
+* C compile errors with CPython 3.8 were resolved.
+  Patch by Marcel Plch.  (Github issue #2938)
 
 * Python tuple constants that compare equal but have different item
   types could incorrectly be merged into a single constant.

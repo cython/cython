@@ -5032,7 +5032,10 @@ class CClassDefNode(ClassDefNode):
                     code.error_goto(entry.pos)))
             # Don't inherit tp_print from builtin types, restoring the
             # behavior of using tp_repr or tp_str instead.
+            # ("tp_print" was renamed to "tp_vectorcall_offset" in Py3.8b1)
+            code.putln("#if PY_VERSION_HEX < 0x030800B1")
             code.putln("%s.tp_print = 0;" % typeobj_cname)
+            code.putln("#endif")
 
             # Use specialised attribute lookup for types with generic lookup but no instance dict.
             getattr_slot_func = TypeSlots.get_slot_code_by_name(scope, 'tp_getattro')
