@@ -1,5 +1,5 @@
 # ticket: 2891
-# tag: c
+# tag: c, no-cpp
 
 cdef extern from "complex_numbers_c99_T398.h": pass
 
