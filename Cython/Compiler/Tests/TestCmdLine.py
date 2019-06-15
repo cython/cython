@@ -120,6 +120,30 @@ class CmdLineParserTest(TestCase):
         self.assertEqual(options.output_dir, '/gdb/outdir')
         self.assertEqual(options.compiler_directives['wraparound'], False)
 
+    def test_embed_before_positional(self):
+        options, sources = parse_command_line([
+            '--embed',
+            'source.pyx',
+        ])
+        self.assertEqual(sources, ['source.pyx'])
+        self.assertEqual(Options.embed, 'main')
+
+    def test_two_embeds(self):
+        options, sources = parse_command_line([
+            '--embed', '--embed=huhu',
+            'source.pyx',
+        ])
+        self.assertEqual(sources, ['source.pyx'])
+        self.assertEqual(Options.embed, 'huhu')
+
+    def test_two_embeds2(self):
+        options, sources = parse_command_line([
+            '--embed=huhu', '--embed',
+            'source.pyx',
+        ])
+        self.assertEqual(sources, ['source.pyx'])
+        self.assertEqual(Options.embed, 'main')
+
     def test_no_annotate(self):
         options, sources = parse_command_line([
             '--embed=huhu', 'source.pyx'
