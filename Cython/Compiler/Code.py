@@ -2202,9 +2202,7 @@ class CCodeWriter(object):
             method_flags += [TypeSlots.method_coexist]
         func_ptr = wrapper_code_writer.put_pymethoddef_wrapper(entry) if wrapper_code_writer else entry.func_cname
         # Add required casts, but try not to shadow real warnings.
-        cast = '__Pyx_PyCFunctionFast' if 'METH_FASTCALL' in method_flags else 'PyCFunction'
-        if 'METH_KEYWORDS' in method_flags:
-            cast += 'WithKeywords'
+        cast = entry.signature.method_function_type()
         if cast != 'PyCFunction':
             func_ptr = '(void*)(%s)%s' % (cast, func_ptr)
         self.putln(
@@ -2218,8 +2216,9 @@ class CCodeWriter(object):
     def put_pymethoddef_wrapper(self, entry):
         func_cname = entry.func_cname
         if entry.is_special:
-            method_flags = entry.signature.method_flags()
-            if method_flags and 'METH_NOARGS' in method_flags:
+            method_flags = entry.signature.method_flags() or []
+            from .TypeSlots import method_noargs
+            if method_noargs in method_flags:
                 # Special NOARGS methods really take no arguments besides 'self', but PyCFunction expects one.
                 func_cname = Naming.method_wrapper_prefix + func_cname
                 self.putln("static PyObject *%s(PyObject *self, CYTHON_UNUSED PyObject *arg) {return %s(self);}" % (
