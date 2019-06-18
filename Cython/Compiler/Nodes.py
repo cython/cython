@@ -3516,6 +3516,11 @@ class DefNodeWrapper(FuncDefNode):
             if entry.is_arg:
                 code.put_var_declaration(entry)
 
+        # Assign nargs variable as len(args)
+        if self.signature_has_generic_args():
+            code.putln("Py_ssize_t %s = PyTuple_GET_SIZE(%s);" %
+                    (Naming.nargs_cname, Naming.args_cname))
+
     def generate_argument_parsing_code(self, env, code):
         # Generate fast equivalent of PyArg_ParseTuple call for
         # generic arguments, if any, including args/kwargs
@@ -3574,10 +3579,9 @@ class DefNodeWrapper(FuncDefNode):
         if not self.star_arg:
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("RaiseArgTupleInvalid", "FunctionArguments.c"))
-            code.putln("if (unlikely(PyTuple_GET_SIZE(%s) > 0)) {" %
-                       Naming.args_cname)
-            code.put('__Pyx_RaiseArgtupleInvalid("%s", 1, 0, 0, PyTuple_GET_SIZE(%s)); return %s;' % (
-                self.name, Naming.args_cname, self.error_value()))
+            code.putln("if (unlikely(%s > 0)) {" % Naming.nargs_cname)
+            code.put('__Pyx_RaiseArgtupleInvalid("%s", 1, 0, 0, %s); return %s;' % (
+                self.name, Naming.nargs_cname, self.error_value()))
             code.putln("}")
 
         if self.starstar_arg:
@@ -3620,9 +3624,9 @@ class DefNodeWrapper(FuncDefNode):
 
         if self.self_in_stararg and not self.target.is_staticmethod:
             # need to create a new tuple with 'self' inserted as first item
-            code.put("%s = PyTuple_New(PyTuple_GET_SIZE(%s)+1); if (unlikely(!%s)) " % (
+            code.put("%s = PyTuple_New(%s + 1); if (unlikely(!%s)) " % (
                 self.star_arg.entry.cname,
-                Naming.args_cname,
+                Naming.nargs_cname,
                 self.star_arg.entry.cname))
             if self.starstar_arg and self.starstar_arg.entry.cf_used:
                 code.putln("{")
@@ -3637,8 +3641,8 @@ class DefNodeWrapper(FuncDefNode):
             code.putln("PyTuple_SET_ITEM(%s, 0, %s);" % (
                 self.star_arg.entry.cname, Naming.self_cname))
             temp = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
-            code.putln("for (%s=0; %s < PyTuple_GET_SIZE(%s); %s++) {" % (
-                temp, temp, Naming.args_cname, temp))
+            code.putln("for (%s=0; %s < %s; %s++) {" % (
+                temp, temp, Naming.nargs_cname, temp))
             code.putln("PyObject* item = PyTuple_GET_ITEM(%s, %s);" % (
                 Naming.args_cname, temp))
             code.put_incref("item", py_object_type)
@@ -3754,15 +3758,15 @@ class DefNodeWrapper(FuncDefNode):
                 compare = '!='
             else:
                 compare = '<'
-            code.putln('} else if (PyTuple_GET_SIZE(%s) %s %d) {' % (
-                Naming.args_cname, compare, min_positional_args))
+            code.putln('} else if (%s %s %d) {' % (
+                Naming.nargs_cname, compare, min_positional_args))
             code.put_goto(argtuple_error_label)
 
         if self.num_required_kw_args:
             # pure error case: keywords required but not passed
             if max_positional_args > min_positional_args and not self.star_arg:
-                code.putln('} else if (PyTuple_GET_SIZE(%s) > %d) {' % (
-                    Naming.args_cname, max_positional_args))
+                code.putln('} else if (%s > %d) {' % (
+                    Naming.nargs_cname, max_positional_args))
                 code.put_goto(argtuple_error_label)
             code.putln('} else {')
             for i, arg in enumerate(kw_only_args):
@@ -3788,7 +3792,7 @@ class DefNodeWrapper(FuncDefNode):
             else:
                 # parse the positional arguments from the variable length
                 # args tuple and reject illegal argument tuple sizes
-                code.putln('switch (PyTuple_GET_SIZE(%s)) {' % Naming.args_cname)
+                code.putln('switch (%s) {' % Naming.nargs_cname)
                 if self.star_arg:
                     code.putln('default:')
                 reversed_args = list(enumerate(positional_args))[::-1]
@@ -3827,10 +3831,10 @@ class DefNodeWrapper(FuncDefNode):
             code.put_label(argtuple_error_label)
             code.globalstate.use_utility_code(
                 UtilityCode.load_cached("RaiseArgTupleInvalid", "FunctionArguments.c"))
-            code.put('__Pyx_RaiseArgtupleInvalid("%s", %d, %d, %d, PyTuple_GET_SIZE(%s)); ' % (
+            code.put('__Pyx_RaiseArgtupleInvalid("%s", %d, %d, %d, %s); ' % (
                 self.name, has_fixed_positional_count,
                 min_positional_args, max_positional_args,
-                Naming.args_cname))
+                Naming.nargs_cname))
             code.putln(code.error_goto(self.pos))
 
     def generate_arg_assignment(self, arg, item, code):
@@ -3869,12 +3873,12 @@ class DefNodeWrapper(FuncDefNode):
             code.put_gotref(self.starstar_arg.entry.cname)
         if self.star_arg:
             self.star_arg.entry.xdecref_cleanup = 0
-            code.putln('if (PyTuple_GET_SIZE(%s) > %d) {' % (
-                Naming.args_cname,
+            code.putln('if (%s > %d) {' % (
+                Naming.nargs_cname,
                 max_positional_args))
-            code.putln('%s = PyTuple_GetSlice(%s, %d, PyTuple_GET_SIZE(%s));' % (
+            code.putln('%s = PyTuple_GetSlice(%s, %d, %s);' % (
                 self.star_arg.entry.cname, Naming.args_cname,
-                max_positional_args, Naming.args_cname))
+                max_positional_args, Naming.nargs_cname))
             code.putln("if (unlikely(!%s)) {" % self.star_arg.entry.cname)
             if self.starstar_arg:
                 code.put_decref_clear(self.starstar_arg.entry.cname, py_object_type)
@@ -3918,7 +3922,7 @@ class DefNodeWrapper(FuncDefNode):
                     num_required_posonly_args += 1
 
         code.putln('Py_ssize_t kw_args;')
-        code.putln('const Py_ssize_t pos_args = PyTuple_GET_SIZE(%s);' % Naming.args_cname)
+        code.putln('const Py_ssize_t pos_args = %s;' % Naming.nargs_cname)
         # copy the values from the args tuple and check that it's not too long
         code.putln('switch (pos_args) {')
         if self.star_arg:
