@@ -153,6 +153,14 @@ def create_cython_argparser():
     parser.add_argument("--no-c-in-traceback", dest='c_line_in_traceback', action='store_false', default=None, help=SUPPRESS)
     parser.add_argument("--cimport-from-pyx", dest='cimport_from_pyx', action='store_true', default=None, help=SUPPRESS)
     parser.add_argument("--old-style-globals", dest='old_style_globals', action='store_true', default=None, help=SUPPRESS)
+
+    # debug stuff:
+    from . import DebugFlags
+    for name in vars(DebugFlags):
+        if name.startswith("debug"):
+            option_name = name.replace('_', '-')
+            parser.add_argument("--" + option_name, action='store_true', default=None, help=SUPPRESS)
+
     return parser
 
 
@@ -176,10 +184,7 @@ def parse_command_line_raw(parser, args):
 
     # unknown can be either debug, embed or input files or really unknown
     for option in unknown:
-        if option.startswith('--debug'):
-            option = option[2:].replace('-', '_')
-            setattr(arguments, option, True)
-        elif option.startswith('-'):
+        if option.startswith('-'):
             parser.error("unknown option " + option)
         else:
             sources.append(option)
