@@ -115,8 +115,9 @@ def create_cython_argparser():
                       help='Produce #line directives pointing to the .pyx source')
     parser.add_argument("-+", "--cplus", dest='cplus', action='store_const', const=1,
                       help='Output a C++ rather than C file.')
-    parser.add_argument('--embed', nargs='?', const='main', type=str,
-                      help='Generate a main() function that embeds the Python interpreter.')
+    parser.add_argument('--embed', action='store_const', const='main',
+                      help='Generate a main() function that embeds the Python interpreter. '
+                           'Pass --embed=<method_name> for a name other than main().')
     parser.add_argument('-2', dest='language_level', action='store_const', const=2,
                       help='Compile based on Python-2 syntax and code semantics.')
     parser.add_argument('-3', dest='language_level', action='store_const', const=3,
@@ -156,12 +157,24 @@ def create_cython_argparser():
 
 
 def parse_command_line_raw(parser, args):
-    arguments, unknown = parser.parse_known_args(args)
+    # special handling for --embed and --embed=xxxx as they aren't correctly parsed
+    def filter_out_embed_options(args):
+        with_embed, without_embed = [], []
+        for x in args:
+            if x == '--embed' or x.startswith('--embed='):
+                with_embed.append(x)
+            else:
+                without_embed.append(x)
+        return with_embed, without_embed
+
+    with_embed, args_without_embed = filter_out_embed_options(args)
+
+    arguments, unknown = parser.parse_known_args(args_without_embed)
 
     sources = arguments.sources
     del arguments.sources
 
-    # unknown can be either debug or input files or really unknown
+    # unknown can be either debug, embed or input files or really unknown
     for option in unknown:
         if option.startswith('--debug'):
             option = option[2:].replace('-', '_')
@@ -170,6 +183,14 @@ def parse_command_line_raw(parser, args):
             parser.error("unknown option " + option)
         else:
             sources.append(option)
+
+    # embed-stuff must be handled extra:
+    for x in with_embed:
+        if x == '--embed':
+            name = 'main'  # default value
+        else:
+            name = x[len('--embed='):]
+        setattr(arguments, 'embed', name)
 
     return arguments, sources
 
