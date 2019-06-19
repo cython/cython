@@ -73,7 +73,7 @@ def create_cython_argparser():
     description = "Cython (https://cython.org/) is a compiler for code written in the "\
                   "Cython language.  Cython is based on Pyrex by Greg Ewing."
 
-    parser = ArgumentParser(description=description)
+    parser = ArgumentParser(description=description, argument_default=SUPPRESS)
 
     parser.add_argument("-V", "--version", dest='show_version', action='store_const', const=1,
                       help='Display version number of cython compiler')
@@ -102,7 +102,7 @@ def create_cython_argparser():
                       help='Output debug information for cygdb')
     parser.add_argument("--gdb-outdir", action=SetGDBDebugOutputAction, type=str,
                       help='Specify gdb debug information output directory. Implies --gdb.')
-    parser.add_argument("-D", "--no-docstrings", dest='docstrings', action='store_false', default=None,
+    parser.add_argument("-D", "--no-docstrings", dest='docstrings', action='store_false',
                       help='Strip docstrings from the compiled module.')
     parser.add_argument('-a', '--annotate', action='store_const', const='default', dest='annotate',
                       help='Produce a colorized HTML version of the source.')
@@ -111,7 +111,7 @@ def create_cython_argparser():
                            'which includes entire generated C/C++-code.')
     parser.add_argument("--annotate-coverage", dest='annotate_coverage_xml', action=SetAnnotateCoverageAction, type=str,
                       help='Annotate and include coverage information from cov.xml.')
-    parser.add_argument("--line-directives", dest='emit_linenums', action='store_true', default=None,
+    parser.add_argument("--line-directives", dest='emit_linenums', action='store_true',
                       help='Produce #line directives pointing to the .pyx source')
     parser.add_argument("-+", "--cplus", dest='cplus', action='store_const', const=1,
                       help='Output a C++ rather than C file.')
@@ -128,38 +128,38 @@ def create_cython_argparser():
     parser.add_argument("--lenient", action=SetLenientAction, nargs=0,
                       help='Change some compile time errors to runtime errors to '
                            'improve Python compatibility')
-    parser.add_argument("--capi-reexport-cincludes", dest='capi_reexport_cincludes', action='store_true', default=None,
+    parser.add_argument("--capi-reexport-cincludes", dest='capi_reexport_cincludes', action='store_true',
                       help='Add cincluded headers to any auto-generated header files.')
     parser.add_argument("--fast-fail", dest='fast_fail', action='store_true',
                       help='Abort the compilation on the first error')
-    parser.add_argument("-Werror", "--warning-errors", dest='warning_errors', action='store_true', default=None,
+    parser.add_argument("-Werror", "--warning-errors", dest='warning_errors', action='store_true',
                       help='Make all warnings into errors')
     parser.add_argument("-Wextra", "--warning-extra", action=ActivateAllWarningsAction, nargs=0,
                       help='Enable extra warnings')
 
     parser.add_argument('-X', '--directive', metavar='NAME=VALUE,...',
-                      dest='compiler_directives', default={}, type=str,
+                      dest='compiler_directives', type=str,
                       action=ParseDirectivesAction,
                       help='Overrides a compiler directive')
     parser.add_argument('-E', '--compile-time-env', metavar='NAME=VALUE,...',
-                      dest='compile_time_env', default={}, type=str,
+                      dest='compile_time_env', type=str,
                       action=ParseCompileTimeEnvAction,
                       help='Provides compile time env like DEF would do.')
-    parser.add_argument('sources', nargs='*')
+    parser.add_argument('sources', nargs='*', default=[])
 
     # TODO: add help
     parser.add_argument("-z", "--pre-import", dest='pre_import', action='store', type=str, help=SUPPRESS)
-    parser.add_argument("--convert-range", dest='convert_range', action='store_true', default=None, help=SUPPRESS)
-    parser.add_argument("--no-c-in-traceback", dest='c_line_in_traceback', action='store_false', default=None, help=SUPPRESS)
-    parser.add_argument("--cimport-from-pyx", dest='cimport_from_pyx', action='store_true', default=None, help=SUPPRESS)
-    parser.add_argument("--old-style-globals", dest='old_style_globals', action='store_true', default=None, help=SUPPRESS)
+    parser.add_argument("--convert-range", dest='convert_range', action='store_true', help=SUPPRESS)
+    parser.add_argument("--no-c-in-traceback", dest='c_line_in_traceback', action='store_false', help=SUPPRESS)
+    parser.add_argument("--cimport-from-pyx", dest='cimport_from_pyx', action='store_true', help=SUPPRESS)
+    parser.add_argument("--old-style-globals", dest='old_style_globals', action='store_true', help=SUPPRESS)
 
     # debug stuff:
     from . import DebugFlags
     for name in vars(DebugFlags):
         if name.startswith("debug"):
             option_name = name.replace('_', '-')
-            parser.add_argument("--" + option_name, action='store_true', default=None, help=SUPPRESS)
+            parser.add_argument("--" + option_name, action='store_true', help=SUPPRESS)
 
     return parser
 
@@ -206,8 +206,6 @@ def parse_command_line(args):
 
     options = Options.CompilationOptions(Options.default_options)
     for name, value in vars(arguments).items():
-        if value is None or value == {}:
-            continue
         if name.startswith('debug'):
             from . import DebugFlags
             if name in dir(DebugFlags):
