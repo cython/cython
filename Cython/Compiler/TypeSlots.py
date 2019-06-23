@@ -170,6 +170,17 @@ class Signature(object):
                 return [method_varargs, method_keywords]
         return None
 
+    def method_function_type(self):
+        # Return the C function type
+        mflags = self.method_flags()
+        kw = "WithKeywords" if (method_keywords in mflags) else ""
+        for m in mflags:
+            if m == method_noargs or m == method_onearg:
+                return "PyCFunction"
+            if m == method_varargs:
+                return "PyCFunction" + kw
+        return None
+
 
 class SlotDescriptor(object):
     #  Abstract base class for type slot descriptors.
