@@ -349,7 +349,6 @@ class Scope(object):
         self.defined_c_classes = []
         self.imported_c_classes = {}
         self.cname_to_entry = {}
-        self.string_to_entry = {}
         self.identifier_to_entry = {}
         self.num_to_entry = {}
         self.obj_to_entry = {}
@@ -1119,7 +1118,6 @@ class ModuleScope(Scope):
     # utility_code_list    [UtilityCode]      Queuing utility codes for forwarding to Code.py
     # c_includes           {key: IncludeCode} C headers or verbatim code to be generated
     #                                         See process_include() for more documentation
-    # string_to_entry      {string : Entry}   Map string const to entry
     # identifier_to_entry  {string : Entry}   Map identifier string const to entry
     # context              Context
     # parent_module        Scope              Parent in the import namespace
