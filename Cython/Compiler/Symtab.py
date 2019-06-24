@@ -907,8 +907,7 @@ class Scope(object):
             method = obj_type.scope.lookup("operator%s" % operator)
             if method is not None:
                 arg_types = [arg.type for arg in operands[1:]]
-                res = PyrexTypes.best_match([arg.type for arg in operands[1:]],
-                                            method.all_alternatives())
+                res = PyrexTypes.best_match(arg_types, method.all_alternatives())
                 if res is not None:
                     return res
         function = self.lookup("operator%s" % operator)
