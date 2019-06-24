@@ -295,9 +295,9 @@ Cython won't perform automatic ``Py_INCREF``, or ``Py_DECREF``, e.g.:
 
 will display::
 
-    Initial refcount: 3
-    Inside owned_reference: 4
-    Inside borrowed_reference: 3
+    Initial refcount: 2
+    Inside owned_reference: 3
+    Inside borrowed_reference: 2
 
 .. _optional_arguments:
 
