@@ -3518,7 +3518,7 @@ class DefNodeWrapper(FuncDefNode):
 
         # Assign nargs variable as len(args)
         if self.signature_has_generic_args():
-            code.putln("Py_ssize_t %s = PyTuple_GET_SIZE(%s);" %
+            code.putln("const Py_ssize_t %s = PyTuple_GET_SIZE(%s);" %
                     (Naming.nargs_cname, Naming.args_cname))
 
     def generate_argument_parsing_code(self, env, code):
@@ -3922,9 +3922,8 @@ class DefNodeWrapper(FuncDefNode):
                     num_required_posonly_args += 1
 
         code.putln('Py_ssize_t kw_args;')
-        code.putln('const Py_ssize_t pos_args = %s;' % Naming.nargs_cname)
         # copy the values from the args tuple and check that it's not too long
-        code.putln('switch (pos_args) {')
+        code.putln('switch (%s) {' % Naming.nargs_cname)
         if self.star_arg:
             code.putln('default:')
 
@@ -3972,7 +3971,7 @@ class DefNodeWrapper(FuncDefNode):
             if last_required_arg < max_positional_args:
                 last_required_arg = max_positional_args-1
             if max_positional_args > num_pos_only_args:
-                code.putln('switch (pos_args) {')
+                code.putln('switch (%s) {' % Naming.nargs_cname)
             for i, arg in enumerate(all_args[num_pos_only_args:last_required_arg+1], num_pos_only_args):
                 if max_positional_args > num_pos_only_args and i <= max_positional_args:
                     if i != num_pos_only_args:
@@ -4046,10 +4045,11 @@ class DefNodeWrapper(FuncDefNode):
             # pos-only arguments from the number of positional arguments we got.
             # If we get a negative number then none of the keyword arguments were
             # passed as positional args.
-            code.putln('const Py_ssize_t kwd_pos_args = (pos_args < %d) ? 0 : (pos_args - %d);' % (
-                num_pos_only_args, num_pos_only_args))
+            code.putln('Py_ssize_t kwd_pos_args = %s - %d;' % (
+                Naming.nargs_cname, num_pos_only_args))
+            code.putln('if (unlikely(kwd_pos_args < 0)) kwd_pos_args = 0;')
         elif max_positional_args > 0:
-            code.putln('const Py_ssize_t kwd_pos_args = pos_args;')
+            code.putln('const Py_ssize_t kwd_pos_args = %s;' % Naming.nargs_cname)
 
         if max_positional_args == 0:
             pos_arg_count = "0"
