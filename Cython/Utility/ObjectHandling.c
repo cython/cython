@@ -1822,12 +1822,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCall_fallback(PyObject *func, 
 }
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCall(PyObject *func, PyObject **args, Py_ssize_t nargs) {
-    #if CYTHON_VECTORCALL
-    vectorcallfunc f = _PyVectorcall_Function(func);
-    if (f) {
-        return f(func, args, nargs, NULL);
-    }
-    #else
+    #if PY_VERSION_HEX < 0x030800B1
     #if CYTHON_FAST_PYCCALL && PY_VERSION_HEX >= 0x030700A1
     if (PyCFunction_Check(func)) {
         return _PyCFunction_FastCallKeywords(func, args, nargs, NULL);
@@ -1845,6 +1840,13 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCall(PyObject *func, PyObject 
         return __Pyx_PyFunction_FastCall(func, args, nargs);
     }
     #endif
+    #endif
+
+    #if CYTHON_VECTORCALL
+    vectorcallfunc f = _PyVectorcall_Function(func);
+    if (f) {
+        return f(func, args, nargs, NULL);
+    }
     #endif
 
     if (nargs == 0) {
@@ -2195,12 +2197,14 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObjec
 //@requires: PyObjectFastCall
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObject *arg) {
+#if CYTHON_COMPILING_IN_CPYTHON
     if (PyCFunction_Check(func)) {
         if (likely(PyCFunction_GET_FLAGS(func) & METH_O)) {
             // fast and simple case that we are optimising for
             return __Pyx_PyObject_CallMethO(func, arg);
         }
     }
+#endif
     return __Pyx_PyObject_FastCall(func, &arg, 1);
 }
 
@@ -2209,18 +2213,14 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObjec
 //@requires: PyObjectCall
 //@substitute: naming
 
-#if CYTHON_COMPILING_IN_CPYTHON
 static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func); /*proto*/
-#else
-#define __Pyx_PyObject_CallNoArg(func) __Pyx_PyObject_Call(func, $empty_tuple, NULL)
-#endif
 
 /////////////// PyObjectCallNoArg ///////////////
 //@requires: PyObjectCallMethO
 //@requires: PyObjectFastCall
 
-#if CYTHON_COMPILING_IN_CPYTHON
 static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func) {
+#if CYTHON_COMPILING_IN_CPYTHON
 #ifdef __Pyx_CyFunction_USED
     if (PyCFunction_Check(func) || __Pyx_CyFunction_Check(func))
 #else
@@ -2232,9 +2232,9 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func) {
             return __Pyx_PyObject_CallMethO(func, NULL);
         }
     }
+#endif
     return __Pyx_PyObject_FastCall(func, NULL, 0);
 }
-#endif
 
 
 /////////////// MatrixMultiply.proto ///////////////
