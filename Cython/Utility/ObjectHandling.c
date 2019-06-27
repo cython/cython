@@ -1803,6 +1803,7 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCall(PyObject *func, PyObject 
 /////////////// PyObjectFastCall ///////////////
 //@requires: PyObjectCall
 //@requires: PyFunctionFastCall
+//@requires: PyObjectCallMethO
 //@substitute: naming
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCall_fallback(PyObject *func, PyObject **args, Py_ssize_t nargs) {
@@ -1822,6 +1823,33 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCall_fallback(PyObject *func, 
 }
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_FastCall(PyObject *func, PyObject **args, Py_ssize_t nargs) {
+    // Special fast paths for 0 and 1 arguments
+    // NOTE: in many cases, this is called with a constant value for nargs
+    // which is known at compile-time. So the branches below will typically
+    // be optimized away.
+#if CYTHON_COMPILING_IN_CPYTHON
+    if (nargs == 0) {
+#ifdef __Pyx_CyFunction_USED
+        if (PyCFunction_Check(func) || __Pyx_CyFunction_Check(func))
+#else
+        if (PyCFunction_Check(func))
+#endif
+        {
+            if (likely(PyCFunction_GET_FLAGS(func) & METH_NOARGS)) {
+                return __Pyx_PyObject_CallMethO(func, NULL);
+            }
+        }
+    }
+    else if (nargs == 1) {
+        if (PyCFunction_Check(func))
+        {
+            if (likely(PyCFunction_GET_FLAGS(func) & METH_O)) {
+                return __Pyx_PyObject_CallMethO(func, args[0]);
+            }
+        }
+    }
+#endif
+
     #if PY_VERSION_HEX < 0x030800B1
     #if CYTHON_FAST_PYCCALL && PY_VERSION_HEX >= 0x030700A1
     if (PyCFunction_Check(func)) {
@@ -2193,46 +2221,21 @@ static CYTHON_UNUSED PyObject* __Pyx_PyObject_Call2Args(PyObject* function, PyOb
 static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObject *arg); /*proto*/
 
 /////////////// PyObjectCallOneArg ///////////////
-//@requires: PyObjectCallMethO
 //@requires: PyObjectFastCall
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_CallOneArg(PyObject *func, PyObject *arg) {
-#if CYTHON_COMPILING_IN_CPYTHON
-    if (PyCFunction_Check(func)) {
-        if (likely(PyCFunction_GET_FLAGS(func) & METH_O)) {
-            // fast and simple case that we are optimising for
-            return __Pyx_PyObject_CallMethO(func, arg);
-        }
-    }
-#endif
     return __Pyx_PyObject_FastCall(func, &arg, 1);
 }
 
 
 /////////////// PyObjectCallNoArg.proto ///////////////
-//@requires: PyObjectCall
-//@substitute: naming
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func); /*proto*/
 
 /////////////// PyObjectCallNoArg ///////////////
-//@requires: PyObjectCallMethO
 //@requires: PyObjectFastCall
 
 static CYTHON_INLINE PyObject* __Pyx_PyObject_CallNoArg(PyObject *func) {
-#if CYTHON_COMPILING_IN_CPYTHON
-#ifdef __Pyx_CyFunction_USED
-    if (PyCFunction_Check(func) || __Pyx_CyFunction_Check(func))
-#else
-    if (PyCFunction_Check(func))
-#endif
-    {
-        if (likely(PyCFunction_GET_FLAGS(func) & METH_NOARGS)) {
-            // fast and simple case that we are optimising for
-            return __Pyx_PyObject_CallMethO(func, NULL);
-        }
-    }
-#endif
     return __Pyx_PyObject_FastCall(func, NULL, 0);
 }
 

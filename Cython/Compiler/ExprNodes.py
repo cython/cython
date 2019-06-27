@@ -6039,10 +6039,8 @@ class PyMethodCallNode(SimpleCallNode):
 
         self_arg = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
         code.putln("%s = NULL;" % self_arg)
-        arg_offset_cname = None
-        if len(args) > 1:
-            arg_offset_cname = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
-            code.putln("%s = 0;" % arg_offset_cname)
+        arg_offset_cname = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
+        code.putln("%s = 0;" % arg_offset_cname)
 
         def attribute_is_likely_method(attr):
             obj = attr.obj
@@ -6075,51 +6073,25 @@ class PyMethodCallNode(SimpleCallNode):
         code.put_incref("function", py_object_type)
         # free method object as early to possible to enable reuse from CPython's freelist
         code.put_decref_set(function, "function")
-        if len(args) > 1:
-            code.putln("%s = 1;" % arg_offset_cname)
+        code.putln("%s = 1;" % arg_offset_cname)
         code.putln("}")
         code.putln("}")
 
-        # Call function with known number of arguments, special-casing 0 and 1
-        # arguments.
+        # actually call the function
+        code.globalstate.use_utility_code(
+            UtilityCode.load_cached("PyObjectFastCall", "ObjectHandling.c"))
+
         code.putln("{")
-        if not args:
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("PyObjectCallNoArg", "ObjectHandling.c"))
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("PyObjectCallOneArg", "ObjectHandling.c"))
-            code.putln(
-                "%s = (%s) ? __Pyx_PyObject_CallOneArg(%s, %s) : __Pyx_PyObject_CallNoArg(%s);" % (
-                    self.result(), self_arg,
-                    function, self_arg,
-                    function))
-        elif len(args) == 1:
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("PyObjectCall2Args", "ObjectHandling.c"))
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("PyObjectCallOneArg", "ObjectHandling.c"))
-            arg = args[0]
-            code.putln(
-                "%s = (%s) ? __Pyx_PyObject_Call2Args(%s, %s, %s) : __Pyx_PyObject_CallOneArg(%s, %s);" % (
-                    self.result(), self_arg,
-                    function, self_arg, arg.py_result(),
-                    function, arg.py_result()))
-        else:
-            code.globalstate.use_utility_code(
-                UtilityCode.load_cached("PyObjectFastCall", "ObjectHandling.c"))
-
-            code.putln("PyObject *%s[%d] = {%s, %s};" % (
-                Naming.quick_temp_cname,
-                len(args)+1,
-                self_arg,
-                ', '.join(arg.py_result() for arg in args)))
-            code.putln("%s = __Pyx_PyObject_FastCall(%s, %s+1-%s, %d+%s);" % (
-                self.result(),
-                function,
-                Naming.quick_temp_cname,
-                arg_offset_cname,
-                len(args),
-                arg_offset_cname))
+        code.putln("PyObject *__pyx_callargs[%d] = {%s, %s};" % (
+            len(args)+1,
+            self_arg,
+            ', '.join(arg.py_result() for arg in args)))
+        code.putln("%s = __Pyx_PyObject_FastCall(%s, __pyx_callargs+1-%s, %d+%s);" % (
+            self.result(),
+            function,
+            arg_offset_cname,
+            len(args),
+            arg_offset_cname))
 
         code.put_xdecref_clear(self_arg, py_object_type)
         code.funcstate.release_temp(self_arg)
@@ -6135,7 +6107,6 @@ class PyMethodCallNode(SimpleCallNode):
         else:
             code.put_decref_clear(function, py_object_type)
             code.funcstate.release_temp(function)
-
         code.putln("}")
 
 
