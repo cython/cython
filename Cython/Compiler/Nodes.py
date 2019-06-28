@@ -5034,10 +5034,10 @@ class CClassDefNode(ClassDefNode):
                     readyfunc,
                     typeobj_cname,
                     code.error_goto(entry.pos)))
-            # Don't inherit tp_print from builtin types, restoring the
+            # Don't inherit tp_print from builtin types in Python 2, restoring the
             # behavior of using tp_repr or tp_str instead.
             # ("tp_print" was renamed to "tp_vectorcall_offset" in Py3.8b1)
-            code.putln("#if PY_VERSION_HEX < 0x030800B1")
+            code.putln("#if PY_MAJOR_VERSION < 3")
             code.putln("%s.tp_print = 0;" % typeobj_cname)
             code.putln("#endif")
 
