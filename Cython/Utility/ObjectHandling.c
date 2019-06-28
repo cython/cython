@@ -433,7 +433,12 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, 
         PySequenceMethods *sm = Py_TYPE(o)->tp_as_sequence;
         if (mm && mm->mp_subscript) {
             PyObject *key = PyInt_FromSsize_t(i);
-            return likely(key) ? mm->mp_subscript(o, key) : NULL;
+            if (unlikely(!key)) {
+                return NULL;
+            }
+            PyObject *r = mm->mp_subscript(o, key);
+            Py_DECREF(key);
+            return r;
         }
         if (likely(sm && sm->sq_item)) {
             if (wraparound && unlikely(i < 0) && likely(sm->sq_length)) {
@@ -498,7 +503,12 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
         PySequenceMethods *sm = Py_TYPE(o)->tp_as_sequence;
         if (mm && mm->mp_ass_subscript) {
             PyObject *key = PyInt_FromSsize_t(i);
-            return likely(key) ? mm->mp_ass_subscript(o, key, v) : -1;
+            if (unlikely(!key)) {
+                return -1;
+            }
+            int r = mm->mp_ass_subscript(o, key, v);
+            Py_DECREF(key);
+            return r;
         }
         if (likely(sm && sm->sq_ass_item)) {
             if (wraparound && unlikely(i < 0) && likely(sm->sq_length)) {
