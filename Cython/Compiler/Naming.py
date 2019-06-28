@@ -67,6 +67,7 @@ interned_prefixes = {
 
 ctuple_type_prefix = pyrex_prefix + "ctuple_"
 args_cname       = pyrex_prefix + "args"
+nargs_cname      = pyrex_prefix + "nargs"
 generator_cname  = pyrex_prefix + "generator"
 sent_value_cname = pyrex_prefix + "sent_value"
 pykwdlist_cname  = pyrex_prefix + "pyargnames"
