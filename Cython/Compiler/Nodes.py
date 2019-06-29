@@ -4045,9 +4045,10 @@ class DefNodeWrapper(FuncDefNode):
             # pos-only arguments from the number of positional arguments we got.
             # If we get a negative number then none of the keyword arguments were
             # passed as positional args.
-            code.putln('Py_ssize_t kwd_pos_args = %s - %d;' % (
-                Naming.nargs_cname, num_pos_only_args))
-            code.putln('if (unlikely(kwd_pos_args < 0)) kwd_pos_args = 0;')
+            code.putln('const Py_ssize_t kwd_pos_args = (unlikely(%s < %d)) ? 0 : %s - %d;' % (
+                Naming.nargs_cname, num_pos_only_args,
+                Naming.nargs_cname, num_pos_only_args,
+            ))
         elif max_positional_args > 0:
             code.putln('const Py_ssize_t kwd_pos_args = %s;' % Naming.nargs_cname)
 
