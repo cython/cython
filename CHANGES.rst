@@ -8,17 +8,23 @@ Cython Changelog
 Bugs fixed
 ----------
 
+* Fix compile error in CPython 3.8b2.
+  Patch by Nick Coghlan. (Github issue #3009)
+
 * Invalid C code generated for lambda functions in cdef methods.
   Patch by Josh Tobin.  (Github issue #2967)
 
 * Support slice handling in newer Pythran versions.
-  (Github issue #2989)
+  Patch by Serge Guelton.  (Github issue #2989)
+
+* A reference leak in power-of-2 calculation was fixed.
+  Patch by Sebastian Berg.  (Github issue #3022)
 
 * The search order for include files was changed. Previously it was
   ``include_directories``, ``Cython/Includes``, ``sys.path``. Now it is
   ``include_directories``, ``sys.path``, ``Cython/Includes``. This was done to
   allow third-party ``*.pxd`` files to override the ones in Cython.
-  (Github issue #2905)
+  Original patch by Matti Picus.  (Github issue #2905)
 
 
 0.29.10 (2019-06-02)
