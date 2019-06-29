@@ -432,11 +432,9 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, 
         PyMappingMethods *mm = Py_TYPE(o)->tp_as_mapping;
         PySequenceMethods *sm = Py_TYPE(o)->tp_as_sequence;
         if (mm && mm->mp_subscript) {
-            PyObject *key = PyInt_FromSsize_t(i);
-            if (unlikely(!key)) {
-                return NULL;
-            }
-            PyObject *r = mm->mp_subscript(o, key);
+            PyObject *r, *key = PyInt_FromSsize_t(i);
+            if (unlikely(!key)) return NULL;
+            r = mm->mp_subscript(o, key);
             Py_DECREF(key);
             return r;
         }
@@ -502,11 +500,10 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
         PyMappingMethods *mm = Py_TYPE(o)->tp_as_mapping;
         PySequenceMethods *sm = Py_TYPE(o)->tp_as_sequence;
         if (mm && mm->mp_ass_subscript) {
+            int r;
             PyObject *key = PyInt_FromSsize_t(i);
-            if (unlikely(!key)) {
-                return -1;
-            }
-            int r = mm->mp_ass_subscript(o, key, v);
+            if (unlikely(!key)) return -1;
+            mm->mp_ass_subscript(o, key, v);
             Py_DECREF(key);
             return r;
         }
