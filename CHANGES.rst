@@ -174,6 +174,10 @@ Bugs fixed
   allow third-party ``*.pxd`` files to override the ones in Cython.
   Original patch by Matti Picus.  (Github issue #2905)
 
+* Setting ``language_level=2`` in a file did not work if ``language_level=3``
+  was enabled globally before.
+  Patch by Jeroen Demeyer.  (Github issue #2791)
+
 
 0.29.10 (2019-06-02)
 ====================
