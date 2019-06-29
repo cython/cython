@@ -685,9 +685,11 @@ static PyObject* __Pyx__PyNumber_PowerOf2(PyObject *two, PyObject *exp, PyObject
             return PyLong_FromUnsignedLongLong(value);
 #endif
         } else {
-            PyObject *one = PyInt_FromLong(1L);
+            PyObject *result, *one = PyInt_FromLong(1L);
             if (unlikely(!one)) return NULL;
-            return PyNumber_Lshift(one, exp);
+            result = PyNumber_Lshift(one, exp);
+            Py_DECREF(one);
+            return result;
         }
     } else if (shiftby == -1 && PyErr_Occurred()) {
         PyErr_Clear();
