@@ -503,7 +503,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
             int r;
             PyObject *key = PyInt_FromSsize_t(i);
             if (unlikely(!key)) return -1;
-            mm->mp_ass_subscript(o, key, v);
+            r = mm->mp_ass_subscript(o, key, v);
             Py_DECREF(key);
             return r;
         }
