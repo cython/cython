@@ -348,6 +348,7 @@ cdef class memoryview(object):
         if type(self) is memoryview or obj is not None:
             __Pyx_GetBuffer(obj, &self.view, flags)
             if <PyObject *> self.view.obj == NULL:
+                # This could path should never be taken?
                 (<__pyx_buffer *> &self.view).obj = Py_None
                 Py_INCREF(Py_None)
 
@@ -372,6 +373,9 @@ cdef class memoryview(object):
     def __dealloc__(memoryview self):
         if self.obj is not None:
             __Pyx_ReleaseBuffer(&self.view)
+        else:
+            assert <PyObject *> self.view.obj == Py_None
+            Py_DECREF(<PyObject *> self.view.obj)
 
         cdef int i
         global __pyx_memoryview_thread_locks_used
