@@ -3518,8 +3518,8 @@ class DefNodeWrapper(FuncDefNode):
 
         # Assign nargs variable as len(args), but avoid an "unused" warning in the few cases where we don't need it.
         if self.signature_has_generic_args():
-            code.putln("const Py_ssize_t %s = PyTuple_GET_SIZE(%s); (void)%s;" % (
-                Naming.nargs_cname, Naming.args_cname, Naming.nargs_cname))
+            code.putln("CYTHON_UNUSED const Py_ssize_t %s = PyTuple_GET_SIZE(%s);" % (
+                Naming.nargs_cname, Naming.args_cname))
 
     def generate_argument_parsing_code(self, env, code):
         # Generate fast equivalent of PyArg_ParseTuple call for
