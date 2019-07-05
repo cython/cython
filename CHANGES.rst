@@ -150,13 +150,29 @@ Other changes
 * Support for Python 2.6 was removed.
 
 
+0.29.12 (2019-07-??)
+====================
+
+Bugs fixed
+----------
+
+* Fix compile error in CPython 3.8b2 regarding the ``PyCode_New()`` signature.
+  (Github issue #3031)
+
+* Fix a C compiler warning about a missing ``int`` downcast.
+  (Github issue #3028)
+
+* Fix reported error positions of undefined builtins and constants.
+  Patch by Orivej Desh.  (Github issue #3030)
+
+
 0.29.11 (2019-06-30)
 ====================
 
 Bugs fixed
 ----------
 
-* Fix compile error in CPython 3.8b2.
+* Fix compile error in CPython 3.8b2 regarding the ``PyCode_New()`` signature.
   Patch by Nick Coghlan. (Github issue #3009)
 
 * Invalid C code generated for lambda functions in cdef methods.
