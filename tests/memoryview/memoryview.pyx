@@ -702,8 +702,7 @@ def assign_temporary_to_object(object[:] mslice):
 def test_pyview_of_memview(int[:] ints):
     """
     >>> A = IntMockBuffer(None, [1, 2, 3])
-    >>> view = test_pyview_of_memview(A)
-    >>> len(memoryview(view))
+    >>> len(test_pyview_of_memview(A))
     3
     """
     return ints
