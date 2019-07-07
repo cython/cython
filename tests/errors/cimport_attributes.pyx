@@ -1,4 +1,5 @@
 # mode: error
+# tag: cpp
 
 
 cimport libcpp
@@ -24,8 +25,8 @@ print my_map_with_shadow.python_attribute   # OK (if such a module existed at ru
 
 
 _ERRORS = u"""
-5:12: cimported module has no attribute 'no_such_attribute'
-8:16: cimported module has no attribute 'no_such_attribute'
-11:12: cimported module has no attribute 'no_such_attribute'
-14:15: cimported module has no attribute 'no_such_attribute'
+6:12: cimported module has no attribute 'no_such_attribute'
+9:16: cimported module has no attribute 'no_such_attribute'
+12:12: cimported module has no attribute 'no_such_attribute'
+15:15: cimported module has no attribute 'no_such_attribute'
 """
