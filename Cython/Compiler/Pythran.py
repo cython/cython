@@ -43,7 +43,7 @@ def pythran_type(Ty, ptype="ndarray"):
         if pythran_is_pre_0_9:
             return "pythonic::types::%s<%s,%d>" % (ptype,ctype, ndim)
         else:
-            return "pythonic::types::%s<%s,pythonic::types::pshape<%s>>" % (ptype,ctype, ",".join(("Py_ssize_t",)*ndim))
+            return "pythonic::types::%s<%s,pythonic::types::pshape<%s>>" % (ptype,ctype, ",".join(("long",)*ndim))
     if Ty.is_pythran_expr:
         return Ty.pythran_type
     #if Ty.is_none:
