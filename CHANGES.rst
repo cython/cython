@@ -150,7 +150,7 @@ Other changes
 * Support for Python 2.6 was removed.
 
 
-0.29.12 (2019-07-??)
+0.29.12 (2019-07-07)
 ====================
 
 Bugs fixed
@@ -164,6 +164,9 @@ Bugs fixed
 
 * Fix reported error positions of undefined builtins and constants.
   Patch by Orivej Desh.  (Github issue #3030)
+
+* A 32 bit issue in the Pythran support was resolved.
+  Patch by Serge Guelton.  (Github issue #3032)
 
 
 0.29.11 (2019-06-30)
