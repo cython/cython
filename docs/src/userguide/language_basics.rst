@@ -288,6 +288,17 @@ In the interests of clarity, it is probably a good idea to always be explicit
 about object parameters in C functions.
 
 
+To create a borrowed reference, specify the parameter type as ``PyObject*``.
+Cython won't perform automatic ``Py_INCREF``, or ``Py_DECREF``, e.g.:
+
+.. literalinclude:: ../../examples/userguide/language_basics/parameter_refcount.pxd
+
+will display::
+
+    Initial refcount: 2
+    Inside owned_reference: 3
+    Inside borrowed_reference: 2
+
 .. _optional_arguments:
 
 Optional Arguments
@@ -578,6 +589,10 @@ Here is an example:
 .. literalinclude:: ../../examples/userguide/language_basics/casting_python.pyx
 
 The precedence of ``<...>`` is such that ``<type>a.b.c`` is interpreted as ``<type>(a.b.c)``.
+
+Casting to ``<object>`` creates an owned reference. Cython will automatically
+perform a ``Py_INCREF`` and ``Py_DECREF`` operation. Casting to
+``<PyObject *>`` creates a borrowed reference, leaving the refcount unchanged.
 
 .. _checked_type_casts:
 
