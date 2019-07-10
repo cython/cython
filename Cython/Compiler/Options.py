@@ -58,8 +58,12 @@ pre_import = None
 
 #: Decref global variables in each module on exit for garbage collection.
 #: 0: None, 1+: interned objects, 2+: cdef globals, 3+: types objects
-#: Mostly for reducing noise in Valgrind, only executes at process exit
+#: Mostly for reducing noise in Valgrind as it typically executes at process exit
 #: (when all memory will be reclaimed anyways).
+#: Note that directly or indirectly executed cleanup code that makes use of global
+#: variables or types may no longer be safe when enabling the respective level since
+#: there is no guaranteed order in which the (reference counted) objects will
+#: be cleaned up.  The order can change due to live references and reference cycles.
 generate_cleanup_code = False
 
 #: Should tp_clear() set object fields to None instead of clearing them to NULL?
