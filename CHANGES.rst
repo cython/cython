@@ -150,6 +150,25 @@ Other changes
 * Support for Python 2.6 was removed.
 
 
+0.29.13 (2019-0?-??)
+====================
+
+Bugs fixed
+----------
+
+* A reference leak for ``None`` was fixed when converting a memoryview
+  to a Python object.  (Github issue #3023)
+
+* The declaration of ``PyGILState_STATE`` in ``cpython.pystate`` was unusable.
+  Patch by Kirill Smelkov.  (Github issue #2997)
+
+Other changes
+-------------
+
+* The declarations in ``posix.mman`` were extended.
+  Patches by Kirill Smelkov.  (Github issues #2893, #2894, #3012)
+
+
 0.29.12 (2019-07-07)
 ====================
 
