@@ -7,6 +7,40 @@
 
 #include <string>
 
+
+//////////////////// ssize_strlen.proto ////////////////////
+
+static CYTHON_INLINE Py_ssize_t __Pyx_ssize_strlen(const char *s);/*proto*/
+
+//////////////////// ssize_strlen ////////////////////
+//@requires: IncludeStringH
+
+static CYTHON_INLINE Py_ssize_t __Pyx_ssize_strlen(const char *s) {
+    size_t len = strlen(s);
+    if (unlikely(len > PY_SSIZE_T_MAX)) {
+        PyErr_SetString(PyExc_OverflowError, "byte string is too long");
+        return -1;
+    }
+    return (Py_ssize_t) len;
+}
+
+
+//////////////////// ssize_pyunicode_strlen.proto ////////////////////
+
+static CYTHON_INLINE Py_ssize_t __Pyx_Py_UNICODE_ssize_strlen(const Py_UNICODE *u);/*proto*/
+
+//////////////////// ssize_pyunicode_strlen ////////////////////
+
+static CYTHON_INLINE Py_ssize_t __Pyx_Py_UNICODE_ssize_strlen(const Py_UNICODE *u) {
+    size_t len = __Pyx_Py_UNICODE_strlen(u);
+    if (unlikely(len > PY_SSIZE_T_MAX)) {
+        PyErr_SetString(PyExc_OverflowError, "Py_UNICODE string is too long");
+        return -1;
+    }
+    return (Py_ssize_t) len;
+}
+
+
 //////////////////// InitStrings.proto ////////////////////
 
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t); /*proto*/
