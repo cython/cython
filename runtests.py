@@ -916,13 +916,17 @@ class CythonCompileTestCase(unittest.TestCase):
                 shutil.rmtree(self.workdir, ignore_errors=True)
             else:
                 for rmfile in os.listdir(self.workdir):
+                    ext = os.path.splitext(rmfile)[1]
                     if not cleanup_c_files:
-                        if (rmfile[-2:] in (".c", ".h") or
-                                rmfile[-4:] == ".cpp" or
-                                rmfile.endswith(".html") and rmfile.startswith(self.module)):
+                        # Keep C, C++ files, header files, preprocessed sources
+                        # and assembly sources (typically the .i and .s files
+                        # are intentionally generated when -save-temps is given)
+                        if ext in (".c", ".cpp", ".h", ".i", ".ii", ".s"):
+                            continue
+                        if ext == ".html" and rmfile.startswith(self.module):
                             continue
 
-                    is_shared_obj = rmfile.endswith(".so") or rmfile.endswith(".dll")
+                    is_shared_obj = ext in (".so", ".dll")
 
                     if not cleanup_lib_files and is_shared_obj:
                         continue
