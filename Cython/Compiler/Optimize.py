@@ -2607,7 +2607,7 @@ class OptimizeBuiltinCalls(Visitor.NodeRefCleanupMixin,
                 is_temp = node.is_temp)
         elif arg.type.is_memoryviewslice:
             func_type = PyrexTypes.CFuncType(
-                PyrexTypes.c_size_t_type, [
+                PyrexTypes.c_py_ssize_t_type, [
                     PyrexTypes.CFuncTypeArg("memoryviewslice", arg.type, None)
                 ], nogil=True)
             new_node = ExprNodes.PythonCapiCallNode(
