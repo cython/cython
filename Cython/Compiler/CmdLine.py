@@ -42,31 +42,31 @@ class ActivateAllWarningsAction(Action):
     def __call__(self, parser, namespace, values, option_string=None):
         directives = getattr(namespace, 'compiler_directives', {})
         directives.update(Options.extra_warnings)
-        setattr(namespace, 'compiler_directives', directives)
+        namespace.compiler_directives = directives
 
 
 class SetLenientAction(Action):
     def __call__(self, parser, namespace, values, option_string=None):
-        setattr(namespace, 'error_on_unknown_names', False)
-        setattr(namespace, 'error_on_uninitialized', False)
+        namespace.error_on_unknown_names = False
+        namespace.error_on_uninitialized = False
 
 
 class SetGDBDebugAction(Action):
     def __call__(self, parser, namespace, values, option_string=None):
-        setattr(namespace, 'gdb_debug', True)
-        setattr(namespace, 'output_dir', os.curdir)
+        namespace.gdb_debug = True
+        namespace.output_dir = os.curdir
 
 
 class SetGDBDebugOutputAction(Action):
     def __call__(self, parser, namespace, values, option_string=None):
-        setattr(namespace, 'gdb_debug', True)
-        setattr(namespace, 'output_dir', values)
+        namespace.gdb_debug = True
+        namespace.output_dir = values
 
 
 class SetAnnotateCoverageAction(Action):
     def __call__(self, parser, namespace, values, option_string=None):
-        setattr(namespace, 'annotate', True)
-        setattr(namespace, 'annotate_coverage_xml', values)
+        namespace.annotate = True
+        namespace.annotate_coverage_xml = values
 
 
 def create_cython_argparser():
