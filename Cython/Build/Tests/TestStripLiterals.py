@@ -51,6 +51,10 @@ class TestStripLiterals(CythonTest):
         self.t("include 'a.pxi' # something here",
                "include '_L1_' #_L2_")
 
+    def test_include_once(self):
+        self.t("include_once 'a.pxi' # something here",
+               "include_once '_L1_' #_L2_")
+
     def test_extern(self):
         self.t("cdef extern from 'a.h': # comment",
                "cdef extern from '_L1_': #_L2_")

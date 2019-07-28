@@ -1,0 +1,38 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import test"
+
+######## setup.py ########
+
+from distutils.core import setup
+from Cython.Build.Dependencies import cythonize
+
+setup(name="test", ext_modules=cythonize("test.pyx"))
+
+######## test.pyx ########
+include_once "include/a.pxi"
+include "include/b/b.pxi"
+include_once "include/recursive.pxi"
+
+assert (A)
+assert (B)
+assert (RECURSIVE)
+assert (GLOBAL_COUNTER == 1)
+
+######## include/inc.pxi ########
+try:
+    GLOBAL_COUNTER += 1
+except NameError:
+    GLOBAL_COUNTER = 1
+
+######## include/a.pxi ########
+include_once "inc.pxi"
+A = True
+
+######## include/b/b.pxi ########
+include_once "../inc.pxi"
+B = True
+
+######## include/recursive.pxi ########
+include_once "inc.pxi"
+include_once "recursive.pxi"
+RECURSIVE = True
