@@ -28,6 +28,12 @@ PACKAGE_FILES = ("__init__.py", "__init__.pyc", "__init__.pyx", "__init__.pxd")
 modification_time = os.path.getmtime
 
 _function_caches = []
+_cache_uncomputed = object()
+_cache_in_call = object()
+
+
+class CacheRecursionError(Exception):
+    pass
 
 
 def clear_function_caches():
@@ -38,12 +44,14 @@ def clear_function_caches():
 def cached_function(f):
     cache = {}
     _function_caches.append(cache)
-    uncomputed = object()
 
     def wrapper(*args):
-        res = cache.get(args, uncomputed)
-        if res is uncomputed:
+        res = cache.get(args, _cache_uncomputed)
+        if res is _cache_uncomputed:
+            cache[args] = _cache_in_call
             res = cache[args] = f(*args)
+        elif res is _cache_in_call:
+            raise CacheRecursionError()
         return res
 
     wrapper.uncached = f
@@ -58,9 +66,13 @@ def cached_method(f):
         if cache is None:
             cache = {}
             setattr(self, cache_name, cache)
-        if args in cache:
-            return cache[args]
-        res = cache[args] = f(self, *args)
+
+        res = cache.get(args, _cache_uncomputed)
+        if res is _cache_uncomputed:
+            cache[args] = _cache_in_call
+            res = cache[args] = f(self, *args)
+        elif res is _cache_in_call:
+            raise CacheRecursionError()
         return res
 
     return wrapper

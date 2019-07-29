@@ -43,8 +43,9 @@ except:
     pythran = None
 
 from .. import Utils
-from ..Utils import (cached_function, cached_method, path_exists,
-    safe_makedirs, copy_file_to_dir_if_newer, is_package_dir, replace_suffix)
+from ..Utils import (CacheRecursionError, cached_function, cached_method,
+    path_exists, safe_makedirs, copy_file_to_dir_if_newer, is_package_dir,
+    replace_suffix)
 from ..Compiler.Main import Context
 from ..Compiler.Options import CompilationOptions, default_options
 
@@ -537,7 +538,10 @@ class DependencyTree(object):
                 if '.' + os.path.sep in include_path:
                     include_path = os.path.normpath(include_path)
                 all.add(include_path)
-                all.update(self.included_files(include_path))
+                try:
+                    all.update(self.included_files(include_path))
+                except CacheRecursionError:
+                    pass
             elif not self.quiet:
                 print("Unable to locate '%s' referenced from '%s'" % (filename, include))
         return all
@@ -551,7 +555,10 @@ class DependencyTree(object):
         externs = set(externs)
         incdirs = set()
         for include in self.included_files(filename):
-            included_cimports, included_externs, included_incdirs = self.cimports_externs_incdirs(include)
+            try:
+                included_cimports, included_externs, included_incdirs = self.cimports_externs_incdirs(include)
+            except CacheRecursionError:
+                continue
             cimports.update(included_cimports)
             externs.update(included_externs)
             incdirs.update(included_incdirs)
