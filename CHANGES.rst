@@ -64,6 +64,8 @@ Features added
 
 * The ``@cython.binding`` decorator is available in Python code.
 
+* Add ``include_once`` statement (Github issue #3057).
+
 Bugs fixed
 ----------
 
